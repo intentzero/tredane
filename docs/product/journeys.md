@@ -120,12 +120,12 @@
 - **Resultado:** manutenção rastreável, sem substituir a identidade real do actor nem usar impersonação do Clerk.
 - **Requisitos:** REQ-003/005/006/007/040.
 
-## JRN-15 — MFA por papel com memberships multi-tenant
+## JRN-15 — Sessão Clerk sem MFA no MVP
 
-- **Confirmado:** MFA necessário para `superadmin` e `owner`, opcional para `attendant` (DEC-027).
-- **Fluxo:** pessoa owner em A e attendant em B entra no Clerk sem MFA → pode usar B como attendant → ao abrir A como owner deve configurar/comprovar MFA → backend passa a autorizar A somente após comprovação. Platform Admin nunca opera sem MFA do actor real.
-- **Alternativas:** sem MFA, desconhecimento do nível do fator ou manipulação de role/tenant não autorizam owner/admin. Método do fator, recuperação e step-up recente permanecem em aberto.
-- **Requisito:** REQ-009.
+- **Confirmado (DEC-028):** sem MFA para superadmin, owner e attendant. A decisão antiga DEC-027 está substituída.
+- **Fluxo:** login Clerk → selecionar clínica A (owner) ou B (attendant) → backend confere role/membership D1 e tenant em cada pedido → utilizar funções autorizadas sem desafio MFA.
+- **Alternativas:** sessão ausente, role insuficiente ou flag privada superadmin inválida negam acesso. Suporte próprio ainda exige motivo, TTL, auditoria dupla, sessão segura e autorização do subject.
+- **Requisitos:** REQ-001/002/005/006/007; REQ-009 adiado.
 
 ## Validação necessária
 

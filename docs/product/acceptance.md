@@ -108,13 +108,13 @@
 
 **Dado** superadmin em sessão de suporte própria atuando no contexto do subject com membership em A, e o mesmo subject membro de B; **quando** o membership do subject em A é revogado; **então** novas chamadas e eventos de suporte em A são negados e a sessão de suporte em A perde autorização. O subject mantém acesso legítimo a B pela sessão Clerk e membership B. Uma mensagem de A que ficou em trânsito antes da confirmação da revogação não é tratada como operação posterior; novos dados de A não podem ser entregues após confirmação. **Requisitos:** REQ-003/005/007/040; **DEC-026**.
 
-### AC-25 — MFA obrigatório por contexto
+### AC-25 — Acesso multi-tenant sem MFA no MVP
 
-**Dado** user com membership owner em A e attendant em B sem MFA comprovado; **quando** usa B, **então** acede somente com as permissões de attendant; quando abre A, o Tredane exige MFA para exercer owner. Ao comprovar MFA, pode operar A. Role, tenant e comprovação são verificados no backend, inclusive WebSocket; não por state da UI. **Requisitos:** REQ-002/005/009; **DEC-027**.
+**Dado** usuário owner em A e attendant em B com sessão Clerk válida, mas sem MFA; **quando** acessa A e B, **então** a API aplica as roles D1 correspondentes sem exigir MFA, sem transferir permissões entre tenants. A remoção de membership continua a cortar acesso em A. **Requisitos:** REQ-001/002/005, DEC-028.
 
-### AC-26 — Superadmin precisa de MFA
+### AC-26 — Platform Admin e suporte sem MFA, com autorização rigorosa
 
-**Dado** user Clerk com `privateMetadata.superadmin === true` mas MFA insuficiente; **quando** tenta entrar na Platform Admin, gerir tenants/owners ou iniciar suporte próprio; **então** a API não permite. Um user sem MFA de owner também não consegue alterar members via URL ou chamada direta. Indisponibilidade da verificação não concede privilégios. Step-up recente para operações sensíveis ainda será decidido. **Requisitos:** REQ-006/007/009; **DEC-027**.
+**Dado** usuário Clerk autenticado com `privateMetadata.superadmin === true` verificado no backend; **quando** administra tenants ou inicia sessão de suporte própria do Tredane, **então** o backend não exige MFA, mas exige os controles existentes: flag atual, sessão válida, motivo, TTL, auditoria dupla, autorização por subject/tenant, limitações de operações, handoff seguro e proteção CSRF. Sem flag ou sessão correta, bloquear. **Requisitos:** REQ-006/007; DEC-028.
 
 ## Condições para usar estes cenários como aprovação
 

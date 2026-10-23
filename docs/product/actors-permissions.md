@@ -37,9 +37,9 @@
 
 Operação e suporte devem partir de metadados e registros técnicos. Qualquer acesso excepcional a conteúdo de uma clínica requer política, autorização e auditoria específicas, ainda não definidas.
 
-## MFA por responsabilidade — DEC-027
+## MFA fora do MVP — DEC-028
 
-**Confirmado:** MFA obrigatório para `superadmin` e `owner`, opcional para `attendant`. O Worker verifica o nível de autenticação da sessão Clerk antes de ações de Admin ou do tenant com role owner. Um user owner em A e attendant em B pode usar B como attendant sem MFA suficiente, mas não A como owner. Não habilitar MFA global no Clerk: isso obrigaria attendants. O método de MFA e o step-up recente para operações sensíveis ainda serão decididos. [ADR-0010](../adr/0010-role-scoped-mfa.md).
+**Confirmado:** nenhum perfil, incluindo superadmin ou owner, precisa configurar ou validar MFA no MVP. O Clerk autentica e o backend continua a conferir roles de tenant, flag global superadmin e regras de suporte. DEC-027 foi substituída. Rever MFA numa futura fase.
 
 ## Regras transversais propostas
 

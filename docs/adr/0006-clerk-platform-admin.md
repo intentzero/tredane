@@ -19,9 +19,9 @@
 
 **DEC-021 confirma a opção A:** convite por e-mail com link de uso único emitido pelo Tredane, persistido no D1 e aceite por identidade Clerk existente ou nova, após correspondência do e-mail verificado. Role concedida é apenas attendant do tenant convidante. Sem Clerk Organizations. Ver [ADR-0008](0008-tenant-email-invitations.md); expiração/reenvio ainda precisam ser definidos.
 
-## Política de MFA — decisão confirmada DEC-027
+## Sem MFA no MVP — DEC-028
 
-MFA é obrigatório para superadmins e owners e opcional para attendants. O Tredane implementa a exigência no backend conforme a role por tenant e a flag privada de superadmin; não ativar `Require multi-factor authentication` global do Clerk. Métodos, recuperação e step-up de operações sensíveis seguem em aberto. Ver [ADR-0010](0010-role-scoped-mfa.md).
+DEC-028 substitui DEC-027. O MVP **não exige MFA**, nem para superadmins nem para owners. Autenticação Clerk, flag superadmin verificada no backend, memberships D1 e proteção/auditoria da impersonação própria continuam obrigatórias. MFA fica para avaliação futura. [ADR-0010](0010-role-scoped-mfa.md).
 
 ## Responsabilidades por camada
 
@@ -37,7 +37,7 @@ MFA é obrigatório para superadmins e owners e opcional para attendants. O Tred
 ## Segurança
 
 - Para cada operação de administrador, validar Clerk session e o usuário atual com **Clerk Backend API**; permissões ausentes ou falha na verificação => negar (*fail closed*). A política de cache/limites da API será validada em F1.
-- MFA obrigatório para Platform Admin é **proposto**, sujeito a definição da configuração/step-up.
+- A Platform Admin não exige MFA no MVP por DEC-028; sessões Clerk válidas, flag privada superadmin e auditoria continuam obrigatórias.
 - **DEC-026 confirma:** revogação de membership em A deve bloquear imediatamente API e WebSockets A, sem encerrar sessão Clerk nem acesso legítimo do mesmo usuário em B. Inclui sessões de suporte do Tredane cujo subject perdeu membership em A. Desenho/testes em [ADR-0009](0009-tenant-membership-revocation.md).
 - Operações administrativas ficam auditadas com ator, alvo, tenant, justificativa, timestamps e efeitos. Nenhum acesso oculto a conteúdo sensível.
 - A app de administração pode ter frontend/API de deploy separados; a **separação de autorização é obrigatória**, independentemente da topologia física.

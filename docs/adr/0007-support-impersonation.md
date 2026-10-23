@@ -27,7 +27,7 @@ O superadmin continua autenticado **como ele mesmo no Clerk**. O Tredane aplica 
 5. O segredo da sessão de suporte não é armazenado em texto claro no D1: somente hash seguro/verificador; troca/consumo do código de handoff é atômica e impede reuso. Na revogação ou expiração, cookie perde valor e WebSockets devem deixar de receber eventos.
 6. A Clinic App exibe banner persistente com **"Modo suporte · Superadmin [actor] atuando no contexto de [subject] · [tenant]"**, identificação clara de ações desabilitadas e botão **Encerrar**. A UI nunca oculta o modo de suporte.
 
-**Os detalhes de cookie, ponte entre subdomínios, proteção CSRF, atestação do nível MFA e troca one-time são propostas de F1**, e devem passar por revisão de segurança antes do deployment real. Não reutilizar o contexto de suporte de uma aba para mudar o tenant noutra.
+**Os detalhes de cookie, ponte entre subdomínios, proteção CSRF, troca one-time são propostas de F1**, e devem passar por revisão de segurança antes do deployment real. Não reutilizar o contexto de suporte de uma aba para mudar o tenant noutra.
 
 ## Modelo lógico mínimo (proposto, sem migração executada)
 
@@ -64,12 +64,12 @@ support_audit_events (
 
 A associação com a sessão Clerk do actor e as chaves entre tenants devem ser validadas a cada pedido. Nunca confiar em `X-Impersonate-User`, `X-Tenant` ou valores de cliente para conceder privilégios.
 
-**MFA do superadmin real (DEC-027):** criar sessão própria de suporte exige MFA válido na sessão Clerk do actor, mesmo se o subject for attendant sem MFA. O nível do subject não substitui o do actor. A janela de desafio MFA **recente** para início de suporte continua proposta (não foi escolhida na DEC-027). [ADR-0010](0010-role-scoped-mfa.md).
+**DEC-028 — sem MFA no MVP:** o superadmin real não precisa de MFA para iniciar suporte. Permanecem obrigatórios motivo, autenticação Clerk válida, flag superadmin consultada no backend, sessão própria D1, TTL, handoff seguro, cookie HttpOnly, CSRF, auditoria dupla, controle de capacidades e revisão de segurança antes de dados reais.
 
 ## Políticas mínimas de segurança
 
 - **TTL:** duração curta, sugeridos 15 minutos; renovar explicitamente, com registo, sem renovação infinita.
-- **Início:** exigir motivo e MFA recente (*step-up*, detalhes a fechar na F1); não iniciar automaticamente por abertura de uma página.
+- **Início:** exigir motivo, sessão Clerk válida e autorização superadmin; não exigir MFA/step-up neste MVP (DEC-028), nem iniciar automaticamente por abertura de página.
 - **Modo inicial:** acesso de leitura e diagnóstico; operações de manutenção que modificam dados só após política de capacidades explícita, limitada ao papel do alvo e com auditoria. Proibir por padrão credenciais, alteração de membership/papéis, faturação, segredos, exportação em massa e ações destrutivas. Envio WhatsApp e alterações de agendamento exigem aprovação específica antes de ativar.
 - **Revogação (DEC-026):** retirar `superadmin`, revogar sessão Clerk, remover membership do subject **no tenant da sessão**, suspender tenant ou expirar/revogar suporte faz pedidos e WebSockets daquele contexto falharem **fechados**, sem fallback a permissões globais. Revogar A não deve desligar a sessão Clerk global nem afetar o acesso direto legítimo a B.
 - **Observabilidade:** logs técnicos e trilha de auditoria que não reproduzem desnecessariamente conteúdo pessoal; política de retenção, base legal, notificação e eventual autorização do cliente/tenant devem ser fechadas antes de usar dados reais.
