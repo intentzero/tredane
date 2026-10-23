@@ -15,10 +15,21 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Integração com a API oficial do WhatsApp Business.
 - Aplicação reativa, com atualizações em tempo real por WebSockets com hibernação em Durable Objects.
 - Avaliar um Durable Object por clínica como fronteira de coordenação e isolamento do estado em tempo real.
+- Somente atendente e responsável pela clínica acessam o painel no primeiro MVP; profissional é recurso de agenda, sem login.
+- Um horário considera profissional e sala/equipamento necessários ao serviço.
+
+## Documentos de definição
+
+O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a definição. Os documentos abaixo detalham propostas e decisões sem substituir este resumo:
+
+- [Atores e permissões](product/actors-permissions.md)
+- [Jornadas](product/journeys.md)
+- [Requisitos e critérios de aceite](product/requirements.md)
+- [Decisões e questões abertas](product/decisions.md)
 
 ## Recorte proposto para a primeira entrega
 
-**Usuários:** atendente e responsável da clínica. O contato da clínica interage pelo WhatsApp; não precisa de conta no Tredane.
+**Usuários:** atendente e responsável da clínica. O contato interage pelo WhatsApp; não precisa de conta no Tredane. Profissional e operador da plataforma não têm perfil de acesso ao painel no primeiro MVP.
 
 **Fluxo principal:**
 
@@ -41,7 +52,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Cada mensagem recebida ou enviada tem origem, horário, estado e identificador externo quando houver. Reentrega de webhook não cria mensagem duplicada.
 - Uma conversa mantém o vínculo com o contato, a oportunidade e o responsável; a equipe consegue encontrá-la e continuar o atendimento.
 - O pipeline mostra etapa, responsável, último contato e próximo compromisso; alterações relevantes ficam registradas.
-- A agenda impede dois agendamentos confirmados para o mesmo recurso e intervalo. A regra para recursos (profissional, sala ou ambos) será fechada com a clínica piloto.
+- A agenda impede dois agendamentos confirmados no mesmo intervalo quando compartilham o profissional ou a sala/equipamento exigidos. Durações, buffers e regras de disponibilidade serão validados com a clínica piloto.
 - O envio de mensagem apresenta sucesso ou falha observável para a equipe; falhas transitórias podem ser processadas novamente sem envio duplicado.
 - A sugestão de IA é identificada como sugestão, pode ser editada e não é enviada sem revisão humana.
 - O piloto demonstra, em ambiente de teste, o fluxo completo de mensagem recebida até agendamento confirmado.
@@ -75,13 +86,13 @@ O número e a conta de WhatsApp de cada clínica, o mecanismo de autenticação,
 
 ## Fora do primeiro MVP
 
-Prontuário ou registro clínico, pagamentos, estoque, integração com agendas externas, campanhas em massa, bot que responde ou agenda sozinho e relatórios avançados. Esses itens podem entrar no backlog após validação do atendimento e agendamento.
+Prontuário ou registro clínico, pagamentos, estoque, integração com agendas externas, campanhas em massa, bot que responde ou agenda sozinho, relatórios avançados e painéis para profissional ou operador da plataforma. Esses itens podem entrar no backlog após validação do atendimento e agendamento.
 
 ## Decisões pendentes antes de integrar serviços reais
 
 1. Como cada clínica conectará seu número à API oficial do WhatsApp Business e quem administrará essa conta.
-2. Quais recursos determinam disponibilidade: profissional, sala, equipamento ou combinação.
-3. Quais perfis de usuário e permissões a clínica piloto precisa.
+2. Quais serviços, durações, buffers, bloqueios e regras de disponibilidade a clínica piloto precisa para profissional e sala/equipamento.
+3. Quais permissões exatas terão atendente e responsável, e qual provedor de identidade será usado.
 4. Qual provedor de identidade e qual provedor de IA serão usados.
 5. Quais dados pessoais são necessários, por quanto tempo serão guardados e como a clínica atenderá pedidos de acesso ou exclusão.
 6. Se o D1 compartilhado com escopo rigoroso por clínica atende ao piloto ou se alguma categoria de dados exige banco separado por clínica.
