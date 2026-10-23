@@ -22,7 +22,7 @@
 | DEC-009 | Em aberto | Ativação do WhatsApp | Quem cria, conecta e administra a conta/número oficial de cada clínica? Onboarding assistido ou autosserviço? | Responsável pelo produto; bloqueia conexão de números reais. |
 | DEC-010 | Em aberto | Topologia dos dados | D1 compartilhado com escopo por tenant ou banco por clínica para alguma categoria? Como isolar arquivos R2? | Decisão de arquitetura orientada por requisitos do piloto; bloqueia persistência final com dados reais. |
 | DEC-011 | Em aberto | Dados pessoais e IA | Campos mínimos, retenção, acesso/exclusão, anexos, provedor de IA e contexto permitido. | Responsável pelo produto, com revisão apropriada; bloqueia uso de dados reais e IA conectada a conversas reais. |
-| DEC-012 | Confirmado em parte | Operação da plataforma | Platform Admin App para criar, editar, suspender e solicitar eliminação de tenants. Acesso de suporte por impersonação auditável; forma de implementação, política de dados, aprovação e acesso sensível ainda em aberto. | Decisão do responsável em 23/10/2026; [ADR-0006](../adr/0006-clerk-platform-admin.md) e [ADR-0007](../adr/0007-support-impersonation.md). |
+| DEC-012 | Confirmado em parte | Operação da plataforma | Platform Admin App para criar, editar, suspender e solicitar eliminação de tenants. Acesso de suporte por sessão própria do Tredane com impersonação auditável; protocolo seguro, política de dados, aprovação e acesso sensível ainda em aberto. | Decisão do responsável em 23/10/2026; [ADR-0006](../adr/0006-clerk-platform-admin.md) e [ADR-0007](../adr/0007-support-impersonation.md). |
 
 ## Como decidir sem perder o histórico
 
