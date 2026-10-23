@@ -70,6 +70,34 @@
 - **Estado:** Em aberto. O produto precisará criar a clínica, associar o responsável, configurar serviços, profissionais e salas/equipamentos e conectar o número oficial de WhatsApp. Ainda não há decisão sobre autosserviço, operação assistida ou responsabilidade pela conta Meta. Não desenhar um fluxo definitivo de ativação antes dessa escolha.
 - **Requisitos relacionados:** REQ-004, REQ-051, REQ-052.
 
+## JRN-09 — Alternar entre tenants
+
+- **Estado:** Confirmado o suporte a memberships em várias clínicas; experiência proposta.
+- **Ator e objetivo:** atendente/responsável com conta Clerk membro das clínicas A e B opera cada uma conforme role própria.
+- **Pré-condições:** login Clerk e memberships ativos em D1.
+- **Fluxo:** listar tenants associados → selecionar A na aba 1 → abrir B na aba 2 → a API valida membership e role por pedido → cada WebSocket recebe eventos apenas do seu tenant.
+- **Alternativas:** revogação de A nega A mas preserva B; URL adulterada não concede acesso.
+- **Requisitos:** REQ-001/002/003/005/040.
+
+## JRN-10 — Criar e gerir tenant na Platform Admin
+
+- **Estado:** Confirmada a capacidade; detalhes de interface propostos.
+- **Ator e objetivo:** superadmin gere ciclo de vida da clínica.
+- **Pré-condições:** sessão Clerk válida e flag `privateMetadata.superadmin === true` confirmada no backend.
+- **Fluxo:** entrar em Admin → listar tenants → criar/editar ou suspender/reactivar tenant → persistir D1 + evento de auditoria → confirmar resultado.
+- **Alternativas:** sem flag estritamente booleana => negar; tentativa de deletar inicia exclusão lógica com confirmação reforçada; operação falha sem criação parcial.
+- **Requisitos:** REQ-004/006.
+
+## JRN-11 — Entrar no contexto de usuário de tenant para suporte
+
+- **Estado:** Confirmada a impersonação implementada **pelo Tredane**, com controles finais em revisão.
+- **Ator e objetivo:** superadmin reproduz problema ou executa manutenção como membro selecionado da clínica.
+- **Pré-condições:** Clerk mantém sessão do actor; superadmin válido; tenant e membership do subject ativos.
+- **Fluxo:** selecionar tenant e usuário → informar motivo → backend cria suporte temporário no D1 → handoff seguro à Clinic App → banner permanente de modo suporte → cada pedido valida actor, subject, role e TTL → auditoria dupla → encerrar/revogar.
+- **Alternativas:** limite/expiração, revogação do subject ou da flag, URL alterada e falha do Clerk/D1 negam acesso; operações privilegiadas não habilitadas não podem ser executadas.
+- **Resultado:** manutenção rastreável, sem substituir a identidade real do actor nem usar impersonação do Clerk.
+- **Requisitos:** REQ-003/005/006/007/040.
+
 ## Validação necessária
 
 Revisar as jornadas com o responsável pelo produto e uma clínica piloto, em especial: permissões administrativas, durações e regras de disponibilidade dos recursos, cancelamento, confirmação ao contato e ativação do WhatsApp. Registrar as respostas em [decisões](decisions.md) e ajustar os requisitos ligados às jornadas afetadas.

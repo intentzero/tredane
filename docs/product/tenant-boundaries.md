@@ -27,6 +27,14 @@ Um usuário que pertença a várias clínicas, caso isso seja permitido, selecio
 | IA | Contexto obtido somente da conversa autorizada; saída não é publicada a outro tenant e depende de revisão humana para envio. | Provedor, campos enviados e retenção. |
 | Logs e suporte | Registrar IDs técnicos mínimos para diagnóstico; não registrar tokens ou conteúdo pessoal desnecessário. | Acesso excepcional e prazo de retenção. |
 
+## Identidade multi-tenant e suporte controlado
+
+**Confirmado:** Clerk autentica, sem Organizations. Um usuário pode integrar múltiplos tenants; memberships e roles pertencem ao D1. Toda requisição e WebSocket verifica sessão, tenant selecionado e associação vigente.
+
+**Confirmado:** `privateMetadata.superadmin === true` (booleano, validado pelo backend) permite gerir a plataforma, mas não ler automaticamente dados operacionais. Para manutenção, o Tredane emite uma sessão **própria** no D1 com actor, subject, tenant, motivo e validade, mantendo a autenticação Clerk do actor e aplicando a role do subject mais restrições de suporte. Auditoria distingue ambos; não se usa impersonação do Clerk.
+
+**Proposto para F1:** código de entrada único, sessão vinculada ao actor, revogação imediata, proteção CSRF e validação de WebSockets. Qualquer falha nega o acesso.
+
 ## Invariantes verificáveis
 
 1. **Leitura:** um membro de A não recebe conteúdo de B por listagem, busca, detalhe, arquivo ou evento.

@@ -1,0 +1,94 @@
+# ADR-0007 — Impersonação interna para suporte e manutenção
+
+- **Estado:** **Aceito** — mecanismo **próprio do Tredane**, sem usar Clerk impersonation, actor tokens ou sessão Clerk do usuário alvo.
+- **Data/origem:** 23/10/2026; decisão explícita do responsável pelo Tredane.
+- **Relacionados:** [ADR-0006](0006-clerk-platform-admin.md), [requisitos](../product/requirements.md), [contratos de identidade](../architecture/identity-and-admin.md).
+
+## Objetivo
+
+Um superadmin autenticado na Platform Admin poderá escolher um **tenant** e um **usuário que seja membro ativo desse tenant**, declarar a finalidade de manutenção e abrir a Clinic App no contexto de permissões desse usuário. A experiência funcional deve corresponder ao papel do usuário selecionado, **sem falsificar a identidade de autenticação nem atribuir falsamente as ações ao usuário**.
+
+O superadmin continua autenticado **como ele mesmo no Clerk**. O Tredane aplica um **contexto efetivo de suporte** sobre a autorização tenant-scoped em D1. Não se cria sessão Clerk para o usuário alvo, não se altera sua senha, não se pede consentimento de login e não se utiliza a feature comercial de impersonação do Clerk.
+
+## Decisões confirmadas
+
+1. A própria plataforma emite, valida, expira, revoga e audita sessões de suporte.
+2. Toda sessão tem exatamente um **actor** (superadmin real), um **subject** (usuário alvo), um **tenant**, um motivo e um prazo.
+3. A autorização usa o **papel atual do subject naquele tenant** e restrições adicionais da política de suporte. `superadmin` nunca eleva privilégios de conteúdo.
+4. A auditoria preserva actor e subject separadamente em todas as mutações e operações sensíveis; nunca regista a ação como se o subject real a tivesse realizado.
+5. Impersonação não concede acesso global entre tenants nem permissão para agir como usuário sem membership vigente.
+
+## Fluxo técnico proposto
+
+1. Na Platform Admin, o actor entra com sessão Clerk válida. O Worker verifica `privateMetadata.superadmin === true` no backend, a existência do tenant e o membership do subject.
+2. O actor seleciona o usuário e preenche **justificativa obrigatória**. O sistema cria `support_sessions` em D1 com ID aleatório não previsível, actor, subject, tenant, estado, `created_at`, `expires_at`, `revoked_at`, `scope` e `reason`.
+3. A app de administração abre a Clinic App numa sessão de suporte isolada. A transferência segura de contexto deverá usar **código de uso único, curtíssima validade e troca server-to-server/same-origin**, com cookie de suporte `HttpOnly; Secure; SameSite=Lax` com escopo mínimo no domínio da Clinic App. Nunca colocar um bearer persistente em URL, localStorage ou query string.
+4. A cada pedido, a API valida (a) sessão Clerk **do actor**, (b) a flag global atual, (c) cookie opaco do suporte ligado ao actor/sessão, (d) linha ativa em D1, TTL e tenant fixo, (e) tenant ativo, (f) membership atual e role do subject, (g) permissão da operação segundo **interseção** entre role do subject e política de suporte.
+5. O segredo da sessão de suporte não é armazenado em texto claro no D1: somente hash seguro/verificador; troca/consumo do código de handoff é atômica e impede reuso. Na revogação ou expiração, cookie perde valor e WebSockets devem deixar de receber eventos.
+6. A Clinic App exibe banner persistente com **"Modo suporte · Superadmin [actor] atuando no contexto de [subject] · [tenant]"**, identificação clara de ações desabilitadas e botão **Encerrar**. A UI nunca oculta o modo de suporte.
+
+**Os detalhes de cookie, ponte entre subdomínios, proteção CSRF, atestação do nível MFA e troca one-time são propostas de F1**, e devem passar por revisão de segurança antes do deployment real. Não reutilizar o contexto de suporte de uma aba para mudar o tenant noutra.
+
+## Modelo lógico mínimo (proposto, sem migração executada)
+
+```text
+support_sessions (
+  id,
+  token_verifier_hash,
+  actor_clerk_user_id,
+  actor_clerk_session_id,
+  subject_clerk_user_id,
+  tenant_id,
+  reason,
+  scope,
+  status,
+  created_at,
+  expires_at,
+  revoked_at,
+  last_used_at
+)
+
+support_audit_events (
+  id,
+  support_session_id,
+  actor_clerk_user_id,
+  subject_clerk_user_id,
+  tenant_id,
+  operation,
+  resource_type,
+  resource_id,
+  outcome,
+  occurred_at
+)
+```
+
+A associação com a sessão Clerk do actor e as chaves entre tenants devem ser validadas a cada pedido. Nunca confiar em `X-Impersonate-User`, `X-Tenant` ou valores de cliente para conceder privilégios.
+
+## Políticas mínimas de segurança
+
+- **TTL:** duração curta, sugeridos 15 minutos; renovar explicitamente, com registo, sem renovação infinita.
+- **Início:** exigir motivo e MFA recente (*step-up*, detalhes a fechar na F1); não iniciar automaticamente por abertura de uma página.
+- **Modo inicial:** acesso de leitura e diagnóstico; operações de manutenção que modificam dados só após política de capacidades explícita, limitada ao papel do alvo e com auditoria. Proibir por padrão credenciais, alteração de membership/papéis, faturação, segredos, exportação em massa e ações destrutivas. Envio WhatsApp e alterações de agendamento exigem aprovação específica antes de ativar.
+- **Revogação:** retirar `superadmin`, revogar sessão Clerk, remover membership do subject, suspender tenant ou expirar/revogar suporte faz pedidos e WebSockets falharem **fechados**, sem fallback a permissões globais.
+- **Observabilidade:** logs técnicos e trilha de auditoria que não reproduzem desnecessariamente conteúdo pessoal; política de retenção, base legal, notificação e eventual autorização do cliente/tenant devem ser fechadas antes de usar dados reais.
+- **Não repúdio:** qualquer alteração de negócio por suporte deve guardar quem realmente a executou (`actor`) e em cujo contexto (`subject`); preservar correlação com solicitação/ticket de suporte.
+
+## Critérios de aceitação
+
+1. Só `privateMetadata.superadmin === true` booleano no Clerk autoriza criar sessões de suporte; string `"true"` não funciona.
+2. Actor sem membership no tenant pode entrar apenas via sessão de suporte ativa; sem ela, API operacional nega.
+3. Subject precisa ser membro ativo do tenant; role em A não se transfere para B.
+4. Trocar tenant/subject nos parâmetros, cabeçalhos, cookie ou URL não muda o escopo da sessão.
+5. Com acesso revogado, sessão expirada ou Clerk indisponível: HTTP e WebSocket negam operações e novos dados.
+6. Banner de suporte explícito; encerramento invalida cookie e registro D1.
+7. Toda mutação fica com `actor`, `subject`, tenant, motivo e ID da sessão, sem atribuição falsa.
+8. Ações proibidas pela política de suporte nunca podem ser executadas, mesmo que o subject fosse owner.
+9. Código de handoff de uso único não é reutilizável; testes cobrem replay, CSRF, session fixation e troca de subdomínio.
+
+## Alternativas descartadas
+
+**Clerk impersonation/actor tokens: rejeitados expressamente pelo responsável pelo produto.** Não adicionar essa integração ou dependência para este recurso. O Clerk continua exclusivamente como provedor de autenticação e identidade.
+
+## Implementação pendente
+
+A capacidade e a abordagem são **confirmadas**, mas o código, a migração, os endpoints finais, a autorização de writes, a política de dados e a revisão de segurança ainda **não** foram implementados/aprovados. A F1 deverá conter um plano de testes adversariais para estes pontos.

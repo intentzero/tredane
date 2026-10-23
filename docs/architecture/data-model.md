@@ -30,6 +30,15 @@
 
 **Não confirmado:** esquema exato, granularidade temporal, regras de unicidade por ciclo da conversa/oportunidade, campos pessoais de contacto e política de retenção. Os campos são indicativos e não devem ser tratados como recolha autorizada de dados reais.
 
+## Entidades de identidade e suporte (proposta técnica)
+
+- `tenant_memberships(tenant_id, clerk_user_id, role, status, created_at, revoked_at)`: N:N com role específica por tenant, sem Clerk Organizations.
+- `platform_admin_events(id, actor_clerk_user_id, tenant_id, action, occurred_at)`: histórico da administração.
+- `support_sessions(id, actor_clerk_user_id, actor_clerk_session_id, subject_clerk_user_id, tenant_id, token_verifier_hash, reason, scope, expires_at, revoked_at)`: sessões de manutenção **emitidas pelo Tredane**.
+- `support_audit_events(id, support_session_id, actor_clerk_user_id, subject_clerk_user_id, tenant_id, operation, outcome, occurred_at)`: trilha que distingue quem executou de qual contexto funcional foi usado.
+
+Os campos e índices exatos são **propostos**, sem migração executada. O backend revalida a identidade Clerk do administrador, a flag privada `superadmin`, a sessão própria ativa e o membership/role do usuário alvo; não existe sessão Clerk em nome do alvo. Ver [ADR-0007](../adr/0007-support-impersonation.md).
+
 ## Invariantes estruturais
 
 1. Todas as entidades operacionais têm tenant_id; chaves estrangeiras e índices compostos devem evitar referências a entidades de outra clínica (por exemplo, UNIQUE(tenant_id, id) e FOREIGN KEY (tenant_id, contact_id) quando aplicável).

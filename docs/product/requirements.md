@@ -20,6 +20,18 @@
 
 **Prioridade/estado:** MVP / Em aberto. **Origem:** ACT-03, ACT-05; JRN-08. **Comportamento:** uma clínica ativa precisa de responsável e associação de membros antes de receber dados. **Aceite:** nenhum usuário sem associação vigente entra no tenant; o fluxo concreto de convite/ativação será testável após decidir se o onboarding é assistido ou autosserviço. **Dados/eventos:** tenant e identidade; não presumir acesso global do operador.
 
+### REQ-005 — Identidade Clerk e membership multi-tenant
+
+**Prioridade/estado:** MVP / Confirmado na arquitetura. **Origem:** DEC-007/017, ACT-02/03, JRN-09. **Comportamento:** Clerk autentica identidade e sessão, sem Organizations; o D1 guarda `tenant_memberships` N:N, papel e estado para cada tenant. Um usuário pode ser responsável em A e atendente em B, com contexto explícito por aba/rota. **Aceite:** listagem mostra só tenants associados; cada acesso revalida role e associação e não permite cruzar recursos entre A e B; revogação em A não altera membership de B. **Dados/eventos:** identidade Clerk e memberships no D1; WS/Queues mantêm tenant.
+
+### REQ-006 — Administração de tenants
+
+**Prioridade/estado:** MVP interno / Confirmado como capacidade. **Origem:** DEC-018, ACT-05, JRN-10. **Comportamento:** a Platform Admin permite criar, editar, suspender, reativar e iniciar exclusão lógica de tenants. A API verifica no Clerk o valor **booleano exato** `privateMetadata.superadmin === true` no backend. **Aceite:** usuário não autenticado recebe 401, usuário sem flag válida recebe 403; ausência da flag, texto `"true"` ou indisponibilidade da verificação não concede acesso. Toda mutação é auditada e não expõe mensagens/agenda de clientes. **Dados:** cadastro de tenants no D1 e histórico administrativo.
+
+### REQ-007 — Impersonação própria para suporte
+
+**Prioridade/estado:** MVP interno / Confirmado como capacidade e solução própria; detalhes de segurança e operação Em aberto. **Origem:** DEC-019, ACT-05, JRN-11, ADR-0007. **Comportamento:** superadmin pode criar no Tredane sessão de suporte temporária para agir no contexto de usuário membro de um tenant. Clerk continua autenticando o **actor real**; não usamos impersonação do Clerk. O subject determina a role efetiva, limitada adicionalmente pela política de suporte. Todas as ações registam actor, subject, tenant, motivo e sessão. **Aceite:** sessão expirada/revogada nega acesso, manipulação de IDs não altera alvo/tenant, há indicador persistente na interface, ações proibidas são rejeitadas e revogação impede WebSocket; não há auditoria atribuindo falsamente ações ao subject. **Dados/eventos:** `support_sessions` e `support_audit_events` no D1; TTL e handoff seguro a definir na F1.
+
 ## WhatsApp e conversa
 
 ### REQ-010 — Contato e conversa
