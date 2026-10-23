@@ -7,7 +7,7 @@
 | Fase | Entregáveis | Gate verificável |
 | --- | --- | --- |
 | F0: ambiente | Workspace TS, React, Worker/Hono, Drizzle/D1 local, lint/test/build, Wrangler, CI, seeds sintéticas | Testes e build reproduzíveis; dois tenants de teste; nenhum segredo versionado |
-| F1: identidade/tenant | Prova de conceito do D1 por clínica (ADR-0002); D1 central; integração com o Clerk; associações e seletor de clínica; provisionamento de clínica; app de superadmin mínimo; autorização no Worker; WebSocket autorizado no DO da clínica | REQ-001/002/003/005/006/080: ID forjado, troca de clínica e revogação não expõem dados/eventos de outra clínica nem abrem seu D1 |
+| F1: identidade/tenant | Bindings gerados no deploy para o D1 por clínica, com medição do limite e do tempo de ativação (ADR-0002); D1 central; integração com o Clerk; associações e seletor de clínica; provisionamento de clínica; app de superadmin mínimo; autorização no Worker; WebSocket autorizado no DO da clínica | REQ-001/002/003/005/006/080: ID forjado, troca de clínica e revogação não expõem dados/eventos de outra clínica nem abrem seu D1 |
 | F2: domínio local | Serviços, recursos, horários, contactos, Inbox e Pipeline com dados sintéticos; CRUD mínimo + auditoria | Duas sessões da mesma clínica convergem e outra clínica não vê alterações |
 | F3: integração Meta | Associação verificada de número de teste, webhooks, deduplicação, outbox, envio manual e status | Reentrega não duplica; falhas e resultado incerto permanecem observáveis |
 | F4: reservas | Consulta de disponibilidade, bloqueios, criação/cancelamento/reagendamento atómicos | Disputa concorrente por profissional e sala permite no máximo um compromisso |
@@ -37,7 +37,7 @@
 ### EP-T04 — WhatsApp oficial
 - Verificação de webhook e associação de canal/tenant.
 - Inbox de eventos idempotente, Queue + DLQ; outbox de mensagens com reconciliation em resultados incertos.
-- Modelos WhatsApp, política de janela de atendimento e custos por mensagem em aberto para confirmação antes de envio real.
+- Janela de 24 h: texto livre bloqueado fora dela e envio por modelo aprovado (DEC-018). Modelos a cadastrar e custos por mensagem em aberto para confirmação antes de envio real.
 
 ### EP-T05 — Agenda e consistência
 - Serviços, profissionais, salas/equipamentos, disponibilidade e bloqueios.

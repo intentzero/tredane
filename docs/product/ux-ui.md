@@ -16,7 +16,7 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Três áreas principais: Conversas, Pipeline, Agenda | **Proposto** | Derivado do fluxo principal do MVP e do ADR-0003. |
 | **Mobile first:** o celular é o alvo de base e precisa concluir todo o fluxo piloto (mensagem → resposta → etapa → agendamento); tablet e desktop são ampliações progressivas | **Confirmado** | DEC-017, pedido do responsável pelo produto em 23 de outubro de 2026. Substitui a proposta anterior deste documento de desktop como alvo principal. |
 | Larguras de referência: 360–430 px (base), ≥ 768 px (tablet), ≥ 1280 px (desktop) | **Proposto** | **Em aberto:** modelos e sistemas dos aparelhos da clínica piloto (Q-UX-01). Bloqueia o aceite de usabilidade, não o desenvolvimento das telas. |
-| Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP | **Proposto** | Instalação como PWA e notificações push dependem de Q-UX-05. |
+| Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP, instalável como PWA com notificações push de nova conversa | **Confirmado** | DEC-017, DEC-018. O push não traz o conteúdo da mensagem. No iPhone o push exige instalar o painel na tela inicial: o fluxo de instalação precisa de uma tela de orientação (a desenhar). Suporte em cada aparelho da clínica piloto: Q-UX-01. |
 | Idioma pt-BR, fuso horário da clínica em todas as datas | **Proposto** | O fuso da clínica é parte das regras de agenda ainda em aberto (DEC-008). |
 | Login pelo Clerk (código por e-mail) e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005, REQ-006. TEL-08 (proposta); ainda não desenhada no canvas. A tela de entrada usa o componente do Clerk estilizado com a identidade do Tredane. |
 | Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **a desenhar** | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
@@ -94,7 +94,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 - Mídia recebida não suportada ou indisponível aparece como bloco “Anexo não disponível” com motivo, nunca como mensagem vazia (JRN-01).
 - Mensagem recebida cujo processamento falhou aparece como “Mensagem não processada — a equipe técnica foi avisada” somente se houver registro do evento; conteúdo não persistido não é exibido como íntegro (states.md).
 - Compositor: campo de texto multilinha, botão **Enviar** (Ctrl/⌘ + Enter), botão **Sugerir resposta** (IA). Envio de anexo pela equipe: **Em aberto** (DEC-011).
-- **Em aberto:** janela de atendimento de 24 h e modelos aprovados do WhatsApp (EP-T04). Quando decidido, o compositor precisa exibir o estado “fora da janela — use um modelo”; até lá o protótipo não mostra esse caso.
+- **Janela de 24 h (Confirmado, DEC-018):** quando a última mensagem do contato tem mais de 24 h, o campo de texto livre fica bloqueado com o aviso “Fora da janela de 24 h do WhatsApp” e o botão **Escolher modelo** abre a lista de modelos aprovados pela Meta (retomada de contato, lembrete e confirmação de horário), com prévia e preenchimento de variáveis. O envio de modelo tem os mesmos estados de envio (6.1). A sugestão da IA continua disponível, mas só pode ser enviada dentro da janela ou convertida em modelo. **Pendente:** quais modelos cadastrar e custo por modelo (EP-T04). Esse estado ainda não está desenhado no canvas.
 
 **Painel do contato e oportunidade**
 - Dados do contato: nome, telefone mascarado por padrão. Campos adicionais: **Em aberto** (DEC-011, coleta mínima).
@@ -122,7 +122,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 - Cartão: nome do contato, responsável, último contato (relativo), próximo compromisso (ou “Sem compromisso”), indicador de mensagem pendente/falha.
 - No celular (M-05), uma etapa por vez em abas roláveis com contagem; o botão **Mover** abre uma folha inferior com as etapas. No desktop, arrastar entre colunas **ou** menu **Mover para…** (alternativa acessível por teclado). O cartão fica em estado “Movendo…” até confirmação; em falha, volta à coluna original com aviso.
 - Mover para **Horário proposto** mostra a nota “Etapa da negociação — não reserva horário na agenda” (states.md).
-- Mover para **Agendado** sem compromisso vinculado: **Em aberto** se é permitido. **Proposta:** permitir, mas o cartão exibe “Sem compromisso vinculado” e oferece **Agendar horário**; mudar etapa nunca cria compromisso.
+- Mover para **Agendado** sem compromisso vinculado é **permitido** (Confirmado, DEC-018): o cartão exibe “Sem compromisso vinculado” e oferece **Agendar horário**; mudar etapa nunca cria compromisso.
 - Filtros: responsável, “Minhas”, busca por nome. Relatórios e totais avançados ficam **Fora do MVP**.
 - Clique no cartão abre a conversa vinculada (TEL-01).
 - **Tempo real:** etapa alterada e responsável alterado movem o cartão nas outras sessões, com destaque breve (1,5 s) no cartão alterado; o cartão que o usuário está arrastando não é movido por evento remoto até soltar — após soltar, prevalece o estado do servidor.
@@ -134,7 +134,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 - No celular (M-06), lista cronológica do dia: compromissos, espaços livres (com **Agendar**), bloqueios e fora do expediente, filtrável por profissional ou sala. A partir do tablet, visão **Dia** em grade com colunas por profissional e linhas de 15 min (granularidade de 15 min, **Confirmada** em DEC-008). Alternância **Por profissional / Por sala** mostra a mesma agenda pelo outro recurso, porque o horário ocupa os dois (DEC-014).
 - Compromisso: horário, contato, serviço, sala/equipamento como etiqueta, estado (Confirmado / Cancelado / Concluído). Cancelados ficam ocultos por padrão com filtro “Mostrar cancelados”.
 - Bloqueios e fora de expediente em hachura com rótulo (“Bloqueado”, “Fora do expediente”), não só cor.
-- Navegação de dia (anterior/hoje/próximo) e seletor de data. Visão semanal: **Proposto** como posterior.
+- Navegação de dia (anterior/hoje/próximo) e seletor de data. **Visão semanal (Confirmado, DEC-018):** alternância Dia/Semana; no tablet e no desktop, grade de sete dias com os compromissos por dia; no celular, lista agrupada por dia, com filtros por profissional ou sala. Clicar num dia leva à visão do dia. A visão semanal ainda não está desenhada no canvas.
 - Clique em espaço livre abre TEL-05 com horário pré-preenchido; clique em compromisso abre TEL-06.
 - **Tempo real:** compromisso confirmado/cancelado/reagendado aparece ou some nas outras sessões; se o usuário está com TEL-05 aberto e o horário escolhido é ocupado por evento remoto, o horário é marcado como indisponível imediatamente (antes mesmo de tentar confirmar).
 
@@ -231,7 +231,7 @@ Ver seção 6.2.
 
 **Origem:** REQ-022, REQ-060, ADR-0004, AC-06. **Estado:** Proposto; provedor (Claude via AI Gateway) e contexto **Confirmados** (DEC-011).
 
-- **Sugerir resposta** é acionado pelo usuário; não há sugestão automática ao abrir a conversa no MVP (**Proposto**, reduz custo e envio de contexto sem necessidade).
+- **Sugerir resposta** é acionado pelo usuário; não há sugestão automática ao abrir a conversa nem a cada mensagem recebida (**Confirmado**, DEC-018: reduz custo e o envio de contexto à IA).
 - A sugestão aparece acima do compositor, em bloco com borda tracejada e rótulo “Sugestão da IA — revise antes de enviar”, com: **Usar e editar** (copia para o compositor, editável), **Gerar outra**, **Descartar**. No celular, o botão de IA fica à esquerda do campo e o de enviar à direita, separados para evitar toque acidental. Não há botão de envio dentro do bloco; o único caminho até o contato é o botão **Enviar** do compositor.
 - Mensagem enviada a partir de sugestão registra a origem (“Sugestão da IA, editada por Ana”) no histórico interno, não para o contato.
 - **Resumo da IA** no painel do contato: gerado sob demanda, com horário de geração e aviso “Pode conter erros. Confira na conversa.”
@@ -303,8 +303,8 @@ Complementam os [cenários de aceite](acceptance.md); IDs novos e estáveis.
 | ID | Questão | Bloqueia | Decide |
 | --- | --- | --- | --- |
 | Q-UX-01 | Quais modelos de celular, sistemas e navegadores a equipe da clínica piloto usa, e quanto do atendimento acontece no computador? (A prioridade do celular já está decidida em DEC-017.) | Aceite de usabilidade e lista de aparelhos de teste. | Responsável pelo produto + clínica piloto |
-| Q-UX-02 | Mover para “Agendado” sem compromisso vinculado é permitido? | Regra do quadro em TEL-03. | Responsável pelo produto |
-| Q-UX-03 | ~~Granularidade da grade~~ Resolvida: 15 min (DEC-008). **Em aberto:** visão semanal da agenda no MVP? | Detalhe de TEL-04 em tablet e desktop. | Responsável pelo produto |
-| Q-UX-04 | Sugestão da IA sob demanda ou automática ao abrir a conversa? | Custo e contexto enviado à IA. | Responsável pelo produto (junto com DEC-011) |
-| Q-UX-05 | Notificação de nova conversa no celular (push via PWA, som no navegador ou nenhuma) no MVP? | Alertas e instalação do painel no celular. | Responsável pelo produto |
-| Q-UX-06 | Como exibir janela de 24 h e modelos do WhatsApp no compositor? | Envio real fora da janela. | Engenharia + responsável pelo produto (EP-T04) |
+| Q-UX-02 | ~~Mover para “Agendado” sem compromisso~~ Resolvida: permitido, com aviso (DEC-018). | — | — |
+| Q-UX-03 | ~~Granularidade da grade~~ e ~~visão semanal~~ Resolvidas: 15 min (DEC-008) e visão de dia e de semana (DEC-018). | — | — |
+| Q-UX-04 | ~~Sugestão sob demanda ou automática~~ Resolvida: só sob demanda (DEC-018). | — | — |
+| Q-UX-05 | ~~Notificação de nova conversa~~ Resolvida: push via PWA instalável (DEC-018). **Em aberto:** quais eventos notificam além de nova conversa (atribuída a mim, envio falhou) e horário de silêncio. | Tela de preferências de notificação. | Responsável pelo produto |
+| Q-UX-06 | ~~Janela de 24 h~~ Resolvida: texto livre bloqueado, envio por modelo aprovado (DEC-018). **Em aberto:** quais modelos cadastrar e o custo por modelo. | Envio real fora da janela. | Engenharia + responsável pelo produto (EP-T04) |
