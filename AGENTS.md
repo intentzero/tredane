@@ -28,7 +28,9 @@ Não promova uma proposta a decisão confirmada porque ela parece tecnicamente c
 - O WhatsApp previsto é a API oficial do WhatsApp Business. A forma de conectar e administrar a conta de cada clínica continua em aberto.
 - O painel deve receber atualizações em tempo real por WebSockets com hibernação em Durable Objects. Um Durable Object por clínica é uma proposta de coordenação e isolamento do estado em tempo real; a escolha final e o isolamento dos dados em D1/R2 ainda precisam ser especificados.
 - O primeiro recorte de IA é assistivo, com sugestão e revisão humana, conforme `docs/MVP.md`. Respostas ou agendamentos autônomos ficam fora desse recorte.
-- O fluxo piloto começa na mensagem recebida e termina no agendamento confirmado, incluindo visão da conversa e do pipeline. Detalhes de regras da agenda, permissões, identidade, retenção e provedor de IA permanecem pendentes.
+- Identidade pelo Clerk sem Organizations; `privateMetadata.superadmin` (booleano) só é autoritativo no backend; memberships N:N e roles por tenant vivem no D1.
+- A Platform Admin App é separada do painel operacional das clínicas e gere tenants. Superadmin poderá impersonar usuário de um tenant para suporte, mediante sessão temporária, escopo, auditoria de ator e alvo, e políticas de segurança; mecanismo de impersonação ainda está em aberto. Ver ADR-0006/0007.
+- O fluxo piloto começa na mensagem recebida e termina no agendamento confirmado, incluindo visão da conversa e do pipeline. Detalhes de regras da agenda, permissões específicas, política de suporte/impersonação, retenção e provedor de IA permanecem pendentes.
 
 Ao atualizar esse contexto, altere primeiro o documento que contém a decisão e depois as referências resumidas. Não use estas instruções como substituto para a especificação de produto.
 
