@@ -76,6 +76,22 @@
 
 **Dado** uma conversa da clínica A atribuída a outra pessoa da equipe; **quando** um atendente ou o responsável de A abre a caixa de entrada; **então** ambos conseguem ver essa conversa, responder, mover a oportunidade e operar o agendamento conforme o fluxo. **Quando** tentam acessar conversa da clínica B, o acesso é negado. **Requisitos:** REQ-001, REQ-002, REQ-020, REQ-023, REQ-031.
 
+### AC-17 — Usuário com memberships em duas clínicas
+
+**Dado** um usuário Clerk com role de responsável em A e de atendente em B; **quando** trabalha em abas separadas; **então** cada requisição e WebSocket usa tenant e role próprios. Revogar A nega apenas A, sem alterar o acesso legítimo em B. **Requisitos:** REQ-001/003/005.
+
+### AC-18 — Só superadmin booleano administra tenants
+
+**Dado** um usuário com `privateMetadata.superadmin === true` no Clerk; **quando** cria/edita/suspende um tenant; **então** a API valida a flag atual no backend e audita a operação. Usuário sem flag ou com string `"true"` recebe 403; falha de validação não permite ação. Exclusão começa como `pending_deletion`. **Requisitos:** REQ-006.
+
+### AC-19 — Sessão interna de suporte e impersonação
+
+**Dado** superadmin, clínica A e subject com membership em A; **quando** inicia suporte com motivo; **então** o Tredane cria a sua própria sessão temporária e a Clinic App mostra banner, role efetiva do subject e as restrições adicionais. Clerk continua a autenticar o actor. Auditoria guarda as duas identidades. **Requisitos:** REQ-007.
+
+### AC-20 — Negação de escalada e revogação no suporte
+
+**Dado** uma sessão de suporte em A; **quando** se altera ID do tenant/subject, tenta operação proibida, expira a sessão, retira membership do subject ou a flag do actor; **então** nenhuma operação ilegal é executada nem entregue por WebSocket. A sessão pode ser encerrada manualmente. **Requisitos:** REQ-003/007/040.
+
 ## Condições para usar estes cenários como aprovação
 
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.
