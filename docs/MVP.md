@@ -31,6 +31,14 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Cenários de aceite](product/acceptance.md)
 - [Fronteira de dados entre clínicas](product/tenant-boundaries.md)
 
+## Documentação de arquitetura e execução
+
+- [Arquitetura de referência](architecture/overview.md) e [modelo lógico D1](architecture/data-model.md).
+- ADRs: [Cloudflare-native](adr/0001-cloudflare-native.md), [topologia D1](adr/0002-d1-topology.md), [Durable Objects e tempo real](adr/0003-durable-objects-realtime.md), [IA com revisão humana](adr/0004-ai-human-in-loop.md) e [consistência da agenda](adr/0005-d1-booking-consistency.md).
+- [Plano de implementação proposto](implementation/plan.md).
+
+Os ADRs não encerram as decisões abertas deste MVP: em particular topologia D1, provedor de identidade, integração de cada número de WhatsApp e dados reais permanecem pendentes.
+
 ## Recorte proposto para a primeira entrega
 
 **Usuários:** atendente e responsável da clínica. Ambos veem todas as conversas da própria clínica e podem conduzir atendimento e agendamentos; o responsável pode executar todas as ações do atendente. O contato interage pelo WhatsApp; não precisa de conta no Tredane. Profissional e operador da plataforma não têm perfil de acesso ao painel no primeiro MVP.

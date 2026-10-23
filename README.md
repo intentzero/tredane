@@ -20,6 +20,15 @@ O [escopo inicial do MVP](docs/MVP.md) registra o fluxo, os critérios de aceite
 - Agenda própria do Tredane no primeiro MVP.
 - WhatsApp pela API oficial do WhatsApp Business.
 
+## Documentação de engenharia
+
+- [Arquitetura e fluxos técnicos](docs/architecture/overview.md)
+- [Modelo lógico de dados D1](docs/architecture/data-model.md)
+- [ADRs — decisões arquiteturais](docs/adr/0001-cloudflare-native.md) (ver também [topologia D1](docs/adr/0002-d1-topology.md), [tempo real](docs/adr/0003-durable-objects-realtime.md), [IA assistiva](docs/adr/0004-ai-human-in-loop.md) e [concorrência da agenda](docs/adr/0005-d1-booking-consistency.md))
+- [Plano de implementação por fatias](docs/implementation/plan.md)
+
+Os ADRs identificam decisões aceitas, propostas técnicas e temas ainda em aberto. Nenhum módulo de aplicação foi implementado apenas por adicionar esta documentação.
+
 ## Próximo marco
 
 Preparar a estrutura de frontend e API, migrações, ambiente local e CI. Em seguida, implementar o isolamento entre clínicas, o fluxo principal e a atualização reativa entre sessões com dados de teste antes de conectar serviços reais.
