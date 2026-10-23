@@ -17,6 +17,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Avaliar um Durable Object por clínica como fronteira de coordenação e isolamento do estado em tempo real.
 - Somente atendente e responsável pela clínica acessam o painel no primeiro MVP; profissional é recurso de agenda, sem login.
 - Atendente vê todas as conversas da própria clínica; responsável pode fazer tudo que o atendente faz, inclusive responder pelo WhatsApp e operar agendamentos.
+- **Gestão de membros (opção B confirmada):** superadmin cria tenant e define o primeiro owner; owner pode convidar e remover somente attendants do seu tenant. Apenas superadmin cria/promove/substitui/remove owners. Memberships do mesmo usuário noutros tenants são independentes.
 - Um horário considera profissional e sala/equipamento necessários ao serviço.
 - Identidade e sessões no Clerk, **sem Clerk Organizations**; um usuário pode integrar vários tenants via memberships no D1, com papéis distintos.
 - Acesso global à Platform Admin por `privateMetadata.superadmin === true` (booleano exato) verificado pelo backend; a app permite criar, editar, suspender e iniciar exclusão lógica de tenants.
@@ -117,7 +118,7 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 
 1. Como cada clínica conectará seu número à API oficial do WhatsApp Business e quem administrará essa conta.
 2. Quais serviços, durações, buffers, bloqueios e regras de disponibilidade a clínica piloto precisa para profissional e sala/equipamento.
-3. Definido: Clerk sem Organizations e memberships N:N no D1. Em aberto: convite/onboarding, revogação, MFA e permissões administrativas específicas do responsável.
+3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Em aberto: experiência de convite, revogação, MFA e integrações.
 4. Qual provedor de IA será usado; como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane?
 5. Quais dados pessoais são necessários, por quanto tempo serão guardados e como a clínica atenderá pedidos de acesso ou exclusão.
 6. Se o D1 compartilhado com escopo rigoroso por clínica atende ao piloto ou se alguma categoria de dados exige banco separado por clínica.

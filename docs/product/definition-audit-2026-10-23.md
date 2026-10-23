@@ -18,7 +18,7 @@
 | A-01 | Descrever atores | Concluído | [ACT-01 a ACT-06](actors-permissions.md) |
 | A-02 | Validar perfis de acesso ao painel | Concluído para recorte | Clinic App para attendant/owner, Platform Admin separada; [ADR-0006](../adr/0006-clerk-platform-admin.md) |
 | A-03 | Matriz **proposta** de permissões | Concluído como proposta | [matriz](actors-permissions.md); permissões de integração/admin de clínica continuam em aberto |
-| A-04 | Ciclo de membership e revogação até WebSocket | Pendente de definição | Mecanismo transacional, revogação ativa de conexões e convites; [DEC-007](decisions.md), [REQ-003](requirements.md) |
+| A-04 | Ciclo de membership e revogação até WebSocket | Parcial: delegação confirmada, convite e revogação pendentes | DEC-020: superadmin gere owners, owner gere attendants; especificar aceite/expiração e revogação em WS |
 | J-01 | Primeira mensagem WhatsApp | **Documentado para revisão** | [JRN-01](journeys.md), exceções, REQ-010/011/050 |
 | J-02 | Atendimento com IA e transferência | **Documentado para revisão** | [JRN-02](journeys.md), REQ-020/022 |
 | J-03 | Oportunidade até reserva | **Documentado para revisão** | [JRN-03](journeys.md), regras da agenda ainda não fechadas |
@@ -58,7 +58,7 @@ Referências: [DEC-013 a DEC-019](decisions.md), [ADR-0006](../adr/0006-clerk-pl
 
 ## Próximas decisões, em ordem sugerida
 
-1. **Engenharia F1**: convite/saída de membros, autorização de acesso e revogação imediata em WebSockets, incluindo sessões de suporte. Rascunho e teste com duas clínicas fictícias primeiro.
+1. **Engenharia F1**: delegação confirmada; especificar convite/aceite, saída de membros, autorização de acesso e revogação imediata em WebSockets, incluindo sessões de suporte. Rascunho e teste com duas clínicas fictícias primeiro.
 2. **Agenda + piloto**: serviços, durações, recursos, buffers, expedientes, cancelamento e reagendamento — definir com a clínica antes de codificar algoritmo final.
 3. **WhatsApp**: conta/número por clínica, operação assistida vs autosserviço, responsabilidades, anexos e estados de falha. Sem conectar número real antes disso.
 4. **D1/retensão**: decisão A/B de banco, minimização e exclusão de dados/arquivos, políticas LGPD e acesso de suporte.

@@ -9,10 +9,11 @@
 1. **Identidade e sessões:** usar Clerk, sem Clerk Organizations. Não usar IDs `orgId`, Organization Memberships, Organizations Roles nem Organizations API para modelar clínicas.
 2. **Superadmin:** o atributo global é **`privateMetadata.superadmin === true`** (booleano, sem underscore) num usuário Clerk. Apenas o backend consulta e verifica a flag; não confiar no browser, `publicMetadata`, `unsafeMetadata` ou uma claim desatualizada.
 3. **Multi-tenant:** um usuário Clerk pode pertencer a vários tenants do Tredane, com `tenant_memberships` e roles **no D1**. Cada API e WebSocket verifica o tenant solicitado e a associação vigente; duas abas podem operar tenants diferentes.
-4. **Platform Admin App:** aplicação restrita a superadmins para criar, editar, suspender, reativar e iniciar exclusão de tenants, além de gerir atribuições quando autorizado.
-5. **Separação de privilégio:** flag global de superadmin não concede acesso automático ao conteúdo da clínica. O acesso operacional normal exige membership explícito, ou uma sessão de suporte/impersonação controlada conforme [ADR-0007](0007-support-impersonation.md).
-6. **Exclusão:** "deletar tenant" é uma operação com confirmação reforçada e exclusão lógica no MVP. Purga física e recuperação dependem de política de dados/retensão ainda Em aberto.
-7. **Impersonação de suporte:** o Tredane emitirá **suas próprias sessões de suporte no D1**, sem Clerk impersonation ou actor tokens. O superadmin poderá atuar no contexto de um usuário com membership no tenant para manutenção conforme [ADR-0007](0007-support-impersonation.md); o ator real fica sempre identificado na auditoria.
+4. **Platform Admin App:** aplicação restrita a superadmins para criar, editar, suspender, reativar e iniciar exclusão de tenants, incluindo definição e gestão de owners.
+5. **Gestão de membros (opção B confirmada):** superadmin cria tenant e atribui primeiro owner; owner pode convidar/remover apenas attendants do próprio tenant, sem criar/promover owners. Mesmo usuário pode ter roles diferentes em vários tenants e remoção de um membership não afeta outros.
+6. **Separação de privilégio:** flag global de superadmin não concede acesso automático ao conteúdo da clínica. O acesso operacional normal exige membership explícito, ou uma sessão de suporte/impersonação controlada conforme [ADR-0007](0007-support-impersonation.md).
+7. **Exclusão:** "deletar tenant" é uma operação com confirmação reforçada e exclusão lógica no MVP. Purga física e recuperação dependem de política de dados/retensão ainda Em aberto.
+8. **Impersonação de suporte:** o Tredane emitirá **suas próprias sessões de suporte no D1**, sem Clerk impersonation ou actor tokens. O superadmin poderá atuar no contexto de um usuário com membership no tenant para manutenção conforme [ADR-0007](0007-support-impersonation.md); o ator real fica sempre identificado na auditoria.
 
 ## Responsabilidades por camada
 

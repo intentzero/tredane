@@ -10,7 +10,7 @@
 
 ### REQ-002 — Permissão por papel e ação
 
-**Prioridade/estado:** MVP / Confirmado para atendimento; administração em aberto. **Origem:** ACT-02, ACT-03; JRN-02, JRN-07. **Comportamento:** atendente e responsável podem ver todas as conversas da própria clínica, responder, atribuir, mover oportunidades e operar agendamentos; o responsável pode fazer tudo que o atendente faz. Permissões administrativas adicionais ainda serão definidas. **Aceite:** ambos executam essas ações na própria clínica, mas são negados para outra clínica; ação administrativa não autorizada não altera dados. **Dados/eventos:** a resposta não revela conteúdo de outro tenant nem publica evento de ação negada.
+**Prioridade/estado:** MVP / Confirmado para atendimento; administração em aberto. **Origem:** ACT-02, ACT-03; JRN-02, JRN-07. **Comportamento:** atendente e responsável podem ver todas as conversas da própria clínica, responder, atribuir, mover oportunidades e operar agendamentos; o responsável pode fazer tudo que o atendente faz. Gestão de attendants pelo owner está confirmada; outras permissões administrativas e integração estão em aberto. **Aceite:** ambos executam essas ações na própria clínica, mas são negados para outra clínica; ação administrativa não autorizada não altera dados. **Dados/eventos:** a resposta não revela conteúdo de outro tenant nem publica evento de ação negada.
 
 ### REQ-003 — Revogação de acesso
 
@@ -18,7 +18,7 @@
 
 ### REQ-004 — Ativação e associação de membros
 
-**Prioridade/estado:** MVP / Em aberto. **Origem:** ACT-03, ACT-05; JRN-08. **Comportamento:** uma clínica ativa precisa de responsável e associação de membros antes de receber dados. **Aceite:** nenhum usuário sem associação vigente entra no tenant; o fluxo concreto de convite/ativação será testável após decidir se o onboarding é assistido ou autosserviço. **Dados/eventos:** tenant e identidade; não presumir acesso global do operador.
+**Prioridade/estado:** MVP / Confirmado quanto à delegação (DEC-020); convite e revogação técnica em aberto. **Origem:** ACT-03/05, JRN-08/09/10/12. **Comportamento:** superadmin cria tenant e atribui primeiro owner; owner convida/remove attendants apenas nesse tenant. Exclusivamente superadmin pode atribuir, promover, substituir ou remover owners. Attendant não gere membros. Memberships N:N são guardados no D1 sem Clerk Organizations. **Aceite:** owner não pode promover outro owner nem alterar membros de tenant onde não é owner; remoção em A preserva B; impedir ativação de tenant sem owner; todas as alterações auditadas. **Pendente:** aceite/expiração de convites, proteção do último owner, revogação HTTP e WebSocket.
 
 ### REQ-005 — Identidade Clerk e membership multi-tenant
 

@@ -92,6 +92,10 @@
 
 **Dado** uma sessão de suporte em A; **quando** se altera ID do tenant/subject, tenta operação proibida, expira a sessão, retira membership do subject ou a flag do actor; **então** nenhuma operação ilegal é executada nem entregue por WebSocket. A sessão pode ser encerrada manualmente. **Requisitos:** REQ-003/007/040.
 
+### AC-21 — Owner gere apenas attendants do próprio tenant
+
+**Dado** superadmin cria tenant A e atribui owner; **quando** o owner convida e remove attendant de A, **então** os eventos são auditados, o acesso ao tenant A é criado/revogado após aceitação e memberships do usuário em B não se alteram. Tentar convidar para B sem ser owner, promover/criar outro owner ou executar ação como attendant sem permissão retorna negação sem efeitos. Somente superadmin gere owners. **Requisitos:** REQ-001/002/003/004/005. **Pendente:** mecanismo de convites e invalidação de WebSockets.
+
 ## Condições para usar estes cenários como aprovação
 
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.

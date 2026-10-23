@@ -17,6 +17,13 @@
 4. Para cada request, backend valida autenticação, membership do usuário e role naquele tenant, e estado do tenant.
 5. Revogar membership A invalida APIs e WebSockets de A, mas não interfere com o acesso a B. Troca de contexto não pode transferir caches/eventos entre tenants.
 
+## Delegação da equipa — opção B confirmada
+
+- Superadmin cria tenant e atribui o primeiro owner. Apenas superadmin cria, transfere ou remove owners.
+- Owner autenticado convida/remove apenas attendants do seu tenant; backend Hono verifica role e tenant ativos no D1 a cada ação. Attendant não gere membros.
+- Um Clerk user pode ser owner em A e attendant em B. Revogar A não altera B; ações são auditadas com autor, tenant e alvo.
+- Convites, expiração e revogação de sessões/WS precisam de especificação na F1.
+
 ## Fluxo Platform Admin
 
 1. Superadmin autentica no Clerk.
@@ -39,7 +46,9 @@
 - `POST /api/platform/tenants/:id/suspend`
 - `POST /api/platform/tenants/:id/reactivate`
 - `DELETE /api/platform/tenants/:id` inicia **exclusão lógica**, não destruição imediata.
-- `GET /api/platform/tenants/:id/members` lista memberships do tenant para selecionar usuário-alvo.
+- `GET /api/platform/tenants/:id/members` lista memberships e permite ao superadmin gerir owners.
+- `POST /api/tenants/:tenantId/invitations` (proposto): owner convida exclusivamente attendants.
+- `DELETE /api/tenants/:tenantId/members/:clerkUserId` (proposto): owner remove apenas attendants, sem alterar tenants diferentes.
 - `POST /api/platform/support-sessions` cria uma sessão **própria do Tredane** vinculada à sessão Clerk do superadmin, tenant, subject e motivo; entrega código de handoff único de curta duração.
 - `POST /api/platform/support-sessions/:id/revoke` encerra a sessão e impede acesso posterior (HTTP/WebSocket).
 - `POST /api/support/exchange` (Clinic App, contrato proposto) troca o código único por credencial opaca de suporte em cookie seguro HttpOnly, vinculada à sessão Clerk **do actor**.

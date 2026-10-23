@@ -31,7 +31,7 @@
 
 ## JRN-04 — Acompanhamento pela clínica
 
-- **Ator e objetivo:** ACT-03 acompanha todas as conversas, oportunidades e agenda da própria clínica e pode realizar todas as ações de atendimento de ACT-02. Gestão de membros e integrações ainda depende de decisão específica.
+- **Ator e objetivo:** ACT-03 acompanha todas as conversas, oportunidades e agenda da própria clínica e pode realizar todas as ações de atendimento de ACT-02. Gestão de attendants pelo owner foi confirmada; gestão de owners pertence ao superadmin e integrações dependem de decisão.
 - **Gatilho e pré-condições:** responsável autenticado e associado à clínica.
 - **Fluxo principal:** (1) abre a visão de atendimento/pipeline/agenda; (2) filtra ou localiza um contato; (3) consulta estado atual, responsável e próximo compromisso; (4) vê mudanças feitas em outra sessão sem recarregar a página.
 - **Alternativas:** não há dados; membro foi removido; conexão em tempo real caiu e a interface precisa reconciliar com a API antes de mostrar estado atual.
@@ -67,8 +67,16 @@
 
 ## JRN-08 — Ativação de uma clínica (pendente)
 
-- **Estado:** Em aberto. O produto precisará criar a clínica, associar o responsável, configurar serviços, profissionais e salas/equipamentos e conectar o número oficial de WhatsApp. Ainda não há decisão sobre autosserviço, operação assistida ou responsabilidade pela conta Meta. Não desenhar um fluxo definitivo de ativação antes dessa escolha.
+- **Estado:** Confirmado: superadmin cria tenant e associa primeiro owner; owner convida/remove attendants, nunca cria/promove owners. **Em aberto:** fluxo técnico de convite, disponibilidade de serviços e profissionais, e responsabilidade pela conexão da conta WhatsApp. Não confundir a delegação confirmada com onboarding integralmente definido.
 - **Requisitos relacionados:** REQ-004, REQ-051, REQ-052.
+
+## JRN-12 — Owner convida/remove attendant
+
+- **Ator:** owner ativo em tenant A, com autenticação Clerk e membership D1.
+- **Fluxo confirmado:** owner em A convida pessoa como attendant apenas em A; após aceite pelo mecanismo a definir, membership é ativado em A. Ao remover, acesso a A é revogado com auditoria, mantendo quaisquer memberships em B.
+- **Erros:** owner tenta alterar owners ou membro de B sem permissão => negar; attendant tenta gerir membros => negar; convite inválido não concede membership.
+- **Em aberto:** emissão, posse do email, aceite e expiração de convite, revogação imediata dos WebSockets.
+- **Requisitos:** REQ-001/002/003/004/005.
 
 ## JRN-09 — Alternar entre tenants
 
