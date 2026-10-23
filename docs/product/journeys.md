@@ -80,7 +80,7 @@
 
 ## JRN-13 — Aceitar convite de e-mail para tenant
 
-- **Estado:** confirmado o mecanismo de convite (DEC-021); prazo/reenvio por definir.
+- **Estado:** convite por e-mail (DEC-021) e validade de 7 dias desde a emissão (DEC-022) confirmados; reenvio em aberto.
 - **Ator/objetivo:** futuro attendant recebe e-mail de convite de owner para a clínica A.
 - **Fluxo:** owner de A informa e-mail → Tredane regista convite de uso único no D1 e entrega link por e-mail → destinatário autentica-se no Clerk, criando conta se necessário → backend confirma que o e-mail convidado está verificado na identidade Clerk → consume o convite atomicamente e cria membership attendant somente em A.
 - **Alternativas:** já pertencer a B não modifica B; endereço não verificado, token usado/expirado/revogado e tentativa de mudar role/tenant falham sem criar vínculo.

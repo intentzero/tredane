@@ -1,6 +1,6 @@
 # ADR-0008 — Convites de atendentes por e-mail
 
-**Estado:** aceito quanto ao mecanismo (DEC-021); parâmetros de expiração e reenvio em aberto.
+**Estado:** confirmados mecanismo por e-mail (DEC-021) e prazo de 7 dias (DEC-022); reenvio em aberto.
 **Origem/data:** opção A aprovada pelo responsável pelo Tredane em 23/10/2026.
 **Relacionado:** [ADR-0006](0006-clerk-platform-admin.md), [REQ-008](../product/requirements.md), [JRN-13](../product/journeys.md), [AC-22](../product/acceptance.md).
 
@@ -21,9 +21,15 @@ Um **owner** pode convidar um **attendant** exclusivamente para tenant no qual p
 - Toda emissão, revogação e aceitação deve ser auditável; tratamento de links encaminhados, expiração, antiabuso/rate limits e CSRF a detalhar.
 - Se já existir conta Clerk pertencente a outro tenant, manter identidade e memberships anteriores.
 
+## Validade confirmada — DEC-022
+
+O convite vale **7 dias (168 horas) a partir do instante da emissão**, calculados e conferidos pelo backend em UTC. O D1 guarda `issued_at` e `expires_at`. Aceitar requer `now < expires_at` no momento da operação atómica de consumo do convite e criação do membership. No instante exato da expiração ou depois, o aceite é negado. Abrir o link e autenticar-se no Clerk não prolongam a validade. Testar limites temporais, token usado e relógio do cliente adulterado.
+
+A política de reenvio/substituição de links continua pendente.
+
 ## Pontos ainda em aberto
 
-1. **Tempo de validade padrão e política de reenvio/substituição** — próxima decisão do produto.
+1. **Política de reenvio/substituição** — próxima decisão do produto; prazo de 7 dias já confirmado.
 2. Transportador de e-mail e endereço remetente; gestão de bounces e falhas de entrega.
 3. Se owner pode revogar convite pendente antes do aceite e UX exata de convite cancelado (proposto: sim).
 4. Revogação imediata de sessões HTTP e WebSockets após remoção de membership.

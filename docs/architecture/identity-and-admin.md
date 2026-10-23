@@ -26,7 +26,7 @@
 
 ## Convites por e-mail (DEC-021 — confirmado)
 
-Owner de tenant ativo cria convite para e-mail e role **fixa attendant**. O Tredane envia um link de uso único, cuja credencial de alta entropia não é persistida em texto claro no D1. Na aceitação, o backend exige sessão Clerk do destinatário e e-mail **verificado** correspondente ao endereço convidado, e consome o convite atomicamente ao criar membership D1. A pessoa pode já integrar outros tenants, sem alterar esses vínculos. Concessão de owner continua exclusiva de superadmin. Duração exata, reenvio, revogação e provedor de entrega ainda não estão aprovados. Consultar [ADR-0008](../adr/0008-tenant-email-invitations.md).
+Owner de tenant ativo cria convite para e-mail e role **fixa attendant**. O Tredane envia um link de uso único, cuja credencial de alta entropia não é persistida em texto claro no D1. Na aceitação, o backend exige sessão Clerk do destinatário e e-mail **verificado** correspondente ao endereço convidado, e consome o convite atomicamente ao criar membership D1. A pessoa pode já integrar outros tenants, sem alterar esses vínculos. Concessão de owner continua exclusiva de superadmin. **DEC-022:** 7 dias (168 horas) desde emissão, verificados pelo servidor com `expires_at` persistido no D1; abrir link/login Clerk não prorroga. Reenvio, revogação e provedor de entrega ainda não aprovados. Consultar [ADR-0008](../adr/0008-tenant-email-invitations.md).
 
 ## Fluxo Platform Admin
 
