@@ -23,7 +23,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Acesso global à Platform Admin por `privateMetadata.superadmin === true` (booleano exato) verificado pelo backend; a app permite criar, editar, suspender e iniciar exclusão lógica de tenants.
 - Superadmin pode iniciar impersonação de suporte para um membro específico de um tenant, com sessão temporária, motivo, autorização por role do alvo e auditoria de actor + subject. A impersonação usa **sessão própria do Tredane no D1**, sem Clerk impersonation ou actor tokens; handoff seguro, MFA, retenção e políticas de mutação serão definidos na F1.
 
-**Convites de atendentes (opção A, DEC-021):** o `owner` envia convite por e-mail para o seu tenant, com link de uso único. A pessoa pode criar conta Clerk ou entrar na conta existente, mesmo que já esteja associada a outras clínicas. A aceitação exige e-mail verificado correspondente e concede apenas membership `attendant` no tenant convidante. Convites e aceites ficam no D1; **valem 7 dias desde a emissão (DEC-022)**, sem extensão por login ou abertura do link. Reenvio e revogação continuam por definir.
+**Convites de atendentes (opção A, DEC-021):** o `owner` envia convite por e-mail para o seu tenant, com link de uso único. A pessoa pode criar conta Clerk ou entrar na conta existente, mesmo que já esteja associada a outras clínicas. A aceitação exige e-mail verificado correspondente e concede apenas membership `attendant` no tenant convidante. Convites e aceites ficam no D1; **valem 7 dias desde a emissão (DEC-022)**, sem extensão por login ou abertura do link. **Reenvio confirmado (DEC-023):** novo link válido por 7 dias e invalidação imediata do anterior; limites de frequência e cancelamento manual continuam por definir.
 
 ## Documentos de definição
 
@@ -120,7 +120,7 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 
 1. Como cada clínica conectará seu número à API oficial do WhatsApp Business e quem administrará essa conta.
 2. Quais serviços, durações, buffers, bloqueios e regras de disponibilidade a clínica piloto precisa para profissional e sala/equipamento.
-3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Em aberto: reenvio de convite, revogação, MFA e integrações.
+3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Em aberto: limites de reenvio, cancelamento de convite, revogação de memberships, MFA e integrações.
 4. Qual provedor de IA será usado; como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane?
 5. Quais dados pessoais são necessários, por quanto tempo serão guardados e como a clínica atenderá pedidos de acesso ou exclusão.
 6. Se o D1 compartilhado com escopo rigoroso por clínica atende ao piloto ou se alguma categoria de dados exige banco separado por clínica.

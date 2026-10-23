@@ -17,7 +17,7 @@
 | VAL-11 | Confirmação/cancelamento por WhatsApp manual após agendamento é aceitável; lembretes e bots não precisam ser autónomos no primeiro piloto | Produto + clínica piloto | Antes de ativar mensagens reais e lembretes | REQ-033, JRN-03/05 |
 | VAL-12 | O suporte a mais de uma clínica por usuário precisa de seletor por aba/contexto e papéis distintos, sem copiar estado de sessão ou conteúdo entre tenants | Arquitetura + produto | Antes da F1 multi-tenant real; testes A/B | DEC-017, REQ-005, JRN-09 |
 
-**Atualização DEC-021:** está confirmado o convite por e-mail de uso único para attendants, aceite por login Clerk com e-mail verificado, com dados no D1. Na hipótese VAL-07, a escolha do mecanismo deixa de estar em aberto; o prazo foi fixado em 7 dias (DEC-022); faltam reenvio, canal de entrega, revogação HTTP/WebSocket e testes de segurança.
+**Atualização DEC-021:** está confirmado o convite por e-mail de uso único para attendants, aceite por login Clerk com e-mail verificado, com dados no D1. Na hipótese VAL-07, a escolha do mecanismo deixa de estar em aberto; o prazo foi fixado em 7 dias (DEC-022); **DEC-023 confirmou reenvio com novo token e invalidação do anterior**; faltam limites de frequência, cancelamento de convite, canal de entrega, revogação HTTP/WebSocket e testes de segurança.
 
 ## Evidência mínima a recolher com a clínica piloto
 

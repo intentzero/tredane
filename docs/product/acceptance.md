@@ -98,7 +98,7 @@
 
 ### AC-22 — Convite por e-mail com aceite verificável
 
-**Dado** owner da clínica A convidando `attendant@example.test`; **quando** o destinatário segue um link único válido e entra/cria conta Clerk com e-mail verificado correspondente; **então** o convite é consumido uma vez, e apenas um membership attendant em A é criado no D1. Uma identidade também membro de B preserva B. E-mail diferente, convite revogado/expirado/usado, alteração de tenant ou escalada da role são negados. **Requisitos:** REQ-004/005/008. **Validade confirmada:** convite com menos de 168 horas pode ser aceite se válido; em `expires_at` ou depois é recusado. **Pendente:** reenvio.
+**Dado** owner da clínica A convidando `attendant@example.test`; **quando** o destinatário segue um link único válido e entra/cria conta Clerk com e-mail verificado correspondente; **então** o convite é consumido uma vez, e apenas um membership attendant em A é criado no D1. Uma identidade também membro de B preserva B. E-mail diferente, convite revogado/expirado/usado, alteração de tenant ou escalada da role são negados. **Requisitos:** REQ-004/005/008. **Validade confirmada:** convite com menos de 168 horas pode ser aceite se válido; em `expires_at` ou depois é recusado. **Reenvio confirmado:** novo convite gera token e prazo de 7 dias; token anterior é invalidado na mesma operação transacional e não pode ser aceite, mesmo antes de expirar. Testar dois reenvios concorrentes e aceite simultâneo. **Pendente:** limites de frequência e cancelamento manual.
 
 ## Condições para usar estes cenários como aprovação
 

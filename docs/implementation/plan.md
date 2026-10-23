@@ -24,7 +24,7 @@
 
 **Ordem proposta:** integrar Clerk → memberships e seletor de tenant → API Platform Admin → sessões próprias de suporte, com TTL/revogação e banner → validar segurança, MFA, dados pessoais e eventos WebSocket. Ver [ADR-0006](../adr/0006-clerk-platform-admin.md) e [ADR-0007](../adr/0007-support-impersonation.md).
 
-**Convite por e-mail confirmado (DEC-021):** registar convite de attendant no D1, emitir link de uso único, enviar e-mail, validar destinatário autenticado no Clerk por e-mail verificado e consumir convite + ativar membership atomicamente. Cobrir testes de replay, mudança de tenant, role e múltiplos memberships. **DEC-022:** prazo fixo de 7 dias (168 horas), com teste de limite em `expires_at` no backend. Reenvio é a próxima decisão.
+**Convite por e-mail confirmado (DEC-021):** registar convite de attendant no D1, emitir link de uso único, enviar e-mail, validar destinatário autenticado no Clerk por e-mail verificado e consumir convite + ativar membership atomicamente. Cobrir testes de replay, mudança de tenant, role e múltiplos memberships. **DEC-022:** prazo fixo de 7 dias (168 horas), com teste de limite em `expires_at` no backend. **DEC-023:** implementar reenvio com novo token e nova validade de 7 dias, invalidação atómica do link anterior, auditoria, proteção contra envios excessivos e testes de concorrência/replay. Limites quantitativos de frequência ainda precisam ser aprovados.
 
 ## Backlog técnico por épico
 
