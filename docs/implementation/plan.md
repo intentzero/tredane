@@ -59,7 +59,7 @@
 
 ## Dependências que bloqueiam dados reais
 
-Decididos em 23/10/2026: DEC-005, DEC-007 a DEC-010 e, em parte, DEC-011. Ainda bloqueiam dados reais: mecanismo do D1 por clínica (ADR-0002), verificação como Tech Provider (DEC-009), revisão jurídica e não retenção da IA (DEC-011) e custo, residência de dados e segundo fator do Clerk (DEC-007, DEC-012). O épico [#1](https://github.com/intentzero/tredane/issues/1) permanece aberto até validação do produto.
+Decididos em 23/10/2026: DEC-005, DEC-007 a DEC-010 e, em parte, DEC-011. Ainda bloqueiam dados reais: mecanismo do D1 por clínica (ADR-0002), verificação como Tech Provider (DEC-009), revisão jurídica e não retenção da IA (DEC-011) e custo e residência de dados do Clerk (DEC-007, DEC-012). O épico [#1](https://github.com/intentzero/tredane/issues/1) permanece aberto até validação do produto.
 
 ## Primeira tarefa recomendada
 

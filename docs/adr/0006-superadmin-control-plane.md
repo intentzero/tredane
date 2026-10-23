@@ -21,13 +21,13 @@ Com um D1 por clínica ([ADR-0002](0002-d1-topology.md)) e ativação do WhatsAp
 
 **Q-SA-01 (acesso a conteúdo) — Confirmado:** o superadmin nunca vê conteúdo de uma clínica. Se precisar, o responsável da clínica concede acesso temporário como membro (proposta: 24 h, papel de atendente), que fica na auditoria da clínica e da plataforma e pode ser revogado por ele a qualquer momento. Opções descartadas: acesso sem exceção, acesso emergencial com dupla aprovação.
 
-**Q-SA-02 (autenticação) — Confirmado:** Clerk com metadado privado `superadmin: true`. Opções descartadas: Cloudflare Access, passkey próprio, TOTP.
+**Q-SA-02 (autenticação) — Confirmado:** Clerk com metadado privado `superadmin: true`, sem segundo fator obrigatório. Opções descartadas: Cloudflare Access, passkey próprio, TOTP.
 
 ## Riscos e controles propostos
 
 - O metadado privado só é lido no servidor. O app nunca decide ser superadmin por dado do navegador, e o Worker confere o metadado em cada requisição (não só no login).
-- Quem altera o metadado no painel do Clerk concede poder sobre todas as clínicas: restringir esse acesso ao Clerk a poucas pessoas, com segundo fator obrigatório, e registrar quando um usuário é marcado ou desmarcado como superadmin.
-- Exigir segundo fator do Clerk para contas superadmin (**Proposto**).
+- Quem altera o metadado no painel do Clerk concede poder sobre todas as clínicas: restringir esse acesso ao Clerk a poucas pessoas e registrar quando um usuário é marcado ou desmarcado como superadmin.
+- **Segundo fator para superadmin: não exigido (Confirmado, responsável pelo produto, 23/10/2026).** Risco aceito: um superadmin autentica só com o código enviado ao e-mail, então quem controlar a caixa de e-mail de um superadmin controla o app de superadmin. Mitigações que não exigem segundo fator: poucos superadmins, e-mails corporativos do Tredane, auditoria de toda ação de superadmin e a regra de que o superadmin não lê conteúdo de clínica. O Clerk permite ligar segundo fator depois sem mudar o desenho; reavaliar antes de operar com dados reais de várias clínicas.
 - O acesso temporário de suporte é um vínculo comum no D1 central (papel atendente, `expires_at`), expirado e removido automaticamente; nada de bypass no código de autorização.
 
 ## Em aberto

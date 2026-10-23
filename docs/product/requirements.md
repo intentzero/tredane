@@ -138,4 +138,4 @@
 
 ## Lacunas para revisão
 
-Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: mecanismo de abertura do D1 por clínica; custo e residência de dados do Clerk; segundo fator do superadmin; revisão jurídica da retenção. Ver [decisões](decisions.md).
+Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: mecanismo de abertura do D1 por clínica; custo e residência de dados do Clerk; revisão jurídica da retenção. Ver [decisões](decisions.md).

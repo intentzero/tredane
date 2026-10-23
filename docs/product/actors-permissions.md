@@ -48,7 +48,7 @@ Operação e suporte devem partir de metadados e registros técnicos. Qualquer a
 
 | ID | Questão | Bloqueia |
 | --- | --- | --- |
-| Q-SA-03 | Segundo fator obrigatório no Clerk para contas superadmin, e processo interno para marcar e remover superadmin. | Publicação do app de superadmin fora do ambiente de teste. Ver [ADR-0006](../adr/0006-superadmin-control-plane.md). |
+| Q-SA-03 | Processo interno para marcar e remover superadmin. Segundo fator: **não exigido** (decisão de 23/10/2026, risco aceito no [ADR-0006](../adr/0006-superadmin-control-plane.md)). | Publicação do app de superadmin fora do ambiente de teste. |
 
 **Q-ACT-04 a Q-ACT-06 resolvidas em 23/10/2026:** o responsável conecta a conta da clínica pelo Embedded Signup com apoio do Tredane (DEC-009); uma conta pode pertencer a várias clínicas com seletor (DEC-007); a configuração assistida é feita no app de superadmin (DEC-012), sem acesso a conteúdo, salvo concessão temporária do responsável (Q-SA-01 resolvida em 23/10/2026, segunda rodada).
 

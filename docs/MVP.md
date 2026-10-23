@@ -113,7 +113,7 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 ## Decisões pendentes antes de integrar serviços reais
 
 1. Medições da F1 do D1 por clínica: limite de bindings, tempo de ativação e testes de acesso cruzado; o piloto usa bindings gerados no deploy ([ADR-0002](adr/0002-d1-topology.md)).
-2. Custo, plano e residência dos dados de identidade do Clerk; segundo fator obrigatório para superadmin ([DEC-007](product/decisions.md), [ADR-0006](adr/0006-superadmin-control-plane.md)).
+2. Custo, plano e residência dos dados de identidade do Clerk ([DEC-007](product/decisions.md)). O superadmin não exige segundo fator, risco aceito em [ADR-0006](adr/0006-superadmin-control-plane.md).
 3. Revisão jurídica (LGPD) da retenção e exclusão, AI Gateway sem registro de conteúdo e não retenção pelo provedor de IA (DEC-011).
 4. Verificação do Tredane como Tech Provider na Meta, custos, modelos de mensagem e janela de 24 h (DEC-009).
 5. Aparelhos da clínica piloto ([Q-UX-01](product/ux-ui.md#11-questões-abertas-de-ux)) e modelos de mensagem do WhatsApp a cadastrar.

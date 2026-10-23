@@ -19,7 +19,7 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP, instalável como PWA com notificações push de nova conversa | **Confirmado** | DEC-017, DEC-018. O push não traz o conteúdo da mensagem. No iPhone o push exige instalar o painel na tela inicial: o fluxo de instalação tem tela de orientação e escolha de avisos (M-14). Suporte em cada aparelho da clínica piloto: Q-UX-01. |
 | Idioma pt-BR, fuso horário da clínica em todas as datas | **Proposto** | O fuso da clínica é parte das regras de agenda ainda em aberto (DEC-008). |
 | Login pelo Clerk (código por e-mail) e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005, REQ-006. TEL-08 (proposta), desenhada em M-09 e M-10. A tela de entrada final usa o componente do Clerk estilizado com a identidade do Tredane; M-09 mostra o comportamento esperado, não o componente real. |
-| Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **a desenhar** | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
+| Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **propostas** (TEL-09, M-15 a M-19) | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
 | App de superadmin | **Fora desta spec** | DEC-012, [ADR-0006](../adr/0006-superadmin-control-plane.md). App separado, com spec própria quando for desenhado. |
 | Relatórios, campanhas, prontuário, pagamentos, bot autônomo | **Fora do MVP** | Não aparecem na navegação, nem como item desabilitado. |
 
@@ -38,6 +38,7 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 ```
 TEL-08 Entrar (e-mail → código) → seletor de clínica (só com mais de uma)
 Cabeçalho global: [clínica ativa ▾ troca] · Conversas · Pipeline · Agenda · [Clínica: só responsável] · [indicador de conexão] · [usuário]
+TEL-09 Clínica (só responsável): Serviços · Profissionais e salas · Horários e bloqueios · Equipe · WhatsApp
 ├── TEL-01 Conversas (lista + conversa aberta + painel do contato)
 │     └── TEL-05 Agendar horário (painel lateral a partir da conversa)
 ├── TEL-03 Pipeline (quadro por etapa)
@@ -56,7 +57,7 @@ TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carr
 
 | Largura | Navegação | Conversas | Pipeline | Agenda |
 | --- | --- | --- | --- | --- |
-| Base (360–767 px) | Barra inferior com Conversas, Pipeline e Agenda; badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
+| Base (360–767 px) | Barra inferior com Conversas, Pipeline e Agenda (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
 | Tablet (≥ 768 px) | Barra lateral compacta. | Lista + conversa lado a lado; detalhes em gaveta. | Quadro com rolagem horizontal. | Grade com colunas por recurso. |
 | Desktop (≥ 1280 px) | Cabeçalho superior. | Três colunas (lista, conversa, detalhes). | Quadro completo; arrastar e soltar além do menu “Mover para…”. | Grade completa e painel lateral de agendamento. |
 
@@ -178,6 +179,22 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 - **Trocar de clínica:** tocar no nome da clínica no cabeçalho abre a mesma lista. Ao trocar, a tela mostra “Abrindo Clínica B…”, descarta os dados da anterior e reconecta o tempo real; texto não enviado no compositor é descartado com confirmação.
 - Clínica removida do acesso some da lista; se era a ativa, aparece o estado “Acesso encerrado” (6.2).
 
+### TEL-09 — Clínica (configuração, só o responsável)
+
+**Origem:** DEC-007, DEC-008, DEC-009, DEC-012; REQ-004, REQ-051, REQ-052, REQ-061; JRN-08; AC-14. **Estado:** Proposto (telas M-15 a M-19). Visível apenas para o Responsável; o Atendente não vê a aba e, se abrir a URL, recebe “Você não tem acesso a esta área” sem dados (REQ-002).
+
+**Início (M-15).** Faixa “Falta N passos para atender” com os itens pendentes e uma lista de áreas com o estado de cada uma (Pronto, Falta conectar). “Pronta para atender” exige: ao menos um serviço, um profissional, uma sala/equipamento, expediente e WhatsApp conectado (REQ-052, AC-14). Sem a configuração da agenda, M-04 mostra “A agenda desta clínica ainda não foi configurada”.
+
+**Serviço (M-16).** Nome, duração e intervalo depois (múltiplos de 15 min, DEC-008), quem pode fazer, sala/equipamento exigido, preço opcional e ativo/inativo. Um resumo mostra quanto tempo o serviço ocupa na agenda: duração + intervalo, bloqueando profissional e sala. Desativar um serviço não cancela compromissos já marcados. Nome, duração e preço também alimentam o contexto da IA (REQ-060).
+
+**Horários e bloqueios (M-17).** Por profissional e por sala/equipamento: expediente semanal (faixas por dia) e bloqueios pontuais com data, horário opcional e motivo; sem recorrência no MVP (DEC-008). Criar um bloqueio sobre compromissos existentes lista os compromissos afetados e não os cancela sozinho; o responsável decide caso a caso (fluxo de cancelar ou reagendar com motivo, TEL-06).
+
+**Equipe (M-18).** Membros com papel (Responsável, Atendente), convites pendentes (reenviar, cancelar; expiram) e remoção de acesso. Remover um membro encerra as sessões e conexões em tempo real dele (REQ-003). Seção “Suporte do Tredane”: o responsável pode liberar acesso temporário de 24 h como Atendente, encerrável a qualquer momento e auditado; sem isso, a equipe do Tredane não vê conteúdo (DEC-012, [ADR-0006](../adr/0006-superadmin-control-plane.md)). A clínica sempre precisa de ao menos um Responsável: remover ou rebaixar o último é recusado.
+
+**WhatsApp (M-19).** Estado “Não conectado” com explicação do Embedded Signup e botão **Conectar WhatsApp**, que abre a janela da Meta (DEC-009). Um número já ligado a outra clínica é recusado (REQ-051). Estados a desenhar quando a integração existir: conectado (número e estado), conexão interrompida e troca de número. O acesso à conta Meta e os tokens nunca aparecem na tela.
+
+**Em aberto:** quais papéis podem trocar o número do WhatsApp depois de conectado (hoje só o Responsável); se o Responsável pode se rebaixar; textos finais do Embedded Signup, que dependem do registro do Tredane como Tech Provider.
+
 ### TEL-07 — Estados globais
 
 **Origem:** JRN-07; REQ-003, REQ-041, REQ-042, AC-02, AC-11, AC-12. **Estado:** Proposto.
@@ -282,8 +299,9 @@ Tipografia: Inter (400/500/600), escala 12/14/16/20/24. Raio 8 px em cartões, 6
 | TEL-06 Compromisso | JRN-05 | REQ-032, REQ-033 | AC-10 |
 | TEL-07 Estados globais | JRN-07 | REQ-001, REQ-003, REQ-040, REQ-041, REQ-042 | AC-01, AC-02, AC-11, AC-12 |
 | TEL-08 Entrar e escolher clínica | JRN-07, JRN-08 | REQ-005, REQ-006 | AC-17 |
+| TEL-09 Clínica (configuração) | JRN-08 | REQ-002, REQ-003, REQ-004, REQ-051, REQ-052, REQ-061 | AC-03, AC-14 |
 
-Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA).
+Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-15 a M-19 → TEL-09. As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
 
 ## 10. Critérios de aceite de UX
 

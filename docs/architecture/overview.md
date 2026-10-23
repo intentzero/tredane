@@ -81,4 +81,4 @@ Registrar correlation_id, tenant_id interno, entidade/ação, estado do evento, 
 
 ## Decisões ainda em aberto
 
-Mecanismo para o Worker abrir o D1 de cada clínica e migrar todos os bancos ([ADR-0002](../adr/0002-d1-topology.md)); custo, plano e residência de dados do Clerk ([DEC-007](../product/decisions.md)); segundo fator do superadmin ([ADR-0006](../adr/0006-superadmin-control-plane.md)); revisão jurídica LGPD; verificação do Tredane como Tech Provider; política de notificações; necessidade de Workflows já na primeira fatia. Não utilizar dados reais antes dessas políticas estarem aprovadas.
+Mecanismo para o Worker abrir o D1 de cada clínica e migrar todos os bancos ([ADR-0002](../adr/0002-d1-topology.md)); custo, plano e residência de dados do Clerk ([DEC-007](../product/decisions.md)); revisão jurídica LGPD; verificação do Tredane como Tech Provider; política de notificações; necessidade de Workflows já na primeira fatia. Não utilizar dados reais antes dessas políticas estarem aprovadas.
