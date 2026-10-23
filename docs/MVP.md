@@ -18,6 +18,9 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Somente atendente e responsável pela clínica acessam o painel no primeiro MVP; profissional é recurso de agenda, sem login.
 - Atendente vê todas as conversas da própria clínica; responsável pode fazer tudo que o atendente faz, inclusive responder pelo WhatsApp e operar agendamentos.
 - Um horário considera profissional e sala/equipamento necessários ao serviço.
+- Identidade e sessões no Clerk, **sem Clerk Organizations**; um usuário pode integrar vários tenants via memberships no D1, com papéis distintos.
+- Acesso global à Platform Admin por `privateMetadata.superadmin === true` (booleano exato) verificado pelo backend; a app permite criar, editar, suspender e iniciar exclusão lógica de tenants.
+- Superadmin pode iniciar impersonação de suporte para um membro específico de um tenant, com sessão temporária, motivo, autorização por role do alvo e auditoria de actor + subject. A escolha técnica entre Clerk actor tokens e sessão de suporte própria permanece pendente.
 
 ## Documentos de definição
 
@@ -36,12 +39,15 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Arquitetura de referência](architecture/overview.md) e [modelo lógico D1](architecture/data-model.md).
 - ADRs: [Cloudflare-native](adr/0001-cloudflare-native.md), [topologia D1](adr/0002-d1-topology.md), [Durable Objects e tempo real](adr/0003-durable-objects-realtime.md), [IA com revisão humana](adr/0004-ai-human-in-loop.md) e [consistência da agenda](adr/0005-d1-booking-consistency.md).
 - [Plano de implementação proposto](implementation/plan.md).
+- [ADR Clerk e Platform Admin](adr/0006-clerk-platform-admin.md), [ADR Impersonação de suporte](adr/0007-support-impersonation.md) e [contratos de identidade/admin](architecture/identity-and-admin.md).
 
-Os ADRs não encerram as decisões abertas deste MVP: em particular topologia D1, provedor de identidade, integração de cada número de WhatsApp e dados reais permanecem pendentes.
+Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora **confirmados**. Continuam em aberto: topologia D1, fluxo de ligação do WhatsApp, política de dados reais e implementação/preço da impersonação de suporte.
 
 ## Recorte proposto para a primeira entrega
 
-**Usuários:** atendente e responsável da clínica. Ambos veem todas as conversas da própria clínica e podem conduzir atendimento e agendamentos; o responsável pode executar todas as ações do atendente. O contato interage pelo WhatsApp; não precisa de conta no Tredane. Profissional e operador da plataforma não têm perfil de acesso ao painel no primeiro MVP.
+**Usuários da Clinic App:** atendente e responsável da clínica. Ambos veem todas as conversas da clínica a que estão associados; um usuário pode ter vários memberships com papéis distintos, selecionando um tenant por contexto/aba. O contato interage pelo WhatsApp; não precisa de conta Tredane. Profissional não tem login no MVP.
+
+**Platform Admin App (novo recorte interno):** superadmin confirmado no backend via `privateMetadata.superadmin === true` pode gerir ciclo de vida de tenants e iniciar sessão de suporte/impersonação como usuário autorizado de um tenant. A impersonação é sempre atribuída ao ator real, limitada pelo papel do alvo e pela política de suporte; não cria privilégio irrestrito de leitura de conteúdos.
 
 **Fluxo principal:**
 
@@ -73,8 +79,9 @@ Os ADRs não encerram as decisões abertas deste MVP: em particular topologia D1
 
 ## Arquitetura inicial proposta
 
-- **React:** painel da equipe, com caixa de entrada, pipeline e agenda.
-- **Worker com Hono:** API, autenticação/autorização, webhooks e regras de negócio.
+- **React:** Clinic App (Inbox, pipeline, agenda) e Platform Admin App interna, com fronteiras de autorização separadas.
+- **Clerk:** autenticação e sessões de usuários, `privateMetadata.superadmin` com verificação no backend, **sem Organizations**.
+- **Worker com Hono:** API, verificação da sessão Clerk, autorização por membership no D1, operações de Platform Admin e regras de negócio.
 - **D1 com Drizzle:** clínicas, membros, contatos, conversas, mensagens, oportunidades, recursos e agendamentos. Toda operação de negócio usa o tenant derivado da identidade autenticada ou da integração verificada, nunca de um ID livre fornecido pelo cliente.
 - **Durable Objects:** proposta de uma instância por clínica para conexões WebSocket, distribuição de eventos e coordenação local. A instância usa armazenamento próprio apenas para estado que precise sobreviver à hibernação; o sistema de registro das entidades de negócio continua no D1. O Worker valida a identidade e a associação à clínica antes de rotear a conexão ao objeto correspondente.
 - **Queues:** processamento de eventos recebidos e envio assíncrono, com idempotência e tratamento de falhas.
@@ -85,7 +92,7 @@ Os ADRs não encerram as decisões abertas deste MVP: em particular topologia D1
 
 **Sincronização da interface:** persistir a alteração antes de publicar o evento ao Durable Object; enviar aos clientes apenas eventos da clínica autorizada. O React mantém um estado local atualizado por eventos, mas refaz a leitura do estado canônico ao conectar ou reconectar. Metadados mínimos da conexão devem sobreviver à hibernação; dados críticos não podem depender da memória do objeto. A API de hibernação da Cloudflare permite manter os WebSockets conectados enquanto o objeto sai da memória.
 
-O número e a conta de WhatsApp de cada clínica, o mecanismo de autenticação, o provedor de IA e a política de retenção ainda precisam ser definidos antes de integrar serviços reais. Credenciais e tokens nunca entram no repositório.
+O número e a conta de WhatsApp de cada clínica, detalhes de convite/revogação de usuários, o mecanismo específico de impersonação, o provedor de IA e a política de retenção ainda precisam ser definidos antes de integrar serviços reais. Credenciais e tokens nunca entram no repositório.
 
 ## Sequência de implementação
 
@@ -99,14 +106,14 @@ O número e a conta de WhatsApp de cada clínica, o mecanismo de autenticação,
 
 ## Fora do primeiro MVP
 
-Prontuário ou registro clínico, pagamentos, estoque, integração com agendas externas, campanhas em massa, bot que responde ou agenda sozinho, relatórios avançados e painéis para profissional ou operador da plataforma. Esses itens podem entrar no backlog após validação do atendimento e agendamento.
+Prontuário ou registro clínico, pagamentos, estoque, integração com agendas externas, campanhas em massa, bot que responde ou agenda sozinho, relatórios avançados e painel de profissional. **A Platform Admin interna passa a integrar o escopo**, sem acesso operacional irrestrito aos dados clínicos. Esses itens podem entrar no backlog após validação do atendimento e agendamento.
 
 ## Decisões pendentes antes de integrar serviços reais
 
 1. Como cada clínica conectará seu número à API oficial do WhatsApp Business e quem administrará essa conta.
 2. Quais serviços, durações, buffers, bloqueios e regras de disponibilidade a clínica piloto precisa para profissional e sala/equipamento.
-3. Qual provedor de identidade será usado, se um usuário pode pertencer a várias clínicas e quais permissões administrativas adicionais terá o responsável.
-4. Qual provedor de identidade e qual provedor de IA serão usados.
+3. Definido: Clerk sem Organizations e memberships N:N no D1. Em aberto: convite/onboarding, revogação, MFA e permissões administrativas específicas do responsável.
+4. Qual provedor de IA será usado; como validar custo, aprovação e acesso na impersonação de suporte?
 5. Quais dados pessoais são necessários, por quanto tempo serão guardados e como a clínica atenderá pedidos de acesso ou exclusão.
 6. Se o D1 compartilhado com escopo rigoroso por clínica atende ao piloto ou se alguma categoria de dados exige banco separado por clínica.
 
