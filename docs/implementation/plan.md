@@ -14,6 +14,15 @@
 | F5: IA assistiva | Sugestão de texto e resumo com revisão humana, política de contexto, fallback | Nenhuma sugestão é enviada sem clique humano; casos sensíveis são tratados adequadamente |
 | F6: piloto | Testes ponta a ponta, monitorização, consentimentos, retenção e revisão de segurança | Aprovação das questões pendentes e de cenários da clínica piloto antes de dados reais |
 
+## F1 — decisões adicionais confirmadas
+
+- **Clerk** para autenticação/sessões, sem Organizations.
+- **Memberships N:N no D1** para usuários com acesso a mais de uma clínica, com roles específicas.
+- **Platform Admin interna** com autorização no backend por `privateMetadata.superadmin === true` booleano, capaz de criar, editar, suspender, reativar e iniciar exclusão lógica de tenants.
+- **Impersonação própria do Tredane:** sessões de suporte no D1 ligam administrador real, membro alvo, clínica e motivo; sem funcionalidades de impersonação do Clerk. Permissões resultam da role do alvo e limites adicionais, com auditoria dupla.
+
+**Ordem proposta:** integrar Clerk → memberships e seletor de tenant → API Platform Admin → sessões próprias de suporte, com TTL/revogação e banner → validar segurança, MFA, dados pessoais e eventos WebSocket. Ver [ADR-0006](../adr/0006-clerk-platform-admin.md) e [ADR-0007](../adr/0007-support-impersonation.md).
+
 ## Backlog técnico por épico
 
 ### EP-T01 — Base de execução e CI
