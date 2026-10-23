@@ -20,7 +20,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Um horário considera profissional e sala/equipamento necessários ao serviço.
 - Identidade e sessões no Clerk, **sem Clerk Organizations**; um usuário pode integrar vários tenants via memberships no D1, com papéis distintos.
 - Acesso global à Platform Admin por `privateMetadata.superadmin === true` (booleano exato) verificado pelo backend; a app permite criar, editar, suspender e iniciar exclusão lógica de tenants.
-- Superadmin pode iniciar impersonação de suporte para um membro específico de um tenant, com sessão temporária, motivo, autorização por role do alvo e auditoria de actor + subject. A escolha técnica entre Clerk actor tokens e sessão de suporte própria permanece pendente.
+- Superadmin pode iniciar impersonação de suporte para um membro específico de um tenant, com sessão temporária, motivo, autorização por role do alvo e auditoria de actor + subject. A impersonação usa **sessão própria do Tredane no D1**, sem Clerk impersonation ou actor tokens; handoff seguro, MFA, retenção e políticas de mutação serão definidos na F1.
 
 ## Documentos de definição
 
@@ -92,7 +92,7 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Sincronização da interface:** persistir a alteração antes de publicar o evento ao Durable Object; enviar aos clientes apenas eventos da clínica autorizada. O React mantém um estado local atualizado por eventos, mas refaz a leitura do estado canônico ao conectar ou reconectar. Metadados mínimos da conexão devem sobreviver à hibernação; dados críticos não podem depender da memória do objeto. A API de hibernação da Cloudflare permite manter os WebSockets conectados enquanto o objeto sai da memória.
 
-O número e a conta de WhatsApp de cada clínica, detalhes de convite/revogação de usuários, o mecanismo específico de impersonação, o provedor de IA e a política de retenção ainda precisam ser definidos antes de integrar serviços reais. Credenciais e tokens nunca entram no repositório.
+O número e a conta de WhatsApp de cada clínica, detalhes de convite/revogação de usuários, o protocolo seguro de handoff e revogação das sessões próprias de suporte, o provedor de IA e a política de retenção ainda precisam ser definidos antes de integrar serviços reais. Credenciais e tokens nunca entram no repositório.
 
 ## Sequência de implementação
 
@@ -113,7 +113,7 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 1. Como cada clínica conectará seu número à API oficial do WhatsApp Business e quem administrará essa conta.
 2. Quais serviços, durações, buffers, bloqueios e regras de disponibilidade a clínica piloto precisa para profissional e sala/equipamento.
 3. Definido: Clerk sem Organizations e memberships N:N no D1. Em aberto: convite/onboarding, revogação, MFA e permissões administrativas específicas do responsável.
-4. Qual provedor de IA será usado; como validar custo, aprovação e acesso na impersonação de suporte?
+4. Qual provedor de IA será usado; como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane?
 5. Quais dados pessoais são necessários, por quanto tempo serão guardados e como a clínica atenderá pedidos de acesso ou exclusão.
 6. Se o D1 compartilhado com escopo rigoroso por clínica atende ao piloto ou se alguma categoria de dados exige banco separado por clínica.
 
