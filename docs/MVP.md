@@ -23,6 +23,8 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Acesso global à Platform Admin por `privateMetadata.superadmin === true` (booleano exato) verificado pelo backend; a app permite criar, editar, suspender e iniciar exclusão lógica de tenants.
 - Superadmin pode iniciar impersonação de suporte para um membro específico de um tenant, com sessão temporária, motivo, autorização por role do alvo e auditoria de actor + subject. A impersonação usa **sessão própria do Tredane no D1**, sem Clerk impersonation ou actor tokens; handoff seguro, MFA, retenção e políticas de mutação serão definidos na F1.
 
+**Convites de atendentes (opção A, DEC-021):** o `owner` envia convite por e-mail para o seu tenant, com link de uso único. A pessoa pode criar conta Clerk ou entrar na conta existente, mesmo que já esteja associada a outras clínicas. A aceitação exige e-mail verificado correspondente e concede apenas membership `attendant` no tenant convidante. Convites e aceites ficam no D1; prazo exato, reenvio e revogação continuam por definir.
+
 ## Documentos de definição
 
 O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a definição. Os documentos abaixo detalham propostas e decisões sem substituir este resumo:

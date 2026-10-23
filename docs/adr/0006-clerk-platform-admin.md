@@ -15,6 +15,10 @@
 7. **Exclusão:** "deletar tenant" é uma operação com confirmação reforçada e exclusão lógica no MVP. Purga física e recuperação dependem de política de dados/retensão ainda Em aberto.
 8. **Impersonação de suporte:** o Tredane emitirá **suas próprias sessões de suporte no D1**, sem Clerk impersonation ou actor tokens. O superadmin poderá atuar no contexto de um usuário com membership no tenant para manutenção conforme [ADR-0007](0007-support-impersonation.md); o ator real fica sempre identificado na auditoria.
 
+## Convites de attendants — decisão adicional
+
+**DEC-021 confirma a opção A:** convite por e-mail com link de uso único emitido pelo Tredane, persistido no D1 e aceite por identidade Clerk existente ou nova, após correspondência do e-mail verificado. Role concedida é apenas attendant do tenant convidante. Sem Clerk Organizations. Ver [ADR-0008](0008-tenant-email-invitations.md); expiração/reenvio ainda precisam ser definidos.
+
 ## Responsabilidades por camada
 
 | Camada | Responsabilidade |

@@ -46,6 +46,8 @@
 
 **Leitura do checklist:** 9/28 itens já estavam marcados em 23/10; as sete jornadas J-01 a J-07 estavam registradas e podem ser marcadas **como documentação produzida**, alcançando **16/28**. As tarefas V-01 e V-04 podem ser encerradas apenas após incorporar e revisar o racional e registo de hipóteses, mas a validação da clínica permanece necessária antes de dar o épico por concluído.
 
+**Evolução após esta auditoria:** DEC-021 confirma convite por e-mail de uso único e aceite com e-mail verificado no Clerk (existente ou novo), preservando memberships em outros tenants. A tarefa A-04 mantém-se parcialmente aberta por falta de decisão de expiração, reenvio e mecanismo de revogação de HTTP/WebSockets.
+
 ## Decisões fechadas
 
 - Clerk sem Organizations; `privateMetadata.superadmin` estritamente booleano e validado pelo backend.

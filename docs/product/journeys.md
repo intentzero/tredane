@@ -78,6 +78,14 @@
 - **Em aberto:** emissão, posse do email, aceite e expiração de convite, revogação imediata dos WebSockets.
 - **Requisitos:** REQ-001/002/003/004/005.
 
+## JRN-13 — Aceitar convite de e-mail para tenant
+
+- **Estado:** confirmado o mecanismo de convite (DEC-021); prazo/reenvio por definir.
+- **Ator/objetivo:** futuro attendant recebe e-mail de convite de owner para a clínica A.
+- **Fluxo:** owner de A informa e-mail → Tredane regista convite de uso único no D1 e entrega link por e-mail → destinatário autentica-se no Clerk, criando conta se necessário → backend confirma que o e-mail convidado está verificado na identidade Clerk → consume o convite atomicamente e cria membership attendant somente em A.
+- **Alternativas:** já pertencer a B não modifica B; endereço não verificado, token usado/expirado/revogado e tentativa de mudar role/tenant falham sem criar vínculo.
+- **Requisitos:** REQ-004/005/008.
+
 ## JRN-09 — Alternar entre tenants
 
 - **Estado:** Confirmado o suporte a memberships em várias clínicas; experiência proposta.
