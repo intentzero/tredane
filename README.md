@@ -50,6 +50,10 @@ A identidade é feita com **Clerk sem Organizations**. Os vínculos de usuários
 
 Ver [ADR-0006](docs/adr/0006-clerk-platform-admin.md), [ADR-0007](docs/adr/0007-support-impersonation.md) e [contratos de identidade e administração](docs/architecture/identity-and-admin.md).
 
+## Acompanhamento da definição do MVP
+
+A [auditoria do Issue #1](docs/product/definition-audit-2026-10-23.md) distingue documentação já entregue de decisões pendentes. O [registro de validação](docs/product/validation-register.md) identifica hipóteses a confirmar com o responsável pelo produto e a clínica piloto.
+
 ## Próximo marco
 
 Preparar a estrutura de frontend e API, migrações, ambiente local e CI. Em seguida, implementar o isolamento entre clínicas, o fluxo principal e a atualização reativa entre sessões com dados de teste antes de conectar serviços reais.
