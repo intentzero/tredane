@@ -126,6 +126,45 @@
 
 **Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-06. **Comportamento:** falhas de entrada, fila, envio e atualização em tempo real podem ser identificadas sem expor conteúdo sensível em logs. **Aceite:** para falhas simuladas, é possível localizar tenant, tipo de evento, etapa e resultado técnico; a equipe vê falhas que exigem ação no painel. **Dados/eventos:** retenção e acesso a logs ainda precisam de política.
 
+## Racional de prioridade — proposta para aprovação
+
+Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP interno** para gestão da plataforma) porque contribuem para a primeira jornada demonstrável, para a segurança multi-tenant ou para operar a plataforma sem depender de intervenção no banco. Estas justificativas **não significam aprovação final**, nem liberam uso de dados reais. Quando parte do comportamento estiver em aberto, a aprovação da prioridade não fecha a regra de produto.
+
+| ID | Prioridade proposta | Porquê nesta fase |
+| --- | --- | --- |
+| REQ-001 | MVP | Isolamento de dados é pré-condição de qualquer operação multi-tenant. |
+| REQ-002 | MVP | Atendente e responsável precisam de autorizações distintas da administração global. |
+| REQ-003 | MVP | Revogação tem de cortar acesso real, inclusive conexões em tempo real. |
+| REQ-004 | MVP | Clínica precisa de responsável e membros associados para ativação controlada. |
+| REQ-005 | MVP | A mesma identidade pode pertencer a várias clínicas; role depende do tenant. |
+| REQ-006 | MVP interno | Platform Admin é o mecanismo definido para criar e gerir tenants. |
+| REQ-007 | MVP interno | Acesso de manutenção exigido pelo produto; limitar primeiro a leitura/diagnóstico até política de segurança aprovada. |
+| REQ-010 | MVP | Criação de contacto/conversa inicia toda a jornada de atendimento. |
+| REQ-011 | MVP | Idempotência é necessária para não duplicar histórico e oportunidades. |
+| REQ-012 | MVP | Resposta manual é núcleo do atendimento; estado real evita sucesso falso. |
+| REQ-013 | MVP | Falhas de integração precisam ser recuperáveis sem mensagens duplicadas. |
+| REQ-020 | MVP | Inbox partilhada e atribuição permitem que a equipe assuma conversas. |
+| REQ-021 | MVP | Histórico é indispensável para continuidade do atendimento. |
+| REQ-022 | MVP | Testar utilidade de IA assistiva sem autorizar ação autónoma. |
+| REQ-023 | MVP | Pipeline liga interesse e acompanhamento ao compromisso. |
+| REQ-030 | MVP | Sem disponibilidade por recursos não há reserva válida. |
+| REQ-031 | MVP | Concorrência de reserva não pode criar conflitos reais. |
+| REQ-032 | MVP | Remarcação e cancelamento são exceções essenciais do agendamento. |
+| REQ-033 | MVP | Comunicar mudança é necessário, mantendo estado da mensagem separado do compromisso. |
+| REQ-034 | MVP | Equipa deve localizar e gerir compromissos da própria clínica. |
+| REQ-040 | MVP | Tempo real entre sessões foi assumido como requisito arquitetural do produto. |
+| REQ-041 | MVP | Reconciliação após queda evita visões permanentemente incorretas. |
+| REQ-042 | MVP | Equipa precisa de sinalização de desconexão para não confiar em estado obsoleto. |
+| REQ-050 | MVP | Webhook autenticado e número associado ao tenant são fronteira de segurança. |
+| REQ-051 | MVP | Sem vinculação verificável de número, não existe atendimento WhatsApp real. |
+| REQ-052 | MVP | Agenda exige serviços, recursos e disponibilidade configurados. |
+| REQ-060 | MVP | É preciso definir e limitar o contexto antes de usar IA com clientes. |
+| REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
+
+**Fora do MVP (já definido):** prontuário, pagamentos, estoque, integração com agendas externas, campanhas em massa, bot com envios ou reservas autónomas, painéis de profissionais e relatórios avançados. **Posterior:** autosserviço avançado de onboarding, configurações sofisticadas de pipeline e automações de IA, exceto se outra decisão formal substituir este recorte.
+
+**Gate para aprovar a prioridade:** responsável pelo produto confirmar o recorte e aceitar que os itens administrativos internos podem avançar na F1 sem atrasar a demonstração Inbox → pipeline → agenda da clínica. Os detalhes ainda em aberto estão em [decisões](decisions.md) e [registro de validação](validation-register.md).
+
 ## Fora do MVP
 
 **Fora do MVP:** prontuário/registro clínico, pagamentos, estoque, agendas externas, campanhas em massa, bot que responde ou agenda sozinho e relatórios avançados. Nenhum requisito acima deve ser interpretado como compromisso de implementar essas funções.
