@@ -15,7 +15,7 @@
 2. `GET /api/me/tenants` devolve lista de memberships ativos obtida do D1.
 3. UI seleciona tenant no contexto da aba/rota; não usar `orgId` nem tenant global no Clerk.
 4. Para cada request, backend valida autenticação, membership do usuário e role naquele tenant, e estado do tenant.
-5. Revogar membership A invalida APIs e WebSockets de A, mas não interfere com o acesso a B. Troca de contexto não pode transferir caches/eventos entre tenants.
+5. **DEC-026:** revogar membership A invalida imediatamente novas operações e eventos em A, encerra/invalida WebSockets A, mantém Clerk session e membership B. Sessões próprias de suporte representando esse usuário em A perdem autorização. Contrato e testes em [ADR-0009](../adr/0009-tenant-membership-revocation.md). Troca de contexto não pode transferir caches/eventos entre tenants.
 
 ## Delegação da equipa — opção B confirmada
 
@@ -23,6 +23,10 @@
 - Owner autenticado convida/remove apenas attendants do seu tenant; backend Hono verifica role e tenant ativos no D1 a cada ação. Attendant não gere membros.
 - Um Clerk user pode ser owner em A e attendant em B. Revogar A não altera B; ações são auditadas com autor, tenant e alvo.
 - Convites, expiração e revogação de sessões/WS precisam de especificação na F1.
+
+## Revogação por tenant (DEC-026 — confirmado)
+
+O `owner` pode remover um `attendant` ativo do seu tenant; o superadmin gere owners. Persistir a revogação em D1 e auditar actor, tenant, subject e instante. O Worker consulta membership vigente para cada pedido em A, sem depender de role numa claim Clerk. O sistema comunica a revogação ao DO de A e deve garantir que WebSockets antigos, conexões retomadas após hibernação e sessões próprias de suporte com aquele subject deixem de receber dados após confirmação. **Não encerrar Clerk session nem memberships B.** A consistência entre D1 e fan-out de WebSockets (incluindo falha de notificação) exige implementação/testes de segurança F1; ver [ADR-0009](../adr/0009-tenant-membership-revocation.md).
 
 ## Convites por e-mail (DEC-021 — confirmado)
 
@@ -96,5 +100,5 @@ Em `mode: 'support'`, o actor **continua autenticado no Clerk como ele mesmo**; 
 
 - **Confirmado:** a impersonação será exclusivamente implementada no Tredane; Clerk fornece somente a identidade/sessão original do superadmin. Em aberto o protocolo exato de handoff, cookies, CSRF, step-up MFA e política de operações de escrita.
 - Política de aviso/aprovação de suporte e tratamento de dados pessoais.
-- Passos exatos de MFA, mecanismo de revogação em WebSocket e topologia definitiva das apps/Workers.
+- Passos exatos de MFA, protocolo de revogação de WebSocket com garantia de não-entrega posterior, e topologia definitiva das apps/Workers. O **comportamento** de revogação por tenant está fechado em DEC-026.
 - Política de exclusão física/retensão e mecanismos de provisionamento, convite e alteração de membros.

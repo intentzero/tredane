@@ -35,6 +35,10 @@ Um usuário que pertença a várias clínicas, caso isso seja permitido, selecio
 
 **Proposto para F1:** código de entrada único, sessão vinculada ao actor, revogação imediata, proteção CSRF e validação de WebSockets. Qualquer falha nega o acesso.
 
+## Revogação por tenant — DEC-026
+
+A revogação de `tenant_memberships` em A é uma alteração de autorização **específica de A**. Depois da confirmação no D1, a API deve negar novas ações sobre A; o Durable Object deve invalidar as conexões A daquele usuário e impedir entrega subsequente. O usuário continua autenticado no Clerk e pode operar B mediante membership válido; não revogar a identidade global para remover apenas um tenant. Sessões próprias de suporte que atuem como o usuário removido em A perdem autorização. **Mecanismo proposto, a testar:** confirmar a revogação no D1, sinalizar ao DO de A e validar o membership antes de expor eventos; não depender apenas de claims Clerk ou cache local. Lidar com falhas de sinalização/hibernação sem permissões positivas obsoletas. Testar reconexão, corrida com publicação, hibernação e duas abas em tenants diferentes.
+
 ## Invariantes verificáveis
 
 1. **Leitura:** um membro de A não recebe conteúdo de B por listagem, busca, detalhe, arquivo ou evento.

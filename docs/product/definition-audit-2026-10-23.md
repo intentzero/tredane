@@ -46,7 +46,7 @@
 
 **Leitura do checklist:** 9/28 itens já estavam marcados em 23/10; as sete jornadas J-01 a J-07 estavam registradas e podem ser marcadas **como documentação produzida**, alcançando **16/28**. As tarefas V-01 e V-04 podem ser encerradas apenas após incorporar e revisar o racional e registo de hipóteses, mas a validação da clínica permanece necessária antes de dar o épico por concluído.
 
-**Evolução após esta auditoria:** DEC-021 confirma convite por e-mail de uso único e aceite com e-mail verificado no Clerk (existente ou novo), preservando memberships em outros tenants. DEC-022 fixou a expiração em 7 dias; DEC-023 definiu o reenvio com substituição atómica de token; DEC-024 fixou limites de reenvio (10 minutos; 5 por janela móvel de 24 horas). DEC-025 confirmou cancelamento de convite pending por qualquer owner do tenant. A-04 permanece aberta devido à revogação de memberships HTTP/WebSocket e testes.
+**Evolução após esta auditoria:** DEC-021 confirma convite por e-mail de uso único e aceite com e-mail verificado no Clerk (existente ou novo), preservando memberships em outros tenants. DEC-022 fixou a expiração em 7 dias; DEC-023 definiu o reenvio com substituição atómica de token; DEC-024 fixou limites de reenvio (10 minutos; 5 por janela móvel de 24 horas). DEC-025 confirmou cancelamento de convite pending por qualquer owner do tenant. **DEC-026 confirmou revogação imediata e exclusiva por tenant**, preservando sessão Clerk e vínculos noutros tenants; A-04 permanece aberta apenas para fecho do protocolo técnico de entrega/revogação de WebSocket e revisão de segurança/testes, não por falta de decisão sobre o comportamento.
 
 ## Decisões fechadas
 

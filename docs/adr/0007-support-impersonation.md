@@ -69,7 +69,7 @@ A associação com a sessão Clerk do actor e as chaves entre tenants devem ser 
 - **TTL:** duração curta, sugeridos 15 minutos; renovar explicitamente, com registo, sem renovação infinita.
 - **Início:** exigir motivo e MFA recente (*step-up*, detalhes a fechar na F1); não iniciar automaticamente por abertura de uma página.
 - **Modo inicial:** acesso de leitura e diagnóstico; operações de manutenção que modificam dados só após política de capacidades explícita, limitada ao papel do alvo e com auditoria. Proibir por padrão credenciais, alteração de membership/papéis, faturação, segredos, exportação em massa e ações destrutivas. Envio WhatsApp e alterações de agendamento exigem aprovação específica antes de ativar.
-- **Revogação:** retirar `superadmin`, revogar sessão Clerk, remover membership do subject, suspender tenant ou expirar/revogar suporte faz pedidos e WebSockets falharem **fechados**, sem fallback a permissões globais.
+- **Revogação (DEC-026):** retirar `superadmin`, revogar sessão Clerk, remover membership do subject **no tenant da sessão**, suspender tenant ou expirar/revogar suporte faz pedidos e WebSockets daquele contexto falharem **fechados**, sem fallback a permissões globais. Revogar A não deve desligar a sessão Clerk global nem afetar o acesso direto legítimo a B.
 - **Observabilidade:** logs técnicos e trilha de auditoria que não reproduzem desnecessariamente conteúdo pessoal; política de retenção, base legal, notificação e eventual autorização do cliente/tenant devem ser fechadas antes de usar dados reais.
 - **Não repúdio:** qualquer alteração de negócio por suporte deve guardar quem realmente a executou (`actor`) e em cujo contexto (`subject`); preservar correlação com solicitação/ticket de suporte.
 

@@ -34,7 +34,7 @@
 
 - Para cada operação de administrador, validar Clerk session e o usuário atual com **Clerk Backend API**; permissões ausentes ou falha na verificação => negar (*fail closed*). A política de cache/limites da API será validada em F1.
 - MFA obrigatório para Platform Admin é **proposto**, sujeito a definição da configuração/step-up.
-- Revogação de membership precisa invalidar endpoints e eventos WebSocket daquele tenant; não pode desativar memberships válidos do mesmo usuário nos outros tenants.
+- **DEC-026 confirma:** revogação de membership em A deve bloquear imediatamente API e WebSockets A, sem encerrar sessão Clerk nem acesso legítimo do mesmo usuário em B. Inclui sessões de suporte do Tredane cujo subject perdeu membership em A. Desenho/testes em [ADR-0009](0009-tenant-membership-revocation.md).
 - Operações administrativas ficam auditadas com ator, alvo, tenant, justificativa, timestamps e efeitos. Nenhum acesso oculto a conteúdo sensível.
 - A app de administração pode ter frontend/API de deploy separados; a **separação de autorização é obrigatória**, independentemente da topologia física.
 

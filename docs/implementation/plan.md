@@ -38,6 +38,7 @@
 - Middleware de identidade e associação por tenant; principal humano vs integração verificada.
 - APIs para superadmin gerir owners e owner gerir attendants, com negação de promoção indevida ou alteração cross-tenant.
 - Repositórios D1 escopados e FKs compostas; testes automáticos de leitura/escrita cruzada.
+- **DEC-026 — revogação por tenant:** o owner remove attendant de A e o D1 regista revogação + auditoria; API verifica membership por request; invalidar WebSockets DO de A com proteção de fan-out e hibernação, e negar sessões de suporte com subject revogado. **Não revogar Clerk session nem tenants B.** Implementar casos de teste de corrida entre revogação e publicação, cache positivo obsoleto, retomada após hibernação e falha de notificação.
 - Revogação de membro, sessão e WebSocket, com auditoria.
 - R2 privado e controlo de acesso para anexos quando a política de dados estiver fechada.
 

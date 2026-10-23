@@ -61,7 +61,7 @@
 - **Ator e objetivo:** ACT-02/ACT-03 vê alterações recentes sem atualizar a página e perde acesso ao sair da clínica.
 - **Gatilho e pré-condições:** duas sessões autorizadas da mesma clínica e uma sessão de outra clínica estão abertas.
 - **Fluxo principal:** (1) uma sessão altera conversa, oportunidade ou agenda; (2) o servidor persiste a mudança; (3) apenas sessões da clínica autorizada recebem o evento; (4) as interfaces atualizam a visão; (5) após reconexão, consultam o estado canônico e corrigem lacunas.
-- **Alternativas:** Durable Object hiberna e retoma; evento é perdido ou chega duplicado; sessão é revogada ou membro sai da clínica; conexão antiga deixa de receber dados e novas ações são negadas.
+- **Alternativas:** Durable Object hiberna e retoma; evento é perdido ou chega duplicado; membership A é revogado e sua conexão antiga deixa de receber dados, inclusive após reconexão/hibernação. A sessão Clerk e memberships noutros tenants, como B, continuam válidos (DEC-026). Uma sessão de suporte própria que dependa do subject em A também deixa de ser autorizada.
 - **Resultado, superfícies e dados:** as sessões da mesma clínica convergem para o estado persistido, sem vazamento para outra clínica. O mecanismo exato de invalidação de conexão ainda é decisão técnica.
 - **Requisitos:** REQ-001, REQ-002, REQ-003, REQ-040, REQ-041, REQ-042.
 
@@ -73,7 +73,7 @@
 ## JRN-12 — Owner convida/remove attendant
 
 - **Ator:** owner ativo em tenant A, com autenticação Clerk e membership D1.
-- **Fluxo confirmado:** owner em A convida pessoa como attendant apenas em A; após aceite pelo mecanismo a definir, membership é ativado em A. Ao remover, acesso a A é revogado com auditoria, mantendo quaisquer memberships em B.
+- **Fluxo confirmado:** owner em A convida pessoa como attendant apenas em A; após aceite, membership é ativado em A. Ao remover, acesso a A é revogado **imediatamente** (API e WebSocket), com auditoria e aviso na aba A; a sessão Clerk permanece válida e quaisquer memberships em B mantêm acesso (DEC-026).
 - **Erros:** owner tenta alterar owners ou membro de B sem permissão => negar; attendant tenta gerir membros => negar; convite inválido não concede membership.
 - **Em aberto:** emissão, posse do email, aceite e expiração de convite, revogação imediata dos WebSockets.
 - **Requisitos:** REQ-001/002/003/004/005.

@@ -18,6 +18,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Somente atendente e responsável pela clínica acessam o painel no primeiro MVP; profissional é recurso de agenda, sem login.
 - Atendente vê todas as conversas da própria clínica; responsável pode fazer tudo que o atendente faz, inclusive responder pelo WhatsApp e operar agendamentos.
 - **Gestão de membros (opção B confirmada):** superadmin cria tenant e define o primeiro owner; owner pode convidar e remover somente attendants do seu tenant. Apenas superadmin cria/promove/substitui/remove owners. Memberships do mesmo usuário noutros tenants são independentes.
+- **Revogação por tenant (DEC-026 confirmada):** ao remover um attendant de A, bloquear imediatamente novas APIs, eventos e WebSockets de A; informar a perda de acesso no painel, sem encerrar a sessão Clerk nem interromper memberships válidos em B. Sessões de suporte que representem esse attendant em A também perdem autorização.
 - Um horário considera profissional e sala/equipamento necessários ao serviço.
 - Identidade e sessões no Clerk, **sem Clerk Organizations**; um usuário pode integrar vários tenants via memberships no D1, com papéis distintos.
 - Acesso global à Platform Admin por `privateMetadata.superadmin === true` (booleano exato) verificado pelo backend; a app permite criar, editar, suspender e iniciar exclusão lógica de tenants.
@@ -96,7 +97,7 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Sincronização da interface:** persistir a alteração antes de publicar o evento ao Durable Object; enviar aos clientes apenas eventos da clínica autorizada. O React mantém um estado local atualizado por eventos, mas refaz a leitura do estado canônico ao conectar ou reconectar. Metadados mínimos da conexão devem sobreviver à hibernação; dados críticos não podem depender da memória do objeto. A API de hibernação da Cloudflare permite manter os WebSockets conectados enquanto o objeto sai da memória.
 
-O número e a conta de WhatsApp de cada clínica, detalhes de convite/revogação de usuários, o protocolo seguro de handoff e revogação das sessões próprias de suporte, o provedor de IA e a política de retenção ainda precisam ser definidos antes de integrar serviços reais. Credenciais e tokens nunca entram no repositório.
+O número e a conta de WhatsApp de cada clínica, a implementação técnica da revogação por tenant, o protocolo seguro de handoff e revogação das sessões próprias de suporte, o provedor de IA e a política de retenção ainda precisam ser definidos antes de integrar serviços reais. Credenciais e tokens nunca entram no repositório.
 
 ## Estado da execução
 
@@ -120,7 +121,7 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 
 1. Como cada clínica conectará seu número à API oficial do WhatsApp Business e quem administrará essa conta.
 2. Quais serviços, durações, buffers, bloqueios e regras de disponibilidade a clínica piloto precisa para profissional e sala/equipamento.
-3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Em aberto: revogação de memberships e sessões HTTP/WebSocket, MFA, integrações e medidas adicionais de antiabuso.
+3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Revogação por tenant definida em DEC-026; em aberto o mecanismo técnico e testes de propagação WebSocket, MFA, integrações e medidas adicionais de antiabuso.
 4. Qual provedor de IA será usado; como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane?
 5. Quais dados pessoais são necessários, por quanto tempo serão guardados e como a clínica atenderá pedidos de acesso ou exclusão.
 6. Se o D1 compartilhado com escopo rigoroso por clínica atende ao piloto ou se alguma categoria de dados exige banco separado por clínica.

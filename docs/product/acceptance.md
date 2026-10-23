@@ -8,9 +8,9 @@
 
 **Dado** um atendente associado apenas à clínica A e uma conversa, arquivo e agendamento da clínica B; **quando** ele tenta abrir cada item pela interface ou por ID direto; **então** o sistema nega acesso sem retornar conteúdo, não altera dados de B e não publica evento para A ou B. **Requisitos:** REQ-001, REQ-002.
 
-### AC-02 — Sessão revogada
+### AC-02 — Membership A revogado, sem logout Clerk
 
-**Dado** um atendente da clínica A com painel e WebSocket abertos; **quando** seu acesso é revogado; **então** novas requisições são negadas, a conexão antiga não recebe novos eventos da clínica e o painel informa a perda de acesso. **Requisito:** REQ-003. **Pendente:** mecanismo de invalidação e matriz final de quem pode revogar.
+**Dado** um attendant com memberships ativos em A e B, abas e WebSockets de ambas as clínicas abertos; **quando** o owner de A remove seu membership em A; **então** a alteração é auditada, o backend nega novos pedidos a A, a conexão A deixa de receber dados e é encerrada/invalida-se, e a aba A informa acesso revogado. A sessão Clerk e a aba/conexão B mantêm-se válidas. Reabrir A ou retomar WebSocket após hibernação não concede acesso. **Requisito:** REQ-003; **DEC-026**. **Pendente:** comprovar mecanismo de propagação sem vazamento no intervalo da revogação.
 
 ### AC-03 — Perfis e superfícies separadas
 
@@ -103,6 +103,10 @@
 ### AC-23 — Cancelamento de convite pendente por outro owner
 
 **Dado** owners O1 e O2 no tenant A e convite pendente emitido por O1; **quando** O2 cancela, **então** o Worker valida que O2 é owner ativo de A, altera pending→cancelled atomicamente no D1, invalida imediatamente o link e regista a identidade de O2. Nenhum membership existente muda. Uma tentativa de aceite posterior falha. Attendant ou owner apenas de B não podem cancelar, e convite aceite não é cancelável para remover membership. Aceite e cancelamento simultâneos produzem um único resultado válido. **Requisitos:** REQ-004/008.
+
+### AC-24 — Revogação afeta suporte mas não outros tenants
+
+**Dado** superadmin em sessão de suporte própria atuando no contexto do subject com membership em A, e o mesmo subject membro de B; **quando** o membership do subject em A é revogado; **então** novas chamadas e eventos de suporte em A são negados e a sessão de suporte em A perde autorização. O subject mantém acesso legítimo a B pela sessão Clerk e membership B. Uma mensagem de A que ficou em trânsito antes da confirmação da revogação não é tratada como operação posterior; novos dados de A não podem ser entregues após confirmação. **Requisitos:** REQ-003/005/007/040; **DEC-026**.
 
 ## Condições para usar estes cenários como aprovação
 
