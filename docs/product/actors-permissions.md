@@ -51,10 +51,10 @@ Operação e suporte devem partir de metadados e registros técnicos. Qualquer a
 | --- | --- | --- |
 | Q-ACT-04 | Quem conecta e administra a conta WhatsApp Business? | Onboarding real de clínicas. |
 | Q-ACT-05 | **Resolvido:** um usuário pode pertencer a várias clínicas; memberships e roles por tenant no D1, sem Organizations do Clerk. | Implementar seletor de tenant e revogação por membership. |
-| Q-ACT-06 | **Resolvido em parte:** Platform Admin gerencia tenants e superadmin pode iniciar impersonação auditável de usuário membro para suporte. Mecanismo, preço, limites e política de acesso a dados reais em aberto. | Suporte e auditoria; [ADR-0007](../adr/0007-support-impersonation.md). |
+| Q-ACT-06 | **Resolvido em parte:** Platform Admin gerencia tenants e superadmin pode iniciar impersonação auditável de usuário membro para suporte. Mecanismo de sessão própria do Tredane confirmado; detalhes de segurança, limites e política de acesso a dados reais em aberto. | Suporte e auditoria; [ADR-0007](../adr/0007-support-impersonation.md). |
 
 **Q-ACT-01, Q-ACT-02 e Q-ACT-03 resolvidas:** atendente vê todas as conversas da própria clínica; responsável pode executar todas as ações do atendente, inclusive responder e operar agenda; só esses dois perfis acessam o painel. Profissional permanece como recurso de agenda sem login. Decisões do responsável pelo produto em 23 de outubro de 2026.
 
 **Nova decisão de 23/10/2026:** Clerk sem Organizations; `privateMetadata.superadmin`; memberships multi-tenant no D1; Platform Admin separada e impersonação de suporte auditável. Conferir [ADR-0006](../adr/0006-clerk-platform-admin.md) e [ADR-0007](../adr/0007-support-impersonation.md).
 
-**Próximo passo:** definir o mecanismo de impersonação, o onboarding de membros e a política de dados de suporte antes de usar dados reais.
+**Próximo passo:** implementar/validar o mecanismo **próprio** de impersonação do Tredane (handoff, revogação e auditoria), o onboarding de membros e a política de dados de suporte antes de usar dados reais.
