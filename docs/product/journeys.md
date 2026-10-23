@@ -13,25 +13,25 @@
 
 ## JRN-02 — Atendimento humano com apoio de IA
 
-- **Ator e objetivo:** ACT-02 assume a conversa, entende o pedido e responde; ACT-03 pode acompanhar conforme permissões finais.
+- **Ator e objetivo:** ACT-02 ou ACT-03 assume a conversa, entende o pedido e responde. Ambos veem todas as conversas da própria clínica.
 - **Gatilho e pré-condições:** há conversa recebida e membro autorizado na clínica.
-- **Fluxo principal:** (1) atendente abre e assume a conversa; (2) lê mensagens e histórico disponível; (3) pede sugestão ou resumo à IA; (4) revisa e, se quiser, edita o texto; (5) envia a resposta; (6) o painel mostra tentativa e estado de envio; (7) a outra sessão autorizada vê a mudança.
+- **Fluxo principal:** (1) atendente ou responsável abre e assume a conversa; (2) lê mensagens e histórico disponível; (3) pede sugestão ou resumo à IA; (4) revisa e, se quiser, edita o texto; (5) envia a resposta; (6) o painel mostra tentativa e estado de envio; (7) a outra sessão autorizada vê a mudança.
 - **Alternativas:** atendente ignora a sugestão; provedor de IA falha e a resposta manual continua possível; envio falha ou fica com resultado desconhecido e o painel não apresenta sucesso falso; conversa é transferida para outro membro; duas pessoas tentam assumir ao mesmo tempo e o estado final fica claro.
 - **Resultado, superfícies e dados:** caixa de entrada atualizada com responsável, histórico, origem da sugestão e estado da mensagem. Texto não revisado não é enviado automaticamente.
 - **Requisitos:** REQ-020, REQ-021, REQ-022, REQ-041, REQ-060.
 
 ## JRN-03 — Oportunidade até horário confirmado
 
-- **Ator e objetivo:** ACT-02 transforma uma conversa em agendamento; ACT-01 recebe confirmação pelo WhatsApp quando o envio estiver disponível.
+- **Ator e objetivo:** ACT-02 ou ACT-03 transforma uma conversa em agendamento; ACT-01 recebe confirmação pelo WhatsApp quando o envio estiver disponível.
 - **Gatilho e pré-condições:** contato quer marcar horário; serviço, duração, disponibilidade, profissional e sala/equipamento necessários estão definidos para a clínica.
-- **Fluxo principal:** (1) atendente atualiza a etapa da oportunidade; (2) consulta horários disponíveis; (3) seleciona serviço, recurso e horário; (4) confirma o agendamento; (5) conversa, pipeline e agenda exibem o mesmo compromisso; (6) sessões da clínica recebem evento de atualização.
+- **Fluxo principal:** (1) membro autorizado atualiza a etapa da oportunidade; (2) consulta horários disponíveis; (3) seleciona serviço, recurso e horário; (4) confirma o agendamento; (5) conversa, pipeline e agenda exibem o mesmo compromisso; (6) sessões da clínica recebem evento de atualização.
 - **Alternativas:** intervalo ficou ocupado antes da confirmação; recurso está indisponível; contato não aceita o horário proposto; envio da confirmação falha sem desfazer um agendamento já confirmado. A equipe vê o estado correto em cada caso.
 - **Resultado, superfícies e dados:** agendamento confirmado com vínculo ao contato e à oportunidade, sem conflito de recursos; registro de quem confirmou e quando.
 - **Requisitos:** REQ-030, REQ-031, REQ-032, REQ-033, REQ-040.
 
 ## JRN-04 — Acompanhamento pela clínica
 
-- **Ator e objetivo:** ACT-03 acompanha volume de conversas, andamento das oportunidades e agenda da própria clínica; ações de gestão dependem da matriz final.
+- **Ator e objetivo:** ACT-03 acompanha todas as conversas, oportunidades e agenda da própria clínica e pode realizar todas as ações de atendimento de ACT-02. Gestão de membros e integrações ainda depende de decisão específica.
 - **Gatilho e pré-condições:** responsável autenticado e associado à clínica.
 - **Fluxo principal:** (1) abre a visão de atendimento/pipeline/agenda; (2) filtra ou localiza um contato; (3) consulta estado atual, responsável e próximo compromisso; (4) vê mudanças feitas em outra sessão sem recarregar a página.
 - **Alternativas:** não há dados; membro foi removido; conexão em tempo real caiu e a interface precisa reconciliar com a API antes de mostrar estado atual.
@@ -72,4 +72,4 @@
 
 ## Validação necessária
 
-Revisar as jornadas com o responsável pelo produto e uma clínica piloto, em especial: escopo de acesso do atendente, quem opera a agenda, durações e regras de disponibilidade dos recursos, cancelamento, confirmação ao contato e ativação do WhatsApp. Registrar as respostas em [decisões](decisions.md) e ajustar os requisitos ligados às jornadas afetadas.
+Revisar as jornadas com o responsável pelo produto e uma clínica piloto, em especial: permissões administrativas, durações e regras de disponibilidade dos recursos, cancelamento, confirmação ao contato e ativação do WhatsApp. Registrar as respostas em [decisões](decisions.md) e ajustar os requisitos ligados às jornadas afetadas.
