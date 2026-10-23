@@ -31,7 +31,7 @@ Os ADRs identificam decisões aceitas, propostas técnicas e temas ainda em aber
 
 ## Identidade, Platform Admin e suporte
 
-A identidade é feita com **Clerk sem Organizations**. Os vínculos de usuários com várias clínicas e papéis por tenant são guardados no D1. A aplicação interna Platform Admin usa a flag **`privateMetadata.superadmin === true`**, lida e validada no backend, para gerir o ciclo de vida de tenants. Uma função de impersonação de suporte permitirá agir no contexto de um usuário do tenant com auditoria de ator e alvo, duração limitada e sem acesso irrestrito; seu mecanismo final (Clerk actor tokens vs sessão própria) está em aberto.
+A identidade é feita com **Clerk sem Organizations**. Os vínculos de usuários com várias clínicas e papéis por tenant são guardados no D1. A aplicação interna Platform Admin usa a flag **`privateMetadata.superadmin === true`**, lida e validada no backend, para gerir o ciclo de vida de tenants. A impersonação de suporte usa sessões próprias emitidas pelo Tredane, com actor e subject distintos, tenant único e auditoria, sem usar funcionalidade de impersonação do provedor de identidade.
 
 Ver [ADR-0006](docs/adr/0006-clerk-platform-admin.md), [ADR-0007](docs/adr/0007-support-impersonation.md) e [contratos de identidade e administração](docs/architecture/identity-and-admin.md).
 
