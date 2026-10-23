@@ -33,6 +33,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Estados e eventos propostos](product/states.md)
 - [Cenários de aceite](product/acceptance.md)
 - [Fronteira de dados entre clínicas](product/tenant-boundaries.md)
+- [Registro de hipóteses a validar](product/validation-register.md) e [auditoria do Issue #1 (23/10/2026)](product/definition-audit-2026-10-23.md) — acompanhamento, não decisões novas.
 
 ## Documentação de arquitetura e execução
 
