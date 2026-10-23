@@ -1,6 +1,9 @@
 # Especificação de UI/UX do painel — MVP
 
-**Estado:** proposta de design para revisão pelo responsável pelo produto, 23 de outubro de 2026. **Fonte:** [MVP](../MVP.md), [atores](actors-permissions.md), [jornadas](journeys.md), [requisitos](requirements.md), [estados](states.md), [cenários de aceite](acceptance.md) e [épico #1](https://github.com/intentzero/tredane/issues/1). **Protótipo visual:** canvas “Tredane — UI/UX do MVP” (artefato privado no claude.ai; precisa ser compartilhado pelo dono para outras pessoas abrirem): https://claude.ai/artifact/6kzR7zL5q9hs2AcvTyYDNf.
+**Estado:** proposta de design para revisão pelo responsável pelo produto, 23 de outubro de 2026; abordagem **mobile first** confirmada na mesma data ([DEC-017](decisions.md)). **Fonte:** [MVP](../MVP.md), [atores](actors-permissions.md), [jornadas](journeys.md), [requisitos](requirements.md), [estados](states.md), [cenários de aceite](acceptance.md) e [épico #1](https://github.com/intentzero/tredane/issues/1). **Protótipos visuais** (artefatos privados no claude.ai; precisam ser compartilhados pelo dono para outras pessoas abrirem):
+
+- **Referência principal — celular (M-01 a M-08):** canvas “Tredane — UI/UX mobile first”, https://claude.ai/artifact/D3NALDhxo5n1jZj2fqpdka.
+- **Ampliação para telas largas (≥ 1280 px):** canvas “Tredane — UI/UX do MVP”, https://claude.ai/artifact/6kzR7zL5q9hs2AcvTyYDNf.
 
 Este documento descreve telas, componentes e estados visíveis que materializam as jornadas JRN-01 a JRN-07. Ele não cria regra de negócio nova: quando uma tela depende de decisão ainda aberta, o item fica marcado como **Em aberto** e a interface não deve presumir a resposta. Todos os nomes, telefones e horários de exemplo são fictícios.
 
@@ -11,7 +14,9 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Usuários do painel: atendente (ACT-02) e responsável (ACT-03), com as mesmas telas de atendimento | **Confirmado** | DEC-013, DEC-015, DEC-016. Não há tela de profissional nem de operador. |
 | Contato (ACT-01) só interage pelo WhatsApp | **Confirmado** | O painel nunca expõe tela ao contato. |
 | Três áreas principais: Conversas, Pipeline, Agenda | **Proposto** | Derivado do fluxo principal do MVP e do ADR-0003. |
-| Desktop como alvo principal (≥ 1280 px), uso em tablet ≥ 768 px, celular apenas para consulta | **Proposto** | **Em aberto:** dispositivos reais da clínica piloto (item do épico #1). Bloqueia o aceite de usabilidade, não o desenvolvimento das telas. |
+| **Mobile first:** o celular é o alvo de base e precisa concluir todo o fluxo piloto (mensagem → resposta → etapa → agendamento); tablet e desktop são ampliações progressivas | **Confirmado** | DEC-017, pedido do responsável pelo produto em 23 de outubro de 2026. Substitui a proposta anterior deste documento de desktop como alvo principal. |
+| Larguras de referência: 360–430 px (base), ≥ 768 px (tablet), ≥ 1280 px (desktop) | **Proposto** | **Em aberto:** modelos e sistemas dos aparelhos da clínica piloto (Q-UX-01). Bloqueia o aceite de usabilidade, não o desenvolvimento das telas. |
+| Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP | **Proposto** | Instalação como PWA e notificações push dependem de Q-UX-05. |
 | Idioma pt-BR, fuso horário da clínica em todas as datas | **Proposto** | O fuso da clínica é parte das regras de agenda ainda em aberto (DEC-008). |
 | Ativação da clínica, configuração de serviços/recursos e gestão de membros | **Em aberto** | JRN-08, REQ-004, REQ-051, REQ-052. Nenhuma tela desenhada até decidir autosserviço ou operação assistida. |
 | Seletor de clínica para usuário com várias clínicas | **Em aberto** | Q-ACT-05. O cabeçalho reserva o espaço do nome da clínica, sem seletor. |
@@ -25,6 +30,7 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 4. **Falha visível e separada.** Falha de mensagem não se confunde com estado da agenda; falha da IA não bloqueia a resposta manual (REQ-033, AC-06, AC-10).
 5. **Uma clínica por tela.** O nome da clínica ativa fica sempre visível; nenhuma lista, busca ou notificação mostra dado de outra clínica (REQ-001).
 6. **Cor nunca é o único sinal.** Todo estado tem ícone e texto (seção 7).
+7. **Celular primeiro.** Cada tela é desenhada a partir de 360 px com uma mão; colunas extras só aparecem quando há largura, sem esconder no celular uma ação disponível no desktop.
 
 ## 3. Arquitetura de informação
 
@@ -42,7 +48,28 @@ TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carr
 - **Proposto:** URLs estáveis por área e item (`/conversas/:id`, `/pipeline`, `/agenda?dia=`), para retomar o trabalho após recarregar. O ID na URL nunca concede acesso por si: um ID de outra clínica mostra o estado “Não encontrado” sem revelar se o item existe (REQ-001, AC-01).
 - **Proposto:** contadores na navegação (ex.: conversas novas) vêm do estado canônico da clínica e são reconciliados na reconexão.
 
+### 3.1 Padrões de layout mobile first
+
+**Estado:** Proposto, decorrente de DEC-017.
+
+| Largura | Navegação | Conversas | Pipeline | Agenda |
+| --- | --- | --- | --- | --- |
+| Base (360–767 px) | Barra inferior com Conversas, Pipeline e Agenda; badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
+| Tablet (≥ 768 px) | Barra lateral compacta. | Lista + conversa lado a lado; detalhes em gaveta. | Quadro com rolagem horizontal. | Grade com colunas por recurso. |
+| Desktop (≥ 1280 px) | Cabeçalho superior. | Três colunas (lista, conversa, detalhes). | Quadro completo; arrastar e soltar além do menu “Mover para…”. | Grade completa e painel lateral de agendamento. |
+
+Regras comuns:
+- Alvos de toque ≥ 44 × 44 px; ações principais (Enviar, Agendar, Confirmar) ficam na zona inferior da tela, alcançáveis com o polegar.
+- Ação principal fixa no rodapé em telas de formulário (Detalhes, Agendar), respeitando a área segura do aparelho.
+- Folhas inferiores (bottom sheets) para escolhas curtas: mover etapa, transferir responsável, ações da conversa. Diálogos centrais só para confirmação destrutiva (cancelar compromisso) e acesso encerrado.
+- O compositor acompanha o teclado virtual; abrir o teclado não cobre a última mensagem nem a sugestão da IA.
+- Campos com fonte de 16 px para o navegador não aplicar zoom automático ao focar.
+- Faixa de conexão (6.2) fica logo abaixo do cabeçalho em todas as larguras.
+- Arrastar nunca é o único jeito de fazer algo.
+
 ## 4. Telas
+
+As descrições abaixo partem da largura base; as variações de tablet e desktop seguem a tabela 3.1. Os artboards M-01 a M-08 do canvas mobile são a referência visual principal.
 
 Cada tela lista jornada e requisitos de origem, conteúdo, ações, eventos em tempo real e estados de vazio/erro. As telas correspondem aos artboards do protótipo visual.
 
@@ -50,7 +77,7 @@ Cada tela lista jornada e requisitos de origem, conteúdo, ações, eventos em t
 
 **Origem:** JRN-01, JRN-02, JRN-04; REQ-010, REQ-011, REQ-012, REQ-020, REQ-021, REQ-022. **Estado:** Proposto.
 
-Layout em três colunas no desktop: lista de conversas (360 px), conversa aberta (fluida) e painel do contato/oportunidade (320 px, recolhível). Em tablet o painel do contato vira gaveta; em celular cada coluna é uma tela.
+No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhes do contato e oportunidade (M-03), aberta ao tocar no nome no cabeçalho da conversa. No tablet, lista e conversa ficam lado a lado e os detalhes viram gaveta; no desktop, três colunas (lista 360 px, conversa fluida, detalhes 320 px).
 
 **Lista de conversas**
 - Item: nome do contato (ou telefone mascarado quando não houver nome), trecho da última mensagem, horário relativo, estado da conversa (Nova / Em atendimento / Encerrada), avatar ou iniciais do responsável atribuído, etapa da oportunidade.
@@ -91,7 +118,7 @@ Layout em três colunas no desktop: lista de conversas (360 px), conversa aberta
 
 - Quadro com as etapas propostas: **Novo contato → Em atendimento → Horário proposto → Agendado → Concluído** e coluna **Perdido** separada visualmente à direita. As etapas vêm da configuração da clínica; a interface não fixa nomes no código de apresentação, para permitir etapas configuráveis depois (MVP).
 - Cartão: nome do contato, responsável, último contato (relativo), próximo compromisso (ou “Sem compromisso”), indicador de mensagem pendente/falha.
-- Mover: arrastar entre colunas **ou** menu **Mover para…** no cartão (alternativa acessível por teclado). O cartão fica em estado “Movendo…” até confirmação; em falha, volta à coluna original com aviso.
+- No celular (M-05), uma etapa por vez em abas roláveis com contagem; o botão **Mover** abre uma folha inferior com as etapas. No desktop, arrastar entre colunas **ou** menu **Mover para…** (alternativa acessível por teclado). O cartão fica em estado “Movendo…” até confirmação; em falha, volta à coluna original com aviso.
 - Mover para **Horário proposto** mostra a nota “Etapa da negociação — não reserva horário na agenda” (states.md).
 - Mover para **Agendado** sem compromisso vinculado: **Em aberto** se é permitido. **Proposta:** permitir, mas o cartão exibe “Sem compromisso vinculado” e oferece **Agendar horário**; mudar etapa nunca cria compromisso.
 - Filtros: responsável, “Minhas”, busca por nome. Relatórios e totais avançados ficam **Fora do MVP**.
@@ -102,7 +129,7 @@ Layout em três colunas no desktop: lista de conversas (360 px), conversa aberta
 
 **Origem:** JRN-03, JRN-04, JRN-05; REQ-030, REQ-031, REQ-034. **Estado:** Proposto; regras de disponibilidade **Em aberto** (DEC-008).
 
-- Visão **Dia** com colunas por profissional e linhas de 15 min (granularidade **Proposta**, a confirmar com o piloto). Alternância **Por profissional / Por sala** mostra a mesma agenda pelo outro recurso, porque o horário ocupa os dois (DEC-014).
+- No celular (M-06), lista cronológica do dia: compromissos, espaços livres (com **Agendar**), bloqueios e fora do expediente, filtrável por profissional ou sala. A partir do tablet, visão **Dia** em grade com colunas por profissional e linhas de 15 min (granularidade **Proposta**, a confirmar com o piloto). Alternância **Por profissional / Por sala** mostra a mesma agenda pelo outro recurso, porque o horário ocupa os dois (DEC-014).
 - Compromisso: horário, contato, serviço, sala/equipamento como etiqueta, estado (Confirmado / Cancelado / Concluído). Cancelados ficam ocultos por padrão com filtro “Mostrar cancelados”.
 - Bloqueios e fora de expediente em hachura com rótulo (“Bloqueado”, “Fora do expediente”), não só cor.
 - Navegação de dia (anterior/hoje/próximo) e seletor de data. Visão semanal: **Proposto** como posterior.
@@ -113,7 +140,7 @@ Layout em três colunas no desktop: lista de conversas (360 px), conversa aberta
 
 **Origem:** JRN-03; REQ-030, REQ-031, REQ-033. **Estado:** Proposto.
 
-Painel lateral aberto da conversa, do cartão do pipeline ou de um espaço da agenda, sempre ligado a um contato e a uma oportunidade.
+Tela cheia no celular (M-04), com o botão **Confirmar** fixo no rodapé mostrando dia e hora escolhidos; painel lateral no desktop. Abre da conversa, do cartão do pipeline ou de um espaço da agenda, sempre ligado a um contato e a uma oportunidade. No celular, o dia é escolhido numa faixa horizontal de datas.
 
 1. **Serviço** — seleção; exibe duração e recursos exigidos (“60 min · profissional + sala com laser”). Serviços e durações vêm da configuração da clínica (**Em aberto**, REQ-052).
 2. **Profissional** — “Qualquer disponível” ou um nome.
@@ -193,7 +220,7 @@ Ver seção 6.2.
 **Origem:** REQ-022, REQ-060, ADR-0004, AC-06. **Estado:** Proposto; provedor e contexto **Em aberto** (DEC-011).
 
 - **Sugerir resposta** é acionado pelo usuário; não há sugestão automática ao abrir a conversa no MVP (**Proposto**, reduz custo e envio de contexto sem necessidade).
-- A sugestão aparece acima do compositor, em bloco com borda tracejada e rótulo “Sugestão da IA — revise antes de enviar”, com: **Usar no campo de resposta** (copia para o compositor, editável), **Gerar outra**, **Descartar**. Não há botão de envio dentro do bloco; o único caminho até o contato é o botão **Enviar** do compositor.
+- A sugestão aparece acima do compositor, em bloco com borda tracejada e rótulo “Sugestão da IA — revise antes de enviar”, com: **Usar e editar** (copia para o compositor, editável), **Gerar outra**, **Descartar**. No celular, o botão de IA fica à esquerda do campo e o de enviar à direita, separados para evitar toque acidental. Não há botão de envio dentro do bloco; o único caminho até o contato é o botão **Enviar** do compositor.
 - Mensagem enviada a partir de sugestão registra a origem (“Sugestão da IA, editada por Ana”) no histórico interno, não para o contato.
 - **Resumo da IA** no painel do contato: gerado sob demanda, com horário de geração e aviso “Pode conter erros. Confira na conversa.”
 - Falha ou indisponibilidade: “A sugestão não está disponível agora. Você pode responder normalmente.” O compositor continua ativo (AC-06).
@@ -210,7 +237,7 @@ Ver seção 6.2.
 - Alvos de toque ≥ 44 × 44 px em tablet e celular.
 - Atualizações em tempo real anunciadas com `aria-live="polite"` somente para o que afeta o item em foco (nova mensagem na conversa aberta, mudança de conexão); mudanças em massa na lista não são lidas uma a uma.
 - Foco nunca é roubado por evento remoto.
-- Texto base 14 px no desktop, 16 px em telas de toque.
+- Texto base 16 px no celular e no tablet; 14 px permitido apenas em listas densas do desktop.
 
 ## 8. Direção visual proposta
 
@@ -243,6 +270,8 @@ Tipografia: Inter (400/500/600), escala 12/14/16/20/24. Raio 8 px em cartões, 6
 | TEL-06 Compromisso | JRN-05 | REQ-032, REQ-033 | AC-10 |
 | TEL-07 Estados globais | JRN-07 | REQ-001, REQ-003, REQ-040, REQ-041, REQ-042 | AC-01, AC-02, AC-11, AC-12 |
 
+Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 → TEL-04; M-07 e M-08 → TEL-07.
+
 ## 10. Critérios de aceite de UX
 
 Complementam os [cenários de aceite](acceptance.md); IDs novos e estáveis.
@@ -254,14 +283,15 @@ Complementam os [cenários de aceite](acceptance.md); IDs novos e estáveis.
 - **UX-05 — Revogação limpa a tela.** Após revogação, nenhum dado da clínica permanece visível ou acessível pelo histórico do navegador sem nova autenticação. Requisitos: REQ-003.
 - **UX-06 — Teclado completo.** O fluxo mensagem recebida → resposta → mover etapa → agendar é concluído apenas com teclado. Requisitos: REQ-020, REQ-023, REQ-031.
 - **UX-07 — Foco preservado.** Evento remoto em outra conversa ou cartão não muda o foco nem a rolagem do usuário. Requisitos: REQ-040.
+- **UX-08 — Fluxo completo no celular.** Em um aparelho de 360 px de largura, um atendente conclui mensagem recebida → resposta → mudança de etapa → agendamento confirmado sem rolagem horizontal, sem zoom e com todos os alvos de toque ≥ 44 px. Requisitos: REQ-020, REQ-022, REQ-023, REQ-031; DEC-017.
 
 ## 11. Questões abertas de UX
 
 | ID | Questão | Bloqueia | Decide |
 | --- | --- | --- | --- |
-| Q-UX-01 | Quais dispositivos e resoluções a equipe da clínica piloto usa? Atendimento acontece no celular? | Aceite de usabilidade e prioridade do layout móvel. | Responsável pelo produto + clínica piloto |
+| Q-UX-01 | Quais modelos de celular, sistemas e navegadores a equipe da clínica piloto usa, e quanto do atendimento acontece no computador? (A prioridade do celular já está decidida em DEC-017.) | Aceite de usabilidade e lista de aparelhos de teste. | Responsável pelo produto + clínica piloto |
 | Q-UX-02 | Mover para “Agendado” sem compromisso vinculado é permitido? | Regra do quadro em TEL-03. | Responsável pelo produto |
 | Q-UX-03 | Granularidade da grade da agenda (10, 15 ou 30 min) e visão semanal no MVP? | Detalhe de TEL-04. | Clínica piloto (junto com DEC-008) |
 | Q-UX-04 | Sugestão da IA sob demanda ou automática ao abrir a conversa? | Custo e contexto enviado à IA. | Responsável pelo produto (junto com DEC-011) |
-| Q-UX-05 | Notificação sonora/navegador para nova conversa? | Configuração de alertas do painel. | Responsável pelo produto |
+| Q-UX-05 | Notificação de nova conversa no celular (push via PWA, som no navegador ou nenhuma) no MVP? | Alertas e instalação do painel no celular. | Responsável pelo produto |
 | Q-UX-06 | Como exibir janela de 24 h e modelos do WhatsApp no compositor? | Envio real fora da janela. | Engenharia + responsável pelo produto (EP-T04) |

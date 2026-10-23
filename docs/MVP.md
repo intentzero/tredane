@@ -18,6 +18,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Somente atendente e responsável pela clínica acessam o painel no primeiro MVP; profissional é recurso de agenda, sem login.
 - Atendente vê todas as conversas da própria clínica; responsável pode fazer tudo que o atendente faz, inclusive responder pelo WhatsApp e operar agendamentos.
 - Um horário considera profissional e sala/equipamento necessários ao serviço.
+- Interface mobile first: o fluxo piloto completo funciona no celular; tablet e desktop são ampliações ([DEC-017](product/decisions.md), [UI/UX](product/ux-ui.md)).
 
 ## Documentos de definição
 
@@ -30,7 +31,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Estados e eventos propostos](product/states.md)
 - [Cenários de aceite](product/acceptance.md)
 - [Fronteira de dados entre clínicas](product/tenant-boundaries.md)
-- [Especificação de UI/UX do painel](product/ux-ui.md) (proposta: telas, estados visíveis e critérios de UX)
+- [Especificação de UI/UX do painel](product/ux-ui.md) (mobile first confirmado; telas, estados visíveis e critérios de UX propostos)
 
 ## Documentação de arquitetura e execução
 
@@ -74,7 +75,7 @@ Os ADRs não encerram as decisões abertas deste MVP: em particular topologia D1
 
 ## Arquitetura inicial proposta
 
-- **React:** painel da equipe, com caixa de entrada, pipeline e agenda.
+- **React:** painel da equipe, responsivo e mobile first, com caixa de entrada, pipeline e agenda.
 - **Worker com Hono:** API, autenticação/autorização, webhooks e regras de negócio.
 - **D1 com Drizzle:** clínicas, membros, contatos, conversas, mensagens, oportunidades, recursos e agendamentos. Toda operação de negócio usa o tenant derivado da identidade autenticada ou da integração verificada, nunca de um ID livre fornecido pelo cliente.
 - **Durable Objects:** proposta de uma instância por clínica para conexões WebSocket, distribuição de eventos e coordenação local. A instância usa armazenamento próprio apenas para estado que precise sobreviver à hibernação; o sistema de registro das entidades de negócio continua no D1. O Worker valida a identidade e a associação à clínica antes de rotear a conexão ao objeto correspondente.
