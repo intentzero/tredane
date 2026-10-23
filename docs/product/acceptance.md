@@ -12,9 +12,9 @@
 
 **Dado** um atendente da clínica A com painel e WebSocket abertos; **quando** seu acesso é revogado; **então** novas requisições são negadas, a conexão antiga não recebe novos eventos da clínica e o painel informa a perda de acesso. **Requisito:** REQ-003. **Pendente:** mecanismo de invalidação e matriz final de quem pode revogar.
 
-### AC-03 — Profissional e operador fora do painel
+### AC-03 — Perfis e superfícies separadas
 
-**Dado** o primeiro MVP com somente os perfis atendente e responsável; **quando** um profissional ou operador da plataforma tenta abrir o painel como se tivesse um desses papéis; **então** não recebe acesso implícito. O profissional pode constar como recurso da agenda sem login. **Requisitos:** REQ-002, REQ-004.
+**Dado** que somente atendente e responsável entram na Clinic App por membership e role; **quando** um profissional sem login ou um superadmin sem membership nem sessão de suporte válida tenta acessar dados clínicos, **então** o acesso é negado. O profissional permanece um recurso da agenda; o superadmin usa a Platform Admin e só entra em contexto clínico via sessão própria de suporte limitada e auditada. **Requisitos:** REQ-002, REQ-004, REQ-006, REQ-007.
 
 ## Mensagens e atendimento
 
