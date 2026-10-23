@@ -1,6 +1,6 @@
 # Jornadas do MVP
 
-**Estado:** proposta para validação. **Fonte:** [MVP](../MVP.md), [atores](actors-permissions.md) e [épico #1](https://github.com/intentzero/tredane/issues/1). As jornadas descrevem comportamentos desejados, não telas finais nem integração já construída. Os critérios verificáveis estão em [requisitos](requirements.md).
+**Estado:** proposta para validação. **Fonte:** [MVP](../MVP.md), [atores](actors-permissions.md) e [épico #1](https://github.com/intentzero/tredane/issues/1). As jornadas descrevem comportamentos desejados, não telas finais nem integração já construída. Os critérios verificáveis estão em [requisitos](requirements.md); as telas propostas para cada jornada estão na [especificação de UI/UX](ux-ui.md).
 
 ## JRN-01 — Primeiro contato pelo WhatsApp
 

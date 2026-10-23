@@ -30,6 +30,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Estados e eventos propostos](product/states.md)
 - [Cenários de aceite](product/acceptance.md)
 - [Fronteira de dados entre clínicas](product/tenant-boundaries.md)
+- [Especificação de UI/UX do painel](product/ux-ui.md) (proposta: telas, estados visíveis e critérios de UX)
 
 ## Documentação de arquitetura e execução
 
