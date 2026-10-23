@@ -1,6 +1,6 @@
 # ADR-0008 — Convites de atendentes por e-mail
 
-**Estado:** confirmados convite por e-mail (DEC-021), validade de 7 dias (DEC-022), reenvio com rotação (DEC-023) e limitação de frequência (DEC-024).
+**Estado:** confirmados convite por e-mail (DEC-021), validade de 7 dias (DEC-022), reenvio com rotação (DEC-023), limites de frequência (DEC-024) e cancelamento por owner do tenant (DEC-025).
 **Origem/data:** opção A aprovada pelo responsável pelo Tredane em 23/10/2026.
 **Relacionado:** [ADR-0006](0006-clerk-platform-admin.md), [REQ-008](../product/requirements.md), [JRN-13](../product/journeys.md), [AC-22](../product/acceptance.md).
 
@@ -38,11 +38,19 @@ O convite vale **7 dias (168 horas) a partir do instante da emissão**, calculad
 
 
 
+## Cancelamento — decisão confirmada (DEC-025)
+
+- **Qualquer owner ativo do tenant** pode cancelar **qualquer convite pendente daquele tenant**, independentemente do owner emissor. Não pode cancelar convites de outro tenant.
+- No backend, após verificar Clerk session, membership e role atual, atualizar o convite de `pending` para `cancelled` **atomicamente no D1**, invalidando imediatamente o token/link antigo. Auditar actor, tenant, convite, destinatário, instante e resultado; nunca guardar o token em logs.
+- Cancelamento **não altera memberships existentes**. Convite aceite não pode ser cancelado para remover attendant; remover membership exige ação própria.
+- Reenvio não reativa convite `cancelled`; eventual novo convite exige emissão explícita separada.
+- Se aceite e cancelamento coincidirem, somente uma operação produz efeito: se aceite vencer, membership criado e o cancelamento não o desfaz; se cancelamento vencer, o link não concede acesso. Testar concorrência, owner diferente do emissor, owner de B, attendant, token cancelado e idempotência.
+
 ## Pontos ainda em aberto
 
 1. **Controles adicionais contra abuso** (por owner, IP e entrega) além dos limites confirmados de 10 minutos / 5 reenvios por 24 horas.
 2. Transportador de e-mail e endereço remetente; gestão de bounces e falhas de entrega.
-3. Se owner pode revogar convite pendente antes do aceite e UX exata de convite cancelado (proposto: sim).
+3. UX de confirmação/estado de convite cancelado e eventual notificação ao destinatário, sem assumir envio automático.
 4. Revogação imediata de sessões HTTP e WebSockets após remoção de membership.
 5. Política de privacidade, retenção de e-mails de convites e logs.
 

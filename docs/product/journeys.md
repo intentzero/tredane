@@ -78,6 +78,12 @@
 - **Em aberto:** emissão, posse do email, aceite e expiração de convite, revogação imediata dos WebSockets.
 - **Requisitos:** REQ-001/002/003/004/005.
 
+## JRN-14 — Cancelar convite pendente da clínica
+
+- **Confirmado (DEC-025):** qualquer owner ativo de A pode cancelar convite pendente de A, independente do emissor. Backend invalida o link imediatamente por transição atómica no D1 e audita actor/tenant/convite. Nenhum membership é alterado.
+- **Alternativas:** convite aceite não é cancelável para revogar acesso; owner só de B e attendant não podem cancelar A. Aceite simultâneo ao cancelamento tem somente um resultado final válido.
+- **Requisitos:** REQ-004/008; [AC-23](acceptance.md).
+
 ## JRN-13 — Aceitar convite de e-mail para tenant
 
 - **Estado:** convite por e-mail (DEC-021), validade de 7 dias (DEC-022), reenvio com novo link (DEC-023) e limite de 10 minutos / 5 reenvios por 24 horas por tenant/e-mail (DEC-024) confirmados.

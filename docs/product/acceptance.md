@@ -100,6 +100,10 @@
 
 **Dado** owner da clínica A convidando `attendant@example.test`; **quando** o destinatário segue um link único válido e entra/cria conta Clerk com e-mail verificado correspondente; **então** o convite é consumido uma vez, e apenas um membership attendant em A é criado no D1. Uma identidade também membro de B preserva B. E-mail diferente, convite revogado/expirado/usado, alteração de tenant ou escalada da role são negados. **Requisitos:** REQ-004/005/008. **Validade confirmada:** convite com menos de 168 horas pode ser aceite se válido; em `expires_at` ou depois é recusado. **Reenvio confirmado:** novo convite gera token e prazo de 7 dias; token anterior é invalidado na mesma operação transacional e não pode ser aceite, mesmo antes de expirar. Testar dois reenvios concorrentes e aceite simultâneo. **Limites confirmados (DEC-024):** reenvio dentro de 10 minutos do anterior ou sexto reenvio numa janela móvel de 24 horas é rejeitado sem invalidar o convite ativo. Testar limites temporais, normalização de e-mail e requisições simultâneas. **Pendente:** cancelamento manual e controles antiabuso adicionais.
 
+### AC-23 — Cancelamento de convite pendente por outro owner
+
+**Dado** owners O1 e O2 no tenant A e convite pendente emitido por O1; **quando** O2 cancela, **então** o Worker valida que O2 é owner ativo de A, altera pending→cancelled atomicamente no D1, invalida imediatamente o link e regista a identidade de O2. Nenhum membership existente muda. Uma tentativa de aceite posterior falha. Attendant ou owner apenas de B não podem cancelar, e convite aceite não é cancelável para remover membership. Aceite e cancelamento simultâneos produzem um único resultado válido. **Requisitos:** REQ-004/008.
+
 ## Condições para usar estes cenários como aprovação
 
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.
