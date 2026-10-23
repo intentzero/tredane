@@ -10,7 +10,7 @@
 
 ### REQ-002 — Permissão por papel e ação
 
-**Prioridade/estado:** MVP / Em aberto quanto à matriz final. **Origem:** ACT-02, ACT-03; JRN-07. **Comportamento:** o servidor autoriza responder, atribuir, mover oportunidade, alterar agenda e administrar clínica conforme papel vigente. **Aceite:** para cada linha da matriz aprovada, uma ação permitida funciona e a mesma ação por papel não autorizado é negada sem alterar dados. **Dados/eventos:** a resposta não revela conteúdo de outro tenant nem publica evento de ação negada.
+**Prioridade/estado:** MVP / Confirmado para atendimento; administração em aberto. **Origem:** ACT-02, ACT-03; JRN-02, JRN-07. **Comportamento:** atendente e responsável podem ver todas as conversas da própria clínica, responder, atribuir, mover oportunidades e operar agendamentos; o responsável pode fazer tudo que o atendente faz. Permissões administrativas adicionais ainda serão definidas. **Aceite:** ambos executam essas ações na própria clínica, mas são negados para outra clínica; ação administrativa não autorizada não altera dados. **Dados/eventos:** a resposta não revela conteúdo de outro tenant nem publica evento de ação negada.
 
 ### REQ-003 — Revogação de acesso
 
@@ -32,7 +32,7 @@
 
 ### REQ-012 — Resposta e estado de envio
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02; JRN-02, JRN-06. **Comportamento:** usuário autorizado envia resposta pela integração oficial e acompanha tentativa, sucesso, falha, resultado desconhecido e estados de entrega disponíveis. **Aceite:** a interface não marca como enviada uma mensagem que falhou ou cujo resultado é desconhecido; uma nova tentativa não é iniciada automaticamente enquanto o resultado anterior estiver incerto. **Dados/eventos:** mensagem e estado publicados apenas ao tenant correto.
+**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-02, JRN-06. **Comportamento:** usuário autorizado envia resposta pela integração oficial e acompanha tentativa, sucesso, falha, resultado desconhecido e estados de entrega disponíveis. **Aceite:** a interface não marca como enviada uma mensagem que falhou ou cujo resultado é desconhecido; uma nova tentativa não é iniciada automaticamente enquanto o resultado anterior estiver incerto. **Dados/eventos:** mensagem e estado publicados apenas ao tenant correto.
 
 ### REQ-013 — Falha recuperável
 
@@ -42,15 +42,15 @@
 
 ### REQ-020 — Caixa de entrada e responsável
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02; JRN-02. **Comportamento:** a equipe localiza conversas da própria clínica, vê a última interação e assume ou transfere o responsável. **Aceite:** atribuição aparece em duas sessões autorizadas e disputa simultânea produz um responsável final claro. **Dados/eventos:** conversa, membro e evento de atribuição; visibilidade de conversas não atribuídas depende de Q-ACT-01.
+**Prioridade/estado:** MVP / Confirmado quanto à visibilidade; atribuição proposta. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** ambos localizam todas as conversas da própria clínica, veem a última interação e podem assumir ou transferir o responsável. **Aceite:** conversas atribuídas a outro membro continuam visíveis aos dois perfis; a atribuição aparece em duas sessões autorizadas e disputa simultânea produz um responsável final claro. **Dados/eventos:** conversa, membro e evento de atribuição, sempre restritos ao tenant.
 
 ### REQ-021 — Histórico de atendimento
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02; JRN-02. **Comportamento:** conversa mostra mensagens em ordem, estados, responsável e ações relevantes. **Aceite:** após atualização ou reconexão, a sequência e os estados correspondem ao registro persistido; usuário de outro tenant não consegue acessar o histórico. **Dados/eventos:** mensagens e auditoria mínima.
+**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** conversa mostra mensagens em ordem, estados, responsável e ações relevantes. **Aceite:** após atualização ou reconexão, a sequência e os estados correspondem ao registro persistido; usuário de outro tenant não consegue acessar o histórico. **Dados/eventos:** mensagens e auditoria mínima.
 
 ### REQ-022 — Resposta assistida por IA
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02; JRN-02. **Comportamento:** IA pode sugerir resposta e resumo; pessoa autorizada revisa e aciona o envio. **Aceite:** a sugestão é identificada, editável e nunca vira mensagem enviada sem ação humana; falha da IA não bloqueia resposta manual. **Dados/eventos:** origem da sugestão e decisão de envio; provedor e contexto permitido ainda em aberto.
+**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** IA pode sugerir resposta e resumo; pessoa autorizada revisa e aciona o envio. **Aceite:** a sugestão é identificada, editável e nunca vira mensagem enviada sem ação humana; falha da IA não bloqueia resposta manual. **Dados/eventos:** origem da sugestão e decisão de envio; provedor e contexto permitido ainda em aberto.
 
 ### REQ-023 — Oportunidade no pipeline
 
@@ -64,19 +64,19 @@
 
 ### REQ-031 — Confirmação sem conflito
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02; JRN-03, JRN-05. **Comportamento:** confirmar horário cria agendamento ligado ao contato e à oportunidade somente se os recursos ainda estiverem livres. **Aceite:** duas tentativas simultâneas para o mesmo recurso e intervalo produzem no máximo uma confirmação; a outra recebe conflito compreensível. **Dados/eventos:** agendamento persistido antes do evento em tempo real.
+**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-03, JRN-05. **Comportamento:** confirmar horário cria agendamento ligado ao contato e à oportunidade somente se os recursos ainda estiverem livres. **Aceite:** duas tentativas simultâneas para o mesmo recurso e intervalo produzem no máximo uma confirmação; a outra recebe conflito compreensível. **Dados/eventos:** agendamento persistido antes do evento em tempo real.
 
 ### REQ-032 — Cancelamento e reagendamento
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-01, ACT-02; JRN-05. **Comportamento:** equipe registra cancelamento ou confirma novo horário, preservando histórico e liberando ou ocupando recursos de modo coerente. **Aceite:** agenda, conversa e oportunidade mostram o mesmo estado; conflito no novo horário não apaga o compromisso anterior. **Dados/eventos:** política de prazo e motivo obrigatório permanecem em aberto.
+**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-01, ACT-02, ACT-03; JRN-05. **Comportamento:** equipe registra cancelamento ou confirma novo horário, preservando histórico e liberando ou ocupando recursos de modo coerente. **Aceite:** agenda, conversa e oportunidade mostram o mesmo estado; conflito no novo horário não apaga o compromisso anterior. **Dados/eventos:** política de prazo e motivo obrigatório permanecem em aberto.
 
 ### REQ-033 — Comunicação do compromisso
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-01, ACT-02; JRN-03, JRN-05. **Comportamento:** equipe pode comunicar confirmação, cancelamento ou mudança ao contato via WhatsApp, com estado de envio separado do estado do agendamento. **Aceite:** falha de mensagem não reverte silenciosamente agendamento confirmado; painel mostra a falha para acompanhamento. **Dados/eventos:** conversa e agendamento vinculados.
+**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-01, ACT-02, ACT-03; JRN-03, JRN-05. **Comportamento:** equipe pode comunicar confirmação, cancelamento ou mudança ao contato via WhatsApp, com estado de envio separado do estado do agendamento. **Aceite:** falha de mensagem não reverte silenciosamente agendamento confirmado; painel mostra a falha para acompanhamento. **Dados/eventos:** conversa e agendamento vinculados.
 
 ### REQ-034 — Visão da agenda
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-04. **Comportamento:** membros autorizados veem compromissos da clínica com horário, recurso, contato e estado necessários à operação. **Aceite:** alteração feita em uma sessão aparece na outra e não expõe agenda de outra clínica. **Dados/eventos:** nível de detalhe por papel depende da matriz aprovada.
+**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-04. **Comportamento:** membros autorizados veem compromissos da clínica com horário, recurso, contato e estado necessários à operação. **Aceite:** alteração feita em uma sessão aparece na outra e não expõe agenda de outra clínica. **Dados/eventos:** atendente e responsável acessam a agenda da própria clínica; permissões administrativas adicionais continuam em aberto.
 
 ## Tempo real
 
@@ -108,7 +108,7 @@
 
 ### REQ-060 — Dados usados pela IA
 
-**Prioridade/estado:** MVP / Em aberto. **Origem:** ACT-02; JRN-02. **Comportamento:** contexto enviado à IA deve ser limitado ao necessário para a sugestão e ao tenant da conversa. **Aceite:** antes de uso com dados reais, documentar campos permitidos, provedor, retenção e revisão; teste entre duas clínicas não permite contexto cruzado. **Dados/eventos:** não usar dados reais enquanto a política estiver pendente.
+**Prioridade/estado:** MVP / Em aberto. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** contexto enviado à IA deve ser limitado ao necessário para a sugestão e ao tenant da conversa. **Aceite:** antes de uso com dados reais, documentar campos permitidos, provedor, retenção e revisão; teste entre duas clínicas não permite contexto cruzado. **Dados/eventos:** não usar dados reais enquanto a política estiver pendente.
 
 ### REQ-070 — Observabilidade do fluxo
 
@@ -120,4 +120,4 @@
 
 ## Lacunas para revisão
 
-Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: Q-ACT-01, Q-ACT-02, Q-ACT-04 a Q-ACT-06; duração e disponibilidade da agenda; onboarding do WhatsApp; identidade; provedor/contexto da IA; retenção de dados; D1 compartilhado ou separado por clínica. Ver [decisões](decisions.md).
+Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: Q-ACT-04 a Q-ACT-06; duração e disponibilidade da agenda; onboarding do WhatsApp; identidade; provedor/contexto da IA; retenção de dados; D1 compartilhado ou separado por clínica. Ver [decisões](decisions.md).
