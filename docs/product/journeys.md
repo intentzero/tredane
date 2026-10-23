@@ -80,10 +80,10 @@
 
 ## JRN-13 — Aceitar convite de e-mail para tenant
 
-- **Estado:** convite por e-mail (DEC-021), validade de 7 dias (DEC-022) e reenvio com novo link que invalida o anterior (DEC-023) confirmados; limite de frequência por definir.
+- **Estado:** convite por e-mail (DEC-021), validade de 7 dias (DEC-022), reenvio com novo link (DEC-023) e limite de 10 minutos / 5 reenvios por 24 horas por tenant/e-mail (DEC-024) confirmados.
 - **Ator/objetivo:** futuro attendant recebe e-mail de convite de owner para a clínica A.
 - **Fluxo:** owner de A informa e-mail → Tredane regista convite de uso único no D1 e entrega link por e-mail → destinatário autentica-se no Clerk, criando conta se necessário → backend confirma que o e-mail convidado está verificado na identidade Clerk → consume o convite atomicamente e cria membership attendant somente em A.
-- **Alternativas:** já pertencer a B não modifica B; endereço não verificado, token usado/expirado/revogado ou substituído por reenvio e tentativa de mudar role/tenant falham sem criar vínculo. Reenvio autorizado emite novo link por 7 dias e invalida imediatamente o anterior.
+- **Alternativas:** já pertencer a B não modifica B; endereço não verificado, token usado/expirado/revogado ou substituído por reenvio e tentativa de mudar role/tenant falham sem criar vínculo. Reenvio autorizado emite novo link por 7 dias e invalida imediatamente o anterior, desde que respeite 10 minutos entre reenvios e máximo 5 numa janela móvel de 24 horas por tenant/e-mail. Pedido bloqueado não altera o link vigente.
 - **Requisitos:** REQ-004/005/008.
 
 ## JRN-09 — Alternar entre tenants

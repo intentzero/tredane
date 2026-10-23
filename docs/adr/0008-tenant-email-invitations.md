@@ -1,6 +1,6 @@
 # ADR-0008 — Convites de atendentes por e-mail
 
-**Estado:** confirmados mecanismo por e-mail (DEC-021), validade de 7 dias (DEC-022) e reenvio que invalida o link anterior (DEC-023); limites quantitativos em aberto.
+**Estado:** confirmados convite por e-mail (DEC-021), validade de 7 dias (DEC-022), reenvio com rotação (DEC-023) e limitação de frequência (DEC-024).
 **Origem/data:** opção A aprovada pelo responsável pelo Tredane em 23/10/2026.
 **Relacionado:** [ADR-0006](0006-clerk-platform-admin.md), [REQ-008](../product/requirements.md), [JRN-13](../product/journeys.md), [AC-22](../product/acceptance.md).
 
@@ -31,14 +31,16 @@ O convite vale **7 dias (168 horas) a partir do instante da emissão**, calculad
 - Cada reenvio **gera novo token de uso único** e novo prazo integral de **7 dias (168 horas)** a contar do reenvio/emissão.
 - Ao substituir o convite, o **token anterior torna-se inválido imediatamente**, mesmo dentro do prazo antigo. A substituição e invalidação têm de ser atómicas no D1; aceitar o token anterior após a substituição é sempre negado.
 - Reenvio não permite criar owner nem alterar tenant/e-mail/role; não modifica memberships existentes noutros tenants.
-- Devem existir controles contra abuso e envios excessivos; **quantidade por período/cooldown ainda não está definida** e não deve ser inventada na implementação.
+- **DEC-024 confirmado:** reenvio exige um intervalo mínimo de **10 minutos** desde o reenvio autorizado anterior e permite, no máximo, **5 reenvios por janela móvel de 24 horas**, contabilizados para o par `(tenant_id, normalized_email)` independentemente da rotação dos tokens. A criação inicial do convite não é um reenvio.
+- O Worker usa relógio do servidor e verifica cooldown/quota de forma resistente a requisições concorrentes, antes da substituição atómica do token. Se for limitado, responde sem enviar novo link e **sem invalidar** o token vigente. A quota mantém-se entre links substitutos para o mesmo par tenant/e-mail.
+- Testar limites de 10 minutos, 24 horas, sexto reenvio, normalização de e-mail, dois reenvios simultâneos e eventuais pedidos de origens diferentes. Medidas antiabuso globais continuam a detalhar.
 - Auditar emissor, tenant, e-mail de destino, substituição e estado da entrega sem registrar token em logs. Testar disputa entre dois reenvios, aceite simultâneo, token antigo e convites já aceitos.
 
 
 
 ## Pontos ainda em aberto
 
-1. **Limites numéricos de frequência de reenvio (cooldown/quota)** — requisito de proteção confirmado, valores ainda não escolhidos.
+1. **Controles adicionais contra abuso** (por owner, IP e entrega) além dos limites confirmados de 10 minutos / 5 reenvios por 24 horas.
 2. Transportador de e-mail e endereço remetente; gestão de bounces e falhas de entrega.
 3. Se owner pode revogar convite pendente antes do aceite e UX exata de convite cancelado (proposto: sim).
 4. Revogação imediata de sessões HTTP e WebSockets após remoção de membership.

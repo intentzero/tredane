@@ -46,7 +46,7 @@
 
 **Leitura do checklist:** 9/28 itens já estavam marcados em 23/10; as sete jornadas J-01 a J-07 estavam registradas e podem ser marcadas **como documentação produzida**, alcançando **16/28**. As tarefas V-01 e V-04 podem ser encerradas apenas após incorporar e revisar o racional e registo de hipóteses, mas a validação da clínica permanece necessária antes de dar o épico por concluído.
 
-**Evolução após esta auditoria:** DEC-021 confirma convite por e-mail de uso único e aceite com e-mail verificado no Clerk (existente ou novo), preservando memberships em outros tenants. DEC-022 fixou a expiração em 7 dias; DEC-023 definiu o reenvio com substituição atómica de token; a tarefa A-04 permanece parcialmente aberta por limites de frequência, cancelamento manual de convite e revogação HTTP/WebSocket.
+**Evolução após esta auditoria:** DEC-021 confirma convite por e-mail de uso único e aceite com e-mail verificado no Clerk (existente ou novo), preservando memberships em outros tenants. DEC-022 fixou a expiração em 7 dias; DEC-023 definiu o reenvio com substituição atómica de token; DEC-024 fixou limites de reenvio (10 minutos; 5 por janela móvel de 24 horas). A-04 permanece parcialmente aberta pelo cancelamento manual de convite e revogação HTTP/WebSocket.
 
 ## Decisões fechadas
 
