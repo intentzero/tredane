@@ -26,6 +26,8 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Jornadas](product/journeys.md)
 - [Requisitos e critérios de aceite](product/requirements.md)
 - [Decisões e questões abertas](product/decisions.md)
+- [Estados e eventos propostos](product/states.md)
+- [Cenários de aceite](product/acceptance.md)
 
 ## Recorte proposto para a primeira entrega
 
