@@ -42,7 +42,7 @@ npm run dev
 
 Abra `http://localhost:5173` e consulte `/api/health`. Para validar: `npm run typecheck`, `npm run lint`, `npm test` e `npm run build`. O `database_id` em `wrangler.jsonc` é um placeholder **local**: antes de qualquer deploy é obrigatório criar um D1 real e configurar ambientes e permissões. Não usar dados reais na F0.
 
-A [documentação de execução e limitações da F0](docs/implementation/f0.md) detalha as escolhas, migrações e pendências de CI.
+A [documentação de execução e limitações da F0](docs/implementation/f0.md) detalha as escolhas, migrações e o que ainda depende de revisão humana.
 
 ## Próximo marco
 

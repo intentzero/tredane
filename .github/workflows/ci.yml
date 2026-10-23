@@ -17,10 +17,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      # F0: sem lockfile pois este ambiente de autoria não tinha acesso ao registry npm.
-      # Criar e versionar package-lock.json antes de permitir deploy contínuo.
+          cache: npm
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Typecheck
         run: npm run typecheck
       - name: Lint
