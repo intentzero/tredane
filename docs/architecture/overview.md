@@ -44,6 +44,14 @@ A Meta é um serviço externo indispensável; "Cloudflare-native" descreve a inf
 
 Não dividir em microserviços no MVP. A API publica contratos tipados entre módulos; o D1 permanece a fonte de verdade dos dados de negócio.
 
+## Identidade e administração (decisões confirmadas)
+
+Clerk autentica as sessões, **sem Organizations**. Memberships N:N e roles por tenant vivem no D1; o mesmo usuário pode alternar clínicas sem elevar privilégios. A Platform Admin é uma superfície separada autorizada por `privateMetadata.superadmin === true`, consultado no backend.
+
+Para suporte, o Tredane emite **suas próprias sessões temporárias** em D1, associadas à sessão Clerk do administrador real (**actor**), ao usuário membro (**subject**), tenant, motivo e prazo. A Clinic App aplica a role do subject e limitações de suporte; a auditoria mantém actor e subject distintos. Não se cria uma sessão Clerk do usuário alvo. Handoff, MFA, revogação e permissões de manutenção devem ser validados antes de dados reais.
+
+Ver [ADR-0006](../adr/0006-clerk-platform-admin.md), [ADR-0007](../adr/0007-support-impersonation.md) e [identidade](identity-and-admin.md).
+
 ## Fluxos transacionais
 
 **Entrada WhatsApp:** verificar assinatura e identificar integração → normalizar envelope com tenant e ID externo → persistir evento ou chave de deduplicação → publicar para Queue → processar idempotentemente → persistir contacto/conversa/mensagem → registar mudança relevante para publicação em tempo real. A resposta HTTP ao webhook não depende de inferência IA.
@@ -71,4 +79,4 @@ Registrar correlation_id, tenant_id interno, entidade/ação, estado do evento, 
 
 ## Decisões ainda em aberto
 
-Provedor de identidade, associação multiclínica, topologia D1, conexão/onboarding dos números Meta, provedor de IA, retenção LGPD, granularidade e bloqueios da agenda, política de notificações e necessidade de introduzir Workflows já na primeira fatia. Não utilizar dados reais antes dessas políticas estarem aprovadas.
+Protocolo de sessão de suporte, topologia D1, conexão/onboarding dos números Meta, provedor de IA, retenção LGPD, granularidade e bloqueios da agenda, política de notificações e necessidade de introduzir Workflows já na primeira fatia. Não utilizar dados reais antes dessas políticas estarem aprovadas.

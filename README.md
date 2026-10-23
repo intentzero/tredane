@@ -44,6 +44,12 @@ Abra `http://localhost:5173` e consulte `/api/health`. Para validar: `npm run ty
 
 A [documentação de execução e limitações da F0](docs/implementation/f0.md) detalha as escolhas, migrações e o que ainda depende de revisão humana.
 
+## Identidade, Platform Admin e suporte
+
+A identidade é feita com **Clerk sem Organizations**. Os vínculos de usuários com várias clínicas e papéis por tenant são guardados no D1. A aplicação interna Platform Admin usa a flag **`privateMetadata.superadmin === true`**, lida e validada no backend, para gerir o ciclo de vida de tenants. A impersonação de suporte usa sessões próprias emitidas pelo Tredane, com actor e subject distintos, tenant único e auditoria, sem usar funcionalidade de impersonação do provedor de identidade.
+
+Ver [ADR-0006](docs/adr/0006-clerk-platform-admin.md), [ADR-0007](docs/adr/0007-support-impersonation.md) e [contratos de identidade e administração](docs/architecture/identity-and-admin.md).
+
 ## Próximo marco
 
 Preparar a estrutura de frontend e API, migrações, ambiente local e CI. Em seguida, implementar o isolamento entre clínicas, o fluxo principal e a atualização reativa entre sessões com dados de teste antes de conectar serviços reais.
