@@ -16,6 +16,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Aplicação reativa, com atualizações em tempo real por WebSockets com hibernação em Durable Objects.
 - Avaliar um Durable Object por clínica como fronteira de coordenação e isolamento do estado em tempo real.
 - Somente atendente e responsável pela clínica acessam o painel no primeiro MVP; profissional é recurso de agenda, sem login.
+- Atendente vê todas as conversas da própria clínica; responsável pode fazer tudo que o atendente faz, inclusive responder pelo WhatsApp e operar agendamentos.
 - Um horário considera profissional e sala/equipamento necessários ao serviço.
 
 ## Documentos de definição
@@ -32,7 +33,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 
 ## Recorte proposto para a primeira entrega
 
-**Usuários:** atendente e responsável da clínica. O contato interage pelo WhatsApp; não precisa de conta no Tredane. Profissional e operador da plataforma não têm perfil de acesso ao painel no primeiro MVP.
+**Usuários:** atendente e responsável da clínica. Ambos veem todas as conversas da própria clínica e podem conduzir atendimento e agendamentos; o responsável pode executar todas as ações do atendente. O contato interage pelo WhatsApp; não precisa de conta no Tredane. Profissional e operador da plataforma não têm perfil de acesso ao painel no primeiro MVP.
 
 **Fluxo principal:**
 
@@ -46,11 +47,12 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 
 **Etapas iniciais propostas para o pipeline:** novo contato, em atendimento, horário proposto, agendado, concluído e perdido. As etapas devem ser configuráveis por clínica após validar o fluxo piloto; até lá, evitar automações dependentes de nomes fixos.
 
-**Papel da IA no MVP:** sugerir respostas para revisão por uma pessoa e resumir a conversa para a equipe. Mensagens geradas pela IA só são enviadas após ação explícita do atendente. Respostas automáticas e ações autônomas ficam para uma etapa posterior, com regras de confiança, limites e transferência para humano.
+**Papel da IA no MVP:** sugerir respostas para revisão por uma pessoa e resumir a conversa para a equipe. Mensagens sugeridas pela IA só são enviadas após ação explícita do atendente ou do responsável. Respostas automáticas e ações autônomas ficam para uma etapa posterior, com regras de confiança, limites e transferência para humano.
 
 ## Requisitos de aceite
 
 - Uma clínica não consegue ler ou alterar contatos, mensagens, oportunidades, agenda ou arquivos de outra clínica, inclusive ao manipular IDs diretamente na API.
+- Atendente e responsável veem todas as conversas da própria clínica e podem responder, mover oportunidades e operar agendamentos, sempre dentro dela.
 - Uma conexão WebSocket só recebe eventos da clínica autorizada. Troca de clínica ou de permissão exige nova autorização; uma conexão antiga não continua acessando dados após revogação.
 - Cada mensagem recebida ou enviada tem origem, horário, estado e identificador externo quando houver. Reentrega de webhook não cria mensagem duplicada.
 - Uma conversa mantém o vínculo com o contato, a oportunidade e o responsável; a equipe consegue encontrá-la e continuar o atendimento.
@@ -95,7 +97,7 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 
 1. Como cada clínica conectará seu número à API oficial do WhatsApp Business e quem administrará essa conta.
 2. Quais serviços, durações, buffers, bloqueios e regras de disponibilidade a clínica piloto precisa para profissional e sala/equipamento.
-3. Quais permissões exatas terão atendente e responsável, e qual provedor de identidade será usado.
+3. Qual provedor de identidade será usado, se um usuário pode pertencer a várias clínicas e quais permissões administrativas adicionais terá o responsável.
 4. Qual provedor de identidade e qual provedor de IA serão usados.
 5. Quais dados pessoais são necessários, por quanto tempo serão guardados e como a clínica atenderá pedidos de acesso ou exclusão.
 6. Se o D1 compartilhado com escopo rigoroso por clínica atende ao piloto ou se alguma categoria de dados exige banco separado por clínica.
