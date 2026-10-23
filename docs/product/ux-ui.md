@@ -16,9 +16,9 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Três áreas principais: Conversas, Pipeline, Agenda | **Proposto** | Derivado do fluxo principal do MVP e do ADR-0003. |
 | **Mobile first:** o celular é o alvo de base e precisa concluir todo o fluxo piloto (mensagem → resposta → etapa → agendamento); tablet e desktop são ampliações progressivas | **Confirmado** | DEC-017, pedido do responsável pelo produto em 23 de outubro de 2026. Substitui a proposta anterior deste documento de desktop como alvo principal. |
 | Larguras de referência: 360–430 px (base), ≥ 768 px (tablet), ≥ 1280 px (desktop) | **Proposto** | **Em aberto:** modelos e sistemas dos aparelhos da clínica piloto (Q-UX-01). Bloqueia o aceite de usabilidade, não o desenvolvimento das telas. |
-| Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP, instalável como PWA com notificações push de nova conversa | **Confirmado** | DEC-017, DEC-018. O push não traz o conteúdo da mensagem. No iPhone o push exige instalar o painel na tela inicial: o fluxo de instalação precisa de uma tela de orientação (a desenhar). Suporte em cada aparelho da clínica piloto: Q-UX-01. |
+| Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP, instalável como PWA com notificações push de nova conversa | **Confirmado** | DEC-017, DEC-018. O push não traz o conteúdo da mensagem. No iPhone o push exige instalar o painel na tela inicial: o fluxo de instalação tem tela de orientação e escolha de avisos (M-14). Suporte em cada aparelho da clínica piloto: Q-UX-01. |
 | Idioma pt-BR, fuso horário da clínica em todas as datas | **Proposto** | O fuso da clínica é parte das regras de agenda ainda em aberto (DEC-008). |
-| Login pelo Clerk (código por e-mail) e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005, REQ-006. TEL-08 (proposta); ainda não desenhada no canvas. A tela de entrada usa o componente do Clerk estilizado com a identidade do Tredane. |
+| Login pelo Clerk (código por e-mail) e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005, REQ-006. TEL-08 (proposta), desenhada em M-09 e M-10. A tela de entrada final usa o componente do Clerk estilizado com a identidade do Tredane; M-09 mostra o comportamento esperado, não o componente real. |
 | Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **a desenhar** | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
 | App de superadmin | **Fora desta spec** | DEC-012, [ADR-0006](../adr/0006-superadmin-control-plane.md). App separado, com spec própria quando for desenhado. |
 | Relatórios, campanhas, prontuário, pagamentos, bot autônomo | **Fora do MVP** | Não aparecem na navegação, nem como item desabilitado. |
@@ -94,7 +94,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 - Mídia recebida não suportada ou indisponível aparece como bloco “Anexo não disponível” com motivo, nunca como mensagem vazia (JRN-01).
 - Mensagem recebida cujo processamento falhou aparece como “Mensagem não processada — a equipe técnica foi avisada” somente se houver registro do evento; conteúdo não persistido não é exibido como íntegro (states.md).
 - Compositor: campo de texto multilinha, botão **Enviar** (Ctrl/⌘ + Enter), botão **Sugerir resposta** (IA). Envio de anexo pela equipe: **Em aberto** (DEC-011).
-- **Janela de 24 h (Confirmado, DEC-018):** quando a última mensagem do contato tem mais de 24 h, o campo de texto livre fica bloqueado com o aviso “Fora da janela de 24 h do WhatsApp” e o botão **Escolher modelo** abre a lista de modelos aprovados pela Meta (retomada de contato, lembrete e confirmação de horário), com prévia e preenchimento de variáveis. O envio de modelo tem os mesmos estados de envio (6.1). A sugestão da IA continua disponível, mas só pode ser enviada dentro da janela ou convertida em modelo. **Pendente:** quais modelos cadastrar e custo por modelo (EP-T04). Esse estado ainda não está desenhado no canvas.
+- **Janela de 24 h (Confirmado, DEC-018):** quando a última mensagem do contato tem mais de 24 h, o campo de texto livre fica bloqueado com o aviso “Fora da janela de 24 h do WhatsApp” e o botão **Escolher modelo** abre a lista de modelos aprovados pela Meta (retomada de contato, lembrete e confirmação de horário), com prévia e preenchimento de variáveis. O envio de modelo tem os mesmos estados de envio (6.1). A sugestão da IA continua disponível, mas só pode ser enviada dentro da janela ou convertida em modelo. **Pendente:** quais modelos cadastrar e custo por modelo (EP-T04). Desenhado em M-11 (janela fechada) e M-12 (escolha do modelo).
 
 **Painel do contato e oportunidade**
 - Dados do contato: nome, telefone mascarado por padrão. Campos adicionais: **Em aberto** (DEC-011, coleta mínima).
@@ -134,7 +134,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 - No celular (M-06), lista cronológica do dia: compromissos, espaços livres (com **Agendar**), bloqueios e fora do expediente, filtrável por profissional ou sala. A partir do tablet, visão **Dia** em grade com colunas por profissional e linhas de 15 min (granularidade de 15 min, **Confirmada** em DEC-008). Alternância **Por profissional / Por sala** mostra a mesma agenda pelo outro recurso, porque o horário ocupa os dois (DEC-014).
 - Compromisso: horário, contato, serviço, sala/equipamento como etiqueta, estado (Confirmado / Cancelado / Concluído). Cancelados ficam ocultos por padrão com filtro “Mostrar cancelados”.
 - Bloqueios e fora de expediente em hachura com rótulo (“Bloqueado”, “Fora do expediente”), não só cor.
-- Navegação de dia (anterior/hoje/próximo) e seletor de data. **Visão semanal (Confirmado, DEC-018):** alternância Dia/Semana; no tablet e no desktop, grade de sete dias com os compromissos por dia; no celular, lista agrupada por dia, com filtros por profissional ou sala. Clicar num dia leva à visão do dia. A visão semanal ainda não está desenhada no canvas.
+- Navegação de dia (anterior/hoje/próximo) e seletor de data. **Visão semanal (Confirmado, DEC-018):** alternância Dia/Semana; no tablet e no desktop, grade de sete dias com os compromissos por dia; no celular, lista agrupada por dia, com filtros por profissional ou sala. Clicar num dia leva à visão do dia. Desenhada em M-13.
 - Clique em espaço livre abre TEL-05 com horário pré-preenchido; clique em compromisso abre TEL-06.
 - **Tempo real:** compromisso confirmado/cancelado/reagendado aparece ou some nas outras sessões; se o usuário está com TEL-05 aberto e o horário escolhido é ocupado por evento remoto, o horário é marcado como indisponível imediatamente (antes mesmo de tentar confirmar).
 
@@ -283,7 +283,7 @@ Tipografia: Inter (400/500/600), escala 12/14/16/20/24. Raio 8 px em cartões, 6
 | TEL-07 Estados globais | JRN-07 | REQ-001, REQ-003, REQ-040, REQ-041, REQ-042 | AC-01, AC-02, AC-11, AC-12 |
 | TEL-08 Entrar e escolher clínica | JRN-07, JRN-08 | REQ-005, REQ-006 | AC-17 |
 
-Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 → TEL-04; M-07 e M-08 → TEL-07.
+Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA).
 
 ## 10. Critérios de aceite de UX
 
@@ -306,5 +306,5 @@ Complementam os [cenários de aceite](acceptance.md); IDs novos e estáveis.
 | Q-UX-02 | ~~Mover para “Agendado” sem compromisso~~ Resolvida: permitido, com aviso (DEC-018). | — | — |
 | Q-UX-03 | ~~Granularidade da grade~~ e ~~visão semanal~~ Resolvidas: 15 min (DEC-008) e visão de dia e de semana (DEC-018). | — | — |
 | Q-UX-04 | ~~Sugestão sob demanda ou automática~~ Resolvida: só sob demanda (DEC-018). | — | — |
-| Q-UX-05 | ~~Notificação de nova conversa~~ Resolvida: push via PWA instalável (DEC-018). **Em aberto:** quais eventos notificam além de nova conversa (atribuída a mim, envio falhou) e horário de silêncio. | Tela de preferências de notificação. | Responsável pelo produto |
+| Q-UX-05 | ~~Notificação de nova conversa~~ Resolvida: push via PWA instalável (DEC-018). **Proposto em M-14:** avisos de nova conversa, conversa atribuída a mim e mensagem não enviada ligados por padrão, e resposta de contato desligada. **Em aberto:** confirmar esses padrões e definir horário de silêncio. | Tela de preferências de notificação. | Responsável pelo produto |
 | Q-UX-06 | ~~Janela de 24 h~~ Resolvida: texto livre bloqueado, envio por modelo aprovado (DEC-018). **Em aberto:** quais modelos cadastrar e o custo por modelo. | Envio real fora da janela. | Engenharia + responsável pelo produto (EP-T04) |
