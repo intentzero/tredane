@@ -2,6 +2,10 @@
 
 **Estado:** contrato de arquitetura proposto com decisões confirmadas de [ADR-0006](../adr/0006-clerk-platform-admin.md) e requisito confirmado em [ADR-0007](../adr/0007-support-impersonation.md). Rotas e esquema definitivos sujeitos à F1.
 
+## Garantia MFA por role — DEC-027
+
+Clerk fornece identidade, sessão e fatores de autenticação; **a obrigação é definida pelo Tredane por contexto**. Todas as rotas `/api/platform/*` e ações superadmin, incluindo criar sessão própria de suporte, exigem MFA comprovado **do actor**. Operações com role `owner` em A também exigem MFA na sessão; a mesma identidade com role apenas `attendant` em B pode operar B sem MFA obrigatório. Não ativar `Require multi-factor authentication` global do Clerk porque incluiria attendants. O Worker valida autenticação e nível MFA fiável no backend; MFA não deriva de flag fornecida pelo browser, metadata custom desatualizada ou apenas fator inscrito. Se não conseguir verificar nível MFA, falha fechado para rotas privilegiadas. Passkeys, reautenticação recente, recuperação e custos em produção são questões abertas da F1. [ADR-0010](../adr/0010-role-scoped-mfa.md).
+
 ## Fontes de verdade
 
 - **Clerk:** identidade e sessão; `privateMetadata.superadmin` booleano define administrador global. Sem Clerk Organizations.

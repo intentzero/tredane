@@ -120,6 +120,13 @@
 - **Resultado:** manutenção rastreável, sem substituir a identidade real do actor nem usar impersonação do Clerk.
 - **Requisitos:** REQ-003/005/006/007/040.
 
+## JRN-15 — MFA por papel com memberships multi-tenant
+
+- **Confirmado:** MFA necessário para `superadmin` e `owner`, opcional para `attendant` (DEC-027).
+- **Fluxo:** pessoa owner em A e attendant em B entra no Clerk sem MFA → pode usar B como attendant → ao abrir A como owner deve configurar/comprovar MFA → backend passa a autorizar A somente após comprovação. Platform Admin nunca opera sem MFA do actor real.
+- **Alternativas:** sem MFA, desconhecimento do nível do fator ou manipulação de role/tenant não autorizam owner/admin. Método do fator, recuperação e step-up recente permanecem em aberto.
+- **Requisito:** REQ-009.
+
 ## Validação necessária
 
 Revisar as jornadas com o responsável pelo produto e uma clínica piloto, em especial: permissões administrativas, durações e regras de disponibilidade dos recursos, cancelamento, confirmação ao contato e ativação do WhatsApp. Registrar as respostas em [decisões](decisions.md) e ajustar os requisitos ligados às jornadas afetadas.

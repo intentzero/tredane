@@ -26,6 +26,8 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 
 **Convites de atendentes (opção A, DEC-021):** o `owner` envia convite por e-mail para o seu tenant, com link de uso único. A pessoa pode criar conta Clerk ou entrar na conta existente, mesmo que já esteja associada a outras clínicas. A aceitação exige e-mail verificado correspondente e concede apenas membership `attendant` no tenant convidante. Convites e aceites ficam no D1; **valem 7 dias desde a emissão (DEC-022)**, sem extensão por login ou abertura do link. **Reenvio confirmado (DEC-023):** novo link válido por 7 dias e invalidação imediata do anterior. **Limites DEC-024:** intervalo mínimo de 10 minutos entre reenvios e no máximo 5 por janela móvel de 24 horas, por tenant/e-mail; tentativa bloqueada não invalida link atual. **Cancelamento DEC-025:** qualquer owner da clínica cancela convite pendente dela, ainda que outro owner o tenha emitido; o link fica inválido imediatamente e há auditoria, sem afetar memberships existentes.
 
+**MFA por responsabilidade (DEC-027):** obrigatório para `superadmin` e para funções de `owner`; opcional para `attendant`. Mesmo usuário owner em A e attendant em B pode operar B como attendant sem MFA, mas não A como owner. O Worker verifica MFA na sessão Clerk antes de qualquer privilégio owner/superadmin; não aplicar toggle de MFA global do Clerk. Métodos e eventual desafio recente para suporte permanecem em aberto. [ADR-0010](adr/0010-role-scoped-mfa.md).
+
 ## Documentos de definição
 
 O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a definição. Os documentos abaixo detalham propostas e decisões sem substituir este resumo:

@@ -64,6 +64,8 @@ support_audit_events (
 
 A associação com a sessão Clerk do actor e as chaves entre tenants devem ser validadas a cada pedido. Nunca confiar em `X-Impersonate-User`, `X-Tenant` ou valores de cliente para conceder privilégios.
 
+**MFA do superadmin real (DEC-027):** criar sessão própria de suporte exige MFA válido na sessão Clerk do actor, mesmo se o subject for attendant sem MFA. O nível do subject não substitui o do actor. A janela de desafio MFA **recente** para início de suporte continua proposta (não foi escolhida na DEC-027). [ADR-0010](0010-role-scoped-mfa.md).
+
 ## Políticas mínimas de segurança
 
 - **TTL:** duração curta, sugeridos 15 minutos; renovar explicitamente, com registo, sem renovação infinita.

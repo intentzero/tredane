@@ -48,6 +48,8 @@
 
 **Evolução após esta auditoria:** DEC-021 confirma convite por e-mail de uso único e aceite com e-mail verificado no Clerk (existente ou novo), preservando memberships em outros tenants. DEC-022 fixou a expiração em 7 dias; DEC-023 definiu o reenvio com substituição atómica de token; DEC-024 fixou limites de reenvio (10 minutos; 5 por janela móvel de 24 horas). DEC-025 confirmou cancelamento de convite pending por qualquer owner do tenant. **DEC-026 confirmou revogação imediata e exclusiva por tenant**, preservando sessão Clerk e vínculos noutros tenants; A-04 permanece aberta apenas para fecho do protocolo técnico de entrega/revogação de WebSocket e revisão de segurança/testes, não por falta de decisão sobre o comportamento.
 
+**Atualização posterior DEC-027:** MFA obrigatório para superadmins e owners, opcional para attendants, verificado no backend por role/contexto sem obrigação global no Clerk. Método, recuperação, step-up e testes seguem abertos; a checklist não fica automaticamente concluída.
+
 ## Decisões fechadas
 
 - Clerk sem Organizations; `privateMetadata.superadmin` estritamente booleano e validado pelo backend.

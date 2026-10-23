@@ -37,6 +37,10 @@
 
 Operação e suporte devem partir de metadados e registros técnicos. Qualquer acesso excepcional a conteúdo de uma clínica requer política, autorização e auditoria específicas, ainda não definidas.
 
+## MFA por responsabilidade — DEC-027
+
+**Confirmado:** MFA obrigatório para `superadmin` e `owner`, opcional para `attendant`. O Worker verifica o nível de autenticação da sessão Clerk antes de ações de Admin ou do tenant com role owner. Um user owner em A e attendant em B pode usar B como attendant sem MFA suficiente, mas não A como owner. Não habilitar MFA global no Clerk: isso obrigaria attendants. O método de MFA e o step-up recente para operações sensíveis ainda serão decididos. [ADR-0010](../adr/0010-role-scoped-mfa.md).
+
 ## Regras transversais propostas
 
 1. O servidor resolve a clínica a partir de identidade autenticada e associação vigente; um ID de clínica enviado pelo navegador não concede acesso.

@@ -19,6 +19,8 @@
 
 **Atualização DEC-021:** está confirmado o convite por e-mail de uso único para attendants, aceite por login Clerk com e-mail verificado, com dados no D1. Na hipótese VAL-07, a escolha do mecanismo deixa de estar em aberto; o prazo foi fixado em 7 dias (DEC-022); **DEC-023 confirmou reenvio com novo token e invalidação do anterior**; **DEC-024 fixou 10 minutos e 5 reenvios/24 horas** por tenant/e-mail; **DEC-025 confirmou cancelamento por qualquer owner do tenant**, com invalidação imediata do link; DEC-026 definiu a revogação imediata por tenant, sem logout Clerk; faltam canal de entrega, protocolo técnico seguro de WebSockets e testes de segurança.
 
+**DEC-027 confirmada:** superadmin e owner devem comprovar MFA; attendant tem configuração opcional, sem ativar obrigação global do Clerk. Pendências: método, backup/recovery, passo recente para suporte, custo pago em produção e teste da autorização por role e tenant (owner A / attendant B). Não confundir política confirmada com implementação pronta.
+
 ## Evidência mínima a recolher com a clínica piloto
 
 - Jornada real desde chegada da mensagem até agendamento e resposta de confirmação.

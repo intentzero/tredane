@@ -19,6 +19,10 @@
 
 **DEC-021 confirma a opção A:** convite por e-mail com link de uso único emitido pelo Tredane, persistido no D1 e aceite por identidade Clerk existente ou nova, após correspondência do e-mail verificado. Role concedida é apenas attendant do tenant convidante. Sem Clerk Organizations. Ver [ADR-0008](0008-tenant-email-invitations.md); expiração/reenvio ainda precisam ser definidos.
 
+## Política de MFA — decisão confirmada DEC-027
+
+MFA é obrigatório para superadmins e owners e opcional para attendants. O Tredane implementa a exigência no backend conforme a role por tenant e a flag privada de superadmin; não ativar `Require multi-factor authentication` global do Clerk. Métodos, recuperação e step-up de operações sensíveis seguem em aberto. Ver [ADR-0010](0010-role-scoped-mfa.md).
+
 ## Responsabilidades por camada
 
 | Camada | Responsabilidade |

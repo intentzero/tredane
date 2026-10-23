@@ -26,6 +26,8 @@
 
 **Convite por e-mail confirmado (DEC-021):** registar convite de attendant no D1, emitir link de uso único, enviar e-mail, validar destinatário autenticado no Clerk por e-mail verificado e consumir convite + ativar membership atomicamente. Cobrir testes de replay, mudança de tenant, role e múltiplos memberships. **DEC-022:** prazo fixo de 7 dias (168 horas), com teste de limite em `expires_at` no backend. **DEC-023:** implementar reenvio com novo token e nova validade de 7 dias, invalidação atómica do link anterior, auditoria, proteção contra envios excessivos e testes de concorrência/replay. **DEC-024 fixa limites:** cooldown 10 minutos e 5 reenvios por janela móvel de 24 horas por tenant/e-mail. O Worker deve aplicar limite antes da rotação do token, com registos de uso resistentes a corrida. Adicionar testes de sexto reenvio, fronteira de 10 minutos, 24 horas e concorrência. **DEC-025:** endpoint de cancelamento de convites pending por qualquer owner do tenant, invalidação imediata e auditoria, testando concorrência com aceite/reenvio e impedimento cross-tenant.
 
+**DEC-027 — MFA condicionado a role:** integrar suporte MFA Clerk (sem toggle global obrigatório); middleware Hono verifica MFA em todas as rotas de Platform Admin e nos acessos owner de cada tenant. Testar user owner A / attendant B sem MFA: B permitido somente na role attendant e A/Admin negado; após MFA A permitido. Cobrir WebSockets, suporte próprio e falhas de comprovação. Métodos, recovery, passkeys, step-up e custo da modalidade paga em produção ainda precisam de decisões. [ADR-0010](../adr/0010-role-scoped-mfa.md).
+
 ## Backlog técnico por épico
 
 ### EP-T01 — Base de execução e CI
