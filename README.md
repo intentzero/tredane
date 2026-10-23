@@ -18,7 +18,7 @@ O [escopo inicial do MVP](docs/MVP.md) registra o fluxo, os critérios de aceite
 - Processos de múltiplas etapas: Cloudflare Workflows.
 - Coordenação por clínica e WebSockets com hibernação: um Durable Object por clínica.
 - Dados: um D1 por clínica e um D1 central de controle (identidade, associações, roteamento).
-- Login sem senha por código enviado por e-mail; uma conta pode acessar várias clínicas.
+- Autenticação pelo Clerk (código por e-mail); uma conta pode acessar várias clínicas, com vínculos no D1 central.
 - IA: Claude via Cloudflare AI Gateway, sempre com revisão humana.
 - App separado de superadmin para a equipe do Tredane.
 - Agenda própria do Tredane no primeiro MVP.

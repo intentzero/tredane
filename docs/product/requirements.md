@@ -24,9 +24,9 @@
 
 **Prioridade/estado:** MVP / Confirmado (DEC-007). **Origem:** ACT-02, ACT-03; JRN-07. **Comportamento:** uma conta com associação a mais de uma clínica escolhe a clínica ativa num seletor; com uma só, entra direto nela. **Aceite:** ao trocar de A para B, a interface descarta os dados de A, a conexão WebSocket de A é fechada e outra é aberta no Durable Object de B; nenhuma requisição posterior com a sessão abre o D1 de A sem nova seleção; associação revogada em B remove B do seletor. **Dados/eventos:** sessão guarda a clínica ativa no D1 central.
 
-### REQ-006 — Login por código
+### REQ-006 — Login pelo Clerk
 
-**Prioridade/estado:** MVP / Confirmado quanto ao método (DEC-007); biblioteca proposta. **Origem:** ACT-02, ACT-03, ACT-05. **Comportamento:** login sem senha com código de 6 dígitos enviado ao e-mail do usuário. **Aceite:** código vale uma vez e expira (prazo proposto: 10 min); tentativas excessivas bloqueiam temporariamente o e-mail; a resposta não revela se o e-mail tem conta; e-mail sem associação vigente não entra em clínica alguma. **Dados/eventos:** só o hash do código é guardado, no D1 central.
+**Prioridade/estado:** MVP / Confirmado (DEC-007, alterado em 23/10/2026). **Origem:** ACT-02, ACT-03, ACT-05. **Comportamento:** a autenticação é feita pelo Clerk, com código enviado por e-mail como método inicial; o Worker valida o token em toda requisição e na abertura do WebSocket. **Aceite:** token inválido ou expirado não acessa nada; usuário autenticado sem associação vigente não entra em clínica alguma; revogar a associação no D1 central nega a próxima requisição e fecha o WebSocket mesmo com o token do Clerk ainda válido; a resposta de login não revela se um e-mail tem conta. **Dados/eventos:** o D1 central guarda apenas o ID do Clerk e dados de exibição; credenciais e códigos ficam no Clerk.
 
 ## WhatsApp e conversa
 
@@ -68,7 +68,7 @@
 
 ### REQ-030 — Disponibilidade
 
-**Prioridade/estado:** MVP / Confirmado quanto a recursos, duração e intervalo (DEC-008, DEC-014); expediente, bloqueios e granularidade em aberto. **Origem:** ACT-02, ACT-03; JRN-03. **Comportamento:** equipe consulta horários disponíveis conforme serviço (duração fixa + intervalo após o atendimento), expediente, bloqueios, profissional e sala/equipamento exigidos. **Aceite:** um intervalo ocupado ou bloqueado não aparece como disponível quando qualquer recurso necessário conflita; o intervalo após o atendimento mantém a sala/equipamento ocupada; “Horário proposto” no pipeline não remove horário da lista. **Dados/eventos:** serviço, recurso e disponibilidade sempre por tenant.
+**Prioridade/estado:** MVP / Confirmado quanto a recursos, duração e intervalo (DEC-008, DEC-014); expediente semanal, bloqueios pontuais, fuso por clínica e grade de 15 min confirmados (DEC-008). **Origem:** ACT-02, ACT-03; JRN-03. **Comportamento:** equipe consulta horários disponíveis conforme serviço (duração fixa + intervalo após o atendimento), expediente semanal, bloqueios pontuais, profissional e sala/equipamento exigidos, em horários de 15 em 15 min no fuso da clínica. **Aceite:** um intervalo ocupado ou bloqueado não aparece como disponível quando qualquer recurso necessário conflita; o intervalo após o atendimento mantém ocupados a sala/equipamento **e o profissional**; horários fora do expediente semanal ou dentro de um bloqueio não aparecem; “Horário proposto” no pipeline não remove horário da lista. **Dados/eventos:** serviço, recurso e disponibilidade sempre por tenant.
 
 ### REQ-031 — Confirmação sem conflito
 
@@ -130,7 +130,7 @@
 
 ### REQ-080 — App de superadmin
 
-**Prioridade/estado:** MVP / Confirmado quanto à existência (DEC-012); funções propostas em [ADR-0006](../adr/0006-superadmin-control-plane.md). **Origem:** ACT-05; JRN-08. **Comportamento:** app separado do painel da clínica permite criar clínica, provisionar e migrar seu D1, convidar o responsável, acompanhar a ativação do WhatsApp e ver saúde técnica por clínica. **Aceite:** um superadmin não aparece como membro de clínica nem abre contatos, conversas ou agenda; cada ação dele fica na auditoria de plataforma; um atendente ou responsável não acessa o app. **Dados/eventos:** D1 central e metadados técnicos. **Em aberto:** Q-SA-01 e Q-SA-02.
+**Prioridade/estado:** MVP / Confirmado quanto à existência (DEC-012); funções propostas em [ADR-0006](../adr/0006-superadmin-control-plane.md). **Origem:** ACT-05; JRN-08. **Comportamento:** app separado do painel da clínica permite criar clínica, provisionar e migrar seu D1, convidar o responsável, acompanhar a ativação do WhatsApp e ver saúde técnica por clínica. **Aceite:** um superadmin não aparece como membro de clínica nem abre contatos, conversas ou agenda; cada ação dele fica na auditoria de plataforma; um atendente ou responsável não acessa o app. **Dados/eventos:** D1 central e metadados técnicos. Superadmin é identificado pelo metadado privado `superadmin: true` do Clerk, verificado no servidor; não vê conteúdo de clínica, exceto por acesso temporário concedido pelo responsável (DEC-012). **Aceite adicional:** usuário sem o metadado é negado no app de superadmin mesmo se alterar dados no navegador; acesso temporário expira sozinho e aparece na auditoria da clínica.
 
 ## Fora do MVP
 
@@ -138,4 +138,4 @@
 
 ## Lacunas para revisão
 
-Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: expediente, bloqueios e granularidade da agenda; mecanismo de abertura do D1 por clínica; Q-SA-01 e Q-SA-02; revisão jurídica da retenção. Ver [decisões](decisions.md).
+Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: mecanismo de abertura do D1 por clínica; custo e residência de dados do Clerk; segundo fator do superadmin; revisão jurídica da retenção. Ver [decisões](decisions.md).

@@ -6,8 +6,8 @@
 
 | Entrada | Como associar à clínica | Regra de negação |
 | --- | --- | --- |
-| Painel e API autenticada | Sessão (login por código) + associação vigente com a clínica ativa, verificadas no D1 central; só então o D1 da clínica é aberto. | Tenant informado no navegador sem associação válida não concede acesso nem abre banco. |
-| App de superadmin | Papel de plataforma no D1 central. | Não concede associação a clínica nem leitura do D1 da clínica (Q-SA-01 em aberto). |
+| Painel e API autenticada | Token do Clerk + associação vigente com a clínica ativa, verificadas no D1 central; só então o D1 da clínica é aberto. | Tenant informado no navegador sem associação válida não concede acesso nem abre banco. |
+| App de superadmin | Token do Clerk com metadado privado `superadmin: true`, lido no servidor. | Não concede associação a clínica nem leitura do D1 da clínica; suporte com conteúdo só por acesso temporário concedido pelo responsável. |
 | WebSocket | Autorização da requisição antes do upgrade; conexão vinculada à clínica e à sessão verificadas. | Conexão de A não pode ser roteada ao objeto nem receber eventos de B. |
 | Webhook do WhatsApp | Origem verificada + conta/número oficial associado a uma única clínica. | Número desconhecido ou validação falha não cria dados nem publica eventos. |
 | Queue e Workflow | Contexto interno de tenant e ID de evento/ação emitidos por entrada já verificada. | Payload incompleto, adulterado ou sem associação vigente não executa efeito colateral. |
@@ -38,7 +38,7 @@ Um usuário que pertença a várias clínicas (Confirmado, DEC-007) seleciona um
 5. **Assíncrono:** reentrega de evento mantém o tenant original e não duplica uma ação lógica.
 6. **Tempo real:** conexões de B não recebem evento ou payload de A; após revogação, conexão antiga de A não continua recebendo dados.
 7. **Recuperação:** reconexão ou hibernação não muda o tenant da sessão e não usa memória como fonte única de verdade.
-8. **Suporte:** superadmin não ganha acesso implícito a conteúdo de clínica (regra vigente até decidir Q-SA-01).
+8. **Suporte:** superadmin não ganha acesso implícito a conteúdo de clínica; o acesso temporário concedido pelo responsável expira sozinho e é auditado.
 
 Os [cenários AC-01, AC-02, AC-04, AC-05, AC-08, AC-11 e AC-12](acceptance.md) cobrem as primeiras demonstrações dessas invariantes. A implementação deve complementar com testes automatizados de acesso por ID, reentrega e rotas de arquivo.
 

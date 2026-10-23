@@ -6,13 +6,12 @@
 
 | Entidade | Campos e relações essenciais (propostos) |
 | --- | --- |
-| tenants | id, nome, timezone, estado (provisionando, ativa, suspensa, encerrada), encerrada_em |
+| tenants | id, nome, timezone (padrão America/Sao_Paulo), estado (provisionando, ativa, suspensa, encerrada), encerrada_em |
 | tenant_databases | tenant_id, identificador do D1, versão de migração aplicada, estado |
-| users | id, e-mail verificado, nome, estado |
-| login_codes | id, e-mail, hash do código, expira_em, tentativas, usado_em |
-| sessions | id, user_id, active_tenant_id, criada_em, expira_em, revogada_em |
-| memberships | user_id, tenant_id, role (atendente, responsável), estado, revoked_at; um usuário pode ter várias |
-| platform_admins | user_id, estado, segundo fator (a definir, Q-SA-02) |
+| users | id, clerk_user_id único, e-mail (cópia para exibição), nome, estado; identidade e credenciais ficam no Clerk |
+| sessions | id, clerk_session_id, user_id, active_tenant_id, criada_em, revogada_em (clínica ativa da sessão) |
+| memberships | user_id, tenant_id, role (atendente, responsável), estado, revoked_at, expires_at opcional (suporte); um usuário pode ter várias |
+| support_grants | id, tenant_id, superadmin_user_id, concedido_por (responsável), expires_at, revoked_at (acesso temporário de suporte, DEC-012) |
 | whatsapp_channels | id, tenant_id, phone_number_id externo único, waba_id, estado da ativação (Embedded Signup) |
 | platform_audit_log | id, actor_user_id, tenant_id opcional, action, occurred_at |
 
@@ -31,7 +30,8 @@ Nenhuma tabela do D1 central guarda contato, conversa, mensagem, oportunidade, a
 | professionals | id, tenant_id, nome, ativo; sem login no MVP |
 | resources | id, tenant_id, tipo (sala/equipamento), nome, ativo |
 | service_requirements | tenant_id, service_id, resource_type e regras de seleção |
-| availability_rules / time_off | tenant_id, professional_id ou resource_id, janela, recorrência/bloqueio |
+| availability_rules | tenant_id, professional_id ou resource_id, dia da semana, início, fim (expediente semanal, múltiplos de 15 min) |
+| time_off | tenant_id, professional_id ou resource_id, início, fim, motivo (bloqueio pontual, sem recorrência no MVP) |
 | appointments | id, tenant_id, contact_id (anulável após exclusão do contato), opportunity_id opcional, service_id, starts_at, ends_at, status, cancel_reason (obrigatório ao cancelar ou reagendar), version |
 | appointment_allocations | id, tenant_id, appointment_id, resource_kind, resource_id, occupied_from, occupied_until |
 | appointment_events | id, tenant_id, appointment_id, operação, actor_id, previous/new state, occurred_at |
@@ -61,7 +61,7 @@ Uma opção a validar em teste com o D1/SQLite é usar linhas de ocupação por 
 - Inserir agendamento + todas as ocupações de profissionais/salas/equipamentos por **lote transacional D1 batch**. Se qualquer ocupação conflitar, abortar o lote todo.
 - Reagendamento atualiza o conjunto de ocupações no mesmo lote transacional, preservando o agendamento original em caso de erro. Cancelamento liberta ocupações apenas por operação auditada.
 - Bloqueios/ausências que reservem recursos precisam passar pela mesma proteção de escrita.
-- Duração e intervalo do serviço compõem occupied_from/until (DEC-008); o intervalo ocupa a sala/equipamento, e se ocupa também o profissional ainda está em aberto.
+- Duração e intervalo do serviço compõem occupied_from/until (DEC-008); o intervalo ocupa a sala/equipamento **e o profissional**. Início, duração e intervalo são múltiplos de 15 min, o que permite avaliar a alternativa de slots discretos do ADR-0005.
 - Criar testes simultâneos e cenários de limites adjacentes, recursos distintos, cancelamento/reagendamento e cross-tenant antes de adotar a solução.
 
 **A validar tecnicamente:** suporte e comportamento efetivo dos gatilhos usados, transação D1, limitações do runtime e desenho final do bloqueio. Se necessário, substituir por outra estratégia atómica com restrições únicas (por exemplo, slots discretizados), sem enfraquecer o critério REQ-031.

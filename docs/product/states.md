@@ -61,5 +61,5 @@ O payload deve conter somente o necessário para identificar a mudança. O servi
 1. Quando encerrar ou reabrir conversa e oportunidade?
 2. O que “Concluído” significa no pipeline e na agenda?
 3. ~~Há reserva temporária de horário proposto?~~ Resolvida: não há (DEC-008).
-4. Quais regras de expediente, bloqueios e fuso horário valem para a clínica piloto, e o intervalo após o atendimento ocupa o profissional?
+4. ~~Regras de expediente, bloqueios, fuso e intervalo~~ Resolvida: expediente semanal + bloqueios pontuais, fuso por clínica, grade de 15 min; o intervalo ocupa sala e profissional (DEC-008).
 5. Que estados de entrega do WhatsApp serão exibidos quando o provedor não enviar confirmação?

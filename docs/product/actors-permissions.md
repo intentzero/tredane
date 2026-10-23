@@ -10,7 +10,7 @@
 | ACT-02 | Atendente | Confirmado | Vê todas as conversas da própria clínica, conduz atendimentos, acompanha oportunidades e opera agendamentos. Não acessa dados de outras clínicas. |
 | ACT-03 | Responsável pela clínica | Confirmado | Pode fazer tudo que o atendente faz, inclusive responder no WhatsApp e operar agendamentos da própria clínica. É o único que administra membros e configurações da clínica e conecta o número de WhatsApp pelo Embedded Signup (DEC-007, DEC-009). |
 | ACT-04 | Profissional que presta o serviço | Confirmado fora do painel do MVP | É recurso de agenda; não recebe perfil de acesso ao painel nesta primeira entrega. |
-| ACT-05 | Superadmin (equipe do Tredane) | Confirmado, fora do painel da clínica | Usa o app separado de superadmin para criar clínicas, provisionar o D1 da clínica, convidar o responsável, acompanhar a ativação do WhatsApp e a saúde técnica (DEC-012, [ADR-0006](../adr/0006-superadmin-control-plane.md)). Não tem associação a clínicas por ser superadmin. Acesso a conteúdo de clínica: **Em aberto** (Q-SA-01); até lá, nenhum. |
+| ACT-05 | Superadmin (equipe do Tredane) | Confirmado, fora do painel da clínica | Usa o app separado de superadmin para criar clínicas, provisionar o D1 da clínica, convidar o responsável, acompanhar a ativação do WhatsApp e a saúde técnica (DEC-012, [ADR-0006](../adr/0006-superadmin-control-plane.md)). Identificado pelo metadado privado `superadmin: true` do Clerk. Não tem associação a clínicas por ser superadmin e **não vê conteúdo**; só entra numa clínica por acesso temporário concedido pelo responsável. |
 | ACT-06 | Serviços externos e automações | Proposto | WhatsApp, filas e workflows agem em nome da clínica após verificação da origem e associação ao tenant. Não são usuários humanos nem recebem acesso genérico a outros tenants. |
 
 ## Matriz de permissões proposta
@@ -48,10 +48,9 @@ Operação e suporte devem partir de metadados e registros técnicos. Qualquer a
 
 | ID | Questão | Bloqueia |
 | --- | --- | --- |
-| Q-SA-01 | O superadmin pode ver conteúdo de uma clínica e sob quais controles? | Suporte com dados reais. Ver [ADR-0006](../adr/0006-superadmin-control-plane.md). |
-| Q-SA-02 | Como o superadmin se autentica (segundo fator, passkey, Cloudflare Access)? | Publicação do app de superadmin. |
+| Q-SA-03 | Segundo fator obrigatório no Clerk para contas superadmin, e processo interno para marcar e remover superadmin. | Publicação do app de superadmin fora do ambiente de teste. Ver [ADR-0006](../adr/0006-superadmin-control-plane.md). |
 
-**Q-ACT-04 a Q-ACT-06 resolvidas em 23/10/2026:** o responsável conecta a conta da clínica pelo Embedded Signup com apoio do Tredane (DEC-009); uma conta pode pertencer a várias clínicas com seletor (DEC-007); a configuração assistida é feita no app de superadmin (DEC-012), com acesso a conteúdo ainda em aberto (Q-SA-01).
+**Q-ACT-04 a Q-ACT-06 resolvidas em 23/10/2026:** o responsável conecta a conta da clínica pelo Embedded Signup com apoio do Tredane (DEC-009); uma conta pode pertencer a várias clínicas com seletor (DEC-007); a configuração assistida é feita no app de superadmin (DEC-012), sem acesso a conteúdo, salvo concessão temporária do responsável (Q-SA-01 resolvida em 23/10/2026, segunda rodada).
 
 **Q-ACT-01, Q-ACT-02 e Q-ACT-03 resolvidas:** atendente vê todas as conversas da própria clínica; responsável pode executar todas as ações do atendente, inclusive responder e operar agenda; só esses dois perfis acessam o painel. Profissional permanece como recurso de agenda sem login. Decisões do responsável pelo produto em 23 de outubro de 2026.
 

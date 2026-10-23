@@ -16,11 +16,11 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Aplicação reativa, com atualizações em tempo real por WebSockets com hibernação em Durable Objects.
 - Um Durable Object por clínica coordena conexões WebSocket e eventos (DEC-005).
 - Um D1 dedicado por clínica para os dados de negócio e um D1 central de controle para identidade, associações, clínicas e roteamento; R2 privado com prefixo por clínica (DEC-010, [ADR-0002](adr/0002-d1-topology.md)).
-- Somente atendente e responsável pela clínica acessam o painel da clínica no primeiro MVP; profissional é recurso de agenda, sem login. A equipe do Tredane usa um app separado de superadmin (DEC-012, DEC-013, [ADR-0006](adr/0006-superadmin-control-plane.md)).
-- Login sem senha por código enviado por e-mail; uma conta pode pertencer a várias clínicas e escolhe a clínica ativa num seletor (DEC-007).
+- Somente atendente e responsável pela clínica acessam o painel da clínica no primeiro MVP; profissional é recurso de agenda, sem login. A equipe do Tredane usa um app separado de superadmin, identificado pelo metadado privado `superadmin: true` do Clerk, sem acesso a conteúdo de clínica salvo concessão temporária do responsável (DEC-012, DEC-013, [ADR-0006](adr/0006-superadmin-control-plane.md)).
+- Autenticação pelo Clerk para todos (código por e-mail); uma conta pode pertencer a várias clínicas e escolhe a clínica ativa num seletor; vínculos e papéis ficam no D1 central (DEC-007).
 - Só o responsável administra membros e configurações da clínica (serviços, profissionais, salas/equipamentos, disponibilidade) (DEC-007).
 - Atendente vê todas as conversas da própria clínica; responsável pode fazer tudo que o atendente faz, inclusive responder pelo WhatsApp e operar agendamentos.
-- Um horário considera profissional e sala/equipamento necessários ao serviço. Cada serviço tem duração fixa mais um intervalo após o atendimento que ocupa a sala/equipamento; cancelar ou reagendar não tem prazo mínimo e exige motivo; “Horário proposto” não reserva horário (DEC-008).
+- Um horário considera profissional e sala/equipamento necessários ao serviço. Cada serviço tem duração fixa mais um intervalo após o atendimento que ocupa a sala/equipamento e o profissional; expediente semanal e bloqueios pontuais, fuso por clínica e grade de 15 min; cancelar ou reagendar não tem prazo mínimo e exige motivo; “Horário proposto” não reserva horário (DEC-008).
 - WhatsApp: o Tredane atua como Tech Provider na Meta e o responsável conecta a conta da clínica pelo Embedded Signup, com apoio da equipe do Tredane no piloto (DEC-009).
 - IA: Claude via Cloudflare AI Gateway, com contexto limitado às mensagens recentes, primeiro nome, catálogo de serviços e etapa; dados guardados enquanto a clínica for cliente, exclusão de contato pelo responsável e exclusão total até 30 dias após o encerramento (DEC-011).
 - Interface mobile first: o fluxo piloto completo funciona no celular; tablet e desktop são ampliações ([DEC-017](product/decisions.md), [UI/UX](product/ux-ui.md)).
@@ -72,7 +72,7 @@ Os ADRs registram as decisões de 23/10/2026, mas ainda há pendências técnica
 - Cada mensagem recebida ou enviada tem origem, horário, estado e identificador externo quando houver. Reentrega de webhook não cria mensagem duplicada.
 - Uma conversa mantém o vínculo com o contato, a oportunidade e o responsável; a equipe consegue encontrá-la e continuar o atendimento.
 - O pipeline mostra etapa, responsável, último contato e próximo compromisso; alterações relevantes ficam registradas.
-- A agenda impede dois agendamentos confirmados no mesmo intervalo quando compartilham o profissional ou a sala/equipamento exigidos. Duração e intervalo vêm do serviço; expediente, bloqueios e granularidade serão validados com a clínica piloto.
+- A agenda impede dois agendamentos confirmados no mesmo intervalo quando compartilham o profissional ou a sala/equipamento exigidos. Duração e intervalo vêm do serviço; as jornadas e os serviços reais serão carregados com a clínica piloto.
 - O envio de mensagem apresenta sucesso ou falha observável para a equipe; falhas transitórias podem ser processadas novamente sem envio duplicado.
 - A sugestão de IA é identificada como sugestão, pode ser editada e não é enviada sem revisão humana.
 - O piloto demonstra, em ambiente de teste, o fluxo completo de mensagem recebida até agendamento confirmado.
@@ -99,7 +99,7 @@ Antes de integrar serviços reais ainda faltam: a verificação do Tredane como 
 ## Sequência de implementação
 
 1. **Base do projeto:** estrutura de frontend e API, ambiente local, migrações, validação, observabilidade básica e CI.
-2. **Isolamento multi-tenant:** login por código, D1 central, seletor de clínica, provisionamento do D1 por clínica (prova de conceito do roteamento), permissões, roteamento ao Durable Object da clínica, app de superadmin mínimo e testes de acesso cruzado.
+2. **Isolamento multi-tenant:** integração com o Clerk, D1 central, seletor de clínica, provisionamento do D1 por clínica (prova de conceito do roteamento), permissões, roteamento ao Durable Object da clínica, app de superadmin mínimo e testes de acesso cruzado.
 3. **Atendimento e pipeline:** contatos, oportunidades, caixa de entrada e ações da equipe com dados de teste; atualização reativa entre duas sessões da mesma clínica.
 4. **WhatsApp oficial:** verificação de webhook, recebimento, idempotência, envio, estados de entrega e tratamento de falhas.
 5. **Agenda própria:** recursos, disponibilidade, confirmação, cancelamento e prevenção de conflitos.
@@ -113,11 +113,10 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 ## Decisões pendentes antes de integrar serviços reais
 
 1. Como o Worker abre o D1 de cada clínica, e como provisionar e migrar todos os bancos ([ADR-0002](adr/0002-d1-topology.md)).
-2. Regras restantes da agenda: se o intervalo após o atendimento ocupa o profissional, expediente, bloqueios, fuso horário e granularidade (DEC-008).
-3. Se o superadmin pode ver conteúdo de uma clínica e como ele se autentica ([ADR-0006](adr/0006-superadmin-control-plane.md)).
-4. Revisão jurídica (LGPD) da retenção e exclusão, AI Gateway sem registro de conteúdo e não retenção pelo provedor de IA (DEC-011).
-5. Verificação do Tredane como Tech Provider na Meta, custos, modelos de mensagem e janela de 24 h (DEC-009).
-6. Questões de UX abertas ([Q-UX-01 a Q-UX-06](product/ux-ui.md#11-questões-abertas-de-ux)).
+2. Custo, plano e residência dos dados de identidade do Clerk; segundo fator obrigatório para superadmin ([DEC-007](product/decisions.md), [ADR-0006](adr/0006-superadmin-control-plane.md)).
+3. Revisão jurídica (LGPD) da retenção e exclusão, AI Gateway sem registro de conteúdo e não retenção pelo provedor de IA (DEC-011).
+4. Verificação do Tredane como Tech Provider na Meta, custos, modelos de mensagem e janela de 24 h (DEC-009).
+5. Questões de UX abertas ([Q-UX-01, Q-UX-02 e Q-UX-04 a Q-UX-06](product/ux-ui.md#11-questões-abertas-de-ux)).
 
 Estas pendências não bloqueiam a estrutura inicial nem a implementação do fluxo com dados de teste, exceto o item 1, que precisa de prova de conceito no início da fatia de isolamento. Bloqueiam a conexão de números reais, o tratamento de dados reais e automações de envio.
 

@@ -1,6 +1,6 @@
 # ADR-0006 — App de superadmin e plano de controle
 
-- **Estado:** **Aceito** a existência de um app separado para superadmins no MVP ([DEC-012](../product/decisions.md), 23/10/2026). **Proposto** o desenho abaixo. **Em aberto** o acesso a conteúdo de clínica e a autenticação reforçada.
+- **Estado:** **Aceitos** em 23/10/2026 o app separado para superadmins, a regra de acesso a conteúdo e a autenticação pelo Clerk ([DEC-012](../product/decisions.md)). **Proposto** o desenho abaixo.
 - **Altera:** [DEC-013](../product/decisions.md), que excluía qualquer painel de operador da plataforma do primeiro recorte.
 
 ## Problema
@@ -12,18 +12,26 @@ Com um D1 por clínica ([ADR-0002](0002-d1-topology.md)) e ativação do WhatsAp
 **Confirmado:** app separado do painel das clínicas, usado apenas por superadmins (ACT-05).
 
 **Proposto:**
-- Mesma base técnica (React + Worker/Hono), servido em domínio ou rota própria, com autorização de papel de plataforma no D1 central; um superadmin não ganha associação a clínicas por ser superadmin.
+- Mesma base técnica (React + Worker/Hono), servido em domínio ou rota própria. O superadmin é identificado pelo Clerk com o metadado privado `superadmin: true`, lido pelo Worker no servidor a cada requisição do app; um superadmin não ganha associação a clínicas por ser superadmin.
 - Funções do MVP: criar clínica; provisionar e migrar o D1 da clínica; convidar e reenviar convite ao responsável; ver estado da ativação do WhatsApp (Embedded Signup); ver saúde técnica por clínica (filas, outbox pendente, falhas de webhook e envio, versão de migração); suspender ou reativar uma clínica.
 - Opera sobre o D1 central e metadados técnicos; não lê contatos, conversas, mensagens ou agenda.
 - Toda ação de superadmin entra na auditoria de plataforma com autor, clínica, ação e horário.
 
+## Decisões de 23/10/2026
+
+**Q-SA-01 (acesso a conteúdo) — Confirmado:** o superadmin nunca vê conteúdo de uma clínica. Se precisar, o responsável da clínica concede acesso temporário como membro (proposta: 24 h, papel de atendente), que fica na auditoria da clínica e da plataforma e pode ser revogado por ele a qualquer momento. Opções descartadas: acesso sem exceção, acesso emergencial com dupla aprovação.
+
+**Q-SA-02 (autenticação) — Confirmado:** Clerk com metadado privado `superadmin: true`. Opções descartadas: Cloudflare Access, passkey próprio, TOTP.
+
+## Riscos e controles propostos
+
+- O metadado privado só é lido no servidor. O app nunca decide ser superadmin por dado do navegador, e o Worker confere o metadado em cada requisição (não só no login).
+- Quem altera o metadado no painel do Clerk concede poder sobre todas as clínicas: restringir esse acesso ao Clerk a poucas pessoas, com segundo fator obrigatório, e registrar quando um usuário é marcado ou desmarcado como superadmin.
+- Exigir segundo fator do Clerk para contas superadmin (**Proposto**).
+- O acesso temporário de suporte é um vínculo comum no D1 central (papel atendente, `expires_at`), expirado e removido automaticamente; nada de bypass no código de autorização.
+
 ## Em aberto
 
-| ID | Questão | Opções | Bloqueia |
-| --- | --- | --- | --- |
-| Q-SA-01 | O superadmin pode ver conteúdo de uma clínica? | Nunca (só metadados); acesso emergencial com pedido registrado, aprovação dupla, prazo e auditoria visível à clínica; convite temporário feito pelo próprio responsável. | Processo de suporte com dados reais. |
-| Q-SA-02 | Como o superadmin se autentica? | Mesmo código por e-mail + segundo fator; chave de segurança (passkey); Cloudflare Access na frente do app. | Publicação do app fora do ambiente de teste. |
-
-Até decidir Q-SA-01, a regra vigente é a invariante 8 de [fronteiras](../product/tenant-boundaries.md): nenhum acesso implícito a conteúdo.
+Custo e plano do Clerk para o número de usuários previsto, residência dos dados de identidade (revisão jurídica) e processo interno de marcar/remover superadmin.
 
 **Origem:** [DEC-012](../product/decisions.md), [atores](../product/actors-permissions.md), [arquitetura](../architecture/overview.md).

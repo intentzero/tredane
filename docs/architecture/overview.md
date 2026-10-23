@@ -19,7 +19,10 @@ flowchart TD
   Hooks --> Queue["Queues"]
   Queue --> Domain["Serviços de domínio"]
   API --> Domain
-  API <--> CP[("D1 central de controle — identidade, associações, clínicas, roteamento")]
+  UI --> Clerk["Clerk — autenticação"]
+  SA --> Clerk
+  API --> Clerk
+  API <--> CP[("D1 central de controle — associações, clínicas, roteamento")]
   Hooks --> CP
   Domain <--> DB[("D1 da clínica — fonte de verdade, um por clínica")]
   Domain --> Outbox["Outbox em D1"]
@@ -37,7 +40,7 @@ A Meta é um serviço externo indispensável; "Cloudflare-native" descreve a inf
 
 ## Módulos do monólito modular
 
-- **identity/tenancy:** login por código enviado por e-mail, sessão, associações a uma ou mais clínicas, seleção da clínica ativa, papéis, revogação e resolução clínica → D1 no D1 central.
+- **identity/tenancy:** autenticação pelo Clerk (código por e-mail), verificação do token no Worker, associações a uma ou mais clínicas e papéis no D1 central, seleção da clínica ativa, revogação imediata pelo D1 central e resolução clínica → D1.
 - **control-plane:** criação de clínica, provisionamento e migração do D1 da clínica, convites e saúde técnica, exposto ao app de superadmin ([ADR-0006](../adr/0006-superadmin-control-plane.md)).
 - **channels/whatsapp:** associação de número, verificação de assinatura do webhook, tradução de estados e política de envio.
 - **inbox:** contactos, conversas, mensagens, atribuição e envio humano.
@@ -63,7 +66,8 @@ Não dividir em microserviços no MVP. A API publica contratos tipados entre mó
 
 - Tenant derivado exclusivamente da sessão verificada (clínica ativa com associação vigente) ou do número de WhatsApp previamente associado à clínica; nunca confiar em tenant_id livre do cliente.
 - Cada requisição abre apenas o D1 da clínica resolvida; consultas continuam filtradas por tenant e validam IDs relacionados (defesa em profundidade).
-- App de superadmin opera sobre o D1 central e metadados técnicos; não abre o D1 de clínicas para ler conteúdo enquanto Q-SA-01 estiver em aberto.
+- App de superadmin opera sobre o D1 central e metadados técnicos; não abre o D1 de clínicas para ler conteúdo. Suporte com conteúdo só por acesso temporário concedido pelo responsável (DEC-012). O papel de superadmin vem do metadado privado `superadmin: true` do Clerk, lido no servidor.
+- O token do Clerk prova quem é o usuário; o acesso a uma clínica depende da associação vigente no D1 central, consultada a cada requisição e na abertura do WebSocket, o que permite revogação imediata.
 - WebSocket autenticado no upgrade, com revalidação após revogação/troca de clínica; no mínimo validar autorização antes de emitir dados a uma sessão.
 - R2 com objetos privados sob prefixo por tenant e acesso mediado por API; não permitir links públicos permanentes.
 - Queue/Workflows preservam tenant e identificador lógico, e revalidam pré-condições antes dos efeitos colaterais.
@@ -77,4 +81,4 @@ Registrar correlation_id, tenant_id interno, entidade/ação, estado do evento, 
 
 ## Decisões ainda em aberto
 
-Mecanismo para o Worker abrir o D1 de cada clínica e migrar todos os bancos ([ADR-0002](../adr/0002-d1-topology.md)); acesso e autenticação do superadmin ([ADR-0006](../adr/0006-superadmin-control-plane.md)); expediente, bloqueios, fuso e granularidade da agenda; revisão jurídica LGPD; verificação do Tredane como Tech Provider; política de notificações; necessidade de Workflows já na primeira fatia. Não utilizar dados reais antes dessas políticas estarem aprovadas.
+Mecanismo para o Worker abrir o D1 de cada clínica e migrar todos os bancos ([ADR-0002](../adr/0002-d1-topology.md)); custo, plano e residência de dados do Clerk ([DEC-007](../product/decisions.md)); segundo fator do superadmin ([ADR-0006](../adr/0006-superadmin-control-plane.md)); revisão jurídica LGPD; verificação do Tredane como Tech Provider; política de notificações; necessidade de Workflows já na primeira fatia. Não utilizar dados reais antes dessas políticas estarem aprovadas.

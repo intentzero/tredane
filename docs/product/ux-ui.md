@@ -18,7 +18,7 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Larguras de referência: 360–430 px (base), ≥ 768 px (tablet), ≥ 1280 px (desktop) | **Proposto** | **Em aberto:** modelos e sistemas dos aparelhos da clínica piloto (Q-UX-01). Bloqueia o aceite de usabilidade, não o desenvolvimento das telas. |
 | Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP | **Proposto** | Instalação como PWA e notificações push dependem de Q-UX-05. |
 | Idioma pt-BR, fuso horário da clínica em todas as datas | **Proposto** | O fuso da clínica é parte das regras de agenda ainda em aberto (DEC-008). |
-| Login por código enviado por e-mail e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005, REQ-006. Telas TEL-08 (proposta); ainda não desenhadas no canvas. |
+| Login pelo Clerk (código por e-mail) e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005, REQ-006. TEL-08 (proposta); ainda não desenhada no canvas. A tela de entrada usa o componente do Clerk estilizado com a identidade do Tredane. |
 | Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **a desenhar** | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
 | App de superadmin | **Fora desta spec** | DEC-012, [ADR-0006](../adr/0006-superadmin-control-plane.md). App separado, com spec própria quando for desenhado. |
 | Relatórios, campanhas, prontuário, pagamentos, bot autônomo | **Fora do MVP** | Não aparecem na navegação, nem como item desabilitado. |
@@ -131,7 +131,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 
 **Origem:** JRN-03, JRN-04, JRN-05; REQ-030, REQ-031, REQ-034. **Estado:** Proposto; regras de disponibilidade **Em aberto** (DEC-008).
 
-- No celular (M-06), lista cronológica do dia: compromissos, espaços livres (com **Agendar**), bloqueios e fora do expediente, filtrável por profissional ou sala. A partir do tablet, visão **Dia** em grade com colunas por profissional e linhas de 15 min (granularidade **Proposta**, a confirmar com o piloto). Alternância **Por profissional / Por sala** mostra a mesma agenda pelo outro recurso, porque o horário ocupa os dois (DEC-014).
+- No celular (M-06), lista cronológica do dia: compromissos, espaços livres (com **Agendar**), bloqueios e fora do expediente, filtrável por profissional ou sala. A partir do tablet, visão **Dia** em grade com colunas por profissional e linhas de 15 min (granularidade de 15 min, **Confirmada** em DEC-008). Alternância **Por profissional / Por sala** mostra a mesma agenda pelo outro recurso, porque o horário ocupa os dois (DEC-014).
 - Compromisso: horário, contato, serviço, sala/equipamento como etiqueta, estado (Confirmado / Cancelado / Concluído). Cancelados ficam ocultos por padrão com filtro “Mostrar cancelados”.
 - Bloqueios e fora de expediente em hachura com rótulo (“Bloqueado”, “Fora do expediente”), não só cor.
 - Navegação de dia (anterior/hoje/próximo) e seletor de data. Visão semanal: **Proposto** como posterior.
@@ -173,7 +173,7 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
 **Origem:** DEC-007; REQ-005, REQ-006; AC-17. **Estado:** Proposto.
 
-- **Entrar:** campo de e-mail → “Enviamos um código para a***@exemplo.com” → campo de 6 dígitos com preenchimento automático do código no celular (`autocomplete="one-time-code"`), **Reenviar código** após 30 s. Erro de código: “Código incorreto ou expirado.” sem revelar se o e-mail tem conta.
+- **Entrar:** fluxo do Clerk com código por e-mail: campo de e-mail → campo do código, com preenchimento automático no celular (`autocomplete="one-time-code"`) e reenvio. A mensagem de erro não revela se o e-mail tem conta. Textos e cores seguem a spec; o comportamento é o do Clerk.
 - **Escolher clínica:** lista com nome de cada clínica e papel (Atendente/Responsável). Com uma só clínica, a tela é pulada.
 - **Trocar de clínica:** tocar no nome da clínica no cabeçalho abre a mesma lista. Ao trocar, a tela mostra “Abrindo Clínica B…”, descarta os dados da anterior e reconecta o tempo real; texto não enviado no compositor é descartado com confirmação.
 - Clínica removida do acesso some da lista; se era a ativa, aparece o estado “Acesso encerrado” (6.2).
@@ -304,7 +304,7 @@ Complementam os [cenários de aceite](acceptance.md); IDs novos e estáveis.
 | --- | --- | --- | --- |
 | Q-UX-01 | Quais modelos de celular, sistemas e navegadores a equipe da clínica piloto usa, e quanto do atendimento acontece no computador? (A prioridade do celular já está decidida em DEC-017.) | Aceite de usabilidade e lista de aparelhos de teste. | Responsável pelo produto + clínica piloto |
 | Q-UX-02 | Mover para “Agendado” sem compromisso vinculado é permitido? | Regra do quadro em TEL-03. | Responsável pelo produto |
-| Q-UX-03 | Granularidade da grade da agenda (10, 15 ou 30 min) e visão semanal no MVP? | Detalhe de TEL-04. | Clínica piloto (junto com DEC-008) |
+| Q-UX-03 | ~~Granularidade da grade~~ Resolvida: 15 min (DEC-008). **Em aberto:** visão semanal da agenda no MVP? | Detalhe de TEL-04 em tablet e desktop. | Responsável pelo produto |
 | Q-UX-04 | Sugestão da IA sob demanda ou automática ao abrir a conversa? | Custo e contexto enviado à IA. | Responsável pelo produto (junto com DEC-011) |
 | Q-UX-05 | Notificação de nova conversa no celular (push via PWA, som no navegador ou nenhuma) no MVP? | Alertas e instalação do painel no celular. | Responsável pelo produto |
 | Q-UX-06 | Como exibir janela de 24 h e modelos do WhatsApp no compositor? | Envio real fora da janela. | Engenharia + responsável pelo produto (EP-T04) |
