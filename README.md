@@ -29,6 +29,12 @@ O [escopo inicial do MVP](docs/MVP.md) registra o fluxo, os critérios de aceite
 
 Os ADRs identificam decisões aceitas, propostas técnicas e temas ainda em aberto. Nenhum módulo de aplicação foi implementado apenas por adicionar esta documentação.
 
+## Identidade, Platform Admin e suporte
+
+A identidade é feita com **Clerk sem Organizations**. Os vínculos de usuários com várias clínicas e papéis por tenant são guardados no D1. A aplicação interna Platform Admin usa a flag **`privateMetadata.superadmin === true`**, lida e validada no backend, para gerir o ciclo de vida de tenants. Uma função de impersonação de suporte permitirá agir no contexto de um usuário do tenant com auditoria de ator e alvo, duração limitada e sem acesso irrestrito; seu mecanismo final (Clerk actor tokens vs sessão própria) está em aberto.
+
+Ver [ADR-0006](docs/adr/0006-clerk-platform-admin.md), [ADR-0007](docs/adr/0007-support-impersonation.md) e [contratos de identidade e administração](docs/architecture/identity-and-admin.md).
+
 ## Próximo marco
 
 Preparar a estrutura de frontend e API, migrações, ambiente local e CI. Em seguida, implementar o isolamento entre clínicas, o fluxo principal e a atualização reativa entre sessões com dados de teste antes de conectar serviços reais.
