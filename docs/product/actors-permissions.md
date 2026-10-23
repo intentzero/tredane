@@ -7,34 +7,32 @@
 | ID | Ator | Estado | Objetivo e limite |
 | --- | --- | --- | --- |
 | ACT-01 | Contato da clínica | Confirmado | Conversar pelo WhatsApp e solicitar ou alterar um horário. Não acessa o painel do Tredane. “Contato” não implica paciente com prontuário. |
-| ACT-02 | Atendente | Confirmado | Conduzir conversas, acompanhar oportunidades e operar agendamentos da clínica à qual pertence. O alcance de acesso entre atendentes está em aberto. |
-| ACT-03 | Responsável pela clínica | Confirmado | Acompanhar atendimento, pipeline e agenda da própria clínica; administrar a equipe e a integração é uma proposta a validar. |
+| ACT-02 | Atendente | Confirmado | Vê todas as conversas da própria clínica, conduz atendimentos, acompanha oportunidades e opera agendamentos. Não acessa dados de outras clínicas. |
+| ACT-03 | Responsável pela clínica | Confirmado | Pode fazer tudo que o atendente faz, inclusive responder no WhatsApp e operar agendamentos da própria clínica. Administração de equipe e integração ainda precisa de validação específica. |
 | ACT-04 | Profissional que presta o serviço | Confirmado fora do painel do MVP | É recurso de agenda; não recebe perfil de acesso ao painel nesta primeira entrega. |
 | ACT-05 | Operador do Tredane | Confirmado fora do painel do MVP | Não recebe perfil de acesso ao painel. Operação assistida para configurar tenants ou tratar falhas segue em aberto; acesso rotineiro a conteúdo não está definido. |
 | ACT-06 | Serviços externos e automações | Proposto | WhatsApp, filas e workflows agem em nome da clínica após verificação da origem e associação ao tenant. Não são usuários humanos nem recebem acesso genérico a outros tenants. |
 
 ## Matriz de permissões proposta
 
-**Legenda:** ✓ proposta de permissão no MVP; — fora do papel; ? decisão pendente. Apenas atendente e responsável têm perfil de acesso ao painel no primeiro MVP. Toda permissão vale somente para o tenant autorizado. Esta tabela não substitui a autorização no servidor.
+**Legenda:** ✓ permissão prevista; — fora do papel; ? decisão pendente. Apenas atendente e responsável têm perfil de acesso ao painel no primeiro MVP. Ambos veem todas as conversas da própria clínica, e o responsável pode executar todas as ações do atendente. Permissões de administração ainda são propostas. Toda permissão vale somente para o tenant autorizado; a tabela não substitui a autorização no servidor.
 
 | Ação | Contato | Atendente | Responsável | Profissional | Operador Tredane |
 | --- | :---: | :---: | :---: | :---: | :---: |
 | Enviar/receber mensagens pelo próprio WhatsApp | ✓ | — | — | — | — |
-| Ver conversas e anexos da clínica | — | ✓¹ | ✓ | — | — |
-| Responder em nome da clínica | — | ✓¹ | ? | — | — |
-| Consultar sugestão de IA e decidir envio | — | ✓¹ | ? | — | — |
-| Atribuir ou transferir conversa | — | ✓¹ | ✓ | — | — |
-| Mover oportunidade no pipeline | — | ✓¹ | ✓ | — | — |
+| Ver todas as conversas e anexos da própria clínica | — | ✓ | ✓ | — | — |
+| Responder em nome da clínica | — | ✓ | ✓ | — | — |
+| Consultar sugestão de IA e decidir envio | — | ✓ | ✓ | — | — |
+| Atribuir ou transferir conversa | — | ✓ | ✓ | — | — |
+| Mover oportunidade no pipeline | — | ✓ | ✓ | — | — |
 | Ver agenda da clínica | — | ✓ | ✓ | — | — |
 | Criar, cancelar ou reagendar horário | solicitar via WhatsApp | ✓ | ✓ | — | — |
 | Alterar disponibilidade, serviços e recursos | — | ? | ✓ | — | — |
 | Gerir membros e permissões da clínica | — | — | ✓ | — | — |
 | Conectar ou trocar o número de WhatsApp | — | — | ? | — | — |
-| Ver dados de todas as clínicas | — | — | — | — | —² |
+| Ver dados de todas as clínicas | — | — | — | — | — |
 
-¹ **Em aberto:** acesso a todas as conversas da clínica ou apenas às atribuídas. A proposta inicial permite à equipe autorizada assumir uma conversa não atribuída, sem expor outro tenant.
-
-² Operação e suporte devem partir de metadados e registros técnicos. Qualquer acesso excepcional a conteúdo de uma clínica requer política, autorização e auditoria específicas, ainda não definidas.
+Operação e suporte devem partir de metadados e registros técnicos. Qualquer acesso excepcional a conteúdo de uma clínica requer política, autorização e auditoria específicas, ainda não definidas.
 
 ## Regras transversais propostas
 
@@ -49,12 +47,10 @@
 
 | ID | Questão | Bloqueia |
 | --- | --- | --- |
-| Q-ACT-01 | Atendente vê todas as conversas da clínica ou apenas as próprias? | Política de autorização e caixa de entrada. |
-| Q-ACT-02 | Responsável também responde mensagens e opera agenda? | Matriz final de permissões e telas. |
 | Q-ACT-04 | Quem conecta e administra a conta WhatsApp Business? | Onboarding real de clínicas. |
 | Q-ACT-05 | Um usuário pode pertencer a várias clínicas? | Identidade, seleção de tenant e troca de sessão. |
 | Q-ACT-06 | Sem painel de operador no MVP, qual processo assistido configura a clínica e qual acesso excepcional é permitido? | Suporte, segurança e auditoria. |
 
-**Q-ACT-03 resolvida:** somente atendente e responsável acessam o painel no primeiro MVP; o profissional permanece como recurso de agenda sem login. Decisão do responsável pelo produto em 23 de outubro de 2026.
+**Q-ACT-01, Q-ACT-02 e Q-ACT-03 resolvidas:** atendente vê todas as conversas da própria clínica; responsável pode executar todas as ações do atendente, inclusive responder e operar agenda; só esses dois perfis acessam o painel. Profissional permanece como recurso de agenda sem login. Decisões do responsável pelo produto em 23 de outubro de 2026.
 
 **Próximo passo:** revisar estas propostas com o responsável pelo produto e uma clínica piloto; então atualizar os estados e os requisitos vinculados sem apagar o histórico das decisões.
