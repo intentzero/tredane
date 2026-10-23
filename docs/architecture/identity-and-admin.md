@@ -5,7 +5,7 @@
 ## Fontes de verdade
 
 - **Clerk:** identidade e sessão; `privateMetadata.superadmin` booleano define administrador global. Sem Clerk Organizations.
-- **D1:** `tenants`, `tenant_memberships` N:N, roles por tenant, auditoria e eventual `support_sessions`.
+- **D1:** `tenants`, `tenant_memberships` N:N, roles por tenant, auditoria e **`support_sessions` próprias do Tredane**; não há Clerk Organizations nem actor tokens.
 - **API de plataforma:** confirma superadmin atual via Clerk Backend API; controla criação/edição/suspensão/exclusão lógica de tenants.
 - **API clínica:** exige membro ativo no tenant **ou** sessão de suporte validada e restrita ao subject e tenant, conforme ADR-0007. Nenhum superadmin ganha acesso implícito aos dados operacionais.
 
@@ -40,8 +40,9 @@
 - `POST /api/platform/tenants/:id/reactivate`
 - `DELETE /api/platform/tenants/:id` inicia **exclusão lógica**, não destruição imediata.
 - `GET /api/platform/tenants/:id/members` lista memberships do tenant para selecionar usuário-alvo.
-- `POST /api/platform/support-sessions` inicia sessão autenticada de suporte com tenant, subject e motivo.
-- `POST /api/platform/support-sessions/:id/revoke` encerra a sessão.
+- `POST /api/platform/support-sessions` cria uma sessão **própria do Tredane** vinculada à sessão Clerk do superadmin, tenant, subject e motivo; entrega código de handoff único de curta duração.
+- `POST /api/platform/support-sessions/:id/revoke` encerra a sessão e impede acesso posterior (HTTP/WebSocket).
+- `POST /api/support/exchange` (Clinic App, contrato proposto) troca o código único por credencial opaca de suporte em cookie seguro HttpOnly, vinculada à sessão Clerk **do actor**.
 - `GET /api/platform/support-sessions` lista eventos e sessões vigentes do superadmin.
 
 Estes caminhos não são código implementado nem contratos congelados; F1 confirmará URL, dados de retorno, proteção CSRF e idempotência.
@@ -75,11 +76,11 @@ type EffectivePrincipal =
     }
 ```
 
-Em `mode: 'support'`, cada operação autentica o actor, valida superadmin, a sessão de suporte, o alvo e seu membership e role **naquela clínica**, aplicando uma política de ações permitidas adicional. A atribuição em auditoria grava actor e subject distintos. Não utilizar um header `X-Impersonate-User` de cliente como fonte de permissão.
+Em `mode: 'support'`, o actor **continua autenticado no Clerk como ele mesmo**; o contexto efetivo é resolvido da sessão própria de suporte no D1. Cada operação valida superadmin, sessão de suporte, alvo e seu membership/role **naquela clínica**, aplicando uma política adicional de ações permitidas. A atribuição em auditoria grava actor e subject distintos. Não utilizar um header `X-Impersonate-User` de cliente como fonte de permissão.
 
 ## Questões ainda em aberto
 
-- Escolha entre **Clerk actor tokens** e **modo suporte próprio**: Clerk documenta 5 impersonações/mês grátis (ver [ADR-0007](../adr/0007-support-impersonation.md)).
+- **Confirmado:** a impersonação será exclusivamente implementada no Tredane; Clerk fornece somente a identidade/sessão original do superadmin. Em aberto o protocolo exato de handoff, cookies, CSRF, step-up MFA e política de operações de escrita.
 - Política de aviso/aprovação de suporte e tratamento de dados pessoais.
 - Passos exatos de MFA, mecanismo de revogação em WebSocket e topologia definitiva das apps/Workers.
 - Política de exclusão física/retensão e mecanismos de provisionamento, convite e alteração de membros.
