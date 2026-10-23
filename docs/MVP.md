@@ -23,7 +23,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Um horário considera profissional e sala/equipamento necessários ao serviço. Cada serviço tem duração fixa mais um intervalo após o atendimento que ocupa a sala/equipamento e o profissional; expediente semanal e bloqueios pontuais, fuso por clínica e grade de 15 min; cancelar ou reagendar não tem prazo mínimo e exige motivo; “Horário proposto” não reserva horário (DEC-008).
 - WhatsApp: o Tredane atua como Tech Provider na Meta e o responsável conecta a conta da clínica pelo Embedded Signup, com apoio da equipe do Tredane no piloto (DEC-009).
 - IA: Claude via Cloudflare AI Gateway, com contexto limitado às mensagens recentes, primeiro nome, catálogo de serviços e etapa; dados guardados enquanto a clínica for cliente, exclusão de contato pelo responsável e exclusão total até 30 dias após o encerramento (DEC-011).
-- Interface mobile first: o fluxo piloto completo funciona no celular; tablet e desktop são ampliações ([DEC-017](product/decisions.md), [UI/UX](product/ux-ui.md)).
+- Interface mobile first: o fluxo piloto completo funciona no celular; tablet e desktop são ampliações ([DEC-017](product/decisions.md), [UI/UX](product/ux-ui.md)). Painel instalável como PWA com push de nova conversa; sugestão da IA só sob demanda; fora da janela de 24 h do WhatsApp o envio é por modelo aprovado; agenda com visão de dia e de semana (DEC-018).
 
 ## Documentos de definição
 
@@ -112,11 +112,11 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 
 ## Decisões pendentes antes de integrar serviços reais
 
-1. Como o Worker abre o D1 de cada clínica, e como provisionar e migrar todos os bancos ([ADR-0002](adr/0002-d1-topology.md)).
+1. Medições da F1 do D1 por clínica: limite de bindings, tempo de ativação e testes de acesso cruzado; o piloto usa bindings gerados no deploy ([ADR-0002](adr/0002-d1-topology.md)).
 2. Custo, plano e residência dos dados de identidade do Clerk; segundo fator obrigatório para superadmin ([DEC-007](product/decisions.md), [ADR-0006](adr/0006-superadmin-control-plane.md)).
 3. Revisão jurídica (LGPD) da retenção e exclusão, AI Gateway sem registro de conteúdo e não retenção pelo provedor de IA (DEC-011).
 4. Verificação do Tredane como Tech Provider na Meta, custos, modelos de mensagem e janela de 24 h (DEC-009).
-5. Questões de UX abertas ([Q-UX-01, Q-UX-02 e Q-UX-04 a Q-UX-06](product/ux-ui.md#11-questões-abertas-de-ux)).
+5. Aparelhos da clínica piloto ([Q-UX-01](product/ux-ui.md#11-questões-abertas-de-ux)) e modelos de mensagem do WhatsApp a cadastrar.
 
 Estas pendências não bloqueiam a estrutura inicial nem a implementação do fluxo com dados de teste, exceto o item 1, que precisa de prova de conceito no início da fatia de isolamento. Bloqueiam a conexão de números reais, o tratamento de dados reais e automações de envio.
 
