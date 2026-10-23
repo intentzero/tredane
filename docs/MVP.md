@@ -87,6 +87,10 @@ Os ADRs não encerram as decisões abertas deste MVP: em particular topologia D1
 
 O número e a conta de WhatsApp de cada clínica, o mecanismo de autenticação, o provedor de IA e a política de retenção ainda precisam ser definidos antes de integrar serviços reais. Credenciais e tokens nunca entram no repositório.
 
+## Estado da execução
+
+O scaffold técnico da fase F0 foi proposto no repositório: React/Vite, Hono/Worker, esquema mínimo D1/Drizzle, migração local, fixtures fictícias, testes e CI. A definição de produto mantém-se em revisão; o scaffold não altera requisitos nem autoriza dados reais. Ver [F0](implementation/f0.md).
+
 ## Sequência de implementação
 
 1. **Base do projeto:** estrutura de frontend e API, ambiente local, migrações, validação, observabilidade básica e CI.

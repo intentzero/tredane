@@ -1,6 +1,6 @@
 # Plano de implementação — Tredane MVP
 
-**Estado:** plano proposto para engenharia, baseado em [MVP](../MVP.md), [requisitos](../product/requirements.md), [critérios](../product/acceptance.md) e [arquitetura](../architecture/overview.md). Nenhuma etapa abaixo está marcada como construída.
+**Estado:** plano proposto para engenharia, baseado em [MVP](../MVP.md), [requisitos](../product/requirements.md), [critérios](../product/acceptance.md) e [arquitetura](../architecture/overview.md). A fundação F0 tem scaffold com lockfile e checks de CI; falta apenas revisão visual local humana antes de considerar o checkpoint F0 encerrado. As fases seguintes não foram implementadas.
 
 ## Sequência por fatias verificáveis
 

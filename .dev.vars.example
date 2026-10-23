@@ -1,0 +1,3 @@
+# Copie para .dev.vars apenas quando houver segredos de desenvolvimento.
+# Não inclua dados reais nem credenciais no git.
+# Não existem segredos obrigatórios durante a F0.
