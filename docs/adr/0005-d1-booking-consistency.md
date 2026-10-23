@@ -9,7 +9,7 @@ Um agendamento ocupa o profissional e a sala/equipamento requerido durante um in
 
 ## Abordagem candidata
 
-Representar ocupações em linhas de alocação por recurso, com tenant_id, recurso, início/fim efetivos (incluindo buffers) e referência ao compromisso. Usar uma restrição atómica na camada de banco para impedir intervalos sobrepostos. A primeira opção de prova de conceito são gatilhos SQLite que fazem RAISE(ABORT) para overlaps, combinados com D1 batch para gravar o agendamento, as ocupações, auditoria e outbox na mesma transação.
+Representar ocupações em linhas de alocação por recurso, no D1 da clínica ([ADR-0002](0002-d1-topology.md)), com tenant_id, recurso, início/fim efetivos (incluindo o intervalo após o atendimento definido pelo serviço, DEC-008) e referência ao compromisso. Usar uma restrição atómica na camada de banco para impedir intervalos sobrepostos. A primeira opção de prova de conceito são gatilhos SQLite que fazem RAISE(ABORT) para overlaps, combinados com D1 batch para gravar o agendamento, as ocupações, auditoria e outbox na mesma transação.
 
 Proteger inserts **e updates**, não apenas criação inicial. Cancelamentos e remarcações libertam ou substituem ocupações de maneira atómica e auditada; se o novo horário falhar, manter o compromisso original.
 

@@ -42,9 +42,9 @@
 
 - **Ator e objetivo:** ACT-01 solicita mudança pelo WhatsApp; ACT-02 ou ACT-03 resolve o compromisso.
 - **Gatilho e pré-condições:** existe agendamento; a clínica define quem pode alterá-lo e quais recursos ficam livres após cancelamento.
-- **Fluxo principal:** (1) equipe encontra o compromisso na conversa ou agenda; (2) registra motivo, se necessário; (3) cancela ou procura novo horário; (4) confirma a mudança; (5) agenda, pipeline e conversa passam a refletir o novo estado; (6) sessões autorizadas recebem a atualização.
+- **Fluxo principal:** (1) equipe encontra o compromisso na conversa ou agenda; (2) escolhe o motivo, obrigatório (DEC-008); (3) cancela ou procura novo horário, sem prazo mínimo; (4) confirma a mudança; (5) agenda, pipeline e conversa passam a refletir o novo estado; (6) sessões autorizadas recebem a atualização.
 - **Alternativas:** novo horário entrou em conflito; compromisso já foi alterado por outra pessoa; comunicação da mudança ao contato falhou. O sistema preserva o estado confirmado e informa a falha de mensagem separadamente.
-- **Resultado, superfícies e dados:** histórico do compromisso e disponibilidade coerentes. Política de prazo de cancelamento é **Em aberto** e não deve ser inventada.
+- **Resultado, superfícies e dados:** histórico do compromisso, com motivo, e disponibilidade coerentes. Não há prazo mínimo de cancelamento (Confirmado, DEC-008).
 - **Requisitos:** REQ-031, REQ-032, REQ-033, REQ-040.
 
 ## JRN-06 — Falhas de integração e processamento
@@ -61,14 +61,19 @@
 - **Ator e objetivo:** ACT-02/ACT-03 vê alterações recentes sem atualizar a página e perde acesso ao sair da clínica.
 - **Gatilho e pré-condições:** duas sessões autorizadas da mesma clínica e uma sessão de outra clínica estão abertas.
 - **Fluxo principal:** (1) uma sessão altera conversa, oportunidade ou agenda; (2) o servidor persiste a mudança; (3) apenas sessões da clínica autorizada recebem o evento; (4) as interfaces atualizam a visão; (5) após reconexão, consultam o estado canônico e corrigem lacunas.
-- **Alternativas:** Durable Object hiberna e retoma; evento é perdido ou chega duplicado; sessão é revogada ou membro sai da clínica; conexão antiga deixa de receber dados e novas ações são negadas.
+- **Alternativas:** Durable Object hiberna e retoma; evento é perdido ou chega duplicado; sessão é revogada ou membro sai da clínica; conexão antiga deixa de receber dados e novas ações são negadas; usuário de várias clínicas troca a clínica ativa no seletor, a interface descarta os dados da anterior e reconecta ao Durable Object da nova (DEC-007).
 - **Resultado, superfícies e dados:** as sessões da mesma clínica convergem para o estado persistido, sem vazamento para outra clínica. O mecanismo exato de invalidação de conexão ainda é decisão técnica.
-- **Requisitos:** REQ-001, REQ-002, REQ-003, REQ-040, REQ-041, REQ-042.
+- **Requisitos:** REQ-001, REQ-002, REQ-003, REQ-005, REQ-040, REQ-041, REQ-042.
 
-## JRN-08 — Ativação de uma clínica (pendente)
+## JRN-08 — Ativação de uma clínica
 
-- **Estado:** Em aberto. O produto precisará criar a clínica, associar o responsável, configurar serviços, profissionais e salas/equipamentos e conectar o número oficial de WhatsApp. Ainda não há decisão sobre autosserviço, operação assistida ou responsabilidade pela conta Meta. Não desenhar um fluxo definitivo de ativação antes dessa escolha.
-- **Requisitos relacionados:** REQ-004, REQ-051, REQ-052.
+- **Estado:** Proposto, com o fluxo definido por DEC-007, DEC-009, DEC-010 e DEC-012 (23/10/2026).
+- **Atores e objetivo:** ACT-05 (superadmin) prepara a clínica; ACT-03 (responsável) a deixa pronta para atender.
+- **Gatilho e pré-condições:** clínica contratou o Tredane; o Tredane está registrado como Tech Provider na Meta (pendente).
+- **Fluxo principal:** (1) no app de superadmin, o superadmin cria a clínica e o D1 dela é provisionado e migrado; (2) convida o responsável por e-mail; (3) o responsável entra com o código enviado por e-mail; (4) cadastra serviços (duração e intervalo), profissionais, salas/equipamentos e disponibilidade; (5) conecta a conta e o número pelo Embedded Signup, com apoio do Tredane; (6) convida os atendentes; (7) a clínica passa a “pronta para atender”.
+- **Alternativas:** provisionamento do D1 falha e a clínica fica “provisionando” com nova tentativa idempotente; convite expira; Embedded Signup é abandonado ou o número já está associado a outra clínica; configuração incompleta impede agendar.
+- **Resultado, superfícies e dados:** clínica, responsável e canal no D1 central; configuração no D1 da clínica. O superadmin acompanha o estado sem ver conteúdo.
+- **Requisitos relacionados:** REQ-004, REQ-006, REQ-051, REQ-052, REQ-080.
 
 ## Validação necessária
 

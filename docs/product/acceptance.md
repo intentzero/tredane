@@ -14,7 +14,7 @@
 
 ### AC-03 — Profissional e operador fora do painel
 
-**Dado** o primeiro MVP com somente os perfis atendente e responsável; **quando** um profissional ou operador da plataforma tenta abrir o painel como se tivesse um desses papéis; **então** não recebe acesso implícito. O profissional pode constar como recurso da agenda sem login. **Requisitos:** REQ-002, REQ-004.
+**Dado** o primeiro MVP com somente os perfis atendente e responsável no painel da clínica; **quando** um profissional ou um superadmin tenta abrir o painel ou os dados de uma clínica como se tivesse um desses papéis; **então** não recebe acesso implícito. O profissional pode constar como recurso da agenda sem login; o superadmin usa apenas o app de superadmin. **Requisitos:** REQ-002, REQ-004, REQ-080.
 
 ## Mensagens e atendimento
 
@@ -66,7 +66,7 @@
 
 ### AC-14 — Clínica pronta para atender
 
-**Dado** o fluxo de ativação aprovado; **quando** uma clínica é criada com responsável, serviços, profissionais, salas/equipamentos e número oficial associado; **então** somente seus membros autorizados entram no tenant, os horários usam a configuração da clínica e o número não roteia mensagens para outro tenant. Sem configuração obrigatória, o sistema não apresenta a clínica como pronta para agendar. **Requisitos:** REQ-004, REQ-051, REQ-052. **Pendente:** definir operação assistida ou autosserviço e responsabilidade pela conta WhatsApp.
+**Dado** o fluxo de ativação aprovado; **quando** uma clínica é criada com responsável, serviços, profissionais, salas/equipamentos e número oficial associado; **então** somente seus membros autorizados entram no tenant, os horários usam a configuração da clínica e o número não roteia mensagens para outro tenant. Sem configuração obrigatória, o sistema não apresenta a clínica como pronta para agendar. **Requisitos:** REQ-004, REQ-051, REQ-052, REQ-080. **Fluxo confirmado:** superadmin cria a clínica e convida o responsável; o responsável configura a agenda e conecta o número pelo Embedded Signup (DEC-009, DEC-012). **Pendente:** verificação do Tredane como Tech Provider.
 
 ### AC-15 — Falha operacional localizável
 
@@ -75,6 +75,18 @@
 ### AC-16 — Conversas visíveis e ações dos dois perfis
 
 **Dado** uma conversa da clínica A atribuída a outra pessoa da equipe; **quando** um atendente ou o responsável de A abre a caixa de entrada; **então** ambos conseguem ver essa conversa, responder, mover a oportunidade e operar o agendamento conforme o fluxo. **Quando** tentam acessar conversa da clínica B, o acesso é negado. **Requisitos:** REQ-001, REQ-002, REQ-020, REQ-023, REQ-031.
+
+### AC-17 — Troca de clínica
+
+**Dado** uma conta associada às clínicas A e B, com o painel aberto em A; **quando** escolhe B no seletor; **então** os dados de A somem da tela, a conexão em tempo real passa a receber só eventos de B e uma requisição com ID de A é negada até nova seleção de A. **Quando** a associação a B é revogada, B some do seletor e a sessão em B perde acesso. **Requisitos:** REQ-005, REQ-003.
+
+### AC-18 — Cancelamento exige motivo
+
+**Dado** um compromisso confirmado; **quando** alguém tenta cancelar ou reagendar sem escolher motivo; **então** a ação é recusada e o compromisso continua confirmado. Com motivo, cancela a qualquer momento, sem prazo mínimo. **Requisito:** REQ-032.
+
+### AC-19 — Contexto mínimo da IA
+
+**Dado** duas clínicas com conversas fictícias; **quando** a IA é chamada numa conversa de A; **então** a solicitação ao AI Gateway contém apenas mensagens recentes dessa conversa, primeiro nome, catálogo de A e etapa, sem telefone, anexos ou dados de B. **Requisito:** REQ-060.
 
 ## Condições para usar estes cenários como aprovação
 

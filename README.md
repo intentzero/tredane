@@ -16,15 +16,20 @@ O [escopo inicial do MVP](docs/MVP.md) registra o fluxo, os critérios de aceite
 - Processamento assíncrono: Cloudflare Queues.
 - Arquivos: R2.
 - Processos de múltiplas etapas: Cloudflare Workflows.
-- Coordenação por clínica e WebSockets com hibernação: Cloudflare Durable Objects.
+- Coordenação por clínica e WebSockets com hibernação: um Durable Object por clínica.
+- Dados: um D1 por clínica e um D1 central de controle (identidade, associações, roteamento).
+- Login sem senha por código enviado por e-mail; uma conta pode acessar várias clínicas.
+- IA: Claude via Cloudflare AI Gateway, sempre com revisão humana.
+- App separado de superadmin para a equipe do Tredane.
 - Agenda própria do Tredane no primeiro MVP.
+- Interface mobile first.
 - WhatsApp pela API oficial do WhatsApp Business.
 
 ## Documentação de engenharia
 
 - [Arquitetura e fluxos técnicos](docs/architecture/overview.md)
 - [Modelo lógico de dados D1](docs/architecture/data-model.md)
-- [ADRs — decisões arquiteturais](docs/adr/0001-cloudflare-native.md) (ver também [topologia D1](docs/adr/0002-d1-topology.md), [tempo real](docs/adr/0003-durable-objects-realtime.md), [IA assistiva](docs/adr/0004-ai-human-in-loop.md) e [concorrência da agenda](docs/adr/0005-d1-booking-consistency.md))
+- [ADRs — decisões arquiteturais](docs/adr/0001-cloudflare-native.md) (ver também [topologia D1](docs/adr/0002-d1-topology.md), [tempo real](docs/adr/0003-durable-objects-realtime.md), [IA assistiva](docs/adr/0004-ai-human-in-loop.md), [concorrência da agenda](docs/adr/0005-d1-booking-consistency.md) e [app de superadmin](docs/adr/0006-superadmin-control-plane.md))
 - [Plano de implementação por fatias](docs/implementation/plan.md)
 
 Os ADRs identificam decisões aceitas, propostas técnicas e temas ainda em aberto. Nenhum módulo de aplicação foi implementado apenas por adicionar esta documentação.

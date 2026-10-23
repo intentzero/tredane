@@ -25,10 +25,10 @@ Não promova uma proposta a decisão confirmada porque ela parece tecnicamente c
 ## Contexto que deve permanecer consistente
 
 - Tredane é um SaaS multi-tenant de atendimento para clínicas de estética, com WhatsApp, pipeline comercial, agenda própria e assistência por IA.
-- O WhatsApp previsto é a API oficial do WhatsApp Business. A forma de conectar e administrar a conta de cada clínica continua em aberto.
-- O painel deve receber atualizações em tempo real por WebSockets com hibernação em Durable Objects. Um Durable Object por clínica é uma proposta de coordenação e isolamento do estado em tempo real; a escolha final e o isolamento dos dados em D1/R2 ainda precisam ser especificados.
+- O WhatsApp previsto é a API oficial do WhatsApp Business. O responsável conecta a conta da clínica pelo Embedded Signup, com o Tredane como Tech Provider (DEC-009).
+- O painel deve receber atualizações em tempo real por WebSockets com hibernação em Durable Objects. Há um Durable Object por clínica (DEC-005), um D1 dedicado por clínica e um D1 central de controle (DEC-010, ADR-0002); o mecanismo para abrir o D1 de cada clínica ainda está em aberto.
 - O primeiro recorte de IA é assistivo, com sugestão e revisão humana, conforme `docs/MVP.md`. Respostas ou agendamentos autônomos ficam fora desse recorte.
-- O fluxo piloto começa na mensagem recebida e termina no agendamento confirmado, incluindo visão da conversa e do pipeline. Detalhes de regras da agenda, permissões, identidade, retenção e provedor de IA permanecem pendentes.
+- O fluxo piloto começa na mensagem recebida e termina no agendamento confirmado, incluindo visão da conversa e do pipeline. Identidade, administração, provedor de IA e retenção foram decididos em 23/10/2026 (`docs/product/decisions.md`); expediente e bloqueios da agenda, acesso do superadmin a conteúdo e revisão jurídica permanecem pendentes. A interface é mobile first (DEC-017) e a equipe do Tredane usa um app separado de superadmin (DEC-012).
 
 Ao atualizar esse contexto, altere primeiro o documento que contém a decisão e depois as referências resumidas. Não use estas instruções como substituto para a especificação de produto.
 

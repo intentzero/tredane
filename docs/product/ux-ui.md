@@ -18,8 +18,9 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Larguras de referência: 360–430 px (base), ≥ 768 px (tablet), ≥ 1280 px (desktop) | **Proposto** | **Em aberto:** modelos e sistemas dos aparelhos da clínica piloto (Q-UX-01). Bloqueia o aceite de usabilidade, não o desenvolvimento das telas. |
 | Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP | **Proposto** | Instalação como PWA e notificações push dependem de Q-UX-05. |
 | Idioma pt-BR, fuso horário da clínica em todas as datas | **Proposto** | O fuso da clínica é parte das regras de agenda ainda em aberto (DEC-008). |
-| Ativação da clínica, configuração de serviços/recursos e gestão de membros | **Em aberto** | JRN-08, REQ-004, REQ-051, REQ-052. Nenhuma tela desenhada até decidir autosserviço ou operação assistida. |
-| Seletor de clínica para usuário com várias clínicas | **Em aberto** | Q-ACT-05. O cabeçalho reserva o espaço do nome da clínica, sem seletor. |
+| Login por código enviado por e-mail e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005, REQ-006. Telas TEL-08 (proposta); ainda não desenhadas no canvas. |
+| Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **a desenhar** | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
+| App de superadmin | **Fora desta spec** | DEC-012, [ADR-0006](../adr/0006-superadmin-control-plane.md). App separado, com spec própria quando for desenhado. |
 | Relatórios, campanhas, prontuário, pagamentos, bot autônomo | **Fora do MVP** | Não aparecem na navegação, nem como item desabilitado. |
 
 ## 2. Princípios de experiência
@@ -35,7 +36,8 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 ## 3. Arquitetura de informação
 
 ```
-Cabeçalho global: [nome da clínica] · Conversas · Pipeline · Agenda · [indicador de conexão] · [usuário]
+TEL-08 Entrar (e-mail → código) → seletor de clínica (só com mais de uma)
+Cabeçalho global: [clínica ativa ▾ troca] · Conversas · Pipeline · Agenda · [Clínica: só responsável] · [indicador de conexão] · [usuário]
 ├── TEL-01 Conversas (lista + conversa aberta + painel do contato)
 │     └── TEL-05 Agendar horário (painel lateral a partir da conversa)
 ├── TEL-03 Pipeline (quadro por etapa)
@@ -161,10 +163,20 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 **Origem:** JRN-05; REQ-032, REQ-033. **Estado:** Proposto.
 
 - Detalhe: contato, serviço, horário, profissional, sala, estado, quem confirmou e quando, histórico de alterações, link para a conversa.
-- **Cancelar:** confirmação em diálogo com campo de motivo. Motivo obrigatório: **Em aberto** — o campo é exibido como opcional até a decisão. Prazo de cancelamento: **Em aberto**, nenhuma regra é exibida.
+- **Cancelar:** confirmação em diálogo com motivo obrigatório escolhido de uma lista (DEC-008); o botão de confirmar fica desabilitado até escolher. Não há prazo mínimo, então nenhuma regra de prazo é exibida.
+- **Reagendar** também pede o motivo antes de confirmar o novo horário.
 - **Reagendar:** abre TEL-05 com dados preenchidos. O compromisso antigo continua confirmado até o novo ser confirmado; em conflito, a mensagem deixa claro: “O compromisso de sex 14:00 continua mantido.” (AC-10).
 - Alterado por outra pessoa enquanto aberto: “Este compromisso foi alterado por Bruno às 10:42.” e o detalhe recarrega; a ação em curso é cancelada sem gravar.
 - Comunicação ao contato é opcional e separada, igual a TEL-05.
+
+### TEL-08 — Entrar e escolher a clínica
+
+**Origem:** DEC-007; REQ-005, REQ-006; AC-17. **Estado:** Proposto.
+
+- **Entrar:** campo de e-mail → “Enviamos um código para a***@exemplo.com” → campo de 6 dígitos com preenchimento automático do código no celular (`autocomplete="one-time-code"`), **Reenviar código** após 30 s. Erro de código: “Código incorreto ou expirado.” sem revelar se o e-mail tem conta.
+- **Escolher clínica:** lista com nome de cada clínica e papel (Atendente/Responsável). Com uma só clínica, a tela é pulada.
+- **Trocar de clínica:** tocar no nome da clínica no cabeçalho abre a mesma lista. Ao trocar, a tela mostra “Abrindo Clínica B…”, descarta os dados da anterior e reconecta o tempo real; texto não enviado no compositor é descartado com confirmação.
+- Clínica removida do acesso some da lista; se era a ativa, aparece o estado “Acesso encerrado” (6.2).
 
 ### TEL-07 — Estados globais
 
@@ -217,7 +229,7 @@ Ver seção 6.2.
 
 ### 6.3 IA assistiva
 
-**Origem:** REQ-022, REQ-060, ADR-0004, AC-06. **Estado:** Proposto; provedor e contexto **Em aberto** (DEC-011).
+**Origem:** REQ-022, REQ-060, ADR-0004, AC-06. **Estado:** Proposto; provedor (Claude via AI Gateway) e contexto **Confirmados** (DEC-011).
 
 - **Sugerir resposta** é acionado pelo usuário; não há sugestão automática ao abrir a conversa no MVP (**Proposto**, reduz custo e envio de contexto sem necessidade).
 - A sugestão aparece acima do compositor, em bloco com borda tracejada e rótulo “Sugestão da IA — revise antes de enviar”, com: **Usar e editar** (copia para o compositor, editável), **Gerar outra**, **Descartar**. No celular, o botão de IA fica à esquerda do campo e o de enviar à direita, separados para evitar toque acidental. Não há botão de envio dentro do bloco; o único caminho até o contato é o botão **Enviar** do compositor.
@@ -269,6 +281,7 @@ Tipografia: Inter (400/500/600), escala 12/14/16/20/24. Raio 8 px em cartões, 6
 | TEL-05 Agendar | JRN-03 | REQ-030, REQ-031, REQ-033, REQ-052 | AC-09, AC-14 |
 | TEL-06 Compromisso | JRN-05 | REQ-032, REQ-033 | AC-10 |
 | TEL-07 Estados globais | JRN-07 | REQ-001, REQ-003, REQ-040, REQ-041, REQ-042 | AC-01, AC-02, AC-11, AC-12 |
+| TEL-08 Entrar e escolher clínica | JRN-07, JRN-08 | REQ-005, REQ-006 | AC-17 |
 
 Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 → TEL-04; M-07 e M-08 → TEL-07.
 

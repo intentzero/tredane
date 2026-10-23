@@ -7,11 +7,11 @@
 | Fase | Entregáveis | Gate verificável |
 | --- | --- | --- |
 | F0: ambiente | Workspace TS, React, Worker/Hono, Drizzle/D1 local, lint/test/build, Wrangler, CI, seeds sintéticas | Testes e build reproduzíveis; dois tenants de teste; nenhum segredo versionado |
-| F1: identidade/tenant | Login e associação de membro; autorização no Worker; papéis do painel; integração WebSocket autorizada | REQ-001/002/003: ID forjado e revogação não expõem dados/eventos de outra clínica |
+| F1: identidade/tenant | Prova de conceito do D1 por clínica (ADR-0002); D1 central; login por código; associações e seletor de clínica; provisionamento de clínica; app de superadmin mínimo; autorização no Worker; WebSocket autorizado no DO da clínica | REQ-001/002/003/005/006/080: ID forjado, troca de clínica e revogação não expõem dados/eventos de outra clínica nem abrem seu D1 |
 | F2: domínio local | Serviços, recursos, horários, contactos, Inbox e Pipeline com dados sintéticos; CRUD mínimo + auditoria | Duas sessões da mesma clínica convergem e outra clínica não vê alterações |
 | F3: integração Meta | Associação verificada de número de teste, webhooks, deduplicação, outbox, envio manual e status | Reentrega não duplica; falhas e resultado incerto permanecem observáveis |
 | F4: reservas | Consulta de disponibilidade, bloqueios, criação/cancelamento/reagendamento atómicos | Disputa concorrente por profissional e sala permite no máximo um compromisso |
-| F5: IA assistiva | Sugestão de texto e resumo com revisão humana, política de contexto, fallback | Nenhuma sugestão é enviada sem clique humano; casos sensíveis são tratados adequadamente |
+| F5: IA assistiva | Adaptador Claude via AI Gateway sem registro de conteúdo; sugestão e resumo com revisão humana; contexto de REQ-060; fallback | Nenhuma sugestão é enviada sem clique humano; casos sensíveis são tratados adequadamente |
 | F6: piloto | Testes ponta a ponta, monitorização, consentimentos, retenção e revisão de segurança | Aprovação das questões pendentes e de cenários da clínica piloto antes de dados reais |
 
 ## Backlog técnico por épico
@@ -23,8 +23,9 @@
 - Testes de schema/migrations, fixtures sintéticas e pipeline de validação.
 
 ### EP-T02 — Segurança e tenancy
-- Middleware de identidade e associação por tenant; principal humano vs integração verificada.
-- Repositórios D1 escopados e FKs compostas; testes automáticos de leitura/escrita cruzada.
+- Middleware de identidade e associação por tenant; principal humano, superadmin e integração verificada.
+- Resolução clínica → D1 a partir do D1 central; repositórios escopados e FKs compostas no D1 da clínica; testes automáticos de leitura/escrita cruzada e de abertura do banco errado.
+- Migrações aplicadas a todos os D1 de clínica com registro de versão por clínica.
 - Revogação de membro, sessão e WebSocket, com auditoria.
 - R2 privado e controlo de acesso para anexos quando a política de dados estiver fechada.
 
@@ -58,7 +59,7 @@
 
 ## Dependências que bloqueiam dados reais
 
-Identidade e administração de utilizadores (DEC-007), regras de recurso/agenda (DEC-008), WhatsApp da clínica (DEC-009), decisão de topologia D1 (DEC-010), política de dados e provedor IA (DEC-011), suporte/operador (DEC-012). O épico [#1](https://github.com/intentzero/tredane/issues/1) permanece aberto até validação do produto.
+Decididos em 23/10/2026: DEC-005, DEC-007, DEC-009, DEC-010 e, em parte, DEC-008, DEC-011 e DEC-012. Ainda bloqueiam dados reais: mecanismo do D1 por clínica (ADR-0002), expediente/bloqueios da agenda (DEC-008), verificação como Tech Provider (DEC-009), revisão jurídica e não retenção da IA (DEC-011) e acesso/autenticação do superadmin (DEC-012, ADR-0006). O épico [#1](https://github.com/intentzero/tredane/issues/1) permanece aberto até validação do produto.
 
 ## Primeira tarefa recomendada
 

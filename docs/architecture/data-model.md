@@ -1,16 +1,29 @@
 # Modelo lógico de dados D1 — Tredane
 
-**Estado:** proposta técnica, não migração final. Orienta Drizzle e testes do MVP. [Requisitos](../product/requirements.md) e [decisões abertas](../product/decisions.md) continuam a ser a fonte das regras de produto.
+**Estado:** proposta técnica, não migração final. **Topologia aceita** ([ADR-0002](../adr/0002-d1-topology.md)): as tabelas abaixo se dividem entre o D1 central de controle e o D1 de cada clínica. Orienta Drizzle e testes do MVP. [Requisitos](../product/requirements.md) e [decisões abertas](../product/decisions.md) continuam a ser a fonte das regras de produto.
 
-## Entidades nucleares
+## D1 central de controle
 
 | Entidade | Campos e relações essenciais (propostos) |
 | --- | --- |
-| tenants | id, nome, timezone, estado |
-| identities / memberships | user_id, tenant_id, role, estado, revoked_at |
-| whatsapp_channels | id, tenant_id, phone_number_id externo único, estado de ativação |
+| tenants | id, nome, timezone, estado (provisionando, ativa, suspensa, encerrada), encerrada_em |
+| tenant_databases | tenant_id, identificador do D1, versão de migração aplicada, estado |
+| users | id, e-mail verificado, nome, estado |
+| login_codes | id, e-mail, hash do código, expira_em, tentativas, usado_em |
+| sessions | id, user_id, active_tenant_id, criada_em, expira_em, revogada_em |
+| memberships | user_id, tenant_id, role (atendente, responsável), estado, revoked_at; um usuário pode ter várias |
+| platform_admins | user_id, estado, segundo fator (a definir, Q-SA-02) |
+| whatsapp_channels | id, tenant_id, phone_number_id externo único, waba_id, estado da ativação (Embedded Signup) |
+| platform_audit_log | id, actor_user_id, tenant_id opcional, action, occurred_at |
+
+Nenhuma tabela do D1 central guarda contato, conversa, mensagem, oportunidade, agenda ou sugestão de IA.
+
+## D1 da clínica (um por clínica)
+
+| Entidade | Campos e relações essenciais (propostos) |
+| --- | --- |
 | contacts | id, tenant_id, identificador WhatsApp, nome mínimo |
-| conversations | id, tenant_id, contact_id, assignee_membership_id, status, last_activity_at |
+| conversations | id, tenant_id, contact_id, assignee_user_id (validado contra memberships no D1 central), status, last_activity_at |
 | messages | id, tenant_id, conversation_id, direction, external_message_id, delivery_state, body, created_at |
 | opportunities | id, tenant_id, contact_id, conversation_id opcional, stage_id, assignee_id |
 | opportunity_events | id, tenant_id, opportunity_id, actor_id, from_stage, to_stage, occurred_at |
@@ -19,7 +32,7 @@
 | resources | id, tenant_id, tipo (sala/equipamento), nome, ativo |
 | service_requirements | tenant_id, service_id, resource_type e regras de seleção |
 | availability_rules / time_off | tenant_id, professional_id ou resource_id, janela, recorrência/bloqueio |
-| appointments | id, tenant_id, contact_id, opportunity_id opcional, service_id, starts_at, ends_at, status, version |
+| appointments | id, tenant_id, contact_id (anulável após exclusão do contato), opportunity_id opcional, service_id, starts_at, ends_at, status, cancel_reason (obrigatório ao cancelar ou reagendar), version |
 | appointment_allocations | id, tenant_id, appointment_id, resource_kind, resource_id, occupied_from, occupied_until |
 | appointment_events | id, tenant_id, appointment_id, operação, actor_id, previous/new state, occurred_at |
 | inbound_events | id, tenant_id, provider_event_key, processing_state, received_at |
@@ -32,11 +45,11 @@
 
 ## Invariantes estruturais
 
-1. Todas as entidades operacionais têm tenant_id; chaves estrangeiras e índices compostos devem evitar referências a entidades de outra clínica (por exemplo, UNIQUE(tenant_id, id) e FOREIGN KEY (tenant_id, contact_id) quando aplicável).
+1. Todas as entidades operacionais do D1 da clínica mantêm tenant_id, como defesa em profundidade e para casar com mensagens de Queue/Workflow; chaves estrangeiras e índices compostos devem evitar referências a entidades de outra clínica (por exemplo, UNIQUE(tenant_id, id) e FOREIGN KEY (tenant_id, contact_id) quando aplicável).
 2. A ligação WhatsApp usa identificador de número/conta verificado, com associação inequívoca a uma clínica ativa. Um mesmo número de contacto pode existir isoladamente em clínicas diferentes.
 3. O webhook da Meta e a intenção de envio têm chaves de idempotência persistidas e índices únicos no contexto correto.
 4. Alterações de estado de agendamentos, oportunidades e envios preservam histórico; eventos da UI nunca antecedem a persistência.
-5. Mensagens não são excluídas por simples encerramento de conversa; retenção e apagamento são processos próprios a definir.
+5. Mensagens não são excluídas por simples encerramento de conversa. Exclusão de contato pelo responsável apaga mensagens e anexos do contato e anonimiza seus agendamentos; encerramento da clínica remove o D1 da clínica e o prefixo R2 em até 30 dias (DEC-011).
 
 ## Concorrência da agenda: estratégia proposta
 
@@ -48,7 +61,7 @@ Uma opção a validar em teste com o D1/SQLite é usar linhas de ocupação por 
 - Inserir agendamento + todas as ocupações de profissionais/salas/equipamentos por **lote transacional D1 batch**. Se qualquer ocupação conflitar, abortar o lote todo.
 - Reagendamento atualiza o conjunto de ocupações no mesmo lote transacional, preservando o agendamento original em caso de erro. Cancelamento liberta ocupações apenas por operação auditada.
 - Bloqueios/ausências que reservem recursos precisam passar pela mesma proteção de escrita.
-- Duração e buffers compõem occupied_from/until e dependem de regras confirmadas com a clínica piloto.
+- Duração e intervalo do serviço compõem occupied_from/until (DEC-008); o intervalo ocupa a sala/equipamento, e se ocupa também o profissional ainda está em aberto.
 - Criar testes simultâneos e cenários de limites adjacentes, recursos distintos, cancelamento/reagendamento e cross-tenant antes de adotar a solução.
 
 **A validar tecnicamente:** suporte e comportamento efetivo dos gatilhos usados, transação D1, limitações do runtime e desenho final do bloqueio. Se necessário, substituir por outra estratégia atómica com restrições únicas (por exemplo, slots discretizados), sem enfraquecer o critério REQ-031.
