@@ -41,7 +41,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Plano de implementação proposto](implementation/plan.md).
 - [ADR Clerk e Platform Admin](adr/0006-clerk-platform-admin.md), [ADR Impersonação de suporte](adr/0007-support-impersonation.md) e [contratos de identidade/admin](architecture/identity-and-admin.md).
 
-Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora **confirmados**. Continuam em aberto: topologia D1, fluxo de ligação do WhatsApp, política de dados reais e implementação/preço da impersonação de suporte.
+Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora **confirmados**. Continuam em aberto: topologia D1, fluxo de ligação do WhatsApp, política de dados reais, proteção do handoff e capacidades de manutenção das sessões próprias de suporte.
 
 ## Recorte proposto para a primeira entrega
 
