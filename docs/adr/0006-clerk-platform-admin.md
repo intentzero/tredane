@@ -12,14 +12,14 @@
 4. **Platform Admin App:** aplicação restrita a superadmins para criar, editar, suspender, reativar e iniciar exclusão de tenants, além de gerir atribuições quando autorizado.
 5. **Separação de privilégio:** flag global de superadmin não concede acesso automático ao conteúdo da clínica. O acesso operacional normal exige membership explícito, ou uma sessão de suporte/impersonação controlada conforme [ADR-0007](0007-support-impersonation.md).
 6. **Exclusão:** "deletar tenant" é uma operação com confirmação reforçada e exclusão lógica no MVP. Purga física e recuperação dependem de política de dados/retensão ainda Em aberto.
-7. **Impersonação de suporte:** um superadmin poderá entrar no contexto de um usuário com membership no tenant para manutenção, conforme [ADR-0007](0007-support-impersonation.md). A identidade real deve ficar atribuível em todas as operações.
+7. **Impersonação de suporte:** o Tredane emitirá **suas próprias sessões de suporte no D1**, sem Clerk impersonation ou actor tokens. O superadmin poderá atuar no contexto de um usuário com membership no tenant para manutenção conforme [ADR-0007](0007-support-impersonation.md); o ator real fica sempre identificado na auditoria.
 
 ## Responsabilidades por camada
 
 | Camada | Responsabilidade |
 | --- | --- |
 | Clerk | Identidade, credenciais e sessão; `privateMetadata.superadmin` como autoridade de plataforma |
-| D1 | Tenants, memberships, roles, estado de tenant e trilha de auditoria |
+| D1 | Tenants, memberships, roles, estado de tenant, sessões próprias de suporte e trilha de auditoria |
 | API de administração | Validação server-side atual de `superadmin`, operações de ciclo de vida |
 | API de clínica | Tenant escolhido validado pelo membership efetivo; autorização por role e estado do tenant |
 | Interface Platform Admin | Cadastro/edição/suspensão/exclusão lógica; início/gestão de suporte |
