@@ -36,6 +36,8 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 
 **DEC-034 — Encerramento de suporte ativo:** qualquer owner ativo da clínica pode interromper uma sessão de suporte, mesmo que outro owner a tenha aprovado; superadmin actor pode terminar a sua própria. A transição auditada no D1 bloqueia HTTP, WebSocket e credenciais daquele suporte imediatamente, preservando memberships e Clerk. Voltar a trabalhar exige novo pedido/owner (DEC-033). [ADR-0011](adr/0011-owner-approval-for-support.md).
 
+**Avisos de início e término (DEC-035):** quando sessão aprovada realmente começa, owners ativos da clínica recebem **e-mail de início** e acompanham estado/tempo restante no painel. Ao terminar por expiração ou encerramento antecipado, o painel e a auditoria são atualizados em tempo real, **sem e-mail de encerramento**. E-mail não autoriza acesso nem contém dados clínicos/credenciais e sua falha não bloqueia sessão. [ADR-0011](adr/0011-owner-approval-for-support.md).
+
 **Notificação de suporte (DEC-030):** owners ativos da clínica recebem o pedido no painel em tempo real e aviso por e-mail, com link para abrir solicitação no Tredane. Aprovar/Rejeitar só dentro da Clinic App com Clerk login e membership owner validada pelo backend; clicar no e-mail não concede acesso nem aprova. [ADR-0011](adr/0011-owner-approval-for-support.md).
 
 **Sem MFA no MVP (DEC-028):** nenhuma role exige MFA, incluindo superadmin e owner. Sessões continuam no Clerk; o Worker valida `privateMetadata.superadmin === true`, memberships/roles por tenant no D1 e sessões próprias de suporte. Não implementar desafio, guardas ou step-up MFA nesta fase. DEC-027 substituída; rever MFA apenas depois do MVP. [ADR-0010](adr/0010-role-scoped-mfa.md).

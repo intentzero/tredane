@@ -58,6 +58,8 @@
 
 **DEC-034 aprovada:** qualquer owner ativo do tenant pode revogar suporte ativo, independentemente do aprovador, e o superadmin actor pode encerrá-lo. HTTP/WS devem ser bloqueados imediatamente com auditoria; protocolo de execução, UX e testes ainda pendentes.
 
+**DEC-035 aprovou painel em tempo real para início, duração e fim do suporte e e-mail informativo apenas quando a sessão se torna ativa**. Término é registrado/auditado no painel, sem e-mail de encerramento. Transporte do e-mail e testes com múltiplos owners/tenants ainda em aberto.
+
 ## Decisões fechadas
 
 - Clerk sem Organizations; `privateMetadata.superadmin` estritamente booleano e validado pelo backend.

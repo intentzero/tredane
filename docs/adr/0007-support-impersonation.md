@@ -98,6 +98,10 @@ Nenhuma sessão de suporte pode ser prolongada. Após expiração ou encerrament
 
 Qualquer owner ativo do tenant pode encerrar imediatamente qualquer sessão de suporte ativa dessa clínica, independentemente do owner que aprovou; o superadmin actor pode também terminar a própria sessão voluntariamente. A operação verifica autorização atual por tenant no backend, grava transição atómica no D1 e auditoria (revogador/actor/subject/sessão/tenant/instante) e corta HTTP, WebSockets e credenciais de suporte. Não afetar sessão Clerk nem memberships. Proteger a entrega de dados no DO em caso de sinal de revogação atrasado/hibernação. Sessão terminada não reativa; continuar exige novo pedido/owner (DEC-033).
 
+## DEC-035 — Aviso de sessão iniciada e status no painel
+
+Após ativação efetiva da sessão aprovada, avisar por **e-mail de início** os owners ativos daquele tenant e atualizar em tempo real o painel de suporte com actor, estado, horário de início e limite de 30 minutos. No fim por expiração, revogação de owner ou encerramento voluntário pelo actor, atualizar o painel e auditar sem enviar e-mail de término. Não incluir conteúdo clínico, credencial de handoff ou tokens nos avisos; entrega de e-mail não define acesso. Implementar emissão idempotente por sessão/destinatário, com autorização por tenant e reconciliação ao voltar online. [ADR-0011](0011-owner-approval-for-support.md).
+
 ## Políticas mínimas de segurança
 
 - **TTL da sessão (DEC-032):** 30 minutos fixos desde ativação, com encerramento antecipado e sem renovação automática. O prazo de 24 horas da DEC-031 é apenas para decidir o pedido pendente.

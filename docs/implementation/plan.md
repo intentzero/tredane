@@ -40,6 +40,8 @@
 
 **DEC-034 — revogação por owner:** UI de sessão de suporte em curso na Clinic App com botão **Encerrar suporte** para qualquer owner vigente do tenant, mesmo se outro owner aprovou. Superadmin actor também pode encerrar voluntariamente a sua. Implementar transição atómica no D1, auditoria de revogador/sessão/tenant/instante, invalidação de cookie/handoff e corte de HTTP/DO-WebSocket, com proteção de fan-out. Testar O1/O2, owner B, attendant, superadmin não actor, races, sockets hibernados e falha de notificação DO.
 
+**DEC-035 — alertas do ciclo do suporte:** emitir e-mail de **início somente após `support_sessions.status=active`**, separado do pedido pendente; enviar a owners ativos do tenant, com idempotência por sessão/destinatário e sem PHI/segredos. Atualizar painel em tempo real no início e em todos os tipos de encerramento; **nenhum e-mail no término**. Persistir auditoria e reidratar estado após reconexão. Testar retrials/duplicatas de e-mail, canal indisponível, tenant errado, expiração normal, revogação por owner e término voluntário do superadmin. Fornecedor/transporte pendentes.
+
 ## Backlog técnico por épico
 
 ### EP-T01 — Base de execução e CI

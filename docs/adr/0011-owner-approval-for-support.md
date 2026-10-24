@@ -43,6 +43,14 @@ A Clinic App exibe aos owners ativos sessões de suporte do seu tenant e ação 
 
 Owner de outro tenant e attendant não podem encerrar sessão de A; revogar acesso de suporte não remove o subject do tenant nem encerra Clerk do actor ou outros tenants. Qualquer continuação exige novo pedido e aprovação (DEC-033). Testar O1 aprovador/O2 revogador, solicitações simultâneas, websocket hibernado, concorrência com publicação, replay de cookie e auditoria.
 
+## Notificações após ativação — DEC-035 (opção B)
+
+- Após a transição efetiva para **sessão de suporte `active`** no D1, publicar o evento `support.session.started` apenas aos owners com membership vigente daquele tenant no painel em tempo real e enviar-lhes **e-mail informativo de início**, distinto do e-mail de solicitação pendente (DEC-030). Não emitir aviso de início só por criar ou aprovar um pedido que ainda não tenha resultado numa sessão ativa.
+- O painel de owners mostra estado da sessão, identidade do superadmin actor, subject, motivo/escopo, `activated_at`, horário-limite de 30 minutos e botão **Encerrar suporte** (DEC-034). Quando a sessão **expira ou é encerrada antecipadamente**, o painel muda o estado em tempo real; owner offline recupera o histórico atual ao regressar.
+- **Não enviar e-mail de término** por expiração, encerramento manual pelo superadmin, ou revogação por owner no MVP. Preservar no D1 e auditoria quem iniciou, quem aprovou, quem encerrou, datas e causas do fim; não perder o estado quando um aviso em WebSocket falha.
+- O e-mail de início é somente informativo, sem PHI/dados clínicos, cookie, handoff, token ou link de autorização. Se houver link, leva à página de estado dentro do Tredane, exigindo Clerk e membership owner atual no tenant. Enviar **uma notificação lógica por sessão/destinatário**, com chave idempotente para duplicações/retries. Provedor, entrega e política de retentativas continuam a especificar.
+- A sessão é autorizada pela aprovação válida e pelo estado do D1, **nunca pela entrega de e-mail**; atraso/falha do e-mail não impede início nem modifica prazo, revogação ou a auditoria. Não mostrar sessões de A a owners apenas de B. Testar início uma vez, reconexão, e-mail duplicado/perdido e as três formas de término.
+
 ## Contrato técnico candidato — não implementado
 
 1. Superadmin autenticado com `privateMetadata.superadmin === true` verificado no backend cria `support_access_requests` em estado `pending` no D1, com actor/subject/tenant/motivo/escopo.
@@ -63,8 +71,8 @@ Estados: `pending`, `approved`, `rejected`, `expired`, `revoked` e `cancelled`. 
 ## Pendências explícitas
 
 - **Revogação de sessão ativa por qualquer owner do tenant confirmada em DEC-034**; notificações e UX detalhada ainda em aberto. Prazo de pedido pendente fixado em 24 horas por DEC-031.
-- **Avisos e experiência de revogação da sessão** ainda por validar; decisão de quem revoga fechada em DEC-034. Pedido pendente expira em 24 horas (DEC-031).
-- **DEC-034 confirmou que qualquer owner ativo da clínica revoga sessão de suporte**, inclusive aprovada por outro; avisos e UX ainda por detalhar.
+- **DEC-035 fixou aviso de início por e-mail e atualização de encerramento apenas no painel**; falta validar UX detalhada, persistência e entregabilidade. Decisão de quem revoga fechada em DEC-034. Pedido pendente expira em 24 horas (DEC-031).
+- **DEC-034 confirmou que qualquer owner ativo da clínica revoga sessão de suporte**, inclusive aprovada por outro; DEC-035 confirma **e-mail no início e encerramento só no painel**, com UX complementar por validar.
 - Privacidade/LGPD, retenção de pedidos e logs, política sem owner disponível e revisão de segurança com dados reais.
 
 A decisão de produto não representa implementação nem aprovação para dados reais.

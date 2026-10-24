@@ -29,6 +29,8 @@
 
 **DEC-034 aprovada:** qualquer owner ativo da clínica pode encerrar sessão de suporte já autorizada (não apenas o aprovador original); o superadmin actor também pode encerrar voluntariamente. Confirmar implementação de corte imediato HTTP/WebSocket, visibilidade no painel e auditoria; notificações e UX final ainda por validar.
 
+**DEC-035 confirmada:** owners da clínica recebem e-mail informativo **no início efetivo** da sessão, acompanham estados em tempo real e veem encerramento **somente no painel**, com auditoria e sem e-mail de fim. Validar conteúdo seguro das mensagens, privacidade, entregabilidade/idempotência e reidratação do painel no piloto; provedor de e-mail não escolhido.
+
 ## Evidência mínima a recolher com a clínica piloto
 
 - Jornada real desde chegada da mensagem até agendamento e resposta de confirmação.

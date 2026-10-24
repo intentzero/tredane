@@ -140,6 +140,10 @@
 
 **Dado** owners O1 e O2 de A e sessão de suporte ativa aprovada por O1; **quando** O2 escolhe Encerrar suporte, **então** o Worker confirma membership owner atual de O2 em A, marca sessão como encerrada/revogada atomicamente no D1, audita O2 e bloqueia imediatamente chamadas HTTP, cookie/handoff e novas entregas WebSocket daquele suporte. O superadmin actor pode igualmente encerrar sua própria sessão. **Quando** owner só de B, attendant de A ou superadmin não actor tenta encerrar, **então** recebe negação sem efeito. Subject mantém membership e actor mantém login Clerk. Testar DO hibernado, falha da sinalização, corrida com fan-out e pedidos repetidos. **REQ-007/061/063, DEC-034.**
 
+### AC-33 — Owners recebem aviso de início; encerramento só no painel
+
+**Dado** pedido aprovado para tenant A; **quando** uma sessão de suporte passa efetivamente a `active`, **então** owners vigentes de A veem o início no painel em tempo real e recebem **um e-mail de início por destinatário/sessão**, sem dados clínicos ou credenciais. Owners de B não recebem informação de A. **Quando** a sessão expira após 30 minutos, o superadmin termina ou um owner de A revoga, **então** painel e auditoria registam o término e **nenhum e-mail de encerramento é enviado**. E-mail atrasado/falhado/duplicado não altera estado, acesso nem prazo; aba offline reconcilia dados do D1 ao abrir. Abrir link do e-mail sem autorização owner não expõe sessão. **Requisitos:** REQ-007/063/064, DEC-035.
+
 ## Condições para usar estes cenários como aprovação
 
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.
