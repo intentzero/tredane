@@ -65,6 +65,11 @@ import {
   MIGRATION_NAME as M13_NAME,
   STATEMENTS as M13_STATEMENTS,
 } from './migrations/0013_pix_exceptions'
+import {
+  MIGRATION_ID as M14_ID,
+  MIGRATION_NAME as M14_NAME,
+  STATEMENTS as M14_STATEMENTS,
+} from './migrations/0014_ai_suggestions'
 import type { ClinicDb } from './store'
 import type { Clock } from '../db/clock'
 
@@ -89,6 +94,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M11_ID, name: M11_NAME, statements: M11_STATEMENTS },
   { id: M12_ID, name: M12_NAME, statements: M12_STATEMENTS },
   { id: M13_ID, name: M13_NAME, statements: M13_STATEMENTS },
+  { id: M14_ID, name: M14_NAME, statements: M14_STATEMENTS },
 ]
 
 export type MigrationResult = {

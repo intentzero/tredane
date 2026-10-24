@@ -1069,6 +1069,8 @@ export function createPanelApi(getToken: TokenGetter) {
           language: string
           params: Record<string, string>
         }
+        /** Origem assistiva — só após clique humano em Enviar (#41). */
+        aiSuggestionId?: string | null
       },
       opts?: FetchOpts,
     ): Promise<InboxSendResponse> {
@@ -1084,6 +1086,76 @@ export function createPanelApi(getToken: TokenGetter) {
       assertGeneration(opts)
       if (!res.ok) throw await parseError(res)
       return (await res.json()) as InboxSendResponse
+    },
+
+    async suggestAiReply(
+      tenantId: string,
+      conversationId: string,
+      body: {
+        clientRequestId: string
+        parentSuggestionId?: string | null
+        actorDisplayName?: string
+      },
+      opts?: FetchOpts,
+    ): Promise<AiSuggestResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(conversationId)}/ai/suggest`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AiSuggestResponse
+    },
+
+    async summarizeAiConversation(
+      tenantId: string,
+      conversationId: string,
+      body: { clientRequestId: string; actorDisplayName?: string },
+      opts?: FetchOpts,
+    ): Promise<AiSuggestResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(conversationId)}/ai/summarize`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AiSuggestResponse
+    },
+
+    async decideAiSuggestion(
+      tenantId: string,
+      suggestionId: string,
+      body: {
+        clientRequestId: string
+        decision: 'use' | 'edit' | 'discard'
+        revisedText?: string | null
+        outboundMessageId?: string | null
+        actorDisplayName?: string
+      },
+      opts?: FetchOpts,
+    ): Promise<AiSuggestResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/ai/suggestions/${encodeURIComponent(suggestionId)}/decide`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AiSuggestResponse
     },
 
     async listWhatsappTemplates(
@@ -1244,6 +1316,36 @@ export type InboxMessage = {
   authorClerkUserId: string | null
   authorDisplayName: string | null
   createdAt: number
+}
+
+/** Sugestão IA assistiva (#41) — nunca é mensagem enviada sem clique humano. */
+export type AiSuggestion = {
+  id: string
+  conversationId: string
+  kind: 'reply' | 'summary'
+  status: string
+  provider: string
+  model: string
+  suggestedText: string
+  warningCodes: string[]
+  warningLabels: string[]
+  sourceRefs: Array<{ serviceName: string; kind: string; label: string }>
+  requestMeta: {
+    latencyMs: number
+    inputTokens: number | null
+    outputTokens: number | null
+    messageCount: number
+    mode: string
+  }
+  errorCode: string | null
+  createdAt: number
+  messageSent: false
+}
+
+export type AiSuggestResponse = {
+  suggestion: AiSuggestion
+  duplicate: boolean
+  messageSent: false
 }
 
 export type InboxCounts = {

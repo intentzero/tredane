@@ -334,6 +334,7 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
         const body = (await c.req.json()) as {
           body?: string
           clientRequestId?: string
+          aiSuggestionId?: string | null
           template?: {
             name?: string
             language?: string
@@ -369,6 +370,7 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
             clientRequestId: body.clientRequestId,
             authorClerkUserId: principal.clerkUserId,
             authorDisplayName: displayNameFromAuth(principal.clerkUserId, ctx.role),
+            aiSuggestionId: body.aiSuggestionId ?? null,
           },
         )
         return c.json(

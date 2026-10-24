@@ -1,4 +1,5 @@
 import type { Clock } from '../../db/clock'
+import { attachSuggestionToOutboundOp } from '../ai/operations'
 import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller } from '../envelopes'
@@ -605,6 +606,23 @@ export function sendOutboundMessageOp(
       clock,
     )
     setOutboundOutboxEventId(db, meta.tenantId, outbound.id, sendOutbox.id)
+
+    // Origem assistiva (#41): só após envio humano explícito; não reenvia.
+    if (input.aiSuggestionId?.trim()) {
+      attachSuggestionToOutboundOp(
+        db,
+        caller,
+        {
+          suggestionId: input.aiSuggestionId.trim(),
+          outboundMessageId: outbound.id,
+          messageId: message.id,
+          revisedText: body,
+          actorClerkUserId: input.authorClerkUserId,
+          actorDisplayName: input.authorDisplayName,
+        },
+        clock,
+      )
+    }
 
     const item = getConversationWithContact(db, meta.tenantId, input.conversationId)!
     const outboundFresh = findOutboundByClientRequestId(

@@ -42,3 +42,13 @@ CLERK_AUTHORIZED_PARTIES=http://localhost:5173
 # PIX_TOKEN_SECRET=...   # cifra App ID em repouso (opcional em synthetic)
 # Em sandbox/live: App ID fica na conta da clínica (M-33), nunca no frontend.
 # Nunca versionar App IDs reais nem misturar sandbox/produção.
+
+# #41 — IA assistiva Claude via AI Gateway (DEC-011). Default synthetic até GATE-06:
+# AI_MODE=synthetic
+# Em gateway (após logging de payload desligado + não retenção Anthropic):
+#   AI_MODE=gateway
+#   CF_ACCOUNT_ID=...
+#   AI_GATEWAY_ID=...
+#   AI_GATEWAY_TOKEN=...   # wrangler secret
+#   ANTHROPIC_API_KEY=...  # opcional BYOK
+# Nunca versionar tokens. Dados reais só após revisão jurídica (GATE-04/06).

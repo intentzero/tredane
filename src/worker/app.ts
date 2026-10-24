@@ -61,6 +61,10 @@ import {
   createPixWebhookRoutes,
   type PixWebhookRouteOptions,
 } from '../pix/webhook-routes'
+import {
+  createAiAssistRoutes,
+  type AiAssistRouteOptions,
+} from '../ai-assist'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
@@ -121,6 +125,8 @@ export type CreateAppOptions = {
   pixAccount?: PixAccountRouteOptions
   /** Webhooks Pix/Woovi (#39). */
   pixWebhook?: PixWebhookRouteOptions
+  /** IA assistiva (#41). */
+  aiAssist?: AiAssistRouteOptions
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -236,6 +242,8 @@ export function createApp(opts: CreateAppOptions = {}) {
     connectDepsFactory: opts.pixAccount?.connectDepsFactory,
   }
   app.route('/', createPixAccountRoutes(pixOpts))
+
+  app.route('/', createAiAssistRoutes(opts.aiAssist ?? {}))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

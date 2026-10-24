@@ -35,4 +35,15 @@ export type WorkerBindings = {
   PIX_MODE?: string
   /** Segredo para cifrar App ID Woovi em repouso (opcional em synthetic). */
   PIX_TOKEN_SECRET?: string
+  /**
+   * IA assistiva (#41): `synthetic` (default) | `gateway`.
+   * Gateway real exige GATE-06 + chaves; CI usa synthetic / mock.
+   */
+  AI_MODE?: string
+  CF_ACCOUNT_ID?: string
+  AI_GATEWAY_ID?: string
+  /** Token do AI Gateway — wrangler secret; nunca versionar. */
+  AI_GATEWAY_TOKEN?: string
+  /** BYOK Anthropic opcional. */
+  ANTHROPIC_API_KEY?: string
 }
