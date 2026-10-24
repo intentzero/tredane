@@ -69,6 +69,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Mocks e guia de implementação da interface](design/README.md): telas mobile M-01 a M-34, componentes, tokens e previews
 - [Landing page do piloto](product/landing.md) (DEC-044): fora do fluxo piloto do painel; site Astro estático em `site/`, sem publicação até fechar domínio, contato e política de privacidade
 - [Registro de hipóteses a validar](product/validation-register.md) e [auditoria do Issue #1 (23/10/2026)](product/definition-audit-2026-10-23.md) — acompanhamento, não decisões novas.
+- [Liberações Meta, privacidade e condições do piloto](product/pilot-gates.md) (issue #18) — gates, evidências e terceiros antes de dados reais; [rascunhos de modelos WhatsApp](product/whatsapp-templates-draft.md).
 
 ## Documentação de arquitetura e execução
 
@@ -150,10 +151,10 @@ Prontuário ou registro clínico, pagamentos além do sinal por Pix, estoque, in
 
 ## Decisões pendentes antes de integrar serviços reais
 
-1. Registro do Tredane como Tech Provider na Meta, custos e modelos de mensagem do WhatsApp (fluxo definido em DEC-009). Bloqueio atual: o Tredane não tem CNPJ para a verificação do negócio na Meta (VAL-13).
-2. Valores reais de serviços, durações e jornadas da clínica piloto (regras definidas em DEC-008).
-3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Revogação por tenant definida em DEC-026; em aberto o mecanismo técnico e testes de propagação WebSocket, integrações e medidas adicionais de antiabuso; MFA fora do MVP (DEC-028).
-4. Revisão jurídica e AI Gateway sem registro de conteúdo (provedor definido em DEC-011); como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane?
+1. Registro do Tredane como Tech Provider na Meta, custos e modelos de mensagem do WhatsApp (fluxo definido em DEC-009). Bloqueio atual: o Tredane não tem CNPJ para a verificação do negócio na Meta (VAL-13). Rastreio: [pilot-gates.md](product/pilot-gates.md) (GATE-01/02/10).
+2. Valores reais de serviços, durações e jornadas da clínica piloto (regras definidas em DEC-008). Checklist: [pilot-gates.md](product/pilot-gates.md) §5.
+3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Revogação por tenant definida em DEC-026; em aberto o mecanismo técnico e testes de propagação WebSocket, integrações e medidas adicionais de antiabuso; MFA fora do MVP (DEC-028). Pré-go-live Clerk (plano/DPA/região): DEC-043 e GATE-05.
+4. Revisão jurídica e AI Gateway sem registro de conteúdo (provedor definido em DEC-011); como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane? GATE-04/06.
 5. Revisão jurídica (LGPD) da retenção e exclusão definidas em DEC-011 (REQ-071). Dossiê para o advogado: [legal-review-brief.md](product/legal-review-brief.md).
 6. Topologia já definida em DEC-038: validar implementação, migrações, capacidade, recuperação e revogação entre D1 central e SQLite/DO por clínica antes de dados reais.
 

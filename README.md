@@ -58,7 +58,7 @@ Ver [ADR-0006](docs/adr/0006-clerk-platform-admin.md), [ADR-0007](docs/adr/0007-
 
 ## Acompanhamento da definição do MVP
 
-A [auditoria do Issue #1](docs/product/definition-audit-2026-10-23.md) distingue documentação já entregue de decisões pendentes. O [registro de validação](docs/product/validation-register.md) identifica hipóteses a confirmar com o responsável pelo produto e a clínica piloto.
+A [auditoria do Issue #1](docs/product/definition-audit-2026-10-23.md) distingue documentação já entregue de decisões pendentes. O [registro de validação](docs/product/validation-register.md) identifica hipóteses a confirmar com o responsável pelo produto e a clínica piloto. As [liberações Meta, privacidade e condições do piloto](docs/product/pilot-gates.md) rastreiam gates externos antes de dados reais (issue #18).
 
 ## Próximo marco
 
