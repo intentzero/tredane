@@ -13,7 +13,8 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | --- | --- | --- |
 | Usuários do painel: atendente (ACT-02) e responsável (ACT-03), com as mesmas telas de atendimento | **Confirmado** | DEC-013, DEC-015, DEC-016. Não há tela de profissional nem de operador. |
 | Contato (ACT-01) só interage pelo WhatsApp | **Confirmado** | O painel nunca expõe tela ao contato. |
-| Três áreas principais: Conversas, Pipeline, Agenda | **Proposto** | Derivado do fluxo principal do MVP e do ADR-0003. |
+| Três áreas principais: Conversas, Acompanhamento, Agenda | **Proposto** | Derivado do fluxo principal do MVP e do ADR-0003. |
+| Na interface, o pipeline se chama **Acompanhamento** e a oportunidade aparece como **contato em andamento**; “pipeline” e “oportunidade” ficam só nos documentos e no código | **Confirmado** | DEC-045 (24/10/2026): muitas leitoras não sabem o que é pipeline. Validar o nome com a clínica piloto. |
 | **Mobile first:** o celular é o alvo de base e precisa concluir todo o fluxo piloto (mensagem → resposta → etapa → agendamento); tablet e desktop são ampliações progressivas | **Confirmado** | DEC-039, pedido do responsável pelo produto em 23 de outubro de 2026. Substitui a proposta anterior deste documento de desktop como alvo principal. |
 | Larguras de referência: 360–430 px (base), ≥ 768 px (tablet), ≥ 1280 px (desktop) | **Proposto** | **Em aberto:** modelos e sistemas dos aparelhos da clínica piloto (Q-UX-01). Bloqueia o aceite de usabilidade, não o desenvolvimento das telas. |
 | Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP, instalável como PWA com notificações push de nova conversa | **Confirmado** | DEC-039, DEC-040. O push não traz o conteúdo da mensagem. No iPhone o push exige instalar o painel na tela inicial: o fluxo de instalação tem tela de orientação e escolha de avisos (M-14). Suporte em cada aparelho da clínica piloto: Q-UX-01. |
@@ -37,27 +38,27 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 
 ```
 TEL-08 Entrar (e-mail → código) → seletor de clínica (só com mais de uma)
-Cabeçalho global: [clínica ativa ▾ troca] · Conversas · Pipeline · Agenda · [Clínica: só responsável] · [indicador de conexão] · [usuário]
+Cabeçalho global: [clínica ativa ▾ troca] · Conversas · Acompanhamento · Agenda · [Clínica: só responsável] · [indicador de conexão] · [usuário]
 TEL-09 Clínica (só responsável): Serviços · Profissionais e salas · Horários e bloqueios · Equipe · WhatsApp
 ├── TEL-01 Conversas (lista + conversa aberta + painel do contato)
 │     └── TEL-05 Agendar horário (painel lateral a partir da conversa)
-├── TEL-03 Pipeline (quadro por etapa)
+├── TEL-03 Acompanhamento (pipeline, quadro por etapa)
 │     └── abre a conversa vinculada em TEL-01
 └── TEL-04 Agenda (dia por profissional / por sala)
       └── TEL-06 Detalhe do compromisso (cancelar, reagendar)
 TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carregamento
 ```
 
-- **Proposto:** URLs estáveis por área e item (`/conversas/:id`, `/pipeline`, `/agenda?dia=`), para retomar o trabalho após recarregar. O ID na URL nunca concede acesso por si: um ID de outra clínica mostra o estado “Não encontrado” sem revelar se o item existe (REQ-001, AC-01).
+- **Proposto:** URLs estáveis por área e item (`/conversas/:id`, `/acompanhamento`, `/agenda?dia=`), para retomar o trabalho após recarregar. O ID na URL nunca concede acesso por si: um ID de outra clínica mostra o estado “Não encontrado” sem revelar se o item existe (REQ-001, AC-01).
 - **Proposto:** contadores na navegação (ex.: conversas novas) vêm do estado canônico da clínica e são reconciliados na reconexão.
 
 ### 3.1 Padrões de layout mobile first
 
 **Estado:** Proposto, decorrente de DEC-039.
 
-| Largura | Navegação | Conversas | Pipeline | Agenda |
+| Largura | Navegação | Conversas | Acompanhamento | Agenda |
 | --- | --- | --- | --- | --- |
-| Base (360–767 px) | Barra inferior com Conversas, Pipeline e Agenda (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
+| Base (360–767 px) | Barra inferior com Conversas, Acompanhamento e Agenda (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
 | Tablet (≥ 768 px) | Barra lateral compacta. | Lista + conversa lado a lado; detalhes em gaveta. | Quadro com rolagem horizontal. | Grade com colunas por recurso. |
 | Desktop (≥ 1280 px) | Cabeçalho superior. | Três colunas (lista, conversa, detalhes). | Quadro completo; arrastar e soltar além do menu “Mover para…”. | Grade completa e painel lateral de agendamento. |
 
@@ -115,7 +116,9 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 - **Transferir** abre lista de membros da clínica ativa; nunca mostra membros de outra clínica.
 - Reatribuição não altera o estado da conversa (states.md).
 
-### TEL-03 — Pipeline
+### TEL-03 — Acompanhamento (pipeline)
+
+Nome na interface: **Acompanhamento** (DEC-045). Na barra inferior de quatro itens do responsável, o rótulo ocupa quase toda a largura do item em 390 px; **Em aberto:** conferir em 360 px e, se não couber, usar “Acompanhar” só na barra.
 
 **Origem:** JRN-03, JRN-04; REQ-023. **Estado:** Proposto.
 
@@ -300,7 +303,7 @@ Ver seção 6.2.
 | --- | --- | --- | --- |
 | TEL-01 Conversas | JRN-01, JRN-02, JRN-04, JRN-06 | REQ-010, REQ-011, REQ-012, REQ-013, REQ-020, REQ-021, REQ-022 | AC-04, AC-06, AC-07, AC-16 |
 | TEL-02 Responsável | JRN-02 | REQ-020 | AC-08 |
-| TEL-03 Pipeline | JRN-03, JRN-04 | REQ-023 | AC-08, AC-16 |
+| TEL-03 Acompanhamento | JRN-03, JRN-04 | REQ-023 | AC-08, AC-16 |
 | TEL-04 Agenda | JRN-03, JRN-04, JRN-05 | REQ-030, REQ-031, REQ-034 | AC-09, AC-13 |
 | TEL-05 Agendar | JRN-03 | REQ-030, REQ-031, REQ-033, REQ-052 | AC-09, AC-14 |
 | TEL-06 Compromisso | JRN-05 | REQ-032, REQ-033 | AC-10 |

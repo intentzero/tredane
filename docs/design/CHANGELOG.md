@@ -2,6 +2,10 @@
 
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
+
+## 24/10/2026 — Pipeline vira Acompanhamento (DEC-045)
+
+- Rótulos visíveis “Pipeline” → “Acompanhamento” e “oportunidade” → “contato em andamento” nos mocks mobile e desktop; nomes de arquivo e IDs mantidos. Previews regenerados.
 ## Tokens 0.2.0 — 24/10/2026 (Confirmado)
 
 **Aprovado pelo responsável pelo produto em 24/10/2026** (DEC-041): paleta, tipografia, formas e espaçamento, componentes e estados, ícones Lucide. A biblioteca-base de componentes permanece **Proposto** (ADR-0013).
