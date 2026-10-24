@@ -26,6 +26,7 @@ export function AreaPlaceholder({ area }: { area: PanelArea }) {
         />
       )
     case 'clinica':
+      // Conteúdo real em ClinicArea (#28); placeholder só se rota mal formada.
       return (
         <EmptyState
           title="Configuração da clínica"

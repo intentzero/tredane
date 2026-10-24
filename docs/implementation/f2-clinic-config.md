@@ -1,0 +1,63 @@
+# F2 — Configuração da clínica, serviços, profissionais e recursos
+
+**Estado:** implementação da issue [#28](https://github.com/intentzero/tredane/issues/28) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API/SQLite no Clinic DO + telas owner-only no painel (M-15/16/17/20/21/22). **Sem** Inbox (#29), Acompanhamento (#30), WhatsApp Embedded Signup nem campos de sinal Pix (entregas próprias). Dados sintéticos apenas.
+
+## Decisões aplicadas (Confirmado)
+
+| DEC / REQ | Comportamento |
+| --- | --- |
+| DEC-042 | Só owner escreve config (`clinic.config.write`); attendant lê via `clinic.context.read` |
+| DEC-008 | Duração/intervalo/expediente em múltiplos de 15 min; fuso padrão `America/Sao_Paulo`; bloqueios pontuais com motivo |
+| DEC-014 | Serviço liga profissionais e sala/equipamento (categoria ou recurso) |
+| DEC-046 / REQ-075 | Campo opcional «Explicação para clientes» no serviço |
+| REQ-052 / AC-14 / AC-38 | Config incompleta → `schedulingAllowed=false`; inactivar mantém histórico |
+
+## Schema SQLite (migração 3)
+
+Tabelas: `clinic_settings`, `services`, `resources`, `service_professionals`, `service_room_requirements`, `weekly_windows`, `resource_blocks`, `appointments` (mínimo para impacto de bloqueio).
+
+`CLINIC_SCHEMA_VERSION = 3`.
+
+## APIs
+
+| Método | Path | Quem |
+| --- | --- | --- |
+| GET | `/api/tenants/:id/config` | owner + attendant |
+| GET | `/api/tenants/:id/config/readiness` | owner + attendant |
+| PATCH | `/api/tenants/:id/config/settings` | owner |
+| POST/PUT/PATCH | `.../config/services…` | owner |
+| POST/PUT/PATCH | `.../config/resources…` | owner |
+| PUT | `.../config/resources/:id/weekly` | owner |
+| POST/DELETE | `.../config/blocks…` | owner |
+
+Bloqueio com `dryRun: true` só lista compromissos afectados; create grava o bloqueio **sem** cancelar compromissos.
+
+## UI (painel)
+
+| Path | Ecrã |
+| --- | --- |
+| `/c/:tenantId/clinica` | Hub M-15 |
+| `.../clinica/servicos` · `.../servicos/:id` | Lista + formulário M-16 |
+| `.../clinica/recursos` · profissional/sala | M-20/21/22 |
+| `.../clinica/horarios` | M-17 |
+
+Aba Clínica continua owner-only (#22). Falha de save mantém o formulário.
+
+## Código
+
+| Área | Path |
+| --- | --- |
+| Domínio | `src/clinic/config/` |
+| HTTP | `src/clinic-config/` |
+| DO | métodos `*Clinic*` em `src/worker/clinic-do.ts` |
+| UI | `src/client/panel/screens/clinic/` |
+| Testes | `src/clinic/config/config.test.ts`, `src/clinic-config/http.test.ts` |
+
+## Em aberto / fora deste PR
+
+- Valores reais do catálogo/expedientes da clínica piloto
+- WhatsApp Embedded Signup e «pronta para atender» completa
+- Campos de sinal Pix no serviço (REQ-076 — entrega Pix)
+- UI de Equipe / Pix na hub (API equipe #25; Pix #17)
+- Algoritmo completo de disponibilidade/agenda (#35/#36)
+- Contatos/Inbox (#29) e Acompanhamento (#30)

@@ -28,8 +28,44 @@ describe('panel routes (#22)', () => {
   it('rótulo curto Acompanhar e título Acompanhamento (DEC-045)', () => {
     expect(areaNavLabel('acompanhamento')).toBe('Acompanhar')
     expect(areaTitle('acompanhamento')).toBe('Acompanhamento')
-    expect(panelHref({ kind: 'area', area: 'clinica', tenantId: 'clinic-demo-a' })).toBe(
-      '/c/clinic-demo-a/clinica',
-    )
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'clinica',
+        tenantId: 'clinic-demo-a',
+        section: 'hub',
+      }),
+    ).toBe('/c/clinic-demo-a/clinica')
+  })
+
+  it('resolve sub-rotas de configuração da clínica (#28)', () => {
+    expect(resolvePanelRoute('/c/clinic-demo-a/clinica')).toEqual({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'hub',
+      entityId: undefined,
+    })
+    expect(resolvePanelRoute('/c/clinic-demo-a/clinica/servicos/novo')).toEqual({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'servico',
+      entityId: 'novo',
+    })
+    expect(resolvePanelRoute('/c/clinic-demo-a/clinica/recursos/profissional/pro_1')).toEqual({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'profissional',
+      entityId: 'pro_1',
+    })
+    expect(resolvePanelRoute('/c/clinic-demo-a/clinica/horarios')).toEqual({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'horarios',
+      entityId: undefined,
+    })
   })
 })

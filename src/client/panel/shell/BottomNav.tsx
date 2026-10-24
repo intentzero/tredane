@@ -1,6 +1,6 @@
 import { Calendar, Kanban, MessageCircle, SlidersHorizontal } from 'lucide-react'
 import type { PanelArea } from '../routes'
-import { areaNavLabel, navigatePanel } from '../routes'
+import { areaNavLabel, areaRoute, navigatePanel, panelHref } from '../routes'
 
 const BASE_AREAS: PanelArea[] = ['conversas', 'acompanhamento', 'agenda']
 
@@ -28,14 +28,15 @@ export function BottomNav({ tenantId, active, showClinica }: Props) {
                 ? Calendar
                 : SlidersHorizontal
         const current = area === active
+        const route = areaRoute(tenantId, area)
         return (
           <a
             key={area}
-            href={`/c/${encodeURIComponent(tenantId)}/${area === 'acompanhamento' ? 'acompanhamento' : area}`}
+            href={panelHref(route)}
             aria-current={current ? 'page' : undefined}
             onClick={(e) => {
               e.preventDefault()
-              navigatePanel({ kind: 'area', area, tenantId })
+              navigatePanel(route)
             }}
           >
             <Icon aria-hidden="true" size={24} strokeWidth={2} />

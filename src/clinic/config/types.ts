@@ -1,0 +1,149 @@
+import type { BlockReason, ResourceKind } from '../constants'
+
+export type ServiceRow = {
+  id: string
+  tenantId: string
+  name: string
+  durationMinutes: number
+  bufferMinutes: number
+  priceCents: number | null
+  clientExplanation: string | null
+  active: boolean
+  createdAt: number
+  updatedAt: number
+  professionalIds: string[]
+  roomRequirement: RoomRequirement
+}
+
+export type RoomRequirement =
+  | { mode: 'none' }
+  | { mode: 'category'; category: string }
+  | { mode: 'resource'; resourceId: string }
+
+export type ResourceRow = {
+  id: string
+  tenantId: string
+  kind: ResourceKind
+  name: string
+  category: string | null
+  active: boolean
+  createdAt: number
+  updatedAt: number
+  futureAppointmentCount: number
+}
+
+export type WeeklyWindowRow = {
+  id: string
+  tenantId: string
+  resourceId: string
+  dayOfWeek: number
+  startMinute: number
+  endMinute: number
+}
+
+export type ResourceBlockRow = {
+  id: string
+  tenantId: string
+  resourceId: string
+  startsAt: number
+  endsAt: number
+  reason: BlockReason
+  note: string | null
+  createdAt: number
+}
+
+export type AppointmentRow = {
+  id: string
+  tenantId: string
+  serviceId: string
+  professionalId: string
+  roomResourceId: string | null
+  startsAt: number
+  endsAt: number
+  status: 'confirmed' | 'cancelled'
+  contactLabel: string | null
+  createdAt: number
+}
+
+export type ClinicSettingsRow = {
+  tenantId: string
+  timezone: string
+  updatedAt: number
+}
+
+export type ConfigReadiness = {
+  /** Serviços + profissional + sala/equipamento + expediente mínimo (REQ-052 agenda). */
+  agendaConfigured: boolean
+  /** Agenda configurada + WhatsApp — WhatsApp fora deste PR. */
+  readyToServe: boolean
+  /** Novos agendamentos só com agendaConfigured. */
+  schedulingAllowed: boolean
+  missing: Array<
+    | 'service'
+    | 'professional'
+    | 'room_or_equipment'
+    | 'weekly_availability'
+    | 'whatsapp'
+  >
+  timezone: string
+  counts: {
+    servicesActive: number
+    professionalsActive: number
+    roomsActive: number
+    resourcesWithWeekly: number
+  }
+}
+
+export type ConfigSnapshot = {
+  settings: ClinicSettingsRow
+  services: ServiceRow[]
+  resources: ResourceRow[]
+  weeklyWindows: WeeklyWindowRow[]
+  blocks: ResourceBlockRow[]
+  readiness: ConfigReadiness
+}
+
+export type UpsertServiceInput = {
+  id?: string
+  name: string
+  durationMinutes: number
+  bufferMinutes: number
+  priceCents?: number | null
+  clientExplanation?: string | null
+  active?: boolean
+  professionalIds: string[]
+  roomRequirement?: RoomRequirement
+}
+
+export type UpsertResourceInput = {
+  id?: string
+  kind: ResourceKind
+  name: string
+  category?: string | null
+  active?: boolean
+}
+
+export type SetWeeklyWindowsInput = {
+  resourceId: string
+  windows: Array<{
+    dayOfWeek: number
+    startMinute: number
+    endMinute: number
+  }>
+}
+
+export type CreateBlockInput = {
+  resourceId: string
+  startsAt: number
+  endsAt: number
+  reason: BlockReason
+  note?: string | null
+  /** Se true e há compromissos, não grava — devolve só a lista (pré-visualização). */
+  dryRun?: boolean
+}
+
+export type CreateBlockResult = {
+  created: boolean
+  block: ResourceBlockRow | null
+  affectedAppointments: AppointmentRow[]
+}

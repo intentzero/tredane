@@ -1,0 +1,435 @@
+/**
+ * Rotas de configuração da clínica (#28 / DEC-008/014/042/046).
+ * Leituras: owner + attendant. Escritas: só owner (clinic.config.write).
+ */
+import { Hono } from 'hono'
+import { requireClinicPermission } from '../auth/authorize'
+import {
+  authErrorResponse,
+  requireAuth,
+  requireTenantAccess,
+  type AuthEnv,
+} from '../auth/middleware'
+import { isAuthError } from '../auth/errors'
+import {
+  ClinicError,
+  NotFoundError,
+  ValidationError,
+  workerCaller,
+} from '../clinic'
+import type { WorkerBindings } from '../worker/bindings'
+import type { ClinicConfigGateway } from './gateway'
+import {
+  serializeBlockResult,
+  serializeReadiness,
+  serializeResource,
+  serializeService,
+  serializeSettings,
+  serializeSnapshot,
+  serializeWindow,
+} from './serialize'
+
+type ConfigEnv = {
+  Bindings: WorkerBindings
+  Variables: AuthEnv['Variables']
+}
+
+export type ClinicConfigRouteOptions = {
+  /**
+   * Injeta gateway (testes com SQLite em memória).
+   * Produção: RPC ao Clinic DO.
+   */
+  gatewayFactory?: (
+    env: WorkerBindings,
+    tenantId: string,
+  ) => ClinicConfigGateway | Promise<ClinicConfigGateway>
+}
+
+function configErrorResponse(
+  c: { json: (body: unknown, status?: number) => Response },
+  err: unknown,
+): Response {
+  if (isAuthError(err)) return authErrorResponse(c, err)
+  if (err instanceof ValidationError) {
+    return c.json(
+      { error: err.code, message: err.message, details: err.details ?? null },
+      400,
+    )
+  }
+  if (err instanceof NotFoundError) {
+    return c.json({ error: err.code, message: err.message }, 404)
+  }
+  if (err instanceof ClinicError) {
+    const status =
+      err.code === 'tenant_mismatch' || err.code === 'unauthorized_caller'
+        ? 403
+        : 400
+    return c.json({ error: err.code, message: err.message }, status)
+  }
+  return c.json(
+    { error: err instanceof Error ? err.message : 'config_error' },
+    400,
+  )
+}
+
+function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGateway {
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  return {
+    getSnapshot: (caller) => stub.getConfigSnapshot(caller),
+    getReadiness: (caller) => stub.getConfigReadiness(caller),
+    updateTimezone: (caller, timezone) => stub.updateClinicTimezone(caller, timezone),
+    upsertService: (caller, input) => stub.upsertClinicService(caller, input),
+    setServiceActive: (caller, serviceId, active) =>
+      stub.setClinicServiceActive(caller, serviceId, active),
+    upsertResource: (caller, input) => stub.upsertClinicResource(caller, input),
+    setResourceActive: (caller, resourceId, active) =>
+      stub.setClinicResourceActive(caller, resourceId, active),
+    setWeeklyWindows: (caller, input) => stub.setClinicWeeklyWindows(caller, input),
+    createBlock: (caller, input) => stub.createClinicBlock(caller, input),
+    deleteBlock: (caller, blockId) => stub.deleteClinicBlock(caller, blockId),
+    insertAppointment: (caller, input) =>
+      stub.insertSyntheticAppointmentForTests(caller, input),
+  }
+}
+
+async function resolveGateway(
+  env: WorkerBindings,
+  tenantId: string,
+  opts: ClinicConfigRouteOptions,
+): Promise<ClinicConfigGateway> {
+  if (opts.gatewayFactory) {
+    return opts.gatewayFactory(env, tenantId)
+  }
+  return createDoGateway(env, tenantId)
+}
+
+function callerFromContext(tenantId: string, actorId: string) {
+  return workerCaller(tenantId, actorId)
+}
+
+export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
+  const app = new Hono<ConfigEnv>()
+
+  const tenant = [
+    requireAuth(),
+    requireTenantAccess({ param: 'tenantId' }),
+  ] as const
+
+  app.get('/api/tenants/:tenantId/config', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.context.read')
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const snap = await gw.getSnapshot(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+      )
+      return c.json(serializeSnapshot(snap))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.get('/api/tenants/:tenantId/config/readiness', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.context.read')
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const readiness = await gw.getReadiness(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+      )
+      return c.json(serializeReadiness(readiness))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.patch('/api/tenants/:tenantId/config/settings', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<{ timezone?: string }>()
+      if (!body?.timezone || typeof body.timezone !== 'string') {
+        return c.json({ error: 'invalid_body' }, 400)
+      }
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const settings = await gw.updateTimezone(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        body.timezone,
+      )
+      return c.json(serializeSettings(settings))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.post('/api/tenants/:tenantId/config/services', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<Record<string, unknown>>()
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const row = await gw.upsertService(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        parseServiceBody(body),
+      )
+      return c.json(serializeService(row), 201)
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.put('/api/tenants/:tenantId/config/services/:serviceId', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<Record<string, unknown>>()
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const row = await gw.upsertService(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        { ...parseServiceBody(body), id: c.req.param('serviceId') },
+      )
+      return c.json(serializeService(row))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.patch(
+    '/api/tenants/:tenantId/config/services/:serviceId/active',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const body = await c.req.json<{ active?: boolean }>()
+        if (typeof body?.active !== 'boolean') {
+          return c.json({ error: 'invalid_body' }, 400)
+        }
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const row = await gw.setServiceActive(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          c.req.param('serviceId'),
+          body.active,
+        )
+        return c.json(serializeService(row))
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.post('/api/tenants/:tenantId/config/resources', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<Record<string, unknown>>()
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const row = await gw.upsertResource(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        parseResourceBody(body),
+      )
+      return c.json(serializeResource(row), 201)
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.put(
+    '/api/tenants/:tenantId/config/resources/:resourceId',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const body = await c.req.json<Record<string, unknown>>()
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const row = await gw.upsertResource(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          { ...parseResourceBody(body), id: c.req.param('resourceId') },
+        )
+        return c.json(serializeResource(row))
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.patch(
+    '/api/tenants/:tenantId/config/resources/:resourceId/active',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const body = await c.req.json<{ active?: boolean }>()
+        if (typeof body?.active !== 'boolean') {
+          return c.json({ error: 'invalid_body' }, 400)
+        }
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const row = await gw.setResourceActive(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          c.req.param('resourceId'),
+          body.active,
+        )
+        return c.json(serializeResource(row))
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.put(
+    '/api/tenants/:tenantId/config/resources/:resourceId/weekly',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const body = await c.req.json<{ windows?: unknown }>()
+        if (!Array.isArray(body?.windows)) {
+          return c.json({ error: 'invalid_body' }, 400)
+        }
+        const windows = body.windows.map((w) => {
+          const item = w as Record<string, unknown>
+          return {
+            dayOfWeek: Number(item.dayOfWeek),
+            startMinute: Number(item.startMinute),
+            endMinute: Number(item.endMinute),
+          }
+        })
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const rows = await gw.setWeeklyWindows(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          { resourceId: c.req.param('resourceId'), windows },
+        )
+        return c.json({ windows: rows.map(serializeWindow) })
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.post('/api/tenants/:tenantId/config/blocks', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<Record<string, unknown>>()
+      if (
+        typeof body.resourceId !== 'string'
+        || typeof body.startsAt !== 'number'
+        || typeof body.endsAt !== 'number'
+        || typeof body.reason !== 'string'
+      ) {
+        return c.json({ error: 'invalid_body' }, 400)
+      }
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const result = await gw.createBlock(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        {
+          resourceId: body.resourceId,
+          startsAt: body.startsAt,
+          endsAt: body.endsAt,
+          reason: body.reason as 'folga' | 'ferias' | 'feriado' | 'manutencao' | 'outro',
+          note: typeof body.note === 'string' ? body.note : null,
+          dryRun: body.dryRun === true,
+        },
+      )
+      return c.json(serializeBlockResult(result), result.created ? 201 : 200)
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.delete(
+    '/api/tenants/:tenantId/config/blocks/:blockId',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        await gw.deleteBlock(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          c.req.param('blockId'),
+        )
+        return c.json({ ok: true })
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  /**
+   * Harness sintético: cria compromisso mínimo para testes de impacto de bloqueio.
+   * Não é API de produto de agenda.
+   */
+  app.post('/api/tenants/:tenantId/config/test-appointments', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      if (c.env?.ENVIRONMENT === 'production') {
+        return c.json({ error: 'not_available' }, 404)
+      }
+      const body = await c.req.json<Record<string, unknown>>()
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      if (!gw.insertAppointment) {
+        return c.json({ error: 'not_supported' }, 501)
+      }
+      const row = await gw.insertAppointment(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        {
+          serviceId: String(body.serviceId ?? ''),
+          professionalId: String(body.professionalId ?? ''),
+          roomResourceId:
+            typeof body.roomResourceId === 'string' ? body.roomResourceId : null,
+          startsAt: Number(body.startsAt),
+          endsAt: Number(body.endsAt),
+          contactLabel:
+            typeof body.contactLabel === 'string' ? body.contactLabel : null,
+        },
+      )
+      return c.json(row, 201)
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  return app
+}
+
+function parseServiceBody(body: Record<string, unknown>) {
+  return {
+    name: String(body.name ?? ''),
+    durationMinutes: Number(body.durationMinutes),
+    bufferMinutes: Number(body.bufferMinutes ?? 0),
+    priceCents:
+      body.priceCents === null || body.priceCents === undefined
+        ? null
+        : Number(body.priceCents),
+    clientExplanation:
+      body.clientExplanation === null || body.clientExplanation === undefined
+        ? null
+        : String(body.clientExplanation),
+    active: body.active === false ? false : true,
+    professionalIds: Array.isArray(body.professionalIds)
+      ? body.professionalIds.map(String)
+      : [],
+    roomRequirement: body.roomRequirement as
+      | undefined
+      | { mode: 'none' }
+      | { mode: 'category'; category: string }
+      | { mode: 'resource'; resourceId: string },
+  }
+}
+
+function parseResourceBody(body: Record<string, unknown>) {
+  return {
+    kind: String(body.kind ?? '') as 'professional' | 'room' | 'equipment',
+    name: String(body.name ?? ''),
+    category:
+      body.category === null || body.category === undefined
+        ? null
+        : String(body.category),
+    active: body.active === false ? false : true,
+  }
+}

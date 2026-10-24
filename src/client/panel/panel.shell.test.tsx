@@ -64,6 +64,41 @@ function mockApis(opts: {
           headers: { 'Content-Type': 'application/json' },
         })
       }
+      if (/\/api\/tenants\/[^/]+\/config/.test(url)) {
+        return new Response(
+          JSON.stringify({
+            settings: {
+              tenantId: 'clinic-demo-a',
+              timezone: 'America/Sao_Paulo',
+              updatedAt: 0,
+            },
+            services: [],
+            resources: [],
+            weeklyWindows: [],
+            blocks: [],
+            readiness: {
+              agendaConfigured: false,
+              readyToServe: false,
+              schedulingAllowed: false,
+              missing: [
+                'service',
+                'professional',
+                'room_or_equipment',
+                'weekly_availability',
+                'whatsapp',
+              ],
+              timezone: 'America/Sao_Paulo',
+              counts: {
+                servicesActive: 0,
+                professionalsActive: 0,
+                roomsActive: 0,
+                resourcesWithWeekly: 0,
+              },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
       return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 })
     }),
   )
@@ -127,6 +162,12 @@ describe('panel shell (#22)', () => {
 
     await user.click(within(nav).getByText('Acompanhar'))
     expect(await screen.findByRole('heading', { name: 'Acompanhamento' })).toBeTruthy()
+
+    await user.click(within(nav).getByText('Clínica'))
+    expect(
+      await screen.findByRole('heading', { name: /passos? para atender/i }),
+    ).toBeTruthy()
+    expect(screen.getByText('Serviços')).toBeTruthy()
 
     await expectNoAxeViolations(container)
   })

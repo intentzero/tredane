@@ -1,0 +1,115 @@
+import type {
+  AppointmentRow,
+  ConfigReadiness,
+  ConfigSnapshot,
+  CreateBlockResult,
+  ResourceBlockRow,
+  ResourceRow,
+  ServiceRow,
+  WeeklyWindowRow,
+  ClinicSettingsRow,
+} from '../clinic/config'
+
+export function serializeSettings(row: ClinicSettingsRow) {
+  return {
+    tenantId: row.tenantId,
+    timezone: row.timezone,
+    updatedAt: row.updatedAt,
+  }
+}
+
+export function serializeService(row: ServiceRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    durationMinutes: row.durationMinutes,
+    bufferMinutes: row.bufferMinutes,
+    occupiedMinutes: row.durationMinutes + row.bufferMinutes,
+    priceCents: row.priceCents,
+    clientExplanation: row.clientExplanation,
+    active: row.active,
+    professionalIds: row.professionalIds,
+    roomRequirement: row.roomRequirement,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }
+}
+
+export function serializeResource(row: ResourceRow & { servicesWithoutResource?: string[] }) {
+  return {
+    id: row.id,
+    kind: row.kind,
+    name: row.name,
+    category: row.category,
+    active: row.active,
+    futureAppointmentCount: row.futureAppointmentCount,
+    servicesWithoutResource: row.servicesWithoutResource,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }
+}
+
+export function serializeWindow(row: WeeklyWindowRow) {
+  return {
+    id: row.id,
+    resourceId: row.resourceId,
+    dayOfWeek: row.dayOfWeek,
+    startMinute: row.startMinute,
+    endMinute: row.endMinute,
+  }
+}
+
+export function serializeBlock(row: ResourceBlockRow) {
+  return {
+    id: row.id,
+    resourceId: row.resourceId,
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    reason: row.reason,
+    note: row.note,
+    createdAt: row.createdAt,
+  }
+}
+
+export function serializeAppointment(row: AppointmentRow) {
+  return {
+    id: row.id,
+    serviceId: row.serviceId,
+    professionalId: row.professionalId,
+    roomResourceId: row.roomResourceId,
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    status: row.status,
+    contactLabel: row.contactLabel,
+  }
+}
+
+export function serializeReadiness(row: ConfigReadiness) {
+  return {
+    agendaConfigured: row.agendaConfigured,
+    readyToServe: row.readyToServe,
+    schedulingAllowed: row.schedulingAllowed,
+    missing: row.missing,
+    timezone: row.timezone,
+    counts: row.counts,
+  }
+}
+
+export function serializeSnapshot(snap: ConfigSnapshot) {
+  return {
+    settings: serializeSettings(snap.settings),
+    services: snap.services.map(serializeService),
+    resources: snap.resources.map(serializeResource),
+    weeklyWindows: snap.weeklyWindows.map(serializeWindow),
+    blocks: snap.blocks.map(serializeBlock),
+    readiness: serializeReadiness(snap.readiness),
+  }
+}
+
+export function serializeBlockResult(result: CreateBlockResult) {
+  return {
+    created: result.created,
+    block: result.block ? serializeBlock(result.block) : null,
+    affectedAppointments: result.affectedAppointments.map(serializeAppointment),
+  }
+}

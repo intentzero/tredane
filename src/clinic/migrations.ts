@@ -10,6 +10,11 @@ import {
   MIGRATION_NAME as M2_NAME,
   STATEMENTS as M2_STATEMENTS,
 } from './migrations/0002_realtime_fence'
+import {
+  MIGRATION_ID as M3_ID,
+  MIGRATION_NAME as M3_NAME,
+  STATEMENTS as M3_STATEMENTS,
+} from './migrations/0003_clinic_config'
 import type { ClinicDb } from './store'
 import type { Clock } from '../db/clock'
 
@@ -23,6 +28,7 @@ export type ClinicMigration = {
 export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M1_ID, name: M1_NAME, statements: M1_STATEMENTS },
   { id: M2_ID, name: M2_NAME, statements: M2_STATEMENTS },
+  { id: M3_ID, name: M3_NAME, statements: M3_STATEMENTS },
 ]
 
 export type MigrationResult = {
