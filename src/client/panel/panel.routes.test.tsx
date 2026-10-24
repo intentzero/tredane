@@ -32,8 +32,39 @@ describe('panel routes (#22)', () => {
       section: 'detalhe',
       opportunityId: 'opp_1',
     })
+    expect(resolvePanelRoute('/c/clinic-demo-a/agenda')).toEqual({
+      kind: 'area',
+      area: 'agenda',
+      tenantId: 'clinic-demo-a',
+      section: 'dia',
+    })
+    expect(resolvePanelRoute('/c/clinic-demo-a/agenda/agendar')).toEqual({
+      kind: 'area',
+      area: 'agenda',
+      tenantId: 'clinic-demo-a',
+      section: 'agendar',
+    })
     expect(resolvePanelRoute('/')).toBeNull()
     expect(resolvePanelRoute('/prova')).toBeNull()
+  })
+
+  it('href agenda / agendar (#35)', () => {
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'agenda',
+        tenantId: 'clinic-demo-a',
+        section: 'dia',
+      }),
+    ).toBe('/c/clinic-demo-a/agenda')
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'agenda',
+        tenantId: 'clinic-demo-a',
+        section: 'agendar',
+      }),
+    ).toBe('/c/clinic-demo-a/agenda/agendar')
   })
 
   it('rótulo curto Acompanhar e título Acompanhamento (DEC-045)', () => {

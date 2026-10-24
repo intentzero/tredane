@@ -172,7 +172,12 @@ export function AcompanhamentoDetail({
             <Button
               className="panel-btn-primary"
               onPress={() =>
-                navigatePanel({ kind: 'area', area: 'agenda', tenantId })
+                navigatePanel({
+                  kind: 'area',
+                  area: 'agenda',
+                  tenantId,
+                  section: 'agendar',
+                })
               }
             >
               Agendar horário
@@ -192,7 +197,12 @@ export function AcompanhamentoDetail({
             <Button
               className="panel-btn-secondary"
               onPress={() =>
-                navigatePanel({ kind: 'area', area: 'agenda', tenantId })
+                navigatePanel({
+                  kind: 'area',
+                  area: 'agenda',
+                  tenantId,
+                  section: 'dia',
+                })
               }
             >
               Ver na agenda

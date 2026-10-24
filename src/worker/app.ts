@@ -31,6 +31,11 @@ import {
   type ClinicConfigRouteOptions,
 } from '../clinic-config'
 import {
+  createSchedulingRoutes,
+  type SchedulingRouteOptions,
+} from '../scheduling'
+import type { SchedulingGateway } from '../scheduling'
+import {
   createInboxRoutes,
   type InboxRouteOptions,
 } from '../inbox'
@@ -83,6 +88,11 @@ export type CreateAppOptions = {
     env: WorkerBindings,
     tenantId: string,
   ) => ClinicConfigGateway | Promise<ClinicConfigGateway>
+  /** Gateway de disponibilidade (#35). */
+  schedulingGatewayFactory?: (
+    env: WorkerBindings,
+    tenantId: string,
+  ) => SchedulingGateway | Promise<SchedulingGateway>
   /** Gateway da caixa de entrada (#29). */
   inboxGatewayFactory?: (
     env: WorkerBindings,
@@ -154,6 +164,11 @@ export function createApp(opts: CreateAppOptions = {}) {
     gatewayFactory: opts.clinicConfigGatewayFactory,
   }
   app.route('/', createClinicConfigRoutes(configOpts))
+
+  const schedulingOpts: SchedulingRouteOptions = {
+    gatewayFactory: opts.schedulingGatewayFactory,
+  }
+  app.route('/', createSchedulingRoutes(schedulingOpts))
 
   const inboxOpts: InboxRouteOptions = {
     gatewayFactory: opts.inboxGatewayFactory,
