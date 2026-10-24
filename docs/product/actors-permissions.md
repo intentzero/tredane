@@ -35,9 +35,13 @@
 | Administrar cadastro e ciclo de vida de tenants | — | — | — | — | ✓ |
 | Aprovar/rejeitar pedido de suporte do próprio tenant | — | — | ✓ | — | — |
 | Encerrar qualquer sessão ativa de suporte no próprio tenant (DEC-034) | — | — | ✓ | — | — |
+| Solicitar encerramento de suporte quando for o próprio utilizador representado (DEC-037) | — | ✓* | ✓* | — | — |
+| Decidir manter/encerrar suporte após pedido do subject da própria clínica (DEC-037) | — | — | ✓ | — | — |
 | Encerrar voluntariamente a própria sessão de suporte como actor | — | — | — | — | ✓ |
 
 | Solicitar suporte e iniciar impersonação somente após aprovação do owner | — | — | — | — | ✓ |
+
+\* Somente quando o utilizador autenticado é o **subject** da sessão ativa naquele tenant; a solicitação não revoga o suporte nem concede acesso administrativo.
 
 Operação e suporte devem partir de metadados e registros técnicos. Qualquer acesso excepcional a conteúdo de uma clínica requer política, autorização e auditoria específicas, ainda não definidas.
 
