@@ -1,4 +1,4 @@
-/** Rotas produtivas do painel (#22/#28). Sem React Router — pathname + history. */
+/** Rotas produtivas do painel (#22/#28/#29). Sem React Router — pathname + history. */
 
 export type PanelArea = 'conversas' | 'acompanhamento' | 'agenda' | 'clinica'
 
@@ -11,12 +11,23 @@ export type ClinicaSection =
   | 'sala'
   | 'horarios'
 
+/** Sub-rotas de Conversas (#29): lista → thread → contacto. */
+export type ConversasSection = 'lista' | 'thread' | 'contato'
+
 export type PanelRoute =
   | { kind: 'entrar' }
   | { kind: 'clinicas' }
   | {
       kind: 'area'
-      area: Exclude<PanelArea, 'clinica'>
+      area: 'conversas'
+      tenantId: string
+      section: ConversasSection
+      conversationId?: string
+      contactId?: string
+    }
+  | {
+      kind: 'area'
+      area: Exclude<PanelArea, 'clinica' | 'conversas'>
       tenantId: string
     }
   | {
@@ -74,6 +85,23 @@ function parseClinicaRest(rest: string | undefined): {
   return { section: 'hub' }
 }
 
+function parseConversasRest(rest: string | undefined): {
+  section: ConversasSection
+  conversationId?: string
+  contactId?: string
+} {
+  if (!rest) return { section: 'lista' }
+  const parts = rest.split('/').filter(Boolean)
+  if (parts[0] === 'contato' && parts[1]) {
+    return { section: 'contato', contactId: decodeURIComponent(parts[1]) }
+  }
+  const conversationId = decodeURIComponent(parts[0]!)
+  if (parts[1] === 'contato') {
+    return { section: 'contato', conversationId, contactId: undefined }
+  }
+  return { section: 'thread', conversationId }
+}
+
 export function resolvePanelRoute(pathname: string): PanelRoute | null {
   const path = pathname.replace(/\/+$/, '') || '/'
   // Prefixo: Clerk SignIn usa /entrar/factor-one etc.
@@ -90,6 +118,17 @@ export function resolvePanelRoute(pathname: string): PanelRoute | null {
     const { section, entityId } = parseClinicaRest(match[3])
     return { kind: 'area', area: 'clinica', tenantId, section, entityId }
   }
+  if (area === 'conversas') {
+    const parsed = parseConversasRest(match[3])
+    return {
+      kind: 'area',
+      area: 'conversas',
+      tenantId,
+      section: parsed.section,
+      conversationId: parsed.conversationId,
+      contactId: parsed.contactId,
+    }
+  }
   return { kind: 'area', area, tenantId }
 }
 
@@ -101,6 +140,19 @@ export function panelHref(route: PanelRoute): string {
       return '/clinicas'
     case 'area': {
       const base = `/c/${encodeURIComponent(route.tenantId)}/${AREA_PATH[route.area]}`
+      if (route.area === 'conversas') {
+        if (route.section === 'lista') return base
+        if (route.section === 'contato' && route.contactId && !route.conversationId) {
+          return `${base}/contato/${encodeURIComponent(route.contactId)}`
+        }
+        if (route.section === 'contato' && route.conversationId) {
+          return `${base}/${encodeURIComponent(route.conversationId)}/contato`
+        }
+        if (route.conversationId) {
+          return `${base}/${encodeURIComponent(route.conversationId)}`
+        }
+        return base
+      }
       if (route.area !== 'clinica') return base
       switch (route.section) {
         case 'hub':
@@ -151,10 +203,13 @@ export function navigatePanel(route: PanelRoute, replace = false): void {
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
-/** Rota de área do shell — Clínica abre no hub (#28). */
+/** Rota de área do shell — Clínica abre no hub (#28); Conversas na lista (#29). */
 export function areaRoute(tenantId: string, area: PanelArea): PanelRoute {
   if (area === 'clinica') {
     return { kind: 'area', area: 'clinica', tenantId, section: 'hub' }
+  }
+  if (area === 'conversas') {
+    return { kind: 'area', area: 'conversas', tenantId, section: 'lista' }
   }
   return { kind: 'area', area, tenantId }
 }

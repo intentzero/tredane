@@ -3,6 +3,8 @@ import { writeOperationalAudit } from './audit'
 import { upsertContact, type ContactRow } from './contacts'
 import type { ClinicCaller } from './envelopes'
 import { assertValidCaller } from './envelopes'
+import { appendInboundToConversation } from './inbox/operations'
+import type { ConversationRow, MessageRow } from './inbox/types'
 import { recordInboundEvent, type InboundRow } from './inbound'
 import { assertClinicSchemaReady } from './migrations'
 import {
@@ -25,7 +27,11 @@ export type IngestContactMessageResult = {
   duplicate: boolean
   contact: ContactRow
   inbound: InboundRow
+  conversation: ConversationRow | null
+  message: MessageRow | null
+  /** Primeiro outbox (contact.upserted); demais em `outboxes`. */
   outbox: OutboxRow | null
+  outboxes: OutboxRow[]
   /**
    * Efeitos externos NÃO executados aqui — o chamador deve chamar
    * `publishPendingEffects` depois do commit (ou o DO faz drain pós-RPC).
@@ -34,7 +40,7 @@ export type IngestContactMessageResult = {
 }
 
 /**
- * Primitiva transacional: dedup inbound + contacto + audit + outbox.
+ * Primitiva transacional: dedup inbound + contacto + conversa/mensagem + audit + outbox.
  * Proibido HTTP/Queues/R2 dentro de `transactionSync` (ADR-0012).
  */
 export function ingestContactMessage(
@@ -72,7 +78,10 @@ export function ingestContactMessage(
         duplicate: true,
         contact,
         inbound: inbound.row,
+        conversation: null,
+        message: null,
         outbox: null,
+        outboxes: [],
         externalCallsInsideTransaction: 0,
       }
     }
@@ -80,6 +89,17 @@ export function ingestContactMessage(
     const contact = upsertContact(
       db,
       { tenantId: meta.tenantId, waId: input.waId, displayName: input.displayName },
+      clock,
+    )
+
+    const appended = appendInboundToConversation(
+      db,
+      {
+        tenantId: meta.tenantId,
+        contactId: contact.id,
+        providerEventKey: input.providerEventKey,
+        body: input.body,
+      },
       clock,
     )
 
@@ -94,12 +114,14 @@ export function ingestContactMessage(
         detail: {
           providerEventKey: input.providerEventKey,
           waId: input.waId,
+          conversationId: appended.conversation.id,
+          messageId: appended.message.id,
         },
       },
       clock,
     )
 
-    const outbox = insertOutboxEvent(
+    const contactOutbox = insertOutboxEvent(
       db,
       {
         tenantId: meta.tenantId,
@@ -112,16 +134,77 @@ export function ingestContactMessage(
           waId: contact.waId,
           providerEventKey: input.providerEventKey,
           bodyPreview: input.body.slice(0, 120),
+          conversationId: appended.conversation.id,
         },
       },
       clock,
     )
 
+    const messageOutbox = insertOutboxEvent(
+      db,
+      {
+        tenantId: meta.tenantId,
+        type: 'message.created',
+        aggregateType: 'message',
+        aggregateId: appended.message.id,
+        idempotencyKey: `message.created:${input.providerEventKey}`,
+        payload: {
+          conversationId: appended.conversation.id,
+          messageId: appended.message.id,
+          contactId: contact.id,
+          direction: 'inbound',
+          bodyPreview: input.body.slice(0, 120),
+          deliveryState: 'received',
+        },
+      },
+      clock,
+    )
+
+    const conversationOutbox = appended.createdConversation
+      ? insertOutboxEvent(
+          db,
+          {
+            tenantId: meta.tenantId,
+            type: 'conversation.created',
+            aggregateType: 'conversation',
+            aggregateId: appended.conversation.id,
+            idempotencyKey: `conversation.created:${appended.conversation.id}`,
+            payload: {
+              conversationId: appended.conversation.id,
+              contactId: contact.id,
+              status: appended.conversation.status,
+            },
+          },
+          clock,
+        )
+      : insertOutboxEvent(
+          db,
+          {
+            tenantId: meta.tenantId,
+            type: 'conversation.updated',
+            aggregateType: 'conversation',
+            aggregateId: appended.conversation.id,
+            idempotencyKey: `conversation.updated:${input.providerEventKey}`,
+            payload: {
+              conversationId: appended.conversation.id,
+              contactId: contact.id,
+              status: appended.conversation.status,
+              unreadCount: appended.conversation.unreadCount,
+              lastMessagePreview: appended.conversation.lastMessagePreview,
+            },
+          },
+          clock,
+        )
+
+    const outboxes = [contactOutbox, messageOutbox, conversationOutbox]
     return {
       duplicate: false,
       contact,
       inbound: inbound.row,
-      outbox,
+      conversation: appended.conversation,
+      message: appended.message,
+      outbox: contactOutbox,
+      outboxes,
       externalCallsInsideTransaction: 0,
     }
   })

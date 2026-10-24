@@ -13,6 +13,7 @@ export {
   ValidationError,
 } from './errors'
 export * as clinicConfig from './config'
+export * as clinicInbox from './inbox'
 export { fromNodeSqlite, fromDurableObjectSql, type ClinicDb, type SqlValue } from './store'
 export {
   runClinicMigrations,

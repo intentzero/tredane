@@ -297,7 +297,236 @@ export function createPanelApi(getToken: TokenGetter) {
       assertGeneration(opts)
       if (!res.ok) throw await parseError(res)
     },
+
+    async listInboxConversations(
+      tenantId: string,
+      query: {
+        filter?: InboxFilter
+        q?: string
+        before?: number | null
+        limit?: number
+      } = {},
+      opts?: FetchOpts,
+    ): Promise<InboxListResponse> {
+      const params = new URLSearchParams()
+      if (query.filter && query.filter !== 'all') params.set('filter', query.filter)
+      if (query.q) params.set('q', query.q)
+      if (query.before != null) params.set('before', String(query.before))
+      if (query.limit != null) params.set('limit', String(query.limit))
+      const qs = params.toString()
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/conversations${qs ? `?${qs}` : ''}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as InboxListResponse
+    },
+
+    async getInboxConversation(
+      tenantId: string,
+      conversationId: string,
+      query: { before?: number | null; messageLimit?: number } = {},
+      opts?: FetchOpts,
+    ): Promise<InboxConversationDetail> {
+      const params = new URLSearchParams()
+      if (query.before != null) params.set('before', String(query.before))
+      if (query.messageLimit != null) params.set('messageLimit', String(query.messageLimit))
+      const qs = params.toString()
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/conversations/${encodeURIComponent(conversationId)}${qs ? `?${qs}` : ''}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as InboxConversationDetail
+    },
+
+    async getInboxContact(
+      tenantId: string,
+      contactId: string,
+      opts?: FetchOpts,
+    ): Promise<InboxContactDetail> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/contacts/${encodeURIComponent(contactId)}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as InboxContactDetail
+    },
+
+    async assignInboxConversation(
+      tenantId: string,
+      conversationId: string,
+      body: {
+        assigneeClerkUserId?: string | null
+        assigneeDisplayName?: string | null
+        expectedAssignmentVersion?: number | null
+      },
+      opts?: FetchOpts,
+    ): Promise<InboxAssignResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/conversations/${encodeURIComponent(conversationId)}/assign`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok && res.status !== 409) throw await parseError(res)
+      return (await res.json()) as InboxAssignResponse
+    },
+
+    async markInboxRead(
+      tenantId: string,
+      conversationId: string,
+      opts?: FetchOpts,
+    ): Promise<{ conversation: InboxConversation }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/conversations/${encodeURIComponent(conversationId)}/read`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { conversation: InboxConversation }
+    },
+
+    async closeInboxConversation(
+      tenantId: string,
+      conversationId: string,
+      opts?: FetchOpts,
+    ): Promise<InboxAssignResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/conversations/${encodeURIComponent(conversationId)}/close`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as InboxAssignResponse
+    },
+
+    async sendInboxMessage(
+      tenantId: string,
+      conversationId: string,
+      body: { body: string; clientRequestId: string },
+      opts?: FetchOpts,
+    ): Promise<InboxSendResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/conversations/${encodeURIComponent(conversationId)}/messages`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as InboxSendResponse
+    },
+
+    async seedInboxDemo(
+      tenantId: string,
+      opts?: FetchOpts & { force?: boolean },
+    ): Promise<{ seeded: boolean; conversationCount: number }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/seed-demo`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ force: opts?.force === true }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { seeded: boolean; conversationCount: number }
+    },
   }
+}
+
+export type InboxFilter = 'all' | 'new' | 'mine' | 'unassigned' | 'closed'
+
+export type InboxContact = {
+  id: string
+  waId: string
+  displayName: string | null
+  createdAt: number
+}
+
+export type InboxConversation = {
+  id: string
+  tenantId: string
+  contactId: string
+  status: 'new' | 'open' | 'closed'
+  assigneeClerkUserId: string | null
+  assigneeDisplayName: string | null
+  assignmentVersion: number
+  lastMessageAt: number | null
+  lastMessagePreview: string | null
+  lastMessageDirection: 'inbound' | 'outbound' | 'system' | null
+  unreadCount: number
+  createdAt: number
+  updatedAt: number
+  contact: InboxContact
+}
+
+export type InboxMessage = {
+  id: string
+  tenantId: string
+  conversationId: string
+  direction: 'inbound' | 'outbound' | 'system'
+  body: string
+  externalMessageId: string | null
+  deliveryState: string
+  authorClerkUserId: string | null
+  authorDisplayName: string | null
+  createdAt: number
+}
+
+export type InboxCounts = {
+  all: number
+  new: number
+  mine: number
+  unassigned: number
+  closed: number
+}
+
+export type InboxListResponse = {
+  conversations: InboxConversation[]
+  nextBefore: number | null
+  counts: InboxCounts
+}
+
+export type InboxConversationDetail = InboxConversation & {
+  messages: InboxMessage[]
+  messagesHasMore: boolean
+  messagesNextBefore: number | null
+}
+
+export type InboxContactDetail = {
+  contact: InboxContact
+  conversations: InboxConversation[]
+}
+
+export type InboxAssignResponse = {
+  conversation: InboxConversation
+  systemMessage: InboxMessage
+  versionMatched?: boolean
+}
+
+export type InboxSendResponse = {
+  conversation: InboxConversation
+  message: InboxMessage
+  duplicate: boolean
 }
 
 export type RoomRequirementDto =

@@ -228,15 +228,18 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
       }
       const caller = workerCaller(ctx.tenantId, c.get('principal').clerkUserId)
       const stub = clinicStub(c.env, ctx.tenantId)
-      const [status, contacts] = await Promise.all([
+      const [status, contacts, inbox] = await Promise.all([
         stub.getStatus(caller),
         stub.listSyntheticContacts(caller),
+        stub.listInboxSnapshot(caller, c.get('principal').clerkUserId),
       ])
       c.header('Cache-Control', 'no-store')
       return c.json({
         tenantId: ctx.tenantId,
         eventSeq: status.eventSeq,
         contacts,
+        conversations: inbox.conversations,
+        inboxCounts: inbox.counts,
         connectionHint: { reconcileRequired: true },
       })
     },

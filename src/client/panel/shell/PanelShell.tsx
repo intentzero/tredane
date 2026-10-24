@@ -88,7 +88,15 @@ export function PanelShell({ area, tenantId, children }: Props) {
           description="A configuração da clínica é só para o responsável. Nenhum dado foi carregado."
           actionLabel="Ir para Conversas"
           onAction={() =>
-            navigatePanel({ kind: 'area', area: 'conversas', tenantId: ctx.tenantId }, true)
+            navigatePanel(
+              {
+                kind: 'area',
+                area: 'conversas',
+                tenantId: ctx.tenantId,
+                section: 'lista',
+              },
+              true,
+            )
           }
         />
       </div>
