@@ -45,10 +45,18 @@ export type ConversationListItem = ConversationRow & {
   contact: ContactSummary
 }
 
+export type MessagingWindowView = {
+  open: boolean
+  lastInboundAt: number | null
+  closesAt: number | null
+  remainingMs: number | null
+}
+
 export type ConversationDetail = ConversationListItem & {
   messages: MessageRow[]
   messagesHasMore: boolean
   messagesNextBefore: number | null
+  messagingWindow: MessagingWindowView
 }
 
 export type ListConversationsInput = {
@@ -94,9 +102,18 @@ export type CloseConversationInput = {
   actorDisplayName: string
 }
 
+export type SendOutboundTemplateInput = {
+  name: string
+  language: string
+  params: Record<string, string>
+}
+
 export type SendOutboundInput = {
   conversationId: string
-  body: string
+  /** Texto livre — só permitido com janela 24 h aberta. */
+  body?: string | null
+  /** Modelo aprovado — obrigatório fora da janela. */
+  template?: SendOutboundTemplateInput | null
   clientRequestId: string
   authorClerkUserId: string
   authorDisplayName: string

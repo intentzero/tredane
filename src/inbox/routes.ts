@@ -334,11 +334,23 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
         const body = (await c.req.json()) as {
           body?: string
           clientRequestId?: string
+          template?: {
+            name?: string
+            language?: string
+            params?: Record<string, string>
+          }
         }
-        if (!body.body || !body.clientRequestId) {
+        if (!body.clientRequestId) {
           throw new ValidationError(
             'invalid_message',
-            'body e clientRequestId são obrigatórios',
+            'clientRequestId é obrigatório',
+          )
+        }
+        const hasTemplate = Boolean(body.template?.name?.trim())
+        if (!hasTemplate && !body.body?.trim()) {
+          throw new ValidationError(
+            'invalid_message',
+            'body ou template são obrigatórios',
           )
         }
         const gw = await resolveGateway(c.env, tenantId, opts)
@@ -346,7 +358,14 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
           workerCaller(tenantId, principal.clerkUserId),
           {
             conversationId,
-            body: body.body,
+            body: body.body ?? null,
+            template: hasTemplate
+              ? {
+                  name: body.template!.name!.trim(),
+                  language: (body.template!.language ?? 'pt_BR').trim(),
+                  params: body.template!.params ?? {},
+                }
+              : null,
             clientRequestId: body.clientRequestId,
             authorClerkUserId: principal.clerkUserId,
             authorDisplayName: displayNameFromAuth(principal.clerkUserId, ctx.role),
@@ -357,6 +376,15 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
             conversation: serializeConversation(result.conversation),
             message: serializeMessage(result.message),
             duplicate: result.duplicate,
+            outbound: result.outbound
+              ? {
+                  id: result.outbound.id,
+                  clientRequestId: result.outbound.clientRequestId,
+                  deliveryState: result.outbound.deliveryState,
+                  kind: result.outbound.kind,
+                  providerMessageId: result.outbound.providerMessageId,
+                }
+              : null,
           },
           result.duplicate ? 200 : 201,
         )

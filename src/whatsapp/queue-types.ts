@@ -1,7 +1,7 @@
 /**
- * Contrato da fila INBOUND_EVENTS (#32).
+ * Contrato da fila INBOUND_EVENTS (#32/#33).
  * `whatsapp_webhook` — entrada Meta verificada (tenant já resolvido no Worker).
- * `clinic_outbox` — efeitos pós-commit do DO (consumo de envio = #33; aqui ack no-op).
+ * `clinic_outbox` — efeitos pós-commit do DO (`whatsapp.send` → Graph/synthetic).
  */
 
 export type WhatsappWebhookQueueMessage = {

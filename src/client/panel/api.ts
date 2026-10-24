@@ -508,7 +508,15 @@ export function createPanelApi(getToken: TokenGetter) {
     async sendInboxMessage(
       tenantId: string,
       conversationId: string,
-      body: { body: string; clientRequestId: string },
+      body: {
+        body?: string
+        clientRequestId: string
+        template?: {
+          name: string
+          language: string
+          params: Record<string, string>
+        }
+      },
       opts?: FetchOpts,
     ): Promise<InboxSendResponse> {
       const res = await authFetch(
@@ -523,6 +531,22 @@ export function createPanelApi(getToken: TokenGetter) {
       assertGeneration(opts)
       if (!res.ok) throw await parseError(res)
       return (await res.json()) as InboxSendResponse
+    },
+
+    async listWhatsappTemplates(
+      tenantId: string,
+      opts?: FetchOpts & { approvedOnly?: boolean },
+    ): Promise<WhatsappTemplatesResponse> {
+      const q =
+        opts?.approvedOnly === false ? '?approvedOnly=0' : '?approvedOnly=1'
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/whatsapp/templates${q}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as WhatsappTemplatesResponse
     },
 
     async seedInboxDemo(
@@ -683,10 +707,36 @@ export type InboxListResponse = {
   counts: InboxCounts
 }
 
+export type MessagingWindow = {
+  open: boolean
+  lastInboundAt: number | null
+  closesAt: number | null
+  remainingMs: number | null
+}
+
 export type InboxConversationDetail = InboxConversation & {
   messages: InboxMessage[]
   messagesHasMore: boolean
   messagesNextBefore: number | null
+  messagingWindow: MessagingWindow
+}
+
+export type WhatsappTemplateItem = {
+  name: string
+  language: string
+  status: string
+  category: string
+  bodyPreview: string
+  paramKeys: string[]
+  pricingCategory: string | null
+  pricingNote: string
+  syncedAt: number
+}
+
+export type WhatsappTemplatesResponse = {
+  items: WhatsappTemplateItem[]
+  source: string
+  note: string
 }
 
 export type InboxContactDetail = {

@@ -1,5 +1,5 @@
-/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20/#23/#28/#29/#30/#31). */
-export const CLINIC_SCHEMA_VERSION = 6
+/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20/#23/#28/#29/#30/#31/#33). */
+export const CLINIC_SCHEMA_VERSION = 7
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -9,7 +9,11 @@ export const CLINIC_MIGRATION_NAMES = {
   4: '0004_inbox',
   5: '0005_pipeline',
   6: '0006_whatsapp_channel',
+  7: '0007_outbound_send',
 } as const
+
+/** Janela de atendimento WhatsApp (DEC-040) — ms desde a última inbound do contacto. */
+export const WHATSAPP_MESSAGING_WINDOW_MS = 24 * 60 * 60 * 1000
 
 /** Estados do espelho WhatsApp no DO (#31 / REQ-051). */
 export const WHATSAPP_CHANNEL_STATUSES = [
@@ -68,11 +72,47 @@ export const MESSAGE_DELIVERY_STATES = [
   'received',
   'pending',
   'accepted',
+  'delivered',
+  'read',
   'failed',
   'unknown',
 ] as const
 
 export type MessageDeliveryState = (typeof MESSAGE_DELIVERY_STATES)[number]
+
+/** Estados de entrega outbound (sem `received`, que é só inbound). */
+export const OUTBOUND_DELIVERY_STATES = [
+  'pending',
+  'accepted',
+  'delivered',
+  'read',
+  'failed',
+  'unknown',
+] as const
+
+export type OutboundDeliveryState = (typeof OUTBOUND_DELIVERY_STATES)[number]
+
+/**
+ * Ordem monotónica de progresso (states.md): nunca regredir.
+ * `unknown` pode avançar para aceite/falha após reconciliação; `failed` é terminal.
+ */
+export const OUTBOUND_DELIVERY_RANK: Record<OutboundDeliveryState, number> = {
+  pending: 0,
+  unknown: 1,
+  accepted: 2,
+  delivered: 3,
+  read: 4,
+  failed: 100,
+}
+
+export const WHATSAPP_TEMPLATE_STATUSES = [
+  'approved',
+  'pending',
+  'rejected',
+  'paused',
+] as const
+
+export type WhatsappTemplateStatus = (typeof WHATSAPP_TEMPLATE_STATUSES)[number]
 
 /** Filtros da caixa de entrada (TEL-01 / ux-ui.md). */
 export const INBOX_FILTERS = [

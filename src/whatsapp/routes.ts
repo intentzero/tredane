@@ -11,7 +11,12 @@ import {
   type AuthEnv,
 } from '../auth/middleware'
 import { isAuthError } from '../auth/errors'
-import { clinicWhatsapp, workerCaller, type ClinicDb } from '../clinic'
+import {
+  clinicInbox,
+  clinicWhatsapp,
+  workerCaller,
+  type ClinicDb,
+} from '../clinic'
 import { systemClock, type Clock } from '../db/clock'
 import type { AdminDb } from '../db/admin/store'
 import type { WorkerBindings } from '../worker/bindings'
@@ -46,6 +51,8 @@ export type WhatsappRouteOptions = {
     env: WorkerBindings,
     tenantId: string,
   ) => WhatsappService | Promise<WhatsappService>
+  /** Testes: listar modelos a partir do SQLite em memória da clínica. */
+  clinicDbFactory?: (tenantId: string) => { db: ClinicDb; clock: Clock } | null
 }
 
 /** Contrato mínimo usado pelas rotas (sync service ou D1 ops). */
@@ -289,6 +296,54 @@ export function createWhatsappRoutes(opts: WhatsappRouteOptions = {}) {
   })
 
   /**
+   * Modelos sincronizados (#33 / DEC-040). Categoria/custo da fonte vigente —
+   * sem preços inventados. Aprovação Meta real = GATE-10.
+   */
+  app.get('/api/tenants/:tenantId/whatsapp/templates', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.inbox.reply')
+      const tenantId = c.req.param('tenantId')
+      const approvedOnly = c.req.query('approvedOnly') !== '0'
+      let templates: ReturnType<typeof clinicInbox.listWhatsappTemplates> = []
+      const mem = opts.clinicDbFactory?.(tenantId)
+      if (mem) {
+        if (clinicInbox.listWhatsappTemplates(mem.db, tenantId).length === 0) {
+          clinicInbox.seedSyntheticWhatsappTemplates(mem.db, tenantId, mem.clock)
+        }
+        templates = clinicInbox.listWhatsappTemplates(mem.db, tenantId, {
+          approvedOnly,
+        })
+      } else if (c.env.CLINIC) {
+        const stub = c.env.CLINIC.get(c.env.CLINIC.idFromName(tenantId))
+        templates = await stub.listWhatsappTemplates(
+          workerCaller(tenantId, c.get('principal').clerkUserId),
+          { approvedOnly },
+        )
+      }
+      const body = {
+        items: templates.map((t) => ({
+          name: t.name,
+          language: t.language,
+          status: t.status,
+          category: t.category,
+          bodyPreview: t.bodyPreview,
+          paramKeys: t.paramKeys,
+          pricingCategory: t.pricingCategory,
+          pricingNote: t.pricingNote,
+          syncedAt: t.syncedAt,
+        })),
+        source: 'clinic_catalog',
+        note: 'Preços: consultar tabela vigente Meta — Tredane não fixa valores.',
+      }
+      assertNoSecretsInPayload(body)
+      return c.json(body)
+    } catch (err) {
+      return waError(c, err)
+    }
+  })
+
+  /**
    * Simula revogação Meta (M-24) — só META_MODE=synthetic.
    * Produção: detecção via webhooks (#32).
    */
@@ -332,6 +387,9 @@ export function createMemoryWhatsappChannelSync(
     async syncChannel(tenantId: string, input: ChannelSyncInput) {
       const { db, clock } = getDb(tenantId)
       clinicWhatsapp.syncWhatsappChannel(db, tenantId, input, clock)
+      if (input.status === 'connected') {
+        clinicInbox.seedSyntheticWhatsappTemplates(db, tenantId, clock)
+      }
     },
   }
 }

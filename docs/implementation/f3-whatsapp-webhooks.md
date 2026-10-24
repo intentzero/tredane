@@ -40,7 +40,7 @@ Número `released`/desconhecido → recibo `discarded`, **sem** escrita no DO de
 | staging | `tredane-inbound-staging` | `tredane-inbound-dlq-staging` | 3 |
 | production | `tredane-inbound-production` | `tredane-inbound-dlq-production` | 3 |
 
-`source: clinic_outbox` (drain do DO) é ack no-op até #33.
+`source: clinic_outbox` (drain do DO): `whatsapp.send` consumido em #33 ([f3-whatsapp-send.md](f3-whatsapp-send.md)); outros tipos ack.
 
 ## Código
 

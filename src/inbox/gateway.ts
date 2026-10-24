@@ -14,8 +14,12 @@ import type {
   ListConversationsInput,
   MarkReadInput,
   MessageRow,
+  OutboundMessageRow,
   SendOutboundInput,
 } from '../clinic/inbox'
+import { createSyntheticMetaAdapter } from '../whatsapp/meta'
+import { listPendingOutbox, toEventEnvelope } from '../clinic/outbox'
+import { queueCaller } from '../clinic'
 
 export type InboxGateway = {
   listConversations(
@@ -59,12 +63,84 @@ export type InboxGateway = {
   ): Promise<{
     conversation: ConversationListItem
     message: MessageRow
+    outbound: OutboundMessageRow
     duplicate: boolean
   }>
   seedDemo(
     caller: ClinicCaller,
     opts?: { force?: boolean },
   ): Promise<{ seeded: boolean; conversationCount: number }>
+}
+
+/**
+ * Em memória: após persistir a intenção, processa `whatsapp.send` com Meta sintético
+ * (equivale ao consumer da Queue no Worker).
+ */
+async function drainMemoryWhatsappSends(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+  accessTokenMarker?: string,
+): Promise<void> {
+  const meta = createSyntheticMetaAdapter()
+  const pending = listPendingOutbox(db, tenantId).filter((o) => o.type === 'whatsapp.send')
+  for (const row of pending) {
+    const envelope = toEventEnvelope(row)
+    const payload = envelope.payload
+    const outboundId = String(payload.outboundId ?? '')
+    const kind = payload.kind === 'template' ? 'template' : 'text'
+    const clientRequestId = String(payload.clientRequestId ?? '')
+    const body = String(payload.body ?? '')
+    const waId = String(payload.waId ?? '000')
+    const phoneNumberId = String(payload.phoneNumberId ?? 'synth_phone')
+    const accessToken = accessTokenMarker ?? `synth_token_${phoneNumberId}`
+
+    let outcome: 'succeeded' | 'failed' | 'uncertain' = 'succeeded'
+    let providerMessageId: string | null = null
+    let errorCode: string | null = null
+
+    if (kind === 'template') {
+      const r = await meta.sendTemplateMessage({
+        phoneNumberId,
+        accessToken,
+        toWaId: waId,
+        templateName: String(payload.templateName ?? ''),
+        language: String(payload.templateLanguage ?? 'pt_BR'),
+        bodyParams: Object.values(
+          (payload.templateParams as Record<string, string> | null) ?? {},
+        ),
+        clientRequestId,
+      })
+      outcome = r.outcome
+      providerMessageId = r.outcome === 'succeeded' ? r.providerMessageId : null
+      errorCode = r.outcome === 'succeeded' ? null : r.errorCode
+    } else {
+      const r = await meta.sendTextMessage({
+        phoneNumberId,
+        accessToken,
+        toWaId: waId,
+        body,
+        clientRequestId,
+      })
+      outcome = r.outcome
+      providerMessageId = r.outcome === 'succeeded' ? r.providerMessageId : null
+      errorCode = r.outcome === 'succeeded' ? null : r.errorCode
+    }
+
+    clinicInbox.applyOutboundSendResultOp(
+      db,
+      queueCaller(tenantId),
+      {
+        outboundId,
+        outboxEventId: row.id,
+        idempotencyKey: row.idempotencyKey,
+        outcome,
+        providerMessageId,
+        errorCode,
+      },
+      clock,
+    )
+  }
 }
 
 export function createMemoryInboxGateway(db: ClinicDb, clock: Clock): InboxGateway {
@@ -88,7 +164,54 @@ export function createMemoryInboxGateway(db: ClinicDb, clock: Clock): InboxGatew
       return clinicInbox.closeConversationOp(db, caller, input, clock).value
     },
     async sendOutbound(caller, input) {
-      return clinicInbox.sendOutboundMessageOp(db, caller, input, clock).value
+      const result = clinicInbox.sendOutboundMessageOp(db, caller, input, clock)
+      if (!result.value.duplicate) {
+        await drainMemoryWhatsappSends(db, caller.tenantId, clock)
+        const fresh = clinicInbox.findOutboundByClientRequestId(
+          db,
+          caller.tenantId,
+          input.clientRequestId,
+        )
+        const msgRow = db.get<{
+          id: string
+          tenant_id: string
+          conversation_id: string
+          direction: string
+          body: string
+          external_message_id: string | null
+          delivery_state: string
+          author_clerk_user_id: string | null
+          author_display_name: string | null
+          created_at: number
+        }>(
+          `SELECT * FROM messages WHERE tenant_id = ? AND id = ?`,
+          caller.tenantId,
+          result.value.message.id,
+        )
+        const conversation = clinicInbox.getConversationWithContact(
+          db,
+          caller.tenantId,
+          input.conversationId,
+        )!
+        return {
+          conversation,
+          message: {
+            id: msgRow!.id,
+            tenantId: msgRow!.tenant_id,
+            conversationId: msgRow!.conversation_id,
+            direction: msgRow!.direction as MessageRow['direction'],
+            body: msgRow!.body,
+            externalMessageId: msgRow!.external_message_id,
+            deliveryState: msgRow!.delivery_state as MessageRow['deliveryState'],
+            authorClerkUserId: msgRow!.author_clerk_user_id,
+            authorDisplayName: msgRow!.author_display_name,
+            createdAt: msgRow!.created_at,
+          },
+          outbound: fresh!,
+          duplicate: false,
+        }
+      }
+      return result.value
     },
     async seedDemo(caller, opts) {
       return clinicInbox.seedSyntheticInboxOp(db, caller, clock, opts)

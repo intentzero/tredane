@@ -3,8 +3,13 @@ import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller } from '../envelopes'
 import { ConflictError, NotFoundError, ValidationError } from '../errors'
+import { recordInboundEvent } from '../inbound'
 import { assertClinicSchemaReady } from '../migrations'
-import { insertOutboxEvent, type OutboxRow } from '../outbox'
+import {
+  acknowledgeOutboxResult,
+  insertOutboxEvent,
+  type OutboxRow,
+} from '../outbox'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import {
@@ -21,6 +26,18 @@ import {
   touchConversationMessage,
 } from './conversations'
 import { findMessageByExternalId, insertMessage, listMessages } from './messages'
+import {
+  applyOutboundDeliveryUpdate,
+  findOutboundByClientRequestId,
+  findOutboundByProviderMessageId,
+  insertOutboundMessage,
+  mapMetaStatusToDelivery,
+  setOutboundOutboxEventId,
+  type OutboundMessageRow,
+} from './outbound'
+import { validateTemplateSend } from './templates'
+import { messagingWindowForConversation } from './window'
+import { getWhatsappChannel } from '../whatsapp/channel'
 import type {
   AssignConversationInput,
   CloseConversationInput,
@@ -78,11 +95,18 @@ export function getConversationDetailOp(
     limit: input.messageLimit,
     before: input.before,
   })
+  const messagingWindow = messagingWindowForConversation(
+    db,
+    meta.tenantId,
+    input.conversationId,
+    clock.nowMs(),
+  )
   return {
     ...item,
     messages: page.messages,
     messagesHasMore: page.hasMore,
     messagesNextBefore: page.nextBefore,
+    messagingWindow,
   }
 }
 
@@ -333,39 +357,134 @@ export function closeConversationOp(
 }
 
 /**
- * Resposta simulada (sem Meta / F3): persiste outbound com delivery_state=accepted.
- * Idempotente por clientRequestId (= external_message_id).
+ * Envio humano (#33): intenção persistente + outbox `whatsapp.send`.
+ * Idempotente por clientRequestId (outbound_messages). Janela 24 h no backend.
+ * Não toca appointments (REQ-033).
  */
 export function sendOutboundMessageOp(
   db: ClinicDb,
   caller: ClinicCaller,
   input: SendOutboundInput,
   clock: Clock,
-): InboxMutationResult<{ conversation: ConversationListItem; message: MessageRow; duplicate: boolean }> {
+): InboxMutationResult<{
+  conversation: ConversationListItem
+  message: MessageRow
+  outbound: OutboundMessageRow
+  duplicate: boolean
+}> {
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
   const meta = bindOrAssertTenant(db, caller, clock)
 
-  const body = input.body.trim()
-  if (!body) {
-    throw new ValidationError('empty_body', 'Mensagem vazia')
-  }
-  if (body.length > 4000) {
-    throw new ValidationError('body_too_long', 'Mensagem demasiado longa')
-  }
   if (!input.clientRequestId.trim()) {
     throw new ValidationError('client_request_id_required', 'clientRequestId obrigatório')
   }
 
+  const hasTemplate = Boolean(input.template?.name?.trim())
+  const rawBody = (input.body ?? '').trim()
+  if (hasTemplate && rawBody) {
+    throw new ValidationError(
+      'send_body_and_template',
+      'Envie texto livre ou modelo, não ambos',
+    )
+  }
+  if (!hasTemplate && !rawBody) {
+    throw new ValidationError('empty_body', 'Mensagem vazia')
+  }
+  if (rawBody.length > 4000) {
+    throw new ValidationError('body_too_long', 'Mensagem demasiado longa')
+  }
+
   return db.transactionSync(() => {
     requireConversation(db, meta.tenantId, input.conversationId)
-    const existing = findMessageByExternalId(db, meta.tenantId, input.clientRequestId)
-    if (existing) {
+
+    const existingOb = findOutboundByClientRequestId(
+      db,
+      meta.tenantId,
+      input.clientRequestId,
+    )
+    if (existingOb) {
+      const existingMsg = db.get<{
+        id: string
+        tenant_id: string
+        conversation_id: string
+        direction: string
+        body: string
+        external_message_id: string | null
+        delivery_state: string
+        author_clerk_user_id: string | null
+        author_display_name: string | null
+        created_at: number
+      }>(
+        `SELECT * FROM messages WHERE tenant_id = ? AND id = ?`,
+        meta.tenantId,
+        existingOb.messageId,
+      )
+      if (!existingMsg) {
+        throw new ConflictError('outbound_orphan', 'Intenção de envio sem mensagem')
+      }
+      const message: MessageRow = {
+        id: existingMsg.id,
+        tenantId: existingMsg.tenant_id,
+        conversationId: existingMsg.conversation_id,
+        direction: existingMsg.direction as MessageRow['direction'],
+        body: existingMsg.body,
+        externalMessageId: existingMsg.external_message_id,
+        deliveryState: existingMsg.delivery_state as MessageRow['deliveryState'],
+        authorClerkUserId: existingMsg.author_clerk_user_id,
+        authorDisplayName: existingMsg.author_display_name,
+        createdAt: existingMsg.created_at,
+      }
       const item = getConversationWithContact(db, meta.tenantId, input.conversationId)!
       return {
-        value: { conversation: item, message: existing, duplicate: true },
+        value: { conversation: item, message, outbound: existingOb, duplicate: true },
         outbox: [],
       }
+    }
+
+    const channel = getWhatsappChannel(db, meta.tenantId)
+    if (!channel || channel.status !== 'connected') {
+      throw new ValidationError(
+        'whatsapp_not_connected',
+        channel?.status === 'interrupted'
+          ? 'WhatsApp interrompido — reconecte antes de enviar (sem reenvio automático)'
+          : 'WhatsApp não conectado nesta clínica',
+      )
+    }
+
+    const window = messagingWindowForConversation(
+      db,
+      meta.tenantId,
+      input.conversationId,
+      clock.nowMs(),
+    )
+
+    let body: string
+    let kind: 'text' | 'template' = 'text'
+    let templateName: string | null = null
+    let templateLanguage: string | null = null
+    let templateParams: Record<string, string> | null = null
+
+    if (hasTemplate) {
+      const tpl = input.template!
+      const validated = validateTemplateSend(db, meta.tenantId, {
+        name: tpl.name.trim(),
+        language: (tpl.language || 'pt_BR').trim(),
+        params: tpl.params ?? {},
+      })
+      body = validated.body
+      kind = 'template'
+      templateName = validated.template.name
+      templateLanguage = validated.template.language
+      templateParams = { ...tpl.params }
+    } else {
+      if (!window.open) {
+        throw new ValidationError(
+          'outside_messaging_window',
+          'Fora da janela de 24 h do WhatsApp — use um modelo aprovado',
+        )
+      }
+      body = rawBody
     }
 
     const now = clock.nowMs()
@@ -376,14 +495,31 @@ export function sendOutboundMessageOp(
         conversationId: input.conversationId,
         direction: 'outbound',
         body,
-        externalMessageId: input.clientRequestId,
-        deliveryState: 'accepted',
+        externalMessageId: null,
+        deliveryState: 'pending',
         authorClerkUserId: input.authorClerkUserId,
         authorDisplayName: input.authorDisplayName,
         createdAt: now,
       },
       clock,
     )
+
+    const outbound = insertOutboundMessage(
+      db,
+      {
+        tenantId: meta.tenantId,
+        conversationId: input.conversationId,
+        messageId: message.id,
+        clientRequestId: input.clientRequestId,
+        kind,
+        templateName,
+        templateLanguage,
+        templateParams,
+        deliveryState: 'pending',
+      },
+      clock,
+    )
+
     touchConversationMessage(db, {
       tenantId: meta.tenantId,
       conversationId: input.conversationId,
@@ -393,7 +529,6 @@ export function sendOutboundMessageOp(
       bumpUnread: false,
       reopenIfClosed: true,
     })
-    // Se estava new sem responsável e o autor responde, assume automaticamente.
     const afterTouch = requireConversation(db, meta.tenantId, input.conversationId)
     if (!afterTouch.assigneeClerkUserId) {
       setConversationAssignee(db, {
@@ -405,7 +540,7 @@ export function sendOutboundMessageOp(
       })
     }
 
-    const outbox = insertOutboxEvent(
+    const createdOutbox = insertOutboxEvent(
       db,
       {
         tenantId: meta.tenantId,
@@ -416,15 +551,283 @@ export function sendOutboundMessageOp(
         payload: {
           conversationId: input.conversationId,
           messageId: message.id,
+          outboundId: outbound.id,
           direction: 'outbound',
           bodyPreview: body.slice(0, 120),
-          deliveryState: 'accepted',
+          deliveryState: 'pending',
+          kind,
         },
       },
       clock,
     )
+
+    const sendOutbox = insertOutboxEvent(
+      db,
+      {
+        tenantId: meta.tenantId,
+        type: 'whatsapp.send',
+        aggregateType: 'outbound_message',
+        aggregateId: outbound.id,
+        idempotencyKey: `whatsapp.send:${input.clientRequestId}`,
+        payload: {
+          conversationId: input.conversationId,
+          messageId: message.id,
+          outboundId: outbound.id,
+          clientRequestId: input.clientRequestId,
+          kind,
+          templateName,
+          templateLanguage,
+          waId: getConversationWithContact(db, meta.tenantId, input.conversationId)!.contact
+            .waId,
+          phoneNumberId: channel.phoneNumberId,
+          // Corpo só na fila interna — logs do consumer não devem ecoá-lo.
+          body,
+          templateParams,
+        },
+      },
+      clock,
+    )
+    setOutboundOutboxEventId(db, meta.tenantId, outbound.id, sendOutbox.id)
+
     const item = getConversationWithContact(db, meta.tenantId, input.conversationId)!
-    return { value: { conversation: item, message, duplicate: false }, outbox: [outbox] }
+    const outboundFresh = findOutboundByClientRequestId(
+      db,
+      meta.tenantId,
+      input.clientRequestId,
+    )!
+    return {
+      value: {
+        conversation: item,
+        message,
+        outbound: outboundFresh,
+        duplicate: false,
+      },
+      outbox: [createdOutbox, sendOutbox],
+    }
+  })
+}
+
+/**
+ * Resultado do consumer Meta → DO (#33).
+ * Timeout/uncertain → unknown (sem retry automático).
+ */
+export function applyOutboundSendResultOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: {
+    outboundId: string
+    outboxEventId: string
+    idempotencyKey: string
+    outcome: 'succeeded' | 'failed' | 'uncertain'
+    providerMessageId?: string | null
+    errorCode?: string | null
+  },
+  clock: Clock,
+): InboxMutationResult<{
+  outbound: OutboundMessageRow
+  message: MessageRow
+  advanced: boolean
+}> {
+  assertClinicSchemaReady(db)
+  assertValidCaller(caller)
+  const meta = bindOrAssertTenant(db, caller, clock)
+
+  return db.transactionSync(() => {
+    const nextState =
+      input.outcome === 'succeeded'
+        ? 'accepted'
+        : input.outcome === 'failed'
+          ? 'failed'
+          : 'unknown'
+
+    const updated = applyOutboundDeliveryUpdate(
+      db,
+      {
+        tenantId: meta.tenantId,
+        outboundId: input.outboundId,
+        nextState,
+        providerMessageId: input.providerMessageId ?? null,
+        failureReason: input.errorCode ?? null,
+      },
+      clock,
+    )
+    if (!updated) {
+      throw new NotFoundError('outbound_not_found', 'Intenção de envio não encontrada')
+    }
+
+    const outboxes: OutboxRow[] = []
+    if (updated.advanced) {
+      outboxes.push(
+        insertOutboxEvent(
+          db,
+          {
+            tenantId: meta.tenantId,
+            type: 'message.delivery_updated',
+            aggregateType: 'message',
+            aggregateId: updated.message.id,
+            idempotencyKey: `message.delivery:${updated.outbound.id}:${nextState}:${input.outboxEventId}`,
+            payload: {
+              conversationId: updated.outbound.conversationId,
+              messageId: updated.message.id,
+              outboundId: updated.outbound.id,
+              deliveryState: nextState,
+              providerMessageId: updated.outbound.providerMessageId,
+            },
+          },
+          clock,
+        ),
+      )
+    }
+
+    acknowledgeOutboxResult(db, {
+      tenantId: meta.tenantId,
+      outboxEventId: input.outboxEventId,
+      idempotencyKey: input.idempotencyKey,
+      outcome: input.outcome,
+      providerRef: input.providerMessageId ?? undefined,
+      errorCode: input.errorCode ?? undefined,
+      occurredAt: clock.nowMs(),
+    })
+
+    return {
+      value: {
+        outbound: updated.outbound,
+        message: updated.message,
+        advanced: updated.advanced,
+      },
+      outbox: outboxes,
+    }
+  })
+}
+
+/**
+ * Status Meta (delivered/read/failed) reconciliado com outbound (#33).
+ * Dedup inbound + avanço monotónico; fora de ordem não regride.
+ */
+export function reconcileOutboundStatusOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: {
+    providerEventKey: string
+    statusMessageId: string
+    status: string
+    providerTimestamp?: number | null
+  },
+  clock: Clock,
+): InboxMutationResult<{
+  duplicate: boolean
+  inboundId: string
+  advanced: boolean
+  message: MessageRow | null
+}> {
+  assertClinicSchemaReady(db)
+  assertValidCaller(caller)
+  const meta = bindOrAssertTenant(db, caller, clock)
+
+  return db.transactionSync(() => {
+    const recorded = recordInboundEvent(
+      db,
+      {
+        tenantId: meta.tenantId,
+        providerEventKey: input.providerEventKey,
+        payload: {
+          kind: 'status',
+          statusMessageId: input.statusMessageId,
+          status: input.status,
+          providerTimestamp: input.providerTimestamp ?? null,
+        },
+      },
+      clock,
+    )
+
+    if (recorded.duplicate) {
+      return {
+        value: {
+          duplicate: true,
+          inboundId: recorded.row.id,
+          advanced: false,
+          message: null,
+        },
+        outbox: [],
+      }
+    }
+
+    const mapped = mapMetaStatusToDelivery(input.status)
+    if (!mapped || !input.statusMessageId) {
+      return {
+        value: {
+          duplicate: false,
+          inboundId: recorded.row.id,
+          advanced: false,
+          message: null,
+        },
+        outbox: [],
+      }
+    }
+
+    const outbound = findOutboundByProviderMessageId(
+      db,
+      meta.tenantId,
+      input.statusMessageId,
+    )
+    if (!outbound) {
+      // Status sem outbound local (ex.: mensagem pré-MVP) — só inbound_events.
+      return {
+        value: {
+          duplicate: false,
+          inboundId: recorded.row.id,
+          advanced: false,
+          message: null,
+        },
+        outbox: [],
+      }
+    }
+
+    const updated = applyOutboundDeliveryUpdate(
+      db,
+      {
+        tenantId: meta.tenantId,
+        outboundId: outbound.id,
+        nextState: mapped,
+        providerMessageId: input.statusMessageId,
+        failureReason: mapped === 'failed' ? input.status : null,
+      },
+      clock,
+    )
+
+    const outboxes: OutboxRow[] = []
+    if (updated?.advanced) {
+      outboxes.push(
+        insertOutboxEvent(
+          db,
+          {
+            tenantId: meta.tenantId,
+            type: 'message.delivery_updated',
+            aggregateType: 'message',
+            aggregateId: updated.message.id,
+            idempotencyKey: `message.delivery:${outbound.id}:${mapped}:${input.providerEventKey}`,
+            payload: {
+              conversationId: outbound.conversationId,
+              messageId: updated.message.id,
+              outboundId: outbound.id,
+              deliveryState: mapped,
+              providerMessageId: input.statusMessageId,
+            },
+          },
+          clock,
+        ),
+      )
+    }
+
+    return {
+      value: {
+        duplicate: false,
+        inboundId: recorded.row.id,
+        advanced: updated?.advanced ?? false,
+        message: updated?.message ?? null,
+      },
+      outbox: outboxes,
+    }
   })
 }
 
