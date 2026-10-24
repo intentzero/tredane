@@ -147,7 +147,7 @@ describe('Webhook Meta — verify e parse (#32)', () => {
     expect(bad.ok).toBe(false)
   })
 
-  it('parse extrai texto, unsupported e status sem clinicId externo', () => {
+  it('parse extrai texto, media piloto, unsupported e status sem clinicId externo', () => {
     const text = parseWhatsappWebhookPayload(
       metaTextPayload({
         phoneNumberId: 'pnid_1',
@@ -180,7 +180,7 @@ describe('Webhook Meta — verify e parse (#32)', () => {
                     id: 'wamid.IMG1',
                     timestamp: '1700000001',
                     type: 'image',
-                    image: { id: 'media_1' },
+                    image: { id: 'media_1', mime_type: 'image/jpeg', caption: 'Foto' },
                   },
                 ],
               },
@@ -189,10 +189,42 @@ describe('Webhook Meta — verify e parse (#32)', () => {
         },
       ],
     })
-    expect(image.items[0]?.kind).toBe('unsupported')
-    expect(image.items[0] && 'body' in image.items[0] && image.items[0].body).toContain(
-      'não suportado',
-    )
+    expect(image.items[0]?.kind).toBe('media')
+    expect(image.items[0]).toMatchObject({
+      kind: 'media',
+      body: 'Foto',
+      media: { mediaId: 'media_1', mediaType: 'image' },
+    })
+
+    const sticker = parseWhatsappWebhookPayload({
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: 'e1b',
+          changes: [
+            {
+              field: 'messages',
+              value: {
+                metadata: { phone_number_id: 'pnid_1' },
+                messages: [
+                  {
+                    from: '5511000000001',
+                    id: 'wamid.STK1',
+                    timestamp: '1700000002',
+                    type: 'sticker',
+                    sticker: { id: 'stk_1' },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    })
+    expect(sticker.items[0]?.kind).toBe('unsupported')
+    expect(
+      sticker.items[0] && 'body' in sticker.items[0] && sticker.items[0].body,
+    ).toContain('não suportado')
 
     const status = parseWhatsappWebhookPayload({
       object: 'whatsapp_business_account',
@@ -413,7 +445,7 @@ describe('Webhook Meta — ingest, dedup, isolamento (#32)', () => {
     }
   })
 
-  it('status não cria contacto; unsupported regista mensagem explícita; poison marca failed', async () => {
+  it('status não cria contacto; unsupported (sticker) regista mensagem explícita; poison marca failed', async () => {
     const h = harness()
     try {
       await h.connect(T_A, OWNER_A, 'pnid_a_status')
@@ -512,14 +544,14 @@ describe('Webhook Meta — ingest, dedup, isolamento (#32)', () => {
                 field: 'messages',
                 value: {
                   metadata: { phone_number_id: 'pnid_a_status' },
-                  contacts: [{ wa_id: '5511000000003', profile: { name: 'Foto' } }],
+                  contacts: [{ wa_id: '5511000000003', profile: { name: 'Sticker' } }],
                   messages: [
                     {
                       from: '5511000000003',
-                      id: 'wamid.IMG_UNSUP',
+                      id: 'wamid.STK_UNSUP',
                       timestamp: '1700000300',
-                      type: 'image',
-                      image: { id: 'm1' },
+                      type: 'sticker',
+                      sticker: { id: 'm1' },
                     },
                   ],
                 },
@@ -613,7 +645,7 @@ describe('Webhook Meta — ingest, dedup, isolamento (#32)', () => {
               timestamp: new Date(),
               body: {
                 source: 'whatsapp_webhook',
-                receiptId: findWebhookReceiptByKey(h.admin.db, 'wa:msg:wamid.IMG_UNSUP')!.id,
+                receiptId: findWebhookReceiptByKey(h.admin.db, 'wa:msg:wamid.STK_UNSUP')!.id,
                 providerEventKey: 'wa:poison:1',
                 tenantId: T_A,
                 bindingId: 'bind_x',

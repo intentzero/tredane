@@ -1,5 +1,5 @@
-/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20/#23/#28/#29/#30/#31/#33). */
-export const CLINIC_SCHEMA_VERSION = 7
+/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20/#23/#28/#29/#30/#31/#33/#34). */
+export const CLINIC_SCHEMA_VERSION = 8
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -10,7 +10,26 @@ export const CLINIC_MIGRATION_NAMES = {
   5: '0005_pipeline',
   6: '0006_whatsapp_channel',
   7: '0007_outbound_send',
+  8: '0008_attachments',
 } as const
+
+/** Estados de anexo (#34) — carregando / pronto / indisponível / falhou. */
+export const ATTACHMENT_STATUSES = [
+  'pending',
+  'ready',
+  'unavailable',
+  'failed',
+] as const
+
+export type AttachmentStatus = (typeof ATTACHMENT_STATUSES)[number]
+
+export const ATTACHMENT_SOURCES = [
+  'whatsapp_inbound',
+  'human_upload',
+  'synthetic',
+] as const
+
+export type AttachmentSource = (typeof ATTACHMENT_SOURCES)[number]
 
 /** Janela de atendimento WhatsApp (DEC-040) — ms desde a última inbound do contacto. */
 export const WHATSAPP_MESSAGING_WINDOW_MS = 24 * 60 * 60 * 1000

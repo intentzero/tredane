@@ -35,6 +35,11 @@ import {
   MIGRATION_NAME as M7_NAME,
   STATEMENTS as M7_STATEMENTS,
 } from './migrations/0007_outbound_send'
+import {
+  MIGRATION_ID as M8_ID,
+  MIGRATION_NAME as M8_NAME,
+  STATEMENTS as M8_STATEMENTS,
+} from './migrations/0008_attachments'
 import type { ClinicDb } from './store'
 import type { Clock } from '../db/clock'
 
@@ -53,6 +58,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M5_ID, name: M5_NAME, statements: M5_STATEMENTS },
   { id: M6_ID, name: M6_NAME, statements: M6_STATEMENTS },
   { id: M7_ID, name: M7_NAME, statements: M7_STATEMENTS },
+  { id: M8_ID, name: M8_NAME, statements: M8_STATEMENTS },
 ]
 
 export type MigrationResult = {

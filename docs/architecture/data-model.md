@@ -21,6 +21,7 @@ Referências a memberships/owners em entidades locais são IDs lógicos: não h�
 | contacts | id, tenant_id, identificador WhatsApp, nome mínimo |
 | conversations | id, tenant_id, contact_id, assignee_membership_id, status, last_activity_at |
 | messages | id, tenant_id, conversation_id, direction, external_message_id, delivery_state, body, created_at |
+| attachments | id, tenant_id, message_id, conversation_id, r2_key, content_type, byte_size, status (pending/ready/unavailable/failed), source, provider_media_id — blobs em R2 (`tenants/{tenantId}/attachments/{id}`); #34 |
 | opportunities | id, tenant_id, contact_id, conversation_id opcional, stage_id, assignee_id |
 | opportunity_events | id, tenant_id, opportunity_id, actor_id, from_stage, to_stage, occurred_at |
 | services | id, tenant_id, nome, duração, buffer, preço opcional, ativo |

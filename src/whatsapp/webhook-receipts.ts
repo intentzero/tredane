@@ -10,6 +10,7 @@ import { newId } from '../clinic/ids'
 
 export const WEBHOOK_RECEIPT_KINDS = [
   'message',
+  'media',
   'unsupported',
   'status',
   'account_interrupt',

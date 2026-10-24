@@ -55,6 +55,12 @@ export {
 } from './webhook-verify'
 export { parseWhatsappWebhookPayload } from './webhook-parse'
 export {
+  createMetaMediaAdapter,
+  createSyntheticMetaMediaAdapter,
+  SYNTHETIC_MEDIA_FIXTURES,
+} from './media'
+export { ingestWhatsappMediaMessage } from './media-ingest'
+export {
   handleInboundQueue,
   handleInboundQueueBatch,
 } from './queue-consumer'

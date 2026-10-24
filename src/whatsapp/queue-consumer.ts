@@ -25,6 +25,11 @@ import {
   type OutboundSendClinicStub,
 } from './outbound-send'
 import type { MetaAdapter } from './meta'
+import {
+  ingestWhatsappMediaMessage,
+  type MediaIngestClinicStub,
+} from './media-ingest'
+import type { MetaMediaAdapter } from './media'
 
 export type QueueConsumerDeps = {
   env: WorkerBindings
@@ -42,8 +47,13 @@ export type QueueConsumerDeps = {
     recordInboundStatus: (
       ...args: Parameters<ClinicDurableObject['recordInboundStatus']>
     ) => ReturnType<ClinicDurableObject['recordInboundStatus']> | Promise<unknown>
+    createPendingAttachment?: MediaIngestClinicStub['createPendingAttachment']
+    markAttachmentReady?: MediaIngestClinicStub['markAttachmentReady']
+    markAttachmentFailed?: MediaIngestClinicStub['markAttachmentFailed']
+    linkAttachmentToMessage?: MediaIngestClinicStub['linkAttachmentToMessage']
   } & Partial<OutboundSendClinicStub>
   metaAdapter?: MetaAdapter
+  mediaAdapter?: MetaMediaAdapter
   log?: (entry: {
     level: 'info' | 'warn' | 'error'
     event: string
@@ -124,6 +134,54 @@ async function processWhatsappMessage(
         reason: msg.interruptReason ?? 'webhook_account_update',
         phoneNumberId: msg.phoneNumberId,
       })
+    } else if (msg.kind === 'media') {
+      const mediaStub: MediaIngestClinicStub = {
+        ingestMessage: async (c, input, opts) => {
+          const r = await stub.ingestMessage(c, input, opts)
+          const row = r as {
+            messageId?: string | null
+            conversationId?: string | null
+            duplicate?: boolean
+          }
+          return {
+            duplicate: row.duplicate,
+            messageId: row.messageId ?? null,
+            conversationId: row.conversationId ?? null,
+          }
+        },
+        createPendingAttachment: (c, input) => {
+          if (!stub.createPendingAttachment) {
+            throw new Error('createPendingAttachment_missing')
+          }
+          return stub.createPendingAttachment(c, input)
+        },
+        markAttachmentReady: (c, input) => {
+          if (!stub.markAttachmentReady) throw new Error('markAttachmentReady_missing')
+          return stub.markAttachmentReady(c, input)
+        },
+        markAttachmentFailed: (c, input) => {
+          if (!stub.markAttachmentFailed) throw new Error('markAttachmentFailed_missing')
+          return stub.markAttachmentFailed(c, input)
+        },
+        linkAttachmentToMessage: (c, input) => {
+          if (!stub.linkAttachmentToMessage) {
+            throw new Error('linkAttachmentToMessage_missing')
+          }
+          return stub.linkAttachmentToMessage(c, input)
+        },
+      }
+      const mediaOutcome = await ingestWhatsappMediaMessage(
+        {
+          env: deps.env,
+          clock,
+          syncAdminDb: deps.syncAdminDb,
+          clinicStub: mediaStub,
+          mediaAdapter: deps.mediaAdapter,
+          log,
+        },
+        msg,
+      )
+      if (mediaOutcome === 'retry') return 'retry'
     } else {
       // message | unsupported — ambos criam mensagem lógica (unsupported com texto explícito)
       if (!msg.waId || typeof msg.body !== 'string') {

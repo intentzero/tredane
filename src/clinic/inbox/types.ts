@@ -21,6 +21,17 @@ export type ConversationRow = {
   updatedAt: number
 }
 
+export type MessageAttachmentSummary = {
+  id: string
+  contentType: string
+  byteSize: number
+  filename: string | null
+  status: 'pending' | 'ready' | 'unavailable' | 'failed'
+  failureCode: string | null
+  /** Confirmado DEC-011: nunca true no contexto IA. */
+  includedInAiContext: false
+}
+
 export type MessageRow = {
   id: string
   tenantId: string
@@ -32,6 +43,7 @@ export type MessageRow = {
   authorClerkUserId: string | null
   authorDisplayName: string | null
   createdAt: number
+  attachments?: MessageAttachmentSummary[]
 }
 
 export type ContactSummary = {

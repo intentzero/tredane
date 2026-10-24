@@ -1,5 +1,5 @@
 /**
- * Contrato da fila INBOUND_EVENTS (#32/#33).
+ * Contrato da fila INBOUND_EVENTS (#32/#33/#34).
  * `whatsapp_webhook` — entrada Meta verificada (tenant já resolvido no Worker).
  * `clinic_outbox` — efeitos pós-commit do DO (`whatsapp.send` → Graph/synthetic).
  */
@@ -11,13 +11,17 @@ export type WhatsappWebhookQueueMessage = {
   tenantId: string
   bindingId: string
   phoneNumberId: string
-  kind: 'message' | 'unsupported' | 'status' | 'account_interrupt'
-  /** Só kinds message/unsupported — conteúdo interno da fila, não em logs. */
+  kind: 'message' | 'media' | 'unsupported' | 'status' | 'account_interrupt'
+  /** Só kinds message/unsupported/media — conteúdo interno da fila, não em logs. */
   waId?: string
   displayName?: string
   body?: string
   messageType?: string
   providerTimestamp?: number | null
+  /** Mídia piloto (#34) — media_id Meta; download no consumer, fora da TX DO. */
+  mediaId?: string
+  mediaMimeType?: string | null
+  mediaFilename?: string | null
   status?: string
   statusMessageId?: string
   interruptReason?: string

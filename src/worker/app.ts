@@ -44,6 +44,10 @@ import {
   type WhatsappRouteOptions,
   type WhatsappWebhookRouteOptions,
 } from '../whatsapp'
+import {
+  createAttachmentRoutes,
+  type AttachmentRouteOptions,
+} from '../attachments'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
@@ -93,6 +97,8 @@ export type CreateAppOptions = {
   whatsappServiceFactory?: WhatsappRouteOptions['serviceFactory']
   /** Webhooks Meta (#32) — AdminDb sync + fila injectável nos testes. */
   whatsappWebhook?: WhatsappWebhookRouteOptions
+  /** Anexos R2 (#34). */
+  attachments?: AttachmentRouteOptions
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -179,6 +185,8 @@ export function createApp(opts: CreateAppOptions = {}) {
     logFactory: opts.whatsappWebhook?.logFactory,
   }
   app.route('/', createWhatsappWebhookRoutes(webhookOpts))
+
+  app.route('/', createAttachmentRoutes(opts.attachments ?? {}))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

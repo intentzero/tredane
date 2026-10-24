@@ -1,6 +1,6 @@
 # F3 — Envio manual, modelos WhatsApp e reconciliação de status (#33)
 
-**Estado:** implementação da issue [#33](https://github.com/intentzero/tredane/issues/33) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Depende de [#32](https://github.com/intentzero/tredane/issues/32) (webhooks) e [#31](https://github.com/intentzero/tredane/issues/31) (conexão). **Sem** anexos R2 (#34). Dados sintéticos / `META_MODE=synthetic` até gates [#18](https://github.com/intentzero/tredane/issues/18) e GATE-10.
+**Estado:** implementação da issue [#33](https://github.com/intentzero/tredane/issues/33) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Depende de [#32](https://github.com/intentzero/tredane/issues/32) (webhooks) e [#31](https://github.com/intentzero/tredane/issues/31) (conexão). Anexos R2 = [#34](f3-attachments.md). Dados sintéticos / `META_MODE=synthetic` até gates [#18](https://github.com/intentzero/tredane/issues/18) e GATE-10.
 
 ## Decisões aplicadas
 
@@ -48,6 +48,6 @@ Webhook status (#32)
 ## Em aberto / fora deste PR
 
 - GATE-10 aprovação Meta real; textos finais
-- Anexos R2 (#34)
+- Anexos R2 — [f3-attachments.md](f3-attachments.md)
 - Live Graph exige secrets + Tech Provider (#18)
 - Reminder automático (**posterior**, Q-UX-06)
