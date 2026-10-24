@@ -1,5 +1,6 @@
 import type { Clock } from '../clock'
 import type { DeletionCommandStatus } from '../schema'
+import { purgeDeadlineAt } from '../../retention/policy'
 import { writeAudit } from './audit'
 import { ConflictError, NotFoundError } from './errors'
 import { assertAdminSchemaReady } from './gate'
@@ -103,20 +104,26 @@ export function enqueueDeletionCommandInTx(
 
   const now = clock.nowMs()
   const id = newId('tdel')
+  const tenant = getTenant(db, input.tenantId)
+  const pendingAt = tenant?.pendingDeletionAt ?? now
+  const deadlineAt = purgeDeadlineAt(pendingAt)
   const payloadJson = JSON.stringify({
     reason: 'logical_deletion',
+    deadlineAt,
     ...input.payload,
   })
   db.run(
     `INSERT INTO tenant_deletion_commands (
-      id, tenant_id, status, requested_by_clerk_user_id, requested_at, updated_at, payload_json
-    ) VALUES (?, ?, 'queued', ?, ?, ?, ?)`,
+      id, tenant_id, status, requested_by_clerk_user_id, requested_at, updated_at, payload_json,
+      deadline_at, started_at, completed_at, last_step, last_error, alert_sent_at
+    ) VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL)`,
     id,
     input.tenantId,
     input.actorClerkUserId,
     now,
     now,
     payloadJson,
+    deadlineAt,
   )
   writeAudit(db, clock, {
     actorClerkUserId: input.actorClerkUserId,

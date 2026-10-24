@@ -482,7 +482,7 @@ describe('Anexos — ingestão mídia Meta sintética (#34)', () => {
             duplicate: r.duplicate,
             messageId: r.message?.id ?? null,
             conversationId: r.conversation?.id ?? null,
-            contactId: r.contact.id,
+            contactId: r.contact!.id,
             inboundId: r.inbound.id,
             outboxId: r.outbox?.id ?? null,
             eventSeq: null,

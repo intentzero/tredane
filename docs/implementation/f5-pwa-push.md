@@ -54,4 +54,4 @@
 - Aceite Safari iPhone / Chrome Android da clínica (Q-UX-01)
 - Preferências atribuída / falha de envio / resposta / silêncio (Q-UX-05)
 - Identidade visual definitiva do ícone PWA
-- F6 observabilidade (#43)
+- F6 retenção/expurgo (#43) — ver [f6-retention-purge.md](f6-retention-purge.md); observabilidade = #44

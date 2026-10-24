@@ -53,7 +53,7 @@ Código: `src/platform/`, repositórios em `src/db/admin/` (`owners`, `lifecycle
 ## Fora deste PR
 
 - UI Platform Admin (login Clinic App = [#22](f1-login-nav.md))
-- Tarefa de retenção que consome `tenant_deletion_commands` até expurgo físico
+- ~~Tarefa de retenção que consome `tenant_deletion_commands` até expurgo físico~~ → [#43](f6-retention-purge.md)
 - Sessões de suporte HTTP completas / handoff cookies (épico suporte)
 - Convites HTTP do owner — ver [f1-team-invites.md](f1-team-invites.md) (#25)
-- Política LGPD de purga (Em aberto)
+- Política LGPD de purga (Em aberto) — ainda Em aberto em #43 / VAL-09

@@ -1,6 +1,10 @@
 import type { Clock } from '../db/clock'
 import { writeOperationalAudit } from './audit'
-import { upsertContact, type ContactRow } from './contacts'
+import {
+  ContactTombstonedError,
+  upsertContact,
+  type ContactRow,
+} from './contacts'
 import type { ClinicCaller } from './envelopes'
 import { assertValidCaller } from './envelopes'
 import { appendInboundToConversation } from './inbox/operations'
@@ -14,6 +18,7 @@ import {
   type OutboxRow,
 } from './outbox'
 import { ensureOpenOpportunity } from './pipeline/operations'
+import { findContactTombstoneByWaId } from './retention/tombstones'
 import type { ClinicDb } from './store'
 import { bindOrAssertTenant } from './tenant'
 import { touchWhatsappLastInbound } from './whatsapp/channel'
@@ -27,9 +32,8 @@ export type IngestContactMessageInput = {
   occurredAtMs?: number
 }
 
-export type IngestContactMessageResult = {
+type IngestContactMessageBase = {
   duplicate: boolean
-  contact: ContactRow
   inbound: InboundRow
   conversation: ConversationRow | null
   message: MessageRow | null
@@ -42,6 +46,20 @@ export type IngestContactMessageResult = {
    */
   externalCallsInsideTransaction: 0
 }
+
+/**
+ * Resultado da ingestão. `suppressedTombstone` discrimina contacto ausente
+ * após exclusão (#43 / REQ-071) vs fluxo normal.
+ */
+export type IngestContactMessageResult =
+  | (IngestContactMessageBase & {
+      suppressedTombstone: true
+      contact: null
+    })
+  | (IngestContactMessageBase & {
+      suppressedTombstone: false
+      contact: ContactRow
+    })
 
 /**
  * Primitiva transacional: dedup inbound + contacto + conversa/mensagem + audit + outbox.
@@ -58,6 +76,8 @@ export function ingestContactMessage(
   const meta = bindOrAssertTenant(db, caller, clock)
 
   return db.transactionSync(() => {
+    const tombstone = findContactTombstoneByWaId(db, meta.tenantId, input.waId)
+
     const inbound = recordInboundEvent(
       db,
       {
@@ -68,19 +88,67 @@ export function ingestContactMessage(
           displayName: input.displayName ?? null,
           // Sem corpo completo no inbound_events para alinhar REQ-070 em dumps;
           // a mensagem lógica guarda o texto na tabela messages.
-          bodyPreview: input.body.slice(0, 120),
+          bodyPreview: tombstone ? null : input.body.slice(0, 120),
           occurredAtMs: input.occurredAtMs ?? null,
+          suppressedTombstone: tombstone ? true : undefined,
         },
       },
       clock,
     )
 
-    if (inbound.duplicate) {
-      const contact = upsertContact(
+    if (tombstone) {
+      writeOperationalAudit(
         db,
-        { tenantId: meta.tenantId, waId: input.waId, displayName: input.displayName },
+        {
+          tenantId: meta.tenantId,
+          actor: caller.actorId ?? caller.kind,
+          action: 'contact.ingest_suppressed_tombstone',
+          objectType: 'contact',
+          objectId: tombstone.contactId,
+          detail: {
+            providerEventKey: input.providerEventKey,
+            // Sem wa_id completo / corpo
+          },
+        },
         clock,
       )
+      return {
+        duplicate: inbound.duplicate,
+        contact: null,
+        inbound: inbound.row,
+        conversation: null,
+        message: null,
+        outbox: null,
+        outboxes: [],
+        suppressedTombstone: true,
+        externalCallsInsideTransaction: 0,
+      }
+    }
+
+    if (inbound.duplicate) {
+      let contact: ContactRow
+      try {
+        contact = upsertContact(
+          db,
+          { tenantId: meta.tenantId, waId: input.waId, displayName: input.displayName },
+          clock,
+        )
+      } catch (err) {
+        if (err instanceof ContactTombstonedError) {
+          return {
+            duplicate: true,
+            contact: null,
+            inbound: inbound.row,
+            conversation: null,
+            message: null,
+            outbox: null,
+            outboxes: [],
+            suppressedTombstone: true,
+            externalCallsInsideTransaction: 0,
+          }
+        }
+        throw err
+      }
       return {
         duplicate: true,
         contact,
@@ -89,6 +157,7 @@ export function ingestContactMessage(
         message: null,
         outbox: null,
         outboxes: [],
+        suppressedTombstone: false,
         externalCallsInsideTransaction: 0,
       }
     }
@@ -243,6 +312,7 @@ export function ingestContactMessage(
       message: appended.message,
       outbox: contactOutbox,
       outboxes,
+      suppressedTombstone: false,
       externalCallsInsideTransaction: 0,
     }
   })

@@ -48,7 +48,7 @@ export type NotifyNewConversationAsyncDeps = {
   simulated?: SimulatedPushTransport
   /** Nome do tenant quando já conhecido (evita round-trip). */
   tenantName?: string
-  tenantStatus?: 'active' | 'suspended' | 'pending_deletion'
+  tenantStatus?: 'active' | 'suspended' | 'pending_deletion' | 'purged'
 }
 
 /**

@@ -37,6 +37,7 @@ import {
   type MediaIngestClinicStub,
 } from './media-ingest'
 import type { MetaMediaAdapter } from './media'
+import { assertTenantAcceptsClinicalIngest } from '../retention/guards'
 
 export type QueueConsumerDeps = {
   env: WorkerBindings
@@ -120,6 +121,26 @@ async function processWhatsappMessage(
   }
 
   try {
+    // #43: tenant purgado / em exclusão — ack sem mutar clínica (anti-reintrodução).
+    if (deps.syncAdminDb) {
+      const gate = assertTenantAcceptsClinicalIngest(deps.syncAdminDb, msg.tenantId)
+      if (!gate.ok) {
+        log({
+          level: 'info',
+          event: 'queue.skip_tenant_gate',
+          detail: {
+            receiptId: msg.receiptId,
+            tenantId: msg.tenantId,
+            reason: gate.reason,
+          },
+        })
+        markWebhookReceiptProcessed(deps.syncAdminDb, msg.receiptId, clock, {
+          skipped: gate.reason,
+        })
+        return 'ack'
+      }
+    }
+
     const stub =
       deps.clinicStub?.(msg.tenantId) ?? clinicFromEnv(deps.env, msg.tenantId)
     const caller = queueCaller(msg.tenantId)

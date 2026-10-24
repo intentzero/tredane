@@ -85,6 +85,13 @@
       "when": 1792940000000,
       "tag": "0012_push_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1792950000000,
+      "tag": "0013_tenant_purge",
+      "breakpoints": true
     }
   ]
 }

@@ -20,7 +20,7 @@ Bindings **não são herdados** entre ambientes Wrangler: cada `env.*` declara o
 | `CLINIC` | Durable Object (`ClinicDurableObject`, SQLite) | Um DO por clínica; operação + WebSockets | Domínio #20; auth #21; WS/fence #23 |
 | `ATTACHMENTS` | R2 (privado) | Anexos; sem URL pública permanente | Binding local; acesso autenticado + token efémero (#34 / [f3-attachments.md](f3-attachments.md)); política fina de retenção **Em aberto** |
 | `INBOUND_EVENTS` | Queue (producer + consumer + DLQ) | Webhooks WhatsApp (#32) + drain outbox DO; DLQ `tredane-inbound-dlq-*` | Consumer activo; ver [f3-whatsapp-webhooks.md](f3-whatsapp-webhooks.md) |
-| Workflows | Workflow | Lembretes/processos multi-etapa | **Contrato apenas** — sem binding até o módulo existir |
+| Workflows | Workflow | Lembretes/processos multi-etapa | **Contrato apenas** — sem binding; expurgo #43 usa máquina de estados D1 ([f6-retention-purge.md](f6-retention-purge.md)) |
 | `AUTH_MODE` / `CLERK_*` | vars/secrets | Sessão Clerk + authorized parties (#21) | Synthetic em development; Clerk em staging/prod |
 | `APP_BASE_URL` / `EMAIL_TRANSPORT` | vars | Links de convite + transporte de e-mail (#25) | `simulated` em development; provedor real Em aberto |
 | `PUSH_MODE` / `VAPID_*` | vars/secrets | Web Push PWA (#42) | `synthetic` em development/CI; live exige `VAPID_PUBLIC_KEY` + secret `VAPID_PRIVATE_KEY` |

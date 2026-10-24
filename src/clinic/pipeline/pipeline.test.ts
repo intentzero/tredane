@@ -291,7 +291,7 @@ describe('Pipeline / Acompanhamento (#30)', () => {
         db,
         {
           tenantId: 'clinic-demo-a',
-          contactId: ingested.contact.id,
+          contactId: ingested.contact!.id,
           conversationId: ingested.conversation!.id,
         },
         clock,
@@ -300,7 +300,7 @@ describe('Pipeline / Acompanhamento (#30)', () => {
         db,
         {
           tenantId: 'clinic-demo-a',
-          contactId: ingested.contact.id,
+          contactId: ingested.contact!.id,
           conversationId: ingested.conversation!.id,
         },
         clock,

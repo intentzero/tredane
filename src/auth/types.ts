@@ -40,6 +40,7 @@ export type Permission =
   | 'clinic.pipeline.move'
   | 'clinic.agenda.operate'
   | 'clinic.config.write'
+  | 'clinic.contacts.delete'
   | 'clinic.members.invite_attendant'
   | 'clinic.members.revoke_attendant'
   | 'clinic.support.decide'
