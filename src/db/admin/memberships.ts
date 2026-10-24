@@ -1,0 +1,238 @@
+import type { Clock } from '../clock'
+import type { MembershipRole, MembershipStatus } from '../schema'
+import { writeAudit } from './audit'
+import { ConflictError, ForbiddenError, NotFoundError } from './errors'
+import { assertAdminSchemaReady } from './gate'
+import type { AdminDb } from './store'
+import { getTenant } from './tenants'
+
+export type MembershipRow = {
+  tenantId: string
+  clerkUserId: string
+  role: MembershipRole
+  status: MembershipStatus
+  createdAt: number
+  revokedAt: number | null
+}
+
+function mapMembership(row: {
+  tenant_id: string
+  clerk_user_id: string
+  role: string
+  status: string
+  created_at: number
+  revoked_at: number | null
+}): MembershipRow {
+  return {
+    tenantId: row.tenant_id,
+    clerkUserId: row.clerk_user_id,
+    role: row.role as MembershipRole,
+    status: row.status as MembershipStatus,
+    createdAt: row.created_at,
+    revokedAt: row.revoked_at,
+  }
+}
+
+export function getMembership(
+  db: AdminDb,
+  tenantId: string,
+  clerkUserId: string,
+): MembershipRow | undefined {
+  assertAdminSchemaReady(db)
+  const row = db.get<{
+    tenant_id: string
+    clerk_user_id: string
+    role: string
+    status: string
+    created_at: number
+    revoked_at: number | null
+  }>(
+    `SELECT tenant_id, clerk_user_id, role, status, created_at, revoked_at
+     FROM tenant_memberships
+     WHERE tenant_id = ? AND clerk_user_id = ?`,
+    tenantId,
+    clerkUserId,
+  )
+  return row ? mapMembership(row) : undefined
+}
+
+export function listActiveMembershipsForUser(db: AdminDb, clerkUserId: string): MembershipRow[] {
+  assertAdminSchemaReady(db)
+  const rows = db.all<{
+    tenant_id: string
+    clerk_user_id: string
+    role: string
+    status: string
+    created_at: number
+    revoked_at: number | null
+  }>(
+    `SELECT m.tenant_id, m.clerk_user_id, m.role, m.status, m.created_at, m.revoked_at
+     FROM tenant_memberships m
+     INNER JOIN tenants t ON t.id = m.tenant_id
+     WHERE m.clerk_user_id = ? AND m.status = 'active' AND t.status = 'active'
+     ORDER BY m.tenant_id`,
+    clerkUserId,
+  )
+  return rows.map(mapMembership)
+}
+
+export function listMembersForTenant(
+  db: AdminDb,
+  tenantId: string,
+  opts: { includeRevoked?: boolean } = {},
+): MembershipRow[] {
+  assertAdminSchemaReady(db)
+  const rows = opts.includeRevoked
+    ? db.all<{
+      tenant_id: string
+      clerk_user_id: string
+      role: string
+      status: string
+      created_at: number
+      revoked_at: number | null
+    }>(
+      `SELECT tenant_id, clerk_user_id, role, status, created_at, revoked_at
+       FROM tenant_memberships WHERE tenant_id = ? ORDER BY clerk_user_id`,
+      tenantId,
+    )
+    : db.all<{
+      tenant_id: string
+      clerk_user_id: string
+      role: string
+      status: string
+      created_at: number
+      revoked_at: number | null
+    }>(
+      `SELECT tenant_id, clerk_user_id, role, status, created_at, revoked_at
+       FROM tenant_memberships WHERE tenant_id = ? AND status = 'active' ORDER BY clerk_user_id`,
+      tenantId,
+    )
+  return rows.map(mapMembership)
+}
+
+export function requireActiveOwner(db: AdminDb, tenantId: string, clerkUserId: string): MembershipRow {
+  const membership = getMembership(db, tenantId, clerkUserId)
+  if (!membership || membership.status !== 'active' || membership.role !== 'owner') {
+    throw new ForbiddenError('owner_required', 'Owner ativo do tenant exigido')
+  }
+  const tenant = getTenant(db, tenantId)
+  if (!tenant || tenant.status !== 'active') {
+    throw new ForbiddenError('tenant_not_active', 'Tenant inativo')
+  }
+  return membership
+}
+
+/** Variante sem transação — usar dentro de `db.immediate` do caller. */
+export function upsertMembershipInTx(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    tenantId: string
+    clerkUserId: string
+    role: MembershipRole
+    actorClerkUserId: string
+  },
+): MembershipRow {
+  assertAdminSchemaReady(db)
+  const now = clock.nowMs()
+  const existing = getMembership(db, input.tenantId, input.clerkUserId)
+  if (existing?.status === 'active') {
+    if (existing.role !== input.role) {
+      throw new ConflictError(
+        'membership_role_conflict',
+        'Membership ativo com role diferente; não sobrescrever automaticamente',
+      )
+    }
+    return existing
+  }
+  if (existing?.status === 'revoked') {
+    db.run(
+      `UPDATE tenant_memberships
+       SET role = ?, status = 'active', created_at = ?, revoked_at = NULL
+       WHERE tenant_id = ? AND clerk_user_id = ?`,
+      input.role,
+      now,
+      input.tenantId,
+      input.clerkUserId,
+    )
+  } else {
+    db.run(
+      `INSERT INTO tenant_memberships (tenant_id, clerk_user_id, role, status, created_at, revoked_at)
+       VALUES (?, ?, ?, 'active', ?, NULL)`,
+      input.tenantId,
+      input.clerkUserId,
+      input.role,
+      now,
+    )
+  }
+  writeAudit(db, clock, {
+    actorClerkUserId: input.actorClerkUserId,
+    subjectClerkUserId: input.clerkUserId,
+    tenantId: input.tenantId,
+    action: 'membership.activate',
+    objectType: 'tenant_membership',
+    objectId: `${input.tenantId}:${input.clerkUserId}`,
+    outcome: 'success',
+    metadata: { role: input.role },
+  })
+  return getMembership(db, input.tenantId, input.clerkUserId)!
+}
+
+export function upsertMembership(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    tenantId: string
+    clerkUserId: string
+    role: MembershipRole
+    actorClerkUserId: string
+  },
+): MembershipRow {
+  return db.immediate(() => upsertMembershipInTx(db, clock, input))
+}
+
+/** DEC-026: revoga membership no tenant sem afetar outros. */
+export function revokeMembership(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    tenantId: string
+    clerkUserId: string
+    actorClerkUserId: string
+    /** Owner só remove attendants; superadmin pode remover owners (validado pelo caller). */
+    allowOwnerTarget?: boolean
+  },
+): MembershipRow {
+  assertAdminSchemaReady(db)
+  const now = clock.nowMs()
+  return db.immediate(() => {
+    const current = getMembership(db, input.tenantId, input.clerkUserId)
+    if (!current) throw new NotFoundError('membership_not_found', 'Membership inexistente')
+    if (current.status === 'revoked') return current
+    if (current.role === 'owner' && !input.allowOwnerTarget) {
+      throw new ForbiddenError('cannot_revoke_owner', 'Owner só é gerido por superadmin')
+    }
+    const result = db.run(
+      `UPDATE tenant_memberships
+       SET status = 'revoked', revoked_at = ?
+       WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active'`,
+      now,
+      input.tenantId,
+      input.clerkUserId,
+    )
+    if (result.changes !== 1) {
+      throw new ConflictError('membership_revoke_conflict', 'Revogação não aplicada')
+    }
+    writeAudit(db, clock, {
+      actorClerkUserId: input.actorClerkUserId,
+      subjectClerkUserId: input.clerkUserId,
+      tenantId: input.tenantId,
+      action: 'membership.revoke',
+      objectType: 'tenant_membership',
+      objectId: `${input.tenantId}:${input.clerkUserId}`,
+      outcome: 'success',
+      metadata: { role: current.role },
+    })
+    return getMembership(db, input.tenantId, input.clerkUserId)!
+  })
+}

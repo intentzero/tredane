@@ -1,6 +1,6 @@
 # Modelo lógico de dados — D1 central e SQLite por clínica
 
-**Estado:** distribuição de persistência confirmada em DEC-038 / [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md); campos, índices e esquema finais continuam propostos, não migração executada. Orienta adaptação da persistência e testes do MVP. [Requisitos](../product/requirements.md) e [decisões abertas](../product/decisions.md) continuam a ser a fonte das regras de produto.
+**Estado:** distribuição de persistência confirmada em DEC-038 / [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md). Migração D1 administrativa inicial em `0003_admin_d1_central.sql` (issue #19 / [f1-admin-d1.md](../implementation/f1-admin-d1.md)); campos exactos do esquema D1 são desenho de implementação sujeito a revisão nos PRs. Domínio operacional no SQLite do DO permanece por implementar (#20). [Requisitos](../product/requirements.md) e [decisões abertas](../product/decisions.md) continuam a ser a fonte das regras de produto.
 
 ## Distribuição confirmada — DEC-038
 
