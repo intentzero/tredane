@@ -1,6 +1,6 @@
 # F2 — Configuração da clínica, serviços, profissionais e recursos
 
-**Estado:** implementação da issue [#28](https://github.com/intentzero/tredane/issues/28) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API/SQLite no Clinic DO + telas owner-only no painel (M-15/16/17/20/21/22). **Sem** Inbox (#29), Acompanhamento (#30), WhatsApp Embedded Signup nem campos de sinal Pix (entregas próprias). Dados sintéticos apenas.
+**Estado:** implementação da issue [#28](https://github.com/intentzero/tredane/issues/28) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API/SQLite no Clinic DO + telas owner-only no painel (M-15/16/17/20/21/22). **Sem** Acompanhamento (#30), WhatsApp Embedded Signup nem campos de sinal Pix (entregas próprias). Inbox: ver [f2-inbox.md](f2-inbox.md) (#29). Dados sintéticos apenas.
 
 ## Decisões aplicadas (Confirmado)
 

@@ -15,6 +15,9 @@ describe('panel routes (#22)', () => {
       kind: 'area',
       area: 'conversas',
       tenantId: 'clinic-demo-a',
+      section: 'lista',
+      conversationId: undefined,
+      contactId: undefined,
     })
     expect(resolvePanelRoute('/c/clinic-demo-a/acompanhamento')).toEqual({
       kind: 'area',
@@ -36,6 +39,42 @@ describe('panel routes (#22)', () => {
         section: 'hub',
       }),
     ).toBe('/c/clinic-demo-a/clinica')
+  })
+
+  it('resolve sub-rotas de conversas (#29)', () => {
+    expect(resolvePanelRoute('/c/clinic-demo-a/conversas')).toEqual({
+      kind: 'area',
+      area: 'conversas',
+      tenantId: 'clinic-demo-a',
+      section: 'lista',
+      conversationId: undefined,
+      contactId: undefined,
+    })
+    expect(resolvePanelRoute('/c/clinic-demo-a/conversas/cnv_1')).toEqual({
+      kind: 'area',
+      area: 'conversas',
+      tenantId: 'clinic-demo-a',
+      section: 'thread',
+      conversationId: 'cnv_1',
+      contactId: undefined,
+    })
+    expect(resolvePanelRoute('/c/clinic-demo-a/conversas/cnv_1/contato')).toEqual({
+      kind: 'area',
+      area: 'conversas',
+      tenantId: 'clinic-demo-a',
+      section: 'contato',
+      conversationId: 'cnv_1',
+      contactId: undefined,
+    })
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'conversas',
+        tenantId: 'clinic-demo-a',
+        section: 'thread',
+        conversationId: 'cnv_1',
+      }),
+    ).toBe('/c/clinic-demo-a/conversas/cnv_1')
   })
 
   it('resolve sub-rotas de configuração da clínica (#28)', () => {

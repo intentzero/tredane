@@ -36,7 +36,7 @@ export function ClinicSelector() {
     void selectTenant(only.tenantId, only.name).then((ok) => {
       if (ok) {
         navigatePanel(
-          { kind: 'area', area: 'conversas', tenantId: only.tenantId },
+          { kind: 'area', area: 'conversas', tenantId: only.tenantId, section: 'lista' },
           true,
         )
       }
@@ -107,7 +107,12 @@ export function ClinicSelector() {
           void selectTenant(tenant.tenantId, tenant.name).then((ok) => {
             if (ok) {
               navigatePanel(
-                { kind: 'area', area: 'conversas', tenantId: tenant.tenantId },
+                {
+                  kind: 'area',
+                  area: 'conversas',
+                  tenantId: tenant.tenantId,
+                  section: 'lista',
+                },
                 true,
               )
             }

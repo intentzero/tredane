@@ -4,6 +4,7 @@ import { AuthModeGate, LoginScreen } from './auth/ClerkBridge'
 import { ClinicSelector } from './screens/ClinicSelector'
 import { AreaPlaceholder } from './screens/AreaPlaceholders'
 import { ClinicArea } from './screens/clinic/ClinicArea'
+import { ConversasArea } from './screens/inbox/ConversasArea'
 import { PanelShell } from './shell/PanelShell'
 import { LoadingState } from './states/StatusScreens'
 import { TenantProvider, useTenant } from './tenant/TenantContext'
@@ -77,6 +78,13 @@ function PanelRouter() {
           tenantId={route.tenantId}
           section={route.section}
           entityId={route.entityId}
+        />
+      ) : route.area === 'conversas' ? (
+        <ConversasArea
+          tenantId={route.tenantId}
+          section={route.section}
+          conversationId={route.conversationId}
+          contactId={route.contactId}
         />
       ) : (
         <AreaPlaceholder area={route.area} />

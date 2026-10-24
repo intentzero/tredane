@@ -206,7 +206,8 @@ describe('Clinic — envelopes, tenant e outbox', () => {
       expect(second.duplicate).toBe(true)
       expect(second.outbox).toBeNull()
       expect(listContacts(db, 'clinic-demo-a')).toHaveLength(1)
-      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(1)
+      // contact.upserted + message.created + conversation.created|updated
+      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(3)
       expect(listOperationalAudit(db, 'clinic-demo-a')).toHaveLength(1)
     } finally {
       close()
@@ -229,7 +230,7 @@ describe('Clinic — envelopes, tenant e outbox', () => {
         clock,
       )
       expect(ingested.externalCallsInsideTransaction).toBe(0)
-      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(1)
+      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(3)
 
       // Simula crash: não chama publish. Reinício = novo drain.
       const publishedIds: string[] = []
@@ -243,8 +244,8 @@ describe('Clinic — envelopes, tenant e outbox', () => {
         },
         clock,
       )
-      expect(drain1.published).toHaveLength(1)
-      expect(publishedIds).toHaveLength(1)
+      expect(drain1.published).toHaveLength(3)
+      expect(publishedIds).toHaveLength(3)
 
       const drain2 = await publishPendingEffects(
         db,
@@ -309,8 +310,9 @@ describe('Clinic — envelopes, tenant e outbox', () => {
         },
         clock,
       )
-      expect(fail.failed).toEqual([ingested.outbox!.id])
-      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(1)
+      expect(fail.failed).toHaveLength(3)
+      expect(fail.failed).toContain(ingested.outbox!.id)
+      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(3)
 
       const ok = await publishPendingEffects(
         db,
@@ -322,7 +324,8 @@ describe('Clinic — envelopes, tenant e outbox', () => {
         },
         clock,
       )
-      expect(ok.published).toEqual([ingested.outbox!.id])
+      expect(ok.published).toHaveLength(3)
+      expect(ok.published).toContain(ingested.outbox!.id)
     } finally {
       close()
     }

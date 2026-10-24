@@ -231,10 +231,10 @@ describe('Cloudflare runtime harness — F0', () => {
       method: 'POST',
     })
     expect(drain.status).toBe(200)
-    await expect(drain.json()).resolves.toMatchObject({
-      published: [ingested.outboxId],
-      failed: [],
-    })
+    const drained = (await drain.json()) as { published: string[]; failed: string[] }
+    expect(drained.failed).toEqual([])
+    expect(drained.published).toContain(ingested.outboxId)
+    expect(drained.published.length).toBeGreaterThanOrEqual(1)
 
     const after = await storage.exec(
       `SELECT processing_state FROM outbox_events WHERE id = ?`,

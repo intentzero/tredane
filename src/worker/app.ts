@@ -30,12 +30,17 @@ import {
   createClinicConfigRoutes,
   type ClinicConfigRouteOptions,
 } from '../clinic-config'
+import {
+  createInboxRoutes,
+  type InboxRouteOptions,
+} from '../inbox'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
 import type { ClinicEventPublisher } from '../realtime'
 import type { WorkerBindings } from './bindings'
 import type { ClinicConfigGateway } from '../clinic-config'
+import type { InboxGateway } from '../inbox'
 
 export type { WorkerBindings } from './bindings'
 
@@ -63,6 +68,11 @@ export type CreateAppOptions = {
     env: WorkerBindings,
     tenantId: string,
   ) => ClinicConfigGateway | Promise<ClinicConfigGateway>
+  /** Gateway da caixa de entrada (#29). */
+  inboxGatewayFactory?: (
+    env: WorkerBindings,
+    tenantId: string,
+  ) => InboxGateway | Promise<InboxGateway>
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -118,6 +128,12 @@ export function createApp(opts: CreateAppOptions = {}) {
     gatewayFactory: opts.clinicConfigGatewayFactory,
   }
   app.route('/', createClinicConfigRoutes(configOpts))
+
+  const inboxOpts: InboxRouteOptions = {
+    gatewayFactory: opts.inboxGatewayFactory,
+    syncAdminDbFactory: opts.syncAdminDbFactory,
+  }
+  app.route('/', createInboxRoutes(inboxOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

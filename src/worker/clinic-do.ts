@@ -4,6 +4,7 @@ import {
   assertSyntheticTenantId,
   bindOrAssertTenant,
   clinicConfig,
+  clinicInbox,
   fromDurableObjectSql,
   getBoundTenant,
   ingestContactMessage,
@@ -17,8 +18,16 @@ import {
   type ConsumerResult,
   type EventEnvelope,
   type IngestContactMessageInput,
+  type OutboxRow,
   workerCaller,
 } from '../clinic'
+import type {
+  AssignConversationInput,
+  CloseConversationInput,
+  ListConversationsInput,
+  MarkReadInput,
+  SendOutboundInput,
+} from '../clinic/inbox'
 import type {
   CreateBlockInput,
   SetWeeklyWindowsInput,
@@ -263,6 +272,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   ): Promise<{
     duplicate: boolean
     contactId: string
+    conversationId: string | null
+    messageId: string | null
     inboundId: string
     outboxId: string | null
     eventSeq: number | null
@@ -280,35 +291,14 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       skippedUnavailable: string[]
     } | null = null
 
-    if (!result.duplicate && result.outbox) {
-      const evt = appendRealtimeEvent(
-        this.#db,
-        {
-          tenantId: caller.tenantId,
-          type: 'contact.upserted',
-          entityType: 'contact',
-          entityId: result.contact.id,
-          eventId: `rt:${result.outbox.idempotencyKey}`,
-          payload: {
-            contactId: result.contact.id,
-            waId: result.contact.waId,
-            providerEventKey: input.providerEventKey,
-            bodyPreview: input.body.slice(0, 120),
-          },
-        },
-        this.#clock,
+    if (!result.duplicate && result.outboxes.length > 0) {
+      const last = await this.#fanoutOutboxes(
+        caller,
+        result.outboxes,
+        opts.fanout !== false,
       )
-      eventSeq = evt.seq
-
-      if (opts.fanout !== false) {
-        fanoutResult = await deliverEventToSockets(
-          this.#db,
-          this.#asDeliverySockets(),
-          evt,
-          this.#authority(),
-          this.#clock,
-        )
-      }
+      eventSeq = last.eventSeq
+      fanoutResult = last.fanout
     }
 
     let drained: string[] = []
@@ -320,11 +310,140 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return {
       duplicate: result.duplicate,
       contactId: result.contact.id,
+      conversationId: result.conversation?.id ?? null,
+      messageId: result.message?.id ?? null,
       inboundId: result.inbound.id,
       outboxId: result.outbox?.id ?? null,
       eventSeq,
       drained,
       fanout: fanoutResult,
+    }
+  }
+
+  async #fanoutOutboxes(
+    caller: ClinicCaller,
+    outboxes: readonly OutboxRow[],
+    fanout: boolean,
+  ): Promise<{
+    eventSeq: number | null
+    fanout: { delivered: string[]; revoked: string[]; skippedUnavailable: string[] } | null
+  }> {
+    let eventSeq: number | null = null
+    let fanoutResult: {
+      delivered: string[]
+      revoked: string[]
+      skippedUnavailable: string[]
+    } | null = null
+    for (const ob of outboxes) {
+      let payload: Record<string, unknown> = {}
+      try {
+        payload = JSON.parse(ob.payloadJson) as Record<string, unknown>
+      } catch {
+        payload = {}
+      }
+      const evt = appendRealtimeEvent(
+        this.#db,
+        {
+          tenantId: caller.tenantId,
+          type: ob.type,
+          entityType: ob.aggregateType,
+          entityId: ob.aggregateId,
+          eventId: `rt:${ob.idempotencyKey}`,
+          payload,
+        },
+        this.#clock,
+      )
+      eventSeq = evt.seq
+      if (fanout) {
+        fanoutResult = await deliverEventToSockets(
+          this.#db,
+          this.#asDeliverySockets(),
+          evt,
+          this.#authority(),
+          this.#clock,
+        )
+      }
+    }
+    return { eventSeq, fanout: fanoutResult }
+  }
+
+  async listInboxConversations(caller: ClinicCaller, input: ListConversationsInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicInbox.listConversationsOp(this.#db, caller, input, this.#clock)
+  }
+
+  async getInboxConversation(
+    caller: ClinicCaller,
+    input: { conversationId: string; messageLimit?: number; before?: number | null },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicInbox.getConversationDetailOp(this.#db, caller, input, this.#clock)
+  }
+
+  async getInboxContact(caller: ClinicCaller, contactId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicInbox.getContactDetailOp(this.#db, caller, contactId, this.#clock)
+  }
+
+  async assignInboxConversation(caller: ClinicCaller, input: AssignConversationInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicInbox.assignConversationOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutOutboxes(caller, result.outbox, true)
+    await this.#drain(caller)
+    return result.value
+  }
+
+  async markInboxConversationRead(caller: ClinicCaller, input: MarkReadInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicInbox.markConversationReadOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutOutboxes(caller, result.outbox, true)
+    await this.#drain(caller)
+    return result.value
+  }
+
+  async closeInboxConversation(caller: ClinicCaller, input: CloseConversationInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicInbox.closeConversationOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutOutboxes(caller, result.outbox, true)
+    await this.#drain(caller)
+    return result.value
+  }
+
+  async sendInboxOutbound(caller: ClinicCaller, input: SendOutboundInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicInbox.sendOutboundMessageOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutOutboxes(caller, result.outbox, true)
+    await this.#drain(caller)
+    return result.value
+  }
+
+  async seedInboxDemo(caller: ClinicCaller, opts: { force?: boolean } = {}) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicInbox.seedSyntheticInboxOp(this.#db, caller, this.#clock, opts)
+  }
+
+  /** Snapshot de reconciliação — lista recente + seq (REQ-021 / #23). */
+  async listInboxSnapshot(caller: ClinicCaller, viewerClerkUserId?: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const listed = clinicInbox.listConversationsOp(
+      this.#db,
+      caller,
+      { filter: 'all', limit: 50, viewerClerkUserId },
+      this.#clock,
+    )
+    return {
+      eventSeq: getLastEventSeq(this.#db),
+      conversations: listed.items,
+      counts: listed.counts,
     }
   }
 

@@ -1342,3 +1342,382 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* —— Inbox / Conversas (#29) —— */
+.inbox-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  flex: 1;
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.inbox-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inbox-search-icon {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.inbox-search-input {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) + 24px);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+}
+
+.inbox-filters {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+  -webkit-overflow-scrolling: touch;
+}
+
+.inbox-chip-active,
+.panel-chip.inbox-chip-active {
+  background: var(--color-text-primary);
+  color: var(--color-surface-card);
+}
+
+.inbox-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.inbox-row {
+  width: 100%;
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  text-align: left;
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  min-height: 44px;
+}
+
+.inbox-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-primary-subtle, #e8eef7);
+  color: var(--color-primary-base);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-caption, 0.75rem);
+  flex: none;
+}
+
+.inbox-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inbox-row-top {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.inbox-row-name {
+  font-weight: var(--font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-row-time {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption, 0.75rem);
+  flex: none;
+}
+
+.inbox-row-preview {
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-caption, 0.875rem);
+}
+
+.inbox-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 2px;
+}
+
+.inbox-row-assignee {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption, 0.75rem);
+}
+
+.inbox-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-badge-new {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.inbox-badge-open {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.inbox-badge-closed {
+  background: var(--color-surface-muted, #f1f3f5);
+  color: var(--color-text-secondary);
+}
+
+.inbox-unread {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-semibold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inbox-thread,
+.inbox-contact {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  gap: var(--space-2);
+}
+
+.inbox-thread-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  flex: none;
+}
+
+.inbox-thread-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: var(--space-1);
+  min-height: 44px;
+  justify-content: center;
+}
+
+.inbox-thread-name {
+  font-weight: var(--font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.inbox-thread-sub {
+  font-size: var(--font-size-caption, 0.75rem);
+  color: var(--color-text-secondary);
+}
+
+.inbox-thread-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+}
+
+.inbox-notice {
+  margin: 0 var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: #fef3c7;
+  color: #92400e;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-size-caption, 0.875rem);
+}
+
+.inbox-timeline {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 120px;
+}
+
+.inbox-timeline-more {
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption, 0.75rem);
+}
+
+.inbox-msg {
+  max-width: 85%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inbox-msg-in {
+  align-self: flex-start;
+}
+
+.inbox-msg-out {
+  align-self: flex-end;
+}
+
+.inbox-msg-body {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  border: var(--size-border-width) solid var(--color-line-border);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.inbox-msg-out .inbox-msg-body {
+  background: var(--color-primary-subtle, #e8eef7);
+  border-color: transparent;
+}
+
+.inbox-msg-meta {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  padding: 0 var(--space-1);
+}
+
+.inbox-msg-out .inbox-msg-meta {
+  text-align: right;
+}
+
+.inbox-msg-system {
+  align-self: center;
+  max-width: 90%;
+  text-align: center;
+  font-size: var(--font-size-caption, 0.75rem);
+  color: var(--color-text-secondary);
+  padding: var(--space-1) var(--space-3);
+}
+
+.inbox-composer {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--size-border-width) solid var(--color-line-border);
+  background: var(--color-surface-card);
+  flex: none;
+}
+
+.inbox-composer-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.inbox-composer-input {
+  width: 100%;
+  min-height: 44px;
+  resize: vertical;
+  max-height: 120px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-md);
+  font: inherit;
+  background: var(--color-surface-app);
+  color: var(--color-text-primary);
+}
+
+.inbox-composer-closed {
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption, 0.875rem);
+  border-top: var(--size-border-width) solid var(--color-line-border);
+}
+
+.inbox-contact-dl {
+  margin: 0;
+  padding: 0 var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.inbox-contact-dl div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inbox-contact-dl dt {
+  font-size: var(--font-size-caption, 0.75rem);
+  color: var(--color-text-secondary);
+}
+
+.inbox-contact-dl dd {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-contact-h {
+  margin: var(--space-4) var(--space-4) var(--space-1);
+  font-size: var(--font-size-body);
+}
+
+.inbox-contact-note {
+  margin: 0 var(--space-4) var(--space-2);
+  font-size: var(--font-size-caption, 0.75rem);
+  color: var(--color-text-secondary);
+}
+
+.inbox-contact .inbox-list {
+  padding: 0 var(--space-4) var(--space-4);
+}

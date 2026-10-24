@@ -5,10 +5,11 @@ import type { PanelArea } from '../routes'
 export function AreaPlaceholder({ area }: { area: PanelArea }) {
   switch (area) {
     case 'conversas':
+      // Conteúdo real em ConversasArea (#29); placeholder só se rota mal formada.
       return (
         <EmptyState
           title="Nenhuma conversa ainda"
-          description="Mensagens enviadas ao WhatsApp da clínica aparecem aqui. Integração de caixa de entrada nas fatias seguintes."
+          description="Mensagens enviadas ao WhatsApp da clínica aparecem aqui."
         />
       )
     case 'acompanhamento':
