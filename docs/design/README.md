@@ -58,6 +58,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 
 | Onde | Divergência | Implementar assim |
 | --- | --- | --- |
+| Bordas de campos, botões secundários, chips e caixas de seleção (quase todas as telas) | Usam `#CDD0D4`, que dá 1,55:1 sobre branco e viola o 3:1 exigido para bordas de controles (WCAG 1.4.11; [ux-ui.md](../product/ux-ui.md) §7) | Usar `line.controlStrong` (`#80868F`, 3,67:1) de [tokens.json](tokens.json). Os mocks ainda não foram atualizados |
 | Chips e botões pequenos (M-01, M-05, M-06, M-13, M-17, M-18) | Altura visual de 36–40px, abaixo de 44px | Mesma aparência, mas área clicável ≥ 44px (UX-08, [tokens](tokens.json) `size.note`) |
 | M-06 Agenda do dia | Não mostra o alternador **Dia / Semana** | Incluir como em M-13 (DEC-018) |
 | M-15 Clínica | O item “WhatsApp” abre M-19 (não conectado) | Abrir M-19, M-23 ou M-24 conforme o estado real da conexão |
