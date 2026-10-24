@@ -46,3 +46,7 @@
 - Regras de dados pessoais/anexos, consentimentos e prazos de conservação com revisão apropriada.
 
 **Critério de saída:** cada hipótese passa a Confirmada ou Rejeitada com data/origem, ou permanece explicitamente Em aberto com motivo e gate. Não converter estas hipóteses em requisitos definitivos antes de revisão.
+
+## Ligação à validação E2E (#45)
+
+Harness e matriz de evidência sintéticos: [evidence-matrix.md](evidence-matrix.md), [f6-e2e-validation.md](../implementation/f6-e2e-validation.md). VAL-01–05/09–11 continuam a exigir clínica/produto; o CI **não** as promove a Confirmadas.

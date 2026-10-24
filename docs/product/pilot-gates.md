@@ -42,7 +42,7 @@ Estados permitidos: **Pendente** · **Em andamento** · **Evidência anexada** �
 | GATE-10 | Modelos WhatsApp aprovados (retomada, confirmação, cobrança Pix) | Produto + Engenharia | **Pendente** | Envio fora da janela de 24 h | Rascunhos em [whatsapp-templates-draft.md](whatsapp-templates-draft.md) |
 | GATE-11 | Termos / política de cancelamento / requisitos fiscais do sinal | Jurídico + Clínica + Produto | **Pendente** | Sinal com clientes reais | Perguntas 10 do dossiê; política da clínica |
 | GATE-12 | Configuração do piloto (serviços, recursos, aparelhos, anexos/logs) | Produto + Clínica | **Pendente** | Aceite de usabilidade e F6 | Checklist §5 (sintético até autorização) |
-| GATE-13 | Critérios de avaliação do piloto e consentimentos | Produto + Clínica | **Pendente** | Liberação F6 / issue #45 | §6 |
+| GATE-13 | Critérios de avaliação do piloto e consentimentos | Produto + Clínica | **Pendente** | Liberação F6 / issue #45 | §6; matriz E2E sintética em [evidence-matrix.md](evidence-matrix.md) — activação ainda **Em aberto** |
 
 **Referências de decisão:** DEC-009, DEC-011, DEC-043, DEC-047; VAL-01–13; Q-UX-01/05/06.
 
@@ -132,14 +132,14 @@ Itens da [landing](landing.md) que bloqueiam publicação (domínio, e-mail, pri
 
 ## 6. Critérios de avaliação do piloto (proposta)
 
-**Proposto** — validar com produto + clínica antes da F6 (#45):
+**Proposto** — validar com produto + clínica (GATE-13). Harness sintético da [#45](https://github.com/intentzero/tredane/issues/45): [f6-e2e-validation.md](../implementation/f6-e2e-validation.md) / [evidence-matrix.md](evidence-matrix.md). **NO-GO** até autorização explícita — **não** reivindica piloto activado.
 
-1. Fluxo completo com dados sintéticos: mensagem → resposta humana → etapa → agendamento (e sinal, se ligado).
-2. Nenhuma mensagem da IA enviada sem ação humana.
-3. Isolamento: duas clínicas de teste sem vazamento.
-4. Fora da janela de 24 h: só modelos aprovados (quando GATE-10 liberar).
-5. Logs de diagnóstico sem tokens nem conteúdo pessoal desnecessário (REQ-070).
-6. Lista explícita do que falta para dados reais (GATE-01 a GATE-13).
+1. Fluxo completo com dados sintéticos: mensagem → resposta humana → etapa → agendamento (e sinal, se ligado). **Confirmado (CI sintético)** em `src/mvp-validation/`.
+2. Nenhuma mensagem da IA enviada sem ação humana. **Confirmado (sintético)** (#41 + journey E2E).
+3. Isolamento: duas clínicas de teste sem vazamento. **Confirmado (sintético)**.
+4. Fora da janela de 24 h: só modelos aprovados (quando GATE-10 liberar). **Em aberto**.
+5. Logs de diagnóstico sem tokens nem conteúdo pessoal desnecessário (REQ-070). **Confirmado (sintético)** (#44); retenção/ACL **Em aberto**.
+6. Lista explícita do que falta para dados reais (GATE-01 a GATE-13). Ver checklist humano em f6-e2e-validation.md.
 
 ## 7. Lacunas a registar nas issues de domínio
 
