@@ -65,7 +65,7 @@ A [auditoria do Issue #1](docs/product/definition-audit-2026-10-23.md) distingue
 
 ## Próximo marco
 
-Baseline F0 (#15–#18). F1: D1 admin (#19), Clinic DO (#20), Clerk HTTP (#21 / [f1-clerk-auth.md](docs/implementation/f1-clerk-auth.md)), WebSockets/revogação (#23 / [f1-realtime-ws.md](docs/implementation/f1-realtime-ws.md)), Platform Admin (#24 / [f1-platform-admin.md](docs/implementation/f1-platform-admin.md)), Equipe (#25), Pedidos de suporte (#26 / [f1-support-requests.md](docs/implementation/f1-support-requests.md)); login UI (#22) e sessão de suporte (#27) seguem — [épico #14](https://github.com/intentzero/tredane/issues/14). Dados sintéticos até os gates de liberação.
+Baseline F0 (#15–#18). F1 concluída na linha main (#19–#27). F2: configuração da clínica (#28 / [f2-clinic-config.md](docs/implementation/f2-clinic-config.md)); Inbox (#29) e Acompanhamento (#30) seguem — [épico #14](https://github.com/intentzero/tredane/issues/14). Dados sintéticos até os gates de liberação.
 
 
 ## Persistência por clínica — DEC-038
