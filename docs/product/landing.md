@@ -49,10 +49,11 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: IA s
 
 | Pergunta | Quem decide |
 | --- | --- |
-| Domínio do site e endereço do painel para **Entrar** (hoje `app.tredane.example`) | Responsável pelo produto |
+| Domínio de **staging** da landing: `https://staging.tredane.com` (Worker `tredane-site-staging`, `site/wrangler.jsonc` env `staging`) | **Confirmado** (pedido do responsável, 24/10/2026); DNS/custom domain ainda dependem do deploy na conta Cloudflare da zona `tredane.com` |
+| Domínio de **produção** do site e endereço do painel para **Entrar** (hoje `app.tredane.example`) | Responsável pelo produto |
 | E-mail de contato (hoje `contato@tredane.example`) | Responsável pelo produto |
 | Política de privacidade publicada em `/privacidade`; depende do parecer jurídico ([dossiê](legal-review-brief.md)) e do CNPJ (VAL-13); rastreio GATE-03 em [pilot-gates.md](pilot-gates.md) | Responsável pelo produto + advogado |
 | Condições e preço do piloto (não inventar valores neste repositório) | Responsável pelo produto |
 | Logo e marca definitivos (hoje provisórios) | Responsável pelo produto |
-| Domínio real em `SITE_URL` (canônica, Open Graph e mapa do site usam o padrão `tredane.example` até lá) e endereço do painel em `PUBLIC_APP_URL`, e-mail em `PUBLIC_CONTACT_EMAIL` | Responsável pelo produto |
+| `SITE_URL` de **produção** (canônica, Open Graph e mapa do site; staging usa `https://staging.tredane.com` via `npm run build:staging`) e endereço do painel em `PUBLIC_APP_URL`, e-mail em `PUBLIC_CONTACT_EMAIL` | Responsável pelo produto |
 | Medição de visitas: só com ferramenta sem cookies e após a política de privacidade | Responsável pelo produto |

@@ -1,9 +1,23 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   // Landing page pública, separada do painel (DEC-044). Só arquivos estáticos, sem Worker nem dados.
+  // Deploy: npm run deploy:staging (em site/). Conta Cloudflare deve ser a que possui a zona tredane.com.
   "name": "tredane-site",
-  "compatibility_date": "2026-10-19",
+  "compatibility_date": "2026-10-23",
   "assets": {
     "directory": "./dist"
+  },
+  "workers_dev": true,
+  "env": {
+    "staging": {
+      // Publica como tredane-site-staging + workers.dev; Custom Domain cria o registo DNS na zona.
+      "workers_dev": true,
+      "routes": [
+        {
+          "pattern": "staging.tredane.com",
+          "custom_domain": true
+        }
+      ]
+    }
   }
 }

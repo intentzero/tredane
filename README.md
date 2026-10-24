@@ -30,7 +30,7 @@ O [escopo inicial do MVP](docs/MVP.md) registra o fluxo, os critérios de aceite
 - [Modelo lógico D1 central/SQLite por clínica](docs/architecture/data-model.md)
 - [ADRs — decisões arquiteturais](docs/adr/0001-cloudflare-native.md) (ver também [topologia D1](docs/adr/0002-d1-topology.md), [tempo real](docs/adr/0003-durable-objects-realtime.md), [IA assistiva](docs/adr/0004-ai-human-in-loop.md) e [concorrência da agenda](docs/adr/0005-d1-booking-consistency.md))
 - [Mocks e guia de implementação da interface](docs/design/README.md)
-- [Landing page do piloto](docs/product/landing.md): site Astro separado em `site/` (`cd site && npm install && npm run dev`)
+- [Landing page do piloto](docs/product/landing.md): site Astro separado em `site/` (`cd site && npm install && npm run dev`). Staging: `cd site && npm run deploy:staging` → `https://staging.tredane.com` (requer auth Wrangler na conta da zona `tredane.com`; ver checklist no projeto Campo Próximo).
 - [Plano de implementação por fatias](docs/implementation/plan.md)
 
 Os ADRs identificam decisões aceitas, propostas técnicas e temas ainda em aberto. Nenhum módulo de aplicação foi implementado apenas por adicionar esta documentação.
