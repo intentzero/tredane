@@ -11,7 +11,7 @@
 | Webhook do WhatsApp | Origem verificada + conta/número oficial associado a uma única clínica. | Número desconhecido ou validação falha não cria dados nem publica eventos. |
 | Queue e Workflow | Contexto interno de tenant e ID de evento/ação emitidos por entrada já verificada. | Payload incompleto, adulterado ou sem associação vigente não executa efeito colateral. |
 
-Um usuário que pertença a várias clínicas, caso isso seja permitido, seleciona um tenant por sessão/contexto de trabalho. A troca revalida acesso e não reaproveita assinatura WebSocket ou cache de outro tenant.
+**Confirmado:** um usuário pode pertencer a várias clínicas. Ele seleciona explicitamente a clínica ativa e pode trocá-la no painel; cada aba/requisição opera no tenant escolhido e revalidado contra o membership vigente. A troca não reaproveita assinatura WebSocket nem cache de outro tenant.
 
 ## Limites por componente
 
