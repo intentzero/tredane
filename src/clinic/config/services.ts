@@ -1,8 +1,14 @@
 import type { Clock } from '../../db/clock'
+import { assertValidSignalConfig } from '../../pix/money'
 import { NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
 import type { ClinicDb } from '../store'
-import type { RoomRequirement, ServiceRow, UpsertServiceInput } from './types'
+import type {
+  RoomRequirement,
+  ServiceRow,
+  ServiceSignalKind,
+  UpsertServiceInput,
+} from './types'
 import {
   assertBufferMinutes,
   assertNonEmptyName,
@@ -19,6 +25,10 @@ type ServiceSql = {
   price_cents: number | null
   client_explanation: string | null
   active: number
+  requires_signal?: number
+  signal_kind?: string | null
+  signal_fixed_cents?: number | null
+  signal_percent?: number | null
   created_at: number
   updated_at: number
 }
@@ -74,6 +84,11 @@ function toServiceRow(
   db: ClinicDb,
   row: ServiceSql,
 ): ServiceRow {
+  const requiresSignal = (row.requires_signal ?? 0) === 1
+  const signalKind =
+    row.signal_kind === 'fixed' || row.signal_kind === 'percent'
+      ? (row.signal_kind as ServiceSignalKind)
+      : null
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -83,10 +98,66 @@ function toServiceRow(
     priceCents: row.price_cents,
     clientExplanation: row.client_explanation,
     active: row.active === 1,
+    requiresSignal,
+    signalKind: requiresSignal ? signalKind : null,
+    signalFixedCents: requiresSignal ? (row.signal_fixed_cents ?? null) : null,
+    signalPercent: requiresSignal ? (row.signal_percent ?? null) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     professionalIds: loadProfessionals(db, row.tenant_id, row.id),
     roomRequirement: loadRoomRequirement(db, row.tenant_id, row.id),
+  }
+}
+
+function normalizeSignalFields(
+  input: UpsertServiceInput,
+  priceCents: number | null,
+): {
+  requiresSignal: number
+  signalKind: string | null
+  signalFixedCents: number | null
+  signalPercent: number | null
+} {
+  const requiresSignal = input.requiresSignal === true
+  if (!requiresSignal) {
+    return {
+      requiresSignal: 0,
+      signalKind: null,
+      signalFixedCents: null,
+      signalPercent: null,
+    }
+  }
+  const kind = input.signalKind ?? null
+  const fixed =
+    kind === 'fixed' && input.signalFixedCents != null
+      ? Math.trunc(input.signalFixedCents)
+      : null
+  const percent =
+    kind === 'percent' && input.signalPercent != null
+      ? Math.trunc(input.signalPercent)
+      : null
+  const err = assertValidSignalConfig(
+    {
+      requiresSignal: true,
+      kind,
+      fixedCents: fixed,
+      percent,
+    },
+    priceCents,
+  )
+  if (err) {
+    throw new ValidationError(err, `configuração de sinal inválida: ${err}`, {
+      signalKind: kind,
+      signalFixedCents: fixed,
+      signalPercent: percent,
+      priceCents,
+    })
+  }
+  return {
+    requiresSignal: 1,
+    signalKind: kind,
+    signalFixedCents: kind === 'fixed' ? fixed : null,
+    signalPercent: kind === 'percent' ? percent : null,
   }
 }
 
@@ -227,6 +298,7 @@ export function upsertService(
 
   const now = clock.nowMs()
   const active = input.active === false ? 0 : 1
+  const signal = normalizeSignalFields(input, priceCents)
 
   if (input.id) {
     const existing = getService(db, tenantId, input.id)
@@ -236,7 +308,9 @@ export function upsertService(
     db.run(
       `UPDATE services SET
         name = ?, duration_minutes = ?, buffer_minutes = ?,
-        price_cents = ?, client_explanation = ?, active = ?, updated_at = ?
+        price_cents = ?, client_explanation = ?, active = ?,
+        requires_signal = ?, signal_kind = ?, signal_fixed_cents = ?, signal_percent = ?,
+        updated_at = ?
        WHERE tenant_id = ? AND id = ?`,
       name,
       input.durationMinutes,
@@ -244,6 +318,10 @@ export function upsertService(
       priceCents,
       explanation,
       active,
+      signal.requiresSignal,
+      signal.signalKind,
+      signal.signalFixedCents,
+      signal.signalPercent,
       now,
       tenantId,
       input.id,
@@ -257,8 +335,10 @@ export function upsertService(
   db.run(
     `INSERT INTO services (
       id, tenant_id, name, duration_minutes, buffer_minutes,
-      price_cents, client_explanation, active, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      price_cents, client_explanation, active,
+      requires_signal, signal_kind, signal_fixed_cents, signal_percent,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     name,
@@ -267,6 +347,10 @@ export function upsertService(
     priceCents,
     explanation,
     active,
+    signal.requiresSignal,
+    signal.signalKind,
+    signal.signalFixedCents,
+    signal.signalPercent,
     now,
     now,
   )

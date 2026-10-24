@@ -15,7 +15,7 @@ import type {
  * - Não envia mensagens WhatsApp nem conhece conversas — só cobrança/estorno.
  * - Implementações reais usam HTTP `fetch` (Workers); o simulado é in-process.
  * - Provedor de produto Confirmado: Woovi / OpenPix (DEC-049, ADR-0014).
- *   Adaptador real fica para #37+; aqui só `SimulatedPixAdapter` até lá.
+ *   Adaptador real: `WooviPixAdapter` (#37). Simulado permanece para testes unitários.
  */
 export interface PixProviderAdapter {
   readonly providerId: string

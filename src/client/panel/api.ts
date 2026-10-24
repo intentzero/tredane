@@ -257,6 +257,77 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as WhatsappConnection
     },
 
+    async getPix(
+      tenantId: string,
+      opts?: FetchOpts,
+    ): Promise<PixSnapshot> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pix`,
+        { method: 'GET' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as PixSnapshot
+    },
+
+    async connectPix(
+      tenantId: string,
+      appId: string,
+      opts?: FetchOpts,
+    ): Promise<PixAccountPublic> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pix/connect`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appId }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const body = (await res.json()) as { account: PixAccountPublic }
+      return body.account
+    },
+
+    async disconnectPix(
+      tenantId: string,
+      opts?: FetchOpts,
+    ): Promise<{ account: PixAccountPublic; chargesPreserved: number }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pix/disconnect`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        account: PixAccountPublic
+        chargesPreserved: number
+      }
+    },
+
+    async updatePixSignalSettings(
+      tenantId: string,
+      body: { deadlineSeconds?: number; cancellationPolicy?: string },
+      opts?: FetchOpts,
+    ): Promise<PixSignalSettings> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pix/signal-settings`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const data = (await res.json()) as { signalSettings: PixSignalSettings }
+      return data.signalSettings
+    },
+
     async upsertService(
       tenantId: string,
       body: ServiceUpsertBody,
@@ -1034,6 +1105,10 @@ export type ClinicService = {
   priceCents: number | null
   clientExplanation: string | null
   active: boolean
+  requiresSignal: boolean
+  signalKind: 'fixed' | 'percent' | null
+  signalFixedCents: number | null
+  signalPercent: number | null
   professionalIds: string[]
   roomRequirement: RoomRequirementDto
   createdAt: number
@@ -1085,7 +1160,13 @@ export type ClinicConfigReadiness = {
 }
 
 export type ClinicConfigSnapshot = {
-  settings: { tenantId: string; timezone: string; updatedAt: number }
+  settings: {
+    tenantId: string
+    timezone: string
+    signalDeadlineSeconds?: number
+    signalCancellationPolicy?: string
+    updatedAt: number
+  }
   services: ClinicService[]
   resources: ClinicResource[]
   weeklyWindows: ClinicWeeklyWindow[]
@@ -1102,6 +1183,37 @@ export type ServiceUpsertBody = {
   active?: boolean
   professionalIds: string[]
   roomRequirement?: RoomRequirementDto
+  requiresSignal?: boolean
+  signalKind?: 'fixed' | 'percent' | null
+  signalFixedCents?: number | null
+  signalPercent?: number | null
+}
+
+export type PixAccountPublic = {
+  provider: 'woovi'
+  status: 'disconnected' | 'connected' | 'revoked'
+  accountId: string | null
+  appIdHint: string | null
+  environment: 'synthetic' | 'sandbox' | 'live'
+  credentialVersion: number
+  connectedAt: number | null
+  connectedByClerkUserId: string | null
+  disconnectedAt: number | null
+  revokedAt: number | null
+  revokeReason: string | null
+  updatedAt: number
+  canCreateCharge: boolean
+}
+
+export type PixSignalSettings = {
+  deadlineSeconds: number
+  cancellationPolicy: string
+  updatedAt: number
+}
+
+export type PixSnapshot = {
+  account: PixAccountPublic
+  signalSettings: PixSignalSettings
 }
 
 export type ResourceUpsertBody = {

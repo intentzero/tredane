@@ -13,6 +13,7 @@ export type ClinicaSection =
   | 'whatsapp'
   | 'whatsapp-trocar'
   | 'whatsapp-desconectar'
+  | 'recebimento'
 
 /** Sub-rotas de Conversas (#29): lista → thread → contacto. */
 export type ConversasSection = 'lista' | 'thread' | 'contato'
@@ -105,6 +106,7 @@ function parseClinicaRest(rest: string | undefined): {
     if (parts[1] === 'desconectar') return { section: 'whatsapp-desconectar' }
     return { section: 'whatsapp' }
   }
+  if (head === 'recebimento') return { section: 'recebimento' }
   return { section: 'hub' }
 }
 
@@ -251,6 +253,8 @@ export function panelHref(route: PanelRoute): string {
           return `${base}/whatsapp/trocar`
         case 'whatsapp-desconectar':
           return `${base}/whatsapp/desconectar`
+        case 'recebimento':
+          return `${base}/recebimento`
       }
     }
   }

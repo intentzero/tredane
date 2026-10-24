@@ -57,7 +57,7 @@ Aba Clínica continua owner-only (#22). Falha de save mantém o formulário.
 
 - Valores reais do catálogo/expedientes da clínica piloto
 - WhatsApp Embedded Signup e «pronta para atender» completa — ver [f3-whatsapp-connection.md](f3-whatsapp-connection.md) (#31)
-- Campos de sinal Pix no serviço (REQ-076 — entrega Pix)
-- UI de Equipe / Pix na hub (API equipe #25; Pix #17)
+- Campos de sinal Pix no serviço + M-33 — ver [f4-pix-account.md](f4-pix-account.md) (#37)
+- UI de Equipe na hub (API equipe #25)
 - Disponibilidade (#35) — ver [f4-availability.md](f4-availability.md); confirmação atómica (#36)
 - Contatos/Inbox (#29 / [f2-inbox.md](f2-inbox.md)) e Acompanhamento (#30 / [f2-pipeline.md](f2-pipeline.md))

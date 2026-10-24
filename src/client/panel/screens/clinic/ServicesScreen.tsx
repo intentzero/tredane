@@ -106,6 +106,18 @@ export function ServiceForm({
   )
   const [explanation, setExplanation] = useState(existing?.clientExplanation ?? '')
   const [active, setActive] = useState(existing?.active ?? true)
+  const [requiresSignal, setRequiresSignal] = useState(existing?.requiresSignal ?? false)
+  const [signalKind, setSignalKind] = useState<'fixed' | 'percent'>(
+    existing?.signalKind === 'percent' ? 'percent' : 'fixed',
+  )
+  const [signalFixed, setSignalFixed] = useState(
+    existing?.signalFixedCents != null
+      ? formatPriceCents(existing.signalFixedCents)
+      : '',
+  )
+  const [signalPercent, setSignalPercent] = useState(
+    existing?.signalPercent != null ? String(existing.signalPercent) : '30',
+  )
   const [proIds, setProIds] = useState<string[]>(existing?.professionalIds ?? [])
   const [roomMode, setRoomMode] = useState<'none' | 'category' | 'resource'>(
     existing?.roomRequirement.mode ?? 'none',
@@ -128,11 +140,12 @@ export function ServiceForm({
   async function save() {
     setSaving(true)
     setFormError(null)
+    const priceCents = parsePriceToCents(price)
     const body: ServiceUpsertBody = {
       name,
       durationMinutes: duration,
       bufferMinutes: buffer,
-      priceCents: parsePriceToCents(price),
+      priceCents,
       clientExplanation: explanation.trim() || null,
       active,
       professionalIds: proIds,
@@ -142,6 +155,16 @@ export function ServiceForm({
           : roomMode === 'category'
             ? { mode: 'category', category: roomCategory }
             : { mode: 'resource', resourceId: roomResourceId },
+      requiresSignal,
+      signalKind: requiresSignal ? signalKind : null,
+      signalFixedCents:
+        requiresSignal && signalKind === 'fixed'
+          ? parsePriceToCents(signalFixed)
+          : null,
+      signalPercent:
+        requiresSignal && signalKind === 'percent'
+          ? Number.parseInt(signalPercent, 10) || null
+          : null,
     }
     try {
       await api.upsertService(tenantId, body, {
@@ -285,7 +308,71 @@ export function ServiceForm({
       </TextField>
       <p className="clinic-footnote">
         Sem preço, a IA não informa valor: sugere que a equipe vai confirmar.
+        Percentual de sinal exige preço cadastrado.
       </p>
+
+      <fieldset className="clinic-fieldset">
+        <legend>Sinal por Pix (REQ-076)</legend>
+        <Checkbox
+          className="clinic-check"
+          isSelected={requiresSignal}
+          onChange={setRequiresSignal}
+        >
+          Exige sinal
+        </Checkbox>
+        {requiresSignal ? (
+          <>
+            <label className="clinic-field">
+              Tipo
+              <select
+                value={signalKind}
+                onChange={(e) =>
+                  setSignalKind(e.target.value === 'percent' ? 'percent' : 'fixed')
+                }
+              >
+                <option value="fixed">Valor fixo (R$)</option>
+                <option value="percent" disabled={!parsePriceToCents(price)}>
+                  Percentual do preço
+                  {!parsePriceToCents(price) ? ' — cadastre o preço' : ''}
+                </option>
+              </select>
+            </label>
+            {signalKind === 'fixed' ? (
+              <TextField className="clinic-field">
+                <Label>Valor do sinal</Label>
+                <Input
+                  value={signalFixed}
+                  onChange={(e) => setSignalFixed(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="R$ 0,00"
+                />
+              </TextField>
+            ) : (
+              <TextField className="clinic-field">
+                <Label>Percentual (1–100)</Label>
+                <Input
+                  value={signalPercent}
+                  onChange={(e) => setSignalPercent(e.target.value)}
+                  inputMode="numeric"
+                />
+              </TextField>
+            )}
+            {signalKind === 'percent' && parsePriceToCents(price) != null ? (
+              <p className="clinic-hint-box">
+                Resumo: sinal de{' '}
+                {formatPriceCents(
+                  Math.trunc(
+                    ((parsePriceToCents(price) ?? 0) *
+                      (Number.parseInt(signalPercent, 10) || 0)) /
+                      100,
+                  ),
+                )}{' '}
+                ({signalPercent}% de {formatPriceCents(parsePriceToCents(price))}).
+              </p>
+            ) : null}
+          </>
+        ) : null}
+      </fieldset>
 
       <TextField className="clinic-field">
         <Label>Explicação para clientes (opcional)</Label>

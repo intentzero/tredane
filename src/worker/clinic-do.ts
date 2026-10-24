@@ -7,6 +7,7 @@ import {
   clinicConfig,
   clinicInbox,
   clinicPipeline,
+  clinicPix,
   clinicScheduling,
   clinicWhatsapp,
   fromDurableObjectSql,
@@ -58,6 +59,12 @@ import type {
   ConfirmAppointmentInput,
   RescheduleAppointmentInput,
 } from '../clinic/scheduling'
+import type {
+  ConnectPixInput,
+  PixConnectDeps,
+  RecordChargeInput,
+  UpdateSignalSettingsInput,
+} from '../clinic/pix'
 import { systemClock, type Clock } from '../db/clock'
 import { fromD1 } from '../db/admin/async-store'
 import {
@@ -1205,6 +1212,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     )
   }
 
+
   /** Confirmação atómica (#36 / REQ-031) — TX: apt + alocações + histórico + outbox. */
   async confirmClinicAppointment(
     caller: ClinicCaller,
@@ -1278,6 +1286,110 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     return clinicScheduling.queryAgendaViewOp(this.#db, caller, input, this.#clock)
+  }
+
+  /** Conta Pix + sinais (#37) — sem criação de cobrança na conversa (#38). */
+  async getPixAccount(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicPix.getPixAccountOp(this.#db, caller, this.#clock)
+  }
+
+  async connectPixAccount(
+    caller: ClinicCaller,
+    input: ConnectPixInput,
+    deps: PixConnectDeps,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const account = await clinicPix.connectPixAccountOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+      deps,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      'pix.account_connected',
+      'pix_account',
+      account.accountId ?? '1',
+      { status: account.status, credentialVersion: account.credentialVersion },
+    )
+    return account
+  }
+
+  async disconnectPixAccount(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicPix.disconnectPixAccountOp(this.#db, caller, this.#clock)
+    await this.#fanoutConfigEvent(
+      caller,
+      'pix.account_disconnected',
+      'pix_account',
+      result.account.accountId ?? '1',
+      { chargesPreserved: result.chargesPreserved },
+    )
+    return result
+  }
+
+  async revokePixCredential(caller: ClinicCaller, reason: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const account = clinicPix.revokePixCredentialOp(
+      this.#db,
+      caller,
+      reason,
+      this.#clock,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      'pix.credential_revoked',
+      'pix_account',
+      account.accountId ?? '1',
+      { status: account.status },
+    )
+    return account
+  }
+
+  async getPixSignalSettings(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicPix.getPixSignalSettingsOp(this.#db, caller, this.#clock)
+  }
+
+  async updatePixSignalSettings(
+    caller: ClinicCaller,
+    input: UpdateSignalSettingsInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const settings = clinicPix.updatePixSignalSettingsOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      'pix.signal_settings_updated',
+      'clinic_settings',
+      '1',
+      { deadlineSeconds: settings.deadlineSeconds },
+    )
+    return settings
+  }
+
+  async listPixCharges(caller: ClinicCaller, accountId?: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicPix.listPixChargesOp(this.#db, caller, this.#clock, accountId)
+  }
+
+  async recordPixChargeForTests(caller: ClinicCaller, input: RecordChargeInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicPix.recordLocalPixChargeOp(this.#db, caller, input, this.#clock)
   }
 
   async #drain(caller: ClinicCaller): Promise<{ published: string[]; failed: string[] }> {

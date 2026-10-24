@@ -398,6 +398,12 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
 }
 
 function parseServiceBody(body: Record<string, unknown>) {
+  const signalKind: 'fixed' | 'percent' | null | undefined =
+    body.signalKind === 'fixed' || body.signalKind === 'percent'
+      ? body.signalKind
+      : body.signalKind === null
+        ? null
+        : undefined
   return {
     name: String(body.name ?? ''),
     durationMinutes: Number(body.durationMinutes),
@@ -419,6 +425,21 @@ function parseServiceBody(body: Record<string, unknown>) {
       | { mode: 'none' }
       | { mode: 'category'; category: string }
       | { mode: 'resource'; resourceId: string },
+    requiresSignal:
+      body.requiresSignal === undefined ? undefined : body.requiresSignal === true,
+    signalKind,
+    signalFixedCents:
+      body.signalFixedCents === null || body.signalFixedCents === undefined
+        ? body.signalFixedCents === null
+          ? null
+          : undefined
+        : Number(body.signalFixedCents),
+    signalPercent:
+      body.signalPercent === null || body.signalPercent === undefined
+        ? body.signalPercent === null
+          ? null
+          : undefined
+        : Number(body.signalPercent),
   }
 }
 
