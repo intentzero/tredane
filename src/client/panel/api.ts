@@ -390,6 +390,55 @@ export function createPanelApi(getToken: TokenGetter) {
       if (!res.ok) throw await parseError(res)
     },
 
+    async queryAvailability(
+      tenantId: string,
+      query: {
+        serviceId: string
+        date: string
+        professionalId?: string
+      },
+      opts?: FetchOpts,
+    ): Promise<AvailabilityResponse> {
+      const params = new URLSearchParams()
+      params.set('serviceId', query.serviceId)
+      params.set('date', query.date)
+      if (query.professionalId && query.professionalId !== 'any') {
+        params.set('professionalId', query.professionalId)
+      }
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/availability?${params}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AvailabilityResponse
+    },
+
+    async checkAvailabilitySlot(
+      tenantId: string,
+      body: {
+        serviceId: string
+        professionalId: string
+        roomResourceId?: string | null
+        startsAt: number
+      },
+      opts?: FetchOpts,
+    ): Promise<AvailabilityCheckResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/availability/check`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AvailabilityCheckResponse
+    },
+
     async listInboxConversations(
       tenantId: string,
       query: {
@@ -941,6 +990,42 @@ export type CreateBlockResponse = {
     endsAt: number
     status: string
   }>
+}
+
+export type AvailabilitySlot = {
+  startsAt: number
+  endsAt: number
+  occupiesUntil: number
+  professionalId: string
+  professionalName: string
+  roomResourceId: string | null
+  roomResourceName: string | null
+}
+
+export type AvailabilityResponse = {
+  tenantId: string
+  timezone: string
+  serviceId: string
+  serviceName: string
+  durationMinutes: number
+  bufferMinutes: number
+  occupiedMinutes: number
+  date: string
+  dayOfWeek: number
+  dayStartsAt: number
+  dayEndsAt: number
+  schedulingAllowed: boolean
+  asOf: number
+  createdReservation: false
+  slots: AvailabilitySlot[]
+}
+
+export type AvailabilityCheckResponse = {
+  available: boolean
+  reasons: string[]
+  asOf: number
+  createdReservation: false
+  slot: AvailabilitySlot | null
 }
 
 export type WhatsappSignupPurpose = 'connect' | 'reconnect' | 'replace'

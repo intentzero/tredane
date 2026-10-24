@@ -17,6 +17,7 @@ export * as clinicInbox from './inbox'
 export * as clinicPipeline from './pipeline'
 export * as clinicWhatsapp from './whatsapp'
 export * as clinicAttachments from './attachments'
+export * as clinicScheduling from './scheduling'
 export { fromNodeSqlite, fromDurableObjectSql, type ClinicDb, type SqlValue } from './store'
 export {
   runClinicMigrations,

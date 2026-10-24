@@ -12,7 +12,7 @@
 | F1: identidade/tenant | D1 administrativo (#19), DO + SQLite por clínica (#20), login/memberships Clerk (#21), WebSocket/reconciliação/revogação (#23); login UI (#22) | REQ-001/002/003: ID forjado e revogação não expõem dados/eventos de outra clínica |
 | F2: domínio local | Serviços/recursos/horários (#28 / [f2-clinic-config.md](f2-clinic-config.md)), contactos/Inbox (#29 / [f2-inbox.md](f2-inbox.md)), Acompanhamento (#30 / [f2-pipeline.md](f2-pipeline.md)) com dados sintéticos; CRUD mínimo + auditoria | Duas sessões da mesma clínica convergem e outra clínica não vê alterações |
 | F3: integração Meta | Associação verificada de número de teste ([#31](f3-whatsapp-connection.md)), webhooks/fila/dedup ([#32](f3-whatsapp-webhooks.md)), envio manual e status ([#33](f3-whatsapp-send.md)), anexos R2 privados ([#34](f3-attachments.md)) | Reentrega não duplica; falhas e resultado incerto permanecem observáveis; A não lê anexo de B |
-| F4: reservas | Consulta de disponibilidade, bloqueios, criação/cancelamento/reagendamento atómicos | Disputa concorrente por profissional e sala permite no máximo um compromisso |
+| F4: reservas | Consulta de disponibilidade ([#35](f4-availability.md)), bloqueios, criação/cancelamento/reagendamento atómicos (#36) | Disputa concorrente por profissional e sala permite no máximo um compromisso |
 | F5: IA assistiva | Sugestão de texto e resumo com revisão humana, política de contexto, fallback | Nenhuma sugestão é enviada sem clique humano; casos sensíveis são tratados adequadamente |
 | F6: piloto | Testes ponta a ponta, monitorização, consentimentos, retenção e revisão de segurança | Aprovação das questões pendentes e de cenários da clínica piloto antes de dados reais |
 

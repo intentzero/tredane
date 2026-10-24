@@ -1,0 +1,192 @@
+import { describe, expect, it } from 'vitest'
+import { createApp } from '../worker/app'
+import { bootAdminDb } from '../db/test-db'
+import { createControllableClock } from '../db/clock'
+import { asyncFromSync } from '../db/admin/async-store'
+import {
+  createSyntheticAuthorityReader,
+  createSyntheticSessionAuthenticator,
+  synthAuthHeader,
+  type AuthServices,
+} from '../auth'
+import { bootClinicDb } from '../clinic/test-db'
+import { createMemoryClinicConfigRegistry } from '../clinic-config'
+import { createMemorySchedulingRegistry } from './gateway'
+import { zonedCivilToUtc } from '../clinic/scheduling'
+
+const MONDAY = '2024-01-08'
+const TZ = 'America/Sao_Paulo'
+
+function testSchedulingApp() {
+  const admin = bootAdminDb()
+  // Relógio antes do dia consultado — slots passados são filtrados.
+  const clock = createControllableClock(Date.UTC(2024, 0, 1))
+  const clinics = new Map<string, ReturnType<typeof bootClinicDb>>()
+  const getBoot = (tenantId: string) => {
+    let boot = clinics.get(tenantId)
+    if (!boot) {
+      boot = bootClinicDb({ clock })
+      clinics.set(tenantId, boot)
+    }
+    return boot
+  }
+  const configRegistry = createMemoryClinicConfigRegistry((tenantId) => {
+    const boot = getBoot(tenantId)
+    return { db: boot.db, clock: boot.clock }
+  })
+  const schedulingRegistry = createMemorySchedulingRegistry((tenantId) => {
+    const boot = getBoot(tenantId)
+    return { db: boot.db, clock: boot.clock }
+  })
+  const services: AuthServices = {
+    sessions: createSyntheticSessionAuthenticator({
+      authorizedParties: ['http://localhost:5173'],
+    }),
+    authority: createSyntheticAuthorityReader(),
+    adminDb: asyncFromSync(admin.db),
+  }
+  const app = createApp({
+    authServicesFactory: () => services,
+    syncAdminDbFactory: () => admin.db,
+    clinicConfigGatewayFactory: (_env, tenantId) => configRegistry(tenantId),
+    schedulingGatewayFactory: (_env, tenantId) => schedulingRegistry(tenantId),
+  })
+  return {
+    app,
+    close: () => {
+      for (const c of clinics.values()) c.close()
+      admin.close()
+    },
+    auth: (userId: string, init: RequestInit = {}) => {
+      const headers = new Headers(init.headers)
+      headers.set('Authorization', synthAuthHeader(userId))
+      return { ...init, headers }
+    },
+  }
+}
+
+async function seedReadyClinic(
+  app: ReturnType<typeof createApp>,
+  auth: ReturnType<typeof testSchedulingApp>['auth'],
+) {
+  const pro = await app.request(
+    'http://localhost/api/tenants/clinic-demo-a/config/resources',
+    auth('user_synth_owner_a', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'professional', name: 'Dra. Paula Reis' }),
+    }),
+  )
+  const proBody = (await pro.json()) as { id: string }
+  const room = await app.request(
+    'http://localhost/api/tenants/clinic-demo-a/config/resources',
+    auth('user_synth_owner_a', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kind: 'room',
+        name: 'Sala 2',
+        category: 'Sala com laser',
+      }),
+    }),
+  )
+  const roomBody = (await room.json()) as { id: string }
+  const svc = await app.request(
+    'http://localhost/api/tenants/clinic-demo-a/config/services',
+    auth('user_synth_owner_a', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Depilação a laser',
+        durationMinutes: 60,
+        bufferMinutes: 15,
+        professionalIds: [proBody.id],
+        roomRequirement: { mode: 'category', category: 'Sala com laser' },
+      }),
+    }),
+  )
+  const svcBody = (await svc.json()) as { id: string }
+  await app.request(
+    `http://localhost/api/tenants/clinic-demo-a/config/resources/${proBody.id}/weekly`,
+    auth('user_synth_owner_a', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        windows: [{ dayOfWeek: 1, startMinute: 9 * 60, endMinute: 12 * 60 }],
+      }),
+    }),
+  )
+  await app.request(
+    `http://localhost/api/tenants/clinic-demo-a/config/resources/${roomBody.id}/weekly`,
+    auth('user_synth_owner_a', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        windows: [{ dayOfWeek: 1, startMinute: 9 * 60, endMinute: 18 * 60 }],
+      }),
+    }),
+  )
+  return { proId: proBody.id, roomId: roomBody.id, serviceId: svcBody.id }
+}
+
+describe('HTTP — disponibilidade (#35)', () => {
+  it('attendant e owner consultam; check não cria reserva; cross-tenant 404', async () => {
+    const { app, close, auth } = testSchedulingApp()
+    try {
+      const seeded = await seedReadyClinic(app, auth)
+
+      const att = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/availability?serviceId=${encodeURIComponent(seeded.serviceId)}&date=${MONDAY}`,
+        auth('user_synth_attendant_a'),
+      )
+      expect(att.status).toBe(200)
+      const body = (await att.json()) as {
+        createdReservation: boolean
+        slots: Array<{ startsAt: number; roomResourceName: string | null }>
+        schedulingAllowed: boolean
+      }
+      expect(body.createdReservation).toBe(false)
+      expect(body.schedulingAllowed).toBe(true)
+      expect(body.slots.length).toBeGreaterThan(0)
+      expect(body.slots[0]?.startsAt).toBe(zonedCivilToUtc(TZ, 2024, 1, 8, 9, 0))
+
+      const start = body.slots[0]!.startsAt
+      const check = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/availability/check',
+        auth('user_synth_attendant_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            serviceId: seeded.serviceId,
+            professionalId: seeded.proId,
+            roomResourceId: seeded.roomId,
+            startsAt: start,
+          }),
+        }),
+      )
+      expect(check.status).toBe(200)
+      const checkBody = (await check.json()) as {
+        available: boolean
+        createdReservation: boolean
+        reasons: string[]
+      }
+      expect(checkBody.available).toBe(true)
+      expect(checkBody.createdReservation).toBe(false)
+
+      const foreign = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/availability?serviceId=${encodeURIComponent('svc_from_b')}&date=${MONDAY}`,
+        auth('user_synth_owner_a'),
+      )
+      expect(foreign.status).toBe(404)
+
+      const otherClinic = await app.request(
+        `http://localhost/api/tenants/clinic-demo-b/availability?serviceId=${encodeURIComponent(seeded.serviceId)}&date=${MONDAY}`,
+        auth('user_synth_owner_a'),
+      )
+      // owner A não é membro de B
+      expect([403, 404]).toContain(otherClinic.status)
+    } finally {
+      close()
+    }
+  })
+})

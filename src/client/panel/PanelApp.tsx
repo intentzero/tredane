@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { AuthProvider, useAuthSession } from './auth/AuthContext'
 import { AuthModeGate, LoginScreen } from './auth/ClerkBridge'
 import { ClinicSelector } from './screens/ClinicSelector'
-import { AreaPlaceholder } from './screens/AreaPlaceholders'
 import { ClinicArea } from './screens/clinic/ClinicArea'
 import { ConversasArea } from './screens/inbox/ConversasArea'
 import { AcompanhamentoArea } from './screens/acompanhamento/AcompanhamentoArea'
+import { AgendaArea } from './screens/agenda/AgendaArea'
 import { PanelShell } from './shell/PanelShell'
 import { LoadingState } from './states/StatusScreens'
 import { TenantProvider, useTenant } from './tenant/TenantContext'
@@ -94,7 +94,7 @@ function PanelRouter() {
           opportunityId={route.opportunityId}
         />
       ) : (
-        <AreaPlaceholder area={route.area} />
+        <AgendaArea tenantId={route.tenantId} section={route.section} />
       )}
     </PanelShell>
   )

@@ -1,0 +1,69 @@
+/** Formatação local para Agenda / Agendar (#35). */
+
+export function formatSlotTime(ms: number, timeZone: string): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(ms))
+}
+
+export function formatDayLabel(isoDate: string, timeZone: string): {
+  weekday: string
+  day: string
+} {
+  const [y, m, d] = isoDate.split('-').map(Number)
+  // Meio-dia UTC evita virada ao formatar só a data civil.
+  const probe = Date.UTC(y!, m! - 1, d!, 15, 0, 0)
+  const weekday = new Intl.DateTimeFormat('pt-BR', {
+    timeZone,
+    weekday: 'short',
+  })
+    .format(new Date(probe))
+    .replace('.', '')
+  const day = String(d).padStart(2, '0')
+  return { weekday, day }
+}
+
+/** Próximos N dias civis a partir de «hoje» no fuso da clínica. */
+export function upcomingCivilDates(
+  timeZone: string,
+  fromMs: number,
+  count: number,
+): string[] {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  const today = fmt.format(new Date(fromMs))
+  const [y, m, d] = today.split('-').map(Number)
+  const out: string[] = []
+  for (let i = 0; i < count; i++) {
+    const dt = new Date(Date.UTC(y!, m! - 1, d! + i))
+    const yy = dt.getUTCFullYear()
+    const mm = String(dt.getUTCMonth() + 1).padStart(2, '0')
+    const dd = String(dt.getUTCDate()).padStart(2, '0')
+    out.push(`${yy}-${mm}-${dd}`)
+  }
+  return out
+}
+
+export function reasonLabel(code: string): string {
+  switch (code) {
+    case 'appointment_conflict':
+      return 'Horário ocupado por compromisso confirmado'
+    case 'resource_block':
+      return 'Bloqueio pontual no recurso'
+    case 'outside_weekly_hours':
+      return 'Fora do expediente'
+    case 'scheduling_not_allowed':
+      return 'Agenda da clínica ainda não configurada'
+    case 'past_slot':
+      return 'Horário já passou'
+    default:
+      return code
+  }
+}

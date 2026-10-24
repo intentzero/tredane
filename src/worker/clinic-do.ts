@@ -7,6 +7,7 @@ import {
   clinicConfig,
   clinicInbox,
   clinicPipeline,
+  clinicScheduling,
   clinicWhatsapp,
   fromDurableObjectSql,
   getBoundTenant,
@@ -49,6 +50,10 @@ import type {
   UpsertResourceInput,
   UpsertServiceInput,
 } from '../clinic/config'
+import type {
+  AvailabilityQueryInput,
+  CheckSlotInput,
+} from '../clinic/scheduling'
 import { systemClock, type Clock } from '../db/clock'
 import { fromD1 } from '../db/admin/async-store'
 import {
@@ -1172,6 +1177,25 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return clinicConfig.insertSyntheticAppointment(
       this.#db,
       caller.tenantId,
+      input,
+      this.#clock,
+    )
+  }
+
+  /** Consulta de disponibilidade (#35) — leitura pura, sem reserva. */
+  async queryClinicAvailability(caller: ClinicCaller, input: AvailabilityQueryInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicScheduling.queryAvailabilityOp(this.#db, caller, input, this.#clock)
+  }
+
+  /** Revalidação de horário (#35; usada no confirmar #36). */
+  async checkClinicSlot(caller: ClinicCaller, input: CheckSlotInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicScheduling.checkSlotAvailabilityOp(
+      this.#db,
+      caller,
       input,
       this.#clock,
     )

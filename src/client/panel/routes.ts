@@ -20,6 +20,9 @@ export type ConversasSection = 'lista' | 'thread' | 'contato'
 /** Sub-rotas de Acompanhamento (#30): quadro por etapa → detalhe. */
 export type AcompanhamentoSection = 'quadro' | 'detalhe'
 
+/** Sub-rotas da Agenda (#35): dia → Agendar (TEL-05). Confirmar = #36. */
+export type AgendaSection = 'dia' | 'agendar'
+
 export type PanelRoute =
   | { kind: 'entrar' }
   | { kind: 'clinicas' }
@@ -42,6 +45,7 @@ export type PanelRoute =
       kind: 'area'
       area: 'agenda'
       tenantId: string
+      section: AgendaSection
     }
   | {
       kind: 'area'
@@ -166,7 +170,14 @@ export function resolvePanelRoute(pathname: string): PanelRoute | null {
       section: 'quadro',
     }
   }
-  return { kind: 'area', area: area as 'agenda', tenantId }
+  if (area === 'agenda') {
+    const rest = match[3]
+    if (rest?.split('/').filter(Boolean)[0] === 'agendar') {
+      return { kind: 'area', area: 'agenda', tenantId, section: 'agendar' }
+    }
+    return { kind: 'area', area: 'agenda', tenantId, section: 'dia' }
+  }
+  return null
 }
 
 export function panelHref(route: PanelRoute): string {
@@ -194,6 +205,10 @@ export function panelHref(route: PanelRoute): string {
         if (route.section === 'detalhe' && route.opportunityId) {
           return `${base}/${encodeURIComponent(route.opportunityId)}`
         }
+        return base
+      }
+      if (route.area === 'agenda') {
+        if (route.section === 'agendar') return `${base}/agendar`
         return base
       }
       if (route.area !== 'clinica') return base
@@ -263,5 +278,5 @@ export function areaRoute(tenantId: string, area: PanelArea): PanelRoute {
   if (area === 'acompanhamento') {
     return { kind: 'area', area: 'acompanhamento', tenantId, section: 'quadro' }
   }
-  return { kind: 'area', area: 'agenda', tenantId }
+  return { kind: 'area', area: 'agenda', tenantId, section: 'dia' }
 }
