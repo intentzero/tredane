@@ -5,6 +5,7 @@ import type {
   InvitationEmailPayload,
   SimulatedMailboxMessage,
   SupportAccessRequestEmailPayload,
+  SupportSessionStartedEmailPayload,
 } from './types'
 
 export type SimulatedEmailTransport = EmailTransport & {
@@ -81,6 +82,31 @@ export function createSimulatedEmailTransport(opts: {
       })
       return { ok: true, providerMessageId: id }
     },
+    async sendSupportSessionStarted(
+      payload: SupportSessionStartedEmailPayload,
+    ): Promise<EmailSendResult> {
+      if (failRemaining > 0) {
+        failRemaining -= 1
+        return { ok: false, error: failError, retryable: true }
+      }
+      const id = `msg_${generateOpaqueToken(8)}`
+      const sessionUrl = buildSupportSessionUrl(
+        payload.appBaseUrl,
+        payload.tenantId,
+        payload.supportSessionId,
+      )
+      mailbox.push({
+        id,
+        toEmail: payload.toEmail,
+        template: 'support_session_started',
+        subject: `Suporte iniciado — ${payload.tenantName}`,
+        sessionUrl,
+        tenantId: payload.tenantId,
+        supportSessionId: payload.supportSessionId,
+        sentAt: clock.nowMs(),
+      })
+      return { ok: true, providerMessageId: id }
+    },
   }
 }
 
@@ -97,6 +123,16 @@ export function buildSupportRequestUrl(
 ): string {
   const base = appBaseUrl.replace(/\/+$/, '')
   return `${base}/t/${encodeURIComponent(tenantId)}/support-requests/${encodeURIComponent(supportRequestId)}`
+}
+
+/** Link de estado de sessão — sem cookie/handoff (DEC-035). */
+export function buildSupportSessionUrl(
+  appBaseUrl: string,
+  tenantId: string,
+  supportSessionId: string,
+): string {
+  const base = appBaseUrl.replace(/\/+$/, '')
+  return `${base}/t/${encodeURIComponent(tenantId)}/support-sessions/${encodeURIComponent(supportSessionId)}`
 }
 
 /** Extrai token do inviteUrl do mailbox (testes). */

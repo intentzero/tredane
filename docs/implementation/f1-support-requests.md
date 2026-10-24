@@ -46,6 +46,6 @@ Código: `src/support/`, e-mail em `src/email/`, fan-out `ClinicDurableObject.pu
 
 ## Fora deste PR
 
-- Ativação de sessão, handoff, cookie, TTL 30min, revogação de sessão (#27 / DEC-032–037)
+- Ativação de sessão, handoff, cookie, TTL 30min, revogação de sessão — ver [#27](https://github.com/intentzero/tredane/issues/27) / [f1-support-session.md](f1-support-session.md)
 - UI Clinic App / login (#22)
 - Provedor de e-mail real

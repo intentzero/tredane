@@ -13,13 +13,14 @@ import type {
   EmailTransport,
   InvitationEmailPayload,
   SupportAccessRequestEmailPayload,
+  SupportSessionStartedEmailPayload,
 } from './types'
 
 const DEFAULT_MAX_ATTEMPTS = 5
 const RETRY_BASE_MS = 2_000
 
 const JOB_SELECT = `SELECT id, idempotency_key, template, to_email, tenant_id, invitation_id,
-       support_request_id, status, attempt_count, max_attempts, next_attempt_at,
+       support_request_id, support_session_id, status, attempt_count, max_attempts, next_attempt_at,
        last_error, created_at, updated_at, sent_at
 FROM email_delivery_jobs`
 
@@ -31,6 +32,7 @@ type JobSqlRow = {
   tenant_id: string
   invitation_id: string | null
   support_request_id: string | null
+  support_session_id: string | null
   status: string
   attempt_count: number
   max_attempts: number
@@ -51,19 +53,27 @@ export type PendingSupportRequestDelivery = {
   payload: SupportAccessRequestEmailPayload
 }
 
+export type PendingSupportSessionStartedDelivery = {
+  jobId: string
+  payload: SupportSessionStartedEmailPayload
+}
+
+function mapTemplate(raw: string): DeliveryJobRow['template'] {
+  if (raw === 'support_access_request') return 'support_access_request'
+  if (raw === 'support_session_started') return 'support_session_started'
+  return 'tenant_invitation'
+}
+
 function mapJob(row: JobSqlRow): DeliveryJobRow {
-  const template =
-    row.template === 'support_access_request'
-      ? 'support_access_request'
-      : 'tenant_invitation'
   return {
     id: row.id,
     idempotencyKey: row.idempotency_key,
-    template,
+    template: mapTemplate(row.template),
     toEmail: row.to_email,
     tenantId: row.tenant_id,
     invitationId: row.invitation_id,
     supportRequestId: row.support_request_id,
+    supportSessionId: row.support_session_id,
     status: row.status as DeliveryJobRow['status'],
     attemptCount: row.attempt_count,
     maxAttempts: row.max_attempts,
@@ -125,9 +135,9 @@ export function enqueueInvitationDelivery(
     db.run(
       `INSERT INTO email_delivery_jobs (
         id, idempotency_key, template, to_email, tenant_id, invitation_id, support_request_id,
-        status, attempt_count, max_attempts, next_attempt_at, last_error,
+        support_session_id, status, attempt_count, max_attempts, next_attempt_at, last_error,
         created_at, updated_at, sent_at
-      ) VALUES (?, ?, 'tenant_invitation', ?, ?, ?, NULL, 'pending', 0, ?, ?, NULL, ?, ?, NULL)`,
+      ) VALUES (?, ?, 'tenant_invitation', ?, ?, ?, NULL, NULL, 'pending', 0, ?, ?, NULL, ?, ?, NULL)`,
       id,
       input.idempotencyKey,
       input.toEmail,
@@ -185,9 +195,9 @@ export function enqueueSupportRequestDelivery(
     db.run(
       `INSERT INTO email_delivery_jobs (
         id, idempotency_key, template, to_email, tenant_id, invitation_id, support_request_id,
-        status, attempt_count, max_attempts, next_attempt_at, last_error,
+        support_session_id, status, attempt_count, max_attempts, next_attempt_at, last_error,
         created_at, updated_at, sent_at
-      ) VALUES (?, ?, 'support_access_request', ?, ?, NULL, ?, 'pending', 0, ?, ?, NULL, ?, ?, NULL)`,
+      ) VALUES (?, ?, 'support_access_request', ?, ?, NULL, ?, NULL, 'pending', 0, ?, ?, NULL, ?, ?, NULL)`,
       id,
       input.idempotencyKey,
       input.toEmail,
@@ -210,6 +220,69 @@ export function enqueueSupportRequestDelivery(
         supportRequestId: input.supportRequestId,
         email: input.toEmail,
         template: 'support_access_request',
+      },
+    })
+
+    return { job: getDeliveryJob(db, id)!, created: true }
+  })
+}
+
+export function enqueueSupportSessionStartedDelivery(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    idempotencyKey: string
+    toEmail: string
+    tenantId: string
+    supportSessionId: string
+    supportRequestId: string
+    actorClerkUserId: string
+    maxAttempts?: number
+  },
+): { job: DeliveryJobRow; created: boolean } {
+  assertAdminSchemaReady(db)
+  const now = clock.nowMs()
+  const existing = getDeliveryJobByIdempotency(db, input.idempotencyKey)
+  if (existing) {
+    return { job: existing, created: false }
+  }
+
+  const id = newId('eml')
+  const maxAttempts = input.maxAttempts ?? DEFAULT_MAX_ATTEMPTS
+  return db.immediate(() => {
+    const again = getDeliveryJobByIdempotency(db, input.idempotencyKey)
+    if (again) return { job: again, created: false }
+
+    db.run(
+      `INSERT INTO email_delivery_jobs (
+        id, idempotency_key, template, to_email, tenant_id, invitation_id, support_request_id,
+        support_session_id, status, attempt_count, max_attempts, next_attempt_at, last_error,
+        created_at, updated_at, sent_at
+      ) VALUES (?, ?, 'support_session_started', ?, ?, NULL, ?, ?, 'pending', 0, ?, ?, NULL, ?, ?, NULL)`,
+      id,
+      input.idempotencyKey,
+      input.toEmail,
+      input.tenantId,
+      input.supportRequestId,
+      input.supportSessionId,
+      maxAttempts,
+      now,
+      now,
+      now,
+    )
+
+    writeAudit(db, clock, {
+      actorClerkUserId: input.actorClerkUserId,
+      tenantId: input.tenantId,
+      action: 'email.delivery.enqueue',
+      objectType: 'email_delivery_job',
+      objectId: id,
+      outcome: 'success',
+      supportSessionId: input.supportSessionId,
+      metadata: {
+        supportSessionId: input.supportSessionId,
+        email: input.toEmail,
+        template: 'support_session_started',
       },
     })
 
@@ -349,6 +422,30 @@ export async function processSupportRequestDelivery(
   })
 }
 
+export async function processSupportSessionStartedDelivery(
+  db: AdminDb,
+  clock: Clock,
+  transport: EmailTransport,
+  pending: PendingSupportSessionStartedDelivery,
+): Promise<ProcessDeliveryResult> {
+  assertAdminSchemaReady(db)
+  const current = getDeliveryJob(db, pending.jobId)
+  if (!current) {
+    throw new Error('delivery_job_missing')
+  }
+  if (current.status === 'sent') {
+    return { job: current, sent: true, retried: false }
+  }
+  if (current.status === 'abandoned') {
+    return { job: current, sent: false, retried: false }
+  }
+
+  const result = await transport.sendSupportSessionStarted(pending.payload)
+  return markDeliveryOutcome(db, clock, pending.jobId, current, transport.name, result, {
+    supportSessionId: current.supportSessionId,
+  })
+}
+
 /**
  * Agenda + tenta entrega imediata. Idempotente por (invitationId, tokenHash).
  * Retry de entrega reutiliza o mesmo job — não cria convite.
@@ -483,6 +580,80 @@ export function listDeliveryJobsForSupportRequest(
   const rows = db.all<JobSqlRow>(
     `${JOB_SELECT} WHERE support_request_id = ? ORDER BY created_at`,
     supportRequestId,
+  )
+  return rows.map(mapJob)
+}
+
+/**
+ * E-mail de início após sessão `active` (DEC-035).
+ * Idempotente por (supportSessionId, toEmail). Sem credencial.
+ */
+export async function deliverSupportSessionStartedEmail(
+  db: AdminDb,
+  clock: Clock,
+  transport: EmailTransport,
+  input: {
+    supportSessionId: string
+    supportRequestId: string
+    toEmail: string
+    tenantId: string
+    tenantName: string
+    actorClerkUserId: string
+    subjectClerkUserId: string
+    reason: string
+    scope: string
+    activatedAt: number
+    expiresAt: number
+    appBaseUrl: string
+    sendNow?: boolean
+  },
+): Promise<{ job: DeliveryJobRow; sent: boolean; created: boolean }> {
+  const idempotencyKey = `ssn:${input.supportSessionId}:${input.toEmail}`
+  const { job, created } = enqueueSupportSessionStartedDelivery(db, clock, {
+    idempotencyKey,
+    toEmail: input.toEmail,
+    tenantId: input.tenantId,
+    supportSessionId: input.supportSessionId,
+    supportRequestId: input.supportRequestId,
+    actorClerkUserId: input.actorClerkUserId,
+  })
+
+  if (job.status === 'sent') {
+    return { job, sent: true, created }
+  }
+
+  if (input.sendNow === false) {
+    return { job, sent: false, created }
+  }
+
+  const processed = await processSupportSessionStartedDelivery(db, clock, transport, {
+    jobId: job.id,
+    payload: {
+      toEmail: input.toEmail,
+      tenantId: input.tenantId,
+      tenantName: input.tenantName,
+      supportSessionId: input.supportSessionId,
+      supportRequestId: input.supportRequestId,
+      actorClerkUserId: input.actorClerkUserId,
+      subjectClerkUserId: input.subjectClerkUserId,
+      reason: input.reason,
+      scope: input.scope,
+      activatedAt: input.activatedAt,
+      expiresAt: input.expiresAt,
+      appBaseUrl: input.appBaseUrl,
+    },
+  })
+  return { job: processed.job, sent: processed.sent, created }
+}
+
+export function listDeliveryJobsForSupportSession(
+  db: AdminDb,
+  supportSessionId: string,
+): DeliveryJobRow[] {
+  assertAdminSchemaReady(db)
+  const rows = db.all<JobSqlRow>(
+    `${JOB_SELECT} WHERE support_session_id = ? ORDER BY created_at`,
+    supportSessionId,
   )
   return rows.map(mapJob)
 }

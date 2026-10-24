@@ -233,6 +233,46 @@ export function revokeMembership(
       outcome: 'success',
       metadata: { role: current.role },
     })
+    // AC-24 / DEC-026: cortar suporte do subject neste tenant (não afeta Clerk/B).
+    // SQL inline para evitar ciclo memberships ↔ support.
+    const supportRows = db.all<{ id: string }>(
+      `SELECT id FROM support_sessions
+       WHERE tenant_id = ? AND subject_clerk_user_id = ? AND status = 'active'`,
+      input.tenantId,
+      input.clerkUserId,
+    )
+    for (const s of supportRows) {
+      const cut = db.run(
+        `UPDATE support_sessions
+         SET status = 'revoked', revoked_at = ?, revoked_by_clerk_user_id = ?, ended_at = ?,
+             handoff_hash = NULL
+         WHERE id = ? AND status = 'active'`,
+        now,
+        input.actorClerkUserId,
+        now,
+        s.id,
+      )
+      if (cut.changes === 1) {
+        db.run(
+          `UPDATE support_termination_requests
+           SET status = 'closed_with_session', decided_at = ?
+           WHERE support_session_id = ? AND status = 'pending'`,
+          now,
+          s.id,
+        )
+        writeAudit(db, clock, {
+          actorClerkUserId: input.actorClerkUserId,
+          subjectClerkUserId: input.clerkUserId,
+          tenantId: input.tenantId,
+          action: 'support.session.revoke',
+          objectType: 'support_session',
+          objectId: s.id,
+          outcome: 'success',
+          supportSessionId: s.id,
+          metadata: { reason: 'subject_membership_revoked' },
+        })
+      }
+    }
     return getMembership(db, input.tenantId, input.clerkUserId)!
   })
 }

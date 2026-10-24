@@ -521,26 +521,46 @@ export function rejectSupportRequest(
   })
 }
 
+export type ConsumedHandoff = {
+  session: SupportSessionRow
+  /** Token opaco para cookie HttpOnly — devolvido uma vez; só hash no D1. */
+  sessionToken: string
+}
+
 /**
- * Consome handoff de uso único (hash) — segundo consumo falha.
+ * Consome handoff de uso único e emite token de cookie (rotação).
+ * Replay do mesmo handoff falha. Não renova `expires_at` (DEC-032/033).
  */
 export async function consumeSupportHandoff(
   db: AdminDb,
   clock: Clock,
-  input: { handoffCode: string; actorClerkUserId: string },
-): Promise<SupportSessionRow> {
+  input: {
+    handoffCode: string
+    actorClerkUserId: string
+    /** Sessão Clerk atual do actor — deve coincidir com a gravada na ativação. */
+    actorClerkSessionId: string
+    claimedTenantId?: string
+    claimedSubjectClerkUserId?: string
+  },
+): Promise<ConsumedHandoff> {
   assertAdminSchemaReady(db)
   const now = clock.nowMs()
   const handoffHash = await hashToken(input.handoffCode)
+  const sessionToken = generateOpaqueToken()
+  const tokenHash = await hashToken(sessionToken)
 
   return db.immediate(() => {
     const row = db.get<{
       id: string
       actor_clerk_user_id: string
+      actor_clerk_session_id: string
+      tenant_id: string
+      subject_clerk_user_id: string
       status: string
       expires_at: number
     }>(
-      `SELECT id, actor_clerk_user_id, status, expires_at
+      `SELECT id, actor_clerk_user_id, actor_clerk_session_id, tenant_id, subject_clerk_user_id,
+              status, expires_at
        FROM support_sessions WHERE handoff_hash = ?`,
       handoffHash,
     )
@@ -550,19 +570,38 @@ export async function consumeSupportHandoff(
     if (row.actor_clerk_user_id !== input.actorClerkUserId) {
       throw new ForbiddenError('handoff_actor_mismatch', 'Handoff não pertence ao actor')
     }
+    if (row.actor_clerk_session_id !== input.actorClerkSessionId) {
+      throw new ForbiddenError(
+        'handoff_clerk_session_mismatch',
+        'Handoff vinculado a outra sessão Clerk do actor',
+      )
+    }
+    if (input.claimedTenantId && input.claimedTenantId !== row.tenant_id) {
+      throw new ForbiddenError('support_tenant_forged', 'Tenant forjado')
+    }
+    if (
+      input.claimedSubjectClerkUserId
+      && input.claimedSubjectClerkUserId !== row.subject_clerk_user_id
+    ) {
+      throw new ForbiddenError('support_subject_forged', 'Subject forjado')
+    }
     if (now >= row.expires_at) {
       db.run(
-        `UPDATE support_sessions SET status = 'expired', ended_at = ? WHERE id = ? AND status = 'active'`,
+        `UPDATE support_sessions
+         SET status = 'expired', ended_at = ?, handoff_hash = NULL
+         WHERE id = ? AND status = 'active'`,
         now,
         row.id,
       )
+      closeOpenTerminationRequestsInTx(db, clock, row.id, now)
       throw new ConflictError('support_session_expired', 'Sessão expirada')
     }
 
     const consumed = db.run(
       `UPDATE support_sessions
-       SET handoff_hash = NULL, last_used_at = ?
+       SET handoff_hash = NULL, token_hash = ?, last_used_at = ?
        WHERE id = ? AND status = 'active' AND handoff_hash = ?`,
+      tokenHash,
       now,
       row.id,
       handoffHash,
@@ -571,10 +610,11 @@ export async function consumeSupportHandoff(
       throw new ConflictError('handoff_consume_conflict', 'Consumo concorrente negado')
     }
 
+    const session = getSupportSession(db, row.id)!
     writeAudit(db, clock, {
       actorClerkUserId: input.actorClerkUserId,
-      tenantId: getSupportSession(db, row.id)!.tenantId,
-      subjectClerkUserId: getSupportSession(db, row.id)!.subjectClerkUserId,
+      tenantId: session.tenantId,
+      subjectClerkUserId: session.subjectClerkUserId,
       action: 'support.handoff.consume',
       objectType: 'support_session',
       objectId: row.id,
@@ -582,8 +622,39 @@ export async function consumeSupportHandoff(
       supportSessionId: row.id,
     })
 
-    return getSupportSession(db, row.id)!
+    return { session, sessionToken }
   })
+}
+
+function closeOpenTerminationRequestsInTx(
+  db: AdminDb,
+  clock: Clock,
+  sessionId: string,
+  now: number,
+): void {
+  const open = db.all<{ id: string }>(
+    `SELECT id FROM support_termination_requests
+     WHERE support_session_id = ? AND status = 'pending'`,
+    sessionId,
+  )
+  for (const row of open) {
+    db.run(
+      `UPDATE support_termination_requests
+       SET status = 'closed_with_session', decided_at = ?
+       WHERE id = ? AND status = 'pending'`,
+      now,
+      row.id,
+    )
+    writeAudit(db, clock, {
+      actorClerkUserId: 'system:support',
+      tenantId: getSupportSession(db, sessionId)?.tenantId ?? null,
+      action: 'support.termination.close_with_session',
+      objectType: 'support_termination_request',
+      objectId: row.id,
+      outcome: 'success',
+      supportSessionId: sessionId,
+    })
+  }
 }
 
 /** DEC-034: owner ou actor encerra sessão ativa. */
@@ -594,6 +665,7 @@ export function revokeSupportSession(
     sessionId: string
     actorClerkUserId: string
     asOwner?: boolean
+    reason?: string
   },
 ): SupportSessionRow {
   assertAdminSchemaReady(db)
@@ -621,6 +693,7 @@ export function revokeSupportSession(
     if (result.changes !== 1) {
       throw new ConflictError('support_revoke_conflict', 'Revogação não aplicada')
     }
+    closeOpenTerminationRequestsInTx(db, clock, input.sessionId, now)
     writeAudit(db, clock, {
       actorClerkUserId: input.actorClerkUserId,
       subjectClerkUserId: preview.subjectClerkUserId,
@@ -630,12 +703,13 @@ export function revokeSupportSession(
       objectId: input.sessionId,
       outcome: 'success',
       supportSessionId: input.sessionId,
+      metadata: input.reason ? { reason: input.reason } : undefined,
     })
     return getSupportSession(db, input.sessionId)!
   })
 }
 
-/** Expira sessão se now >= expires_at (idempotente). */
+/** Expira sessão se now >= expires_at (idempotente). Não renova por uso. */
 export function expireSupportSessionIfNeeded(
   db: AdminDb,
   clock: Clock,
@@ -656,6 +730,7 @@ export function expireSupportSessionIfNeeded(
       now,
       sessionId,
     )
+    closeOpenTerminationRequestsInTx(db, clock, sessionId, now)
     writeAudit(db, clock, {
       actorClerkUserId: current.actorClerkUserId,
       subjectClerkUserId: current.subjectClerkUserId,
@@ -670,18 +745,213 @@ export function expireSupportSessionIfNeeded(
   })
 }
 
+/**
+ * Resolve cookie opaco → sessão ativa.
+ * Valida actor, sessão Clerk, membership do subject, tenant e TTL exacto.
+ * Atualiza `last_used_at` sem alterar `expires_at` (DEC-032/033).
+ */
+export async function resolveSupportSessionByToken(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    sessionToken: string
+    actorClerkUserId: string
+    actorClerkSessionId: string
+    /** Tenant declarado pelo cliente — forja ≠ sessão. */
+    claimedTenantId?: string
+    /** Subject declarado pelo cliente — forja ≠ sessão. */
+    claimedSubjectClerkUserId?: string
+  },
+): Promise<SupportSessionRow> {
+  assertAdminSchemaReady(db)
+  const tokenHash = await hashToken(input.sessionToken)
+  const now = clock.nowMs()
+
+  const row = db.get<{ id: string }>(
+    `SELECT id FROM support_sessions WHERE token_hash = ?`,
+    tokenHash,
+  )
+  if (!row) {
+    throw new ForbiddenError('support_cookie_invalid', 'Cookie de suporte inválido')
+  }
+
+  let session = expireSupportSessionIfNeeded(db, clock, row.id)
+  if (session.status !== 'active') {
+    throw new ForbiddenError('support_session_not_active', 'Sessão de suporte inativa')
+  }
+  if (session.actorClerkUserId !== input.actorClerkUserId) {
+    throw new ForbiddenError('support_actor_mismatch', 'Cookie não pertence ao actor')
+  }
+  if (session.actorClerkSessionId !== input.actorClerkSessionId) {
+    throw new ForbiddenError(
+      'support_clerk_session_mismatch',
+      'Cookie vinculado a outra sessão Clerk',
+    )
+  }
+  if (input.claimedTenantId && input.claimedTenantId !== session.tenantId) {
+    throw new ForbiddenError('support_tenant_forged', 'Tenant forjado')
+  }
+  if (
+    input.claimedSubjectClerkUserId
+    && input.claimedSubjectClerkUserId !== session.subjectClerkUserId
+  ) {
+    throw new ForbiddenError('support_subject_forged', 'Subject forjado')
+  }
+
+  const tenant = getTenant(db, session.tenantId)
+  if (!tenant || tenant.status !== 'active') {
+    revokeSupportSession(db, clock, {
+      sessionId: session.id,
+      actorClerkUserId: session.actorClerkUserId,
+      reason: 'tenant_not_active',
+    })
+    throw new ForbiddenError('tenant_not_active', 'Tenant inativo')
+  }
+
+  const subject = getMembership(db, session.tenantId, session.subjectClerkUserId)
+  if (!subject || subject.status !== 'active') {
+    revokeSupportSession(db, clock, {
+      sessionId: session.id,
+      actorClerkUserId: session.actorClerkUserId,
+      reason: 'subject_membership_revoked',
+    })
+    throw new ForbiddenError('subject_not_member', 'Subject sem membership ativo')
+  }
+
+  if (now >= session.expiresAt) {
+    session = expireSupportSessionIfNeeded(db, clock, session.id)
+    throw new ForbiddenError('support_session_expired', 'Sessão expirada')
+  }
+
+  // Touch sem renovar TTL.
+  db.run(
+    `UPDATE support_sessions SET last_used_at = ? WHERE id = ? AND status = 'active'`,
+    now,
+    session.id,
+  )
+  return getSupportSession(db, session.id)!
+}
+
+/** Capacidades iniciais: só leitura/diagnóstico até política explícita (ADR-0007). */
+const SUPPORT_ALLOWED_OPS = new Set([
+  'support.session.read',
+  'support.diagnostics.read',
+  'clinic.context.read',
+])
+
+export function assertSupportOperationAllowed(
+  session: SupportSessionRow,
+  operation: string,
+): void {
+  if (!SUPPORT_ALLOWED_OPS.has(operation)) {
+    throw new ForbiddenError(
+      'support_write_blocked',
+      'Escrita sensível bloqueada até política de capacidades',
+    )
+  }
+  // Intersecção mínima: scope de leitura + role atual do subject (revalidada no caller).
+  if (!session.scope.includes('read') && session.scope !== 'read_diagnostics') {
+    throw new ForbiddenError('support_scope_denied', 'Escopo de suporte insuficiente')
+  }
+}
+
+export function listActiveSupportSessionsForTenant(
+  db: AdminDb,
+  clock: Clock,
+  tenantId: string,
+): SupportSessionRow[] {
+  assertAdminSchemaReady(db)
+  const rows = db.all<{ id: string }>(
+    `SELECT id FROM support_sessions WHERE tenant_id = ? AND status = 'active'
+     ORDER BY activated_at DESC`,
+    tenantId,
+  )
+  return rows
+    .map((r) => expireSupportSessionIfNeeded(db, clock, r.id))
+    .filter((s) => s.status === 'active')
+}
+
+export function getActiveSupportSessionForSubject(
+  db: AdminDb,
+  clock: Clock,
+  tenantId: string,
+  subjectClerkUserId: string,
+): SupportSessionRow | undefined {
+  assertAdminSchemaReady(db)
+  const row = db.get<{ id: string }>(
+    `SELECT id FROM support_sessions
+     WHERE tenant_id = ? AND subject_clerk_user_id = ? AND status = 'active'
+     ORDER BY activated_at DESC LIMIT 1`,
+    tenantId,
+    subjectClerkUserId,
+  )
+  if (!row) return undefined
+  const session = expireSupportSessionIfNeeded(db, clock, row.id)
+  return session.status === 'active' ? session : undefined
+}
+
+export type SupportTerminationRow = {
+  id: string
+  supportSessionId: string
+  tenantId: string
+  requestedBySubjectClerkUserId: string
+  requestedAt: number
+  status: 'pending' | 'accepted' | 'declined' | 'closed_with_session'
+  decidedByOwnerClerkUserId: string | null
+  decidedAt: number | null
+}
+
+export function getSupportTerminationRequest(
+  db: AdminDb,
+  id: string,
+): SupportTerminationRow | undefined {
+  assertAdminSchemaReady(db)
+  const row = db.get<{
+    id: string
+    support_session_id: string
+    tenant_id: string
+    requested_by_subject_clerk_user_id: string
+    requested_at: number
+    status: string
+    decided_by_owner_clerk_user_id: string | null
+    decided_at: number | null
+  }>(
+    `SELECT id, support_session_id, tenant_id, requested_by_subject_clerk_user_id,
+            requested_at, status, decided_by_owner_clerk_user_id, decided_at
+     FROM support_termination_requests WHERE id = ?`,
+    id,
+  )
+  if (!row) return undefined
+  return {
+    id: row.id,
+    supportSessionId: row.support_session_id,
+    tenantId: row.tenant_id,
+    requestedBySubjectClerkUserId: row.requested_by_subject_clerk_user_id,
+    requestedAt: row.requested_at,
+    status: row.status as SupportTerminationRow['status'],
+    decidedByOwnerClerkUserId: row.decided_by_owner_clerk_user_id,
+    decidedAt: row.decided_at,
+  }
+}
+
 export function requestSupportTermination(
   db: AdminDb,
   clock: Clock,
   input: { sessionId: string; subjectClerkUserId: string },
 ): { id: string; status: string; created: boolean } {
   assertAdminSchemaReady(db)
-  const session = getSupportSession(db, input.sessionId)
-  if (!session || session.status !== 'active') {
+  let session = getSupportSession(db, input.sessionId)
+  if (!session) throw new NotFoundError('support_session_not_found', 'Sessão inexistente')
+  session = expireSupportSessionIfNeeded(db, clock, session.id)
+  if (session.status !== 'active') {
     throw new ConflictError('support_session_not_active', 'Sessão não ativa')
   }
   if (session.subjectClerkUserId !== input.subjectClerkUserId) {
     throw new ForbiddenError('not_session_subject', 'Apenas o subject pode pedir encerramento')
+  }
+  const membership = getMembership(db, session.tenantId, input.subjectClerkUserId)
+  if (!membership || membership.status !== 'active') {
+    throw new ForbiddenError('subject_not_member', 'Subject sem membership ativo')
   }
   const now = clock.nowMs()
 
@@ -717,5 +987,182 @@ export function requestSupportTermination(
       supportSessionId: input.sessionId,
     })
     return { id, status: 'pending', created: true }
+  })
+}
+
+/**
+ * DEC-037: owner decide Encerrar (revoga DEC-034) ou Manter (sem pausa/TTL).
+ */
+export function decideSupportTermination(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    terminationRequestId: string
+    ownerClerkUserId: string
+    decision: 'end' | 'keep'
+  },
+): {
+  termination: SupportTerminationRow
+  session: SupportSessionRow
+} {
+  assertAdminSchemaReady(db)
+  const preview = getSupportTerminationRequest(db, input.terminationRequestId)
+  if (!preview) {
+    throw new NotFoundError('termination_request_not_found', 'Pedido de encerramento inexistente')
+  }
+  requireActiveOwner(db, preview.tenantId, input.ownerClerkUserId)
+
+  const now = clock.nowMs()
+  return db.immediate(() => {
+    const current = getSupportTerminationRequest(db, input.terminationRequestId)
+    if (!current || current.status !== 'pending') {
+      throw new ConflictError('termination_not_pending', 'Pedido de encerramento não pendente')
+    }
+
+    let session = getSupportSession(db, current.supportSessionId)
+    if (!session) throw new NotFoundError('support_session_not_found', 'Sessão inexistente')
+    if (session.status === 'active' && now >= session.expiresAt) {
+      session = expireSupportSessionIfNeeded(db, clock, session.id)
+    }
+
+    if (input.decision === 'keep') {
+      if (session.status !== 'active') {
+        throw new ConflictError('support_session_not_active', 'Sessão não ativa')
+      }
+      const declined = db.run(
+        `UPDATE support_termination_requests
+         SET status = 'declined', decided_by_owner_clerk_user_id = ?, decided_at = ?
+         WHERE id = ? AND status = 'pending'`,
+        input.ownerClerkUserId,
+        now,
+        current.id,
+      )
+      if (declined.changes !== 1) {
+        throw new ConflictError('termination_decide_conflict', 'Decisão concorrente negada')
+      }
+      writeAudit(db, clock, {
+        actorClerkUserId: input.ownerClerkUserId,
+        subjectClerkUserId: session.subjectClerkUserId,
+        tenantId: session.tenantId,
+        action: 'support.termination.keep',
+        objectType: 'support_termination_request',
+        objectId: current.id,
+        outcome: 'success',
+        supportSessionId: session.id,
+      })
+      return {
+        termination: getSupportTerminationRequest(db, current.id)!,
+        session: getSupportSession(db, session.id)!,
+      }
+    }
+
+    // end → aceitar + revogar (DEC-034). Sessão já encerrada: só fecha o pedido.
+    const accepted = db.run(
+      `UPDATE support_termination_requests
+       SET status = 'accepted', decided_by_owner_clerk_user_id = ?, decided_at = ?
+       WHERE id = ? AND status = 'pending'`,
+      input.ownerClerkUserId,
+      now,
+      current.id,
+    )
+    if (accepted.changes !== 1) {
+      throw new ConflictError('termination_decide_conflict', 'Decisão concorrente negada')
+    }
+
+    if (session.status === 'active') {
+      const revoked = db.run(
+        `UPDATE support_sessions
+         SET status = 'revoked', revoked_at = ?, revoked_by_clerk_user_id = ?, ended_at = ?,
+             handoff_hash = NULL
+         WHERE id = ? AND status = 'active'`,
+        now,
+        input.ownerClerkUserId,
+        now,
+        session.id,
+      )
+      if (revoked.changes === 1) {
+        writeAudit(db, clock, {
+          actorClerkUserId: input.ownerClerkUserId,
+          subjectClerkUserId: session.subjectClerkUserId,
+          tenantId: session.tenantId,
+          action: 'support.session.revoke',
+          objectType: 'support_session',
+          objectId: session.id,
+          outcome: 'success',
+          supportSessionId: session.id,
+          metadata: { reason: 'termination_accepted' },
+        })
+      }
+    }
+
+    writeAudit(db, clock, {
+      actorClerkUserId: input.ownerClerkUserId,
+      subjectClerkUserId: session.subjectClerkUserId,
+      tenantId: session.tenantId,
+      action: 'support.termination.end',
+      objectType: 'support_termination_request',
+      objectId: current.id,
+      outcome: 'success',
+      supportSessionId: session.id,
+    })
+
+    return {
+      termination: getSupportTerminationRequest(db, current.id)!,
+      session: getSupportSession(db, session.id)!,
+    }
+  })
+}
+
+/**
+ * DEC-026/AC-24: membership do subject revogada → cortar sessões ativas nesse tenant.
+ * Não afeta Clerk nem outros tenants.
+ */
+export function revokeSupportSessionsForSubject(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    tenantId: string
+    subjectClerkUserId: string
+    actorClerkUserId: string
+  },
+): string[] {
+  assertAdminSchemaReady(db)
+  const now = clock.nowMs()
+  return db.immediate(() => {
+    const rows = db.all<{ id: string }>(
+      `SELECT id FROM support_sessions
+       WHERE tenant_id = ? AND subject_clerk_user_id = ? AND status = 'active'`,
+      input.tenantId,
+      input.subjectClerkUserId,
+    )
+    const revokedIds: string[] = []
+    for (const row of rows) {
+      const result = db.run(
+        `UPDATE support_sessions
+         SET status = 'revoked', revoked_at = ?, revoked_by_clerk_user_id = ?, ended_at = ?,
+             handoff_hash = NULL
+         WHERE id = ? AND status = 'active'`,
+        now,
+        input.actorClerkUserId,
+        now,
+        row.id,
+      )
+      if (result.changes === 1) {
+        closeOpenTerminationRequestsInTx(db, clock, row.id, now)
+        writeAudit(db, clock, {
+          actorClerkUserId: input.actorClerkUserId,
+          subjectClerkUserId: input.subjectClerkUserId,
+          tenantId: input.tenantId,
+          action: 'support.session.revoke',
+          objectType: 'support_session',
+          objectId: row.id,
+          outcome: 'success',
+          supportSessionId: row.id,
+          metadata: { reason: 'subject_membership_revoked' },
+        })
+        revokedIds.push(row.id)
+      }
+    }
+    return revokedIds
   })
 }

@@ -30,6 +30,22 @@ export type SupportAccessRequestEmailPayload = {
   appBaseUrl: string
 }
 
+/** E-mail de início de sessão (DEC-035) — sem token/credencial/PHI. */
+export type SupportSessionStartedEmailPayload = {
+  toEmail: string
+  tenantId: string
+  tenantName: string
+  supportSessionId: string
+  supportRequestId: string
+  actorClerkUserId: string
+  subjectClerkUserId: string
+  reason: string
+  scope: string
+  activatedAt: number
+  expiresAt: number
+  appBaseUrl: string
+}
+
 export type EmailSendResult =
   | { ok: true; providerMessageId: string }
   | { ok: false; error: string; retryable: boolean }
@@ -40,16 +56,20 @@ export type EmailTransport = {
   sendSupportAccessRequest(
     payload: SupportAccessRequestEmailPayload,
   ): Promise<EmailSendResult>
+  sendSupportSessionStarted(
+    payload: SupportSessionStartedEmailPayload,
+  ): Promise<EmailSendResult>
 }
 
 export type DeliveryJobRow = {
   id: string
   idempotencyKey: string
-  template: 'tenant_invitation' | 'support_access_request'
+  template: 'tenant_invitation' | 'support_access_request' | 'support_session_started'
   toEmail: string
   tenantId: string
   invitationId: string | null
   supportRequestId: string | null
+  supportSessionId: string | null
   status: 'pending' | 'sent' | 'failed' | 'abandoned'
   attemptCount: number
   maxAttempts: number
@@ -82,5 +102,16 @@ export type SimulatedMailboxMessage =
       requestUrl: string
       tenantId: string
       supportRequestId: string
+      sentAt: number
+    }
+  | {
+      id: string
+      toEmail: string
+      template: 'support_session_started'
+      subject: string
+      /** Link autenticado ao painel de estado — sem credencial. */
+      sessionUrl: string
+      tenantId: string
+      supportSessionId: string
       sentAt: number
     }

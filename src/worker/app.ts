@@ -67,6 +67,8 @@ export function createApp(opts: CreateAppOptions = {}) {
   app.use('/api/me', createAuthServicesMiddleware(factory))
   app.use('/api/tenants/*', createAuthServicesMiddleware(factory))
   app.use('/api/platform/*', createAuthServicesMiddleware(factory))
+  app.use('/api/support/*', createAuthServicesMiddleware(factory))
+  app.use('/api/support', createAuthServicesMiddleware(factory))
   app.use('/api/invitations/*', createAuthServicesMiddleware(factory))
   app.use('/api/invitations', createAuthServicesMiddleware(factory))
 

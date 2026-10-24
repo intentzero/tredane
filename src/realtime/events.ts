@@ -14,8 +14,14 @@ export type RealtimeEventRow = {
   occurredAt: number
 }
 
-/** Audiência de entrega WS / catch-up HTTP (#26 owners-only). */
-export type RealtimeAudience = 'all' | 'owners'
+/**
+ * Audiência de entrega WS / catch-up HTTP.
+ * - `owners`: só owners (#26)
+ * - `subject`: só o subjectClerkUserId do payload (#27 / DEC-036)
+ * - `owners_and_subject`: owners + subject representado
+ * - `all`: membership ativa
+ */
+export type RealtimeAudience = 'all' | 'owners' | 'subject' | 'owners_and_subject'
 
 export type AppendRealtimeEventInput = {
   tenantId: string
@@ -31,15 +37,28 @@ export type AppendRealtimeEventInput = {
 }
 
 export function eventAudience(payload: Record<string, unknown>): RealtimeAudience {
-  return payload.audience === 'owners' ? 'owners' : 'all'
+  const a = payload.audience
+  if (a === 'owners' || a === 'subject' || a === 'owners_and_subject') return a
+  return 'all'
 }
 
 export function isEventVisibleToRole(
   payload: Record<string, unknown>,
   role: 'owner' | 'attendant',
+  clerkUserId?: string,
 ): boolean {
   const audience = eventAudience(payload)
+  const subjectId =
+    typeof payload.subjectClerkUserId === 'string' ? payload.subjectClerkUserId : null
+
   if (audience === 'owners') return role === 'owner'
+  if (audience === 'subject') {
+    return Boolean(clerkUserId && subjectId && clerkUserId === subjectId)
+  }
+  if (audience === 'owners_and_subject') {
+    if (role === 'owner') return true
+    return Boolean(clerkUserId && subjectId && clerkUserId === subjectId)
+  }
   return true
 }
 
