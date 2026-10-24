@@ -18,7 +18,7 @@
 - **Fluxo principal:** (1) atendente ou responsável abre e assume a conversa; (2) lê mensagens e histórico disponível; (3) pede sugestão ou resumo à IA; (4) revisa e, se quiser, edita o texto; (5) envia a resposta; (6) o painel mostra tentativa e estado de envio; (7) a outra sessão autorizada vê a mudança.
 - **Alternativas:** atendente ignora a sugestão; provedor de IA falha e a resposta manual continua possível; envio falha ou fica com resultado desconhecido e o painel não apresenta sucesso falso; conversa é transferida para outro membro; duas pessoas tentam assumir ao mesmo tempo e o estado final fica claro.
 - **Resultado, superfícies e dados:** caixa de entrada atualizada com responsável, histórico, origem da sugestão e estado da mensagem. Texto não revisado não é enviado automaticamente.
-- **Requisitos:** REQ-020, REQ-021, REQ-022, REQ-041, REQ-060.
+- **Requisitos:** REQ-020, REQ-021, REQ-022, REQ-041, REQ-072.
 
 ## JRN-03 — Oportunidade até horário confirmado
 
@@ -42,9 +42,9 @@
 
 - **Ator e objetivo:** ACT-01 solicita mudança pelo WhatsApp; ACT-02 ou ACT-03 resolve o compromisso.
 - **Gatilho e pré-condições:** existe agendamento; a clínica define quem pode alterá-lo e quais recursos ficam livres após cancelamento.
-- **Fluxo principal:** (1) equipe encontra o compromisso na conversa ou agenda; (2) registra motivo, se necessário; (3) cancela ou procura novo horário; (4) confirma a mudança; (5) agenda, pipeline e conversa passam a refletir o novo estado; (6) sessões autorizadas recebem a atualização.
+- **Fluxo principal:** (1) equipe encontra o compromisso na conversa ou agenda; (2) escolhe o motivo, obrigatório, numa lista (DEC-008); (3) cancela ou procura novo horário, sem prazo mínimo; (4) confirma a mudança; (5) agenda, pipeline e conversa passam a refletir o novo estado; (6) sessões autorizadas recebem a atualização.
 - **Alternativas:** novo horário entrou em conflito; compromisso já foi alterado por outra pessoa; comunicação da mudança ao contato falhou. O sistema preserva o estado confirmado e informa a falha de mensagem separadamente.
-- **Resultado, superfícies e dados:** histórico do compromisso e disponibilidade coerentes. Política de prazo de cancelamento é **Em aberto** e não deve ser inventada.
+- **Resultado, superfícies e dados:** histórico do compromisso, com motivo, e disponibilidade coerentes. Não há prazo mínimo de cancelamento (Confirmado, DEC-008).
 - **Requisitos:** REQ-031, REQ-032, REQ-033, REQ-040.
 
 ## JRN-06 — Falhas de integração e processamento
@@ -65,9 +65,11 @@
 - **Resultado, superfícies e dados:** as sessões da mesma clínica convergem para o estado persistido, sem vazamento para outra clínica. O mecanismo exato de invalidação de conexão ainda é decisão técnica.
 - **Requisitos:** REQ-001, REQ-002, REQ-003, REQ-040, REQ-041, REQ-042.
 
-## JRN-08 — Ativação de uma clínica (pendente)
+## JRN-08 — Ativação de uma clínica
 
-- **Estado:** Confirmado: superadmin cria tenant e associa primeiro owner; owner convida/remove attendants, nunca cria/promove owners. **Em aberto:** fluxo técnico de convite, disponibilidade de serviços e profissionais, e responsabilidade pela conexão da conta WhatsApp. Não confundir a delegação confirmada com onboarding integralmente definido.
+- **Estado:** Confirmado: superadmin cria tenant e associa o primeiro owner; owner convida/remove attendants, nunca cria/promove owners (DEC-020 a DEC-025); só o owner configura serviços, profissionais, salas/equipamentos, disponibilidade e bloqueios (DEC-042, DEC-008) e conecta o WhatsApp pelo Embedded Signup, com apoio do Tredane no piloto (DEC-009). **Em aberto:** registro do Tredane como Tech Provider na Meta, valores reais de serviços e jornadas da clínica piloto e localização do índice número → tenant.
+- **Fluxo proposto:** (1) superadmin cria a clínica e o primeiro owner na Platform Admin; (2) owner aceita o convite e entra pela Clerk; (3) cadastra serviços (duração e intervalo), profissionais, salas/equipamentos e expediente; (4) conecta o número pelo Embedded Signup; (5) convida attendants; (6) a clínica passa a “pronta para atender” quando há serviço, profissional, recurso, expediente e WhatsApp conectado (REQ-052, AC-14).
+- **Alternativas:** configuração incompleta impede agendar; Embedded Signup abandonado ou número já ligado a outra clínica não deixa canal ativo; convite expirado ou cancelado não cria membership.
 - **Requisitos relacionados:** REQ-004, REQ-051, REQ-052.
 
 ## JRN-12 — Owner convida/remove attendant

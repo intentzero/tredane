@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Agenda do dia — celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2F5BD3}a:hover{color:#1E43A8}
+button{font:inherit}
+button:focus-visible,a:focus-visible{outline:2px solid #2F5BD3;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F6F6F4; color: #1C1E21; font-family: Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="background: #FFFFFF; padding: 12px 16px 12px; display: flex; flex-direction: column; gap: 12px; border-bottom: 1px solid #E2E3E5">
+<div style="display: flex; align-items: center; gap: 4px">
+<div style="flex: 1; display: flex; flex-direction: column"><h1 style="margin: 0; font-size: 22px; font-weight: 600">Agenda</h1><span style="font-size: 14px; color: #5B616B">Sexta, 30 de outubro</span></div>
+<button type="button" aria-label="Dia anterior" style="width: 44px; height: 44px; border: 0; border-radius: 999px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></button>
+<button type="button" style="height: 40px; padding: 0 12px; border: 1px solid #80868F; border-radius: 999px; background: #FFFFFF; font-size: 14px; cursor: pointer">Hoje</button>
+<button type="button" aria-label="Próximo dia" style="width: 44px; height: 44px; border: 0; border-radius: 999px; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></button>
+</div>
+<div role="group" aria-label="Filtrar por recurso" style="display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 0 16px">
+<button type="button" aria-pressed="true" style="flex: none; height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid #1C1E21; background: #1C1E21; color: #FFFFFF; font-size: 14px; cursor: pointer">Todos</button>
+<button type="button" aria-pressed="false" style="flex: none; height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid #80868F; background: #FFFFFF; font-size: 14px; cursor: pointer">Dra. Paula</button>
+<button type="button" aria-pressed="false" style="flex: none; height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid #80868F; background: #FFFFFF; font-size: 14px; cursor: pointer">Dr. Tiago</button>
+<button type="button" aria-pressed="false" style="flex: none; height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid #80868F; background: #FFFFFF; font-size: 14px; cursor: pointer">Lívia</button>
+<button type="button" aria-pressed="false" style="flex: none; height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid #80868F; background: #FFFFFF; font-size: 14px; cursor: pointer">Sala 2 (laser)</button>
+</div>
+</header>
+
+<ol aria-label="Compromissos do dia" style="list-style: none; margin: 0; padding: 12px 16px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px">
+<li style="display: flex; gap: 12px"><span style="flex: none; width: 48px; padding-top: 16px; font-size: 14px; font-weight: 600">14:00</span>
+<button type="button" style="flex: 1; text-align: left; border: 1px solid #B9CBF2; border-radius: 16px; background: #EEF2FC; padding: 12px; display: flex; flex-direction: column; gap: 2px; cursor: pointer"><span style="font-weight: 600">Carla Mendes</span><span style="font-size: 14px; color: #474C54">Depilação a laser · até 15:00</span><span style="font-size: 14px; color: #474C54">Dra. Paula · Sala 2 · Confirmado</span></button></li>
+<li style="display: flex; gap: 12px"><span style="flex: none; width: 48px; padding-top: 16px; font-size: 14px; font-weight: 600">14:00</span>
+<button type="button" style="flex: 1; text-align: left; border: 1px solid #B9CBF2; border-radius: 16px; background: #EEF2FC; padding: 12px; display: flex; flex-direction: column; gap: 2px; cursor: pointer"><span style="font-weight: 600">Laura Pires</span><span style="font-size: 14px; color: #474C54">Peeling · até 14:45</span><span style="font-size: 14px; color: #474C54">Dr. Tiago · Sala 1 · Confirmado</span></button></li>
+<li style="display: flex; gap: 12px"><span style="flex: none; width: 48px; padding-top: 16px; font-size: 14px; font-weight: 600">15:00</span>
+<button type="button" style="flex: 1; text-align: left; border: 2px solid #2F5BD3; border-radius: 16px; background: #EEF2FC; padding: 11px; display: flex; flex-direction: column; gap: 2px; cursor: pointer"><span style="font-weight: 600">Helena Duarte</span><span style="font-size: 14px; color: #474C54">Depilação a laser · até 16:00</span><span style="font-size: 14px; color: #474C54">Dra. Paula · Sala 2 · Confirmado</span><span style="font-size: 14px; color: #1E43A8">Agora · por Bruno</span></button></li>
+<li style="display: flex; gap: 12px"><span style="flex: none; width: 48px; padding-top: 16px; font-size: 14px; font-weight: 600">15:00</span>
+<button type="button" style="flex: 1; text-align: left; border: 1px solid #B9CBF2; border-radius: 16px; background: #EEF2FC; padding: 12px; display: flex; flex-direction: column; gap: 2px; cursor: pointer"><span style="font-weight: 600">Marina Alves</span><span style="font-size: 14px; color: #474C54">Limpeza de pele · até 16:00</span><span style="font-size: 14px; color: #474C54">Lívia · Sala 3 · Confirmado</span></button></li>
+<li style="display: flex; gap: 12px"><span style="flex: none; width: 48px; padding-top: 16px; font-size: 14px; font-weight: 600">16:00</span>
+<a href="Agendar.dc.html" style="flex: 1; border: 1.5px dashed #80868F; border-radius: 16px; background: #FFFFFF; padding: 12px; display: flex; align-items: center; justify-content: space-between; color: #1C1E21; text-decoration: none"><span style="display: flex; flex-direction: column"><span style="font-weight: 500">Livre até 17:00</span><span style="font-size: 14px; color: #5B616B">Dr. Tiago · Sala 2</span></span><span style="color: #1E43A8; font-weight: 600">Agendar</span></a></li>
+<li style="display: flex; gap: 12px"><span style="flex: none; width: 48px; padding-top: 16px; font-size: 14px; font-weight: 600">16:30</span>
+<div style="flex: 1; border: 1px solid #80868F; border-radius: 16px; background-color: #F0F0EE; background-image: repeating-linear-gradient(135deg, transparent 0, transparent 6px, #E2E3E5 6px, #E2E3E5 7px); padding: 12px; display: flex; flex-direction: column"><span style="font-weight: 500">Bloqueado até 17:30</span><span style="font-size: 14px; color: #474C54">Dra. Paula</span></div></li>
+<li style="display: flex; gap: 12px"><span style="flex: none; width: 48px; padding-top: 16px; font-size: 14px; font-weight: 600">17:00</span>
+<div style="flex: 1; border: 1px solid #80868F; border-radius: 16px; background-color: #F0F0EE; background-image: repeating-linear-gradient(135deg, transparent 0, transparent 6px, #E2E3E5 6px, #E2E3E5 7px); padding: 12px; display: flex; flex-direction: column"><span style="font-weight: 500">Fora do expediente</span><span style="font-size: 14px; color: #474C54">Lívia</span></div></li>
+</ol>
+
+<nav aria-label="Áreas" style="flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #FFFFFF; border-top: 1px solid #E2E3E5; padding: 8px 8px 22px">
+<a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 52px; justify-content: center; color: #5B616B; font-size: 12px; text-decoration: none"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg>Conversas</a>
+<a href="Pipeline.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 52px; justify-content: center; color: #5B616B; font-size: 12px; text-decoration: none"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="11" rx="1.5"></rect><rect x="17" y="4" width="4" height="7" rx="1.5"></rect></svg>Pipeline</a>
+<a href="Agenda.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 52px; justify-content: center; color: #1E43A8; font-size: 12px; font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18"></path><path d="M8 3v4"></path><path d="M16 3v4"></path></svg>Agenda</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

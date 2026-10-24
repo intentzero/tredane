@@ -98,7 +98,7 @@
 
 ### REQ-022 — Resposta assistida por IA
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** IA pode sugerir resposta e resumo; pessoa autorizada revisa e aciona o envio. **Aceite:** a sugestão é identificada, editável e nunca vira mensagem enviada sem ação humana; falha da IA não bloqueia resposta manual. **Dados/eventos:** origem da sugestão e decisão de envio; provedor e contexto permitido ainda em aberto.
+**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** IA (Claude via AI Gateway, DEC-011) pode sugerir resposta e resumo; pessoa autorizada revisa e aciona o envio. **Aceite:** a sugestão é identificada, editável e nunca vira mensagem enviada sem ação humana; falha da IA não bloqueia resposta manual. **Dados/eventos:** origem da sugestão, modelo e decisão de envio; contexto conforme REQ-072.
 
 ### REQ-023 — Oportunidade no pipeline
 
@@ -108,7 +108,7 @@
 
 ### REQ-030 — Disponibilidade
 
-**Prioridade/estado:** MVP / Confirmado quanto aos tipos de recurso; detalhes em aberto. **Origem:** ACT-02, ACT-03; JRN-03. **Comportamento:** equipe consulta horários disponíveis conforme serviço, duração, expediente, bloqueios, profissional e sala/equipamento exigidos. **Aceite:** um intervalo ocupado ou bloqueado não aparece como disponível quando qualquer recurso necessário conflita; duração, buffers e regras de disponibilidade dependem da clínica piloto. **Dados/eventos:** serviço, recurso e disponibilidade sempre por tenant.
+**Prioridade/estado:** MVP / Confirmado quanto a recursos, duração e intervalo (DEC-008, DEC-014); expediente semanal, bloqueios pontuais, fuso por clínica e grade de 15 min confirmados (DEC-008). **Origem:** ACT-02, ACT-03; JRN-03. **Comportamento:** equipe consulta horários disponíveis conforme serviço (duração fixa + intervalo após o atendimento), expediente semanal, bloqueios pontuais, profissional e sala/equipamento exigidos, em horários de 15 em 15 min no fuso da clínica. **Aceite:** um intervalo ocupado ou bloqueado não aparece como disponível quando qualquer recurso necessário conflita; o intervalo após o atendimento mantém ocupados a sala/equipamento **e o profissional**; horários fora do expediente semanal ou dentro de um bloqueio não aparecem; “Horário proposto” no pipeline não remove horário da lista. **Dados/eventos:** serviço, recurso e disponibilidade sempre por tenant.
 
 ### REQ-031 — Confirmação sem conflito
 
@@ -116,7 +116,7 @@
 
 ### REQ-032 — Cancelamento e reagendamento
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-01, ACT-02, ACT-03; JRN-05. **Comportamento:** equipe registra cancelamento ou confirma novo horário, preservando histórico e liberando ou ocupando recursos de modo coerente. **Aceite:** agenda, conversa e oportunidade mostram o mesmo estado; conflito no novo horário não apaga o compromisso anterior. **Dados/eventos:** política de prazo e motivo obrigatório permanecem em aberto.
+**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-01, ACT-02, ACT-03; JRN-05. **Comportamento:** equipe registra cancelamento ou confirma novo horário a qualquer momento (sem prazo mínimo, DEC-008), escolhendo um motivo obrigatório de uma lista, preservando histórico e liberando ou ocupando recursos de modo coerente. **Aceite:** cancelar ou reagendar sem motivo é recusado; agenda, conversa e oportunidade mostram o mesmo estado; conflito no novo horário não apaga o compromisso anterior. **Dados/eventos:** motivo e autor registrados. **Proposto:** lista inicial de motivos — contato desistiu, contato remarcou, clínica cancelou, não compareceu, outro.
 
 ### REQ-033 — Comunicação do compromisso
 
@@ -148,19 +148,25 @@
 
 ### REQ-051 — Conexão da conta WhatsApp
 
-**Prioridade/estado:** MVP / Em aberto. **Origem:** ACT-03, ACT-05; JRN-08. **Comportamento:** o MVP precisa de forma controlada de associar uma conta/número oficial a uma clínica. **Aceite:** definir fluxo e responsável antes de ligar números reais; uma conta conectada não pode ser roteada para duas clínicas por engano. **Dados/eventos:** onboarding e gestão de segredo dependem da decisão de integração.
+**Prioridade/estado:** MVP / Confirmado quanto ao fluxo (DEC-009). **Origem:** ACT-03, ACT-05; JRN-08. **Comportamento:** o responsável conecta a conta e o número da clínica pelo Embedded Signup da Meta, com o Tredane como Tech Provider; o superadmin acompanha o estado da ativação. **Aceite:** ao concluir, o `phone_number_id` fica associado a exatamente uma clínica no índice global de roteamento número → tenant (localização a definir, [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md)); tentar associá-lo a uma segunda clínica é recusado; cancelar o fluxo no meio não deixa canal ativo. **Dados/eventos:** token da integração guardado como segredo, nunca no repositório ou em logs. **Pendente:** verificação do Tredane como Tech Provider.
 
 ### REQ-052 — Configuração mínima da clínica
 
-**Prioridade/estado:** MVP / Em aberto quanto ao fluxo de configuração. **Origem:** ACT-03; JRN-08. **Comportamento:** antes de agendar, clínica configura serviços, durações, profissionais, salas/equipamentos e disponibilidade mínimos. **Aceite:** o fluxo de ativação não libera agendamentos sem configuração exigida pela regra de agenda aprovada. **Dados/eventos:** escopo de autosserviço e papel que edita ainda em aberto.
+**Prioridade/estado:** MVP / Confirmado quanto ao papel (só o responsável, DEC-007); telas propostas. **Origem:** ACT-03; JRN-08. **Comportamento:** antes de agendar, o responsável configura serviços (duração e intervalo), profissionais, salas/equipamentos e disponibilidade mínimos. **Aceite:** o fluxo de ativação não libera agendamentos sem essa configuração; atendente não altera nenhum desses itens. **Dados/eventos:** configuração no armazenamento da clínica (SQLite do Durable Object, DEC-038).
 
-### REQ-060 — Dados usados pela IA
+### REQ-072 — Dados usados pela IA
 
-**Prioridade/estado:** MVP / Em aberto. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** contexto enviado à IA deve ser limitado ao necessário para a sugestão e ao tenant da conversa. **Aceite:** antes de uso com dados reais, documentar campos permitidos, provedor, retenção e revisão; teste entre duas clínicas não permite contexto cruzado. **Dados/eventos:** não usar dados reais enquanto a política estiver pendente.
+**Renumeração (24/10/2026, decisão do responsável):** antes duplicava o ID REQ-060, que permanece com o aviso e a decisão de suporte.
+
+**Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** o contexto enviado à IA contém só mensagens recentes da conversa (proposta: até 20), primeiro nome do contato, catálogo de serviços da clínica e etapa da oportunidade. **Aceite:** inspecionando a solicitação enviada ao AI Gateway em teste, não aparecem telefone, anexos, outras conversas nem dados de outra clínica; o AI Gateway não registra o conteúdo. **Dados/eventos:** não usar dados reais antes da revisão jurídica.
 
 ### REQ-070 — Observabilidade do fluxo
 
 **Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-06. **Comportamento:** falhas de entrada, fila, envio e atualização em tempo real podem ser identificadas sem expor conteúdo sensível em logs. **Aceite:** para falhas simuladas, é possível localizar tenant, tipo de evento, etapa e resultado técnico; a equipe vê falhas que exigem ação no painel. **Dados/eventos:** retenção e acesso a logs ainda precisam de política.
+
+### REQ-071 — Retenção e exclusão
+
+**Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-03, ACT-05. **Comportamento:** dados ficam enquanto a clínica for cliente; o responsável pode excluir um contato; ao encerrar a clínica, todos os dados dela são excluídos em até 30 dias. **Aceite:** após excluir um contato, suas mensagens e anexos não são mais encontrados por busca, API ou R2, e seus agendamentos permanecem sem dados pessoais; após o prazo de encerramento, os dados da clínica (SQLite do Durable Object e prefixo R2) não existem mais. **Dados/eventos:** exclusão registrada na auditoria sem o conteúdo excluído.
 
 ## Racional de prioridade — proposta para aprovação
 
@@ -194,8 +200,9 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-050 | MVP | Webhook autenticado e número associado ao tenant são fronteira de segurança. |
 | REQ-051 | MVP | Sem vinculação verificável de número, não existe atendimento WhatsApp real. |
 | REQ-052 | MVP | Agenda exige serviços, recursos e disponibilidade configurados. |
-| REQ-060 | MVP | É preciso definir e limitar o contexto antes de usar IA com clientes. |
+| REQ-072 | MVP | É preciso definir e limitar o contexto antes de usar IA com clientes. |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
+| REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). |
 
 **Fora do MVP (já definido):** prontuário, pagamentos, estoque, integração com agendas externas, campanhas em massa, bot com envios ou reservas autónomas, painéis de profissionais e relatórios avançados. **Posterior:** autosserviço avançado de onboarding, configurações sofisticadas de pipeline e automações de IA, exceto se outra decisão formal substituir este recorte.
 
@@ -207,7 +214,7 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 
 ## Lacunas para revisão
 
-Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: Q-ACT-04 a Q-ACT-06; duração e disponibilidade da agenda; onboarding do WhatsApp; identidade; provedor/contexto da IA; retenção de dados; protocolo e validação técnica da topologia DEC-038 (D1 central + SQLite por DO/clínica). Ver [decisões](decisions.md).
+Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: valores reais de serviços, durações e jornadas da clínica piloto; registro do Tredane como Tech Provider na Meta; revisão jurídica da retenção (REQ-071); AI Gateway sem registro de conteúdo; protocolo e validação técnica da topologia DEC-038 (D1 central + SQLite por DO/clínica). Ver [decisões](decisions.md).
 
 
 ## Persistência confirmada — DEC-038

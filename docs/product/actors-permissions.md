@@ -27,10 +27,10 @@
 | Mover oportunidade no pipeline | — | ✓ | ✓ | — | — |
 | Ver agenda da clínica | — | ✓ | ✓ | — | — |
 | Criar, cancelar ou reagendar horário | solicitar via WhatsApp | ✓ | ✓ | — | — |
-| Alterar disponibilidade, serviços e recursos | — | ? | ✓ | — | — |
+| Alterar disponibilidade, serviços, profissionais, salas/equipamentos e bloqueios (DEC-042) | — | — | ✓ | — | — |
 | Convidar e remover attendants do próprio tenant | — | — | ✓ | — | ✓ |
 | Atribuir, promover, substituir ou remover owners | — | — | — | — | ✓ |
-| Conectar ou trocar o número de WhatsApp | — | — | ? | — | — |
+| Conectar ou trocar o número de WhatsApp (Embedded Signup, DEC-009, DEC-042) | — | — | ✓ | — | acompanhar o estado |
 | Ver conteúdo de todos os tenants sem contexto autorizado | — | — | — | — | — |
 | Administrar cadastro e ciclo de vida de tenants | — | — | — | — | ✓ |
 | Aprovar/rejeitar pedido de suporte do próprio tenant | — | — | ✓ | — | — |
@@ -62,7 +62,7 @@ Operação e suporte devem partir de metadados e registros técnicos. Qualquer a
 
 | ID | Questão | Bloqueia |
 | --- | --- | --- |
-| Q-ACT-04 | Quem conecta e administra a conta WhatsApp Business? | Onboarding real de clínicas. |
+| Q-ACT-04 | **Resolvido (DEC-009):** o responsável (owner) conecta a conta da clínica pelo Embedded Signup, com apoio do Tredane no piloto. Falta o registro do Tredane como Tech Provider na Meta. | Onboarding real de clínicas. |
 | Q-ACT-05 | **Resolvido:** um usuário pode pertencer a várias clínicas; memberships e roles por tenant no D1, sem Organizations do Clerk. | Implementar seletor de tenant e revogação por membership. |
 | Q-ACT-06 | **Resolvido em parte:** Platform Admin gerencia tenants e superadmin pode iniciar impersonação auditável de usuário membro para suporte. Mecanismo de sessão própria do Tredane confirmado; detalhes de segurança, limites e política de acesso a dados reais em aberto. | Suporte e auditoria; [ADR-0007](../adr/0007-support-impersonation.md). |
 

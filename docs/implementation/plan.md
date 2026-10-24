@@ -6,7 +6,7 @@
 
 | Fase | Entregáveis | Gate verificável |
 | --- | --- | --- |
-| F0: ambiente | Workspace TS, React, Worker/Hono, Drizzle/D1 local, lint/test/build, Wrangler, CI, seeds sintéticas | Testes e build reproduzíveis; dois tenants de teste; nenhum segredo versionado |
+| F0: ambiente | Workspace TS, React, Worker/Hono, Drizzle/D1 local, lint/test/build, Wrangler, CI, seeds sintéticas; base de UI: `tokens.css` e catálogo (design system v0.2 aprovado, DEC-041), prova de conceito da biblioteca de componentes ([ADR-0013](../adr/0013-design-system-components.md)), `check_contrast` e `check_mocks` no CI | Testes e build reproduzíveis; dois tenants de teste; nenhum segredo versionado |
 | F1: identidade/tenant | D1 administrativo, DO + SQLite por clínica, migrações por instância, login/memberships, autorização e WebSocket | REQ-001/002/003: ID forjado e revogação não expõem dados/eventos de outra clínica |
 | F2: domínio local | Serviços, recursos, horários, contactos, Inbox e Pipeline com dados sintéticos; CRUD mínimo + auditoria | Duas sessões da mesma clínica convergem e outra clínica não vê alterações |
 | F3: integração Meta | Associação verificada de número de teste, webhooks, deduplicação, outbox, envio manual e status | Reentrega não duplica; falhas e resultado incerto permanecem observáveis |

@@ -11,7 +11,12 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Produto SaaS multi-tenant para clínicas de estética.
 - Canais e módulos previstos: WhatsApp, IA, agenda e pipeline comercial.
 - Stack definida: Cloudflare Workers, D1, Queues, R2 e Workflows; React, Hono e Drizzle.
-- Agenda própria do Tredane no primeiro MVP.
+- Agenda própria do Tredane no primeiro MVP. Regras confirmadas (DEC-008): duração fixa por serviço mais intervalo que ocupa sala/equipamento e profissional; expediente semanal e bloqueios pontuais; fuso por clínica; grade de 15 min; cancelamento e reagendamento sem prazo mínimo, com motivo obrigatório; “Horário proposto” não reserva horário.
+- WhatsApp: o Tredane atua como Tech Provider na Meta e o responsável (owner) conecta a conta da clínica pelo Embedded Signup, com apoio do Tredane no piloto (DEC-009).
+- IA: Claude via Cloudflare AI Gateway, com contexto limitado às mensagens recentes, primeiro nome, catálogo de serviços e etapa; dados guardados enquanto a clínica for cliente, exclusão de contato pelo responsável e exclusão total até 30 dias após o encerramento (DEC-011).
+- Só o responsável configura serviços, profissionais, salas/equipamentos, disponibilidade e o número de WhatsApp (DEC-042).
+- Interface mobile first (DEC-039); decisões de UX: “Agendado” sem compromisso com aviso, IA só sob demanda, push via PWA, envio por modelo fora da janela de 24 h do WhatsApp e agenda de dia e semana (DEC-040).
+- Design system do painel aprovado (DEC-041): paleta, tipografia, escalas, componentes e ícones Lucide em [docs/design](design/README.md); biblioteca de componentes a decidir por prova de conceito na F0 ([ADR-0013](adr/0013-design-system-components.md)); modo escuro fora do MVP.
 - Integração com a API oficial do WhatsApp Business.
 - Aplicação reativa, com atualizações em tempo real por WebSockets com hibernação em Durable Objects.
 - **DEC-038:** um Durable Object por clínica, com SQLite nativo para dados operacionais e coordenação/WebSockets. D1 central mantém tenants, memberships, convites e suporte; R2 privado mantém anexos. Ver [ADR-0012](adr/0012-clinic-durable-object-sqlite.md).
@@ -57,6 +62,8 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Estados e eventos propostos](product/states.md)
 - [Cenários de aceite](product/acceptance.md)
 - [Fronteira de dados entre clínicas](product/tenant-boundaries.md)
+- [Especificação de UI/UX do painel](product/ux-ui.md) (telas, estados visíveis e critérios de UX)
+- [Mocks e guia de implementação da interface](design/README.md): 29 telas mobile, componentes, tokens e previews
 - [Registro de hipóteses a validar](product/validation-register.md) e [auditoria do Issue #1 (23/10/2026)](product/definition-audit-2026-10-23.md) — acompanhamento, não decisões novas.
 
 ## Documentação de arquitetura e execução
@@ -66,7 +73,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Plano de implementação proposto](implementation/plan.md).
 - [ADR Clerk e Platform Admin](adr/0006-clerk-platform-admin.md), [ADR Impersonação de suporte](adr/0007-support-impersonation.md) e [contratos de identidade/admin](architecture/identity-and-admin.md).
 
-Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora **confirmados**. Topologia resolvida por DEC-038; continuam em aberto: protocolo de revogação D1/DO, migrações/recuperação por clínica, fluxo de ligação do WhatsApp, política de dados reais, proteção do handoff e capacidades de manutenção das sessões próprias de suporte.
+Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora **confirmados**. Topologia resolvida por DEC-038; continuam em aberto: protocolo de revogação D1/DO, migrações/recuperação por clínica, fluxo de ligação do WhatsApp, política de dados reais, proteção do handoff e capacidades de manutenção das sessões próprias de suporte. Plano, custo e residência do Clerk: tratados como pré-condição de go-live (DEC-043).
 
 ## Recorte proposto para a primeira entrega
 
@@ -139,11 +146,11 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 
 ## Decisões pendentes antes de integrar serviços reais
 
-1. Como cada clínica conectará seu número à API oficial do WhatsApp Business e quem administrará essa conta.
-2. Quais serviços, durações, buffers, bloqueios e regras de disponibilidade a clínica piloto precisa para profissional e sala/equipamento.
+1. Registro do Tredane como Tech Provider na Meta, custos e modelos de mensagem do WhatsApp (fluxo definido em DEC-009). Bloqueio atual: o Tredane não tem CNPJ para a verificação do negócio na Meta (VAL-13).
+2. Valores reais de serviços, durações e jornadas da clínica piloto (regras definidas em DEC-008).
 3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Revogação por tenant definida em DEC-026; em aberto o mecanismo técnico e testes de propagação WebSocket, integrações e medidas adicionais de antiabuso; MFA fora do MVP (DEC-028).
-4. Qual provedor de IA será usado; como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane?
-5. Quais dados pessoais são necessários, por quanto tempo serão guardados e como a clínica atenderá pedidos de acesso ou exclusão.
+4. Revisão jurídica e AI Gateway sem registro de conteúdo (provedor definido em DEC-011); como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane?
+5. Revisão jurídica (LGPD) da retenção e exclusão definidas em DEC-011 (REQ-071). Dossiê para o advogado: [legal-review-brief.md](product/legal-review-brief.md).
 6. Topologia já definida em DEC-038: validar implementação, migrações, capacidade, recuperação e revogação entre D1 central e SQLite/DO por clínica antes de dados reais.
 
 Estas pendências não bloqueiam a estrutura inicial nem a implementação do fluxo com dados de teste. Bloqueiam a conexão de números reais, o tratamento de dados reais e automações de envio.

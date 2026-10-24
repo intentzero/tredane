@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Editar serviço — celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2F5BD3}a:hover{color:#1E43A8}
+button,select,input{font:inherit}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #2F5BD3;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F6F6F4; color: #1C1E21; font-family: Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E2E3E5; display: flex; align-items: center; gap: 4px; padding: 8px 4px">
+<a href="Clinica.dc.html" aria-label="Voltar para Clínica" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1C1E21; border-radius: 999px"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></a>
+<div style="display: flex; flex-direction: column"><h1 style="margin: 0; font-size: 18px; font-weight: 600">Editar serviço</h1><span style="font-size: 14px; color: #5B616B">Serviços · 3 cadastrados</span></div>
+</header>
+
+<div style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px">
+
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #474C54">Nome do serviço
+<input type="text" value="Depilação a laser — pernas" style="height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #80868F; border-radius: 8px; font-size: 16px; color: #1C1E21"></label>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #474C54">Duração
+<select style="height: 48px; padding: 0 12px; border: 1px solid #80868F; border-radius: 8px; background: #FFFFFF; font-size: 16px; color: #1C1E21"><option>30 min</option><option>45 min</option><option selected>60 min</option><option>75 min</option><option>90 min</option></select></label>
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #474C54">Intervalo depois
+<select style="height: 48px; padding: 0 12px; border: 1px solid #80868F; border-radius: 8px; background: #FFFFFF; font-size: 16px; color: #1C1E21"><option>Nenhum</option><option selected>15 min</option><option>30 min</option></select></label>
+</div>
+<div style="margin-top: -8px; padding: 12px 12px; border-radius: 8px; background: #EEF2FC; color: #1E43A8; font-size: 14px">Ocupa 75 min na agenda: 60 de atendimento + 15 de intervalo. O intervalo bloqueia o profissional e a sala. Horários em múltiplos de 15 min.</div>
+
+<fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 4px">
+<legend style="padding: 0 0 8px; font-size: 14px; color: #474C54">Quem pode fazer este serviço</legend>
+<label style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 12px; background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 8px"><input type="checkbox" checked style="width: 22px; height: 22px">Dra. Paula Reis</label>
+<label style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 12px; background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 8px"><input type="checkbox" checked style="width: 22px; height: 22px">Dr. Tiago Nunes</label>
+<label style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 12px; background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 8px"><input type="checkbox" style="width: 22px; height: 22px">Lívia Costa</label>
+</fieldset>
+
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #474C54">Sala ou equipamento exigido
+<select style="height: 48px; padding: 0 12px; border: 1px solid #80868F; border-radius: 8px; background: #FFFFFF; font-size: 16px; color: #1C1E21"><option selected>Sala com laser (Sala 2)</option><option>Qualquer sala</option><option>Sala 1</option><option>Sala 3</option></select></label>
+
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #474C54">Preço (opcional)
+<input type="text" inputmode="decimal" placeholder="R$ 0,00" style="height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #80868F; border-radius: 8px; font-size: 16px; color: #1C1E21"></label>
+<span style="margin-top: -12px; font-size: 14px; color: #5B616B">Nome, duração e preço também ficam disponíveis para a IA montar sugestões de resposta.</span>
+
+<label style="display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 12px; background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 8px">Serviço ativo<input type="checkbox" checked style="width: 28px; height: 28px"></label>
+<span style="margin-top: -8px; font-size: 14px; color: #5B616B">Desativar não apaga compromissos já marcados.</span>
+</div>
+
+<div style="flex: none; background: #FFFFFF; border-top: 1px solid #E2E3E5; padding: 12px 16px 30px; display: flex; gap: 8px">
+<a href="Clinica.dc.html" style="flex: 1; display: flex; align-items: center; justify-content: center; height: 52px; border: 1px solid #80868F; border-radius: 12px; color: #1C1E21; text-decoration: none; font-weight: 500">Cancelar</a>
+<button type="button" style="flex: 2; height: 52px; border: 0; border-radius: 12px; background: #2F5BD3; color: #FFFFFF; font-size: 16px; font-weight: 600; cursor: pointer">Salvar serviço</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 # ADR-0004 — IA assistiva com revisão humana no primeiro recorte
 
-- **Estado:** Recorte atual proposto e registado no MVP; aceitação final da política de dados/provedor pendente.
-- **Origem:** [DEC-006](../product/decisions.md), [REQ-022 / REQ-060](../product/requirements.md).
+- **Estado:** Recorte proposto e registado no MVP. **Aceitos** em 23/10/2026 o provedor, o contexto e a retenção ([DEC-011](../product/decisions.md)); revisão jurídica pendente antes de dados reais.
+- **Origem:** [DEC-006](../product/decisions.md), [REQ-022 / REQ-072](../product/requirements.md).
 
 ## Contexto
 
@@ -17,7 +17,13 @@ Não enviar ao provedor informações de outra clínica, anexos ou dados sensív
 
 ## Implementação proposta
 
-Adaptador de provedor com contratos tipados, acesso apenas a dados autorizados pelo domínio, identificação da origem/modelo de cada sugestão, revisão humana auditável e indisponibilidade graciosa (atendimento manual permanece operacional). Workers AI é candidato, **não uma escolha confirmada de modelo**.
+Adaptador de provedor com contratos tipados, acesso apenas a dados autorizados pelo domínio, identificação da origem/modelo de cada sugestão, revisão humana auditável e indisponibilidade graciosa (atendimento manual permanece operacional).
+
+**Provedor (Confirmado):** Claude (Anthropic), chamado pelo Worker através do Cloudflare AI Gateway, para limites de uso, métricas de custo/latência e troca de provedor sem mudar o domínio. Workers AI e chamada direta à API foram descartados para o piloto. **Proposto:** modelo rápido para resumos e modelo mais capaz para sugestões; o modelo exato é configuração, não código.
+
+**Contexto enviado (Confirmado):** mensagens recentes da conversa (proposta: até 20), primeiro nome do contato, catálogo de serviços da clínica (nome, duração, preço) e etapa da oportunidade. Nunca: telefone, anexos, outras conversas, dados de outra clínica ou credenciais.
+
+**Retenção (Confirmado, sujeito a revisão jurídica):** o AI Gateway deve ser configurado sem registrar o conteúdo das solicitações e respostas, e o provedor não pode reter as solicitações. O Tredane guarda em `ai_suggestions` apenas o texto sugerido, o modelo e a decisão humana, no armazenamento da clínica (SQLite do Durable Object, [ADR-0012](0012-clinic-durable-object-sqlite.md)).
 
 ## Critérios de validação
 

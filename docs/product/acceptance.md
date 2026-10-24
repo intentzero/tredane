@@ -28,7 +28,7 @@
 
 ### AC-06 — IA revisada por pessoa
 
-**Dado** uma conversa de A e um atendente autorizado; **quando** a IA retorna uma sugestão; **então** ela é identificada como sugestão e pode ser editada ou ignorada. Sem ação humana de envio, o contato não recebe mensagem. **Quando** a IA falha, o atendente ainda pode responder manualmente. **Requisitos:** REQ-022, REQ-060.
+**Dado** uma conversa de A e um atendente autorizado; **quando** a IA retorna uma sugestão; **então** ela é identificada como sugestão e pode ser editada ou ignorada. Sem ação humana de envio, o contato não recebe mensagem. **Quando** a IA falha, o atendente ainda pode responder manualmente. **Requisitos:** REQ-022, REQ-072.
 
 ### AC-07 — Envio com resultado desconhecido
 
@@ -151,6 +151,26 @@
 ### AC-35 — Subject solicita encerramento e owner decide
 
 **Dado** suporte ativo na clínica A representando S, com owners O1/O2 e attendant T; **quando** S usa **Solicitar encerramento** na sua Clinic App, **então** apenas uma solicitação pendente por sessão/subject é criada de forma idempotente e auditada, visível a O1/O2 em tempo real; T não pode gerar nem ver pedido de S, e owner exclusivo de B não o recebe. **Enquanto** owners não decidem, a sessão de suporte mantém o TTL original e autorizações vigentes, até 30 minutos no máximo. **Quando** owner de A escolhe Encerrar, aplica-se revogação imediata DEC-034; quando escolhe Manter, a decisão é registrada e S recebe estado atualizado. Cliques após expiração/revogação e IDs alterados são negados. Sem e-mail adicional nem permissão de revogar diretamente para S. **Requisitos:** REQ-063/065/066, DEC-037.
+
+### AC-36 — Cancelamento exige motivo
+
+**Dado** um compromisso confirmado; **quando** alguém tenta cancelar ou reagendar sem escolher motivo; **então** a ação é recusada e o compromisso continua confirmado. Com motivo, cancela a qualquer momento, sem prazo mínimo. **Requisito:** REQ-032.
+
+### AC-37 — Contexto mínimo da IA
+
+**Dado** duas clínicas com conversas fictícias; **quando** a IA é chamada numa conversa de A; **então** a solicitação ao AI Gateway contém apenas mensagens recentes dessa conversa, primeiro nome, catálogo de A e etapa, sem telefone, anexos ou dados de B. **Requisito:** REQ-072.
+
+### AC-38 — Cadastro de recursos da agenda
+
+**Dado** o responsável da clínica A; **quando** cadastra uma profissional, uma sala com a categoria exigida por um serviço e o expediente de ambas; **então** a agenda passa a oferecer horários desse serviço com os dois recursos livres. **Quando** desativa a única sala dessa categoria, o serviço deixa de oferecer novos horários e os compromissos futuros permanecem marcados. Um atendente não consegue cadastrar, editar ou desativar recursos. **Requisitos:** REQ-002, REQ-030, REQ-052.
+
+### AC-39 — Conexão do WhatsApp interrompida
+
+**Dado** uma clínica A com WhatsApp conectado; **quando** a Meta deixa de aceitar o acesso; **então** o painel de A mostra o aviso de conexão interrompida a todos os membros, as respostas enviadas no período aparecem como “Não enviada”, o histórico é preservado e só o responsável vê o botão de reconectar. Ao reconectar, nada é reenviado automaticamente e a clínica B não é afetada. **Requisitos:** REQ-012, REQ-013, REQ-051.
+
+### AC-40 — Troca de número
+
+**Dado** o responsável de A com o número X conectado; **quando** troca para o número Y; **então** conversas, contatos e agenda de A permanecem, mensagens passam a ser recebidas e enviadas por Y e X deixa de rotear para A. Tentar usar um número já associado à clínica B é recusado, sem alterar A nem B. **Requisitos:** REQ-050, REQ-051.
 
 ## Condições para usar estes cenários como aprovação
 

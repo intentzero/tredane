@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Conversas — Tredane</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2F5BD3}a:hover{color:#1E43A8}
+button,textarea,select,input{font:inherit}
+button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #2F5BD3;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #F6F6F4; color: #1C1E21; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.45; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 24px; padding: 0 24px; min-height: 56px; background: #FFFFFF; border-bottom: 1px solid #E2E3E5">
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 28px; height: 28px; border-radius: 6px; background: #1C1E21; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px">T</div>
+<div style="display: flex; flex-direction: column"><span style="font-weight: 600">Clínica Aurora</span><span style="font-size: 12px; color: #5B616B">ambiente de teste · dados fictícios</span></div>
+</div>
+<nav aria-label="Áreas" style="display: flex; gap: 4px; flex-wrap: wrap">
+<a href="Main.dc.html" aria-current="page" style="padding: 8px 12px; border-radius: 6px; background: #EEF2FC; color: #1E43A8; font-weight: 600; text-decoration: none">Conversas <span style="margin-left: 4px; padding: 0 6px; border-radius: 8px; background: #2F5BD3; color: #FFFFFF; font-size: 12px">1 nova</span></a>
+<a href="Pipeline.dc.html" style="padding: 8px 12px; border-radius: 6px; color: #1C1E21; text-decoration: none">Pipeline</a>
+<a href="Agenda.dc.html" style="padding: 8px 12px; border-radius: 6px; color: #1C1E21; text-decoration: none">Agenda</a>
+</nav>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 16px">
+<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #1F7A4D"><span style="width: 8px; height: 8px; border-radius: 4px; background: #1F7A4D"></span>Ao vivo</span>
+<button type="button" style="display: flex; align-items: center; gap: 8px; border: 1px solid #E2E3E5; background: #FFFFFF; border-radius: 6px; padding: 6px 10px; cursor: pointer"><span style="width: 24px; height: 24px; border-radius: 12px; background: #E7E0F8; color: #4B2A9E; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center">AS</span>Ana Souza</button>
+</div>
+</header>
+
+<main style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0">
+
+<section aria-label="Lista de conversas" style="flex: 1 1 320px; max-width: 360px; background: #FFFFFF; border-right: 1px solid #E2E3E5; display: flex; flex-direction: column">
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 12px; border-bottom: 1px solid #E2E3E5">
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #5B616B">Buscar nesta clínica
+<input type="search" placeholder="Nome ou telefone" style="padding: 8px 10px; border: 1px solid #80868F; border-radius: 6px; font-size: 14px; color: #1C1E21"></label>
+<div role="group" aria-label="Filtros" style="display: flex; flex-wrap: wrap; gap: 6px">
+<button type="button" aria-pressed="true" style="padding: 4px 10px; border-radius: 16px; border: 1px solid #1C1E21; background: #1C1E21; color: #FFFFFF; font-size: 12px; cursor: pointer">Todas</button>
+<button type="button" aria-pressed="false" style="padding: 4px 10px; border-radius: 16px; border: 1px solid #80868F; background: #FFFFFF; font-size: 12px; cursor: pointer">Novas · 1</button>
+<button type="button" aria-pressed="false" style="padding: 4px 10px; border-radius: 16px; border: 1px solid #80868F; background: #FFFFFF; font-size: 12px; cursor: pointer">Minhas</button>
+<button type="button" aria-pressed="false" style="padding: 4px 10px; border-radius: 16px; border: 1px solid #80868F; background: #FFFFFF; font-size: 12px; cursor: pointer">Sem responsável</button>
+<button type="button" aria-pressed="false" style="padding: 4px 10px; border-radius: 16px; border: 1px solid #80868F; background: #FFFFFF; font-size: 12px; cursor: pointer">Encerradas</button>
+</div>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0; overflow-y: auto">
+<li style="border-bottom: 1px solid #F0F0EE"><button type="button" style="width: 100%; text-align: left; border: 0; background: #FFFFFF; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; cursor: pointer">
+<span style="display: flex; justify-content: space-between; gap: 8px"><span style="font-weight: 600">Marina Alves</span><span style="font-size: 12px; color: #5B616B">09:41</span></span>
+<span style="font-weight: 600; color: #1C1E21">Oi! Quanto custa a limpeza de pele?</span>
+<span style="display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px"><span style="padding: 1px 8px; border-radius: 8px; background: #EEF2FC; color: #1E43A8; font-weight: 600">Nova</span><span style="color: #5B616B">Sem responsável · Novo contato</span></span>
+</button></li>
+<li style="border-bottom: 1px solid #F0F0EE"><button type="button" aria-current="true" style="width: 100%; text-align: left; border: 0; border-left: 3px solid #2F5BD3; background: #EEF2FC; padding: 12px 16px 12px 13px; display: flex; flex-direction: column; gap: 4px; cursor: pointer">
+<span style="display: flex; justify-content: space-between; gap: 8px"><span style="font-weight: 600">Juliana Prado</span><span style="font-size: 12px; color: #5B616B">09:31</span></span>
+<span style="color: #5B616B">Você: Vou verificar a agenda e já te retorno.</span>
+<span style="display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px"><span style="padding: 1px 8px; border-radius: 8px; background: #EAF5EF; color: #1F7A4D; font-weight: 600">Em atendimento</span><span style="color: #5B616B">Ana (você) · Horário proposto</span></span>
+</button></li>
+<li style="border-bottom: 1px solid #F0F0EE"><button type="button" style="width: 100%; text-align: left; border: 0; background: #FFFFFF; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; cursor: pointer">
+<span style="display: flex; justify-content: space-between; gap: 8px"><span style="font-weight: 600">Carla Mendes</span><span style="font-size: 12px; color: #5B616B">ontem</span></span>
+<span style="color: #5B616B">Combinado, até sexta!</span>
+<span style="display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px"><span style="padding: 1px 8px; border-radius: 8px; background: #EAF5EF; color: #1F7A4D; font-weight: 600">Em atendimento</span><span style="color: #5B616B">Bruno · Agendado · sex 14:00</span></span>
+</button></li>
+<li style="border-bottom: 1px solid #F0F0EE"><button type="button" style="width: 100%; text-align: left; border: 0; background: #FFFFFF; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; cursor: pointer">
+<span style="display: flex; justify-content: space-between; gap: 8px"><span style="font-weight: 600">+55 11 9••••-0042</span><span style="font-size: 12px; color: #5B616B">ontem</span></span>
+<span style="display: flex; align-items: center; gap: 6px; color: #B42318"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>Resposta não enviada</span>
+<span style="display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px"><span style="padding: 1px 8px; border-radius: 8px; background: #EAF5EF; color: #1F7A4D; font-weight: 600">Em atendimento</span><span style="color: #5B616B">Bruno · Em atendimento</span></span>
+</button></li>
+<li style="border-bottom: 1px solid #F0F0EE"><button type="button" style="width: 100%; text-align: left; border: 0; background: #FFFFFF; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; cursor: pointer">
+<span style="display: flex; justify-content: space-between; gap: 8px"><span style="font-weight: 600">Renata Lima</span><span style="font-size: 12px; color: #5B616B">20 out</span></span>
+<span style="color: #5B616B">Obrigada pelo atendimento.</span>
+<span style="display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px"><span style="padding: 1px 8px; border-radius: 8px; background: #F0F0EE; color: #474C54; font-weight: 600">Encerrada</span><span style="color: #5B616B">Ana · Concluído</span></span>
+</button></li>
+</ul>
+</section>
+
+<section aria-label="Conversa com Juliana Prado" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 24px; background: #FFFFFF; border-bottom: 1px solid #E2E3E5">
+<div style="display: flex; flex-direction: column"><h1 style="margin: 0; font-size: 18px; font-weight: 600">Juliana Prado</h1><span style="font-size: 12px; color: #5B616B">Em atendimento · Responsável: Ana Souza (você)</span></div>
+<div style="margin-left: auto; display: flex; gap: 8px">
+<button type="button" style="padding: 8px 12px; border: 1px solid #80868F; border-radius: 6px; background: #FFFFFF; cursor: pointer">Transferir</button>
+<button type="button" style="padding: 8px 12px; border: 1px solid #80868F; border-radius: 6px; background: #FFFFFF; cursor: pointer">Encerrar</button>
+</div>
+</div>
+
+<ol aria-label="Histórico" style="list-style: none; margin: 0; padding: 24px; flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto">
+<li style="text-align: center; font-size: 12px; color: #5B616B">Hoje, sex 23 out</li>
+<li style="align-self: flex-start; max-width: 70%; display: flex; flex-direction: column; gap: 4px"><div style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 12px 12px 12px 4px; padding: 10px 12px">Olá, gostaria de agendar uma depilação a laser nas pernas.</div><span style="font-size: 12px; color: #5B616B">09:12</span></li>
+<li style="align-self: flex-end; max-width: 70%; display: flex; flex-direction: column; align-items: flex-end; gap: 4px"><div style="background: #EEF2FC; border-radius: 12px 12px 4px 12px; padding: 10px 12px">Oi, Juliana! Temos horários nesta semana. Qual período fica melhor para você?</div><span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5B616B">Ana · 09:15 · <svg aria-hidden="true" width="16" height="14" viewBox="0 0 28 24" fill="none" stroke="#2F5BD3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13l5 5L18 6"></path><path d="M11 18l1 0L24 6"></path></svg><span style="color: #1E43A8">Lida</span></span></li>
+<li style="align-self: center; font-size: 12px; color: #5B616B; background: #F0F0EE; border-radius: 12px; padding: 4px 10px">Ana mudou a etapa para Horário proposto · 09:16</li>
+<li style="align-self: flex-start; max-width: 70%; display: flex; flex-direction: column; gap: 4px"><div style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 12px 12px 12px 4px; padding: 10px 12px">Pode ser sexta à tarde?</div><span style="font-size: 12px; color: #5B616B">09:30</span></li>
+<li style="align-self: flex-end; max-width: 70%; display: flex; flex-direction: column; align-items: flex-end; gap: 4px"><div style="background: #EEF2FC; border-radius: 12px 12px 4px 12px; padding: 10px 12px">Vou verificar a agenda e já te retorno.</div><span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6E4200">Ana · 09:31 · <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7"></path><path d="M12 17h.01"></path></svg>Verificando envio…</span></li>
+</ol>
+
+<div style="padding: 16px 24px 24px; background: #FFFFFF; border-top: 1px solid #E2E3E5; display: flex; flex-direction: column; gap: 12px">
+<div role="region" aria-label="Sugestão da IA" style="border: 1.5px dashed #6B3FD4; border-radius: 8px; background: #F7F4FD; padding: 12px; display: flex; flex-direction: column; gap: 8px">
+<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #4B2A9E"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"></path></svg>Sugestão da IA — revise antes de enviar</span>
+<p style="margin: 0">Claro, Juliana! Vou conferir os horários de sexta à tarde e te envio as opções em seguida.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="padding: 6px 12px; border: 1px solid #6B3FD4; border-radius: 6px; background: #FFFFFF; color: #4B2A9E; font-weight: 500; cursor: pointer">Usar no campo de resposta</button>
+<button type="button" style="padding: 6px 12px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #4B2A9E; cursor: pointer">Gerar outra</button>
+<button type="button" style="padding: 6px 12px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #5B616B; cursor: pointer">Descartar</button>
+</div>
+</div>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #5B616B">Resposta para Juliana Prado
+<textarea rows="3" placeholder="Escreva uma mensagem" style="padding: 10px 12px; border: 1px solid #80868F; border-radius: 6px; font-size: 14px; color: #1C1E21; resize: vertical"></textarea></label>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<button type="button" style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid #80868F; border-radius: 6px; background: #FFFFFF; color: #4B2A9E; cursor: pointer"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path></svg>Sugerir resposta</button>
+<span style="margin-left: auto; font-size: 12px; color: #5B616B">Ctrl + Enter para enviar</span>
+<button type="button" style="padding: 8px 20px; border: 0; border-radius: 6px; background: #2F5BD3; color: #FFFFFF; font-weight: 600; cursor: pointer">Enviar</button>
+</div>
+</div>
+</section>
+
+<aside aria-label="Contato e oportunidade" style="flex: 1 0 300px; max-width: 340px; background: #FFFFFF; border-left: 1px solid #E2E3E5; padding: 20px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600">Juliana Prado</h2>
+<span style="color: #5B616B">+55 11 9••••-3187</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<h3 style="margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #5B616B">Oportunidade</h3>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #5B616B">Etapa
+<select style="padding: 8px 10px; border: 1px solid #80868F; border-radius: 6px; background: #FFFFFF; font-size: 14px; color: #1C1E21"><option>Novo contato</option><option>Em atendimento</option><option selected>Horário proposto</option><option>Agendado</option><option>Concluído</option><option>Perdido</option></select></label>
+<span style="font-size: 12px; color: #5B616B">Etapa da negociação — não reserva horário na agenda.</span>
+<dl style="margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px">
+<dt style="color: #5B616B">Responsável</dt><dd style="margin: 0">Ana Souza</dd>
+<dt style="color: #5B616B">Último contato</dt><dd style="margin: 0">hoje, 09:30</dd>
+<dt style="color: #5B616B">Próximo compromisso</dt><dd style="margin: 0">Nenhum</dd>
+</dl>
+<a href="Agenda.dc.html" style="display: inline-flex; justify-content: center; padding: 10px 12px; border-radius: 6px; background: #1C1E21; color: #FFFFFF; font-weight: 600; text-decoration: none">Agendar horário</a>
+</div>
+<div style="border: 1.5px dashed #6B3FD4; border-radius: 8px; background: #F7F4FD; padding: 12px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; font-weight: 600; color: #4B2A9E">Resumo da IA</span>
+<p style="margin: 0">Quer depilação a laser nas pernas e prefere sexta à tarde. Ainda não recebeu opções de horário.</p>
+<span style="font-size: 12px; color: #5B616B">Gerado às 09:32 · Pode conter erros. Confira na conversa.</span>
+<button type="button" style="align-self: flex-start; padding: 4px 0; border: 0; background: transparent; color: #4B2A9E; text-decoration: underline; cursor: pointer">Atualizar resumo</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #5B616B">Compromissos</h3>
+<span style="color: #5B616B">Nenhum compromisso registrado.</span>
+</div>
+</aside>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

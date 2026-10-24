@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Acesso encerrado — celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2F5BD3}a:hover{color:#1E43A8}
+button{font:inherit}
+button:focus-visible{outline:2px solid #2F5BD3;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FFFFFF; color: #1C1E21; font-family: Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.45; display: flex; flex-direction: column; padding: 0 24px 34px">
+<div role="alertdialog" aria-labelledby="rv-t" aria-describedby="rv-d" style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px">
+<span style="width: 56px; height: 56px; border-radius: 999px; background: #FDF1F0; color: #B42318; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span>
+<h1 id="rv-t" style="margin: 0; font-size: 22px; font-weight: 600">Seu acesso a esta clínica foi encerrado</h1>
+<p id="rv-d" style="margin: 0; color: #474C54">Os dados da Clínica Aurora foram removidos deste aparelho. Se isso parecer um engano, fale com o responsável pela clínica.</p>
+</div>
+<button type="button" style="height: 52px; border: 0; border-radius: 12px; background: #2F5BD3; color: #FFFFFF; font-size: 16px; font-weight: 600; cursor: pointer">Entrar novamente</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

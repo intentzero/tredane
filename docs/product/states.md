@@ -39,10 +39,10 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 | Estado | Significado | Regra |
 | --- | --- | --- |
 | Confirmado | Horário reservado para o profissional e a sala/equipamento exigidos. | A confirmação verifica conflitos para todos os recursos necessários no mesmo intervalo. |
-| Cancelado | Compromisso não ocupa mais recursos. | Preserva quem cancelou, quando e o vínculo com a conversa. Motivo obrigatório e prazo são decisões em aberto. |
+| Cancelado | Compromisso não ocupa mais recursos. | Preserva quem cancelou, quando, o motivo (obrigatório, DEC-008) e o vínculo com a conversa. Não há prazo mínimo. |
 | Concluído | Serviço/atendimento ocorreu. | Validar se esta marcação é necessária no MVP e quem a faz. |
 
-“Horário proposto” é uma etapa da negociação; **não reserva** automaticamente recursos da agenda. Ao reagendar, o compromisso anterior permanece no histórico e o novo horário só é confirmado se estiver disponível. Serviço, duração, buffers, fuso horário da clínica e regras de disponibilidade ainda precisam de definição.
+“Horário proposto” é uma etapa da negociação; **não reserva** recursos da agenda (Confirmado, DEC-008). Ao reagendar, o compromisso anterior permanece no histórico e o novo horário só é confirmado se estiver disponível. Duração e intervalo vêm do serviço e o intervalo ocupa sala/equipamento **e** profissional; expediente semanal, bloqueios pontuais, fuso por clínica e grade de 15 min estão confirmados (DEC-008). Valores reais vêm da clínica piloto.
 
 ## Eventos de interface propostos
 
@@ -60,6 +60,6 @@ O payload deve conter somente o necessário para identificar a mudança. O servi
 
 1. Quando encerrar ou reabrir conversa e oportunidade?
 2. O que “Concluído” significa no pipeline e na agenda?
-3. Há reserva temporária de horário proposto? A proposta atual diz que não.
-4. Quais regras de duração, buffers, expediente, bloqueios e fuso horário valem para a clínica piloto?
+3. ~~Reserva temporária de horário proposto~~ Resolvida: não há (DEC-008).
+4. ~~Regras de duração, buffers, expediente, bloqueios e fuso~~ Resolvida em DEC-008; falta carregar os valores reais da clínica piloto.
 5. Que estados de entrega do WhatsApp serão exibidos quando o provedor não enviar confirmação?
