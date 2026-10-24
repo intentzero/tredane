@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createTestHarness } from 'wrangler'
+import { CLINIC_SCHEMA_VERSION } from '../clinic'
 import { hashToken } from '../db/tokens'
 
 const seedSql = readFileSync(new URL('../../db/seed.sql', import.meta.url), 'utf8')
