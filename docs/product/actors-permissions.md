@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | ACT-01 | Contato da clínica | Confirmado | Conversar pelo WhatsApp e solicitar ou alterar um horário. Não acessa o painel do Tredane. “Contato” não implica paciente com prontuário. |
 | ACT-02 | Atendente | Confirmado | Vê todas as conversas da própria clínica, conduz atendimentos, acompanha oportunidades e opera agendamentos. Não acessa dados de outras clínicas. |
-| ACT-03 | Responsável pela clínica | Confirmado | Pode fazer tudo que o atendente faz, inclusive responder no WhatsApp e operar agendamentos da própria clínica. Pode convidar e remover attendants do próprio tenant. Não pode criar, promover ou remover owners. Gestão de integrações ainda precisa de validação. |
+| ACT-03 | Responsável pela clínica | Confirmado | Pode fazer tudo que o atendente faz, inclusive responder no WhatsApp e operar agendamentos da própria clínica. Pode convidar e remover attendants do próprio tenant. Não pode criar, promover ou remover owners. Conecta ou troca o número de WhatsApp pelo Embedded Signup (DEC-009/042). Detalhes externos da ativação Meta continuam como gate. |
 | ACT-04 | Profissional que presta o serviço | Confirmado fora do painel do MVP | É recurso de agenda; não recebe perfil de acesso ao painel nesta primeira entrega. |
 | ACT-05 | Superadmin Tredane | Confirmado na Platform Admin App | Administrador com `privateMetadata.superadmin === true` validada no backend; cria/edita/suspende/inicia exclusão de tenants, e pode iniciar impersonação temporária de membro de tenant para manutenção, com auditoria. Não recebe acesso implícito irrestrito ao conteúdo da clínica. |
 | ACT-06 | Serviços externos e automações | Proposto | WhatsApp, filas e workflows agem em nome da clínica após verificação da origem e associação ao tenant. Não são usuários humanos nem recebem acesso genérico a outros tenants. |
@@ -63,7 +63,7 @@ Operação e suporte devem partir de metadados e registros técnicos. Qualquer a
 | ID | Questão | Bloqueia |
 | --- | --- | --- |
 | Q-ACT-04 | **Resolvido (DEC-009):** o responsável (owner) conecta a conta da clínica pelo Embedded Signup, com apoio do Tredane no piloto. Falta o registro do Tredane como Tech Provider na Meta. | Onboarding real de clínicas. |
-| Q-ACT-05 | **Resolvido:** um usuário pode pertencer a várias clínicas; memberships e roles por tenant no D1, sem Organizations do Clerk. | Implementar seletor de tenant e revogação por membership. |
+| Q-ACT-05 | **Resolvido:** um usuário pode pertencer a várias clínicas; memberships e roles por tenant no D1, sem Organizations do Clerk. A seleção e a troca de clínica são explícitas. | Implementar seletor, revalidar o tenant ao trocar e preservar os outros memberships na revogação. |
 | Q-ACT-06 | **Resolvido em parte:** Platform Admin gerencia tenants e superadmin pode iniciar impersonação auditável de usuário membro para suporte. Mecanismo de sessão própria do Tredane confirmado; detalhes de segurança, limites e política de acesso a dados reais em aberto. | Suporte e auditoria; [ADR-0007](../adr/0007-support-impersonation.md). |
 
 **Q-ACT-01, Q-ACT-02 e Q-ACT-03 resolvidas:** atendente vê todas as conversas da própria clínica; responsável pode executar todas as ações do atendente, inclusive responder e operar agenda; só esses dois perfis acessam o painel. Profissional permanece como recurso de agenda sem login. Decisões do responsável pelo produto em 23 de outubro de 2026.
