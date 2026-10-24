@@ -20,6 +20,10 @@ O [escopo inicial do MVP](docs/MVP.md) registra o fluxo, os critérios de aceite
 - Agenda própria do Tredane no primeiro MVP.
 - WhatsApp pela API oficial do WhatsApp Business.
 
+## Conceito da landing page
+
+- [Conceito, mensagem, estrutura e direção visual](docs/product/landing-page-concept.md) — proposta documentada; CTA do piloto e execução visual ainda por fechar.
+
 ## Documentação de engenharia
 
 - [Arquitetura e fluxos técnicos](docs/architecture/overview.md)

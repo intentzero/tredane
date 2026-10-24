@@ -55,6 +55,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 
 O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a definição. Os documentos abaixo detalham propostas e decisões sem substituir este resumo:
 
+- [Conceito da landing page](product/landing-page-concept.md) — comunicação proposta, sem alterar o escopo ou indicar produto já disponível.
 - [Atores e permissões](product/actors-permissions.md)
 - [Jornadas](product/journeys.md)
 - [Requisitos e critérios de aceite](product/requirements.md)
