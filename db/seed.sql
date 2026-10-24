@@ -36,6 +36,6 @@ INSERT OR IGNORE INTO tenant_memberships (tenant_id, clerk_user_id, role, status
   ('clinic-demo-b', 'user_synth_owner_b', 'owner', 'active', 1792800000, NULL),
   ('clinic-demo-suspended', 'user_synth_suspended_owner', 'owner', 'active', 1792800000, NULL);
 
-INSERT OR IGNORE INTO admin_schema_state (id, version, applied_at) VALUES (1, 5, 1792800000);
--- Upgrade local: migrações 0004/0005 sobem a versão administrativa.
-UPDATE admin_schema_state SET version = 5 WHERE id = 1 AND version < 5;
+INSERT OR IGNORE INTO admin_schema_state (id, version, applied_at) VALUES (1, 6, 1792800000);
+-- Upgrade local: migrações sobem a versão administrativa (0006 = #26).
+UPDATE admin_schema_state SET version = 6 WHERE id = 1 AND version < 6;
