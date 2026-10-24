@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Tredane — atendimento para clínicas de estética (v3)</title>
+<title>Tredane — atendimento para clínicas de estética (v4)</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -23,6 +23,7 @@ body{margin:0}
 <a href="#como-funciona" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: #474C54; font-weight: 500; text-decoration: none">Como funciona</a>
 <a href="#ia" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: #474C54; font-weight: 500; text-decoration: none">IA</a>
 <a href="#agenda" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: #474C54; font-weight: 500; text-decoration: none">Agenda</a>
+<a href="#sinal" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: #474C54; font-weight: 500; text-decoration: none">Sinal</a>
 <a href="https://app.tredane.example" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: #1E43A8; font-weight: 600; text-decoration: none">Entrar</a>
 <a href="#piloto" style="display: flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 12px; background: #2F5BD3; color: #FFFFFF; font-weight: 600; text-decoration: none">Quero participar</a>
 </nav>
@@ -223,6 +224,32 @@ body{margin:0}
 </div>
 </section>
 
+<section id="sinal" aria-labelledby="sn-t">
+<div style="max-width: 1200px; margin: 0 auto; padding: clamp(64px, 9cqi, 128px) clamp(16px, 4cqi, 48px); display: flex; flex-wrap: wrap; align-items: center; gap: clamp(40px, 6cqi, 96px)">
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+<span style="font-size: 14px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #2F5BD3">Sinal por Pix</span>
+<h2 id="sn-t" style="margin: 0; font-size: clamp(30px, 4cqi, 52px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 600">Horário garantido com um sinal pago na hora.</h2>
+<p style="margin: 0; color: #474C54; font-size: clamp(17px, 1.5cqi, 20px)">Nos serviços que a clínica escolher, a cliente paga um sinal por Pix pelo próprio WhatsApp. Quando o pagamento chega, o horário é confirmado.</p>
+<ul style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px 24px">
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Direto na conta da clínica</strong><span style="color: #474C54">O dinheiro cai na conta Pix da clínica. O Tredane não recebe nem repassa.</span></li>
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Valor por serviço</strong><span style="color: #474C54">Valor fixo ou percentual do preço, só nos serviços que você escolher.</span></li>
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Confirma ao pagar</strong><span style="color: #474C54">Pagou dentro do prazo, o horário é confirmado e a equipe é avisada na hora.</span></li>
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Regras claras</strong><span style="color: #474C54">A cliente vê a política de cancelamento antes de pagar. A equipe decide devolver ou reter.</span></li>
+</ul>
+</div>
+<div aria-hidden="true" style="flex: 1 1 400px; min-width: 0; display: flex; flex-direction: column; gap: 16px; max-width: 460px">
+<div style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 20px; padding: clamp(16px, 2.4cqi, 24px); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 24px 48px -24px rgba(28, 30, 33, 0.3)">
+<span style="align-self: flex-end; max-width: 92%; padding: 10px 14px; border-radius: 16px 16px 4px 16px; background: #EEF2FC; font-size: 15px; display: flex; flex-direction: column; gap: 6px"><span>Para garantir sua limpeza de pele na <strong style="font-weight: 600">quinta, 14:00</strong>, o sinal é de <strong style="font-weight: 600">R$ [valor]</strong> por Pix.</span><span style="font-size: 13px; color: #474C54">Pague em até 2 horas. Cancelamento com devolução até 24 h antes.</span></span>
+<span style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; border: 1px solid #EBCB94; background: #FFF7EA">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #6E4200"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Aguardando sinal · restam 1 h 52 min</span>
+<span style="font-size: 13px; color: #474C54">Recebe: conta da clínica</span>
+</span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-radius: 12px; background: #EAF5EF; color: #1F7A4D; font-size: 15px; font-weight: 600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>Sinal pago · qui 14:00 confirmado</span>
+</div>
+</div>
+</div>
+</section>
+
 <section aria-labelledby="pq-t">
 <div style="max-width: 1200px; margin: 0 auto; padding: clamp(64px, 9cqi, 128px) clamp(16px, 4cqi, 48px); display: flex; flex-direction: column; gap: clamp(32px, 4cqi, 56px)">
 <div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
@@ -260,6 +287,7 @@ body{margin:0}
 <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; color: #474C54">
 <li style="display: flex; gap: 10px"><svg aria-hidden="true" style="flex: none; margin-top: 3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E43A8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>Um número de WhatsApp Business da clínica</li>
 <li style="display: flex; gap: 10px"><svg aria-hidden="true" style="flex: none; margin-top: 3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E43A8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>Sua lista de serviços, profissionais e salas</li>
+<li style="display: flex; gap: 10px"><svg aria-hidden="true" style="flex: none; margin-top: 3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E43A8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>Uma conta Pix da clínica, se quiser usar o sinal</li>
 <li style="display: flex; gap: 10px"><svg aria-hidden="true" style="flex: none; margin-top: 3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E43A8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>Conversas rápidas sobre o que funcionou</li>
 </ul>
 </div>
@@ -287,6 +315,10 @@ body{margin:0}
 <p style="margin: 0 0 20px; color: #474C54">Sim, no navegador. O desenho foi pensado primeiro para o celular, que é onde a recepção mais atende.</p>
 </details>
 <details style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 0 20px">
+<summary style="min-height: 60px; display: flex; align-items: center; font-size: 17px; font-weight: 600; cursor: pointer">Como funciona o sinal por Pix?</summary>
+<p style="margin: 0 0 20px; color: #474C54">A clínica escolhe os serviços que exigem sinal e o valor. A atendente envia o Pix pela conversa e o horário é confirmado quando o pagamento chega. O dinheiro vai direto para a conta da clínica. Se outra pessoa marcar antes do pagamento, a equipe oferece outro horário ou devolve o sinal.</p>
+</details>
+<details style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 0 20px">
 <summary style="min-height: 60px; display: flex; align-items: center; font-size: 17px; font-weight: 600; cursor: pointer">Quanto custa?</summary>
 <p style="margin: 0 0 20px; color: #474C54">[PREÇO E CONDIÇÕES A DEFINIR]</p>
 </details>
@@ -306,7 +338,7 @@ body{margin:0}
 </footer>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":6800}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":7700}}'>
 class Component extends DCLogic {
 renderVals() {
 return {};

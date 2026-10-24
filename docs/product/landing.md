@@ -28,10 +28,11 @@ Atrair clínicas de estética para o piloto. Leitora principal: dona ou respons�
 4. **Como funciona:** quatro passos, do WhatsApp ao horário confirmado.
 5. **IA (faixa escura):** seis garantias: só sugere e nunca envia; preço só do cadastro; explica com o texto da clínica; saúde vai para a profissional; resposta cordial a mensagem ofensiva; o mínimo de dados. Exemplo com assunto clínico e fonte da explicação (DEC-046, M-30).
 6. **Agenda:** grade de duas salas com intervalo, bloqueio e próximo horário possível; quatro regras (DEC-008).
+6a. **Sinal por Pix (v4):** “Horário garantido com um sinal pago na hora.” Quatro pontos: direto na conta da clínica, valor por serviço, confirma ao pagar, regras claras de cancelamento; exemplo da mensagem de cobrança, prazo de 2 h e confirmação (DEC-047). O topo ganha o atalho “Sinal”; a seção do piloto pede “uma conta Pix da clínica, se quiser usar o sinal”; perguntas frequentes ganham “Como funciona o sinal por Pix?”.
 7. **Feito para a rotina da recepção:** tempo real, navegador do celular, papéis e dados separados.
 8. **Participe do piloto**, **Perguntas frequentes** (`<details>` nativo, inclui preço/procedimentos e mensagem ofensiva) e **rodapé**.
 
-Toda afirmação da página precisa corresponder a uma decisão confirmada: IA só sugere e uma pessoa envia ([MVP](../MVP.md), DEC-011, ADR-0004); WhatsApp oficial com Embedded Signup (DEC-009); agenda com profissional, sala e intervalo (DEC-008); nome “Acompanhamento” (DEC-045); preço, explicação de procedimentos, assunto clínico e mensagem ofensiva (DEC-046); PWA (DEC-039, DEC-040); papéis (DEC-020, DEC-042); dados separados por clínica (DEC-038) e suporte por 30 minutos com aprovação (DEC-029, DEC-032). **Não** prometer conformidade com a LGPD, números de clientes, resultados ou funcionalidades fora do MVP (respostas ou agendamentos automáticos, lembretes).
+Toda afirmação da página precisa corresponder a uma decisão confirmada: IA só sugere e uma pessoa envia ([MVP](../MVP.md), DEC-011, ADR-0004); WhatsApp oficial com Embedded Signup (DEC-009); agenda com profissional, sala e intervalo (DEC-008); nome “Acompanhamento” (DEC-045); preço, explicação de procedimentos, assunto clínico e mensagem ofensiva (DEC-046); sinal por Pix na conta da clínica, confirmação ao pagar e prazo de 2 h (DEC-047); PWA (DEC-039, DEC-040); papéis (DEC-020, DEC-042); dados separados por clínica (DEC-038) e suporte por 30 minutos com aprovação (DEC-029, DEC-032). **Não** prometer conformidade com a LGPD, números de clientes, resultados ou funcionalidades fora do MVP (respostas ou agendamentos automáticos, lembretes).
 
 ## Critérios de aceite
 
@@ -40,7 +41,7 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: IA s
 - **LP-AC-03:** cores só do [tokens.json](../design/tokens.json), com os pares de contraste já verificados.
 - **LP-AC-04:** a página não carrega recursos de terceiros (fontes, scripts, rastreadores).
 - **LP-AC-05:** nenhum texto `[A DEFINIR]`, `[A PUBLICAR]` ou endereço `.example` existe na versão publicada.
-- **LP-AC-06:** verificador automático de acessibilidade (axe, regras WCAG 2.0 a 2.2 AA e boas práticas) sem violações em 390px e 1440px, e Lighthouse com 100 em acessibilidade, SEO e boas práticas e pelo menos 95 em desempenho (**Confirmado**, 24/10/2026; exigir 100 foi descartado). Medido em 24/10/2026 na v3 com marcadores: axe 0 violações; Lighthouse 100/100/100 e 99 em desempenho; repetir antes de publicar, e fazer teste manual com leitor de tela (**Em aberto**).
+- **LP-AC-06:** verificador automático de acessibilidade (axe, regras WCAG 2.0 a 2.2 AA e boas práticas) sem violações em 390px e 1440px, e Lighthouse com 100 em acessibilidade, SEO e boas práticas e pelo menos 95 em desempenho (**Confirmado**, 24/10/2026; exigir 100 foi descartado). Medido em 24/10/2026 na v4 com marcadores: axe 0 violações; Lighthouse 100 nas quatro categorias; repetir antes de publicar, e fazer teste manual com leitor de tela (**Em aberto**).
 - **LP-AC-07 (SEO):** cada página tem título único, descrição, `lang`, URL canônica, Open Graph com imagem de 1200×630, ícone, `robots.txt`, mapa do site e dados estruturados `Organization` sem informações inventadas.
 
 ## Em aberto (bloqueia a publicação, não o desenvolvimento)

@@ -204,6 +204,17 @@ h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
 .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 16px 24px; }
 .rules li { display: flex; flex-direction: column; gap: 2px; }
 
+/* Sinal por Pix */
+.split-band { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(40px, 6vw, 96px); }
+.split-text { flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+.pix-demo { flex: 1 1 400px; min-width: 0; max-width: 460px; }
+.pix-card { padding: clamp(16px, 2.4vw, 24px); border-radius: 20px; }
+.pix-msg { align-self: flex-end; max-width: 92%; padding: 10px 14px; font-size: 15px; display: flex; flex-direction: column; gap: 6px; }
+.pix-msg small, .pix-wait small { font-size: 13px; color: var(--text-secondary); }
+.pix-wait { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 16px; border: 1px solid var(--warning-border); background: var(--warning-tint); }
+.pix-wait-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--warning-ink); }
+.pix-paid { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-radius: 12px; background: var(--success-tint); color: var(--success-ink); font-size: 15px; font-weight: 600; }
+
 /* Piloto */
 .pilot-section { padding-bottom: var(--section); }
 .pilot-text .pilot-note { font-size: 14px; }

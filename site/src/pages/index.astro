@@ -43,6 +43,7 @@ const faq = [
   { q: 'A IA responde sozinha para os clientes?', a: 'Não. A IA só sugere quando a atendente pede, e a mensagem só sai depois que uma pessoa revisa e envia.', open: true },
   { q: 'A IA sabe os preços e explica os procedimentos?', a: 'Sim, com o que a clínica cadastrar: o preço de cada serviço e uma explicação escrita pela responsável. Se faltar o preço ou a explicação, a IA não inventa. Dúvidas de saúde vão sempre para a profissional.' },
   { q: 'E se alguém mandar uma mensagem ofensiva?', a: 'A atendente vê um aviso e pode ignorar ou usar uma resposta cordial sugerida pela IA. Nada é enviado sem que ela decida.' },
+  { q: 'Como funciona o sinal por Pix?', a: 'A clínica escolhe os serviços que exigem sinal e o valor. A atendente envia o Pix pela conversa e o horário é confirmado quando o pagamento chega. O dinheiro vai direto para a conta da clínica. Se outra pessoa marcar antes do pagamento, a equipe oferece outro horário ou devolve o sinal.' },
   { q: 'Preciso trocar o número da clínica?', a: 'O Tredane usa a API oficial do WhatsApp Business. Conversamos sobre o número da clínica antes de conectar, e a conexão é feita pela própria clínica, no fluxo oficial da Meta, com nossa ajuda.' },
   { q: 'Funciona no computador?', a: 'Sim, no navegador. O desenho foi pensado primeiro para o celular, que é onde a recepção mais atende.' },
   { q: 'Quanto custa?', a: '[PREÇO E CONDIÇÕES A DEFINIR]' },
@@ -50,7 +51,7 @@ const faq = [
 ---
 <Base
   title="Tredane — atendimento e agenda para clínicas de estética"
-  description="Cada mensagem no WhatsApp vira um horário na agenda. Conversas da equipe, acompanhamento de quem ainda não marcou, IA que sugere com os preços da clínica e agenda com sala e profissional."
+  description="Cada mensagem no WhatsApp vira um horário na agenda. Conversas da equipe, acompanhamento de quem ainda não marcou, IA que sugere com os preços da clínica, agenda com sala e profissional e sinal por Pix direto na conta da clínica."
 >
 <a class="skip" href="#conteudo">Ir para o conteúdo</a>
 
@@ -61,6 +62,7 @@ const faq = [
 <a class="nav-link nav-section" href="#como-funciona">Como funciona</a>
 <a class="nav-link nav-section" href="#ia">IA</a>
 <a class="nav-link nav-section" href="#agenda">Agenda</a>
+<a class="nav-link nav-section" href="#sinal">Sinal</a>
 <a class="nav-link strong" href={appUrl}>Entrar</a>
 <a class="btn btn-primary btn-sm" href="#piloto">Quero participar</a>
 </nav>
@@ -246,6 +248,29 @@ const faq = [
 </div>
 </section>
 
+<section id="sinal" class="section" aria-labelledby="sn-t">
+<div class="wrap split-band">
+<div class="split-text">
+<span class="eyebrow">Sinal por Pix</span>
+<h2 id="sn-t">Horário garantido com um sinal pago na hora.</h2>
+<p class="sub">Nos serviços que a clínica escolher, a cliente paga um sinal por Pix pelo próprio WhatsApp. Quando o pagamento chega, o horário é confirmado.</p>
+<ul class="plain rules">
+<li><strong>Direto na conta da clínica</strong><span class="muted">O dinheiro cai na conta Pix da clínica. O Tredane não recebe nem repassa.</span></li>
+<li><strong>Valor por serviço</strong><span class="muted">Valor fixo ou percentual do preço, só nos serviços que você escolher.</span></li>
+<li><strong>Confirma ao pagar</strong><span class="muted">Pagou dentro do prazo, o horário é confirmado e a equipe é avisada na hora.</span></li>
+<li><strong>Regras claras</strong><span class="muted">A cliente vê a política de cancelamento antes de pagar. A equipe decide devolver ou reter.</span></li>
+</ul>
+</div>
+<div class="pix-demo" aria-hidden="true">
+<div class="float pix-card">
+<span class="bubble bubble-out pix-msg"><span>Para garantir sua limpeza de pele na <strong>quinta, 14:00</strong>, o sinal é de <strong>R$ [valor]</strong> por Pix.</span><small>Pague em até 2 horas. Cancelamento com devolução até 24 h antes.</small></span>
+<span class="pix-wait"><span class="pix-wait-title"><Icon name="clock" size={16} />Aguardando sinal · restam 1 h 52 min</span><small>Recebe: conta da clínica</small></span>
+<span class="pix-paid"><Icon name="check" stroke={2.5} />Sinal pago · qui 14:00 confirmado</span>
+</div>
+</div>
+</div>
+</section>
+
 <section class="section" aria-labelledby="pq-t">
 <div class="wrap">
 <div class="head">
@@ -284,6 +309,7 @@ const faq = [
 <ul class="plain">
 <li><Icon name="chevron" stroke={2.5} color="#1E43A8" />Um número de WhatsApp Business da clínica</li>
 <li><Icon name="chevron" stroke={2.5} color="#1E43A8" />Sua lista de serviços, profissionais e salas</li>
+<li><Icon name="chevron" stroke={2.5} color="#1E43A8" />Uma conta Pix da clínica, se quiser usar o sinal</li>
 <li><Icon name="chevron" stroke={2.5} color="#1E43A8" />Conversas rápidas sobre o que funcionou</li>
 </ul>
 </div>
