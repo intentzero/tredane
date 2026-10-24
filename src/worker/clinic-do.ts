@@ -9,6 +9,7 @@ import {
   clinicInbox,
   clinicPipeline,
   clinicPix,
+  clinicRetention,
   clinicScheduling,
   clinicWhatsapp,
   fromDurableObjectSql,
@@ -319,7 +320,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     opts: { drain?: boolean; fanout?: boolean } = {},
   ): Promise<{
     duplicate: boolean
-    contactId: string
+    contactId: string | null
     conversationId: string | null
     messageId: string | null
     inboundId: string
@@ -329,6 +330,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     fanout: { delivered: string[]; revoked: string[]; skippedUnavailable: string[] } | null
     /** #42 — dispara push de nova conversa no Worker após ingest. */
     createdConversation: boolean
+    /** #43 — wa_id tombstoned; sem recriação de contacto. */
+    suppressedTombstone: boolean
   }> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -363,7 +366,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
     return {
       duplicate: result.duplicate,
-      contactId: result.contact.id,
+      contactId: result.contact?.id ?? null,
       conversationId: result.conversation?.id ?? null,
       messageId: result.message?.id ?? null,
       inboundId: result.inbound.id,
@@ -372,6 +375,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       drained,
       fanout: fanoutResult,
       createdConversation,
+      suppressedTombstone: result.suppressedTombstone,
     }
   }
 
@@ -691,6 +695,37 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       attachmentId,
       this.#clock,
     )
+  }
+
+  /**
+   * Exclusão de contacto (#43 / REQ-071). R2 fica a cargo do Worker
+   * com `deletedAttachmentIds` (fora de transactionSync).
+   */
+  async deleteContact(caller: ClinicCaller, contactId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicRetention.deleteContactOp(
+      this.#db,
+      caller,
+      contactId,
+      this.#clock,
+    )
+    await this.#fanoutOutboxes(caller, result.outbox, true)
+    await this.#drain(caller)
+    return result.value
+  }
+
+  async wipeClinicOperationalData(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicRetention.wipeClinicOperationalData(this.#db, caller, this.#clock)
+  }
+
+  async getClinicPurgeState(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    bindOrAssertTenant(this.#db, caller, this.#clock)
+    return clinicRetention.getClinicPurgeState(this.#db)
   }
 
   async listPipelineOpportunities(caller: ClinicCaller, input: ListOpportunitiesInput) {

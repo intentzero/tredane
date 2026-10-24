@@ -358,7 +358,7 @@ describe('Webhook Meta — ingest, dedup, isolamento (#32)', () => {
           const r = ingestContactMessage(clinicA.db, caller, input, clinicA.clock)
           return {
             duplicate: r.duplicate,
-            contactId: r.contact.id,
+            contactId: r.contact!.id,
             conversationId: r.conversation?.id ?? null,
             messageId: r.message?.id ?? null,
             inboundId: r.inbound.id,
@@ -605,7 +605,7 @@ describe('Webhook Meta — ingest, dedup, isolamento (#32)', () => {
                 const r = ingestContactMessage(clinicA.db, caller, input, clinicA.clock)
                 return {
                   duplicate: r.duplicate,
-                  contactId: r.contact.id,
+                  contactId: r.contact!.id,
                   conversationId: r.conversation?.id ?? null,
                   messageId: r.message?.id ?? null,
                   inboundId: r.inbound.id,

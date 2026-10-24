@@ -73,5 +73,5 @@ D1: migração `0010` acrescenta kind `media` nos recibos de webhook.
 - Política de retenção detalhada além de DEC-011 (**Em aberto**)
 - Live Graph media + secrets (#18)
 - UI de envio de anexo pela equipa (**Em aberto**)
-- Exclusão física em cascata no fluxo de exclusão de contacto (hook REQ-071 completo na F6)
+- ~~Exclusão física em cascata no fluxo de exclusão de contacto~~ → [#43](f6-retention-purge.md)
 - F4 agenda / Pix

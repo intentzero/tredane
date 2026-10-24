@@ -47,7 +47,7 @@ describe('Clinic inbox — conversas e histórico (#29)', () => {
 
       expect(ra.conversation).toBeTruthy()
       expect(rb.conversation).toBeTruthy()
-      expect(ra.contact.id).not.toBe(rb.contact.id)
+      expect(ra.contact!.id).not.toBe(rb.contact!.id)
       expect(ra.conversation!.id).not.toBe(rb.conversation!.id)
 
       const listA = listConversationsOp(a.db, callerA, { filter: 'all' }, a.clock)

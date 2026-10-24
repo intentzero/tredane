@@ -1,7 +1,9 @@
 import type { Clock } from '../db/clock'
 import { assertClinicSchemaReady } from './migrations'
+import { findContactTombstoneByWaId } from './retention/tombstones'
 import type { ClinicDb } from './store'
 import { newId } from './ids'
+import { ValidationError } from './errors'
 
 export type ContactRow = {
   id: string
@@ -9,6 +11,15 @@ export type ContactRow = {
   waId: string
   displayName: string | null
   createdAt: number
+}
+
+export class ContactTombstonedError extends ValidationError {
+  constructor(waId: string) {
+    super(
+      'contact_tombstoned',
+      `Contacto com wa_id excluído; reintrodução bloqueada (${waId.slice(0, 4)}…)`,
+    )
+  }
 }
 
 export function upsertContact(
@@ -22,6 +33,10 @@ export function upsertContact(
   clock: Clock,
 ): ContactRow {
   assertClinicSchemaReady(db)
+  const tombstone = findContactTombstoneByWaId(db, input.tenantId, input.waId)
+  if (tombstone) {
+    throw new ContactTombstonedError(input.waId)
+  }
   const existing = db.get<{
     id: string
     tenant_id: string

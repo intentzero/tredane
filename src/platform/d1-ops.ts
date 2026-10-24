@@ -453,11 +453,15 @@ export async function d1PendingDeletion(
     }
   } else {
     const id = newId('tdel')
+    const tenantRow = await d1GetTenant(db, tenantId)
+    const pendingAt = tenantRow?.pendingDeletionAt ?? now
+    const deadlineAt = pendingAt + 30 * 24 * 60 * 60 * 1000
     await db
       .prepare(
         `INSERT INTO tenant_deletion_commands (
-          id, tenant_id, status, requested_by_clerk_user_id, requested_at, updated_at, payload_json
-        ) VALUES (?, ?, 'queued', ?, ?, ?, ?)`,
+          id, tenant_id, status, requested_by_clerk_user_id, requested_at, updated_at, payload_json,
+          deadline_at, started_at, completed_at, last_step, last_error, alert_sent_at
+        ) VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL)`,
       )
       .bind(
         id,
@@ -465,7 +469,8 @@ export async function d1PendingDeletion(
         actorClerkUserId,
         now,
         now,
-        JSON.stringify({ reason: 'logical_deletion' }),
+        JSON.stringify({ reason: 'logical_deletion', deadlineAt }),
+        deadlineAt,
       )
       .run()
     await audit(db, {
@@ -474,7 +479,7 @@ export async function d1PendingDeletion(
       action: 'tenant.deletion_command.enqueue',
       objectType: 'tenant_deletion_command',
       objectId: id,
-      metadata: { status: 'queued' },
+      metadata: { status: 'queued', deadlineAt },
     })
     deletionCommand = {
       id,
@@ -483,7 +488,7 @@ export async function d1PendingDeletion(
       requestedByClerkUserId: actorClerkUserId,
       requestedAt: now,
       updatedAt: now,
-      payloadJson: JSON.stringify({ reason: 'logical_deletion' }),
+      payloadJson: JSON.stringify({ reason: 'logical_deletion', deadlineAt }),
     }
   }
 

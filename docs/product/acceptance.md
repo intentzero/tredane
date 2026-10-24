@@ -226,3 +226,7 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 
 **Dado** um serviço que exige sinal e a atendente na tela Agendar; **quando** escolhe **Confirmar sem sinal**; **então** o motivo é obrigatório, o compromisso é confirmado sem cobrança e o histórico registra quem confirmou e o motivo. **Requisito:** REQ-078.
 
+### AC-52 — Exclusão de contacto e expurgo de clínica
+
+**Dado** um contacto com mensagens, anexos e compromisso na clínica A; **quando** a responsável exclui o contacto; **então** mensagens e anexos deixam de existir em busca/API/R2, o compromisso permanece com rótulo anónimo (sem dados pessoais), a auditoria não contém o conteúdo apagado, e um replay de webhook com o mesmo `wa_id` não recria o contacto. Clínica B permanece intacta. **Dado** a clínica A em `pending_deletion`; **quando** o processo durável de expurgo corre até ao deadline de 30 dias; **então** SQLite do DO, prefixo R2 e assinaturas push de A são limpos, o tenant fica `purged`, e jobs/webhooks atrasados não reintroduzem dados. **Requisito:** REQ-071; implementação [f6-retention-purge.md](../implementation/f6-retention-purge.md). **Em aberto:** revisão jurídica antes de dados reais (VAL-09).
+

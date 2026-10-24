@@ -69,6 +69,10 @@ import {
   createPushRoutes,
   type PushRouteOptions,
 } from '../push'
+import {
+  createRetentionRoutes,
+  type RetentionRouteOptions,
+} from '../retention'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
@@ -133,6 +137,8 @@ export type CreateAppOptions = {
   aiAssist?: AiAssistRouteOptions
   /** PWA / Web Push (#42). */
   push?: PushRouteOptions
+  /** Retenção / exclusão (#43). */
+  retention?: RetentionRouteOptions
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -154,6 +160,7 @@ export function createApp(opts: CreateAppOptions = {}) {
   app.use('/api/support', createAuthServicesMiddleware(factory))
   app.use('/api/invitations/*', createAuthServicesMiddleware(factory))
   app.use('/api/invitations', createAuthServicesMiddleware(factory))
+  app.use('/api/f6/*', createAuthServicesMiddleware(factory))
 
   app.route('/', createAuthRoutes())
 
@@ -259,6 +266,15 @@ export function createApp(opts: CreateAppOptions = {}) {
     clockFactory: opts.push?.clockFactory ?? opts.clockFactory,
   }
   app.route('/', createPushRoutes(pushOpts))
+
+  const retentionOpts: RetentionRouteOptions = {
+    syncAdminDbFactory:
+      opts.retention?.syncAdminDbFactory ?? opts.syncAdminDbFactory,
+    clockFactory: opts.retention?.clockFactory ?? opts.clockFactory,
+    clinicStubFactory: opts.retention?.clinicStubFactory,
+    attachmentsBucketFactory: opts.retention?.attachmentsBucketFactory,
+  }
+  app.route('/', createRetentionRoutes(retentionOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

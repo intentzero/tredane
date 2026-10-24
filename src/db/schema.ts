@@ -11,7 +11,12 @@ import { integer, primaryKey, sqliteTable, text, index, uniqueIndex } from 'driz
  */
 
 /** Ciclo de vida do tenant na Platform Admin (REQ-006). */
-export const TENANT_STATUSES = ['active', 'suspended', 'pending_deletion'] as const
+export const TENANT_STATUSES = [
+  'active',
+  'suspended',
+  'pending_deletion',
+  'purged',
+] as const
 export type TenantStatus = (typeof TENANT_STATUSES)[number]
 
 export const MEMBERSHIP_ROLES = ['owner', 'attendant'] as const
@@ -263,9 +268,30 @@ export const tenantDeletionCommands = sqliteTable('tenant_deletion_commands', {
   updatedAt: integer('updated_at').notNull(),
   /** Metadados não clínicos (JSON). Sem PHI/tokens. */
   payloadJson: text('payload_json'),
+  /** REQ-071: pending_deletion_at + 30 dias (#43). */
+  deadlineAt: integer('deadline_at'),
+  startedAt: integer('started_at'),
+  completedAt: integer('completed_at'),
+  lastStep: text('last_step'),
+  lastError: text('last_error'),
+  alertSentAt: integer('alert_sent_at'),
 }, (table) => [
   index('tenant_deletion_commands_tenant_idx').on(table.tenantId),
   index('tenant_deletion_commands_status_idx').on(table.status),
+])
+
+/**
+ * Tombstone pós-expurgo físico (#43). Impede rebind/restore de autoridade
+ * mesmo se a linha `tenants` for recriada por engano.
+ */
+export const purgedTenants = sqliteTable('purged_tenants', {
+  tenantId: text('tenant_id').primaryKey(),
+  purgedAt: integer('purged_at').notNull(),
+  deletionCommandId: text('deletion_command_id').notNull(),
+  pendingDeletionAt: integer('pending_deletion_at'),
+  deadlineAt: integer('deadline_at'),
+}, (table) => [
+  index('purged_tenants_purged_at_idx').on(table.purgedAt),
 ])
 
 /**
