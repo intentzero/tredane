@@ -327,6 +327,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     eventSeq: number | null
     drained: string[]
     fanout: { delivered: string[]; revoked: string[]; skippedUnavailable: string[] } | null
+    /** #42 — dispara push de nova conversa no Worker após ingest. */
+    createdConversation: boolean
   }> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -338,6 +340,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       revoked: string[]
       skippedUnavailable: string[]
     } | null = null
+
+    const createdConversation =
+      !result.duplicate &&
+      result.outboxes.some((o) => o.type === 'conversation.created')
 
     if (!result.duplicate && result.outboxes.length > 0) {
       const last = await this.#fanoutOutboxes(
@@ -365,6 +371,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       eventSeq,
       drained,
       fanout: fanoutResult,
+      createdConversation,
     }
   }
 

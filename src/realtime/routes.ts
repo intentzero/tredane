@@ -375,6 +375,13 @@ async function revokeMembershipViaD1(
     if (!updated.meta.changes || updated.meta.changes < 1) {
       return json({ error: 'membership_revoke_conflict' }, 400)
     }
+    // #42 — remove assinaturas push do membro revogado neste tenant.
+    await db
+      .prepare(
+        `DELETE FROM push_subscriptions WHERE tenant_id = ? AND clerk_user_id = ?`,
+      )
+      .bind(input.tenantId, input.targetUserId)
+      .run()
     await db
       .prepare(
         `INSERT INTO central_audit_events (

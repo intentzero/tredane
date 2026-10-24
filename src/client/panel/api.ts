@@ -127,6 +127,68 @@ export function createPanelApi(getToken: TokenGetter) {
   }
 
   return {
+    async getPushVapidPublicKey(opts?: FetchOpts): Promise<{
+      publicKey: string | null
+      mode: string
+      supported: boolean
+    }> {
+      const res = await authFetch('/api/push/vapid-public-key', {}, opts)
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        publicKey: string | null
+        mode: string
+        supported: boolean
+      }
+    },
+
+    async subscribePush(
+      tenantId: string,
+      body: {
+        subscription: {
+          endpoint: string
+          expirationTime?: number | null
+          keys: { p256dh: string; auth: string }
+        }
+        notifyNewConversation?: boolean
+      },
+      opts?: FetchOpts,
+    ): Promise<{ subscription: { id: string; endpoint: string; notifyNewConversation: boolean } }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/push/subscriptions`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        subscription: { id: string; endpoint: string; notifyNewConversation: boolean }
+      }
+    },
+
+    async unsubscribePush(
+      tenantId: string,
+      endpoint: string,
+      opts?: FetchOpts,
+    ): Promise<{ removed: boolean }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/push/subscriptions`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { removed: boolean }
+    },
+
     async getMe(opts?: FetchOpts): Promise<MeResponse> {
       const res = await authFetch('/api/me', {}, opts)
       assertGeneration(opts)

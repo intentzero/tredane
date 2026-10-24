@@ -16,6 +16,7 @@ import {
 import type { DeletionCommandRow } from '../db/admin/deletion-commands'
 import type { AdminDb } from '../db/admin/store'
 import type { FenceSource } from './protocol'
+import { deletePushSubscriptionsForMember } from '../push/subscriptions'
 
 export type ClinicAccessInvalidator = {
   applyUserFence(input: {
@@ -67,6 +68,13 @@ export async function revokeMembershipAndPropagate(
     actorClerkUserId: input.actorClerkUserId,
     allowOwnerTarget: input.allowOwnerTarget,
   })
+
+  // #42 — corta push do par user×tenant no ponto de corte D1 (DEC-026).
+  try {
+    deletePushSubscriptionsForMember(db, input.tenantId, input.clerkUserId)
+  } catch {
+    // Schema antigo em testes pontuais — fail-open no cleanup de push.
+  }
 
   const source = input.source ?? 'membership_revoke'
   const notified = await invalidator.applyUserFence({

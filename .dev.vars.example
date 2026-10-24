@@ -52,3 +52,12 @@ CLERK_AUTHORIZED_PARTIES=http://localhost:5173
 #   AI_GATEWAY_TOKEN=...   # wrangler secret
 #   ANTHROPIC_API_KEY=...  # opcional BYOK
 # Nunca versionar tokens. Dados reais só após revisão jurídica (GATE-04/06).
+
+# #42 — PWA / Web Push (DEC-040). Default synthetic até VAPID em staging/prod:
+# PUSH_MODE=synthetic
+# Em live:
+#   PUSH_MODE=live
+#   VAPID_PUBLIC_KEY=...
+#   VAPID_PRIVATE_KEY=...   # wrangler secret
+#   VAPID_SUBJECT=mailto:ops@sua-clinica.example
+# Nunca versionar a chave privada. O aviso de nova conversa não inclui o texto da mensagem.

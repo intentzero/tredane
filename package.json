@@ -28,6 +28,7 @@
     "prova:bundle": "node scripts/measure-prova-bundle.mjs"
   },
   "dependencies": {
+    "@block65/webcrypto-web-push": "^2.0.0",
     "@clerk/backend": "3.26.2",
     "@clerk/react": "6.18.1",
     "@fontsource/inter": "5.3.0",

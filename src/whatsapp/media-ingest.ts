@@ -94,12 +94,19 @@ function asMediaType(messageType: string | undefined): WhatsappMediaType {
   return 'image'
 }
 
+export type MediaIngestOutcome = {
+  result: 'ack' | 'retry'
+  /** #42 — para disparar push sem corpo da mensagem. */
+  createdConversation?: boolean
+  conversationId?: string | null
+}
+
 async function linkAfterIngest(
   stub: MediaIngestClinicStub,
   caller: ReturnType<typeof queueCaller>,
   attachmentId: string,
   msg: WhatsappWebhookQueueMessage,
-): Promise<void> {
+): Promise<{ createdConversation: boolean; conversationId: string | null }> {
   const ingested = (await stub.ingestMessage(
     caller,
     {
@@ -110,13 +117,21 @@ async function linkAfterIngest(
       occurredAtMs: msg.providerTimestamp ?? undefined,
     },
     { drain: true, fanout: true },
-  )) as { messageId: string | null; conversationId: string | null }
+  )) as {
+    messageId: string | null
+    conversationId: string | null
+    createdConversation?: boolean
+  }
   if (ingested.messageId && ingested.conversationId) {
     await stub.linkAttachmentToMessage(caller, {
       attachmentId,
       messageId: ingested.messageId,
       conversationId: ingested.conversationId,
     })
+  }
+  return {
+    createdConversation: Boolean(ingested.createdConversation),
+    conversationId: ingested.conversationId ?? null,
   }
 }
 
@@ -126,7 +141,7 @@ async function linkAfterIngest(
 export async function ingestWhatsappMediaMessage(
   deps: MediaIngestDeps,
   msg: WhatsappWebhookQueueMessage,
-): Promise<'ack' | 'retry'> {
+): Promise<MediaIngestOutcome> {
   const log = deps.log
   const caller = queueCaller(msg.tenantId)
   const mediaType = asMediaType(msg.messageType)
@@ -142,7 +157,7 @@ export async function ingestWhatsappMediaMessage(
       event: 'media.invalid_shape',
       detail: { receiptId: msg.receiptId, tenantId: msg.tenantId },
     })
-    return 'ack'
+    return { result: 'ack' }
   }
 
   const pending = (await deps.clinicStub.createPendingAttachment(caller, {
@@ -153,8 +168,8 @@ export async function ingestWhatsappMediaMessage(
   })) as { id: string; status: string }
 
   if (pending.status === 'ready') {
-    await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
-    return 'ack'
+    const linked = await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
+    return { result: 'ack', ...linked }
   }
 
   const token = await resolveAccessToken(deps, msg.tenantId)
@@ -164,8 +179,8 @@ export async function ingestWhatsappMediaMessage(
       failureCode: 'meta_token_missing',
       status: 'unavailable',
     })
-    await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
-    return 'ack'
+    const linked = await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
+    return { result: 'ack', ...linked }
   }
 
   const mediaAdapter = deps.mediaAdapter ?? createMetaMediaAdapter(deps.env)
@@ -180,7 +195,7 @@ export async function ingestWhatsappMediaMessage(
       failureCode: downloaded.errorCode,
       status: 'unavailable',
     })
-    await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
+    const linked = await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
     log?.({
       level: 'warn',
       event: 'media.download_failed',
@@ -190,7 +205,7 @@ export async function ingestWhatsappMediaMessage(
         errorCode: downloaded.errorCode,
       },
     })
-    return 'ack'
+    return { result: 'ack', ...linked }
   }
 
   const validation = validateAttachmentBytes({
@@ -205,7 +220,7 @@ export async function ingestWhatsappMediaMessage(
       failureCode: validation.code,
       status: 'failed',
     })
-    await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
+    const linked = await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
     log?.({
       level: 'warn',
       event: 'media.validation_failed',
@@ -215,7 +230,7 @@ export async function ingestWhatsappMediaMessage(
         code: validation.code,
       },
     })
-    return 'ack'
+    return { result: 'ack', ...linked }
   }
 
   try {
@@ -242,16 +257,16 @@ export async function ingestWhatsappMediaMessage(
       failureCode: code,
       status: 'failed',
     })
-    await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
+    const linked = await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
     log?.({
       level: 'error',
       event: 'media.r2_put_failed',
       detail: { tenantId: msg.tenantId, receiptId: msg.receiptId, errorCode: code },
     })
-    return 'ack'
+    return { result: 'ack', ...linked }
   }
 
-  await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
+  const linked = await linkAfterIngest(deps.clinicStub, caller, pending.id, msg)
   log?.({
     level: 'info',
     event: 'media.ingested',
@@ -261,5 +276,5 @@ export async function ingestWhatsappMediaMessage(
       attachmentId: pending.id,
     },
   })
-  return 'ack'
+  return { result: 'ack', ...linked }
 }

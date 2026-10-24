@@ -57,8 +57,19 @@ describe('panel routes (#22)', () => {
       section: 'compromisso',
       appointmentId: 'apt_1',
     })
+    expect(resolvePanelRoute('/c/clinic-demo-a/avisos')).toEqual({
+      kind: 'area',
+      area: 'avisos',
+      tenantId: 'clinic-demo-a',
+    })
     expect(resolvePanelRoute('/')).toBeNull()
     expect(resolvePanelRoute('/prova')).toBeNull()
+  })
+
+  it('href avisos PWA (#42)', () => {
+    expect(
+      panelHref({ kind: 'area', area: 'avisos', tenantId: 'clinic-demo-a' }),
+    ).toBe('/c/clinic-demo-a/avisos')
   })
 
   it('href agenda / agendar / semana / compromisso (#35/#36)', () => {

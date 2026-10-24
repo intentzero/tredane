@@ -52,4 +52,4 @@
 ## Pendências
 
 - Conferir o restante do inventário ao construir telas produtivas.
-- Decidir se o PWA terá ícones próprios do app (tela inicial, notificação): **Em aberto**, depende da identidade visual do Tredane.
+- Ícone PWA provisório (azul `primary.base` + «T») em `public/icons/` (#42 / DEC-041): **Confirmado** para o piloto. Identidade visual definitiva do app: **Em aberto**.

@@ -1,5 +1,5 @@
-/** Versão gravada por `0011_pix_webhook_receipts.sql` em `admin_schema_state`. */
-export const ADMIN_SCHEMA_VERSION = 11
+/** Versão gravada por `0012_push_subscriptions.sql` em `admin_schema_state`. */
+export const ADMIN_SCHEMA_VERSION = 12
 
 /** DEC-022: convite vale 7 dias (168 h) desde a emissão. */
 export const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000

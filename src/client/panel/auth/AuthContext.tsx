@@ -105,6 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     writeActiveTenantId(null)
     setSynthUserId(null)
     setClerkUserId(null)
+    // #42 / UX-05 — logout não recupera cache de assets da sessão anterior.
+    try {
+      const { clearPwaCaches } = await import('../pwa')
+      await clearPwaCaches()
+    } catch {
+      /* ignore */
+    }
   }, [])
 
   const bindClerkToken = useCallback((fn: (() => Promise<string | null>) | null) => {

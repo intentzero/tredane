@@ -17,7 +17,9 @@
     "APP_BASE_URL": "http://localhost:5173",
     "EMAIL_TRANSPORT": "simulated",
     // #31/#32: Meta synthetic até gates (#18); verify token / secret via .dev.vars em live.
-    "META_MODE": "synthetic"
+    "META_MODE": "synthetic",
+    // #42: Web Push — synthetic não chama FCM/APNs; live exige VAPID_* em secrets.
+    "PUSH_MODE": "synthetic"
   },
   "assets": {
     "not_found_handling": "single-page-application",

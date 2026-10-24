@@ -68,6 +68,10 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const clearSensitive = useCallback(() => {
     cancelContext()
     bumpGeneration()
+    // #42 / UX-05 — troca de clínica não reutiliza cache da anterior.
+    void import('../pwa')
+      .then((m) => m.clearPwaCaches())
+      .catch(() => undefined)
   }, [cancelContext, bumpGeneration])
 
   const reloadTenants = useCallback(() => {
