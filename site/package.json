@@ -7,7 +7,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "build:staging": "SITE_URL=https://staging.tredane.com PUBLIC_NOINDEX=1 astro build",
+    "deploy:staging": "npm run build:staging && wrangler deploy --env staging"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.12",
@@ -15,5 +17,8 @@
     "@fontsource/inter": "^5.3.0",
     "astro": "^7.4.1",
     "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "wrangler": "4.136.1"
   }
 }

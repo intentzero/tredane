@@ -11,6 +11,9 @@ interface Props {
 const { title, description } = Astro.props
 const canonical = new URL(Astro.url.pathname, Astro.site)
 const image = new URL('/og-image.png', Astro.site)
+const noIndex =
+  import.meta.env.PUBLIC_NOINDEX === '1' ||
+  import.meta.env.PUBLIC_NOINDEX === 'true'
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
@@ -26,6 +29,7 @@ const jsonLd = {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    {noIndex && <meta name="robots" content="noindex, nofollow" />}
     <meta name="theme-color" content="#FFFFFF" />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
