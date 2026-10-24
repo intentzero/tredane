@@ -4,6 +4,7 @@
  */
 import type { Clock } from '../db/clock'
 import type { AdminDb } from '../db/admin/store'
+import { createChannelLogger } from '../ops/log'
 import type { WorkerBindings } from '../worker/bindings'
 import { WOOVI_BASE_URLS } from './woovi/adapter'
 import { validatePixWebhookEnvelope } from './webhook-validate'
@@ -80,20 +81,16 @@ export type PixWebhookIngestDeps = {
   }) => void
 }
 
+const defaultPixLog = createChannelLogger('pix_webhook')
+
 function safeLog(
   log: PixWebhookIngestDeps['log'],
   level: 'info' | 'warn' | 'error',
   event: string,
   detail: Record<string, unknown>,
 ): void {
-  if (log) {
-    log({ level, event, detail })
-    return
-  }
-  const line = JSON.stringify({ channel: 'pix_webhook', event, ...detail })
-  if (level === 'error') console.error(line)
-  else if (level === 'warn') console.warn(line)
-  else console.info(line)
+  const sink = log ?? defaultPixLog
+  sink({ level, event, detail })
 }
 
 function resolvePixMode(env: WorkerBindings | undefined): string {

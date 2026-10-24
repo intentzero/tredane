@@ -5,6 +5,7 @@
  */
 import { queueCaller, workerCaller } from '../clinic'
 import { systemClock, type Clock } from '../db/clock'
+import { createChannelLogger } from '../ops/log'
 import type { WorkerBindings } from '../worker/bindings'
 import { createD1WebhookOps, type D1WebhookOps } from './webhook-d1'
 import {
@@ -76,16 +77,7 @@ export type QueueConsumerDeps = {
   }) => void
 }
 
-function defaultLog(entry: {
-  level: 'info' | 'warn' | 'error'
-  event: string
-  detail: Record<string, unknown>
-}): void {
-  const line = JSON.stringify({ channel: 'inbound_queue', event: entry.event, ...entry.detail })
-  if (entry.level === 'error') console.error(line)
-  else if (entry.level === 'warn') console.warn(line)
-  else console.info(line)
-}
+const defaultLog = createChannelLogger('inbound_queue')
 
 function clinicFromEnv(env: WorkerBindings, tenantId: string) {
   const id = env.CLINIC.idFromName(tenantId)

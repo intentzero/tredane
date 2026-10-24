@@ -6,6 +6,7 @@
 import { Hono } from 'hono'
 import { systemClock, type Clock } from '../db/clock'
 import type { AdminDb } from '../db/admin/store'
+import { createChannelLogger } from '../ops/log'
 import type { WorkerBindings } from '../worker/bindings'
 import {
   ingestWhatsappWebhook,
@@ -47,20 +48,7 @@ function verifyEnv(env: WorkerBindings | undefined): WebhookVerifyEnv {
   }
 }
 
-function defaultLog(entry: {
-  level: 'info' | 'warn' | 'error'
-  event: string
-  detail: Record<string, unknown>
-}): void {
-  const line = JSON.stringify({
-    channel: 'whatsapp_webhook',
-    event: entry.event,
-    ...entry.detail,
-  })
-  if (entry.level === 'error') console.error(line)
-  else if (entry.level === 'warn') console.warn(line)
-  else console.info(line)
-}
+const defaultLog = createChannelLogger('whatsapp_webhook')
 
 export function createWhatsappWebhookRoutes(opts: WhatsappWebhookRouteOptions = {}) {
   const app = new Hono<AppEnv>()

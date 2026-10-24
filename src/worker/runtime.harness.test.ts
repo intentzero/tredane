@@ -59,6 +59,7 @@ describe('Cloudflare runtime harness — F0', () => {
       service: 'tredane',
       phase: 'f1',
       environment: 'development',
+      observability: true,
     })
   })
 

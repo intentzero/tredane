@@ -156,7 +156,7 @@ Prontuário ou registro clínico, pagamentos além do sinal por Pix, estoque, in
 3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Revogação por tenant (DEC-026) com protocolo F1 em [#23](https://github.com/intentzero/tredane/issues/23) / [f1-realtime-ws.md](implementation/f1-realtime-ws.md); em aberto integrações e medidas adicionais de antiabuso; MFA fora do MVP (DEC-028). Pré-go-live Clerk (plano/DPA/região): DEC-043 e GATE-05.
 4. Revisão jurídica e AI Gateway sem registro de conteúdo (provedor definido em DEC-011); como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane? GATE-04/06.
 5. Revisão jurídica (LGPD) da retenção e exclusão definidas em DEC-011 (REQ-071). Código de exclusão de contacto e expurgo ≤30 dias: [#43](https://github.com/intentzero/tredane/issues/43) / [f6-retention-purge.md](implementation/f6-retention-purge.md). Dossiê para o advogado: [legal-review-brief.md](product/legal-review-brief.md).
-6. Topologia já definida em DEC-038: validar implementação, migrações, capacidade, recuperação e revogação entre D1 central e SQLite/DO por clínica antes de dados reais.
+6. Topologia já definida em DEC-038: validar implementação, migrações, capacidade, recuperação e revogação entre D1 central e SQLite/DO por clínica antes de dados reais. Scaffold de ops/staging/recovery: [#44](https://github.com/intentzero/tredane/issues/44) / [f6-ops.md](implementation/f6-ops.md) (PITR live e D1 real de staging permanecem Em aberto).
 
 Estas pendências não bloqueiam a estrutura inicial nem a implementação do fluxo com dados de teste. Bloqueiam a conexão de números reais, o tratamento de dados reais e automações de envio.
 

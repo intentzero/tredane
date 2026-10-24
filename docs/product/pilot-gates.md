@@ -120,7 +120,7 @@ Detalhe jurídico: [legal-review-brief.md](legal-review-brief.md) §3.
 | Profissionais, salas/equipamentos, expediente, bloqueios | Pendente | Idem |
 | Política escrita de cancelamento do sinal (DEC-047) | Pendente | Texto da clínica + revisão jurídica (GATE-11) |
 | Política de anexos (envio pela equipe; tipos; retenção) | **Em aberto** (DEC-011) | Issue de domínio Inbox/anexos |
-| Política de logs técnicos (retenção, acesso) | **Em aberto** (REQ-070) | Dossiê + engenharia |
+| Política de logs técnicos (retenção, acesso) | **Em aberto** (REQ-070) | Dossiê + engenharia; scrub/correlação em [f6-ops.md](../implementation/f6-ops.md) (#44) |
 | Aparelhos / SO / navegadores da recepção (Q-UX-01) | Pendente | Antes do aceite de usabilidade |
 | Preferências push padrão e horário de silêncio (Q-UX-05) | **Em aberto** | Issue de domínio PWA/notificações |
 | Reabertura de conversa vs nova; ciclo de oportunidade (VAL-02, states.md) | **Em aberto** | Issues de domínio pipeline/Inbox — **não fechar aqui** |
