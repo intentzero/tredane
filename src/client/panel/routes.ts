@@ -48,6 +48,10 @@ export type PanelRoute =
       tenantId: string
       section: AgendaSection
       appointmentId?: string
+      /** Contexto para sinal Pix (#38) — query string em /agendar. */
+      conversationId?: string
+      contactId?: string
+      opportunityId?: string
     }
   | {
       kind: 'area'
@@ -224,7 +228,14 @@ export function panelHref(route: PanelRoute): string {
         return base
       }
       if (route.area === 'agenda') {
-        if (route.section === 'agendar') return `${base}/agendar`
+        if (route.section === 'agendar') {
+          const q = new URLSearchParams()
+          if (route.conversationId) q.set('conversationId', route.conversationId)
+          if (route.contactId) q.set('contactId', route.contactId)
+          if (route.opportunityId) q.set('opportunityId', route.opportunityId)
+          const qs = q.toString()
+          return qs ? `${base}/agendar?${qs}` : `${base}/agendar`
+        }
         if (route.section === 'semana') return `${base}/semana`
         if (route.section === 'compromisso' && route.appointmentId) {
           return `${base}/compromisso/${encodeURIComponent(route.appointmentId)}`

@@ -6,6 +6,9 @@ export {
 export {
   serializePixAccount,
   serializePixCharge,
+  serializePixChargeDetail,
   serializePixSignalSettings,
+  serializeSchedulingIntent,
   serializeServiceSignal,
 } from './serialize'
+export type { PixChargeCreateDeps } from './gateway'

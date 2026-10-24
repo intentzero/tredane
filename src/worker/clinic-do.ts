@@ -60,11 +60,14 @@ import type {
   RescheduleAppointmentInput,
 } from '../clinic/scheduling'
 import type {
+  ConfirmWithoutSignalInput,
   ConnectPixInput,
+  CreateSignalChargeInput,
   PixConnectDeps,
   RecordChargeInput,
   UpdateSignalSettingsInput,
 } from '../clinic/pix'
+import type { PixProviderAdapter } from '../pix'
 import { systemClock, type Clock } from '../db/clock'
 import { fromD1 } from '../db/admin/async-store'
 import {
@@ -1288,7 +1291,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return clinicScheduling.queryAgendaViewOp(this.#db, caller, input, this.#clock)
   }
 
-  /** Conta Pix + sinais (#37) — sem criação de cobrança na conversa (#38). */
+  /** Conta Pix + sinais (#37) + cobrança na conversa (#38). */
   async getPixAccount(caller: ClinicCaller) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -1390,6 +1393,124 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     return clinicPix.recordLocalPixChargeOp(this.#db, caller, input, this.#clock)
+  }
+
+  /**
+   * Cria cobrança + envia sinal WhatsApp sem alocar horário (#38 / AC-46).
+   * Adaptador: Woovi via deps, ou Simulated injectável nos testes do DO.
+   */
+  async createSignalChargeAndSend(
+    caller: ClinicCaller,
+    input: CreateSignalChargeInput,
+    deps: PixConnectDeps & { simulatedAdapter?: PixProviderAdapter },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const adapter = deps.simulatedAdapter
+      ? deps.simulatedAdapter
+      : (await clinicPix.buildClinicPixAdapter(this.#db, caller.tenantId, deps))
+          .adapter
+    const result = await clinicPix.createSignalChargeAndSendOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+      { adapter },
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
+  async reconcilePixChargeCreate(
+    caller: ClinicCaller,
+    chargeId: string,
+    deps: PixConnectDeps & {
+      simulatedAdapter?: PixProviderAdapter & {
+        findChargeByIdempotencyKey?(
+          key: string,
+        ): Promise<
+          | { ok: true; value: import('../pix').PixCharge }
+          | { ok: false; code?: string; message?: string }
+        >
+      }
+    },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const adapter = deps.simulatedAdapter
+      ? deps.simulatedAdapter
+      : (await clinicPix.buildClinicPixAdapter(this.#db, caller.tenantId, deps))
+          .adapter
+    const findByIdempotencyKey = deps.simulatedAdapter?.findChargeByIdempotencyKey
+      ? (key: string) =>
+          deps.simulatedAdapter!.findChargeByIdempotencyKey!(key) as Promise<
+            | { ok: true; value: import('../pix').PixCharge }
+            | { ok: false }
+          >
+      : undefined
+    return clinicPix.reconcileUncertainChargeOp(
+      this.#db,
+      caller,
+      chargeId,
+      this.#clock,
+      { adapter, findByIdempotencyKey },
+    )
+  }
+
+  async confirmAppointmentWithoutSignal(
+    caller: ClinicCaller,
+    input: ConfirmWithoutSignalInput,
+    deps?: PixConnectDeps & { simulatedAdapter?: PixProviderAdapter },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    let adapterDeps: { adapter: PixProviderAdapter } | undefined
+    if (deps?.simulatedAdapter) {
+      adapterDeps = { adapter: deps.simulatedAdapter }
+    } else if (deps) {
+      try {
+        const built = await clinicPix.buildClinicPixAdapter(
+          this.#db,
+          caller.tenantId,
+          deps,
+        )
+        adapterDeps = { adapter: built.adapter }
+      } catch {
+        adapterDeps = undefined
+      }
+    }
+    const result = await clinicPix.confirmWithoutSignalOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+      adapterDeps,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
+  async getPixChargeDetail(caller: ClinicCaller, chargeId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicPix.getPixChargeDetailOp(this.#db, caller, chargeId, this.#clock)
+  }
+
+  async listConversationPixCharges(caller: ClinicCaller, conversationId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicPix.listConversationPixChargesOp(
+      this.#db,
+      caller,
+      conversationId,
+      this.#clock,
+    )
   }
 
   async #drain(caller: ClinicCaller): Promise<{ published: string[]; failed: string[] }> {

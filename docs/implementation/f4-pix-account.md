@@ -1,6 +1,6 @@
 # F4 — Conta Pix da clínica e configuração de sinais
 
-**Estado:** implementação da issue [#37](https://github.com/intentzero/tredane/issues/37) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Adaptador **Woovi** + conta M-33 + sinal no serviço (REQ-076/077). **Sem** criar cobrança na conversa ([#38](https://github.com/intentzero/tredane/issues/38)) nem confirmar pagamento ([#39](https://github.com/intentzero/tredane/issues/39)). Dados sintéticos / `PIX_MODE=synthetic` até GATE-08.
+**Estado:** implementação da issue [#37](https://github.com/intentzero/tredane/issues/37) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Adaptador **Woovi** + conta M-33 + sinal no serviço (REQ-076/077). Cobrança na conversa = [#38](f4-pix-charge.md); confirmação de pagamento = [#39](https://github.com/intentzero/tredane/issues/39). Dados sintéticos / `PIX_MODE=synthetic` até GATE-08.
 
 ## Decisões aplicadas (Confirmado)
 
@@ -19,7 +19,7 @@
 - `pix_account` (1 linha/clínica): status, `app_id_cipher`, hint, environment, `credential_version`
 - `pix_charges`: ledger local (sobrevive a disconnect); uso de domínio completo em #38/#39
 
-`CLINIC_SCHEMA_VERSION = 10` (após #36 / migração 9 de agendamento).
+`CLINIC_SCHEMA_VERSION` avançou para **11** com [#38](f4-pix-charge.md) (migração de cobrança/intent). Conta/sinal = migração 10.
 
 ## Adaptador
 
@@ -55,5 +55,5 @@ Respostas **nunca** incluem App ID nem cipher.
 ## Em aberto / gates
 
 - DPA, taxas contratuais e App ID real (GATE-08) — bloqueiam dinheiro real
-- Criação de cobrança + WhatsApp (#38)
+- Criação de cobrança + WhatsApp — [#38](f4-pix-charge.md)
 - Webhook de pagamento → compromisso (#39)

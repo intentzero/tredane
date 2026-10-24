@@ -5,6 +5,7 @@ import type {
   InboxConversationDetail,
   InboxMessage,
   PanelApi,
+  PixChargeDetail,
   WhatsappTemplateItem,
 } from '../../api'
 import { navigatePanel } from '../../routes'
@@ -98,6 +99,7 @@ export function InboxThread({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [selectedTemplate, setSelectedTemplate] =
     useState<WhatsappTemplateItem | null>(null)
+  const [pixCharges, setPixCharges] = useState<PixChargeDetail[]>([])
   const [templateParams, setTemplateParams] = useState<Record<string, string>>(
     {},
   )
@@ -138,6 +140,13 @@ export function InboxThread({
           .then((t) => setTemplates(t.items))
           .catch(() => setTemplates([]))
       }
+      void api
+        .listConversationPixCharges(tenantId, conversationId, {
+          generation,
+          expectGeneration: () => generation,
+        })
+        .then(setPixCharges)
+        .catch(() => setPixCharges([]))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao abrir conversa')
       setDetail(null)
@@ -376,6 +385,24 @@ export function InboxThread({
         {detail.status !== 'closed' ? (
           <Button
             className="panel-btn-secondary"
+            onPress={() =>
+              navigatePanel({
+                kind: 'area',
+                area: 'agenda',
+                tenantId,
+                section: 'agendar',
+                conversationId,
+                contactId: detail.contactId,
+              })
+            }
+            isDisabled={busy}
+          >
+            Agendar
+          </Button>
+        ) : null}
+        {detail.status !== 'closed' ? (
+          <Button
+            className="panel-btn-secondary"
             onPress={() => void closeConv()}
             isDisabled={busy}
           >
@@ -383,6 +410,42 @@ export function InboxThread({
           </Button>
         ) : null}
       </div>
+
+      {pixCharges.some((c) => c.status === 'awaiting_payment') ? (
+        <div className="inbox-notice" role="status">
+          {pixCharges
+            .filter((c) => c.status === 'awaiting_payment')
+            .map((c) => (
+              <div key={c.id} className="inbox-pix-card">
+                <strong>Aguardando sinal</strong>
+                <p>
+                  {(c.amountCents / 100).toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  })}
+                  {c.expiresAt
+                    ? ` · prazo até ${new Date(c.expiresAt).toLocaleString('pt-BR')}`
+                    : ''}
+                  {' · horário não reservado'}
+                </p>
+                {c.pixCopyPaste ? (
+                  <Button
+                    className="panel-btn-secondary"
+                    onPress={() => {
+                      void navigator.clipboard?.writeText(c.pixCopyPaste!)
+                      setNotice('Pix copiado')
+                    }}
+                  >
+                    Copiar Pix
+                  </Button>
+                ) : null}
+                {c.whatsappSendError ? (
+                  <p role="alert">Envio WhatsApp: {c.whatsappSendError}</p>
+                ) : null}
+              </div>
+            ))}
+        </div>
+      ) : null}
 
       <div className="inbox-timeline" aria-live="polite">
         {detail.messagesHasMore ? (

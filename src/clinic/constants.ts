@@ -1,5 +1,5 @@
-/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#37). */
-export const CLINIC_SCHEMA_VERSION = 10
+/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#38). */
+export const CLINIC_SCHEMA_VERSION = 11
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -13,7 +13,30 @@ export const CLINIC_MIGRATION_NAMES = {
   8: '0008_attachments',
   9: '0009_appointments_booking',
   10: '0010_pix_signal',
+  11: '0011_scheduling_intent_pix_charge',
 } as const
+
+/** Intenção de horário sem alocação (#38 / DEC-047). */
+export const SCHEDULING_INTENT_STATUSES = [
+  'awaiting_signal',
+  'confirmed',
+  'expired',
+  'cancelled',
+  'waived',
+  'failed',
+] as const
+
+export type SchedulingIntentStatus = (typeof SCHEDULING_INTENT_STATUSES)[number]
+
+/** Estado da criação no provedor (separado do status da cobrança e da mensagem). */
+export const PIX_PROVIDER_CREATE_STATES = [
+  'pending',
+  'uncertain',
+  'confirmed',
+  'failed',
+] as const
+
+export type PixProviderCreateState = (typeof PIX_PROVIDER_CREATE_STATES)[number]
 
 /**
  * Motivos de cancelamento/reagendamento (REQ-032 / DEC-008).

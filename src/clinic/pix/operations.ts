@@ -325,3 +325,49 @@ export async function openClinicPixAppId(
   const appId = await openPixAppId(row.appIdCipher, tokenSecret)
   return { appId, accountId: row.accountId, environment: row.environment }
 }
+
+/**
+ * Monta adaptador Woovi (ou fixture synthetic) para createCharge na conta da clínica.
+ */
+export async function buildClinicPixAdapter(
+  db: ClinicDb,
+  tenantId: string,
+  deps: PixConnectDeps,
+): Promise<{
+  adapter: WooviPixAdapter
+  accountId: string
+  appId: string
+}> {
+  const opened = await openClinicPixAppId(db, tenantId, deps.tokenSecret)
+  if (!opened) {
+    throw new ValidationError(
+      'pix_account_not_connected',
+      'Sem conta Pix conectada — não é possível criar cobrança',
+    )
+  }
+
+  let fetchImpl = deps.fetchImpl
+  let baseUrl = deps.baseUrl
+  let webhookPublicKeys = deps.webhookPublicKeys
+
+  if (opened.environment === 'synthetic' && !fetchImpl) {
+    const fixture = await createWooviSandboxFixture({
+      validAppIds: new Set([opened.appId, 'synth_woovi_app_valid']),
+    })
+    fixture.addValidAppId(opened.appId)
+    fetchImpl = fixture.fetchImpl
+    baseUrl = fixture.baseUrl
+    webhookPublicKeys = [fixture.publicPem]
+  }
+
+  const adapter = new WooviPixAdapter({
+    appId: opened.appId,
+    tenantId,
+    accountId: opened.accountId,
+    environment: opened.environment === 'live' ? 'live' : 'sandbox',
+    baseUrl,
+    fetchImpl,
+    webhookPublicKeys,
+  })
+  return { adapter, accountId: opened.accountId, appId: opened.appId }
+}

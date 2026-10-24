@@ -1,6 +1,6 @@
 /**
  * M-33 — Recebimento de sinais (conta Woovi + prazo + política).
- * Só owner (área Clínica). Sem criação de cobrança (#38).
+ * Só owner (área Clínica). Cobrança na conversa = Agendar / #38.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { Button, Input, Label, TextArea, TextField } from 'react-aria-components'
