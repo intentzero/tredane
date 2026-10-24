@@ -20,10 +20,7 @@ import {
   revokeMembership,
 } from '../db/admin'
 import { createControllableClock } from '../db/clock'
-import {
-  createSimulatedEmailTransport,
-  type SimulatedEmailTransport,
-} from '../email'
+import { createSimulatedEmailTransport } from '../email'
 import type { ClinicEventPublisher } from '../realtime'
 import { SUPPORT_COOKIE_NAME, parseSupportCookie } from './cookie'
 
