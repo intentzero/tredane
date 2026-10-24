@@ -29,6 +29,27 @@ Partir de **A ou B**, escolhida por **prova de conceito na F0**, não por prefer
 4. Tamanho do pacote medido e registrado; orçamento a definir na F0.
 5. Aparência fiel a [tokens.json](../design/tokens.json) sem sobrescritas por tela.
 
+## Roteiro da prova de conceito (Proposto)
+
+**Quando:** na F0, depois do esqueleto do app (`src/client`) com `tokens.css` carregado e antes de qualquer tela de produção. **Quem decide:** o responsável pelo produto, com o resultado medido abaixo. **Duração:** a estimar na F0; limitar a prova às duas telas.
+
+1. **Preparar.** Uma pasta de prova no repositório (fora das rotas de produção) com as duas candidatas, A (Radix UI Primitives) e B (React Aria Components), cada uma com a mesma entrada: `tokens.css` e os dados fictícios dos mocks.
+2. **Implementar M-04 e M-05** nas duas candidatas, seguindo [screens.md](../design/screens.md) e o [catálogo](../design/catalog/index.html). Só valores por token; nada de sobrescrita por tela.
+3. **Medir** e registrar neste ADR, na tabela abaixo, para cada candidata.
+4. **Decidir** pela regra: reprova quem tiver violação de acessibilidade que não consiga corrigir, ou falhar no PWA de iPhone ou Android. Entre as aprovadas, vale a de menor pacote; se a diferença for pequena, a que cobrir calendário e campos de data da agenda (M-04 e Semana, M-13) sem código próprio. Empate: B, pela interação de toque.
+5. **Registrar** a decisão como nova DEC, mudar o estado deste ADR para **Confirmado** e apagar a candidata descartada do repositório.
+
+| Critério | A. Radix | B. React Aria | Como medir |
+| --- | --- | --- | --- |
+| Violações axe em M-04, M-05 e catálogo | a medir | a medir | axe automático |
+| Teclado completo e leitor de tela (formulário, folha inferior) | a medir | a medir | roteiro manual |
+| Safari iPhone e Chrome Android como PWA, teclado virtual sobre o compositor | a medir | a medir | aparelhos reais; modelos da clínica piloto **em aberto** (Q-UX-01) |
+| Tamanho do pacote das duas telas (gzip) | a medir | a medir | relatório do bundler |
+| Calendário e data sem código próprio | a medir | a medir | revisão |
+| Fidelidade aos tokens sem sobrescritas | a medir | a medir | `check_contrast.py` e revisão |
+
+**Limites da prova:** não cobre dados reais, tempo real nem autenticação. Os modelos de aparelho ainda não são conhecidos; até lá, testar em um iPhone e um Android quaisquer e repetir quando a clínica piloto informar os dela.
+
 ## Estilização, ícones, fonte, modo escuro
 
 - **Tokens:** variáveis CSS geradas de `tokens.json` (`tokens.css`). A ferramenta de CSS (módulos CSS, utilitários ou outra) fica **em aberto** para a F0; regra independente da ferramenta: nenhum valor de cor, raio, fonte ou espaçamento fora dos tokens (verificado por `tools/check_mocks.py` e, no código, por revisão e lint).
