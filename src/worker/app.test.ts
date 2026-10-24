@@ -10,6 +10,7 @@ describe('Worker API — F0', () => {
       status: 'ok',
       service: 'tredane',
       phase: 'f0',
+      environment: 'development',
     })
   })
 
@@ -17,5 +18,11 @@ describe('Worker API — F0', () => {
     const response = await app.request('http://localhost/api/tenants')
     expect(response.status).toBe(404)
     expect(await response.json()).toEqual({ error: 'not_found' })
+  })
+
+  it('rejects non-synthetic tenants on the F0 clinic harness', async () => {
+    const response = await app.request('http://localhost/api/f0/clinic/real-clinic/ping')
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'synthetic_tenants_only' })
   })
 })

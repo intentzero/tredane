@@ -11,13 +11,16 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Typecheck
@@ -26,11 +29,30 @@ jobs:
         run: npm run lint
       - name: Unit and SQL tests
         run: npm test
+      - name: Cloudflare runtime harness
+        run: npm run test:runtime
+      - name: Design tokens and mocks
+        run: npm run check:design
       - name: Build Worker + assets
         run: npm run build
       - name: Apply D1 migrations locally
         run: npm run db:migrate:local
       - name: Seed fictional development tenants
         run: npm run db:seed:local
+      - name: Env placeholder guard
+        run: |
+          npm run check:env -- development
+          # F0: staging/prod ainda usam placeholders; o guard deve recusar até o provisionamento (#44).
+          node --input-type=module -e "
+            import { spawnSync } from 'node:child_process'
+            for (const env of ['staging', 'production']) {
+              const r = spawnSync(process.execPath, ['scripts/check-env-placeholders.mjs', env], { encoding: 'utf8' })
+              if (r.status === 0) {
+                console.error(env + ' passou sem placeholders — inesperado na F0')
+                process.exit(1)
+              }
+              console.log(env + ': bloqueado como esperado enquanto não provisionado')
+            }
+          "
       - name: Build landing page (site/)
         run: npm ci --no-audit --no-fund --prefix site && npm run build --prefix site

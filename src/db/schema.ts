@@ -1,8 +1,9 @@
 import { integer, primaryKey, sqliteTable, text, index } from 'drizzle-orm/sqlite-core'
 
 /**
- * F0: apenas entidades sintéticas para exercitar D1, Drizzle e fronteiras de tenant.
- * O domínio final permanece sujeito à documentação de produto e às ADRs.
+ * F0: entidades sintéticas para exercitar D1, Drizzle e fronteiras de tenant.
+ * O domínio operacional definitivo vive no SQLite do DO (DEC-038); este schema
+ * D1 cobre administração mínima. Campos finais sujeitos a docs de produto/ADRs.
  */
 export const tenants = sqliteTable('tenants', {
   id: text('id').primaryKey(),
@@ -30,4 +31,18 @@ export const professionals = sqliteTable('professionals', {
 }, (table) => [
   primaryKey({ columns: [table.tenantId, table.id] }),
   index('professionals_tenant_idx').on(table.tenantId),
+])
+
+/** Memberships N:N no D1 central (Confirmado, DEC-038). Sem Clerk Organizations. */
+export const tenantMemberships = sqliteTable('tenant_memberships', {
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  clerkUserId: text('clerk_user_id').notNull(),
+  role: text('role', { enum: ['owner', 'attendant'] }).notNull(),
+  status: text('status', { enum: ['active', 'revoked'] }).notNull().default('active'),
+  createdAt: integer('created_at').notNull(),
+  revokedAt: integer('revoked_at'),
+}, (table) => [
+  primaryKey({ columns: [table.tenantId, table.clerkUserId] }),
+  index('tenant_memberships_user_idx').on(table.clerkUserId),
+  index('tenant_memberships_tenant_status_idx').on(table.tenantId, table.status),
 ])

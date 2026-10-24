@@ -15,11 +15,15 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:runtime": "vitest run --config vitest.runtime.config.ts",
+    "check:design": "python3 docs/design/tools/check_contrast.py && python3 docs/design/tools/check_mocks.py",
+    "check:env": "node scripts/check-env-placeholders.mjs",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run test:runtime && npm run check:design && npm run build && npm run db:migrate:local && npm run db:seed:local && npm run check:env -- development",
     "cf:typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply tredane-dev --local",
     "db:seed:local": "wrangler d1 execute tredane-dev --local --file=./db/seed.sql",
     "db:generate": "drizzle-kit generate",
-    "deploy": "wrangler deploy"
+    "deploy": "node scripts/check-env-placeholders.mjs \"$npm_config_env\" && wrangler deploy"
   },
   "dependencies": {
     "drizzle-orm": "0.45.4",
@@ -29,7 +33,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.64.0",
-    "@cloudflare/workers-types": "5.20261018.1",
+    "@cloudflare/workers-types": "^5.20261024.1",
     "@eslint/js": "9.39.1",
     "@types/node": "22.18.12",
     "@types/react": "19.2.7",
@@ -42,6 +46,6 @@
     "typescript-eslint": "8.48.0",
     "vite": "7.1.12",
     "vitest": "4.0.16",
-    "wrangler": "4.136.1"
+    "wrangler": "4.152.0"
   }
 }

@@ -1,6 +1,6 @@
 # Estados e eventos do MVP
 
-**Estado:** proposta para revisão. Este documento transforma as [jornadas](journeys.md) em regras de estado observáveis; não define tabelas nem formato de API. Valide transições com uma clínica piloto antes de implementá-las como regras definitivas.
+**Estado:** mistura de regras **Confirmadas** (DEC-008/015/038/040/047) e máquinas de estado ainda **Propostas**. Este documento transforma as [jornadas](journeys.md) em regras observáveis; não define tabelas nem formato de API. Não tratar etapas «em aberto» como comportamento obrigatório. Execução: [épico #14](https://github.com/intentzero/tredane/issues/14).
 
 ## Princípios
 

@@ -1,12 +1,14 @@
 # Plano de implementação — Tredane MVP
 
-**Estado:** plano proposto para engenharia, baseado em [MVP](../MVP.md), [requisitos](../product/requirements.md), [critérios](../product/acceptance.md) e [arquitetura](../architecture/overview.md). A fundação F0 tem scaffold com lockfile, checks de CI e prova visual local de UI/Worker (`npm run dev` + `/api/health`) registada no [PR #47](https://github.com/intentzero/tredane/pull/47) (issue #3); encerramento formal da #3 depende da confirmação humana com essa evidência. Ambientes/testes/docs remanescentes e a prova de componentes (DEC-041) ficam em #15/#16. As fases F1+ não foram implementadas.
+**Estado:** plano de engenharia **Proposto** (decomposição/ordem), alinhado a decisões **Confirmadas** em [MVP](../MVP.md) / [decisões](../product/decisions.md). A execução do sistema segue o [épico #14](https://github.com/intentzero/tredane/issues/14) e as issues #15–#45; este documento **não** renumera DEC/REQ e **não** declara módulos de negócio implementados.
+
+**F0 (baseline):** scaffold + lockfile + CI + prova visual local ([PR #47](https://github.com/intentzero/tredane/pull/47), issue #3); ambientes, fixtures com memberships, harness Cloudflare e checks de design na issue [#15](https://github.com/intentzero/tredane/issues/15) ([f0.md](f0.md), [environments.md](environments.md)). Encerramento formal da #3 depende da confirmação humana da evidência visual. Prova de componentes (DEC-041) = [#16](https://github.com/intentzero/tredane/issues/16); Pix simulado = [#17](https://github.com/intentzero/tredane/issues/17). Fases F1+ ainda não implementadas.
 
 ## Sequência por fatias verificáveis
 
 | Fase | Entregáveis | Gate verificável |
 | --- | --- | --- |
-| F0: ambiente | Workspace TS, React, Worker/Hono, Drizzle/D1 local, lint/test/build, Wrangler, CI, seeds sintéticas; base de UI: `tokens.css` e catálogo (design system v0.2 aprovado, DEC-041), prova de conceito da biblioteca de componentes ([ADR-0013](../adr/0013-design-system-components.md)), `check_contrast` e `check_mocks` no CI | Testes e build reproduzíveis; dois tenants de teste; nenhum segredo versionado |
+| F0: ambiente | Workspace TS, React, Worker/Hono, Drizzle/D1 local, lint/test/runtime/build, Wrangler, CI, seeds sintéticas com memberships, contratos dev/staging/prod ([environments.md](environments.md)); harness DO/SQLite/WS/R2/Queue; `check_contrast`/`check_mocks` no CI. Base de UI e prova Radix×React Aria (DEC-041 / [ADR-0013](../adr/0013-design-system-components.md)) = #16; Pix = #17 | `npm ci` + `npm run verify`; dois tenants + memberships; nenhum segredo versionado; placeholders de staging/prod bloqueados |
 | F1: identidade/tenant | D1 administrativo, DO + SQLite por clínica, migrações por instância, login/memberships, autorização e WebSocket | REQ-001/002/003: ID forjado e revogação não expõem dados/eventos de outra clínica |
 | F2: domínio local | Serviços, recursos, horários, contactos, Inbox e Pipeline com dados sintéticos; CRUD mínimo + auditoria | Duas sessões da mesma clínica convergem e outra clínica não vê alterações |
 | F3: integração Meta | Associação verificada de número de teste, webhooks, deduplicação, outbox, envio manual e status | Reentrega não duplica; falhas e resultado incerto permanecem observáveis |
@@ -108,4 +110,4 @@ Identidade e administração de utilizadores (DEC-007), regras de recurso/agenda
 
 ## Primeira tarefa recomendada
 
-Abrir EP-T01 como primeiro épico de engenharia e criar scaffold + CI **sem integrar contas reais**. O checkpoint do sprint é demonstrar, com dois tenants fictícios, os elementos básicos de autenticação, persistência e atualização entre sessões.
+O scaffold F0 (histórico EP-T01 / issue #3) já está na main. A execução atual começa por [#15](https://github.com/intentzero/tredane/issues/15) no [épico #14](https://github.com/intentzero/tredane/issues/14), **sem** reconstruir o scaffold e **sem** integrar contas reais. Em seguida: #16 (UI), #17 (Pix), #18 (liberações) e F1 (#19+#20) em frentes independentes.
