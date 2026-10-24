@@ -438,6 +438,8 @@ export function appendInboundToConversation(
     contactId: string
     providerEventKey: string
     body: string
+    /** Timestamp do provedor (ms) — ordenação Meta (#32). */
+    occurredAtMs?: number
   },
   clock: Clock,
 ): { conversation: ConversationRow; message: MessageRow; createdConversation: boolean } {
@@ -459,7 +461,10 @@ export function appendInboundToConversation(
     createdConversation = true
   }
 
-  const now = clock.nowMs()
+  const now =
+    input.occurredAtMs != null && Number.isFinite(input.occurredAtMs)
+      ? input.occurredAtMs
+      : clock.nowMs()
   let message: MessageRow
   try {
     message = insertMessage(

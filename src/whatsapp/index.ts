@@ -33,5 +33,32 @@ export {
   createMemoryWhatsappChannelSync,
   type WhatsappRouteOptions,
 } from './routes'
+export {
+  createWhatsappWebhookRoutes,
+  type WhatsappWebhookRouteOptions,
+} from './webhook-routes'
+export {
+  ingestWhatsappWebhook,
+  storeFromAdminDb,
+  storeFromD1Ops,
+} from './webhook-ingest'
+export {
+  computeHubSignature256,
+  verifyHubSignature256,
+  verifySubscriptionChallenge,
+  SYNTHETIC_VERIFY_TOKEN,
+  SYNTHETIC_APP_SECRET,
+} from './webhook-verify'
+export { parseWhatsappWebhookPayload } from './webhook-parse'
+export {
+  handleInboundQueue,
+  handleInboundQueueBatch,
+} from './queue-consumer'
+export { createD1WebhookOps, type D1WebhookOps } from './webhook-d1'
+export {
+  insertWebhookReceipt,
+  findWebhookReceiptByKey,
+  prepareWebhookReceiptRedrive,
+} from './webhook-receipts'
 export { createD1WhatsappOps, type D1WhatsappOps } from './d1-ops'
 export { serializeConnection, serializeSignupSession, assertNoSecretsInPayload } from './serialize'

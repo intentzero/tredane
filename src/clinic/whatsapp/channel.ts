@@ -178,3 +178,51 @@ export function ensureDisconnectedChannel(
     clock,
   )
 }
+
+/** Actualiza last_inbound_at sem gerar evento de canal (tráfego frequente). */
+export function touchWhatsappLastInbound(
+  db: ClinicDb,
+  tenantId: string,
+  atMs: number,
+): void {
+  assertClinicSchemaReady(db)
+  db.run(
+    `UPDATE whatsapp_channel
+     SET last_inbound_at = ?, updated_at = ?
+     WHERE tenant_id = ?`,
+    atMs,
+    atMs,
+    tenantId,
+  )
+}
+
+/** Marca espelho DO como interrupted (webhook account / #32). */
+export function interruptWhatsappChannel(
+  db: ClinicDb,
+  tenantId: string,
+  input: { reason: string; phoneNumberId?: string | null },
+  clock: Clock,
+): WhatsappChannelRow | null {
+  const existing = getWhatsappChannel(db, tenantId)
+  if (!existing) return null
+  const now = clock.nowMs()
+  return syncWhatsappChannel(
+    db,
+    tenantId,
+    {
+      status: 'interrupted',
+      bindingId: existing.bindingId,
+      phoneNumberId: input.phoneNumberId ?? existing.phoneNumberId,
+      wabaId: existing.wabaId,
+      displayPhone: existing.displayPhone,
+      displayName: existing.displayName,
+      connectedBy: existing.connectedBy,
+      connectedAt: existing.connectedAt,
+      interruptedAt: now,
+      interruptReason: input.reason,
+      lastInboundAt: existing.lastInboundAt,
+      action: 'interrupted_webhook',
+    },
+    clock,
+  )
+}

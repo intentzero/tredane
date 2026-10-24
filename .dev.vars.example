@@ -29,9 +29,10 @@ CLERK_AUTHORIZED_PARTIES=http://localhost:5173
 # Quando houver provedor aprovado: configurar credenciais via wrangler secret
 # (nunca versionar) e documentar política de dados antes de envio real.
 
-# #31 — WhatsApp Embedded Signup (DEC-009). Default synthetic até gates Meta (#18):
+# #31/#32 — WhatsApp Embedded Signup + webhooks (DEC-009). Default synthetic até gates Meta (#18):
 # META_MODE=synthetic
 # Em live (após App Review / Tech Provider): wrangler secret para
-#   META_APP_ID, META_APP_SECRET, META_CONFIG_ID, META_TOKEN_SECRET
+#   META_APP_ID, META_APP_SECRET, META_CONFIG_ID, META_TOKEN_SECRET, META_VERIFY_TOKEN
 # META_GRAPH_API_VERSION=v25.0
-# Nunca versionar APP_SECRET nem tokens de negócio.
+# Em synthetic, verify token / app secret têm defaults de teste (ver webhook-verify.ts).
+# Nunca versionar APP_SECRET, VERIFY_TOKEN de produção nem tokens de negócio.

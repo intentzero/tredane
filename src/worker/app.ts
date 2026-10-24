@@ -40,7 +40,9 @@ import {
 } from '../pipeline'
 import {
   createWhatsappRoutes,
+  createWhatsappWebhookRoutes,
   type WhatsappRouteOptions,
+  type WhatsappWebhookRouteOptions,
 } from '../whatsapp'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
@@ -89,6 +91,8 @@ export type CreateAppOptions = {
   ) => PipelineGateway | Promise<PipelineGateway>
   /** Serviço WhatsApp (#31) — testes injectam AdminDb + sync em memória. */
   whatsappServiceFactory?: WhatsappRouteOptions['serviceFactory']
+  /** Webhooks Meta (#32) — AdminDb sync + fila injectável nos testes. */
+  whatsappWebhook?: WhatsappWebhookRouteOptions
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -162,6 +166,19 @@ export function createApp(opts: CreateAppOptions = {}) {
     serviceFactory: opts.whatsappServiceFactory,
   }
   app.route('/', createWhatsappRoutes(whatsappOpts))
+
+  // Webhooks públicos (#32) — sem middleware Clerk.
+  const webhookOpts: WhatsappWebhookRouteOptions = {
+    syncAdminDbFactory:
+      opts.whatsappWebhook?.syncAdminDbFactory ??
+      (opts.syncAdminDbFactory
+        ? (env) => opts.syncAdminDbFactory!(env as WorkerBindings)
+        : undefined),
+    clockFactory: opts.whatsappWebhook?.clockFactory ?? opts.clockFactory,
+    queueFactory: opts.whatsappWebhook?.queueFactory,
+    logFactory: opts.whatsappWebhook?.logFactory,
+  }
+  app.route('/', createWhatsappWebhookRoutes(webhookOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

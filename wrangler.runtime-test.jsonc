@@ -10,7 +10,8 @@
     "AUTH_MODE": "synthetic",
     "CLERK_AUTHORIZED_PARTIES": "http://localhost:5173",
     "APP_BASE_URL": "http://localhost:5173",
-    "EMAIL_TRANSPORT": "simulated"
+    "EMAIL_TRANSPORT": "simulated",
+    "META_MODE": "synthetic"
   },
   "d1_databases": [
     {
@@ -45,6 +46,16 @@
       {
         "binding": "INBOUND_EVENTS",
         "queue": "tredane-inbound-dev"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "tredane-inbound-dev",
+        "max_batch_size": 10,
+        "max_batch_timeout": 1,
+        "max_retries": 3,
+        "dead_letter_queue": "tredane-inbound-dlq-dev",
+        "retry_delay": 1
       }
     ]
   }

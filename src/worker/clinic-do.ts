@@ -13,6 +13,7 @@ import {
   listContacts,
   listPendingOutbox,
   publishPendingEffects,
+  recordInboundEvent,
   runClinicMigrations,
   TenantMismatchError,
   type ClinicCaller,
@@ -326,6 +327,82 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       drained,
       fanout: fanoutResult,
     }
+  }
+
+  /**
+   * Status Meta (#32): dedup no inbound_events; NÃO cria contacto/conversa.
+   * Actualização de delivery outbound fica para #33.
+   */
+  async recordInboundStatus(
+    caller: ClinicCaller,
+    input: {
+      providerEventKey: string
+      statusMessageId: string
+      status: string
+      providerTimestamp?: number | null
+    },
+  ): Promise<{ duplicate: boolean; inboundId: string }> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const meta = bindOrAssertTenant(this.#db, caller, this.#clock)
+    const recorded = this.#db.transactionSync(() =>
+      recordInboundEvent(
+        this.#db,
+        {
+          tenantId: meta.tenantId,
+          providerEventKey: input.providerEventKey,
+          payload: {
+            kind: 'status',
+            statusMessageId: input.statusMessageId,
+            status: input.status,
+            providerTimestamp: input.providerTimestamp ?? null,
+          },
+        },
+        this.#clock,
+      ),
+    )
+    return { duplicate: recorded.duplicate, inboundId: recorded.row.id }
+  }
+
+  /** Interrupção via webhook Meta (#32) — espelho DO + evento WS. */
+  async applyWhatsappInterrupt(
+    caller: ClinicCaller,
+    input: { reason: string; phoneNumberId?: string | null },
+  ): Promise<{ status: string }> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    bindOrAssertTenant(this.#db, caller, this.#clock)
+    const channel = clinicWhatsapp.interruptWhatsappChannel(
+      this.#db,
+      caller.tenantId,
+      input,
+      this.#clock,
+    )
+    if (channel) {
+      const evt = appendRealtimeEvent(
+        this.#db,
+        {
+          tenantId: caller.tenantId,
+          type: 'whatsapp.interrupted',
+          entityType: 'whatsapp_channel',
+          entityId: caller.tenantId,
+          eventId: `rt:whatsapp.interrupted:${caller.tenantId}:${this.#clock.nowMs()}`,
+          payload: {
+            status: 'interrupted',
+            reason: input.reason,
+          },
+        },
+        this.#clock,
+      )
+      await deliverEventToSockets(
+        this.#db,
+        this.#asDeliverySockets(),
+        evt,
+        this.#authority(),
+        this.#clock,
+      )
+    }
+    return { status: channel?.status ?? 'interrupted' }
   }
 
   async #fanoutOutboxes(

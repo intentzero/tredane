@@ -16,12 +16,15 @@ import {
 import { ensureOpenOpportunity } from './pipeline/operations'
 import type { ClinicDb } from './store'
 import { bindOrAssertTenant } from './tenant'
+import { touchWhatsappLastInbound } from './whatsapp/channel'
 
 export type IngestContactMessageInput = {
   providerEventKey: string
   waId: string
   displayName?: string
   body: string
+  /** Timestamp do provedor (ms); preserva ordem Meta quando disponível (#32). */
+  occurredAtMs?: number
 }
 
 export type IngestContactMessageResult = {
@@ -63,7 +66,10 @@ export function ingestContactMessage(
         payload: {
           waId: input.waId,
           displayName: input.displayName ?? null,
-          body: input.body,
+          // Sem corpo completo no inbound_events para alinhar REQ-070 em dumps;
+          // a mensagem lógica guarda o texto na tabela messages.
+          bodyPreview: input.body.slice(0, 120),
+          occurredAtMs: input.occurredAtMs ?? null,
         },
       },
       clock,
@@ -100,8 +106,15 @@ export function ingestContactMessage(
         contactId: contact.id,
         providerEventKey: input.providerEventKey,
         body: input.body,
+        occurredAtMs: input.occurredAtMs,
       },
       clock,
+    )
+
+    touchWhatsappLastInbound(
+      db,
+      meta.tenantId,
+      input.occurredAtMs ?? clock.nowMs(),
     )
 
     // AC-04: conversa + oportunidade; VAL-02 hipótese = 1 open / conversa.
