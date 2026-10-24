@@ -15,8 +15,8 @@ Atrair clínicas de estética para o piloto. Leitora principal: dona ou respons�
 | Site separado do painel | **Confirmado** |
 | Desenho aprovado: [mock](../design/landing/Main.dc.html) e previews em [design/landing/previews](../design/landing/previews/) | **Confirmado** |
 | Títulos acima da escala de tokens (até 60px no topo e 36px nas seções) só no site | **Confirmado** com o desenho |
-| Implementação: HTML e CSS estáticos em `site/public`, servidos por Cloudflare Workers com arquivos estáticos (`site/wrangler.jsonc`), sem JavaScript e sem fontes ou scripts de terceiros | **Proposto** |
-| Fonte Inter: o site usa Inter se estiver instalada e cai para a fonte do sistema; hospedar o arquivo da fonte depende da conferência da licença ([ADR-0013](../adr/0013-design-system-components.md)) | **Proposto** |
+| Tecnologia: **Astro**, gerando HTML estático (24/10/2026, escolha do responsável), em `site/`, com pacote próprio e independente do painel; servido por Cloudflare Workers com arquivos estáticos (`site/wrangler.jsonc`, pasta `dist`) | **Confirmado** |
+| Sem JavaScript no navegador, sem fontes ou scripts de terceiros; Inter hospedada no próprio site (`@fontsource/inter`, licença SIL OFL, a conferir antes de publicar, [ADR-0013](../adr/0013-design-system-components.md)) | **Proposto** |
 
 ## Seções e regras de conteúdo
 
@@ -36,6 +36,8 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: IA s
 - **LP-AC-03:** cores só do [tokens.json](../design/tokens.json), com os pares de contraste já verificados.
 - **LP-AC-04:** a página não carrega recursos de terceiros (fontes, scripts, rastreadores).
 - **LP-AC-05:** nenhum texto `[A DEFINIR]`, `[A PUBLICAR]` ou endereço `.example` existe na versão publicada.
+- **LP-AC-06:** verificador automático de acessibilidade (axe, regras WCAG 2.0 a 2.2 AA e boas práticas) sem violações em 390px e 1440px, e Lighthouse com 100 em acessibilidade, SEO, boas práticas e desempenho. Medido em 24/10/2026 sobre a versão com marcadores; repetir antes de publicar, e fazer teste manual com leitor de tela (**Em aberto**).
+- **LP-AC-07 (SEO):** cada página tem título único, descrição, `lang`, URL canônica, Open Graph com imagem de 1200×630, ícone, `robots.txt`, mapa do site e dados estruturados `Organization` sem informações inventadas.
 
 ## Em aberto (bloqueia a publicação, não o desenvolvimento)
 
@@ -46,4 +48,5 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: IA s
 | Política de privacidade publicada em `/privacidade`; depende do parecer jurídico ([dossiê](legal-review-brief.md)) e do CNPJ (VAL-13) | Responsável pelo produto + advogado |
 | Condições e preço do piloto | Responsável pelo produto |
 | Logo e marca definitivos (hoje provisórios) | Responsável pelo produto |
+| Domínio real em `SITE_URL` (canônica, Open Graph e mapa do site usam o padrão `tredane.example` até lá) e endereço do painel em `PUBLIC_APP_URL`, e-mail em `PUBLIC_CONTACT_EMAIL` | Responsável pelo produto |
 | Medição de visitas: só com ferramenta sem cookies e após a política de privacidade | Responsável pelo produto |

@@ -1,22 +1,20 @@
-<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tredane — atendimento para clínicas de estética</title>
-<meta name="description" content="Conversas do WhatsApp, acompanhamento de cada contato e agenda própria em um só painel, feito para usar no celular. Piloto aberto para clínicas de estética.">
-<meta name="theme-color" content="#FFFFFF">
-<link rel="stylesheet" href="/styles.css">
-</head>
-<body>
-<!-- Antes de publicar, preencher os itens marcados como [A DEFINIR] e os endereços .example (DEC-044). -->
+---
+import Base from '../layouts/Base.astro'
+// Antes de publicar, preencher os itens [A DEFINIR] e os endereços .example (DEC-044, LP-AC-05).
+const appUrl = import.meta.env.PUBLIC_APP_URL ?? 'https://app.tredane.example'
+const contactEmail = import.meta.env.PUBLIC_CONTACT_EMAIL ?? 'contato@tredane.example'
+---
+<Base
+  title="Tredane — atendimento para clínicas de estética"
+  description="Conversas do WhatsApp, acompanhamento de cada contato e agenda própria em um só painel, feito para usar no celular. Piloto aberto para clínicas de estética."
+>
 <a class="skip" href="#conteudo">Ir para o conteúdo</a>
 
 <header class="topbar">
 <div class="wrap">
 <a class="brand" href="#inicio"><span class="brand-mark" aria-hidden="true">T</span>Tredane</a>
 <nav class="nav" aria-label="Principal">
-<a class="nav-link" href="https://app.tredane.example">Entrar</a>
+<a class="nav-link" href={appUrl}>Entrar</a>
 <a class="btn btn-primary btn-sm" href="#piloto">Quero participar</a>
 </nav>
 </div>
@@ -110,7 +108,7 @@
 <div class="pilot-text">
 <h2 id="pl-t">Participe do piloto</h2>
 <p class="sub">Estamos escolhendo clínicas de estética para usar o Tredane desde o começo, com acompanhamento da nossa equipe.</p>
-<a class="btn btn-primary" href="mailto:contato@tredane.example?subject=Piloto%20Tredane">Falar com o Tredane</a>
+<a class="btn btn-primary" href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>Falar com o Tredane</a>
 <p class="note">Condições do piloto: [A DEFINIR]</p>
 </div>
 <div class="pilot-lists">
@@ -161,9 +159,8 @@
 <span>© 2026 Tredane</span>
 <span class="footer-links">
 <a href="/privacidade">Política de privacidade [A PUBLICAR]</a>
-<a href="mailto:contato@tredane.example">Contato</a>
+<a href={`mailto:${contactEmail}`}>Contato</a>
 </span>
 </div>
 </footer>
-</body>
-</html>
+</Base>

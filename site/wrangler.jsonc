@@ -4,6 +4,6 @@
   "name": "tredane-site",
   "compatibility_date": "2026-10-23",
   "assets": {
-    "directory": "./public"
+    "directory": "./dist"
   }
 }

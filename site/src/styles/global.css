@@ -18,7 +18,7 @@
   --ai-tint: #F7F4FD;
   --gutter: clamp(16px, 4vw, 48px);
   --section: clamp(48px, 7vw, 96px);
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 16px;
   line-height: 1.5;
   color: var(--text-primary);
