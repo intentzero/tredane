@@ -8,7 +8,9 @@
   "vars": {
     "ENVIRONMENT": "development",
     "AUTH_MODE": "synthetic",
-    "CLERK_AUTHORIZED_PARTIES": "http://localhost:5173"
+    "CLERK_AUTHORIZED_PARTIES": "http://localhost:5173",
+    "APP_BASE_URL": "http://localhost:5173",
+    "EMAIL_TRANSPORT": "simulated"
   },
   "d1_databases": [
     {

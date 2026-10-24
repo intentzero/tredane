@@ -17,6 +17,12 @@ import {
   createPlatformRoutes,
   type PlatformRouteOptions,
 } from '../platform'
+import {
+  createTeamRoutes,
+  type TeamRouteOptions,
+} from '../team'
+import type { Clock } from '../db/clock'
+import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
 import type { WorkerBindings } from './bindings'
 
@@ -32,8 +38,13 @@ export type CreateAppOptions = {
   authServicesFactory?: (env: WorkerBindings) => AuthServices
   /** Invalidator D1→DO (testes de falha de notificação). */
   invalidatorFactory?: (env: WorkerBindings) => ClinicAccessInvalidator
-  /** AdminDb sync para revoke em testes unitários. */
+  /** AdminDb sync para revoke / equipe em testes unitários. */
   syncAdminDbFactory?: (env: WorkerBindings) => AdminDb | null
+  /** Relógio injetável (limites temporais de convite). */
+  clockFactory?: () => Clock
+  /** Transporte de e-mail (simulado por omissão em testes). */
+  emailFactory?: (env: WorkerBindings) => EmailTransport
+  appBaseUrlFactory?: (env: WorkerBindings) => string
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -49,6 +60,8 @@ export function createApp(opts: CreateAppOptions = {}) {
   app.use('/api/me', createAuthServicesMiddleware(factory))
   app.use('/api/tenants/*', createAuthServicesMiddleware(factory))
   app.use('/api/platform/*', createAuthServicesMiddleware(factory))
+  app.use('/api/invitations/*', createAuthServicesMiddleware(factory))
+  app.use('/api/invitations', createAuthServicesMiddleware(factory))
 
   app.route('/', createAuthRoutes())
 
@@ -63,6 +76,14 @@ export function createApp(opts: CreateAppOptions = {}) {
     syncAdminDbFactory: opts.syncAdminDbFactory,
   }
   app.route('/', createPlatformRoutes(platformOpts))
+
+  const teamOpts: TeamRouteOptions = {
+    syncAdminDbFactory: opts.syncAdminDbFactory,
+    clockFactory: opts.clockFactory,
+    emailFactory: opts.emailFactory,
+    appBaseUrlFactory: opts.appBaseUrlFactory,
+  }
+  app.route('/', createTeamRoutes(teamOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

@@ -12,7 +12,10 @@
     "ENVIRONMENT": "development",
     // synthetic: Bearer synth:<user_id> (sem segredos). Trocar para clerk + .dev.vars com chaves reais.
     "AUTH_MODE": "synthetic",
-    "CLERK_AUTHORIZED_PARTIES": "http://localhost:5173"
+    "CLERK_AUTHORIZED_PARTIES": "http://localhost:5173",
+    // #25: links de convite; EMAIL_TRANSPORT=simulated até o provedor ser aprovado.
+    "APP_BASE_URL": "http://localhost:5173",
+    "EMAIL_TRANSPORT": "simulated"
   },
   "assets": {
     "not_found_handling": "single-page-application",

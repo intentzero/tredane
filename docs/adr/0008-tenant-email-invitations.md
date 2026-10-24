@@ -10,7 +10,9 @@ Um **owner** pode convidar um **attendant** exclusivamente para tenant no qual p
 
 **Não usar Clerk Organizations**, e **não permitir que um owner crie convites para owner**. A gestão de owners é exclusiva do superadmin.
 
-## Contrato técnico proposto para F1 (não implementado)
+## Contrato técnico para F1
+
+**Estado de implementação:** API + adaptador simulado em [#25](https://github.com/intentzero/tredane/issues/25) / [f1-team-invites.md](../implementation/f1-team-invites.md). Provedor real de e-mail continua Em aberto.
 
 - `tenant_invitations` guarda ID, tenant_id, normalized_email, role=attendant, issued_by_clerk_user_id, verifier_hash, status, expires_at, accepted_by_clerk_user_id e timestamps.
 - Credencial de alta entropia, única e não previsível. Guardar apenas hash/verificador do segredo, não o token em claro; mensagens e logs não devem expor token.

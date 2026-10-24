@@ -11,12 +11,15 @@ import { AuthError } from './errors'
 import { platformAllows, roleAllows } from './permissions'
 import { requireSession, type SessionAuthenticator } from './session'
 import { requireVerifiedSuperadmin, type AuthorityReader } from './superadmin'
+import type { VerifiedEmailReader } from './verified-email'
 import type { HumanPrincipal, Permission, TenantContext } from './types'
 
 export type AuthServices = {
   sessions: SessionAuthenticator
   authority: AuthorityReader
   adminDb: AsyncAdminDb
+  /** Obrigatório para aceite de convite (#25); opcional noutros fluxos. */
+  verifiedEmails?: VerifiedEmailReader
 }
 
 export async function authenticateHuman(
