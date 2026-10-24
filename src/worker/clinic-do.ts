@@ -13,7 +13,6 @@ import {
   listContacts,
   listPendingOutbox,
   publishPendingEffects,
-  recordInboundEvent,
   runClinicMigrations,
   TenantMismatchError,
   type ClinicCaller,
@@ -330,8 +329,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   /**
-   * Status Meta (#32): dedup no inbound_events; NÃO cria contacto/conversa.
-   * Actualização de delivery outbound fica para #33.
+   * Status Meta (#32/#33): dedup inbound_events + reconciliação monotónica de outbound.
    */
   async recordInboundStatus(
     caller: ClinicCaller,
@@ -341,27 +339,54 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       status: string
       providerTimestamp?: number | null
     },
-  ): Promise<{ duplicate: boolean; inboundId: string }> {
+  ): Promise<{ duplicate: boolean; inboundId: string; advanced: boolean }> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    const meta = bindOrAssertTenant(this.#db, caller, this.#clock)
-    const recorded = this.#db.transactionSync(() =>
-      recordInboundEvent(
-        this.#db,
-        {
-          tenantId: meta.tenantId,
-          providerEventKey: input.providerEventKey,
-          payload: {
-            kind: 'status',
-            statusMessageId: input.statusMessageId,
-            status: input.status,
-            providerTimestamp: input.providerTimestamp ?? null,
-          },
-        },
-        this.#clock,
-      ),
+    const result = clinicInbox.reconcileOutboundStatusOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
     )
-    return { duplicate: recorded.duplicate, inboundId: recorded.row.id }
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return {
+      duplicate: result.value.duplicate,
+      inboundId: result.value.inboundId,
+      advanced: result.value.advanced,
+    }
+  }
+
+  /** Resultado Graph/synthetic do consumer de `whatsapp.send` (#33). */
+  async applyOutboundSendResult(
+    caller: ClinicCaller,
+    input: {
+      outboundId: string
+      outboxEventId: string
+      idempotencyKey: string
+      outcome: 'succeeded' | 'failed' | 'uncertain'
+      providerMessageId?: string | null
+      errorCode?: string | null
+    },
+  ): Promise<{ deliveryState: string; advanced: boolean }> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicInbox.applyOutboundSendResultOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return {
+      deliveryState: result.value.message.deliveryState,
+      advanced: result.value.advanced,
+    }
   }
 
   /** Interrupção via webhook Meta (#32) — espelho DO + evento WS. */
@@ -833,6 +858,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       input,
       this.#clock,
     )
+    // Catálogo sintético de modelos no connect/reconnect (#33; GATE-10 para live).
+    if (input.status === 'connected') {
+      clinicInbox.seedSyntheticWhatsappTemplates(this.#db, tenantId, this.#clock)
+    }
     await this.#fanoutConfigEvent(
       caller,
       'whatsapp.channel_updated',
@@ -847,6 +876,19 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       },
     )
     return row
+  }
+
+  async listWhatsappTemplates(
+    caller: ClinicCaller,
+    opts: { approvedOnly?: boolean } = {},
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const meta = bindOrAssertTenant(this.#db, caller, this.#clock)
+    if (clinicInbox.listWhatsappTemplates(this.#db, meta.tenantId).length === 0) {
+      clinicInbox.seedSyntheticWhatsappTemplates(this.#db, meta.tenantId, this.#clock)
+    }
+    return clinicInbox.listWhatsappTemplates(this.#db, meta.tenantId, opts)
   }
 
   async updateClinicTimezone(caller: ClinicCaller, timezone: string) {

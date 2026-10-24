@@ -1,12 +1,18 @@
 import { ChevronLeft } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { Button, TextArea, TextField } from 'react-aria-components'
-import type { InboxConversationDetail, InboxMessage, PanelApi } from '../../api'
+import type {
+  InboxConversationDetail,
+  InboxMessage,
+  PanelApi,
+  WhatsappTemplateItem,
+} from '../../api'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import {
   assigneeLine,
   contactLabel,
+  deliveryLabel,
   statusClass,
   statusLabel,
 } from './format'
@@ -24,7 +30,15 @@ function PlainText({ text }: { text: string }) {
   return <>{text}</>
 }
 
-function MessageBubble({ m }: { m: InboxMessage }) {
+function MessageBubble({
+  m,
+  onRetry,
+  busy,
+}: {
+  m: InboxMessage
+  onRetry?: (m: InboxMessage) => void
+  busy: boolean
+}) {
   if (m.direction === 'system') {
     return (
       <div className="inbox-msg-system" role="status">
@@ -33,6 +47,8 @@ function MessageBubble({ m }: { m: InboxMessage }) {
     )
   }
   const outbound = m.direction === 'outbound'
+  const failed = outbound && m.deliveryState === 'failed'
+  const unknown = outbound && m.deliveryState === 'unknown'
   return (
     <div
       className={outbound ? 'inbox-msg inbox-msg-out' : 'inbox-msg inbox-msg-in'}
@@ -45,8 +61,22 @@ function MessageBubble({ m }: { m: InboxMessage }) {
           hour: '2-digit',
           minute: '2-digit',
         })}
-        {outbound ? ` · ${m.deliveryState}` : ''}
+        {outbound ? ` · ${deliveryLabel(m.deliveryState)}` : ''}
       </span>
+      {failed && onRetry ? (
+        <Button
+          className="panel-btn-secondary inbox-msg-retry"
+          onPress={() => onRetry(m)}
+          isDisabled={busy}
+        >
+          Tentar de novo
+        </Button>
+      ) : null}
+      {unknown ? (
+        <span className="inbox-msg-unknown-hint" role="status">
+          Sem nova tentativa até reconciliação
+        </span>
+      ) : null}
     </div>
   )
 }
@@ -64,6 +94,13 @@ export function InboxThread({
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [templates, setTemplates] = useState<WhatsappTemplateItem[]>([])
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<WhatsappTemplateItem | null>(null)
+  const [templateParams, setTemplateParams] = useState<Record<string, string>>(
+    {},
+  )
   const composerId = useId()
 
   async function load() {
@@ -91,6 +128,15 @@ export function InboxThread({
           .catch(() => {
             /* leitura best-effort */
           })
+      }
+      if (!res.messagingWindow?.open) {
+        void api
+          .listWhatsappTemplates(tenantId, {
+            generation,
+            expectGeneration: () => generation,
+          })
+          .then((t) => setTemplates(t.items))
+          .catch(() => setTemplates([]))
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao abrir conversa')
@@ -160,9 +206,15 @@ export function InboxThread({
     }
   }
 
-  async function send() {
-    const body = draft.trim()
-    if (!body || !detail) return
+  async function sendPayload(payload: {
+    body?: string
+    template?: {
+      name: string
+      language: string
+      params: Record<string, string>
+    }
+  }) {
+    if (!detail) return
     setBusy(true)
     setNotice(null)
     const clientRequestId = `client:${crypto.randomUUID()}`
@@ -170,10 +222,13 @@ export function InboxThread({
       const res = await api.sendInboxMessage(
         tenantId,
         conversationId,
-        { body, clientRequestId },
+        { ...payload, clientRequestId },
         { generation, expectGeneration: () => generation },
       )
       setDraft('')
+      setSelectedTemplate(null)
+      setTemplateParams({})
+      setPickerOpen(false)
       setDetail((prev) =>
         prev
           ? {
@@ -189,6 +244,43 @@ export function InboxThread({
       setNotice(err instanceof Error ? err.message : 'Falha ao enviar')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function send() {
+    const body = draft.trim()
+    if (!body || !detail) return
+    if (!detail.messagingWindow?.open) {
+      setNotice('Fora da janela de 24 h do WhatsApp — escolha um modelo aprovado')
+      return
+    }
+    await sendPayload({ body })
+  }
+
+  async function sendTemplate() {
+    if (!selectedTemplate) return
+    for (const key of selectedTemplate.paramKeys) {
+      if (!templateParams[key]?.trim()) {
+        setNotice(`Preencha o parâmetro: ${key}`)
+        return
+      }
+    }
+    await sendPayload({
+      template: {
+        name: selectedTemplate.name,
+        language: selectedTemplate.language,
+        params: templateParams,
+      },
+    })
+  }
+
+  async function retryFailed(m: InboxMessage) {
+    // Nova tentativa = nova intenção (REQ-013); não reutiliza clientRequestId.
+    if (detail?.messagingWindow?.open) {
+      await sendPayload({ body: m.body })
+    } else {
+      setNotice('Fora da janela — use um modelo para tentar de novo')
+      setPickerOpen(true)
     }
   }
 
@@ -218,6 +310,7 @@ export function InboxThread({
   const isMine =
     detail.assigneeClerkUserId != null &&
     detail.assigneeClerkUserId === viewerClerkUserId
+  const windowOpen = detail.messagingWindow?.open !== false
 
   return (
     <div className="inbox-thread">
@@ -296,45 +389,146 @@ export function InboxThread({
           <p className="inbox-timeline-more">Há mensagens mais antigas no histórico.</p>
         ) : null}
         {detail.messages.map((m) => (
-          <MessageBubble key={m.id} m={m} />
+          <MessageBubble
+            key={m.id}
+            m={m}
+            busy={busy}
+            onRetry={m.deliveryState === 'failed' ? retryFailed : undefined}
+          />
         ))}
       </div>
 
       {detail.status !== 'closed' ? (
-        <form
-          className="inbox-composer"
-          onSubmit={(e) => {
-            e.preventDefault()
-            void send()
-          }}
-        >
-          <TextField
-            className="inbox-composer-field"
-            aria-label="Mensagem"
-            value={draft}
-            onChange={setDraft}
-          >
-            <TextArea
-              id={composerId}
-              className="inbox-composer-input"
-              placeholder="Escreva uma resposta…"
-              rows={2}
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                  e.preventDefault()
-                  void send()
-                }
+        <div className="inbox-composer-wrap">
+          {!windowOpen ? (
+            <p className="inbox-window-banner" role="status">
+              Fora da janela de 24 h do WhatsApp
+            </p>
+          ) : null}
+          {windowOpen ? (
+            <form
+              className="inbox-composer"
+              onSubmit={(e) => {
+                e.preventDefault()
+                void send()
               }}
-            />
-          </TextField>
-          <Button
-            className="panel-btn-primary"
-            type="submit"
-            isDisabled={busy || !draft.trim()}
-          >
-            Enviar
-          </Button>
-        </form>
+            >
+              <TextField
+                className="inbox-composer-field"
+                aria-label="Mensagem"
+                value={draft}
+                onChange={setDraft}
+              >
+                <TextArea
+                  id={composerId}
+                  className="inbox-composer-input"
+                  placeholder="Escreva uma resposta…"
+                  rows={2}
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault()
+                      void send()
+                    }
+                  }}
+                />
+              </TextField>
+              <Button
+                className="panel-btn-primary"
+                type="submit"
+                isDisabled={busy || !draft.trim()}
+              >
+                Enviar
+              </Button>
+            </form>
+          ) : (
+            <div className="inbox-composer inbox-composer-template">
+              <Button
+                className="panel-btn-primary"
+                onPress={() => {
+                  setPickerOpen((o) => !o)
+                  if (templates.length === 0) {
+                    void api
+                      .listWhatsappTemplates(tenantId, {
+                        generation,
+                        expectGeneration: () => generation,
+                      })
+                      .then((t) => setTemplates(t.items))
+                  }
+                }}
+                isDisabled={busy}
+              >
+                Escolher modelo
+              </Button>
+            </div>
+          )}
+
+          {pickerOpen ? (
+            <div className="inbox-template-picker" role="dialog" aria-label="Modelos WhatsApp">
+              {templates.length === 0 ? (
+                <p>Nenhum modelo aprovado sincronizado.</p>
+              ) : (
+                <ul className="inbox-template-list">
+                  {templates.map((t) => (
+                    <li key={`${t.name}:${t.language}`}>
+                      <button
+                        type="button"
+                        className={
+                          selectedTemplate?.name === t.name
+                            ? 'inbox-template-item inbox-template-item-active'
+                            : 'inbox-template-item'
+                        }
+                        onClick={() => {
+                          setSelectedTemplate(t)
+                          const next: Record<string, string> = {}
+                          for (const k of t.paramKeys) next[k] = templateParams[k] ?? ''
+                          setTemplateParams(next)
+                        }}
+                      >
+                        <strong>{t.name}</strong>
+                        <span>
+                          {t.category}
+                          {t.pricingCategory ? ` · ${t.pricingCategory}` : ''}
+                        </span>
+                        <span className="inbox-template-pricing">{t.pricingNote}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {selectedTemplate ? (
+                <div className="inbox-template-form">
+                  <p className="inbox-template-preview">
+                    <PlainText text={selectedTemplate.bodyPreview} />
+                  </p>
+                  <p className="inbox-template-pricing" role="note">
+                    {selectedTemplate.pricingNote}
+                  </p>
+                  {selectedTemplate.paramKeys.map((key) => (
+                    <label key={key} className="inbox-template-param">
+                      <span>{key}</span>
+                      <input
+                        value={templateParams[key] ?? ''}
+                        onChange={(e) =>
+                          setTemplateParams((prev) => ({
+                            ...prev,
+                            [key]: e.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                  ))}
+                  <Button
+                    className="panel-btn-primary"
+                    onPress={() => void sendTemplate()}
+                    isDisabled={busy}
+                  >
+                    Enviar modelo
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       ) : (
         <p className="inbox-composer-closed">Conversa encerrada. Nova mensagem do contacto reabre o histórico.</p>
       )}

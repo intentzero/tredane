@@ -1,7 +1,7 @@
 /**
- * Consumer da fila INBOUND_EVENTS (#32).
- * whatsapp_webhook → DO ingest (dedup) / status sem contacto / interrupção.
- * clinic_outbox → no-op ack até #33 (envio/reconciliação).
+ * Consumer da fila INBOUND_EVENTS (#32/#33).
+ * whatsapp_webhook → DO ingest (dedup) / status / interrupção.
+ * clinic_outbox → envio Meta + reconciliação (`whatsapp.send`).
  */
 import { queueCaller, workerCaller } from '../clinic'
 import { systemClock, type Clock } from '../db/clock'
@@ -20,6 +20,11 @@ import {
 } from './webhook-receipts'
 import { markBindingInterrupted } from './bindings'
 import type { ClinicDurableObject } from '../worker/clinic-do'
+import {
+  processClinicOutboxMessage,
+  type OutboundSendClinicStub,
+} from './outbound-send'
+import type { MetaAdapter } from './meta'
 
 export type QueueConsumerDeps = {
   env: WorkerBindings
@@ -37,7 +42,8 @@ export type QueueConsumerDeps = {
     recordInboundStatus: (
       ...args: Parameters<ClinicDurableObject['recordInboundStatus']>
     ) => ReturnType<ClinicDurableObject['recordInboundStatus']> | Promise<unknown>
-  }
+  } & Partial<OutboundSendClinicStub>
+  metaAdapter?: MetaAdapter
   log?: (entry: {
     level: 'info' | 'warn' | 'error'
     event: string
@@ -211,16 +217,41 @@ export async function handleInboundQueueBatch(
     const attempts = message.attempts
 
     if (isClinicOutboxMessage(body)) {
-      // #33 consumirá para envio/reconciliação; ack evita DLQ de outbox interno.
-      log({
-        level: 'info',
-        event: 'queue.clinic_outbox_ack',
-        detail: {
-          tenantId: body.tenantId,
-          eventId: body.eventId,
-          type: body.type,
-        },
-      })
+      try {
+        await processClinicOutboxMessage(body, {
+          env: deps.env,
+          clock: deps.clock,
+          syncAdminDb: deps.syncAdminDb,
+          metaAdapter: deps.metaAdapter,
+          clinicStub: deps.clinicStub
+            ? (tenantId) => {
+                const s = deps.clinicStub!(tenantId)
+                return {
+                  applyOutboundSendResult: (caller, input) => {
+                    if (!s.applyOutboundSendResult) {
+                      throw new Error('applyOutboundSendResult_missing')
+                    }
+                    return s.applyOutboundSendResult(caller, input)
+                  },
+                }
+              }
+            : undefined,
+          log,
+        })
+      } catch (err) {
+        const code = err instanceof Error ? err.message : 'outbox_process_failed'
+        log({
+          level: 'error',
+          event: 'queue.clinic_outbox_failed',
+          detail: {
+            tenantId: body.tenantId,
+            eventId: body.eventId,
+            type: body.type,
+            errorCode: code.slice(0, 80),
+          },
+        })
+        // Não retry automático de efeito externo incerto — ack e deixa unknown/failed no DO.
+      }
       message.ack()
       continue
     }

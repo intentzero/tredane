@@ -95,3 +95,25 @@ export function previewLine(c: InboxConversation, viewerId: string | null): stri
   }
   return preview
 }
+
+/** Rótulos §6.1 ux-ui.md — nunca expor raw deliveryState ao utilizador. */
+export function deliveryLabel(state: string): string {
+  switch (state) {
+    case 'pending':
+      return 'Enviando…'
+    case 'accepted':
+      return 'Enviada'
+    case 'delivered':
+      return 'Entregue'
+    case 'read':
+      return 'Lida'
+    case 'failed':
+      return 'Não enviada'
+    case 'unknown':
+      return 'Verificando envio…'
+    case 'received':
+      return 'Recebida'
+    default:
+      return state
+  }
+}

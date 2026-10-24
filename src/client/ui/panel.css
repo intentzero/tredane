@@ -1683,6 +1683,102 @@
   border-top: var(--size-border-width) solid var(--color-line-border);
 }
 
+.inbox-composer-wrap {
+  flex: none;
+  border-top: var(--size-border-width) solid var(--color-line-border);
+  background: var(--color-surface-card);
+}
+
+.inbox-window-banner {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-caption, 0.875rem);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-app);
+}
+
+.inbox-composer-template {
+  border-top: none;
+}
+
+.inbox-msg-retry {
+  margin-top: var(--space-1);
+  align-self: flex-end;
+}
+
+.inbox-msg-unknown-hint {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-caption, 0.875rem);
+  color: var(--color-text-secondary);
+}
+
+.inbox-template-picker {
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--size-border-width) solid var(--color-line-border);
+  max-height: 280px;
+  overflow: auto;
+}
+
+.inbox-template-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.inbox-template-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-app);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.inbox-template-item-active {
+  border-color: var(--color-action-primary, var(--color-text-primary));
+}
+
+.inbox-template-pricing {
+  font-size: var(--font-size-caption, 0.875rem);
+  color: var(--color-text-secondary);
+}
+
+.inbox-template-form {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.inbox-template-preview {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.inbox-template-param {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-caption, 0.875rem);
+}
+
+.inbox-template-param input {
+  padding: var(--space-2);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-md);
+  font: inherit;
+}
+
 .inbox-contact-dl {
   margin: 0;
   padding: 0 var(--space-4);

@@ -9,17 +9,47 @@ import {
   type AuthServices,
 } from '../auth'
 import { bootClinicDb } from '../clinic/test-db'
+import { clinicInbox, clinicWhatsapp } from '../clinic'
 import { createMemoryInboxRegistry } from './gateway'
+
+function ensureClinic(
+  clinics: Map<string, ReturnType<typeof bootClinicDb>>,
+  tenantId: string,
+) {
+  let boot = clinics.get(tenantId)
+  if (!boot) {
+    boot = bootClinicDb()
+    clinics.set(tenantId, boot)
+  }
+  return boot
+}
+
+function connectWhatsappForSend(
+  clinics: Map<string, ReturnType<typeof bootClinicDb>>,
+  tenantId: string,
+) {
+  const { db, clock } = ensureClinic(clinics, tenantId)
+  clinicWhatsapp.syncWhatsappChannel(
+    db,
+    tenantId,
+    {
+      status: 'connected',
+      bindingId: 'bind_http_test',
+      phoneNumberId: 'pn_http_test',
+      wabaId: 'waba_http_test',
+      displayPhone: '+15550001111',
+      action: 'channel_connected',
+    },
+    clock,
+  )
+  clinicInbox.seedSyntheticWhatsappTemplates(db, tenantId, clock)
+}
 
 function testInboxApp() {
   const admin = bootAdminDb()
   const clinics = new Map<string, ReturnType<typeof bootClinicDb>>()
   const registry = createMemoryInboxRegistry((tenantId) => {
-    let boot = clinics.get(tenantId)
-    if (!boot) {
-      boot = bootClinicDb()
-      clinics.set(tenantId, boot)
-    }
+    const boot = ensureClinic(clinics, tenantId)
     return { db: boot.db, clock: boot.clock }
   })
   const services: AuthServices = {
@@ -36,6 +66,7 @@ function testInboxApp() {
   })
   return {
     app,
+    clinics,
     close: () => {
       for (const c of clinics.values()) c.close()
       admin.close()
@@ -154,7 +185,7 @@ describe('HTTP — caixa de entrada (#29)', () => {
   })
 
   it('mensagem HTML maliciosa é devolvida como texto (não HTML executável)', async () => {
-    const { app, close, auth } = testInboxApp()
+    const { app, close, auth, clinics } = testInboxApp()
     try {
       await app.request(
         'http://localhost/api/tenants/clinic-demo-a/inbox/seed-demo',
@@ -164,6 +195,7 @@ describe('HTTP — caixa de entrada (#29)', () => {
           body: '{}',
         }),
       )
+      connectWhatsappForSend(clinics, 'clinic-demo-a')
       const list = await app.request(
         'http://localhost/api/tenants/clinic-demo-a/inbox/conversations?filter=mine',
         auth('user_synth_attendant_a'),
@@ -180,8 +212,11 @@ describe('HTTP — caixa de entrada (#29)', () => {
         }),
       )
       expect(sent.status).toBe(201)
-      const payload = (await sent.json()) as { message: { body: string } }
+      const payload = (await sent.json()) as {
+        message: { body: string; deliveryState: string }
+      }
       expect(payload.message.body).toBe(xss)
+      expect(payload.message.deliveryState).toBe('accepted')
       // Serialização JSON — sem campo html / sanitizedHtml
       expect(JSON.stringify(payload)).not.toMatch(/dangerouslySetInnerHTML|__html/)
     } finally {

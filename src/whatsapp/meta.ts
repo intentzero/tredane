@@ -1,9 +1,46 @@
 /**
- * Adaptador Meta Embedded Signup (#31).
- * Default: synthetic (fixtures). Live: troca de código Graph API.
+ * Adaptador Meta Embedded Signup (#31) + envio de mensagens (#33).
+ * Default: synthetic (fixtures). Live: Graph API.
  * App Review / WABA real = gates humanos (#18) — não exigidos aqui.
  */
 import type { MetaMode, MetaTokenExchangeResult } from './types'
+
+export type MetaSendTextInput = {
+  phoneNumberId: string
+  accessToken: string
+  toWaId: string
+  body: string
+  /** Idempotency / client reference — synthetic usa para fixtures. */
+  clientRequestId?: string
+}
+
+export type MetaSendTemplateInput = {
+  phoneNumberId: string
+  accessToken: string
+  toWaId: string
+  templateName: string
+  language: string
+  /** Ordem dos parâmetros do corpo (body components). */
+  bodyParams: string[]
+  clientRequestId?: string
+}
+
+export type MetaSendSuccess = {
+  outcome: 'succeeded'
+  providerMessageId: string
+}
+
+export type MetaSendFailed = {
+  outcome: 'failed'
+  errorCode: string
+}
+
+export type MetaSendUncertain = {
+  outcome: 'uncertain'
+  errorCode: string
+}
+
+export type MetaSendResult = MetaSendSuccess | MetaSendFailed | MetaSendUncertain
 
 export type MetaAdapter = {
   mode: MetaMode
@@ -14,6 +51,8 @@ export type MetaAdapter = {
     displayPhone?: string | null
     displayName?: string | null
   }): Promise<MetaTokenExchangeResult>
+  sendTextMessage(input: MetaSendTextInput): Promise<MetaSendResult>
+  sendTemplateMessage(input: MetaSendTemplateInput): Promise<MetaSendResult>
 }
 
 export type MetaEnv = {
@@ -46,6 +85,18 @@ const SYNTH_OK = 'synth_code_valid'
 const SYNTH_FORGED = 'synth_code_forged'
 const SYNTH_EXPIRED = 'synth_code_expired'
 
+function syntheticSendResult(marker: string | undefined, phoneNumberId: string): MetaSendResult {
+  const m = (marker ?? '').toLowerCase()
+  if (m.includes('timeout') || m.includes('uncertain')) {
+    return { outcome: 'uncertain', errorCode: 'meta_timeout' }
+  }
+  if (m.includes('fail') || m.includes('reject')) {
+    return { outcome: 'failed', errorCode: 'meta_send_rejected' }
+  }
+  const suffix = (marker ?? phoneNumberId).replace(/[^a-zA-Z0-9_-]/g, '').slice(-24) || 'ok'
+  return { outcome: 'succeeded', providerMessageId: `wamid.synth_${suffix}` }
+}
+
 export function createSyntheticMetaAdapter(): MetaAdapter {
   return {
     mode: 'synthetic',
@@ -77,6 +128,67 @@ export function createSyntheticMetaAdapter(): MetaAdapter {
         displayName: input.displayName?.trim() || null,
       }
     },
+    async sendTextMessage(input) {
+      if (!input.accessToken || !input.phoneNumberId || !input.toWaId) {
+        return { outcome: 'failed', errorCode: 'meta_send_invalid' }
+      }
+      // Fixtures: token/corpo/clientRequestId com marcadores controlam o resultado.
+      const marker = `${input.clientRequestId ?? ''}|${input.body}|${input.accessToken}`
+      return syntheticSendResult(marker, input.phoneNumberId)
+    },
+    async sendTemplateMessage(input) {
+      if (!input.accessToken || !input.phoneNumberId || !input.toWaId) {
+        return { outcome: 'failed', errorCode: 'meta_send_invalid' }
+      }
+      if (!input.templateName.trim()) {
+        return { outcome: 'failed', errorCode: 'meta_template_missing' }
+      }
+      const marker = `${input.clientRequestId ?? ''}|${input.templateName}|${input.accessToken}`
+      return syntheticSendResult(marker, input.phoneNumberId)
+    },
+  }
+}
+
+async function liveGraphSend(
+  version: string,
+  phoneNumberId: string,
+  accessToken: string,
+  payload: Record<string, unknown>,
+): Promise<MetaSendResult> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 15_000)
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${version}/${encodeURIComponent(phoneNumberId)}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      },
+    )
+    if (!res.ok) {
+      return { outcome: 'failed', errorCode: `meta_http_${res.status}` }
+    }
+    const body = (await res.json()) as {
+      messages?: Array<{ id?: string }>
+    }
+    const id = body.messages?.[0]?.id
+    if (!id) {
+      return { outcome: 'uncertain', errorCode: 'meta_missing_message_id' }
+    }
+    return { outcome: 'succeeded', providerMessageId: id }
+  } catch (err) {
+    const name = err instanceof Error ? err.name : ''
+    if (name === 'AbortError') {
+      return { outcome: 'uncertain', errorCode: 'meta_timeout' }
+    }
+    return { outcome: 'uncertain', errorCode: 'meta_network_error' }
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -128,6 +240,31 @@ export function createLiveMetaAdapter(env: MetaEnv): MetaAdapter {
         displayPhone: (input.displayPhone ?? phoneNumberId).trim(),
         displayName: input.displayName?.trim() || null,
       }
+    },
+    async sendTextMessage(input) {
+      return liveGraphSend(version, input.phoneNumberId, input.accessToken, {
+        messaging_product: 'whatsapp',
+        to: input.toWaId,
+        type: 'text',
+        text: { preview_url: false, body: input.body },
+      })
+    },
+    async sendTemplateMessage(input) {
+      return liveGraphSend(version, input.phoneNumberId, input.accessToken, {
+        messaging_product: 'whatsapp',
+        to: input.toWaId,
+        type: 'template',
+        template: {
+          name: input.templateName,
+          language: { code: input.language },
+          components: [
+            {
+              type: 'body',
+              parameters: input.bodyParams.map((text) => ({ type: 'text', text })),
+            },
+          ],
+        },
+      })
     },
   }
 }

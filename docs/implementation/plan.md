@@ -84,7 +84,7 @@ F0 mantém seu histórico de scaffold D1/Drizzle; não reescrever migrações j�
 ### EP-T04 — WhatsApp oficial
 - Verificação de webhook e associação de canal/tenant.
 - Inbox de eventos idempotente, Queue + DLQ; outbox de mensagens com reconciliation em resultados incertos.
-- Modelos WhatsApp, política de janela de atendimento e custos por mensagem em aberto para confirmação antes de envio real.
+- Envio manual + janela 24 h + modelos + reconciliação: [f3-whatsapp-send.md](f3-whatsapp-send.md) (#33). Custos: tabela Meta vigente (sem preços inventados). Aprovação Meta real = GATE-10.
 
 ### EP-T05 — Agenda e consistência
 - Serviços, profissionais, salas/equipamentos, disponibilidade e bloqueios.

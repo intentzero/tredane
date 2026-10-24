@@ -10,6 +10,8 @@ import {
   sendOutboundMessageOp,
 } from './operations'
 import { seedSyntheticInboxOp } from './seed'
+import { seedSyntheticWhatsappTemplates } from './templates'
+import { syncWhatsappChannel } from '../whatsapp/channel'
 
 describe('Clinic inbox — conversas e histórico (#29)', () => {
   it('mesmo waId em clínicas A e B gera contactos/conversas independentes', () => {
@@ -261,10 +263,24 @@ describe('Clinic inbox — conversas e histórico (#29)', () => {
     }
   })
 
-  it('envio outbound simulado é idempotente por clientRequestId', () => {
+  it('envio outbound é idempotente por clientRequestId (pending + outbox)', () => {
     const { db, clock, close } = bootClinicDb()
     try {
       const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      syncWhatsappChannel(
+        db,
+        'clinic-demo-a',
+        {
+          status: 'connected',
+          bindingId: 'b1',
+          phoneNumberId: 'pn1',
+          wabaId: 'w1',
+          displayPhone: '+1555',
+          action: 'channel_connected',
+        },
+        clock,
+      )
+      seedSyntheticWhatsappTemplates(db, 'clinic-demo-a', clock)
       const ingested = ingestContactMessage(
         db,
         caller,
@@ -288,6 +304,8 @@ describe('Clinic inbox — conversas e histórico (#29)', () => {
         clock,
       )
       expect(r1.value.duplicate).toBe(false)
+      expect(r1.value.message.deliveryState).toBe('pending')
+      expect(r1.outbox.length).toBe(2)
       const r2 = sendOutboundMessageOp(
         db,
         caller,

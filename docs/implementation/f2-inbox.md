@@ -17,7 +17,7 @@
 
 - **Uma conversa por contacto:** nova mensagem reabre a conversa se estiver `closed`; histórico nunca é apagado.
 - Motivo de encerramento, campos mínimos extras do contacto e anexos: fora deste PR (produto).
-- Resposta outbound é **simulada** (`delivery_state=accepted`) até F3.
+- Resposta outbound: ver [f3-whatsapp-send.md](f3-whatsapp-send.md) (#33) — outbox + Meta sintético/live.
 
 ## Schema SQLite (migração 4)
 

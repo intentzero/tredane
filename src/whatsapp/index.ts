@@ -17,9 +17,13 @@ export {
 export {
   createMetaAdapter,
   createSyntheticMetaAdapter,
+  createLiveMetaAdapter,
   SYNTHETIC_CODES,
   MetaExchangeError,
+  type MetaSendResult,
+  type MetaAdapter,
 } from './meta'
+export { processClinicOutboxMessage } from './outbound-send'
 export {
   getActiveBindingForTenant,
   getActiveBindingByPhone,

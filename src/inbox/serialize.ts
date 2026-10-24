@@ -61,6 +61,12 @@ export function serializeConversationDetail(d: ConversationDetail) {
     messages: d.messages.map(serializeMessage),
     messagesHasMore: d.messagesHasMore,
     messagesNextBefore: d.messagesNextBefore,
+    messagingWindow: {
+      open: d.messagingWindow.open,
+      lastInboundAt: d.messagingWindow.lastInboundAt,
+      closesAt: d.messagingWindow.closesAt,
+      remainingMs: d.messagingWindow.remainingMs,
+    },
   }
 }
 
