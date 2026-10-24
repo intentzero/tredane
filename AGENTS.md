@@ -26,12 +26,12 @@ Não promova uma proposta a decisão confirmada porque ela parece tecnicamente c
 ## Contexto que deve permanecer consistente
 
 - Tredane é um SaaS multi-tenant de atendimento para clínicas de estética, com WhatsApp, pipeline comercial, agenda própria e assistência por IA.
-- O WhatsApp previsto é a API oficial do WhatsApp Business. A forma de conectar e administrar a conta de cada clínica continua em aberto.
+- O WhatsApp previsto é a API oficial do WhatsApp Business. DEC-009 confirmou Embedded Signup oficial pela owner, com assistência do Tredane no piloto. Cadastro Tech Provider, modelos reais e autorização Meta continuam como gates externos.
 - O painel deve receber atualizações em tempo real por WebSockets com hibernação em Durable Objects. DEC-038 confirma um Durable Object por clínica, com SQLite nativo como fonte de verdade operacional (contatos, conversas, pipeline e agenda). D1 central mantém tenants, memberships N:N, convites e suporte; R2 privado mantém anexos. Ver ADR-0012; não voltar a tratar topologia como decisão aberta ou SQLite do DO como D1. Revogação D1/DO, migrações por instância e recuperação continuam pendentes de implementação/testes.
 - O primeiro recorte de IA é assistivo, com sugestão e revisão humana, conforme `docs/MVP.md`. Respostas ou agendamentos autônomos ficam fora desse recorte.
 - Identidade pelo Clerk sem Organizations; `privateMetadata.superadmin` (booleano) só é autoritativo no backend; memberships N:N e roles por tenant vivem no D1.
 - A Platform Admin App é separada do painel operacional das clínicas e gere tenants. Superadmin poderá impersonar usuário de um tenant para suporte, mediante sessão temporária, escopo, auditoria de ator e alvo, e políticas de segurança; o mecanismo escolhido é sessão própria do Tredane; detalhes de segurança, revogação e política de dados devem ser especificados antes de uso real. Ver ADR-0006/0007.
-- O fluxo piloto começa na mensagem recebida e termina no agendamento confirmado, incluindo visão da conversa e do pipeline. Detalhes de regras da agenda, permissões específicas, política de suporte/impersonação, retenção e provedor de IA permanecem pendentes.
+- O fluxo piloto começa na mensagem recebida e termina no agendamento confirmado, incluindo visão da conversa e do pipeline. DEC-008 fixou regras da agenda e DEC-042 fixou configuração apenas pela owner; DEC-011 fixou Claude via AI Gateway e retenção de produto; DEC-029–037 fixaram o ciclo de aprovação e duração de suporte. Valores reais da clínica, protocolo técnico de revogação/handoff, política de capacidades, anexos, revisão jurídica e testes ainda são pendentes.
 
 Ao atualizar esse contexto, altere primeiro o documento que contém a decisão e depois as referências resumidas. Não use estas instruções como substituto para a especificação de produto.
 
