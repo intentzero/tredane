@@ -1,6 +1,6 @@
 # Ícones
 
-**Estado:** Proposto (DEC-019). Os mocks desenham 26 SVGs soltos, copiados em cada arquivo, que são aproximações de um estilo de traço (24×24, traço de 2px, pontas e junções arredondadas, sem preenchimento). Para implementar, use **uma biblioteca de ícones** em vez de copiar os SVGs dos mocks.
+**Estado:** Lucide **Confirmado** como biblioteca de ícones (DEC-019, 24/10/2026); os nomes da tabela ainda precisam ser conferidos na instalação. Os mocks desenham 26 SVGs soltos, copiados em cada arquivo, que são aproximações de um estilo de traço (24×24, traço de 2px, pontas e junções arredondadas, sem preenchimento). Para implementar, use **uma biblioteca de ícones** em vez de copiar os SVGs dos mocks.
 
 ## Proposta
 

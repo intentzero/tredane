@@ -23,6 +23,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Um horário considera profissional e sala/equipamento necessários ao serviço. Cada serviço tem duração fixa mais um intervalo após o atendimento que ocupa a sala/equipamento e o profissional; expediente semanal e bloqueios pontuais, fuso por clínica e grade de 15 min; cancelar ou reagendar não tem prazo mínimo e exige motivo; “Horário proposto” não reserva horário (DEC-008).
 - WhatsApp: o Tredane atua como Tech Provider na Meta e o responsável conecta a conta da clínica pelo Embedded Signup, com apoio da equipe do Tredane no piloto (DEC-009).
 - IA: Claude via Cloudflare AI Gateway, com contexto limitado às mensagens recentes, primeiro nome, catálogo de serviços e etapa; dados guardados enquanto a clínica for cliente, exclusão de contato pelo responsável e exclusão total até 30 dias após o encerramento (DEC-011).
+- Design system do painel aprovado (DEC-019): paleta, tipografia, escalas, componentes e ícones Lucide em [docs/design](design/README.md); biblioteca de componentes a decidir por prova de conceito na F0; modo escuro fora do MVP.
 - Interface mobile first: o fluxo piloto completo funciona no celular; tablet e desktop são ampliações ([DEC-017](product/decisions.md), [UI/UX](product/ux-ui.md)). Painel instalável como PWA com push de nova conversa; sugestão da IA só sob demanda; fora da janela de 24 h do WhatsApp o envio é por modelo aprovado; agenda com visão de dia e de semana (DEC-018).
 
 ## Documentos de definição

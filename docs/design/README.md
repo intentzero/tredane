@@ -1,6 +1,6 @@
 # Design do painel — mocks e guia de implementação
 
-**Estado:** mocks e design system **Proposto** ([DEC-019](../product/decisions.md)), tokens v0.2.0, 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
+**Estado:** design system v0.2.0 **Confirmado** pelo responsável pelo produto, exceto a biblioteca de componentes (**Proposto**, [ADR-0007](../adr/0007-design-system-components.md)) ([DEC-019](../product/decisions.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
 
 ## Ordem de autoridade
 
@@ -73,7 +73,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 ## Manutenção
 
 - **Alterou um mock?** Atualize juntos: o `.dc.html`, o PNG (`python3 docs/design/tools/render_previews.py`; requer Node, `npm i -D playwright` e Chromium), a linha em [screens.md](screens.md) e a seção da spec. Antes de commitar rode `check_mocks.py` (só valores de token) e, se mexeu em cor, `check_contrast.py`.
-- **Alterou um token?** Edite só `tokens.json`; rode `build_tokens.py`, `check_contrast.py` e `build_catalog.py`; registre em [CHANGELOG.md](CHANGELOG.md). Valor novo exige aprovação enquanto o design system for **Proposto**. Não commite PNG que só mudou por serrilhado de fonte; regenere apenas se o desenho mudou.
+- **Alterou um token?** Edite só `tokens.json`; rode `build_tokens.py`, `check_contrast.py` e `build_catalog.py`; registre em [CHANGELOG.md](CHANGELOG.md). Mudança de valor de token aprovado exige decisão registrada (DEC-019). Não commite PNG que só mudou por serrilhado de fonte; regenere apenas se o desenho mudou.
 - **Criou uma tela?** Dê a próxima ID (M-27…), acrescente em `mobile/canvas.json`, em [screens.md](screens.md) e na rastreabilidade de [ux-ui.md](../product/ux-ui.md) §9. Não renumere IDs existentes.
 - **Mudou uma decisão ou requisito?** Atualize primeiro o documento de produto, depois o mock afetado; nunca deixe mock e spec com versões concorrentes.
-- **Aprovação:** enquanto o responsável pelo produto não revisar, todos os mocks permanecem **Proposto**. Ao aprovar, registre a data e o marco em [decisions.md](../product/decisions.md).
+- **Aprovação:** o design system v0.2 foi aprovado (DEC-019). Os **mocks das telas** continuam **Proposto** até o responsável pelo produto revisá-los. Mudar um token já aprovado exige nova decisão registrada em [decisions.md](../product/decisions.md).

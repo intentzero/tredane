@@ -1,6 +1,6 @@
 # ADR-0007 — Design system, componentes, ícones e fonte do painel
 
-- **Estado:** **Proposto**, aguardando decisão do responsável pelo produto e prova de conceito na fase F0 ([DEC-019](../product/decisions.md)). Nada aqui é decisão confirmada.
+- **Estado:** a **biblioteca-base de componentes** continua **Proposta**: o responsável pelo produto decidiu em 24/10/2026 que ela será escolhida por prova de conceito na F0 ([DEC-019](../product/decisions.md)). **Confirmados** na mesma decisão: tokens v0.2, ícones Lucide e modo escuro fora do MVP. A fonte Inter hospedada pelo Tredane também foi aprovada, sujeita à conferência da licença.
 - **Origem:** [UI/UX](../product/ux-ui.md), [docs/design](../design/README.md), [DEC-017](../product/decisions.md) (mobile first).
 
 ## Problema
@@ -32,9 +32,9 @@ Partir de **A ou B**, escolhida por **prova de conceito na F0**, não por prefer
 ## Estilização, ícones, fonte, modo escuro
 
 - **Tokens:** variáveis CSS geradas de `tokens.json` (`tokens.css`). A ferramenta de CSS (módulos CSS, utilitários ou outra) fica **em aberto** para a F0; regra independente da ferramenta: nenhum valor de cor, raio, fonte ou espaçamento fora dos tokens (verificado por `tools/check_mocks.py` e, no código, por revisão e lint).
-- **Ícones:** Lucide (`lucide-react`), conforme [icons.md](../design/icons.md). Proposta.
-- **Fonte:** Inter (400, 500, 600), **hospedada pelo próprio Tredane** nos arquivos estáticos do painel, em vez de carregada de um serviço externo, para não enviar o IP de usuários a terceiros e para funcionar offline no PWA. Verificar a licença do arquivo de fonte ao incluí-lo. Proposta.
-- **Modo escuro:** **Fora do MVP** (proposta). Os tokens são organizados por papel (superfície, texto, linha) para permitir um segundo tema depois, sem redesenho das telas.
+- **Ícones:** Lucide (`lucide-react`), conforme [icons.md](../design/icons.md). **Confirmado** (DEC-019).
+- **Fonte:** Inter (400, 500, 600), **hospedada pelo próprio Tredane** nos arquivos estáticos do painel, em vez de carregada de um serviço externo, para não enviar o IP de usuários a terceiros e para funcionar offline no PWA. Verificar a licença do arquivo de fonte ao incluí-lo. **Confirmado** (DEC-019), sujeito a essa verificação.
+- **Modo escuro:** **Fora do MVP** (Confirmado, DEC-019). Os tokens são organizados por papel (superfície, texto, linha) para permitir um segundo tema depois, sem redesenho das telas.
 - **Movimento:** respeitar `prefers-reduced-motion`.
 
 ## Qualidade contínua
@@ -47,10 +47,9 @@ Partir de **A ou B**, escolhida por **prova de conceito na F0**, não por prefer
 
 - A F0 ganha a prova de conceito acima e a entrega de `tokens.css` e do catálogo como parte da base de UI.
 - Trocar valores de tokens é barato (um arquivo); trocar a biblioteca de componentes depois da F1 é caro. Por isso a decisão vem antes das telas.
-- Enquanto este ADR for **Proposto**, nenhuma tela de produção deve ser iniciada com uma biblioteca de componentes escolhida por conveniência.
+- Enquanto a biblioteca estiver **Proposta**, nenhuma tela de produção deve ser iniciada com uma biblioteca de componentes escolhida por conveniência.
 
 ## Itens a revisar
 
-- Aprovação da paleta, da tipografia e da escala pelo responsável pelo produto.
 - Identidade visual do Tredane (logotipo, ícone do PWA, cor de marca), que não existe hoje: **Em aberto**.
 - Orçamento de tamanho do pacote e de desempenho do PWA.

@@ -280,7 +280,7 @@ Ver seção 6.2.
 
 ## 8. Direção visual proposta
 
-**Estado:** Proposto ([DEC-019](decisions.md), aguardando aprovação). A fonte única dos valores é [docs/design/tokens.json](../design/tokens.json) (versão 0.2.0); **esta seção não repete os valores** para não haver versões concorrentes. Resumo da direção: Inter (400/500/600) em seis tamanhos (12, 14, 16, 18, 22, 26); 25 cores por papel; cinco raios (8, 12, 16, 20, pílula); espaçamento em múltiplos de 4 px; borda de controle com 3:1 sobre o fundo. Componentes e estados: [catálogo](../design/catalog/index.html) e [components.md](../design/components.md). Ícones: [icons.md](../design/icons.md). Base de componentes: [ADR-0007](../adr/0007-design-system-components.md).
+**Estado:** **Confirmado** ([DEC-019](decisions.md), 24/10/2026), exceto a biblioteca de componentes (**Proposto**). A fonte única dos valores é [docs/design/tokens.json](../design/tokens.json) (versão 0.2.0); **esta seção não repete os valores** para não haver versões concorrentes. Resumo da direção: Inter (400/500/600) em seis tamanhos (12, 14, 16, 18, 22, 26); 25 cores por papel; cinco raios (8, 12, 16, 20, pílula); espaçamento em múltiplos de 4 px; borda de controle com 3:1 sobre o fundo. Componentes e estados: [catálogo](../design/catalog/index.html) e [components.md](../design/components.md). Ícones: [icons.md](../design/icons.md). Base de componentes: [ADR-0007](../adr/0007-design-system-components.md).
 
 ## 9. Rastreabilidade
 
