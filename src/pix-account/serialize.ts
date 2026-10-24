@@ -29,7 +29,7 @@ export function serializePixSignalSettings(row: PixSignalSettings) {
 }
 
 export function serializePixCharge(row: PixChargeRow) {
-  /** Estado de UI: pago sem horário (REQ-079/080). */
+  /** Estado de UI: pago sem horário (REQ-079/080); estorno ainda não confirmado ≠ Devolvido. */
   const displayStatus =
     row.status === 'paid' && row.paymentResolution === 'paid_without_slot'
       ? 'paid_without_slot'
@@ -46,6 +46,12 @@ export function serializePixCharge(row: PixChargeRow) {
     paymentResolution: row.paymentResolution,
     appointmentId: row.appointmentId,
     paidWithoutSlotReason: row.paidWithoutSlotReason,
+    signalDisposition: row.signalDisposition,
+    signalDispositionBy: row.signalDispositionBy,
+    signalDispositionAt: row.signalDispositionAt,
+    refundRequestedAt: row.refundRequestedAt,
+    refundCompletedAt: row.refundCompletedAt,
+    refundFailureReason: row.refundFailureReason,
     expiresAt: row.expiresAt,
     paidAt: row.paidAt,
     cancelledAt: row.cancelledAt,
@@ -84,6 +90,9 @@ export function serializePixPaymentAlert(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     resolvedAt: row.resolvedAt,
+    resolutionKind: row.resolutionKind,
+    resolvedByClerkUserId: row.resolvedByClerkUserId,
+    resolvedAppointmentId: row.resolvedAppointmentId,
   }
 }
 

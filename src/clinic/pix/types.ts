@@ -1,11 +1,13 @@
 import type {
   PixAccountStatus,
+  PixAlertResolutionKind,
   PixChargeStatus,
   PixEnvironment,
   PixPaidWithoutSlotReason,
   PixPaymentAlertStatus,
   PixPaymentResolution,
   PixProviderCreateState,
+  PixSignalDisposition,
   SchedulingIntentStatus,
 } from '../constants'
 import type { SignalKind } from '../../pix/money'
@@ -118,6 +120,16 @@ export type PixChargeRow = {
   paymentResolution: PixPaymentResolution | null
   appointmentId: string | null
   paidWithoutSlotReason: PixPaidWithoutSlotReason | null
+  /** Decisão humana Devolver/Reter (#40). */
+  signalDisposition: PixSignalDisposition | null
+  signalDispositionBy: string | null
+  signalDispositionAt: number | null
+  signalDispositionNote: string | null
+  refundIdempotencyKey: string | null
+  refundProviderId: string | null
+  refundRequestedAt: number | null
+  refundCompletedAt: number | null
+  refundFailureReason: string | null
   createdAt: number
   updatedAt: number
 }
@@ -134,6 +146,68 @@ export type PixPaymentAlertRow = {
   createdAt: number
   updatedAt: number
   resolvedAt: number | null
+  resolutionKind: PixAlertResolutionKind | null
+  resolvedByClerkUserId: string | null
+  resolvedAppointmentId: string | null
+}
+
+export type ResolveAlertAltSlotInput = {
+  clientRequestId: string
+  alertId: string
+  serviceId: string
+  professionalId: string
+  roomResourceId?: string | null
+  startsAt: number
+  actorClerkUserId: string
+}
+
+export type ResolveAlertRefundInput = {
+  clientRequestId: string
+  alertId: string
+  actorClerkUserId: string
+  reason?: string | null
+}
+
+export type CancelUnpaidChargeInput = {
+  clientRequestId: string
+  chargeId: string
+  actorClerkUserId: string
+}
+
+export type RequestRefundInput = {
+  clientRequestId: string
+  chargeId: string
+  actorClerkUserId: string
+  /** Motivo operacional (auditoria); não vai para dados bancários. */
+  reason?: string | null
+}
+
+export type CancelPaidWithSignalInput = {
+  clientRequestId: string
+  appointmentId: string
+  reason: import('../constants').AppointmentChangeReason
+  /** Devolver ou reter — obrigatório quando há sinal pago (REQ-082). */
+  signalDisposition: PixSignalDisposition
+  actorClerkUserId: string
+  expectedVersion?: number | null
+  note?: string | null
+}
+
+export type ProcessPixLifecycleInput = {
+  eventId: string
+  eventType: 'charge.expired' | 'charge.cancelled' | 'refund.updated'
+  providerChargeId: string
+  accountId: string
+  amountCents: number
+  occurredAt: string
+  receiptId?: string | null
+  /** Presente em refund.updated. */
+  refund?: {
+    providerRefundId: string
+    status: 'requested' | 'succeeded' | 'failed'
+    amountCents: number
+    failureReason?: string | null
+  } | null
 }
 
 export type ProcessPixPaymentInput = {

@@ -114,6 +114,20 @@ function createDoGateway(env: WorkerBindings, tenantId: string): PixAccountGatew
       stub.listConversationPixCharges(caller, conversationId),
     listOpenPaymentAlerts: (caller, conversationId) =>
       stub.listOpenPixPaymentAlerts(caller, conversationId),
+    cancelUnpaidCharge: (caller, input, deps) =>
+      stub.cancelUnpaidPixCharge(caller, input, deps),
+    resolveAlertAltSlot: (caller, input) =>
+      stub.resolvePixAlertAltSlot(caller, input),
+    resolveAlertRefund: (caller, input, deps) =>
+      stub.resolvePixAlertRefund(caller, input, deps),
+    requestRefund: (caller, input, deps) =>
+      stub.requestPixRefund(caller, input, deps),
+    cancelPaidWithSignal: (caller, input, deps) =>
+      stub.cancelPaidAppointmentWithSignal(caller, input, deps),
+    getPaidSignalForAppointment: (caller, appointmentId) =>
+      stub.getPaidSignalForAppointment(caller, appointmentId),
+    expireDueCharges: (caller, deps) =>
+      stub.expireDuePixCharges(caller, deps),
   }
 }
 
@@ -483,6 +497,290 @@ export function createPixAccountRoutes(opts: PixAccountRouteOptions = {}) {
       return pixErrorResponse(c, err)
     }
   })
+
+  /** Escolher outro horário com sinal já pago (#40 / REQ-080). */
+  app.post(
+    '/api/tenants/:tenantId/pix/alerts/:alertId/confirm-slot',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.agenda.operate')
+        const body = (await c.req.json()) as {
+          clientRequestId?: string
+          serviceId?: string
+          professionalId?: string
+          roomResourceId?: string | null
+          startsAt?: number
+        }
+        if (
+          !body.clientRequestId ||
+          !body.serviceId ||
+          !body.professionalId ||
+          typeof body.startsAt !== 'number'
+        ) {
+          throw new ValidationError(
+            'invalid_confirm_slot_input',
+            'clientRequestId, serviceId, professionalId e startsAt são obrigatórios',
+          )
+        }
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        if (!gw.resolveAlertAltSlot) {
+          throw new ValidationError('not_supported', 'Gateway sem resolveAlertAltSlot')
+        }
+        const result = await gw.resolveAlertAltSlot(
+          workerCaller(ctx.tenantId, principal.clerkUserId),
+          {
+            clientRequestId: body.clientRequestId,
+            alertId: c.req.param('alertId'),
+            serviceId: body.serviceId,
+            professionalId: body.professionalId,
+            roomResourceId: body.roomResourceId,
+            startsAt: body.startsAt,
+            actorClerkUserId: principal.clerkUserId,
+          },
+        )
+        return c.json({
+          alert: serializePixPaymentAlert(result.alert),
+          charge: serializePixChargeDetail(result.charge),
+          appointmentId: result.appointmentId,
+          idempotentReplay: result.idempotentReplay,
+        })
+      } catch (err) {
+        return pixErrorResponse(c, err)
+      }
+    },
+  )
+
+  /** Devolver sinal a partir do alerta (#40). */
+  app.post(
+    '/api/tenants/:tenantId/pix/alerts/:alertId/refund',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.agenda.operate')
+        const body = (await c.req.json().catch(() => ({}))) as {
+          clientRequestId?: string
+          reason?: string | null
+        }
+        if (!body.clientRequestId) {
+          throw new ValidationError(
+            'client_request_id_required',
+            'clientRequestId obrigatório',
+          )
+        }
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        if (!gw.resolveAlertRefund) {
+          throw new ValidationError('not_supported', 'Gateway sem resolveAlertRefund')
+        }
+        const deps = (opts.connectDepsFactory ?? defaultChargeDeps)(c.env)
+        const result = await gw.resolveAlertRefund(
+          workerCaller(ctx.tenantId, principal.clerkUserId),
+          {
+            clientRequestId: body.clientRequestId,
+            alertId: c.req.param('alertId'),
+            actorClerkUserId: principal.clerkUserId,
+            reason: body.reason,
+          },
+          deps,
+        )
+        return c.json({
+          charge: serializePixChargeDetail(result.charge),
+          alert: result.alert
+            ? serializePixPaymentAlert(result.alert)
+            : null,
+          refundConfirmed: result.refundConfirmed,
+          uncertain: result.uncertain,
+          idempotentReplay: result.idempotentReplay,
+        })
+      } catch (err) {
+        return pixErrorResponse(c, err)
+      }
+    },
+  )
+
+  /** Cancelar cobrança não paga (#40 / REQ-081). */
+  app.post(
+    '/api/tenants/:tenantId/pix/charges/:chargeId/cancel',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.agenda.operate')
+        const body = (await c.req.json().catch(() => ({}))) as {
+          clientRequestId?: string
+        }
+        if (!body.clientRequestId) {
+          throw new ValidationError(
+            'client_request_id_required',
+            'clientRequestId obrigatório',
+          )
+        }
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        if (!gw.cancelUnpaidCharge) {
+          throw new ValidationError('not_supported', 'Gateway sem cancelUnpaidCharge')
+        }
+        const deps = (opts.connectDepsFactory ?? defaultChargeDeps)(c.env)
+        const result = await gw.cancelUnpaidCharge(
+          workerCaller(ctx.tenantId, principal.clerkUserId),
+          {
+            clientRequestId: body.clientRequestId,
+            chargeId: c.req.param('chargeId'),
+            actorClerkUserId: principal.clerkUserId,
+          },
+          deps,
+        )
+        return c.json({
+          charge: serializePixChargeDetail(result.charge),
+          intent: result.intent
+            ? serializeSchedulingIntent(result.intent)
+            : null,
+          providerSynced: result.providerSynced,
+          idempotentReplay: result.idempotentReplay,
+        })
+      } catch (err) {
+        return pixErrorResponse(c, err)
+      }
+    },
+  )
+
+  /** Pedir / retentar estorno (#40 / REQ-082). */
+  app.post(
+    '/api/tenants/:tenantId/pix/charges/:chargeId/refund',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.agenda.operate')
+        const body = (await c.req.json().catch(() => ({}))) as {
+          clientRequestId?: string
+          reason?: string | null
+        }
+        if (!body.clientRequestId) {
+          throw new ValidationError(
+            'client_request_id_required',
+            'clientRequestId obrigatório',
+          )
+        }
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        if (!gw.requestRefund) {
+          throw new ValidationError('not_supported', 'Gateway sem requestRefund')
+        }
+        const deps = (opts.connectDepsFactory ?? defaultChargeDeps)(c.env)
+        const result = await gw.requestRefund(
+          workerCaller(ctx.tenantId, principal.clerkUserId),
+          {
+            clientRequestId: body.clientRequestId,
+            chargeId: c.req.param('chargeId'),
+            actorClerkUserId: principal.clerkUserId,
+            reason: body.reason,
+          },
+          deps,
+        )
+        return c.json({
+          charge: serializePixChargeDetail(result.charge),
+          alert: result.alert
+            ? serializePixPaymentAlert(result.alert)
+            : null,
+          refundConfirmed: result.refundConfirmed,
+          uncertain: result.uncertain,
+          idempotentReplay: result.idempotentReplay,
+        })
+      } catch (err) {
+        return pixErrorResponse(c, err)
+      }
+    },
+  )
+
+  /** Cancelar compromisso com sinal pago: Devolver/Reter (#40 / AC-50). */
+  app.post(
+    '/api/tenants/:tenantId/appointments/:appointmentId/cancel-with-signal',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.agenda.operate')
+        const body = (await c.req.json()) as {
+          clientRequestId?: string
+          reason?: string
+          signalDisposition?: 'refund' | 'retain'
+          expectedVersion?: number | null
+          note?: string | null
+        }
+        if (!body.clientRequestId || !body.reason || !body.signalDisposition) {
+          throw new ValidationError(
+            'invalid_cancel_signal_input',
+            'clientRequestId, reason e signalDisposition (refund|retain) são obrigatórios',
+          )
+        }
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        if (!gw.cancelPaidWithSignal) {
+          throw new ValidationError(
+            'not_supported',
+            'Gateway sem cancelPaidWithSignal',
+          )
+        }
+        const deps = (opts.connectDepsFactory ?? defaultChargeDeps)(c.env)
+        const result = await gw.cancelPaidWithSignal(
+          workerCaller(ctx.tenantId, principal.clerkUserId),
+          {
+            clientRequestId: body.clientRequestId,
+            appointmentId: c.req.param('appointmentId'),
+            reason: body.reason as import('../clinic/constants').AppointmentChangeReason,
+            signalDisposition: body.signalDisposition,
+            actorClerkUserId: principal.clerkUserId,
+            expectedVersion: body.expectedVersion,
+            note: body.note,
+          },
+          deps,
+        )
+        return c.json({
+          appointment: result.appointment,
+          charge: result.charge
+            ? serializePixChargeDetail(result.charge)
+            : null,
+          refundConfirmed: result.refund?.refundConfirmed ?? false,
+          uncertain: result.refund?.uncertain ?? false,
+          idempotentReplay: result.idempotentReplay,
+        })
+      } catch (err) {
+        return pixErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.get(
+    '/api/tenants/:tenantId/appointments/:appointmentId/paid-signal',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.agenda.operate')
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        if (!gw.getPaidSignalForAppointment) {
+          throw new ValidationError(
+            'not_supported',
+            'Gateway sem getPaidSignalForAppointment',
+          )
+        }
+        const charge = await gw.getPaidSignalForAppointment(
+          workerCaller(ctx.tenantId, c.get('principal').clerkUserId),
+          c.req.param('appointmentId'),
+        )
+        return c.json({
+          charge: charge ? serializePixChargeDetail(charge) : null,
+        })
+      } catch (err) {
+        return pixErrorResponse(c, err)
+      }
+    },
+  )
 
   /**
    * Só PIX_MODE=synthetic — simula revogação de credencial (AC sandbox).

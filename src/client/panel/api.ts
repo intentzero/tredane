@@ -684,6 +684,177 @@ export function createPanelApi(getToken: TokenGetter) {
       return body.alerts
     },
 
+    /** Confirmar horário alternativo com sinal já pago (#40). */
+    async confirmPixAlertSlot(
+      tenantId: string,
+      alertId: string,
+      body: {
+        clientRequestId: string
+        serviceId: string
+        professionalId: string
+        roomResourceId?: string | null
+        startsAt: number
+      },
+      opts?: FetchOpts,
+    ): Promise<{
+      alert: PixPaymentAlert
+      charge: PixChargeDetail
+      appointmentId: string
+      idempotentReplay: boolean
+    }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pix/alerts/${encodeURIComponent(alertId)}/confirm-slot`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        alert: PixPaymentAlert
+        charge: PixChargeDetail
+        appointmentId: string
+        idempotentReplay: boolean
+      }
+    },
+
+    /** Devolver sinal a partir do alerta (#40). */
+    async refundPixAlert(
+      tenantId: string,
+      alertId: string,
+      body: { clientRequestId: string; reason?: string | null },
+      opts?: FetchOpts,
+    ): Promise<{
+      charge: PixChargeDetail
+      alert: PixPaymentAlert | null
+      refundConfirmed: boolean
+      uncertain: boolean
+    }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pix/alerts/${encodeURIComponent(alertId)}/refund`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        charge: PixChargeDetail
+        alert: PixPaymentAlert | null
+        refundConfirmed: boolean
+        uncertain: boolean
+      }
+    },
+
+    async cancelPixCharge(
+      tenantId: string,
+      chargeId: string,
+      body: { clientRequestId: string },
+      opts?: FetchOpts,
+    ): Promise<{ charge: PixChargeDetail; idempotentReplay: boolean }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pix/charges/${encodeURIComponent(chargeId)}/cancel`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        charge: PixChargeDetail
+        idempotentReplay: boolean
+      }
+    },
+
+    async requestPixRefund(
+      tenantId: string,
+      chargeId: string,
+      body: { clientRequestId: string; reason?: string | null },
+      opts?: FetchOpts,
+    ): Promise<{
+      charge: PixChargeDetail
+      refundConfirmed: boolean
+      uncertain: boolean
+    }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pix/charges/${encodeURIComponent(chargeId)}/refund`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        charge: PixChargeDetail
+        refundConfirmed: boolean
+        uncertain: boolean
+      }
+    },
+
+    async getAppointmentPaidSignal(
+      tenantId: string,
+      appointmentId: string,
+      opts?: FetchOpts,
+    ): Promise<PixChargeDetail | null> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/paid-signal`,
+        { method: 'GET' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const body = (await res.json()) as { charge: PixChargeDetail | null }
+      return body.charge
+    },
+
+    async cancelAppointmentWithSignal(
+      tenantId: string,
+      appointmentId: string,
+      body: {
+        clientRequestId: string
+        reason: string
+        signalDisposition: 'refund' | 'retain'
+        expectedVersion?: number | null
+        note?: string | null
+      },
+      opts?: FetchOpts,
+    ): Promise<{
+      appointment: AppointmentDetailResponse
+      charge: PixChargeDetail | null
+      refundConfirmed: boolean
+      uncertain: boolean
+    }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/cancel-with-signal`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        appointment: AppointmentDetailResponse
+        charge: PixChargeDetail | null
+        refundConfirmed: boolean
+        uncertain: boolean
+      }
+    },
+
     /** Confirmar sem sinal com motivo (AC-51). */
     async confirmWithoutSignal(
       tenantId: string,
@@ -1345,6 +1516,12 @@ export type PixChargeDetail = {
   paymentResolution?: string | null
   appointmentId?: string | null
   paidWithoutSlotReason?: string | null
+  signalDisposition?: string | null
+  signalDispositionBy?: string | null
+  signalDispositionAt?: number | null
+  refundRequestedAt?: number | null
+  refundCompletedAt?: number | null
+  refundFailureReason?: string | null
   expiresAt: number | null
   paidAt: number | null
   cancelledAt: number | null
@@ -1379,6 +1556,9 @@ export type PixPaymentAlert = {
   createdAt: number
   updatedAt: number
   resolvedAt: number | null
+  resolutionKind?: string | null
+  resolvedByClerkUserId?: string | null
+  resolvedAppointmentId?: string | null
 }
 
 export type SchedulingIntentView = {

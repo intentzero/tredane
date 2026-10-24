@@ -1,7 +1,13 @@
 /**
- * Mensagem de fila para pagamento Pix (#39).
+ * Mensagem de fila para webhooks Pix (#39/#40).
  * Tenant já resolvido na borda (additionalInfo / validação).
  */
+export type PixWebhookEventType =
+  | 'charge.paid'
+  | 'charge.expired'
+  | 'charge.cancelled'
+  | 'refund.updated'
+
 export type PixWebhookQueueMessage = {
   source: 'pix_webhook'
   receiptId: string
@@ -9,10 +15,24 @@ export type PixWebhookQueueMessage = {
   tenantId: string
   accountId: string
   providerChargeId: string
-  eventType: 'charge.paid'
+  eventType: PixWebhookEventType
   amountCents: number
   occurredAt: string
+  /** Presente em refund.updated. */
+  refund?: {
+    providerRefundId: string
+    status: 'requested' | 'succeeded' | 'failed'
+    amountCents: number
+    failureReason?: string | null
+  } | null
 }
+
+const PIX_EVENT_TYPES: readonly string[] = [
+  'charge.paid',
+  'charge.expired',
+  'charge.cancelled',
+  'refund.updated',
+]
 
 export function isPixWebhookMessage(body: unknown): body is PixWebhookQueueMessage {
   if (!body || typeof body !== 'object') return false
@@ -21,6 +41,7 @@ export function isPixWebhookMessage(body: unknown): body is PixWebhookQueueMessa
     b.source === 'pix_webhook' &&
     typeof b.tenantId === 'string' &&
     typeof b.providerChargeId === 'string' &&
-    b.eventType === 'charge.paid'
+    typeof b.eventType === 'string' &&
+    PIX_EVENT_TYPES.includes(b.eventType)
   )
 }

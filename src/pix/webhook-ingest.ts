@@ -1,7 +1,6 @@
 /**
- * Ingestão HTTP de webhooks Pix (#39): validar → recibo D1 → fila idempotente.
- * charge.paid é enfileirado para o Clinic DO; expired/cancel/refund → recibo discarded
- * (processamento de domínio = #40).
+ * Ingestão HTTP de webhooks Pix (#39/#40): validar → recibo D1 → fila idempotente.
+ * charge.paid / expired / cancelled / refund.updated → Clinic DO.
  */
 import type { Clock } from '../db/clock'
 import type { AdminDb } from '../db/admin/store'
@@ -189,9 +188,15 @@ export async function ingestPixWebhook(
     return { ok: true, status: 200, receiptId: row.id, duplicate: true }
   }
 
-  if (event.type !== 'charge.paid') {
-    await deps.store.markDiscarded(row.id, `deferred_to_issue_40:${event.type}`)
-    safeLog(deps.log, 'info', 'pix_webhook.deferred', {
+  const supported =
+    event.type === 'charge.paid' ||
+    event.type === 'charge.expired' ||
+    event.type === 'charge.cancelled' ||
+    event.type === 'refund.updated'
+
+  if (!supported) {
+    await deps.store.markDiscarded(row.id, `unsupported_event:${event.type}`)
+    safeLog(deps.log, 'info', 'pix_webhook.discarded_unsupported', {
       receiptId: row.id,
       eventType: event.type,
       tenantId: event.tenantId,
@@ -206,9 +211,17 @@ export async function ingestPixWebhook(
     tenantId: event.tenantId,
     accountId: event.accountId,
     providerChargeId: event.providerChargeId,
-    eventType: 'charge.paid',
+    eventType: event.type,
     amountCents: event.amountCents,
     occurredAt: event.occurredAt,
+    refund: event.refund
+      ? {
+          providerRefundId: event.refund.providerRefundId,
+          status: event.refund.status,
+          amountCents: event.refund.amountCents,
+          failureReason: event.refund.failureReason ?? null,
+        }
+      : null,
   }
 
   try {

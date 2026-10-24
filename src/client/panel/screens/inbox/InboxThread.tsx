@@ -168,6 +168,74 @@ export function InboxThread({
     void load()
   }, [tenantId, conversationId, generation])
 
+  async function refundAlert(a: PixPaymentAlert) {
+    setBusy(true)
+    setNotice(null)
+    try {
+      const result = await api.refundPixAlert(
+        tenantId,
+        a.id,
+        { clientRequestId: crypto.randomUUID() },
+        { generation, expectGeneration: () => generation },
+      )
+      if (result.refundConfirmed) {
+        setNotice('Sinal devolvido.')
+        setPixAlerts((prev) => prev.filter((x) => x.id !== a.id))
+      } else if (result.uncertain) {
+        setNotice(
+          'Estorno solicitado — a aguardar confirmação do provedor. Ainda não está devolvido.',
+        )
+      } else {
+        setNotice(
+          result.charge.status === 'refund_failed'
+            ? 'Estorno falhou. Pode tentar de novo.'
+            : 'Estorno solicitado.',
+        )
+      }
+      void api
+        .listConversationPixCharges(tenantId, conversationId, {
+          generation,
+          expectGeneration: () => generation,
+        })
+        .then(setPixCharges)
+        .catch(() => {})
+      void api
+        .listPixPaymentAlerts(tenantId, conversationId, {
+          generation,
+          expectGeneration: () => generation,
+        })
+        .then(setPixAlerts)
+        .catch(() => {})
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Falha ao devolver sinal')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function cancelCharge(c: PixChargeDetail) {
+    setBusy(true)
+    setNotice(null)
+    try {
+      await api.cancelPixCharge(
+        tenantId,
+        c.id,
+        { clientRequestId: crypto.randomUUID() },
+        { generation, expectGeneration: () => generation },
+      )
+      setNotice('Cobrança cancelada.')
+      setPixCharges((prev) =>
+        prev.map((x) =>
+          x.id === c.id ? { ...x, status: 'cancelled' } : x,
+        ),
+      )
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Falha ao cancelar cobrança')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function assume() {
     if (!detail) return
     setBusy(true)
@@ -424,6 +492,8 @@ export function InboxThread({
         <div className="inbox-notice inbox-pix-alert" role="alert">
           {pixAlerts.map((a) => {
             const charge = pixCharges.find((c) => c.id === a.chargeId)
+            const refundPending = charge?.status === 'refund_requested'
+            const refundFailed = charge?.status === 'refund_failed'
             return (
               <div key={a.id} className="inbox-pix-card">
                 <strong>Sinal pago, mas o horário foi ocupado</strong>
@@ -440,23 +510,38 @@ export function InboxThread({
                     : a.reason === 'slot_occupied'
                       ? 'horário já reservado'
                       : 'não foi possível confirmar o horário'}
-                  . Escolher outro horário / Devolver sinal entram em breve (#40).
+                  {refundPending
+                    ? ' · estorno solicitado (ainda não devolvido)'
+                    : refundFailed
+                      ? ` · estorno falhou${charge?.refundFailureReason ? `: ${charge.refundFailureReason}` : ''}`
+                      : ''}
                 </p>
-                <Button
-                  className="panel-btn-secondary"
-                  onPress={() =>
-                    navigatePanel({
-                      kind: 'area',
-                      area: 'agenda',
-                      tenantId,
-                      section: 'agendar',
-                      conversationId,
-                      contactId: detail?.contactId,
-                    })
-                  }
-                >
-                  Ir para Agendar
-                </Button>
+                <div className="clinic-actions">
+                  <Button
+                    className="panel-btn-primary"
+                    onPress={() =>
+                      navigatePanel({
+                        kind: 'area',
+                        area: 'agenda',
+                        tenantId,
+                        section: 'agendar',
+                        conversationId,
+                        contactId: detail?.contactId,
+                        alertId: a.id,
+                      })
+                    }
+                    isDisabled={busy || refundPending}
+                  >
+                    Escolher outro horário
+                  </Button>
+                  <Button
+                    className="panel-btn-secondary"
+                    onPress={() => void refundAlert(a)}
+                    isDisabled={busy || refundPending}
+                  >
+                    {refundFailed ? 'Tentar devolver de novo' : 'Devolver sinal'}
+                  </Button>
+                </div>
               </div>
             )
           })}
@@ -480,17 +565,26 @@ export function InboxThread({
                     : ''}
                   {' · horário não reservado'}
                 </p>
-                {c.pixCopyPaste ? (
+                <div className="clinic-actions">
+                  {c.pixCopyPaste ? (
+                    <Button
+                      className="panel-btn-secondary"
+                      onPress={() => {
+                        void navigator.clipboard?.writeText(c.pixCopyPaste!)
+                        setNotice('Pix copiado')
+                      }}
+                    >
+                      Copiar Pix
+                    </Button>
+                  ) : null}
                   <Button
                     className="panel-btn-secondary"
-                    onPress={() => {
-                      void navigator.clipboard?.writeText(c.pixCopyPaste!)
-                      setNotice('Pix copiado')
-                    }}
+                    onPress={() => void cancelCharge(c)}
+                    isDisabled={busy}
                   >
-                    Copiar Pix
+                    Cancelar cobrança
                   </Button>
-                ) : null}
+                </div>
                 {c.whatsappSendError ? (
                   <p role="alert">Envio WhatsApp: {c.whatsappSendError}</p>
                 ) : null}

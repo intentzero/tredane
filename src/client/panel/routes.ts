@@ -48,10 +48,12 @@ export type PanelRoute =
       tenantId: string
       section: AgendaSection
       appointmentId?: string
-      /** Contexto para sinal Pix (#38) — query string em /agendar. */
+      /** Contexto para sinal Pix (#38/#40) — query string em /agendar. */
       conversationId?: string
       contactId?: string
       opportunityId?: string
+      /** Alerta «pago sem horário» — confirma com sinal já pago (#40). */
+      alertId?: string
     }
   | {
       kind: 'area'
@@ -233,6 +235,7 @@ export function panelHref(route: PanelRoute): string {
           if (route.conversationId) q.set('conversationId', route.conversationId)
           if (route.contactId) q.set('contactId', route.contactId)
           if (route.opportunityId) q.set('opportunityId', route.opportunityId)
+          if (route.alertId) q.set('alertId', route.alertId)
           const qs = q.toString()
           return qs ? `${base}/agendar?${qs}` : `${base}/agendar`
         }
