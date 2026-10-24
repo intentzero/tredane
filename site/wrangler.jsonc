@@ -1,0 +1,9 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  // Landing page pública, separada do painel (DEC-044). Só arquivos estáticos, sem Worker nem dados.
+  "name": "tredane-site",
+  "compatibility_date": "2026-10-23",
+  "assets": {
+    "directory": "./public"
+  }
+}

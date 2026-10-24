@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Tredane — atendimento para clínicas de estética</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="container-type: inline-size; background: #F6F6F4; color: #1C1E21; font-family: Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.5">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E2E3E5">
+<div style="max-width: 1120px; margin: 0 auto; padding: 12px clamp(16px, 4cqi, 48px); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap">
+<a href="#inicio" style="display: flex; align-items: center; gap: 8px; min-height: 44px; color: #1C1E21; text-decoration: none; font-size: 22px; font-weight: 600; letter-spacing: -0.02em"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 8px; background: #2F5BD3; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 18px">T</span>Tredane</a>
+<nav aria-label="Principal" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+<a href="https://app.tredane.example" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: #1E43A8; font-weight: 500; text-decoration: none">Entrar</a>
+<a href="#piloto" style="display: flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 12px; background: #2F5BD3; color: #FFFFFF; font-weight: 600; text-decoration: none">Quero participar</a>
+</nav>
+</div>
+</header>
+
+<main>
+<section id="inicio" aria-labelledby="hero-t" style="background: #FFFFFF">
+<div style="max-width: 1120px; margin: 0 auto; padding: clamp(40px, 7cqi, 96px) clamp(16px, 4cqi, 48px); display: flex; flex-wrap: wrap; align-items: center; gap: clamp(32px, 5cqi, 64px)">
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+<span style="align-self: flex-start; padding: 4px 12px; border-radius: 999px; background: #EEF2FC; color: #1E43A8; font-size: 14px; font-weight: 600">Piloto aberto para clínicas de estética</span>
+<h1 id="hero-t" style="margin: 0; font-size: clamp(34px, 5cqi, 60px); line-height: 1.1; letter-spacing: -0.02em; font-weight: 600">Do primeiro “oi” no WhatsApp ao horário marcado.</h1>
+<p style="margin: 0; font-size: clamp(16px, 1.6cqi, 20px); color: #474C54; max-width: 560px">O Tredane reúne as conversas do WhatsApp da clínica, o acompanhamento de cada contato e uma agenda própria em um só painel, feito para usar no celular.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; padding-top: 8px">
+<a href="#piloto" style="display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 24px; border-radius: 12px; background: #2F5BD3; color: #FFFFFF; font-weight: 600; text-decoration: none">Quero participar do piloto</a>
+<a href="#como-funciona" style="display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 24px; border-radius: 12px; border: 1px solid #80868F; background: #FFFFFF; color: #1C1E21; font-weight: 500; text-decoration: none">Ver como funciona</a>
+</div>
+</div>
+
+<figure role="img" aria-label="Exemplo do painel no celular: uma cliente pergunta por horário, a IA sugere uma resposta para a atendente revisar e o horário aparece como agendado." style="flex: 0 1 340px; min-width: 0; margin: 0 auto">
+<div aria-hidden="true" style="width: 100%; max-width: 340px; margin: 0 auto; border: 1px solid #E2E3E5; border-radius: 32px; background: #F6F6F4; padding: 12px; box-sizing: border-box">
+<div style="background: #FFFFFF; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #E2E3E5">
+<span style="flex: none; width: 40px; height: 40px; border-radius: 999px; background: #EEF2FC; color: #1E43A8; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center">MR</span>
+<span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3"><span style="font-weight: 600">Mariana Rocha</span><span style="font-size: 12px; color: #5B616B">Em atendimento · Ana</span></span>
+</div>
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 12px; background: #F6F6F4">
+<span style="align-self: flex-start; max-width: 82%; padding: 8px 12px; border-radius: 16px 16px 16px 4px; background: #FFFFFF; border: 1px solid #E2E3E5; font-size: 14px">Oi! Vocês têm horário para limpeza de pele esta semana?</span>
+<span style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; border: 1.5px dashed #6B3FD4; background: #F7F4FD">
+<span style="font-size: 12px; font-weight: 600; color: #4B2A9E">Sugestão da IA — revise antes de enviar</span>
+<span style="font-size: 14px; color: #1C1E21">Oi, Mariana! Temos quinta às 14:00 ou sexta às 10:30. Qual fica melhor?</span>
+<span style="display: flex; gap: 8px"><span style="padding: 4px 12px; border-radius: 8px; border: 1px solid #6B3FD4; background: #FFFFFF; color: #4B2A9E; font-size: 12px; font-weight: 600">Usar</span><span style="padding: 4px 12px; border-radius: 8px; border: 1px solid #6B3FD4; background: #FFFFFF; color: #4B2A9E; font-size: 12px; font-weight: 600">Editar</span></span>
+</span>
+<span style="align-self: flex-end; max-width: 82%; padding: 8px 12px; border-radius: 16px 16px 4px 16px; background: #EEF2FC; font-size: 14px">Quinta às 14:00, por favor!</span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px; background: #EAF5EF; color: #1F7A4D; font-size: 14px; font-weight: 600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>Agendado · qui 14:00 · Sala 2</span>
+</div>
+</div>
+</div>
+</figure>
+</div>
+</section>
+
+<section id="como-funciona" aria-labelledby="cf-t">
+<div style="max-width: 1120px; margin: 0 auto; padding: clamp(48px, 7cqi, 96px) clamp(16px, 4cqi, 48px); display: flex; flex-direction: column; gap: 32px">
+<div style="display: flex; flex-direction: column; gap: 8px; max-width: 640px">
+<h2 id="cf-t" style="margin: 0; font-size: clamp(26px, 3cqi, 36px); line-height: 1.2; letter-spacing: -0.01em; font-weight: 600">Como funciona</h2>
+<p style="margin: 0; color: #474C54; font-size: 18px">Um caminho só, do contato à confirmação, visto por toda a equipe ao mesmo tempo.</p>
+</div>
+<ol style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px">
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+<span style="display: flex; align-items: center; gap: 12px"><span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 12px; background: #EEF2FC; color: #1E43A8; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg></span><span style="font-size: 14px; font-weight: 600; color: #5B616B">1</span></span>
+<h3 style="margin: 0; font-size: 18px; font-weight: 600">A mensagem chega</h3>
+<p style="margin: 0; color: #474C54">Pelo WhatsApp oficial da clínica, direto na caixa de conversas, para toda a equipe.</p>
+</li>
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+<span style="display: flex; align-items: center; gap: 12px"><span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 12px; background: #F7F4FD; color: #4B2A9E; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"></path></svg></span><span style="font-size: 14px; font-weight: 600; color: #5B616B">2</span></span>
+<h3 style="margin: 0; font-size: 18px; font-weight: 600">A IA sugere, a equipe decide</h3>
+<p style="margin: 0; color: #474C54">Quando a atendente pede, a IA propõe uma resposta ou um resumo. Nada é enviado sem revisão de uma pessoa.</p>
+</li>
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+<span style="display: flex; align-items: center; gap: 12px"><span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 12px; background: #EEF2FC; color: #1E43A8; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M8 8v6"></path><path d="M12 8v9"></path><path d="M16 8v4"></path></svg></span><span style="font-size: 14px; font-weight: 600; color: #5B616B">3</span></span>
+<h3 style="margin: 0; font-size: 18px; font-weight: 600">Cada contato tem etapa</h3>
+<p style="margin: 0; color: #474C54">No pipeline, você vê quem é novo, quem recebeu proposta de horário e quem já agendou.</p>
+</li>
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+<span style="display: flex; align-items: center; gap: 12px"><span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 12px; background: #EAF5EF; color: #1F7A4D; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4"></path><path d="M8 3v4"></path><path d="M3 10h18"></path><path d="M9 15l2 2 4-4"></path></svg></span><span style="font-size: 14px; font-weight: 600; color: #5B616B">4</span></span>
+<h3 style="margin: 0; font-size: 18px; font-weight: 600">O horário é confirmado</h3>
+<p style="margin: 0; color: #474C54">A agenda considera duração do serviço, profissional, sala e intervalo, e não deixa marcar dois no mesmo horário.</p>
+</li>
+</ol>
+</div>
+</section>
+
+<section aria-labelledby="pq-t" style="background: #FFFFFF; border-top: 1px solid #E2E3E5; border-bottom: 1px solid #E2E3E5">
+<div style="max-width: 1120px; margin: 0 auto; padding: clamp(48px, 7cqi, 96px) clamp(16px, 4cqi, 48px); display: flex; flex-wrap: wrap; gap: clamp(32px, 5cqi, 64px)">
+<div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<h2 id="pq-t" style="margin: 0; font-size: clamp(26px, 3cqi, 36px); line-height: 1.2; letter-spacing: -0.01em; font-weight: 600">Feito para a rotina da recepção</h2>
+<p style="margin: 0; color: #474C54; font-size: 18px">Pensado para quem atende entre um cliente e outro, com o celular na mão.</p>
+</div>
+<ul style="flex: 2 1 480px; min-width: 0; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 24px">
+<li style="display: flex; flex-direction: column; gap: 4px"><h3 style="margin: 0; font-size: 18px; font-weight: 600">Atualiza na hora</h3><p style="margin: 0; color: #474C54">Quando alguém da equipe responde ou marca um horário, todos veem sem recarregar a tela.</p></li>
+<li style="display: flex; flex-direction: column; gap: 4px"><h3 style="margin: 0; font-size: 18px; font-weight: 600">No navegador do celular</h3><p style="margin: 0; color: #474C54">Sem app para baixar da loja. Dá para instalar na tela inicial e receber aviso de nova conversa.</p></li>
+<li style="display: flex; flex-direction: column; gap: 4px"><h3 style="margin: 0; font-size: 18px; font-weight: 600">Papéis claros</h3><p style="margin: 0; color: #474C54">A responsável configura serviços, equipe e agenda. As atendentes cuidam das conversas.</p></li>
+<li style="display: flex; flex-direction: column; gap: 4px"><h3 style="margin: 0; font-size: 18px; font-weight: 600">Dados da clínica separados</h3><p style="margin: 0; color: #474C54">Cada clínica tem seu próprio espaço. Nossa equipe só acessa com a sua aprovação, por 30 minutos.</p></li>
+</ul>
+</div>
+</section>
+
+<section id="piloto" aria-labelledby="pl-t">
+<div style="max-width: 1120px; margin: 0 auto; padding: clamp(48px, 7cqi, 96px) clamp(16px, 4cqi, 48px)">
+<div style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 20px; padding: clamp(24px, 4cqi, 48px); display: flex; flex-wrap: wrap; gap: clamp(24px, 4cqi, 48px)">
+<div style="flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<h2 id="pl-t" style="margin: 0; font-size: clamp(26px, 3cqi, 36px); line-height: 1.2; letter-spacing: -0.01em; font-weight: 600">Participe do piloto</h2>
+<p style="margin: 0; color: #474C54; font-size: 18px">Estamos escolhendo clínicas de estética para usar o Tredane desde o começo, com acompanhamento da nossa equipe.</p>
+<a href="mailto:[E-MAIL DO TREDANE]" style="align-self: flex-start; display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 24px; border-radius: 12px; background: #2F5BD3; color: #FFFFFF; font-weight: 600; text-decoration: none">Falar com o Tredane</a>
+<span style="font-size: 14px; color: #5B616B">Condições do piloto: [A DEFINIR]</span>
+</div>
+<div style="flex: 1 1 360px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; font-size: 16px; font-weight: 600">O que a clínica recebe</h3>
+<ul style="margin: 0; padding-left: 20px; color: #474C54; display: flex; flex-direction: column; gap: 4px">
+<li>Ajuda para conectar o WhatsApp da clínica</li>
+<li>Configuração dos serviços e da agenda junto com você</li>
+<li>Contato direto com quem está construindo o produto</li>
+</ul>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; font-size: 16px; font-weight: 600">O que pedimos</h3>
+<ul style="margin: 0; padding-left: 20px; color: #474C54; display: flex; flex-direction: column; gap: 4px">
+<li>Um número de WhatsApp Business da clínica</li>
+<li>Sua lista de serviços, profissionais e salas</li>
+<li>Conversas rápidas sobre o que funcionou e o que não</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="fq-t">
+<div style="max-width: 760px; margin: 0 auto; padding: 0 clamp(16px, 4cqi, 48px) clamp(48px, 7cqi, 96px); display: flex; flex-direction: column; gap: 16px">
+<h2 id="fq-t" style="margin: 0; font-size: clamp(26px, 3cqi, 36px); line-height: 1.2; letter-spacing: -0.01em; font-weight: 600">Perguntas frequentes</h2>
+<details style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 12px; padding: 0 16px">
+<summary style="min-height: 52px; display: flex; align-items: center; font-weight: 600; cursor: pointer">A IA responde sozinha para os clientes?</summary>
+<p style="margin: 0 0 16px; color: #474C54">Não. A IA só sugere quando a atendente pede, e a mensagem só sai depois que uma pessoa revisa e envia.</p>
+</details>
+<details style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 12px; padding: 0 16px">
+<summary style="min-height: 52px; display: flex; align-items: center; font-weight: 600; cursor: pointer">Preciso trocar o número da clínica?</summary>
+<p style="margin: 0 0 16px; color: #474C54">O Tredane usa a API oficial do WhatsApp Business. Conversamos sobre o número da clínica antes de conectar, e a conexão é feita pela própria clínica, no fluxo oficial da Meta, com nossa ajuda.</p>
+</details>
+<details style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 12px; padding: 0 16px">
+<summary style="min-height: 52px; display: flex; align-items: center; font-weight: 600; cursor: pointer">Funciona no computador?</summary>
+<p style="margin: 0 0 16px; color: #474C54">Sim, no navegador. O desenho foi pensado primeiro para o celular, que é onde a recepção mais atende.</p>
+</details>
+<details style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 12px; padding: 0 16px">
+<summary style="min-height: 52px; display: flex; align-items: center; font-weight: 600; cursor: pointer">Quanto custa?</summary>
+<p style="margin: 0 0 16px; color: #474C54">[PREÇO E CONDIÇÕES A DEFINIR]</p>
+</details>
+</div>
+</section>
+</main>
+
+<footer style="background: #FFFFFF; border-top: 1px solid #E2E3E5">
+<div style="max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4cqi, 48px); display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; justify-content: space-between; font-size: 14px; color: #5B616B">
+<span>© 2026 Tredane</span>
+<span style="display: flex; flex-wrap: wrap; gap: 4px 16px">
+<a href="#politica" style="display: flex; align-items: center; min-height: 44px; color: #1E43A8">Política de privacidade [A PUBLICAR]</a>
+<a href="mailto:[E-MAIL DO TREDANE]" style="display: flex; align-items: center; min-height: 44px; color: #1E43A8">Contato</a>
+</span>
+</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":4600}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

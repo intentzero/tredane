@@ -27,6 +27,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 | `mobile/previews/M-xx-*.png` | Imagem de cada mock, 390×844, para ver sem rodar nada |
 | `mobile/canvas.json` | Posição e título de cada tela no canvas do editor de design |
 | `desktop/` | Quatro telas de uma exploração anterior para tela larga (Conversas, Pipeline, Agenda, Estados). Ver [aviso](#desktop) |
+| `landing/` | Mock aprovado da landing page do piloto (`Main.dc.html`, `Celular.dc.html`) e previews do site implementado; spec em [landing.md](../product/landing.md) |
 | `tools/` | `build_tokens.py` (gera `tokens.css`), `check_contrast.py` (valida contraste), `check_mocks.py` (valida que os mocks só usam tokens), `build_catalog.py` (gera o catálogo), `render_previews.py` (gera os PNG) |
 
 ## Como ver os mocks
