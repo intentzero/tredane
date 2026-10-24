@@ -61,3 +61,10 @@ CLERK_AUTHORIZED_PARTIES=http://localhost:5173
 #   VAPID_PRIVATE_KEY=...   # wrangler secret
 #   VAPID_SUBJECT=mailto:ops@sua-clinica.example
 # Nunca versionar a chave privada. O aviso de nova conversa não inclui o texto da mensagem.
+
+# #44 — Observabilidade / operação do piloto:
+# Inventário: npm run ops:secrets
+# Smoke local: npm run ops:smoke
+# Staging/prod: npm run check:env -- staging|production (recusa D1 placeholder)
+# Logs: Workers Observability; sem PII — ver docs/implementation/f6-ops.md
+# Retenção/acesso a logs e PITR live: Em aberto até gates de conta/jurídico.

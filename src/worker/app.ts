@@ -73,6 +73,10 @@ import {
   createRetentionRoutes,
   type RetentionRouteOptions,
 } from '../retention'
+import {
+  createOpsRoutes,
+  type OpsRouteOptions,
+} from '../ops'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
@@ -139,6 +143,8 @@ export type CreateAppOptions = {
   push?: PushRouteOptions
   /** Retenção / exclusão (#43). */
   retention?: RetentionRouteOptions
+  /** Observabilidade / operação piloto (#44). */
+  ops?: OpsRouteOptions
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -276,6 +282,16 @@ export function createApp(opts: CreateAppOptions = {}) {
   }
   app.route('/', createRetentionRoutes(retentionOpts))
 
+  const opsOpts: OpsRouteOptions = {
+    syncAdminDbFactory:
+      opts.ops?.syncAdminDbFactory ?? opts.syncAdminDbFactory,
+    clinicStubFactory: opts.ops?.clinicStubFactory,
+    attachmentsBucketFactory:
+      opts.ops?.attachmentsBucketFactory ??
+      opts.retention?.attachmentsBucketFactory,
+  }
+  app.route('/', createOpsRoutes(opsOpts))
+
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)
     return env.CLINIC.get(id)
@@ -289,6 +305,8 @@ export function createApp(opts: CreateAppOptions = {}) {
       service: 'tredane',
       phase: 'f1',
       environment: c.env?.ENVIRONMENT ?? 'development',
+      /** Workers Observability ligado em wrangler.jsonc (#44). */
+      observability: true,
     })
   })
 

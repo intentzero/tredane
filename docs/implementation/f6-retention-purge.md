@@ -68,7 +68,7 @@ Alerta de atraso: audit `tenant.purge.deadline_alert` a ≤3 dias do deadline ou
 - Retenção mínima de logs/auditoria central e de cobranças no provedor Pix (Q5/Q10)
 - Binding Cloudflare Workflows (quando o módulo existir)
 - UI de exclusão de contacto no painel (API pronta)
-- Observabilidade operacional (#44)
+- Observabilidade operacional — ver [#44](f6-ops.md)
 
 ## Testes
 

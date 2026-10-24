@@ -236,6 +236,71 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
   }
 
+  /**
+   * Snapshot operacional (#44) — contagens técnicas sem PII / corpos.
+   * Usado por harness de carga, alertas e ensaio de recuperação.
+   */
+  async getOpsSnapshot(caller: ClinicCaller): Promise<{
+    tenantId: string
+    schemaVersion: number | null
+    schemaReady: boolean
+    pendingOutbox: number
+    failedOutbox: number
+    uncertainOutbound: number
+    contactCount: number
+    messageCount: number
+    appointmentCount: number
+    attachmentMetaCount: number
+    eventSeq: number
+  }> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const meta = bindOrAssertTenant(this.#db, caller, this.#clock)
+    const schema = this.#db.get<{ version: number; status: string }>(
+      'SELECT version, status FROM clinic_schema_state WHERE id = 1',
+    )
+    const failedOutbox =
+      this.#db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM outbox_events
+         WHERE tenant_id = ? AND processing_state = 'failed'`,
+        meta.tenantId,
+      )?.n ?? 0
+    const uncertainOutbound =
+      this.#db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM outbound_messages
+         WHERE tenant_id = ? AND delivery_state = 'unknown'`,
+        meta.tenantId,
+      )?.n ?? 0
+    const messageCount =
+      this.#db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM messages WHERE tenant_id = ?`,
+        meta.tenantId,
+      )?.n ?? 0
+    const appointmentCount =
+      this.#db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ?`,
+        meta.tenantId,
+      )?.n ?? 0
+    const attachmentMetaCount =
+      this.#db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM attachments WHERE tenant_id = ?`,
+        meta.tenantId,
+      )?.n ?? 0
+    return {
+      tenantId: meta.tenantId,
+      schemaVersion: schema?.version ?? null,
+      schemaReady: schema?.status === 'ready',
+      pendingOutbox: listPendingOutbox(this.#db, meta.tenantId).length,
+      failedOutbox,
+      uncertainOutbound,
+      contactCount: listContacts(this.#db, meta.tenantId).length,
+      messageCount,
+      appointmentCount,
+      attachmentMetaCount,
+      eventSeq: getLastEventSeq(this.#db),
+    }
+  }
+
   async listEventsAfter(
     caller: ClinicCaller,
     afterSeq: number,

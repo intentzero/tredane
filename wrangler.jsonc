@@ -78,6 +78,9 @@
   "env": {
     "staging": {
       "name": "tredane-dev-staging",
+      "observability": {
+        "enabled": true
+      },
       "vars": {
         "ENVIRONMENT": "staging",
         "AUTH_MODE": "clerk"
@@ -127,6 +130,9 @@
     },
     "production": {
       "name": "tredane-dev-production",
+      "observability": {
+        "enabled": true
+      },
       "vars": {
         "ENVIRONMENT": "production",
         "AUTH_MODE": "clerk"

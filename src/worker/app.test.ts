@@ -25,6 +25,7 @@ describe('Worker API — F0/F1 harness', () => {
       service: 'tredane',
       phase: 'f1',
       environment: 'development',
+      observability: true,
     })
   })
 

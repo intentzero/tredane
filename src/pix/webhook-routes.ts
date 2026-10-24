@@ -5,6 +5,7 @@
 import { Hono } from 'hono'
 import { systemClock, type Clock } from '../db/clock'
 import type { AdminDb } from '../db/admin/store'
+import { createChannelLogger } from '../ops/log'
 import type { WorkerBindings } from '../worker/bindings'
 import {
   ingestPixWebhook,
@@ -34,20 +35,7 @@ type AppEnv = {
   Bindings: WorkerBindings
 }
 
-function defaultLog(entry: {
-  level: 'info' | 'warn' | 'error'
-  event: string
-  detail: Record<string, unknown>
-}): void {
-  const line = JSON.stringify({
-    channel: 'pix_webhook',
-    event: entry.event,
-    ...entry.detail,
-  })
-  if (entry.level === 'error') console.error(line)
-  else if (entry.level === 'warn') console.warn(line)
-  else console.info(line)
-}
+const defaultLog = createChannelLogger('pix_webhook')
 
 export function createPixWebhookRoutes(opts: PixWebhookRouteOptions = {}) {
   const app = new Hono<AppEnv>()
