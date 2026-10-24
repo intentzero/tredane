@@ -5,6 +5,11 @@ import {
   MIGRATION_NAME as M1_NAME,
   STATEMENTS as M1_STATEMENTS,
 } from './migrations/0001_clinic_foundation'
+import {
+  MIGRATION_ID as M2_ID,
+  MIGRATION_NAME as M2_NAME,
+  STATEMENTS as M2_STATEMENTS,
+} from './migrations/0002_realtime_fence'
 import type { ClinicDb } from './store'
 import type { Clock } from '../db/clock'
 
@@ -17,6 +22,7 @@ export type ClinicMigration = {
 /** Catálogo ordenado — acrescentar migrações futuras aqui (nunca reescrever aplicadas). */
 export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M1_ID, name: M1_NAME, statements: M1_STATEMENTS },
+  { id: M2_ID, name: M2_NAME, statements: M2_STATEMENTS },
 ]
 
 export type MigrationResult = {

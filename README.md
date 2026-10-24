@@ -63,9 +63,9 @@ A [auditoria do Issue #1](docs/product/definition-audit-2026-10-23.md) distingue
 
 ## Próximo marco
 
-Baseline F0 (#15–#18). F1: D1 admin (#19), Clinic DO (#20), Clerk HTTP (#21 / [f1-clerk-auth.md](docs/implementation/f1-clerk-auth.md)); login UI (#22) e WS (#23) seguem — [épico #14](https://github.com/intentzero/tredane/issues/14). Dados sintéticos até os gates de liberação.
+Baseline F0 (#15–#18). F1: D1 admin (#19), Clinic DO (#20), Clerk HTTP (#21 / [f1-clerk-auth.md](docs/implementation/f1-clerk-auth.md)), WebSockets/revogação (#23 / [f1-realtime-ws.md](docs/implementation/f1-realtime-ws.md)); login UI (#22) segue — [épico #14](https://github.com/intentzero/tredane/issues/14). Dados sintéticos até os gates de liberação.
 
 
 ## Persistência por clínica — DEC-038
 
-Confirmado: um Durable Object com SQLite nativo por clínica para dados operacionais e WebSockets; D1 central para tenants, memberships, convites e suporte; R2 privado para anexos. [ADR-0012](docs/adr/0012-clinic-durable-object-sqlite.md). D1 administrativo: [#19](https://github.com/intentzero/tredane/issues/19) / [f1-admin-d1.md](docs/implementation/f1-admin-d1.md). Clinic DO + migrações por instância + outbox: [#20](https://github.com/intentzero/tredane/issues/20) / [f1-clinic-do.md](docs/implementation/f1-clinic-do.md). Clerk + authz tenant: [#21](https://github.com/intentzero/tredane/issues/21) / [f1-clerk-auth.md](docs/implementation/f1-clerk-auth.md).
+Confirmado: um Durable Object com SQLite nativo por clínica para dados operacionais e WebSockets; D1 central para tenants, memberships, convites e suporte; R2 privado para anexos. [ADR-0012](docs/adr/0012-clinic-durable-object-sqlite.md). D1 administrativo: [#19](https://github.com/intentzero/tredane/issues/19) / [f1-admin-d1.md](docs/implementation/f1-admin-d1.md). Clinic DO + migrações por instância + outbox: [#20](https://github.com/intentzero/tredane/issues/20) / [f1-clinic-do.md](docs/implementation/f1-clinic-do.md). Clerk + authz tenant: [#21](https://github.com/intentzero/tredane/issues/21) / [f1-clerk-auth.md](docs/implementation/f1-clerk-auth.md). WebSockets + reconciliação + revogação D1→DO: [#23](https://github.com/intentzero/tredane/issues/23) / [f1-realtime-ws.md](docs/implementation/f1-realtime-ws.md).

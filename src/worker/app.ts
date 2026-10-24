@@ -8,13 +8,15 @@ import {
   type AuthEnv,
   type AuthServices,
 } from '../auth'
-import type { ClinicDurableObject } from './clinic-do'
+import {
+  createRealtimeRoutes,
+  type ClinicAccessInvalidator,
+  type RealtimeRouteOptions,
+} from '../realtime'
+import type { AdminDb } from '../db/admin/store'
+import type { WorkerBindings } from './bindings'
 
-export type WorkerBindings = AuthEnv['Bindings'] & {
-  CLINIC: DurableObjectNamespace<ClinicDurableObject>
-  ATTACHMENTS: R2Bucket
-  INBOUND_EVENTS: Queue
-}
+export type { WorkerBindings } from './bindings'
 
 type AppEnv = {
   Bindings: WorkerBindings
@@ -24,6 +26,10 @@ type AppEnv = {
 export type CreateAppOptions = {
   /** Injeta serviços de auth (testes). Por omissão usa buildAuthServices(env). */
   authServicesFactory?: (env: WorkerBindings) => AuthServices
+  /** Invalidator D1→DO (testes de falha de notificação). */
+  invalidatorFactory?: (env: WorkerBindings) => ClinicAccessInvalidator
+  /** AdminDb sync para revoke em testes unitários. */
+  syncAdminDbFactory?: (env: WorkerBindings) => AdminDb | null
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -41,6 +47,12 @@ export function createApp(opts: CreateAppOptions = {}) {
   app.use('/api/platform/*', createAuthServicesMiddleware(factory))
 
   app.route('/', createAuthRoutes())
+
+  const realtimeOpts: RealtimeRouteOptions = {
+    invalidatorFactory: opts.invalidatorFactory,
+    syncAdminDbFactory: opts.syncAdminDbFactory,
+  }
+  app.route('/', createRealtimeRoutes(realtimeOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)
@@ -96,6 +108,7 @@ export function createApp(opts: CreateAppOptions = {}) {
       displayName?: string
       body: string
       drain?: boolean
+      fanout?: boolean
     }>()
     if (!body?.providerEventKey || !body?.waId || typeof body.body !== 'string') {
       return c.json({ error: 'invalid_body' }, 400)
@@ -109,7 +122,7 @@ export function createApp(opts: CreateAppOptions = {}) {
           displayName: body.displayName,
           body: body.body,
         },
-        { drain: body.drain },
+        { drain: body.drain, fanout: body.fanout },
       )
       return c.json(result)
     } catch (err) {
@@ -172,6 +185,36 @@ export function createApp(opts: CreateAppOptions = {}) {
         403,
       )
     }
+  })
+
+  /** Harness: força authority override no DO (testes de cache positivo / unavailable). */
+  app.post('/api/f1/clinic/:tenantId/authority-override', async (c) => {
+    const tenantId = c.req.param('tenantId')
+    if (!tenantId.startsWith('clinic-demo-')) {
+      return c.json({ error: 'synthetic_tenants_only' }, 400)
+    }
+    const body = await c.req.json<{
+      grants?: Record<string, 'owner' | 'attendant' | 'deny' | 'unavailable'>
+      clear?: boolean
+    }>()
+    const stub = clinicStub(c.env, tenantId)
+    if (body.clear) {
+      await stub.clearAuthorityOverrideForTests()
+      return c.json({ ok: true, cleared: true })
+    }
+    await stub.setAuthorityOverrideForTests(body.grants ?? {})
+    return c.json({ ok: true })
+  })
+
+  app.post('/api/f1/clinic/:tenantId/revalidate-sockets', async (c) => {
+    const tenantId = c.req.param('tenantId')
+    if (!tenantId.startsWith('clinic-demo-')) {
+      return c.json({ error: 'synthetic_tenants_only' }, 400)
+    }
+    const result = await clinicStub(c.env, tenantId).revalidateOpenSockets(
+      workerCaller(tenantId),
+    )
+    return c.json(result)
   })
 
   app.notFound((c) => c.json({ error: 'not_found' }, 404))

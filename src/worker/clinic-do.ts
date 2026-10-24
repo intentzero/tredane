@@ -19,41 +19,77 @@ import {
   workerCaller,
 } from '../clinic'
 import { systemClock, type Clock } from '../db/clock'
-import type { WorkerBindings } from './app'
+import { fromD1 } from '../db/admin/async-store'
+import {
+  appendRealtimeEvent,
+  closeAllSockets,
+  closeUserSockets,
+  createD1AccessAuthority,
+  createMapAccessAuthority,
+  deliverEventToSockets,
+  denyUserAccess,
+  encodeServerMessage,
+  ensureRealtimeFence,
+  getLastEventSeq,
+  listRealtimeEventsAfter,
+  parseClientMessage,
+  setTenantSuspendedFence,
+  WORKER_WS_ASSERTION,
+  WS_INTERNAL_HEADERS,
+  type AccessAuthority,
+  type DeliverySocket,
+  type FenceSource,
+  type SocketAttachment,
+} from '../realtime'
+import { newId } from '../clinic/ids'
+import type { WorkerBindings } from './bindings'
 
 type ClinicEnv = WorkerBindings
 
+type WsUpgradeIdentity = {
+  tenantId: string
+  clerkUserId: string
+  sessionId: string
+  role: 'owner' | 'attendant'
+}
+
 /**
- * Clinic Durable Object — um por clínica (DEC-038 / ADR-0012 / issue #20).
- * SQLite nativo + migrações por instância + outbox durável.
- * WebSocket de produto e Clerk ficam em #23 / #21; eco WS do harness permanece.
+ * Clinic Durable Object — um por clínica (DEC-038 / ADR-0012 / issues #20/#23).
+ * SQLite + migrações + outbox + WebSockets hibernáveis com fence D1→DO.
  */
 export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   #db: ClinicDb
   #clock: Clock = systemClock
   #ready = false
+  /** Override de authority para testes determinísticos (cache positivo / falha). */
+  #authorityOverride: AccessAuthority | null = null
 
   constructor(ctx: DurableObjectState, env: ClinicEnv) {
     super(ctx, env)
-    // SqlStorageValue ⊆ SqlValue; adaptador tipado de forma estrutural.
     this.#db = fromDurableObjectSql(this.ctx.storage as Parameters<typeof fromDurableObjectSql>[0])
     this.ctx.blockConcurrencyWhile(async () => {
       runClinicMigrations(this.#db, this.#clock)
+      ensureRealtimeFence(this.#db, this.#clock)
       this.#ready = true
+      // Auto-ping/pong sem acordar o DO (hibernação).
+      try {
+        this.ctx.setWebSocketAutoResponse(
+          new WebSocketRequestResponsePair('ping', 'pong'),
+        )
+      } catch {
+        /* runtime sem auto-response — ok */
+      }
     })
   }
 
   #ensureReady(): void {
     if (!this.#ready) {
       runClinicMigrations(this.#db, this.#clock)
+      ensureRealtimeFence(this.#db, this.#clock)
       this.#ready = true
     }
   }
 
-  /**
-   * Instância criada via `idFromName(clinicId)` — o nome é a fonte do tenant.
-   * RPC/job com tenant diferente é recusado mesmo antes de clinic_meta.
-   */
   #assertInstanceTenant(caller: ClinicCaller): string {
     const name = this.ctx.id.name
     if (!name) {
@@ -66,6 +102,31 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       )
     }
     return name
+  }
+
+  #authority(): AccessAuthority {
+    if (this.#authorityOverride) return this.#authorityOverride
+    return createD1AccessAuthority(fromD1(this.env.DB))
+  }
+
+  #asDeliverySockets(): DeliverySocket[] {
+    return this.ctx.getWebSockets().map((ws) => ({
+      send: (data: string) => ws.send(data),
+      close: (code?: number, reason?: string) => {
+        try {
+          ws.close(code, reason)
+        } catch {
+          /* ignore */
+        }
+      },
+      deserializeAttachment: () => {
+        try {
+          return (ws.deserializeAttachment() as SocketAttachment | null) ?? null
+        } catch {
+          return null
+        }
+      },
+    }))
   }
 
   /** Harness F0/F1 — isolamento por instância. */
@@ -96,6 +157,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     schemaReady: true
     pendingOutbox: number
     contactCount: number
+    eventSeq: number
   }> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -105,27 +167,93 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       schemaReady: true,
       pendingOutbox: listPendingOutbox(this.#db, meta.tenantId).length,
       contactCount: listContacts(this.#db, meta.tenantId).length,
+      eventSeq: getLastEventSeq(this.#db),
+    }
+  }
+
+  async listEventsAfter(
+    caller: ClinicCaller,
+    afterSeq: number,
+  ): Promise<{
+    eventSeq: number
+    events: Array<{
+      seq: number
+      tenantId: string
+      eventId: string
+      type: string
+      entityType: string
+      entityId: string
+      payload: Record<string, unknown>
+      occurredAt: number
+    }>
+  }> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const meta = bindOrAssertTenant(this.#db, caller, this.#clock)
+    return {
+      eventSeq: getLastEventSeq(this.#db),
+      events: listRealtimeEventsAfter(this.#db, meta.tenantId, afterSeq),
     }
   }
 
   /**
-   * Ingestão operacional com outbox na mesma transação SQLite.
-   * Publicação para Queue ocorre depois (drain), nunca dentro da TX.
+   * Ingestão operacional com outbox + evento realtime na mesma TX SQLite.
+   * Fan-out WS ocorre depois do commit; publicação Queue no drain.
    */
   async ingestMessage(
     caller: ClinicCaller,
     input: IngestContactMessageInput,
-    opts: { drain?: boolean } = {},
+    opts: { drain?: boolean; fanout?: boolean } = {},
   ): Promise<{
     duplicate: boolean
     contactId: string
     inboundId: string
     outboxId: string | null
+    eventSeq: number | null
     drained: string[]
+    fanout: { delivered: string[]; revoked: string[]; skippedUnavailable: string[] } | null
   }> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     const result = ingestContactMessage(this.#db, caller, input, this.#clock)
+
+    let eventSeq: number | null = null
+    let fanoutResult: {
+      delivered: string[]
+      revoked: string[]
+      skippedUnavailable: string[]
+    } | null = null
+
+    if (!result.duplicate && result.outbox) {
+      const evt = appendRealtimeEvent(
+        this.#db,
+        {
+          tenantId: caller.tenantId,
+          type: 'contact.upserted',
+          entityType: 'contact',
+          entityId: result.contact.id,
+          eventId: `rt:${result.outbox.idempotencyKey}`,
+          payload: {
+            contactId: result.contact.id,
+            waId: result.contact.waId,
+            providerEventKey: input.providerEventKey,
+            bodyPreview: input.body.slice(0, 120),
+          },
+        },
+        this.#clock,
+      )
+      eventSeq = evt.seq
+
+      if (opts.fanout !== false) {
+        fanoutResult = await deliverEventToSockets(
+          this.#db,
+          this.#asDeliverySockets(),
+          evt,
+          this.#authority(),
+          this.#clock,
+        )
+      }
+    }
 
     let drained: string[] = []
     if (opts.drain !== false) {
@@ -138,11 +266,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       contactId: result.contact.id,
       inboundId: result.inbound.id,
       outboxId: result.outbox?.id ?? null,
+      eventSeq,
       drained,
+      fanout: fanoutResult,
     }
   }
 
-  /** Recuperação pós-crash / hibernação: republica pending sem duplicar entidades. */
   async drainOutbox(caller: ClinicCaller): Promise<{ published: string[]; failed: string[] }> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -178,6 +307,121 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }))
   }
 
+  /**
+   * Fence local + fecho de sockets (ADR-0009).
+   * Chamado pelo Worker após commit D1; best-effort.
+   */
+  async applyUserFence(input: {
+    tenantId: string
+    clerkUserId: string
+    reason: string
+    source: FenceSource
+  }): Promise<{ ok: true; closedConnections: string[]; authEpoch: number }> {
+    this.#ensureReady()
+    assertSyntheticTenantId(input.tenantId)
+    this.#assertInstanceTenant(workerCaller(input.tenantId))
+    bindOrAssertTenant(this.#db, workerCaller(input.tenantId), this.#clock)
+
+    const denial = denyUserAccess(this.#db, this.#clock, {
+      clerkUserId: input.clerkUserId,
+      reason: input.reason,
+      source: input.source,
+    })
+    const closed = closeUserSockets(
+      this.#asDeliverySockets(),
+      input.tenantId,
+      input.clerkUserId,
+      input.reason === 'support_revoked' ? 'support_revoked' : 'membership_revoked',
+    )
+    return { ok: true, closedConnections: closed, authEpoch: denial.authEpoch }
+  }
+
+  async applyTenantSuspended(input: {
+    tenantId: string
+    source: FenceSource
+  }): Promise<{ ok: true; closedConnections: string[]; authEpoch: number }> {
+    this.#ensureReady()
+    assertSyntheticTenantId(input.tenantId)
+    this.#assertInstanceTenant(workerCaller(input.tenantId))
+    bindOrAssertTenant(this.#db, workerCaller(input.tenantId), this.#clock)
+
+    const fence = setTenantSuspendedFence(this.#db, this.#clock, true)
+    const closed = closeAllSockets(
+      this.#asDeliverySockets(),
+      input.tenantId,
+      'tenant_not_active',
+    )
+    return { ok: true, closedConnections: closed, authEpoch: fence.authEpoch }
+  }
+
+  /**
+   * Test harness: força authority map (cache positivo antigo / unavailable).
+   * Não expor em rotas de produto.
+   */
+  async setAuthorityOverrideForTests(
+    grants: Record<string, 'owner' | 'attendant' | 'deny' | 'unavailable'>,
+  ): Promise<{ ok: true }> {
+    this.#ensureReady()
+    const map = new Map(
+      Object.entries(grants) as Array<[string, 'owner' | 'attendant' | 'deny' | 'unavailable']>,
+    )
+    this.#authorityOverride = createMapAccessAuthority(map)
+    return { ok: true }
+  }
+
+  async clearAuthorityOverrideForTests(): Promise<{ ok: true }> {
+    this.#authorityOverride = null
+    return { ok: true }
+  }
+
+  /** Revalida sockets hibernados/ativos sem fan-out de domínio. */
+  async revalidateOpenSockets(caller: ClinicCaller): Promise<{
+    live: number
+    revoked: number
+    skippedUnavailable: number
+  }> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    bindOrAssertTenant(this.#db, caller, this.#clock)
+
+    let live = 0
+    let revoked = 0
+    let skippedUnavailable = 0
+    const authority = this.#authority()
+
+    for (const ws of this.#asDeliverySockets()) {
+      const attachment = ws.deserializeAttachment()
+      if (!attachment || attachment.tenantId !== caller.tenantId) continue
+
+      const decision = await authority.checkMembership(
+        attachment.tenantId,
+        attachment.clerkUserId,
+      )
+      if (decision.status === 'unavailable') {
+        skippedUnavailable += 1
+        continue
+      }
+      if (decision.status === 'deny') {
+        denyUserAccess(this.#db, this.#clock, {
+          clerkUserId: attachment.clerkUserId,
+          reason: decision.reason,
+          source: 'authority_recheck',
+        })
+        closeUserSockets(
+          [ws],
+          caller.tenantId,
+          attachment.clerkUserId,
+          decision.reason,
+        )
+        revoked += 1
+        continue
+      }
+      live += 1
+    }
+
+    return { live, revoked, skippedUnavailable }
+  }
+
   async #drain(caller: ClinicCaller): Promise<{ published: string[]; failed: string[] }> {
     const queue = this.env.INBOUND_EVENTS
     return publishPendingEffects(
@@ -185,7 +429,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       caller,
       {
         async publish(envelope: EventEnvelope) {
-          // Efeito externo FORA da transação SQLite.
           await queue.send({
             source: 'clinic_outbox',
             tenantId: envelope.tenantId,
@@ -213,11 +456,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const upgrade = request.headers.get('Upgrade')
     if (upgrade?.toLowerCase() === 'websocket') {
-      const pair = new WebSocketPair()
-      const client = pair[0]
-      const server = pair[1]
-      this.ctx.acceptWebSocket(server)
-      return new Response(null, { status: 101, webSocket: client })
+      return this.#acceptProductWebSocket(request)
     }
 
     const url = new URL(request.url)
@@ -236,10 +475,127 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return Response.json({ error: 'not_found', phase: 'f1-clinic-do' }, { status: 404 })
   }
 
+  #parseWsIdentity(request: Request): WsUpgradeIdentity | Response {
+    const assertion = request.headers.get(WS_INTERNAL_HEADERS.assertion)
+    if (assertion !== WORKER_WS_ASSERTION) {
+      return Response.json({ error: 'unauthorized_ws' }, { status: 403 })
+    }
+    const tenantId = request.headers.get(WS_INTERNAL_HEADERS.tenantId)
+    const clerkUserId = request.headers.get(WS_INTERNAL_HEADERS.clerkUserId)
+    const sessionId = request.headers.get(WS_INTERNAL_HEADERS.sessionId)
+    const role = request.headers.get(WS_INTERNAL_HEADERS.role)
+    if (!tenantId || !clerkUserId || !sessionId || (role !== 'owner' && role !== 'attendant')) {
+      return Response.json({ error: 'invalid_ws_identity' }, { status: 400 })
+    }
+    try {
+      assertSyntheticTenantId(tenantId)
+      this.#assertInstanceTenant(workerCaller(tenantId))
+    } catch (err) {
+      return Response.json(
+        { error: err instanceof Error ? err.message : 'tenant_mismatch' },
+        { status: 403 },
+      )
+    }
+    return { tenantId, clerkUserId, sessionId, role }
+  }
+
+  async #acceptProductWebSocket(request: Request): Promise<Response> {
+    const identityOrErr = this.#parseWsIdentity(request)
+    if (identityOrErr instanceof Response) {
+      // Harness legado F0: sem headers internos → eco mínimo (sem fan-out clínico).
+      if (!request.headers.get(WS_INTERNAL_HEADERS.assertion)) {
+        return this.#acceptHarnessEcho()
+      }
+      return identityOrErr
+    }
+
+    const identity = identityOrErr
+    bindOrAssertTenant(this.#db, workerCaller(identity.tenantId), this.#clock)
+    const fence = ensureRealtimeFence(this.#db, this.#clock)
+
+    // Revalidação D1 no accept (não confiar só no Worker se fence local já nega).
+    const decision = await this.#authority().checkMembership(
+      identity.tenantId,
+      identity.clerkUserId,
+    )
+    if (decision.status === 'unavailable') {
+      return Response.json({ error: 'authority_unavailable' }, { status: 503 })
+    }
+    if (decision.status === 'deny') {
+      return Response.json({ error: decision.reason }, { status: 403 })
+    }
+
+    const pair = new WebSocketPair()
+    const client = pair[0]
+    const server = pair[1]
+    const connectionId = newId('ws')
+    const attachment: SocketAttachment = {
+      connectionId,
+      clerkUserId: identity.clerkUserId,
+      sessionId: identity.sessionId,
+      role: identity.role,
+      tenantId: identity.tenantId,
+      authEpoch: fence.authEpoch,
+      connectedAt: this.#clock.nowMs(),
+    }
+
+    this.ctx.acceptWebSocket(server, [identity.clerkUserId, identity.tenantId])
+    server.serializeAttachment(attachment)
+
+    server.send(
+      encodeServerMessage({
+        v: 1,
+        type: 'hello',
+        connectionId,
+        tenantId: identity.tenantId,
+        eventSeq: fence.lastEventSeq,
+        role: identity.role,
+        connectionState: 'live',
+      }),
+    )
+
+    return new Response(null, { status: 101, webSocket: client })
+  }
+
+  #acceptHarnessEcho(): Response {
+    const pair = new WebSocketPair()
+    const client = pair[0]
+    const server = pair[1]
+    this.ctx.acceptWebSocket(server)
+    server.serializeAttachment({ harness: true, phase: 'f1' })
+    return new Response(null, { status: 101, webSocket: client })
+  }
+
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
     const text = typeof message === 'string' ? message : new TextDecoder().decode(message)
-    // Eco de harness apenas — fan-out de produto em #23.
-    ws.send(JSON.stringify({ echo: text, phase: 'f1' }))
+    const attachment = (() => {
+      try {
+        return ws.deserializeAttachment() as SocketAttachment | { harness?: boolean } | null
+      } catch {
+        return null
+      }
+    })()
+
+    // Eco de harness F0/F1 — sem fan-out clínico.
+    if (attachment && 'harness' in attachment && attachment.harness) {
+      ws.send(JSON.stringify({ echo: text, phase: 'f1' }))
+      return
+    }
+
+    const parsed = parseClientMessage(text)
+    if (parsed?.type === 'ping') {
+      ws.send(JSON.stringify({ v: 1, type: 'pong' }))
+      return
+    }
+
+    ws.send(
+      encodeServerMessage({
+        v: 1,
+        type: 'error',
+        code: 'unknown_message',
+        message: 'mensagem não reconhecida',
+      }),
+    )
   }
 
   async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean) {
