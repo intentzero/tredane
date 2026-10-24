@@ -1,3 +1,23 @@
-# Copie para .dev.vars apenas quando houver segredos de desenvolvimento.
-# Não inclua dados reais nem credenciais no git.
-# Não existem segredos obrigatórios durante a F0.
+# Copie para .dev.vars (nunca versionar .dev.vars com segredos reais).
+# F1 (#21): identidade Clerk no Worker. Sem Organizations e sem MFA no MVP.
+
+# Modo de auth:
+# - synthetic — Bearer synth:<user_id> para testes locais (DEFAULT se chaves ausentes em development)
+# - clerk — authenticateRequest + Backend API reais
+AUTH_MODE=synthetic
+
+# Obrigatórios quando AUTH_MODE=clerk (Dashboard Clerk → API Keys):
+# CLERK_PUBLISHABLE_KEY=pk_test_...
+# CLERK_SECRET_KEY=sk_test_...
+
+# Opcional: PEM público para verificação JWT networkless (Dashboard → JWT public key)
+# CLERK_JWT_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+
+# Origens autorizadas (CSRF / azp). Separadas por vírgula.
+# Obrigatório em staging/production.
+CLERK_AUTHORIZED_PARTIES=http://localhost:5173
+
+# Em staging/production (wrangler secret / dashboard), definir:
+#   CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY, CLERK_AUTHORIZED_PARTIES
+#   AUTH_MODE=clerk (synthetic é ignorado/forçado a clerk nesses ambientes)
+# Opcional: CLERK_JWT_KEY

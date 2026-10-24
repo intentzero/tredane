@@ -269,4 +269,35 @@ describe('Cloudflare runtime harness — F0', () => {
     // Consumer real chega na F3; aqui só prova o producer binding no runtime.
     expect(typeof env.INBOUND_EVENTS.send).toBe('function')
   })
+
+  it('autoriza /api/me/tenants com Bearer synth e isola tenants (#21)', async () => {
+    const missing = await worker.fetch('http://localhost/api/me')
+    expect(missing.status).toBe(401)
+
+    const multi = await worker.fetch('http://localhost/api/me/tenants', {
+      headers: { Authorization: 'Bearer synth:user_synth_multi' },
+    })
+    expect(multi.status).toBe(200)
+    await expect(multi.json()).resolves.toEqual({
+      tenants: [
+        { tenantId: 'clinic-demo-a', role: 'owner', status: 'active' },
+        { tenantId: 'clinic-demo-b', role: 'attendant', status: 'active' },
+      ],
+    })
+
+    const cross = await worker.fetch('http://localhost/api/tenants/clinic-demo-b/context', {
+      headers: { Authorization: 'Bearer synth:user_synth_attendant_a' },
+    })
+    expect(cross.status).toBe(403)
+
+    const platformDenied = await worker.fetch('http://localhost/api/platform/tenants', {
+      headers: { Authorization: 'Bearer synth:user_synth_string_super' },
+    })
+    expect(platformDenied.status).toBe(403)
+
+    const platformOk = await worker.fetch('http://localhost/api/platform/tenants', {
+      headers: { Authorization: 'Bearer synth:user_synth_superadmin' },
+    })
+    expect(platformOk.status).toBe(200)
+  })
 })

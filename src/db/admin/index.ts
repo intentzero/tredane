@@ -1,7 +1,18 @@
 /**
  * Repositórios do D1 administrativo central (DEC-038).
- * Separados do domínio operacional do Clinic DO (#20) e da auth Clerk (#21).
+ * Separados do domínio operacional do Clinic DO (#20).
+ * Leituras HTTP autenticadas usam adaptadores async (#21).
  */
+export { fromD1, asyncFromSync, type AsyncAdminDb } from './async-store'
+export {
+  getTenantAsync,
+  listTenantsAsync,
+  getMembershipAsync,
+  listActiveMembershipsForUserAsync,
+  resolveActiveTenantMembership,
+  type AsyncTenantRow,
+  type AsyncMembershipRow,
+} from './async-queries'
 export { ADMIN_SCHEMA_VERSION, LEGACY_OPERATIONAL_TABLES } from './constants'
 export {
   INVITATION_TTL_MS,

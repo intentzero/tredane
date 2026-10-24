@@ -9,7 +9,10 @@
     "enabled": true
   },
   "vars": {
-    "ENVIRONMENT": "development"
+    "ENVIRONMENT": "development",
+    // synthetic: Bearer synth:<user_id> (sem segredos). Trocar para clerk + .dev.vars com chaves reais.
+    "AUTH_MODE": "synthetic",
+    "CLERK_AUTHORIZED_PARTIES": "http://localhost:5173"
   },
   "assets": {
     "not_found_handling": "single-page-application",
@@ -59,7 +62,10 @@
     "staging": {
       "name": "tredane-dev-staging",
       "vars": {
-        "ENVIRONMENT": "staging"
+        "ENVIRONMENT": "staging",
+        "AUTH_MODE": "clerk"
+        // CLERK_PUBLISHABLE_KEY + CLERK_AUTHORIZED_PARTIES via dashboard/vars;
+        // CLERK_SECRET_KEY via `wrangler secret put` — ver f1-clerk-auth.md
       },
       "d1_databases": [
         {
@@ -95,7 +101,8 @@
     "production": {
       "name": "tredane-dev-production",
       "vars": {
-        "ENVIRONMENT": "production"
+        "ENVIRONMENT": "production",
+        "AUTH_MODE": "clerk"
       },
       "d1_databases": [
         {
