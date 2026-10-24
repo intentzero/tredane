@@ -63,9 +63,9 @@ A [auditoria do Issue #1](docs/product/definition-audit-2026-10-23.md) distingue
 
 ## Próximo marco
 
-Baseline F0 (#15): ambientes, fixtures e CI. Em seguida #16 (prova de componentes), #17 (Pix simulado) e F1 (D1/DO/autorização) conforme o [épico #14](https://github.com/intentzero/tredane/issues/14), com dados de teste antes de serviços reais.
+Baseline F0 (#15–#18). F1: D1 admin (#19), Clinic DO (#20), Clerk (#21) — [épico #14](https://github.com/intentzero/tredane/issues/14). Dados sintéticos até os gates de liberação.
 
 
 ## Persistência por clínica — DEC-038
 
-Confirmado: um Durable Object com SQLite nativo por clínica para dados operacionais e WebSockets; D1 central para tenants, memberships, convites e suporte; R2 privado para anexos. [ADR-0012](docs/adr/0012-clinic-durable-object-sqlite.md) registra alternativas, consequências e trabalho pendente. O scaffold F0 ainda não implementa essa evolução.
+Confirmado: um Durable Object com SQLite nativo por clínica para dados operacionais e WebSockets; D1 central para tenants, memberships, convites e suporte; R2 privado para anexos. [ADR-0012](docs/adr/0012-clinic-durable-object-sqlite.md). O D1 administrativo (migrações, convites, suporte, auditoria) está em [#19](https://github.com/intentzero/tredane/issues/19) / [f1-admin-d1.md](docs/implementation/f1-admin-d1.md); domínio no DO e Clerk HTTP seguem em #20/#21.

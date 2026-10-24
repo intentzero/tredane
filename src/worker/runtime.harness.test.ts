@@ -62,15 +62,20 @@ describe('Cloudflare runtime harness — F0', () => {
 
   it('applies D1 migrations and synthetic membership fixtures', async () => {
     const env = await worker.getEnv()
-    const tenants = await env.DB.prepare('SELECT id FROM tenants ORDER BY id').all()
-    expect(tenants.results?.map((row: { id: string }) => row.id)).toEqual([
-      'clinic-demo-a',
-      'clinic-demo-b',
+    const tenants = await env.DB.prepare('SELECT id, status FROM tenants ORDER BY id').all()
+    expect(tenants.results).toEqual([
+      { id: 'clinic-demo-a', status: 'active' },
+      { id: 'clinic-demo-b', status: 'active' },
+      { id: 'clinic-demo-suspended', status: 'suspended' },
     ])
     const memberships = await env.DB.prepare(
       'SELECT COUNT(*) AS n FROM tenant_memberships',
     ).first() as { n: number } | null
-    expect(memberships?.n).toBe(5)
+    expect(memberships?.n).toBe(7)
+    const schema = await env.DB.prepare(
+      'SELECT version FROM admin_schema_state WHERE id = 1',
+    ).first() as { version: number } | null
+    expect(schema?.version).toBe(3)
 
     const multi = await env.DB.prepare(
       `SELECT tenant_id, role FROM tenant_memberships
