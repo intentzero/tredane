@@ -16,5 +16,5 @@
     "resolveJsonModule": true,
     "types": ["vite/client", "node", "@cloudflare/workers-types"]
   },
-  "include": ["src", "vite.config.ts", "vitest.config.ts", "drizzle.config.ts"]
+  "include": ["src", "vite.config.ts", "vitest.config.ts", "vitest.runtime.config.ts", "drizzle.config.ts"]
 }

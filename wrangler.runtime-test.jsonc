@@ -1,0 +1,47 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Config isolada para createTestHarness (sem assets SPA).
+  // Não usar para deploy — ver wrangler.jsonc + docs/implementation/environments.md.
+  "name": "tredane-dev",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2026-10-19",
+  "vars": {
+    "ENVIRONMENT": "development"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tredane-dev",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "db/migrations"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CLINIC",
+        "class_name": "ClinicDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-f0-clinic-do",
+      "new_sqlite_classes": ["ClinicDurableObject"]
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ATTACHMENTS",
+      "bucket_name": "tredane-attachments-dev"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "INBOUND_EVENTS",
+        "queue": "tredane-inbound-dev"
+      }
+    ]
+  }
+}

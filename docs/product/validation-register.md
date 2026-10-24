@@ -1,6 +1,6 @@
 # Registro de hipóteses e validações do MVP
 
-**Estado:** hipóteses expressamente **não validadas**; nenhum item é afirmação de comportamento aprovado. **Data:** 23/10/2026. Registra *quem* deve resolver e *quando*, sem duplicar a fonte de verdade em [decisões](decisions.md). Ao resolver, atualizar o DEC/REQ/JRN relacionado e anotar evidência.
+**Estado:** hipóteses expressamente **não validadas**; nenhum item é afirmação de comportamento aprovado. **Data:** 23/10/2026 (reconciliado com o [épico #14](https://github.com/intentzero/tredane/issues/14) em 24/10/2026). Registra *quem* deve resolver e *quando*, sem duplicar a fonte de verdade em [decisões](decisions.md). Itens já decididos (agenda DEC-008, Meta DEC-009, Claude DEC-011, Agendado sem compromisso DEC-040, Pix/confirmação automática DEC-047, REQ-072 = contexto IA) permanecem nas decisões/requisitos — aqui só o que ainda precisa de evidência de piloto. Ao resolver, atualizar o DEC/REQ/JRN relacionado e anotar evidência.
 
 | ID | Hipótese / questão | Responsável | Gate / quando validar | Referências |
 | --- | --- | --- | --- | --- |

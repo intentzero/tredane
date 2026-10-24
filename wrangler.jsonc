@@ -8,6 +8,9 @@
   "observability": {
     "enabled": true
   },
+  "vars": {
+    "ENVIRONMENT": "development"
+  },
   "assets": {
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
@@ -20,5 +23,110 @@
       "database_id": "00000000-0000-0000-0000-000000000001",
       "migrations_dir": "db/migrations"
     }
-  ]
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CLINIC",
+        "class_name": "ClinicDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-f0-clinic-do",
+      "new_sqlite_classes": ["ClinicDurableObject"]
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ATTACHMENTS",
+      "bucket_name": "tredane-attachments-dev"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "INBOUND_EVENTS",
+        "queue": "tredane-inbound-dev"
+      }
+    ]
+  },
+  // Bindings não são herdados: staging/prod repetem o contrato completo.
+  // Placeholders 0000…00aa / 0000…00ff e UNPROVISIONED_* são recusados por
+  // `npm run check:env -- staging|production` antes de qualquer deploy.
+  "env": {
+    "staging": {
+      "name": "tredane-dev-staging",
+      "vars": {
+        "ENVIRONMENT": "staging"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "tredane-staging",
+          "database_id": "00000000-0000-4000-a000-0000000000aa",
+          "migrations_dir": "db/migrations"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "CLINIC",
+            "class_name": "ClinicDurableObject"
+          }
+        ]
+      },
+      "r2_buckets": [
+        {
+          "binding": "ATTACHMENTS",
+          "bucket_name": "tredane-attachments-staging"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "INBOUND_EVENTS",
+            "queue": "tredane-inbound-staging"
+          }
+        ]
+      }
+    },
+    "production": {
+      "name": "tredane-dev-production",
+      "vars": {
+        "ENVIRONMENT": "production"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "tredane-production",
+          "database_id": "00000000-0000-4000-a000-0000000000ff",
+          "migrations_dir": "db/migrations"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "CLINIC",
+            "class_name": "ClinicDurableObject"
+          }
+        ]
+      },
+      "r2_buckets": [
+        {
+          "binding": "ATTACHMENTS",
+          "bucket_name": "tredane-attachments-production"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "INBOUND_EVENTS",
+            "queue": "tredane-inbound-production"
+          }
+        ]
+      }
+    }
+  }
 }

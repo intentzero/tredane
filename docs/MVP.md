@@ -74,7 +74,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 
 - [Arquitetura de referência](architecture/overview.md) e [modelo lógico D1 central/SQLite por clínica](architecture/data-model.md).
 - ADRs: [Cloudflare-native](adr/0001-cloudflare-native.md), [topologia D1](adr/0002-d1-topology.md), [Durable Objects e tempo real](adr/0003-durable-objects-realtime.md), [IA com revisão humana](adr/0004-ai-human-in-loop.md) e [consistência da agenda](adr/0005-d1-booking-consistency.md).
-- [Plano de implementação proposto](implementation/plan.md).
+- [Plano de implementação proposto](implementation/plan.md) — ligado ao [épico #14](https://github.com/intentzero/tredane/issues/14); decomposição de engenharia, sem renumerar DEC/REQ.
 - [ADR Clerk e Platform Admin](adr/0006-clerk-platform-admin.md), [ADR Impersonação de suporte](adr/0007-support-impersonation.md) e [contratos de identidade/admin](architecture/identity-and-admin.md).
 
 Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora **confirmados**. Topologia resolvida por DEC-038; continuam em aberto: protocolo de revogação D1/DO, migrações/recuperação por clínica, fluxo de ligação do WhatsApp, política de dados reais, proteção do handoff e capacidades de manutenção das sessões próprias de suporte. Plano, custo e residência do Clerk: tratados como pré-condição de go-live (DEC-043).
@@ -132,7 +132,7 @@ O número e a conta de WhatsApp de cada clínica, a implementação técnica da 
 
 ## Estado da execução
 
-O scaffold técnico da fase F0 existe como checkpoint anterior à DEC-038: React/Vite, Hono/Worker, esquema mínimo D1/Drizzle, migração local, fixtures fictícias, testes e CI. A definição de produto mantém-se em revisão; o scaffold não altera requisitos nem autoriza dados reais. Ver [F0](implementation/f0.md).
+A fundação F0 (React/Vite, Hono/Worker, D1/Drizzle, migrações, fixtures com duas clínicas e memberships sintéticos, harness Cloudflare, CI) está no repositório como checkpoint — **não** como produto operacional. Execução do MVP: [épico #14](https://github.com/intentzero/tredane/issues/14). Detalhe F0: [f0.md](implementation/f0.md) e [environments.md](implementation/environments.md). O scaffold não altera requisitos nem autoriza dados reais.
 
 ## Sequência de implementação
 

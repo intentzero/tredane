@@ -37,18 +37,19 @@ Os ADRs identificam decisões aceitas, propostas técnicas e temas ainda em aber
 
 ## Executar a F0 localmente
 
-A base da aplicação React + Hono + Worker está na branch de implementação da F0. Apenas dados fictícios são permitidos nesta fase.
+A base React + Hono + Worker está na main (épico [#14](https://github.com/intentzero/tredane/issues/14) / issue [#15](https://github.com/intentzero/tredane/issues/15)). Apenas dados fictícios são permitidos nesta fase.
 
 ```bash
-npm install
+npm ci
 npm run db:migrate:local
 npm run db:seed:local
+npm run verify
 npm run dev
 ```
 
-Abra `http://localhost:5173` e consulte `/api/health`. Para validar: `npm run typecheck`, `npm run lint`, `npm test` e `npm run build`. O `database_id` em `wrangler.jsonc` é um placeholder **local**: antes de qualquer deploy é obrigatório criar um D1 real e configurar ambientes e permissões. Não usar dados reais na F0. A `compatibility_date` deve permanecer dentro do máximo suportado pelo workerd da lockfile (ver [f0.md](docs/implementation/f0.md)); caso contrário `npm run dev` falha ao arrancar.
+Abra `http://localhost:5173` e consulte `/api/health`. `npm run verify` cobre typecheck, lint, testes unitários, harness Cloudflare, contraste/mocks, build e migrate/seed. O `database_id` local em `wrangler.jsonc` é placeholder; staging/prod usam IDs fictícios bloqueados por `npm run check:env` até o provisionamento ([environments.md](docs/implementation/environments.md)). Não usar dados reais na F0. A `compatibility_date` deve permanecer dentro do máximo do workerd da lockfile ([f0.md](docs/implementation/f0.md)).
 
-A [documentação de execução e limitações da F0](docs/implementation/f0.md) detalha as escolhas, migrações e o estado do checkpoint (incluindo prova visual local).
+A [documentação F0](docs/implementation/f0.md) detalha escolhas, migrações, harness e o estado do checkpoint.
 
 ## Identidade, Platform Admin e suporte
 
@@ -62,7 +63,7 @@ A [auditoria do Issue #1](docs/product/definition-audit-2026-10-23.md) distingue
 
 ## Próximo marco
 
-Preparar a estrutura de frontend e API, migrações, ambiente local e CI. Em seguida, implementar o isolamento entre clínicas, o fluxo principal e a atualização reativa entre sessões com dados de teste antes de conectar serviços reais.
+Baseline F0 (#15): ambientes, fixtures e CI. Em seguida #16 (prova de componentes), #17 (Pix simulado) e F1 (D1/DO/autorização) conforme o [épico #14](https://github.com/intentzero/tredane/issues/14), com dados de teste antes de serviços reais.
 
 
 ## Persistência por clínica — DEC-038
