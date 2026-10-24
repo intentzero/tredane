@@ -222,7 +222,8 @@ Ver seção 6.2.
 - **Recebimento (M-33):** na área Clínica, só para a responsável: estado da conta conectada, **Conectar conta** e **Desconectar**, política de cancelamento do sinal.
 - **Serviço (M-16):** “Exige sinal”, tipo (valor fixo ou % do preço) e resumo do valor.
 - **Cancelar compromisso com sinal pago:** o diálogo de cancelamento ganha a escolha **Devolver sinal** ou **Reter sinal**, com a política da clínica.
-- **Em aberto:** prazo padrão para pagar; confirmação automática ao pagar; texto do modelo de WhatsApp.
+- **Confirmado (24/10/2026):** o compromisso é confirmado sozinho ao receber o pagamento se o horário estiver livre; prazo padrão de 2 horas, ajustável em M-33; **Confirmar sem sinal** na tela Agendar, com motivo obrigatório.
+- **Em aberto:** texto do modelo de WhatsApp com a cobrança.
 
 ### TEL-10 — Suporte do Tredane (aprovação por sessão)
 
@@ -318,7 +319,7 @@ Ver seção 6.2.
 | TEL-06 Compromisso | JRN-05 | REQ-032, REQ-033 | AC-10 |
 | TEL-07 Estados globais | JRN-07 | REQ-001, REQ-003, REQ-040, REQ-041, REQ-042 | AC-01, AC-02, AC-11, AC-12 |
 | TEL-08 Entrar e escolher clínica | JRN-07, JRN-08 | REQ-005 | AC-17 |
-| TEL-11 Sinal por Pix | JRN-16 | REQ-076 a REQ-082 | AC-44 a AC-50 |
+| TEL-11 Sinal por Pix | JRN-16 | REQ-076 a REQ-082 | AC-44 a AC-51 |
 | TEL-10 Suporte do Tredane | JRN-08 | REQ-060 a REQ-066 | AC-27 a AC-35 |
 | TEL-09 Clínica (configuração) | JRN-08 | REQ-002, REQ-003, REQ-004, REQ-051, REQ-052, REQ-071 | AC-03, AC-14, AC-38, AC-39, AC-40 |
 

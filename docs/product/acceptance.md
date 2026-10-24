@@ -205,9 +205,13 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 
 ### AC-49 — Expiração
 
-**Dado** uma cobrança não paga; **quando** o prazo vence; **então** ela passa a Expirada, deixa de aceitar pagamento e um aviso de pago posterior é tratado como Pago sem horário. **Requisito:** REQ-081.
+**Dado** uma cobrança não paga; **quando** o prazo vence; **então** ela passa a Expirada, deixa de aceitar pagamento e um aviso de pago posterior é tratado como Pago sem horário. **Requisito:** REQ-081. Com a configuração padrão, o prazo é de 2 horas; a responsável altera o prazo e o novo valor vale só para novas cobranças.
 
 ### AC-50 — Cancelamento com sinal pago
 
 **Dado** um compromisso confirmado com sinal pago; **quando** a atendente cancela; **então** o motivo é obrigatório, a política da clínica aparece, a escolha Devolver gera Estorno solicitado e a escolha Reter fica registrada com quem decidiu. **Requisito:** REQ-082.
+
+### AC-51 — Confirmar sem sinal
+
+**Dado** um serviço que exige sinal e a atendente na tela Agendar; **quando** escolhe **Confirmar sem sinal**; **então** o motivo é obrigatório, o compromisso é confirmado sem cobrança e o histórico registra quem confirmou e o motivo. **Requisito:** REQ-078.
 

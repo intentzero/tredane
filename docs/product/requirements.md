@@ -178,11 +178,11 @@
 
 ### REQ-078 — Enviar cobrança de sinal na conversa
 
-**Prioridade/estado:** MVP / Confirmado (DEC-047). **Origem:** ACT-02; JRN-16. **Comportamento:** ao agendar serviço que exige sinal, a atendente toca **Enviar sinal de R$ X**; o Tredane cria a cobrança Pix na conta da clínica e envia mensagem com valor, horário pretendido, prazo, política de cancelamento e Pix copia-e-cola ou link. Fora da janela de 24 h, só por modelo aprovado. O horário **não** é reservado. A conversa e o contato mostram **Aguardando sinal**. **Aceite:** AC-46. **Eventos:** `cobranca.criada`.
+**Prioridade/estado:** MVP / Confirmado (DEC-047). **Origem:** ACT-02; JRN-16. **Comportamento:** ao agendar serviço que exige sinal, a atendente toca **Enviar sinal de R$ X**; o Tredane cria a cobrança Pix na conta da clínica e envia mensagem com valor, horário pretendido, prazo, política de cancelamento e Pix copia-e-cola ou link. Fora da janela de 24 h, só por modelo aprovado. O horário **não** é reservado. A conversa e o contato mostram **Aguardando sinal**. A atendente também pode escolher **Confirmar sem sinal**, com motivo obrigatório registrado com quem confirmou (AC-51). **Aceite:** AC-46, AC-51. **Eventos:** `cobranca.criada`.
 
 ### REQ-079 — Pagamento recebido
 
-**Prioridade/estado:** MVP / Confirmado quanto ao registro; confirmação automática **Proposta** (sinal.md). **Origem:** JRN-16. **Comportamento:** o aviso do provedor é validado pela assinatura, processado uma única vez por cobrança e roteado à clínica dona da cobrança. A cobrança passa a **Paga**; se o horário estiver livre, o compromisso é confirmado; se não, a cobrança passa a **Pago sem horário**. **Aceite:** AC-47. **Eventos:** `cobranca.paga`, `cobranca.sem_horario`. **Tenant:** aviso de cobrança desconhecida ou de outra clínica é recusado e registrado.
+**Prioridade/estado:** MVP / Confirmado (DEC-047), inclusive a confirmação automática do compromisso quando o horário está livre. **Origem:** JRN-16. **Comportamento:** o aviso do provedor é validado pela assinatura, processado uma única vez por cobrança e roteado à clínica dona da cobrança. A cobrança passa a **Paga**; se o horário estiver livre, o compromisso é confirmado; se não, a cobrança passa a **Pago sem horário**. **Aceite:** AC-47. **Eventos:** `cobranca.paga`, `cobranca.sem_horario`. **Tenant:** aviso de cobrança desconhecida ou de outra clínica é recusado e registrado.
 
 ### REQ-080 — Pago sem horário
 
@@ -190,7 +190,7 @@
 
 ### REQ-081 — Expiração e cancelamento da cobrança
 
-**Prioridade/estado:** MVP / Confirmado (DEC-047); prazo padrão Em aberto. **Origem:** JRN-16. **Comportamento:** cobrança não paga no prazo passa a **Expirada** e deixa de aceitar pagamento; a atendente pode cancelar antes do pagamento (**Cancelada**). Nova tentativa cria nova cobrança. **Aceite:** AC-49. **Eventos:** `cobranca.expirada`, `cobranca.cancelada`.
+**Prioridade/estado:** MVP / Confirmado (DEC-047). **Origem:** JRN-16. **Comportamento:** cobrança não paga no prazo (padrão 2 horas; a responsável pode alterá-lo em M-33) passa a **Expirada** e deixa de aceitar pagamento; a atendente pode cancelar antes do pagamento (**Cancelada**). Nova tentativa cria nova cobrança. **Aceite:** AC-49. **Eventos:** `cobranca.expirada`, `cobranca.cancelada`.
 
 ### REQ-082 — Cancelamento com sinal pago e estorno
 

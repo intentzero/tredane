@@ -48,7 +48,7 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 
 | Estado | Significado | Regra |
 | --- | --- | --- |
-| Aguardando sinal | Cobrança criada e enviada; horário **não** reservado. | Expira no prazo (padrão Em aberto). |
+| Aguardando sinal | Cobrança criada e enviada; horário **não** reservado. | Expira no prazo (padrão 2 horas, ajustável pela responsável). |
 | Paga | Provedor confirmou o pagamento. | Confirma o compromisso se o horário estiver livre (Proposto). |
 | Pago sem horário | Pago, mas o horário foi ocupado antes. | Alerta até a equipe escolher outro horário ou devolver. |
 | Expirada | Prazo venceu sem pagamento. | Não aceita pagamento; aviso posterior vira Pago sem horário. |
