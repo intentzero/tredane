@@ -241,3 +241,29 @@ export const adminSchemaState = sqliteTable('admin_schema_state', {
   version: integer('version').notNull(),
   appliedAt: integer('applied_at').notNull(),
 })
+
+/**
+ * Comando durável de exclusão lógica (#24 / REQ-006).
+ * A tarefa de retenção/expurgo consome `queued`; não é destruição imediata.
+ */
+export const DELETION_COMMAND_STATUSES = [
+  'queued',
+  'in_progress',
+  'completed',
+  'cancelled',
+] as const
+export type DeletionCommandStatus = (typeof DELETION_COMMAND_STATUSES)[number]
+
+export const tenantDeletionCommands = sqliteTable('tenant_deletion_commands', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  status: text('status', { enum: DELETION_COMMAND_STATUSES }).notNull().default('queued'),
+  requestedByClerkUserId: text('requested_by_clerk_user_id').notNull(),
+  requestedAt: integer('requested_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  /** Metadados não clínicos (JSON). Sem PHI/tokens. */
+  payloadJson: text('payload_json'),
+}, (table) => [
+  index('tenant_deletion_commands_tenant_idx').on(table.tenantId),
+  index('tenant_deletion_commands_status_idx').on(table.status),
+])

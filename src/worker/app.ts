@@ -13,6 +13,10 @@ import {
   type ClinicAccessInvalidator,
   type RealtimeRouteOptions,
 } from '../realtime'
+import {
+  createPlatformRoutes,
+  type PlatformRouteOptions,
+} from '../platform'
 import type { AdminDb } from '../db/admin/store'
 import type { WorkerBindings } from './bindings'
 
@@ -53,6 +57,12 @@ export function createApp(opts: CreateAppOptions = {}) {
     syncAdminDbFactory: opts.syncAdminDbFactory,
   }
   app.route('/', createRealtimeRoutes(realtimeOpts))
+
+  const platformOpts: PlatformRouteOptions = {
+    invalidatorFactory: opts.invalidatorFactory,
+    syncAdminDbFactory: opts.syncAdminDbFactory,
+  }
+  app.route('/', createPlatformRoutes(platformOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

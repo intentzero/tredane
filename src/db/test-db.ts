@@ -28,6 +28,10 @@ export function migrateUntilMemberships(db: DatabaseSync): string[] {
 
 export function applyRemainingFromAdmin(db: DatabaseSync): void {
   applySqlFile((sql) => db.exec(sql), join(MIGRATIONS_DIR, '0003_admin_d1_central.sql'))
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0004_platform_admin_lifecycle.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

@@ -70,6 +70,6 @@ CSRF: pedidos com cookie (sem Bearer) exigem `Origin`/`Referer` ∈ `CLERK_AUTHO
 
 - Componentes/telas de login e seletor de clínica (#22)
 - Revogação D1→DO/WebSocket (#23)
-- Platform Admin CRUD completo e convites HTTP (#24/#25)
-- Sessões de suporte / handoff cookies (#24+)
+- Platform Admin CRUD — entregue em [#24](f1-platform-admin.md)
+- Convites HTTP (#25); sessões de suporte / handoff cookies
 - MFA (fora do MVP, DEC-028)

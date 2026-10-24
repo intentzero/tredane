@@ -22,6 +22,18 @@ function testApp() {
   }
   const app = createApp({
     authServicesFactory: () => services,
+    syncAdminDbFactory: () => boot.db,
+    invalidatorFactory: () => ({
+      async applyUserFence() {
+        return { ok: true, closedConnections: [] }
+      },
+      async applyTenantSuspended() {
+        return { ok: true, closedConnections: [] }
+      },
+      async applyTenantReactivated() {
+        return { ok: true, closedConnections: [] }
+      },
+    }),
   })
   return {
     app,

@@ -35,6 +35,7 @@ export { writeAudit, listAuditForTenant, type AuditEvent, type AuditWrite } from
 export {
   getTenant,
   createTenant,
+  updateTenant,
   suspendTenant,
   reactivateTenant,
   markTenantPendingDeletion,
@@ -50,6 +51,26 @@ export {
   revokeMembership,
   type MembershipRow,
 } from './memberships'
+export {
+  countActiveOwners,
+  createTenantWithOwner,
+  assignOwner,
+  removeOwner,
+  replaceOwner,
+  listOwnersForTenant,
+} from './owners'
+export {
+  getOpenDeletionCommand,
+  listDeletionCommandsForTenant,
+  enqueueDeletionCommand,
+  type DeletionCommandRow,
+} from './deletion-commands'
+export {
+  suspendTenantLifecycle,
+  reactivateTenantLifecycle,
+  markTenantPendingDeletionLifecycle,
+  type LifecycleSideEffects,
+} from './lifecycle'
 export {
   createInvitation,
   resendInvitation,
