@@ -13,6 +13,7 @@ import {
   type OutboxPublisher,
   type OutboxRow,
 } from './outbox'
+import { ensureOpenOpportunity } from './pipeline/operations'
 import type { ClinicDb } from './store'
 import { bindOrAssertTenant } from './tenant'
 
@@ -103,6 +104,20 @@ export function ingestContactMessage(
       clock,
     )
 
+    // AC-04: conversa + oportunidade; VAL-02 hipótese = 1 open / conversa.
+    const ensured = ensureOpenOpportunity(
+      db,
+      {
+        tenantId: meta.tenantId,
+        contactId: contact.id,
+        conversationId: appended.conversation.id,
+        assigneeClerkUserId: appended.conversation.assigneeClerkUserId,
+        assigneeDisplayName: appended.conversation.assigneeDisplayName,
+        lastInteractionAt: appended.message.createdAt,
+      },
+      clock,
+    )
+
     writeOperationalAudit(
       db,
       {
@@ -116,6 +131,7 @@ export function ingestContactMessage(
           waId: input.waId,
           conversationId: appended.conversation.id,
           messageId: appended.message.id,
+          opportunityId: ensured.opportunity.id,
         },
       },
       clock,
@@ -135,6 +151,7 @@ export function ingestContactMessage(
           providerEventKey: input.providerEventKey,
           bodyPreview: input.body.slice(0, 120),
           conversationId: appended.conversation.id,
+          opportunityId: ensured.opportunity.id,
         },
       },
       clock,
@@ -152,6 +169,7 @@ export function ingestContactMessage(
           conversationId: appended.conversation.id,
           messageId: appended.message.id,
           contactId: contact.id,
+          opportunityId: ensured.opportunity.id,
           direction: 'inbound',
           bodyPreview: input.body.slice(0, 120),
           deliveryState: 'received',
@@ -172,6 +190,7 @@ export function ingestContactMessage(
             payload: {
               conversationId: appended.conversation.id,
               contactId: contact.id,
+              opportunityId: ensured.opportunity.id,
               status: appended.conversation.status,
             },
           },
@@ -188,6 +207,7 @@ export function ingestContactMessage(
             payload: {
               conversationId: appended.conversation.id,
               contactId: contact.id,
+              opportunityId: ensured.opportunity.id,
               status: appended.conversation.status,
               unreadCount: appended.conversation.unreadCount,
               lastMessagePreview: appended.conversation.lastMessagePreview,
@@ -196,7 +216,12 @@ export function ingestContactMessage(
           clock,
         )
 
-    const outboxes = [contactOutbox, messageOutbox, conversationOutbox]
+    const outboxes = [
+      contactOutbox,
+      messageOutbox,
+      conversationOutbox,
+      ...ensured.outbox,
+    ]
     return {
       duplicate: false,
       contact,

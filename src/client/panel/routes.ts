@@ -1,4 +1,4 @@
-/** Rotas produtivas do painel (#22/#28/#29). Sem React Router — pathname + history. */
+/** Rotas produtivas do painel (#22/#28/#29/#30). Sem React Router — pathname + history. */
 
 export type PanelArea = 'conversas' | 'acompanhamento' | 'agenda' | 'clinica'
 
@@ -14,6 +14,9 @@ export type ClinicaSection =
 /** Sub-rotas de Conversas (#29): lista → thread → contacto. */
 export type ConversasSection = 'lista' | 'thread' | 'contato'
 
+/** Sub-rotas de Acompanhamento (#30): quadro por etapa → detalhe. */
+export type AcompanhamentoSection = 'quadro' | 'detalhe'
+
 export type PanelRoute =
   | { kind: 'entrar' }
   | { kind: 'clinicas' }
@@ -27,7 +30,14 @@ export type PanelRoute =
     }
   | {
       kind: 'area'
-      area: Exclude<PanelArea, 'clinica' | 'conversas'>
+      area: 'acompanhamento'
+      tenantId: string
+      section: AcompanhamentoSection
+      opportunityId?: string
+    }
+  | {
+      kind: 'area'
+      area: 'agenda'
       tenantId: string
     }
   | {
@@ -129,7 +139,26 @@ export function resolvePanelRoute(pathname: string): PanelRoute | null {
       contactId: parsed.contactId,
     }
   }
-  return { kind: 'area', area, tenantId }
+  if (area === 'acompanhamento') {
+    const rest = match[3]
+    if (rest) {
+      const opportunityId = decodeURIComponent(rest.split('/')[0]!)
+      return {
+        kind: 'area',
+        area: 'acompanhamento',
+        tenantId,
+        section: 'detalhe',
+        opportunityId,
+      }
+    }
+    return {
+      kind: 'area',
+      area: 'acompanhamento',
+      tenantId,
+      section: 'quadro',
+    }
+  }
+  return { kind: 'area', area: area as 'agenda', tenantId }
 }
 
 export function panelHref(route: PanelRoute): string {
@@ -150,6 +179,12 @@ export function panelHref(route: PanelRoute): string {
         }
         if (route.conversationId) {
           return `${base}/${encodeURIComponent(route.conversationId)}`
+        }
+        return base
+      }
+      if (route.area === 'acompanhamento') {
+        if (route.section === 'detalhe' && route.opportunityId) {
+          return `${base}/${encodeURIComponent(route.opportunityId)}`
         }
         return base
       }
@@ -203,7 +238,7 @@ export function navigatePanel(route: PanelRoute, replace = false): void {
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
-/** Rota de área do shell — Clínica abre no hub (#28); Conversas na lista (#29). */
+/** Rota de área do shell — Clínica hub (#28); Conversas (#29); Acompanhamento (#30). */
 export function areaRoute(tenantId: string, area: PanelArea): PanelRoute {
   if (area === 'clinica') {
     return { kind: 'area', area: 'clinica', tenantId, section: 'hub' }
@@ -211,5 +246,8 @@ export function areaRoute(tenantId: string, area: PanelArea): PanelRoute {
   if (area === 'conversas') {
     return { kind: 'area', area: 'conversas', tenantId, section: 'lista' }
   }
-  return { kind: 'area', area, tenantId }
+  if (area === 'acompanhamento') {
+    return { kind: 'area', area: 'acompanhamento', tenantId, section: 'quadro' }
+  }
+  return { kind: 'area', area: 'agenda', tenantId }
 }

@@ -5,6 +5,7 @@ import {
   bindOrAssertTenant,
   clinicConfig,
   clinicInbox,
+  clinicPipeline,
   fromDurableObjectSql,
   getBoundTenant,
   ingestContactMessage,
@@ -28,6 +29,12 @@ import type {
   MarkReadInput,
   SendOutboundInput,
 } from '../clinic/inbox'
+import type {
+  LinkAppointmentInput,
+  ListOpportunitiesInput,
+  MoveStageInput,
+  ReopenOpportunityInput,
+} from '../clinic/pipeline'
 import type {
   CreateBlockInput,
   SetWeeklyWindowsInput,
@@ -430,7 +437,67 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return clinicInbox.seedSyntheticInboxOp(this.#db, caller, this.#clock, opts)
   }
 
-  /** Snapshot de reconciliação — lista recente + seq (REQ-021 / #23). */
+  async listPipelineOpportunities(caller: ClinicCaller, input: ListOpportunitiesInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicPipeline.listOpportunitiesOp(this.#db, caller, input, this.#clock)
+  }
+
+  async getPipelineOpportunity(caller: ClinicCaller, opportunityId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicPipeline.getOpportunityOp(this.#db, caller, opportunityId, this.#clock)
+  }
+
+  async movePipelineStage(caller: ClinicCaller, input: MoveStageInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicPipeline.moveOpportunityStageOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    await this.#fanoutOutboxes(caller, result.outbox, true)
+    await this.#drain(caller)
+    return result.value
+  }
+
+  async linkPipelineAppointment(caller: ClinicCaller, input: LinkAppointmentInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicPipeline.linkAppointmentOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    await this.#fanoutOutboxes(caller, result.outbox, true)
+    await this.#drain(caller)
+    return result.value
+  }
+
+  async reopenPipelineOpportunity(caller: ClinicCaller, input: ReopenOpportunityInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicPipeline.reopenOpportunityCycleOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    await this.#fanoutOutboxes(caller, result.outbox, true)
+    await this.#drain(caller)
+    return result.value
+  }
+
+  async seedPipelineDemo(caller: ClinicCaller, opts: { force?: boolean } = {}) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicPipeline.seedSyntheticPipelineOp(this.#db, caller, this.#clock, opts)
+  }
+
+  /** Snapshot de reconciliação — lista recente + seq (REQ-021 / #23/#30). */
   async listInboxSnapshot(caller: ClinicCaller, viewerClerkUserId?: string) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -440,10 +507,18 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       { filter: 'all', limit: 50, viewerClerkUserId },
       this.#clock,
     )
+    const pipeline = clinicPipeline.listOpportunitiesOp(
+      this.#db,
+      caller,
+      { limit: 100 },
+      this.#clock,
+    )
     return {
       eventSeq: getLastEventSeq(this.#db),
       conversations: listed.items,
       counts: listed.counts,
+      opportunities: pipeline.items,
+      opportunityCounts: pipeline.counts,
     }
   }
 

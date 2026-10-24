@@ -60,4 +60,4 @@ Aba Clínica continua owner-only (#22). Falha de save mantém o formulário.
 - Campos de sinal Pix no serviço (REQ-076 — entrega Pix)
 - UI de Equipe / Pix na hub (API equipe #25; Pix #17)
 - Algoritmo completo de disponibilidade/agenda (#35/#36)
-- Contatos/Inbox (#29) e Acompanhamento (#30)
+- Contatos/Inbox (#29 / [f2-inbox.md](f2-inbox.md)) e Acompanhamento (#30 / [f2-pipeline.md](f2-pipeline.md))

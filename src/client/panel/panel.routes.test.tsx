@@ -23,6 +23,14 @@ describe('panel routes (#22)', () => {
       kind: 'area',
       area: 'acompanhamento',
       tenantId: 'clinic-demo-a',
+      section: 'quadro',
+    })
+    expect(resolvePanelRoute('/c/clinic-demo-a/acompanhamento/opp_1')).toEqual({
+      kind: 'area',
+      area: 'acompanhamento',
+      tenantId: 'clinic-demo-a',
+      section: 'detalhe',
+      opportunityId: 'opp_1',
     })
     expect(resolvePanelRoute('/')).toBeNull()
     expect(resolvePanelRoute('/prova')).toBeNull()
