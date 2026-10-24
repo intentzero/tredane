@@ -37,7 +37,7 @@ Estados permitidos: **Pendente** · **Em andamento** · **Evidência anexada** �
 | GATE-05 | Clerk: plano, limites, custo, DPA, região (DEC-043) | Engenharia + Produto + Jurídico | **Pendente** | Go-live com clínica real (não bloqueia F0) | Conferir docs Clerk; **não inventar valores** |
 | GATE-06 | AI Gateway sem conteúdo em logs + não retenção Anthropic (DEC-011) | Engenharia + Jurídico | **Pendente** | IA com dados reais | Config + contrato; ver §4 |
 | GATE-07 | E-mail transacional: provedor, DPA, região | Engenharia + Produto + Jurídico | **Pendente** | Convites e avisos de suporte em produção | Provedor ainda **Em aberto** |
-| GATE-08 | Pix: provedor escolhido, DPA, papel do Tredane (DEC-047, ADR-0014) | Engenharia + Produto + Jurídico | **Pendente** | Sinal com clientes reais | [sinal.md](sinal.md); [ADR-0014](../adr/0014-pix-provider.md) |
+| GATE-08 | Pix: DPA, papel do Tredane e taxas contratuais (DEC-047, DEC-049, ADR-0014) | Engenharia + Produto + Jurídico | **Pendente** (provedor Confirmado: Woovi; faltam DPA/taxas) | Sinal com clientes reais | [sinal.md](sinal.md); [ADR-0014](../adr/0014-pix-provider.md) |
 | GATE-09 | Cloudflare: DPA e regiões (Workers, DO, D1, R2) | Engenharia + Jurídico | **Pendente** | Go-live | — |
 | GATE-10 | Modelos WhatsApp aprovados (retomada, confirmação, cobrança Pix) | Produto + Engenharia | **Pendente** | Envio fora da janela de 24 h | Rascunhos em [whatsapp-templates-draft.md](whatsapp-templates-draft.md) |
 | GATE-11 | Termos / política de cancelamento / requisitos fiscais do sinal | Jurídico + Clínica + Produto | **Pendente** | Sinal com clientes reais | Perguntas 10 do dossiê; política da clínica |
@@ -100,7 +100,7 @@ Preencher só com evidência datada. Células vazias = não verificado.
 | Terceiro | O que recebe | Estado | Evidência / data |
 | --- | --- | --- | --- |
 | Provedor de e-mail | Convites, avisos de suporte (sem PHI) | Provedor **Em aberto** | — |
-| Provedor Pix (ADR-0014) | Cobrança na conta da clínica; estados; dados de estorno | Escolha **Proposta** | — |
+| Provedor Pix — Woovi / OpenPix (ADR-0014, DEC-049) | Cobrança na conta da clínica; estados; dados de estorno | Escolha **Confirmado**; DPA/taxas contratuais **Pendente** | DEC-049 · 24/10/2026 |
 | Cloudflare (Workers, DO/SQLite, D1, R2, Queues) | Hospedagem e dados do produto | DPA/região Pendente | — |
 | Meta | Mensagens e número da clínica | Ver §3 | — |
 

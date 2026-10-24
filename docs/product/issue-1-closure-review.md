@@ -36,7 +36,7 @@ As outras 16 caixas foram registradas como documentação em 23/10; isso não im
 | Handoff, política de capacidades e revogação D1/DO/WS | Engenharia + segurança + produto (VAL-06/07/08) | Antes de acesso real; #23/#26/#27 |
 | Uso assistivo da IA, avaliação de casos sensíveis e condição do terceiro | Produto + clínica + privacidade (VAL-05) | Antes de dados reais na IA; #18/#41 |
 | Aparelhos reais, navegação e push | Produto + clínica piloto (VAL-10, Q-UX-01/05) | Antes de aceite UX em #42/#45 |
-| Provedor Pix, política jurídica/fiscal e modelo de cobrança | Produto + engenharia + jurídico (ADR-0014, DEC-047) | Antes de cobrar cliente real; #17/#18/#37–#40 |
+| Política jurídica/fiscal Pix e adaptador real Woovi | Produto + engenharia + jurídico (ADR-0014, DEC-047, DEC-049) | Antes de cobrar cliente real; #18/#37–#40 (escolha do provedor fechada em DEC-049; #17 = simulador) |
 
 As decisões de produto **já confirmadas não são hipóteses**. Uma pendência técnica pode ser gate de implementação sem impedir encerrar a definição, desde que contrato observável e dono do gate estejam claros.
 

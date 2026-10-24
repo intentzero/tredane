@@ -50,7 +50,7 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 | M-30 | `IaCasos` | §6.3 IA | JRN-02 · REQ-073, REQ-074, REQ-075 · AC-41, AC-42, AC-43 | Referência de três estados do bloco de IA: serviço sem preço, mensagem ofensiva, procedimento com explicação da clínica e assunto clínico | M-02 |
 | M-31 | `SinalConversa` | TEL-11 | JRN-16 · REQ-078, REQ-081, REQ-082 · AC-46, AC-49, AC-50 | Mensagem de cobrança enviada, cartão **Aguardando sinal** (horário, prazo, recebe na conta da clínica, aviso de horário não reservado), **Copiar Pix**, **Cancelar cobrança**; demais estados do cartão | M-02, M-32 |
 | M-32 | `SinalSemHorario` | TEL-11 | JRN-16 · REQ-079, REQ-080 · AC-47, AC-48 | Alerta **Sinal pago, mas o horário foi ocupado**, próximos horários, **Confirmar com o sinal pago**, **Devolver sinal** | M-02 |
-| M-33 | `Recebimento` | TEL-11 | JRN-16 · REQ-076, REQ-077 · AC-44, AC-45 | Conta da clínica conectada (provedor a definir), política de cancelamento do sinal, prazo para pagar (padrão 2 horas), serviços com sinal; só responsável | M-15 |
+| M-33 | `Recebimento` | TEL-11 | JRN-16 · REQ-076, REQ-077 · AC-44, AC-45 | Conta da clínica conectada (Woovi / OpenPix, DEC-049), política de cancelamento do sinal, prazo para pagar (padrão 2 horas), serviços com sinal; só responsável | M-15 |
 | M-34 | `AgendarSinal` | TEL-11 | JRN-16 · REQ-078 · AC-46, AC-51 | Variante de M-04 com serviço que exige sinal: aviso de valor e de horário não reservado, **Enviar sinal de R$ 54,00** e **Confirmar sem sinal (informar motivo)** | M-31, M-02 |
 
 ## Estados que a UI real precisa ter e os mocks mostram em uma tela só
