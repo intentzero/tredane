@@ -1,12 +1,12 @@
 # Sinal por Pix para confirmar agendamento
 
-**Estado:** comportamento **Confirmado** pelo responsável pelo produto em 24/10/2026 ([DEC-047](decisions.md)), incluindo confirmação automática, prazo de 2 h e confirmar sem sinal; provedor de Pix **Proposto** ([ADR-0014](../adr/0014-pix-provider.md)); telas **Propostas** (TEL-11, M-31 a M-33). Muda a decisão anterior “pagamentos fora do MVP”: **o sinal por Pix entra no MVP**; qualquer outro pagamento continua fora.
+**Estado:** comportamento **Confirmado** pelo responsável pelo produto em 24/10/2026 ([DEC-047](decisions.md)), incluindo confirmação automática, prazo de 2 h e confirmar sem sinal; provedor de Pix **Confirmado: Woovi (OpenPix)** ([DEC-049](decisions.md), [ADR-0014](../adr/0014-pix-provider.md)); telas **Propostas** (TEL-11, M-31 a M-33). Muda a decisão anterior “pagamentos fora do MVP”: **o sinal por Pix entra no MVP**; qualquer outro pagamento continua fora. Dinheiro real continua bloqueado por DPA/jurídico e taxas contratuais; o adaptador simulado permanece até o adaptador real (#37+).
 
 ## Objetivo
 
 Permitir que a clínica peça um sinal por Pix para garantir um horário e reduzir faltas, sem que o Tredane receba ou repasse dinheiro.
 
-## Decisões (DEC-047)
+## Decisões (DEC-047, DEC-049)
 
 | Item | Estado |
 | --- | --- |
@@ -17,7 +17,7 @@ Permitir que a clínica peça um sinal por Pix para garantir um horário e reduz
 | Pago, mas o horário já foi ocupado: a cobrança fica **paga sem horário**, a equipe recebe alerta, oferece outro horário e, se a cliente recusar, a clínica devolve o Pix | **Confirmado** |
 | Valor definido **por serviço**: a responsável liga “exige sinal” e escolhe valor fixo ou percentual do preço | **Confirmado** |
 | Cancelamento depois do pagamento: a clínica escreve sua política; a equipe escolhe devolver ou reter, com motivo registrado; a política aparece para a cliente antes de pagar | **Confirmado** |
-| Provedor escolhido por avaliação na F0 | **Confirmado** o método; escolha **Proposta** ([ADR-0014](../adr/0014-pix-provider.md)) |
+| Provedor escolhido por avaliação na F0 | **Confirmado** o método (DEC-047); escolha **Confirmado: Woovi (OpenPix)** (DEC-049 / [ADR-0014](../adr/0014-pix-provider.md)); Mercado Pago permanece alternativa documentada |
 | Ao receber o pagamento, o Tredane confirma o compromisso **se o horário ainda estiver livre**, sem nova ação da equipe (regra do sistema, não da IA) | **Confirmado** (24/10/2026) |
 | Prazo padrão para pagar: **2 horas**; a responsável pode mudá-lo em Recebimento de sinais (M-33) | **Confirmado** (24/10/2026) |
 | A atendente pode **Confirmar sem sinal** um serviço que exige sinal, informando o motivo; o histórico guarda quem fez e o motivo | **Confirmado** (24/10/2026) |
@@ -69,6 +69,6 @@ REQ-076 a REQ-082; AC-44 a AC-51 ([requisitos](requirements.md), [aceite](accept
 
 | Pergunta | Quem decide | Bloqueia |
 | --- | --- | --- |
-| Provedor de Pix ([ADR-0014](../adr/0014-pix-provider.md)) | Responsável pelo produto, com avaliação da engenharia (matriz e recomendação Proposta em 24/10/2026: Woovi, alternativa Mercado Pago; simulador não bloqueado) | Adaptador **real** e M-33 em produção; **não** bloqueia testes com `SimulatedPixAdapter` |
+| DPA, papel do Tredane e taxas contratuais finais com Woovi | Jurídico + produto; revalidar notas públicas de taxa antes do piloto ([ADR-0014](../adr/0014-pix-provider.md)) | Dinheiro real e adaptador real em produção; **não** bloqueia testes com `SimulatedPixAdapter` |
 | Texto do modelo de WhatsApp com a cobrança e aprovação na Meta | Responsável pelo produto | Envio fora da janela de 24 h; rascunho TMPL-03 em [whatsapp-templates-draft.md](whatsapp-templates-draft.md); GATE-10 |
 | Requisitos fiscais e contratuais do sinal (recibo, nota) e revisão jurídica | Advogado | Uso com clientes reais; GATE-11 em [pilot-gates.md](pilot-gates.md) |
