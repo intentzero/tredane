@@ -34,6 +34,10 @@ import {
   createInboxRoutes,
   type InboxRouteOptions,
 } from '../inbox'
+import {
+  createPipelineRoutes,
+  type PipelineRouteOptions,
+} from '../pipeline'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
@@ -41,6 +45,7 @@ import type { ClinicEventPublisher } from '../realtime'
 import type { WorkerBindings } from './bindings'
 import type { ClinicConfigGateway } from '../clinic-config'
 import type { InboxGateway } from '../inbox'
+import type { PipelineGateway } from '../pipeline'
 
 export type { WorkerBindings } from './bindings'
 
@@ -73,6 +78,11 @@ export type CreateAppOptions = {
     env: WorkerBindings,
     tenantId: string,
   ) => InboxGateway | Promise<InboxGateway>
+  /** Gateway do Acompanhamento (#30). */
+  pipelineGatewayFactory?: (
+    env: WorkerBindings,
+    tenantId: string,
+  ) => PipelineGateway | Promise<PipelineGateway>
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -134,6 +144,11 @@ export function createApp(opts: CreateAppOptions = {}) {
     syncAdminDbFactory: opts.syncAdminDbFactory,
   }
   app.route('/', createInboxRoutes(inboxOpts))
+
+  const pipelineOpts: PipelineRouteOptions = {
+    gatewayFactory: opts.pipelineGatewayFactory,
+  }
+  app.route('/', createPipelineRoutes(pipelineOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

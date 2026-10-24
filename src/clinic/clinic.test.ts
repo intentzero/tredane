@@ -206,8 +206,8 @@ describe('Clinic — envelopes, tenant e outbox', () => {
       expect(second.duplicate).toBe(true)
       expect(second.outbox).toBeNull()
       expect(listContacts(db, 'clinic-demo-a')).toHaveLength(1)
-      // contact.upserted + message.created + conversation.created|updated
-      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(3)
+      // contact.upserted + message.created + conversation.created|updated + opportunity.created (#30)
+      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(4)
       expect(listOperationalAudit(db, 'clinic-demo-a')).toHaveLength(1)
     } finally {
       close()
@@ -230,7 +230,7 @@ describe('Clinic — envelopes, tenant e outbox', () => {
         clock,
       )
       expect(ingested.externalCallsInsideTransaction).toBe(0)
-      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(3)
+      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(4)
 
       // Simula crash: não chama publish. Reinício = novo drain.
       const publishedIds: string[] = []
@@ -244,8 +244,8 @@ describe('Clinic — envelopes, tenant e outbox', () => {
         },
         clock,
       )
-      expect(drain1.published).toHaveLength(3)
-      expect(publishedIds).toHaveLength(3)
+      expect(drain1.published).toHaveLength(4)
+      expect(publishedIds).toHaveLength(4)
 
       const drain2 = await publishPendingEffects(
         db,
@@ -310,9 +310,9 @@ describe('Clinic — envelopes, tenant e outbox', () => {
         },
         clock,
       )
-      expect(fail.failed).toHaveLength(3)
+      expect(fail.failed).toHaveLength(4)
       expect(fail.failed).toContain(ingested.outbox!.id)
-      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(3)
+      expect(listPendingOutbox(db, 'clinic-demo-a')).toHaveLength(4)
 
       const ok = await publishPendingEffects(
         db,
@@ -324,7 +324,7 @@ describe('Clinic — envelopes, tenant e outbox', () => {
         },
         clock,
       )
-      expect(ok.published).toHaveLength(3)
+      expect(ok.published).toHaveLength(4)
       expect(ok.published).toContain(ingested.outbox!.id)
     } finally {
       close()

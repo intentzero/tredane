@@ -240,6 +240,8 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
         contacts,
         conversations: inbox.conversations,
         inboxCounts: inbox.counts,
+        opportunities: inbox.opportunities ?? [],
+        opportunityCounts: inbox.opportunityCounts ?? [],
         connectionHint: { reconcileRequired: true },
       })
     },

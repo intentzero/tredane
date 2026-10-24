@@ -63,6 +63,10 @@ export type AppointmentRow = {
   status: 'confirmed' | 'cancelled'
   contactLabel: string | null
   createdAt: number
+  /** Vínculos Acompanhamento (#30); null até ligação explícita. */
+  contactId: string | null
+  conversationId: string | null
+  opportunityId: string | null
 }
 
 export type ClinicSettingsRow = {

@@ -450,6 +450,91 @@ export function createPanelApi(getToken: TokenGetter) {
       if (!res.ok) throw await parseError(res)
       return (await res.json()) as { seeded: boolean; conversationCount: number }
     },
+
+    async listPipelineOpportunities(
+      tenantId: string,
+      query: { stage?: OpportunityStage; includeClosed?: boolean; limit?: number } = {},
+      opts?: FetchOpts,
+    ): Promise<PipelineListResponse> {
+      const params = new URLSearchParams()
+      if (query.stage) params.set('stage', query.stage)
+      if (query.includeClosed) params.set('includeClosed', '1')
+      if (query.limit != null) params.set('limit', String(query.limit))
+      const qs = params.toString()
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pipeline/opportunities${qs ? `?${qs}` : ''}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as PipelineListResponse
+    },
+
+    async getPipelineOpportunity(
+      tenantId: string,
+      opportunityId: string,
+      opts?: FetchOpts,
+    ): Promise<{ opportunity: PipelineOpportunityDetail }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pipeline/opportunities/${encodeURIComponent(opportunityId)}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { opportunity: PipelineOpportunityDetail }
+    },
+
+    async movePipelineStage(
+      tenantId: string,
+      opportunityId: string,
+      body: {
+        toStage: OpportunityStage
+        expectedUpdatedAt?: number | null
+        note?: string | null
+      },
+      opts?: FetchOpts,
+    ): Promise<{ opportunity: PipelineOpportunityDetail }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pipeline/opportunities/${encodeURIComponent(opportunityId)}/move`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { opportunity: PipelineOpportunityDetail }
+    },
+
+    async seedPipelineDemo(
+      tenantId: string,
+      opts?: FetchOpts & { force?: boolean },
+    ): Promise<{
+      seeded: boolean
+      opportunityCount: number
+      val02Fixtures: { hypothesis: string }
+    }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pipeline/seed-demo`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ force: opts?.force === true }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        seeded: boolean
+        opportunityCount: number
+        val02Fixtures: { hypothesis: string }
+      }
+    },
   }
 }
 
@@ -527,6 +612,75 @@ export type InboxSendResponse = {
   conversation: InboxConversation
   message: InboxMessage
   duplicate: boolean
+}
+
+export type OpportunityStage =
+  | 'novo_contato'
+  | 'em_atendimento'
+  | 'horario_proposto'
+  | 'agendado'
+  | 'concluido'
+  | 'perdido'
+
+export type PipelineContact = {
+  id: string
+  waId: string
+  displayName: string | null
+  createdAt: number
+}
+
+export type PipelineLinkedAppointment = {
+  id: string
+  startsAt: number
+  endsAt: number
+  status: 'confirmed' | 'cancelled'
+  contactLabel: string | null
+  serviceId: string
+  professionalId: string
+}
+
+export type PipelineOpportunity = {
+  id: string
+  tenantId: string
+  contactId: string
+  conversationId: string
+  stage: OpportunityStage
+  status: 'open' | 'closed'
+  cycleNumber: number
+  assigneeClerkUserId: string | null
+  assigneeDisplayName: string | null
+  lastInteractionAt: number | null
+  linkedAppointmentId: string | null
+  createdAt: number
+  updatedAt: number
+  contact: PipelineContact
+  missingAppointment: boolean
+  linkedAppointment: PipelineLinkedAppointment | null
+}
+
+export type PipelineStageHistory = {
+  id: string
+  fromStage: OpportunityStage | null
+  toStage: OpportunityStage
+  actorClerkUserId: string | null
+  actorDisplayName: string | null
+  note: string | null
+  createdAt: number
+}
+
+export type PipelineOpportunityDetail = PipelineOpportunity & {
+  history: PipelineStageHistory[]
+}
+
+export type PipelineStageCount = {
+  stage: OpportunityStage
+  label: string
+  count: number
+}
+
+export type PipelineListResponse = {
+  opportunities: PipelineOpportunity[]
+  counts: PipelineStageCount[]
 }
 
 export type RoomRequirementDto =

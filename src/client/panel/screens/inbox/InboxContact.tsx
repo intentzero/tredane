@@ -125,10 +125,27 @@ export function InboxContactScreen({
         </div>
       </dl>
 
-      <h2 className="inbox-contact-h">Conversas</h2>
+      <h2 className="inbox-contact-h">Acompanhamento</h2>
       <p className="inbox-contact-note">
-        Pipeline (Acompanhamento) e agenda ficam nas fatias #30/#35 — aqui só o histórico partilhado.
+        O quadro de contactos em andamento está em Acompanhamento. A agenda completa chega nas
+        fatias #35/#36.
       </p>
+      <Button
+        className="panel-btn-secondary"
+        style={{ margin: '0 16px 12px' }}
+        onPress={() =>
+          navigatePanel({
+            kind: 'area',
+            area: 'acompanhamento',
+            tenantId,
+            section: 'quadro',
+          })
+        }
+      >
+        Abrir Acompanhamento
+      </Button>
+
+      <h2 className="inbox-contact-h">Conversas</h2>
       <ul className="inbox-list">
         {data.conversations.map((c) => (
           <li key={c.id}>

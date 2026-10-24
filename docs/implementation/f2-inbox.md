@@ -1,6 +1,6 @@
 # F2 — Contatos, caixa de entrada e histórico partilhado
 
-**Estado:** implementação da issue [#29](https://github.com/intentzero/tredane/issues/29) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Persistência no SQLite do Clinic DO + API HTTP + UI Conversas (M-01/02/03). **Sem** Acompanhamento (#30), webhooks Meta (F3) nem envio real WhatsApp. Dados sintéticos apenas.
+**Estado:** implementação da issue [#29](https://github.com/intentzero/tredane/issues/29) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Persistência no SQLite do Clinic DO + API HTTP + UI Conversas (M-01/02/03). Acompanhamento: [f2-pipeline.md](f2-pipeline.md) (#30). **Sem** webhooks Meta (F3) nem envio real WhatsApp. Dados sintéticos apenas.
 
 ## Decisões aplicadas
 

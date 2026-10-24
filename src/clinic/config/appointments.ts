@@ -15,6 +15,9 @@ type AppointmentSql = {
   status: string
   contact_label: string | null
   created_at: number
+  contact_id?: string | null
+  conversation_id?: string | null
+  opportunity_id?: string | null
 }
 
 function toAppointment(row: AppointmentSql): AppointmentRow {
@@ -29,6 +32,9 @@ function toAppointment(row: AppointmentSql): AppointmentRow {
     status: row.status as AppointmentRow['status'],
     contactLabel: row.contact_label,
     createdAt: row.created_at,
+    contactId: row.contact_id ?? null,
+    conversationId: row.conversation_id ?? null,
+    opportunityId: row.opportunity_id ?? null,
   }
 }
 
@@ -66,6 +72,7 @@ export function insertSyntheticAppointment(
   db: ClinicDb,
   tenantId: string,
   input: {
+    id?: string
     serviceId: string
     professionalId: string
     roomResourceId?: string | null
@@ -73,17 +80,22 @@ export function insertSyntheticAppointment(
     endsAt: number
     contactLabel?: string | null
     status?: 'confirmed' | 'cancelled'
+    /** Vínculos opcionais (#30) — não criam reserva ao mover etapa. */
+    contactId?: string | null
+    conversationId?: string | null
+    opportunityId?: string | null
   },
   clock: Clock,
 ): AppointmentRow {
   assertTimeRange(input.startsAt, input.endsAt)
-  const id = newId('apt')
+  const id = input.id ?? newId('apt')
   const now = clock.nowMs()
   db.run(
     `INSERT INTO appointments (
       id, tenant_id, service_id, professional_id, room_resource_id,
-      starts_at, ends_at, status, contact_label, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      starts_at, ends_at, status, contact_label, created_at,
+      contact_id, conversation_id, opportunity_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     input.serviceId,
@@ -94,6 +106,9 @@ export function insertSyntheticAppointment(
     input.status ?? 'confirmed',
     input.contactLabel ?? null,
     now,
+    input.contactId ?? null,
+    input.conversationId ?? null,
+    input.opportunityId ?? null,
   )
   return toAppointment(
     db.get<AppointmentSql>(

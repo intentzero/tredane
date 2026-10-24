@@ -5,6 +5,7 @@ import { ClinicSelector } from './screens/ClinicSelector'
 import { AreaPlaceholder } from './screens/AreaPlaceholders'
 import { ClinicArea } from './screens/clinic/ClinicArea'
 import { ConversasArea } from './screens/inbox/ConversasArea'
+import { AcompanhamentoArea } from './screens/acompanhamento/AcompanhamentoArea'
 import { PanelShell } from './shell/PanelShell'
 import { LoadingState } from './states/StatusScreens'
 import { TenantProvider, useTenant } from './tenant/TenantContext'
@@ -85,6 +86,12 @@ function PanelRouter() {
           section={route.section}
           conversationId={route.conversationId}
           contactId={route.contactId}
+        />
+      ) : route.area === 'acompanhamento' ? (
+        <AcompanhamentoArea
+          tenantId={route.tenantId}
+          section={route.section}
+          opportunityId={route.opportunityId}
         />
       ) : (
         <AreaPlaceholder area={route.area} />

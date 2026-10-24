@@ -1721,3 +1721,111 @@
 .inbox-contact .inbox-list {
   padding: 0 var(--space-4) var(--space-4);
 }
+
+/* Acompanhamento (#30 / M-05) */
+.acomp-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.acomp-header {
+  gap: var(--space-2);
+}
+
+.acomp-list {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.acomp-card-name {
+  flex: 1;
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+
+.acomp-warn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-caption, 0.875rem);
+  color: var(--color-warning-text, #6e4200);
+  font-weight: var(--font-weight-medium);
+}
+
+.acomp-banner-error {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-danger-tint, #fef3f2);
+  color: var(--color-danger-text, #b42318);
+  font-size: var(--font-size-caption, 0.875rem);
+}
+
+.acomp-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.acomp-alert {
+  display: flex;
+  gap: var(--space-3);
+  margin: var(--space-3) var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-warning-tint, #fff8eb);
+  color: var(--color-text-primary);
+}
+
+.acomp-alert-ok {
+  background: var(--color-primary-tint, #eef2fc);
+}
+
+.acomp-alert p {
+  margin: var(--space-1) 0 var(--space-2);
+  font-size: var(--font-size-caption, 0.875rem);
+  color: var(--color-text-secondary);
+}
+
+.acomp-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.acomp-history {
+  margin: 0 var(--space-4) var(--space-6);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.acomp-history li {
+  padding: var(--space-2) 0;
+  border-bottom: var(--size-border-width) solid var(--color-line-border);
+}
+
+.acomp-history-stage {
+  display: block;
+  font-weight: var(--font-weight-medium);
+}
+
+.acomp-history-meta {
+  display: block;
+  font-size: var(--font-size-caption, 0.75rem);
+  color: var(--color-text-secondary);
+}

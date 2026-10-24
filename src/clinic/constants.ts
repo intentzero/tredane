@@ -1,5 +1,5 @@
-/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20/#23/#28/#29). */
-export const CLINIC_SCHEMA_VERSION = 4
+/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20/#23/#28/#29/#30). */
+export const CLINIC_SCHEMA_VERSION = 5
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -7,7 +7,43 @@ export const CLINIC_MIGRATION_NAMES = {
   2: '0002_realtime_fence',
   3: '0003_clinic_config',
   4: '0004_inbox',
+  5: '0005_pipeline',
 } as const
+
+/**
+ * Etapas iniciais do Acompanhamento (Proposto em states.md; DEC-040/045).
+ * UI: «contato em andamento»; código/docs: oportunidade / pipeline.
+ */
+export const OPPORTUNITY_STAGES = [
+  'novo_contato',
+  'em_atendimento',
+  'horario_proposto',
+  'agendado',
+  'concluido',
+  'perdido',
+] as const
+
+export type OpportunityStage = (typeof OPPORTUNITY_STAGES)[number]
+
+/** Etapas terminais — fecham o ciclo (VAL-02 hipótese / Em aberto). */
+export const TERMINAL_OPPORTUNITY_STAGES: readonly OpportunityStage[] = [
+  'concluido',
+  'perdido',
+]
+
+export const OPPORTUNITY_STATUSES = ['open', 'closed'] as const
+
+export type OpportunityStatus = (typeof OPPORTUNITY_STATUSES)[number]
+
+/** Rótulos de UI (DEC-045) — nunca «pipeline»/«oportunidade» no painel. */
+export const OPPORTUNITY_STAGE_LABELS: Record<OpportunityStage, string> = {
+  novo_contato: 'Novo contato',
+  em_atendimento: 'Em atendimento',
+  horario_proposto: 'Horário proposto',
+  agendado: 'Agendado',
+  concluido: 'Concluído',
+  perdido: 'Perdido',
+}
 
 /** Estados de conversa (Proposto em states.md; implementação #29). */
 export const CONVERSATION_STATUSES = ['new', 'open', 'closed'] as const
