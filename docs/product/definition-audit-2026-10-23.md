@@ -50,6 +50,8 @@
 
 **DEC-028 substituiu DEC-027:** MFA fora do MVP para todos os perfis. A revisão de segurança de Platform Admin e suporte continua pendente, mas não bloquear por definição de método MFA.
 
+**DEC-029 confirmou aprovação prévia e específica do owner para cada sessão de suporte**; sem isso não há acesso clínico. Canal, prazo, segurança e privacidade continuam por especificar. Checklist não fechado automaticamente.
+
 ## Decisões fechadas
 
 - Clerk sem Organizations; `privateMetadata.superadmin` estritamente booleano e validado pelo backend.

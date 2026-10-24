@@ -13,7 +13,7 @@
 5. **Gestão de membros (opção B confirmada):** superadmin cria tenant e atribui primeiro owner; owner pode convidar/remover apenas attendants do próprio tenant, sem criar/promover owners. Mesmo usuário pode ter roles diferentes em vários tenants e remoção de um membership não afeta outros.
 6. **Separação de privilégio:** flag global de superadmin não concede acesso automático ao conteúdo da clínica. O acesso operacional normal exige membership explícito, ou uma sessão de suporte/impersonação controlada conforme [ADR-0007](0007-support-impersonation.md).
 7. **Exclusão:** "deletar tenant" é uma operação com confirmação reforçada e exclusão lógica no MVP. Purga física e recuperação dependem de política de dados/retensão ainda Em aberto.
-8. **Impersonação de suporte:** o Tredane emitirá **suas próprias sessões de suporte no D1**, sem Clerk impersonation ou actor tokens. O superadmin poderá atuar no contexto de um usuário com membership no tenant para manutenção conforme [ADR-0007](0007-support-impersonation.md); o ator real fica sempre identificado na auditoria.
+8. **Impersonação de suporte (DEC-029):** superadmin solicita acesso; Tredane **só ativa sessão própria no D1 com aprovação expressa de owner ativo do tenant para aquele pedido**. Sem Clerk impersonation ou actor tokens. O superadmin poderá atuar no contexto de um usuário com membership no tenant para manutenção conforme [ADR-0007](0007-support-impersonation.md); o ator real fica sempre identificado na auditoria.
 
 ## Convites de attendants — decisão adicional
 

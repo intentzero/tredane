@@ -33,7 +33,8 @@
 | Conectar ou trocar o número de WhatsApp | — | — | ? | — | — |
 | Ver conteúdo de todos os tenants sem contexto autorizado | — | — | — | — | — |
 | Administrar cadastro e ciclo de vida de tenants | — | — | — | — | ✓ |
-| Impersonar usuário membro de um tenant para suporte, com auditoria e TTL | — | — | — | — | ✓ |
+| Aprovar/rejeitar pedido de suporte do próprio tenant | — | — | ✓ | — | — |
+| Solicitar suporte e iniciar impersonação somente após aprovação do owner | — | — | — | — | ✓ |
 
 Operação e suporte devem partir de metadados e registros técnicos. Qualquer acesso excepcional a conteúdo de uma clínica requer política, autorização e auditoria específicas, ainda não definidas.
 

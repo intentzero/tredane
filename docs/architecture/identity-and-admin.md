@@ -36,13 +36,17 @@ O `owner` pode remover um `attendant` ativo do seu tenant; o superadmin gere own
 
 Owner de tenant ativo cria convite para e-mail e role **fixa attendant**. O Tredane envia um link de uso único, cuja credencial de alta entropia não é persistida em texto claro no D1. Na aceitação, o backend exige sessão Clerk do destinatário e e-mail **verificado** correspondente ao endereço convidado, e consome o convite atomicamente ao criar membership D1. A pessoa pode já integrar outros tenants, sem alterar esses vínculos. Concessão de owner continua exclusiva de superadmin. **DEC-022:** 7 dias (168 horas) desde emissão, verificados pelo servidor com `expires_at` persistido no D1; abrir link/login Clerk não prorroga. **DEC-023:** reenvio pelo owner gera novo token de uso único e novo `expires_at` de 7 dias; transação no D1 invalida o token antigo antes do despacho do novo e-mail. Aceite e reenvio simultâneos precisam de comportamento serializado e testes de concorrência. **DEC-024:** backend limita reenvios por par tenant/e-mail normalizado a um intervalo mínimo de 10 minutos e máximo de 5 em janela móvel de 24 horas; verificações de quota e rotação de tokens devem resistir a concorrência e não recomeçar contagem com novo link. Rejeitar sem revogar o link vigente. **DEC-025:** qualquer owner ativo da clínica pode cancelar convite pending dela, independentemente do emissor; transição atómica pending→cancelled no D1 invalida link imediatamente e audita actor. Aceite/cancelamento/reenvio concorrentes exigem uma única decisão persistida. Cancelar convite não remove membership. Provedor de entrega continua pendente. Consultar [ADR-0008](../adr/0008-tenant-email-invitations.md).
 
+## Aprovação de suporte por sessão (DEC-029)
+
+O superadmin cria `support_access_requests` pendente, com actor/subject/tenant/motivo/escopo, sem gerar acesso clínico. Owner ativo daquele tenant aprova/rejeita expressamente o pedido, cuja autorização e parâmetros são verificados no backend. Somente depois é ativada `support_sessions` e emitido handoff de uso único. Aprovação não é reutilizável ou permanente; expirado/revogado bloqueia HTTP e WebSocket. Sem MFA (DEC-028). Canal/prazo a definir. [ADR-0011](../adr/0011-owner-approval-for-support.md).
+
 ## Fluxo Platform Admin
 
 1. Superadmin autentica no Clerk.
 2. Worker confere `privateMetadata.superadmin === true` pelo Backend API; rejeita valor ausente, string ou API indisponível.
 3. Admin lista/cria/edita/suspende/reabilita/inicia exclusão lógica de tenants com auditoria.
 4. Só o backend emite e valida sessões de suporte; a UI nunca consegue conceder impersonação por parâmetros arbitrários.
-5. Admin pode selecionar tenant e usuário membro e iniciar impersonação para manutenção com banner visível, motivo, TTL e auditoria (ADR-0007).
+5. Admin pode solicitar suporte para tenant e usuário membro; **só após aprovação por owner ativo da clínica para a sessão específica (DEC-029)** pode iniciar impersonação com banner, TTL e auditoria (ADR-0007/0011).
 
 ## Contratos de API candidatos
 
@@ -62,7 +66,9 @@ Owner de tenant ativo cria convite para e-mail e role **fixa attendant**. O Tred
 - `POST /api/tenants/:tenantId/invitations` (proposto): owner convida exclusivamente attendants.
 - `POST /api/tenants/:tenantId/invitations/:id/cancel` (proposto): qualquer owner ativo do tenant cancela convite pending, com auditoria; jamais confiar no tenant declarado pelo browser sem validação de membership.
 - `DELETE /api/tenants/:tenantId/members/:clerkUserId` (proposto): owner remove apenas attendants, sem alterar tenants diferentes.
-- `POST /api/platform/support-sessions` cria uma sessão **própria do Tredane** vinculada à sessão Clerk do superadmin, tenant, subject e motivo; entrega código de handoff único de curta duração.
+- `POST /api/platform/support-requests` (proposto): cria solicitação pendente sem direito de acesso clínico.
+- `POST /api/tenants/:tenantId/support-requests/:id/decision` (proposto): owner ativo do mesmo tenant aprova/rejeita pedido com auditoria.
+- `POST /api/platform/support-sessions` (proposto): ativa sessão própria apenas com aprovação vigente para os parâmetros imutáveis e código de handoff seguro.
 - `POST /api/platform/support-sessions/:id/revoke` encerra a sessão e impede acesso posterior (HTTP/WebSocket).
 - `POST /api/support/exchange` (Clinic App, contrato proposto) troca o código único por credencial opaca de suporte em cookie seguro HttpOnly, vinculada à sessão Clerk **do actor**.
 - `GET /api/platform/support-sessions` lista eventos e sessões vigentes do superadmin.
@@ -103,6 +109,6 @@ Em `mode: 'support'`, o actor **continua autenticado no Clerk como ele mesmo**; 
 ## Questões ainda em aberto
 
 - **Confirmado:** a impersonação será exclusivamente implementada no Tredane; Clerk fornece somente a identidade/sessão original do superadmin. Em aberto o protocolo exato de handoff, cookies, CSRF, política de operações de escrita, sem MFA no MVP.
-- Política de aviso/aprovação de suporte e tratamento de dados pessoais.
+- **DEC-029 confirma aprovação por owner para cada sessão de suporte.** Canal de aviso, validade e privacidade dos dados ainda a definir.
 - Protocolo de revogação de WebSocket com garantia de não-entrega posterior, e topologia definitiva das apps/Workers. O **comportamento** de revogação por tenant está fechado em DEC-026.
 - Política de exclusão física/retensão e mecanismos de provisionamento, convite e alteração de membros.

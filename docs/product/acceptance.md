@@ -86,7 +86,7 @@
 
 ### AC-19 — Sessão interna de suporte e impersonação
 
-**Dado** superadmin, clínica A e subject com membership em A; **quando** inicia suporte com motivo; **então** o Tredane cria a sua própria sessão temporária e a Clinic App mostra banner, role efetiva do subject e as restrições adicionais. Clerk continua a autenticar o actor. Auditoria guarda as duas identidades. **Requisitos:** REQ-007.
+**Dado** superadmin, clínica A e subject com membership em A; **quando** solicita suporte com motivo e owner ativo de A aprova expressamente aquele pedido; **então** o Tredane ativa a sua própria sessão temporária e a Clinic App mostra banner, role efetiva do subject e as restrições adicionais. Clerk continua a autenticar o actor. Auditoria guarda as duas identidades. **Requisitos:** REQ-007.
 
 ### AC-20 — Negação de escalada e revogação no suporte
 
@@ -115,6 +115,10 @@
 ### AC-26 — Platform Admin e suporte sem MFA, com autorização rigorosa
 
 **Dado** usuário Clerk autenticado com `privateMetadata.superadmin === true` verificado no backend; **quando** administra tenants ou inicia sessão de suporte própria do Tredane, **então** o backend não exige MFA, mas exige os controles existentes: flag atual, sessão válida, motivo, TTL, auditoria dupla, autorização por subject/tenant, limitações de operações, handoff seguro e proteção CSRF. Sem flag ou sessão correta, bloquear. **Requisitos:** REQ-006/007; DEC-028.
+
+### AC-27 — Cada sessão de suporte exige aprovação de owner
+
+**Dado** pedido de suporte do superadmin para tenant A com actor, subject, motivo e escopo; **enquanto** estiver pendente, rejeitado, expirado ou revogado, **então** não há credencial de suporte nem acesso clínico HTTP/WebSocket. Owner ativo de A precisa aprovar explicitamente para ativar aquela sessão específica, com auditoria. Owner só de B, attendant ou superadmin apenas por privilégio global não aprova A. Troca de subject/tenant/escopo após decisão e reutilização da aprovação são negadas. **Requisito:** REQ-007; **DEC-029**. Canal/prazo da aprovação ainda em aberto.
 
 ## Condições para usar estes cenários como aprovação
 

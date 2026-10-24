@@ -20,13 +20,15 @@
 - **Memberships N:N no D1** para usuários com acesso a mais de uma clínica, com roles específicas.
 - **Delegação confirmada:** superadmin provisiona owners; owner convida/remove attendants do próprio tenant. Convites/aceitação e revogação HTTP/WS ainda a definir.
 - **Platform Admin interna** com autorização no backend por `privateMetadata.superadmin === true` booleano, capaz de criar, editar, suspender, reativar e iniciar exclusão lógica de tenants.
-- **Impersonação própria do Tredane:** sessões de suporte no D1 ligam administrador real, membro alvo, clínica e motivo; sem funcionalidades de impersonação do Clerk. Permissões resultam da role do alvo e limites adicionais, com auditoria dupla.
+- **Impersonação própria (DEC-029):** pedido de suporte não concede acesso; sessão ativa no D1 somente após aprovação de owner da clínica. Auditoria vincula actor, subject, owner aprovador, tenant, motivo e escopo; sem impersonação do Clerk. Permissões resultam da role do alvo e limites adicionais, com auditoria dupla.
 
 **Ordem proposta:** integrar Clerk → memberships e seletor de tenant → API Platform Admin → sessões próprias de suporte, com TTL/revogação e banner → validar segurança, dados pessoais e eventos WebSocket, sem MFA no MVP. Ver [ADR-0006](../adr/0006-clerk-platform-admin.md) e [ADR-0007](../adr/0007-support-impersonation.md).
 
 **Convite por e-mail confirmado (DEC-021):** registar convite de attendant no D1, emitir link de uso único, enviar e-mail, validar destinatário autenticado no Clerk por e-mail verificado e consumir convite + ativar membership atomicamente. Cobrir testes de replay, mudança de tenant, role e múltiplos memberships. **DEC-022:** prazo fixo de 7 dias (168 horas), com teste de limite em `expires_at` no backend. **DEC-023:** implementar reenvio com novo token e nova validade de 7 dias, invalidação atómica do link anterior, auditoria, proteção contra envios excessivos e testes de concorrência/replay. **DEC-024 fixa limites:** cooldown 10 minutos e 5 reenvios por janela móvel de 24 horas por tenant/e-mail. O Worker deve aplicar limite antes da rotação do token, com registos de uso resistentes a corrida. Adicionar testes de sexto reenvio, fronteira de 10 minutos, 24 horas e concorrência. **DEC-025:** endpoint de cancelamento de convites pending por qualquer owner do tenant, invalidação imediata e auditoria, testando concorrência com aceite/reenvio e impedimento cross-tenant.
 
 **DEC-028 — MVP sem MFA:** excluir configuração, enrollment e guards MFA do escopo F1. Manter Clerk login/sessão, middleware de flag superadmin, memberships/roles D1, segurança da sessão própria de suporte, auditoria, TTL e CSRF. Priorizar testes de autorização e revogação, sem MFA. Revisitar só depois do MVP.
+
+**DEC-029 — aprovação antes do suporte:** implementar pedidos pendentes, aprovação/rejeição por owner tenant-scoped, nenhum handoff/HTTP/WebSocket antes da aprovação, auditoria e vinculação actor/subject/owner/aprovação/escopo. Testar concorrência, reuso, revogação, owners de outros tenants e permissões. Canal e validade ainda em aberto. [ADR-0011](../adr/0011-owner-approval-for-support.md).
 
 ## Backlog técnico por épico
 

@@ -8,6 +8,8 @@
 
 Um superadmin autenticado na Platform Admin poderá escolher um **tenant** e um **usuário que seja membro ativo desse tenant**, declarar a finalidade de manutenção e abrir a Clinic App no contexto de permissões desse usuário. A experiência funcional deve corresponder ao papel do usuário selecionado, **sem falsificar a identidade de autenticação nem atribuir falsamente as ações ao usuário**.
 
+**DEC-029 exige aprovação explícita de um owner ativo da clínica para cada sessão de suporte antes de qualquer acesso clínico.** O owner autoriza a sessão de suporte, não o login do subject. [ADR-0011](0011-owner-approval-for-support.md).
+
 O superadmin continua autenticado **como ele mesmo no Clerk**. O Tredane aplica um **contexto efetivo de suporte** sobre a autorização tenant-scoped em D1. Não se cria sessão Clerk para o usuário alvo, não se altera sua senha, não se pede consentimento de login e não se utiliza a feature comercial de impersonação do Clerk.
 
 ## Decisões confirmadas
@@ -21,9 +23,9 @@ O superadmin continua autenticado **como ele mesmo no Clerk**. O Tredane aplica 
 ## Fluxo técnico proposto
 
 1. Na Platform Admin, o actor entra com sessão Clerk válida. O Worker verifica `privateMetadata.superadmin === true` no backend, a existência do tenant e o membership do subject.
-2. O actor seleciona o usuário e preenche **justificativa obrigatória**. O sistema cria `support_sessions` em D1 com ID aleatório não previsível, actor, subject, tenant, estado, `created_at`, `expires_at`, `revoked_at`, `scope` e `reason`.
-3. A app de administração abre a Clinic App numa sessão de suporte isolada. A transferência segura de contexto deverá usar **código de uso único, curtíssima validade e troca server-to-server/same-origin**, com cookie de suporte `HttpOnly; Secure; SameSite=Lax` com escopo mínimo no domínio da Clinic App. Nunca colocar um bearer persistente em URL, localStorage ou query string.
-4. A cada pedido, a API valida (a) sessão Clerk **do actor**, (b) a flag global atual, (c) cookie opaco do suporte ligado ao actor/sessão, (d) linha ativa em D1, TTL e tenant fixo, (e) tenant ativo, (f) membership atual e role do subject, (g) permissão da operação segundo **interseção** entre role do subject e política de suporte.
+2. O actor seleciona subject, motivo e escopo. O sistema cria `support_access_requests` no D1 em estado `pending`, **sem conceder acesso clínico**. Somente após owner ativo do mesmo tenant aprovar expressamente o pedido (DEC-029), o backend cria `support_sessions` vinculada ao pedido/aprovador e ao actor, subject, tenant, motivo, escopo e prazo.
+3. **Após aprovação válida do owner**, a app de administração abre a Clinic App numa sessão de suporte isolada. A transferência segura de contexto deverá usar **código de uso único, curtíssima validade e troca server-to-server/same-origin**, com cookie de suporte `HttpOnly; Secure; SameSite=Lax` com escopo mínimo no domínio da Clinic App. Nunca colocar um bearer persistente em URL, localStorage ou query string.
+4. A cada pedido, a API valida (0) aprovação vigente para aquele actor/subject/tenant/motivo/escopo, (a) sessão Clerk **do actor**, (b) a flag global atual, (c) cookie opaco do suporte ligado ao actor/sessão, (d) linha ativa em D1, TTL e tenant fixo, (e) tenant ativo, (f) membership atual e role do subject, (g) permissão da operação segundo **interseção** entre role do subject e política de suporte.
 5. O segredo da sessão de suporte não é armazenado em texto claro no D1: somente hash seguro/verificador; troca/consumo do código de handoff é atômica e impede reuso. Na revogação ou expiração, cookie perde valor e WebSockets devem deixar de receber eventos.
 6. A Clinic App exibe banner persistente com **"Modo suporte · Superadmin [actor] atuando no contexto de [subject] · [tenant]"**, identificação clara de ações desabilitadas e botão **Encerrar**. A UI nunca oculta o modo de suporte.
 
@@ -32,8 +34,25 @@ O superadmin continua autenticado **como ele mesmo no Clerk**. O Tredane aplica 
 ## Modelo lógico mínimo (proposto, sem migração executada)
 
 ```text
+support_access_requests (
+  id,
+  tenant_id,
+  actor_clerk_user_id,
+  subject_clerk_user_id,
+  reason,
+  scope,
+  status,
+  decided_by_owner_clerk_user_id,
+  decided_at,
+  created_at,
+  expires_at,
+  revoked_at
+)
+
 support_sessions (
   id,
+  support_access_request_id,
+  approved_by_owner_clerk_user_id,
   token_verifier_hash,
   actor_clerk_user_id,
   actor_clerk_session_id,
@@ -69,9 +88,10 @@ A associação com a sessão Clerk do actor e as chaves entre tenants devem ser 
 ## Políticas mínimas de segurança
 
 - **TTL:** duração curta, sugeridos 15 minutos; renovar explicitamente, com registo, sem renovação infinita.
-- **Início:** exigir motivo, sessão Clerk válida e autorização superadmin; não exigir MFA/step-up neste MVP (DEC-028), nem iniciar automaticamente por abertura de página.
+- **Início:** exigir motivo, sessão Clerk válida, autorização superadmin e **aprovação do owner para cada sessão (DEC-029)**. Sem MFA/step-up no MVP (DEC-028); não iniciar automaticamente por abertura de página.
 - **Modo inicial:** acesso de leitura e diagnóstico; operações de manutenção que modificam dados só após política de capacidades explícita, limitada ao papel do alvo e com auditoria. Proibir por padrão credenciais, alteração de membership/papéis, faturação, segredos, exportação em massa e ações destrutivas. Envio WhatsApp e alterações de agendamento exigem aprovação específica antes de ativar.
 - **Revogação (DEC-026):** retirar `superadmin`, revogar sessão Clerk, remover membership do subject **no tenant da sessão**, suspender tenant ou expirar/revogar suporte faz pedidos e WebSockets daquele contexto falharem **fechados**, sem fallback a permissões globais. Revogar A não deve desligar a sessão Clerk global nem afetar o acesso direto legítimo a B.
+- **Aprovação (DEC-029):** pedido pendente, rejeitado ou com aprovação expirada/revogada nunca autoriza leitura ou eventos HTTP/WebSocket. Auditoria regista o owner aprovador. A aprovação não autoriza sessões adicionais.
 - **Observabilidade:** logs técnicos e trilha de auditoria que não reproduzem desnecessariamente conteúdo pessoal; política de retenção, base legal, notificação e eventual autorização do cliente/tenant devem ser fechadas antes de usar dados reais.
 - **Não repúdio:** qualquer alteração de negócio por suporte deve guardar quem realmente a executou (`actor`) e em cujo contexto (`subject`); preservar correlação com solicitação/ticket de suporte.
 

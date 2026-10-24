@@ -115,8 +115,8 @@
 - **Estado:** Confirmada a impersonação implementada **pelo Tredane**, com controles finais em revisão.
 - **Ator e objetivo:** superadmin reproduz problema ou executa manutenção como membro selecionado da clínica.
 - **Pré-condições:** Clerk mantém sessão do actor; superadmin válido; tenant e membership do subject ativos.
-- **Fluxo:** selecionar tenant e usuário → informar motivo → backend cria suporte temporário no D1 → handoff seguro à Clinic App → banner permanente de modo suporte → cada pedido valida actor, subject, role e TTL → auditoria dupla → encerrar/revogar.
-- **Alternativas:** limite/expiração, revogação do subject ou da flag, URL alterada e falha do Clerk/D1 negam acesso; operações privilegiadas não habilitadas não podem ser executadas.
+- **Fluxo (DEC-029):** selecionar tenant/subject e motivo → backend cria pedido `pending` sem acesso clínico → owner ativo da própria clínica aprova explicitamente → só então ativa sessão própria do Tredane com handoff à Clinic App e banner permanente → validar actor, subject, aprovação, role e TTL → auditar também owner aprovador → encerrar/revogar.
+- **Alternativas:** pendência, rejeição, ausência/expiração/revogação de aprovação negam acesso; owner de outra clínica não pode aprovar. Limite/expiração, alteração do subject/tenant, revogação da flag ou falha Clerk/D1 negam acesso; ações proibidas continuam negadas.
 - **Resultado:** manutenção rastreável, sem substituir a identidade real do actor nem usar impersonação do Clerk.
 - **Requisitos:** REQ-003/005/006/007/040.
 
