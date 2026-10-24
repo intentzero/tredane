@@ -1,6 +1,6 @@
 # Plano de implementação — Tredane MVP
 
-**Estado:** plano proposto para engenharia, baseado em [MVP](../MVP.md), [requisitos](../product/requirements.md), [critérios](../product/acceptance.md) e [arquitetura](../architecture/overview.md). A fundação F0 tem scaffold com lockfile e checks de CI; falta apenas revisão visual local humana antes de considerar o checkpoint F0 encerrado. As fases seguintes não foram implementadas.
+**Estado:** plano proposto para engenharia, baseado em [MVP](../MVP.md), [requisitos](../product/requirements.md), [critérios](../product/acceptance.md) e [arquitetura](../architecture/overview.md). A fundação F0 tem scaffold com lockfile, checks de CI e prova visual local de UI/Worker (`npm run dev` + `/api/health`) registada no [PR #47](https://github.com/intentzero/tredane/pull/47) (issue #3); encerramento formal da #3 depende da confirmação humana com essa evidência. Ambientes/testes/docs remanescentes e a prova de componentes (DEC-041) ficam em #15/#16. As fases F1+ não foram implementadas.
 
 ## Sequência por fatias verificáveis
 

@@ -46,9 +46,9 @@ npm run db:seed:local
 npm run dev
 ```
 
-Abra `http://localhost:5173` e consulte `/api/health`. Para validar: `npm run typecheck`, `npm run lint`, `npm test` e `npm run build`. O `database_id` em `wrangler.jsonc` é um placeholder **local**: antes de qualquer deploy é obrigatório criar um D1 real e configurar ambientes e permissões. Não usar dados reais na F0.
+Abra `http://localhost:5173` e consulte `/api/health`. Para validar: `npm run typecheck`, `npm run lint`, `npm test` e `npm run build`. O `database_id` em `wrangler.jsonc` é um placeholder **local**: antes de qualquer deploy é obrigatório criar um D1 real e configurar ambientes e permissões. Não usar dados reais na F0. A `compatibility_date` deve permanecer dentro do máximo suportado pelo workerd da lockfile (ver [f0.md](docs/implementation/f0.md)); caso contrário `npm run dev` falha ao arrancar.
 
-A [documentação de execução e limitações da F0](docs/implementation/f0.md) detalha as escolhas, migrações e o que ainda depende de revisão humana.
+A [documentação de execução e limitações da F0](docs/implementation/f0.md) detalha as escolhas, migrações e o estado do checkpoint (incluindo prova visual local).
 
 ## Identidade, Platform Admin e suporte
 

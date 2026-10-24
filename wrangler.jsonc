@@ -2,7 +2,9 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "tredane-dev",
   "main": "./src/worker/index.ts",
-  "compatibility_date": "2026-10-23",
+  // Máximo suportado pelo workerd local do vite-plugin (workerd 1.20261012.x → 2026-10-19).
+  // Não antecipar a data do calendário além do binário instalado — bloqueia `npm run dev`.
+  "compatibility_date": "2026-10-19",
   "observability": {
     "enabled": true
   },
