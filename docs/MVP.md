@@ -133,7 +133,7 @@ O número e a conta de WhatsApp de cada clínica, a implementação técnica da 
 
 ## Estado da execução
 
-A fundação F0 (React/Vite, Hono/Worker, D1/Drizzle, migrações, fixtures com duas clínicas e memberships sintéticos, harness Cloudflare, CI) está no repositório como checkpoint — **não** como produto operacional. Execução do MVP: [épico #14](https://github.com/intentzero/tredane/issues/14). Detalhe F0: [f0.md](implementation/f0.md) e [environments.md](implementation/environments.md). O scaffold não altera requisitos nem autoriza dados reais.
+A fundação F0 (React/Vite, Hono/Worker, D1/Drizzle, migrações, fixtures com duas clínicas e memberships sintéticos, harness Cloudflare, CI) está no repositório como checkpoint — **não** como produto operacional. Execução do MVP: [épico #14](https://github.com/intentzero/tredane/issues/14). Detalhe F0: [f0.md](implementation/f0.md) e [environments.md](implementation/environments.md). F1 parcial: D1 admin ([f1-admin-d1.md](implementation/f1-admin-d1.md)), Clinic DO/SQLite/outbox ([f1-clinic-do.md](implementation/f1-clinic-do.md)); Clerk e WS de produto pendentes. O scaffold não altera requisitos nem autoriza dados reais.
 
 ## Sequência de implementação
 

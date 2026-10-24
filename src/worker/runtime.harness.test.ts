@@ -55,7 +55,7 @@ describe('Cloudflare runtime harness — F0', () => {
     await expect(response.json()).resolves.toMatchObject({
       status: 'ok',
       service: 'tredane',
-      phase: 'f0',
+      phase: 'f1',
       environment: 'development',
     })
   })
@@ -130,8 +130,122 @@ describe('Cloudflare runtime harness — F0', () => {
       })
     })
     socket!.send('probe-f0')
-    expect(JSON.parse(await replied)).toEqual({ echo: 'probe-f0', phase: 'f0' })
+    expect(JSON.parse(await replied)).toEqual({ echo: 'probe-f0', phase: 'f1' })
     socket!.close(1000, 'done')
+  })
+
+  it('migrates Clinic DO SQLite per instance and isolates same logical ids', async () => {
+    const ingestA = await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/ingest', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        providerEventKey: 'wa:harness:shared-key',
+        waId: '5511999000001',
+        displayName: 'Sintético A',
+        body: 'mensagem A',
+        drain: true,
+      }),
+    })
+    const ingestB = await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-b/ingest', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        providerEventKey: 'wa:harness:shared-key',
+        waId: '5511999000001',
+        displayName: 'Sintético B',
+        body: 'mensagem B',
+        drain: true,
+      }),
+    })
+    expect(ingestA.status).toBe(200)
+    expect(ingestB.status).toBe(200)
+    const bodyA = (await ingestA.json()) as { duplicate: boolean; contactId: string }
+    const bodyB = (await ingestB.json()) as { duplicate: boolean; contactId: string }
+    expect(bodyA.duplicate).toBe(false)
+    expect(bodyB.duplicate).toBe(false)
+
+    const statusA = await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/status')
+    const statusB = await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-b/status')
+    await expect(statusA.json()).resolves.toMatchObject({
+      tenantId: 'clinic-demo-a',
+      schemaReady: true,
+      contactCount: 1,
+    })
+    await expect(statusB.json()).resolves.toMatchObject({
+      tenantId: 'clinic-demo-b',
+      schemaReady: true,
+      contactCount: 1,
+    })
+
+    const storageA = await worker.getDurableObjectStorage('CLINIC', { name: 'clinic-demo-a' })
+    const storageB = await worker.getDurableObjectStorage('CLINIC', { name: 'clinic-demo-b' })
+    const contactsA = await storageA.exec(
+      'SELECT display_name FROM contacts WHERE tenant_id = ?',
+      'clinic-demo-a',
+    )
+    const contactsB = await storageB.exec(
+      'SELECT display_name FROM contacts WHERE tenant_id = ?',
+      'clinic-demo-b',
+    )
+    expect(contactsA).toEqual([{ display_name: 'Sintético A' }])
+    expect(contactsB).toEqual([{ display_name: 'Sintético B' }])
+
+    const schemaA = await storageA.exec(
+      'SELECT version, status FROM clinic_schema_state WHERE id = 1',
+    )
+    expect(schemaA).toEqual([{ version: 1, status: 'ready' }])
+  })
+
+  it('rejects forged tenant on Clinic DO RPC and recovers outbox after deferred drain', async () => {
+    const forged = await worker.fetch(
+      'http://localhost/api/f1/clinic/clinic-demo-a/ingest-forged?forged=clinic-demo-b',
+      { method: 'POST' },
+    )
+    expect(forged.status).toBe(403)
+    await expect(forged.json()).resolves.toMatchObject({ rejected: true })
+
+    const ingest = await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/ingest', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        providerEventKey: 'wa:harness:deferred-drain',
+        waId: '5511999000099',
+        body: 'pendente',
+        drain: false,
+      }),
+    })
+    expect(ingest.status).toBe(200)
+    const ingested = (await ingest.json()) as { outboxId: string; drained: string[] }
+    expect(ingested.outboxId).toBeTruthy()
+    expect(ingested.drained).toEqual([])
+
+    const storage = await worker.getDurableObjectStorage('CLINIC', { name: 'clinic-demo-a' })
+    const pending = await storage.exec(
+      `SELECT processing_state FROM outbox_events WHERE id = ?`,
+      ingested.outboxId,
+    )
+    expect(pending).toEqual([{ processing_state: 'pending' }])
+
+    const drain = await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/drain', {
+      method: 'POST',
+    })
+    expect(drain.status).toBe(200)
+    await expect(drain.json()).resolves.toMatchObject({
+      published: [ingested.outboxId],
+      failed: [],
+    })
+
+    const after = await storage.exec(
+      `SELECT processing_state FROM outbox_events WHERE id = ?`,
+      ingested.outboxId,
+    )
+    expect(after).toEqual([{ processing_state: 'published' }])
+
+    const contacts = await storage.exec(
+      `SELECT COUNT(*) AS n FROM contacts WHERE tenant_id = ?`,
+      'clinic-demo-a',
+    )
+    expect(contacts[0]).toMatchObject({ n: expect.anything() })
   })
 
   it('writes and reads a synthetic object in the local R2 binding', async () => {
