@@ -31,6 +31,8 @@
 
 **DEC-035 confirmada:** owners da clínica recebem e-mail informativo **no início efetivo** da sessão, acompanham estados em tempo real e veem encerramento **somente no painel**, com auditoria e sem e-mail de fim. Validar conteúdo seguro das mensagens, privacidade, entregabilidade/idempotência e reidratação do painel no piloto; provedor de e-mail não escolhido.
 
+**DEC-036 confirmada:** visibilidade de suporte ativo para todos os owners **e** aviso contextual ao utilizador representado na própria conta/tenant. Não avisar outros attendants; o e-mail de início continua restrito a owners (DEC-035). Validar conteúdo claro da mensagem, isolamento tenant + subject, WebSocket/reconexão e término sem estado obsoleto antes de operar dados reais.
+
 ## Evidência mínima a recolher com a clínica piloto
 
 - Jornada real desde chegada da mensagem até agendamento e resposta de confirmação.

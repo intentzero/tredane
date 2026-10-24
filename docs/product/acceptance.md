@@ -144,6 +144,10 @@
 
 **Dado** pedido aprovado para tenant A; **quando** uma sessão de suporte passa efetivamente a `active`, **então** owners vigentes de A veem o início no painel em tempo real e recebem **um e-mail de início por destinatário/sessão**, sem dados clínicos ou credenciais. Owners de B não recebem informação de A. **Quando** a sessão expira após 30 minutos, o superadmin termina ou um owner de A revoga, **então** painel e auditoria registam o término e **nenhum e-mail de encerramento é enviado**. E-mail atrasado/falhado/duplicado não altera estado, acesso nem prazo; aba offline reconcilia dados do D1 ao abrir. Abrir link do e-mail sem autorização owner não expõe sessão. **Requisitos:** REQ-007/063/064, DEC-035.
 
+### AC-34 — Suporte ativo visível para todos os owners e subject
+
+**Dado** tenant A com owners O1/O2, subject S e attendant T, e uma sessão de suporte aprovada que passa a `active`; **então** O1/O2 veem o estado completo no painel e S, autenticado na sua própria Clinic App, vê um **aviso específico de suporte no contexto da sua conta**, sem que o superadmin obtenha sessão Clerk de S. **T não vê** o aviso relativo a S. Se o mesmo Clerk user pertence a B, o aviso de A não aparece em B. Quando a sessão termina por expiração/encerramento, o aviso ativo de S é removido/atualizado inclusive após WebSocket desconectado/hibernado. O subject não ganha poderes de aprovação ou revogação (DEC-034), e não recebe novo e-mail de início apenas por ser subject (DEC-035). **Requisitos:** REQ-007/064/065; DEC-036.
+
 ## Condições para usar estes cenários como aprovação
 
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.

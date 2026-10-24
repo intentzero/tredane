@@ -60,6 +60,8 @@
 
 **DEC-035 aprovou painel em tempo real para início, duração e fim do suporte e e-mail informativo apenas quando a sessão se torna ativa**. Término é registrado/auditado no painel, sem e-mail de encerramento. Transporte do e-mail e testes com múltiplos owners/tenants ainda em aberto.
 
+**DEC-036 fechou visibilidade do suporte ativo:** owners do tenant acompanham tudo no painel e o utilizador representado recebe aviso próprio no seu tenant enquanto suporte estiver ativo; outros attendants não veem. E-mail de início apenas owners (DEC-035). Falta implementar/testar notificação seletiva e transições de estado.
+
 ## Decisões fechadas
 
 - Clerk sem Organizations; `privateMetadata.superadmin` estritamente booleano e validado pelo backend.

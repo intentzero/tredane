@@ -42,6 +42,8 @@
 
 **DEC-035 — alertas do ciclo do suporte:** emitir e-mail de **início somente após `support_sessions.status=active`**, separado do pedido pendente; enviar a owners ativos do tenant, com idempotência por sessão/destinatário e sem PHI/segredos. Atualizar painel em tempo real no início e em todos os tipos de encerramento; **nenhum e-mail no término**. Persistir auditoria e reidratar estado após reconexão. Testar retrials/duplicatas de e-mail, canal indisponível, tenant errado, expiração normal, revogação por owner e término voluntário do superadmin. Fornecedor/transporte pendentes.
 
+**DEC-036 — aviso de suporte ao subject:** durante sessão `active`, owners veem acompanhamento completo; subject representado vê aviso específico na sua Clinic App, usando sua **sessão Clerk própria**, sem alteração de identidade ou privilégios. Filtrar push DO/WebSocket por tenant + subject, sem broadcast a outros attendants; reconciliar após reconexão/hibernação e remover estado ativo ao término. Sem e-mail adicional ao subject (DEC-035), sem botão de aprovação/revogação do subject. Testar duas clínicas/duas abas, subject owner, attendants distintos e estado stale ao expirar.
+
 ## Backlog técnico por épico
 
 ### EP-T01 — Base de execução e CI

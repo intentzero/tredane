@@ -102,6 +102,10 @@ Qualquer owner ativo do tenant pode encerrar imediatamente qualquer sessão de s
 
 Após ativação efetiva da sessão aprovada, avisar por **e-mail de início** os owners ativos daquele tenant e atualizar em tempo real o painel de suporte com actor, estado, horário de início e limite de 30 minutos. No fim por expiração, revogação de owner ou encerramento voluntário pelo actor, atualizar o painel e auditar sem enviar e-mail de término. Não incluir conteúdo clínico, credencial de handoff ou tokens nos avisos; entrega de e-mail não define acesso. Implementar emissão idempotente por sessão/destinatário, com autorização por tenant e reconciliação ao voltar online. [ADR-0011](0011-owner-approval-for-support.md).
 
+## Visibilidade do modo suporte para o subject — DEC-036
+
+Owners ativos do tenant continuam a acompanhar sessão de suporte e encerramento no painel (DEC-035). **O utilizador representado recebe também aviso visível no seu próprio painel da Clinic App**, somente enquanto o suporte estiver ativo naquele tenant. A mensagem não representa Clerk impersonation: o superadmin continua autenticado como actor real e há sessão própria do Tredane. Encaminhar estado da sessão ao subject por evento restrito a `tenant_id + subject_clerk_user_id`, sem notificar outros attendants. Atualizar/remover o aviso no término, reconciliando após reconexão/hibernação. O aviso não aprova, encerra nem aumenta capacidades; e-mail de início permanece somente para owners (DEC-035).
+
 ## Políticas mínimas de segurança
 
 - **TTL da sessão (DEC-032):** 30 minutos fixos desde ativação, com encerramento antecipado e sem renovação automática. O prazo de 24 horas da DEC-031 é apenas para decidir o pedido pendente.

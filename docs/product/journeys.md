@@ -141,6 +141,12 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - Enquanto a sessão estiver ativa, o painel mostra superadmin actor, duração restante, estado e Encerrar suporte. Se terminar por expiração, pelo actor ou pelo owner, owners veem atualização **em tempo real no painel** e podem consultar auditoria, **sem e-mail de encerramento**.
 - Falhas de entrega não bloqueiam suporte nem conferem permissões; ao voltar online, o painel reconcilia estado persistido. Isolamento por tenant e ausência de dados clínicos no e-mail são obrigatórios.
 
+## DEC-036 — Utilizador representado vê aviso de suporte em sua conta
+
+- Quando sessão aprovada entra em `active`, todos os owners ativos acompanham o suporte no painel e o **subject recebe aviso contextual na sua sessão normal da Clinic App**, indicando suporte no seu contexto de tenant. Não simular login Clerk na identidade do subject e não mostrar a outros attendants.
+- Após os 30 minutos, revogação por owner ou término voluntário do superadmin, o aviso de suporte ativo deixa de aparecer ao subject. Se offline, ao regressar a Clinic App consulta estado vigente; eventos WebSocket são filtrados por subject + tenant.
+- O aviso do subject não permite aprovar nem encerrar sessão (DEC-034). A política de e-mail da DEC-035 continua destinada a owners, sem e-mail adicional ao subject.
+
 ## JRN-15 — Sessão Clerk sem MFA no MVP
 
 - **Confirmado (DEC-028):** sem MFA para superadmin, owner e attendant. A decisão antiga DEC-027 está substituída.

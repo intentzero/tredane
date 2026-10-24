@@ -51,6 +51,15 @@ Owner de outro tenant e attendant não podem encerrar sessão de A; revogar aces
 - O e-mail de início é somente informativo, sem PHI/dados clínicos, cookie, handoff, token ou link de autorização. Se houver link, leva à página de estado dentro do Tredane, exigindo Clerk e membership owner atual no tenant. Enviar **uma notificação lógica por sessão/destinatário**, com chave idempotente para duplicações/retries. Provedor, entrega e política de retentativas continuam a especificar.
 - A sessão é autorizada pela aprovação válida e pelo estado do D1, **nunca pela entrega de e-mail**; atraso/falha do e-mail não impede início nem modifica prazo, revogação ou a auditoria. Não mostrar sessões de A a owners apenas de B. Testar início uma vez, reconexão, e-mail duplicado/perdido e as três formas de término.
 
+## Visibilidade para owners e utilizador representado — DEC-036
+
+- Durante uma sessão de suporte `active`, **todos os owners ativos daquele tenant** acompanham actor, subject, estado, início, prazo e encerramento no painel, incluindo a ação **Encerrar suporte** (DEC-034).
+- **Além dos owners, apenas o próprio utilizador representado (`subject_clerk_user_id`) vê na sua sessão normal da Clinic App um aviso visível e específico** indicando que um superadmin está a atuar no contexto da sua conta **naquele tenant**. É transparência, **não uma sessão Clerk do superadmin autenticada como o subject**. O aviso mínimo mostra estado de suporte ativo e identificação do suporte, sem expor pedidos de aprovação, segredos ou conteúdo clínico.
+- O subject recebe o aviso via evento **restrito a tenant + identidade Clerk do subject**, não por broadcast a todos os attendants. Outros attendants da mesma clínica não são notificados, salvo se forem também owners autorizados noutro contexto — o que não deve permitir dados de outra clínica. Se o subject também for owner, apresenta-se uma UI coerente sem avisos duplicados.
+- O aviso começa só após a ativação efetiva da sessão. Quando a sessão expira em 30 minutos ou é encerrada por owner/actor, o aviso no painel do subject cessa ou mostra o estado final; após reconexão, recarregar estado autoritativo para não deixar indicadores desatualizados. Se o subject não estiver online, não existe exigência de notificação offline nesta decisão.
+- **DEC-035 permanece:** o e-mail de início é dirigido aos owners, **não** ao subject (salvo se também tiver role owner); não criar novo e-mail para subject sem decisão futura.
+- O aviso de subject **não concede** aprovação, revogação ou outros privilégios além da membership habitual. DEC-034 continua a definir quem encerra a sessão. Casos de teste: subject attendant, subject owner, dois attendants na mesma clínica, dois tenants no mesmo Clerk user, múltiplas abas, WebSocket hibernado e logout/remoção de membership.
+
 ## Contrato técnico candidato — não implementado
 
 1. Superadmin autenticado com `privateMetadata.superadmin === true` verificado no backend cria `support_access_requests` em estado `pending` no D1, com actor/subject/tenant/motivo/escopo.
