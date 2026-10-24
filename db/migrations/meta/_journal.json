@@ -43,6 +43,13 @@
       "when": 1792880000000,
       "tag": "0006_support_request_email",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792890000000,
+      "tag": "0007_support_session_email",
+      "breakpoints": true
     }
   ]
 }

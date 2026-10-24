@@ -54,7 +54,7 @@ describe('admin schema gate', () => {
       applyRemainingFromAdmin(raw)
       const db = fromNodeSqlite(raw)
       expect(() => assertAdminSchemaReady(db)).not.toThrow()
-      expect(ADMIN_SCHEMA_VERSION).toBe(6)
+      expect(ADMIN_SCHEMA_VERSION).toBe(7)
     } finally {
       raw.close()
     }
@@ -308,25 +308,29 @@ describe('suporte — aprovação (#26) e ativação/handoff (#27 domínio)', ()
       })
       expect(activated.session.expiresAt - activated.session.activatedAt).toBe(SUPPORT_SESSION_TTL_MS)
 
-      const session = await consumeSupportHandoff(db, clock, {
+      const consumed = await consumeSupportHandoff(db, clock, {
         handoffCode: activated.handoffCode,
         actorClerkUserId: 'user_synth_superadmin',
+        actorClerkSessionId: 'sess_synth_actor',
       })
-      expect(session.id).toBe(activated.session.id)
+      expect(consumed.session.id).toBe(activated.session.id)
+      expect(consumed.sessionToken).toBeTruthy()
 
       await expect(
         consumeSupportHandoff(db, clock, {
           handoffCode: activated.handoffCode,
           actorClerkUserId: 'user_synth_superadmin',
+          actorClerkSessionId: 'sess_synth_actor',
         }),
       ).rejects.toMatchObject({ code: 'handoff_invalid' })
 
       clock.advance(SUPPORT_SESSION_TTL_MS)
-      const expired = expireSupportSessionIfNeeded(db, clock, session.id)
+      const expired = expireSupportSessionIfNeeded(db, clock, consumed.session.id)
       expect(expired.status).toBe('expired')
 
       const audit = listAuditForTenant(db, 'clinic-demo-a')
       expect(audit.every((e) => !JSON.stringify(e).includes(activated.sessionToken))).toBe(true)
+      expect(audit.every((e) => !JSON.stringify(e).includes(consumed.sessionToken))).toBe(true)
       expect(audit.every((e) => !JSON.stringify(e).includes(activated.handoffCode))).toBe(true)
       expect(audit.some((e) => e.action === 'support.request.approve')).toBe(true)
       expect(audit.some((e) =>

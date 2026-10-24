@@ -207,7 +207,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       entityType: string
       entityId: string
       payload: Record<string, unknown>
-      audience?: 'all' | 'owners'
+      audience?: 'all' | 'owners' | 'subject' | 'owners_and_subject'
       eventId?: string
     },
   ): Promise<{

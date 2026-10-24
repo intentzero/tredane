@@ -4,7 +4,23 @@ export {
   decideSupportRequest,
   loadSupportRequestsForOwner,
   loadSupportRequestForOwner,
+  activateApprovedSupportSession,
+  exchangeSupportHandoff,
+  endSupportSession,
+  subjectRequestTermination,
+  ownerDecideTermination,
   type SupportServices,
   type CreateSupportRequestResult,
+  type ActivateSessionResult,
 } from './service'
-export { serializeSupportRequest } from './serialize'
+export {
+  serializeSupportRequest,
+  serializeSupportSession,
+  serializeTerminationRequest,
+} from './serialize'
+export {
+  SUPPORT_COOKIE_NAME,
+  parseSupportCookie,
+  buildSupportSetCookie,
+  buildSupportClearCookie,
+} from './cookie'

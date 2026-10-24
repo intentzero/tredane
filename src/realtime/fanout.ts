@@ -126,8 +126,8 @@ export async function deliverEventToSockets(
       continue
     }
 
-    // DEC-030: pedidos de suporte só para owners ativos (#26).
-    if (!isEventVisibleToRole(event.payload, attachment.role)) {
+    // DEC-030/036: filtrar por audiência (owners / subject / all).
+    if (!isEventVisibleToRole(event.payload, attachment.role, attachment.clerkUserId)) {
       continue
     }
 

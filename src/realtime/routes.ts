@@ -84,7 +84,7 @@ export type ClinicEventPublisher = {
     entityType: string
     entityId: string
     payload: Record<string, unknown>
-    audience?: 'all' | 'owners'
+    audience?: 'all' | 'owners' | 'subject' | 'owners_and_subject'
     eventId?: string
   }): Promise<
     | { ok: true; seq: number; delivered: string[]; revoked: string[] }
@@ -195,8 +195,9 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
         }>
       }
       c.header('Cache-Control', 'no-store')
+      const principal = c.get('principal')
       const visible = result.events.filter((e) =>
-        isEventVisibleToRole(e.payload, ctx.role),
+        isEventVisibleToRole(e.payload, ctx.role, principal.clerkUserId),
       )
       return c.json({
         tenantId: ctx.tenantId,
