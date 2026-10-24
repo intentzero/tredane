@@ -1,6 +1,6 @@
 # ADR-0009 — Revogação imediata de acesso por tenant
 
-**Estado:** decisão de comportamento **aceita** (DEC-026); estratégia técnica e testes de concorrência **propostos**, sujeitos a validação em F1.
+**Estado:** decisão de comportamento **aceita** (DEC-026); protocolo técnico F1 **implementado** na issue [#23](https://github.com/intentzero/tredane/issues/23) / [f1-realtime-ws.md](../implementation/f1-realtime-ws.md) (fence D1→DO, fail-closed, testes sintéticos). Revisar com produto após evidência de CI.
 **Origem:** escolha da opção A pelo responsável do produto em 23/10/2026.
 **Relacionados:** [ADR-0006](0006-clerk-platform-admin.md), [ADR-0007](0007-support-impersonation.md), [REQ-003](../product/requirements.md), [AC-02](../product/acceptance.md), [DEC-026](../product/decisions.md).
 
@@ -12,7 +12,7 @@ Revogar membership do **subject** em A também torna inválida a autorização d
 
 A operação deve preservar histórico/auditoria de quem removeu, quem foi removido, qual tenant, quando e qual efeito. Não apagar nem reatribuir automaticamente mensagens históricas.
 
-## Protocolo recomendado para F1 (ainda não implementado)
+## Protocolo F1 (implementado em #23; manter alinhado aos testes)
 
 1. No Worker Hono, validar a identidade Clerk do actor e o seu membership/role atual no **tenant A**, verificando que é owner e que o alvo é attendant ativo. Apenas superadmin administra owners.
 2. Executar revogação persistente no **D1**, com transição atómica de membership ativo para revogado e evento de auditoria (e possível versão/epoch de autorização).

@@ -17,7 +17,7 @@ Bindings **não são herdados** entre ambientes Wrangler: cada `env.*` declara o
 | Binding | Tipo | Papel (DEC-038 / ADRs) | F0 |
 | --- | --- | --- | --- |
 | `DB` | D1 | Tenants, memberships, convites, suporte, auditoria admin | Ativo (local + contrato staging/prod) |
-| `CLINIC` | Durable Object (`ClinicDurableObject`, SQLite) | Um DO por clínica; operação + WebSockets | Domínio mínimo #20; auth HTTP #21 |
+| `CLINIC` | Durable Object (`ClinicDurableObject`, SQLite) | Um DO por clínica; operação + WebSockets | Domínio #20; auth #21; WS/fence #23 |
 | `ATTACHMENTS` | R2 (privado) | Anexos; sem URL pública permanente | Binding local declarado; política de acesso na F3 |
 | `INBOUND_EVENTS` | Queue (producer) | Entrada assíncrona (webhooks, etc.) | Binding local declarado; consumidores na F3 |
 | Workflows | Workflow | Lembretes/processos multi-etapa | **Contrato apenas** — sem binding até o módulo existir |

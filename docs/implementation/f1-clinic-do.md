@@ -1,6 +1,6 @@
 # F1 — Clinic Durable Object, SQLite, migrations e outbox
 
-**Estado:** implementação da issue [#20](https://github.com/intentzero/tredane/issues/20) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Classe/namespace `ClinicDurableObject`, runner SQL por instância, repositórios operacionais mínimos, outbox durável e envelopes internos. Clerk HTTP em [#21](f1-clerk-auth.md); **sem** UI de painel produtiva e **sem** fan-out WebSocket de produto (#23). Dados sintéticos apenas.
+**Estado:** implementação da issue [#20](https://github.com/intentzero/tredane/issues/20) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Classe/namespace `ClinicDurableObject`, runner SQL por instância, repositórios operacionais mínimos, outbox durável e envelopes internos. Clerk HTTP em [#21](f1-clerk-auth.md); WebSockets/revogação em [#23](f1-realtime-ws.md). **Sem** UI de painel produtiva. Dados sintéticos apenas.
 
 ## Decisão de persistência (Confirmado — DEC-038)
 
@@ -43,10 +43,9 @@
 | Testes unitários | `src/clinic/clinic.test.ts` |
 | Harness runtime | `src/worker/runtime.harness.test.ts` |
 
-## Fora deste PR
+## Fora deste PR / evolução
 
-- Auth Clerk, CSRF, cookies — entregue em [#21](f1-clerk-auth.md)
-- WebSockets de produto, reconciliação UI, revogação D1→DO (#23)
+- Auth Clerk — [#21](f1-clerk-auth.md); WS + fence D1→DO — [#23](f1-realtime-ws.md)
 - Agenda/pipeline/WhatsApp completos (F2/F3)
 - Índice global WhatsApp→tenant (issue de conexão)
 - Telas do painel (DEC biblioteca ainda Proposta)

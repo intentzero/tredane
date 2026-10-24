@@ -193,7 +193,7 @@ describe('Cloudflare runtime harness — F0', () => {
     const schemaA = await storageA.exec(
       'SELECT version, status FROM clinic_schema_state WHERE id = 1',
     )
-    expect(schemaA).toEqual([{ version: 1, status: 'ready' }])
+    expect(schemaA).toEqual([{ version: 2, status: 'ready' }])
   })
 
   it('rejects forged tenant on Clinic DO RPC and recovers outbox after deferred drain', async () => {
@@ -299,5 +299,233 @@ describe('Cloudflare runtime harness — F0', () => {
       headers: { Authorization: 'Bearer synth:user_synth_superadmin' },
     })
     expect(platformOk.status).toBe(200)
+  })
+
+  it('WS autenticado + revoke corta A e preserva B (#23)', async () => {
+    async function openWs(tenantId: string, userId: string) {
+      const response = await worker.fetch(`http://localhost/api/tenants/${tenantId}/ws`, {
+        headers: {
+          Authorization: `Bearer synth:${userId}`,
+          Upgrade: 'websocket',
+        },
+      })
+      expect(response.status).toBe(101)
+      const socket = response.webSocket
+      expect(socket).toBeTruthy()
+      socket!.accept()
+      const hello = await new Promise<string>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('hello timeout')), 5_000)
+        socket!.addEventListener('message', (event) => {
+          clearTimeout(timer)
+          resolve(String(event.data))
+        }, { once: true })
+      })
+      const parsed = JSON.parse(hello) as { type: string; tenantId: string }
+      expect(parsed.type).toBe('hello')
+      expect(parsed.tenantId).toBe(tenantId)
+      return socket!
+    }
+
+    const wsA1 = await openWs('clinic-demo-a', 'user_synth_attendant_a')
+    const wsA2 = await openWs('clinic-demo-a', 'user_synth_owner_a')
+    const wsB = await openWs('clinic-demo-b', 'user_synth_multi')
+
+    const waitMsg = (
+      socket: { addEventListener: typeof EventTarget.prototype.addEventListener },
+      timeoutMs = 5_000,
+    ) =>
+      new Promise<string>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('ws message timeout')), timeoutMs)
+        socket.addEventListener(
+          'message',
+          (event) => {
+            clearTimeout(timer)
+            resolve(String((event as MessageEvent).data))
+          },
+          { once: true },
+        )
+      })
+
+    const revokedA1 = waitMsg(wsA1)
+    const nextA2 = waitMsg(wsA2)
+    const nextB = waitMsg(wsB)
+
+    const revoke = await worker.fetch(
+      'http://localhost/api/tenants/clinic-demo-a/members/user_synth_attendant_a/revoke',
+      {
+        method: 'POST',
+        headers: { Authorization: 'Bearer synth:user_synth_owner_a' },
+      },
+    )
+    expect(revoke.status).toBe(200)
+    const revokeBody = (await revoke.json()) as { status: string; doNotified: boolean }
+    expect(revokeBody.status).toBe('revoked')
+    expect(revokeBody.doNotified).toBe(true)
+
+    const revokedMsg = JSON.parse(await revokedA1) as { type: string; reason: string }
+    expect(revokedMsg.type).toBe('access_revoked')
+    expect(revokedMsg.reason).toBe('membership_revoked')
+
+    // Fan-out após revoke: A2 recebe; B não; A1 já revogado.
+    const ingest = await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/ingest', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        providerEventKey: 'wa:rt:after-revoke',
+        waId: '5511999000555',
+        body: 'pós-revogação',
+        drain: false,
+      }),
+    })
+    expect(ingest.status).toBe(200)
+
+    const eventA2 = JSON.parse(await nextA2) as { type: string; eventType?: string }
+    expect(eventA2.type).toBe('event')
+
+    // B não deve receber evento de A — timeout esperado.
+    await expect(Promise.race([
+      nextB.then(() => 'got'),
+      new Promise((r) => setTimeout(() => r('timeout'), 400)),
+    ])).resolves.toBe('timeout')
+
+    // Reconexão A com credencial antiga → 403.
+    const reOpen = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/ws', {
+      headers: {
+        Authorization: 'Bearer synth:user_synth_attendant_a',
+        Upgrade: 'websocket',
+      },
+    })
+    expect(reOpen.status).toBe(403)
+
+    // B continua válido; Clerk do revogado ainda autentica /api/me.
+    const me = await worker.fetch('http://localhost/api/me', {
+      headers: { Authorization: 'Bearer synth:user_synth_attendant_a' },
+    })
+    expect(me.status).toBe(200)
+
+    const bStill = await worker.fetch('http://localhost/api/tenants/clinic-demo-b/context', {
+      headers: { Authorization: 'Bearer synth:user_synth_multi' },
+    })
+    expect(bStill.status).toBe(200)
+
+    const catchUp = await worker.fetch(
+      'http://localhost/api/tenants/clinic-demo-a/realtime/events?after=0',
+      { headers: { Authorization: 'Bearer synth:user_synth_owner_a' } },
+    )
+    expect(catchUp.status).toBe(200)
+    const eventsBody = (await catchUp.json()) as { events: unknown[]; eventSeq: number }
+    expect(eventsBody.eventSeq).toBeGreaterThan(0)
+    expect(eventsBody.events.length).toBeGreaterThan(0)
+
+    wsA2.close(1000, 'done')
+    wsB.close(1000, 'done')
+  })
+
+  it('authority unavailable não entrega payload; revalidate corta socket hibernado (#23)', async () => {
+    const ws = await (async () => {
+      const response = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/ws', {
+        headers: {
+          Authorization: 'Bearer synth:user_synth_attendant_a',
+          Upgrade: 'websocket',
+        },
+      })
+      expect(response.status).toBe(101)
+      const socket = response.webSocket!
+      socket.accept()
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('hello timeout')), 5_000)
+        socket.addEventListener('message', () => {
+          clearTimeout(timer)
+          resolve()
+        }, { once: true })
+      })
+      return socket
+    })()
+
+    // Simula cache positivo antigo / autoridade indisponível no caminho de entrega.
+    await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/authority-override', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        grants: {
+          'clinic-demo-a:user_synth_attendant_a': 'unavailable',
+          'clinic-demo-a:user_synth_owner_a': 'owner',
+        },
+      }),
+    })
+
+    const noMsg = new Promise<string | 'timeout'>((resolve) => {
+      const timer = setTimeout(() => resolve('timeout'), 400)
+      ws.addEventListener(
+        'message',
+        (event) => {
+          clearTimeout(timer)
+          resolve(String(event.data))
+        },
+        { once: true },
+      )
+    })
+
+    await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/ingest', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        providerEventKey: 'wa:rt:unavailable',
+        waId: '5511999000666',
+        body: 'não deve chegar',
+        drain: false,
+      }),
+    })
+    expect(await noMsg).toBe('timeout')
+
+    // Restaura authority e simula revalidação pós-hibernação com membership ainda ativo.
+    await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/authority-override', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ clear: true }),
+    })
+
+    const revalidated = await worker.fetch(
+      'http://localhost/api/f1/clinic/clinic-demo-a/revalidate-sockets',
+      { method: 'POST' },
+    )
+    expect(revalidated.status).toBe(200)
+    await expect(revalidated.json()).resolves.toMatchObject({
+      live: expect.any(Number),
+    })
+
+    // Override deny → revalidate deve revogar.
+    await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/authority-override', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        grants: { 'clinic-demo-a:user_synth_attendant_a': 'deny' },
+      }),
+    })
+    const revokedWait = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('revoke timeout')), 5_000)
+      ws.addEventListener(
+        'message',
+        (event) => {
+          clearTimeout(timer)
+          resolve(String(event.data))
+        },
+        { once: true },
+      )
+    })
+    const afterDeny = await worker.fetch(
+      'http://localhost/api/f1/clinic/clinic-demo-a/revalidate-sockets',
+      { method: 'POST' },
+    )
+    expect(afterDeny.status).toBe(200)
+    const body = (await afterDeny.json()) as { revoked: number }
+    expect(body.revoked).toBeGreaterThanOrEqual(1)
+    expect(JSON.parse(await revokedWait).type).toBe('access_revoked')
+
+    await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/authority-override', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ clear: true }),
+    })
   })
 })
