@@ -110,7 +110,7 @@
 
 ### AC-25 — Acesso multi-tenant sem MFA no MVP
 
-**Dado** usuário owner em A e attendant em B com sessão Clerk válida, mas sem MFA; **quando** acessa A e B, **então** a API aplica as roles D1 correspondentes sem exigir MFA, sem transferir permissões entre tenants. A remoção de membership continua a cortar acesso em A. **Requisitos:** REQ-001/002/005, DEC-028.
+**Dado** usuário owner em A e attendant em B com sessão Clerk válida, mas sem MFA; **quando** seleciona A e troca explicitamente para B no painel, **então** o seletor mostra apenas clínicas associadas, a interface deixa de exibir dados de A, revalida a role attendant em B e não reutiliza cache ou WebSocket de A. A API não exige MFA nem transfere permissões entre tenants. Remover o membership em A corta apenas A e preserva B. **Requisitos:** REQ-001/002/005, DEC-017/028.
 
 ### AC-26 — Platform Admin e suporte sem MFA, com autorização rigorosa
 
