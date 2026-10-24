@@ -1,6 +1,6 @@
 # F3 — Embedded Signup e gestão da conexão WhatsApp (#31)
 
-**Estado:** implementação da issue [#31](https://github.com/intentzero/tredane/issues/31) (épico [#14](https://github.com/intentzero/tredane/issues/14)). **Sem** webhooks Meta (#32) nem envio (#33). Dados sintéticos / `META_MODE=synthetic` até gates [#18](https://github.com/intentzero/tredane/issues/18).
+**Estado:** implementação da issue [#31](https://github.com/intentzero/tredane/issues/31) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Webhooks/fila: [#32](f3-whatsapp-webhooks.md). **Sem** envio (#33). Dados sintéticos / `META_MODE=synthetic` até gates [#18](https://github.com/intentzero/tredane/issues/18).
 
 ## Decisões aplicadas (Confirmado)
 
@@ -18,9 +18,10 @@
 | --- | --- |
 | **D1 central** | Índice global `phone_number_id` → tenant (`whatsapp_phone_bindings` com UNIQUE parcial activo/interrompido); credenciais (`whatsapp_credentials`, nunca na API); sessões state/nonce; histórico de binding; auditoria central |
 | **SQLite do Clinic DO** | Espelho `whatsapp_channel` para readiness/UI/eventos WS; **sem tokens** |
-| **R2 / Queues** | Fora deste PR |
+| **R2** | Fora deste PR (#34) |
+| **Queues** | Ingest webhook = [#32](f3-whatsapp-webhooks.md) |
 
-Resolução futura de webhook (#32): `resolveTenantByPhoneNumberId` no D1 → se `released`/ausente, descartar (não cria dados; não reencaminha a outra clínica).
+Resolução de webhook (#32): `resolveTenantByPhoneNumberId` no D1 → se `released`/ausente, descartar (não cria dados; não reencaminha a outra clínica).
 
 ## Protocolo de troca / desconexão / trânsito
 
@@ -65,5 +66,5 @@ Banner global de interrupção no `PanelShell` (todos os membros).
 - Tech Provider + Business Verification + App Review (GATE-01/02, #18)
 - `META_MODE=live` + secrets no dashboard Cloudflare
 - Textos finais Embedded Signup; modelos aprovados (GATE-10)
-- Webhooks (#32) e envio (#33)
+- Envio (#33); webhooks entregues em [#32](f3-whatsapp-webhooks.md)
 - Registo de número de telefone Cloud API pós-signup (passo Meta) — a activar em live

@@ -57,6 +57,13 @@
       "when": 1792900000000,
       "tag": "0008_whatsapp_bindings",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792910000000,
+      "tag": "0009_whatsapp_webhook_receipts",
+      "breakpoints": true
     }
   ]
 }

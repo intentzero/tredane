@@ -24,4 +24,6 @@ export type WorkerBindings = {
   META_GRAPH_API_VERSION?: string
   /** Segredo para selar tokens Meta em D1 (opcional; fallback META_APP_SECRET). */
   META_TOKEN_SECRET?: string
+  /** Token do challenge GET webhook (#32). Synthetic default se ausente. */
+  META_VERIFY_TOKEN?: string
 }
