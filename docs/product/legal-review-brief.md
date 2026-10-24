@@ -61,3 +61,7 @@
 | Política de retenção de logs | Go-live; não bloqueia a F0 |
 
 **Responsável pela decisão:** responsável pelo produto, com o parecer do advogado. **Em aberto:** quem contrata o advogado e a data limite.
+
+## 7. Rastreio operacional
+
+Os bloqueadores GATE-03/04/05/06/07/08/09/11 e o estado de cada evidência de terceiro ficam em [pilot-gates.md](pilot-gates.md) (issue #18). Rascunhos de modelos WhatsApp (incluindo cobrança Pix): [whatsapp-templates-draft.md](whatsapp-templates-draft.md). Este dossiê continua a ser a fonte das perguntas jurídicas; o registro de gates não as substitui.

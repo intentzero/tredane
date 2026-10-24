@@ -70,5 +70,5 @@ REQ-076 a REQ-082; AC-44 a AC-51 ([requisitos](requirements.md), [aceite](accept
 | Pergunta | Quem decide | Bloqueia |
 | --- | --- | --- |
 | Provedor de Pix ([ADR-0014](../adr/0014-pix-provider.md)) | Responsável pelo produto, com avaliação da engenharia | Implementação |
-| Texto do modelo de WhatsApp com a cobrança e aprovação na Meta | Responsável pelo produto | Envio fora da janela de 24 h |
-| Requisitos fiscais e contratuais do sinal (recibo, nota) e revisão jurídica | Advogado | Uso com clientes reais |
+| Texto do modelo de WhatsApp com a cobrança e aprovação na Meta | Responsável pelo produto | Envio fora da janela de 24 h; rascunho TMPL-03 em [whatsapp-templates-draft.md](whatsapp-templates-draft.md); GATE-10 |
+| Requisitos fiscais e contratuais do sinal (recibo, nota) e revisão jurídica | Advogado | Uso com clientes reais; GATE-11 em [pilot-gates.md](pilot-gates.md) |
