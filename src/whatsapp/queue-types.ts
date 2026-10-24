@@ -1,8 +1,12 @@
 /**
- * Contrato da fila INBOUND_EVENTS (#32/#33/#34).
+ * Contrato da fila INBOUND_EVENTS (#32/#33/#34/#39).
  * `whatsapp_webhook` — entrada Meta verificada (tenant já resolvido no Worker).
  * `clinic_outbox` — efeitos pós-commit do DO (`whatsapp.send` → Graph/synthetic).
+ * `pix_webhook` — pagamento Pix validado (#39) → confirmação atómica no DO.
  */
+import type { PixWebhookQueueMessage } from '../pix/queue-types'
+export type { PixWebhookQueueMessage }
+export { isPixWebhookMessage } from '../pix/queue-types'
 
 export type WhatsappWebhookQueueMessage = {
   source: 'whatsapp_webhook'
@@ -40,7 +44,10 @@ export type ClinicOutboxQueueMessage = {
   payload?: Record<string, unknown>
 }
 
-export type InboundQueueMessage = WhatsappWebhookQueueMessage | ClinicOutboxQueueMessage
+export type InboundQueueMessage =
+  | WhatsappWebhookQueueMessage
+  | ClinicOutboxQueueMessage
+  | PixWebhookQueueMessage
 
 export function isWhatsappWebhookMessage(
   body: unknown,

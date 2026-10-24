@@ -29,6 +29,11 @@ export function serializePixSignalSettings(row: PixSignalSettings) {
 }
 
 export function serializePixCharge(row: PixChargeRow) {
+  /** Estado de UI: pago sem horário (REQ-079/080). */
+  const displayStatus =
+    row.status === 'paid' && row.paymentResolution === 'paid_without_slot'
+      ? 'paid_without_slot'
+      : row.status
   return {
     id: row.id,
     accountId: row.accountId,
@@ -37,6 +42,10 @@ export function serializePixCharge(row: PixChargeRow) {
     externalReference: row.externalReference,
     amountCents: row.amountCents,
     status: row.status,
+    displayStatus,
+    paymentResolution: row.paymentResolution,
+    appointmentId: row.appointmentId,
+    paidWithoutSlotReason: row.paidWithoutSlotReason,
     expiresAt: row.expiresAt,
     paidAt: row.paidAt,
     cancelledAt: row.cancelledAt,
@@ -58,6 +67,23 @@ export function serializePixCharge(row: PixChargeRow) {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     // pixCopyPaste só no detalhe (#38)
+  }
+}
+
+export function serializePixPaymentAlert(
+  row: import('../clinic/pix').PixPaymentAlertRow,
+) {
+  return {
+    id: row.id,
+    chargeId: row.chargeId,
+    conversationId: row.conversationId,
+    contactId: row.contactId,
+    opportunityId: row.opportunityId,
+    reason: row.reason,
+    status: row.status,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    resolvedAt: row.resolvedAt,
   }
 }
 

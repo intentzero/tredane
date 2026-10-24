@@ -45,7 +45,7 @@
 
 ## Em aberto / fora deste PR
 
-- Webhook pago → confirmar horário (#39)
+- Webhook pago → confirmar horário — [#39](f4-pix-payment.md)
 - Expiração automática / cancelar cobrança end-to-end / estorno (#40)
 - DPA / `PIX_MODE=live` (GATE-08); aprovação Meta do template (GATE-10)
 - Contrato fino de cobrança prévia já documentado como cancelamento local + tentativa no provedor

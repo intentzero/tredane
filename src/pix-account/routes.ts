@@ -25,6 +25,7 @@ import {
   serializePixAccount,
   serializePixCharge,
   serializePixChargeDetail,
+  serializePixPaymentAlert,
   serializePixSignalSettings,
   serializeSchedulingIntent,
 } from './serialize'
@@ -111,6 +112,8 @@ function createDoGateway(env: WorkerBindings, tenantId: string): PixAccountGatew
     getChargeDetail: (caller, chargeId) => stub.getPixChargeDetail(caller, chargeId),
     listConversationCharges: (caller, conversationId) =>
       stub.listConversationPixCharges(caller, conversationId),
+    listOpenPaymentAlerts: (caller, conversationId) =>
+      stub.listOpenPixPaymentAlerts(caller, conversationId),
   }
 }
 
@@ -457,6 +460,29 @@ export function createPixAccountRoutes(opts: PixAccountRouteOptions = {}) {
       }
     },
   )
+
+  /** Alertas abertos «Pago sem horário» (M-32 / reconnect) — #39. */
+  app.get('/api/tenants/:tenantId/pix/alerts', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.agenda.operate')
+      const conversationId = c.req.query('conversationId') ?? undefined
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      if (!gw.listOpenPaymentAlerts) {
+        throw new ValidationError(
+          'not_supported',
+          'Gateway sem listOpenPaymentAlerts',
+        )
+      }
+      const items = await gw.listOpenPaymentAlerts(
+        workerCaller(ctx.tenantId, c.get('principal').clerkUserId),
+        conversationId,
+      )
+      return c.json({ alerts: items.map(serializePixPaymentAlert) })
+    } catch (err) {
+      return pixErrorResponse(c, err)
+    }
+  })
 
   /**
    * Só PIX_MODE=synthetic — simula revogação de credencial (AC sandbox).

@@ -64,6 +64,7 @@ import type {
   ConnectPixInput,
   CreateSignalChargeInput,
   PixConnectDeps,
+  ProcessPixPaymentInput,
   RecordChargeInput,
   UpdateSignalSettingsInput,
 } from '../clinic/pix'
@@ -1510,6 +1511,39 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       caller,
       conversationId,
       this.#clock,
+    )
+  }
+
+  /**
+   * Pagamento Pix validado (#39) — regista pagamento e disputa slot na mesma TX.
+   */
+  async processPixPayment(caller: ClinicCaller, input: ProcessPixPaymentInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicPix.processPixPaymentOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
+  async listOpenPixPaymentAlerts(
+    caller: ClinicCaller,
+    conversationId?: string,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicPix.listOpenPaymentAlertsOp(
+      this.#db,
+      caller,
+      this.#clock,
+      conversationId,
     )
   }
 

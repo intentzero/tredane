@@ -664,6 +664,26 @@ export function createPanelApi(getToken: TokenGetter) {
       return body.items
     },
 
+    /** Alertas abertos «Pago sem horário» (M-32 / #39) — reconcilia após reconnect. */
+    async listPixPaymentAlerts(
+      tenantId: string,
+      conversationId?: string,
+      opts?: FetchOpts,
+    ): Promise<PixPaymentAlert[]> {
+      const q = conversationId
+        ? `?conversationId=${encodeURIComponent(conversationId)}`
+        : ''
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pix/alerts${q}`,
+        { method: 'GET' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const body = (await res.json()) as { alerts: PixPaymentAlert[] }
+      return body.alerts
+    },
+
     /** Confirmar sem sinal com motivo (AC-51). */
     async confirmWithoutSignal(
       tenantId: string,
@@ -1320,6 +1340,11 @@ export type PixChargeDetail = {
   externalReference: string
   amountCents: number
   status: string
+  /** UI: `paid_without_slot` quando pago sem compromisso (#39). */
+  displayStatus?: string
+  paymentResolution?: string | null
+  appointmentId?: string | null
+  paidWithoutSlotReason?: string | null
   expiresAt: number | null
   paidAt: number | null
   cancelledAt: number | null
@@ -1341,6 +1366,19 @@ export type PixChargeDetail = {
   pixCopyPaste?: string | null
   createdAt: number
   updatedAt: number
+}
+
+export type PixPaymentAlert = {
+  id: string
+  chargeId: string
+  conversationId: string | null
+  contactId: string | null
+  opportunityId: string | null
+  reason: string
+  status: string
+  createdAt: number
+  updatedAt: number
+  resolvedAt: number | null
 }
 
 export type SchedulingIntentView = {

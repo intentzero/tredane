@@ -9,10 +9,17 @@ import type { WorkerBindings } from '../worker/bindings'
 import { createD1WebhookOps, type D1WebhookOps } from './webhook-d1'
 import {
   isClinicOutboxMessage,
+  isPixWebhookMessage,
   isWhatsappWebhookMessage,
   type InboundQueueMessage,
+  type PixWebhookQueueMessage,
   type WhatsappWebhookQueueMessage,
 } from './queue-types'
+import { createD1PixWebhookOps, type D1PixWebhookOps } from '../pix/webhook-d1'
+import {
+  markPixWebhookReceiptFailed,
+  markPixWebhookReceiptProcessed,
+} from '../pix/webhook-receipts'
 import type { AdminDb } from '../db/admin/store'
 import {
   markWebhookReceiptFailed,
@@ -37,6 +44,7 @@ export type QueueConsumerDeps = {
   /** Testes: AdminDb sync + stub do DO. */
   syncAdminDb?: AdminDb | null
   webhookOps?: D1WebhookOps
+  pixWebhookOps?: D1PixWebhookOps
   clinicStub?: (tenantId: string) => {
     ingestMessage: (
       ...args: Parameters<ClinicDurableObject['ingestMessage']>
@@ -47,6 +55,9 @@ export type QueueConsumerDeps = {
     recordInboundStatus: (
       ...args: Parameters<ClinicDurableObject['recordInboundStatus']>
     ) => ReturnType<ClinicDurableObject['recordInboundStatus']> | Promise<unknown>
+    processPixPayment?: (
+      ...args: Parameters<ClinicDurableObject['processPixPayment']>
+    ) => ReturnType<ClinicDurableObject['processPixPayment']> | Promise<unknown>
     createPendingAttachment?: MediaIngestClinicStub['createPendingAttachment']
     markAttachmentReady?: MediaIngestClinicStub['markAttachmentReady']
     markAttachmentFailed?: MediaIngestClinicStub['markAttachmentFailed']
@@ -260,6 +271,78 @@ async function processWhatsappMessage(
   }
 }
 
+async function processPixWebhookMessage(
+  deps: QueueConsumerDeps,
+  msg: PixWebhookQueueMessage,
+  attempts: number,
+): Promise<'ack' | 'retry'> {
+  const clock = deps.clock ?? systemClock
+  const log = deps.log ?? defaultLog
+
+  try {
+    const stub =
+      deps.clinicStub?.(msg.tenantId) ?? clinicFromEnv(deps.env, msg.tenantId)
+    const caller = queueCaller(msg.tenantId)
+    const process =
+      stub.processPixPayment?.bind(stub) ??
+      (stub as unknown as ClinicDurableObject).processPixPayment.bind(
+        stub as unknown as ClinicDurableObject,
+      )
+    await process(caller, {
+      eventId: msg.providerEventKey,
+      eventType: 'charge.paid',
+      providerChargeId: msg.providerChargeId,
+      accountId: msg.accountId,
+      amountCents: msg.amountCents,
+      occurredAt: msg.occurredAt,
+      receiptId: msg.receiptId,
+    })
+
+    if (deps.syncAdminDb) {
+      markPixWebhookReceiptProcessed(deps.syncAdminDb, msg.receiptId, clock)
+    } else {
+      const ops =
+        deps.pixWebhookOps ?? createD1PixWebhookOps(deps.env.DB, clock)
+      await ops.markProcessed(msg.receiptId)
+    }
+
+    log({
+      level: 'info',
+      event: 'queue.pix_processed',
+      detail: {
+        receiptId: msg.receiptId,
+        tenantId: msg.tenantId,
+        providerEventKey: msg.providerEventKey,
+      },
+    })
+    return 'ack'
+  } catch (err) {
+    const code = err instanceof Error ? err.message : 'pix_process_failed'
+    log({
+      level: 'error',
+      event: 'queue.pix_process_failed',
+      detail: {
+        receiptId: msg.receiptId,
+        tenantId: msg.tenantId,
+        errorCode: code.slice(0, 80),
+        attempts,
+      },
+    })
+    if (deps.syncAdminDb) {
+      markPixWebhookReceiptFailed(deps.syncAdminDb, msg.receiptId, code, clock)
+    } else {
+      try {
+        const ops =
+          deps.pixWebhookOps ?? createD1PixWebhookOps(deps.env.DB, clock)
+        await ops.markFailed(msg.receiptId, code)
+      } catch {
+        /* best-effort */
+      }
+    }
+    return 'retry'
+  }
+}
+
 /**
  * Processa um batch Cloudflare Queues.
  * Mensagens poison / falhas transitórias usam retry → DLQ após max_retries.
@@ -311,6 +394,13 @@ export async function handleInboundQueueBatch(
         // Não retry automático de efeito externo incerto — ack e deixa unknown/failed no DO.
       }
       message.ack()
+      continue
+    }
+
+    if (isPixWebhookMessage(body)) {
+      const outcome = await processPixWebhookMessage(deps, body, attempts)
+      if (outcome === 'ack') message.ack()
+      else message.retry()
       continue
     }
 

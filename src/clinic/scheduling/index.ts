@@ -32,6 +32,7 @@ export {
   queryAvailabilityOp,
   checkSlotAvailabilityOp,
   confirmAppointmentOp,
+  confirmAppointmentInTransaction,
   cancelAppointmentOp,
   rescheduleAppointmentOp,
   getAppointmentDetailOp,

@@ -1,5 +1,5 @@
-/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#38). */
-export const CLINIC_SCHEMA_VERSION = 11
+/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#39). */
+export const CLINIC_SCHEMA_VERSION = 12
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -14,7 +14,30 @@ export const CLINIC_MIGRATION_NAMES = {
   9: '0009_appointments_booking',
   10: '0010_pix_signal',
   11: '0011_scheduling_intent_pix_charge',
+  12: '0012_pix_payment_confirm',
 } as const
+
+/** Resolução do pagamento no DO (#39 / DEC-047). */
+export const PIX_PAYMENT_RESOLUTIONS = [
+  'appointment_confirmed',
+  'paid_without_slot',
+] as const
+
+export type PixPaymentResolution = (typeof PIX_PAYMENT_RESOLUTIONS)[number]
+
+export const PIX_PAID_WITHOUT_SLOT_REASONS = [
+  'slot_occupied',
+  'payment_after_expiry',
+  'intent_unavailable',
+  'charge_not_awaiting',
+] as const
+
+export type PixPaidWithoutSlotReason =
+  (typeof PIX_PAID_WITHOUT_SLOT_REASONS)[number]
+
+export const PIX_PAYMENT_ALERT_STATUSES = ['open', 'resolved'] as const
+
+export type PixPaymentAlertStatus = (typeof PIX_PAYMENT_ALERT_STATUSES)[number]
 
 /** Intenção de horário sem alocação (#38 / DEC-047). */
 export const SCHEDULING_INTENT_STATUSES = [
