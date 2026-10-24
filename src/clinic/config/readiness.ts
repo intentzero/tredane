@@ -1,11 +1,12 @@
 import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
+import { isWhatsappConnected } from '../whatsapp'
 import { ensureClinicSettings } from './settings'
 import type { ConfigReadiness } from './types'
 
 /**
  * Configuração mínima para agendar (REQ-052 / AC-14 / DEC-008).
- * WhatsApp conectado fica em missing até a fatia de canal; não faz parte deste PR.
+ * WhatsApp: espelho DO (#31); índice global e tokens no D1.
  */
 export function computeConfigReadiness(
   db: ClinicDb,
@@ -70,7 +71,8 @@ export function computeConfigReadiness(
     missing.push('weekly_availability')
   }
 
-  const whatsappConnected = opts.whatsappConnected === true
+  const whatsappConnected =
+    opts.whatsappConnected === true || isWhatsappConnected(db, tenantId)
   if (!whatsappConnected) missing.push('whatsapp')
 
   const agendaConfigured = !missing.some(

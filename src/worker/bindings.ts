@@ -16,4 +16,12 @@ export type WorkerBindings = {
   APP_BASE_URL?: string
   /** `simulated` (default em development) — provedor real Em aberto. */
   EMAIL_TRANSPORT?: string
+  /** WhatsApp Embedded Signup (#31): `synthetic` (default) | `live`. */
+  META_MODE?: string
+  META_APP_ID?: string
+  META_APP_SECRET?: string
+  META_CONFIG_ID?: string
+  META_GRAPH_API_VERSION?: string
+  /** Segredo para selar tokens Meta em D1 (opcional; fallback META_APP_SECRET). */
+  META_TOKEN_SECRET?: string
 }

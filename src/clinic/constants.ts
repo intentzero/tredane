@@ -1,5 +1,5 @@
-/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20/#23/#28/#29/#30). */
-export const CLINIC_SCHEMA_VERSION = 5
+/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20/#23/#28/#29/#30/#31). */
+export const CLINIC_SCHEMA_VERSION = 6
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -8,7 +8,17 @@ export const CLINIC_MIGRATION_NAMES = {
   3: '0003_clinic_config',
   4: '0004_inbox',
   5: '0005_pipeline',
+  6: '0006_whatsapp_channel',
 } as const
+
+/** Estados do espelho WhatsApp no DO (#31 / REQ-051). */
+export const WHATSAPP_CHANNEL_STATUSES = [
+  'disconnected',
+  'connected',
+  'interrupted',
+] as const
+
+export type WhatsappChannelStatus = (typeof WHATSAPP_CHANNEL_STATUSES)[number]
 
 /**
  * Etapas iniciais do Acompanhamento (Proposto em states.md; DEC-040/045).

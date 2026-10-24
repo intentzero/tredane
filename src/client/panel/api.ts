@@ -165,6 +165,98 @@ export function createPanelApi(getToken: TokenGetter) {
       return body
     },
 
+    async getWhatsappConnection(
+      tenantId: string,
+      opts?: FetchOpts,
+    ): Promise<WhatsappConnection> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/whatsapp`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const body = (await res.json()) as WhatsappConnection
+      assertGeneration(opts)
+      return body
+    },
+
+    async startWhatsappSession(
+      tenantId: string,
+      purpose: WhatsappSignupPurpose,
+      opts?: FetchOpts,
+    ): Promise<WhatsappSignupSession> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/whatsapp/session`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ purpose }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as WhatsappSignupSession
+    },
+
+    async completeWhatsappSignup(
+      tenantId: string,
+      body: WhatsappCompleteBody,
+      opts?: FetchOpts,
+    ): Promise<WhatsappConnection> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/whatsapp/complete`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as WhatsappConnection
+    },
+
+    async disconnectWhatsapp(
+      tenantId: string,
+      clinicNameConfirmation: string,
+      opts?: FetchOpts,
+    ): Promise<WhatsappConnection> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/whatsapp/disconnect`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clinicNameConfirmation }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as WhatsappConnection
+    },
+
+    async interruptWhatsappDev(
+      tenantId: string,
+      reason?: string,
+      opts?: FetchOpts,
+    ): Promise<WhatsappConnection> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/whatsapp/dev/interrupt`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as WhatsappConnection
+    },
+
     async upsertService(
       tenantId: string,
       body: ServiceUpsertBody,
@@ -799,6 +891,51 @@ export type CreateBlockResponse = {
     endsAt: number
     status: string
   }>
+}
+
+export type WhatsappSignupPurpose = 'connect' | 'reconnect' | 'replace'
+
+export type WhatsappConnection = {
+  status: 'disconnected' | 'connected' | 'interrupted'
+  phoneNumberId: string | null
+  wabaId: string | null
+  displayPhone: string | null
+  displayName: string | null
+  connectedAt: number | null
+  connectedByClerkUserId: string | null
+  interruptedAt: number | null
+  interruptReason: string | null
+  lastInboundAt: number | null
+  messageTemplates: Array<{ name: string; status: string }>
+  history: Array<{
+    id: string
+    action: string
+    actorClerkUserId: string | null
+    phoneNumberId: string | null
+    occurredAt: number
+    detail: Record<string, unknown> | null
+  }>
+  metaMode: 'synthetic' | 'live'
+}
+
+export type WhatsappSignupSession = {
+  sessionId: string
+  state: string
+  purpose: WhatsappSignupPurpose
+  expiresAt: number
+  metaMode: 'synthetic' | 'live'
+  metaAppId: string | null
+  metaConfigId: string | null
+  graphApiVersion: string
+}
+
+export type WhatsappCompleteBody = {
+  state: string
+  code: string
+  phoneNumberId: string
+  wabaId: string
+  displayPhone?: string | null
+  displayName?: string | null
 }
 
 export type PanelApi = ReturnType<typeof createPanelApi>

@@ -78,7 +78,7 @@ export type ClinicSettingsRow = {
 export type ConfigReadiness = {
   /** Serviços + profissional + sala/equipamento + expediente mínimo (REQ-052 agenda). */
   agendaConfigured: boolean
-  /** Agenda configurada + WhatsApp — WhatsApp fora deste PR. */
+  /** Agenda configurada + WhatsApp conectado (#31 / AC-14). */
   readyToServe: boolean
   /** Novos agendamentos só com agendaConfigured. */
   schedulingAllowed: boolean

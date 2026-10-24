@@ -46,6 +46,14 @@ const REDACT_KEYS = new Set([
   'handoffHash',
   'password',
   'secret',
+  'accessToken',
+  'access_token',
+  'accessTokenCipher',
+  'code',
+  'authCode',
+  'clientSecret',
+  'client_secret',
+  'appSecret',
 ])
 
 export function redactSecrets<T>(value: T): T {

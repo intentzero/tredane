@@ -2,6 +2,7 @@ import { ChevronDown } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 import { Button } from 'react-aria-components'
 import { SignOutButton } from '../auth/ClerkBridge'
+import { useAuthSession } from '../auth/AuthContext'
 import type { PanelArea } from '../routes'
 import { areaTitle, navigatePanel } from '../routes'
 import {
@@ -11,6 +12,8 @@ import {
   LoadingState,
 } from '../states/StatusScreens'
 import { useTenant } from '../tenant/TenantContext'
+import { WhatsappInterruptBanner } from '../screens/clinic/whatsapp/WhatsappScreen'
+import { useWhatsapp } from '../screens/clinic/whatsapp/useWhatsapp'
 import { BottomNav } from './BottomNav'
 
 type Props = {
@@ -20,7 +23,9 @@ type Props = {
 }
 
 export function PanelShell({ area, tenantId, children }: Props) {
-  const { active, selectTenant, listState } = useTenant()
+  const { active, selectTenant, listState, generation } = useTenant()
+  const { api } = useAuthSession()
+  const { conn: waConn } = useWhatsapp(api, tenantId, generation)
 
   const readyContext = active.phase === 'ready' ? active.context : null
   const tenantMismatch = Boolean(readyContext && readyContext.tenantId !== tenantId)
@@ -131,6 +136,12 @@ export function PanelShell({ area, tenantId, children }: Props) {
         </div>
         <SignOutButton />
       </header>
+
+      <WhatsappInterruptBanner
+        tenantId={ctx.tenantId}
+        conn={waConn}
+        isOwner={isOwner}
+      />
 
       <main className="panel-shell-main">{children}</main>
 

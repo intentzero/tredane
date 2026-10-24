@@ -128,14 +128,32 @@ export function ClinicHub({ tenantId, snap }: Props) {
           </div>
         </li>
         <li>
-          <div className="clinic-nav-row clinic-nav-row-static">
+          <Button
+            className="clinic-nav-row"
+            onPress={() =>
+              navigatePanel({
+                kind: 'area',
+                area: 'clinica',
+                tenantId,
+                section: 'whatsapp',
+              })
+            }
+          >
             <span className="clinic-nav-copy">
               <strong>WhatsApp</strong>
-              <span>Número da clínica</span>
+              <span>Número da clínica · Embedded Signup</span>
             </span>
-            <span className="clinic-status-warn">Falta conectar</span>
+            <span
+              className={
+                statusLabel(!readiness.missing.includes('whatsapp')).className
+              }
+            >
+              {readiness.missing.includes('whatsapp')
+                ? 'Falta conectar'
+                : 'Pronto'}
+            </span>
             <ChevronRight aria-hidden size={18} />
-          </div>
+          </Button>
         </li>
       </ul>
 
