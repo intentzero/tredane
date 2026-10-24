@@ -56,6 +56,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0010_webhook_receipt_media_kind.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0011_pix_webhook_receipts.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

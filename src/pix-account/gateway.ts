@@ -12,12 +12,15 @@ import type {
   PixAccountPublic,
   PixChargeRow,
   PixConnectDeps,
+  PixPaymentAlertRow,
   PixSignalSettings,
+  ProcessPixPaymentInput,
   RecordChargeInput,
   SchedulingIntentRow,
   SignalChargeResult,
   UpdateSignalSettingsInput,
 } from '../clinic/pix'
+import type { ProcessPixPaymentResult } from '../clinic/pix'
 import type { PixProviderAdapter } from '../pix'
 import { SimulatedPixAdapter } from '../pix'
 
@@ -74,6 +77,14 @@ export type PixAccountGateway = {
     caller: ClinicCaller,
     conversationId: string,
   ): Promise<PixChargeRow[]>
+  listOpenPaymentAlerts?(
+    caller: ClinicCaller,
+    conversationId?: string,
+  ): Promise<PixPaymentAlertRow[]>
+  processPixPayment?(
+    caller: ClinicCaller,
+    input: ProcessPixPaymentInput,
+  ): Promise<ProcessPixPaymentResult>
 }
 
 export function createMemoryPixAccountGateway(
@@ -136,6 +147,17 @@ export function createMemoryPixAccountGateway(
         conversationId,
         clock,
       )
+    },
+    async listOpenPaymentAlerts(caller, conversationId) {
+      return clinicPix.listOpenPaymentAlertsOp(
+        db,
+        caller,
+        clock,
+        conversationId,
+      )
+    },
+    async processPixPayment(caller, input) {
+      return clinicPix.processPixPaymentOp(db, caller, input, clock)
     },
   }
 }

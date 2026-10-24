@@ -6,6 +6,7 @@ import type {
   InboxMessage,
   PanelApi,
   PixChargeDetail,
+  PixPaymentAlert,
   WhatsappTemplateItem,
 } from '../../api'
 import { navigatePanel } from '../../routes'
@@ -100,6 +101,7 @@ export function InboxThread({
   const [selectedTemplate, setSelectedTemplate] =
     useState<WhatsappTemplateItem | null>(null)
   const [pixCharges, setPixCharges] = useState<PixChargeDetail[]>([])
+  const [pixAlerts, setPixAlerts] = useState<PixPaymentAlert[]>([])
   const [templateParams, setTemplateParams] = useState<Record<string, string>>(
     {},
   )
@@ -147,6 +149,13 @@ export function InboxThread({
         })
         .then(setPixCharges)
         .catch(() => setPixCharges([]))
+      void api
+        .listPixPaymentAlerts(tenantId, conversationId, {
+          generation,
+          expectGeneration: () => generation,
+        })
+        .then(setPixAlerts)
+        .catch(() => setPixAlerts([]))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao abrir conversa')
       setDetail(null)
@@ -410,6 +419,49 @@ export function InboxThread({
           </Button>
         ) : null}
       </div>
+
+      {pixAlerts.length > 0 ? (
+        <div className="inbox-notice inbox-pix-alert" role="alert">
+          {pixAlerts.map((a) => {
+            const charge = pixCharges.find((c) => c.id === a.chargeId)
+            return (
+              <div key={a.id} className="inbox-pix-card">
+                <strong>Sinal pago, mas o horário foi ocupado</strong>
+                <p>
+                  {charge
+                    ? (charge.amountCents / 100).toLocaleString('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      })
+                    : 'Pagamento registado'}
+                  {' · '}
+                  {a.reason === 'payment_after_expiry'
+                    ? 'pagamento após o prazo'
+                    : a.reason === 'slot_occupied'
+                      ? 'horário já reservado'
+                      : 'não foi possível confirmar o horário'}
+                  . Escolher outro horário / Devolver sinal entram em breve (#40).
+                </p>
+                <Button
+                  className="panel-btn-secondary"
+                  onPress={() =>
+                    navigatePanel({
+                      kind: 'area',
+                      area: 'agenda',
+                      tenantId,
+                      section: 'agendar',
+                      conversationId,
+                      contactId: detail?.contactId,
+                    })
+                  }
+                >
+                  Ir para Agendar
+                </Button>
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
 
       {pixCharges.some((c) => c.status === 'awaiting_payment') ? (
         <div className="inbox-notice" role="status">

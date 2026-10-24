@@ -7,6 +7,7 @@ import { bindOrAssertTenant } from '../tenant'
 import { ensureClinicSettings } from '../config/settings'
 import {
   cancelAppointmentOp,
+  confirmAppointmentInTransaction,
   confirmAppointmentOp,
   getAppointmentDetailOp,
   rescheduleAppointmentOp,
@@ -60,6 +61,7 @@ export function checkSlotAvailabilityOp(
 
 export {
   confirmAppointmentOp,
+  confirmAppointmentInTransaction,
   cancelAppointmentOp,
   rescheduleAppointmentOp,
   getAppointmentDetailOp,

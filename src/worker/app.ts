@@ -57,6 +57,10 @@ import {
   createPixAccountRoutes,
   type PixAccountRouteOptions,
 } from '../pix-account'
+import {
+  createPixWebhookRoutes,
+  type PixWebhookRouteOptions,
+} from '../pix/webhook-routes'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
@@ -115,6 +119,8 @@ export type CreateAppOptions = {
   attachments?: AttachmentRouteOptions
   /** Conta Pix / sinais (#37). */
   pixAccount?: PixAccountRouteOptions
+  /** Webhooks Pix/Woovi (#39). */
+  pixWebhook?: PixWebhookRouteOptions
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -206,6 +212,22 @@ export function createApp(opts: CreateAppOptions = {}) {
     logFactory: opts.whatsappWebhook?.logFactory,
   }
   app.route('/', createWhatsappWebhookRoutes(webhookOpts))
+
+  // Webhooks Pix (#39) — sem middleware Clerk.
+  const pixWebhookOpts: PixWebhookRouteOptions = {
+    syncAdminDbFactory:
+      opts.pixWebhook?.syncAdminDbFactory ??
+      (opts.syncAdminDbFactory
+        ? (env) => opts.syncAdminDbFactory!(env as WorkerBindings)
+        : undefined),
+    clockFactory: opts.pixWebhook?.clockFactory ?? opts.clockFactory,
+    queueFactory: opts.pixWebhook?.queueFactory,
+    publicKeyPemsFactory: opts.pixWebhook?.publicKeyPemsFactory,
+    fetchImplFactory: opts.pixWebhook?.fetchImplFactory,
+    baseUrlFactory: opts.pixWebhook?.baseUrlFactory,
+    logFactory: opts.pixWebhook?.logFactory,
+  }
+  app.route('/', createPixWebhookRoutes(pixWebhookOpts))
 
   app.route('/', createAttachmentRoutes(opts.attachments ?? {}))
 

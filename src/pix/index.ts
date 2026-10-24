@@ -5,7 +5,7 @@ export { PixHttpProbeClient } from './http/probe'
 export type { ProbeCharge, ProbeClientOptions, ProbeResult } from './http/probe'
 export { WooviPixAdapter, WOOVI_PROVIDER_ID, WOOVI_BASE_URLS } from './woovi/adapter'
 export type { WooviPixAdapterOptions, WooviEnvironment } from './woovi/adapter'
-export { createWooviSandboxFixture } from './woovi/sandbox'
+export { createWooviSandboxFixture, sandboxAdditional } from './woovi/sandbox'
 export type { WooviSandboxFixture, WooviSandboxOptions } from './woovi/sandbox'
 export {
   sealPixAppId,
@@ -26,3 +26,20 @@ export type {
   SignalAmountError,
 } from './money'
 export type * from './types'
+export { validatePixWebhookEnvelope } from './webhook-validate'
+export {
+  createPixWebhookRoutes,
+  type PixWebhookRouteOptions,
+} from './webhook-routes'
+export {
+  ingestPixWebhook,
+  storeFromAdminDb,
+  storeFromD1Ops,
+} from './webhook-ingest'
+export type { PixWebhookQueueMessage } from './queue-types'
+export { isPixWebhookMessage } from './queue-types'
+export {
+  verifyWooviWebhookSignature,
+  signWooviWebhookBody,
+  generateWooviTestKeyPair,
+} from './woovi/webhook'

@@ -3,6 +3,7 @@ export type {
   PixAccountPublic,
   PixSignalSettings,
   PixChargeRow,
+  PixPaymentAlertRow,
   SchedulingIntentRow,
   ServiceSignalFields,
   ConnectPixInput,
@@ -12,7 +13,9 @@ export type {
   ConfirmWithoutSignalInput,
   SignalChargeResult,
   ConfirmWithoutSignalResult,
+  ProcessPixPaymentInput,
 } from './types'
+export type { ProcessPixPaymentResult } from './payment'
 export {
   ensurePixAccount,
   getPixAccount,
@@ -72,3 +75,17 @@ export {
   listConversationPixChargesOp,
   type SignalChargeAdapterDeps,
 } from './signal-charge'
+export {
+  processPixPaymentOp,
+  listOpenPaymentAlertsOp,
+} from './payment'
+export {
+  listOpenPixPaymentAlerts,
+  listOpenPixPaymentAlertsForConversation,
+  getPixPaymentAlertByCharge,
+} from './alerts'
+export {
+  findPixChargeByProviderId,
+  markChargePaidConfirmed,
+  markChargePaidWithoutSlot,
+} from './charges'

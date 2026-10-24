@@ -217,10 +217,10 @@ function linkOpportunityIfPresent(
 }
 
 /**
- * Confirma compromisso se recursos livres.
- * Idempotente por clientRequestId (clique/retry).
+ * Corpo de confirmação — assume TX já aberta (ex.: pagamento Pix #39).
+ * Não chama `transactionSync` (Node SQLite não aninha BEGIN).
  */
-export function confirmAppointmentOp(
+export function confirmAppointmentInTransaction(
   db: ClinicDb,
   caller: ClinicCaller,
   input: ConfirmAppointmentInput,
@@ -248,160 +248,194 @@ export function confirmAppointmentOp(
     }
   }
 
-  return db.transactionSync(() => {
-    // Re-check dentro da TX (ADR-0005) — SELECT+INSERT separados não bastam.
-    const check = checkSlotAvailability(
-      db,
-      meta.tenantId,
+  // Re-check dentro da TX (ADR-0005) — SELECT+INSERT separados não bastam.
+  const check = checkSlotAvailability(
+    db,
+    meta.tenantId,
+    {
+      serviceId: input.serviceId,
+      professionalId: input.professionalId,
+      roomResourceId: input.roomResourceId,
+      startsAt: input.startsAt,
+    },
+    clock,
+  )
+  if (!check.available || !check.slot) {
+    throwSlotConflict(
       {
-        serviceId: input.serviceId,
-        professionalId: input.professionalId,
-        roomResourceId: input.roomResourceId,
-        startsAt: input.startsAt,
+        reasons: check.reasons,
+        conflictingAppointmentIds: [],
       },
-      clock,
+      'Esse horário acabou de ser ocupado. Nada foi reservado. Escolha outro horário.',
     )
-    if (!check.available || !check.slot) {
-      throwSlotConflict(
-        {
-          reasons: check.reasons,
-          conflictingAppointmentIds: [],
-        },
-        'Esse horário acabou de ser ocupado. Nada foi reservado. Escolha outro horário.',
+  }
+
+  const service = getService(db, meta.tenantId, input.serviceId)!
+  const room = check.slot.roomResourceId
+    ? getResource(db, meta.tenantId, check.slot.roomResourceId, clock)
+    : null
+  const now = clock.nowMs()
+  const id = newId('apt')
+  const endsAt = check.slot.endsAt
+  const occupiesUntil = check.slot.occupiesUntil
+
+  db.run(
+    `INSERT INTO appointments (
+      id, tenant_id, service_id, professional_id, room_resource_id,
+      starts_at, ends_at, status, contact_label, created_at,
+      contact_id, conversation_id, opportunity_id,
+      version, updated_at, confirmed_by, confirmed_at, occupies_until
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+    id,
+    meta.tenantId,
+    input.serviceId,
+    check.slot.professionalId,
+    check.slot.roomResourceId,
+    check.slot.startsAt,
+    endsAt,
+    input.contactLabel ?? null,
+    now,
+    input.contactId ?? null,
+    input.conversationId ?? null,
+    input.opportunityId ?? null,
+    now,
+    actorId,
+    now,
+    occupiesUntil,
+  )
+
+  insertAllocations(db, {
+    tenantId: meta.tenantId,
+    appointmentId: id,
+    professionalId: check.slot.professionalId,
+    roomResourceId: check.slot.roomResourceId,
+    roomKind:
+      room && (room.kind === 'room' || room.kind === 'equipment')
+        ? room.kind
+        : null,
+    occupiedFrom: check.slot.startsAt,
+    occupiedUntil: occupiesUntil,
+  })
+
+  const apt = loadAppointment(db, meta.tenantId, id)
+  insertAppointmentEvent(db, {
+    tenantId: meta.tenantId,
+    appointmentId: id,
+    operation: 'confirmed',
+    actorId,
+    previous: null,
+    next: snapshot(apt),
+    occurredAt: now,
+  })
+
+  const outbox: OutboxRow[] = []
+  linkOpportunityIfPresent(
+    db,
+    meta.tenantId,
+    id,
+    input.opportunityId ?? null,
+    input.contactId ?? null,
+    input.conversationId ?? null,
+    now,
+    outbox,
+    clock,
+  )
+
+  const confirmedOutbox = insertOutboxEvent(
+    db,
+    {
+      tenantId: meta.tenantId,
+      type: 'appointment.confirmed',
+      aggregateType: 'appointment',
+      aggregateId: id,
+      idempotencyKey: `appointment.confirmed:${clientRequestId}`,
+      payload: {
+        appointmentId: id,
+        serviceId: service.id,
+        professionalId: apt.professionalId,
+        roomResourceId: apt.roomResourceId,
+        startsAt: apt.startsAt,
+        endsAt: apt.endsAt,
+        occupiesUntil,
+        contactId: apt.contactId,
+        conversationId: apt.conversationId,
+        opportunityId: apt.opportunityId,
+        actorClerkUserId: actorId,
+        version: apt.version,
+      },
+    },
+    clock,
+  )
+  outbox.push(confirmedOutbox)
+
+  writeOperationalAudit(
+    db,
+    {
+      tenantId: meta.tenantId,
+      actor: actorId,
+      action: 'appointment.confirmed',
+      objectType: 'appointment',
+      objectId: id,
+      detail: {
+        startsAt: apt.startsAt,
+        professionalId: apt.professionalId,
+        roomResourceId: apt.roomResourceId,
+        occupiedMinutes: occupiedMinutes(
+          service.durationMinutes,
+          service.bufferMinutes,
+        ),
+      },
+    },
+    clock,
+  )
+
+  const detail = enrichDetail(db, meta.tenantId, apt, clock)
+  saveAppointmentCommand(db, {
+    tenantId: meta.tenantId,
+    clientRequestId,
+    command: 'confirm',
+    appointmentId: id,
+    result: detail,
+    createdAt: now,
+  })
+
+  return { value: detail, outbox, idempotentReplay: false }
+}
+
+/**
+ * Confirma compromisso se recursos livres.
+ * Idempotente por clientRequestId (clique/retry).
+ */
+export function confirmAppointmentOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: ConfirmAppointmentInput,
+  clock: Clock,
+): AppointmentMutationResult<AppointmentDetail> {
+  assertClinicSchemaReady(db)
+  assertValidCaller(caller)
+  const meta = bindOrAssertTenant(db, caller, clock)
+  const clientRequestId = requireClientRequestId(input.clientRequestId)
+
+  const existing = findAppointmentCommand(db, meta.tenantId, clientRequestId)
+  if (existing) {
+    if (existing.command !== 'confirm') {
+      throw new ConflictError(
+        'client_request_id_reuse',
+        'clientRequestId já usado noutra operação',
       )
     }
+    const apt = loadAppointment(db, meta.tenantId, existing.appointmentId)
+    return {
+      value: enrichDetail(db, meta.tenantId, apt, clock),
+      outbox: [],
+      idempotentReplay: true,
+    }
+  }
 
-    const service = getService(db, meta.tenantId, input.serviceId)!
-    const room = check.slot.roomResourceId
-      ? getResource(db, meta.tenantId, check.slot.roomResourceId, clock)
-      : null
-    const now = clock.nowMs()
-    const id = newId('apt')
-    const endsAt = check.slot.endsAt
-    const occupiesUntil = check.slot.occupiesUntil
-
-    db.run(
-      `INSERT INTO appointments (
-        id, tenant_id, service_id, professional_id, room_resource_id,
-        starts_at, ends_at, status, contact_label, created_at,
-        contact_id, conversation_id, opportunity_id,
-        version, updated_at, confirmed_by, confirmed_at, occupies_until
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
-      id,
-      meta.tenantId,
-      input.serviceId,
-      check.slot.professionalId,
-      check.slot.roomResourceId,
-      check.slot.startsAt,
-      endsAt,
-      input.contactLabel ?? null,
-      now,
-      input.contactId ?? null,
-      input.conversationId ?? null,
-      input.opportunityId ?? null,
-      now,
-      actorId,
-      now,
-      occupiesUntil,
-    )
-
-    insertAllocations(db, {
-      tenantId: meta.tenantId,
-      appointmentId: id,
-      professionalId: check.slot.professionalId,
-      roomResourceId: check.slot.roomResourceId,
-      roomKind:
-        room && (room.kind === 'room' || room.kind === 'equipment')
-          ? room.kind
-          : null,
-      occupiedFrom: check.slot.startsAt,
-      occupiedUntil: occupiesUntil,
-    })
-
-    const apt = loadAppointment(db, meta.tenantId, id)
-    insertAppointmentEvent(db, {
-      tenantId: meta.tenantId,
-      appointmentId: id,
-      operation: 'confirmed',
-      actorId,
-      previous: null,
-      next: snapshot(apt),
-      occurredAt: now,
-    })
-
-    const outbox: OutboxRow[] = []
-    linkOpportunityIfPresent(
-      db,
-      meta.tenantId,
-      id,
-      input.opportunityId ?? null,
-      input.contactId ?? null,
-      input.conversationId ?? null,
-      now,
-      outbox,
-      clock,
-    )
-
-    const confirmedOutbox = insertOutboxEvent(
-      db,
-      {
-        tenantId: meta.tenantId,
-        type: 'appointment.confirmed',
-        aggregateType: 'appointment',
-        aggregateId: id,
-        idempotencyKey: `appointment.confirmed:${clientRequestId}`,
-        payload: {
-          appointmentId: id,
-          serviceId: service.id,
-          professionalId: apt.professionalId,
-          roomResourceId: apt.roomResourceId,
-          startsAt: apt.startsAt,
-          endsAt: apt.endsAt,
-          occupiesUntil,
-          contactId: apt.contactId,
-          conversationId: apt.conversationId,
-          opportunityId: apt.opportunityId,
-          actorClerkUserId: actorId,
-          version: apt.version,
-        },
-      },
-      clock,
-    )
-    outbox.push(confirmedOutbox)
-
-    writeOperationalAudit(
-      db,
-      {
-        tenantId: meta.tenantId,
-        actor: actorId,
-        action: 'appointment.confirmed',
-        objectType: 'appointment',
-        objectId: id,
-        detail: {
-          startsAt: apt.startsAt,
-          professionalId: apt.professionalId,
-          roomResourceId: apt.roomResourceId,
-          occupiedMinutes: occupiedMinutes(
-            service.durationMinutes,
-            service.bufferMinutes,
-          ),
-        },
-      },
-      clock,
-    )
-
-    const detail = enrichDetail(db, meta.tenantId, apt, clock)
-    saveAppointmentCommand(db, {
-      tenantId: meta.tenantId,
-      clientRequestId,
-      command: 'confirm',
-      appointmentId: id,
-      result: detail,
-      createdAt: now,
-    })
-
-    return { value: detail, outbox, idempotentReplay: false }
-  })
+  return db.transactionSync(() =>
+    confirmAppointmentInTransaction(db, caller, input, clock),
+  )
 }
 
 export function cancelAppointmentOp(

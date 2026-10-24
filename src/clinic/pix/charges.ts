@@ -2,7 +2,12 @@ import type { Clock } from '../../db/clock'
 import type { SignalKind } from '../../pix/money'
 import { newId } from '../ids'
 import type { ClinicDb } from '../store'
-import type { PixChargeStatus, PixProviderCreateState } from '../constants'
+import type {
+  PixChargeStatus,
+  PixPaidWithoutSlotReason,
+  PixPaymentResolution,
+  PixProviderCreateState,
+} from '../constants'
 import type { PixChargeRow, RecordChargeInput } from './types'
 
 type ChargeSql = {
@@ -41,6 +46,9 @@ type ChargeSql = {
   provider_create_state?: string | null
   created_by_clerk_user_id?: string | null
   whatsapp_send_error?: string | null
+  payment_resolution?: string | null
+  appointment_id?: string | null
+  paid_without_slot_reason?: string | null
   created_at: number
   updated_at: number
 }
@@ -83,6 +91,10 @@ function mapRow(row: ChargeSql): PixChargeRow {
       'confirmed',
     createdByClerkUserId: row.created_by_clerk_user_id ?? null,
     whatsappSendError: row.whatsapp_send_error ?? null,
+    paymentResolution: (row.payment_resolution as PixPaymentResolution | null) ?? null,
+    appointmentId: row.appointment_id ?? null,
+    paidWithoutSlotReason:
+      (row.paid_without_slot_reason as PixPaidWithoutSlotReason | null) ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -350,6 +362,83 @@ export function getPixCharge(
     chargeId,
   )
   return row ? mapRow(row) : null
+}
+
+/** Lookup por id do provedor (correlationID Woovi) ou external_reference. */
+export function findPixChargeByProviderId(
+  db: ClinicDb,
+  tenantId: string,
+  providerChargeId: string,
+): PixChargeRow | null {
+  const byProvider = db.get<ChargeSql>(
+    `SELECT * FROM pix_charges
+     WHERE tenant_id = ? AND provider_charge_id = ?
+     LIMIT 1`,
+    tenantId,
+    providerChargeId,
+  )
+  if (byProvider) return mapRow(byProvider)
+  const byExternal = db.get<ChargeSql>(
+    `SELECT * FROM pix_charges
+     WHERE tenant_id = ? AND external_reference = ?
+     LIMIT 1`,
+    tenantId,
+    providerChargeId,
+  )
+  return byExternal ? mapRow(byExternal) : null
+}
+
+export function markChargePaidConfirmed(
+  db: ClinicDb,
+  tenantId: string,
+  chargeId: string,
+  appointmentId: string,
+  paidAt: number,
+  clock: Clock,
+): PixChargeRow {
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE pix_charges SET
+      status = 'paid',
+      paid_at = ?,
+      payment_resolution = 'appointment_confirmed',
+      appointment_id = ?,
+      paid_without_slot_reason = NULL,
+      updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    paidAt,
+    appointmentId,
+    now,
+    tenantId,
+    chargeId,
+  )
+  return getPixCharge(db, tenantId, chargeId)!
+}
+
+export function markChargePaidWithoutSlot(
+  db: ClinicDb,
+  tenantId: string,
+  chargeId: string,
+  reason: PixPaidWithoutSlotReason,
+  paidAt: number,
+  clock: Clock,
+): PixChargeRow {
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE pix_charges SET
+      status = 'paid',
+      paid_at = ?,
+      payment_resolution = 'paid_without_slot',
+      paid_without_slot_reason = ?,
+      updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    paidAt,
+    reason,
+    now,
+    tenantId,
+    chargeId,
+  )
+  return getPixCharge(db, tenantId, chargeId)!
 }
 
 export function getPixChargeByIdempotencyKey(

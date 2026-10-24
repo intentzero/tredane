@@ -2,6 +2,9 @@ import type {
   PixAccountStatus,
   PixChargeStatus,
   PixEnvironment,
+  PixPaidWithoutSlotReason,
+  PixPaymentAlertStatus,
+  PixPaymentResolution,
   PixProviderCreateState,
   SchedulingIntentStatus,
 } from '../constants'
@@ -111,8 +114,39 @@ export type PixChargeRow = {
   providerCreateState: PixProviderCreateState
   createdByClerkUserId: string | null
   whatsappSendError: string | null
+  /** Null enquanto awaiting; preenchido no processamento #39. */
+  paymentResolution: PixPaymentResolution | null
+  appointmentId: string | null
+  paidWithoutSlotReason: PixPaidWithoutSlotReason | null
   createdAt: number
   updatedAt: number
+}
+
+export type PixPaymentAlertRow = {
+  id: string
+  tenantId: string
+  chargeId: string
+  conversationId: string | null
+  contactId: string | null
+  opportunityId: string | null
+  reason: PixPaidWithoutSlotReason
+  status: PixPaymentAlertStatus
+  createdAt: number
+  updatedAt: number
+  resolvedAt: number | null
+}
+
+export type ProcessPixPaymentInput = {
+  /** Identificador estável do evento do provedor (idempotência). */
+  eventId: string
+  eventType: 'charge.paid'
+  providerChargeId: string
+  accountId: string
+  amountCents: number
+  /** Instantâneo reportado pelo provedor (ISO). */
+  occurredAt: string
+  /** Recibo D1 (rastreio; opcional em testes unitários). */
+  receiptId?: string | null
 }
 
 export type ServiceSignalFields = {
