@@ -30,7 +30,9 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 
 **Prazo dos pedidos de suporte (DEC-031):** o owner tem até 24 horas desde a emissão para aprovar ou rejeitar a solicitação pendente. Depois do prazo, o backend bloqueia a aprovação e exige novo pedido, mesmo que o e-mail seja lido depois. A sessão aprovada dentro da janela tem TTL de 30 minutos (DEC-032). [ADR-0011](adr/0011-owner-approval-for-support.md).
 
-**DEC-032 — 30 minutos de suporte:** após aprovação, sessão própria do superadmin dura no máximo 30 minutos desde ativação. Vencimento e encerramento antecipado bloqueiam HTTP/WebSocket do suporte; a sessão Clerk normal permanece. Handoff, uso, refresh e reconexão não prolongam o prazo. Pedido pendente continua a ter 24 horas (DEC-031); renovação da sessão a decidir. [ADR-0007](adr/0007-support-impersonation.md).
+**DEC-032 — 30 minutos de suporte:** após aprovação, sessão própria do superadmin dura no máximo 30 minutos desde ativação. Vencimento e encerramento antecipado bloqueiam HTTP/WebSocket do suporte; a sessão Clerk normal permanece. Handoff, uso, refresh e reconexão não prolongam o prazo. Pedido pendente continua a ter 24 horas (DEC-031); continuação requer novo pedido e aprovação (DEC-033). [ADR-0007](adr/0007-support-impersonation.md).
+
+**DEC-033 — Sem extensão:** depois de 30 minutos, o superadmin que necessitar de mais tempo abre **nova solicitação** e espera **nova aprovação de owner ativo da clínica** antes de ganhar outra sessão de 30 minutos. A sessão anterior não é renovada, e suas credenciais ou aprovação não podem ser reutilizadas. [ADR-0011](adr/0011-owner-approval-for-support.md).
 
 **Notificação de suporte (DEC-030):** owners ativos da clínica recebem o pedido no painel em tempo real e aviso por e-mail, com link para abrir solicitação no Tredane. Aprovar/Rejeitar só dentro da Clinic App com Clerk login e membership owner validada pelo backend; clicar no e-mail não concede acesso nem aprova. [ADR-0011](adr/0011-owner-approval-for-support.md).
 

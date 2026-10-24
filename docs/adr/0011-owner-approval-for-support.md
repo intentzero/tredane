@@ -1,6 +1,6 @@
 # ADR-0011 — Aprovação de cada sessão de suporte pelo owner
 
-**Estado:** DEC-029 (aprovação por sessão), DEC-030 (painel + e-mail) e **DEC-031 (24 horas para pedido pendente)** confirmadas. Duração da sessão confirmada em 30 minutos (DEC-032); renovação e UX complementar em aberto.
+**Estado:** DEC-029 (aprovação por sessão), DEC-030 (painel + e-mail) e **DEC-031 (24 horas para pedido pendente)** confirmadas. Duração da sessão confirmada em 30 minutos (DEC-032); continuação por nova solicitação/aprovação definida em DEC-033; UX complementar em aberto.
 **Relacionados:** [ADR-0007](0007-support-impersonation.md), [DEC-028/029](../product/decisions.md), [REQ-007](../product/requirements.md), [AC-27](../product/acceptance.md).
 
 ## Decisão
@@ -29,7 +29,11 @@ A aprovação identifica pedido específico, actor superadmin autenticado como e
 
 Após aprovação válida do owner, o Tredane ativa a sessão com `activated_at` UTC do servidor e `expires_at = activated_at + 30 minutos` no D1. A contagem inicia **na ativação**, não no primeiro acesso ou handoff. Exigir sessão `active` e `now < expires_at` em cada API e entrega WebSocket. No instante de vencimento ou depois, negar dados e invalidar ou fechar WebSockets e credenciais de suporte mesmo após hibernação ou sem job de limpeza.
 
-O superadmin pode encerrar a sessão antes dos 30 minutos, com auditoria e invalidação imediata de acesso. Reabrir, manter ativo, autenticar novamente e reconectar não renovam o prazo. **Renovação automática não foi autorizada**; política de renovação continua em aberto. A validade de 24 horas do pedido pendente (DEC-031) **não** limita a sessão já aprovada, que tem prazo independente de 30 minutos. Testar no limite, antes, depois, encerramento voluntário, socket ativo/hibernado e corrida com fan-out.
+O superadmin pode encerrar a sessão antes dos 30 minutos, com auditoria e invalidação imediata de acesso. Reabrir, manter ativo, autenticar novamente e reconectar não renovam o prazo. **DEC-033 proíbe extensão/renovação: continuar exige novo pedido e aprovação.** A validade de 24 horas do pedido pendente (DEC-031) **não** limita a sessão já aprovada, que tem prazo independente de 30 minutos. Testar no limite, antes, depois, encerramento voluntário, socket ativo/hibernado e corrida com fan-out.
+
+## Continuação do suporte — DEC-033
+
+A sessão própria do superadmin termina ao expirar ou encerrar antecipadamente: **não existe extensão ou renovação da sessão de 30 minutos**. Para continuar, superadmin cria **novo pedido de suporte**, independente, válido por 24 horas, e precisa obter **nova aprovação expressa de owner ativo do tenant**. Apenas depois dessa decisão é criada **nova sessão própria de 30 minutos**, com ID, handoff, cookie, `activated_at`, `expires_at` e auditoria independentes. Não reativar sessão encerrada, reaproveitar aprovação, estender `expires_at` ou oferecer API `extend/renew`. Espera por nova aprovação não concede HTTP/WebSocket. Testar replay, concorrência, troca de owner e isolamento entre tenants.
 
 ## Contrato técnico candidato — não implementado
 
@@ -50,8 +54,8 @@ Estados: `pending`, `approved`, `rejected`, `expired`, `revoked` e `cancelled`. 
 
 ## Pendências explícitas
 
-- **Política de renovação da sessão ativa** (próxima decisão). Prazo de pedido pendente fixado em 24 horas por DEC-031.
-- **Como funciona eventual renovação da sessão aprovada**. Pedido pendente expira em 24 horas (DEC-031).
+- **Revogação da sessão ativa por owner** (próxima decisão). Continuação já definida em DEC-033. Prazo de pedido pendente fixado em 24 horas por DEC-031.
+- **Como revogar sessão ativa como owner**. Continuação por nova aprovação já decidida em DEC-033. Pedido pendente expira em 24 horas (DEC-031).
 - Política de revogação pelo owner com sessão ativa, notificações e auditoria; sem autorização válida, bloquear por padrão.
 - Privacidade/LGPD, retenção de pedidos e logs, política sem owner disponível e revisão de segurança com dados reais.
 

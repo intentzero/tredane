@@ -132,6 +132,10 @@
 
 **Dado** pedido válido aprovado e sessão ativada em `t0`; **antes de t0 + 30 minutos** a sessão permite somente ações autorizadas. **No instante t0 + 30 minutos e depois**, o backend não permite novos dados, operações, eventos WebSocket ou reutilização de cookie/handoff mesmo após hibernação ou refresh; o painel informa a expiração. O superadmin pode terminar antes, auditando e cortando o acesso. A sessão Clerk continua válida fora do contexto de suporte. Testar corrida com fan-out e ausência de job de limpeza. **REQ-007/061, DEC-032.**
 
+### AC-31 — Continuação exige nova aprovação do owner
+
+**Dado** sessão já encerrada ou expirada, **quando** o superadmin tenta estender seu prazo, usar antigo handoff/cookie ou reaproveitar aprovação, **então** nenhum acesso é permitido. **Quando** faz nova solicitação e um owner ativo da mesma clínica a aprova expressamente no Tredane, **então** pode nascer outra sessão independente de 30 minutos com ID, credenciais e auditoria próprios. O novo pedido pendente tem prazo de 24 horas. Requisitos REQ-007/061/062, DEC-033.
+
 ## Condições para usar estes cenários como aprovação
 
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.

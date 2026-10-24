@@ -48,6 +48,10 @@ Todo `support_access_requests` recebe `created_at` e `expires_at = created_at + 
 
 A aprovação válida ativa sessão no D1 e define `activated_at` UTC e `expires_at = activated_at + 30min`, com prazo fixo e não deslizante. Autorizar API, dados e eventos WebSocket somente enquanto `now < expires_at`, sessão ativa, aprovação/actor/subject/tenant e capacidades válidos. Expiração exige invalidação das conexões do DO e credenciais, inclusive após hibernação, sem confiar só em job de limpeza. O superadmin pode encerrar antes, com auditoria; sem logout global Clerk. Distinto das 24h para o pedido pendente. Renovação por decidir.
 
+## Continuação sem renovação — DEC-033
+
+`support_sessions.expires_at` é imutável após ativação. Não expor API `extend/renew`; o término invalida handoff, cookie, HTTP e WebSocket do suporte. Continuação requer **novo `support_access_requests`**, nova aprovação de owner ativo daquele tenant, e nova `support_sessions` com prazo de 30 minutos e segredos/IDs próprios. Verificar backend contra replay de aprovações e tickets anteriores. Persistir auditoria distinta.
+
 ## Notificação de solicitações de suporte — DEC-030
 
 Após persistir `support_access_requests` em estado pendente no D1, emitir evento de atualização restrito a owners ativos do mesmo tenant no Durable Object/WebSocket e enviar aviso por e-mail com link de navegação para a solicitação. **Não** colocar token de aprovação ou dados clínicos no e-mail. A decisão só é aceita na API autenticada da Clinic App com verificação atual de Clerk e membership owner; sincronizar estado final entre owners. E-mail indisponível não altera autorização nem impede decisão pelo painel. Provedor de entrega em aberto e prazo do pedido fixado em 24 horas (DEC-031).

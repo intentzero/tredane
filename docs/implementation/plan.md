@@ -32,9 +32,11 @@
 
 **DEC-030 — painel e e-mail para suporte:** publicar pedido persistido no D1 em tempo real para owners ativos do tenant e enviar e-mail com link não privilegiado para a solicitação. Aprovação ou rejeição exclusivamente na Clinic App após login Clerk, verificação server-side owner e decisão atómica, auditada. Testar owners offline, e-mail falhado/duplicado, link sem login, isolamento de eventos, decisão simultânea e recuperação após reconexão. Provedor de e-mail pendente; validade do pedido de 24 horas aprovada (DEC-031).
 
-**DEC-031 — pedido de suporte expira em 24h:** armazenar `created_at`/`expires_at` server-side UTC no D1; bloquear aprovação se `now >= expires_at` com decisão atómica mesmo sem job de expiração. Testar competição de decisão, envio de e-mail tardio, relógio cliente falsificado, novo pedido após expiração e nenhuma ativação indevida; TTL da sessão definido como 30 minutos (DEC-032); renovação ainda pendente.
+**DEC-031 — pedido de suporte expira em 24h:** armazenar `created_at`/`expires_at` server-side UTC no D1; bloquear aprovação se `now >= expires_at` com decisão atómica mesmo sem job de expiração. Testar competição de decisão, envio de e-mail tardio, relógio cliente falsificado, novo pedido após expiração e nenhuma ativação indevida; TTL da sessão definido como 30 minutos (DEC-032); continuação via novo pedido e aprovação confirmada em DEC-033.
 
-**DEC-032 — duração do suporte:** criar `activated_at` e `expires_at = activated_at + 30 minutos` em D1 quando o owner aprovar. Implementar expiração server-side, corte de HTTP/DO-WebSocket no limite mesmo após hibernação, revogação manual auditada e UI de sessão expirada; testar clocks, fan-out em corrida e ausência de limpeza agendada. Handoff e atividade não estendem prazo. Renovação ainda em aberto.
+**DEC-032 — duração do suporte:** criar `activated_at` e `expires_at = activated_at + 30 minutos` em D1 quando o owner aprovar. Implementar expiração server-side, corte de HTTP/DO-WebSocket no limite mesmo após hibernação, revogação manual auditada e UI de sessão expirada; testar clocks, fan-out em corrida e ausência de limpeza agendada. Handoff e atividade não estendem prazo. Continuação definida em DEC-033: nova solicitação e aprovação.
+
+**DEC-033 — continuação do suporte:** não implementar extensão de sessão nem alterar `expires_at` de sessão ativa/expirada. Exigir novo pedido de 24 horas, nova aprovação no painel por owner e nova sessão de 30 minutos com credenciais/auditoria próprias. Testar replay da aprovação anterior, handoff/cookie expirados, tentativa de API `extend`, WebSocket antigo e isolamento multi-tenant.
 
 ## Backlog técnico por épico
 

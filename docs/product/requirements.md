@@ -38,7 +38,11 @@
 
 ### REQ-061 — TTL da sessão de suporte
 
-**Prioridade/estado:** MVP interno / DEC-032 aprovada. Após a aprovação de owner ativar `support_sessions` com `activated_at` UTC e `expires_at = activated_at + 30 minutos` em D1. Autorizar HTTP e WebSocket apenas enquanto sessão está `active` e `now < expires_at` e demais verificações de identidade/tenant/role estejam válidas. Expiração ou encerramento manual antecipado invalidam sessão e conexões de suporte, com auditoria e sem logout global do Clerk. Não renovar por atividade, handoff, refresh ou reconexão. Expiração deve funcionar sem job; testes de limite e DO em hibernação. **Renovação ainda em aberto.** Prazo do pedido pendente é 24h pela DEC-031.
+**Prioridade/estado:** MVP interno / DEC-032 aprovada. Após a aprovação de owner ativar `support_sessions` com `activated_at` UTC e `expires_at = activated_at + 30 minutos` em D1. Autorizar HTTP e WebSocket apenas enquanto sessão está `active` e `now < expires_at` e demais verificações de identidade/tenant/role estejam válidas. Expiração ou encerramento manual antecipado invalidam sessão e conexões de suporte, com auditoria e sem logout global do Clerk. Não renovar por atividade, handoff, refresh ou reconexão. Expiração deve funcionar sem job; testes de limite e DO em hibernação. **Continuação por novo pedido e nova aprovação definida em DEC-033.** Prazo do pedido pendente é 24h pela DEC-031.
+
+### REQ-062 — Continuar suporte requer novo pedido e aprovação
+
+**Prioridade/estado:** MVP interno / DEC-033 confirmada. Sessões de suporte de 30 minutos não podem ser prolongadas. Para continuar, o superadmin cria outro pedido sujeito a validade de 24 horas e a aprovação explícita de owner ativo do tenant (DEC-029/030/031); só então ativa nova sessão de 30 minutos (DEC-032), com novas credenciais e auditoria. **Aceite:** bloquear `extend/renew`, atualização de prazo, reutilização de aprovação, handoff/cookie antigo e WebSocket da sessão encerrada. Nenhuma nova autorização surge sem nova decisão favorável.
 
 ### REQ-060 — Aviso e decisão de solicitações de suporte
 

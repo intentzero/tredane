@@ -88,7 +88,11 @@ A associação com a sessão Clerk do actor e as chaves entre tenants devem ser 
 
 ## DEC-032 — TTL de 30 minutos após aprovação
 
-Ao aprovar pedido de owner válido, criar sessão de suporte com `activated_at` UTC e `expires_at = activated_at + 30 minutos`. O prazo começa na ativação, sem extensão por handoff, navegação ou reconexão. Após esse prazo ou encerramento antecipado pelo superadmin, negar novas APIs e entrega de eventos WebSocket (inclusive DO hibernado), invalidando cookie/token e mantendo a sessão Clerk global. Encerramento auditado. A janela de 24 horas do pedido pendente (DEC-031) é separada; renovação explícita a decidir.
+Ao aprovar pedido de owner válido, criar sessão de suporte com `activated_at` UTC e `expires_at = activated_at + 30 minutos`. O prazo começa na ativação, sem extensão por handoff, navegação ou reconexão. Após esse prazo ou encerramento antecipado pelo superadmin, negar novas APIs e entrega de eventos WebSocket (inclusive DO hibernado), invalidando cookie/token e mantendo a sessão Clerk global. Encerramento auditado. A janela de 24 horas do pedido pendente (DEC-031) é separada; continuação por novo pedido e aprovação (DEC-033).
+
+## Continuação após 30 minutos — DEC-033
+
+Nenhuma sessão de suporte pode ser prolongada. Após expiração ou encerramento antecipado, continuar exige **novo pedido pendente**, **nova aprovação de owner do tenant** e outra sessão com credenciais e TTL próprios. Proibir atualização de `expires_at`, reaproveitamento da autorização anterior e endpoints de extensão. O acesso HTTP/WebSocket antigo permanece invalidado até que haja nova sessão efetivamente aprovada.
 
 ## Políticas mínimas de segurança
 
