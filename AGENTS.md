@@ -26,7 +26,7 @@ Não promova uma proposta a decisão confirmada porque ela parece tecnicamente c
 
 - Tredane é um SaaS multi-tenant de atendimento para clínicas de estética, com WhatsApp, pipeline comercial, agenda própria e assistência por IA.
 - O WhatsApp previsto é a API oficial do WhatsApp Business. A forma de conectar e administrar a conta de cada clínica continua em aberto.
-- O painel deve receber atualizações em tempo real por WebSockets com hibernação em Durable Objects. Um Durable Object por clínica é uma proposta de coordenação e isolamento do estado em tempo real; a escolha final e o isolamento dos dados em D1/R2 ainda precisam ser especificados.
+- O painel deve receber atualizações em tempo real por WebSockets com hibernação em Durable Objects. DEC-038 confirma um Durable Object por clínica, com SQLite nativo como fonte de verdade operacional (contatos, conversas, pipeline e agenda). D1 central mantém tenants, memberships N:N, convites e suporte; R2 privado mantém anexos. Ver ADR-0012; não voltar a tratar topologia como decisão aberta ou SQLite do DO como D1. Revogação D1/DO, migrações por instância e recuperação continuam pendentes de implementação/testes.
 - O primeiro recorte de IA é assistivo, com sugestão e revisão humana, conforme `docs/MVP.md`. Respostas ou agendamentos autônomos ficam fora desse recorte.
 - Identidade pelo Clerk sem Organizations; `privateMetadata.superadmin` (booleano) só é autoritativo no backend; memberships N:N e roles por tenant vivem no D1.
 - A Platform Admin App é separada do painel operacional das clínicas e gere tenants. Superadmin poderá impersonar usuário de um tenant para suporte, mediante sessão temporária, escopo, auditoria de ator e alvo, e políticas de segurança; o mecanismo escolhido é sessão própria do Tredane; detalhes de segurança, revogação e política de dados devem ser especificados antes de uso real. Ver ADR-0006/0007.
@@ -54,7 +54,7 @@ Registre problema, opções consideradas, decisão e motivo, impacto no produto 
 
 ## Pontos que exigem cuidado especial
 
-- **Isolamento entre clínicas:** documente separadamente autorização na API, consultas e gravações em D1, roteamento para Durable Objects, eventos WebSocket, mensagens em Queues, arquivos em R2 e processos em Workflows. Um objeto por clínica não isola automaticamente os demais serviços.
+- **Isolamento entre clínicas:** documente separadamente autorização na API, consultas e gravações no D1 central e SQLite por clínica, roteamento para Durable Objects, eventos WebSocket, mensagens em Queues, arquivos em R2 e processos em Workflows. Um objeto por clínica não isola automaticamente os demais serviços.
 - **Tempo real:** especifique quais eventos atualizam cada tela, quem pode recebê-los, como a interface reconcilia dados após perda de conexão e o que acontece quando uma permissão é revogada.
 - **WhatsApp:** diferencie mensagem recebida, tentativa de envio, confirmação de entrega e falha. Inclua reentrega de webhook e idempotência nas jornadas de exceção.
 - **Agenda:** não assuma que apenas o profissional ocupa um horário. Valide duração, sala/equipamento, bloqueios, cancelamento e reagendamento com a clínica piloto.

@@ -14,13 +14,37 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Agenda própria do Tredane no primeiro MVP.
 - Integração com a API oficial do WhatsApp Business.
 - Aplicação reativa, com atualizações em tempo real por WebSockets com hibernação em Durable Objects.
-- Avaliar um Durable Object por clínica como fronteira de coordenação e isolamento do estado em tempo real.
+- **DEC-038:** um Durable Object por clínica, com SQLite nativo para dados operacionais e coordenação/WebSockets. D1 central mantém tenants, memberships, convites e suporte; R2 privado mantém anexos. Ver [ADR-0012](adr/0012-clinic-durable-object-sqlite.md).
 - Somente atendente e responsável pela clínica acessam o painel no primeiro MVP; profissional é recurso de agenda, sem login.
 - Atendente vê todas as conversas da própria clínica; responsável pode fazer tudo que o atendente faz, inclusive responder pelo WhatsApp e operar agendamentos.
+- **Gestão de membros (opção B confirmada):** superadmin cria tenant e define o primeiro owner; owner pode convidar e remover somente attendants do seu tenant. Apenas superadmin cria/promove/substitui/remove owners. Memberships do mesmo usuário noutros tenants são independentes.
+- **Revogação por tenant (DEC-026 confirmada):** ao remover um attendant de A, bloquear imediatamente novas APIs, eventos e WebSockets de A; informar a perda de acesso no painel, sem encerrar a sessão Clerk nem interromper memberships válidos em B. Sessões de suporte que representem esse attendant em A também perdem autorização.
 - Um horário considera profissional e sala/equipamento necessários ao serviço.
 - Identidade e sessões no Clerk, **sem Clerk Organizations**; um usuário pode integrar vários tenants via memberships no D1, com papéis distintos.
 - Acesso global à Platform Admin por `privateMetadata.superadmin === true` (booleano exato) verificado pelo backend; a app permite criar, editar, suspender e iniciar exclusão lógica de tenants.
-- Superadmin pode iniciar impersonação de suporte para um membro específico de um tenant, com sessão temporária, motivo, autorização por role do alvo e auditoria de actor + subject. A impersonação usa **sessão própria do Tredane no D1**, sem Clerk impersonation ou actor tokens; handoff seguro, MFA, retenção e políticas de mutação serão definidos na F1.
+- Superadmin pode **solicitar** impersonação para um membro do tenant. Cada sessão exige **aprovação expressa de owner ativo do tenant (DEC-029)** antes de acesso clínico. Sessões temporárias mantêm motivo, papel do alvo, escopo e auditoria de actor + subject + owner aprovador. A impersonação usa **sessão própria do Tredane no D1**, sem Clerk impersonation ou actor tokens; handoff seguro, retenção e políticas de mutação serão definidos na F1; MFA não integra o MVP.
+
+**Convites de atendentes (opção A, DEC-021):** o `owner` envia convite por e-mail para o seu tenant, com link de uso único. A pessoa pode criar conta Clerk ou entrar na conta existente, mesmo que já esteja associada a outras clínicas. A aceitação exige e-mail verificado correspondente e concede apenas membership `attendant` no tenant convidante. Convites e aceites ficam no D1; **valem 7 dias desde a emissão (DEC-022)**, sem extensão por login ou abertura do link. **Reenvio confirmado (DEC-023):** novo link válido por 7 dias e invalidação imediata do anterior. **Limites DEC-024:** intervalo mínimo de 10 minutos entre reenvios e no máximo 5 por janela móvel de 24 horas, por tenant/e-mail; tentativa bloqueada não invalida link atual. **Cancelamento DEC-025:** qualquer owner da clínica cancela convite pendente dela, ainda que outro owner o tenha emitido; o link fica inválido imediatamente e há auditoria, sem afetar memberships existentes.
+
+**DEC-029 — Aprovação por sessão de suporte:** owner ativo da clínica aprova/rejeita cada solicitação do superadmin, vinculada a actor/subject/tenant/motivo/escopo; nenhum acesso clínico é liberado por pedido pendente. Aprovação não é permanente. DEC-030 fixa pedido em tempo real no painel dos owners e aviso por e-mail, com decisão sempre dentro do Tredane após login Clerk. Prazo do pedido fixado em **24 horas** (DEC-031) desde a criação, com sessão aprovada de 30 minutos (DEC-032). [ADR-0011](adr/0011-owner-approval-for-support.md).
+
+**Prazo dos pedidos de suporte (DEC-031):** o owner tem até 24 horas desde a emissão para aprovar ou rejeitar a solicitação pendente. Depois do prazo, o backend bloqueia a aprovação e exige novo pedido, mesmo que o e-mail seja lido depois. A sessão aprovada dentro da janela tem TTL de 30 minutos (DEC-032). [ADR-0011](adr/0011-owner-approval-for-support.md).
+
+**DEC-032 — 30 minutos de suporte:** após aprovação, sessão própria do superadmin dura no máximo 30 minutos desde ativação. Vencimento e encerramento antecipado bloqueiam HTTP/WebSocket do suporte; a sessão Clerk normal permanece. Handoff, uso, refresh e reconexão não prolongam o prazo. Pedido pendente continua a ter 24 horas (DEC-031); continuação requer novo pedido e aprovação (DEC-033). [ADR-0007](adr/0007-support-impersonation.md).
+
+**DEC-033 — Sem extensão:** depois de 30 minutos, o superadmin que necessitar de mais tempo abre **nova solicitação** e espera **nova aprovação de owner ativo da clínica** antes de ganhar outra sessão de 30 minutos. A sessão anterior não é renovada, e suas credenciais ou aprovação não podem ser reutilizadas. [ADR-0011](adr/0011-owner-approval-for-support.md).
+
+**DEC-034 — Encerramento de suporte ativo:** qualquer owner ativo da clínica pode interromper uma sessão de suporte, mesmo que outro owner a tenha aprovado; superadmin actor pode terminar a sua própria. A transição auditada no D1 bloqueia HTTP, WebSocket e credenciais daquele suporte imediatamente, preservando memberships e Clerk. Voltar a trabalhar exige novo pedido/owner (DEC-033). [ADR-0011](adr/0011-owner-approval-for-support.md).
+
+**Avisos de início e término (DEC-035):** quando sessão aprovada realmente começa, owners ativos da clínica recebem **e-mail de início** e acompanham estado/tempo restante no painel. Ao terminar por expiração ou encerramento antecipado, o painel e a auditoria são atualizados em tempo real, **sem e-mail de encerramento**. E-mail não autoriza acesso nem contém dados clínicos/credenciais e sua falha não bloqueia sessão. [ADR-0011](adr/0011-owner-approval-for-support.md).
+
+**Visibilidade do suporte (DEC-036):** todos os owners acompanham sessões ativas no painel e o **utilizador representado** vê aviso contextual de suporte na sua própria Clinic App enquanto o superadmin atua no seu contexto. Outros attendants não são notificados; não há login Clerk em nome do utilizador nem novos privilégios. Ao terminar a sessão, o aviso é atualizado/removido, inclusive após reconexão. E-mail de início continua apenas para owners (DEC-035). [ADR-0011](adr/0011-owner-approval-for-support.md).
+
+**Pedido de encerramento pelo utilizador representado (DEC-037):** enquanto o aviso contextual estiver ativo, o subject pode selecionar **Solicitar encerramento**; owners ativos da clínica veem a solicitação no painel e decidem encerrar ou manter, com auditoria. A solicitação **não interrompe automaticamente** nem prolonga a sessão, que permanece limitada aos 30 minutos originais (DEC-032); o subject não ganha poder de revogação (DEC-034). Prazo máximo de resposta dos owners ainda em aberto. [ADR-0011](adr/0011-owner-approval-for-support.md).
+
+**Notificação de suporte (DEC-030):** owners ativos da clínica recebem o pedido no painel em tempo real e aviso por e-mail, com link para abrir solicitação no Tredane. Aprovar/Rejeitar só dentro da Clinic App com Clerk login e membership owner validada pelo backend; clicar no e-mail não concede acesso nem aprova. [ADR-0011](adr/0011-owner-approval-for-support.md).
+
+**Sem MFA no MVP (DEC-028):** nenhuma role exige MFA, incluindo superadmin e owner. Sessões continuam no Clerk; o Worker valida `privateMetadata.superadmin === true`, memberships/roles por tenant no D1 e sessões próprias de suporte. Não implementar desafio, guardas ou step-up MFA nesta fase. DEC-027 substituída; rever MFA apenas depois do MVP. [ADR-0010](adr/0010-role-scoped-mfa.md).
 
 ## Documentos de definição
 
@@ -33,15 +57,16 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Estados e eventos propostos](product/states.md)
 - [Cenários de aceite](product/acceptance.md)
 - [Fronteira de dados entre clínicas](product/tenant-boundaries.md)
+- [Registro de hipóteses a validar](product/validation-register.md) e [auditoria do Issue #1 (23/10/2026)](product/definition-audit-2026-10-23.md) — acompanhamento, não decisões novas.
 
 ## Documentação de arquitetura e execução
 
-- [Arquitetura de referência](architecture/overview.md) e [modelo lógico D1](architecture/data-model.md).
+- [Arquitetura de referência](architecture/overview.md) e [modelo lógico D1 central/SQLite por clínica](architecture/data-model.md).
 - ADRs: [Cloudflare-native](adr/0001-cloudflare-native.md), [topologia D1](adr/0002-d1-topology.md), [Durable Objects e tempo real](adr/0003-durable-objects-realtime.md), [IA com revisão humana](adr/0004-ai-human-in-loop.md) e [consistência da agenda](adr/0005-d1-booking-consistency.md).
 - [Plano de implementação proposto](implementation/plan.md).
 - [ADR Clerk e Platform Admin](adr/0006-clerk-platform-admin.md), [ADR Impersonação de suporte](adr/0007-support-impersonation.md) e [contratos de identidade/admin](architecture/identity-and-admin.md).
 
-Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora **confirmados**. Continuam em aberto: topologia D1, fluxo de ligação do WhatsApp, política de dados reais, proteção do handoff e capacidades de manutenção das sessões próprias de suporte.
+Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora **confirmados**. Topologia resolvida por DEC-038; continuam em aberto: protocolo de revogação D1/DO, migrações/recuperação por clínica, fluxo de ligação do WhatsApp, política de dados reais, proteção do handoff e capacidades de manutenção das sessões próprias de suporte.
 
 ## Recorte proposto para a primeira entrega
 
@@ -82,21 +107,21 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 - **React:** Clinic App (Inbox, pipeline, agenda) e Platform Admin App interna, com fronteiras de autorização separadas.
 - **Clerk:** autenticação e sessões de usuários, `privateMetadata.superadmin` com verificação no backend, **sem Organizations**.
 - **Worker com Hono:** API, verificação da sessão Clerk, autorização por membership no D1, operações de Platform Admin e regras de negócio.
-- **D1 com Drizzle:** clínicas, membros, contatos, conversas, mensagens, oportunidades, recursos e agendamentos. Toda operação de negócio usa o tenant derivado da identidade autenticada ou da integração verificada, nunca de um ID livre fornecido pelo cliente.
-- **Durable Objects:** proposta de uma instância por clínica para conexões WebSocket, distribuição de eventos e coordenação local. A instância usa armazenamento próprio apenas para estado que precise sobreviver à hibernação; o sistema de registro das entidades de negócio continua no D1. O Worker valida a identidade e a associação à clínica antes de rotear a conexão ao objeto correspondente.
+- **D1 central:** clínicas, memberships N:N, convites, pedidos/sessões de suporte e auditoria administrativa. Clerk permanece identidade. Drizzle/adaptadores seguem o backend escolhido; não converter o scaffold D1 em persistência operacional definitiva.
+- **Durable Object + SQLite por clínica (DEC-038):** dados operacionais de contatos, conversas, mensagens, oportunidades, serviços, recursos, agenda, histórico e outbox persistem no SQLite privado do DO, que coordena operações e WebSockets. Worker valida identidade/integração e autorização antes de rotear; DO verifica coerência do contexto. Memória não é fonte de verdade. Transações locais não incluem chamadas externas.
 - **Queues:** processamento de eventos recebidos e envio assíncrono, com idempotência e tratamento de falhas.
 - **R2:** anexos, com acesso autorizado por clínica e sem URLs públicas permanentes.
 - **Workflows:** processos de múltiplas etapas, como lembretes e acompanhamentos, quando esses fluxos forem definidos. O fluxo principal não deve depender de um workflow apenas para persistir uma mensagem.
 
-**Limite do isolamento:** um Durable Object por clínica separa seu estado e suas conexões, mas não separa automaticamente os dados em um D1 compartilhado ou os arquivos em R2. O MVP deve aplicar escopo por clínica em toda consulta e mutação, chaves/rotas de arquivo específicas por clínica e testes de acesso cruzado. Antes do piloto, reavaliar se o volume e os requisitos de isolamento pedem um D1 por clínica.
+**Limite do isolamento:** SQLite por DO separa os dados operacionais de cada clínica; roteamento, autorização, D1 central, filas, suporte e R2 continuam exigindo isolamento/testes. Revogação D1/DO, migrações versionadas por instância, capacidade e recuperação com reconciliação de efeitos externos são gates de implementação. Ver [ADR-0012](adr/0012-clinic-durable-object-sqlite.md).
 
 **Sincronização da interface:** persistir a alteração antes de publicar o evento ao Durable Object; enviar aos clientes apenas eventos da clínica autorizada. O React mantém um estado local atualizado por eventos, mas refaz a leitura do estado canônico ao conectar ou reconectar. Metadados mínimos da conexão devem sobreviver à hibernação; dados críticos não podem depender da memória do objeto. A API de hibernação da Cloudflare permite manter os WebSockets conectados enquanto o objeto sai da memória.
 
-O número e a conta de WhatsApp de cada clínica, detalhes de convite/revogação de usuários, o protocolo seguro de handoff e revogação das sessões próprias de suporte, o provedor de IA e a política de retenção ainda precisam ser definidos antes de integrar serviços reais. Credenciais e tokens nunca entram no repositório.
+O número e a conta de WhatsApp de cada clínica, a implementação técnica da revogação por tenant, o protocolo seguro de handoff e revogação das sessões próprias de suporte, o provedor de IA e a política de retenção ainda precisam ser definidos antes de integrar serviços reais. Credenciais e tokens nunca entram no repositório.
 
 ## Estado da execução
 
-O scaffold técnico da fase F0 foi proposto no repositório: React/Vite, Hono/Worker, esquema mínimo D1/Drizzle, migração local, fixtures fictícias, testes e CI. A definição de produto mantém-se em revisão; o scaffold não altera requisitos nem autoriza dados reais. Ver [F0](implementation/f0.md).
+O scaffold técnico da fase F0 existe como checkpoint anterior à DEC-038: React/Vite, Hono/Worker, esquema mínimo D1/Drizzle, migração local, fixtures fictícias, testes e CI. A definição de produto mantém-se em revisão; o scaffold não altera requisitos nem autoriza dados reais. Ver [F0](implementation/f0.md).
 
 ## Sequência de implementação
 
@@ -116,10 +141,10 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 
 1. Como cada clínica conectará seu número à API oficial do WhatsApp Business e quem administrará essa conta.
 2. Quais serviços, durações, buffers, bloqueios e regras de disponibilidade a clínica piloto precisa para profissional e sala/equipamento.
-3. Definido: Clerk sem Organizations e memberships N:N no D1. Em aberto: convite/onboarding, revogação, MFA e permissões administrativas específicas do responsável.
+3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Revogação por tenant definida em DEC-026; em aberto o mecanismo técnico e testes de propagação WebSocket, integrações e medidas adicionais de antiabuso; MFA fora do MVP (DEC-028).
 4. Qual provedor de IA será usado; como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane?
 5. Quais dados pessoais são necessários, por quanto tempo serão guardados e como a clínica atenderá pedidos de acesso ou exclusão.
-6. Se o D1 compartilhado com escopo rigoroso por clínica atende ao piloto ou se alguma categoria de dados exige banco separado por clínica.
+6. Topologia já definida em DEC-038: validar implementação, migrações, capacidade, recuperação e revogação entre D1 central e SQLite/DO por clínica antes de dados reais.
 
 Estas pendências não bloqueiam a estrutura inicial nem a implementação do fluxo com dados de teste. Bloqueiam a conexão de números reais, o tratamento de dados reais e automações de envio.
 
