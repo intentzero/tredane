@@ -30,7 +30,7 @@
 
 ### REQ-005 — Identidade Clerk e membership multi-tenant
 
-**Prioridade/estado:** MVP / Confirmado na arquitetura. **Origem:** DEC-007/017, ACT-02/03, JRN-09. **Comportamento:** Clerk autentica identidade e sessão, sem Organizations; o D1 guarda `tenant_memberships` N:N, papel e estado para cada tenant. Um usuário pode ser responsável em A e atendente em B, com contexto explícito por aba/rota. **Aceite:** listagem mostra só tenants associados; cada acesso revalida role e associação e não permite cruzar recursos entre A e B; revogação em A não altera membership de B. **Dados/eventos:** identidade Clerk e memberships no D1; WS/Queues mantêm tenant.
+**Prioridade/estado:** MVP / Confirmado na arquitetura. **Origem:** DEC-007/017, ACT-02/03, JRN-09. **Comportamento:** Clerk autentica identidade e sessão, sem Organizations; o D1 guarda `tenant_memberships` N:N, papel e estado para cada tenant. Um usuário pode ser responsável em A e atendente em B; a escolha e a troca da clínica ativa são explícitas no painel, com contexto por aba/rota. **Aceite:** o seletor mostra só clínicas associadas; ao trocar A→B, a interface deixa de exibir dados de A, usa nova autorização para B e não reutiliza cache nem WebSocket de A. Cada acesso revalida role e associação; revogação em A não altera membership de B. **Dados/eventos:** identidade Clerk e memberships no D1; WS/Queues mantêm tenant.
 
 ### REQ-006 — Administração de tenants
 
