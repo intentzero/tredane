@@ -7,6 +7,7 @@ import type {
   PixPaidWithoutSlotReason,
   PixPaymentResolution,
   PixProviderCreateState,
+  PixSignalDisposition,
 } from '../constants'
 import type { PixChargeRow, RecordChargeInput } from './types'
 
@@ -49,6 +50,15 @@ type ChargeSql = {
   payment_resolution?: string | null
   appointment_id?: string | null
   paid_without_slot_reason?: string | null
+  signal_disposition?: string | null
+  signal_disposition_by?: string | null
+  signal_disposition_at?: number | null
+  signal_disposition_note?: string | null
+  refund_idempotency_key?: string | null
+  refund_provider_id?: string | null
+  refund_requested_at?: number | null
+  refund_completed_at?: number | null
+  refund_failure_reason?: string | null
   created_at: number
   updated_at: number
 }
@@ -95,6 +105,16 @@ function mapRow(row: ChargeSql): PixChargeRow {
     appointmentId: row.appointment_id ?? null,
     paidWithoutSlotReason:
       (row.paid_without_slot_reason as PixPaidWithoutSlotReason | null) ?? null,
+    signalDisposition:
+      (row.signal_disposition as PixSignalDisposition | null | undefined) ?? null,
+    signalDispositionBy: row.signal_disposition_by ?? null,
+    signalDispositionAt: row.signal_disposition_at ?? null,
+    signalDispositionNote: row.signal_disposition_note ?? null,
+    refundIdempotencyKey: row.refund_idempotency_key ?? null,
+    refundProviderId: row.refund_provider_id ?? null,
+    refundRequestedAt: row.refund_requested_at ?? null,
+    refundCompletedAt: row.refund_completed_at ?? null,
+    refundFailureReason: row.refund_failure_reason ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -439,6 +459,212 @@ export function markChargePaidWithoutSlot(
     chargeId,
   )
   return getPixCharge(db, tenantId, chargeId)!
+}
+
+export function markChargeExpired(
+  db: ClinicDb,
+  tenantId: string,
+  chargeId: string,
+  clock: Clock,
+): PixChargeRow {
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE pix_charges SET status = 'expired', updated_at = ?
+     WHERE tenant_id = ? AND id = ? AND status = 'awaiting_payment'`,
+    now,
+    tenantId,
+    chargeId,
+  )
+  return getPixCharge(db, tenantId, chargeId)!
+}
+
+/** Liga compromisso ao sinal já pago (resolver alerta com outro horário). */
+export function linkChargeToAppointment(
+  db: ClinicDb,
+  tenantId: string,
+  chargeId: string,
+  appointmentId: string,
+  clock: Clock,
+): PixChargeRow {
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE pix_charges SET
+      payment_resolution = 'appointment_confirmed',
+      appointment_id = ?,
+      paid_without_slot_reason = NULL,
+      updated_at = ?
+     WHERE tenant_id = ? AND id = ? AND status = 'paid'`,
+    appointmentId,
+    now,
+    tenantId,
+    chargeId,
+  )
+  return getPixCharge(db, tenantId, chargeId)!
+}
+
+export function recordSignalDisposition(
+  db: ClinicDb,
+  tenantId: string,
+  chargeId: string,
+  input: {
+    disposition: PixSignalDisposition
+    actorClerkUserId: string
+    note?: string | null
+  },
+  clock: Clock,
+): PixChargeRow {
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE pix_charges SET
+      signal_disposition = ?,
+      signal_disposition_by = ?,
+      signal_disposition_at = ?,
+      signal_disposition_note = ?,
+      updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    input.disposition,
+    input.actorClerkUserId,
+    now,
+    input.note?.trim() || null,
+    now,
+    tenantId,
+    chargeId,
+  )
+  return getPixCharge(db, tenantId, chargeId)!
+}
+
+export function markChargeRefundRequested(
+  db: ClinicDb,
+  tenantId: string,
+  chargeId: string,
+  input: {
+    idempotencyKey: string
+    providerRefundId?: string | null
+  },
+  clock: Clock,
+): PixChargeRow {
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE pix_charges SET
+      status = 'refund_requested',
+      refund_idempotency_key = ?,
+      refund_provider_id = COALESCE(?, refund_provider_id),
+      refund_requested_at = COALESCE(refund_requested_at, ?),
+      refund_failure_reason = NULL,
+      updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    input.idempotencyKey,
+    input.providerRefundId ?? null,
+    now,
+    now,
+    tenantId,
+    chargeId,
+  )
+  return getPixCharge(db, tenantId, chargeId)!
+}
+
+export function markChargeRefunded(
+  db: ClinicDb,
+  tenantId: string,
+  chargeId: string,
+  input: {
+    providerRefundId?: string | null
+  },
+  clock: Clock,
+): PixChargeRow {
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE pix_charges SET
+      status = 'refunded',
+      refund_provider_id = COALESCE(?, refund_provider_id),
+      refund_completed_at = ?,
+      refund_failure_reason = NULL,
+      updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    input.providerRefundId ?? null,
+    now,
+    now,
+    tenantId,
+    chargeId,
+  )
+  return getPixCharge(db, tenantId, chargeId)!
+}
+
+export function markChargeRefundFailed(
+  db: ClinicDb,
+  tenantId: string,
+  chargeId: string,
+  reason: string,
+  clock: Clock,
+): PixChargeRow {
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE pix_charges SET
+      status = 'refund_failed',
+      refund_failure_reason = ?,
+      updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    reason.slice(0, 500),
+    now,
+    tenantId,
+    chargeId,
+  )
+  return getPixCharge(db, tenantId, chargeId)!
+}
+
+export function findPixChargeByAppointment(
+  db: ClinicDb,
+  tenantId: string,
+  appointmentId: string,
+): PixChargeRow | null {
+  const row = db.get<ChargeSql>(
+    `SELECT * FROM pix_charges
+     WHERE tenant_id = ? AND appointment_id = ?
+     ORDER BY paid_at DESC, created_at DESC
+     LIMIT 1`,
+    tenantId,
+    appointmentId,
+  )
+  return row ? mapRow(row) : null
+}
+
+export function listAwaitingChargesDue(
+  db: ClinicDb,
+  tenantId: string,
+  nowMs: number,
+  limit = 50,
+): PixChargeRow[] {
+  return db
+    .all<ChargeSql>(
+      `SELECT * FROM pix_charges
+       WHERE tenant_id = ?
+         AND status = 'awaiting_payment'
+         AND expires_at IS NOT NULL
+         AND expires_at <= ?
+       ORDER BY expires_at ASC, id
+       LIMIT ?`,
+      tenantId,
+      nowMs,
+      limit,
+    )
+    .map(mapRow)
+}
+
+export function nextAwaitingChargeExpiry(
+  db: ClinicDb,
+  tenantId: string,
+  nowMs: number,
+): number | null {
+  const row = db.get<{ expires_at: number }>(
+    `SELECT MIN(expires_at) AS expires_at FROM pix_charges
+     WHERE tenant_id = ?
+       AND status = 'awaiting_payment'
+       AND expires_at IS NOT NULL
+       AND expires_at > ?`,
+    tenantId,
+    nowMs,
+  )
+  return row?.expires_at ?? null
 }
 
 export function getPixChargeByIdempotencyKey(

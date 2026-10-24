@@ -1,6 +1,6 @@
 # F4 — Processar pagamento Pix e confirmar horário atomicamente
 
-**Estado:** implementação da issue [#39](https://github.com/intentzero/tredane/issues/39) (épico [#14](https://github.com/intentzero/tredane/issues/14)). DEC-047; REQ-079/080; AC-47/48; JRN-16. Depende de [#38](f4-pix-charge.md) (cobrança) e [#36](f4-booking.md) (confirmação atómica). **Sem** expiração automática / cancel UX / estorno ([#40](https://github.com/intentzero/tredane/issues/40)). Dados sintéticos / `PIX_MODE=synthetic` até GATE-08.
+**Estado:** implementação da issue [#39](https://github.com/intentzero/tredane/issues/39) (épico [#14](https://github.com/intentzero/tredane/issues/14)). DEC-047; REQ-079/080; AC-47/48; JRN-16. Depende de [#38](f4-pix-charge.md) (cobrança) e [#36](f4-booking.md) (confirmação atómica). Expiração / cancel UX / estorno / resolver alerta = [#40](f4-pix-exceptions.md). Dados sintéticos / `PIX_MODE=synthetic` até GATE-08.
 
 ## Decisões aplicadas (Confirmado)
 
@@ -40,10 +40,9 @@
 
 | Path | Comportamento |
 | --- | --- |
-| Conversa (M-31/M-32) | Faixa **Sinal pago, mas o horário foi ocupado** + atalho Agendar; ações Devolver / Confirmar com sinal pago = #40 |
+| Conversa (M-31/M-32) | Faixa **Sinal pago, mas o horário foi ocupado** + atalho Agendar; ações Devolver / Confirmar com sinal pago = [#40](f4-pix-exceptions.md) |
 
 ## Em aberto / fora deste PR
 
-- Expiração automática, cancelar cobrança end-to-end, estorno e resolução do alerta (#40)
 - DPA / `PIX_MODE=live` (GATE-08)
 - Moeda: Pix BRL implícito (sem multi-currency no MVP)

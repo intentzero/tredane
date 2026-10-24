@@ -97,7 +97,7 @@ describe('HTTP — webhooks Pix (#39)', () => {
     expect(again.status).toBe(200)
     expect(queued).toHaveLength(1)
 
-    // Expiração: ack 200, sem nova mensagem de pagamento na fila (#40).
+    // Expiração (#40): ack 200 e enfileira charge.expired (não charge.paid).
     const created2 = await adapter.createCharge({
       tenantId: 'clinic-demo-a',
       accountId: 'pixacct_a',
@@ -115,7 +115,8 @@ describe('HTTP — webhooks Pix (#39)', () => {
       body: expired.body,
     })
     expect(expRes.status).toBe(200)
-    expect(queued).toHaveLength(1)
+    expect(queued).toHaveLength(2)
+    expect(queued[1]?.eventType).toBe('charge.expired')
 
     close()
   })

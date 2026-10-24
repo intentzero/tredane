@@ -1,7 +1,7 @@
 /**
  * Processar pagamento Pix e confirmar horário atomicamente (#39 / DEC-047).
  * Uma transactionSync: pagamento + disputa de recursos + alerta; sem estado parcial.
- * Expiração automática / estorno / cancel UX = #40.
+ * Expiração / estorno / resolver alerta = #40.
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'
@@ -142,7 +142,7 @@ export function processPixPaymentOp(
   if (input.eventType !== 'charge.paid') {
     throw new ValidationError(
       'unsupported_pix_event',
-      'Só charge.paid é processado em #39; expiração/estorno = #40',
+      'Só charge.paid aqui; use processPixLifecycle* para expired/cancel/refund',
       { eventType: input.eventType },
     )
   }

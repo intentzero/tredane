@@ -58,6 +58,9 @@ export type QueueConsumerDeps = {
     processPixPayment?: (
       ...args: Parameters<ClinicDurableObject['processPixPayment']>
     ) => ReturnType<ClinicDurableObject['processPixPayment']> | Promise<unknown>
+    processPixLifecycle?: (
+      ...args: Parameters<ClinicDurableObject['processPixLifecycle']>
+    ) => ReturnType<ClinicDurableObject['processPixLifecycle']> | Promise<unknown>
     createPendingAttachment?: MediaIngestClinicStub['createPendingAttachment']
     markAttachmentReady?: MediaIngestClinicStub['markAttachmentReady']
     markAttachmentFailed?: MediaIngestClinicStub['markAttachmentFailed']
@@ -283,20 +286,36 @@ async function processPixWebhookMessage(
     const stub =
       deps.clinicStub?.(msg.tenantId) ?? clinicFromEnv(deps.env, msg.tenantId)
     const caller = queueCaller(msg.tenantId)
-    const process =
-      stub.processPixPayment?.bind(stub) ??
-      (stub as unknown as ClinicDurableObject).processPixPayment.bind(
-        stub as unknown as ClinicDurableObject,
-      )
-    await process(caller, {
-      eventId: msg.providerEventKey,
-      eventType: 'charge.paid',
-      providerChargeId: msg.providerChargeId,
-      accountId: msg.accountId,
-      amountCents: msg.amountCents,
-      occurredAt: msg.occurredAt,
-      receiptId: msg.receiptId,
-    })
+    const doStub = stub as unknown as ClinicDurableObject
+
+    if (msg.eventType === 'charge.paid') {
+      const process =
+        stub.processPixPayment?.bind(stub) ??
+        doStub.processPixPayment.bind(doStub)
+      await process(caller, {
+        eventId: msg.providerEventKey,
+        eventType: 'charge.paid',
+        providerChargeId: msg.providerChargeId,
+        accountId: msg.accountId,
+        amountCents: msg.amountCents,
+        occurredAt: msg.occurredAt,
+        receiptId: msg.receiptId,
+      })
+    } else {
+      const process =
+        stub.processPixLifecycle?.bind(stub) ??
+        doStub.processPixLifecycle.bind(doStub)
+      await process(caller, {
+        eventId: msg.providerEventKey,
+        eventType: msg.eventType,
+        providerChargeId: msg.providerChargeId,
+        accountId: msg.accountId,
+        amountCents: msg.amountCents,
+        occurredAt: msg.occurredAt,
+        receiptId: msg.receiptId,
+        refund: msg.refund ?? null,
+      })
+    }
 
     if (deps.syncAdminDb) {
       markPixWebhookReceiptProcessed(deps.syncAdminDb, msg.receiptId, clock)
@@ -313,6 +332,7 @@ async function processPixWebhookMessage(
         receiptId: msg.receiptId,
         tenantId: msg.tenantId,
         providerEventKey: msg.providerEventKey,
+        eventType: msg.eventType,
       },
     })
     return 'ack'

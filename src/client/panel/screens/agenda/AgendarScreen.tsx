@@ -42,6 +42,8 @@ function readScheduleContext() {
     conversationId: q.get('conversationId') || undefined,
     contactId: q.get('contactId') || undefined,
     opportunityId: q.get('opportunityId') || undefined,
+    /** Alerta pago sem horário — confirma com sinal já pago (#40). */
+    alertId: q.get('alertId') || undefined,
   }
 }
 
@@ -227,6 +229,32 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
     setSuccess(null)
     try {
       if (!(await ensureSlotStillFree())) return
+
+      // #40 — sinal já pago: confirmar horário alternativo sem nova cobrança.
+      if (scheduleCtx.alertId) {
+        const resolved = await api.confirmPixAlertSlot(
+          tenantId,
+          scheduleCtx.alertId,
+          {
+            clientRequestId,
+            serviceId,
+            professionalId: selected.professionalId,
+            roomResourceId: selected.roomResourceId,
+            startsAt: selected.startsAt,
+          },
+          { generation, expectGeneration: () => generation },
+        )
+        setSuccess('Horário confirmado com o sinal já pago.')
+        navigatePanel({
+          kind: 'area',
+          area: 'agenda',
+          tenantId,
+          section: 'compromisso',
+          appointmentId: resolved.appointmentId,
+        })
+        return
+      }
+
       const created = await api.confirmAppointment(
         tenantId,
         {
@@ -254,7 +282,8 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
       const msg = err instanceof Error ? err.message : 'Não foi possível confirmar'
       setConflict(
         msg.includes('ocupado') || msg.includes('conflict')
-          ? msg
+          ? // Alerta permanece aberto — sinal pago preservado (#40).
+            `${msg} O sinal pago mantém-se; escolha outro horário ou devolva.`
           : `Não foi possível confirmar. Nada foi reservado. ${msg}`,
       )
       setSelected(null)
@@ -414,10 +443,13 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
     )
   }
 
+  const paidSignalMode = Boolean(scheduleCtx.alertId)
   const confirmLabel = selected
-    ? requiresSignal && amountCents != null
-      ? `Enviar sinal de ${formatBrl(amountCents)}`
-      : `Confirmar ${formatSlotTime(selected.startsAt, timezone)}`
+    ? paidSignalMode
+      ? `Confirmar com sinal pago · ${formatSlotTime(selected.startsAt, timezone)}`
+      : requiresSignal && amountCents != null
+        ? `Enviar sinal de ${formatBrl(amountCents)}`
+        : `Confirmar ${formatSlotTime(selected.startsAt, timezone)}`
     : 'Escolha um horário'
 
   return (
@@ -435,9 +467,11 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
         <div>
           <h1 className="panel-title">Agendar horário</h1>
           <span className="panel-subtitle">
-            {requiresSignal
-              ? 'Sinal por Pix — horário só após pagamento'
-              : 'Confirmação atómica'}
+            {paidSignalMode
+              ? 'Sinal já pago — escolher outro horário'
+              : requiresSignal
+                ? 'Sinal por Pix — horário só após pagamento'
+                : 'Confirmação atómica'}
           </span>
         </div>
         <Button
@@ -650,20 +684,29 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
             isDisabled={
               !selected
               || confirming
-              || (requiresSignal
+              || (!paidSignalMode
+                && requiresSignal
                 && (!canCreateCharge || !scheduleCtx.conversationId))
             }
             onPress={() =>
-              void (requiresSignal ? handleSendSignal() : handleConfirm())
+              void (
+                paidSignalMode
+                  ? handleConfirm()
+                  : requiresSignal
+                    ? handleSendSignal()
+                    : handleConfirm()
+              )
             }
           >
             {confirming
-              ? requiresSignal
-                ? 'A enviar sinal…'
-                : 'A confirmar…'
+              ? paidSignalMode
+                ? 'A confirmar…'
+                : requiresSignal
+                  ? 'A enviar sinal…'
+                  : 'A confirmar…'
               : confirmLabel}
           </Button>
-          {requiresSignal ? (
+          {requiresSignal && !paidSignalMode ? (
             <Button
               className="panel-btn-secondary"
               isDisabled={!selected || confirming}

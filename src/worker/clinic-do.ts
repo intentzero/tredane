@@ -60,12 +60,18 @@ import type {
   RescheduleAppointmentInput,
 } from '../clinic/scheduling'
 import type {
+  CancelPaidWithSignalInput,
+  CancelUnpaidChargeInput,
   ConfirmWithoutSignalInput,
   ConnectPixInput,
   CreateSignalChargeInput,
   PixConnectDeps,
+  ProcessPixLifecycleInput,
   ProcessPixPaymentInput,
   RecordChargeInput,
+  RequestRefundInput,
+  ResolveAlertAltSlotInput,
+  ResolveAlertRefundInput,
   UpdateSignalSettingsInput,
 } from '../clinic/pix'
 import type { PixProviderAdapter } from '../pix'
@@ -1422,6 +1428,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#fanoutOutboxes(caller, result.outbox, true)
       await this.#drain(caller)
     }
+    await this.#scheduleNextPixExpiry(caller)
     return result
   }
 
@@ -1547,6 +1554,221 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     )
   }
 
+  async #resolvePixAdapter(
+    caller: ClinicCaller,
+    deps?: PixConnectDeps & { simulatedAdapter?: PixProviderAdapter },
+  ): Promise<PixProviderAdapter | undefined> {
+    if (deps?.simulatedAdapter) return deps.simulatedAdapter
+    if (!deps) return undefined
+    try {
+      const built = await clinicPix.buildClinicPixAdapter(
+        this.#db,
+        caller.tenantId,
+        deps,
+      )
+      return built.adapter
+    } catch {
+      return undefined
+    }
+  }
+
+  async #scheduleNextPixExpiry(caller: ClinicCaller): Promise<void> {
+    const next = clinicPix.peekNextPixExpiryOp(this.#db, caller, this.#clock)
+    if (next != null && typeof this.ctx.storage.setAlarm === 'function') {
+      await this.ctx.storage.setAlarm(next)
+    }
+  }
+
+  /** Expirar cobranças vencidas (#40) — local + provedor. */
+  async expireDuePixCharges(
+    caller: ClinicCaller,
+    deps?: PixConnectDeps & { simulatedAdapter?: PixProviderAdapter },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const adapter = await this.#resolvePixAdapter(caller, deps)
+    const result = await clinicPix.expireDueChargesOp(
+      this.#db,
+      caller,
+      this.#clock,
+      { adapter },
+    )
+    const outboxes = result.expired.flatMap((e) => e.outbox)
+    if (outboxes.length > 0) {
+      await this.#fanoutOutboxes(caller, outboxes, true)
+      await this.#drain(caller)
+    }
+    await this.#scheduleNextPixExpiry(caller)
+    return result
+  }
+
+  async cancelUnpaidPixCharge(
+    caller: ClinicCaller,
+    input: CancelUnpaidChargeInput,
+    deps?: PixConnectDeps & { simulatedAdapter?: PixProviderAdapter },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const adapter = await this.#resolvePixAdapter(caller, deps)
+    const result = await clinicPix.cancelUnpaidChargeOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+      { adapter },
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    await this.#scheduleNextPixExpiry(caller)
+    return result
+  }
+
+  async resolvePixAlertAltSlot(
+    caller: ClinicCaller,
+    input: ResolveAlertAltSlotInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicPix.resolveAlertAltSlotOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
+  async resolvePixAlertRefund(
+    caller: ClinicCaller,
+    input: ResolveAlertRefundInput,
+    deps: PixConnectDeps & { simulatedAdapter?: PixProviderAdapter },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const adapter = await this.#resolvePixAdapter(caller, deps)
+    if (!adapter) {
+      throw new Error('pix_adapter_unavailable')
+    }
+    const result = await clinicPix.resolveAlertRefundOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+      { adapter },
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
+  async requestPixRefund(
+    caller: ClinicCaller,
+    input: RequestRefundInput,
+    deps: PixConnectDeps & { simulatedAdapter?: PixProviderAdapter },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const adapter = await this.#resolvePixAdapter(caller, deps)
+    if (!adapter) {
+      throw new Error('pix_adapter_unavailable')
+    }
+    const result = await clinicPix.requestRefundOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+      { adapter },
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
+  async cancelPaidAppointmentWithSignal(
+    caller: ClinicCaller,
+    input: CancelPaidWithSignalInput,
+    deps?: PixConnectDeps & { simulatedAdapter?: PixProviderAdapter },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const adapter = await this.#resolvePixAdapter(caller, deps)
+    const result = await clinicPix.cancelPaidAppointmentWithSignalOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+      { adapter },
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
+  async getPaidSignalForAppointment(
+    caller: ClinicCaller,
+    appointmentId: string,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicPix.getPaidSignalForAppointmentOp(
+      this.#db,
+      caller,
+      appointmentId,
+      this.#clock,
+    )
+  }
+
+  /**
+   * Webhooks charge.expired / charge.cancelled / refund.updated (#40).
+   */
+  async processPixLifecycle(
+    caller: ClinicCaller,
+    input: ProcessPixLifecycleInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    if (
+      input.eventType === 'charge.expired' ||
+      input.eventType === 'charge.cancelled'
+    ) {
+      const result = clinicPix.processPixLifecycleExpireCancelOp(
+        this.#db,
+        caller,
+        input,
+        this.#clock,
+      )
+      if (result.outbox.length > 0) {
+        await this.#fanoutOutboxes(caller, result.outbox, true)
+        await this.#drain(caller)
+      }
+      await this.#scheduleNextPixExpiry(caller)
+      return result
+    }
+    const result = clinicPix.processPixLifecycleRefundOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
   async #drain(caller: ClinicCaller): Promise<{ published: string[]; failed: string[] }> {
     const queue = this.env.INBOUND_EVENTS
     return publishPendingEffects(
@@ -1574,7 +1796,14 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const meta = getBoundTenant(this.#db)
     if (!meta) return
-    await this.#drain(workerCaller(meta.tenantId))
+    const caller = workerCaller(meta.tenantId)
+    try {
+      // Expiração local (#40) — sem adapter se credencial indisponível; marca local.
+      await this.expireDuePixCharges(caller)
+    } catch {
+      /* best-effort: drain outbox mesmo assim */
+    }
+    await this.#drain(caller)
   }
 
   async fetch(request: Request): Promise<Response> {

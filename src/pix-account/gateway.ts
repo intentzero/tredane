@@ -5,10 +5,14 @@ import {
   type ClinicDb,
 } from '../clinic'
 import type {
+  CancelPaidWithSignalInput,
+  CancelPaidWithSignalResult,
+  CancelUnpaidChargeInput,
   ConfirmWithoutSignalInput,
   ConfirmWithoutSignalResult,
   ConnectPixInput,
   CreateSignalChargeInput,
+  ExpireDueChargesResult,
   PixAccountPublic,
   PixChargeRow,
   PixConnectDeps,
@@ -16,6 +20,11 @@ import type {
   PixSignalSettings,
   ProcessPixPaymentInput,
   RecordChargeInput,
+  RefundOpResult,
+  RequestRefundInput,
+  ResolveAlertAltSlotInput,
+  ResolveAlertAltSlotResult,
+  ResolveAlertRefundInput,
   SchedulingIntentRow,
   SignalChargeResult,
   UpdateSignalSettingsInput,
@@ -85,6 +94,38 @@ export type PixAccountGateway = {
     caller: ClinicCaller,
     input: ProcessPixPaymentInput,
   ): Promise<ProcessPixPaymentResult>
+  cancelUnpaidCharge?(
+    caller: ClinicCaller,
+    input: CancelUnpaidChargeInput,
+    deps?: PixChargeCreateDeps,
+  ): Promise<import('../clinic/pix').ExpireChargeResult>
+  resolveAlertAltSlot?(
+    caller: ClinicCaller,
+    input: ResolveAlertAltSlotInput,
+  ): Promise<ResolveAlertAltSlotResult>
+  resolveAlertRefund?(
+    caller: ClinicCaller,
+    input: ResolveAlertRefundInput,
+    deps: PixChargeCreateDeps,
+  ): Promise<RefundOpResult>
+  requestRefund?(
+    caller: ClinicCaller,
+    input: RequestRefundInput,
+    deps: PixChargeCreateDeps,
+  ): Promise<RefundOpResult>
+  cancelPaidWithSignal?(
+    caller: ClinicCaller,
+    input: CancelPaidWithSignalInput,
+    deps?: PixChargeCreateDeps,
+  ): Promise<CancelPaidWithSignalResult>
+  getPaidSignalForAppointment?(
+    caller: ClinicCaller,
+    appointmentId: string,
+  ): Promise<PixChargeRow | null>
+  expireDueCharges?(
+    caller: ClinicCaller,
+    deps?: PixChargeCreateDeps,
+  ): Promise<ExpireDueChargesResult>
 }
 
 export function createMemoryPixAccountGateway(
@@ -158,6 +199,47 @@ export function createMemoryPixAccountGateway(
     },
     async processPixPayment(caller, input) {
       return clinicPix.processPixPaymentOp(db, caller, input, clock)
+    },
+    async cancelUnpaidCharge(caller, input, deps) {
+      const adapter = deps?.simulatedAdapter ?? defaultAdapter
+      return clinicPix.cancelUnpaidChargeOp(db, caller, input, clock, {
+        adapter,
+      })
+    },
+    async resolveAlertAltSlot(caller, input) {
+      return clinicPix.resolveAlertAltSlotOp(db, caller, input, clock)
+    },
+    async resolveAlertRefund(caller, input, deps) {
+      const adapter = deps.simulatedAdapter ?? defaultAdapter
+      return clinicPix.resolveAlertRefundOp(db, caller, input, clock, {
+        adapter,
+      })
+    },
+    async requestRefund(caller, input, deps) {
+      const adapter = deps.simulatedAdapter ?? defaultAdapter
+      return clinicPix.requestRefundOp(db, caller, input, clock, { adapter })
+    },
+    async cancelPaidWithSignal(caller, input, deps) {
+      const adapter = deps?.simulatedAdapter ?? defaultAdapter
+      return clinicPix.cancelPaidAppointmentWithSignalOp(
+        db,
+        caller,
+        input,
+        clock,
+        { adapter },
+      )
+    },
+    async getPaidSignalForAppointment(caller, appointmentId) {
+      return clinicPix.getPaidSignalForAppointmentOp(
+        db,
+        caller,
+        appointmentId,
+        clock,
+      )
+    },
+    async expireDueCharges(caller, deps) {
+      const adapter = deps?.simulatedAdapter ?? defaultAdapter
+      return clinicPix.expireDueChargesOp(db, caller, clock, { adapter })
     },
   }
 }
