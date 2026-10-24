@@ -27,6 +27,7 @@
 | Meta (WhatsApp Business) | Mensagens enviadas e recebidas; número da clínica | Tredane como Tech Provider (DEC-009); termos da Meta a revisar |
 | Anthropic, via Cloudflare AI Gateway | Até 20 mensagens recentes, primeiro nome, catálogo de serviços e etapa; nunca telefone, anexos, outras conversas nem dados de outra clínica | Gateway sem registro de conteúdo e não retenção pelo provedor **precisam de confirmação contratual** (DEC-011) |
 | Clerk | Nome, e-mail, sessão | Plano, DPA e região a conferir (DEC-043) |
+| Provedor de Pix (ADR-0014, a escolher) | Cobranças do sinal na conta da clínica: valor, identificador, estado e dados que o provedor exigir para estorno | Contrato, DPA e se o Tredane atua só como tecnologia, sem intermediar o dinheiro (DEC-047) |
 | Cloudflare | Hospedagem de tudo acima | DPA e regiões dos Durable Objects, D1 e R2 a conferir |
 
 ## 4. Retenção e exclusão (Confirmado, sujeito a esta revisão)
@@ -47,7 +48,8 @@
 7. O acesso de suporte aprovado por sessão (30 min, só leitura/diagnóstico) é suficiente e que registro de auditoria exige guarda, e por quanto tempo?
 8. Que contrato é necessário entre Tredane e clínica (termos de uso, acordo de tratamento de dados) e o que precisa constar?
 9. Plano de resposta a incidente: prazo e responsável pela comunicação à ANPD e aos titulares.
-10. Retenção dos logs técnicos e dos registros de suporte: prazo máximo recomendado.
+10. O sinal por Pix (DEC-047) exige recibo, nota fiscal ou cláusula específica no contrato com a clínica e na informação à cliente? Reter o sinal no cancelamento tem limites legais?
+11. Retenção dos logs técnicos e dos registros de suporte: prazo máximo recomendado.
 
 ## 6. O que bloqueia
 

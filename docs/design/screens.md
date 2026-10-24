@@ -32,8 +32,8 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 
 | ID | Arquivo | Tela da spec | Jornadas · Requisitos · Cenários | Mostra | Navega para |
 | --- | --- | --- | --- | --- | --- |
-| M-15 | `Clinica` | TEL-09 início | JRN-08 · REQ-052 · AC-14 | Faixa “Falta 1 passo para atender”, lista de áreas com estado (Pronto, Falta conectar), barra inferior com 4 abas | M-16, M-20, M-17, M-18, M-19 |
-| M-16 | `Servico` | TEL-09 serviço | JRN-08 · REQ-052 · AC-38 | Nome, duração, intervalo depois, resumo “Ocupa 75 min”, quem pode fazer, recurso exigido, preço opcional, ativo | M-15 |
+| M-15 | `Clinica` | TEL-09 início | JRN-08 · REQ-052 · AC-14 | Faixa “Falta 1 passo para atender”, lista de áreas com estado (Pronto, Falta conectar), barra inferior com 4 abas | M-16, M-20, M-17, M-18, M-19, M-33 |
+| M-16 | `Servico` | TEL-09 serviço | JRN-08 · REQ-052 · AC-38 | Nome, duração, intervalo depois, resumo “Ocupa 75 min”, quem pode fazer, recurso exigido, preço opcional, sinal por Pix (exige sinal, % ou valor fixo, REQ-076), ativo | M-15 |
 | M-17 | `Horarios` | TEL-09 horários | JRN-08 · REQ-030 · AC-38 | Abas por profissional e recurso, expediente semanal, bloqueios pontuais, aviso sobre compromissos existentes, **Novo bloqueio** | M-15 |
 | M-18 | `Equipe` | TEL-09 equipe | JRN-08 · REQ-002, REQ-003, REQ-004 · AC-02, AC-03 | Membros e papéis (responsáveis só leitura), convites pendentes (reenviar com espera, cancelar), faixa de pedido de suporte, “Suporte do Tredane”, **Convidar atendente** | M-15, M-27, M-28 |
 | M-19 | `ConectarWhatsapp` | TEL-09 WhatsApp | JRN-08 · REQ-051 | **Não conectado**, passos do Embedded Signup, **Conectar WhatsApp**, **Pedir ajuda** | M-15 |
@@ -47,6 +47,9 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 | M-27 | `SuportePedido` | TEL-10 | REQ-060 · AC-27, AC-28, AC-29 | Pedido pendente: quem pede, em nome de quem, motivo, o que poderá, expiração (até 24 h), **Aprovar suporte** / **Rejeitar** | M-18, M-28 |
 | M-28 | `SuporteAtivo` | TEL-10 | REQ-061, REQ-062, REQ-063, REQ-064 · AC-30, AC-31, AC-32, AC-33, AC-34 | Sessão ativa de 30 min: restante, ator, usuário representado, aprovador, histórico, **Encerrar suporte agora** | M-18 |
 | M-29 | `SuporteAviso` | TEL-10 | REQ-065, REQ-066 · AC-34, AC-35 | Aviso ao usuário representado (faixa em Conversas) com **Solicitar encerramento** | — |
+| M-31 | `SinalConversa` | TEL-11 | JRN-16 · REQ-078, REQ-081, REQ-082 · AC-46, AC-49, AC-50 | Mensagem de cobrança enviada, cartão **Aguardando sinal** (horário, prazo, recebe na conta da clínica, aviso de horário não reservado), **Copiar Pix**, **Cancelar cobrança**; demais estados do cartão | M-02, M-32 |
+| M-32 | `SinalSemHorario` | TEL-11 | JRN-16 · REQ-079, REQ-080 · AC-47, AC-48 | Alerta **Sinal pago, mas o horário foi ocupado**, próximos horários, **Confirmar com o sinal pago**, **Devolver sinal** | M-02 |
+| M-33 | `Recebimento` | TEL-11 | JRN-16 · REQ-076, REQ-077 · AC-44, AC-45 | Conta da clínica conectada (provedor a definir), política de cancelamento do sinal, serviços com sinal; só responsável | M-15 |
 
 ## Estados que a UI real precisa ter e os mocks mostram em uma tela só
 

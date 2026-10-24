@@ -168,6 +168,34 @@
 
 **Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-03, ACT-05. **Comportamento:** dados ficam enquanto a clínica for cliente; o responsável pode excluir um contato; ao encerrar a clínica, todos os dados dela são excluídos em até 30 dias. **Aceite:** após excluir um contato, suas mensagens e anexos não são mais encontrados por busca, API ou R2, e seus agendamentos permanecem sem dados pessoais; após o prazo de encerramento, os dados da clínica (SQLite do Durable Object e prefixo R2) não existem mais. **Dados/eventos:** exclusão registrada na auditoria sem o conteúdo excluído.
 
+### REQ-076 — Sinal configurado por serviço
+
+**Prioridade/estado:** MVP / Confirmado (DEC-047). **Origem:** ACT-03; JRN-08. **Comportamento:** no cadastro do serviço (M-16), só a responsável liga “Exige sinal” e escolhe valor fixo (R$) ou percentual do preço; percentual exige preço cadastrado. A clínica escreve uma política de cancelamento do sinal, exibida à cliente antes de pagar. **Aceite:** AC-44.
+
+### REQ-077 — Conta de recebimento da clínica
+
+**Prioridade/estado:** MVP / Confirmado (DEC-047); provedor Proposto (ADR-0014). **Origem:** ACT-03; JRN-08. **Comportamento:** a responsável conecta a conta da clínica no provedor de Pix (M-33); o Tredane nunca recebe o dinheiro. Sem conta conectada, serviços que exigem sinal não permitem enviar cobrança e a responsável vê o aviso. Desconectar não apaga cobranças já criadas. **Aceite:** AC-45. **Dados/tenant:** credenciais cifradas, usadas só pelo backend da clínica.
+
+### REQ-078 — Enviar cobrança de sinal na conversa
+
+**Prioridade/estado:** MVP / Confirmado (DEC-047). **Origem:** ACT-02; JRN-16. **Comportamento:** ao agendar serviço que exige sinal, a atendente toca **Enviar sinal de R$ X**; o Tredane cria a cobrança Pix na conta da clínica e envia mensagem com valor, horário pretendido, prazo, política de cancelamento e Pix copia-e-cola ou link. Fora da janela de 24 h, só por modelo aprovado. O horário **não** é reservado. A conversa e o contato mostram **Aguardando sinal**. **Aceite:** AC-46. **Eventos:** `cobranca.criada`.
+
+### REQ-079 — Pagamento recebido
+
+**Prioridade/estado:** MVP / Confirmado quanto ao registro; confirmação automática **Proposta** (sinal.md). **Origem:** JRN-16. **Comportamento:** o aviso do provedor é validado pela assinatura, processado uma única vez por cobrança e roteado à clínica dona da cobrança. A cobrança passa a **Paga**; se o horário estiver livre, o compromisso é confirmado; se não, a cobrança passa a **Pago sem horário**. **Aceite:** AC-47. **Eventos:** `cobranca.paga`, `cobranca.sem_horario`. **Tenant:** aviso de cobrança desconhecida ou de outra clínica é recusado e registrado.
+
+### REQ-080 — Pago sem horário
+
+**Prioridade/estado:** MVP / Confirmado (DEC-047). **Origem:** ACT-02; JRN-16. **Comportamento:** a equipe recebe alerta em tempo real (M-32) com **Escolher outro horário** (confirma sem nova cobrança, usando o sinal pago) e **Devolver sinal**. O alerta fica visível até uma das duas ações. **Aceite:** AC-48.
+
+### REQ-081 — Expiração e cancelamento da cobrança
+
+**Prioridade/estado:** MVP / Confirmado (DEC-047); prazo padrão Em aberto. **Origem:** JRN-16. **Comportamento:** cobrança não paga no prazo passa a **Expirada** e deixa de aceitar pagamento; a atendente pode cancelar antes do pagamento (**Cancelada**). Nova tentativa cria nova cobrança. **Aceite:** AC-49. **Eventos:** `cobranca.expirada`, `cobranca.cancelada`.
+
+### REQ-082 — Cancelamento com sinal pago e estorno
+
+**Prioridade/estado:** MVP / Confirmado (DEC-047). **Origem:** ACT-02; JRN-05, JRN-16. **Comportamento:** ao cancelar compromisso com sinal pago, o diálogo exige motivo (DEC-008), mostra a política da clínica e pede **Devolver sinal** ou **Reter sinal**. Devolver pede estorno ao provedor: **Estorno solicitado** → **Devolvido** ou **Estorno falhou** (com **Tentar de novo**). A IA não cria, cancela nem devolve cobranças. **Aceite:** AC-50. **Eventos:** `estorno.atualizado`.
+
 ## Racional de prioridade — proposta para aprovação
 
 Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP interno** para gestão da plataforma) porque contribuem para a primeira jornada demonstrável, para a segurança multi-tenant ou para operar a plataforma sem depender de intervenção no banco. Estas justificativas **não significam aprovação final**, nem liberam uso de dados reais. Quando parte do comportamento estiver em aberto, a aprovação da prioridade não fecha a regra de produto.
@@ -204,13 +232,13 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). |
 
-**Fora do MVP (já definido):** prontuário, pagamentos, estoque, integração com agendas externas, campanhas em massa, bot com envios ou reservas autónomas, painéis de profissionais e relatórios avançados. **Posterior:** autosserviço avançado de onboarding, configurações sofisticadas de pipeline e automações de IA, exceto se outra decisão formal substituir este recorte.
+**Fora do MVP (já definido):** prontuário, pagamentos além do sinal por Pix (DEC-047), estoque, integração com agendas externas, campanhas em massa, bot com envios ou reservas autónomas, painéis de profissionais e relatórios avançados. **Posterior:** autosserviço avançado de onboarding, configurações sofisticadas de pipeline e automações de IA, exceto se outra decisão formal substituir este recorte.
 
 **Gate para aprovar a prioridade:** responsável pelo produto confirmar o recorte e aceitar que os itens administrativos internos podem avançar na F1 sem atrasar a demonstração Inbox → pipeline → agenda da clínica. Os detalhes ainda em aberto estão em [decisões](decisions.md) e [registro de validação](validation-register.md).
 
 ## Fora do MVP
 
-**Fora do MVP:** prontuário/registro clínico, pagamentos, estoque, agendas externas, campanhas em massa, bot que responde ou agenda sozinho e relatórios avançados. Nenhum requisito acima deve ser interpretado como compromisso de implementar essas funções.
+**Fora do MVP:** prontuário/registro clínico, pagamentos além do sinal por Pix (DEC-047), estoque, agendas externas, campanhas em massa, bot que responde ou agenda sozinho e relatórios avançados. Nenhum requisito acima deve ser interpretado como compromisso de implementar essas funções.
 
 ## Lacunas para revisão
 

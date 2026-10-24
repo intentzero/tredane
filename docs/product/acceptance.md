@@ -182,3 +182,32 @@
 ## Aplicação da topologia DEC-038 aos cenários
 
 Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernação) com DOs e bancos SQLite distintos por clínica, mantendo memberships e suporte no D1 central. As garantias existentes não mudam. Acrescentar ensaios de migração por instância, restauração sem efeitos duplicados/permissões ressuscitadas e revogação D1/DO durante corrida/hibernação, conforme [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md). Cenários documentados não equivalem a testes executados.
+
+### AC-44 — Sinal no cadastro do serviço
+
+**Dado** a responsável editando “Limpeza de pele” com preço cadastrado; **quando** liga “Exige sinal” com 30%; **então** o resumo mostra o valor calculado e salva; com “Peeling” sem preço, a opção percentual fica indisponível e só valor fixo é aceito; uma atendente não vê a opção. **Requisito:** REQ-076.
+
+### AC-45 — Sem conta de recebimento
+
+**Dado** uma clínica sem conta conectada e um serviço que exige sinal; **quando** a atendente tenta agendar; **então** o envio de cobrança fica indisponível com o aviso de conta não conectada e nenhuma cobrança é criada. **Requisito:** REQ-077.
+
+### AC-46 — Cobrança enviada não reserva horário
+
+**Dado** quinta 14:00 livre e serviço com sinal; **quando** a atendente envia o sinal para a cliente A; **então** a conversa mostra a mensagem com valor, prazo e política e o estado Aguardando sinal, e o mesmo horário continua disponível para outra pessoa. **Requisito:** REQ-078.
+
+### AC-47 — Pagamento processado uma vez
+
+**Dado** uma cobrança Aguardando sinal da clínica A; **quando** o provedor envia o aviso de pago duas vezes e um aviso com assinatura inválida; **então** a cobrança fica Paga uma única vez, o aviso inválido é recusado e registrado, e um aviso com identificador da clínica B não altera nada em A. **Requisito:** REQ-079.
+
+### AC-48 — Pago sem horário
+
+**Dado** uma cobrança paga cujo horário foi confirmado para outra pessoa antes do pagamento; **quando** o aviso chega; **então** a equipe de A vê o alerta Pago sem horário com Escolher outro horário e Devolver sinal, e nenhum compromisso duplicado é criado. **Requisito:** REQ-080.
+
+### AC-49 — Expiração
+
+**Dado** uma cobrança não paga; **quando** o prazo vence; **então** ela passa a Expirada, deixa de aceitar pagamento e um aviso de pago posterior é tratado como Pago sem horário. **Requisito:** REQ-081.
+
+### AC-50 — Cancelamento com sinal pago
+
+**Dado** um compromisso confirmado com sinal pago; **quando** a atendente cancela; **então** o motivo é obrigatório, a política da clínica aparece, a escolha Devolver gera Estorno solicitado e a escolha Reter fica registrada com quem decidiu. **Requisito:** REQ-082.
+

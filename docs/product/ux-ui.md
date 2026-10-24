@@ -21,7 +21,7 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Login pelo Clerk (código por e-mail) e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005. TEL-08 (proposta), desenhada em M-09 e M-10. A tela de entrada final usa o componente do Clerk estilizado com a identidade do Tredane; M-09 mostra o comportamento esperado, não o componente real. |
 | Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **propostas** (TEL-09, M-15 a M-26; suporte em TEL-10, M-27 a M-29) | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
 | App de superadmin | **Fora desta spec** | DEC-012, [ADR-0006](../adr/0006-clerk-platform-admin.md), [identidade e administração](../architecture/identity-and-admin.md). App separado, com spec própria quando for desenhado. |
-| Relatórios, campanhas, prontuário, pagamentos, bot autônomo | **Fora do MVP** | Não aparecem na navegação, nem como item desabilitado. |
+| Relatórios, campanhas, prontuário, pagamentos além do sinal por Pix (DEC-047), bot autônomo | **Fora do MVP** | Não aparecem na navegação, nem como item desabilitado. |
 
 ## 2. Princípios de experiência
 
@@ -212,6 +212,18 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 Ver seção 6.2.
 
 
+### TEL-11 — Sinal por Pix
+
+**Estado:** telas **propostas** sobre decisões **Confirmadas** (DEC-047, [sinal.md](sinal.md), REQ-076 a REQ-082).
+
+- **Agendar (M-04):** com serviço que exige sinal, o rodapé mostra “Sinal de R$ X · horário não fica reservado até o pagamento” e o botão **Enviar sinal de R$ X**. Sem conta de recebimento, o botão fica desabilitado com o motivo.
+- **Na conversa (M-31):** a mensagem de cobrança aparece como enviada, com um cartão interno do estado: **Aguardando sinal** (prazo restante, **Copiar Pix**, **Cancelar cobrança**), **Pago** (confirmado para o horário), **Expirada** (**Enviar novo sinal**), **Estorno solicitado/Devolvido/Estorno falhou**.
+- **Pago sem horário (M-32):** faixa de alerta na conversa e no Acompanhamento, com **Escolher outro horário** e **Devolver sinal**.
+- **Recebimento (M-33):** na área Clínica, só para a responsável: estado da conta conectada, **Conectar conta** e **Desconectar**, política de cancelamento do sinal.
+- **Serviço (M-16):** “Exige sinal”, tipo (valor fixo ou % do preço) e resumo do valor.
+- **Cancelar compromisso com sinal pago:** o diálogo de cancelamento ganha a escolha **Devolver sinal** ou **Reter sinal**, com a política da clínica.
+- **Em aberto:** prazo padrão para pagar; confirmação automática ao pagar; texto do modelo de WhatsApp.
+
 ### TEL-10 — Suporte do Tredane (aprovação por sessão)
 
 **Estado:** telas **propostas** sobre decisões **Confirmadas** (DEC-029 a DEC-037, REQ-060 a REQ-066, AC-27 a AC-35). A equipe do Tredane só acessa conteúdo da clínica com um pedido aprovado por um responsável, por sessão de 30 minutos, sem prorrogação.
@@ -306,10 +318,11 @@ Ver seção 6.2.
 | TEL-06 Compromisso | JRN-05 | REQ-032, REQ-033 | AC-10 |
 | TEL-07 Estados globais | JRN-07 | REQ-001, REQ-003, REQ-040, REQ-041, REQ-042 | AC-01, AC-02, AC-11, AC-12 |
 | TEL-08 Entrar e escolher clínica | JRN-07, JRN-08 | REQ-005 | AC-17 |
+| TEL-11 Sinal por Pix | JRN-16 | REQ-076 a REQ-082 | AC-44 a AC-50 |
 | TEL-10 Suporte do Tredane | JRN-08 | REQ-060 a REQ-066 | AC-27 a AC-35 |
 | TEL-09 Clínica (configuração) | JRN-08 | REQ-002, REQ-003, REQ-004, REQ-051, REQ-052, REQ-071 | AC-03, AC-14, AC-38, AC-39, AC-40 |
 
-Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-27 a M-29 → TEL-10; M-15 a M-26 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos; M-19 e M-23 a M-26: WhatsApp). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
+Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-27 a M-29 → TEL-10; M-31 a M-33 → TEL-11; M-15 a M-26 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos; M-19 e M-23 a M-26: WhatsApp). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
 
 ## 10. Critérios de aceite de UX
 
