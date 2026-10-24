@@ -75,7 +75,7 @@ export function App() {
         </section>
         <p className="footnote">
           Protótipo de fundação sem login, dados reais ou integração com o WhatsApp. Não utilizar
-          para atendimentos. Área de prova de componentes (issue #16):{' '}
+          para atendimentos. Área de prova React Aria (issue #16 · DEC-048):{' '}
           <a href="/prova">/prova</a>.
         </p>
       </main>

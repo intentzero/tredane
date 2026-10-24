@@ -13,8 +13,8 @@ import {
 import { moveOptions, pipelineCards, stages, type StageId } from '../data'
 
 /**
- * M-05 Acompanhamento — candidata B (React Aria Components).
- * Folha inferior «Mover para…» via Modal/Dialog. Área de prova; dados fictícios.
+ * M-05 Acompanhamento — React Aria Components (biblioteca-base Confirmada, DEC-048).
+ * Folha inferior «Mover para…» via Modal/Dialog. Área de prova / referência; dados fictícios.
  */
 export function ReactAriaAcompanhamento() {
   const [stage, setStage] = useState<StageId>('atendimento')

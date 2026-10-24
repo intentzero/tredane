@@ -1,4 +1,4 @@
-/** Dados fictícios sintéticos para a prova M-04 / M-05 (DEC-041). Não usar em produção. */
+/** Dados fictícios sintéticos para a prova M-04 / M-05 (DEC-041 / DEC-048). Não usar em produção. */
 
 export const contactName = 'Juliana Prado'
 

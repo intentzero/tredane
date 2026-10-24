@@ -1,6 +1,6 @@
 # F1 — Platform Admin e ciclo de tenants/owners
 
-**Estado:** implementação da issue [#24](https://github.com/intentzero/tredane/issues/24) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Platform Admin + ciclo de vida no D1, com propagação D1→DO. **Sem** UI de login/biblioteca de componentes (#22; DEC de componentes ainda Proposta). Dados sintéticos apenas.
+**Estado:** implementação da issue [#24](https://github.com/intentzero/tredane/issues/24) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Platform Admin + ciclo de vida no D1, com propagação D1→DO. **Sem** UI de login (#22; biblioteca-base Confirmada em DEC-048 — React Aria). Dados sintéticos apenas.
 
 ## Decisões aplicadas (Confirmado)
 

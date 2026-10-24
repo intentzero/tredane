@@ -1,6 +1,6 @@
 # F1 — Equipe, convites por e-mail e remoção de attendants
 
-**Estado:** implementação da issue [#25](https://github.com/intentzero/tredane/issues/25) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Equipe + convites + e-mail simulado + remoção com barreira D1→DO (#23). **Sem** UI de login/biblioteca de componentes (#22; DEC de componentes ainda Proposta). Dados sintéticos apenas.
+**Estado:** implementação da issue [#25](https://github.com/intentzero/tredane/issues/25) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Equipe + convites + e-mail simulado + remoção com barreira D1→DO (#23). **Sem** UI de login (#22; biblioteca Confirmada em DEC-048 — React Aria). Dados sintéticos apenas.
 
 ## Decisões aplicadas (Confirmado)
 

@@ -7,8 +7,6 @@ mkdirSync(media, { recursive: true })
 
 const shots = [
   ['http://localhost:5173/prova', 'Prova de componentes', 'prova-hub.png'],
-  ['http://localhost:5173/prova/radix/m04', 'Agendar horário', 'prova-radix-m04.png'],
-  ['http://localhost:5173/prova/radix/m05', 'Mover Beatriz', 'prova-radix-m05.png'],
   ['http://localhost:5173/prova/react-aria/m04', 'Calendário', 'prova-react-aria-m04.png'],
   ['http://localhost:5173/prova/react-aria/m05', 'Mover Beatriz', 'prova-react-aria-m05.png'],
 ]

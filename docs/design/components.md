@@ -1,6 +1,6 @@
 # Componentes recorrentes
 
-Padrões que se repetem nos mocks. Implemente cada um **uma vez** como componente React e reutilize; as medidas vêm de [tokens.json](tokens.json) e **todos os estados** aparecem no [catálogo](catalog/index.html), que é a referência de aparência de cada componente. Onde houver dúvida, o mock indicado na coluna “Onde aparece”. Estado: **Proposto** ([DEC-041](../product/decisions.md)); a biblioteca-base está em [ADR-0013](../adr/0013-design-system-components.md).
+Padrões que se repetem nos mocks. Implemente cada um **uma vez** como componente React (sobre **React Aria Components**, DEC-048) e reutilize; as medidas vêm de [tokens.json](tokens.json) e **todos os estados** aparecem no [catálogo](catalog/index.html), que é a referência de aparência de cada componente. Onde houver dúvida, o mock indicado na coluna “Onde aparece”. Padrões visuais: **Proposto** nos mocks ([DEC-041](../product/decisions.md)); biblioteca-base **Confirmada** em [ADR-0013](../adr/0013-design-system-components.md) / DEC-048.
 
 | Componente | Onde aparece | Anatomia e regras |
 | --- | --- | --- |
