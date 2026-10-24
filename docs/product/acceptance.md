@@ -118,11 +118,15 @@
 
 ### AC-27 — Cada sessão de suporte exige aprovação de owner
 
-**Dado** pedido de suporte do superadmin para tenant A com actor, subject, motivo e escopo; **enquanto** estiver pendente, rejeitado, expirado ou revogado, **então** não há credencial de suporte nem acesso clínico HTTP/WebSocket. Owner ativo de A precisa aprovar explicitamente para ativar aquela sessão específica, com auditoria. Owner só de B, attendant ou superadmin apenas por privilégio global não aprova A. Troca de subject/tenant/escopo após decisão e reutilização da aprovação são negadas. **Requisito:** REQ-007; **DEC-029/030**. Canal aprovado (painel + e-mail, decisão apenas no painel); prazo pendente.
+**Dado** pedido de suporte do superadmin para tenant A com actor, subject, motivo e escopo; **enquanto** estiver pendente, rejeitado, expirado ou revogado, **então** não há credencial de suporte nem acesso clínico HTTP/WebSocket. Owner ativo de A precisa aprovar explicitamente para ativar aquela sessão específica, com auditoria. Owner só de B, attendant ou superadmin apenas por privilégio global não aprova A. Troca de subject/tenant/escopo após decisão e reutilização da aprovação são negadas. **Requisito:** REQ-007; **DEC-029/030**. Canal aprovado (painel + e-mail, decisão apenas no painel); pedido expira após 24 horas (DEC-031).
 
 ### AC-28 — Pedido em tempo real e aviso por e-mail, aprovação só no painel
 
-**Dado** pedido de suporte pendente em A; **quando** criado, **então** owners ativos de A veem o pedido no painel em tempo real e recebem e-mail com link para abrir a solicitação dentro do Tredane. **Quando** um owner A autentica-se no Clerk e aprova/rejeita no painel, **então** backend valida membership vigente e grava a primeira decisão válida atomicamente, auditando aprovador e atualizando outros owners. Owner exclusivo de B não vê/aprova pedido de A; clicar no e-mail sem login nunca concede acesso nem aprova; falha de entrega do e-mail não desbloqueia suporte. **Requisitos:** REQ-007/060; DEC-030. Prazo do pedido por decidir.
+**Dado** pedido de suporte pendente em A; **quando** criado, **então** owners ativos de A veem o pedido no painel em tempo real e recebem e-mail com link para abrir a solicitação dentro do Tredane. **Quando** um owner A autentica-se no Clerk e aprova/rejeita no painel, **então** backend valida membership vigente e grava a primeira decisão válida atomicamente, auditando aprovador e atualizando outros owners. Owner exclusivo de B não vê/aprova pedido de A; clicar no e-mail sem login nunca concede acesso nem aprova; falha de entrega do e-mail não desbloqueia suporte. **Requisitos:** REQ-007/060; DEC-030. Prazo do pedido definido em 24 horas (DEC-031); TTL da sessão aprovada por decidir.
+
+### AC-29 — Prazo de 24 horas para aprovação de suporte
+
+**Dado** pedido `pending` criado em t0; **quando** owner válido decide antes de t0+24h, **então** o backend pode persistir aprovação atomically, vinculada a apenas uma sessão. **Em t0+24h e depois**, negar aprovação e ativação sem criar handoff, cookie ou WebSocket; pedido é expirado mesmo que o job de limpeza não execute. O link de e-mail atrasado abre solicitação expirada e um novo pedido é necessário. A sessão aprovada dentro do prazo terá TTL separado. Testar corrida de owners, hora do servidor e limite temporal. **DEC-031; REQ-007/060.**
 
 ## Condições para usar estes cenários como aprovação
 

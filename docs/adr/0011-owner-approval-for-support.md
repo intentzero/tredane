@@ -1,6 +1,6 @@
 # ADR-0011 — Aprovação de cada sessão de suporte pelo owner
 
-**Estado:** DEC-029 confirmada (aprovação prévia por sessão) e DEC-030 confirmada (opção C: painel em tempo real + aviso por e-mail). Validade e UX complementar em aberto.
+**Estado:** DEC-029 (aprovação por sessão), DEC-030 (painel + e-mail) e **DEC-031 (24 horas para pedido pendente)** confirmadas. Duração da sessão e UX complementar em aberto.
 **Relacionados:** [ADR-0007](0007-support-impersonation.md), [DEC-028/029](../product/decisions.md), [REQ-007](../product/requirements.md), [AC-27](../product/acceptance.md).
 
 ## Decisão
@@ -17,13 +17,21 @@ A aprovação identifica pedido específico, actor superadmin autenticado como e
 4. E-mails falhados, repetidos ou atrasados não mudam estado/autorização, nem impedem que um owner presente no painel decida. Se não houver owner elegível para decidir, nenhum acesso clínico é liberado. Retentativas, provedor de e-mail, limites de envio e prazo do pedido permanecem pendentes de especificação.
 5. Ao reabrir o painel após estar offline, carregar pedidos pendentes do D1 e conciliar eventos WebSocket para evitar decisões duplicadas. Sem MFA no MVP (DEC-028).
 
+## Expiração do pedido pendente — DEC-031
+
+- Pedido de suporte permanece pendente por **24 horas** desde `created_at` em UTC calculado pelo backend. Persistir `expires_at = created_at + 24 horas` em D1.
+- Aprovar exige `status = pending` e `now < expires_at` numa transição atómica. No instante exato de `expires_at` ou depois, rejeitar aprovação e impedir qualquer criação de sessão, handoff, cookie ou acesso HTTP/WebSocket. Fazer validação mesmo que job de expiração esteja atrasado/indisponível.
+- E-mail atrasado, reabertura da página, reconexão WebSocket e login no Clerk não prolongam o prazo. Pedido vencido precisa de **nova solicitação e nova aprovação**, sem reativação do antigo.
+- Após aprovação **dentro das 24 horas**, a sessão de suporte ativada segue **TTL próprio ainda a decidir**; não confundir 24 horas de decisão pendente com duração de sessão. Revogação do owner continua aplicável.
+- Testes: aprovação imediatamente antes, no limite e após expiração; corrida entre owners; falta de limpeza agendada; relógio do browser alterado; e-mail atrasado; pedido expirado tentando ativar sessão.
+
 ## Contrato técnico candidato — não implementado
 
 1. Superadmin autenticado com `privateMetadata.superadmin === true` verificado no backend cria `support_access_requests` em estado `pending` no D1, com actor/subject/tenant/motivo/escopo.
 2. Owner da mesma clínica recebe o pedido em tempo real no painel e aviso por e-mail com link de navegação. Já autenticado pelo Clerk, com membership `owner` ativa revalidada pelo backend, vê os dados não sensíveis necessários para decidir e **aprova/rejeita expressamente somente no painel**. Sem resposta o pedido continua sem acesso.
 3. A decisão é auditada com owner, actor, subject, tenant, escopo, resultado e data. Criar `support_sessions` exige pedido `approved` vigente; bind imutável ao pedido, sem permitir outra sessão pela mesma autorização ou mudar parâmetros.
 4. Após aprovação, emitir handoff de uso único e cookie opaco seguro ligado à sessão Clerk do actor; cada pedido e cada entrega WebSocket valida sessão de suporte, decisão do owner, subject ativo, tenant, TTL e capacidades.
-5. Retirada de aprovação, expiração de pedido/sessão, suspensão de tenant, remoção do subject e revogação da flag superadmin encerram a autorização; falha de consulta nega por padrão.
+5. Retirada de aprovação, expiração de **pedido ainda pendente antes da ativação**, expiração do **TTL próprio da sessão já ativada**, suspensão de tenant, remoção do subject e revogação da flag superadmin impedem ou encerram acesso conforme o estado; falha de consulta nega por padrão.
 6. A auditoria de suporte preserva actor, subject e owner aprovador, motivo, decisão, operações realizadas e encerramento. A Clinic App exibe banner persistente de modo suporte.
 
 ### Modelo lógico proposto
@@ -36,8 +44,8 @@ Estados: `pending`, `approved`, `rejected`, `expired`, `revoked` e `cancelled`. 
 
 ## Pendências explícitas
 
-- **Prazo de validade do pedido pendente** (próxima decisão). O canal já foi fixado em DEC-030: painel em tempo real e notificação por e-mail, com aprovação/rejeição somente no Tredane.
-- **Por quanto tempo a solicitação ficará disponível e a sessão aprovada valerá**, e como funciona eventual renovação.
+- **Duração da sessão de suporte já aprovada** (próxima decisão). Prazo de pedido pendente fixado em 24 horas por DEC-031.
+- **Duração da sessão de suporte aprovada**, e como funciona eventual renovação. Pedido pendente expira em 24 horas (DEC-031).
 - Política de revogação pelo owner com sessão ativa, notificações e auditoria; sem autorização válida, bloquear por padrão.
 - Privacidade/LGPD, retenção de pedidos e logs, política sem owner disponível e revisão de segurança com dados reais.
 

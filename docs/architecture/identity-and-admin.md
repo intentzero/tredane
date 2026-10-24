@@ -38,11 +38,15 @@ Owner de tenant ativo cria convite para e-mail e role **fixa attendant**. O Tred
 
 ## Aprovação de suporte por sessão (DEC-029)
 
-O superadmin cria `support_access_requests` pendente, com actor/subject/tenant/motivo/escopo, sem gerar acesso clínico. Owner ativo daquele tenant aprova/rejeita expressamente o pedido, cuja autorização e parâmetros são verificados no backend. Somente depois é ativada `support_sessions` e emitido handoff de uso único. Aprovação não é reutilizável ou permanente; expirado/revogado bloqueia HTTP e WebSocket. Sem MFA (DEC-028). Canal confirmado em DEC-030 (painel em tempo real + e-mail informativo, decisão autenticada somente na Clinic App); prazo a definir. [ADR-0011](../adr/0011-owner-approval-for-support.md).
+O superadmin cria `support_access_requests` pendente, com actor/subject/tenant/motivo/escopo, sem gerar acesso clínico. Owner ativo daquele tenant aprova/rejeita expressamente o pedido, cuja autorização e parâmetros são verificados no backend. Somente depois é ativada `support_sessions` e emitido handoff de uso único. Aprovação não é reutilizável ou permanente; expirado/revogado bloqueia HTTP e WebSocket. Sem MFA (DEC-028). Canal confirmado em DEC-030 (painel em tempo real + e-mail informativo, decisão autenticada somente na Clinic App); prazo do pedido fixado em **24 horas** (DEC-031); TTL da sessão ainda em aberto. [ADR-0011](../adr/0011-owner-approval-for-support.md).
+
+## Prazo de aprovação do suporte — DEC-031
+
+Todo `support_access_requests` recebe `created_at` e `expires_at = created_at + 24 horas` calculados no servidor em UTC. Aprovação valida estado `pending` e `now < expires_at` na transição atómica no D1. No instante de expiração ou depois, nenhum suporte, handoff ou cookie pode ser ativado; expiração lógica independe de manutenção assíncrona. E-mail/Clerk login não renovam o pedido. TTL da sessão ativada após aprovação é separado e está em aberto.
 
 ## Notificação de solicitações de suporte — DEC-030
 
-Após persistir `support_access_requests` em estado pendente no D1, emitir evento de atualização restrito a owners ativos do mesmo tenant no Durable Object/WebSocket e enviar aviso por e-mail com link de navegação para a solicitação. **Não** colocar token de aprovação ou dados clínicos no e-mail. A decisão só é aceita na API autenticada da Clinic App com verificação atual de Clerk e membership owner; sincronizar estado final entre owners. E-mail indisponível não altera autorização nem impede decisão pelo painel. Provedor de entrega e prazo ainda abertos.
+Após persistir `support_access_requests` em estado pendente no D1, emitir evento de atualização restrito a owners ativos do mesmo tenant no Durable Object/WebSocket e enviar aviso por e-mail com link de navegação para a solicitação. **Não** colocar token de aprovação ou dados clínicos no e-mail. A decisão só é aceita na API autenticada da Clinic App com verificação atual de Clerk e membership owner; sincronizar estado final entre owners. E-mail indisponível não altera autorização nem impede decisão pelo painel. Provedor de entrega em aberto e prazo do pedido fixado em 24 horas (DEC-031).
 
 ## Fluxo Platform Admin
 
