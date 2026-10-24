@@ -18,7 +18,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Respostas da IA (DEC-046): preço só do cadastro, explicação de procedimento só com texto aprovado pela clínica, pergunta de saúde encaminhada à profissional e aviso com resposta cordial para mensagem ofensiva ou fora do assunto; sempre como sugestão revisada.
 - Só o responsável configura serviços, profissionais, salas/equipamentos, disponibilidade e o número de WhatsApp (DEC-042).
 - Interface mobile first (DEC-039); decisões de UX: “Agendado” sem compromisso com aviso, IA só sob demanda, push via PWA, envio por modelo fora da janela de 24 h do WhatsApp e agenda de dia e semana (DEC-040).
-- Design system do painel aprovado (DEC-041): paleta, tipografia, escalas, componentes e ícones Lucide em [docs/design](design/README.md); biblioteca de componentes a decidir por prova de conceito na F0 ([ADR-0013](adr/0013-design-system-components.md)); modo escuro fora do MVP.
+- Design system do painel aprovado (DEC-041): paleta, tipografia, escalas, componentes e ícones Lucide em [docs/design](design/README.md); biblioteca-base **Confirmada** — React Aria Components (DEC-048, prova #16 / [ADR-0013](adr/0013-design-system-components.md)); modo escuro fora do MVP.
 - Integração com a API oficial do WhatsApp Business.
 - Aplicação reativa, com atualizações em tempo real por WebSockets com hibernação em Durable Objects.
 - **DEC-038:** um Durable Object por clínica, com SQLite nativo para dados operacionais e coordenação/WebSockets. D1 central mantém tenants, memberships, convites e suporte; R2 privado mantém anexos. Ver [ADR-0012](adr/0012-clinic-durable-object-sqlite.md).

@@ -1,17 +1,19 @@
 {
-  "measuredAt": "2026-10-24T11:47:32.809Z",
-  "method": "vite production build of M-04+M-05 per candidate; sum of .js/.css gzip",
+  "measuredAt": "2026-10-24T13:31:16.074Z",
+  "method": "vite production build of M-04+M-05 (React Aria only, DEC-048); sum of .js/.css gzip",
+  "decision": "DEC-048",
+  "library": "react-aria-components",
   "candidates": {
-    "radix": {
-      "name": "radix",
-      "rawBytes": 334846,
-      "gzipBytes": 103945
-    },
     "reactAria": {
       "name": "react-aria",
-      "rawBytes": 570910,
-      "gzipBytes": 176691
+      "rawBytes": 570999,
+      "gzipBytes": 176713
     }
   },
-  "deltaGzipBytes": 72746
+  "historicalComparisonFromIssue16": {
+    "note": "Valores da prova #16 (antes de DEC-048); Radix removida do repositório.",
+    "radixGzipBytes": 103945,
+    "reactAriaGzipBytes": 176691,
+    "deltaGzipBytes": 72746
+  }
 }

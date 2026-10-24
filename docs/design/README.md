@@ -1,6 +1,6 @@
 # Design do painel — mocks e guia de implementação
 
-**Estado:** design system v0.2.0 **Confirmado** pelo responsável pelo produto, exceto a biblioteca de componentes (**Proposto**, [ADR-0013](../adr/0013-design-system-components.md)) ([DEC-041](../product/decisions.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
+**Estado:** design system v0.2.0 **Confirmado** pelo responsável pelo produto ([DEC-041](../product/decisions.md)); biblioteca-base **Confirmada** — React Aria Components ([DEC-048](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
 
 ## Ordem de autoridade
 

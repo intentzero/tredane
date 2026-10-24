@@ -1,6 +1,6 @@
 # F1 — WebSockets, reconciliação e revogação D1/DO
 
-**Estado:** implementação da issue [#23](https://github.com/intentzero/tredane/issues/23) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Protocolo WS hibernável, fence de entrega, catch-up HTTP e revogação imediata por tenant. **Sem** telas produtivas do painel (#22; biblioteca de componentes ainda Proposta). Dados sintéticos apenas.
+**Estado:** implementação da issue [#23](https://github.com/intentzero/tredane/issues/23) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Protocolo WS hibernável, fence de entrega, catch-up HTTP e revogação imediata por tenant. **Sem** telas produtivas do painel (#22; biblioteca Confirmada em DEC-048 — React Aria). Dados sintéticos apenas.
 
 ## Decisão e protocolo (Confirmado — DEC-004/026/038; ADR-0003/0009/0012)
 

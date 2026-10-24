@@ -39,9 +39,9 @@ import {
 } from '../data'
 
 /**
- * M-04 Agendar — candidata B (React Aria Components).
+ * M-04 Agendar — React Aria Components (biblioteca-base Confirmada, DEC-048).
  * Inclui DatePicker/Calendar nativo (i18n) além da faixa de dias do mock.
- * Área de prova; dados fictícios.
+ * Área de prova / referência; dados fictícios.
  */
 export function ReactAriaAgendar() {
   const [serviceId, setServiceId] = useState<ServiceId>('svc-laser')

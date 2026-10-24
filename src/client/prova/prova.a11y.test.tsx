@@ -1,8 +1,6 @@
 import { render } from '@testing-library/react'
 import axe from 'axe-core'
 import { describe, expect, it } from 'vitest'
-import { RadixAgendar } from './radix/Agendar'
-import { RadixAcompanhamento } from './radix/Acompanhamento'
 import { ReactAriaAgendar } from './react-aria/Agendar'
 import { ReactAriaAcompanhamento } from './react-aria/Acompanhamento'
 import '../ui/panel.css'
@@ -17,25 +15,7 @@ async function expectNoAxeViolations(container: HTMLElement) {
   expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([])
 }
 
-describe('prova F0 — axe em M-04 e M-05', () => {
-  it('Radix M-04 sem violações axe', async () => {
-    const { container } = render(
-      <div className="panel-root">
-        <RadixAgendar />
-      </div>,
-    )
-    await expectNoAxeViolations(container)
-  })
-
-  it('Radix M-05 sem violações axe', async () => {
-    const { container } = render(
-      <div className="panel-root">
-        <RadixAcompanhamento />
-      </div>,
-    )
-    await expectNoAxeViolations(container)
-  })
-
+describe('prova F0 — axe em M-04 e M-05 (React Aria, DEC-048)', () => {
   it('React Aria M-04 sem violações axe', async () => {
     const { container } = render(
       <div className="panel-root">
