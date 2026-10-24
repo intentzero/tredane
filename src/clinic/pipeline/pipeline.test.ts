@@ -13,13 +13,14 @@ import {
 import { findOpenOpportunityForConversation } from './opportunities'
 
 describe('Pipeline / Acompanhamento (#30)', () => {
-  it('migração 5 cria oportunidades e histórico; schema v5', () => {
+  it('migração 5 cria oportunidades e histórico; schema inclui pipeline', () => {
     const { db, close } = bootClinicDb()
     try {
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
-      expect(state).toEqual({ version: 5, status: 'ready' })
+      expect(state?.status).toBe('ready')
+      expect(state?.version).toBeGreaterThanOrEqual(5)
       const tables = db.all<{ name: string }>(
         `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('opportunities','opportunity_stage_history')`,
       )

@@ -44,6 +44,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0007_support_session_email.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0008_whatsapp_bindings.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

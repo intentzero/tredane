@@ -10,6 +10,9 @@ export type ClinicaSection =
   | 'profissional'
   | 'sala'
   | 'horarios'
+  | 'whatsapp'
+  | 'whatsapp-trocar'
+  | 'whatsapp-desconectar'
 
 /** Sub-rotas de Conversas (#29): lista → thread → contacto. */
 export type ConversasSection = 'lista' | 'thread' | 'contato'
@@ -92,6 +95,11 @@ function parseClinicaRest(rest: string | undefined): {
     return { section: 'recursos' }
   }
   if (head === 'horarios') return { section: 'horarios' }
+  if (head === 'whatsapp') {
+    if (parts[1] === 'trocar') return { section: 'whatsapp-trocar' }
+    if (parts[1] === 'desconectar') return { section: 'whatsapp-desconectar' }
+    return { section: 'whatsapp' }
+  }
   return { section: 'hub' }
 }
 
@@ -204,6 +212,12 @@ export function panelHref(route: PanelRoute): string {
           return `${base}/recursos/sala/${encodeURIComponent(route.entityId ?? 'novo')}`
         case 'horarios':
           return `${base}/horarios`
+        case 'whatsapp':
+          return `${base}/whatsapp`
+        case 'whatsapp-trocar':
+          return `${base}/whatsapp/trocar`
+        case 'whatsapp-desconectar':
+          return `${base}/whatsapp/desconectar`
       }
     }
   }

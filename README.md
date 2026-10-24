@@ -57,7 +57,7 @@ A identidade é feita com **Clerk sem Organizations**. Os vínculos de usuários
 
 Ver [ADR-0006](docs/adr/0006-clerk-platform-admin.md), [ADR-0007](docs/adr/0007-support-impersonation.md) e [contratos de identidade e administração](docs/architecture/identity-and-admin.md).
 
-Equipe e convites de attendant (#25): API + e-mail simulado em [f1-team-invites.md](docs/implementation/f1-team-invites.md); provedor real ainda Em aberto. Pedidos de suporte e aprovação do owner (#26): [f1-support-requests.md](docs/implementation/f1-support-requests.md). Sessão de suporte (#27): [f1-support-session.md](docs/implementation/f1-support-session.md). Configuração da clínica (#28): [f2-clinic-config.md](docs/implementation/f2-clinic-config.md). Caixa de entrada partilhada (#29): [f2-inbox.md](docs/implementation/f2-inbox.md). Acompanhamento (#30): [f2-pipeline.md](docs/implementation/f2-pipeline.md).
+Equipe e convites de attendant (#25): API + e-mail simulado em [f1-team-invites.md](docs/implementation/f1-team-invites.md); provedor real ainda Em aberto. Pedidos de suporte e aprovação do owner (#26): [f1-support-requests.md](docs/implementation/f1-support-requests.md). Sessão de suporte (#27): [f1-support-session.md](docs/implementation/f1-support-session.md). Configuração da clínica (#28): [f2-clinic-config.md](docs/implementation/f2-clinic-config.md). Caixa de entrada partilhada (#29): [f2-inbox.md](docs/implementation/f2-inbox.md). Acompanhamento (#30): [f2-pipeline.md](docs/implementation/f2-pipeline.md). WhatsApp Embedded Signup e conexão por clínica (#31): [f3-whatsapp-connection.md](docs/implementation/f3-whatsapp-connection.md).
 
 ## Acompanhamento da definição do MVP
 
@@ -65,7 +65,7 @@ A [auditoria do Issue #1](docs/product/definition-audit-2026-10-23.md) distingue
 
 ## Próximo marco
 
-Baseline F0 (#15–#18). F1 concluída na linha main (#19–#27). F2: configuração da clínica (#28), Inbox (#29 / [f2-inbox.md](docs/implementation/f2-inbox.md)) e Acompanhamento (#30 / [f2-pipeline.md](docs/implementation/f2-pipeline.md)); WhatsApp real (F3) e agenda completa (#35/#36) seguem — [épico #14](https://github.com/intentzero/tredane/issues/14). Dados sintéticos até os gates de liberação.
+Baseline F0 (#15–#18). F1 concluída na linha main (#19–#27). F2: configuração da clínica (#28), Inbox (#29 / [f2-inbox.md](docs/implementation/f2-inbox.md)) e Acompanhamento (#30 / [f2-pipeline.md](docs/implementation/f2-pipeline.md)). F3 parcial: conexão WhatsApp / Embedded Signup (#31 / [f3-whatsapp-connection.md](docs/implementation/f3-whatsapp-connection.md)); webhooks (#32) e envio (#33) seguem. Agenda completa (#35/#36) — [épico #14](https://github.com/intentzero/tredane/issues/14). Dados sintéticos até os gates de liberação.
 
 
 ## Persistência por clínica — DEC-038

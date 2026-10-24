@@ -38,6 +38,10 @@ import {
   createPipelineRoutes,
   type PipelineRouteOptions,
 } from '../pipeline'
+import {
+  createWhatsappRoutes,
+  type WhatsappRouteOptions,
+} from '../whatsapp'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
@@ -83,6 +87,8 @@ export type CreateAppOptions = {
     env: WorkerBindings,
     tenantId: string,
   ) => PipelineGateway | Promise<PipelineGateway>
+  /** Serviço WhatsApp (#31) — testes injectam AdminDb + sync em memória. */
+  whatsappServiceFactory?: WhatsappRouteOptions['serviceFactory']
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -149,6 +155,13 @@ export function createApp(opts: CreateAppOptions = {}) {
     gatewayFactory: opts.pipelineGatewayFactory,
   }
   app.route('/', createPipelineRoutes(pipelineOpts))
+
+  const whatsappOpts: WhatsappRouteOptions = {
+    syncAdminDbFactory: opts.syncAdminDbFactory,
+    clockFactory: opts.clockFactory,
+    serviceFactory: opts.whatsappServiceFactory,
+  }
+  app.route('/', createWhatsappRoutes(whatsappOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

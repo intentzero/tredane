@@ -7,6 +7,7 @@ import { ResourceForm, ResourcesList } from './ResourcesScreen'
 import { SchedulesScreen } from './SchedulesScreen'
 import { ServiceForm, ServicesList } from './ServicesScreen'
 import { useClinicConfig } from './useClinicConfig'
+import { WhatsappScreen } from './whatsapp/WhatsappScreen'
 
 type Props = {
   tenantId: string
@@ -16,8 +17,33 @@ type Props = {
 
 export function ClinicArea({ tenantId, section, entityId }: Props) {
   const { api } = useAuthSession()
-  const { generation } = useTenant()
+  const { generation, active } = useTenant()
   const { snap, error, loading, reload } = useClinicConfig(api, tenantId, generation)
+  const clinicName =
+    active.phase === 'ready' ? active.context.name : tenantId
+
+  if (
+    section === 'whatsapp'
+    || section === 'whatsapp-trocar'
+    || section === 'whatsapp-desconectar'
+  ) {
+    if (!api) return <LoadingState label="A carregar WhatsApp…" />
+    const mode =
+      section === 'whatsapp-trocar'
+        ? 'trocar'
+        : section === 'whatsapp-desconectar'
+          ? 'desconectar'
+          : 'main'
+    return (
+      <WhatsappScreen
+        tenantId={tenantId}
+        api={api}
+        generation={generation}
+        mode={mode}
+        clinicName={clinicName}
+      />
+    )
+  }
 
   if (loading && !snap) {
     return <LoadingState label="A carregar configuração da clínica…" />

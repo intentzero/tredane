@@ -6,6 +6,7 @@ import {
   clinicConfig,
   clinicInbox,
   clinicPipeline,
+  clinicWhatsapp,
   fromDurableObjectSql,
   getBoundTenant,
   ingestContactMessage,
@@ -724,6 +725,51 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     return clinicConfig.getReadinessOp(this.#db, caller, this.#clock)
+  }
+
+  /**
+   * Espelho do canal WhatsApp (#31). Chamado pelo Worker após bind/release no D1.
+   * Não armazena tokens — só estado de UI/readiness.
+   */
+  async syncWhatsappChannel(
+    caller: ClinicCaller,
+    input: {
+      status: 'disconnected' | 'connected' | 'interrupted'
+      bindingId?: string | null
+      phoneNumberId?: string | null
+      wabaId?: string | null
+      displayPhone?: string | null
+      displayName?: string | null
+      connectedBy?: string | null
+      connectedAt?: number | null
+      interruptedAt?: number | null
+      interruptReason?: string | null
+      actor?: string | null
+      action: string
+    },
+  ) {
+    this.#ensureReady()
+    const tenantId = this.#assertInstanceTenant(caller)
+    const row = clinicWhatsapp.syncWhatsappChannel(
+      this.#db,
+      tenantId,
+      input,
+      this.#clock,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      'whatsapp.channel_updated',
+      'whatsapp_channel',
+      tenantId,
+      {
+        status: row.status,
+        phoneNumberId: row.phoneNumberId,
+        displayPhone: row.displayPhone,
+        interruptedAt: row.interruptedAt,
+        interruptReason: row.interruptReason,
+      },
+    )
+    return row
   }
 
   async updateClinicTimezone(caller: ClinicCaller, timezone: string) {

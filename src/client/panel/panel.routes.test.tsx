@@ -49,6 +49,29 @@ describe('panel routes (#22)', () => {
     ).toBe('/c/clinic-demo-a/clinica')
   })
 
+  it('resolve sub-rotas WhatsApp (#31)', () => {
+    expect(resolvePanelRoute('/c/clinic-demo-a/clinica/whatsapp')).toEqual({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'whatsapp',
+    })
+    expect(resolvePanelRoute('/c/clinic-demo-a/clinica/whatsapp/trocar')).toEqual({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'whatsapp-trocar',
+    })
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'clinica',
+        tenantId: 'clinic-demo-a',
+        section: 'whatsapp-desconectar',
+      }),
+    ).toBe('/c/clinic-demo-a/clinica/whatsapp/desconectar')
+  })
+
   it('resolve sub-rotas de conversas (#29)', () => {
     expect(resolvePanelRoute('/c/clinic-demo-a/conversas')).toEqual({
       kind: 'area',
