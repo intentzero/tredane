@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Cadastrar sala ou equipamento — celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2F5BD3}a:hover{color:#1E43A8}
+button,select,input{font:inherit}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #2F5BD3;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F6F6F4; color: #1C1E21; font-family: Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E2E3E5; display: flex; align-items: center; gap: 4px; padding: 6px 4px">
+<a href="Recursos.dc.html" aria-label="Voltar para Profissionais e salas" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1C1E21; border-radius: 22px"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></a>
+<div style="display: flex; flex-direction: column"><h1 style="margin: 0; font-size: 17px; font-weight: 600">Cadastrar sala ou equipamento</h1><span style="font-size: 13px; color: #5B616B">Profissionais e salas</span></div>
+</header>
+
+<div style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px">
+
+<fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px">
+<legend style="padding: 0 0 6px; font-size: 14px; color: #474C54">Tipo</legend>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #CDD0D4; border-radius: 10px; overflow: hidden">
+<button type="button" aria-pressed="true" style="height: 44px; border: 0; background: #1C1E21; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer">Sala</button>
+<button type="button" aria-pressed="false" style="height: 44px; border: 0; background: #FFFFFF; color: #1C1E21; font-size: 14px; cursor: pointer">Equipamento</button>
+</div>
+</fieldset>
+
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: #474C54">Nome
+<input type="text" value="Sala 2 (laser)" autocomplete="off" style="height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #CDD0D4; border-radius: 10px; font-size: 16px; color: #1C1E21"></label>
+
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: #474C54">Categoria
+<select style="height: 48px; padding: 0 12px; border: 1px solid #CDD0D4; border-radius: 10px; background: #FFFFFF; font-size: 16px; color: #1C1E21"><option>Atendimento geral</option><option selected>Sala com laser</option><option>Estética facial</option><option>Nova categoria…</option></select></label>
+<span style="margin-top: -10px; font-size: 13px; color: #5B616B">Um serviço pode exigir uma categoria (“qualquer sala com laser”) ou uma sala específica.</span>
+
+<div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 12px">
+<span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 500">Disponibilidade</span><span style="font-size: 13px; color: #5B616B">Seg a sex, 09:00–18:00</span></span>
+<a href="Horarios.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; font-weight: 500">Editar</a>
+</div>
+
+<div style="padding: 12px 14px; background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 12px; display: flex; flex-direction: column; gap: 4px">
+<span style="font-weight: 500">Usada por</span>
+<span style="font-size: 14px; color: #474C54">Depilação a laser — pernas</span>
+</div>
+
+<label style="display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 12px; background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 10px">Ativa<input type="checkbox" checked style="width: 28px; height: 28px"></label>
+
+<div role="status" style="padding: 10px 12px; border-radius: 10px; border: 1px solid #EBCB94; background: #FFF7EA; color: #6E4200; font-size: 14px">Se esta for a única sala com laser, desativá-la impede novos agendamentos de Depilação a laser. Compromissos já marcados continuam e precisam ser tratados na agenda.</div>
+</div>
+
+<div style="flex: none; background: #FFFFFF; border-top: 1px solid #E2E3E5; padding: 12px 16px 30px; display: flex; gap: 8px">
+<a href="Recursos.dc.html" style="flex: 1; display: flex; align-items: center; justify-content: center; height: 52px; border: 1px solid #CDD0D4; border-radius: 12px; color: #1C1E21; text-decoration: none; font-weight: 500">Cancelar</a>
+<button type="button" style="flex: 2; height: 52px; border: 0; border-radius: 12px; background: #2F5BD3; color: #FFFFFF; font-size: 16px; font-weight: 600; cursor: pointer">Salvar sala</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

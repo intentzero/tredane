@@ -7,6 +7,7 @@ Estas instruções se aplicam a qualquer agente que crie ou altere documentaçã
 - `README.md`: apresentação curta e navegação do projeto.
 - `docs/MVP.md`: fonte concisa de verdade para objetivo, recorte, decisões e limites do MVP. Mantenha este documento curto e aponte para especificações detalhadas quando elas existirem.
 - [Épico de definição do MVP, issue #1](https://github.com/intentzero/tredane/issues/1): trabalho pendente e critérios para encerrar a definição. Checkboxes de uma issue não substituem especificação aprovada.
+- `docs/design/`: mocks de UI/UX do painel (fontes `.dc.html`, previews PNG), índice de telas, componentes e tokens. Quem implementa ou altera interface deve começar por `docs/design/README.md`; a especificação em `docs/product/ux-ui.md` prevalece sobre os mocks.
 - `docs/product/`: local para novos documentos de atores, jornadas, requisitos e decisões, quando o detalhe exceder o que cabe em `docs/MVP.md`. Crie apenas documentos necessários para o trabalho em andamento; não crie páginas vazias.
 
 Antes de editar, leia a versão atual dos documentos relacionados e da issue #1. Se houver divergência, registre-a e corrija a fonte apropriada; não deixe duas versões concorrentes da mesma decisão.
@@ -61,8 +62,9 @@ Registre problema, opções consideradas, decisão e motivo, impacto no produto 
 
 ## Ao concluir uma alteração de documentação
 
-1. Verifique que os termos e o estado das decisões estão consistentes com `docs/MVP.md` e a issue #1.
-2. Ligue jornadas a requisitos e requisitos a critérios de aceite; registre lacunas como **Em aberto**.
-3. Atualize o resumo em `docs/MVP.md` se objetivo, recorte, decisão ou limite do MVP mudou. Mantenha detalhes em documentos específicos e adicione links, sem duplicar textos longos.
-4. Leia os links e revise se uma proposta foi apresentada como fato, se há dados reais em exemplos ou se um requisito não pode ser verificado.
-5. Informe em sua entrega o que ficou confirmado, o que continua pendente e quais documentos foram alterados.
+1. Se alterou um mock ou uma tela, atualize junto o `.dc.html`, o preview, `docs/design/screens.md` e `docs/product/ux-ui.md`.
+2. Verifique que os termos e o estado das decisões estão consistentes com `docs/MVP.md` e a issue #1.
+3. Ligue jornadas a requisitos e requisitos a critérios de aceite; registre lacunas como **Em aberto**.
+4. Atualize o resumo em `docs/MVP.md` se objetivo, recorte, decisão ou limite do MVP mudou. Mantenha detalhes em documentos específicos e adicione links, sem duplicar textos longos.
+5. Leia os links e revise se uma proposta foi apresentada como fato, se há dados reais em exemplos ou se um requisito não pode ser verificado.
+6. Informe em sua entrega o que ficou confirmado, o que continua pendente e quais documentos foram alterados.

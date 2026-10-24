@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Escolher clínica — celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2F5BD3}a:hover{color:#1E43A8}
+button{font:inherit}
+button:focus-visible,a:focus-visible{outline:2px solid #2F5BD3;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F6F6F4; color: #1C1E21; font-family: Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.45; display: flex; flex-direction: column; padding: 0 16px 34px; overflow: hidden">
+
+<div style="padding: 64px 8px 24px; display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 600">Escolha a clínica</h1>
+<p style="margin: 0; color: #474C54">Você tem acesso a mais de uma. Dá para trocar depois, pelo nome da clínica no topo.</p>
+</div>
+
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px">
+<li><a href="Main.dc.html" style="display: flex; align-items: center; gap: 14px; min-height: 72px; box-sizing: border-box; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; color: #1C1E21; text-decoration: none">
+<span style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: #EEF2FC; color: #1E43A8; font-weight: 600; display: flex; align-items: center; justify-content: center">CA</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 600">Clínica Aurora</span><span style="font-size: 14px; color: #5B616B">1 conversa nova</span></span>
+<span style="padding: 2px 10px; border-radius: 12px; background: #EFEFF0; color: #474C54; font-size: 13px; font-weight: 600">Atendente</span>
+</a></li>
+<li><a href="Main.dc.html" style="display: flex; align-items: center; gap: 14px; min-height: 72px; box-sizing: border-box; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; color: #1C1E21; text-decoration: none">
+<span style="flex: none; width: 44px; height: 44px; border-radius: 12px; background: #EAF5EF; color: #1F7A4D; font-weight: 600; display: flex; align-items: center; justify-content: center">EB</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-weight: 600">Espaço Bela Pele</span><span style="font-size: 14px; color: #5B616B">Sem novidades</span></span>
+<span style="padding: 2px 10px; border-radius: 12px; background: #E7E0F8; color: #4B2A9E; font-size: 13px; font-weight: 600">Responsável</span>
+</a></li>
+</ul>
+
+<div style="margin-top: 24px; padding: 12px 14px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E2E3E5; font-size: 14px; color: #474C54">Ao trocar de clínica, os dados da anterior saem da tela e você só vê as conversas, o pipeline e a agenda da clínica escolhida.</div>
+
+<div style="margin-top: auto; display: flex; justify-content: center">
+<button type="button" style="min-height: 44px; padding: 0 12px; border: 0; background: transparent; color: #1E43A8; font-weight: 500; text-decoration: underline; cursor: pointer">Sair</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
