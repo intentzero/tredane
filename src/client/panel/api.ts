@@ -600,6 +600,102 @@ export function createPanelApi(getToken: TokenGetter) {
       }
     },
 
+    /** Cobrança Pix + sinal na conversa sem reservar (#38). */
+    async createPixCharge(
+      tenantId: string,
+      body: {
+        clientRequestId: string
+        conversationId: string
+        contactId?: string | null
+        opportunityId?: string | null
+        serviceId: string
+        professionalId: string
+        roomResourceId?: string | null
+        startsAt: number
+        authorDisplayName?: string | null
+      },
+      opts?: FetchOpts,
+    ): Promise<PixChargeCreateResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pix/charges`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as PixChargeCreateResponse
+    },
+
+    async getPixCharge(
+      tenantId: string,
+      chargeId: string,
+      opts?: FetchOpts,
+    ): Promise<{ charge: PixChargeDetail; intent: SchedulingIntentView | null }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/pix/charges/${encodeURIComponent(chargeId)}`,
+        { method: 'GET' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        charge: PixChargeDetail
+        intent: SchedulingIntentView | null
+      }
+    },
+
+    async listConversationPixCharges(
+      tenantId: string,
+      conversationId: string,
+      opts?: FetchOpts,
+    ): Promise<PixChargeDetail[]> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(conversationId)}/pix-charges`,
+        { method: 'GET' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const body = (await res.json()) as { items: PixChargeDetail[] }
+      return body.items
+    },
+
+    /** Confirmar sem sinal com motivo (AC-51). */
+    async confirmWithoutSignal(
+      tenantId: string,
+      body: {
+        clientRequestId: string
+        conversationId?: string | null
+        contactId?: string | null
+        opportunityId?: string | null
+        serviceId: string
+        professionalId: string
+        roomResourceId?: string | null
+        startsAt: number
+        contactLabel?: string | null
+        waiveReason: string
+        supersedeChargeId?: string | null
+      },
+      opts?: FetchOpts,
+    ): Promise<ConfirmWithoutSignalResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/appointments/confirm-without-signal`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ConfirmWithoutSignalResponse
+    },
+
     async cancelAppointment(
       tenantId: string,
       appointmentId: string,
@@ -1214,6 +1310,75 @@ export type PixSignalSettings = {
 export type PixSnapshot = {
   account: PixAccountPublic
   signalSettings: PixSignalSettings
+}
+
+export type PixChargeDetail = {
+  id: string
+  accountId: string
+  provider: string
+  providerChargeId: string | null
+  externalReference: string
+  amountCents: number
+  status: string
+  expiresAt: number | null
+  paidAt: number | null
+  cancelledAt: number | null
+  serviceId: string | null
+  schedulingIntentId: string | null
+  conversationId: string | null
+  contactId: string | null
+  opportunityId: string | null
+  messageId: string | null
+  professionalId: string | null
+  roomResourceId: string | null
+  startsAt: number | null
+  endsAt: number | null
+  timezone: string | null
+  deadlineSecondsSnapshot: number | null
+  cancellationPolicySnapshot: string | null
+  providerCreateState: string
+  whatsappSendError: string | null
+  pixCopyPaste?: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+export type SchedulingIntentView = {
+  id: string
+  conversationId: string
+  contactId: string
+  opportunityId: string | null
+  serviceId: string
+  professionalId: string
+  roomResourceId: string | null
+  startsAt: number
+  endsAt: number
+  occupiesUntil: number
+  timezone: string
+  status: string
+  activeChargeId: string | null
+  waivedReason: string | null
+  waivedByClerkUserId: string | null
+  waivedAt: number | null
+  appointmentId: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+export type PixChargeCreateResponse = {
+  charge: PixChargeDetail
+  intent: SchedulingIntentView
+  messageId: string | null
+  whatsappSendError: string | null
+  idempotentReplay: boolean
+}
+
+export type ConfirmWithoutSignalResponse = {
+  appointmentId: string
+  supersededChargeId: string | null
+  intent: SchedulingIntentView | null
+  appointment: AppointmentDetailResponse
+  idempotentReplay: boolean
 }
 
 export type ResourceUpsertBody = {

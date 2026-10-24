@@ -41,9 +41,57 @@ export function serializePixCharge(row: PixChargeRow) {
     paidAt: row.paidAt,
     cancelledAt: row.cancelledAt,
     serviceId: row.serviceId,
+    schedulingIntentId: row.schedulingIntentId,
+    conversationId: row.conversationId,
+    contactId: row.contactId,
+    opportunityId: row.opportunityId,
+    messageId: row.messageId,
+    professionalId: row.professionalId,
+    roomResourceId: row.roomResourceId,
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    timezone: row.timezone,
+    deadlineSecondsSnapshot: row.deadlineSecondsSnapshot,
+    cancellationPolicySnapshot: row.cancellationPolicySnapshot,
+    providerCreateState: row.providerCreateState,
+    whatsappSendError: row.whatsappSendError,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    // pixCopyPaste só em fluxos de cobrança (#38) — não listar em massa
+    // pixCopyPaste só no detalhe (#38)
+  }
+}
+
+/** Detalhe de cobrança — inclui Pix copia-e-cola (M-31). */
+export function serializePixChargeDetail(row: PixChargeRow) {
+  return {
+    ...serializePixCharge(row),
+    pixCopyPaste: row.pixCopyPaste,
+  }
+}
+
+export function serializeSchedulingIntent(
+  row: import('../clinic/pix').SchedulingIntentRow,
+) {
+  return {
+    id: row.id,
+    conversationId: row.conversationId,
+    contactId: row.contactId,
+    opportunityId: row.opportunityId,
+    serviceId: row.serviceId,
+    professionalId: row.professionalId,
+    roomResourceId: row.roomResourceId,
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    occupiesUntil: row.occupiesUntil,
+    timezone: row.timezone,
+    status: row.status,
+    activeChargeId: row.activeChargeId,
+    waivedReason: row.waivedReason,
+    waivedByClerkUserId: row.waivedByClerkUserId,
+    waivedAt: row.waivedAt,
+    appointmentId: row.appointmentId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   }
 }
 

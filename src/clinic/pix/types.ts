@@ -2,8 +2,11 @@ import type {
   PixAccountStatus,
   PixChargeStatus,
   PixEnvironment,
+  PixProviderCreateState,
+  SchedulingIntentStatus,
 } from '../constants'
 import type { SignalKind } from '../../pix/money'
+import type { OutboxRow } from '../outbox'
 
 export type PixAccountRow = {
   tenantId: string
@@ -48,6 +51,30 @@ export type PixSignalSettings = {
   updatedAt: number
 }
 
+export type SchedulingIntentRow = {
+  id: string
+  tenantId: string
+  conversationId: string
+  contactId: string
+  opportunityId: string | null
+  serviceId: string
+  professionalId: string
+  roomResourceId: string | null
+  startsAt: number
+  endsAt: number
+  occupiesUntil: number
+  timezone: string
+  status: SchedulingIntentStatus
+  activeChargeId: string | null
+  waivedReason: string | null
+  waivedByClerkUserId: string | null
+  waivedAt: number | null
+  appointmentId: string | null
+  createdByClerkUserId: string
+  createdAt: number
+  updatedAt: number
+}
+
 export type PixChargeRow = {
   id: string
   tenantId: string
@@ -62,6 +89,28 @@ export type PixChargeRow = {
   paidAt: number | null
   cancelledAt: number | null
   serviceId: string | null
+  schedulingIntentId: string | null
+  conversationId: string | null
+  contactId: string | null
+  opportunityId: string | null
+  messageId: string | null
+  outboundMessageId: string | null
+  professionalId: string | null
+  roomResourceId: string | null
+  startsAt: number | null
+  endsAt: number | null
+  occupiesUntil: number | null
+  timezone: string | null
+  cancellationPolicySnapshot: string | null
+  deadlineSecondsSnapshot: number | null
+  signalKindSnapshot: SignalKind | null
+  signalFixedCentsSnapshot: number | null
+  signalPercentSnapshot: number | null
+  servicePriceCentsSnapshot: number | null
+  idempotencyKey: string | null
+  providerCreateState: PixProviderCreateState
+  createdByClerkUserId: string | null
+  whatsappSendError: string | null
   createdAt: number
   updatedAt: number
 }
@@ -97,4 +146,53 @@ export type RecordChargeInput = {
   pixCopyPaste?: string | null
   expiresAt?: number | null
   serviceId?: string | null
+}
+
+export type CreateSignalChargeInput = {
+  clientRequestId: string
+  conversationId: string
+  contactId?: string | null
+  opportunityId?: string | null
+  serviceId: string
+  professionalId: string
+  roomResourceId?: string | null
+  startsAt: number
+  actorClerkUserId: string
+  authorDisplayName?: string | null
+}
+
+export type ConfirmWithoutSignalInput = {
+  clientRequestId: string
+  conversationId?: string | null
+  contactId?: string | null
+  opportunityId?: string | null
+  serviceId: string
+  professionalId: string
+  roomResourceId?: string | null
+  startsAt: number
+  contactLabel?: string | null
+  /** Motivo obrigatório (AC-51). */
+  waiveReason: string
+  actorClerkUserId: string
+  /** Cobrança aberta a superseder (opcional; senão procura por conversa/slot). */
+  supersedeChargeId?: string | null
+}
+
+export type SignalChargeResult = {
+  intent: SchedulingIntentRow
+  charge: PixChargeRow
+  messageId: string | null
+  outboundMessageId: string | null
+  whatsappSendError: string | null
+  outbox: OutboxRow[]
+  idempotentReplay: boolean
+}
+
+export type ConfirmWithoutSignalResult = {
+  appointmentId: string
+  intent: SchedulingIntentRow | null
+  supersededChargeId: string | null
+  outbox: OutboxRow[]
+  idempotentReplay: boolean
+  detail: unknown
 }

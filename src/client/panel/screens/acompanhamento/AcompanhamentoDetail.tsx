@@ -177,6 +177,9 @@ export function AcompanhamentoDetail({
                   area: 'agenda',
                   tenantId,
                   section: 'agendar',
+                  conversationId: data.conversationId,
+                  contactId: data.contactId,
+                  opportunityId: data.id,
                 })
               }
             >
