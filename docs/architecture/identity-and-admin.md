@@ -95,9 +95,11 @@ Após persistir `support_access_requests` em estado pendente no D1, emitir event
 - `POST /api/platform/tenants/:id/reactivate`
 - `DELETE /api/platform/tenants/:id` inicia **exclusão lógica**, não destruição imediata.
 - `GET /api/platform/tenants/:id/members` lista memberships e permite ao superadmin gerir owners.
-- `POST /api/tenants/:tenantId/invitations` (proposto): owner convida exclusivamente attendants.
-- `POST /api/tenants/:tenantId/invitations/:id/cancel` (proposto): qualquer owner ativo do tenant cancela convite pending, com auditoria; jamais confiar no tenant declarado pelo browser sem validação de membership.
-- `DELETE /api/tenants/:tenantId/members/:clerkUserId` (proposto): owner remove apenas attendants, sem alterar tenants diferentes.
+- `POST /api/tenants/:tenantId/invitations` (#25): owner convida exclusivamente attendants.
+- `POST /api/tenants/:tenantId/invitations/:id/resend` e `.../cancel` (#25): reenvio com rotação/limites; cancelamento por qualquer owner do tenant.
+- `POST /api/invitations/accept` (#25): e-mail verificado Clerk; ignora tenant/role do body.
+- `POST /api/tenants/:tenantId/members/:clerkUserId/revoke` (#23/#25): owner remove apenas attendants, com barreira DO; sem alterar tenants diferentes.
+- `GET /api/tenants/:tenantId/team` (#25): membros + convites pendentes; owners sem ações de gestão.
 - `POST /api/platform/support-requests` (proposto): cria solicitação pendente sem direito de acesso clínico.
 - `POST /api/tenants/:tenantId/support-requests/:id/decision` (proposto): decisão dentro da Clinic App por owner ativo do mesmo tenant, autenticado via Clerk e validado no Worker; link de e-mail não vale como aprovação.
 - `POST /api/platform/support-sessions` (proposto): ativa sessão própria apenas com aprovação vigente para os parâmetros imutáveis e código de handoff seguro.

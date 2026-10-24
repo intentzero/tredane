@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createTestHarness } from 'wrangler'
+import { hashToken } from '../db/tokens'
 
 const seedSql = readFileSync(new URL('../../db/seed.sql', import.meta.url), 'utf8')
 
@@ -75,7 +76,7 @@ describe('Cloudflare runtime harness — F0', () => {
     const schema = await env.DB.prepare(
       'SELECT version FROM admin_schema_state WHERE id = 1',
     ).first() as { version: number } | null
-    expect(schema?.version).toBe(4)
+    expect(schema?.version).toBe(5)
 
     const multi = await env.DB.prepare(
       `SELECT tenant_id, role FROM tenant_memberships
@@ -616,5 +617,93 @@ describe('Cloudflare runtime harness — F0', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ clear: true }),
     })
+  })
+
+  it('convite D1 + aceite + remoção com barreira; B preservado (#25)', async () => {
+    const env = await worker.getEnv()
+    const now = Date.now()
+    const rawToken = 'synth_invite_harness_token_0001'
+    const tokenHash = await hashToken(rawToken)
+    const invId = 'inv_harness_001'
+
+    await env.DB.prepare(
+      `INSERT INTO tenant_invitations (
+        id, tenant_id, normalized_email, role, issued_by_clerk_user_id, token_hash,
+        status, issued_at, expires_at, accepted_at, accepted_by_clerk_user_id,
+        cancelled_at, cancelled_by_clerk_user_id, last_resent_at
+      ) VALUES (?, 'clinic-demo-a', 'harness.invitee@example.test', 'attendant',
+        'user_synth_owner_a', ?, 'pending', ?, ?, NULL, NULL, NULL, NULL, NULL)`,
+    )
+      .bind(invId, tokenHash, now, now + 7 * 24 * 60 * 60 * 1000)
+      .run()
+
+    const createHttp = await worker.fetch(
+      'http://localhost/api/tenants/clinic-demo-a/invitations',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer synth:user_synth_owner_a',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: 'harness.owner.flow@example.test' }),
+      },
+    )
+    expect(createHttp.status).toBe(201)
+    const created = (await createHttp.json()) as {
+      invitation: { id: string; email: string }
+      emailSent: boolean
+    }
+    expect(created.invitation.email).toBe('harness.owner.flow@example.test')
+    expect(JSON.stringify(created)).not.toMatch(/rawToken|token_hash/i)
+
+    const team = await worker.fetch('http://localhost/api/tenants/clinic-demo-a/team', {
+      headers: { Authorization: 'Bearer synth:user_synth_owner_a' },
+    })
+    expect(team.status).toBe(200)
+
+    const accept = await worker.fetch('http://localhost/api/invitations/accept', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer synth:user_synth_harness_invitee',
+        'Content-Type': 'application/json',
+        'X-Synth-Verified-Email': 'harness.invitee@example.test',
+      },
+      body: JSON.stringify({ token: rawToken, role: 'owner', tenantId: 'clinic-demo-b' }),
+    })
+    expect(accept.status).toBe(200)
+
+    const membership = await env.DB.prepare(
+      `SELECT role, status FROM tenant_memberships
+       WHERE tenant_id = 'clinic-demo-a' AND clerk_user_id = 'user_synth_harness_invitee'`,
+    ).first() as { role: string; status: string } | null
+    expect(membership).toEqual({ role: 'attendant', status: 'active' })
+
+    // Membership multi em B intacto antes/depois da remoção do invitee em A.
+    const multiBBefore = await env.DB.prepare(
+      `SELECT status FROM tenant_memberships
+       WHERE tenant_id = 'clinic-demo-b' AND clerk_user_id = 'user_synth_multi'`,
+    ).first() as { status: string } | null
+    expect(multiBBefore?.status).toBe('active')
+
+    const revoke = await worker.fetch(
+      'http://localhost/api/tenants/clinic-demo-a/members/user_synth_harness_invitee/revoke',
+      {
+        method: 'POST',
+        headers: { Authorization: 'Bearer synth:user_synth_owner_a' },
+      },
+    )
+    expect(revoke.status).toBe(200)
+
+    const multiBAfter = await env.DB.prepare(
+      `SELECT status FROM tenant_memberships
+       WHERE tenant_id = 'clinic-demo-b' AND clerk_user_id = 'user_synth_multi'`,
+    ).first() as { status: string } | null
+    expect(multiBAfter?.status).toBe('active')
+
+    const revoked = await env.DB.prepare(
+      `SELECT status FROM tenant_memberships
+       WHERE tenant_id = 'clinic-demo-a' AND clerk_user_id = 'user_synth_harness_invitee'`,
+    ).first() as { status: string } | null
+    expect(revoked?.status).toBe('revoked')
   })
 })

@@ -12,4 +12,8 @@ export type WorkerBindings = {
   CLERK_JWT_KEY?: string
   CLERK_AUTHORIZED_PARTIES?: string
   AUTH_MODE?: string
+  /** Base URL pública para links de convite (#25). */
+  APP_BASE_URL?: string
+  /** `simulated` (default em development) — provedor real Em aberto. */
+  EMAIL_TRANSPORT?: string
 }

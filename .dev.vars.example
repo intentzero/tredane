@@ -21,3 +21,9 @@ CLERK_AUTHORIZED_PARTIES=http://localhost:5173
 #   CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY, CLERK_AUTHORIZED_PARTIES
 #   AUTH_MODE=clerk (synthetic é ignorado/forçado a clerk nesses ambientes)
 # Opcional: CLERK_JWT_KEY
+
+# #25 — Convites por e-mail (provedor real ainda Em aberto / ADR-0008):
+# APP_BASE_URL=http://localhost:5173
+# EMAIL_TRANSPORT=simulated
+# Quando houver provedor aprovado: configurar credenciais via wrangler secret
+# (nunca versionar) e documentar política de dados antes de envio real.

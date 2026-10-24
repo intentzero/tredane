@@ -20,7 +20,7 @@
 
 - **Clerk** para autenticação/sessões, sem Organizations.
 - **Memberships N:N no D1** para usuários com acesso a mais de uma clínica, com roles específicas.
-- **Delegação confirmada:** superadmin provisiona owners; owner convida/remove attendants do próprio tenant. Convites/aceitação e revogação HTTP/WS ainda a definir.
+- **Delegação confirmada:** superadmin provisiona owners; owner convida/remove attendants do próprio tenant. Convites HTTP + e-mail simulado = [#25](https://github.com/intentzero/tredane/issues/25) / [f1-team-invites.md](f1-team-invites.md); revogação HTTP/WS = [#23](https://github.com/intentzero/tredane/issues/23).
 - **Platform Admin interna** com autorização no backend por `privateMetadata.superadmin === true` booleano, capaz de criar, editar, suspender, reativar e iniciar exclusão lógica de tenants.
 - **Impersonação própria (DEC-029):** pedido de suporte não concede acesso; sessão ativa no D1 somente após aprovação de owner da clínica. Auditoria vincula actor, subject, owner aprovador, tenant, motivo e escopo; sem impersonação do Clerk. Permissões resultam da role do alvo e limites adicionais, com auditoria dupla.
 

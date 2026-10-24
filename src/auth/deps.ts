@@ -10,6 +10,10 @@ import {
   createSyntheticAuthorityReader,
   createSyntheticSessionAuthenticator,
 } from './synthetic'
+import {
+  createClerkVerifiedEmailReader,
+  createSyntheticVerifiedEmailReader,
+} from './verified-email'
 
 export type WorkerAuthEnv = {
   DB?: D1Database
@@ -71,6 +75,7 @@ export function buildAuthServices(env?: WorkerAuthEnv | null): AuthServices {
       }),
       authority: createSyntheticAuthorityReader(),
       adminDb,
+      verifiedEmails: createSyntheticVerifiedEmailReader(),
     }
   }
 
@@ -99,5 +104,6 @@ export function buildAuthServices(env?: WorkerAuthEnv | null): AuthServices {
     sessions: createClerkSessionAuthenticator(config, client),
     authority: createClerkAuthorityReader(client),
     adminDb,
+    verifiedEmails: createClerkVerifiedEmailReader(client),
   }
 }

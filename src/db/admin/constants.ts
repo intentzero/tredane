@@ -1,5 +1,5 @@
-/** Versão gravada por `0004_platform_admin_lifecycle.sql` em `admin_schema_state`. */
-export const ADMIN_SCHEMA_VERSION = 4
+/** Versão gravada por `0005_email_delivery_jobs.sql` em `admin_schema_state`. */
+export const ADMIN_SCHEMA_VERSION = 5
 
 /** DEC-022: convite vale 7 dias (168 h) desde a emissão. */
 export const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000

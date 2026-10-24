@@ -59,3 +59,11 @@ export {
 } from './middleware'
 export { buildAuthServices, type WorkerAuthEnv } from './deps'
 export { createAuthRoutes } from './routes'
+export {
+  createClerkVerifiedEmailReader,
+  createSyntheticVerifiedEmailReader,
+  DEFAULT_SYNTH_EMAIL_FIXTURES,
+  type VerifiedEmailReader,
+  type VerifiedEmailSnapshot,
+  type SyntheticVerifiedEmailFixture,
+} from './verified-email'

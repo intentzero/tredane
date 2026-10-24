@@ -12,7 +12,7 @@
 
 ## Baseline Drizzle
 
-- `db/migrations/meta/_journal.json` regista `0001_bootstrap`, `0002_tenant_memberships`, `0003_admin_d1_central`, `0004_platform_admin_lifecycle` (#24).
+- `db/migrations/meta/_journal.json` regista `0001_bootstrap`, `0002_tenant_memberships`, `0003_admin_d1_central`, `0004_platform_admin_lifecycle` (#24), `0005_email_delivery_jobs` (#25).
 - Snapshots em `meta/0000_*.json` … `0002_*.json` permitem `npm run db:generate` sem recriar 0001/0002.
 - Wrangler continua a aplicar só os `.sql` em `db/migrations/`.
 

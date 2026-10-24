@@ -55,5 +55,5 @@ Código: `src/platform/`, repositórios em `src/db/admin/` (`owners`, `lifecycle
 - UI Platform Admin / login (#22)
 - Tarefa de retenção que consome `tenant_deletion_commands` até expurgo físico
 - Sessões de suporte HTTP completas / handoff cookies (épico suporte)
-- Convites HTTP do owner (#25)
+- Convites HTTP do owner — ver [f1-team-invites.md](f1-team-invites.md) (#25)
 - Política LGPD de purga (Em aberto)
