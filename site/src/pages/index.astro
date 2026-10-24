@@ -6,28 +6,12 @@ import Icon from '../components/Icon.astro'
 const appUrl = import.meta.env.PUBLIC_APP_URL ?? 'https://app.tredane.example'
 const contactEmail = import.meta.env.PUBLIC_CONTACT_EMAIL ?? 'contato@tredane.example'
 
-// Hipótese a validar com clínicas (VAL-01): os problemas da coluna "Hoje".
+// Hipótese a validar com clínicas (VAL-01): o que pesa na rotina da recepção.
 const compare = [
-  {
-    before: 'As conversas ficam no celular de quem atendeu. Se ela falta, ninguém sabe onde a cliente parou.',
-    afterStrong: 'Uma caixa de conversas para toda a equipe',
-    after: ', com o número oficial da clínica e quem está atendendo cada uma.',
-  },
-  {
-    before: 'Quem perguntou o preço e não marcou é esquecida no meio de tantas mensagens.',
-    afterStrong: 'Uma lista mostra quem perguntou e ainda não marcou',
-    after: ', para a equipe retomar o contato na hora certa.',
-  },
-  {
-    before: 'Responder tudo bem e rápido depende de quem está na recepção naquele dia.',
-    afterStrong: 'A IA sugere a resposta',
-    after: ' com os preços e as explicações que a clínica cadastrou; a atendente revisa e envia.',
-  },
-  {
-    before: 'A agenda no caderno ou na planilha não sabe que a sala já está ocupada.',
-    afterStrong: 'A agenda confere profissional, sala e intervalo',
-    after: ' antes de confirmar, e não deixa marcar dois no mesmo lugar.',
-  },
+  { before: 'Lembrar quem já foi respondida e onde cada conversa parou.', afterStrong: 'Uma caixa de conversas para toda a equipe', after: ', com quem está atendendo cada cliente.' },
+  { before: 'Não esquecer quem perguntou o preço e sumiu.', afterStrong: 'Uma lista de quem perguntou e ainda não marcou', after: ', para retomar na hora certa.' },
+  { before: 'Pensar de novo na resposta certa para a mesma pergunta.', afterStrong: 'A IA sugere com os preços e as explicações da clínica', after: '; você revisa e envia.' },
+  { before: 'Encaixar horário de cabeça, torcendo para a sala estar livre.', afterStrong: 'A agenda confere profissional, sala e intervalo', after: ' antes de confirmar.' },
 ]
 
 const promises = [
@@ -35,14 +19,13 @@ const promises = [
   { title: 'Preço do jeito que está cadastrado', text: 'Usa o valor do serviço. Sem preço cadastrado, não inventa: sugere que a equipe confirme.' },
   { title: 'Explica com as palavras da clínica', text: 'Descreve o procedimento só com o texto que a responsável escreveu, sem prometer resultado.' },
   { title: 'Saúde é com a profissional', text: 'Perguntas sobre gravidez, contraindicação ou medicamento são encaminhadas para a profissional da clínica.' },
-  { title: 'Educada com quem passa do limite', text: 'Diante de mensagem ofensiva ou fora do assunto, avisa a atendente e sugere uma resposta cordial.' },
+  { title: 'Firme e gentil quando preciso', text: 'Se alguém passa do ponto, a atendente recebe um aviso e uma sugestão de resposta curta e educada.' },
   { title: 'O mínimo de dados', text: 'Usa as mensagens recentes, o primeiro nome e os serviços da clínica. Nunca o telefone nem anexos.' },
 ]
 
 const faq = [
   { q: 'A IA responde sozinha para os clientes?', a: 'Não. A IA só sugere quando a atendente pede, e a mensagem só sai depois que uma pessoa revisa e envia.', open: true },
   { q: 'A IA sabe os preços e explica os procedimentos?', a: 'Sim, com o que a clínica cadastrar: o preço de cada serviço e uma explicação escrita pela responsável. Se faltar o preço ou a explicação, a IA não inventa. Dúvidas de saúde vão sempre para a profissional.' },
-  { q: 'E se alguém mandar uma mensagem ofensiva?', a: 'A atendente vê um aviso e pode ignorar ou usar uma resposta cordial sugerida pela IA. Nada é enviado sem que ela decida.' },
   { q: 'Como funciona o sinal por Pix?', a: 'A clínica escolhe os serviços que exigem sinal e o valor. A atendente envia o Pix pela conversa e o horário é confirmado quando o pagamento chega. O dinheiro vai direto para a conta da clínica. Se outra pessoa marcar antes do pagamento, a equipe oferece outro horário ou devolve o sinal.' },
   { q: 'Preciso trocar o número da clínica?', a: 'O Tredane usa a API oficial do WhatsApp Business. Conversamos sobre o número da clínica antes de conectar, e a conexão é feita pela própria clínica, no fluxo oficial da Meta, com nossa ajuda.' },
   { q: 'Funciona no computador?', a: 'Sim, no navegador. O desenho foi pensado primeiro para o celular, que é onde a recepção mais atende.' },
@@ -50,8 +33,8 @@ const faq = [
 ]
 ---
 <Base
-  title="Tredane — atendimento e agenda para clínicas de estética"
-  description="Cada mensagem no WhatsApp vira um horário na agenda. Conversas da equipe, acompanhamento de quem ainda não marcou, IA que sugere com os preços da clínica, agenda com sala e profissional e sinal por Pix direto na conta da clínica."
+  title="Tredane — atendimento e agenda para clínicas de estética e depilação"
+  description="Menos peso na recepção, do primeiro oi ao horário marcado. Conversas da equipe, acompanhamento de quem ainda não marcou, IA que sugere com os preços da clínica, agenda com sala e profissional e sinal por Pix direto na conta da clínica."
 >
 <a class="skip" href="#conteudo">Ir para o conteúdo</a>
 
@@ -73,9 +56,9 @@ const faq = [
 <section id="inicio" class="hero-band" aria-labelledby="hero-t">
 <div class="wrap hero">
 <div class="hero-text">
-<span class="pill"><span class="pill-dot" aria-hidden="true"></span>Para clínicas de estética · Piloto aberto</span>
-<h1 id="hero-t">Cada mensagem no WhatsApp <span class="accent">vira um horário na agenda.</span></h1>
-<p class="lead">O Tredane é o painel de atendimento da clínica: junta o WhatsApp, o acompanhamento de cada interessada e a agenda. A recepção responde mais rápido, com ajuda da IA, e ninguém perde o fio de quem ainda não marcou.</p>
+<span class="pill"><span class="pill-dot" aria-hidden="true"></span>Para clínicas de estética e depilação · Piloto aberto</span>
+<h1 id="hero-t">Menos peso na recepção. <span class="accent">Do primeiro “oi” ao horário marcado.</span></h1>
+<p class="lead">O Tredane lembra por você quem já foi respondida, quem ainda não marcou e qual sala está livre. A IA ajuda nas respostas, e sua equipe atende com mais calma.</p>
 <div class="actions">
 <a class="btn btn-primary" href="#piloto">Quero participar do piloto<Icon name="arrow" /></a>
 <a class="btn btn-secondary" href="#como-funciona">Ver como funciona</a>
@@ -85,9 +68,10 @@ const faq = [
 <li><Icon name="check" color="#1F7A4D" />IA com revisão humana</li>
 <li><Icon name="check" color="#1F7A4D" />Sem app para instalar</li>
 </ul>
+<p class="note-small">Telas ilustrativas, com nomes e valores fictícios.</p>
 </div>
 
-<figure class="showcase" role="img" aria-label="Exemplo do produto: uma conversa no celular com sugestão da IA, a cliente passando de interessada a agendada e o horário confirmado na agenda.">
+<figure class="showcase" role="img" aria-label="Ilustração do produto, com dados fictícios: uma conversa no celular com sugestão da IA, a cliente passando de interessada a agendada e o horário confirmado na agenda.">
 <div class="phone" aria-hidden="true">
 <div class="phone-screen">
 <div class="chat-head">
@@ -134,15 +118,16 @@ const faq = [
 <section id="valor" class="section" aria-labelledby="vl-t">
 <div class="wrap">
 <div class="head">
-<span class="eyebrow">Por que o Tredane</span>
-<h2 id="vl-t">Quem chama no WhatsApp quer marcar. O Tredane não deixa essa vontade esfriar.</h2>
+<span class="eyebrow">O que pesa hoje</span>
+<h2 id="vl-t">Atender no WhatsApp cansa. Não precisa ser assim.</h2>
+<p class="sub">Responder rápido, lembrar de cada cliente e encaixar horários. Tudo ao mesmo tempo, o dia inteiro, entre um atendimento e outro.</p>
 </div>
-<div class="compare-head" aria-hidden="true"><span>Hoje, em muitas clínicas</span><span>Com o Tredane</span></div>
+<div class="compare-head" aria-hidden="true"><span>O que fica na sua cabeça</span><span>O que o Tredane carrega</span></div>
 <ul class="plain compare">
 {compare.map((row) => (
 <li>
-<span class="before"><Icon name="x" size={20} color="#5B616B" /><span><span class="sr-only">Hoje: </span>{row.before}</span></span>
-<span class="after"><Icon name="check" size={20} stroke={2.5} color="#1F7A4D" /><span><span class="sr-only">Com o Tredane: </span><strong>{row.afterStrong}</strong>{row.after}</span></span>
+<span class="before"><Icon name="info" size={20} color="#5B616B" /><span><span class="sr-only">Na sua cabeça: </span>{row.before}</span></span>
+<span class="after"><Icon name="check" size={20} stroke={2.5} color="#1F7A4D" /><span><span class="sr-only">O Tredane carrega: </span><strong>{row.afterStrong}</strong>{row.after}</span></span>
 </li>
 ))}
 </ul>
@@ -290,8 +275,8 @@ const faq = [
 <div class="wrap">
 <div class="pilot">
 <div class="pilot-text">
-<h2 id="pl-t">Seja uma das clínicas do piloto.</h2>
-<p>Estamos escolhendo clínicas de estética para usar o Tredane desde o começo, com a nossa equipe ao lado.</p>
+<h2 id="pl-t">Sua equipe merece terminar o dia mais leve.</h2>
+<p>Estamos escolhendo clínicas de estética e depilação para o piloto, com a nossa equipe ao lado desde o primeiro dia.</p>
 <a class="btn btn-inverse" href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>Falar com o Tredane<Icon name="arrow" /></a>
 <p class="pilot-note">Condições do piloto: [A DEFINIR]</p>
 </div>

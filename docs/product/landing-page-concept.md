@@ -15,7 +15,7 @@
 > - **Pagamentos:** o sinal por Pix passou a fazer parte do MVP (DEC-047); os demais pagamentos continuam fora.
 > - **Vocabulário:** “Acompanhamento” no lugar de pipeline (DEC-045).
 >
-> Continuam válidas e foram levadas para [landing.md](landing.md) como pontos **Em aberto**: indicar o estágio do produto (“em desenvolvimento”), marcar as interfaces como “prévia conceitual” e citar clínicas de depilação no público.
+> Também decididos em 24/10/2026: a página **não** indica “em desenvolvimento”; as ilustrações levam a nota “Telas ilustrativas, com nomes e valores fictícios”; o público inclui clínicas de depilação.
 
 ## 1. Objetivo e público
 
