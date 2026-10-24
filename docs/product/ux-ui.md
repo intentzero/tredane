@@ -13,7 +13,8 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | --- | --- | --- |
 | Usuários do painel: atendente (ACT-02) e responsável (ACT-03), com as mesmas telas de atendimento | **Confirmado** | DEC-013, DEC-015, DEC-016. Não há tela de profissional nem de operador. |
 | Contato (ACT-01) só interage pelo WhatsApp | **Confirmado** | O painel nunca expõe tela ao contato. |
-| Três áreas principais: Conversas, Pipeline, Agenda | **Proposto** | Derivado do fluxo principal do MVP e do ADR-0003. |
+| Três áreas principais: Conversas, Acompanhamento, Agenda | **Proposto** | Derivado do fluxo principal do MVP e do ADR-0003. |
+| Na interface, o pipeline se chama **Acompanhamento** e a oportunidade aparece como **contato em andamento**; “pipeline” e “oportunidade” ficam só nos documentos e no código | **Confirmado** | DEC-045 (24/10/2026): muitas leitoras não sabem o que é pipeline. Validar o nome com a clínica piloto. |
 | **Mobile first:** o celular é o alvo de base e precisa concluir todo o fluxo piloto (mensagem → resposta → etapa → agendamento); tablet e desktop são ampliações progressivas | **Confirmado** | DEC-039, pedido do responsável pelo produto em 23 de outubro de 2026. Substitui a proposta anterior deste documento de desktop como alvo principal. |
 | Larguras de referência: 360–430 px (base), ≥ 768 px (tablet), ≥ 1280 px (desktop) | **Proposto** | **Em aberto:** modelos e sistemas dos aparelhos da clínica piloto (Q-UX-01). Bloqueia o aceite de usabilidade, não o desenvolvimento das telas. |
 | Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP, instalável como PWA com notificações push de nova conversa | **Confirmado** | DEC-039, DEC-040. O push não traz o conteúdo da mensagem. No iPhone o push exige instalar o painel na tela inicial: o fluxo de instalação tem tela de orientação e escolha de avisos (M-14). Suporte em cada aparelho da clínica piloto: Q-UX-01. |
@@ -37,27 +38,27 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 
 ```
 TEL-08 Entrar (e-mail → código) → seletor de clínica (só com mais de uma)
-Cabeçalho global: [clínica ativa ▾ troca] · Conversas · Pipeline · Agenda · [Clínica: só responsável] · [indicador de conexão] · [usuário]
+Cabeçalho global: [clínica ativa ▾ troca] · Conversas · Acompanhamento · Agenda · [Clínica: só responsável] · [indicador de conexão] · [usuário]
 TEL-09 Clínica (só responsável): Serviços · Profissionais e salas · Horários e bloqueios · Equipe · WhatsApp
 ├── TEL-01 Conversas (lista + conversa aberta + painel do contato)
 │     └── TEL-05 Agendar horário (painel lateral a partir da conversa)
-├── TEL-03 Pipeline (quadro por etapa)
+├── TEL-03 Acompanhamento (pipeline, quadro por etapa)
 │     └── abre a conversa vinculada em TEL-01
 └── TEL-04 Agenda (dia por profissional / por sala)
       └── TEL-06 Detalhe do compromisso (cancelar, reagendar)
 TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carregamento
 ```
 
-- **Proposto:** URLs estáveis por área e item (`/conversas/:id`, `/pipeline`, `/agenda?dia=`), para retomar o trabalho após recarregar. O ID na URL nunca concede acesso por si: um ID de outra clínica mostra o estado “Não encontrado” sem revelar se o item existe (REQ-001, AC-01).
+- **Proposto:** URLs estáveis por área e item (`/conversas/:id`, `/acompanhamento`, `/agenda?dia=`), para retomar o trabalho após recarregar. O ID na URL nunca concede acesso por si: um ID de outra clínica mostra o estado “Não encontrado” sem revelar se o item existe (REQ-001, AC-01).
 - **Proposto:** contadores na navegação (ex.: conversas novas) vêm do estado canônico da clínica e são reconciliados na reconexão.
 
 ### 3.1 Padrões de layout mobile first
 
 **Estado:** Proposto, decorrente de DEC-039.
 
-| Largura | Navegação | Conversas | Pipeline | Agenda |
+| Largura | Navegação | Conversas | Acompanhamento | Agenda |
 | --- | --- | --- | --- | --- |
-| Base (360–767 px) | Barra inferior com Conversas, Pipeline e Agenda (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
+| Base (360–767 px) | Barra inferior com Conversas, Acompanhamento e Agenda (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
 | Tablet (≥ 768 px) | Barra lateral compacta. | Lista + conversa lado a lado; detalhes em gaveta. | Quadro com rolagem horizontal. | Grade com colunas por recurso. |
 | Desktop (≥ 1280 px) | Cabeçalho superior. | Três colunas (lista, conversa, detalhes). | Quadro completo; arrastar e soltar além do menu “Mover para…”. | Grade completa e painel lateral de agendamento. |
 
@@ -115,7 +116,9 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 - **Transferir** abre lista de membros da clínica ativa; nunca mostra membros de outra clínica.
 - Reatribuição não altera o estado da conversa (states.md).
 
-### TEL-03 — Pipeline
+### TEL-03 — Acompanhamento (pipeline)
+
+Nome na interface: **Acompanhamento** (DEC-045). Na barra inferior de quatro itens do responsável, o rótulo ocupa quase toda a largura do item em 390 px; **Confirmado (24/10/2026):** se o rótulo não couber na barra em 360 px, a barra usa “Acompanhar” (verbo curto) e o título da tela continua “Acompanhamento”. **Em aberto:** conferir em aparelho real de 360 px.
 
 **Origem:** JRN-03, JRN-04; REQ-023. **Estado:** Proposto.
 
@@ -185,7 +188,7 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
 **Início (M-15).** Faixa “Falta N passos para atender” com os itens pendentes e uma lista de áreas com o estado de cada uma (Pronto, Falta conectar). “Pronta para atender” exige: ao menos um serviço, um profissional, uma sala/equipamento, expediente e WhatsApp conectado (REQ-052, AC-14). Sem a configuração da agenda, M-04 mostra “A agenda desta clínica ainda não foi configurada”.
 
-**Serviço (M-16).** Nome, duração e intervalo depois (múltiplos de 15 min, DEC-008), quem pode fazer, sala/equipamento exigido, preço opcional e ativo/inativo. Um resumo mostra quanto tempo o serviço ocupa na agenda: duração + intervalo, bloqueando profissional e sala. Desativar um serviço não cancela compromissos já marcados. Nome, duração e preço também alimentam o contexto da IA (REQ-072).
+**Serviço (M-16).** Nome, duração e intervalo depois (múltiplos de 15 min, DEC-008), quem pode fazer, sala/equipamento exigido, preço opcional, **explicação para clientes** opcional (usada pela IA, DEC-046) e ativo/inativo. Um resumo mostra quanto tempo o serviço ocupa na agenda: duração + intervalo, bloqueando profissional e sala. Desativar um serviço não cancela compromissos já marcados. Nome, duração e preço também alimentam o contexto da IA (REQ-072).
 
 **Horários e bloqueios (M-17).** Por profissional e por sala/equipamento: expediente semanal (faixas por dia) e bloqueios pontuais com data, horário opcional e motivo; sem recorrência no MVP (DEC-008). Criar um bloqueio sobre compromissos existentes lista os compromissos afetados e não os cancela sozinho; o responsável decide caso a caso (fluxo de cancelar ou reagendar com motivo, TEL-06).
 
@@ -288,7 +291,11 @@ Ver seção 6.2.
 - Mensagem enviada a partir de sugestão registra a origem (“Sugestão da IA, editada por Ana”) no histórico interno, não para o contato.
 - **Resumo da IA** no painel do contato: gerado sob demanda, com horário de geração e aviso “Pode conter erros. Confira na conversa.”
 - Falha ou indisponibilidade: “A sugestão não está disponível agora. Você pode responder normalmente.” O compositor continua ativo (AC-06).
-- Pergunta clínica (contraindicação, diagnóstico): **Proposto** — a sugestão traz o aviso “Assunto clínico: encaminhe a um profissional” e não responde o mérito (ADR-0004). Critério de detecção depende do provedor.
+- **Preço (Confirmado, DEC-046, REQ-073):** só o preço cadastrado; sem preço, a sugestão não informa valor e mostra “Serviço sem preço cadastrado. A IA não informou valor.”
+- **Procedimento (Confirmado, DEC-046, REQ-075):** a sugestão explica o serviço só com a “Explicação para clientes” cadastrada e mostra “Fonte: explicação cadastrada pela clínica em …”; sem explicação, não descreve. Nunca promete resultado.
+- **Pergunta clínica** (contraindicação, gravidez, medicamento, diagnóstico): aviso “Assunto clínico: encaminhe a uma profissional” e nenhuma resposta de mérito (**Confirmado**, DEC-046; antes Proposto, ADR-0004).
+- **Mensagem ofensiva ou fora do assunto (Confirmado, DEC-046, REQ-074):** aviso à atendente (“Mensagem ofensiva. Você não precisa responder.” ou “Fora do assunto da clínica.”) e sugestão curta e cordial que recoloca o limite. Desenhado em M-30.
+- **Em aberto:** critério de detecção dos três casos acima; depende de testes com o provedor e de exemplos fictícios da clínica piloto.
 - A IA não agenda, cancela nem muda etapa (Fora do MVP).
 
 ## 7. Acessibilidade e legibilidade
@@ -313,17 +320,18 @@ Ver seção 6.2.
 | --- | --- | --- | --- |
 | TEL-01 Conversas | JRN-01, JRN-02, JRN-04, JRN-06 | REQ-010, REQ-011, REQ-012, REQ-013, REQ-020, REQ-021, REQ-022 | AC-04, AC-06, AC-07, AC-16 |
 | TEL-02 Responsável | JRN-02 | REQ-020 | AC-08 |
-| TEL-03 Pipeline | JRN-03, JRN-04 | REQ-023 | AC-08, AC-16 |
+| TEL-03 Acompanhamento | JRN-03, JRN-04 | REQ-023 | AC-08, AC-16 |
 | TEL-04 Agenda | JRN-03, JRN-04, JRN-05 | REQ-030, REQ-031, REQ-034 | AC-09, AC-13 |
 | TEL-05 Agendar | JRN-03 | REQ-030, REQ-031, REQ-033, REQ-052 | AC-09, AC-14 |
 | TEL-06 Compromisso | JRN-05 | REQ-032, REQ-033 | AC-10 |
 | TEL-07 Estados globais | JRN-07 | REQ-001, REQ-003, REQ-040, REQ-041, REQ-042 | AC-01, AC-02, AC-11, AC-12 |
 | TEL-08 Entrar e escolher clínica | JRN-07, JRN-08 | REQ-005 | AC-17 |
+| §6.3 IA: preço, procedimento e mensagens ofensivas | JRN-02 | REQ-073, REQ-074, REQ-075 | AC-41, AC-42, AC-43 |
 | TEL-11 Sinal por Pix | JRN-16 | REQ-076 a REQ-082 | AC-44 a AC-51 |
 | TEL-10 Suporte do Tredane | JRN-08 | REQ-060 a REQ-066 | AC-27 a AC-35 |
 | TEL-09 Clínica (configuração) | JRN-08 | REQ-002, REQ-003, REQ-004, REQ-051, REQ-052, REQ-071 | AC-03, AC-14, AC-38, AC-39, AC-40 |
 
-Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-27 a M-29 → TEL-10; M-31 a M-34 → TEL-11; M-15 a M-26 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos; M-19 e M-23 a M-26: WhatsApp). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
+Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-30 → IA em casos especiais (§6.3); M-31 a M-34 → TEL-11; M-27 a M-29 → TEL-10; M-15 a M-26 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos; M-19 e M-23 a M-26: WhatsApp). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
 
 ## 10. Critérios de aceite de UX
 

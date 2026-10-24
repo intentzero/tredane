@@ -17,7 +17,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 
 | Caminho | Conteúdo |
 | --- | --- |
-| [screens.md](screens.md) | Índice das telas: ID (M-01 a M-34; M-30 vem com o PR de respostas da IA), arquivo, tela da spec, jornadas, requisitos, cenários de aceite, o que cada mock mostra e para onde navega; estados que faltam em cada tela |
+| [screens.md](screens.md) | Índice das telas: ID (M-01 a M-34), arquivo, tela da spec, jornadas, requisitos, cenários de aceite, o que cada mock mostra e para onde navega; estados que faltam em cada tela |
 | [components.md](components.md) | Componentes recorrentes (cabeçalho, barra inferior, chips, balão, estado de envio, bloco de IA, folha inferior, formulário etc.) e regras gerais de implementação |
 | [tokens.json](tokens.json) · `tokens.css` | Tokens v0.2.0 (fonte única, em JSON) e variáveis CSS geradas a partir dele |
 | [catalog/index.html](catalog/index.html) | Catálogo: tokens e componentes com todos os estados (abra no navegador) |

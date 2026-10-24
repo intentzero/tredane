@@ -25,7 +25,7 @@
 | Terceiro | O que recebe | Situação |
 | --- | --- | --- |
 | Meta (WhatsApp Business) | Mensagens enviadas e recebidas; número da clínica | Tredane como Tech Provider (DEC-009); termos da Meta a revisar |
-| Anthropic, via Cloudflare AI Gateway | Até 20 mensagens recentes, primeiro nome, catálogo de serviços e etapa; nunca telefone, anexos, outras conversas nem dados de outra clínica | Gateway sem registro de conteúdo e não retenção pelo provedor **precisam de confirmação contratual** (DEC-011) |
+| Anthropic, via Cloudflare AI Gateway | Até 20 mensagens recentes, primeiro nome, catálogo de serviços (com a explicação para clientes, DEC-046) e etapa; nunca telefone, anexos, outras conversas nem dados de outra clínica | Gateway sem registro de conteúdo e não retenção pelo provedor **precisam de confirmação contratual** (DEC-011) |
 | Clerk | Nome, e-mail, sessão | Plano, DPA e região a conferir (DEC-043) |
 | Provedor de Pix (ADR-0014, a escolher) | Cobranças do sinal na conta da clínica: valor, identificador, estado e dados que o provedor exigir para estorno | Contrato, DPA e se o Tredane atua só como tecnologia, sem intermediar o dinheiro (DEC-047) |
 | Cloudflare | Hospedagem de tudo acima | DPA e regiões dos Durable Objects, D1 e R2 a conferir |

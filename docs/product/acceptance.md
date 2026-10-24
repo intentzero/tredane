@@ -183,6 +183,17 @@
 
 Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernação) com DOs e bancos SQLite distintos por clínica, mantendo memberships e suporte no D1 central. As garantias existentes não mudam. Acrescentar ensaios de migração por instância, restauração sem efeitos duplicados/permissões ressuscitadas e revogação D1/DO durante corrida/hibernação, conforme [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md). Cenários documentados não equivalem a testes executados.
 
+### AC-41 — Preço só do cadastro
+
+**Dado** o serviço “Limpeza de pele” com preço cadastrado e “Harmonização” sem preço; **quando** a atendente pede sugestão para “Quanto custa a limpeza?” e depois para “Quanto custa a harmonização?”; **então** a primeira sugestão traz exatamente o preço cadastrado e a segunda não contém nenhum valor, propõe confirmar com a equipe e mostra “Serviço sem preço cadastrado”. **Requisito:** REQ-073.
+
+### AC-42 — Mensagem ofensiva
+
+**Dado** uma conversa fictícia cuja última mensagem é ofensiva; **quando** a atendente pede sugestão; **então** o bloco mostra o aviso de mensagem ofensiva, a sugestão é cordial, não repete o insulto e nada é enviado sem a atendente tocar em **Enviar**. **Requisito:** REQ-074.
+
+### AC-43 — Explicação e assunto clínico
+
+**Dado** “Limpeza de pele” com explicação cadastrada e “Peeling” sem explicação; **quando** a cliente pergunta como é cada um e se pode fazer grávida; **então** a sugestão sobre a limpeza usa só o texto cadastrado e mostra a fonte, a sobre o peeling não descreve o procedimento, e a pergunta sobre gravidez recebe o aviso de assunto clínico sem resposta de mérito. **Requisito:** REQ-075.
 ### AC-44 — Sinal no cadastro do serviço
 
 **Dado** a responsável editando “Limpeza de pele” com preço cadastrado; **quando** liga “Exige sinal” com 30%; **então** o resumo mostra o valor calculado e salva; com “Peeling” sem preço, a opção percentual fica indisponível e só valor fixo é aceito; uma atendente não vê a opção. **Requisito:** REQ-076.

@@ -168,6 +168,17 @@
 
 **Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-03, ACT-05. **Comportamento:** dados ficam enquanto a clínica for cliente; o responsável pode excluir um contato; ao encerrar a clínica, todos os dados dela são excluídos em até 30 dias. **Aceite:** após excluir um contato, suas mensagens e anexos não são mais encontrados por busca, API ou R2, e seus agendamentos permanecem sem dados pessoais; após o prazo de encerramento, os dados da clínica (SQLite do Durable Object e prefixo R2) não existem mais. **Dados/eventos:** exclusão registrada na auditoria sem o conteúdo excluído.
 
+### REQ-073 — Preço na sugestão da IA
+
+**Prioridade/estado:** MVP / Confirmado (DEC-046). **Origem:** ACT-02; JRN-02. **Comportamento:** quando a conversa pergunta preço, a sugestão usa apenas o preço cadastrado do serviço correspondente. Sem preço cadastrado, a sugestão não informa valor, propõe que a equipe confirme e mostra à atendente “Serviço sem preço cadastrado”. **Aceite:** AC-41. **Dados/eventos:** preço vem do catálogo da clínica (DEC-011); nenhum valor fora do catálogo.
+
+### REQ-074 — Mensagem ofensiva ou fora do assunto
+
+**Prioridade/estado:** MVP / Confirmado quanto ao comportamento (DEC-046); detecção **Em aberto**. **Origem:** ACT-02; JRN-02. **Comportamento:** quando a atendente pede sugestão numa conversa cuja última mensagem é ofensiva ou fora do assunto da clínica, o bloco de IA mostra aviso (“Mensagem ofensiva. Você não precisa responder.” ou “Fora do assunto da clínica.”) e sugere resposta curta e cordial que recoloca o limite ou volta aos serviços. A sugestão nunca repete o conteúdo ofensivo, não ironiza nem ameaça. **Aceite:** AC-42. **Dados/eventos:** nenhuma ação automática sobre o contato (bloqueio fica fora do MVP).
+
+### REQ-075 — Explicação do procedimento com texto da clínica
+
+**Prioridade/estado:** MVP / Confirmado (DEC-046). **Origem:** ACT-02, ACT-03; JRN-02, JRN-08. **Comportamento:** o serviço tem o campo opcional “Explicação para clientes”, editado só pela responsável (DEC-042). Ao explicar um procedimento, a sugestão usa só esse texto e indica a fonte para a atendente. Sem explicação cadastrada, a sugestão não descreve o procedimento e propõe que a equipe explique. Pergunta de saúde (contraindicação, gravidez, medicamento, diagnóstico) recebe o aviso “Assunto clínico: encaminhe a uma profissional” e a sugestão não responde o mérito. A sugestão nunca promete resultado. **Aceite:** AC-43. **Dados/eventos:** a explicação entra no contexto da IA (texto da clínica, sem dado pessoal).
 ### REQ-076 — Sinal configurado por serviço
 
 **Prioridade/estado:** MVP / Confirmado (DEC-047). **Origem:** ACT-03; JRN-08. **Comportamento:** no cadastro do serviço (M-16), só a responsável liga “Exige sinal” e escolhe valor fixo (R$) ou percentual do preço; percentual exige preço cadastrado. A clínica escreve uma política de cancelamento do sinal, exibida à cliente antes de pagar. **Aceite:** AC-44.
