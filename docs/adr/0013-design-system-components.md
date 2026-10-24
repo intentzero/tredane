@@ -1,6 +1,6 @@
 # ADR-0013 — Design system, componentes, ícones e fonte do painel
 
-- **Estado:** a **biblioteca-base de componentes** continua **Proposta**: o responsável pelo produto decidiu em 24/10/2026 que ela será escolhida por prova de conceito na F0 ([DEC-041](../product/decisions.md)). **Confirmados** na mesma decisão: tokens v0.2, ícones Lucide e modo escuro fora do MVP. A fonte Inter hospedada pelo Tredane também foi aprovada, sujeita à conferência da licença.
+- **Estado:** a **biblioteca-base de componentes** continua **Proposta**. A prova de conceito F0 (issue #16) foi **executada** em 24/10/2026: M-04 e M-05 nas duas candidatas em `/prova`, medições registadas abaixo. **A escolha formal pelo responsável pelo produto ainda não foi registada** — não promover base produtiva nem apagar candidata até nova DEC. **Confirmados** (DEC-041): tokens v0.2, ícones Lucide, modo escuro fora do MVP; Inter hospedada localmente com licença SIL OFL 1.1 conferida (`docs/licenses/Inter-OFL.txt`).
 - **Origem:** [UI/UX](../product/ux-ui.md), [docs/design](../design/README.md), [DEC-039](../product/decisions.md) (mobile first).
 
 ## Problema
@@ -19,15 +19,16 @@ Os mocks têm tokens consolidados (v0.2), mas não há componentes em código, n
 
 As descrições das bibliotecas vêm do conhecimento geral sobre elas, **sem consulta à documentação atual nesta sessão**: confirmar versão, licença, tamanho e estado de manutenção antes de decidir.
 
-## Recomendação (Proposta)
+## Recomendação (Proposta — aguarda DEC do produto)
 
-Partir de **A ou B**, escolhida por **prova de conceito na F0**, não por preferência. Hipótese inicial: B, pela interação de toque e pelos componentes de data da agenda; A permanece válida se o tamanho ou a curva de aprendizado pesarem. Critérios de aceite da prova:
+Prova F0 executada (issue #16). **Não há decisão confirmada.** Aplicando a regra deste ADR às medições:
 
-1. Implementar duas telas reais dos mocks com cada candidata: **M-04 Agendar** (campos, seleção, faixa de aviso) e **M-05 Pipeline** (abas, folha inferior “Mover para…”).
-2. Zero violações de acessibilidade automática (axe) nas duas telas e no [catálogo](../design/catalog/index.html); navegação completa por teclado; leitor de tela nos fluxos de formulário e de folha inferior.
-3. Funcionamento em Safari no iPhone e Chrome no Android, instalado como PWA, incluindo teclado virtual cobrindo o compositor.
-4. Tamanho do pacote medido e registrado; orçamento a definir na F0.
-5. Aparência fiel a [tokens.json](../design/tokens.json) sem sobrescritas por tela.
+1. Ambas as candidatas passaram no axe automático nas quatro telas de prova (0 violações; contraste excluído do axe em jsdom e coberto por `check_contrast.py`).
+2. Diff de pacote M-04+M-05: **Radix ~104 KB gzip** vs **React Aria ~177 KB gzip** (Δ ≈ **+73 KB** a favor de A). Orçamento de bundle ainda **Em aberto**.
+3. Só **B** traz DatePicker/Calendar pt-BR sem código próprio (necessário para agenda M-04/M-13).
+4. Testes em Safari iPhone / Chrome Android como PWA e roteiro completo de leitor de tela **ainda não feitos** nestes aparelhos (limitação registada; repetir com aparelhos da clínica piloto — Q-UX-01).
+
+**Recomendação de engenharia (Proposta):** preferir **B (React Aria)** se o produto priorizar calendário/i18n da agenda e interação de toque sem biblioteca extra de data — a hipótese inicial do ADR. Preferir **A (Radix)** se o orçamento de PWA (ainda em aberto) tratar ~73 KB gzip como decisivos *e* aceitar calendário próprio ou dependência adicional depois. **Bloqueio:** registo da escolha pelo responsável pelo produto (nova DEC) antes de remover a candidata descartada e de iniciar telas produtivas.
 
 ## Roteiro da prova de conceito (Proposto)
 
@@ -41,20 +42,20 @@ Partir de **A ou B**, escolhida por **prova de conceito na F0**, não por prefer
 
 | Critério | A. Radix | B. React Aria | Como medir |
 | --- | --- | --- | --- |
-| Violações axe em M-04, M-05 e catálogo | a medir | a medir | axe automático |
-| Teclado completo e leitor de tela (formulário, folha inferior) | a medir | a medir | roteiro manual |
-| Safari iPhone e Chrome Android como PWA, teclado virtual sobre o compositor | a medir | a medir | aparelhos reais; modelos da clínica piloto **em aberto** (Q-UX-01) |
-| Tamanho do pacote das duas telas (gzip) | a medir | a medir | relatório do bundler |
-| Calendário e data sem código próprio | a medir | a medir | revisão |
-| Fidelidade aos tokens sem sobrescritas | a medir | a medir | `check_contrast.py` e revisão |
+| Violações axe em M-04, M-05 e catálogo | **0** (M-04/M-05; 24/10/2026, vitest+jsdom+axe-core). Catálogo HTML estático: contraste OK via `check_contrast.py` | **0** (idem) | axe automático em `src/client/prova/prova.a11y.test.tsx` |
+| Teclado completo e leitor de tela (formulário, folha inferior) | **Parcial** — roles/focus trap do Dialog/Select Radix; roteiro VoiceOver/TalkBack pendente | **Parcial** — Modal/Select/DatePicker RAC; roteiro VoiceOver/TalkBack pendente | roteiro manual |
+| Safari iPhone e Chrome Android como PWA, teclado virtual sobre o compositor | **Pendente** (sem aparelhos neste ambiente de CI) | **Pendente** (idem) | aparelhos reais; modelos da clínica piloto **em aberto** (Q-UX-01) |
+| Tamanho do pacote das duas telas (gzip) | **~104 KB** | **~177 KB** (Δ +73 KB) | `npm run prova:bundle` → [prova-bundle-latest.json](prova-bundle-latest.json) |
+| Calendário e data sem código próprio | **Não** — faixa de dias do mock; sem DatePicker | **Sim** — `DatePicker` + `Calendar` (`@internationalized/date`, locale pt-BR) | revisão |
+| Fidelidade aos tokens sem sobrescritas | **Sim** — `panel.css` só com variáveis de `tokens.css` | **Sim** (idem) | `check_contrast.py`, revisão de `src/client/ui/panel.css` |
 
-**Limites da prova:** não cobre dados reais, tempo real nem autenticação. Os modelos de aparelho ainda não são conhecidos; até lá, testar em um iPhone e um Android quaisquer e repetir quando a clínica piloto informar os dela.
+**Limites da prova:** não cobre dados reais, tempo real nem autenticação. Aparelhos iPhone/Android reais e teclado virtual **não** foram medidos neste ambiente; repetir quando a clínica piloto informar os dela (Q-UX-01). Evidências visuais desktop em viewport 390×844: store `media/issue-16/`. Código da prova: `src/client/prova/` (rotas `/prova/*`, lazy-load; não é tela produtiva).
 
 ## Estilização, ícones, fonte, modo escuro
 
 - **Tokens:** variáveis CSS geradas de `tokens.json` (`tokens.css`). A ferramenta de CSS (módulos CSS, utilitários ou outra) fica **em aberto** para a F0; regra independente da ferramenta: nenhum valor de cor, raio, fonte ou espaçamento fora dos tokens (verificado por `tools/check_mocks.py` e, no código, por revisão e lint).
 - **Ícones:** Lucide (`lucide-react`), conforme [icons.md](../design/icons.md). **Confirmado** (DEC-041).
-- **Fonte:** Inter (400, 500, 600), **hospedada pelo próprio Tredane** nos arquivos estáticos do painel, em vez de carregada de um serviço externo, para não enviar o IP de usuários a terceiros e para funcionar offline no PWA. Verificar a licença do arquivo de fonte ao incluí-lo. **Confirmado** (DEC-041), sujeito a essa verificação.
+- **Fonte:** Inter (400, 500, 600), **hospedada pelo próprio Tredane** via `@fontsource/inter` no painel (`src/client/ui/fonts.css`), sem CDN externo. Licença **SIL OFL 1.1** conferida e copiada em [docs/licenses/Inter-OFL.txt](../licenses/Inter-OFL.txt). Lucide: ISC em [docs/licenses/Lucide-ISC.txt](../licenses/Lucide-ISC.txt). **Confirmado** (DEC-041).
 - **Modo escuro:** **Fora do MVP** (Confirmado, DEC-041). Os tokens são organizados por papel (superfície, texto, linha) para permitir um segundo tema depois, sem redesenho das telas.
 - **Movimento:** respeitar `prefers-reduced-motion`.
 

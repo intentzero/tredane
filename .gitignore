@@ -16,3 +16,7 @@ site/.astro/
 
 # Playwright MCP local artifacts
 .playwright-mcp/
+
+# Medição local da prova de componentes (#16)
+.prova-bundle/
+scripts/prova-entries/

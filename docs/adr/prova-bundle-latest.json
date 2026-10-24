@@ -1,0 +1,17 @@
+{
+  "measuredAt": "2026-10-24T11:47:32.809Z",
+  "method": "vite production build of M-04+M-05 per candidate; sum of .js/.css gzip",
+  "candidates": {
+    "radix": {
+      "name": "radix",
+      "rawBytes": 334846,
+      "gzipBytes": 103945
+    },
+    "reactAria": {
+      "name": "react-aria",
+      "rawBytes": 570910,
+      "gzipBytes": 176691
+    }
+  },
+  "deltaGzipBytes": 72746
+}
