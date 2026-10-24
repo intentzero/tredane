@@ -194,7 +194,7 @@ describe('Cloudflare runtime harness — F0', () => {
     const schemaA = await storageA.exec(
       'SELECT version, status FROM clinic_schema_state WHERE id = 1',
     )
-    expect(schemaA).toEqual([{ version: 3, status: 'ready' }])
+    expect(schemaA).toEqual([{ version: CLINIC_SCHEMA_VERSION, status: 'ready' }])
   })
 
   it('rejects forged tenant on Clinic DO RPC and recovers outbox after deferred drain', async () => {
