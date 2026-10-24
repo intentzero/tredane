@@ -34,8 +34,7 @@ type Props = {
 const ANY = 'any'
 
 /**
- * TEL-05 / M-04 — seleção de horários livres (#35).
- * Confirmação atómica fica em #36; aqui só consulta + revalidação.
+ * TEL-05 / M-04 — seleção + confirmação atómica (#35/#36).
  */
 export function AgendarScreen({ tenantId, api, generation }: Props) {
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
@@ -47,10 +46,14 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
   )
   const [selected, setSelected] = useState<AvailabilitySlot | null>(null)
   const [conflict, setConflict] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [loadingConfig, setLoadingConfig] = useState(true)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [checking, setChecking] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [clientRequestId, setClientRequestId] = useState(() =>
+    crypto.randomUUID(),
+  )
 
   const timezone = config?.settings.timezone ?? 'America/Sao_Paulo'
   const days = upcomingCivilDates(timezone, Date.now(), 7)
@@ -146,10 +149,11 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
           || service.professionalIds.includes(r.id)),
     ) ?? []
 
-  async function handleRevalidate() {
+  async function handleConfirm() {
     if (!selected || !serviceId) return
-    setChecking(true)
+    setConfirming(true)
     setConflict(null)
+    setSuccess(null)
     try {
       const check = await api.checkAvailabilitySlot(
         tenantId,
@@ -170,13 +174,37 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
         await reloadSlots()
         return
       }
-      setConflict(
-        'Horário ainda livre. A confirmação atómica do compromisso chega na fatia #36.',
+      const created = await api.confirmAppointment(
+        tenantId,
+        {
+          clientRequestId,
+          serviceId,
+          professionalId: selected.professionalId,
+          roomResourceId: selected.roomResourceId,
+          startsAt: selected.startsAt,
+          contactLabel: 'Contacto sintético',
+        },
+        { generation, expectGeneration: () => generation },
       )
+      setSuccess('Compromisso confirmado.')
+      navigatePanel({
+        kind: 'area',
+        area: 'agenda',
+        tenantId,
+        section: 'compromisso',
+        appointmentId: created.id,
+      })
     } catch (err) {
-      setConflict(err instanceof Error ? err.message : 'Falha ao revalidar')
+      const msg = err instanceof Error ? err.message : 'Não foi possível confirmar'
+      setConflict(
+        msg.includes('ocupado') || msg.includes('conflict')
+          ? msg
+          : `Não foi possível confirmar. Nada foi reservado. ${msg}`,
+      )
+      setSelected(null)
+      await reloadSlots()
     } finally {
-      setChecking(false)
+      setConfirming(false)
     }
   }
 
@@ -225,7 +253,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
   }
 
   const confirmLabel = selected
-    ? `Revalidar ${formatSlotTime(selected.startsAt, timezone)}`
+    ? `Confirmar ${formatSlotTime(selected.startsAt, timezone)}`
     : 'Escolha um horário'
 
   return (
@@ -242,7 +270,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
         </Button>
         <div>
           <h1 className="panel-title">Agendar horário</h1>
-          <span className="panel-subtitle">Consulta de disponibilidade</span>
+          <span className="panel-subtitle">Confirmação atómica</span>
         </div>
         <Button
           className="panel-icon-btn"
@@ -260,6 +288,11 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
             <TriangleAlert aria-hidden size={20} strokeWidth={2} />
             <span>{conflict}</span>
           </div>
+        ) : null}
+        {success ? (
+          <p className="panel-banner" role="status">
+            {success}
+          </p>
         ) : null}
 
         <Select
@@ -387,6 +420,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
                 onClick={() => {
                   setSelected(slot)
                   setConflict(null)
+                  setClientRequestId(crypto.randomUUID())
                 }}
               >
                 <span>{formatSlotTime(slot.startsAt, timezone)}</span>
@@ -403,10 +437,10 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
       <div className="panel-footer">
         <Button
           className="panel-btn-primary"
-          isDisabled={!selected || checking}
-          onPress={() => void handleRevalidate()}
+          isDisabled={!selected || confirming}
+          onPress={() => void handleConfirm()}
         >
-          {checking ? 'A revalidar…' : confirmLabel}
+          {confirming ? 'A confirmar…' : confirmLabel}
         </Button>
       </div>
     </div>

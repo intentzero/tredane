@@ -1,20 +1,21 @@
-import { Button } from 'react-aria-components'
 import { useAuthSession } from '../../auth/AuthContext'
 import { useTenant } from '../../tenant/TenantContext'
 import type { AgendaSection } from '../../routes'
-import { navigatePanel } from '../../routes'
 import { EmptyState, LoadingState } from '../../states/StatusScreens'
 import { AgendarScreen } from './AgendarScreen'
+import { AgendaDayWeek } from './AgendaDayWeek'
+import { CompromissoScreen } from './CompromissoScreen'
 
 type Props = {
   tenantId: string
   section: AgendaSection
+  appointmentId?: string
 }
 
 /**
- * Área Agenda (#35): visão do dia (placeholder até #36) + Agendar (consulta).
+ * Área Agenda (#35/#36): dia/semana, detalhe e Agendar com confirmação atómica.
  */
-export function AgendaArea({ tenantId, section }: Props) {
+export function AgendaArea({ tenantId, section, appointmentId }: Props) {
   const { api } = useAuthSession()
   const { active, generation } = useTenant()
 
@@ -43,27 +44,23 @@ export function AgendaArea({ tenantId, section }: Props) {
     )
   }
 
-  return (
-    <div className="agenda-day">
-      <EmptyState
-        title="Agenda do dia"
-        description="Compromissos confirmados e espaços livres. Use Agendar para consultar disponibilidade por profissional e sala (confirmação atómica na fatia seguinte)."
+  if (section === 'compromisso' && appointmentId) {
+    return (
+      <CompromissoScreen
+        tenantId={tenantId}
+        appointmentId={appointmentId}
+        api={api}
+        generation={generation}
       />
-      <div style={{ padding: '0 16px 24px' }}>
-        <Button
-          className="panel-btn-primary"
-          onPress={() =>
-            navigatePanel({
-              kind: 'area',
-              area: 'agenda',
-              tenantId,
-              section: 'agendar',
-            })
-          }
-        >
-          Agendar horário
-        </Button>
-      </div>
-    </div>
+    )
+  }
+
+  return (
+    <AgendaDayWeek
+      tenantId={tenantId}
+      api={api}
+      generation={generation}
+      view={section === 'semana' ? 'week' : 'day'}
+    />
   )
 }

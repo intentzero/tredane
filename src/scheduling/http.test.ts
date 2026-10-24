@@ -190,3 +190,109 @@ describe('HTTP — disponibilidade (#35)', () => {
     }
   })
 })
+
+describe('HTTP — agendamento atómico (#36)', () => {
+  it('confirma, lista agenda, cancela com motivo; conflito 409; sem motivo 400', async () => {
+    const { app, close, auth } = testSchedulingApp()
+    try {
+      const seeded = await seedReadyClinic(app, auth)
+      const startsAt = zonedCivilToUtc(TZ, 2024, 1, 8, 9, 0)
+
+      const created = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/appointments',
+        auth('user_synth_attendant_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientRequestId: 'http-confirm-1',
+            serviceId: seeded.serviceId,
+            professionalId: seeded.proId,
+            roomResourceId: seeded.roomId,
+            startsAt,
+            contactLabel: 'Ana',
+          }),
+        }),
+      )
+      expect(created.status).toBe(201)
+      const apt = (await created.json()) as {
+        id: string
+        createdReservation: boolean
+        version: number
+      }
+      expect(apt.createdReservation).toBe(true)
+
+      const replay = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/appointments',
+        auth('user_synth_attendant_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientRequestId: 'http-confirm-1',
+            serviceId: seeded.serviceId,
+            professionalId: seeded.proId,
+            roomResourceId: seeded.roomId,
+            startsAt,
+          }),
+        }),
+      )
+      expect(replay.status).toBe(200)
+      const replayBody = (await replay.json()) as { idempotentReplay: boolean; id: string }
+      expect(replayBody.idempotentReplay).toBe(true)
+      expect(replayBody.id).toBe(apt.id)
+
+      const conflict = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/appointments',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientRequestId: 'http-confirm-2',
+            serviceId: seeded.serviceId,
+            professionalId: seeded.proId,
+            roomResourceId: seeded.roomId,
+            startsAt,
+          }),
+        }),
+      )
+      expect(conflict.status).toBe(409)
+
+      const agenda = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/agenda?date=${MONDAY}&view=day`,
+        auth('user_synth_attendant_a'),
+      )
+      expect(agenda.status).toBe(200)
+      const agendaBody = (await agenda.json()) as {
+        appointments: Array<{ id: string }>
+      }
+      expect(agendaBody.appointments.some((a) => a.id === apt.id)).toBe(true)
+
+      const noReason = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/appointments/${apt.id}/cancel`,
+        auth('user_synth_attendant_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientRequestId: 'http-cancel-bad' }),
+        }),
+      )
+      expect(noReason.status).toBe(400)
+
+      const cancelled = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/appointments/${apt.id}/cancel`,
+        auth('user_synth_attendant_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientRequestId: 'http-cancel-1',
+            reason: 'clinica_cancelou',
+            expectedVersion: apt.version,
+          }),
+        }),
+      )
+      expect(cancelled.status).toBe(200)
+      const cancelledBody = (await cancelled.json()) as { status: string }
+      expect(cancelledBody.status).toBe('cancelled')
+    } finally {
+      close()
+    }
+  })
+})

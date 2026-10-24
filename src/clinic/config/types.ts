@@ -67,6 +67,16 @@ export type AppointmentRow = {
   contactId: string | null
   conversationId: string | null
   opportunityId: string | null
+  /** #36 — versão monotónica (confirmação / cancel / reagendar). */
+  version: number
+  updatedAt: number | null
+  confirmedBy: string | null
+  confirmedAt: number | null
+  changeReason: string | null
+  cancelledBy: string | null
+  cancelledAt: number | null
+  /** Ocupação efetiva (duração + buffer) no momento da confirmação. */
+  occupiesUntil: number | null
 }
 
 export type ClinicSettingsRow = {

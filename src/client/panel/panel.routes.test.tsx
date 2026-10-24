@@ -44,11 +44,24 @@ describe('panel routes (#22)', () => {
       tenantId: 'clinic-demo-a',
       section: 'agendar',
     })
+    expect(resolvePanelRoute('/c/clinic-demo-a/agenda/semana')).toEqual({
+      kind: 'area',
+      area: 'agenda',
+      tenantId: 'clinic-demo-a',
+      section: 'semana',
+    })
+    expect(resolvePanelRoute('/c/clinic-demo-a/agenda/compromisso/apt_1')).toEqual({
+      kind: 'area',
+      area: 'agenda',
+      tenantId: 'clinic-demo-a',
+      section: 'compromisso',
+      appointmentId: 'apt_1',
+    })
     expect(resolvePanelRoute('/')).toBeNull()
     expect(resolvePanelRoute('/prova')).toBeNull()
   })
 
-  it('href agenda / agendar (#35)', () => {
+  it('href agenda / agendar / semana / compromisso (#35/#36)', () => {
     expect(
       panelHref({
         kind: 'area',
@@ -65,6 +78,23 @@ describe('panel routes (#22)', () => {
         section: 'agendar',
       }),
     ).toBe('/c/clinic-demo-a/agenda/agendar')
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'agenda',
+        tenantId: 'clinic-demo-a',
+        section: 'semana',
+      }),
+    ).toBe('/c/clinic-demo-a/agenda/semana')
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'agenda',
+        tenantId: 'clinic-demo-a',
+        section: 'compromisso',
+        appointmentId: 'apt_1',
+      }),
+    ).toBe('/c/clinic-demo-a/agenda/compromisso/apt_1')
   })
 
   it('rótulo curto Acompanhar e título Acompanhamento (DEC-045)', () => {

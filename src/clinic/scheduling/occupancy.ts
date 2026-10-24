@@ -78,6 +78,8 @@ export function listConfirmedOccupyingResource(
   tenantId: string,
   resourceId: string,
   range: Interval,
+  /** Ao reagendar, o próprio compromisso não conta como conflito. */
+  excludeAppointmentId?: string | null,
 ): Array<{ id: string; startsAt: number; occupiesUntil: number }> {
   const rows = db.all<AptSql>(
     `SELECT id, service_id, professional_id, room_resource_id, starts_at, ends_at
@@ -92,6 +94,7 @@ export function listConfirmedOccupyingResource(
   )
   const out: Array<{ id: string; startsAt: number; occupiesUntil: number }> = []
   for (const row of rows) {
+    if (excludeAppointmentId && row.id === excludeAppointmentId) continue
     const occupiesUntil = appointmentOccupiesUntil(db, tenantId, row)
     if (intervalsOverlap(range, { startsAt: row.starts_at, endsAt: occupiesUntil })) {
       out.push({ id: row.id, startsAt: row.starts_at, occupiesUntil })
@@ -129,6 +132,7 @@ export function resourceBusyReasons(
   occupiedMins: number,
   range: Interval,
   dayEndsAt: number,
+  excludeAppointmentId?: string | null,
 ): ResourceBusyReason[] {
   const reasons: ResourceBusyReason[] = []
   if (range.endsAt > dayEndsAt) {
@@ -140,7 +144,15 @@ export function resourceBusyReasons(
   if (listBlocksOverlapping(db, tenantId, resourceId, range).length > 0) {
     reasons.push('resource_block')
   }
-  if (listConfirmedOccupyingResource(db, tenantId, resourceId, range).length > 0) {
+  if (
+    listConfirmedOccupyingResource(
+      db,
+      tenantId,
+      resourceId,
+      range,
+      excludeAppointmentId,
+    ).length > 0
+  ) {
     reasons.push('appointment_conflict')
   }
   return reasons

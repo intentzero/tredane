@@ -13,6 +13,7 @@ export {
   clinicCivilDateFromUtc,
   clinicMinuteOfDay,
   parseCivilDate,
+  formatCivilDate,
   zonedCivilToUtc,
   slotStartUtc,
   getTimeZoneOffsetMs,
@@ -27,4 +28,24 @@ export {
 } from './occupancy'
 export { queryAvailability } from './query'
 export { checkSlotAvailability } from './check'
-export { queryAvailabilityOp, checkSlotAvailabilityOp } from './operations'
+export {
+  queryAvailabilityOp,
+  checkSlotAvailabilityOp,
+  confirmAppointmentOp,
+  cancelAppointmentOp,
+  rescheduleAppointmentOp,
+  getAppointmentDetailOp,
+  queryAgendaViewOp,
+} from './operations'
+export type {
+  AgendaViewInput,
+  AgendaViewResult,
+  AppointmentDetail,
+  AppointmentEventView,
+  AppointmentListItem,
+  AppointmentMutationResult,
+  CancelAppointmentInput,
+  ConfirmAppointmentInput,
+  RescheduleAppointmentInput,
+  SlotConflictDetails,
+} from './booking-types'

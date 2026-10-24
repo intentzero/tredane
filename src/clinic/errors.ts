@@ -30,9 +30,12 @@ export class UnauthorizedCallerError extends ClinicError {
 }
 
 export class ConflictError extends ClinicError {
-  constructor(code: string, message: string) {
+  readonly details?: Record<string, unknown>
+
+  constructor(code: string, message: string, details?: Record<string, unknown>) {
     super(code, message)
     this.name = 'ConflictError'
+    this.details = details
   }
 }
 

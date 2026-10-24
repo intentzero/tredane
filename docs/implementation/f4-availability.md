@@ -1,6 +1,6 @@
 # F4 — Disponibilidade por profissional e sala/equipamento
 
-**Estado:** implementação da issue [#35](https://github.com/intentzero/tredane/issues/35) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Serviço de consulta no SQLite do Clinic DO + API HTTP + UI Agendar (M-04 / TEL-05). **Sem** confirmação atómica (#36), Pix (#37+) nem cancelamento/reagendamento. Dados sintéticos apenas.
+**Estado:** implementação da issue [#35](https://github.com/intentzero/tredane/issues/35) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Serviço de consulta no SQLite do Clinic DO + API HTTP + UI Agendar (M-04 / TEL-05). Confirmação atómica em [#36](f4-booking.md). **Sem** Pix (#37+). Dados sintéticos apenas.
 
 ## Decisões aplicadas (Confirmado)
 
@@ -37,8 +37,8 @@ Resposta da lista omite indisponíveis (TEL-05). O check devolve `reasons[]` (`a
 
 | Path | Ecrã |
 | --- | --- |
-| `/c/:tenantId/agenda` | Dia (placeholder até visão completa #36) + atalho Agendar |
-| `/c/:tenantId/agenda/agendar` | M-04: serviço, profissional, dia, horários livres; revalidação; refresh periódico |
+| `/c/:tenantId/agenda` | Dia — visão completa em [#36](f4-booking.md) |
+| `/c/:tenantId/agenda/agendar` | M-04: serviço, profissional, dia, horários livres; confirmação em #36 |
 
 ## Código
 
@@ -52,8 +52,7 @@ Resposta da lista omite indisponíveis (TEL-05). O check devolve `reasons[]` (`a
 
 ## Em aberto / fora deste PR
 
-- Confirmação / cancelamento / reagendamento atómicos (#36)
+- Confirmação / cancelamento / reagendamento atómicos → [#36](f4-booking.md)
 - Sinal Pix e estados de cobrança (#37+)
 - Valores reais de duração/expediente da clínica piloto
 - Cliente WebSocket dedicado (hoje: polling 15 s na tela Agendar)
-- Visão dia/semana completa da agenda (TEL-04)

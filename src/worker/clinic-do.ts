@@ -51,8 +51,12 @@ import type {
   UpsertServiceInput,
 } from '../clinic/config'
 import type {
+  AgendaViewInput,
   AvailabilityQueryInput,
+  CancelAppointmentInput,
   CheckSlotInput,
+  ConfirmAppointmentInput,
+  RescheduleAppointmentInput,
 } from '../clinic/scheduling'
 import { systemClock, type Clock } from '../db/clock'
 import { fromD1 } from '../db/admin/async-store'
@@ -1199,6 +1203,81 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       input,
       this.#clock,
     )
+  }
+
+  /** Confirmação atómica (#36 / REQ-031) — TX: apt + alocações + histórico + outbox. */
+  async confirmClinicAppointment(
+    caller: ClinicCaller,
+    input: ConfirmAppointmentInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicScheduling.confirmAppointmentOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
+  async cancelClinicAppointment(
+    caller: ClinicCaller,
+    input: CancelAppointmentInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicScheduling.cancelAppointmentOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
+  async rescheduleClinicAppointment(
+    caller: ClinicCaller,
+    input: RescheduleAppointmentInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicScheduling.rescheduleAppointmentOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
+  async getClinicAppointment(caller: ClinicCaller, appointmentId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicScheduling.getAppointmentDetailOp(
+      this.#db,
+      caller,
+      appointmentId,
+      this.#clock,
+    )
+  }
+
+  async queryClinicAgenda(caller: ClinicCaller, input: AgendaViewInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicScheduling.queryAgendaViewOp(this.#db, caller, input, this.#clock)
   }
 
   async #drain(caller: ClinicCaller): Promise<{ published: string[]; failed: string[] }> {
