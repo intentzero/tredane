@@ -28,7 +28,9 @@
 
 **DEC-028 — MVP sem MFA:** excluir configuração, enrollment e guards MFA do escopo F1. Manter Clerk login/sessão, middleware de flag superadmin, memberships/roles D1, segurança da sessão própria de suporte, auditoria, TTL e CSRF. Priorizar testes de autorização e revogação, sem MFA. Revisitar só depois do MVP.
 
-**DEC-029 — aprovação antes do suporte:** implementar pedidos pendentes, aprovação/rejeição por owner tenant-scoped, nenhum handoff/HTTP/WebSocket antes da aprovação, auditoria e vinculação actor/subject/owner/aprovação/escopo. Testar concorrência, reuso, revogação, owners de outros tenants e permissões. Canal e validade ainda em aberto. [ADR-0011](../adr/0011-owner-approval-for-support.md).
+**DEC-029 — aprovação antes do suporte:** implementar pedidos pendentes, aprovação/rejeição por owner tenant-scoped, nenhum handoff/HTTP/WebSocket antes da aprovação, auditoria e vinculação actor/subject/owner/aprovação/escopo. Testar concorrência, reuso, revogação, owners de outros tenants e permissões. Canal confirmado em DEC-030 (painel em tempo real + e-mail informativo, decisão autenticada no painel); validade ainda em aberto. [ADR-0011](../adr/0011-owner-approval-for-support.md).
+
+**DEC-030 — painel e e-mail para suporte:** publicar pedido persistido no D1 em tempo real para owners ativos do tenant e enviar e-mail com link não privilegiado para a solicitação. Aprovação ou rejeição exclusivamente na Clinic App após login Clerk, verificação server-side owner e decisão atómica, auditada. Testar owners offline, e-mail falhado/duplicado, link sem login, isolamento de eventos, decisão simultânea e recuperação após reconexão. Provedor de e-mail e prazo pendentes.
 
 ## Backlog técnico por épico
 

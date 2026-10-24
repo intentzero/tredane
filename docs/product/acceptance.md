@@ -118,7 +118,11 @@
 
 ### AC-27 — Cada sessão de suporte exige aprovação de owner
 
-**Dado** pedido de suporte do superadmin para tenant A com actor, subject, motivo e escopo; **enquanto** estiver pendente, rejeitado, expirado ou revogado, **então** não há credencial de suporte nem acesso clínico HTTP/WebSocket. Owner ativo de A precisa aprovar explicitamente para ativar aquela sessão específica, com auditoria. Owner só de B, attendant ou superadmin apenas por privilégio global não aprova A. Troca de subject/tenant/escopo após decisão e reutilização da aprovação são negadas. **Requisito:** REQ-007; **DEC-029**. Canal/prazo da aprovação ainda em aberto.
+**Dado** pedido de suporte do superadmin para tenant A com actor, subject, motivo e escopo; **enquanto** estiver pendente, rejeitado, expirado ou revogado, **então** não há credencial de suporte nem acesso clínico HTTP/WebSocket. Owner ativo de A precisa aprovar explicitamente para ativar aquela sessão específica, com auditoria. Owner só de B, attendant ou superadmin apenas por privilégio global não aprova A. Troca de subject/tenant/escopo após decisão e reutilização da aprovação são negadas. **Requisito:** REQ-007; **DEC-029/030**. Canal aprovado (painel + e-mail, decisão apenas no painel); prazo pendente.
+
+### AC-28 — Pedido em tempo real e aviso por e-mail, aprovação só no painel
+
+**Dado** pedido de suporte pendente em A; **quando** criado, **então** owners ativos de A veem o pedido no painel em tempo real e recebem e-mail com link para abrir a solicitação dentro do Tredane. **Quando** um owner A autentica-se no Clerk e aprova/rejeita no painel, **então** backend valida membership vigente e grava a primeira decisão válida atomicamente, auditando aprovador e atualizando outros owners. Owner exclusivo de B não vê/aprova pedido de A; clicar no e-mail sem login nunca concede acesso nem aprova; falha de entrega do e-mail não desbloqueia suporte. **Requisitos:** REQ-007/060; DEC-030. Prazo do pedido por decidir.
 
 ## Condições para usar estes cenários como aprovação
 

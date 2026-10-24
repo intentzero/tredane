@@ -115,8 +115,8 @@
 - **Estado:** Confirmada a impersonação implementada **pelo Tredane**, com controles finais em revisão.
 - **Ator e objetivo:** superadmin reproduz problema ou executa manutenção como membro selecionado da clínica.
 - **Pré-condições:** Clerk mantém sessão do actor; superadmin válido; tenant e membership do subject ativos.
-- **Fluxo (DEC-029):** selecionar tenant/subject e motivo → backend cria pedido `pending` sem acesso clínico → owner ativo da própria clínica aprova explicitamente → só então ativa sessão própria do Tredane com handoff à Clinic App e banner permanente → validar actor, subject, aprovação, role e TTL → auditar também owner aprovador → encerrar/revogar.
-- **Alternativas:** pendência, rejeição, ausência/expiração/revogação de aprovação negam acesso; owner de outra clínica não pode aprovar. Limite/expiração, alteração do subject/tenant, revogação da flag ou falha Clerk/D1 negam acesso; ações proibidas continuam negadas.
+- **Fluxo (DEC-029/030):** selecionar tenant/subject e motivo → backend cria pedido `pending` sem acesso clínico → painel dos owners ativos daquele tenant recebe evento em tempo real e e-mail informativo é enviado com link para abrir pedido → owner autenticado pelo Clerk aprova/rejeita **no painel** → somente após aprovação ativa sessão própria do Tredane com handoff à Clinic App e banner permanente → validar actor, subject, aprovação, role e TTL → auditar também owner aprovador → encerrar/revogar.
+- **Alternativas:** e-mail perdido/duplicado/atrasado não aprova e não impede a decisão pelo painel; link não autoriza acesso por si; dois owners decidindo têm somente uma transição vencedora. Pendência, rejeição, ausência/expiração/revogação de aprovação negam acesso; owner de outra clínica não pode aprovar. Limite/expiração, alteração do subject/tenant, revogação da flag ou falha Clerk/D1 negam acesso; ações proibidas continuam negadas.
 - **Resultado:** manutenção rastreável, sem substituir a identidade real do actor nem usar impersonação do Clerk.
 - **Requisitos:** REQ-003/005/006/007/040.
 

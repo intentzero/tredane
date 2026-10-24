@@ -38,7 +38,11 @@ Owner de tenant ativo cria convite para e-mail e role **fixa attendant**. O Tred
 
 ## Aprovação de suporte por sessão (DEC-029)
 
-O superadmin cria `support_access_requests` pendente, com actor/subject/tenant/motivo/escopo, sem gerar acesso clínico. Owner ativo daquele tenant aprova/rejeita expressamente o pedido, cuja autorização e parâmetros são verificados no backend. Somente depois é ativada `support_sessions` e emitido handoff de uso único. Aprovação não é reutilizável ou permanente; expirado/revogado bloqueia HTTP e WebSocket. Sem MFA (DEC-028). Canal/prazo a definir. [ADR-0011](../adr/0011-owner-approval-for-support.md).
+O superadmin cria `support_access_requests` pendente, com actor/subject/tenant/motivo/escopo, sem gerar acesso clínico. Owner ativo daquele tenant aprova/rejeita expressamente o pedido, cuja autorização e parâmetros são verificados no backend. Somente depois é ativada `support_sessions` e emitido handoff de uso único. Aprovação não é reutilizável ou permanente; expirado/revogado bloqueia HTTP e WebSocket. Sem MFA (DEC-028). Canal confirmado em DEC-030 (painel em tempo real + e-mail informativo, decisão autenticada somente na Clinic App); prazo a definir. [ADR-0011](../adr/0011-owner-approval-for-support.md).
+
+## Notificação de solicitações de suporte — DEC-030
+
+Após persistir `support_access_requests` em estado pendente no D1, emitir evento de atualização restrito a owners ativos do mesmo tenant no Durable Object/WebSocket e enviar aviso por e-mail com link de navegação para a solicitação. **Não** colocar token de aprovação ou dados clínicos no e-mail. A decisão só é aceita na API autenticada da Clinic App com verificação atual de Clerk e membership owner; sincronizar estado final entre owners. E-mail indisponível não altera autorização nem impede decisão pelo painel. Provedor de entrega e prazo ainda abertos.
 
 ## Fluxo Platform Admin
 
@@ -67,7 +71,7 @@ O superadmin cria `support_access_requests` pendente, com actor/subject/tenant/m
 - `POST /api/tenants/:tenantId/invitations/:id/cancel` (proposto): qualquer owner ativo do tenant cancela convite pending, com auditoria; jamais confiar no tenant declarado pelo browser sem validação de membership.
 - `DELETE /api/tenants/:tenantId/members/:clerkUserId` (proposto): owner remove apenas attendants, sem alterar tenants diferentes.
 - `POST /api/platform/support-requests` (proposto): cria solicitação pendente sem direito de acesso clínico.
-- `POST /api/tenants/:tenantId/support-requests/:id/decision` (proposto): owner ativo do mesmo tenant aprova/rejeita pedido com auditoria.
+- `POST /api/tenants/:tenantId/support-requests/:id/decision` (proposto): decisão dentro da Clinic App por owner ativo do mesmo tenant, autenticado via Clerk e validado no Worker; link de e-mail não vale como aprovação.
 - `POST /api/platform/support-sessions` (proposto): ativa sessão própria apenas com aprovação vigente para os parâmetros imutáveis e código de handoff seguro.
 - `POST /api/platform/support-sessions/:id/revoke` encerra a sessão e impede acesso posterior (HTTP/WebSocket).
 - `POST /api/support/exchange` (Clinic App, contrato proposto) troca o código único por credencial opaca de suporte em cookie seguro HttpOnly, vinculada à sessão Clerk **do actor**.
