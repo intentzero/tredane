@@ -3,6 +3,7 @@ import { AuthProvider, useAuthSession } from './auth/AuthContext'
 import { AuthModeGate, LoginScreen } from './auth/ClerkBridge'
 import { ClinicSelector } from './screens/ClinicSelector'
 import { AreaPlaceholder } from './screens/AreaPlaceholders'
+import { ClinicArea } from './screens/clinic/ClinicArea'
 import { PanelShell } from './shell/PanelShell'
 import { LoadingState } from './states/StatusScreens'
 import { TenantProvider, useTenant } from './tenant/TenantContext'
@@ -71,7 +72,15 @@ function PanelRouter() {
 
   return (
     <PanelShell area={route.area} tenantId={route.tenantId}>
-      <AreaPlaceholder area={route.area} />
+      {route.area === 'clinica' ? (
+        <ClinicArea
+          tenantId={route.tenantId}
+          section={route.section}
+          entityId={route.entityId}
+        />
+      ) : (
+        <AreaPlaceholder area={route.area} />
+      )}
     </PanelShell>
   )
 }

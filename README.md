@@ -57,7 +57,7 @@ A identidade é feita com **Clerk sem Organizations**. Os vínculos de usuários
 
 Ver [ADR-0006](docs/adr/0006-clerk-platform-admin.md), [ADR-0007](docs/adr/0007-support-impersonation.md) e [contratos de identidade e administração](docs/architecture/identity-and-admin.md).
 
-Equipe e convites de attendant (#25): API + e-mail simulado em [f1-team-invites.md](docs/implementation/f1-team-invites.md); provedor real ainda Em aberto. Pedidos de suporte e aprovação do owner (#26): [f1-support-requests.md](docs/implementation/f1-support-requests.md); ativação de sessão (#27) ainda pendente.
+Equipe e convites de attendant (#25): API + e-mail simulado em [f1-team-invites.md](docs/implementation/f1-team-invites.md); provedor real ainda Em aberto. Pedidos de suporte e aprovação do owner (#26): [f1-support-requests.md](docs/implementation/f1-support-requests.md). Sessão de suporte (#27): [f1-support-session.md](docs/implementation/f1-support-session.md). Configuração da clínica (#28): [f2-clinic-config.md](docs/implementation/f2-clinic-config.md).
 
 ## Acompanhamento da definição do MVP
 

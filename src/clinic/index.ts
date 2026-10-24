@@ -10,7 +10,9 @@ export {
   UnauthorizedCallerError,
   ConflictError,
   NotFoundError,
+  ValidationError,
 } from './errors'
+export * as clinicConfig from './config'
 export { fromNodeSqlite, fromDurableObjectSql, type ClinicDb, type SqlValue } from './store'
 export {
   runClinicMigrations,

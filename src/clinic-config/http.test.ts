@@ -1,0 +1,292 @@
+import { describe, expect, it } from 'vitest'
+import { createApp } from '../worker/app'
+import { bootAdminDb } from '../db/test-db'
+import { asyncFromSync } from '../db/admin/async-store'
+import {
+  createSyntheticAuthorityReader,
+  createSyntheticSessionAuthenticator,
+  synthAuthHeader,
+  type AuthServices,
+} from '../auth'
+import { bootClinicDb } from '../clinic/test-db'
+import { createMemoryClinicConfigRegistry } from './gateway'
+
+function testConfigApp() {
+  const admin = bootAdminDb()
+  const clinics = new Map<string, ReturnType<typeof bootClinicDb>>()
+  const registry = createMemoryClinicConfigRegistry((tenantId) => {
+    let boot = clinics.get(tenantId)
+    if (!boot) {
+      boot = bootClinicDb()
+      clinics.set(tenantId, boot)
+    }
+    return { db: boot.db, clock: boot.clock }
+  })
+  const services: AuthServices = {
+    sessions: createSyntheticSessionAuthenticator({
+      authorizedParties: ['http://localhost:5173'],
+    }),
+    authority: createSyntheticAuthorityReader(),
+    adminDb: asyncFromSync(admin.db),
+  }
+  const app = createApp({
+    authServicesFactory: () => services,
+    syncAdminDbFactory: () => admin.db,
+    clinicConfigGatewayFactory: (_env, tenantId) => registry(tenantId),
+  })
+  return {
+    app,
+    close: () => {
+      for (const c of clinics.values()) c.close()
+      admin.close()
+    },
+    auth: (userId: string, init: RequestInit = {}) => {
+      const headers = new Headers(init.headers)
+      headers.set('Authorization', synthAuthHeader(userId))
+      return { ...init, headers }
+    },
+  }
+}
+
+describe('HTTP — configuração da clínica (#28)', () => {
+  it('attendant lê config mas não escreve; owner escreve', async () => {
+    const { app, close, auth } = testConfigApp()
+    try {
+      const readAtt = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config',
+        auth('user_synth_attendant_a'),
+      )
+      expect(readAtt.status).toBe(200)
+      const snap = (await readAtt.json()) as { readiness: { schedulingAllowed: boolean } }
+      expect(snap.readiness.schedulingAllowed).toBe(false)
+
+      const denied = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/services',
+        auth('user_synth_attendant_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Hack',
+            durationMinutes: 30,
+            bufferMinutes: 0,
+            professionalIds: [],
+          }),
+        }),
+      )
+      expect(denied.status).toBe(403)
+
+      const pro = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/resources',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'professional', name: 'Dra. Paula Reis' }),
+        }),
+      )
+      expect(pro.status).toBe(201)
+      const proBody = (await pro.json()) as { id: string }
+
+      const room = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/resources',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kind: 'room',
+            name: 'Sala 2',
+            category: 'Sala com laser',
+          }),
+        }),
+      )
+      expect(room.status).toBe(201)
+      const roomBody = (await room.json()) as { id: string }
+
+      const svc = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/services',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Depilação a laser — pernas',
+            durationMinutes: 60,
+            bufferMinutes: 15,
+            priceCents: 18000,
+            clientExplanation: 'Texto fictício para IA.',
+            professionalIds: [proBody.id],
+            roomRequirement: { mode: 'category', category: 'Sala com laser' },
+          }),
+        }),
+      )
+      expect(svc.status).toBe(201)
+      const svcBody = (await svc.json()) as { occupiedMinutes: number; active: boolean }
+      expect(svcBody.occupiedMinutes).toBe(75)
+
+      for (const resourceId of [proBody.id, roomBody.id]) {
+        const weekly = await app.request(
+          `http://localhost/api/tenants/clinic-demo-a/config/resources/${resourceId}/weekly`,
+          auth('user_synth_owner_a', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              windows: [{ dayOfWeek: 1, startMinute: 540, endMinute: 720 }],
+            }),
+          }),
+        )
+        expect(weekly.status).toBe(200)
+      }
+
+      const ready = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/readiness',
+        auth('user_synth_attendant_a'),
+      )
+      expect(ready.status).toBe(200)
+      const readiness = (await ready.json()) as {
+        schedulingAllowed: boolean
+        missing: string[]
+      }
+      expect(readiness.schedulingAllowed).toBe(true)
+      expect(readiness.missing).toContain('whatsapp')
+    } finally {
+      close()
+    }
+  })
+
+  it('não vaza config entre clínicas; falha de validação não apaga cadastro', async () => {
+    const { app, close, auth } = testConfigApp()
+    try {
+      await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/resources',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'professional', name: 'Só A' }),
+        }),
+      )
+
+      const b = await app.request(
+        'http://localhost/api/tenants/clinic-demo-b/config',
+        auth('user_synth_multi'),
+      )
+      expect(b.status).toBe(200)
+      const snapB = (await b.json()) as { resources: unknown[] }
+      expect(snapB.resources).toEqual([])
+
+      const bad = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/services',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Ruim',
+            durationMinutes: 17,
+            bufferMinutes: 0,
+            professionalIds: [],
+          }),
+        }),
+      )
+      expect(bad.status).toBe(400)
+
+      const after = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config',
+        auth('user_synth_owner_a'),
+      )
+      const snapA = (await after.json()) as { services: unknown[]; resources: unknown[] }
+      expect(snapA.services).toEqual([])
+      expect(snapA.resources).toHaveLength(1)
+    } finally {
+      close()
+    }
+  })
+
+  it('bloqueio dryRun e create listam afectados; compromisso permanece', async () => {
+    const { app, close, auth } = testConfigApp()
+    try {
+      const proRes = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/resources',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'professional', name: 'Dra. Paula' }),
+        }),
+      )
+      const pro = (await proRes.json()) as { id: string }
+
+      const svcRes = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/services',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Limpeza',
+            durationMinutes: 60,
+            bufferMinutes: 0,
+            professionalIds: [pro.id],
+          }),
+        }),
+      )
+      const svc = (await svcRes.json()) as { id: string }
+
+      const starts = Date.now() + 86_400_000
+      const aptRes = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/test-appointments',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            serviceId: svc.id,
+            professionalId: pro.id,
+            startsAt: starts,
+            endsAt: starts + 3_600_000,
+            contactLabel: 'Ana Fictícia',
+          }),
+        }),
+      )
+      expect(aptRes.status).toBe(201)
+
+      const dry = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/blocks',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            resourceId: pro.id,
+            startsAt: starts - 60_000,
+            endsAt: starts + 7_200_000,
+            reason: 'ferias',
+            dryRun: true,
+          }),
+        }),
+      )
+      expect(dry.status).toBe(200)
+      const dryBody = (await dry.json()) as {
+        created: boolean
+        affectedAppointments: unknown[]
+      }
+      expect(dryBody.created).toBe(false)
+      expect(dryBody.affectedAppointments).toHaveLength(1)
+
+      const created = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/blocks',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            resourceId: pro.id,
+            startsAt: starts - 60_000,
+            endsAt: starts + 7_200_000,
+            reason: 'ferias',
+          }),
+        }),
+      )
+      expect(created.status).toBe(201)
+      const body = (await created.json()) as {
+        created: boolean
+        affectedAppointments: Array<{ status: string }>
+      }
+      expect(body.created).toBe(true)
+      expect(body.affectedAppointments[0]?.status).toBe('confirmed')
+    } finally {
+      close()
+    }
+  })
+})

@@ -42,3 +42,13 @@ export class NotFoundError extends ClinicError {
     this.name = 'NotFoundError'
   }
 }
+
+export class ValidationError extends ClinicError {
+  readonly details?: Record<string, unknown>
+
+  constructor(code: string, message: string, details?: Record<string, unknown>) {
+    super(code, message)
+    this.name = 'ValidationError'
+    this.details = details
+  }
+}

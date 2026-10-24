@@ -3,6 +3,7 @@ import {
   acknowledgeOutboxResult,
   assertSyntheticTenantId,
   bindOrAssertTenant,
+  clinicConfig,
   fromDurableObjectSql,
   getBoundTenant,
   ingestContactMessage,
@@ -18,6 +19,12 @@ import {
   type IngestContactMessageInput,
   workerCaller,
 } from '../clinic'
+import type {
+  CreateBlockInput,
+  SetWeeklyWindowsInput,
+  UpsertResourceInput,
+  UpsertServiceInput,
+} from '../clinic/config'
 import { systemClock, type Clock } from '../db/clock'
 import { fromD1 } from '../db/admin/async-store'
 import {
@@ -483,6 +490,219 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
 
     return { live, revoked, skippedUnavailable }
+  }
+
+  async #fanoutConfigEvent(
+    caller: ClinicCaller,
+    type: string,
+    entityType: string,
+    entityId: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    const evt = appendRealtimeEvent(
+      this.#db,
+      {
+        tenantId: caller.tenantId,
+        type,
+        entityType,
+        entityId,
+        payload,
+        audience: 'all',
+      },
+      this.#clock,
+    )
+    await deliverEventToSockets(
+      this.#db,
+      this.#asDeliverySockets(),
+      evt,
+      this.#authority(),
+      this.#clock,
+    )
+  }
+
+  async getConfigSnapshot(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicConfig.getConfigSnapshotOp(this.#db, caller, this.#clock)
+  }
+
+  async getConfigReadiness(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicConfig.getReadinessOp(this.#db, caller, this.#clock)
+  }
+
+  async updateClinicTimezone(caller: ClinicCaller, timezone: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const settings = clinicConfig.updateTimezoneOp(
+      this.#db,
+      caller,
+      timezone,
+      this.#clock,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      'config.settings_updated',
+      'clinic_settings',
+      '1',
+      { timezone: settings.timezone },
+    )
+    return settings
+  }
+
+  async upsertClinicService(caller: ClinicCaller, input: UpsertServiceInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const row = clinicConfig.upsertServiceOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutConfigEvent(
+      caller,
+      input.id ? 'config.service_updated' : 'config.service_created',
+      'service',
+      row.id,
+      { name: row.name, active: row.active },
+    )
+    return row
+  }
+
+  async setClinicServiceActive(
+    caller: ClinicCaller,
+    serviceId: string,
+    active: boolean,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const row = clinicConfig.setServiceActiveOp(
+      this.#db,
+      caller,
+      serviceId,
+      active,
+      this.#clock,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      active ? 'config.service_activated' : 'config.service_deactivated',
+      'service',
+      row.id,
+      { active: row.active },
+    )
+    return row
+  }
+
+  async upsertClinicResource(caller: ClinicCaller, input: UpsertResourceInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const row = clinicConfig.upsertResourceOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutConfigEvent(
+      caller,
+      input.id ? 'config.resource_updated' : 'config.resource_created',
+      'resource',
+      row.id,
+      { kind: row.kind, name: row.name, active: row.active },
+    )
+    return row
+  }
+
+  async setClinicResourceActive(
+    caller: ClinicCaller,
+    resourceId: string,
+    active: boolean,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const row = clinicConfig.setResourceActiveOp(
+      this.#db,
+      caller,
+      resourceId,
+      active,
+      this.#clock,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      active ? 'config.resource_activated' : 'config.resource_deactivated',
+      'resource',
+      row.id,
+      {
+        active: row.active,
+        futureAppointmentCount: row.futureAppointmentCount,
+        servicesWithoutResource: row.servicesWithoutResource,
+      },
+    )
+    return row
+  }
+
+  async setClinicWeeklyWindows(caller: ClinicCaller, input: SetWeeklyWindowsInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const windows = clinicConfig.setWeeklyWindowsOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      'config.weekly_updated',
+      'resource',
+      input.resourceId,
+      { windowCount: windows.length },
+    )
+    return windows
+  }
+
+  async createClinicBlock(caller: ClinicCaller, input: CreateBlockInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicConfig.createBlockOp(this.#db, caller, input, this.#clock)
+    if (result.created && result.block) {
+      await this.#fanoutConfigEvent(
+        caller,
+        'config.block_created',
+        'resource_block',
+        result.block.id,
+        {
+          resourceId: result.block.resourceId,
+          affectedCount: result.affectedAppointments.length,
+        },
+      )
+    }
+    return result
+  }
+
+  async deleteClinicBlock(caller: ClinicCaller, blockId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicConfig.deleteBlockOp(this.#db, caller, blockId, this.#clock)
+    await this.#fanoutConfigEvent(
+      caller,
+      'config.block_deleted',
+      'resource_block',
+      blockId,
+      {},
+    )
+    return result
+  }
+
+  async insertSyntheticAppointmentForTests(
+    caller: ClinicCaller,
+    input: {
+      serviceId: string
+      professionalId: string
+      roomResourceId?: string | null
+      startsAt: number
+      endsAt: number
+      contactLabel?: string | null
+    },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    bindOrAssertTenant(this.#db, caller, this.#clock)
+    return clinicConfig.insertSyntheticAppointment(
+      this.#db,
+      caller.tenantId,
+      input,
+      this.#clock,
+    )
   }
 
   async #drain(caller: ClinicCaller): Promise<{ published: string[]; failed: string[] }> {

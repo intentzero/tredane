@@ -26,11 +26,16 @@ import {
   createSupportRoutes,
   type SupportRouteOptions,
 } from '../support'
+import {
+  createClinicConfigRoutes,
+  type ClinicConfigRouteOptions,
+} from '../clinic-config'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
 import type { ClinicEventPublisher } from '../realtime'
 import type { WorkerBindings } from './bindings'
+import type { ClinicConfigGateway } from '../clinic-config'
 
 export type { WorkerBindings } from './bindings'
 
@@ -53,6 +58,11 @@ export type CreateAppOptions = {
   appBaseUrlFactory?: (env: WorkerBindings) => string
   /** Fan-out de eventos de suporte (#26). */
   eventPublisherFactory?: (env: WorkerBindings) => ClinicEventPublisher
+  /** Gateway de config da clínica (#28) — DO em produção; memória nos testes. */
+  clinicConfigGatewayFactory?: (
+    env: WorkerBindings,
+    tenantId: string,
+  ) => ClinicConfigGateway | Promise<ClinicConfigGateway>
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -103,6 +113,11 @@ export function createApp(opts: CreateAppOptions = {}) {
     eventPublisherFactory: opts.eventPublisherFactory,
   }
   app.route('/', createSupportRoutes(supportOpts))
+
+  const configOpts: ClinicConfigRouteOptions = {
+    gatewayFactory: opts.clinicConfigGatewayFactory,
+  }
+  app.route('/', createClinicConfigRoutes(configOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)
