@@ -8,6 +8,15 @@
 **Proposto:** posicionamento, textos, estrutura, direção visual e jornada de demonstração abaixo.
 **Em aberto:** abertura do piloto, CTA definitivo, identidade visual final, formulário e operação de captação. O pedido de documentação não transforma essas escolhas condicionais em decisões aprovadas nem altera DEC-001–038.
 
+> **Atualização (24/10/2026):** depois deste conceito, o responsável pelo produto confirmou decisões para a landing page em [DEC-044](decisions.md), detalhadas em [landing.md](landing.md), que **prevalecem** onde divergem deste documento:
+> - **Visual:** design system do painel (azul `#2F5BD3`, Inter), e não marfim, grafite e verde profundo.
+> - **Captação:** contato por e-mail, **sem formulário**, até haver política de privacidade; o formulário da seção 7 fica sem efeito por ora.
+> - **CTA:** “Quero participar do piloto”.
+> - **Pagamentos:** o sinal por Pix passou a fazer parte do MVP (DEC-047); os demais pagamentos continuam fora.
+> - **Vocabulário:** “Acompanhamento” no lugar de pipeline (DEC-045).
+>
+> Continuam válidas e foram levadas para [landing.md](landing.md) como pontos **Em aberto**: indicar o estágio do produto (“em desenvolvimento”), marcar as interfaces como “prévia conceitual” e citar clínicas de depilação no público.
+
 ## 1. Objetivo e público
 
 **Proposto:** a primeira landing apresenta o Tredane e capta interesse de donos e responsáveis por clínicas de estética e depilação. Deve abrir conversas com potenciais clínicas piloto, conforme disponibilidade real do programa.

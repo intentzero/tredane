@@ -54,4 +54,5 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: IA s
 | Condições e preço do piloto | Responsável pelo produto |
 | Logo e marca definitivos (hoje provisórios) | Responsável pelo produto |
 | Domínio real em `SITE_URL` (canônica, Open Graph e mapa do site usam o padrão `tredane.example` até lá) e endereço do painel em `PUBLIC_APP_URL`, e-mail em `PUBLIC_CONTACT_EMAIL` | Responsável pelo produto |
+| Vindos do [conceito anterior](landing-page-concept.md): mostrar o estágio do produto (“em desenvolvimento”), identificar as ilustrações como “prévia conceitual” e citar clínicas de depilação no público | Responsável pelo produto |
 | Medição de visitas: só com ferramenta sem cookies e após a política de privacidade | Responsável pelo produto |
