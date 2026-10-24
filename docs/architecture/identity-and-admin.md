@@ -42,7 +42,11 @@ O superadmin cria `support_access_requests` pendente, com actor/subject/tenant/m
 
 ## Prazo de aprovação do suporte — DEC-031
 
-Todo `support_access_requests` recebe `created_at` e `expires_at = created_at + 24 horas` calculados no servidor em UTC. Aprovação valida estado `pending` e `now < expires_at` na transição atómica no D1. No instante de expiração ou depois, nenhum suporte, handoff ou cookie pode ser ativado; expiração lógica independe de manutenção assíncrona. E-mail/Clerk login não renovam o pedido. TTL da sessão ativada após aprovação é separado e está em aberto.
+Todo `support_access_requests` recebe `created_at` e `expires_at = created_at + 24 horas` calculados no servidor em UTC. Aprovação valida estado `pending` e `now < expires_at` na transição atómica no D1. No instante de expiração ou depois, nenhum suporte, handoff ou cookie pode ser ativado; expiração lógica independe de manutenção assíncrona. E-mail/Clerk login não renovam o pedido. TTL da sessão ativada após aprovação é separado, agora definido em 30 minutos (DEC-032).
+
+## DEC-032 — Sessão própria de suporte com TTL de 30 minutos
+
+A aprovação válida ativa sessão no D1 e define `activated_at` UTC e `expires_at = activated_at + 30min`, com prazo fixo e não deslizante. Autorizar API, dados e eventos WebSocket somente enquanto `now < expires_at`, sessão ativa, aprovação/actor/subject/tenant e capacidades válidos. Expiração exige invalidação das conexões do DO e credenciais, inclusive após hibernação, sem confiar só em job de limpeza. O superadmin pode encerrar antes, com auditoria; sem logout global Clerk. Distinto das 24h para o pedido pendente. Renovação por decidir.
 
 ## Notificação de solicitações de suporte — DEC-030
 

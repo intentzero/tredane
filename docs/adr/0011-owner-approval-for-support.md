@@ -1,6 +1,6 @@
 # ADR-0011 — Aprovação de cada sessão de suporte pelo owner
 
-**Estado:** DEC-029 (aprovação por sessão), DEC-030 (painel + e-mail) e **DEC-031 (24 horas para pedido pendente)** confirmadas. Duração da sessão e UX complementar em aberto.
+**Estado:** DEC-029 (aprovação por sessão), DEC-030 (painel + e-mail) e **DEC-031 (24 horas para pedido pendente)** confirmadas. Duração da sessão confirmada em 30 minutos (DEC-032); renovação e UX complementar em aberto.
 **Relacionados:** [ADR-0007](0007-support-impersonation.md), [DEC-028/029](../product/decisions.md), [REQ-007](../product/requirements.md), [AC-27](../product/acceptance.md).
 
 ## Decisão
@@ -22,8 +22,14 @@ A aprovação identifica pedido específico, actor superadmin autenticado como e
 - Pedido de suporte permanece pendente por **24 horas** desde `created_at` em UTC calculado pelo backend. Persistir `expires_at = created_at + 24 horas` em D1.
 - Aprovar exige `status = pending` e `now < expires_at` numa transição atómica. No instante exato de `expires_at` ou depois, rejeitar aprovação e impedir qualquer criação de sessão, handoff, cookie ou acesso HTTP/WebSocket. Fazer validação mesmo que job de expiração esteja atrasado/indisponível.
 - E-mail atrasado, reabertura da página, reconexão WebSocket e login no Clerk não prolongam o prazo. Pedido vencido precisa de **nova solicitação e nova aprovação**, sem reativação do antigo.
-- Após aprovação **dentro das 24 horas**, a sessão de suporte ativada segue **TTL próprio ainda a decidir**; não confundir 24 horas de decisão pendente com duração de sessão. Revogação do owner continua aplicável.
+- Após aprovação **dentro das 24 horas**, a sessão de suporte ativada segue **TTL fixo de 30 minutos desde a ativação (DEC-032)**; não confundir 24 horas de decisão pendente com duração de sessão. Revogação do owner continua aplicável.
 - Testes: aprovação imediatamente antes, no limite e após expiração; corrida entre owners; falta de limpeza agendada; relógio do browser alterado; e-mail atrasado; pedido expirado tentando ativar sessão.
+
+## Prazo da sessão de suporte — DEC-032
+
+Após aprovação válida do owner, o Tredane ativa a sessão com `activated_at` UTC do servidor e `expires_at = activated_at + 30 minutos` no D1. A contagem inicia **na ativação**, não no primeiro acesso ou handoff. Exigir sessão `active` e `now < expires_at` em cada API e entrega WebSocket. No instante de vencimento ou depois, negar dados e invalidar ou fechar WebSockets e credenciais de suporte mesmo após hibernação ou sem job de limpeza.
+
+O superadmin pode encerrar a sessão antes dos 30 minutos, com auditoria e invalidação imediata de acesso. Reabrir, manter ativo, autenticar novamente e reconectar não renovam o prazo. **Renovação automática não foi autorizada**; política de renovação continua em aberto. A validade de 24 horas do pedido pendente (DEC-031) **não** limita a sessão já aprovada, que tem prazo independente de 30 minutos. Testar no limite, antes, depois, encerramento voluntário, socket ativo/hibernado e corrida com fan-out.
 
 ## Contrato técnico candidato — não implementado
 
@@ -44,8 +50,8 @@ Estados: `pending`, `approved`, `rejected`, `expired`, `revoked` e `cancelled`. 
 
 ## Pendências explícitas
 
-- **Duração da sessão de suporte já aprovada** (próxima decisão). Prazo de pedido pendente fixado em 24 horas por DEC-031.
-- **Duração da sessão de suporte aprovada**, e como funciona eventual renovação. Pedido pendente expira em 24 horas (DEC-031).
+- **Política de renovação da sessão ativa** (próxima decisão). Prazo de pedido pendente fixado em 24 horas por DEC-031.
+- **Como funciona eventual renovação da sessão aprovada**. Pedido pendente expira em 24 horas (DEC-031).
 - Política de revogação pelo owner com sessão ativa, notificações e auditoria; sem autorização válida, bloquear por padrão.
 - Privacidade/LGPD, retenção de pedidos e logs, política sem owner disponível e revisão de segurança com dados reais.
 

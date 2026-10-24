@@ -128,6 +128,10 @@
 
 **Dado** pedido `pending` criado em t0; **quando** owner válido decide antes de t0+24h, **então** o backend pode persistir aprovação atomically, vinculada a apenas uma sessão. **Em t0+24h e depois**, negar aprovação e ativação sem criar handoff, cookie ou WebSocket; pedido é expirado mesmo que o job de limpeza não execute. O link de e-mail atrasado abre solicitação expirada e um novo pedido é necessário. A sessão aprovada dentro do prazo terá TTL separado. Testar corrida de owners, hora do servidor e limite temporal. **DEC-031; REQ-007/060.**
 
+### AC-30 — Suporte termina após 30 minutos ou encerramento antecipado
+
+**Dado** pedido válido aprovado e sessão ativada em `t0`; **antes de t0 + 30 minutos** a sessão permite somente ações autorizadas. **No instante t0 + 30 minutos e depois**, o backend não permite novos dados, operações, eventos WebSocket ou reutilização de cookie/handoff mesmo após hibernação ou refresh; o painel informa a expiração. O superadmin pode terminar antes, auditando e cortando o acesso. A sessão Clerk continua válida fora do contexto de suporte. Testar corrida com fan-out e ausência de job de limpeza. **REQ-007/061, DEC-032.**
+
 ## Condições para usar estes cenários como aprovação
 
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.

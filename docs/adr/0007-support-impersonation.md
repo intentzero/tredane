@@ -62,6 +62,7 @@ support_sessions (
   scope,
   status,
   created_at,
+  activated_at,
   expires_at,
   revoked_at,
   last_used_at
@@ -85,9 +86,13 @@ A associação com a sessão Clerk do actor e as chaves entre tenants devem ser 
 
 **DEC-028 — sem MFA no MVP:** o superadmin real não precisa de MFA para iniciar suporte. Permanecem obrigatórios motivo, autenticação Clerk válida, flag superadmin consultada no backend, sessão própria D1, TTL, handoff seguro, cookie HttpOnly, CSRF, auditoria dupla, controle de capacidades e revisão de segurança antes de dados reais.
 
+## DEC-032 — TTL de 30 minutos após aprovação
+
+Ao aprovar pedido de owner válido, criar sessão de suporte com `activated_at` UTC e `expires_at = activated_at + 30 minutos`. O prazo começa na ativação, sem extensão por handoff, navegação ou reconexão. Após esse prazo ou encerramento antecipado pelo superadmin, negar novas APIs e entrega de eventos WebSocket (inclusive DO hibernado), invalidando cookie/token e mantendo a sessão Clerk global. Encerramento auditado. A janela de 24 horas do pedido pendente (DEC-031) é separada; renovação explícita a decidir.
+
 ## Políticas mínimas de segurança
 
-- **TTL da sessão:** duração curta, sugeridos 15 minutos, ainda não aprovada. Separar da janela confirmada de 24 horas para **aprovar o pedido** (DEC-031); renovação da sessão em aberto.
+- **TTL da sessão (DEC-032):** 30 minutos fixos desde ativação, com encerramento antecipado e sem renovação automática. O prazo de 24 horas da DEC-031 é apenas para decidir o pedido pendente.
 - **Início:** exigir motivo, sessão Clerk válida, autorização superadmin e **aprovação do owner para cada sessão (DEC-029)**. Sem MFA/step-up no MVP (DEC-028); não iniciar automaticamente por abertura de página.
 - **Modo inicial:** acesso de leitura e diagnóstico; operações de manutenção que modificam dados só após política de capacidades explícita, limitada ao papel do alvo e com auditoria. Proibir por padrão credenciais, alteração de membership/papéis, faturação, segredos, exportação em massa e ações destrutivas. Envio WhatsApp e alterações de agendamento exigem aprovação específica antes de ativar.
 - **Revogação (DEC-026):** retirar `superadmin`, revogar sessão Clerk, remover membership do subject **no tenant da sessão**, suspender tenant ou expirar/revogar suporte faz pedidos e WebSockets daquele contexto falharem **fechados**, sem fallback a permissões globais. Revogar A não deve desligar a sessão Clerk global nem afetar o acesso direto legítimo a B.

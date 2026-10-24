@@ -50,7 +50,9 @@
 
 **DEC-028 substituiu DEC-027:** MFA fora do MVP para todos os perfis. A revisão de segurança de Platform Admin e suporte continua pendente, mas não bloquear por definição de método MFA.
 
-**DEC-029 confirmou aprovação prévia e específica do owner para cada sessão de suporte**; sem isso não há acesso clínico. Canal resolvido em DEC-030 (painel em tempo real e aviso por e-mail, decisão só no Tredane); DEC-031 fixou prazo do pedido pendente em 24 horas; TTL de sessão, segurança e privacidade continuam em aberto. Checklist não fechado automaticamente.
+**DEC-029 confirmou aprovação prévia e específica do owner para cada sessão de suporte**; sem isso não há acesso clínico. Canal resolvido em DEC-030 (painel em tempo real e aviso por e-mail, decisão só no Tredane); DEC-031 fixou prazo do pedido pendente em 24 horas; renovação de sessão, segurança e privacidade continuam em aberto; TTL fixado em DEC-032. Checklist não fechado automaticamente.
+
+**DEC-032 fechou TTL da sessão própria de suporte em 30 minutos**, distinto do prazo de 24 horas do pedido pendente (DEC-031), com fim antecipado auditado e negação de acesso ao expirar. Renovação, revisão de segurança e testes de concorrência/DO continuam pendentes.
 
 ## Decisões fechadas
 

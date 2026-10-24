@@ -116,9 +116,13 @@
 - **Ator e objetivo:** superadmin reproduz problema ou executa manutenção como membro selecionado da clínica.
 - **Pré-condições:** Clerk mantém sessão do actor; superadmin válido; tenant e membership do subject ativos.
 - **Fluxo (DEC-029/030):** selecionar tenant/subject e motivo → backend cria pedido `pending` sem acesso clínico → painel dos owners ativos daquele tenant recebe evento em tempo real e e-mail informativo é enviado com link para abrir pedido → owner autenticado pelo Clerk aprova/rejeita **no painel** → somente após aprovação ativa sessão própria do Tredane com handoff à Clinic App e banner permanente → validar actor, subject, aprovação, role e TTL → auditar também owner aprovador → encerrar/revogar.
-- **Alternativas (DEC-031):** pedido pendente expira automaticamente após 24 horas da criação; owner não pode aprovar em/apos `expires_at`, mesmo se e-mail chegou atrasado, e novo pedido será necessário. A sessão ativada tem prazo próprio por decidir. E-mail perdido/duplicado/atrasado não aprova e não impede a decisão pelo painel; link não autoriza acesso por si; dois owners decidindo têm somente uma transição vencedora. Pendência, rejeição, ausência/expiração/revogação de aprovação negam acesso; owner de outra clínica não pode aprovar. Limite/expiração, alteração do subject/tenant, revogação da flag ou falha Clerk/D1 negam acesso; ações proibidas continuam negadas.
+- **Alternativas (DEC-031):** pedido pendente expira automaticamente após 24 horas da criação; owner não pode aprovar em/apos `expires_at`, mesmo se e-mail chegou atrasado, e novo pedido será necessário. A sessão ativada dura 30 minutos (DEC-032), renovação ainda por decidir. E-mail perdido/duplicado/atrasado não aprova e não impede a decisão pelo painel; link não autoriza acesso por si; dois owners decidindo têm somente uma transição vencedora. Pendência, rejeição, ausência/expiração/revogação de aprovação negam acesso; owner de outra clínica não pode aprovar. Limite/expiração, alteração do subject/tenant, revogação da flag ou falha Clerk/D1 negam acesso; ações proibidas continuam negadas.
 - **Resultado:** manutenção rastreável, sem substituir a identidade real do actor nem usar impersonação do Clerk.
 - **Requisitos:** REQ-003/005/006/007/040.
+
+## DEC-032 — Sessão de suporte de 30 minutos
+
+A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quando aprovada, a sessão própria de suporte é ativada por **30 minutos** a partir da ativação no servidor. O painel mostra a validade e permite encerramento antecipado pelo superadmin. Após expirar, a Clinic App perde autorização de suporte, API e WebSockets param, e a sessão Clerk continua ativa. Atividade, login, refresh e reconexão não renovam o prazo. Renovação será decidida separadamente.
 
 ## JRN-15 — Sessão Clerk sem MFA no MVP
 
