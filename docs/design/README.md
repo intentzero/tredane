@@ -53,7 +53,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 
 ## Desktop
 
-`desktop/` guarda quatro telas anteriores às decisões DEC-039 (mobile first) e DEC-040 e **não** cobrem login, seletor de clínica, janela de 24 h, semana, área Clínica nem WhatsApp. Use-as apenas como referência de como as telas de atendimento se ampliam em largura (três colunas em Conversas, quadro completo no Pipeline, grade com painel lateral na Agenda). Onde divergirem de `mobile/`, vale o mobile. As versões desktop das telas novas ainda estão **Em aberto**.
+`desktop/` guarda quatro telas anteriores às decisões DEC-039 (mobile first) e DEC-040 e **não** cobrem login, seletor de clínica, janela de 24 h, semana, área Clínica nem WhatsApp. Use-as apenas como referência de como as telas de atendimento se ampliam em largura (três colunas em Conversas, quadro completo no Pipeline, grade com painel lateral na Agenda). Onde divergirem de `mobile/`, vale o mobile. **Confirmado (24/10/2026):** o piloto é só mobile; versões desktop dedicadas das telas novas ficam **Fora do MVP**, e no desktop as mesmas telas apenas ganham largura.
 
 ## Divergências conhecidas entre mocks e especificação
 
@@ -77,3 +77,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 - **Criou uma tela?** Dê a próxima ID (M-27…), acrescente em `mobile/canvas.json`, em [screens.md](screens.md) e na rastreabilidade de [ux-ui.md](../product/ux-ui.md) §9. Não renumere IDs existentes.
 - **Mudou uma decisão ou requisito?** Atualize primeiro o documento de produto, depois o mock afetado; nunca deixe mock e spec com versões concorrentes.
 - **Aprovação:** o design system v0.2 foi aprovado (DEC-041). Os **mocks das telas** continuam **Proposto** até o responsável pelo produto revisá-los. Mudar um token já aprovado exige nova decisão registrada em [decisions.md](../product/decisions.md).
+
+## Marca
+
+**Confirmado (24/10/2026):** no piloto a marca é provisória: azul `primary.base` atual e ícone simples de PWA. Logo e identidade definitivos ficam **Em aberto** e entram trocando valores em `tokens.json`, sem mudar a especificação funcional.

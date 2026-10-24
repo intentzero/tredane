@@ -185,7 +185,7 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
 **Início (M-15).** Faixa “Falta N passos para atender” com os itens pendentes e uma lista de áreas com o estado de cada uma (Pronto, Falta conectar). “Pronta para atender” exige: ao menos um serviço, um profissional, uma sala/equipamento, expediente e WhatsApp conectado (REQ-052, AC-14). Sem a configuração da agenda, M-04 mostra “A agenda desta clínica ainda não foi configurada”.
 
-**Serviço (M-16).** Nome, duração e intervalo depois (múltiplos de 15 min, DEC-008), quem pode fazer, sala/equipamento exigido, preço opcional e ativo/inativo. Um resumo mostra quanto tempo o serviço ocupa na agenda: duração + intervalo, bloqueando profissional e sala. Desativar um serviço não cancela compromissos já marcados. Nome, duração e preço também alimentam o contexto da IA (REQ-060).
+**Serviço (M-16).** Nome, duração e intervalo depois (múltiplos de 15 min, DEC-008), quem pode fazer, sala/equipamento exigido, preço opcional e ativo/inativo. Um resumo mostra quanto tempo o serviço ocupa na agenda: duração + intervalo, bloqueando profissional e sala. Desativar um serviço não cancela compromissos já marcados. Nome, duração e preço também alimentam o contexto da IA (REQ-072).
 
 **Horários e bloqueios (M-17).** Por profissional e por sala/equipamento: expediente semanal (faixas por dia) e bloqueios pontuais com data, horário opcional e motivo; sem recorrência no MVP (DEC-008). Criar um bloqueio sobre compromissos existentes lista os compromissos afetados e não os cancela sozinho; o responsável decide caso a caso (fluxo de cancelar ou reagendar com motivo, TEL-06).
 
@@ -268,7 +268,7 @@ Ver seção 6.2.
 
 ### 6.3 IA assistiva
 
-**Origem:** REQ-022, REQ-060, ADR-0004, AC-06. **Estado:** Proposto; provedor (Claude via AI Gateway) e contexto **Confirmados** (DEC-011).
+**Origem:** REQ-022, REQ-072, ADR-0004, AC-06. **Estado:** Proposto; provedor (Claude via AI Gateway) e contexto **Confirmados** (DEC-011).
 
 - **Sugerir resposta** é acionado pelo usuário; não há sugestão automática ao abrir a conversa nem a cada mensagem recebida (**Confirmado**, DEC-040: reduz custo e o envio de contexto à IA).
 - A sugestão aparece acima do compositor, em bloco com borda tracejada e rótulo “Sugestão da IA — revise antes de enviar”, com: **Usar e editar** (copia para o compositor, editável), **Gerar outra**, **Descartar**. No celular, o botão de IA fica à esquerda do campo e o de enviar à direita, separados para evitar toque acidental. Não há botão de envio dentro do bloco; o único caminho até o contato é o botão **Enviar** do compositor.

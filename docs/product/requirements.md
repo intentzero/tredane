@@ -98,7 +98,7 @@
 
 ### REQ-022 — Resposta assistida por IA
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** IA (Claude via AI Gateway, DEC-011) pode sugerir resposta e resumo; pessoa autorizada revisa e aciona o envio. **Aceite:** a sugestão é identificada, editável e nunca vira mensagem enviada sem ação humana; falha da IA não bloqueia resposta manual. **Dados/eventos:** origem da sugestão, modelo e decisão de envio; contexto conforme REQ-060.
+**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** IA (Claude via AI Gateway, DEC-011) pode sugerir resposta e resumo; pessoa autorizada revisa e aciona o envio. **Aceite:** a sugestão é identificada, editável e nunca vira mensagem enviada sem ação humana; falha da IA não bloqueia resposta manual. **Dados/eventos:** origem da sugestão, modelo e decisão de envio; contexto conforme REQ-072.
 
 ### REQ-023 — Oportunidade no pipeline
 
@@ -154,7 +154,9 @@
 
 **Prioridade/estado:** MVP / Confirmado quanto ao papel (só o responsável, DEC-007); telas propostas. **Origem:** ACT-03; JRN-08. **Comportamento:** antes de agendar, o responsável configura serviços (duração e intervalo), profissionais, salas/equipamentos e disponibilidade mínimos. **Aceite:** o fluxo de ativação não libera agendamentos sem essa configuração; atendente não altera nenhum desses itens. **Dados/eventos:** configuração no armazenamento da clínica (SQLite do Durable Object, DEC-038).
 
-### REQ-060 — Dados usados pela IA
+### REQ-072 — Dados usados pela IA
+
+**Renumeração (24/10/2026, decisão do responsável):** antes duplicava o ID REQ-060, que permanece com o aviso e a decisão de suporte.
 
 **Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** o contexto enviado à IA contém só mensagens recentes da conversa (proposta: até 20), primeiro nome do contato, catálogo de serviços da clínica e etapa da oportunidade. **Aceite:** inspecionando a solicitação enviada ao AI Gateway em teste, não aparecem telefone, anexos, outras conversas nem dados de outra clínica; o AI Gateway não registra o conteúdo. **Dados/eventos:** não usar dados reais antes da revisão jurídica.
 
@@ -198,7 +200,7 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-050 | MVP | Webhook autenticado e número associado ao tenant são fronteira de segurança. |
 | REQ-051 | MVP | Sem vinculação verificável de número, não existe atendimento WhatsApp real. |
 | REQ-052 | MVP | Agenda exige serviços, recursos e disponibilidade configurados. |
-| REQ-060 | MVP | É preciso definir e limitar o contexto antes de usar IA com clientes. |
+| REQ-072 | MVP | É preciso definir e limitar o contexto antes de usar IA com clientes. |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). |
 

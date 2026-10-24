@@ -1,7 +1,7 @@
 # ADR-0004 — IA assistiva com revisão humana no primeiro recorte
 
 - **Estado:** Recorte proposto e registado no MVP. **Aceitos** em 23/10/2026 o provedor, o contexto e a retenção ([DEC-011](../product/decisions.md)); revisão jurídica pendente antes de dados reais.
-- **Origem:** [DEC-006](../product/decisions.md), [REQ-022 / REQ-060](../product/requirements.md).
+- **Origem:** [DEC-006](../product/decisions.md), [REQ-022 / REQ-072](../product/requirements.md).
 
 ## Contexto
 
