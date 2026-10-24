@@ -10,3 +10,6 @@ dist/
 *.tsbuildinfo
 coverage/
 .DS_Store
+site/node_modules/
+site/dist/
+site/.astro/

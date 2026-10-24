@@ -32,3 +32,5 @@ jobs:
         run: npm run db:migrate:local
       - name: Seed fictional development tenants
         run: npm run db:seed:local
+      - name: Build landing page (site/)
+        run: npm ci --no-audit --no-fund --prefix site && npm run build --prefix site

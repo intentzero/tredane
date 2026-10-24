@@ -1,0 +1,333 @@
+---
+import Base from '../layouts/Base.astro'
+import Icon from '../components/Icon.astro'
+// Antes de publicar, preencher os itens [A DEFINIR] e os endereços .example (DEC-044, LP-AC-05).
+// Toda afirmação desta página precisa de uma decisão confirmada (docs/product/landing.md).
+const appUrl = import.meta.env.PUBLIC_APP_URL ?? 'https://app.tredane.example'
+const contactEmail = import.meta.env.PUBLIC_CONTACT_EMAIL ?? 'contato@tredane.example'
+
+// Hipótese a validar com clínicas (VAL-01): o que pesa na rotina da recepção.
+const compare = [
+  { before: 'Lembrar quem já foi respondida e onde cada conversa parou.', afterStrong: 'Uma caixa de conversas para toda a equipe', after: ', com quem está atendendo cada cliente.' },
+  { before: 'Não esquecer quem perguntou o preço e sumiu.', afterStrong: 'Uma lista de quem perguntou e ainda não marcou', after: ', para retomar na hora certa.' },
+  { before: 'Pensar de novo na resposta certa para a mesma pergunta.', afterStrong: 'A IA sugere com os preços e as explicações da clínica', after: '; você revisa e envia.' },
+  { before: 'Encaixar horário de cabeça, torcendo para a sala estar livre.', afterStrong: 'A agenda confere profissional, sala e intervalo', after: ' antes de confirmar.' },
+]
+
+const promises = [
+  { title: 'Só sugere, nunca envia sozinha', text: 'A sugestão aparece quando a atendente pede, e só sai depois que uma pessoa revisa e envia.' },
+  { title: 'Preço do jeito que está cadastrado', text: 'Usa o valor do serviço. Sem preço cadastrado, não inventa: sugere que a equipe confirme.' },
+  { title: 'Explica com as palavras da clínica', text: 'Descreve o procedimento só com o texto que a responsável escreveu, sem prometer resultado.' },
+  { title: 'Saúde é com a profissional', text: 'Perguntas sobre gravidez, contraindicação ou medicamento são encaminhadas para a profissional da clínica.' },
+  { title: 'Firme e gentil quando preciso', text: 'Se alguém passa do ponto, a atendente recebe um aviso e uma sugestão de resposta curta e educada.' },
+  { title: 'O mínimo de dados', text: 'Usa as mensagens recentes, o primeiro nome e os serviços da clínica. Nunca o telefone nem anexos.' },
+]
+
+const faq = [
+  { q: 'A IA responde sozinha para os clientes?', a: 'Não. A IA só sugere quando a atendente pede, e a mensagem só sai depois que uma pessoa revisa e envia.', open: true },
+  { q: 'A IA sabe os preços e explica os procedimentos?', a: 'Sim, com o que a clínica cadastrar: o preço de cada serviço e uma explicação escrita pela responsável. Se faltar o preço ou a explicação, a IA não inventa. Dúvidas de saúde vão sempre para a profissional.' },
+  { q: 'Como funciona o sinal por Pix?', a: 'A clínica escolhe os serviços que exigem sinal e o valor. A atendente envia o Pix pela conversa e o horário é confirmado quando o pagamento chega. O dinheiro vai direto para a conta da clínica. Se outra pessoa marcar antes do pagamento, a equipe oferece outro horário ou devolve o sinal.' },
+  { q: 'Preciso trocar o número da clínica?', a: 'O Tredane usa a API oficial do WhatsApp Business. Conversamos sobre o número da clínica antes de conectar, e a conexão é feita pela própria clínica, no fluxo oficial da Meta, com nossa ajuda.' },
+  { q: 'Funciona no computador?', a: 'Sim, no navegador. O desenho foi pensado primeiro para o celular, que é onde a recepção mais atende.' },
+  { q: 'Quanto custa?', a: '[PREÇO E CONDIÇÕES A DEFINIR]' },
+]
+---
+<Base
+  title="Tredane — atendimento e agenda para clínicas de estética e depilação"
+  description="Menos peso na recepção, do primeiro oi ao horário marcado. Conversas da equipe, acompanhamento de quem ainda não marcou, IA que sugere com os preços da clínica, agenda com sala e profissional e sinal por Pix direto na conta da clínica."
+>
+<a class="skip" href="#conteudo">Ir para o conteúdo</a>
+
+<header class="topbar">
+<div class="wrap">
+<a class="brand" href="#inicio"><span class="brand-mark" aria-hidden="true">T</span>Tredane</a>
+<nav class="nav" aria-label="Principal">
+<a class="nav-link nav-section" href="#como-funciona">Como funciona</a>
+<a class="nav-link nav-section" href="#ia">IA</a>
+<a class="nav-link nav-section" href="#agenda">Agenda</a>
+<a class="nav-link nav-section" href="#sinal">Sinal</a>
+<a class="nav-link strong" href={appUrl}>Entrar</a>
+<a class="btn btn-primary btn-sm" href="#piloto">Quero participar</a>
+</nav>
+</div>
+</header>
+
+<main id="conteudo">
+<section id="inicio" class="hero-band" aria-labelledby="hero-t">
+<div class="wrap hero">
+<div class="hero-text">
+<span class="pill"><span class="pill-dot" aria-hidden="true"></span>Para clínicas de estética e depilação · Piloto aberto</span>
+<h1 id="hero-t">Menos peso na recepção. <span class="accent">Do primeiro “oi” ao horário marcado.</span></h1>
+<p class="lead">O Tredane lembra por você quem já foi respondida, quem ainda não marcou e qual sala está livre. A IA ajuda nas respostas, e sua equipe atende com mais calma.</p>
+<div class="actions">
+<a class="btn btn-primary" href="#piloto">Quero participar do piloto<Icon name="arrow" /></a>
+<a class="btn btn-secondary" href="#como-funciona">Ver como funciona</a>
+</div>
+<ul class="plain checks">
+<li><Icon name="check" color="#1F7A4D" />API oficial do WhatsApp Business</li>
+<li><Icon name="check" color="#1F7A4D" />IA com revisão humana</li>
+<li><Icon name="check" color="#1F7A4D" />Sem app para instalar</li>
+</ul>
+<p class="note-small">Telas ilustrativas, com nomes e valores fictícios.</p>
+</div>
+
+<figure class="showcase" role="img" aria-label="Ilustração do produto, com dados fictícios: uma conversa no celular com sugestão da IA, a cliente passando de interessada a agendada e o horário confirmado na agenda.">
+<div class="phone" aria-hidden="true">
+<div class="phone-screen">
+<div class="chat-head">
+<span class="avatar">MR</span>
+<span class="who"><strong>Mariana Rocha</strong><small>Em atendimento · Ana</small></span>
+<span class="chip chip-success">Ao vivo</span>
+</div>
+<div class="chat">
+<span class="day">Hoje</span>
+<span class="bubble bubble-in">Oi! Quanto custa a limpeza de pele? Tem horário esta semana?</span>
+<span class="ai">
+<span class="ai-label"><Icon name="sparkle" size={14} />Sugestão da IA — revise antes de enviar</span>
+<span>Oi, Mariana! A limpeza de pele custa R$ [valor] e dura 60 minutos. Temos quinta às 14:00 ou sexta às 10:30.</span>
+<span class="ai-actions"><span class="ai-btn solid">Usar</span><span class="ai-btn">Editar</span></span>
+</span>
+<span class="bubble bubble-out">Oi, Mariana! A limpeza de pele custa R$ [valor] e dura 60 minutos. Temos quinta às 14:00 ou sexta às 10:30.</span>
+<span class="read"><Icon name="checks" size={14} />Lida</span>
+<span class="bubble bubble-in">Quinta às 14:00, por favor!</span>
+</div>
+<div class="composer">
+<span class="round round-ai"><Icon name="sparkle" /></span>
+<span class="field">Mensagem</span>
+<span class="round round-send"><Icon name="arrow" size={16} /></span>
+</div>
+</div>
+</div>
+
+<div class="floats" aria-hidden="true">
+<div class="float">
+<span class="float-title">Acompanhamento</span>
+<span class="steps"><span class="chip chip-neutral">Novo contato</span><Icon name="chevron" size={14} color="#80868F" /><span class="chip chip-neutral">Horário proposto</span><Icon name="chevron" size={14} color="#80868F" /><span class="chip chip-primary">Agendado</span></span>
+<span class="mini-contact"><span class="avatar avatar-sm">MR</span><span class="who"><strong>Mariana Rocha</strong><small>Limpeza de pele</small></span></span>
+</div>
+<div class="float">
+<span class="float-title">Agenda · qui<span class="chip chip-success">Confirmado</span></span>
+<span class="slot"><span class="slot-time">14:00</span><span class="slot-booked"><strong>Limpeza de pele</strong><span>Mariana · Dra. Paula · Sala 2</span></span></span>
+<span class="slot"><span class="slot-time muted">15:00</span><span class="slot-gap hatch">Intervalo da sala</span></span>
+</div>
+</div>
+</figure>
+</div>
+</section>
+
+<section id="valor" class="section" aria-labelledby="vl-t">
+<div class="wrap">
+<div class="head">
+<span class="eyebrow">O que pesa hoje</span>
+<h2 id="vl-t">Atender no WhatsApp cansa. Não precisa ser assim.</h2>
+<p class="sub">Responder rápido, lembrar de cada cliente e encaixar horários. Tudo ao mesmo tempo, o dia inteiro, entre um atendimento e outro.</p>
+</div>
+<div class="compare-head" aria-hidden="true"><span>O que fica na sua cabeça</span><span>O que o Tredane carrega</span></div>
+<ul class="plain compare">
+{compare.map((row) => (
+<li>
+<span class="before"><Icon name="info" size={20} color="#5B616B" /><span><span class="sr-only">Na sua cabeça: </span>{row.before}</span></span>
+<span class="after"><Icon name="check" size={20} stroke={2.5} color="#1F7A4D" /><span><span class="sr-only">O Tredane carrega: </span><strong>{row.afterStrong}</strong>{row.after}</span></span>
+</li>
+))}
+</ul>
+</div>
+</section>
+
+<section id="como-funciona" class="section band band-lines" aria-labelledby="cf-t">
+<div class="wrap">
+<div class="head">
+<span class="eyebrow">Como funciona</span>
+<h2 id="cf-t">Um caminho só, do contato à confirmação.</h2>
+<p class="sub">Toda a equipe vê a mesma conversa, a mesma etapa e o mesmo horário, ao mesmo tempo.</p>
+</div>
+<ol class="plain grid">
+<li class="card">
+<span class="step-n" aria-hidden="true">01</span>
+<h3>A mensagem chega</h3>
+<p class="muted">Pelo WhatsApp oficial da clínica, direto na caixa de conversas da equipe.</p>
+<span class="demo demo-bubble" aria-hidden="true">Vocês atendem sábado?</span>
+</li>
+<li class="card">
+<span class="step-n" aria-hidden="true">02</span>
+<h3>A IA sugere</h3>
+<p class="muted">Quando a atendente pede, a IA propõe uma resposta com os preços e explicações da clínica.</p>
+<span class="demo demo-ai" aria-hidden="true"><Icon name="sparkle" size={14} />Sugerir resposta</span>
+</li>
+<li class="card">
+<span class="step-n" aria-hidden="true">03</span>
+<h3>Ninguém fica esquecida</h3>
+<p class="muted">Cada interessada aparece numa etapa: novo contato, horário proposto ou agendado. Você vê na hora quem ainda precisa de retorno.</p>
+<span class="demo steps" aria-hidden="true"><span class="chip chip-neutral">Horário proposto</span><Icon name="chevron" size={14} color="#80868F" /><span class="chip chip-primary">Agendado</span></span>
+</li>
+<li class="card">
+<span class="step-n" aria-hidden="true">04</span>
+<h3>O horário é confirmado</h3>
+<p class="muted">A agenda considera serviço, profissional, sala e intervalo antes de confirmar.</p>
+<span class="demo demo-ok" aria-hidden="true"><Icon name="check" size={14} stroke={2.5} />sáb 10:00 · Sala 1</span>
+</li>
+</ol>
+</div>
+</section>
+
+<section id="ia" class="section dark" aria-labelledby="ia-t">
+<div class="wrap ai-band">
+<div class="ai-text">
+<span class="eyebrow eyebrow-muted">Inteligência artificial</span>
+<h2 id="ia-t" class="big">A IA sugere.<br />Sua equipe decide.</h2>
+<p class="lead">A IA ajuda a responder mais rápido e do jeito da clínica, sem tirar da recepção o cuidado com cada cliente.</p>
+<ul class="plain promises">
+{promises.map((p) => (
+<li><span class="tick" aria-hidden="true"><Icon name="check" size={16} stroke={2.5} /></span><span><strong>{p.title}</strong><span class="soft">{p.text}</span></span></li>
+))}
+</ul>
+</div>
+<div class="ai-demo" aria-hidden="true">
+<div class="ai-card">
+<span class="ai-card-head"><span class="avatar">JS</span><span class="who"><strong>Júlia Santos</strong><small>Novo contato · Bruno</small></span></span>
+<span class="bubble bubble-in">Como é a limpeza de pele? Posso fazer grávida?</span>
+<span class="ai">
+<span class="ai-label"><Icon name="sparkle" size={16} />Sugestão da IA — revise antes de enviar</span>
+<span class="notice"><Icon name="info" size={16} />Assunto clínico: encaminhe a uma profissional.</span>
+<span>Oi, Júlia! A limpeza de pele é uma limpeza profunda com extração e máscara calmante, e dura cerca de 60 minutos. Sobre a gravidez, quem orienta é a nossa profissional: posso pedir para ela te responder?</span>
+<span class="source">Fonte: explicação cadastrada pela clínica em Limpeza de pele.</span>
+<span class="ai-actions"><span class="ai-btn solid">Usar</span><span class="ai-btn">Editar</span><span class="ai-btn plain">Descartar</span></span>
+</span>
+</div>
+<div class="ai-note"><Icon name="lock" />Sem a sugestão, a atendente responde normalmente.</div>
+</div>
+</div>
+</section>
+
+<section id="agenda" class="section band band-lines" aria-labelledby="ag-t">
+<div class="wrap agenda-band">
+<div class="agenda-grid-box" aria-hidden="true">
+<div class="agenda-grid">
+<span></span><span class="col">Sala 1</span><span class="col">Sala 2</span>
+<span class="time">09:00</span>
+<span class="cell cell-booked span2"><strong>Peeling</strong><span>Dra. Paula</span></span>
+<span class="cell cell-free">Livre</span>
+<span class="time">09:30</span>
+<span class="cell cell-booked"><strong>Limpeza de pele</strong><span>Lia</span></span>
+<span class="time">10:00</span>
+<span class="cell cell-gap hatch">Intervalo · 15 min</span>
+<span class="cell cell-gap hatch">Intervalo · 15 min</span>
+<span class="time">10:30</span>
+<span class="cell cell-free">Livre</span>
+<span class="cell cell-block"><strong>Bloqueado</strong><span>Manutenção do aparelho</span></span>
+<span class="time">11:00</span>
+<span class="cell cell-next"><Icon name="clock" size={16} />Próximo horário possível para Lia: 11:00 na Sala 1</span>
+</div>
+</div>
+<div class="agenda-text">
+<span class="eyebrow">Agenda própria</span>
+<h2 id="ag-t">Uma agenda que entende a clínica.</h2>
+<p class="sub">Não é só o horário da profissional. A agenda considera o que cada atendimento realmente ocupa.</p>
+<ul class="plain rules">
+<li><strong>Duração por serviço</strong><span class="muted">Cada serviço tem seu tempo, mais o intervalo depois.</span></li>
+<li><strong>Sala e equipamento</strong><span class="muted">Dois atendimentos não ocupam a mesma sala.</span></li>
+<li><strong>Expediente e bloqueios</strong><span class="muted">Semana padrão e bloqueios pontuais, no fuso da clínica.</span></li>
+<li><strong>Remarcar com motivo</strong><span class="muted">Cancelar ou remarcar fica registrado.</span></li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="sinal" class="section" aria-labelledby="sn-t">
+<div class="wrap split-band">
+<div class="split-text">
+<span class="eyebrow">Sinal por Pix</span>
+<h2 id="sn-t">Horário garantido com um sinal pago na hora.</h2>
+<p class="sub">Nos serviços que a clínica escolher, a cliente paga um sinal por Pix pelo próprio WhatsApp. Quando o pagamento chega, o horário é confirmado.</p>
+<ul class="plain rules">
+<li><strong>Direto na conta da clínica</strong><span class="muted">O dinheiro cai na conta Pix da clínica. O Tredane não recebe nem repassa.</span></li>
+<li><strong>Valor por serviço</strong><span class="muted">Valor fixo ou percentual do preço, só nos serviços que você escolher.</span></li>
+<li><strong>Confirma ao pagar</strong><span class="muted">Pagou dentro do prazo, o horário é confirmado e a equipe é avisada na hora.</span></li>
+<li><strong>Regras claras</strong><span class="muted">A cliente vê a política de cancelamento antes de pagar. A equipe decide devolver ou reter.</span></li>
+</ul>
+</div>
+<div class="pix-demo" aria-hidden="true">
+<div class="float pix-card">
+<span class="bubble bubble-out pix-msg"><span>Para garantir sua limpeza de pele na <strong>quinta, 14:00</strong>, o sinal é de <strong>R$ [valor]</strong> por Pix.</span><small>Pague em até 2 horas. Cancelamento com devolução até 24 h antes.</small></span>
+<span class="pix-wait"><span class="pix-wait-title"><Icon name="clock" size={16} />Aguardando sinal · restam 1 h 52 min</span><small>Recebe: conta da clínica</small></span>
+<span class="pix-paid"><Icon name="check" stroke={2.5} />Sinal pago · qui 14:00 confirmado</span>
+</div>
+</div>
+</div>
+</section>
+
+<section class="section" aria-labelledby="pq-t">
+<div class="wrap">
+<div class="head">
+<span class="eyebrow">Para a rotina da recepção</span>
+<h2 id="pq-t">Feito para quem atende com o celular na mão.</h2>
+</div>
+<ul class="plain grid">
+<li class="card"><span class="icon" aria-hidden="true"><Icon name="zap" size={24} /></span><h3>Atualiza na hora</h3><p class="muted">Quando alguém responde ou marca um horário, toda a equipe vê sem recarregar.</p></li>
+<li class="card"><span class="icon" aria-hidden="true"><Icon name="phone" size={24} /></span><h3>No navegador do celular</h3><p class="muted">Sem app de loja. Dá para instalar na tela inicial e receber aviso de nova conversa.</p></li>
+<li class="card"><span class="icon" aria-hidden="true"><Icon name="users" size={24} /></span><h3>Papéis claros</h3><p class="muted">A responsável configura serviços, preços, explicações e agenda. As atendentes cuidam das conversas.</p></li>
+<li class="card"><span class="icon" aria-hidden="true"><Icon name="shield" size={24} /></span><h3>Dados da clínica separados</h3><p class="muted">Cada clínica tem seu próprio espaço. Nosso suporte só entra com a sua aprovação, por 30 minutos.</p></li>
+</ul>
+</div>
+</section>
+
+<section id="piloto" class="pilot-section" aria-labelledby="pl-t">
+<div class="wrap">
+<div class="pilot">
+<div class="pilot-text">
+<h2 id="pl-t">Sua equipe merece terminar o dia mais leve.</h2>
+<p>Estamos escolhendo clínicas de estética e depilação para o piloto, com a nossa equipe ao lado desde o primeiro dia.</p>
+<a class="btn btn-inverse" href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>Falar com o Tredane<Icon name="arrow" /></a>
+<p class="pilot-note">Condições do piloto: [A DEFINIR]</p>
+</div>
+<div class="pilot-lists">
+<div class="pilot-card">
+<h3>A clínica recebe</h3>
+<ul class="plain">
+<li><Icon name="check" stroke={2.5} color="#1F7A4D" />Ajuda para conectar o WhatsApp</li>
+<li><Icon name="check" stroke={2.5} color="#1F7A4D" />Serviços, preços e agenda configurados junto com você</li>
+<li><Icon name="check" stroke={2.5} color="#1F7A4D" />Contato direto com quem constrói o produto</li>
+</ul>
+</div>
+<div class="pilot-card">
+<h3>O que pedimos</h3>
+<ul class="plain">
+<li><Icon name="chevron" stroke={2.5} color="#1E43A8" />Um número de WhatsApp Business da clínica</li>
+<li><Icon name="chevron" stroke={2.5} color="#1E43A8" />Sua lista de serviços, profissionais e salas</li>
+<li><Icon name="chevron" stroke={2.5} color="#1E43A8" />Uma conta Pix da clínica, se quiser usar o sinal</li>
+<li><Icon name="chevron" stroke={2.5} color="#1E43A8" />Conversas rápidas sobre o que funcionou</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="fq-t">
+<div class="wrap faq">
+<div class="faq-head">
+<h2 id="fq-t">Perguntas frequentes</h2>
+<p class="muted">Outra dúvida? <a href={`mailto:${contactEmail}`}><strong>Escreva para a gente</strong></a>.</p>
+</div>
+<div class="faq-list">
+{faq.map((item) => (
+<details open={item.open}>
+<summary>{item.q}</summary>
+<p>{item.a}</p>
+</details>
+))}
+</div>
+</div>
+</section>
+</main>
+
+<footer class="footer">
+<div class="wrap">
+<span class="footer-brand"><span class="brand-mark" aria-hidden="true">T</span>Tredane<small>· © 2026</small></span>
+<span class="footer-links">
+<a href="/privacidade">Política de privacidade [A PUBLICAR]</a>
+<a href={`mailto:${contactEmail}`}>Contato</a>
+</span>
+</div>
+</footer>
+</Base>

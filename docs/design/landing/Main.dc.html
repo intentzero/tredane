@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Tredane — atendimento para clínicas de estética (v7)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="container-type: inline-size; background: #F6F6F4; color: #1C1E21; font-family: Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.5">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E2E3E5">
+<div style="max-width: 1200px; margin: 0 auto; padding: 12px clamp(16px, 4cqi, 48px); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap">
+<a href="#inicio" style="display: flex; align-items: center; gap: 8px; min-height: 44px; color: #1C1E21; text-decoration: none; font-size: 22px; font-weight: 600; letter-spacing: -0.02em"><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 8px; background: #2F5BD3; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 18px">T</span>Tredane</a>
+<nav aria-label="Principal" style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap">
+<a href="#como-funciona" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: #474C54; font-weight: 500; text-decoration: none">Como funciona</a>
+<a href="#ia" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: #474C54; font-weight: 500; text-decoration: none">IA</a>
+<a href="#agenda" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: #474C54; font-weight: 500; text-decoration: none">Agenda</a>
+<a href="#sinal" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: #474C54; font-weight: 500; text-decoration: none">Sinal</a>
+<a href="https://app.tredane.example" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: #1E43A8; font-weight: 600; text-decoration: none">Entrar</a>
+<a href="#piloto" style="display: flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 12px; background: #2F5BD3; color: #FFFFFF; font-weight: 600; text-decoration: none">Quero participar</a>
+</nav>
+</div>
+</header>
+
+<main>
+<section id="inicio" aria-labelledby="hero-t" style="background-color: #FFFFFF; background-image: radial-gradient(#E2E3E5 1px, transparent 1.5px); background-size: 24px 24px; border-bottom: 1px solid #E2E3E5; overflow: hidden">
+<div style="max-width: 1200px; margin: 0 auto; padding: clamp(48px, 8cqi, 120px) clamp(16px, 4cqi, 48px) clamp(48px, 7cqi, 104px); display: flex; flex-wrap: wrap; align-items: center; gap: clamp(40px, 5cqi, 72px)">
+
+<div style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 24px">
+<span style="align-self: flex-start; display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; border-radius: 999px; background: #FFFFFF; border: 1px solid #B9CBF2; color: #1E43A8; font-size: 14px; font-weight: 600"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 999px; background: #2F5BD3; box-shadow: 0 0 0 4px #EEF2FC"></span>Para clínicas de estética e depilação · Piloto aberto</span>
+<h1 id="hero-t" style="margin: 0; font-size: clamp(40px, 6.2cqi, 80px); line-height: 1.02; letter-spacing: -0.035em; font-weight: 600">Menos peso na recepção. <span style="color: #2F5BD3">Do primeiro “oi” ao horário marcado.</span></h1>
+<p style="margin: 0; font-size: clamp(17px, 1.6cqi, 21px); line-height: 1.55; color: #474C54; max-width: 560px">O Tredane lembra por você quem já foi respondida, quem ainda não marcou e qual sala está livre. A IA ajuda nas respostas, e sua equipe atende com mais calma.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; padding-top: 4px">
+<a href="#piloto" style="display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; padding: 0 28px; border-radius: 12px; background: #2F5BD3; color: #FFFFFF; font-size: 17px; font-weight: 600; text-decoration: none">Quero participar do piloto<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></a>
+<a href="#como-funciona" style="display: flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 24px; border-radius: 12px; border: 1px solid #80868F; background: #FFFFFF; color: #1C1E21; font-size: 17px; font-weight: 500; text-decoration: none">Ver como funciona</a>
+</div>
+<ul style="list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: #474C54">
+<li style="display: flex; align-items: center; gap: 8px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>API oficial do WhatsApp Business</li>
+<li style="display: flex; align-items: center; gap: 8px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>IA com revisão humana</li>
+<li style="display: flex; align-items: center; gap: 8px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>Sem app para instalar</li>
+</ul>
+<p style="margin: 0; font-size: 14px; color: #5B616B">Telas ilustrativas, com nomes e valores fictícios.</p>
+</div>
+
+<figure role="img" aria-label="Ilustração do produto, com dados fictícios: uma conversa no celular com sugestão da IA, a cliente passando de interessada a agendada e o horário confirmado na agenda." style="flex: 1 1 520px; min-width: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px">
+
+<div aria-hidden="true" style="flex: 0 1 312px; min-width: 0; border-radius: 40px; background: #1C1E21; padding: 10px; box-shadow: 0 40px 80px -32px rgba(28, 30, 33, 0.45), 0 8px 24px -8px rgba(28, 30, 33, 0.2)">
+<div style="background: #F6F6F4; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column">
+<div style="background: #FFFFFF; display: flex; align-items: center; gap: 12px; padding: 20px 16px 12px; border-bottom: 1px solid #E2E3E5">
+<span style="flex: none; width: 40px; height: 40px; border-radius: 999px; background: #EEF2FC; color: #1E43A8; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center">MR</span>
+<span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3"><span style="font-weight: 600">Mariana Rocha</span><span style="font-size: 12px; color: #5B616B">Em atendimento · Ana</span></span>
+<span style="padding: 2px 10px; border-radius: 999px; background: #EAF5EF; color: #1F7A4D; font-size: 12px; font-weight: 600">Ao vivo</span>
+</div>
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<span style="align-self: center; padding: 2px 10px; border-radius: 999px; background: #F0F0EE; color: #5B616B; font-size: 12px">Hoje</span>
+<span style="align-self: flex-start; max-width: 84%; padding: 8px 12px; border-radius: 16px 16px 16px 4px; background: #FFFFFF; border: 1px solid #E2E3E5">Oi! Vocês têm horário para limpeza de pele esta semana?</span>
+<span style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 12px; border: 1.5px dashed #6B3FD4; background: #F7F4FD">
+<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #4B2A9E"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path></svg>Sugestão da IA — revise antes de enviar</span>
+<span>Oi, Mariana! Temos quinta às 14:00 ou sexta às 10:30. Qual fica melhor?</span>
+<span style="display: flex; gap: 8px"><span style="padding: 4px 12px; border-radius: 8px; background: #4B2A9E; color: #FFFFFF; font-size: 12px; font-weight: 600">Usar</span><span style="padding: 4px 12px; border-radius: 8px; border: 1px solid #6B3FD4; background: #FFFFFF; color: #4B2A9E; font-size: 12px; font-weight: 600">Editar</span></span>
+</span>
+<span style="align-self: flex-end; max-width: 84%; padding: 8px 12px; border-radius: 16px 16px 4px 16px; background: #EEF2FC">Oi, Mariana! Temos quinta às 14:00 ou sexta às 10:30. Qual fica melhor?</span>
+<span style="align-self: flex-end; display: flex; align-items: center; gap: 4px; font-size: 12px; color: #1E43A8"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7L8 16l-4-4"></path><path d="M21 7l-9 9"></path></svg>Lida</span>
+<span style="align-self: flex-start; max-width: 84%; padding: 8px 12px; border-radius: 16px 16px 16px 4px; background: #FFFFFF; border: 1px solid #E2E3E5">Quinta às 14:00, por favor!</span>
+</div>
+<div style="background: #FFFFFF; border-top: 1px solid #E2E3E5; padding: 10px 12px 16px; display: flex; align-items: center; gap: 8px">
+<span style="width: 36px; height: 36px; border-radius: 999px; background: #F7F4FD; color: #4B2A9E; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path></svg></span>
+<span style="flex: 1; height: 36px; border-radius: 999px; border: 1px solid #E2E3E5; display: flex; align-items: center; padding: 0 14px; font-size: 14px; color: #5B616B">Mensagem</span>
+<span style="width: 36px; height: 36px; border-radius: 999px; background: #2F5BD3; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></span>
+</div>
+</div>
+</div>
+
+<div aria-hidden="true" style="flex: 1 1 220px; max-width: 300px; min-width: 0; margin-left: max(-64px, min(0px, (900px - 100cqi) * 0.2)); display: flex; flex-direction: column; gap: 16px; position: relative">
+<div style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 16px; box-shadow: 0 24px 48px -24px rgba(28, 30, 33, 0.3); display: flex; flex-direction: column; gap: 12px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #5B616B">Acompanhamento</span>
+<span style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; font-weight: 600"><span style="padding: 4px 10px; border-radius: 999px; background: #F0F0EE; color: #5B616B">Novo contato</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#80868F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg><span style="padding: 4px 10px; border-radius: 999px; background: #F0F0EE; color: #5B616B">Horário proposto</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#80868F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg><span style="padding: 4px 10px; border-radius: 999px; background: #2F5BD3; color: #FFFFFF">Agendado</span></span>
+<span style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; background: #F6F6F4"><span style="width: 32px; height: 32px; border-radius: 999px; background: #EEF2FC; color: #1E43A8; font-weight: 600; font-size: 12px; display: flex; align-items: center; justify-content: center">MR</span><span style="display: flex; flex-direction: column; line-height: 1.3"><span style="font-size: 14px; font-weight: 600">Mariana Rocha</span><span style="font-size: 12px; color: #5B616B">Limpeza de pele</span></span></span>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 16px; box-shadow: 0 24px 48px -24px rgba(28, 30, 33, 0.3); display: flex; flex-direction: column; gap: 12px">
+<span style="display: flex; justify-content: space-between; align-items: center"><span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #5B616B">Agenda · qui</span><span style="display: flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: #EAF5EF; color: #1F7A4D; font-size: 12px; font-weight: 600"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>Confirmado</span></span>
+<span style="display: flex; gap: 12px"><span style="font-size: 14px; font-weight: 600; width: 44px">14:00</span><span style="flex: 1; padding: 10px 12px; border-radius: 12px; background: #EEF2FC; border: 1px solid #B9CBF2; display: flex; flex-direction: column; line-height: 1.35"><span style="font-size: 14px; font-weight: 600; color: #1E43A8">Limpeza de pele</span><span style="font-size: 12px; color: #474C54">Mariana · Dra. Paula · Sala 2</span></span></span>
+<span style="display: flex; gap: 12px"><span style="font-size: 14px; color: #5B616B; width: 44px">15:00</span><span style="flex: 1; height: 24px; border-radius: 8px; background: repeating-linear-gradient(135deg, #F0F0EE 0 6px, #FFFFFF 6px 12px); border: 1px dashed #CDD0D4; font-size: 12px; color: #5B616B; display: flex; align-items: center; padding: 0 10px">Intervalo da sala</span></span>
+</div>
+</div>
+</figure>
+</div>
+</section>
+
+<section id="valor" aria-labelledby="vl-t">
+<div style="max-width: 1200px; margin: 0 auto; padding: clamp(64px, 9cqi, 128px) clamp(16px, 4cqi, 48px) 0; display: flex; flex-direction: column; gap: clamp(32px, 4cqi, 56px)">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 780px">
+<span style="font-size: 14px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #2F5BD3">O que pesa hoje</span>
+<h2 id="vl-t" style="margin: 0; font-size: clamp(30px, 4cqi, 52px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 600">Atender no WhatsApp cansa. Não precisa ser assim.</h2>
+<p style="margin: 0; color: #474C54; font-size: clamp(17px, 1.5cqi, 20px)">Responder rápido, lembrar de cada cliente e encaixar horários. Tudo ao mesmo tempo, o dia inteiro, entre um atendimento e outro.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div aria-hidden="true" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; font-size: 14px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase">
+<span style="color: #5B616B; padding: 0 24px">O que fica na sua cabeça</span>
+<span style="color: #1E43A8; padding: 0 24px">O que o Tredane carrega</span>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px">
+<li style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px">
+<span style="display: flex; gap: 12px; align-items: flex-start; padding: 20px 24px; border-radius: 16px; background: #F0F0EE; color: #474C54"><svg aria-hidden="true" style="flex: none; margin-top: 2px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B616B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg><span><span style="position: absolute; left: -9999px">Na sua cabeça: </span>Lembrar quem já foi respondida e onde cada conversa parou.</span></span>
+<span style="display: flex; gap: 12px; align-items: flex-start; padding: 20px 24px; border-radius: 16px; background: #FFFFFF; border: 1px solid #B9CBF2"><svg aria-hidden="true" style="flex: none; margin-top: 2px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg><span><span style="position: absolute; left: -9999px">O Tredane carrega: </span><strong style="font-weight: 600">Uma caixa de conversas para toda a equipe</strong>, com quem está atendendo cada cliente.</span></span>
+</li>
+<li style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px">
+<span style="display: flex; gap: 12px; align-items: flex-start; padding: 20px 24px; border-radius: 16px; background: #F0F0EE; color: #474C54"><svg aria-hidden="true" style="flex: none; margin-top: 2px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B616B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg><span><span style="position: absolute; left: -9999px">Na sua cabeça: </span>Não esquecer quem perguntou o preço e sumiu.</span></span>
+<span style="display: flex; gap: 12px; align-items: flex-start; padding: 20px 24px; border-radius: 16px; background: #FFFFFF; border: 1px solid #B9CBF2"><svg aria-hidden="true" style="flex: none; margin-top: 2px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg><span><span style="position: absolute; left: -9999px">O Tredane carrega: </span><strong style="font-weight: 600">Uma lista de quem perguntou e ainda não marcou</strong>, para retomar na hora certa.</span></span>
+</li>
+<li style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px">
+<span style="display: flex; gap: 12px; align-items: flex-start; padding: 20px 24px; border-radius: 16px; background: #F0F0EE; color: #474C54"><svg aria-hidden="true" style="flex: none; margin-top: 2px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B616B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg><span><span style="position: absolute; left: -9999px">Na sua cabeça: </span>Pensar de novo na resposta certa para a mesma pergunta.</span></span>
+<span style="display: flex; gap: 12px; align-items: flex-start; padding: 20px 24px; border-radius: 16px; background: #FFFFFF; border: 1px solid #B9CBF2"><svg aria-hidden="true" style="flex: none; margin-top: 2px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg><span><span style="position: absolute; left: -9999px">O Tredane carrega: </span><strong style="font-weight: 600">A IA sugere com os preços e as explicações da clínica</strong>; você revisa e envia.</span></span>
+</li>
+<li style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px">
+<span style="display: flex; gap: 12px; align-items: flex-start; padding: 20px 24px; border-radius: 16px; background: #F0F0EE; color: #474C54"><svg aria-hidden="true" style="flex: none; margin-top: 2px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B616B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg><span><span style="position: absolute; left: -9999px">Na sua cabeça: </span>Encaixar horário de cabeça, torcendo para a sala estar livre.</span></span>
+<span style="display: flex; gap: 12px; align-items: flex-start; padding: 20px 24px; border-radius: 16px; background: #FFFFFF; border: 1px solid #B9CBF2"><svg aria-hidden="true" style="flex: none; margin-top: 2px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg><span><span style="position: absolute; left: -9999px">O Tredane carrega: </span><strong style="font-weight: 600">A agenda confere profissional, sala e intervalo</strong> antes de confirmar.</span></span>
+</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="como-funciona" aria-labelledby="cf-t">
+<div style="max-width: 1200px; margin: 0 auto; padding: clamp(64px, 9cqi, 128px) clamp(16px, 4cqi, 48px); display: flex; flex-direction: column; gap: clamp(32px, 4cqi, 56px)">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<span style="font-size: 14px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #2F5BD3">Como funciona</span>
+<h2 id="cf-t" style="margin: 0; font-size: clamp(30px, 4cqi, 52px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 600">Um caminho só, do contato à confirmação.</h2>
+<p style="margin: 0; color: #474C54; font-size: clamp(17px, 1.5cqi, 20px)">Toda a equipe vê a mesma conversa, a mesma etapa e o mesmo horário, ao mesmo tempo.</p>
+</div>
+<ol style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 20px">
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<span style="font-size: 48px; line-height: 1; font-weight: 600; letter-spacing: -0.04em; color: #B9CBF2" aria-hidden="true">01</span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">A mensagem chega</h3>
+<p style="margin: 0; color: #474C54">Pelo WhatsApp oficial da clínica, direto na caixa de conversas da equipe.</p>
+<span aria-hidden="true" style="margin-top: auto; align-self: flex-start; padding: 8px 12px; border-radius: 16px 16px 16px 4px; background: #F6F6F4; border: 1px solid #E2E3E5; font-size: 14px">Vocês atendem sábado?</span>
+</li>
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<span style="font-size: 48px; line-height: 1; font-weight: 600; letter-spacing: -0.04em; color: #B9CBF2" aria-hidden="true">02</span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">A IA sugere</h3>
+<p style="margin: 0; color: #474C54">Quando a atendente pede, a IA propõe uma resposta ou um resumo da conversa.</p>
+<span aria-hidden="true" style="margin-top: auto; align-self: flex-start; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; border: 1.5px dashed #6B3FD4; background: #F7F4FD; color: #4B2A9E; font-size: 14px; font-weight: 600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path></svg>Sugerir resposta</span>
+</li>
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<span style="font-size: 48px; line-height: 1; font-weight: 600; letter-spacing: -0.04em; color: #B9CBF2" aria-hidden="true">03</span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">Ninguém fica esquecida</h3>
+<p style="margin: 0; color: #474C54">Cada interessada aparece numa etapa: novo contato, horário proposto ou agendado. Você vê na hora quem ainda precisa de retorno.</p>
+<span aria-hidden="true" style="margin-top: auto; align-self: flex-start; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600"><span style="padding: 6px 10px; border-radius: 999px; background: #F0F0EE; color: #5B616B">Horário proposto</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#80868F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg><span style="padding: 6px 10px; border-radius: 999px; background: #2F5BD3; color: #FFFFFF">Agendado</span></span>
+</li>
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<span style="font-size: 48px; line-height: 1; font-weight: 600; letter-spacing: -0.04em; color: #B9CBF2" aria-hidden="true">04</span>
+<h3 style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em">O horário é confirmado</h3>
+<p style="margin: 0; color: #474C54">A agenda considera serviço, profissional, sala e intervalo antes de confirmar.</p>
+<span aria-hidden="true" style="margin-top: auto; align-self: flex-start; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; background: #EAF5EF; color: #1F7A4D; font-size: 14px; font-weight: 600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>sáb 10:00 · Sala 1</span>
+</li>
+</ol>
+</div>
+</section>
+
+<section id="ia" aria-labelledby="ia-t" style="background: #1C1E21; color: #FFFFFF">
+<div style="max-width: 1200px; margin: 0 auto; padding: clamp(64px, 9cqi, 128px) clamp(16px, 4cqi, 48px); display: flex; flex-wrap: wrap; align-items: center; gap: clamp(40px, 6cqi, 96px)">
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 24px">
+<span style="font-size: 14px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #CDD0D4">Inteligência artificial</span>
+<h2 id="ia-t" style="margin: 0; font-size: clamp(34px, 5cqi, 64px); line-height: 1.04; letter-spacing: -0.035em; font-weight: 600">A IA sugere.<br>Sua equipe decide.</h2>
+<p style="margin: 0; font-size: clamp(17px, 1.5cqi, 20px); line-height: 1.55; color: #CDD0D4; max-width: 520px">A IA ajuda a responder mais rápido, sem tirar da recepção o cuidado com cada cliente.</p>
+<ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px">
+<li style="display: flex; gap: 14px; align-items: flex-start"><span aria-hidden="true" style="flex: none; width: 32px; height: 32px; border-radius: 999px; background: #FFFFFF; color: #1C1E21; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span><span style="display: flex; flex-direction: column"><strong style="font-weight: 600">Só quando alguém pede</strong><span style="color: #CDD0D4">A sugestão aparece ao toque da atendente, nunca sozinha.</span></span></li>
+<li style="display: flex; gap: 14px; align-items: flex-start"><span aria-hidden="true" style="flex: none; width: 32px; height: 32px; border-radius: 999px; background: #FFFFFF; color: #1C1E21; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span><span style="display: flex; flex-direction: column"><strong style="font-weight: 600">Nada sai sem revisão</strong><span style="color: #CDD0D4">A mensagem só é enviada depois que uma pessoa revisa, edita se quiser e envia.</span></span></li>
+<li style="display: flex; gap: 14px; align-items: flex-start"><span aria-hidden="true" style="flex: none; width: 32px; height: 32px; border-radius: 999px; background: #FFFFFF; color: #1C1E21; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span><span style="display: flex; flex-direction: column"><strong style="font-weight: 600">O mínimo de dados</strong><span style="color: #CDD0D4">Usa só as mensagens recentes da conversa, o primeiro nome e os serviços da clínica. Nunca o telefone nem anexos.</span></span></li>
+<li style="display: flex; gap: 14px; align-items: flex-start"><span aria-hidden="true" style="flex: none; width: 32px; height: 32px; border-radius: 999px; background: #FFFFFF; color: #1C1E21; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span><span style="display: flex; flex-direction: column"><strong style="font-weight: 600">Firme e gentil quando preciso</strong><span style="color: #CDD0D4">Se alguém passa do ponto, a atendente recebe um aviso e uma sugestão de resposta curta e educada.</span></span></li>
+</ul>
+</div>
+<div aria-hidden="true" style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<div style="background: #FFFFFF; color: #1C1E21; border-radius: 20px; padding: clamp(16px, 2.4cqi, 28px); display: flex; flex-direction: column; gap: 16px">
+<span style="display: flex; align-items: center; gap: 12px"><span style="width: 40px; height: 40px; border-radius: 999px; background: #EEF2FC; color: #1E43A8; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center">CP</span><span style="display: flex; flex-direction: column; line-height: 1.3"><span style="font-weight: 600">Camila Prado</span><span style="font-size: 12px; color: #5B616B">Horário proposto · Bruno</span></span></span>
+<span style="align-self: flex-start; max-width: 88%; padding: 10px 14px; border-radius: 16px 16px 16px 4px; background: #F6F6F4; border: 1px solid #E2E3E5; font-size: 15px">Quanto tempo dura a drenagem? Consigo ir depois do trabalho?</span>
+<span style="display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 16px; border: 1.5px dashed #6B3FD4; background: #F7F4FD">
+<span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #4B2A9E"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path></svg>Sugestão da IA — revise antes de enviar</span>
+<span style="font-size: 16px; line-height: 1.5">Oi, Camila! A drenagem dura 50 minutos. Temos terça às 18:30 ou quarta às 19:00. Quer que eu reserve um deles?</span>
+<span style="display: flex; flex-wrap: wrap; gap: 8px"><span style="padding: 8px 16px; border-radius: 10px; background: #4B2A9E; color: #FFFFFF; font-size: 14px; font-weight: 600">Usar</span><span style="padding: 8px 16px; border-radius: 10px; border: 1px solid #6B3FD4; background: #FFFFFF; color: #4B2A9E; font-size: 14px; font-weight: 600">Editar</span><span style="padding: 8px 16px; border-radius: 10px; color: #4B2A9E; font-size: 14px; font-weight: 600">Descartar</span></span>
+</span>
+</div>
+<div style="display: flex; gap: 12px; align-items: center; padding: 14px 18px; border-radius: 16px; border: 1px solid #474C54; color: #CDD0D4; font-size: 14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Sem a sugestão, a atendente responde normalmente.</div>
+</div>
+</div>
+</section>
+
+<section id="agenda" aria-labelledby="ag-t" style="background: #FFFFFF; border-bottom: 1px solid #E2E3E5">
+<div style="max-width: 1200px; margin: 0 auto; padding: clamp(64px, 9cqi, 128px) clamp(16px, 4cqi, 48px); display: flex; flex-wrap: wrap-reverse; align-items: center; gap: clamp(40px, 6cqi, 96px)">
+<div aria-hidden="true" style="flex: 1 1 480px; min-width: 0; background: #F6F6F4; border: 1px solid #E2E3E5; border-radius: 20px; padding: clamp(12px, 2cqi, 24px); overflow: hidden">
+<div style="display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; font-size: 13px">
+<span></span><span style="font-weight: 600; padding: 4px 8px">Sala 1</span><span style="font-weight: 600; padding: 4px 8px">Sala 2</span>
+<span style="color: #5B616B; padding-top: 6px">09:00</span>
+<span style="grid-row: span 2; border-radius: 12px; background: #EEF2FC; border: 1px solid #B9CBF2; padding: 10px; display: flex; flex-direction: column; line-height: 1.35"><span style="font-weight: 600; color: #1E43A8">Peeling</span><span style="color: #474C54">Dra. Paula</span></span>
+<span style="border-radius: 12px; background: #FFFFFF; border: 1px dashed #CDD0D4; padding: 10px; color: #5B616B">Livre</span>
+<span style="color: #5B616B; padding-top: 6px">09:30</span>
+<span style="border-radius: 12px; background: #EEF2FC; border: 1px solid #B9CBF2; padding: 10px; display: flex; flex-direction: column; line-height: 1.35"><span style="font-weight: 600; color: #1E43A8">Limpeza de pele</span><span style="color: #474C54">Lia</span></span>
+<span style="color: #5B616B; padding-top: 6px">10:00</span>
+<span style="border-radius: 12px; background: repeating-linear-gradient(135deg, #F0F0EE 0 6px, #FFFFFF 6px 12px); border: 1px dashed #CDD0D4; padding: 10px; color: #474C54">Intervalo · 15 min</span>
+<span style="border-radius: 12px; background: repeating-linear-gradient(135deg, #F0F0EE 0 6px, #FFFFFF 6px 12px); border: 1px dashed #CDD0D4; padding: 10px; color: #474C54">Intervalo · 15 min</span>
+<span style="color: #5B616B; padding-top: 6px">10:30</span>
+<span style="border-radius: 12px; background: #FFFFFF; border: 1px dashed #CDD0D4; padding: 10px; color: #5B616B">Livre</span>
+<span style="border-radius: 12px; background: #1C1E21; color: #FFFFFF; padding: 10px; display: flex; flex-direction: column; line-height: 1.35"><span style="font-weight: 600">Bloqueado</span><span style="color: #CDD0D4">Manutenção do aparelho</span></span>
+<span style="color: #5B616B; padding-top: 6px">11:00</span>
+<span style="grid-column: span 2; border-radius: 12px; background: #FFFFFF; border: 2px solid #2F5BD3; padding: 10px; display: flex; align-items: center; gap: 8px; color: #1E43A8; font-weight: 600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Próximo horário possível para Lia: 11:00 na Sala 1</span>
+</div>
+</div>
+<div style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+<span style="font-size: 14px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #2F5BD3">Agenda própria</span>
+<h2 id="ag-t" style="margin: 0; font-size: clamp(30px, 4cqi, 52px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 600">Uma agenda que entende a clínica.</h2>
+<p style="margin: 0; color: #474C54; font-size: clamp(17px, 1.5cqi, 20px)">Não é só o horário da profissional. A agenda considera o que cada atendimento realmente ocupa.</p>
+<ul style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 16px 24px">
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Duração por serviço</strong><span style="color: #474C54">Cada serviço tem seu tempo, mais o intervalo depois.</span></li>
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Sala e equipamento</strong><span style="color: #474C54">Dois atendimentos não ocupam a mesma sala.</span></li>
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Expediente e bloqueios</strong><span style="color: #474C54">Semana padrão e bloqueios pontuais, no fuso da clínica.</span></li>
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Remarcar com motivo</strong><span style="color: #474C54">Cancelar ou remarcar fica registrado.</span></li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="sinal" aria-labelledby="sn-t">
+<div style="max-width: 1200px; margin: 0 auto; padding: clamp(64px, 9cqi, 128px) clamp(16px, 4cqi, 48px); display: flex; flex-wrap: wrap; align-items: center; gap: clamp(40px, 6cqi, 96px)">
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+<span style="font-size: 14px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #2F5BD3">Sinal por Pix</span>
+<h2 id="sn-t" style="margin: 0; font-size: clamp(30px, 4cqi, 52px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 600">Horário garantido com um sinal pago na hora.</h2>
+<p style="margin: 0; color: #474C54; font-size: clamp(17px, 1.5cqi, 20px)">Nos serviços que a clínica escolher, a cliente paga um sinal por Pix pelo próprio WhatsApp. Quando o pagamento chega, o horário é confirmado.</p>
+<ul style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px 24px">
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Direto na conta da clínica</strong><span style="color: #474C54">O dinheiro cai na conta Pix da clínica. O Tredane não recebe nem repassa.</span></li>
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Valor por serviço</strong><span style="color: #474C54">Valor fixo ou percentual do preço, só nos serviços que você escolher.</span></li>
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Confirma ao pagar</strong><span style="color: #474C54">Pagou dentro do prazo, o horário é confirmado e a equipe é avisada na hora.</span></li>
+<li style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 600">Regras claras</strong><span style="color: #474C54">A cliente vê a política de cancelamento antes de pagar. A equipe decide devolver ou reter.</span></li>
+</ul>
+</div>
+<div aria-hidden="true" style="flex: 1 1 400px; min-width: 0; display: flex; flex-direction: column; gap: 16px; max-width: 460px">
+<div style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 20px; padding: clamp(16px, 2.4cqi, 24px); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 24px 48px -24px rgba(28, 30, 33, 0.3)">
+<span style="align-self: flex-end; max-width: 92%; padding: 10px 14px; border-radius: 16px 16px 4px 16px; background: #EEF2FC; font-size: 15px; display: flex; flex-direction: column; gap: 6px"><span>Para garantir sua limpeza de pele na <strong style="font-weight: 600">quinta, 14:00</strong>, o sinal é de <strong style="font-weight: 600">R$ [valor]</strong> por Pix.</span><span style="font-size: 13px; color: #474C54">Pague em até 2 horas. Cancelamento com devolução até 24 h antes.</span></span>
+<span style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; border: 1px solid #EBCB94; background: #FFF7EA">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #6E4200"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Aguardando sinal · restam 1 h 52 min</span>
+<span style="font-size: 13px; color: #474C54">Recebe: conta da clínica</span>
+</span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-radius: 12px; background: #EAF5EF; color: #1F7A4D; font-size: 15px; font-weight: 600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>Sinal pago · qui 14:00 confirmado</span>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="pq-t">
+<div style="max-width: 1200px; margin: 0 auto; padding: clamp(64px, 9cqi, 128px) clamp(16px, 4cqi, 48px); display: flex; flex-direction: column; gap: clamp(32px, 4cqi, 56px)">
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 720px">
+<span style="font-size: 14px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #2F5BD3">Para a rotina da recepção</span>
+<h2 id="pq-t" style="margin: 0; font-size: clamp(30px, 4cqi, 52px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 600">Feito para quem atende com o celular na mão.</h2>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 20px">
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 12px"><span aria-hidden="true" style="width: 48px; height: 48px; border-radius: 14px; background: #EEF2FC; color: #1E43A8; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"></path></svg></span><h3 style="margin: 0; font-size: 20px; font-weight: 600">Atualiza na hora</h3><p style="margin: 0; color: #474C54">Quando alguém responde ou marca um horário, toda a equipe vê sem recarregar.</p></li>
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 12px"><span aria-hidden="true" style="width: 48px; height: 48px; border-radius: 14px; background: #EEF2FC; color: #1E43A8; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"></rect><path d="M11 18h2"></path></svg></span><h3 style="margin: 0; font-size: 20px; font-weight: 600">No navegador do celular</h3><p style="margin: 0; color: #474C54">Sem app de loja. Dá para instalar na tela inicial e receber aviso de nova conversa.</p></li>
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 12px"><span aria-hidden="true" style="width: 48px; height: 48px; border-radius: 14px; background: #EEF2FC; color: #1E43A8; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"></path><path d="M16 4.5a3 3 0 0 1 0 5.8"></path><path d="M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg></span><h3 style="margin: 0; font-size: 20px; font-weight: 600">Papéis claros</h3><p style="margin: 0; color: #474C54">A responsável configura serviços, equipe e agenda. As atendentes cuidam das conversas.</p></li>
+<li style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 12px"><span aria-hidden="true" style="width: 48px; height: 48px; border-radius: 14px; background: #EEF2FC; color: #1E43A8; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.4-3.4 8.2-8 9-4.6-.8-8-4.6-8-9V6z"></path></svg></span><h3 style="margin: 0; font-size: 20px; font-weight: 600">Dados da clínica separados</h3><p style="margin: 0; color: #474C54">Cada clínica tem seu próprio espaço. Nosso suporte só entra com a sua aprovação, por 30 minutos.</p></li>
+</ul>
+</div>
+</section>
+
+<section id="piloto" aria-labelledby="pl-t" style="padding: 0 clamp(16px, 4cqi, 48px) clamp(64px, 9cqi, 128px)">
+<div style="max-width: 1200px; margin: 0 auto; background: #2F5BD3; color: #FFFFFF; border-radius: 28px; padding: clamp(32px, 6cqi, 80px); display: flex; flex-wrap: wrap; gap: clamp(32px, 5cqi, 72px); overflow: hidden; background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1.5px); background-size: 24px 24px">
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 20px; align-items: flex-start">
+<h2 id="pl-t" style="margin: 0; font-size: clamp(32px, 4.6cqi, 60px); line-height: 1.04; letter-spacing: -0.035em; font-weight: 600">Sua equipe merece terminar o dia mais leve.</h2>
+<p style="margin: 0; font-size: clamp(17px, 1.5cqi, 20px); line-height: 1.55; max-width: 520px">Estamos escolhendo clínicas de estética e depilação para o piloto, com a nossa equipe ao lado desde o primeiro dia.</p>
+<a href="mailto:contato@tredane.example?subject=Piloto%20Tredane" style="display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 0 28px; border-radius: 12px; background: #FFFFFF; color: #1E43A8; font-size: 17px; font-weight: 600; text-decoration: none">Falar com o Tredane<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></a>
+<span style="font-size: 14px">Condições do piloto: [A DEFINIR]</span>
+</div>
+<div style="flex: 1 1 420px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 16px">
+<div style="background: #FFFFFF; color: #1C1E21; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 18px; font-weight: 600">A clínica recebe</h3>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; color: #474C54">
+<li style="display: flex; gap: 10px"><svg aria-hidden="true" style="flex: none; margin-top: 3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>Ajuda para conectar o WhatsApp</li>
+<li style="display: flex; gap: 10px"><svg aria-hidden="true" style="flex: none; margin-top: 3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>Serviços e agenda configurados junto com você</li>
+<li style="display: flex; gap: 10px"><svg aria-hidden="true" style="flex: none; margin-top: 3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>Contato direto com quem constrói o produto</li>
+</ul>
+</div>
+<div style="background: #FFFFFF; color: #1C1E21; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 18px; font-weight: 600">O que pedimos</h3>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; color: #474C54">
+<li style="display: flex; gap: 10px"><svg aria-hidden="true" style="flex: none; margin-top: 3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E43A8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>Um número de WhatsApp Business da clínica</li>
+<li style="display: flex; gap: 10px"><svg aria-hidden="true" style="flex: none; margin-top: 3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E43A8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>Sua lista de serviços, profissionais e salas</li>
+<li style="display: flex; gap: 10px"><svg aria-hidden="true" style="flex: none; margin-top: 3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E43A8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>Uma conta Pix da clínica, se quiser usar o sinal</li>
+<li style="display: flex; gap: 10px"><svg aria-hidden="true" style="flex: none; margin-top: 3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E43A8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>Conversas rápidas sobre o que funcionou</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="fq-t">
+<div style="max-width: 1200px; margin: 0 auto; padding: 0 clamp(16px, 4cqi, 48px) clamp(64px, 9cqi, 128px); display: flex; flex-wrap: wrap; gap: clamp(24px, 5cqi, 72px)">
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<h2 id="fq-t" style="margin: 0; font-size: clamp(30px, 4cqi, 52px); line-height: 1.08; letter-spacing: -0.03em; font-weight: 600">Perguntas frequentes</h2>
+<p style="margin: 0; color: #474C54">Outra dúvida? <a href="mailto:contato@tredane.example" style="color: #1E43A8; font-weight: 600">Escreva para a gente</a>.</p>
+</div>
+<div style="flex: 2 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<details open style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 0 20px">
+<summary style="min-height: 60px; display: flex; align-items: center; font-size: 17px; font-weight: 600; cursor: pointer">A IA responde sozinha para os clientes?</summary>
+<p style="margin: 0 0 20px; color: #474C54">Não. A IA só sugere quando a atendente pede, e a mensagem só sai depois que uma pessoa revisa e envia.</p>
+</details>
+<details style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 0 20px">
+<summary style="min-height: 60px; display: flex; align-items: center; font-size: 17px; font-weight: 600; cursor: pointer">Preciso trocar o número da clínica?</summary>
+<p style="margin: 0 0 20px; color: #474C54">O Tredane usa a API oficial do WhatsApp Business. Conversamos sobre o número da clínica antes de conectar, e a conexão é feita pela própria clínica, no fluxo oficial da Meta, com nossa ajuda.</p>
+</details>
+<details style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 0 20px">
+<summary style="min-height: 60px; display: flex; align-items: center; font-size: 17px; font-weight: 600; cursor: pointer">Funciona no computador?</summary>
+<p style="margin: 0 0 20px; color: #474C54">Sim, no navegador. O desenho foi pensado primeiro para o celular, que é onde a recepção mais atende.</p>
+</details>
+<details style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 0 20px">
+<summary style="min-height: 60px; display: flex; align-items: center; font-size: 17px; font-weight: 600; cursor: pointer">Como funciona o sinal por Pix?</summary>
+<p style="margin: 0 0 20px; color: #474C54">A clínica escolhe os serviços que exigem sinal e o valor. A atendente envia o Pix pela conversa e o horário é confirmado quando o pagamento chega. O dinheiro vai direto para a conta da clínica. Se outra pessoa marcar antes do pagamento, a equipe oferece outro horário ou devolve o sinal.</p>
+</details>
+<details style="background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 16px; padding: 0 20px">
+<summary style="min-height: 60px; display: flex; align-items: center; font-size: 17px; font-weight: 600; cursor: pointer">Quanto custa?</summary>
+<p style="margin: 0 0 20px; color: #474C54">[PREÇO E CONDIÇÕES A DEFINIR]</p>
+</details>
+</div>
+</div>
+</section>
+</main>
+
+<footer style="background: #FFFFFF; border-top: 1px solid #E2E3E5">
+<div style="max-width: 1200px; margin: 0 auto; padding: 32px clamp(16px, 4cqi, 48px); display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; justify-content: space-between; font-size: 14px; color: #5B616B">
+<span style="display: flex; align-items: center; gap: 8px; color: #1C1E21; font-weight: 600"><span aria-hidden="true" style="width: 24px; height: 24px; border-radius: 6px; background: #2F5BD3; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 14px">T</span>Tredane<span style="color: #5B616B; font-weight: 400">· © 2026</span></span>
+<span style="display: flex; flex-wrap: wrap; gap: 4px 16px">
+<a href="#politica" style="display: flex; align-items: center; min-height: 44px; color: #1E43A8">Política de privacidade [A PUBLICAR]</a>
+<a href="mailto:contato@tredane.example" style="display: flex; align-items: center; min-height: 44px; color: #1E43A8">Contato</a>
+</span>
+</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":8200}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

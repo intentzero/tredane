@@ -3,7 +3,7 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['node_modules/**', 'dist/**', '.wrangler/**', 'coverage/**'] },
+  { ignores: ['node_modules/**', 'site/node_modules/**', 'site/dist/**', 'site/.astro/**', 'dist/**', '.wrangler/**', 'coverage/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -17,7 +17,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['docs/design/tools/*.mjs'],
+    files: ['docs/design/tools/*.mjs', 'site/*.mjs'],
     languageOptions: { globals: { ...globals.node } },
   },
 )
