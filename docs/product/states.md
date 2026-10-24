@@ -17,7 +17,7 @@
 | Em atendimento | Equipe está conduzindo a conversa. Responsável atribuído é um campo separado. | Encerrada; reatribuição não muda o estado. |
 | Encerrada | Atendimento foi concluído ou descartado pela equipe. | Reaberta para Em atendimento se houver ação humana ou nova mensagem, conforme regra ainda a validar. |
 
-**Em aberto:** quando criar uma nova conversa versus reabrir uma antiga; se encerramento exige motivo; se atendente vê toda a fila. Sem resposta, a implementação não deve apagar o histórico.
+**Confirmado (DEC-015):** atendente vê todas as conversas da própria clínica. **Em aberto:** quando criar nova conversa versus reabrir a antiga e se encerramento exige motivo. Sem resposta, a implementação não deve apagar o histórico.
 
 ## Mensagem
 
@@ -30,7 +30,7 @@ Texto em edição antes do envio é estado da interface; não é mensagem enviad
 
 ## Oportunidade no pipeline (proposta)
 
-Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Agendado → Concluído**, com saída possível para **Perdido**. O agendamento confirmado pode sugerir a etapa “Agendado”, mas o vínculo com um agendamento real precisa existir; mudar a etapa manualmente não cria um compromisso. Cancelamento ou reagendamento não apaga etapas anteriores.
+Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Agendado → Concluído**, com saída possível para **Perdido**. Mover manualmente para “Agendado” **pode ocorrer sem compromisso vinculado** (DEC-040), exibindo “Sem compromisso vinculado” e a ação “Agendar horário”; a mudança de etapa nunca cria um compromisso. Cancelamento ou reagendamento não apaga etapas anteriores.
 
 **Em aberto:** se o pipeline representa uma oportunidade por conversa, por serviço ou por ciclo de compra; se etapas podem ser puladas; quando uma oportunidade “Perdida” reabre; e o que “Concluído” significa para a clínica. Essas respostas bloqueiam a máquina de estados definitiva.
 
@@ -49,7 +49,7 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 | Estado | Significado | Regra |
 | --- | --- | --- |
 | Aguardando sinal | Cobrança criada e enviada; horário **não** reservado. | Expira no prazo (padrão 2 horas, ajustável pela responsável). |
-| Paga | Provedor confirmou o pagamento. | Confirma o compromisso se o horário estiver livre (Proposto). |
+| Paga | Provedor confirmou o pagamento. | Confirma automaticamente o compromisso se o horário ainda estiver livre (Confirmado, DEC-047); se estiver ocupado, passa a Pago sem horário. |
 | Pago sem horário | Pago, mas o horário foi ocupado antes. | Alerta até a equipe escolher outro horário ou devolver. |
 | Expirada | Prazo venceu sem pagamento. | Não aceita pagamento; aviso posterior vira Pago sem horário. |
 | Cancelada | Atendente cancelou antes do pagamento. | Nova tentativa cria nova cobrança. |
