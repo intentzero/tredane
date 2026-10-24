@@ -20,8 +20,8 @@ export type ConversasSection = 'lista' | 'thread' | 'contato'
 /** Sub-rotas de Acompanhamento (#30): quadro por etapa → detalhe. */
 export type AcompanhamentoSection = 'quadro' | 'detalhe'
 
-/** Sub-rotas da Agenda (#35): dia → Agendar (TEL-05). Confirmar = #36. */
-export type AgendaSection = 'dia' | 'agendar'
+/** Sub-rotas da Agenda (#35/#36): dia/semana → detalhe → Agendar. */
+export type AgendaSection = 'dia' | 'semana' | 'agendar' | 'compromisso'
 
 export type PanelRoute =
   | { kind: 'entrar' }
@@ -46,6 +46,7 @@ export type PanelRoute =
       area: 'agenda'
       tenantId: string
       section: AgendaSection
+      appointmentId?: string
     }
   | {
       kind: 'area'
@@ -171,9 +172,22 @@ export function resolvePanelRoute(pathname: string): PanelRoute | null {
     }
   }
   if (area === 'agenda') {
-    const rest = match[3]
-    if (rest?.split('/').filter(Boolean)[0] === 'agendar') {
+    const parts = (match[3] ?? '').split('/').filter(Boolean)
+    const head = parts[0]
+    if (head === 'agendar') {
       return { kind: 'area', area: 'agenda', tenantId, section: 'agendar' }
+    }
+    if (head === 'semana') {
+      return { kind: 'area', area: 'agenda', tenantId, section: 'semana' }
+    }
+    if (head === 'compromisso' && parts[1]) {
+      return {
+        kind: 'area',
+        area: 'agenda',
+        tenantId,
+        section: 'compromisso',
+        appointmentId: decodeURIComponent(parts[1]),
+      }
     }
     return { kind: 'area', area: 'agenda', tenantId, section: 'dia' }
   }
@@ -209,6 +223,10 @@ export function panelHref(route: PanelRoute): string {
       }
       if (route.area === 'agenda') {
         if (route.section === 'agendar') return `${base}/agendar`
+        if (route.section === 'semana') return `${base}/semana`
+        if (route.section === 'compromisso' && route.appointmentId) {
+          return `${base}/compromisso/${encodeURIComponent(route.appointmentId)}`
+        }
         return base
       }
       if (route.area !== 'clinica') return base

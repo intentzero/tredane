@@ -68,6 +68,8 @@ export type CheckSlotInput = {
   professionalId: string
   roomResourceId?: string | null
   startsAt: number
+  /** Reagendar: ignorar o compromisso actual na verificação de conflito. */
+  excludeAppointmentId?: string | null
 }
 
 export type CheckSlotResult = {

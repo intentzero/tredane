@@ -1,5 +1,5 @@
-/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20/#23/#28/#29/#30/#31/#33/#34). */
-export const CLINIC_SCHEMA_VERSION = 8
+/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#36). */
+export const CLINIC_SCHEMA_VERSION = 9
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -11,7 +11,33 @@ export const CLINIC_MIGRATION_NAMES = {
   6: '0006_whatsapp_channel',
   7: '0007_outbound_send',
   8: '0008_attachments',
+  9: '0009_appointments_booking',
 } as const
+
+/**
+ * Motivos de cancelamento/reagendamento (REQ-032 / DEC-008).
+ * Lista inicial **Proposta** — validar com clínica piloto.
+ */
+export const APPOINTMENT_CHANGE_REASONS = [
+  'contato_desistiu',
+  'contato_remarcou',
+  'clinica_cancelou',
+  'nao_compareceu',
+  'outro',
+] as const
+
+export type AppointmentChangeReason = (typeof APPOINTMENT_CHANGE_REASONS)[number]
+
+export const APPOINTMENT_CHANGE_REASON_LABELS: Record<
+  AppointmentChangeReason,
+  string
+> = {
+  contato_desistiu: 'Contacto desistiu',
+  contato_remarcou: 'Contacto remarcou',
+  clinica_cancelou: 'Clínica cancelou',
+  nao_compareceu: 'Não compareceu',
+  outro: 'Outro',
+}
 
 /** Estados de anexo (#34) — carregando / pronto / indisponível / falhou. */
 export const ATTACHMENT_STATUSES = [

@@ -422,6 +422,7 @@ export function createPanelApi(getToken: TokenGetter) {
         professionalId: string
         roomResourceId?: string | null
         startsAt: number
+        excludeAppointmentId?: string | null
       },
       opts?: FetchOpts,
     ): Promise<AvailabilityCheckResponse> {
@@ -437,6 +438,151 @@ export function createPanelApi(getToken: TokenGetter) {
       assertGeneration(opts)
       if (!res.ok) throw await parseError(res)
       return (await res.json()) as AvailabilityCheckResponse
+    },
+
+    async queryAgenda(
+      tenantId: string,
+      query: {
+        date: string
+        view: 'day' | 'week'
+        professionalId?: string
+        roomResourceId?: string
+        includeCancelled?: boolean
+      },
+      opts?: FetchOpts,
+    ): Promise<AgendaViewResponse> {
+      const params = new URLSearchParams()
+      params.set('date', query.date)
+      params.set('view', query.view)
+      if (query.professionalId) params.set('professionalId', query.professionalId)
+      if (query.roomResourceId) params.set('roomResourceId', query.roomResourceId)
+      if (query.includeCancelled) params.set('includeCancelled', '1')
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/agenda?${params}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AgendaViewResponse
+    },
+
+    async getAppointment(
+      tenantId: string,
+      appointmentId: string,
+      opts?: FetchOpts,
+    ): Promise<AppointmentDetailResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AppointmentDetailResponse
+    },
+
+    async listAppointmentReasons(
+      tenantId: string,
+      opts?: FetchOpts,
+    ): Promise<AppointmentReasonOption[]> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/appointments/reasons`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const body = (await res.json()) as { reasons: AppointmentReasonOption[] }
+      return body.reasons
+    },
+
+    async confirmAppointment(
+      tenantId: string,
+      body: {
+        clientRequestId: string
+        serviceId: string
+        professionalId: string
+        roomResourceId?: string | null
+        startsAt: number
+        contactLabel?: string | null
+        contactId?: string | null
+        conversationId?: string | null
+        opportunityId?: string | null
+      },
+      opts?: FetchOpts,
+    ): Promise<AppointmentDetailResponse & { createdReservation: true; idempotentReplay: boolean }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/appointments`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AppointmentDetailResponse & {
+        createdReservation: true
+        idempotentReplay: boolean
+      }
+    },
+
+    async cancelAppointment(
+      tenantId: string,
+      appointmentId: string,
+      body: {
+        clientRequestId: string
+        reason: string
+        expectedVersion?: number | null
+      },
+      opts?: FetchOpts,
+    ): Promise<AppointmentDetailResponse & { idempotentReplay: boolean }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/cancel`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AppointmentDetailResponse & {
+        idempotentReplay: boolean
+      }
+    },
+
+    async rescheduleAppointment(
+      tenantId: string,
+      appointmentId: string,
+      body: {
+        clientRequestId: string
+        reason: string
+        professionalId: string
+        roomResourceId?: string | null
+        startsAt: number
+        serviceId?: string
+        expectedVersion?: number | null
+      },
+      opts?: FetchOpts,
+    ): Promise<AppointmentDetailResponse & { idempotentReplay: boolean }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/reschedule`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AppointmentDetailResponse & {
+        idempotentReplay: boolean
+      }
     },
 
     async listInboxConversations(
@@ -1026,6 +1172,75 @@ export type AvailabilityCheckResponse = {
   asOf: number
   createdReservation: false
   slot: AvailabilitySlot | null
+}
+
+export type AgendaAppointmentItem = {
+  id: string
+  serviceId: string
+  serviceName: string
+  professionalId: string
+  professionalName: string
+  roomResourceId: string | null
+  roomResourceName: string | null
+  startsAt: number
+  endsAt: number
+  occupiesUntil: number
+  status: 'confirmed' | 'cancelled'
+  contactLabel: string | null
+  contactId: string | null
+  conversationId: string | null
+  opportunityId: string | null
+  version: number
+  changeReason: string | null
+}
+
+export type AgendaViewResponse = {
+  tenantId: string
+  timezone: string
+  view: 'day' | 'week'
+  date: string
+  rangeStartsAt: number
+  rangeEndsAt: number
+  asOf: number
+  appointments: AgendaAppointmentItem[]
+}
+
+export type AppointmentReasonOption = { code: string; label: string }
+
+export type AppointmentDetailResponse = {
+  id: string
+  tenantId: string
+  serviceId: string
+  serviceName: string
+  professionalId: string
+  professionalName: string
+  roomResourceId: string | null
+  roomResourceName: string | null
+  startsAt: number
+  endsAt: number
+  occupiesUntil: number | null
+  status: 'confirmed' | 'cancelled'
+  contactLabel: string | null
+  contactId: string | null
+  conversationId: string | null
+  opportunityId: string | null
+  version: number
+  updatedAt: number | null
+  confirmedBy: string | null
+  confirmedAt: number | null
+  changeReason: string | null
+  cancelledBy: string | null
+  cancelledAt: number | null
+  createdAt: number
+  events: Array<{
+    id: string
+    operation: 'confirmed' | 'cancelled' | 'rescheduled'
+    actorId: string | null
+    reason: string | null
+    previousJson: string | null
+    newJson: string | null
+    occurredAt: number
+  }>
 }
 
 export type WhatsappSignupPurpose = 'connect' | 'reconnect' | 'replace'

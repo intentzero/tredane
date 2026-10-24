@@ -5,6 +5,21 @@ import { assertClinicSchemaReady } from '../migrations'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import { ensureClinicSettings } from '../config/settings'
+import {
+  cancelAppointmentOp,
+  confirmAppointmentOp,
+  getAppointmentDetailOp,
+  rescheduleAppointmentOp,
+} from './booking'
+import type {
+  AgendaViewInput,
+  AgendaViewResult,
+  AppointmentDetail,
+  AppointmentMutationResult,
+  CancelAppointmentInput,
+  ConfirmAppointmentInput,
+  RescheduleAppointmentInput,
+} from './booking-types'
 import { checkSlotAvailability } from './check'
 import { queryAvailability } from './query'
 import type {
@@ -13,6 +28,7 @@ import type {
   CheckSlotInput,
   CheckSlotResult,
 } from './types'
+import { queryAgendaViewOp } from './views'
 
 function prepare(db: ClinicDb, caller: ClinicCaller, clock: Clock) {
   assertClinicSchemaReady(db)
@@ -40,4 +56,22 @@ export function checkSlotAvailabilityOp(
 ): CheckSlotResult {
   const meta = prepare(db, caller, clock)
   return checkSlotAvailability(db, meta.tenantId, input, clock)
+}
+
+export {
+  confirmAppointmentOp,
+  cancelAppointmentOp,
+  rescheduleAppointmentOp,
+  getAppointmentDetailOp,
+  queryAgendaViewOp,
+}
+
+export type {
+  AgendaViewInput,
+  AgendaViewResult,
+  AppointmentDetail,
+  AppointmentMutationResult,
+  CancelAppointmentInput,
+  ConfirmAppointmentInput,
+  RescheduleAppointmentInput,
 }

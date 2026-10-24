@@ -94,7 +94,11 @@ function PanelRouter() {
           opportunityId={route.opportunityId}
         />
       ) : (
-        <AgendaArea tenantId={route.tenantId} section={route.section} />
+        <AgendaArea
+          tenantId={route.tenantId}
+          section={route.section}
+          appointmentId={route.appointmentId}
+        />
       )}
     </PanelShell>
   )

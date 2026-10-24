@@ -7,10 +7,17 @@ import {
   workerCaller,
 } from '../clinic'
 import type {
+  AgendaViewInput,
+  AgendaViewResult,
+  AppointmentDetail,
+  AppointmentMutationResult,
   AvailabilityQueryInput,
   AvailabilityQueryResult,
+  CancelAppointmentInput,
   CheckSlotInput,
   CheckSlotResult,
+  ConfirmAppointmentInput,
+  RescheduleAppointmentInput,
 } from '../clinic/scheduling'
 
 export type SchedulingGateway = {
@@ -22,6 +29,26 @@ export type SchedulingGateway = {
     caller: ClinicCaller,
     input: CheckSlotInput,
   ): Promise<CheckSlotResult>
+  confirmAppointment(
+    caller: ClinicCaller,
+    input: ConfirmAppointmentInput,
+  ): Promise<AppointmentMutationResult<AppointmentDetail>>
+  cancelAppointment(
+    caller: ClinicCaller,
+    input: CancelAppointmentInput,
+  ): Promise<AppointmentMutationResult<AppointmentDetail>>
+  rescheduleAppointment(
+    caller: ClinicCaller,
+    input: RescheduleAppointmentInput,
+  ): Promise<AppointmentMutationResult<AppointmentDetail>>
+  getAppointment(
+    caller: ClinicCaller,
+    appointmentId: string,
+  ): Promise<AppointmentDetail>
+  queryAgenda(
+    caller: ClinicCaller,
+    input: AgendaViewInput,
+  ): Promise<AgendaViewResult>
 }
 
 export function createMemorySchedulingGateway(
@@ -34,6 +61,26 @@ export function createMemorySchedulingGateway(
     },
     async checkSlot(caller, input) {
       return clinicScheduling.checkSlotAvailabilityOp(db, caller, input, clock)
+    },
+    async confirmAppointment(caller, input) {
+      return clinicScheduling.confirmAppointmentOp(db, caller, input, clock)
+    },
+    async cancelAppointment(caller, input) {
+      return clinicScheduling.cancelAppointmentOp(db, caller, input, clock)
+    },
+    async rescheduleAppointment(caller, input) {
+      return clinicScheduling.rescheduleAppointmentOp(db, caller, input, clock)
+    },
+    async getAppointment(caller, appointmentId) {
+      return clinicScheduling.getAppointmentDetailOp(
+        db,
+        caller,
+        appointmentId,
+        clock,
+      )
+    },
+    async queryAgenda(caller, input) {
+      return clinicScheduling.queryAgendaViewOp(db, caller, input, clock)
     },
   }
 }

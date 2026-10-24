@@ -130,6 +130,7 @@ export function checkSlotAvailability(
       occMins,
       range,
       dayEndsAt,
+      input.excludeAppointmentId,
     ),
   )
 
@@ -146,6 +147,7 @@ export function checkSlotAvailability(
         occMins,
         range,
         dayEndsAt,
+        input.excludeAppointmentId,
       ),
     )
   }

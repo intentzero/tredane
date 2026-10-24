@@ -18,9 +18,17 @@ type AppointmentSql = {
   contact_id?: string | null
   conversation_id?: string | null
   opportunity_id?: string | null
+  version?: number | null
+  updated_at?: number | null
+  confirmed_by?: string | null
+  confirmed_at?: number | null
+  change_reason?: string | null
+  cancelled_by?: string | null
+  cancelled_at?: number | null
+  occupies_until?: number | null
 }
 
-function toAppointment(row: AppointmentSql): AppointmentRow {
+export function toAppointment(row: AppointmentSql): AppointmentRow {
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -35,6 +43,14 @@ function toAppointment(row: AppointmentSql): AppointmentRow {
     contactId: row.contact_id ?? null,
     conversationId: row.conversation_id ?? null,
     opportunityId: row.opportunity_id ?? null,
+    version: row.version ?? 1,
+    updatedAt: row.updated_at ?? null,
+    confirmedBy: row.confirmed_by ?? null,
+    confirmedAt: row.confirmed_at ?? null,
+    changeReason: row.change_reason ?? null,
+    cancelledBy: row.cancelled_by ?? null,
+    cancelledAt: row.cancelled_at ?? null,
+    occupiesUntil: row.occupies_until ?? null,
   }
 }
 
