@@ -146,7 +146,7 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 
 ## Decisões pendentes antes de integrar serviços reais
 
-1. Registro do Tredane como Tech Provider na Meta, custos e modelos de mensagem do WhatsApp (fluxo definido em DEC-009).
+1. Registro do Tredane como Tech Provider na Meta, custos e modelos de mensagem do WhatsApp (fluxo definido em DEC-009). Bloqueio atual: o Tredane não tem CNPJ para a verificação do negócio na Meta (VAL-13).
 2. Valores reais de serviços, durações e jornadas da clínica piloto (regras definidas em DEC-008).
 3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Revogação por tenant definida em DEC-026; em aberto o mecanismo técnico e testes de propagação WebSocket, integrações e medidas adicionais de antiabuso; MFA fora do MVP (DEC-028).
 4. Revisão jurídica e AI Gateway sem registro de conteúdo (provedor definido em DEC-011); como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane?
