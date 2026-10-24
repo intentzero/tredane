@@ -1,6 +1,6 @@
 # F1 — Clerk e autorização por tenant no Worker/Hono
 
-**Estado:** implementação da issue [#21](https://github.com/intentzero/tredane/issues/21) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Sessão Clerk + memberships D1 + Platform Admin no backend. **Sem** UI de login/seletor (#22), **sem** WebSockets de produto (#23). Dados e identidades sintéticas até gates de piloto.
+**Estado:** implementação da issue [#21](https://github.com/intentzero/tredane/issues/21) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Sessão Clerk + memberships D1 + Platform Admin no backend. UI de login/seletor = [#22](f1-login-nav.md). Dados e identidades sintéticas até gates de piloto.
 
 ## Decisões aplicadas (Confirmado)
 
@@ -39,7 +39,8 @@ Request → SessionAuthenticator (Clerk ou synthetic)
 | Método | Caminho | Authz |
 | --- | --- | --- |
 | GET | `/api/me` | sessão |
-| GET | `/api/me/tenants` | sessão → memberships D1 ativos em tenants ativos |
+| GET | `/api/me/tenants` | sessão → memberships D1 ativos em tenants ativos (`tenantId`, `name`, `role`, `status`) |
+| GET | `/api/auth/client-config` | público → `authMode` + publishable key (bootstrap #22) |
 | GET | `/api/tenants/:tenantId/context` | membership vigente; rejeita `X-Claimed-Role` forjada |
 | GET | `/api/tenants/:tenantId/inbox-probe` | `clinic.inbox.read` (probe, não UI) |
 | POST | `/api/tenants/:tenantId/config-probe` | `clinic.config.write` (owner) |
@@ -66,10 +67,10 @@ CSRF: pedidos com cookie (sem Bearer) exigem `Origin`/`Referer` ∈ `CLERK_AUTHO
 - `src/auth/http.test.ts` — rotas Hono com fixtures `user_synth_*`
 - Harness: `AUTH_MODE=synthetic` em `wrangler.runtime-test.jsonc`
 
-## Fora deste PR
+## Fora deste documento
 
-- Componentes/telas de login e seletor de clínica (#22)
-- Revogação D1→DO/WebSocket (#23)
-- Platform Admin CRUD — entregue em [#24](f1-platform-admin.md)
+- Telas de login/seletor/nav — [#22](f1-login-nav.md)
+- Revogação D1→DO/WebSocket — [#23](f1-realtime-ws.md)
+- Platform Admin CRUD — [#24](f1-platform-admin.md)
 - Convites HTTP (#25); sessões de suporte / handoff cookies
 - MFA (fora do MVP, DEC-028)

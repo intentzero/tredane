@@ -3,6 +3,7 @@ import {
   listTenantsAsync,
   resolveActiveTenantMembership,
   type AsyncMembershipRow,
+  type AsyncTenantMembershipSummary,
   type AsyncTenantRow,
 } from '../db/admin/async-queries'
 import type { AsyncAdminDb } from '../db/admin/async-store'
@@ -53,7 +54,7 @@ export async function authenticateHumanWithOptionalSuperadmin(
 export async function listPrincipalTenants(
   services: AuthServices,
   principal: HumanPrincipal,
-): Promise<AsyncMembershipRow[]> {
+): Promise<AsyncTenantMembershipSummary[]> {
   return listActiveMembershipsForUserAsync(services.adminDb, principal.clerkUserId)
 }
 

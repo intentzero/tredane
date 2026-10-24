@@ -3,12 +3,13 @@
 
 # Modo de auth:
 # - synthetic — Bearer synth:<user_id> para testes locais (DEFAULT se chaves ausentes em development)
-# - clerk — authenticateRequest + Backend API reais
+# - clerk — authenticateRequest + Backend API reais; UI /entrar usa @clerk/react SignIn
 AUTH_MODE=synthetic
 
 # Obrigatórios quando AUTH_MODE=clerk (Dashboard Clerk → API Keys):
 # CLERK_PUBLISHABLE_KEY=pk_test_...
 # CLERK_SECRET_KEY=sk_test_...
+# Exposto ao browser via GET /api/auth/client-config (só a publishable key).
 
 # Opcional: PEM público para verificação JWT networkless (Dashboard → JWT public key)
 # CLERK_JWT_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"

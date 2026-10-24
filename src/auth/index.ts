@@ -57,7 +57,7 @@ export {
   type AuthEnv,
   type AuthDepsFactory,
 } from './middleware'
-export { buildAuthServices, type WorkerAuthEnv } from './deps'
+export { buildAuthServices, resolveAuthMode, type WorkerAuthEnv } from './deps'
 export { createAuthRoutes } from './routes'
 export {
   createClerkVerifiedEmailReader,
