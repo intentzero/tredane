@@ -17,6 +17,7 @@ import {
   ForbiddenError,
 } from '../db/admin'
 import {
+  activateSupportSession,
   approveSupportRequest,
   createSupportAccessRequest,
 } from '../db/admin/support'
@@ -103,12 +104,16 @@ describe('Platform Admin domínio (#24)', () => {
         reason: 'diagnóstico sintético',
         scope: 'read_inbox',
       })
-      const approved = await approveSupportRequest(db, clock, {
+      approveSupportRequest(db, clock, {
         requestId: req.id,
         ownerClerkUserId: 'user_synth_owner_a',
+      })
+      const activated = await activateSupportSession(db, clock, {
+        requestId: req.id,
+        actorClerkUserId: 'user_synth_superadmin',
         actorClerkSessionId: 'sess_synth_super',
       })
-      expect(approved.session.status).toBe('active')
+      expect(activated.session.status).toBe('active')
 
       const suspended = suspendTenantLifecycle(
         db,
@@ -117,7 +122,7 @@ describe('Platform Admin domínio (#24)', () => {
         'user_synth_superadmin',
       )
       expect(suspended.tenant.status).toBe('suspended')
-      expect(suspended.revokedSupportSessionIds).toContain(approved.session.id)
+      expect(suspended.revokedSupportSessionIds).toContain(activated.session.id)
 
       const reactivated = reactivateTenantLifecycle(
         db,

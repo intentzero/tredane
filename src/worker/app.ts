@@ -21,9 +21,14 @@ import {
   createTeamRoutes,
   type TeamRouteOptions,
 } from '../team'
+import {
+  createSupportRoutes,
+  type SupportRouteOptions,
+} from '../support'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
+import type { ClinicEventPublisher } from '../realtime'
 import type { WorkerBindings } from './bindings'
 
 export type { WorkerBindings } from './bindings'
@@ -45,6 +50,8 @@ export type CreateAppOptions = {
   /** Transporte de e-mail (simulado por omissão em testes). */
   emailFactory?: (env: WorkerBindings) => EmailTransport
   appBaseUrlFactory?: (env: WorkerBindings) => string
+  /** Fan-out de eventos de suporte (#26). */
+  eventPublisherFactory?: (env: WorkerBindings) => ClinicEventPublisher
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -84,6 +91,15 @@ export function createApp(opts: CreateAppOptions = {}) {
     appBaseUrlFactory: opts.appBaseUrlFactory,
   }
   app.route('/', createTeamRoutes(teamOpts))
+
+  const supportOpts: SupportRouteOptions = {
+    syncAdminDbFactory: opts.syncAdminDbFactory,
+    clockFactory: opts.clockFactory,
+    emailFactory: opts.emailFactory,
+    appBaseUrlFactory: opts.appBaseUrlFactory,
+    eventPublisherFactory: opts.eventPublisherFactory,
+  }
+  app.route('/', createSupportRoutes(supportOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

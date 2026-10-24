@@ -23,6 +23,7 @@ import {
   WS_INTERNAL_HEADERS,
   type FenceSource,
 } from './protocol'
+import { isEventVisibleToRole } from './events'
 import type { WorkerBindings } from '../worker/bindings'
 import type { AdminDb } from '../db/admin/store'
 import { newId } from '../db/admin/ids'
@@ -70,6 +71,53 @@ export function createDoInvalidator(env: RealtimeBindings): ClinicAccessInvalida
         return {
           ok: false,
           error: err instanceof Error ? err.message : 'do_notify_failed',
+        }
+      }
+    },
+  }
+}
+
+export type ClinicEventPublisher = {
+  publishTenantEvent(input: {
+    tenantId: string
+    type: string
+    entityType: string
+    entityId: string
+    payload: Record<string, unknown>
+    audience?: 'all' | 'owners'
+    eventId?: string
+  }): Promise<
+    | { ok: true; seq: number; delivered: string[]; revoked: string[] }
+    | { ok: false; error: string }
+  >
+}
+
+/** Publica evento versionado no DO e faz fan-out (best-effort). */
+export function createDoEventPublisher(env: RealtimeBindings): ClinicEventPublisher {
+  return {
+    async publishTenantEvent(input) {
+      try {
+        const result = await clinicStub(env, input.tenantId).publishTenantEvent(
+          workerCaller(input.tenantId, 'system:support'),
+          {
+            type: input.type,
+            entityType: input.entityType,
+            entityId: input.entityId,
+            payload: input.payload,
+            audience: input.audience,
+            eventId: input.eventId,
+          },
+        )
+        return {
+          ok: true,
+          seq: result.seq,
+          delivered: result.fanout.delivered,
+          revoked: result.fanout.revoked,
+        }
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : 'do_publish_failed',
         }
       }
     },
@@ -147,10 +195,13 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
         }>
       }
       c.header('Cache-Control', 'no-store')
+      const visible = result.events.filter((e) =>
+        isEventVisibleToRole(e.payload, ctx.role),
+      )
       return c.json({
         tenantId: ctx.tenantId,
         eventSeq: result.eventSeq,
-        events: result.events.map((e) => ({
+        events: visible.map((e) => ({
           seq: e.seq,
           eventId: e.eventId,
           type: e.type,

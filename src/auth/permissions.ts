@@ -30,6 +30,7 @@ const PLATFORM_SUPERADMIN_PERMISSIONS: ReadonlySet<Permission> = new Set([
   'platform.tenants.read',
   'platform.tenants.write',
   'platform.owners.manage',
+  'platform.support.request',
 ])
 
 export function permissionsForClinicRole(role: MembershipRole): ReadonlySet<Permission> {
@@ -62,4 +63,5 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   'platform.tenants.read',
   'platform.tenants.write',
   'platform.owners.manage',
+  'platform.support.request',
 ]

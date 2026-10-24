@@ -46,6 +46,7 @@ export type Permission =
   | 'platform.tenants.read'
   | 'platform.tenants.write'
   | 'platform.owners.manage'
+  | 'platform.support.request'
 
 export type SessionAuthResult =
   | {

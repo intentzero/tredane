@@ -20,6 +20,7 @@ import {
   acceptInvitation,
   createSupportAccessRequest,
   approveSupportRequest,
+  activateSupportSession,
   rejectSupportRequest,
   consumeSupportHandoff,
   revokeSupportSession,
@@ -53,7 +54,7 @@ describe('admin schema gate', () => {
       applyRemainingFromAdmin(raw)
       const db = fromNodeSqlite(raw)
       expect(() => assertAdminSchemaReady(db)).not.toThrow()
-      expect(ADMIN_SCHEMA_VERSION).toBe(5)
+      expect(ADMIN_SCHEMA_VERSION).toBe(6)
     } finally {
       raw.close()
     }
@@ -274,8 +275,8 @@ describe('convites — token hash, rotação e consumo concorrente', () => {
   })
 })
 
-describe('suporte — aprovação, handoff e TTL controlável', () => {
-  it('aprova pedido, consome handoff uma vez e expira aos 30min', async () => {
+describe('suporte — aprovação (#26) e ativação/handoff (#27 domínio)', () => {
+  it('aprovação não cria sessão; ativação consome handoff uma vez e expira aos 30min', async () => {
     const { db, close } = bootAdminDb()
     const clock = createControllableClock(2_500_000_000_000)
     try {
@@ -288,22 +289,34 @@ describe('suporte — aprovação, handoff e TTL controlável', () => {
       })
       expect(request.expiresAt - request.createdAt).toBe(SUPPORT_REQUEST_TTL_MS)
 
-      const approved = await approveSupportRequest(db, clock, {
+      const approved = approveSupportRequest(db, clock, {
         requestId: request.id,
         ownerClerkUserId: 'user_synth_owner_a',
+      })
+      expect(approved.status).toBe('approved')
+      expect(
+        db.get<{ n: number }>(
+          `SELECT COUNT(*) AS n FROM support_sessions WHERE support_access_request_id = ?`,
+          approved.id,
+        )?.n,
+      ).toBe(0)
+
+      const activated = await activateSupportSession(db, clock, {
+        requestId: approved.id,
+        actorClerkUserId: 'user_synth_superadmin',
         actorClerkSessionId: 'sess_synth_actor',
       })
-      expect(approved.session.expiresAt - approved.session.activatedAt).toBe(SUPPORT_SESSION_TTL_MS)
+      expect(activated.session.expiresAt - activated.session.activatedAt).toBe(SUPPORT_SESSION_TTL_MS)
 
       const session = await consumeSupportHandoff(db, clock, {
-        handoffCode: approved.handoffCode,
+        handoffCode: activated.handoffCode,
         actorClerkUserId: 'user_synth_superadmin',
       })
-      expect(session.id).toBe(approved.session.id)
+      expect(session.id).toBe(activated.session.id)
 
       await expect(
         consumeSupportHandoff(db, clock, {
-          handoffCode: approved.handoffCode,
+          handoffCode: activated.handoffCode,
           actorClerkUserId: 'user_synth_superadmin',
         }),
       ).rejects.toMatchObject({ code: 'handoff_invalid' })
@@ -313,8 +326,9 @@ describe('suporte — aprovação, handoff e TTL controlável', () => {
       expect(expired.status).toBe('expired')
 
       const audit = listAuditForTenant(db, 'clinic-demo-a')
-      expect(audit.every((e) => !JSON.stringify(e).includes(approved.sessionToken))).toBe(true)
-      expect(audit.every((e) => !JSON.stringify(e).includes(approved.handoffCode))).toBe(true)
+      expect(audit.every((e) => !JSON.stringify(e).includes(activated.sessionToken))).toBe(true)
+      expect(audit.every((e) => !JSON.stringify(e).includes(activated.handoffCode))).toBe(true)
+      expect(audit.some((e) => e.action === 'support.request.approve')).toBe(true)
       expect(audit.some((e) =>
         e.action === 'support.session.activate'
         && e.subjectClerkUserId === 'user_synth_attendant_a',
@@ -324,7 +338,7 @@ describe('suporte — aprovação, handoff e TTL controlável', () => {
     }
   })
 
-  it('pedido expirado (24h) não ativa sessão; rejeição e revogação por owner', async () => {
+  it('pedido expirado (24h) não aprova; rejeição e revogação por owner', async () => {
     const { db, close } = bootAdminDb()
     const clock = createControllableClock(2_600_000_000_000)
     try {
@@ -336,13 +350,12 @@ describe('suporte — aprovação, handoff e TTL controlável', () => {
         scope: 'read',
       })
       clock.advance(SUPPORT_REQUEST_TTL_MS)
-      await expect(
+      expect(() =>
         approveSupportRequest(db, clock, {
           requestId: expiredReq.id,
           ownerClerkUserId: 'user_synth_owner_a',
-          actorClerkSessionId: 'sess',
         }),
-      ).rejects.toMatchObject({ code: 'support_request_expired' })
+      ).toThrow(ConflictError)
 
       const req = createSupportAccessRequest(db, clock, {
         tenantId: 'clinic-demo-a',
@@ -363,13 +376,17 @@ describe('suporte — aprovação, handoff e TTL controlável', () => {
         reason: 'revogar',
         scope: 'read',
       })
-      const approved = await approveSupportRequest(db, clock, {
+      approveSupportRequest(db, clock, {
         requestId: live.id,
         ownerClerkUserId: 'user_synth_owner_a',
+      })
+      const activated = await activateSupportSession(db, clock, {
+        requestId: live.id,
+        actorClerkUserId: 'user_synth_superadmin',
         actorClerkSessionId: 'sess2',
       })
       const revoked = revokeSupportSession(db, clock, {
-        sessionId: approved.session.id,
+        sessionId: activated.session.id,
         actorClerkUserId: 'user_synth_owner_a2',
         asOwner: true,
       })
@@ -377,7 +394,7 @@ describe('suporte — aprovação, handoff e TTL controlável', () => {
 
       expect(() =>
         requestSupportTermination(db, clock, {
-          sessionId: approved.session.id,
+          sessionId: activated.session.id,
           subjectClerkUserId: 'user_synth_attendant_a',
         }),
       ).toThrow(ConflictError)
@@ -386,7 +403,7 @@ describe('suporte — aprovação, handoff e TTL controlável', () => {
     }
   })
 
-  it('aprovação concorrente: só uma decisão vence', async () => {
+  it('aprovação concorrente: só uma decisão vence', () => {
     const { db, close } = bootAdminDb()
     const clock = createControllableClock(2_700_000_000_000)
     try {
@@ -398,18 +415,34 @@ describe('suporte — aprovação, handoff e TTL controlável', () => {
         scope: 'read',
       })
 
-      const results = await Promise.allSettled([
-        approveSupportRequest(db, clock, {
-          requestId: req.id,
-          ownerClerkUserId: 'user_synth_owner_a',
-          actorClerkSessionId: 's1',
-        }),
-        approveSupportRequest(db, clock, {
-          requestId: req.id,
-          ownerClerkUserId: 'user_synth_owner_a2',
-          actorClerkSessionId: 's2',
-        }),
-      ])
+      const results = [
+        (() => {
+          try {
+            return {
+              status: 'fulfilled' as const,
+              value: approveSupportRequest(db, clock, {
+                requestId: req.id,
+                ownerClerkUserId: 'user_synth_owner_a',
+              }),
+            }
+          } catch (reason) {
+            return { status: 'rejected' as const, reason }
+          }
+        })(),
+        (() => {
+          try {
+            return {
+              status: 'fulfilled' as const,
+              value: approveSupportRequest(db, clock, {
+                requestId: req.id,
+                ownerClerkUserId: 'user_synth_owner_a2',
+              }),
+            }
+          } catch (reason) {
+            return { status: 'rejected' as const, reason }
+          }
+        })(),
+      ]
       expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
       expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1)
     } finally {

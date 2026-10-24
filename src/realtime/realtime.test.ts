@@ -14,6 +14,7 @@ import {
   ensureRealtimeFence,
   getAccessDenial,
   getLastEventSeq,
+  isEventVisibleToRole,
   listRealtimeEventsAfter,
   localFenceBlocks,
   mergeEventsById,
@@ -363,6 +364,67 @@ describe('Realtime — revogação D1 com falha de notificação DO (#23)', () =
       expect(multiB?.status).toBe('active')
     } finally {
       admin.close()
+    }
+  })
+})
+
+describe('Realtime — audience owners (#26)', () => {
+  it('support.request.created entrega só a owners; attendant não recebe', async () => {
+    const clinic = bootClinicDb()
+    try {
+      ensureRealtimeFence(clinic.db, clinic.clock)
+      const evt = appendRealtimeEvent(
+        clinic.db,
+        {
+          tenantId: 'clinic-demo-a',
+          type: 'support.request.created',
+          entityType: 'support_access_request',
+          entityId: 'sar_1',
+          eventId: 'evt_sar_1',
+          audience: 'owners',
+          payload: { requestId: 'sar_1', status: 'pending' },
+        },
+        clinic.clock,
+      )
+      expect(isEventVisibleToRole(evt.payload, 'owner')).toBe(true)
+      expect(isEventVisibleToRole(evt.payload, 'attendant')).toBe(false)
+
+      const owner = fakeSocket({
+        connectionId: 'ws_owner',
+        clerkUserId: 'user_synth_owner_a',
+        sessionId: 'sess_o',
+        role: 'owner',
+        tenantId: 'clinic-demo-a',
+        authEpoch: 0,
+        connectedAt: 1,
+      })
+      const attendant = fakeSocket({
+        connectionId: 'ws_att',
+        clerkUserId: 'user_synth_attendant_a',
+        sessionId: 'sess_a',
+        role: 'attendant',
+        tenantId: 'clinic-demo-a',
+        authEpoch: 0,
+        connectedAt: 1,
+      })
+      const authority = createMapAccessAuthority(
+        new Map([
+          ['clinic-demo-a:user_synth_owner_a', 'owner'],
+          ['clinic-demo-a:user_synth_attendant_a', 'attendant'],
+        ]),
+      )
+      const result = await deliverEventToSockets(
+        clinic.db,
+        [owner, attendant],
+        evt,
+        authority,
+        clinic.clock,
+      )
+      expect(result.delivered).toEqual(['ws_owner'])
+      expect(owner.sent).toHaveLength(1)
+      expect(attendant.sent).toHaveLength(0)
+    } finally {
+      clinic.close()
     }
   })
 })

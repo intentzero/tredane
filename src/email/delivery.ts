@@ -1,6 +1,6 @@
 /**
- * Fila/idempotência de entrega de convites (#25).
- * Job durável no D1 sem token; payload com token só em memória até envio ou abandono.
+ * Fila/idempotência de entrega de e-mail (#25 convites / #26 suporte).
+ * Job durável no D1 sem token/handoff; payload sensível só em memória até envio.
  */
 import type { Clock } from '../db/clock'
 import { newId } from '../db/admin/ids'
@@ -12,23 +12,25 @@ import type {
   DeliveryJobRow,
   EmailTransport,
   InvitationEmailPayload,
+  SupportAccessRequestEmailPayload,
 } from './types'
 
 const DEFAULT_MAX_ATTEMPTS = 5
 const RETRY_BASE_MS = 2_000
 
-export type PendingInvitationDelivery = {
-  jobId: string
-  payload: InvitationEmailPayload
-}
+const JOB_SELECT = `SELECT id, idempotency_key, template, to_email, tenant_id, invitation_id,
+       support_request_id, status, attempt_count, max_attempts, next_attempt_at,
+       last_error, created_at, updated_at, sent_at
+FROM email_delivery_jobs`
 
-function mapJob(row: {
+type JobSqlRow = {
   id: string
   idempotency_key: string
   template: string
   to_email: string
   tenant_id: string
-  invitation_id: string
+  invitation_id: string | null
+  support_request_id: string | null
   status: string
   attempt_count: number
   max_attempts: number
@@ -37,14 +39,31 @@ function mapJob(row: {
   created_at: number
   updated_at: number
   sent_at: number | null
-}): DeliveryJobRow {
+}
+
+export type PendingInvitationDelivery = {
+  jobId: string
+  payload: InvitationEmailPayload
+}
+
+export type PendingSupportRequestDelivery = {
+  jobId: string
+  payload: SupportAccessRequestEmailPayload
+}
+
+function mapJob(row: JobSqlRow): DeliveryJobRow {
+  const template =
+    row.template === 'support_access_request'
+      ? 'support_access_request'
+      : 'tenant_invitation'
   return {
     id: row.id,
     idempotencyKey: row.idempotency_key,
-    template: 'tenant_invitation',
+    template,
     toEmail: row.to_email,
     tenantId: row.tenant_id,
     invitationId: row.invitation_id,
+    supportRequestId: row.support_request_id,
     status: row.status as DeliveryJobRow['status'],
     attemptCount: row.attempt_count,
     maxAttempts: row.max_attempts,
@@ -58,27 +77,7 @@ function mapJob(row: {
 
 export function getDeliveryJob(db: AdminDb, id: string): DeliveryJobRow | undefined {
   assertAdminSchemaReady(db)
-  const row = db.get<{
-    id: string
-    idempotency_key: string
-    template: string
-    to_email: string
-    tenant_id: string
-    invitation_id: string
-    status: string
-    attempt_count: number
-    max_attempts: number
-    next_attempt_at: number
-    last_error: string | null
-    created_at: number
-    updated_at: number
-    sent_at: number | null
-  }>(
-    `SELECT id, idempotency_key, template, to_email, tenant_id, invitation_id, status,
-            attempt_count, max_attempts, next_attempt_at, last_error, created_at, updated_at, sent_at
-     FROM email_delivery_jobs WHERE id = ?`,
-    id,
-  )
+  const row = db.get<JobSqlRow>(`${JOB_SELECT} WHERE id = ?`, id)
   return row ? mapJob(row) : undefined
 }
 
@@ -87,25 +86,8 @@ export function getDeliveryJobByIdempotency(
   idempotencyKey: string,
 ): DeliveryJobRow | undefined {
   assertAdminSchemaReady(db)
-  const row = db.get<{
-    id: string
-    idempotency_key: string
-    template: string
-    to_email: string
-    tenant_id: string
-    invitation_id: string
-    status: string
-    attempt_count: number
-    max_attempts: number
-    next_attempt_at: number
-    last_error: string | null
-    created_at: number
-    updated_at: number
-    sent_at: number | null
-  }>(
-    `SELECT id, idempotency_key, template, to_email, tenant_id, invitation_id, status,
-            attempt_count, max_attempts, next_attempt_at, last_error, created_at, updated_at, sent_at
-     FROM email_delivery_jobs WHERE idempotency_key = ?`,
+  const row = db.get<JobSqlRow>(
+    `${JOB_SELECT} WHERE idempotency_key = ?`,
     idempotencyKey,
   )
   return row ? mapJob(row) : undefined
@@ -142,10 +124,10 @@ export function enqueueInvitationDelivery(
 
     db.run(
       `INSERT INTO email_delivery_jobs (
-        id, idempotency_key, template, to_email, tenant_id, invitation_id,
+        id, idempotency_key, template, to_email, tenant_id, invitation_id, support_request_id,
         status, attempt_count, max_attempts, next_attempt_at, last_error,
         created_at, updated_at, sent_at
-      ) VALUES (?, ?, 'tenant_invitation', ?, ?, ?, 'pending', 0, ?, ?, NULL, ?, ?, NULL)`,
+      ) VALUES (?, ?, 'tenant_invitation', ?, ?, ?, NULL, 'pending', 0, ?, ?, NULL, ?, ?, NULL)`,
       id,
       input.idempotencyKey,
       input.toEmail,
@@ -167,8 +149,67 @@ export function enqueueInvitationDelivery(
       metadata: {
         invitationId: input.invitationId,
         email: input.toEmail,
-        // garantir que rawToken nunca entra mesmo se caller passar metadata errada
         ...redactSecrets({}),
+      },
+    })
+
+    return { job: getDeliveryJob(db, id)!, created: true }
+  })
+}
+
+export function enqueueSupportRequestDelivery(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    idempotencyKey: string
+    toEmail: string
+    tenantId: string
+    supportRequestId: string
+    actorClerkUserId: string
+    maxAttempts?: number
+  },
+): { job: DeliveryJobRow; created: boolean } {
+  assertAdminSchemaReady(db)
+  const now = clock.nowMs()
+  const existing = getDeliveryJobByIdempotency(db, input.idempotencyKey)
+  if (existing) {
+    return { job: existing, created: false }
+  }
+
+  const id = newId('eml')
+  const maxAttempts = input.maxAttempts ?? DEFAULT_MAX_ATTEMPTS
+  return db.immediate(() => {
+    const again = getDeliveryJobByIdempotency(db, input.idempotencyKey)
+    if (again) return { job: again, created: false }
+
+    db.run(
+      `INSERT INTO email_delivery_jobs (
+        id, idempotency_key, template, to_email, tenant_id, invitation_id, support_request_id,
+        status, attempt_count, max_attempts, next_attempt_at, last_error,
+        created_at, updated_at, sent_at
+      ) VALUES (?, ?, 'support_access_request', ?, ?, NULL, ?, 'pending', 0, ?, ?, NULL, ?, ?, NULL)`,
+      id,
+      input.idempotencyKey,
+      input.toEmail,
+      input.tenantId,
+      input.supportRequestId,
+      maxAttempts,
+      now,
+      now,
+      now,
+    )
+
+    writeAudit(db, clock, {
+      actorClerkUserId: input.actorClerkUserId,
+      tenantId: input.tenantId,
+      action: 'email.delivery.enqueue',
+      objectType: 'email_delivery_job',
+      objectId: id,
+      outcome: 'success',
+      metadata: {
+        supportRequestId: input.supportRequestId,
+        email: input.toEmail,
+        template: 'support_access_request',
       },
     })
 
@@ -182,30 +223,16 @@ export type ProcessDeliveryResult = {
   retried: boolean
 }
 
-/**
- * Tenta enviar. Token só existe em `payload` (memória). Falha retryable
- * incrementa tentativas sem criar novo convite.
- */
-export async function processInvitationDelivery(
+function markDeliveryOutcome(
   db: AdminDb,
   clock: Clock,
-  transport: EmailTransport,
-  pending: PendingInvitationDelivery,
-): Promise<ProcessDeliveryResult> {
-  assertAdminSchemaReady(db)
+  jobId: string,
+  current: DeliveryJobRow,
+  transportName: string,
+  result: EmailSendResultLike,
+  meta: Record<string, unknown>,
+): ProcessDeliveryResult {
   const now = clock.nowMs()
-  const current = getDeliveryJob(db, pending.jobId)
-  if (!current) {
-    throw new Error('delivery_job_missing')
-  }
-  if (current.status === 'sent') {
-    return { job: current, sent: true, retried: false }
-  }
-  if (current.status === 'abandoned') {
-    return { job: current, sent: false, retried: false }
-  }
-
-  const result = await transport.sendInvitation(pending.payload)
   if (result.ok) {
     db.run(
       `UPDATE email_delivery_jobs
@@ -213,22 +240,22 @@ export async function processInvitationDelivery(
        WHERE id = ? AND status IN ('pending', 'failed')`,
       now,
       now,
-      pending.jobId,
+      jobId,
     )
     writeAudit(db, clock, {
       actorClerkUserId: 'system:email',
       tenantId: current.tenantId,
       action: 'email.delivery.sent',
       objectType: 'email_delivery_job',
-      objectId: pending.jobId,
+      objectId: jobId,
       outcome: 'success',
       metadata: {
-        invitationId: current.invitationId,
-        transport: transport.name,
+        ...meta,
+        transport: transportName,
         providerMessageId: result.providerMessageId,
       },
     })
-    return { job: getDeliveryJob(db, pending.jobId)!, sent: true, retried: false }
+    return { job: getDeliveryJob(db, jobId)!, sent: true, retried: false }
   }
 
   const nextAttempt = current.attemptCount + 1
@@ -243,31 +270,87 @@ export async function processInvitationDelivery(
     nextAt,
     result.error.slice(0, 200),
     now,
-    pending.jobId,
+    jobId,
   )
   writeAudit(db, clock, {
     actorClerkUserId: 'system:email',
     tenantId: current.tenantId,
     action: abandoned ? 'email.delivery.abandoned' : 'email.delivery.failed',
     objectType: 'email_delivery_job',
-    objectId: pending.jobId,
+    objectId: jobId,
     outcome: 'error',
     metadata: {
-      invitationId: current.invitationId,
-      transport: transport.name,
+      ...meta,
+      transport: transportName,
       error: result.error.slice(0, 120),
       attempt: nextAttempt,
     },
   })
   return {
-    job: getDeliveryJob(db, pending.jobId)!,
+    job: getDeliveryJob(db, jobId)!,
     sent: false,
     retried: !abandoned,
   }
 }
 
+type EmailSendResultLike =
+  | { ok: true; providerMessageId: string }
+  | { ok: false; error: string; retryable: boolean }
+
 /**
- * Agenda + tenta entrega imediata. Idempotente por (invitationId, issuedAt).
+ * Tenta enviar. Token só existe em `payload` (memória). Falha retryable
+ * incrementa tentativas sem criar novo convite.
+ */
+export async function processInvitationDelivery(
+  db: AdminDb,
+  clock: Clock,
+  transport: EmailTransport,
+  pending: PendingInvitationDelivery,
+): Promise<ProcessDeliveryResult> {
+  assertAdminSchemaReady(db)
+  const current = getDeliveryJob(db, pending.jobId)
+  if (!current) {
+    throw new Error('delivery_job_missing')
+  }
+  if (current.status === 'sent') {
+    return { job: current, sent: true, retried: false }
+  }
+  if (current.status === 'abandoned') {
+    return { job: current, sent: false, retried: false }
+  }
+
+  const result = await transport.sendInvitation(pending.payload)
+  return markDeliveryOutcome(db, clock, pending.jobId, current, transport.name, result, {
+    invitationId: current.invitationId,
+  })
+}
+
+export async function processSupportRequestDelivery(
+  db: AdminDb,
+  clock: Clock,
+  transport: EmailTransport,
+  pending: PendingSupportRequestDelivery,
+): Promise<ProcessDeliveryResult> {
+  assertAdminSchemaReady(db)
+  const current = getDeliveryJob(db, pending.jobId)
+  if (!current) {
+    throw new Error('delivery_job_missing')
+  }
+  if (current.status === 'sent') {
+    return { job: current, sent: true, retried: false }
+  }
+  if (current.status === 'abandoned') {
+    return { job: current, sent: false, retried: false }
+  }
+
+  const result = await transport.sendSupportAccessRequest(pending.payload)
+  return markDeliveryOutcome(db, clock, pending.jobId, current, transport.name, result, {
+    supportRequestId: current.supportRequestId,
+  })
+}
+
+/**
+ * Agenda + tenta entrega imediata. Idempotente por (invitationId, tokenHash).
  * Retry de entrega reutiliza o mesmo job — não cria convite.
  */
 export async function deliverInvitationEmail(
@@ -288,8 +371,6 @@ export async function deliverInvitationEmail(
     sendNow?: boolean
   },
 ): Promise<{ job: DeliveryJobRow; sent: boolean; created: boolean }> {
-  // Chave por versão do token (hash), não só issuedAt — evita colisão create/resend
-  // no mesmo milissegundo e mantém idempotência de retry da mesma entrega.
   const tokenHash = await hashToken(input.rawToken)
   const idempotencyKey = `inv:${input.invitationId}:${tokenHash}`
   const { job, created } = enqueueInvitationDelivery(db, clock, {
@@ -308,8 +389,6 @@ export async function deliverInvitationEmail(
     return { job, sent: false, created }
   }
 
-  // Só a primeira criação desta chave (ou job ainda pending/failed) tenta enviar.
-  // Payload com token vive só neste stack frame.
   const processed = await processInvitationDelivery(db, clock, transport, {
     jobId: job.id,
     payload: {
@@ -325,31 +404,85 @@ export async function deliverInvitationEmail(
   return { job: processed.job, sent: processed.sent, created }
 }
 
+/**
+ * E-mail informativo de pedido de suporte (DEC-030).
+ * Idempotente por (supportRequestId, toEmail). Sem credencial.
+ */
+export async function deliverSupportAccessRequestEmail(
+  db: AdminDb,
+  clock: Clock,
+  transport: EmailTransport,
+  input: {
+    supportRequestId: string
+    toEmail: string
+    tenantId: string
+    tenantName: string
+    actorClerkUserId: string
+    subjectClerkUserId: string
+    reason: string
+    scope: string
+    expiresAt: number
+    appBaseUrl: string
+    /** Actor que criou o pedido (superadmin). */
+    requestedByClerkUserId: string
+    sendNow?: boolean
+  },
+): Promise<{ job: DeliveryJobRow; sent: boolean; created: boolean }> {
+  const idempotencyKey = `sar:${input.supportRequestId}:${input.toEmail}`
+  const { job, created } = enqueueSupportRequestDelivery(db, clock, {
+    idempotencyKey,
+    toEmail: input.toEmail,
+    tenantId: input.tenantId,
+    supportRequestId: input.supportRequestId,
+    actorClerkUserId: input.requestedByClerkUserId,
+  })
+
+  if (job.status === 'sent') {
+    return { job, sent: true, created }
+  }
+
+  if (input.sendNow === false) {
+    return { job, sent: false, created }
+  }
+
+  const processed = await processSupportRequestDelivery(db, clock, transport, {
+    jobId: job.id,
+    payload: {
+      toEmail: input.toEmail,
+      tenantId: input.tenantId,
+      tenantName: input.tenantName,
+      supportRequestId: input.supportRequestId,
+      actorClerkUserId: input.actorClerkUserId,
+      subjectClerkUserId: input.subjectClerkUserId,
+      reason: input.reason,
+      scope: input.scope,
+      expiresAt: input.expiresAt,
+      appBaseUrl: input.appBaseUrl,
+    },
+  })
+  return { job: processed.job, sent: processed.sent, created }
+}
+
 export function listDeliveryJobsForInvitation(
   db: AdminDb,
   invitationId: string,
 ): DeliveryJobRow[] {
   assertAdminSchemaReady(db)
-  const rows = db.all<{
-    id: string
-    idempotency_key: string
-    template: string
-    to_email: string
-    tenant_id: string
-    invitation_id: string
-    status: string
-    attempt_count: number
-    max_attempts: number
-    next_attempt_at: number
-    last_error: string | null
-    created_at: number
-    updated_at: number
-    sent_at: number | null
-  }>(
-    `SELECT id, idempotency_key, template, to_email, tenant_id, invitation_id, status,
-            attempt_count, max_attempts, next_attempt_at, last_error, created_at, updated_at, sent_at
-     FROM email_delivery_jobs WHERE invitation_id = ? ORDER BY created_at`,
+  const rows = db.all<JobSqlRow>(
+    `${JOB_SELECT} WHERE invitation_id = ? ORDER BY created_at`,
     invitationId,
+  )
+  return rows.map(mapJob)
+}
+
+export function listDeliveryJobsForSupportRequest(
+  db: AdminDb,
+  supportRequestId: string,
+): DeliveryJobRow[] {
+  assertAdminSchemaReady(db)
+  const rows = db.all<JobSqlRow>(
+    `${JOB_SELECT} WHERE support_request_id = ? ORDER BY created_at`,
+    supportRequestId,
   )
   return rows.map(mapJob)
 }

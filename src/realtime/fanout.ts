@@ -2,7 +2,7 @@ import type { Clock } from '../db/clock'
 import type { ClinicDb } from '../clinic/store'
 import type { AccessAuthority } from './authority'
 import { denyUserAccess, localFenceBlocks } from './fence'
-import type { RealtimeEventRow } from './events'
+import { isEventVisibleToRole, type RealtimeEventRow } from './events'
 import {
   encodeServerMessage,
   type AccessRevokeReason,
@@ -123,6 +123,11 @@ export async function deliverEventToSockets(
       })
       closeRevoked(ws, attachment, decision.reason)
       result.revoked.push(attachment.connectionId)
+      continue
+    }
+
+    // DEC-030: pedidos de suporte só para owners ativos (#26).
+    if (!isEventVisibleToRole(event.payload, attachment.role)) {
       continue
     }
 

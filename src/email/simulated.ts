@@ -4,6 +4,7 @@ import type {
   EmailTransport,
   InvitationEmailPayload,
   SimulatedMailboxMessage,
+  SupportAccessRequestEmailPayload,
 } from './types'
 
 export type SimulatedEmailTransport = EmailTransport & {
@@ -55,12 +56,47 @@ export function createSimulatedEmailTransport(opts: {
       })
       return { ok: true, providerMessageId: id }
     },
+    async sendSupportAccessRequest(
+      payload: SupportAccessRequestEmailPayload,
+    ): Promise<EmailSendResult> {
+      if (failRemaining > 0) {
+        failRemaining -= 1
+        return { ok: false, error: failError, retryable: true }
+      }
+      const id = `msg_${generateOpaqueToken(8)}`
+      const requestUrl = buildSupportRequestUrl(
+        payload.appBaseUrl,
+        payload.tenantId,
+        payload.supportRequestId,
+      )
+      mailbox.push({
+        id,
+        toEmail: payload.toEmail,
+        template: 'support_access_request',
+        subject: `Pedido de suporte — ${payload.tenantName}`,
+        requestUrl,
+        tenantId: payload.tenantId,
+        supportRequestId: payload.supportRequestId,
+        sentAt: clock.nowMs(),
+      })
+      return { ok: true, providerMessageId: id }
+    },
   }
 }
 
 export function buildInviteUrl(appBaseUrl: string, rawToken: string): string {
   const base = appBaseUrl.replace(/\/+$/, '')
   return `${base}/invite/accept?token=${encodeURIComponent(rawToken)}`
+}
+
+/** Link de navegação autenticada — sem token de aprovação (DEC-030). */
+export function buildSupportRequestUrl(
+  appBaseUrl: string,
+  tenantId: string,
+  supportRequestId: string,
+): string {
+  const base = appBaseUrl.replace(/\/+$/, '')
+  return `${base}/t/${encodeURIComponent(tenantId)}/support-requests/${encodeURIComponent(supportRequestId)}`
 }
 
 /** Extrai token do inviteUrl do mailbox (testes). */
