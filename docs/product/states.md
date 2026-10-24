@@ -44,6 +44,18 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 
 “Horário proposto” é uma etapa da negociação; **não reserva** recursos da agenda (Confirmado, DEC-008). Ao reagendar, o compromisso anterior permanece no histórico e o novo horário só é confirmado se estiver disponível. Duração e intervalo vêm do serviço e o intervalo ocupa sala/equipamento **e** profissional; expediente semanal, bloqueios pontuais, fuso por clínica e grade de 15 min estão confirmados (DEC-008). Valores reais vêm da clínica piloto.
 
+## Sinal por Pix (DEC-047)
+
+| Estado | Significado | Regra |
+| --- | --- | --- |
+| Aguardando sinal | Cobrança criada e enviada; horário **não** reservado. | Expira no prazo (padrão 2 horas, ajustável pela responsável). |
+| Paga | Provedor confirmou o pagamento. | Confirma o compromisso se o horário estiver livre (Proposto). |
+| Pago sem horário | Pago, mas o horário foi ocupado antes. | Alerta até a equipe escolher outro horário ou devolver. |
+| Expirada | Prazo venceu sem pagamento. | Não aceita pagamento; aviso posterior vira Pago sem horário. |
+| Cancelada | Atendente cancelou antes do pagamento. | Nova tentativa cria nova cobrança. |
+| Estorno solicitado / Devolvido / Estorno falhou | Devolução pedida ao provedor e seu resultado. | Falha mostra Tentar de novo. |
+| Retido | Cancelamento com sinal retido pela clínica. | Registra quem decidiu e o motivo. |
+
 ## Eventos de interface propostos
 
 | Evento lógico | Quando ocorre | Visões afetadas |
