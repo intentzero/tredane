@@ -19,7 +19,7 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP, instalável como PWA com notificações push de nova conversa | **Confirmado** | DEC-017, DEC-018. O push não traz o conteúdo da mensagem. No iPhone o push exige instalar o painel na tela inicial: o fluxo de instalação tem tela de orientação e escolha de avisos (M-14). Suporte em cada aparelho da clínica piloto: Q-UX-01. |
 | Idioma pt-BR, fuso horário da clínica em todas as datas | **Proposto** | O fuso da clínica é parte das regras de agenda ainda em aberto (DEC-008). |
 | Login pelo Clerk (código por e-mail) e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005, REQ-006. TEL-08 (proposta), desenhada em M-09 e M-10. A tela de entrada final usa o componente do Clerk estilizado com a identidade do Tredane; M-09 mostra o comportamento esperado, não o componente real. |
-| Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **propostas** (TEL-09, M-15 a M-22) | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
+| Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **propostas** (TEL-09, M-15 a M-25) | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
 | App de superadmin | **Fora desta spec** | DEC-012, [ADR-0006](../adr/0006-superadmin-control-plane.md). App separado, com spec própria quando for desenhado. |
 | Relatórios, campanhas, prontuário, pagamentos, bot autônomo | **Fora do MVP** | Não aparecem na navegação, nem como item desabilitado. |
 
@@ -196,9 +196,14 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
 **Equipe (M-18).** Membros com papel (Responsável, Atendente), convites pendentes (reenviar, cancelar; expiram) e remoção de acesso. Remover um membro encerra as sessões e conexões em tempo real dele (REQ-003). Seção “Suporte do Tredane”: o responsável pode liberar acesso temporário de 24 h como Atendente, encerrável a qualquer momento e auditado; sem isso, a equipe do Tredane não vê conteúdo (DEC-012, [ADR-0006](../adr/0006-superadmin-control-plane.md)). A clínica sempre precisa de ao menos um Responsável: remover ou rebaixar o último é recusado.
 
-**WhatsApp (M-19).** Estado “Não conectado” com explicação do Embedded Signup e botão **Conectar WhatsApp**, que abre a janela da Meta (DEC-009). Um número já ligado a outra clínica é recusado (REQ-051). Estados a desenhar quando a integração existir: conectado (número e estado), conexão interrompida e troca de número. O acesso à conta Meta e os tokens nunca aparecem na tela.
+**WhatsApp (M-19, M-23 a M-25).** Quatro estados da conexão (DEC-009, REQ-051):
+- *Não conectado (M-19):* explicação do Embedded Signup e botão **Conectar WhatsApp**, que abre a janela da Meta. Um número já ligado a outra clínica é recusado.
+- *Conectado (M-23):* número, nome exibido, quem conectou e quando, hora da última mensagem recebida e lista de modelos de mensagem com estado (Aprovado, Em análise). Ações: **Trocar número** e **Desconectar**. Tokens e dados de acesso à conta Meta nunca aparecem.
+- *Conexão interrompida (M-24):* faixa de alerta com o horário da queda, motivo em linguagem simples (autorização removida ou expirada), o que acontece enquanto estiver desconectado (envios aparecem como “Não enviada”, o histórico é mantido) e botão **Reconectar WhatsApp**. Todos os membros veem o aviso no topo do painel; só o Responsável reconecta. Ao reconectar, o painel confere o que foi enviado no período e nada é reenviado sem escolha humana (REQ-012, REQ-013).
+- *Trocar número (M-25):* tela de confirmação com o que muda (conversas e dados ficam; o número antigo deixa de funcionar pelo Tredane; contatos precisam escrever ao número novo; modelos precisam de nova aprovação) e caixa de confirmação que habilita **Continuar para a Meta**. O número novo também não pode estar ligado a outra clínica.
+- *Desconectar (M-23):* ação existe, mas a confirmação ainda não está desenhada (**Proposto**: diálogo com as mesmas consequências de M-24 e confirmação explícita).
 
-**Em aberto:** categorias padrão de sala e equipamento da clínica piloto; limite de recursos por clínica; quais papéis podem trocar o número do WhatsApp depois de conectado (hoje só o Responsável); se o Responsável pode se rebaixar; textos finais do Embedded Signup, que dependem do registro do Tredane como Tech Provider.
+**Em aberto:** categorias padrão de sala e equipamento da clínica piloto; limite de recursos por clínica; quais papéis podem trocar o número do WhatsApp depois de conectado (hoje só o Responsável); se o Responsável pode se rebaixar; textos finais do Embedded Signup, que dependem do registro do Tredane como Tech Provider; motivos de desconexão que a Meta informa de fato, para ajustar as mensagens de M-24; confirmação de “Desconectar”.
 
 ### TEL-07 — Estados globais
 
@@ -304,9 +309,9 @@ Tipografia: Inter (400/500/600), escala 12/14/16/20/24. Raio 8 px em cartões, 6
 | TEL-06 Compromisso | JRN-05 | REQ-032, REQ-033 | AC-10 |
 | TEL-07 Estados globais | JRN-07 | REQ-001, REQ-003, REQ-040, REQ-041, REQ-042 | AC-01, AC-02, AC-11, AC-12 |
 | TEL-08 Entrar e escolher clínica | JRN-07, JRN-08 | REQ-005, REQ-006 | AC-17 |
-| TEL-09 Clínica (configuração) | JRN-08 | REQ-002, REQ-003, REQ-004, REQ-051, REQ-052, REQ-061 | AC-03, AC-14, AC-20 |
+| TEL-09 Clínica (configuração) | JRN-08 | REQ-002, REQ-003, REQ-004, REQ-051, REQ-052, REQ-061 | AC-03, AC-14, AC-20, AC-21, AC-22 |
 
-Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-15 a M-22 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
+Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-15 a M-25 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos; M-19 e M-23 a M-25: WhatsApp). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
 
 ## 10. Critérios de aceite de UX
 

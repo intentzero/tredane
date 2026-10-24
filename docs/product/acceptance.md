@@ -92,6 +92,14 @@
 
 **Dado** o responsável da clínica A; **quando** cadastra uma profissional, uma sala com a categoria exigida por um serviço e o expediente de ambas; **então** a agenda passa a oferecer horários desse serviço com os dois recursos livres. **Quando** desativa a única sala dessa categoria, o serviço deixa de oferecer novos horários e os compromissos futuros permanecem marcados. Um atendente não consegue cadastrar, editar ou desativar recursos. **Requisitos:** REQ-002, REQ-030, REQ-052.
 
+### AC-21 — Conexão do WhatsApp interrompida
+
+**Dado** uma clínica A com WhatsApp conectado; **quando** a Meta deixa de aceitar o acesso; **então** o painel de A mostra o aviso de conexão interrompida a todos os membros, as respostas enviadas no período aparecem como “Não enviada”, o histórico é preservado e só o responsável vê o botão de reconectar. Ao reconectar, nada é reenviado automaticamente e a clínica B não é afetada. **Requisitos:** REQ-012, REQ-013, REQ-051.
+
+### AC-22 — Troca de número
+
+**Dado** o responsável de A com o número X conectado; **quando** troca para o número Y; **então** conversas, contatos e agenda de A permanecem, mensagens passam a ser recebidas e enviadas por Y e X deixa de rotear para A. Tentar usar um número já associado à clínica B é recusado, sem alterar A nem B. **Requisitos:** REQ-050, REQ-051.
+
 ## Condições para usar estes cenários como aprovação
 
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.
