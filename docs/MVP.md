@@ -150,7 +150,7 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 2. Valores reais de serviços, durações e jornadas da clínica piloto (regras definidas em DEC-008).
 3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Revogação por tenant definida em DEC-026; em aberto o mecanismo técnico e testes de propagação WebSocket, integrações e medidas adicionais de antiabuso; MFA fora do MVP (DEC-028).
 4. Revisão jurídica e AI Gateway sem registro de conteúdo (provedor definido em DEC-011); como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane?
-5. Revisão jurídica (LGPD) da retenção e exclusão definidas em DEC-011 (REQ-071).
+5. Revisão jurídica (LGPD) da retenção e exclusão definidas em DEC-011 (REQ-071). Dossiê para o advogado: [legal-review-brief.md](product/legal-review-brief.md).
 6. Topologia já definida em DEC-038: validar implementação, migrações, capacidade, recuperação e revogação entre D1 central e SQLite/DO por clínica antes de dados reais.
 
 Estas pendências não bloqueiam a estrutura inicial nem a implementação do fluxo com dados de teste. Bloqueiam a conexão de números reais, o tratamento de dados reais e automações de envio.
