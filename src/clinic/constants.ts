@@ -1,5 +1,5 @@
-/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#40). */
-export const CLINIC_SCHEMA_VERSION = 13
+/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#41). */
+export const CLINIC_SCHEMA_VERSION = 14
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -16,7 +16,28 @@ export const CLINIC_MIGRATION_NAMES = {
   11: '0011_scheduling_intent_pix_charge',
   12: '0012_pix_payment_confirm',
   13: '0013_pix_exceptions',
+  14: '0014_ai_suggestions',
 } as const
+
+/** Estados de sugestão IA (#41 / ADR-0004). */
+export const AI_SUGGESTION_KINDS = ['reply', 'summary'] as const
+export type AiSuggestionKindConst = (typeof AI_SUGGESTION_KINDS)[number]
+
+export const AI_SUGGESTION_STATUSES = [
+  'pending',
+  'used',
+  'edited',
+  'discarded',
+  'failed',
+  'superseded',
+] as const
+
+export const AI_SUGGESTION_DECISIONS = [
+  'use',
+  'edit',
+  'discard',
+  'regenerate',
+] as const
 
 /** Resolução do pagamento no DO (#39 / DEC-047). */
 export const PIX_PAYMENT_RESOLUTIONS = [

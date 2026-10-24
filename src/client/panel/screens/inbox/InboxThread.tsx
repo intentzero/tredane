@@ -1,7 +1,8 @@
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Sparkles } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { Button, TextArea, TextField } from 'react-aria-components'
 import type {
+  AiSuggestion,
   InboxConversationDetail,
   InboxMessage,
   PanelApi,
@@ -104,6 +105,12 @@ export function InboxThread({
   const [pixAlerts, setPixAlerts] = useState<PixPaymentAlert[]>([])
   const [templateParams, setTemplateParams] = useState<Record<string, string>>(
     {},
+  )
+  const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null)
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiUnavailable, setAiUnavailable] = useState(false)
+  const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(
+    null,
   )
   const composerId = useId()
 
@@ -292,6 +299,69 @@ export function InboxThread({
     }
   }
 
+  async function requestAiSuggestion(parentSuggestionId?: string | null) {
+    setAiBusy(true)
+    setAiUnavailable(false)
+    setNotice(null)
+    try {
+      const res = await api.suggestAiReply(
+        tenantId,
+        conversationId,
+        {
+          clientRequestId: crypto.randomUUID(),
+          parentSuggestionId: parentSuggestionId ?? null,
+          actorDisplayName: 'Atendente',
+        },
+        { generation, expectGeneration: () => generation },
+      )
+      if (res.suggestion.status === 'failed' || !res.suggestion.suggestedText) {
+        setAiSuggestion(null)
+        setAiUnavailable(true)
+      } else {
+        setAiSuggestion(res.suggestion)
+        setAiUnavailable(false)
+      }
+    } catch {
+      setAiSuggestion(null)
+      setAiUnavailable(true)
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
+  async function discardAiSuggestion() {
+    if (!aiSuggestion) {
+      setAiSuggestion(null)
+      return
+    }
+    setAiBusy(true)
+    try {
+      await api.decideAiSuggestion(
+        tenantId,
+        aiSuggestion.id,
+        {
+          clientRequestId: crypto.randomUUID(),
+          decision: 'discard',
+          actorDisplayName: 'Atendente',
+        },
+        { generation, expectGeneration: () => generation },
+      )
+    } catch {
+      /* descarte local mesmo se a API falhar */
+    } finally {
+      setAiSuggestion(null)
+      setActiveSuggestionId(null)
+      setAiBusy(false)
+    }
+  }
+
+  function useAndEditAiSuggestion() {
+    if (!aiSuggestion) return
+    setDraft(aiSuggestion.suggestedText)
+    setActiveSuggestionId(aiSuggestion.id)
+    setAiSuggestion(null)
+  }
+
   async function sendPayload(payload: {
     body?: string
     template?: {
@@ -299,6 +369,7 @@ export function InboxThread({
       language: string
       params: Record<string, string>
     }
+    aiSuggestionId?: string | null
   }) {
     if (!detail) return
     setBusy(true)
@@ -308,10 +379,16 @@ export function InboxThread({
       const res = await api.sendInboxMessage(
         tenantId,
         conversationId,
-        { ...payload, clientRequestId },
+        {
+          ...payload,
+          clientRequestId,
+          aiSuggestionId: payload.aiSuggestionId ?? activeSuggestionId,
+        },
         { generation, expectGeneration: () => generation },
       )
       setDraft('')
+      setActiveSuggestionId(null)
+      setAiSuggestion(null)
       setSelectedTemplate(null)
       setTemplateParams({})
       setPickerOpen(false)
@@ -609,6 +686,52 @@ export function InboxThread({
 
       {detail.status !== 'closed' ? (
         <div className="inbox-composer-wrap">
+          {aiUnavailable ? (
+            <div className="ai-block ai-block-unavailable" role="status">
+              <p>A sugestão não está disponível agora. Você pode responder normalmente.</p>
+            </div>
+          ) : null}
+          {aiSuggestion ? (
+            <div className="ai-block" role="region" aria-label="Sugestão da IA">
+              <p className="ai-block-label">Sugestão da IA — revise antes de enviar</p>
+              {aiSuggestion.warningLabels.map((w) => (
+                <p key={w} className="ai-block-warn" role="status">
+                  {w}
+                </p>
+              ))}
+              {aiSuggestion.sourceRefs.map((s) => (
+                <p key={s.serviceName} className="ai-block-source">
+                  {s.label}
+                </p>
+              ))}
+              <p className="ai-block-text">
+                <PlainText text={aiSuggestion.suggestedText} />
+              </p>
+              <div className="ai-block-actions">
+                <Button
+                  className="panel-btn-secondary ai-btn"
+                  onPress={() => useAndEditAiSuggestion()}
+                  isDisabled={aiBusy || busy}
+                >
+                  Usar e editar
+                </Button>
+                <Button
+                  className="panel-btn-secondary ai-btn"
+                  onPress={() => void requestAiSuggestion(aiSuggestion.id)}
+                  isDisabled={aiBusy || busy}
+                >
+                  Gerar outra
+                </Button>
+                <Button
+                  className="panel-btn-secondary ai-btn"
+                  onPress={() => void discardAiSuggestion()}
+                  isDisabled={aiBusy || busy}
+                >
+                  Descartar
+                </Button>
+              </div>
+            </div>
+          ) : null}
           {!windowOpen ? (
             <p className="inbox-window-banner" role="status">
               Fora da janela de 24 h do WhatsApp
@@ -622,6 +745,14 @@ export function InboxThread({
                 void send()
               }}
             >
+              <Button
+                className="panel-icon-btn inbox-ai-trigger"
+                aria-label="Sugerir resposta com IA"
+                onPress={() => void requestAiSuggestion(null)}
+                isDisabled={aiBusy || busy}
+              >
+                <Sparkles aria-hidden size={20} strokeWidth={2} />
+              </Button>
               <TextField
                 className="inbox-composer-field"
                 aria-label="Mensagem"

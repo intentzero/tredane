@@ -3,6 +3,7 @@ import {
   acknowledgeOutboxResult,
   assertSyntheticTenantId,
   bindOrAssertTenant,
+  clinicAi,
   clinicAttachments,
   clinicConfig,
   clinicInbox,
@@ -75,6 +76,12 @@ import type {
   UpdateSignalSettingsInput,
 } from '../clinic/pix'
 import type { PixProviderAdapter } from '../pix'
+import type {
+  AiAssistRpcDeps,
+  DecideSuggestionInput,
+  SuggestReplyInput,
+  SummarizeInput,
+} from '../clinic/ai'
 import { systemClock, type Clock } from '../db/clock'
 import { fromD1 } from '../db/admin/async-store'
 import {
@@ -1909,6 +1916,63 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     )
 
     return new Response(null, { status: 101, webSocket: client })
+  }
+
+  /** IA assistiva (#41) — sob demanda; nunca envia WhatsApp. */
+  async suggestAiReply(
+    caller: ClinicCaller,
+    input: SuggestReplyInput,
+    rpcDeps: AiAssistRpcDeps,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const deps = clinicAi.toAiAssistDeps(rpcDeps)
+    return clinicAi.suggestReplyOp(this.#db, caller, input, this.#clock, deps)
+  }
+
+  async summarizeAiConversation(
+    caller: ClinicCaller,
+    input: SummarizeInput,
+    rpcDeps: AiAssistRpcDeps,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const deps = clinicAi.toAiAssistDeps(rpcDeps)
+    return clinicAi.summarizeConversationOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+      deps,
+    )
+  }
+
+  async decideAiSuggestion(caller: ClinicCaller, input: DecideSuggestionInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicAi.decideSuggestionOp(this.#db, caller, input, this.#clock)
+  }
+
+  async listAiSuggestions(
+    caller: ClinicCaller,
+    conversationId: string,
+    opts: { kind?: 'reply' | 'summary'; limit?: number } = {},
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicAi.listConversationSuggestionsOp(
+      this.#db,
+      caller,
+      conversationId,
+      this.#clock,
+      opts,
+    )
+  }
+
+  async getAiSuggestion(caller: ClinicCaller, suggestionId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicAi.getSuggestionOp(this.#db, caller, suggestionId, this.#clock)
   }
 
   #acceptHarnessEcho(): Response {

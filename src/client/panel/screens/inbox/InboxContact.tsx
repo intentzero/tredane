@@ -1,7 +1,7 @@
 import { ChevronLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from 'react-aria-components'
-import type { InboxContactDetail, PanelApi } from '../../api'
+import type { AiSuggestion, InboxContactDetail, PanelApi } from '../../api'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import { contactLabel, maskPhone, relativeTime, statusClass, statusLabel } from './format'
@@ -24,6 +24,9 @@ export function InboxContactScreen({
   const [data, setData] = useState<InboxContactDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [summary, setSummary] = useState<AiSuggestion | null>(null)
+  const [summaryBusy, setSummaryBusy] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -125,10 +128,77 @@ export function InboxContactScreen({
         </div>
       </dl>
 
+      {conversationId ? (
+        <>
+          <h2 className="inbox-contact-h">Resumo da IA</h2>
+          <div className="ai-block" style={{ marginBottom: 12 }}>
+            {summary ? (
+              <>
+                <p className="ai-block-label">
+                  Resumo da IA ·{' '}
+                  {new Date(summary.createdAt).toLocaleString('pt-BR', {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                  })}
+                </p>
+                <p className="ai-block-text">{summary.suggestedText}</p>
+                <p className="ai-block-source">Pode conter erros. Confira na conversa.</p>
+              </>
+            ) : (
+              <p className="ai-block-source">
+                Gerado sob demanda — a IA não envia mensagens.
+              </p>
+            )}
+            {summaryError ? (
+              <p className="ai-block-warn" role="status">
+                {summaryError}
+              </p>
+            ) : null}
+            <div className="ai-block-actions">
+              <Button
+                className="panel-btn-secondary ai-btn"
+                isDisabled={summaryBusy}
+                onPress={() => {
+                  setSummaryBusy(true)
+                  setSummaryError(null)
+                  void api
+                    .summarizeAiConversation(
+                      tenantId,
+                      conversationId,
+                      {
+                        clientRequestId: crypto.randomUUID(),
+                        actorDisplayName: 'Atendente',
+                      },
+                      { generation, expectGeneration: () => generation },
+                    )
+                    .then((r) => {
+                      if (r.suggestion.status === 'failed') {
+                        setSummaryError(
+                          'A sugestão não está disponível agora. Você pode responder normalmente.',
+                        )
+                        setSummary(null)
+                      } else {
+                        setSummary(r.suggestion)
+                      }
+                    })
+                    .catch(() => {
+                      setSummaryError(
+                        'A sugestão não está disponível agora. Você pode responder normalmente.',
+                      )
+                    })
+                    .finally(() => setSummaryBusy(false))
+                }}
+              >
+                {summaryBusy ? 'A gerar…' : summary ? 'Gerar outro resumo' : 'Gerar resumo'}
+              </Button>
+            </div>
+          </div>
+        </>
+      ) : null}
+
       <h2 className="inbox-contact-h">Acompanhamento</h2>
       <p className="inbox-contact-note">
-        O quadro de contactos em andamento está em Acompanhamento. A agenda completa chega nas
-        fatias #35/#36.
+        O quadro de contactos em andamento está em Acompanhamento.
       </p>
       <Button
         className="panel-btn-secondary"

@@ -129,6 +129,11 @@ export type SendOutboundInput = {
   clientRequestId: string
   authorClerkUserId: string
   authorDisplayName: string
+  /**
+   * Sugestão IA usada neste envio humano (#41 / AC-06).
+   * A IA nunca envia sozinha — só liga origem interna após clique em Enviar.
+   */
+  aiSuggestionId?: string | null
 }
 
 export type InboxCounts = {
