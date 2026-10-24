@@ -88,6 +88,10 @@
 
 **Dado** duas clínicas com conversas fictícias; **quando** a IA é chamada numa conversa de A; **então** a solicitação ao AI Gateway contém apenas mensagens recentes dessa conversa, primeiro nome, catálogo de A e etapa, sem telefone, anexos ou dados de B. **Requisito:** REQ-060.
 
+### AC-20 — Cadastro de recursos da agenda
+
+**Dado** o responsável da clínica A; **quando** cadastra uma profissional, uma sala com a categoria exigida por um serviço e o expediente de ambas; **então** a agenda passa a oferecer horários desse serviço com os dois recursos livres. **Quando** desativa a única sala dessa categoria, o serviço deixa de oferecer novos horários e os compromissos futuros permanecem marcados. Um atendente não consegue cadastrar, editar ou desativar recursos. **Requisitos:** REQ-002, REQ-030, REQ-052.
+
 ## Condições para usar estes cenários como aprovação
 
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.
