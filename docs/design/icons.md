@@ -44,7 +44,12 @@
 | Modelo de mensagem | M-11 | `file-text` |
 | Sem conexão em tempo real | Estados | `wifi-off` |
 
+## Licença e instalação (issue #16)
+
+- Pacote `lucide-react` instalado na prova F0; licença **ISC** copiada em [docs/licenses/Lucide-ISC.txt](../licenses/Lucide-ISC.txt).
+- Nomes usados na prova: `x`, `triangle-alert`, `check`, `chevron-down`, `message-circle`, `kanban`, `calendar`, `circle-alert` — disponíveis na versão pinada.
+
 ## Pendências
 
-- Confirmar nomes e disponibilidade ao instalar a biblioteca; revisar a licença no momento da adoção.
+- Conferir o restante do inventário ao construir telas produtivas.
 - Decidir se o PWA terá ícones próprios do app (tela inicial, notificação): **Em aberto**, depende da identidade visual do Tredane.

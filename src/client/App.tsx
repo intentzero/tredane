@@ -73,7 +73,11 @@ export function App() {
             ))}
           </div>
         </section>
-        <p className="footnote">Protótipo de fundação sem login, dados reais ou integração com o WhatsApp. Não utilizar para atendimentos.</p>
+        <p className="footnote">
+          Protótipo de fundação sem login, dados reais ou integração com o WhatsApp. Não utilizar
+          para atendimentos. Área de prova de componentes (issue #16):{' '}
+          <a href="/prova">/prova</a>.
+        </p>
       </main>
       <footer>© {new Date().getFullYear()} Tredane · Fundação do produto</footer>
     </div>
