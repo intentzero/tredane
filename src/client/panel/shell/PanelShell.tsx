@@ -1,5 +1,5 @@
-import { ChevronDown } from 'lucide-react'
-import { useEffect, type ReactNode } from 'react'
+import { Bell, ChevronDown } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from 'react-aria-components'
 import { SignOutButton } from '../auth/ClerkBridge'
 import { useAuthSession } from '../auth/AuthContext'
@@ -20,12 +20,26 @@ type Props = {
   area: PanelArea
   tenantId: string
   children: ReactNode
+  /** M-14 avisos — sem barra inferior. */
+  hideNav?: boolean
 }
 
-export function PanelShell({ area, tenantId, children }: Props) {
+export function PanelShell({ area, tenantId, children, hideNav }: Props) {
   const { active, selectTenant, listState, generation } = useTenant()
   const { api } = useAuthSession()
   const { conn: waConn } = useWhatsapp(api, tenantId, generation)
+  const [offline, setOffline] = useState(!navigator.onLine)
+
+  useEffect(() => {
+    const on = () => setOffline(false)
+    const off = () => setOffline(true)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => {
+      window.removeEventListener('online', on)
+      window.removeEventListener('offline', off)
+    }
+  }, [])
 
   const readyContext = active.phase === 'ready' ? active.context : null
   const tenantMismatch = Boolean(readyContext && readyContext.tenantId !== tenantId)
@@ -110,42 +124,70 @@ export function PanelShell({ area, tenantId, children }: Props) {
 
   const multi = listState.phase === 'ready' && listState.tenants.length > 1
 
+  const avisosOnly = hideNav || area === 'avisos'
+
   return (
     <div className="panel-app" lang="pt-BR">
-      <header className="panel-shell-header">
-        <div className="panel-shell-titles">
-          <h1 className="panel-title-lg">{areaTitle(area)}</h1>
-          <div className="panel-shell-clinic">
-            {multi ? (
-              <Button
-                className="panel-clinic-switch"
-                onPress={() => navigatePanel({ kind: 'clinicas' })}
-                aria-label={`Clínica ativa: ${ctx.name}. Trocar clínica.`}
-              >
-                <span>{ctx.name}</span>
-                <ChevronDown aria-hidden="true" size={16} strokeWidth={2} />
-              </Button>
-            ) : (
-              <span className="panel-subtitle">{ctx.name}</span>
-            )}
-            <span className="panel-live">
-              <span className="panel-live-dot" aria-hidden="true" />
-              Ao vivo
-            </span>
+      {!avisosOnly ? (
+        <header className="panel-shell-header">
+          <div className="panel-shell-titles">
+            <h1 className="panel-title-lg">{areaTitle(area)}</h1>
+            <div className="panel-shell-clinic">
+              {multi ? (
+                <Button
+                  className="panel-clinic-switch"
+                  onPress={() => navigatePanel({ kind: 'clinicas' })}
+                  aria-label={`Clínica ativa: ${ctx.name}. Trocar clínica.`}
+                >
+                  <span>{ctx.name}</span>
+                  <ChevronDown aria-hidden="true" size={16} strokeWidth={2} />
+                </Button>
+              ) : (
+                <span className="panel-subtitle">{ctx.name}</span>
+              )}
+              <span className="panel-live">
+                <span className="panel-live-dot" aria-hidden="true" />
+                Ao vivo
+              </span>
+            </div>
           </div>
+          <div className="panel-shell-actions">
+            <Button
+              className="panel-icon-btn"
+              aria-label="Avisos no celular"
+              onPress={() =>
+                navigatePanel({ kind: 'area', area: 'avisos', tenantId: ctx.tenantId })
+              }
+            >
+              <Bell aria-hidden="true" size={20} strokeWidth={2} />
+            </Button>
+            <SignOutButton />
+          </div>
+        </header>
+      ) : null}
+
+      {offline ? (
+        <div className="panel-offline-banner" role="status">
+          Sem ligação — dados podem estar desatualizados. Ações de agenda ou
+          pagamento não ficam confirmadas offline.
         </div>
-        <SignOutButton />
-      </header>
+      ) : null}
 
-      <WhatsappInterruptBanner
-        tenantId={ctx.tenantId}
-        conn={waConn}
-        isOwner={isOwner}
-      />
+      {!avisosOnly ? (
+        <WhatsappInterruptBanner
+          tenantId={ctx.tenantId}
+          conn={waConn}
+          isOwner={isOwner}
+        />
+      ) : null}
 
-      <main className="panel-shell-main">{children}</main>
+      <main className={`panel-shell-main${avisosOnly ? ' panel-shell-main--flush' : ''}`}>
+        {children}
+      </main>
 
-      <BottomNav tenantId={ctx.tenantId} active={area} showClinica={isOwner} />
+      {!avisosOnly ? (
+        <BottomNav tenantId={ctx.tenantId} active={area} showClinica={isOwner} />
+      ) : null}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 /** Rotas produtivas do painel (#22/#28/#29/#30). Sem React Router — pathname + history. */
 
-export type PanelArea = 'conversas' | 'acompanhamento' | 'agenda' | 'clinica'
+export type PanelArea = 'conversas' | 'acompanhamento' | 'agenda' | 'clinica' | 'avisos'
 
 export type ClinicaSection =
   | 'hub'
@@ -62,12 +62,18 @@ export type PanelRoute =
       section: ClinicaSection
       entityId?: string
     }
+  | {
+      kind: 'area'
+      area: 'avisos'
+      tenantId: string
+    }
 
 const AREA_PATH: Record<PanelArea, string> = {
   conversas: 'conversas',
   acompanhamento: 'acompanhamento',
   agenda: 'agenda',
   clinica: 'clinica',
+  avisos: 'avisos',
 }
 
 const PATH_AREA: Record<string, PanelArea> = {
@@ -75,6 +81,7 @@ const PATH_AREA: Record<string, PanelArea> = {
   acompanhamento: 'acompanhamento',
   agenda: 'agenda',
   clinica: 'clinica',
+  avisos: 'avisos',
 }
 
 function parseClinicaRest(rest: string | undefined): {
@@ -145,6 +152,9 @@ export function resolvePanelRoute(pathname: string): PanelRoute | null {
   const areaSeg = match[2] ?? ''
   const area = PATH_AREA[areaSeg]
   if (!tenantId || !area) return null
+  if (area === 'avisos') {
+    return { kind: 'area', area: 'avisos', tenantId }
+  }
   if (area === 'clinica') {
     const { section, entityId } = parseClinicaRest(match[3])
     return { kind: 'area', area: 'clinica', tenantId, section, entityId }
@@ -210,6 +220,7 @@ export function panelHref(route: PanelRoute): string {
       return '/clinicas'
     case 'area': {
       const base = `/c/${encodeURIComponent(route.tenantId)}/${AREA_PATH[route.area]}`
+      if (route.area === 'avisos') return base
       if (route.area === 'conversas') {
         if (route.section === 'lista') return base
         if (route.section === 'contato' && route.contactId && !route.conversationId) {
@@ -284,6 +295,8 @@ export function areaTitle(area: PanelArea): string {
       return 'Agenda'
     case 'clinica':
       return 'Clínica'
+    case 'avisos':
+      return 'Avisos no celular'
   }
 }
 
@@ -307,6 +320,9 @@ export function navigatePanel(route: PanelRoute, replace = false): void {
 export function areaRoute(tenantId: string, area: PanelArea): PanelRoute {
   if (area === 'clinica') {
     return { kind: 'area', area: 'clinica', tenantId, section: 'hub' }
+  }
+  if (area === 'avisos') {
+    return { kind: 'area', area: 'avisos', tenantId }
   }
   if (area === 'conversas') {
     return { kind: 'area', area: 'conversas', tenantId, section: 'lista' }

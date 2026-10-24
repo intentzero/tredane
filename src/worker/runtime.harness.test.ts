@@ -77,7 +77,7 @@ describe('Cloudflare runtime harness — F0', () => {
     const schema = await env.DB.prepare(
       'SELECT version FROM admin_schema_state WHERE id = 1',
     ).first() as { version: number } | null
-    expect(schema?.version).toBe(11)
+    expect(schema?.version).toBe(12)
 
     const multi = await env.DB.prepare(
       `SELECT tenant_id, role FROM tenant_memberships

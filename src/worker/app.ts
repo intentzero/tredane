@@ -65,6 +65,10 @@ import {
   createAiAssistRoutes,
   type AiAssistRouteOptions,
 } from '../ai-assist'
+import {
+  createPushRoutes,
+  type PushRouteOptions,
+} from '../push'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
@@ -127,6 +131,8 @@ export type CreateAppOptions = {
   pixWebhook?: PixWebhookRouteOptions
   /** IA assistiva (#41). */
   aiAssist?: AiAssistRouteOptions
+  /** PWA / Web Push (#42). */
+  push?: PushRouteOptions
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -141,6 +147,8 @@ export function createApp(opts: CreateAppOptions = {}) {
   app.use('/api/me/*', createAuthServicesMiddleware(factory))
   app.use('/api/me', createAuthServicesMiddleware(factory))
   app.use('/api/tenants/*', createAuthServicesMiddleware(factory))
+  app.use('/api/push/*', createAuthServicesMiddleware(factory))
+  app.use('/api/push', createAuthServicesMiddleware(factory))
   app.use('/api/platform/*', createAuthServicesMiddleware(factory))
   app.use('/api/support/*', createAuthServicesMiddleware(factory))
   app.use('/api/support', createAuthServicesMiddleware(factory))
@@ -244,6 +252,13 @@ export function createApp(opts: CreateAppOptions = {}) {
   app.route('/', createPixAccountRoutes(pixOpts))
 
   app.route('/', createAiAssistRoutes(opts.aiAssist ?? {}))
+
+  const pushOpts: PushRouteOptions = {
+    syncAdminDbFactory:
+      opts.push?.syncAdminDbFactory ?? opts.syncAdminDbFactory,
+    clockFactory: opts.push?.clockFactory ?? opts.clockFactory,
+  }
+  app.route('/', createPushRoutes(pushOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

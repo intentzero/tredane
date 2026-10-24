@@ -50,5 +50,5 @@
 - GATE-06: evidência de logging de payload desligado + não retenção Anthropic
 - Critérios finos de detecção ofensiva/clínico (**Em aberto** / Proposto)
 - Limite 20 mensagens e budgets — medir com piloto
-- PWA / push (#42)
+- PWA / push — ver [f5-pwa-push.md](f5-pwa-push.md) (#42)
 - Dados reais de pacientes

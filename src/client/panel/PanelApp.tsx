@@ -6,9 +6,11 @@ import { ClinicArea } from './screens/clinic/ClinicArea'
 import { ConversasArea } from './screens/inbox/ConversasArea'
 import { AcompanhamentoArea } from './screens/acompanhamento/AcompanhamentoArea'
 import { AgendaArea } from './screens/agenda/AgendaArea'
+import { AvisosScreen } from './screens/AvisosScreen'
 import { PanelShell } from './shell/PanelShell'
 import { LoadingState } from './states/StatusScreens'
 import { TenantProvider, useTenant } from './tenant/TenantContext'
+import { captureInstallPrompt, registerServiceWorker } from './pwa'
 import {
   navigatePanel,
   resolvePanelRoute,
@@ -72,6 +74,16 @@ function PanelRouter() {
     return <ClinicSelector />
   }
 
+  if (route.area === 'avisos') {
+    const clinicName =
+      active.phase === 'ready' ? active.context.name : 'clínica'
+    return (
+      <PanelShell area="avisos" tenantId={route.tenantId} hideNav>
+        <AvisosScreen tenantId={route.tenantId} clinicName={clinicName} />
+      </PanelShell>
+    )
+  }
+
   return (
     <PanelShell area={route.area} tenantId={route.tenantId}>
       {route.area === 'clinica' ? (
@@ -109,6 +121,13 @@ function PanelRouter() {
  * Platform Admin permanece superfície separada.
  */
 export function PanelApp() {
+  useEffect(() => {
+    void registerServiceWorker()
+    const onBip = (e: Event) => captureInstallPrompt(e)
+    window.addEventListener('beforeinstallprompt', onBip)
+    return () => window.removeEventListener('beforeinstallprompt', onBip)
+  }, [])
+
   return (
     <div className="panel-root">
       <AuthProvider>

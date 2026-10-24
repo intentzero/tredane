@@ -195,7 +195,20 @@ async function processWhatsappMessage(
         },
         msg,
       )
-      if (mediaOutcome === 'retry') return 'retry'
+      if (mediaOutcome.result === 'retry') return 'retry'
+      if (mediaOutcome.createdConversation && mediaOutcome.conversationId) {
+        const { maybeNotifyNewConversationPush } = await import('../push/queue-hook')
+        await maybeNotifyNewConversationPush({
+          env: deps.env,
+          clock,
+          syncAdminDb: deps.syncAdminDb,
+          tenantId: msg.tenantId,
+          conversationId: mediaOutcome.conversationId,
+          createdConversation: true,
+          log,
+          receiptId: msg.receiptId,
+        })
+      }
     } else {
       // message | unsupported — ambos criam mensagem lógica (unsupported com texto explícito)
       if (!msg.waId || typeof msg.body !== 'string') {
@@ -214,7 +227,7 @@ async function processWhatsappMessage(
         }
         return 'ack'
       }
-      await stub.ingestMessage(
+      const ingested = (await stub.ingestMessage(
         caller,
         {
           providerEventKey: msg.providerEventKey,
@@ -224,7 +237,21 @@ async function processWhatsappMessage(
           occurredAtMs: msg.providerTimestamp ?? undefined,
         },
         { drain: true, fanout: true },
-      )
+      )) as Awaited<ReturnType<ClinicDurableObject['ingestMessage']>>
+
+      if (ingested?.createdConversation && ingested.conversationId) {
+        const { maybeNotifyNewConversationPush } = await import('../push/queue-hook')
+        await maybeNotifyNewConversationPush({
+          env: deps.env,
+          clock,
+          syncAdminDb: deps.syncAdminDb,
+          tenantId: msg.tenantId,
+          conversationId: ingested.conversationId,
+          createdConversation: true,
+          log,
+          receiptId: msg.receiptId,
+        })
+      }
     }
 
     if (deps.syncAdminDb) {

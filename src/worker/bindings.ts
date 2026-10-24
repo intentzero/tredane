@@ -46,4 +46,13 @@ export type WorkerBindings = {
   AI_GATEWAY_TOKEN?: string
   /** BYOK Anthropic opcional. */
   ANTHROPIC_API_KEY?: string
+  /**
+   * Web Push / PWA (#42): `synthetic` (default) | `live`.
+   * Live exige VAPID_*; CI e local usam synthetic sem HTTP a FCM/APNs.
+   */
+  PUSH_MODE?: string
+  VAPID_PUBLIC_KEY?: string
+  /** wrangler secret — nunca versionar. */
+  VAPID_PRIVATE_KEY?: string
+  VAPID_SUBJECT?: string
 }

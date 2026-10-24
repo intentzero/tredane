@@ -23,6 +23,7 @@ Bindings **não são herdados** entre ambientes Wrangler: cada `env.*` declara o
 | Workflows | Workflow | Lembretes/processos multi-etapa | **Contrato apenas** — sem binding até o módulo existir |
 | `AUTH_MODE` / `CLERK_*` | vars/secrets | Sessão Clerk + authorized parties (#21) | Synthetic em development; Clerk em staging/prod |
 | `APP_BASE_URL` / `EMAIL_TRANSPORT` | vars | Links de convite + transporte de e-mail (#25) | `simulated` em development; provedor real Em aberto |
+| `PUSH_MODE` / `VAPID_*` | vars/secrets | Web Push PWA (#42) | `synthetic` em development/CI; live exige `VAPID_PUBLIC_KEY` + secret `VAPID_PRIVATE_KEY` |
 
 Variável `ENVIRONMENT`: `development` \| `staging` \| `production`.
 

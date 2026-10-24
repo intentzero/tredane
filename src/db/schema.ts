@@ -268,6 +268,34 @@ export const tenantDeletionCommands = sqliteTable('tenant_deletion_commands', {
   index('tenant_deletion_commands_status_idx').on(table.status),
 ])
 
+/**
+ * Assinaturas Web Push (#42 / DEC-040).
+ * Uma linha por endpoint; escopo tenant + utilizador; sem PII de conversa.
+ */
+export const pushSubscriptions = sqliteTable('push_subscriptions', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  clerkUserId: text('clerk_user_id').notNull(),
+  endpoint: text('endpoint').notNull(),
+  p256dh: text('p256dh').notNull(),
+  auth: text('auth').notNull(),
+  expirationTime: integer('expiration_time'),
+  userAgent: text('user_agent'),
+  notifyNewConversation: integer('notify_new_conversation', { mode: 'boolean' })
+    .notNull()
+    .default(true),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  lastSeenAt: integer('last_seen_at').notNull(),
+}, (table) => [
+  uniqueIndex('push_subscriptions_endpoint_uidx').on(table.endpoint),
+  index('push_subscriptions_tenant_user_idx').on(table.tenantId, table.clerkUserId),
+  index('push_subscriptions_tenant_notify_idx').on(
+    table.tenantId,
+    table.notifyNewConversation,
+  ),
+])
+
 /** Fila de entrega de e-mail (#25/#26). Sem token/handoff em claro. */
 export const EMAIL_DELIVERY_STATUSES = [
   'pending',
