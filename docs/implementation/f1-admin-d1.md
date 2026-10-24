@@ -1,6 +1,6 @@
 # F1 — D1 administrativo, migrations e auditoria central
 
-**Estado:** implementação da issue [#19](https://github.com/intentzero/tredane/issues/19) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Camada de dados D1 central + repositórios; Clinic DO operacional em [#20](https://github.com/intentzero/tredane/issues/20) / [f1-clinic-do.md](f1-clinic-do.md); **sem** Clerk HTTP (#21). Dados sintéticos apenas.
+**Estado:** implementação da issue [#19](https://github.com/intentzero/tredane/issues/19) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Camada de dados D1 central + repositórios; Clinic DO operacional em [#20](https://github.com/intentzero/tredane/issues/20) / [f1-clinic-do.md](f1-clinic-do.md); Clerk HTTP em [#21](f1-clerk-auth.md). Dados sintéticos apenas.
 
 ## Decisão de persistência (Confirmado — DEC-038)
 
@@ -50,7 +50,7 @@ Código em `src/db/admin/`, separado do harness DO e do legado operacional:
 
 ## Fora deste PR
 
-- Rotas HTTP autenticadas Clerk (#21)
+- Rotas HTTP autenticadas Clerk — entregue em [#21](f1-clerk-auth.md)
 - Domínio operacional + migrações por instância no DO — entregue em [#20](f1-clinic-do.md)
 - Fan-out de revogação D1→DO/WebSocket (#23)
 - Provedor de e-mail e cookies de handoff em produção

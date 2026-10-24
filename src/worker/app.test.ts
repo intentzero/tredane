@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { app } from './app'
+import { createSyntheticAuthorityReader, createSyntheticSessionAuthenticator } from '../auth'
+import { asyncFromSync } from '../db/admin/async-store'
+import { bootAdminDb } from '../db/test-db'
+import { createApp } from './app'
 
 describe('Worker API — F0/F1 harness', () => {
+  const boot = bootAdminDb()
+  const app = createApp({
+    authServicesFactory: () => ({
+      sessions: createSyntheticSessionAuthenticator({
+        authorizedParties: ['http://localhost:5173'],
+      }),
+      authority: createSyntheticAuthorityReader(),
+      adminDb: asyncFromSync(boot.db),
+    }),
+  })
+
   it('exposes a public health endpoint without tenant information', async () => {
     const response = await app.request('http://localhost/api/health')
     expect(response.status).toBe(200)
@@ -14,10 +28,16 @@ describe('Worker API — F0/F1 harness', () => {
     })
   })
 
-  it('does not expose unimplemented API routes', async () => {
+  it('does not expose unimplemented collection routes', async () => {
     const response = await app.request('http://localhost/api/tenants')
     expect(response.status).toBe(404)
     expect(await response.json()).toEqual({ error: 'not_found' })
+  })
+
+  it('requires authentication on /api/me', async () => {
+    const response = await app.request('http://localhost/api/me')
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: 'unauthenticated' })
   })
 
   it('rejects non-synthetic tenants on the F0 clinic harness', async () => {

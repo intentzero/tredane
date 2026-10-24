@@ -1,6 +1,6 @@
 # F1 — Clinic Durable Object, SQLite, migrations e outbox
 
-**Estado:** implementação da issue [#20](https://github.com/intentzero/tredane/issues/20) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Classe/namespace `ClinicDurableObject`, runner SQL por instância, repositórios operacionais mínimos, outbox durável e envelopes internos. **Sem** Clerk HTTP (#21), **sem** UI de painel produtiva e **sem** fan-out WebSocket de produto (#23). Dados sintéticos apenas.
+**Estado:** implementação da issue [#20](https://github.com/intentzero/tredane/issues/20) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Classe/namespace `ClinicDurableObject`, runner SQL por instância, repositórios operacionais mínimos, outbox durável e envelopes internos. Clerk HTTP em [#21](f1-clerk-auth.md); **sem** UI de painel produtiva e **sem** fan-out WebSocket de produto (#23). Dados sintéticos apenas.
 
 ## Decisão de persistência (Confirmado — DEC-038)
 
@@ -12,7 +12,7 @@
 
 ## Roteamento e autorização interna
 
-- Worker resolve a instância com `CLINIC.idFromName(clinicId)` após validar prefixo sintético `clinic-demo-*` (auth Clerk em #21).
+- Worker resolve a instância com `CLINIC.idFromName(clinicId)` após validar prefixo sintético `clinic-demo-*` nos harness; APIs de produto autenticam via [#21](f1-clerk-auth.md).
 - Envelope `ClinicCaller` (`kind`, `tenantId`, `assertion`) autentica o chamador interno (`worker_internal` / `queue_consumer`).
 - O DO exige `caller.tenantId === ctx.id.name` (nome estável da instância) **e** vincula `clinic_meta.tenant_id` na primeira chamada; tenant forjado em RPC/job → `TenantMismatchError`.
 - Dois DOs com o mesmo ID lógico de contacto/evento **não** partilham dados.
@@ -45,7 +45,7 @@
 
 ## Fora deste PR
 
-- Auth Clerk, CSRF, cookies (#21)
+- Auth Clerk, CSRF, cookies — entregue em [#21](f1-clerk-auth.md)
 - WebSockets de produto, reconciliação UI, revogação D1→DO (#23)
 - Agenda/pipeline/WhatsApp completos (F2/F3)
 - Índice global WhatsApp→tenant (issue de conexão)

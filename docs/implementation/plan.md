@@ -2,7 +2,7 @@
 
 **Estado:** plano de engenharia **Proposto** (decomposição/ordem), alinhado a decisões **Confirmadas** em [MVP](../MVP.md) / [decisões](../product/decisions.md). A execução do sistema segue o [épico #14](https://github.com/intentzero/tredane/issues/14) e as issues #15–#45; este documento **não** renumera DEC/REQ e **não** declara módulos de negócio implementados.
 
-**F0 (baseline):** scaffold + lockfile + CI + prova visual local ([PR #47](https://github.com/intentzero/tredane/pull/47), issue #3); ambientes, fixtures com memberships, harness Cloudflare e checks de design na issue [#15](https://github.com/intentzero/tredane/issues/15) ([f0.md](f0.md), [environments.md](environments.md)). Encerramento formal da #3 depende da confirmação humana da evidência visual. Prova de componentes (DEC-041) = [#16](https://github.com/intentzero/tredane/issues/16); Pix simulado = [#17](https://github.com/intentzero/tredane/issues/17). **F1 parcial:** D1 admin [#19](f1-admin-d1.md); Clinic DO [#20](f1-clinic-do.md); Clerk (#21) e WS de produto (#23) pendentes.
+**F0 (baseline):** scaffold + lockfile + CI + prova visual local ([PR #47](https://github.com/intentzero/tredane/pull/47), issue #3); ambientes, fixtures com memberships, harness Cloudflare e checks de design na issue [#15](https://github.com/intentzero/tredane/issues/15) ([f0.md](f0.md), [environments.md](environments.md)). Encerramento formal da #3 depende da confirmação humana da evidência visual. Prova de componentes (DEC-041) = [#16](https://github.com/intentzero/tredane/issues/16); Pix simulado = [#17](https://github.com/intentzero/tredane/issues/17). **F1 parcial:** D1 admin [#19](f1-admin-d1.md); Clinic DO [#20](f1-clinic-do.md); Clerk HTTP [#21](f1-clerk-auth.md); login UI (#22) e WS de produto (#23) pendentes.
 
 ## Sequência por fatias verificáveis
 
@@ -52,7 +52,7 @@
 
 **Confirmado:** [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md). D1 central para administração/memberships/convites/suporte; um DO + SQLite por clínica para domínio operacional, histórico/outbox e WebSockets; R2 para anexos. Não executar migrações remotas nesta alteração.
 
-- **F1:** classe/namespace SQLite e roteamento autorizado + runner SQL por instância — [#20](f1-clinic-do.md). Migrations D1 centrais — [#19](f1-admin-d1.md). Barreira de revogação D1/DO e Clerk HTTP ainda pendentes (#21/#23).
+- **F1:** classe/namespace SQLite e roteamento autorizado + runner SQL por instância — [#20](f1-clinic-do.md). Migrations D1 centrais — [#19](f1-admin-d1.md). Clerk HTTP + authz tenant — [#21](f1-clerk-auth.md). Barreira de revogação D1/DO/WS ainda pendente (#23).
 - **F2:** entidades operacionais e histórico/outbox no SQLite correto; duas clínicas sintéticas e reconexão/hibernação sem vazamento. Adaptar ORM/repositórios ao backend.
 - **F3:** deduplicação/outbox local, efeitos externos fora de transação, resultados devolvidos ao DO correto; contrato de resolução de integração e reconciliação.
 - **F4:** transação SQLite para reserva e alocações; prova de concorrência, rollback e manutenção da reserva original em falha de remarcação.

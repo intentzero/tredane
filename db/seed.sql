@@ -25,6 +25,8 @@ INSERT OR IGNORE INTO professionals (id, tenant_id, display_name, active) VALUES
 -- user_synth_owner_b: owner só em B
 -- user_synth_no_access: autenticável mas sem membership
 -- user_synth_suspended_owner: owner do tenant suspenso
+-- user_synth_superadmin: sem membership D1 — privateMetadata.superadmin só no Clerk
+--   (fixtures sintéticas em src/auth/synthetic.ts, issue #21)
 INSERT OR IGNORE INTO tenant_memberships (tenant_id, clerk_user_id, role, status, created_at, revoked_at) VALUES
   ('clinic-demo-a', 'user_synth_owner_a', 'owner', 'active', 1792800000, NULL),
   ('clinic-demo-a', 'user_synth_owner_a2', 'owner', 'active', 1792800000, NULL),

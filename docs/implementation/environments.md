@@ -17,18 +17,22 @@ Bindings **não são herdados** entre ambientes Wrangler: cada `env.*` declara o
 | Binding | Tipo | Papel (DEC-038 / ADRs) | F0 |
 | --- | --- | --- | --- |
 | `DB` | D1 | Tenants, memberships, convites, suporte, auditoria admin | Ativo (local + contrato staging/prod) |
-| `CLINIC` | Durable Object (`ClinicDurableObject`, SQLite) | Um DO por clínica; operação + WebSockets | Harness F0 (probe); domínio na #20 |
+| `CLINIC` | Durable Object (`ClinicDurableObject`, SQLite) | Um DO por clínica; operação + WebSockets | Domínio mínimo #20; auth HTTP #21 |
 | `ATTACHMENTS` | R2 (privado) | Anexos; sem URL pública permanente | Binding local declarado; política de acesso na F3 |
 | `INBOUND_EVENTS` | Queue (producer) | Entrada assíncrona (webhooks, etc.) | Binding local declarado; consumidores na F3 |
 | Workflows | Workflow | Lembretes/processos multi-etapa | **Contrato apenas** — sem binding até o módulo existir |
+| `AUTH_MODE` / `CLERK_*` | vars/secrets | Sessão Clerk + authorized parties (#21) | Synthetic em development; Clerk em staging/prod |
 
 Variável `ENVIRONMENT`: `development` \| `staging` \| `production`.
 
 ## Segredos
 
-- `.dev.vars.example` documenta a ausência de segredos obrigatórios na F0.
+- `.dev.vars.example` documenta auth F1 (#21): `AUTH_MODE`, `CLERK_*`, `CLERK_AUTHORIZED_PARTIES`.
+- Em **development**, `AUTH_MODE=synthetic` (default sem chaves) permite `Authorization: Bearer synth:<user_id>` com fixtures `user_synth_*`.
+- Em **staging/production**, synthetic é recusado; obrigatório `CLERK_SECRET_KEY` (secret), `CLERK_PUBLISHABLE_KEY`, `CLERK_AUTHORIZED_PARTIES`; opcional `CLERK_JWT_KEY`.
 - Segredos reais (Clerk, Meta, Pix, AI Gateway) entram por ambiente via `wrangler secret` / dashboard — **nunca** no git.
 - Fixtures e seeds usam apenas IDs/e-mails sintéticos (`user_synth_*`, `clinic-demo-*`).
+- Detalhe: [f1-clerk-auth.md](f1-clerk-auth.md).
 
 ## O que ainda não está provisionado
 
