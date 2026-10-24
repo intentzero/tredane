@@ -10,23 +10,63 @@
 
 ### REQ-002 — Permissão por papel e ação
 
-**Prioridade/estado:** MVP / Confirmado (DEC-007, DEC-015, DEC-016). **Origem:** ACT-02, ACT-03; JRN-02, JRN-07. **Comportamento:** atendente e responsável podem ver todas as conversas da própria clínica, responder, atribuir, mover oportunidades e operar agendamentos; o responsável pode fazer tudo que o atendente faz e é o único que administra membros, serviços, profissionais, salas/equipamentos e disponibilidade. **Aceite:** ambos executam as ações de atendimento na própria clínica, mas são negados para outra clínica; um atendente que tenta convidar membro ou alterar serviço, recurso ou disponibilidade é negado e nada é alterado. **Dados/eventos:** a resposta não revela conteúdo de outro tenant nem publica evento de ação negada.
+**Prioridade/estado:** MVP / Confirmado para atendimento; administração em aberto. **Origem:** ACT-02, ACT-03; JRN-02, JRN-07. **Comportamento:** atendente e responsável podem ver todas as conversas da própria clínica, responder, atribuir, mover oportunidades e operar agendamentos; o responsável pode fazer tudo que o atendente faz. Gestão de attendants pelo owner está confirmada; outras permissões administrativas e integração estão em aberto. **Aceite:** ambos executam essas ações na própria clínica, mas são negados para outra clínica; ação administrativa não autorizada não altera dados. **Dados/eventos:** a resposta não revela conteúdo de outro tenant nem publica evento de ação negada.
 
-### REQ-003 — Revogação de acesso
+### REQ-003 — Revogação de acesso por tenant
 
-**Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-07. **Comportamento:** remover um membro ou revogar sua sessão impede novas ações e o recebimento de eventos da clínica. **Aceite:** após a revogação, requisições e conexões antigas não entregam novos dados; a interface solicita nova autenticação ou informa perda de acesso. **Dados/eventos:** registrar autor, membro afetado e horário; definir mecanismo técnico de invalidação antes da implementação.
+**Prioridade/estado:** MVP / Comportamento confirmado (DEC-026); protocolo técnico e testes em aberto. **Origem:** ACT-02, ACT-03; JRN-07, JRN-12, [ADR-0009](../adr/0009-tenant-membership-revocation.md). **Comportamento:** remover membership de A impede imediatamente novas leituras e mutações, eventos e conexões WebSocket no tenant A, com aviso à interface; a sessão Clerk continua válida e o usuário permanece autorizado em B quando tiver membership ativo. A revogação de acesso operacional de um subject em A torna inválidas as autorizações das sessões próprias de suporte que o representem em A. **Aceite:** após confirmação da revogação, nenhum pedido ou entrega posterior de conteúdo em A é autorizada; conexões antigas devem parar de receber eventos e ser encerradas/invalidadas, inclusive após hibernação/reconexão. Sessões do mesmo usuário em B não perdem acesso. **Dados/eventos:** transição do membership no D1 e auditoria de quem removeu, alvo, tenant e instante; projetar e testar sinalização ao Durable Object e verificação efetiva antes de entregar dados. Operações concorrentes e possíveis entregas anteriores à confirmação devem ser testadas, sem prometer recolher dados já recebidos.
 
 ### REQ-004 — Ativação e associação de membros
 
-**Prioridade/estado:** MVP / Proposto (fluxo definido por DEC-012 e DEC-007). **Origem:** ACT-03, ACT-05; JRN-08. **Comportamento:** o superadmin cria a clínica, provisiona seu D1 e convida o responsável; o responsável convida os atendentes. Uma clínica só recebe dados depois de ativa, com responsável associado. **Aceite:** nenhum usuário sem associação vigente entra no tenant; convite expirado ou revogado não cria associação; criar clínica com D1 que falhou ao provisionar não a deixa ativa. **Dados/eventos:** tenant e identidade no D1 central; superadmin não ganha associação à clínica.
+**Prioridade/estado:** MVP / Confirmado quanto à delegação (DEC-020); convite e revogação técnica em aberto. **Origem:** ACT-03/05, JRN-08/09/10/12. **Comportamento:** superadmin cria tenant e atribui primeiro owner; owner convida/remove attendants apenas nesse tenant. Exclusivamente superadmin pode atribuir, promover, substituir ou remover owners. Attendant não gere membros. Memberships N:N são guardados no D1 sem Clerk Organizations. **Aceite:** owner não pode promover outro owner nem alterar membros de tenant onde não é owner; remoção em A preserva B; impedir ativação de tenant sem owner; todas as alterações auditadas. **Confirmado em DEC-026:** revogação imediata por tenant, sem logout Clerk e sem afetar memberships de outras clínicas. **Pendente:** revisão do protocolo técnico de WebSocket, proteção do último owner e testes da F1.
 
-### REQ-005 — Várias clínicas por conta
+### REQ-008 — Convite de attendant por e-mail
 
-**Prioridade/estado:** MVP / Confirmado (DEC-007). **Origem:** ACT-02, ACT-03; JRN-07. **Comportamento:** uma conta com associação a mais de uma clínica escolhe a clínica ativa num seletor; com uma só, entra direto nela. **Aceite:** ao trocar de A para B, a interface descarta os dados de A, a conexão WebSocket de A é fechada e outra é aberta no Durable Object de B; nenhuma requisição posterior com a sessão abre o D1 de A sem nova seleção; associação revogada em B remove B do seletor. **Dados/eventos:** sessão guarda a clínica ativa no D1 central.
+**Prioridade/estado:** MVP / Confirmados convite por e-mail (DEC-021), validade de 7 dias (DEC-022), reenvio com substituição (DEC-023) e limites (DEC-024): cooldown 10 minutos e quota 5 reenvios por janela móvel de 24 horas por tenant/e-mail. **Origem:** owner e Platform Admin, JRN-12. **Comportamento:** owner em A convida por e-mail apenas como attendant em A; o link contém token aleatório de uso único, cujo verificador é guardado no D1. Destinatário entra/cria conta Clerk; apenas e-mail verificado correspondente permite consumir o convite. Aceitação válida cria membership somente em A e mantém outros tenants. **Aceite:** token reutilizado, inválido/revogado/expirado, conta com e-mail verificado diferente, role alterada no cliente ou owner sem autorização não criam membership. A concessão do membership e o consumo do convite devem ser atómicos. **Prazo confirmado:** `expires_at = issued_at + 7 dias (168 horas)`. Aceitar exige `now < expires_at` verificado na transação no backend. **Reenvio (DEC-023):** owner autorizado emite token novo para o mesmo e-mail/tenant; nova expiração de 7 dias; o token anterior é invalidado **atomicamente** na substituição no D1. Se forem solicitados dois reenvios concorrentes, só o último token ativo pode ser aceite. **Limites confirmados (DEC-024):** verificar no backend, por tenant e e-mail normalizado, no mínimo 10 minutos desde o último reenvio e no máximo 5 reenvios autorizados durante as últimas 24 horas. Aplicar de modo atómico face a solicitações concorrentes; rejeição não invalida convite existente e não reinicia contador com token novo. **DEC-025:** qualquer owner ativo do tenant pode cancelar convite pendente do próprio tenant, ainda que emitido por outro owner, com mudança atómica pending→cancelled no D1, link invalidado de imediato e auditoria. Convite aceite não pode ser cancelado para remover membership; cancelamento versus aceite concorrentes resolve-se atomicamente. Um owner apenas de B não cancela convite de A. **Pendente:** provedor de entrega, revogação de membership e controles antiabuso adicionais.
 
-### REQ-006 — Login pelo Clerk
+### REQ-009 — MFA (postergado por DEC-028)
 
-**Prioridade/estado:** MVP / Confirmado (DEC-007, alterado em 23/10/2026). **Origem:** ACT-02, ACT-03, ACT-05. **Comportamento:** a autenticação é feita pelo Clerk, com código enviado por e-mail como método inicial; o Worker valida o token em toda requisição e na abertura do WebSocket. **Aceite:** token inválido ou expirado não acessa nada; usuário autenticado sem associação vigente não entra em clínica alguma; revogar a associação no D1 central nega a próxima requisição e fecha o WebSocket mesmo com o token do Clerk ainda válido; a resposta de login não revela se um e-mail tem conta. **Dados/eventos:** o D1 central guarda apenas o ID do Clerk e dados de exibição; credenciais e códigos ficam no Clerk.
+**Prioridade/estado:** **Posterior, fora do MVP**. Nenhuma role exige MFA no MVP, incluindo superadmin/owner/attendant. Não implementar inscrição, desafios, gates ou step-up MFA. Autenticação pelo Clerk continua obrigatória e toda autorização tenant-scoped, flag privada superadmin, auditoria e controles da impersonação própria permanecem vigentes. **Aceite:** usuários corretamente autenticados/autorizados podem operar Admin/Clinic App sem desafio MFA; identidades sem roles/flag são negadas. Reavaliar MFA em versão futura. [ADR-0010](../adr/0010-role-scoped-mfa.md).
+
+### REQ-005 — Identidade Clerk e membership multi-tenant
+
+**Prioridade/estado:** MVP / Confirmado na arquitetura. **Origem:** DEC-007/017, ACT-02/03, JRN-09. **Comportamento:** Clerk autentica identidade e sessão, sem Organizations; o D1 guarda `tenant_memberships` N:N, papel e estado para cada tenant. Um usuário pode ser responsável em A e atendente em B, com contexto explícito por aba/rota. **Aceite:** listagem mostra só tenants associados; cada acesso revalida role e associação e não permite cruzar recursos entre A e B; revogação em A não altera membership de B. **Dados/eventos:** identidade Clerk e memberships no D1; WS/Queues mantêm tenant.
+
+### REQ-006 — Administração de tenants
+
+**Prioridade/estado:** MVP interno / Confirmado como capacidade. **Origem:** DEC-018, ACT-05, JRN-10. **Comportamento:** a Platform Admin permite criar, editar, suspender, reativar e iniciar exclusão lógica de tenants. A API verifica no Clerk o valor **booleano exato** `privateMetadata.superadmin === true` no backend. **Aceite:** usuário não autenticado recebe 401, usuário sem flag válida recebe 403; ausência da flag, texto `"true"` ou indisponibilidade da verificação não concede acesso. Toda mutação é auditada e não expõe mensagens/agenda de clientes. **Dados:** cadastro de tenants no D1 e histórico administrativo.
+
+### REQ-061 — TTL da sessão de suporte
+
+**Prioridade/estado:** MVP interno / DEC-032 aprovada. Após a aprovação de owner ativar `support_sessions` com `activated_at` UTC e `expires_at = activated_at + 30 minutos` em D1. Autorizar HTTP e WebSocket apenas enquanto sessão está `active` e `now < expires_at` e demais verificações de identidade/tenant/role estejam válidas. Expiração ou encerramento manual antecipado invalidam sessão e conexões de suporte, com auditoria e sem logout global do Clerk. Não renovar por atividade, handoff, refresh ou reconexão. Expiração deve funcionar sem job; testes de limite e DO em hibernação. **Continuação por novo pedido e nova aprovação definida em DEC-033.** Prazo do pedido pendente é 24h pela DEC-031.
+
+### REQ-062 — Continuar suporte requer novo pedido e aprovação
+
+**Prioridade/estado:** MVP interno / DEC-033 confirmada. Sessões de suporte de 30 minutos não podem ser prolongadas. Para continuar, o superadmin cria outro pedido sujeito a validade de 24 horas e a aprovação explícita de owner ativo do tenant (DEC-029/030/031); só então ativa nova sessão de 30 minutos (DEC-032), com novas credenciais e auditoria. **Aceite:** bloquear `extend/renew`, atualização de prazo, reutilização de aprovação, handoff/cookie antigo e WebSocket da sessão encerrada. Nenhuma nova autorização surge sem nova decisão favorável.
+
+### REQ-063 — Revogação de sessão ativa pelo owner da clínica
+
+**Prioridade/estado:** MVP interno / Confirmado (DEC-034). Qualquer owner com membership ativo no tenant pode encerrar qualquer sessão de suporte `active` do próprio tenant, mesmo se aprovada por outro owner. O superadmin actor também pode encerrar a sua própria sessão. A API valida Clerk, membership owner vigente no tenant ou actor vinculado à sessão, e revoga atomicamente no D1, auditando revogador, tenant, sessão, instante e resultado. A revogação bloqueia imediatamente novas chamadas HTTP e entrega de eventos WebSocket, inclusive sockets hibernados/reconectados, e invalida cookie/handoff. Não alterar memberships, outras clínicas ou sessão Clerk. **Aceite:** O2 encerra sessão aprovada por O1 em A; attendant de A, owner exclusivo de B e superadmin não actor não ganham poder de revogação; concorrência/solicitações repetidas não reativam a sessão. Protocolo DO e testes em F1. [ADR-0011](../adr/0011-owner-approval-for-support.md).
+
+### REQ-064 — Aviso de início e acompanhamento do suporte
+
+**Prioridade/estado:** MVP interno / Comportamento confirmado (DEC-035), mecanismo de e-mail a implementar. **Comportamento:** ao ativar efetivamente uma sessão de suporte previamente aprovada, publicar mudança de estado no painel de owners ativos do mesmo tenant e enviar-lhes e-mail **informativo de início**, uma vez por sessão/destinatário. Painel indica sessão ativa, actor, escopo, `activated_at`, `expires_at`, estado e botão Encerrar suporte. Ao terminar, por expiração ou manualmente, atualizar painel em tempo real, manter auditoria do motivo/ator e **não enviar e-mail de término**. **Aceite:** pedido ainda pendente ou aprovado sem sessão ativa não dispara e-mail de início; owner de outro tenant não vê dados de A; e-mail sem PHI/tokens e sem autoridade para suporte; falha ou duplicação de envio não cria sessões nem muda seus estados; status após reconexão reflete D1. **Pendente:** provedor, retries/outbox, UX e segurança do fan-out DO. [ADR-0011](../adr/0011-owner-approval-for-support.md).
+
+### REQ-065 — Aviso contextual ao utilizador representado
+
+**Prioridade/estado:** MVP interno / Confirmado por DEC-036. Quando uma sessão própria de suporte está `active`, a Clinic App exibe a **todos os owners ativos do tenant** a visão de acompanhamento e, adicionalmente, ao **subject autenticado no Clerk** um aviso específico na **própria conta/tenant** de que há suporte atuando no seu contexto. O aviso ao subject não requer e-mail separado e **não é mostrado a outros attendants**. Deve ser encaminhado por eventos WebSocket identificados por tenant e subject e reconciliado por consulta autoritativa depois de login/reconexão; expiração/revogação remove ou altera o aviso. O e-mail inicial aprovado em DEC-035 continua apenas para owners. A exibição não cria permissão para aprovar/terminar suporte, nem simula login Clerk como subject. **Aceite:** owner O1/O2 veem painel de suporte; subject S vê aviso na sessão própria; attendant T não vê aviso relativo a S; vínculo B não mostra estado de A; após fim S deixa de ver sessão ativa. [ADR-0011](../adr/0011-owner-approval-for-support.md).
+
+### REQ-066 — Subject pode pedir fim de sessão de suporte
+
+**Prioridade/estado:** MVP interno / Comportamento confirmado em DEC-037; prazo de resposta de owner em aberto. **Comportamento:** durante sessão `active`, o subject autenticado no Clerk, com membership vigente no tenant correto, pode clicar em **Solicitar encerramento** no aviso da sua conta. Registrar pedido no D1 e auditoria, notificar todos os owners ativos do tenant **em tempo real no painel**, e deixar que owner decida encerrar via DEC-034 ou manter, documentando quem decidiu e quando. **Enquanto a decisão não ocorre, a sessão continua** até término manual ou os 30 minutos fixos. O subject não recebe poder de revogação; outros attendants e tenants não podem enviar pedidos em seu nome. Repetições do mesmo pedido pendente são idempotentes; expiração/revogação encerra o pedido ainda aberto. **Aceite:** API revalida subject/tenant/sessão ativa, nega forja; decisão de owner é atómica e auditada; indicação do subject e painel reconstituem estado após reconexão. **Em aberto:** SLA/timeout de pedido sem resposta, UX e antiabuso para novos pedidos após rejeição. [ADR-0011](../adr/0011-owner-approval-for-support.md).
+
+### REQ-060 — Aviso e decisão de solicitações de suporte
+
+**Prioridade/estado:** MVP interno / Canal DEC-030 e validade de **24 horas** do pedido DEC-031 confirmados; serviço de e-mail ainda em aberto; duração de sessão fixada em 30 minutos (DEC-032) e política de avisos em DEC-035. **Comportamento:** a Clinic App apresenta solicitações pendentes em tempo real aos owners ativos do tenant; também envia notificação por e-mail com link para abrir a página da solicitação, sem segredo/token de aprovação nem dados clínicos. A decisão de aprovar/rejeitar **só acontece na Clinic App**, com identidade Clerk e membership owner revalidados no Worker. **Aceite:** owners de A veem pedidos A, nunca de B; abrir link sem login não revela conteúdo ou aprova; uma única decisão transacional é aceita para vários owners; falha/reenvio do e-mail não concede suporte, nem impede decisão no painel. **Prazo DEC-031:** `expires_at = created_at + 24h`, server-side UTC; só aprovar `pending` com `now < expires_at` de modo atómico. Pedidos vencidos não concedem sessões/handoff, mesmo sem job de limpeza; requer novo pedido. **Pendente:** TTL da sessão ativada, fornecedor de e-mail, retentativas, antispam e detalhes de UX.
+
+### REQ-007 — Impersonação própria para suporte
+
+**Prioridade/estado:** MVP interno / Confirmado como capacidade e solução própria; detalhes de segurança e operação Em aberto. **Origem:** DEC-019, ACT-05, JRN-11, ADR-0007. **Comportamento:** superadmin pode solicitar sessão própria para agir no contexto de membro do tenant, mas **só poderá ativá-la depois de aprovação explícita de owner ativo daquele tenant para o pedido específico (DEC-029)**. Solicitação pendente, negada, expirada ou revogada não autoriza conteúdo clínico. Clerk continua autenticando o **actor real**; não usamos impersonação do Clerk. O subject determina a role efetiva, limitada adicionalmente pela política de suporte. Todas as ações registam actor, subject, tenant, motivo e sessão. **Aceite:** sem aprovação, nenhum handoff, cookie ou acesso de suporte HTTP/WebSocket; aprovação por owner atual do tenant vinculada a actor, subject, motivo e escopo, não reutilizável para nova sessão. Session expirada/revogada nega acesso; IDs alterados falham; auditoria distingue actor, subject e owner aprovador. **Dados/eventos:** `support_access_requests`, `support_sessions`, `support_audit_events` no D1, com aprovação e identidade do owner. Canal aprovado em DEC-030 e validade do pedido pendente em 24 horas definida na DEC-031; TTL da sessão confirmado em 30 minutos (DEC-032); handoff seguro e renovação em aberto; [ADR-0011](../adr/0011-owner-approval-for-support.md).
 
 ## WhatsApp e conversa
 
@@ -108,29 +148,63 @@
 
 ### REQ-051 — Conexão da conta WhatsApp
 
-**Prioridade/estado:** MVP / Confirmado quanto ao fluxo (DEC-009). **Origem:** ACT-03, ACT-05; JRN-08. **Comportamento:** o responsável conecta a conta e o número da clínica pelo Embedded Signup da Meta, com o Tredane como Tech Provider; o superadmin acompanha o estado da ativação. **Aceite:** ao concluir, o `phone_number_id` fica associado a exatamente uma clínica no D1 central; tentar associá-lo a uma segunda clínica é recusado; cancelar o fluxo no meio não deixa canal ativo. **Dados/eventos:** token da integração guardado como segredo, nunca no repositório ou em logs. **Pendente:** verificação do Tredane como Tech Provider.
+**Prioridade/estado:** MVP / Confirmado quanto ao fluxo (DEC-009). **Origem:** ACT-03, ACT-05; JRN-08. **Comportamento:** o responsável conecta a conta e o número da clínica pelo Embedded Signup da Meta, com o Tredane como Tech Provider; o superadmin acompanha o estado da ativação. **Aceite:** ao concluir, o `phone_number_id` fica associado a exatamente uma clínica no índice global de roteamento número → tenant (localização a definir, [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md)); tentar associá-lo a uma segunda clínica é recusado; cancelar o fluxo no meio não deixa canal ativo. **Dados/eventos:** token da integração guardado como segredo, nunca no repositório ou em logs. **Pendente:** verificação do Tredane como Tech Provider.
 
 ### REQ-052 — Configuração mínima da clínica
 
-**Prioridade/estado:** MVP / Confirmado quanto ao papel (só o responsável, DEC-007); telas propostas. **Origem:** ACT-03; JRN-08. **Comportamento:** antes de agendar, o responsável configura serviços (duração e intervalo), profissionais, salas/equipamentos e disponibilidade mínimos. **Aceite:** o fluxo de ativação não libera agendamentos sem essa configuração; atendente não altera nenhum desses itens. **Dados/eventos:** configuração no D1 da clínica.
+**Prioridade/estado:** MVP / Confirmado quanto ao papel (só o responsável, DEC-007); telas propostas. **Origem:** ACT-03; JRN-08. **Comportamento:** antes de agendar, o responsável configura serviços (duração e intervalo), profissionais, salas/equipamentos e disponibilidade mínimos. **Aceite:** o fluxo de ativação não libera agendamentos sem essa configuração; atendente não altera nenhum desses itens. **Dados/eventos:** configuração no armazenamento da clínica (SQLite do Durable Object, DEC-038).
 
 ### REQ-060 — Dados usados pela IA
 
 **Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** o contexto enviado à IA contém só mensagens recentes da conversa (proposta: até 20), primeiro nome do contato, catálogo de serviços da clínica e etapa da oportunidade. **Aceite:** inspecionando a solicitação enviada ao AI Gateway em teste, não aparecem telefone, anexos, outras conversas nem dados de outra clínica; o AI Gateway não registra o conteúdo. **Dados/eventos:** não usar dados reais antes da revisão jurídica.
 
-### REQ-061 — Retenção e exclusão
-
-**Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-03, ACT-05. **Comportamento:** dados ficam enquanto a clínica for cliente; o responsável pode excluir um contato; ao encerrar a clínica, todos os dados dela são excluídos em até 30 dias. **Aceite:** após excluir um contato, suas mensagens e anexos não são mais encontrados por busca, API ou R2, e seus agendamentos permanecem sem dados pessoais; após o prazo de encerramento, o D1 da clínica e seu prefixo R2 não existem mais. **Dados/eventos:** exclusão registrada na auditoria sem o conteúdo excluído.
-
 ### REQ-070 — Observabilidade do fluxo
 
 **Prioridade/estado:** MVP / Proposto. **Origem:** ACT-02, ACT-03; JRN-06. **Comportamento:** falhas de entrada, fila, envio e atualização em tempo real podem ser identificadas sem expor conteúdo sensível em logs. **Aceite:** para falhas simuladas, é possível localizar tenant, tipo de evento, etapa e resultado técnico; a equipe vê falhas que exigem ação no painel. **Dados/eventos:** retenção e acesso a logs ainda precisam de política.
 
-## Plataforma
+### REQ-071 — Retenção e exclusão
 
-### REQ-080 — App de superadmin
+**Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-03, ACT-05. **Comportamento:** dados ficam enquanto a clínica for cliente; o responsável pode excluir um contato; ao encerrar a clínica, todos os dados dela são excluídos em até 30 dias. **Aceite:** após excluir um contato, suas mensagens e anexos não são mais encontrados por busca, API ou R2, e seus agendamentos permanecem sem dados pessoais; após o prazo de encerramento, os dados da clínica (SQLite do Durable Object e prefixo R2) não existem mais. **Dados/eventos:** exclusão registrada na auditoria sem o conteúdo excluído.
 
-**Prioridade/estado:** MVP / Confirmado quanto à existência (DEC-012); funções propostas em [ADR-0006](../adr/0006-superadmin-control-plane.md). **Origem:** ACT-05; JRN-08. **Comportamento:** app separado do painel da clínica permite criar clínica, provisionar e migrar seu D1, convidar o responsável, acompanhar a ativação do WhatsApp e ver saúde técnica por clínica. **Aceite:** um superadmin não aparece como membro de clínica nem abre contatos, conversas ou agenda; cada ação dele fica na auditoria de plataforma; um atendente ou responsável não acessa o app. **Dados/eventos:** D1 central e metadados técnicos. Superadmin é identificado pelo metadado privado `superadmin: true` do Clerk, verificado no servidor; não vê conteúdo de clínica, exceto por acesso temporário concedido pelo responsável (DEC-012). **Aceite adicional:** usuário sem o metadado é negado no app de superadmin mesmo se alterar dados no navegador; acesso temporário expira sozinho e aparece na auditoria da clínica.
+## Racional de prioridade — proposta para aprovação
+
+Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP interno** para gestão da plataforma) porque contribuem para a primeira jornada demonstrável, para a segurança multi-tenant ou para operar a plataforma sem depender de intervenção no banco. Estas justificativas **não significam aprovação final**, nem liberam uso de dados reais. Quando parte do comportamento estiver em aberto, a aprovação da prioridade não fecha a regra de produto.
+
+| ID | Prioridade proposta | Porquê nesta fase |
+| --- | --- | --- |
+| REQ-001 | MVP | Isolamento de dados é pré-condição de qualquer operação multi-tenant. |
+| REQ-002 | MVP | Atendente e responsável precisam de autorizações distintas da administração global. |
+| REQ-003 | MVP | Revogação tem de cortar acesso real, inclusive conexões em tempo real. |
+| REQ-004 | MVP | Clínica precisa de responsável e membros associados para ativação controlada. |
+| REQ-005 | MVP | A mesma identidade pode pertencer a várias clínicas; role depende do tenant. |
+| REQ-006 | MVP interno | Platform Admin é o mecanismo definido para criar e gerir tenants. |
+| REQ-007 | MVP interno | Acesso de manutenção exigido pelo produto; limitar primeiro a leitura/diagnóstico até política de segurança aprovada. |
+| REQ-010 | MVP | Criação de contacto/conversa inicia toda a jornada de atendimento. |
+| REQ-011 | MVP | Idempotência é necessária para não duplicar histórico e oportunidades. |
+| REQ-012 | MVP | Resposta manual é núcleo do atendimento; estado real evita sucesso falso. |
+| REQ-013 | MVP | Falhas de integração precisam ser recuperáveis sem mensagens duplicadas. |
+| REQ-020 | MVP | Inbox partilhada e atribuição permitem que a equipe assuma conversas. |
+| REQ-021 | MVP | Histórico é indispensável para continuidade do atendimento. |
+| REQ-022 | MVP | Testar utilidade de IA assistiva sem autorizar ação autónoma. |
+| REQ-023 | MVP | Pipeline liga interesse e acompanhamento ao compromisso. |
+| REQ-030 | MVP | Sem disponibilidade por recursos não há reserva válida. |
+| REQ-031 | MVP | Concorrência de reserva não pode criar conflitos reais. |
+| REQ-032 | MVP | Remarcação e cancelamento são exceções essenciais do agendamento. |
+| REQ-033 | MVP | Comunicar mudança é necessário, mantendo estado da mensagem separado do compromisso. |
+| REQ-034 | MVP | Equipa deve localizar e gerir compromissos da própria clínica. |
+| REQ-040 | MVP | Tempo real entre sessões foi assumido como requisito arquitetural do produto. |
+| REQ-041 | MVP | Reconciliação após queda evita visões permanentemente incorretas. |
+| REQ-042 | MVP | Equipa precisa de sinalização de desconexão para não confiar em estado obsoleto. |
+| REQ-050 | MVP | Webhook autenticado e número associado ao tenant são fronteira de segurança. |
+| REQ-051 | MVP | Sem vinculação verificável de número, não existe atendimento WhatsApp real. |
+| REQ-052 | MVP | Agenda exige serviços, recursos e disponibilidade configurados. |
+| REQ-060 | MVP | É preciso definir e limitar o contexto antes de usar IA com clientes. |
+| REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
+| REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). |
+
+**Fora do MVP (já definido):** prontuário, pagamentos, estoque, integração com agendas externas, campanhas em massa, bot com envios ou reservas autónomas, painéis de profissionais e relatórios avançados. **Posterior:** autosserviço avançado de onboarding, configurações sofisticadas de pipeline e automações de IA, exceto se outra decisão formal substituir este recorte.
+
+**Gate para aprovar a prioridade:** responsável pelo produto confirmar o recorte e aceitar que os itens administrativos internos podem avançar na F1 sem atrasar a demonstração Inbox → pipeline → agenda da clínica. Os detalhes ainda em aberto estão em [decisões](decisions.md) e [registro de validação](validation-register.md).
 
 ## Fora do MVP
 
@@ -138,4 +212,9 @@
 
 ## Lacunas para revisão
 
-Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: mecanismo de abertura do D1 por clínica; custo e residência de dados do Clerk; revisão jurídica da retenção. Ver [decisões](decisions.md).
+Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: valores reais de serviços, durações e jornadas da clínica piloto; registro do Tredane como Tech Provider na Meta; revisão jurídica da retenção (REQ-071); AI Gateway sem registro de conteúdo; protocolo e validação técnica da topologia DEC-038 (D1 central + SQLite por DO/clínica). Ver [decisões](decisions.md).
+
+
+## Persistência confirmada — DEC-038
+
+REQ-001/010/011/020–023/030–034/040–042 usam dados operacionais no SQLite do DO da clínica; REQ-003/004/005/006/007/008 e autorizações de suporte mantêm fonte central D1. Não renumerar requisitos nem alterar prioridades por esta decisão. Critérios de isolamento, concorrência, reconexão, migração, restauração e revogação estão no [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md). Campos, regras de agenda e políticas ainda não aprovadas continuam propostas/em aberto.

@@ -4,7 +4,7 @@ Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas n
 
 ## Tokens 0.2.0 — 24/10/2026 (Confirmado)
 
-**Aprovado pelo responsável pelo produto em 24/10/2026** (DEC-019): paleta, tipografia, formas e espaçamento, componentes e estados, ícones Lucide. A biblioteca-base de componentes permanece **Proposto** (ADR-0007).
+**Aprovado pelo responsável pelo produto em 24/10/2026** (DEC-041): paleta, tipografia, formas e espaçamento, componentes e estados, ícones Lucide. A biblioteca-base de componentes permanece **Proposto** (ADR-0013).
 
 Consolidação dos valores que os mocks 0.1 usavam de forma acidental em escalas pequenas, aplicada aos 26 mocks mobile por regras fixas e conferida por `tools/check_mocks.py`. Os 4 mocks desktop receberam só cores, raios e fontes (sem espaçamento nem alturas) e seguem como referência de layout.
 

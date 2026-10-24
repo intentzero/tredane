@@ -42,7 +42,7 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 | Cancelado | Compromisso não ocupa mais recursos. | Preserva quem cancelou, quando, o motivo (obrigatório, DEC-008) e o vínculo com a conversa. Não há prazo mínimo. |
 | Concluído | Serviço/atendimento ocorreu. | Validar se esta marcação é necessária no MVP e quem a faz. |
 
-“Horário proposto” é uma etapa da negociação; **não reserva** recursos da agenda (Confirmado, DEC-008). Ao reagendar, o compromisso anterior permanece no histórico e o novo horário só é confirmado se estiver disponível. Duração e intervalo vêm do serviço (Confirmado); fuso horário da clínica, expediente e bloqueios ainda precisam de definição.
+“Horário proposto” é uma etapa da negociação; **não reserva** recursos da agenda (Confirmado, DEC-008). Ao reagendar, o compromisso anterior permanece no histórico e o novo horário só é confirmado se estiver disponível. Duração e intervalo vêm do serviço e o intervalo ocupa sala/equipamento **e** profissional; expediente semanal, bloqueios pontuais, fuso por clínica e grade de 15 min estão confirmados (DEC-008). Valores reais vêm da clínica piloto.
 
 ## Eventos de interface propostos
 
@@ -54,12 +54,12 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 | Agendamento confirmado/cancelado/reagendado | Após persistir a alteração sem conflito. | Agenda, conversa e oportunidade. |
 | Acesso revogado | Quando uma associação ou sessão perde validade. | Conexões e telas afetadas deixam de receber dados; nova leitura exige autorização. |
 
-O payload deve conter somente o necessário para identificar a mudança. O servidor verifica o tenant antes de publicar e antes de entregar. Eventos podem chegar repetidos ou deixar de chegar; o cliente reconcilia com a API ao conectar ou reconectar. Um Durable Object por clínica e WebSockets com hibernação estão **Confirmados** (DEC-004, DEC-005).
+O payload deve conter somente o necessário para identificar a mudança. O servidor verifica o tenant antes de publicar e antes de entregar. Eventos podem chegar repetidos ou deixar de chegar; o cliente reconcilia com a API ao conectar ou reconectar. Um Durable Object por clínica com SQLite operacional está **Confirmado em DEC-038**; WebSockets com hibernação permanecem confirmados. Eventos operacionais saem após commit SQLite; eventos administrativos/de suporte partem do D1 e exigem propagação idempotente. Ver [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md).
 
 ## Questões que bloqueiam estados finais
 
 1. Quando encerrar ou reabrir conversa e oportunidade?
 2. O que “Concluído” significa no pipeline e na agenda?
-3. ~~Há reserva temporária de horário proposto?~~ Resolvida: não há (DEC-008).
-4. ~~Regras de expediente, bloqueios, fuso e intervalo~~ Resolvida: expediente semanal + bloqueios pontuais, fuso por clínica, grade de 15 min; o intervalo ocupa sala e profissional (DEC-008).
+3. ~~Reserva temporária de horário proposto~~ Resolvida: não há (DEC-008).
+4. ~~Regras de duração, buffers, expediente, bloqueios e fuso~~ Resolvida em DEC-008; falta carregar os valores reais da clínica piloto.
 5. Que estados de entrega do WhatsApp serão exibidos quando o provedor não enviar confirmação?

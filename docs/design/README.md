@@ -1,6 +1,6 @@
 # Design do painel — mocks e guia de implementação
 
-**Estado:** design system v0.2.0 **Confirmado** pelo responsável pelo produto, exceto a biblioteca de componentes (**Proposto**, [ADR-0007](../adr/0007-design-system-components.md)) ([DEC-019](../product/decisions.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
+**Estado:** design system v0.2.0 **Confirmado** pelo responsável pelo produto, exceto a biblioteca de componentes (**Proposto**, [ADR-0013](../adr/0013-design-system-components.md)) ([DEC-041](../product/decisions.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
 
 ## Ordem de autoridade
 
@@ -17,13 +17,13 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 
 | Caminho | Conteúdo |
 | --- | --- |
-| [screens.md](screens.md) | Índice das 26 telas: ID (M-01 a M-26), arquivo, tela da spec, jornadas, requisitos, cenários de aceite, o que cada mock mostra e para onde navega; estados que faltam em cada tela |
+| [screens.md](screens.md) | Índice das 29 telas: ID (M-01 a M-29), arquivo, tela da spec, jornadas, requisitos, cenários de aceite, o que cada mock mostra e para onde navega; estados que faltam em cada tela |
 | [components.md](components.md) | Componentes recorrentes (cabeçalho, barra inferior, chips, balão, estado de envio, bloco de IA, folha inferior, formulário etc.) e regras gerais de implementação |
 | [tokens.json](tokens.json) · `tokens.css` | Tokens v0.2.0 (fonte única, em JSON) e variáveis CSS geradas a partir dele |
 | [catalog/index.html](catalog/index.html) | Catálogo: tokens e componentes com todos os estados (abra no navegador) |
 | [icons.md](icons.md) | Inventário de ícones e proposta de biblioteca |
 | [CHANGELOG.md](CHANGELOG.md) | Histórico de tokens e mocks, com a regra de conversão da consolidação 0.1 → 0.2 |
-| `mobile/*.dc.html` | **Fonte dos mocks mobile** (base do produto, DEC-017). Um arquivo por tela |
+| `mobile/*.dc.html` | **Fonte dos mocks mobile** (base do produto, DEC-039). Um arquivo por tela |
 | `mobile/previews/M-xx-*.png` | Imagem de cada mock, 390×844, para ver sem rodar nada |
 | `mobile/canvas.json` | Posição e título de cada tela no canvas do editor de design |
 | `desktop/` | Quatro telas de uma exploração anterior para tela larga (Conversas, Pipeline, Agenda, Estados). Ver [aviso](#desktop) |
@@ -53,7 +53,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 
 ## Desktop
 
-`desktop/` guarda quatro telas anteriores às decisões DEC-017 (mobile first) e DEC-018 e **não** cobrem login, seletor de clínica, janela de 24 h, semana, área Clínica nem WhatsApp. Use-as apenas como referência de como as telas de atendimento se ampliam em largura (três colunas em Conversas, quadro completo no Pipeline, grade com painel lateral na Agenda). Onde divergirem de `mobile/`, vale o mobile. As versões desktop das telas novas ainda estão **Em aberto**.
+`desktop/` guarda quatro telas anteriores às decisões DEC-039 (mobile first) e DEC-040 e **não** cobrem login, seletor de clínica, janela de 24 h, semana, área Clínica nem WhatsApp. Use-as apenas como referência de como as telas de atendimento se ampliam em largura (três colunas em Conversas, quadro completo no Pipeline, grade com painel lateral na Agenda). Onde divergirem de `mobile/`, vale o mobile. As versões desktop das telas novas ainda estão **Em aberto**.
 
 ## Divergências conhecidas entre mocks e especificação
 
@@ -62,18 +62,18 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 | Onde | Divergência | Implementar assim |
 | --- | --- | --- |
 | Chips e botões pequenos (altura visual de 40px) | Abaixo dos 44px de área clicável (UX-08) | Mesma aparência, com área clicável ≥ 44px (padding ou pseudo-elemento, como no [catálogo](catalog/index.html)) |
-| M-06 Agenda do dia | Não mostra o alternador **Dia / Semana** | Incluir como em M-13 (DEC-018) |
+| M-06 Agenda do dia | Não mostra o alternador **Dia / Semana** | Incluir como em M-13 (DEC-040) |
 | M-15 Clínica | O item “WhatsApp” abre M-19 (não conectado) | Abrir M-19, M-23 ou M-24 conforme o estado real da conexão |
 | M-09 Entrar | É um mock do comportamento | A tela real é o componente do Clerk com a identidade do Tredane |
 | M-01 a M-14 | Mostram a barra de 3 abas (visão do Atendente) | O Responsável vê 4 abas, com **Clínica** (M-15) |
 | M-20 | Aba “Salas · 3” abrevia “Salas e equipamentos” | Manter o título completo no cabeçalho e na descrição da aba; o rótulo curto cabe em 360px |
-| Fonte | Os previews usam a fonte do sistema porque Inter não é carregada | Usar Inter (400/500/600), hospedada pelo Tredane ([ADR-0007](../adr/0007-design-system-components.md)); conferir as quebras de linha com ela, porque a largura do texto muda com a fonte e linhas que cabem nos previews podem quebrar |
+| Fonte | Os previews usam a fonte do sistema porque Inter não é carregada | Usar Inter (400/500/600), hospedada pelo Tredane ([ADR-0013](../adr/0013-design-system-components.md)); conferir as quebras de linha com ela, porque a largura do texto muda com a fonte e linhas que cabem nos previews podem quebrar |
 | Hora e data | Fixas (sexta, 30 de outubro) | Sempre no fuso da clínica (DEC-008), nunca em UTC |
 
 ## Manutenção
 
 - **Alterou um mock?** Atualize juntos: o `.dc.html`, o PNG (`python3 docs/design/tools/render_previews.py`; requer Node, `npm i -D playwright` e Chromium), a linha em [screens.md](screens.md) e a seção da spec. Antes de commitar rode `check_mocks.py` (só valores de token) e, se mexeu em cor, `check_contrast.py`.
-- **Alterou um token?** Edite só `tokens.json`; rode `build_tokens.py`, `check_contrast.py` e `build_catalog.py`; registre em [CHANGELOG.md](CHANGELOG.md). Mudança de valor de token aprovado exige decisão registrada (DEC-019). Não commite PNG que só mudou por serrilhado de fonte; regenere apenas se o desenho mudou.
+- **Alterou um token?** Edite só `tokens.json`; rode `build_tokens.py`, `check_contrast.py` e `build_catalog.py`; registre em [CHANGELOG.md](CHANGELOG.md). Mudança de valor de token aprovado exige decisão registrada (DEC-041). Não commite PNG que só mudou por serrilhado de fonte; regenere apenas se o desenho mudou.
 - **Criou uma tela?** Dê a próxima ID (M-27…), acrescente em `mobile/canvas.json`, em [screens.md](screens.md) e na rastreabilidade de [ux-ui.md](../product/ux-ui.md) §9. Não renumere IDs existentes.
 - **Mudou uma decisão ou requisito?** Atualize primeiro o documento de produto, depois o mock afetado; nunca deixe mock e spec com versões concorrentes.
-- **Aprovação:** o design system v0.2 foi aprovado (DEC-019). Os **mocks das telas** continuam **Proposto** até o responsável pelo produto revisá-los. Mudar um token já aprovado exige nova decisão registrada em [decisions.md](../product/decisions.md).
+- **Aprovação:** o design system v0.2 foi aprovado (DEC-041). Os **mocks das telas** continuam **Proposto** até o responsável pelo produto revisá-los. Mudar um token já aprovado exige nova decisão registrada em [decisions.md](../product/decisions.md).

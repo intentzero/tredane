@@ -23,7 +23,7 @@ Adaptador de provedor com contratos tipados, acesso apenas a dados autorizados p
 
 **Contexto enviado (Confirmado):** mensagens recentes da conversa (proposta: até 20), primeiro nome do contato, catálogo de serviços da clínica (nome, duração, preço) e etapa da oportunidade. Nunca: telefone, anexos, outras conversas, dados de outra clínica ou credenciais.
 
-**Retenção (Confirmado, sujeito a revisão jurídica):** o AI Gateway deve ser configurado sem registrar o conteúdo das solicitações e respostas, e o provedor não pode reter as solicitações. O Tredane guarda em `ai_suggestions` apenas o texto sugerido, o modelo e a decisão humana, no D1 da clínica.
+**Retenção (Confirmado, sujeito a revisão jurídica):** o AI Gateway deve ser configurado sem registrar o conteúdo das solicitações e respostas, e o provedor não pode reter as solicitações. O Tredane guarda em `ai_suggestions` apenas o texto sugerido, o modelo e a decisão humana, no armazenamento da clínica (SQLite do Durable Object, [ADR-0012](0012-clinic-durable-object-sqlite.md)).
 
 ## Critérios de validação
 

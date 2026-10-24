@@ -1,6 +1,6 @@
 # Especificação de UI/UX do painel — MVP
 
-**Estado:** proposta de design para revisão pelo responsável pelo produto, 23 de outubro de 2026; abordagem **mobile first** confirmada na mesma data ([DEC-017](decisions.md)). **Fonte:** [MVP](../MVP.md), [atores](actors-permissions.md), [jornadas](journeys.md), [requisitos](requirements.md), [estados](states.md), [cenários de aceite](acceptance.md) e [épico #1](https://github.com/intentzero/tredane/issues/1). **Mocks no repositório:** [docs/design](../design/README.md) guarda as fontes, os previews PNG, o índice de telas e os componentes; é a referência para implementação. **Protótipos navegáveis** (artefatos privados no claude.ai; precisam ser compartilhados pelo dono para outras pessoas abrirem):
+**Estado:** proposta de design para revisão pelo responsável pelo produto, 23 de outubro de 2026; abordagem **mobile first** confirmada na mesma data ([DEC-039](decisions.md)). **Fonte:** [MVP](../MVP.md), [atores](actors-permissions.md), [jornadas](journeys.md), [requisitos](requirements.md), [estados](states.md), [cenários de aceite](acceptance.md) e [épico #1](https://github.com/intentzero/tredane/issues/1). **Mocks no repositório:** [docs/design](../design/README.md) guarda as fontes, os previews PNG, o índice de telas e os componentes; é a referência para implementação. **Protótipos navegáveis** (artefatos privados no claude.ai; precisam ser compartilhados pelo dono para outras pessoas abrirem):
 
 - **Referência principal — celular (M-01 a M-08):** canvas “Tredane — UI/UX mobile first”, https://claude.ai/artifact/D3NALDhxo5n1jZj2fqpdka.
 - **Ampliação para telas largas (≥ 1280 px):** canvas “Tredane — UI/UX do MVP”, https://claude.ai/artifact/6kzR7zL5q9hs2AcvTyYDNf.
@@ -14,13 +14,13 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Usuários do painel: atendente (ACT-02) e responsável (ACT-03), com as mesmas telas de atendimento | **Confirmado** | DEC-013, DEC-015, DEC-016. Não há tela de profissional nem de operador. |
 | Contato (ACT-01) só interage pelo WhatsApp | **Confirmado** | O painel nunca expõe tela ao contato. |
 | Três áreas principais: Conversas, Pipeline, Agenda | **Proposto** | Derivado do fluxo principal do MVP e do ADR-0003. |
-| **Mobile first:** o celular é o alvo de base e precisa concluir todo o fluxo piloto (mensagem → resposta → etapa → agendamento); tablet e desktop são ampliações progressivas | **Confirmado** | DEC-017, pedido do responsável pelo produto em 23 de outubro de 2026. Substitui a proposta anterior deste documento de desktop como alvo principal. |
+| **Mobile first:** o celular é o alvo de base e precisa concluir todo o fluxo piloto (mensagem → resposta → etapa → agendamento); tablet e desktop são ampliações progressivas | **Confirmado** | DEC-039, pedido do responsável pelo produto em 23 de outubro de 2026. Substitui a proposta anterior deste documento de desktop como alvo principal. |
 | Larguras de referência: 360–430 px (base), ≥ 768 px (tablet), ≥ 1280 px (desktop) | **Proposto** | **Em aberto:** modelos e sistemas dos aparelhos da clínica piloto (Q-UX-01). Bloqueia o aceite de usabilidade, não o desenvolvimento das telas. |
-| Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP, instalável como PWA com notificações push de nova conversa | **Confirmado** | DEC-017, DEC-018. O push não traz o conteúdo da mensagem. No iPhone o push exige instalar o painel na tela inicial: o fluxo de instalação tem tela de orientação e escolha de avisos (M-14). Suporte em cada aparelho da clínica piloto: Q-UX-01. |
+| Painel como aplicação web responsiva no navegador do celular, sem app nativo no MVP, instalável como PWA com notificações push de nova conversa | **Confirmado** | DEC-039, DEC-040. O push não traz o conteúdo da mensagem. No iPhone o push exige instalar o painel na tela inicial: o fluxo de instalação tem tela de orientação e escolha de avisos (M-14). Suporte em cada aparelho da clínica piloto: Q-UX-01. |
 | Idioma pt-BR, fuso horário da clínica em todas as datas | **Proposto** | O fuso da clínica é parte das regras de agenda ainda em aberto (DEC-008). |
-| Login pelo Clerk (código por e-mail) e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005, REQ-006. TEL-08 (proposta), desenhada em M-09 e M-10. A tela de entrada final usa o componente do Clerk estilizado com a identidade do Tredane; M-09 mostra o comportamento esperado, não o componente real. |
-| Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **propostas** (TEL-09, M-15 a M-26) | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
-| App de superadmin | **Fora desta spec** | DEC-012, [ADR-0006](../adr/0006-superadmin-control-plane.md). App separado, com spec própria quando for desenhado. |
+| Login pelo Clerk (código por e-mail) e seletor de clínica para contas com várias clínicas | **Confirmado** | DEC-007, REQ-005. TEL-08 (proposta), desenhada em M-09 e M-10. A tela de entrada final usa o componente do Clerk estilizado com a identidade do Tredane; M-09 mostra o comportamento esperado, não o componente real. |
+| Configuração da clínica (serviços, profissionais, salas, disponibilidade, membros) e conexão do WhatsApp, só pelo responsável | **Confirmado** quanto ao papel; telas **propostas** (TEL-09, M-15 a M-26; suporte em TEL-10, M-27 a M-29) | DEC-007, DEC-009, JRN-08, REQ-052, REQ-051. Ficam numa área “Clínica” visível só ao responsável. |
+| App de superadmin | **Fora desta spec** | DEC-012, [ADR-0006](../adr/0006-clerk-platform-admin.md), [identidade e administração](../architecture/identity-and-admin.md). App separado, com spec própria quando for desenhado. |
 | Relatórios, campanhas, prontuário, pagamentos, bot autônomo | **Fora do MVP** | Não aparecem na navegação, nem como item desabilitado. |
 
 ## 2. Princípios de experiência
@@ -53,7 +53,7 @@ TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carr
 
 ### 3.1 Padrões de layout mobile first
 
-**Estado:** Proposto, decorrente de DEC-017.
+**Estado:** Proposto, decorrente de DEC-039.
 
 | Largura | Navegação | Conversas | Pipeline | Agenda |
 | --- | --- | --- | --- | --- |
@@ -95,7 +95,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 - Mídia recebida não suportada ou indisponível aparece como bloco “Anexo não disponível” com motivo, nunca como mensagem vazia (JRN-01).
 - Mensagem recebida cujo processamento falhou aparece como “Mensagem não processada — a equipe técnica foi avisada” somente se houver registro do evento; conteúdo não persistido não é exibido como íntegro (states.md).
 - Compositor: campo de texto multilinha, botão **Enviar** (Ctrl/⌘ + Enter), botão **Sugerir resposta** (IA). Envio de anexo pela equipe: **Em aberto** (DEC-011).
-- **Janela de 24 h (Confirmado, DEC-018):** quando a última mensagem do contato tem mais de 24 h, o campo de texto livre fica bloqueado com o aviso “Fora da janela de 24 h do WhatsApp” e o botão **Escolher modelo** abre a lista de modelos aprovados pela Meta (retomada de contato, lembrete e confirmação de horário), com prévia e preenchimento de variáveis. O envio de modelo tem os mesmos estados de envio (6.1). A sugestão da IA continua disponível, mas só pode ser enviada dentro da janela ou convertida em modelo. **Pendente:** quais modelos cadastrar e custo por modelo (EP-T04). Desenhado em M-11 (janela fechada) e M-12 (escolha do modelo).
+- **Janela de 24 h (Confirmado, DEC-040):** quando a última mensagem do contato tem mais de 24 h, o campo de texto livre fica bloqueado com o aviso “Fora da janela de 24 h do WhatsApp” e o botão **Escolher modelo** abre a lista de modelos aprovados pela Meta (retomada de contato, lembrete e confirmação de horário), com prévia e preenchimento de variáveis. O envio de modelo tem os mesmos estados de envio (6.1). A sugestão da IA continua disponível, mas só pode ser enviada dentro da janela ou convertida em modelo. **Pendente:** quais modelos cadastrar e custo por modelo (EP-T04). Desenhado em M-11 (janela fechada) e M-12 (escolha do modelo).
 
 **Painel do contato e oportunidade**
 - Dados do contato: nome, telefone mascarado por padrão. Campos adicionais: **Em aberto** (DEC-011, coleta mínima).
@@ -123,7 +123,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 - Cartão: nome do contato, responsável, último contato (relativo), próximo compromisso (ou “Sem compromisso”), indicador de mensagem pendente/falha.
 - No celular (M-05), uma etapa por vez em abas roláveis com contagem; o botão **Mover** abre uma folha inferior com as etapas. No desktop, arrastar entre colunas **ou** menu **Mover para…** (alternativa acessível por teclado). O cartão fica em estado “Movendo…” até confirmação; em falha, volta à coluna original com aviso.
 - Mover para **Horário proposto** mostra a nota “Etapa da negociação — não reserva horário na agenda” (states.md).
-- Mover para **Agendado** sem compromisso vinculado é **permitido** (Confirmado, DEC-018): o cartão exibe “Sem compromisso vinculado” e oferece **Agendar horário**; mudar etapa nunca cria compromisso.
+- Mover para **Agendado** sem compromisso vinculado é **permitido** (Confirmado, DEC-040): o cartão exibe “Sem compromisso vinculado” e oferece **Agendar horário**; mudar etapa nunca cria compromisso.
 - Filtros: responsável, “Minhas”, busca por nome. Relatórios e totais avançados ficam **Fora do MVP**.
 - Clique no cartão abre a conversa vinculada (TEL-01).
 - **Tempo real:** etapa alterada e responsável alterado movem o cartão nas outras sessões, com destaque breve (1,5 s) no cartão alterado; o cartão que o usuário está arrastando não é movido por evento remoto até soltar — após soltar, prevalece o estado do servidor.
@@ -135,7 +135,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 - No celular (M-06), lista cronológica do dia: compromissos, espaços livres (com **Agendar**), bloqueios e fora do expediente, filtrável por profissional ou sala. A partir do tablet, visão **Dia** em grade com colunas por profissional e linhas de 15 min (granularidade de 15 min, **Confirmada** em DEC-008). Alternância **Por profissional / Por sala** mostra a mesma agenda pelo outro recurso, porque o horário ocupa os dois (DEC-014).
 - Compromisso: horário, contato, serviço, sala/equipamento como etiqueta, estado (Confirmado / Cancelado / Concluído). Cancelados ficam ocultos por padrão com filtro “Mostrar cancelados”.
 - Bloqueios e fora de expediente em hachura com rótulo (“Bloqueado”, “Fora do expediente”), não só cor.
-- Navegação de dia (anterior/hoje/próximo) e seletor de data. **Visão semanal (Confirmado, DEC-018):** alternância Dia/Semana; no tablet e no desktop, grade de sete dias com os compromissos por dia; no celular, lista agrupada por dia, com filtros por profissional ou sala. Clicar num dia leva à visão do dia. Desenhada em M-13.
+- Navegação de dia (anterior/hoje/próximo) e seletor de data. **Visão semanal (Confirmado, DEC-040):** alternância Dia/Semana; no tablet e no desktop, grade de sete dias com os compromissos por dia; no celular, lista agrupada por dia, com filtros por profissional ou sala. Clicar num dia leva à visão do dia. Desenhada em M-13.
 - Clique em espaço livre abre TEL-05 com horário pré-preenchido; clique em compromisso abre TEL-06.
 - **Tempo real:** compromisso confirmado/cancelado/reagendado aparece ou some nas outras sessões; se o usuário está com TEL-05 aberto e o horário escolhido é ocupado por evento remoto, o horário é marcado como indisponível imediatamente (antes mesmo de tentar confirmar).
 
@@ -172,7 +172,7 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
 ### TEL-08 — Entrar e escolher a clínica
 
-**Origem:** DEC-007; REQ-005, REQ-006; AC-17. **Estado:** Proposto.
+**Origem:** DEC-007; REQ-005; AC-17. **Estado:** Proposto.
 
 - **Entrar:** fluxo do Clerk com código por e-mail: campo de e-mail → campo do código, com preenchimento automático no celular (`autocomplete="one-time-code"`) e reenvio. A mensagem de erro não revela se o e-mail tem conta. Textos e cores seguem a spec; o comportamento é o do Clerk.
 - **Escolher clínica:** lista com nome de cada clínica e papel (Atendente/Responsável). Com uma só clínica, a tela é pulada.
@@ -181,7 +181,7 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
 ### TEL-09 — Clínica (configuração, só o responsável)
 
-**Origem:** DEC-007, DEC-008, DEC-009, DEC-012; REQ-004, REQ-051, REQ-052, REQ-061; JRN-08; AC-14. **Estado:** Proposto (telas M-15 a M-19). Visível apenas para o Responsável; o Atendente não vê a aba e, se abrir a URL, recebe “Você não tem acesso a esta área” sem dados (REQ-002).
+**Origem:** DEC-007, DEC-008, DEC-009, DEC-012; REQ-004, REQ-051, REQ-052, REQ-071; JRN-08; AC-14. **Estado:** Proposto (telas M-15 a M-19). Visível apenas para o Responsável; o Atendente não vê a aba e, se abrir a URL, recebe “Você não tem acesso a esta área” sem dados (REQ-002).
 
 **Início (M-15).** Faixa “Falta N passos para atender” com os itens pendentes e uma lista de áreas com o estado de cada uma (Pronto, Falta conectar). “Pronta para atender” exige: ao menos um serviço, um profissional, uma sala/equipamento, expediente e WhatsApp conectado (REQ-052, AC-14). Sem a configuração da agenda, M-04 mostra “A agenda desta clínica ainda não foi configurada”.
 
@@ -194,7 +194,7 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 - *Sala ou equipamento (M-22):* tipo (sala ou equipamento), nome, categoria (por exemplo, “Sala com laser”), disponibilidade semanal (M-17), serviços que o usam e ativa/inativa. Um serviço pode exigir uma categoria ou um recurso específico (DEC-014). Desativar o único recurso de uma categoria exigida por um serviço avisa que o serviço deixa de aceitar novos agendamentos.
 - Regras: nomes únicos por tipo dentro da clínica; ao menos um profissional e um recurso ativos para a clínica ficar pronta (REQ-052); excluir definitivamente **não existe** no MVP, só desativar, para preservar o histórico de compromissos (**Proposto**).
 
-**Equipe (M-18).** Membros com papel (Responsável, Atendente), convites pendentes (reenviar, cancelar; expiram) e remoção de acesso. Remover um membro encerra as sessões e conexões em tempo real dele (REQ-003). Seção “Suporte do Tredane”: o responsável pode liberar acesso temporário de 24 h como Atendente, encerrável a qualquer momento e auditado; sem isso, a equipe do Tredane não vê conteúdo (DEC-012, [ADR-0006](../adr/0006-superadmin-control-plane.md)). A clínica sempre precisa de ao menos um Responsável: remover ou rebaixar o último é recusado.
+**Equipe (M-18).** Membros com papel (Responsável, Atendente), convites pendentes e remoção de acesso. O responsável gerencia **somente atendentes** (DEC-020): responsáveis aparecem sem ação e são gerenciados pela equipe do Tredane. Convites por e-mail expiram em 7 dias; **Reenviar** gera novo link e invalida o anterior, com espera de 10 min e até 5 reenvios em 24 h (mostrada no botão desabilitado); qualquer responsável cancela um convite (DEC-021 a DEC-025). Remover um atendente encerra as sessões e conexões em tempo real dele naquela clínica (REQ-003). Suporte do Tredane: ver TEL-10. 
 
 **WhatsApp (M-19, M-23 a M-25).** Quatro estados da conexão (DEC-009, REQ-051):
 - *Não conectado (M-19):* explicação do Embedded Signup e botão **Conectar WhatsApp**, que abre a janela da Meta. Um número já ligado a outra clínica é recusado.
@@ -210,6 +210,18 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 **Origem:** JRN-07; REQ-003, REQ-041, REQ-042, AC-02, AC-11, AC-12. **Estado:** Proposto.
 
 Ver seção 6.2.
+
+
+### TEL-10 — Suporte do Tredane (aprovação por sessão)
+
+**Estado:** telas **propostas** sobre decisões **Confirmadas** (DEC-029 a DEC-037, REQ-060 a REQ-066, AC-27 a AC-35). A equipe do Tredane só acessa conteúdo da clínica com um pedido aprovado por um responsável, por sessão de 30 minutos, sem prorrogação.
+
+- **Aviso e entrada (M-18).** Pedido pendente aparece como faixa no topo de Equipe, em tempo real, e também por e-mail (a decisão é sempre no painel, após login). A faixa mostra o tempo restante até a expiração de 24 h.
+- **Pedido (M-27).** Mostra quem pede, em nome de quem (usuário representado), motivo, o que poderá fazer e a duração. **Aprovar suporte** e **Rejeitar**; qualquer responsável decide e a primeira decisão vale. Pedido expirado não pode ser aprovado: exige novo pedido.
+- **Sessão ativa (M-28).** Tempo restante, ator, usuário representado, aprovador e histórico. **Encerrar suporte agora** está disponível a qualquer responsável. Para continuar após 30 minutos, o Tredane faz novo pedido.
+- **Aviso ao usuário representado (M-29).** Faixa em Conversas enquanto houver sessão ativa, com **Solicitar encerramento**; os responsáveis são avisados e decidem (DEC-036, DEC-037).
+- **Tempo real:** início, fim, expiração e revogação chegam por evento; ao reconectar, a tela reconcilia com a API. Revogada a sessão, a conexão do suporte cai na hora.
+- **Em aberto:** texto exato do e-mail e do que o pedido mostra como escopo (depende da lista de ações de diagnóstico, a definir com engenharia).
 
 ## 5. Componentes
 
@@ -258,7 +270,7 @@ Ver seção 6.2.
 
 **Origem:** REQ-022, REQ-060, ADR-0004, AC-06. **Estado:** Proposto; provedor (Claude via AI Gateway) e contexto **Confirmados** (DEC-011).
 
-- **Sugerir resposta** é acionado pelo usuário; não há sugestão automática ao abrir a conversa nem a cada mensagem recebida (**Confirmado**, DEC-018: reduz custo e o envio de contexto à IA).
+- **Sugerir resposta** é acionado pelo usuário; não há sugestão automática ao abrir a conversa nem a cada mensagem recebida (**Confirmado**, DEC-040: reduz custo e o envio de contexto à IA).
 - A sugestão aparece acima do compositor, em bloco com borda tracejada e rótulo “Sugestão da IA — revise antes de enviar”, com: **Usar e editar** (copia para o compositor, editável), **Gerar outra**, **Descartar**. No celular, o botão de IA fica à esquerda do campo e o de enviar à direita, separados para evitar toque acidental. Não há botão de envio dentro do bloco; o único caminho até o contato é o botão **Enviar** do compositor.
 - Mensagem enviada a partir de sugestão registra a origem (“Sugestão da IA, editada por Ana”) no histórico interno, não para o contato.
 - **Resumo da IA** no painel do contato: gerado sob demanda, com horário de geração e aviso “Pode conter erros. Confira na conversa.”
@@ -280,7 +292,7 @@ Ver seção 6.2.
 
 ## 8. Direção visual proposta
 
-**Estado:** **Confirmado** ([DEC-019](decisions.md), 24/10/2026), exceto a biblioteca de componentes (**Proposto**). A fonte única dos valores é [docs/design/tokens.json](../design/tokens.json) (versão 0.2.0); **esta seção não repete os valores** para não haver versões concorrentes. Resumo da direção: Inter (400/500/600) em seis tamanhos (12, 14, 16, 18, 22, 26); 25 cores por papel; cinco raios (8, 12, 16, 20, pílula); espaçamento em múltiplos de 4 px; borda de controle com 3:1 sobre o fundo. Componentes e estados: [catálogo](../design/catalog/index.html) e [components.md](../design/components.md). Ícones: [icons.md](../design/icons.md). Base de componentes: [ADR-0007](../adr/0007-design-system-components.md).
+**Estado:** **Confirmado** ([DEC-041](decisions.md), 24/10/2026), exceto a biblioteca de componentes (**Proposto**). A fonte única dos valores é [docs/design/tokens.json](../design/tokens.json) (versão 0.2.0); **esta seção não repete os valores** para não haver versões concorrentes. Resumo da direção: Inter (400/500/600) em seis tamanhos (12, 14, 16, 18, 22, 26); 25 cores por papel; cinco raios (8, 12, 16, 20, pílula); espaçamento em múltiplos de 4 px; borda de controle com 3:1 sobre o fundo. Componentes e estados: [catálogo](../design/catalog/index.html) e [components.md](../design/components.md). Ícones: [icons.md](../design/icons.md). Base de componentes: [ADR-0013](../adr/0013-design-system-components.md).
 
 ## 9. Rastreabilidade
 
@@ -293,10 +305,11 @@ Ver seção 6.2.
 | TEL-05 Agendar | JRN-03 | REQ-030, REQ-031, REQ-033, REQ-052 | AC-09, AC-14 |
 | TEL-06 Compromisso | JRN-05 | REQ-032, REQ-033 | AC-10 |
 | TEL-07 Estados globais | JRN-07 | REQ-001, REQ-003, REQ-040, REQ-041, REQ-042 | AC-01, AC-02, AC-11, AC-12 |
-| TEL-08 Entrar e escolher clínica | JRN-07, JRN-08 | REQ-005, REQ-006 | AC-17 |
-| TEL-09 Clínica (configuração) | JRN-08 | REQ-002, REQ-003, REQ-004, REQ-051, REQ-052, REQ-061 | AC-03, AC-14, AC-20, AC-21, AC-22 |
+| TEL-08 Entrar e escolher clínica | JRN-07, JRN-08 | REQ-005 | AC-17 |
+| TEL-10 Suporte do Tredane | JRN-08 | REQ-060 a REQ-066 | AC-27 a AC-35 |
+| TEL-09 Clínica (configuração) | JRN-08 | REQ-002, REQ-003, REQ-004, REQ-051, REQ-052, REQ-071 | AC-03, AC-14, AC-38, AC-39, AC-40 |
 
-Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-15 a M-25 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos; M-19 e M-23 a M-26: WhatsApp). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
+Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-27 a M-29 → TEL-10; M-15 a M-26 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos; M-19 e M-23 a M-26: WhatsApp). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
 
 ## 10. Critérios de aceite de UX
 
@@ -309,15 +322,15 @@ Complementam os [cenários de aceite](acceptance.md); IDs novos e estáveis.
 - **UX-05 — Revogação limpa a tela.** Após revogação, nenhum dado da clínica permanece visível ou acessível pelo histórico do navegador sem nova autenticação. Requisitos: REQ-003.
 - **UX-06 — Teclado completo.** O fluxo mensagem recebida → resposta → mover etapa → agendar é concluído apenas com teclado. Requisitos: REQ-020, REQ-023, REQ-031.
 - **UX-07 — Foco preservado.** Evento remoto em outra conversa ou cartão não muda o foco nem a rolagem do usuário. Requisitos: REQ-040.
-- **UX-08 — Fluxo completo no celular.** Em um aparelho de 360 px de largura, um atendente conclui mensagem recebida → resposta → mudança de etapa → agendamento confirmado sem rolagem horizontal, sem zoom e com todos os alvos de toque ≥ 44 px. Requisitos: REQ-020, REQ-022, REQ-023, REQ-031; DEC-017.
+- **UX-08 — Fluxo completo no celular.** Em um aparelho de 360 px de largura, um atendente conclui mensagem recebida → resposta → mudança de etapa → agendamento confirmado sem rolagem horizontal, sem zoom e com todos os alvos de toque ≥ 44 px. Requisitos: REQ-020, REQ-022, REQ-023, REQ-031; DEC-039.
 
 ## 11. Questões abertas de UX
 
 | ID | Questão | Bloqueia | Decide |
 | --- | --- | --- | --- |
-| Q-UX-01 | Quais modelos de celular, sistemas e navegadores a equipe da clínica piloto usa, e quanto do atendimento acontece no computador? (A prioridade do celular já está decidida em DEC-017.) | Aceite de usabilidade e lista de aparelhos de teste. | Responsável pelo produto + clínica piloto |
-| Q-UX-02 | ~~Mover para “Agendado” sem compromisso~~ Resolvida: permitido, com aviso (DEC-018). | — | — |
-| Q-UX-03 | ~~Granularidade da grade~~ e ~~visão semanal~~ Resolvidas: 15 min (DEC-008) e visão de dia e de semana (DEC-018). | — | — |
-| Q-UX-04 | ~~Sugestão sob demanda ou automática~~ Resolvida: só sob demanda (DEC-018). | — | — |
-| Q-UX-05 | ~~Notificação de nova conversa~~ Resolvida: push via PWA instalável (DEC-018). **Proposto em M-14:** avisos de nova conversa, conversa atribuída a mim e mensagem não enviada ligados por padrão, e resposta de contato desligada. **Em aberto:** confirmar esses padrões e definir horário de silêncio. | Tela de preferências de notificação. | Responsável pelo produto |
-| Q-UX-06 | ~~Janela de 24 h~~ Resolvida: texto livre bloqueado, envio por modelo aprovado (DEC-018). **Em aberto:** quais modelos cadastrar e o custo por modelo. | Envio real fora da janela. | Engenharia + responsável pelo produto (EP-T04) |
+| Q-UX-01 | Quais modelos de celular, sistemas e navegadores a equipe da clínica piloto usa, e quanto do atendimento acontece no computador? (A prioridade do celular já está decidida em DEC-039.) | Aceite de usabilidade e lista de aparelhos de teste. | Responsável pelo produto + clínica piloto |
+| Q-UX-02 | ~~Mover para “Agendado” sem compromisso~~ Resolvida: permitido, com aviso (DEC-040). | — | — |
+| Q-UX-03 | ~~Granularidade da grade~~ e ~~visão semanal~~ Resolvidas: 15 min (DEC-008) e visão de dia e de semana (DEC-040). | — | — |
+| Q-UX-04 | ~~Sugestão sob demanda ou automática~~ Resolvida: só sob demanda (DEC-040). | — | — |
+| Q-UX-05 | ~~Notificação de nova conversa~~ Resolvida: push via PWA instalável (DEC-040). **Proposto em M-14:** avisos de nova conversa, conversa atribuída a mim e mensagem não enviada ligados por padrão, e resposta de contato desligada. **Em aberto:** confirmar esses padrões e definir horário de silêncio. | Tela de preferências de notificação. | Responsável pelo produto |
+| Q-UX-06 | ~~Janela de 24 h~~ Resolvida: texto livre bloqueado, envio por modelo aprovado (DEC-040). **Em aberto:** quais modelos cadastrar e o custo por modelo. | Envio real fora da janela. | Engenharia + responsável pelo produto (EP-T04) |

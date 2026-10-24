@@ -1,6 +1,6 @@
-# ADR-0005 — Consistência de reservas com recursos partilhados em D1
+# ADR-0005 — Consistência de reservas com recursos partilhados
 
-- **Estado:** Proposta técnica sujeita a prova de conceito com runtime D1, não decisão de esquema aprovado.
+- **Estado:** garantia de consistência mantida; backend D1 proposto anteriormente substituído pelo SQLite do DO em DEC-038 / [ADR-0012](0012-clinic-durable-object-sqlite.md). Esquema/gatilhos finais seguem propostos até prova de conceito.
 - **Origem:** [DEC-014](../product/decisions.md), [REQ-030/031/032](../product/requirements.md).
 
 ## Problema
@@ -9,7 +9,7 @@ Um agendamento ocupa o profissional e a sala/equipamento requerido durante um in
 
 ## Abordagem candidata
 
-Representar ocupações em linhas de alocação por recurso, no D1 da clínica ([ADR-0002](0002-d1-topology.md)), com tenant_id, recurso, início/fim efetivos (incluindo o intervalo após o atendimento definido pelo serviço, DEC-008) e referência ao compromisso. Usar uma restrição atómica na camada de banco para impedir intervalos sobrepostos. A primeira opção de prova de conceito são gatilhos SQLite que fazem RAISE(ABORT) para overlaps, combinados com D1 batch para gravar o agendamento, as ocupações, auditoria e outbox na mesma transação.
+Representar ocupações em linhas de alocação por recurso, com tenant_id, recurso, início/fim efetivos (incluindo buffers) e referência ao compromisso. Usar uma restrição atómica na camada de banco para impedir intervalos sobrepostos. A primeira opção de prova de conceito são gatilhos SQLite que fazem RAISE(ABORT) para overlaps, combinados com transação SQLite local via API do storage do DO (transactionSync quando aplicável) para gravar o agendamento, as ocupações, auditoria e outbox na mesma transação.
 
 Proteger inserts **e updates**, não apenas criação inicial. Cancelamentos e remarcações libertam ou substituem ocupações de maneira atómica e auditada; se o novo horário falhar, manter o compromisso original.
 
@@ -19,6 +19,9 @@ Alocação por intervalos discretos com índices UNIQUE(tenant_id, resource_id, 
 
 ## Condições para aceitação
 
-Testes de concorrência real no D1 local/remoto de teste, sobreposição parcial, bordas adjacentes, vários recursos na mesma marcação, bloqueios, cancelamento, reagendamento e cruzamento de tenants. Confirmar comportamento de trigger e rollback de batch no ambiente escolhido. Nenhum evento de confirmação é enviado antes da transação ser concluída.
+Testes de concorrência real através do DO com SQLite local/ambiente de teste, sobreposição parcial, bordas adjacentes, vários recursos na mesma marcação, bloqueios, cancelamento, reagendamento e cruzamento de tenants. Confirmar comportamento de trigger e rollback da transação SQLite no ambiente escolhido. Nenhum evento de confirmação é enviado antes da transação ser concluída.
 
-**Referências:** [modelo lógico](../architecture/data-model.md) e [API D1 batch](https://developers.cloudflare.com/d1/worker-api/d1-database/).
+**Referências:** [modelo lógico](../architecture/data-model.md) e [API de storage SQLite do DO](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/).
+
+
+**Histórico:** o desenho anterior usava D1 batch. DEC-038 substitui esse mecanismo, sem enfraquecer a prevenção de conflitos. Nenhuma chamada externa ocorre dentro da transação de reserva; single-threaded não substitui atomicidade.

@@ -21,29 +21,32 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 
 | ID | Arquivo | Tela da spec | Jornadas · Requisitos · Cenários | Mostra | Navega para |
 | --- | --- | --- | --- | --- | --- |
-| M-09 | `Entrar` (interativo) | TEL-08 | JRN-07, JRN-08 · REQ-006 · AC-17 | Passo e-mail → passo código de 6 dígitos (`autocomplete="one-time-code"`). **Mock do comportamento:** a tela real é o componente do Clerk estilizado | M-10 |
+| M-09 | `Entrar` (interativo) | TEL-08 | JRN-07, JRN-08 · REQ-005 · AC-17 | Passo e-mail → passo código de 6 dígitos (`autocomplete="one-time-code"`). **Mock do comportamento:** a tela real é o componente do Clerk estilizado | M-10 |
 | M-10 | `Clinicas` | TEL-08 | JRN-07 · REQ-005 · AC-17 | Escolha da clínica com papel em cada uma; aparece só com mais de uma clínica | M-01 |
-| M-11 | `JanelaFechada` | TEL-01, DEC-018 | JRN-02 · REQ-012 | Fora da janela de 24 h: texto livre **bloqueado**, aviso, **Escolher modelo** | M-12 |
-| M-12 | `Modelos` | TEL-01, DEC-018 | JRN-02 · REQ-012 | Lista de modelos aprovados, campos a preencher, prévia não editável, aviso de custo, **Enviar modelo** | M-11 |
+| M-11 | `JanelaFechada` | TEL-01, DEC-040 | JRN-02 · REQ-012 | Fora da janela de 24 h: texto livre **bloqueado**, aviso, **Escolher modelo** | M-12 |
+| M-12 | `Modelos` | TEL-01, DEC-040 | JRN-02 · REQ-012 | Lista de modelos aprovados, campos a preencher, prévia não editável, aviso de custo, **Enviar modelo** | M-11 |
 | M-13 | `Semana` | TEL-04 (semana) | JRN-04 · REQ-034 | Alternador Dia/Semana, lista agrupada por dia, dia com bloqueio, dia atual destacado | M-06 |
-| M-14 | `Instalar` | PWA e avisos, DEC-018 | — · Q-UX-05 | Passo a passo de instalação no iPhone, quatro avisos configuráveis, **Ativar avisos** | M-01 |
+| M-14 | `Instalar` | PWA e avisos, DEC-040 | — · Q-UX-05 | Passo a passo de instalação no iPhone, quatro avisos configuráveis, **Ativar avisos** | M-01 |
 
 ## Área Clínica (só o responsável)
 
 | ID | Arquivo | Tela da spec | Jornadas · Requisitos · Cenários | Mostra | Navega para |
 | --- | --- | --- | --- | --- | --- |
 | M-15 | `Clinica` | TEL-09 início | JRN-08 · REQ-052 · AC-14 | Faixa “Falta 1 passo para atender”, lista de áreas com estado (Pronto, Falta conectar), barra inferior com 4 abas | M-16, M-20, M-17, M-18, M-19 |
-| M-16 | `Servico` | TEL-09 serviço | JRN-08 · REQ-052 · AC-20 | Nome, duração, intervalo depois, resumo “Ocupa 75 min”, quem pode fazer, recurso exigido, preço opcional, ativo | M-15 |
-| M-17 | `Horarios` | TEL-09 horários | JRN-08 · REQ-030 · AC-20 | Abas por profissional e recurso, expediente semanal, bloqueios pontuais, aviso sobre compromissos existentes, **Novo bloqueio** | M-15 |
-| M-18 | `Equipe` | TEL-09 equipe | JRN-08 · REQ-002, REQ-003, REQ-004 · AC-02, AC-03 | Membros e papéis, convites pendentes, “Suporte do Tredane” (liberar 24 h), **Convidar membro** | M-15 |
+| M-16 | `Servico` | TEL-09 serviço | JRN-08 · REQ-052 · AC-38 | Nome, duração, intervalo depois, resumo “Ocupa 75 min”, quem pode fazer, recurso exigido, preço opcional, ativo | M-15 |
+| M-17 | `Horarios` | TEL-09 horários | JRN-08 · REQ-030 · AC-38 | Abas por profissional e recurso, expediente semanal, bloqueios pontuais, aviso sobre compromissos existentes, **Novo bloqueio** | M-15 |
+| M-18 | `Equipe` | TEL-09 equipe | JRN-08 · REQ-002, REQ-003, REQ-004 · AC-02, AC-03 | Membros e papéis (responsáveis só leitura), convites pendentes (reenviar com espera, cancelar), faixa de pedido de suporte, “Suporte do Tredane”, **Convidar atendente** | M-15, M-27, M-28 |
 | M-19 | `ConectarWhatsapp` | TEL-09 WhatsApp | JRN-08 · REQ-051 | **Não conectado**, passos do Embedded Signup, **Conectar WhatsApp**, **Pedir ajuda** | M-15 |
-| M-20 | `Recursos` (interativo) | TEL-09 recursos | JRN-08 · REQ-052 · AC-20 | Abas Profissionais e Salas; listas com estado; botões de adicionar | M-21, M-22, M-15 |
-| M-21 | `Profissional` | TEL-09 recursos | JRN-08 · REQ-052 · AC-20 | Nome, serviços que faz, expediente (atalho), ativa, aviso de compromissos futuros ao desativar; sem login | M-20, M-17 |
-| M-22 | `Sala` | TEL-09 recursos | JRN-08 · REQ-052 · AC-20 | Tipo (sala/equipamento), nome, categoria, disponibilidade (atalho), serviços que usam, ativa, aviso de serviço sem recurso | M-20, M-17 |
-| M-23 | `WhatsappConectado` | TEL-09 WhatsApp | REQ-051 · AC-22 | **Conectado**, número, quem conectou, última mensagem, modelos e estado, Trocar número, Desconectar | M-25, M-26, M-15 |
-| M-24 | `WhatsappInterrompido` | TEL-09 WhatsApp | REQ-012, REQ-013, REQ-051 · AC-21 | **Conexão interrompida**, motivo, o que acontece enquanto estiver desconectado, **Reconectar** | M-15 |
-| M-25 | `WhatsappTrocar` | TEL-09 WhatsApp | REQ-050, REQ-051 · AC-22 | O que muda, caixa de confirmação, botão **Continuar para a Meta** desabilitado até marcar | M-23 |
+| M-20 | `Recursos` (interativo) | TEL-09 recursos | JRN-08 · REQ-052 · AC-38 | Abas Profissionais e Salas; listas com estado; botões de adicionar | M-21, M-22, M-15 |
+| M-21 | `Profissional` | TEL-09 recursos | JRN-08 · REQ-052 · AC-38 | Nome, serviços que faz, expediente (atalho), ativa, aviso de compromissos futuros ao desativar; sem login | M-20, M-17 |
+| M-22 | `Sala` | TEL-09 recursos | JRN-08 · REQ-052 · AC-38 | Tipo (sala/equipamento), nome, categoria, disponibilidade (atalho), serviços que usam, ativa, aviso de serviço sem recurso | M-20, M-17 |
+| M-23 | `WhatsappConectado` | TEL-09 WhatsApp | REQ-051 · AC-40 | **Conectado**, número, quem conectou, última mensagem, modelos e estado, Trocar número, Desconectar | M-25, M-26, M-15 |
+| M-24 | `WhatsappInterrompido` | TEL-09 WhatsApp | REQ-012, REQ-013, REQ-051 · AC-39 | **Conexão interrompida**, motivo, o que acontece enquanto estiver desconectado, **Reconectar** | M-15 |
+| M-25 | `WhatsappTrocar` | TEL-09 WhatsApp | REQ-050, REQ-051 · AC-40 | O que muda, caixa de confirmação, botão **Continuar para a Meta** desabilitado até marcar | M-23 |
 | M-26 | `WhatsappDesconectar` | TEL-09 WhatsApp | REQ-051 | Diálogo de confirmação: digitar o nome da clínica para habilitar **Desconectar** | M-23 |
+| M-27 | `SuportePedido` | TEL-10 | REQ-060 · AC-27, AC-28, AC-29 | Pedido pendente: quem pede, em nome de quem, motivo, o que poderá, expiração (até 24 h), **Aprovar suporte** / **Rejeitar** | M-18, M-28 |
+| M-28 | `SuporteAtivo` | TEL-10 | REQ-061, REQ-062, REQ-063, REQ-064 · AC-30, AC-31, AC-32, AC-33, AC-34 | Sessão ativa de 30 min: restante, ator, usuário representado, aprovador, histórico, **Encerrar suporte agora** | M-18 |
+| M-29 | `SuporteAviso` | TEL-10 | REQ-065, REQ-066 · AC-34, AC-35 | Aviso ao usuário representado (faixa em Conversas) com **Solicitar encerramento** | — |
 
 ## Estados que a UI real precisa ter e os mocks mostram em uma tela só
 

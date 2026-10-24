@@ -7,7 +7,7 @@ Estas instruções se aplicam a qualquer agente que crie ou altere documentaçã
 - `README.md`: apresentação curta e navegação do projeto.
 - `docs/MVP.md`: fonte concisa de verdade para objetivo, recorte, decisões e limites do MVP. Mantenha este documento curto e aponte para especificações detalhadas quando elas existirem.
 - [Épico de definição do MVP, issue #1](https://github.com/intentzero/tredane/issues/1): trabalho pendente e critérios para encerrar a definição. Checkboxes de uma issue não substituem especificação aprovada.
-- `docs/design/`: mocks de UI/UX do painel (fontes `.dc.html`, previews PNG), índice de telas, componentes e tokens. Quem implementa ou altera interface deve começar por `docs/design/README.md`; a especificação em `docs/product/ux-ui.md` prevalece sobre os mocks.
+- `docs/design/`: mocks de UI/UX do painel (fontes `.dc.html`, previews PNG), índice de telas, componentes, tokens e catálogo. Quem implementa ou altera interface deve começar por `docs/design/README.md`; a especificação em `docs/product/ux-ui.md` prevalece sobre os mocks.
 - `docs/product/`: local para novos documentos de atores, jornadas, requisitos e decisões, quando o detalhe exceder o que cabe em `docs/MVP.md`. Crie apenas documentos necessários para o trabalho em andamento; não crie páginas vazias.
 
 Antes de editar, leia a versão atual dos documentos relacionados e da issue #1. Se houver divergência, registre-a e corrija a fonte apropriada; não deixe duas versões concorrentes da mesma decisão.
@@ -26,10 +26,12 @@ Não promova uma proposta a decisão confirmada porque ela parece tecnicamente c
 ## Contexto que deve permanecer consistente
 
 - Tredane é um SaaS multi-tenant de atendimento para clínicas de estética, com WhatsApp, pipeline comercial, agenda própria e assistência por IA.
-- O WhatsApp previsto é a API oficial do WhatsApp Business. O responsável conecta a conta da clínica pelo Embedded Signup, com o Tredane como Tech Provider (DEC-009).
-- O painel deve receber atualizações em tempo real por WebSockets com hibernação em Durable Objects. Há um Durable Object por clínica (DEC-005), um D1 dedicado por clínica e um D1 central de controle (DEC-010, ADR-0002); o mecanismo para abrir o D1 de cada clínica ainda está em aberto.
+- O WhatsApp previsto é a API oficial do WhatsApp Business. A forma de conectar e administrar a conta de cada clínica continua em aberto.
+- O painel deve receber atualizações em tempo real por WebSockets com hibernação em Durable Objects. DEC-038 confirma um Durable Object por clínica, com SQLite nativo como fonte de verdade operacional (contatos, conversas, pipeline e agenda). D1 central mantém tenants, memberships N:N, convites e suporte; R2 privado mantém anexos. Ver ADR-0012; não voltar a tratar topologia como decisão aberta ou SQLite do DO como D1. Revogação D1/DO, migrações por instância e recuperação continuam pendentes de implementação/testes.
 - O primeiro recorte de IA é assistivo, com sugestão e revisão humana, conforme `docs/MVP.md`. Respostas ou agendamentos autônomos ficam fora desse recorte.
-- O fluxo piloto começa na mensagem recebida e termina no agendamento confirmado, incluindo visão da conversa e do pipeline. Identidade (Clerk), administração, regras da agenda, provedor de IA, retenção e acesso do superadmin foram decididos em 23/10/2026 (`docs/product/decisions.md`); o mecanismo do D1 por clínica, o plano e a residência de dados do Clerk e a revisão jurídica permanecem pendentes. A interface é mobile first (DEC-017) e a equipe do Tredane usa um app separado de superadmin (DEC-012).
+- Identidade pelo Clerk sem Organizations; `privateMetadata.superadmin` (booleano) só é autoritativo no backend; memberships N:N e roles por tenant vivem no D1.
+- A Platform Admin App é separada do painel operacional das clínicas e gere tenants. Superadmin poderá impersonar usuário de um tenant para suporte, mediante sessão temporária, escopo, auditoria de ator e alvo, e políticas de segurança; o mecanismo escolhido é sessão própria do Tredane; detalhes de segurança, revogação e política de dados devem ser especificados antes de uso real. Ver ADR-0006/0007.
+- O fluxo piloto começa na mensagem recebida e termina no agendamento confirmado, incluindo visão da conversa e do pipeline. Detalhes de regras da agenda, permissões específicas, política de suporte/impersonação, retenção e provedor de IA permanecem pendentes.
 
 Ao atualizar esse contexto, altere primeiro o documento que contém a decisão e depois as referências resumidas. Não use estas instruções como substituto para a especificação de produto.
 
@@ -53,7 +55,7 @@ Registre problema, opções consideradas, decisão e motivo, impacto no produto 
 
 ## Pontos que exigem cuidado especial
 
-- **Isolamento entre clínicas:** documente separadamente autorização na API, consultas e gravações em D1, roteamento para Durable Objects, eventos WebSocket, mensagens em Queues, arquivos em R2 e processos em Workflows. Um objeto por clínica não isola automaticamente os demais serviços.
+- **Isolamento entre clínicas:** documente separadamente autorização na API, consultas e gravações no D1 central e SQLite por clínica, roteamento para Durable Objects, eventos WebSocket, mensagens em Queues, arquivos em R2 e processos em Workflows. Um objeto por clínica não isola automaticamente os demais serviços.
 - **Tempo real:** especifique quais eventos atualizam cada tela, quem pode recebê-los, como a interface reconcilia dados após perda de conexão e o que acontece quando uma permissão é revogada.
 - **WhatsApp:** diferencie mensagem recebida, tentativa de envio, confirmação de entrega e falha. Inclua reentrega de webhook e idempotência nas jornadas de exceção.
 - **Agenda:** não assuma que apenas o profissional ocupa um horário. Valide duração, sala/equipamento, bloqueios, cancelamento e reagendamento com a clínica piloto.
@@ -62,7 +64,7 @@ Registre problema, opções consideradas, decisão e motivo, impacto no produto 
 
 ## Ao concluir uma alteração de documentação
 
-1. Se alterou um mock ou uma tela, atualize junto o `.dc.html`, o preview, `docs/design/screens.md` e `docs/product/ux-ui.md`.
+1. Se alterou um mock ou uma tela, atualize junto o `.dc.html`, o preview, `docs/design/screens.md` e `docs/product/ux-ui.md`; se alterou um token, rode `docs/design/tools/check_contrast.py` e `check_mocks.py`.
 2. Verifique que os termos e o estado das decisões estão consistentes com `docs/MVP.md` e a issue #1.
 3. Ligue jornadas a requisitos e requisitos a critérios de aceite; registre lacunas como **Em aberto**.
 4. Atualize o resumo em `docs/MVP.md` se objetivo, recorte, decisão ou limite do MVP mudou. Mantenha detalhes em documentos específicos e adicione links, sem duplicar textos longos.
