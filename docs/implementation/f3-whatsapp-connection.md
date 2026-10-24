@@ -18,7 +18,7 @@
 | --- | --- |
 | **D1 central** | Índice global `phone_number_id` → tenant (`whatsapp_phone_bindings` com UNIQUE parcial activo/interrompido); credenciais (`whatsapp_credentials`, nunca na API); sessões state/nonce; histórico de binding; auditoria central |
 | **SQLite do Clinic DO** | Espelho `whatsapp_channel` para readiness/UI/eventos WS; **sem tokens** |
-| **R2** | Fora deste PR (#34) |
+| **R2** | Anexos — [#34](f3-attachments.md) |
 | **Queues** | Ingest webhook = [#32](f3-whatsapp-webhooks.md) |
 
 Resolução de webhook (#32): `resolveTenantByPhoneNumberId` no D1 → se `released`/ausente, descartar (não cria dados; não reencaminha a outra clínica).

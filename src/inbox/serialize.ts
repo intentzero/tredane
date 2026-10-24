@@ -52,6 +52,15 @@ export function serializeMessage(m: MessageRow) {
     authorClerkUserId: m.authorClerkUserId,
     authorDisplayName: m.authorDisplayName,
     createdAt: m.createdAt,
+    attachments: (m.attachments ?? []).map((a) => ({
+      id: a.id,
+      contentType: a.contentType,
+      byteSize: a.byteSize,
+      filename: a.filename,
+      status: a.status,
+      failureCode: a.failureCode,
+      includedInAiContext: false as const,
+    })),
   }
 }
 

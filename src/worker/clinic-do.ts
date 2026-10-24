@@ -3,6 +3,7 @@ import {
   acknowledgeOutboxResult,
   assertSyntheticTenantId,
   bindOrAssertTenant,
+  clinicAttachments,
   clinicConfig,
   clinicInbox,
   clinicPipeline,
@@ -30,6 +31,12 @@ import type {
   MarkReadInput,
   SendOutboundInput,
 } from '../clinic/inbox'
+import type {
+  CreatePendingAttachmentInput,
+  LinkAttachmentToMessageInput,
+  MarkAttachmentFailedInput,
+  MarkAttachmentReadyInput,
+} from '../clinic/attachments'
 import type {
   LinkAppointmentInput,
   ListOpportunitiesInput,
@@ -538,6 +545,112 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     return clinicInbox.seedSyntheticInboxOp(this.#db, caller, this.#clock, opts)
+  }
+
+  /** Metadados de anexo (#34) — sem I/O R2 neste DO. */
+  async createPendingAttachment(
+    caller: ClinicCaller,
+    input: CreatePendingAttachmentInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicAttachments.createPendingAttachmentOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+  }
+
+  async markAttachmentReady(caller: ClinicCaller, input: MarkAttachmentReadyInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicAttachments.markAttachmentReadyOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+  }
+
+  async markAttachmentFailed(caller: ClinicCaller, input: MarkAttachmentFailedInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicAttachments.markAttachmentFailedOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+  }
+
+  async linkAttachmentToMessage(
+    caller: ClinicCaller,
+    input: LinkAttachmentToMessageInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicAttachments.linkAttachmentToMessageOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+  }
+
+  async getAttachment(caller: ClinicCaller, attachmentId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicAttachments.getAttachmentOp(
+      this.#db,
+      caller,
+      attachmentId,
+      this.#clock,
+    )
+  }
+
+  async listMessageAttachments(caller: ClinicCaller, messageId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const meta = bindOrAssertTenant(this.#db, caller, this.#clock)
+    return clinicAttachments.listAttachmentsForMessage(
+      this.#db,
+      meta.tenantId,
+      messageId,
+    )
+  }
+
+  async listConversationAttachments(caller: ClinicCaller, conversationId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const meta = bindOrAssertTenant(this.#db, caller, this.#clock)
+    return clinicAttachments.listAttachmentsForConversation(
+      this.#db,
+      meta.tenantId,
+      conversationId,
+    )
+  }
+
+  async listOrphanAttachments(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const meta = bindOrAssertTenant(this.#db, caller, this.#clock)
+    return clinicAttachments.listOrphanCandidates(
+      this.#db,
+      meta.tenantId,
+      this.#clock.nowMs(),
+    )
+  }
+
+  async softDeleteAttachment(caller: ClinicCaller, attachmentId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicAttachments.softDeleteAttachmentOp(
+      this.#db,
+      caller,
+      attachmentId,
+      this.#clock,
+    )
   }
 
   async listPipelineOpportunities(caller: ClinicCaller, input: ListOpportunitiesInput) {

@@ -1,6 +1,6 @@
 # F3 — Webhooks WhatsApp, fila de entrada e deduplicação (#32)
 
-**Estado:** implementação da issue [#32](https://github.com/intentzero/tredane/issues/32) (épico [#14](https://github.com/intentzero/tredane/issues/14)). **Sem** envio Graph API (#33) nem anexos R2 (#34). Dados sintéticos / `META_MODE=synthetic` até gates [#18](https://github.com/intentzero/tredane/issues/18).
+**Estado:** implementação da issue [#32](https://github.com/intentzero/tredane/issues/32) (épico [#14](https://github.com/intentzero/tredane/issues/14)). Envio Graph = [#33](f3-whatsapp-send.md); anexos R2 = [#34](f3-attachments.md). Dados sintéticos / `META_MODE=synthetic` até gates [#18](https://github.com/intentzero/tredane/issues/18).
 
 ## Decisões aplicadas (Confirmado / Proposto)
 
@@ -55,6 +55,6 @@ Número `released`/desconhecido → recibo `discarded`, **sem** escrita no DO de
 ## Em aberto / fora deste PR
 
 - Envio e reconciliação de status de entrega outbound (#33)
-- Download de mídia / R2 (#34) — tipos não texto entram como mensagem explícita «não suportado»
+- Download de mídia / R2 — ver [f3-attachments.md](f3-attachments.md); tipos fora do piloto continuam «não suportado»
 - Gates Meta humanos (#18); `META_VERIFY_TOKEN` / `META_APP_SECRET` reais via secret
 - Consumer dedicado da DLQ (redrive operacional: `prepareWebhookReceiptRedrive` + re-enqueue)

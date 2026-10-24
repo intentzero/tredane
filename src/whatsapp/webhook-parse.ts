@@ -1,8 +1,22 @@
 /**
- * Normalização do payload oficial WhatsApp Cloud API (#32).
+ * Normalização do payload oficial WhatsApp Cloud API (#32/#34).
  * Não cria tenant a partir de clinicId externo — só extrai phone_number_id / wamid.
- * Formatos não suportados ficam explícitos (não silêncio); mídia R2 = #34.
+ * Mídia piloto (image/document/audio) → kind `media`; restantes → unsupported.
  */
+import {
+  defaultMimeForWhatsappType,
+  isWhatsappPilotMediaType,
+  previewLabelForMedia,
+  type WhatsappMediaType,
+} from '../attachments/policy'
+
+export type ParsedWebhookMedia = {
+  mediaId: string
+  mediaType: WhatsappMediaType
+  mimeType: string | null
+  filename: string | null
+  caption: string | null
+}
 
 export type ParsedWebhookItem =
   | {
@@ -13,6 +27,17 @@ export type ParsedWebhookItem =
       displayName?: string
       body: string
       messageType: 'text'
+      providerTimestamp: number | null
+    }
+  | {
+      kind: 'media'
+      providerEventKey: string
+      phoneNumberId: string
+      waId: string
+      displayName?: string
+      body: string
+      messageType: WhatsappMediaType
+      media: ParsedWebhookMedia
       providerTimestamp: number | null
     }
   | {
@@ -75,7 +100,30 @@ function textBody(message: Record<string, unknown>): string | null {
 }
 
 function unsupportedBody(messageType: string): string {
-  return `[Tipo não suportado: ${messageType}] — anexo/mídia aguarda #34; mensagem registada para não ser ignorada.`
+  return `[Tipo não suportado: ${messageType}] — fora da política piloto de anexos; mensagem registada para não ser ignorada.`
+}
+
+function extractMedia(
+  message: Record<string, unknown>,
+  messageType: WhatsappMediaType,
+): ParsedWebhookMedia | null {
+  const block = asRecord(message[messageType])
+  if (!block) return null
+  const mediaId = asString(block.id)
+  if (!mediaId) return null
+  return {
+    mediaId,
+    mediaType: messageType,
+    mimeType: asString(block.mime_type),
+    filename: asString(block.filename),
+    caption: asString(block.caption),
+  }
+}
+
+function mediaBody(media: ParsedWebhookMedia): string {
+  const caption = media.caption?.trim()
+  if (caption) return caption
+  return previewLabelForMedia(media.mediaType)
 }
 
 /**
@@ -189,6 +237,35 @@ export function parseWhatsappWebhookPayload(rawJson: unknown): ParseWebhookResul
             messageType: 'text',
             providerTimestamp,
           })
+        } else if (isWhatsappMessageMedia(messageType)) {
+          const media = extractMedia(m, messageType)
+          if (!media) {
+            items.push({
+              kind: 'unsupported',
+              providerEventKey: `wa:msg:${id}`,
+              phoneNumberId,
+              waId: from,
+              displayName,
+              body: unsupportedBody(messageType),
+              messageType,
+              providerTimestamp,
+            })
+          } else {
+            items.push({
+              kind: 'media',
+              providerEventKey: `wa:msg:${id}`,
+              phoneNumberId,
+              waId: from,
+              displayName,
+              body: mediaBody(media),
+              messageType,
+              media: {
+                ...media,
+                mimeType: media.mimeType ?? defaultMimeForWhatsappType(messageType),
+              },
+              providerTimestamp,
+            })
+          }
         } else {
           items.push({
             kind: 'unsupported',
@@ -229,4 +306,8 @@ export function parseWhatsappWebhookPayload(rawJson: unknown): ParseWebhookResul
   }
 
   return { items, discarded }
+}
+
+function isWhatsappMessageMedia(type: string): type is WhatsappMediaType {
+  return isWhatsappPilotMediaType(type)
 }

@@ -121,6 +121,19 @@ function itemToQueueMessage(
         messageType: item.messageType,
         providerTimestamp: item.providerTimestamp,
       }
+    case 'media':
+      return {
+        ...base,
+        kind: 'media',
+        waId: item.waId,
+        displayName: item.displayName,
+        body: item.body,
+        messageType: item.messageType,
+        mediaId: item.media.mediaId,
+        mediaMimeType: item.media.mimeType,
+        mediaFilename: item.media.filename,
+        providerTimestamp: item.providerTimestamp,
+      }
     case 'unsupported':
       return {
         ...base,
@@ -227,7 +240,7 @@ export async function ingestWhatsappWebhook(
       phoneNumberId: item.phoneNumberId,
       tenantId: resolved.tenantId,
       bindingId: resolved.bindingId,
-      kind: item.kind === 'message' ? 'message' : item.kind,
+      kind: item.kind,
       processingState: 'received',
       providerTimestamp: item.providerTimestamp,
       detail: {
