@@ -14,6 +14,8 @@ export function serializeSettings(row: ClinicSettingsRow) {
   return {
     tenantId: row.tenantId,
     timezone: row.timezone,
+    signalDeadlineSeconds: row.signalDeadlineSeconds,
+    signalCancellationPolicy: row.signalCancellationPolicy,
     updatedAt: row.updatedAt,
   }
 }
@@ -28,6 +30,10 @@ export function serializeService(row: ServiceRow) {
     priceCents: row.priceCents,
     clientExplanation: row.clientExplanation,
     active: row.active,
+    requiresSignal: row.requiresSignal,
+    signalKind: row.signalKind,
+    signalFixedCents: row.signalFixedCents,
+    signalPercent: row.signalPercent,
     professionalIds: row.professionalIds,
     roomRequirement: row.roomRequirement,
     createdAt: row.createdAt,

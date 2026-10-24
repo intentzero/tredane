@@ -53,6 +53,10 @@ import {
   createAttachmentRoutes,
   type AttachmentRouteOptions,
 } from '../attachments'
+import {
+  createPixAccountRoutes,
+  type PixAccountRouteOptions,
+} from '../pix-account'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
@@ -109,6 +113,8 @@ export type CreateAppOptions = {
   whatsappWebhook?: WhatsappWebhookRouteOptions
   /** Anexos R2 (#34). */
   attachments?: AttachmentRouteOptions
+  /** Conta Pix / sinais (#37). */
+  pixAccount?: PixAccountRouteOptions
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -202,6 +208,12 @@ export function createApp(opts: CreateAppOptions = {}) {
   app.route('/', createWhatsappWebhookRoutes(webhookOpts))
 
   app.route('/', createAttachmentRoutes(opts.attachments ?? {}))
+
+  const pixOpts: PixAccountRouteOptions = {
+    gatewayFactory: opts.pixAccount?.gatewayFactory,
+    connectDepsFactory: opts.pixAccount?.connectDepsFactory,
+  }
+  app.route('/', createPixAccountRoutes(pixOpts))
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

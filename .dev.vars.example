@@ -36,3 +36,9 @@ CLERK_AUTHORIZED_PARTIES=http://localhost:5173
 # META_GRAPH_API_VERSION=v25.0
 # Em synthetic, verify token / app secret têm defaults de teste (ver webhook-verify.ts).
 # Nunca versionar APP_SECRET, VERIFY_TOKEN de produção nem tokens de negócio.
+
+# #37 — Pix / Woovi (DEC-049). Default synthetic até GATE-08 (DPA + chaves humanas):
+# PIX_MODE=synthetic
+# PIX_TOKEN_SECRET=...   # cifra App ID em repouso (opcional em synthetic)
+# Em sandbox/live: App ID fica na conta da clínica (M-33), nunca no frontend.
+# Nunca versionar App IDs reais nem misturar sandbox/produção.

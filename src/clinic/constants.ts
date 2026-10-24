@@ -1,5 +1,5 @@
-/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#36). */
-export const CLINIC_SCHEMA_VERSION = 9
+/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#37). */
+export const CLINIC_SCHEMA_VERSION = 10
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -12,6 +12,7 @@ export const CLINIC_MIGRATION_NAMES = {
   7: '0007_outbound_send',
   8: '0008_attachments',
   9: '0009_appointments_booking',
+  10: '0010_pix_signal',
 } as const
 
 /**
@@ -38,6 +39,31 @@ export const APPOINTMENT_CHANGE_REASON_LABELS: Record<
   nao_compareceu: 'Não compareceu',
   outro: 'Outro',
 }
+
+/** Conta Pix da clínica (#37 / DEC-049). */
+export const PIX_ACCOUNT_STATUSES = [
+  'disconnected',
+  'connected',
+  'revoked',
+] as const
+
+export type PixAccountStatus = (typeof PIX_ACCOUNT_STATUSES)[number]
+
+export const PIX_ENVIRONMENTS = ['synthetic', 'sandbox', 'live'] as const
+
+export type PixEnvironment = (typeof PIX_ENVIRONMENTS)[number]
+
+export const PIX_CHARGE_STATUSES = [
+  'awaiting_payment',
+  'paid',
+  'expired',
+  'cancelled',
+  'refund_requested',
+  'refunded',
+  'refund_failed',
+] as const
+
+export type PixChargeStatus = (typeof PIX_CHARGE_STATUSES)[number]
 
 /** Estados de anexo (#34) — carregando / pronto / indisponível / falhou. */
 export const ATTACHMENT_STATUSES = [

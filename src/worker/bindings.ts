@@ -28,4 +28,11 @@ export type WorkerBindings = {
   META_VERIFY_TOKEN?: string
   /** Segredo HMAC para tokens efémeros de download de anexos (#34). */
   ATTACHMENT_TOKEN_SECRET?: string
+  /**
+   * Pix / Woovi (#37): `synthetic` (default) | `sandbox` | `live`.
+   * Live/sandbox reais exigem GATE-08 (DPA) + App ID da clínica; CI usa synthetic.
+   */
+  PIX_MODE?: string
+  /** Segredo para cifrar App ID Woovi em repouso (opcional em synthetic). */
+  PIX_TOKEN_SECRET?: string
 }

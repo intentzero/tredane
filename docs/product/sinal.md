@@ -1,6 +1,6 @@
 # Sinal por Pix para confirmar agendamento
 
-**Estado:** comportamento **Confirmado** pelo responsável pelo produto em 24/10/2026 ([DEC-047](decisions.md)), incluindo confirmação automática, prazo de 2 h e confirmar sem sinal; provedor de Pix **Confirmado: Woovi (OpenPix)** ([DEC-049](decisions.md), [ADR-0014](../adr/0014-pix-provider.md)); telas **Propostas** (TEL-11, M-31 a M-33). Muda a decisão anterior “pagamentos fora do MVP”: **o sinal por Pix entra no MVP**; qualquer outro pagamento continua fora. Dinheiro real continua bloqueado por DPA/jurídico e taxas contratuais; o adaptador simulado permanece até o adaptador real (#37+).
+**Estado:** comportamento **Confirmado** pelo responsável pelo produto em 24/10/2026 ([DEC-047](decisions.md)), incluindo confirmação automática, prazo de 2 h e confirmar sem sinal; provedor de Pix **Confirmado: Woovi (OpenPix)** ([DEC-049](decisions.md), [ADR-0014](../adr/0014-pix-provider.md)); telas **Propostas** (TEL-11, M-31 a M-33). Muda a decisão anterior “pagamentos fora do MVP”: **o sinal por Pix entra no MVP**; qualquer outro pagamento continua fora. Dinheiro real continua bloqueado por DPA/jurídico e taxas contratuais (GATE-08). Adaptador **Woovi** + conta/sinal (#37 / [f4-pix-account.md](../implementation/f4-pix-account.md)); cobrança na conversa = #38; confirmação de pagamento = #39.
 
 ## Objetivo
 
@@ -69,6 +69,6 @@ REQ-076 a REQ-082; AC-44 a AC-51 ([requisitos](requirements.md), [aceite](accept
 
 | Pergunta | Quem decide | Bloqueia |
 | --- | --- | --- |
-| DPA, papel do Tredane e taxas contratuais finais com Woovi | Jurídico + produto; revalidar notas públicas de taxa antes do piloto ([ADR-0014](../adr/0014-pix-provider.md)) | Dinheiro real e adaptador real em produção; **não** bloqueia testes com `SimulatedPixAdapter` |
+| DPA, papel do Tredane e taxas contratuais finais com Woovi | Jurídico + produto; revalidar notas públicas de taxa antes do piloto ([ADR-0014](../adr/0014-pix-provider.md)) | Dinheiro real / `PIX_MODE=live`; **não** bloqueia `WooviPixAdapter` + fixture sandbox nem `SimulatedPixAdapter` |
 | Texto do modelo de WhatsApp com a cobrança e aprovação na Meta | Responsável pelo produto | Envio fora da janela de 24 h; rascunho TMPL-03 em [whatsapp-templates-draft.md](whatsapp-templates-draft.md); GATE-10 |
 | Requisitos fiscais e contratuais do sinal (recibo, nota) e revisão jurídica | Advogado | Uso com clientes reais; GATE-11 em [pilot-gates.md](pilot-gates.md) |

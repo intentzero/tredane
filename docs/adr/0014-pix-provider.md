@@ -2,7 +2,7 @@
 
 - **Estado:** escolha do provedor **Confirmado** (24/10/2026): **Woovi (OpenPix)** — [DEC-049](../product/decisions.md). Avaliação de engenharia e matriz abaixo permanecem como evidência. O método (avaliação na F0) permanece **Confirmado** ([DEC-047](../product/decisions.md)).
 - **Origem:** [Sinal por Pix](../product/sinal.md), REQ-076 a REQ-082; issue [#17](https://github.com/intentzero/tredane/issues/17).
-- **Bloqueador de dinheiro real:** DPA/revisão jurídica e taxas contratuais finais (critérios 6–7). O adaptador **simulado** e o contrato em `src/pix/` cobrem testes sintéticos. O **adaptador real Woovi** e a conexão M-33 em produção ficam para issues posteriores (ex.: [#37](https://github.com/intentzero/tredane/issues/37)+), não para a F0/#17.
+- **Bloqueador de dinheiro real:** DPA/revisão jurídica e taxas contratuais finais (critérios 6–7 / GATE-08). O adaptador **simulado**, o contrato e o **`WooviPixAdapter`** com fixture sandbox cobrem testes sintéticos ([#37](https://github.com/intentzero/tredane/issues/37) / [f4-pix-account.md](../implementation/f4-pix-account.md)). Conta M-33 em produção com App ID real exige GATE-08.
 
 ## Problema
 
@@ -55,6 +55,6 @@ Foram comparados **quatro** provedores com Pix no Brasil. Fontes e data constam 
 
 ## Consequências
 
-- Em testes e na F0, o contrato de cobrança continua atrás de `PixProviderAdapter` com **`SimulatedPixAdapter`** (`src/pix/`).
-- Trocar de provedor depois afeta só o adaptador real e a conexão de conta (M-33).
-- Adaptador **real** Woovi, credenciais de sandbox (não versionadas) e revisão jurídica ficam para issues posteriores (ex.: #37+), após DPA e taxas contratuais.
+- Contrato `PixProviderAdapter` com **`SimulatedPixAdapter`** e **`WooviPixAdapter`** (`src/pix/`). CI usa fixture sandbox (sem conta live).
+- Trocar de provedor depois afeta só o adaptador e a conexão de conta (M-33).
+- App ID real / sandbox Woovi (não versionados) e revisão jurídica (GATE-08) bloqueiam dinheiro real; criação na conversa = #38; pagamento = #39.

@@ -8,6 +8,7 @@ import { SchedulesScreen } from './SchedulesScreen'
 import { ServiceForm, ServicesList } from './ServicesScreen'
 import { useClinicConfig } from './useClinicConfig'
 import { WhatsappScreen } from './whatsapp/WhatsappScreen'
+import { RecebimentoScreen } from './pix/RecebimentoScreen'
 
 type Props = {
   tenantId: string
@@ -41,6 +42,17 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         generation={generation}
         mode={mode}
         clinicName={clinicName}
+      />
+    )
+  }
+
+  if (section === 'recebimento') {
+    if (!api) return <LoadingState label="A carregar recebimento…" />
+    return (
+      <RecebimentoScreen
+        tenantId={tenantId}
+        api={api}
+        generation={generation}
       />
     )
   }

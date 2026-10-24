@@ -21,6 +21,7 @@ export type {
   CreateBlockInput,
   CreateBlockResult,
   RoomRequirement,
+  ServiceSignalKind,
 } from './types'
 export {
   assertMultipleOfGrid,

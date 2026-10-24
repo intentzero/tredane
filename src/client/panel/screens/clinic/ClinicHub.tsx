@@ -155,6 +155,25 @@ export function ClinicHub({ tenantId, snap }: Props) {
             <ChevronRight aria-hidden size={18} />
           </Button>
         </li>
+        <li>
+          <Button
+            className="clinic-nav-row"
+            onPress={() =>
+              navigatePanel({
+                kind: 'area',
+                area: 'clinica',
+                tenantId,
+                section: 'recebimento',
+              })
+            }
+          >
+            <span className="clinic-nav-copy">
+              <strong>Recebimento de sinais</strong>
+              <span>Conta Pix Woovi · prazo e política (M-33)</span>
+            </span>
+            <ChevronRight aria-hidden size={18} />
+          </Button>
+        </li>
       </ul>
 
       <p className="clinic-footnote">

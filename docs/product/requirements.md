@@ -185,7 +185,7 @@
 
 ### REQ-077 — Conta de recebimento da clínica
 
-**Prioridade/estado:** MVP / Confirmado (DEC-047, DEC-049); provedor **Woovi (OpenPix)** ([ADR-0014](../adr/0014-pix-provider.md)). **Origem:** ACT-03; JRN-08. **Comportamento:** a responsável conecta a conta da clínica no provedor de Pix (M-33); o Tredane nunca recebe o dinheiro. Sem conta conectada, serviços que exigem sinal não permitem enviar cobrança e a responsável vê o aviso. Desconectar não apaga cobranças já criadas. **Aceite:** AC-45. **Dados/tenant:** credenciais cifradas, usadas só pelo backend da clínica. Adaptador real e DPA ainda pendentes (#37+ / GATE-08).
+**Prioridade/estado:** MVP / Confirmado (DEC-047, DEC-049); provedor **Woovi (OpenPix)** ([ADR-0014](../adr/0014-pix-provider.md)). **Origem:** ACT-03; JRN-08. **Comportamento:** a responsável conecta a conta da clínica no provedor de Pix (M-33); o Tredane nunca recebe o dinheiro. Sem conta conectada, serviços que exigem sinal não permitem enviar cobrança e a responsável vê o aviso. Desconectar não apaga cobranças já criadas. **Aceite:** AC-45. **Dados/tenant:** credenciais cifradas, usadas só pelo backend da clínica. Adaptador Woovi + conta/sinal: [#37](https://github.com/intentzero/tredane/issues/37) / [f4-pix-account.md](../implementation/f4-pix-account.md). DPA/chaves live: GATE-08.
 
 ### REQ-078 — Enviar cobrança de sinal na conversa
 

@@ -1,5 +1,7 @@
 import type { BlockReason, ResourceKind } from '../constants'
 
+export type ServiceSignalKind = 'fixed' | 'percent'
+
 export type ServiceRow = {
   id: string
   tenantId: string
@@ -9,6 +11,11 @@ export type ServiceRow = {
   priceCents: number | null
   clientExplanation: string | null
   active: boolean
+  /** REQ-076 — sinal por serviço (só owner configura). */
+  requiresSignal: boolean
+  signalKind: ServiceSignalKind | null
+  signalFixedCents: number | null
+  signalPercent: number | null
   createdAt: number
   updatedAt: number
   professionalIds: string[]
@@ -82,6 +89,10 @@ export type AppointmentRow = {
 export type ClinicSettingsRow = {
   tenantId: string
   timezone: string
+  /** Prazo padrão do sinal em segundos (DEC-047: 7200). */
+  signalDeadlineSeconds: number
+  /** Política de cancelamento do sinal (texto da clínica). */
+  signalCancellationPolicy: string
   updatedAt: number
 }
 
@@ -127,6 +138,10 @@ export type UpsertServiceInput = {
   active?: boolean
   professionalIds: string[]
   roomRequirement?: RoomRequirement
+  requiresSignal?: boolean
+  signalKind?: ServiceSignalKind | null
+  signalFixedCents?: number | null
+  signalPercent?: number | null
 }
 
 export type UpsertResourceInput = {
