@@ -28,3 +28,5 @@ Adaptador de provedor com contratos tipados, acesso apenas a dados autorizados p
 ## Critérios de validação
 
 Cenários de preços ausentes, horário indisponível, risco clínico, mudança de contexto, tentativa de prompt injection e contexto de clínica errada. Medir qualidade da sugestão, percentagem editada/aceita, latência e custo. Autonomia futura exige novo ADR e critérios específicos.
+
+**Atualização (24/10/2026, DEC-046):** preço só do cadastro, explicação de procedimento só com o texto “Explicação para clientes” de cada serviço, pergunta clínica encaminhada à profissional e resposta cordial com aviso para mensagem ofensiva ou fora do assunto. O contexto enviado passa a incluir essa explicação (texto da clínica, sem dado pessoal). Ver REQ-073 a REQ-075.

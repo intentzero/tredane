@@ -185,7 +185,7 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
 **Início (M-15).** Faixa “Falta N passos para atender” com os itens pendentes e uma lista de áreas com o estado de cada uma (Pronto, Falta conectar). “Pronta para atender” exige: ao menos um serviço, um profissional, uma sala/equipamento, expediente e WhatsApp conectado (REQ-052, AC-14). Sem a configuração da agenda, M-04 mostra “A agenda desta clínica ainda não foi configurada”.
 
-**Serviço (M-16).** Nome, duração e intervalo depois (múltiplos de 15 min, DEC-008), quem pode fazer, sala/equipamento exigido, preço opcional e ativo/inativo. Um resumo mostra quanto tempo o serviço ocupa na agenda: duração + intervalo, bloqueando profissional e sala. Desativar um serviço não cancela compromissos já marcados. Nome, duração e preço também alimentam o contexto da IA (REQ-072).
+**Serviço (M-16).** Nome, duração e intervalo depois (múltiplos de 15 min, DEC-008), quem pode fazer, sala/equipamento exigido, preço opcional, **explicação para clientes** opcional (usada pela IA, DEC-046) e ativo/inativo. Um resumo mostra quanto tempo o serviço ocupa na agenda: duração + intervalo, bloqueando profissional e sala. Desativar um serviço não cancela compromissos já marcados. Nome, duração e preço também alimentam o contexto da IA (REQ-072).
 
 **Horários e bloqueios (M-17).** Por profissional e por sala/equipamento: expediente semanal (faixas por dia) e bloqueios pontuais com data, horário opcional e motivo; sem recorrência no MVP (DEC-008). Criar um bloqueio sobre compromissos existentes lista os compromissos afetados e não os cancela sozinho; o responsável decide caso a caso (fluxo de cancelar ou reagendar com motivo, TEL-06).
 
@@ -275,7 +275,11 @@ Ver seção 6.2.
 - Mensagem enviada a partir de sugestão registra a origem (“Sugestão da IA, editada por Ana”) no histórico interno, não para o contato.
 - **Resumo da IA** no painel do contato: gerado sob demanda, com horário de geração e aviso “Pode conter erros. Confira na conversa.”
 - Falha ou indisponibilidade: “A sugestão não está disponível agora. Você pode responder normalmente.” O compositor continua ativo (AC-06).
-- Pergunta clínica (contraindicação, diagnóstico): **Proposto** — a sugestão traz o aviso “Assunto clínico: encaminhe a um profissional” e não responde o mérito (ADR-0004). Critério de detecção depende do provedor.
+- **Preço (Confirmado, DEC-046, REQ-073):** só o preço cadastrado; sem preço, a sugestão não informa valor e mostra “Serviço sem preço cadastrado. A IA não informou valor.”
+- **Procedimento (Confirmado, DEC-046, REQ-075):** a sugestão explica o serviço só com a “Explicação para clientes” cadastrada e mostra “Fonte: explicação cadastrada pela clínica em …”; sem explicação, não descreve. Nunca promete resultado.
+- **Pergunta clínica** (contraindicação, gravidez, medicamento, diagnóstico): aviso “Assunto clínico: encaminhe a uma profissional” e nenhuma resposta de mérito (**Confirmado**, DEC-046; antes Proposto, ADR-0004).
+- **Mensagem ofensiva ou fora do assunto (Confirmado, DEC-046, REQ-074):** aviso à atendente (“Mensagem ofensiva. Você não precisa responder.” ou “Fora do assunto da clínica.”) e sugestão curta e cordial que recoloca o limite. Desenhado em M-30.
+- **Em aberto:** critério de detecção dos três casos acima; depende de testes com o provedor e de exemplos fictícios da clínica piloto.
 - A IA não agenda, cancela nem muda etapa (Fora do MVP).
 
 ## 7. Acessibilidade e legibilidade
@@ -306,10 +310,11 @@ Ver seção 6.2.
 | TEL-06 Compromisso | JRN-05 | REQ-032, REQ-033 | AC-10 |
 | TEL-07 Estados globais | JRN-07 | REQ-001, REQ-003, REQ-040, REQ-041, REQ-042 | AC-01, AC-02, AC-11, AC-12 |
 | TEL-08 Entrar e escolher clínica | JRN-07, JRN-08 | REQ-005 | AC-17 |
+| §6.3 IA: preço, procedimento e mensagens ofensivas | JRN-02 | REQ-073, REQ-074, REQ-075 | AC-41, AC-42, AC-43 |
 | TEL-10 Suporte do Tredane | JRN-08 | REQ-060 a REQ-066 | AC-27 a AC-35 |
 | TEL-09 Clínica (configuração) | JRN-08 | REQ-002, REQ-003, REQ-004, REQ-051, REQ-052, REQ-071 | AC-03, AC-14, AC-38, AC-39, AC-40 |
 
-Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-27 a M-29 → TEL-10; M-15 a M-26 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos; M-19 e M-23 a M-26: WhatsApp). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
+Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-30 → IA em casos especiais (§6.3); M-27 a M-29 → TEL-10; M-15 a M-26 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos; M-19 e M-23 a M-26: WhatsApp). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
 
 ## 10. Critérios de aceite de UX
 
