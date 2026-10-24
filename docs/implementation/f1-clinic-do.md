@@ -48,4 +48,4 @@
 - Auth Clerk — [#21](f1-clerk-auth.md); WS + fence D1→DO — [#23](f1-realtime-ws.md)
 - Agenda/pipeline/WhatsApp completos (F2/F3)
 - Índice global WhatsApp→tenant (issue de conexão)
-- Telas do painel (#22; biblioteca Confirmada em DEC-048 — React Aria)
+- Telas de conteúdo F2+ (login/nav = [#22](f1-login-nav.md))

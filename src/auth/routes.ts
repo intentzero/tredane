@@ -32,6 +32,7 @@ export function createAuthRoutes(): Hono<AuthEnv> {
     return c.json({
       tenants: memberships.map((m) => ({
         tenantId: m.tenantId,
+        name: m.tenantName,
         role: m.role,
         status: m.status,
       })),

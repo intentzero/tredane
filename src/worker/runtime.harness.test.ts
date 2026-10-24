@@ -281,8 +281,18 @@ describe('Cloudflare runtime harness — F0', () => {
     expect(multi.status).toBe(200)
     await expect(multi.json()).resolves.toEqual({
       tenants: [
-        { tenantId: 'clinic-demo-a', role: 'owner', status: 'active' },
-        { tenantId: 'clinic-demo-b', role: 'attendant', status: 'active' },
+        {
+          tenantId: 'clinic-demo-a',
+          name: 'Clínica Aurora (fictícia)',
+          role: 'owner',
+          status: 'active',
+        },
+        {
+          tenantId: 'clinic-demo-b',
+          name: 'Estúdio Horizonte (fictício)',
+          role: 'attendant',
+          status: 'active',
+        },
       ],
     })
 

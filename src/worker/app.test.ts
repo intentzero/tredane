@@ -28,6 +28,16 @@ describe('Worker API — F0/F1 harness', () => {
     })
   })
 
+  it('exposes client auth bootstrap without secrets', async () => {
+    const response = await app.request('http://localhost/api/auth/client-config')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
+    expect(await response.json()).toEqual({
+      authMode: 'synthetic',
+      clerkPublishableKey: null,
+    })
+  })
+
   it('does not expose unimplemented collection routes', async () => {
     const response = await app.request('http://localhost/api/tenants')
     expect(response.status).toBe(404)

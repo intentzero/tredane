@@ -76,8 +76,18 @@ describe('HTTP — Clerk/tenant auth (#21)', () => {
       expect(res.status).toBe(200)
       expect(await res.json()).toEqual({
         tenants: [
-          { tenantId: 'clinic-demo-a', role: 'owner', status: 'active' },
-          { tenantId: 'clinic-demo-b', role: 'attendant', status: 'active' },
+          {
+            tenantId: 'clinic-demo-a',
+            name: 'Clínica Aurora (fictícia)',
+            role: 'owner',
+            status: 'active',
+          },
+          {
+            tenantId: 'clinic-demo-b',
+            name: 'Estúdio Horizonte (fictício)',
+            role: 'attendant',
+            status: 'active',
+          },
         ],
       })
     } finally {

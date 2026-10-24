@@ -1,6 +1,6 @@
 # F1 — Equipe, convites por e-mail e remoção de attendants
 
-**Estado:** implementação da issue [#25](https://github.com/intentzero/tredane/issues/25) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Equipe + convites + e-mail simulado + remoção com barreira D1→DO (#23). **Sem** UI de login (#22; biblioteca Confirmada em DEC-048 — React Aria). Dados sintéticos apenas.
+**Estado:** implementação da issue [#25](https://github.com/intentzero/tredane/issues/25) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Equipe + convites + e-mail simulado + remoção com barreira D1→DO (#23). UI login/nav = [#22](f1-login-nav.md); UI Equipe ainda fora. Dados sintéticos apenas.
 
 ## Decisões aplicadas (Confirmado)
 
@@ -47,7 +47,7 @@ Código: `src/team/`, `src/email/`, e-mail verificado em `src/auth/verified-emai
 
 ## Fora deste PR
 
-- UI Equipe / login (#22)
+- UI Equipe (login = [#22](f1-login-nav.md))
 - Provedor de e-mail real e secrets de produção
 - Controles antiabuso globais (IP/owner) além de DEC-024
 - Notificação ao destinatário quando o convite é cancelado

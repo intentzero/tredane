@@ -33,7 +33,8 @@ function parseAuthorizedParties(raw: string | undefined): string[] {
     .filter(Boolean)
 }
 
-function resolveAuthMode(env: WorkerAuthEnv): 'clerk' | 'synthetic' {
+/** Resolve AUTH_MODE for Worker e bootstrap do cliente (#22). */
+export function resolveAuthMode(env: WorkerAuthEnv): 'clerk' | 'synthetic' {
   const explicit = env.AUTH_MODE?.trim().toLowerCase()
   if (explicit === 'synthetic') {
     const environment = env.ENVIRONMENT ?? 'development'

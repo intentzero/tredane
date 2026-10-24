@@ -74,9 +74,10 @@ export function App() {
           </div>
         </section>
         <p className="footnote">
-          Protótipo de fundação sem login, dados reais ou integração com o WhatsApp. Não utilizar
-          para atendimentos. Área de prova React Aria (issue #16 · DEC-048):{' '}
-          <a href="/prova">/prova</a>.
+          Fundação F0 sem dados reais. Painel Clinic App (login · seletor · nav — issue #22):{' '}
+          <a href="/entrar">/entrar</a>
+          {' · '}
+          prova React Aria (DEC-048): <a href="/prova">/prova</a>.
         </p>
       </main>
       <footer>© {new Date().getFullYear()} Tredane · Fundação do produto</footer>

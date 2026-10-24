@@ -23,6 +23,11 @@ export type AsyncMembershipRow = {
   revokedAt: number | null
 }
 
+/** Membership ativa com nome do tenant — lista do seletor (#22). */
+export type AsyncTenantMembershipSummary = AsyncMembershipRow & {
+  tenantName: string
+}
+
 async function assertAdminSchemaReadyAsync(db: AsyncAdminDb): Promise<void> {
   let row: { version: number } | undefined
   try {
@@ -149,7 +154,7 @@ export async function getMembershipAsync(
 export async function listActiveMembershipsForUserAsync(
   db: AsyncAdminDb,
   clerkUserId: string,
-): Promise<AsyncMembershipRow[]> {
+): Promise<AsyncTenantMembershipSummary[]> {
   await assertAdminSchemaReadyAsync(db)
   const rows = await db.all<{
     tenant_id: string
@@ -158,15 +163,20 @@ export async function listActiveMembershipsForUserAsync(
     status: string
     created_at: number
     revoked_at: number | null
+    tenant_name: string
   }>(
-    `SELECT m.tenant_id, m.clerk_user_id, m.role, m.status, m.created_at, m.revoked_at
+    `SELECT m.tenant_id, m.clerk_user_id, m.role, m.status, m.created_at, m.revoked_at,
+            t.name AS tenant_name
      FROM tenant_memberships m
      INNER JOIN tenants t ON t.id = m.tenant_id
      WHERE m.clerk_user_id = ? AND m.status = 'active' AND t.status = 'active'
      ORDER BY m.tenant_id`,
     clerkUserId,
   )
-  return rows.map(mapMembership)
+  return rows.map((row) => ({
+    ...mapMembership(row),
+    tenantName: row.tenant_name,
+  }))
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   buildAuthServices,
   createAuthRoutes,
   createAuthServicesMiddleware,
+  resolveAuthMode,
   type AuthDepsFactory,
   type AuthEnv,
   type AuthServices,
@@ -114,6 +115,25 @@ export function createApp(opts: CreateAppOptions = {}) {
       service: 'tredane',
       phase: 'f1',
       environment: c.env?.ENVIRONMENT ?? 'development',
+    })
+  })
+
+  /**
+   * Bootstrap do cliente (#22): modo de auth e chave pública Clerk.
+   * Sem secret key; publishable key é pública por desenho.
+   */
+  app.get('/api/auth/client-config', (c) => {
+    c.header('Cache-Control', 'no-store')
+    const mode = resolveAuthMode({
+      ENVIRONMENT: c.env?.ENVIRONMENT,
+      AUTH_MODE: c.env?.AUTH_MODE,
+      CLERK_SECRET_KEY: c.env?.CLERK_SECRET_KEY,
+      CLERK_PUBLISHABLE_KEY: c.env?.CLERK_PUBLISHABLE_KEY,
+    })
+    return c.json({
+      authMode: mode,
+      clerkPublishableKey:
+        mode === 'clerk' ? (c.env?.CLERK_PUBLISHABLE_KEY ?? null) : null,
     })
   })
 

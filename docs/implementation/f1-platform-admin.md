@@ -1,6 +1,6 @@
 # F1 — Platform Admin e ciclo de tenants/owners
 
-**Estado:** implementação da issue [#24](https://github.com/intentzero/tredane/issues/24) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Platform Admin + ciclo de vida no D1, com propagação D1→DO. **Sem** UI de login (#22; biblioteca-base Confirmada em DEC-048 — React Aria). Dados sintéticos apenas.
+**Estado:** implementação da issue [#24](https://github.com/intentzero/tredane/issues/24) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Platform Admin + ciclo de vida no D1, com propagação D1→DO. UI Clinic App = [#22](f1-login-nav.md); Platform Admin UI ainda fora. Dados sintéticos apenas.
 
 ## Decisões aplicadas (Confirmado)
 
@@ -52,7 +52,7 @@ Código: `src/platform/`, repositórios em `src/db/admin/` (`owners`, `lifecycle
 
 ## Fora deste PR
 
-- UI Platform Admin / login (#22)
+- UI Platform Admin (login Clinic App = [#22](f1-login-nav.md))
 - Tarefa de retenção que consome `tenant_deletion_commands` até expurgo físico
 - Sessões de suporte HTTP completas / handoff cookies (épico suporte)
 - Convites HTTP do owner — ver [f1-team-invites.md](f1-team-invites.md) (#25)

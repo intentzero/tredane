@@ -60,6 +60,6 @@ Harness (não produto): `/api/f1/clinic/.../authority-override`, `revalidate-soc
 
 ## Fora deste PR
 
-- Login UI / seletor de clínica (#22)
+- Login UI / seletor — entregue em [#22](f1-login-nav.md)
 - Ciclo completo de suporte WS (DEC-029–037) — fence reutilizável já exposto (`FenceSource`)
 - Domínio F2/F3 (agenda/pipeline/WhatsApp completo)
