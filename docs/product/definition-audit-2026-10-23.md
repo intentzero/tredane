@@ -62,6 +62,8 @@
 
 **DEC-036 fechou visibilidade do suporte ativo:** owners do tenant acompanham tudo no painel e o utilizador representado recebe aviso próprio no seu tenant enquanto suporte estiver ativo; outros attendants não veem. E-mail de início apenas owners (DEC-035). Falta implementar/testar notificação seletiva e transições de estado.
 
+**DEC-037 confirmada:** utilizador representado pode solicitar encerramento de suporte ativo; owners da clínica decidem manter ou encerrar, com solicitação/decisão auditadas. Enquanto aguarda, sessão continua até revogação ou até 30 minutos, sem suspensão ou extensão. Prazo de resposta ainda em aberto; implementação e testes de autorização/DO pendentes.
+
 ## Decisões fechadas
 
 - Clerk sem Organizations; `privateMetadata.superadmin` estritamente booleano e validado pelo backend.

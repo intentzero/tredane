@@ -60,6 +60,16 @@ Owner de outro tenant e attendant não podem encerrar sessão de A; revogar aces
 - **DEC-035 permanece:** o e-mail de início é dirigido aos owners, **não** ao subject (salvo se também tiver role owner); não criar novo e-mail para subject sem decisão futura.
 - O aviso de subject **não concede** aprovação, revogação ou outros privilégios além da membership habitual. DEC-034 continua a definir quem encerra a sessão. Casos de teste: subject attendant, subject owner, dois attendants na mesma clínica, dois tenants no mesmo Clerk user, múltiplas abas, WebSocket hibernado e logout/remoção de membership.
 
+## Pedido de encerramento pelo utilizador representado — DEC-037
+
+- Durante **sessão efetivamente `active`**, o subject autenticado na **sua própria sessão Clerk** pode clicar em **Solicitar encerramento** no aviso de suporte da própria conta e tenant (DEC-036). É uma **solicitação**, não um encerramento imediato e não equivale à revogação por owner (DEC-034).
+- A API confirma `authenticated_clerk_user_id == support_sessions.subject_clerk_user_id`, `tenant_id` efetivo, membership ainda válido e sessão ativa. Outros attendants e subjects de outra clínica não podem criar pedidos nessa sessão. Não confiar em IDs fornecidos pelo browser como autorização.
+- Persistir pedido (modelo candidato `support_termination_requests`) com `support_session_id`, `tenant_id`, `requested_by_subject_clerk_user_id`, `requested_at`, `status` (`pending | accepted | declined | closed_with_session`), `decided_by_owner_clerk_user_id` e `decided_at`. Registrar auditoria e tornar o pedido visível **em tempo real no painel de todos os owners ativos daquele tenant**, sem broadcast para outros attendants. Usar idempotência por sessão + solicitação aberta contra duplo clique e retries; o tratamento de novos pedidos após uma rejeição requer validação de UX/antiabuso.
+- Owner autenticado e autorizado decide **Encerrar suporte** (aceita, revoga imediatamente por DEC-034) ou **Manter suporte** (registra que não interrompeu). A decisão é auditada com owner/tenant/sessão, comunicada no painel e ao subject, sem poderes extra para o subject. O superadmin actor conserva a opção de encerrar a própria sessão (DEC-034).
+- **Enquanto aguarda a decisão**, a sessão permanece autorizada dentro de seu escopo até um owner ou actor encerrá-la, ou até vencer o TTL **original de 30 minutos**. A solicitação não pausa o acesso, não altera `expires_at`, não renova a sessão e não abre credenciais novas. Pedido pendente se encerra/arquiva quando a sessão expira ou é revogada, preservando a auditoria.
+- **Ainda não decidido:** prazo máximo de resposta de owner e se um pedido não respondido pode antecipar automaticamente o encerramento; não inferir essa política nesta decisão. DEC-035 mantém e-mail de início exclusivamente para owners, sem novo e-mail por este pedido.
+- Testes: subject S vs attendant T, owner que também é subject, tenants A/B, dois owners decidindo concorrentemente, sessões já vencidas/revogadas, reenvio/retry, eventos em DO hibernado, decisão de manter e expiração de 30 minutos enquanto pedido aguarda.
+
 ## Contrato técnico candidato — não implementado
 
 1. Superadmin autenticado com `privateMetadata.superadmin === true` verificado no backend cria `support_access_requests` em estado `pending` no D1, com actor/subject/tenant/motivo/escopo.

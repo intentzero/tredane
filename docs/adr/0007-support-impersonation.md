@@ -106,6 +106,10 @@ Após ativação efetiva da sessão aprovada, avisar por **e-mail de início** o
 
 Owners ativos do tenant continuam a acompanhar sessão de suporte e encerramento no painel (DEC-035). **O utilizador representado recebe também aviso visível no seu próprio painel da Clinic App**, somente enquanto o suporte estiver ativo naquele tenant. A mensagem não representa Clerk impersonation: o superadmin continua autenticado como actor real e há sessão própria do Tredane. Encaminhar estado da sessão ao subject por evento restrito a `tenant_id + subject_clerk_user_id`, sem notificar outros attendants. Atualizar/remover o aviso no término, reconciliando após reconexão/hibernação. O aviso não aprova, encerra nem aumenta capacidades; e-mail de início permanece somente para owners (DEC-035).
 
+## Solicitação de encerramento pelo subject — DEC-037
+
+O utilizador representado pode solicitar o encerramento da sessão ativa **pelo seu próprio painel Clerk**, mas não revogá-la diretamente. A solicitação, vinculada ao subject/tenant/sessão, é auditada e exibida em tempo real aos owners autorizados, que decidem encerrar (DEC-034) ou manter, também com auditoria. Até uma revogação ou ao limite original de 30 minutos, o acesso do superadmin continua condicionado às mesmas permissões/TTL (DEC-032), sem suspensão automática. Um pedido sem resposta não altera direitos; prazo de resposta dos owners será decidido separadamente. Não mandar e-mail novo ao subject/owners por esta ação no recorte atual (DEC-035).
+
 ## Políticas mínimas de segurança
 
 - **TTL da sessão (DEC-032):** 30 minutos fixos desde ativação, com encerramento antecipado e sem renovação automática. O prazo de 24 horas da DEC-031 é apenas para decidir o pedido pendente.

@@ -147,6 +147,12 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - Após os 30 minutos, revogação por owner ou término voluntário do superadmin, o aviso de suporte ativo deixa de aparecer ao subject. Se offline, ao regressar a Clinic App consulta estado vigente; eventos WebSocket são filtrados por subject + tenant.
 - O aviso do subject não permite aprovar nem encerrar sessão (DEC-034). A política de e-mail da DEC-035 continua destinada a owners, sem e-mail adicional ao subject.
 
+## DEC-037 — Subject solicita encerramento do suporte
+
+- Enquanto o aviso contextual de suporte está ativo na própria clínica, o subject pode escolher **Solicitar encerramento**. O pedido é ligado à sessão e auditado, e todos os owners ativos daquele tenant veem-no em tempo real no painel.
+- Owner decide **Encerrar suporte** (revogação imediata conforme DEC-034) ou **Manter suporte**, com auditoria. Subject recebe atualização; outros attendants não veem nem podem emitir o pedido.
+- Na ausência de decisão, a sessão de 30 minutos **continua** até revogação manual ou expiração natural; pedido não estende nem pausa o TTL. O prazo máximo de resposta dos owners será decidido separadamente. Estado persiste para reconexões e pedido aberto fecha ao terminar a sessão.
+
 ## JRN-15 — Sessão Clerk sem MFA no MVP
 
 - **Confirmado (DEC-028):** sem MFA para superadmin, owner e attendant. A decisão antiga DEC-027 está substituída.

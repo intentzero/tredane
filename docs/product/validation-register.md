@@ -33,6 +33,8 @@
 
 **DEC-036 confirmada:** visibilidade de suporte ativo para todos os owners **e** aviso contextual ao utilizador representado na própria conta/tenant. Não avisar outros attendants; o e-mail de início continua restrito a owners (DEC-035). Validar conteúdo claro da mensagem, isolamento tenant + subject, WebSocket/reconexão e término sem estado obsoleto antes de operar dados reais.
 
+**DEC-037 confirmada:** subject pode solicitar encerramento na Clinic App; a solicitação fica auditada e aparece em tempo real a owners, que decidem manter ou encerrar. Pedido não suspende a sessão nem muda seu TTL de 30 minutos. Validar UX, privacidade, visibilidade tenant+subject, comportamento de duas decisões concorrentes e eventual prazo de resposta de owner antes de dados reais.
+
 ## Evidência mínima a recolher com a clínica piloto
 
 - Jornada real desde chegada da mensagem até agendamento e resposta de confirmação.

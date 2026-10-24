@@ -44,6 +44,8 @@
 
 **DEC-036 — aviso de suporte ao subject:** durante sessão `active`, owners veem acompanhamento completo; subject representado vê aviso específico na sua Clinic App, usando sua **sessão Clerk própria**, sem alteração de identidade ou privilégios. Filtrar push DO/WebSocket por tenant + subject, sem broadcast a outros attendants; reconciliar após reconexão/hibernação e remover estado ativo ao término. Sem e-mail adicional ao subject (DEC-035), sem botão de aprovação/revogação do subject. Testar duas clínicas/duas abas, subject owner, attendants distintos e estado stale ao expirar.
 
+**DEC-037 — pedir encerramento sem revogação direta:** adicionar ação **Solicitar encerramento** ao banner do subject, API Clerk/tenant/subject verificada no Worker, registro D1 e auditoria de pedido, evento DO/WebSocket restrito aos owners. Owners decidem **Encerrar** (DEC-034) ou **Manter**, com decisão auditada e status para o subject; pedidos repetidos pendentes idempotentes. Sem pausar/estender sessão de 30 minutos enquanto aguarda. Testar outro attendant, outra clínica, sessão expirada, múltiplos owners, duplo clique, reconexão e fim natural. Prazo de resposta owner ainda por decidir.
+
 ## Backlog técnico por épico
 
 ### EP-T01 — Base de execução e CI

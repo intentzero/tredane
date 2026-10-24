@@ -148,6 +148,10 @@
 
 **Dado** tenant A com owners O1/O2, subject S e attendant T, e uma sessão de suporte aprovada que passa a `active`; **então** O1/O2 veem o estado completo no painel e S, autenticado na sua própria Clinic App, vê um **aviso específico de suporte no contexto da sua conta**, sem que o superadmin obtenha sessão Clerk de S. **T não vê** o aviso relativo a S. Se o mesmo Clerk user pertence a B, o aviso de A não aparece em B. Quando a sessão termina por expiração/encerramento, o aviso ativo de S é removido/atualizado inclusive após WebSocket desconectado/hibernado. O subject não ganha poderes de aprovação ou revogação (DEC-034), e não recebe novo e-mail de início apenas por ser subject (DEC-035). **Requisitos:** REQ-007/064/065; DEC-036.
 
+### AC-35 — Subject solicita encerramento e owner decide
+
+**Dado** suporte ativo na clínica A representando S, com owners O1/O2 e attendant T; **quando** S usa **Solicitar encerramento** na sua Clinic App, **então** apenas uma solicitação pendente por sessão/subject é criada de forma idempotente e auditada, visível a O1/O2 em tempo real; T não pode gerar nem ver pedido de S, e owner exclusivo de B não o recebe. **Enquanto** owners não decidem, a sessão de suporte mantém o TTL original e autorizações vigentes, até 30 minutos no máximo. **Quando** owner de A escolhe Encerrar, aplica-se revogação imediata DEC-034; quando escolhe Manter, a decisão é registrada e S recebe estado atualizado. Cliques após expiração/revogação e IDs alterados são negados. Sem e-mail adicional nem permissão de revogar diretamente para S. **Requisitos:** REQ-063/065/066, DEC-037.
+
 ## Condições para usar estes cenários como aprovação
 
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.
