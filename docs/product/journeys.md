@@ -129,6 +129,12 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - Após os 30 minutos ou encerramento antecipado, o superadmin **não pode estender** a sessão; precisa abrir **novo pedido**, receber **nova aprovação de owner** e só então ativar outra sessão de 30 minutos.
 - O pedido novo vale até 24 horas; a autorização e os cookies da sessão encerrada permanecem inválidos. Cada pedido e sessão têm auditoria própria.
 
+## DEC-034 — Encerramento por qualquer owner do tenant
+
+- Owner ativo vê sessões de suporte em curso no seu tenant e pode escolher **Encerrar suporte** mesmo que outro owner tenha aprovado. O superadmin actor também pode encerrar sua própria sessão.
+- O backend invalida a sessão de suporte de maneira atómica e auditada no D1; nenhuma API ou WebSocket desse contexto volta a entregar dados. O painel apresenta a sessão como encerrada.
+- Atendente/owner de outro tenant não conseguem encerrar A. A ação não remove memberships nem encerra a sessão Clerk. Para voltar a prestar suporte, seguir novo pedido e aprovação (DEC-033).
+
 ## JRN-15 — Sessão Clerk sem MFA no MVP
 
 - **Confirmado (DEC-028):** sem MFA para superadmin, owner e attendant. A decisão antiga DEC-027 está substituída.

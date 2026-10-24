@@ -35,6 +35,14 @@ O superadmin pode encerrar a sessão antes dos 30 minutos, com auditoria e inval
 
 A sessão própria do superadmin termina ao expirar ou encerrar antecipadamente: **não existe extensão ou renovação da sessão de 30 minutos**. Para continuar, superadmin cria **novo pedido de suporte**, independente, válido por 24 horas, e precisa obter **nova aprovação expressa de owner ativo do tenant**. Apenas depois dessa decisão é criada **nova sessão própria de 30 minutos**, com ID, handoff, cookie, `activated_at`, `expires_at` e auditoria independentes. Não reativar sessão encerrada, reaproveitar aprovação, estender `expires_at` ou oferecer API `extend/renew`. Espera por nova aprovação não concede HTTP/WebSocket. Testar replay, concorrência, troca de owner e isolamento entre tenants.
 
+## Revogação de sessão ativa — DEC-034
+
+**Qualquer owner ativo do mesmo tenant** pode encerrar **qualquer sessão de suporte ativa**, independentemente de quem a aprovou. O superadmin actor pode terminar voluntariamente a própria sessão. O backend valida sessão Clerk, role owner atual no D1 e tenant, ou, para encerramento pelo superadmin, identidade do actor **daquela** sessão; outro superadmin não recebe autorização implícita para terminá-la.
+
+A Clinic App exibe aos owners ativos sessões de suporte do seu tenant e ação **Encerrar suporte**. A API transiciona o estado de `active` para `revoked/ended` **atomicamente** no D1, com revogador, tenant, sessão e instante auditados. Encerramentos repetidos não reativam a sessão. Desde a confirmação, bloquear HTTP e novas entregas WebSocket do suporte, invalidando cookie e handoff. O Durable Object deve encerrar/inutilizar sockets mesmo se hibernados ou se a sinalização falhar; checar autorização vigente antes do fan-out para evitar permissões obsoletas.
+
+Owner de outro tenant e attendant não podem encerrar sessão de A; revogar acesso de suporte não remove o subject do tenant nem encerra Clerk do actor ou outros tenants. Qualquer continuação exige novo pedido e aprovação (DEC-033). Testar O1 aprovador/O2 revogador, solicitações simultâneas, websocket hibernado, concorrência com publicação, replay de cookie e auditoria.
+
 ## Contrato técnico candidato — não implementado
 
 1. Superadmin autenticado com `privateMetadata.superadmin === true` verificado no backend cria `support_access_requests` em estado `pending` no D1, com actor/subject/tenant/motivo/escopo.
@@ -54,9 +62,9 @@ Estados: `pending`, `approved`, `rejected`, `expired`, `revoked` e `cancelled`. 
 
 ## Pendências explícitas
 
-- **Revogação da sessão ativa por owner** (próxima decisão). Continuação já definida em DEC-033. Prazo de pedido pendente fixado em 24 horas por DEC-031.
-- **Como revogar sessão ativa como owner**. Continuação por nova aprovação já decidida em DEC-033. Pedido pendente expira em 24 horas (DEC-031).
-- Política de revogação pelo owner com sessão ativa, notificações e auditoria; sem autorização válida, bloquear por padrão.
+- **Revogação de sessão ativa por qualquer owner do tenant confirmada em DEC-034**; notificações e UX detalhada ainda em aberto. Prazo de pedido pendente fixado em 24 horas por DEC-031.
+- **Avisos e experiência de revogação da sessão** ainda por validar; decisão de quem revoga fechada em DEC-034. Pedido pendente expira em 24 horas (DEC-031).
+- **DEC-034 confirmou que qualquer owner ativo da clínica revoga sessão de suporte**, inclusive aprovada por outro; avisos e UX ainda por detalhar.
 - Privacidade/LGPD, retenção de pedidos e logs, política sem owner disponível e revisão de segurança com dados reais.
 
 A decisão de produto não representa implementação nem aprovação para dados reais.

@@ -56,6 +56,8 @@
 
 **DEC-033 confirmou que sessões de suporte não são extensíveis:** a continuação exige novo pedido, nova aprovação por owner e sessão independente de 30 minutos. Implementação, privacidade, segurança e testes permanecem pendentes.
 
+**DEC-034 aprovada:** qualquer owner ativo do tenant pode revogar suporte ativo, independentemente do aprovador, e o superadmin actor pode encerrá-lo. HTTP/WS devem ser bloqueados imediatamente com auditoria; protocolo de execução, UX e testes ainda pendentes.
+
 ## Decisões fechadas
 
 - Clerk sem Organizations; `privateMetadata.superadmin` estritamente booleano e validado pelo backend.

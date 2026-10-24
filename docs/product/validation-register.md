@@ -27,6 +27,8 @@
 
 **DEC-033 confirmada:** para continuar suporte, nova solicitação de 24 horas, nova aprovação de owner e nova sessão de 30 minutos; não há extensão. Testar replay, sessões anteriores, auditoria, autorização e WebSockets antes de operar dados reais.
 
+**DEC-034 aprovada:** qualquer owner ativo da clínica pode encerrar sessão de suporte já autorizada (não apenas o aprovador original); o superadmin actor também pode encerrar voluntariamente. Confirmar implementação de corte imediato HTTP/WebSocket, visibilidade no painel e auditoria; notificações e UX final ainda por validar.
+
 ## Evidência mínima a recolher com a clínica piloto
 
 - Jornada real desde chegada da mensagem até agendamento e resposta de confirmação.

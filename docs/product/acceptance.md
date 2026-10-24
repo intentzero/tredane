@@ -136,6 +136,10 @@
 
 **Dado** sessão já encerrada ou expirada, **quando** o superadmin tenta estender seu prazo, usar antigo handoff/cookie ou reaproveitar aprovação, **então** nenhum acesso é permitido. **Quando** faz nova solicitação e um owner ativo da mesma clínica a aprova expressamente no Tredane, **então** pode nascer outra sessão independente de 30 minutos com ID, credenciais e auditoria próprios. O novo pedido pendente tem prazo de 24 horas. Requisitos REQ-007/061/062, DEC-033.
 
+### AC-32 — Revogação por outro owner da mesma clínica
+
+**Dado** owners O1 e O2 de A e sessão de suporte ativa aprovada por O1; **quando** O2 escolhe Encerrar suporte, **então** o Worker confirma membership owner atual de O2 em A, marca sessão como encerrada/revogada atomicamente no D1, audita O2 e bloqueia imediatamente chamadas HTTP, cookie/handoff e novas entregas WebSocket daquele suporte. O superadmin actor pode igualmente encerrar sua própria sessão. **Quando** owner só de B, attendant de A ou superadmin não actor tenta encerrar, **então** recebe negação sem efeito. Subject mantém membership e actor mantém login Clerk. Testar DO hibernado, falha da sinalização, corrida com fan-out e pedidos repetidos. **REQ-007/061/063, DEC-034.**
+
 ## Condições para usar estes cenários como aprovação
 
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.

@@ -94,6 +94,10 @@ Ao aprovar pedido de owner válido, criar sessão de suporte com `activated_at` 
 
 Nenhuma sessão de suporte pode ser prolongada. Após expiração ou encerramento antecipado, continuar exige **novo pedido pendente**, **nova aprovação de owner do tenant** e outra sessão com credenciais e TTL próprios. Proibir atualização de `expires_at`, reaproveitamento da autorização anterior e endpoints de extensão. O acesso HTTP/WebSocket antigo permanece invalidado até que haja nova sessão efetivamente aprovada.
 
+## Encerramento de suporte pelo owner — DEC-034
+
+Qualquer owner ativo do tenant pode encerrar imediatamente qualquer sessão de suporte ativa dessa clínica, independentemente do owner que aprovou; o superadmin actor pode também terminar a própria sessão voluntariamente. A operação verifica autorização atual por tenant no backend, grava transição atómica no D1 e auditoria (revogador/actor/subject/sessão/tenant/instante) e corta HTTP, WebSockets e credenciais de suporte. Não afetar sessão Clerk nem memberships. Proteger a entrega de dados no DO em caso de sinal de revogação atrasado/hibernação. Sessão terminada não reativa; continuar exige novo pedido/owner (DEC-033).
+
 ## Políticas mínimas de segurança
 
 - **TTL da sessão (DEC-032):** 30 minutos fixos desde ativação, com encerramento antecipado e sem renovação automática. O prazo de 24 horas da DEC-031 é apenas para decidir o pedido pendente.

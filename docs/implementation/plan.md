@@ -38,6 +38,8 @@
 
 **DEC-033 — continuação do suporte:** não implementar extensão de sessão nem alterar `expires_at` de sessão ativa/expirada. Exigir novo pedido de 24 horas, nova aprovação no painel por owner e nova sessão de 30 minutos com credenciais/auditoria próprias. Testar replay da aprovação anterior, handoff/cookie expirados, tentativa de API `extend`, WebSocket antigo e isolamento multi-tenant.
 
+**DEC-034 — revogação por owner:** UI de sessão de suporte em curso na Clinic App com botão **Encerrar suporte** para qualquer owner vigente do tenant, mesmo se outro owner aprovou. Superadmin actor também pode encerrar voluntariamente a sua. Implementar transição atómica no D1, auditoria de revogador/sessão/tenant/instante, invalidação de cookie/handoff e corte de HTTP/DO-WebSocket, com proteção de fan-out. Testar O1/O2, owner B, attendant, superadmin não actor, races, sockets hibernados e falha de notificação DO.
+
 ## Backlog técnico por épico
 
 ### EP-T01 — Base de execução e CI

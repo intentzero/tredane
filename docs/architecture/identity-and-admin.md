@@ -52,6 +52,10 @@ A aprovação válida ativa sessão no D1 e define `activated_at` UTC e `expires
 
 `support_sessions.expires_at` é imutável após ativação. Não expor API `extend/renew`; o término invalida handoff, cookie, HTTP e WebSocket do suporte. Continuação requer **novo `support_access_requests`**, nova aprovação de owner ativo daquele tenant, e nova `support_sessions` com prazo de 30 minutos e segredos/IDs próprios. Verificar backend contra replay de aprovações e tickets anteriores. Persistir auditoria distinta.
 
+## DEC-034 — Owner encerra sessão de suporte em curso
+
+Owner com membership atual naquele tenant pode revogar **qualquer sessão de suporte ativa**, inclusive se aprovada por outro owner. Superadmin actor pode encerrar a própria sessão voluntariamente. Propor `POST /api/tenants/:tenantId/support-sessions/:id/revoke` para owner, e endpoint de encerramento do actor pela Platform Admin: validar Clerk + owner D1 ou actor real da sessão, tenant e estado. Persistir revogador/instante em transição atómica `active → revoked/ended` no D1 e auditoria. Após commit, negar APIs, eventos WebSocket e handoff/cookie; proteger entrega DO mesmo diante de hibernação e falhas de invalidação. Revogação não altera membership nem logout Clerk; nova sessão exige novo pedido/owner (DEC-033).
+
 ## Notificação de solicitações de suporte — DEC-030
 
 Após persistir `support_access_requests` em estado pendente no D1, emitir evento de atualização restrito a owners ativos do mesmo tenant no Durable Object/WebSocket e enviar aviso por e-mail com link de navegação para a solicitação. **Não** colocar token de aprovação ou dados clínicos no e-mail. A decisão só é aceita na API autenticada da Clinic App com verificação atual de Clerk e membership owner; sincronizar estado final entre owners. E-mail indisponível não altera autorização nem impede decisão pelo painel. Provedor de entrega em aberto e prazo do pedido fixado em 24 horas (DEC-031).
@@ -85,7 +89,8 @@ Após persistir `support_access_requests` em estado pendente no D1, emitir event
 - `POST /api/platform/support-requests` (proposto): cria solicitação pendente sem direito de acesso clínico.
 - `POST /api/tenants/:tenantId/support-requests/:id/decision` (proposto): decisão dentro da Clinic App por owner ativo do mesmo tenant, autenticado via Clerk e validado no Worker; link de e-mail não vale como aprovação.
 - `POST /api/platform/support-sessions` (proposto): ativa sessão própria apenas com aprovação vigente para os parâmetros imutáveis e código de handoff seguro.
-- `POST /api/platform/support-sessions/:id/revoke` encerra a sessão e impede acesso posterior (HTTP/WebSocket).
+- `POST /api/platform/support-sessions/:id/revoke` encerra a sessão **do próprio superadmin actor** e impede acesso posterior (HTTP/WebSocket).
+- `POST /api/tenants/:tenantId/support-sessions/:id/revoke` (proposto): qualquer owner vigente da clínica encerra sessão ativa independentemente de quem aprovou (DEC-034).
 - `POST /api/support/exchange` (Clinic App, contrato proposto) troca o código único por credencial opaca de suporte em cookie seguro HttpOnly, vinculada à sessão Clerk **do actor**.
 - `GET /api/platform/support-sessions` lista eventos e sessões vigentes do superadmin.
 
