@@ -194,4 +194,35 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 ### AC-43 — Explicação e assunto clínico
 
 **Dado** “Limpeza de pele” com explicação cadastrada e “Peeling” sem explicação; **quando** a cliente pergunta como é cada um e se pode fazer grávida; **então** a sugestão sobre a limpeza usa só o texto cadastrado e mostra a fonte, a sobre o peeling não descreve o procedimento, e a pergunta sobre gravidez recebe o aviso de assunto clínico sem resposta de mérito. **Requisito:** REQ-075.
+### AC-44 — Sinal no cadastro do serviço
+
+**Dado** a responsável editando “Limpeza de pele” com preço cadastrado; **quando** liga “Exige sinal” com 30%; **então** o resumo mostra o valor calculado e salva; com “Peeling” sem preço, a opção percentual fica indisponível e só valor fixo é aceito; uma atendente não vê a opção. **Requisito:** REQ-076.
+
+### AC-45 — Sem conta de recebimento
+
+**Dado** uma clínica sem conta conectada e um serviço que exige sinal; **quando** a atendente tenta agendar; **então** o envio de cobrança fica indisponível com o aviso de conta não conectada e nenhuma cobrança é criada. **Requisito:** REQ-077.
+
+### AC-46 — Cobrança enviada não reserva horário
+
+**Dado** quinta 14:00 livre e serviço com sinal; **quando** a atendente envia o sinal para a cliente A; **então** a conversa mostra a mensagem com valor, prazo e política e o estado Aguardando sinal, e o mesmo horário continua disponível para outra pessoa. **Requisito:** REQ-078.
+
+### AC-47 — Pagamento processado uma vez
+
+**Dado** uma cobrança Aguardando sinal da clínica A; **quando** o provedor envia o aviso de pago duas vezes e um aviso com assinatura inválida; **então** a cobrança fica Paga uma única vez, o aviso inválido é recusado e registrado, e um aviso com identificador da clínica B não altera nada em A. **Requisito:** REQ-079.
+
+### AC-48 — Pago sem horário
+
+**Dado** uma cobrança paga cujo horário foi confirmado para outra pessoa antes do pagamento; **quando** o aviso chega; **então** a equipe de A vê o alerta Pago sem horário com Escolher outro horário e Devolver sinal, e nenhum compromisso duplicado é criado. **Requisito:** REQ-080.
+
+### AC-49 — Expiração
+
+**Dado** uma cobrança não paga; **quando** o prazo vence; **então** ela passa a Expirada, deixa de aceitar pagamento e um aviso de pago posterior é tratado como Pago sem horário. **Requisito:** REQ-081. Com a configuração padrão, o prazo é de 2 horas; a responsável altera o prazo e o novo valor vale só para novas cobranças.
+
+### AC-50 — Cancelamento com sinal pago
+
+**Dado** um compromisso confirmado com sinal pago; **quando** a atendente cancela; **então** o motivo é obrigatório, a política da clínica aparece, a escolha Devolver gera Estorno solicitado e a escolha Reter fica registrada com quem decidiu. **Requisito:** REQ-082.
+
+### AC-51 — Confirmar sem sinal
+
+**Dado** um serviço que exige sinal e a atendente na tela Agendar; **quando** escolhe **Confirmar sem sinal**; **então** o motivo é obrigatório, o compromisso é confirmado sem cobrança e o histórico registra quem confirmou e o motivo. **Requisito:** REQ-078.
 

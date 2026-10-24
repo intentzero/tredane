@@ -162,6 +162,18 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Alternativas:** sessão ausente, role insuficiente ou flag privada superadmin inválida negam acesso. Suporte próprio ainda exige motivo, TTL, auditoria dupla, sessão segura e autorização do subject.
 - **Requisitos:** REQ-001/002/005/006/007; REQ-009 adiado.
 
+## JRN-16 — Agendamento com sinal por Pix
+
+- **Estado:** Confirmado (DEC-047), com confirmação automática ao pagar **Proposta**. Detalhes em [sinal.md](sinal.md).
+- **Ator:** atendente (ACT-02); cliente final paga fora do Tredane, no app do banco.
+- **Gatilho:** serviço que exige sinal é escolhido na tela Agendar.
+- **Pré-condições:** conta de recebimento da clínica conectada (REQ-077); serviço com sinal configurado (REQ-076).
+- **Fluxo:** atendente envia o sinal → cliente recebe valor, prazo, política e Pix → pagamento avisado pelo provedor → compromisso confirmado se o horário estiver livre → atendente envia a confirmação.
+- **Alternativas/erros:** expirada, cancelada, pago sem horário, provedor indisponível, aviso duplicado, estorno falhou.
+- **Telas:** M-04, M-31, M-32, M-33, M-16.
+- **Dados:** cobrança (valor, estado, identificador no provedor, prazo), compromisso, histórico de ações.
+- **Requisitos:** REQ-076 a REQ-082.
+
 ## Validação necessária
 
 Revisar as jornadas com o responsável pelo produto e uma clínica piloto, em especial: permissões administrativas, durações e regras de disponibilidade dos recursos, cancelamento, confirmação ao contato e ativação do WhatsApp. Registrar as respostas em [decisões](decisions.md) e ajustar os requisitos ligados às jornadas afetadas.

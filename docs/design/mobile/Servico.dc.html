@@ -48,12 +48,24 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{ou
 <select style="height: 48px; padding: 0 12px; border: 1px solid #80868F; border-radius: 8px; background: #FFFFFF; font-size: 16px; color: #1C1E21"><option selected>Sala com laser (Sala 2)</option><option>Qualquer sala</option><option>Sala 1</option><option>Sala 3</option></select></label>
 
 <label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #474C54">Preço (opcional)
-<input type="text" inputmode="decimal" placeholder="R$ 0,00" style="height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #80868F; border-radius: 8px; font-size: 16px; color: #1C1E21"></label>
+<input type="text" inputmode="decimal" value="R$ 180,00" placeholder="R$ 0,00" style="height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #80868F; border-radius: 8px; font-size: 16px; color: #1C1E21"></label>
 <span style="margin-top: -12px; font-size: 14px; color: #5B616B">Sem preço, a IA não informa valor: sugere que a equipe vai confirmar.</span>
 
 <label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #474C54">Explicação para clientes (opcional)
 <textarea rows="5" style="padding: 12px; border: 1px solid #80868F; border-radius: 8px; font: inherit; font-size: 16px; line-height: 1.4; color: #1C1E21; resize: vertical">Limpeza profunda com extração e máscara calmante. Dura cerca de 60 minutos. Evite sol forte nas 48 horas seguintes.</textarea></label>
 <span style="margin-top: -12px; font-size: 14px; color: #5B616B">A IA usa só este texto para explicar o serviço. Não escreva promessas de resultado; dúvidas de saúde vão para a profissional.</span>
+
+<fieldset style="margin: 0; padding: 12px; border: 1px solid #E2E3E5; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 12px">
+<legend style="padding: 0 4px; font-size: 14px; color: #474C54">Sinal por Pix</legend>
+<label style="display: flex; align-items: center; justify-content: space-between; min-height: 44px">Exige sinal para confirmar<input type="checkbox" checked style="width: 28px; height: 28px"></label>
+<div style="display: flex; gap: 8px">
+<label style="flex: 1; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 2px solid #2F5BD3; background: #EEF2FC; border-radius: 8px; font-size: 14px"><input type="radio" name="tipo-sinal" checked>% do preço</label>
+<label style="flex: 1; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid #80868F; border-radius: 8px; font-size: 14px"><input type="radio" name="tipo-sinal">Valor fixo</label>
+</div>
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #474C54">Percentual
+<input type="text" inputmode="numeric" value="30%" style="height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #80868F; border-radius: 8px; font-size: 16px; color: #1C1E21"></label>
+<span style="font-size: 14px; color: #5B616B">Sinal de R$ 54,00 sobre R$ 180,00. Vai para a conta da clínica. O horário só fica reservado depois do pagamento.</span>
+</fieldset>
 
 <label style="display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 12px; background: #FFFFFF; border: 1px solid #E2E3E5; border-radius: 8px">Serviço ativo<input type="checkbox" checked style="width: 28px; height: 28px"></label>
 <span style="margin-top: -8px; font-size: 14px; color: #5B616B">Desativar não apaga compromissos já marcados.</span>
