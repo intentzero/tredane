@@ -64,7 +64,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Cenários de aceite](product/acceptance.md)
 - [Fronteira de dados entre clínicas](product/tenant-boundaries.md)
 - [Especificação de UI/UX do painel](product/ux-ui.md) (telas, estados visíveis e critérios de UX)
-- [Mocks e guia de implementação da interface](design/README.md): telas mobile M-01 a M-33, componentes, tokens e previews
+- [Mocks e guia de implementação da interface](design/README.md): telas mobile M-01 a M-34, componentes, tokens e previews
 - [Registro de hipóteses a validar](product/validation-register.md) e [auditoria do Issue #1 (23/10/2026)](product/definition-audit-2026-10-23.md) — acompanhamento, não decisões novas.
 
 ## Documentação de arquitetura e execução
