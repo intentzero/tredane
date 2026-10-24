@@ -213,7 +213,7 @@ export function createSupportAccessRequest(
   })
 }
 
-export type ApprovedSupport = {
+export type ActivatedSupport = {
   request: SupportRequestRow
   session: SupportSessionRow
   /** Código de handoff de uso único — nunca persistido em claro nem auditado. */
@@ -222,30 +222,27 @@ export type ApprovedSupport = {
   sessionToken: string
 }
 
+/** @deprecated Prefer ActivatedSupport — aprovação (#26) já não cria sessão. */
+export type ApprovedSupport = ActivatedSupport
+
 /**
- * DEC-029/032: aprovação atómica pending→approved + criação de sessão 30min.
- * Pedido expirado ou já decidido falha sem criar sessão.
+ * DEC-029/031 (#26): aprovação atómica pending→approved.
+ * Não cria sessão, handoff nem cookie — ativação fica na #27 / activateSupportSession.
  */
-export async function approveSupportRequest(
+export function approveSupportRequest(
   db: AdminDb,
   clock: Clock,
   input: {
     requestId: string
     ownerClerkUserId: string
-    actorClerkSessionId: string
   },
-): Promise<ApprovedSupport> {
+): SupportRequestRow {
   assertAdminSchemaReady(db)
   const preview = getSupportRequest(db, input.requestId)
   if (!preview) throw new NotFoundError('support_request_not_found', 'Pedido inexistente')
   requireActiveOwner(db, preview.tenantId, input.ownerClerkUserId)
 
   const now = clock.nowMs()
-  const sessionToken = generateOpaqueToken()
-  const handoffCode = generateOpaqueToken(24)
-  const tokenHash = await hashToken(sessionToken)
-  const handoffHash = await hashToken(handoffCode)
-  const sessionId = newId('ssn')
 
   return db.immediate(() => {
     const current = getSupportRequest(db, input.requestId)
@@ -278,6 +275,70 @@ export async function approveSupportRequest(
       throw new ConflictError('support_approve_conflict', 'Aprovação concorrente negada')
     }
 
+    writeAudit(db, clock, {
+      actorClerkUserId: input.ownerClerkUserId,
+      subjectClerkUserId: current.subjectClerkUserId,
+      tenantId: current.tenantId,
+      action: 'support.request.approve',
+      objectType: 'support_access_request',
+      objectId: current.id,
+      outcome: 'success',
+    })
+
+    return getSupportRequest(db, current.id)!
+  })
+}
+
+/**
+ * DEC-032 (#27): ativa sessão 30min a partir de pedido já approved.
+ * Domínio pronto; HTTP de ativação/handoff permanece fora de #26.
+ */
+export async function activateSupportSession(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    requestId: string
+    actorClerkSessionId: string
+    /** Superadmin actor — deve coincidir com o pedido. */
+    actorClerkUserId: string
+  },
+): Promise<ActivatedSupport> {
+  assertAdminSchemaReady(db)
+  const preview = getSupportRequest(db, input.requestId)
+  if (!preview) throw new NotFoundError('support_request_not_found', 'Pedido inexistente')
+  if (preview.actorClerkUserId !== input.actorClerkUserId) {
+    throw new ForbiddenError('not_request_actor', 'Apenas o actor do pedido pode ativar')
+  }
+
+  const now = clock.nowMs()
+  const sessionToken = generateOpaqueToken()
+  const handoffCode = generateOpaqueToken(24)
+  const tokenHash = await hashToken(sessionToken)
+  const handoffHash = await hashToken(handoffCode)
+  const sessionId = newId('ssn')
+
+  return db.immediate(() => {
+    const current = getSupportRequest(db, input.requestId)
+    if (!current || current.status !== 'approved') {
+      throw new ConflictError('support_request_not_approved', 'Pedido não aprovado')
+    }
+    if (!current.decidedByOwnerClerkUserId) {
+      throw new ConflictError('support_request_missing_approver', 'Aprovador em falta')
+    }
+
+    const existing = db.get<{ id: string }>(
+      `SELECT id FROM support_sessions WHERE support_access_request_id = ?`,
+      current.id,
+    )
+    if (existing) {
+      throw new ConflictError('support_session_already_active', 'Sessão já criada para este pedido')
+    }
+
+    const subject = getMembership(db, current.tenantId, current.subjectClerkUserId)
+    if (!subject || subject.status !== 'active') {
+      throw new ForbiddenError('subject_not_member', 'Subject sem membership ativo')
+    }
+
     db.run(
       `INSERT INTO support_sessions (
         id, support_access_request_id, approved_by_owner_clerk_user_id, token_hash, handoff_hash,
@@ -287,7 +348,7 @@ export async function approveSupportRequest(
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, NULL, NULL, NULL, NULL)`,
       sessionId,
       current.id,
-      input.ownerClerkUserId,
+      current.decidedByOwnerClerkUserId,
       tokenHash,
       handoffHash,
       current.actorClerkUserId,
@@ -302,16 +363,6 @@ export async function approveSupportRequest(
     )
 
     writeAudit(db, clock, {
-      actorClerkUserId: input.ownerClerkUserId,
-      subjectClerkUserId: current.subjectClerkUserId,
-      tenantId: current.tenantId,
-      action: 'support.request.approve',
-      objectType: 'support_access_request',
-      objectId: current.id,
-      outcome: 'success',
-      supportSessionId: sessionId,
-    })
-    writeAudit(db, clock, {
       actorClerkUserId: current.actorClerkUserId,
       subjectClerkUserId: current.subjectClerkUserId,
       tenantId: current.tenantId,
@@ -320,7 +371,7 @@ export async function approveSupportRequest(
       objectId: sessionId,
       outcome: 'success',
       supportSessionId: sessionId,
-      metadata: { approvedBy: input.ownerClerkUserId },
+      metadata: { approvedBy: current.decidedByOwnerClerkUserId },
     })
 
     return {
@@ -329,6 +380,95 @@ export async function approveSupportRequest(
       handoffCode,
       sessionToken,
     }
+  })
+}
+
+export function listSupportRequestsForTenant(
+  db: AdminDb,
+  tenantId: string,
+  opts: { status?: SupportRequestRow['status']; limit?: number } = {},
+): SupportRequestRow[] {
+  assertAdminSchemaReady(db)
+  const limit = opts.limit ?? 50
+  if (opts.status) {
+    const rows = db.all<{
+      id: string
+      tenant_id: string
+      actor_clerk_user_id: string
+      subject_clerk_user_id: string
+      reason: string
+      scope: string
+      status: string
+      decided_by_owner_clerk_user_id: string | null
+      decided_at: number | null
+      created_at: number
+      expires_at: number
+    }>(
+      `SELECT id, tenant_id, actor_clerk_user_id, subject_clerk_user_id, reason, scope, status,
+              decided_by_owner_clerk_user_id, decided_at, created_at, expires_at
+       FROM support_access_requests
+       WHERE tenant_id = ? AND status = ?
+       ORDER BY created_at DESC
+       LIMIT ?`,
+      tenantId,
+      opts.status,
+      limit,
+    )
+    return rows.map(mapRequest)
+  }
+  const rows = db.all<{
+    id: string
+    tenant_id: string
+    actor_clerk_user_id: string
+    subject_clerk_user_id: string
+    reason: string
+    scope: string
+    status: string
+    decided_by_owner_clerk_user_id: string | null
+    decided_at: number | null
+    created_at: number
+    expires_at: number
+  }>(
+    `SELECT id, tenant_id, actor_clerk_user_id, subject_clerk_user_id, reason, scope, status,
+            decided_by_owner_clerk_user_id, decided_at, created_at, expires_at
+     FROM support_access_requests
+     WHERE tenant_id = ?
+     ORDER BY created_at DESC
+     LIMIT ?`,
+    tenantId,
+    limit,
+  )
+  return rows.map(mapRequest)
+}
+
+/** Marca pending expirado se now >= expires_at (idempotente). */
+export function expireSupportRequestIfNeeded(
+  db: AdminDb,
+  clock: Clock,
+  requestId: string,
+): SupportRequestRow {
+  assertAdminSchemaReady(db)
+  const now = clock.nowMs()
+  return db.immediate(() => {
+    const current = getSupportRequest(db, requestId)
+    if (!current) throw new NotFoundError('support_request_not_found', 'Pedido inexistente')
+    if (current.status !== 'pending') return current
+    if (now < current.expiresAt) return current
+
+    db.run(
+      `UPDATE support_access_requests SET status = 'expired' WHERE id = ? AND status = 'pending'`,
+      requestId,
+    )
+    writeAudit(db, clock, {
+      actorClerkUserId: current.actorClerkUserId,
+      subjectClerkUserId: current.subjectClerkUserId,
+      tenantId: current.tenantId,
+      action: 'support.request.expire',
+      objectType: 'support_access_request',
+      objectId: requestId,
+      outcome: 'success',
+    })
+    return getSupportRequest(db, requestId)!
   })
 }
 
@@ -344,13 +484,26 @@ export function rejectSupportRequest(
   const now = clock.nowMs()
 
   return db.immediate(() => {
+    const current = getSupportRequest(db, input.requestId)
+    if (!current || current.status !== 'pending') {
+      throw new ConflictError('support_reject_conflict', 'Rejeição não aplicada')
+    }
+    if (now >= current.expiresAt) {
+      db.run(
+        `UPDATE support_access_requests SET status = 'expired' WHERE id = ? AND status = 'pending'`,
+        current.id,
+      )
+      throw new ConflictError('support_request_expired', 'Pedido expirado (24h)')
+    }
+
     const result = db.run(
       `UPDATE support_access_requests
        SET status = 'rejected', decided_by_owner_clerk_user_id = ?, decided_at = ?
-       WHERE id = ? AND status = 'pending'`,
+       WHERE id = ? AND status = 'pending' AND expires_at > ?`,
       input.ownerClerkUserId,
       now,
       input.requestId,
+      now,
     )
     if (result.changes !== 1) {
       throw new ConflictError('support_reject_conflict', 'Rejeição não aplicada')

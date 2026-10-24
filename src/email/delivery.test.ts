@@ -72,7 +72,10 @@ describe('e-mail delivery — idempotência e retries (#25)', () => {
       })
       expect(recovered.sent).toBe(true)
       expect(transport.mailbox).toHaveLength(1)
-      expect(tokenFromInviteUrl(transport.mailbox[0]!.inviteUrl)).toBe(issued.rawToken)
+      const mail = transport.mailbox[0]!
+      expect(mail.template).toBe('tenant_invitation')
+      if (mail.template !== 'tenant_invitation') throw new Error('unexpected_template')
+      expect(tokenFromInviteUrl(mail.inviteUrl)).toBe(issued.rawToken)
 
       const audit = listAuditForTenant(db, 'clinic-demo-a')
       const blob = JSON.stringify(audit)

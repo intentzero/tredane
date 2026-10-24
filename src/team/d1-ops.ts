@@ -157,10 +157,10 @@ async function deliverEmail(
       await db
         .prepare(
           `INSERT INTO email_delivery_jobs (
-            id, idempotency_key, template, to_email, tenant_id, invitation_id,
+            id, idempotency_key, template, to_email, tenant_id, invitation_id, support_request_id,
             status, attempt_count, max_attempts, next_attempt_at, last_error,
             created_at, updated_at, sent_at
-          ) VALUES (?, ?, 'tenant_invitation', ?, ?, ?, 'pending', 0, 5, ?, NULL, ?, ?, NULL)`,
+          ) VALUES (?, ?, 'tenant_invitation', ?, ?, ?, NULL, 'pending', 0, 5, ?, NULL, ?, ?, NULL)`,
         )
         .bind(
           jobId,

@@ -76,7 +76,7 @@ async function invite(
 
 function lastToken(transport: SimulatedEmailTransport): string {
   const msg = transport.mailbox.at(-1)
-  if (!msg) throw new Error('mailbox_empty')
+  if (!msg || msg.template !== 'tenant_invitation') throw new Error('mailbox_empty')
   const token = tokenFromInviteUrl(msg.inviteUrl)
   if (!token) throw new Error('token_missing')
   return token

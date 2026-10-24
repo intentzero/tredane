@@ -14,15 +14,33 @@ export type RealtimeEventRow = {
   occurredAt: number
 }
 
+/** Audiência de entrega WS / catch-up HTTP (#26 owners-only). */
+export type RealtimeAudience = 'all' | 'owners'
+
 export type AppendRealtimeEventInput = {
   tenantId: string
   type: string
   entityType: string
   entityId: string
   payload: Record<string, unknown>
+  /** Default `all`. Persistido em payload.audience para filtro no fan-out/catch-up. */
+  audience?: RealtimeAudience
   /** Se omitido, gera event_id estável aleatório. */
   eventId?: string
   occurredAt?: number
+}
+
+export function eventAudience(payload: Record<string, unknown>): RealtimeAudience {
+  return payload.audience === 'owners' ? 'owners' : 'all'
+}
+
+export function isEventVisibleToRole(
+  payload: Record<string, unknown>,
+  role: 'owner' | 'attendant',
+): boolean {
+  const audience = eventAudience(payload)
+  if (audience === 'owners') return role === 'owner'
+  return true
 }
 
 /**
@@ -59,6 +77,10 @@ export function appendRealtimeEvent(
 
   const fence = readFence(db)!
   const seq = fence.lastEventSeq + 1
+  const payload =
+    input.audience && input.audience !== 'all'
+      ? { ...input.payload, audience: input.audience }
+      : input.payload
   db.run(
     `INSERT INTO realtime_events
       (seq, tenant_id, event_id, type, entity_type, entity_id, payload_json, occurred_at)
@@ -69,7 +91,7 @@ export function appendRealtimeEvent(
     input.type,
     input.entityType,
     input.entityId,
-    JSON.stringify(input.payload),
+    JSON.stringify(payload),
     occurredAt,
   )
   db.run(
@@ -85,7 +107,7 @@ export function appendRealtimeEvent(
     type: input.type,
     entityType: input.entityType,
     entityId: input.entityId,
-    payload: input.payload,
+    payload,
     occurredAt,
   }
 }

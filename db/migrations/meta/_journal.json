@@ -36,6 +36,13 @@
       "when": 1792870000000,
       "tag": "0005_email_delivery_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792880000000,
+      "tag": "0006_support_request_email",
+      "breakpoints": true
     }
   ]
 }

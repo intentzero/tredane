@@ -83,15 +83,19 @@ export {
 export {
   createSupportAccessRequest,
   approveSupportRequest,
+  activateSupportSession,
   rejectSupportRequest,
   consumeSupportHandoff,
   revokeSupportSession,
   expireSupportSessionIfNeeded,
+  expireSupportRequestIfNeeded,
   requestSupportTermination,
+  listSupportRequestsForTenant,
   getSupportRequest,
   getSupportSession,
   type SupportRequestRow,
   type SupportSessionRow,
+  type ActivatedSupport,
   type ApprovedSupport,
 } from './support'
 export { adminTenantSnapshot, adminUserTenants } from './queries'

@@ -18,7 +18,13 @@ export {
   type EventMessage,
   type AccessRevokedMessage,
 } from './protocol'
-export { createRealtimeRoutes, createDoInvalidator, type RealtimeRouteOptions } from './routes'
+export {
+  createRealtimeRoutes,
+  createDoInvalidator,
+  createDoEventPublisher,
+  type RealtimeRouteOptions,
+  type ClinicEventPublisher,
+} from './routes'
 export {
   createD1AccessAuthority,
   createMapAccessAuthority,
@@ -41,8 +47,11 @@ export {
   listRealtimeEventsAfter,
   getLastEventSeq,
   mergeEventsById,
+  isEventVisibleToRole,
+  eventAudience,
   type RealtimeEventRow,
   type AppendRealtimeEventInput,
+  type RealtimeAudience,
 } from './events'
 export {
   deliverEventToSockets,

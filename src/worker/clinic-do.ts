@@ -197,6 +197,55 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   /**
+   * Publica evento de domínio admin/clínica no log versionado + fan-out WS.
+   * Usado por pedidos de suporte (#26) — audience `owners` filtra attendants.
+   */
+  async publishTenantEvent(
+    caller: ClinicCaller,
+    input: {
+      type: string
+      entityType: string
+      entityId: string
+      payload: Record<string, unknown>
+      audience?: 'all' | 'owners'
+      eventId?: string
+    },
+  ): Promise<{
+    seq: number
+    eventId: string
+    fanout: { delivered: string[]; revoked: string[]; skippedUnavailable: string[] }
+  }> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    bindOrAssertTenant(this.#db, caller, this.#clock)
+    const evt = appendRealtimeEvent(
+      this.#db,
+      {
+        tenantId: caller.tenantId,
+        type: input.type,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        payload: input.payload,
+        audience: input.audience,
+        eventId: input.eventId,
+      },
+      this.#clock,
+    )
+    const fanout = await deliverEventToSockets(
+      this.#db,
+      this.#asDeliverySockets(),
+      evt,
+      this.#authority(),
+      this.#clock,
+    )
+    return {
+      seq: evt.seq,
+      eventId: evt.eventId,
+      fanout,
+    }
+  }
+
+  /**
    * Ingestão operacional com outbox + evento realtime na mesma TX SQLite.
    * Fan-out WS ocorre depois do commit; publicação Queue no drain.
    */

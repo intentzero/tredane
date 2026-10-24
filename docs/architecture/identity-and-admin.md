@@ -100,9 +100,10 @@ Após persistir `support_access_requests` em estado pendente no D1, emitir event
 - `POST /api/invitations/accept` (#25): e-mail verificado Clerk; ignora tenant/role do body.
 - `POST /api/tenants/:tenantId/members/:clerkUserId/revoke` (#23/#25): owner remove apenas attendants, com barreira DO; sem alterar tenants diferentes.
 - `GET /api/tenants/:tenantId/team` (#25): membros + convites pendentes; owners sem ações de gestão.
-- `POST /api/platform/support-requests` (proposto): cria solicitação pendente sem direito de acesso clínico.
-- `POST /api/tenants/:tenantId/support-requests/:id/decision` (proposto): decisão dentro da Clinic App por owner ativo do mesmo tenant, autenticado via Clerk e validado no Worker; link de e-mail não vale como aprovação.
-- `POST /api/platform/support-sessions` (proposto): ativa sessão própria apenas com aprovação vigente para os parâmetros imutáveis e código de handoff seguro.
+- `POST /api/platform/support-requests` (#26): cria solicitação pendente sem direito de acesso clínico; notifica owners (WS + e-mail informativo).
+- `GET /api/tenants/:tenantId/support-requests` (#26): owners listam/reidratam pedidos do tenant.
+- `POST /api/tenants/:tenantId/support-requests/:id/decision` (#26): decisão na Clinic App por owner ativo do mesmo tenant; link de e-mail não vale como aprovação; **não** ativa sessão/handoff.
+- `POST /api/platform/support-sessions` (proposto, #27): ativa sessão própria apenas com aprovação vigente para os parâmetros imutáveis e código de handoff seguro.
 - `POST /api/platform/support-sessions/:id/revoke` encerra a sessão **do próprio superadmin actor** e impede acesso posterior (HTTP/WebSocket).
 - `POST /api/tenants/:tenantId/support-sessions/:id/revoke` (proposto): qualquer owner vigente da clínica encerra sessão ativa independentemente de quem aprovou (DEC-034).
 - `POST /api/support/exchange` (Clinic App, contrato proposto) troca o código único por credencial opaca de suporte em cookie seguro HttpOnly, vinculada à sessão Clerk **do actor**.

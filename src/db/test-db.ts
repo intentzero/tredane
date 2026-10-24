@@ -36,6 +36,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0005_email_delivery_jobs.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0006_support_request_email.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

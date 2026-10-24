@@ -268,7 +268,7 @@ export const tenantDeletionCommands = sqliteTable('tenant_deletion_commands', {
   index('tenant_deletion_commands_status_idx').on(table.status),
 ])
 
-/** Fila de entrega de e-mail (#25). Sem token em claro. */
+/** Fila de entrega de e-mail (#25/#26). Sem token/handoff em claro. */
 export const EMAIL_DELIVERY_STATUSES = [
   'pending',
   'sent',
@@ -277,13 +277,22 @@ export const EMAIL_DELIVERY_STATUSES = [
 ] as const
 export type EmailDeliveryStatus = (typeof EMAIL_DELIVERY_STATUSES)[number]
 
+export const EMAIL_TEMPLATES = [
+  'tenant_invitation',
+  'support_access_request',
+] as const
+export type EmailTemplate = (typeof EMAIL_TEMPLATES)[number]
+
 export const emailDeliveryJobs = sqliteTable('email_delivery_jobs', {
   id: text('id').primaryKey(),
   idempotencyKey: text('idempotency_key').notNull(),
-  template: text('template', { enum: ['tenant_invitation'] }).notNull(),
+  template: text('template', { enum: EMAIL_TEMPLATES }).notNull(),
   toEmail: text('to_email').notNull(),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
-  invitationId: text('invitation_id').notNull().references(() => tenantInvitations.id, {
+  invitationId: text('invitation_id').references(() => tenantInvitations.id, {
+    onDelete: 'cascade',
+  }),
+  supportRequestId: text('support_request_id').references(() => supportAccessRequests.id, {
     onDelete: 'cascade',
   }),
   status: text('status', { enum: EMAIL_DELIVERY_STATUSES }).notNull().default('pending'),
@@ -298,4 +307,5 @@ export const emailDeliveryJobs = sqliteTable('email_delivery_jobs', {
   uniqueIndex('email_delivery_jobs_idempotency_uidx').on(table.idempotencyKey),
   index('email_delivery_jobs_status_next_idx').on(table.status, table.nextAttemptAt),
   index('email_delivery_jobs_invitation_idx').on(table.invitationId),
+  index('email_delivery_jobs_support_request_idx').on(table.supportRequestId),
 ])
