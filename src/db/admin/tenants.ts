@@ -96,6 +96,61 @@ export function createTenant(
   })
 }
 
+/** Edição administrativa de metadados (não altera status). */
+export function updateTenant(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    tenantId: string
+    actorClerkUserId: string
+    name?: string
+    timezone?: string
+  },
+): TenantRow {
+  assertAdminSchemaReady(db)
+  const now = clock.nowMs()
+  return db.immediate(() => {
+    const current = getTenant(db, input.tenantId)
+    if (!current) throw new NotFoundError('tenant_not_found', 'Tenant inexistente')
+    if (current.status === 'pending_deletion') {
+      throw new ConflictError(
+        'tenant_pending_deletion',
+        'Tenant em exclusão lógica não pode ser editado',
+      )
+    }
+    const name = input.name?.trim() || current.name
+    const timezone = input.timezone?.trim() || current.timezone
+    if (!name) {
+      throw new ConflictError('tenant_name_required', 'Nome do tenant obrigatório')
+    }
+    const result = db.run(
+      `UPDATE tenants
+       SET name = ?, timezone = ?, updated_at = ?
+       WHERE id = ? AND status IN ('active', 'suspended')`,
+      name,
+      timezone,
+      now,
+      input.tenantId,
+    )
+    if (result.changes !== 1) {
+      throw new ConflictError('tenant_update_conflict', 'Edição não aplicada')
+    }
+    writeAudit(db, clock, {
+      actorClerkUserId: input.actorClerkUserId,
+      tenantId: input.tenantId,
+      action: 'tenant.update',
+      objectType: 'tenant',
+      objectId: input.tenantId,
+      outcome: 'success',
+      metadata: {
+        before: { name: current.name, timezone: current.timezone },
+        after: { name, timezone },
+      },
+    })
+    return getTenant(db, input.tenantId)!
+  })
+}
+
 function transitionTenantStatus(
   db: AdminDb,
   clock: Clock,

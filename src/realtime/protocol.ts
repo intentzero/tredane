@@ -25,6 +25,8 @@ export type ConnectionUiState =
 export type FenceSource =
   | 'membership_revoke'
   | 'tenant_suspend'
+  | 'tenant_pending_deletion'
+  | 'tenant_reactivate'
   | 'support_revoke'
   | 'superadmin'
   | 'authority_recheck'

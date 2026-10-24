@@ -54,8 +54,12 @@ export {
 export {
   revokeMembershipAndPropagate,
   suspendTenantAndPropagate,
+  reactivateTenantAndPropagate,
+  markPendingDeletionAndPropagate,
   createFailingInvalidator,
   type ClinicAccessInvalidator,
   type RevokePropagationResult,
   type SuspendPropagationResult,
+  type ReactivatePropagationResult,
+  type PendingDeletionPropagationResult,
 } from './revoke'

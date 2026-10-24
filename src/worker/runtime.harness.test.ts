@@ -75,7 +75,7 @@ describe('Cloudflare runtime harness — F0', () => {
     const schema = await env.DB.prepare(
       'SELECT version FROM admin_schema_state WHERE id = 1',
     ).first() as { version: number } | null
-    expect(schema?.version).toBe(3)
+    expect(schema?.version).toBe(4)
 
     const multi = await env.DB.prepare(
       `SELECT tenant_id, role FROM tenant_memberships
@@ -299,6 +299,95 @@ describe('Cloudflare runtime harness — F0', () => {
       headers: { Authorization: 'Bearer synth:user_synth_superadmin' },
     })
     expect(platformOk.status).toBe(200)
+  })
+
+  it('Platform Admin: criar tenant, suspender corta WS, exclusão lógica (#24)', async () => {
+    const created = await worker.fetch('http://localhost/api/platform/tenants', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer synth:user_synth_superadmin',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: 'clinic-demo-rt-admin',
+        name: 'Clínica Runtime Admin',
+        ownerClerkUserId: 'user_synth_owner_a',
+      }),
+    })
+    expect(created.status).toBe(201)
+
+    const wsRes = await worker.fetch('http://localhost/api/tenants/clinic-demo-rt-admin/ws', {
+      headers: {
+        Authorization: 'Bearer synth:user_synth_owner_a',
+        Upgrade: 'websocket',
+      },
+    })
+    expect(wsRes.status).toBe(101)
+    const socket = wsRes.webSocket
+    expect(socket).toBeTruthy()
+    socket!.accept()
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('hello timeout')), 5_000)
+      socket!.addEventListener('message', () => {
+        clearTimeout(timer)
+        resolve()
+      })
+    })
+
+    const revokedWait = new Promise<string>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('suspend revoke timeout')), 5_000)
+      socket!.addEventListener('message', (event) => {
+        const data = String(event.data)
+        if (data.includes('access_revoked') || data.includes('tenant_not_active')) {
+          clearTimeout(timer)
+          resolve(data)
+        }
+      })
+    })
+
+    const suspended = await worker.fetch(
+      'http://localhost/api/platform/tenants/clinic-demo-rt-admin/suspend',
+      {
+        method: 'POST',
+        headers: { Authorization: 'Bearer synth:user_synth_superadmin' },
+      },
+    )
+    expect(suspended.status).toBe(200)
+    const susBody = (await suspended.json()) as { tenant: { status: string }; doNotified: boolean }
+    expect(susBody.tenant.status).toBe('suspended')
+    expect(susBody.doNotified).toBe(true)
+    expect(JSON.parse(await revokedWait).type).toBe('access_revoked')
+
+    await worker.fetch(
+      'http://localhost/api/platform/tenants/clinic-demo-rt-admin/reactivate',
+      {
+        method: 'POST',
+        headers: { Authorization: 'Bearer synth:user_synth_superadmin' },
+      },
+    )
+
+    const deleted = await worker.fetch(
+      'http://localhost/api/platform/tenants/clinic-demo-rt-admin',
+      {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer synth:user_synth_superadmin' },
+      },
+    )
+    expect(deleted.status).toBe(200)
+    const delBody = (await deleted.json()) as {
+      tenant: { status: string }
+      deletionCommand: { status: string }
+    }
+    expect(delBody.tenant.status).toBe('pending_deletion')
+    expect(delBody.deletionCommand.status).toBe('queued')
+
+    const env = await worker.getEnv()
+    const cmd = (await env.DB.prepare(
+      `SELECT status FROM tenant_deletion_commands WHERE tenant_id = ?`,
+    )
+      .bind('clinic-demo-rt-admin')
+      .first()) as { status: string } | null
+    expect(cmd?.status).toBe('queued')
   })
 
   it('WS autenticado + revoke corta A e preserva B (#23)', async () => {

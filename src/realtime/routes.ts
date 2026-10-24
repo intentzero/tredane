@@ -62,6 +62,17 @@ export function createDoInvalidator(env: RealtimeBindings): ClinicAccessInvalida
         }
       }
     },
+    async applyTenantReactivated(input) {
+      try {
+        const result = await clinicStub(env, input.tenantId).applyTenantReactivated(input)
+        return { ok: true, closedConnections: result.closedConnections }
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : 'do_notify_failed',
+        }
+      }
+    },
   }
 }
 

@@ -354,6 +354,20 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return { ok: true, closedConnections: closed, authEpoch: fence.authEpoch }
   }
 
+  /** Reativação: limpa fence de tenant; não reabre memberships revogados. */
+  async applyTenantReactivated(input: {
+    tenantId: string
+    source: FenceSource
+  }): Promise<{ ok: true; closedConnections: string[]; authEpoch: number }> {
+    this.#ensureReady()
+    assertSyntheticTenantId(input.tenantId)
+    this.#assertInstanceTenant(workerCaller(input.tenantId))
+    bindOrAssertTenant(this.#db, workerCaller(input.tenantId), this.#clock)
+
+    const fence = setTenantSuspendedFence(this.#db, this.#clock, false)
+    return { ok: true, closedConnections: [], authEpoch: fence.authEpoch }
+  }
+
   /**
    * Test harness: força authority map (cache positivo antigo / unavailable).
    * Não expor em rotas de produto.

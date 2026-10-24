@@ -7,7 +7,13 @@ import {
   revokeMembership,
   type MembershipRow,
 } from '../db/admin/memberships'
-import { suspendTenant, type TenantRow } from '../db/admin/tenants'
+import type { TenantRow } from '../db/admin/tenants'
+import {
+  markTenantPendingDeletionLifecycle,
+  reactivateTenantLifecycle,
+  suspendTenantLifecycle,
+} from '../db/admin/lifecycle'
+import type { DeletionCommandRow } from '../db/admin/deletion-commands'
 import type { AdminDb } from '../db/admin/store'
 import type { FenceSource } from './protocol'
 
@@ -20,6 +26,12 @@ export type ClinicAccessInvalidator = {
   }): Promise<{ ok: true; closedConnections: string[] } | { ok: false; error: string }>
 
   applyTenantSuspended(input: {
+    tenantId: string
+    source: FenceSource
+  }): Promise<{ ok: true; closedConnections: string[] } | { ok: false; error: string }>
+
+  /** Limpa fence de suspensão no DO (reativação). Não restaura memberships. */
+  applyTenantReactivated?(input: {
     tenantId: string
     source: FenceSource
   }): Promise<{ ok: true; closedConnections: string[] } | { ok: false; error: string }>
@@ -95,24 +107,142 @@ export async function suspendTenantAndPropagate(
     actorClerkUserId: string
     source?: FenceSource
   },
-): Promise<SuspendPropagationResult> {
-  const tenant = suspendTenant(db, clock, input.tenantId, input.actorClerkUserId)
+): Promise<SuspendPropagationResult & {
+  revokedSupportSessionIds: string[]
+  cancelledSupportRequestIds: string[]
+}> {
+  const lifecycle = suspendTenantLifecycle(
+    db,
+    clock,
+    input.tenantId,
+    input.actorClerkUserId,
+  )
   const notified = await invalidator.applyTenantSuspended({
     tenantId: input.tenantId,
     source: input.source ?? 'tenant_suspend',
   })
   if (notified.ok) {
     return {
-      tenant,
+      tenant: lifecycle.tenant,
       doNotified: true,
       closedConnections: notified.closedConnections,
+      revokedSupportSessionIds: lifecycle.revokedSupportSessionIds,
+      cancelledSupportRequestIds: lifecycle.cancelledSupportRequestIds,
     }
   }
   return {
-    tenant,
+    tenant: lifecycle.tenant,
     doNotified: false,
     doError: notified.error,
     closedConnections: [],
+    revokedSupportSessionIds: lifecycle.revokedSupportSessionIds,
+    cancelledSupportRequestIds: lifecycle.cancelledSupportRequestIds,
+  }
+}
+
+export type ReactivatePropagationResult = {
+  tenant: TenantRow
+  doNotified: boolean
+  doError?: string
+  preservedRevokedMemberships: number
+  preservedRevokedSupport: number
+}
+
+export async function reactivateTenantAndPropagate(
+  db: AdminDb,
+  clock: Clock,
+  invalidator: ClinicAccessInvalidator,
+  input: {
+    tenantId: string
+    actorClerkUserId: string
+    source?: FenceSource
+  },
+): Promise<ReactivatePropagationResult> {
+  const lifecycle = reactivateTenantLifecycle(
+    db,
+    clock,
+    input.tenantId,
+    input.actorClerkUserId,
+  )
+  const clear = invalidator.applyTenantReactivated
+  if (!clear) {
+    return {
+      tenant: lifecycle.tenant,
+      doNotified: false,
+      doError: 'reactivate_not_supported',
+      preservedRevokedMemberships: lifecycle.preservedRevokedMemberships,
+      preservedRevokedSupport: lifecycle.preservedRevokedSupport,
+    }
+  }
+  const notified = await clear({
+    tenantId: input.tenantId,
+    source: input.source ?? 'tenant_reactivate',
+  })
+  if (notified.ok) {
+    return {
+      tenant: lifecycle.tenant,
+      doNotified: true,
+      preservedRevokedMemberships: lifecycle.preservedRevokedMemberships,
+      preservedRevokedSupport: lifecycle.preservedRevokedSupport,
+    }
+  }
+  return {
+    tenant: lifecycle.tenant,
+    doNotified: false,
+    doError: notified.error,
+    preservedRevokedMemberships: lifecycle.preservedRevokedMemberships,
+    preservedRevokedSupport: lifecycle.preservedRevokedSupport,
+  }
+}
+
+export type PendingDeletionPropagationResult = {
+  tenant: TenantRow
+  deletionCommand: DeletionCommandRow
+  doNotified: boolean
+  doError?: string
+  closedConnections: string[]
+  revokedSupportSessionIds: string[]
+  cancelledSupportRequestIds: string[]
+}
+
+export async function markPendingDeletionAndPropagate(
+  db: AdminDb,
+  clock: Clock,
+  invalidator: ClinicAccessInvalidator,
+  input: {
+    tenantId: string
+    actorClerkUserId: string
+    source?: FenceSource
+  },
+): Promise<PendingDeletionPropagationResult> {
+  const lifecycle = markTenantPendingDeletionLifecycle(
+    db,
+    clock,
+    input.tenantId,
+    input.actorClerkUserId,
+  )
+  const notified = await invalidator.applyTenantSuspended({
+    tenantId: input.tenantId,
+    source: input.source ?? 'tenant_pending_deletion',
+  })
+  if (notified.ok) {
+    return {
+      tenant: lifecycle.tenant,
+      deletionCommand: lifecycle.deletionCommand!,
+      doNotified: true,
+      closedConnections: notified.closedConnections,
+      revokedSupportSessionIds: lifecycle.revokedSupportSessionIds,
+      cancelledSupportRequestIds: lifecycle.cancelledSupportRequestIds,
+    }
+  }
+  return {
+    tenant: lifecycle.tenant,
+    deletionCommand: lifecycle.deletionCommand!,
+    doNotified: false,
+    doError: notified.error,
+    closedConnections: [],
+    revokedSupportSessionIds: lifecycle.revokedSupportSessionIds,
+    cancelledSupportRequestIds: lifecycle.cancelledSupportRequestIds,
   }
 }
 
@@ -125,6 +255,9 @@ export function createFailingInvalidator(
       return { ok: false, error }
     },
     async applyTenantSuspended() {
+      return { ok: false, error }
+    },
+    async applyTenantReactivated() {
       return { ok: false, error }
     },
   }

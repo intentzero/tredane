@@ -1,5 +1,5 @@
-/** Versão gravada por `0003_admin_d1_central.sql` em `admin_schema_state`. */
-export const ADMIN_SCHEMA_VERSION = 3
+/** Versão gravada por `0004_platform_admin_lifecycle.sql` em `admin_schema_state`. */
+export const ADMIN_SCHEMA_VERSION = 4
 
 /** DEC-022: convite vale 7 dias (168 h) desde a emissão. */
 export const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000

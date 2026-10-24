@@ -29,6 +29,9 @@ function testApp(opts: {
     async applyTenantSuspended() {
       return { ok: true, closedConnections: [] }
     },
+    async applyTenantReactivated() {
+      return { ok: true, closedConnections: [] }
+    },
   }
   const app = createApp({
     authServicesFactory: () => services,

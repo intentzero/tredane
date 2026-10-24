@@ -1,11 +1,9 @@
 import { Hono } from 'hono'
 import {
-  listPlatformTenants,
   listPrincipalTenants,
   requireClinicPermission,
 } from './authorize'
-import { authErrorResponse, requireAuth, requireSuperadmin, requireTenantAccess, type AuthEnv } from './middleware'
-import { isAuthError } from './errors'
+import { authErrorResponse, requireAuth, requireTenantAccess, type AuthEnv } from './middleware'
 
 /**
  * Rotas de identidade e autorização (#21).
@@ -105,24 +103,7 @@ export function createAuthRoutes(): Hono<AuthEnv> {
     },
   )
 
-  routes.get('/api/platform/tenants', requireSuperadmin(), async (c) => {
-    try {
-      const services = c.get('authServices')
-      const principal = c.get('principal')
-      const tenants = await listPlatformTenants(services, principal)
-      c.header('Cache-Control', 'no-store')
-      return c.json({
-        tenants: tenants.map((t) => ({
-          id: t.id,
-          name: t.name,
-          status: t.status,
-        })),
-      })
-    } catch (err) {
-      if (isAuthError(err)) return authErrorResponse(c, err)
-      return authErrorResponse(c, err)
-    }
-  })
+  // GET/POST /api/platform/* — Platform Admin (#24) em createPlatformRoutes().
 
   return routes
 }
