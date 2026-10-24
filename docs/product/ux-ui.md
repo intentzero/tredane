@@ -118,7 +118,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 
 ### TEL-03 — Acompanhamento (pipeline)
 
-Nome na interface: **Acompanhamento** (DEC-045). Na barra inferior de quatro itens do responsável, o rótulo ocupa quase toda a largura do item em 390 px; **Em aberto:** conferir em 360 px e, se não couber, usar “Acompanhar” só na barra.
+Nome na interface: **Acompanhamento** (DEC-045). Na barra inferior de quatro itens do responsável, o rótulo ocupa quase toda a largura do item em 390 px; **Confirmado (24/10/2026):** se o rótulo não couber na barra em 360 px, a barra usa “Acompanhar” (verbo curto) e o título da tela continua “Acompanhamento”. **Em aberto:** conferir em aparelho real de 360 px.
 
 **Origem:** JRN-03, JRN-04; REQ-023. **Estado:** Proposto.
 
