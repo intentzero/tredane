@@ -14,6 +14,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Agenda própria do Tredane no primeiro MVP. Regras confirmadas (DEC-008): duração fixa por serviço mais intervalo que ocupa sala/equipamento e profissional; expediente semanal e bloqueios pontuais; fuso por clínica; grade de 15 min; cancelamento e reagendamento sem prazo mínimo, com motivo obrigatório; “Horário proposto” não reserva horário.
 - WhatsApp: o Tredane atua como Tech Provider na Meta e o responsável (owner) conecta a conta da clínica pelo Embedded Signup, com apoio do Tredane no piloto (DEC-009).
 - IA: Claude via Cloudflare AI Gateway, com contexto limitado às mensagens recentes, primeiro nome, catálogo de serviços e etapa; dados guardados enquanto a clínica for cliente, exclusão de contato pelo responsável e exclusão total até 30 dias após o encerramento (DEC-011).
+- Respostas da IA (DEC-046): preço só do cadastro, explicação de procedimento só com texto aprovado pela clínica, pergunta de saúde encaminhada à profissional e aviso com resposta cordial para mensagem ofensiva ou fora do assunto; sempre como sugestão revisada.
 - Só o responsável configura serviços, profissionais, salas/equipamentos, disponibilidade e o número de WhatsApp (DEC-042).
 - Interface mobile first (DEC-039); decisões de UX: “Agendado” sem compromisso com aviso, IA só sob demanda, push via PWA, envio por modelo fora da janela de 24 h do WhatsApp e agenda de dia e semana (DEC-040).
 - Design system do painel aprovado (DEC-041): paleta, tipografia, escalas, componentes e ícones Lucide em [docs/design](design/README.md); biblioteca de componentes a decidir por prova de conceito na F0 ([ADR-0013](adr/0013-design-system-components.md)); modo escuro fora do MVP.
@@ -64,7 +65,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Cenários de aceite](product/acceptance.md)
 - [Fronteira de dados entre clínicas](product/tenant-boundaries.md)
 - [Especificação de UI/UX do painel](product/ux-ui.md) (telas, estados visíveis e critérios de UX)
-- [Mocks e guia de implementação da interface](design/README.md): 29 telas mobile, componentes, tokens e previews
+- [Mocks e guia de implementação da interface](design/README.md): 30 telas mobile, componentes, tokens e previews
 - [Registro de hipóteses a validar](product/validation-register.md) e [auditoria do Issue #1 (23/10/2026)](product/definition-audit-2026-10-23.md) — acompanhamento, não decisões novas.
 
 ## Documentação de arquitetura e execução
