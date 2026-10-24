@@ -13,3 +13,6 @@ coverage/
 site/node_modules/
 site/dist/
 site/.astro/
+
+# Playwright MCP local artifacts
+.playwright-mcp/
