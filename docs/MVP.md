@@ -14,7 +14,7 @@ Permitir que uma clínica de estética receba e acompanhe contatos pelo WhatsApp
 - Agenda própria do Tredane no primeiro MVP.
 - Integração com a API oficial do WhatsApp Business.
 - Aplicação reativa, com atualizações em tempo real por WebSockets com hibernação em Durable Objects.
-- Avaliar um Durable Object por clínica como fronteira de coordenação e isolamento do estado em tempo real.
+- **DEC-038:** um Durable Object por clínica, com SQLite nativo para dados operacionais e coordenação/WebSockets. D1 central mantém tenants, memberships, convites e suporte; R2 privado mantém anexos. Ver [ADR-0012](adr/0012-clinic-durable-object-sqlite.md).
 - Somente atendente e responsável pela clínica acessam o painel no primeiro MVP; profissional é recurso de agenda, sem login.
 - Atendente vê todas as conversas da própria clínica; responsável pode fazer tudo que o atendente faz, inclusive responder pelo WhatsApp e operar agendamentos.
 - **Gestão de membros (opção B confirmada):** superadmin cria tenant e define o primeiro owner; owner pode convidar e remover somente attendants do seu tenant. Apenas superadmin cria/promove/substitui/remove owners. Memberships do mesmo usuário noutros tenants são independentes.
@@ -61,12 +61,12 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 
 ## Documentação de arquitetura e execução
 
-- [Arquitetura de referência](architecture/overview.md) e [modelo lógico D1](architecture/data-model.md).
+- [Arquitetura de referência](architecture/overview.md) e [modelo lógico D1 central/SQLite por clínica](architecture/data-model.md).
 - ADRs: [Cloudflare-native](adr/0001-cloudflare-native.md), [topologia D1](adr/0002-d1-topology.md), [Durable Objects e tempo real](adr/0003-durable-objects-realtime.md), [IA com revisão humana](adr/0004-ai-human-in-loop.md) e [consistência da agenda](adr/0005-d1-booking-consistency.md).
 - [Plano de implementação proposto](implementation/plan.md).
 - [ADR Clerk e Platform Admin](adr/0006-clerk-platform-admin.md), [ADR Impersonação de suporte](adr/0007-support-impersonation.md) e [contratos de identidade/admin](architecture/identity-and-admin.md).
 
-Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora **confirmados**. Continuam em aberto: topologia D1, fluxo de ligação do WhatsApp, política de dados reais, proteção do handoff e capacidades de manutenção das sessões próprias de suporte.
+Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora **confirmados**. Topologia resolvida por DEC-038; continuam em aberto: protocolo de revogação D1/DO, migrações/recuperação por clínica, fluxo de ligação do WhatsApp, política de dados reais, proteção do handoff e capacidades de manutenção das sessões próprias de suporte.
 
 ## Recorte proposto para a primeira entrega
 
@@ -107,13 +107,13 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 - **React:** Clinic App (Inbox, pipeline, agenda) e Platform Admin App interna, com fronteiras de autorização separadas.
 - **Clerk:** autenticação e sessões de usuários, `privateMetadata.superadmin` com verificação no backend, **sem Organizations**.
 - **Worker com Hono:** API, verificação da sessão Clerk, autorização por membership no D1, operações de Platform Admin e regras de negócio.
-- **D1 com Drizzle:** clínicas, membros, contatos, conversas, mensagens, oportunidades, recursos e agendamentos. Toda operação de negócio usa o tenant derivado da identidade autenticada ou da integração verificada, nunca de um ID livre fornecido pelo cliente.
-- **Durable Objects:** proposta de uma instância por clínica para conexões WebSocket, distribuição de eventos e coordenação local. A instância usa armazenamento próprio apenas para estado que precise sobreviver à hibernação; o sistema de registro das entidades de negócio continua no D1. O Worker valida a identidade e a associação à clínica antes de rotear a conexão ao objeto correspondente.
+- **D1 central:** clínicas, memberships N:N, convites, pedidos/sessões de suporte e auditoria administrativa. Clerk permanece identidade. Drizzle/adaptadores seguem o backend escolhido; não converter o scaffold D1 em persistência operacional definitiva.
+- **Durable Object + SQLite por clínica (DEC-038):** dados operacionais de contatos, conversas, mensagens, oportunidades, serviços, recursos, agenda, histórico e outbox persistem no SQLite privado do DO, que coordena operações e WebSockets. Worker valida identidade/integração e autorização antes de rotear; DO verifica coerência do contexto. Memória não é fonte de verdade. Transações locais não incluem chamadas externas.
 - **Queues:** processamento de eventos recebidos e envio assíncrono, com idempotência e tratamento de falhas.
 - **R2:** anexos, com acesso autorizado por clínica e sem URLs públicas permanentes.
 - **Workflows:** processos de múltiplas etapas, como lembretes e acompanhamentos, quando esses fluxos forem definidos. O fluxo principal não deve depender de um workflow apenas para persistir uma mensagem.
 
-**Limite do isolamento:** um Durable Object por clínica separa seu estado e suas conexões, mas não separa automaticamente os dados em um D1 compartilhado ou os arquivos em R2. O MVP deve aplicar escopo por clínica em toda consulta e mutação, chaves/rotas de arquivo específicas por clínica e testes de acesso cruzado. Antes do piloto, reavaliar se o volume e os requisitos de isolamento pedem um D1 por clínica.
+**Limite do isolamento:** SQLite por DO separa os dados operacionais de cada clínica; roteamento, autorização, D1 central, filas, suporte e R2 continuam exigindo isolamento/testes. Revogação D1/DO, migrações versionadas por instância, capacidade e recuperação com reconciliação de efeitos externos são gates de implementação. Ver [ADR-0012](adr/0012-clinic-durable-object-sqlite.md).
 
 **Sincronização da interface:** persistir a alteração antes de publicar o evento ao Durable Object; enviar aos clientes apenas eventos da clínica autorizada. O React mantém um estado local atualizado por eventos, mas refaz a leitura do estado canônico ao conectar ou reconectar. Metadados mínimos da conexão devem sobreviver à hibernação; dados críticos não podem depender da memória do objeto. A API de hibernação da Cloudflare permite manter os WebSockets conectados enquanto o objeto sai da memória.
 
@@ -121,7 +121,7 @@ O número e a conta de WhatsApp de cada clínica, a implementação técnica da 
 
 ## Estado da execução
 
-O scaffold técnico da fase F0 foi proposto no repositório: React/Vite, Hono/Worker, esquema mínimo D1/Drizzle, migração local, fixtures fictícias, testes e CI. A definição de produto mantém-se em revisão; o scaffold não altera requisitos nem autoriza dados reais. Ver [F0](implementation/f0.md).
+O scaffold técnico da fase F0 existe como checkpoint anterior à DEC-038: React/Vite, Hono/Worker, esquema mínimo D1/Drizzle, migração local, fixtures fictícias, testes e CI. A definição de produto mantém-se em revisão; o scaffold não altera requisitos nem autoriza dados reais. Ver [F0](implementation/f0.md).
 
 ## Sequência de implementação
 
@@ -144,7 +144,7 @@ Prontuário ou registro clínico, pagamentos, estoque, integração com agendas 
 3. Definido: Clerk sem Organizations, memberships N:N e opção B para gestão de membros (owner gere attendants; superadmin gere owners). Revogação por tenant definida em DEC-026; em aberto o mecanismo técnico e testes de propagação WebSocket, integrações e medidas adicionais de antiabuso; MFA fora do MVP (DEC-028).
 4. Qual provedor de IA será usado; como definir controles de acesso, auditoria e aprovação da sessão de suporte implementada no Tredane?
 5. Quais dados pessoais são necessários, por quanto tempo serão guardados e como a clínica atenderá pedidos de acesso ou exclusão.
-6. Se o D1 compartilhado com escopo rigoroso por clínica atende ao piloto ou se alguma categoria de dados exige banco separado por clínica.
+6. Topologia já definida em DEC-038: validar implementação, migrações, capacidade, recuperação e revogação entre D1 central e SQLite/DO por clínica antes de dados reais.
 
 Estas pendências não bloqueiam a estrutura inicial nem a implementação do fluxo com dados de teste. Bloqueiam a conexão de números reais, o tratamento de dados reais e automações de envio.
 

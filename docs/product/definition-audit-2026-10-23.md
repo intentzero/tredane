@@ -33,7 +33,7 @@
 | F-05 | IA: contexto permitido e registro | Pendente de definição | Revisão humana confirmada como recorte; provedor, campos, limites, retenção e critérios de qualidade faltam |
 | F-06 | Propor eventos e reconciliação | Concluído como proposta | [estados/eventos](states.md), [arquitetura](../architecture/overview.md) |
 | Q-01 | Fronteira proposta de tenant | Concluído como proposta | [tenant-boundaries](tenant-boundaries.md) |
-| Q-02 | Escolher D1 compartilhado/separado | Pendente de decisão | [ADR-0002](../adr/0002-d1-topology.md) permanece aberto |
+| Q-02 | Escolher topologia de persistência | **Decisão documentada — DEC-038** | SQLite por DO/clínica + D1 central; [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md). Implementação e validação pendentes; incorporação documental na PR #7. |
 | Q-03 | Fechar segurança, sessões e webhook | Pendente de especificação | Clerk e N:N confirmados; MFA excluído do MVP (DEC-028), revogação WebSocket, CSRF/impersonação e validação webhook ainda incompletos |
 | Q-04 | Dados, retenção e exclusão | Pendente de definição | [DEC-011](decisions.md), LGPD, suporte, anexos e logs |
 | Q-05 | Observabilidade **proposta** | Concluído como proposta | [REQ-070](requirements.md), [arquitetura](../architecture/overview.md) |
@@ -79,10 +79,13 @@ Referências: [DEC-013 a DEC-019](decisions.md), [ADR-0006](../adr/0006-clerk-pl
 1. **Engenharia F1**: delegação confirmada; especificar convite/aceite, saída de membros, autorização de acesso e revogação imediata em WebSockets, incluindo sessões de suporte. Rascunho e teste com duas clínicas fictícias primeiro.
 2. **Agenda + piloto**: serviços, durações, recursos, buffers, expedientes, cancelamento e reagendamento — definir com a clínica antes de codificar algoritmo final.
 3. **WhatsApp**: conta/número por clínica, operação assistida vs autosserviço, responsabilidades, anexos e estados de falha. Sem conectar número real antes disso.
-4. **D1/retensão**: decisão A/B de banco, minimização e exclusão de dados/arquivos, políticas LGPD e acesso de suporte.
+4. **Persistência/retensão**: topologia decidida em DEC-038; validar migrações, capacidade, recuperação e revogação D1/DO; fechar minimização, exclusão e políticas de dados/suporte.
 5. **IA**: contexto autorizado, provedor, retenção e testes de qualidade.
 6. **Usabilidade**: observar aparelhos, equipe, frequência/ritmo de operação e cenários na clínica piloto.
 
 ## Gate para encerrar Issue #1
 
 Os documentos têm de estar consistentes e revisados pelo responsável do produto, com cada decisão crítica **resolvida ou explicitamente tratada como hipótese não bloqueante** com responsável e momento de revisão. O piloto pode ainda não ter ocorrido se a issue registrar hipóteses claramente; porém o PR e o checklist **não substituem** aceite do produto nem autorizam dados reais. Critérios, estados e prioridades aprovados precisam apontar para os documentos oficiais.
+
+
+**Evolução DEC-038:** Q-02 tem decisão aprovada e documentada: um DO com SQLite por clínica, D1 central e R2 privado. A contagem histórica 16/28 acima é preservada; incorporar/revisar esta entrega da PR #7 antes de atualizar o checklist formal. Não implica implementação ou validação do piloto.

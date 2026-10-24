@@ -7,7 +7,7 @@
 | Fase | Entregáveis | Gate verificável |
 | --- | --- | --- |
 | F0: ambiente | Workspace TS, React, Worker/Hono, Drizzle/D1 local, lint/test/build, Wrangler, CI, seeds sintéticas | Testes e build reproduzíveis; dois tenants de teste; nenhum segredo versionado |
-| F1: identidade/tenant | Login e associação de membro; autorização no Worker; papéis do painel; integração WebSocket autorizada | REQ-001/002/003: ID forjado e revogação não expõem dados/eventos de outra clínica |
+| F1: identidade/tenant | D1 administrativo, DO + SQLite por clínica, migrações por instância, login/memberships, autorização e WebSocket | REQ-001/002/003: ID forjado e revogação não expõem dados/eventos de outra clínica |
 | F2: domínio local | Serviços, recursos, horários, contactos, Inbox e Pipeline com dados sintéticos; CRUD mínimo + auditoria | Duas sessões da mesma clínica convergem e outra clínica não vê alterações |
 | F3: integração Meta | Associação verificada de número de teste, webhooks, deduplicação, outbox, envio manual e status | Reentrega não duplica; falhas e resultado incerto permanecem observáveis |
 | F4: reservas | Consulta de disponibilidade, bloqueios, criação/cancelamento/reagendamento atómicos | Disputa concorrente por profissional e sala permite no máximo um compromisso |
@@ -46,6 +46,18 @@
 
 **DEC-037 — pedir encerramento sem revogação direta:** adicionar ação **Solicitar encerramento** ao banner do subject, API Clerk/tenant/subject verificada no Worker, registro D1 e auditoria de pedido, evento DO/WebSocket restrito aos owners. Owners decidem **Encerrar** (DEC-034) ou **Manter**, com decisão auditada e status para o subject; pedidos repetidos pendentes idempotentes. Sem pausar/estender sessão de 30 minutos enquanto aguarda. Testar outro attendant, outra clínica, sessão expirada, múltiplos owners, duplo clique, reconexão e fim natural. Prazo de resposta owner ainda por decidir.
 
+## DEC-038 — persistência operacional por clínica
+
+**Confirmado:** [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md). D1 central para administração/memberships/convites/suporte; um DO + SQLite por clínica para domínio operacional, histórico/outbox e WebSockets; R2 para anexos. Não executar migrações remotas nesta alteração.
+
+- **F1:** estabelecer classe/namespace SQLite e roteamento autorizado; manter migrations D1 centrais e criar runner SQL versionado por instância. Testar upgrade de esquema e falha antes de uso. Projetar barreira de revogação D1/DO, sem autoridade em cache obsoleto.
+- **F2:** entidades operacionais e histórico/outbox no SQLite correto; duas clínicas sintéticas e reconexão/hibernação sem vazamento. Adaptar ORM/repositórios ao backend.
+- **F3:** deduplicação/outbox local, efeitos externos fora de transação, resultados devolvidos ao DO correto; contrato de resolução de integração e reconciliação.
+- **F4:** transação SQLite para reserva e alocações; prova de concorrência, rollback e manutenção da reserva original em falha de remarcação.
+- **Antes de F6/dados reais:** ensaio de recuperação por clínica com D1/R2/filas/provedor, sem reativar permissões ou repetir mensagens; medir capacidade e observar latência/armazenamento. Relatórios globais via agregados são possibilidade futura, não módulo aprovado.
+
+F0 mantém seu histórico de scaffold D1/Drizzle; não reescrever migrações já aplicadas. Adaptação ainda não implementada.
+
 ## Backlog técnico por épico
 
 ### EP-T01 — Base de execução e CI
@@ -57,7 +69,7 @@
 ### EP-T02 — Segurança e tenancy
 - Middleware de identidade e associação por tenant; principal humano vs integração verificada.
 - APIs para superadmin gerir owners e owner gerir attendants, com negação de promoção indevida ou alteração cross-tenant.
-- Repositórios D1 escopados e FKs compostas; testes automáticos de leitura/escrita cruzada.
+- DEC-038: repositórios administrativos D1 escopados e dados operacionais no SQLite por DO; validar roteamento, referências locais e memberships centrais sem FKs entre stores. Testar leitura/escrita cruzada e autorização em RPC/filas.
 - **DEC-026 — revogação por tenant:** o owner remove attendant de A e o D1 regista revogação + auditoria; API verifica membership por request; invalidar WebSockets DO de A com proteção de fan-out e hibernação, e negar sessões de suporte com subject revogado. **Não revogar Clerk session nem tenants B.** Implementar casos de teste de corrida entre revogação e publicação, cache positivo obsoleto, retomada após hibernação e falha de notificação.
 - Revogação de membro, sessão e WebSocket, com auditoria.
 - R2 privado e controlo de acesso para anexos quando a política de dados estiver fechada.
@@ -74,7 +86,7 @@
 
 ### EP-T05 — Agenda e consistência
 - Serviços, profissionais, salas/equipamentos, disponibilidade e bloqueios.
-- Prova de conceito das garantias atómicas no D1; confirmar duração/buffers no piloto.
+- Prova de conceito das garantias atómicas no SQLite do DO (não D1 batch); confirmar duração/buffers no piloto.
 - Reagendamento sem libertar compromisso antigo até nova confirmação; eventos pós-commit.
 
 ### EP-T06 — IA e qualidade
@@ -92,7 +104,7 @@
 
 ## Dependências que bloqueiam dados reais
 
-Identidade e administração de utilizadores (DEC-007), regras de recurso/agenda (DEC-008), WhatsApp da clínica (DEC-009), decisão de topologia D1 (DEC-010), política de dados e provedor IA (DEC-011), suporte/operador (DEC-012). O épico [#1](https://github.com/intentzero/tredane/issues/1) permanece aberto até validação do produto.
+Identidade e administração de utilizadores (DEC-007), regras de recurso/agenda (DEC-008), WhatsApp da clínica (DEC-009), validação técnica da topologia confirmada DEC-038 (resolve DEC-010), política de dados e provedor IA (DEC-011), suporte/operador (DEC-012). O épico [#1](https://github.com/intentzero/tredane/issues/1) permanece aberto até validação do produto.
 
 ## Primeira tarefa recomendada
 

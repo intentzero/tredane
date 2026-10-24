@@ -1,6 +1,15 @@
-# Modelo lógico de dados D1 — Tredane
+# Modelo lógico de dados — D1 central e SQLite por clínica
 
-**Estado:** proposta técnica, não migração final. Orienta Drizzle e testes do MVP. [Requisitos](../product/requirements.md) e [decisões abertas](../product/decisions.md) continuam a ser a fonte das regras de produto.
+**Estado:** distribuição de persistência confirmada em DEC-038 / [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md); campos, índices e esquema finais continuam propostos, não migração executada. Orienta adaptação da persistência e testes do MVP. [Requisitos](../product/requirements.md) e [decisões abertas](../product/decisions.md) continuam a ser a fonte das regras de produto.
+
+## Distribuição confirmada — DEC-038
+
+- **D1 central:** tenants, tenant_memberships, convites, pedidos/sessões/pedidos de encerramento de suporte e auditoria administrativa/de suporte.
+- **SQLite do DO de cada clínica:** contacts, conversations, messages, opportunities, opportunity_events, services, professionals, resources, service_requirements, availability_rules/time_off, appointments, appointment_allocations/events, inbound_events, outbox_events, outbound_messages, audit_log operacional e ai_suggestions.
+- **R2 privado:** conteúdo de anexos; metadados operacionais no SQLite da clínica.
+- Associação global WhatsApp→tenant exige índice verificado; localização/esquema de integração e credenciais serão especificados na F1/F3. Configuração/estado operacional do canal são da clínica.
+
+Referências a memberships/owners em entidades locais são IDs lógicos: não há FK ou transação entre SQLite do DO e D1 central. Validar vigência pelo protocolo de autorização; tenant_id e correlação de actor/subject continuam nas fronteiras e eventos. Não duplicar autoridade de roles no SQLite.
 
 ## Entidades nucleares
 
@@ -47,26 +56,15 @@ Os campos e índices exatos são **propostos**, sem migração executada. O back
 4. Alterações de estado de agendamentos, oportunidades e envios preservam histórico; eventos da UI nunca antecedem a persistência.
 5. Mensagens não são excluídas por simples encerramento de conversa; retenção e apagamento são processos próprios a definir.
 
-## Concorrência da agenda: estratégia proposta
+## Concorrência da agenda no SQLite da clínica
 
-Precisamos evitar conflito tanto de profissional como de sala/equipamento. A API **não** deve fazer apenas SELECT de disponibilidade seguido de INSERT livre. A restrição final deve estar na camada de escrita do D1.
+DEC-038 coloca a escrita operacional no DO da clínica. Verificar profissional e salas/equipamentos e gravar agendamento, todas as alocações, histórico e outbox numa única transação SQLite local. transactionSync é uma API candidata; implementação final e proteção SQL exigem prova de conceito. Não usar D1 batch para reservas e não confiar apenas em SELECT seguido de INSERT ou no runtime single-threaded.
 
-Uma opção a validar em teste com o D1/SQLite é usar linhas de ocupação por recurso em appointment_allocations, com gatilhos SQL BEFORE INSERT e BEFORE UPDATE que abortem quando existir outra ocupação ativa do mesmo (tenant, tipo, recurso) com intervalos sobrepostos:
-
-- Sobreposição se existing.occupied_from < incoming.occupied_until **e** existing.occupied_until > incoming.occupied_from.
-- Inserir agendamento + todas as ocupações de profissionais/salas/equipamentos por **lote transacional D1 batch**. Se qualquer ocupação conflitar, abortar o lote todo.
-- Reagendamento atualiza o conjunto de ocupações no mesmo lote transacional, preservando o agendamento original em caso de erro. Cancelamento liberta ocupações apenas por operação auditada.
-- Bloqueios/ausências que reservem recursos precisam passar pela mesma proteção de escrita.
-- Duração e buffers compõem occupied_from/until e dependem de regras confirmadas com a clínica piloto.
-- Criar testes simultâneos e cenários de limites adjacentes, recursos distintos, cancelamento/reagendamento e cross-tenant antes de adotar a solução.
-
-**A validar tecnicamente:** suporte e comportamento efetivo dos gatilhos usados, transação D1, limitações do runtime e desenho final do bloqueio. Se necessário, substituir por outra estratégia atómica com restrições únicas (por exemplo, slots discretizados), sem enfraquecer o critério REQ-031.
-
-Referencia oficial: https://developers.cloudflare.com/d1/worker-api/d1-database/ (batch executa sequencialmente numa transação e faz rollback se uma instrução falhar).
+**Proposta SQL:** alocações por recurso; rejeitar sobreposição quando existing.occupied_from < incoming.occupied_until e existing.occupied_until > incoming.occupied_from, inclusive em updates e bloqueios. Gatilhos/restrições exatos seguem propostos até teste. Reagendamento substitui ocupações atomicamente e preserva a reserva original se falhar. Duração e buffers dependem do piloto. Nenhuma chamada externa ocorre na transação.
 
 ## Outbox e eventos
 
-Alteração de domínio e outbox_events entram na mesma transação D1. Um despachante reprocessável varre eventos pendentes e envia a Queue; evento tem ID estável para deduplicação no consumidor. Duplicação na entrega é normal; nenhuma ação deve assumir exactly-once da Queue ou da Meta. O Durable Object envia pequenas notificações (tenant, tipo, aggregate_id, version); os clientes buscam estado canónico pela API.
+Alteração operacional e outbox_events entram na mesma transação SQLite do DO. Despachante reprocessável encaminha intenções às Queues; consumidores usam IDs estáveis e retornam resultados ao DO correto. Eventos WS somente após persistência; reconexão relê estado canônico pela API do DO. Outbox administrativa/de suporte pertence ao D1 central, junto à mutação administrativa correspondente. Não há transação distribuída D1/DO/Queue/R2; contratos idempotentes, recuperação e revogação ainda precisam de desenho/testes.
 
 ## Índices a planear
 
@@ -79,4 +77,4 @@ Alteração de domínio e outbox_events entram na mesma transação D1. Um despa
 
 ## Entregáveis de implementação
 
-Migrações Drizzle versionadas, seeds **sintéticas** para duas clínicas, testes de integridade de chaves cruzadas, disputa por recursos, duplicação de webhook, filas e acesso por IDs adulterados. Não executar migrações remotas ou ligar bases de produção nesta fase.
+Migrações SQL versionadas por DO e migrações D1 centrais (adaptador/Drizzle a validar), seeds **sintéticas** para duas clínicas, testes de integridade de chaves cruzadas, disputa por recursos, duplicação de webhook, filas e acesso por IDs adulterados. Não executar migrações remotas ou ligar bases de produção nesta fase.

@@ -207,4 +207,9 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 
 ## Lacunas para revisão
 
-Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: Q-ACT-04 a Q-ACT-06; duração e disponibilidade da agenda; onboarding do WhatsApp; identidade; provedor/contexto da IA; retenção de dados; D1 compartilhado ou separado por clínica. Ver [decisões](decisions.md).
+Antes de converter este catálogo em issues de implementação, fechar ou manter com hipótese explícita: Q-ACT-04 a Q-ACT-06; duração e disponibilidade da agenda; onboarding do WhatsApp; identidade; provedor/contexto da IA; retenção de dados; protocolo e validação técnica da topologia DEC-038 (D1 central + SQLite por DO/clínica). Ver [decisões](decisions.md).
+
+
+## Persistência confirmada — DEC-038
+
+REQ-001/010/011/020–023/030–034/040–042 usam dados operacionais no SQLite do DO da clínica; REQ-003/004/005/006/007/008 e autorizações de suporte mantêm fonte central D1. Não renumerar requisitos nem alterar prioridades por esta decisão. Critérios de isolamento, concorrência, reconexão, migração, restauração e revogação estão no [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md). Campos, regras de agenda e políticas ainda não aprovadas continuam propostas/em aberto.

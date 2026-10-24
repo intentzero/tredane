@@ -1,6 +1,6 @@
 # Fronteira de dados por clínica
 
-**Estado:** especificação proposta para revisão de produto e arquitetura. **Objetivo:** duas clínicas que usam o mesmo SaaS não podem ler, alterar, receber ou inferir dados uma da outra. A escolha de um Durable Object por clínica está em avaliação; ela não resolve sozinha os demais limites de dados.
+**Estado:** especificação proposta para revisão de produto e arquitetura. **Objetivo:** duas clínicas que usam o mesmo SaaS não podem ler, alterar, receber ou inferir dados uma da outra. DEC-038 confirma um DO por clínica com SQLite operacional próprio e D1 central administrativo; os demais limites continuam obrigatórios.
 
 ## Origem confiável do tenant
 
@@ -18,8 +18,8 @@ Um usuário que pertença a várias clínicas, caso isso seja permitido, selecio
 | Componente | Regra exigida no MVP | Ponto ainda em aberto |
 | --- | --- | --- |
 | Worker/Hono | Autorização central em toda rota e ação; nunca confiar no ID de tenant fornecido pelo cliente. | Provedor de identidade e papéis finais. |
-| D1/Drizzle | Consultas, mutações, vínculos e unicidade lógica sempre no escopo da clínica. Testar acesso por ID de outra clínica. | D1 compartilhado com escopo rigoroso ou D1 por clínica. |
-| Durable Objects | Se adotado um objeto por clínica, o Worker decide a instância após autorização. Conexões e estado privado do objeto não cruzam clínicas. | Validar se um objeto por clínica atende ao padrão de carga; decidir que dados, se houver, ficam no armazenamento do objeto. |
+| D1 central | Tenants, memberships, convites e suporte escopados; nunca concede acesso operacional implícito. | Protocolo de revogação/consistência D1–DO e testes. |
+| DO + SQLite por clínica | DEC-038: operações e dados clínicos operacionais persistem apenas no SQLite do DO correto; Worker autoriza roteamento e DO valida contexto/tenant. | Migrações por instância, capacidade, restauração e protocolo de autorização vigente. |
 | WebSockets hibernáveis | Evento entregue só a conexões autorizadas da clínica; metadados mínimos da conexão sobrevivem à hibernação. Revogação encerra ou reautoriza conexões antigas. | Mecanismo de invalidação e contrato de eventos. |
 | Queues | Cada trabalho carrega tenant e identificador lógico; processamento revalida contexto e evita duplicar efeito em reentrega. | Política de retentativa e tratamento de falha permanente. |
 | R2 | Objetos organizados por clínica e servidos somente após autorização; não usar URL pública permanente para anexo privado. | Prefixo ou bucket por clínica, retenção e exclusão. |
@@ -52,8 +52,8 @@ A revogação de `tenant_memberships` em A é uma alteração de autorização *
 
 Os [cenários AC-01, AC-02, AC-04, AC-05, AC-08, AC-11 e AC-12](acceptance.md) cobrem as primeiras demonstrações dessas invariantes. A implementação deve complementar com testes automatizados de acesso por ID, reentrega e rotas de arquivo.
 
-## Decisão de armazenamento pendente
+## Armazenamento confirmado — DEC-038
 
-**Opção A — D1 compartilhado com escopo por clínica:** menos bancos para administrar no piloto, exige disciplina em todas as consultas, vínculos e migrações. **Opção B — D1 por clínica:** separação de dados por banco, exige provisionamento, roteamento e migrações por tenant. A escolha depende de requisitos de isolamento, escala operacional e custo medidos para o piloto. A decisão deve ser registrada em [decisões](decisions.md) antes de dados reais.
+SQLite nativo por DO/clínica para operação; D1 central para administração, memberships, convites e suporte; anexos privados no R2. As alternativas D1 operacional compartilhado/por clínica permanecem como histórico no ADR-0002, substituídas pelo [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md). Não há banco D1 dentro do DO.
 
-O armazenamento privado de cada Durable Object pode ajudar a separar estado desse objeto, mas **não** altera o isolamento de um D1 compartilhado nem de arquivos R2. Referências: [isolamento de dados em SaaS na Cloudflare](https://developers.cloudflare.com/use-cases/saas/data-isolation/), [armazenamento de Durable Objects](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/) e [WebSockets com hibernação](https://developers.cloudflare.com/durable-objects/best-practices/websockets/).
+Nenhuma transação distribuída é presumida entre stores. Revogação confirmada deve barrar novas operações e entregas de dados no DO, inclusive hibernado, sem cache positivo obsoleto; desenho e testes permanecem abertos. Restaurar SQLite não pode reativar membership/suporte revogado no D1 nem repetir efeitos externos. R2 exige autorização separada e contexto de tenant.

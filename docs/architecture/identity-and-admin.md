@@ -145,3 +145,8 @@ Em `mode: 'support'`, o actor **continua autenticado no Clerk como ele mesmo**; 
 - **DEC-029 confirma aprovação por owner para cada sessão de suporte.** Canal de aviso, validade e privacidade dos dados ainda a definir.
 - Protocolo de revogação de WebSocket com garantia de não-entrega posterior, e topologia definitiva das apps/Workers. O **comportamento** de revogação por tenant está fechado em DEC-026.
 - Política de exclusão física/retensão e mecanismos de provisionamento, convite e alteração de membros.
+
+
+## Fronteira de persistência — DEC-038
+
+D1 central permanece fonte de memberships, roles, convites e sessões/pedidos/auditoria de suporte. Dados operacionais passam ao SQLite do DO da clínica, acessado mediante contexto autorizado. Não há FK/transação entre D1 e SQLite; desenhar e testar protocolo de revogação que impeça operações e entregas posteriores à confirmação, incluindo hibernação e falha de notificação. Restauração do SQLite não pode reativar autorizações centrais antigas. A topologia não modifica DEC-017–037. Ver [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md).

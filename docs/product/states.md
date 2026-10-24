@@ -54,7 +54,7 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 | Agendamento confirmado/cancelado/reagendado | Após persistir a alteração sem conflito. | Agenda, conversa e oportunidade. |
 | Acesso revogado | Quando uma associação ou sessão perde validade. | Conexões e telas afetadas deixam de receber dados; nova leitura exige autorização. |
 
-O payload deve conter somente o necessário para identificar a mudança. O servidor verifica o tenant antes de publicar e antes de entregar. Eventos podem chegar repetidos ou deixar de chegar; o cliente reconcilia com a API ao conectar ou reconectar. A escolha de um Durable Object por clínica permanece **Proposta**; WebSockets com hibernação são uma capacidade **Confirmada**.
+O payload deve conter somente o necessário para identificar a mudança. O servidor verifica o tenant antes de publicar e antes de entregar. Eventos podem chegar repetidos ou deixar de chegar; o cliente reconcilia com a API ao conectar ou reconectar. Um Durable Object por clínica com SQLite operacional está **Confirmado em DEC-038**; WebSockets com hibernação permanecem confirmados. Eventos operacionais saem após commit SQLite; eventos administrativos/de suporte partem do D1 e exigem propagação idempotente. Ver [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md).
 
 ## Questões que bloqueiam estados finais
 

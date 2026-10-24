@@ -12,7 +12,7 @@ O [escopo inicial do MVP](docs/MVP.md) registra o fluxo, os critérios de aceite
 
 - Interface: React.
 - API: Hono em Cloudflare Workers.
-- Dados relacionais: D1 com Drizzle.
+- Dados: D1 central administrativo e SQLite nativo por DO/clínica para operação (DEC-038); migrações/adaptadores separados por backend.
 - Processamento assíncrono: Cloudflare Queues.
 - Arquivos: R2.
 - Processos de múltiplas etapas: Cloudflare Workflows.
@@ -23,7 +23,7 @@ O [escopo inicial do MVP](docs/MVP.md) registra o fluxo, os critérios de aceite
 ## Documentação de engenharia
 
 - [Arquitetura e fluxos técnicos](docs/architecture/overview.md)
-- [Modelo lógico de dados D1](docs/architecture/data-model.md)
+- [Modelo lógico D1 central/SQLite por clínica](docs/architecture/data-model.md)
 - [ADRs — decisões arquiteturais](docs/adr/0001-cloudflare-native.md) (ver também [topologia D1](docs/adr/0002-d1-topology.md), [tempo real](docs/adr/0003-durable-objects-realtime.md), [IA assistiva](docs/adr/0004-ai-human-in-loop.md) e [concorrência da agenda](docs/adr/0005-d1-booking-consistency.md))
 - [Plano de implementação por fatias](docs/implementation/plan.md)
 
@@ -57,3 +57,8 @@ A [auditoria do Issue #1](docs/product/definition-audit-2026-10-23.md) distingue
 ## Próximo marco
 
 Preparar a estrutura de frontend e API, migrações, ambiente local e CI. Em seguida, implementar o isolamento entre clínicas, o fluxo principal e a atualização reativa entre sessões com dados de teste antes de conectar serviços reais.
+
+
+## Persistência por clínica — DEC-038
+
+Confirmado: um Durable Object com SQLite nativo por clínica para dados operacionais e WebSockets; D1 central para tenants, memberships, convites e suporte; R2 privado para anexos. [ADR-0012](docs/adr/0012-clinic-durable-object-sqlite.md) registra alternativas, consequências e trabalho pendente. O scaffold F0 ainda não implementa essa evolução.

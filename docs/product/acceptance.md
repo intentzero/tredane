@@ -157,3 +157,8 @@
 - Revisar com o responsável pelo produto e uma clínica piloto os casos marcados como pendentes.
 - Fixar as permissões de atendente e responsável, a duração e os recursos de cada serviço, a política de cancelamento e o fluxo de WhatsApp real.
 - Converter cada cenário em teste executável quando o módulo correspondente existir, preservando seus IDs e anotando qualquer mudança de comportamento aprovada.
+
+
+## Aplicação da topologia DEC-038 aos cenários
+
+Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernação) com DOs e bancos SQLite distintos por clínica, mantendo memberships e suporte no D1 central. As garantias existentes não mudam. Acrescentar ensaios de migração por instância, restauração sem efeitos duplicados/permissões ressuscitadas e revogação D1/DO durante corrida/hibernação, conforme [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md). Cenários documentados não equivalem a testes executados.
