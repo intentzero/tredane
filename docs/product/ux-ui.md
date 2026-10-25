@@ -300,14 +300,14 @@ Ver seção 6.2.
 
 ## 7. Acessibilidade e legibilidade
 
-**Estado:** Proposto, alvo WCAG 2.1 AA.
+**Estado:** Proposto, alvo WCAG 2.1 AA. Polimento de código (skip link, landmarks, diálogos React Aria DEC-048, rótulos/teclado/filtros) cobre o que é verificável em CI/jsdom+axe; **não** substitui aceite em aparelho.
 
-- Contraste mínimo 4,5:1 para texto, 3:1 para ícones e bordas de controles.
-- Estados com ícone + texto; nunca só cor (vermelho/verde em especial).
-- Todas as ações disponíveis por teclado: navegação da lista com setas, Enter abre, Esc fecha painéis; mover cartão pelo menu “Mover para…”; escolher horário por botões.
-- Alvos de toque ≥ 44 × 44 px em tablet e celular.
+- Contraste mínimo 4,5:1 para texto, 3:1 para ícones e bordas de controles (tokens + `check_contrast.py`; axe desliga contraste no jsdom).
+- Estados com ícone + texto; nunca só cor (vermelho/verde em especial) — estados de envio falhou/desconhecido na conversa.
+- Todas as ações disponíveis por teclado: navegação da lista, Enter abre, Esc fecha folhas/diálogos React Aria; mover cartão pelo menu “Mover para…”; escolher horário por botões; skip link «Saltar para o conteúdo».
+- Alvos de toque ≥ 44 × 44 px em CSS (`--size-touch`); **Em aberto:** medição real em ≥360 px (UX-08 / Q-UX-01).
 - Atualizações em tempo real anunciadas com `aria-live="polite"` somente para o que afeta o item em foco (nova mensagem na conversa aberta, mudança de conexão); mudanças em massa na lista não são lidas uma a uma.
-- Foco nunca é roubado por evento remoto.
+- Foco nunca é roubado por evento remoto (UX-07); confirmações destrutivas focam a ação segura (Cancelar).
 - Texto base 16 px no celular e no tablet; 14 px permitido apenas em listas densas do desktop.
 
 ## 8. Direção visual proposta
@@ -350,7 +350,7 @@ Complementam os [cenários de aceite](acceptance.md); IDs novos e estáveis.
 
 | ID | Questão | Bloqueia | Decide |
 | --- | --- | --- | --- |
-| Q-UX-01 | Quais modelos de celular, sistemas e navegadores a equipe da clínica piloto usa, e quanto do atendimento acontece no computador? (A prioridade do celular já está decidida em DEC-039.) | Aceite de usabilidade e lista de aparelhos de teste. | Responsável pelo produto + clínica piloto |
+| Q-UX-01 | Quais modelos de celular, sistemas e navegadores a equipe da clínica piloto usa, e quanto do atendimento acontece no computador? (A prioridade do celular já está decidida em DEC-039.) **Confirmado em código (sintético):** skip link, `main`/`nav`, traps de foco em folhas React Aria, filtros com `aria-pressed`, estados de envio com texto+ícone, testes axe/teclado em `panel.a11y.test.tsx`. **Em aberto:** Safari iPhone / Chrome Android / VoiceOver / TalkBack / teclado virtual / fluxo UX-08 em aparelho ≥360 px da clínica. | Aceite de usabilidade e lista de aparelhos de teste. | Responsável pelo produto + clínica piloto |
 | Q-UX-02 | ~~Mover para “Agendado” sem compromisso~~ Resolvida: permitido, com aviso (DEC-040). | — | — |
 | Q-UX-03 | ~~Granularidade da grade~~ e ~~visão semanal~~ Resolvidas: 15 min (DEC-008) e visão de dia e de semana (DEC-040). | — | — |
 | Q-UX-04 | ~~Sugestão sob demanda ou automática~~ Resolvida: só sob demanda (DEC-040). | — | — |

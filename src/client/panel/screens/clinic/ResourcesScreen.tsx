@@ -29,15 +29,17 @@ export function ResourcesList({ tenantId, snap }: ListProps) {
           Voltar
         </Button>
       </div>
-      <div className="clinic-tabs" role="tablist" aria-label="Tipo de recurso">
+      <div className="clinic-tabs" role="group" aria-label="Tipo de recurso">
         <Button
           className={tab === 'professional' ? 'clinic-tab clinic-tab-active' : 'clinic-tab'}
+          aria-pressed={tab === 'professional'}
           onPress={() => setTab('professional')}
         >
           Profissionais
         </Button>
         <Button
           className={tab === 'room' ? 'clinic-tab clinic-tab-active' : 'clinic-tab'}
+          aria-pressed={tab === 'room'}
           onPress={() => setTab('room')}
         >
           Salas e equipamentos

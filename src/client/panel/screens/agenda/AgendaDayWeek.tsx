@@ -135,7 +135,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
         </Button>
       </header>
 
-      <div className="panel-tabs" role="tablist" aria-label="Visão">
+      <div className="panel-tabs" role="group" aria-label="Visão da agenda">
         <button
           type="button"
           className="panel-day"

@@ -1,6 +1,14 @@
-import { ChevronLeft, Sparkles } from 'lucide-react'
+import { ChevronLeft, CircleAlert, Sparkles } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { Button, TextArea, TextField } from 'react-aria-components'
+import {
+  Button,
+  Dialog,
+  Heading,
+  Modal,
+  ModalOverlay,
+  TextArea,
+  TextField,
+} from 'react-aria-components'
 import type {
   AiSuggestion,
   InboxConversationDetail,
@@ -52,6 +60,7 @@ function MessageBubble({
   const outbound = m.direction === 'outbound'
   const failed = outbound && m.deliveryState === 'failed'
   const unknown = outbound && m.deliveryState === 'unknown'
+  const delivery = outbound ? deliveryLabel(m.deliveryState) : null
   return (
     <div
       className={outbound ? 'inbox-msg inbox-msg-out' : 'inbox-msg inbox-msg-in'}
@@ -64,7 +73,30 @@ function MessageBubble({
           hour: '2-digit',
           minute: '2-digit',
         })}
-        {outbound ? ` · ${deliveryLabel(m.deliveryState)}` : ''}
+        {delivery ? (
+          <>
+            {' · '}
+            <span
+              className={
+                failed
+                  ? 'inbox-delivery inbox-delivery-failed'
+                  : unknown
+                    ? 'inbox-delivery inbox-delivery-unknown'
+                    : 'inbox-delivery'
+              }
+            >
+              {(failed || unknown) && (
+                <CircleAlert
+                  aria-hidden
+                  size={12}
+                  strokeWidth={2.4}
+                  className="inbox-delivery-icon"
+                />
+              )}
+              {delivery}
+            </span>
+          </>
+        ) : null}
       </span>
       {failed && onRetry ? (
         <Button
@@ -495,6 +527,7 @@ export function InboxThread({
         <button
           type="button"
           className="inbox-thread-title"
+          aria-label={`Informações de ${label}`}
           onClick={() =>
             navigatePanel({
               kind: 'area',
@@ -802,72 +835,118 @@ export function InboxThread({
             </div>
           )}
 
-          {pickerOpen ? (
-            <div className="inbox-template-picker" role="dialog" aria-label="Modelos WhatsApp">
-              {templates.length === 0 ? (
-                <p>Nenhum modelo aprovado sincronizado.</p>
-              ) : (
-                <ul className="inbox-template-list">
-                  {templates.map((t) => (
-                    <li key={`${t.name}:${t.language}`}>
-                      <button
-                        type="button"
-                        className={
-                          selectedTemplate?.name === t.name
-                            ? 'inbox-template-item inbox-template-item-active'
-                            : 'inbox-template-item'
-                        }
-                        onClick={() => {
-                          setSelectedTemplate(t)
-                          const next: Record<string, string> = {}
-                          for (const k of t.paramKeys) next[k] = templateParams[k] ?? ''
-                          setTemplateParams(next)
-                        }}
-                      >
-                        <strong>{t.name}</strong>
-                        <span>
-                          {t.category}
-                          {t.pricingCategory ? ` · ${t.pricingCategory}` : ''}
-                        </span>
-                        <span className="inbox-template-pricing">{t.pricingNote}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {selectedTemplate ? (
-                <div className="inbox-template-form">
-                  <p className="inbox-template-preview">
-                    <PlainText text={selectedTemplate.bodyPreview} />
-                  </p>
-                  <p className="inbox-template-pricing" role="note">
-                    {selectedTemplate.pricingNote}
-                  </p>
-                  {selectedTemplate.paramKeys.map((key) => (
-                    <label key={key} className="inbox-template-param">
-                      <span>{key}</span>
-                      <input
-                        value={templateParams[key] ?? ''}
-                        onChange={(e) =>
-                          setTemplateParams((prev) => ({
-                            ...prev,
-                            [key]: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                  ))}
-                  <Button
-                    className="panel-btn-primary"
-                    onPress={() => void sendTemplate()}
-                    isDisabled={busy}
-                  >
-                    Enviar modelo
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+          <ModalOverlay
+            isOpen={pickerOpen}
+            onOpenChange={(next) => {
+              if (!next && !busy) setPickerOpen(false)
+            }}
+            className="panel-overlay"
+            style={{ position: 'fixed', inset: 0, zIndex: 30 }}
+            isDismissable={!busy}
+          >
+            <Modal>
+              <Dialog
+                className="panel-sheet inbox-template-picker"
+                style={{ position: 'fixed', left: 0, right: 0, bottom: 0 }}
+                aria-labelledby="wa-template-title"
+              >
+                {({ close }) => (
+                  <>
+                    <span className="panel-sheet-handle" aria-hidden="true" />
+                    <Heading
+                      slot="title"
+                      id="wa-template-title"
+                      className="panel-title"
+                      style={{ margin: '8px 0 2px' }}
+                    >
+                      Modelos WhatsApp
+                    </Heading>
+                    {templates.length === 0 ? (
+                      <p className="panel-subtitle">
+                        Nenhum modelo aprovado sincronizado.
+                      </p>
+                    ) : (
+                      <ul className="inbox-template-list">
+                        {templates.map((t) => (
+                          <li key={`${t.name}:${t.language}`}>
+                            <button
+                              type="button"
+                              className={
+                                selectedTemplate?.name === t.name
+                                  ? 'inbox-template-item inbox-template-item-active'
+                                  : 'inbox-template-item'
+                              }
+                              aria-pressed={selectedTemplate?.name === t.name}
+                              onClick={() => {
+                                setSelectedTemplate(t)
+                                const next: Record<string, string> = {}
+                                for (const k of t.paramKeys)
+                                  next[k] = templateParams[k] ?? ''
+                                setTemplateParams(next)
+                              }}
+                            >
+                              <strong>{t.name}</strong>
+                              <span>
+                                {t.category}
+                                {t.pricingCategory
+                                  ? ` · ${t.pricingCategory}`
+                                  : ''}
+                              </span>
+                              <span className="inbox-template-pricing">
+                                {t.pricingNote}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {selectedTemplate ? (
+                      <div className="inbox-template-form">
+                        <p className="inbox-template-preview">
+                          <PlainText text={selectedTemplate.bodyPreview} />
+                        </p>
+                        <p className="inbox-template-pricing" role="note">
+                          {selectedTemplate.pricingNote}
+                        </p>
+                        {selectedTemplate.paramKeys.map((key) => (
+                          <label key={key} className="inbox-template-param">
+                            <span>{key}</span>
+                            <input
+                              value={templateParams[key] ?? ''}
+                              onChange={(e) =>
+                                setTemplateParams((prev) => ({
+                                  ...prev,
+                                  [key]: e.target.value,
+                                }))
+                              }
+                            />
+                          </label>
+                        ))}
+                        <Button
+                          className="panel-btn-primary"
+                          onPress={() => void sendTemplate()}
+                          isDisabled={busy}
+                        >
+                          Enviar modelo
+                        </Button>
+                      </div>
+                    ) : null}
+                    <Button
+                      className="panel-btn-secondary"
+                      style={{ marginTop: 8 }}
+                      isDisabled={busy}
+                      onPress={() => {
+                        close()
+                        setPickerOpen(false)
+                      }}
+                    >
+                      Fechar
+                    </Button>
+                  </>
+                )}
+              </Dialog>
+            </Modal>
+          </ModalOverlay>
         </div>
       ) : (
         <p className="inbox-composer-closed">Conversa encerrada. Nova mensagem do contacto reabre o histórico.</p>

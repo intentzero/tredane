@@ -101,7 +101,11 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
         <Input className="inbox-search-input" placeholder="Buscar nome ou telefone" />
       </SearchField>
 
-      <div className="inbox-filters" role="tablist" aria-label="Filtros da caixa de entrada">
+      <div
+        className="inbox-filters"
+        role="toolbar"
+        aria-label="Filtros da caixa de entrada"
+      >
         {FILTERS.map((f) => {
           const count =
             counts == null
@@ -120,7 +124,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
             <Button
               key={f}
               className={`panel-chip${selected ? ' inbox-chip-active' : ''}`}
-              aria-selected={selected}
+              aria-pressed={selected}
               onPress={() => setFilter(f)}
             >
               {filterLabel(f)}
