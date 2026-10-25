@@ -42,3 +42,13 @@ export {
   type RetentionRouteOptions,
   type RetentionClinicStub,
 } from './routes'
+export {
+  startTenantPurgeWorkflow,
+  type StartTenantPurgeWorkflowResult,
+  type TenantPurgeWorkflowBinding,
+} from './workflow-start'
+export {
+  tenantPurgeWorkflowInstanceId,
+  type TenantPurgeWorkflowParams,
+} from './workflow-params'
+export { tickTenantPurgeOnEnv, type EnvPurgeTickResult } from './env-orchestrator'

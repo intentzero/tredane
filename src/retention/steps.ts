@@ -1,7 +1,8 @@
 /**
  * Passos do expurgo físico de tenant (#43 / REQ-071).
- * Processo durável com checkpoints — Cloudflare Workflows ficam como contrato
- * (environments.md); a orquestração MVP usa esta máquina de estados + tick.
+ * Fonte de verdade: `tenant_deletion_commands` (checkpoints/retries).
+ * Driver durável em produção: Cloudflare Workflow `TENANT_PURGE`
+ * (`TenantPurgeWorkflow`); CI/unit continua na máquina sync + tick.
  */
 export const TENANT_PURGE_STEPS = [
   'claim',

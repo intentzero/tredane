@@ -1,4 +1,5 @@
 import type { ClinicDurableObject } from './clinic-do'
+import type { TenantPurgeWorkflowParams } from '../retention/workflow-params'
 
 /** Bindings partilhados Worker ↔ Clinic DO (evita ciclo app ↔ clinic-do). */
 export type WorkerBindings = {
@@ -6,6 +7,11 @@ export type WorkerBindings = {
   CLINIC: DurableObjectNamespace<ClinicDurableObject>
   ATTACHMENTS: R2Bucket
   INBOUND_EVENTS: Queue
+  /**
+   * Workflow de expurgo de tenant (#43 polish).
+   * Opcional em testes unitários sem binding; declarado em wrangler.jsonc.
+   */
+  TENANT_PURGE?: Workflow<TenantPurgeWorkflowParams>
   ENVIRONMENT?: string
   CLERK_SECRET_KEY?: string
   CLERK_PUBLISHABLE_KEY?: string

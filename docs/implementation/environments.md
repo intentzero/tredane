@@ -20,7 +20,7 @@ Bindings **não são herdados** entre ambientes Wrangler: cada `env.*` declara o
 | `CLINIC` | Durable Object (`ClinicDurableObject`, SQLite) | Um DO por clínica; operação + WebSockets | Domínio #20–#43 |
 | `ATTACHMENTS` | R2 (privado) | Anexos; sem URL pública permanente | #34; política fina Em aberto |
 | `INBOUND_EVENTS` | Queue (producer + consumer + DLQ) | Webhooks WhatsApp + drain outbox DO; DLQ `tredane-inbound-dlq-*` | #32/#33 |
-| Workflows | Workflow | Lembretes/processos multi-etapa | **Contrato apenas** — expurgo #43 = state machine D1 |
+| `TENANT_PURGE` | Workflow (`TenantPurgeWorkflow`) | Expurgo de clínica ≤30 dias (#43) | **Confirmado** em development/runtime-test; staging/prod: contrato declarado, provisionamento na conta CF **Em aberto** |
 | `AUTH_MODE` / `CLERK_*` | vars/secrets | Sessão Clerk + authorized parties (#21) | Synthetic em development; Clerk em staging/prod |
 | `APP_BASE_URL` / `EMAIL_TRANSPORT` | vars | Links de convite + transporte de e-mail (#25) | `simulated` em development; provedor real Em aberto |
 | `PUSH_MODE` / `VAPID_*` | vars/secrets | Web Push PWA (#42) | `synthetic` em development/CI; live exige VAPID |
