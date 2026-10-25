@@ -72,6 +72,14 @@
       }
     ]
   },
+  // Expurgo de clínica — checkpoints/retries ≤30 dias (#43). CI/local não exige conta CF live.
+  "workflows": [
+    {
+      "name": "tredane-tenant-purge-dev",
+      "binding": "TENANT_PURGE",
+      "class_name": "TenantPurgeWorkflow"
+    }
+  ],
   // Bindings não são herdados: staging/prod repetem o contrato completo.
   // Placeholders 0000…00aa / 0000…00ff e UNPROVISIONED_* são recusados por
   // `npm run check:env -- staging|production` antes de qualquer deploy.
@@ -126,7 +134,15 @@
             "retry_delay": 30
           }
         ]
-      }
+      },
+      // Provisionamento do Workflow em staging: Em aberto até conta CF do projecto.
+      "workflows": [
+        {
+          "name": "tredane-tenant-purge-staging",
+          "binding": "TENANT_PURGE",
+          "class_name": "TenantPurgeWorkflow"
+        }
+      ]
     },
     "production": {
       "name": "tredane-dev-production",
@@ -176,7 +192,14 @@
             "retry_delay": 30
           }
         ]
-      }
+      },
+      "workflows": [
+        {
+          "name": "tredane-tenant-purge-production",
+          "binding": "TENANT_PURGE",
+          "class_name": "TenantPurgeWorkflow"
+        }
+      ]
     }
   }
 }

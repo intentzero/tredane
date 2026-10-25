@@ -36,6 +36,7 @@ import {
 import type { FenceSource } from '../realtime/protocol'
 import type { AdminDb } from '../db/admin/store'
 import type { WorkerBindings } from '../worker/bindings'
+import { startTenantPurgeWorkflow } from '../retention/workflow-start'
 import {
   d1AssignOwner,
   d1CreateTenantWithOwner,
@@ -352,6 +353,12 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
           actorClerkUserId: principal.clerkUserId,
           source: 'tenant_pending_deletion' satisfies FenceSource,
         })
+        // CI/unit: binding / env ausente → no-op; máquina sync continua a ser o driver.
+        const workflow = await startTenantPurgeWorkflow(c.env?.TENANT_PURGE, {
+          tenantId,
+          commandId: result.deletionCommand.id,
+          actorClerkUserId: principal.clerkUserId,
+        })
         c.header('Cache-Control', 'no-store')
         return c.json({
           tenant: serializeTenant(result.tenant),
@@ -363,6 +370,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
           doNotified: result.doNotified,
           doError: result.doError ?? null,
           closedConnections: result.closedConnections,
+          workflow,
         })
       }
 
@@ -370,6 +378,11 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
       const notified = await invalidator.applyTenantSuspended({
         tenantId,
         source: 'tenant_pending_deletion',
+      })
+      const workflow = await startTenantPurgeWorkflow(c.env?.TENANT_PURGE, {
+        tenantId,
+        commandId: lifecycle.deletionCommand.id,
+        actorClerkUserId: principal.clerkUserId,
       })
       c.header('Cache-Control', 'no-store')
       return c.json({
@@ -382,6 +395,7 @@ export function createPlatformRoutes(opts: PlatformRouteOptions = {}): Hono<Plat
         doNotified: notified.ok,
         doError: notified.ok ? null : notified.error,
         closedConnections: notified.ok ? notified.closedConnections : [],
+        workflow,
       })
     } catch (err) {
       return adminErrorResponse(c, err)

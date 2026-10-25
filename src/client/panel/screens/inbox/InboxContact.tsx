@@ -1,9 +1,15 @@
 import { ChevronLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from 'react-aria-components'
-import type { AiSuggestion, InboxContactDetail, PanelApi } from '../../api'
+import {
+  PanelApiError,
+  type AiSuggestion,
+  type InboxContactDetail,
+  type PanelApi,
+} from '../../api'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
+import { DeleteContactDialog } from './DeleteContactDialog'
 import { contactLabel, maskPhone, relativeTime, statusClass, statusLabel } from './format'
 
 type Props = {
@@ -12,6 +18,23 @@ type Props = {
   conversationId?: string
   api: PanelApi
   generation: number
+  /** Só owner vê e executa exclusão (clinic.contacts.delete). */
+  isOwner: boolean
+}
+
+function deleteErrorMessage(err: unknown): string {
+  if (err instanceof PanelApiError) {
+    if (err.code === 'permission_denied' || err.status === 403) {
+      return 'Só o responsável pode excluir contactos.'
+    }
+    if (err.status === 404) {
+      return 'Contacto já não está disponível.'
+    }
+    if (err.status === 409) {
+      return 'Não foi possível excluir agora. Tente de novo.'
+    }
+  }
+  return 'Não foi possível excluir o contacto. Tente de novo.'
 }
 
 export function InboxContactScreen({
@@ -20,6 +43,7 @@ export function InboxContactScreen({
   conversationId,
   api,
   generation,
+  isOwner,
 }: Props) {
   const [data, setData] = useState<InboxContactDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -27,6 +51,10 @@ export function InboxContactScreen({
   const [summary, setSummary] = useState<AiSuggestion | null>(null)
   const [summaryBusy, setSummaryBusy] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -52,6 +80,17 @@ export function InboxContactScreen({
       cancelled = true
     }
   }, [api, tenantId, contactId, generation])
+
+  if (deleteSuccess) {
+    return (
+      <div className="inbox-contact">
+        <p className="inbox-notice inbox-notice-ok" role="status">
+          {deleteSuccess}
+        </p>
+        <LoadingState label="A voltar à lista…" />
+      </div>
+    )
+  }
 
   if (loading && !data) return <LoadingState label="A carregar contacto…" />
   if (error && !data) {
@@ -79,6 +118,36 @@ export function InboxContactScreen({
   if (!data) return null
 
   const label = contactLabel(data.contact)
+
+  async function handleDelete() {
+    setDeleteBusy(true)
+    setDeleteError(null)
+    try {
+      const result = await api.deleteContact(tenantId, contactId, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      // Sem PII — só contagens e id de auditoria.
+      setDeleteSuccess(
+        `Contacto excluído. ${result.deletedMessageCount} mensagem(ns) e ${result.deletedAttachmentCount} anexo(s) removidos` +
+          (result.anonymizedAppointmentCount > 0
+            ? `; ${result.anonymizedAppointmentCount} compromisso(s) anonimizado(s)`
+            : '') +
+          '.',
+      )
+      setConfirmOpen(false)
+      setData(null)
+      window.setTimeout(() => {
+        navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'lista' })
+      }, 1200)
+    } catch (err) {
+      // Não registar nome/telefone no console — mensagem genérica ao utilizador.
+      setDeleteError(deleteErrorMessage(err))
+      setConfirmOpen(false)
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
 
   return (
     <div className="inbox-contact">
@@ -243,6 +312,45 @@ export function InboxContactScreen({
           </li>
         ))}
       </ul>
+
+      {isOwner ? (
+        <section className="inbox-contact-danger" aria-labelledby="delete-contact-h">
+          <h2 id="delete-contact-h" className="inbox-contact-h">
+            Zona de risco
+          </h2>
+          <p className="inbox-contact-note">
+            Exclui mensagens, anexos e dados pessoais deste contacto. Compromissos
+            na agenda ficam como «Contacto removido».
+          </p>
+          {deleteError ? (
+            <p className="inbox-notice" role="alert" style={{ marginBottom: 12 }}>
+              {deleteError}
+            </p>
+          ) : null}
+          <Button
+            className="panel-btn-danger"
+            style={{ margin: '0 16px 24px' }}
+            onPress={() => {
+              setDeleteError(null)
+              setConfirmOpen(true)
+            }}
+          >
+            Excluir contacto
+          </Button>
+        </section>
+      ) : null}
+
+      <DeleteContactDialog
+        open={confirmOpen}
+        contactLabel={label}
+        busy={deleteBusy}
+        onClose={() => {
+          if (!deleteBusy) setConfirmOpen(false)
+        }}
+        onConfirm={() => {
+          void handleDelete()
+        }}
+      />
     </div>
   )
 }

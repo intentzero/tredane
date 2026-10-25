@@ -1066,6 +1066,25 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as InboxContactDetail
     },
 
+    /**
+     * Exclusão de contacto pelo owner (#43 / REQ-071).
+     * Resposta sem PII — só contagens e auditId.
+     */
+    async deleteContact(
+      tenantId: string,
+      contactId: string,
+      opts?: FetchOpts,
+    ): Promise<DeleteContactResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/contacts/${encodeURIComponent(contactId)}`,
+        { method: 'DELETE' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as DeleteContactResponse
+    },
+
     async assignInboxConversation(
       tenantId: string,
       conversationId: string,
@@ -1459,6 +1478,17 @@ export type WhatsappTemplatesResponse = {
 export type InboxContactDetail = {
   contact: InboxContact
   conversations: InboxConversation[]
+}
+
+/** Resposta de DELETE contacto — sem nome, telefone ou wa_id. */
+export type DeleteContactResponse = {
+  deleted: boolean
+  contactId: string
+  deletedMessageCount: number
+  deletedAttachmentCount: number
+  r2Deleted: number
+  anonymizedAppointmentCount: number
+  auditId: string
 }
 
 export type InboxAssignResponse = {

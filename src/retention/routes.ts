@@ -35,6 +35,8 @@ import {
   type ClinicWipeResult,
 } from './orchestrator'
 import { deleteAttachmentObjects } from './r2-purge'
+import { startTenantPurgeWorkflow } from './workflow-start'
+import { tickTenantPurgeOnEnv } from './env-orchestrator'
 
 type RetentionEnv = {
   Bindings: WorkerBindings
@@ -243,33 +245,149 @@ export function createRetentionRoutes(opts: RetentionRouteOptions = {}) {
         requirePlatformPermission(principal, 'platform.tenants.write')
         const tenantId = c.req.param('tenantId')
         const syncDb = opts.syncAdminDbFactory?.(c.env)
-        if (!syncDb) {
-          return c.json({ error: 'admin_db_unavailable' }, 503)
-        }
         const clock = opts.clockFactory?.() ?? systemClock
         const body = (await c.req.json().catch(() => ({}))) as {
           runUntilDone?: boolean
+          /** Preferir Workflow durável quando o binding existir (produção). */
+          useWorkflow?: boolean
         }
-        const deps = buildPurgeDeps(
-          opts,
-          c.env,
-          syncDb,
-          clock,
-          principal.clerkUserId,
-          tenantId,
-        )
-        const result = body.runUntilDone
-          ? await runTenantPurgeUntilDone(deps, { tenantId })
-          : await tickTenantPurge(deps, { tenantId })
 
+        // Caminho sync (CI/unit com node:sqlite) — não muda comportamento #43.
+        if (syncDb) {
+          const deps = buildPurgeDeps(
+            opts,
+            c.env,
+            syncDb,
+            clock,
+            principal.clerkUserId,
+            tenantId,
+          )
+          const result = body.runUntilDone
+            ? await runTenantPurgeUntilDone(deps, { tenantId })
+            : await tickTenantPurge(deps, { tenantId })
+
+          c.header('Cache-Control', 'no-store')
+          return c.json({
+            command: serializePurgeCommand(result.command),
+            stepped: result.stepped,
+            done: result.done,
+            alerted: result.alerted,
+            overdue: result.overdue,
+            detail: result.detail,
+            driver: 'sync_state_machine',
+          })
+        }
+
+        // Produção / runtime: Workflow ou tick D1 pontual.
+        const open = await c.env.DB.prepare(
+          `SELECT id, tenant_id, status, requested_by_clerk_user_id, requested_at, updated_at,
+                  payload_json, deadline_at, started_at, completed_at, last_step, last_error, alert_sent_at
+           FROM tenant_deletion_commands
+           WHERE tenant_id = ? AND status IN ('queued', 'in_progress')
+           ORDER BY requested_at DESC LIMIT 1`,
+        )
+          .bind(tenantId)
+          .first<{
+            id: string
+            tenant_id: string
+            status: string
+            requested_by_clerk_user_id: string
+            requested_at: number
+            updated_at: number
+            payload_json: string | null
+            deadline_at: number | null
+            started_at: number | null
+            completed_at: number | null
+            last_step: string | null
+            last_error: string | null
+            alert_sent_at: number | null
+          }>()
+
+        if (!open) {
+          return c.json({ error: 'deletion_command_not_found' }, 404)
+        }
+
+        const preferWorkflow = body.useWorkflow !== false && body.runUntilDone !== false
+        if (preferWorkflow && c.env?.TENANT_PURGE) {
+          const wf = await startTenantPurgeWorkflow(c.env.TENANT_PURGE, {
+            tenantId,
+            commandId: open.id,
+            actorClerkUserId: principal.clerkUserId,
+          })
+          c.header('Cache-Control', 'no-store')
+          return c.json({
+            command: {
+              id: open.id,
+              tenantId: open.tenant_id,
+              status: open.status,
+              requestedAt: open.requested_at,
+              updatedAt: open.updated_at,
+              deadlineAt: open.deadline_at,
+              startedAt: open.started_at,
+              completedAt: open.completed_at,
+              lastStep: open.last_step,
+              lastError: open.last_error,
+              alertSentAt: open.alert_sent_at,
+            },
+            stepped: null,
+            done: open.status === 'completed',
+            alerted: false,
+            overdue: false,
+            detail: { workflow: wf },
+            driver: 'cloudflare_workflow',
+          })
+        }
+
+        // Tick D1 pontual (sem Workflow ou useWorkflow=false).
+        const tick = await tickTenantPurgeOnEnv(c.env, {
+          tenantId,
+          commandId: open.id,
+          actorClerkUserId: principal.clerkUserId,
+        })
+        const after = await c.env.DB.prepare(
+          `SELECT id, tenant_id, status, requested_by_clerk_user_id, requested_at, updated_at,
+                  payload_json, deadline_at, started_at, completed_at, last_step, last_error, alert_sent_at
+           FROM tenant_deletion_commands WHERE id = ?`,
+        )
+          .bind(open.id)
+          .first<{
+            id: string
+            tenant_id: string
+            status: string
+            requested_by_clerk_user_id: string
+            requested_at: number
+            updated_at: number
+            payload_json: string | null
+            deadline_at: number | null
+            started_at: number | null
+            completed_at: number | null
+            last_step: string | null
+            last_error: string | null
+            alert_sent_at: number | null
+          }>()
         c.header('Cache-Control', 'no-store')
         return c.json({
-          command: serializePurgeCommand(result.command),
-          stepped: result.stepped,
-          done: result.done,
-          alerted: result.alerted,
-          overdue: result.overdue,
-          detail: result.detail,
+          command: after
+            ? {
+                id: after.id,
+                tenantId: after.tenant_id,
+                status: after.status,
+                requestedAt: after.requested_at,
+                updatedAt: after.updated_at,
+                deadlineAt: after.deadline_at,
+                startedAt: after.started_at,
+                completedAt: after.completed_at,
+                lastStep: after.last_step,
+                lastError: after.last_error,
+                alertSentAt: after.alert_sent_at,
+              }
+            : null,
+          stepped: tick.stepped,
+          done: tick.done,
+          alerted: tick.alerted,
+          overdue: tick.overdue,
+          detail: tick.detail,
+          driver: 'd1_env_tick',
         })
       } catch (err) {
         return retentionErrorResponse(c, err)
@@ -288,18 +406,75 @@ export function createRetentionRoutes(opts: RetentionRouteOptions = {}) {
         return c.json({ error: 'synthetic_tenant_required' }, 400)
       }
       const syncDb = opts.syncAdminDbFactory?.(c.env)
-      if (!syncDb) return c.json({ error: 'admin_db_unavailable' }, 503)
-      const clock = opts.clockFactory?.() ?? systemClock
       const principal = c.get('principal')
       const actor = body.actorClerkUserId ?? principal.clerkUserId
-      const deps = buildPurgeDeps(opts, c.env, syncDb, clock, actor, tenantId)
-      const result = await runTenantPurgeUntilDone(deps, { tenantId })
+
+      // Harness / CI: sync state machine (sem secrets CF).
+      if (syncDb) {
+        const clock = opts.clockFactory?.() ?? systemClock
+        const deps = buildPurgeDeps(opts, c.env, syncDb, clock, actor, tenantId)
+        const result = await runTenantPurgeUntilDone(deps, { tenantId })
+        return c.json({
+          command: serializePurgeCommand(result.command),
+          done: result.done,
+          alerted: result.alerted,
+          overdue: result.overdue,
+          detail: result.detail,
+          driver: 'sync_state_machine',
+        })
+      }
+
+      // Runtime com D1: preferir Workflow; fallback ticks até done.
+      const open = await c.env.DB.prepare(
+        `SELECT id FROM tenant_deletion_commands
+         WHERE tenant_id = ? AND status IN ('queued', 'in_progress')
+         ORDER BY requested_at DESC LIMIT 1`,
+      )
+        .bind(tenantId)
+        .first<{ id: string }>()
+      if (!open) return c.json({ error: 'deletion_command_not_found' }, 404)
+
+      if (c.env?.TENANT_PURGE) {
+        const wf = await startTenantPurgeWorkflow(c.env.TENANT_PURGE, {
+          tenantId,
+          commandId: open.id,
+          actorClerkUserId: actor,
+        })
+        return c.json({
+          command: { id: open.id, tenantId, status: 'queued' },
+          done: false,
+          alerted: false,
+          overdue: false,
+          detail: { workflow: wf },
+          driver: 'cloudflare_workflow',
+        })
+      }
+
+      let last = await tickTenantPurgeOnEnv(c.env, {
+        tenantId,
+        commandId: open.id,
+        actorClerkUserId: actor,
+      })
+      for (let i = 0; i < 20 && !last.done; i++) {
+        last = await tickTenantPurgeOnEnv(c.env, {
+          tenantId,
+          commandId: open.id,
+          actorClerkUserId: actor,
+        })
+        if (last.detail.error) break
+      }
       return c.json({
-        command: serializePurgeCommand(result.command),
-        done: result.done,
-        alerted: result.alerted,
-        overdue: result.overdue,
-        detail: result.detail,
+        command: {
+          id: open.id,
+          tenantId,
+          status: last.status,
+          lastStep: last.lastStep,
+        },
+        done: last.done,
+        alerted: last.alerted,
+        overdue: last.overdue,
+        detail: last.detail,
+        driver: 'd1_env_tick',
       })
     } catch (err) {
       return retentionErrorResponse(c, err)

@@ -390,9 +390,12 @@ describe('Cloudflare runtime harness — F0', () => {
     const delBody = (await deleted.json()) as {
       tenant: { status: string }
       deletionCommand: { status: string }
+      workflow?: { started: boolean; reason?: string }
     }
     expect(delBody.tenant.status).toBe('pending_deletion')
     expect(delBody.deletionCommand.status).toBe('queued')
+    // Binding TENANT_PURGE no harness — Workflow pode avançar em background.
+    expect(delBody.workflow?.started).toBe(true)
 
     const env = await worker.getEnv()
     const cmd = (await env.DB.prepare(
@@ -400,7 +403,7 @@ describe('Cloudflare runtime harness — F0', () => {
     )
       .bind('clinic-demo-rt-admin')
       .first()) as { status: string } | null
-    expect(cmd?.status).toBe('queued')
+    expect(['queued', 'in_progress', 'completed']).toContain(cmd?.status)
   })
 
   it('WS autenticado + revoke corta A e preserva B (#23)', async () => {

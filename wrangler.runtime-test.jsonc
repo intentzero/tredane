@@ -58,5 +58,12 @@
         "retry_delay": 1
       }
     ]
-  }
+  },
+  "workflows": [
+    {
+      "name": "tredane-tenant-purge-dev",
+      "binding": "TENANT_PURGE",
+      "class_name": "TenantPurgeWorkflow"
+    }
+  ]
 }

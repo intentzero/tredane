@@ -25,7 +25,8 @@ export function ConversasArea({
   contactId,
 }: Props) {
   const { api, status } = useAuthSession()
-  const { generation } = useTenant()
+  const { generation, active } = useTenant()
+  const isOwner = active.phase === 'ready' && active.context.role === 'owner'
   const [viewerId, setViewerId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export function ConversasArea({
           conversationId={conversationId}
           api={api}
           generation={generation}
+          isOwner={isOwner}
         />
       )
     }
@@ -90,6 +92,7 @@ export function ConversasArea({
         conversationId={conversationId}
         api={api}
         generation={generation}
+        isOwner={isOwner}
       />
     )
   }
@@ -110,11 +113,13 @@ function ContactViaConversation({
   conversationId,
   api,
   generation,
+  isOwner,
 }: {
   tenantId: string
   conversationId: string
   api: NonNullable<ReturnType<typeof useAuthSession>['api']>
   generation: number
+  isOwner: boolean
 }) {
   const [contactId, setContactId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -150,6 +155,7 @@ function ContactViaConversation({
       conversationId={conversationId}
       api={api}
       generation={generation}
+      isOwner={isOwner}
     />
   )
 }
