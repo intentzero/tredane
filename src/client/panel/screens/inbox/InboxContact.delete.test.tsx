@@ -53,7 +53,11 @@ describe('InboxContactScreen — exclusão', () => {
     )
     await screen.findByText('Informações do contacto')
     await user.click(screen.getByRole('button', { name: 'Excluir contacto' }))
-    expect(screen.getByRole('heading', { name: 'Excluir contacto?' })).toBeTruthy()
+    const dialog = screen.getByRole('alertdialog', { name: 'Excluir contacto?' })
+    expect(dialog).toBeTruthy()
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Cancelar' }),
+    )
     await user.click(screen.getByRole('button', { name: 'Excluir permanentemente' }))
     await waitFor(() => {
       expect(api.deleteContact).toHaveBeenCalledWith(
@@ -64,6 +68,28 @@ describe('InboxContactScreen — exclusão', () => {
     })
     await screen.findByText(/Contacto excluído/)
     expect(screen.queryByText('5511999000111')).toBeNull()
+  })
+
+  it('Esc na confirmação cancela sem chamar API', async () => {
+    const user = userEvent.setup()
+    const api = mockApi()
+    render(
+      <InboxContactScreen
+        tenantId="clinic-demo-a"
+        contactId="ctc_ficticio"
+        api={api}
+        generation={1}
+        isOwner
+      />,
+    )
+    await screen.findByText('Informações do contacto')
+    await user.click(screen.getByRole('button', { name: 'Excluir contacto' }))
+    await screen.findByRole('alertdialog', { name: 'Excluir contacto?' })
+    await user.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).toBeNull()
+    })
+    expect(api.deleteContact).not.toHaveBeenCalled()
   })
 
   it('atendente não vê zona de exclusão', async () => {

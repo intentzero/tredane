@@ -42,6 +42,7 @@ export function DeleteContactDialog({
           style={{ position: 'fixed', left: 0, right: 0, bottom: 0 }}
           role="alertdialog"
           aria-labelledby="delete-contact-title"
+          aria-describedby="delete-contact-desc"
         >
           {({ close }) => (
             <>
@@ -54,23 +55,18 @@ export function DeleteContactDialog({
               >
                 Excluir contacto?
               </Heading>
-              <p className="panel-subtitle" style={{ margin: '0 0 12px' }}>
+              <p
+                id="delete-contact-desc"
+                className="panel-subtitle"
+                style={{ margin: '0 0 12px' }}
+              >
                 Remove mensagens e anexos de <strong>{contactLabel}</strong>.
                 Compromissos ficam anonimizados. Esta ação não pode ser
                 desfeita.
               </p>
               <Button
-                className="panel-btn-danger"
-                isDisabled={busy}
-                onPress={() => {
-                  onConfirm()
-                }}
-              >
-                {busy ? 'A excluir…' : 'Excluir permanentemente'}
-              </Button>
-              <Button
                 className="panel-btn-secondary"
-                style={{ marginTop: 8 }}
+                autoFocus
                 isDisabled={busy}
                 onPress={() => {
                   close()
@@ -78,6 +74,16 @@ export function DeleteContactDialog({
                 }}
               >
                 Cancelar
+              </Button>
+              <Button
+                className="panel-btn-danger"
+                style={{ marginTop: 8 }}
+                isDisabled={busy}
+                onPress={() => {
+                  onConfirm()
+                }}
+              >
+                {busy ? 'A excluir…' : 'Excluir permanentemente'}
               </Button>
             </>
           )}

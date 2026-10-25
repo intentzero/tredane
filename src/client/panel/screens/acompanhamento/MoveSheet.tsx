@@ -42,14 +42,25 @@ export function MoveSheet({
         <Dialog
           className="panel-sheet"
           style={{ position: 'fixed', left: 0, right: 0, bottom: 0 }}
+          aria-labelledby="move-sheet-title"
+          aria-describedby="move-sheet-desc"
         >
           {({ close }) => (
             <>
               <span className="panel-sheet-handle" aria-hidden="true" />
-              <Heading slot="title" className="panel-title" style={{ margin: '8px 0 2px' }}>
+              <Heading
+                slot="title"
+                id="move-sheet-title"
+                className="panel-title"
+                style={{ margin: '8px 0 2px' }}
+              >
                 Mover {contactName} para…
               </Heading>
-              <p className="panel-subtitle" style={{ margin: 0 }}>
+              <p
+                id="move-sheet-desc"
+                className="panel-subtitle"
+                style={{ margin: 0 }}
+              >
                 Etapa atual: {STAGE_LABELS[currentStage]}
               </p>
               {STAGE_ORDER.filter((s) => s !== currentStage).map((stage) => (

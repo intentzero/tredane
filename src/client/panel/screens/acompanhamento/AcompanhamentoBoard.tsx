@@ -175,11 +175,16 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
               ),
             ].join(' · ')
             return (
-              <article key={card.id} className="panel-card-lg">
+              <article
+                key={card.id}
+                className="panel-card-lg"
+                aria-label={`${name}. ${meta}`}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <button
                     type="button"
                     className="panel-link acomp-card-name"
+                    aria-label={`Abrir ${name}`}
                     onClick={() =>
                       navigatePanel({
                         kind: 'area',
@@ -194,6 +199,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
                   </button>
                   <Button
                     className="panel-move"
+                    aria-label={`Mover ${name}`}
                     onPress={() => {
                       setMoveError(null)
                       setMovingCard(card)

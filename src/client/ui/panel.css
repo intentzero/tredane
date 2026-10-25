@@ -31,6 +31,41 @@
   outline-offset: var(--size-focus-ring-offset);
 }
 
+/* Skip link — visível só no foco de teclado (WCAG 2.4.1). */
+.panel-skip-link {
+  position: absolute;
+  left: var(--space-3);
+  top: var(--space-3);
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  min-height: var(--size-touch);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform 0.15s ease;
+}
+
+.panel-skip-link:focus,
+.panel-skip-link:focus-visible {
+  transform: translateY(0);
+  outline: var(--size-focus-ring-width) solid var(--color-primary-ink);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.panel-shell-main:focus {
+  outline: none;
+}
+
+.panel-shell-main:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: calc(var(--size-focus-ring-offset) * -1);
+}
+
 .panel-phone {
   width: min(100%, var(--size-viewport-width));
   min-height: 100dvh;
@@ -412,6 +447,7 @@
 }
 
 .panel-chip[aria-selected='true'],
+.panel-chip[aria-pressed='true'],
 .panel-chip[data-selected],
 .panel-chip[data-selected='true'] {
   background: var(--color-text-primary);
@@ -1250,7 +1286,9 @@
 
 .clinic-tab {
   flex: none;
-  height: 40px;
+  height: var(--size-touch);
+  min-height: var(--size-touch);
+  min-width: var(--size-touch);
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
   border: var(--size-border-width) solid var(--color-line-strong, #80868f);
@@ -1797,6 +1835,26 @@
   align-self: flex-end;
 }
 
+.inbox-delivery {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inbox-delivery-failed {
+  color: var(--color-danger-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.inbox-delivery-unknown {
+  color: var(--color-warning-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.inbox-delivery-icon {
+  flex: none;
+}
+
 .inbox-msg-unknown-hint {
   display: block;
   margin-top: var(--space-1);
@@ -1805,9 +1863,7 @@
 }
 
 .inbox-template-picker {
-  padding: var(--space-3) var(--space-4);
-  border-top: var(--size-border-width) solid var(--color-line-border);
-  max-height: 280px;
+  max-height: min(70dvh, 520px);
   overflow: auto;
 }
 

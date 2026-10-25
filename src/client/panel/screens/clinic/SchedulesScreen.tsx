@@ -181,13 +181,18 @@ export function SchedulesScreen({
         </Button>
       </div>
 
-      <div className="clinic-tabs clinic-tabs-scroll" role="tablist" aria-label="Recurso">
+      <div
+        className="clinic-tabs clinic-tabs-scroll"
+        role="group"
+        aria-label="Recurso do expediente"
+      >
         {resources.map((r) => (
           <Button
             key={r.id}
             className={
               r.id === resourceId ? 'clinic-tab clinic-tab-active' : 'clinic-tab'
             }
+            aria-pressed={r.id === resourceId}
             onPress={() => setResourceId(r.id)}
           >
             {r.name}

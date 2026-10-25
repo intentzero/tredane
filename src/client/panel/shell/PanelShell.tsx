@@ -128,6 +128,9 @@ export function PanelShell({ area, tenantId, children, hideNav }: Props) {
 
   return (
     <div className="panel-app" lang="pt-BR">
+      <a className="panel-skip-link" href="#panel-main">
+        Saltar para o conteúdo
+      </a>
       {!avisosOnly ? (
         <header className="panel-shell-header">
           <div className="panel-shell-titles">
@@ -145,9 +148,14 @@ export function PanelShell({ area, tenantId, children, hideNav }: Props) {
               ) : (
                 <span className="panel-subtitle">{ctx.name}</span>
               )}
-              <span className="panel-live">
+              <span
+                className="panel-live"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
                 <span className="panel-live-dot" aria-hidden="true" />
-                Ao vivo
+                {offline ? 'Sem ligação' : 'Ao vivo'}
               </span>
             </div>
           </div>
@@ -167,7 +175,7 @@ export function PanelShell({ area, tenantId, children, hideNav }: Props) {
       ) : null}
 
       {offline ? (
-        <div className="panel-offline-banner" role="status">
+        <div className="panel-offline-banner" role="status" aria-live="assertive">
           Sem ligação — dados podem estar desatualizados. Ações de agenda ou
           pagamento não ficam confirmadas offline.
         </div>
@@ -181,7 +189,11 @@ export function PanelShell({ area, tenantId, children, hideNav }: Props) {
         />
       ) : null}
 
-      <main className={`panel-shell-main${avisosOnly ? ' panel-shell-main--flush' : ''}`}>
+      <main
+        id="panel-main"
+        tabIndex={-1}
+        className={`panel-shell-main${avisosOnly ? ' panel-shell-main--flush' : ''}`}
+      >
         {children}
       </main>
 

@@ -110,6 +110,6 @@ npm run verify         # suite completa
 
 ## Em aberto
 
-- Aceite de produto/clínica em UI real (H4–H5).
+- Aceite de produto/clínica em UI real (H4–H5), incluindo **UX-08** em aparelho ≥360 px e roteiro VoiceOver/TalkBack (**Q-UX-01**). Polimento a11y in-repo (axe/jsdom) não fecha H4.
 - Activação do piloto (H8) — **proibida** sem assinatura humana.
 - Qualquer promoção de Proposto→Confirmado em gates externos.
