@@ -4,6 +4,7 @@ import {
   areaTitle,
   panelHref,
   resolvePanelRoute,
+  resolveRootRedirect,
 } from './routes'
 
 describe('panel routes (#22)', () => {
@@ -209,5 +210,16 @@ describe('panel routes (#22)', () => {
       section: 'horarios',
       entityId: undefined,
     })
+  })
+})
+
+describe('root redirect', () => {
+  it('/ redireciona para /entrar; outras rotas não', () => {
+    expect(resolveRootRedirect('/')).toBe('/entrar')
+    expect(resolveRootRedirect('')).toBe('/entrar')
+    expect(resolveRootRedirect('//')).toBe('/entrar')
+    expect(resolveRootRedirect('/entrar')).toBeNull()
+    expect(resolveRootRedirect('/clinicas')).toBeNull()
+    expect(resolveRootRedirect('/prova')).toBeNull()
   })
 })

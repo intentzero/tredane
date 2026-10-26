@@ -1,7 +1,7 @@
 import { StrictMode, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { resolveProvaRoute } from './prova/routes'
-import { resolvePanelRoute } from './panel/routes'
+import { resolveRootRedirect } from './panel/routes'
 import './styles.css'
 
 const root = document.getElementById('root')
@@ -9,12 +9,8 @@ if (!root) throw new Error('Root element not found')
 
 const pathname = window.location.pathname
 const provaRoute = resolveProvaRoute(pathname)
-const panelRoute = resolvePanelRoute(pathname)
-
-const App = lazy(async () => {
-  const mod = await import('./App')
-  return { default: mod.App }
-})
+const rootRedirect = resolveRootRedirect(pathname)
+if (rootRedirect) window.location.replace(rootRedirect)
 
 const ProvaApp = lazy(async () => {
   await import('./ui/panel.css')
@@ -35,10 +31,8 @@ createRoot(root).render(
         <div className="panel-root">
           <ProvaApp route={provaRoute} />
         </div>
-      ) : panelRoute ? (
+      ) : rootRedirect ? null : (
         <PanelApp />
-      ) : (
-        <App />
       )}
     </Suspense>
   </StrictMode>,
