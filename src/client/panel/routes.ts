@@ -332,3 +332,9 @@ export function areaRoute(tenantId: string, area: PanelArea): PanelRoute {
   }
   return { kind: 'area', area: 'agenda', tenantId, section: 'dia' }
 }
+
+/** Raiz do painel: o antigo placeholder F0 foi removido; `/` envia para o login. */
+export function resolveRootRedirect(pathname: string): string | null {
+  const path = pathname.replace(/\/+$/, '') || '/'
+  return path === '/' ? '/entrar' : null
+}
