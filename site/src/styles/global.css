@@ -241,9 +241,12 @@ h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
 
 /* Rodapé */
 .footer { background: var(--surface-card); border-top: 1px solid var(--line-border); }
-.footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; justify-content: space-between; padding-block: 32px; font-size: 14px; color: var(--text-muted); }
+.footer-top { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; justify-content: space-between; padding-top: 32px; padding-bottom: 24px; font-size: 14px; color: var(--text-muted); }
 .footer-brand { display: flex; align-items: center; gap: 8px; color: var(--text-primary); font-weight: 600; }
 .footer-brand .brand-mark { width: 24px; height: 24px; border-radius: 6px; font-size: 14px; }
 .footer-brand small { color: var(--text-muted); font-weight: 400; font-size: 14px; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .footer-links a { display: flex; align-items: center; min-height: 44px; }
+.footer-legal { padding-bottom: 32px; font-size: 13px; line-height: 1.55; color: var(--text-muted); border-top: 1px solid var(--line-border); padding-top: 24px; display: flex; flex-direction: column; gap: 6px; }
+.footer-legal p { margin: 0; }
+.footer-legal a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; min-height: 44px; display: inline-flex; align-items: center; }
