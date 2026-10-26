@@ -2,6 +2,7 @@
  * Ingestão HTTP de webhooks Pix (#39/#40): validar → recibo D1 → fila idempotente.
  * charge.paid / expired / cancelled / refund.updated → Clinic DO.
  */
+import { isDeployedEnv } from '../security/env-gate'
 import type { Clock } from '../db/clock'
 import type { AdminDb } from '../db/admin/store'
 import { createChannelLogger } from '../ops/log'
@@ -117,6 +118,12 @@ export async function ingestPixWebhook(
   deps: PixWebhookIngestDeps,
 ): Promise<PixWebhookIngestResult> {
   const mode = resolvePixMode(deps.env)
+  const deployed = isDeployedEnv(deps.env)
+  // C4: em staging/production só Woovi real (PIX_MODE=live); nunca assinatura sintética.
+  if (deployed && mode !== 'live') {
+    safeLog(deps.log, 'error', 'pix_webhook.mode_not_live', { mode })
+    return { ok: false, status: 503, error: 'webhook_unconfigured' }
+  }
   const envelope: RawWebhookEnvelope = {
     body: rawBody,
     headers,
@@ -127,8 +134,10 @@ export async function ingestPixWebhook(
     publicKeyPems: deps.publicKeyPems,
     baseUrl: resolveWooviBaseUrl(deps.env, deps.baseUrl),
     fetchImpl: deps.fetchImpl,
-    allowSynthetic: mode === 'synthetic',
-    syntheticWebhookSecret: deps.env?.PIX_TOKEN_SECRET ?? 'synth-pix-webhook-secret',
+    allowSynthetic: !deployed && mode === 'synthetic',
+    syntheticWebhookSecret: deployed
+      ? undefined
+      : (deps.env?.PIX_TOKEN_SECRET ?? 'synth-pix-webhook-secret'),
   })
 
   if (!validated.ok) {

@@ -89,17 +89,28 @@
       "observability": {
         "enabled": true
       },
+      // Domínio do painel em staging (aplicado só no deploy aprovado; DNS na zona tredane.com).
+      "routes": [
+        {
+          "pattern": "staging.app.tredane.com",
+          "custom_domain": true
+        }
+      ],
       "vars": {
         "ENVIRONMENT": "staging",
-        "AUTH_MODE": "clerk"
-        // CLERK_PUBLISHABLE_KEY + CLERK_AUTHORIZED_PARTIES via dashboard/vars;
-        // CLERK_SECRET_KEY via `wrangler secret put` — ver f1-clerk-auth.md
+        "AUTH_MODE": "clerk",
+        // Publishable key é pública por desenho (instância Clerk de desenvolvimento/staging).
+        "CLERK_PUBLISHABLE_KEY": "pk_test_Y2xlYXItbWFja2VyZWwtODA0NS5jbGVyay5hY2NvdW50cy5kZXYk",
+        "CLERK_AUTHORIZED_PARTIES": "https://staging.app.tredane.com"
+        // Secrets (wrangler secret put --env staging): CLERK_SECRET_KEY, ATTACHMENT_TOKEN_SECRET;
+        // com META_MODE=live: META_APP_SECRET, META_VERIFY_TOKEN, META_TOKEN_SECRET;
+        // com PIX_MODE=live: PIX_TOKEN_SECRET. `npm run check:env -- staging` valida.
       },
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "tredane-staging",
-          "database_id": "00000000-0000-4000-a000-0000000000aa",
+          "database_id": "cb59589d-1a48-44ad-8bf3-585daf824e2c",
           "migrations_dir": "db/migrations"
         }
       ],

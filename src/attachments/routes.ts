@@ -29,6 +29,7 @@ import { serializeAttachment } from './serialize'
 import {
   mintAttachmentDownloadToken,
   resolveAttachmentTokenSecret,
+  AttachmentTokenSecretMissingError,
   verifyAttachmentDownloadToken,
 } from './tokens'
 import { assertNoExternalDownloadUrl, sha256Hex, validateAttachmentBytes } from './validate'
@@ -96,6 +97,9 @@ function attachError(
   err: unknown,
 ): Response {
   if (isAuthError(err)) return authErrorResponse(c, err)
+  if (err instanceof AttachmentTokenSecretMissingError) {
+    return c.json({ error: 'attachment_tokens_unconfigured' }, 503)
+  }
   if (err instanceof ValidationError) {
     return c.json(
       { error: err.code, message: err.message, details: err.details ?? null },

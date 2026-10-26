@@ -75,7 +75,38 @@ export function assertValidCaller(caller: ClinicCaller): void {
   }
 }
 
-/** Harness / seeds: só tenants sintéticos até provisionamento real. */
+/** ID real de tenant gerado por `newId('tenant')`: `tenant_` + 24 hex. */
+export const REAL_TENANT_ID_RE = /^tenant_[0-9a-f]{24}$/
+
+export function isRealTenantId(tenantId: string): boolean {
+  return REAL_TENANT_ID_RE.test(tenantId)
+}
+
+export function isSyntheticTenantId(tenantId: string): boolean {
+  return typeof tenantId === 'string' && tenantId.startsWith(SYNTHETIC_TENANT_PREFIX)
+}
+
+/**
+ * Tenant aceito pelo Clinic DO: id real (`tenant_<hex>`) sempre; `clinic-demo-*`
+ * só quando `allowSynthetic` (development/test). Qualquer outro formato é recusado.
+ */
+export function assertClinicTenantId(
+  tenantId: string,
+  opts: { allowSynthetic: boolean } = { allowSynthetic: true },
+): void {
+  if (typeof tenantId !== 'string' || !tenantId) {
+    throw new TenantMismatchError('tenantId ausente')
+  }
+  if (isRealTenantId(tenantId)) return
+  if (opts.allowSynthetic && isSyntheticTenantId(tenantId)) return
+  throw new TenantMismatchError(
+    opts.allowSynthetic
+      ? 'tenantId inválido (esperado tenant_<hex> ou clinic-demo-*)'
+      : 'tenantId inválido (esperado tenant_<hex>)',
+  )
+}
+
+/** Harness / seeds: só tenants sintéticos. */
 export function assertSyntheticTenantId(tenantId: string): void {
   if (!tenantId.startsWith(SYNTHETIC_TENANT_PREFIX)) {
     throw new TenantMismatchError('apenas tenants sintéticos clinic-demo-* neste recorte')

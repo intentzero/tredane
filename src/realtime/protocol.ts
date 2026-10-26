@@ -16,6 +16,18 @@ export const WS_INTERNAL_HEADERS = {
 
 export const WORKER_WS_ASSERTION = 'tredane-worker-ws-v1'
 
+/**
+ * Remove todo header `x-tredane-*` vindo do cliente. Deve ser aplicado antes de
+ * qualquer encaminhamento Worker→DO: o DO confia nesses headers, logo só o Worker os define.
+ */
+export function stripInternalHeaders(source: Headers): Headers {
+  const headers = new Headers()
+  source.forEach((value, key) => {
+    if (!key.toLowerCase().startsWith('x-tredane-')) headers.set(key, value)
+  })
+  return headers
+}
+
 export type ConnectionUiState =
   | 'live'
   | 'offline'

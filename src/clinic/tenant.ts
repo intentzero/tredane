@@ -3,7 +3,7 @@ import { assertClinicSchemaReady } from './migrations'
 import { TenantMismatchError } from './errors'
 import type { ClinicDb } from './store'
 import type { ClinicCaller } from './envelopes'
-import { assertCallerTenant, assertSyntheticTenantId, assertValidCaller } from './envelopes'
+import { assertCallerTenant, assertClinicTenantId, assertValidCaller } from './envelopes'
 
 export type ClinicMeta = {
   tenantId: string
@@ -30,7 +30,8 @@ export function bindOrAssertTenant(
 ): ClinicMeta {
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
-  assertSyntheticTenantId(caller.tenantId)
+  // Formato (real ou demo); a política por ambiente é aplicada no DO (#assertInstanceTenant).
+  assertClinicTenantId(caller.tenantId)
 
   const existing = getBoundTenant(db)
   if (!existing) {

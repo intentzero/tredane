@@ -407,7 +407,8 @@ export function createRetentionRoutes(opts: RetentionRouteOptions = {}) {
       }
       const syncDb = opts.syncAdminDbFactory?.(c.env)
       const principal = c.get('principal')
-      const actor = body.actorClerkUserId ?? principal.clerkUserId
+      // Ator do audit vem sempre da sessão autenticada; nunca do corpo (spoof de audit).
+      const actor = principal.clerkUserId
 
       // Harness / CI: sync state machine (sem secrets CF).
       if (syncDb) {

@@ -406,6 +406,38 @@ describe('Cloudflare runtime harness — F0', () => {
     expect(['queued', 'in_progress', 'completed']).toContain(cmd?.status)
   })
 
+  it('C1: Clinic DO aceita tenant real tenant_<hex> e recusa ids fora do formato', async () => {
+    const realId = 'tenant_0123456789abcdef01234567'
+    for (const id of [realId, 'gistaine-sem-formato']) {
+      const created = await worker.fetch('http://localhost/api/platform/tenants', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer synth:user_synth_superadmin',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, name: `Clínica ${id}`, ownerClerkUserId: 'user_synth_owner_a' }),
+      })
+      expect(created.status).toBe(201)
+    }
+
+    const ok = await worker.fetch(`http://localhost/api/tenants/${realId}/ws`, {
+      headers: { Authorization: 'Bearer synth:user_synth_owner_a', Upgrade: 'websocket' },
+    })
+    expect(ok.status).toBe(101)
+    ok.webSocket?.accept()
+    ok.webSocket?.close()
+
+    const inbox = await worker.fetch(`http://localhost/api/tenants/${realId}/inbox/conversations`, {
+      headers: { Authorization: 'Bearer synth:user_synth_owner_a' },
+    })
+    expect(inbox.status).toBe(200)
+
+    const bad = await worker.fetch('http://localhost/api/tenants/gistaine-sem-formato/ws', {
+      headers: { Authorization: 'Bearer synth:user_synth_owner_a', Upgrade: 'websocket' },
+    })
+    expect(bad.status).toBe(403)
+  })
+
   it('WS autenticado + revoke corta A e preserva B (#23)', async () => {
     async function openWs(tenantId: string, userId: string) {
       const response = await worker.fetch(`http://localhost/api/tenants/${tenantId}/ws`, {

@@ -16,6 +16,7 @@ import {
 import { createD1WebhookOps } from './webhook-d1'
 import {
   computeHubSignature256,
+  isMetaWebhookDisabled,
   resolveAppSecret,
   resolveVerifyToken,
   verifySubscriptionChallenge,
@@ -45,6 +46,7 @@ function verifyEnv(env: WorkerBindings | undefined): WebhookVerifyEnv {
     META_MODE: env?.META_MODE ?? 'synthetic',
     META_APP_SECRET: env?.META_APP_SECRET,
     META_VERIFY_TOKEN: env?.META_VERIFY_TOKEN,
+    ENVIRONMENT: env?.ENVIRONMENT,
   }
 }
 
@@ -70,6 +72,9 @@ export function createWhatsappWebhookRoutes(opts: WhatsappWebhookRouteOptions = 
   })
 
   app.post('/api/webhooks/whatsapp', async (c) => {
+    if (isMetaWebhookDisabled(verifyEnv(c.env))) {
+      return c.json({ error: 'webhook_unconfigured' }, 503)
+    }
     const rawBody = await c.req.text()
     const signature = c.req.header('X-Hub-Signature-256') ?? null
     const clock = opts.clockFactory?.() ?? systemClock

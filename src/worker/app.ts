@@ -1,3 +1,5 @@
+import { stripInternalHeaders } from '../realtime/protocol'
+import { isDeployedEnv, isHarnessPath } from '../security/env-gate'
 import { Hono } from 'hono'
 import { workerCaller } from '../clinic'
 import {
@@ -155,6 +157,14 @@ export function createApp(opts: CreateAppOptions = {}) {
     }
     return buildAuthServices(env)
   }
+
+  // Harness/teste: inexistente fora de development (C2/A3/B3). Antes de qualquer outra rota.
+  app.use('/api/*', async (c, next) => {
+    if (isDeployedEnv(c.env) && isHarnessPath(new URL(c.req.url).pathname)) {
+      return c.json({ error: 'not_found' }, 404)
+    }
+    await next()
+  })
 
   app.use('/api/me/*', createAuthServicesMiddleware(factory))
   app.use('/api/me', createAuthServicesMiddleware(factory))
@@ -350,7 +360,10 @@ export function createApp(opts: CreateAppOptions = {}) {
     if (c.req.header('Upgrade')?.toLowerCase() !== 'websocket') {
       return c.json({ error: 'websocket_upgrade_required' }, 426)
     }
-    return clinicStub(c.env, tenantId).fetch(c.req.raw)
+    // Nunca repassar headers internos x-tredane-* do cliente (spoof de identidade WS).
+    return clinicStub(c.env, tenantId).fetch(
+      new Request(c.req.raw.url, { method: 'GET', headers: stripInternalHeaders(c.req.raw.headers) }),
+    )
   })
 
   /**
