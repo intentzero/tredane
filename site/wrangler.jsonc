@@ -9,6 +9,16 @@
   },
   "workers_dev": true,
   "env": {
+    "production": {
+      // Publica como tredane-site-production no domínio raiz (apex). Sem www por ora.
+      "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "tredane.com",
+          "custom_domain": true
+        }
+      ]
+    },
     "staging": {
       // Publica como tredane-site-staging + workers.dev; Custom Domain cria o registo DNS na zona.
       "workers_dev": true,
