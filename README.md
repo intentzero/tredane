@@ -72,3 +72,14 @@ Baseline F0 (#15–#18). F1 concluída na linha main (#19–#27). F2: configura�
 ## Persistência por clínica — DEC-038
 
 Confirmado: um Durable Object com SQLite nativo por clínica para dados operacionais e WebSockets; D1 central para tenants, memberships, convites e suporte; R2 privado para anexos. [ADR-0012](docs/adr/0012-clinic-durable-object-sqlite.md). D1 administrativo: [#19](https://github.com/intentzero/tredane/issues/19) / [f1-admin-d1.md](docs/implementation/f1-admin-d1.md). Clinic DO + migrações por instância + outbox: [#20](https://github.com/intentzero/tredane/issues/20) / [f1-clinic-do.md](docs/implementation/f1-clinic-do.md). Clerk + authz tenant: [#21](https://github.com/intentzero/tredane/issues/21) / [f1-clerk-auth.md](docs/implementation/f1-clerk-auth.md). WebSockets + reconciliação + revogação D1→DO: [#23](https://github.com/intentzero/tredane/issues/23) / [f1-realtime-ws.md](docs/implementation/f1-realtime-ws.md). Platform Admin + ciclo tenants/owners: [#24](https://github.com/intentzero/tredane/issues/24) / [f1-platform-admin.md](docs/implementation/f1-platform-admin.md).
+
+## Deploy do Worker (staging / production)
+
+Use sempre um ambiente explícito:
+
+```bash
+npm run deploy -- staging
+npm run deploy -- production
+```
+
+`scripts/deploy.mjs` define `CLOUDFLARE_ENV=<env>`, corre `npm run build` (o plugin Vite gera o `wrangler.json` do ambiente), confirma que o Worker gerado é `tredane-dev-<env>`, corre `check:env` (placeholders, vars e secrets obrigatórios) e só depois `wrangler deploy --env <env>`. Sem ambiente (ou com `development`) o script recusa correr — um build sem `CLOUDFLARE_ENV` gera o config de desenvolvimento (`tredane-dev`). `TREDANE_DEPLOY_DRY_RUN=1` mostra o plano sem executar.
