@@ -3,6 +3,7 @@
  * Não são URLs públicas R2: o Worker revalida assinatura + expiry + tenant
  * e só depois lê o objecto. Credenciais R2 nunca vão ao cliente.
  */
+import { isDeployedEnv } from '../security/env-gate'
 import { RETENTION } from './policy'
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -38,18 +39,33 @@ export type AttachmentDownloadClaims = {
   exp: number
 }
 
+export class AttachmentTokenSecretMissingError extends Error {
+  constructor() {
+    super('attachment_token_secret_missing')
+    this.name = 'AttachmentTokenSecretMissingError'
+  }
+}
+
+/** Mínimo de comprimento do segredo dedicado em staging/production. */
+export const ATTACHMENT_TOKEN_SECRET_MIN_LENGTH = 32
+
+/**
+ * Segredo HMAC dos tokens de download (A1). Só `ATTACHMENT_TOKEN_SECRET`
+ * (nunca reutiliza segredos Meta). staging/production: obrigatório, sem fallback.
+ */
 export function resolveAttachmentTokenSecret(env: {
   ATTACHMENT_TOKEN_SECRET?: string
-  META_TOKEN_SECRET?: string
-  META_APP_SECRET?: string
   ENVIRONMENT?: string
 }): string {
-  const explicit =
-    env.ATTACHMENT_TOKEN_SECRET?.trim() ||
-    env.META_TOKEN_SECRET?.trim() ||
-    env.META_APP_SECRET?.trim()
+  const explicit = env.ATTACHMENT_TOKEN_SECRET?.trim()
+  if (isDeployedEnv(env)) {
+    if (!explicit || explicit.length < ATTACHMENT_TOKEN_SECRET_MIN_LENGTH) {
+      throw new AttachmentTokenSecretMissingError()
+    }
+    return explicit
+  }
   if (explicit) return explicit
-  // Synthetic / local: segredo estável e não-secreto (só harness).
+  // development/test: segredo estável e não-secreto (só harness local).
   return `synth-attachment-token:${env.ENVIRONMENT ?? 'development'}`
 }
 

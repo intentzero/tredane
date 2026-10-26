@@ -1,6 +1,8 @@
+import { isDevelopmentEnv } from '../security/env-gate'
 import { DurableObject } from 'cloudflare:workers'
 import {
   acknowledgeOutboxResult,
+  assertClinicTenantId,
   assertSyntheticTenantId,
   bindOrAssertTenant,
   clinicAi,
@@ -160,7 +162,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (!name) {
       throw new TenantMismatchError('DO sem nome estável (idFromName obrigatório)')
     }
-    assertSyntheticTenantId(name)
+    assertClinicTenantId(name, { allowSynthetic: isDevelopmentEnv(this.env) })
     if (caller.tenantId !== name) {
       throw new TenantMismatchError(
         `instância=${name} chamador=${caller.tenantId}`,
@@ -196,6 +198,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
   /** Harness F0/F1 — isolamento por instância. */
   async ping(tenantId: string): Promise<{ ok: true; tenantId: string; value: string }> {
+    if (!isDevelopmentEnv(this.env)) {
+      throw new TenantMismatchError('harness indisponível fora de development')
+    }
     this.#ensureReady()
     assertSyntheticTenantId(tenantId)
     const caller = workerCaller(tenantId)
@@ -651,6 +656,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   async seedInboxDemo(caller: ClinicCaller, opts: { force?: boolean } = {}) {
+    if (!isDevelopmentEnv(this.env)) {
+      throw new TenantMismatchError('harness indisponível fora de development')
+    }
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     return clinicInbox.seedSyntheticInboxOp(this.#db, caller, this.#clock, opts)
@@ -848,6 +856,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   async seedPipelineDemo(caller: ClinicCaller, opts: { force?: boolean } = {}) {
+    if (!isDevelopmentEnv(this.env)) {
+      throw new TenantMismatchError('harness indisponível fora de development')
+    }
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     return clinicPipeline.seedSyntheticPipelineOp(this.#db, caller, this.#clock, opts)
@@ -924,7 +935,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     source: FenceSource
   }): Promise<{ ok: true; closedConnections: string[]; authEpoch: number }> {
     this.#ensureReady()
-    assertSyntheticTenantId(input.tenantId)
     this.#assertInstanceTenant(workerCaller(input.tenantId))
     bindOrAssertTenant(this.#db, workerCaller(input.tenantId), this.#clock)
 
@@ -947,7 +957,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     source: FenceSource
   }): Promise<{ ok: true; closedConnections: string[]; authEpoch: number }> {
     this.#ensureReady()
-    assertSyntheticTenantId(input.tenantId)
     this.#assertInstanceTenant(workerCaller(input.tenantId))
     bindOrAssertTenant(this.#db, workerCaller(input.tenantId), this.#clock)
 
@@ -966,7 +975,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     source: FenceSource
   }): Promise<{ ok: true; closedConnections: string[]; authEpoch: number }> {
     this.#ensureReady()
-    assertSyntheticTenantId(input.tenantId)
     this.#assertInstanceTenant(workerCaller(input.tenantId))
     bindOrAssertTenant(this.#db, workerCaller(input.tenantId), this.#clock)
 
@@ -981,6 +989,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async setAuthorityOverrideForTests(
     grants: Record<string, 'owner' | 'attendant' | 'deny' | 'unavailable'>,
   ): Promise<{ ok: true }> {
+    if (!isDevelopmentEnv(this.env)) {
+      throw new TenantMismatchError('harness indisponível fora de development')
+    }
     this.#ensureReady()
     const map = new Map(
       Object.entries(grants) as Array<[string, 'owner' | 'attendant' | 'deny' | 'unavailable']>,
@@ -1306,6 +1317,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       contactLabel?: string | null
     },
   ) {
+    if (!isDevelopmentEnv(this.env)) {
+      throw new TenantMismatchError('harness indisponível fora de development')
+    }
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     bindOrAssertTenant(this.#db, caller, this.#clock)
@@ -1956,7 +1970,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       return Response.json({ error: 'invalid_ws_identity' }, { status: 400 })
     }
     try {
-      assertSyntheticTenantId(tenantId)
       this.#assertInstanceTenant(workerCaller(tenantId))
     } catch (err) {
       return Response.json(
@@ -1971,7 +1984,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const identityOrErr = this.#parseWsIdentity(request)
     if (identityOrErr instanceof Response) {
       // Harness legado F0: sem headers internos → eco mínimo (sem fan-out clínico).
-      if (!request.headers.get(WS_INTERNAL_HEADERS.assertion)) {
+      if (!request.headers.get(WS_INTERNAL_HEADERS.assertion) && isDevelopmentEnv(this.env)) {
         return this.#acceptHarnessEcho()
       }
       return identityOrErr

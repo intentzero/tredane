@@ -4,11 +4,14 @@
  * POST: X-Hub-Signature-256 = sha256=<HMAC-SHA256(rawBody, META_APP_SECRET)>
  * Usa o corpo original (bytes/string) antes de qualquer re-serialização.
  */
+import { isDeployedEnv } from '../security/env-gate'
 
 export type WebhookVerifyEnv = {
   META_MODE?: string
   META_APP_SECRET?: string
   META_VERIFY_TOKEN?: string
+  /** staging/production: nunca há fallback sintético (fail closed). */
+  ENVIRONMENT?: string
 }
 
 export const SYNTHETIC_VERIFY_TOKEN = 'tredane-synth-verify'
@@ -18,19 +21,26 @@ export function resolveMetaMode(env: WebhookVerifyEnv): 'synthetic' | 'live' {
   return env.META_MODE === 'live' ? 'live' : 'synthetic'
 }
 
+/** Webhook Meta só opera em staging/production com META_MODE=live (C3). */
+export function isMetaWebhookDisabled(env: WebhookVerifyEnv): boolean {
+  return isDeployedEnv(env) && resolveMetaMode(env) !== 'live'
+}
+
 export function resolveVerifyToken(env: WebhookVerifyEnv): string | null {
+  if (isMetaWebhookDisabled(env)) return null
   if (env.META_VERIFY_TOKEN && env.META_VERIFY_TOKEN.length > 0) {
     return env.META_VERIFY_TOKEN
   }
-  if (resolveMetaMode(env) === 'synthetic') return SYNTHETIC_VERIFY_TOKEN
+  if (resolveMetaMode(env) === 'synthetic' && !isDeployedEnv(env)) return SYNTHETIC_VERIFY_TOKEN
   return null
 }
 
 export function resolveAppSecret(env: WebhookVerifyEnv): string | null {
+  if (isMetaWebhookDisabled(env)) return null
   if (env.META_APP_SECRET && env.META_APP_SECRET.length > 0) {
     return env.META_APP_SECRET
   }
-  if (resolveMetaMode(env) === 'synthetic') return SYNTHETIC_APP_SECRET
+  if (resolveMetaMode(env) === 'synthetic' && !isDeployedEnv(env)) return SYNTHETIC_APP_SECRET
   return null
 }
 

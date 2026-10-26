@@ -19,7 +19,7 @@ import {
   type ClinicAccessInvalidator,
 } from './revoke'
 import {
-  WORKER_WS_ASSERTION,
+  WORKER_WS_ASSERTION, stripInternalHeaders,
   WS_INTERNAL_HEADERS,
   type FenceSource,
 } from './protocol'
@@ -150,7 +150,7 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
         return c.json({ error: 'websocket_upgrade_required' }, 426)
       }
 
-      const headers = new Headers(c.req.raw.headers)
+      const headers = stripInternalHeaders(c.req.raw.headers)
       headers.set(WS_INTERNAL_HEADERS.assertion, WORKER_WS_ASSERTION)
       headers.set(WS_INTERNAL_HEADERS.tenantId, ctx.tenantId)
       headers.set(WS_INTERNAL_HEADERS.clerkUserId, principal.clerkUserId)
