@@ -80,7 +80,7 @@ export const SECRETS_INVENTORY: readonly SecretInventoryItem[] = [
     kind: 'secret',
     environments: ['staging', 'production'],
     requiredForPilot: true,
-    notes: 'Cifrar tokens Meta em D1',
+    notes: 'Decifrar tokens Meta legados (v1 XOR); cifra actual usa TOKEN_ENCRYPTION_KEY',
     gate: 'GATE-02',
   },
   {
@@ -88,7 +88,7 @@ export const SECRETS_INVENTORY: readonly SecretInventoryItem[] = [
     kind: 'secret',
     environments: ['staging', 'production'],
     requiredForPilot: true,
-    notes: 'Cifrar App ID Woovi; PIX_MODE sandbox/live',
+    notes: 'Webhook Pix; decifrar App ID Woovi legado (v1 XOR); cifra actual usa TOKEN_ENCRYPTION_KEY',
     gate: 'GATE-08',
   },
   {
@@ -120,6 +120,13 @@ export const SECRETS_INVENTORY: readonly SecretInventoryItem[] = [
     environments: ['staging', 'production'],
     requiredForPilot: true,
     notes: 'HMAC tokens efémeros R2',
+  },
+  {
+    name: 'TOKEN_ENCRYPTION_KEY',
+    kind: 'secret',
+    environments: ['staging', 'production'],
+    requiredForPilot: true,
+    notes: 'A2: AES-256-GCM de tokens Meta e App ID Woovi em repouso (≥ 32 chars; openssl rand -base64 48)',
   },
   {
     name: 'DB',

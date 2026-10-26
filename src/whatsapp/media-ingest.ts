@@ -15,6 +15,7 @@ import {
 } from './media'
 import type { WhatsappWebhookQueueMessage } from './queue-types'
 import { openAccessToken } from './crypto'
+import { metaSealKeys } from '../security/sealed-secret'
 import { getActiveBindingForTenant, getCredentialCipher } from './bindings'
 import type { AdminDb } from '../db/admin/store'
 import type { Clock } from '../db/clock'
@@ -68,7 +69,7 @@ async function resolveAccessToken(
     if (!cipher) return null
     return openAccessToken(
       cipher,
-      deps.env.META_TOKEN_SECRET ?? deps.env.META_APP_SECRET,
+      metaSealKeys(deps.env),
     )
   }
   const row = await deps.env.DB.prepare(
@@ -83,7 +84,7 @@ async function resolveAccessToken(
   if (!row?.access_token_cipher) return null
   return openAccessToken(
     row.access_token_cipher,
-    deps.env.META_TOKEN_SECRET ?? deps.env.META_APP_SECRET,
+    metaSealKeys(deps.env),
   )
 }
 

@@ -18,6 +18,7 @@ import type {
 import type { MetaAdapter } from './meta'
 import { MetaExchangeError } from './meta'
 import { sealAccessToken } from './crypto'
+import { metaSealKeys } from '../security/sealed-secret'
 import type { ClinicChannelSync } from './service'
 import { WhatsappServiceError } from './service'
 
@@ -180,6 +181,8 @@ export type D1WhatsappDeps = {
     META_GRAPH_API_VERSION?: string
     META_APP_SECRET?: string
     META_TOKEN_SECRET?: string
+    TOKEN_ENCRYPTION_KEY?: string
+    ENVIRONMENT?: string
   }
   channelSync?: ClinicChannelSync
   nowMs?: () => number
@@ -364,7 +367,7 @@ export function createD1WhatsappOps(deps: D1WhatsappDeps) {
 
       const cipher = await sealAccessToken(
         exchanged.accessToken,
-        deps.metaEnv.META_TOKEN_SECRET ?? deps.metaEnv.META_APP_SECRET,
+        metaSealKeys(deps.metaEnv),
         deps.metaMode,
       )
       const ts = now()

@@ -331,7 +331,7 @@ describe('check:env — staging/production', () => {
   )
 
   it('staging provisionado com secrets obrigatórios passa', () => {
-    const r = run('staging', provisioned, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET')
+    const r = run('staging', provisioned, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET,TOKEN_ENCRYPTION_KEY')
     expect(r.stderr).toBe('')
     expect(r.status).toBe(0)
   })
@@ -342,8 +342,14 @@ describe('check:env — staging/production', () => {
     expect(r.stderr).toContain('ATTACHMENT_TOKEN_SECRET')
   })
 
+  it('staging sem TOKEN_ENCRYPTION_KEY falha nomeando o secret (A2)', () => {
+    const r = run('staging', provisioned, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET')
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('TOKEN_ENCRYPTION_KEY')
+  })
+
   it('production sem vars Clerk falha', () => {
-    const r = run('production', provisioned, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET')
+    const r = run('production', provisioned, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET,TOKEN_ENCRYPTION_KEY')
     expect(r.status).toBe(1)
     expect(r.stderr).toContain('CLERK_PUBLISHABLE_KEY')
     expect(r.stderr).toContain('CLERK_AUTHORIZED_PARTIES')
@@ -351,13 +357,13 @@ describe('check:env — staging/production', () => {
 
   it('META_MODE=live exige secrets Meta', () => {
     const live = provisioned.replace('"ENVIRONMENT": "staging",', '"ENVIRONMENT": "staging",\n        "META_MODE": "live",')
-    const r = run('staging', live, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET')
+    const r = run('staging', live, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET,TOKEN_ENCRYPTION_KEY')
     expect(r.status).toBe(1)
     expect(r.stderr).toContain('META_APP_SECRET')
   })
 
   it('placeholders atuais continuam bloqueados', () => {
-    const r = run('production', original, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET')
+    const r = run('production', original, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET,TOKEN_ENCRYPTION_KEY')
     expect(r.status).toBe(1)
     expect(r.stderr).toMatch(/placeholders fictícios/)
   })

@@ -145,7 +145,7 @@ async function seedSignalClinic(
       fetchImpl: sandbox.fetchImpl,
       baseUrl: sandbox.baseUrl,
       webhookPublicKeys: [sandbox.publicPem],
-      tokenSecret: 'test-pix-secret',
+      sealKeys: {},
     },
   )
 

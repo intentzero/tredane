@@ -145,7 +145,7 @@ async function seed(
     caller,
     { appId: 'synth_exc_appid_abcdefgh', clerkUserId: 'user_synth_owner_a' },
     clock,
-    { tokenSecret: 'test-secret', environment: 'synthetic' },
+    { sealKeys: {}, environment: 'synthetic' },
   )
   return { tenantId, caller, pro, room, svc, contact, conversation }
 }

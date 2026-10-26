@@ -11,7 +11,7 @@ import { resolve } from 'node:path'
 /** Vars obrigatórias em env.<staging|production>.vars (revisão de segurança A4). */
 export const REQUIRED_VARS = ['CLERK_PUBLISHABLE_KEY', 'CLERK_AUTHORIZED_PARTIES']
 /** Secrets obrigatórios sempre em staging/production (A1/A4). */
-export const REQUIRED_SECRETS = ['CLERK_SECRET_KEY', 'ATTACHMENT_TOKEN_SECRET']
+export const REQUIRED_SECRETS = ['CLERK_SECRET_KEY', 'ATTACHMENT_TOKEN_SECRET', 'TOKEN_ENCRYPTION_KEY']
 /** Secrets exigidos quando o modo correspondente é `live` (C3/C4). */
 export const MODE_SECRETS = {
   META_MODE: ['META_APP_SECRET', 'META_VERIFY_TOKEN', 'META_TOKEN_SECRET'],

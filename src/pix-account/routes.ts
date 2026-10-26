@@ -3,6 +3,7 @@
  * Conta/settings: owner escreve. Cobrança/agendar: clinic.agenda.operate.
  * Credenciais nunca voltam na resposta.
  */
+import { pixSealKeys } from '../security/sealed-secret'
 import { Hono } from 'hono'
 import { requireClinicPermission } from '../auth/authorize'
 import {
@@ -87,7 +88,7 @@ function resolvePixMode(env: WorkerBindings): PixEnvironment {
 
 function defaultConnectDeps(env: WorkerBindings): PixConnectDeps {
   return {
-    tokenSecret: env.PIX_TOKEN_SECRET,
+    sealKeys: pixSealKeys(env),
     environment: resolvePixMode(env),
   }
 }
@@ -133,7 +134,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): PixAccountGatew
 
 function defaultChargeDeps(env: WorkerBindings): PixChargeCreateDeps {
   return {
-    tokenSecret: env.PIX_TOKEN_SECRET,
+    sealKeys: pixSealKeys(env),
     environment: resolvePixMode(env),
   }
 }
