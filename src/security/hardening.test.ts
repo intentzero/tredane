@@ -357,7 +357,7 @@ describe('check:env — staging/production', () => {
   })
 
   it('placeholders atuais continuam bloqueados', () => {
-    const r = run('staging', original, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET')
+    const r = run('production', original, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET')
     expect(r.status).toBe(1)
     expect(r.stderr).toMatch(/placeholders fictícios/)
   })

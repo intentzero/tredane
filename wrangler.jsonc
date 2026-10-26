@@ -110,7 +110,7 @@
         {
           "binding": "DB",
           "database_name": "tredane-staging",
-          "database_id": "00000000-0000-4000-a000-0000000000aa",
+          "database_id": "cb59589d-1a48-44ad-8bf3-585daf824e2c",
           "migrations_dir": "db/migrations"
         }
       ],
