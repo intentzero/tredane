@@ -13,6 +13,7 @@ import {
   getCredentialCipher,
 } from './bindings'
 import { openAccessToken } from './crypto'
+import { metaSealKeys } from '../security/sealed-secret'
 import { createMetaAdapter, type MetaAdapter, type MetaSendResult } from './meta'
 import type { ClinicOutboxQueueMessage } from './queue-types'
 import { SYNTHETIC_WHATSAPP_TEMPLATES } from '../clinic/inbox/templates'
@@ -55,7 +56,7 @@ async function resolveAccessToken(
     if (!cipher) return { errorCode: 'whatsapp_credential_missing' }
     const accessToken = await openAccessToken(
       cipher,
-      deps.env.META_TOKEN_SECRET ?? deps.env.META_APP_SECRET,
+      metaSealKeys(deps.env),
     )
     return { phoneNumberId: binding.phoneNumberId, accessToken }
   }
@@ -86,7 +87,7 @@ async function resolveAccessToken(
   }
   const accessToken = await openAccessToken(
     row.access_token_cipher,
-    deps.env.META_TOKEN_SECRET ?? deps.env.META_APP_SECRET,
+    metaSealKeys(deps.env),
   )
   return { phoneNumberId: row.phone_number_id, accessToken }
 }

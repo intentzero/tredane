@@ -16,6 +16,7 @@ import {
   releaseBinding,
 } from './bindings'
 import { sealAccessToken } from './crypto'
+import { metaSealKeys, type SealKeys } from '../security/sealed-secret'
 import {
   createMetaAdapter,
   graphApiVersion,
@@ -58,7 +59,8 @@ export type WhatsappServiceDeps = {
   meta?: MetaAdapter
   metaEnv?: MetaEnv
   channelSync?: ClinicChannelSync
-  tokenSecret?: string
+  /** Chaves de cifra (TOKEN_ENCRYPTION_KEY + segredo legado). */
+  sealKeys?: SealKeys
 }
 
 export class WhatsappServiceError extends Error {
@@ -116,8 +118,7 @@ export function createWhatsappService(deps: WhatsappServiceDeps) {
   const metaEnv = deps.metaEnv ?? {}
   const meta = deps.meta ?? createMetaAdapter(metaEnv)
   const metaMode = meta.mode
-  const tokenSecret =
-    deps.tokenSecret ?? metaEnv.META_APP_SECRET ?? metaEnv.META_MODE
+  const sealKeys = deps.sealKeys ?? metaSealKeys(metaEnv)
 
   async function syncMirror(
     tenantId: string,
@@ -249,7 +250,7 @@ export function createWhatsappService(deps: WhatsappServiceDeps) {
 
       const cipher = await sealAccessToken(
         exchanged.accessToken,
-        typeof tokenSecret === 'string' ? tokenSecret : undefined,
+        sealKeys,
         metaMode,
       )
       const expiresAt =

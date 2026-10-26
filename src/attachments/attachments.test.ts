@@ -437,7 +437,7 @@ describe('Anexos — ingestão mídia Meta sintética (#34)', () => {
       // Binding + credencial sintética
       const sealed = await sealAccessToken(
         'synth_token_pn',
-        undefined,
+        {},
         'synthetic',
       )
       const activated = activateBinding(admin.db, clock, {

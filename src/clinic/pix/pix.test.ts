@@ -55,7 +55,7 @@ describe('Clinic Pix account + signal config (#37)', () => {
           fetchImpl: sandbox.fetchImpl,
           baseUrl: sandbox.baseUrl,
           webhookPublicKeys: [sandbox.publicPem],
-          tokenSecret: 'test-pix-secret',
+          sealKeys: {},
         },
       )
       expect(connected.status).toBe('connected')
@@ -78,7 +78,7 @@ describe('Clinic Pix account + signal config (#37)', () => {
           fetchImpl: sandbox.fetchImpl,
           baseUrl: sandbox.baseUrl,
           webhookPublicKeys: [sandbox.publicPem],
-          tokenSecret: 'test-pix-secret',
+          sealKeys: {},
         },
       )
       expect(rotated.credentialVersion).toBe(2)

@@ -1,3 +1,4 @@
+import type { SealKeys } from '../../security/sealed-secret'
 import type { Clock } from '../../db/clock'
 import {
   appIdHint,
@@ -43,8 +44,8 @@ import type {
 import type { PixEnvironment } from '../constants'
 
 export type PixConnectDeps = {
-  /** Segredo para cifrar App ID (ausente → synth:). */
-  tokenSecret?: string
+  /** Chaves de cifra do App ID (TOKEN_ENCRYPTION_KEY + legado PIX_TOKEN_SECRET). */
+  sealKeys?: SealKeys
   /**
    * Ambiente efectivo (PIX_MODE). synthetic = fixture local sem rede.
    * sandbox/live = Woovi HTTP (requer App ID real; CI usa synthetic).
@@ -178,7 +179,7 @@ export async function connectPixAccountOp(
 
   const cipher = await sealPixAppId(
     appId,
-    deps.tokenSecret,
+    deps.sealKeys ?? {},
     environment === 'synthetic' ? 'synthetic' : environment,
   )
   const hint = appIdHint(appId)
@@ -316,13 +317,13 @@ export function recordLocalPixChargeOp(
 export async function openClinicPixAppId(
   db: ClinicDb,
   tenantId: string,
-  tokenSecret: string | undefined,
+  sealKeys: SealKeys | undefined,
 ): Promise<{ appId: string; accountId: string; environment: PixEnvironment } | null> {
   const row = getPixAccount(db, tenantId)
   if (!row || row.status !== 'connected' || !row.appIdCipher || !row.accountId) {
     return null
   }
-  const appId = await openPixAppId(row.appIdCipher, tokenSecret)
+  const appId = await openPixAppId(row.appIdCipher, sealKeys ?? {})
   return { appId, accountId: row.accountId, environment: row.environment }
 }
 
@@ -338,7 +339,7 @@ export async function buildClinicPixAdapter(
   accountId: string
   appId: string
 }> {
-  const opened = await openClinicPixAppId(db, tenantId, deps.tokenSecret)
+  const opened = await openClinicPixAppId(db, tenantId, deps.sealKeys)
   if (!opened) {
     throw new ValidationError(
       'pix_account_not_connected',

@@ -30,6 +30,8 @@ export type WorkerBindings = {
   META_GRAPH_API_VERSION?: string
   /** Segredo para selar tokens Meta em D1 (opcional; fallback META_APP_SECRET). */
   META_TOKEN_SECRET?: string
+  /** A2: chave AES-GCM de tokens Meta / App ID Woovi em repouso (obrigatória em staging/production). */
+  TOKEN_ENCRYPTION_KEY?: string
   /** Token do challenge GET webhook (#32). Synthetic default se ausente. */
   META_VERIFY_TOKEN?: string
   /** Segredo HMAC para tokens efémeros de download de anexos (#34). */

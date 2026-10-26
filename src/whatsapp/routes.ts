@@ -2,6 +2,7 @@
  * Rotas WhatsApp Embedded Signup e gestão de conexão (#31).
  * Escritas: owner (clinic.config.write). Leitura: owner + attendant.
  */
+import { metaSealKeys } from '../security/sealed-secret'
 import { Hono } from 'hono'
 import { requireClinicPermission } from '../auth/authorize'
 import {
@@ -146,7 +147,7 @@ async function resolveOps(
       db: syncDb,
       clock,
       metaEnv,
-      tokenSecret: env.META_TOKEN_SECRET ?? env.META_APP_SECRET,
+      sealKeys: metaSealKeys(env),
       channelSync,
     })
   }
@@ -160,6 +161,7 @@ async function resolveOps(
     metaEnv: {
       ...metaEnv,
       META_TOKEN_SECRET: env.META_TOKEN_SECRET,
+      TOKEN_ENCRYPTION_KEY: env.TOKEN_ENCRYPTION_KEY,
     },
     channelSync,
     nowMs: () => clock.nowMs(),

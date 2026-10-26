@@ -132,7 +132,7 @@ export async function seedOperationalClinic(opts: {
         clerkUserId: opts.ownerUserId,
       },
       clock,
-      { tokenSecret: 'test-secret-mvp31', environment: 'synthetic' },
+      { sealKeys: {}, environment: 'synthetic' },
     )
   }
 

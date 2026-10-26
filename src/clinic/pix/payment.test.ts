@@ -126,7 +126,7 @@ async function seed(
     caller,
     { appId: 'synth_pay_appid_abcdefgh', clerkUserId: 'user_synth_owner_a' },
     clock,
-    { tokenSecret: 'test-secret', environment: 'synthetic' },
+    { sealKeys: {}, environment: 'synthetic' },
   )
   return { tenantId, caller, pro, room, svc, contact, conversation }
 }
@@ -513,7 +513,7 @@ describe('pix payment → atomic confirm (#39)', () => {
       callerB,
       { appId: 'synth_pay_b_appid_abcdef', clerkUserId: 'owner_b' },
       clock,
-      { tokenSecret: 'test-secret', environment: 'synthetic' },
+      { sealKeys: {}, environment: 'synthetic' },
     )
 
     const adapterA = new SimulatedPixAdapter({
