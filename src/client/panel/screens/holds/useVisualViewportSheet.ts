@@ -19,7 +19,10 @@ export function useVisualViewportSheet(active: boolean): CSSProperties {
     const onFocusIn = (e: FocusEvent) => {
       const el = e.target as HTMLElement | null
       if (!el || !el.matches?.('textarea, input')) return
-      window.setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+      window.setTimeout(() => {
+        // jsdom (testes) e alguns navegadores antigos não têm scrollIntoView.
+        if (el.isConnected) el.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+      }, 300)
     }
     document.addEventListener('focusin', onFocusIn)
     view.addEventListener('resize', update)
