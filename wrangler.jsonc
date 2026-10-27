@@ -101,7 +101,12 @@
         "AUTH_MODE": "clerk",
         // Publishable key é pública por desenho (instância Clerk de desenvolvimento/staging).
         "CLERK_PUBLISHABLE_KEY": "pk_test_Y2xlYXItbWFja2VyZWwtODA0NS5jbGVyay5hY2NvdW50cy5kZXYk",
-        "CLERK_AUTHORIZED_PARTIES": "https://staging.app.tredane.com"
+        "CLERK_AUTHORIZED_PARTIES": "https://staging.app.tredane.com",
+        // Webhook Meta real em staging (Paulo, 2026-10-27). App Tredane não é Tech Provider:
+        // sem META_CONFIG_ID, Embedded Signup e rotas /api/tenants/:id/whatsapp/* falham fechado.
+        "META_MODE": "live",
+        // App ID Meta é público (não é segredo).
+        "META_APP_ID": "3651532788318487"
         // Secrets (wrangler secret put --env staging): CLERK_SECRET_KEY, ATTACHMENT_TOKEN_SECRET;
         // com META_MODE=live: META_APP_SECRET, META_VERIFY_TOKEN, META_TOKEN_SECRET;
         // com PIX_MODE=live: PIX_TOKEN_SECRET. `npm run check:env -- staging` valida.
