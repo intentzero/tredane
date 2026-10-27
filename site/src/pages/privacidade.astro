@@ -1,20 +1,7 @@
 ---
-import Base from '../layouts/Base.astro'
+import LegalPage from '../components/LegalPage.astro'
 import { Content } from '../legal/privacidade.md'
 ---
-<Base title="Política de Privacidade · Tredane" description="Como o Tredane trata dados pessoais, em conformidade com a LGPD.">
-<main class="wrap legal">
-<p><a href="/">← Tredane</a></p>
-<p class="legal-notice" role="note"><strong>Versão provisória, sujeita a revisão jurídica. Última atualização: 26/10/2026.</strong></p>
+<LegalPage title="Política de Privacidade · Tredane" description="Como o Tredane trata dados pessoais, em conformidade com a LGPD." lang="pt-BR">
 <Content />
-</main>
-</Base>
-
-<style>
-.legal { max-width: 760px; padding-block: 48px 80px; line-height: 1.6; }
-.legal-notice { padding: 12px 16px; border: 1px solid #e0b800; background: #fff8db; border-radius: 8px; }
-.legal :global(h1) { margin-top: 24px; }
-.legal :global(h2) { margin-top: 32px; }
-.legal :global(table) { border-collapse: collapse; width: 100%; }
-.legal :global(th), .legal :global(td) { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
-</style>
+</LegalPage>

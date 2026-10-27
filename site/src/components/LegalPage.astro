@@ -1,0 +1,33 @@
+---
+import Base from '../layouts/Base.astro'
+
+interface Props {
+  title: string
+  description: string
+  lang?: 'pt-BR' | 'en'
+}
+const { title, description, lang = 'pt-BR' } = Astro.props
+const en = lang === 'en'
+---
+<Base title={title} description={description} lang={lang}>
+<main class="wrap legal">
+<p><a href="/">← Tredane</a></p>
+<slot />
+<nav class="legal-nav" aria-label={en ? 'Legal pages' : 'Páginas legais'}>
+<a href="/privacidade" hreflang="pt-BR">Política de privacidade</a>
+<a href="/eliminacao-de-dados" hreflang="pt-BR">Exclusão de dados</a>
+<a href="/privacy" hreflang="en">Privacy Policy</a>
+<a href="/data-deletion" hreflang="en">Data Deletion</a>
+</nav>
+</main>
+</Base>
+
+<style>
+.legal { max-width: 760px; padding-block: 48px 80px; line-height: 1.6; }
+.legal :global(h1) { margin-top: 24px; }
+.legal :global(h2) { margin-top: 32px; }
+.legal :global(table) { border-collapse: collapse; width: 100%; }
+.legal :global(th), .legal :global(td) { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+.legal-nav { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 48px; padding-top: 24px; border-top: 1px solid #ddd; font-size: 14px; }
+.legal-nav a { display: inline-flex; align-items: center; min-height: 44px; }
+</style>
