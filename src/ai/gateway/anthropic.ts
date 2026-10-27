@@ -93,7 +93,9 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
         body: JSON.stringify({
           model,
           max_tokens: input.maxOutputTokens,
-          ...(input.temperature != null ? { temperature: input.temperature } : {}),
+          // Sem `temperature`: claude-haiku-5-5 / claude-sonnet-5-5 respondem 400
+          // «`temperature` is deprecated for this model» → toda sugestão falhava
+          // (provider_unavailable) em staging.
           system: systemPrompt,
           messages: [{ role: 'user', content: userContent }],
         }),
