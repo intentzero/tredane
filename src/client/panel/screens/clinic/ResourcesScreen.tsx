@@ -190,7 +190,7 @@ export function ResourceForm({
         <Label>
           {kind === 'professional' ? 'Nome na agenda' : 'Nome da sala ou equipamento'}
         </Label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} />
+        <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
       </TextField>
 
       {kind === 'professional' ? (
@@ -213,6 +213,7 @@ export function ResourceForm({
           <TextField className="clinic-field">
             <Label>Categoria (opcional)</Label>
             <Input
+              autoComplete="off"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="Ex.: Sala com laser"

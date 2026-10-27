@@ -261,6 +261,8 @@ export function WhatsappScreen({
         <TextField className="clinic-field">
           <Label>Digite o nome da clínica para confirmar</Label>
           <Input
+            autoComplete="off"
+            autoCapitalize="words"
             value={confirmName}
             onChange={(e) => setConfirmName(e.target.value)}
             aria-label="Nome da clínica"

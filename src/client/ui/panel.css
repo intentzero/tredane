@@ -4025,3 +4025,59 @@
     max-width: 480px;
   }
 }
+
+/* ── iOS (backlog item 4) ── */
+
+/* O iOS faz zoom ao focar campos com fonte < 16px: todo campo digitável no
+   painel fica com 16px em telas de toque. */
+@media (pointer: coarse), (max-width: 767.98px) {
+  .panel-app input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  .panel-app textarea,
+  .panel-app select,
+  .panel-app [contenteditable='true'] {
+    font-size: max(16px, 1em);
+  }
+}
+
+/* Teclado aberto: a app ocupa só a área visível (useKeyboardViewport
+   sobrescreve --panel-vvh no <html> enquanto o teclado está aberto). */
+:root {
+  --panel-vvh: 100dvh;
+}
+
+.panel-app,
+.panel-app:has(.inbox-thread) {
+  height: var(--panel-vvh);
+}
+
+/* Conversa aberta em tela cheia: sem cabeçalho/barra do shell, então o
+   cabeçalho da conversa e o compositor tratam as safe-areas. */
+.inbox-thread > .inbox-thread-header {
+  padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
+  padding-left: calc(var(--space-1) + env(safe-area-inset-left, 0px));
+  padding-right: calc(var(--space-2) + env(safe-area-inset-right, 0px));
+}
+
+.inbox-composer-wrap {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Com o teclado aberto o home indicator fica atrás dele: sem folga extra. */
+:root[data-keyboard='open'] .inbox-composer-wrap {
+  padding-bottom: 0;
+}
+
+@media (max-width: 767.98px) {
+  .panel-nav,
+  .panel-shell-header {
+    padding-left: calc(var(--space-2) + env(safe-area-inset-left, 0px));
+    padding-right: calc(var(--space-2) + env(safe-area-inset-right, 0px));
+  }
+
+  .panel-shell-header {
+    padding-left: calc(var(--space-4) + env(safe-area-inset-left, 0px));
+    padding-right: calc(var(--space-4) + env(safe-area-inset-right, 0px));
+  }
+}

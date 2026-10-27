@@ -202,7 +202,7 @@ export function ServiceForm({
 
       <TextField className="clinic-field">
         <Label>Nome do serviço</Label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} />
+        <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
       </TextField>
 
       <div className="clinic-field-row">
