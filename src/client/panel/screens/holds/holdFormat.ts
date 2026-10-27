@@ -10,7 +10,7 @@ export const PERIOD_PRESETS: Record<Exclude<PeriodPreset, 'outro'>, { start: num
   tarde: { start: 13 * 60, end: 18 * 60 },
 }
 
-export const DURATION_PRESETS = [30, 60, 90] as const
+export const DURATION_PRESETS = [15, 30, 45, 60, 90, 120] as const
 
 function tzOffsetMs(ms: number, timeZone: string): number {
   const parts = new Intl.DateTimeFormat('en-US', {

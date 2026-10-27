@@ -3489,9 +3489,11 @@
 
 /* —— Reserva por bloco (hora a definir) —— */
 .hold-sheet {
-  max-height: calc(100dvh - var(--space-8));
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   gap: var(--space-3);
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
 }
 
 .hold-sheet-head {
@@ -3536,6 +3538,107 @@
   font: inherit;
   font-size: var(--font-size-body);
   cursor: pointer;
+}
+
+.hold-option--two {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-height: var(--size-control-lg);
+  padding: var(--space-1) var(--space-2);
+  line-height: 1.2;
+}
+
+.hold-option-main,
+.hold-option-sub {
+  white-space: nowrap;
+}
+
+.hold-option-sub {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hold-option[aria-pressed='true'] .hold-option-sub {
+  color: var(--color-primary-ink);
+}
+
+.hold-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.hold-select {
+  min-width: 0;
+}
+
+.hold-select-trigger {
+  min-width: 0;
+}
+
+.hold-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hold-select-value[data-placeholder] {
+  color: var(--color-text-muted);
+}
+
+.hold-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.hold-stepper-label {
+  flex: 1;
+  font-size: var(--font-size-body);
+  color: var(--color-text-secondary);
+}
+
+.hold-stepper-btn {
+  width: var(--size-control-md);
+  height: var(--size-control-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  color: var(--color-primary-base);
+  cursor: pointer;
+}
+
+.hold-stepper-btn:disabled {
+  color: var(--color-line-disabled);
+  cursor: default;
+}
+
+.hold-stepper-btn:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.hold-stepper-value {
+  min-width: 72px;
+  text-align: center;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.hold-stepper-value--on {
+  color: var(--color-primary-base);
 }
 
 .hold-slot {
@@ -3694,4 +3797,97 @@
 .acomp-hold-chip--alert {
   background: var(--color-danger-tint);
   color: var(--color-danger-ink);
+}
+
+/* Folha do bloco em tela cheia no celular, com rodapé fixo acima do teclado. */
+.hold-sheet {
+  border-radius: 0;
+  padding-top: calc(var(--space-3) + env(safe-area-inset-top, 0px));
+  padding-left: calc(var(--space-4) + env(safe-area-inset-left, 0px));
+  padding-right: calc(var(--space-4) + env(safe-area-inset-right, 0px));
+  padding-bottom: 0;
+}
+
+.hold-sheet .panel-sheet-handle {
+  display: none;
+}
+
+.hold-sheet-footer {
+  position: sticky;
+  bottom: 0;
+  margin: auto calc(var(--space-4) * -1) 0;
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-surface-card);
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+  z-index: 2;
+}
+
+.hold-sheet textarea,
+.hold-sheet input {
+  font-size: 16px;
+}
+
+.hold-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hold-grid-3 .hold-option {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.hold-select-trigger {
+  min-height: var(--size-control-md);
+  font-size: 16px;
+}
+
+.hold-select-sheet {
+  max-height: 70dvh;
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+}
+
+.hold-select-title {
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+.hold-select-list {
+  overflow-y: auto;
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hold-select-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--size-control-md);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  outline: none;
+}
+
+.hold-select-item[data-focused],
+.hold-select-item[data-hovered] {
+  background: var(--color-surface-sunken);
+}
+
+.hold-select-item[data-selected] {
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.hold-select-item[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
 }
