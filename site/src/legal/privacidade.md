@@ -13,7 +13,7 @@ O Tredane é um serviço da Lucimark: uma plataforma (SaaS) que ajuda clínicas 
 - **Empresa responsável:** LUCIMARK INOVA SIMPLES (I.S.), Brasil
 - **CNPJ:** 66.552.736/0001-80
 - **Endereço:** Condomínio Ouro Vermelho II nº 0, Setor Habitacional Jardim Botânico, Brasília-DF, CEP 71680-385
-- **Contato para privacidade e proteção de dados:** [paulo@lucimark.com](mailto:paulo@lucimark.com)
+- **Contato para privacidade e proteção de dados:** [privacidade@tredane.com](mailto:privacidade@tredane.com)
 
 ## 2. Quem decide sobre os seus dados (papéis)
 
@@ -110,8 +110,8 @@ Adotamos medidas técnicas e administrativas como: separação dos dados de cada
 Pelo art. 18 da LGPD, você pode pedir: confirmação de que tratamos seus dados; acesso; correção de dados incompletos, inexatos ou desatualizados; anonimização, bloqueio ou eliminação de dados desnecessários, excessivos ou tratados em desacordo com a lei; portabilidade; eliminação de dados tratados com consentimento; informação sobre com quem compartilhamos; informação sobre a possibilidade de não consentir e suas consequências; e revogação do consentimento. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).
 
 **Como exercer:**
-- **Paciente ou cliente de uma clínica:** você pode falar diretamente com a clínica, que é a controladora, ou escrever para [paulo@lucimark.com](mailto:paulo@lucimark.com). Nesse caso, encaminharemos o pedido à clínica e a apoiaremos na resposta.
-- **Usuário de clínica ou visitante do site:** escreva para [paulo@lucimark.com](mailto:paulo@lucimark.com).
+- **Paciente ou cliente de uma clínica:** você pode falar diretamente com a clínica, que é a controladora, ou escrever para [privacidade@tredane.com](mailto:privacidade@tredane.com). Nesse caso, encaminharemos o pedido à clínica e a apoiaremos na resposta.
+- **Usuário de clínica ou visitante do site:** escreva para [privacidade@tredane.com](mailto:privacidade@tredane.com).
 
 Responderemos em até **15 dias**. Podemos pedir informações para confirmar sua identidade.
 
@@ -129,5 +129,5 @@ Podemos atualizar esta política. A versão vigente estará sempre em tredane.co
 
 ## 14. Contato e encarregado
 
-**Contato para privacidade:** [paulo@lucimark.com](mailto:paulo@lucimark.com)
+**Contato para privacidade:** [privacidade@tredane.com](mailto:privacidade@tredane.com)
 **Encarregado (DPO):** Paulo Santos · [privacidade@tredane.com](mailto:privacidade@tredane.com)

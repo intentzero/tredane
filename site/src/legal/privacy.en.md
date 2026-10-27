@@ -13,7 +13,7 @@ Tredane is a Lucimark service: a software-as-a-service platform that helps clini
 - **Company:** LUCIMARK INOVA SIMPLES (I.S.), Brazil
 - **CNPJ (Brazilian company ID):** 66.552.736/0001-80
 - **Address:** Condomínio Ouro Vermelho II nº 0, Setor Habitacional Jardim Botânico, Brasília-DF, CEP 71680-385, Brazil
-- **Privacy and data protection contact:** [paulo@lucimark.com](mailto:paulo@lucimark.com)
+- **Privacy and data protection contact:** [privacidade@tredane.com](mailto:privacidade@tredane.com)
 
 ## 2. Who decides about your data (roles)
 
@@ -110,8 +110,8 @@ We apply technical and organisational measures such as: separation of each clini
 Under LGPD art. 18 you may request: confirmation that we process your data; access; correction of incomplete, inaccurate or outdated data; anonymisation, blocking or deletion of unnecessary, excessive or unlawfully processed data; portability; deletion of data processed based on consent; information about who we share data with; information about the option not to consent and its consequences; and withdrawal of consent. You may also file a complaint with the ANPD.
 
 **How to exercise them:**
-- **Patient or client of a clinic:** you may contact the clinic directly, as the controller, or write to [paulo@lucimark.com](mailto:paulo@lucimark.com). We will forward your request to the clinic and support it in responding.
-- **Clinic user or website visitor:** write to [paulo@lucimark.com](mailto:paulo@lucimark.com).
+- **Patient or client of a clinic:** you may contact the clinic directly, as the controller, or write to [privacidade@tredane.com](mailto:privacidade@tredane.com). We will forward your request to the clinic and support it in responding.
+- **Clinic user or website visitor:** write to [privacidade@tredane.com](mailto:privacidade@tredane.com).
 
 We will respond within **15 days**. We may ask for information to confirm your identity.
 
@@ -129,5 +129,5 @@ We may update this policy. The current version will always be available at treda
 
 ## 14. Contact and data protection officer
 
-**Privacy contact:** [paulo@lucimark.com](mailto:paulo@lucimark.com)
+**Privacy contact:** [privacidade@tredane.com](mailto:privacidade@tredane.com)
 **Data protection officer (Encarregado/DPO):** Paulo Santos · [privacidade@tredane.com](mailto:privacidade@tredane.com)

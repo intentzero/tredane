@@ -11,7 +11,7 @@ Esta página explica como pedir a exclusão dos seus dados pessoais tratados pel
 As suas conversas pelo WhatsApp com uma clínica que usa o Tredane pertencem à clínica, que é a controladora dos dados. Você pode pedir a exclusão de duas formas:
 
 1. **Diretamente à clínica** com quem você conversou. O responsável da clínica pode excluir o seu contato no próprio painel do Tredane.
-2. **Por e-mail para a Lucimark:** escreva para [paulo@lucimark.com](mailto:paulo@lucimark.com?subject=Exclus%C3%A3o%20de%20dados%20-%20Tredane) com:
+2. **Por e-mail para a Lucimark:** escreva para [privacidade@tredane.com](mailto:privacidade@tredane.com?subject=Exclus%C3%A3o%20de%20dados%20-%20Tredane) com:
    - **Assunto:** `Exclusão de dados - Tredane`
    - o **número de WhatsApp** usado na conversa (com DDI e DDD, por exemplo +55 61 9XXXX-XXXX);
    - o **nome da clínica** com quem você conversou (se souber);
@@ -33,7 +33,7 @@ Se você voltar a escrever para a clínica depois da exclusão, uma nova convers
 ## 2. Se você é uma clínica ou usuário de uma clínica
 
 - **Excluir um contato (paciente):** o responsável da clínica pode excluir o contato no painel do Tredane. A exclusão é imediata e tem o efeito descrito acima.
-- **Encerrar a conta da clínica e apagar todos os dados:** o responsável da clínica escreve para [paulo@lucimark.com](mailto:paulo@lucimark.com?subject=Exclus%C3%A3o%20de%20dados%20-%20Tredane) com o assunto `Exclusão de dados - Tredane`, o nome da clínica e o número de WhatsApp Business conectado. Depois de confirmarmos o pedido, desligamos a integração com o WhatsApp e apagamos de forma definitiva, **em até 30 dias**: todas as conversas, mensagens, anexos, contatos, agendamentos, cobranças, configurações da clínica, credenciais de integração e inscrições de notificação. Os acessos de todos os usuários da clínica são revogados e os convites pendentes são cancelados. Mantemos apenas registros de auditoria sem conteúdo de mensagens, o registro de que a conta foi encerrada e o registro de que o número de WhatsApp Business da clínica foi desligado.
+- **Encerrar a conta da clínica e apagar todos os dados:** o responsável da clínica escreve para [privacidade@tredane.com](mailto:privacidade@tredane.com?subject=Exclus%C3%A3o%20de%20dados%20-%20Tredane) com o assunto `Exclusão de dados - Tredane`, o nome da clínica e o número de WhatsApp Business conectado. Depois de confirmarmos o pedido, desligamos a integração com o WhatsApp e apagamos de forma definitiva, **em até 30 dias**: todas as conversas, mensagens, anexos, contatos, agendamentos, cobranças, configurações da clínica, credenciais de integração e inscrições de notificação. Os acessos de todos os usuários da clínica são revogados e os convites pendentes são cancelados. Mantemos apenas registros de auditoria sem conteúdo de mensagens, o registro de que a conta foi encerrada e o registro de que o número de WhatsApp Business da clínica foi desligado.
 - **Excluir a sua conta de usuário (atendente ou responsável):** escreva para o mesmo e-mail informando o e-mail da sua conta. Removemos o seu acesso às clínicas e a sua conta de login junto ao provedor de autenticação (Clerk) (essa exclusão é feita manualmente pela equipe da Lucimark).
 
 ## 3. Prazos
@@ -45,6 +45,6 @@ Se você voltar a escrever para a clínica depois da exclusão, uma nova convers
 
 ## 4. Contato
 
-LUCIMARK INOVA SIMPLES (I.S.) · CNPJ 66.552.736/0001-80 · [paulo@lucimark.com](mailto:paulo@lucimark.com)
+LUCIMARK INOVA SIMPLES (I.S.) · CNPJ 66.552.736/0001-80 · [privacidade@tredane.com](mailto:privacidade@tredane.com)
 
 Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).
