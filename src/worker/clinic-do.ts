@@ -1454,6 +1454,41 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return row
   }
 
+  async listClinicResourceFutureAppointments(caller: ClinicCaller, resourceId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicConfig.listResourceFutureAppointmentsOp(
+      this.#db,
+      caller,
+      resourceId,
+      this.#clock,
+    )
+  }
+
+  async deactivateClinicResource(
+    caller: ClinicCaller,
+    input: clinicConfig.DeactivateResourceInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const row = clinicConfig.deactivateResourceOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutConfigEvent(caller, 'config.resource_deactivated', 'resource', row.id, {
+      active: row.active,
+      futureAppointmentCount: row.futureAppointmentCount,
+      reassignedCount: row.reassigned.length,
+      servicesWithoutResource: row.servicesWithoutResource,
+    })
+    return row
+  }
+
+  async deleteClinicResource(caller: ClinicCaller, resourceId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const out = clinicConfig.deleteResourceOp(this.#db, caller, resourceId, this.#clock)
+    await this.#fanoutConfigEvent(caller, 'config.resource_deleted', 'resource', out.id, {})
+    return out
+  }
+
   async setClinicWeeklyWindows(caller: ClinicCaller, input: SetWeeklyWindowsInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)

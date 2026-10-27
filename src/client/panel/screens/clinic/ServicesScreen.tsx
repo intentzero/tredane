@@ -394,7 +394,7 @@ export function ServiceForm({
           isDisabled={saving || !name.trim()}
           onPress={() => void save()}
         >
-          {saving ? 'A salvar…' : 'Salvar serviço'}
+          {saving ? 'Salvando…' : 'Salvar serviço'}
         </Button>
       </div>
     </div>

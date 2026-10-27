@@ -1,9 +1,16 @@
 import { useState } from 'react'
 import { Button, Checkbox, Input, Label, TextField } from 'react-aria-components'
 import { PanelSelect } from '../../ui/PanelSelect'
-import type { ClinicConfigSnapshot, PanelApi } from '../../api'
+import type { ClinicConfigSnapshot, PanelApi, ResourceFutureAppointment } from '../../api'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
+import {
+  DeleteResourceDialog,
+  FutureAppointmentsDialog,
+  KEEP,
+  defaultChoices,
+  type FutureChoice,
+} from './ResourceLifecycleDialogs'
 
 type ListProps = {
   tenantId: string
@@ -12,11 +19,14 @@ type ListProps = {
 
 export function ResourcesList({ tenantId, snap }: ListProps) {
   const [tab, setTab] = useState<'professional' | 'room'>('professional')
+  const [showInactive, setShowInactive] = useState(false)
   const professionals = snap.resources.filter((r) => r.kind === 'professional')
   const rooms = snap.resources.filter(
     (r) => r.kind === 'room' || r.kind === 'equipment',
   )
-  const items = tab === 'professional' ? professionals : rooms
+  const all = tab === 'professional' ? professionals : rooms
+  const inactiveCount = all.filter((r) => !r.active).length
+  const items = showInactive ? all : all.filter((r) => r.active)
 
   return (
     <div className="clinic-stack">
@@ -46,6 +56,13 @@ export function ResourcesList({ tenantId, snap }: ListProps) {
           Salas e equipamentos
         </Button>
       </div>
+      <Checkbox
+        className="clinic-check"
+        isSelected={showInactive}
+        onChange={setShowInactive}
+      >
+        {`Mostrar inativos${inactiveCount > 0 ? ` (${inactiveCount})` : ''}`}
+      </Checkbox>
       <ul className="clinic-nav-list">
         {items.map((r) => (
           <li key={r.id}>
@@ -75,7 +92,11 @@ export function ResourcesList({ tenantId, snap }: ListProps) {
           </li>
         ))}
         {items.length === 0 ? (
-          <li className="clinic-empty">Nenhum item nesta lista.</li>
+          <li className="clinic-empty">
+            {inactiveCount > 0 && !showInactive
+              ? 'Nenhum item ativo. Marque «Mostrar inativos» para ver o histórico.'
+              : 'Nenhum item nesta lista.'}
+          </li>
         ) : null}
       </ul>
       <Button
@@ -122,8 +143,148 @@ export function ResourceForm({
   const [resourceKind, setResourceKind] = useState<'room' | 'equipment'>(
     existing?.kind === 'equipment' ? 'equipment' : 'room',
   )
-  const [active, setActive] = useState(existing?.active ?? true)
+  const active = existing?.active ?? true
   const [saving, setSaving] = useState(false)
+  const [lifecycleBusy, setLifecycleBusy] = useState(false)
+  const [futureApts, setFutureApts] = useState<ResourceFutureAppointment[] | null>(null)
+  const [choices, setChoices] = useState<FutureChoice>({})
+  const [dialogError, setDialogError] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const timeZone = snap.settings?.timezone ?? 'America/Sao_Paulo'
+  const label = kind === 'professional' ? 'profissional' : 'sala ou equipamento'
+
+  function backToList() {
+    navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'recursos' })
+  }
+
+  function errorText(err: unknown, fallback: string): string | null {
+    if (err instanceof PanelApiError) {
+      if (err.message === 'stale_tenant_response') return null
+      const code = err.code as string
+      if (code === 'resource_has_history') {
+        return 'Não é possível excluir: este item já teve compromissos. Desative-o para manter o histórico.'
+      }
+      if (code === 'resource_required_by_service') {
+        return 'Não é possível excluir: um serviço exige esta sala ou equipamento. Altere o serviço antes.'
+      }
+      if (code === 'reassign_conflict' || code === 'appointment_not_on_resource'
+        || code === 'appointment_version_conflict') {
+        return 'A agenda mudou e um destino deixou de estar livre. Nada foi alterado — revise as escolhas.'
+      }
+    }
+    return fallback
+  }
+
+  async function reactivate() {
+    if (!existing) return
+    setLifecycleBusy(true)
+    setFormError(null)
+    setNotice(null)
+    try {
+      await api.setResourceActive(tenantId, existing.id, true, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      await onSaved()
+      setNotice(`${existing.name} voltou a aceitar novos agendamentos.`)
+    } catch (err) {
+      const msg = errorText(err, 'Não foi possível reativar. Tente de novo.')
+      if (msg) setFormError(msg)
+    } finally {
+      setLifecycleBusy(false)
+    }
+  }
+
+  async function submitDeactivate(selected: FutureChoice, apts: ResourceFutureAppointment[]) {
+    if (!existing) return
+    setLifecycleBusy(true)
+    setDialogError(null)
+    setFormError(null)
+    setNotice(null)
+    try {
+      const reassignments = apts
+        .filter((a) => selected[a.appointmentId] && selected[a.appointmentId] !== KEEP)
+        .map((a) => ({
+          appointmentId: a.appointmentId,
+          targetResourceId: selected[a.appointmentId] as string,
+          expectedVersion: a.version,
+        }))
+      const row = await api.deactivateResource(tenantId, existing.id, reassignments, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      setFutureApts(null)
+      await onSaved()
+      const parts = [`${existing.name} foi desativado para novos agendamentos. O histórico foi mantido.`]
+      if (row.reassigned.length > 0) parts.push(`${row.reassigned.length} compromisso(s) remanejado(s).`)
+      if (row.keptAppointmentIds.length > 0) {
+        parts.push(`${row.keptAppointmentIds.length} compromisso(s) mantido(s) — trate-os na agenda se precisar.`)
+      }
+      if (row.servicesWithoutResource && row.servicesWithoutResource.length > 0) {
+        parts.push('Alguns serviços ficaram sem recurso ativo nesta categoria e deixam de oferecer novos horários.')
+      }
+      setNotice(parts.join(' '))
+    } catch (err) {
+      const msg = errorText(err, 'Não foi possível desativar. Nada foi alterado.')
+      if (msg) {
+        if (apts.length > 0) setDialogError(msg)
+        else setFormError(msg)
+      }
+    } finally {
+      setLifecycleBusy(false)
+    }
+  }
+
+  async function startDeactivate() {
+    if (!existing) return
+    setFormError(null)
+    setNotice(null)
+    if (existing.futureAppointmentCount === 0) {
+      await submitDeactivate({}, [])
+      return
+    }
+    setLifecycleBusy(true)
+    try {
+      const out = await api.listResourceFutureAppointments(tenantId, existing.id, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      if (out.appointments.length === 0) {
+        setLifecycleBusy(false)
+        await submitDeactivate({}, [])
+        return
+      }
+      setChoices(defaultChoices(out.appointments))
+      setDialogError(null)
+      setFutureApts(out.appointments)
+    } catch (err) {
+      const msg = errorText(err, 'Não foi possível carregar os compromissos futuros.')
+      if (msg) setFormError(msg)
+    } finally {
+      setLifecycleBusy(false)
+    }
+  }
+
+  async function confirmDelete() {
+    if (!existing) return
+    setLifecycleBusy(true)
+    setDialogError(null)
+    try {
+      await api.deleteResource(tenantId, existing.id, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      setDeleteOpen(false)
+      await onSaved()
+      backToList()
+    } catch (err) {
+      const msg = errorText(err, 'Não foi possível excluir. Tente de novo.')
+      if (msg) setDialogError(msg)
+    } finally {
+      setLifecycleBusy(false)
+    }
+  }
+
   const [formError, setFormError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -150,11 +311,6 @@ export function ResourceForm({
       if (row.servicesWithoutResource && row.servicesWithoutResource.length > 0) {
         notes.push(
           'Alguns serviços ficaram sem recurso ativo nesta categoria e deixam de oferecer novos horários. Compromissos futuros permanecem.',
-        )
-      }
-      if (row.futureAppointmentCount > 0 && !active) {
-        notes.push(
-          `${row.futureAppointmentCount} compromisso(s) futuro(s) não foram cancelados — trate-os na agenda.`,
         )
       }
       await onSaved()
@@ -222,13 +378,57 @@ export function ResourceForm({
         </>
       )}
 
-      <Checkbox className="clinic-check clinic-check-card" isSelected={active} onChange={setActive}>
-        {kind === 'professional' ? 'Profissional ativa' : 'Recurso ativo'}
-      </Checkbox>
-      <p className="clinic-footnote">
-        Desactivar retira de novos agendamentos e mantém o histórico. Compromissos futuros
-        não são cancelados automaticamente.
-      </p>
+      {existing ? (
+        <section className="clinic-stack" aria-label="Situação">
+          <p className="clinic-nav-copy">
+            <strong>{active ? 'Ativo' : 'Inativo'}</strong>
+            <span>
+              {active
+                ? existing.futureAppointmentCount > 0
+                  ? `Recebe novos agendamentos · ${existing.futureAppointmentCount} futuro(s)`
+                  : 'Recebe novos agendamentos'
+                : 'Não recebe novos agendamentos. O histórico continua disponível.'}
+            </span>
+          </p>
+          {active ? (
+            <Button
+              className="panel-btn panel-btn-ghost"
+              isDisabled={lifecycleBusy || saving}
+              onPress={() => void startDeactivate()}
+            >
+              {lifecycleBusy ? 'Aguarde…' : 'Desativar'}
+            </Button>
+          ) : (
+            <Button
+              className="panel-btn panel-btn-primary"
+              isDisabled={lifecycleBusy || saving}
+              onPress={() => void reactivate()}
+            >
+              {lifecycleBusy ? 'Aguarde…' : 'Reativar'}
+            </Button>
+          )}
+          <p className="clinic-footnote">
+            Desativar retira de novos agendamentos e mantém o histórico. Compromissos futuros
+            nunca são cancelados automaticamente: você escolhe remanejar ou manter cada um.
+          </p>
+          {existing.hasAppointmentHistory === false ? (
+            <Button
+              className="panel-btn-danger"
+              isDisabled={lifecycleBusy || saving}
+              onPress={() => {
+                setDialogError(null)
+                setDeleteOpen(true)
+              }}
+            >
+              {`Excluir ${label}`}
+            </Button>
+          ) : (
+            <p className="clinic-footnote">
+              Já teve compromissos, por isso não pode ser excluído — só desativado.
+            </p>
+          )}
+        </section>
+      ) : null}
 
       {notice ? (
         <p className="clinic-banner clinic-banner-inline" role="status">
@@ -247,7 +447,7 @@ export function ResourceForm({
           isDisabled={saving || !name.trim()}
           onPress={() => void save()}
         >
-          {saving ? 'A salvar…' : 'Salvar'}
+          {saving ? 'Salvando…' : 'Salvar'}
         </Button>
         {notice ? (
           <Button
@@ -265,6 +465,31 @@ export function ResourceForm({
           </Button>
         ) : null}
       </div>
+      {existing ? (
+        <>
+          <FutureAppointmentsDialog
+            open={futureApts !== null}
+            resourceName={existing.name}
+            kind={kind}
+            timeZone={timeZone}
+            appointments={futureApts ?? []}
+            choices={choices}
+            busy={lifecycleBusy}
+            error={dialogError}
+            onChange={setChoices}
+            onClose={() => setFutureApts(null)}
+            onConfirm={() => void submitDeactivate(choices, futureApts ?? [])}
+          />
+          <DeleteResourceDialog
+            open={deleteOpen}
+            resourceName={existing.name}
+            busy={lifecycleBusy}
+            error={dialogError}
+            onClose={() => setDeleteOpen(false)}
+            onConfirm={() => void confirmDelete()}
+          />
+        </>
+      ) : null}
     </div>
   )
 }

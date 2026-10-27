@@ -18,6 +18,9 @@ import type {
   WeeklyWindowRow,
   ClinicSettingsRow,
   AppointmentRow,
+  DeactivateResourceInput,
+  DeactivateResourceResult,
+  FutureAppointmentForResource,
 } from '../clinic/config'
 
 /**
@@ -43,6 +46,15 @@ export type ClinicConfigGateway = {
     resourceId: string,
     active: boolean,
   ): Promise<ResourceRow & { servicesWithoutResource?: string[] }>
+  listResourceFutureAppointments(
+    caller: ClinicCaller,
+    resourceId: string,
+  ): Promise<{ resource: ResourceRow; appointments: FutureAppointmentForResource[] }>
+  deactivateResource(
+    caller: ClinicCaller,
+    input: DeactivateResourceInput,
+  ): Promise<DeactivateResourceResult>
+  deleteResource(caller: ClinicCaller, resourceId: string): Promise<{ ok: true; id: string }>
   setWeeklyWindows(
     caller: ClinicCaller,
     input: SetWeeklyWindowsInput,
@@ -91,6 +103,15 @@ export function createMemoryClinicConfigGateway(
     },
     async setResourceActive(caller, resourceId, active) {
       return clinicConfig.setResourceActiveOp(db, caller, resourceId, active, clock)
+    },
+    async listResourceFutureAppointments(caller, resourceId) {
+      return clinicConfig.listResourceFutureAppointmentsOp(db, caller, resourceId, clock)
+    },
+    async deactivateResource(caller, input) {
+      return clinicConfig.deactivateResourceOp(db, caller, input, clock)
+    },
+    async deleteResource(caller, resourceId) {
+      return clinicConfig.deleteResourceOp(db, caller, resourceId, clock)
     },
     async setWeeklyWindows(caller, input) {
       return clinicConfig.setWeeklyWindowsOp(db, caller, input, clock)

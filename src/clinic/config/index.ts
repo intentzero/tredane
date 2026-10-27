@@ -65,3 +65,16 @@ export {
   createBlockOp,
   deleteBlockOp,
 } from './operations'
+export {
+  listResourceFutureAppointmentsOp,
+  deactivateResourceOp,
+  deleteResourceOp,
+} from './resource-lifecycle'
+export { resourceHasHistory } from './resource-history'
+export type {
+  FutureAppointmentForResource,
+  ReassignCandidate,
+  ResourceReassignment,
+  DeactivateResourceInput,
+  DeactivateResourceResult,
+} from './resource-lifecycle'
