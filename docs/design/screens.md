@@ -56,6 +56,7 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 | M-36 | `AgendarConflito` | TEL-05 | JRN-03 · REQ-031 · AC-10 | Alerta «Nada foi reservado», escolhas mantidas, horário perdido riscado e alternativas próximas destacadas | M-04 |
 | M-37 | `AgendarSemHorarios` | TEL-05 | JRN-03 · REQ-030 | Dia sem horários com **Próximo livre** (busca no cliente, 14 dias; DEC-055 Confirmado) | M-04 |
 | M-38 | `AgendarSucesso` | TEL-05 | JRN-03 · REQ-033 | Horário agendado, estado do aviso WhatsApp, **Voltar à conversa** e **Ver na agenda** | M-02, M-06 |
+| M-39 | `ReservarBloco` | TEL-01 conversa (menu ⋮) | JRN-03 · REQ-030, REQ-033 | Folha «Reservar bloco»: chips de dia como no Agendar (o painel acrescenta «Outro dia» para datas além dos 5 chips), período, resumo «Atendimento» com **Alterar**, duração com chips e **Outra** (passo de 15 min só depois), horários, **Avisar a paciente pelo WhatsApp** (ligado por padrão na janela de 24 h; desligado reserva sem mensagem) e **Reservar horário**. Estado inicial: hoje, ou amanhã depois das 18h (Proposto; bloco ocupa a duração escolhida, decisão de 27/10/2026) | M-02, M-06 |
 
 ## Estados que a UI real precisa ter e os mocks mostram em uma tela só
 

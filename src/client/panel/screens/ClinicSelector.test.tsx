@@ -41,6 +41,15 @@ describe('ClinicSelector — retomar a última clínica', () => {
     )
   })
 
+  it('se não conseguir reabrir a última clínica, não navega e guarda o registro', async () => {
+    selectTenant.mockResolvedValue(false)
+    writeLastTenantId('clinic-b')
+    render(<ClinicSelector />)
+    await waitFor(() => expect(selectTenant).toHaveBeenCalledTimes(1))
+    expect(navigatePanel).not.toHaveBeenCalled()
+    expect(localStorage.getItem('tredane.lastTenantId')).toBe('clinic-b')
+  })
+
   it('mostra a lista se a última clínica não é desta pessoa', () => {
     writeLastTenantId('clinic-de-outra-pessoa')
     render(<ClinicSelector />)

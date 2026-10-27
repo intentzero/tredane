@@ -7,8 +7,8 @@ Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas n
 
 - **M-02 Conversa:** botão **Agendar** com texto no cabeçalho; menu ⋮ passa a dizer «reservar bloco, encerrar».
 - **M-05 Pipeline (Acompanhamento):** cabeçalho «N nesta etapa · M em andamento»; «Sem compromisso» → «Sem horário marcado»; botão **Abrir conversa** em cada cartão. O botão **Mover** não muda.
-- **Reservar bloco** não tem mock próprio em `mobile/`; o comportamento novo (chips de dia como no Agendar, resumo com «Alterar», «Outra» para duração, aviso à paciente opcional) está só no painel. Pendente: desenhar o mock.
-- Previews M-02 e M-05: ver a nota do PR sobre a renderização.
+- **M-39 Reservar bloco** (novo): chips de dia como no Agendar, resumo com «Alterar», «Outra» para duração, aviso à paciente opcional. Antes não havia mock próprio.
+- Previews M-02, M-05 e M-39 renderizados.
 
 ## Tokens 0.3.0 — 27/10/2026 (Confirmado)
 
