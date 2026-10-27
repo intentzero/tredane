@@ -625,7 +625,9 @@
 .panel-app {
   width: min(100%, 960px);
   min-width: min(100%, var(--size-viewport-min));
-  min-height: 100dvh;
+  /* Altura fixa: só o <main> rola; cabeçalho e barra inferior ficam fixos (iOS PWA). */
+  height: 100dvh;
+  overflow: hidden;
   margin: 0 auto;
   background: var(--color-surface-app);
   color: var(--color-text-primary);
@@ -691,9 +693,23 @@
 
 .panel-shell-main {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   padding: var(--space-4);
   padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Com barra inferior visível, ela já ocupa a safe-area de baixo: sem gap duplo. */
+.panel-app:has(> .panel-nav) .panel-shell-main {
+  padding-bottom: var(--space-4);
+}
+
+@media (max-width: 767.98px) {
+  .panel-app--immersive:has(> .panel-nav) .panel-shell-main {
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .panel-status {
@@ -3364,4 +3380,109 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* —— Avatar + menu da conta (substitui o botão Sair no cabeçalho) —— */
+.panel-avatar-btn {
+  width: var(--size-touch);
+  height: var(--size-touch);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  cursor: pointer;
+  flex: none;
+}
+
+.panel-avatar-btn[data-focus-visible] {
+  outline: 2px solid var(--color-primary-base);
+  outline-offset: 2px;
+}
+
+.panel-avatar {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  border: var(--size-border-width) solid var(--color-primary-border);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.panel-account-popover {
+  min-width: 240px;
+  max-width: min(320px, calc(100vw - 2 * var(--space-4)));
+  background: var(--color-surface-card);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(20, 38, 37, 0.14);
+  outline: none;
+}
+
+.panel-account-menu {
+  padding: var(--space-2);
+  outline: none;
+}
+
+.panel-account-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.panel-account-name {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-body);
+  overflow-wrap: anywhere;
+}
+
+.panel-account-email {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
+.panel-account-sep {
+  height: var(--size-border-width);
+  margin: var(--space-2) 0;
+  background: var(--color-line-border);
+  border: 0;
+}
+
+.panel-account-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-touch);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  outline: none;
+}
+
+.panel-account-item--danger {
+  color: var(--color-danger-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.panel-account-item[data-focused],
+.panel-account-item[data-hovered] {
+  background: var(--color-danger-tint);
+}
+
+.panel-account-item[data-focus-visible] {
+  outline: 2px solid var(--color-danger-ink);
+  outline-offset: -2px;
 }

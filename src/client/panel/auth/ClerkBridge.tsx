@@ -1,4 +1,5 @@
-import { ClerkProvider, useAuth, useClerk } from '@clerk/react'
+import { ClerkProvider, useAuth, useClerk, useUser } from '@clerk/react'
+import { AccountMenu } from '../shell/AccountMenu'
 import { useEffect, type ReactNode } from 'react'
 import { useAuthSession, useClientConfig } from './AuthContext'
 import { ClerkLogin } from './ClerkLogin'
@@ -66,6 +67,42 @@ export function LoginScreen() {
   const { authMode } = useAuthSession()
   if (authMode === 'clerk') return <ClerkLogin />
   return <SyntheticLogin />
+}
+
+function ClerkAccountControl() {
+  const { signOut: clearLocal } = useAuthSession()
+  const { signOut } = useClerk()
+  const { user } = useUser()
+  return (
+    <AccountMenu
+      name={user?.fullName ?? user?.firstName ?? null}
+      email={user?.primaryEmailAddress?.emailAddress ?? null}
+      onSignOut={() => {
+        void (async () => {
+          await clearLocal()
+          await signOut({ redirectUrl: '/entrar' })
+        })()
+      }}
+    />
+  )
+}
+
+function SyntheticAccountControl() {
+  const { signOut } = useAuthSession()
+  return (
+    <AccountMenu
+      onSignOut={() => {
+        void signOut().then(() => navigatePanel({ kind: 'entrar' }, true))
+      }}
+    />
+  )
+}
+
+/** Avatar com menu da conta (Sair dentro do menu). */
+export function AccountControl() {
+  const { authMode } = useAuthSession()
+  if (authMode === 'clerk') return <ClerkAccountControl />
+  return <SyntheticAccountControl />
 }
 
 function ClerkSignOutControl() {
