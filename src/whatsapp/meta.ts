@@ -4,6 +4,9 @@
  * App Review / WABA real = gates humanos (#18) — não exigidos aqui.
  */
 import type { MetaMode, MetaTokenExchangeResult } from './types'
+import { createChannelLogger } from '../ops/log'
+
+const metaSendLog = createChannelLogger('meta_send')
 
 export type MetaSendTextInput = {
   phoneNumberId: string
@@ -170,6 +173,33 @@ export function createSyntheticMetaAdapter(): MetaAdapter {
   }
 }
 
+export type GraphErrorCodes = { code: number | null; subcode: number | null }
+
+function asErrorInt(v: unknown): number | null {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 1e9 ? v : null
+}
+
+/** Extrai só `error.code` / `error.error_subcode` (inteiros) da resposta Graph. */
+export async function readGraphErrorCodes(res: Response): Promise<GraphErrorCodes> {
+  try {
+    const body = (await res.json()) as { error?: { code?: unknown; error_subcode?: unknown } }
+    const err = body && typeof body === 'object' ? body.error : undefined
+    return { code: asErrorInt(err?.code), subcode: asErrorInt(err?.error_subcode) }
+  } catch {
+    return { code: null, subcode: null }
+  }
+}
+
+/** `meta_http_<status>[_<code>[_<subcode>]]`, ex.: `meta_http_400_131030`. */
+export function metaHttpErrorCode(status: number, meta: GraphErrorCodes): string {
+  let out = `meta_http_${status}`
+  if (meta.code != null) {
+    out += `_${meta.code}`
+    if (meta.subcode != null) out += `_${meta.subcode}`
+  }
+  return out
+}
+
 async function liveGraphSend(
   version: string,
   phoneNumberId: string,
@@ -192,7 +222,19 @@ async function liveGraphSend(
       },
     )
     if (!res.ok) {
-      return { outcome: 'failed', errorCode: `meta_http_${res.status}` }
+      const meta = await readGraphErrorCodes(res)
+      const errorCode = metaHttpErrorCode(res.status, meta)
+      // Só status/code/subcode numéricos — nunca corpo, token ou waId.
+      metaSendLog({
+        level: 'warn',
+        event: 'meta.send_http_error',
+        detail: {
+          httpStatus: res.status,
+          metaErrorCode: meta.code,
+          metaErrorSubcode: meta.subcode,
+        },
+      })
+      return { outcome: 'failed', errorCode }
     }
     const body = (await res.json()) as {
       messages?: Array<{ id?: string }>
