@@ -10,7 +10,9 @@ import {
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import { DeleteContactDialog } from './DeleteContactDialog'
-import { contactLabel, maskPhone, relativeTime, statusClass, statusLabel } from './format'
+import { contactLabel, maskPhone, relativeTime, statusTone, statusLabel } from './format'
+import { friendlyError } from '../../copy/errors'
+import { Badge } from '../../states/Badge'
 
 type Props = {
   tenantId: string
@@ -69,7 +71,7 @@ export function InboxContactScreen({
         if (!cancelled) setData(res)
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Falha ao carregar contato')
+          setError(friendlyError(err, 'Não foi possível abrir este contato.'))
           setData(null)
         }
       } finally {
@@ -303,7 +305,7 @@ export function InboxContactScreen({
             >
               <span className="inbox-row-main">
                 <span className="inbox-row-top">
-                  <span className={statusClass(c.status)}>{statusLabel(c.status)}</span>
+                  <Badge tone={statusTone(c.status)}>{statusLabel(c.status)}</Badge>
                   <span className="inbox-row-time">{relativeTime(c.lastMessageAt)}</span>
                 </span>
                 <span className="inbox-row-preview">{c.lastMessagePreview ?? '—'}</span>

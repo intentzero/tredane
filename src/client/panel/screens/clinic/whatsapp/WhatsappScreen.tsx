@@ -2,22 +2,35 @@
  * TEL-09 WhatsApp — M-19 / M-23 / M-24 / M-25 / M-26 (#31 / DEC-009 / REQ-051).
  * Embedded Signup: modo synthetic (fixtures) até gates Meta (#18).
  */
-import { useState } from 'react'
+import { ChevronLeft, History, Repeat, Unplug } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import type { PanelApi, WhatsappConnection, WhatsappSignupPurpose } from '../../../api'
 import { PanelApiError } from '../../../api'
 import { navigatePanel } from '../../../routes'
 import { ErrorState, LoadingState } from '../../../states/StatusScreens'
+import { TestOnly } from '../../../states/TestOnly'
 import { useTenant } from '../../../tenant/TenantContext'
-import { formatPhone, formatWhen, historyLabel } from './format'
+import {
+  connectedByLabel,
+  formatPhone,
+  formatWhen,
+  historyLabel,
+  templateStatus,
+  templateTitle,
+} from './format'
 import { useWhatsapp } from './useWhatsapp'
 import { isStagingHostname, WhatsappDevSyncAction } from './WhatsappDevSyncAction'
+import { friendlyError, friendlyReason } from '../../../copy/errors'
+import { Badge } from '../../../states/Badge'
+import { Banner } from '../../../states/Banner'
+import { NavRow } from '../NavRow'
 
 type Props = {
   tenantId: string
   api: PanelApi
   generation: number
-  mode: 'main' | 'trocar' | 'desconectar'
+  mode: 'main' | 'trocar' | 'desconectar' | 'historico'
   clinicName: string
   /** Papel na clínica ativa; o botão de staging dev-sync só aparece ao dono. */
   isOwner?: boolean
@@ -79,7 +92,7 @@ export function WhatsappScreen({
   clinicName,
   isOwner = false,
 }: Props) {
-  const { conn, error, loading, reload, setConn } = useWhatsapp(
+  const { conn, error, detail, loading, reload, setConn } = useWhatsapp(
     api,
     tenantId,
     generation,
@@ -88,8 +101,24 @@ export function WhatsappScreen({
   const [actionError, setActionError] = useState<string | null>(null)
   const [confirmName, setConfirmName] = useState('')
   const [replaceAck, setReplaceAck] = useState(false)
+  const [viewerId, setViewerId] = useState<string | null>(null)
 
-  // STAGING-ONLY (dono): mesma acção do tela /clinica/whatsapp/dev-sync.
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .getMe({ generation, expectGeneration: () => generation })
+      .then((me) => {
+        if (!cancelled) setViewerId(me.clerkUserId)
+      })
+      .catch(() => {
+        if (!cancelled) setViewerId(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api, generation])
+
+  // STAGING-ONLY (dono): mesma ação da tela /clinica/whatsapp/dev-sync.
   const devSync =
     isOwner && isStagingHostname() ? (
       <section aria-labelledby="wa-devsync" className="whatsapp-dev-sync-section">
@@ -115,6 +144,7 @@ export function WhatsappScreen({
       <ErrorState
         title="Não foi possível carregar o WhatsApp"
         description={error}
+        detail={detail}
         actionLabel="Tentar de novo"
         onAction={() => void reload()}
       />
@@ -136,11 +166,7 @@ export function WhatsappScreen({
       })
     } catch (err) {
       setActionError(
-        err instanceof PanelApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : 'Falha ao conectar',
+        friendlyError(err, 'Não foi possível conectar o WhatsApp. Tente de novo.'),
       )
     } finally {
       setBusy(false)
@@ -164,11 +190,7 @@ export function WhatsappScreen({
       })
     } catch (err) {
       setActionError(
-        err instanceof PanelApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : 'Falha ao desconectar',
+        friendlyError(err, 'Não foi possível desconectar o WhatsApp. Tente de novo.'),
       )
     } finally {
       setBusy(false)
@@ -186,10 +208,29 @@ export function WhatsappScreen({
       )
       setConn(next)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Falha')
+      setActionError(friendlyError(err, 'Não deu para concluir agora. Tente de novo.'))
     } finally {
       setBusy(false)
     }
+  }
+
+  function goTo(section: 'whatsapp' | 'whatsapp-trocar' | 'whatsapp-historico' | 'whatsapp-desconectar') {
+    navigatePanel({ kind: 'area', area: 'clinica', tenantId, section })
+  }
+
+  if (mode === 'historico') {
+    return (
+      <div className="clinic-stack whatsapp-stack">
+        <header className="clinic-toolbar">
+          <Button className="panel-btn-ghost" onPress={() => goTo('whatsapp')}>
+            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
+            WhatsApp
+          </Button>
+        </header>
+        <h2 className="whatsapp-subhead">Histórico da conexão</h2>
+        <HistoryList items={conn.history} limit={50} />
+      </div>
+    )
   }
 
   if (mode === 'desconectar') {
@@ -207,16 +248,16 @@ export function WhatsappScreen({
               })
             }
           >
+            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
             Voltar
           </Button>
         </header>
-        <section className="clinic-banner" aria-labelledby="wa-disc-title">
-          <h2 id="wa-disc-title">Desconectar WhatsApp</h2>
+        <Banner tone="warn" title="Desconectar WhatsApp">
           <p>
             A clínica deixa de receber e enviar mensagens. Conversas, contatos e
             agenda continuam salvos. Para voltar a atender, é preciso conectar de novo.
           </p>
-        </section>
+        </Banner>
         <TextField className="clinic-field">
           <Label>Digite o nome da clínica para confirmar</Label>
           <Input
@@ -271,18 +312,18 @@ export function WhatsappScreen({
               })
             }
           >
+            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
             Voltar
           </Button>
         </header>
-        <section className="clinic-banner" aria-labelledby="wa-swap-title">
-          <h2 id="wa-swap-title">Trocar número</h2>
+        <Banner tone="info" title="Trocar número">
           <ul className="whatsapp-bullets">
             <li>Conversas, contatos e agenda ficam nesta clínica.</li>
             <li>O número atual para de receber mensagens no Tredane.</li>
             <li>As clientes precisam escrever para o número novo.</li>
             <li>Os modelos de mensagem precisam ser aprovados de novo.</li>
           </ul>
-        </section>
+        </Banner>
         <label className="clinic-check">
           <input
             type="checkbox"
@@ -323,11 +364,11 @@ export function WhatsappScreen({
               })
             }
           >
+            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
             Clínica
           </Button>
         </header>
-        <section className="clinic-banner" aria-labelledby="wa-disc">
-          <h2 id="wa-disc">Conectar WhatsApp</h2>
+        <Banner tone="info" title="Conectar WhatsApp">
           <p>
             Conecte o WhatsApp da clínica. Você vai entrar com a conta do Facebook
             que administra a clínica e escolher o número. O Tredane não vê a sua
@@ -338,11 +379,9 @@ export function WhatsappScreen({
             <li>Escolha o número de WhatsApp.</li>
             <li>Confirme. As mensagens começam a chegar aqui.</li>
           </ol>
-        </section>
+        </Banner>
         {conn.metaMode === 'synthetic' ? (
-          <p className="clinic-footnote" role="status">
-            Ambiente de testes: esta conexão é simulada e não usa um número real.
-          </p>
+          <TestOnly note="Esta conexão é simulada e não usa um número real." />
         ) : null}
         {actionError ? (
           <p className="clinic-footnote clinic-footnote-warn" role="alert">
@@ -376,26 +415,30 @@ export function WhatsappScreen({
               })
             }
           >
+            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
             Clínica
           </Button>
         </header>
-        <section
-          className="clinic-banner clinic-banner-warn"
-          aria-labelledby="wa-int"
-          role="alert"
-        >
-          <h2 id="wa-int">O WhatsApp parou de funcionar</h2>
+        <Banner tone="error" title="O WhatsApp parou de funcionar">
           <p>
-            {conn.interruptReason ?? 'A Meta deixou de aceitar o acesso.'}
             {conn.interruptedAt
-              ? ` · desde ${formatWhen(conn.interruptedAt)}`
+              ? `Desde ${formatWhen(conn.interruptedAt)}, as mensagens não estão chegando nem saindo.`
+              : 'As mensagens não estão chegando nem saindo.'}
+            {friendlyReason(conn.interruptReason)
+              ? ` ${friendlyReason(conn.interruptReason)}`
               : ''}
           </p>
           <p>
             Enquanto estiver desconectado, as respostas ficam como “Não enviada”. O
             histórico continua salvo. Ao reconectar, nada é reenviado sozinho.
           </p>
-        </section>
+          {conn.interruptReason ? (
+            <details className="clinic-details">
+              <summary>Detalhes para o suporte</summary>
+              <code>{conn.interruptReason}</code>
+            </details>
+          ) : null}
+        </Banner>
         {actionError ? (
           <p className="clinic-footnote clinic-footnote-warn" role="alert">
             {actionError}
@@ -409,7 +452,16 @@ export function WhatsappScreen({
           Reconectar WhatsApp
         </Button>
         {devSync}
-        <HistoryList items={conn.history} />
+        <ul className="clinic-nav-list">
+          <li>
+            <NavRow
+              icon={History}
+              title="Histórico da conexão"
+              detail={historyCount(conn.history.length)}
+              onPress={() => goTo('whatsapp-historico')}
+            />
+          </li>
+        </ul>
       </div>
     )
   }
@@ -429,20 +481,21 @@ export function WhatsappScreen({
             })
           }
         >
+          <ChevronLeft aria-hidden size={20} strokeWidth={2} />
           Clínica
         </Button>
       </header>
-      <section className="clinic-banner clinic-banner-ok" aria-labelledby="wa-ok">
-        <h2 id="wa-ok">WhatsApp conectado</h2>
+      <Banner tone="ok" title="WhatsApp conectado">
         <p>
           <strong>{formatPhone(conn.displayPhone)}</strong>
           {conn.displayName ? ` · ${conn.displayName}` : ''}
         </p>
         <p className="clinic-footnote">
-          Conectado em {formatWhen(conn.connectedAt)}. Última mensagem recebida:{' '}
+          Conectado {connectedByLabel(conn.connectedByClerkUserId, viewerId)} em{' '}
+          {formatWhen(conn.connectedAt)}. Última mensagem recebida:{' '}
           {conn.lastInboundAt ? formatWhen(conn.lastInboundAt) : 'nenhuma ainda'}.
         </p>
-      </section>
+      </Banner>
 
       <section aria-labelledby="wa-tpl">
         <h3 id="wa-tpl" className="whatsapp-subhead">
@@ -453,53 +506,61 @@ export function WhatsappScreen({
             Nenhum modelo aprovado ainda. Modelos servem para falar com a cliente depois de 24 horas sem resposta. A Meta aprova cada um e isso pode levar alguns dias.
           </p>
         ) : (
-          <ul className="whatsapp-tpl-list">
-            {conn.messageTemplates.map((t) => (
-              <li key={t.name}>
-                {t.name} · {t.status}
-              </li>
-            ))}
+          <ul className="whatsapp-tpl-list clinic-nav-list">
+            {conn.messageTemplates.map((t) => {
+              const st = templateStatus(t.status)
+              return (
+                <li key={t.name} className="whatsapp-tpl">
+                  <span className="clinic-nav-copy">
+                    <strong>{templateTitle(t.name)}</strong>
+                    <span>{t.name}</span>
+                  </span>
+                  <Badge tone={st.tone}>{st.label}</Badge>
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>
 
-      <div className="clinic-actions">
-        <Button
-          className="panel-btn-secondary"
-          onPress={() =>
-            navigatePanel({
-              kind: 'area',
-              area: 'clinica',
-              tenantId,
-              section: 'whatsapp-trocar',
-            })
-          }
-        >
-          Trocar número
-        </Button>
-        <Button
-          className="panel-btn-ghost"
-          onPress={() =>
-            navigatePanel({
-              kind: 'area',
-              area: 'clinica',
-              tenantId,
-              section: 'whatsapp-desconectar',
-            })
-          }
-        >
-          Desconectar
-        </Button>
-      </div>
+      <ul className="clinic-nav-list">
+        <li>
+          <NavRow
+            icon={Repeat}
+            title="Trocar número"
+            detail="Usar outro número na clínica"
+            onPress={() => goTo('whatsapp-trocar')}
+          />
+        </li>
+        <li>
+          <NavRow
+            icon={History}
+            title="Histórico da conexão"
+            detail={historyCount(conn.history.length)}
+            onPress={() => goTo('whatsapp-historico')}
+          />
+        </li>
+        <li>
+          <NavRow
+            icon={Unplug}
+            title="Desconectar WhatsApp"
+            detail="Para de receber e enviar mensagens"
+            state="danger"
+            onPress={() => goTo('whatsapp-desconectar')}
+          />
+        </li>
+      </ul>
 
       {conn.metaMode === 'synthetic' ? (
-        <Button
-          className="panel-btn-ghost"
-          isDisabled={busy}
-          onPress={() => void onSimulateInterrupt()}
-        >
-          [Teste] Simular queda do WhatsApp
-        </Button>
+        <TestOnly note="Simula a queda do WhatsApp para ver como a tela fica.">
+          <Button
+            className="panel-btn-secondary"
+            isDisabled={busy}
+            onPress={() => void onSimulateInterrupt()}
+          >
+            Simular queda do WhatsApp
+          </Button>
+        </TestOnly>
       ) : null}
 
       {actionError ? (
@@ -509,35 +570,34 @@ export function WhatsappScreen({
       ) : null}
 
       {devSync}
-
-      <HistoryList items={conn.history} />
     </div>
   )
 }
 
+function historyCount(n: number): string {
+  if (n === 0) return 'Nenhum registro ainda'
+  return n === 1 ? '1 registro' : `${n} registros`
+}
+
 function HistoryList({
   items,
+  limit = 8,
 }: {
   items: WhatsappConnection['history']
+  limit?: number
 }) {
-  if (items.length === 0) return null
+  if (items.length === 0) {
+    return <p className="clinic-footnote">Ainda não há registros nesta conexão.</p>
+  }
   return (
-    <section aria-labelledby="wa-hist">
-      <h3 id="wa-hist" className="whatsapp-subhead">
-        Histórico
-      </h3>
-      <ul className="whatsapp-history">
-        {items.slice(0, 8).map((h) => (
-          <li key={h.id}>
-            <strong>{historyLabel(h.action)}</strong>
-            <span>
-              {formatWhen(h.occurredAt)}
-              {h.phoneNumberId ? ` · ${h.phoneNumberId}` : ''}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <ul className="whatsapp-history">
+      {items.slice(0, limit).map((h) => (
+        <li key={h.id}>
+          <strong>{historyLabel(h.action)}</strong>
+          <span>{formatWhen(h.occurredAt)}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -560,8 +620,8 @@ export function WhatsappInterruptBanner({
       <div>
         <strong>WhatsApp desconectado</strong>
         <span>
-          {conn.interruptReason ?? 'Sem acesso à Meta'}
-          {conn.interruptedAt ? ` · ${formatWhen(conn.interruptedAt)}` : ''}
+          {friendlyReason(conn.interruptReason) ?? 'As mensagens não estão chegando nem saindo.'}
+          {conn.interruptedAt ? ` · desde ${formatWhen(conn.interruptedAt)}` : ''}
         </span>
       </div>
       {isOwner ? (

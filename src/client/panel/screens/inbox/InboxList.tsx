@@ -3,18 +3,23 @@ import { useEffect, useState } from 'react'
 import { Button, Input, SearchField } from 'react-aria-components'
 import type { InboxConversation, InboxCounts, InboxFilter, PanelApi } from '../../api'
 import { navigatePanel } from '../../routes'
-import { EmptyState, ErrorState, LoadingState } from '../../states/StatusScreens'
+import { TestOnly } from '../../states/TestOnly'
+import { EmptyState, ErrorState } from '../../states/StatusScreens'
 import {
   assigneeLine,
+  avatarTone,
   contactLabel,
   filterLabel,
   initials,
   previewLine,
   relativeTime,
-  statusClass,
+  statusTone,
   statusLabel,
 } from './format'
 import { useInboxRealtime } from '../../realtime/InboxRealtime'
+import { friendlyError } from '../../copy/errors'
+import { Badge } from '../../states/Badge'
+import { ListSkeleton } from '../../states/ListSkeleton'
 
 const FILTERS: InboxFilter[] = ['all', 'new', 'mine', 'unassigned', 'closed']
 
@@ -46,7 +51,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
       setItems(res.conversations)
       setCounts(res.counts)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar conversas')
+      setError(friendlyError(err, 'Não conseguimos carregar as conversas.'))
       if (!opts?.keep) setItems(null)
     } finally {
       setLoading(false)
@@ -72,14 +77,14 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
       })
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar demo')
+      setError(friendlyError(err, 'Não foi possível criar os exemplos.'))
     } finally {
       setSeeding(false)
     }
   }
 
   if (loading && !items) {
-    return <LoadingState label="Carregando conversas…" />
+    return <ListSkeleton label="Carregando conversas…" />
   }
 
   if (error && !items) {
@@ -130,35 +135,54 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
           return (
             <Button
               key={f}
-              className={`panel-chip${selected ? ' inbox-chip-active' : ''}`}
+              className="panel-chip"
               aria-pressed={selected}
               onPress={() => setFilter(f)}
             >
               {filterLabel(f)}
-              {f === 'new' && count != null && count > 0 ? ` · ${count}` : ''}
+              {count != null ? (
+                <span
+                  className={`panel-chip-count${f === 'new' && count > 0 ? ' panel-chip-count--hot' : ''}`}
+                >
+                  {count}
+                </span>
+              ) : null}
             </Button>
           )
         })}
       </div>
 
       {list.length === 0 ? (
-        <EmptyState
-          title={emptyAll ? 'Nenhuma conversa ainda' : 'Nenhuma conversa neste filtro'}
-          description={
-            emptyAll
-              ? 'Quando uma cliente mandar mensagem para o WhatsApp da clínica, ela aparece aqui.'
-              : 'Escolha outro filtro ou limpe a busca.'
-          }
-          actionLabel={emptyAll ? (seeding ? 'Carregando…' : '[Teste] Criar conversas de exemplo') : 'Limpar filtro'}
-          onAction={
-            emptyAll
-              ? () => void seedDemo()
-              : () => {
-                  setFilter('all')
-                  setQ('')
-                }
-          }
-        />
+        <>
+          <EmptyState
+            title={emptyAll ? 'Nenhuma conversa ainda' : 'Nenhuma conversa neste filtro'}
+            description={
+              emptyAll
+                ? 'Quando uma cliente mandar mensagem para o WhatsApp da clínica, ela aparece aqui.'
+                : 'Escolha outro filtro ou limpe a busca.'
+            }
+            actionLabel={emptyAll ? undefined : 'Limpar filtro'}
+            onAction={
+              emptyAll
+                ? undefined
+                : () => {
+                    setFilter('all')
+                    setQ('')
+                  }
+            }
+          />
+          {emptyAll ? (
+            <TestOnly note="Cria conversas de exemplo nesta clínica de teste.">
+              <Button
+                className="panel-btn-secondary"
+                isDisabled={seeding}
+                onPress={() => void seedDemo()}
+              >
+                {seeding ? 'Criando…' : 'Criar conversas de exemplo'}
+              </Button>
+            </TestOnly>
+          ) : null}
+        </>
       ) : (
         <ul className="inbox-list">
           {list.map((c) => {
@@ -167,7 +191,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
               <li key={c.id}>
                 <button
                   type="button"
-                  className="inbox-row"
+                  className={`inbox-row${c.unreadCount > 0 ? ' inbox-row--unread' : ''}`}
                   onClick={() =>
                     navigatePanel({
                       kind: 'area',
@@ -178,7 +202,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
                     })
                   }
                 >
-                  <span className="inbox-avatar" aria-hidden>
+                  <span className={`inbox-avatar inbox-avatar--${avatarTone(label)}`} aria-hidden>
                     {initials(label)}
                   </span>
                   <span className="inbox-row-main">
@@ -190,7 +214,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
                       {previewLine(c, viewerClerkUserId)}
                     </span>
                     <span className="inbox-row-meta">
-                      <span className={statusClass(c.status)}>{statusLabel(c.status)}</span>
+                      <Badge tone={statusTone(c.status)}>{statusLabel(c.status)}</Badge>
                       <span className="inbox-row-assignee">
                         {assigneeLine(c, viewerClerkUserId)}
                       </span>

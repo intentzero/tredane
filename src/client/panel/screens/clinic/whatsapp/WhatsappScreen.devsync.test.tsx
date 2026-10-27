@@ -1,6 +1,6 @@
 /**
  * STAGING-ONLY dev-sync no WhatsappScreen (main): só staging + dono; mesma API e
- * mensagens do tela /clinica/whatsapp/dev-sync; esconde em 404 not_found.
+ * mensagens da tela /clinica/whatsapp/dev-sync; esconde em 404 not_found.
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -43,6 +43,7 @@ const connected: WhatsappConnection = {
 
 function mockApi(sync: { status: number; body: unknown }): PanelApi {
   return {
+    getMe: vi.fn(async () => ({ clerkUserId: 'user_ficticio_dono' })),
     getWhatsappConnection: vi.fn(async () => connected),
     devSyncExistingWhatsappBinding: vi.fn(async () => sync),
   } as unknown as PanelApi
@@ -81,6 +82,17 @@ describe('isStagingHostname', () => {
 })
 
 describe('WhatsappScreen main — dev-sync de staging', () => {
+  it('não mostra o autor interno nem IDs técnicos da conexão', async () => {
+    const api = mockApi({ status: 200, body: okBody })
+    renderMain(api)
+    await screen.findByText('WhatsApp conectado')
+    const text = document.body.textContent ?? ''
+    expect(text).toContain('Conectado pela equipe do Tredane')
+    expect(text).not.toContain('system:')
+    expect(text).not.toContain('ops_manual')
+    expect(text).not.toContain('pnid_')
+  })
+
   it('dono em staging vê o botão, chama a mesma API e mostra o resultado inline', async () => {
     const user = userEvent.setup()
     const api = mockApi({ status: 200, body: okBody })
@@ -97,7 +109,7 @@ describe('WhatsappScreen main — dev-sync de staging', () => {
     // sucesso recarrega a conexão
     await waitFor(() => expect(api.getWhatsappConnection).toHaveBeenCalledTimes(2))
     // Trocar / Desconectar continuam lá
-    expect(screen.getByRole('button', { name: 'Trocar número' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Trocar número/ })).toBeTruthy()
   })
 
   it('mostra mensagem de 403 do servidor', async () => {

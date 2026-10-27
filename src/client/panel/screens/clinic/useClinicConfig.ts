@@ -4,6 +4,7 @@ import {
   type ClinicConfigSnapshot,
   type PanelApi,
 } from '../../api'
+import { friendlyError } from '../../copy/errors'
 
 export function useClinicConfig(
   api: PanelApi | null,
@@ -26,7 +27,7 @@ export function useClinicConfig(
       setSnap(next)
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
-      setError(err instanceof Error ? err.message : 'Falha ao carregar configuração')
+      setError(friendlyError(err, 'Não conseguimos carregar as configurações da clínica.'))
     } finally {
       setLoading(false)
     }

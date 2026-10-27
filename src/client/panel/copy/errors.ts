@@ -1,0 +1,107 @@
+import { PanelApiError } from '../api'
+
+/**
+ * Tradução de erros da API para frases que a recepcionista entende.
+ * A tela nunca mostra `err.message`: o código original fica só em
+ * «Detalhes para o suporte» (`errorDetail`).
+ */
+
+const GENERIC = 'Não deu para concluir agora. Tente de novo.'
+const NETWORK = 'Sem conexão com a internet. Verifique o Wi-Fi ou os dados móveis e tente de novo.'
+const CHECK_DATA = 'Confira os dados e tente de novo.'
+const OUR_SIDE = 'Algo deu errado do nosso lado. Tente de novo em instantes.'
+const SUPPORT_WHATSAPP =
+  'A conexão com o WhatsApp ainda não está configurada. Fale com o suporte do Tredane.'
+const CONFLICT = 'Outra pessoa acabou de mudar isso. Atualize a tela e tente de novo.'
+
+const BY_CODE: Record<string, string> = {
+  // sessão e acesso
+  unauthenticated: 'Sua sessão terminou. Entre de novo para continuar.',
+  session_expired: 'Sua sessão terminou. Entre de novo para continuar.',
+  tenant_access_denied: 'Você não tem mais acesso a esta clínica. Fale com o responsável.',
+  permission_denied: 'Só o responsável pela clínica pode fazer isso.',
+  forbidden: 'Só o responsável pela clínica pode fazer isso.',
+  forged_role_rejected: 'Só o responsável pela clínica pode fazer isso.',
+  clinical_access_denied: 'Você não tem acesso a esta informação.',
+  tenant_not_active: 'Esta clínica está pausada no Tredane. Fale com o suporte.',
+  network: NETWORK,
+  unknown: GENERIC,
+
+  // dados
+  invalid_body: CHECK_DATA,
+  invalid_json: CHECK_DATA,
+  validation_error: CHECK_DATA,
+  not_found: 'Não encontramos isso. Pode ter sido removido.',
+  conflict: CONFLICT,
+  invalid_state: 'Isso não pode ser feito agora. Atualize a tela e tente de novo.',
+
+  // agenda e sinal
+  slot_occupied: 'Esse horário acabou de ser ocupado. Escolha outro.',
+  appointment_conflict: 'Esse horário acabou de ser ocupado. Escolha outro.',
+  payment_after_expiry: 'O Pix chegou depois do prazo do sinal.',
+
+  // WhatsApp
+  meta_live_missing_credentials: SUPPORT_WHATSAPP,
+  webhook_unconfigured: SUPPORT_WHATSAPP,
+  not_available_in_live: SUPPORT_WHATSAPP,
+  credential_missing: SUPPORT_WHATSAPP,
+  no_active_binding: 'Não há WhatsApp conectado nesta clínica.',
+  phone_in_use: 'Este número já está conectado a outra clínica no Tredane.',
+  connect_rejected_phone_in_use: 'Este número já está conectado a outra clínica no Tredane.',
+  tenant_already_connected: 'Esta clínica já tem um número de WhatsApp conectado.',
+  account_without_phone:
+    'Essa conta do Facebook não tem número de WhatsApp. Escolha ou crie um número e tente de novo.',
+  code_invalid: 'A autorização do Facebook expirou. Tente conectar de novo.',
+  unknown_or_released_phone: 'Esse número não está mais conectado a esta clínica.',
+}
+
+function byStatus(status: number): string | null {
+  if (status === 401) return BY_CODE.unauthenticated!
+  if (status === 403) return BY_CODE.permission_denied!
+  if (status === 404) return BY_CODE.not_found!
+  if (status === 409) return CONFLICT
+  if (status === 400 || status === 422) return CHECK_DATA
+  if (status === 429) return 'Muitas tentativas seguidas. Espere um instante e tente de novo.'
+  if (status >= 500) return OUR_SIDE
+  return null
+}
+
+/** Mensagens já escritas em frase (têm espaço) passam; códigos viram texto. */
+function isSentence(text: string): boolean {
+  return /\s/.test(text) && !/^[a-z0-9_]+$/.test(text)
+}
+
+export function friendlyError(err: unknown, fallback: string = GENERIC): string {
+  if (err instanceof PanelApiError) {
+    if (isSentence(err.message)) return err.message
+    const byCode = BY_CODE[err.message] ?? (err.code === 'unknown' ? undefined : BY_CODE[err.code])
+    return byCode ?? byStatus(err.status) ?? fallback
+  }
+  // fetch() sem rede lança TypeError («Failed to fetch», «Load failed»).
+  if (err instanceof TypeError) return NETWORK
+  return fallback
+}
+
+/** Código técnico para «Detalhes para o suporte». Nunca vai no texto principal. */
+export function errorDetail(err: unknown): string | null {
+  if (err instanceof PanelApiError) {
+    const code = /^[a-z0-9_]+$/.test(err.message) ? err.message : err.code
+    return err.status > 0 ? `${code} · HTTP ${err.status}` : code
+  }
+  if (err instanceof Error && err.message) return err.message
+  return null
+}
+
+/**
+ * Código técnico vindo de dados (ex.: motivo da interrupção do WhatsApp) →
+ * texto de recepcionista. Texto livre sem código reconhecido é devolvido
+ * apenas se já for uma frase.
+ */
+export function friendlyReason(reason: string | null | undefined): string | null {
+  if (!reason) return null
+  if (BY_CODE[reason]) return BY_CODE[reason]
+  const status = reason.match(/^meta_http_(\d{3})/)
+  if (status) return 'A Meta recusou o envio. Fale com o suporte do Tredane se isso se repetir.'
+  if (/^[a-z0-9_]+$/.test(reason)) return null
+  return reason
+}

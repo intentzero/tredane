@@ -12,6 +12,7 @@ export type ClinicaSection =
   | 'horarios'
   | 'whatsapp'
   | 'whatsapp-trocar'
+  | 'whatsapp-historico'
   | 'whatsapp-desconectar'
   | 'whatsapp-dev-sync'
   | 'recebimento'
@@ -117,6 +118,7 @@ function parseClinicaRest(rest: string | undefined): {
   if (head === 'horarios') return { section: 'horarios' }
   if (head === 'whatsapp') {
     if (parts[1] === 'trocar') return { section: 'whatsapp-trocar' }
+    if (parts[1] === 'historico') return { section: 'whatsapp-historico' }
     if (parts[1] === 'desconectar') return { section: 'whatsapp-desconectar' }
     if (parts[1] === 'dev-sync') return { section: 'whatsapp-dev-sync' }
     return { section: 'whatsapp' }
@@ -278,6 +280,8 @@ export function panelHref(route: PanelRoute): string {
           return `${base}/whatsapp`
         case 'whatsapp-trocar':
           return `${base}/whatsapp/trocar`
+        case 'whatsapp-historico':
+          return `${base}/whatsapp/historico`
         case 'whatsapp-desconectar':
           return `${base}/whatsapp/desconectar`
         case 'whatsapp-dev-sync':

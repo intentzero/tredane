@@ -7,6 +7,7 @@ import { InboxContactScreen } from './InboxContact'
 import { InboxList } from './InboxList'
 import { InboxThread } from './InboxThread'
 import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
+import { friendlyError } from '../../copy/errors'
 
 type Props = {
   tenantId: string
@@ -169,7 +170,7 @@ function ContactViaConversation({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Falha')
+          setError(friendlyError(err, 'Não deu para concluir agora. Tente de novo.'))
         }
       })
     return () => {

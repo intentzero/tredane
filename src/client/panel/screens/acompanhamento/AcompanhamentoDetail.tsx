@@ -12,6 +12,7 @@ import {
 } from './format'
 import { MoveSheet } from './MoveSheet'
 import type { OpportunityStage } from '../../api'
+import { friendlyError } from '../../copy/errors'
 
 type Props = {
   tenantId: string
@@ -46,7 +47,7 @@ export function AcompanhamentoDetail({
       })
       setData(res.opportunity)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha')
+      setError(friendlyError(err, 'Não deu para concluir agora. Tente de novo.'))
       setData(null)
     } finally {
       setLoading(false)
@@ -74,7 +75,7 @@ export function AcompanhamentoDetail({
     } catch (err) {
       setData(previous)
       setMoveError(
-        err instanceof Error ? err.message : 'Não foi possível mover. Estado anterior mantido.',
+        friendlyError(err, 'Não foi possível mover. O contato continua na etapa anterior.'),
       )
     } finally {
       setMoveBusy(false)
