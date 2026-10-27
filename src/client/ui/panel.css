@@ -1109,7 +1109,7 @@
   padding: var(--space-3);
   border-radius: var(--radius-sm);
   background: var(--color-primary-tint);
-  color: var(--color-primary-ink, #1e43a8);
+  color: var(--color-primary-ink, #0a4547);
   font-size: var(--font-size-small);
 }
 
@@ -1670,7 +1670,7 @@
 }
 
 .acomp-alert-ok {
-  background: var(--color-primary-tint, #eef2fc);
+  background: var(--color-primary-tint, #e7f1f1);
 }
 
 .acomp-alert p {
@@ -1918,8 +1918,8 @@
   width: 28px;
   height: 28px;
   border-radius: 16px;
-  background: #eef2fc;
-  color: #1e43a8;
+  background: #e7f1f1;
+  color: #0a4547;
   font-weight: 600;
   font-size: 14px;
   display: flex;
@@ -1932,7 +1932,7 @@
   align-items: center;
   gap: var(--space-3, 12px);
   min-height: 56px;
-  border-top: 1px solid #f0f0ee;
+  border-top: 1px solid #eeede7;
   padding: var(--space-2, 8px) 0;
   cursor: pointer;
 }
@@ -1949,7 +1949,7 @@
 .panel-muted-sm {
   display: block;
   font-size: 14px;
-  color: var(--color-text-secondary, #5b616b);
+  color: var(--color-text-secondary, #566160);
 }
 
 .panel-checkbox {
@@ -1992,7 +1992,7 @@
 
 .panel-muted {
   margin: 0;
-  color: var(--color-text-secondary, #474c54);
+  color: var(--color-text-secondary, #424b4a);
   font-size: 16px;
 }
 

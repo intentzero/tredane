@@ -1,4 +1,4 @@
-/* Gerado por tools/build_tokens.py a partir de tokens.json v0.2.0 (Confirmado). Não edite à mão. */
+/* Gerado por tools/build_tokens.py a partir de tokens.json v0.3.0 (Confirmado). Não edite à mão. */
 :root {
   --font-family: Inter, system-ui, sans-serif;
   --font-weight-regular: 400;
@@ -12,21 +12,21 @@
   --font-size-display: 26px;
   --line-height-default: 1.4;
   --line-height-relaxed: 1.45;
-  --color-surface-app: #F6F6F4;
+  --color-surface-app: #F5F4EF;
   --color-surface-card: #FFFFFF;
-  --color-surface-sunken: #F0F0EE;
-  --color-text-primary: #1C1E21;
-  --color-text-secondary: #474C54;
-  --color-text-muted: #5B616B;
+  --color-surface-sunken: #EEEDE7;
+  --color-text-primary: #142625;
+  --color-text-secondary: #424B4A;
+  --color-text-muted: #566160;
   --color-text-on-primary: #FFFFFF;
-  --color-line-divider: #F0F0EE;
-  --color-line-border: #E2E3E5;
-  --color-line-control: #80868F;
-  --color-line-disabled: #CDD0D4;
-  --color-primary-base: #2F5BD3;
-  --color-primary-ink: #1E43A8;
-  --color-primary-tint: #EEF2FC;
-  --color-primary-border: #B9CBF2;
+  --color-line-divider: #EEEDE7;
+  --color-line-border: #E1E3E0;
+  --color-line-control: #7A8584;
+  --color-line-disabled: #CBD0CF;
+  --color-primary-base: #0E5A5C;
+  --color-primary-ink: #0A4547;
+  --color-primary-tint: #E7F1F1;
+  --color-primary-border: #B3D1D1;
   --color-success-ink: #1F7A4D;
   --color-success-tint: #EAF5EF;
   --color-warning-ink: #6E4200;

@@ -2,12 +2,12 @@ import { SignIn } from '@clerk/react'
 
 const appearance = {
   variables: {
-    colorPrimary: '#2F5BD3',
-    colorText: '#1C1E21',
-    colorTextSecondary: '#474C54',
+    colorPrimary: '#0E5A5C',
+    colorText: '#142625',
+    colorTextSecondary: '#424B4A',
     colorBackground: '#FFFFFF',
     colorInputBackground: '#FFFFFF',
-    colorInputText: '#1C1E21',
+    colorInputText: '#142625',
     borderRadius: '12px',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: '16px',
