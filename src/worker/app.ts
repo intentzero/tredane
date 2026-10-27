@@ -1,4 +1,5 @@
 import { stripInternalHeaders } from '../realtime/protocol'
+import { createDemoSeedRoutes } from '../ops/demo-seed'
 import { isDeployedEnv, isHarnessPath } from '../security/env-gate'
 import { Hono } from 'hono'
 import { workerCaller } from '../clinic'
@@ -307,6 +308,7 @@ export function createApp(opts: CreateAppOptions = {}) {
       opts.retention?.attachmentsBucketFactory,
   }
   app.route('/', createOpsRoutes(opsOpts))
+  app.route('/', createDemoSeedRoutes())
 
   function clinicStub(env: WorkerBindings, tenantId: string) {
     const id = env.CLINIC.idFromName(tenantId)

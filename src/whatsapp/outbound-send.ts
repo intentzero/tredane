@@ -3,6 +3,7 @@
  * Carrega credenciais D1, chama Meta (synthetic/live), devolve resultado ao DO.
  * Timeout → uncertain (Desconhecido); sem retry automático de efeito externo.
  */
+import { isDemoTenantId } from '../clinic/demo/ids'
 import { queueCaller } from '../clinic'
 import { systemClock, type Clock } from '../db/clock'
 import type { AdminDb } from '../db/admin/store'
@@ -243,6 +244,16 @@ export async function processClinicOutboxMessage(
     payload.templateParams && typeof payload.templateParams === 'object'
       ? (payload.templateParams as Record<string, string>)
       : null
+
+  if (isDemoTenantId(msg.tenantId)) {
+    // Clínica demo (contatos fictícios): nunca chamar a Meta.
+    log({
+      level: 'warn',
+      event: 'whatsapp_send.demo_tenant_skip',
+      detail: { tenantId: msg.tenantId, eventId: msg.eventId },
+    })
+    return 'ack'
+  }
 
   if (!outboundId || !waId) {
     log({

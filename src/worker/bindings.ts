@@ -36,6 +36,10 @@ export type WorkerBindings = {
   META_VERIFY_TOKEN?: string
   /** STAGING-ONLY: `true` habilita POST .../whatsapp/dev/sync-existing-binding (exige ENVIRONMENT=staging). */
   WHATSAPP_DEV_SYNC_ENABLED?: string
+  /** STAGING-ONLY: `true` habilita POST /api/ops/demo-clinic/seed (exige ENVIRONMENT=staging + DEMO_SEED_TOKEN). */
+  DEMO_SEED_ENABLED?: string
+  /** wrangler secret (staging) — bearer do seed da clínica demo; nunca versionar. */
+  DEMO_SEED_TOKEN?: string
   /** Segredo HMAC para tokens efémeros de download de anexos (#34). */
   ATTACHMENT_TOKEN_SECRET?: string
   /**
