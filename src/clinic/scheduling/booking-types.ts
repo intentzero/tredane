@@ -1,3 +1,4 @@
+import type { ScheduleHoldView } from './hold-rows'
 import type { AppointmentChangeReason } from '../constants'
 import type { AppointmentRow } from '../config/types'
 import type { OutboxRow } from '../outbox'
@@ -22,6 +23,8 @@ export type ConfirmAppointmentInput = {
   conversationId?: string | null
   opportunityId?: string | null
   actorClerkUserId: string
+  /** Definir hora de um bloco: o próprio bloco não conta como conflito. */
+  excludeHoldId?: string | null
 }
 
 export type CancelAppointmentInput = {
@@ -101,6 +104,8 @@ export type AgendaViewResult = {
   rangeEndsAt: number
   asOf: number
   appointments: AppointmentListItem[]
+  /** Reservas por bloco activas no intervalo (faixa «hora a definir»). */
+  holds: ScheduleHoldView[]
 }
 
 export type SlotConflictDetails = {

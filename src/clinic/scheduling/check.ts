@@ -15,6 +15,7 @@ import {
   clinicMinuteOfDay,
 } from './timezone'
 import { resourceBusyReasons } from './occupancy'
+import { candidateBreaksHolds } from './hold-fit'
 import type {
   AvailableSlot,
   CheckSlotInput,
@@ -133,6 +134,23 @@ export function checkSlotAvailability(
       input.excludeAppointmentId,
     ),
   )
+
+  if (
+    !reasons.includes('outside_weekly_hours')
+    && candidateBreaksHolds(
+      db,
+      tenantId,
+      pro.id,
+      range,
+      { timezone, windows: proWindows, nowMs: asOf },
+      {
+        excludeAppointmentId: input.excludeAppointmentId,
+        excludeHoldId: input.excludeHoldId,
+      },
+    )
+  ) {
+    reasons.push('hold_conflict')
+  }
 
   if (needsRoom && roomId) {
     const roomWindows = allWindows.filter((w) => w.resourceId === roomId)

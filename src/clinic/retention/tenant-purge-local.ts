@@ -31,6 +31,7 @@ const WIPE_TABLES: readonly string[] = [
   'outbound_messages',
   'attachments',
   'messages',
+  'schedule_holds',
   'opportunity_stage_history',
   'opportunities',
   'appointment_commands',

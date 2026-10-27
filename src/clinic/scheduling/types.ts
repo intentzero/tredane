@@ -14,6 +14,8 @@ export const UNAVAILABILITY_REASONS = [
   'crosses_day_boundary',
   'invalid_grid',
   'past_slot',
+  /** Reserva por bloco: impediria um bloco reservado de caber no período. */
+  'hold_conflict',
 ] as const
 
 export type UnavailabilityReason = (typeof UNAVAILABILITY_REASONS)[number]
@@ -28,6 +30,8 @@ export type AvailabilityQueryInput = {
    * (UI «Qualquer disponível»).
    */
   professionalId?: string | null
+  /** Definir hora de um bloco: o próprio bloco não conta como conflito. */
+  excludeHoldId?: string | null
 }
 
 export type AvailableSlot = {
@@ -70,6 +74,8 @@ export type CheckSlotInput = {
   startsAt: number
   /** Reagendar: ignorar o compromisso actual na verificação de conflito. */
   excludeAppointmentId?: string | null
+  /** Definir hora de um bloco: o próprio bloco não conta como conflito. */
+  excludeHoldId?: string | null
 }
 
 export type CheckSlotResult = {

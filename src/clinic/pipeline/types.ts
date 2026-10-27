@@ -1,3 +1,4 @@
+import type { ScheduleHoldView } from '../scheduling/hold-rows'
 import type { OpportunityStage, OpportunityStatus } from '../constants'
 import type { ContactSummary } from '../inbox/types'
 
@@ -45,6 +46,8 @@ export type OpportunityListItem = OpportunityRow & {
   /** True quando stage=agendado e sem compromisso (DEC-040). */
   missingAppointment: boolean
   linkedAppointment: LinkedAppointmentSummary | null
+  /** Reserva por bloco em aberto (activa ou vencida sem hora). */
+  openHold: ScheduleHoldView | null
 }
 
 export type OpportunityDetail = OpportunityListItem & {

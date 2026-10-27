@@ -1,3 +1,4 @@
+import { loadOpenHoldForOpportunity } from '../scheduling/hold-rows'
 import type { Clock } from '../../db/clock'
 import {
   OPPORTUNITY_STAGE_LABELS,
@@ -128,6 +129,7 @@ function toListItem(
     contact,
     missingAppointment,
     linkedAppointment,
+    openHold: loadOpenHoldForOpportunity(db, opp.tenantId, opp.id),
   }
 }
 

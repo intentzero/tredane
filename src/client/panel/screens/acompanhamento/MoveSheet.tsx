@@ -83,6 +83,9 @@ export function MoveSheet({
                   {stage === 'horario_proposto' ? (
                     <span className="hint">Não reserva horário na agenda</span>
                   ) : null}
+                  {stage === 'a_definir' ? (
+                    <span className="hint">Para reservar um bloco, use «Reservar bloco» na conversa</span>
+                  ) : null}
                   {stage === 'agendado' ? (
                     <span className="hint-warn">
                       Sem compromisso vinculado — agende depois

@@ -6,7 +6,10 @@ import {
   type AgendaAppointmentItem,
   type AgendaViewResponse,
   type PanelApi,
+  type ScheduleHold,
 } from '../../api'
+import { DefinirHoraSheet } from '../holds/DefinirHoraSheet'
+import { durationLabel, shortDay } from '../holds/holdFormat'
 import { errorDetail, friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
 import { Badge } from '../../states/Badge'
@@ -14,6 +17,7 @@ import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import {
   HOUR_HEIGHT,
   layoutDay,
+  layoutHoldBands,
   nowOffset,
   visibleHours,
 } from './dayGrid'
@@ -74,6 +78,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
   const [detail, setDetail] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState(() => Date.now())
+  const [defineHold, setDefineHold] = useState<ScheduleHold | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -132,6 +137,15 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
     const list = byDay.get(civil) ?? []
     list.push(apt)
     byDay.set(civil, list)
+  }
+
+  const holdsByDay = new Map<string, ScheduleHold[]>()
+  for (const h of data?.holds ?? []) {
+    if (h.status !== 'active') continue
+    const civil = civilDayOf(h.windowStartsAt, timezone)
+    const list = holdsByDay.get(civil) ?? []
+    list.push(h)
+    holdsByDay.set(civil, list)
   }
 
   const weekStart = data ? civilDayOf(data.rangeStartsAt, timezone) : date
@@ -242,6 +256,8 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
         {view === 'day' ? (
           <DayGrid
             items={byDay.get(date) ?? []}
+            holds={holdsByDay.get(date) ?? []}
+            onDefineHold={setDefineHold}
             timezone={timezone}
             isToday={date === today}
             now={now}
@@ -258,7 +274,26 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
                   {label.weekday} {label.day}
                   {day === today ? <Badge tone="new">Hoje</Badge> : null}
                 </h2>
-                {items.length === 0 ? (
+                {(holdsByDay.get(day) ?? []).map((h) => (
+                  <button
+                    key={h.id}
+                    type="button"
+                    className="agenda-apt hold-apt"
+                    onClick={() => setDefineHold(h)}
+                  >
+                    <span className="agenda-apt-time">
+                      {formatSlotTime(h.windowStartsAt, timezone)}
+                      {' – '}
+                      {formatSlotTime(h.windowEndsAt, timezone)}
+                    </span>
+                    <span className="agenda-apt-title">Bloco reservado · hora a definir</span>
+                    <span className="agenda-apt-meta">
+                      {h.contactName ?? 'Sem nome'} · {h.serviceName} · {durationLabel(h.durationMinutes)} ·{' '}
+                      {h.professionalName}
+                    </span>
+                  </button>
+                ))}
+                {items.length === 0 && (holdsByDay.get(day) ?? []).length === 0 ? (
                   <p className="panel-meta">Nenhum horário marcado.</p>
                 ) : (
                   <ul className="agenda-apt-list">
@@ -293,12 +328,24 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
           })
         )}
       </div>
+      <DefinirHoraSheet
+        open={defineHold != null}
+        tenantId={tenantId}
+        api={api}
+        generation={generation}
+        hold={defineHold}
+        timezone={timezone}
+        onClose={() => setDefineHold(null)}
+        onDone={() => void load()}
+      />
     </div>
   )
 }
 
 function DayGrid({
   items,
+  holds,
+  onDefineHold,
   timezone,
   isToday,
   now,
@@ -306,20 +353,24 @@ function DayGrid({
   onSchedule,
 }: {
   items: AgendaAppointmentItem[]
+  holds: ScheduleHold[]
+  onDefineHold: (hold: ScheduleHold) => void
   timezone: string
   isToday: boolean
   now: number
   onOpen: (id: string) => void
   onSchedule: () => void
 }) {
-  const { startHour, endHour } = visibleHours(items, timezone)
+  const holdItems = holds.map((h) => ({ id: h.id, startsAt: h.windowStartsAt, endsAt: h.windowEndsAt }))
+  const { startHour, endHour } = visibleHours([...items, ...holdItems], timezone)
   const placed = layoutDay(items, timezone, startHour)
+  const bands = layoutHoldBands(holds, timezone, startHour)
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i)
   const nowTop = isToday ? nowOffset(now, timezone, startHour, endHour) : null
 
   return (
     <>
-      {items.length === 0 ? (
+      {items.length === 0 && holds.length === 0 ? (
         <div className="agenda-empty" role="status">
           <p>Nenhum horário marcado neste dia.</p>
           <Button className="panel-btn-secondary panel-btn-compact" onPress={onSchedule}>
@@ -338,6 +389,26 @@ function DayGrid({
             <span className="agenda-hour-label">{h}:00</span>
           </div>
         ))}
+        {bands.map(({ hold, top, height }) => (
+          <div
+            key={hold.id}
+            className="agenda-hold"
+            role="listitem"
+            style={{ top, height }}
+            aria-label={`Bloco reservado de ${hold.contactName ?? 'paciente'}, ${formatSlotTime(hold.windowStartsAt, timezone)} a ${formatSlotTime(hold.windowEndsAt, timezone)}, hora a definir`}
+          >
+            <span className="agenda-hold-title">Bloco reservado · hora a definir</span>
+            <span className="agenda-hold-meta">
+              {hold.contactName ?? 'Sem nome'} · {hold.serviceName} · {durationLabel(hold.durationMinutes)}
+            </span>
+            <span className="agenda-hold-foot">
+              <span>{hold.confirmBy ? `Confirmar até ${shortDay(hold.confirmBy, timezone)}` : ''}</span>
+              <button type="button" className="hold-link" onClick={() => onDefineHold(hold)}>
+                Definir hora ›
+              </button>
+            </span>
+          </div>
+        ))}
         {nowTop != null ? (
           <div className="agenda-now" style={{ top: nowTop }} aria-hidden>
             <span className="agenda-now-dot" />
@@ -348,7 +419,7 @@ function DayGrid({
             key={item.id}
             type="button"
             role="listitem"
-            className="agenda-block"
+            className={`agenda-block${holds.some((h) => item.startsAt < h.windowEndsAt && item.endsAt > h.windowStartsAt) ? ' agenda-block--in-hold' : ''}`}
             style={{
               top,
               height,

@@ -126,6 +126,17 @@ export function createPanelApi(getToken: TokenGetter) {
     }
   }
 
+  async function holdJson<T>(path: string, body: unknown, opts?: FetchOpts): Promise<T> {
+    const res = await authFetch(
+      path,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+      opts,
+    )
+    assertGeneration(opts)
+    if (!res.ok) throw await parseError(res)
+    return (await res.json()) as T
+  }
+
   return {
     async getPushVapidPublicKey(opts?: FetchOpts): Promise<{
       publicKey: string | null
@@ -563,6 +574,7 @@ export function createPanelApi(getToken: TokenGetter) {
         serviceId: string
         date: string
         professionalId?: string
+        excludeHoldId?: string
       },
       opts?: FetchOpts,
     ): Promise<AvailabilityResponse> {
@@ -572,6 +584,7 @@ export function createPanelApi(getToken: TokenGetter) {
       if (query.professionalId && query.professionalId !== 'any') {
         params.set('professionalId', query.professionalId)
       }
+      if (query.excludeHoldId) params.set('excludeHoldId', query.excludeHoldId)
       const res = await authFetch(
         `/api/tenants/${encodeURIComponent(tenantId)}/availability?${params}`,
         {},
@@ -694,6 +707,85 @@ export function createPanelApi(getToken: TokenGetter) {
         createdReservation: true
         idempotentReplay: boolean
       }
+    },
+
+    /** Reserva por bloco — quanto cabe no período (leitura). */
+    async previewHold(
+      tenantId: string,
+      body: { professionalId: string; windowStartsAt: number; windowEndsAt: number; durationMinutes: number },
+      opts?: FetchOpts,
+    ): Promise<{ freeMinutes: number; fits: boolean; asOf: number }> {
+      return holdJson(`/api/tenants/${encodeURIComponent(tenantId)}/holds/preview`, body, opts)
+    },
+
+    async createHold(
+      tenantId: string,
+      body: {
+        clientRequestId: string
+        conversationId: string
+        serviceId: string
+        professionalId: string
+        windowStartsAt: number
+        windowEndsAt: number
+        durationMinutes: number
+        confirmBy?: number | null
+      },
+      opts?: FetchOpts,
+    ): Promise<{ hold: ScheduleHold; idempotentReplay: boolean }> {
+      return holdJson(`/api/tenants/${encodeURIComponent(tenantId)}/holds`, body, opts)
+    },
+
+    async resolveHold(
+      tenantId: string,
+      holdId: string,
+      body: { clientRequestId: string; startsAt: number; roomResourceId?: string | null },
+      opts?: FetchOpts,
+    ): Promise<{ hold: ScheduleHold; appointment: AppointmentDetailResponse; idempotentReplay: boolean }> {
+      return holdJson(
+        `/api/tenants/${encodeURIComponent(tenantId)}/holds/${encodeURIComponent(holdId)}/resolve`,
+        body,
+        opts,
+      )
+    },
+
+    async cancelHold(tenantId: string, holdId: string, opts?: FetchOpts): Promise<{ hold: ScheduleHold }> {
+      return holdJson(
+        `/api/tenants/${encodeURIComponent(tenantId)}/holds/${encodeURIComponent(holdId)}/cancel`,
+        {},
+        opts,
+      )
+    },
+
+    async dismissHoldAlert(tenantId: string, holdId: string, opts?: FetchOpts): Promise<{ hold: ScheduleHold }> {
+      return holdJson(
+        `/api/tenants/${encodeURIComponent(tenantId)}/holds/${encodeURIComponent(holdId)}/dismiss-alert`,
+        {},
+        opts,
+      )
+    },
+
+    async listHolds(
+      tenantId: string,
+      query: { conversationId?: string; status?: ScheduleHoldStatus[] },
+      opts?: FetchOpts,
+    ): Promise<ScheduleHold[]> {
+      const params = new URLSearchParams()
+      if (query.conversationId) params.set('conversationId', query.conversationId)
+      if (query.status?.length) params.set('status', query.status.join(','))
+      const res = await authFetch(`/api/tenants/${encodeURIComponent(tenantId)}/holds?${params}`, {}, opts)
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return ((await res.json()) as { holds: ScheduleHold[] }).holds
+    },
+
+    async listHoldAlerts(
+      tenantId: string,
+      opts?: FetchOpts,
+    ): Promise<{ viewerClerkUserId: string; alerts: ScheduleHoldAlert[] }> {
+      const res = await authFetch(`/api/tenants/${encodeURIComponent(tenantId)}/holds/alerts`, {}, opts)
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { viewerClerkUserId: string; alerts: ScheduleHoldAlert[] }
     },
 
     /** Cobrança Pix + sinal na conversa sem reservar (#38). */
@@ -1542,6 +1634,7 @@ export type InboxSendResponse = {
 export type OpportunityStage =
   | 'novo_contato'
   | 'em_atendimento'
+  | 'a_definir'
   | 'horario_proposto'
   | 'agendado'
   | 'concluido'
@@ -1581,6 +1674,8 @@ export type PipelineOpportunity = {
   contact: PipelineContact
   missingAppointment: boolean
   linkedAppointment: PipelineLinkedAppointment | null
+  /** Reserva por bloco em aberto (activa ou vencida sem hora). */
+  openHold?: ScheduleHold | null
 }
 
 export type PipelineStageHistory = {
@@ -1928,7 +2023,39 @@ export type AgendaViewResponse = {
   rangeEndsAt: number
   asOf: number
   appointments: AgendaAppointmentItem[]
+  /** Reservas por bloco activas (faixa «hora a definir»). */
+  holds?: ScheduleHold[]
 }
+
+export type ScheduleHoldStatus = 'active' | 'resolved' | 'expired' | 'cancelled'
+
+export type ScheduleHold = {
+  id: string
+  status: ScheduleHoldStatus
+  opportunityId: string | null
+  conversationId: string
+  contactId: string
+  contactName: string | null
+  serviceId: string
+  serviceName: string
+  professionalId: string
+  professionalName: string
+  durationMinutes: number
+  windowStartsAt: number
+  windowEndsAt: number
+  confirmBy: number | null
+  appointmentId: string | null
+  responsibleClerkUserId: string | null
+  responsibleDisplayName: string | null
+  createdAt: number
+  updatedAt: number
+  resolvedAt: number | null
+  expiredAt: number | null
+  cancelledAt: number | null
+  alertDismissedAt: number | null
+}
+
+export type ScheduleHoldAlert = { kind: 'starts_soon' | 'expired'; hold: ScheduleHold }
 
 export type AppointmentReasonOption = { code: string; label: string }
 

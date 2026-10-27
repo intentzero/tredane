@@ -94,6 +94,8 @@ export function reasonLabel(code: string): string {
       return 'Fora do expediente'
     case 'scheduling_not_allowed':
       return 'Agenda da clínica ainda não configurada'
+    case 'hold_conflict':
+      return 'Ocuparia o bloco reservado de outra paciente'
     case 'past_slot':
       return 'Horário já passou'
     default:
