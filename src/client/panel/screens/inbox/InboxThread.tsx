@@ -1167,6 +1167,7 @@ export function InboxThread({
                           <label key={key} className="inbox-template-param">
                             <span>{key}</span>
                             <input
+                              autoComplete="off"
                               value={templateParams[key] ?? ''}
                               onChange={(e) =>
                                 setTemplateParams((prev) => ({

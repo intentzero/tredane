@@ -16,6 +16,7 @@ import { WhatsappInterruptBanner } from '../screens/clinic/whatsapp/WhatsappScre
 import { useWhatsapp } from '../screens/clinic/whatsapp/useWhatsapp'
 import { BottomNav } from './BottomNav'
 import { OfflineStrip } from '../states/OfflineStrip'
+import { useKeyboardViewport } from '../ui/useKeyboardViewport'
 
 type Props = {
   area: PanelArea
@@ -32,6 +33,7 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
   const { api } = useAuthSession()
   const { conn: waConn } = useWhatsapp(api, tenantId, generation)
   const [offline, setOffline] = useState(!navigator.onLine)
+  useKeyboardViewport()
 
   useEffect(() => {
     const on = () => setOffline(false)

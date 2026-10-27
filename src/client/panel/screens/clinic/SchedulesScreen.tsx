@@ -253,11 +253,11 @@ export function SchedulesScreen({
           <div className="clinic-field-row">
             <TextField className="clinic-field">
               <Label>Início</Label>
-              <Input value={start} onChange={(e) => setStart(e.target.value)} />
+              <Input type="time" step={900} autoComplete="off" value={start} onChange={(e) => setStart(e.target.value)} />
             </TextField>
             <TextField className="clinic-field">
               <Label>Fim</Label>
-              <Input value={end} onChange={(e) => setEnd(e.target.value)} />
+              <Input type="time" step={900} autoComplete="off" value={end} onChange={(e) => setEnd(e.target.value)} />
             </TextField>
           </div>
           <div className="clinic-footer-actions">
@@ -313,6 +313,7 @@ export function SchedulesScreen({
             <TextField className="clinic-field">
               <Label>Início (opcional)</Label>
               <Input
+                type="time" step={900} autoComplete="off"
                 value={blockStart}
                 onChange={(e) => setBlockStart(e.target.value)}
                 placeholder="Dia inteiro"
@@ -320,7 +321,7 @@ export function SchedulesScreen({
             </TextField>
             <TextField className="clinic-field">
               <Label>Fim (opcional)</Label>
-              <Input value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)} />
+              <Input type="time" step={900} autoComplete="off" value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)} />
             </TextField>
           </div>
           <PanelSelect

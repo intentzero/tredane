@@ -616,7 +616,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
             isRequired
           >
             <Label>Motivo (obrigatório)</Label>
-            <Input placeholder="Ex.: cliente paga na clínica" />
+            <Input autoComplete="off" placeholder="Ex.: cliente paga na clínica" />
           </TextField>
           <div style={{ display: 'flex', gap: 8, width: '100%' }}>
             <Button
