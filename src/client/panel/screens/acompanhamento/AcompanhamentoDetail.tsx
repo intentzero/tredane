@@ -128,7 +128,7 @@ export function AcompanhamentoDetail({
           <span className="inbox-thread-sub">Contato em andamento</span>
         </div>
         <Button className="panel-move" onPress={() => setMoveOpen(true)}>
-          Mudar etapa
+          Mover
         </Button>
       </header>
 

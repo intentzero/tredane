@@ -214,13 +214,13 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
                   </button>
                   <Button
                     className="panel-move"
-                    aria-label={`Mudar a etapa de ${name}`}
+                    aria-label={`Mover ${name}`}
                     onPress={() => {
                       setMoveError(null)
                       setMovingCard(card)
                     }}
                   >
-                    Mudar etapa
+                    Mover
                   </Button>
                 </div>
                 <span className="panel-meta">{meta}</span>
