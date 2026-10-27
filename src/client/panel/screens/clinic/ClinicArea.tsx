@@ -9,6 +9,7 @@ import { ServiceForm, ServicesList } from './ServicesScreen'
 import { useClinicConfig } from './useClinicConfig'
 import { WhatsappScreen } from './whatsapp/WhatsappScreen'
 import { RecebimentoScreen } from './pix/RecebimentoScreen'
+import { WhatsappDevSyncScreen } from './whatsapp/WhatsappDevSyncScreen'
 
 type Props = {
   tenantId: string
@@ -22,6 +23,13 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   const { snap, error, loading, reload } = useClinicConfig(api, tenantId, generation)
   const clinicName =
     active.phase === 'ready' ? active.context.name : tenantId
+
+  if (section === 'whatsapp-dev-sync') {
+    if (!api) return <LoadingState label="A carregar…" />
+    return (
+      <WhatsappDevSyncScreen tenantId={tenantId} api={api} generation={generation} />
+    )
+  }
 
   if (
     section === 'whatsapp'
