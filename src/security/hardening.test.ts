@@ -331,9 +331,21 @@ describe('check:env — staging/production', () => {
   )
 
   it('staging provisionado com secrets obrigatórios passa', () => {
-    const r = run('staging', provisioned, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET,TOKEN_ENCRYPTION_KEY')
+    // staging tem META_MODE=live (webhook Meta real): exige também os secrets Meta (C3).
+    const r = run(
+      'staging',
+      provisioned,
+      'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET,TOKEN_ENCRYPTION_KEY,META_APP_SECRET,META_VERIFY_TOKEN,META_TOKEN_SECRET',
+    )
     expect(r.stderr).toBe('')
     expect(r.status).toBe(0)
+  })
+
+  it('staging com META_MODE=live sem secrets Meta falha nomeando-os', () => {
+    const r = run('staging', provisioned, 'CLERK_SECRET_KEY,ATTACHMENT_TOKEN_SECRET,TOKEN_ENCRYPTION_KEY')
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('META_APP_SECRET')
+    expect(r.stderr).toContain('META_VERIFY_TOKEN')
   })
 
   it('staging sem ATTACHMENT_TOKEN_SECRET falha nomeando o secret', () => {
