@@ -66,7 +66,8 @@ describe('ClinicHub — progresso', () => {
 
   it('Equipe aparece como «em breve» e não é botão', () => {
     render(<ClinicHub tenantId="clinic-demo-a" snap={snap({ missing: [] })} />)
-    expect(screen.getByText('Convidar recepcionistas · em breve')).toBeTruthy()
+    expect(screen.getByText('Convidar recepcionistas')).toBeTruthy()
+    expect(screen.getByText('Em breve')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Equipe/ })).toBeNull()
   })
 })

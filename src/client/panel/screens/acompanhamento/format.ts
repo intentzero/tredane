@@ -54,7 +54,7 @@ export function appointmentLine(
   startsAt: number | null | undefined,
   missing: boolean,
 ): string {
-  if (missing || startsAt == null) return 'Sem compromisso'
+  if (missing || startsAt == null) return 'Sem horário marcado'
   return new Date(startsAt).toLocaleString('pt-BR', {
     timeZone: getClinicTimezone(),
     weekday: 'short',

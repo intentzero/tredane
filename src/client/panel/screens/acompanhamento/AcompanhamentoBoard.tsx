@@ -127,6 +127,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
 
   const list = items ?? []
   const countMap = new Map((counts ?? []).map((c) => [c.stage, c.count]))
+  const stageTotal = countMap.get(stage) ?? 0
   const totalOpen = (counts ?? [])
     .filter((c) => c.stage !== 'concluido' && c.stage !== 'perdido')
     .reduce((n, c) => n + c.count, 0)
@@ -135,7 +136,8 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
     <div className="acomp-root">
       <header className="panel-header-root acomp-header">
         <span className="panel-subtitle">
-          {totalOpen} contato{totalOpen === 1 ? '' : 's'} em andamento
+          {stageTotal} nesta etapa
+          {stage !== 'concluido' && stage !== 'perdido' ? ` · ${totalOpen} em andamento` : ''}
         </span>
         <Tabs
           selectedKey={stage}
@@ -223,6 +225,21 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
                   </Button>
                 </div>
                 <span className="panel-meta">{meta}</span>
+                <Button
+                  className="panel-btn-secondary"
+                  aria-label={`Abrir conversa de ${name}`}
+                  onPress={() =>
+                    navigatePanel({
+                      kind: 'area',
+                      area: 'conversas',
+                      tenantId,
+                      section: 'thread',
+                      conversationId: card.conversationId,
+                    })
+                  }
+                >
+                  Abrir conversa
+                </Button>
                 {card.missingAppointment ? (
                   <span className="acomp-warn">
                     <CircleAlert aria-hidden size={14} strokeWidth={2.4} />

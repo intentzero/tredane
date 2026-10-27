@@ -1,5 +1,6 @@
 import { useAuthSession } from '../../auth/AuthContext'
 import { useTenant } from '../../tenant/TenantContext'
+import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import type { ClinicaSection } from '../../routes'
 import { AiAssistCard } from './AiAssistCard'
@@ -72,7 +73,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   }
 
   if (loading && !snap) {
-    return <LoadingState label="Carregando configuração da clínica…" />
+    return <ListSkeleton label="Carregando configuração da clínica…" rows={5} />
   }
   if (error && !snap) {
     return (
@@ -85,7 +86,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     )
   }
   if (!snap || !api) {
-    return <LoadingState label="Carregando configuração da clínica…" />
+    return <ListSkeleton label="Carregando configuração da clínica…" rows={5} />
   }
 
   switch (section) {

@@ -10,7 +10,12 @@ import {
 } from 'react'
 import { PanelApiError, type TenantContextResponse, type TenantSummary } from '../api'
 import { useAuthSession } from '../auth/AuthContext'
-import { readActiveTenantId, writeActiveTenantId } from '../auth/session'
+import {
+  clearPickingClinic,
+  readActiveTenantId,
+  writeActiveTenantId,
+  writeLastTenantId,
+} from '../auth/session'
 
 type TenantLoadState =
   | { phase: 'idle' }
@@ -146,6 +151,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         })
         if (controller.signal.aborted || gen !== generationRef.current) return false
         writeActiveTenantId(context.tenantId)
+        writeLastTenantId(context.tenantId)
+        clearPickingClinic()
         setActive({ phase: 'ready', context })
         return true
       } catch (err) {
@@ -156,11 +163,13 @@ export function TenantProvider({ children }: { children: ReactNode }) {
           (err.code === 'tenant_access_denied' || err.code === 'permission_denied')
         ) {
           writeActiveTenantId(null)
+          writeLastTenantId(null)
           setActive({ phase: 'forbidden', tenantId })
           return false
         }
         if (err instanceof PanelApiError && err.code === 'tenant_not_active') {
           writeActiveTenantId(null)
+          writeLastTenantId(null)
           setActive({ phase: 'ended', tenantId })
           return false
         }

@@ -10,7 +10,8 @@ import {
 import { errorDetail, friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
 import { Badge } from '../../states/Badge'
-import { ErrorState, LoadingState } from '../../states/StatusScreens'
+import { ListSkeleton } from '../../states/ListSkeleton'
+import { ErrorState } from '../../states/StatusScreens'
 import {
   HOUR_HEIGHT,
   layoutDay,
@@ -112,7 +113,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
   const today = upcomingCivilDates(timezone, now, 1)[0]!
   const step = view === 'week' ? 7 : 1
 
-  if (loading && !data) return <LoadingState label="Carregando agenda…" />
+  if (loading && !data) return <ListSkeleton label="Carregando agenda…" rows={5} />
   if (error && !data) {
     return (
       <ErrorState

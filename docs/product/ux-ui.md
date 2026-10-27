@@ -123,7 +123,7 @@ Nome na interface: **Acompanhamento** (DEC-045). Na barra inferior de quatro ite
 **Origem:** JRN-03, JRN-04; REQ-023. **Estado:** Proposto.
 
 - Quadro com as etapas propostas: **Novo contato → Em atendimento → Horário proposto → Agendado → Concluído** e coluna **Perdido** separada visualmente à direita. As etapas vêm da configuração da clínica; a interface não fixa nomes no código de apresentação, para permitir etapas configuráveis depois (MVP).
-- Cartão: nome do contato, responsável, último contato (relativo), próximo compromisso (ou “Sem compromisso”), indicador de mensagem pendente/falha.
+- Cartão: nome do contato, responsável, último contato (relativo), próximo compromisso (ou “Sem horário marcado”), ação “Abrir conversa”, indicador de mensagem pendente/falha.
 - No celular (M-05), uma etapa por vez em abas roláveis com contagem; o botão **Mover** abre uma folha inferior com as etapas. No desktop, arrastar entre colunas **ou** menu **Mover para…** (alternativa acessível por teclado). O cartão fica em estado “Movendo…” até confirmação; em falha, volta à coluna original com aviso.
 - Mover para **Horário proposto** mostra a nota “Etapa da negociação — não reserva horário na agenda” (states.md).
 - Mover para **Agendado** sem compromisso vinculado é **permitido** (Confirmado, DEC-040): o cartão exibe “Sem compromisso vinculado” e oferece **Agendar horário**; mudar etapa nunca cria compromisso.

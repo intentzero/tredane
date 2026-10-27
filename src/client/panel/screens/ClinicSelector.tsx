@@ -2,6 +2,7 @@ import { Building2 } from 'lucide-react'
 import { useEffect } from 'react'
 import { ListBox, ListBoxItem } from 'react-aria-components'
 import { SignOutButton } from '../auth/ClerkBridge'
+import { isPickingClinic, readLastTenantId } from '../auth/session'
 import { navigatePanel } from '../routes'
 import {
   EmptyState,
@@ -43,6 +44,29 @@ export function ClinicSelector() {
     })
   }, [listState, active.phase, selectTenant])
 
+  // Reabriu o app com várias clínicas: volta direto à última (se ainda for dela),
+  // a menos que tenha tocado em «Trocar clínica».
+  const resumeId =
+    listState.phase === 'ready' && listState.tenants.length > 1 && !isPickingClinic()
+      ? listState.tenants.find((t) => t.tenantId === readLastTenantId())
+      : undefined
+  const resumeTenantId = resumeId?.tenantId
+  const resumeName = resumeId?.name
+  useEffect(() => {
+    if (!resumeTenantId || active.phase !== 'none') return
+    void selectTenant(resumeTenantId, resumeName).then((ok) => {
+      if (ok) {
+        navigatePanel(
+          { kind: 'area', area: 'conversas', tenantId: resumeTenantId, section: 'lista' },
+          true,
+        )
+      }
+    })
+  }, [resumeTenantId, resumeName, active.phase, selectTenant])
+
+  if (resumeTenantId && (active.phase === 'none' || active.phase === 'switching')) {
+    return <LoadingState label={`Abrindo ${resumeName ?? 'clínica'}…`} />
+  }
   if (listState.phase === 'loading' || listState.phase === 'idle') {
     return <LoadingState label="Carregando clínicas…" />
   }

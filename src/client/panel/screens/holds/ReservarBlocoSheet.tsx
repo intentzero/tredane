@@ -4,7 +4,8 @@ import { Button, Dialog, Heading, Modal, ModalOverlay } from 'react-aria-compone
 import type { AvailabilitySlot, ClinicConfigSnapshot, PanelApi } from '../../api'
 import { setClinicTimezone } from '../../clinicTimezone'
 import { friendlyError } from '../../copy/errors'
-import { formatLongDate, upcomingCivilDates } from '../agenda/format'
+import '../agenda/agendar.css'
+import { formatDayLabel, formatLongDate, upcomingCivilDates } from '../agenda/format'
 import {
   DURATION_PRESETS,
   PERIOD_PRESETS,
@@ -61,6 +62,9 @@ export function ReservarBlocoSheet(props: Props) {
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [slotStartsAt, setSlotStartsAt] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
+  const [editDetails, setEditDetails] = useState(false)
+  const [customDuration, setCustomDuration] = useState(false)
+  const [notify, setNotify] = useState(true)
   const requestId = useRef(`client:${crypto.randomUUID()}`)
   const sheetStyle = useVisualViewportSheet(open)
 
@@ -70,6 +74,9 @@ export function ReservarBlocoSheet(props: Props) {
     setError(null)
     setMessageEdited(false)
     setEditing(false)
+    setEditDetails(false)
+    setCustomDuration(false)
+    setNotify(true)
     let cancelled = false
     api
       .getClinicConfig(tenantId, { generation, expectGeneration: () => generation })
@@ -77,9 +84,22 @@ export function ReservarBlocoSheet(props: Props) {
         if (cancelled) return
         setConfig(snap)
         setClinicTimezone(tenantId, snap.settings.timezone)
-        const svc = snap.services.find((s) => s.active)
-        setServiceId((prev) => prev || svc?.id || '')
-        setDate((prev) => prev || upcomingCivilDates(snap.settings.timezone, Date.now(), 2)[1]!)
+        // Só pré-escolhe se houver um único procedimento ativo; com vários, a atendente escolhe
+        // (um padrão arbitrário escondido no resumo levaria a reservar o procedimento errado).
+        const activeServices = snap.services.filter((s) => s.active)
+        setServiceId((prev) => prev || (activeServices.length === 1 ? activeServices[0]!.id : ''))
+        if (activeServices.length !== 1) setEditDetails(true)
+        // Mesmo começo do Agendar: hoje; depois das 18h já não há o que reservar, vai para amanhã.
+        const hour = Number(
+          new Intl.DateTimeFormat('en-US', {
+            timeZone: snap.settings.timezone,
+            hour: '2-digit',
+            hourCycle: 'h23',
+          }).format(new Date()),
+        )
+        const dayIdx = hour >= 18 ? 1 : 0
+        setDate((prev) => prev || upcomingCivilDates(snap.settings.timezone, Date.now(), 2)[dayIdx]!)
+        if (hour >= 12 && hour < 18) setPeriod('tarde')
       })
       .catch((err) => {
         if (!cancelled) setError(friendlyError(err, 'Não conseguimos carregar a agenda da clínica.'))
@@ -197,7 +217,7 @@ export function ReservarBlocoSheet(props: Props) {
         },
         { generation, expectGeneration: () => generation },
       )
-      await onReserved(windowOpen && message.trim() ? message.trim() : null)
+      await onReserved(windowOpen && notify && message.trim() ? message.trim() : null)
       onClose()
     } catch (err) {
       setError(friendlyError(err, 'Não foi possível reservar. Escolha outro horário.'))
@@ -237,13 +257,34 @@ export function ReservarBlocoSheet(props: Props) {
 
           {config ? (
             <>
-              <HoldSelect
-                label="Dia"
-                placeholder="Escolher dia"
-                value={date}
-                onChange={setDate}
-                options={days.map((d) => ({ id: d, label: formatLongDate(d, tz) }))}
-              />
+              <div className="hold-group" role="group" aria-labelledby="hold-day-label">
+                <span id="hold-day-label" className="hold-label">Dia</span>
+                <div className="agd-day-grid">
+                  {days.slice(0, 5).map((d) => {
+                    const l = formatDayLabel(d, tz)
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        className="agd-day"
+                        aria-pressed={date === d}
+                        aria-label={`${l.weekday} ${l.day}`}
+                        onClick={() => setDate(d)}
+                      >
+                        <span>{l.weekday}</span>
+                        <span>{Number(l.day)}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <HoldSelect
+                  label="Outro dia"
+                  placeholder="Escolher outro dia"
+                  value={days.slice(0, 5).includes(date) ? '' : date}
+                  onChange={setDate}
+                  options={days.slice(5).map((d) => ({ id: d, label: formatLongDate(d, tz) }))}
+                />
+              </div>
 
               <div className="hold-group" role="group" aria-label="Período">
                 <span className="hold-label">Período</span>
@@ -289,21 +330,37 @@ export function ReservarBlocoSheet(props: Props) {
                 ) : null}
               </div>
 
-              <HoldSelect
-                label="Procedimento"
-                placeholder="Escolher procedimento"
-                value={serviceId}
-                onChange={setServiceId}
-                options={services.map((sv) => ({ id: sv.id, label: sv.name }))}
-              />
-              <HoldSelect
-                label="Profissional"
-                placeholder={professionals.length === 0 ? 'Nenhuma profissional para este procedimento' : 'Escolher profissional'}
-                value={professionalId}
-                onChange={setProfessionalId}
-                isDisabled={professionals.length === 0}
-                options={professionals.map((p) => ({ id: p.id, label: p.name }))}
-              />
+              {service && professional && !editDetails ? (
+                <div className="hold-summary">
+                  <div className="hold-summary-copy">
+                    <span className="hold-label">Atendimento</span>
+                    <span>
+                      {service.name} · {professional.name}
+                    </span>
+                  </div>
+                  <button type="button" className="hold-link" onClick={() => setEditDetails(true)}>
+                    Alterar
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <HoldSelect
+                    label="Procedimento"
+                    placeholder="Escolher procedimento"
+                    value={serviceId}
+                    onChange={setServiceId}
+                    options={services.map((sv) => ({ id: sv.id, label: sv.name }))}
+                  />
+                  <HoldSelect
+                    label="Profissional"
+                    placeholder={professionals.length === 0 ? 'Nenhuma profissional para este procedimento' : 'Escolher profissional'}
+                    value={professionalId}
+                    onChange={setProfessionalId}
+                    isDisabled={professionals.length === 0}
+                    options={professionals.map((p) => ({ id: p.id, label: p.name }))}
+                  />
+                </>
+              )}
 
               <div className="hold-group" role="group" aria-label="Duração deste atendimento">
                 <span className="hold-label">Duração deste atendimento</span>
@@ -314,12 +371,24 @@ export function ReservarBlocoSheet(props: Props) {
                       type="button"
                       className="hold-option"
                       aria-pressed={duration === m}
-                      onClick={() => setDuration(m)}
+                      onClick={() => {
+                        setDuration(m)
+                        setCustomDuration(false)
+                      }}
                     >
                       {durationLabel(m)}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    className="hold-option"
+                    aria-pressed={customDuration || !(DURATION_PRESETS as readonly number[]).includes(duration)}
+                    onClick={() => setCustomDuration(true)}
+                  >
+                    Outra
+                  </button>
                 </div>
+                {customDuration || !(DURATION_PRESETS as readonly number[]).includes(duration) ? (
                 <div className="hold-stepper" role="group" aria-label="Outra duração, de 15 em 15 minutos">
                   <span className="hold-stepper-label">Outra (±15 min)</span>
                   <button
@@ -347,6 +416,7 @@ export function ReservarBlocoSheet(props: Props) {
                     <Plus aria-hidden size={18} strokeWidth={2.2} />
                   </button>
                 </div>
+                ) : null}
                 {!durationValid ? (
                   <span className="hold-warn">A duração precisa ser múltipla de 15 min e caber no período.</span>
                 ) : null}
@@ -381,6 +451,14 @@ export function ReservarBlocoSheet(props: Props) {
               </div>
 
               <div className="hold-group">
+                {windowOpen ? (
+                  <label className="agd-check">
+                    <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+                    <span>Avisar a paciente pelo WhatsApp</span>
+                  </label>
+                ) : null}
+                {!windowOpen || notify ? (
+                <>
                 <span className="hold-label">Mensagem que a paciente vai receber</span>
                 {editing ? (
                   <textarea
@@ -410,6 +488,10 @@ export function ReservarBlocoSheet(props: Props) {
                     Copie o texto ou use um modelo aprovado.
                   </span>
                 ) : null}
+                </>
+                ) : (
+                  <p className="panel-meta">A paciente não será avisada. O horário fica só na agenda.</p>
+                )}
               </div>
             </>
           ) : null}
@@ -422,7 +504,7 @@ export function ReservarBlocoSheet(props: Props) {
           ) : null}
 
           <Button className="panel-btn-primary" isDisabled={!canSubmit} onPress={() => void submit()}>
-            {busy ? 'Reservando…' : windowOpen ? 'Reservar e avisar paciente' : 'Reservar horário'}
+            {busy ? 'Reservando…' : 'Reservar horário'}
           </Button>
           {slot && professional ? (
             <p className="hold-foot" role="status">

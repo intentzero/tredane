@@ -4395,3 +4395,51 @@
 .conversas-3col-contact .inbox-thread-header {
   display: none;
 }
+
+/* Ação de cabeçalho com texto (ex.: «Agendar» na conversa): ícone + rótulo, alvo ≥ 44 px. */
+.panel-header-action {
+  flex: none;
+  min-height: var(--size-touch);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.panel-header-action[data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.panel-menu-separator {
+  height: var(--size-border-width);
+  margin: var(--space-1) var(--space-2);
+  background: var(--color-line-divider);
+}
+
+/* Reservar bloco: resumo do atendimento com «Alterar» (procedimento + profissional pré-escolhidos). */
+.hold-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--size-touch);
+  padding: var(--space-2) var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+}
+
+.hold-summary-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
