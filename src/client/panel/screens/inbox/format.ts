@@ -96,7 +96,7 @@ export function previewLine(c: InboxConversation, viewerId: string | null): stri
   return preview
 }
 
-/** Rótulos §6.1 ux-ui.md — nunca expor raw deliveryState ao utilizador. */
+/** Rótulos §6.1 ux-ui.md — nunca expor raw deliveryState ao usuário. */
 export function deliveryLabel(state: string): string {
   switch (state) {
     case 'pending':

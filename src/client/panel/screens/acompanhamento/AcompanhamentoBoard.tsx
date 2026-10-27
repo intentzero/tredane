@@ -96,7 +96,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
       setItems(previous)
       const msg =
         err instanceof PanelApiError && err.status === 409
-          ? 'Outra sessão atualizou este contacto. Estado anterior restaurado.'
+          ? 'Outra sessão atualizou este contato. Estado anterior restaurado.'
           : err instanceof Error
             ? err.message
             : 'Não foi possível mover'
@@ -107,7 +107,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
   }
 
   if (loading && !items) {
-    return <LoadingState label="A carregar acompanhamento…" />
+    return <LoadingState label="Carregando acompanhamento…" />
   }
 
   if (error && !items) {
@@ -131,7 +131,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
     <div className="acomp-root">
       <header className="panel-header-root acomp-header">
         <span className="panel-subtitle">
-          {totalOpen} contacto{totalOpen === 1 ? '' : 's'} em andamento
+          {totalOpen} contato{totalOpen === 1 ? '' : 's'} em andamento
         </span>
         <Tabs
           selectedKey={stage}
@@ -158,9 +158,9 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
       <div className="panel-scroll-sm acomp-list" role="tabpanel">
         {list.length === 0 ? (
           <EmptyState
-            title="Sem contatos em andamento nesta etapa"
-            description="Carregue dados de demonstração ou mude a etapa nas abas."
-            actionLabel={seeding ? 'A carregar…' : 'Carregar demo'}
+            title="Ninguém nesta etapa agora"
+            description="Os contatos aparecem aqui conforme o atendimento avança."
+            actionLabel={seeding ? 'Carregando…' : '[Teste] Criar exemplos'}
             onAction={seeding ? undefined : () => void seedDemo()}
           />
         ) : (
@@ -226,7 +226,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
         contactName={
           movingCard
             ? contactLabel(movingCard.contact.displayName, movingCard.contact.waId)
-            : 'contacto'
+            : 'contato'
         }
         currentStage={movingCard?.stage ?? stage}
         busy={moveBusy}

@@ -31,7 +31,7 @@ export function AgendaArea({ tenantId, section, appointmentId }: Props) {
     )
   }
   if (!api || active.phase !== 'ready') {
-    return <LoadingState label="A preparar a agenda…" />
+    return <LoadingState label="Preparando a agenda…" />
   }
 
   if (section === 'agendar') {

@@ -29,7 +29,7 @@ export function AuthModeGate({ children }: { children: ReactNode }) {
   const config = useClientConfig()
 
   if (status.phase === 'boot') {
-    return <LoadingState label="A preparar autenticação…" />
+    return <LoadingState label="Preparando autenticação…" />
   }
   if (status.phase === 'error') {
     return (

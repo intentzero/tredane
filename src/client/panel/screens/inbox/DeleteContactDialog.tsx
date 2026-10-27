@@ -16,7 +16,7 @@ type Props = {
 }
 
 /**
- * Confirmação destrutiva de exclusão de contacto (owner / DEC-048).
+ * Confirmação destrutiva de exclusão de contato (owner / DEC-048).
  * Exemplos fictícios apenas — sem PII em logs do cliente.
  */
 export function DeleteContactDialog({
@@ -53,7 +53,7 @@ export function DeleteContactDialog({
                 className="panel-title"
                 style={{ margin: '8px 0 2px' }}
               >
-                Excluir contacto?
+                Excluir contato?
               </Heading>
               <p
                 id="delete-contact-desc"

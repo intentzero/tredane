@@ -26,7 +26,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   const isOwner = active.phase === 'ready' && active.context.role === 'owner'
 
   if (section === 'whatsapp-dev-sync') {
-    if (!api) return <LoadingState label="A carregar…" />
+    if (!api) return <LoadingState label="Carregando…" />
     return (
       <WhatsappDevSyncScreen tenantId={tenantId} api={api} generation={generation} />
     )
@@ -37,7 +37,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     || section === 'whatsapp-trocar'
     || section === 'whatsapp-desconectar'
   ) {
-    if (!api) return <LoadingState label="A carregar WhatsApp…" />
+    if (!api) return <LoadingState label="Carregando WhatsApp…" />
     const mode =
       section === 'whatsapp-trocar'
         ? 'trocar'
@@ -57,7 +57,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   }
 
   if (section === 'recebimento') {
-    if (!api) return <LoadingState label="A carregar recebimento…" />
+    if (!api) return <LoadingState label="Carregando recebimento…" />
     return (
       <RecebimentoScreen
         tenantId={tenantId}
@@ -68,7 +68,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   }
 
   if (loading && !snap) {
-    return <LoadingState label="A carregar configuração da clínica…" />
+    return <LoadingState label="Carregando configuração da clínica…" />
   }
   if (error && !snap) {
     return (
@@ -81,7 +81,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     )
   }
   if (!snap || !api) {
-    return <LoadingState label="A carregar configuração da clínica…" />
+    return <LoadingState label="Carregando configuração da clínica…" />
   }
 
   switch (section) {

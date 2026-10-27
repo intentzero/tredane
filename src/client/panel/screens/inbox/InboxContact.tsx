@@ -25,16 +25,16 @@ type Props = {
 function deleteErrorMessage(err: unknown): string {
   if (err instanceof PanelApiError) {
     if (err.code === 'permission_denied' || err.status === 403) {
-      return 'Só o responsável pode excluir contactos.'
+      return 'Só o responsável pode excluir contatos.'
     }
     if (err.status === 404) {
-      return 'Contacto já não está disponível.'
+      return 'Contato já não está disponível.'
     }
     if (err.status === 409) {
       return 'Não foi possível excluir agora. Tente de novo.'
     }
   }
-  return 'Não foi possível excluir o contacto. Tente de novo.'
+  return 'Não foi possível excluir o contato. Tente de novo.'
 }
 
 export function InboxContactScreen({
@@ -69,7 +69,7 @@ export function InboxContactScreen({
         if (!cancelled) setData(res)
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Falha ao carregar contacto')
+          setError(err instanceof Error ? err.message : 'Falha ao carregar contato')
           setData(null)
         }
       } finally {
@@ -92,11 +92,11 @@ export function InboxContactScreen({
     )
   }
 
-  if (loading && !data) return <LoadingState label="A carregar contacto…" />
+  if (loading && !data) return <LoadingState label="Carregando contato…" />
   if (error && !data) {
     return (
       <ErrorState
-        title="Contacto indisponível"
+        title="Contato indisponível"
         description={error}
         actionLabel="Voltar"
         onAction={() =>
@@ -129,7 +129,7 @@ export function InboxContactScreen({
       })
       // Sem PII — só contagens e id de auditoria.
       setDeleteSuccess(
-        `Contacto excluído. ${result.deletedMessageCount} mensagem(ns) e ${result.deletedAttachmentCount} anexo(s) removidos` +
+        `Contato excluído. ${result.deletedMessageCount} mensagem(ns) e ${result.deletedAttachmentCount} anexo(s) removidos` +
           (result.anonymizedAppointmentCount > 0
             ? `; ${result.anonymizedAppointmentCount} compromisso(s) anonimizado(s)`
             : '') +
@@ -141,7 +141,7 @@ export function InboxContactScreen({
         navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'lista' })
       }, 1200)
     } catch (err) {
-      // Não registar nome/telefone no console — mensagem genérica ao utilizador.
+      // Não registar nome/telefone no console — mensagem genérica ao usuário.
       setDeleteError(deleteErrorMessage(err))
       setConfirmOpen(false)
     } finally {
@@ -173,7 +173,7 @@ export function InboxContactScreen({
         </Button>
         <div className="inbox-thread-title">
           <span className="inbox-thread-name">{label}</span>
-          <span className="inbox-thread-sub">Informações do contacto</span>
+          <span className="inbox-thread-sub">Informações do contato</span>
         </div>
       </header>
 
@@ -267,7 +267,7 @@ export function InboxContactScreen({
 
       <h2 className="inbox-contact-h">Acompanhamento</h2>
       <p className="inbox-contact-note">
-        O quadro de contactos em andamento está em Acompanhamento.
+        O quadro de contatos em andamento está em Acompanhamento.
       </p>
       <Button
         className="panel-btn-secondary"
@@ -319,8 +319,8 @@ export function InboxContactScreen({
             Zona de risco
           </h2>
           <p className="inbox-contact-note">
-            Exclui mensagens, anexos e dados pessoais deste contacto. Compromissos
-            na agenda ficam como «Contacto removido».
+            Exclui mensagens, anexos e dados pessoais deste contato. Compromissos
+            na agenda ficam como «Contato removido».
           </p>
           {deleteError ? (
             <p className="inbox-notice" role="alert" style={{ marginBottom: 12 }}>
@@ -335,7 +335,7 @@ export function InboxContactScreen({
               setConfirmOpen(true)
             }}
           >
-            Excluir contacto
+            Excluir contato
           </Button>
         </section>
       ) : null}

@@ -61,7 +61,7 @@ export function ServicesList({ tenantId, snap }: ListProps) {
                 <strong>{svc.name}</strong>
                 <span>
                   {svc.durationMinutes}+{svc.bufferMinutes} min ·{' '}
-                  {svc.active ? 'Activo' : 'Inactivo'}
+                  {svc.active ? 'Ativo' : 'Inativo'}
                 </span>
               </span>
             </Button>
@@ -249,7 +249,7 @@ export function ServiceForm({
             }}
           >
             {p.name}
-            {!p.active ? ' (inactiva)' : ''}
+            {!p.active ? ' (inativa)' : ''}
           </Checkbox>
         ))}
         {professionals.length === 0 ? (
@@ -388,7 +388,7 @@ export function ServiceForm({
       </p>
 
       <Checkbox className="clinic-check clinic-check-card" isSelected={active} onChange={setActive}>
-        Serviço activo
+        Serviço ativo
       </Checkbox>
       <p className="clinic-footnote">Desactivar não apaga compromissos já marcados.</p>
 

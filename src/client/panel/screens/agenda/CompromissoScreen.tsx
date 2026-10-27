@@ -77,7 +77,7 @@ export function CompromissoScreen({
     void load()
   }, [load])
 
-  if (!detail && !error) return <LoadingState label="A carregar compromisso…" />
+  if (!detail && !error) return <LoadingState label="Carregando compromisso…" />
   if (error && !detail) {
     return (
       <ErrorState
@@ -122,16 +122,16 @@ export function CompromissoScreen({
         setPaidSignal(result.charge)
         setMode('view')
         if (disposition === 'retain') {
-          setMessage('Compromisso cancelado. Sinal retido (decisão registada).')
+          setMessage('Compromisso cancelado. Sinal retido (decisão registrada).')
         } else if (result.refundConfirmed) {
           setMessage('Compromisso cancelado. Sinal devolvido.')
         } else if (result.uncertain) {
           setMessage(
-            'Compromisso cancelado. Estorno solicitado — ainda não confirmado como devolvido.',
+            'Compromisso cancelado. Pedido de devolução do sinal enviado; o dinheiro ainda não voltou para a cliente.',
           )
         } else {
           setMessage(
-            'Compromisso cancelado. Estorno em curso (reserva já libertada).',
+            'Compromisso cancelado. Devolução do sinal em andamento. O horário já ficou livre.',
           )
         }
       } else {
@@ -147,7 +147,7 @@ export function CompromissoScreen({
         )
         setDetail(updated)
         setMode('view')
-        setMessage('Compromisso cancelado. Recursos libertados.')
+        setMessage('Compromisso cancelado. Recursos liberados.')
       }
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Falha ao cancelar')
@@ -178,12 +178,12 @@ export function CompromissoScreen({
       } else {
         setMessage(
           result.charge.status === 'refund_failed'
-            ? 'Estorno falhou de novo.'
-            : 'Estorno solicitado.',
+            ? 'A devolução não deu certo de novo.'
+            : 'Pedido de devolução enviado.',
         )
       }
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Falha no estorno')
+      setMessage(err instanceof Error ? err.message : 'Não foi possível devolver o sinal')
     } finally {
       setBusy(false)
     }
@@ -236,9 +236,9 @@ export function CompromissoScreen({
               {paidSignal.status === 'refunded'
                 ? 'Devolvido'
                 : paidSignal.status === 'refund_requested'
-                  ? 'Estorno solicitado'
+                  ? 'Devolução pedida'
                   : paidSignal.status === 'refund_failed'
-                    ? 'Estorno falhou'
+                    ? 'A devolução não deu certo'
                     : paidSignal.signalDisposition === 'retain'
                       ? 'Retido'
                       : 'Pago'}

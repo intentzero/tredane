@@ -32,7 +32,7 @@ function Frame({
   )
 }
 
-export function LoadingState({ label = 'A carregar…' }: { label?: string }) {
+export function LoadingState({ label = 'Carregando…' }: { label?: string }) {
   return (
     <div className="panel-status" role="status" aria-live="polite" aria-busy="true">
       <LoaderCircle className="panel-spin" aria-hidden="true" size={28} strokeWidth={2} />

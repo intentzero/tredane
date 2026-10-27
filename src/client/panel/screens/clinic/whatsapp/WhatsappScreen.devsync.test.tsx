@@ -1,6 +1,6 @@
 /**
  * STAGING-ONLY dev-sync no WhatsappScreen (main): só staging + dono; mesma API e
- * mensagens do ecrã /clinica/whatsapp/dev-sync; esconde em 404 not_found.
+ * mensagens do tela /clinica/whatsapp/dev-sync; esconde em 404 not_found.
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'

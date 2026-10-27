@@ -69,7 +69,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
   const step = view === 'week' ? 7 : 1
   const title = view === 'week' ? 'Agenda da semana' : 'Agenda do dia'
 
-  if (loading && !data) return <LoadingState label="A carregar agenda…" />
+  if (loading && !data) return <LoadingState label="Carregando agenda…" />
   if (error && !data) {
     return (
       <ErrorState

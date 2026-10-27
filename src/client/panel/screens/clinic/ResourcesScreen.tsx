@@ -63,7 +63,7 @@ export function ResourcesList({ tenantId, snap }: ListProps) {
               <span className="clinic-nav-copy">
                 <strong>{r.name}</strong>
                 <span>
-                  {r.active ? 'Activo' : 'Inactivo'}
+                  {r.active ? 'Ativo' : 'Inativo'}
                   {r.category ? ` · ${r.category}` : ''}
                   {r.futureAppointmentCount > 0
                     ? ` · ${r.futureAppointmentCount} futuros`
@@ -148,7 +148,7 @@ export function ResourceForm({
       const notes: string[] = []
       if (row.servicesWithoutResource && row.servicesWithoutResource.length > 0) {
         notes.push(
-          'Alguns serviços ficaram sem recurso activo nesta categoria e deixam de oferecer novos horários. Compromissos futuros permanecem.',
+          'Alguns serviços ficaram sem recurso ativo nesta categoria e deixam de oferecer novos horários. Compromissos futuros permanecem.',
         )
       }
       if (row.futureAppointmentCount > 0 && !active) {
@@ -194,7 +194,7 @@ export function ResourceForm({
 
       {kind === 'professional' ? (
         <p className="clinic-footnote">
-          A profissional não tem login nem convite no painel (DEC-013).
+          A profissional não precisa de acesso ao painel: quem usa o painel é a equipe da clínica.
         </p>
       ) : (
         <>
@@ -221,7 +221,7 @@ export function ResourceForm({
       )}
 
       <Checkbox className="clinic-check clinic-check-card" isSelected={active} onChange={setActive}>
-        {kind === 'professional' ? 'Profissional activa' : 'Recurso activo'}
+        {kind === 'professional' ? 'Profissional ativa' : 'Recurso ativo'}
       </Checkbox>
       <p className="clinic-footnote">
         Desactivar retira de novos agendamentos e mantém o histórico. Compromissos futuros

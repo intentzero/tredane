@@ -191,7 +191,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
             <span>
               <span className="panel-switch-label">Nova conversa</span>
               <span className="panel-muted-sm">
-                Quando um contacto escreve pela primeira vez
+                Quando um contato escreve pela primeira vez
               </span>
             </span>
             <input
@@ -205,7 +205,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
           <label className="panel-switch-row panel-switch-row--proposed">
             <span>
               <span className="panel-switch-label">Conversa atribuída a mim</span>
-              <span className="panel-muted-sm">Proposto (Q-UX-05) — ainda não activo</span>
+              <span className="panel-muted-sm">Em breve</span>
             </span>
             <input
               type="checkbox"
@@ -218,7 +218,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
           <label className="panel-switch-row panel-switch-row--proposed">
             <span>
               <span className="panel-switch-label">Mensagem não enviada</span>
-              <span className="panel-muted-sm">Proposto (Q-UX-05) — ainda não activo</span>
+              <span className="panel-muted-sm">Em breve</span>
             </span>
             <input
               type="checkbox"
@@ -230,7 +230,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
           </label>
           <label className="panel-switch-row panel-switch-row--proposed">
             <span>
-              <span className="panel-switch-label">Resposta de contacto</span>
+              <span className="panel-switch-label">Resposta de contato</span>
               <span className="panel-muted-sm">Proposto (Q-UX-05) — desligado por omissão</span>
             </span>
             <input
@@ -238,7 +238,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
               className="panel-checkbox"
               checked={false}
               disabled
-              aria-label="Resposta de contacto (proposta)"
+              aria-label="Resposta de contato (proposta)"
             />
           </label>
         </section>

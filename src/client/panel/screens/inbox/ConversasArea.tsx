@@ -15,7 +15,7 @@ type Props = {
 }
 
 /**
- * Área Conversas (#29): lista partilhada, thread e ficha do contacto.
+ * Área Conversas (#29): lista partilhada, thread e ficha do contato.
  * Sem Acompanhamento (#30) nem webhooks WhatsApp (F3).
  */
 export function ConversasArea({
@@ -46,10 +46,10 @@ export function ConversasArea({
   }, [api, status.phase, generation])
 
   if (!api || status.phase !== 'ready') {
-    return <LoadingState label="A preparar sessão…" />
+    return <LoadingState label="Preparando sessão…" />
   }
   if (!viewerId) {
-    return <LoadingState label="A identificar utilizador…" />
+    return <LoadingState label="Identificando você…" />
   }
 
   if (section === 'thread' && conversationId) {
@@ -80,8 +80,8 @@ export function ConversasArea({
     if (!resolvedContactId) {
       return (
         <ErrorState
-          title="Contacto em falta"
-          description="Não foi possível abrir as informações do contacto."
+          title="Contato em falta"
+          description="Não foi possível abrir as informações do contato."
         />
       )
     }
@@ -145,9 +145,9 @@ function ContactViaConversation({
   }, [api, tenantId, conversationId, generation])
 
   if (error) {
-    return <ErrorState title="Contacto indisponível" description={error} />
+    return <ErrorState title="Contato indisponível" description={error} />
   }
-  if (!contactId) return <LoadingState label="A abrir contacto…" />
+  if (!contactId) return <LoadingState label="Abrindo contato…" />
   return (
     <InboxContactScreen
       tenantId={tenantId}

@@ -19,7 +19,7 @@ type Props = {
   generation: number
   mode: 'main' | 'trocar' | 'desconectar'
   clinicName: string
-  /** Papel na clínica activa; o botão de staging dev-sync só aparece ao dono. */
+  /** Papel na clínica ativa; o botão de staging dev-sync só aparece ao dono. */
   isOwner?: boolean
 }
 
@@ -45,7 +45,7 @@ async function runEmbeddedSignup(
     throw new PanelApiError(
       501,
       'unknown',
-      'Embedded Signup live requer META_APP_ID/CONFIG no dashboard Meta (gate #18)',
+      'A conexão com o WhatsApp ainda não está liberada para esta clínica. Fale com o suporte do Tredane.',
     )
   }
 
@@ -89,7 +89,7 @@ export function WhatsappScreen({
   const [confirmName, setConfirmName] = useState('')
   const [replaceAck, setReplaceAck] = useState(false)
 
-  // STAGING-ONLY (dono): mesma acção do ecrã /clinica/whatsapp/dev-sync.
+  // STAGING-ONLY (dono): mesma acção do tela /clinica/whatsapp/dev-sync.
   const devSync =
     isOwner && isStagingHostname() ? (
       <section aria-labelledby="wa-devsync" className="whatsapp-dev-sync-section">
@@ -108,7 +108,7 @@ export function WhatsappScreen({
     ) : null
 
   if (loading && !conn) {
-    return <LoadingState label="A carregar conexão WhatsApp…" />
+    return <LoadingState label="Carregando conexão WhatsApp…" />
   }
   if (error && !conn) {
     return (
@@ -120,7 +120,7 @@ export function WhatsappScreen({
       />
     )
   }
-  if (!conn) return <LoadingState label="A carregar conexão WhatsApp…" />
+  if (!conn) return <LoadingState label="Carregando conexão WhatsApp…" />
 
   async function onConnect(purpose: WhatsappSignupPurpose) {
     setBusy(true)
@@ -213,8 +213,8 @@ export function WhatsappScreen({
         <section className="clinic-banner" aria-labelledby="wa-disc-title">
           <h2 id="wa-disc-title">Desconectar WhatsApp</h2>
           <p>
-            A clínica deixa de receber e enviar mensagens. Conversas, contactos e
-            agenda são mantidos. É preciso conectar de novo para voltar a atender.
+            A clínica deixa de receber e enviar mensagens. Conversas, contatos e
+            agenda continuam salvos. Para voltar a atender, é preciso conectar de novo.
           </p>
         </section>
         <TextField className="clinic-field">
@@ -277,10 +277,10 @@ export function WhatsappScreen({
         <section className="clinic-banner" aria-labelledby="wa-swap-title">
           <h2 id="wa-swap-title">Trocar número</h2>
           <ul className="whatsapp-bullets">
-            <li>Conversas, contactos e agenda ficam nesta clínica.</li>
-            <li>O número actual deixa de rotear mensagens para o Tredane.</li>
-            <li>Contactos precisam escrever ao número novo.</li>
-            <li>Modelos precisam de nova aprovação na Meta.</li>
+            <li>Conversas, contatos e agenda ficam nesta clínica.</li>
+            <li>O número atual para de receber mensagens no Tredane.</li>
+            <li>As clientes precisam escrever para o número novo.</li>
+            <li>Os modelos de mensagem precisam ser aprovados de novo.</li>
           </ul>
         </section>
         <label className="clinic-check">
@@ -301,7 +301,7 @@ export function WhatsappScreen({
           isDisabled={busy || !replaceAck}
           onPress={() => void onConnect('replace')}
         >
-          Continuar para a Meta
+          Continuar no Facebook
         </Button>
       </div>
     )
@@ -329,19 +329,19 @@ export function WhatsappScreen({
         <section className="clinic-banner" aria-labelledby="wa-disc">
           <h2 id="wa-disc">Conectar WhatsApp</h2>
           <p>
-            O responsável liga a conta e o número da clínica pelo Embedded Signup
-            oficial da Meta. O Tredane actua como Tech Provider (DEC-009). Tokens
-            nunca aparecem neste ecrã.
+            Conecte o WhatsApp da clínica. Você vai entrar com a conta do Facebook
+            que administra a clínica e escolher o número. O Tredane não vê a sua
+            senha.
           </p>
           <ol className="whatsapp-steps">
-            <li>Abrir a janela da Meta com a conta Business da clínica.</li>
-            <li>Escolher ou criar o número oficial.</li>
-            <li>Confirmar a associação — o backend valida estado e unicidade.</li>
+            <li>Entre com o Facebook da clínica.</li>
+            <li>Escolha o número de WhatsApp.</li>
+            <li>Confirme. As mensagens começam a chegar aqui.</li>
           </ol>
         </section>
         {conn.metaMode === 'synthetic' ? (
           <p className="clinic-footnote" role="status">
-            Ambiente de teste: o fluxo usa fixtures Meta (sem WABA de produção).
+            Ambiente de testes: esta conexão é simulada e não usa um número real.
           </p>
         ) : null}
         {actionError ? (
@@ -384,7 +384,7 @@ export function WhatsappScreen({
           aria-labelledby="wa-int"
           role="alert"
         >
-          <h2 id="wa-int">Conexão interrompida</h2>
+          <h2 id="wa-int">O WhatsApp parou de funcionar</h2>
           <p>
             {conn.interruptReason ?? 'A Meta deixou de aceitar o acesso.'}
             {conn.interruptedAt
@@ -392,8 +392,8 @@ export function WhatsappScreen({
               : ''}
           </p>
           <p>
-            Enquanto estiver desconectado, envios aparecem como «Não enviada». O
-            histórico é mantido. Ao reconectar, nada é reenviado automaticamente.
+            Enquanto estiver desconectado, as respostas ficam como “Não enviada”. O
+            histórico continua salvo. Ao reconectar, nada é reenviado sozinho.
           </p>
         </section>
         {actionError ? (
@@ -439,9 +439,8 @@ export function WhatsappScreen({
           {conn.displayName ? ` · ${conn.displayName}` : ''}
         </p>
         <p className="clinic-footnote">
-          Ligado por {conn.connectedByClerkUserId ?? '—'} em{' '}
-          {formatWhen(conn.connectedAt)}. Última mensagem recebida:{' '}
-          {formatWhen(conn.lastInboundAt)}.
+          Conectado em {formatWhen(conn.connectedAt)}. Última mensagem recebida:{' '}
+          {conn.lastInboundAt ? formatWhen(conn.lastInboundAt) : 'nenhuma ainda'}.
         </p>
       </section>
 
@@ -451,8 +450,7 @@ export function WhatsappScreen({
         </h3>
         {conn.messageTemplates.length === 0 ? (
           <p className="clinic-footnote">
-            Nenhum modelo listado ainda — aprovação Meta é gate do piloto (#18 /
-            GATE-10).
+            Nenhum modelo aprovado ainda. Modelos servem para falar com a cliente depois de 24 horas sem resposta. A Meta aprova cada um e isso pode levar alguns dias.
           </p>
         ) : (
           <ul className="whatsapp-tpl-list">
@@ -500,7 +498,7 @@ export function WhatsappScreen({
           isDisabled={busy}
           onPress={() => void onSimulateInterrupt()}
         >
-          Simular interrupção (teste)
+          [Teste] Simular queda do WhatsApp
         </Button>
       ) : null}
 
@@ -560,7 +558,7 @@ export function WhatsappInterruptBanner({
   return (
     <div className="whatsapp-global-banner" role="alert">
       <div>
-        <strong>WhatsApp interrompido</strong>
+        <strong>WhatsApp desconectado</strong>
         <span>
           {conn.interruptReason ?? 'Sem acesso à Meta'}
           {conn.interruptedAt ? ` · ${formatWhen(conn.interruptedAt)}` : ''}
@@ -581,7 +579,7 @@ export function WhatsappInterruptBanner({
           Reconectar
         </Button>
       ) : (
-        <span className="clinic-footnote">Peça ao responsável para reconectar</span>
+        <span className="clinic-footnote">Avise o responsável pela clínica</span>
       )}
     </div>
   )
