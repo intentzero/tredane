@@ -23,6 +23,7 @@ import {
 } from '../pix/webhook-receipts'
 import type { AdminDb } from '../db/admin/store'
 import {
+  getWebhookReceiptById,
   markWebhookReceiptFailed,
   markWebhookReceiptProcessed,
 } from './webhook-receipts'
@@ -84,7 +85,7 @@ function clinicFromEnv(env: WorkerBindings, tenantId: string) {
   return env.CLINIC.get(id)
 }
 
-async function processWhatsappMessage(
+export async function processWhatsappMessage(
   deps: QueueConsumerDeps,
   msg: WhatsappWebhookQueueMessage,
   attempts: number,
@@ -486,9 +487,36 @@ export async function handleInboundQueueBatch(
       continue
     }
 
+    if (body.inlineFallback && (await receiptAlreadyProcessed(deps, body.receiptId))) {
+      log({
+        level: 'info',
+        event: 'queue.inline_fallback_skip',
+        detail: { receiptId: body.receiptId, tenantId: body.tenantId, kind: body.kind },
+      })
+      message.ack()
+      continue
+    }
+
     const outcome = await processWhatsappMessage(deps, body, attempts)
     if (outcome === 'ack') message.ack()
     else message.retry()
+  }
+}
+
+/** Fallback de webhook já processado inline → não reprocessar. */
+async function receiptAlreadyProcessed(
+  deps: QueueConsumerDeps,
+  receiptId: string,
+): Promise<boolean> {
+  try {
+    if (deps.syncAdminDb) {
+      return getWebhookReceiptById(deps.syncAdminDb, receiptId)?.processingState === 'processed'
+    }
+    const ops = deps.webhookOps ?? createD1WebhookOps(deps.env.DB, deps.clock ?? systemClock)
+    return (await ops.getReceiptById(receiptId))?.processingState === 'processed'
+  } catch {
+    // Na dúvida processa: ingest é idempotente por wamid (dedup no DO).
+    return false
   }
 }
 

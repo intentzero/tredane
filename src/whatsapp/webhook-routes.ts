@@ -23,8 +23,35 @@ import {
   type WebhookVerifyEnv,
 } from './webhook-verify'
 import type { WhatsappWebhookQueueMessage } from './queue-types'
+import { processWhatsappMessage } from './queue-consumer'
+
+/** Atraso da cópia de fallback na fila quando o webhook é processado inline. */
+export const INBOUND_INLINE_FALLBACK_DELAY_S = 15
+
+function executionWaitUntil(c: {
+  executionCtx: { waitUntil(p: Promise<unknown>): void }
+}): ((p: Promise<unknown>) => void) | null {
+  try {
+    const ctx = c.executionCtx
+    return (p) => ctx.waitUntil(p)
+  } catch {
+    return null
+  }
+}
+
+async function defaultInlineProcess(
+  env: WorkerBindings,
+  message: WhatsappWebhookQueueMessage,
+): Promise<'ack' | 'retry'> {
+  return processWhatsappMessage({ env }, message, 1)
+}
 
 export type WhatsappWebhookRouteOptions = {
+  /** Testes: substitui o processamento inline (DO). */
+  inlineProcess?: (
+    env: WorkerBindings,
+    message: WhatsappWebhookQueueMessage,
+  ) => Promise<'ack' | 'retry'>
   syncAdminDbFactory?: (env: WorkerBindings | undefined) => AdminDb | null
   clockFactory?: () => Clock
   queueFactory?: (
@@ -86,23 +113,76 @@ export function createWhatsappWebhookRoutes(opts: WhatsappWebhookRouteOptions = 
       ? storeFromAdminDb(syncDb, clock)
       : storeFromD1Ops(createD1WebhookOps(c.env.DB, clock))
 
+    // Processamento inline (no próprio pedido, via waitUntil) + cópia atrasada na
+    // fila como fallback. Só quando há ExecutionContext e a fila não é injetada.
+    const waitUntil = opts.queueFactory ? null : executionWaitUntil(c)
+    const inline: WhatsappWebhookQueueMessage[] = []
     const queue = opts.queueFactory?.(c.env) ?? {
       send: async (message: WhatsappWebhookQueueMessage) => {
         if (!c.env?.INBOUND_EVENTS) throw new Error('queue_unbound')
+        if (waitUntil) {
+          const fallback = { ...message, inlineFallback: true }
+          await c.env.INBOUND_EVENTS.send(fallback, {
+            delaySeconds: INBOUND_INLINE_FALLBACK_DELAY_S,
+          })
+          inline.push(fallback)
+          return
+        }
         await c.env.INBOUND_EVENTS.send(message)
       },
     }
 
+    const log = opts.logFactory?.(c.env) ?? defaultLog
     const result = await ingestWhatsappWebhook(
       {
         store,
         clock,
         queue,
         env: verifyEnv(c.env),
-        log: opts.logFactory?.(c.env) ?? defaultLog,
+        log,
       },
       { rawBody, signatureHeader: signature },
     )
+
+    if (waitUntil && inline.length > 0) {
+      const env = c.env
+      waitUntil(
+        (async () => {
+          for (const message of inline) {
+            const started = clock.nowMs()
+            try {
+              const outcome = await (opts.inlineProcess ?? defaultInlineProcess)(env, message)
+              log({
+                level: 'info',
+                event: 'webhook.inline_processed',
+                detail: {
+                  receiptId: message.receiptId,
+                  tenantId: message.tenantId,
+                  kind: message.kind,
+                  outcome,
+                  inlineMs: clock.nowMs() - started,
+                  sinceProviderMs:
+                    typeof message.providerTimestamp === 'number'
+                      ? clock.nowMs() - message.providerTimestamp
+                      : null,
+                },
+              })
+            } catch (err) {
+              // Fallback da fila (atrasado) processa; ingest é idempotente por wamid.
+              log({
+                level: 'warn',
+                event: 'webhook.inline_failed',
+                detail: {
+                  receiptId: message.receiptId,
+                  tenantId: message.tenantId,
+                  errorCode: (err instanceof Error ? err.message : 'inline_failed').slice(0, 80),
+                },
+              })
+            }
+          }
+        })(),
+      )
+    }
 
     if (!result.ok) {
       return c.json({ error: result.error }, result.status)

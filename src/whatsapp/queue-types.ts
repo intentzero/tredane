@@ -31,6 +31,11 @@ export type WhatsappWebhookQueueMessage = {
   interruptReason?: string
   /** Synthetic-only: força falha permanente após N tentativas → DLQ. */
   __poison?: boolean
+  /**
+   * Já processada inline no pedido do webhook; esta cópia da fila é só
+   * fallback (atrasada) e é ignorada se o recibo já estiver `processed`.
+   */
+  inlineFallback?: boolean
 }
 
 export type ClinicOutboxQueueMessage = {
