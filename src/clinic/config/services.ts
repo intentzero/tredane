@@ -397,7 +397,7 @@ export function assertResourcesUsableForBooking(
   if (!service || !service.active) {
     throw new ValidationError(
       'service_inactive_or_missing',
-      'serviço inactivo ou inexistente para novos agendamentos',
+      'serviço inativo ou inexistente para novos agendamentos',
       { serviceId: opts.serviceId },
     )
   }
@@ -410,7 +410,7 @@ export function assertResourcesUsableForBooking(
   if (!pro || pro.kind !== 'professional' || pro.active !== 1) {
     throw new ValidationError(
       'professional_unusable',
-      'profissional inactivo ou de outro tenant',
+      'profissional inativo ou de outro tenant',
       { professionalId: opts.professionalId },
     )
   }
@@ -438,7 +438,7 @@ export function assertResourcesUsableForBooking(
     ) {
       throw new ValidationError(
         'room_unusable',
-        'sala/equipamento inactivo ou de outro tenant',
+        'sala/equipamento inativo ou de outro tenant',
         { roomResourceId: opts.roomResourceId },
       )
     }

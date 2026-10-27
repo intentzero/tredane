@@ -50,6 +50,7 @@ export function serializeResource(row: ResourceRow & { servicesWithoutResource?:
     category: row.category,
     active: row.active,
     futureAppointmentCount: row.futureAppointmentCount,
+    hasAppointmentHistory: row.hasAppointmentHistory,
     servicesWithoutResource: row.servicesWithoutResource,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

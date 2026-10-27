@@ -538,6 +538,59 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as ClinicResource
     },
 
+    async listResourceFutureAppointments(
+      tenantId: string,
+      resourceId: string,
+      opts?: FetchOpts,
+    ): Promise<{ resource: ClinicResource; appointments: ResourceFutureAppointment[] }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/resources/${encodeURIComponent(resourceId)}/future-appointments`,
+        { method: 'GET' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        resource: ClinicResource
+        appointments: ResourceFutureAppointment[]
+      }
+    },
+
+    async deactivateResource(
+      tenantId: string,
+      resourceId: string,
+      reassignments: ResourceReassignmentInput[],
+      opts?: FetchOpts,
+    ): Promise<DeactivateResourceResponse> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/resources/${encodeURIComponent(resourceId)}/deactivate`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reassignments }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as DeactivateResourceResponse
+    },
+
+    async deleteResource(
+      tenantId: string,
+      resourceId: string,
+      opts?: FetchOpts,
+    ): Promise<{ ok: true; id: string }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/resources/${encodeURIComponent(resourceId)}`,
+        { method: 'DELETE' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { ok: true; id: string }
+    },
+
     async setWeeklyWindows(
       tenantId: string,
       resourceId: string,
@@ -1717,9 +1770,36 @@ export type ClinicResource = {
   category: string | null
   active: boolean
   futureAppointmentCount: number
+  /** Já teve compromisso (passado ou futuro): só pode ser desativado. */
+  hasAppointmentHistory?: boolean
   servicesWithoutResource?: string[]
   createdAt: number
   updatedAt: number
+}
+
+export type ResourceFutureAppointment = {
+  appointmentId: string
+  serviceId: string
+  serviceName: string | null
+  contactLabel: string | null
+  startsAt: number
+  endsAt: number
+  professionalId: string
+  roomResourceId: string | null
+  version: number
+  candidates: Array<{ id: string; name: string }>
+  suggestedResourceId: string | null
+}
+
+export type ResourceReassignmentInput = {
+  appointmentId: string
+  targetResourceId: string
+  expectedVersion?: number
+}
+
+export type DeactivateResourceResponse = ClinicResource & {
+  reassigned: Array<{ appointmentId: string; fromResourceId: string; toResourceId: string }>
+  keptAppointmentIds: string[]
 }
 
 export type ClinicWeeklyWindow = {

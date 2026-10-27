@@ -48,7 +48,7 @@ export function checkSlotAvailability(
     // IDs de outra clínica / inexistentes — negar sem vazar dados.
     throw new NotFoundError(
       'service_not_found',
-      `serviço ${input.serviceId} não encontrado ou inactivo nesta clínica`,
+      `serviço ${input.serviceId} não encontrado ou inativo nesta clínica`,
     )
   }
 

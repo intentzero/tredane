@@ -1,6 +1,7 @@
 import type { Clock } from '../../db/clock'
 import { NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
+import { resourceHasHistory } from './resource-history'
 import type { ClinicDb } from '../store'
 import type { ResourceRow, UpsertResourceInput } from './types'
 import { assertNonEmptyName, assertResourceKind } from './validation'
@@ -66,6 +67,7 @@ function toResourceRow(
       row.kind,
       nowMs,
     ),
+    hasAppointmentHistory: resourceHasHistory(db, row.tenant_id, row.id),
   }
 }
 

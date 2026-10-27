@@ -13,6 +13,7 @@ import {
 import { isAuthError } from '../auth/errors'
 import {
   ClinicError,
+  ConflictError,
   NotFoundError,
   ValidationError,
   workerCaller,
@@ -59,6 +60,12 @@ function configErrorResponse(
   if (err instanceof NotFoundError) {
     return c.json({ error: err.code, message: err.message }, 404)
   }
+  if (err instanceof ConflictError) {
+    return c.json(
+      { error: err.code, message: err.message, details: err.details ?? null },
+      409,
+    )
+  }
   if (err instanceof ClinicError) {
     const status =
       err.code === 'tenant_mismatch' || err.code === 'unauthorized_caller'
@@ -85,6 +92,10 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     upsertResource: (caller, input) => stub.upsertClinicResource(caller, input),
     setResourceActive: (caller, resourceId, active) =>
       stub.setClinicResourceActive(caller, resourceId, active),
+    listResourceFutureAppointments: (caller, resourceId) =>
+      stub.listClinicResourceFutureAppointments(caller, resourceId),
+    deactivateResource: (caller, input) => stub.deactivateClinicResource(caller, input),
+    deleteResource: (caller, resourceId) => stub.deleteClinicResource(caller, resourceId),
     setWeeklyWindows: (caller, input) => stub.setClinicWeeklyWindows(caller, input),
     createBlock: (caller, input) => stub.createClinicBlock(caller, input),
     deleteBlock: (caller, blockId) => stub.deleteClinicBlock(caller, blockId),
@@ -293,6 +304,84 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
           body.active,
         )
         return c.json(serializeResource(row))
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.get(
+    '/api/tenants/:tenantId/config/resources/:resourceId/future-appointments',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const out = await gw.listResourceFutureAppointments(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          c.req.param('resourceId'),
+        )
+        return c.json({
+          resource: serializeResource(out.resource),
+          appointments: out.appointments,
+        })
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.post(
+    '/api/tenants/:tenantId/config/resources/:resourceId/deactivate',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const body = await c.req
+          .json<{ reassignments?: unknown }>()
+          .catch(() => ({}) as { reassignments?: unknown })
+        const raw = body?.reassignments ?? []
+        if (!Array.isArray(raw)) return c.json({ error: 'invalid_body' }, 400)
+        const reassignments = raw.map((r) => {
+          const item = (r ?? {}) as Record<string, unknown>
+          return {
+            appointmentId: String(item.appointmentId ?? ''),
+            targetResourceId: String(item.targetResourceId ?? ''),
+            expectedVersion:
+              typeof item.expectedVersion === 'number' ? item.expectedVersion : undefined,
+          }
+        })
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const row = await gw.deactivateResource(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          { resourceId: c.req.param('resourceId'), reassignments },
+        )
+        return c.json({
+          ...serializeResource(row),
+          reassigned: row.reassigned,
+          keptAppointmentIds: row.keptAppointmentIds,
+        })
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.delete(
+    '/api/tenants/:tenantId/config/resources/:resourceId',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const out = await gw.deleteResource(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          c.req.param('resourceId'),
+        )
+        return c.json(out)
       } catch (err) {
         return configErrorResponse(c, err)
       }

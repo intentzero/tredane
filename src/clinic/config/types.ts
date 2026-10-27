@@ -37,6 +37,8 @@ export type ResourceRow = {
   createdAt: number
   updatedAt: number
   futureAppointmentCount: number
+  /** Já teve compromisso (passado ou futuro): não pode ser excluído. */
+  hasAppointmentHistory: boolean
 }
 
 export type WeeklyWindowRow = {
