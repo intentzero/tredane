@@ -1007,6 +1007,10 @@ export function InboxThread({
                   className="inbox-composer-input"
                   placeholder="Escreva uma resposta…"
                   rows={1}
+                  autoComplete="off"
+                  data-form-type="other"
+                  data-lpignore="true"
+                  data-1p-ignore
                   onKeyDown={(e) => {
                     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                       e.preventDefault()

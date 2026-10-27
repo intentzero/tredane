@@ -15,6 +15,7 @@ import {
   clearDeferredInstallPrompt,
 } from '../pwa'
 import { navigatePanel } from '../routes'
+import { isSoundEnabled, playMessageSound, setSoundEnabled } from '../sound'
 
 type Props = {
   tenantId: string
@@ -32,6 +33,7 @@ type Status =
 export function AvisosScreen({ tenantId, clinicName }: Props) {
   const { api } = useAuthSession()
   const [notifyNew, setNotifyNew] = useState(true)
+  const [soundOn, setSoundOn] = useState(isSoundEnabled())
   const [status, setStatus] = useState<Status>({ phase: 'idle' })
   const [installed, setInstalled] = useState(isStandaloneDisplay())
   const platform = detectInstallPlatform()
@@ -239,6 +241,31 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
               checked={false}
               disabled
               aria-label="Resposta de contato (proposta)"
+            />
+          </label>
+        </section>
+
+        <section className="panel-card" aria-labelledby="som-t">
+          <h2 id="som-t" className="panel-title-md">
+            Som com o app aberto
+          </h2>
+          <label className="panel-switch-row">
+            <span>
+              <span className="panel-switch-label">Tocar som em mensagem recebida</span>
+              <span className="panel-muted-sm">
+                Vale só neste aparelho. Com o app fechado, o som é o do aviso do celular.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              className="panel-checkbox"
+              checked={soundOn}
+              onChange={(e) => {
+                setSoundOn(e.target.checked)
+                setSoundEnabled(e.target.checked)
+                if (e.target.checked) playMessageSound()
+              }}
+              aria-label="Tocar som em mensagem recebida"
             />
           </label>
         </section>
