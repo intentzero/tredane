@@ -13,8 +13,8 @@ export const AI_MAX_OUTPUT_TOKENS_REPLY = 512
 export const AI_MAX_OUTPUT_TOKENS_SUMMARY = 256
 
 /** Modelo rápido para resumo; mais capaz para sugestão — **Proposto** (ADR-0004). */
-export const AI_MODEL_REPLY_PROPOSED = 'claude-sonnet-4-5'
-export const AI_MODEL_SUMMARY_PROPOSED = 'claude-haiku-4-5'
+export const AI_MODEL_REPLY_PROPOSED = 'claude-sonnet-5-5'
+export const AI_MODEL_SUMMARY_PROPOSED = 'claude-haiku-5-5'
 
 export const AI_PROVIDER_ANTHROPIC = 'anthropic'
 export const AI_PROVIDER_SYNTHETIC = 'synthetic'
