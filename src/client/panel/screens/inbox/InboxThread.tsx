@@ -1,5 +1,5 @@
 import { ChevronLeft, CircleAlert, Sparkles } from 'lucide-react'
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { eventConversationId, useInboxRealtime } from '../../realtime/InboxRealtime'
 import {
   Button,
@@ -146,6 +146,9 @@ export function InboxThread({
     null,
   )
   const composerId = useId()
+  const timelineRef = useRef<HTMLDivElement>(null)
+  const stickToBottomRef = useRef(true)
+  const scrolledConversationRef = useRef<string | null>(null)
 
   async function load(opts?: { quiet?: boolean }) {
     const quiet = opts?.quiet === true
@@ -210,6 +213,27 @@ export function InboxThread({
   useEffect(() => {
     void load()
   }, [tenantId, conversationId, generation])
+
+  // Como no WhatsApp: ao abrir, vai para a última mensagem; depois, mensagem
+  // nova rola até ela se a pessoa já estava no fim ou se foi ela quem enviou.
+  // Quem subiu para ler o histórico não é puxado de volta.
+  const lastMessage = detail?.messages[detail.messages.length - 1]
+  const lastMessageId = lastMessage?.id
+  const lastMessageOutbound = lastMessage?.direction === 'outbound'
+  useEffect(() => {
+    const el = timelineRef.current
+    if (!el || !lastMessageId) return
+    const opened = scrolledConversationRef.current !== conversationId
+    scrolledConversationRef.current = conversationId
+    if (!opened && !stickToBottomRef.current && !lastMessageOutbound) return
+    const smooth =
+      !opened &&
+      typeof el.scrollTo === 'function' &&
+      !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    else el.scrollTop = el.scrollHeight
+    stickToBottomRef.current = true
+  }, [conversationId, lastMessageId, lastMessageOutbound])
 
   // Tempo real: (re)ligação/aba visível ou evento desta conversa → refetch
   // silencioso. O rascunho (estado local) e o scroll não são tocados.
@@ -716,7 +740,16 @@ export function InboxThread({
         </div>
       ) : null}
 
-      <div className="inbox-timeline" aria-live="polite">
+      <div
+        className="inbox-timeline"
+        aria-live="polite"
+        ref={timelineRef}
+        onScroll={(e) => {
+          const el = e.currentTarget
+          stickToBottomRef.current =
+            el.scrollHeight - el.scrollTop - el.clientHeight < 80
+        }}
+      >
         {detail.messagesHasMore ? (
           <p className="inbox-timeline-more">Há mensagens mais antigas no histórico.</p>
         ) : null}
