@@ -1,3 +1,4 @@
+import { countUnreadConversations } from '../clinic/inbox/conversations'
 import { isDevelopmentEnv } from '../security/env-gate'
 import { DurableObject } from 'cloudflare:workers'
 import {
@@ -109,6 +110,7 @@ import {
   getLastEventSeq,
   listRealtimeEventsAfter,
   parseClientMessage,
+  activeViewerUserIds,
   setTenantSuspendedFence,
   WORKER_WS_ASSERTION,
   WS_INTERNAL_HEADERS,
@@ -449,6 +451,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     createdConversation: boolean
     /** #43 — wa_id tombstoned; sem recriação de contacto. */
     suppressedTombstone: boolean
+    /** Push: utilizadores com a app aberta e visível (não recebem push). */
+    activeViewerUserIds: string[]
+    /** Push: conversas com não lidas (badge do ícone). */
+    unreadConversations: number
   }> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -493,6 +499,27 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       fanout: fanoutResult,
       createdConversation,
       suppressedTombstone: result.suppressedTombstone,
+      activeViewerUserIds: result.duplicate ? [] : this.#activeViewerUserIds(),
+      unreadConversations: result.duplicate
+        ? 0
+        : countUnreadConversations(this.#db, caller.tenantId),
+    }
+  }
+
+  #activeViewerUserIds(): string[] {
+    try {
+      return activeViewerUserIds(
+        this.ctx.getWebSockets().map((ws) => {
+          try {
+            return ws.deserializeAttachment() as SocketAttachment | null
+          } catch {
+            return null
+          }
+        }),
+        this.#clock.nowMs(),
+      )
+    } catch {
+      return []
     }
   }
 
@@ -2290,6 +2317,16 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const parsed = parseClientMessage(text)
     if (parsed?.type === 'ping') {
       ws.send(JSON.stringify({ v: 1, type: 'pong' }))
+      return
+    }
+    if (parsed?.type === 'presence') {
+      if (attachment && 'clerkUserId' in attachment) {
+        ws.serializeAttachment({
+          ...attachment,
+          visible: parsed.visible,
+          presenceAt: this.#clock.nowMs(),
+        } satisfies SocketAttachment)
+      }
       return
     }
 

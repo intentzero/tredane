@@ -8,6 +8,8 @@ export {
   reduceConnectionUiState,
   encodeServerMessage,
   parseClientMessage,
+  activeViewerUserIds,
+  PRESENCE_TTL_MS,
   type ConnectionUiState,
   type SocketAttachment,
   type ServerMessage,

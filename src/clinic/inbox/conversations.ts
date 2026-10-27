@@ -367,7 +367,17 @@ export function countInboxFilters(
     `SELECT COUNT(*) AS n FROM conversations WHERE tenant_id = ? AND status = 'closed'`,
     tenantId,
   )?.n ?? 0
-  return { all, new: neu, mine, unassigned, closed }
+  return { all, new: neu, mine, unassigned, closed, unread: countUnreadConversations(db, tenantId) }
+}
+
+/** Nº de conversas com não lidas — badge do ícone (sem conteúdo). */
+export function countUnreadConversations(db: ClinicDb, tenantId: string): number {
+  return (
+    db.get<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM conversations WHERE tenant_id = ? AND unread_count > 0`,
+      tenantId,
+    )?.n ?? 0
+  )
 }
 
 export function getConversationWithContact(

@@ -62,6 +62,26 @@ export type SocketAttachment = {
   /** Epoch local do fence no momento do accept. */
   authEpoch: number
   connectedAt: number
+  /** Presença: página visível reportada pelo cliente (supressão de push). */
+  visible?: boolean
+  /** Último report de presença (ms). Expira — iOS suspende sem fechar o WS. */
+  presenceAt?: number
+}
+
+/** Janela em que um report `visible` conta como «app aberta» (heartbeat 25 s). */
+export const PRESENCE_TTL_MS = 70_000
+
+/** clerkUserIds com app aberta e visível nesta clínica (report recente). */
+export function activeViewerUserIds(
+  attachments: Array<SocketAttachment | null | undefined>,
+  nowMs: number,
+): string[] {
+  const out = new Set<string>()
+  for (const a of attachments) {
+    if (!a || !a.clerkUserId || a.visible !== true || typeof a.presenceAt !== 'number') continue
+    if (nowMs - a.presenceAt <= PRESENCE_TTL_MS) out.add(a.clerkUserId)
+  }
+  return [...out]
 }
 
 export type HelloMessage = {
@@ -111,7 +131,13 @@ export type ClientPingMessage = {
   type: 'ping'
 }
 
-export type ClientMessage = ClientPingMessage
+export type ClientPresenceMessage = {
+  v: typeof REALTIME_PROTOCOL_VERSION
+  type: 'presence'
+  visible: boolean
+}
+
+export type ClientMessage = ClientPingMessage | ClientPresenceMessage
 
 export function encodeServerMessage(msg: ServerMessage): string {
   return JSON.stringify(msg)
@@ -122,6 +148,9 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     const data = JSON.parse(raw) as { v?: unknown; type?: unknown }
     if (data.v !== REALTIME_PROTOCOL_VERSION) return null
     if (data.type === 'ping') return { v: 1, type: 'ping' }
+    if (data.type === 'presence') {
+      return { v: 1, type: 'presence', visible: (data as { visible?: unknown }).visible === true }
+    }
     return null
   } catch {
     return null

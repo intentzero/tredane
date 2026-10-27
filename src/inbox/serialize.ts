@@ -86,5 +86,6 @@ export function serializeCounts(c: InboxCounts) {
     mine: c.mine,
     unassigned: c.unassigned,
     closed: c.closed,
+    unread: c.unread ?? 0,
   }
 }

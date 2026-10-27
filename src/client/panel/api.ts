@@ -1468,6 +1468,8 @@ export type InboxCounts = {
   new: number
   mine: number
   unassigned: number
+  /** Conversas com não lidas (badge). */
+  unread?: number
   closed: number
 }
 
