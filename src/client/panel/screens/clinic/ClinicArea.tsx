@@ -23,6 +23,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   const { snap, error, loading, reload } = useClinicConfig(api, tenantId, generation)
   const clinicName =
     active.phase === 'ready' ? active.context.name : tenantId
+  const isOwner = active.phase === 'ready' && active.context.role === 'owner'
 
   if (section === 'whatsapp-dev-sync') {
     if (!api) return <LoadingState label="A carregar…" />
@@ -50,6 +51,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         generation={generation}
         mode={mode}
         clinicName={clinicName}
+        isOwner={isOwner}
       />
     )
   }
