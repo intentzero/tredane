@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { PanelApiError, type PanelApi } from '../api'
+import { applyAppBadge } from '../badge'
 import { installSoundUnlock, maybePlayInboundSound } from '../sound'
 import {
   buildInboxWsUrl,
@@ -81,7 +82,28 @@ export function InboxRealtimeProvider({
         }
       }
     }
+    // Badge do ícone: refetch leve (limit=1 → counts.unread), coalescido.
+    let badgeTimer: ReturnType<typeof setTimeout> | null = null
+    let badgeStopped = false
+    const refreshBadge = () => {
+      if (typeof api.listInboxConversations !== 'function') return
+      if (badgeTimer) clearTimeout(badgeTimer)
+      badgeTimer = setTimeout(() => {
+        badgeTimer = null
+        api
+          .listInboxConversations(tenantId, { limit: 1 })
+          .then((res) => {
+            if (!badgeStopped && typeof res?.counts?.unread === 'number') {
+              applyAppBadge(res.counts.unread)
+            }
+          })
+          .catch(() => undefined)
+      }, 400)
+    }
+    const isVisible = () =>
+      typeof document === 'undefined' || document.visibilityState === 'visible'
     const conn = createRealtimeConnection({
+      getVisible: isVisible,
       getUrl: async () => {
         try {
           const { ticket } = await api.getRealtimeTicket(tenantId, {
@@ -104,14 +126,22 @@ export function InboxRealtimeProvider({
             maybePlayInboundSound(event)
           }
           emit({ kind: 'event', event })
+          refreshBadge()
         }
       },
-      onResync: (reason) => emit({ kind: 'resync', reason }),
+      onResync: (reason) => {
+        emit({ kind: 'resync', reason })
+        refreshBadge()
+      },
       onStateChange: setState,
     })
     conn.start()
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') conn.notifyVisible()
+      conn.sendPresence()
+      if (document.visibilityState === 'visible') {
+        conn.notifyVisible()
+        refreshBadge()
+      }
     }
     const onOnline = () => conn.notifyVisible()
     document.addEventListener('visibilitychange', onVisibility)
@@ -120,6 +150,8 @@ export function InboxRealtimeProvider({
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('online', onOnline)
       removeSoundUnlock()
+      badgeStopped = true
+      if (badgeTimer) clearTimeout(badgeTimer)
       conn.stop()
     }
   }, [api, tenantId, generation])

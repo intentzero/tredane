@@ -18,6 +18,8 @@ export async function maybeNotifyNewConversationPush(input: {
   createdConversation: boolean
   /** Mensagem nova (não duplicada por wamid) numa conversa já existente. */
   newMessage?: boolean
+  badgeCount?: number
+  suppressUserIds?: readonly string[]
   log?: (entry: {
     level: 'info' | 'warn' | 'error'
     event: string
@@ -37,12 +39,20 @@ export async function maybeNotifyNewConversationPush(input: {
     if (input.syncAdminDb) {
       await notifyNewConversation(
         { db: input.syncAdminDb, clock: input.clock, vapid },
-        { tenantId: input.tenantId, conversationId: input.conversationId, kind },
+        { tenantId: input.tenantId, conversationId: input.conversationId,
+          kind,
+          badgeCount: input.badgeCount,
+          suppressUserIds: input.suppressUserIds,
+        },
       )
     } else {
       await notifyNewConversationAsync(
         { db: fromD1(input.env.DB), clock: input.clock, vapid },
-        { tenantId: input.tenantId, conversationId: input.conversationId, kind },
+        { tenantId: input.tenantId, conversationId: input.conversationId,
+          kind,
+          badgeCount: input.badgeCount,
+          suppressUserIds: input.suppressUserIds,
+        },
       )
     }
     input.log?.({

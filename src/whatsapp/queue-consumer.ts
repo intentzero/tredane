@@ -170,8 +170,11 @@ export async function processWhatsappMessage(
             messageId?: string | null
             conversationId?: string | null
             duplicate?: boolean
+            activeViewerUserIds?: string[]
+            unreadConversations?: number
           }
           return {
+            ...row,
             duplicate: row.duplicate,
             messageId: row.messageId ?? null,
             conversationId: row.conversationId ?? null,
@@ -225,6 +228,8 @@ export async function processWhatsappMessage(
           conversationId: mediaOutcome.conversationId,
           createdConversation: Boolean(mediaOutcome.createdConversation),
           newMessage: Boolean(mediaOutcome.newMessage),
+          badgeCount: mediaOutcome.badgeCount,
+          suppressUserIds: mediaOutcome.suppressUserIds,
           log,
           receiptId: msg.receiptId,
         })
@@ -270,6 +275,8 @@ export async function processWhatsappMessage(
           conversationId: ingested.conversationId,
           createdConversation: Boolean(ingested.createdConversation),
           newMessage: isNewMessage,
+          badgeCount: ingested.unreadConversations,
+          suppressUserIds: ingested.activeViewerUserIds,
           log,
           receiptId: msg.receiptId,
         })

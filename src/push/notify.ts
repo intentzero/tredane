@@ -63,6 +63,10 @@ export async function notifyNewConversation(
     tenantName?: string
     /** Default: nova conversa. `new_message` = mensagem nova em conversa existente. */
     kind?: 'new_conversation' | 'new_message'
+    /** Badge do ícone (conversas com não lidas). */
+    badgeCount?: number
+    /** Utilizadores com a app aberta e visível — não recebem push. */
+    suppressUserIds?: readonly string[]
   },
 ): Promise<NotifyNewConversationResult> {
   const tenant = getTenant(deps.db, input.tenantId)
@@ -75,6 +79,9 @@ export async function notifyNewConversation(
     tenantName: input.tenantName ?? tenant.name,
     conversationId: input.conversationId,
   })
+  if (typeof input.badgeCount === 'number' && input.badgeCount >= 0) {
+    payload.badgeCount = Math.floor(input.badgeCount)
+  }
   assertSafePushPayload(payload)
 
   const vapid = deps.vapid ?? resolveVapidConfig({})
@@ -90,6 +97,7 @@ export async function notifyNewConversation(
     clock: deps.clock,
     tenantId: input.tenantId,
     conversationId: input.conversationId,
+    suppressUserIds: input.suppressUserIds,
     isAuthorized: (clerkUserId) => {
       const membership = getMembership(deps.db, input.tenantId, clerkUserId)
       return Boolean(membership && membership.status === 'active')
@@ -111,6 +119,10 @@ export async function notifyNewConversationAsync(
     tenantName?: string
     /** Default: nova conversa. `new_message` = mensagem nova em conversa existente. */
     kind?: 'new_conversation' | 'new_message'
+    /** Badge do ícone (conversas com não lidas). */
+    badgeCount?: number
+    /** Utilizadores com a app aberta e visível — não recebem push. */
+    suppressUserIds?: readonly string[]
   },
 ): Promise<NotifyNewConversationResult> {
   let tenantName = input.tenantName ?? deps.tenantName
@@ -133,6 +145,9 @@ export async function notifyNewConversationAsync(
     tenantName: tenantName!,
     conversationId: input.conversationId,
   })
+  if (typeof input.badgeCount === 'number' && input.badgeCount >= 0) {
+    payload.badgeCount = Math.floor(input.badgeCount)
+  }
   assertSafePushPayload(payload)
 
   const vapid = deps.vapid ?? resolveVapidConfig({})
@@ -149,6 +164,7 @@ export async function notifyNewConversationAsync(
     clock: deps.clock,
     tenantId: input.tenantId,
     conversationId: input.conversationId,
+    suppressUserIds: input.suppressUserIds,
     isAuthorized: async (clerkUserId) => {
       const membership = await deps.db.get<{ status: string }>(
         `SELECT status FROM tenant_memberships
@@ -189,6 +205,7 @@ async function deliverToSubs(input: {
   clock: Clock
   tenantId: string
   conversationId: string
+  suppressUserIds?: readonly string[]
   isAuthorized: (clerkUserId: string) => boolean | Promise<boolean>
   removeSub: (id: string) => void | Promise<void>
 }): Promise<NotifyNewConversationResult> {
@@ -198,7 +215,11 @@ async function deliverToSubs(input: {
   let failed = 0
   const records: PushSendRecord[] = []
 
+  const suppressed = new Set(input.suppressUserIds ?? [])
   for (const sub of input.subs) {
+    // App aberta e visível neste utilizador: sem push (nem silencioso — iOS
+    // exige notificação visível por push). O WS já atualiza o ecrã.
+    if (suppressed.has(sub.clerkUserId)) continue
     const authorized = await input.isAuthorized(sub.clerkUserId)
     if (!authorized) {
       await input.removeSub(sub.id)

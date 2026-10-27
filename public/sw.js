@@ -1,7 +1,7 @@
 /* Tredane service worker (#42 / DEC-040).
  * Cache só de assets estáticos locais — nunca /api/* nem respostas autenticadas.
  */
-const CACHE_VERSION = 'tredane-pwa-v4'
+const CACHE_VERSION = 'tredane-pwa-v5'
 const PRECACHE = [
   '/manifest.webmanifest',
   '/icons/icon-192.png',
@@ -99,6 +99,10 @@ self.addEventListener('push', (event) => {
         body: typeof parsed.body === 'string' ? parsed.body : data.body,
         url: typeof parsed.url === 'string' ? parsed.url : data.url,
         tag: typeof parsed.tag === 'string' ? parsed.tag : data.tag,
+        badgeCount:
+          typeof parsed.badgeCount === 'number' && parsed.badgeCount >= 0
+            ? Math.floor(parsed.badgeCount)
+            : undefined,
       }
     }
   } catch {
@@ -108,18 +112,39 @@ self.addEventListener('push', (event) => {
   // Tag por conversa (`conversation:<tenant>:<conversa>`): avisos repetidos da
   // mesma conversa substituem o anterior em vez de empilhar. Não suprimimos o
   // aviso quando a conversa está aberta: no iOS cada push TEM de mostrar uma
-  // notificação, senão o Safari pode revogar a inscrição.
+  // notificação, senão o Safari pode revogar a inscrição. A supressão «app
+  // aberta» é feita no servidor (presença via WebSocket): nem chega push.
   event.waitUntil(
-    self.registration.showNotification(data.title, {
+    Promise.all([
+      updateAppBadge(data.badgeCount),
+      self.registration.showNotification(data.title, {
       body: data.body,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       tag: data.tag,
       data: { url: data.url },
       renotify: true,
-    }),
+      }),
+    ]),
   )
 })
+
+/** Badging API (iOS 16.4+ PWA instalada com permissão de notificações). */
+function updateAppBadge(count) {
+  try {
+    const nav = self.navigator
+    if (typeof count !== 'number' || !nav) return Promise.resolve()
+    if (count > 0 && typeof nav.setAppBadge === 'function') {
+      return nav.setAppBadge(count).catch(() => undefined)
+    }
+    if (count === 0 && typeof nav.clearAppBadge === 'function') {
+      return nav.clearAppBadge().catch(() => undefined)
+    }
+  } catch {
+    /* sem suporte */
+  }
+  return Promise.resolve()
+}
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()

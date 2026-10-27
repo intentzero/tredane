@@ -36,6 +36,8 @@ export type NewConversationPushPayload = {
   tenantId: string
   conversationId: string
   kind: 'new_conversation' | 'new_message'
+  /** Nº de conversas com não lidas (badge do ícone). Só um número. */
+  badgeCount?: number
 }
 
 export type PushSendRecord = {

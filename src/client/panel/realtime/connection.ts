@@ -46,6 +46,11 @@ export type RealtimeConnectionOptions = {
   maxDelayMs?: number
   /** Heartbeat app-level (o DO responde `ping`→`pong` sem acordar). */
   heartbeatMs?: number
+  /**
+   * Presença (supressão de push no servidor): se definido, o heartbeat e o
+   * hello enviam `{type:'presence', visible}` em vez de `ping`.
+   */
+  getVisible?: () => boolean
 }
 
 export const REALTIME_BASE_DELAY_MS = 1_000
@@ -78,9 +83,15 @@ export function buildInboxWsUrl(
   return `${scheme}//${loc.host}/api/tenants/${encodeURIComponent(tenantId)}/ws?ticket=${encodeURIComponent(ticket)}`
 }
 
+export function presenceFrame(visible: boolean): string {
+  return JSON.stringify({ v: 1, type: 'presence', visible })
+}
+
 export type RealtimeConnection = {
   start(): void
   stop(): void
+  /** Reporta visibilidade já (visibilitychange). */
+  sendPresence(): void
   /** Aba voltou a ficar visível: refetch e, se caída, religa já. */
   notifyVisible(): void
   readonly state: RealtimeState
@@ -134,7 +145,7 @@ export function createRealtimeConnection(opts: RealtimeConnectionOptions): Realt
       heartbeatTimer = null
       if (myToken !== token || !socket) return
       try {
-        socket.send('ping')
+        socket.send(opts.getVisible ? presenceFrame(opts.getVisible()) : 'ping')
       } catch {
         /* close tratará */
       }
@@ -214,6 +225,13 @@ export function createRealtimeConnection(opts: RealtimeConnectionOptions): Realt
         attempt = 0
         setState('live')
         scheduleHeartbeat(myToken)
+        if (opts.getVisible) {
+          try {
+            s.send(presenceFrame(opts.getVisible()))
+          } catch {
+            /* close tratará */
+          }
+        }
         opts.onResync(reconnected ? 'reconnected' : 'connected')
         return
       }
@@ -253,6 +271,14 @@ export function createRealtimeConnection(opts: RealtimeConnectionOptions): Realt
       clearRetry()
       dropSocket()
       setState('closed')
+    },
+    sendPresence() {
+      if (!opts.getVisible || !socket || state !== 'live') return
+      try {
+        socket.send(presenceFrame(opts.getVisible()))
+      } catch {
+        /* ignore */
+      }
     },
     notifyVisible() {
       if (stopped || state === 'access_revoked') return

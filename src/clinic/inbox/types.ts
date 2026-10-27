@@ -142,4 +142,6 @@ export type InboxCounts = {
   mine: number
   unassigned: number
   closed: number
+  /** Conversas com mensagens não lidas (badge do ícone da app). */
+  unread: number
 }
