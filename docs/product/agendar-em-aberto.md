@@ -59,3 +59,10 @@ Opções: mostrar sala em cada horário (spec atual, ux-ui.md tabela «Lista de 
 ## DEC-057 — Horários ocupados em tempo real
 
 Opções: polling (15 s, atual); evento WebSocket `appointment.*` invalidando a grade; ambos. **Recomendação:** WebSocket com polling de reserva. **Bloqueia:** o critério «marcado como indisponível imediatamente» de ux-ui.md; até decidir mantém-se polling + recheque antes de confirmar.
+
+## DEC-058 — Texto da cobrança Pix editável
+
+- **Evidência:** `createPixCharge` não recebe texto; a mensagem do sinal é montada no servidor. O prazo real é `DEFAULT_SIGNAL_DEADLINE_SECONDS` = 2 h (`src/pix/money.ts`), configurável por clínica.
+- **Opções:** (a) manter texto fixo do servidor; (b) aceitar texto editável na API com o código Pix sempre anexado.
+- **Recomendação:** (a) no MVP. **Decisor:** Paulo. **Bloqueia:** só se a clínica pedir personalizar a cobrança.
+- **Staging:** texto fixo; a tela informa que a mensagem com o Pix é enviada pelo Tredane.
