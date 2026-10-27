@@ -434,6 +434,25 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as ClinicConfigSnapshot['settings']
     },
 
+    async setClinicAiProfile(
+      tenantId: string,
+      body: { clinicAddress: string; reschedulePolicy: string },
+      opts?: FetchOpts,
+    ): Promise<ClinicConfigSnapshot['settings']> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/ai-assist`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicConfigSnapshot['settings']
+    },
+
     async updatePixSignalSettings(
       tenantId: string,
       body: { deadlineSeconds?: number; cancellationPolicy?: string },
@@ -1357,6 +1376,35 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as AiSuggestResponse
     },
 
+    async getAiDraft(
+      tenantId: string,
+      conversationId: string,
+      opts?: FetchOpts,
+    ): Promise<AiDraftState> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/conversations/${encodeURIComponent(conversationId)}/ai/draft`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AiDraftState
+    },
+
+    async getAiStatus(
+      tenantId: string,
+      opts?: FetchOpts,
+    ): Promise<{ mode: string; syntheticFallback: boolean; usage: AiDailyUsage | null }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/ai/status`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { mode: string; syntheticFallback: boolean; usage: AiDailyUsage | null }
+    },
+
     async summarizeAiConversation(
       tenantId: string,
       conversationId: string,
@@ -1561,6 +1609,9 @@ export type InboxMessage = {
   authorClerkUserId: string | null
   authorDisplayName: string | null
   createdAt: number
+  /** Mensagem da cliente lida pela equipa («Lida por Ana · 17:40»). */
+  readByDisplayName?: string | null
+  readAt?: number | null
 }
 
 /** Sugestão IA assistiva (#41) — nunca é mensagem enviada sem clique humano. */
@@ -1585,6 +1636,27 @@ export type AiSuggestion = {
   errorCode: string | null
   createdAt: number
   messageSent: false
+  /** Mensagem a que responde (rascunho automático). */
+  replyToMessageId?: string | null
+  origin?: 'manual' | 'auto'
+  /** Notas internas para a atendente — nunca entram no texto a enviar. */
+  internalNotes?: string | null
+}
+
+export type AiDailyUsage = {
+  day: string
+  drafts: number
+  cap: number
+  capReached: boolean
+  capReachedAt: number | null
+}
+
+export type AiDraftState = {
+  job: { state: 'queued' | 'generating'; messageId: string; dueAt: number } | null
+  suggestion: AiSuggestion | null
+  usage?: AiDailyUsage | null
+  syntheticFallback?: boolean
+  mode?: string
 }
 
 export type AiSuggestResponse = {
@@ -1842,6 +1914,8 @@ export type ClinicConfigSnapshot = {
     signalCancellationPolicy?: string
     /** Opt-in de IA da clínica (default false). */
     aiAssistEnabled?: boolean
+    clinicAddress?: string | null
+    reschedulePolicy?: string | null
     updatedAt: number
   }
   services: ClinicService[]
