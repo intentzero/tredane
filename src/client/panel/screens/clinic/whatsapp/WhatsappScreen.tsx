@@ -14,6 +14,7 @@ import { connectedByLabel, formatPhone, formatWhen, historyLabel } from './forma
 import { useWhatsapp } from './useWhatsapp'
 import { isStagingHostname, WhatsappDevSyncAction } from './WhatsappDevSyncAction'
 import { friendlyError, friendlyReason } from '../../../copy/errors'
+import { Banner } from '../../../states/Banner'
 
 type Props = {
   tenantId: string
@@ -221,13 +222,12 @@ export function WhatsappScreen({
             Voltar
           </Button>
         </header>
-        <section className="clinic-banner" aria-labelledby="wa-disc-title">
-          <h2 id="wa-disc-title">Desconectar WhatsApp</h2>
+        <Banner tone="warn" title="Desconectar WhatsApp">
           <p>
             A clínica deixa de receber e enviar mensagens. Conversas, contatos e
             agenda continuam salvos. Para voltar a atender, é preciso conectar de novo.
           </p>
-        </section>
+        </Banner>
         <TextField className="clinic-field">
           <Label>Digite o nome da clínica para confirmar</Label>
           <Input
@@ -285,15 +285,14 @@ export function WhatsappScreen({
             Voltar
           </Button>
         </header>
-        <section className="clinic-banner" aria-labelledby="wa-swap-title">
-          <h2 id="wa-swap-title">Trocar número</h2>
+        <Banner tone="info" title="Trocar número">
           <ul className="whatsapp-bullets">
             <li>Conversas, contatos e agenda ficam nesta clínica.</li>
             <li>O número atual para de receber mensagens no Tredane.</li>
             <li>As clientes precisam escrever para o número novo.</li>
             <li>Os modelos de mensagem precisam ser aprovados de novo.</li>
           </ul>
-        </section>
+        </Banner>
         <label className="clinic-check">
           <input
             type="checkbox"
@@ -337,8 +336,7 @@ export function WhatsappScreen({
             Clínica
           </Button>
         </header>
-        <section className="clinic-banner" aria-labelledby="wa-disc">
-          <h2 id="wa-disc">Conectar WhatsApp</h2>
+        <Banner tone="info" title="Conectar WhatsApp">
           <p>
             Conecte o WhatsApp da clínica. Você vai entrar com a conta do Facebook
             que administra a clínica e escolher o número. O Tredane não vê a sua
@@ -349,7 +347,7 @@ export function WhatsappScreen({
             <li>Escolha o número de WhatsApp.</li>
             <li>Confirme. As mensagens começam a chegar aqui.</li>
           </ol>
-        </section>
+        </Banner>
         {conn.metaMode === 'synthetic' ? (
           <TestOnly note="Esta conexão é simulada e não usa um número real." />
         ) : null}
@@ -388,12 +386,7 @@ export function WhatsappScreen({
             Clínica
           </Button>
         </header>
-        <section
-          className="clinic-banner clinic-banner-warn"
-          aria-labelledby="wa-int"
-          role="alert"
-        >
-          <h2 id="wa-int">O WhatsApp parou de funcionar</h2>
+        <Banner tone="error" title="O WhatsApp parou de funcionar">
           <p>
             {conn.interruptedAt
               ? `Desde ${formatWhen(conn.interruptedAt)}, as mensagens não estão chegando nem saindo.`
@@ -412,7 +405,7 @@ export function WhatsappScreen({
               <code>{conn.interruptReason}</code>
             </details>
           ) : null}
-        </section>
+        </Banner>
         {actionError ? (
           <p className="clinic-footnote clinic-footnote-warn" role="alert">
             {actionError}
@@ -449,8 +442,7 @@ export function WhatsappScreen({
           Clínica
         </Button>
       </header>
-      <section className="clinic-banner clinic-banner-ok" aria-labelledby="wa-ok">
-        <h2 id="wa-ok">WhatsApp conectado</h2>
+      <Banner tone="ok" title="WhatsApp conectado">
         <p>
           <strong>{formatPhone(conn.displayPhone)}</strong>
           {conn.displayName ? ` · ${conn.displayName}` : ''}
@@ -460,7 +452,7 @@ export function WhatsappScreen({
           {formatWhen(conn.connectedAt)}. Última mensagem recebida:{' '}
           {conn.lastInboundAt ? formatWhen(conn.lastInboundAt) : 'nenhuma ainda'}.
         </p>
-      </section>
+      </Banner>
 
       <section aria-labelledby="wa-tpl">
         <h3 id="wa-tpl" className="whatsapp-subhead">

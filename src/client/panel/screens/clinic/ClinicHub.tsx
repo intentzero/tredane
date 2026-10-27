@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import { Button } from 'react-aria-components'
 import type { ClinicConfigSnapshot } from '../../api'
 import { navigatePanel } from '../../routes'
+import { Banner } from '../../states/Banner'
 
 type Props = {
   tenantId: string
@@ -27,23 +28,24 @@ export function ClinicHub({ tenantId, snap }: Props) {
   return (
     <div className="clinic-stack">
       {stepsLeft > 0 ? (
-        <section className="clinic-banner" aria-labelledby="clinic-pending">
-          <h2 id="clinic-pending">
-            {stepsLeft === 1
+        <Banner
+          tone="warn"
+          title={
+            stepsLeft === 1
               ? 'Falta 1 passo para atender'
-              : `Faltam ${stepsLeft} passos para atender`}
-          </h2>
+              : `Faltam ${stepsLeft} passos para atender`
+          }
+        >
           <p>
             {readiness.agendaConfigured
               ? 'Conecte o WhatsApp da clínica para receber conversas. A agenda já está pronta para marcar horários.'
               : 'Cadastre serviços, profissionais, salas e horários de atendimento para começar a marcar horários.'}
           </p>
-        </section>
+        </Banner>
       ) : (
-        <section className="clinic-banner clinic-banner-ok" aria-labelledby="clinic-ready">
-          <h2 id="clinic-ready">Pronta para atender</h2>
+        <Banner tone="ok" title="Pronta para atender">
           <p>Agenda e WhatsApp configurados.</p>
-        </section>
+        </Banner>
       )}
 
       <ul className="clinic-nav-list">

@@ -9,6 +9,7 @@ import { PanelApiError } from '../../../api'
 import { navigatePanel } from '../../../routes'
 import { ErrorState, LoadingState } from '../../../states/StatusScreens'
 import { friendlyError } from '../../../copy/errors'
+import { Banner } from '../../../states/Banner'
 
 type Props = {
   tenantId: string
@@ -170,13 +171,12 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
         </Button>
       </div>
 
-      <section className="clinic-banner" aria-labelledby="pix-account-title">
-        <h2 id="pix-account-title">Recebimento de sinais</h2>
+      <Banner tone="info" title="Recebimento de sinais">
         <p>
           O Tredane cria a cobrança Pix na conta da clínica e{' '}
           <strong>não</strong> recebe nem repassa o dinheiro. O provedor é a Woovi.
         </p>
-      </section>
+      </Banner>
 
       <section className="clinic-stack" aria-labelledby="pix-status">
         <h3 id="pix-status">{statusLabel(snap.account.status)}</h3>

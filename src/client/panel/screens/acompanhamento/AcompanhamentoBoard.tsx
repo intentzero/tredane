@@ -9,7 +9,7 @@ import type {
 } from '../../api'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
-import { EmptyState, ErrorState, LoadingState } from '../../states/StatusScreens'
+import { EmptyState, ErrorState } from '../../states/StatusScreens'
 import { TestOnly } from '../../states/TestOnly'
 import {
   STAGE_ORDER,
@@ -20,6 +20,7 @@ import {
 } from './format'
 import { MoveSheet } from './MoveSheet'
 import { friendlyError } from '../../copy/errors'
+import { ListSkeleton } from '../../states/ListSkeleton'
 
 type Props = {
   tenantId: string
@@ -107,7 +108,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
   }
 
   if (loading && !items) {
-    return <LoadingState label="Carregando acompanhamento…" />
+    return <ListSkeleton label="Carregando acompanhamento…" />
   }
 
   if (error && !items) {
@@ -142,7 +143,8 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
           <TabList className="panel-tabs" aria-label="Etapas">
             {STAGE_ORDER.map((id) => (
               <Tab key={id} id={id} className="panel-chip">
-                {STAGE_TAB_LABELS[id]} · {countMap.get(id) ?? 0}
+                {STAGE_TAB_LABELS[id]}
+                <span className="panel-chip-count">{countMap.get(id) ?? 0}</span>
               </Tab>
             ))}
           </TabList>
