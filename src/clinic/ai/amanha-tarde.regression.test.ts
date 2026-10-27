@@ -191,7 +191,7 @@ describe('regressão «Amanhã na parte da tarde» (staging 27/10/2026)', () => 
       expect(system).toMatch(/"mensagem"/)
       expect(system).toMatch(/sem markdown/)
       expect(bodies[0]!.model).toBe('claude-haiku-5-5')
-      expect(bodies[0]!.temperature).toBe(0.4)
+      expect(bodies[0]!.temperature).toBeUndefined()
     } finally {
       close()
     }

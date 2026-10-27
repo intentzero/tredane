@@ -4306,15 +4306,62 @@
   padding: 0;
 }
 
+/* O shell limita .panel-app a 960px (width) / 1200px (max-width). Com 3
+ * colunas isso deixava ~80px para a conversa: as laterais ficavam no máximo
+ * e o 1fr com mínimo 0 encolhia até sobrar uma letra por linha. */
 .panel-app:has(.conversas-3col) {
+  width: 100%;
   max-width: none;
 }
 
 .conversas-3col {
+  --conversas-thread-min: 380px;
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(260px, 320px);
+  /* Até 1279px: lista · conversa; o contato abre numa gaveta. */
+  grid-template-columns: minmax(240px, 300px) minmax(var(--conversas-thread-min), 1fr);
   flex: 1;
   min-height: 0;
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .conversas-3col:not(.conversas-3col--drawer) {
+    --conversas-thread-min: 400px;
+    grid-template-columns:
+      minmax(240px, 300px) minmax(var(--conversas-thread-min), 1fr) minmax(260px, 320px);
+  }
+}
+
+.conversas-3col--drawer .conversas-3col-contact {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 90%);
+  z-index: 20;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 12%);
+}
+
+.conversas-contact-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 19;
+  background: rgb(0 0 0 / 18%);
+}
+
+.conversas-contact-toggle {
+  align-self: flex-end;
+  margin: var(--space-2) var(--space-3) 0;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  border: var(--size-border-width) solid var(--color-line-border);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  cursor: pointer;
 }
 
 .conversas-3col-list,
