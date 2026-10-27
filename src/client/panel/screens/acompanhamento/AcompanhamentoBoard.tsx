@@ -10,6 +10,7 @@ import type {
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
 import { EmptyState, ErrorState, LoadingState } from '../../states/StatusScreens'
+import { TestOnly } from '../../states/TestOnly'
 import {
   STAGE_ORDER,
   STAGE_TAB_LABELS,
@@ -156,12 +157,21 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
 
       <div className="panel-scroll-sm acomp-list" role="tabpanel">
         {list.length === 0 ? (
-          <EmptyState
-            title="Ninguém nesta etapa agora"
-            description="Os contatos aparecem aqui conforme o atendimento avança."
-            actionLabel={seeding ? 'Carregando…' : '[Teste] Criar exemplos'}
-            onAction={seeding ? undefined : () => void seedDemo()}
-          />
+          <>
+            <EmptyState
+              title="Ninguém nesta etapa agora"
+              description="Os contatos aparecem aqui conforme o atendimento avança."
+            />
+            <TestOnly note="Cria contatos de exemplo nesta clínica de teste.">
+              <Button
+                className="panel-btn-secondary"
+                isDisabled={seeding}
+                onPress={() => void seedDemo()}
+              >
+                {seeding ? 'Criando…' : 'Criar contatos de exemplo'}
+              </Button>
+            </TestOnly>
+          </>
         ) : (
           list.map((card) => {
             const name = contactLabel(card.contact.displayName, card.contact.waId)

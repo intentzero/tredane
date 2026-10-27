@@ -8,6 +8,7 @@ import type { PanelApi, WhatsappConnection, WhatsappSignupPurpose } from '../../
 import { PanelApiError } from '../../../api'
 import { navigatePanel } from '../../../routes'
 import { ErrorState, LoadingState } from '../../../states/StatusScreens'
+import { TestOnly } from '../../../states/TestOnly'
 import { useTenant } from '../../../tenant/TenantContext'
 import { connectedByLabel, formatPhone, formatWhen, historyLabel } from './format'
 import { useWhatsapp } from './useWhatsapp'
@@ -350,9 +351,7 @@ export function WhatsappScreen({
           </ol>
         </section>
         {conn.metaMode === 'synthetic' ? (
-          <p className="clinic-footnote" role="status">
-            Ambiente de testes: esta conexão é simulada e não usa um número real.
-          </p>
+          <TestOnly note="Esta conexão é simulada e não usa um número real." />
         ) : null}
         {actionError ? (
           <p className="clinic-footnote clinic-footnote-warn" role="alert">
@@ -512,13 +511,15 @@ export function WhatsappScreen({
       </div>
 
       {conn.metaMode === 'synthetic' ? (
-        <Button
-          className="panel-btn-ghost"
-          isDisabled={busy}
-          onPress={() => void onSimulateInterrupt()}
-        >
-          [Teste] Simular queda do WhatsApp
-        </Button>
+        <TestOnly note="Simula a queda do WhatsApp para ver como a tela fica.">
+          <Button
+            className="panel-btn-secondary"
+            isDisabled={busy}
+            onPress={() => void onSimulateInterrupt()}
+          >
+            Simular queda do WhatsApp
+          </Button>
+        </TestOnly>
       ) : null}
 
       {actionError ? (

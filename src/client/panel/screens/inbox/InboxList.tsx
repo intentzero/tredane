@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Button, Input, SearchField } from 'react-aria-components'
 import type { InboxConversation, InboxCounts, InboxFilter, PanelApi } from '../../api'
 import { navigatePanel } from '../../routes'
+import { TestOnly } from '../../states/TestOnly'
 import { EmptyState, ErrorState, LoadingState } from '../../states/StatusScreens'
 import {
   assigneeLine,
@@ -136,23 +137,36 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
       </div>
 
       {list.length === 0 ? (
-        <EmptyState
-          title={emptyAll ? 'Nenhuma conversa ainda' : 'Nenhuma conversa neste filtro'}
-          description={
-            emptyAll
-              ? 'Quando uma cliente mandar mensagem para o WhatsApp da clínica, ela aparece aqui.'
-              : 'Escolha outro filtro ou limpe a busca.'
-          }
-          actionLabel={emptyAll ? (seeding ? 'Carregando…' : '[Teste] Criar conversas de exemplo') : 'Limpar filtro'}
-          onAction={
-            emptyAll
-              ? () => void seedDemo()
-              : () => {
-                  setFilter('all')
-                  setQ('')
-                }
-          }
-        />
+        <>
+          <EmptyState
+            title={emptyAll ? 'Nenhuma conversa ainda' : 'Nenhuma conversa neste filtro'}
+            description={
+              emptyAll
+                ? 'Quando uma cliente mandar mensagem para o WhatsApp da clínica, ela aparece aqui.'
+                : 'Escolha outro filtro ou limpe a busca.'
+            }
+            actionLabel={emptyAll ? undefined : 'Limpar filtro'}
+            onAction={
+              emptyAll
+                ? undefined
+                : () => {
+                    setFilter('all')
+                    setQ('')
+                  }
+            }
+          />
+          {emptyAll ? (
+            <TestOnly note="Cria conversas de exemplo nesta clínica de teste.">
+              <Button
+                className="panel-btn-secondary"
+                isDisabled={seeding}
+                onPress={() => void seedDemo()}
+              >
+                {seeding ? 'Criando…' : 'Criar conversas de exemplo'}
+              </Button>
+            </TestOnly>
+          ) : null}
+        </>
       ) : (
         <ul className="inbox-list">
           {list.map((c) => {
