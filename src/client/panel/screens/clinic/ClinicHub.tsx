@@ -1,180 +1,140 @@
-import { ChevronRight } from 'lucide-react'
-import { Button } from 'react-aria-components'
+import {
+  Clock,
+  DoorOpen,
+  ListChecks,
+  MessageCircle,
+  Users,
+  Wallet,
+} from 'lucide-react'
 import type { ClinicConfigSnapshot } from '../../api'
-import { navigatePanel } from '../../routes'
+import { navigatePanel, type ClinicaSection } from '../../routes'
+import { Banner } from '../../states/Banner'
+import { NavRow } from './NavRow'
 
 type Props = {
   tenantId: string
   snap: ClinicConfigSnapshot
 }
 
-function statusLabel(ok: boolean): { text: string; className: string } {
-  return ok
-    ? { text: 'Pronto', className: 'clinic-status-ok' }
-    : { text: 'Falta configurar', className: 'clinic-status-warn' }
-}
-
 export function ClinicHub({ tenantId, snap }: Props) {
   const { readiness } = snap
-  const pending = readiness.missing.filter((m) => m !== 'whatsapp')
-  const stepsLeft = pending.length + (readiness.missing.includes('whatsapp') ? 1 : 0)
+  const go = (section: ClinicaSection) => () =>
+    navigatePanel({ kind: 'area', area: 'clinica', tenantId, section })
 
   const servicesOk = readiness.counts.servicesActive > 0
   const resourcesOk =
     readiness.counts.professionalsActive > 0 && readiness.counts.roomsActive > 0
   const hoursOk = !readiness.missing.includes('weekly_availability')
+  const whatsappOk = !readiness.missing.includes('whatsapp')
+
+  // Quatro etapas para começar a atender; a barra e o título usam a mesma conta.
+  const steps = [
+    { label: 'Serviços', ok: servicesOk },
+    { label: 'Profissionais e salas', ok: resourcesOk },
+    { label: 'Horários e bloqueios', ok: hoursOk },
+    { label: 'WhatsApp', ok: whatsappOk },
+  ]
+  const done = steps.filter((s) => s.ok).length
+  const stepsLeft = steps.length - done
+  const next = steps.find((s) => !s.ok)
+
+  const services = readiness.counts.servicesActive
 
   return (
     <div className="clinic-stack">
       {stepsLeft > 0 ? (
-        <section className="clinic-banner" aria-labelledby="clinic-pending">
-          <h2 id="clinic-pending">
-            {stepsLeft === 1
+        <Banner
+          tone="warn"
+          title={
+            stepsLeft === 1
               ? 'Falta 1 passo para atender'
-              : `Faltam ${stepsLeft} passos para atender`}
-          </h2>
+              : `Faltam ${stepsLeft} passos para atender`
+          }
+        >
           <p>
             {readiness.agendaConfigured
               ? 'Conecte o WhatsApp da clínica para receber conversas. A agenda já está pronta para marcar horários.'
               : 'Cadastre serviços, profissionais, salas e horários de atendimento para começar a marcar horários.'}
           </p>
-        </section>
+          <div
+            className="panel-progress"
+            role="progressbar"
+            aria-label="Etapas prontas"
+            aria-valuemin={0}
+            aria-valuemax={steps.length}
+            aria-valuenow={done}
+            aria-valuetext={`${done} de ${steps.length} etapas prontas`}
+          >
+            <i style={{ width: `${(done / steps.length) * 100}%` }} />
+          </div>
+          <p className="panel-progress-label">
+            {done} de {steps.length} etapas prontas
+            {next ? ` · Próxima: ${next.label}` : ''}
+          </p>
+        </Banner>
       ) : (
-        <section className="clinic-banner clinic-banner-ok" aria-labelledby="clinic-ready">
-          <h2 id="clinic-ready">Pronta para atender</h2>
+        <Banner tone="ok" title="Pronta para atender">
           <p>Agenda e WhatsApp configurados.</p>
-        </section>
+        </Banner>
       )}
 
       <ul className="clinic-nav-list">
         <li>
-          <Button
-            className="clinic-nav-row"
-            onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'clinica',
-                tenantId,
-                section: 'servicos',
-              })
+          <NavRow
+            icon={ListChecks}
+            title="Serviços"
+            detail={
+              services === 0
+                ? 'Nenhum serviço cadastrado'
+                : `${services} ${services === 1 ? 'serviço ativo' : 'serviços ativos'}`
             }
-          >
-            <span className="clinic-nav-copy">
-              <strong>Serviços</strong>
-              <span>
-                {readiness.counts.servicesActive === 0
-                  ? 'Nenhum serviço cadastrado'
-                  : `${readiness.counts.servicesActive} ${readiness.counts.servicesActive === 1 ? 'serviço ativo' : 'serviços ativos'}`}
-              </span>
-            </span>
-            <span className={statusLabel(servicesOk).className}>
-              {statusLabel(servicesOk).text}
-            </span>
-            <ChevronRight aria-hidden size={18} />
-          </Button>
+            state={servicesOk ? 'ok' : 'todo'}
+            onPress={go('servicos')}
+          />
         </li>
         <li>
-          <Button
-            className="clinic-nav-row"
-            onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'clinica',
-                tenantId,
-                section: 'recursos',
-              })
-            }
-          >
-            <span className="clinic-nav-copy">
-              <strong>Profissionais e salas</strong>
-              <span>
-                {readiness.counts.professionalsActive} profissionais ·{' '}
-                {readiness.counts.roomsActive} salas e equipamentos
-              </span>
-            </span>
-            <span className={statusLabel(resourcesOk).className}>
-              {statusLabel(resourcesOk).text}
-            </span>
-            <ChevronRight aria-hidden size={18} />
-          </Button>
+          <NavRow
+            icon={DoorOpen}
+            title="Profissionais e salas"
+            detail={`${readiness.counts.professionalsActive} profissionais · ${readiness.counts.roomsActive} salas e equipamentos`}
+            state={resourcesOk ? 'ok' : 'todo'}
+            onPress={go('recursos')}
+          />
         </li>
         <li>
-          <Button
-            className="clinic-nav-row"
-            onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'clinica',
-                tenantId,
-                section: 'horarios',
-              })
-            }
-          >
-            <span className="clinic-nav-copy">
-              <strong>Horários e bloqueios</strong>
-              <span>Dias e horários de atendimento, folgas e bloqueios</span>
-            </span>
-            <span className={statusLabel(hoursOk).className}>
-              {statusLabel(hoursOk).text}
-            </span>
-            <ChevronRight aria-hidden size={18} />
-          </Button>
+          <NavRow
+            icon={Clock}
+            title="Horários e bloqueios"
+            detail="Dias e horários de atendimento, folgas e bloqueios"
+            state={hoursOk ? 'ok' : 'todo'}
+            onPress={go('horarios')}
+          />
         </li>
         <li>
-          <div className="clinic-nav-row clinic-nav-row-static">
-            <span className="clinic-nav-copy">
-              <strong>Equipe</strong>
-              <span>Convidar recepcionistas · em breve</span>
-            </span>
-            <ChevronRight aria-hidden size={18} />
-          </div>
+          <NavRow
+            icon={MessageCircle}
+            title="WhatsApp"
+            detail="Número de WhatsApp da clínica"
+            state={whatsappOk ? 'ok' : 'todo'}
+            onPress={go('whatsapp')}
+          />
         </li>
         <li>
-          <Button
-            className="clinic-nav-row"
-            onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'clinica',
-                tenantId,
-                section: 'whatsapp',
-              })
-            }
-          >
-            <span className="clinic-nav-copy">
-              <strong>WhatsApp</strong>
-              <span>Número de WhatsApp da clínica</span>
-            </span>
-            <span
-              className={
-                statusLabel(!readiness.missing.includes('whatsapp')).className
-              }
-            >
-              {readiness.missing.includes('whatsapp')
-                ? 'Falta conectar'
-                : 'Pronto'}
-            </span>
-            <ChevronRight aria-hidden size={18} />
-          </Button>
+          <NavRow
+            icon={Wallet}
+            title="Recebimento de sinais"
+            detail="Conta Pix, prazo e regras do sinal"
+            state="neutral"
+            onPress={go('recebimento')}
+          />
         </li>
         <li>
-          <Button
-            className="clinic-nav-row"
-            onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'clinica',
-                tenantId,
-                section: 'recebimento',
-              })
-            }
-          >
-            <span className="clinic-nav-copy">
-              <strong>Recebimento de sinais</strong>
-              <span>Conta Pix, prazo e regras do sinal</span>
-            </span>
-            <ChevronRight aria-hidden size={18} />
-          </Button>
+          <NavRow
+            icon={Users}
+            title="Equipe"
+            detail="Convidar recepcionistas · em breve"
+            state="neutral"
+          />
         </li>
       </ul>
 

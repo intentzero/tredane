@@ -16,7 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:runtime": "vitest run --config vitest.runtime.config.ts",
-    "check:design": "python3 docs/design/tools/check_contrast.py && python3 docs/design/tools/check_mocks.py",
+    "check:design": "python3 docs/design/tools/check_contrast.py && python3 docs/design/tools/check_mocks.py && python3 docs/design/tools/check_css_vars.py",
     "check:env": "node scripts/check-env-placeholders.mjs",
     "ops:secrets": "node scripts/ops-secrets-inventory.mjs",
     "ops:smoke": "node scripts/ops-smoke-checklist.mjs",

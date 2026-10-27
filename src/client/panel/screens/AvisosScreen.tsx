@@ -99,13 +99,13 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
         setStatus({
           phase: 'denied',
           message:
-            'Permissão de avisos negada. O painel continua utilizável; pode ativar depois nas definições do aparelho.',
+            'Permissão de avisos negada. O painel continua funcionando; você pode ativar depois nas configurações do celular.',
         })
         return
       }
       const json = sub.toJSON()
       if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-        setStatus({ phase: 'error', message: 'Falha ao obter a inscrição de avisos.' })
+        setStatus({ phase: 'error', message: 'Não foi possível ativar os avisos agora. Tente de novo.' })
         return
       }
       await api.subscribePush(tenantId, {

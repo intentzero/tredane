@@ -19,6 +19,7 @@ import {
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import { formatSlotTime } from './format'
+import { friendlyError } from '../../copy/errors'
 
 type Props = {
   tenantId: string
@@ -69,7 +70,7 @@ export function CompromissoScreen({
       setPaidSignal(signal)
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
-      setError(err instanceof Error ? err.message : 'Falha ao carregar')
+      setError(friendlyError(err, 'Não conseguimos carregar. Tente de novo.'))
     }
   }, [api, tenantId, appointmentId, generation])
 
@@ -150,7 +151,7 @@ export function CompromissoScreen({
         setMessage('Compromisso cancelado. Recursos liberados.')
       }
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Falha ao cancelar')
+      setMessage(friendlyError(err, 'Não foi possível cancelar o compromisso.'))
       await load()
     } finally {
       setBusy(false)
@@ -183,7 +184,7 @@ export function CompromissoScreen({
         )
       }
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Não foi possível devolver o sinal')
+      setMessage(friendlyError(err, 'Não foi possível devolver o sinal.'))
     } finally {
       setBusy(false)
     }
@@ -211,7 +212,7 @@ export function CompromissoScreen({
 
       <div className="panel-scroll">
         {message ? (
-          <p className="panel-banner" role="status">
+          <p className="panel-alert" role="status">
             {message}
           </p>
         ) : null}

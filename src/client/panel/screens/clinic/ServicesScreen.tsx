@@ -9,6 +9,7 @@ import {
   formatPriceCents,
   parsePriceToCents,
 } from './format'
+import { friendlyError } from '../../copy/errors'
 
 type ListProps = {
   tenantId: string
@@ -178,9 +179,7 @@ export function ServiceForm({
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
       // Falha não apaga o formulário (critério #28).
       setFormError(
-        err instanceof PanelApiError
-          ? `Não foi possível salvar (${err.code}). Os dados do formulário foram mantidos.`
-          : 'Não foi possível salvar. Os dados do formulário foram mantidos.',
+        `${friendlyError(err, 'Não foi possível salvar.')} O que você digitou continua aqui.`,
       )
     } finally {
       setSaving(false)

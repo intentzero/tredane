@@ -8,6 +8,8 @@ import type { PanelApi, PixSnapshot } from '../../../api'
 import { PanelApiError } from '../../../api'
 import { navigatePanel } from '../../../routes'
 import { ErrorState, LoadingState } from '../../../states/StatusScreens'
+import { friendlyError } from '../../../copy/errors'
+import { Banner } from '../../../states/Banner'
 
 type Props = {
   tenantId: string
@@ -50,7 +52,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       setPolicy(next.signalSettings.cancellationPolicy)
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
-      setError(err instanceof Error ? err.message : 'erro')
+      setError(friendlyError(err, 'Não conseguimos carregar. Tente de novo.'))
     } finally {
       setLoading(false)
     }
@@ -93,9 +95,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       setActionOk('Conta Woovi conectada. O dinheiro vai directo para a clínica.')
     } catch (err) {
       setActionError(
-        err instanceof PanelApiError
-          ? err.message
-          : 'Não foi possível conectar a conta.',
+        friendlyError(err, 'Não foi possível conectar a conta.'),
       )
     } finally {
       setBusy(false)
@@ -121,9 +121,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       )
     } catch (err) {
       setActionError(
-        err instanceof PanelApiError
-          ? err.message
-          : 'Não foi possível desconectar.',
+        friendlyError(err, 'Não foi possível desconectar.'),
       )
     } finally {
       setBusy(false)
@@ -153,9 +151,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       setActionOk('Prazo e política de cancelamento salvos.')
     } catch (err) {
       setActionError(
-        err instanceof PanelApiError
-          ? err.message
-          : 'Não foi possível salvar as definições.',
+        friendlyError(err, 'Não foi possível salvar as definições.'),
       )
     } finally {
       setBusy(false)
@@ -175,13 +171,12 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
         </Button>
       </div>
 
-      <section className="clinic-banner" aria-labelledby="pix-account-title">
-        <h2 id="pix-account-title">Recebimento de sinais</h2>
+      <Banner tone="info" title="Recebimento de sinais">
         <p>
           O Tredane cria a cobrança Pix na conta da clínica e{' '}
           <strong>não</strong> recebe nem repassa o dinheiro. O provedor é a Woovi.
         </p>
-      </section>
+      </Banner>
 
       <section className="clinic-stack" aria-labelledby="pix-status">
         <h3 id="pix-status">{statusLabel(snap.account.status)}</h3>

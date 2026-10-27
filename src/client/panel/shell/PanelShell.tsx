@@ -15,6 +15,7 @@ import { useTenant } from '../tenant/TenantContext'
 import { WhatsappInterruptBanner } from '../screens/clinic/whatsapp/WhatsappScreen'
 import { useWhatsapp } from '../screens/clinic/whatsapp/useWhatsapp'
 import { BottomNav } from './BottomNav'
+import { OfflineStrip } from '../states/OfflineStrip'
 
 type Props = {
   area: PanelArea
@@ -149,7 +150,7 @@ export function PanelShell({ area, tenantId, children, hideNav }: Props) {
                 <span className="panel-subtitle">{ctx.name}</span>
               )}
               <span
-                className="panel-live"
+                className={`panel-live${offline ? ' panel-live--offline' : ''}`}
                 role="status"
                 aria-live="polite"
                 aria-atomic="true"
@@ -175,10 +176,7 @@ export function PanelShell({ area, tenantId, children, hideNav }: Props) {
       ) : null}
 
       {offline ? (
-        <div className="panel-offline-banner" role="status" aria-live="assertive">
-          Sem conexão — dados podem estar desatualizados. Ações de agenda ou
-          pagamento não ficam confirmadas offline.
-        </div>
+        <OfflineStrip />
       ) : null}
 
       {!avisosOnly ? (

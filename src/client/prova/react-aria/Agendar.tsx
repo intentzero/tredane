@@ -74,7 +74,7 @@ export function ReactAriaAgendar() {
       </header>
 
       <div className="panel-scroll">
-        <div className="panel-banner" role="alert">
+        <div className="panel-alert" role="alert">
           <TriangleAlert aria-hidden="true" size={20} strokeWidth={2} />
           <span>
             <strong>15:00 acabou de ser ocupado</strong> (Dra. Paula Reis · Sala 2). Nada foi

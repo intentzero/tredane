@@ -9,7 +9,8 @@ import type {
 } from '../../api'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
-import { EmptyState, ErrorState, LoadingState } from '../../states/StatusScreens'
+import { EmptyState, ErrorState } from '../../states/StatusScreens'
+import { TestOnly } from '../../states/TestOnly'
 import {
   STAGE_ORDER,
   STAGE_TAB_LABELS,
@@ -18,6 +19,8 @@ import {
   relativeTime,
 } from './format'
 import { MoveSheet } from './MoveSheet'
+import { friendlyError } from '../../copy/errors'
+import { ListSkeleton } from '../../states/ListSkeleton'
 
 type Props = {
   tenantId: string
@@ -48,7 +51,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
       setItems(res.opportunities)
       setCounts(res.counts)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar')
+      setError(friendlyError(err, 'Não conseguimos carregar. Tente de novo.'))
       if (!opts?.keep) setItems(null)
     } finally {
       setLoading(false)
@@ -68,7 +71,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
       })
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar demo')
+      setError(friendlyError(err, 'Não foi possível criar os exemplos.'))
     } finally {
       setSeeding(false)
     }
@@ -97,9 +100,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
       const msg =
         err instanceof PanelApiError && err.status === 409
           ? 'Outra sessão atualizou este contato. Estado anterior restaurado.'
-          : err instanceof Error
-            ? err.message
-            : 'Não foi possível mover'
+          : friendlyError(err, 'Não foi possível mover. Tente de novo.')
       setMoveError(msg)
     } finally {
       setMoveBusy(false)
@@ -107,7 +108,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
   }
 
   if (loading && !items) {
-    return <LoadingState label="Carregando acompanhamento…" />
+    return <ListSkeleton label="Carregando acompanhamento…" />
   }
 
   if (error && !items) {
@@ -142,7 +143,8 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
           <TabList className="panel-tabs" aria-label="Etapas">
             {STAGE_ORDER.map((id) => (
               <Tab key={id} id={id} className="panel-chip">
-                {STAGE_TAB_LABELS[id]} · {countMap.get(id) ?? 0}
+                {STAGE_TAB_LABELS[id]}
+                <span className="panel-chip-count">{countMap.get(id) ?? 0}</span>
               </Tab>
             ))}
           </TabList>
@@ -157,12 +159,21 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
 
       <div className="panel-scroll-sm acomp-list" role="tabpanel">
         {list.length === 0 ? (
-          <EmptyState
-            title="Ninguém nesta etapa agora"
-            description="Os contatos aparecem aqui conforme o atendimento avança."
-            actionLabel={seeding ? 'Carregando…' : '[Teste] Criar exemplos'}
-            onAction={seeding ? undefined : () => void seedDemo()}
-          />
+          <>
+            <EmptyState
+              title="Ninguém nesta etapa agora"
+              description="Os contatos aparecem aqui conforme o atendimento avança."
+            />
+            <TestOnly note="Cria contatos de exemplo nesta clínica de teste.">
+              <Button
+                className="panel-btn-secondary"
+                isDisabled={seeding}
+                onPress={() => void seedDemo()}
+              >
+                {seeding ? 'Criando…' : 'Criar contatos de exemplo'}
+              </Button>
+            </TestOnly>
+          </>
         ) : (
           list.map((card) => {
             const name = contactLabel(card.contact.displayName, card.contact.waId)
