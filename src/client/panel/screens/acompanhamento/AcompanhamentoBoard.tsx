@@ -136,7 +136,8 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
     <div className="acomp-root">
       <header className="panel-header-root acomp-header">
         <span className="panel-subtitle">
-          {stageTotal} nesta etapa · {totalOpen} em andamento
+          {stageTotal} nesta etapa
+          {stage !== 'concluido' && stage !== 'perdido' ? ` · ${totalOpen} em andamento` : ''}
         </span>
         <Tabs
           selectedKey={stage}

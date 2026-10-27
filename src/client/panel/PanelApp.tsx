@@ -8,7 +8,7 @@ import { AcompanhamentoArea } from './screens/acompanhamento/AcompanhamentoArea'
 import { AgendaArea } from './screens/agenda/AgendaArea'
 import { AvisosScreen } from './screens/AvisosScreen'
 import { PanelShell } from './shell/PanelShell'
-import { LoadingState } from './states/StatusScreens'
+import { ErrorState, LoadingState } from './states/StatusScreens'
 import { TenantProvider, useTenant } from './tenant/TenantContext'
 import { captureInstallPrompt, registerServiceWorker } from './pwa'
 import {
@@ -33,6 +33,16 @@ function PanelRouter() {
   const route = usePanelPath()
   const { signedIn, status, authResolved } = useAuthSession()
   const { selectTenant, active } = useTenant()
+  // Clerk que não responde (sem rede, script bloqueado) não pode deixar a tela em «Abrindo…» para sempre.
+  const [authSlow, setAuthSlow] = useState(false)
+  useEffect(() => {
+    if (authResolved) {
+      setAuthSlow(false)
+      return
+    }
+    const id = window.setTimeout(() => setAuthSlow(true), 10_000)
+    return () => window.clearTimeout(id)
+  }, [authResolved])
 
   useEffect(() => {
     if (status.phase !== 'ready') return
@@ -68,6 +78,16 @@ function PanelRouter() {
   }
 
   if (!authResolved) {
+    if (authSlow) {
+      return (
+        <ErrorState
+          title="Não foi possível abrir o painel"
+          description="Verifique a internet e tente de novo."
+          actionLabel="Tentar de novo"
+          onAction={() => window.location.reload()}
+        />
+      )
+    }
     return <LoadingState label="Abrindo o painel…" />
   }
 

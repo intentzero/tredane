@@ -84,8 +84,11 @@ export function ReservarBlocoSheet(props: Props) {
         if (cancelled) return
         setConfig(snap)
         setClinicTimezone(tenantId, snap.settings.timezone)
-        const svc = snap.services.find((s) => s.active)
-        setServiceId((prev) => prev || svc?.id || '')
+        // Só pré-escolhe se houver um único procedimento ativo; com vários, a atendente escolhe
+        // (um padrão arbitrário escondido no resumo levaria a reservar o procedimento errado).
+        const activeServices = snap.services.filter((s) => s.active)
+        setServiceId((prev) => prev || (activeServices.length === 1 ? activeServices[0]!.id : ''))
+        if (activeServices.length !== 1) setEditDetails(true)
         // Mesmo começo do Agendar: hoje; depois das 18h já não há o que reservar, vai para amanhã.
         const hour = Number(
           new Intl.DateTimeFormat('en-US', {
