@@ -1864,6 +1864,11 @@ export type ClinicResource = {
   name: string
   category: string | null
   active: boolean
+  /** Pessoas ao mesmo tempo (só sala; 1 nas demais). */
+  capacity?: number
+  sharedSpaceNotice?: string | null
+  /** Horários acima da nova capacidade (só na resposta de editar). */
+  overCapacity?: Array<{ startsAt: number; endsAt: number; count: number }>
   futureAppointmentCount: number
   /** Já teve compromisso (passado ou futuro): só pode ser desativado. */
   hasAppointmentHistory?: boolean
@@ -2094,6 +2099,8 @@ export type ResourceUpsertBody = {
   name: string
   category?: string | null
   active?: boolean
+  capacity?: number
+  sharedSpaceNotice?: string | null
 }
 
 export type WeeklyWindowInput = {
@@ -2131,6 +2138,8 @@ export type AvailabilitySlot = {
   professionalName: string
   roomResourceId: string | null
   roomResourceName: string | null
+  /** Frase fixa da sala (DEC-053); nunca diz quantas vagas restam. */
+  roomSharedNotice?: string | null
 }
 
 export type AvailabilityResponse = {

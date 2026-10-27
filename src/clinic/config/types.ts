@@ -40,6 +40,10 @@ export type ResourceRow = {
   active: boolean
   createdAt: number
   updatedAt: number
+  /** Pessoas ao mesmo tempo (só sala; profissional/equipamento = 1). */
+  capacity: number
+  /** Frase fixa da clínica na confirmação pelo WhatsApp (DEC-053). */
+  sharedSpaceNotice: string | null
   futureAppointmentCount: number
   /** Já teve compromisso (passado ou futuro): não pode ser excluído. */
   hasAppointmentHistory: boolean
@@ -169,6 +173,9 @@ export type UpsertResourceInput = {
   name: string
   category?: string | null
   active?: boolean
+  /** Só sala: 1–50. Omitido = mantém (ou 1 ao criar). */
+  capacity?: number
+  sharedSpaceNotice?: string | null
 }
 
 export type SetWeeklyWindowsInput = {

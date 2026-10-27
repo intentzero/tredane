@@ -8,11 +8,13 @@ import { bindOrAssertTenant } from '../tenant'
 import { createResourceBlock, deleteResourceBlock } from './blocks'
 import { computeConfigReadiness } from './readiness'
 import {
+  getResource,
   setResourceActive,
   upsertResource,
   servicesLeftWithoutCategoryResource,
 } from './resources'
 import { setServiceActive, upsertService } from './services'
+import { listOverCapacitySlots } from '../scheduling/occupancy'
 import {
   ensureClinicSettings,
   setClinicAiAssistEnabled,
@@ -141,10 +143,20 @@ export function upsertResourceOp(
   caller: ClinicCaller,
   input: UpsertResourceInput,
   clock: Clock,
-): ResourceRow & { servicesWithoutResource?: string[] } {
+): ResourceRow & {
+  servicesWithoutResource?: string[]
+  overCapacity?: Array<{ startsAt: number; endsAt: number; count: number }>
+} {
   const meta = prepare(db, caller, clock)
   return db.transactionSync(() => {
+    const before = input.id ? getResource(db, meta.tenantId, input.id, clock) : null
     const row = upsertResource(db, meta.tenantId, input, clock)
+    // Card t1892s7600 (Q7): reduzir a capacidade abaixo do já marcado é
+    // permitido; nada é apagado e a resposta lista os horários acima do limite.
+    let overCapacity: Array<{ startsAt: number; endsAt: number; count: number }> | undefined
+    if (before && row.kind === 'room' && row.capacity < before.capacity) {
+      overCapacity = listOverCapacitySlots(db, meta.tenantId, row.id, row.capacity, clock.nowMs())
+    }
     let servicesWithoutResource: string[] | undefined
     if (row.active === false && row.category) {
       servicesWithoutResource = servicesLeftWithoutCategoryResource(
@@ -168,11 +180,13 @@ export function upsertResourceOp(
           active: row.active,
           futureAppointmentCount: row.futureAppointmentCount,
           servicesWithoutResource,
+          capacity: row.capacity,
+          overCapacityCount: overCapacity?.length,
         },
       },
       clock,
     )
-    return { ...row, servicesWithoutResource }
+    return { ...row, servicesWithoutResource, overCapacity }
   })
 }
 

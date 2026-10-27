@@ -13,6 +13,8 @@ type ResourceSql = {
   name: string
   category: string | null
   active: number
+  capacity?: number | null
+  shared_space_notice?: string | null
   created_at: number
   updated_at: number
 }
@@ -58,6 +60,8 @@ function toResourceRow(
     name: row.name,
     category: row.category,
     active: row.active === 1,
+    capacity: row.kind === 'room' ? Math.max(1, row.capacity ?? 1) : 1,
+    sharedSpaceNotice: row.kind === 'room' ? row.shared_space_notice ?? null : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     futureAppointmentCount: countFutureAppointments(
@@ -117,6 +121,8 @@ export function upsertResource(
 
   const now = clock.nowMs()
   const active = input.active === false ? 0 : 1
+  const capacityIn = parseCapacity(input)
+  const noticeIn = parseNotice(input)
 
   if (input.id) {
     const existing = getResource(db, tenantId, input.id, clock)
@@ -130,11 +136,14 @@ export function upsertResource(
       )
     }
     db.run(
-      `UPDATE resources SET name = ?, category = ?, active = ?, updated_at = ?
+      `UPDATE resources SET name = ?, category = ?, active = ?, capacity = ?,
+         shared_space_notice = ?, updated_at = ?
        WHERE tenant_id = ? AND id = ?`,
       name,
       category,
       active,
+      capacityIn ?? existing.capacity,
+      noticeIn === undefined ? existing.sharedSpaceNotice : noticeIn,
       now,
       tenantId,
       input.id,
@@ -145,14 +154,17 @@ export function upsertResource(
   const id = newId(input.kind === 'professional' ? 'pro' : 'res')
   db.run(
     `INSERT INTO resources (
-      id, tenant_id, kind, name, category, active, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, tenant_id, kind, name, category, active, capacity, shared_space_notice,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     input.kind,
     name,
     category,
     active,
+    capacityIn ?? 1,
+    noticeIn ?? null,
     now,
     now,
   )
@@ -213,4 +225,39 @@ export function servicesLeftWithoutCategoryResource(
       category,
     )
     .map((r) => r.service_id)
+}
+
+export const MAX_ROOM_CAPACITY = 50
+export const MAX_SHARED_NOTICE_LENGTH = 300
+
+/** Capacidade só existe na sala (card t1892s7600: equipamento não tem). */
+function parseCapacity(input: UpsertResourceInput): number | undefined {
+  if (input.capacity === undefined || input.capacity === null) return undefined
+  if (input.kind !== 'room') {
+    if (input.capacity === 1) return 1
+    throw new ValidationError('capacity_room_only', 'Só a sala atende várias pessoas ao mesmo tempo.')
+  }
+  const n = input.capacity
+  if (!Number.isInteger(n) || n < 1 || n > MAX_ROOM_CAPACITY) {
+    throw new ValidationError(
+      'invalid_capacity',
+      `A sala atende de 1 a ${MAX_ROOM_CAPACITY} pessoas ao mesmo tempo.`,
+    )
+  }
+  return n
+}
+
+function parseNotice(input: UpsertResourceInput): string | null | undefined {
+  if (input.sharedSpaceNotice === undefined) return undefined
+  if (input.sharedSpaceNotice === null) return null
+  if (input.kind !== 'room') return null
+  const t = String(input.sharedSpaceNotice).trim()
+  if (!t) return null
+  if (t.length > MAX_SHARED_NOTICE_LENGTH) {
+    throw new ValidationError(
+      'invalid_shared_notice',
+      `A frase pode ter até ${MAX_SHARED_NOTICE_LENGTH} caracteres.`,
+    )
+  }
+  return t
 }

@@ -782,6 +782,7 @@ function ReviewSheet(p: ReviewProps) {
       serviceName: service.name,
       professionalName: slot.professionalName,
       whenLabel: `${dayLabel.weekday}, ${slashDate(p.date)}, às ${start}`,
+      roomSharedNotice: slot.roomSharedNotice ?? null,
     }),
   )
   const [busy, setBusy] = useState(false)

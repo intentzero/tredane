@@ -266,6 +266,7 @@ export function queryAvailability(
           professionalName: pro.name,
           roomResourceId: room.id,
           roomResourceName: room.name,
+          roomSharedNotice: room.sharedSpaceNotice,
         }
         break
       }
