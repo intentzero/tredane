@@ -18,6 +18,7 @@ import {
   relativeTime,
 } from './format'
 import { MoveSheet } from './MoveSheet'
+import { friendlyError } from '../../copy/errors'
 
 type Props = {
   tenantId: string
@@ -48,7 +49,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
       setItems(res.opportunities)
       setCounts(res.counts)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar')
+      setError(friendlyError(err, 'Não conseguimos carregar. Tente de novo.'))
       if (!opts?.keep) setItems(null)
     } finally {
       setLoading(false)
@@ -68,7 +69,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
       })
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar demo')
+      setError(friendlyError(err, 'Não foi possível criar os exemplos.'))
     } finally {
       setSeeding(false)
     }
@@ -97,9 +98,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
       const msg =
         err instanceof PanelApiError && err.status === 409
           ? 'Outra sessão atualizou este contato. Estado anterior restaurado.'
-          : err instanceof Error
-            ? err.message
-            : 'Não foi possível mover'
+          : friendlyError(err, 'Não foi possível mover. Tente de novo.')
       setMoveError(msg)
     } finally {
       setMoveBusy(false)

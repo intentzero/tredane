@@ -7,6 +7,8 @@ type Props = {
   description: string
   actionLabel?: string
   onAction?: () => void
+  /** Código técnico, só dentro de «Detalhes para o suporte». */
+  detail?: string | null
 }
 
 function Frame({
@@ -15,6 +17,7 @@ function Frame({
   description,
   actionLabel,
   onAction,
+  detail,
 }: Props & { icon: ReactNode }) {
   return (
     <div className="panel-status" role="status">
@@ -27,6 +30,12 @@ function Frame({
         <Button className="panel-btn-primary panel-status-action" onPress={onAction}>
           {actionLabel}
         </Button>
+      ) : null}
+      {detail ? (
+        <details className="panel-status-detail">
+          <summary>Detalhes para o suporte</summary>
+          <code>{detail}</code>
+        </details>
       ) : null}
     </div>
   )

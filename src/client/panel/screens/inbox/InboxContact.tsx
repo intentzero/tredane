@@ -11,6 +11,7 @@ import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import { DeleteContactDialog } from './DeleteContactDialog'
 import { contactLabel, maskPhone, relativeTime, statusClass, statusLabel } from './format'
+import { friendlyError } from '../../copy/errors'
 
 type Props = {
   tenantId: string
@@ -69,7 +70,7 @@ export function InboxContactScreen({
         if (!cancelled) setData(res)
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Falha ao carregar contato')
+          setError(friendlyError(err, 'Não foi possível abrir este contato.'))
           setData(null)
         }
       } finally {

@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import { Button } from 'react-aria-components'
 import type { PanelApi } from '../../../api'
+import { friendlyError } from '../../../copy/errors'
 
 export const DEV_SYNC_BUTTON_LABEL = 'Marcar WhatsApp de teste como conectado'
 
@@ -56,7 +57,7 @@ export function useWhatsappDevSync(api: PanelApi, tenantId: string, generation: 
       setResult(r)
       return r
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha')
+      setError(friendlyError(err, 'Não deu para concluir agora. Tente de novo.'))
       return null
     } finally {
       setBusy(false)

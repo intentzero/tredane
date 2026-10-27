@@ -27,6 +27,7 @@ import {
   statusClass,
   statusLabel,
 } from './format'
+import { friendlyError } from '../../copy/errors'
 
 type Props = {
   tenantId: string
@@ -196,7 +197,7 @@ export function InboxThread({
         .then(setPixAlerts)
         .catch(() => setPixAlerts([]))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao abrir conversa')
+      setError(friendlyError(err, 'Não foi possível abrir esta conversa.'))
       setDetail(null)
     } finally {
       setLoading(false)
@@ -246,7 +247,7 @@ export function InboxThread({
         .then(setPixAlerts)
         .catch(() => {})
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : 'Falha ao devolver sinal')
+      setNotice(friendlyError(err, 'Não foi possível devolver o sinal.'))
     } finally {
       setBusy(false)
     }
@@ -269,7 +270,7 @@ export function InboxThread({
         ),
       )
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : 'Falha ao cancelar cobrança')
+      setNotice(friendlyError(err, 'Não foi possível cancelar a cobrança.'))
     } finally {
       setBusy(false)
     }
@@ -301,7 +302,7 @@ export function InboxThread({
           : prev,
       )
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : 'Falha ao assumir')
+      setNotice(friendlyError(err, 'Não foi possível assumir a conversa. Tente de novo.'))
     } finally {
       setBusy(false)
     }
@@ -325,7 +326,7 @@ export function InboxThread({
           : prev,
       )
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : 'Falha ao encerrar')
+      setNotice(friendlyError(err, 'Não foi possível encerrar a conversa. Tente de novo.'))
     } finally {
       setBusy(false)
     }
@@ -436,7 +437,7 @@ export function InboxThread({
           : prev,
       )
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : 'Falha ao enviar')
+      setNotice(friendlyError(err, 'A mensagem não foi enviada. Tente de novo.'))
     } finally {
       setBusy(false)
     }

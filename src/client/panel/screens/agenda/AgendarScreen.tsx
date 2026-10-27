@@ -27,6 +27,7 @@ import {
   reasonLabel,
   upcomingCivilDates,
 } from './format'
+import { friendlyError } from '../../copy/errors'
 
 type Props = {
   tenantId: string
@@ -122,7 +123,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
       } catch (err) {
         if (cancelled) return
         if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
-        setError(err instanceof Error ? err.message : 'Falha ao carregar')
+        setError(friendlyError(err, 'Não conseguimos carregar. Tente de novo.'))
       } finally {
         if (!cancelled) setLoadingConfig(false)
       }
@@ -166,7 +167,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
       })
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
-      setError(err instanceof Error ? err.message : 'Falha na disponibilidade')
+      setError(friendlyError(err, 'Não conseguimos ver os horários livres agora.'))
       setAvailability(null)
     } finally {
       setLoadingSlots(false)
@@ -279,7 +280,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
         appointmentId: created.id,
       })
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Não foi possível confirmar'
+      const msg = friendlyError(err, 'Não foi possível confirmar o horário.')
       setConflict(
         msg.includes('ocupado') || msg.includes('conflict')
           ? // Alerta permanece aberto — sinal pago preservado (#40).
@@ -338,7 +339,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
         conversationId: scheduleCtx.conversationId,
       })
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Não foi possível criar a cobrança'
+      const msg = friendlyError(err, 'Não foi possível criar a cobrança do sinal.')
       setConflict(
         `${msg} Tente de novo ou confirme sem sinal.`,
       )
@@ -386,7 +387,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
         appointmentId: created.appointmentId,
       })
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Não foi possível confirmar'
+      const msg = friendlyError(err, 'Não foi possível confirmar o horário.')
       setConflict(
         msg.includes('ocupado') || msg.includes('conflict')
           ? msg
