@@ -52,6 +52,8 @@ export function serializeMessage(m: MessageRow) {
     authorClerkUserId: m.authorClerkUserId,
     authorDisplayName: m.authorDisplayName,
     createdAt: m.createdAt,
+    readByDisplayName: m.readByDisplayName ?? null,
+    readAt: m.readAt ?? null,
     attachments: (m.attachments ?? []).map((a) => ({
       id: a.id,
       contentType: a.contentType,

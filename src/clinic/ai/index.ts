@@ -25,3 +25,16 @@ export {
   type AiAssistRpcDeps,
 } from './deps'
 export type * from './types'
+export {
+  enqueueAutoDraft,
+  runDueAutoDrafts,
+  nextAutoDraftDueAt,
+  getConversationDraftState,
+  getAutoDraftJob,
+  cancelAutoDraft,
+  AUTODRAFT_ACTOR_ID,
+  type AutoDraftJob,
+  type AutoDraftOutcome,
+} from './autodraft'
+export { getAiDailyUsage, type AiDailyUsage } from './usage'
+export { buildClinicAiContext } from './schedule-context'

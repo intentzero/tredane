@@ -45,9 +45,10 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
 
   async generate(input: AiGenerateInput): Promise<AiGenerateResult> {
     const model =
-      input.kind === 'summary'
+      input.model ??
+      (input.kind === 'summary'
         ? (this.#cfg.summaryModel ?? AI_MODEL_SUMMARY_PROPOSED)
-        : (this.#cfg.replyModel ?? AI_MODEL_REPLY_PROPOSED)
+        : (this.#cfg.replyModel ?? AI_MODEL_REPLY_PROPOSED))
     const systemPrompt = buildSystemPrompt(input)
     const userContent = buildUserContent(input)
     const urlPath = `/v1/${this.#cfg.accountId}/${this.#cfg.gatewayId}/anthropic/v1/messages`
@@ -92,6 +93,7 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
         body: JSON.stringify({
           model,
           max_tokens: input.maxOutputTokens,
+          ...(input.temperature != null ? { temperature: input.temperature } : {}),
           system: systemPrompt,
           messages: [{ role: 'user', content: userContent }],
         }),

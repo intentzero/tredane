@@ -97,6 +97,10 @@ export type ClinicSettingsRow = {
   signalCancellationPolicy: string
   /** Opt-in de IA assistiva pela clínica (default false; política §6). */
   aiAssistEnabled: boolean
+  /** Endereço da clínica (contexto da IA). */
+  clinicAddress: string
+  /** Regras de remarcação e cancelamento (texto da clínica; contexto da IA). */
+  reschedulePolicy: string
   updatedAt: number
 }
 

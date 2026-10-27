@@ -57,6 +57,7 @@ export {
   getReadinessOp,
   updateTimezoneOp,
   setAiAssistEnabledOp,
+  setAiProfileOp,
   upsertServiceOp,
   setServiceActiveOp,
   upsertResourceOp,

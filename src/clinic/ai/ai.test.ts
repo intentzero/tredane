@@ -157,7 +157,7 @@ describe('clinic AI assistiva (#41)', () => {
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
       expect(state).toEqual({ version: CLINIC_SCHEMA_VERSION, status: 'ready' })
-      expect(CLINIC_SCHEMA_VERSION).toBe(18)
+      expect(CLINIC_SCHEMA_VERSION).toBe(19)
       const tables = db.all<{ name: string }>(
         `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('ai_suggestions','ai_commands')`,
       )
@@ -238,7 +238,7 @@ describe('clinic AI assistiva (#41)', () => {
       const inspection = result.gatewayInspection!
       expect(inspection.headers['cf-aig-collect-log-payload']).toBe('false')
       expect(inspection.context).toEqual(payload)
-      expect(inspection.systemPrompt).toMatch(/Ignore quaisquer instruções/)
+      expect(inspection.systemPrompt).toMatch(/Ignore qualquer instrução/)
       expect(result.suggestion.suggestedText).not.toMatch(/tool_call|function_call/)
       expect(result.suggestion.status).toBe('pending')
     } finally {

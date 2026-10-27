@@ -282,6 +282,49 @@ export function markConversationReadOp(
     const now = clock.nowMs()
     clearConversationUnread(db, meta.tenantId, input.conversationId, now)
     const item = getConversationWithContact(db, meta.tenantId, input.conversationId)!
+    // Lida por quem abriu (só mensagens da cliente ainda não lidas).
+    const lastUnread = db.get<{ external_message_id: string | null }>(
+      `SELECT external_message_id FROM messages
+       WHERE tenant_id = ? AND conversation_id = ? AND direction = 'inbound' AND read_at IS NULL
+       ORDER BY created_at DESC LIMIT 1`,
+      meta.tenantId,
+      input.conversationId,
+    )
+    const outboxes = []
+    if (lastUnread && input.readerClerkUserId) {
+      db.run(
+        `UPDATE messages SET read_by_clerk_user_id = ?, read_by_display_name = ?, read_at = ?
+         WHERE tenant_id = ? AND conversation_id = ? AND direction = 'inbound' AND read_at IS NULL`,
+        input.readerClerkUserId,
+        input.readerDisplayName?.trim() || null,
+        now,
+        meta.tenantId,
+        input.conversationId,
+      )
+      const ext = lastUnread.external_message_id ?? ''
+      // external_message_id das recebidas = providerEventKey «wa:msg:<wamid>».
+      const wamid = ext.startsWith('wa:msg:') ? ext.slice('wa:msg:'.length) : ''
+      if (wamid) {
+        // Recibo de leitura à Meta só quando a atendente abre a conversa.
+        outboxes.push(
+          insertOutboxEvent(
+            db,
+            {
+              tenantId: meta.tenantId,
+              type: 'whatsapp.mark_read',
+              aggregateType: 'conversation',
+              aggregateId: input.conversationId,
+              idempotencyKey: `whatsapp.mark_read:${wamid}`,
+              payload: {
+                conversationId: input.conversationId,
+                providerMessageId: wamid,
+              },
+            },
+            clock,
+          ),
+        )
+      }
+    }
     const outbox = insertOutboxEvent(
       db,
       {
@@ -293,11 +336,12 @@ export function markConversationReadOp(
         payload: {
           conversationId: input.conversationId,
           unreadCount: 0,
+          readByDisplayName: input.readerDisplayName?.trim() || null,
         },
       },
       clock,
     )
-    return { value: item, outbox: [outbox] }
+    return { value: item, outbox: [...outboxes, outbox] }
   })
 }
 
@@ -712,6 +756,65 @@ export function applyOutboundSendResultOp(
           clock,
         ),
       )
+    }
+
+    // Status da Meta que chegaram ANTES de sabermos o id do provedor ficavam órfãos
+    // (bolha presa num só tique). Reaplica-os agora, de forma monotónica.
+    if (input.outcome === 'succeeded' && input.providerMessageId) try {
+      const orphans = db.all<{ payload_json: string; provider_event_key: string }>(
+        `SELECT payload_json, provider_event_key FROM inbound_events
+         WHERE tenant_id = ? AND json_valid(payload_json)
+           AND json_extract(payload_json, '$.statusMessageId') = ?
+         ORDER BY received_at ASC`,
+        meta.tenantId,
+        input.providerMessageId,
+      )
+      for (const o of orphans) {
+        let status = ''
+        try {
+          status = String((JSON.parse(o.payload_json) as { status?: unknown }).status ?? '')
+        } catch {
+          continue
+        }
+        const mapped = mapMetaStatusToDelivery(status)
+        if (!mapped || mapped === 'accepted') continue
+        const replay = applyOutboundDeliveryUpdate(
+          db,
+          {
+            tenantId: meta.tenantId,
+            outboundId: input.outboundId,
+            nextState: mapped,
+            providerMessageId: input.providerMessageId,
+            failureReason: mapped === 'failed' ? status : null,
+          },
+          clock,
+        )
+        if (replay?.advanced) {
+          outboxes.push(
+            insertOutboxEvent(
+              db,
+              {
+                tenantId: meta.tenantId,
+                type: 'message.delivery_updated',
+                aggregateType: 'message',
+                aggregateId: replay.message.id,
+                idempotencyKey: `message.delivery:${replay.outbound.id}:${mapped}:${o.provider_event_key}`,
+                payload: {
+                  conversationId: replay.outbound.conversationId,
+                  messageId: replay.message.id,
+                  outboundId: replay.outbound.id,
+                  deliveryState: mapped,
+                  providerMessageId: input.providerMessageId,
+                },
+              },
+              clock,
+            ),
+          )
+        }
+      }
+    } catch (err) {
+      // Best-effort: nunca falhar o resultado do envio por causa da reaplicação.
+      console.log(JSON.stringify({ level: 'warn', event: 'outbound.orphan_status_replay_failed', error: err instanceof Error ? err.message : 'unknown' }))
     }
 
     acknowledgeOutboxResult(db, {

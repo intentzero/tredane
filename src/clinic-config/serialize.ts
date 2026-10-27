@@ -17,6 +17,8 @@ export function serializeSettings(row: ClinicSettingsRow) {
     signalDeadlineSeconds: row.signalDeadlineSeconds,
     signalCancellationPolicy: row.signalCancellationPolicy,
     aiAssistEnabled: row.aiAssistEnabled,
+    clinicAddress: row.clinicAddress,
+    reschedulePolicy: row.reschedulePolicy,
     updatedAt: row.updatedAt,
   }
 }

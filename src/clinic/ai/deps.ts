@@ -1,5 +1,6 @@
 import {
   buildAiAdapter,
+  isSyntheticFallback,
   resolveAiMode,
   type AiGatewayConfig,
   type SimulatedAiOptions,
@@ -18,6 +19,8 @@ export type AiAssistRpcDeps = {
     summaryModel?: string
   }
   simulated?: SimulatedAiOptions
+  /** Nome da clínica (D1 tenants.name), preenchido pelo DO. */
+  clinicName?: string | null
 }
 
 export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
@@ -31,13 +34,12 @@ export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
         summaryModel: rpc.gateway.summaryModel,
       }
     : undefined
+  const build = { mode: rpc.mode, gateway, simulated: rpc.simulated }
   return {
     mode: rpc.mode,
-    adapter: buildAiAdapter({
-      mode: rpc.mode,
-      gateway,
-      simulated: rpc.simulated,
-    }),
+    adapter: buildAiAdapter(build),
+    syntheticFallback: isSyntheticFallback(build),
+    clinicName: rpc.clinicName ?? null,
   }
 }
 

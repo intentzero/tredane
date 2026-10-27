@@ -35,11 +35,45 @@ export type AiContextMessage = {
  * Payload autorizado enviado ao provedor (AC-37 / REQ-072).
  * Testes inspecionam este objeto — nunca telefone, anexos, outras conversas/tenants.
  */
+export type AiFreeSlotDay = {
+  serviceName: string
+  /** YYYY-MM-DD no fuso da clínica. */
+  date: string
+  /** Ex.: «amanhã, quarta-feira 28/10». */
+  dayLabel: string
+  /** HH:MM no fuso da clínica. */
+  times: string[]
+}
+
+export type AiUpcomingAppointment = {
+  serviceName: string
+  /** Ex.: «quarta 28/10 às 14:00» (fuso da clínica). */
+  when: string
+}
+
+/** Dados da clínica e da agenda real (leitura pura; a IA nunca agenda). */
+export type AiClinicContext = {
+  name: string | null
+  address: string | null
+  timezone: string
+  /** Data e hora actuais no fuso da clínica, por extenso. */
+  nowLabel: string
+  /** YYYY-MM-DD de hoje no fuso da clínica. */
+  today: string
+  openingHours: string[]
+  freeSlots: AiFreeSlotDay[]
+  upcomingAppointments: AiUpcomingAppointment[]
+  reschedulePolicy: string | null
+  cancellationPolicy: string | null
+}
+
 export type AiContextPayload = {
   contactFirstName: string | null
   stage: string | null
   services: AiCatalogService[]
   messages: AiContextMessage[]
+  /** Ausente em chamadas antigas/testes; presente no rascunho de resposta. */
+  clinic?: AiClinicContext
 }
 
 export type AiGenerateInput = {
@@ -55,6 +89,10 @@ export type AiGenerateInput = {
   explanationSources: Array<{ serviceName: string }>
   maxOutputTokens: number
   timeoutMs: number
+  /** Modelo explícito (rascunho automático = Haiku; «Gerar outra» = Sonnet). */
+  model?: string
+  /** 0.3–0.5 para respostas estáveis. */
+  temperature?: number
 }
 
 export type AiGenerateSuccess = {
@@ -92,6 +130,7 @@ export type AiGatewayRequestInspection = {
   systemPrompt: string
   userContent: string
   maxTokens: number
+  temperature?: number
   /** Headers não secretos (ex.: cf-aig-collect-log-payload). */
   headers: Record<string, string>
   context: AiContextPayload

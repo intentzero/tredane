@@ -60,7 +60,9 @@ function aiErrorResponse(
       || err.code === 'unauthorized_caller'
       || err.code === 'ai_not_enabled'
         ? 403
-        : 400
+        : err.code === 'ai_daily_cap_reached'
+          ? 429
+          : 400
     return c.json({ error: err.code, message: err.message }, status)
   }
   return c.json(
@@ -78,6 +80,8 @@ function createDoGateway(env: WorkerBindings, tenantId: string): AiAssistGateway
     list: (caller, conversationId, opts) =>
       stub.listAiSuggestions(caller, conversationId, opts),
     get: (caller, suggestionId) => stub.getAiSuggestion(caller, suggestionId),
+    draftState: (caller, conversationId) => stub.getAiDraftState(caller, conversationId),
+    status: (caller) => stub.getAiStatus(caller),
   }
 }
 
@@ -158,6 +162,52 @@ export function createAiAssistRoutes(opts: AiAssistRouteOptions = {}) {
       }
     },
   )
+
+  /** Rascunho automático: estado do job + sugestão pendente + limite/fallback. */
+  app.get(
+    '/api/tenants/:tenantId/conversations/:conversationId/ai/draft',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.inbox.read')
+        const tenantId = c.req.param('tenantId')
+        const gw = await resolveGateway(c.env, tenantId, opts)
+        if (!gw.draftState) return c.json({ job: null, suggestion: null })
+        const st = await gw.draftState(
+          workerCaller(tenantId, principal.clerkUserId),
+          c.req.param('conversationId'),
+        )
+        return c.json({
+          job: st.job ? { state: st.job.state, messageId: st.job.messageId, dueAt: st.job.dueAt } : null,
+          suggestion: st.suggestion ? serializeAiSuggestion(st.suggestion) : null,
+          usage: st.usage,
+          syntheticFallback: st.syntheticFallback,
+          mode: st.mode,
+          messageSent: false,
+        })
+      } catch (err) {
+        return aiErrorResponse(c, err)
+      }
+    },
+  )
+
+  /** Estado da IA na clínica (aviso de fallback sintético e limite diário). */
+  app.get('/api/tenants/:tenantId/ai/status', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      const principal = c.get('principal')
+      requireClinicPermission(ctx, 'clinic.inbox.read')
+      const tenantId = c.req.param('tenantId')
+      const gw = await resolveGateway(c.env, tenantId, opts)
+      if (!gw.status) return c.json({ mode: 'unknown', syntheticFallback: false, usage: null })
+      const st = await gw.status(workerCaller(tenantId, principal.clerkUserId))
+      return c.json(st)
+    } catch (err) {
+      return aiErrorResponse(c, err)
+    }
+  })
 
   app.post(
     '/api/tenants/:tenantId/conversations/:conversationId/ai/summarize',

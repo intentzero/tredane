@@ -43,6 +43,9 @@ export type MessageRow = {
   authorClerkUserId: string | null
   authorDisplayName: string | null
   createdAt: number
+  /** Mensagem da cliente lida pela equipa («Lida por Ana · 17:40»). */
+  readByDisplayName?: string | null
+  readAt?: number | null
   attachments?: MessageAttachmentSummary[]
 }
 
@@ -106,6 +109,9 @@ export type AssignConversationInput = {
 
 export type MarkReadInput = {
   conversationId: string
+  /** Quem abriu a conversa (para «Lida por Ana · 17:40»). */
+  readerClerkUserId?: string | null
+  readerDisplayName?: string | null
 }
 
 export type CloseConversationInput = {

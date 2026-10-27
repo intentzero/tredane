@@ -39,6 +39,11 @@ export type AiSuggestionRow = {
   revisedText: string | null
   outboundMessageId: string | null
   parentSuggestionId: string | null
+  /** Mensagem da cliente a que o rascunho responde. */
+  replyToMessageId: string | null
+  origin: 'auto' | 'manual'
+  /** Notas para a atendente — nunca fazem parte do texto a enviar. */
+  internalNotes: string
   createdAt: number
   updatedAt: number
 }
@@ -73,4 +78,8 @@ export type DecideSuggestionInput = {
 export type AiAssistDeps = {
   adapter: import('../../ai/contract').AiProviderAdapter
   mode: 'synthetic' | 'gateway'
+  /** AI_MODE=gateway mas sem chaves → simulado (aviso no painel). */
+  syntheticFallback?: boolean
+  /** Nome da clínica (D1) para o contexto. */
+  clinicName?: string | null
 }
