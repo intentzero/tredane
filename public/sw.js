@@ -1,7 +1,7 @@
 /* Tredane service worker (#42 / DEC-040).
  * Cache só de assets estáticos locais — nunca /api/* nem respostas autenticadas.
  */
-const CACHE_VERSION = 'tredane-pwa-v2'
+const CACHE_VERSION = 'tredane-pwa-v3'
 const PRECACHE = [
   '/manifest.webmanifest',
   '/icons/icon-192.png',
