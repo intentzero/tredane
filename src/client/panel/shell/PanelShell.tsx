@@ -1,7 +1,7 @@
 import { Bell, ChevronDown } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from 'react-aria-components'
-import { SignOutButton } from '../auth/ClerkBridge'
+import { AccountControl } from '../auth/ClerkBridge'
 import { useAuthSession } from '../auth/AuthContext'
 import type { PanelArea } from '../routes'
 import { areaTitle, navigatePanel } from '../routes'
@@ -175,7 +175,7 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
             >
               <Bell aria-hidden="true" size={20} strokeWidth={2} />
             </Button>
-            <SignOutButton />
+            <AccountControl />
           </div>
         </header>
       ) : null}
