@@ -4806,3 +4806,53 @@
 .inbox-blocked p svg {
   flex: none;
 }
+
+/* Folha de ações da conversa (celular) e transferência */
+.thread-actions-title {
+  margin: var(--space-2) 0 var(--space-1);
+  padding: 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.thread-actions-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.thread-actions-item[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.thread-actions-item--danger {
+  color: var(--color-danger-ink);
+}
+
+.thread-actions-hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+.thread-actions-sep {
+  width: 100%;
+  margin: var(--space-1) 0;
+  border: 0;
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.thread-actions-cancel {
+  margin-top: var(--space-2);
+}

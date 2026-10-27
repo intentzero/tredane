@@ -1339,6 +1339,14 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as InboxAssignResponse
     },
 
+    async getTeamMembers(tenantId: string, opts?: FetchOpts): Promise<{ members: TeamMemberLite[] }> {
+      const res = await authFetch(`/api/tenants/${encodeURIComponent(tenantId)}/team`, {}, opts)
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const data = (await res.json()) as { members?: TeamMemberLite[] }
+      return { members: data.members ?? [] }
+    },
+
     async blockInboxContact(
       tenantId: string,
       contactId: string,
@@ -1624,6 +1632,12 @@ export function createPanelApi(getToken: TokenGetter) {
       }
     },
   }
+}
+
+export type TeamMemberLite = {
+  clerkUserId: string
+  role: 'owner' | 'attendant' | string
+  status: string
 }
 
 export type InboxFilter = 'all' | 'new' | 'mine' | 'unassigned' | 'closed'

@@ -46,6 +46,9 @@ import { PanelApiError } from '../../api'
 import { useClinicTimezone } from '../../clinicTimezone'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
 import { BlockContactDialog } from './BlockContactDialog'
+import { ThreadActionsSheet, type ThreadAction } from './ThreadActionsSheet'
+import { TransferSheet } from './TransferSheet'
+import { useMediaQuery } from '../../ui/useMediaQuery'
 import { AiWorking } from '../../ui/AiWorking'
 import { navigatePanel } from '../../routes'
 import { requestSummaryFocus } from './summaryFocus'
@@ -240,6 +243,9 @@ export function InboxThread({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
   const [blockOpen, setBlockOpen] = useState(false)
+  const [actionsOpen, setActionsOpen] = useState(false)
+  const [transferOpen, setTransferOpen] = useState(false)
+  const narrow = useMediaQuery('(max-width: 767.98px)')
   const [blockBusy, setBlockBusy] = useState(false)
   const [blockError, setBlockError] = useState<string | null>(null)
   // Datas e horas no fuso da clínica (Agenda → Horários).
@@ -614,6 +620,32 @@ export function InboxThread({
     }
   }
 
+  async function transferTo(member: { clerkUserId: string; displayName: string }) {
+    if (!detail) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      const res = await api.assignInboxConversation(
+        tenantId,
+        conversationId,
+        {
+          assigneeClerkUserId: member.clerkUserId,
+          assigneeDisplayName: member.displayName,
+          expectedAssignmentVersion: detail.assignmentVersion,
+        },
+        { generation, expectGeneration: () => generation },
+      )
+      setDetail((prev) =>
+        prev ? { ...prev, ...res.conversation, messages: [...prev.messages, res.systemMessage] } : prev,
+      )
+      setTransferOpen(false)
+    } catch (err) {
+      setNotice(friendlyError(err, 'Não foi possível transferir a conversa. Tente de novo.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function blockContact(reason: string | null) {
     if (!detail) return
     setBlockBusy(true)
@@ -897,6 +929,35 @@ export function InboxThread({
     detail.assigneeClerkUserId != null &&
     detail.assigneeClerkUserId === viewerClerkUserId
   const blocked = detail.contact?.blockedAt != null
+  const threadActions: ThreadAction[] = [
+    { id: 'contact', label: 'Ver detalhes do contato' },
+    ...(detail.status !== 'closed' && !blocked ? [{ id: 'hold', label: 'Reservar bloco' }] : []),
+    ...(detail.status !== 'closed' && !blocked ? [{ id: 'transfer', label: 'Transferir para outra pessoa' }] : []),
+    ...(detail.status !== 'closed' ? [{ id: 'close', label: 'Encerrar conversa' }] : []),
+    blocked
+      ? { id: 'unblock', label: 'Desbloquear contato' }
+      : { id: 'block', label: 'Bloquear contato', danger: true },
+  ]
+  function runThreadAction(id: string) {
+    if (id === 'contact') {
+      navigatePanel({
+        kind: 'area',
+        area: 'conversas',
+        tenantId,
+        section: 'contato',
+        conversationId: detail!.id,
+        contactId: detail!.contactId,
+      })
+    }
+    if (id === 'hold') setReserveOpen(true)
+    if (id === 'transfer') setTransferOpen(true)
+    if (id === 'close') setConfirmClose(true)
+    if (id === 'block') {
+      setBlockError(null)
+      setBlockOpen(true)
+    }
+    if (id === 'unblock') void unblockContact()
+  }
   const windowOpen = detail.messagingWindow?.open !== false && !blocked
   const cardMode = windowOpen && aiDraftTagged && !!draft.trim() && !pendingAutoDraft
 
@@ -985,47 +1046,43 @@ export function InboxThread({
             <span>Agendar</span>
           </Button>
         ) : null}
-        <MenuTrigger>
-          <Button className="panel-icon-btn" aria-label="Mais opções da conversa">
+        {narrow ? (
+          <Button
+            className="panel-icon-btn"
+            aria-label="Mais opções da conversa"
+            aria-haspopup="dialog"
+            onPress={() => setActionsOpen(true)}
+          >
             <EllipsisVertical aria-hidden size={22} strokeWidth={2} />
           </Button>
-          <Popover className="panel-popover" placement="bottom end">
-            <Menu
-              className="panel-menu"
-              aria-label="Opções da conversa"
-              onAction={(key) => {
-                if (key === 'close') setConfirmClose(true)
-                if (key === 'hold') setReserveOpen(true)
-                if (key === 'block') {
-                  setBlockError(null)
-                  setBlockOpen(true)
-                }
-                if (key === 'unblock') void unblockContact()
-              }}
-            >
-              {detail.status !== 'closed' && !blocked ? (
-                <MenuItem id="hold" className="panel-menu-item">
-                  Reservar bloco
-                </MenuItem>
-              ) : null}
-              {detail.status !== 'closed' ? (
-                <MenuItem id="close" className="panel-menu-item">
-                  Encerrar conversa
-                </MenuItem>
-              ) : null}
-              {detail.status !== 'closed' ? <Separator className="panel-menu-separator" /> : null}
-              {blocked ? (
-                <MenuItem id="unblock" className="panel-menu-item">
-                  Desbloquear contato
-                </MenuItem>
-              ) : (
-                <MenuItem id="block" className="panel-menu-item panel-menu-item--danger">
-                  Bloquear contato
-                </MenuItem>
-              )}
-            </Menu>
-          </Popover>
-        </MenuTrigger>
+        ) : (
+          <MenuTrigger>
+            <Button className="panel-icon-btn" aria-label="Mais opções da conversa">
+              <EllipsisVertical aria-hidden size={22} strokeWidth={2} />
+            </Button>
+            <Popover className="panel-popover" placement="bottom end">
+              <Menu
+                className="panel-menu"
+                aria-label="Opções da conversa"
+                onAction={(key) => runThreadAction(String(key))}
+              >
+                {threadActions
+                  .filter((a) => a.id !== 'contact')
+                  .map((a, i) => (
+                    <Fragment key={a.id}>
+                      {a.danger && i > 0 ? <Separator className="panel-menu-separator" /> : null}
+                      <MenuItem
+                        id={a.id}
+                        className={`panel-menu-item${a.danger ? ' panel-menu-item--danger' : ''}`}
+                      >
+                        {a.label}
+                      </MenuItem>
+                    </Fragment>
+                  ))}
+              </Menu>
+            </Popover>
+          </MenuTrigger>
+        )}
       </header>
 
       {confirmClose ? (
@@ -1073,6 +1130,24 @@ export function InboxThread({
         </div>
       ) : null}
 
+      <ThreadActionsSheet
+        open={actionsOpen && narrow}
+        title={`Conversa com ${label}`}
+        actions={threadActions}
+        onAction={runThreadAction}
+        onClose={() => setActionsOpen(false)}
+      />
+      <TransferSheet
+        open={transferOpen}
+        tenantId={tenantId}
+        api={api}
+        generation={generation}
+        viewerClerkUserId={viewerClerkUserId}
+        currentAssigneeClerkUserId={detail.assigneeClerkUserId}
+        busy={busy}
+        onClose={() => setTransferOpen(false)}
+        onPick={(m) => void transferTo(m)}
+      />
       <BlockContactDialog
         open={blockOpen}
         contactLabel={label}

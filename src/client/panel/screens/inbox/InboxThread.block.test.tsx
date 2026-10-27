@@ -59,6 +59,18 @@ function mockApi(state: { blocked: boolean }): PanelApi {
       state.blocked = true
       return { contact: detail(NOW).contact, closedConversationIds: ['cnv_ficticia'] }
     }),
+    getTeamMembers: vi.fn(async () => ({
+      members: [
+        { clerkUserId: 'u1', role: 'attendant', status: 'active' },
+        { clerkUserId: 'u2', role: 'owner', status: 'active' },
+        { clerkUserId: 'u3', role: 'attendant', status: 'revoked' },
+      ],
+    })),
+    assignInboxConversation: vi.fn(async (_t: string, _c: string, body: { assigneeClerkUserId: string; assigneeDisplayName: string }) => ({
+      conversation: { ...detail(null), assigneeClerkUserId: body.assigneeClerkUserId, assigneeDisplayName: body.assigneeDisplayName },
+      systemMessage: { id: 'sys1', tenantId: 'clinic-demo-a', conversationId: 'cnv_ficticia', direction: 'system', body: 'transferiu', externalMessageId: null, deliveryState: 'received', authorClerkUserId: 'u1', authorDisplayName: 'Ana', createdAt: NOW },
+      versionMatched: true,
+    })),
     unblockInboxContact: vi.fn(async () => {
       state.blocked = false
       return { contact: detail(null).contact }
@@ -126,5 +138,45 @@ describe('InboxThread — bloquear contato', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
     expect(await screen.findByRole('menuitem', { name: 'Desbloquear contato' })).toBeTruthy()
     expect(screen.queryByRole('menuitem', { name: 'Reservar bloco' })).toBeNull()
+  })
+
+  it('Transferir: lista só membros ativos (sem você) e atribui à pessoa escolhida', async () => {
+    const api = mockApi({ blocked: false })
+    renderThread(api)
+    await screen.findByRole('textbox', { name: 'Mensagem' })
+    fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Transferir para outra pessoa' }))
+    const pick = await screen.findByRole('button', { name: 'Responsável' })
+    expect(screen.queryByRole('button', { name: /Atendente/ })).toBeNull()
+    fireEvent.click(pick)
+    await waitFor(() =>
+      expect(api.assignInboxConversation).toHaveBeenCalledWith(
+        'clinic-demo-a',
+        'cnv_ficticia',
+        { assigneeClerkUserId: 'u2', assigneeDisplayName: 'Responsável', expectedAssignmentVersion: 0 },
+        expect.anything(),
+      ),
+    )
+  })
+
+  it('celular: o ⋮ abre a folha de ações com Ver detalhes, Reservar bloco, Transferir, Encerrar e Bloquear', async () => {
+    const mm = vi.fn((q: string) => ({
+      matches: q.includes('max-width: 767'),
+      media: q,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    vi.stubGlobal('matchMedia', mm)
+    try {
+      renderThread(mockApi({ blocked: false }))
+      await screen.findByRole('textbox', { name: 'Mensagem' })
+      fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
+      const sheet = await screen.findByRole('dialog', { name: /Conversa com/ })
+      for (const name of ['Ver detalhes do contato', 'Reservar bloco', 'Transferir para outra pessoa', 'Encerrar conversa', 'Bloquear contato']) {
+        expect(Array.from(sheet.querySelectorAll('button')).some((b) => b.textContent === name)).toBe(true)
+      }
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })
