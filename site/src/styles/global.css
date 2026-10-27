@@ -1,20 +1,20 @@
-/* Landing page do Tredane. Cores vêm de docs/design/tokens.json (v0.2.0).
+/* Landing page do Tredane. Cores vêm de docs/design/tokens.json (v0.3.0).
    Extensões só para o site (DEC-044): títulos acima de 26px, sombras, fundo de pontos
    e a faixa escura com text.primary como fundo e line.disabled como texto secundário. */
 :root {
-  --surface-app: #F6F6F4;
+  --surface-app: #F5F4EF;
   --surface-card: #FFFFFF;
-  --surface-sunken: #F0F0EE;
-  --text-primary: #1C1E21;
-  --text-secondary: #474C54;
-  --text-muted: #5B616B;
-  --line-border: #E2E3E5;
-  --line-control: #80868F;
-  --line-disabled: #CDD0D4;
-  --primary-base: #2F5BD3;
-  --primary-ink: #1E43A8;
-  --primary-tint: #EEF2FC;
-  --primary-border: #B9CBF2;
+  --surface-sunken: #EEEDE7;
+  --text-primary: #142625;
+  --text-secondary: #424B4A;
+  --text-muted: #566160;
+  --line-border: #E1E3E0;
+  --line-control: #7A8584;
+  --line-disabled: #CBD0CF;
+  --primary-base: #0E5A5C;
+  --primary-ink: #0A4547;
+  --primary-tint: #E7F1F1;
+  --primary-border: #B3D1D1;
   --success-ink: #1F7A4D;
   --success-tint: #EAF5EF;
   --warning-ink: #6E4200;

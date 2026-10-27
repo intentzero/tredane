@@ -11,8 +11,8 @@ import glob, json, os, re, subprocess, sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 SC = {'isEmail': True, 'isCode': False, 'isPro': True, 'isRoom': False}
-ON = 'height: 44px; border: 0; background: #1C1E21; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer'
-OFF = 'height: 44px; border: 0; background: #FFFFFF; color: #1C1E21; font-size: 14px; cursor: pointer'
+ON = 'height: 44px; border: 0; background: #142625; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer'
+OFF = 'height: 44px; border: 0; background: #FFFFFF; color: #142625; font-size: 14px; cursor: pointer'
 
 
 def conv(src):

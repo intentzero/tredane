@@ -22,7 +22,7 @@ sw = []
 for g, items in t['color'].items():
     cells = []
     for k, v in items.items():
-        ink = '#1C1E21' if ratio(v, '#1C1E21') > ratio(v, '#FFFFFF') else '#FFFFFF'
+        ink = '#142625' if ratio(v, '#142625') > ratio(v, '#FFFFFF') else '#FFFFFF'
         cells.append('<li class="sw" style="background:%s;color:%s"><b>%s.%s</b><span>%s</span></li>' % (v, ink, g, k, v))
     sw.append('<h3>%s</h3><ul class="swatches">%s</ul>' % (g, ''.join(cells)))
 sizes = ''.join('<div class="row"><code>%s · %dpx</code><span style="font-size:%dpx">Agendamento confirmado para sexta</span></div>' % (k, v, v) for k, v in t['font']['size'].items())

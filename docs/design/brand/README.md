@@ -60,6 +60,6 @@ Requer `rsvg-convert` (librsvg). A fonte Manrope está sob a [SIL Open Font Lice
 ## Pendências
 
 - **Aplicado (27/10/2026):** ícones do PWA (`public/icons/icon-192.png` e `icon-512.png`, também `maskable`), `public/favicon.{svg,ico}`, `site/public/favicon.{svg,ico}` . O cache do service worker passou a `tredane-pwa-v2` para buscar os ícones novos. **Ajuste (27/10/2026):** `theme-color`, `theme_color` e `background_color` do painel passaram a `#FFFFFF` (cor do cabeçalho `--color-surface-card`), com `apple-mobile-web-app-status-bar-style=default`, para a barra de estado do iOS ficar branca e integrada ao cabeçalho; cache do SW `tredane-pwa-v3`.
-- **Em aberto — tokens do painel:** a cor de ação do painel, do login Clerk e do site continua azul `#2F5BD3` (DEC-041). Adotar o Petróleo exige nova decisão, `check_contrast.py` e revisão do catálogo e dos mocks. Responsável: responsável pelo produto.
-- **Em aberto — site:** a imagem `site/public/og-image.png` ainda não usa a marca; o `theme-color` do site continua branco, igual ao cabeçalho.
+- **Aplicado (27/10/2026):** tokens 0.3.0 — Petróleo como cor de ação no painel, no login Clerk e no site, com neutros alinhados (ver [CHANGELOG](../CHANGELOG.md)).
+- **Em aberto — imagens:** `site/public/og-image.png` e os PNG de preview dos mocks ainda mostram o azul; o `theme-color` do site continua branco, igual ao cabeçalho.
 - **Proposto:** verificar se o nome e o símbolo estão livres para registo de marca no INPI antes de uso público amplo.

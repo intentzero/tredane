@@ -9,7 +9,7 @@
 **Em aberto:** abertura do piloto, CTA definitivo, identidade visual final, formulário e operação de captação. O pedido de documentação não transforma essas escolhas condicionais em decisões aprovadas nem altera DEC-001–038.
 
 > **Atualização (24/10/2026):** depois deste conceito, o responsável pelo produto confirmou decisões para a landing page em [DEC-044](decisions.md), detalhadas em [landing.md](landing.md), que **prevalecem** onde divergem deste documento:
-> - **Visual:** design system do painel (azul `#2F5BD3`, Inter), e não marfim, grafite e verde profundo.
+> - **Visual:** design system do painel (Petróleo `#0E5A5C` desde os tokens 0.3.0; era azul `#2F5BD3` no conceito original, Inter), e não marfim, grafite e verde profundo.
 > - **Captação:** contato por e-mail, **sem formulário**, até haver política de privacidade; o formulário da seção 7 fica sem efeito por ora.
 > - **CTA:** “Quero participar do piloto”.
 > - **Pagamentos:** o sinal por Pix passou a fazer parte do MVP (DEC-047); os demais pagamentos continuam fora.
