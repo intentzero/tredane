@@ -4169,6 +4169,233 @@
   }
 }
 
+/* ——— IA: indicador partilhado «IA a trabalhar» ——— */
+.ai-working {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-ai-ink);
+  font-size: var(--font-size-caption, 0.8125rem);
+  font-weight: var(--font-weight-semibold);
+}
+
+.ai-working--compact {
+  gap: var(--space-1);
+}
+
+.ai-working-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.ai-working-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-ai-border);
+  animation: ai-working-pulse 1.2s infinite ease-in-out;
+}
+
+.ai-working-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.ai-working-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes ai-working-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-working-dots span {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* Rascunho da IA dentro do compositor */
+.inbox-ai-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4) 0;
+}
+
+.inbox-ai-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: var(--size-border-width) solid var(--color-ai-border);
+  border-radius: 999px;
+  background: var(--color-ai-tint);
+  color: var(--color-ai-ink);
+  font-size: var(--font-size-caption, 0.8125rem);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.inbox-ai-draft-tag {
+  color: var(--color-ai-ink);
+  font-size: var(--font-size-caption, 0.75rem);
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-composer-input--ai {
+  background: var(--color-ai-tint);
+  box-shadow: inset 3px 0 0 var(--color-ai-border);
+}
+
+.ai-notes {
+  margin: var(--space-2) var(--space-4) 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption, 0.8125rem);
+  white-space: pre-wrap;
+}
+
+.ai-notes-label {
+  display: block;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.ai-banner {
+  margin: var(--space-2) var(--space-4) 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font-size: var(--font-size-caption, 0.8125rem);
+}
+
+/* «Lida por Ana · 17:40» sob a última mensagem da cliente lida */
+.inbox-msg-readby {
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption, 0.75rem);
+}
+
+/* Tiques azuis (lida pela cliente) — teal da marca, distinto do texto */
+.inbox-delivery-read .inbox-delivery-icon {
+  color: var(--color-primary-base);
+  stroke-width: 2.5;
+}
+
+/* ——— Desktop: Conversas em 3 colunas (lista · conversa · contato) ——— */
+.panel-shell-main:has(> .conversas-3col) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+}
+
+/* O shell limita .panel-app a 960px (width) / 1200px (max-width). Com 3
+ * colunas isso deixava ~80px para a conversa: as laterais ficavam no máximo
+ * e o 1fr com mínimo 0 encolhia até sobrar uma letra por linha. */
+.panel-app:has(.conversas-3col) {
+  width: 100%;
+  max-width: none;
+}
+
+.conversas-3col {
+  --conversas-thread-min: 380px;
+  position: relative;
+  display: grid;
+  /* Até 1279px: lista · conversa; o contato abre numa gaveta. */
+  grid-template-columns: minmax(240px, 300px) minmax(var(--conversas-thread-min), 1fr);
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .conversas-3col:not(.conversas-3col--drawer) {
+    --conversas-thread-min: 400px;
+    grid-template-columns:
+      minmax(240px, 300px) minmax(var(--conversas-thread-min), 1fr) minmax(260px, 320px);
+  }
+}
+
+.conversas-3col--drawer .conversas-3col-contact {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 90%);
+  z-index: 20;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 12%);
+}
+
+.conversas-contact-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 19;
+  background: rgb(0 0 0 / 18%);
+}
+
+.conversas-contact-toggle {
+  align-self: flex-end;
+  margin: var(--space-2) var(--space-3) 0;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  border: var(--size-border-width) solid var(--color-line-border);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.conversas-3col-list,
+.conversas-3col-contact {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-3);
+  background: var(--color-surface-card);
+}
+
+.conversas-3col-list {
+  border-right: var(--size-border-width) solid var(--color-line-border);
+}
+
+.conversas-3col-contact {
+  border-left: var(--size-border-width) solid var(--color-line-border);
+}
+
+.conversas-3col-thread {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* No desktop o cabeçalho do shell continua visível (a navegação está à esquerda). */
+.panel-app:has(.conversas-3col) .panel-shell-header {
+  display: flex;
+}
+
+.conversas-3col-contact .inbox-thread-header {
+  display: none;
+}
+
 /* Ação de cabeçalho com texto (ex.: «Agendar» na conversa): ícone + rótulo, alvo ≥ 44 px. */
 .panel-header-action {
   flex: none;

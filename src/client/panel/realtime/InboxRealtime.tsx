@@ -37,6 +37,15 @@ export function isInboxEvent(event: RealtimeServerEvent): boolean {
   )
 }
 
+/** Eventos que mudam a grade de horários do Agendar (DEC-057). */
+export function isScheduleEvent(event: RealtimeServerEvent): boolean {
+  return (
+    event.eventType.startsWith('appointment.')
+    || event.eventType.startsWith('schedule_hold.')
+    || event.eventType === 'cobranca.paga'
+  )
+}
+
 /** conversationId afetado (payload ou entidade), se houver. */
 export function eventConversationId(event: RealtimeServerEvent): string | null {
   const fromPayload = event.payload?.conversationId
@@ -50,11 +59,14 @@ export function InboxRealtimeProvider({
   api,
   generation,
   children,
+  acceptEvent = isInboxEvent,
 }: {
   tenantId: string
   api: PanelApi
   generation: number
   children: ReactNode
+  /** Filtro de eventos entregues aos ecrãs (padrão: inbox). */
+  acceptEvent?: (event: RealtimeServerEvent) => boolean
 }) {
   const listeners = useRef(new Set<Listener>())
   const [state, setState] = useState<RealtimeState>('idle')
@@ -119,8 +131,8 @@ export function InboxRealtimeProvider({
         }
       },
       onEvent: (event) => {
-        if (isInboxEvent(event)) {
-          if (!soundSeen.has(event.eventId)) {
+        if (acceptEvent(event)) {
+          if (isInboxEvent(event) && !soundSeen.has(event.eventId)) {
             soundSeen.add(event.eventId)
             if (soundSeen.size > 200) soundSeen.delete(soundSeen.values().next().value as string)
             maybePlayInboundSound(event)
@@ -154,7 +166,7 @@ export function InboxRealtimeProvider({
       if (badgeTimer) clearTimeout(badgeTimer)
       conn.stop()
     }
-  }, [api, tenantId, generation])
+  }, [api, tenantId, generation, acceptEvent])
 
   return (
     <InboxRealtimeContext.Provider value={{ ...ctx, state }}>

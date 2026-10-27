@@ -86,14 +86,26 @@ function ConversasSectionView({
   viewerId: string
   isOwner: boolean
 }) {
+  const wide = useWideLayout()
   if (section === 'thread' && conversationId) {
-    return (
+    const thread = (
       <InboxThread
         tenantId={tenantId}
         conversationId={conversationId}
         api={api}
         generation={generation}
         viewerClerkUserId={viewerId}
+      />
+    )
+    if (!wide) return thread
+    return (
+      <ConversasThreeCol
+        tenantId={tenantId}
+        conversationId={conversationId}
+        api={api}
+        generation={generation}
+        viewerId={viewerId}
+        isOwner={isOwner}
       />
     )
   }
@@ -139,6 +151,129 @@ function ConversasSectionView({
       viewerClerkUserId={viewerId}
     />
   )
+}
+
+/** Abaixo disto o contato vira gaveta (o grid só tem lista + conversa). */
+export const CONTACT_INLINE_QUERY = '(min-width: 1280px)'
+
+/**
+ * Desktop: lista · conversa · contato. A conversa tem largura mínima garantida
+ * (CSS); abaixo de 1280px o contato abre numa gaveta por cima, via botão.
+ */
+export function ConversasThreeCol({
+  tenantId,
+  conversationId,
+  api,
+  generation,
+  viewerId,
+  isOwner,
+}: {
+  tenantId: string
+  conversationId: string
+  api: NonNullable<ReturnType<typeof useAuthSession>['api']>
+  generation: number
+  viewerId: string
+  isOwner: boolean
+}) {
+  const inlineContact = useMediaQuery(CONTACT_INLINE_QUERY)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  useEffect(() => {
+    if (inlineContact) setDrawerOpen(false)
+  }, [inlineContact])
+  useEffect(() => {
+    if (!drawerOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrawerOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [drawerOpen])
+  const showContact = inlineContact || drawerOpen
+  return (
+    <div
+      className={`conversas-3col${inlineContact ? '' : ' conversas-3col--drawer'}`}
+      data-contact={inlineContact ? 'inline' : drawerOpen ? 'drawer-open' : 'drawer-closed'}
+    >
+      <div className="conversas-3col-list">
+        <InboxList tenantId={tenantId} api={api} generation={generation} viewerClerkUserId={viewerId} />
+      </div>
+      <div className="conversas-3col-thread">
+        {!inlineContact ? (
+          <button
+            type="button"
+            className="conversas-contact-toggle"
+            aria-expanded={drawerOpen}
+            aria-controls="conversas-contact-panel"
+            onClick={() => setDrawerOpen((v) => !v)}
+          >
+            {drawerOpen ? 'Fechar contato' : 'Ver contato'}
+          </button>
+        ) : null}
+        <InboxThread
+          tenantId={tenantId}
+          conversationId={conversationId}
+          api={api}
+          generation={generation}
+          viewerClerkUserId={viewerId}
+        />
+      </div>
+      {drawerOpen && !inlineContact ? (
+        <div className="conversas-contact-scrim" aria-hidden="true" onClick={() => setDrawerOpen(false)} />
+      ) : null}
+      {showContact ? (
+        <aside
+          id="conversas-contact-panel"
+          className="conversas-3col-contact"
+          aria-label="Contato"
+          {...(!inlineContact ? { role: 'dialog', 'aria-modal': false } : {})}
+        >
+          <ContactViaConversation
+            tenantId={tenantId}
+            conversationId={conversationId}
+            api={api}
+            generation={generation}
+            isOwner={isOwner}
+          />
+        </aside>
+      ) : null}
+    </div>
+  )
+}
+
+const WIDE_QUERY = '(min-width: 1024px)'
+
+function useMediaQuery(query: string): boolean {
+  const get = () =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(query).matches
+      : false
+  const [m, setM] = useState(get)
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    const mq = window.matchMedia(query)
+    const on = () => setM(mq.matches)
+    on()
+    mq.addEventListener?.('change', on)
+    return () => mq.removeEventListener?.('change', on)
+  }, [query])
+  return m
+}
+
+/** Desktop largo → 3 colunas. No celular nada muda (e não busca lista/contato a mais). */
+function useWideLayout(): boolean {
+  const get = () =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(WIDE_QUERY).matches
+      : false
+  const [wide, setWide] = useState(get)
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    const mq = window.matchMedia(WIDE_QUERY)
+    const on = () => setWide(mq.matches)
+    mq.addEventListener?.('change', on)
+    return () => mq.removeEventListener?.('change', on)
+  }, [])
+  return wide
 }
 
 /** Resolve contactId a partir da conversa quando a rota é …/:id/contato. */

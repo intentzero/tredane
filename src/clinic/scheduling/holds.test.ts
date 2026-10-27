@@ -232,6 +232,37 @@ describe('reserva por bloco (sempre com hora)', () => {
     }
   })
 
+  it('regressão: bloco mais longo que o serviço ocupa occupies_until, não a duração do serviço', () => {
+    const { db, close, caller, clock, hold, svc, pro } = setup()
+    try {
+      // Serviço 60 min; bloco 90 min às 9:00 → ocupa até 10:30.
+      const r = hold({ durationMinutes: 90, startsAt: at(9) })
+      expect(r.value.appointment.occupiesUntil).toBe(at(10, 30))
+      const avail = queryAvailabilityOp(
+        db,
+        caller,
+        { serviceId: svc.id, date: '2024-01-08', professionalId: pro.id },
+        clock,
+      )
+      const starts = avail.slots.map((s) => s.startsAt)
+      expect(starts).not.toContain(at(10)) // antes do fix: 10:00 aparecia livre
+      expect(starts).not.toContain(at(9, 45))
+      expect(starts).toContain(at(10, 30))
+      expect(() =>
+        confirmAppointmentOp(
+          db,
+          caller,
+          { clientRequestId: 'apt-overlap', serviceId: svc.id, professionalId: pro.id, startsAt: at(10), actorClerkUserId: ACTOR },
+          clock,
+        ),
+      ).toThrow(ConflictError)
+      // Outro bloco que cairia dentro dos 90 min também é recusado.
+      expect(() => hold({ startsAt: at(10), durationMinutes: 30, windowStartsAt: at(10), windowEndsAt: at(12) })).toThrow(ConflictError)
+    } finally {
+      close()
+    }
+  })
+
   it('idempotente por clientRequestId', () => {
     const { close, hold } = setup()
     try {

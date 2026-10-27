@@ -27,6 +27,11 @@ export type ConfirmAppointmentInput = {
   excludeHoldId?: string | null
   /** Reserva por bloco: o compromisso ocupa a duração do bloco, não a do serviço. */
   durationMinutesOverride?: number | null
+  /** DEC-052: quem chama já move a etapa (ex.: bloco com nota própria). */
+  skipStageMove?: boolean
+  /** DEC-051: duração escolhida no Agendar (validada contra mín/máx do serviço). */
+  appliedDurationMinutes?: number | null
+  actorDisplayName?: string | null
 }
 
 export type CancelAppointmentInput = {
@@ -85,6 +90,8 @@ export type AppointmentListItem = {
   opportunityId: string | null
   version: number
   changeReason: string | null
+  /** DEC-051(i): duração aplicada ≠ padrão do serviço → rótulo «duração ajustada». */
+  durationAdjusted: boolean
 }
 
 export type AgendaViewInput = {

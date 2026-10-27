@@ -45,7 +45,7 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
 
   async generate(input: AiGenerateInput): Promise<AiGenerateResult> {
     const model =
-      input.kind === 'summary' ? AI_MODEL_SUMMARY_PROPOSED : AI_MODEL_REPLY_PROPOSED
+      input.model ?? (input.kind === 'summary' ? AI_MODEL_SUMMARY_PROPOSED : AI_MODEL_REPLY_PROPOSED)
     const systemPrompt = buildSystemPrompt(input)
     const userContent = buildUserContent(input)
     this.#last = {
@@ -54,6 +54,7 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
       systemPrompt,
       userContent,
       maxTokens: input.maxOutputTokens,
+      ...(input.temperature != null ? { temperature: input.temperature } : {}),
       headers: {
         'cf-aig-collect-log-payload': 'false',
         'x-tredane-ai-mode': 'synthetic',
@@ -116,12 +117,12 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
     const name = input.context.contactFirstName ?? 'Contacto'
     const stage = input.context.stage ?? 'sem etapa'
     const last = input.context.messages.at(-1)?.body ?? ''
-    return `${name} — etapa «${stage}». Último contacto: ${last.slice(0, 120)}${last.length > 120 ? '…' : ''}`
+    return `${name} — etapa «${stage}». Último contato: ${last.slice(0, 120)}${last.length > 120 ? '…' : ''}`
   }
 
   #buildReply(input: AiGenerateInput): string {
     if (input.warnings.includes('clinical')) {
-      return 'Obrigada pela pergunta. Para questões de saúde, uma profissional da clínica vai orientar você com segurança — posso pedir para ela entrar em contacto?'
+      return 'Obrigada pela pergunta. Para questões de saúde, uma profissional da clínica vai orientar você com segurança — posso pedir para ela entrar em contato?'
     }
     if (input.warnings.includes('offensive')) {
       return 'Entendo que possa estar frustrada. Estou aqui para ajudar com os nossos serviços de estética, com respeito. Como posso ajudar?'
@@ -159,7 +160,45 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
       }
     }
 
+    // Pedido de horário → 2–3 horários livres reais do dia/período pedido
+    const slotReply = this.#buildSlotReply(input, last)
+    if (slotReply) return slotReply
+
     // Fallback cordial
     return `Olá${input.context.contactFirstName ? ` ${input.context.contactFirstName}` : ''}! Posso ajudar com informações dos nossos serviços ou a encontrar um horário. O que prefere?`
+  }
+
+  #buildSlotReply(input: AiGenerateInput, last: string): string | null {
+    const c = input.context.clinic
+    if (!c || c.freeSlots.length === 0) return null
+    const n = last.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    if (!/(horario|vaga|disponib|agenda|tem .*(hora|dia)|amanha|hoje|manha|tarde|noite)/.test(n)) return null
+    const wantTomorrow = /amanha/.test(n)
+    const wantToday = /\bhoje\b/.test(n)
+    const period = /tarde/.test(n) ? 'tarde' : /manha/.test(n) ? 'manha' : /noite/.test(n) ? 'noite' : null
+    const inPeriod = (t: string) => {
+      const h = Number(t.slice(0, 2))
+      if (period === 'manha') return h < 12
+      if (period === 'tarde') return h >= 12 && h < 18
+      if (period === 'noite') return h >= 18
+      return true
+    }
+    const days = c.freeSlots.filter((d) =>
+      wantTomorrow ? d.dayLabel.startsWith('amanhã') : wantToday ? d.dayLabel.startsWith('hoje') : true,
+    )
+    for (const d of days) {
+      const times = d.times.filter(inPeriod)
+      if (times.length === 0) continue
+      const pick = times.length <= 3 ? times : [times[0]!, times[Math.floor(times.length / 2)]!, times[times.length - 1]!]
+      const when = d.dayLabel.startsWith('amanhã')
+        ? `Amanhã (${d.dayLabel.split(' ').pop()})`
+        : d.dayLabel.startsWith('hoje')
+          ? 'Hoje'
+          : `Na ${d.dayLabel}`
+      const list = pick.length === 1 ? pick[0]! : `${pick.slice(0, -1).join(', ')} e ${pick[pick.length - 1]}`
+      const name = input.context.contactFirstName ? `, ${input.context.contactFirstName}` : ''
+      return `Tenho sim${name}! ${when} tenho ${list} para ${d.serviceName.toLowerCase()}. Qual fica melhor pra você?`
+    }
+    return null
   }
 }

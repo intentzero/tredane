@@ -11,6 +11,8 @@ type SettingsSql = {
   signal_deadline_seconds?: number
   signal_cancellation_policy?: string
   ai_assist_enabled?: number
+  clinic_address?: string
+  reschedule_policy?: string
   updated_at: number
 }
 
@@ -22,6 +24,8 @@ function mapSettings(row: SettingsSql): ClinicSettingsRow {
       row.signal_deadline_seconds ?? DEFAULT_SIGNAL_DEADLINE_SECONDS,
     signalCancellationPolicy: row.signal_cancellation_policy ?? '',
     aiAssistEnabled: row.ai_assist_enabled === 1,
+    clinicAddress: row.clinic_address ?? '',
+    reschedulePolicy: row.reschedule_policy ?? '',
     updatedAt: row.updated_at,
   }
 }
@@ -32,7 +36,8 @@ export function ensureClinicSettings(
   clock: Clock,
 ): ClinicSettingsRow {
   const existing = db.get<SettingsSql>(
-    `SELECT tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, ai_assist_enabled, updated_at
+    `SELECT tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, ai_assist_enabled,
+       clinic_address, reschedule_policy, updated_at
      FROM clinic_settings WHERE id = 1`,
   )
   if (existing) {
@@ -58,6 +63,8 @@ export function ensureClinicSettings(
     signalDeadlineSeconds: DEFAULT_SIGNAL_DEADLINE_SECONDS,
     signalCancellationPolicy: '',
     aiAssistEnabled: false,
+    clinicAddress: '',
+    reschedulePolicy: '',
     updatedAt: now,
   }
 }
@@ -104,4 +111,29 @@ export function isClinicAiAssistEnabled(db: ClinicDb, tenantId: string): boolean
     tenantId,
   )
   return row?.ai_assist_enabled === 1
+}
+
+/** Endereço e regras de remarcação/cancelamento usados no contexto da IA (só o responsável). */
+export function setClinicAiProfile(
+  db: ClinicDb,
+  tenantId: string,
+  input: { clinicAddress?: string | null; reschedulePolicy?: string | null },
+  clock: Clock,
+): ClinicSettingsRow {
+  const cur = ensureClinicSettings(db, tenantId, clock)
+  const address =
+    input.clinicAddress == null ? cur.clinicAddress : input.clinicAddress.trim().slice(0, 300)
+  const policy =
+    input.reschedulePolicy == null
+      ? cur.reschedulePolicy
+      : input.reschedulePolicy.trim().slice(0, 1000)
+  db.run(
+    `UPDATE clinic_settings SET clinic_address = ?, reschedule_policy = ?, updated_at = ?
+     WHERE id = 1 AND tenant_id = ?`,
+    address,
+    policy,
+    clock.nowMs(),
+    tenantId,
+  )
+  return ensureClinicSettings(db, tenantId, clock)
 }

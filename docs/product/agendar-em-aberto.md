@@ -8,7 +8,7 @@ O redesenho visual (cartões de serviço, botões de profissional, grade de dias
 
 - `queryAvailability` **já aceita** duração substituta: `durationMinutesOverride` (`src/clinic/scheduling/query.ts:128`), exposta em `GET …/availability?durationMinutes=` (`src/scheduling/routes.ts:143`). Hoje só `ReservarBlocoSheet` envia esse parâmetro.
 - `confirmAppointmentInTransaction` aceita `durationMinutesOverride` (`booking-types.ts:29`), mas a rota `POST /api/tenants/:id/appointments` **não** repassa duração (`routes.ts:257–300`); só a conversão de bloco usa (`holds.ts:360`).
-- Conflitos de compromissos confirmados recalculam a ocupação pela **duração + buffer do serviço** (`occupancy.ts:71`), ignorando `occupies_until`/`ends_at` gravados. Um compromisso com duração própria seria subcontado na checagem de conflito. **Risco a confirmar por teste** antes de qualquer duração personalizada (inclusive a de blocos).
+- ~~Conflitos de compromissos confirmados recalculam a ocupação pela duração + buffer do serviço~~ — **Risco confirmado por teste e corrigido** (27/10/2026, card t1868s7504): `occupancy.ts` passou a usar `occupies_until` gravado (fallback `ends_at` + buffer em linhas antigas); um bloco de 90 min num serviço de 60 min deixava 10:00 livre e permitia sobreposição. Regressão em `holds.test.ts`.
 - O compromisso grava `ends_at` e `occupies_until` (migração 0009), mas não guarda a duração padrão do serviço no momento da marcação.
 - O serviço só tem `duration_minutes`, `buffer_minutes`, `price_cents` e campos de sinal; **não existe** campo «duração ajustável». DEC-042 trata só de quem configura (owner), não de duração ajustável.
 - Sinal percentual = `price_cents × percent` do serviço (`AgendarScreen.tsx`, `signalAmountCents`). O sinal é DEC-047/049; DEC-046 trata de preço nas respostas da IA.
@@ -21,6 +21,8 @@ O redesenho visual (cartões de serviço, botões de profissional, grade de dias
 - Atualização dos horários: polling de 15 s (`AgendarScreen.tsx`), não WebSocket; [ux-ui.md](ux-ui.md) pede marcação imediata.
 
 ## DEC-051 — Duração personalizada no Agendar
+
+**Status: Confirmado** — Paulo aprovou a recomendação (card t1868s7504, 27/10/2026). Implementado no staging conforme a recomendação.
 
 **Pergunta:** a atendente pode mudar a duração ao agendar? **Bloqueia:** qualquer controle de duração no Agendar (mock a07 fica só como variante). Não bloqueia o restante do redesenho.
 
@@ -38,29 +40,43 @@ O redesenho visual (cartões de serviço, botões de profissional, grade de dias
 
 ## DEC-052 — Etapa «Agendado» ao confirmar
 
-Opções: (1) não mudar etapa (comportamento atual); (2) mover automaticamente para «Agendado»; (3) perguntar na revisão. DEC-040(a) só define o sentido inverso (mudar etapa nunca cria compromisso). **Recomendação:** (2), com evento no histórico. **Bloqueia:** qualquer mudança de etapa a partir do Agendar; até decidir, a tela não altera etapa.
+**Status: Confirmado** — Paulo aprovou a recomendação (card t1868s7504, 27/10/2026). Implementado no staging conforme a recomendação.
+
+Opções: (1) não mudar etapa (comportamento atual); (2) mover automaticamente para «Agendado»; (3) perguntar na revisão. DEC-040(a) só define o sentido inverso (mudar etapa nunca cria compromisso). **Recomendação:** (2), com evento no histórico. **Implementado:** confirmar move a oportunidade para «Agendado» com evento no histórico («Compromisso confirmado no Agendar»).
 
 ## DEC-053 — Aviso por WhatsApp: padrão e fora da janela de 24 h
 
-Opções do padrão: ligado ou desligado. Fora da janela (DEC-040(d) já proíbe texto livre): (1) desligar o aviso com explicação; (2) oferecer o modelo «confirmação de horário» (cadastro confirmado em [whatsapp-templates-draft.md](whatsapp-templates-draft.md), ainda sem aprovação Meta). **Recomendação:** ligado dentro da janela quando há conversa; fora dela, (1) até o modelo estar aprovado, depois (2). **Bloqueia:** o padrão definitivo do interruptor e o envio por modelo. **Padrão seguro no staging:** desligado; fora da janela o interruptor fica indisponível com explicação.
+**Status: Confirmado** — Paulo aprovou a recomendação (card t1868s7504, 27/10/2026). Implementado no staging conforme a recomendação.
+
+Opções do padrão: ligado ou desligado. Fora da janela (DEC-040(d) já proíbe texto livre): (1) desligar o aviso com explicação; (2) oferecer o modelo «confirmação de horário» (cadastro confirmado em [whatsapp-templates-draft.md](whatsapp-templates-draft.md), ainda sem aprovação Meta). **Recomendação:** ligado dentro da janela quando há conversa; fora dela, (1) até o modelo estar aprovado, depois (2). **Bloqueia:** o padrão definitivo do interruptor e o envio por modelo. **Implementado:** com conversa, ligado dentro da janela; fora dela, interruptor indisponível com explicação (envio por modelo fica para quando o modelo for aprovado pela Meta).
 
 ## DEC-054 — «Ver calendário» além de 7 dias
 
-Opções: 7 dias; 30 dias; 60 dias; horizonte definido pela owner. **Recomendação:** 60 dias no MVP, configurável depois. **Bloqueia:** o horizonte final do calendário. **Padrão no staging:** calendário até 60 dias, marcado como Em aberto.
+**Status: Confirmado** — Paulo aprovou a recomendação (card t1868s7504, 27/10/2026). Implementado no staging conforme a recomendação.
+
+Opções: 7 dias; 30 dias; 60 dias; horizonte definido pela owner. **Recomendação:** 60 dias no MVP, configurável depois. **Bloqueia:** o horizonte final do calendário. **Implementado:** calendário até 60 dias.
 
 ## DEC-055 — Critério e horizonte do «Próximo livre»
+
+**Status: Confirmado** — Paulo aprovou a recomendação (card t1868s7504, 27/10/2026). Implementado no staging conforme a recomendação.
 
 Opções de critério: mesmo profissional escolhido; qualquer profissional. Horizonte: 7, 14 ou 30 dias. **Recomendação:** respeitar a escolha atual (profissional escolhido, ou qualquer se «Qualquer»), primeiro horário mais cedo, até 14 dias; depois endpoint no servidor. **Padrão no staging:** esse mesmo, calculado no cliente dia a dia (até 14 consultas).
 
 ## DEC-056 — Sala na grade ou só na revisão
 
+**Status: Confirmado** — Paulo aprovou a recomendação (card t1868s7504, 27/10/2026). Implementado no staging conforme a recomendação.
+
 Opções: mostrar sala em cada horário (spec atual, ux-ui.md tabela «Lista de horários»); só na revisão; na grade só quando houver mais de uma sala possível. **Recomendação:** só na revisão e no rodapé, mantendo a grade de 4 colunas legível. **Padrão no staging:** sala na revisão e no rodapé; horários repetidos com salas diferentes aparecem uma vez (primeira opção devolvida pela API).
 
 ## DEC-057 — Horários ocupados em tempo real
 
-Opções: polling (15 s, atual); evento WebSocket `appointment.*` invalidando a grade; ambos. **Recomendação:** WebSocket com polling de reserva. **Bloqueia:** o critério «marcado como indisponível imediatamente» de ux-ui.md; até decidir mantém-se polling + recheque antes de confirmar.
+**Status: Confirmado** — Paulo aprovou a recomendação (card t1868s7504, 27/10/2026). Implementado no staging conforme a recomendação.
+
+Opções: polling (15 s, atual); evento WebSocket `appointment.*` invalidando a grade; ambos. **Recomendação:** WebSocket com polling de reserva. **Implementado:** eventos `appointment.*`, `schedule_hold.*` e `cobranca.paga` pelo WebSocket recarregam a grade; polling de 15 s e recheque antes de confirmar ficam de reserva.
 
 ## DEC-058 — Texto da cobrança Pix editável
+
+**Status: Confirmado** — Paulo aprovou a recomendação (card t1868s7504, 27/10/2026). Implementado no staging conforme a recomendação.
 
 - **Evidência:** `createPixCharge` não recebe texto; a mensagem do sinal é montada no servidor. O prazo real é `DEFAULT_SIGNAL_DEADLINE_SECONDS` = 2 h (`src/pix/money.ts`), configurável por clínica.
 - **Opções:** (a) manter texto fixo do servidor; (b) aceitar texto editável na API com o código Pix sempre anexado.

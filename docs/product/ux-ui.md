@@ -150,10 +150,10 @@ Tela única no celular (M-04, M-34 a M-38), cabeçalho com o contato real e **Vo
 
 1. **Serviço** — cartões com nome, duração e valor.
 2. **Profissional** — botões, **Qualquer** primeiro.
-3. **Dia** — grade de 5 dias e **Ver calendário** (60 dias em staging, DEC-054). Dia sem horários mostra **Próximo livre** (busca no cliente, 14 dias, mesma escolha de profissional; não há endpoint próprio — DEC-055).
-4. **Horário** — grade de 4 colunas separada em Manhã e Tarde; selecionado em destaque preenchido; sala só no rodapé e na revisão (DEC-056).
+3. **Dia** — grade de 5 dias e **Ver calendário** (60 dias, DEC-054 Confirmado). Dia sem horários mostra **Próximo livre** (busca no cliente, 14 dias, mesma escolha de profissional; não há endpoint próprio — DEC-055 Confirmado).
+4. **Horário** — grade de 4 colunas separada em Manhã e Tarde; selecionado em destaque preenchido; sala só no rodapé e na revisão (DEC-056 Confirmado). Horários ocupados somem na hora por evento WebSocket, com polling de reserva (DEC-057 Confirmado).
 5. **Rodapé fixo** — resumo e **Revisar e confirmar** (alvos ≥ 44 px).
-6. **Revisão** (folha inferior, M-35) — paciente, serviço, profissional, quando, sala, valor; **Enviar confirmação pelo WhatsApp** com texto editável (desligado por padrão, DEC-053). Só disponível com conversa e janela de 24 h aberta; enviada depois de confirmar, pela mesma API do inbox.
+6. **Revisão** (folha inferior, M-35) — paciente, serviço, profissional, quando, sala, valor; **Enviar confirmação pelo WhatsApp** com texto editável (ligado por padrão quando há conversa e a janela está aberta; fora da janela fica indisponível com explicação — DEC-053 Confirmado). Só disponível com conversa e janela de 24 h aberta; enviada depois de confirmar, pela mesma API do inbox.
 7. **Sinal por Pix** (M-34, DEC-047/049) — valor, prazo (padrão 2 h, configurável pela clínica), **Enviar sinal** e **Confirmar sem sinal** com motivo em chips. O texto da cobrança Pix não é editável (a API não recebe texto).
 
 Resultados:
@@ -161,11 +161,13 @@ Resultados:
 - **Conflito** (M-36): “Esse horário acabou de ser ocupado. Nada foi reservado.” (role=alert, recebe foco); mantém serviço, profissional e dia, risca o horário perdido e destaca as alternativas mais próximas (REQ-031).
 - **Erro de rede/servidor:** “Não foi possível confirmar. Nada foi reservado.” com **Tentar de novo** apenas quando o servidor garantir que nada foi gravado; caso contrário relê a agenda (ADR-0005).
 - Sem configuração mínima: “A agenda desta clínica ainda não foi configurada” (REQ-052, AC-14).
-- Controle de duração (variante a07): **Em aberto**, não implementado (DEC-051).
+- Controle de duração (variante a07, DEC-051 Confirmado): só em serviços marcados pela owner como «Duração ajustável ao agendar»; botões −/+ em passos de 15 min entre o mínimo e o máximo; a grade recalcula; buffer do serviço somado depois; preço e sinal não mudam; reagendar mantém a duração; agenda e compromisso mostram «duração ajustada». Oculto em serviços com sinal.
+- Confirmar move a oportunidade para **Agendado** com evento no histórico (DEC-052 Confirmado).
+- Texto da cobrança Pix fixo do servidor (DEC-058 Confirmado).
 
 A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
-**Em aberto (27/10/2026):** duração personalizada, etapa ao confirmar, padrão do aviso WhatsApp, horizonte do calendário, «Próximo livre», sala na grade e tempo real — DEC-051 a DEC-057 em [agendar-em-aberto.md](agendar-em-aberto.md).
+**Confirmado (27/10/2026, card t1868s7504):** DEC-051 a DEC-058 conforme a recomendação em [agendar-em-aberto.md](agendar-em-aberto.md).
 
 ### TEL-06 — Detalhe, cancelamento e reagendamento
 

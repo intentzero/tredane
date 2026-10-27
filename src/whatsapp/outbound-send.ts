@@ -206,6 +206,47 @@ async function processSendResultMessage(
 }
 
 /**
+ * Recibo de leitura para a Meta — só quando a atendente abre a conversa.
+ * Best-effort: falha não volta a tentar (não afeta o atendimento).
+ */
+async function processMarkReadMessage(
+  msg: ClinicOutboxQueueMessage,
+  deps: ProcessOutboundSendDeps,
+): Promise<OutboxProcessOutcome> {
+  const log = deps.log ?? (() => undefined)
+  const messageId =
+    typeof msg.payload?.providerMessageId === 'string' ? msg.payload.providerMessageId : ''
+  if (isDemoTenantId(msg.tenantId)) {
+    log({ level: 'info', event: 'whatsapp_read.demo_tenant_skip', detail: { tenantId: msg.tenantId } })
+    return 'ack'
+  }
+  if (!messageId) return 'ack'
+  let creds: Awaited<ReturnType<typeof resolveAccessToken>>
+  try {
+    creds = await resolveAccessToken(deps, msg.tenantId)
+  } catch {
+    return 'ack'
+  }
+  if ('errorCode' in creds) {
+    log({ level: 'warn', event: 'whatsapp_read.no_credentials', detail: { tenantId: msg.tenantId, errorCode: creds.errorCode } })
+    return 'ack'
+  }
+  const meta = deps.metaAdapter ?? createMetaSendAdapter(deps.env)
+  if (typeof meta.markMessageRead !== 'function') return 'ack'
+  const r = await meta.markMessageRead({
+    phoneNumberId: creds.phoneNumberId,
+    accessToken: creds.accessToken,
+    messageId,
+  })
+  log({
+    level: r.ok ? 'info' : 'warn',
+    event: r.ok ? 'whatsapp_read.sent' : 'whatsapp_read.failed',
+    detail: { tenantId: msg.tenantId, eventId: msg.eventId, errorCode: r.errorCode ?? null },
+  })
+  return 'ack'
+}
+
+/**
  * Processa uma mensagem de fila `clinic_outbox` do tipo `whatsapp.send`.
  * Outros tipos → ack (message.created / delivery_updated são fan-out já feito no DO).
  */
@@ -218,6 +259,10 @@ export async function processClinicOutboxMessage(
 
   if (msg.type === SEND_RESULT_TYPE) {
     return processSendResultMessage(msg, deps)
+  }
+
+  if (msg.type === 'whatsapp.mark_read') {
+    return processMarkReadMessage(msg, deps)
   }
 
   if (msg.type !== 'whatsapp.send') {

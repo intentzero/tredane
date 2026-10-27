@@ -26,6 +26,8 @@ type AppointmentSql = {
   cancelled_by?: string | null
   cancelled_at?: number | null
   occupies_until?: number | null
+  default_duration_minutes?: number | null
+  applied_duration_minutes?: number | null
 }
 
 export function toAppointment(row: AppointmentSql): AppointmentRow {
@@ -51,6 +53,8 @@ export function toAppointment(row: AppointmentSql): AppointmentRow {
     cancelledBy: row.cancelled_by ?? null,
     cancelledAt: row.cancelled_at ?? null,
     occupiesUntil: row.occupies_until ?? null,
+    defaultDurationMinutes: row.default_duration_minutes ?? null,
+    appliedDurationMinutes: row.applied_duration_minutes ?? null,
   }
 }
 

@@ -172,6 +172,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
         startsAt?: number
         excludeAppointmentId?: string | null
         excludeHoldId?: string | null
+        durationMinutes?: number | null
       }>()
       if (!body.serviceId?.trim() || !body.professionalId?.trim()) {
         throw new ValidationError(
@@ -192,6 +193,8 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           startsAt: body.startsAt!,
           excludeAppointmentId: body.excludeAppointmentId ?? null,
           excludeHoldId: body.excludeHoldId ?? null,
+          durationMinutesOverride:
+            body.durationMinutes == null ? null : finiteNumber(body.durationMinutes, 'durationMinutes'),
         },
       )
       return c.json(serializeCheckSlot(result))
@@ -268,6 +271,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
         contactId?: string | null
         conversationId?: string | null
         opportunityId?: string | null
+        durationMinutes?: number | null
       }>()
       if (!body.clientRequestId?.trim()) {
         throw new ValidationError(
@@ -299,6 +303,9 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           conversationId: body.conversationId ?? null,
           opportunityId: body.opportunityId ?? null,
           actorClerkUserId: actor,
+          actorDisplayName: displayNameFromRole(ctx.role),
+          appliedDurationMinutes:
+            body.durationMinutes == null ? null : finiteNumber(body.durationMinutes, 'durationMinutes'),
         },
       )
       return c.json(

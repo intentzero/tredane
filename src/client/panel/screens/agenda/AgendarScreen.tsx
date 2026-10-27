@@ -1,4 +1,4 @@
-import { CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, TriangleAlert } from 'lucide-react'
+import { CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, Minus, Plus, TriangleAlert } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
@@ -21,6 +21,7 @@ import {
   type PixSnapshot,
 } from '../../api'
 import { navigatePanel } from '../../routes'
+import { InboxRealtimeProvider, isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
 import { friendlyError } from '../../copy/errors'
@@ -30,6 +31,8 @@ import {
   NEXT_FREE_HORIZON_DAYS,
   WAIVE_REASONS,
   defaultConfirmationMessage,
+  defaultNotify,
+  durationBounds,
   formatBrl,
   formatDeadline,
   formatWaId,
@@ -111,9 +114,23 @@ type Success = {
 /**
  * TEL-05 / M-04 (+ M-34 sinal) — redesenho mobile (Proposto por Paulo, 27/10/2026).
  * Confirmação atómica (#35/#36), sinal Pix (#38/#40, DEC-047/049), aviso REQ-033.
- * Em aberto: DEC-051–057 (docs/product/agendar-em-aberto.md).
+ * DEC-051–058 Confirmados (card t1868s7504) — docs/product/agendar-em-aberto.md.
  */
-export function AgendarScreen({ tenantId, api, generation }: Props) {
+export function AgendarScreen(props: Props) {
+  // DEC-057 (Confirmado, card t1868s7504): WebSocket invalida a grade; polling fica de reserva.
+  return (
+    <InboxRealtimeProvider
+      tenantId={props.tenantId}
+      api={props.api}
+      generation={props.generation}
+      acceptEvent={isScheduleEvent}
+    >
+      <AgendarScreenInner {...props} />
+    </InboxRealtimeProvider>
+  )
+}
+
+function AgendarScreenInner({ tenantId, api, generation }: Props) {
   const ctx = useMemo(() => readScheduleContext(), [])
   const fo = useMemo(() => ({ generation, expectGeneration: () => generation }), [generation])
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
@@ -121,6 +138,8 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
   const [contact, setContact] = useState<Contact | null>(null)
   const [window24, setWindow24] = useState<MessagingWindow | null>(null)
   const [serviceId, setServiceId] = useState('')
+  /** DEC-051: duração aplicada (null = padrão do serviço). */
+  const [appliedDuration, setAppliedDuration] = useState<number | null>(null)
   const [professionalId, setProfessionalId] = useState<string>(ANY)
   const [date, setDate] = useState('')
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null)
@@ -202,7 +221,12 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
     try {
       const res = await api.queryAvailability(
         tenantId,
-        { serviceId, date, professionalId: professionalId === ANY ? undefined : professionalId },
+        {
+          serviceId,
+          date,
+          professionalId: professionalId === ANY ? undefined : professionalId,
+          durationMinutes: appliedDuration ?? undefined,
+        },
         fo,
       )
       setAvailability(res)
@@ -225,19 +249,24 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
     } finally {
       setLoadingSlots(false)
     }
-  }, [api, tenantId, fo, serviceId, date, professionalId])
+  }, [api, tenantId, fo, serviceId, date, professionalId, appliedDuration])
 
   useEffect(() => {
     void reloadSlots()
   }, [reloadSlots])
 
-  // Polling leve (DEC-057 em aberto: WebSocket ainda não ligado a esta tela).
+  // DEC-057: evento appointment.*/schedule_hold.* ou (re)ligação → recarrega a grade.
+  useInboxRealtime(() => {
+    void reloadSlots()
+  })
+
+  // Polling de reserva (DEC-057) caso o WebSocket caia.
   useEffect(() => {
     const id = window.setInterval(() => void reloadSlots(), 15_000)
     return () => window.clearInterval(id)
   }, [reloadSlots])
 
-  // «Próximo livre» (DEC-055 em aberto): mesma escolha, até 14 dias, no cliente.
+  // «Próximo livre» (DEC-055 Confirmado): mesma escolha, até 14 dias, no cliente.
   useEffect(() => {
     setNextFree(null)
     if (!availability || availability.slots.length > 0 || availability.date !== date) return
@@ -250,7 +279,12 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
         try {
           const res = await api.queryAvailability(
             tenantId,
-            { serviceId, date: d, professionalId: professionalId === ANY ? undefined : professionalId },
+            {
+              serviceId,
+              date: d,
+              professionalId: professionalId === ANY ? undefined : professionalId,
+              durationMinutes: appliedDuration ?? undefined,
+            },
             fo,
           )
           if (cancelled) return
@@ -269,13 +303,22 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
     return () => {
       cancelled = true
     }
-  }, [availability, date, allDays, api, tenantId, fo, serviceId, professionalId])
+  }, [availability, date, allDays, api, tenantId, fo, serviceId, professionalId, appliedDuration])
 
   useEffect(() => {
     if (conflict) conflictRef.current?.focus()
   }, [conflict])
 
   const service = config?.services.find((s) => s.id === serviceId)
+  const bounds = service ? durationBounds(service) : null
+  const currentDuration = appliedDuration ?? service?.durationMinutes ?? 0
+  function stepDuration(delta: number) {
+    if (!service || !bounds) return
+    const next = Math.min(bounds.max, Math.max(bounds.min, currentDuration + delta))
+    setAppliedDuration(next === service.durationMinutes ? null : next)
+    setSelected(null)
+    setConflict(null)
+  }
   const amountCents = service ? signalAmountCents(service) : null
   const paidSignalMode = Boolean(ctx.alertId)
   const requiresSignal = !paidSignalMode && Boolean(service?.requiresSignal && amountCents != null)
@@ -438,6 +481,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
                   aria-pressed={s.id === serviceId}
                   onClick={() => {
                     setServiceId(s.id)
+                    setAppliedDuration(null)
                     setSelected(null)
                     setConflict(null)
                   }}
@@ -451,6 +495,38 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
               ))}
           </div>
         </section>
+
+        {service && bounds && !requiresSignal && !paidSignalMode ? (
+          <section aria-labelledby="agd-dur">
+            <h2 id="agd-dur" className="agd-label">Duração</h2>
+            <div className="agd-duration" role="group" aria-labelledby="agd-dur">
+              <Button
+                className="panel-icon-btn"
+                aria-label="Diminuir 15 min"
+                isDisabled={currentDuration <= bounds.min}
+                onPress={() => stepDuration(-15)}
+              >
+                <Minus aria-hidden size={20} strokeWidth={2} />
+              </Button>
+              <output className="agd-duration-value" aria-live="polite">
+                {currentDuration} min
+              </output>
+              <Button
+                className="panel-icon-btn"
+                aria-label="Aumentar 15 min"
+                isDisabled={currentDuration >= bounds.max}
+                onPress={() => stepDuration(15)}
+              >
+                <Plus aria-hidden size={20} strokeWidth={2} />
+              </Button>
+            </div>
+            <p className="panel-meta">
+              {appliedDuration != null ? 'Duração ajustada. ' : ''}
+              Padrão {service.durationMinutes} min · de {bounds.min} a {bounds.max} min
+              {service.bufferMinutes > 0 ? ` · +${service.bufferMinutes} min de intervalo` : ''}. Preço e sinal não mudam.
+            </p>
+          </section>
+        ) : null}
 
         <section aria-labelledby="agd-pro">
           <h2 id="agd-pro" className="agd-label">Profissional</h2>
@@ -577,6 +653,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
           fo={fo}
           ctx={ctx}
           service={service}
+          appliedDuration={appliedDuration}
           slot={selected}
           date={date}
           timezone={timezone}
@@ -665,6 +742,7 @@ type ReviewProps = {
   fo: { generation: number; expectGeneration: () => number }
   ctx: ScheduleContext
   service: Service
+  appliedDuration: number | null
   slot: AvailabilitySlot
   date: string
   timezone: string
@@ -687,8 +765,17 @@ function ReviewSheet(p: ReviewProps) {
   const whenLong = `${dayLabel.weekday} ${slashDate(p.date)}, ${start}–${end}`
   const whenShort = `${dayLabel.weekday} ${slashDate(p.date)}, ${start}`
   const canNotify = Boolean(ctx.conversationId) && p.window24?.open === true
-  // DEC-053 em aberto: padrão desligado no staging.
-  const [notify, setNotify] = useState(false)
+  // DEC-053 (Confirmado, card t1868s7504): com conversa, ligado dentro da janela
+  // de 24 h; fora dela desligado com explicação.
+  const [notify, setNotify] = useState(() => defaultNotify(Boolean(ctx.conversationId), p.window24))
+  const notifyTouched = useRef(false)
+  useEffect(() => {
+    if (!notifyTouched.current) setNotify(defaultNotify(Boolean(ctx.conversationId), p.window24))
+  }, [ctx.conversationId, p.window24])
+  const setNotifyByUser = (v: boolean) => {
+    notifyTouched.current = true
+    setNotify(v)
+  }
   const [message, setMessage] = useState(() =>
     defaultConfirmationMessage({
       contactName: p.contact?.name ?? null,
@@ -715,7 +802,13 @@ function ReviewSheet(p: ReviewProps) {
   async function stillFree(): Promise<boolean> {
     const check = await api.checkAvailabilitySlot(
       tenantId,
-      { serviceId: service.id, professionalId: slot.professionalId, roomResourceId: slot.roomResourceId, startsAt: slot.startsAt },
+      {
+        serviceId: service.id,
+        professionalId: slot.professionalId,
+        roomResourceId: slot.roomResourceId,
+        startsAt: slot.startsAt,
+        durationMinutes: p.appliedDuration,
+      },
       fo,
     )
     if (!check.available) {
@@ -783,6 +876,7 @@ function ReviewSheet(p: ReviewProps) {
           conversationId: ctx.conversationId,
           contactId: ctx.contactId,
           opportunityId: ctx.opportunityId,
+          durationMinutes: p.appliedDuration,
         },
         fo,
       )
@@ -926,7 +1020,7 @@ function ReviewSheet(p: ReviewProps) {
                       canNotify={canNotify}
                       hasConversation={Boolean(ctx.conversationId)}
                       notify={notify}
-                      setNotify={setNotify}
+                      setNotify={setNotifyByUser}
                       message={message}
                       setMessage={setMessage}
                     />
@@ -950,7 +1044,7 @@ function ReviewSheet(p: ReviewProps) {
                   canNotify={canNotify}
                   hasConversation={Boolean(ctx.conversationId)}
                   notify={notify}
-                  setNotify={setNotify}
+                  setNotify={setNotifyByUser}
                   message={message}
                   setMessage={setMessage}
                 />

@@ -10,8 +10,7 @@ import {
 } from '../constants'
 import { toAppointment } from '../config/appointments'
 import { getResource } from '../config/resources'
-import { getService } from '../config/services'
-import { occupiedMinutes } from '../config/validation'
+import { assertAppliedDuration, getService } from '../config/services'
 import type { AppointmentRow } from '../config/types'
 import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
@@ -24,6 +23,7 @@ import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import { deleteAllocationsForAppointment, insertAllocations } from './allocations'
 import { checkSlotAvailability } from './check'
+import { moveStage } from './stage'
 import { findAppointmentCommand, saveAppointmentCommand } from './commands'
 import { insertAppointmentEvent, listAppointmentEvents } from './events'
 import type {
@@ -118,6 +118,8 @@ function snapshot(apt: AppointmentRow): Record<string, unknown> {
     startsAt: apt.startsAt,
     endsAt: apt.endsAt,
     occupiesUntil: apt.occupiesUntil,
+    defaultDurationMinutes: apt.defaultDurationMinutes,
+    appliedDurationMinutes: apt.appliedDurationMinutes,
     status: apt.status,
     version: apt.version,
     changeReason: apt.changeReason,
@@ -248,6 +250,14 @@ export function confirmAppointmentInTransaction(
     }
   }
 
+  let durationOverride = input.durationMinutesOverride ?? null
+  if (input.appliedDurationMinutes != null) {
+    const svcForDuration = getService(db, meta.tenantId, input.serviceId)
+    if (svcForDuration) {
+      durationOverride = assertAppliedDuration(svcForDuration, input.appliedDurationMinutes) ?? durationOverride
+    }
+  }
+
   // Re-check dentro da TX (ADR-0005) — SELECT+INSERT separados não bastam.
   const check = checkSlotAvailability(
     db,
@@ -258,7 +268,7 @@ export function confirmAppointmentInTransaction(
       roomResourceId: input.roomResourceId,
       startsAt: input.startsAt,
       excludeHoldId: input.excludeHoldId,
-      durationMinutesOverride: input.durationMinutesOverride,
+      durationMinutesOverride: durationOverride,
     },
     clock,
   )
@@ -286,8 +296,9 @@ export function confirmAppointmentInTransaction(
       id, tenant_id, service_id, professional_id, room_resource_id,
       starts_at, ends_at, status, contact_label, created_at,
       contact_id, conversation_id, opportunity_id,
-      version, updated_at, confirmed_by, confirmed_at, occupies_until
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
+      version, updated_at, confirmed_by, confirmed_at, occupies_until,
+      default_duration_minutes, applied_duration_minutes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
     id,
     meta.tenantId,
     input.serviceId,
@@ -304,6 +315,8 @@ export function confirmAppointmentInTransaction(
     actorId,
     now,
     occupiesUntil,
+    service.durationMinutes,
+    Math.round((endsAt - check.slot.startsAt) / 60_000),
   )
 
   insertAllocations(db, {
@@ -342,6 +355,20 @@ export function confirmAppointmentInTransaction(
     outbox,
     clock,
   )
+  // DEC-052 (Confirmado, card t1868s7504): confirmar com oportunidade move
+  // para «Agendado», com evento no histórico.
+  if (input.opportunityId && !input.skipStageMove) {
+    moveStage(
+      db,
+      meta.tenantId,
+      input.opportunityId,
+      'agendado',
+      { id: actorId, name: input.actorDisplayName ?? null },
+      'Compromisso confirmado no Agendar',
+      clock,
+      outbox,
+    )
+  }
 
   const confirmedOutbox = insertOutboxEvent(
     db,
@@ -382,10 +409,7 @@ export function confirmAppointmentInTransaction(
         startsAt: apt.startsAt,
         professionalId: apt.professionalId,
         roomResourceId: apt.roomResourceId,
-        occupiedMinutes: occupiedMinutes(
-          service.durationMinutes,
-          service.bufferMinutes,
-        ),
+        occupiedMinutes: Math.round((occupiesUntil - apt.startsAt) / 60_000),
       },
     },
     clock,
@@ -643,6 +667,11 @@ export function rescheduleAppointmentOp(
         roomResourceId: input.roomResourceId,
         startsAt: input.startsAt,
         excludeAppointmentId: before.id,
+        // DEC-051(f): reagendar mantém a duração aplicada (mesmo serviço).
+        durationMinutesOverride:
+          serviceId === before.serviceId && before.appliedDurationMinutes != null
+            ? before.appliedDurationMinutes
+            : null,
       },
       clock,
     )
@@ -674,6 +703,8 @@ export function rescheduleAppointmentOp(
         starts_at = ?,
         ends_at = ?,
         occupies_until = ?,
+        default_duration_minutes = COALESCE(?, default_duration_minutes),
+        applied_duration_minutes = ?,
         change_reason = ?,
         updated_at = ?,
         version = version + 1
@@ -684,6 +715,8 @@ export function rescheduleAppointmentOp(
       check.slot.startsAt,
       check.slot.endsAt,
       check.slot.occupiesUntil,
+      getService(db, meta.tenantId, serviceId)?.durationMinutes ?? null,
+      Math.round((check.slot.endsAt - check.slot.startsAt) / 60_000),
       reason,
       now,
       meta.tenantId,

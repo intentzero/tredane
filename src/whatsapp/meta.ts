@@ -56,6 +56,12 @@ export type MetaAdapter = {
   }): Promise<MetaTokenExchangeResult>
   sendTextMessage(input: MetaSendTextInput): Promise<MetaSendResult>
   sendTemplateMessage(input: MetaSendTemplateInput): Promise<MetaSendResult>
+  /** Recibo de leitura (tiques azuis no celular da cliente). Opcional em fakes. */
+  markMessageRead?(input: {
+    phoneNumberId: string
+    accessToken: string
+    messageId: string
+  }): Promise<{ ok: boolean; errorCode?: string }>
 }
 
 export type MetaEnv = {
@@ -151,6 +157,10 @@ export function createSyntheticMetaAdapter(): MetaAdapter {
         displayPhone: (input.displayPhone ?? `+1555${phoneNumberId.slice(-7)}`).trim(),
         displayName: input.displayName?.trim() || null,
       }
+    },
+    async markMessageRead(input) {
+      // Sintético: nunca chama a Meta.
+      return input.messageId ? { ok: true } : { ok: false, errorCode: 'meta_read_invalid' }
     },
     async sendTextMessage(input) {
       if (!input.accessToken || !input.phoneNumberId || !input.toWaId) {
@@ -307,6 +317,37 @@ export function createLiveMetaAdapter(env: MetaEnv): MetaAdapter {
         wabaId,
         displayPhone: (input.displayPhone ?? phoneNumberId).trim(),
         displayName: input.displayName?.trim() || null,
+      }
+    },
+    async markMessageRead(input) {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 10_000)
+      try {
+        const res = await fetch(
+          `https://graph.facebook.com/${version}/${encodeURIComponent(input.phoneNumberId)}/messages`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${input.accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messaging_product: 'whatsapp',
+              status: 'read',
+              message_id: input.messageId,
+            }),
+            signal: controller.signal,
+          },
+        )
+        if (!res.ok) {
+          const meta = await readGraphErrorCodes(res)
+          return { ok: false, errorCode: metaHttpErrorCode(res.status, meta) }
+        }
+        return { ok: true }
+      } catch {
+        return { ok: false, errorCode: 'meta_read_error' }
+      } finally {
+        clearTimeout(timer)
       }
     },
     async sendTextMessage(input) {

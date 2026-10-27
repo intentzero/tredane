@@ -216,6 +216,11 @@ export function CompromissoScreen({
         <p className="panel-meta" style={{ padding: '12px 16px' }}>
           {detail.serviceName} · {detail.professionalName}
           {detail.roomResourceName ? ` · ${detail.roomResourceName}` : ''}
+          {detail.appliedDurationMinutes != null &&
+          detail.defaultDurationMinutes != null &&
+          detail.appliedDurationMinutes !== detail.defaultDurationMinutes
+            ? ` · duração ajustada: ${detail.appliedDurationMinutes} min (padrão ${detail.defaultDurationMinutes} min)`
+            : ''}
           <br />
           {formatSlotTime(detail.startsAt, timezone)}
           {detail.contactLabel ? ` · ${detail.contactLabel}` : ''}

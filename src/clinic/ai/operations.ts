@@ -1,4 +1,8 @@
 import {
+  parseReplyOutput,
+  AI_MODEL_AUTODRAFT,
+  AI_MODEL_REGENERATE,
+  AI_REPLY_TEMPERATURE,
   AI_MAX_OUTPUT_TOKENS_REPLY,
   AI_MAX_OUTPUT_TOKENS_SUMMARY,
   AI_TIMEOUT_MS,
@@ -22,8 +26,11 @@ import {
   insertSuggestion,
   listSuggestionsForConversation,
   markSuggestionSuperseded,
+  supersedePendingAutoDrafts,
   updateSuggestionDecision,
 } from './suggestions'
+import { getAiDailyUsage, incrementAiDailyUsage } from './usage'
+import { writeOperationalAudit } from '../audit'
 import type {
   AiAssistDeps,
   AiSuggestionRow,
@@ -40,6 +47,13 @@ export type SuggestResult = {
   duplicate: boolean
   /** Sempre false — a IA nunca envia. */
   messageSent: false
+}
+
+/** Log estruturado sem conteúdo pessoal. */
+function aiLog(level: 'info' | 'warn', event: string, detail: Record<string, unknown>): void {
+  const line = JSON.stringify({ level, event, ...detail })
+  if (level === 'warn') console.warn(line)
+  else console.log(line)
 }
 
 function parseCachedSuggest(json: string): SuggestResult {
@@ -59,8 +73,11 @@ async function runGenerate(
     actorClerkUserId: string
     actorDisplayName: string
     parentSuggestionId?: string | null
+    /** auto = rascunho em segundo plano (sem comando idempotente). */
+    origin?: 'auto' | 'manual'
   },
 ): Promise<SuggestResult> {
+  const origin = input.origin ?? 'manual'
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
   const meta = bindOrAssertTenant(db, caller, clock)
@@ -70,11 +87,12 @@ async function runGenerate(
     throw new ClinicError('ai_not_enabled', 'IA assistiva desligada para esta clínica')
   }
 
-  if (!input.clientRequestId.trim()) {
+  if (origin === 'manual' && !input.clientRequestId.trim()) {
     throw new ValidationError('client_request_id_required', 'clientRequestId obrigatório')
   }
 
-  const cached = findAiCommand(db, meta.tenantId, input.clientRequestId)
+  const cached =
+    origin === 'manual' ? findAiCommand(db, meta.tenantId, input.clientRequestId) : null
   if (cached) {
     const parsed = parseCachedSuggest(cached.resultJson)
     return { ...parsed, duplicate: true, messageSent: false }
@@ -82,6 +100,17 @@ async function runGenerate(
 
   if (!getConversation(db, meta.tenantId, input.conversationId)) {
     throw new NotFoundError('conversation_not_found', 'Conversa não encontrada')
+  }
+
+  if (input.kind === 'reply' && getAiDailyUsage(db, meta.tenantId, clock).capReached) {
+    throw new ClinicError(
+      'ai_daily_cap_reached',
+      'Limite diário de rascunhos da IA atingido nesta clínica',
+    )
+  }
+
+  if (deps.syntheticFallback) {
+    aiLog('warn', 'ai.synthetic_fallback_used', { tenantId: meta.tenantId, kind: input.kind, origin })
   }
 
   if (input.parentSuggestionId) {
@@ -95,6 +124,7 @@ async function runGenerate(
     db,
     meta.tenantId,
     input.conversationId,
+    input.kind === 'reply' ? { clock, clinicName: deps.clinicName ?? null } : {},
   )
   assertContextMinimized(contextInspection.payload)
 
@@ -115,7 +145,15 @@ async function runGenerate(
         ? AI_MAX_OUTPUT_TOKENS_SUMMARY
         : AI_MAX_OUTPUT_TOKENS_REPLY,
     timeoutMs: AI_TIMEOUT_MS,
+    ...(input.kind === 'reply'
+      ? {
+          model: input.parentSuggestionId ? AI_MODEL_REGENERATE : AI_MODEL_AUTODRAFT,
+          temperature: AI_REPLY_TEMPERATURE,
+        }
+      : {}),
   })
+  // Saída estruturada: mensagem limpa à cliente + notas internas separadas.
+  const parsedReply = gen.ok && input.kind === 'reply' ? parseReplyOutput(gen.text) : null
 
   const now = clock.nowMs()
   const warningCodes = [...rules.warnings]
@@ -130,6 +168,28 @@ async function runGenerate(
     if (input.parentSuggestionId) {
       markSuggestionSuperseded(db, meta.tenantId, input.parentSuggestionId, now)
     }
+    if (input.kind === 'reply') {
+      // Um só rascunho automático pendente por conversa.
+      supersedePendingAutoDrafts(db, meta.tenantId, input.conversationId, now)
+      if (gen.ok) {
+        const usage = incrementAiDailyUsage(db, meta.tenantId, clock)
+        if (usage.justReached) {
+          aiLog('warn', 'ai.daily_cap_reached', { tenantId: meta.tenantId, drafts: usage.drafts })
+          writeOperationalAudit(
+            db,
+            {
+              tenantId: meta.tenantId,
+              actor: 'system',
+              action: 'ai.daily_cap_reached',
+              objectType: 'clinic_settings',
+              objectId: '1',
+              detail: { drafts: usage.drafts },
+            },
+            clock,
+          )
+        }
+      }
+    }
 
     const row = insertSuggestion(db, {
       tenantId: meta.tenantId,
@@ -138,7 +198,8 @@ async function runGenerate(
       status: gen.ok ? 'pending' : 'failed',
       provider: gen.provider,
       model: gen.model,
-      suggestedText: gen.ok ? gen.text : '',
+      suggestedText: gen.ok ? (parsedReply ? parsedReply.message : gen.text) : '',
+      internalNotes: parsedReply?.notes ?? '',
       warningCodes,
       warningLabels,
       sourceRefs,
@@ -147,12 +208,14 @@ async function runGenerate(
         inputTokens: gen.ok ? gen.inputTokens : null,
         outputTokens: gen.ok ? gen.outputTokens : null,
         messageCount: contextInspection.payload.messages.length,
-        mode: deps.mode,
+        mode: deps.syntheticFallback ? 'synthetic_fallback' : deps.mode,
       },
       errorCode: gen.ok ? null : gen.code,
       requestedByClerkUserId: input.actorClerkUserId,
       requestedByDisplayName: input.actorDisplayName,
       parentSuggestionId: input.parentSuggestionId ?? null,
+      replyToMessageId: input.kind === 'reply' ? contextInspection.lastInboundMessageId : null,
+      origin,
       createdAt: now,
     })
 
@@ -163,7 +226,7 @@ async function runGenerate(
       duplicate: false,
       messageSent: false,
     }
-    insertAiCommand(db, {
+    if (origin === 'manual') insertAiCommand(db, {
       tenantId: meta.tenantId,
       clientRequestId: input.clientRequestId,
       command: input.command,
@@ -175,6 +238,19 @@ async function runGenerate(
     return row
   })
 
+  aiLog('info', 'ai.generated', {
+    tenantId: meta.tenantId,
+    kind: input.kind,
+    origin,
+    ok: gen.ok,
+    provider: gen.provider,
+    model: gen.model,
+    latencyMs: gen.latencyMs,
+    inputTokens: gen.ok ? gen.inputTokens : null,
+    outputTokens: gen.ok ? gen.outputTokens : null,
+    errorCode: gen.ok ? null : gen.code,
+  })
+
   return {
     suggestion,
     contextInspection,
@@ -183,6 +259,8 @@ async function runGenerate(
     messageSent: false,
   }
 }
+
+export { runGenerate as runGenerateInternal }
 
 export async function suggestReplyOp(
   db: ClinicDb,

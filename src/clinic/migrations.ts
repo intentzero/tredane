@@ -90,6 +90,16 @@ import {
   MIGRATION_NAME as M18_NAME,
   STATEMENTS as M18_STATEMENTS,
 } from './migrations/0018_holds_require_time'
+import {
+  MIGRATION_ID as M19_ID,
+  MIGRATION_NAME as M19_NAME,
+  STATEMENTS as M19_STATEMENTS,
+} from './migrations/0019_ai_autodraft_read_receipts'
+import {
+  MIGRATION_ID as M20_ID,
+  MIGRATION_NAME as M20_NAME,
+  STATEMENTS as M20_STATEMENTS,
+} from './migrations/0020_adjustable_duration'
 import type { ClinicDb } from './store'
 import type { Clock } from '../db/clock'
 
@@ -119,6 +129,8 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M16_ID, name: M16_NAME, statements: M16_STATEMENTS },
   { id: M17_ID, name: M17_NAME, statements: M17_STATEMENTS },
   { id: M18_ID, name: M18_NAME, statements: M18_STATEMENTS },
+  { id: M19_ID, name: M19_NAME, statements: M19_STATEMENTS },
+  { id: M20_ID, name: M20_NAME, statements: M20_STATEMENTS },
 ]
 
 export type MigrationResult = {

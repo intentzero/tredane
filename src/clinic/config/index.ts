@@ -33,6 +33,7 @@ export { ensureClinicSettings, updateClinicTimezone } from './settings'
 export {
   listServices,
   getService,
+  assertAppliedDuration,
   upsertService,
   setServiceActive,
   assertResourcesUsableForBooking,
@@ -57,6 +58,7 @@ export {
   getReadinessOp,
   updateTimezoneOp,
   setAiAssistEnabledOp,
+  setAiProfileOp,
   upsertServiceOp,
   setServiceActiveOp,
   upsertResourceOp,

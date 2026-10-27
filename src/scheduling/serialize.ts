@@ -78,6 +78,7 @@ function serializeListItem(item: AppointmentListItem) {
     opportunityId: item.opportunityId,
     version: item.version,
     changeReason: item.changeReason,
+    durationAdjusted: item.durationAdjusted,
   }
 }
 
@@ -94,6 +95,8 @@ export function serializeAppointmentDetail(detail: AppointmentDetail) {
     startsAt: detail.startsAt,
     endsAt: detail.endsAt,
     occupiesUntil: detail.occupiesUntil,
+    defaultDurationMinutes: detail.defaultDurationMinutes,
+    appliedDurationMinutes: detail.appliedDurationMinutes,
     status: detail.status,
     contactLabel: detail.contactLabel,
     contactId: detail.contactId,

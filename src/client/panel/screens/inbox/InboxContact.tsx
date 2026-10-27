@@ -1,5 +1,6 @@
 import { ChevronLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { AiWorking } from '../../ui/AiWorking'
 import { Button } from 'react-aria-components'
 import {
   PanelApiError,
@@ -260,7 +261,7 @@ export function InboxContactScreen({
                     .finally(() => setSummaryBusy(false))
                 }}
               >
-                {summaryBusy ? 'A gerar…' : summary ? 'Gerar outro resumo' : 'Gerar resumo'}
+                {summaryBusy ? <AiWorking compact label="Gerando resumo…" /> : summary ? 'Gerar outro resumo' : 'Gerar resumo'}
               </Button>
             </div>
           </div>

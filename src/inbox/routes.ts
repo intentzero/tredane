@@ -331,7 +331,11 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
         const gw = await resolveGateway(c.env, tenantId, opts)
         const conversation = await gw.markRead(
           workerCaller(tenantId, principal.clerkUserId),
-          { conversationId },
+          {
+            conversationId,
+            readerClerkUserId: principal.clerkUserId,
+            readerDisplayName: displayNameFromAuth(principal.clerkUserId, ctx.role),
+          },
         )
         return c.json({ conversation: serializeConversation(conversation) })
       } catch (err) {

@@ -47,6 +47,8 @@ export function mapMessage(row: {
   delivery_state: string
   author_clerk_user_id: string | null
   author_display_name: string | null
+  read_by_display_name?: string | null
+  read_at?: number | null
   created_at: number
 }): MessageRow {
   return {
@@ -59,6 +61,8 @@ export function mapMessage(row: {
     deliveryState: row.delivery_state as MessageDeliveryState,
     authorClerkUserId: row.author_clerk_user_id,
     authorDisplayName: row.author_display_name,
+    readByDisplayName: row.read_by_display_name ?? null,
+    readAt: row.read_at ?? null,
     createdAt: row.created_at,
   }
 }

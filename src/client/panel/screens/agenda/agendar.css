@@ -234,3 +234,7 @@
   align-items: center;
   justify-content: center;
 }
+
+/* DEC-051 — duração ajustável (passos de 15 min). */
+.agd-duration { display: flex; align-items: center; gap: var(--space-2); }
+.agd-duration-value { min-width: 5.5rem; text-align: center; font-weight: var(--font-weight-semibold); }
