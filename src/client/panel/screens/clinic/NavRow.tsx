@@ -29,7 +29,7 @@ export function NavRow({ icon: Icon, title, detail, state = 'neutral', soon, onP
         <strong>{title}</strong>
         <span>{detail}</span>
       </span>
-      {soon ? <Badge tone="wait">Em breve</Badge> : null}
+      {soon ? <Badge tone="closed">Em breve</Badge> : null}
       {state === 'todo' ? <Badge tone="wait">Falta</Badge> : null}
       {state === 'ok' ? <span className="panel-sr-only">Pronto</span> : null}
       {onPress ? <ChevronRight aria-hidden size={18} /> : null}

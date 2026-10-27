@@ -3,6 +3,13 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 27/10/2026 — Ajustes da revisão de UX do staging (#134–#139)
+
+- **M-02 Conversa:** botão **Agendar** com texto no cabeçalho; menu ⋮ passa a dizer «reservar bloco, encerrar».
+- **M-05 Pipeline (Acompanhamento):** cabeçalho «N nesta etapa · M em andamento»; «Sem compromisso» → «Sem horário marcado»; botão **Abrir conversa** em cada cartão. O botão **Mover** não muda.
+- **Reservar bloco** não tem mock próprio em `mobile/`; o comportamento novo (chips de dia como no Agendar, resumo com «Alterar», «Outra» para duração, aviso à paciente opcional) está só no painel. Pendente: desenhar o mock.
+- Previews M-02 e M-05: ver a nota do PR sobre a renderização.
+
 ## Tokens 0.3.0 — 27/10/2026 (Confirmado)
 
 **Aprovado pelo responsável pelo produto em 27/10/2026** (DEC-050 e DEC-041): a cor de ação passa do azul à cor da marca (Petróleo) e os neutros ganham um leve matiz da Tinta. Estrutura, tipografia, formas, espaçamento e as cores semânticas (sucesso, aviso, perigo, IA) não mudam. Conversão aplicada aos mocks mobile e desktop, ao catálogo, ao painel, ao login Clerk e ao site:
