@@ -211,7 +211,7 @@
   z-index: 40;
   max-height: 280px;
   overflow: auto;
-  min-width: var(--radix-select-trigger-width, 240px);
+  min-width: var(--trigger-width, 240px);
 }
 
 .panel-select-item {
@@ -1091,7 +1091,7 @@
 
 .clinic-banner-ok {
   background: var(--color-success-tint, #eaf6ef);
-  border-color: var(--color-success-border, #9dceb0);
+  border-color: var(--color-line-border);
   color: var(--color-success-ink, #1f7a4d);
 }
 
@@ -1118,7 +1118,7 @@
   min-height: 64px;
   padding: var(--space-3) var(--space-4);
   border: 0;
-  border-bottom: var(--size-border-width) solid var(--color-line-subtle, #f0f0ee);
+  border-bottom: var(--size-border-width) solid var(--color-line-divider);
   background: transparent;
   color: inherit;
   text-align: left;
@@ -1199,7 +1199,7 @@
 .clinic-field textarea {
   min-height: 48px;
   padding: 0 var(--space-3);
-  border: var(--size-border-width) solid var(--color-line-strong, #80868f);
+  border: var(--size-border-width) solid var(--color-line-control);
   border-radius: var(--radius-sm);
   background: var(--color-surface-card);
   color: var(--color-text-primary);
@@ -1291,7 +1291,7 @@
   min-width: var(--size-touch);
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
-  border: var(--size-border-width) solid var(--color-line-strong, #80868f);
+  border: var(--size-border-width) solid var(--color-line-control);
   background: var(--color-surface-card);
   color: var(--color-text-primary);
   font-size: var(--font-size-small);
@@ -1319,7 +1319,7 @@
   gap: var(--space-2);
   min-height: 52px;
   padding: 0 var(--space-4);
-  border-bottom: var(--size-border-width) solid var(--color-line-subtle, #f0f0ee);
+  border-bottom: var(--size-border-width) solid var(--color-line-divider);
 }
 
 .clinic-day-name {
@@ -1371,7 +1371,7 @@
 
 .panel-btn-ghost {
   background: transparent;
-  border-color: var(--color-line-strong, #80868f);
+  border-color: var(--color-line-control);
   color: var(--color-text-primary);
 }
 
@@ -1457,7 +1457,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--color-primary-subtle, #e8eef7);
+  background: var(--color-primary-tint);
   color: var(--color-primary-base);
   display: inline-flex;
   align-items: center;
@@ -1535,7 +1535,7 @@
 }
 
 .inbox-badge-closed {
-  background: var(--color-surface-muted, #f1f3f5);
+  background: var(--color-surface-sunken);
   color: var(--color-text-secondary);
 }
 
@@ -1698,7 +1698,7 @@
 }
 
 .inbox-msg-out .inbox-msg-body {
-  background: var(--color-primary-subtle, #e8eef7);
+  background: var(--color-primary-tint);
   border-color: transparent;
 }
 
@@ -1892,7 +1892,7 @@
 }
 
 .inbox-template-item-active {
-  border-color: var(--color-action-primary, var(--color-text-primary));
+  border-color: var(--color-primary-base);
 }
 
 .inbox-template-pricing {
@@ -2001,7 +2001,7 @@
   align-items: center;
   gap: var(--space-2);
   font-size: var(--font-size-caption, 0.875rem);
-  color: var(--color-warning-text, #6e4200);
+  color: var(--color-warning-ink);
   font-weight: var(--font-weight-medium);
 }
 
@@ -2009,7 +2009,7 @@
   margin: 0;
   padding: var(--space-2) var(--space-4);
   background: var(--color-danger-tint, #fef3f2);
-  color: var(--color-danger-text, #b42318);
+  color: var(--color-danger-ink);
   font-size: var(--font-size-caption, 0.875rem);
 }
 
@@ -2116,7 +2116,7 @@
 }
 
 .clinic-banner-warn {
-  background: var(--color-warning-surface, #fff4e5);
+  background: var(--color-warning-tint);
   border: var(--size-border-width) solid var(--color-warning-ink, #6e4200);
 }
 
@@ -2139,7 +2139,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  background: var(--color-warning-surface, #fff4e5);
+  background: var(--color-warning-tint);
   color: var(--color-warning-ink, #6e4200);
   border-bottom: var(--size-border-width) solid var(--color-warning-ink, #6e4200);
   font-size: var(--font-size-small);
@@ -2177,7 +2177,7 @@
   padding: var(--space-3);
   border: var(--size-border-width) solid var(--color-line-border);
   border-radius: var(--radius-md, 8px);
-  background: var(--color-surface, #fff);
+  background: var(--color-surface-card);
   color: inherit;
   cursor: pointer;
   min-height: 44px;
@@ -2185,7 +2185,7 @@
 
 .agenda-apt:hover,
 .agenda-apt:focus-visible {
-  border-color: var(--color-accent, #0f766e);
+  border-color: var(--color-primary-base);
 }
 
 .agenda-apt-time {
@@ -2224,7 +2224,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: var(--color-accent, #0f766e);
+  color: var(--color-primary-ink);
   text-decoration: underline;
   cursor: pointer;
   font: inherit;
@@ -2242,7 +2242,7 @@
   padding: var(--space-2, 8px) var(--space-4, 16px);
   background: #f5e6c8;
   color: #5c4813;
-  font-size: var(--font-size-sm, 0.875rem);
+  font-size: var(--font-size-small);
   border-bottom: 1px solid #e2d3a8;
 }
 
@@ -2254,7 +2254,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  background: var(--color-bg, #f6f6f4);
+  background: var(--color-surface-app);
 }
 
 .panel-avisos-header {
@@ -2263,7 +2263,7 @@
   gap: var(--space-1, 4px);
   padding: var(--space-2, 8px) var(--space-1, 4px);
   background: #fff;
-  border-bottom: 1px solid var(--color-border, #e2e3e5);
+  border-bottom: 1px solid var(--color-line-border);
 }
 
 .panel-avisos-body {
@@ -2278,7 +2278,7 @@
 .panel-avisos-footer {
   flex: none;
   background: #fff;
-  border-top: 1px solid var(--color-border, #e2e3e5);
+  border-top: 1px solid var(--color-line-border);
   padding: var(--space-3, 12px) var(--space-4, 16px) calc(var(--space-4, 16px) + env(safe-area-inset-bottom, 0));
   display: flex;
   flex-direction: column;
@@ -2343,7 +2343,7 @@
   width: 28px;
   height: 28px;
   flex: none;
-  accent-color: var(--color-primary, #2f5bd3);
+  accent-color: var(--color-primary-base);
 }
 
 .panel-ok-text {
@@ -2369,10 +2369,10 @@
 
 .panel-btn-secondary {
   min-height: 44px;
-  border: 1px solid var(--color-border, #e2e3e5);
+  border: 1px solid var(--color-line-border);
   border-radius: 12px;
   background: #fff;
-  color: var(--color-text, #1c1e21);
+  color: var(--color-text-primary);
   font-size: 16px;
   font-weight: 500;
   padding: 0 16px;
