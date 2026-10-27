@@ -78,6 +78,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     getSnapshot: (caller) => stub.getConfigSnapshot(caller),
     getReadiness: (caller) => stub.getConfigReadiness(caller),
     updateTimezone: (caller, timezone) => stub.updateClinicTimezone(caller, timezone),
+    setAiAssistEnabled: (caller, enabled) => stub.setClinicAiAssistEnabled(caller, enabled),
     upsertService: (caller, input) => stub.upsertClinicService(caller, input),
     setServiceActive: (caller, serviceId, active) =>
       stub.setClinicServiceActive(caller, serviceId, active),
@@ -155,6 +156,26 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
       const settings = await gw.updateTimezone(
         callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
         body.timezone,
+      )
+      return c.json(serializeSettings(settings))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  // Opt-in de IA por clínica: só o responsável (clinic.config.write).
+  app.put('/api/tenants/:tenantId/config/ai-assist', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<{ enabled?: unknown }>().catch(() => null)
+      if (!body || typeof body.enabled !== 'boolean') {
+        return c.json({ error: 'invalid_body' }, 400)
+      }
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const settings = await gw.setAiAssistEnabled(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        body.enabled,
       )
       return c.json(serializeSettings(settings))
     } catch (err) {

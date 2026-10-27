@@ -113,7 +113,12 @@
         "WHATSAPP_DEV_SYNC_ENABLED": "true",
         // STAGING-ONLY (Paulo, 2026-10-27): Web Push real. Exige secrets VAPID_PUBLIC_KEY,
         // VAPID_PRIVATE_KEY, VAPID_SUBJECT (wrangler secret put --env staging).
-        "PUSH_MODE": "live"
+        "PUSH_MODE": "live",
+        // STAGING-ONLY (Paulo, 2026-10-27): IA assistiva via Cloudflare AI Gateway (Claude).
+        // Só responde para clínicas com opt-in (Configurações › Sugestões com IA; default off).
+        // Secrets: CF_ACCOUNT_ID, AI_GATEWAY_ID, AI_GATEWAY_TOKEN (+ ANTHROPIC_API_KEY se BYOK).
+        // Sem esses secrets o adaptador cai no simulado. Nunca definir em production sem novo OK.
+        "AI_MODE": "gateway"
         // Secrets (wrangler secret put --env staging): CLERK_SECRET_KEY, ATTACHMENT_TOKEN_SECRET;
         // com META_MODE=live: META_APP_SECRET, META_VERIFY_TOKEN, META_TOKEN_SECRET;
         // com PIX_MODE=live: PIX_TOKEN_SECRET. `npm run check:env -- staging` valida.

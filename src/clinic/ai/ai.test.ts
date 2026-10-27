@@ -6,6 +6,7 @@ import {
 } from '../../ai'
 import { CLINIC_SCHEMA_VERSION, workerCaller } from '../index'
 import { upsertService } from '../config/services'
+import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
@@ -33,10 +34,13 @@ function seedConversation(
       priceCents: number | null
       clientExplanation: string | null
     }>
+    /** Opt-in da clínica (default true nos testes de comportamento da IA). */
+    aiOptIn?: boolean
   },
 ) {
   const caller = workerCaller(tenantId, 'user_ai_test')
   bindOrAssertTenant(db, caller, clock)
+  if (opts.aiOptIn !== false) setClinicAiAssistEnabled(db, tenantId, true, clock)
 
   for (const s of opts.services ?? []) {
     upsertService(
@@ -95,6 +99,57 @@ function seedConversation(
 }
 
 describe('clinic AI assistiva (#41)', () => {
+  it('opt-in por clínica: default desligado, nenhuma chamada ao modelo', async () => {
+    const { db, clock } = bootClinicDb()
+    const tenantId = 'clinic-demo-optin'
+    const { caller, conversationId } = seedConversation(db, clock, tenantId, {
+      displayName: 'Maria Teste',
+      waId: '5511900000001',
+      inboundBodies: ['Oi, tem horário amanhã?'],
+      aiOptIn: false,
+    })
+    const adapter = new SimulatedAiAdapter()
+    let calls = 0
+    const counting = new Proxy(adapter, {
+      get(target, prop, recv) {
+        const v = Reflect.get(target, prop, recv)
+        if (typeof v === 'function' && prop === 'generate') {
+          return (...args: unknown[]) => {
+            calls += 1
+            return (v as (...a: unknown[]) => unknown).apply(target, args)
+          }
+        }
+        return typeof v === 'function' ? v.bind(target) : v
+      },
+    })
+    const deps = { mode: 'gateway' as const, adapter: counting }
+    const input = {
+      conversationId,
+      clientRequestId: 'optin-1',
+      actorClerkUserId: 'user_ai_test',
+      actorDisplayName: 'Atendente',
+    }
+    await expect(suggestReplyOp(db, caller, input, clock, deps)).rejects.toMatchObject({
+      code: 'ai_not_enabled',
+    })
+    await expect(
+      summarizeConversationOp(db, caller, { ...input, clientRequestId: 'optin-2' }, clock, deps),
+    ).rejects.toMatchObject({ code: 'ai_not_enabled' })
+    expect(calls).toBe(0)
+    expect(db.get<{ n: number }>('SELECT COUNT(*) AS n FROM ai_suggestions')?.n).toBe(0)
+
+    setClinicAiAssistEnabled(db, tenantId, true, clock)
+    const ok = await suggestReplyOp(db, caller, { ...input, clientRequestId: 'optin-3' }, clock, deps)
+    expect(ok.suggestion.status).toBe('pending')
+    expect(calls).toBe(1)
+
+    setClinicAiAssistEnabled(db, tenantId, false, clock)
+    await expect(
+      suggestReplyOp(db, caller, { ...input, clientRequestId: 'optin-4' }, clock, deps),
+    ).rejects.toMatchObject({ code: 'ai_not_enabled' })
+    expect(calls).toBe(1)
+  })
+
   it('migração 14 aplica CLINIC_SCHEMA_VERSION=14', () => {
     const { db, close } = bootClinicDb()
     try {
@@ -102,7 +157,7 @@ describe('clinic AI assistiva (#41)', () => {
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
       expect(state).toEqual({ version: CLINIC_SCHEMA_VERSION, status: 'ready' })
-      expect(CLINIC_SCHEMA_VERSION).toBe(16)
+      expect(CLINIC_SCHEMA_VERSION).toBe(17)
       const tables = db.all<{ name: string }>(
         `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('ai_suggestions','ai_commands')`,
       )

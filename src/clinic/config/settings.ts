@@ -10,6 +10,7 @@ type SettingsSql = {
   timezone: string
   signal_deadline_seconds?: number
   signal_cancellation_policy?: string
+  ai_assist_enabled?: number
   updated_at: number
 }
 
@@ -20,6 +21,7 @@ function mapSettings(row: SettingsSql): ClinicSettingsRow {
     signalDeadlineSeconds:
       row.signal_deadline_seconds ?? DEFAULT_SIGNAL_DEADLINE_SECONDS,
     signalCancellationPolicy: row.signal_cancellation_policy ?? '',
+    aiAssistEnabled: row.ai_assist_enabled === 1,
     updatedAt: row.updated_at,
   }
 }
@@ -30,7 +32,7 @@ export function ensureClinicSettings(
   clock: Clock,
 ): ClinicSettingsRow {
   const existing = db.get<SettingsSql>(
-    `SELECT tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, updated_at
+    `SELECT tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, ai_assist_enabled, updated_at
      FROM clinic_settings WHERE id = 1`,
   )
   if (existing) {
@@ -55,6 +57,7 @@ export function ensureClinicSettings(
     timezone: DEFAULT_CLINIC_TIMEZONE,
     signalDeadlineSeconds: DEFAULT_SIGNAL_DEADLINE_SECONDS,
     signalCancellationPolicy: '',
+    aiAssistEnabled: false,
     updatedAt: now,
   }
 }
@@ -75,4 +78,30 @@ export function updateClinicTimezone(
     tenantId,
   )
   return ensureClinicSettings(db, tenantId, clock)
+}
+
+/** Liga/desliga a IA assistiva da clínica (só o responsável; ver rota). */
+export function setClinicAiAssistEnabled(
+  db: ClinicDb,
+  tenantId: string,
+  enabled: boolean,
+  clock: Clock,
+): ClinicSettingsRow {
+  ensureClinicSettings(db, tenantId, clock)
+  db.run(
+    `UPDATE clinic_settings SET ai_assist_enabled = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,
+    enabled ? 1 : 0,
+    clock.nowMs(),
+    tenantId,
+  )
+  return ensureClinicSettings(db, tenantId, clock)
+}
+
+/** Lido no servidor antes de qualquer chamada ao modelo. Sem linha = desligado. */
+export function isClinicAiAssistEnabled(db: ClinicDb, tenantId: string): boolean {
+  const row = db.get<{ ai_assist_enabled: number }>(
+    `SELECT ai_assist_enabled FROM clinic_settings WHERE id = 1 AND tenant_id = ?`,
+    tenantId,
+  )
+  return row?.ai_assist_enabled === 1
 }

@@ -37,6 +37,7 @@ import type {
   WhatsappTemplateItem,
 } from '../../api'
 import { DefinirHoraSheet } from '../holds/DefinirHoraSheet'
+import { PanelApiError } from '../../api'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
 import { durationLabel, periodChip, shortDay } from '../holds/holdFormat'
 import { navigatePanel } from '../../routes'
@@ -184,6 +185,7 @@ export function InboxThread({
   const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
   const [aiUnavailable, setAiUnavailable] = useState(false)
+  const [aiNotEnabled, setAiNotEnabled] = useState(false)
   const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(
     null,
   )
@@ -509,9 +511,13 @@ export function InboxThread({
         setAiSuggestion(res.suggestion)
         setAiUnavailable(false)
       }
-    } catch {
+    } catch (err) {
       setAiSuggestion(null)
-      setAiUnavailable(true)
+      if (err instanceof PanelApiError && (err.code as string) === 'ai_not_enabled') {
+        setAiNotEnabled(true)
+      } else {
+        setAiUnavailable(true)
+      }
     } finally {
       setAiBusy(false)
     }
@@ -1025,6 +1031,14 @@ export function InboxThread({
 
       {detail.status !== 'closed' ? (
         <div className="inbox-composer-wrap">
+          {aiNotEnabled ? (
+            <div className="ai-block ai-block-unavailable" role="status">
+              <p>
+                As sugestões com IA estão desligadas nesta clínica. O responsável pode ativar em
+                Clínica › Sugestões com IA.
+              </p>
+            </div>
+          ) : null}
           {aiUnavailable ? (
             <div className="ai-block ai-block-unavailable" role="status">
               <p>A sugestão não está disponível agora. Você pode responder normalmente.</p>

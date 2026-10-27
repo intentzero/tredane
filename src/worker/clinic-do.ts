@@ -1314,6 +1314,25 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return clinicInbox.listWhatsappTemplates(this.#db, meta.tenantId, opts)
   }
 
+  async setClinicAiAssistEnabled(caller: ClinicCaller, enabled: boolean) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const settings = clinicConfig.setAiAssistEnabledOp(
+      this.#db,
+      caller,
+      enabled,
+      this.#clock,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      'config.settings_updated',
+      'clinic_settings',
+      '1',
+      { aiAssistEnabled: settings.aiAssistEnabled },
+    )
+    return settings
+  }
+
   async updateClinicTimezone(caller: ClinicCaller, timezone: string) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)

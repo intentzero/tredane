@@ -2,6 +2,7 @@ import { useAuthSession } from '../../auth/AuthContext'
 import { useTenant } from '../../tenant/TenantContext'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import type { ClinicaSection } from '../../routes'
+import { AiAssistCard } from './AiAssistCard'
 import { ClinicHub } from './ClinicHub'
 import { ResourceForm, ResourcesList } from './ResourcesScreen'
 import { SchedulesScreen } from './SchedulesScreen'
@@ -89,7 +90,20 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
 
   switch (section) {
     case 'hub':
-      return <ClinicHub tenantId={tenantId} snap={snap} />
+      return (
+        <ClinicHub
+          tenantId={tenantId}
+          snap={snap}
+          aiCard={
+            <AiAssistCard
+              tenantId={tenantId}
+              api={api}
+              generation={generation}
+              initialEnabled={snap.settings.aiAssistEnabled === true}
+            />
+          }
+        />
+      )
     case 'servicos':
       return <ServicesList tenantId={tenantId} snap={snap} />
     case 'servico':

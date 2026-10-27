@@ -13,7 +13,11 @@ import {
   servicesLeftWithoutCategoryResource,
 } from './resources'
 import { setServiceActive, upsertService } from './services'
-import { ensureClinicSettings, updateClinicTimezone } from './settings'
+import {
+  ensureClinicSettings,
+  setClinicAiAssistEnabled,
+  updateClinicTimezone,
+} from './settings'
 import { setWeeklyWindows } from './availability'
 import { loadConfigSnapshot } from './snapshot'
 import type {
@@ -288,5 +292,30 @@ export function deleteBlockOp(
       clock,
     )
     return { ok: true as const }
+  })
+}
+
+export function setAiAssistEnabledOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  enabled: boolean,
+  clock: Clock,
+) {
+  const meta = prepare(db, caller, clock)
+  return db.transactionSync(() => {
+    const settings = setClinicAiAssistEnabled(db, meta.tenantId, enabled, clock)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor: caller.actorId ?? caller.kind,
+        action: enabled ? 'config.ai_assist_enabled' : 'config.ai_assist_disabled',
+        objectType: 'clinic_settings',
+        objectId: '1',
+        detail: { aiAssistEnabled: settings.aiAssistEnabled },
+      },
+      clock,
+    )
+    return settings
   })
 }

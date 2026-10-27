@@ -8,7 +8,8 @@ import {
 } from '../../ai'
 import type { Clock } from '../../db/clock'
 import { assertValidCaller, type ClinicCaller } from '../envelopes'
-import { NotFoundError, ValidationError } from '../errors'
+import { ClinicError, NotFoundError, ValidationError } from '../errors'
+import { isClinicAiAssistEnabled } from '../config/settings'
 import { getConversation } from '../inbox/conversations'
 import { assertClinicSchemaReady } from '../migrations'
 import type { ClinicDb } from '../store'
@@ -63,6 +64,11 @@ async function runGenerate(
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
   const meta = bindOrAssertTenant(db, caller, clock)
+
+  // Opt-in por clínica (política §6): sem opt-in, nenhuma chamada ao modelo.
+  if (!isClinicAiAssistEnabled(db, meta.tenantId)) {
+    throw new ClinicError('ai_not_enabled', 'IA assistiva desligada para esta clínica')
+  }
 
   if (!input.clientRequestId.trim()) {
     throw new ValidationError('client_request_id_required', 'clientRequestId obrigatório')
