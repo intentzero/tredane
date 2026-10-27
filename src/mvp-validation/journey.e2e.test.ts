@@ -32,6 +32,7 @@ import {
   processPixPaymentOp,
 } from '../clinic/pix'
 import { suggestReplyOp, decideSuggestionOp } from '../clinic/ai'
+import { setClinicAiAssistEnabled } from '../clinic/config/settings'
 import { deleteContactOp } from '../clinic/retention'
 import { ANONYMIZED_CONTACT_LABEL } from '../clinic/retention/types'
 import { listContacts, getContact } from '../clinic/contacts'
@@ -155,6 +156,7 @@ describe('MVP-31 — jornada E2E sintética (#45)', () => {
         },
         a.clock,
       )
+      setClinicAiAssistEnabled(a.db, CLINIC_A, true, a.clock)
 
       const suggestion = await suggestReplyOp(
         a.db,

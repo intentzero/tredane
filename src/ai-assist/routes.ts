@@ -56,7 +56,9 @@ function aiErrorResponse(
   }
   if (err instanceof ClinicError) {
     const status =
-      err.code === 'tenant_mismatch' || err.code === 'unauthorized_caller'
+      err.code === 'tenant_mismatch'
+      || err.code === 'unauthorized_caller'
+      || err.code === 'ai_not_enabled'
         ? 403
         : 400
     return c.json({ error: err.code, message: err.message }, status)

@@ -49,6 +49,48 @@ function testConfigApp() {
 }
 
 describe('HTTP — configuração da clínica (#28)', () => {
+  it('opt-in de IA: default off; só o responsável liga/desliga', async () => {
+    const { app, close, auth } = testConfigApp()
+    try {
+      const url = 'http://localhost/api/tenants/clinic-demo-a/config/ai-assist'
+      const snap0 = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config',
+        auth('user_synth_owner_a'),
+      )
+      const s0 = (await snap0.json()) as { settings: { aiAssistEnabled: boolean } }
+      expect(s0.settings.aiAssistEnabled).toBe(false)
+
+      const put = (user: string, body: unknown) =>
+        app.request(
+          url,
+          auth(user, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }),
+        )
+      expect((await put('user_synth_attendant_a', { enabled: true })).status).toBe(403)
+      expect((await put('user_synth_owner_a', { enabled: 'yes' })).status).toBe(400)
+      const on = await put('user_synth_owner_a', { enabled: true })
+      expect(on.status).toBe(200)
+      expect(((await on.json()) as { aiAssistEnabled: boolean }).aiAssistEnabled).toBe(true)
+      const off = await put('user_synth_owner_a', { enabled: false })
+      expect(((await off.json()) as { aiAssistEnabled: boolean }).aiAssistEnabled).toBe(false)
+      // Outra clínica: owner de A não liga IA em B.
+      const cross = await app.request(
+        'http://localhost/api/tenants/clinic-demo-b/config/ai-assist',
+        auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: true }),
+        }),
+      )
+      expect(cross.status).toBe(403)
+    } finally {
+      close()
+    }
+  })
+
   it('attendant lê config mas não escreve; owner escreve', async () => {
     const { app, close, auth } = testConfigApp()
     try {

@@ -6,6 +6,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
+import type { ReactNode } from 'react'
 import type { ClinicConfigSnapshot } from '../../api'
 import { navigatePanel, type ClinicaSection } from '../../routes'
 import { Banner } from '../../states/Banner'
@@ -14,9 +15,11 @@ import { NavRow } from './NavRow'
 type Props = {
   tenantId: string
   snap: ClinicConfigSnapshot
+  /** Cartão do opt-in de IA (Configurações da clínica). */
+  aiCard?: ReactNode
 }
 
-export function ClinicHub({ tenantId, snap }: Props) {
+export function ClinicHub({ tenantId, snap, aiCard }: Props) {
   const { readiness } = snap
   const go = (section: ClinicaSection) => () =>
     navigatePanel({ kind: 'area', area: 'clinica', tenantId, section })
@@ -137,6 +140,8 @@ export function ClinicHub({ tenantId, snap }: Props) {
           />
         </li>
       </ul>
+
+      {aiCard ?? null}
 
       <p className="clinic-footnote">
         Só o responsável pela clínica vê e altera esta área. Atendentes consultam serviços pela

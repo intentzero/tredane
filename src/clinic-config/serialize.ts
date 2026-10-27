@@ -16,6 +16,7 @@ export function serializeSettings(row: ClinicSettingsRow) {
     timezone: row.timezone,
     signalDeadlineSeconds: row.signalDeadlineSeconds,
     signalCancellationPolicy: row.signalCancellationPolicy,
+    aiAssistEnabled: row.aiAssistEnabled,
     updatedAt: row.updatedAt,
   }
 }

@@ -1,5 +1,5 @@
 /** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#43). */
-export const CLINIC_SCHEMA_VERSION = 16
+export const CLINIC_SCHEMA_VERSION = 17
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -19,6 +19,7 @@ export const CLINIC_MIGRATION_NAMES = {
   14: '0014_ai_suggestions',
   15: '0015_contact_retention',
   16: '0016_schedule_holds',
+  17: '0017_ai_assist_opt_in',
 } as const
 
 /** Estados de sugestão IA (#41 / ADR-0004). */

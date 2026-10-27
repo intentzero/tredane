@@ -415,6 +415,25 @@ export function createPanelApi(getToken: TokenGetter) {
       }
     },
 
+    async setClinicAiAssist(
+      tenantId: string,
+      enabled: boolean,
+      opts?: FetchOpts,
+    ): Promise<ClinicConfigSnapshot['settings']> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/ai-assist`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicConfigSnapshot['settings']
+    },
+
     async updatePixSignalSettings(
       tenantId: string,
       body: { deadlineSeconds?: number; cancellationPolicy?: string },
@@ -1777,6 +1796,8 @@ export type ClinicConfigSnapshot = {
     timezone: string
     signalDeadlineSeconds?: number
     signalCancellationPolicy?: string
+    /** Opt-in de IA da clínica (default false). */
+    aiAssistEnabled?: boolean
     updatedAt: number
   }
   services: ClinicService[]

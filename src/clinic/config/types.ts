@@ -93,6 +93,8 @@ export type ClinicSettingsRow = {
   signalDeadlineSeconds: number
   /** Política de cancelamento do sinal (texto da clínica). */
   signalCancellationPolicy: string
+  /** Opt-in de IA assistiva pela clínica (default false; política §6). */
+  aiAssistEnabled: boolean
   updatedAt: number
 }
 
