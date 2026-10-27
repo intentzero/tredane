@@ -34,7 +34,12 @@ import {
   type DevSyncStore,
 } from './dev-sync'
 import type { ClinicChannelSync } from './service'
-import { createMetaAdapter, resolveMetaMode } from './meta'
+import {
+  createMetaAdapter,
+  createMetaSendAdapter,
+  resolveMetaMode,
+  resolveMetaSendMode,
+} from './meta'
 import {
   assertNoSecretsInPayload,
   serializeConnection,
@@ -131,10 +136,18 @@ function createDoChannelSync(env: WorkerBindings) {
   }
 }
 
+/**
+ * `read`: só leitura do estado do painel (GET /whatsapp) — não exige
+ * META_CONFIG_ID (staging sem Tech Provider). `manage` (padrão): sessão,
+ * complete, disconnect, interrupt — mantém a exigência estrita (fail-closed).
+ */
+type OpsPurpose = 'read' | 'manage'
+
 async function resolveOps(
   env: WorkerBindings,
   tenantId: string,
   opts: WhatsappRouteOptions,
+  purpose: OpsPurpose = 'manage',
 ): Promise<WhatsappOps> {
   if (opts.serviceFactory) {
     return opts.serviceFactory(env, tenantId)
@@ -157,17 +170,20 @@ async function resolveOps(
       db: syncDb,
       clock,
       metaEnv,
+      ...(purpose === 'read' ? { meta: createMetaSendAdapter(metaEnv) } : {}),
       sealKeys: metaSealKeys(env),
       channelSync,
     })
   }
 
   // Produção: D1 assíncrono
-  const meta = createMetaAdapter(metaEnv)
+  const meta =
+    purpose === 'read' ? createMetaSendAdapter(metaEnv) : createMetaAdapter(metaEnv)
   return createD1WhatsappOps({
     db: env.DB,
     meta,
-    metaMode: resolveMetaMode(metaEnv),
+    metaMode:
+      purpose === 'read' ? resolveMetaSendMode(metaEnv) : resolveMetaMode(metaEnv),
     metaEnv: {
       ...metaEnv,
       META_TOKEN_SECRET: env.META_TOKEN_SECRET,
@@ -189,7 +205,7 @@ export function createWhatsappRoutes(opts: WhatsappRouteOptions = {}) {
     try {
       const ctx = c.get('tenantContext')!
       requireClinicPermission(ctx, 'clinic.context.read')
-      const ops = await resolveOps(c.env, ctx.tenantId, opts)
+      const ops = await resolveOps(c.env, ctx.tenantId, opts, 'read')
       const view = await ops.getConnection(ctx.tenantId)
       const body = serializeConnection(view)
       assertNoSecretsInPayload(body)

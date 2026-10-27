@@ -14,7 +14,7 @@ import {
 } from './bindings'
 import { openAccessToken } from './crypto'
 import { metaSealKeys } from '../security/sealed-secret'
-import { createMetaAdapter, type MetaAdapter, type MetaSendResult } from './meta'
+import { createMetaSendAdapter, type MetaAdapter, type MetaSendResult } from './meta'
 import type { ClinicOutboxQueueMessage } from './queue-types'
 import { SYNTHETIC_WHATSAPP_TEMPLATES } from '../clinic/inbox/templates'
 
@@ -154,7 +154,7 @@ export async function processClinicOutboxMessage(
   if ('errorCode' in creds) {
     sendResult = { outcome: 'failed', errorCode: creds.errorCode }
   } else {
-    const meta = deps.metaAdapter ?? createMetaAdapter(deps.env)
+    const meta = deps.metaAdapter ?? createMetaSendAdapter(deps.env)
     if (kind === 'template') {
       sendResult = await meta.sendTemplateMessage({
         phoneNumberId: creds.phoneNumberId,
