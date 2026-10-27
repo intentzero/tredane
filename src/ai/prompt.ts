@@ -129,7 +129,9 @@ export function buildUserContent(input: AiGenerateInput): string {
     msgs || '(sem mensagens)',
     input.kind === 'reply' && lastInbound
       ? `Escreva agora a resposta da clínica à última mensagem da cliente («${lastInbound.body}»), usando o que já foi dito na conversa. Responda só com o JSON.`
-      : '',
+      : input.kind === 'summary'
+        ? 'Escreva agora o RESUMO desta conversa para a equipe, em terceira pessoa (ex.: «A cliente pediu…»), 2 a 4 frases. Não escreva uma resposta para a cliente.'
+        : '',
   ]
     .filter(Boolean)
     .join('\n\n')

@@ -246,7 +246,7 @@ export function InboxContactScreen({
                     .then((r) => {
                       if (r.suggestion.status === 'failed') {
                         setSummaryError(
-                          'A sugestão não está disponível agora. Você pode responder normalmente.',
+                          'O resumo não está disponível agora. Tente de novo em instantes.',
                         )
                         setSummary(null)
                       } else {
@@ -255,7 +255,7 @@ export function InboxContactScreen({
                     })
                     .catch(() => {
                       setSummaryError(
-                        'A sugestão não está disponível agora. Você pode responder normalmente.',
+                        'O resumo não está disponível agora. Tente de novo em instantes.',
                       )
                     })
                     .finally(() => setSummaryBusy(false))

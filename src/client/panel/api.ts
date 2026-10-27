@@ -1,4 +1,18 @@
 /** Cliente HTTP do painel — Bearer + cancelamento por geração de tenant (#22). */
+import { parseReplyOutput } from '../../ai/reply-output'
+
+/**
+ * Defesa no cliente: sugestões antigas (gravadas antes da correção) podem ter
+ * JSON cru do modelo. Extrai só a «mensagem»; sem nada utilizável → «failed»
+ * (o painel mostra o erro amigável), nunca chaves nem notas internas.
+ */
+export function sanitizeAiSuggestion<T extends AiSuggestion | null | undefined>(s: T): T {
+  if (!s || s.kind !== 'reply' || !s.suggestedText) return s
+  if (!/[{}]|```/.test(s.suggestedText)) return s
+  const parsed = parseReplyOutput(s.suggestedText)
+  if (!parsed.message) return { ...s, status: 'failed', suggestedText: '' }
+  return { ...s, suggestedText: parsed.message }
+}
 
 export type AuthMode = 'synthetic' | 'clerk'
 
@@ -1376,7 +1390,8 @@ export function createPanelApi(getToken: TokenGetter) {
       )
       assertGeneration(opts)
       if (!res.ok) throw await parseError(res)
-      return (await res.json()) as AiSuggestResponse
+      const out = (await res.json()) as AiSuggestResponse
+      return { ...out, suggestion: sanitizeAiSuggestion(out.suggestion) }
     },
 
     async getAiDraft(
@@ -1391,7 +1406,8 @@ export function createPanelApi(getToken: TokenGetter) {
       )
       assertGeneration(opts)
       if (!res.ok) throw await parseError(res)
-      return (await res.json()) as AiDraftState
+      const out = (await res.json()) as AiDraftState
+      return { ...out, suggestion: sanitizeAiSuggestion(out.suggestion) }
     },
 
     async getAiStatus(
