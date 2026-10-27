@@ -282,6 +282,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
                             {' · '}
                             {apt.professionalName}
                             {apt.roomResourceName ? ` · ${apt.roomResourceName}` : ''}
+                            {apt.durationAdjusted ? ' · duração ajustada' : ''}
                           </span>
                         </button>
                       </li>

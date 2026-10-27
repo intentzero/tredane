@@ -697,6 +697,7 @@ export function createPanelApi(getToken: TokenGetter) {
         roomResourceId?: string | null
         startsAt: number
         excludeAppointmentId?: string | null
+        durationMinutes?: number | null
       },
       opts?: FetchOpts,
     ): Promise<AvailabilityCheckResponse> {
@@ -783,6 +784,8 @@ export function createPanelApi(getToken: TokenGetter) {
         contactId?: string | null
         conversationId?: string | null
         opportunityId?: string | null
+        /** DEC-051: duração aplicada (só serviços com duração ajustável). */
+        durationMinutes?: number | null
       },
       opts?: FetchOpts,
     ): Promise<AppointmentDetailResponse & { createdReservation: true; idempotentReplay: boolean }> {
@@ -1829,6 +1832,10 @@ export type ClinicService = {
   signalKind: 'fixed' | 'percent' | null
   signalFixedCents: number | null
   signalPercent: number | null
+  /** DEC-051 — duração ajustável no Agendar (owner). */
+  durationAdjustable?: boolean
+  durationMinMinutes?: number | null
+  durationMaxMinutes?: number | null
   professionalIds: string[]
   roomRequirement: RoomRequirementDto
   createdAt: number
@@ -1938,6 +1945,9 @@ export type ServiceUpsertBody = {
   signalKind?: 'fixed' | 'percent' | null
   signalFixedCents?: number | null
   signalPercent?: number | null
+  durationAdjustable?: boolean
+  durationMinMinutes?: number | null
+  durationMaxMinutes?: number | null
 }
 
 export type PixAccountPublic = {
@@ -2151,6 +2161,8 @@ export type AgendaAppointmentItem = {
   opportunityId: string | null
   version: number
   changeReason: string | null
+  /** DEC-051(i): rótulo «duração ajustada». */
+  durationAdjusted?: boolean
 }
 
 export type AgendaViewResponse = {
@@ -2209,6 +2221,8 @@ export type AppointmentDetailResponse = {
   startsAt: number
   endsAt: number
   occupiesUntil: number | null
+  defaultDurationMinutes?: number | null
+  appliedDurationMinutes?: number | null
   status: 'confirmed' | 'cancelled'
   contactLabel: string | null
   contactId: string | null

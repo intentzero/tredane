@@ -16,6 +16,10 @@ export type ServiceRow = {
   signalKind: ServiceSignalKind | null
   signalFixedCents: number | null
   signalPercent: number | null
+  /** DEC-051 — a atendente pode ajustar a duração no Agendar (só a owner configura). */
+  durationAdjustable: boolean
+  durationMinMinutes: number | null
+  durationMaxMinutes: number | null
   createdAt: number
   updatedAt: number
   professionalIds: string[]
@@ -86,6 +90,9 @@ export type AppointmentRow = {
   cancelledAt: number | null
   /** Ocupação efetiva (duração + buffer) no momento da confirmação. */
   occupiesUntil: number | null
+  /** DEC-051(g) — duração padrão do serviço na marcação e a aplicada. */
+  defaultDurationMinutes: number | null
+  appliedDurationMinutes: number | null
 }
 
 export type ClinicSettingsRow = {
@@ -150,6 +157,10 @@ export type UpsertServiceInput = {
   signalKind?: ServiceSignalKind | null
   signalFixedCents?: number | null
   signalPercent?: number | null
+  /** DEC-051 — só a owner configura (DEC-042). */
+  durationAdjustable?: boolean
+  durationMinMinutes?: number | null
+  durationMaxMinutes?: number | null
 }
 
 export type UpsertResourceInput = {
