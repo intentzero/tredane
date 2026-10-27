@@ -47,13 +47,21 @@ export function serializeService(row: ServiceRow) {
   }
 }
 
-export function serializeResource(row: ResourceRow & { servicesWithoutResource?: string[] }) {
+export function serializeResource(
+  row: ResourceRow & {
+    servicesWithoutResource?: string[]
+    overCapacity?: Array<{ startsAt: number; endsAt: number; count: number }>
+  },
+) {
   return {
     id: row.id,
     kind: row.kind,
     name: row.name,
     category: row.category,
     active: row.active,
+    capacity: row.capacity,
+    sharedSpaceNotice: row.sharedSpaceNotice,
+    overCapacity: row.overCapacity,
     futureAppointmentCount: row.futureAppointmentCount,
     hasAppointmentHistory: row.hasAppointmentHistory,
     servicesWithoutResource: row.servicesWithoutResource,

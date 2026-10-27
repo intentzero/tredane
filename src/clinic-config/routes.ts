@@ -585,5 +585,9 @@ function parseResourceBody(body: Record<string, unknown>) {
         ? null
         : String(body.category),
     active: body.active === false ? false : true,
+    ...(body.capacity === undefined ? {} : { capacity: Number(body.capacity) }),
+    ...(body.sharedSpaceNotice === undefined
+      ? {}
+      : { sharedSpaceNotice: body.sharedSpaceNotice === null ? null : String(body.sharedSpaceNotice) }),
   }
 }

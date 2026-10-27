@@ -35,6 +35,7 @@ export function serializeAvailability(result: AvailabilityQueryResult) {
       professionalName: s.professionalName,
       roomResourceId: s.roomResourceId,
       roomResourceName: s.roomResourceName,
+      roomSharedNotice: s.roomSharedNotice ?? null,
     })),
   }
 }

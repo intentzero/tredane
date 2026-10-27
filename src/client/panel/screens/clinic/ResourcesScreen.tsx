@@ -83,6 +83,9 @@ export function ResourcesList({ tenantId, snap }: ListProps) {
                 <span>
                   {r.active ? 'Ativo' : 'Inativo'}
                   {r.category ? ` · ${r.category}` : ''}
+                  {r.kind === 'room' && (r.capacity ?? 1) > 1
+                    ? ` · ${r.capacity} ao mesmo tempo`
+                    : ''}
                   {r.futureAppointmentCount > 0
                     ? ` · ${r.futureAppointmentCount} futuros`
                     : ''}
@@ -140,6 +143,8 @@ export function ResourceForm({
     entityId === 'novo' ? null : snap.resources.find((r) => r.id === entityId)
   const [name, setName] = useState(existing?.name ?? '')
   const [category, setCategory] = useState(existing?.category ?? '')
+  const [capacity, setCapacity] = useState(String(existing?.capacity ?? 1))
+  const [sharedNotice, setSharedNotice] = useState(existing?.sharedSpaceNotice ?? '')
   const [resourceKind, setResourceKind] = useState<'room' | 'equipment'>(
     existing?.kind === 'equipment' ? 'equipment' : 'room',
   )
@@ -288,10 +293,17 @@ export function ResourceForm({
   const [formError, setFormError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
+  const capacityNumber = Number(capacity)
+  const capacityValid = Number.isInteger(capacityNumber) && capacityNumber >= 1 && capacityNumber <= 50
+
   async function save() {
-    setSaving(true)
     setFormError(null)
     setNotice(null)
+    if (kind !== 'professional' && resourceKind === 'room' && !capacityValid) {
+      setFormError('A sala atende de 1 a 50 pessoas ao mesmo tempo.')
+      return
+    }
+    setSaving(true)
     try {
       const row = await api.upsertResource(
         tenantId,
@@ -300,6 +312,9 @@ export function ResourceForm({
           name,
           category: kind === 'professional' ? null : category || null,
           active,
+          ...(kind !== 'professional' && resourceKind === 'room'
+            ? { capacity: capacityNumber, sharedSpaceNotice: sharedNotice.trim() || null }
+            : {}),
         },
         {
           resourceId: existing?.id,
@@ -311,6 +326,24 @@ export function ResourceForm({
       if (row.servicesWithoutResource && row.servicesWithoutResource.length > 0) {
         notes.push(
           'Alguns serviços ficaram sem recurso ativo nesta categoria e deixam de oferecer novos horários. Compromissos futuros permanecem.',
+        )
+      }
+      if (row.overCapacity && row.overCapacity.length > 0) {
+        const fmt = new Intl.DateTimeFormat('pt-BR', {
+          timeZone,
+          weekday: 'short',
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+        const list = row.overCapacity
+          .slice(0, 10)
+          .map((o) => `${fmt.format(o.startsAt)} (${o.count} pessoas)`)
+          .join('; ')
+        const more = row.overCapacity.length > 10 ? ` e mais ${row.overCapacity.length - 10}` : ''
+        notes.push(
+          `Capacidade salva. Estes horários já têm mais pessoas marcadas do que a nova capacidade, e nada foi desmarcado: ${list}${more}.`,
         )
       }
       await onSaved()
@@ -375,6 +408,38 @@ export function ResourceForm({
               placeholder="Ex.: Sala com laser"
             />
           </TextField>
+          {resourceKind === 'room' ? (
+            <>
+              <TextField className="clinic-field">
+                <Label>Atende ao mesmo tempo (pessoas)</Label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={50}
+                  step={1}
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                />
+              </TextField>
+              <p className="clinic-footnote">
+                De 1 a 50. Com 1, a sala atende uma pessoa de cada vez. A profissional continua a atender uma de cada vez.
+              </p>
+              <TextField className="clinic-field">
+                <Label>Frase para a confirmação pelo WhatsApp (opcional)</Label>
+                <Input
+                  autoComplete="off"
+                  maxLength={300}
+                  value={sharedNotice}
+                  onChange={(e) => setSharedNotice(e.target.value)}
+                  placeholder="Ex.: O espaço de bronzeamento é compartilhado."
+                />
+              </TextField>
+              <p className="clinic-footnote">
+                Entra na mensagem de confirmação dos horários nesta sala. Não diga quantas vagas restam.
+              </p>
+            </>
+          ) : null}
         </>
       )}
 

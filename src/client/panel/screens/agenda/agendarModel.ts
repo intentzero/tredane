@@ -126,10 +126,13 @@ export function defaultConfirmationMessage(input: {
   serviceName: string
   professionalName: string
   whenLabel: string
+  /** Frase fixa da sala (capacidade, card t1892s7600); nunca nº de vagas. */
+  roomSharedNotice?: string | null
 }): string {
   const name = firstName(input.contactName)
   const greet = name ? `Oi, ${name}!` : 'Olá!'
-  return `${greet} Seu horário de ${input.serviceName.toLowerCase()} com ${input.professionalName} está confirmado para ${input.whenLabel}. Qualquer coisa, é só responder aqui.`
+  const notice = input.roomSharedNotice?.trim()
+  return `${greet} Seu horário de ${input.serviceName.toLowerCase()} com ${input.professionalName} está confirmado para ${input.whenLabel}.${notice ? ` ${notice}` : ''} Qualquer coisa, é só responder aqui.`
 }
 
 /** Voltar regressa à tela de origem (conversa, acompanhamento ou agenda). */
