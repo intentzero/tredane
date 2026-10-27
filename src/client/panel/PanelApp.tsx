@@ -31,11 +31,12 @@ function usePanelPath(): PanelRoute | null {
 
 function PanelRouter() {
   const route = usePanelPath()
-  const { signedIn, status } = useAuthSession()
+  const { signedIn, status, authResolved } = useAuthSession()
   const { selectTenant, active } = useTenant()
 
   useEffect(() => {
     if (status.phase !== 'ready') return
+    if (!authResolved) return
     if (!route) return
 
     if (!signedIn && route.kind !== 'entrar') {
@@ -45,7 +46,7 @@ function PanelRouter() {
     if (signedIn && route.kind === 'entrar') {
       navigatePanel({ kind: 'clinicas' }, true)
     }
-  }, [signedIn, route, status.phase])
+  }, [signedIn, route, status.phase, authResolved])
 
   useEffect(() => {
     if (!route || route.kind !== 'area') return
@@ -64,6 +65,10 @@ function PanelRouter() {
 
   if (route.kind === 'entrar') {
     return <LoginScreen />
+  }
+
+  if (!authResolved) {
+    return <LoadingState label="Abrindo o painel…" />
   }
 
   if (!signedIn) {

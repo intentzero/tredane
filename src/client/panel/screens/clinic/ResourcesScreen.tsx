@@ -84,7 +84,9 @@ export function ResourcesList({ tenantId, snap }: ListProps) {
                   {r.active ? 'Ativo' : 'Inativo'}
                   {r.category ? ` · ${r.category}` : ''}
                   {r.futureAppointmentCount > 0
-                    ? ` · ${r.futureAppointmentCount} futuros`
+                    ? ` · ${r.futureAppointmentCount} ${
+                        r.futureAppointmentCount === 1 ? 'horário marcado' : 'horários marcados'
+                      }`
                     : ''}
                 </span>
               </span>

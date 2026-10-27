@@ -135,8 +135,9 @@ export function ClinicHub({ tenantId, snap, aiCard }: Props) {
           <NavRow
             icon={Users}
             title="Equipe"
-            detail="Convidar recepcionistas · em breve"
+            detail="Convidar recepcionistas"
             state="neutral"
+            soon
           />
         </li>
       </ul>

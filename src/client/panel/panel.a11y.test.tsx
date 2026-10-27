@@ -218,7 +218,7 @@ describe('painel a11y — shell e diálogos', () => {
     )
 
     expect(
-      await screen.findByRole('dialog', { name: /Mover Bruno Demo para/ }),
+      await screen.findByRole('dialog', { name: /Mudar a etapa de Bruno Demo para/ }),
     ).toBeTruthy()
     expect(screen.getByText(/Etapa atual:/)).toBeTruthy()
 

@@ -54,7 +54,7 @@ export function MoveSheet({
                 className="panel-title"
                 style={{ margin: '8px 0 2px' }}
               >
-                Mover {contactName} para…
+                Mudar a etapa de {contactName} para…
               </Heading>
               <p
                 id="move-sheet-desc"

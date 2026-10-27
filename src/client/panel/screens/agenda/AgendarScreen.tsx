@@ -21,7 +21,8 @@ import {
   type PixSnapshot,
 } from '../../api'
 import { navigatePanel } from '../../routes'
-import { ErrorState, LoadingState } from '../../states/StatusScreens'
+import { ListSkeleton } from '../../states/ListSkeleton'
+import { ErrorState } from '../../states/StatusScreens'
 import { friendlyError } from '../../copy/errors'
 import { formatDayLabel, formatSlotTime, reasonLabel, upcomingCivilDates } from './format'
 import {
@@ -307,7 +308,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
     ? `${shortDate(date, timezone)}, ${formatSlotTime(selected.startsAt, timezone)}`
     : ''
 
-  if (loadingConfig && !config) return <LoadingState label="Carregando agenda…" />
+  if (loadingConfig && !config) return <ListSkeleton label="Carregando agenda…" rows={5} />
   if (error && !config) {
     return <ErrorState title="Agenda indisponível" description={error} actionLabel="Voltar" onAction={back} />
   }

@@ -18,6 +18,7 @@ import {
   readSynthUserId,
   synthBearer,
   writeActiveTenantId,
+  writeLastTenantId,
   writeSynthUserId,
 } from './session'
 
@@ -30,6 +31,8 @@ type AuthContextValue = {
   status: AuthStatus
   authMode: AuthMode | null
   signedIn: boolean
+  /** false enquanto o Clerk ainda não disse se há sessão: não tratar como «sem login». */
+  authResolved: boolean
   clerkUserId: string | null
   api: PanelApi | null
   signInSynthetic: (clerkUserId: string) => void
@@ -45,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>({ phase: 'boot' })
   const [synthUserId, setSynthUserId] = useState<string | null>(() => readSynthUserId())
   const [clerkUserId, setClerkUserId] = useState<string | null>(null)
+  const [clerkResolved, setClerkResolved] = useState(false)
   const [clerkGetToken, setClerkGetToken] = useState<(() => Promise<string | null>) | null>(
     null,
   )
@@ -92,6 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? Boolean(clerkUserId)
         : false
 
+  const authResolved =
+    authMode === 'clerk' ? clerkResolved : authMode === 'synthetic'
+
   const resolvedUserId =
     authMode === 'synthetic' ? synthUserId : authMode === 'clerk' ? clerkUserId : null
 
@@ -103,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     writeSynthUserId(null)
     writeActiveTenantId(null)
+    writeLastTenantId(null)
     setSynthUserId(null)
     setClerkUserId(null)
     // #42 / UX-05 — logout não recupera cache de assets da sessão anterior.
@@ -120,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setClerkSignedIn = useCallback((userId: string | null) => {
     setClerkUserId(userId)
+    setClerkResolved(true)
     if (!userId) writeActiveTenantId(null)
   }, [])
 
@@ -127,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status,
     authMode,
     signedIn,
+    authResolved,
     clerkUserId: resolvedUserId,
     api,
     signInSynthetic,

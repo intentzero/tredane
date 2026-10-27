@@ -23,6 +23,7 @@ import {
   Modal,
   ModalOverlay,
   Popover,
+  Separator,
   TextArea,
   TextField,
 } from 'react-aria-components'
@@ -782,7 +783,7 @@ export function InboxThread({
         </button>
         {detail.status !== 'closed' ? (
           <Button
-            className="panel-icon-btn"
+            className="panel-header-action"
             aria-label="Agendar horário"
             isDisabled={busy}
             onPress={() =>
@@ -796,7 +797,8 @@ export function InboxThread({
               })
             }
           >
-            <CalendarPlus aria-hidden size={22} strokeWidth={2} />
+            <CalendarPlus aria-hidden size={20} strokeWidth={2} />
+            <span>Agendar</span>
           </Button>
         ) : null}
         {detail.status !== 'closed' ? (
@@ -816,6 +818,7 @@ export function InboxThread({
                 <MenuItem id="hold" className="panel-menu-item">
                   Reservar bloco
                 </MenuItem>
+                <Separator className="panel-menu-separator" />
                 <MenuItem id="close" className="panel-menu-item panel-menu-item--danger">
                   Encerrar conversa
                 </MenuItem>

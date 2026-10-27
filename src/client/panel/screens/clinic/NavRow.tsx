@@ -9,6 +9,8 @@ type Props = {
   title: string
   detail: string
   state?: NavRowState
+  /** Selo «Em breve»: recurso que ainda não existe (linha só informativa). */
+  soon?: boolean
   /** Sem `onPress` a linha é só informativa (ex.: recurso que ainda não existe). */
   onPress?: () => void
 }
@@ -17,7 +19,7 @@ type Props = {
  * Linha de lista com ícone colorido pelo estado, título, resumo e seta.
  * `todo` mostra o selo «Falta»; `ok` anuncia «Pronto» só para leitor de tela.
  */
-export function NavRow({ icon: Icon, title, detail, state = 'neutral', onPress }: Props) {
+export function NavRow({ icon: Icon, title, detail, state = 'neutral', soon, onPress }: Props) {
   const content = (
     <>
       <span className={`clinic-nav-icon clinic-nav-icon--${state}`} aria-hidden>
@@ -27,6 +29,7 @@ export function NavRow({ icon: Icon, title, detail, state = 'neutral', onPress }
         <strong>{title}</strong>
         <span>{detail}</span>
       </span>
+      {soon ? <Badge tone="wait">Em breve</Badge> : null}
       {state === 'todo' ? <Badge tone="wait">Falta</Badge> : null}
       {state === 'ok' ? <span className="panel-sr-only">Pronto</span> : null}
       {onPress ? <ChevronRight aria-hidden size={18} /> : null}

@@ -1,4 +1,5 @@
 import { ClerkProvider, useAuth, useClerk, useUser } from '@clerk/react'
+import { ptBR } from '@clerk/localizations'
 import { AccountMenu } from '../shell/AccountMenu'
 import { useEffect, type ReactNode } from 'react'
 import { useAuthSession, useClientConfig } from './AuthContext'
@@ -54,7 +55,7 @@ export function AuthModeGate({ children }: { children: ReactNode }) {
       )
     }
     return (
-      <ClerkProvider publishableKey={pk} afterSignOutUrl="/entrar">
+      <ClerkProvider publishableKey={pk} afterSignOutUrl="/entrar" localization={ptBR}>
         <ClerkSessionBridge>{children}</ClerkSessionBridge>
       </ClerkProvider>
     )

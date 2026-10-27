@@ -58,7 +58,7 @@ TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carr
 
 | Largura | Navegação | Conversas | Acompanhamento | Agenda |
 | --- | --- | --- | --- | --- |
-| Base (360–767 px) | Barra inferior com Conversas, Acompanhamento e Agenda (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
+| Base (360–767 px) | Barra inferior com Conversas, Acompanhamento e Agenda (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mudar a etapa pelo botão **Mudar etapa** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
 | Tablet (≥ 768 px) | Barra lateral compacta. | Lista + conversa lado a lado; detalhes em gaveta. | Quadro com rolagem horizontal. | Grade com colunas por recurso. |
 | Desktop (≥ 1280 px) | Cabeçalho superior. | Três colunas (lista, conversa, detalhes). | Quadro completo; arrastar e soltar além do menu “Mover para…”. | Grade completa e painel lateral de agendamento. |
 
@@ -123,8 +123,8 @@ Nome na interface: **Acompanhamento** (DEC-045). Na barra inferior de quatro ite
 **Origem:** JRN-03, JRN-04; REQ-023. **Estado:** Proposto.
 
 - Quadro com as etapas propostas: **Novo contato → Em atendimento → Horário proposto → Agendado → Concluído** e coluna **Perdido** separada visualmente à direita. As etapas vêm da configuração da clínica; a interface não fixa nomes no código de apresentação, para permitir etapas configuráveis depois (MVP).
-- Cartão: nome do contato, responsável, último contato (relativo), próximo compromisso (ou “Sem compromisso”), indicador de mensagem pendente/falha.
-- No celular (M-05), uma etapa por vez em abas roláveis com contagem; o botão **Mover** abre uma folha inferior com as etapas. No desktop, arrastar entre colunas **ou** menu **Mover para…** (alternativa acessível por teclado). O cartão fica em estado “Movendo…” até confirmação; em falha, volta à coluna original com aviso.
+- Cartão: nome do contato, responsável, último contato (relativo), próximo compromisso (ou “Sem horário marcado”), ação “Abrir conversa”, indicador de mensagem pendente/falha.
+- No celular (M-05), uma etapa por vez em abas roláveis com contagem; o botão **Mudar etapa** abre uma folha inferior com as etapas. No desktop, arrastar entre colunas **ou** menu **Mover para…** (alternativa acessível por teclado). O cartão fica em estado “Movendo…” até confirmação; em falha, volta à coluna original com aviso.
 - Mover para **Horário proposto** mostra a nota “Etapa da negociação — não reserva horário na agenda” (states.md).
 - Mover para **Agendado** sem compromisso vinculado é **permitido** (Confirmado, DEC-040): o cartão exibe “Sem compromisso vinculado” e oferece **Agendar horário**; mudar etapa nunca cria compromisso.
 - Filtros: responsável, “Minhas”, busca por nome. Relatórios e totais avançados ficam **Fora do MVP**.

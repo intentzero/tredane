@@ -2,6 +2,7 @@ import { Bell, ChevronDown } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from 'react-aria-components'
 import { AccountControl } from '../auth/ClerkBridge'
+import { markPickingClinic } from '../auth/session'
 import { useAuthSession } from '../auth/AuthContext'
 import type { PanelArea } from '../routes'
 import { areaTitle, navigatePanel } from '../routes'
@@ -147,7 +148,10 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
               {multi ? (
                 <Button
                   className="panel-clinic-switch"
-                  onPress={() => navigatePanel({ kind: 'clinicas' })}
+                  onPress={() => {
+                    markPickingClinic()
+                    navigatePanel({ kind: 'clinicas' })
+                  }}
                   aria-label={`Clínica ativa: ${ctx.name}. Trocar clínica.`}
                 >
                   <span>{ctx.name}</span>
