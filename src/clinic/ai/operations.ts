@@ -2,7 +2,6 @@ import {
   parseReplyOutput,
   AI_MODEL_AUTODRAFT,
   AI_MODEL_REGENERATE,
-  AI_REPLY_TEMPERATURE,
   AI_MAX_OUTPUT_TOKENS_REPLY,
   AI_MAX_OUTPUT_TOKENS_SUMMARY,
   AI_TIMEOUT_MS,
@@ -148,16 +147,18 @@ async function runGenerate(
     ...(input.kind === 'reply'
       ? {
           model: input.parentSuggestionId ? AI_MODEL_REGENERATE : AI_MODEL_AUTODRAFT,
-          temperature: AI_REPLY_TEMPERATURE,
         }
       : {}),
   })
   // Saída estruturada: mensagem limpa à cliente + notas internas separadas.
   const parsedReply = gen.ok && input.kind === 'reply' ? parseReplyOutput(gen.text) : null
+  // Sem mensagem utilizável (só JSON/chaves) → falha amigável, nunca texto cru.
+  const unusable = gen.ok && input.kind === 'reply' && !parsedReply?.message
+  const ok = gen.ok && !unusable
 
   const now = clock.nowMs()
   const warningCodes = [...rules.warnings]
-  if (!gen.ok) warningCodes.push('provider_unavailable')
+  if (!ok) warningCodes.push('provider_unavailable')
   const warningLabels = warningCodes.map(warningLabel)
   const sourceRefs = rules.explanationSources.map((s) => ({
     serviceName: s.serviceName,
@@ -195,11 +196,11 @@ async function runGenerate(
       tenantId: meta.tenantId,
       conversationId: input.conversationId,
       kind: input.kind,
-      status: gen.ok ? 'pending' : 'failed',
+      status: ok ? 'pending' : 'failed',
       provider: gen.provider,
       model: gen.model,
-      suggestedText: gen.ok ? (parsedReply ? parsedReply.message : gen.text) : '',
-      internalNotes: parsedReply?.notes ?? '',
+      suggestedText: ok ? (parsedReply ? parsedReply.message : gen.text) : '',
+      internalNotes: ok ? (parsedReply?.notes ?? '') : '',
       warningCodes,
       warningLabels,
       sourceRefs,
@@ -210,7 +211,7 @@ async function runGenerate(
         messageCount: contextInspection.payload.messages.length,
         mode: deps.syntheticFallback ? 'synthetic_fallback' : deps.mode,
       },
-      errorCode: gen.ok ? null : gen.code,
+      errorCode: gen.ok ? (unusable ? 'invalid_response' : null) : gen.code,
       requestedByClerkUserId: input.actorClerkUserId,
       requestedByDisplayName: input.actorDisplayName,
       parentSuggestionId: input.parentSuggestionId ?? null,
