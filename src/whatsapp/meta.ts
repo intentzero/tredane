@@ -76,6 +76,27 @@ export function resolveMetaMode(env: MetaEnv): MetaMode {
   return 'synthetic'
 }
 
+/**
+ * Modo Meta para ENVIO e leitura de estado (sem Embedded Signup).
+ *
+ * Enviar exige só o token do vínculo + phone_number_id (por clínica, em D1);
+ * META_CONFIG_ID só é necessário para o Embedded Signup. Por isso, com
+ * META_MODE=live exige META_APP_ID + META_APP_SECRET mas NÃO META_CONFIG_ID.
+ * Sem META_CONFIG_ID, `exchangeSignupCode` do adaptador live continua a falhar
+ * fechado (ver createLiveMetaAdapter). Fluxos de Embedded Signup continuam a
+ * usar `resolveMetaMode` (estrito).
+ */
+export function resolveMetaSendMode(env: MetaEnv): MetaMode {
+  const raw = (env.META_MODE ?? '').trim().toLowerCase()
+  if (raw === 'live') {
+    if (!env.META_APP_ID || !env.META_APP_SECRET) {
+      throw new Error('meta_live_missing_credentials')
+    }
+    return 'live'
+  }
+  return 'synthetic'
+}
+
 export function graphApiVersion(env: MetaEnv): string {
   return (env.META_GRAPH_API_VERSION ?? 'v25.0').trim() || 'v25.0'
 }
@@ -200,6 +221,11 @@ export function createLiveMetaAdapter(env: MetaEnv): MetaAdapter {
   return {
     mode: 'live',
     async exchangeSignupCode(input) {
+      // Embedded Signup falha fechado sem META_CONFIG_ID (adaptador construído
+      // para envio/leitura via createMetaSendAdapter).
+      if (!env.META_CONFIG_ID) {
+        throw new Error('meta_live_missing_credentials')
+      }
       const url = new URL(`https://graph.facebook.com/${version}/oauth/access_token`)
       url.searchParams.set('client_id', appId)
       url.searchParams.set('client_secret', appSecret)
@@ -271,6 +297,15 @@ export function createLiveMetaAdapter(env: MetaEnv): MetaAdapter {
 
 export function createMetaAdapter(env: MetaEnv): MetaAdapter {
   const mode = resolveMetaMode(env)
+  return mode === 'live' ? createLiveMetaAdapter(env) : createSyntheticMetaAdapter()
+}
+
+/**
+ * Adaptador para envio (fila clinic_outbox) e leitura de estado do painel.
+ * Não exige META_CONFIG_ID; Embedded Signup continua fail-closed sem ele.
+ */
+export function createMetaSendAdapter(env: MetaEnv): MetaAdapter {
+  const mode = resolveMetaSendMode(env)
   return mode === 'live' ? createLiveMetaAdapter(env) : createSyntheticMetaAdapter()
 }
 
