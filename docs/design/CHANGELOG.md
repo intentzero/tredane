@@ -3,6 +3,27 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## Tokens 0.3.0 — 27/10/2026 (Confirmado)
+
+**Aprovado pelo responsável pelo produto em 27/10/2026** (DEC-050 e DEC-041): a cor de ação passa do azul à cor da marca (Petróleo) e os neutros ganham um leve matiz da Tinta. Estrutura, tipografia, formas, espaçamento e as cores semânticas (sucesso, aviso, perigo, IA) não mudam. Conversão aplicada aos mocks mobile e desktop, ao catálogo, ao painel, ao login Clerk e ao site:
+
+| Token | 0.2.0 | 0.3.0 |
+| --- | --- | --- |
+| primary.base | `#2F5BD3` | `#0E5A5C` |
+| primary.ink | `#1E43A8` | `#0A4547` |
+| primary.tint | `#EEF2FC` | `#E7F1F1` |
+| primary.border | `#B9CBF2` | `#B3D1D1` |
+| surface.app | `#F6F6F4` | `#F5F4EF` |
+| surface.sunken · line.divider | `#F0F0EE` | `#EEEDE7` |
+| text.primary | `#1C1E21` | `#142625` |
+| text.secondary | `#474C54` | `#424B4A` |
+| text.muted | `#5B616B` | `#566160` |
+| line.border | `#E2E3E5` | `#E1E3E0` |
+| line.control | `#80868F` | `#7A8584` |
+| line.disabled | `#CDD0D4` | `#CBD0CF` |
+
+Contraste: os 27 pares de `contrastPairs` continuam acima do mínimo (`check_contrast.py`). Pendente: os PNG de `mobile/previews` e `desktop/previews` ainda mostram o azul e precisam de nova renderização (`render_previews.py`); `site/public/og-image.png` também.
+
 ## 24/10/2026 — Pipeline vira Acompanhamento (DEC-045)
 
 - Rótulos visíveis “Pipeline” → “Acompanhamento” e “oportunidade” → “contato em andamento” nos mocks mobile e desktop; nomes de arquivo e IDs mantidos. Previews regenerados.

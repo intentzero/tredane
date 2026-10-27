@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { PanelApiError, type PanelApi } from '../api'
+import { installSoundUnlock, maybePlayInboundSound } from '../sound'
 import {
   buildInboxWsUrl,
   createRealtimeConnection,
@@ -69,6 +70,8 @@ export function InboxRealtimeProvider({
     if (typeof WebSocket === 'undefined' || typeof api.getRealtimeTicket !== 'function') {
       return
     }
+    const soundSeen = new Set<string>()
+    const removeSoundUnlock = installSoundUnlock()
     const emit = (signal: InboxRealtimeSignal) => {
       for (const l of [...listeners.current]) {
         try {
@@ -94,7 +97,14 @@ export function InboxRealtimeProvider({
         }
       },
       onEvent: (event) => {
-        if (isInboxEvent(event)) emit({ kind: 'event', event })
+        if (isInboxEvent(event)) {
+          if (!soundSeen.has(event.eventId)) {
+            soundSeen.add(event.eventId)
+            if (soundSeen.size > 200) soundSeen.delete(soundSeen.values().next().value as string)
+            maybePlayInboundSound(event)
+          }
+          emit({ kind: 'event', event })
+        }
       },
       onResync: (reason) => emit({ kind: 'resync', reason }),
       onStateChange: setState,
@@ -109,6 +119,7 @@ export function InboxRealtimeProvider({
     return () => {
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('online', onOnline)
+      removeSoundUnlock()
       conn.stop()
     }
   }, [api, tenantId, generation])

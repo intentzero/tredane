@@ -110,7 +110,14 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
         onChange={setQ}
       >
         <Search aria-hidden size={18} strokeWidth={2} className="inbox-search-icon" />
-        <Input className="inbox-search-input" placeholder="Buscar nome ou telefone" />
+        <Input
+          className="inbox-search-input"
+          placeholder="Buscar nome ou telefone"
+          autoComplete="off"
+          data-form-type="other"
+          data-lpignore="true"
+          data-1p-ignore
+        />
       </SearchField>
 
       <div

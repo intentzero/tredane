@@ -1,6 +1,6 @@
 # Design do painel — mocks e guia de implementação
 
-**Estado:** design system v0.2.0 **Confirmado** pelo responsável pelo produto ([DEC-041](../product/decisions.md)); biblioteca-base **Confirmada** — React Aria Components ([DEC-048](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
+**Estado:** design system v0.3.0 **Confirmado** pelo responsável pelo produto ([DEC-041](../product/decisions.md), cor de marca em [DEC-050](../product/decisions.md)); biblioteca-base **Confirmada** — React Aria Components ([DEC-048](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
 
 ## Ordem de autoridade
 
@@ -19,7 +19,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 | --- | --- |
 | [screens.md](screens.md) | Índice das telas: ID (M-01 a M-34), arquivo, tela da spec, jornadas, requisitos, cenários de aceite, o que cada mock mostra e para onde navega; estados que faltam em cada tela |
 | [components.md](components.md) | Componentes recorrentes (cabeçalho, barra inferior, chips, balão, estado de envio, bloco de IA, folha inferior, formulário etc.) e regras gerais de implementação |
-| [tokens.json](tokens.json) · `tokens.css` | Tokens v0.2.0 (fonte única, em JSON) e variáveis CSS geradas a partir dele |
+| [tokens.json](tokens.json) · `tokens.css` | Tokens v0.3.0 (fonte única, em JSON) e variáveis CSS geradas a partir dele |
 | [catalog/index.html](catalog/index.html) | Catálogo: tokens e componentes com todos os estados (abra no navegador) |
 | [icons.md](icons.md) | Inventário de ícones e proposta de biblioteca |
 | [CHANGELOG.md](CHANGELOG.md) | Histórico de tokens e mocks, com a regra de conversão da consolidação 0.1 → 0.2 |
@@ -79,7 +79,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 - **Alterou um token?** Edite só `tokens.json`; rode `build_tokens.py`, `check_contrast.py` e `build_catalog.py`; registre em [CHANGELOG.md](CHANGELOG.md). Mudança de valor de token aprovado exige decisão registrada (DEC-041). Não commite PNG que só mudou por serrilhado de fonte; regenere apenas se o desenho mudou.
 - **Criou uma tela?** Dê a próxima ID (M-27…), acrescente em `mobile/canvas.json`, em [screens.md](screens.md) e na rastreabilidade de [ux-ui.md](../product/ux-ui.md) §9. Não renumere IDs existentes.
 - **Mudou uma decisão ou requisito?** Atualize primeiro o documento de produto, depois o mock afetado; nunca deixe mock e spec com versões concorrentes.
-- **Aprovação:** o design system v0.2 foi aprovado (DEC-041). Os **mocks das telas** continuam **Proposto** até o responsável pelo produto revisá-los. Mudar um token já aprovado exige nova decisão registrada em [decisions.md](../product/decisions.md).
+- **Aprovação:** o design system v0.2 foi aprovado (DEC-041) e a v0.3 trocou a cor de ação pela da marca (DEC-050). Os **mocks das telas** continuam **Proposto** até o responsável pelo produto revisá-los. Mudar um token já aprovado exige nova decisão registrada em [decisions.md](../product/decisions.md).
 
 ## Marca
 

@@ -52,4 +52,4 @@
 ## Pendências
 
 - Conferir o restante do inventário ao construir telas produtivas.
-- Ícone PWA provisório (azul `primary.base` + «T») em `public/icons/` (#42 / DEC-041): **Confirmado** para o piloto. Identidade visual definitiva do app: **Em aberto**.
+- Ícone PWA (Confluência, Petróleo `primary.base`; antes provisório azul + «T») em `public/icons/` (#42 / DEC-041): **Confirmado** para o piloto. Identidade visual definitiva do app: **Em aberto**.
