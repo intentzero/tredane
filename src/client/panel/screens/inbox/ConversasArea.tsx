@@ -86,8 +86,9 @@ function ConversasSectionView({
   viewerId: string
   isOwner: boolean
 }) {
+  const wide = useWideLayout()
   if (section === 'thread' && conversationId) {
-    return (
+    const thread = (
       <InboxThread
         tenantId={tenantId}
         conversationId={conversationId}
@@ -95,6 +96,25 @@ function ConversasSectionView({
         generation={generation}
         viewerClerkUserId={viewerId}
       />
+    )
+    if (!wide) return thread
+    // Desktop: lista · conversa · contato (3 colunas).
+    return (
+      <div className="conversas-3col">
+        <div className="conversas-3col-list">
+          <InboxList tenantId={tenantId} api={api} generation={generation} viewerClerkUserId={viewerId} />
+        </div>
+        <div className="conversas-3col-thread">{thread}</div>
+        <aside className="conversas-3col-contact" aria-label="Contato">
+          <ContactViaConversation
+            tenantId={tenantId}
+            conversationId={conversationId}
+            api={api}
+            generation={generation}
+            isOwner={isOwner}
+          />
+        </aside>
+      </div>
     )
   }
 
@@ -139,6 +159,25 @@ function ConversasSectionView({
       viewerClerkUserId={viewerId}
     />
   )
+}
+
+const WIDE_QUERY = '(min-width: 1100px)'
+
+/** Desktop largo → 3 colunas. No celular nada muda (e não busca lista/contato a mais). */
+function useWideLayout(): boolean {
+  const get = () =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(WIDE_QUERY).matches
+      : false
+  const [wide, setWide] = useState(get)
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    const mq = window.matchMedia(WIDE_QUERY)
+    const on = () => setWide(mq.matches)
+    mq.addEventListener?.('change', on)
+    return () => mq.removeEventListener?.('change', on)
+  }, [])
+  return wide
 }
 
 /** Resolve contactId a partir da conversa quando a rota é …/:id/contato. */
