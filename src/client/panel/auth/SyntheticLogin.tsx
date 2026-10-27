@@ -14,7 +14,7 @@ import { useAuthSession } from './AuthContext'
 /**
  * Login local quando AUTH_MODE=synthetic.
  * Visual alinhado a M-09; personas fictícias — nunca dados reais.
- * Em AUTH_MODE=clerk o componente Clerk substitui este ecrã.
+ * Em AUTH_MODE=clerk o componente Clerk substitui esta tela.
  */
 export function SyntheticLogin() {
   const { signInSynthetic } = useAuthSession()
@@ -127,7 +127,7 @@ export function SyntheticLogin() {
         <div className="panel-auth-form">
           <div className="panel-auth-copy">
             <h1 className="panel-auth-title">Persona de desenvolvimento</h1>
-            <p>Escolha um utilizador sintético da seed. Login não concede membership.</p>
+            <p>Escolha um usuário sintético da seed. Login não concede membership.</p>
           </div>
           <ListBox
             aria-label="Personas sintéticas"

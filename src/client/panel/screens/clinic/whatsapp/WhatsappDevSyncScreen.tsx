@@ -14,7 +14,7 @@ export function WhatsappDevSyncScreen({ tenantId, api, generation }: Props) {
       <section className="clinic-banner" aria-labelledby="wa-devsync-title">
         <h2 id="wa-devsync-title">Staging: ligar WhatsApp de teste</h2>
         <p>
-          Marca o número de teste já registado como conectado nesta clínica, para
+          Marca o número de teste já registrado como conectado nesta clínica, para
           permitir o envio de teste. Só funciona em staging, para o dono da clínica.
         </p>
       </section>

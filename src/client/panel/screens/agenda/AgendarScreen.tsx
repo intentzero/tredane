@@ -263,7 +263,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
           professionalId: selected.professionalId,
           roomResourceId: selected.roomResourceId,
           startsAt: selected.startsAt,
-          contactLabel: 'Contacto sintético',
+          contactLabel: 'Contato sintético',
           conversationId: scheduleCtx.conversationId,
           contactId: scheduleCtx.contactId,
           opportunityId: scheduleCtx.opportunityId,
@@ -368,7 +368,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
           professionalId: selected.professionalId,
           roomResourceId: selected.roomResourceId,
           startsAt: selected.startsAt,
-          contactLabel: 'Contacto sintético',
+          contactLabel: 'Contato sintético',
           conversationId: scheduleCtx.conversationId,
           contactId: scheduleCtx.contactId,
           opportunityId: scheduleCtx.opportunityId,
@@ -400,7 +400,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
   }
 
   if (loadingConfig && !config) {
-    return <LoadingState label="A carregar agenda…" />
+    return <LoadingState label="Carregando agenda…" />
   }
   if (error && !config) {
     return (
@@ -601,7 +601,7 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
             Horários livres para profissional e sala
           </legend>
           {loadingSlots && !availability ? (
-            <p className="panel-meta">A carregar horários…</p>
+            <p className="panel-meta">Carregando horários…</p>
           ) : null}
           {availability && availability.slots.length === 0 ? (
             <p className="panel-meta" role="status">

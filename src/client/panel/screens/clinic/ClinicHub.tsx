@@ -36,13 +36,13 @@ export function ClinicHub({ tenantId, snap }: Props) {
           <p>
             {readiness.agendaConfigured
               ? 'Conecte o WhatsApp da clínica para receber conversas. A agenda já está pronta para marcar horários.'
-              : 'Cadastre serviços, profissionais, salas e expediente antes de liberar agendamentos.'}
+              : 'Cadastre serviços, profissionais, salas e horários de atendimento para começar a marcar horários.'}
           </p>
         </section>
       ) : (
         <section className="clinic-banner clinic-banner-ok" aria-labelledby="clinic-ready">
           <h2 id="clinic-ready">Pronta para atender</h2>
-          <p>Configuração mínima da agenda e do canal concluída.</p>
+          <p>Agenda e WhatsApp configurados.</p>
         </section>
       )}
 
@@ -62,7 +62,9 @@ export function ClinicHub({ tenantId, snap }: Props) {
             <span className="clinic-nav-copy">
               <strong>Serviços</strong>
               <span>
-                {readiness.counts.servicesActive} activos · duração e intervalo
+                {readiness.counts.servicesActive === 0
+                  ? 'Nenhum serviço cadastrado'
+                  : `${readiness.counts.servicesActive} ${readiness.counts.servicesActive === 1 ? 'serviço ativo' : 'serviços ativos'}`}
               </span>
             </span>
             <span className={statusLabel(servicesOk).className}>
@@ -110,7 +112,7 @@ export function ClinicHub({ tenantId, snap }: Props) {
           >
             <span className="clinic-nav-copy">
               <strong>Horários e bloqueios</strong>
-              <span>Expediente semanal e folgas · {readiness.timezone}</span>
+              <span>Dias e horários de atendimento, folgas e bloqueios</span>
             </span>
             <span className={statusLabel(hoursOk).className}>
               {statusLabel(hoursOk).text}
@@ -122,7 +124,7 @@ export function ClinicHub({ tenantId, snap }: Props) {
           <div className="clinic-nav-row clinic-nav-row-static">
             <span className="clinic-nav-copy">
               <strong>Equipe</strong>
-              <span>Convites e remoção — API em #25; UI nesta área em fatia posterior</span>
+              <span>Convidar recepcionistas · em breve</span>
             </span>
             <ChevronRight aria-hidden size={18} />
           </div>
@@ -141,7 +143,7 @@ export function ClinicHub({ tenantId, snap }: Props) {
           >
             <span className="clinic-nav-copy">
               <strong>WhatsApp</strong>
-              <span>Número da clínica · Embedded Signup</span>
+              <span>Número de WhatsApp da clínica</span>
             </span>
             <span
               className={
@@ -169,7 +171,7 @@ export function ClinicHub({ tenantId, snap }: Props) {
           >
             <span className="clinic-nav-copy">
               <strong>Recebimento de sinais</strong>
-              <span>Conta Pix Woovi · prazo e política (M-33)</span>
+              <span>Conta Pix, prazo e regras do sinal</span>
             </span>
             <ChevronRight aria-hidden size={18} />
           </Button>
@@ -177,8 +179,8 @@ export function ClinicHub({ tenantId, snap }: Props) {
       </ul>
 
       <p className="clinic-footnote">
-        Só o responsável vê e altera esta área. Atendentes consultam serviços pela
-        agenda, sem editar configuração (DEC-042).
+        Só o responsável pela clínica vê e altera esta área. Atendentes consultam serviços pela
+        agenda, sem alterar as configurações.
       </p>
       {!readiness.schedulingAllowed ? (
         <p className="clinic-footnote clinic-footnote-warn" role="status">

@@ -235,13 +235,13 @@ export function InboxThread({
         setPixAlerts((prev) => prev.filter((x) => x.id !== a.id))
       } else if (result.uncertain) {
         setNotice(
-          'Estorno solicitado — a aguardar confirmação do provedor. Ainda não está devolvido.',
+          'Pedido de devolução enviado. O dinheiro ainda não voltou para a cliente; o status muda aqui quando voltar.',
         )
       } else {
         setNotice(
           result.charge.status === 'refund_failed'
-            ? 'Estorno falhou. Pode tentar de novo.'
-            : 'Estorno solicitado.',
+            ? 'A devolução não deu certo. Tente de novo.'
+            : 'Pedido de devolução enviado.',
         )
       }
       void api
@@ -459,7 +459,7 @@ export function InboxThread({
     const body = draft.trim()
     if (!body || !detail) return
     if (!detail.messagingWindow?.open) {
-      setNotice('Fora da janela de 24 h do WhatsApp — escolha um modelo aprovado')
+      setNotice('Passaram 24 horas desde a última mensagem da cliente. Para voltar a falar com ela, envie um modelo de mensagem.')
       return
     }
     await sendPayload({ body })
@@ -487,13 +487,13 @@ export function InboxThread({
     if (detail?.messagingWindow?.open) {
       await sendPayload({ body: m.body })
     } else {
-      setNotice('Fora da janela — use um modelo para tentar de novo')
+      setNotice('Passaram 24 horas desde a última mensagem da cliente. Use um modelo de mensagem para tentar de novo.')
       setPickerOpen(true)
     }
   }
 
   if (loading && !detail) {
-    return <LoadingState label="A abrir conversa…" />
+    return <LoadingState label="Abrindo conversa…" />
   }
   if (error && !detail) {
     return (
@@ -626,7 +626,7 @@ export function InboxThread({
                         style: 'currency',
                         currency: 'BRL',
                       })
-                    : 'Pagamento registado'}
+                    : 'Pagamento registrado'}
                   {' · '}
                   {a.reason === 'payment_after_expiry'
                     ? 'pagamento após o prazo'
@@ -634,9 +634,9 @@ export function InboxThread({
                       ? 'horário já reservado'
                       : 'não foi possível confirmar o horário'}
                   {refundPending
-                    ? ' · estorno solicitado (ainda não devolvido)'
+                    ? ' · devolução pedida (dinheiro ainda não devolvido)'
                     : refundFailed
-                      ? ` · estorno falhou${charge?.refundFailureReason ? `: ${charge.refundFailureReason}` : ''}`
+                      ? ' · a devolução não deu certo'
                       : ''}
                 </p>
                 <div className="clinic-actions">
@@ -780,7 +780,7 @@ export function InboxThread({
           ) : null}
           {!windowOpen ? (
             <p className="inbox-window-banner" role="status">
-              Fora da janela de 24 h do WhatsApp
+              Passaram 24 horas: use um modelo de mensagem
             </p>
           ) : null}
           {windowOpen ? (
@@ -962,7 +962,7 @@ export function InboxThread({
           </ModalOverlay>
         </div>
       ) : (
-        <p className="inbox-composer-closed">Conversa encerrada. Nova mensagem do contacto reabre o histórico.</p>
+        <p className="inbox-composer-closed">Conversa encerrada. Se a cliente escrever de novo, a conversa abre outra vez.</p>
       )}
     </div>
   )

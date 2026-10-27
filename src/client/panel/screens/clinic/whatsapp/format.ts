@@ -30,9 +30,9 @@ export function historyLabel(action: string): string {
       return 'Conexão interrompida'
     case 'replaced_released':
     case 'released_for_reconnect':
-      return 'Número anterior libertado'
+      return 'Número anterior liberado'
     case 'connect_rejected_phone_in_use':
-      return 'Número recusado (já ligado a outra clínica)'
+      return 'Este número já está conectado a outra clínica'
     default:
       return action
   }

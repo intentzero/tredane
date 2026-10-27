@@ -12,7 +12,7 @@ type Props = {
 }
 
 /**
- * Área Acompanhamento (#30): quadro por etapa + detalhe do contacto em andamento.
+ * Área Acompanhamento (#30): quadro por etapa + detalhe do contato em andamento.
  * Sem editor livre de etapas, sem WhatsApp F3, sem agenda completa (#35/#36).
  */
 export function AcompanhamentoArea({ tenantId, section, opportunityId }: Props) {
@@ -20,7 +20,7 @@ export function AcompanhamentoArea({ tenantId, section, opportunityId }: Props) 
   const { generation } = useTenant()
 
   if (!api || status.phase !== 'ready') {
-    return <LoadingState label="A preparar sessão…" />
+    return <LoadingState label="Preparando sessão…" />
   }
 
   if (section === 'detalhe' && opportunityId) {

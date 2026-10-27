@@ -155,7 +155,7 @@ export function SchedulesScreen({
   if (!selected) {
     return (
       <div className="clinic-stack">
-        <p className="clinic-empty">Cadastre um recurso activo antes do expediente.</p>
+        <p className="clinic-empty">Cadastre um recurso ativo antes do expediente.</p>
         <Button
           className="panel-btn panel-btn-ghost"
           onPress={() =>
@@ -242,7 +242,7 @@ export function SchedulesScreen({
           })}
         </ul>
         <p className="clinic-footnote">
-          Horários em múltiplos de 15 min, no fuso {snap.settings.timezone}.
+          Os horários são de 15 em 15 minutos e seguem o {snap.settings.timezone === 'America/Sao_Paulo' ? 'horário de Brasília' : 'fuso da clínica'}.
         </p>
       </section>
 

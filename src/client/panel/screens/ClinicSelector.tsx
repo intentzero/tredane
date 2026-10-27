@@ -44,7 +44,7 @@ export function ClinicSelector() {
   }, [listState, active.phase, selectTenant])
 
   if (listState.phase === 'loading' || listState.phase === 'idle') {
-    return <LoadingState label="A carregar clínicas…" />
+    return <LoadingState label="Carregando clínicas…" />
   }
   if (listState.phase === 'unauthenticated') {
     return <LoadingState label="A redirecionar…" />
@@ -77,7 +77,7 @@ export function ClinicSelector() {
 
   if (tenants.length === 1 && (active.phase === 'none' || active.phase === 'switching')) {
     const only = tenants[0]
-    return <LoadingState label={`A abrir ${only?.name ?? 'clínica'}…`} />
+    return <LoadingState label={`Abrindo ${only?.name ?? 'clínica'}…`} />
   }
 
   if (active.phase === 'switching') {

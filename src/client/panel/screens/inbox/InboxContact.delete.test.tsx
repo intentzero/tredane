@@ -1,5 +1,5 @@
 /**
- * UI exclusão de contacto — owner-only, confirmação, sem PII em mensagens de erro.
+ * UI exclusão de contato — owner-only, confirmação, sem PII em mensagens de erro.
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -51,9 +51,9 @@ describe('InboxContactScreen — exclusão', () => {
         isOwner
       />,
     )
-    await screen.findByText('Informações do contacto')
-    await user.click(screen.getByRole('button', { name: 'Excluir contacto' }))
-    const dialog = screen.getByRole('alertdialog', { name: 'Excluir contacto?' })
+    await screen.findByText('Informações do contato')
+    await user.click(screen.getByRole('button', { name: 'Excluir contato' }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Excluir contato?' })
     expect(dialog).toBeTruthy()
     expect(document.activeElement).toBe(
       screen.getByRole('button', { name: 'Cancelar' }),
@@ -66,7 +66,7 @@ describe('InboxContactScreen — exclusão', () => {
         expect.any(Object),
       )
     })
-    await screen.findByText(/Contacto excluído/)
+    await screen.findByText(/Contato excluído/)
     expect(screen.queryByText('5511999000111')).toBeNull()
   })
 
@@ -82,9 +82,9 @@ describe('InboxContactScreen — exclusão', () => {
         isOwner
       />,
     )
-    await screen.findByText('Informações do contacto')
-    await user.click(screen.getByRole('button', { name: 'Excluir contacto' }))
-    await screen.findByRole('alertdialog', { name: 'Excluir contacto?' })
+    await screen.findByText('Informações do contato')
+    await user.click(screen.getByRole('button', { name: 'Excluir contato' }))
+    await screen.findByRole('alertdialog', { name: 'Excluir contato?' })
     await user.keyboard('{Escape}')
     await waitFor(() => {
       expect(screen.queryByRole('alertdialog')).toBeNull()
@@ -103,8 +103,8 @@ describe('InboxContactScreen — exclusão', () => {
         isOwner={false}
       />,
     )
-    await screen.findByText('Informações do contacto')
-    expect(screen.queryByRole('button', { name: 'Excluir contacto' })).toBeNull()
+    await screen.findByText('Informações do contato')
+    expect(screen.queryByRole('button', { name: 'Excluir contato' })).toBeNull()
   })
 
   it('erro de permissão é genérico (sem PII)', async () => {
@@ -123,11 +123,11 @@ describe('InboxContactScreen — exclusão', () => {
         isOwner
       />,
     )
-    await screen.findByText('Informações do contacto')
-    await user.click(screen.getByRole('button', { name: 'Excluir contacto' }))
+    await screen.findByText('Informações do contato')
+    await user.click(screen.getByRole('button', { name: 'Excluir contato' }))
     await user.click(screen.getByRole('button', { name: 'Excluir permanentemente' }))
     const msg = await screen.findByRole('alert')
-    expect(msg.textContent).toContain('Só o responsável pode excluir contactos.')
+    expect(msg.textContent).toContain('Só o responsável pode excluir contatos.')
     expect(msg.textContent).not.toContain('Ana')
     expect(msg.textContent).not.toContain('5511')
   })

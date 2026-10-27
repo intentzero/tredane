@@ -61,7 +61,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
   }, [reload])
 
   if (loading && !snap) {
-    return <LoadingState label="A carregar recebimento de sinais…" />
+    return <LoadingState label="Carregando recebimento de sinais…" />
   }
   if (error && !snap) {
     return (
@@ -73,7 +73,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       />
     )
   }
-  if (!snap) return <LoadingState label="A carregar recebimento de sinais…" />
+  if (!snap) return <LoadingState label="Carregando recebimento de sinais…" />
 
   const connected = snap.account.status === 'connected'
 
@@ -178,8 +178,8 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
       <section className="clinic-banner" aria-labelledby="pix-account-title">
         <h2 id="pix-account-title">Recebimento de sinais</h2>
         <p>
-          Provedor: Woovi (OpenPix). O Tredane cria a cobrança na conta da clínica e{' '}
-          <strong>não</strong> recebe nem repassa dinheiro (DEC-047/049).
+          O Tredane cria a cobrança Pix na conta da clínica e{' '}
+          <strong>não</strong> recebe nem repassa o dinheiro. O provedor é a Woovi.
         </p>
       </section>
 
@@ -211,12 +211,11 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
                 value={appId}
                 onChange={(e) => setAppId(e.target.value)}
                 autoComplete="off"
-                placeholder="Cole o App ID (nunca partilhe no front em produção)"
+                placeholder="Cole o App ID (não compartilhe com ninguém)"
               />
             </TextField>
             <p className="clinic-footnote">
-              Em desenvolvimento use um App ID sintético (validado localmente). Chaves
-              reais e DPA ficam no GATE-08.
+              Em testes, use um App ID de exemplo. O App ID real só deve ser usado depois que o suporte do Tredane confirmar que a conta está liberada.
             </p>
             <Button
               className="panel-btn panel-btn-primary"
@@ -239,7 +238,7 @@ export function RecebimentoScreen({ tenantId, api, generation }: Props) {
             inputMode="decimal"
           />
         </TextField>
-        <p className="clinic-footnote">Padrão: 2 horas (DEC-047). Mínimo 0,25 h · máximo 48 h.</p>
+        <p className="clinic-footnote">Padrão: 2 horas. Mínimo de 15 minutos e máximo de 48 horas.</p>
         <TextField className="clinic-field">
           <Label>Política de cancelamento do sinal</Label>
           <TextArea

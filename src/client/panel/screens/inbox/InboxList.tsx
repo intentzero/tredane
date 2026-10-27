@@ -79,7 +79,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
   }
 
   if (loading && !items) {
-    return <LoadingState label="A carregar conversas…" />
+    return <LoadingState label="Carregando conversas…" />
   }
 
   if (error && !items) {
@@ -146,10 +146,10 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
           title={emptyAll ? 'Nenhuma conversa ainda' : 'Nenhuma conversa neste filtro'}
           description={
             emptyAll
-              ? 'Mensagens enviadas ao WhatsApp da clínica aparecem aqui. Pode carregar dados sintéticos de demonstração.'
-              : 'Tente outro filtro ou limpe a busca.'
+              ? 'Quando uma cliente mandar mensagem para o WhatsApp da clínica, ela aparece aqui.'
+              : 'Escolha outro filtro ou limpe a busca.'
           }
-          actionLabel={emptyAll ? (seeding ? 'A carregar…' : 'Carregar demonstração') : 'Limpar filtro'}
+          actionLabel={emptyAll ? (seeding ? 'Carregando…' : '[Teste] Criar conversas de exemplo') : 'Limpar filtro'}
           onAction={
             emptyAll
               ? () => void seedDemo()
