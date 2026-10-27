@@ -126,7 +126,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     expect(screen.getByRole('button', { name: 'Revisar e confirmar' }).hasAttribute('disabled')).toBe(false)
   })
 
-  it('confirma com o contato real e mostra o estado do aviso (desligado por padrão)', async () => {
+  it('DEC-053: com conversa e janela aberta o aviso vem ligado; desligar e confirmar não envia', async () => {
     const api = makeApi()
     renderScreen(api)
     await screen.findByRole('heading', { name: /Marina/ })
@@ -134,6 +134,10 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('Marina Souza')).toBeTruthy()
+    const toggle = within(dialog).getByRole('checkbox') as HTMLInputElement
+    expect(toggle.checked).toBe(true)
+    expect(within(dialog).getByRole('button', { name: 'Confirmar e enviar' })).toBeTruthy()
+    fireEvent.click(toggle)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar agendamento' }))
     expect(await screen.findByRole('heading', { name: 'Horário agendado' })).toBeTruthy()
     expect(api.confirmAppointment).toHaveBeenCalledWith(
@@ -154,7 +158,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     await pickTime()
     fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('checkbox'))
+    expect((within(dialog).getByRole('checkbox') as HTMLInputElement).checked).toBe(true)
     const box = within(dialog).getByRole('textbox', { name: /Mensagem para a paciente/ }) as HTMLTextAreaElement
     expect(box.value).toContain('Oi, Marina!')
     fireEvent.change(box, { target: { value: 'Texto editado' } })
@@ -171,6 +175,32 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/janela de 24 h está fechada/)).toBeTruthy()
     expect(within(dialog).queryByRole('checkbox')).toBeNull()
+    expect(within(dialog).getByRole('button', { name: 'Confirmar agendamento' })).toBeTruthy()
+  })
+
+  it('DEC-051: serviço com duração ajustável — passos de 15 min recalculam a grade e vão na confirmação', async () => {
+    const api = makeApi({ service: { durationAdjustable: true, durationMinMinutes: 30, durationMaxMinutes: 90 } })
+    renderScreen(api)
+    await screen.findByRole('heading', { name: /Marina/ })
+    const plus = await screen.findByRole('button', { name: 'Aumentar 15 min' })
+    fireEvent.click(plus)
+    await waitFor(() =>
+      expect(api.queryAvailability).toHaveBeenCalledWith('t1', expect.objectContaining({ durationMinutes: 60 }), expect.anything()),
+    )
+    expect(screen.getByText(/Duração ajustada/)).toBeTruthy()
+    await pickTime()
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar e enviar' }))
+    await screen.findByRole('heading', { name: 'Horário agendado' })
+    expect(api.confirmAppointment).toHaveBeenCalledWith('t1', expect.objectContaining({ durationMinutes: 60 }), expect.anything())
+  })
+
+  it('DEC-051: serviço sem duração ajustável não mostra o controle', async () => {
+    renderScreen(makeApi())
+    await screen.findByRole('heading', { name: /Marina/ })
+    await pickTime()
+    expect(screen.queryByRole('button', { name: 'Aumentar 15 min' })).toBeNull()
   })
 
   it('conflito: «Nada foi reservado», mantém serviço e profissional', async () => {
@@ -182,7 +212,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     await pickTime()
     fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar agendamento' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar e enviar' }))
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain('Nada foi reservado')
     expect(alert.textContent).toContain('Suas escolhas foram mantidas')

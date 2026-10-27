@@ -1,6 +1,6 @@
 /**
  * TEL-05 / M-04 — regras puras do redesenho do Agendar (Proposto, Paulo 27/10/2026).
- * Questões de produto em aberto: DEC-051–057 (docs/product/agendar-em-aberto.md).
+ * DEC-051–058 Confirmados (card t1868s7504) (docs/product/agendar-em-aberto.md).
  */
 import type { AvailabilitySlot } from '../../api'
 import type { PanelRoute } from '../../routes'
@@ -13,9 +13,9 @@ export type ScheduleContext = {
   alertId?: string
 }
 
-/** Horizonte do «Ver calendário» no staging (Em aberto, DEC-054). */
+/** Horizonte do «Ver calendário» (DEC-054 Confirmado: 60 dias no MVP). */
 export const CALENDAR_HORIZON_DAYS = 60
-/** Horizonte do «Próximo livre» no staging (Em aberto, DEC-055). */
+/** Horizonte do «Próximo livre» (DEC-055 Confirmado: 14 dias). */
 export const NEXT_FREE_HORIZON_DAYS = 14
 /** Dias visíveis na grade (5 colunas). */
 export const DAY_GRID_SIZE = 5
@@ -29,7 +29,7 @@ export function slotKey(s: Pick<AvailabilitySlot, 'startsAt' | 'professionalId' 
 
 /**
  * Um botão por hora: com «Qualquer», várias profissionais/salas podem ter o
- * mesmo início; fica a primeira opção devolvida pela API (DEC-056 em aberto).
+ * mesmo início; fica a primeira opção devolvida pela API (DEC-056 Confirmado: sala só na revisão e no rodapé).
  */
 export function uniqueTimes(slots: AvailabilitySlot[]): AvailabilitySlot[] {
   const seen = new Set<number>()
@@ -159,4 +159,33 @@ export function originLabel(ctx: ScheduleContext): string {
   if (ctx.conversationId) return 'da conversa'
   if (ctx.opportunityId) return 'do acompanhamento'
   return 'da agenda'
+}
+
+/**
+ * DEC-053 (Confirmado, card t1868s7504): com conversa vinculada, o aviso pelo
+ * WhatsApp vem LIGADO dentro da janela de 24 h; fora dela (ou sem conversa) vem
+ * desligado e a tela explica porquê.
+ */
+export function defaultNotify(
+  hasConversation: boolean,
+  window24: { open: boolean } | null | undefined,
+): boolean {
+  return hasConversation && window24?.open === true
+}
+
+/**
+ * DEC-051 (Confirmado, card t1868s7504): limites da duração ajustável, ou null
+ * se o serviço não foi marcado pela owner como «duração ajustável».
+ */
+export function durationBounds(svc: {
+  durationMinutes: number
+  durationAdjustable?: boolean
+  durationMinMinutes?: number | null
+  durationMaxMinutes?: number | null
+}): { min: number; max: number } | null {
+  if (!svc.durationAdjustable) return null
+  const min = svc.durationMinMinutes ?? svc.durationMinutes
+  const max = svc.durationMaxMinutes ?? svc.durationMinutes
+  if (min >= max) return null
+  return { min, max }
 }

@@ -18,10 +18,7 @@ import { listWeeklyWindows } from '../config/availability'
 import { getResource } from '../config/resources'
 import { getService } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
-import {
-  SCHEDULE_GRID_MINUTES,
-  type OpportunityStage,
-} from '../constants'
+import { SCHEDULE_GRID_MINUTES } from '../constants'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller } from '../envelopes'
 import { NotFoundError, ValidationError } from '../errors'
@@ -30,14 +27,9 @@ import { requireConversation } from '../inbox/conversations'
 import { assertClinicSchemaReady } from '../migrations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { ensureOpenOpportunity } from '../pipeline/operations'
-import {
-  getOpportunity,
-  insertStageHistory,
-  isTerminalStage,
-  updateOpportunityStage,
-} from '../pipeline/opportunities'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
+import { moveStage } from './stage'
 import { confirmAppointmentInTransaction } from './booking'
 import type { AppointmentDetail } from './booking-types'
 import {
@@ -218,71 +210,6 @@ export function previewHoldOp(
   return evaluate(db, tenantId, timezone, input, nowMs)
 }
 
-function moveStage(
-  db: ClinicDb,
-  tenantId: string,
-  opportunityId: string,
-  toStage: OpportunityStage,
-  actor: { id: string; name: string | null },
-  note: string,
-  clock: Clock,
-  outbox: OutboxRow[],
-  onlyFrom?: OpportunityStage[],
-): void {
-  const before = getOpportunity(db, tenantId, opportunityId)
-  if (!before || before.status !== 'open') return
-  if (before.stage === toStage) return
-  if (onlyFrom && !onlyFrom.includes(before.stage)) return
-  const now = clock.nowMs()
-  const nextStatus = isTerminalStage(toStage) ? 'closed' : 'open'
-  updateOpportunityStage(db, {
-    tenantId,
-    opportunityId,
-    stage: toStage,
-    status: nextStatus,
-    updatedAt: now,
-    lastInteractionAt: now,
-  })
-  insertStageHistory(
-    db,
-    {
-      tenantId,
-      opportunityId,
-      fromStage: before.stage,
-      toStage,
-      actorClerkUserId: actor.id,
-      actorDisplayName: actor.name,
-      note,
-      createdAt: now,
-    },
-    clock,
-  )
-  outbox.push(
-    insertOutboxEvent(
-      db,
-      {
-        tenantId,
-        type: 'opportunity.stage_changed',
-        aggregateType: 'opportunity',
-        aggregateId: opportunityId,
-        idempotencyKey: `opportunity.stage_changed:${opportunityId}:${now}:${toStage}`,
-        payload: {
-          opportunityId,
-          conversationId: before.conversationId,
-          contactId: before.contactId,
-          fromStage: before.stage,
-          toStage,
-          status: nextStatus,
-          actorClerkUserId: actor.id,
-          linkedAppointmentId: before.linkedAppointmentId,
-          missingAppointment: false,
-        },
-      },
-      clock,
-    ),
-  )
-}
-
 function holdEvent(
   db: ClinicDb,
   tenantId: string,
@@ -457,6 +384,7 @@ export function createHoldOp(
         actorClerkUserId: input.actorClerkUserId,
         excludeHoldId: id,
         durationMinutesOverride: input.durationMinutes,
+        skipStageMove: true,
       },
       clock,
     )

@@ -564,6 +564,15 @@ function parseServiceBody(body: Record<string, unknown>) {
           ? null
           : undefined
         : Number(body.signalPercent),
+    durationAdjustable: body.durationAdjustable === true,
+    durationMinMinutes:
+      body.durationMinMinutes === null || body.durationMinMinutes === undefined
+        ? null
+        : Number(body.durationMinMinutes),
+    durationMaxMinutes:
+      body.durationMaxMinutes === null || body.durationMaxMinutes === undefined
+        ? null
+        : Number(body.durationMaxMinutes),
   }
 }
 

@@ -29,6 +29,9 @@ type ServiceSql = {
   signal_kind?: string | null
   signal_fixed_cents?: number | null
   signal_percent?: number | null
+  duration_adjustable?: number
+  duration_min_minutes?: number | null
+  duration_max_minutes?: number | null
   created_at: number
   updated_at: number
 }
@@ -102,6 +105,9 @@ function toServiceRow(
     signalKind: requiresSignal ? signalKind : null,
     signalFixedCents: requiresSignal ? (row.signal_fixed_cents ?? null) : null,
     signalPercent: requiresSignal ? (row.signal_percent ?? null) : null,
+    durationAdjustable: (row.duration_adjustable ?? 0) === 1,
+    durationMinMinutes: (row.duration_adjustable ?? 0) === 1 ? (row.duration_min_minutes ?? null) : null,
+    durationMaxMinutes: (row.duration_adjustable ?? 0) === 1 ? (row.duration_max_minutes ?? null) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     professionalIds: loadProfessionals(db, row.tenant_id, row.id),
@@ -159,6 +165,49 @@ function normalizeSignalFields(
     signalFixedCents: kind === 'fixed' ? fixed : null,
     signalPercent: kind === 'percent' ? percent : null,
   }
+}
+
+/** DEC-051(b): múltiplos de 15 min, mín ≤ padrão ≤ máx. */
+function normalizeDurationFields(input: UpsertServiceInput): {
+  adjustable: number
+  min: number | null
+  max: number | null
+} {
+  if (input.durationAdjustable !== true) return { adjustable: 0, min: null, max: null }
+  const min = input.durationMinMinutes ?? input.durationMinutes
+  const max = input.durationMaxMinutes ?? input.durationMinutes
+  const ok = (n: number) => Number.isInteger(n) && n > 0 && n % 15 === 0 && n <= 24 * 60
+  if (!ok(min) || !ok(max) || min > input.durationMinutes || max < input.durationMinutes || min === max) {
+    throw new ValidationError(
+      'invalid_duration_range',
+      'duração ajustável: mínimo e máximo em múltiplos de 15 min, com mínimo ≤ duração padrão ≤ máximo',
+      { durationMinMinutes: min, durationMaxMinutes: max, durationMinutes: input.durationMinutes },
+    )
+  }
+  return { adjustable: 1, min, max }
+}
+
+/**
+ * DEC-051: duração aplicada no Agendar. `null` = padrão do serviço.
+ * Só serviços marcados pela owner; múltiplo de 15 min dentro de [mín, máx].
+ */
+export function assertAppliedDuration(service: ServiceRow, minutes: number | null | undefined): number | null {
+  if (minutes == null || minutes === service.durationMinutes) return null
+  if (!service.durationAdjustable) {
+    throw new ValidationError('duration_not_adjustable', 'este serviço não tem duração ajustável', {
+      serviceId: service.id,
+    })
+  }
+  const min = service.durationMinMinutes ?? service.durationMinutes
+  const max = service.durationMaxMinutes ?? service.durationMinutes
+  if (!Number.isInteger(minutes) || minutes % 15 !== 0 || minutes < min || minutes > max) {
+    throw new ValidationError('invalid_duration', `duração deve ser múltiplo de 15 min entre ${min} e ${max}`, {
+      durationMinutes: minutes,
+      min,
+      max,
+    })
+  }
+  return minutes
 }
 
 export function listServices(db: ClinicDb, tenantId: string): ServiceRow[] {
@@ -299,6 +348,7 @@ export function upsertService(
   const now = clock.nowMs()
   const active = input.active === false ? 0 : 1
   const signal = normalizeSignalFields(input, priceCents)
+  const dur = normalizeDurationFields(input)
 
   if (input.id) {
     const existing = getService(db, tenantId, input.id)
@@ -310,6 +360,7 @@ export function upsertService(
         name = ?, duration_minutes = ?, buffer_minutes = ?,
         price_cents = ?, client_explanation = ?, active = ?,
         requires_signal = ?, signal_kind = ?, signal_fixed_cents = ?, signal_percent = ?,
+        duration_adjustable = ?, duration_min_minutes = ?, duration_max_minutes = ?,
         updated_at = ?
        WHERE tenant_id = ? AND id = ?`,
       name,
@@ -322,6 +373,9 @@ export function upsertService(
       signal.signalKind,
       signal.signalFixedCents,
       signal.signalPercent,
+      dur.adjustable,
+      dur.min,
+      dur.max,
       now,
       tenantId,
       input.id,
@@ -337,8 +391,9 @@ export function upsertService(
       id, tenant_id, name, duration_minutes, buffer_minutes,
       price_cents, client_explanation, active,
       requires_signal, signal_kind, signal_fixed_cents, signal_percent,
+      duration_adjustable, duration_min_minutes, duration_max_minutes,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     name,
@@ -351,6 +406,9 @@ export function upsertService(
     signal.signalKind,
     signal.signalFixedCents,
     signal.signalPercent,
+    dur.adjustable,
+    dur.min,
+    dur.max,
     now,
     now,
   )

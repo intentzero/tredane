@@ -36,6 +36,8 @@ type AptSql = {
   version: number
   change_reason: string | null
   occupies_until: number | null
+  default_duration_minutes: number | null
+  applied_duration_minutes: number | null
 }
 
 function addCivilDays(date: string, days: number): string {
@@ -92,7 +94,8 @@ export function queryAgendaViewOp(
     `SELECT id, service_id, professional_id, room_resource_id,
             starts_at, ends_at, status, contact_label,
             contact_id, conversation_id, opportunity_id,
-            version, change_reason, occupies_until
+            version, change_reason, occupies_until,
+            default_duration_minutes, applied_duration_minutes
      FROM appointments
      WHERE tenant_id = ?
        AND starts_at < ?
@@ -149,6 +152,10 @@ export function queryAgendaViewOp(
       opportunityId: row.opportunity_id,
       version: row.version ?? 1,
       changeReason: row.change_reason,
+      durationAdjusted:
+        row.applied_duration_minutes != null
+        && row.default_duration_minutes != null
+        && row.applied_duration_minutes !== row.default_duration_minutes,
     })
   }
 

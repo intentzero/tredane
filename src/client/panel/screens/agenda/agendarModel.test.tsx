@@ -28,3 +28,18 @@ describe('agendarModel', () => {
     expect(originRoute('t', {})).toMatchObject({ area: 'agenda', section: 'dia' })
   })
 })
+
+describe('DEC-053 / DEC-051 (Confirmados, card t1868s7504)', () => {
+  it('aviso ligado só com conversa e janela de 24 h aberta', async () => {
+    const { defaultNotify } = await import('./agendarModel')
+    expect(defaultNotify(true, { open: true })).toBe(true)
+    expect(defaultNotify(true, { open: false })).toBe(false)
+    expect(defaultNotify(true, null)).toBe(false)
+    expect(defaultNotify(false, { open: true })).toBe(false)
+  })
+  it('limites da duração ajustável', async () => {
+    const { durationBounds } = await import('./agendarModel')
+    expect(durationBounds({ durationMinutes: 60 })).toBeNull()
+    expect(durationBounds({ durationMinutes: 60, durationAdjustable: true, durationMinMinutes: 30, durationMaxMinutes: 90 })).toEqual({ min: 30, max: 90 })
+  })
+})
