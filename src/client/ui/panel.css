@@ -2432,3 +2432,42 @@
   overflow-wrap: anywhere;
   user-select: all;
 }
+
+/* Ferramentas que só existem para testar (local e staging). Nunca aparecem em produção. */
+.test-only {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--size-border-width) dashed var(--color-warning-border);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+}
+
+.test-only-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.test-only-note {
+  margin: 0;
+  font-size: var(--font-size-small);
+}
+
+.test-only-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.test-only-actions .panel-btn-secondary {
+  width: auto;
+  padding-inline: var(--space-4);
+  background: var(--color-surface-card);
+}
