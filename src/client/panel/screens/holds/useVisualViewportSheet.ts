@@ -16,15 +16,18 @@ export function useVisualViewportSheet(active: boolean): CSSProperties {
     }
     update()
     // Campo focado (ex.: mensagem) fica visível acima do teclado.
+    let timer: number | undefined
     const onFocusIn = (e: FocusEvent) => {
       const el = e.target as HTMLElement | null
       if (!el || !el.matches?.('textarea, input')) return
-      window.setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => el?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }), 300)
     }
     document.addEventListener('focusin', onFocusIn)
     view.addEventListener('resize', update)
     view.addEventListener('scroll', update)
     return () => {
+      window.clearTimeout(timer)
       document.removeEventListener('focusin', onFocusIn)
       view.removeEventListener('resize', update)
       view.removeEventListener('scroll', update)
