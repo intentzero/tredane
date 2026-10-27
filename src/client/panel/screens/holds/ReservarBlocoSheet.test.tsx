@@ -60,6 +60,8 @@ function setup(opts: { services?: number; windowOpen?: boolean } = {}) {
 }
 
 beforeEach(() => {
+  // jsdom não tem scrollIntoView; a folha chama no timer depois de abrir (useVisualViewportSheet).
+  Element.prototype.scrollIntoView = vi.fn()
   // 10h em São Paulo: o dia começa em hoje e o período em «Manhã».
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-27T13:00:00Z'))
