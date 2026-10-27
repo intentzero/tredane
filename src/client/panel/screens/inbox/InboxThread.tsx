@@ -7,6 +7,7 @@ import {
   CircleAlert,
   Clock,
   EllipsisVertical,
+  FileText,
   Send,
   Sparkles,
   UserCheck,
@@ -41,6 +42,7 @@ import { useClinicTimezone } from '../../clinicTimezone'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
 import { AiWorking } from '../../ui/AiWorking'
 import { navigatePanel } from '../../routes'
+import { requestSummaryFocus } from './summaryFocus'
 import { ErrorState } from '../../states/StatusScreens'
 import {
   assigneeLine,
@@ -882,6 +884,24 @@ export function InboxThread({
             </span>
           </span>
         </button>
+        {/* Celular: atalho visível para o Resumo da IA (no desktop está na coluna/gaveta do contato). */}
+        <Button
+          className="panel-icon-btn inbox-thread-summary-btn"
+          aria-label="Resumo da IA"
+          onPress={() => {
+            requestSummaryFocus()
+            navigatePanel({
+              kind: 'area',
+              area: 'conversas',
+              tenantId,
+              section: 'contato',
+              conversationId: detail.id,
+              contactId: detail.contactId,
+            })
+          }}
+        >
+          <FileText aria-hidden size={20} strokeWidth={2} />
+        </Button>
         {detail.status !== 'closed' ? (
           <Button
             className="panel-header-action"

@@ -1,5 +1,6 @@
 import { ChevronLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { consumeSummaryFocus } from './summaryFocus'
 import { AiWorking } from '../../ui/AiWorking'
 import { Button } from 'react-aria-components'
 import {
@@ -58,6 +59,7 @@ export function InboxContactScreen({
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
+  const [focusSummary] = useState(consumeSummaryFocus)
 
   useEffect(() => {
     let cancelled = false
@@ -202,7 +204,20 @@ export function InboxContactScreen({
 
       {conversationId ? (
         <>
-          <h2 className="inbox-contact-h">Resumo da IA</h2>
+          <h2
+            className="inbox-contact-h"
+            id="resumo-ia"
+            tabIndex={-1}
+            ref={(el) => {
+              if (el && focusSummary && !el.dataset.focused) {
+                el.dataset.focused = '1'
+                el.scrollIntoView?.({ block: 'start' })
+                el.focus({ preventScroll: true })
+              }
+            }}
+          >
+            Resumo da IA
+          </h2>
           <div className="ai-block" style={{ marginBottom: 12 }}>
             {summary ? (
               <>
