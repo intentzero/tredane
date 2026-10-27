@@ -7,6 +7,7 @@ import type {
   StageHistoryRow,
 } from '../clinic/pipeline'
 import { serializeContact } from '../inbox/serialize'
+import { serializeHold } from '../scheduling/serialize'
 
 export function serializeLinkedAppointment(a: LinkedAppointmentSummary | null) {
   if (!a) return null
@@ -43,6 +44,7 @@ export function serializeOpportunity(o: OpportunityRow | OpportunityListItem) {
       contact: serializeContact(o.contact),
       missingAppointment: o.missingAppointment,
       linkedAppointment: serializeLinkedAppointment(o.linkedAppointment),
+      openHold: o.openHold ? serializeHold(o.openHold) : null,
     }
   }
   return base

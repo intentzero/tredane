@@ -23,6 +23,7 @@ import type { AppointmentChangeReason } from '../clinic/constants'
 import type { WorkerBindings } from '../worker/bindings'
 import type { SchedulingGateway } from './gateway'
 import {
+  serializeHold,
   serializeAgendaView,
   serializeAppointmentDetail,
   serializeAvailability,
@@ -91,6 +92,13 @@ function createDoGateway(env: WorkerBindings, tenantId: string): SchedulingGatew
     getAppointment: (caller, appointmentId) =>
       stub.getClinicAppointment(caller, appointmentId),
     queryAgenda: (caller, input) => stub.queryClinicAgenda(caller, input),
+    previewHold: (caller, input) => stub.previewClinicHold(caller, input),
+    createHold: (caller, input) => stub.createClinicHold(caller, input),
+    resolveHold: (caller, input) => stub.resolveClinicHold(caller, input),
+    cancelHold: (caller, input) => stub.cancelClinicHold(caller, input),
+    listHolds: (caller, input) => stub.listClinicHolds(caller, input),
+    listHoldAlerts: (caller) => stub.listClinicHoldAlerts(caller),
+    dismissHoldAlert: (caller, input) => stub.dismissClinicHoldAlert(caller, input),
   }
 }
 
@@ -103,6 +111,17 @@ async function resolveGateway(
     return opts.gatewayFactory(env, tenantId)
   }
   return createDoGateway(env, tenantId)
+}
+
+function displayNameFromRole(role: string): string {
+  return role === 'owner' ? 'Responsável' : 'Atendente'
+}
+
+function finiteNumber(v: unknown, field: string): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) {
+    throw new ValidationError('missing_body', `${field} (número) é obrigatório`)
+  }
+  return v
 }
 
 function callerFromContext(tenantId: string, actorId: string) {
@@ -124,6 +143,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
       const serviceId = c.req.query('serviceId')?.trim()
       const date = c.req.query('date')?.trim()
       const professionalId = c.req.query('professionalId')?.trim() || undefined
+      const excludeHoldId = c.req.query('excludeHoldId')?.trim() || undefined
       if (!serviceId || !date) {
         throw new ValidationError(
           'missing_query',
@@ -133,7 +153,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)
       const result = await gw.queryAvailability(
         callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
-        { serviceId, date, professionalId },
+        { serviceId, date, professionalId, excludeHoldId },
       )
       return c.json(serializeAvailability(result))
     } catch (err) {
@@ -151,6 +171,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
         roomResourceId?: string | null
         startsAt?: number
         excludeAppointmentId?: string | null
+        excludeHoldId?: string | null
       }>()
       if (!body.serviceId?.trim() || !body.professionalId?.trim()) {
         throw new ValidationError(
@@ -170,6 +191,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           roomResourceId: body.roomResourceId ?? null,
           startsAt: body.startsAt!,
           excludeAppointmentId: body.excludeAppointmentId ?? null,
+          excludeHoldId: body.excludeHoldId ?? null,
         },
       )
       return c.json(serializeCheckSlot(result))
@@ -397,6 +419,168 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
       }
     },
   )
+
+  // ── Reserva por bloco ────────────────────────────────────────────────
+  app.post('/api/tenants/:tenantId/holds/preview', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.agenda.operate')
+      const body = await c.req.json<Record<string, unknown>>()
+      const professionalId = typeof body.professionalId === 'string' ? body.professionalId.trim() : ''
+      if (!professionalId) throw new ValidationError('missing_body', 'professionalId é obrigatório')
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const result = await gw.previewHold(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        {
+          professionalId,
+          windowStartsAt: finiteNumber(body.windowStartsAt, 'windowStartsAt'),
+          windowEndsAt: finiteNumber(body.windowEndsAt, 'windowEndsAt'),
+          durationMinutes: finiteNumber(body.durationMinutes, 'durationMinutes'),
+        },
+      )
+      return c.json(result)
+    } catch (err) {
+      return schedulingErrorResponse(c, err)
+    }
+  })
+
+  app.get('/api/tenants/:tenantId/holds', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.agenda.operate')
+      const statusParam = c.req.query('status')?.trim()
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const holds = await gw.listHolds(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        {
+          conversationId: c.req.query('conversationId')?.trim() || null,
+          professionalId: c.req.query('professionalId')?.trim() || null,
+          statuses: statusParam ? statusParam.split(',').map((x) => x.trim()) : null,
+        },
+      )
+      return c.json({ holds: holds.map(serializeHold) })
+    } catch (err) {
+      return schedulingErrorResponse(c, err)
+    }
+  })
+
+  app.get('/api/tenants/:tenantId/holds/alerts', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.agenda.operate')
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const alerts = await gw.listHoldAlerts(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+      )
+      return c.json({
+        viewerClerkUserId: c.get('principal').clerkUserId,
+        alerts: alerts.map((a) => ({ kind: a.kind, hold: serializeHold(a.hold) })),
+      })
+    } catch (err) {
+      return schedulingErrorResponse(c, err)
+    }
+  })
+
+  app.post('/api/tenants/:tenantId/holds', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.agenda.operate')
+      const body = await c.req.json<Record<string, unknown>>()
+      const str = (k: string) => (typeof body[k] === 'string' ? (body[k] as string).trim() : '')
+      if (!str('clientRequestId')) {
+        throw new ValidationError('client_request_id_required', 'clientRequestId obrigatório')
+      }
+      if (!str('conversationId') || !str('serviceId') || !str('professionalId')) {
+        throw new ValidationError(
+          'missing_body',
+          'conversationId, serviceId e professionalId são obrigatórios',
+        )
+      }
+      const actor = c.get('principal').clerkUserId
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const result = await gw.createHold(callerFromContext(ctx.tenantId, actor), {
+        clientRequestId: str('clientRequestId'),
+        conversationId: str('conversationId'),
+        serviceId: str('serviceId'),
+        professionalId: str('professionalId'),
+        windowStartsAt: finiteNumber(body.windowStartsAt, 'windowStartsAt'),
+        windowEndsAt: finiteNumber(body.windowEndsAt, 'windowEndsAt'),
+        durationMinutes: finiteNumber(body.durationMinutes, 'durationMinutes'),
+        confirmBy: body.confirmBy == null ? null : finiteNumber(body.confirmBy, 'confirmBy'),
+        actorClerkUserId: actor,
+        actorDisplayName: displayNameFromRole(ctx.role),
+      })
+      return c.json(
+        { hold: serializeHold(result.value), idempotentReplay: result.idempotentReplay === true },
+        result.idempotentReplay ? 200 : 201,
+      )
+    } catch (err) {
+      return schedulingErrorResponse(c, err)
+    }
+  })
+
+  app.post('/api/tenants/:tenantId/holds/:holdId/resolve', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.agenda.operate')
+      const body = await c.req.json<Record<string, unknown>>()
+      const clientRequestId =
+        typeof body.clientRequestId === 'string' ? body.clientRequestId.trim() : ''
+      if (!clientRequestId) {
+        throw new ValidationError('client_request_id_required', 'clientRequestId obrigatório')
+      }
+      const actor = c.get('principal').clerkUserId
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const result = await gw.resolveHold(callerFromContext(ctx.tenantId, actor), {
+        holdId: c.req.param('holdId'),
+        clientRequestId,
+        startsAt: finiteNumber(body.startsAt, 'startsAt'),
+        roomResourceId: typeof body.roomResourceId === 'string' ? body.roomResourceId : null,
+        actorClerkUserId: actor,
+        actorDisplayName: displayNameFromRole(ctx.role),
+      })
+      return c.json({
+        hold: serializeHold(result.value.hold),
+        appointment: serializeAppointmentDetail(result.value.appointment),
+        idempotentReplay: result.idempotentReplay === true,
+      })
+    } catch (err) {
+      return schedulingErrorResponse(c, err)
+    }
+  })
+
+  app.post('/api/tenants/:tenantId/holds/:holdId/cancel', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.agenda.operate')
+      const actor = c.get('principal').clerkUserId
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const result = await gw.cancelHold(callerFromContext(ctx.tenantId, actor), {
+        holdId: c.req.param('holdId'),
+        actorClerkUserId: actor,
+        actorDisplayName: displayNameFromRole(ctx.role),
+      })
+      return c.json({ hold: serializeHold(result.value) })
+    } catch (err) {
+      return schedulingErrorResponse(c, err)
+    }
+  })
+
+  app.post('/api/tenants/:tenantId/holds/:holdId/dismiss-alert', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.agenda.operate')
+      const actor = c.get('principal').clerkUserId
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const result = await gw.dismissHoldAlert(callerFromContext(ctx.tenantId, actor), {
+        holdId: c.req.param('holdId'),
+        actorClerkUserId: actor,
+      })
+      return c.json({ hold: serializeHold(result.value) })
+    } catch (err) {
+      return schedulingErrorResponse(c, err)
+    }
+  })
 
   return app
 }

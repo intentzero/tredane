@@ -205,6 +205,21 @@ export function moveOpportunityStageOp(
       lastInteractionAt: now,
     })
 
+    if (nextStatus === 'closed') {
+      // Reserva por bloco: fechar o contato liberta o bloco em aberto.
+      db.run(
+        `UPDATE schedule_holds
+         SET status = 'cancelled', cancelled_at = ?, updated_at = ?,
+             alert_dismissed_at = COALESCE(alert_dismissed_at, ?)
+         WHERE tenant_id = ? AND opportunity_id = ? AND status IN ('active', 'expired')`,
+        now,
+        now,
+        now,
+        meta.tenantId,
+        before.id,
+      )
+    }
+
     insertStageHistory(
       db,
       {

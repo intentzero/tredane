@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HOUR_HEIGHT, layoutDay, MIN_BLOCK_HEIGHT, minutesOfDay, nowOffset, visibleHours } from './dayGrid'
+import { HOUR_HEIGHT, layoutDay, layoutHoldBands, MIN_BLOCK_HEIGHT, minutesOfDay, nowOffset, visibleHours } from './dayGrid'
 
 const TZ = 'America/Sao_Paulo'
 // 27/10/2026 em Brasília (UTC-3): 09:30 = 12:30Z
@@ -67,5 +67,16 @@ describe('nowOffset', () => {
     expect(nowOffset(at(10, 0), TZ, 8, 19)).toBe(2 * HOUR_HEIGHT)
     expect(nowOffset(at(7, 0), TZ, 8, 19)).toBeNull()
     expect(nowOffset(at(20, 0), TZ, 8, 19)).toBeNull()
+  })
+})
+
+describe('layoutHoldBands', () => {
+  it('a faixa do bloco 8h–12h termina exatamente na linha das 12:00', () => {
+    const tz = 'UTC'
+    const start = Date.UTC(2026, 10, 3, 8)
+    const end = Date.UTC(2026, 10, 3, 12)
+    const [band] = layoutHoldBands([{ windowStartsAt: start, windowEndsAt: end }], tz, 8)
+    expect(band!.top).toBe(0)
+    expect(band!.top + band!.height).toBe(4 * HOUR_HEIGHT)
   })
 })

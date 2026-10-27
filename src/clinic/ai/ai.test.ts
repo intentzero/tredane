@@ -102,7 +102,7 @@ describe('clinic AI assistiva (#41)', () => {
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
       expect(state).toEqual({ version: CLINIC_SCHEMA_VERSION, status: 'ready' })
-      expect(CLINIC_SCHEMA_VERSION).toBe(15)
+      expect(CLINIC_SCHEMA_VERSION).toBe(16)
       const tables = db.all<{ name: string }>(
         `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('ai_suggestions','ai_commands')`,
       )

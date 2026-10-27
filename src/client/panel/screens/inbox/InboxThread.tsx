@@ -33,8 +33,12 @@ import type {
   PanelApi,
   PixChargeDetail,
   PixPaymentAlert,
+  ScheduleHold,
   WhatsappTemplateItem,
 } from '../../api'
+import { DefinirHoraSheet } from '../holds/DefinirHoraSheet'
+import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
+import { durationLabel, periodChip, shortDay } from '../holds/holdFormat'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import {
@@ -148,6 +152,9 @@ function MessageBubble({
   )
 }
 
+/** Fuso dos rótulos do bloco (o app atende clínicas no Brasil). */
+const HOLD_TZ = 'America/Sao_Paulo'
+
 export function InboxThread({
   tenantId,
   conversationId,
@@ -164,6 +171,9 @@ export function InboxThread({
   const [templates, setTemplates] = useState<WhatsappTemplateItem[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
+  const [holds, setHolds] = useState<ScheduleHold[]>([])
+  const [reserveOpen, setReserveOpen] = useState(false)
+  const [defineHold, setDefineHold] = useState<ScheduleHold | null>(null)
   const [selectedTemplate, setSelectedTemplate] =
     useState<WhatsappTemplateItem | null>(null)
   const [pixCharges, setPixCharges] = useState<PixChargeDetail[]>([])
@@ -188,6 +198,32 @@ export function InboxThread({
   )
   // Mensagens recebidas abaixo da área visível (botão «↓ N»).
   const [belowCount, setBelowCount] = useState(0)
+
+  async function loadHolds() {
+    try {
+      const list = await api.listHolds(
+        tenantId,
+        { conversationId, status: ['active', 'expired'] },
+        { generation, expectGeneration: () => generation },
+      )
+      setHolds(list)
+    } catch {
+      setHolds([])
+    }
+  }
+
+  async function cancelHold(hold: ScheduleHold) {
+    setBusy(true)
+    setNotice(null)
+    try {
+      await api.cancelHold(tenantId, hold.id, { generation, expectGeneration: () => generation })
+      await loadHolds()
+    } catch (err) {
+      setNotice(friendlyError(err, 'Não foi possível cancelar o bloco.'))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function load(opts?: { quiet?: boolean }) {
     const quiet = opts?.quiet === true
@@ -248,6 +284,7 @@ export function InboxThread({
         })
         .then(setPixAlerts)
         .catch(() => setPixAlerts([]))
+      void loadHolds()
     } catch (err) {
       // Refetch em tempo real falhado: manter a conversa visível (e o rascunho).
       if (quiet) return
@@ -699,8 +736,12 @@ export function InboxThread({
                 aria-label="Opções da conversa"
                 onAction={(key) => {
                   if (key === 'close') setConfirmClose(true)
+                  if (key === 'hold') setReserveOpen(true)
                 }}
               >
+                <MenuItem id="hold" className="panel-menu-item" isDisabled={holds.some((h) => h.status === 'active')}>
+                  Reservar bloco (hora a definir)
+                </MenuItem>
                 <MenuItem id="close" className="panel-menu-item panel-menu-item--danger">
                   Encerrar conversa
                 </MenuItem>
@@ -754,6 +795,68 @@ export function InboxThread({
           </Button>
         </div>
       ) : null}
+
+      {holds.length > 0 ? (
+        <div className="inbox-notice hold-card" role="status">
+          {holds.map((h) => (
+            <div key={h.id} className="inbox-pix-card">
+              <strong>
+                {h.status === 'expired' ? 'Bloco passou sem hora definida' : 'Bloco reservado · hora a definir'}
+              </strong>
+              <p>
+                {shortDay(h.windowStartsAt, HOLD_TZ)} · {periodChip(h.windowStartsAt, h.windowEndsAt, HOLD_TZ)} ·{' '}
+                {h.serviceName} · {durationLabel(h.durationMinutes)} · {h.professionalName}
+              </p>
+              <div className="clinic-actions">
+                {h.status === 'active' ? (
+                  <Button className="panel-btn-primary" isDisabled={busy} onPress={() => setDefineHold(h)}>
+                    Definir hora
+                  </Button>
+                ) : (
+                  <Button className="panel-btn-primary" isDisabled={busy} onPress={() => setReserveOpen(true)}>
+                    Reservar outro bloco
+                  </Button>
+                )}
+                {h.status === 'active' ? (
+                  <Button className="panel-btn-secondary" isDisabled={busy} onPress={() => void cancelHold(h)}>
+                    Cancelar bloco
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <ReservarBlocoSheet
+        open={reserveOpen}
+        tenantId={tenantId}
+        api={api}
+        generation={generation}
+        conversationId={conversationId}
+        contactName={detail.contact?.displayName ?? null}
+        windowOpen={windowOpen}
+        onClose={() => setReserveOpen(false)}
+        onReserved={async (_hold, message) => {
+          await loadHolds()
+          if (message) await sendPayload({ body: message })
+          else if (!windowOpen) {
+            setNotice('Bloco reservado. A mensagem não foi enviada porque passaram 24 h desde a última mensagem da paciente.')
+          }
+        }}
+      />
+      <DefinirHoraSheet
+        open={defineHold != null}
+        tenantId={tenantId}
+        api={api}
+        generation={generation}
+        hold={defineHold}
+        timezone={HOLD_TZ}
+        onClose={() => setDefineHold(null)}
+        onDone={() => {
+          void load({ quiet: true })
+        }}
+      />
 
       {notice ? (
         <div className="inbox-notice" role="status">

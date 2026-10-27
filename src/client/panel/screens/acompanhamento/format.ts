@@ -3,6 +3,7 @@ import type { OpportunityStage } from '../../api'
 export const STAGE_ORDER: OpportunityStage[] = [
   'novo_contato',
   'em_atendimento',
+  'a_definir',
   'horario_proposto',
   'agendado',
   'concluido',
@@ -12,6 +13,7 @@ export const STAGE_ORDER: OpportunityStage[] = [
 export const STAGE_LABELS: Record<OpportunityStage, string> = {
   novo_contato: 'Novo contato',
   em_atendimento: 'Em atendimento',
+  a_definir: 'A definir',
   horario_proposto: 'Horário proposto',
   agendado: 'Agendado',
   concluido: 'Concluído',
@@ -22,6 +24,7 @@ export const STAGE_LABELS: Record<OpportunityStage, string> = {
 export const STAGE_TAB_LABELS: Record<OpportunityStage, string> = {
   novo_contato: 'Novo',
   em_atendimento: 'Em atendimento',
+  a_definir: 'A definir',
   horario_proposto: 'Horário proposto',
   agendado: 'Agendado',
   concluido: 'Concluído',

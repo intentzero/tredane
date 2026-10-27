@@ -103,3 +103,25 @@ export function nowOffset(
   if (min < startHour * 60 || min > endHour * 60) return null
   return ((min - startHour * 60) / 60) * HOUR_HEIGHT
 }
+
+/**
+ * Faixa tracejada do bloco reservado (hora a definir): exatamente da hora de
+ * início à de fim, sem altura mínima — assim o rótulo «12:00» da grade e o fim
+ * da faixa caem na mesma linha.
+ */
+export function layoutHoldBands<T extends { windowStartsAt: number; windowEndsAt: number }>(
+  holds: T[],
+  timeZone: string,
+  startHour: number,
+): { hold: T; top: number; height: number }[] {
+  return holds.map((hold) => {
+    const startMin = minutesOfDay(hold.windowStartsAt, timeZone)
+    let endMin = minutesOfDay(hold.windowEndsAt, timeZone)
+    if (endMin <= startMin) endMin = 24 * 60
+    return {
+      hold,
+      top: ((startMin - startHour * 60) / 60) * HOUR_HEIGHT,
+      height: ((endMin - startMin) / 60) * HOUR_HEIGHT,
+    }
+  })
+}

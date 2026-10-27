@@ -159,6 +159,11 @@ export function deleteContactOp(
       )
     }
     db.run(
+      `DELETE FROM schedule_holds WHERE tenant_id = ? AND contact_id = ?`,
+      meta.tenantId,
+      contactId,
+    )
+    db.run(
       `DELETE FROM opportunities WHERE tenant_id = ? AND contact_id = ?`,
       meta.tenantId,
       contactId,

@@ -50,3 +50,26 @@ export type {
   RescheduleAppointmentInput,
   SlotConflictDetails,
 } from './booking-types'
+export {
+  previewHoldOp,
+  createHoldOp,
+  resolveHoldOp,
+  cancelHoldOp,
+  sweepExpiredHoldsOp,
+  nextHoldExpiryAt,
+  listHoldsOp,
+  listHoldAlertsOp,
+  dismissHoldAlertOp,
+  cancelActiveHoldsInTransaction,
+} from './holds'
+export type {
+  ScheduleHoldView,
+  HoldMutationResult,
+  HoldPreviewInput,
+  HoldPreviewResult,
+  CreateHoldInput,
+  ResolveHoldInput,
+  CancelHoldInput,
+  ListHoldsInput,
+  HoldAlert,
+} from './holds'

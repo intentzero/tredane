@@ -14,6 +14,7 @@ import {
   slotStartUtc,
 } from './timezone'
 import { gridStartMinutes, resourceBusyReasons } from './occupancy'
+import { candidateBreaksHolds, listActiveHoldNeeds } from './hold-fit'
 import type {
   AvailabilityQueryInput,
   AvailabilityQueryResult,
@@ -175,6 +176,21 @@ export function queryAvailability(
   }
 
   const allWindows = listWeeklyWindows(db, tenantId)
+  const prosWithHolds = new Set(
+    professionals
+      .filter(
+        (p) =>
+          listActiveHoldNeeds(
+            db,
+            tenantId,
+            p.id,
+            { startsAt: dayStartsAt, endsAt: dayEndsAt },
+            asOf,
+            input.excludeHoldId,
+          ).length > 0,
+      )
+      .map((p) => p.id),
+  )
   const candidateStarts = gridStartMinutes(occMins)
   const slots: AvailableSlot[] = []
 
@@ -201,6 +217,19 @@ export function queryAvailability(
         dayEndsAt,
       )
       if (proReasons.length > 0) continue
+      if (
+        prosWithHolds.has(pro.id)
+        && candidateBreaksHolds(
+          db,
+          tenantId,
+          pro.id,
+          range,
+          { timezone, windows: windowsByResource(allWindows, pro.id), nowMs: asOf },
+          { excludeHoldId: input.excludeHoldId },
+        )
+      ) {
+        continue
+      }
 
       if (!needsRoom) {
         chosen = {

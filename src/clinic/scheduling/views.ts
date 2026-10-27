@@ -13,6 +13,7 @@ import { assertClinicSchemaReady } from '../migrations'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import type { AgendaViewInput, AgendaViewResult, AppointmentListItem } from './booking-types'
+import { HOLD_SELECT, mapHold, type HoldSql, type ScheduleHoldView } from './hold-rows'
 import {
   clinicDayBounds,
   clinicDayOfWeek,
@@ -160,5 +161,27 @@ export function queryAgendaViewOp(
     rangeEndsAt,
     asOf: clock.nowMs(),
     appointments,
+    holds: listAgendaHolds(db, meta.tenantId, rangeStartsAt, rangeEndsAt, input.professionalId ?? null),
   }
+}
+
+function listAgendaHolds(
+  db: ClinicDb,
+  tenantId: string,
+  rangeStartsAt: number,
+  rangeEndsAt: number,
+  professionalId: string | null,
+): ScheduleHoldView[] {
+  const rows = db.all<HoldSql>(
+    `${HOLD_SELECT}
+     WHERE h.tenant_id = ? AND h.status = 'active'
+       AND h.window_starts_at < ? AND h.window_ends_at > ?
+     ORDER BY h.window_starts_at, h.id`,
+    tenantId,
+    rangeEndsAt,
+    rangeStartsAt,
+  )
+  return rows
+    .map(mapHold)
+    .filter((h) => !professionalId || professionalId === 'any' || h.professionalId === professionalId)
 }

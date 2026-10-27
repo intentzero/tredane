@@ -1,3 +1,4 @@
+import type { ScheduleHoldView } from '../clinic/scheduling'
 import {
   APPOINTMENT_CHANGE_REASONS,
   APPOINTMENT_CHANGE_REASON_LABELS,
@@ -128,6 +129,36 @@ export function serializeAgendaView(result: AgendaViewResult) {
     rangeEndsAt: result.rangeEndsAt,
     asOf: result.asOf,
     appointments: result.appointments.map(serializeListItem),
+    holds: result.holds.map(serializeHold),
+  }
+}
+
+/** Reserva por bloco — campos explícitos (sem client_request_id). */
+export function serializeHold(h: ScheduleHoldView) {
+  return {
+    id: h.id,
+    status: h.status,
+    opportunityId: h.opportunityId,
+    conversationId: h.conversationId,
+    contactId: h.contactId,
+    contactName: h.contactName,
+    serviceId: h.serviceId,
+    serviceName: h.serviceName,
+    professionalId: h.professionalId,
+    professionalName: h.professionalName,
+    durationMinutes: h.durationMinutes,
+    windowStartsAt: h.windowStartsAt,
+    windowEndsAt: h.windowEndsAt,
+    confirmBy: h.confirmBy,
+    appointmentId: h.appointmentId,
+    responsibleClerkUserId: h.responsibleClerkUserId,
+    responsibleDisplayName: h.responsibleDisplayName,
+    createdAt: h.createdAt,
+    updatedAt: h.updatedAt,
+    resolvedAt: h.resolvedAt,
+    expiredAt: h.expiredAt,
+    cancelledAt: h.cancelledAt,
+    alertDismissedAt: h.alertDismissedAt,
   }
 }
 
