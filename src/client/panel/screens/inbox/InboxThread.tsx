@@ -24,10 +24,11 @@ import {
   assigneeLine,
   contactLabel,
   deliveryLabel,
-  statusClass,
+  statusTone,
   statusLabel,
 } from './format'
 import { friendlyError } from '../../copy/errors'
+import { Badge } from '../../states/Badge'
 
 type Props = {
   tenantId: string
@@ -542,7 +543,7 @@ export function InboxThread({
         >
           <span className="inbox-thread-name">{label}</span>
           <span className="inbox-thread-sub">
-            <span className={statusClass(detail.status)}>{statusLabel(detail.status)}</span>
+            <Badge tone={statusTone(detail.status)}>{statusLabel(detail.status)}</Badge>
             {' · '}
             {assigneeLine(detail, viewerClerkUserId)}
           </span>

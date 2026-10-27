@@ -4,7 +4,7 @@ import { Button, Input, SearchField } from 'react-aria-components'
 import type { InboxConversation, InboxCounts, InboxFilter, PanelApi } from '../../api'
 import { navigatePanel } from '../../routes'
 import { TestOnly } from '../../states/TestOnly'
-import { EmptyState, ErrorState, LoadingState } from '../../states/StatusScreens'
+import { EmptyState, ErrorState } from '../../states/StatusScreens'
 import {
   assigneeLine,
   contactLabel,
@@ -12,10 +12,12 @@ import {
   initials,
   previewLine,
   relativeTime,
-  statusClass,
+  statusTone,
   statusLabel,
 } from './format'
 import { friendlyError } from '../../copy/errors'
+import { Badge } from '../../states/Badge'
+import { ListSkeleton } from '../../states/ListSkeleton'
 
 const FILTERS: InboxFilter[] = ['all', 'new', 'mine', 'unassigned', 'closed']
 
@@ -74,7 +76,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
   }
 
   if (loading && !items) {
-    return <LoadingState label="Carregando conversas…" />
+    return <ListSkeleton label="Carregando conversas…" />
   }
 
   if (error && !items) {
@@ -125,12 +127,18 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
           return (
             <Button
               key={f}
-              className={`panel-chip${selected ? ' inbox-chip-active' : ''}`}
+              className="panel-chip"
               aria-pressed={selected}
               onPress={() => setFilter(f)}
             >
               {filterLabel(f)}
-              {f === 'new' && count != null && count > 0 ? ` · ${count}` : ''}
+              {count != null ? (
+                <span
+                  className={`panel-chip-count${f === 'new' && count > 0 ? ' panel-chip-count--hot' : ''}`}
+                >
+                  {count}
+                </span>
+              ) : null}
             </Button>
           )
         })}
@@ -198,7 +206,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
                       {previewLine(c, viewerClerkUserId)}
                     </span>
                     <span className="inbox-row-meta">
-                      <span className={statusClass(c.status)}>{statusLabel(c.status)}</span>
+                      <Badge tone={statusTone(c.status)}>{statusLabel(c.status)}</Badge>
                       <span className="inbox-row-assignee">
                         {assigneeLine(c, viewerClerkUserId)}
                       </span>

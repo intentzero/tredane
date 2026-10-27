@@ -7,14 +7,17 @@ Padrões que se repetem nos mocks. Implemente cada um **uma vez** como component
 | **Cabeçalho de tela** | M-02 a M-04, M-11 a M-26 | Botão voltar 44×44 (`aria-label` “Voltar para …”), título 17px/600 e subtítulo 13px muted. Telas de formulário fecham com “Fechar sem agendar”/“Voltar sem …” quando há alteração a perder |
 | **Cabeçalho de aba raiz** | M-01, M-05, M-06, M-13, M-15 | Título 22px/600, subtítulo com clínica e estado (“Ao vivo”), avatar do usuário 44px à direita só em Conversas |
 | **Barra inferior** | M-01, M-05, M-06, M-13, M-15 | 3 itens (4 para o Responsável), ícone 24 + rótulo 12px, item atual `aria-current="page"` em primary.ink/600, badge numérico no item Conversas, `padding-bottom` 22 para a área segura |
-| **Chip de filtro / aba por etapa** | M-01, M-05, M-06, M-13, M-17 | Linha rolável horizontal, 40px visual (`size.controlSm`), `aria-pressed` ou `role="tab"`/`aria-selected`; selecionado = fundo text.primary e texto branco. **Hit area ≥ 44px** |
+| **Chip de filtro / aba por etapa** | M-01, M-05, M-06, M-13, M-17 | Linha rolável horizontal, 40px visual (`size.controlSm`), `aria-pressed` ou `role="tab"`/`aria-selected`; selecionado = fundo text.primary e texto branco. **Hit area ≥ 44px** | **Contador** à direita do rótulo (pílula `surface.sunken`, 12px/600, `tabular-nums`; `primary.base` em “Novas” quando > 0), sempre visível em todos os filtros. Componente: classes `panel-chip` + `panel-chip-count`.
 | **Item de lista de conversa** | M-01 | Avatar 44 com iniciais, nome 16/600, hora 13 (primary.ink e 600 se não lida), prévia 16 (600 se não lida), selo de estado e responsável em 13. Alvo todo clicável |
-| **Selo de estado** | M-01, M-18, M-20 | Pílula 13px/600 com fundo tint e texto ink; nunca só cor: sempre texto (“Nova”, “Em atendimento”, “Encerrada”, “Ativa”) |
+| **Selo de estado** | M-01, M-18, M-20 | Raio 8 (`radius.sm`), 12px/600 (`font.size.caption`), fundo tint e texto ink; nunca só cor: sempre texto (“Nova”, “Em atendimento”, “Encerrada”, “Ativa”) |
 | **Balão de mensagem** | M-02, M-07, M-11 | Recebida à esquerda (branco, borda), enviada à direita (primary.tint), largura máx. 82%, raio 16 com um canto de 4. Linha de estado de envio abaixo (ícone + texto, 6 estados da spec §6.1). Evento de sistema centralizado em cápsula neutra |
 | **Estado de envio** | M-02, M-07 | Enviando (relógio), Enviada (1 visto), Entregue (2), Lida (2, primary.ink), **Não enviada** (alerta + **Tentar de novo**), **Verificando envio…** (interrogação, sem nova tentativa). Falha e incerto: balão com fundo e borda de danger/warning |
 | **Bloco de IA** | M-02, M-03, M-07 | Borda **tracejada** 1,5px ai.border, fundo ai.tint, rótulo “Sugestão da IA — revise antes de enviar” ou “Resumo da IA”. Sem botão de enviar dentro do bloco. Indisponível: borda cinza tracejada e “Você pode responder normalmente” |
 | **Compositor** | M-02, M-07, M-11 | Botão de IA 44 à esquerda, campo 44+ com raio 22, enviar 44 à direita. Acompanha o teclado virtual. Fora da janela de 24 h: campo `disabled` e botão **Escolher modelo** |
-| **Faixa de aviso (banner)** | M-04, M-07, M-11, M-15, M-19, M-24 | Ícone + texto, `role="alert"` (erro) ou `role="status"` (informação). Variantes: danger, warning, primary. Em M-07 fica logo abaixo do cabeçalho |
+| **Faixa de aviso (banner)** | M-04, M-07, M-11, M-15, M-19, M-24 | Ícone + título (o que aconteceu) + texto (o que fazer) + no máximo uma ação. Variantes `error` (danger, `role="alert"`: algo parou), `warn` (warning), `ok` (success: só depois de concluir algo) e `info` (primary). Código técnico nunca no texto: vai em “Detalhes para o suporte”. Componente `Banner` |
+| **Estado vazio / erro / bloqueio** | todas as telas com lista | Ícone de 28 em quadrado de 64 (raio 16): `primary.tint` (vazio), `danger.tint` (erro), `warning.tint` (acesso encerrado), `surface.sunken` (sem permissão). Título, uma frase do que vai aparecer ou do que fazer, e uma ação só se ela resolver. Erro aceita “Detalhes para o suporte”. Ferramentas de teste nunca ficam aqui: ver `TestOnly` |
+| **Esqueleto de lista** | M-01, M-05, M-06 | Linhas de 64px com avatar e duas barras `surface.sunken` pulsando (desliga com `prefers-reduced-motion`). Rótulo só para leitor de tela (`role="status"`, `aria-busy`). Substitui o texto solto “Carregando…” em listas |
+| **Faixa sem conexão** | M-07 | Faixa escura (`text.primary`) com ícone e uma frase: dados podem estar desatualizados e agenda/pagamento só confirmam com internet. Some sozinha quando volta; o indicador do cabeçalho passa a `danger.ink` |
 | **Folha inferior (bottom sheet)** | M-05 | Fundo escurecido, alça, título, opções de 52–56px, **Cancelar**. `role="dialog"`, foco preso, Esc fecha. Usada para escolhas curtas |
 | **Diálogo de confirmação** | M-26, M-08 | `role="alertdialog"`, ícone, título, consequências, campo de confirmação quando destrutivo, botão destrutivo desabilitado até confirmar, **Cancelar** |
 | **Rodapé de ação** | M-03, M-04, M-12, M-16 a M-22, M-24 a M-25 | Barra fixa com `padding-bottom` 30 (área segura), botão primário 52px de largura total; secundário ao lado (Cancelar) ou abaixo (link) |
@@ -23,6 +26,15 @@ Padrões que se repetem nos mocks. Implemente cada um **uma vez** como component
 | **Seletor de horário** | M-04 | Faixa rolável de dias (60×64) e botões de horário de 52px com recurso à direita; selecionado = borda 2px primary e tint. Horário indisponível sai da lista |
 | **Item de compromisso** | M-06, M-13 | Hora 14/600 + cartão com contato, serviço, recurso e estado. Bloqueio e fora do expediente em hachura com **rótulo de texto** |
 | **Interruptor / caixa de seleção** | M-14, M-16, M-21, M-22 | `<input type="checkbox">` nativo de 22–28px, na linha inteira clicável (≥ 44px) |
+
+## Onde estão no código
+
+| Componente | Arquivo |
+| --- | --- |
+| Botão (`panel-btn-primary`/`-secondary`/`-ghost`/`-danger`/`-compact`) e chip com contador, selo (classes), banner, estado, esqueleto e faixa | `src/client/ui/panel.css`, bloco «Componentes base» (fonte única; só tokens) |
+| `Banner`, `Badge`, `ListSkeleton`, `OfflineStrip`, `TestOnly`, `EmptyState`/`ErrorState` | `src/client/panel/states/` |
+
+Regras do botão: um primário por tela ou bloco; primário, secundário e perigo ocupam a largura toda (use `panel-btn-compact` para botão em linha: 40px visuais, área de toque de 44px); fantasma é só texto na cor `primary.ink`.
 
 ## Estados dos componentes interativos
 

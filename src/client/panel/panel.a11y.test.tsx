@@ -163,7 +163,7 @@ describe('painel a11y — shell e diálogos', () => {
       name: 'Filtros da caixa de entrada',
     })
     expect(
-      within(filters).getByRole('button', { name: 'Todas' }).getAttribute('aria-pressed'),
+      within(filters).getByRole('button', { name: /^Todas/ }).getAttribute('aria-pressed'),
     ).toBe('true')
 
     await expectNoAxeViolations(container)

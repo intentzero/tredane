@@ -1,4 +1,5 @@
 import type { InboxConversation, InboxFilter } from '../../api'
+import type { BadgeTone } from '../../states/Badge'
 
 export function contactLabel(c: { displayName: string | null; waId: string }): string {
   if (c.displayName?.trim()) return c.displayName.trim()
@@ -49,14 +50,14 @@ export function statusLabel(status: InboxConversation['status']): string {
   }
 }
 
-export function statusClass(status: InboxConversation['status']): string {
+export function statusTone(status: InboxConversation['status']): BadgeTone {
   switch (status) {
     case 'new':
-      return 'inbox-badge inbox-badge-new'
+      return 'new'
     case 'open':
-      return 'inbox-badge inbox-badge-open'
+      return 'open'
     case 'closed':
-      return 'inbox-badge inbox-badge-closed'
+      return 'closed'
   }
 }
 
