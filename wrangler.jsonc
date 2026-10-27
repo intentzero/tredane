@@ -106,7 +106,10 @@
         // sem META_CONFIG_ID, Embedded Signup e rotas /api/tenants/:id/whatsapp/* falham fechado.
         "META_MODE": "live",
         // App ID Meta é público (não é segredo).
-        "META_APP_ID": "3651532788318487"
+        "META_APP_ID": "3651532788318487",
+        // STAGING-ONLY (Paulo, 2026-10-27): habilita POST /api/tenants/:id/whatsapp/dev/sync-existing-binding
+        // (sincroniza o DO com o vínculo D1 existente). Nunca definir em production.
+        "WHATSAPP_DEV_SYNC_ENABLED": "true"
         // Secrets (wrangler secret put --env staging): CLERK_SECRET_KEY, ATTACHMENT_TOKEN_SECRET;
         // com META_MODE=live: META_APP_SECRET, META_VERIFY_TOKEN, META_TOKEN_SECRET;
         // com PIX_MODE=live: PIX_TOKEN_SECRET. `npm run check:env -- staging` valida.

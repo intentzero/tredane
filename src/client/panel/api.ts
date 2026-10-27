@@ -300,6 +300,25 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as WhatsappConnection
     },
 
+    /** STAGING-ONLY: devolve status + corpo JSON sem lançar (o ecrã mostra o resultado). */
+    async devSyncExistingWhatsappBinding(
+      tenantId: string,
+      opts?: FetchOpts,
+    ): Promise<{ status: number; body: unknown }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/whatsapp/dev/sync-existing-binding`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      const body: unknown = await res.json().catch(() => null)
+      return { status: res.status, body }
+    },
+
     async interruptWhatsappDev(
       tenantId: string,
       reason?: string,

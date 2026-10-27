@@ -27,6 +27,13 @@ import {
   type WhatsappService,
 } from './service'
 import { createD1WhatsappOps, type D1WhatsappOps } from './d1-ops'
+import {
+  createD1DevSyncStore,
+  isWhatsappDevSyncEnabled,
+  syncExistingBinding,
+  type DevSyncStore,
+} from './dev-sync'
+import type { ClinicChannelSync } from './service'
 import { createMetaAdapter, resolveMetaMode } from './meta'
 import {
   assertNoSecretsInPayload,
@@ -54,6 +61,9 @@ export type WhatsappRouteOptions = {
   ) => WhatsappService | Promise<WhatsappService>
   /** Testes: listar modelos a partir do SQLite em memória da clínica. */
   clinicDbFactory?: (tenantId: string) => { db: ClinicDb; clock: Clock } | null
+  /** Testes: store/sync da rota staging-only dev/sync-existing-binding. */
+  devSyncStoreFactory?: (env: WorkerBindings) => DevSyncStore
+  devSyncChannelSyncFactory?: (env: WorkerBindings) => ClinicChannelSync
 }
 
 /** Contrato mínimo usado pelas rotas (sync service ou D1 ops). */
@@ -344,6 +354,57 @@ export function createWhatsappRoutes(opts: WhatsappRouteOptions = {}) {
       return waError(c, err)
     }
   })
+
+  /**
+   * STAGING-ONLY (Paulo, 2026-10-27): sincroniza o DO da clínica com o vínculo
+   * activo já existente em D1 (criado sem Embedded Signup). Gate antes da auth:
+   * fora de ENVIRONMENT=staging + WHATSAPP_DEV_SYNC_ENABLED=true responde 404.
+   * Não usa o adaptador Meta (META_CONFIG_ID ausente em staging).
+   */
+  app.post(
+    '/api/tenants/:tenantId/whatsapp/dev/sync-existing-binding',
+    async (c, next) => {
+      if (!isWhatsappDevSyncEnabled(c.env)) {
+        return c.json({ error: 'not_found' }, 404)
+      }
+      await next()
+    },
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const principal = c.get('principal')!
+        if (principal.kind !== 'human') {
+          return c.json({ error: 'permission_denied' }, 403)
+        }
+        const store =
+          opts.devSyncStoreFactory?.(c.env) ?? createD1DevSyncStore(c.env.DB)
+        const channelSync =
+          opts.devSyncChannelSyncFactory?.(c.env)
+          ?? (c.env.CLINIC ? createDoChannelSync(c.env) : undefined)
+        if (!channelSync) {
+          return c.json({ error: 'clinic_do_unavailable' }, 503)
+        }
+        const clock = opts.clockFactory?.() ?? systemClock
+        const result = await syncExistingBinding({
+          store,
+          sealKeys: metaSealKeys(c.env),
+          channelSync,
+          tenantId: ctx.tenantId,
+          actorClerkUserId: principal.clerkUserId,
+          nowMs: clock.nowMs(),
+        })
+        assertNoSecretsInPayload(result)
+        if (!result.ok) {
+          return c.json(result, result.error === 'token_key_mismatch' ? 409 : 404)
+        }
+        return c.json(result)
+      } catch (err) {
+        return waError(c, err)
+      }
+    },
+  )
 
   /**
    * Simula revogação Meta (M-24) — só META_MODE=synthetic.

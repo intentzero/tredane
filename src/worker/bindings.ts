@@ -34,6 +34,8 @@ export type WorkerBindings = {
   TOKEN_ENCRYPTION_KEY?: string
   /** Token do challenge GET webhook (#32). Synthetic default se ausente. */
   META_VERIFY_TOKEN?: string
+  /** STAGING-ONLY: `true` habilita POST .../whatsapp/dev/sync-existing-binding (exige ENVIRONMENT=staging). */
+  WHATSAPP_DEV_SYNC_ENABLED?: string
   /** Segredo HMAC para tokens efémeros de download de anexos (#34). */
   ATTACHMENT_TOKEN_SECRET?: string
   /**
