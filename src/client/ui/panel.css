@@ -4451,3 +4451,23 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Atalho «Resumo da IA» no cabeçalho só no celular: no desktop o resumo está
+ * na coluna/gaveta do contato (#142). */
+.conversas-3col .inbox-thread-summary-btn {
+  display: none;
+}
+
+/* Com o atalho do resumo, o subtítulo não pode passar por baixo dos botões. */
+.inbox-thread-person .inbox-thread-who {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.inbox-thread-person .inbox-thread-sub {
+  display: flex;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
