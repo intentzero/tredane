@@ -2,6 +2,7 @@ import {
   CalendarPlus,
   Check,
   CheckCheck,
+  ChevronDown,
   ChevronLeft,
   CircleAlert,
   Clock,
@@ -180,10 +181,21 @@ export function InboxThread({
   const timelineRef = useRef<HTMLDivElement>(null)
   const stickToBottomRef = useRef(true)
   const scrolledConversationRef = useRef<string | null>(null)
+  const prevLastMessageIdRef = useRef<string | null>(null)
+  // Faixa «N não lidas» ancorada na primeira não lida de quando a conversa abriu.
+  const [unreadAnchor, setUnreadAnchor] = useState<{ id: string; count: number } | null>(
+    null,
+  )
+  // Mensagens recebidas abaixo da área visível (botão «↓ N»).
+  const [belowCount, setBelowCount] = useState(0)
 
   async function load(opts?: { quiet?: boolean }) {
     const quiet = opts?.quiet === true
-    if (!quiet) setLoading(true)
+    if (!quiet) {
+      setLoading(true)
+      setUnreadAnchor(null)
+      setBelowCount(0)
+    }
     setError(null)
     try {
       const res = await api.getInboxConversation(
@@ -192,6 +204,11 @@ export function InboxThread({
         { messageLimit: 100 },
         { generation, expectGeneration: () => generation },
       )
+      if (!quiet && res.unreadCount > 0) {
+        const inbound = res.messages.filter((m) => m.direction === 'inbound')
+        const first = inbound[Math.max(0, inbound.length - res.unreadCount)]
+        if (first) setUnreadAnchor({ id: first.id, count: inbound.length - inbound.indexOf(first) })
+      }
       setDetail(res)
       if (res.unreadCount > 0) {
         void api
@@ -245,26 +262,60 @@ export function InboxThread({
     void load()
   }, [tenantId, conversationId, generation])
 
-  // Como no WhatsApp: ao abrir, vai para a última mensagem; depois, mensagem
-  // nova rola até ela se a pessoa já estava no fim ou se foi ela quem enviou.
-  // Quem subiu para ler o histórico não é puxado de volta.
+  // Como no WhatsApp: ao abrir, vai para a primeira não lida (com a faixa) ou
+  // para o fim; mensagem nova rola até ela se a pessoa já estava no fim ou se
+  // foi ela quem enviou. Quem subiu para ler o histórico não é puxado de volta:
+  // aparece o botão «↓ N» com a contagem das recebidas.
   const lastMessage = detail?.messages[detail.messages.length - 1]
   const lastMessageId = lastMessage?.id
   const lastMessageOutbound = lastMessage?.direction === 'outbound'
   useEffect(() => {
     const el = timelineRef.current
-    if (!el || !lastMessageId) return
+    if (!el || !detail || !lastMessageId) return
     const opened = scrolledConversationRef.current !== conversationId
     scrolledConversationRef.current = conversationId
-    if (!opened && !stickToBottomRef.current && !lastMessageOutbound) return
-    const smooth =
-      !opened &&
-      typeof el.scrollTo === 'function' &&
-      !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-    else el.scrollTop = el.scrollHeight
-    stickToBottomRef.current = true
+    const prevId = prevLastMessageIdRef.current
+    prevLastMessageIdRef.current = lastMessageId
+    if (opened) {
+      const divider = el.querySelector<HTMLElement>('[data-unread-divider]')
+      if (divider && unreadAnchor) {
+        el.scrollTop = Math.max(0, divider.offsetTop - 16)
+        stickToBottomRef.current = false
+        setBelowCount(unreadAnchor.count)
+      } else {
+        el.scrollTop = el.scrollHeight
+        stickToBottomRef.current = true
+      }
+      return
+    }
+    if (stickToBottomRef.current || lastMessageOutbound) {
+      const smooth =
+        typeof el.scrollTo === 'function' &&
+        !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      else el.scrollTop = el.scrollHeight
+      stickToBottomRef.current = true
+      setBelowCount(0)
+      return
+    }
+    const prevIndex = prevId ? detail.messages.findIndex((m) => m.id === prevId) : -1
+    const added = detail.messages
+      .slice(prevIndex + 1)
+      .filter((m) => m.direction === 'inbound').length
+    if (added > 0) setBelowCount((n) => n + added)
   }, [conversationId, lastMessageId, lastMessageOutbound])
+
+  function scrollToLatest() {
+    const el = timelineRef.current
+    if (!el) return
+    if (typeof el.scrollTo === 'function') {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    } else {
+      el.scrollTop = el.scrollHeight
+    }
+    stickToBottomRef.current = true
+    setBelowCount(0)
+  }
 
   // Tempo real: (re)ligação/aba visível ou evento desta conversa → refetch
   // silencioso. O rascunho (estado local) e o scroll não são tocados.
@@ -820,14 +871,16 @@ export function InboxThread({
         </div>
       ) : null}
 
+      <div className="inbox-timeline-wrap">
       <div
         className="inbox-timeline"
         aria-live="polite"
         ref={timelineRef}
         onScroll={(e) => {
           const el = e.currentTarget
-          stickToBottomRef.current =
-            el.scrollHeight - el.scrollTop - el.clientHeight < 80
+          const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+          stickToBottomRef.current = atBottom
+          if (atBottom) setBelowCount(0)
         }}
       >
         {detail.messagesHasMore ? (
@@ -838,6 +891,13 @@ export function InboxThread({
             {i === 0 || !sameDay(detail.messages[i - 1]!.createdAt, m.createdAt) ? (
               <div className="inbox-day">{dayLabel(m.createdAt)}</div>
             ) : null}
+            {unreadAnchor?.id === m.id ? (
+              <div className="inbox-unread-divider" data-unread-divider>
+                {unreadAnchor.count === 1
+                  ? '1 mensagem não lida'
+                  : `${unreadAnchor.count} mensagens não lidas`}
+              </div>
+            ) : null}
             <MessageBubble
               m={m}
               busy={busy}
@@ -845,6 +905,19 @@ export function InboxThread({
             />
           </Fragment>
         ))}
+      </div>
+      {belowCount > 0 ? (
+        <Button
+          className="inbox-scroll-latest"
+          aria-label={`Ir para as mensagens novas (${belowCount} não lidas)`}
+          onPress={scrollToLatest}
+        >
+          <ChevronDown aria-hidden="true" size={22} strokeWidth={2} />
+          <span className="inbox-scroll-latest-count" aria-hidden="true">
+            {belowCount}
+          </span>
+        </Button>
+      ) : null}
       </div>
 
       {detail.status !== 'closed' ? (
