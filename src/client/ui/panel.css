@@ -4443,3 +4443,11 @@
   flex-direction: column;
   min-width: 0;
 }
+
+/* Cabeçalho da conversa: o responsável corta com reticências em vez de empurrar «Agendar» e o menu. */
+.inbox-thread-who .inbox-thread-sub > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
