@@ -91,7 +91,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 - Nova mensagem recebida move o item para o topo, sem tirar o foco do usuário de onde ele está; se a lista estiver rolada, aparece o aviso “1 nova conversa” para voltar ao topo.
 
 **Conversa aberta**
-- Cabeçalho: contato, estado da conversa, responsável com ação **Assumir** (quando não é o usuário) ou **Transferir**, ação **Encerrar**.
+- Cabeçalho: contato, estado da conversa, responsável com ação **Assumir** (quando não é o usuário) ou **Transferir**, ação **Encerrar**. **Proposto (PR-7, 27/10/2026):** Assumir vira uma faixa abaixo do cabeçalho (“Ninguém está atendendo esta conversa.” + **Assumir**), Agendar fica como ícone no cabeçalho e **Encerrar conversa** fica no menu ⋮ com confirmação, para não competir com a resposta.
 - Linha do tempo em ordem persistida: mensagens recebidas (esquerda), enviadas (direita, com estado de envio — seção 6.1), eventos de sistema centralizados (“Bruno assumiu a conversa”, “Etapa: Horário proposto”, “Compromisso confirmado — sex 14:00”). O histórico corresponde ao registro persistido após recarga ou reconexão (REQ-021).
 - Mídia recebida não suportada ou indisponível aparece como bloco “Anexo não disponível” com motivo, nunca como mensagem vazia (JRN-01).
 - Mensagem recebida cujo processamento falhou aparece como “Mensagem não processada — a equipe técnica foi avisada” somente se houver registro do evento; conteúdo não persistido não é exibido como íntegro (states.md).

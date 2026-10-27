@@ -1,11 +1,26 @@
-import { ChevronLeft, CircleAlert, Sparkles } from 'lucide-react'
-import { useEffect, useId, useState } from 'react'
+import {
+  CalendarPlus,
+  Check,
+  CheckCheck,
+  ChevronLeft,
+  CircleAlert,
+  Clock,
+  EllipsisVertical,
+  Send,
+  Sparkles,
+  UserCheck,
+} from 'lucide-react'
+import { Fragment, useEffect, useId, useState } from 'react'
 import {
   Button,
   Dialog,
   Heading,
+  Menu,
+  MenuItem,
+  MenuTrigger,
   Modal,
   ModalOverlay,
+  Popover,
   TextArea,
   TextField,
 } from 'react-aria-components'
@@ -22,13 +37,19 @@ import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import {
   assigneeLine,
+  avatarTone,
   contactLabel,
+  dayLabel,
   deliveryLabel,
+  initials,
+  sameDay,
+  windowHint,
   statusTone,
   statusLabel,
 } from './format'
 import { friendlyError } from '../../copy/errors'
 import { Badge } from '../../states/Badge'
+import { Banner } from '../../states/Banner'
 
 type Props = {
   tenantId: string
@@ -41,6 +62,24 @@ type Props = {
 /** Texto sempre como nó React — nunca HTML (XSS / conteúdo externo). */
 function PlainText({ text }: { text: string }) {
   return <>{text}</>
+}
+
+function DeliveryIcon({ state }: { state: string }) {
+  const props = { 'aria-hidden': true, size: 14, strokeWidth: 2, className: 'inbox-delivery-icon' } as const
+  switch (state) {
+    case 'pending':
+      return <Clock {...props} />
+    case 'accepted':
+      return <Check {...props} />
+    case 'delivered':
+    case 'read':
+      return <CheckCheck {...props} />
+    case 'failed':
+    case 'unknown':
+      return <CircleAlert {...props} />
+    default:
+      return null
+  }
 }
 
 function MessageBubble({
@@ -63,46 +102,35 @@ function MessageBubble({
   const failed = outbound && m.deliveryState === 'failed'
   const unknown = outbound && m.deliveryState === 'unknown'
   const delivery = outbound ? deliveryLabel(m.deliveryState) : null
+  const stateClass = failed
+    ? ' inbox-delivery-failed'
+    : unknown
+      ? ' inbox-delivery-unknown'
+      : m.deliveryState === 'read'
+        ? ' inbox-delivery-read'
+        : ''
   return (
-    <div
-      className={outbound ? 'inbox-msg inbox-msg-out' : 'inbox-msg inbox-msg-in'}
-    >
-      <p className="inbox-msg-body">
-        <PlainText text={m.body} />
-      </p>
-      <span className="inbox-msg-meta">
-        {new Date(m.createdAt).toLocaleTimeString('pt-BR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        })}
-        {delivery ? (
-          <>
-            {' · '}
-            <span
-              className={
-                failed
-                  ? 'inbox-delivery inbox-delivery-failed'
-                  : unknown
-                    ? 'inbox-delivery inbox-delivery-unknown'
-                    : 'inbox-delivery'
-              }
-            >
-              {(failed || unknown) && (
-                <CircleAlert
-                  aria-hidden
-                  size={12}
-                  strokeWidth={2.4}
-                  className="inbox-delivery-icon"
-                />
-              )}
+    <div className={outbound ? 'inbox-msg inbox-msg-out' : 'inbox-msg inbox-msg-in'}>
+      <div className={`inbox-msg-bubble${failed ? ' inbox-msg-bubble--failed' : ''}`}>
+        <p className="inbox-msg-body">
+          <PlainText text={m.body} />
+        </p>
+        <span className="inbox-msg-meta">
+          {new Date(m.createdAt).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+          {delivery ? (
+            <span className={`inbox-delivery${stateClass}`}>
+              <DeliveryIcon state={m.deliveryState} />
               {delivery}
             </span>
-          </>
-        ) : null}
-      </span>
+          ) : null}
+        </span>
+      </div>
       {failed && onRetry ? (
         <Button
-          className="panel-btn-secondary inbox-msg-retry"
+          className="inbox-msg-retry"
           onPress={() => onRetry(m)}
           isDisabled={busy}
         >
@@ -111,7 +139,7 @@ function MessageBubble({
       ) : null}
       {unknown ? (
         <span className="inbox-msg-unknown-hint" role="status">
-          Sem nova tentativa até reconciliação
+          Estamos conferindo se foi enviada. Aguarde um instante.
         </span>
       ) : null}
     </div>
@@ -133,6 +161,7 @@ export function InboxThread({
   const [notice, setNotice] = useState<string | null>(null)
   const [templates, setTemplates] = useState<WhatsappTemplateItem[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [confirmClose, setConfirmClose] = useState(false)
   const [selectedTemplate, setSelectedTemplate] =
     useState<WhatsappTemplateItem | null>(null)
   const [pixCharges, setPixCharges] = useState<PixChargeDetail[]>([])
@@ -528,7 +557,7 @@ export function InboxThread({
         </Button>
         <button
           type="button"
-          className="inbox-thread-title"
+          className="inbox-thread-person"
           aria-label={`Informações de ${label}`}
           onClick={() =>
             navigatePanel({
@@ -541,14 +570,102 @@ export function InboxThread({
             })
           }
         >
-          <span className="inbox-thread-name">{label}</span>
-          <span className="inbox-thread-sub">
-            <Badge tone={statusTone(detail.status)}>{statusLabel(detail.status)}</Badge>
-            {' · '}
-            {assigneeLine(detail, viewerClerkUserId)}
+          <span className={`inbox-avatar inbox-avatar--sm inbox-avatar--${avatarTone(label)}`} aria-hidden>
+            {initials(label)}
+          </span>
+          <span className="inbox-thread-who">
+            <span className="inbox-thread-name">{label}</span>
+            <span className="inbox-thread-sub">
+              <Badge tone={statusTone(detail.status)}>{statusLabel(detail.status)}</Badge>
+              <span>{assigneeLine(detail, viewerClerkUserId)}</span>
+            </span>
           </span>
         </button>
+        {detail.status !== 'closed' ? (
+          <Button
+            className="panel-icon-btn"
+            aria-label="Agendar horário"
+            isDisabled={busy}
+            onPress={() =>
+              navigatePanel({
+                kind: 'area',
+                area: 'agenda',
+                tenantId,
+                section: 'agendar',
+                conversationId,
+                contactId: detail.contactId,
+              })
+            }
+          >
+            <CalendarPlus aria-hidden size={22} strokeWidth={2} />
+          </Button>
+        ) : null}
+        {detail.status !== 'closed' ? (
+          <MenuTrigger>
+            <Button className="panel-icon-btn" aria-label="Mais opções da conversa">
+              <EllipsisVertical aria-hidden size={22} strokeWidth={2} />
+            </Button>
+            <Popover className="panel-popover" placement="bottom end">
+              <Menu
+                className="panel-menu"
+                aria-label="Opções da conversa"
+                onAction={(key) => {
+                  if (key === 'close') setConfirmClose(true)
+                }}
+              >
+                <MenuItem id="close" className="panel-menu-item panel-menu-item--danger">
+                  Encerrar conversa
+                </MenuItem>
+              </Menu>
+            </Popover>
+          </MenuTrigger>
+        ) : null}
       </header>
+
+      {confirmClose ? (
+        <div className="inbox-confirm">
+          <Banner tone="warn" title="Encerrar esta conversa?" role="alert">
+            <p>Se a cliente escrever de novo, a conversa abre outra vez.</p>
+            <div className="inbox-confirm-actions">
+              <Button
+                className="panel-btn-primary panel-btn-compact"
+                isDisabled={busy}
+                onPress={() => {
+                  setConfirmClose(false)
+                  void closeConv()
+                }}
+              >
+                Encerrar
+              </Button>
+              <Button
+                className="panel-btn-ghost panel-btn-compact"
+                autoFocus
+                onPress={() => setConfirmClose(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </Banner>
+        </div>
+      ) : null}
+
+      {!isMine && detail.status !== 'closed' ? (
+        <div className="inbox-assign">
+          <UserCheck aria-hidden size={20} strokeWidth={2} />
+          <p>
+            {detail.assigneeClerkUserId
+              ? `${detail.assigneeDisplayName ?? 'Outra pessoa'} está atendendo esta conversa.`
+              : 'Ninguém está atendendo esta conversa.'}
+          </p>
+          <Button
+            className="panel-btn-primary panel-btn-compact"
+            onPress={() => void assume()}
+            isDisabled={busy}
+          >
+            {busy ? 'Assumindo…' : 'Assumir'}
+          </Button>
+        </div>
+      ) : null}
 
       {notice ? (
         <div className="inbox-notice" role="status">
@@ -560,45 +677,6 @@ export function InboxThread({
           ) : null}
         </div>
       ) : null}
-
-      <div className="inbox-thread-actions">
-        {!isMine && detail.status !== 'closed' ? (
-          <Button
-            className="panel-btn-primary"
-            onPress={() => void assume()}
-            isDisabled={busy}
-          >
-            {busy ? 'Assumindo…' : 'Assumir'}
-          </Button>
-        ) : null}
-        {detail.status !== 'closed' ? (
-          <Button
-            className="panel-btn-secondary"
-            onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'agenda',
-                tenantId,
-                section: 'agendar',
-                conversationId,
-                contactId: detail.contactId,
-              })
-            }
-            isDisabled={busy}
-          >
-            Agendar
-          </Button>
-        ) : null}
-        {detail.status !== 'closed' ? (
-          <Button
-            className="panel-btn-secondary"
-            onPress={() => void closeConv()}
-            isDisabled={busy}
-          >
-            Encerrar
-          </Button>
-        ) : null}
-      </div>
 
       {pixAlerts.length > 0 ? (
         <div className="inbox-notice inbox-pix-alert" role="alert">
@@ -698,7 +776,7 @@ export function InboxThread({
                   </Button>
                 </div>
                 {c.whatsappSendError ? (
-                  <p role="alert">Envio WhatsApp: {c.whatsappSendError}</p>
+                  <p role="alert">Não foi possível enviar a cobrança pelo WhatsApp. Copie o Pix e envie na conversa.</p>
                 ) : null}
               </div>
             ))}
@@ -709,13 +787,17 @@ export function InboxThread({
         {detail.messagesHasMore ? (
           <p className="inbox-timeline-more">Há mensagens mais antigas no histórico.</p>
         ) : null}
-        {detail.messages.map((m) => (
-          <MessageBubble
-            key={m.id}
-            m={m}
-            busy={busy}
-            onRetry={m.deliveryState === 'failed' ? retryFailed : undefined}
-          />
+        {detail.messages.map((m, i) => (
+          <Fragment key={m.id}>
+            {i === 0 || !sameDay(detail.messages[i - 1]!.createdAt, m.createdAt) ? (
+              <div className="inbox-day">{dayLabel(m.createdAt)}</div>
+            ) : null}
+            <MessageBubble
+              m={m}
+              busy={busy}
+              onRetry={m.deliveryState === 'failed' ? retryFailed : undefined}
+            />
+          </Fragment>
         ))}
       </div>
 
@@ -769,7 +851,14 @@ export function InboxThread({
           ) : null}
           {!windowOpen ? (
             <p className="inbox-window-banner" role="status">
+              <Clock aria-hidden size={14} strokeWidth={2} />
               Passaram 24 horas: use um modelo de mensagem
+            </p>
+          ) : null}
+          {windowOpen && windowHint(detail.messagingWindow?.closesAt ?? null) ? (
+            <p className="inbox-window-banner" role="status">
+              <Clock aria-hidden size={14} strokeWidth={2} />
+              {windowHint(detail.messagingWindow?.closesAt ?? null)}
             </p>
           ) : null}
           {windowOpen ? (
@@ -798,7 +887,7 @@ export function InboxThread({
                   id={composerId}
                   className="inbox-composer-input"
                   placeholder="Escreva uma resposta…"
-                  rows={2}
+                  rows={1}
                   onKeyDown={(e) => {
                     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                       e.preventDefault()
@@ -808,11 +897,12 @@ export function InboxThread({
                 />
               </TextField>
               <Button
-                className="panel-btn-primary"
+                className="inbox-send"
                 type="submit"
+                aria-label="Enviar"
                 isDisabled={busy || !draft.trim()}
               >
-                Enviar
+                <Send aria-hidden size={20} strokeWidth={2} />
               </Button>
             </form>
           ) : (

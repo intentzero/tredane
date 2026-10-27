@@ -7,6 +7,7 @@ import { TestOnly } from '../../states/TestOnly'
 import { EmptyState, ErrorState } from '../../states/StatusScreens'
 import {
   assigneeLine,
+  avatarTone,
   contactLabel,
   filterLabel,
   initials,
@@ -183,7 +184,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
               <li key={c.id}>
                 <button
                   type="button"
-                  className="inbox-row"
+                  className={`inbox-row${c.unreadCount > 0 ? ' inbox-row--unread' : ''}`}
                   onClick={() =>
                     navigatePanel({
                       kind: 'area',
@@ -194,7 +195,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
                     })
                   }
                 >
-                  <span className="inbox-avatar" aria-hidden>
+                  <span className={`inbox-avatar inbox-avatar--${avatarTone(label)}`} aria-hidden>
                     {initials(label)}
                   </span>
                   <span className="inbox-row-main">

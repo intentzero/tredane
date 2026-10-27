@@ -69,6 +69,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 | M-01 a M-14 | Mostram a barra de 3 abas (visão do Atendente) | O Responsável vê 4 abas, com **Clínica** (M-15) |
 | M-20 | Aba “Salas · 3” abrevia “Salas e equipamentos” | Manter o título completo no cabeçalho e na descrição da aba; o rótulo curto cabe em 360px |
 | Fonte | Os previews usam a fonte do sistema porque Inter não é carregada | Usar Inter (400/500/600), hospedada pelo Tredane ([ADR-0013](../adr/0013-design-system-components.md)); conferir as quebras de linha com ela, porque a largura do texto muda com a fonte e linhas que cabem nos previews podem quebrar |
+| M-01 / M-02 (PR-7) | Lista contínua no lugar de cartões; Assumir em faixa, Agendar em ícone e Encerrar no menu ⋮ com confirmação; um só cabeçalho na conversa | **Proposto**; vale até o responsável do produto revisar. Registrado em [components.md](components.md) |
 | Hora e data | Fixas (sexta, 30 de outubro) | Sempre no fuso da clínica (DEC-008), nunca em UTC |
 
 ## Manutenção

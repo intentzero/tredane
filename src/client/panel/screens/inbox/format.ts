@@ -118,3 +118,50 @@ export function deliveryLabel(state: string): string {
       return state
   }
 }
+
+/** Cor estável do avatar (1 a 4) a partir do nome, para distinguir pessoas de relance. */
+export function avatarTone(label: string): 1 | 2 | 3 | 4 {
+  let h = 0
+  for (const ch of label) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return ((h % 4) + 1) as 1 | 2 | 3 | 4
+}
+
+const CLINIC_TZ = 'America/Sao_Paulo'
+
+function civilDay(ms: number): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: CLINIC_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(ms))
+}
+
+/** «Hoje», «Ontem» ou «27 de outubro», no fuso da clínica. */
+export function dayLabel(ms: number, now: number = Date.now()): string {
+  const day = civilDay(ms)
+  if (day === civilDay(now)) return 'Hoje'
+  if (day === civilDay(now - 86_400_000)) return 'Ontem'
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: CLINIC_TZ,
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date(ms))
+}
+
+export function sameDay(a: number, b: number): boolean {
+  return civilDay(a) === civilDay(b)
+}
+
+/** «Você pode responder livremente até hoje às 12:33.» */
+export function windowHint(closesAt: number | null, now: number = Date.now()): string | null {
+  if (closesAt == null || closesAt <= now) return null
+  const time = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: CLINIC_TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(closesAt))
+  const when = civilDay(closesAt) === civilDay(now) ? 'hoje' : 'amanhã'
+  return `Você pode responder livremente até ${when} às ${time}.`
+}

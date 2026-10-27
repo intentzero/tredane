@@ -1319,108 +1319,6 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.inbox-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.inbox-row {
-  width: 100%;
-  display: flex;
-  gap: var(--space-3);
-  align-items: flex-start;
-  text-align: left;
-  padding: var(--space-3);
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-card);
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  min-height: 44px;
-}
-
-.inbox-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--color-primary-tint);
-  color: var(--color-primary-base);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-caption, 0.75rem);
-  flex: none;
-}
-
-.inbox-row-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.inbox-row-top {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.inbox-row-name {
-  font-weight: var(--font-weight-semibold);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.inbox-row-time {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-caption, 0.75rem);
-  flex: none;
-}
-
-.inbox-row-preview {
-  color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--font-size-caption, 0.875rem);
-}
-
-.inbox-row-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: 2px;
-}
-
-.inbox-row-assignee {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-caption, 0.75rem);
-}
-
-.inbox-unread {
-  margin-left: auto;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: var(--radius-pill);
-  background: var(--color-primary-base);
-  color: var(--color-text-on-primary);
-  font-size: 0.7rem;
-  font-weight: var(--font-weight-semibold);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .inbox-thread,
 .inbox-contact {
   display: flex;
@@ -1469,25 +1367,6 @@
   color: var(--color-text-secondary);
 }
 
-.inbox-thread-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: 0 var(--space-4);
-}
-
-.inbox-notice {
-  margin: 0 var(--space-4);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: #fef3c7;
-  color: #92400e;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  font-size: var(--font-size-caption, 0.875rem);
-}
-
 .inbox-notice-ok {
   background: var(--color-primary-tint, #eef2ff);
   color: var(--color-text-primary);
@@ -1500,69 +1379,10 @@
   border-top: var(--size-border-width) solid var(--color-line-border);
 }
 
-.inbox-timeline {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-3) var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-height: 120px;
-}
-
 .inbox-timeline-more {
   text-align: center;
   color: var(--color-text-secondary);
   font-size: var(--font-size-caption, 0.75rem);
-}
-
-.inbox-msg {
-  max-width: 85%;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.inbox-msg-in {
-  align-self: flex-start;
-}
-
-.inbox-msg-out {
-  align-self: flex-end;
-}
-
-.inbox-msg-body {
-  margin: 0;
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-card);
-  border: var(--size-border-width) solid var(--color-line-border);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.inbox-msg-out .inbox-msg-body {
-  background: var(--color-primary-tint);
-  border-color: transparent;
-}
-
-.inbox-msg-meta {
-  font-size: 0.7rem;
-  color: var(--color-text-secondary);
-  padding: 0 var(--space-1);
-}
-
-.inbox-msg-out .inbox-msg-meta {
-  text-align: right;
-}
-
-.inbox-msg-system {
-  align-self: center;
-  max-width: 90%;
-  text-align: center;
-  font-size: var(--font-size-caption, 0.75rem);
-  color: var(--color-text-secondary);
-  padding: var(--space-1) var(--space-3);
 }
 
 .ai-block {
@@ -1621,32 +1441,9 @@
   color: var(--color-ai-ink);
 }
 
-.inbox-composer {
-  display: flex;
-  gap: var(--space-2);
-  align-items: flex-end;
-  padding: var(--space-3) var(--space-4);
-  border-top: var(--size-border-width) solid var(--color-line-border);
-  background: var(--color-surface-card);
-  flex: none;
-}
-
 .inbox-composer-field {
   flex: 1;
   min-width: 0;
-}
-
-.inbox-composer-input {
-  width: 100%;
-  min-height: 44px;
-  resize: vertical;
-  max-height: 120px;
-  padding: var(--space-2) var(--space-3);
-  border: var(--size-border-width) solid var(--color-line-border);
-  border-radius: var(--radius-md);
-  font: inherit;
-  background: var(--color-surface-app);
-  color: var(--color-text-primary);
 }
 
 .inbox-composer-closed {
@@ -1662,48 +1459,8 @@
   background: var(--color-surface-card);
 }
 
-.inbox-window-banner {
-  margin: 0;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-caption, 0.875rem);
-  color: var(--color-text-secondary);
-  background: var(--color-surface-app);
-}
-
 .inbox-composer-template {
   border-top: none;
-}
-
-.inbox-msg-retry {
-  margin-top: var(--space-1);
-  align-self: flex-end;
-}
-
-.inbox-delivery {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.inbox-delivery-failed {
-  color: var(--color-danger-ink);
-  font-weight: var(--font-weight-medium);
-}
-
-.inbox-delivery-unknown {
-  color: var(--color-warning-ink);
-  font-weight: var(--font-weight-medium);
-}
-
-.inbox-delivery-icon {
-  flex: none;
-}
-
-.inbox-msg-unknown-hint {
-  display: block;
-  margin-top: var(--space-1);
-  font-size: var(--font-size-caption, 0.875rem);
-  color: var(--color-text-secondary);
 }
 
 .inbox-template-picker {
@@ -2706,4 +2463,482 @@
 
 .whatsapp-global-banner strong {
   display: block;
+}
+
+/* ───────────── Conversas: lista contínua, conversa aberta, bolhas ───────────── */
+
+.inbox-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+}
+
+.inbox-list > li + li {
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.inbox-row {
+  width: 100%;
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  text-align: left;
+  min-height: var(--size-row-min);
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.inbox-row:active {
+  background: var(--color-surface-sunken);
+}
+
+.inbox-avatar {
+  width: var(--size-avatar-md);
+  height: var(--size-avatar-md);
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-small);
+  flex: none;
+}
+
+.inbox-avatar--sm {
+  width: var(--size-avatar-sm);
+  height: var(--size-avatar-sm);
+  font-size: var(--font-size-caption);
+}
+
+.inbox-avatar--1 {
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+}
+
+.inbox-avatar--2 {
+  background: var(--color-success-tint);
+  color: var(--color-success-ink);
+}
+
+.inbox-avatar--3 {
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+}
+
+.inbox-avatar--4 {
+  background: var(--color-ai-tint);
+  color: var(--color-ai-ink);
+}
+
+.inbox-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inbox-row-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.inbox-row-name {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbox-row-time {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.inbox-row-preview {
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-small);
+}
+
+.inbox-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.inbox-row-assignee {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}
+
+/* Não lida: nome em negrito, prévia em cor forte, hora na cor da marca. */
+.inbox-row--unread .inbox-row-name {
+  font-weight: 700;
+}
+
+.inbox-row--unread .inbox-row-preview {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.inbox-row--unread .inbox-row-time {
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-unread {
+  margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Conversa aberta: um só cabeçalho, ocupa a altura da tela, compositor no fundo. */
+.panel-app:has(.inbox-thread) {
+  height: 100dvh;
+}
+
+.panel-app:has(.inbox-thread) .panel-shell-header {
+  display: none;
+}
+
+.panel-shell-main:has(> .inbox-thread) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+}
+
+.inbox-thread > .inbox-thread-header {
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-1);
+  gap: var(--space-1);
+  background: var(--color-surface-card);
+  border-bottom: var(--size-border-width) solid var(--color-line-border);
+}
+
+.inbox-thread-person {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--size-touch);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.inbox-thread-who {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inbox-thread-who .inbox-thread-name {
+  font-size: var(--font-size-body);
+}
+
+.inbox-thread-who .inbox-thread-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.inbox-assign {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  background: var(--color-primary-tint);
+  border-bottom: var(--size-border-width) solid var(--color-primary-border);
+  color: var(--color-primary-ink);
+  flex: none;
+}
+
+.inbox-assign p {
+  flex: 1;
+  margin: 0;
+  font-size: var(--font-size-small);
+}
+
+.inbox-assign .panel-btn-compact {
+  flex: none;
+}
+
+.inbox-confirm {
+  padding: var(--space-3) var(--space-4) 0;
+  flex: none;
+}
+
+.inbox-confirm-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.inbox-confirm-actions .panel-btn-primary {
+  width: auto;
+}
+
+.panel-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: var(--space-1);
+  outline: none;
+}
+
+.panel-menu-item {
+  min-height: var(--size-touch);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  outline: none;
+}
+
+.panel-menu-item[data-focused],
+.panel-menu-item[data-pressed] {
+  background: var(--color-surface-sunken);
+}
+
+.panel-menu-item--danger {
+  color: var(--color-danger-ink);
+}
+
+.inbox-notice {
+  margin: var(--space-2) var(--space-4) 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+}
+
+.inbox-timeline {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 120px;
+  background: var(--color-surface-app);
+}
+
+.inbox-day {
+  align-self: center;
+  margin: var(--space-2) 0;
+  padding: 2px var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-msg {
+  max-width: 82%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.inbox-msg-in {
+  align-self: flex-start;
+}
+
+.inbox-msg-out {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.inbox-msg-bubble {
+  padding: var(--space-2) var(--space-3);
+  border-radius: 18px;
+  background: var(--color-surface-card);
+  border: var(--size-border-width) solid var(--color-line-border);
+}
+
+.inbox-msg-in .inbox-msg-bubble {
+  border-bottom-left-radius: 6px;
+}
+
+.inbox-msg-out .inbox-msg-bubble {
+  border-bottom-right-radius: 6px;
+  background: var(--color-primary-tint);
+  border-color: var(--color-primary-border);
+}
+
+.inbox-msg-bubble--failed {
+  background: var(--color-danger-tint);
+  border-color: var(--color-danger-border);
+}
+
+.inbox-msg-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.inbox-msg-meta {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.inbox-delivery {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.inbox-delivery-read {
+  color: var(--color-primary-ink);
+}
+
+.inbox-delivery-failed {
+  color: var(--color-danger-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-delivery-unknown {
+  color: var(--color-warning-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-delivery-icon {
+  flex: none;
+}
+
+.inbox-msg-retry {
+  min-height: var(--size-touch);
+  padding: 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--color-danger-ink);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.inbox-msg-unknown-hint {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.inbox-msg-system {
+  align-self: center;
+  max-width: 90%;
+  text-align: center;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  padding: var(--space-1) var(--space-3);
+}
+
+.inbox-window-banner {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-app);
+}
+
+.inbox-window-banner svg {
+  flex: none;
+}
+
+.inbox-composer {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: var(--size-border-width) solid var(--color-line-border);
+  background: var(--color-surface-card);
+  flex: none;
+}
+
+.inbox-composer-input {
+  width: 100%;
+  min-height: var(--size-touch);
+  max-height: 120px;
+  resize: none;
+  padding: 10px var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: 22px;
+  font: inherit;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
+}
+
+.inbox-send {
+  flex: none;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+  cursor: pointer;
+}
+
+.inbox-send:active,
+.inbox-send[data-pressed] {
+  background: var(--color-primary-ink);
+}
+
+.inbox-send:disabled,
+.inbox-send[data-disabled] {
+  background: var(--color-line-disabled);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
 }
