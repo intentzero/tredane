@@ -24,7 +24,7 @@ As suas conversas pelo WhatsApp com uma clínica que usa o Tredane pertencem à 
 **O que pode ser mantido:**
 - um marcador técnico do seu número naquela clínica, usado apenas para impedir que o contato seja recriado automaticamente por mensagens antigas reenviadas pelo WhatsApp;
 - registros de auditoria sem conteúdo de mensagens, nome ou telefone;
-- dados que a lei nos obrigue a guardar, como registros financeiros de cobranças Pix junto ao provedor de pagamento [A CONFIRMAR: prazo].
+- dados que a lei nos obrigue a guardar, como registros financeiros de cobranças Pix junto ao provedor de pagamento, guardados por 5 anos.
 
 Se você voltar a escrever para a clínica depois da exclusão, uma nova conversa poderá ser criada a partir dessa nova mensagem.
 
@@ -34,12 +34,12 @@ Se você voltar a escrever para a clínica depois da exclusão, uma nova convers
 
 - **Excluir um contato (paciente):** o responsável da clínica pode excluir o contato no painel do Tredane. A exclusão é imediata e tem o efeito descrito acima.
 - **Encerrar a conta da clínica e apagar todos os dados:** o responsável da clínica escreve para [paulo@lucimark.com](mailto:paulo@lucimark.com?subject=Exclus%C3%A3o%20de%20dados%20-%20Tredane) com o assunto `Exclusão de dados - Tredane`, o nome da clínica e o número de WhatsApp Business conectado. Depois de confirmarmos o pedido, desligamos a integração com o WhatsApp e apagamos de forma definitiva, **em até 30 dias**: todas as conversas, mensagens, anexos, contatos, agendamentos, cobranças, configurações da clínica, credenciais de integração e inscrições de notificação. Os acessos de todos os usuários da clínica são revogados e os convites pendentes são cancelados. Mantemos apenas registros de auditoria sem conteúdo de mensagens, o registro de que a conta foi encerrada e o registro de que o número de WhatsApp Business da clínica foi desligado.
-- **Excluir a sua conta de usuário (atendente ou responsável):** escreva para o mesmo e-mail informando o e-mail da sua conta. Removemos o seu acesso às clínicas e a sua conta de login junto ao provedor de autenticação (Clerk) [A CONFIRMAR: a exclusão da conta no Clerk é feita manualmente pela Lucimark].
+- **Excluir a sua conta de usuário (atendente ou responsável):** escreva para o mesmo e-mail informando o e-mail da sua conta. Removemos o seu acesso às clínicas e a sua conta de login junto ao provedor de autenticação (Clerk) (essa exclusão é feita manualmente pela equipe da Lucimark).
 
 ## 3. Prazos
 
-- Confirmamos o recebimento do pedido em até **5 dias úteis** [A CONFIRMAR].
-- Concluímos a exclusão de dados de um paciente ou de um usuário em até **15 dias** após confirmarmos o pedido [A CONFIRMAR].
+- Confirmamos o recebimento do pedido em até **5 dias úteis**.
+- Concluímos a exclusão de dados de um paciente ou de um usuário em até **15 dias** após confirmarmos o pedido.
 - Concluímos a exclusão total dos dados de uma clínica em até **30 dias** após o encerramento da conta.
 - Ao concluir, enviamos uma confirmação por e-mail.
 

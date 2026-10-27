@@ -12,9 +12,6 @@ const en = lang === 'en'
 <Base title={title} description={description} lang={lang}>
 <main class="wrap legal">
 <p><a href="/">← Tredane</a></p>
-<p class="legal-notice" role="note"><strong>{en
-  ? 'Provisional version, subject to legal review.'
-  : 'Versão provisória, sujeita a revisão jurídica.'}</strong></p>
 <slot />
 <nav class="legal-nav" aria-label={en ? 'Legal pages' : 'Páginas legais'}>
 <a href="/privacidade" hreflang="pt-BR">Política de privacidade</a>
@@ -27,7 +24,6 @@ const en = lang === 'en'
 
 <style>
 .legal { max-width: 760px; padding-block: 48px 80px; line-height: 1.6; }
-.legal-notice { padding: 12px 16px; border: 1px solid #e0b800; background: #fff8db; border-radius: 8px; }
 .legal :global(h1) { margin-top: 24px; }
 .legal :global(h2) { margin-top: 32px; }
 .legal :global(table) { border-collapse: collapse; width: 100%; }

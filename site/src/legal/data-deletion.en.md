@@ -24,7 +24,7 @@ Your WhatsApp conversations with a clinic that uses Tredane belong to that clini
 **What may be kept:**
 - a technical marker of your number at that clinic, used only to prevent the contact from being automatically recreated by old messages redelivered by WhatsApp;
 - audit records without message content, name or phone number;
-- data we are legally required to keep, such as financial records of Pix charges held by the payment provider [A CONFIRMAR: retention period].
+- data we are legally required to keep, such as financial records of Pix charges held by the payment provider, kept for 5 years.
 
 If you write to the clinic again after deletion, a new conversation may be created from that new message.
 
@@ -34,12 +34,12 @@ If you write to the clinic again after deletion, a new conversation may be creat
 
 - **Delete a contact (patient):** the clinic owner can delete the contact in the Tredane dashboard. Deletion is immediate and has the effect described above.
 - **Close the clinic account and delete all data:** the clinic owner writes to [paulo@lucimark.com](mailto:paulo@lucimark.com?subject=Data%20deletion%20-%20Tredane) with the subject `Data deletion - Tredane`, the clinic name and the connected WhatsApp Business number. Once we confirm the request, we disconnect the WhatsApp integration and permanently delete, **within 30 days**: all conversations, messages, attachments, contacts, appointments, charges, clinic settings, integration credentials and notification subscriptions. All clinic users' access is revoked and pending invitations are cancelled. We keep only audit records without message content, a record that the account was closed and a record that the clinic's WhatsApp Business number was disconnected.
-- **Delete your user account (staff or owner):** write to the same address with the email of your account. We remove your access to clinics and your login account at our authentication provider (Clerk) [A CONFIRMAR: Clerk account deletion is performed manually by Lucimark].
+- **Delete your user account (staff or owner):** write to the same address with the email of your account. We remove your access to clinics and your login account at our authentication provider (Clerk) (this deletion is done manually by the Lucimark team).
 
 ## 3. Timelines
 
-- We acknowledge your request within **5 business days** [A CONFIRMAR].
-- We complete deletion of a patient's or user's data within **15 days** of confirming the request [A CONFIRMAR].
+- We acknowledge your request within **5 business days**.
+- We complete deletion of a patient's or user's data within **15 days** of confirming the request.
 - We complete full deletion of a clinic's data within **30 days** of account closure.
 - When done, we send a confirmation by email.
 

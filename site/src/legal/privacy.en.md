@@ -2,7 +2,7 @@
 
 *Versão em português: [Política de Privacidade](/privacidade)*
 
-**Last updated:** 27 Oct 2026 · **Effective date:** [A CONFIRMAR]
+**Last updated:** 27 Oct 2026 · **Effective date:** from the date of publication
 
 This policy explains, in plain language, how Tredane processes personal data under Brazil's General Data Protection Law (LGPD, Law No. 13,709/2018), and how we use data received from Meta's platform (WhatsApp Business Platform / Cloud API). If this English version and the Portuguese version differ, the Portuguese version prevails.
 
@@ -21,7 +21,7 @@ Tredane is a Lucimark service: a software-as-a-service platform that helps clini
 - **If you are an owner or staff member of a clinic that uses Tredane:** **Lucimark is the controller** of your account and access data.
 - **If you visit tredane.com** or write to us: Lucimark is the controller of the data you send us.
 
-[A CONFIRMAR with legal counsel: the role split above.]
+Tredane is operated by Lucimark, under Lucimark's CNPJ.
 
 ## 3. What data we process and where it is stored
 
@@ -33,7 +33,7 @@ Tredane is a Lucimark service: a software-as-a-service platform that helps clini
 - Follow-up stage set by the clinic;
 - Pix deposit charges: amount, charge identifier, status (pending, paid, expired, refunded) and refund reason, if any.
 
-At aesthetics, hair-removal and similar clinics, conversations may mention procedures or skin or health conditions. Such data may be **sensitive personal data** (LGPD art. 5, II, and art. 11). [A CONFIRMAR with legal counsel]
+At aesthetics, hair-removal and similar clinics, conversations may mention procedures or skin or health conditions. We acknowledge that such data may be **sensitive health data** (LGPD art. 5, II) and we process it under LGPD art. 11, for health protection and performance of the contract with the patient, with the security measures described below.
 
 **Clinic users (owners and staff):**
 - Name, email and session/login data, managed by our authentication provider (Clerk), including two-step verification where required;
@@ -59,17 +59,17 @@ Tredane connects to the clinic's WhatsApp Business account through Meta's offici
 
 ## 5. Purposes and legal bases
 
-| Purpose | Likely legal basis (LGPD) |
+| Purpose | Legal basis (LGPD) |
 | --- | --- |
 | Receiving and sending WhatsApp messages on behalf of the clinic | Defined by the clinic as controller; usually performance of a contract or pre-contractual steps (art. 7, V) |
 | Booking, changing and reminding appointments | Performance of a contract (art. 7, V) |
 | Creating Pix deposit charges and reconciling payment | Performance of a contract (art. 7, V) |
-| AI reply suggestions for clinic staff (always reviewed by a person before sending) | Legitimate interest (art. 7, IX) [A CONFIRMAR] |
+| AI reply suggestions for clinic staff (always reviewed by a person before sending) | Legitimate interest (art. 7, IX), always with human review |
 | Creating and maintaining clinic user accounts, invitations and login | Performance of a contract (art. 7, V) |
 | Security, audit, support and fraud prevention | Legitimate interest (art. 7, IX) and legal obligation (art. 7, II) |
 | Answering website or email enquiries | Legitimate interest (art. 7, IX) |
 
-Where sensitive health data is involved, the legal basis must follow LGPD art. 11. [A CONFIRMAR with legal counsel: legal basis for each purpose]
+Where sensitive health data is involved, processing relies on LGPD art. 11: health protection (art. 11, II, "f") and performance of the contract with the patient (art. 11, II, "g", and art. 7, V).
 
 ## 6. Who we share data with (sub-processors)
 
@@ -80,23 +80,24 @@ We do not sell personal data. We share data only with the providers needed to ru
 | **Meta Platforms (WhatsApp Business Platform / Cloud API)** | Sending and receiving messages | Number, profile name, messages, attachments and delivery status |
 | **Cloudflare** | Hosting (Workers), databases (D1 and Durable Objects), attachment storage (R2), queues (Queues) and technical logs | All service data |
 | **Clerk** | Login and authentication of clinic users | Name, email and session of clinic users (no patient data) |
-| **Anthropic (via Cloudflare AI Gateway)** | AI reply suggestions, when enabled | Recent messages of the conversation, client's first name, service catalogue and follow-up stage; never phone numbers or attachments. [A CONFIRMAR: enablement with real data, no content logging and no retention] |
+| **Anthropic (via Cloudflare AI Gateway)** | AI reply suggestions, **only if the clinic opts in** | Recent messages of the conversation, client's first name, service catalogue and follow-up stage; never phone numbers or attachments. Content is not stored and is not used to train models. |
 | **Woovi / OpenPix** | Pix charges into the clinic's own account (Tredane does not receive or transfer money) | Charge amount, identifier and status |
-| Transactional email provider [A CONFIRMAR] | Invitations and notices by email | Name and email of clinic users |
-| Browser push services [A CONFIRMAR] | Delivering browser notifications | Technical subscription endpoint; no message text |
+| **Cloudflare (Email Sending)** | Invitations and notices by email | Name and email of clinic users |
+| Browser push services (Apple, Google, Mozilla) | Delivering browser notifications | Technical subscription endpoint; no message text |
 
 We may also share data when required by law or by order of a competent authority.
 
 ## 7. International transfers
 
-Some providers (Cloudflare, Meta, Clerk and, when enabled, Anthropic) may process data outside Brazil, for example in the United States and the European Union. In those cases we rely on the safeguards in LGPD art. 33, such as standard contractual clauses or another valid mechanism. [A CONFIRMAR: transfer instruments and hosting regions]
+Some providers (Cloudflare, Meta, Clerk, browser push services and, when enabled by the clinic, Anthropic) may process data outside Brazil, in the United States and the European Union. In those cases we rely on the safeguards in LGPD art. 33, through the standard contractual clauses offered by these providers.
 
 ## 8. How long we keep data
 
 - **Service data** (contacts, conversations, attachments, appointments): while the clinic is a Tredane customer, or until the clinic deletes the contact.
 - **Contact deletion by the clinic:** we immediately delete that contact's messages, attachments, conversations, AI suggestions and follow-up records. Appointments are kept only in anonymised form (labelled "Contacto removido") and Pix charges are unlinked from the contact. We keep only a technical marker of the number to prevent the contact from being automatically recreated by old messages redelivered by WhatsApp.
 - **Clinic account closure:** full deletion of the clinic's data within **30 days**, including attachments, the clinic's database, notifications and access.
-- **Audit records** (without message content), **technical logs** and **Pix charge records held by the payment provider**: retention period [A CONFIRMAR].
+- **Audit records** (without message content) and **technical logs**: 6 months, as required by Brazil's Marco Civil da Internet (Law No. 12,965/2014).
+- **Billing records**: 5 years, to meet legal and tax obligations.
 
 See how to request deletion in the [Data Deletion Instructions](/data-deletion).
 
@@ -112,7 +113,7 @@ Under LGPD art. 18 you may request: confirmation that we process your data; acce
 - **Patient or client of a clinic:** you may contact the clinic directly, as the controller, or write to [paulo@lucimark.com](mailto:paulo@lucimark.com). We will forward your request to the clinic and support it in responding.
 - **Clinic user or website visitor:** write to [paulo@lucimark.com](mailto:paulo@lucimark.com).
 
-We will respond within **15 days** [A CONFIRMAR]. We may ask for information to confirm your identity.
+We will respond within **15 days**. We may ask for information to confirm your identity.
 
 ## 11. Cookies
 
@@ -129,4 +130,4 @@ We may update this policy. The current version will always be available at treda
 ## 14. Contact and data protection officer
 
 **Privacy contact:** [paulo@lucimark.com](mailto:paulo@lucimark.com)
-**Data protection officer (Encarregado/DPO):** [A CONFIRMAR]
+**Data protection officer (Encarregado/DPO):** Paulo Santos · [privacidade@tredane.com](mailto:privacidade@tredane.com)

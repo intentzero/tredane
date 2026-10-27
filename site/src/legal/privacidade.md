@@ -2,7 +2,7 @@
 
 *English version: [Privacy Policy](/privacy)*
 
-**Última atualização:** 27/10/2026 · **Vigência:** [A CONFIRMAR]
+**Última atualização:** 27/10/2026 · **Vigência:** a partir da data de publicação
 
 Esta política explica, em linguagem simples, como o Tredane trata dados pessoais, em conformidade com a Lei Geral de Proteção de Dados Pessoais (LGPD, Lei nº 13.709/2018), e como usamos os dados que recebemos da plataforma da Meta (WhatsApp Business Platform / Cloud API).
 
@@ -21,7 +21,7 @@ O Tredane é um serviço da Lucimark: uma plataforma (SaaS) que ajuda clínicas 
 - **Se você é responsável ou atendente de uma clínica que usa o Tredane:** a **Lucimark é a controladora** dos seus dados de cadastro e acesso.
 - **Se você visita o site tredane.com** ou nos escreve: a Lucimark é a controladora dos dados que você nos enviar.
 
-[A CONFIRMAR com assessoria jurídica: divisão de papéis acima.]
+O Tredane é operado pela Lucimark, sob o CNPJ da Lucimark.
 
 ## 3. Quais dados tratamos e onde ficam
 
@@ -33,7 +33,7 @@ O Tredane é um serviço da Lucimark: uma plataforma (SaaS) que ajuda clínicas 
 - Etapa de acompanhamento do atendimento definida pela clínica;
 - Cobranças de sinal por Pix: valor, identificador da cobrança, situação (pendente, paga, expirada, estornada) e motivo de estorno, quando houver.
 
-Em clínicas de estética, depilação e similares, as conversas podem mencionar procedimentos ou condições de pele ou de saúde. Esses dados podem ser **dados pessoais sensíveis** (art. 5º, II, e art. 11 da LGPD). [A CONFIRMAR com assessoria jurídica]
+Em clínicas de estética, depilação e similares, as conversas podem mencionar procedimentos ou condições de pele ou de saúde. Reconhecemos que esses dados podem ser **dados pessoais sensíveis** de saúde (art. 5º, II, da LGPD) e os tratamos com base no art. 11 da LGPD, para a tutela da saúde e a execução do contrato com o paciente, com as medidas de segurança descritas abaixo.
 
 **Usuários das clínicas (responsáveis e atendentes):**
 - Nome, e-mail e dados de sessão e login, geridos pelo nosso provedor de autenticação (Clerk), incluindo verificação em duas etapas quando exigida;
@@ -59,17 +59,17 @@ O Tredane se conecta ao WhatsApp Business da clínica pela plataforma oficial da
 
 ## 5. Para que usamos e com qual base legal
 
-| Finalidade | Base legal provável (LGPD) |
+| Finalidade | Base legal (LGPD) |
 | --- | --- |
 | Receber e enviar mensagens de WhatsApp em nome da clínica | Definida pela clínica, como controladora; em regra, execução de contrato ou procedimentos preliminares (art. 7º, V) |
 | Marcar, alterar e lembrar agendamentos | Execução de contrato (art. 7º, V) |
 | Gerar cobrança de sinal por Pix e conciliar o pagamento | Execução de contrato (art. 7º, V) |
-| Sugestões de resposta por IA para a equipe da clínica (sempre revisadas por uma pessoa antes do envio) | Legítimo interesse (art. 7º, IX) [A CONFIRMAR] |
+| Sugestões de resposta por IA para a equipe da clínica (sempre revisadas por uma pessoa antes do envio) | Legítimo interesse (art. 7º, IX), sempre com revisão humana |
 | Criar e manter contas de usuários das clínicas, convites e login | Execução de contrato (art. 7º, V) |
 | Segurança, auditoria, suporte e prevenção a fraudes | Legítimo interesse (art. 7º, IX) e cumprimento de obrigação legal (art. 7º, II) |
 | Responder contatos pelo site ou por e-mail | Legítimo interesse (art. 7º, IX) |
 
-Se houver dados sensíveis de saúde, a base legal deve seguir o art. 11 da LGPD. [A CONFIRMAR com assessoria jurídica: bases legais de cada finalidade]
+Quando houver dados sensíveis de saúde, o tratamento se baseia no art. 11 da LGPD: tutela da saúde (art. 11, II, "f") e execução do contrato com o paciente (art. 11, II, "g", e art. 7º, V).
 
 ## 6. Com quem compartilhamos (suboperadores)
 
@@ -80,23 +80,24 @@ Não vendemos dados pessoais. Compartilhamos dados apenas com os fornecedores ne
 | **Meta Platforms (WhatsApp Business Platform / Cloud API)** | Envio e recebimento de mensagens | Número, nome de perfil, mensagens, anexos e situação de entrega |
 | **Cloudflare** | Hospedagem (Workers), bancos de dados (D1 e Durable Objects), armazenamento de anexos (R2), filas (Queues) e registros técnicos | Todos os dados do serviço |
 | **Clerk** | Login e autenticação de usuários das clínicas | Nome, e-mail e sessão de usuários das clínicas (nenhum dado de pacientes) |
-| **Anthropic (via Cloudflare AI Gateway)** | Sugestões de resposta por IA, quando ativadas | Mensagens recentes da conversa, primeiro nome do cliente, catálogo de serviços e etapa do atendimento; nunca telefone nem anexos. [A CONFIRMAR: ativação com dados reais, ausência de registro de conteúdo e não retenção] |
+| **Anthropic (via Cloudflare AI Gateway)** | Sugestões de resposta por IA, **somente se a clínica optar por ativá-las** | Mensagens recentes da conversa, primeiro nome do cliente, catálogo de serviços e etapa do atendimento; nunca telefone nem anexos. O conteúdo não é armazenado e não é usado para treinar modelos. |
 | **Woovi / OpenPix** | Cobranças Pix na conta da própria clínica (o Tredane não recebe nem repassa dinheiro) | Valor, identificador e situação da cobrança |
-| Provedor de e-mail transacional [A CONFIRMAR] | Convites e avisos por e-mail | Nome e e-mail de usuários das clínicas |
-| Serviços de push do navegador [A CONFIRMAR] | Entregar notificações no navegador do usuário | Endereço técnico da inscrição; sem texto de mensagem |
+| **Cloudflare (Email Sending)** | Convites e avisos por e-mail | Nome e e-mail de usuários das clínicas |
+| Serviços de push do navegador (Apple, Google, Mozilla) | Entregar notificações no navegador do usuário | Endereço técnico da inscrição; sem texto de mensagem |
 
 Também podemos compartilhar dados quando exigido por lei ou por ordem de autoridade competente.
 
 ## 7. Transferência internacional
 
-Alguns fornecedores (Cloudflare, Meta, Clerk e, quando ativada, Anthropic) podem tratar dados fora do Brasil, por exemplo nos Estados Unidos e na União Europeia. Nesses casos, adotamos as garantias previstas no art. 33 da LGPD, como cláusulas contratuais padrão ou outro mecanismo válido. [A CONFIRMAR: instrumentos de transferência e regiões de hospedagem]
+Alguns fornecedores (Cloudflare, Meta, Clerk, serviços de push do navegador e, quando ativada pela clínica, Anthropic) podem tratar dados fora do Brasil, nos Estados Unidos e na União Europeia. Nesses casos, adotamos as garantias previstas no art. 33 da LGPD, por meio das cláusulas contratuais padrão oferecidas por esses fornecedores.
 
 ## 8. Por quanto tempo guardamos
 
 - **Dados de atendimento** (contatos, conversas, anexos, agendamentos): enquanto a clínica for cliente do Tredane, ou até a clínica excluir o contato.
 - **Exclusão de um contato pela clínica:** apagamos imediatamente mensagens, anexos, conversas, sugestões de IA e oportunidades daquele contato. Os agendamentos ficam apenas de forma anonimizada ("Contacto removido") e as cobranças Pix perdem o vínculo com o contato. Mantemos só um marcador técnico do número para impedir que o contato seja recriado automaticamente por mensagens antigas reenviadas.
 - **Encerramento da conta da clínica:** exclusão total dos dados da clínica em até **30 dias**, incluindo anexos, banco de dados da clínica, notificações e acessos.
-- **Registros de auditoria** (sem conteúdo de mensagens), **logs técnicos** e **registros de cobrança Pix junto ao provedor**: prazo [A CONFIRMAR].
+- **Registros de auditoria** (sem conteúdo de mensagens) e **logs técnicos**: 6 meses, conforme o Marco Civil da Internet (Lei nº 12.965/2014).
+- **Registros de cobrança**: 5 anos, para cumprimento de obrigações legais e fiscais.
 
 Veja como pedir a exclusão em [Instruções para exclusão de dados](/eliminacao-de-dados).
 
@@ -112,7 +113,7 @@ Pelo art. 18 da LGPD, você pode pedir: confirmação de que tratamos seus dados
 - **Paciente ou cliente de uma clínica:** você pode falar diretamente com a clínica, que é a controladora, ou escrever para [paulo@lucimark.com](mailto:paulo@lucimark.com). Nesse caso, encaminharemos o pedido à clínica e a apoiaremos na resposta.
 - **Usuário de clínica ou visitante do site:** escreva para [paulo@lucimark.com](mailto:paulo@lucimark.com).
 
-Responderemos em até **15 dias** [A CONFIRMAR]. Podemos pedir informações para confirmar sua identidade.
+Responderemos em até **15 dias**. Podemos pedir informações para confirmar sua identidade.
 
 ## 11. Cookies
 
@@ -129,4 +130,4 @@ Podemos atualizar esta política. A versão vigente estará sempre em tredane.co
 ## 14. Contato e encarregado
 
 **Contato para privacidade:** [paulo@lucimark.com](mailto:paulo@lucimark.com)
-**Encarregado (DPO):** [A CONFIRMAR]
+**Encarregado (DPO):** Paulo Santos · [privacidade@tredane.com](mailto:privacidade@tredane.com)
