@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { Button } from 'react-aria-components'
+import { Button, ToggleButton, ToggleButtonGroup } from 'react-aria-components'
 import {
   PanelApiError,
   type AgendaViewResponse,
@@ -8,7 +8,13 @@ import {
 } from '../../api'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
-import { formatDayLabel, formatSlotTime, upcomingCivilDates } from './format'
+import {
+  formatDateRange,
+  formatDayLabel,
+  formatLongDate,
+  formatSlotTime,
+  upcomingCivilDates,
+} from './format'
 
 type Props = {
   tenantId: string
@@ -112,12 +118,17 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
         })
       : [date]
 
+  const subtitle =
+    view === 'week'
+      ? formatDateRange(days[0]!, days[days.length - 1]!, timezone)
+      : formatLongDate(date, timezone)
+
   return (
     <div className="agenda-day" data-screen={view === 'week' ? 'm13-semana' : 'm06-agenda'}>
       <header className="panel-header">
         <div>
           <h1 className="panel-title">{title}</h1>
-          <span className="panel-subtitle">{date}</span>
+          <span className="panel-subtitle">{subtitle}</span>
         </div>
         <Button
           className="panel-icon-btn"
@@ -135,40 +146,32 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
         </Button>
       </header>
 
-      <div className="panel-tabs" role="group" aria-label="Visão da agenda">
-        <button
-          type="button"
-          className="panel-day"
-          aria-pressed={view === 'day'}
-          onClick={() =>
-            navigatePanel({
-              kind: 'area',
-              area: 'agenda',
-              tenantId,
-              section: 'dia',
-            })
-          }
-        >
+      <ToggleButtonGroup
+        className="panel-segmented"
+        aria-label="Visão da agenda"
+        selectionMode="single"
+        disallowEmptySelection
+        selectedKeys={[view]}
+        onSelectionChange={(keys) => {
+          const next = [...keys][0]
+          if (next !== 'day' && next !== 'week') return
+          navigatePanel({
+            kind: 'area',
+            area: 'agenda',
+            tenantId,
+            section: next === 'day' ? 'dia' : 'semana',
+          })
+        }}
+      >
+        <ToggleButton id="day" className="panel-segmented-item">
           Dia
-        </button>
-        <button
-          type="button"
-          className="panel-day"
-          aria-pressed={view === 'week'}
-          onClick={() =>
-            navigatePanel({
-              kind: 'area',
-              area: 'agenda',
-              tenantId,
-              section: 'semana',
-            })
-          }
-        >
+        </ToggleButton>
+        <ToggleButton id="week" className="panel-segmented-item">
           Semana
-        </button>
-      </div>
+        </ToggleButton>
+      </ToggleButtonGroup>
 
-      <div className="panel-day-row" role="group" aria-label="Navegação de data">
+      <div className="agenda-date-nav" role="group" aria-label="Navegação de data">
         <Button
           className="panel-icon-btn"
           aria-label="Anterior"
@@ -177,7 +180,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
           <ChevronLeft aria-hidden size={20} strokeWidth={2} />
         </Button>
         <Button
-          className="panel-btn-compact"
+          className="panel-chip agenda-today"
           onPress={() =>
             setDate(upcomingCivilDates(timezone, Date.now(), 1)[0]!)
           }
