@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { avatarTone, dayLabel, sameDay, windowHint } from './format'
+import { avatarTone, dayLabel, relativeTime, sameDay, windowHint } from './format'
 
 const NOW = Date.UTC(2026, 9, 27, 18, 0) // 27/10/2026 15:00 em Brasília
 
@@ -39,5 +39,19 @@ describe('windowHint', () => {
   it('sem janela ou já fechada não mostra nada', () => {
     expect(windowHint(null, NOW)).toBeNull()
     expect(windowHint(NOW - 1, NOW)).toBeNull()
+  })
+})
+
+describe('relativeTime', () => {
+  it('agora, minutos, hora de hoje, ontem, dia da semana e data', () => {
+    expect(relativeTime(NOW - 20_000, NOW)).toBe('agora')
+    expect(relativeTime(NOW - 12 * 60_000, NOW)).toBe('12 min')
+    expect(relativeTime(Date.UTC(2026, 9, 27, 12, 5), NOW)).toBe('09:05')
+    // 23:30 de ontem em Brasília é «ontem», mesmo com menos de 24 h.
+    expect(relativeTime(Date.UTC(2026, 9, 27, 2, 30), NOW)).toBe('ontem')
+    expect(relativeTime(Date.UTC(2026, 9, 24, 18, 0), NOW)).toMatch(/^sáb/)
+    expect(relativeTime(Date.UTC(2026, 8, 12, 18, 0), NOW)).toBe('12/09')
+    expect(relativeTime(Date.UTC(2025, 8, 12, 18, 0), NOW)).toBe('12/09/25')
+    expect(relativeTime(null, NOW)).toBe('')
   })
 })

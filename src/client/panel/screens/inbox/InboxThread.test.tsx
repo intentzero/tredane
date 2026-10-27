@@ -161,3 +161,47 @@ describe('InboxThread — bolhas com estado de entrega', () => {
     expect(screen.getByRole('button', { name: 'Enviar' })).toBeTruthy()
   })
 })
+
+describe('InboxThread — estado de envio', () => {
+  it('mostra «Enviando…» na hora; se falhar fica «Não enviada» com Tentar de novo, que reenvia o mesmo texto', async () => {
+    const user = userEvent.setup()
+    const d = detail()
+    let fail = true
+    let release: (() => void) | null = null
+    const sendInboxMessage = vi.fn(async (_t: string, _c: string, body: { body?: string }) => {
+      await new Promise<void>((r) => {
+        release = r
+      })
+      if (fail) throw new Error('network')
+      return {
+        conversation: d,
+        duplicate: false,
+        message: message({ id: 'msg_out', direction: 'outbound', body: body.body ?? '', deliveryState: 'accepted' }),
+      }
+    })
+    renderThread(mockApi(d, { sendInboxMessage } as Partial<PanelApi>))
+    const input = await screen.findByLabelText('Mensagem')
+    await user.type(input, 'Temos horário amanhã às 10h')
+    await user.click(screen.getByRole('button', { name: 'Enviar' }))
+    expect(await screen.findByText('Temos horário amanhã às 10h')).toBeTruthy()
+    expect(screen.getByText('Enviando…')).toBeTruthy()
+    expect((input as HTMLTextAreaElement).value).toBe('')
+    release!()
+    const retry = await screen.findByRole('button', { name: 'Tentar de novo' })
+    expect(screen.getByText('Não enviada')).toBeTruthy()
+    fail = false
+    await user.click(retry)
+    release!()
+    await waitFor(() => expect(screen.getByText('Enviada')).toBeTruthy())
+    expect(screen.queryByText('Não enviada')).toBeNull()
+    expect(sendInboxMessage).toHaveBeenCalledTimes(2)
+    expect(sendInboxMessage.mock.calls[1]![2]).toMatchObject({ body: 'Temos horário amanhã às 10h' })
+    expect(screen.getAllByText('Temos horário amanhã às 10h')).toHaveLength(1)
+  })
+
+  it('«Sugerir resposta» tem rótulo visível acima do campo', async () => {
+    renderThread(mockApi(detail()))
+    const btn = await screen.findByRole('button', { name: 'Sugerir resposta com IA' })
+    expect(btn.textContent).toContain('Sugerir resposta')
+  })
+})

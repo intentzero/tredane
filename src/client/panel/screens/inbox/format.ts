@@ -20,23 +20,40 @@ export function initials(label: string): string {
   return `${parts[0]![0] ?? ''}${parts[1]![0] ?? ''}`.toUpperCase()
 }
 
+/**
+ * Hora da última mensagem na lista (estilo WhatsApp, no fuso da clínica):
+ * «agora», «N min» (< 1 h), «14:05» (hoje), «ontem», «seg.» (últimos 7 dias),
+ * «12/10» (este ano) ou «12/10/25».
+ */
 export function relativeTime(ms: number | null, now = Date.now()): string {
   if (ms == null) return ''
   const diff = Math.max(0, now - ms)
   const min = Math.floor(diff / 60_000)
   if (min < 1) return 'agora'
   if (min < 60) return `${min} min`
-  const hours = Math.floor(min / 60)
-  if (hours < 24) {
-    const d = new Date(ms)
-    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const timeZone = getClinicTimezone()
+  const day = civilDay(ms)
+  if (day === civilDay(now)) {
+    return new Intl.DateTimeFormat('pt-BR', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date(ms))
   }
-  const days = Math.floor(hours / 24)
-  if (days === 1) return 'ontem'
-  if (days < 7) {
-    return new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+  if (day === civilDay(now - 86_400_000)) return 'ontem'
+  if (diff < 6 * 86_400_000) {
+    return new Intl.DateTimeFormat('pt-BR', { timeZone, weekday: 'short' }).format(new Date(ms))
   }
-  return new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+  const sameYear =
+    new Intl.DateTimeFormat('en', { timeZone, year: 'numeric' }).format(new Date(ms)) ===
+    new Intl.DateTimeFormat('en', { timeZone, year: 'numeric' }).format(new Date(now))
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone,
+    day: '2-digit',
+    month: '2-digit',
+    ...(sameYear ? {} : { year: '2-digit' as const }),
+  }).format(new Date(ms))
 }
 
 export function statusLabel(status: InboxConversation['status']): string {
