@@ -1,5 +1,6 @@
 import { countUnreadConversations } from '../clinic/inbox/conversations'
 import { isDevelopmentEnv } from '../security/env-gate'
+import { isDemoTenantId, seedDemoClinicOp } from '../clinic/demo'
 import { DurableObject } from 'cloudflare:workers'
 import {
   claimOutboundSendOp,
@@ -32,6 +33,7 @@ import {
   publishPendingEffects,
   runClinicMigrations,
   TenantMismatchError,
+  ValidationError,
   type ClinicCaller,
   type ClinicDb,
   type ConsumerResult,
@@ -733,6 +735,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async sendInboxOutbound(caller: ClinicCaller, input: SendOutboundInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
+    if (isDemoTenantId(caller.tenantId)) {
+      // Contatos fictícios: nunca enfileirar envio WhatsApp.
+      throw new ValidationError(
+        'demo_clinic_outbound_disabled',
+        'Clínica demo: o envio de mensagens está desativado.',
+      )
+    }
     await this.#sweepStuckOutbound(caller)
     const result = clinicInbox.sendOutboundMessageOp(this.#db, caller, input, this.#clock)
     await this.#fanoutOutboxes(caller, result.outbox, true)
@@ -811,6 +820,22 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const current =
       typeof storage.getAlarm === 'function' ? await storage.getAlarm() : null
     if (current == null || current > at) await storage.setAlarm(at)
+  }
+
+  /**
+   * Clínica demo de staging (backlog item 3). Só para `isDemoTenantId`;
+   * a rota Worker exige staging + DEMO_SEED_ENABLED + DEMO_SEED_TOKEN.
+   */
+  async seedDemoClinic(
+    caller: ClinicCaller,
+    opts: { ownerClerkUserId: string; ownerDisplayName?: string },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    if (!isDemoTenantId(caller.tenantId)) {
+      throw new TenantMismatchError('seed demo só para a clínica demo')
+    }
+    return seedDemoClinicOp(this.#db, caller, this.#clock, opts)
   }
 
   async seedInboxDemo(caller: ClinicCaller, opts: { force?: boolean } = {}) {

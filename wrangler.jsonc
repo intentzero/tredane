@@ -111,6 +111,9 @@
         // STAGING-ONLY (Paulo, 2026-10-27): habilita POST /api/tenants/:id/whatsapp/dev/sync-existing-binding
         // (sincroniza o DO com o vínculo D1 existente). Nunca definir em production.
         "WHATSAPP_DEV_SYNC_ENABLED": "true",
+        // STAGING-ONLY (Paulo, 2026-10-27): seed da clínica demo fictícia (POST /api/ops/demo-clinic/seed,
+        // bearer = secret DEMO_SEED_TOKEN). Nunca definir em production.
+        "DEMO_SEED_ENABLED": "true",
         // STAGING-ONLY (Paulo, 2026-10-27): Web Push real. Exige secrets VAPID_PUBLIC_KEY,
         // VAPID_PRIVATE_KEY, VAPID_SUBJECT (wrangler secret put --env staging).
         "PUSH_MODE": "live",
