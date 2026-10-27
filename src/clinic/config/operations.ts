@@ -16,6 +16,7 @@ import { setServiceActive, upsertService } from './services'
 import {
   ensureClinicSettings,
   setClinicAiAssistEnabled,
+  setClinicAiProfile,
   updateClinicTimezone,
 } from './settings'
 import { setWeeklyWindows } from './availability'
@@ -313,6 +314,31 @@ export function setAiAssistEnabledOp(
         objectType: 'clinic_settings',
         objectId: '1',
         detail: { aiAssistEnabled: settings.aiAssistEnabled },
+      },
+      clock,
+    )
+    return settings
+  })
+}
+
+export function setAiProfileOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: { clinicAddress?: string | null; reschedulePolicy?: string | null },
+  clock: Clock,
+) {
+  const meta = prepare(db, caller, clock)
+  return db.transactionSync(() => {
+    const settings = setClinicAiProfile(db, meta.tenantId, input, clock)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor: caller.actorId ?? caller.kind,
+        action: 'config.ai_profile_updated',
+        objectType: 'clinic_settings',
+        objectId: '1',
+        detail: {},
       },
       clock,
     )

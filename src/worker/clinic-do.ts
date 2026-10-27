@@ -476,6 +476,21 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       !result.duplicate &&
       result.outboxes.some((o) => o.type === 'conversation.created')
 
+    if (!result.duplicate && result.message && result.conversation && result.message.direction === 'inbound') {
+      // Rascunho automático da IA (debounce) — nunca envia.
+      try {
+        const job = clinicAi.enqueueAutoDraft(
+          this.#db,
+          caller.tenantId,
+          { conversationId: result.conversation.id, messageId: result.message.id },
+          this.#clock,
+        )
+        if (job) await this.#scheduleAlarmNoLaterThan(job.dueAt)
+      } catch {
+        /* best-effort: a ingestão nunca falha por causa da IA */
+      }
+    }
+
     if (!result.duplicate && result.outboxes.length > 0) {
       const last = await this.#fanoutOutboxes(
         caller,
@@ -1355,6 +1370,17 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return settings
   }
 
+  async setClinicAiProfile(
+    caller: ClinicCaller,
+    input: { clinicAddress?: string | null; reschedulePolicy?: string | null },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const settings = clinicConfig.setAiProfileOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutConfigEvent(caller, 'config.settings_updated', 'clinic_settings', '1', {})
+    return settings
+  }
+
   async updateClinicTimezone(caller: ClinicCaller, timezone: string) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -2167,6 +2193,101 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const nextSweep = await this.#sweepStuckOutbound(caller)
     await this.#drain(caller)
     if (nextSweep != null) await this.#scheduleAlarmNoLaterThan(nextSweep + 1_000)
+    await this.runAutoDrafts(caller)
+  }
+
+  /** Teste: substitui deps da IA usadas pelo alarme. */
+  #aiDepsOverride: AiAssistRpcDeps | null = null
+  setAiDepsForTesting(deps: AiAssistRpcDeps | null): void {
+    this.#aiDepsOverride = deps
+  }
+
+  #clinicNameCache: string | null = null
+  async #clinicName(tenantId: string): Promise<string | null> {
+    if (this.#clinicNameCache) return this.#clinicNameCache
+    try {
+      const row = await this.env.DB.prepare('SELECT name FROM tenants WHERE id = ?')
+        .bind(tenantId)
+        .first<{ name: string }>()
+      this.#clinicNameCache = row?.name ?? null
+    } catch {
+      return null
+    }
+    return this.#clinicNameCache
+  }
+
+  async #aiRpcDeps(tenantId: string, rpcDeps?: AiAssistRpcDeps): Promise<AiAssistRpcDeps> {
+    const base = rpcDeps ?? this.#aiDepsOverride ?? clinicAi.rpcDepsFromEnv(this.env)
+    return { ...base, clinicName: base.clinicName ?? (await this.#clinicName(tenantId)) }
+  }
+
+  async #emitAiDraftEvent(
+    caller: ClinicCaller,
+    conversationId: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    const evt = appendRealtimeEvent(
+      this.#db,
+      {
+        tenantId: caller.tenantId,
+        type: 'conversation.ai_draft',
+        entityType: 'conversation',
+        entityId: conversationId,
+        eventId: `rt:ai_draft:${conversationId}:${newId('evt')}`,
+        payload: { conversationId, ...payload },
+      },
+      this.#clock,
+    )
+    await deliverEventToSockets(this.#db, this.#asDeliverySockets(), evt, this.#authority(), this.#clock)
+  }
+
+  /** Processa rascunhos automáticos vencidos (alarme). Público para testes. */
+  async runAutoDrafts(caller: ClinicCaller): Promise<clinicAi.AutoDraftOutcome[]> {
+    this.#ensureReady()
+    let outcomes: clinicAi.AutoDraftOutcome[] = []
+    try {
+      const deps = clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId))
+      outcomes = await clinicAi.runDueAutoDrafts(this.#db, caller, this.#clock, deps, {
+        onStart: (job) => this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' }),
+      })
+      for (const o of outcomes) {
+        await this.#emitAiDraftEvent(caller, o.conversationId, {
+          state: o.status,
+          suggestionId: o.suggestion?.id ?? null,
+        })
+      }
+    } catch (err) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'ai.autodraft_error',
+          tenantId: caller.tenantId,
+          error: err instanceof Error ? err.message : 'unknown',
+        }),
+      )
+    }
+    const next = clinicAi.nextAutoDraftDueAt(this.#db, caller.tenantId)
+    if (next != null) await this.#scheduleAlarmNoLaterThan(next)
+    return outcomes
+  }
+
+  async getAiDraftState(caller: ClinicCaller, conversationId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const state = clinicAi.getConversationDraftState(this.#db, caller.tenantId, conversationId, this.#clock)
+    const deps = clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId))
+    return { ...state, syntheticFallback: deps.syntheticFallback === true, mode: deps.mode }
+  }
+
+  async getAiStatus(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const deps = clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId))
+    return {
+      mode: deps.mode,
+      syntheticFallback: deps.syntheticFallback === true,
+      usage: clinicAi.getAiDailyUsage(this.#db, caller.tenantId, this.#clock),
+    }
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -2314,7 +2435,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   ) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    const deps = clinicAi.toAiAssistDeps(rpcDeps)
+    const deps = clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId, rpcDeps))
     return clinicAi.suggestReplyOp(this.#db, caller, input, this.#clock, deps)
   }
 

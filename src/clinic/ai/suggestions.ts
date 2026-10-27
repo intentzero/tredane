@@ -30,6 +30,9 @@ type SugSql = {
   revised_text: string | null
   outbound_message_id: string | null
   parent_suggestion_id: string | null
+  reply_to_message_id?: string | null
+  origin?: string | null
+  internal_notes?: string | null
   created_at: number
   updated_at: number
 }
@@ -80,6 +83,9 @@ function mapSuggestion(row: SugSql): AiSuggestionRow {
     revisedText: row.revised_text,
     outboundMessageId: row.outbound_message_id,
     parentSuggestionId: row.parent_suggestion_id,
+    replyToMessageId: row.reply_to_message_id ?? null,
+    origin: row.origin === 'auto' ? 'auto' : 'manual',
+    internalNotes: row.internal_notes ?? '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -140,6 +146,9 @@ export function insertSuggestion(
     requestedByClerkUserId: string
     requestedByDisplayName: string | null
     parentSuggestionId?: string | null
+    replyToMessageId?: string | null
+    origin?: 'auto' | 'manual'
+    internalNotes?: string
     id?: string
     createdAt: number
   },
@@ -152,8 +161,8 @@ export function insertSuggestion(
       provider, model, suggested_text,
       warning_codes_json, warning_labels_json, source_refs_json, request_meta_json,
       error_code, requested_by_clerk_user_id, requested_by_display_name,
-      parent_suggestion_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      parent_suggestion_id, reply_to_message_id, origin, internal_notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     input.tenantId,
     input.conversationId,
@@ -170,6 +179,9 @@ export function insertSuggestion(
     input.requestedByClerkUserId,
     input.requestedByDisplayName,
     input.parentSuggestionId ?? null,
+    input.replyToMessageId ?? null,
+    input.origin ?? 'manual',
+    input.internalNotes ?? '',
     input.createdAt,
     input.createdAt,
   )
@@ -226,6 +238,24 @@ export function markSuggestionSuperseded(
     updatedAt,
     tenantId,
     suggestionId,
+  )
+}
+
+/** Um só rascunho pendente por conversa: novos substituem os anteriores. */
+export function supersedePendingAutoDrafts(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  updatedAt: number,
+): void {
+  assertClinicSchemaReady(db)
+  db.run(
+    `UPDATE ai_suggestions SET status = 'superseded', updated_at = ?
+     WHERE tenant_id = ? AND conversation_id = ? AND kind = 'reply'
+       AND status = 'pending' AND origin = 'auto'`,
+    updatedAt,
+    tenantId,
+    conversationId,
   )
 }
 

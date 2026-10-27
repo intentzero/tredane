@@ -10,6 +10,8 @@ import { listMessages } from '../inbox/messages'
 import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
 import type { ClinicDb } from '../store'
 import { NotFoundError } from '../errors'
+import type { Clock } from '../../db/clock'
+import { buildClinicAiContext } from './schedule-context'
 
 /** Extrai primeiro nome do display_name (DEC-011 — nunca telefone). */
 export function firstNameFromDisplayName(displayName: string | null): string | null {
@@ -26,10 +28,17 @@ export function buildAiContextPayload(
   db: ClinicDb,
   tenantId: string,
   conversationId: string,
-  opts: { messageLimit?: number } = {},
+  opts: {
+    messageLimit?: number
+    /** Com relógio → inclui clínica, data/hora, horários livres e agendamentos. */
+    clock?: Clock
+    clinicName?: string | null
+  } = {},
 ): {
   payload: AiContextPayload
   contactId: string
+  /** Última mensagem da cliente (a que o rascunho responde). */
+  lastInboundMessageId: string | null
   /** Presente só para asserts de isolamento em testes — NÃO enviado ao provedor. */
   _debugExcluded: {
     waIdPresent: boolean
@@ -68,6 +77,7 @@ export function buildAiContextPayload(
     )
 
   const opportunity = findOpenOpportunityForConversation(db, tenantId, conversationId)
+  const lastInbound = [...messages].reverse().find((m) => m.direction === 'inbound')
 
   const payload: AiContextPayload = {
     contactFirstName: firstNameFromDisplayName(contact.displayName),
@@ -78,6 +88,13 @@ export function buildAiContextPayload(
       body: redactProhibitedFromText(m.body),
       // anexos nunca entram — MessageRow.attachments omitidos de propósito
     })),
+  }
+  if (opts.clock) {
+    payload.clinic = buildClinicAiContext(db, tenantId, opts.clock, {
+      clinicName: opts.clinicName ?? null,
+      contactId: contact.id,
+      recentTexts: messages.map((m) => m.body),
+    })
   }
 
   const attRow = db.get<{ n: number }>(
@@ -100,6 +117,7 @@ export function buildAiContextPayload(
   return {
     payload,
     contactId: contact.id,
+    lastInboundMessageId: lastInbound?.id ?? null,
     _debugExcluded: {
       waIdPresent: Boolean(contact.waId),
       attachmentCount,

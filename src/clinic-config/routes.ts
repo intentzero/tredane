@@ -79,6 +79,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     getReadiness: (caller) => stub.getConfigReadiness(caller),
     updateTimezone: (caller, timezone) => stub.updateClinicTimezone(caller, timezone),
     setAiAssistEnabled: (caller, enabled) => stub.setClinicAiAssistEnabled(caller, enabled),
+    setAiProfile: (caller, input) => stub.setClinicAiProfile(caller, input),
     upsertService: (caller, input) => stub.upsertClinicService(caller, input),
     setServiceActive: (caller, serviceId, active) =>
       stub.setClinicServiceActive(caller, serviceId, active),
@@ -168,16 +169,29 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
     try {
       const ctx = c.get('tenantContext')!
       requireClinicPermission(ctx, 'clinic.config.write')
-      const body = await c.req.json<{ enabled?: unknown }>().catch(() => null)
-      if (!body || typeof body.enabled !== 'boolean') {
+      const body = await c.req
+        .json<{ enabled?: unknown; clinicAddress?: unknown; reschedulePolicy?: unknown }>()
+        .catch(() => null)
+      const hasProfile =
+        body != null &&
+        (typeof body.clinicAddress === 'string' || typeof body.reschedulePolicy === 'string')
+      if (!body || (typeof body.enabled !== 'boolean' && !hasProfile)) {
         return c.json({ error: 'invalid_body' }, 400)
       }
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)
-      const settings = await gw.setAiAssistEnabled(
-        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
-        body.enabled,
-      )
-      return c.json(serializeSettings(settings))
+      const caller = callerFromContext(ctx.tenantId, c.get('principal').clerkUserId)
+      let settings = null
+      if (hasProfile) {
+        settings = await gw.setAiProfile(caller, {
+          clinicAddress: typeof body.clinicAddress === 'string' ? body.clinicAddress : null,
+          reschedulePolicy:
+            typeof body.reschedulePolicy === 'string' ? body.reschedulePolicy : null,
+        })
+      }
+      if (typeof body.enabled === 'boolean') {
+        settings = await gw.setAiAssistEnabled(caller, body.enabled)
+      }
+      return c.json(serializeSettings(settings!))
     } catch (err) {
       return configErrorResponse(c, err)
     }
