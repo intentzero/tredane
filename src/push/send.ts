@@ -83,7 +83,33 @@ export function buildNewConversationPayload(input: {
     kind: 'new_conversation',
     title: 'Nova conversa',
     body: `Nova conversa na ${clinic}`,
-    tag: `new-conversation:${input.tenantId}:${input.conversationId}`,
+    tag: conversationPushTag(input.tenantId, input.conversationId),
+    url: `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(input.conversationId)}`,
+    tenantId: input.tenantId,
+    conversationId: input.conversationId,
+  }
+}
+
+/**
+ * Tag por conversa: avisos repetidos da mesma conversa substituem-se
+ * (não empilham) no centro de notificações.
+ */
+export function conversationPushTag(tenantId: string, conversationId: string): string {
+  return `conversation:${tenantId}:${conversationId}`
+}
+
+/** Nova mensagem numa conversa existente — mesmo formato, sem conteúdo. */
+export function buildNewMessagePayload(input: {
+  tenantId: string
+  tenantName: string
+  conversationId: string
+}): NewConversationPushPayload {
+  const clinic = input.tenantName.trim() || 'clínica'
+  return {
+    kind: 'new_message',
+    title: 'Nova mensagem',
+    body: `Nova mensagem na ${clinic}`,
+    tag: conversationPushTag(input.tenantId, input.conversationId),
     url: `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(input.conversationId)}`,
     tenantId: input.tenantId,
     conversationId: input.conversationId,
@@ -92,7 +118,7 @@ export function buildNewConversationPayload(input: {
 
 /** Rejeita payloads que incluam campos sensíveis (defesa em profundidade). */
 export function assertSafePushPayload(payload: NewConversationPushPayload): void {
-  if (payload.kind !== 'new_conversation') {
+  if (payload.kind !== 'new_conversation' && payload.kind !== 'new_message') {
     throw new Error('unsupported_push_kind')
   }
   const forbidden = ['waId', 'bodyPreview', 'phone', 'messageBody', 'displayName']
@@ -103,7 +129,8 @@ export function assertSafePushPayload(payload: NewConversationPushPayload): void
     }
   }
   // Corpo tipado: só o template sem trecho de mensagem.
-  if (!payload.body.startsWith('Nova conversa na ')) {
+  const prefix = payload.kind === 'new_message' ? 'Nova mensagem na ' : 'Nova conversa na '
+  if (!payload.body.startsWith(prefix)) {
     throw new Error('push_body_unexpected')
   }
 }

@@ -35,7 +35,7 @@ export type NewConversationPushPayload = {
   url: string
   tenantId: string
   conversationId: string
-  kind: 'new_conversation'
+  kind: 'new_conversation' | 'new_message'
 }
 
 export type PushSendRecord = {

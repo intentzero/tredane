@@ -17,6 +17,7 @@ import {
 import {
   assertSafePushPayload,
   buildNewConversationPayload,
+  buildNewMessagePayload,
   createPushTransport,
 } from './send'
 import { resolveVapidConfig, type VapidConfig } from './vapid'
@@ -60,6 +61,8 @@ export async function notifyNewConversation(
     tenantId: string
     conversationId: string
     tenantName?: string
+    /** Default: nova conversa. `new_message` = mensagem nova em conversa existente. */
+    kind?: 'new_conversation' | 'new_message'
   },
 ): Promise<NotifyNewConversationResult> {
   const tenant = getTenant(deps.db, input.tenantId)
@@ -67,7 +70,7 @@ export async function notifyNewConversation(
     return emptyResult()
   }
 
-  const payload = buildNewConversationPayload({
+  const payload = (input.kind === 'new_message' ? buildNewMessagePayload : buildNewConversationPayload)({
     tenantId: input.tenantId,
     tenantName: input.tenantName ?? tenant.name,
     conversationId: input.conversationId,
@@ -106,6 +109,8 @@ export async function notifyNewConversationAsync(
     tenantId: string
     conversationId: string
     tenantName?: string
+    /** Default: nova conversa. `new_message` = mensagem nova em conversa existente. */
+    kind?: 'new_conversation' | 'new_message'
   },
 ): Promise<NotifyNewConversationResult> {
   let tenantName = input.tenantName ?? deps.tenantName
@@ -123,7 +128,7 @@ export async function notifyNewConversationAsync(
     return emptyResult()
   }
 
-  const payload = buildNewConversationPayload({
+  const payload = (input.kind === 'new_message' ? buildNewMessagePayload : buildNewConversationPayload)({
     tenantId: input.tenantId,
     tenantName: tenantName!,
     conversationId: input.conversationId,

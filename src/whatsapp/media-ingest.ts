@@ -99,6 +99,8 @@ export type MediaIngestOutcome = {
   result: 'ack' | 'retry'
   /** #42 — para disparar push sem corpo da mensagem. */
   createdConversation?: boolean
+  /** Mensagem nova (não duplicada) — push «Nova mensagem» se a conversa já existia. */
+  newMessage?: boolean
   conversationId?: string | null
 }
 
@@ -107,7 +109,7 @@ async function linkAfterIngest(
   caller: ReturnType<typeof queueCaller>,
   attachmentId: string,
   msg: WhatsappWebhookQueueMessage,
-): Promise<{ createdConversation: boolean; conversationId: string | null }> {
+): Promise<{ createdConversation: boolean; newMessage: boolean; conversationId: string | null }> {
   const ingested = (await stub.ingestMessage(
     caller,
     {
@@ -122,6 +124,7 @@ async function linkAfterIngest(
     messageId: string | null
     conversationId: string | null
     createdConversation?: boolean
+    duplicate?: boolean
   }
   if (ingested.messageId && ingested.conversationId) {
     await stub.linkAttachmentToMessage(caller, {
@@ -132,6 +135,7 @@ async function linkAfterIngest(
   }
   return {
     createdConversation: Boolean(ingested.createdConversation),
+    newMessage: !ingested.duplicate && Boolean(ingested.messageId),
     conversationId: ingested.conversationId ?? null,
   }
 }

@@ -16,6 +16,8 @@ export async function maybeNotifyNewConversationPush(input: {
   tenantId: string
   conversationId: string
   createdConversation: boolean
+  /** Mensagem nova (não duplicada por wamid) numa conversa já existente. */
+  newMessage?: boolean
   log?: (entry: {
     level: 'info' | 'warn' | 'error'
     event: string
@@ -23,23 +25,29 @@ export async function maybeNotifyNewConversationPush(input: {
   }) => void
   receiptId?: string
 }): Promise<void> {
-  if (!input.createdConversation || !input.conversationId) return
+  if (!input.conversationId) return
+  const kind = input.createdConversation
+    ? 'new_conversation'
+    : input.newMessage
+      ? 'new_message'
+      : null
+  if (!kind) return
   try {
     const vapid = resolveVapidConfig(input.env)
     if (input.syncAdminDb) {
       await notifyNewConversation(
         { db: input.syncAdminDb, clock: input.clock, vapid },
-        { tenantId: input.tenantId, conversationId: input.conversationId },
+        { tenantId: input.tenantId, conversationId: input.conversationId, kind },
       )
     } else {
       await notifyNewConversationAsync(
         { db: fromD1(input.env.DB), clock: input.clock, vapid },
-        { tenantId: input.tenantId, conversationId: input.conversationId },
+        { tenantId: input.tenantId, conversationId: input.conversationId, kind },
       )
     }
     input.log?.({
       level: 'info',
-      event: 'queue.push_new_conversation',
+      event: kind === 'new_message' ? 'queue.push_new_message' : 'queue.push_new_conversation',
       detail: {
         receiptId: input.receiptId,
         tenantId: input.tenantId,

@@ -55,7 +55,8 @@ export function createSimulatedPushTransport(opts?: {
       const raw = JSON.stringify(payload)
       if (
         /bodyPreview|waId|"body":\s*"[^"]{20,}/.test(raw) &&
-        payload.kind !== 'new_conversation'
+        payload.kind !== 'new_conversation' &&
+        payload.kind !== 'new_message'
       ) {
         return { ok: false, gone: false, status: 400, errorCode: 'payload_rejected' }
       }
