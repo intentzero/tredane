@@ -11,6 +11,7 @@ import { ErrorState, LoadingState } from '../../../states/StatusScreens'
 import { useTenant } from '../../../tenant/TenantContext'
 import { formatPhone, formatWhen, historyLabel } from './format'
 import { useWhatsapp } from './useWhatsapp'
+import { isStagingHostname, WhatsappDevSyncAction } from './WhatsappDevSyncAction'
 
 type Props = {
   tenantId: string
@@ -18,6 +19,8 @@ type Props = {
   generation: number
   mode: 'main' | 'trocar' | 'desconectar'
   clinicName: string
+  /** Papel na clínica activa; o botão de staging dev-sync só aparece ao dono. */
+  isOwner?: boolean
 }
 
 async function runEmbeddedSignup(
@@ -74,6 +77,7 @@ export function WhatsappScreen({
   generation,
   mode,
   clinicName,
+  isOwner = false,
 }: Props) {
   const { conn, error, loading, reload, setConn } = useWhatsapp(
     api,
@@ -84,6 +88,24 @@ export function WhatsappScreen({
   const [actionError, setActionError] = useState<string | null>(null)
   const [confirmName, setConfirmName] = useState('')
   const [replaceAck, setReplaceAck] = useState(false)
+
+  // STAGING-ONLY (dono): mesma acção do ecrã /clinica/whatsapp/dev-sync.
+  const devSync =
+    isOwner && isStagingHostname() ? (
+      <section aria-labelledby="wa-devsync" className="whatsapp-dev-sync-section">
+        <h3 id="wa-devsync" className="whatsapp-subhead">
+          Staging: WhatsApp de teste
+        </h3>
+        <WhatsappDevSyncAction
+          tenantId={tenantId}
+          api={api}
+          generation={generation}
+          hideWhenNotFound
+          className="panel-btn-secondary"
+          onSuccess={() => void reload()}
+        />
+      </section>
+    ) : null
 
   if (loading && !conn) {
     return <LoadingState label="A carregar conexão WhatsApp…" />
@@ -334,6 +356,7 @@ export function WhatsappScreen({
         >
           Conectar WhatsApp
         </Button>
+        {devSync}
       </div>
     )
   }
@@ -385,6 +408,7 @@ export function WhatsappScreen({
         >
           Reconectar WhatsApp
         </Button>
+        {devSync}
         <HistoryList items={conn.history} />
       </div>
     )
@@ -485,6 +509,8 @@ export function WhatsappScreen({
           {actionError}
         </p>
       ) : null}
+
+      {devSync}
 
       <HistoryList items={conn.history} />
     </div>
