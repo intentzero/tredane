@@ -1,0 +1,206 @@
+# Deploy manual do Worker principal (painel/API) via `npm run deploy -- <target>`
+# (scripts/deploy.mjs → build → check:env → `wrangler deploy --env <target>`).
+# Workers publicados: tredane-dev-staging / tredane-dev-production (wrangler.jsonc).
+# Não faz deploy da landing page (site/) nem aplica migrações D1. Ver docs/DEPLOY.md.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Ambiente de destino
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+      ref:
+        description: Git ref ou SHA a publicar (production só aceita commits contidos em main)
+        type: string
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Resolve ref (+ guard de production)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve SHA and guard production
+        id: resolve
+        env:
+          TARGET: ${{ inputs.target }}
+          INPUT_REF: ${{ inputs.ref }}
+          WORKFLOW_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Ref '$INPUT_REF' → $sha (target: $TARGET)"
+          if [ "$TARGET" = "production" ]; then
+            if [ "$WORKFLOW_REF" != "refs/heads/main" ]; then
+              echo "::error::Production só pode ser disparado com o workflow de main (Use workflow from: main). Atual: $WORKFLOW_REF"
+              exit 1
+            fi
+            git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+            if ! git merge-base --is-ancestor "$sha" refs/remotes/origin/main; then
+              echo "::error::Recusado: $sha ($INPUT_REF) não está em main. Production só aceita main ou um commit contido em main."
+              exit 1
+            fi
+            echo "Guard OK: $sha está contido em origin/main."
+          fi
+
+  deploy-staging:
+    name: Deploy staging
+    needs: resolve
+    if: inputs.target == 'staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit and SQL tests
+        run: npm test
+      - name: Cloudflare runtime harness
+        run: npm run test:runtime
+      - name: Deploy (npm run deploy -- staging)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID ausentes no environment 'staging' (ver docs/DEPLOY.md)."
+            exit 1
+          fi
+          npm run deploy -- staging 2>&1 | tee "$RUNNER_TEMP/deploy.log"
+      - name: Job summary (version id)
+        if: always()
+        env:
+          TARGET: staging
+          SHA: ${{ needs.resolve.outputs.sha }}
+          INPUT_REF: ${{ inputs.ref }}
+        run: |
+          set -uo pipefail
+          out="$RUNNER_TEMP/wrangler-output.ndjson"
+          version_id=""
+          if [ -f "$out" ]; then
+            version_id="$(node -e '
+              const fs = require("node:fs")
+              const lines = fs.readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean)
+              let id = ""
+              for (const l of lines) { try { const e = JSON.parse(l); if (e.type === "deploy" && e.version_id) id = e.version_id } catch {} }
+              process.stdout.write(id)
+            ' "$out")"
+          fi
+          if [ -z "$version_id" ] && [ -f "$RUNNER_TEMP/deploy.log" ]; then
+            version_id="$(grep -oE 'Current Version ID: [0-9a-f-]+' "$RUNNER_TEMP/deploy.log" | tail -n1 | awk '{print $4}')"
+          fi
+          {
+            echo "## Deploy $TARGET"
+            echo ""
+            echo "| Campo | Valor |"
+            echo "| --- | --- |"
+            echo "| Worker | \`tredane-dev-$TARGET\` |"
+            echo "| Ref pedido | \`$INPUT_REF\` |"
+            echo "| Commit | \`$SHA\` |"
+            echo "| Version ID | \`${version_id:-n/a (deploy não concluído)}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-production:
+    name: Deploy production
+    needs: resolve
+    if: inputs.target == 'production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit and SQL tests
+        run: npm test
+      - name: Cloudflare runtime harness
+        run: npm run test:runtime
+      - name: Deploy (npm run deploy -- production)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID ausentes no environment 'production' (ver docs/DEPLOY.md)."
+            exit 1
+          fi
+          npm run deploy -- production 2>&1 | tee "$RUNNER_TEMP/deploy.log"
+      - name: Job summary (version id)
+        if: always()
+        env:
+          TARGET: production
+          SHA: ${{ needs.resolve.outputs.sha }}
+          INPUT_REF: ${{ inputs.ref }}
+        run: |
+          set -uo pipefail
+          out="$RUNNER_TEMP/wrangler-output.ndjson"
+          version_id=""
+          if [ -f "$out" ]; then
+            version_id="$(node -e '
+              const fs = require("node:fs")
+              const lines = fs.readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean)
+              let id = ""
+              for (const l of lines) { try { const e = JSON.parse(l); if (e.type === "deploy" && e.version_id) id = e.version_id } catch {} }
+              process.stdout.write(id)
+            ' "$out")"
+          fi
+          if [ -z "$version_id" ] && [ -f "$RUNNER_TEMP/deploy.log" ]; then
+            version_id="$(grep -oE 'Current Version ID: [0-9a-f-]+' "$RUNNER_TEMP/deploy.log" | tail -n1 | awk '{print $4}')"
+          fi
+          {
+            echo "## Deploy $TARGET"
+            echo ""
+            echo "| Campo | Valor |"
+            echo "| --- | --- |"
+            echo "| Worker | \`tredane-dev-$TARGET\` |"
+            echo "| Ref pedido | \`$INPUT_REF\` |"
+            echo "| Commit | \`$SHA\` |"
+            echo "| Version ID | \`${version_id:-n/a (deploy não concluído)}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
