@@ -146,19 +146,22 @@ Nome na interface: **Acompanhamento** (DEC-045). Na barra inferior de quatro ite
 
 **Origem:** JRN-03; REQ-030, REQ-031, REQ-033. **Estado:** Proposto.
 
-Tela cheia no celular (M-04), com o botão **Confirmar** fixo no rodapé mostrando dia e hora escolhidos; painel lateral no desktop. Abre da conversa, do cartão do pipeline ou de um espaço da agenda, sempre ligado a um contato e a uma oportunidade. No celular, o dia é escolhido numa faixa horizontal de datas.
+Tela única no celular (M-04, M-34 a M-38), cabeçalho com o contato real e **Voltar** para a origem (conversa, acompanhamento ou agenda). **Proposto** (redesenho de 27/10/2026, em staging).
 
-1. **Serviço** — seleção; exibe duração e recursos exigidos (“60 min · profissional + sala com laser”). Serviços e durações vêm da configuração da clínica (**Em aberto**, REQ-052).
-2. **Profissional** — “Qualquer disponível” ou um nome.
-3. **Data e horários disponíveis** — somente intervalos em que profissional **e** sala/equipamento exigidos estão livres (AC-09). Cada horário mostra o recurso que será usado.
-4. **Revisão** — contato, serviço, data/hora, profissional, sala; opção **Enviar confirmação ao contato pelo WhatsApp** com prévia editável do texto.
-5. **Confirmar agendamento** → estado “Confirmando…”.
+1. **Serviço** — cartões com nome, duração e valor.
+2. **Profissional** — botões, **Qualquer** primeiro.
+3. **Dia** — grade de 5 dias e **Ver calendário** (60 dias em staging, DEC-054). Dia sem horários mostra **Próximo livre** (busca no cliente, 14 dias, mesma escolha de profissional; não há endpoint próprio — DEC-055).
+4. **Horário** — grade de 4 colunas separada em Manhã e Tarde; selecionado em destaque preenchido; sala só no rodapé e na revisão (DEC-056).
+5. **Rodapé fixo** — resumo e **Revisar e confirmar** (alvos ≥ 44 px).
+6. **Revisão** (folha inferior, M-35) — paciente, serviço, profissional, quando, sala, valor; **Enviar confirmação pelo WhatsApp** com texto editável (desligado por padrão, DEC-053). Só disponível com conversa e janela de 24 h aberta; enviada depois de confirmar, pela mesma API do inbox.
+7. **Sinal por Pix** (M-34, DEC-047/049) — valor, prazo (padrão 2 h, configurável pela clínica), **Enviar sinal** e **Confirmar sem sinal** com motivo em chips. O texto da cobrança Pix não é editável (a API não recebe texto).
 
 Resultados:
-- **Sucesso:** “Compromisso confirmado.” Conversa, pipeline e agenda passam a mostrar o compromisso. Se a mensagem de confirmação foi pedida, ela aparece na conversa com o próprio estado de envio; falha nesse envio aparece na mensagem, não no compromisso (REQ-033).
-- **Conflito:** “Esse horário acabou de ser ocupado (Sala 2). Escolha outro horário.” O painel mantém serviço e profissional selecionados, atualiza a lista de horários e não cria reserva (REQ-031).
-- **Erro de rede/servidor:** “Não foi possível confirmar. Nada foi reservado.” com **Tentar de novo** — somente quando o servidor garantir que nada foi gravado; caso o resultado seja incerto, a interface relê a agenda antes de permitir nova tentativa. **Proposto**, depende do contrato da API (ADR-0005).
-- Sem configuração mínima de serviços/recursos: painel mostra “A agenda desta clínica ainda não foi configurada” e não oferece horários (REQ-052, AC-14).
+- **Sucesso** (M-38): “Horário agendado”, estado do aviso (enviada / não enviada), **Voltar à conversa** e **Ver na agenda**. Falha no aviso não desfaz o compromisso (REQ-033).
+- **Conflito** (M-36): “Esse horário acabou de ser ocupado. Nada foi reservado.” (role=alert, recebe foco); mantém serviço, profissional e dia, risca o horário perdido e destaca as alternativas mais próximas (REQ-031).
+- **Erro de rede/servidor:** “Não foi possível confirmar. Nada foi reservado.” com **Tentar de novo** apenas quando o servidor garantir que nada foi gravado; caso contrário relê a agenda (ADR-0005).
+- Sem configuração mínima: “A agenda desta clínica ainda não foi configurada” (REQ-052, AC-14).
+- Controle de duração (variante a07): **Em aberto**, não implementado (DEC-051).
 
 A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
@@ -333,7 +336,7 @@ Ver seção 6.2.
 | TEL-10 Suporte do Tredane | JRN-08 | REQ-060 a REQ-066 | AC-27 a AC-35 |
 | TEL-09 Clínica (configuração) | JRN-08 | REQ-002, REQ-003, REQ-004, REQ-051, REQ-052, REQ-071 | AC-03, AC-14, AC-38, AC-39, AC-40 |
 
-Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-30 → IA em casos especiais (§6.3); M-31 a M-34 → TEL-11; M-27 a M-29 → TEL-10; M-15 a M-26 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos; M-19 e M-23 a M-26: WhatsApp). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
+Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); M-04 e M-35 a M-38 → TEL-05; M-05 → TEL-03 e TEL-02 (folha inferior); M-06 e M-13 → TEL-04; M-07 e M-08 → TEL-07; M-09 e M-10 → TEL-08; M-11 e M-12 → TEL-01 (janela de 24 h e modelos); M-14 → avisos e instalação (PWA); M-30 → IA em casos especiais (§6.3); M-31 a M-34 → TEL-11; M-27 a M-29 → TEL-10; M-15 a M-26 → TEL-09 (M-20 a M-22: cadastro de profissionais, salas e equipamentos; M-19 e M-23 a M-26: WhatsApp). As telas M-01 a M-14 mostram a visão do Atendente; o Responsável vê as mesmas telas com a aba Clínica na barra inferior (M-15 a M-19).
 
 ## 10. Critérios de aceite de UX
 

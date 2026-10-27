@@ -1,29 +1,48 @@
-import { ChevronLeft, RefreshCw, TriangleAlert } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { PanelSelect } from '../../ui/PanelSelect'
+import { CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, TriangleAlert } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
-  Label,
-  TextField,
+  Dialog,
+  Heading,
   Input,
+  Label,
+  Modal,
+  ModalOverlay,
+  TextArea,
+  TextField,
 } from 'react-aria-components'
 import {
   PanelApiError,
   type AvailabilityResponse,
   type AvailabilitySlot,
   type ClinicConfigSnapshot,
+  type MessagingWindow,
   type PanelApi,
   type PixSnapshot,
 } from '../../api'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
-import {
-  formatDayLabel,
-  formatSlotTime,
-  reasonLabel,
-  upcomingCivilDates,
-} from './format'
 import { friendlyError } from '../../copy/errors'
+import { formatDayLabel, formatSlotTime, reasonLabel, upcomingCivilDates } from './format'
+import {
+  CALENDAR_HORIZON_DAYS,
+  NEXT_FREE_HORIZON_DAYS,
+  WAIVE_REASONS,
+  defaultConfirmationMessage,
+  formatBrl,
+  formatDeadline,
+  formatWaId,
+  initials,
+  nearestAlternatives,
+  originLabel,
+  originRoute,
+  slotKey,
+  splitByPeriod,
+  uniqueTimes,
+  visibleDays,
+  type ScheduleContext,
+} from './agendarModel'
+import './agendar.css'
 
 type Props = {
   tenantId: string
@@ -31,9 +50,12 @@ type Props = {
   generation: number
 }
 
-const ANY = 'any'
+type Service = ClinicConfigSnapshot['services'][number]
 
-function readScheduleContext() {
+const ANY = 'any'
+const DEFAULT_DEADLINE_SECONDS = 2 * 60 * 60
+
+function readScheduleContext(): ScheduleContext {
   const q = new URLSearchParams(window.location.search)
   return {
     conversationId: q.get('conversationId') || undefined,
@@ -44,55 +66,79 @@ function readScheduleContext() {
   }
 }
 
-function formatBrl(cents: number): string {
-  const reais = Math.trunc(cents / 100)
-  const rest = Math.abs(cents % 100).toString().padStart(2, '0')
-  return `R$ ${reais},${rest}`
-}
-
-function signalAmountCents(svc: ClinicConfigSnapshot['services'][number]): number | null {
+function signalAmountCents(svc: Service): number | null {
   if (!svc.requiresSignal) return null
-  if (svc.signalKind === 'fixed' && svc.signalFixedCents != null) {
-    return svc.signalFixedCents
-  }
-  if (
-    svc.signalKind === 'percent'
-    && svc.signalPercent != null
-    && svc.priceCents != null
-  ) {
+  if (svc.signalKind === 'fixed' && svc.signalFixedCents != null) return svc.signalFixedCents
+  if (svc.signalKind === 'percent' && svc.signalPercent != null && svc.priceCents != null) {
     return Math.trunc((svc.priceCents * svc.signalPercent) / 100)
   }
   return null
 }
 
+function isConflictError(err: unknown): boolean {
+  if (err instanceof PanelApiError) {
+    const code = String(err.code)
+    return err.status === 409 || code === 'appointment_conflict' || code === 'slot_occupied'
+  }
+  return false
+}
+
+function shortDate(iso: string, tz: string): string {
+  const l = formatDayLabel(iso, tz)
+  return `${l.weekday} ${Number(l.day)}`
+}
+
+function slashDate(iso: string): string {
+  const [, m, d] = iso.split('-')
+  return `${d}/${m}`
+}
+
+type Contact = { name: string | null; phone: string }
+
+type NoticeStatus = 'sent' | 'failed' | 'off' | 'unavailable'
+
+type Success = {
+  kind: 'confirmed' | 'waived' | 'paid' | 'signal'
+  appointmentId?: string
+  serviceLabel: string
+  professionalName: string
+  whenLabel: string
+  notice: NoticeStatus
+  noticeDetail?: string
+}
+
 /**
- * TEL-05 / M-04 — seleção + confirmação atómica (#35/#36) e sinal Pix (#38).
+ * TEL-05 / M-04 (+ M-34 sinal) — redesenho mobile (Proposto por Paulo, 27/10/2026).
+ * Confirmação atómica (#35/#36), sinal Pix (#38/#40, DEC-047/049), aviso REQ-033.
+ * Em aberto: DEC-051–057 (docs/product/agendar-em-aberto.md).
  */
 export function AgendarScreen({ tenantId, api, generation }: Props) {
-  const scheduleCtx = useMemo(() => readScheduleContext(), [])
+  const ctx = useMemo(() => readScheduleContext(), [])
+  const fo = useMemo(() => ({ generation, expectGeneration: () => generation }), [generation])
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
   const [pix, setPix] = useState<PixSnapshot | null>(null)
-  const [serviceId, setServiceId] = useState<string>('')
+  const [contact, setContact] = useState<Contact | null>(null)
+  const [window24, setWindow24] = useState<MessagingWindow | null>(null)
+  const [serviceId, setServiceId] = useState('')
   const [professionalId, setProfessionalId] = useState<string>(ANY)
-  const [date, setDate] = useState<string>('')
-  const [availability, setAvailability] = useState<AvailabilityResponse | null>(
-    null,
-  )
+  const [date, setDate] = useState('')
+  const [availability, setAvailability] = useState<AvailabilityResponse | null>(null)
   const [selected, setSelected] = useState<AvailabilitySlot | null>(null)
-  const [conflict, setConflict] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [conflict, setConflict] = useState<{ message: string; lostStartsAt: number | null } | null>(null)
+  const [nextFree, setNextFree] = useState<{ date: string; slot: AvailabilitySlot } | null | 'none' | 'searching'>(null)
   const [loadingConfig, setLoadingConfig] = useState(true)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [confirming, setConfirming] = useState(false)
-  const [waiveOpen, setWaiveOpen] = useState(false)
-  const [waiveReason, setWaiveReason] = useState('')
-  const [clientRequestId, setClientRequestId] = useState(() =>
-    crypto.randomUUID(),
-  )
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [success, setSuccess] = useState<Success | null>(null)
+  const conflictRef = useRef<HTMLDivElement | null>(null)
 
   const timezone = config?.settings.timezone ?? 'America/Sao_Paulo'
-  const days = upcomingCivilDates(timezone, Date.now(), 7)
+  const allDays = useMemo(
+    () => upcomingCivilDates(timezone, Date.now(), CALENDAR_HORIZON_DAYS),
+    [timezone],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -101,14 +147,8 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
       setError(null)
       try {
         const [snap, pixSnap] = await Promise.all([
-          api.getClinicConfig(tenantId, {
-            generation,
-            expectGeneration: () => generation,
-          }),
-          api.getPix(tenantId, {
-            generation,
-            expectGeneration: () => generation,
-          }).catch(() => null),
+          api.getClinicConfig(tenantId, fo),
+          api.getPix(tenantId, fo).catch(() => null),
         ])
         if (cancelled) return
         setConfig(snap)
@@ -128,35 +168,51 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
     return () => {
       cancelled = true
     }
-  }, [api, tenantId, generation])
+  }, [api, tenantId, fo])
+
+  // Contato real no cabeçalho (substitui «Contato sintético»).
+  useEffect(() => {
+    let cancelled = false
+    async function loadContact() {
+      try {
+        if (ctx.conversationId) {
+          const conv = await api.getInboxConversation(tenantId, ctx.conversationId, { messageLimit: 1 }, fo)
+          if (cancelled) return
+          setContact({ name: conv.contact.displayName, phone: formatWaId(conv.contact.waId) })
+          setWindow24(conv.messagingWindow)
+        } else if (ctx.contactId) {
+          const det = await api.getInboxContact(tenantId, ctx.contactId, fo)
+          if (cancelled) return
+          setContact({ name: det.contact.displayName, phone: formatWaId(det.contact.waId) })
+        }
+      } catch {
+        // Sem contato legível: o cabeçalho mostra só «Agendar horário».
+      }
+    }
+    void loadContact()
+    return () => {
+      cancelled = true
+    }
+  }, [api, tenantId, fo, ctx.conversationId, ctx.contactId])
 
   const reloadSlots = useCallback(async () => {
     if (!serviceId || !date) return
     setLoadingSlots(true)
-    setConflict(null)
     try {
       const res = await api.queryAvailability(
         tenantId,
-        {
-          serviceId,
-          date,
-          professionalId: professionalId === ANY ? undefined : professionalId,
-        },
-        { generation, expectGeneration: () => generation },
+        { serviceId, date, professionalId: professionalId === ANY ? undefined : professionalId },
+        fo,
       )
       setAvailability(res)
       setSelected((prev) => {
         if (!prev) return null
-        const still = res.slots.find(
-          (s) =>
-            s.startsAt === prev.startsAt
-            && s.professionalId === prev.professionalId
-            && s.roomResourceId === prev.roomResourceId,
-        )
+        const still = res.slots.find((s) => slotKey(s) === slotKey(prev))
         if (!still) {
-          setConflict(
-            'Esse horário acabou de ficar indisponível. Escolha outro horário.',
-          )
+          setConflict({
+            message: 'Esse horário acabou de ficar indisponível. Nada foi reservado.',
+            lostStartsAt: prev.startsAt,
+          })
           return null
         }
         return still
@@ -168,517 +224,850 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
     } finally {
       setLoadingSlots(false)
     }
-  }, [api, tenantId, generation, serviceId, date, professionalId])
+  }, [api, tenantId, fo, serviceId, date, professionalId])
 
   useEffect(() => {
     void reloadSlots()
   }, [reloadSlots])
 
-  // Atualização após mudança remota — polling leve enquanto a tela está aberta.
+  // Polling leve (DEC-057 em aberto: WebSocket ainda não ligado a esta tela).
   useEffect(() => {
-    const id = window.setInterval(() => {
-      void reloadSlots()
-    }, 15_000)
+    const id = window.setInterval(() => void reloadSlots(), 15_000)
     return () => window.clearInterval(id)
   }, [reloadSlots])
 
+  // «Próximo livre» (DEC-055 em aberto): mesma escolha, até 14 dias, no cliente.
+  useEffect(() => {
+    setNextFree(null)
+    if (!availability || availability.slots.length > 0 || availability.date !== date) return
+    let cancelled = false
+    async function search() {
+      setNextFree('searching')
+      const idx = allDays.indexOf(date)
+      const candidates = allDays.slice(idx + 1, idx + 1 + NEXT_FREE_HORIZON_DAYS)
+      for (const d of candidates) {
+        try {
+          const res = await api.queryAvailability(
+            tenantId,
+            { serviceId, date: d, professionalId: professionalId === ANY ? undefined : professionalId },
+            fo,
+          )
+          if (cancelled) return
+          const first = uniqueTimes(res.slots)[0]
+          if (first) {
+            setNextFree({ date: d, slot: first })
+            return
+          }
+        } catch {
+          break
+        }
+      }
+      if (!cancelled) setNextFree('none')
+    }
+    void search()
+    return () => {
+      cancelled = true
+    }
+  }, [availability, date, allDays, api, tenantId, fo, serviceId, professionalId])
+
+  useEffect(() => {
+    if (conflict) conflictRef.current?.focus()
+  }, [conflict])
+
   const service = config?.services.find((s) => s.id === serviceId)
   const amountCents = service ? signalAmountCents(service) : null
-  const requiresSignal = Boolean(service?.requiresSignal && amountCents != null)
-  const canCreateCharge = pix?.account.canCreateCharge === true
+  const paidSignalMode = Boolean(ctx.alertId)
+  const requiresSignal = !paidSignalMode && Boolean(service?.requiresSignal && amountCents != null)
   const professionals =
     config?.resources.filter(
       (r) =>
         r.kind === 'professional'
         && r.active
-        && (!service || service.professionalIds.length === 0
-          || service.professionalIds.includes(r.id)),
+        && (!service || service.professionalIds.length === 0 || service.professionalIds.includes(r.id)),
     ) ?? []
 
-  async function ensureSlotStillFree(): Promise<boolean> {
-    if (!selected || !serviceId) return false
-    const check = await api.checkAvailabilitySlot(
-      tenantId,
-      {
-        serviceId,
-        professionalId: selected.professionalId,
-        roomResourceId: selected.roomResourceId,
-        startsAt: selected.startsAt,
-      },
-      { generation, expectGeneration: () => generation },
-    )
-    if (!check.available) {
-      const detail = check.reasons.map(reasonLabel).join(' · ')
-      setConflict(
-        `Esse horário acabou de ser ocupado${detail ? ` (${detail})` : ''}. Nada foi reservado. Escolha outro horário.`,
-      )
-      setSelected(null)
-      await reloadSlots()
-      return false
-    }
-    return true
+  function back() {
+    navigatePanel(originRoute(tenantId, ctx))
   }
 
-  async function handleConfirm() {
-    if (!selected || !serviceId) return
-    setConfirming(true)
+  function pickTime(slot: AvailabilitySlot) {
+    setSelected(slot)
     setConflict(null)
-    setSuccess(null)
-    try {
-      if (!(await ensureSlotStillFree())) return
-
-      // #40 — sinal já pago: confirmar horário alternativo sem nova cobrança.
-      if (scheduleCtx.alertId) {
-        const resolved = await api.confirmPixAlertSlot(
-          tenantId,
-          scheduleCtx.alertId,
-          {
-            clientRequestId,
-            serviceId,
-            professionalId: selected.professionalId,
-            roomResourceId: selected.roomResourceId,
-            startsAt: selected.startsAt,
-          },
-          { generation, expectGeneration: () => generation },
-        )
-        setSuccess('Horário confirmado com o sinal já pago.')
-        navigatePanel({
-          kind: 'area',
-          area: 'agenda',
-          tenantId,
-          section: 'compromisso',
-          appointmentId: resolved.appointmentId,
-        })
-        return
-      }
-
-      const created = await api.confirmAppointment(
-        tenantId,
-        {
-          clientRequestId,
-          serviceId,
-          professionalId: selected.professionalId,
-          roomResourceId: selected.roomResourceId,
-          startsAt: selected.startsAt,
-          contactLabel: 'Contato sintético',
-          conversationId: scheduleCtx.conversationId,
-          contactId: scheduleCtx.contactId,
-          opportunityId: scheduleCtx.opportunityId,
-        },
-        { generation, expectGeneration: () => generation },
-      )
-      setSuccess('Compromisso confirmado.')
-      navigatePanel({
-        kind: 'area',
-        area: 'agenda',
-        tenantId,
-        section: 'compromisso',
-        appointmentId: created.id,
-      })
-    } catch (err) {
-      const msg = friendlyError(err, 'Não foi possível confirmar o horário.')
-      setConflict(
-        msg.includes('ocupado') || msg.includes('conflict')
-          ? // Alerta permanece aberto — sinal pago preservado (#40).
-            `${msg} O sinal pago mantém-se; escolha outro horário ou devolva.`
-          : `Não foi possível confirmar. Nada foi reservado. ${msg}`,
-      )
-      setSelected(null)
-      await reloadSlots()
-    } finally {
-      setConfirming(false)
-    }
   }
 
-  async function handleSendSignal() {
-    if (!selected || !serviceId || !scheduleCtx.conversationId || amountCents == null) {
-      setConflict(
-        'Para enviar o sinal, abra Agendar a partir da conversa ou do acompanhamento.',
-      )
-      return
-    }
-    if (!canCreateCharge) {
-      setConflict(
-        'Conta Pix desconectada. A responsável precisa ligar o recebimento em Clínica → Recebimento.',
-      )
-      return
-    }
-    setConfirming(true)
-    setConflict(null)
-    setSuccess(null)
-    try {
-      const created = await api.createPixCharge(
-        tenantId,
-        {
-          clientRequestId,
-          conversationId: scheduleCtx.conversationId,
-          contactId: scheduleCtx.contactId,
-          opportunityId: scheduleCtx.opportunityId,
-          serviceId,
-          professionalId: selected.professionalId,
-          roomResourceId: selected.roomResourceId,
-          startsAt: selected.startsAt,
-        },
-        { generation, expectGeneration: () => generation },
-      )
-      const waNote = created.whatsappSendError
-        ? ` Cobrança criada, mas o WhatsApp falhou: ${created.whatsappSendError}`
-        : ''
-      setSuccess(
-        `Sinal de ${formatBrl(created.charge.amountCents)} enviado. Horário não reservado até o pagamento.${waNote}`,
-      )
-      navigatePanel({
-        kind: 'area',
-        area: 'conversas',
-        tenantId,
-        section: 'thread',
-        conversationId: scheduleCtx.conversationId,
-      })
-    } catch (err) {
-      const msg = friendlyError(err, 'Não foi possível criar a cobrança do sinal.')
-      setConflict(
-        `${msg} Tente de novo ou confirme sem sinal.`,
-      )
-      setClientRequestId(crypto.randomUUID())
-    } finally {
-      setConfirming(false)
-    }
+  async function onConflict(message: string) {
+    const lost = selected?.startsAt ?? null
+    setReviewOpen(false)
+    setSelected(null)
+    setConflict({ message, lostStartsAt: lost })
+    await reloadSlots()
   }
 
-  async function handleConfirmWithoutSignal() {
-    if (!selected || !serviceId) return
-    const reason = waiveReason.trim()
-    if (!reason) {
-      setConflict('Indique o motivo para confirmar sem sinal.')
-      return
-    }
-    setConfirming(true)
-    setConflict(null)
-    setSuccess(null)
-    try {
-      if (!(await ensureSlotStillFree())) return
-      const created = await api.confirmWithoutSignal(
-        tenantId,
-        {
-          clientRequestId,
-          serviceId,
-          professionalId: selected.professionalId,
-          roomResourceId: selected.roomResourceId,
-          startsAt: selected.startsAt,
-          contactLabel: 'Contato sintético',
-          conversationId: scheduleCtx.conversationId,
-          contactId: scheduleCtx.contactId,
-          opportunityId: scheduleCtx.opportunityId,
-          waiveReason: reason,
-        },
-        { generation, expectGeneration: () => generation },
-      )
-      setWaiveOpen(false)
-      setSuccess('Compromisso confirmado sem sinal.')
-      navigatePanel({
-        kind: 'area',
-        area: 'agenda',
-        tenantId,
-        section: 'compromisso',
-        appointmentId: created.appointmentId,
-      })
-    } catch (err) {
-      const msg = friendlyError(err, 'Não foi possível confirmar o horário.')
-      setConflict(
-        msg.includes('ocupado') || msg.includes('conflict')
-          ? msg
-          : `Não foi possível confirmar. Nada foi reservado. ${msg}`,
-      )
-      setSelected(null)
-      await reloadSlots()
-    } finally {
-      setConfirming(false)
-    }
-  }
+  const whenLabel = selected
+    ? `${shortDate(date, timezone)}, ${formatSlotTime(selected.startsAt, timezone)}`
+    : ''
 
-  if (loadingConfig && !config) {
-    return <LoadingState label="Carregando agenda…" />
-  }
+  if (loadingConfig && !config) return <LoadingState label="Carregando agenda…" />
   if (error && !config) {
+    return <ErrorState title="Agenda indisponível" description={error} actionLabel="Voltar" onAction={back} />
+  }
+  if (!config) return null
+
+  const header = (
+    <header className="panel-header agd-header">
+      <Button className="panel-icon-btn" aria-label="Voltar" onPress={back}>
+        <ChevronLeft aria-hidden size={22} strokeWidth={2} />
+      </Button>
+      {contact?.name ? (
+        <span className="agd-avatar" aria-hidden="true">
+          {initials(contact.name)}
+        </span>
+      ) : null}
+      <div className="agd-header-text">
+        <h1 className="panel-title agd-title">
+          {contact?.name ? `Agendar · ${contact.name}` : 'Agendar horário'}
+        </h1>
+        <span className="panel-subtitle">
+          {[contact?.phone, originLabel(ctx)].filter(Boolean).join(' · ')}
+        </span>
+      </div>
+    </header>
+  )
+
+  if (success) {
     return (
-      <ErrorState
-        title="Agenda indisponível"
-        description={error}
-        actionLabel="Voltar"
-        onAction={() =>
-          navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
+      <AgendarSuccess
+        success={success}
+        contact={contact}
+        hasConversation={Boolean(ctx.conversationId)}
+        onConversation={back}
+        onAgenda={() =>
+          navigatePanel(
+            success.appointmentId
+              ? { kind: 'area', area: 'agenda', tenantId, section: 'compromisso', appointmentId: success.appointmentId }
+              : { kind: 'area', area: 'agenda', tenantId, section: 'dia' },
+          )
         }
       />
     )
   }
-  if (!config) return null
 
   if (!config.readiness.schedulingAllowed) {
     return (
-      <div className="agenda-agendar">
-        <header className="panel-header">
-          <Button
-            className="panel-icon-btn"
-            aria-label="Fechar sem agendar"
-            onPress={() =>
-              navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
-            }
-          >
-            <ChevronLeft aria-hidden size={22} strokeWidth={2} />
-          </Button>
-          <div>
-            <h1 className="panel-title">Agendar horário</h1>
-          </div>
-        </header>
+      <div className="agd" data-screen="m04-agendar">
+        {header}
         <div className="panel-scroll">
           <p className="clinic-banner" role="status">
-            A agenda desta clínica ainda não foi configurada. O responsável precisa
-            de serviços, profissionais, salas e expediente antes de marcar horários.
+            A agenda desta clínica ainda não foi configurada. O responsável precisa de serviços,
+            profissionais, salas e expediente antes de marcar horários.
           </p>
         </div>
       </div>
     )
   }
 
-  const paidSignalMode = Boolean(scheduleCtx.alertId)
-  const confirmLabel = selected
-    ? paidSignalMode
-      ? `Confirmar com sinal pago · ${formatSlotTime(selected.startsAt, timezone)}`
-      : requiresSignal && amountCents != null
-        ? `Enviar sinal de ${formatBrl(amountCents)}`
-        : `Confirmar ${formatSlotTime(selected.startsAt, timezone)}`
-    : 'Escolha um horário'
+  const times = availability && availability.date === date ? uniqueTimes(availability.slots) : []
+  const periods = splitByPeriod(times, timezone)
+  const alternatives =
+    conflict?.lostStartsAt != null ? new Set(nearestAlternatives(times, conflict.lostStartsAt)) : new Set<number>()
+  const days = visibleDays(allDays, date)
+
+  const renderTimes = (list: AvailabilitySlot[], title: string) =>
+    list.length === 0 && !(conflict?.lostStartsAt != null && title === 'Tarde') ? null : (
+      <div className="agd-period" role="group" aria-label={title}>
+        <h3 className="agd-period-title">{title}</h3>
+        <div className="agd-time-grid">
+          {list.map((slot) => {
+            const pressed = selected?.startsAt === slot.startsAt
+            const alt = alternatives.has(slot.startsAt)
+            return (
+              <button
+                key={slot.startsAt}
+                type="button"
+                className="agd-time"
+                data-alt={alt || undefined}
+                aria-pressed={pressed}
+                aria-label={`${formatSlotTime(slot.startsAt, timezone)}${alt ? ', livre mais próximo' : ''}`}
+                onClick={() => pickTime(slot)}
+              >
+                {formatSlotTime(slot.startsAt, timezone)}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+
+  const lostLabel =
+    conflict?.lostStartsAt != null ? formatSlotTime(conflict.lostStartsAt, timezone) : null
 
   return (
-    <div className="agenda-agendar" data-screen="m04-agendar">
-      <header className="panel-header">
-        <Button
-          className="panel-icon-btn"
-          aria-label="Fechar sem agendar"
-          onPress={() =>
-            navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
-          }
-        >
-          <ChevronLeft aria-hidden size={22} strokeWidth={2} />
-        </Button>
-        <div>
-          <h1 className="panel-title">Agendar horário</h1>
-          <span className="panel-subtitle">
-            {paidSignalMode
-              ? 'Sinal já pago — escolher outro horário'
-              : requiresSignal
-                ? 'Sinal por Pix — horário só após pagamento'
-                : 'Confirmação atómica'}
-          </span>
-        </div>
-        <Button
-          className="panel-icon-btn"
-          aria-label="Atualizar horários"
-          onPress={() => void reloadSlots()}
-          isDisabled={loadingSlots}
-        >
-          <RefreshCw aria-hidden size={20} strokeWidth={2} />
-        </Button>
-      </header>
-
-      <div className="panel-scroll">
+    <div className="agd" data-screen="m04-agendar">
+      {header}
+      <div className="panel-scroll agd-scroll">
         {conflict ? (
-          <div className="panel-alert" role="alert">
+          <div className="agd-banner" role="alert" tabIndex={-1} ref={conflictRef}>
             <TriangleAlert aria-hidden size={20} strokeWidth={2} />
-            <span>{conflict}</span>
+            <div>
+              <strong>{conflict.message.includes('Nada foi reservado') ? conflict.message : `${conflict.message} Nada foi reservado.`}</strong>
+              <span>
+                Suas escolhas foram mantidas.
+                {alternatives.size > 0 ? ' Os horários livres mais próximos estão destacados.' : ''}
+                {lostLabel ? ` ${lostLabel} não está mais livre.` : ''}
+              </span>
+            </div>
           </div>
         ) : null}
-        {success ? (
-          <p className="panel-alert" role="status">
-            {success}
+        {paidSignalMode ? (
+          <p className="agd-note" role="note">
+            Sinal já pago — escolha outro horário para confirmar.
           </p>
         ) : null}
 
-        <PanelSelect
-          label="Serviço"
-          placeholder="Escolha o serviço"
-          value={serviceId || null}
-          onChange={(id) => {
-            setServiceId(id)
-            setSelected(null)
-          }}
-          options={config.services
-            .filter((s) => s.active)
-            .map((s) => ({ id: s.id, label: s.name }))}
-        />
-        {service ? (
-          <span className="panel-field-hint">
-            {service.durationMinutes} min
-            {service.bufferMinutes > 0
-              ? ` + ${service.bufferMinutes} min de intervalo`
-              : ''}
-            {' · '}
-            {service.occupiedMinutes} min de ocupação
-          </span>
-        ) : null}
+        <section aria-labelledby="agd-svc">
+          <h2 id="agd-svc" className="agd-label">Serviço</h2>
+          <div className="agd-services" role="group" aria-labelledby="agd-svc">
+            {config.services
+              .filter((s) => s.active)
+              .map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="agd-service"
+                  aria-pressed={s.id === serviceId}
+                  onClick={() => {
+                    setServiceId(s.id)
+                    setSelected(null)
+                    setConflict(null)
+                  }}
+                >
+                  <span className="agd-service-name">{s.name}</span>
+                  <span className="agd-service-meta">{s.durationMinutes} min</span>
+                  {s.priceCents != null ? (
+                    <span className="agd-service-meta">{formatBrl(s.priceCents)}</span>
+                  ) : null}
+                </button>
+              ))}
+          </div>
+        </section>
 
-        <PanelSelect
-          label="Profissional"
-          value={professionalId}
-          onChange={(id) => {
-            setProfessionalId(id)
-            setSelected(null)
-          }}
-          options={[
-            { id: ANY, label: 'Qualquer disponível' },
-            ...professionals.map((p) => ({ id: p.id, label: p.name })),
-          ]}
-        />
+        <section aria-labelledby="agd-pro">
+          <h2 id="agd-pro" className="agd-label">Profissional</h2>
+          <div className="agd-pills" role="group" aria-labelledby="agd-pro">
+            {[{ id: ANY, name: 'Qualquer' }, ...professionals].map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="agd-pill"
+                aria-pressed={professionalId === p.id}
+                onClick={() => {
+                  setProfessionalId(p.id)
+                  setSelected(null)
+                  setConflict(null)
+                }}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </section>
 
-        <fieldset className="panel-fieldset">
-          <legend className="panel-legend">Dia</legend>
-          <div className="panel-day-row" role="group" aria-label="Dia">
+        <section aria-labelledby="agd-day">
+          <div className="agd-row">
+            <h2 id="agd-day" className="agd-label">Dia</h2>
+            <button type="button" className="agd-link" onClick={() => setCalendarOpen(true)}>
+              Ver calendário <ChevronRight aria-hidden size={16} strokeWidth={2} />
+            </button>
+          </div>
+          <div className="agd-day-grid" role="group" aria-labelledby="agd-day">
             {days.map((d) => {
-              const label = formatDayLabel(d, timezone)
+              const l = formatDayLabel(d, timezone)
               return (
                 <button
                   key={d}
                   type="button"
-                  className="panel-day"
+                  className="agd-day"
                   aria-pressed={date === d}
+                  aria-label={`${l.weekday} ${l.day}`}
                   onClick={() => {
                     setDate(d)
                     setSelected(null)
                   }}
                 >
-                  <span>{label.weekday}</span>
-                  <span>{label.day}</span>
+                  <span>{l.weekday}</span>
+                  <span>{Number(l.day)}</span>
                 </button>
               )
             })}
           </div>
-        </fieldset>
+        </section>
 
-        <fieldset className="panel-fieldset">
-          <legend className="panel-legend">
-            Horários livres para profissional e sala
-          </legend>
-          {loadingSlots && !availability ? (
-            <p className="panel-meta">Carregando horários…</p>
+        <section aria-labelledby="agd-time" aria-busy={loadingSlots}>
+          <h2 id="agd-time" className="agd-label">Horário</h2>
+          {loadingSlots && times.length === 0 ? <p className="panel-meta">Carregando horários…</p> : null}
+          {availability && availability.date === date && times.length === 0 && !loadingSlots ? (
+            <div className="agd-empty" role="status">
+              <Clock aria-hidden size={22} strokeWidth={2} />
+              <p>Sem horários livres neste dia.</p>
+              {nextFree === 'searching' ? <p className="panel-meta">Procurando o próximo livre…</p> : null}
+              {nextFree === 'none' ? (
+                <p className="panel-meta">Nenhum horário livre nos próximos {NEXT_FREE_HORIZON_DAYS} dias.</p>
+              ) : null}
+              {nextFree && typeof nextFree === 'object' ? (
+                <Button
+                  className="panel-btn panel-btn-primary agd-btn"
+                  onPress={() => {
+                    setDate(nextFree.date)
+                    setSelected(nextFree.slot)
+                    setConflict(null)
+                  }}
+                >
+                  Próximo livre: {shortDate(nextFree.date, timezone)}, {formatSlotTime(nextFree.slot.startsAt, timezone)}
+                </Button>
+              ) : null}
+            </div>
           ) : null}
-          {availability && availability.slots.length === 0 ? (
-            <p className="panel-meta" role="status">
-              Sem horários livres neste dia para a combinação escolhida.
+          {renderTimes(periods.manha, 'Manhã')}
+          {renderTimes(periods.tarde, 'Tarde')}
+          {lostLabel && !times.some((t) => t.startsAt === conflict?.lostStartsAt) ? (
+            <p className="agd-lost">
+              <s>{lostLabel}</s> ocupado
             </p>
           ) : null}
-          {availability?.slots.map((slot) => {
-            const pressed =
-              selected?.startsAt === slot.startsAt
-              && selected.professionalId === slot.professionalId
-              && selected.roomResourceId === slot.roomResourceId
-            return (
-              <button
-                key={`${slot.startsAt}:${slot.professionalId}:${slot.roomResourceId ?? ''}`}
-                type="button"
-                className="panel-slot"
-                aria-pressed={pressed}
-                onClick={() => {
-                  setSelected(slot)
-                  setConflict(null)
-                  setClientRequestId(crypto.randomUUID())
-                }}
-              >
-                <span>{formatSlotTime(slot.startsAt, timezone)}</span>
-                <span>
-                  {slot.professionalName}
-                  {slot.roomResourceName ? ` · ${slot.roomResourceName}` : ''}
-                </span>
-              </button>
-            )
-          })}
-        </fieldset>
+        </section>
       </div>
 
-      {requiresSignal && amountCents != null ? (
-        <p className="panel-meta" role="note" style={{ padding: '0 1rem' }}>
-          Sinal de {formatBrl(amountCents)} · o horário permanece livre até o
-          pagamento
-          {!canCreateCharge
-            ? ' · conta Pix desconectada (só é possível confirmar sem sinal)'
-            : ''}
-          {!scheduleCtx.conversationId
-            ? ' · abra a partir da conversa para enviar o sinal'
-            : ''}
+      <footer className="panel-footer agd-footer">
+        <p className="agd-summary" aria-live="polite">
+          {service ? <strong>{service.name}</strong> : null}
+          {selected ? ` · ${selected.professionalName}` : professionalId !== ANY ? ` · ${professionals.find((p) => p.id === professionalId)?.name ?? ''}` : ''}
+          {selected
+            ? ` · ${whenLabel}${selected.roomResourceName ? ` · ${selected.roomResourceName}` : ''}`
+            : ` · ${shortDate(date, timezone)} · escolha um horário`}
         </p>
-      ) : null}
+        <Button
+          className="panel-btn panel-btn-primary agd-btn"
+          isDisabled={!selected}
+          onPress={() => setReviewOpen(true)}
+        >
+          Revisar e confirmar
+        </Button>
+      </footer>
 
-      {waiveOpen ? (
-        <div className="panel-footer" style={{ flexDirection: 'column', gap: 8 }}>
-          <TextField
-            className="panel-field"
-            value={waiveReason}
-            onChange={setWaiveReason}
-            isRequired
-          >
-            <Label>Motivo (obrigatório)</Label>
-            <Input autoComplete="off" placeholder="Ex.: cliente paga na clínica" />
-          </TextField>
-          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
-            <Button
-              className="panel-btn-secondary"
-              onPress={() => setWaiveOpen(false)}
-              isDisabled={confirming}
-            >
-              Voltar
-            </Button>
-            <Button
-              className="panel-btn-primary"
-              isDisabled={!selected || confirming || !waiveReason.trim()}
-              onPress={() => void handleConfirmWithoutSignal()}
-            >
-              {confirming ? 'A confirmar…' : 'Confirmar sem sinal'}
+      <CalendarSheet
+        isOpen={calendarOpen}
+        onOpenChange={setCalendarOpen}
+        days={allDays}
+        value={date}
+        timezone={timezone}
+        onPick={(d) => {
+          setDate(d)
+          setSelected(null)
+          setCalendarOpen(false)
+        }}
+      />
+
+      {selected && service ? (
+        <ReviewSheet
+          isOpen={reviewOpen}
+          onOpenChange={setReviewOpen}
+          api={api}
+          tenantId={tenantId}
+          fo={fo}
+          ctx={ctx}
+          service={service}
+          slot={selected}
+          date={date}
+          timezone={timezone}
+          contact={contact}
+          window24={window24}
+          requiresSignal={requiresSignal}
+          paidSignalMode={paidSignalMode}
+          amountCents={amountCents}
+          canCreateCharge={pix?.account.canCreateCharge === true}
+          deadlineSeconds={pix?.signalSettings.deadlineSeconds ?? config.settings.signalDeadlineSeconds ?? DEFAULT_DEADLINE_SECONDS}
+          onConflict={onConflict}
+          onSuccess={(s) => {
+            setReviewOpen(false)
+            setSuccess(s)
+          }}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function CalendarSheet(props: {
+  isOpen: boolean
+  onOpenChange: (v: boolean) => void
+  days: string[]
+  value: string
+  timezone: string
+  onPick: (d: string) => void
+}) {
+  const byMonth = new Map<string, string[]>()
+  for (const d of props.days) {
+    const k = d.slice(0, 7)
+    byMonth.set(k, [...(byMonth.get(k) ?? []), d])
+  }
+  const monthName = (k: string) =>
+    new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+      new Date(`${k}-15T12:00:00Z`),
+    )
+  return (
+    <ModalOverlay isOpen={props.isOpen} onOpenChange={props.onOpenChange} isDismissable className="panel-overlay">
+      <Modal className="panel-choice-modal">
+        <Dialog className="panel-sheet agd-sheet" aria-labelledby="agd-cal-title">
+          <span className="panel-sheet-handle" aria-hidden="true" />
+          <Heading slot="title" id="agd-cal-title" className="panel-title">
+            <CalendarDays aria-hidden size={20} strokeWidth={2} /> Escolher dia
+          </Heading>
+          <div className="agd-sheet-body">
+            {[...byMonth.entries()].map(([k, list]) => (
+              <section key={k} aria-label={monthName(k)}>
+                <h3 className="agd-period-title agd-month">{monthName(k)}</h3>
+                <div className="agd-cal-grid">
+                  {list.map((d) => {
+                    const l = formatDayLabel(d, props.timezone)
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        className="agd-day agd-day-sm"
+                        aria-pressed={props.value === d}
+                        aria-label={`${l.weekday} ${slashDate(d)}`}
+                        onClick={() => props.onPick(d)}
+                      >
+                        <span>{l.weekday}</span>
+                        <span>{Number(l.day)}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+          <Button className="panel-btn panel-btn-secondary agd-btn" slot="close">
+            Fechar
+          </Button>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  )
+}
+
+type ReviewProps = {
+  isOpen: boolean
+  onOpenChange: (v: boolean) => void
+  api: PanelApi
+  tenantId: string
+  fo: { generation: number; expectGeneration: () => number }
+  ctx: ScheduleContext
+  service: Service
+  slot: AvailabilitySlot
+  date: string
+  timezone: string
+  contact: Contact | null
+  window24: MessagingWindow | null
+  requiresSignal: boolean
+  paidSignalMode: boolean
+  amountCents: number | null
+  canCreateCharge: boolean
+  deadlineSeconds: number
+  onConflict: (message: string) => Promise<void>
+  onSuccess: (s: Success) => void
+}
+
+function ReviewSheet(p: ReviewProps) {
+  const { api, tenantId, fo, ctx, service, slot, timezone } = p
+  const start = formatSlotTime(slot.startsAt, timezone)
+  const end = formatSlotTime(slot.endsAt, timezone)
+  const dayLabel = formatDayLabel(p.date, timezone)
+  const whenLong = `${dayLabel.weekday} ${slashDate(p.date)}, ${start}–${end}`
+  const whenShort = `${dayLabel.weekday} ${slashDate(p.date)}, ${start}`
+  const canNotify = Boolean(ctx.conversationId) && p.window24?.open === true
+  // DEC-053 em aberto: padrão desligado no staging.
+  const [notify, setNotify] = useState(false)
+  const [message, setMessage] = useState(() =>
+    defaultConfirmationMessage({
+      contactName: p.contact?.name ?? null,
+      serviceName: service.name,
+      professionalName: slot.professionalName,
+      whenLabel: `${dayLabel.weekday}, ${slashDate(p.date)}, às ${start}`,
+    }),
+  )
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [waiveOpen, setWaiveOpen] = useState(false)
+  const [waiveChip, setWaiveChip] = useState<string | null>(null)
+  const [waiveOther, setWaiveOther] = useState('')
+  const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID())
+  const contactLabel = p.contact?.name || p.contact?.phone || null
+  const waiveReason = waiveChip === 'Outro' ? waiveOther.trim() : waiveChip ?? ''
+
+  const base = {
+    serviceLabel: `${service.name} · ${Math.round((slot.endsAt - slot.startsAt) / 60000)} min`,
+    professionalName: slot.professionalName,
+    whenLabel: whenShort,
+  }
+
+  async function stillFree(): Promise<boolean> {
+    const check = await api.checkAvailabilitySlot(
+      tenantId,
+      { serviceId: service.id, professionalId: slot.professionalId, roomResourceId: slot.roomResourceId, startsAt: slot.startsAt },
+      fo,
+    )
+    if (!check.available) {
+      const detail = check.reasons.map(reasonLabel).join(' · ')
+      await p.onConflict(`Esse horário acabou de ser ocupado${detail ? ` (${detail})` : ''}. Nada foi reservado.`)
+      return false
+    }
+    return true
+  }
+
+  async function sendNotice(): Promise<{ notice: NoticeStatus; noticeDetail?: string }> {
+    if (!notify) return { notice: canNotify ? 'off' : 'unavailable' }
+    try {
+      await api.sendInboxMessage(tenantId, ctx.conversationId!, { body: message.trim(), clientRequestId: crypto.randomUUID() }, fo)
+      return { notice: 'sent' }
+    } catch (e) {
+      // REQ-033: falha do aviso não desfaz o compromisso.
+      return { notice: 'failed', noticeDetail: friendlyError(e, 'O WhatsApp não enviou.') }
+    }
+  }
+
+  async function run(action: () => Promise<void>) {
+    setBusy(true)
+    setErr(null)
+    try {
+      await action()
+    } catch (e) {
+      if (isConflictError(e)) {
+        await p.onConflict(
+          p.paidSignalMode
+            ? 'Esse horário acabou de ser ocupado. Nada foi reservado. O sinal pago continua guardado.'
+            : 'Esse horário acabou de ser ocupado. Nada foi reservado.',
+        )
+      } else {
+        setErr(`Não foi possível concluir. Nada foi reservado. ${friendlyError(e, '')}`.trim())
+        setClientRequestId(crypto.randomUUID())
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const confirm = () =>
+    run(async () => {
+      if (!(await stillFree())) return
+      if (p.paidSignalMode && ctx.alertId) {
+        const r = await api.confirmPixAlertSlot(
+          tenantId,
+          ctx.alertId,
+          { clientRequestId, serviceId: service.id, professionalId: slot.professionalId, roomResourceId: slot.roomResourceId, startsAt: slot.startsAt },
+          fo,
+        )
+        p.onSuccess({ ...base, kind: 'paid', appointmentId: r.appointmentId, ...(await sendNotice()) })
+        return
+      }
+      const created = await api.confirmAppointment(
+        tenantId,
+        {
+          clientRequestId,
+          serviceId: service.id,
+          professionalId: slot.professionalId,
+          roomResourceId: slot.roomResourceId,
+          startsAt: slot.startsAt,
+          contactLabel,
+          conversationId: ctx.conversationId,
+          contactId: ctx.contactId,
+          opportunityId: ctx.opportunityId,
+        },
+        fo,
+      )
+      p.onSuccess({ ...base, kind: 'confirmed', appointmentId: created.id, ...(await sendNotice()) })
+    })
+
+  const confirmWithoutSignal = () =>
+    run(async () => {
+      if (!waiveReason) {
+        setErr('Escolha o motivo para confirmar sem sinal.')
+        return
+      }
+      if (!(await stillFree())) return
+      const created = await api.confirmWithoutSignal(
+        tenantId,
+        {
+          clientRequestId,
+          serviceId: service.id,
+          professionalId: slot.professionalId,
+          roomResourceId: slot.roomResourceId,
+          startsAt: slot.startsAt,
+          contactLabel,
+          conversationId: ctx.conversationId,
+          contactId: ctx.contactId,
+          opportunityId: ctx.opportunityId,
+          waiveReason,
+        },
+        fo,
+      )
+      p.onSuccess({ ...base, kind: 'waived', appointmentId: created.appointmentId, ...(await sendNotice()) })
+    })
+
+  const sendSignal = () =>
+    run(async () => {
+      if (!ctx.conversationId || p.amountCents == null) return
+      const created = await api.createPixCharge(
+        tenantId,
+        {
+          clientRequestId,
+          conversationId: ctx.conversationId,
+          contactId: ctx.contactId,
+          opportunityId: ctx.opportunityId,
+          serviceId: service.id,
+          professionalId: slot.professionalId,
+          roomResourceId: slot.roomResourceId,
+          startsAt: slot.startsAt,
+        },
+        fo,
+      )
+      p.onSuccess({
+        ...base,
+        kind: 'signal',
+        notice: created.whatsappSendError ? 'failed' : 'sent',
+        noticeDetail: created.whatsappSendError ?? undefined,
+      })
+    })
+
+  const signalBlocked = !ctx.conversationId
+    ? 'Para enviar o sinal, abra o Agendar a partir da conversa.'
+    : !p.canCreateCharge
+      ? 'Conta Pix desconectada. A responsável liga o recebimento em Clínica → Recebimento.'
+      : null
+
+  const rows: Array<[string, string]> = [
+    ['Paciente', p.contact?.name || p.contact?.phone || 'Sem contato vinculado'],
+    ['Serviço', base.serviceLabel],
+    ['Profissional', slot.professionalName],
+    ['Quando', whenLong],
+  ]
+  if (slot.roomResourceName) rows.push(['Sala', slot.roomResourceName])
+  if (service.priceCents != null) rows.push(['Valor', formatBrl(service.priceCents)])
+
+  return (
+    <ModalOverlay isOpen={p.isOpen} onOpenChange={(v) => !busy && p.onOpenChange(v)} isDismissable={!busy} className="panel-overlay">
+      <Modal className="panel-choice-modal">
+        <Dialog className="panel-sheet agd-sheet" aria-labelledby="agd-review-title">
+          <span className="panel-sheet-handle" aria-hidden="true" />
+          <Heading slot="title" id="agd-review-title" className="panel-title">
+            {p.requiresSignal ? 'Sinal por Pix' : 'Revisar agendamento'}
+          </Heading>
+          <div className="agd-sheet-body">
+            {err ? (
+              <div className="agd-banner" role="alert">
+                <TriangleAlert aria-hidden size={20} strokeWidth={2} />
+                <span>{err}</span>
+              </div>
+            ) : null}
+
+            {p.requiresSignal && p.amountCents != null ? (
+              <>
+                <div className="agd-signal">
+                  <div>
+                    <span className="agd-signal-meta">Sinal · {service.name} · {slot.professionalName}</span>
+                    <strong className="agd-signal-amount">{formatBrl(p.amountCents)}</strong>
+                  </div>
+                  <div className="agd-signal-side">
+                    <span>{whenShort}</span>
+                    <span>prazo {formatDeadline(p.deadlineSeconds)}</span>
+                  </div>
+                </div>
+                <div className="agd-warn" role="note">
+                  <Clock aria-hidden size={20} strokeWidth={2} />
+                  <div>
+                    <strong>Horário só é reservado após o pagamento</strong>
+                    <span>Até lá ele continua livre para outras pessoas.</span>
+                  </div>
+                </div>
+                <p className="panel-meta">A mensagem com o código Pix é enviada pelo Tredane na conversa.</p>
+                {signalBlocked ? <p className="agd-note" role="note">{signalBlocked}</p> : null}
+                <Button className="panel-btn panel-btn-primary agd-btn" isDisabled={busy || Boolean(signalBlocked)} onPress={() => void sendSignal()}>
+                  {busy && !waiveOpen ? 'Enviando sinal…' : `Enviar sinal de ${formatBrl(p.amountCents)}`}
+                </Button>
+                <Button
+                  className="panel-btn panel-btn-secondary agd-btn"
+                  aria-expanded={waiveOpen}
+                  isDisabled={busy}
+                  onPress={() => {
+                    setWaiveOpen((v) => !v)
+                    setClientRequestId(crypto.randomUUID())
+                  }}
+                >
+                  Confirmar sem sinal
+                </Button>
+                {waiveOpen ? (
+                  <div className="agd-waive">
+                    <span id="agd-waive-label" className="agd-field-label">Motivo para confirmar sem sinal (obrigatório)</span>
+                    <div className="agd-pills" role="group" aria-labelledby="agd-waive-label">
+                      {WAIVE_REASONS.map((r) => (
+                        <button key={r} type="button" className="agd-pill" aria-pressed={waiveChip === r} onClick={() => setWaiveChip(r)}>
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                    {waiveChip === 'Outro' ? (
+                      <TextField className="panel-field" value={waiveOther} onChange={setWaiveOther} isRequired autoFocus>
+                        <Label>Qual o motivo?</Label>
+                        <Input autoComplete="off" />
+                      </TextField>
+                    ) : null}
+                    <NoticeField
+                      canNotify={canNotify}
+                      hasConversation={Boolean(ctx.conversationId)}
+                      notify={notify}
+                      setNotify={setNotify}
+                      message={message}
+                      setMessage={setMessage}
+                    />
+                    <Button className="panel-btn panel-btn-primary agd-btn" isDisabled={busy || !waiveReason} onPress={() => void confirmWithoutSignal()}>
+                      {busy ? 'Confirmando…' : 'Confirmar sem sinal'}
+                    </Button>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <dl className="agd-table">
+                  {rows.map(([k, v]) => (
+                    <div key={k} className="agd-table-row">
+                      <dt>{k}</dt>
+                      <dd>{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <NoticeField
+                  canNotify={canNotify}
+                  hasConversation={Boolean(ctx.conversationId)}
+                  notify={notify}
+                  setNotify={setNotify}
+                  message={message}
+                  setMessage={setMessage}
+                />
+                <Button className="panel-btn panel-btn-primary agd-btn" isDisabled={busy || (notify && !message.trim())} onPress={() => void confirm()}>
+                  {busy ? 'Confirmando…' : p.paidSignalMode ? 'Confirmar com sinal pago' : notify ? 'Confirmar e enviar' : 'Confirmar agendamento'}
+                </Button>
+              </>
+            )}
+            <Button className="panel-btn panel-btn-ghost agd-btn" slot="close" isDisabled={busy}>
+              Voltar e alterar
             </Button>
           </div>
-        </div>
-      ) : (
-        <div className="panel-footer" style={{ flexDirection: 'column', gap: 8 }}>
-          <Button
-            className="panel-btn-primary"
-            isDisabled={
-              !selected
-              || confirming
-              || (!paidSignalMode
-                && requiresSignal
-                && (!canCreateCharge || !scheduleCtx.conversationId))
-            }
-            onPress={() =>
-              void (
-                paidSignalMode
-                  ? handleConfirm()
-                  : requiresSignal
-                    ? handleSendSignal()
-                    : handleConfirm()
-              )
-            }
-          >
-            {confirming
-              ? paidSignalMode
-                ? 'A confirmar…'
-                : requiresSignal
-                  ? 'A enviar sinal…'
-                  : 'A confirmar…'
-              : confirmLabel}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  )
+}
+
+function NoticeField(p: {
+  canNotify: boolean
+  hasConversation: boolean
+  notify: boolean
+  setNotify: (v: boolean) => void
+  message: string
+  setMessage: (v: string) => void
+}) {
+  if (!p.canNotify) {
+    return (
+      <p className="agd-note" role="note">
+        {p.hasConversation
+          ? 'Aviso pelo WhatsApp indisponível: a janela de 24 h está fechada. Fora dela só um modelo aprovado pode ser enviado.'
+          : 'Sem conversa vinculada: o aviso pelo WhatsApp não será enviado.'}
+      </p>
+    )
+  }
+  return (
+    <div className="agd-notice">
+      <label className="agd-check">
+        <input type="checkbox" checked={p.notify} onChange={(e) => p.setNotify(e.target.checked)} />
+        <span>Enviar confirmação à paciente pelo WhatsApp</span>
+      </label>
+      {p.notify ? (
+        <TextField className="panel-field" value={p.message} onChange={p.setMessage}>
+          <Label>Mensagem para a paciente (WhatsApp)</Label>
+          <TextArea className="agd-textarea" rows={4} />
+          <span className="panel-field-hint">Enviada ao confirmar. Você pode editar o texto.</span>
+        </TextField>
+      ) : null}
+    </div>
+  )
+}
+
+function AgendarSuccess(props: {
+  success: Success
+  contact: Contact | null
+  hasConversation: boolean
+  onConversation: () => void
+  onAgenda: () => void
+}) {
+  const { success } = props
+  const ref = useRef<HTMLHeadingElement | null>(null)
+  useEffect(() => ref.current?.focus(), [])
+  const title =
+    success.kind === 'signal'
+      ? 'Sinal enviado'
+      : success.kind === 'waived'
+        ? 'Horário agendado sem sinal'
+        : 'Horário agendado'
+  const noticeText: Record<NoticeStatus, string> = {
+    sent: success.kind === 'signal' ? 'Cobrança enviada' : 'Mensagem enviada',
+    failed: 'Não enviada',
+    off: 'Não enviada (desligado)',
+    unavailable: 'Não enviada',
+  }
+  return (
+    <div className="agd agd-success" data-screen="m04-agendar-sucesso">
+      <div className="panel-scroll agd-success-body">
+        <span className="agd-success-icon" aria-hidden="true">
+          <Check size={32} strokeWidth={2.4} />
+        </span>
+        <h1 className="panel-title-lg" tabIndex={-1} ref={ref}>
+          {title}
+        </h1>
+        {props.contact ? (
+          <p className="panel-subtitle">{[props.contact.name, props.contact.phone].filter(Boolean).join(' · ')}</p>
+        ) : null}
+        {success.kind === 'signal' ? (
+          <p className="agd-note" role="note">O horário só é reservado quando o Pix for pago.</p>
+        ) : null}
+        <dl className="agd-table">
+          <div className="agd-table-row"><dt>Serviço</dt><dd>{success.serviceLabel}</dd></div>
+          <div className="agd-table-row"><dt>Profissional</dt><dd>{success.professionalName}</dd></div>
+          <div className="agd-table-row"><dt>Quando</dt><dd>{success.whenLabel}</dd></div>
+          <div className="agd-table-row">
+            <dt>WhatsApp</dt>
+            <dd data-notice={success.notice} role={success.notice === 'failed' ? 'alert' : undefined}>
+              {success.notice === 'sent' ? <CheckCheck aria-hidden size={16} strokeWidth={2} /> : null}
+              {noticeText[success.notice]}
+            </dd>
+          </div>
+        </dl>
+        {success.notice === 'failed' && success.noticeDetail ? (
+          <p className="panel-meta">{success.noticeDetail} O compromisso continua confirmado.</p>
+        ) : null}
+      </div>
+      <footer className="panel-footer agd-footer">
+        {props.hasConversation ? (
+          <Button className="panel-btn panel-btn-primary agd-btn" onPress={props.onConversation}>
+            Voltar à conversa
           </Button>
-          {requiresSignal && !paidSignalMode ? (
-            <Button
-              className="panel-btn-secondary"
-              isDisabled={!selected || confirming}
-              onPress={() => {
-                setWaiveOpen(true)
-                setClientRequestId(crypto.randomUUID())
-                setWaiveReason('')
-              }}
-            >
-              Confirmar sem sinal
-            </Button>
-          ) : null}
-        </div>
-      )}
+        ) : null}
+        <Button
+          className={`panel-btn ${props.hasConversation ? 'panel-btn-secondary' : 'panel-btn-primary'} agd-btn`}
+          onPress={props.onAgenda}
+        >
+          Ver na agenda
+        </Button>
+      </footer>
     </div>
   )
 }
