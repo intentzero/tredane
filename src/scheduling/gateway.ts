@@ -19,13 +19,11 @@ import type {
   ConfirmAppointmentInput,
   RescheduleAppointmentInput,
   CreateHoldInput,
-  ResolveHoldInput,
-  CancelHoldInput,
+  CreateHoldResult,
   HoldPreviewInput,
   HoldPreviewResult,
   HoldMutationResult,
   ListHoldsInput,
-  HoldAlert,
   ScheduleHoldView,
 } from '../clinic/scheduling'
 
@@ -62,21 +60,8 @@ export type SchedulingGateway = {
   createHold(
     caller: ClinicCaller,
     input: CreateHoldInput,
-  ): Promise<HoldMutationResult<ScheduleHoldView>>
-  resolveHold(
-    caller: ClinicCaller,
-    input: ResolveHoldInput,
-  ): Promise<HoldMutationResult<{ hold: ScheduleHoldView; appointment: AppointmentDetail }>>
-  cancelHold(
-    caller: ClinicCaller,
-    input: CancelHoldInput,
-  ): Promise<HoldMutationResult<ScheduleHoldView>>
+  ): Promise<HoldMutationResult<CreateHoldResult>>
   listHolds(caller: ClinicCaller, input: ListHoldsInput): Promise<ScheduleHoldView[]>
-  listHoldAlerts(caller: ClinicCaller): Promise<HoldAlert[]>
-  dismissHoldAlert(
-    caller: ClinicCaller,
-    input: { holdId: string; actorClerkUserId: string },
-  ): Promise<HoldMutationResult<ScheduleHoldView>>
 }
 
 export function createMemorySchedulingGateway(
@@ -108,32 +93,16 @@ export function createMemorySchedulingGateway(
       )
     },
     async queryAgenda(caller, input) {
-      clinicScheduling.sweepExpiredHoldsOp(db, caller, clock)
       return clinicScheduling.queryAgendaViewOp(db, caller, input, clock)
     },
     async previewHold(caller, input) {
       return clinicScheduling.previewHoldOp(db, caller, input, clock)
     },
     async createHold(caller, input) {
-      clinicScheduling.sweepExpiredHoldsOp(db, caller, clock)
       return clinicScheduling.createHoldOp(db, caller, input, clock)
     },
-    async resolveHold(caller, input) {
-      return clinicScheduling.resolveHoldOp(db, caller, input, clock)
-    },
-    async cancelHold(caller, input) {
-      return clinicScheduling.cancelHoldOp(db, caller, input, clock)
-    },
     async listHolds(caller, input) {
-      clinicScheduling.sweepExpiredHoldsOp(db, caller, clock)
       return clinicScheduling.listHoldsOp(db, caller, input, clock)
-    },
-    async listHoldAlerts(caller) {
-      clinicScheduling.sweepExpiredHoldsOp(db, caller, clock)
-      return clinicScheduling.listHoldAlertsOp(db, caller, clock)
-    },
-    async dismissHoldAlert(caller, input) {
-      return clinicScheduling.dismissHoldAlertOp(db, caller, input, clock)
     },
   }
 }

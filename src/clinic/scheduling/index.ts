@@ -53,14 +53,7 @@ export type {
 export {
   previewHoldOp,
   createHoldOp,
-  resolveHoldOp,
-  cancelHoldOp,
-  sweepExpiredHoldsOp,
-  nextHoldExpiryAt,
   listHoldsOp,
-  listHoldAlertsOp,
-  dismissHoldAlertOp,
-  cancelActiveHoldsInTransaction,
 } from './holds'
 export type {
   ScheduleHoldView,
@@ -68,8 +61,6 @@ export type {
   HoldPreviewInput,
   HoldPreviewResult,
   CreateHoldInput,
-  ResolveHoldInput,
-  CancelHoldInput,
+  CreateHoldResult,
   ListHoldsInput,
-  HoldAlert,
 } from './holds'

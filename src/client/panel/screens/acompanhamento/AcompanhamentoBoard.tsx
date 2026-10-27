@@ -1,4 +1,4 @@
-import { CalendarClock, CircleAlert, TriangleAlert } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button, Tab, TabList, Tabs } from 'react-aria-components'
 import type {
@@ -6,11 +6,8 @@ import type {
   PanelApi,
   PipelineOpportunity,
   PipelineStageCount,
-  ScheduleHold,
-  ScheduleHoldAlert,
 } from '../../api'
-import { DefinirHoraSheet } from '../holds/DefinirHoraSheet'
-import { durationLabel, periodChip, shortDay, startsInLabel } from '../holds/holdFormat'
+import { useClinicTimezone } from '../../clinicTimezone'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
 import { EmptyState, ErrorState } from '../../states/StatusScreens'
@@ -25,8 +22,6 @@ import {
 import { MoveSheet } from './MoveSheet'
 import { friendlyError } from '../../copy/errors'
 import { ListSkeleton } from '../../states/ListSkeleton'
-
-const HOLD_TZ = 'America/Sao_Paulo'
 
 type Props = {
   tenantId: string
@@ -44,35 +39,8 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
   const [movingCard, setMovingCard] = useState<PipelineOpportunity | null>(null)
   const [moveBusy, setMoveBusy] = useState(false)
   const [moveError, setMoveError] = useState<string | null>(null)
-  const [alerts, setAlerts] = useState<ScheduleHoldAlert[]>([])
-  const [defineHold, setDefineHold] = useState<ScheduleHold | null>(null)
-  const [holdBusy, setHoldBusy] = useState(false)
-
-  async function loadAlerts() {
-    try {
-      const res = await api.listHoldAlerts(tenantId, { generation, expectGeneration: () => generation })
-      // Aviso vai para a recepcionista responsável pelo bloco (ou todas, se não houver).
-      setAlerts(
-        res.alerts.filter(
-          (a) => a.hold.responsibleClerkUserId == null || a.hold.responsibleClerkUserId === res.viewerClerkUserId,
-        ),
-      )
-    } catch {
-      setAlerts([])
-    }
-  }
-
-  async function dismissAlert(hold: ScheduleHold) {
-    setHoldBusy(true)
-    try {
-      await api.dismissHoldAlert(tenantId, hold.id, { generation, expectGeneration: () => generation })
-      await Promise.all([loadAlerts(), load({ keep: true })])
-    } catch (err) {
-      setMoveError(friendlyError(err, 'Não foi possível dispensar o aviso.'))
-    } finally {
-      setHoldBusy(false)
-    }
-  }
+  // Datas no fuso da clínica (Agenda → Horários).
+  useClinicTimezone(api, tenantId, generation)
 
   async function load(opts?: { keep?: boolean }) {
     if (!opts?.keep) setLoading(true)
@@ -96,10 +64,6 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
   useEffect(() => {
     void load()
   }, [tenantId, generation, stage])
-
-  useEffect(() => {
-    void loadAlerts()
-  }, [tenantId, generation])
 
   async function seedDemo() {
     setSeeding(true)
@@ -190,35 +154,6 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
         </Tabs>
       </header>
 
-      {alerts.length > 0 ? (
-        <div className="acomp-hold-alert" role="alert">
-          {(() => {
-            const soon = alerts.filter((a) => a.kind === 'starts_soon').length
-            const expired = alerts.filter((a) => a.kind === 'expired').length
-            return (
-              <>
-                {soon > 0 ? (
-                  <strong>
-                    {soon === 1 ? '1 bloco começa' : `${soon} blocos começam`} em menos de 48 h
-                  </strong>
-                ) : null}
-                {expired > 0 ? (
-                  <strong>
-                    {expired === 1 ? '1 bloco passou' : `${expired} blocos passaram`} sem hora definida
-                  </strong>
-                ) : null}
-                <span>Defina a hora e avise as pacientes.</span>
-                {stage !== 'a_definir' ? (
-                  <button type="button" className="hold-link" onClick={() => setStage('a_definir')}>
-                    Ver «A definir»
-                  </button>
-                ) : null}
-              </>
-            )
-          })()}
-        </div>
-      ) : null}
-
       {moveError ? (
         <p className="acomp-banner-error" role="alert">
           {moveError}
@@ -288,15 +223,6 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
                   </Button>
                 </div>
                 <span className="panel-meta">{meta}</span>
-                {card.openHold ? (
-                  <HoldChips
-                    hold={card.openHold}
-                    alert={alerts.find((a) => a.hold.id === card.openHold?.id) ?? null}
-                    busy={holdBusy}
-                    onDefine={() => setDefineHold(card.openHold ?? null)}
-                    onDismiss={() => card.openHold && void dismissAlert(card.openHold)}
-                  />
-                ) : null}
                 {card.missingAppointment ? (
                   <span className="acomp-warn">
                     <CircleAlert aria-hidden size={14} strokeWidth={2.4} />
@@ -308,20 +234,6 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
           })
         )}
       </div>
-
-      <DefinirHoraSheet
-        open={defineHold != null}
-        tenantId={tenantId}
-        api={api}
-        generation={generation}
-        hold={defineHold}
-        timezone={HOLD_TZ}
-        onClose={() => setDefineHold(null)}
-        onDone={() => {
-          void load({ keep: true })
-          void loadAlerts()
-        }}
-      />
 
       <MoveSheet
         open={movingCard !== null}
@@ -337,53 +249,6 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
         }}
         onMove={(to) => void handleMove(to)}
       />
-    </div>
-  )
-}
-
-function HoldChips({
-  hold,
-  alert,
-  busy,
-  onDefine,
-  onDismiss,
-}: {
-  hold: ScheduleHold
-  alert: ScheduleHoldAlert | null
-  busy: boolean
-  onDefine: () => void
-  onDismiss: () => void
-}) {
-  const now = Date.now()
-  return (
-    <div className="acomp-hold">
-      <span className="panel-meta">
-        {hold.serviceName} · {durationLabel(hold.durationMinutes)} · {hold.professionalName}
-      </span>
-      <div className="acomp-hold-chips">
-        <span className="acomp-hold-chip">
-          <CalendarClock aria-hidden size={14} strokeWidth={2.2} />
-          {shortDay(hold.windowStartsAt, HOLD_TZ)} · {periodChip(hold.windowStartsAt, hold.windowEndsAt, HOLD_TZ)}
-        </span>
-        {alert ? (
-          <span className="acomp-hold-chip acomp-hold-chip--alert">
-            <TriangleAlert aria-hidden size={14} strokeWidth={2.2} />
-            {startsInLabel(hold.windowStartsAt, hold.windowEndsAt, now)}
-          </span>
-        ) : null}
-      </div>
-      <div className="clinic-actions">
-        {hold.status === 'active' ? (
-          <Button className="panel-btn-secondary panel-btn-compact" isDisabled={busy} onPress={onDefine}>
-            Definir hora
-          </Button>
-        ) : null}
-        {hold.status === 'expired' && alert ? (
-          <Button className="panel-btn-ghost panel-btn-compact" isDisabled={busy} onPress={onDismiss}>
-            Dispensar aviso
-          </Button>
-        ) : null}
-      </div>
     </div>
   )
 }

@@ -7,7 +7,7 @@ export function formatPhone(display: string | null | undefined): string {
   return display
 }
 
-const CLINIC_TZ = 'America/Sao_Paulo'
+import { getClinicTimezone } from '../../../clinicTimezone'
 
 /** «27/10 às 12:35»; com o ano quando não é o ano atual. */
 export function formatWhen(
@@ -23,13 +23,13 @@ export function formatWhen(
       hour: '2-digit',
       minute: '2-digit',
       hourCycle: 'h23',
-      timeZone: CLINIC_TZ,
+      timeZone: getClinicTimezone(),
     }).formatToParts(new Date(ms))
     const get = (t: Intl.DateTimeFormatPartTypes) =>
       parts.find((p) => p.type === t)?.value ?? ''
     const thisYear = new Intl.DateTimeFormat('pt-BR', {
       year: 'numeric',
-      timeZone: CLINIC_TZ,
+      timeZone: getClinicTimezone(),
     }).format(new Date(now))
     const date = `${get('day')}/${get('month')}${get('year') === thisYear ? '' : `/${get('year')}`}`
     return `${date} às ${get('hour')}:${get('minute')}`

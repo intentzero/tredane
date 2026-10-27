@@ -1,5 +1,5 @@
 /** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#43). */
-export const CLINIC_SCHEMA_VERSION = 17
+export const CLINIC_SCHEMA_VERSION = 18
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -20,6 +20,7 @@ export const CLINIC_MIGRATION_NAMES = {
   15: '0015_contact_retention',
   16: '0016_schedule_holds',
   17: '0017_ai_assist_opt_in',
+  18: '0018_holds_require_time',
 } as const
 
 /** Estados de sugestão IA (#41 / ADR-0004). */
@@ -187,7 +188,6 @@ export type WhatsappChannelStatus = (typeof WHATSAPP_CHANNEL_STATUSES)[number]
 export const OPPORTUNITY_STAGES = [
   'novo_contato',
   'em_atendimento',
-  'a_definir',
   'horario_proposto',
   'agendado',
   'concluido',
@@ -210,7 +210,6 @@ export type OpportunityStatus = (typeof OPPORTUNITY_STATUSES)[number]
 export const OPPORTUNITY_STAGE_LABELS: Record<OpportunityStage, string> = {
   novo_contato: 'Novo contato',
   em_atendimento: 'Em atendimento',
-  a_definir: 'A definir',
   horario_proposto: 'Horário proposto',
   agendado: 'Agendado',
   concluido: 'Concluído',
@@ -219,8 +218,8 @@ export const OPPORTUNITY_STAGE_LABELS: Record<OpportunityStage, string> = {
 
 /**
  * Reserva por bloco (DEC do fundador 27/10/2026): período reservado na agenda
- * de uma profissional, ocupando só a duração definida pela atendente, até a
- * hora exata ser definida.
+ * de uma profissional, sempre com hora definida na criação (migração 17); o
+ * compromisso ocupa a duração do bloco.
  */
 export const SCHEDULE_HOLD_STATUSES = [
   'active',
@@ -231,8 +230,6 @@ export const SCHEDULE_HOLD_STATUSES = [
 
 export type ScheduleHoldStatus = (typeof SCHEDULE_HOLD_STATUSES)[number]
 
-/** Aviso in-app à responsável quando o bloco começa em menos de 48 h. */
-export const SCHEDULE_HOLD_ALERT_LEAD_MS = 48 * 60 * 60 * 1000
 
 /** Estados de conversa (Proposto em states.md; implementação #29). */
 export const CONVERSATION_STATUSES = ['new', 'open', 'closed'] as const

@@ -32,6 +32,8 @@ export type AvailabilityQueryInput = {
   professionalId?: string | null
   /** Definir hora de um bloco: o próprio bloco não conta como conflito. */
   excludeHoldId?: string | null
+  /** Reserva por bloco: o compromisso ocupa a duração do bloco, não a do serviço. */
+  durationMinutesOverride?: number | null
 }
 
 export type AvailableSlot = {
@@ -76,6 +78,8 @@ export type CheckSlotInput = {
   excludeAppointmentId?: string | null
   /** Definir hora de um bloco: o próprio bloco não conta como conflito. */
   excludeHoldId?: string | null
+  /** Reserva por bloco: o compromisso ocupa a duração do bloco, não a do serviço. */
+  durationMinutesOverride?: number | null
 }
 
 export type CheckSlotResult = {

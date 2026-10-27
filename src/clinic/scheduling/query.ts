@@ -125,7 +125,8 @@ export function queryAvailability(
     )
   }
 
-  const occMins = occupiedMinutes(service.durationMinutes, service.bufferMinutes)
+  const durationMinutes = input.durationMinutesOverride ?? service.durationMinutes
+  const occMins = occupiedMinutes(durationMinutes, service.bufferMinutes)
   const { dayStartsAt, dayEndsAt, civil } = clinicDayBounds(timezone, input.date)
   const dayOfWeek = clinicDayOfWeek(timezone, dayStartsAt)
 
@@ -134,7 +135,7 @@ export function queryAvailability(
     timezone,
     serviceId: service.id,
     serviceName: service.name,
-    durationMinutes: service.durationMinutes,
+    durationMinutes,
     bufferMinutes: service.bufferMinutes,
     occupiedMinutes: occMins,
     date: input.date,
@@ -196,7 +197,7 @@ export function queryAvailability(
 
   for (const startMinute of candidateStarts) {
     const startsAt = slotStartUtc(timezone, civil, startMinute)
-    const endsAt = startsAt + service.durationMinutes * 60_000
+    const endsAt = startsAt + durationMinutes * 60_000
     const occupiesUntil = startsAt + occMins * 60_000
     const range = { startsAt, endsAt: occupiesUntil }
 

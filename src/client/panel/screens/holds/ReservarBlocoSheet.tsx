@@ -1,17 +1,17 @@
 import { Minus, Plus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
-import type { ClinicConfigSnapshot, PanelApi, ScheduleHold } from '../../api'
+import type { AvailabilitySlot, ClinicConfigSnapshot, PanelApi } from '../../api'
+import { setClinicTimezone } from '../../clinicTimezone'
 import { friendlyError } from '../../copy/errors'
 import { formatLongDate, upcomingCivilDates } from '../agenda/format'
 import {
   DURATION_PRESETS,
   PERIOD_PRESETS,
   civilMinuteToEpoch,
-  defaultConfirmBy,
   durationLabel,
   firstName,
-  holdReservedMessage,
+  holdConfirmedMessage,
   hourLabel,
   type PeriodPreset,
 } from './holdFormat'
@@ -27,13 +27,23 @@ type Props = {
   contactName: string | null
   windowOpen: boolean
   onClose: () => void
-  /** Bloco criado; `message` é o texto a enviar (ou null se não for enviar). */
-  onReserved: (hold: ScheduleHold, message: string | null) => Promise<void> | void
+  /** Reservado com hora; `message` é o texto a enviar (ou null se não for enviar). */
+  onReserved: (message: string | null) => Promise<void> | void
 }
 
 const HALF_HOURS = Array.from({ length: 33 }, (_, i) => 6 * 60 + i * 30) // 6h–22h
 
-/** Design 02 — «Reservar bloco»: dia + período + profissional + duração. */
+/**
+ * Design 02 — «Reservar bloco»: dia + período + procedimento + profissional +
+ * duração e, obrigatoriamente, um horário livre dentro do período. O
+ * compromisso ocupa a duração do bloco (decisão de 27/10/2026).
+ */
+function slotTime(ms: number, timeZone: string): string {
+  return new Intl.DateTimeFormat('pt-BR', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(
+    new Date(ms),
+  )
+}
+
 export function ReservarBlocoSheet(props: Props) {
   const { open, tenantId, api, generation, conversationId, contactName, windowOpen, onClose, onReserved } = props
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
@@ -48,7 +58,8 @@ export function ReservarBlocoSheet(props: Props) {
   const [message, setMessage] = useState('')
   const [messageEdited, setMessageEdited] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [preview, setPreview] = useState<{ freeMinutes: number; fits: boolean } | null>(null)
+  const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
+  const [slotStartsAt, setSlotStartsAt] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const requestId = useRef(`client:${crypto.randomUUID()}`)
   const sheetStyle = useVisualViewportSheet(open)
@@ -65,6 +76,7 @@ export function ReservarBlocoSheet(props: Props) {
       .then((snap) => {
         if (cancelled) return
         setConfig(snap)
+        setClinicTimezone(tenantId, snap.settings.timezone)
         const svc = snap.services.find((s) => s.active)
         setServiceId((prev) => prev || svc?.id || '')
         setDate((prev) => prev || upcomingCivilDates(snap.settings.timezone, Date.now(), 2)[1]!)
@@ -107,58 +119,70 @@ export function ReservarBlocoSheet(props: Props) {
     }
   }, [date, period, customStart, customEnd, tz])
 
-  const confirmBy = win && date ? defaultConfirmBy(date, win.startsAt, tz, Date.now()) : null
   const durationValid = duration >= 15 && duration % 15 === 0 && (!win || duration <= win.minutes)
+  const slot = (slots ?? []).find((x) => x.startsAt === slotStartsAt) ?? null
 
+  // Horários livres para a DURAÇÃO DO BLOCO, só da profissional e dentro do período.
   useEffect(() => {
-    if (messageEdited || !win || !service || !professional) return
-    setMessage(
-      holdReservedMessage({
-        contactName,
-        serviceName: service.name,
-        professionalName: professional.name,
-        windowStartsAt: win.startsAt,
-        windowEndsAt: win.endsAt,
-        confirmBy,
-        timeZone: tz,
-      }),
-    )
-  }, [messageEdited, win, service, professional, contactName, confirmBy, tz])
-
-  useEffect(() => {
-    setPreview(null)
-    if (!open || !win || !professionalId || !durationValid) return
+    setSlots(null)
+    setSlotStartsAt(null)
+    if (!open || !win || !date || !service || !professionalId || !durationValid) return
     let cancelled = false
     const t = setTimeout(() => {
       api
-        .previewHold(
+        .queryAvailability(
           tenantId,
-          { professionalId, windowStartsAt: win.startsAt, windowEndsAt: win.endsAt, durationMinutes: duration },
+          { serviceId: service.id, date, professionalId, durationMinutes: duration },
           { generation, expectGeneration: () => generation },
         )
-        .then((p) => {
-          if (!cancelled) setPreview(p)
+        .then((res) => {
+          if (cancelled) return
+          setSlots(
+            res.slots.filter(
+              (x) => x.professionalId === professionalId && x.startsAt >= win.startsAt && x.endsAt <= win.endsAt,
+            ),
+          )
         })
-        .catch(() => {
-          if (!cancelled) setPreview(null)
+        .catch((err) => {
+          if (cancelled) return
+          setSlots([])
+          setError(friendlyError(err, 'Não conseguimos carregar os horários livres.'))
         })
     }, 200)
     return () => {
       cancelled = true
       clearTimeout(t)
     }
-  }, [open, api, tenantId, generation, win, professionalId, duration, durationValid])
+  }, [open, api, tenantId, generation, win, date, service, professionalId, duration, durationValid])
+
+  useEffect(() => {
+    if (messageEdited) return
+    if (!slot || !service || !professional) {
+      setMessage('')
+      return
+    }
+    setMessage(
+      holdConfirmedMessage({
+        contactName,
+        serviceName: service.name,
+        professionalName: professional.name,
+        startsAt: slot.startsAt,
+        endsAt: slot.endsAt,
+        timeZone: tz,
+        roomName: slot.roomResourceName,
+      }),
+    )
+  }, [messageEdited, slot, service, professional, contactName, tz])
 
   const days = config ? upcomingCivilDates(tz, Date.now(), 21) : []
-  const periodWord = period === 'manha' ? 'nessa manhã' : period === 'tarde' ? 'nessa tarde' : 'nesse período'
-  const canSubmit = !!win && !!service && !!professional && durationValid && !busy && preview?.fits !== false
+  const canSubmit = !!win && !!service && !!professional && durationValid && !!slot && !busy
 
   async function submit() {
-    if (!win || !service || !professional) return
+    if (!win || !service || !professional || !slot) return
     setBusy(true)
     setError(null)
     try {
-      const res = await api.createHold(
+      await api.createHold(
         tenantId,
         {
           clientRequestId: requestId.current,
@@ -168,14 +192,15 @@ export function ReservarBlocoSheet(props: Props) {
           windowStartsAt: win.startsAt,
           windowEndsAt: win.endsAt,
           durationMinutes: duration,
-          confirmBy,
+          startsAt: slot.startsAt,
+          roomResourceId: slot.roomResourceId,
         },
         { generation, expectGeneration: () => generation },
       )
-      await onReserved(res.hold, windowOpen && message.trim() ? message.trim() : null)
+      await onReserved(windowOpen && message.trim() ? message.trim() : null)
       onClose()
     } catch (err) {
-      setError(friendlyError(err, 'Não foi possível reservar o bloco.'))
+      setError(friendlyError(err, 'Não foi possível reservar. Escolha outro horário.'))
     } finally {
       setBusy(false)
     }
@@ -205,7 +230,7 @@ export function ReservarBlocoSheet(props: Props) {
             </Button>
           </div>
           <p className="panel-subtitle hold-sheet-sub">
-            O período fica reservado na agenda da profissional até a hora ser definida.
+            Escolha o período e um horário livre: o atendimento ocupa a duração do bloco na agenda.
           </p>
 
           {!config && !error ? <p className="panel-meta">Carregando…</p> : null}
@@ -327,6 +352,34 @@ export function ReservarBlocoSheet(props: Props) {
                 ) : null}
               </div>
 
+              <div className="hold-group" role="group" aria-label="Horário">
+                <span className="hold-label">Horário (obrigatório)</span>
+                {!professional ? (
+                  <p className="panel-meta">Escolha a profissional para ver os horários livres.</p>
+                ) : slots == null ? (
+                  <p className="panel-meta">Carregando horários livres…</p>
+                ) : slots.length === 0 ? (
+                  <span className="hold-warn">
+                    {professional.name} não tem {durationLabel(duration)} livres neste período. Escolha outro dia ou período.
+                  </span>
+                ) : (
+                  <div className="hold-options hold-grid-4">
+                    {slots.map((x) => (
+                      <button
+                        key={x.startsAt}
+                        type="button"
+                        className="hold-option"
+                        aria-pressed={slotStartsAt === x.startsAt}
+                        aria-label={`${slotTime(x.startsAt, tz)} até ${slotTime(x.endsAt, tz)}`}
+                        onClick={() => setSlotStartsAt(x.startsAt)}
+                      >
+                        {slotTime(x.startsAt, tz)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="hold-group">
                 <span className="hold-label">Mensagem que a paciente vai receber</span>
                 {editing ? (
@@ -343,15 +396,17 @@ export function ReservarBlocoSheet(props: Props) {
                   />
                 ) : (
                   <div className="hold-message">
-                    <p>{message}</p>
-                    <button type="button" className="hold-link" onClick={() => setEditing(true)}>
-                      Editar texto
-                    </button>
+                    <p>{message || 'Escolha um horário para ver a mensagem.'}</p>
+                    {message ? (
+                      <button type="button" className="hold-link" onClick={() => setEditing(true)}>
+                        Editar texto
+                      </button>
+                    ) : null}
                   </div>
                 )}
                 {!windowOpen ? (
                   <span className="hold-warn">
-                    Passaram 24 h desde a última mensagem da paciente: o bloco é reservado, mas a mensagem não vai.
+                    Passaram 24 h desde a última mensagem da paciente: o horário é reservado, mas a mensagem não vai.
                     Copie o texto ou use um modelo aprovado.
                   </span>
                 ) : null}
@@ -367,13 +422,14 @@ export function ReservarBlocoSheet(props: Props) {
           ) : null}
 
           <Button className="panel-btn-primary" isDisabled={!canSubmit} onPress={() => void submit()}>
-            {busy ? 'Reservando…' : windowOpen ? 'Reservar e avisar paciente' : 'Reservar bloco'}
+            {busy ? 'Reservando…' : windowOpen ? 'Reservar e avisar paciente' : 'Reservar horário'}
           </Button>
-          {preview && professional ? (
-            <p className={`hold-foot${preview.fits ? '' : ' hold-foot--warn'}`} role="status">
-              {professional.name} tem {durationLabel(preview.freeMinutes)} livres {periodWord} ·{' '}
-              {preview.fits ? `cabe ${durationLabel(duration)}` : `não cabe ${durationLabel(duration)}`}
+          {slot && professional ? (
+            <p className="hold-foot" role="status">
+              {slotTime(slot.startsAt, tz)}–{slotTime(slot.endsAt, tz)} · {professional.name} · {durationLabel(duration)}
             </p>
+          ) : !slot && professional ? (
+            <p className="hold-foot" role="status">Escolha um horário para reservar.</p>
           ) : null}
           </div>
         </Dialog>

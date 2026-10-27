@@ -74,11 +74,9 @@ import type {
   CheckSlotInput,
   ConfirmAppointmentInput,
   CreateHoldInput,
-  CancelHoldInput,
   HoldPreviewInput,
   ListHoldsInput,
   RescheduleAppointmentInput,
-  ResolveHoldInput,
 } from '../clinic/scheduling'
 import type {
   CancelPaidWithSignalInput,
@@ -987,7 +985,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async listPipelineOpportunities(caller: ClinicCaller, input: ListOpportunitiesInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    await this.#sweepHolds(caller)
     return clinicPipeline.listOpportunitiesOp(this.#db, caller, input, this.#clock)
   }
 
@@ -1626,23 +1623,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async queryClinicAgenda(caller: ClinicCaller, input: AgendaViewInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    await this.#sweepHolds(caller)
     return clinicScheduling.queryAgendaViewOp(this.#db, caller, input, this.#clock)
-  }
-
-  /** Reserva por bloco — vence blocos cujo período passou e agenda o próximo. */
-  async #sweepHolds(caller: ClinicCaller): Promise<void> {
-    try {
-      const swept = clinicScheduling.sweepExpiredHoldsOp(this.#db, caller, this.#clock)
-      if (swept.outbox.length > 0) {
-        await this.#fanoutOutboxes(caller, swept.outbox, true)
-        await this.#drain(caller)
-      }
-      const next = clinicScheduling.nextHoldExpiryAt(this.#db, caller.tenantId)
-      if (next != null) await this.#scheduleAlarmNoLaterThan(next + 1_000)
-    } catch {
-      /* best-effort: leitura segue */
-    }
   }
 
   async #afterHoldMutation(caller: ClinicCaller, outbox: OutboxRow[]): Promise<void> {
@@ -1650,8 +1631,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#fanoutOutboxes(caller, outbox, true)
       await this.#drain(caller)
     }
-    const next = clinicScheduling.nextHoldExpiryAt(this.#db, caller.tenantId)
-    if (next != null) await this.#scheduleAlarmNoLaterThan(next + 1_000)
   }
 
   async previewClinicHold(caller: ClinicCaller, input: HoldPreviewInput) {
@@ -1663,24 +1642,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async createClinicHold(caller: ClinicCaller, input: CreateHoldInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    await this.#sweepHolds(caller)
     const result = clinicScheduling.createHoldOp(this.#db, caller, input, this.#clock)
-    await this.#afterHoldMutation(caller, result.outbox)
-    return result
-  }
-
-  async resolveClinicHold(caller: ClinicCaller, input: ResolveHoldInput) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    const result = clinicScheduling.resolveHoldOp(this.#db, caller, input, this.#clock)
-    await this.#afterHoldMutation(caller, result.outbox)
-    return result
-  }
-
-  async cancelClinicHold(caller: ClinicCaller, input: CancelHoldInput) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    const result = clinicScheduling.cancelHoldOp(this.#db, caller, input, this.#clock)
     await this.#afterHoldMutation(caller, result.outbox)
     return result
   }
@@ -1688,26 +1650,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async listClinicHolds(caller: ClinicCaller, input: ListHoldsInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    await this.#sweepHolds(caller)
     return clinicScheduling.listHoldsOp(this.#db, caller, input, this.#clock)
-  }
-
-  async listClinicHoldAlerts(caller: ClinicCaller) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    await this.#sweepHolds(caller)
-    return clinicScheduling.listHoldAlertsOp(this.#db, caller, this.#clock)
-  }
-
-  async dismissClinicHoldAlert(
-    caller: ClinicCaller,
-    input: { holdId: string; actorClerkUserId: string },
-  ) {
-    this.#ensureReady()
-    this.#assertInstanceTenant(caller)
-    const result = clinicScheduling.dismissHoldAlertOp(this.#db, caller, input, this.#clock)
-    await this.#afterHoldMutation(caller, result.outbox)
-    return result
   }
 
   /** Conta Pix + sinais (#37) + cobrança na conversa (#38). */
@@ -2222,7 +2165,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       /* best-effort: drain outbox mesmo assim */
     }
     const nextSweep = await this.#sweepStuckOutbound(caller)
-    await this.#sweepHolds(caller)
     await this.#drain(caller)
     if (nextSweep != null) await this.#scheduleAlarmNoLaterThan(nextSweep + 1_000)
   }

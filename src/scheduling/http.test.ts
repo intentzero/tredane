@@ -300,7 +300,7 @@ describe('HTTP — agendamento atómico (#36)', () => {
 })
 
 describe('HTTP — reserva por bloco', () => {
-  it('preview, reservar, alertas, definir hora; attendant pode; cross-tenant negado', async () => {
+  it('preview, horários pela duração do bloco, reservar com hora; rotas antigas removidas; cross-tenant negado', async () => {
     const { app, close, auth, getBoot } = testSchedulingApp()
     try {
       const seeded = await seedReadyClinic(app, auth)
@@ -327,6 +327,33 @@ describe('HTTP — reserva por bloco', () => {
       expect(preview.status).toBe(200)
       expect(await preview.json()).toMatchObject({ freeMinutes: 180, fits: true })
 
+      const avail = await app.request(
+        `${base}/availability?serviceId=${seeded.serviceId}&date=${MONDAY}&professionalId=${seeded.proId}&durationMinutes=90`,
+        auth('user_synth_attendant_a'),
+      )
+      expect(avail.status).toBe(200)
+      const ab = (await avail.json()) as {
+        durationMinutes: number
+        slots: Array<{ startsAt: number; endsAt: number; roomResourceId: string | null }>
+      }
+      expect(ab.durationMinutes).toBe(90)
+      const slot = ab.slots.find((x) => x.startsAt >= ws && x.endsAt <= we)!
+      expect(slot.endsAt - slot.startsAt).toBe(90 * 60_000)
+
+      const missingTime = await app.request(
+        `${base}/holds`,
+        auth('user_synth_attendant_a', json({
+          clientRequestId: 'hold-http-0',
+          conversationId: conv.id,
+          serviceId: seeded.serviceId,
+          professionalId: seeded.proId,
+          windowStartsAt: ws,
+          windowEndsAt: we,
+          durationMinutes: 90,
+        })),
+      )
+      expect(missingTime.status).toBe(400)
+
       const created = await app.request(
         `${base}/holds`,
         auth('user_synth_attendant_a', json({
@@ -336,54 +363,37 @@ describe('HTTP — reserva por bloco', () => {
           professionalId: seeded.proId,
           windowStartsAt: ws,
           windowEndsAt: we,
-          durationMinutes: 60,
+          durationMinutes: 90,
+          startsAt: slot.startsAt,
+          roomResourceId: slot.roomResourceId,
         })),
       )
       expect(created.status).toBe(201)
-      const { hold } = (await created.json()) as { hold: { id: string; status: string } }
-      expect(hold.status).toBe('active')
-
-      const noFit = await app.request(
-        `${base}/holds/preview`,
-        auth('user_synth_attendant_a', json({ professionalId: seeded.proId, windowStartsAt: ws, windowEndsAt: we, durationMinutes: 180 })),
-      )
-      expect(await noFit.json()).toMatchObject({ fits: false })
+      const cb = (await created.json()) as {
+        hold: { id: string; status: string }
+        appointment: { id: string; status: string; startsAt: number; endsAt: number }
+      }
+      expect(cb.hold.status).toBe('resolved')
+      expect(cb.appointment.status).toBe('confirmed')
+      expect(cb.appointment.endsAt - cb.appointment.startsAt).toBe(90 * 60_000)
 
       const list = await app.request(`${base}/holds?conversationId=${conv.id}`, auth('user_synth_owner_a'))
-      expect(((await list.json()) as { holds: unknown[] }).holds).toHaveLength(1)
+      expect(((await list.json()) as { holds: unknown[] }).holds).toHaveLength(0)
 
       const agenda = await app.request(`${base}/agenda?date=${MONDAY}&view=day`, auth('user_synth_owner_a'))
-      expect(((await agenda.json()) as { holds: unknown[] }).holds).toHaveLength(1)
+      const agendaBody = (await agenda.json()) as { appointments: Array<{ id: string }> }
+      expect(agendaBody.appointments.map((a) => a.id)).toContain(cb.appointment.id)
 
-      ;(boot.clock as ReturnType<typeof createControllableClock>).set(ws - 3600_000)
-      const alerts = await app.request(`${base}/holds/alerts`, auth('user_synth_attendant_a'))
-      const alertsBody = (await alerts.json()) as { alerts: Array<{ kind: string }> }
-      expect(alertsBody.alerts.map((a) => a.kind)).toEqual(['starts_soon'])
+      for (const path of [`/holds/${cb.hold.id}/resolve`, `/holds/${cb.hold.id}/cancel`, `/holds/${cb.hold.id}/dismiss-alert`]) {
+        const gone = await app.request(`${base}${path}`, auth('user_synth_attendant_a', json({})))
+        expect(gone.status).toBe(404)
+      }
 
       const cross = await app.request(
-        'http://localhost/api/tenants/clinic-demo-b/holds/alerts',
+        'http://localhost/api/tenants/clinic-demo-b/holds',
         auth('user_synth_attendant_a'),
       )
       expect([403, 404]).toContain(cross.status)
-
-      const resolved = await app.request(
-        `${base}/holds/${hold.id}/resolve`,
-        auth('user_synth_attendant_a', json({
-          clientRequestId: 'resolve-http-1',
-          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 10, 0),
-          roomResourceId: seeded.roomId,
-        })),
-      )
-      expect(resolved.status).toBe(200)
-      const rb = (await resolved.json()) as { hold: { status: string }; appointment: { status: string } }
-      expect(rb.hold.status).toBe('resolved')
-      expect(rb.appointment.status).toBe('confirmed')
-
-      const again = await app.request(
-        `${base}/holds/${hold.id}/cancel`,
-        auth('user_synth_attendant_a', json({})),
-      )
-      expect(again.status).toBe(409)
     } finally {
       close()
     }

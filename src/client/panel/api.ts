@@ -594,6 +594,8 @@ export function createPanelApi(getToken: TokenGetter) {
         date: string
         professionalId?: string
         excludeHoldId?: string
+        /** Reserva por bloco: horários livres para a duração do bloco. */
+        durationMinutes?: number
       },
       opts?: FetchOpts,
     ): Promise<AvailabilityResponse> {
@@ -604,6 +606,7 @@ export function createPanelApi(getToken: TokenGetter) {
         params.set('professionalId', query.professionalId)
       }
       if (query.excludeHoldId) params.set('excludeHoldId', query.excludeHoldId)
+      if (query.durationMinutes) params.set('durationMinutes', String(query.durationMinutes))
       const res = await authFetch(
         `/api/tenants/${encodeURIComponent(tenantId)}/availability?${params}`,
         {},
@@ -747,40 +750,12 @@ export function createPanelApi(getToken: TokenGetter) {
         windowStartsAt: number
         windowEndsAt: number
         durationMinutes: number
-        confirmBy?: number | null
+        startsAt: number
+        roomResourceId?: string | null
       },
       opts?: FetchOpts,
-    ): Promise<{ hold: ScheduleHold; idempotentReplay: boolean }> {
-      return holdJson(`/api/tenants/${encodeURIComponent(tenantId)}/holds`, body, opts)
-    },
-
-    async resolveHold(
-      tenantId: string,
-      holdId: string,
-      body: { clientRequestId: string; startsAt: number; roomResourceId?: string | null },
-      opts?: FetchOpts,
     ): Promise<{ hold: ScheduleHold; appointment: AppointmentDetailResponse; idempotentReplay: boolean }> {
-      return holdJson(
-        `/api/tenants/${encodeURIComponent(tenantId)}/holds/${encodeURIComponent(holdId)}/resolve`,
-        body,
-        opts,
-      )
-    },
-
-    async cancelHold(tenantId: string, holdId: string, opts?: FetchOpts): Promise<{ hold: ScheduleHold }> {
-      return holdJson(
-        `/api/tenants/${encodeURIComponent(tenantId)}/holds/${encodeURIComponent(holdId)}/cancel`,
-        {},
-        opts,
-      )
-    },
-
-    async dismissHoldAlert(tenantId: string, holdId: string, opts?: FetchOpts): Promise<{ hold: ScheduleHold }> {
-      return holdJson(
-        `/api/tenants/${encodeURIComponent(tenantId)}/holds/${encodeURIComponent(holdId)}/dismiss-alert`,
-        {},
-        opts,
-      )
+      return holdJson(`/api/tenants/${encodeURIComponent(tenantId)}/holds`, body, opts)
     },
 
     async listHolds(
@@ -797,15 +772,6 @@ export function createPanelApi(getToken: TokenGetter) {
       return ((await res.json()) as { holds: ScheduleHold[] }).holds
     },
 
-    async listHoldAlerts(
-      tenantId: string,
-      opts?: FetchOpts,
-    ): Promise<{ viewerClerkUserId: string; alerts: ScheduleHoldAlert[] }> {
-      const res = await authFetch(`/api/tenants/${encodeURIComponent(tenantId)}/holds/alerts`, {}, opts)
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      return (await res.json()) as { viewerClerkUserId: string; alerts: ScheduleHoldAlert[] }
-    },
 
     /** Cobrança Pix + sinal na conversa sem reservar (#38). */
     async createPixCharge(
@@ -1653,7 +1619,6 @@ export type InboxSendResponse = {
 export type OpportunityStage =
   | 'novo_contato'
   | 'em_atendimento'
-  | 'a_definir'
   | 'horario_proposto'
   | 'agendado'
   | 'concluido'
@@ -1694,7 +1659,6 @@ export type PipelineOpportunity = {
   missingAppointment: boolean
   linkedAppointment: PipelineLinkedAppointment | null
   /** Reserva por bloco em aberto (activa ou vencida sem hora). */
-  openHold?: ScheduleHold | null
 }
 
 export type PipelineStageHistory = {
@@ -2076,7 +2040,6 @@ export type ScheduleHold = {
   alertDismissedAt: number | null
 }
 
-export type ScheduleHoldAlert = { kind: 'starts_soon' | 'expired'; hold: ScheduleHold }
 
 export type AppointmentReasonOption = { code: string; label: string }
 

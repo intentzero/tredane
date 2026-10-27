@@ -3840,6 +3840,17 @@
   white-space: nowrap;
 }
 
+.hold-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.hold-grid-4 .hold-option {
+  min-width: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .hold-select-trigger {
   min-height: var(--size-control-md);
   font-size: 16px;

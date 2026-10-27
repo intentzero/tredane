@@ -1,9 +1,9 @@
 import type { OpportunityStage } from '../../api'
+import { getClinicTimezone } from '../../clinicTimezone'
 
 export const STAGE_ORDER: OpportunityStage[] = [
   'novo_contato',
   'em_atendimento',
-  'a_definir',
   'horario_proposto',
   'agendado',
   'concluido',
@@ -13,7 +13,6 @@ export const STAGE_ORDER: OpportunityStage[] = [
 export const STAGE_LABELS: Record<OpportunityStage, string> = {
   novo_contato: 'Novo contato',
   em_atendimento: 'Em atendimento',
-  a_definir: 'A definir',
   horario_proposto: 'Horário proposto',
   agendado: 'Agendado',
   concluido: 'Concluído',
@@ -24,7 +23,6 @@ export const STAGE_LABELS: Record<OpportunityStage, string> = {
 export const STAGE_TAB_LABELS: Record<OpportunityStage, string> = {
   novo_contato: 'Novo',
   em_atendimento: 'Em atendimento',
-  a_definir: 'A definir',
   horario_proposto: 'Horário proposto',
   agendado: 'Agendado',
   concluido: 'Concluído',
@@ -45,7 +43,11 @@ export function relativeTime(ms: number | null): string {
   if (delta < 3_600_000) return `há ${Math.floor(delta / 60_000)} min`
   if (delta < 86_400_000) return `há ${Math.floor(delta / 3_600_000)} h`
   if (delta < 2 * 86_400_000) return 'ontem'
-  return new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+  return new Date(ms).toLocaleDateString('pt-BR', {
+    timeZone: getClinicTimezone(),
+    day: '2-digit',
+    month: 'short',
+  })
 }
 
 export function appointmentLine(
@@ -54,6 +56,7 @@ export function appointmentLine(
 ): string {
   if (missing || startsAt == null) return 'Sem compromisso'
   return new Date(startsAt).toLocaleString('pt-BR', {
+    timeZone: getClinicTimezone(),
     weekday: 'short',
     day: '2-digit',
     month: 'short',
