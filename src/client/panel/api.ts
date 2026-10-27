@@ -189,6 +189,21 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as { removed: boolean }
     },
 
+    /** Bilhete curto (uso único) para o WebSocket do inbox — o browser não envia Authorization no upgrade. */
+    async getRealtimeTicket(
+      tenantId: string,
+      opts?: FetchOpts,
+    ): Promise<{ ticket: string; expiresAt: number }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/realtime/ticket`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { ticket: string; expiresAt: number }
+    },
+
     async getMe(opts?: FetchOpts): Promise<MeResponse> {
       const res = await authFetch('/api/me', {}, opts)
       assertGeneration(opts)

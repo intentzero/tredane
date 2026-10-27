@@ -14,6 +14,7 @@ import {
   statusClass,
   statusLabel,
 } from './format'
+import { useInboxRealtime } from '../../realtime/InboxRealtime'
 
 const FILTERS: InboxFilter[] = ['all', 'new', 'mine', 'unassigned', 'closed']
 
@@ -55,6 +56,12 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
   useEffect(() => {
     void load()
   }, [tenantId, generation, filter, q])
+
+  // Tempo real: qualquer evento do inbox ou (re)ligação → refetch silencioso
+  // (mantém lista visível, filtro, busca e scroll).
+  useInboxRealtime(() => {
+    void load({ keep: true })
+  })
 
   async function seedDemo() {
     setSeeding(true)

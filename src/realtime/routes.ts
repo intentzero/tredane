@@ -25,6 +25,9 @@ import {
 } from './protocol'
 import { isEventVisibleToRole } from './events'
 import type { WorkerBindings } from '../worker/bindings'
+import { assertClinicTenantId } from '../clinic/envelopes'
+import { isDevelopmentEnv } from '../security/env-gate'
+import { WS_TICKET_HEADER, WS_TICKET_QUERY, isWellFormedWsTicket } from './ticket'
 import type { AdminDb } from '../db/admin/store'
 import { newId } from '../db/admin/ids'
 
@@ -124,7 +127,22 @@ export function createDoEventPublisher(env: RealtimeBindings): ClinicEventPublis
   }
 }
 
+export type WsTicketIdentity = {
+  clerkUserId: string
+  sessionId: string
+  role: 'owner' | 'attendant'
+}
+
+export type WsTicketIssuer = {
+  issue(
+    tenantId: string,
+    identity: WsTicketIdentity,
+  ): Promise<{ ticket: string; expiresAt: number }>
+}
+
 export type RealtimeRouteOptions = {
+  /** Testes unitários (sem DO). Default: RPC `issueWsTicket` no DO da clínica. */
+  ticketIssuerFactory?: (env: RealtimeBindings) => WsTicketIssuer
   invalidatorFactory?: (env: RealtimeBindings) => ClinicAccessInvalidator
   /** Preferido em testes unitários com node:sqlite. */
   syncAdminDbFactory?: (env: RealtimeBindings) => AdminDb | null
@@ -132,6 +150,79 @@ export type RealtimeRouteOptions = {
 
 export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<RealtimeEnv> {
   const routes = new Hono<RealtimeEnv>()
+
+  /**
+   * Bilhete curto para o WebSocket do browser (que não envia Authorization).
+   * Mesma autenticação Clerk + membership D1 + permissão da API do inbox.
+   */
+  routes.post(
+    '/api/tenants/:tenantId/realtime/ticket',
+    requireAuth(),
+    requireTenantAccess({}),
+    async (c) => {
+      const ctx = c.get('tenantContext')
+      const principal = c.get('principal')
+      if (!ctx) return c.json({ error: 'tenant_access_denied' }, 403)
+      try {
+        requireClinicPermission(ctx, 'clinic.inbox.read')
+      } catch (err) {
+        return authErrorResponse(c, err)
+      }
+      const issuer = opts.ticketIssuerFactory?.(c.env) ?? {
+        issue: (tenantId: string, identity: WsTicketIdentity) =>
+          clinicStub(c.env, tenantId).issueWsTicket(
+            workerCaller(tenantId, identity.clerkUserId),
+            identity,
+          ),
+      }
+      const issued = await issuer.issue(ctx.tenantId, {
+        clerkUserId: principal.clerkUserId,
+        sessionId: principal.sessionId,
+        role: ctx.role,
+      })
+      c.header('Cache-Control', 'no-store')
+      return c.json({ ticket: issued.ticket, expiresAt: issued.expiresAt })
+    },
+  )
+
+  /**
+   * Upgrade com `?ticket=` (browser). Sem bilhete, segue o caminho Bearer/cookie
+   * abaixo (requireAuth → 401 se não autenticado).
+   */
+  routes.get('/api/tenants/:tenantId/ws', async (c, next) => {
+    const ticket = c.req.query(WS_TICKET_QUERY)
+    if (ticket === undefined) return next()
+    if (c.req.header('Upgrade')?.toLowerCase() !== 'websocket') {
+      return c.json({ error: 'websocket_upgrade_required' }, 426)
+    }
+    if (!isWellFormedWsTicket(ticket)) {
+      return c.json({ error: 'ticket_invalid' }, 401)
+    }
+    const tenantId = c.req.param('tenantId')
+    try {
+      assertClinicTenantId(tenantId, { allowSynthetic: isDevelopmentEnv(c.env) })
+    } catch {
+      return c.json({ error: 'tenant_access_denied' }, 403)
+    }
+    // Defesa extra (CSWSH): Origin do browser deve ser uma origem autorizada.
+    const origin = c.req.header('Origin')
+    const allowed = (c.env?.CLERK_AUTHORIZED_PARTIES ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (origin && allowed.length > 0 && !allowed.includes(origin)) {
+      return c.json({ error: 'origin_rejected' }, 403)
+    }
+    const headers = stripInternalHeaders(c.req.raw.headers)
+    headers.set(WS_INTERNAL_HEADERS.assertion, WORKER_WS_ASSERTION)
+    headers.set(WS_INTERNAL_HEADERS.tenantId, tenantId)
+    headers.set(WS_TICKET_HEADER, ticket)
+    const forward = new URL(c.req.raw.url)
+    forward.search = ''
+    return clinicStub(c.env, tenantId).fetch(
+      new Request(forward.toString(), { method: 'GET', headers }),
+    )
+  })
 
   routes.get(
     '/api/tenants/:tenantId/ws',

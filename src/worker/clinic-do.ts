@@ -108,6 +108,12 @@ import {
   type FenceSource,
   type SocketAttachment,
 } from '../realtime'
+import {
+  WS_TICKET_HEADER,
+  issueWsTicket,
+  redeemWsTicket,
+  type WsTicketStorage,
+} from '../realtime/ticket'
 import { newId } from '../clinic/ids'
 import type { WorkerBindings } from './bindings'
 
@@ -328,6 +334,38 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return {
       eventSeq: getLastEventSeq(this.#db),
       events: listRealtimeEventsAfter(this.#db, meta.tenantId, afterSeq),
+    }
+  }
+
+  /**
+   * Bilhete curto de uso único para o upgrade WS do browser (sem headers).
+   * Chamado só pelo Worker depois de autenticar Clerk + membership D1.
+   */
+  async issueWsTicket(
+    caller: ClinicCaller,
+    identity: { clerkUserId: string; sessionId: string; role: 'owner' | 'attendant' },
+  ): Promise<{ ticket: string; expiresAt: number }> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return issueWsTicket(
+      this.#ticketStorage(),
+      {
+        tenantId: caller.tenantId,
+        clerkUserId: identity.clerkUserId,
+        sessionId: identity.sessionId,
+        role: identity.role,
+      },
+      this.#clock.nowMs(),
+    )
+  }
+
+  #ticketStorage(): WsTicketStorage {
+    const storage = this.ctx.storage
+    return {
+      get: <T>(key: string) => storage.get<T>(key),
+      put: <T>(key: string, value: T) => storage.put<T>(key, value),
+      delete: (key: string) => storage.delete(key),
+      list: <T>(opts: { prefix: string }) => storage.list<T>(opts),
     }
   }
 
@@ -1957,10 +1995,40 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return Response.json({ error: 'not_found', phase: 'f1-clinic-do' }, { status: 404 })
   }
 
-  #parseWsIdentity(request: Request): WsUpgradeIdentity | Response {
+  async #parseWsIdentity(request: Request): Promise<WsUpgradeIdentity | Response> {
     const assertion = request.headers.get(WS_INTERNAL_HEADERS.assertion)
     if (assertion !== WORKER_WS_ASSERTION) {
       return Response.json({ error: 'unauthorized_ws' }, { status: 403 })
+    }
+    const ticket = request.headers.get(WS_TICKET_HEADER)
+    if (ticket !== null) {
+      const tenantId = request.headers.get(WS_INTERNAL_HEADERS.tenantId)
+      if (!tenantId) {
+        return Response.json({ error: 'invalid_ws_identity' }, { status: 400 })
+      }
+      try {
+        this.#assertInstanceTenant(workerCaller(tenantId))
+      } catch (err) {
+        return Response.json(
+          { error: err instanceof Error ? err.message : 'tenant_mismatch' },
+          { status: 403 },
+        )
+      }
+      const redeemed = await redeemWsTicket(
+        this.#ticketStorage(),
+        ticket,
+        tenantId,
+        this.#clock.nowMs(),
+      )
+      if (!redeemed.ok) {
+        return Response.json({ error: redeemed.reason }, { status: 401 })
+      }
+      return {
+        tenantId,
+        clerkUserId: redeemed.grant.clerkUserId,
+        sessionId: redeemed.grant.sessionId,
+        role: redeemed.grant.role,
+      }
     }
     const tenantId = request.headers.get(WS_INTERNAL_HEADERS.tenantId)
     const clerkUserId = request.headers.get(WS_INTERNAL_HEADERS.clerkUserId)
@@ -1981,7 +2049,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   async #acceptProductWebSocket(request: Request): Promise<Response> {
-    const identityOrErr = this.#parseWsIdentity(request)
+    const identityOrErr = await this.#parseWsIdentity(request)
     if (identityOrErr instanceof Response) {
       // Harness legado F0: sem headers internos → eco mínimo (sem fan-out clínico).
       if (!request.headers.get(WS_INTERNAL_HEADERS.assertion) && isDevelopmentEnv(this.env)) {
@@ -2005,6 +2073,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     if (decision.status === 'deny') {
       return Response.json({ error: decision.reason }, { status: 403 })
     }
+    // Role autoritativa = D1 no momento do accept (não a do bilhete/header).
+    const role: 'owner' | 'attendant' =
+      decision.role === 'owner' || decision.role === 'attendant' ? decision.role : identity.role
 
     const pair = new WebSocketPair()
     const client = pair[0]
@@ -2014,7 +2085,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       connectionId,
       clerkUserId: identity.clerkUserId,
       sessionId: identity.sessionId,
-      role: identity.role,
+      role,
       tenantId: identity.tenantId,
       authEpoch: fence.authEpoch,
       connectedAt: this.#clock.nowMs(),
@@ -2030,7 +2101,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         connectionId,
         tenantId: identity.tenantId,
         eventSeq: fence.lastEventSeq,
-        role: identity.role,
+        role,
         connectionState: 'live',
       }),
     )
