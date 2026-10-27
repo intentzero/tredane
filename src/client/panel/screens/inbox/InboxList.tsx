@@ -20,6 +20,7 @@ import { useInboxRealtime } from '../../realtime/InboxRealtime'
 import { friendlyError } from '../../copy/errors'
 import { Badge } from '../../states/Badge'
 import { ListSkeleton } from '../../states/ListSkeleton'
+import { applyAppBadge } from '../../badge'
 
 const FILTERS: InboxFilter[] = ['all', 'new', 'mine', 'unassigned', 'closed']
 
@@ -50,6 +51,8 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
       )
       setItems(res.conversations)
       setCounts(res.counts)
+      // Badge do ícone coerente com a lista que a pessoa está vendo.
+      if (typeof res.counts?.unread === 'number') applyAppBadge(res.counts.unread)
     } catch (err) {
       setError(friendlyError(err, 'Não conseguimos carregar as conversas.'))
       if (!opts?.keep) setItems(null)

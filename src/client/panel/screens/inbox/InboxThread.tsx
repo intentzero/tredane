@@ -39,7 +39,7 @@ import { PanelApiError } from '../../api'
 import { useClinicTimezone } from '../../clinicTimezone'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
 import { navigatePanel } from '../../routes'
-import { ErrorState, LoadingState } from '../../states/StatusScreens'
+import { ErrorState } from '../../states/StatusScreens'
 import {
   assigneeLine,
   avatarTone,
@@ -151,6 +151,59 @@ function MessageBubble({
   )
 }
 
+type LocalOutbound = {
+  localId: string
+  body: string
+  aiSuggestionId: string | null
+  createdAt: number
+  status: 'sending' | 'failed'
+}
+
+function localToMessage(o: LocalOutbound, d: { tenantId: string; id: string }): InboxMessage {
+  return {
+    id: o.localId,
+    tenantId: d.tenantId,
+    conversationId: d.id,
+    direction: 'outbound',
+    body: o.body,
+    externalMessageId: null,
+    deliveryState: o.status === 'sending' ? 'pending' : 'failed',
+    authorClerkUserId: null,
+    authorDisplayName: null,
+    createdAt: o.createdAt,
+  }
+}
+
+/** Esqueleto da conversa (cabeçalho + bolhas) no lugar do spinner. */
+function ThreadSkeleton() {
+  return (
+    <div className="inbox-thread inbox-thread-skeleton" role="status" aria-busy="true">
+      <span className="panel-sr-only">Abrindo conversa…</span>
+      <div className="inbox-thread-header" aria-hidden="true">
+        <span className="panel-skeleton-avatar" />
+        <span className="panel-skeleton-lines">
+          <span className="panel-skeleton-line panel-skeleton-line--title" />
+          <span className="panel-skeleton-line" />
+        </span>
+      </div>
+      <div className="inbox-timeline" aria-hidden="true">
+        {(['in', 'out', 'in', 'out', 'in'] as const).map((side, i) => (
+          <span
+            key={i}
+            className={`inbox-skeleton-bubble inbox-skeleton-bubble--${side}`}
+            style={{ width: `${[62, 48, 70, 40, 55][i]}%` }}
+          />
+        ))}
+      </div>
+      <div className="inbox-composer-wrap" aria-hidden="true">
+        <div className="inbox-composer">
+          <span className="inbox-skeleton-input" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function InboxThread({
   tenantId,
   conversationId,
@@ -195,6 +248,9 @@ export function InboxThread({
   )
   // Mensagens recebidas abaixo da área visível (botão «↓ N»).
   const [belowCount, setBelowCount] = useState(0)
+  // Envio de texto otimista: a bolha aparece já («Enviando…»); se falhar fica
+  // «Não enviada · Tentar de novo» sem perder o texto.
+  const [outbox, setOutbox] = useState<LocalOutbound[]>([])
 
   async function load(opts?: { quiet?: boolean }) {
     const quiet = opts?.quiet === true
@@ -266,6 +322,7 @@ export function InboxThread({
   }
 
   useEffect(() => {
+    setOutbox([])
     void load()
   }, [tenantId, conversationId, generation])
 
@@ -532,8 +589,33 @@ export function InboxThread({
       params: Record<string, string>
     }
     aiSuggestionId?: string | null
-  }) {
+  }, opts?: { retryLocalId?: string }) {
     if (!detail) return
+    const textOnly = Boolean(payload.body) && !payload.template
+    const aiSuggestionId = payload.aiSuggestionId ?? activeSuggestionId
+    const localId = textOnly
+      ? (opts?.retryLocalId ?? `local:${crypto.randomUUID()}`)
+      : null
+    if (localId) {
+      const body = payload.body ?? ''
+      setOutbox((prev) =>
+        opts?.retryLocalId
+          ? prev.map((o) => (o.localId === localId ? { ...o, status: 'sending' } : o))
+          : [
+              ...prev,
+              { localId, body, aiSuggestionId, createdAt: Date.now(), status: 'sending' },
+            ],
+      )
+      // O texto já está na bolha: o campo fica livre para a próxima mensagem.
+      setDraft('')
+      setActiveSuggestionId(null)
+      setAiSuggestion(null)
+      stickToBottomRef.current = true
+      requestAnimationFrame(() => {
+        const el = timelineRef.current
+        if (el) el.scrollTop = el.scrollHeight
+      })
+    }
     setBusy(true)
     setNotice(null)
     const clientRequestId = `client:${crypto.randomUUID()}`
@@ -544,13 +626,17 @@ export function InboxThread({
         {
           ...payload,
           clientRequestId,
-          aiSuggestionId: payload.aiSuggestionId ?? activeSuggestionId,
+          aiSuggestionId,
         },
         { generation, expectGeneration: () => generation },
       )
-      setDraft('')
-      setActiveSuggestionId(null)
-      setAiSuggestion(null)
+      if (localId) {
+        setOutbox((prev) => prev.filter((o) => o.localId !== localId))
+      } else {
+        setDraft('')
+        setActiveSuggestionId(null)
+        setAiSuggestion(null)
+      }
       setSelectedTemplate(null)
       setTemplateParams({})
       setPickerOpen(false)
@@ -566,10 +652,24 @@ export function InboxThread({
           : prev,
       )
     } catch (err) {
+      if (localId) {
+        setOutbox((prev) =>
+          prev.map((o) => (o.localId === localId ? { ...o, status: 'failed' } : o)),
+        )
+      }
       setNotice(friendlyError(err, 'A mensagem não foi enviada. Tente de novo.'))
     } finally {
       setBusy(false)
     }
+  }
+
+  async function retryLocal(o: LocalOutbound) {
+    if (!detail?.messagingWindow?.open) {
+      setNotice('Passaram 24 horas desde a última mensagem da cliente. Use um modelo de mensagem para tentar de novo.')
+      setPickerOpen(true)
+      return
+    }
+    await sendPayload({ body: o.body, aiSuggestionId: o.aiSuggestionId }, { retryLocalId: o.localId })
   }
 
   async function send() {
@@ -610,7 +710,7 @@ export function InboxThread({
   }
 
   if (loading && !detail) {
-    return <LoadingState label="Abrindo conversa…" />
+    return <ThreadSkeleton />
   }
   if (error && !detail) {
     return (
@@ -937,6 +1037,14 @@ export function InboxThread({
             />
           </Fragment>
         ))}
+        {outbox.map((o) => (
+          <MessageBubble
+            key={o.localId}
+            m={localToMessage(o, detail)}
+            busy={busy}
+            onRetry={o.status === 'failed' ? () => void retryLocal(o) : undefined}
+          />
+        ))}
       </div>
       {belowCount > 0 ? (
         <Button
@@ -1020,6 +1128,19 @@ export function InboxThread({
               {windowHint(detail.messagingWindow?.closesAt ?? null)}
             </p>
           ) : null}
+          {windowOpen && !aiSuggestion ? (
+            <div className="inbox-composer-tools">
+              <Button
+                className="inbox-ai-trigger"
+                aria-label="Sugerir resposta com IA"
+                onPress={() => void requestAiSuggestion(null)}
+                isDisabled={aiBusy || busy}
+              >
+                <Sparkles aria-hidden size={16} strokeWidth={2} />
+                {aiBusy ? 'Gerando sugestão…' : 'Sugerir resposta'}
+              </Button>
+            </div>
+          ) : null}
           {windowOpen ? (
             <form
               className="inbox-composer"
@@ -1028,14 +1149,6 @@ export function InboxThread({
                 void send()
               }}
             >
-              <Button
-                className="panel-icon-btn inbox-ai-trigger"
-                aria-label="Sugerir resposta com IA"
-                onPress={() => void requestAiSuggestion(null)}
-                isDisabled={aiBusy || busy}
-              >
-                <Sparkles aria-hidden size={20} strokeWidth={2} />
-              </Button>
               <TextField
                 className="inbox-composer-field"
                 aria-label="Mensagem"

@@ -4081,3 +4081,90 @@
     padding-right: calc(var(--space-4) + env(safe-area-inset-right, 0px));
   }
 }
+
+/* ── Inbox: polimento (backlog item 8) ── */
+
+/* «Sugerir resposta» com rótulo, acima do campo (não disputa espaço com o texto). */
+.inbox-composer-tools {
+  display: flex;
+  justify-content: flex-start;
+  padding: var(--space-2) var(--space-3) 0;
+}
+
+.inbox-composer-tools + .inbox-composer {
+  border-top: 0;
+  padding-top: var(--space-2);
+}
+
+.inbox-composer-tools .inbox-ai-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  color: var(--color-ai-ink);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  /* alvo de toque de 44px sem aumentar o visual */
+  position: relative;
+}
+
+.inbox-composer-tools .inbox-ai-trigger::after {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
+}
+
+.inbox-composer-tools .inbox-ai-trigger[data-disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.inbox-composer-tools .inbox-ai-trigger[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: 2px;
+}
+
+/* Esqueleto da conversa. */
+.inbox-thread-skeleton .inbox-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-3);
+  flex: 1;
+}
+
+.inbox-skeleton-bubble,
+.inbox-skeleton-input {
+  display: block;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-sunken);
+  animation: panel-pulse 1.4s ease-in-out infinite;
+}
+
+.inbox-skeleton-bubble {
+  height: 44px;
+}
+
+.inbox-skeleton-bubble--out {
+  align-self: flex-end;
+  background: var(--color-primary-tint);
+}
+
+.inbox-skeleton-input {
+  flex: 1;
+  height: var(--size-touch);
+  border-radius: 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inbox-skeleton-bubble,
+  .inbox-skeleton-input {
+    animation: none;
+  }
+}
