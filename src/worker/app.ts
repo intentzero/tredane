@@ -100,6 +100,8 @@ export type CreateAppOptions = {
   authServicesFactory?: (env: WorkerBindings) => AuthServices
   /** Invalidator D1→DO (testes de falha de notificação). */
   invalidatorFactory?: (env: WorkerBindings) => ClinicAccessInvalidator
+  /** Emissor de bilhetes WS (testes sem DO). */
+  wsTicketIssuerFactory?: RealtimeRouteOptions['ticketIssuerFactory']
   /** AdminDb sync para revoke / equipe em testes unitários. */
   syncAdminDbFactory?: (env: WorkerBindings) => AdminDb | null
   /** Relógio injetável (limites temporais de convite). */
@@ -184,6 +186,7 @@ export function createApp(opts: CreateAppOptions = {}) {
 
   const realtimeOpts: RealtimeRouteOptions = {
     invalidatorFactory: opts.invalidatorFactory,
+    ticketIssuerFactory: opts.wsTicketIssuerFactory,
     syncAdminDbFactory: opts.syncAdminDbFactory,
   }
   app.route('/', createRealtimeRoutes(realtimeOpts))

@@ -13,6 +13,7 @@ import { getMembership } from '../db/admin/memberships'
 
 function testApp(opts: {
   invalidator?: ClinicAccessInvalidator
+  issued?: Array<{ tenantId: string; identity: unknown }>
 } = {}) {
   const boot = bootAdminDb()
   const services: AuthServices = {
@@ -37,6 +38,12 @@ function testApp(opts: {
     authServicesFactory: () => services,
     syncAdminDbFactory: () => boot.db,
     invalidatorFactory: () => invalidator,
+    wsTicketIssuerFactory: () => ({
+      async issue(tenantId, identity) {
+        opts.issued?.push({ tenantId, identity })
+        return { ticket: `wst_${'x'.repeat(43)}`, expiresAt: 42 }
+      },
+    }),
   })
   return {
     app,
@@ -145,6 +152,91 @@ describe('HTTP — revogação e realtime (#23)', () => {
         auth('user_synth_no_access', { headers: { Upgrade: 'websocket' } }),
       )
       expect(noAccess.status).toBe(403)
+    } finally {
+      close()
+    }
+  })
+
+  it('WS sem sessão nem bilhete → 401 (upgrade não autenticado)', async () => {
+    const { app, close } = testApp()
+    try {
+      const res = await app.request('http://localhost/api/tenants/clinic-demo-a/ws', {
+        headers: { Upgrade: 'websocket' },
+      })
+      expect(res.status).toBe(401)
+    } finally {
+      close()
+    }
+  })
+
+  it('WS com bilhete malformado → 401; tenant inválido → 403; Origin estranha → 403', async () => {
+    const { app, close } = testApp()
+    try {
+      const bad = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/ws?ticket=nope',
+        { headers: { Upgrade: 'websocket' } },
+      )
+      expect(bad.status).toBe(401)
+      const ticket = `wst_${'A'.repeat(43)}`
+      const badTenant = await app.request(
+        `http://localhost/api/tenants/not-a-tenant/ws?ticket=${ticket}`,
+        { headers: { Upgrade: 'websocket' } },
+      )
+      expect(badTenant.status).toBe(403)
+      const evilOrigin = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/ws?ticket=${ticket}`,
+        {
+          headers: { Upgrade: 'websocket', Origin: 'https://evil.example' },
+        },
+        { CLERK_AUTHORIZED_PARTIES: 'http://localhost:5173' },
+      )
+      expect(evilOrigin.status).toBe(403)
+    } finally {
+      close()
+    }
+  })
+
+  it('bilhete: exige sessão (401), membership do tenant (403) e emite para o membro', async () => {
+    const issued: Array<{ tenantId: string; identity: unknown }> = []
+    const { app, close, auth } = testApp({ issued })
+    try {
+      const anon = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/realtime/ticket',
+        { method: 'POST' },
+      )
+      expect(anon.status).toBe(401)
+
+      // Owner de A não tem membership em B → 403, sem emitir.
+      const otherTenant = await app.request(
+        'http://localhost/api/tenants/clinic-demo-b/realtime/ticket',
+        auth('user_synth_owner_a', { method: 'POST' }),
+      )
+      expect(otherTenant.status).toBe(403)
+
+      const noAccess = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/realtime/ticket',
+        auth('user_synth_no_access', { method: 'POST' }),
+      )
+      expect(noAccess.status).toBe(403)
+      expect(issued).toHaveLength(0)
+
+      const ok = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/realtime/ticket',
+        auth('user_synth_attendant_a', { method: 'POST' }),
+      )
+      expect(ok.status).toBe(200)
+      expect(ok.headers.get('Cache-Control')).toBe('no-store')
+      expect(await ok.json()).toEqual({ ticket: `wst_${'x'.repeat(43)}`, expiresAt: 42 })
+      expect(issued).toEqual([
+        {
+          tenantId: 'clinic-demo-a',
+          identity: {
+            clerkUserId: 'user_synth_attendant_a',
+            sessionId: expect.any(String),
+            role: 'attendant',
+          },
+        },
+      ])
     } finally {
       close()
     }

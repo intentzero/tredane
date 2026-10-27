@@ -753,4 +753,196 @@ describe('Cloudflare runtime harness — F0', () => {
     ).first() as { status: string } | null
     expect(revoked?.status).toBe('revoked')
   })
+
+  it('inbox em tempo real: bilhete WS + webhook assinado (inbound/status) chegam ao socket; sem fuga cross-tenant', async () => {
+    const { computeHubSignature256, SYNTHETIC_APP_SECRET } = await import('../whatsapp/webhook-verify')
+    const owner = { Authorization: 'Bearer synth:user_synth_owner_a' }
+    const pnid = 'pnid_rt_e2e'
+
+    // Número WhatsApp sintético ligado a A.
+    const sessionRes = await worker.fetch(
+      'http://localhost/api/tenants/clinic-demo-a/whatsapp/session',
+      {
+        method: 'POST',
+        headers: { ...owner, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ purpose: 'connect' }),
+      },
+    )
+    expect(sessionRes.status).toBeLessThan(300)
+    const session = (await sessionRes.json()) as { state: string }
+    const complete = await worker.fetch(
+      'http://localhost/api/tenants/clinic-demo-a/whatsapp/complete',
+      {
+        method: 'POST',
+        headers: { ...owner, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          state: session.state,
+          code: 'synth_code_valid',
+          phoneNumberId: pnid,
+          wabaId: 'waba_rt_e2e',
+          displayPhone: '+15551820342',
+        }),
+      },
+    )
+    expect(complete.status).toBeLessThan(300)
+
+    async function ticketFor(tenantId: string, userId: string) {
+      const res = await worker.fetch(`http://localhost/api/tenants/${tenantId}/realtime/ticket`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer synth:${userId}` },
+      })
+      expect(res.status).toBe(200)
+      return ((await res.json()) as { ticket: string }).ticket
+    }
+    const upgrade = (tenantId: string, ticket: string | null) =>
+      worker.fetch(
+        `http://localhost/api/tenants/${tenantId}/ws${ticket ? `?ticket=${ticket}` : ''}`,
+        { headers: { Upgrade: 'websocket' } },
+      )
+
+    function collect(socket: {
+      addEventListener(type: 'message', fn: (event: { data: unknown }) => void): void
+    }) {
+      const messages: Array<Record<string, unknown>> = []
+      socket.addEventListener('message', (event) => {
+        try {
+          messages.push(JSON.parse(String(event.data)) as Record<string, unknown>)
+        } catch {
+          /* pong */
+        }
+      })
+      return {
+        messages,
+        async waitFor(pred: (m: Record<string, unknown>) => boolean, timeoutMs = 10_000) {
+          const start = Date.now()
+          while (Date.now() - start < timeoutMs) {
+            const hit = messages.find(pred)
+            if (hit) return hit
+            await new Promise((r) => setTimeout(r, 50))
+          }
+          throw new Error(`ws timeout; got ${JSON.stringify(messages.map((m) => m.eventType ?? m.type))}`)
+        },
+      }
+    }
+
+    // Upgrade sem credencial → 401.
+    expect((await upgrade('clinic-demo-a', null)).status).toBe(401)
+
+    // Bilhete válido → 101 + hello.
+    const ticketA = await ticketFor('clinic-demo-a', 'user_synth_attendant_a')
+    const resA = await upgrade('clinic-demo-a', ticketA)
+    expect(resA.status).toBe(101)
+    const wsA = resA.webSocket!
+    const inboxA = collect(wsA)
+    wsA.accept()
+    const hello = await inboxA.waitFor((m) => m.type === 'hello')
+    expect(hello).toMatchObject({ tenantId: 'clinic-demo-a', role: 'attendant' })
+
+    // Uso único: o mesmo bilhete não volta a abrir.
+    expect((await upgrade('clinic-demo-a', ticketA)).status).toBe(401)
+    // Bilhete de A apresentado em B → 401 (escopo = DO da clínica).
+    const ticketA2 = await ticketFor('clinic-demo-a', 'user_synth_attendant_a')
+    expect((await upgrade('clinic-demo-b', ticketA2)).status).toBe(401)
+
+    // Membro de B ligado a B: não deve ver nada de A.
+    const resB = await upgrade('clinic-demo-b', await ticketFor('clinic-demo-b', 'user_synth_multi'))
+    expect(resB.status).toBe(101)
+    const wsB = resB.webSocket!
+    const inboxB = collect(wsB)
+    wsB.accept()
+    await inboxB.waitFor((m) => m.type === 'hello')
+
+    const signedPost = async (payload: unknown) => {
+      const body = JSON.stringify(payload)
+      const res = await worker.fetch('http://localhost/api/webhooks/whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Hub-Signature-256': await computeHubSignature256(body, SYNTHETIC_APP_SECRET),
+        },
+        body,
+      })
+      expect(res.status).toBe(200)
+    }
+
+    // 1) Inbound assinado → queue → DO → socket.
+    const nowSec = Math.floor(Date.now() / 1000)
+    await signedPost({
+      object: 'whatsapp_business_account',
+      entry: [{
+        id: 'waba_rt_e2e',
+        changes: [{
+          field: 'messages',
+          value: {
+            metadata: { phone_number_id: pnid },
+            contacts: [{ wa_id: '5511977000111', profile: { name: 'Teste RT' } }],
+            messages: [{
+              from: '5511977000111',
+              id: 'wamid.RT_E2E_IN_1',
+              timestamp: String(nowSec),
+              type: 'text',
+              text: { body: 'Olá, tempo real' },
+            }],
+          },
+        }],
+      }],
+    })
+    const inbound = await inboxA.waitFor(
+      (m) => m.type === 'event' && m.eventType === 'message.created'
+        && (m.payload as { direction?: string }).direction === 'inbound',
+    )
+    const conversationId = (inbound.payload as { conversationId: string }).conversationId
+    expect(conversationId).toBeTruthy()
+    await inboxA.waitFor(
+      (m) => m.type === 'event' && String(m.eventType).startsWith('conversation.'),
+    )
+
+    // 2) Outbound pelo painel → resultado do envio (accepted) → socket.
+    const send = await worker.fetch(
+      `http://localhost/api/tenants/clinic-demo-a/inbox/conversations/${conversationId}/messages`,
+      {
+        method: 'POST',
+        headers: { Authorization: 'Bearer synth:user_synth_attendant_a', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: 'Resposta RT', clientRequestId: 'crq_rt_e2e_1' }),
+      },
+    )
+    expect(send.status).toBe(201)
+    const sent = await inboxA.waitFor(
+      (m) => m.type === 'event' && m.eventType === 'message.delivery_updated'
+        && (m.payload as { deliveryState?: string }).deliveryState === 'accepted',
+      15_000,
+    )
+    const providerMessageId = (sent.payload as { providerMessageId: string }).providerMessageId
+    expect(providerMessageId).toBeTruthy()
+
+    // 3) Status Meta assinado (delivered) → socket.
+    await signedPost({
+      object: 'whatsapp_business_account',
+      entry: [{
+        id: 'waba_rt_e2e',
+        changes: [{
+          field: 'messages',
+          value: {
+            metadata: { phone_number_id: pnid },
+            statuses: [{
+              id: providerMessageId,
+              status: 'delivered',
+              timestamp: String(nowSec + 5),
+              recipient_id: '5511977000111',
+            }],
+          },
+        }],
+      }],
+    })
+    await inboxA.waitFor(
+      (m) => m.type === 'event' && m.eventType === 'message.delivery_updated'
+        && (m.payload as { deliveryState?: string }).deliveryState === 'delivered',
+    )
+
+    // Nenhum evento de A chegou a B.
+    expect(inboxB.messages.filter((m) => m.type === 'event')).toEqual([])
+
+    wsA.close(1000, 'done')
+    wsB.close(1000, 'done')
+  })
 })

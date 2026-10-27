@@ -1,5 +1,6 @@
 import { ChevronLeft, CircleAlert, Sparkles } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
+import { eventConversationId, useInboxRealtime } from '../../realtime/InboxRealtime'
 import {
   Button,
   Dialog,
@@ -146,8 +147,9 @@ export function InboxThread({
   )
   const composerId = useId()
 
-  async function load() {
-    setLoading(true)
+  async function load(opts?: { quiet?: boolean }) {
+    const quiet = opts?.quiet === true
+    if (!quiet) setLoading(true)
     setError(null)
     try {
       const res = await api.getInboxConversation(
@@ -196,16 +198,27 @@ export function InboxThread({
         .then(setPixAlerts)
         .catch(() => setPixAlerts([]))
     } catch (err) {
+      // Refetch em tempo real falhado: manter a conversa visível (e o rascunho).
+      if (quiet) return
       setError(err instanceof Error ? err.message : 'Falha ao abrir conversa')
       setDetail(null)
     } finally {
-      setLoading(false)
+      if (!quiet) setLoading(false)
     }
   }
 
   useEffect(() => {
     void load()
   }, [tenantId, conversationId, generation])
+
+  // Tempo real: (re)ligação/aba visível ou evento desta conversa → refetch
+  // silencioso. O rascunho (estado local) e o scroll não são tocados.
+  useInboxRealtime((signals) => {
+    const relevant = signals.some(
+      (s) => s.kind === 'resync' || eventConversationId(s.event) === conversationId,
+    )
+    if (relevant) void load({ quiet: true })
+  })
 
   async function refundAlert(a: PixPaymentAlert) {
     setBusy(true)

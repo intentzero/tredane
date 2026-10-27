@@ -6,6 +6,7 @@ import type { ConversasSection } from '../../routes'
 import { InboxContactScreen } from './InboxContact'
 import { InboxList } from './InboxList'
 import { InboxThread } from './InboxThread'
+import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
 
 type Props = {
   tenantId: string
@@ -52,6 +53,38 @@ export function ConversasArea({
     return <LoadingState label="A identificar utilizador…" />
   }
 
+  // Uma ligação WS por clínica enquanto a área Conversas está aberta.
+  return (
+    <InboxRealtimeProvider tenantId={tenantId} api={api} generation={generation}>
+      <ConversasSectionView
+        tenantId={tenantId}
+        section={section}
+        conversationId={conversationId}
+        contactId={contactId}
+        api={api}
+        generation={generation}
+        viewerId={viewerId}
+        isOwner={isOwner}
+      />
+    </InboxRealtimeProvider>
+  )
+}
+
+function ConversasSectionView({
+  tenantId,
+  section,
+  conversationId,
+  contactId,
+  api,
+  generation,
+  viewerId,
+  isOwner,
+}: Props & {
+  api: NonNullable<ReturnType<typeof useAuthSession>['api']>
+  generation: number
+  viewerId: string
+  isOwner: boolean
+}) {
   if (section === 'thread' && conversationId) {
     return (
       <InboxThread
