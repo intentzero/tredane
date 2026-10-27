@@ -162,6 +162,8 @@ Resultados:
 
 A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
+**Em aberto (27/10/2026):** duração personalizada, etapa ao confirmar, padrão do aviso WhatsApp, horizonte do calendário, «Próximo livre», sala na grade e tempo real — DEC-051 a DEC-057 em [agendar-em-aberto.md](agendar-em-aberto.md).
+
 ### TEL-06 — Detalhe, cancelamento e reagendamento
 
 **Origem:** JRN-05; REQ-032, REQ-033. **Estado:** Proposto.
