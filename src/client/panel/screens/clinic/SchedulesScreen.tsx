@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
+import { PanelSelect } from '../../ui/PanelSelect'
 import type { ClinicConfigSnapshot, PanelApi } from '../../api'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
@@ -322,23 +323,13 @@ export function SchedulesScreen({
               <Input value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)} />
             </TextField>
           </div>
-          <label className="clinic-field">
-            Motivo
-            <select
-              value={blockReason}
-              onChange={(e) =>
-                setBlockReason(
-                  e.target.value as typeof blockReason,
-                )
-              }
-            >
-              {Object.entries(BLOCK_REASON_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <PanelSelect
+            className="clinic-field"
+            label="Motivo"
+            value={blockReason}
+            onChange={(v) => setBlockReason(v as typeof blockReason)}
+            options={Object.entries(BLOCK_REASON_LABELS).map(([id, label]) => ({ id, label }))}
+          />
           <div className="clinic-footer-actions">
             <Button
               className="panel-btn panel-btn-ghost"
