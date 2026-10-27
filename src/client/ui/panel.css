@@ -4471,3 +4471,338 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ── Rascunho da IA em cartão de largura total (mobile first) ── */
+.inbox-ai-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  margin: var(--space-2) var(--space-2) var(--space-2);
+  padding: 0;
+  border: 1.5px solid var(--color-ai-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+
+.inbox-ai-card-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2px 0 var(--space-3);
+}
+
+.inbox-ai-card-head .inbox-ai-draft-tag {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.inbox-ai-draft-sub {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-regular);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inbox-ai-icon {
+  flex: none;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.inbox-ai-card .inbox-composer-field {
+  display: flex;
+}
+
+.inbox-composer-input--card {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-relaxed);
+  padding: 2px var(--space-3) var(--space-3);
+  min-height: 96px;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+:root[data-keyboard='open'] .inbox-composer-input--card {
+  max-height: 96px;
+}
+
+.inbox-composer-input--card[data-focused] {
+  outline: none;
+}
+
+.inbox-ai-card-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2) var(--space-2) var(--space-1);
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.inbox-ai-foot-spacer {
+  flex: 1;
+}
+
+.inbox-ai-foot-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-ai-ink);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.inbox-ai-foot-btn[aria-expanded='true'] {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+}
+
+.inbox-ai-foot-btn[data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.inbox-send--label {
+  width: auto;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  font: inherit;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+}
+
+.ai-notes--card {
+  margin: 0 var(--space-2) var(--space-2);
+  max-height: 112px;
+  overflow: auto;
+}
+
+.inbox-draft-full-modal {
+  position: fixed;
+  inset: 0;
+}
+
+.inbox-draft-full {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-card);
+  outline: none;
+}
+
+.inbox-draft-full-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 60px;
+  padding: env(safe-area-inset-top, 0px) var(--space-1) 0;
+  border-bottom: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.inbox-draft-full-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.inbox-draft-full-title h2 {
+  margin: 0;
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-draft-full-title span {
+  color: var(--color-ai-ink);
+  font-size: var(--font-size-caption);
+}
+
+.inbox-draft-full > .ai-notes {
+  flex: none;
+  margin: var(--space-3) var(--space-4) 0;
+}
+
+.inbox-draft-full-field {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: var(--space-3) var(--space-4) 0;
+}
+
+.inbox-draft-full-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: var(--space-4);
+  border: 1.5px solid var(--color-ai-border);
+  border-radius: var(--radius-lg);
+  font: inherit;
+  font-size: 17px;
+  line-height: 1.5;
+  resize: none;
+  white-space: pre-wrap;
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+}
+
+.inbox-draft-full-foot {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+}
+
+.inbox-draft-full-foot > * {
+  flex: 1;
+  min-height: var(--size-control-lg);
+}
+
+.inbox-draft-full-foot > :last-child {
+  flex: 2;
+}
+
+/* ── Bloquear contato (diálogo central, ação destrutiva) ── */
+.block-contact-modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  pointer-events: none;
+}
+
+.block-contact-dialog {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-card);
+  outline: none;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
+
+.block-contact-icon {
+  width: var(--size-touch);
+  height: var(--size-touch);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger-tint);
+  color: var(--color-danger-ink);
+}
+
+.block-contact-title {
+  margin: 0;
+  font-size: var(--font-size-headline);
+  font-weight: var(--font-weight-semibold);
+}
+
+.block-contact-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.block-contact-reasons {
+  display: flex;
+  flex-direction: column;
+}
+
+.block-contact-legend {
+  padding-bottom: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+}
+
+.block-contact-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--size-touch);
+  cursor: pointer;
+}
+
+.block-contact-dot {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 2px solid var(--color-line-control);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+}
+
+.block-contact-radio[data-selected] .block-contact-dot {
+  border-color: var(--color-primary-base);
+  box-shadow: inset 0 0 0 4px var(--color-surface-card);
+  background: var(--color-primary-base);
+}
+
+.block-contact-radio[data-focus-visible] .block-contact-dot {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.block-contact-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Conversa bloqueada: aviso no lugar do compositor */
+.inbox-blocked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  border-top: var(--size-border-width) solid var(--color-line-border);
+  background: var(--color-surface-card);
+}
+
+.inbox-blocked p {
+  margin: 0;
+  display: flex;
+  gap: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.inbox-blocked p svg {
+  flex: none;
+}

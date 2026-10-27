@@ -72,12 +72,18 @@ export function mapContactSummary(row: {
   wa_id: string
   display_name: string | null
   created_at: number
+  blocked_at?: number | null
+  blocked_by_display_name?: string | null
+  blocked_reason?: string | null
 }): ContactSummary {
   return {
     id: row.id,
     waId: row.wa_id,
     displayName: row.display_name,
     createdAt: row.created_at,
+    blockedAt: row.blocked_at ?? null,
+    blockedByDisplayName: row.blocked_by_display_name ?? null,
+    blockedReason: row.blocked_reason ?? null,
   }
 }
 

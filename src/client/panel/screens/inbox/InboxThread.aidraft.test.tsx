@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../../../ui/panel.css'
 import type { AiDraftState, InboxConversationDetail, PanelApi } from '../../api'
@@ -97,9 +97,26 @@ describe('InboxThread — rascunho automático da IA', () => {
     const box = (await screen.findByRole('textbox', { name: 'Mensagem' })) as HTMLTextAreaElement
     await waitFor(() => expect(box.value).toBe(TEXT), { timeout: 3000 })
     expect(box.value).not.toContain('60 min')
+    // Nota da IA: recolhida; abre sob demanda e nunca vai no texto do compositor.
+    expect(screen.queryByText('Depilação masculina dura 60 min.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Nota da IA para você' }))
     expect(screen.getByText('Depilação masculina dura 60 min.')).toBeTruthy()
     expect(screen.getByText(/IA em modo de teste/)).toBeTruthy()
     expect(screen.getByText(/Lida por Ana/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Gerar outra' })).toBeTruthy()
+  })
+
+  it('rascunho vira cartão de largura total: Outra, Nota, Enviar, tela cheia e descartar', async () => {
+    render(
+      <InboxThread tenantId="clinic-demo-a" conversationId="cnv_ficticia" api={mockApi()} generation={1} viewerClerkUserId="u1" />,
+    )
+    const box = (await screen.findByRole('textbox', { name: 'Mensagem' })) as HTMLTextAreaElement
+    await waitFor(() => expect(box.value).toBe(TEXT), { timeout: 3000 })
+    expect(screen.getByText(/revise antes de enviar/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver rascunho em tela cheia' }))
+    expect(await screen.findByRole('textbox', { name: 'Resposta' })).toBeTruthy()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Voltar para a conversa' })[0]!)
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar rascunho' }))
+    await waitFor(() => expect((screen.getByRole('textbox', { name: 'Mensagem' }) as HTMLTextAreaElement).value).toBe(''))
   })
 })

@@ -21,6 +21,7 @@ import {
   type PixSnapshot,
 } from '../../api'
 import { navigatePanel } from '../../routes'
+import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
 import { InboxRealtimeProvider, isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
@@ -137,6 +138,8 @@ function AgendarScreenInner({ tenantId, api, generation }: Props) {
   const [pix, setPix] = useState<PixSnapshot | null>(null)
   const [contact, setContact] = useState<Contact | null>(null)
   const [window24, setWindow24] = useState<MessagingWindow | null>(null)
+  /** «Por período» = reserva por bloco (antigo «Reservar bloco»); só com conversa. */
+  const [periodOpen, setPeriodOpen] = useState(false)
   const [serviceId, setServiceId] = useState('')
   /** DEC-051: duração aplicada (null = padrão do serviço). */
   const [appliedDuration, setAppliedDuration] = useState<number | null>(null)
@@ -449,6 +452,28 @@ function AgendarScreenInner({ tenantId, api, generation }: Props) {
     <div className="agd" data-screen="m04-agendar">
       {header}
       <div className="panel-scroll agd-scroll">
+        {ctx.conversationId ? (
+          <div className="agd-mode" role="radiogroup" aria-label="Como escolher o horário">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!periodOpen}
+              className="agd-mode-btn"
+              onClick={() => setPeriodOpen(false)}
+            >
+              Horário exato
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={periodOpen}
+              className="agd-mode-btn"
+              onClick={() => setPeriodOpen(true)}
+            >
+              Por período
+            </button>
+          </div>
+        ) : null}
         {conflict ? (
           <div className="agd-banner" role="alert" tabIndex={-1} ref={conflictRef}>
             <TriangleAlert aria-hidden size={20} strokeWidth={2} />
@@ -668,6 +693,30 @@ function AgendarScreenInner({ tenantId, api, generation }: Props) {
           onSuccess={(s) => {
             setReviewOpen(false)
             setSuccess(s)
+          }}
+        />
+      ) : null}
+      {ctx.conversationId ? (
+        <ReservarBlocoSheet
+          open={periodOpen}
+          tenantId={tenantId}
+          api={api}
+          generation={generation}
+          conversationId={ctx.conversationId}
+          contactName={contact?.name ?? null}
+          windowOpen={window24?.open === true}
+          onClose={() => setPeriodOpen(false)}
+          onReserved={async (message) => {
+            if (message && ctx.conversationId) {
+              await api.sendInboxMessage(
+                tenantId,
+                ctx.conversationId,
+                { body: message.trim(), clientRequestId: crypto.randomUUID() },
+                fo,
+              )
+            }
+            setPeriodOpen(false)
+            back()
           }}
         />
       ) : null}

@@ -219,7 +219,7 @@ describe('pix exceptions (#40)', () => {
       'SELECT version FROM clinic_schema_state WHERE id = 1',
     )
     expect(state?.version).toBe(CLINIC_SCHEMA_VERSION)
-    expect(CLINIC_SCHEMA_VERSION).toBe(21)
+    expect(CLINIC_SCHEMA_VERSION).toBe(22)
   })
 
   it('AC-48: alt horário confirma com sinal pago; conflito preserva alerta', async () => {

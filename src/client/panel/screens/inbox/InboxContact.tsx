@@ -11,6 +11,7 @@ import {
 } from '../../api'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
+import { BlockContactDialog } from './BlockContactDialog'
 import { DeleteContactDialog } from './DeleteContactDialog'
 import { contactLabel, maskPhone, relativeTime, statusTone, statusLabel } from './format'
 import { friendlyError } from '../../copy/errors'
@@ -60,6 +61,9 @@ export function InboxContactScreen({
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
   const [focusSummary] = useState(consumeSummaryFocus)
+  const [blockOpen, setBlockOpen] = useState(false)
+  const [blockBusy, setBlockBusy] = useState(false)
+  const [blockError, setBlockError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -123,6 +127,41 @@ export function InboxContactScreen({
   if (!data) return null
 
   const label = contactLabel(data.contact)
+
+  async function handleBlock(reason: string | null) {
+    setBlockBusy(true)
+    setBlockError(null)
+    try {
+      const res = await api.blockInboxContact(
+        tenantId,
+        contactId,
+        { reason },
+        { generation, expectGeneration: () => generation },
+      )
+      setData((prev) => (prev ? { ...prev, contact: { ...prev.contact, ...res.contact } } : prev))
+      setBlockOpen(false)
+    } catch {
+      setBlockError('Não foi possível bloquear agora. Tente de novo.')
+    } finally {
+      setBlockBusy(false)
+    }
+  }
+
+  async function handleUnblock() {
+    setBlockBusy(true)
+    setBlockError(null)
+    try {
+      const res = await api.unblockInboxContact(tenantId, contactId, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      setData((prev) => (prev ? { ...prev, contact: { ...prev.contact, ...res.contact } } : prev))
+    } catch {
+      setBlockError('Não foi possível desbloquear agora. Tente de novo.')
+    } finally {
+      setBlockBusy(false)
+    }
+  }
 
   async function handleDelete() {
     setDeleteBusy(true)
@@ -331,6 +370,43 @@ export function InboxContactScreen({
         ))}
       </ul>
 
+      <section className="inbox-contact-danger" aria-labelledby="block-contact-h">
+        <h2 id="block-contact-h" className="inbox-contact-h">
+          {data.contact.blockedAt != null ? 'Contato bloqueado' : 'Bloquear contato'}
+        </h2>
+        <p className="inbox-contact-note">
+          {data.contact.blockedAt != null
+            ? `Bloqueado por ${data.contact.blockedByDisplayName ?? 'uma pessoa da equipe'}. Mensagens novas não aparecem no painel e ninguém consegue responder.`
+            : 'Mensagens novas deste número deixam de aparecer e a conversa é encerrada. O histórico e os horários marcados continuam.'}
+        </p>
+        {blockError ? (
+          <p className="inbox-notice" role="alert" style={{ marginBottom: 12 }}>
+            {blockError}
+          </p>
+        ) : null}
+        {data.contact.blockedAt != null ? (
+          <Button
+            className="panel-btn-secondary"
+            style={{ margin: '0 16px 24px' }}
+            isDisabled={blockBusy}
+            onPress={() => void handleUnblock()}
+          >
+            {blockBusy ? 'Desbloqueando…' : 'Desbloquear contato'}
+          </Button>
+        ) : (
+          <Button
+            className="panel-btn-danger"
+            style={{ margin: '0 16px 24px' }}
+            onPress={() => {
+              setBlockError(null)
+              setBlockOpen(true)
+            }}
+          >
+            Bloquear contato
+          </Button>
+        )}
+      </section>
+
       {isOwner ? (
         <section className="inbox-contact-danger" aria-labelledby="delete-contact-h">
           <h2 id="delete-contact-h" className="inbox-contact-h">
@@ -357,6 +433,17 @@ export function InboxContactScreen({
           </Button>
         </section>
       ) : null}
+
+      <BlockContactDialog
+        open={blockOpen}
+        contactLabel={label}
+        busy={blockBusy}
+        error={blockError}
+        onClose={() => setBlockOpen(false)}
+        onConfirm={(reason) => {
+          void handleBlock(reason)
+        }}
+      />
 
       <DeleteContactDialog
         open={confirmOpen}

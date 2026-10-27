@@ -238,3 +238,35 @@
 /* DEC-051 — duração ajustável (passos de 15 min). */
 .agd-duration { display: flex; align-items: center; gap: var(--space-2); }
 .agd-duration-value { min-width: 5.5rem; text-align: center; font-weight: var(--font-weight-semibold); }
+
+/* «Horário exato | Por período» (junta o antigo «Reservar bloco» ao Agendar) */
+.agd-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+}
+
+.agd-mode-btn {
+  min-height: var(--size-control-sm);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.agd-mode-btn[aria-checked='true'] {
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 3px rgba(20, 38, 37, 0.15);
+}
+
+.agd-mode-btn:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}

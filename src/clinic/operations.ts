@@ -168,6 +168,39 @@ export function ingestContactMessage(
       clock,
     )
 
+    // Contato bloqueado pela equipe: o evento fica deduplicado, mas não entra
+    // mensagem nem conversa no painel (sem corpo no audit).
+    const blocked = db.get<{ blocked_at: number | null }>(
+      `SELECT blocked_at FROM contacts WHERE tenant_id = ? AND id = ?`,
+      meta.tenantId,
+      contact.id,
+    )
+    if (blocked?.blocked_at != null) {
+      writeOperationalAudit(
+        db,
+        {
+          tenantId: meta.tenantId,
+          actor: caller.actorId ?? caller.kind,
+          action: 'contact.ingest_suppressed_blocked',
+          objectType: 'contact',
+          objectId: contact.id,
+          detail: { providerEventKey: input.providerEventKey },
+        },
+        clock,
+      )
+      return {
+        duplicate: false,
+        contact,
+        inbound: inbound.row,
+        conversation: null,
+        message: null,
+        outbox: null,
+        outboxes: [],
+        suppressedTombstone: false,
+        externalCallsInsideTransaction: 0,
+      }
+    }
+
     const appended = appendInboundToConversation(
       db,
       {

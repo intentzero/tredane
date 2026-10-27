@@ -44,10 +44,12 @@ import {
 } from '../clinic'
 import type {
   AssignConversationInput,
+  BlockContactInput,
   CloseConversationInput,
   ListConversationsInput,
   MarkReadInput,
   SendOutboundInput,
+  UnblockContactInput,
 } from '../clinic/inbox'
 import type {
   CreatePendingAttachmentInput,
@@ -735,6 +737,24 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     const result = clinicInbox.closeConversationOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutOutboxes(caller, result.outbox, true)
+    await this.#drain(caller)
+    return result.value
+  }
+
+  async blockInboxContact(caller: ClinicCaller, input: BlockContactInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicInbox.blockContactOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutOutboxes(caller, result.outbox, true)
+    await this.#drain(caller)
+    return result.value
+  }
+
+  async unblockInboxContact(caller: ClinicCaller, input: UnblockContactInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicInbox.unblockContactOp(this.#db, caller, input, this.#clock)
     await this.#fanoutOutboxes(caller, result.outbox, true)
     await this.#drain(caller)
     return result.value

@@ -42,6 +42,7 @@ import { messagingWindowForConversation } from './window'
 import { getWhatsappChannel } from '../whatsapp/channel'
 import type {
   AssignConversationInput,
+  BlockContactInput,
   CloseConversationInput,
   ConversationDetail,
   ConversationListItem,
@@ -51,6 +52,7 @@ import type {
   MarkReadInput,
   MessageRow,
   SendOutboundInput,
+  UnblockContactInput,
 } from './types'
 
 export type InboxMutationResult<T> = {
@@ -345,6 +347,151 @@ export function markConversationReadOp(
   })
 }
 
+const BLOCK_REASONS_MAX = 120
+
+/**
+ * Bloquear contato (Proposto, 27/10/2026): mensagens novas deste número não
+ * criam conversa nem mensagem; ninguém envia até desbloquear. Histórico e
+ * compromissos ficam; as conversas abertas são encerradas com mensagem de sistema.
+ */
+export function blockContactOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: BlockContactInput,
+  clock: Clock,
+): InboxMutationResult<{ contact: NonNullable<ReturnType<typeof loadContactSummary>>; closedConversationIds: string[] }> {
+  assertClinicSchemaReady(db)
+  assertValidCaller(caller)
+  const meta = bindOrAssertTenant(db, caller, clock)
+  const reason = input.reason?.trim().slice(0, BLOCK_REASONS_MAX) || null
+  return db.transactionSync(() => {
+    const existing = loadContactSummary(db, meta.tenantId, input.contactId)
+    if (!existing) {
+      throw new NotFoundError('contact_not_found', 'Contato não encontrado nesta clínica')
+    }
+    const now = clock.nowMs()
+    const outboxes: OutboxRow[] = []
+    const closedConversationIds: string[] = []
+    if (existing.blockedAt == null) {
+      db.run(
+        `UPDATE contacts SET blocked_at = ?, blocked_by_display_name = ?, blocked_reason = ?
+         WHERE tenant_id = ? AND id = ?`,
+        now,
+        input.actorDisplayName,
+        reason,
+        meta.tenantId,
+        input.contactId,
+      )
+      const open = db.all<{ id: string }>(
+        `SELECT id FROM conversations
+         WHERE tenant_id = ? AND contact_id = ? AND status != 'closed'`,
+        meta.tenantId,
+        input.contactId,
+      )
+      const systemBody = `${input.actorDisplayName} bloqueou este contato`
+      for (const row of open) {
+        setConversationStatus(db, {
+          tenantId: meta.tenantId,
+          conversationId: row.id,
+          status: 'closed',
+          updatedAt: now,
+        })
+        const systemMessage = insertMessage(
+          db,
+          {
+            tenantId: meta.tenantId,
+            conversationId: row.id,
+            direction: 'system',
+            body: systemBody,
+            deliveryState: 'received',
+            authorClerkUserId: input.actorClerkUserId,
+            authorDisplayName: input.actorDisplayName,
+            createdAt: now,
+          },
+          clock,
+        )
+        touchConversationMessage(db, {
+          tenantId: meta.tenantId,
+          conversationId: row.id,
+          preview: systemBody,
+          direction: 'system',
+          at: now,
+          bumpUnread: false,
+          reopenIfClosed: false,
+        })
+        closedConversationIds.push(row.id)
+        outboxes.push(
+          insertOutboxEvent(
+            db,
+            {
+              tenantId: meta.tenantId,
+              type: 'conversation.closed',
+              aggregateType: 'conversation',
+              aggregateId: row.id,
+              idempotencyKey: `conversation.closed:${row.id}:${now}`,
+              payload: { conversationId: row.id, systemMessageId: systemMessage.id },
+            },
+            clock,
+          ),
+        )
+      }
+      writeOperationalAudit(
+        db,
+        {
+          tenantId: meta.tenantId,
+          actor: input.actorClerkUserId,
+          action: 'contact.blocked',
+          objectType: 'contact',
+          objectId: input.contactId,
+          detail: { hasReason: reason != null },
+        },
+        clock,
+      )
+    }
+    const contact = loadContactSummary(db, meta.tenantId, input.contactId)!
+    return { value: { contact, closedConversationIds }, outbox: outboxes }
+  })
+}
+
+export function unblockContactOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: UnblockContactInput,
+  clock: Clock,
+): InboxMutationResult<{ contact: NonNullable<ReturnType<typeof loadContactSummary>> }> {
+  assertClinicSchemaReady(db)
+  assertValidCaller(caller)
+  const meta = bindOrAssertTenant(db, caller, clock)
+  return db.transactionSync(() => {
+    const existing = loadContactSummary(db, meta.tenantId, input.contactId)
+    if (!existing) {
+      throw new NotFoundError('contact_not_found', 'Contato não encontrado nesta clínica')
+    }
+    if (existing.blockedAt != null) {
+      db.run(
+        `UPDATE contacts SET blocked_at = NULL, blocked_by_display_name = NULL, blocked_reason = NULL
+         WHERE tenant_id = ? AND id = ?`,
+        meta.tenantId,
+        input.contactId,
+      )
+      writeOperationalAudit(
+        db,
+        {
+          tenantId: meta.tenantId,
+          actor: input.actorClerkUserId,
+          action: 'contact.unblocked',
+          objectType: 'contact',
+          objectId: input.contactId,
+          detail: {},
+        },
+        clock,
+      )
+    }
+    const contact = loadContactSummary(db, meta.tenantId, input.contactId)!
+    return { value: { contact }, outbox: [] }
+  })
+}
+
 export function closeConversationOp(
   db: ClinicDb,
   caller: ClinicCaller,
@@ -458,7 +605,14 @@ export function sendOutboundMessageOp(
   }
 
   return db.transactionSync(() => {
-    requireConversation(db, meta.tenantId, input.conversationId)
+    const convForSend = requireConversation(db, meta.tenantId, input.conversationId)
+    const sendContact = loadContactSummary(db, meta.tenantId, convForSend.contactId)
+    if (sendContact?.blockedAt != null) {
+      throw new ValidationError(
+        'contact_blocked',
+        'Este contato está bloqueado. Desbloqueie para enviar mensagens.',
+      )
+    }
 
     const existingOb = findOutboundByClientRequestId(
       db,

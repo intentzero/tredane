@@ -1,5 +1,6 @@
 export type {
   AssignConversationInput,
+  BlockContactInput,
   CloseConversationInput,
   ContactSummary,
   ConversationDetail,
@@ -13,12 +14,14 @@ export type {
   MessagingWindowView,
   SendOutboundInput,
   SendOutboundTemplateInput,
+  UnblockContactInput,
 } from './types'
 
 export {
   appendInboundToConversation,
   applyOutboundSendResultOp,
   assignConversationOp,
+  blockContactOp,
   closeConversationOp,
   getContactDetailOp,
   getConversationDetailOp,
@@ -26,6 +29,7 @@ export {
   markConversationReadOp,
   reconcileOutboundStatusOp,
   sendOutboundMessageOp,
+  unblockContactOp,
   type InboxMutationResult,
 } from './operations'
 

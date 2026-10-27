@@ -294,12 +294,18 @@ export function listConversations(
       contact_wa_id: string
       contact_display_name: string | null
       contact_created_at: number
+      contact_blocked_at: number | null
+      contact_blocked_by: string | null
+      contact_blocked_reason: string | null
     }
   >(
     `SELECT ${CONV_COLS},
        ct.wa_id AS contact_wa_id,
        ct.display_name AS contact_display_name,
-       ct.created_at AS contact_created_at
+       ct.created_at AS contact_created_at,
+       ct.blocked_at AS contact_blocked_at,
+       ct.blocked_by_display_name AS contact_blocked_by,
+       ct.blocked_reason AS contact_blocked_reason
      FROM conversations c
      INNER JOIN contacts ct
        ON ct.tenant_id = c.tenant_id AND ct.id = c.contact_id
@@ -327,6 +333,9 @@ export function listConversations(
       wa_id: row.contact_wa_id,
       display_name: row.contact_display_name,
       created_at: row.contact_created_at,
+      blocked_at: row.contact_blocked_at,
+      blocked_by_display_name: row.contact_blocked_by,
+      blocked_reason: row.contact_blocked_reason,
     }),
   }))
   const nextBefore =
@@ -391,12 +400,18 @@ export function getConversationWithContact(
       contact_wa_id: string
       contact_display_name: string | null
       contact_created_at: number
+      contact_blocked_at: number | null
+      contact_blocked_by: string | null
+      contact_blocked_reason: string | null
     }
   >(
     `SELECT ${CONV_COLS},
        ct.wa_id AS contact_wa_id,
        ct.display_name AS contact_display_name,
-       ct.created_at AS contact_created_at
+       ct.created_at AS contact_created_at,
+       ct.blocked_at AS contact_blocked_at,
+       ct.blocked_by_display_name AS contact_blocked_by,
+       ct.blocked_reason AS contact_blocked_reason
      FROM conversations c
      INNER JOIN contacts ct
        ON ct.tenant_id = c.tenant_id AND ct.id = c.contact_id
@@ -412,6 +427,9 @@ export function getConversationWithContact(
       wa_id: row.contact_wa_id,
       display_name: row.contact_display_name,
       created_at: row.contact_created_at,
+      blocked_at: row.contact_blocked_at,
+      blocked_by_display_name: row.contact_blocked_by,
+      blocked_reason: row.contact_blocked_reason,
     }),
   }
 }
@@ -427,8 +445,12 @@ export function loadContactSummary(
     wa_id: string
     display_name: string | null
     created_at: number
+    blocked_at: number | null
+    blocked_by_display_name: string | null
+    blocked_reason: string | null
   }>(
-    `SELECT id, wa_id, display_name, created_at FROM contacts
+    `SELECT id, wa_id, display_name, created_at, blocked_at, blocked_by_display_name, blocked_reason
+     FROM contacts
      WHERE tenant_id = ? AND id = ?`,
     tenantId,
     contactId,

@@ -1,4 +1,5 @@
 import {
+  Ban,
   CalendarPlus,
   Check,
   CheckCheck,
@@ -8,9 +9,13 @@ import {
   Clock,
   EllipsisVertical,
   FileText,
+  Info,
+  Maximize2,
+  RefreshCw,
   Send,
   Sparkles,
   UserCheck,
+  X,
 } from 'lucide-react'
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import { eventConversationId, useInboxRealtime } from '../../realtime/InboxRealtime'
@@ -40,6 +45,7 @@ import type {
 import { PanelApiError } from '../../api'
 import { useClinicTimezone } from '../../clinicTimezone'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
+import { BlockContactDialog } from './BlockContactDialog'
 import { AiWorking } from '../../ui/AiWorking'
 import { navigatePanel } from '../../routes'
 import { requestSummaryFocus } from './summaryFocus'
@@ -229,10 +235,13 @@ export function InboxThread({
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [reserveOpen, setReserveOpen] = useState(false)
   const [templates, setTemplates] = useState<WhatsappTemplateItem[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
-  const [reserveOpen, setReserveOpen] = useState(false)
+  const [blockOpen, setBlockOpen] = useState(false)
+  const [blockBusy, setBlockBusy] = useState(false)
+  const [blockError, setBlockError] = useState<string | null>(null)
   // Datas e horas no fuso da clínica (Agenda → Horários).
   useClinicTimezone(api, tenantId, generation)
   const [selectedTemplate, setSelectedTemplate] =
@@ -254,6 +263,8 @@ export function InboxThread({
   const [pendingAutoDraft, setPendingAutoDraft] = useState<AiSuggestion | null>(null)
   const [aiNotes, setAiNotes] = useState<string | null>(null)
   const [aiDraftTagged, setAiDraftTagged] = useState(false)
+  const [aiNotesOpen, setAiNotesOpen] = useState(false)
+  const [draftFullOpen, setDraftFullOpen] = useState(false)
   const [aiFallback, setAiFallback] = useState(false)
   const [aiCapReached, setAiCapReached] = useState(false)
   const [revealing, setRevealing] = useState(false)
@@ -603,6 +614,41 @@ export function InboxThread({
     }
   }
 
+  async function blockContact(reason: string | null) {
+    if (!detail) return
+    setBlockBusy(true)
+    setBlockError(null)
+    try {
+      await api.blockInboxContact(tenantId, detail.contactId, { reason }, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      setBlockOpen(false)
+      discardDraftInComposer()
+      await load({ quiet: true })
+    } catch {
+      setBlockError('Não foi possível bloquear agora. Tente de novo.')
+    } finally {
+      setBlockBusy(false)
+    }
+  }
+
+  async function unblockContact() {
+    if (!detail) return
+    setBusy(true)
+    try {
+      await api.unblockInboxContact(tenantId, detail.contactId, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      await load({ quiet: true })
+    } catch (err) {
+      setNotice(friendlyError(err, 'Não foi possível desbloquear agora. Tente de novo.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function requestAiSuggestion(parentSuggestionId?: string | null) {
     setAiBusy(true)
     setAiUnavailable(false)
@@ -640,6 +686,17 @@ export function InboxThread({
     } finally {
       setAiBusy(false)
     }
+  }
+
+  /** Descarta o rascunho que já está no compositor (sem tocar no que a atendente escreveu depois). */
+  function discardDraftInComposer() {
+    stopReveal()
+    setDraft('')
+    setAiDraftTagged(false)
+    setAiNotes(null)
+    setAiNotesOpen(false)
+    setDraftFullOpen(false)
+    setActiveSuggestionId(null)
   }
 
   async function discardAiSuggestion() {
@@ -839,7 +896,9 @@ export function InboxThread({
   const isMine =
     detail.assigneeClerkUserId != null &&
     detail.assigneeClerkUserId === viewerClerkUserId
-  const windowOpen = detail.messagingWindow?.open !== false
+  const blocked = detail.contact?.blockedAt != null
+  const windowOpen = detail.messagingWindow?.open !== false && !blocked
+  const cardMode = windowOpen && aiDraftTagged && !!draft.trim() && !pendingAutoDraft
 
   return (
     <div className="inbox-thread">
@@ -879,7 +938,11 @@ export function InboxThread({
           <span className="inbox-thread-who">
             <span className="inbox-thread-name">{label}</span>
             <span className="inbox-thread-sub">
-              <Badge tone={statusTone(detail.status)}>{statusLabel(detail.status)}</Badge>
+              {blocked ? (
+                <Badge tone="closed">Bloqueado</Badge>
+              ) : (
+                <Badge tone={statusTone(detail.status)}>{statusLabel(detail.status)}</Badge>
+              )}
               <span>{assigneeLine(detail, viewerClerkUserId)}</span>
             </span>
           </span>
@@ -902,7 +965,7 @@ export function InboxThread({
         >
           <FileText aria-hidden size={20} strokeWidth={2} />
         </Button>
-        {detail.status !== 'closed' ? (
+        {detail.status !== 'closed' && !blocked ? (
           <Button
             className="panel-header-action"
             aria-label="Agendar horário"
@@ -922,31 +985,47 @@ export function InboxThread({
             <span>Agendar</span>
           </Button>
         ) : null}
-        {detail.status !== 'closed' ? (
-          <MenuTrigger>
-            <Button className="panel-icon-btn" aria-label="Mais opções da conversa">
-              <EllipsisVertical aria-hidden size={22} strokeWidth={2} />
-            </Button>
-            <Popover className="panel-popover" placement="bottom end">
-              <Menu
-                className="panel-menu"
-                aria-label="Opções da conversa"
-                onAction={(key) => {
-                  if (key === 'close') setConfirmClose(true)
-                  if (key === 'hold') setReserveOpen(true)
-                }}
-              >
+        <MenuTrigger>
+          <Button className="panel-icon-btn" aria-label="Mais opções da conversa">
+            <EllipsisVertical aria-hidden size={22} strokeWidth={2} />
+          </Button>
+          <Popover className="panel-popover" placement="bottom end">
+            <Menu
+              className="panel-menu"
+              aria-label="Opções da conversa"
+              onAction={(key) => {
+                if (key === 'close') setConfirmClose(true)
+                if (key === 'hold') setReserveOpen(true)
+                if (key === 'block') {
+                  setBlockError(null)
+                  setBlockOpen(true)
+                }
+                if (key === 'unblock') void unblockContact()
+              }}
+            >
+              {detail.status !== 'closed' && !blocked ? (
                 <MenuItem id="hold" className="panel-menu-item">
                   Reservar bloco
                 </MenuItem>
-                <Separator className="panel-menu-separator" />
-                <MenuItem id="close" className="panel-menu-item panel-menu-item--danger">
+              ) : null}
+              {detail.status !== 'closed' ? (
+                <MenuItem id="close" className="panel-menu-item">
                   Encerrar conversa
                 </MenuItem>
-              </Menu>
-            </Popover>
-          </MenuTrigger>
-        ) : null}
+              ) : null}
+              {detail.status !== 'closed' ? <Separator className="panel-menu-separator" /> : null}
+              {blocked ? (
+                <MenuItem id="unblock" className="panel-menu-item">
+                  Desbloquear contato
+                </MenuItem>
+              ) : (
+                <MenuItem id="block" className="panel-menu-item panel-menu-item--danger">
+                  Bloquear contato
+                </MenuItem>
+              )}
+            </Menu>
+          </Popover>
+        </MenuTrigger>
       </header>
 
       {confirmClose ? (
@@ -994,6 +1073,16 @@ export function InboxThread({
         </div>
       ) : null}
 
+      <BlockContactDialog
+        open={blockOpen}
+        contactLabel={label}
+        busy={blockBusy}
+        error={blockError}
+        onClose={() => setBlockOpen(false)}
+        onConfirm={(reason) => {
+          void blockContact(reason)
+        }}
+      />
       <ReservarBlocoSheet
         open={reserveOpen}
         tenantId={tenantId}
@@ -1185,7 +1274,18 @@ export function InboxThread({
       ) : null}
       </div>
 
-      {detail.status !== 'closed' ? (
+      {blocked ? (
+        <div className="inbox-blocked" role="status">
+          <p>
+            <Ban aria-hidden size={20} strokeWidth={2} />
+            Contato bloqueado. Mensagens novas deste número não aparecem no painel e não é possível
+            responder.
+          </p>
+          <Button className="panel-btn-secondary" isDisabled={busy} onPress={() => void unblockContact()}>
+            Desbloquear
+          </Button>
+        </div>
+      ) : detail.status !== 'closed' ? (
         <div className="inbox-composer-wrap">
           {aiNotEnabled ? (
             <div className="ai-block ai-block-unavailable" role="status">
@@ -1271,8 +1371,7 @@ export function InboxThread({
               você pode responder normalmente.
             </p>
           ) : null}
-          {windowOpen &&
-          (autoDraftState === 'generating' || pendingAutoDraft || (aiDraftTagged && draft.trim())) ? (
+          {windowOpen && (autoDraftState === 'generating' || pendingAutoDraft) ? (
             <div className="inbox-ai-status">
               {autoDraftState === 'generating' && !pendingAutoDraft && !aiDraftTagged ? (
                 <AiWorking label="IA escrevendo um rascunho…" />
@@ -1287,29 +1386,7 @@ export function InboxThread({
                   Sugestão pronta · inserir
                 </Button>
               ) : null}
-              {aiDraftTagged && draft.trim() && !pendingAutoDraft ? (
-                <>
-                  {revealing || aiBusy ? (
-                    <AiWorking label={aiBusy ? 'Gerando outra…' : 'IA escrevendo…'} />
-                  ) : (
-                    <span className="inbox-ai-draft-tag">Rascunho da IA — revise antes de enviar</span>
-                  )}
-                  <Button
-                    className="panel-btn-secondary ai-btn"
-                    onPress={() => void requestAiSuggestion(activeSuggestionId)}
-                    isDisabled={aiBusy || busy || revealing}
-                  >
-                    Gerar outra
-                  </Button>
-                </>
-              ) : null}
             </div>
-          ) : null}
-          {aiNotes && aiDraftTagged ? (
-            <p className="ai-notes" role="note">
-              <span className="ai-notes-label">Notas da IA para você (não são enviadas)</span>
-              {aiNotes}
-            </p>
           ) : null}
           {windowOpen && !aiSuggestion && !aiDraftTagged ? (
             <div className="inbox-composer-tools">
@@ -1326,12 +1403,44 @@ export function InboxThread({
           ) : null}
           {windowOpen ? (
             <form
-              className="inbox-composer"
+              className={`inbox-composer${cardMode ? ' inbox-ai-card' : ''}`}
               onSubmit={(e) => {
                 e.preventDefault()
                 void send()
               }}
             >
+              {cardMode ? (
+                <div className="inbox-ai-card-head">
+                  {revealing || aiBusy ? (
+                    <AiWorking label={aiBusy ? 'Gerando outra…' : 'IA escrevendo…'} />
+                  ) : (
+                    <span className="inbox-ai-draft-tag">
+                      <Sparkles aria-hidden size={14} strokeWidth={2} />
+                      Rascunho da IA<span className="inbox-ai-draft-sub"> · revise antes de enviar</span>
+                    </span>
+                  )}
+                  <Button
+                    className="inbox-ai-icon"
+                    aria-label="Ver rascunho em tela cheia"
+                    onPress={() => setDraftFullOpen(true)}
+                  >
+                    <Maximize2 aria-hidden size={18} strokeWidth={2} />
+                  </Button>
+                  <Button
+                    className="inbox-ai-icon"
+                    aria-label="Descartar rascunho"
+                    onPress={discardDraftInComposer}
+                  >
+                    <X aria-hidden size={18} strokeWidth={2} />
+                  </Button>
+                </div>
+              ) : null}
+              {cardMode && aiNotes && aiNotesOpen ? (
+                <p className="ai-notes ai-notes--card" role="note">
+                  <span className="ai-notes-label">Nota para você · não é enviada</span>
+                  {aiNotes}
+                </p>
+              ) : null}
               <TextField
                 className="inbox-composer-field"
                 aria-label="Mensagem"
@@ -1342,13 +1451,14 @@ export function InboxThread({
                   if (!v.trim() && aiDraftTagged) {
                     setAiDraftTagged(false)
                     setAiNotes(null)
+                    setAiNotesOpen(false)
                     setActiveSuggestionId(null)
                   }
                 }}
               >
                 <TextArea
                   id={composerId}
-                  className={`inbox-composer-input${aiDraftTagged ? ' inbox-composer-input--ai' : ''}`}
+                  className={`inbox-composer-input${cardMode ? ' inbox-composer-input--card' : ''}`}
                   placeholder="Escreva uma resposta…"
                   rows={1}
                   autoComplete="off"
@@ -1363,14 +1473,49 @@ export function InboxThread({
                   }}
                 />
               </TextField>
-              <Button
-                className="inbox-send"
-                type="submit"
-                aria-label="Enviar"
-                isDisabled={busy || !draft.trim()}
-              >
-                <Send aria-hidden size={20} strokeWidth={2} />
-              </Button>
+              {cardMode ? (
+                <div className="inbox-ai-card-foot">
+                  <Button
+                    className="inbox-ai-foot-btn"
+                    aria-label="Gerar outra"
+                    onPress={() => void requestAiSuggestion(activeSuggestionId)}
+                    isDisabled={aiBusy || busy || revealing}
+                  >
+                    <RefreshCw aria-hidden size={16} strokeWidth={2} />
+                    Outra
+                  </Button>
+                  {aiNotes ? (
+                    <Button
+                      className="inbox-ai-foot-btn"
+                      aria-expanded={aiNotesOpen}
+                      aria-label="Nota da IA para você"
+                      onPress={() => setAiNotesOpen((o) => !o)}
+                    >
+                      <Info aria-hidden size={16} strokeWidth={2} />
+                      Nota
+                    </Button>
+                  ) : null}
+                  <span className="inbox-ai-foot-spacer" />
+                  <Button
+                    className="inbox-send inbox-send--label"
+                    type="submit"
+                    aria-label="Enviar"
+                    isDisabled={busy || !draft.trim()}
+                  >
+                    Enviar
+                    <Send aria-hidden size={16} strokeWidth={2} />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  className="inbox-send"
+                  type="submit"
+                  aria-label="Enviar"
+                  isDisabled={busy || !draft.trim()}
+                >
+                  <Send aria-hidden size={20} strokeWidth={2} />
+                </Button>
+              )}
             </form>
           ) : (
             <div className="inbox-composer inbox-composer-template">
@@ -1393,6 +1538,67 @@ export function InboxThread({
               </Button>
             </div>
           )}
+
+          <ModalOverlay
+            isOpen={draftFullOpen && cardMode}
+            onOpenChange={setDraftFullOpen}
+            className="panel-overlay"
+            style={{ position: 'fixed', inset: 0, zIndex: 30 }}
+            isDismissable
+          >
+            <Modal className="inbox-draft-full-modal">
+              <Dialog className="inbox-draft-full" aria-labelledby="draft-full-title">
+                {({ close }) => (
+                  <>
+                    <header className="inbox-draft-full-head">
+                      <Button className="panel-icon-btn" aria-label="Voltar para a conversa" onPress={close}>
+                        <ChevronLeft aria-hidden size={22} strokeWidth={2} />
+                      </Button>
+                      <div className="inbox-draft-full-title">
+                        <Heading slot="title" id="draft-full-title">
+                          Resposta para {label}
+                        </Heading>
+                        <span>Rascunho da IA · revise antes de enviar</span>
+                      </div>
+                      <Button
+                        className="inbox-ai-foot-btn"
+                        aria-label="Gerar outra"
+                        onPress={() => void requestAiSuggestion(activeSuggestionId)}
+                        isDisabled={aiBusy || busy || revealing}
+                      >
+                        <RefreshCw aria-hidden size={16} strokeWidth={2} />
+                        Outra
+                      </Button>
+                    </header>
+                    {aiNotes ? (
+                      <p className="ai-notes ai-notes--card" role="note">
+                        <span className="ai-notes-label">Nota para você · não é enviada</span>
+                        {aiNotes}
+                      </p>
+                    ) : null}
+                    <TextField className="inbox-draft-full-field" aria-label="Resposta" value={draft} onChange={setDraft}>
+                      <TextArea className="inbox-draft-full-input" />
+                    </TextField>
+                    <div className="inbox-draft-full-foot">
+                      <Button className="panel-btn-secondary" onPress={close}>
+                        Voltar
+                      </Button>
+                      <Button
+                        className="panel-btn-primary"
+                        isDisabled={busy || !draft.trim()}
+                        onPress={() => {
+                          close()
+                          void send()
+                        }}
+                      >
+                        Enviar para {label}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </Dialog>
+            </Modal>
+          </ModalOverlay>
 
           <ModalOverlay
             isOpen={pickerOpen}
