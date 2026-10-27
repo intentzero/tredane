@@ -252,10 +252,10 @@ describe('envio imediato com fila só como fallback', () => {
       expect(h.metaCalls).toHaveLength(1)
       expect(h.outbound().deliveryState).toBe('pending')
       expect(published).toHaveLength(1)
-      expect(published[0].type).toBe(SEND_RESULT_TYPE)
+      expect(published[0]!.type).toBe(SEND_RESULT_TYPE)
       expect(JSON.stringify(published[0])).not.toMatch(/5511999000099/)
 
-      const again = await processClinicOutboxMessage(published[0], {
+      const again = await processClinicOutboxMessage(published[0]!, {
         env: ENV,
         metaAdapter: h.meta,
         clinicStub: () => h.stub,
