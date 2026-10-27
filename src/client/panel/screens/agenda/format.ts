@@ -26,6 +26,39 @@ export function formatDayLabel(isoDate: string, timeZone: string): {
   return { weekday, day }
 }
 
+function civilProbe(isoDate: string): Date {
+  const [y, m, d] = isoDate.split('-').map(Number)
+  return new Date(Date.UTC(y!, m! - 1, d!, 15, 0, 0))
+}
+
+/** «Terça, 27 de outubro» — data civil por extenso, sem o «-feira». */
+export function formatLongDate(isoDate: string, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).formatToParts(civilProbe(isoDate))
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? ''
+  const weekday = get('weekday').replace(/-feira$/, '')
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${get('day')} de ${get('month')}`
+}
+
+/** «26 de outubro – 1 de novembro» para o intervalo da semana. */
+export function formatDateRange(
+  startIso: string,
+  endIso: string,
+  timeZone: string,
+): string {
+  const fmt = new Intl.DateTimeFormat('pt-BR', {
+    timeZone,
+    day: 'numeric',
+    month: 'long',
+  })
+  return `${fmt.format(civilProbe(startIso))} – ${fmt.format(civilProbe(endIso))}`
+}
+
 /** Próximos N dias civis a partir de «hoje» no fuso da clínica. */
 export function upcomingCivilDates(
   timeZone: string,

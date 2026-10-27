@@ -109,7 +109,7 @@ describe('WhatsappScreen main — dev-sync de staging', () => {
     // sucesso recarrega a conexão
     await waitFor(() => expect(api.getWhatsappConnection).toHaveBeenCalledTimes(2))
     // Trocar / Desconectar continuam lá
-    expect(screen.getByRole('button', { name: 'Trocar número' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Trocar número/ })).toBeTruthy()
   })
 
   it('mostra mensagem de 403 do servidor', async () => {

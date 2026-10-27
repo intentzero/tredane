@@ -143,6 +143,20 @@ describe('panel routes (#22)', () => {
         section: 'whatsapp-desconectar',
       }),
     ).toBe('/c/clinic-demo-a/clinica/whatsapp/desconectar')
+    expect(resolvePanelRoute('/c/clinic-demo-a/clinica/whatsapp/historico')).toEqual({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'whatsapp-historico',
+    })
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'clinica',
+        tenantId: 'clinic-demo-a',
+        section: 'whatsapp-historico',
+      }),
+    ).toBe('/c/clinic-demo-a/clinica/whatsapp/historico')
     expect(resolvePanelRoute('/c/clinic-demo-a/clinica/whatsapp/dev-sync')).toEqual({
       kind: 'area',
       area: 'clinica',

@@ -2,6 +2,7 @@
  * TEL-09 WhatsApp — M-19 / M-23 / M-24 / M-25 / M-26 (#31 / DEC-009 / REQ-051).
  * Embedded Signup: modo synthetic (fixtures) até gates Meta (#18).
  */
+import { ChevronLeft, History, Repeat, Unplug } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import type { PanelApi, WhatsappConnection, WhatsappSignupPurpose } from '../../../api'
@@ -10,17 +11,26 @@ import { navigatePanel } from '../../../routes'
 import { ErrorState, LoadingState } from '../../../states/StatusScreens'
 import { TestOnly } from '../../../states/TestOnly'
 import { useTenant } from '../../../tenant/TenantContext'
-import { connectedByLabel, formatPhone, formatWhen, historyLabel } from './format'
+import {
+  connectedByLabel,
+  formatPhone,
+  formatWhen,
+  historyLabel,
+  templateStatus,
+  templateTitle,
+} from './format'
 import { useWhatsapp } from './useWhatsapp'
 import { isStagingHostname, WhatsappDevSyncAction } from './WhatsappDevSyncAction'
 import { friendlyError, friendlyReason } from '../../../copy/errors'
+import { Badge } from '../../../states/Badge'
 import { Banner } from '../../../states/Banner'
+import { NavRow } from '../NavRow'
 
 type Props = {
   tenantId: string
   api: PanelApi
   generation: number
-  mode: 'main' | 'trocar' | 'desconectar'
+  mode: 'main' | 'trocar' | 'desconectar' | 'historico'
   clinicName: string
   /** Papel na clínica ativa; o botão de staging dev-sync só aparece ao dono. */
   isOwner?: boolean
@@ -204,6 +214,25 @@ export function WhatsappScreen({
     }
   }
 
+  function goTo(section: 'whatsapp' | 'whatsapp-trocar' | 'whatsapp-historico' | 'whatsapp-desconectar') {
+    navigatePanel({ kind: 'area', area: 'clinica', tenantId, section })
+  }
+
+  if (mode === 'historico') {
+    return (
+      <div className="clinic-stack whatsapp-stack">
+        <header className="clinic-toolbar">
+          <Button className="panel-btn-ghost" onPress={() => goTo('whatsapp')}>
+            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
+            WhatsApp
+          </Button>
+        </header>
+        <h2 className="whatsapp-subhead">Histórico da conexão</h2>
+        <HistoryList items={conn.history} limit={50} />
+      </div>
+    )
+  }
+
   if (mode === 'desconectar') {
     return (
       <div className="clinic-stack whatsapp-stack">
@@ -219,6 +248,7 @@ export function WhatsappScreen({
               })
             }
           >
+            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
             Voltar
           </Button>
         </header>
@@ -282,6 +312,7 @@ export function WhatsappScreen({
               })
             }
           >
+            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
             Voltar
           </Button>
         </header>
@@ -333,6 +364,7 @@ export function WhatsappScreen({
               })
             }
           >
+            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
             Clínica
           </Button>
         </header>
@@ -383,6 +415,7 @@ export function WhatsappScreen({
               })
             }
           >
+            <ChevronLeft aria-hidden size={20} strokeWidth={2} />
             Clínica
           </Button>
         </header>
@@ -419,7 +452,16 @@ export function WhatsappScreen({
           Reconectar WhatsApp
         </Button>
         {devSync}
-        <HistoryList items={conn.history} />
+        <ul className="clinic-nav-list">
+          <li>
+            <NavRow
+              icon={History}
+              title="Histórico da conexão"
+              detail={historyCount(conn.history.length)}
+              onPress={() => goTo('whatsapp-historico')}
+            />
+          </li>
+        </ul>
       </div>
     )
   }
@@ -439,6 +481,7 @@ export function WhatsappScreen({
             })
           }
         >
+          <ChevronLeft aria-hidden size={20} strokeWidth={2} />
           Clínica
         </Button>
       </header>
@@ -463,44 +506,50 @@ export function WhatsappScreen({
             Nenhum modelo aprovado ainda. Modelos servem para falar com a cliente depois de 24 horas sem resposta. A Meta aprova cada um e isso pode levar alguns dias.
           </p>
         ) : (
-          <ul className="whatsapp-tpl-list">
-            {conn.messageTemplates.map((t) => (
-              <li key={t.name}>
-                {t.name} · {t.status}
-              </li>
-            ))}
+          <ul className="whatsapp-tpl-list clinic-nav-list">
+            {conn.messageTemplates.map((t) => {
+              const st = templateStatus(t.status)
+              return (
+                <li key={t.name} className="whatsapp-tpl">
+                  <span className="clinic-nav-copy">
+                    <strong>{templateTitle(t.name)}</strong>
+                    <span>{t.name}</span>
+                  </span>
+                  <Badge tone={st.tone}>{st.label}</Badge>
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>
 
-      <div className="clinic-actions">
-        <Button
-          className="panel-btn-secondary"
-          onPress={() =>
-            navigatePanel({
-              kind: 'area',
-              area: 'clinica',
-              tenantId,
-              section: 'whatsapp-trocar',
-            })
-          }
-        >
-          Trocar número
-        </Button>
-        <Button
-          className="panel-btn-ghost"
-          onPress={() =>
-            navigatePanel({
-              kind: 'area',
-              area: 'clinica',
-              tenantId,
-              section: 'whatsapp-desconectar',
-            })
-          }
-        >
-          Desconectar
-        </Button>
-      </div>
+      <ul className="clinic-nav-list">
+        <li>
+          <NavRow
+            icon={Repeat}
+            title="Trocar número"
+            detail="Usar outro número na clínica"
+            onPress={() => goTo('whatsapp-trocar')}
+          />
+        </li>
+        <li>
+          <NavRow
+            icon={History}
+            title="Histórico da conexão"
+            detail={historyCount(conn.history.length)}
+            onPress={() => goTo('whatsapp-historico')}
+          />
+        </li>
+        <li>
+          <NavRow
+            icon={Unplug}
+            title="Desconectar WhatsApp"
+            detail="Para de receber e enviar mensagens"
+            state="danger"
+            onPress={() => goTo('whatsapp-desconectar')}
+          />
+        </li>
+      </ul>
 
       {conn.metaMode === 'synthetic' ? (
         <TestOnly note="Simula a queda do WhatsApp para ver como a tela fica.">
@@ -521,32 +570,34 @@ export function WhatsappScreen({
       ) : null}
 
       {devSync}
-
-      <HistoryList items={conn.history} />
     </div>
   )
 }
 
+function historyCount(n: number): string {
+  if (n === 0) return 'Nenhum registro ainda'
+  return n === 1 ? '1 registro' : `${n} registros`
+}
+
 function HistoryList({
   items,
+  limit = 8,
 }: {
   items: WhatsappConnection['history']
+  limit?: number
 }) {
-  if (items.length === 0) return null
+  if (items.length === 0) {
+    return <p className="clinic-footnote">Ainda não há registros nesta conexão.</p>
+  }
   return (
-    <section aria-labelledby="wa-hist">
-      <h3 id="wa-hist" className="whatsapp-subhead">
-        Histórico
-      </h3>
-      <ul className="whatsapp-history">
-        {items.slice(0, 8).map((h) => (
-          <li key={h.id}>
-            <strong>{historyLabel(h.action)}</strong>
-            <span>{formatWhen(h.occurredAt)}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <ul className="whatsapp-history">
+      {items.slice(0, limit).map((h) => (
+        <li key={h.id}>
+          <strong>{historyLabel(h.action)}</strong>
+          <span>{formatWhen(h.occurredAt)}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 

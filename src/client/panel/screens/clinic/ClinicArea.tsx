@@ -35,6 +35,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   if (
     section === 'whatsapp'
     || section === 'whatsapp-trocar'
+    || section === 'whatsapp-historico'
     || section === 'whatsapp-desconectar'
   ) {
     if (!api) return <LoadingState label="Carregando WhatsApp…" />
@@ -43,7 +44,9 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         ? 'trocar'
         : section === 'whatsapp-desconectar'
           ? 'desconectar'
-          : 'main'
+          : section === 'whatsapp-historico'
+            ? 'historico'
+            : 'main'
     return (
       <WhatsappScreen
         tenantId={tenantId}

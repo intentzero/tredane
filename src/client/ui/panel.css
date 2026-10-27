@@ -1037,37 +1037,8 @@
   overflow: hidden;
 }
 
-.clinic-nav-row {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: 64px;
-  padding: var(--space-3) var(--space-4);
-  border: 0;
-  border-bottom: var(--size-border-width) solid var(--color-line-divider);
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-}
-
 .clinic-nav-list li:last-child .clinic-nav-row {
   border-bottom: 0;
-}
-
-.clinic-nav-row-static {
-  cursor: default;
-  opacity: 0.85;
-}
-
-.clinic-nav-copy {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .clinic-nav-copy strong {
@@ -1077,18 +1048,6 @@
 .clinic-nav-copy span {
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
-}
-
-.clinic-status-ok {
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-success-ink, #1f7a4d);
-}
-
-.clinic-status-warn {
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-warning-ink, #6e4200);
 }
 
 .clinic-footnote {
@@ -2941,4 +2900,378 @@
   background: var(--color-line-disabled);
   color: var(--color-text-secondary);
   cursor: not-allowed;
+}
+
+/* ───────────── Clínica, WhatsApp e Agenda ───────────── */
+
+/* Linha com ícone de estado (Clínica e ações do WhatsApp). */
+.clinic-nav-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-row-min);
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-bottom: var(--size-border-width) solid var(--color-line-divider);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.clinic-nav-row:active {
+  background: var(--color-surface-sunken);
+}
+
+.clinic-nav-row-static {
+  cursor: default;
+}
+
+.clinic-nav-row-static:active {
+  background: transparent;
+}
+
+.clinic-nav-icon {
+  width: var(--size-control-sm);
+  height: var(--size-control-sm);
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+}
+
+.clinic-nav-icon--ok {
+  background: var(--color-success-tint);
+  color: var(--color-success-ink);
+}
+
+.clinic-nav-icon--todo {
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+}
+
+.clinic-nav-icon--danger {
+  background: var(--color-danger-tint);
+  color: var(--color-danger-ink);
+}
+
+.clinic-nav-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinic-nav-copy strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.clinic-nav-copy span {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.clinic-nav-copy--danger strong {
+  color: var(--color-danger-ink);
+}
+
+.whatsapp-tpl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.whatsapp-tpl:last-child {
+  border-bottom: 0;
+}
+
+.whatsapp-tpl-list.clinic-nav-list {
+  display: block;
+}
+
+/* Barra de progresso das etapas da Clínica. */
+.panel-progress {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-warning-ink) 16%, transparent);
+  overflow: hidden;
+}
+
+.panel-progress > i {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-ink);
+}
+
+.panel-banner-body p.panel-progress-label {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Botão «‹ Voltar» dos cabeçalhos de tela. */
+.clinic-toolbar .panel-btn-ghost {
+  padding-inline: var(--space-2);
+}
+
+/* Alternador segmentado (Dia | Semana). */
+.panel-segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1);
+  margin: 0 var(--space-4);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.panel-segmented-item {
+  min-height: var(--size-touch);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.panel-segmented-item[data-selected] {
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  box-shadow: 0 0 0 var(--size-border-width) var(--color-line-border);
+}
+
+.panel-segmented-item[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+/* Agenda: cabeçalho, navegação, faixa da semana e grade de horas. */
+.agenda-day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  flex: 1;
+}
+
+.agenda-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+}
+
+.agenda-head-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.agenda-head .panel-title {
+  font-size: var(--font-size-title);
+}
+
+.agenda-add {
+  flex: none;
+}
+
+.agenda-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-2);
+}
+
+.agenda-today[data-disabled] {
+  opacity: 0.5;
+}
+
+.agenda-weekstrip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+}
+
+.agenda-weekday {
+  min-height: var(--size-row-min);
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  padding: var(--space-1) 0;
+  border: var(--size-border-width) solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.agenda-weekday-name {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.agenda-weekday-num {
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.agenda-weekday-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+}
+
+.agenda-weekday-dot--on {
+  background: var(--color-primary-base);
+}
+
+.agenda-weekday--today .agenda-weekday-num {
+  color: var(--color-primary-ink);
+}
+
+.agenda-weekday--on {
+  background: var(--color-primary-base);
+  border-color: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+}
+
+.agenda-weekday--on .agenda-weekday-name,
+.agenda-weekday--on .agenda-weekday-num {
+  color: var(--color-text-on-primary);
+}
+
+.agenda-weekday--on .agenda-weekday-dot--on {
+  background: var(--color-text-on-primary);
+}
+
+.agenda-body {
+  padding-top: 0;
+}
+
+.agenda-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  border: var(--size-border-width) dashed var(--color-line-control);
+}
+
+.agenda-empty p {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.agenda-grid {
+  --agenda-gutter: 52px;
+  position: relative;
+  flex: none;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  border: var(--size-border-width) solid var(--color-line-border);
+  overflow: hidden;
+}
+
+.agenda-hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.agenda-hour:first-child {
+  border-top-color: transparent;
+}
+
+.agenda-hour-label {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-2);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.agenda-now {
+  position: absolute;
+  left: var(--agenda-gutter);
+  right: 0;
+  height: 2px;
+  background: var(--color-danger-ink);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.agenda-now-dot {
+  position: absolute;
+  left: -5px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger-ink);
+}
+
+.agenda-block {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--space-1) var(--space-2);
+  border: var(--size-border-width) solid var(--color-primary-border);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-tint);
+  color: var(--color-text-primary);
+  text-align: left;
+  font: inherit;
+  font-size: var(--font-size-small);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.agenda-block:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.agenda-block-title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agenda-block-time,
+.agenda-block-meta {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

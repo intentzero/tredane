@@ -26,6 +26,11 @@ Padrões que se repetem nos mocks. Implemente cada um **uma vez** como component
 | **Lista de linhas com ação** | M-15, M-17, M-18, M-20 | Cartão branco com divisores; linha ≥ 64px com título 16/600, subtítulo 14 muted, estado à direita e seta. Linha toda clicável |
 | **Seletor de horário** | M-04 | Faixa rolável de dias (60×64) e botões de horário de 52px com recurso à direita; selecionado = borda 2px primary e tint. Horário indisponível sai da lista |
 | **Item de compromisso** | M-06, M-13 | Hora 14/600 + cartão com contato, serviço, recurso e estado. Bloqueio e fora do expediente em hachura com **rótulo de texto** |
+| **Linha com ícone de estado** | M-15, M-19 a M-26 | `NavRow`: ícone de 20 em quadrado de 40 (`success.tint` pronto, `warning.tint` falta, `danger.tint` ação destrutiva, `surface.sunken` neutro), título 16/600, resumo 14 e seta. Falta mostra o selo **Falta**; pronto só anuncia “Pronto” para leitor de tela. Sem `onPress` vira linha informativa (ex.: Equipe, em breve). Proposto (PR-8) |
+| **Barra de progresso** | M-15 | Dentro do banner de aviso: `role="progressbar"` com `aria-valuenow`/`aria-valuemax` e o texto “2 de 4 etapas prontas · Próxima: …”. As quatro etapas são Serviços, Profissionais e salas, Horários e bloqueios e WhatsApp. Proposto (PR-8) |
+| **Alternador segmentado** | M-06, M-13 | `ToggleButtonGroup` com seleção única (Dia / Semana), altura 44, item ativo em `surface.card` com contorno. Proposto (PR-8) |
+| **Faixa da semana** | M-06, M-13 | Sete dias (seg a dom) de largura total, cada um com nome, número e ponto quando há horário marcado; selecionado em `primary.base`; “Hoje” em `primary.ink`. Rótulo acessível com data por extenso e quantidade de horários. Proposto (PR-8) |
+| **Grade de horas do dia** | M-06 | Uma linha por hora (64px), compromissos posicionados pelo horário e altura mínima de 44px; compromissos que se sobrepõem ficam lado a lado; linha vermelha de “agora” só no dia de hoje. Faixa visível 8h–19h, ampliada se houver compromisso fora dela. **Ainda não mostra** bloqueios nem horários livres: a API de agenda não os devolve. Proposto (PR-8) |
 | **Interruptor / caixa de seleção** | M-14, M-16, M-21, M-22 | `<input type="checkbox">` nativo de 22–28px, na linha inteira clicável (≥ 44px) |
 
 ## Onde estão no código

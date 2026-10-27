@@ -70,3 +70,31 @@ export function historyLabel(action: string): string {
       return action
   }
 }
+
+/** «lembrete_horario» → «Lembrete horario» (nome legível; o técnico fica pequeno embaixo). */
+export function templateTitle(name: string): string {
+  const text = name.replace(/[_-]+/g, ' ').trim()
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : name
+}
+
+/** Status da Meta → palavra de recepcionista + tom do selo. */
+export function templateStatus(status: string): {
+  label: string
+  tone: 'open' | 'wait' | 'bad' | 'closed'
+} {
+  switch (status.toUpperCase()) {
+    case 'APPROVED':
+      return { label: 'Aprovado', tone: 'open' }
+    case 'PENDING':
+    case 'IN_REVIEW':
+    case 'IN_APPEAL':
+      return { label: 'Em análise', tone: 'wait' }
+    case 'REJECTED':
+      return { label: 'Recusado', tone: 'bad' }
+    case 'PAUSED':
+    case 'DISABLED':
+      return { label: 'Pausado', tone: 'closed' }
+    default:
+      return { label: 'Em análise', tone: 'wait' }
+  }
+}
