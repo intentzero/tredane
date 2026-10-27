@@ -110,7 +110,10 @@
         "META_APP_ID": "3651532788318487",
         // STAGING-ONLY (Paulo, 2026-10-27): habilita POST /api/tenants/:id/whatsapp/dev/sync-existing-binding
         // (sincroniza o DO com o vínculo D1 existente). Nunca definir em production.
-        "WHATSAPP_DEV_SYNC_ENABLED": "true"
+        "WHATSAPP_DEV_SYNC_ENABLED": "true",
+        // STAGING-ONLY (Paulo, 2026-10-27): Web Push real. Exige secrets VAPID_PUBLIC_KEY,
+        // VAPID_PRIVATE_KEY, VAPID_SUBJECT (wrangler secret put --env staging).
+        "PUSH_MODE": "live"
         // Secrets (wrangler secret put --env staging): CLERK_SECRET_KEY, ATTACHMENT_TOKEN_SECRET;
         // com META_MODE=live: META_APP_SECRET, META_VERIFY_TOKEN, META_TOKEN_SECRET;
         // com PIX_MODE=live: PIX_TOKEN_SECRET. `npm run check:env -- staging` valida.

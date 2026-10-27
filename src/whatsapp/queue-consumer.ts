@@ -210,7 +210,12 @@ export async function processWhatsappMessage(
         msg,
       )
       if (mediaOutcome.result === 'retry') return 'retry'
-      if (mediaOutcome.createdConversation && mediaOutcome.conversationId) {
+      // Idempotente por wamid: a DO devolve duplicate=true na 2.ª entrega
+      // (inline + fallback da fila), logo só a 1.ª dispara push.
+      if (
+        (mediaOutcome.createdConversation || mediaOutcome.newMessage) &&
+        mediaOutcome.conversationId
+      ) {
         const { maybeNotifyNewConversationPush } = await import('../push/queue-hook')
         await maybeNotifyNewConversationPush({
           env: deps.env,
@@ -218,7 +223,8 @@ export async function processWhatsappMessage(
           syncAdminDb: deps.syncAdminDb,
           tenantId: msg.tenantId,
           conversationId: mediaOutcome.conversationId,
-          createdConversation: true,
+          createdConversation: Boolean(mediaOutcome.createdConversation),
+          newMessage: Boolean(mediaOutcome.newMessage),
           log,
           receiptId: msg.receiptId,
         })
@@ -253,7 +259,8 @@ export async function processWhatsappMessage(
         { drain: true, fanout: true },
       )) as Awaited<ReturnType<ClinicDurableObject['ingestMessage']>>
 
-      if (ingested?.createdConversation && ingested.conversationId) {
+      const isNewMessage = Boolean(ingested && !ingested.duplicate && ingested.messageId)
+      if ((ingested?.createdConversation || isNewMessage) && ingested?.conversationId) {
         const { maybeNotifyNewConversationPush } = await import('../push/queue-hook')
         await maybeNotifyNewConversationPush({
           env: deps.env,
@@ -261,7 +268,8 @@ export async function processWhatsappMessage(
           syncAdminDb: deps.syncAdminDb,
           tenantId: msg.tenantId,
           conversationId: ingested.conversationId,
-          createdConversation: true,
+          createdConversation: Boolean(ingested.createdConversation),
+          newMessage: isNewMessage,
           log,
           receiptId: msg.receiptId,
         })

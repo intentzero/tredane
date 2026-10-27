@@ -1,7 +1,7 @@
 /* Tredane service worker (#42 / DEC-040).
  * Cache só de assets estáticos locais — nunca /api/* nem respostas autenticadas.
  */
-const CACHE_VERSION = 'tredane-pwa-v3'
+const CACHE_VERSION = 'tredane-pwa-v4'
 const PRECACHE = [
   '/manifest.webmanifest',
   '/icons/icon-192.png',
@@ -105,6 +105,10 @@ self.addEventListener('push', (event) => {
     /* ignore malformed */
   }
 
+  // Tag por conversa (`conversation:<tenant>:<conversa>`): avisos repetidos da
+  // mesma conversa substituem o anterior em vez de empilhar. Não suprimimos o
+  // aviso quando a conversa está aberta: no iOS cada push TEM de mostrar uma
+  // notificação, senão o Safari pode revogar a inscrição.
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
