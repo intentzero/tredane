@@ -525,6 +525,13 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Conversa aberta no celular: tela cheia, sem barra inferior (ux-ui.md). */
+@media (max-width: 767.98px) {
+  .panel-app--immersive .panel-nav {
+    display: none;
+  }
+}
+
 .panel-overlay {
   position: absolute;
   inset: 0;

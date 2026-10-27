@@ -22,9 +22,11 @@ type Props = {
   children: ReactNode
   /** M-14 avisos — sem barra inferior. */
   hideNav?: boolean
+  /** Conversa aberta: no celular fica em tela cheia, sem barra inferior (ux-ui.md). */
+  immersiveOnPhone?: boolean
 }
 
-export function PanelShell({ area, tenantId, children, hideNav }: Props) {
+export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone }: Props) {
   const { active, selectTenant, listState, generation } = useTenant()
   const { api } = useAuthSession()
   const { conn: waConn } = useWhatsapp(api, tenantId, generation)
@@ -127,7 +129,10 @@ export function PanelShell({ area, tenantId, children, hideNav }: Props) {
   const avisosOnly = hideNav || area === 'avisos'
 
   return (
-    <div className="panel-app" lang="pt-BR">
+    <div
+      className={`panel-app${immersiveOnPhone ? ' panel-app--immersive' : ''}`}
+      lang="pt-BR"
+    >
       <a className="panel-skip-link" href="#panel-main">
         Saltar para o conteúdo
       </a>

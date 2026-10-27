@@ -85,7 +85,11 @@ function PanelRouter() {
   }
 
   return (
-    <PanelShell area={route.area} tenantId={route.tenantId}>
+    <PanelShell
+      area={route.area}
+      tenantId={route.tenantId}
+      immersiveOnPhone={route.area === 'conversas' && route.section === 'thread'}
+    >
       {route.area === 'clinica' ? (
         <ClinicArea
           tenantId={route.tenantId}
