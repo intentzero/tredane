@@ -1,7 +1,6 @@
 import { SCHEDULE_GRID_MINUTES } from '../constants'
 import type { ClinicDb } from '../store'
 import { getService } from '../config/services'
-import { occupiedMinutes } from '../config/validation'
 import type { WeeklyWindowRow } from '../config/types'
 import type { UnavailabilityReason } from './types'
 
@@ -55,22 +54,24 @@ type AptSql = {
   room_resource_id: string | null
   starts_at: number
   ends_at: number
+  occupies_until: number | null
 }
 
 /**
- * Ocupação efetiva de um compromisso confirmado = duração + buffer do serviço
- * (DEC-008). Fallback a ends_at se o serviço sumiu.
+ * Ocupação efetiva de um compromisso confirmado = `occupies_until` gravado na
+ * reserva (duração real — inclusive override/bloco — + buffer, DEC-008).
+ * Linhas antigas sem `occupies_until`: `ends_at` + buffer do serviço.
+ * NÃO recalcula pela duração atual do serviço: um bloco mais longo que o
+ * serviço, ou um serviço editado depois, ocupa o que foi reservado.
  */
 export function appointmentOccupiesUntil(
   db: ClinicDb,
   tenantId: string,
-  apt: AptSql,
+  apt: Pick<AptSql, 'service_id' | 'ends_at' | 'occupies_until'>,
 ): number {
+  if (apt.occupies_until != null) return Math.max(apt.occupies_until, apt.ends_at)
   const svc = getService(db, tenantId, apt.service_id)
-  if (svc) {
-    return apt.starts_at + occupiedMinutes(svc.durationMinutes, svc.bufferMinutes) * 60_000
-  }
-  return apt.ends_at
+  return apt.ends_at + (svc ? svc.bufferMinutes * 60_000 : 0)
 }
 
 export function listConfirmedOccupyingResource(
@@ -82,7 +83,7 @@ export function listConfirmedOccupyingResource(
   excludeAppointmentId?: string | null,
 ): Array<{ id: string; startsAt: number; occupiesUntil: number }> {
   const rows = db.all<AptSql>(
-    `SELECT id, service_id, professional_id, room_resource_id, starts_at, ends_at
+    `SELECT id, service_id, professional_id, room_resource_id, starts_at, ends_at, occupies_until
      FROM appointments
      WHERE tenant_id = ?
        AND status = 'confirmed'

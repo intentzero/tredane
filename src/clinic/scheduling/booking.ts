@@ -11,7 +11,6 @@ import {
 import { toAppointment } from '../config/appointments'
 import { getResource } from '../config/resources'
 import { getService } from '../config/services'
-import { occupiedMinutes } from '../config/validation'
 import type { AppointmentRow } from '../config/types'
 import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
@@ -382,10 +381,7 @@ export function confirmAppointmentInTransaction(
         startsAt: apt.startsAt,
         professionalId: apt.professionalId,
         roomResourceId: apt.roomResourceId,
-        occupiedMinutes: occupiedMinutes(
-          service.durationMinutes,
-          service.bufferMinutes,
-        ),
+        occupiedMinutes: Math.round((occupiesUntil - apt.startsAt) / 60_000),
       },
     },
     clock,
