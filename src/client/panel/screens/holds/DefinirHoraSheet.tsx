@@ -11,6 +11,7 @@ import {
   periodChip,
   shortDay,
 } from './holdFormat'
+import { useVisualViewportSheet } from './useVisualViewportSheet'
 
 type Props = {
   open: boolean
@@ -42,6 +43,7 @@ export function DefinirHoraSheet({ open, tenantId, api, generation, hold, timezo
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
   const requestId = useRef(`client:${crypto.randomUUID()}`)
+  const sheetStyle = useVisualViewportSheet(open)
 
   useEffect(() => {
     if (!open || !hold) return
@@ -219,7 +221,7 @@ export function DefinirHoraSheet({ open, tenantId, api, generation, hold, timezo
       isDismissable={!busy}
     >
       <Modal>
-        <Dialog className="panel-sheet hold-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0 }} aria-labelledby="hold-time-title">
+        <Dialog className="panel-sheet hold-sheet" style={sheetStyle} aria-labelledby="hold-time-title">
           <span className="panel-sheet-handle" aria-hidden="true" />
           <div className="hold-sheet-head">
             <Heading slot="title" id="hold-time-title" className="panel-title">
@@ -288,6 +290,7 @@ export function DefinirHoraSheet({ open, tenantId, api, generation, hold, timezo
               <span className="hold-label">Mensagem que a paciente vai receber</span>
               <textarea
                 className="panel-textarea"
+                autoComplete="off"
                 aria-label="Mensagem que a paciente vai receber"
                 rows={5}
                 value={message}
@@ -310,6 +313,7 @@ export function DefinirHoraSheet({ open, tenantId, api, generation, hold, timezo
             </div>
           ) : null}
 
+          <div className="hold-sheet-footer">
           {error ? (
             <div className="inbox-notice" role="alert">
               {error}
@@ -326,6 +330,7 @@ export function DefinirHoraSheet({ open, tenantId, api, generation, hold, timezo
             </Button>
           )}
           <p className="hold-foot">O bloco continua reservado até você confirmar uma hora.</p>
+          </div>
         </Dialog>
       </Modal>
     </ModalOverlay>

@@ -1,3 +1,4 @@
+import { Minus, Plus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components'
 import type { ClinicConfigSnapshot, PanelApi, ScheduleHold } from '../../api'
@@ -14,6 +15,8 @@ import {
   hourLabel,
   type PeriodPreset,
 } from './holdFormat'
+import { HoldSelect } from './HoldSelect'
+import { useVisualViewportSheet } from './useVisualViewportSheet'
 
 type Props = {
   open: boolean
@@ -42,13 +45,13 @@ export function ReservarBlocoSheet(props: Props) {
   const [serviceId, setServiceId] = useState('')
   const [professionalId, setProfessionalId] = useState('')
   const [duration, setDuration] = useState<number>(60)
-  const [durationMode, setDurationMode] = useState<'preset' | 'outra'>('preset')
   const [message, setMessage] = useState('')
   const [messageEdited, setMessageEdited] = useState(false)
   const [editing, setEditing] = useState(false)
   const [preview, setPreview] = useState<{ freeMinutes: number; fits: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const requestId = useRef(`client:${crypto.randomUUID()}`)
+  const sheetStyle = useVisualViewportSheet(open)
 
   useEffect(() => {
     if (!open) return
@@ -78,15 +81,20 @@ export function ReservarBlocoSheet(props: Props) {
   const services = config?.services.filter((s) => s.active) ?? []
   const service = services.find((s) => s.id === serviceId)
   const professionals = (config?.resources ?? []).filter(
-    (r) => r.kind === 'professional' && r.active && (!service || service.professionalIds.includes(r.id)),
+    (r) =>
+      r.kind === 'professional' &&
+      r.active &&
+      // Lista vazia no serviço = qualquer profissional (mesma regra do servidor).
+      (!service || service.professionalIds.length === 0 || service.professionalIds.includes(r.id)),
   )
   const professional = professionals.find((p) => p.id === professionalId)
 
+  const professionalKey = professionals.map((p) => p.id).join(',')
   useEffect(() => {
-    if (professionals.length > 0 && !professionals.some((p) => p.id === professionalId)) {
-      setProfessionalId(professionals[0]!.id)
-    }
-  }, [professionals, professionalId])
+    // Uma só opção: já vem escolhida. Várias: placeholder até a pessoa escolher.
+    if (professionals.some((p) => p.id === professionalId)) return
+    setProfessionalId(professionals.length === 1 ? professionals[0]!.id : '')
+  }, [professionalKey, professionalId])
 
   const win = useMemo(() => {
     if (!date) return null
@@ -186,7 +194,7 @@ export function ReservarBlocoSheet(props: Props) {
       isDismissable={!busy}
     >
       <Modal>
-        <Dialog className="panel-sheet hold-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0 }} aria-labelledby="hold-sheet-title">
+        <Dialog className="panel-sheet hold-sheet" style={sheetStyle} aria-labelledby="hold-sheet-title">
           <span className="panel-sheet-handle" aria-hidden="true" />
           <div className="hold-sheet-head">
             <Heading slot="title" id="hold-sheet-title" className="panel-title">
@@ -204,120 +212,116 @@ export function ReservarBlocoSheet(props: Props) {
 
           {config ? (
             <>
-              <label className="clinic-field">
-                Dia
-                <select value={date} onChange={(e) => setDate(e.target.value)}>
-                  {days.map((d) => (
-                    <option key={d} value={d}>
-                      {formatLongDate(d, tz)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <HoldSelect
+                label="Dia"
+                placeholder="Escolher dia"
+                value={date}
+                onChange={setDate}
+                options={days.map((d) => ({ id: d, label: formatLongDate(d, tz) }))}
+              />
 
               <div className="hold-group" role="group" aria-label="Período">
                 <span className="hold-label">Período</span>
-                <div className="hold-options">
+                <div className="hold-options hold-grid-3">
                   {(['manha', 'tarde', 'outro'] as const).map((p) => (
                     <button
                       key={p}
                       type="button"
-                      className="hold-option"
+                      className="hold-option hold-option--two"
                       aria-pressed={period === p}
                       onClick={() => setPeriod(p)}
                     >
-                      {p === 'manha' ? 'Manhã 8–12h' : p === 'tarde' ? 'Tarde 13–18h' : 'Outro…'}
+                      <span className="hold-option-main">
+                        {p === 'manha' ? 'Manhã' : p === 'tarde' ? 'Tarde' : 'Outro'}
+                      </span>
+                      <span className="hold-option-sub">
+                        {p === 'manha' ? '8–12h' : p === 'tarde' ? '13–18h' : 'escolher'}
+                      </span>
                     </button>
                   ))}
                 </div>
                 {period === 'outro' ? (
-                  <div className="clinic-field-row">
-                    <label className="clinic-field">
-                      Das
-                      <select value={customStart} onChange={(e) => setCustomStart(Number(e.target.value))}>
-                        {HALF_HOURS.map((m) => (
-                          <option key={m} value={m}>
-                            {hourLabel(m)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="clinic-field">
-                      Até
-                      <select value={customEnd} onChange={(e) => setCustomEnd(Number(e.target.value))}>
-                        {HALF_HOURS.filter((m) => m > customStart).map((m) => (
-                          <option key={m} value={m}>
-                            {hourLabel(m)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                  <div className="hold-row">
+                    <HoldSelect
+                      label="Das"
+                      placeholder="Início"
+                      value={String(customStart)}
+                      onChange={(v) => {
+                        const start = Number(v)
+                        setCustomStart(start)
+                        if (customEnd <= start) setCustomEnd(start + 60)
+                      }}
+                      options={HALF_HOURS.slice(0, -1).map((m) => ({ id: String(m), label: hourLabel(m) }))}
+                    />
+                    <HoldSelect
+                      label="Até"
+                      placeholder="Fim"
+                      value={String(customEnd)}
+                      onChange={(v) => setCustomEnd(Number(v))}
+                      options={HALF_HOURS.filter((m) => m > customStart).map((m) => ({ id: String(m), label: hourLabel(m) }))}
+                    />
                   </div>
                 ) : null}
               </div>
 
-              <div className="clinic-field-row">
-                <label className="clinic-field">
-                  Procedimento
-                  <select value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
-                    {services.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="clinic-field">
-                  Profissional
-                  <select value={professionalId} onChange={(e) => setProfessionalId(e.target.value)}>
-                    {professionals.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+              <HoldSelect
+                label="Procedimento"
+                placeholder="Escolher procedimento"
+                value={serviceId}
+                onChange={setServiceId}
+                options={services.map((sv) => ({ id: sv.id, label: sv.name }))}
+              />
+              <HoldSelect
+                label="Profissional"
+                placeholder={professionals.length === 0 ? 'Nenhuma profissional para este procedimento' : 'Escolher profissional'}
+                value={professionalId}
+                onChange={setProfessionalId}
+                isDisabled={professionals.length === 0}
+                options={professionals.map((p) => ({ id: p.id, label: p.name }))}
+              />
 
               <div className="hold-group" role="group" aria-label="Duração deste atendimento">
                 <span className="hold-label">Duração deste atendimento</span>
-                <div className="hold-options">
+                <div className="hold-options hold-grid-3">
                   {DURATION_PRESETS.map((m) => (
                     <button
                       key={m}
                       type="button"
                       className="hold-option"
-                      aria-pressed={durationMode === 'preset' && duration === m}
-                      onClick={() => {
-                        setDurationMode('preset')
-                        setDuration(m)
-                      }}
+                      aria-pressed={duration === m}
+                      onClick={() => setDuration(m)}
                     >
                       {durationLabel(m)}
                     </button>
                   ))}
+                </div>
+                <div className="hold-stepper" role="group" aria-label="Outra duração, de 15 em 15 minutos">
+                  <span className="hold-stepper-label">Outra (±15 min)</span>
                   <button
                     type="button"
-                    className="hold-option"
-                    aria-pressed={durationMode === 'outra'}
-                    onClick={() => setDurationMode('outra')}
+                    className="hold-stepper-btn"
+                    aria-label="Menos 15 minutos"
+                    disabled={duration <= 15}
+                    onClick={() => setDuration((d) => Math.max(15, d - 15))}
                   >
-                    Outra
+                    <Minus aria-hidden size={18} strokeWidth={2.2} />
+                  </button>
+                  <output
+                    className={`hold-stepper-value${(DURATION_PRESETS as readonly number[]).includes(duration) ? '' : ' hold-stepper-value--on'}`}
+                    aria-live="polite"
+                  >
+                    {durationLabel(duration)}
+                  </output>
+                  <button
+                    type="button"
+                    className="hold-stepper-btn"
+                    aria-label="Mais 15 minutos"
+                    disabled={duration >= Math.min(720, win?.minutes ?? 720)}
+                    onClick={() => setDuration((d) => Math.min(720, d + 15))}
+                  >
+                    <Plus aria-hidden size={18} strokeWidth={2.2} />
                   </button>
                 </div>
-                {durationMode === 'outra' ? (
-                  <label className="clinic-field">
-                    Minutos (de 15 em 15)
-                    <input
-                      type="number"
-                      min={15}
-                      step={15}
-                      max={720}
-                      value={duration}
-                      onChange={(e) => setDuration(Number(e.target.value))}
-                    />
-                  </label>
-                ) : null}
                 {!durationValid ? (
                   <span className="hold-warn">A duração precisa ser múltipla de 15 min e caber no período.</span>
                 ) : null}
@@ -328,6 +332,7 @@ export function ReservarBlocoSheet(props: Props) {
                 {editing ? (
                   <textarea
                     className="panel-textarea"
+                    autoComplete="off"
                     aria-label="Mensagem que a paciente vai receber"
                     rows={5}
                     value={message}
@@ -354,6 +359,7 @@ export function ReservarBlocoSheet(props: Props) {
             </>
           ) : null}
 
+          <div className="hold-sheet-footer">
           {error ? (
             <div className="inbox-notice" role="alert">
               {error}
@@ -369,6 +375,7 @@ export function ReservarBlocoSheet(props: Props) {
               {preview.fits ? `cabe ${durationLabel(duration)}` : `não cabe ${durationLabel(duration)}`}
             </p>
           ) : null}
+          </div>
         </Dialog>
       </Modal>
     </ModalOverlay>
