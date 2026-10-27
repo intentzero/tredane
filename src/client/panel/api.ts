@@ -315,7 +315,7 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as WhatsappConnection
     },
 
-    /** STAGING-ONLY: devolve status + corpo JSON sem lançar (o ecrã mostra o resultado). */
+    /** STAGING-ONLY: devolve status + corpo JSON sem lançar (a tela mostra o resultado). */
     async devSyncExistingWhatsappBinding(
       tenantId: string,
       opts?: FetchOpts,
@@ -1101,7 +1101,7 @@ export function createPanelApi(getToken: TokenGetter) {
     },
 
     /**
-     * Exclusão de contacto pelo owner (#43 / REQ-071).
+     * Exclusão de contato pelo owner (#43 / REQ-071).
      * Resposta sem PII — só contagens e auditId.
      */
     async deleteContact(
@@ -1514,7 +1514,7 @@ export type InboxContactDetail = {
   conversations: InboxConversation[]
 }
 
-/** Resposta de DELETE contacto — sem nome, telefone ou wa_id. */
+/** Resposta de DELETE contato — sem nome, telefone ou wa_id. */
 export type DeleteContactResponse = {
   deleted: boolean
   contactId: string

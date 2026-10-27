@@ -32,7 +32,7 @@ export function contactLabel(displayName: string | null, waId: string): string {
   const name = displayName?.trim()
   if (name) return name
   if (waId.length >= 4) return `+${waId.slice(0, 2)} …${waId.slice(-4)}`
-  return waId || 'Contacto'
+  return waId || 'Contato'
 }
 
 export function relativeTime(ms: number | null): string {

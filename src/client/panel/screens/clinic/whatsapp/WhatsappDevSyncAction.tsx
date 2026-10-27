@@ -21,7 +21,7 @@ export function describeDevSyncResult(status: number, body: unknown): string {
   if (b.error === 'token_key_mismatch') {
     return 'A credencial guardada não decifra com a chave deste servidor. Nada foi alterado.'
   }
-  if (b.error === 'no_active_binding') return 'Não há vínculo WhatsApp activo para esta clínica.'
+  if (b.error === 'no_active_binding') return 'Não há vínculo WhatsApp ativo para esta clínica.'
   if (status === 401) return 'Sessão expirada — entre de novo.'
   if (status === 403) return 'Só o dono da clínica pode fazer isto.'
   return `Falhou (HTTP ${status}).`
@@ -70,7 +70,7 @@ type ActionProps = {
   tenantId: string
   api: PanelApi
   generation: number
-  /** Mostra o corpo HTTP bruto (ecrã dev-sync). */
+  /** Mostra o corpo HTTP bruto (tela dev-sync). */
   showRaw?: boolean
   /** Esconde o botão quando o servidor responde 404 not_found (fora de staging). */
   hideWhenNotFound?: boolean
@@ -99,7 +99,7 @@ export function WhatsappDevSyncAction({
   return (
     <div className="whatsapp-dev-sync">
       <Button className={className} isDisabled={busy} onPress={() => void onPress()}>
-        {busy ? 'A sincronizar…' : DEV_SYNC_BUTTON_LABEL}
+        {busy ? 'Atualizando…' : DEV_SYNC_BUTTON_LABEL}
       </Button>
       {error ? (
         <p className="clinic-footnote clinic-footnote-warn" role="alert">

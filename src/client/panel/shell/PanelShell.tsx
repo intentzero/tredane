@@ -54,10 +54,10 @@ export function PanelShell({ area, tenantId, children, hideNav }: Props) {
       <LoadingState
         label={
           tenantMismatch
-            ? 'A sincronizar clínica…'
+            ? 'Atualizando a clínica…'
             : hint
               ? `Abrindo ${hint}…`
-              : 'A abrir clínica…'
+              : 'Abrindo clínica…'
         }
       />
     )
@@ -155,7 +155,7 @@ export function PanelShell({ area, tenantId, children, hideNav }: Props) {
                 aria-atomic="true"
               >
                 <span className="panel-live-dot" aria-hidden="true" />
-                {offline ? 'Sem ligação' : 'Ao vivo'}
+                {offline ? 'Sem conexão' : 'Ao vivo'}
               </span>
             </div>
           </div>
@@ -176,7 +176,7 @@ export function PanelShell({ area, tenantId, children, hideNav }: Props) {
 
       {offline ? (
         <div className="panel-offline-banner" role="status" aria-live="assertive">
-          Sem ligação — dados podem estar desatualizados. Ações de agenda ou
+          Sem conexão — dados podem estar desatualizados. Ações de agenda ou
           pagamento não ficam confirmadas offline.
         </div>
       ) : null}

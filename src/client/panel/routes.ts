@@ -16,7 +16,7 @@ export type ClinicaSection =
   | 'whatsapp-dev-sync'
   | 'recebimento'
 
-/** Sub-rotas de Conversas (#29): lista → thread → contacto. */
+/** Sub-rotas de Conversas (#29): lista → thread → contato. */
 export type ConversasSection = 'lista' | 'thread' | 'contato'
 
 /** Sub-rotas de Acompanhamento (#30): quadro por etapa → detalhe. */

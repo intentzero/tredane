@@ -1,6 +1,15 @@
 import { isDevelopmentEnv } from '../security/env-gate'
 import { DurableObject } from 'cloudflare:workers'
 import {
+  claimOutboundSendOp,
+  releaseOutboundSendOp,
+  sweepStuckOutboundOp,
+  OUTBOUND_INLINE_FALLBACK_DELAY_S,
+  OUTBOUND_PENDING_STALE_MS,
+  type ClaimOutboundSendResult,
+} from '../clinic/inbox/dispatch'
+import type { ClinicOutboxQueueMessage } from '../whatsapp/queue-types'
+import {
   acknowledgeOutboxResult,
   assertClinicTenantId,
   assertSyntheticTenantId,
@@ -684,13 +693,92 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return result.value
   }
 
+  /**
+   * Envio manual (#33). Devolve `inlineDispatch` para o Worker chamar a Meta
+   * já no pedido (ctx.waitUntil); a mensagem de fila de `whatsapp.send` é
+   * publicada com atraso e só envia se ninguém tiver reivindicado o envio.
+   */
   async sendInboxOutbound(caller: ClinicCaller, input: SendOutboundInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
+    await this.#sweepStuckOutbound(caller)
     const result = clinicInbox.sendOutboundMessageOp(this.#db, caller, input, this.#clock)
     await this.#fanoutOutboxes(caller, result.outbox, true)
-    await this.#drain(caller)
-    return result.value
+    const sendRow = result.outbox.find((o) => o.type === 'whatsapp.send') ?? null
+    await this.#drain(
+      caller,
+      sendRow
+        ? { delayed: new Set([sendRow.id]), delaySeconds: OUTBOUND_INLINE_FALLBACK_DELAY_S }
+        : undefined,
+    )
+    if (sendRow) {
+      // Rede de segurança: resolve o envio se nem o inline nem a fila trouxerem resultado.
+      await this.#scheduleAlarmNoLaterThan(
+        this.#clock.nowMs() + OUTBOUND_PENDING_STALE_MS + 5_000,
+      )
+    }
+    const inlineDispatch: ClinicOutboxQueueMessage | null = sendRow
+      ? {
+          source: 'clinic_outbox',
+          tenantId: caller.tenantId,
+          eventId: sendRow.id,
+          type: sendRow.type,
+          idempotencyKey: sendRow.idempotencyKey,
+          entity: { type: sendRow.aggregateType, id: sendRow.aggregateId },
+          occurredAt: sendRow.occurredAt,
+          payload: JSON.parse(sendRow.payloadJson) as Record<string, unknown>,
+        }
+      : null
+    return { ...result.value, inlineDispatch }
+  }
+
+  /** Reivindica o envio Meta de um outbox `whatsapp.send` (inline ou fila). */
+  async claimOutboundSend(
+    caller: ClinicCaller,
+    input: { outboxEventId: string; idempotencyKey: string },
+  ): Promise<ClaimOutboundSendResult> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const r = claimOutboundSendOp(this.#db, caller, input, this.#clock)
+    if (r.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, r.outbox, true)
+      await this.#drain(caller)
+    }
+    return r.value
+  }
+
+  /** Liberta o claim quando a Meta não chegou a ser chamada. */
+  async releaseOutboundSend(
+    caller: ClinicCaller,
+    input: { outboxEventId: string; idempotencyKey: string },
+  ): Promise<{ released: boolean }> {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return releaseOutboundSendOp(this.#db, caller, input)
+  }
+
+  async #sweepStuckOutbound(caller: ClinicCaller): Promise<number | null> {
+    try {
+      const swept = sweepStuckOutboundOp(this.#db, caller, this.#clock)
+      if (swept.outbox.length > 0) {
+        await this.#fanoutOutboxes(caller, swept.outbox, true)
+        await this.#drain(caller)
+      }
+      return swept.nextCheckAt
+    } catch {
+      return null
+    }
+  }
+
+  async #scheduleAlarmNoLaterThan(at: number): Promise<void> {
+    const storage = this.ctx.storage as {
+      getAlarm?: () => Promise<number | null>
+      setAlarm?: (t: number) => Promise<void>
+    }
+    if (typeof storage.setAlarm !== 'function') return
+    const current =
+      typeof storage.getAlarm === 'function' ? await storage.getAlarm() : null
+    if (current == null || current > at) await storage.setAlarm(at)
   }
 
   async seedInboxDemo(caller: ClinicCaller, opts: { force?: boolean } = {}) {
@@ -1740,8 +1828,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
   async #scheduleNextPixExpiry(caller: ClinicCaller): Promise<void> {
     const next = clinicPix.peekNextPixExpiryOp(this.#db, caller, this.#clock)
-    if (next != null && typeof this.ctx.storage.setAlarm === 'function') {
-      await this.ctx.storage.setAlarm(next)
+    if (next != null) {
+      await this.#scheduleAlarmNoLaterThan(next)
     }
   }
 
@@ -1935,13 +2023,19 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return result
   }
 
-  async #drain(caller: ClinicCaller): Promise<{ published: string[]; failed: string[] }> {
+  async #drain(
+    caller: ClinicCaller,
+    opts?: { delayed: ReadonlySet<string>; delaySeconds: number },
+  ): Promise<{ published: string[]; failed: string[] }> {
     const queue = this.env.INBOUND_EVENTS
     return publishPendingEffects(
       this.#db,
       caller,
       {
         async publish(envelope: EventEnvelope) {
+          const sendOpts = opts?.delayed.has(envelope.eventId)
+            ? { delaySeconds: opts.delaySeconds }
+            : undefined
           await queue.send({
             source: 'clinic_outbox',
             tenantId: envelope.tenantId,
@@ -1951,7 +2045,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
             entity: envelope.entity,
             occurredAt: envelope.occurredAt,
             payload: envelope.payload,
-          })
+          }, sendOpts)
         },
       },
       this.#clock,
@@ -1969,7 +2063,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     } catch {
       /* best-effort: drain outbox mesmo assim */
     }
+    const nextSweep = await this.#sweepStuckOutbound(caller)
     await this.#drain(caller)
+    if (nextSweep != null) await this.#scheduleAlarmNoLaterThan(nextSweep + 1_000)
   }
 
   async fetch(request: Request): Promise<Response> {

@@ -21,7 +21,7 @@ type Props = {
 }
 
 /**
- * Detalhe do contacto em andamento — vínculos a conversa, contacto e agenda (DEC-040).
+ * Detalhe do contato em andamento — vínculos a conversa, contato e agenda (DEC-040).
  */
 export function AcompanhamentoDetail({
   tenantId,
@@ -81,11 +81,11 @@ export function AcompanhamentoDetail({
     }
   }
 
-  if (loading && !data) return <LoadingState label="A abrir contacto em andamento…" />
+  if (loading && !data) return <LoadingState label="Abrindo contato em andamento…" />
   if (error && !data) {
     return (
       <ErrorState
-        title="Contacto em andamento indisponível"
+        title="Contato em andamento indisponível"
         description={error}
         actionLabel="Voltar"
         onAction={() =>
@@ -122,7 +122,7 @@ export function AcompanhamentoDetail({
         </Button>
         <div className="inbox-thread-title">
           <span className="inbox-thread-name">{name}</span>
-          <span className="inbox-thread-sub">Contacto em andamento</span>
+          <span className="inbox-thread-sub">Contato em andamento</span>
         </div>
         <Button className="panel-move" onPress={() => setMoveOpen(true)}>
           Mover
@@ -242,7 +242,7 @@ export function AcompanhamentoDetail({
             })
           }
         >
-          Ver contacto
+          Ver contato
         </Button>
       </div>
 

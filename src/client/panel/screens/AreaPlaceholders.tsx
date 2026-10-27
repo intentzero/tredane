@@ -31,7 +31,7 @@ export function AreaPlaceholder({ area }: { area: PanelArea }) {
       return (
         <EmptyState
           title="Configuração da clínica"
-          description="Serviços, profissionais, horários, equipe e WhatsApp — só para o responsável (DEC-042)."
+          description="Serviços, profissionais, horários, equipe e WhatsApp — só para o responsável da clínica."
         />
       )
   }

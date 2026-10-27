@@ -186,7 +186,7 @@ describe('painel a11y — shell e diálogos', () => {
     )
 
     const dialog = await screen.findByRole('alertdialog', {
-      name: 'Excluir contacto?',
+      name: 'Excluir contato?',
     })
     expect(dialog.getAttribute('aria-describedby')).toBe('delete-contact-desc')
     expect(screen.getByText(/Remove mensagens e anexos/)).toBeTruthy()

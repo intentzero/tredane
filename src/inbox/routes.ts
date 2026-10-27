@@ -25,6 +25,9 @@ import { getMembership } from '../db/admin/memberships'
 import type { AdminDb } from '../db/admin/store'
 import type { WorkerBindings } from '../worker/bindings'
 import type { InboxGateway } from './gateway'
+import type { ClinicOutboxQueueMessage } from '../whatsapp/queue-types'
+import { processClinicOutboxMessage } from '../whatsapp/outbound-send'
+import { createChannelLogger } from '../ops/log'
 import {
   serializeContact,
   serializeConversation,
@@ -44,6 +47,8 @@ export type InboxRouteOptions = {
     tenantId: string,
   ) => InboxGateway | Promise<InboxGateway>
   syncAdminDbFactory?: (env: WorkerBindings) => AdminDb | null
+  /** Testes: substitui o envio inline (Meta + DO). */
+  inlineSend?: (env: WorkerBindings, dispatch: ClinicOutboxQueueMessage) => Promise<void>
 }
 
 function inboxErrorResponse(
@@ -74,6 +79,46 @@ function inboxErrorResponse(
     { error: err instanceof Error ? err.message : 'inbox_error' },
     400,
   )
+}
+
+/**
+ * Envio imediato à Meta (fora do caminho da resposta, via waitUntil).
+ * Falha → a mensagem de fila atrasada (fallback) envia; claim no DO evita duplo envio.
+ */
+function scheduleInlineSend(
+  c: { env: WorkerBindings; executionCtx: { waitUntil(p: Promise<unknown>): void } },
+  tenantId: string,
+  dispatch: ClinicOutboxQueueMessage,
+  opts: InboxRouteOptions,
+): void {
+  const run = (opts.inlineSend ?? defaultInlineSend)(c.env, dispatch).catch((err) => {
+    inlineLog({
+      level: 'warn',
+      event: 'whatsapp_send.inline_failed',
+      detail: {
+        tenantId,
+        eventId: dispatch.eventId,
+        errorCode: (err instanceof Error ? err.message : 'inline_failed').slice(0, 80),
+      },
+    })
+  })
+  let ctx: { waitUntil(p: Promise<unknown>): void } | null = null
+  try {
+    ctx = c.executionCtx
+  } catch {
+    ctx = null
+  }
+  if (ctx) ctx.waitUntil(run)
+  else void run
+}
+
+const inlineLog = createChannelLogger('whatsapp_send')
+
+async function defaultInlineSend(
+  env: WorkerBindings,
+  dispatch: ClinicOutboxQueueMessage,
+): Promise<void> {
+  await processClinicOutboxMessage(dispatch, { env, mode: 'inline', log: inlineLog })
 }
 
 function createDoGateway(env: WorkerBindings, tenantId: string): InboxGateway {
@@ -373,6 +418,9 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
             aiSuggestionId: body.aiSuggestionId ?? null,
           },
         )
+        if (result.inlineDispatch) {
+          scheduleInlineSend(c, tenantId, result.inlineDispatch, opts)
+        }
         return c.json(
           {
             conversation: serializeConversation(result.conversation),
