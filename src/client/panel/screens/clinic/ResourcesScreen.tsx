@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button, Checkbox, Input, Label, TextField } from 'react-aria-components'
+import { PanelSelect } from '../../ui/PanelSelect'
 import type { ClinicConfigSnapshot, PanelApi } from '../../api'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
@@ -198,17 +199,17 @@ export function ResourceForm({
         </p>
       ) : (
         <>
-          <label className="clinic-field">
-            Tipo
-            <select
-              value={resourceKind}
-              onChange={(e) => setResourceKind(e.target.value as 'room' | 'equipment')}
-              disabled={Boolean(existing)}
-            >
-              <option value="room">Sala</option>
-              <option value="equipment">Equipamento</option>
-            </select>
-          </label>
+          <PanelSelect
+            className="clinic-field"
+            label="Tipo"
+            value={resourceKind}
+            onChange={(v) => setResourceKind(v)}
+            isDisabled={Boolean(existing)}
+            options={[
+              { id: 'room' as const, label: 'Sala' },
+              { id: 'equipment' as const, label: 'Equipamento' },
+            ]}
+          />
           <TextField className="clinic-field">
             <Label>Categoria (opcional)</Label>
             <Input

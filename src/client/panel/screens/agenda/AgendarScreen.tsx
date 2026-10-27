@@ -1,13 +1,9 @@
 import { ChevronLeft, RefreshCw, TriangleAlert } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { PanelSelect } from '../../ui/PanelSelect'
 import {
   Button,
   Label,
-  ListBox,
-  ListBoxItem,
-  Popover,
-  Select,
-  SelectValue,
   TextField,
   Input,
 } from 'react-aria-components'
@@ -498,37 +494,18 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
           </p>
         ) : null}
 
-        <Select
-          className="panel-field"
-          selectedKey={serviceId || null}
-          onSelectionChange={(key) => {
-            if (typeof key === 'string') {
-              setServiceId(key)
-              setSelected(null)
-            }
+        <PanelSelect
+          label="Serviço"
+          placeholder="Escolha o serviço"
+          value={serviceId || null}
+          onChange={(id) => {
+            setServiceId(id)
+            setSelected(null)
           }}
-        >
-          <Label>Serviço</Label>
-          <Button className="panel-select-trigger">
-            <SelectValue />
-          </Button>
-          <Popover className="panel-popover">
-            <ListBox className="panel-listbox">
-              {config.services
-                .filter((s) => s.active)
-                .map((s) => (
-                  <ListBoxItem
-                    key={s.id}
-                    id={s.id}
-                    className="panel-select-item"
-                    textValue={s.name}
-                  >
-                    {s.name}
-                  </ListBoxItem>
-                ))}
-            </ListBox>
-          </Popover>
-        </Select>
+          options={config.services
+            .filter((s) => s.active)
+            .map((s) => ({ id: s.id, label: s.name }))}
+        />
         {service ? (
           <span className="panel-field-hint">
             {service.durationMinutes} min
@@ -540,38 +517,18 @@ export function AgendarScreen({ tenantId, api, generation }: Props) {
           </span>
         ) : null}
 
-        <Select
-          className="panel-field"
-          selectedKey={professionalId}
-          onSelectionChange={(key) => {
-            if (typeof key === 'string') {
-              setProfessionalId(key)
-              setSelected(null)
-            }
+        <PanelSelect
+          label="Profissional"
+          value={professionalId}
+          onChange={(id) => {
+            setProfessionalId(id)
+            setSelected(null)
           }}
-        >
-          <Label>Profissional</Label>
-          <Button className="panel-select-trigger">
-            <SelectValue />
-          </Button>
-          <Popover className="panel-popover">
-            <ListBox className="panel-listbox">
-              <ListBoxItem id={ANY} className="panel-select-item" textValue="Qualquer disponível">
-                Qualquer disponível
-              </ListBoxItem>
-              {professionals.map((p) => (
-                <ListBoxItem
-                  key={p.id}
-                  id={p.id}
-                  className="panel-select-item"
-                  textValue={p.name}
-                >
-                  {p.name}
-                </ListBoxItem>
-              ))}
-            </ListBox>
-          </Popover>
-        </Select>
+          options={[
+            { id: ANY, label: 'Qualquer disponível' },
+            ...professionals.map((p) => ({ id: p.id, label: p.name })),
+          ]}
+        />
 
         <fieldset className="panel-fieldset">
           <legend className="panel-legend">Dia</legend>

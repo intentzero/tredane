@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button, Checkbox, Input, Label, TextArea, TextField } from 'react-aria-components'
+import { PanelSelect } from '../../ui/PanelSelect'
 import type { ClinicConfigSnapshot, PanelApi, ServiceUpsertBody } from '../../api'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
@@ -205,29 +206,23 @@ export function ServiceForm({
       </TextField>
 
       <div className="clinic-field-row">
-        <label className="clinic-field">
-          Duração
-          <select
-            value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))}
-          >
-            {durationOptions().map((m) => (
-              <option key={m} value={m}>
-                {m} min
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="clinic-field">
-          Intervalo depois
-          <select value={buffer} onChange={(e) => setBuffer(Number(e.target.value))}>
-            {bufferOptions().map((m) => (
-              <option key={m} value={m}>
-                {m === 0 ? 'Nenhum' : `${m} min`}
-              </option>
-            ))}
-          </select>
-        </label>
+        <PanelSelect
+          className="clinic-field"
+          label="Duração"
+          value={String(duration)}
+          onChange={(v) => setDuration(Number(v))}
+          options={durationOptions().map((m) => ({ id: String(m), label: `${m} min` }))}
+        />
+        <PanelSelect
+          className="clinic-field"
+          label="Intervalo depois"
+          value={String(buffer)}
+          onChange={(v) => setBuffer(Number(v))}
+          options={bufferOptions().map((m) => ({
+            id: String(m),
+            label: m === 0 ? 'Nenhum' : `${m} min`,
+          }))}
+        />
       </div>
       <p className="clinic-hint-box">
         Ocupa {occupied} min na agenda: {duration} de atendimento + {buffer} de intervalo.
@@ -256,45 +251,41 @@ export function ServiceForm({
         ) : null}
       </fieldset>
 
-      <label className="clinic-field">
-        Sala ou equipamento exigido
-        <select
-          value={
-            roomMode === 'none'
-              ? 'none'
-              : roomMode === 'category'
-                ? `cat:${roomCategory}`
-                : `res:${roomResourceId}`
+      <PanelSelect
+        className="clinic-field"
+        label="Sala ou equipamento exigido"
+        value={
+          roomMode === 'none'
+            ? 'none'
+            : roomMode === 'category'
+              ? `cat:${roomCategory}`
+              : `res:${roomResourceId}`
+        }
+        onChange={(v) => {
+          if (v === 'none') {
+            setRoomMode('none')
+            return
           }
-          onChange={(e) => {
-            const v = e.target.value
-            if (v === 'none') {
-              setRoomMode('none')
-              return
-            }
-            if (v.startsWith('cat:')) {
-              setRoomMode('category')
-              setRoomCategory(v.slice(4))
-              return
-            }
-            setRoomMode('resource')
-            setRoomResourceId(v.slice(4))
-          }}
-        >
-          <option value="none">Nenhum</option>
-          {[...new Set(rooms.map((r) => r.category).filter(Boolean))].map((cat) => (
-            <option key={`cat-${cat}`} value={`cat:${cat}`}>
-              Qualquer · {cat}
-            </option>
-          ))}
-          {rooms.map((r) => (
-            <option key={r.id} value={`res:${r.id}`}>
-              {r.name}
-              {r.category ? ` (${r.category})` : ''}
-            </option>
-          ))}
-        </select>
-      </label>
+          if (v.startsWith('cat:')) {
+            setRoomMode('category')
+            setRoomCategory(v.slice(4))
+            return
+          }
+          setRoomMode('resource')
+          setRoomResourceId(v.slice(4))
+        }}
+        options={[
+          { id: 'none', label: 'Nenhum' },
+          ...[...new Set(rooms.map((r) => r.category).filter(Boolean))].map((cat) => ({
+            id: `cat:${cat}`,
+            label: `Qualquer · ${cat}`,
+          })),
+          ...rooms.map((r) => ({
+            id: `res:${r.id}`,
+            label: `${r.name}${r.category ? ` (${r.category})` : ''}`,
+          })),
+        ]}
+      />
 
       <TextField className="clinic-field">
         <Label>Preço (opcional)</Label>
@@ -321,21 +312,21 @@ export function ServiceForm({
         </Checkbox>
         {requiresSignal ? (
           <>
-            <label className="clinic-field">
-              Tipo
-              <select
-                value={signalKind}
-                onChange={(e) =>
-                  setSignalKind(e.target.value === 'percent' ? 'percent' : 'fixed')
-                }
-              >
-                <option value="fixed">Valor fixo (R$)</option>
-                <option value="percent" disabled={!parsePriceToCents(price)}>
-                  Percentual do preço
-                  {!parsePriceToCents(price) ? ' — cadastre o preço' : ''}
-                </option>
-              </select>
-            </label>
+            <PanelSelect
+              className="clinic-field"
+              label="Tipo"
+              value={signalKind}
+              onChange={(v) => setSignalKind(v === 'percent' ? 'percent' : 'fixed')}
+              options={[
+                { id: 'fixed', label: 'Valor fixo (R$)' },
+                {
+                  id: 'percent',
+                  label: 'Percentual do preço',
+                  hint: parsePriceToCents(price) ? undefined : 'Cadastre o preço primeiro',
+                  disabled: !parsePriceToCents(price),
+                },
+              ]}
+            />
             {signalKind === 'fixed' ? (
               <TextField className="clinic-field">
                 <Label>Valor do sinal</Label>

@@ -1,13 +1,8 @@
 import { ChevronLeft } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { PanelSelect } from '../../ui/PanelSelect'
 import {
   Button,
-  Label,
-  ListBox,
-  ListBoxItem,
-  Popover,
-  Select,
-  SelectValue,
 } from 'react-aria-components'
 import {
   PanelApiError,
@@ -292,36 +287,13 @@ export function CompromissoScreen({
 
         {mode === 'cancel' ? (
           <div className="agenda-reason" style={{ padding: '0 16px 24px' }}>
-            <Select
-              className="panel-field"
-              selectedKey={reason || null}
-              onSelectionChange={(key) => {
-                if (typeof key === 'string') setReason(key)
-              }}
-            >
-              <Label>Motivo (obrigatório)</Label>
-              <Button className="panel-select-trigger">
-                <SelectValue>
-                  {reason
-                    ? reasons.find((r) => r.code === reason)?.label
-                    : 'Escolha um motivo'}
-                </SelectValue>
-              </Button>
-              <Popover className="panel-popover">
-                <ListBox className="panel-listbox">
-                  {reasons.map((r) => (
-                    <ListBoxItem
-                      key={r.code}
-                      id={r.code}
-                      className="panel-select-item"
-                      textValue={r.label}
-                    >
-                      {r.label}
-                    </ListBoxItem>
-                  ))}
-                </ListBox>
-              </Popover>
-            </Select>
+            <PanelSelect
+              label="Motivo (obrigatório)"
+              placeholder="Escolha um motivo"
+              value={reason || null}
+              onChange={(id) => setReason(id)}
+              options={reasons.map((r) => ({ id: r.code, label: r.label }))}
+            />
 
             {needsDisposition ? (
               <>
@@ -335,42 +307,18 @@ export function CompromissoScreen({
                     de pagar).
                   </p>
                 )}
-                <Select
-                  className="panel-field"
-                  selectedKey={disposition || null}
-                  onSelectionChange={(key) => {
-                    if (key === 'refund' || key === 'retain') setDisposition(key)
+                <PanelSelect
+                  label="Sinal pago (obrigatório)"
+                  placeholder="Escolha Devolver ou Reter"
+                  value={disposition || null}
+                  onChange={(id) => {
+                    if (id === 'refund' || id === 'retain') setDisposition(id)
                   }}
-                >
-                  <Label>Sinal pago (obrigatório)</Label>
-                  <Button className="panel-select-trigger">
-                    <SelectValue>
-                      {disposition === 'refund'
-                        ? 'Devolver sinal'
-                        : disposition === 'retain'
-                          ? 'Reter sinal'
-                          : 'Escolha Devolver ou Reter'}
-                    </SelectValue>
-                  </Button>
-                  <Popover className="panel-popover">
-                    <ListBox className="panel-listbox">
-                      <ListBoxItem
-                        id="refund"
-                        className="panel-select-item"
-                        textValue="Devolver sinal"
-                      >
-                        Devolver sinal
-                      </ListBoxItem>
-                      <ListBoxItem
-                        id="retain"
-                        className="panel-select-item"
-                        textValue="Reter sinal"
-                      >
-                        Reter sinal
-                      </ListBoxItem>
-                    </ListBox>
-                  </Popover>
-                </Select>
+                  options={[
+                    { id: 'refund', label: 'Devolver sinal' },
+                    { id: 'retain', label: 'Reter sinal' },
+                  ]}
+                />
               </>
             ) : null}
 

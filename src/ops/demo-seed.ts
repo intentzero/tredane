@@ -46,7 +46,7 @@ export function createDemoSeedRoutes() {
       ownerDisplayName?: string
     }
     const ownerId = body.ownerClerkUserId?.trim() ?? ''
-    if (!/^user_[A-Za-z0-9]+$/.test(ownerId)) {
+    if (!/^user_[A-Za-z0-9_]+$/.test(ownerId)) {
       return c.json({ error: 'owner_required' }, 400)
     }
     c.header('Cache-Control', 'no-store')

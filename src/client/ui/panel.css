@@ -3902,3 +3902,126 @@
 .hold-select-item[data-focus-visible] {
   outline: var(--size-focus-ring-width) solid var(--color-primary-base);
 }
+
+/* ── PanelSelect: campo de escolha único do painel (backlog item 2 / Tiririca 5) ── */
+.panel-choice {
+  min-width: 0;
+}
+
+.panel-choice-trigger {
+  min-width: 0;
+  min-height: var(--size-touch);
+  font-size: 16px;
+}
+
+.panel-choice-trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.panel-choice-trigger:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: 2px;
+}
+
+.panel-choice-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-choice-value[data-placeholder] {
+  color: var(--color-text-muted);
+}
+
+.panel-choice-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+
+.panel-choice-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 61;
+  max-height: 70dvh;
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  outline: none;
+}
+
+.panel-choice-sheet[data-size='tall'] {
+  max-height: 80dvh;
+}
+
+.panel-choice-title {
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+.panel-choice-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.panel-choice-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--size-touch);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.panel-choice-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.panel-choice-hint {
+  font-size: var(--font-size-caption, 13px);
+  color: var(--color-text-muted);
+}
+
+.panel-choice-item[data-focused],
+.panel-choice-item[data-hovered] {
+  background: var(--color-surface-sunken);
+}
+
+.panel-choice-item[data-selected] {
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.panel-choice-item[data-disabled] {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.panel-choice-item[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+}
+
+@media (min-width: 768px) {
+  .panel-choice-sheet {
+    max-width: 480px;
+  }
+}
