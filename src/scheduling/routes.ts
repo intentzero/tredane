@@ -94,11 +94,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): SchedulingGatew
     queryAgenda: (caller, input) => stub.queryClinicAgenda(caller, input),
     previewHold: (caller, input) => stub.previewClinicHold(caller, input),
     createHold: (caller, input) => stub.createClinicHold(caller, input),
-    resolveHold: (caller, input) => stub.resolveClinicHold(caller, input),
-    cancelHold: (caller, input) => stub.cancelClinicHold(caller, input),
     listHolds: (caller, input) => stub.listClinicHolds(caller, input),
-    listHoldAlerts: (caller) => stub.listClinicHoldAlerts(caller),
-    dismissHoldAlert: (caller, input) => stub.dismissClinicHoldAlert(caller, input),
   }
 }
 
@@ -144,6 +140,10 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
       const date = c.req.query('date')?.trim()
       const professionalId = c.req.query('professionalId')?.trim() || undefined
       const excludeHoldId = c.req.query('excludeHoldId')?.trim() || undefined
+      const durationRaw = c.req.query('durationMinutes')?.trim()
+      const durationMinutesOverride = durationRaw
+        ? finiteNumber(Number(durationRaw), 'durationMinutes')
+        : undefined
       if (!serviceId || !date) {
         throw new ValidationError(
           'missing_query',
@@ -153,7 +153,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)
       const result = await gw.queryAvailability(
         callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
-        { serviceId, date, professionalId, excludeHoldId },
+        { serviceId, date, professionalId, excludeHoldId, durationMinutesOverride },
       )
       return c.json(serializeAvailability(result))
     } catch (err) {
@@ -464,23 +464,6 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
     }
   })
 
-  app.get('/api/tenants/:tenantId/holds/alerts', ...tenant, async (c) => {
-    try {
-      const ctx = c.get('tenantContext')!
-      requireClinicPermission(ctx, 'clinic.agenda.operate')
-      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
-      const alerts = await gw.listHoldAlerts(
-        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
-      )
-      return c.json({
-        viewerClerkUserId: c.get('principal').clerkUserId,
-        alerts: alerts.map((a) => ({ kind: a.kind, hold: serializeHold(a.hold) })),
-      })
-    } catch (err) {
-      return schedulingErrorResponse(c, err)
-    }
-  })
-
   app.post('/api/tenants/:tenantId/holds', ...tenant, async (c) => {
     try {
       const ctx = c.get('tenantContext')!
@@ -506,77 +489,19 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
         windowStartsAt: finiteNumber(body.windowStartsAt, 'windowStartsAt'),
         windowEndsAt: finiteNumber(body.windowEndsAt, 'windowEndsAt'),
         durationMinutes: finiteNumber(body.durationMinutes, 'durationMinutes'),
-        confirmBy: body.confirmBy == null ? null : finiteNumber(body.confirmBy, 'confirmBy'),
-        actorClerkUserId: actor,
-        actorDisplayName: displayNameFromRole(ctx.role),
-      })
-      return c.json(
-        { hold: serializeHold(result.value), idempotentReplay: result.idempotentReplay === true },
-        result.idempotentReplay ? 200 : 201,
-      )
-    } catch (err) {
-      return schedulingErrorResponse(c, err)
-    }
-  })
-
-  app.post('/api/tenants/:tenantId/holds/:holdId/resolve', ...tenant, async (c) => {
-    try {
-      const ctx = c.get('tenantContext')!
-      requireClinicPermission(ctx, 'clinic.agenda.operate')
-      const body = await c.req.json<Record<string, unknown>>()
-      const clientRequestId =
-        typeof body.clientRequestId === 'string' ? body.clientRequestId.trim() : ''
-      if (!clientRequestId) {
-        throw new ValidationError('client_request_id_required', 'clientRequestId obrigatório')
-      }
-      const actor = c.get('principal').clerkUserId
-      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
-      const result = await gw.resolveHold(callerFromContext(ctx.tenantId, actor), {
-        holdId: c.req.param('holdId'),
-        clientRequestId,
         startsAt: finiteNumber(body.startsAt, 'startsAt'),
         roomResourceId: typeof body.roomResourceId === 'string' ? body.roomResourceId : null,
         actorClerkUserId: actor,
         actorDisplayName: displayNameFromRole(ctx.role),
       })
-      return c.json({
-        hold: serializeHold(result.value.hold),
-        appointment: serializeAppointmentDetail(result.value.appointment),
-        idempotentReplay: result.idempotentReplay === true,
-      })
-    } catch (err) {
-      return schedulingErrorResponse(c, err)
-    }
-  })
-
-  app.post('/api/tenants/:tenantId/holds/:holdId/cancel', ...tenant, async (c) => {
-    try {
-      const ctx = c.get('tenantContext')!
-      requireClinicPermission(ctx, 'clinic.agenda.operate')
-      const actor = c.get('principal').clerkUserId
-      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
-      const result = await gw.cancelHold(callerFromContext(ctx.tenantId, actor), {
-        holdId: c.req.param('holdId'),
-        actorClerkUserId: actor,
-        actorDisplayName: displayNameFromRole(ctx.role),
-      })
-      return c.json({ hold: serializeHold(result.value) })
-    } catch (err) {
-      return schedulingErrorResponse(c, err)
-    }
-  })
-
-  app.post('/api/tenants/:tenantId/holds/:holdId/dismiss-alert', ...tenant, async (c) => {
-    try {
-      const ctx = c.get('tenantContext')!
-      requireClinicPermission(ctx, 'clinic.agenda.operate')
-      const actor = c.get('principal').clerkUserId
-      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
-      const result = await gw.dismissHoldAlert(callerFromContext(ctx.tenantId, actor), {
-        holdId: c.req.param('holdId'),
-        actorClerkUserId: actor,
-      })
-      return c.json({ hold: serializeHold(result.value) })
+      return c.json(
+        {
+          hold: serializeHold(result.value.hold),
+          appointment: serializeAppointmentDetail(result.value.appointment),
+          idempotentReplay: result.idempotentReplay === true,
+        },
+        result.idempotentReplay ? 200 : 201,
+      )
     } catch (err) {
       return schedulingErrorResponse(c, err)
     }

@@ -12,6 +12,7 @@ import {
 } from './format'
 import { MoveSheet } from './MoveSheet'
 import type { OpportunityStage } from '../../api'
+import { useClinicTimezone } from '../../clinicTimezone'
 import { friendlyError } from '../../copy/errors'
 
 type Props = {
@@ -30,6 +31,7 @@ export function AcompanhamentoDetail({
   api,
   generation,
 }: Props) {
+  const timezone = useClinicTimezone(api, tenantId, generation)
   const [data, setData] = useState<PipelineOpportunityDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -196,6 +198,7 @@ export function AcompanhamentoDetail({
               {new Date(data.linkedAppointment.startsAt).toLocaleString('pt-BR', {
                 dateStyle: 'full',
                 timeStyle: 'short',
+                timeZone: timezone,
               })}
             </p>
             <Button

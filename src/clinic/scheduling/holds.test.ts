@@ -3,21 +3,15 @@ import { createControllableClock } from '../../db/clock'
 import { ConflictError, ValidationError, ingestContactMessage, workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import { STATEMENTS as M16 } from '../migrations/0016_schedule_holds'
+import { STATEMENTS as M18 } from '../migrations/0018_holds_require_time'
 import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
-import { getOpportunityOp, moveOpportunityStageOp } from '../pipeline'
+import { getOpportunityOp } from '../pipeline'
 import {
-  cancelHoldOp,
-  checkSlotAvailabilityOp,
   confirmAppointmentOp,
   createHoldOp,
-  dismissHoldAlertOp,
-  listHoldAlertsOp,
   listHoldsOp,
   previewHoldOp,
-  queryAgendaViewOp,
   queryAvailabilityOp,
-  resolveHoldOp,
-  sweepExpiredHoldsOp,
   zonedCivilToUtc,
 } from './index'
 
@@ -82,7 +76,7 @@ function setup() {
         durationMinutes: 60,
         windowStartsAt: at(8),
         windowEndsAt: at(12),
-        confirmBy: at(0) - 1,
+        startsAt: at(9),
         actorClerkUserId: ACTOR,
         actorDisplayName: 'Atendente',
         ...over,
@@ -105,16 +99,17 @@ function setup() {
   return { ...booted, clock, caller, tenantId, pro, svc, conv, ingest, hold, book }
 }
 
-describe('reserva por bloco', () => {
-  it('migração 16: etapa a_definir aceita, tabela criada, FKs íntegras', () => {
-    const { db, close } = setup()
+describe('reserva por bloco (sempre com hora)', () => {
+  it('migração 18: sem «A definir» no CHECK, FKs íntegras, sem tabelas temporárias', () => {
+    const { db, close, conv } = setup()
     try {
-      const fk = db.all(`PRAGMA foreign_key_check`)
-      expect(fk).toEqual([])
-      const t = db.all<{ name: string }>(
-        `SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%__m16'`,
-      )
-      expect(t).toEqual([])
+      expect(db.all(`PRAGMA foreign_key_check`)).toEqual([])
+      expect(
+        db.all(`SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE '%__m18' OR name LIKE '%__stash18')`),
+      ).toEqual([])
+      expect(() =>
+        db.run(`UPDATE opportunities SET stage = 'a_definir' WHERE conversation_id = ?`, conv.id),
+      ).toThrow()
       const idx = db.all<{ name: string }>(
         `SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='opportunities' AND name LIKE 'idx_%'`,
       )
@@ -128,27 +123,138 @@ describe('reserva por bloco', () => {
     }
   })
 
-  it('migração 16 preserva oportunidades e histórico ao reconstruir', () => {
-    const { db, close, hold, caller, clock } = setup()
+  it('migração 18 limpa dados da 16: «A definir» volta, blocos sem hora cancelados', () => {
+    const { db, close, caller, clock, conv, ingest, svc, pro, hold } = setup()
     try {
-      const h = hold()
-      const before = db.all(`SELECT * FROM opportunities ORDER BY id`)
-      const hist = db.all(`SELECT * FROM opportunity_stage_history ORDER BY id`)
+      const done = hold({ clientRequestId: 'kept' })
+      const conv2 = ingest(2)
+      // Volta ao schema 16 (CHECK com a_definir) para simular dados antigos.
       db.transactionSync(() => {
         for (const sql of M16.filter((x) => !x.includes(' schedule_holds') && !x.includes('idx_schedule_holds'))) db.run(sql)
       })
-      expect(db.all(`SELECT * FROM opportunities ORDER BY id`)).toEqual(before)
-      expect(db.all(`SELECT * FROM opportunity_stage_history ORDER BY id`)).toEqual(hist)
+      const oppOf = (conversationId: string) =>
+        db.get<{ id: string }>(`SELECT id FROM opportunities WHERE conversation_id = ? AND status = 'open'`, conversationId)
+      void conv
+      const old = oppOf(conv2.id)!.id
+      db.run(`UPDATE opportunities SET stage = 'a_definir' WHERE id = ?`, old)
+      db.run(
+        `INSERT INTO opportunity_stage_history (id, tenant_id, opportunity_id, from_stage, to_stage, created_at)
+         VALUES ('h-old', ?, ?, 'em_atendimento', 'a_definir', 1)`,
+        caller.tenantId,
+        old,
+      )
+      for (const [id, status] of [['hold-a', 'active'], ['hold-e', 'expired']] as const) {
+        db.run(
+          `INSERT INTO schedule_holds (id, tenant_id, opportunity_id, conversation_id, contact_id, service_id,
+             professional_id, duration_minutes, window_starts_at, window_ends_at, status, created_by, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 60, ?, ?, ?, 'x', 1, 1)`,
+          id,
+          caller.tenantId,
+          old,
+          conv2.id,
+          conv2.contactId,
+          svc.id,
+          pro.id,
+          at(13),
+          at(18),
+          status,
+        )
+      }
+      db.transactionSync(() => {
+        for (const sql of M18) db.run(sql)
+      })
       expect(db.all(`PRAGMA foreign_key_check`)).toEqual([])
-      expect(getOpportunityOp(db, caller, h.value.opportunityId!, clock).stage).toBe('a_definir')
+      expect(getOpportunityOp(db, caller, old, clock).stage).toBe('em_atendimento')
+      const hist = db.get<{ to_stage: string; note: string }>(
+        `SELECT to_stage, note FROM opportunity_stage_history WHERE id = 'h-old'`,
+      )
+      expect(hist).toMatchObject({ to_stage: 'em_atendimento' })
+      expect(hist?.note).toContain('A definir')
+      expect(
+        listHoldsOp(db, caller, { statuses: ['cancelled'] }, clock).map((h) => h.id).sort(),
+      ).toEqual(['hold-a', 'hold-e'])
+      // Reserva já resolvida (com compromisso) fica intacta.
+      expect(listHoldsOp(db, caller, { statuses: ['resolved'] }, clock).map((h) => h.id)).toEqual([done.value.hold.id])
+      expect(getOpportunityOp(db, caller, oppOf(done.value.hold.conversationId)!.id, clock).stage).toBe('agendado')
     } finally {
       close()
     }
   })
 
-  it('reservar: contato vai para «A definir», bloco aparece na agenda', () => {
+  it('reservar exige hora e cria compromisso com a DURAÇÃO DO BLOCO; contato vai para «Agendado»', () => {
+    const { db, close, caller, clock, hold } = setup()
+    try {
+      const r = hold({ durationMinutes: 90, startsAt: at(9, 30) })
+      expect(r.value.hold.status).toBe('resolved')
+      expect(r.value.hold.appointmentId).toBe(r.value.appointment.id)
+      expect(r.value.appointment.status).toBe('confirmed')
+      expect(r.value.appointment.startsAt).toBe(at(9, 30))
+      // Serviço tem 60 min; o bloco tem 90 — o compromisso ocupa 90.
+      expect(r.value.appointment.endsAt).toBe(at(11))
+      expect(r.outbox.map((o) => o.type)).toContain('schedule_hold.created')
+      const opp = getOpportunityOp(db, caller, r.value.hold.opportunityId!, clock)
+      expect(opp.stage).toBe('agendado')
+      expect(opp.linkedAppointment?.id).toBe(r.value.appointment.id)
+      expect(opp.history.map((x) => x.toStage)).toContain('agendado')
+      expect(listHoldsOp(db, caller, {}, clock)).toEqual([])
+    } finally {
+      close()
+    }
+  })
+
+  it('horários livres consideram a duração do bloco', () => {
+    const { db, close, caller, clock, book, svc, pro } = setup()
+    try {
+      book(10)
+      const avail = queryAvailabilityOp(
+        db,
+        caller,
+        { serviceId: svc.id, date: '2024-01-08', professionalId: pro.id, durationMinutesOverride: 90 },
+        clock,
+      )
+      const starts = avail.slots.map((s) => s.startsAt)
+      expect(starts).toContain(at(8, 30))
+      expect(starts).not.toContain(at(9)) // 9:00 + 90 min bate nas 10:00
+      expect(avail.slots.find((s) => s.startsAt === at(8))?.endsAt).toBe(at(9, 30))
+    } finally {
+      close()
+    }
+  })
+
+  it('conflito na hora: nada é reservado (rollback)', () => {
+    const { db, close, caller, clock, hold, book } = setup()
+    try {
+      book(10)
+      expect(() => hold({ startsAt: at(9), durationMinutes: 90 })).toThrow(ConflictError)
+      expect(listHoldsOp(db, caller, { statuses: ['active', 'resolved', 'expired', 'cancelled'] }, clock)).toEqual([])
+    } finally {
+      close()
+    }
+  })
+
+  it('idempotente por clientRequestId', () => {
+    const { close, hold } = setup()
+    try {
+      const a = hold({ clientRequestId: 'same' })
+      const b = hold({ clientRequestId: 'same' })
+      expect(b.idempotentReplay).toBe(true)
+      expect(b.value.hold.id).toBe(a.value.hold.id)
+      expect(b.value.appointment.id).toBe(a.value.appointment.id)
+    } finally {
+      close()
+    }
+  })
+
+  it('valida hora dentro do período, período e duração', () => {
     const { db, close, caller, clock, hold, pro } = setup()
     try {
+      expect(() => hold({ startsAt: at(7) })).toThrow(ValidationError)
+      expect(() => hold({ startsAt: at(11, 30) })).toThrow(ValidationError) // 11:30 + 60 > 12:00
+      expect(() => hold({ startsAt: Number.NaN })).toThrow(ValidationError)
+      expect(() => hold({ durationMinutes: 50 })).toThrow(ValidationError)
+      expect(() => hold({ durationMinutes: 300 })).toThrow(ValidationError)
+      expect(() => hold({ windowEndsAt: at(8) })).toThrow(ValidationError)
+      expect(() => hold({ windowStartsAt: at(8, 10) })).toThrow(ValidationError)
       const preview = previewHoldOp(
         db,
         caller,
@@ -156,207 +262,6 @@ describe('reserva por bloco', () => {
         clock,
       )
       expect(preview).toMatchObject({ freeMinutes: 240, fits: true })
-      const r = hold()
-      expect(r.value.status).toBe('active')
-      expect(r.value.responsibleClerkUserId).toBe(ACTOR)
-      expect(r.outbox.map((o) => o.type)).toContain('schedule_hold.created')
-      const opp = getOpportunityOp(db, caller, r.value.opportunityId!, clock)
-      expect(opp.stage).toBe('a_definir')
-      expect(opp.openHold?.id).toBe(r.value.id)
-      expect(opp.history.map((x) => x.toStage)).toContain('a_definir')
-      const agenda = queryAgendaViewOp(db, caller, { date: '2024-01-08', view: 'day' }, clock)
-      expect(agenda.holds.map((h) => h.id)).toEqual([r.value.id])
-      expect(agenda.appointments).toEqual([])
-    } finally {
-      close()
-    }
-  })
-
-  it('idempotente por clientRequestId; uma reserva activa por conversa', () => {
-    const { close, hold } = setup()
-    try {
-      const a = hold({ clientRequestId: 'same' })
-      const b = hold({ clientRequestId: 'same' })
-      expect(b.idempotentReplay).toBe(true)
-      expect(b.value.id).toBe(a.value.id)
-      expect(() => hold()).toThrow(ConflictError)
-    } finally {
-      close()
-    }
-  })
-
-  it('só ocupa a duração: outros horários livres até o bloco deixar de caber', () => {
-    const { db, close, caller, clock, hold, book, svc, pro } = setup()
-    try {
-      const h = hold()
-      book(8)
-      book(9)
-      book(10)
-      // 11:00 é o único espaço que resta para o bloco de 1 h.
-      expect(() => book(11)).toThrow(ConflictError)
-      const check = checkSlotAvailabilityOp(
-        db,
-        caller,
-        { serviceId: svc.id, professionalId: pro.id, startsAt: at(11) },
-        clock,
-      )
-      expect(check.reasons).toEqual(['hold_conflict'])
-      // Fora do período o bloco não interfere.
-      expect(book(14).value.status).toBe('confirmed')
-      const avail = queryAvailabilityOp(
-        db,
-        caller,
-        { serviceId: svc.id, date: '2024-01-08', professionalId: pro.id },
-        clock,
-      )
-      expect(avail.slots.some((s) => s.startsAt === at(11))).toBe(false)
-      const own = queryAvailabilityOp(
-        db,
-        caller,
-        { serviceId: svc.id, date: '2024-01-08', professionalId: pro.id, excludeHoldId: h.value.id },
-        clock,
-      )
-      expect(own.slots.some((s) => s.startsAt === at(11))).toBe(true)
-    } finally {
-      close()
-    }
-  })
-
-  it('recusa reservar quando não cabe (nada é criado)', () => {
-    const { db, close, caller, clock, hold, book, pro } = setup()
-    try {
-      book(8)
-      book(9)
-      book(10)
-      const p = previewHoldOp(
-        db,
-        caller,
-        { professionalId: pro.id, windowStartsAt: at(8), windowEndsAt: at(12), durationMinutes: 90 },
-        clock,
-      )
-      expect(p).toMatchObject({ freeMinutes: 60, fits: false })
-      expect(() => hold({ durationMinutes: 90 })).toThrow(ConflictError)
-      expect(listHoldsOp(db, caller, {}, clock)).toEqual([])
-    } finally {
-      close()
-    }
-  })
-
-  it('valida período e duração', () => {
-    const { close, hold } = setup()
-    try {
-      expect(() => hold({ durationMinutes: 50 })).toThrow(ValidationError)
-      expect(() => hold({ durationMinutes: 300 })).toThrow(ValidationError)
-      expect(() => hold({ windowEndsAt: at(8) })).toThrow(ValidationError)
-      expect(() => hold({ windowStartsAt: at(8, 10) })).toThrow(ValidationError)
-    } finally {
-      close()
-    }
-  })
-
-  it('definir hora: cria compromisso, contato vai para «Agendado»', () => {
-    const { db, close, caller, clock, hold, book } = setup()
-    try {
-      const h = hold()
-      book(8)
-      book(9)
-      book(10)
-      expect(() =>
-        resolveHoldOp(
-          db,
-          caller,
-          { holdId: h.value.id, clientRequestId: 'r-out', startsAt: at(12), actorClerkUserId: ACTOR },
-          clock,
-        ),
-      ).toThrow(ValidationError)
-      const r = resolveHoldOp(
-        db,
-        caller,
-        { holdId: h.value.id, clientRequestId: 'r-1', startsAt: at(11), actorClerkUserId: ACTOR },
-        clock,
-      )
-      expect(r.value.hold.status).toBe('resolved')
-      expect(r.value.appointment.status).toBe('confirmed')
-      expect(r.value.appointment.conversationId).toBe(h.value.conversationId)
-      const opp = getOpportunityOp(db, caller, h.value.opportunityId!, clock)
-      expect(opp.stage).toBe('agendado')
-      expect(opp.linkedAppointment?.id).toBe(r.value.appointment.id)
-      expect(opp.openHold).toBeNull()
-      const replay = resolveHoldOp(
-        db,
-        caller,
-        { holdId: h.value.id, clientRequestId: 'r-1', startsAt: at(11), actorClerkUserId: ACTOR },
-        clock,
-      )
-      expect(replay.idempotentReplay).toBe(true)
-    } finally {
-      close()
-    }
-  })
-
-  it('aviso <48 h, vencimento volta a «A definir» e aviso dispensável', () => {
-    const { db, close, caller, clock, hold, tenantId } = setup()
-    try {
-      const h = hold()
-      expect(listHoldAlertsOp(db, caller, clock)).toEqual([])
-      clock.set(at(8) - 18 * 3600_000)
-      const soon = listHoldAlertsOp(db, caller, clock)
-      expect(soon.map((a) => a.kind)).toEqual(['starts_soon'])
-      // Atendente mexeu a etapa entretanto.
-      moveOpportunityStageOp(
-        db,
-        caller,
-        { opportunityId: h.value.opportunityId!, toStage: 'em_atendimento', actorClerkUserId: ACTOR, actorDisplayName: 'A' },
-        clock,
-      )
-      clock.set(at(12))
-      const swept = sweepExpiredHoldsOp(db, caller, clock)
-      expect(swept.value.map((x) => x.status)).toEqual(['expired'])
-      expect(swept.outbox.map((o) => o.type)).toContain('schedule_hold.expired')
-      expect(getOpportunityOp(db, caller, h.value.opportunityId!, clock).stage).toBe('a_definir')
-      expect(sweepExpiredHoldsOp(db, caller, clock).value).toEqual([])
-      const alerts = listHoldAlertsOp(db, caller, clock)
-      expect(alerts.map((a) => a.kind)).toEqual(['expired'])
-      dismissHoldAlertOp(db, caller, { holdId: h.value.id, actorClerkUserId: ACTOR }, clock)
-      expect(listHoldAlertsOp(db, caller, clock)).toEqual([])
-      expect(tenantId).toBe('clinic-demo-a')
-    } finally {
-      close()
-    }
-  })
-
-  it('cancelar volta para «Em atendimento»; fechar o contato cancela o bloco', () => {
-    const { db, close, caller, clock, hold, ingest, svc, pro } = setup()
-    try {
-      const h = hold()
-      cancelHoldOp(db, caller, { holdId: h.value.id, actorClerkUserId: ACTOR }, clock)
-      expect(getOpportunityOp(db, caller, h.value.opportunityId!, clock).stage).toBe('em_atendimento')
-
-      const conv2 = ingest(2)
-      const h2 = createHoldOp(
-        db,
-        caller,
-        {
-          clientRequestId: 'h2',
-          conversationId: conv2.id,
-          serviceId: svc.id,
-          professionalId: pro.id,
-          durationMinutes: 60,
-          windowStartsAt: at(13),
-          windowEndsAt: at(18),
-          actorClerkUserId: ACTOR,
-        },
-        clock,
-      )
-      moveOpportunityStageOp(
-        db,
-        caller,
-        { opportunityId: h2.value.opportunityId!, toStage: 'perdido', actorClerkUserId: ACTOR, actorDisplayName: 'A' },
-        clock,
-      )
-      expect(listHoldsOp(db, caller, { statuses: ['cancelled'] }, clock).map((x) => x.id).sort()).toEqual(
-        [h.value.id, h2.value.id].sort(),
-      )
     } finally {
       close()
     }

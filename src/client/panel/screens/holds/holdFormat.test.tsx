@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   civilMinuteToEpoch,
-  defaultConfirmBy,
   durationLabel,
   holdConfirmedMessage,
-  holdOptionsMessage,
-  holdReservedMessage,
   periodChip,
   shortDay,
-  startsInLabel,
 } from './holdFormat'
 
 const TZ = 'America/Sao_Paulo'
@@ -31,19 +27,6 @@ describe('holdFormat', () => {
 
   it('mensagens de WhatsApp', () => {
     const ws = civilMinuteToEpoch('2026-11-03', 480, TZ)
-    const we = civilMinuteToEpoch('2026-11-03', 720, TZ)
-    const msg = holdReservedMessage({
-      contactName: 'Marina Costa',
-      serviceName: 'Preenchimento labial',
-      professionalName: 'Dra. Ana',
-      windowStartsAt: ws,
-      windowEndsAt: we,
-      confirmBy: defaultConfirmBy('2026-11-03', ws, TZ, Date.UTC(2026, 9, 27)),
-      timeZone: TZ,
-    })
-    expect(msg).toContain('Olá, Marina!')
-    expect(msg).toContain('terça, 3/11, de manhã, com Dra. Ana')
-    expect(msg).toContain('até segunda, 2/11')
     const ok = holdConfirmedMessage({
       contactName: 'Marina',
       serviceName: 'Preenchimento labial',
@@ -52,21 +35,18 @@ describe('holdFormat', () => {
       endsAt: ws + 10_800_000,
       timeZone: TZ,
     })
-    expect(ok).toContain('às 10:00 (até 11:00)')
-    const opts = holdOptionsMessage({
-      contactName: null,
-      professionalName: 'Dra. Ana',
-      windowStartsAt: ws,
-      windowEndsAt: we,
-      options: [ws + 3_600_000, ws + 7_200_000],
-      timeZone: TZ,
-    })
-    expect(opts.split('\n')).toHaveLength(4)
-    expect(opts).toContain('2️⃣ 10:00')
-  })
-
-  it('quanto falta para o bloco', () => {
-    expect(startsInLabel(1000 + 18 * 3_600_000, 1000 + 22 * 3_600_000, 1000)).toBe('Começa em 18 h')
-    expect(startsInLabel(0, 10, 20)).toBe('Período passou')
+    expect(ok).toContain('Olá, Marina!')
+    expect(ok).toContain('terça, 3/11, às 10:00 (até 11:00)')
+    // Fuso configurável da clínica: a mesma hora em Lisboa.
+    expect(
+      holdConfirmedMessage({
+        contactName: null,
+        serviceName: 'Limpeza',
+        professionalName: 'Ana',
+        startsAt: ws,
+        endsAt: ws + 3_600_000,
+        timeZone: 'Europe/Lisbon',
+      }),
+    ).toContain('às 11:00 (até 12:00)')
   })
 })

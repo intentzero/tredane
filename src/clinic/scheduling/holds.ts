@@ -5,11 +5,10 @@
  * - O bloco ocupa só essa duração, na agenda de UMA profissional, algures
  *   dentro do período (manhã/tarde/outro). Novos agendamentos só são
  *   recusados se impedirem o bloco de caber (`hold_conflict`).
- * - Ao reservar, o contato vai para «A definir». Ao definir a hora, vira
- *   compromisso confirmado e o contato vai para «Agendado».
- * - Se o período passar sem hora, o bloco vence, o contato fica em
- *   «A definir» e a atendente responsável recebe aviso in-app. Blocos que
- *   começam em menos de 48 h também geram aviso.
+ * - A reserva TEM sempre hora (decisão de 27/10/2026, migração 17): na mesma
+ *   transação cria o bloco, o compromisso confirmado — que ocupa a DURAÇÃO
+ *   DO BLOCO, não a do serviço — e move o contato para «Agendado».
+ * - A resposta do paciente é confirmada manualmente pela atendente.
  * - Mensagens WhatsApp NÃO saem daqui: o cliente usa o envio normal de texto,
  *   e só dentro da janela de 24 h.
  */
@@ -21,12 +20,11 @@ import { getService } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import {
   SCHEDULE_GRID_MINUTES,
-  SCHEDULE_HOLD_ALERT_LEAD_MS,
   type OpportunityStage,
 } from '../constants'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller } from '../envelopes'
-import { ConflictError, NotFoundError, ValidationError } from '../errors'
+import { NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
 import { requireConversation } from '../inbox/conversations'
 import { assertClinicSchemaReady } from '../migrations'
@@ -83,24 +81,16 @@ export type CreateHoldInput = HoldPreviewInput & {
   clientRequestId: string
   conversationId: string
   serviceId: string
-  confirmBy?: number | null
-  actorClerkUserId: string
-  actorDisplayName?: string | null
-}
-
-export type ResolveHoldInput = {
-  holdId: string
-  clientRequestId: string
+  /** Hora exacta (obrigatória) dentro do período. */
   startsAt: number
   roomResourceId?: string | null
   actorClerkUserId: string
   actorDisplayName?: string | null
 }
 
-export type CancelHoldInput = {
-  holdId: string
-  actorClerkUserId: string
-  actorDisplayName?: string | null
+export type CreateHoldResult = {
+  hold: ScheduleHoldView
+  appointment: AppointmentDetail
 }
 
 export type ListHoldsInput = {
@@ -109,11 +99,6 @@ export type ListHoldsInput = {
   rangeStartsAt?: number | null
   rangeEndsAt?: number | null
   statuses?: string[] | null
-}
-
-export type HoldAlert = {
-  kind: 'starts_soon' | 'expired'
-  hold: ScheduleHoldView
 }
 
 const MAX_HOLD_MINUTES = 12 * 60
@@ -342,7 +327,7 @@ export function createHoldOp(
   caller: ClinicCaller,
   input: CreateHoldInput,
   clock: Clock,
-): HoldMutationResult<ScheduleHoldView> {
+): HoldMutationResult<CreateHoldResult> {
   const { tenantId, timezone } = prepare(db, caller, clock)
   const clientRequestId = (input.clientRequestId ?? '').trim()
   if (!clientRequestId || clientRequestId.length > 200) {
@@ -351,6 +336,7 @@ export function createHoldOp(
   if (!input.actorClerkUserId) {
     throw new ValidationError('actor_required', 'Actor obrigatório para esta operação')
   }
+  const appointmentRequestId = `${clientRequestId}:apt`
 
   return db.transactionSync(() => {
     const prior = db.get<{ id: string }>(
@@ -359,11 +345,39 @@ export function createHoldOp(
       clientRequestId,
     )
     if (prior) {
-      return { value: requireHold(db, tenantId, prior.id), outbox: [], idempotentReplay: true }
+      const hold = requireHold(db, tenantId, prior.id)
+      const replay = confirmAppointmentInTransaction(
+        db,
+        caller,
+        {
+          clientRequestId: appointmentRequestId,
+          serviceId: hold.serviceId,
+          professionalId: hold.professionalId,
+          roomResourceId: input.roomResourceId ?? null,
+          startsAt: input.startsAt,
+          actorClerkUserId: input.actorClerkUserId,
+          excludeHoldId: hold.id,
+          durationMinutesOverride: hold.durationMinutes,
+        },
+        clock,
+      )
+      return { value: { hold, appointment: replay.value }, outbox: [], idempotentReplay: true }
     }
 
     const nowMs = clock.nowMs()
     validateWindow(timezone, input, nowMs)
+    if (!Number.isFinite(input.startsAt)) {
+      throw new ValidationError('hold_start_required', 'Escolha um horário livre dentro do período.')
+    }
+    if (
+      input.startsAt < input.windowStartsAt
+      || input.startsAt + input.durationMinutes * 60_000 > input.windowEndsAt
+    ) {
+      throw new ValidationError(
+        'hold_start_outside_window',
+        'O horário tem de caber dentro do período escolhido.',
+      )
+    }
     const conv = requireConversation(db, tenantId, input.conversationId)
     const service = getService(db, tenantId, input.serviceId)
     if (!service || !service.active) {
@@ -372,33 +386,6 @@ export function createHoldOp(
     const pro = requireProfessional(db, tenantId, input.professionalId, clock)
     if (service.professionalIds.length > 0 && !service.professionalIds.includes(pro.id)) {
       throw new ValidationError('professional_not_linked', 'Essa profissional não faz este procedimento')
-    }
-    if (input.confirmBy != null && (!Number.isFinite(input.confirmBy) || input.confirmBy > input.windowEndsAt)) {
-      throw new ValidationError('invalid_confirm_by', '«Confirmar até» deve ser antes do fim do período')
-    }
-
-    const active = db.get<{ id: string }>(
-      `SELECT id FROM schedule_holds
-       WHERE tenant_id = ? AND conversation_id = ? AND status = 'active' AND window_ends_at > ?`,
-      tenantId,
-      conv.id,
-      nowMs,
-    )
-    if (active) {
-      throw new ConflictError(
-        'hold_already_active',
-        'Esta conversa já tem um bloco reservado. Defina a hora ou cancele-o antes.',
-        { holdId: active.id },
-      )
-    }
-
-    const evaluation = evaluate(db, tenantId, timezone, input, nowMs)
-    if (!evaluation.fits) {
-      throw new ConflictError(
-        'hold_no_fit',
-        'Não cabe: a profissional não tem esse tempo livre no período. Nada foi reservado.',
-        { freeMinutes: evaluation.freeMinutes },
-      )
     }
 
     const outbox: OutboxRow[] = []
@@ -426,17 +413,6 @@ export function createHoldOp(
           ? opp.assigneeDisplayName
           : (input.actorDisplayName ?? null)
 
-    // Vencidos anteriores desta conversa deixam de alertar.
-    db.run(
-      `UPDATE schedule_holds SET alert_dismissed_at = ?, updated_at = ?
-       WHERE tenant_id = ? AND conversation_id = ? AND status = 'expired'
-         AND alert_dismissed_at IS NULL`,
-      nowMs,
-      nowMs,
-      tenantId,
-      conv.id,
-    )
-
     const id = newId('hold')
     db.run(
       `INSERT INTO schedule_holds (
@@ -445,7 +421,7 @@ export function createHoldOp(
         window_starts_at, window_ends_at, confirm_by, status,
         responsible_clerk_user_id, responsible_display_name,
         created_by, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'active', ?, ?, ?, ?, ?)`,
       id,
       tenantId,
       clientRequestId,
@@ -457,7 +433,6 @@ export function createHoldOp(
       input.durationMinutes,
       input.windowStartsAt,
       input.windowEndsAt,
-      input.confirmBy ?? null,
       responsibleId,
       responsibleName,
       input.actorClerkUserId,
@@ -465,13 +440,44 @@ export function createHoldOp(
       nowMs,
     )
 
+    // Compromisso confirmado com a duração do BLOCO (re-check dentro da TX;
+    // conflito faz rollback de tudo — nada fica reservado).
+    const confirmed = confirmAppointmentInTransaction(
+      db,
+      caller,
+      {
+        clientRequestId: appointmentRequestId,
+        serviceId: service.id,
+        professionalId: pro.id,
+        roomResourceId: input.roomResourceId ?? null,
+        startsAt: input.startsAt,
+        contactId: conv.contactId,
+        conversationId: conv.id,
+        opportunityId: opp.id,
+        actorClerkUserId: input.actorClerkUserId,
+        excludeHoldId: id,
+        durationMinutesOverride: input.durationMinutes,
+      },
+      clock,
+    )
+    outbox.push(...confirmed.outbox)
+    db.run(
+      `UPDATE schedule_holds
+       SET status = 'resolved', appointment_id = ?, resolved_at = ?, updated_at = ?
+       WHERE tenant_id = ? AND id = ?`,
+      confirmed.value.id,
+      nowMs,
+      nowMs,
+      tenantId,
+      id,
+    )
     moveStage(
       db,
       tenantId,
       opp.id,
-      'a_definir',
+      'agendado',
       { id: input.actorClerkUserId, name: input.actorDisplayName ?? null },
-      'Bloco reservado — hora a definir',
+      'Bloco reservado com hora',
       clock,
       outbox,
     )
@@ -492,276 +498,14 @@ export function createHoldOp(
           windowStartsAt: hold.windowStartsAt,
           windowEndsAt: hold.windowEndsAt,
           durationMinutes: hold.durationMinutes,
-        },
-      },
-      clock,
-    )
-    return { value: hold, outbox }
-  })
-}
-
-export function resolveHoldOp(
-  db: ClinicDb,
-  caller: ClinicCaller,
-  input: ResolveHoldInput,
-  clock: Clock,
-): HoldMutationResult<{ hold: ScheduleHoldView; appointment: AppointmentDetail }> {
-  const { tenantId } = prepare(db, caller, clock)
-  if (!input.actorClerkUserId) {
-    throw new ValidationError('actor_required', 'Actor obrigatório para esta operação')
-  }
-  return db.transactionSync(() => {
-    const hold = requireHold(db, tenantId, input.holdId)
-    if (hold.status === 'resolved' && hold.appointmentId) {
-      const replay = confirmAppointmentInTransaction(
-        db,
-        caller,
-        {
-          clientRequestId: input.clientRequestId,
-          serviceId: hold.serviceId,
-          professionalId: hold.professionalId,
-          roomResourceId: input.roomResourceId ?? null,
           startsAt: input.startsAt,
-          actorClerkUserId: input.actorClerkUserId,
-          excludeHoldId: hold.id,
+          appointmentId: confirmed.value.id,
         },
-        clock,
-      )
-      if (replay.idempotentReplay && replay.value.id === hold.appointmentId) {
-        return { value: { hold, appointment: replay.value }, outbox: [], idempotentReplay: true }
-      }
-      throw new ConflictError('hold_not_active', 'Este bloco já tem hora definida.')
-    }
-    // Vencido também pode receber hora (dentro do período original não dá,
-    // mas a atendente pode definir uma hora qualquer — vira compromisso).
-    if (hold.status !== 'active' && hold.status !== 'expired') {
-      throw new ConflictError('hold_not_active', 'Este bloco já não está activo.')
-    }
-    if (hold.status === 'active') {
-      const durMs = hold.durationMinutes * 60_000
-      if (input.startsAt < hold.windowStartsAt || input.startsAt + durMs > hold.windowEndsAt) {
-        throw new ValidationError(
-          'hold_start_outside_window',
-          'A hora tem de ficar dentro do período reservado.',
-        )
-      }
-    }
-
-    const confirmed = confirmAppointmentInTransaction(
-      db,
-      caller,
-      {
-        clientRequestId: input.clientRequestId,
-        serviceId: hold.serviceId,
-        professionalId: hold.professionalId,
-        roomResourceId: input.roomResourceId ?? null,
-        startsAt: input.startsAt,
-        contactId: hold.contactId,
-        conversationId: hold.conversationId,
-        opportunityId: hold.opportunityId,
-        actorClerkUserId: input.actorClerkUserId,
-        excludeHoldId: hold.id,
       },
       clock,
     )
-    const outbox = [...confirmed.outbox]
-    const now = clock.nowMs()
-    db.run(
-      `UPDATE schedule_holds
-       SET status = 'resolved', appointment_id = ?, resolved_at = ?, updated_at = ?,
-           alert_dismissed_at = COALESCE(alert_dismissed_at, ?)
-       WHERE tenant_id = ? AND id = ?`,
-      confirmed.value.id,
-      now,
-      now,
-      now,
-      tenantId,
-      hold.id,
-    )
-    if (hold.opportunityId) {
-      moveStage(
-        db,
-        tenantId,
-        hold.opportunityId,
-        'agendado',
-        { id: input.actorClerkUserId, name: input.actorDisplayName ?? null },
-        'Hora do bloco definida',
-        clock,
-        outbox,
-      )
-    }
-    const next = requireHold(db, tenantId, hold.id)
-    outbox.push(holdEvent(db, tenantId, 'schedule_hold.resolved', next, clock))
-    writeOperationalAudit(
-      db,
-      {
-        tenantId,
-        actor: input.actorClerkUserId,
-        action: 'schedule_hold.resolved',
-        objectType: 'schedule_hold',
-        objectId: hold.id,
-        detail: { appointmentId: confirmed.value.id, startsAt: input.startsAt },
-      },
-      clock,
-    )
-    return { value: { hold: next, appointment: confirmed.value }, outbox }
+    return { value: { hold, appointment: confirmed.value }, outbox }
   })
-}
-
-/** Cancela sem transação própria (usado também ao fechar a oportunidade). */
-export function cancelActiveHoldsInTransaction(
-  db: ClinicDb,
-  tenantId: string,
-  where: { holdId?: string; opportunityId?: string },
-  actor: { id: string; name: string | null },
-  clock: Clock,
-  outbox: OutboxRow[],
-  opts: { moveStageBack: boolean },
-): ScheduleHoldView[] {
-  const rows = where.holdId
-    ? db.all<HoldSql>(`${HOLD_SELECT} WHERE h.tenant_id = ? AND h.id = ? AND h.status IN ('active', 'expired')`, tenantId, where.holdId)
-    : db.all<HoldSql>(
-        `${HOLD_SELECT} WHERE h.tenant_id = ? AND h.opportunity_id = ? AND h.status IN ('active', 'expired')`,
-        tenantId,
-        where.opportunityId ?? '',
-      )
-  const now = clock.nowMs()
-  const out: ScheduleHoldView[] = []
-  for (const row of rows) {
-    db.run(
-      `UPDATE schedule_holds
-       SET status = 'cancelled', cancelled_at = ?, updated_at = ?,
-           alert_dismissed_at = COALESCE(alert_dismissed_at, ?)
-       WHERE tenant_id = ? AND id = ?`,
-      now,
-      now,
-      now,
-      tenantId,
-      row.id,
-    )
-    if (opts.moveStageBack && row.opportunity_id) {
-      moveStage(
-        db,
-        tenantId,
-        row.opportunity_id,
-        'em_atendimento',
-        actor,
-        'Bloco cancelado',
-        clock,
-        outbox,
-        ['a_definir'],
-      )
-    }
-    const next = requireHold(db, tenantId, row.id)
-    outbox.push(holdEvent(db, tenantId, 'schedule_hold.cancelled', next, clock))
-    out.push(next)
-  }
-  return out
-}
-
-export function cancelHoldOp(
-  db: ClinicDb,
-  caller: ClinicCaller,
-  input: CancelHoldInput,
-  clock: Clock,
-): HoldMutationResult<ScheduleHoldView> {
-  const { tenantId } = prepare(db, caller, clock)
-  if (!input.actorClerkUserId) {
-    throw new ValidationError('actor_required', 'Actor obrigatório para esta operação')
-  }
-  return db.transactionSync(() => {
-    const hold = requireHold(db, tenantId, input.holdId)
-    if (hold.status !== 'active' && hold.status !== 'expired') {
-      throw new ConflictError('hold_not_active', 'Este bloco já não está activo.')
-    }
-    const outbox: OutboxRow[] = []
-    const [next] = cancelActiveHoldsInTransaction(
-      db,
-      tenantId,
-      { holdId: hold.id },
-      { id: input.actorClerkUserId, name: input.actorDisplayName ?? null },
-      clock,
-      outbox,
-      { moveStageBack: true },
-    )
-    writeOperationalAudit(
-      db,
-      {
-        tenantId,
-        actor: input.actorClerkUserId,
-        action: 'schedule_hold.cancelled',
-        objectType: 'schedule_hold',
-        objectId: hold.id,
-      },
-      clock,
-    )
-    return { value: next ?? requireHold(db, tenantId, hold.id), outbox }
-  })
-}
-
-/**
- * Vence blocos cujo período acabou sem hora. Idempotente; chamado pelo
- * alarme do DO e antes das leituras de blocos/avisos.
- */
-export function sweepExpiredHoldsOp(
-  db: ClinicDb,
-  caller: ClinicCaller,
-  clock: Clock,
-): HoldMutationResult<ScheduleHoldView[]> {
-  const { tenantId } = prepare(db, caller, clock)
-  const nowMs = clock.nowMs()
-  const due = db.all<{ id: string }>(
-    `SELECT id FROM schedule_holds
-     WHERE tenant_id = ? AND status = 'active' AND window_ends_at <= ?
-     ORDER BY window_ends_at, id`,
-    tenantId,
-    nowMs,
-  )
-  if (due.length === 0) return { value: [], outbox: [] }
-  return db.transactionSync(() => {
-    const outbox: OutboxRow[] = []
-    const expired: ScheduleHoldView[] = []
-    for (const { id } of due) {
-      const hold = requireHold(db, tenantId, id)
-      if (hold.status !== 'active') continue
-      db.run(
-        `UPDATE schedule_holds SET status = 'expired', expired_at = ?, updated_at = ?
-         WHERE tenant_id = ? AND id = ? AND status = 'active'`,
-        nowMs,
-        nowMs,
-        tenantId,
-        id,
-      )
-      if (hold.opportunityId) {
-        // Volta a «A definir» (se a etapa mudou entretanto), excepto se já
-        // está agendado ou fechado.
-        moveStage(
-          db,
-          tenantId,
-          hold.opportunityId,
-          'a_definir',
-          { id: 'system:schedule_holds', name: 'Sistema' },
-          'Período do bloco passou sem hora definida',
-          clock,
-          outbox,
-          ['novo_contato', 'em_atendimento', 'horario_proposto'],
-        )
-      }
-      const next = requireHold(db, tenantId, id)
-      outbox.push(holdEvent(db, tenantId, 'schedule_hold.expired', next, clock))
-      expired.push(next)
-    }
-    return { value: expired, outbox }
-  })
-}
-
-/** Próximo fim de período de bloco activo (para o alarme do DO). */
-export function nextHoldExpiryAt(db: ClinicDb, tenantId: string): number | null {
-  const row = db.get<{ t: number | null }>(
-    `SELECT MIN(window_ends_at) AS t FROM schedule_holds WHERE tenant_id = ? AND status = 'active'`,
-    tenantId,
-  )
-  return row?.t ?? null
 }
 
 export function listHoldsOp(
@@ -797,67 +541,4 @@ export function listHoldsOp(
     ...params,
   )
   return rows.map(mapHold)
-}
-
-/**
- * Avisos in-app: blocos activos que começam em < 48 h (ou já começaram) e
- * blocos vencidos sem hora ainda não dispensados. Devolve todos — a UI
- * destaca os da atendente responsável.
- */
-export function listHoldAlertsOp(
-  db: ClinicDb,
-  caller: ClinicCaller,
-  clock: Clock,
-): HoldAlert[] {
-  const { tenantId } = prepare(db, caller, clock)
-  const nowMs = clock.nowMs()
-  const rows = db.all<HoldSql>(
-    `${HOLD_SELECT}
-     WHERE h.tenant_id = ?
-       AND (
-         (h.status = 'active' AND h.window_starts_at < ?)
-         OR (h.status = 'expired' AND h.alert_dismissed_at IS NULL)
-       )
-     ORDER BY h.window_starts_at, h.id LIMIT 200`,
-    tenantId,
-    nowMs + SCHEDULE_HOLD_ALERT_LEAD_MS,
-  )
-  return rows.map((r) => {
-    const hold = mapHold(r)
-    const kind: HoldAlert['kind'] =
-      hold.status === 'expired' || hold.windowEndsAt <= nowMs ? 'expired' : 'starts_soon'
-    return { kind, hold }
-  })
-}
-
-export function dismissHoldAlertOp(
-  db: ClinicDb,
-  caller: ClinicCaller,
-  input: { holdId: string; actorClerkUserId: string },
-  clock: Clock,
-): HoldMutationResult<ScheduleHoldView> {
-  const { tenantId } = prepare(db, caller, clock)
-  return db.transactionSync(() => {
-    const hold = requireHold(db, tenantId, input.holdId)
-    if (hold.status !== 'expired') {
-      throw new ConflictError(
-        'hold_alert_not_dismissable',
-        'Só avisos de blocos vencidos podem ser dispensados — defina a hora ou cancele o bloco.',
-      )
-    }
-    if (hold.alertDismissedAt != null) return { value: hold, outbox: [] }
-    const now = clock.nowMs()
-    db.run(
-      `UPDATE schedule_holds SET alert_dismissed_at = ?, updated_at = ? WHERE tenant_id = ? AND id = ?`,
-      now,
-      now,
-      tenantId,
-      hold.id,
-    )
-    const next = requireHold(db, tenantId, hold.id)
-    return {
-      value: next,
-      outbox: [holdEvent(db, tenantId, 'schedule_hold.alert_dismissed', next, clock)],
-    }
-  })
 }

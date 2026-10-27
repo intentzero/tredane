@@ -136,7 +136,7 @@ describe('pix payment → atomic confirm (#39)', () => {
     const { db, clock } = bootClinicDb()
     const state = db.get<{ version: number }>('SELECT version FROM clinic_schema_state WHERE id = 1')
     expect(state?.version).toBe(CLINIC_SCHEMA_VERSION)
-    expect(CLINIC_SCHEMA_VERSION).toBe(17)
+    expect(CLINIC_SCHEMA_VERSION).toBe(18)
     void clock
   })
 

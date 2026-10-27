@@ -126,11 +126,11 @@ export function avatarTone(label: string): 1 | 2 | 3 | 4 {
   return ((h % 4) + 1) as 1 | 2 | 3 | 4
 }
 
-const CLINIC_TZ = 'America/Sao_Paulo'
+import { getClinicTimezone } from '../../clinicTimezone'
 
 function civilDay(ms: number): string {
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone: CLINIC_TZ,
+    timeZone: getClinicTimezone(),
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -143,7 +143,7 @@ export function dayLabel(ms: number, now: number = Date.now()): string {
   if (day === civilDay(now)) return 'Hoje'
   if (day === civilDay(now - 86_400_000)) return 'Ontem'
   return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: CLINIC_TZ,
+    timeZone: getClinicTimezone(),
     day: 'numeric',
     month: 'long',
   }).format(new Date(ms))
@@ -157,7 +157,7 @@ export function sameDay(a: number, b: number): boolean {
 export function windowHint(closesAt: number | null, now: number = Date.now()): string | null {
   if (closesAt == null || closesAt <= now) return null
   const time = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: CLINIC_TZ,
+    timeZone: getClinicTimezone(),
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',

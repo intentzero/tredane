@@ -131,33 +131,7 @@ function hello(name: string | null | undefined): string {
   return f ? `Olá, ${f}!` : 'Olá!'
 }
 
-function lowerFirst(s: string): string {
-  return s ? s.charAt(0).toLowerCase() + s.slice(1) : s
-}
-
-export type HoldMessageInput = {
-  contactName: string | null
-  serviceName: string
-  professionalName: string
-  windowStartsAt: number
-  windowEndsAt: number
-  confirmBy: number | null
-  timeZone: string
-}
-
-/** Mensagem 1 (design 03): bloco reservado, hora exata depois. */
-export function holdReservedMessage(i: HoldMessageInput): string {
-  const day = sentenceDay(i.windowStartsAt, i.timeZone)
-  const period = periodPhrase(i.windowStartsAt, i.windowEndsAt, i.timeZone)
-  const by = i.confirmBy != null ? ` até ${sentenceDay(i.confirmBy, i.timeZone)}` : ''
-  return (
-    `${hello(i.contactName)} Reservamos ${day}, ${period}, com ${i.professionalName} ` +
-    `para ${lowerFirst(i.serviceName)}. Confirmamos a hora exata${by}. ` +
-    'Se tiver preferência de horário, é só responder aqui. 💙'
-  )
-}
-
-/** Mensagem 2 (design 06): hora exata confirmada. */
+/** Mensagem da reserva (design 06): horário confirmado no fuso da clínica. */
 export function holdConfirmedMessage(i: {
   contactName: string | null
   serviceName: string
@@ -178,48 +152,4 @@ export function holdConfirmedMessage(i: {
     `Com ${i.professionalName}${i.roomName ? ` · ${i.roomName}` : ''}`,
     'Se precisar remarcar, é só responder esta mensagem.',
   ].join('\n')
-}
-
-const OPTION_EMOJI = ['1️⃣', '2️⃣', '3️⃣', '4️⃣']
-
-/** Alternativa: oferecer 2–3 horas dentro do bloco para a paciente escolher. */
-export function holdOptionsMessage(i: {
-  contactName: string | null
-  professionalName: string
-  windowStartsAt: number
-  windowEndsAt: number
-  options: number[]
-  timeZone: string
-}): string {
-  const t = (ms: number) =>
-    new Intl.DateTimeFormat('pt-BR', { timeZone: i.timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(
-      new Date(ms),
-    )
-  const day = sentenceDay(i.windowStartsAt, i.timeZone)
-  const period = periodPhrase(i.windowStartsAt, i.windowEndsAt, i.timeZone)
-  return [
-    `${hello(i.contactName)} Para ${day}, ${period}, com ${i.professionalName}, temos:`,
-    ...i.options.map((ms, idx) => `${OPTION_EMOJI[idx] ?? `${idx + 1}.`} ${t(ms)}`),
-    'Responda com o número da opção que preferir. 😊',
-  ].join('\n')
-}
-
-/** «Começa em 18 h» / «Começa em 40 min» / «Período passou». */
-export function startsInLabel(windowStartsAt: number, windowEndsAt: number, now: number): string {
-  if (now >= windowEndsAt) return 'Período passou'
-  if (now >= windowStartsAt) return 'Período em andamento'
-  const min = Math.round((windowStartsAt - now) / 60_000)
-  if (min < 60) return `Começa em ${min} min`
-  const h = Math.round(min / 60)
-  if (h < 48) return `Começa em ${h} h`
-  return `Começa em ${Math.round(h / 24)} dias`
-}
-
-/** Prazo padrão «Confirmar até»: véspera às 18h; se já passou, o início do bloco. */
-export function defaultConfirmBy(isoDate: string, windowStartsAt: number, timeZone: string, now: number): number {
-  const [y, m, d] = isoDate.split('-').map(Number)
-  const prev = new Date(Date.UTC(y!, m! - 1, d! - 1))
-  const prevIso = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, '0')}-${String(prev.getUTCDate()).padStart(2, '0')}`
-  const eve = civilMinuteToEpoch(prevIso, 18 * 60, timeZone)
-  return eve > now ? eve : windowStartsAt
 }

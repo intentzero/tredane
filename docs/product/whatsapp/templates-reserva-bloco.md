@@ -7,28 +7,15 @@
 
 Categoria: **UTILITY** · Idioma: **pt_BR** · Sem botões, sem mídia.
 
-## 1. `reserva_bloco_confirmacao` — bloco reservado, hora exata depois
+> **Mudança de 27/10/2026 (decisão do Paulo):** a reserva por bloco tem **sempre hora**.
+> A etapa «A definir», o vencimento do bloco e os avisos foram removidos (migração 18).
+> O antigo modelo 1 (`reserva_bloco_confirmacao`, «hora exata depois») ficou obsoleto
+> e foi retirado. Resta só o modelo abaixo. O horário vai no fuso configurado da
+> clínica (padrão Brasília). A confirmação da resposta da paciente continua manual.
 
-Enviada logo após «Reservar e avisar paciente» (opção A: uma confirmação agora, a hora exata depois).
+## `reserva_bloco_hora_confirmada` — horário reservado
 
-```
-Olá, {{1}}! Reservamos {{2}}, {{3}}, com {{4}} para {{5}}. Confirmamos a hora exata até {{6}}. Se tiver preferência de horário, é só responder aqui.
-```
-
-| Variável | Exemplo | Origem |
-|---|---|---|
-| `{{1}}` | Marina | primeiro nome do contato |
-| `{{2}}` | terça, 3/11 | dia do bloco |
-| `{{3}}` | de manhã | período (`de manhã`, `à tarde` ou `das 9h às 13h`) |
-| `{{4}}` | Dra. Ana | profissional |
-| `{{5}}` | preenchimento labial | procedimento |
-| `{{6}}` | segunda, 2/11 | prazo «Confirmar até» |
-
-Exemplo completo: «Olá, Marina! Reservamos terça, 3/11, de manhã, com Dra. Ana para preenchimento labial. Confirmamos a hora exata até segunda, 2/11. Se tiver preferência de horário, é só responder aqui.»
-
-## 2. `reserva_bloco_hora_confirmada` — hora exata definida
-
-Enviada em «Definir hora» → «Confirmar e avisar paciente».
+Enviada em «Reservar bloco» → «Reservar e avisar paciente» (o horário livre é obrigatório; o compromisso ocupa a duração do bloco).
 
 ```
 Olá, {{1}}! Seu horário está confirmado.
@@ -50,6 +37,4 @@ Se precisar remarcar, é só responder esta mensagem.
 
 - No app, os textos livres (dentro das 24 h) usam emojis (✅, 💙); nos modelos para a
   Meta eles foram retirados para reduzir o risco de reclassificação como MARKETING.
-- A mensagem «Enviar opções» (2–3 horas para a paciente escolher) é só texto livre,
-  dentro das 24 h; não tem modelo proposto.
 - Código dos textos livres: `src/client/panel/screens/holds/holdFormat.ts`.

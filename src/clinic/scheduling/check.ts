@@ -52,9 +52,10 @@ export function checkSlotAvailability(
     )
   }
 
-  const occMins = occupiedMinutes(service.durationMinutes, service.bufferMinutes)
+  const durationMinutes = input.durationMinutesOverride ?? service.durationMinutes
+  const occMins = occupiedMinutes(durationMinutes, service.bufferMinutes)
   const startsAt = input.startsAt
-  const endsAt = startsAt + service.durationMinutes * 60_000
+  const endsAt = startsAt + durationMinutes * 60_000
   const occupiesUntil = startsAt + occMins * 60_000
   const range = { startsAt, endsAt: occupiesUntil }
 

@@ -175,7 +175,7 @@ const CONVERSATIONS: readonly ConvSpec[] = [
   },
   {
     key: 'gabriela', name: 'Gabriela Nóbrega', waSuffix: '07', status: 'open', assignee: 'owner',
-    stage: 'a_definir', unread: 0,
+    stage: 'em_atendimento', unread: 0,
     messages: [
       [600, 'inbound', 'Quero fechar o pacote de laser nas pernas, mas ainda não sei o dia.'],
       [590, 'outbound', 'Claro, Gabriela! Deixo reservado o pacote e combinamos a data quando você puder.'],

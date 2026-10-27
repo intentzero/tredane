@@ -258,6 +258,7 @@ export function confirmAppointmentInTransaction(
       roomResourceId: input.roomResourceId,
       startsAt: input.startsAt,
       excludeHoldId: input.excludeHoldId,
+      durationMinutesOverride: input.durationMinutesOverride,
     },
     clock,
   )

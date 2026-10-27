@@ -16,6 +16,7 @@ import {
   type PanelApi,
   type PixChargeDetail,
 } from '../../api'
+import { useClinicTimezone } from '../../clinicTimezone'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import { formatSlotTime } from './format'
@@ -38,6 +39,7 @@ export function CompromissoScreen({
   api,
   generation,
 }: Props) {
+  const timezone = useClinicTimezone(api, tenantId, generation)
   const [detail, setDetail] = useState<AppointmentDetailResponse | null>(null)
   const [reasons, setReasons] = useState<AppointmentReasonOption[]>([])
   const [paidSignal, setPaidSignal] = useState<PixChargeDetail | null>(null)
@@ -93,7 +95,6 @@ export function CompromissoScreen({
   }
   if (!detail) return null
 
-  const timezone = 'America/Sao_Paulo'
   const canChange = detail.status === 'confirmed'
   const needsDisposition =
     paidSignal != null &&
