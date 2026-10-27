@@ -419,11 +419,12 @@ export async function handleInboundQueueBatch(
 
     if (isClinicOutboxMessage(body)) {
       try {
-        await processClinicOutboxMessage(body, {
+        const outcome = await processClinicOutboxMessage(body, {
           env: deps.env,
           clock: deps.clock,
           syncAdminDb: deps.syncAdminDb,
           metaAdapter: deps.metaAdapter,
+          mode: 'queue',
           clinicStub: deps.clinicStub
             ? (tenantId) => {
                 const s = deps.clinicStub!(tenantId)
@@ -434,11 +435,19 @@ export async function handleInboundQueueBatch(
                     }
                     return s.applyOutboundSendResult(caller, input)
                   },
+                  claimOutboundSend: s.claimOutboundSend
+                    ? (caller, input) => s.claimOutboundSend!(caller, input)
+                    : undefined,
+                  releaseOutboundSend: s.releaseOutboundSend
+                    ? (caller, input) => s.releaseOutboundSend!(caller, input)
+                    : undefined,
                 }
               }
             : undefined,
           log,
         })
+        if (outcome === 'ack') message.ack()
+        else message.retry({ delaySeconds: outcome.retryDelaySeconds })
       } catch (err) {
         const code = err instanceof Error ? err.message : 'outbox_process_failed'
         log({
@@ -449,11 +458,14 @@ export async function handleInboundQueueBatch(
             eventId: body.eventId,
             type: body.type,
             errorCode: code.slice(0, 80),
+            attempts,
           },
         })
-        // Não retry automático de efeito externo incerto — ack e deixa unknown/failed no DO.
+        // Seguro reintentar: a Meta só é chamada com claim novo (sem duplo envio);
+        // um resultado já obtido segue por `whatsapp.send_result`. Após max_retries → DLQ
+        // e o sweep do DO resolve o envio para «Verificando envio…».
+        message.retry()
       }
-      message.ack()
       continue
     }
 

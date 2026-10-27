@@ -910,7 +910,9 @@ describe('Cloudflare runtime harness — F0', () => {
     const sent = await inboxA.waitFor(
       (m) => m.type === 'event' && m.eventType === 'message.delivery_updated'
         && (m.payload as { deliveryState?: string }).deliveryState === 'accepted',
-      15_000,
+      // Envio inline (waitUntil): o fallback da fila só sai após 20 s, logo este
+      // prazo prova que o resultado não depende da fila.
+      8_000,
     )
     const providerMessageId = (sent.payload as { providerMessageId: string }).providerMessageId
     expect(providerMessageId).toBeTruthy()

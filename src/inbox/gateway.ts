@@ -1,3 +1,4 @@
+import type { ClinicOutboxQueueMessage } from '../whatsapp/queue-types'
 import type { Clock } from '../db/clock'
 import {
   clinicInbox,
@@ -65,6 +66,8 @@ export type InboxGateway = {
     message: MessageRow
     outbound: OutboundMessageRow
     duplicate: boolean
+    /** DO real: envio a despachar já no pedido (fila só como fallback). */
+    inlineDispatch?: ClinicOutboxQueueMessage | null
   }>
   seedDemo(
     caller: ClinicCaller,
