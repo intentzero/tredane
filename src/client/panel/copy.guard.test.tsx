@@ -59,4 +59,17 @@ describe('textos da interface', () => {
       expect(hits).toEqual([])
     })
   }
+
+  it('não mostra err.message cru para a pessoa (use friendlyError)', () => {
+    const allowed = ['api.ts', 'copy/errors.ts']
+    const hits = files
+      .filter((f) => !allowed.some((a) => f.endsWith(a)))
+      .flatMap((f) =>
+        stripComments(readFileSync(f, 'utf8'))
+          .split('\n')
+          .filter((line) => /\berr\.message\b/.test(line) && !line.includes('stale_tenant_response'))
+          .map((line) => `${f.slice(ROOT.length + 1)}: ${line.trim()}`),
+      )
+    expect(hits).toEqual([])
+  })
 })

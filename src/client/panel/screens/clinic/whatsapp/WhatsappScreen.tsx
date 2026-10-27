@@ -2,16 +2,17 @@
  * TEL-09 WhatsApp — M-19 / M-23 / M-24 / M-25 / M-26 (#31 / DEC-009 / REQ-051).
  * Embedded Signup: modo synthetic (fixtures) até gates Meta (#18).
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import type { PanelApi, WhatsappConnection, WhatsappSignupPurpose } from '../../../api'
 import { PanelApiError } from '../../../api'
 import { navigatePanel } from '../../../routes'
 import { ErrorState, LoadingState } from '../../../states/StatusScreens'
 import { useTenant } from '../../../tenant/TenantContext'
-import { formatPhone, formatWhen, historyLabel } from './format'
+import { connectedByLabel, formatPhone, formatWhen, historyLabel } from './format'
 import { useWhatsapp } from './useWhatsapp'
 import { isStagingHostname, WhatsappDevSyncAction } from './WhatsappDevSyncAction'
+import { friendlyError, friendlyReason } from '../../../copy/errors'
 
 type Props = {
   tenantId: string
@@ -79,7 +80,7 @@ export function WhatsappScreen({
   clinicName,
   isOwner = false,
 }: Props) {
-  const { conn, error, loading, reload, setConn } = useWhatsapp(
+  const { conn, error, detail, loading, reload, setConn } = useWhatsapp(
     api,
     tenantId,
     generation,
@@ -88,8 +89,24 @@ export function WhatsappScreen({
   const [actionError, setActionError] = useState<string | null>(null)
   const [confirmName, setConfirmName] = useState('')
   const [replaceAck, setReplaceAck] = useState(false)
+  const [viewerId, setViewerId] = useState<string | null>(null)
 
-  // STAGING-ONLY (dono): mesma acção do tela /clinica/whatsapp/dev-sync.
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .getMe({ generation, expectGeneration: () => generation })
+      .then((me) => {
+        if (!cancelled) setViewerId(me.clerkUserId)
+      })
+      .catch(() => {
+        if (!cancelled) setViewerId(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api, generation])
+
+  // STAGING-ONLY (dono): mesma ação da tela /clinica/whatsapp/dev-sync.
   const devSync =
     isOwner && isStagingHostname() ? (
       <section aria-labelledby="wa-devsync" className="whatsapp-dev-sync-section">
@@ -115,6 +132,7 @@ export function WhatsappScreen({
       <ErrorState
         title="Não foi possível carregar o WhatsApp"
         description={error}
+        detail={detail}
         actionLabel="Tentar de novo"
         onAction={() => void reload()}
       />
@@ -136,11 +154,7 @@ export function WhatsappScreen({
       })
     } catch (err) {
       setActionError(
-        err instanceof PanelApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : 'Falha ao conectar',
+        friendlyError(err, 'Não foi possível conectar o WhatsApp. Tente de novo.'),
       )
     } finally {
       setBusy(false)
@@ -164,11 +178,7 @@ export function WhatsappScreen({
       })
     } catch (err) {
       setActionError(
-        err instanceof PanelApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : 'Falha ao desconectar',
+        friendlyError(err, 'Não foi possível desconectar o WhatsApp. Tente de novo.'),
       )
     } finally {
       setBusy(false)
@@ -186,7 +196,7 @@ export function WhatsappScreen({
       )
       setConn(next)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Falha')
+      setActionError(friendlyError(err, 'Não deu para concluir agora. Tente de novo.'))
     } finally {
       setBusy(false)
     }
@@ -386,15 +396,23 @@ export function WhatsappScreen({
         >
           <h2 id="wa-int">O WhatsApp parou de funcionar</h2>
           <p>
-            {conn.interruptReason ?? 'A Meta deixou de aceitar o acesso.'}
             {conn.interruptedAt
-              ? ` · desde ${formatWhen(conn.interruptedAt)}`
+              ? `Desde ${formatWhen(conn.interruptedAt)}, as mensagens não estão chegando nem saindo.`
+              : 'As mensagens não estão chegando nem saindo.'}
+            {friendlyReason(conn.interruptReason)
+              ? ` ${friendlyReason(conn.interruptReason)}`
               : ''}
           </p>
           <p>
             Enquanto estiver desconectado, as respostas ficam como “Não enviada”. O
             histórico continua salvo. Ao reconectar, nada é reenviado sozinho.
           </p>
+          {conn.interruptReason ? (
+            <details className="clinic-details">
+              <summary>Detalhes para o suporte</summary>
+              <code>{conn.interruptReason}</code>
+            </details>
+          ) : null}
         </section>
         {actionError ? (
           <p className="clinic-footnote clinic-footnote-warn" role="alert">
@@ -439,7 +457,8 @@ export function WhatsappScreen({
           {conn.displayName ? ` · ${conn.displayName}` : ''}
         </p>
         <p className="clinic-footnote">
-          Conectado em {formatWhen(conn.connectedAt)}. Última mensagem recebida:{' '}
+          Conectado {connectedByLabel(conn.connectedByClerkUserId, viewerId)} em{' '}
+          {formatWhen(conn.connectedAt)}. Última mensagem recebida:{' '}
           {conn.lastInboundAt ? formatWhen(conn.lastInboundAt) : 'nenhuma ainda'}.
         </p>
       </section>
@@ -530,10 +549,7 @@ function HistoryList({
         {items.slice(0, 8).map((h) => (
           <li key={h.id}>
             <strong>{historyLabel(h.action)}</strong>
-            <span>
-              {formatWhen(h.occurredAt)}
-              {h.phoneNumberId ? ` · ${h.phoneNumberId}` : ''}
-            </span>
+            <span>{formatWhen(h.occurredAt)}</span>
           </li>
         ))}
       </ul>
@@ -560,8 +576,8 @@ export function WhatsappInterruptBanner({
       <div>
         <strong>WhatsApp desconectado</strong>
         <span>
-          {conn.interruptReason ?? 'Sem acesso à Meta'}
-          {conn.interruptedAt ? ` · ${formatWhen(conn.interruptedAt)}` : ''}
+          {friendlyReason(conn.interruptReason) ?? 'As mensagens não estão chegando nem saindo.'}
+          {conn.interruptedAt ? ` · desde ${formatWhen(conn.interruptedAt)}` : ''}
         </span>
       </div>
       {isOwner ? (

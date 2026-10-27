@@ -9,6 +9,7 @@ import {
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import { formatDayLabel, formatSlotTime, upcomingCivilDates } from './format'
+import { friendlyError } from '../../copy/errors'
 
 type Props = {
   tenantId: string
@@ -49,7 +50,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
       setData(res)
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
-      setError(err instanceof Error ? err.message : 'Falha ao carregar agenda')
+      setError(friendlyError(err, 'Não conseguimos carregar a agenda.'))
       setData(null)
     } finally {
       setLoading(false)

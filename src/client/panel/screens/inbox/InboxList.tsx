@@ -14,6 +14,7 @@ import {
   statusClass,
   statusLabel,
 } from './format'
+import { friendlyError } from '../../copy/errors'
 
 const FILTERS: InboxFilter[] = ['all', 'new', 'mine', 'unassigned', 'closed']
 
@@ -45,7 +46,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
       setItems(res.conversations)
       setCounts(res.counts)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar conversas')
+      setError(friendlyError(err, 'Não conseguimos carregar as conversas.'))
       if (!opts?.keep) setItems(null)
     } finally {
       setLoading(false)
@@ -65,7 +66,7 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
       })
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar demo')
+      setError(friendlyError(err, 'Não foi possível criar os exemplos.'))
     } finally {
       setSeeding(false)
     }
