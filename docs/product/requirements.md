@@ -207,6 +207,14 @@
 
 **Prioridade/estado:** MVP / Confirmado (DEC-047). **Origem:** ACT-02; JRN-05, JRN-16. **Comportamento:** ao cancelar compromisso com sinal pago, o diálogo exige motivo (DEC-008), mostra a política da clínica e pede **Devolver sinal** ou **Reter sinal**. Devolver pede estorno ao provedor: **Estorno solicitado** → **Devolvido** ou **Estorno falhou** (com **Tentar de novo**). A IA não cria, cancela nem devolve cobranças. **Aceite:** AC-50. **Eventos:** `estorno.atualizado`.
 
+### REQ-083 — Proposta de agendamento versionada
+
+**Prioridade/estado:** MVP (piloto, flag desligada por padrão) / Proposto (DEC-061). **Origem:** JRN-17. **Comportamento:** o backend monta a proposta (id + versão) a partir da interpretação da IA e envia-a como mensagem determinística de texto fixo com os botões **Confirmar** e **Alterar detalhes**; mostra clínica/local, beneficiária, serviço, data completa com fuso, início e fim (ou duração), profissional quando aplicável, preço e sinal/condições. Validade de 30 min. Mudança material cria nova versão e invalida a anterior. O LLM não redige a proposta nem o resultado. **Aceite:** AC-55. **Dados/eventos:** proposta no SQLite da clínica; contexto da IA continua o de REQ-072/DEC-011.
+
+### REQ-084 — Marcação só por clique de confirmação
+
+**Prioridade/estado:** MVP (piloto) / Proposto (DEC-061). **Origem:** JRN-17. **Comportamento:** só o evento de botão do WhatsApp sobre proposta válida do mesmo tenant, contato e conversa cria o compromisso; texto livre nunca marca. Revalidação na transação pelo caminho manual; idempotente por proposta/versão; serviço com sinal segue REQ-078 sem reserva antes do pagamento. «Alterar detalhes», cancelamento e remarcação vão para a atendente; alerta de comunicação pendente após 5 min. Auditoria `appointment.ai_booked` com proposta, versão e evento do clique; indicador «Marcado pela IA». O clique não é consentimento LGPD. Piloto: contenção até 20 marcações revistas sem nenhuma indevida. **Em aberto (Paulo, bloqueia S7/S9):** limites de abuso e quotas. **Aceite:** AC-56.
+
 ## Racional de prioridade — proposta para aprovação
 
 Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP interno** para gestão da plataforma) porque contribuem para a primeira jornada demonstrável, para a segurança multi-tenant ou para operar a plataforma sem depender de intervenção no banco. Estas justificativas **não significam aprovação final**, nem liberam uso de dados reais. Quando parte do comportamento estiver em aberto, a aprovação da prioridade não fecha a regra de produto.
