@@ -9,6 +9,7 @@ import type {
   CreateBlockResult,
   ResourceBlockRow,
 } from './types'
+import { CLINIC_SCOPE_ID } from './types'
 import {
   assertBlockReason,
   assertTimeRange,
@@ -73,7 +74,8 @@ export function createResourceBlock(
   input: CreateBlockInput,
   clock: Clock,
 ): CreateBlockResult {
-  const resource = getResource(db, tenantId, input.resourceId, clock)
+  const resource =
+    input.resourceId === CLINIC_SCOPE_ID ? true : getResource(db, tenantId, input.resourceId, clock)
   if (!resource) {
     throw new NotFoundError(
       'resource_not_found',

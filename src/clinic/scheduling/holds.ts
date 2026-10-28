@@ -14,7 +14,7 @@
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'
-import { listWeeklyWindows } from '../config/availability'
+import { listEffectiveWeeklyWindows } from '../config/availability'
 import { getResource } from '../config/resources'
 import { getService } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
@@ -112,7 +112,7 @@ function fitContext(
 ): FitContext {
   return {
     timezone,
-    windows: listWeeklyWindows(db, tenantId).filter((w) => w.resourceId === professionalId),
+    windows: listEffectiveWeeklyWindows(db, tenantId).filter((w) => w.resourceId === professionalId),
     nowMs,
   }
 }

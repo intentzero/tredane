@@ -45,7 +45,7 @@ export {
   setResourceActive,
   servicesLeftWithoutCategoryResource,
 } from './resources'
-export { listWeeklyWindows, setWeeklyWindows } from './availability'
+export { listEffectiveWeeklyWindows, listWeeklyWindows, setWeeklyWindows } from './availability'
 export { listBlocks, createResourceBlock, deleteResourceBlock } from './blocks'
 export {
   listAffectedAppointments,

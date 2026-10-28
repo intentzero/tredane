@@ -1,7 +1,7 @@
 import type { Clock } from '../../db/clock'
 import { NotFoundError, ValidationError } from '../errors'
 import type { ClinicDb } from '../store'
-import { listWeeklyWindows } from '../config/availability'
+import { listEffectiveWeeklyWindows } from '../config/availability'
 import { computeConfigReadiness } from '../config/readiness'
 import { getResource, listResources } from '../config/resources'
 import { getService } from '../config/services'
@@ -194,7 +194,7 @@ export function queryAvailability(
     return empty([])
   }
 
-  const allWindows = listWeeklyWindows(db, tenantId)
+  const allWindows = listEffectiveWeeklyWindows(db, tenantId)
   const prosWithHolds = new Set(
     professionals
       .filter(

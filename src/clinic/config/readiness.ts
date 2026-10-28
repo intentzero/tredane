@@ -2,7 +2,7 @@ import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
 import { isWhatsappConnected } from '../whatsapp'
 import { ensureClinicSettings } from './settings'
-import type { ConfigReadiness } from './types'
+import { CLINIC_SCOPE_ID, type ConfigReadiness } from './types'
 
 /**
  * Configuração mínima para agendar (REQ-052 / AC-14 / DEC-008).
@@ -51,14 +51,26 @@ export function computeConfigReadiness(
   // que satisfaça esse pedido.
   if (roomRequirementUnmet(db, tenantId)) missing.push('room_or_equipment')
   // Expediente: pelo menos um profissional activo com janelas.
+  const clinicHasWindows =
+    (db.get<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM weekly_windows WHERE tenant_id = ? AND resource_id = ?`,
+      tenantId,
+      CLINIC_SCOPE_ID,
+    )?.n ?? 0) > 0
   const proWithWeekly =
     db.get<{ n: number }>(
-      `SELECT COUNT(DISTINCT w.resource_id) AS n
-       FROM weekly_windows w
-       INNER JOIN resources r
-         ON r.tenant_id = w.tenant_id AND r.id = w.resource_id
-       WHERE w.tenant_id = ? AND r.kind = 'professional' AND r.active = 1`,
+      `SELECT COUNT(DISTINCT r.id) AS n
+       FROM resources r
+       WHERE r.tenant_id = ? AND r.kind = 'professional' AND r.active = 1
+         AND (
+           (r.hours_mode = 'clinic' AND ?)
+           OR EXISTS (
+             SELECT 1 FROM weekly_windows w
+             WHERE w.tenant_id = r.tenant_id AND w.resource_id = r.id
+           )
+         )`,
       tenantId,
+      clinicHasWindows ? 1 : 0,
     )?.n ?? 0
   if (proWithWeekly < 1) {
     missing.push('weekly_availability')

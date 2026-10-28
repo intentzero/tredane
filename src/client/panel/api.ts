@@ -1944,6 +1944,8 @@ export type ClinicResource = {
   /** Pessoas ao mesmo tempo (só sala; 1 nas demais). */
   capacity?: number
   sharedSpaceNotice?: string | null
+  /** Profissional: segue o horário da clínica ou tem o próprio. */
+  hoursMode?: 'clinic' | 'own'
   /** Horários acima da nova capacidade (só na resposta de editar). */
   overCapacity?: Array<{ startsAt: number; endsAt: number; count: number }>
   futureAppointmentCount: number
@@ -2178,6 +2180,7 @@ export type ResourceUpsertBody = {
   active?: boolean
   capacity?: number
   sharedSpaceNotice?: string | null
+  hoursMode?: 'clinic' | 'own'
 }
 
 export type WeeklyWindowInput = {
