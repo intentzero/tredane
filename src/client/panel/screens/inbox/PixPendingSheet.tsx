@@ -19,7 +19,7 @@ export function formatPixDeadline(expiresAt: number | null): string | null {
 
 type BarProps = { charge: PixChargeDetail; onDetails: () => void }
 
-/** Faixa compacta abaixo da faixa de contexto (DEC-064): um aviso só, com «Detalhes». */
+/** Faixa compacta abaixo da faixa de contexto (DEC-065): um aviso só, com «Detalhes». */
 export function PixPendingBar({ charge, onDetails }: BarProps) {
   const deadline = formatPixDeadline(charge.expiresAt)
   return (

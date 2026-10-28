@@ -79,7 +79,7 @@ export type ConversationDetail = ConversationListItem & {
   messagingWindow: MessagingWindowView
   /** Contato tem Pix pendente (aviso no diálogo de bloqueio; o Pix não é cancelado). */
   contactHasPendingPix: boolean
-  /** Oportunidade aberta da conversa (DEC-061: etapa só de leitura na tela); `null` sem oportunidade. */
+  /** Oportunidade aberta da conversa (DEC-062: etapa só de leitura na tela); `null` sem oportunidade. */
   opportunity: {
     id: string
     stage: OpportunityStage

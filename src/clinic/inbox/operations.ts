@@ -281,7 +281,7 @@ export function assignConversationOp(
       clock,
     )
 
-    // DEC-061: assumir a conversa tira a oportunidade de «Novo contato» (transferir não altera).
+    // DEC-062: assumir a conversa tira a oportunidade de «Novo contato» (transferir não altera).
     const stageOutbox =
       input.assigneeClerkUserId && input.assigneeClerkUserId === input.actorClerkUserId
         ? advanceToInServiceIfNew(
@@ -857,7 +857,7 @@ export function sendOutboundMessageOp(
       )
     }
 
-    // DEC-061: a primeira resposta humana tira a oportunidade de «Novo contato».
+    // DEC-062: a primeira resposta humana tira a oportunidade de «Novo contato».
     const stageOutbox = advanceToInServiceIfNew(
       db,
       {

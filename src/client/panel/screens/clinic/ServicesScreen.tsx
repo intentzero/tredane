@@ -120,7 +120,10 @@ export function ServiceForm({
   const [signalPercent, setSignalPercent] = useState(
     existing?.signalPercent != null ? String(existing.signalPercent) : '30',
   )
-  const [proIds, setProIds] = useState<string[]>(existing?.professionalIds ?? [])
+  // Serviço novo: todas as profissionais ativas fazem, até a dona desmarcar.
+  const [proIds, setProIds] = useState<string[]>(
+    existing?.professionalIds ?? professionals.filter((p) => p.active).map((p) => p.id),
+  )
   const [roomMode, setRoomMode] = useState<'none' | 'any' | 'category' | 'resource'>(
     existing?.roomRequirement.mode ?? 'none',
   )
@@ -142,6 +145,24 @@ export function ServiceForm({
   const [formError, setFormError] = useState<string | null>(null)
 
   const occupied = duration + buffer
+  const [moreOpen, setMoreOpen] = useState(false)
+  const roomLabel =
+    roomMode === 'none'
+      ? 'sem sala'
+      : roomMode === 'any'
+        ? 'qualquer sala livre'
+        : roomMode === 'category'
+          ? `qualquer · ${roomCategory}`
+          : (rooms.find((r) => r.id === roomResourceId)?.name ?? 'sala')
+  const moreSummary = [
+    roomLabel,
+    buffer === 0 ? 'sem intervalo' : `intervalo ${buffer} min`,
+    adjustable ? 'duração ajustável' : null,
+    requiresSignal ? 'exige sinal' : 'sem sinal',
+    explanation.trim() ? 'com explicação' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   async function save() {
     setSaving(true)
@@ -208,12 +229,10 @@ export function ServiceForm({
           Cancelar
         </Button>
       </div>
-
       <TextField className="clinic-field">
-        <Label>Nome do serviço</Label>
+        <Label>Nome</Label>
         <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
       </TextField>
-
       <div className="clinic-field-row">
         <PanelSelect
           className="clinic-field"
@@ -222,57 +241,18 @@ export function ServiceForm({
           onChange={(v) => setDuration(Number(v))}
           options={durationOptions().map((m) => ({ id: String(m), label: `${m} min` }))}
         />
-        <PanelSelect
-          className="clinic-field"
-          label="Intervalo depois"
-          value={String(buffer)}
-          onChange={(v) => setBuffer(Number(v))}
-          options={bufferOptions().map((m) => ({
-            id: String(m),
-            label: m === 0 ? 'Nenhum' : `${m} min`,
-          }))}
-        />
+        <TextField className="clinic-field">
+          <Label>Preço (opcional)</Label>
+          <Input
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            inputMode="decimal"
+            placeholder="R$ 0,00"
+          />
+        </TextField>
       </div>
-      <p className="clinic-hint-box">
-        Ocupa {occupied} min na agenda: {duration} de atendimento + {buffer} de intervalo.
-        O intervalo bloqueia o profissional e a sala. Horários em múltiplos de 15 min.
-      </p>
-
       <fieldset className="clinic-fieldset">
-        <legend>Duração no Agendar</legend>
-        <Checkbox className="clinic-check" isSelected={adjustable} onChange={setAdjustable}>
-          Duração ajustável ao agendar
-        </Checkbox>
-        {adjustable ? (
-          <div className="clinic-field-row">
-            <PanelSelect
-              className="clinic-field"
-              label="Mínimo"
-              value={String(Math.min(durMin, duration))}
-              onChange={(v) => setDurMin(Number(v))}
-              options={durationOptions()
-                .filter((m) => m <= duration)
-                .map((m) => ({ id: String(m), label: `${m} min` }))}
-            />
-            <PanelSelect
-              className="clinic-field"
-              label="Máximo"
-              value={String(Math.max(durMax, duration))}
-              onChange={(v) => setDurMax(Number(v))}
-              options={durationOptions()
-                .filter((m) => m >= duration)
-                .map((m) => ({ id: String(m), label: `${m} min` }))}
-            />
-          </div>
-        ) : null}
-        <p className="clinic-footnote">
-          A equipe escolhe em passos de 15 min entre o mínimo e o máximo. O intervalo é somado depois;
-          preço e sinal não mudam.
-        </p>
-      </fieldset>
-
-      <fieldset className="clinic-fieldset">
-        <legend>Quem pode fazer este serviço</legend>
+        <legend>Quem faz</legend>
         {professionals.map((p) => (
           <Checkbox
             key={p.id}
@@ -289,154 +269,204 @@ export function ServiceForm({
           </Checkbox>
         ))}
         {professionals.length === 0 ? (
-          <p className="clinic-footnote">Cadastre profissionais em Recursos primeiro.</p>
+          <p className="clinic-footnote">Cadastre profissionais primeiro; dá para voltar depois.</p>
         ) : null}
       </fieldset>
-
-      <PanelSelect
-        className="clinic-field"
-        label="Sala ou equipamento exigido"
-        value={
-          roomMode === 'none'
-            ? 'none'
-            : roomMode === 'any'
-              ? 'any'
-              : roomMode === 'category'
-              ? `cat:${roomCategory}`
-              : `res:${roomResourceId}`
-        }
-        onChange={(v) => {
-          if (v === 'none') {
-            setRoomMode('none')
-            return
-          }
-          if (v === 'any') {
-            setRoomMode('any')
-            return
-          }
-          if (v.startsWith('cat:')) {
-            setRoomMode('category')
-            setRoomCategory(v.slice(4))
-            return
-          }
-          setRoomMode('resource')
-          setRoomResourceId(v.slice(4))
-        }}
-        options={[
-          { id: 'none', label: 'Nenhum' },
-          { id: 'any', label: 'Qualquer sala livre' },
-          ...[...new Set(rooms.map((r) => r.category).filter(Boolean))].map((cat) => ({
-            id: `cat:${cat}`,
-            label: `Qualquer · ${cat}`,
-          })),
-          ...rooms.map((r) => ({
-            id: `res:${r.id}`,
-            label: `${r.name}${r.category ? ` (${r.category})` : ''}`,
-          })),
-        ]}
-      />
-
-      <TextField className="clinic-field">
-        <Label>Preço (opcional)</Label>
-        <Input
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          inputMode="decimal"
-          placeholder="R$ 0,00"
-        />
-      </TextField>
       <p className="clinic-footnote">
         Sem preço, a IA não informa valor: sugere que a equipe vai confirmar.
-        Percentual de sinal exige preço cadastrado.
       </p>
 
-      <fieldset className="clinic-fieldset">
-        <legend>Sinal por Pix (REQ-076)</legend>
-        <Checkbox
-          className="clinic-check"
-          isSelected={requiresSignal}
-          onChange={setRequiresSignal}
+      <section className="service-more">
+        <button
+          type="button"
+          className="service-more-head"
+          aria-expanded={moreOpen}
+          onClick={() => setMoreOpen((o) => !o)}
         >
-          Exige sinal
-        </Checkbox>
-        {requiresSignal ? (
-          <>
+          <span className="service-more-copy">
+            <strong>Mais opções</strong>
+            <span>{moreSummary}</span>
+          </span>
+          <span aria-hidden className="service-more-chev" data-open={moreOpen || undefined}>
+            ›
+          </span>
+        </button>
+        {moreOpen ? (
+          <div className="service-more-body">
             <PanelSelect
               className="clinic-field"
-              label="Tipo"
-              value={signalKind}
-              onChange={(v) => setSignalKind(v === 'percent' ? 'percent' : 'fixed')}
+              label="Onde acontece"
+              value={
+                roomMode === 'none'
+                  ? 'none'
+                  : roomMode === 'any'
+                    ? 'any'
+                    : roomMode === 'category'
+                      ? `cat:${roomCategory}`
+                      : `res:${roomResourceId}`
+              }
+              onChange={(v) => {
+                if (v === 'none') {
+                  setRoomMode('none')
+                  return
+                }
+                if (v === 'any') {
+                  setRoomMode('any')
+                  return
+                }
+                if (v.startsWith('cat:')) {
+                  setRoomMode('category')
+                  setRoomCategory(v.slice(4))
+                  return
+                }
+                setRoomMode('resource')
+                setRoomResourceId(v.slice(4))
+              }}
               options={[
-                { id: 'fixed', label: 'Valor fixo (R$)' },
-                {
-                  id: 'percent',
-                  label: 'Percentual do preço',
-                  hint: parsePriceToCents(price) ? undefined : 'Cadastre o preço primeiro',
-                  disabled: !parsePriceToCents(price),
-                },
+                { id: 'none', label: 'Sem sala' },
+                { id: 'any', label: 'Qualquer sala livre' },
+                ...[...new Set(rooms.map((r) => r.category).filter(Boolean))].map((cat) => ({
+                  id: `cat:${cat}`,
+                  label: `Qualquer · ${cat}`,
+                })),
+                ...rooms.map((r) => ({
+                  id: `res:${r.id}`,
+                  label: `${r.name}${r.category ? ` (${r.category})` : ''}`,
+                })),
               ]}
             />
-            {signalKind === 'fixed' ? (
-              <TextField className="clinic-field">
-                <Label>Valor do sinal</Label>
-                <Input
-                  value={signalFixed}
-                  onChange={(e) => setSignalFixed(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="R$ 0,00"
-                />
-              </TextField>
-            ) : (
-              <TextField className="clinic-field">
-                <Label>Percentual (1–100)</Label>
-                <Input
-                  value={signalPercent}
-                  onChange={(e) => setSignalPercent(e.target.value)}
-                  inputMode="numeric"
-                />
-              </TextField>
-            )}
-            {signalKind === 'percent' && parsePriceToCents(price) != null ? (
-              <p className="clinic-hint-box">
-                Resumo: sinal de{' '}
-                {formatPriceCents(
-                  Math.trunc(
-                    ((parsePriceToCents(price) ?? 0) *
-                      (Number.parseInt(signalPercent, 10) || 0)) /
-                      100,
-                  ),
-                )}{' '}
-                ({signalPercent}% de {formatPriceCents(parsePriceToCents(price))}).
+            <PanelSelect
+              className="clinic-field"
+              label="Intervalo depois"
+              value={String(buffer)}
+              onChange={(v) => setBuffer(Number(v))}
+              options={bufferOptions().map((m) => ({
+                id: String(m),
+                label: m === 0 ? 'Nenhum' : `${m} min`,
+              }))}
+            />
+            <p className="clinic-hint-box">
+              Ocupa {occupied} min na agenda: {duration} de atendimento + {buffer} de intervalo. O intervalo
+              bloqueia a profissional e a sala.
+            </p>
+            <fieldset className="clinic-fieldset">
+              <legend>Duração ao agendar</legend>
+              <Checkbox className="clinic-check" isSelected={adjustable} onChange={setAdjustable}>
+                A equipe pode ajustar a duração
+              </Checkbox>
+              {adjustable ? (
+                <div className="clinic-field-row">
+                  <PanelSelect
+                    className="clinic-field"
+                    label="Mínimo"
+                    value={String(Math.min(durMin, duration))}
+                    onChange={(v) => setDurMin(Number(v))}
+                    options={durationOptions()
+                      .filter((m) => m <= duration)
+                      .map((m) => ({ id: String(m), label: `${m} min` }))}
+                  />
+                  <PanelSelect
+                    className="clinic-field"
+                    label="Máximo"
+                    value={String(Math.max(durMax, duration))}
+                    onChange={(v) => setDurMax(Number(v))}
+                    options={durationOptions()
+                      .filter((m) => m >= duration)
+                      .map((m) => ({ id: String(m), label: `${m} min` }))}
+                  />
+                </div>
+              ) : null}
+              <p className="clinic-footnote">
+                A equipe escolhe em passos de 15 min entre o mínimo e o máximo. O intervalo é somado
+                depois; preço e sinal não mudam.
               </p>
-            ) : null}
-          </>
+            </fieldset>
+            <fieldset className="clinic-fieldset">
+              <legend>Sinal por Pix</legend>
+              <Checkbox
+                className="clinic-check"
+                isSelected={requiresSignal}
+                onChange={setRequiresSignal}
+              >
+                Exige sinal
+              </Checkbox>
+              {requiresSignal ? (
+                <>
+                  <PanelSelect
+                    className="clinic-field"
+                    label="Tipo"
+                    value={signalKind}
+                    onChange={(v) => setSignalKind(v === 'percent' ? 'percent' : 'fixed')}
+                    options={[
+                      { id: 'fixed', label: 'Valor fixo (R$)' },
+                      {
+                        id: 'percent',
+                        label: 'Percentual do preço',
+                        hint: parsePriceToCents(price) ? undefined : 'Cadastre o preço primeiro',
+                        disabled: !parsePriceToCents(price),
+                      },
+                    ]}
+                  />
+                  {signalKind === 'fixed' ? (
+                    <TextField className="clinic-field">
+                      <Label>Valor do sinal</Label>
+                      <Input
+                        value={signalFixed}
+                        onChange={(e) => setSignalFixed(e.target.value)}
+                        inputMode="decimal"
+                        placeholder="R$ 0,00"
+                      />
+                    </TextField>
+                  ) : (
+                    <TextField className="clinic-field">
+                      <Label>Percentual (1–100)</Label>
+                      <Input
+                        value={signalPercent}
+                        onChange={(e) => setSignalPercent(e.target.value)}
+                        inputMode="numeric"
+                      />
+                    </TextField>
+                  )}
+                  {signalKind === 'percent' && parsePriceToCents(price) != null ? (
+                    <p className="clinic-hint-box">
+                      Resumo: sinal de{' '}
+                      {formatPriceCents(
+                        Math.trunc(
+                          ((parsePriceToCents(price) ?? 0) *
+                            (Number.parseInt(signalPercent, 10) || 0)) /
+                            100,
+                        ),
+                      )}{' '}
+                      ({signalPercent}% de {formatPriceCents(parsePriceToCents(price))}).
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+            </fieldset>
+            <TextField className="clinic-field">
+              <Label>Explicação para clientes (opcional)</Label>
+              <TextArea
+                value={explanation}
+                onChange={(e) => setExplanation(e.target.value)}
+                rows={4}
+              />
+            </TextField>
+            <p className="clinic-footnote">
+              A IA usa só este texto para explicar o serviço. Não escreva promessas de resultado.
+            </p>
+          </div>
         ) : null}
-      </fieldset>
-
-      <TextField className="clinic-field">
-        <Label>Explicação para clientes (opcional)</Label>
-        <TextArea
-          value={explanation}
-          onChange={(e) => setExplanation(e.target.value)}
-          rows={4}
-        />
-      </TextField>
-      <p className="clinic-footnote">
-        A IA usa só este texto para explicar o serviço (REQ-075). Não escreva promessas de
-        resultado.
-      </p>
+      </section>
 
       <Checkbox className="clinic-check clinic-check-card" isSelected={active} onChange={setActive}>
         Serviço ativo
       </Checkbox>
-      <p className="clinic-footnote">Desactivar não apaga compromissos já marcados.</p>
-
+      <p className="clinic-footnote">Desativar não apaga compromissos já marcados.</p>
       {formError ? (
         <p className="clinic-form-error" role="alert">
           {formError}
         </p>
       ) : null}
-
       <div className="clinic-footer-actions">
         <Button
           className="panel-btn panel-btn-primary"

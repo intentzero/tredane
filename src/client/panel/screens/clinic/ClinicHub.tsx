@@ -1,15 +1,9 @@
-import {
-  Clock,
-  DoorOpen,
-  ListChecks,
-  MessageCircle,
-  Users,
-  Wallet,
-} from 'lucide-react'
+import { Clock, DoorOpen, ListChecks, MessageCircle, Users, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { ClinicConfigSnapshot } from '../../api'
 import { navigatePanel, type ClinicaSection } from '../../routes'
 import { Banner } from '../../states/Banner'
+import { CLINIC_SCOPE_ID, toWeekDraft, windowsOf } from './clinicHours'
 import { NavRow } from './NavRow'
 
 type Props = {
@@ -27,25 +21,31 @@ export function ClinicHub({ tenantId, snap, aiCard, stagingCard }: Props) {
     navigatePanel({ kind: 'area', area: 'clinica', tenantId, section })
 
   const servicesOk = readiness.counts.servicesActive > 0
-  // Sala só conta quando algum serviço pede sala (decisão 28/10/2026).
-  const resourcesOk =
-    readiness.counts.professionalsActive > 0
-    && !readiness.missing.includes('room_or_equipment')
   const hoursOk = !readiness.missing.includes('weekly_availability')
+  const prosOk = readiness.counts.professionalsActive > 0
+  const roomsActive = readiness.counts.roomsActive
   const whatsappOk = !readiness.missing.includes('whatsapp')
+  const roomsMissing = readiness.missing.includes('room_or_equipment')
 
-  // Quatro etapas para começar a atender; a barra e o título usam a mesma conta.
+  // Passos na ordem em que dependem uns dos outros: o horário vale para as
+  // profissionais; as profissionais e as salas valem para os serviços.
   const steps = [
+    { label: 'Horário da clínica', ok: hoursOk },
+    { label: 'Salas', ok: !roomsMissing },
+    { label: 'Profissionais', ok: prosOk },
     { label: 'Serviços', ok: servicesOk },
-    { label: 'Profissionais e salas', ok: resourcesOk },
-    { label: 'Horários e bloqueios', ok: hoursOk },
     { label: 'WhatsApp', ok: whatsappOk },
   ]
   const done = steps.filter((s) => s.ok).length
   const stepsLeft = steps.length - done
   const next = steps.find((s) => !s.ok)
 
+  const weekDraft = toWeekDraft(windowsOf(snap, CLINIC_SCOPE_ID))
+  const weekHours = Object.values(weekDraft)
+    .flat()
+    .reduce((t, w) => t + (w.endMinute - w.startMinute) / 60, 0)
   const services = readiness.counts.servicesActive
+  const pros = readiness.counts.professionalsActive
 
   return (
     <div className="clinic-stack">
@@ -61,7 +61,7 @@ export function ClinicHub({ tenantId, snap, aiCard, stagingCard }: Props) {
           <p>
             {readiness.agendaConfigured
               ? 'Conecte o WhatsApp da clínica para receber conversas. A agenda já está pronta para marcar horários.'
-              : 'Cadastre serviços, profissionais e o horário de atendimento de cada profissional para começar a marcar horários. Salas só são necessárias quando um serviço pede sala.'}
+              : 'Siga a ordem: horário da clínica, salas, profissionais e serviços. Depois conecte o WhatsApp.'}
           </p>
           <div
             className="panel-progress"
@@ -85,11 +85,98 @@ export function ClinicHub({ tenantId, snap, aiCard, stagingCard }: Props) {
         </Banner>
       )}
 
+      <button
+        type="button"
+        className="hub-week"
+        aria-label="Abrir o horário da semana"
+        onClick={go('horarios')}
+      >
+        <span className="hub-week-bars" aria-hidden>
+          {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((n, i) => {
+            const list = weekDraft[i + 1] ?? []
+            const hours = list.reduce((t, w) => t + (w.endMinute - w.startMinute) / 60, 0)
+            return (
+              <span key={i} className="hub-week-col">
+                <i
+                  style={{
+                    height: hours > 0 ? Math.max(8, Math.round((hours / 12) * 48)) : 6,
+                  }}
+                  data-open={hours > 0}
+                />
+                <b>{n}</b>
+              </span>
+            )
+          })}
+        </span>
+        <span className="hub-week-text">
+          <strong>Horário da clínica</strong>
+          <span>
+            {weekHours > 0
+              ? `Aberta ${Math.round(weekHours)} h por semana`
+              : hoursOk
+                ? 'Sem horário da clínica · cada profissional tem o seu'
+                : 'Sem horário ainda'}
+          </span>
+        </span>
+      </button>
+
+      <h2 className="panel-legend">Agenda</h2>
       <ul className="clinic-nav-list">
         <li>
           <NavRow
+            icon={Clock}
+            title="1 · Horário da clínica"
+            detail="Dias e horas de atendimento, feriados e fechamentos"
+            state={hoursOk ? 'ok' : 'todo'}
+            onPress={go('horarios')}
+          />
+        </li>
+        <li>
+          <NavRow
+            icon={DoorOpen}
+            title="2 · Salas e equipamentos"
+            detail={
+              roomsActive === 0
+                ? 'Nenhuma ainda · só se algum serviço precisar'
+                : `${roomsActive} ${roomsActive === 1 ? 'sala ou equipamento' : 'salas e equipamentos'}`
+            }
+            state={roomsMissing ? 'todo' : 'ok'}
+            onPress={() =>
+              navigatePanel({
+                kind: 'area',
+                area: 'clinica',
+                tenantId,
+                section: 'recursos',
+                entityId: 'salas',
+              })
+            }
+          />
+        </li>
+        <li>
+          <NavRow
+            icon={Users}
+            title="3 · Profissionais"
+            detail={
+              pros === 0
+                ? 'Nenhuma cadastrada'
+                : `${pros} ${pros === 1 ? 'profissional' : 'profissionais'}`
+            }
+            state={prosOk ? 'ok' : 'todo'}
+            onPress={() =>
+              navigatePanel({
+                kind: 'area',
+                area: 'clinica',
+                tenantId,
+                section: 'recursos',
+                entityId: 'profissionais',
+              })
+            }
+          />
+        </li>
+        <li>
+          <NavRow
             icon={ListChecks}
-            title="Serviços"
+            title="4 · Serviços"
             detail={
               services === 0
                 ? 'Nenhum serviço cadastrado'
@@ -99,24 +186,10 @@ export function ClinicHub({ tenantId, snap, aiCard, stagingCard }: Props) {
             onPress={go('servicos')}
           />
         </li>
-        <li>
-          <NavRow
-            icon={DoorOpen}
-            title="Profissionais e salas"
-            detail={`${readiness.counts.professionalsActive} profissionais · ${readiness.counts.roomsActive} salas e equipamentos`}
-            state={resourcesOk ? 'ok' : 'todo'}
-            onPress={go('recursos')}
-          />
-        </li>
-        <li>
-          <NavRow
-            icon={Clock}
-            title="Horários e bloqueios"
-            detail="Dias e horários de atendimento, folgas e bloqueios"
-            state={hoursOk ? 'ok' : 'todo'}
-            onPress={go('horarios')}
-          />
-        </li>
+      </ul>
+
+      <h2 className="panel-legend">Atendimento</h2>
+      <ul className="clinic-nav-list">
         <li>
           <NavRow
             icon={MessageCircle}
@@ -130,7 +203,7 @@ export function ClinicHub({ tenantId, snap, aiCard, stagingCard }: Props) {
           <NavRow
             icon={Wallet}
             title="Recebimento de sinais"
-            detail="Conta Pix, prazo e regras do sinal"
+            detail="Opcional · conta Pix, prazo e regras do sinal"
             state="neutral"
             onPress={go('recebimento')}
           />

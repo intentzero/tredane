@@ -305,7 +305,7 @@ describe('Clinic inbox — conversas e histórico (#29)', () => {
       )
       expect(r1.value.duplicate).toBe(false)
       expect(r1.value.message.deliveryState).toBe('pending')
-      // message.created + whatsapp.send + etapa automática (DEC-061: novo_contato → em_atendimento).
+      // message.created + whatsapp.send + etapa automática (DEC-062: novo_contato → em_atendimento).
       expect(r1.outbox.map((e) => e.type)).toEqual([
         'message.created',
         'whatsapp.send',

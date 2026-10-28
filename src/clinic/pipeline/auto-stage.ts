@@ -9,7 +9,7 @@ import {
 } from './opportunities'
 
 /**
- * DEC-061: a etapa sai de «Novo contato» sozinha quando alguém assume a conversa
+ * DEC-062: a etapa sai de «Novo contato» sozinha quando alguém assume a conversa
  * ou envia a primeira resposta. Só avança a partir de `novo_contato`: nunca
  * retrocede nem sobrepõe «Horário proposto», «Agendado» ou etapas terminais, e
  * não mexe em compromisso (DEC-040). Conversa sem oportunidade aberta fica como está.

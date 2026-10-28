@@ -1,7 +1,7 @@
 import type { Clock } from '../../db/clock'
 import { newId } from '../ids'
 import type { ClinicDb } from '../store'
-import type { AppointmentRow } from './types'
+import { CLINIC_SCOPE_ID, type AppointmentRow } from './types'
 import { assertTimeRange } from './validation'
 
 type AppointmentSql = {
@@ -66,6 +66,19 @@ export function listAffectedAppointments(
   startsAt: number,
   endsAt: number,
 ): AppointmentRow[] {
+  if (resourceId === CLINIC_SCOPE_ID) {
+    // Fechamento da clínica inteira: afeta todos os horários marcados no período.
+    return db
+      .all<AppointmentSql>(
+        `SELECT * FROM appointments
+         WHERE tenant_id = ? AND status = 'confirmed' AND starts_at < ? AND ends_at > ?
+         ORDER BY starts_at, id`,
+        tenantId,
+        endsAt,
+        startsAt,
+      )
+      .map(toAppointment)
+  }
   return db
     .all<AppointmentSql>(
       `SELECT * FROM appointments

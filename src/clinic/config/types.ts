@@ -32,6 +32,9 @@ export type RoomRequirement =
   | { mode: 'category'; category: string }
   | { mode: 'resource'; resourceId: string }
 
+/** Escopo reservado: horário e fechamentos da clínica inteira (em `weekly_windows` / `resource_blocks`). */
+export const CLINIC_SCOPE_ID = '__clinic__'
+
 export type ResourceRow = {
   id: string
   tenantId: string
@@ -45,6 +48,8 @@ export type ResourceRow = {
   capacity: number
   /** Frase fixa da clínica na confirmação pelo WhatsApp (DEC-053). */
   sharedSpaceNotice: string | null
+  /** Profissional: segue o horário da clínica (`clinic`) ou tem horário próprio (`own`). */
+  hoursMode: 'clinic' | 'own'
   futureAppointmentCount: number
   /** Já teve compromisso (passado ou futuro): não pode ser excluído. */
   hasAppointmentHistory: boolean
@@ -177,6 +182,8 @@ export type UpsertResourceInput = {
   /** Só sala: 1–50. Omitido = mantém (ou 1 ao criar). */
   capacity?: number
   sharedSpaceNotice?: string | null
+  /** Só profissional. Omitido = mantém (ao criar: `clinic` se a clínica já tem horário, senão `own`). */
+  hoursMode?: 'clinic' | 'own'
 }
 
 export type SetWeeklyWindowsInput = {

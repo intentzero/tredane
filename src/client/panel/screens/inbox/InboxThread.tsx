@@ -499,7 +499,7 @@ export function InboxThread({
     if (relevant) void load({ quiet: true })
   })
 
-  // Correção manual da etapa (DEC-061): usa o mesmo caminho do Acompanhamento; nunca mexe na agenda (DEC-040).
+  // Correção manual da etapa (DEC-062): usa o mesmo caminho do Acompanhamento; nunca mexe na agenda (DEC-040).
   async function correctStage(toStage: 'horario_proposto' | 'perdido') {
     const opp = detail?.opportunity
     if (!opp) return
@@ -791,7 +791,7 @@ export function InboxThread({
     setAiSuggestion(null)
   }
 
-  // DEC-062: a atendente leu o texto completo e envia em 1 toque; a origem da sugestão fica registrada.
+  // DEC-063: a atendente leu o texto completo e envia em 1 toque; a origem da sugestão fica registrada.
   async function sendAiSuggestion() {
     if (!aiSuggestion) return
     seenSuggestionIdsRef.current.add(aiSuggestion.id)
@@ -965,7 +965,7 @@ export function InboxThread({
     // Atalho do celular; no desktop o resumo fica na coluna do contato.
     { id: 'summary', label: 'Resumo da IA' },
     ...(detail.status !== 'closed' && !blocked ? [{ id: 'hold', label: 'Reservar bloco' }] : []),
-    // DEC-061: a etapa muda sozinha; aqui só as duas correções manuais.
+    // DEC-062: a etapa muda sozinha; aqui só as duas correções manuais.
     ...(detail.opportunity && detail.status !== 'closed' && !blocked
       ? [
           ...(detail.opportunity.stage !== 'horario_proposto'
@@ -1107,7 +1107,7 @@ export function InboxThread({
         )}
       </header>
 
-      {/* DEC-061/063: etapa só de leitura (muda sozinha) e um único «Agendar». */}
+      {/* DEC-062/063: etapa só de leitura (muda sozinha) e um único «Agendar». */}
       {detail.opportunity || (detail.status !== 'closed' && !blocked) ? (
         <div className="inbox-context">
           {detail.opportunity ? (
@@ -1303,7 +1303,7 @@ export function InboxThread({
         </div>
       ) : null}
 
-      {/* DEC-064: faixa compacta; o estado e as ações ficam na folha «Detalhes». */}
+      {/* DEC-065: faixa compacta; o estado e as ações ficam na folha «Detalhes». */}
       {pendingPix ? (
         <PixPendingBar charge={pendingPix} onDetails={() => setPixSheetId(pendingPix.id)} />
       ) : null}

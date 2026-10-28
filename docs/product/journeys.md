@@ -174,6 +174,18 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Dados:** cobrança (valor, estado, identificador no provedor, prazo), compromisso, histórico de ações.
 - **Requisitos:** REQ-076 a REQ-082.
 
+## JRN-17 — Agendamento confirmado pela cliente por botão
+
+- **Estado:** Decidido (DEC-061, revisão da DEC-060, 28/10/2026, registo D-20261028-200500-CUR; parâmetros 30 min / 5 min / 20 marcações decididos; limites de abuso e quotas **Em aberto**, Paulo, bloqueiam S7/S9). Desligado por padrão (`AI_AUTOBOOK=off`).
+- **Ator:** cliente final (no WhatsApp); sistema (`system:ai-autobook`); atendente (ACT-02) no fallback.
+- **Gatilho:** a cliente pede um horário em texto livre (ex. fictício: «quero limpeza de pele amanhã às 15h») ou responde a uma sugestão.
+- **Pré-condições:** flag ativa para a clínica; serviço, profissional e sala configurados; janela de 24 h do WhatsApp aberta.
+- **Fluxo:** (1) a IA interpreta o pedido; (2) o backend monta a proposta versionada com clínica/local, beneficiária, serviço, data com fuso, início e fim, profissional, preço e sinal; (3) o sistema envia a proposta com **Confirmar** / **Alterar detalhes**; (4) a cliente toca em **Confirmar** em até 30 min; (5) o backend valida tenant/contato/conversa/versão, revalida a vaga na transação e marca uma única vez; (6) envia «Agendado…» e a agenda mostra «Marcado pela IA».
+- **Alternativas/erros:** texto livre («sim», 👍) não marca; proposta expirada ou substituída → nova proposta ou atendente; horário ocupado → «Horário já não está livre…»; serviço com sinal → «Para garantir, sinal Pix…» e JRN-16, sem reserva antes do pagamento; **Alterar detalhes** ou dúvida → atendente, com alerta aos 5 min; clique duplicado → sem segundo compromisso; cancelar/remarcar → JRN-05 (humano).
+- **Telas:** conversa e agenda (indicador «Marcado pela IA»); mensagens do WhatsApp com botões.
+- **Dados:** proposta (id, versão, validade, detalhes), evento do clique, compromisso, auditoria `appointment.ai_booked`. O clique não é consentimento LGPD nem prova de identidade.
+- **Requisitos:** REQ-083, REQ-084; aceite AC-55, AC-56.
+
 ## Validação necessária
 
 Revisar as jornadas com o responsável pelo produto e uma clínica piloto, em especial: permissões administrativas, durações e regras de disponibilidade dos recursos, cancelamento, confirmação ao contato e ativação do WhatsApp. Registrar as respostas em [decisões](decisions.md) e ajustar os requisitos ligados às jornadas afetadas.

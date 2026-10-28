@@ -205,7 +205,7 @@ describe('InboxThread — estado de envio', () => {
     expect(btn.textContent).toContain('Sugerir resposta')
   })
 
-  it('DEC-062: «Enviar» manda a sugestão da IA inteira em 1 toque, com a origem registrada', async () => {
+  it('DEC-063: «Enviar» manda a sugestão da IA inteira em 1 toque, com a origem registrada', async () => {
     const suggestion = {
       id: 'ais_ficticia',
       conversationId: 'cnv_ficticia',
@@ -242,7 +242,7 @@ describe('InboxThread — estado de envio', () => {
   })
 })
 
-describe('InboxThread — etapa só de leitura e um único Agendar (DEC-061, DEC-063)', () => {
+describe('InboxThread — etapa só de leitura e um único Agendar (DEC-062, DEC-064)', () => {
   const opportunity = { id: 'opp_ficticia', stage: 'em_atendimento', label: 'Em atendimento', updatedAt: NOW }
 
   it('mostra a etapa como texto (sem seletor) e um só botão Agendar', async () => {
@@ -277,7 +277,7 @@ describe('InboxThread — etapa só de leitura e um único Agendar (DEC-061, DEC
   })
 })
 
-describe('InboxThread — Pix pendente em faixa compacta (DEC-064)', () => {
+describe('InboxThread — Pix pendente em faixa compacta (DEC-065)', () => {
   const charge = {
     id: 'pix_ficticio',
     amountCents: 8000,

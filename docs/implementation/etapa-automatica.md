@@ -1,6 +1,6 @@
 # Etapa automática na conversa — plano de implementação
 
-**Estado:** plano **Proposto** (28/10/2026). As decisões que o motivam estão **Confirmadas**: [DEC-061](../product/decisions.md) (a etapa muda sozinha), DEC-063 (um só «Agendar»), DEC-064 (folha do Pix) e DEC-065 (encerrar não move a etapa). Nada deste plano está implementado. Mocks: [M-02](../design/screens.md), M-40, M-44 a M-47.
+**Estado:** plano **Proposto** (28/10/2026). As decisões que o motivam estão **Confirmadas**: [DEC-062](../product/decisions.md) (a etapa muda sozinha), DEC-064 (um só «Agendar»), DEC-065 (folha do Pix) e DEC-066 (encerrar não move a etapa). Nada deste plano está implementado. Mocks: [M-02](../design/screens.md), M-40, M-44 a M-47.
 
 ## O que existe hoje (verificado no código)
 
@@ -20,14 +20,14 @@
 2. Nada move `novo_contato` → `em_atendimento` ao assumir ou ao responder pela primeira vez.
 3. O menu ⋮ não tem «Corrigir etapa» nem «Marcar como perdida».
 
-## Regras propostas (aplicam DEC-061 e DEC-065)
+## Regras propostas (aplicam DEC-062 e DEC-066)
 
 | Evento | Efeito na etapa |
 | --- | --- |
 | Alguém assume a conversa ou envia a primeira resposta | `novo_contato` → `em_atendimento`. Só avança a partir de `novo_contato`. |
 | Compromisso confirmado | `agendado` (já implementado, DEC-052) |
 | Transferir a conversa | Não altera |
-| Encerrar a conversa | Não altera (DEC-065) |
+| Encerrar a conversa | Não altera (DEC-066) |
 | Cliente escreve de novo numa oportunidade já terminal | Segue a regra de ciclos existente (`maxCycleForConversation`); fora deste plano |
 | Correção manual no ⋮ | **Horário proposto** e **Perdido**; qualquer etapa pode ser corrigida por quem atende |
 
@@ -63,7 +63,7 @@ Nunca retrocede sozinha: se a etapa já é `horario_proposto`, `agendado` ou ter
 
 | # | Pergunta | Decide | Bloqueia |
 | --- | --- | --- | --- |
-| 1 | «Reenviar cobrança» do Pix (DEC-064): a API da Woovi permite reenviar a mesma cobrança, ou gera uma nova? | Engenharia + Paulo | PR 3, só a ação |
+| 1 | «Reenviar cobrança» do Pix (DEC-065): a API da Woovi permite reenviar a mesma cobrança, ou gera uma nova? | Engenharia + Paulo | PR 3, só a ação |
 | 2 | Texto da nota no histórico de etapa para mudanças automáticas | Paulo | PR 1 (não bloqueia a lógica) |
 | 3 | A conversa sem oportunidade (caso raro) cria uma ao assumir ou fica sem etapa? | Paulo | PR 1 |
 | 4 | Quando a atendente corrige a etapa, a próxima ação automática pode sobrescrevê-la? Proposta: não, porque a regra só avança a partir de `novo_contato` | Paulo | PR 1 |

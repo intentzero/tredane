@@ -80,7 +80,7 @@ function stageOf(ctx: ReturnType<typeof setup>) {
   return findOpenOpportunityForConversation(ctx.db, 'clinic-demo-a', ctx.conversationId)!
 }
 
-describe('Etapa automática (DEC-061, DEC-065)', () => {
+describe('Etapa automática (DEC-062, DEC-066)', () => {
   it('o detalhe da conversa devolve a oportunidade com a etapa', () => {
     const ctx = setup()
     try {
@@ -167,7 +167,7 @@ describe('Etapa automática (DEC-061, DEC-065)', () => {
     }
   })
 
-  it('encerrar a conversa não altera a etapa (DEC-065)', () => {
+  it('encerrar a conversa não altera a etapa (DEC-066)', () => {
     const ctx = setup()
     try {
       const before = stageOf(ctx)

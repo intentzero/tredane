@@ -4,6 +4,7 @@ import { PanelSelect } from '../../ui/PanelSelect'
 import type { ClinicConfigSnapshot, PanelApi, ResourceFutureAppointment } from '../../api'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
+import { ProfessionalExtras, RoomExtras } from './ResourceExtras'
 import {
   DeleteResourceDialog,
   FutureAppointmentsDialog,
@@ -15,10 +16,12 @@ import {
 type ListProps = {
   tenantId: string
   snap: ClinicConfigSnapshot
+  /** Aba aberta ao entrar (o início tem «Salas» e «Profissionais» como passos separados). */
+  initialTab?: 'professional' | 'room'
 }
 
-export function ResourcesList({ tenantId, snap }: ListProps) {
-  const [tab, setTab] = useState<'professional' | 'room'>('professional')
+export function ResourcesList({ tenantId, snap, initialTab = 'professional' }: ListProps) {
+  const [tab, setTab] = useState<'professional' | 'room'>(initialTab)
   const [showInactive, setShowInactive] = useState(false)
   const professionals = snap.resources.filter((r) => r.kind === 'professional')
   const rooms = snap.resources.filter(
@@ -30,7 +33,7 @@ export function ResourcesList({ tenantId, snap }: ListProps) {
 
   return (
     <div className="clinic-stack">
-      <div className="clinic-toolbar">
+      <div className="clinic-toolbar clinic-desktop-hide">
         <Button
           className="panel-btn panel-btn-ghost"
           onPress={() =>
@@ -40,7 +43,7 @@ export function ResourcesList({ tenantId, snap }: ListProps) {
           Voltar
         </Button>
       </div>
-      <div className="clinic-tabs" role="group" aria-label="Tipo de recurso">
+      <div className="clinic-tabs clinic-desktop-hide" role="group" aria-label="Tipo de recurso">
         <Button
           className={tab === 'professional' ? 'clinic-tab clinic-tab-active' : 'clinic-tab'}
           aria-pressed={tab === 'professional'}
@@ -295,6 +298,9 @@ export function ResourceForm({
   const [formError, setFormError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
+  // «Categoria» só aparece em salas que já a usam; no lugar dela, a sala lista os serviços feitos ali.
+  const showCategory =
+    category.trim() !== '' || snap.services.some((s) => s.roomRequirement.mode === 'category')
   const capacityNumber = Number(capacity)
   const capacityValid = Number.isInteger(capacityNumber) && capacityNumber >= 1 && capacityNumber <= 50
 
@@ -353,6 +359,17 @@ export function ResourceForm({
         setNotice(notes.join(' '))
         return
       }
+      if (!existing) {
+        // Nova ficha: segue para ela, onde ficam serviços, horário e folgas.
+        navigatePanel({
+          kind: 'area',
+          area: 'clinica',
+          tenantId,
+          section: kind === 'professional' ? 'profissional' : 'sala',
+          entityId: row.id,
+        })
+        return
+      }
       navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'recursos' })
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
@@ -401,6 +418,7 @@ export function ResourceForm({
               { id: 'equipment' as const, label: 'Equipamento' },
             ]}
           />
+          {showCategory ? (
           <TextField className="clinic-field">
             <Label>Categoria (opcional)</Label>
             <Input
@@ -410,6 +428,7 @@ export function ResourceForm({
               placeholder="Ex.: Sala com laser"
             />
           </TextField>
+          ) : null}
           {resourceKind === 'room' ? (
             <>
               <TextField className="clinic-field">
@@ -444,6 +463,27 @@ export function ResourceForm({
           ) : null}
         </>
       )}
+
+      {existing && kind === 'professional' ? (
+        <ProfessionalExtras
+          resource={existing}
+          tenantId={tenantId}
+          snap={snap}
+          api={api}
+          generation={generation}
+          onSaved={onSaved}
+        />
+      ) : null}
+      {existing && kind !== 'professional' ? (
+        <RoomExtras
+          resource={existing}
+          tenantId={tenantId}
+          snap={snap}
+          api={api}
+          generation={generation}
+          onSaved={onSaved}
+        />
+      ) : null}
 
       {existing ? (
         <section className="clinic-stack" aria-label="Situação">

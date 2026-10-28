@@ -167,7 +167,7 @@ describe('panel shell (#22)', () => {
     expect(
       await screen.findByRole('heading', { name: /passos? para atender/i }),
     ).toBeTruthy()
-    expect(screen.getByText('Serviços')).toBeTruthy()
+    expect(screen.getByText('4 · Serviços')).toBeTruthy()
 
     await expectNoAxeViolations(container)
   })

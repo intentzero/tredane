@@ -61,6 +61,7 @@ export function serializeResource(
     active: row.active,
     capacity: row.capacity,
     sharedSpaceNotice: row.sharedSpaceNotice,
+    hoursMode: row.hoursMode,
     overCapacity: row.overCapacity,
     futureAppointmentCount: row.futureAppointmentCount,
     hasAppointmentHistory: row.hasAppointmentHistory,
