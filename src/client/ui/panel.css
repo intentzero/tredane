@@ -1782,10 +1782,34 @@
 }
 
 .clinic-check {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
   font-size: var(--font-size-small);
+}
+
+.clinic-check-box {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: 4px;
+  background: var(--color-surface-card);
+  color: var(--color-text-on-primary);
+}
+
+.clinic-check[data-selected] .clinic-check-box {
+  background: var(--color-primary-base);
+  border-color: var(--color-primary-base);
+}
+
+.clinic-check[data-focus-visible] .clinic-check-box {
+  outline: 2px solid var(--color-primary-base);
+  outline-offset: 2px;
+}
+
+.clinic-check-label {
+  flex: 1;
 }
 
 .clinic-actions {
