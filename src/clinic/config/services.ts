@@ -1,6 +1,7 @@
 import type { Clock } from '../../db/clock'
 import { assertValidSignalConfig } from '../../pix/money'
-import { NotFoundError, ValidationError } from '../errors'
+import { ConflictError, NotFoundError, ValidationError } from '../errors'
+import { serviceDeleteBlocker } from './service-history'
 import { newId } from '../ids'
 import type { ClinicDb } from '../store'
 import type {
@@ -113,6 +114,7 @@ function toServiceRow(
     updatedAt: row.updated_at,
     professionalIds: loadProfessionals(db, row.tenant_id, row.id),
     roomRequirement: loadRoomRequirement(db, row.tenant_id, row.id),
+    deletable: serviceDeleteBlocker(db, row.tenant_id, row.id) === null,
   }
 }
 
@@ -437,6 +439,29 @@ export function setServiceActive(
     serviceId,
   )
   return getService(db, tenantId, serviceId)!
+}
+
+/**
+ * Apaga um serviço sem histórico e os seus vínculos. Chamar dentro de transação.
+ * Com marcações, Pix ou proposta pendente: 409 (só desativar).
+ */
+export function deleteService(
+  db: ClinicDb,
+  tenantId: string,
+  serviceId: string,
+): ServiceRow {
+  const existing = getService(db, tenantId, serviceId)
+  if (!existing) {
+    throw new NotFoundError('service_not_found', `serviço ${serviceId} não encontrado`)
+  }
+  const blocker = serviceDeleteBlocker(db, tenantId, serviceId)
+  if (blocker) {
+    throw new ConflictError(blocker.code, blocker.message, { serviceId })
+  }
+  db.run(`DELETE FROM service_professionals WHERE tenant_id = ? AND service_id = ?`, tenantId, serviceId)
+  db.run(`DELETE FROM service_room_requirements WHERE tenant_id = ? AND service_id = ?`, tenantId, serviceId)
+  db.run(`DELETE FROM services WHERE tenant_id = ? AND id = ?`, tenantId, serviceId)
+  return existing
 }
 
 /**

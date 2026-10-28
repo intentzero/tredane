@@ -3,6 +3,7 @@ import type {
   InboxFilter,
   MessageDeliveryState,
   MessageDirection,
+  OpportunityStage,
 } from '../constants'
 
 export type ConversationRow = {
@@ -26,8 +27,11 @@ export type MessageAttachmentSummary = {
   contentType: string
   byteSize: number
   filename: string | null
-  status: 'pending' | 'ready' | 'unavailable' | 'failed'
+  /** `deleted` = anexo removido (sem metadados de conteúdo). */
+  status: 'pending' | 'ready' | 'unavailable' | 'failed' | 'deleted'
   failureCode: string | null
+  /** Texto verificável do estado (P2 #184). */
+  statusLabel: string
   /** Confirmado DEC-011: nunca true no contexto IA. */
   includedInAiContext: false
 }
@@ -47,6 +51,11 @@ export type MessageRow = {
   readByDisplayName?: string | null
   readAt?: number | null
   attachments?: MessageAttachmentSummary[]
+  /**
+   * Legenda da cliente, distinta do placeholder («[Imagem]»…). null = sem legenda.
+   * Só preenchida quando a mensagem tem anexos (P2 #184). Texto não confiável.
+   */
+  caption?: string | null
 }
 
 export type ContactSummary = {
@@ -78,6 +87,13 @@ export type ConversationDetail = ConversationListItem & {
   messagingWindow: MessagingWindowView
   /** Contato tem Pix pendente (aviso no diálogo de bloqueio; o Pix não é cancelado). */
   contactHasPendingPix: boolean
+  /** Oportunidade aberta da conversa (DEC-062: etapa só de leitura na tela); `null` sem oportunidade. */
+  opportunity: {
+    id: string
+    stage: OpportunityStage
+    label: string
+    updatedAt: number
+  } | null
 }
 
 export type ListConversationsInput = {

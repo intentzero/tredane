@@ -647,6 +647,17 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return { status: channel?.status ?? 'interrupted' }
   }
 
+  /** P2 (#184): refetch idempotente da conversa após vínculo/estado do anexo. */
+  async #fanoutAttachmentChange(caller: ClinicCaller, row: clinicAttachments.AttachmentRow) {
+    const ob = clinicAttachments.emitAttachmentChanged(this.#db, caller.tenantId, row, this.#clock)
+    if (!ob) return
+    try {
+      await this.#fanoutOutboxes(caller, [ob], true)
+    } catch {
+      // Tempo real é melhor esforço; o painel reconcilia ao reconectar/refetch.
+    }
+  }
+
   async #fanoutOutboxes(
     caller: ClinicCaller,
     outboxes: readonly OutboxRow[],
@@ -898,23 +909,27 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async markAttachmentReady(caller: ClinicCaller, input: MarkAttachmentReadyInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    return clinicAttachments.markAttachmentReadyOp(
+    const row = clinicAttachments.markAttachmentReadyOp(
       this.#db,
       caller,
       input,
       this.#clock,
     )
+    await this.#fanoutAttachmentChange(caller, row)
+    return row
   }
 
   async markAttachmentFailed(caller: ClinicCaller, input: MarkAttachmentFailedInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    return clinicAttachments.markAttachmentFailedOp(
+    const row = clinicAttachments.markAttachmentFailedOp(
       this.#db,
       caller,
       input,
       this.#clock,
     )
+    await this.#fanoutAttachmentChange(caller, row)
+    return row
   }
 
   async linkAttachmentToMessage(
@@ -923,12 +938,14 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   ) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    return clinicAttachments.linkAttachmentToMessageOp(
+    const row = clinicAttachments.linkAttachmentToMessageOp(
       this.#db,
       caller,
       input,
       this.#clock,
     )
+    await this.#fanoutAttachmentChange(caller, row)
+    return row
   }
 
   async getAttachment(caller: ClinicCaller, attachmentId: string) {
@@ -978,12 +995,14 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async softDeleteAttachment(caller: ClinicCaller, attachmentId: string) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    return clinicAttachments.softDeleteAttachmentOp(
+    const row = clinicAttachments.softDeleteAttachmentOp(
       this.#db,
       caller,
       attachmentId,
       this.#clock,
     )
+    await this.#fanoutAttachmentChange(caller, row)
+    return row
   }
 
   /**
@@ -1467,6 +1486,14 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       { active: row.active },
     )
     return row
+  }
+
+  async deleteClinicService(caller: ClinicCaller, serviceId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const out = clinicConfig.deleteServiceOp(this.#db, caller, serviceId, this.#clock)
+    await this.#fanoutConfigEvent(caller, 'config.service_deleted', 'service', out.id, {})
+    return out
   }
 
   async upsertClinicResource(caller: ClinicCaller, input: UpsertResourceInput) {

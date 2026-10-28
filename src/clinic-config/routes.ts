@@ -90,6 +90,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     upsertService: (caller, input) => stub.upsertClinicService(caller, input),
     setServiceActive: (caller, serviceId, active) =>
       stub.setClinicServiceActive(caller, serviceId, active),
+    deleteService: (caller, serviceId) => stub.deleteClinicService(caller, serviceId),
     upsertResource: (caller, input) => stub.upsertClinicResource(caller, input),
     setResourceActive: (caller, resourceId, active) =>
       stub.setClinicResourceActive(caller, resourceId, active),
@@ -267,6 +268,25 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
           body.active,
         )
         return c.json(serializeService(row))
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.delete(
+    '/api/tenants/:tenantId/config/services/:serviceId',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const out = await gw.deleteService(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          c.req.param('serviceId'),
+        )
+        return c.json(out)
       } catch (err) {
         return configErrorResponse(c, err)
       }

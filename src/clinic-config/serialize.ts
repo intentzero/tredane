@@ -43,6 +43,7 @@ export function serializeService(row: ServiceRow) {
     durationMaxMinutes: row.durationMaxMinutes,
     professionalIds: row.professionalIds,
     roomRequirement: row.roomRequirement,
+    deletable: row.deletable,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }

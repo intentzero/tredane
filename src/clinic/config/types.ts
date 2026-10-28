@@ -24,6 +24,8 @@ export type ServiceRow = {
   updatedAt: number
   professionalIds: string[]
   roomRequirement: RoomRequirement
+  /** Pode ser apagado: nunca teve marcação, Pix ou proposta ligada. */
+  deletable: boolean
 }
 
 export type RoomRequirement =
