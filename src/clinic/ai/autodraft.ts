@@ -18,6 +18,7 @@ import { runGenerateInternal } from './operations'
 import { getSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
 import { getAiDailyUsage } from './usage'
+import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
 
 export const AUTODRAFT_ACTOR_ID = 'system:ai-autodraft'
 
@@ -143,6 +144,16 @@ export async function runDueAutoDrafts(
       out.push({ ...job, status: 'cap_reached', suggestion: null })
       continue
     }
+    // S7 (#178): quota por contato (só automações; a equipe continua a poder pedir sugestão).
+    const contactId = contactIdForConversation(db, tenantId, job.conversationId)
+    if (deps.abuseLimits?.enabled && contactId) {
+      const decision = checkAutomationQuota(db, deps.abuseLimits, { tenantId, contactId, effect: 'auto_draft' }, clock)
+      if (!decision.allowed) {
+        recordLimitReached(db, deps.abuseLimits, { tenantId, contactId, effect: 'auto_draft', decision }, clock)
+        skip(`abuse_limit:${decision.limit}`)
+        continue
+      }
+    }
 
     db.run(
       `UPDATE ai_autodraft_jobs SET state = 'generating', updated_at = ?
@@ -184,13 +195,25 @@ export async function runDueAutoDrafts(
     let autoBook: AutoBookOutcome | undefined
     if (suggestion.status !== 'failed') {
       try {
+        let capability = deps.autoBook === true && (deps.autoBookTenants ?? []).includes(tenantId)
+        let limitNote: string | null = null
+        // S7 (#178): quota de marcações automáticas (contato/clínica) e compromissos futuros.
+        if (capability && deps.abuseLimits?.enabled && contactId) {
+          const decision = checkAutomationQuota(db, deps.abuseLimits, { tenantId, contactId, effect: 'ai_booking' }, clock)
+          if (!decision.allowed) {
+            recordLimitReached(db, deps.abuseLimits, { tenantId, contactId, effect: 'ai_booking', decision }, clock)
+            capability = false
+            limitNote = decision.message
+          }
+        }
         autoBook = tryAiAutoBook(db, caller, clock, {
           conversationId: job.conversationId,
           suggestionId: suggestion.id,
           enabled: deps.autoBook === true,
           // Revalidado aqui, na execução do job (inclusive jobs já enfileirados).
-          capability: deps.autoBook === true && (deps.autoBookTenants ?? []).includes(tenantId),
+          capability,
         })
+        if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }
         if (autoBook.replyText || autoBook.notes) {
           const text = autoBook.replyText ?? suggestion.suggestedText
           const notes = [autoBook.notes, autoBook.replyText ? '' : suggestion.internalNotes]

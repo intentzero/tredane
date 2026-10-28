@@ -5,6 +5,7 @@ import {
   type AiGatewayConfig,
   type SimulatedAiOptions,
 } from '../../ai'
+import { abuseLimitsFromEnv, type AbuseLimits } from './abuse-limits'
 import type { AiAssistDeps } from './types'
 
 /** Config serializável Worker → DO (RPC não transporta classes). */
@@ -28,6 +29,8 @@ export type AiAssistRpcDeps = {
   autoBook?: boolean
   /** Clínicas autorizadas (AI_AUTOBOOK_TENANTS, separadas por vírgula). Vazio = nenhuma. */
   autoBookTenants?: string[]
+  /** S7 (#178): limites de abuso (ABUSE_LIMITS=on liga; padrões «Proposto»). */
+  abuseLimits?: AbuseLimits
 }
 
 /** Só o valor exato «on» liga; ausente, vazio, inválido ou erro → desligado. */
@@ -64,6 +67,7 @@ export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
     clinicName: rpc.clinicName ?? null,
     autoBook: rpc.autoBook === true,
     autoBookTenants: rpc.autoBookTenants ?? [],
+    ...(rpc.abuseLimits ? { abuseLimits: rpc.abuseLimits } : {}),
   }
 }
 
@@ -75,12 +79,15 @@ export function rpcDepsFromEnv(env: {
   ANTHROPIC_API_KEY?: string
   AI_AUTOBOOK?: string
   AI_AUTOBOOK_TENANTS?: string
+  ABUSE_LIMITS?: string
+  [key: `ABUSE_LIMIT_${string}`]: string | undefined
 }): AiAssistRpcDeps {
   const mode = resolveAiMode(env.AI_MODE)
   return {
     mode,
     autoBook: parseAutoBookFlag(env.AI_AUTOBOOK),
     autoBookTenants: parseAutoBookTenants(env.AI_AUTOBOOK_TENANTS),
+    abuseLimits: abuseLimitsFromEnv(env as Record<string, string | undefined>),
     gateway: {
       accountId: env.CF_ACCOUNT_ID ?? '',
       gatewayId: env.AI_GATEWAY_ID ?? 'default',

@@ -1,3 +1,4 @@
+import type { AbuseLimits } from './abuse-limits'
 import type { AiSuggestionKind, AiWarningCode } from '../../ai/types'
 
 export type AiSuggestionStatus =
@@ -86,4 +87,6 @@ export type AiAssistDeps = {
   autoBook?: boolean
   /** Clínicas autorizadas a agendar automaticamente. */
   autoBookTenants?: string[]
+  /** S7 (#178): limites de abuso das automações (desligado por padrão). */
+  abuseLimits?: AbuseLimits
 }
