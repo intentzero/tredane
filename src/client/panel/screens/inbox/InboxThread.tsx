@@ -8,7 +8,6 @@ import {
   CircleAlert,
   Clock,
   EllipsisVertical,
-  FileText,
   Info,
   Maximize2,
   RefreshCw,
@@ -498,6 +497,27 @@ export function InboxThread({
     if (relevant) void load({ quiet: true })
   })
 
+  // Correção manual da etapa (DEC-061): usa o mesmo caminho do Acompanhamento; nunca mexe na agenda (DEC-040).
+  async function correctStage(toStage: 'horario_proposto' | 'perdido') {
+    const opp = detail?.opportunity
+    if (!opp) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      await api.movePipelineStage(
+        tenantId,
+        opp.id,
+        { toStage, expectedUpdatedAt: opp.updatedAt, note: 'Correção manual na conversa' },
+        { generation, expectGeneration: () => generation },
+      )
+      await load({ quiet: true })
+    } catch (err) {
+      setNotice(friendlyError(err, 'Não foi possível corrigir a etapa. Nada foi alterado.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function refundAlert(a: PixPaymentAlert) {
     setBusy(true)
     setNotice(null)
@@ -940,7 +960,20 @@ export function InboxThread({
   const blocked = detail.contact?.blockedAt != null
   const threadActions: ThreadAction[] = [
     { id: 'contact', label: 'Ver detalhes do contato' },
+    // Atalho do celular; no desktop o resumo fica na coluna do contato.
+    { id: 'summary', label: 'Resumo da IA' },
     ...(detail.status !== 'closed' && !blocked ? [{ id: 'hold', label: 'Reservar bloco' }] : []),
+    // DEC-061: a etapa muda sozinha; aqui só as duas correções manuais.
+    ...(detail.opportunity && detail.status !== 'closed' && !blocked
+      ? [
+          ...(detail.opportunity.stage !== 'horario_proposto'
+            ? [{ id: 'stage-proposed', label: 'Marcar como «Horário proposto»' }]
+            : []),
+          ...(detail.opportunity.stage !== 'perdido'
+            ? [{ id: 'stage-lost', label: 'Marcar como perdida' }]
+            : []),
+        ]
+      : []),
     ...(detail.status !== 'closed' && !blocked ? [{ id: 'transfer', label: 'Transferir para outra pessoa' }] : []),
     ...(detail.status !== 'closed' ? [{ id: 'close', label: 'Encerrar conversa' }] : []),
     blocked
@@ -958,6 +991,19 @@ export function InboxThread({
         contactId: detail!.contactId,
       })
     }
+    if (id === 'summary') {
+      requestSummaryFocus()
+      navigatePanel({
+        kind: 'area',
+        area: 'conversas',
+        tenantId,
+        section: 'contato',
+        conversationId: detail!.id,
+        contactId: detail!.contactId,
+      })
+    }
+    if (id === 'stage-proposed') void correctStage('horario_proposto')
+    if (id === 'stage-lost') void correctStage('perdido')
     if (id === 'hold') setReserveOpen(true)
     if (id === 'transfer') setTransferOpen(true)
     if (id === 'close') setConfirmClose(true)
@@ -1019,44 +1065,6 @@ export function InboxThread({
             </span>
           </span>
         </button>
-        {/* Celular: atalho visível para o Resumo da IA (no desktop está na coluna/gaveta do contato). */}
-        <Button
-          className="panel-icon-btn inbox-thread-summary-btn"
-          aria-label="Resumo da IA"
-          onPress={() => {
-            requestSummaryFocus()
-            navigatePanel({
-              kind: 'area',
-              area: 'conversas',
-              tenantId,
-              section: 'contato',
-              conversationId: detail.id,
-              contactId: detail.contactId,
-            })
-          }}
-        >
-          <FileText aria-hidden size={20} strokeWidth={2} />
-        </Button>
-        {detail.status !== 'closed' && !blocked ? (
-          <Button
-            className="panel-header-action"
-            aria-label="Agendar horário"
-            isDisabled={busy}
-            onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'agenda',
-                tenantId,
-                section: 'agendar',
-                conversationId,
-                contactId: detail.contactId,
-              })
-            }
-          >
-            <CalendarPlus aria-hidden size={20} strokeWidth={2} />
-            <span>Agendar</span>
-          </Button>
-        ) : null}
         {narrow ? (
           <Button
             className="panel-icon-btn"
@@ -1095,6 +1103,40 @@ export function InboxThread({
           </MenuTrigger>
         )}
       </header>
+
+      {/* DEC-061/063: etapa só de leitura (muda sozinha) e um único «Agendar». */}
+      {detail.opportunity || (detail.status !== 'closed' && !blocked) ? (
+        <div className="inbox-context">
+          {detail.opportunity ? (
+            <div className="inbox-context-stage" role="status">
+              <span className="inbox-context-label">Etapa</span>
+              <strong>{detail.opportunity.label}</strong>
+            </div>
+          ) : (
+            <span className="inbox-context-stage" />
+          )}
+          {detail.status !== 'closed' && !blocked ? (
+            <Button
+              className="panel-header-action"
+              aria-label="Agendar horário"
+              isDisabled={busy}
+              onPress={() =>
+                navigatePanel({
+                  kind: 'area',
+                  area: 'agenda',
+                  tenantId,
+                  section: 'agendar',
+                  conversationId,
+                  contactId: detail.contactId,
+                })
+              }
+            >
+              <CalendarPlus aria-hidden size={20} strokeWidth={2} />
+              <span>Agendar</span>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {confirmClose ? (
         <div className="inbox-confirm">

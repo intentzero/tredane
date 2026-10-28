@@ -35,10 +35,10 @@ const api = new Proxy(impl, {
 }) as unknown as PanelApi
 
 describe('Resumo da IA no celular', () => {
-  it('a conversa tem um botão visível «Resumo da IA» que leva à ficha focada no resumo', async () => {
+  it('o menu ⋮ da conversa tem «Resumo da IA» e leva à ficha focada no resumo', async () => {
     render(<InboxThread tenantId="t" conversationId="cnv1" api={api} generation={1} viewerClerkUserId="u1" />)
-    const btn = await screen.findByRole('button', { name: 'Resumo da IA' })
-    fireEvent.click(btn)
+    fireEvent.click(await screen.findByRole('button', { name: 'Mais opções da conversa' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Resumo da IA' }))
     cleanup()
     render(<InboxContactScreen tenantId="t" contactId="ctc1" conversationId="cnv1" api={api} generation={1} isOwner />)
     const h = await screen.findByRole('heading', { name: 'Resumo da IA' })

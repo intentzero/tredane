@@ -241,3 +241,38 @@ describe('InboxThread — estado de envio', () => {
     expect(within(region).queryByRole('button', { name: 'Usar e editar' })).toBeNull()
   })
 })
+
+describe('InboxThread — etapa só de leitura e um único Agendar (DEC-061, DEC-063)', () => {
+  const opportunity = { id: 'opp_ficticia', stage: 'em_atendimento', label: 'Em atendimento', updatedAt: NOW }
+
+  it('mostra a etapa como texto (sem seletor) e um só botão Agendar', async () => {
+    renderThread(mockApi(detail({ opportunity })))
+    expect(await screen.findByText('Em atendimento', { selector: 'strong' })).toBeTruthy()
+    expect(screen.queryByRole('combobox', { name: /etapa/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /alterar etapa/i })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Agendar horário' })).toHaveLength(1)
+  })
+
+  it('«Marcar como perdida» no ⋮ corrige a etapa sem tocar na agenda', async () => {
+    const movePipelineStage = vi.fn(async () => ({ opportunity: {} }))
+    renderThread(mockApi(detail({ opportunity }), { movePipelineStage } as unknown as Partial<PanelApi>))
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Mais opções da conversa' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Marcar como perdida' }))
+    await waitFor(() => expect(movePipelineStage).toHaveBeenCalledTimes(1))
+    const call = movePipelineStage.mock.calls[0] as unknown[]
+    expect(call[0]).toBe('clinic-demo-a')
+    expect(call[1]).toBe('opp_ficticia')
+    expect(call[2]).toMatchObject({ toStage: 'perdido', expectedUpdatedAt: NOW })
+  })
+
+  it('não oferece a correção que já é a etapa atual', async () => {
+    renderThread(
+      mockApi(detail({ opportunity: { ...opportunity, stage: 'horario_proposto', label: 'Horário proposto' } })),
+    )
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Mais opções da conversa' }))
+    expect(await screen.findByRole('menuitem', { name: 'Marcar como perdida' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /Horário proposto/ })).toBeNull()
+  })
+})

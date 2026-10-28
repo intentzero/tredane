@@ -4463,10 +4463,35 @@
   white-space: nowrap;
 }
 
-/* Atalho «Resumo da IA» no cabeçalho só no celular: no desktop o resumo está
- * na coluna/gaveta do contato (#142). */
-.conversas-3col .inbox-thread-summary-btn {
-  display: none;
+/* Faixa de contexto abaixo do cabeçalho (DEC-061/063): etapa só de leitura e um único «Agendar». */
+.inbox-context {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface-card);
+  border-bottom: var(--size-border-width) solid var(--color-line-border);
+}
+
+.inbox-context-stage {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--size-touch);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  color: var(--color-primary-ink);
+  font-size: var(--font-size-small);
+}
+
+.inbox-context-stage strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-context-label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption);
 }
 
 /* Com o atalho do resumo, o subtítulo não pode passar por baixo dos botões. */
