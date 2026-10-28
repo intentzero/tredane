@@ -231,6 +231,8 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
 **Em aberto:** categorias padrão de sala e equipamento da clínica piloto; limite de recursos por clínica; quais papéis podem trocar o número do WhatsApp depois de conectado (hoje só o Responsável); se o Responsável pode se rebaixar; textos finais do Embedded Signup, que dependem do registro do Tredane como Tech Provider; motivos de desconexão que a Meta informa de fato, para ajustar as mensagens de M-24.
 
+- **Redesenho integrado da configuração (Proposto → implementado em 29/10/2026, mocks M-44):** a queixa era de telas fragmentadas (seções soltas, horário como texto). **Horário** passa a ter duas vistas, *Semana* (faixas por dia com a clínica ao fundo e as pessoas escolhidas por cor, mais o editor de horas) e *Calendário* (mês com pontos coloridos e uma lista única de «Próximos» com folgas, férias e fechamentos, e um só botão «+ Folga, férias ou fechamento»). A ficha da profissional usa abas **Serviços · Horário · Folgas** em vez de três blocos numa rolagem. O início da Clínica mostra a semana em barras. No desktop há abas no topo e três colunas (pessoas, semana, dia e editor). As bordas das faixas da clínica se arrastam (ou setas do teclado, 15 em 15 min) e folgas parciais e fechamentos aparecem hachurados na semana corrente. **Ainda não:** arrastar a faixa inteira ou criar faixas com o dedo no celular.
+
 ### TEL-07 — Estados globais
 
 **Origem:** JRN-07; REQ-003, REQ-041, REQ-042, AC-02, AC-11, AC-12. **Estado:** Proposto.

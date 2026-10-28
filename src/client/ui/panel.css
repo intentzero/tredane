@@ -5511,7 +5511,8 @@
   cursor: pointer;
 }
 
-.week-mode-btn[aria-checked='true'] {
+.week-mode-btn[aria-checked='true'],
+.week-mode-btn[aria-selected='true'] {
   background: var(--color-surface-card);
   color: var(--color-text-primary);
   font-weight: var(--font-weight-semibold);
@@ -5571,4 +5572,358 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4) var(--space-4);
   border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+/* Horário integrado (TEL-09): semana desenhada, calendário e filtros. */
+.week-filters {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+}
+
+.week-filters-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  margin-right: var(--space-2);
+}
+
+.week-bars {
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-card);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.week-bars-axis,
+.week-bars-row {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 0 var(--space-2);
+  align-items: center;
+}
+
+.week-bars-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.week-bars-row {
+  min-height: 44px;
+  border-top: var(--size-border-width) solid var(--color-surface-sunken);
+}
+
+.week-bars-day {
+  font-weight: var(--font-weight-semibold);
+}
+
+.week-bars-track {
+  position: relative;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-app);
+  overflow: hidden;
+}
+
+.week-bars-clinic {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--color-primary-base);
+}
+
+.week-bars-clinic-soft {
+  background: var(--color-primary-tint);
+}
+
+.week-bars-person {
+  position: absolute;
+  opacity: 0.9;
+}
+
+.week-bars-closed {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.month-cal {
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-card);
+  padding: var(--space-3);
+}
+
+.month-cal-head {
+  display: flex;
+  align-items: center;
+  padding-bottom: var(--space-2);
+}
+
+.month-cal-head strong {
+  flex: 1;
+  text-align: center;
+  font-weight: var(--font-weight-semibold);
+}
+
+.month-cal-head button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.month-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  text-align: center;
+}
+
+.month-cal-dow {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  padding-bottom: var(--space-1);
+}
+
+.month-cal-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-1) 2px;
+  border-radius: var(--radius-md);
+}
+
+.month-cal-cell[data-today='true'] {
+  background: var(--color-primary-tint);
+  font-weight: var(--font-weight-semibold);
+}
+
+.month-cal-dots {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+}
+
+.month-cal-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+}
+
+.clinic-row-bar {
+  flex: none;
+  width: 4px;
+  align-self: stretch;
+  margin: var(--space-2) 0;
+  border-radius: var(--radius-pill);
+}
+
+.clinic-tabs-pad {
+  margin-bottom: var(--space-3);
+}
+
+.hub-week {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-card);
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.hub-week-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
+  height: 68px;
+}
+
+.hub-week-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  width: 16px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.hub-week-col i {
+  width: 100%;
+  border-radius: 4px;
+  background: #cbd0cf;
+}
+
+.hub-week-col i[data-open='true'] {
+  background: var(--color-primary-base);
+}
+
+.hub-week-text {
+  display: flex;
+  flex-direction: column;
+  color: var(--color-text-muted);
+}
+
+.hub-week-text strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Desktop da Clínica (≥ 1280 px): abas no topo e Horário em duas colunas. */
+.clinic-tabs {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .clinic-tabs {
+    display: flex;
+    gap: var(--space-1);
+    border-bottom: var(--size-border-width) solid var(--color-border-subtle, #e1e3e0);
+    margin-bottom: var(--space-4);
+  }
+
+  .clinic-tab {
+    min-height: 48px;
+    padding: 0 var(--space-4);
+    border: 0;
+    border-bottom: 3px solid transparent;
+    background: none;
+    font: inherit;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+
+  .clinic-tab[aria-selected='true'] {
+    border-bottom-color: var(--color-primary-base);
+    color: var(--color-primary-ink);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .hours-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: var(--space-6, 24px);
+    align-items: start;
+  }
+
+  .hours-main,
+  .hours-side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .week-bars-row {
+    min-height: 56px;
+  }
+
+  .week-bars-track {
+    height: 40px;
+  }
+}
+
+.week-bars-day-btn {
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  min-height: 44px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.week-bars-row[data-selected='true'] .week-bars-day {
+  color: var(--color-primary-ink);
+  text-decoration: underline;
+}
+
+.week-bars-off {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border: 2px solid;
+  border-radius: var(--radius-sm);
+  background: repeating-linear-gradient(135deg, rgba(180, 35, 24, 0.18) 0 4px, transparent 4px 8px);
+  pointer-events: none;
+}
+
+.week-bars-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  margin-left: -7px;
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 2;
+}
+
+.week-bars-handle::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 5px;
+  width: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-text-primary);
+  opacity: 0.45;
+}
+
+.week-bars-handle:focus-visible {
+  outline: 2px solid var(--color-primary-base);
+}
+
+.week-bars-track {
+  overflow: visible;
+}
+
+.hours-day {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .hours-day {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-card);
+  }
+
+  .hours-main {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .hours-main > .clinic-footnote {
+    grid-column: 2;
+  }
+
+  .hours-main .week-filters {
+    flex-direction: column;
+    grid-row: span 2;
+  }
+}
+
+.week-mode {
+  max-width: 360px;
 }

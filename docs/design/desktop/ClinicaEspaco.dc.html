@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Desktop — espaço de trabalho único</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="display: flex; flex-direction: column; min-height: 900px; background: #F5F4EF; font-family: Inter, system-ui, sans-serif; color: #142625; font-size: 14px; line-height: 1.4">
+  <header style="flex: none; display: flex; align-items: center; gap: 24px; padding: 0 32px; background: #FFFFFF; border-bottom: 1px solid #E1E3E0; min-height: 64px">
+    <h1 style="margin: 0; font-size: 22px; font-weight: 600">Clínica</h1>
+    <div role="tablist" aria-label="Áreas da clínica" style="display: flex; gap: 4px; align-self: stretch">
+      <sc-for list="{{abas}}" as="a" hint-placeholder-count="5">
+        <button type="button" role="tab" aria-selected="{{a.on}}" onClick="{{a.pick}}" style="{{a.style}}">{{a.nome}}</button>
+      </sc-for>
+    </div>
+    <span style="flex: 1"></span>
+    <span style="padding: 4px 12px; border-radius: 999px; background: #FFF7EA; color: #6E4200; font-size: 12px; font-weight: 600">Falta 1 passo: cadastrar um serviço</span>
+  </header>
+
+  <div style="flex: 1; display: grid; grid-template-columns: 280px minmax(0, 1fr) 340px; min-height: 0">
+    <!-- Pessoas -->
+    <aside aria-label="Pessoas" style="border-right: 1px solid #E1E3E0; padding: 20px 12px; display: flex; flex-direction: column; gap: 4px">
+      <div style="display: flex; align-items: center; padding: 0 8px 8px"><h2 style="margin: 0; flex: 1; font-size: 16px; font-weight: 600">Mostrar na grade</h2></div>
+      <sc-for list="{{pessoas}}" as="p" hint-placeholder-count="4">
+        <button type="button" aria-pressed="{{p.on}}" onClick="{{p.pick}}" style="{{p.row}}">
+          <span style="{{p.dot}}"></span>
+          <span style="flex: 1; display: flex; flex-direction: column"><strong style="font-weight: 600">{{p.nome}}</strong><span style="font-size: 12px; color: {{p.corSub}}">{{p.sub}}</span></span>
+          <span aria-hidden="true" style="{{p.check}}">✓</span>
+        </button>
+      </sc-for>
+      <button type="button" style="margin-top: 8px; min-height: 44px; border: 1.5px dashed #7A8584; border-radius: 12px; background: none; font: inherit; font-weight: 600; color: #0E5A5C; cursor: pointer">+ Nova profissional</button>
+    </aside>
+
+    <!-- Grade -->
+    <main style="padding: 24px 32px; display: flex; flex-direction: column; gap: 16px; min-width: 0">
+      <div style="display: flex; align-items: baseline; gap: 12px"><h2 style="margin: 0; flex: 1; font-size: 18px; font-weight: 600">Semana da clínica</h2><span style="color: #566160">Aberta 56 h por semana</span></div>
+      <div style="border-radius: 20px; background: #FFFFFF; padding: 16px 20px 20px">
+        <div style="display: grid; grid-template-columns: 56px 1fr; gap: 0 12px; font-size: 12px; color: #566160; margin-bottom: 6px">
+          <span></span>
+          <span style="display: flex; justify-content: space-between"><span>08h</span><span>10h</span><span>12h</span><span>14h</span><span>16h</span><span>18h</span><span>20h</span></span>
+        </div>
+        <sc-for list="{{linhas}}" as="d" hint-placeholder-count="7">
+          <div style="display: grid; grid-template-columns: 56px 1fr; gap: 0 12px; align-items: center; min-height: 64px; border-top: 1px solid #EEEDE7">
+            <span style="font-weight: 600">{{d.nome}}</span>
+            <div style="position: relative; height: 44px; border-radius: 8px; background: #F5F4EF; overflow: hidden">
+              <span aria-hidden="true" style="{{d.clinica}}"></span>
+              <sc-for list="{{d.pessoas}}" as="p" hint-placeholder-count="1">
+                <span aria-hidden="true" style="{{p.style}}"></span>
+              </sc-for>
+              <span style="{{d.fechado}}">Fechado</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <p style="margin: 0; color: #566160">Arraste as bordas de uma faixa para mudar as horas. Clique em um dia para editar com números.</p>
+    </main>
+
+    <!-- Inspetor -->
+    <aside aria-label="Detalhes" style="border-left: 1px solid #E1E3E0; padding: 24px 20px; display: flex; flex-direction: column; gap: 14px; background: #FFFFFF">
+      <h2 style="margin: 0; font-size: 18px; font-weight: 600">Terça-feira</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 500; color: #424B4A">Abre
+          <input type="time" step="900" value="08:00" style="height: 48px; padding: 0 10px; border: 1px solid #7A8584; border-radius: 12px; font: inherit; font-size: 16px">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 500; color: #424B4A">Fecha
+          <input type="time" step="900" value="18:00" style="height: 48px; padding: 0 10px; border: 1px solid #7A8584; border-radius: 12px; font: inherit; font-size: 16px">
+        </label>
+      </div>
+      <button type="button" style="align-self: flex-start; min-height: 44px; border: 0; background: none; font: inherit; font-weight: 600; color: #0E5A5C; cursor: pointer">Copiar para os outros dias úteis</button>
+      <div style="height: 1px; background: #EEEDE7"></div>
+      <h3 style="margin: 0; font-size: 16px; font-weight: 600">Quem trabalha nesse dia</h3>
+      <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px">
+        <li style="display: flex; align-items: center; gap: 10px"><i style="width: 10px; height: 10px; border-radius: 999px; background: #0E5A5C"></i><span style="flex: 1">Dra. Paula</span><span style="color: #566160">8h – 18h</span></li>
+        <li style="display: flex; align-items: center; gap: 10px"><i style="width: 10px; height: 10px; border-radius: 999px; background: #6B3FD4"></i><span style="flex: 1">Bruna</span><span style="color: #566160">8h – 18h</span></li>
+        <li style="display: flex; align-items: center; gap: 10px"><i style="width: 10px; height: 10px; border-radius: 999px; background: #EBCB94"></i><span style="flex: 1">Lívia</span><span style="color: #566160">9h – 17h (próprio)</span></li>
+      </ul>
+      <button type="button" style="margin-top: auto; min-height: 48px; border: 0; border-radius: 12px; background: #0E5A5C; color: #FFFFFF; font: inherit; font-weight: 600">Salvar horário</button>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const s = this.state || {}
+    const aba = s.aba || 'Horário'
+    const sel = s.sel || ['paula', 'bruna', 'livia']
+    const abas = ['Horário', 'Profissionais', 'Salas', 'Serviços', 'Atendimento'].map((nome) => ({
+      nome, on: aba === nome, pick: () => this.setState({ aba: nome }),
+      style: 'padding: 0 16px; border: 0; background: none; font: inherit; cursor: pointer; border-bottom: 3px solid ' + (aba === nome ? '#0E5A5C' : 'transparent') + '; ' + (aba === nome ? 'font-weight: 600; color: #0A4547;' : 'color: #424B4A;'),
+    }))
+    const P = [
+      { id: 'paula', nome: 'Dra. Paula', cor: '#0E5A5C', sub: 'Horário da clínica' },
+      { id: 'bruna', nome: 'Bruna', cor: '#6B3FD4', sub: 'Horário da clínica' },
+      { id: 'livia', nome: 'Lívia', cor: '#EBCB94', sub: 'Férias 10–20/11' },
+    ]
+    const pessoas = P.map((p) => {
+      const on = sel.includes(p.id)
+      return {
+        nome: p.nome, sub: p.sub, on, corSub: p.id === 'livia' ? '#6E4200' : '#566160',
+        pick: () => this.setState({ sel: on ? sel.filter((x) => x !== p.id) : [...sel, p.id] }),
+        row: 'display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 12px; border-radius: 12px; font: inherit; text-align: left; cursor: pointer; ' + (on ? 'border: 1px solid #B3D1D1; background: #FFFFFF;' : 'border: 1px solid transparent; background: none;'),
+        dot: 'flex: none; width: 12px; height: 12px; border-radius: 999px; background: ' + p.cor,
+        check: 'color: #0E5A5C; ' + (on ? '' : 'visibility: hidden;'),
+      }
+    })
+    const pos = (h) => ((h - 8) / 12) * 100
+    const dias = [['Seg', 8, 18], ['Ter', 8, 18], ['Qua', 8, 18], ['Qui', 8, 18], ['Sex', 8, 18], ['Sáb', 8, 13], ['Dom', 0, 0]]
+    const ativos = P.filter((p) => sel.includes(p.id))
+    const linhas = dias.map(([nome, a, b], i) => {
+      const aberto = b > 0
+      const pessoasDia = ativos.map((p, k) => {
+        let ini = a, fim = b
+        if (p.id === 'livia') { if (i > 2) return null; ini = 9; fim = 17 }
+        if (!aberto) return null
+        const h = 100 / ativos.length
+        return { style: 'position: absolute; left: ' + pos(ini) + '%; width: ' + (pos(fim) - pos(ini)) + '%; top: ' + (k * h) + '%; height: ' + h + '%; background: ' + p.cor + '; opacity: 0.9' }
+      }).filter(Boolean)
+      return {
+        nome, pessoas: pessoasDia,
+        clinica: aberto ? 'position: absolute; top: 0; bottom: 0; left: ' + pos(a) + '%; width: ' + (pos(b) - pos(a)) + '%; background: ' + (ativos.length ? '#E7F1F1' : '#0E5A5C') : 'display: none',
+        fechado: aberto ? 'display: none' : 'position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; color: #566160',
+      }
+    })
+    return { abas, pessoas, linhas }
+  }
+}
+</script>
+</body>
+</html>

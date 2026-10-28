@@ -14,6 +14,7 @@ export type DayWindows = Array<{ startMinute: number; endMinute: number }>
 export type WeekDraft = Record<number, DayWindows>
 
 export function windowsOf(snap: ClinicConfigSnapshot, resourceId: string): ClinicWeeklyWindow[] {
+  if (!snap.weeklyWindows) return []
   return snap.weeklyWindows.filter((w) => w.resourceId === resourceId)
 }
 
@@ -62,7 +63,7 @@ export function describeWeek(draft: WeekDraft): string {
   return parts.join(' · ')
 }
 
-function civilOf(ms: number, tz: string): string {
+export function civilOf(ms: number, tz: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms))
 }
 
@@ -103,3 +104,7 @@ export function blockRange(
   if (endMinute <= startMinute) return null
   return { startsAt: civilMinuteToEpoch(fromDate, startMinute, tz), endsAt: civilMinuteToEpoch(toDate, endMinute, tz) }
 }
+
+/** Cores das pessoas na grade e no calendário (a clínica usa o tom primário). */
+export const PERSON_COLORS = ['#6B3FD4', '#E08A00', '#2F7D4F', '#B4417A', '#2563A8'] as const
+export const personColor = (index: number): string => PERSON_COLORS[index % PERSON_COLORS.length]!
