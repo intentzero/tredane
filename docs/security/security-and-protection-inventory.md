@@ -1,6 +1,6 @@
 # Inventário de proteção e segurança
 
-> Levantamento feito em 28/10/2026 (BRT) a partir do código da `main` em `96c1bb8`, dos documentos em `docs/`, das issues e dos PRs abertos, e do histórico do workflow `deploy.yml` (`gh run list` / `gh run view`). **Nenhuma chamada foi feita à Cloudflare.** Documento só descritivo: não muda decisões nem autoriza merge, deploy ou ativação.
+> Levantamento feito em 28/10/2026 (BRT) a partir do código da `main` em `4807146`, dos documentos em `docs/`, das issues e dos PRs abertos, e do histórico do workflow `deploy.yml` (`gh run list` / `gh run view`). **Nenhuma chamada foi feita à Cloudflare.** Documento só descritivo: não muda decisões nem autoriza merge, deploy ou ativação.
 
 ## Como ler os estados
 
@@ -16,10 +16,11 @@
 
 ### Evidência de deploy (histórico do `deploy.yml`)
 
-- O workflow foi executado 16 vezes (27–28/10/2026), todas por `workflow_dispatch`. **Em todas, o job `Deploy production` ficou `skipped`.** Não há nenhum deploy de produção registrado por este workflow. `docs/DEPLOY.md` §5 indica que a produção ainda não está provisionada (`database_id` placeholder, faltam vars/secrets; `check:env -- production` falha). Por isso **nenhuma funcionalidade está marcada como "em produção"**; o estado real do Worker de produção é **não verificado**.
-- O último deploy de staging com sucesso foi o run `40782048011`, criado em 28/10/2026 19:42 BRT, com SHA `96c1bb8` (= HEAD da `main` neste levantamento). Logo, tudo o que está na `main` hoje está **em staging** (sujeito à configuração de vars/secrets do Worker, que não foi verificada).
+- O workflow foi executado 17 vezes (27–28/10/2026), todas por `workflow_dispatch`. **Em todas, o job `Deploy production` ficou `skipped`.** Não há nenhum deploy de produção registrado por este workflow. `docs/DEPLOY.md` §5 indica que a produção ainda não está provisionada (`database_id` placeholder, faltam vars/secrets; `check:env -- production` falha). Por isso **nenhuma funcionalidade está marcada como "em produção"**; o estado real do Worker de produção é **não verificado**.
+- O último deploy de staging com sucesso foi criado em 28/10/2026 20:12 BRT, com SHA `317d163` (#192). Antes: run `40782048011`, 19:42 BRT, `96c1bb8`. Tudo até `317d163` está **em staging**. O commit `4807146` (merge do #181, só docs) está **na main sem deploy** (sujeito à configuração de vars/secrets do Worker, que não foi verificada).
 - Deploys anteriores de staging: `40af67e` (#153, 15:37 BRT), `bf28ec3` (#152, 15:29), `9011c27` (#150, 15:00), `471d490` (#148, 27/10 19:28). O run `40593261557` (`9a9e427`, 27/10) falhou.
 - Configuração de runtime fora do código (registro do Paulo, não verificado via Cloudflare): **desde 28/10/2026 19:58 BRT o Worker de staging tem `AI_AUTOBOOK=off`**, definido pelo Paulo. A produção nunca recebeu o #155.
+- **Atenção:** houve um novo deploy de staging (20:12 BRT) depois dessa alteração. `wrangler.jsonc` não define `AI_AUTOBOOK` nem `keep_vars`. Se o `off` foi gravado como variável de texto (e não como secret), um `wrangler deploy` pode tê-lo removido. **Persistência do `AI_AUTOBOOK=off` depois das 20:12: não verificado.**
 
 ## Inventário
 
@@ -57,7 +58,7 @@
 
 | Campo | Detalhe |
 |---|---|
-| Estado | Código: **em staging** (#155 `695fed3`, incluído no deploy `96c1bb8`). Runtime staging: **desligado** por `AI_AUTOBOOK=off` desde 28/10 19:58 BRT (registro do Paulo; não verificado via Cloudflare). Produção: nunca recebeu o #155. |
+| Estado | Código: **em staging** (#155 `695fed3`, incluído nos deploys `96c1bb8` e `317d163`). Runtime staging: `AI_AUTOBOOK=off` definido em 28/10 19:58 BRT (registro do Paulo); a persistência depois do deploy das 20:12 BRT **não foi verificada**. Produção: nunca recebeu o #155. |
 | Onde | `src/clinic/ai/deps.ts:24-25`, `:45` (`rpc.autoBook !== false`), `:55-60` — **ligado por padrão**: só `off` desliga; `src/clinic/ai/autobook.ts` (actor `system:ai-autobook`, `:386-420`, auditoria `appointment.ai_booked` em `:398`); `src/worker/bindings.ts:58` |
 | Decisão | DEC-060 (`docs/product/decisions.md:58`); DEC-006 anotado |
 | Testes | `src/clinic/ai/autobook.test.ts`, `src/clinic/ai/amanha-tarde.regression.test.ts` |
@@ -67,11 +68,11 @@
 
 | Campo | Detalhe |
 |---|---|
-| Estado | DEC-060: **em staging** (#155 `695fed3`; docs #157 `48e9661`). DEC-061: **em PR aberto** #181 (S1/#172), redação aprovada pelo Paulo em 28/10, registro D-20261028-200500-CUR, merge pendente. Botão: **planeado (issue)** #174–#176. |
-| Onde | `docs/product/decisions.md:58` (DEC-060); PR #181 (DEC-061 em `docs/product/decisions.md`, `conversational-hybrid-model.md`, ADR 0004, etc.) |
+| Estado | DEC-060: **em staging** (#155 `695fed3`; docs #157 `48e9661`). DEC-061: **na main sem deploy** (PR #181 integrado em `4807146`, só docs; redação aprovada pelo Paulo em 28/10, registro D-20261028-200500-CUR). Botão: **planeado (issue)** #174–#176. |
+| Onde | `docs/product/decisions.md:58` (DEC-060), `:59` (DEC-061); `docs/architecture/conversational-hybrid-model.md`; ADR 0004 (via #181) |
 | Decisão | DEC-061 substitui os caminhos de autorização por texto livre da DEC-060: só o toque da cliente no botão de uma proposta versionada pelo backend autoriza marcação |
 | Testes | Nenhum para o botão (não implementado). |
-| Limites | Até ao merge do #181, a `main` continua a dizer que texto livre autoriza (DEC-060). |
+| Limites | A decisão mudou, mas o código ainda não: `autobook.ts` continua a marcar por texto livre até o #191 (S2) ser integrado. |
 
 ### 6. Validação no backend
 
@@ -138,7 +139,7 @@
 | Item | Estado | Onde |
 |---|---|---|
 | Épico SEG-IA #171 (#172–#180) | **planeado (issue)**, todas abertas | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
-| S1 / #172 | **em PR aberto** #181 (docs; CI verde em `c1dae1a`) | DEC-061 |
+| S1 / #172 | **na main sem deploy** (#181 integrado em `4807146`; issue #172 ainda aberta) | DEC-061 |
 | S2 / #173 | **em PR aberto** #191 (`79590d0`; código: `autobook.ts`, `deps.ts`, `protection.ts`) | CI não reportado no momento do levantamento |
 | Épico PROTEÇÃO #182 (#183–#189) | **planeado (issue)**, todas abertas | #183 P1 · #184 P2 · #185 P3 · #186 P4 · #187 P5 · #188 P6 · #189 P7 |
 | P1 / #183 | **em PR aberto** #190 (docs; CI verde em `b42639d`) | DEC-062 **Proposto**, aguarda Paulo (P-1–P-3); `docs/product/protecao-equipe.md` |
@@ -180,7 +181,8 @@ Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY
 ## Lacunas conhecidas (priorizadas)
 
 1. **Agendamento por IA ligado por padrão no código** (`src/clinic/ai/deps.ts:60`). Staging contido só por `AI_AUTOBOOK=off` manual; correção em PR aberto #191 (S2).
-2. **Texto livre da cliente ainda autoriza marcações na `main`** (DEC-060). DEC-061 (botão) aprovada, mas o #181 ainda não foi integrado; botão #174–#176 por implementar.
+2. **O código da `main` ainda marca por texto livre**, apesar da DEC-061 (botão) já estar na `main`; botão #174–#176 por implementar.
+2a. **`AI_AUTOBOOK=off` no staging pode ter sido apagado pelo deploy das 20:12 BRT** (não verificado).
 3. **Sem limites de abuso por contato/clínica para marcações e propostas** (#178, valores por decidir).
 4. **Prompt injection sem fronteira de capacidades nem testes adversariais no CI** (#177, #180).
 5. **Bloqueio de contato não para todas as automações e não existe pausa** (#191 parcial, #187); bloqueio não chega à Meta.
