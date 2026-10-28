@@ -17,9 +17,11 @@ type Props = {
   snap: ClinicConfigSnapshot
   /** Cartão do opt-in de IA (Configurações da clínica). */
   aiCard?: ReactNode
+  /** STAGING-ONLY (dono): reset dos dados operacionais. */
+  stagingCard?: ReactNode
 }
 
-export function ClinicHub({ tenantId, snap, aiCard }: Props) {
+export function ClinicHub({ tenantId, snap, aiCard, stagingCard }: Props) {
   const { readiness } = snap
   const go = (section: ClinicaSection) => () =>
     navigatePanel({ kind: 'area', area: 'clinica', tenantId, section })
@@ -143,6 +145,8 @@ export function ClinicHub({ tenantId, snap, aiCard }: Props) {
       </ul>
 
       {aiCard ?? null}
+
+      {stagingCard ?? null}
 
       <p className="clinic-footnote">
         Só o responsável pela clínica vê e altera esta área. Atendentes consultam serviços pela

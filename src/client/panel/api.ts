@@ -359,6 +359,26 @@ export function createPanelApi(getToken: TokenGetter) {
       return { status: res.status, body }
     },
 
+    /** STAGING-ONLY: apaga dados operacionais da clínica (servidor 404 fora de staging). */
+    async resetClinicOperationalData(
+      tenantId: string,
+      confirmName: string,
+      opts?: FetchOpts,
+    ): Promise<{ status: number; body: unknown }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/staging/reset-operational-data`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirmName }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      const body: unknown = await res.json().catch(() => null)
+      return { status: res.status, body }
+    },
+
     async interruptWhatsappDev(
       tenantId: string,
       reason?: string,

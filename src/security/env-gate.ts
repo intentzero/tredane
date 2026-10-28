@@ -30,3 +30,11 @@ const HARNESS_PATTERNS: RegExp[] = [
 export function isHarnessPath(pathname: string): boolean {
   return HARNESS_PATTERNS.some((re) => re.test(pathname))
 }
+
+/**
+ * Estritamente staging. Ausente, vazio, development, production ou desconhecido → false
+ * (fail closed). Usado por ações destrutivas só de staging (ex.: reset operacional).
+ */
+export function isStagingEnv(env: EnvLike): boolean {
+  return env?.ENVIRONMENT === 'staging'
+}

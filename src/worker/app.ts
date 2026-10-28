@@ -1,3 +1,4 @@
+import { createClinicResetRoutes, type ClinicResetRouteOptions } from '../clinic-reset/routes'
 import { stripInternalHeaders } from '../realtime/protocol'
 import { createDemoSeedRoutes } from '../ops/demo-seed'
 import { isDeployedEnv, isHarnessPath } from '../security/env-gate'
@@ -152,6 +153,8 @@ export type CreateAppOptions = {
   retention?: RetentionRouteOptions
   /** Observabilidade / operação piloto (#44). */
   ops?: OpsRouteOptions
+  /** STAGING-ONLY: reset dos dados operacionais da clínica. */
+  clinicReset?: ClinicResetRouteOptions
 }
 
 export function createApp(opts: CreateAppOptions = {}) {
@@ -219,6 +222,7 @@ export function createApp(opts: CreateAppOptions = {}) {
     gatewayFactory: opts.clinicConfigGatewayFactory,
   }
   app.route('/', createClinicConfigRoutes(configOpts))
+  app.route('/', createClinicResetRoutes(opts.clinicReset ?? {}))
 
   const schedulingOpts: SchedulingRouteOptions = {
     gatewayFactory: opts.schedulingGatewayFactory,
