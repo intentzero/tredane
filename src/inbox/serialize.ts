@@ -64,8 +64,10 @@ export function serializeMessage(m: MessageRow) {
       filename: a.filename,
       status: a.status,
       failureCode: a.failureCode,
+      statusLabel: a.statusLabel,
       includedInAiContext: false as const,
     })),
+    caption: m.caption ?? null,
   }
 }
 

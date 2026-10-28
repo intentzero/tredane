@@ -27,7 +27,7 @@ import {
   touchConversationMessage,
 } from './conversations'
 import { findMessageByExternalId, insertMessage, listMessages } from './messages'
-import { listAttachmentsForMessage } from '../attachments'
+import { captionFromBody, listAttachmentsForMessage, summarizeAttachment } from '../attachments'
 import {
   applyOutboundDeliveryUpdate,
   findOutboundByClientRequestId,
@@ -110,19 +110,12 @@ export function getConversationDetailOp(
     clock.nowMs(),
   )
   const messages = page.messages.map((m) => {
-    const atts = listAttachmentsForMessage(db, meta.tenantId, m.id)
+    const atts = listAttachmentsForMessage(db, meta.tenantId, m.id, { includeDeleted: true })
     if (atts.length === 0) return m
     return {
       ...m,
-      attachments: atts.map((a) => ({
-        id: a.id,
-        contentType: a.contentType,
-        byteSize: a.byteSize,
-        filename: a.filename,
-        status: a.status,
-        failureCode: a.failureCode,
-        includedInAiContext: false as const,
-      })),
+      caption: captionFromBody(m.body),
+      attachments: atts.map((a) => summarizeAttachment(a)),
     }
   })
   return {

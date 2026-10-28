@@ -18,6 +18,15 @@ export {
   markAttachmentReadyOp,
   softDeleteAttachmentOp,
   assertAttachmentOwnedByTenant,
+  emitAttachmentChanged,
 } from './operations'
+
+export {
+  attachmentStatusLabel,
+  captionFromBody,
+  isMediaPlaceholderBody,
+  summarizeAttachment,
+  type AttachmentDisplayStatus,
+} from './display'
 
 export { mapAttachment, type AttachmentSqlRow } from './rows'
