@@ -8,7 +8,7 @@ import { StagingResetCard } from './StagingResetCard'
 import { isStagingHostname } from './whatsapp/WhatsappDevSyncAction'
 import { ClinicHub } from './ClinicHub'
 import { ResourceForm, ResourcesList } from './ResourcesScreen'
-import { SchedulesScreen } from './SchedulesScreen'
+import { ClinicHoursScreen } from './ClinicHoursScreen'
 import { ServiceForm, ServicesList } from './ServicesScreen'
 import { useClinicConfig } from './useClinicConfig'
 import { WhatsappScreen } from './whatsapp/WhatsappScreen'
@@ -134,7 +134,13 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         />
       )
     case 'recursos':
-      return <ResourcesList tenantId={tenantId} snap={snap} />
+      return (
+        <ResourcesList
+          tenantId={tenantId}
+          snap={snap}
+          initialTab={entityId === 'salas' ? 'room' : 'professional'}
+        />
+      )
     case 'profissional':
       return (
         <ResourceForm
@@ -161,7 +167,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
       )
     case 'horarios':
       return (
-        <SchedulesScreen
+        <ClinicHoursScreen
           tenantId={tenantId}
           snap={snap}
           api={api}

@@ -115,6 +115,7 @@ function parseClinicaRest(rest: string | undefined): {
         entityId: id ? decodeURIComponent(id) : 'novo',
       }
     }
+    if (parts[1] === 'salas') return { section: 'recursos', entityId: 'salas' }
     return { section: 'recursos' }
   }
   if (head === 'horarios') return { section: 'horarios' }
@@ -272,7 +273,7 @@ export function panelHref(route: PanelRoute): string {
         case 'servico':
           return `${base}/servicos/${encodeURIComponent(route.entityId ?? 'novo')}`
         case 'recursos':
-          return `${base}/recursos`
+          return route.entityId === 'salas' ? `${base}/recursos/salas` : `${base}/recursos`
         case 'profissional':
           return `${base}/recursos/profissional/${encodeURIComponent(route.entityId ?? 'novo')}`
         case 'sala':

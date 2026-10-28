@@ -15,10 +15,12 @@ import {
 type ListProps = {
   tenantId: string
   snap: ClinicConfigSnapshot
+  /** Aba aberta ao entrar (o início tem «Salas» e «Profissionais» como passos separados). */
+  initialTab?: 'professional' | 'room'
 }
 
-export function ResourcesList({ tenantId, snap }: ListProps) {
-  const [tab, setTab] = useState<'professional' | 'room'>('professional')
+export function ResourcesList({ tenantId, snap, initialTab = 'professional' }: ListProps) {
+  const [tab, setTab] = useState<'professional' | 'room'>(initialTab)
   const [showInactive, setShowInactive] = useState(false)
   const professionals = snap.resources.filter((r) => r.kind === 'professional')
   const rooms = snap.resources.filter(
