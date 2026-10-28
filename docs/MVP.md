@@ -65,6 +65,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Estados e eventos propostos](product/states.md)
 - [Cenários de aceite](product/acceptance.md)
 - [Fronteira de dados entre clínicas](product/tenant-boundaries.md)
+- [Proteção da equipe (DEC-062, proposta)](product/protecao-equipe.md): imagens ocultas sob demanda e fora da IA, sinalização humana, pausa das automações; P-1–P-3 aguardam Paulo.
 - [Especificação de UI/UX do painel](product/ux-ui.md) (telas, estados visíveis e critérios de UX)
 - [Mocks e guia de implementação da interface](design/README.md): telas mobile M-01 a M-34, componentes, tokens e previews
 - [Landing page do piloto](product/landing.md) (DEC-044): fora do fluxo piloto do painel; site Astro estático em `site/`, sem publicação até fechar domínio, contato e política de privacidade
