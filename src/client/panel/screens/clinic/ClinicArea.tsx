@@ -129,9 +129,10 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
       case 'recursos':
         return (
           <ResourcesList
+            key={entityId === 'salas' ? 'room' : 'professional'}
             tenantId={tenantId}
             snap={snap}
-            initialTab={entityId === 'salas' ? 'room' : 'professional'}
+            tab={entityId === 'salas' ? 'room' : 'professional'}
           />
         )
       case 'profissional':

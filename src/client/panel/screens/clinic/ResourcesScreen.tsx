@@ -17,12 +17,20 @@ import {
 type ListProps = {
   tenantId: string
   snap: ClinicConfigSnapshot
-  /** Aba aberta ao entrar (o início tem «Salas» e «Profissionais» como passos separados). */
-  initialTab?: 'professional' | 'room'
+  /** Aba ativa — vem sempre da rota (/recursos = profissionais, /recursos/salas = salas). */
+  tab?: 'professional' | 'room'
 }
 
-export function ResourcesList({ tenantId, snap, initialTab = 'professional' }: ListProps) {
-  const [tab, setTab] = useState<'professional' | 'room'>(initialTab)
+export function ResourcesList({ tenantId, snap, tab = 'professional' }: ListProps) {
+  // Sem estado local para a aba: a rota é a única fonte (separador e conteúdo).
+  const setTab = (next: 'professional' | 'room') =>
+    navigatePanel({
+      kind: 'area',
+      area: 'clinica',
+      tenantId,
+      section: 'recursos',
+      ...(next === 'room' ? { entityId: 'salas' } : {}),
+    })
   const [showInactive, setShowInactive] = useState(false)
   const professionals = snap.resources.filter((r) => r.kind === 'professional')
   const rooms = snap.resources.filter(
