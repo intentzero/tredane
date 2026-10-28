@@ -77,7 +77,6 @@ export function BlockForm({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, tenantId, scope, range?.startsAt, range?.endsAt, reason])
 
   async function save() {
