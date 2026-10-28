@@ -386,7 +386,7 @@
       "y": 11580,
       "w": 390,
       "h": 844,
-      "title": "M-44 Conversa nova, sem responsável (Assumir e responder)",
+      "title": "M-45 Conversa nova, sem responsável (Assumir e responder)",
       "radius": 32
     },
     "ConversaAguardandoPix.dc.html": {
@@ -394,7 +394,7 @@
       "y": 11580,
       "w": 390,
       "h": 844,
-      "title": "M-45 Conversa com Pix do sinal pendente",
+      "title": "M-46 Conversa com Pix do sinal pendente",
       "radius": 32
     },
     "PixDetalhes.dc.html": {
@@ -402,7 +402,7 @@
       "y": 11580,
       "w": 390,
       "h": 844,
-      "title": "M-46 Folha do Pix pendente",
+      "title": "M-47 Folha do Pix pendente",
       "radius": 32
     },
     "ConversaSugestaoLonga.dc.html": {
@@ -410,7 +410,7 @@
       "y": 11580,
       "w": 390,
       "h": 844,
-      "title": "M-47 Sugestão da IA longa (texto completo, rolagem interna)",
+      "title": "M-48 Sugestão da IA longa (texto completo, rolagem interna)",
       "radius": 32
     }
   },

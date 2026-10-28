@@ -1,6 +1,6 @@
 # Etapa automática na conversa — plano de implementação
 
-**Estado:** plano **Proposto** (28/10/2026). As decisões que o motivam estão **Confirmadas**: [DEC-062](../product/decisions.md) (a etapa muda sozinha), DEC-064 (um só «Agendar»), DEC-065 (folha do Pix) e DEC-066 (encerrar não move a etapa). Nada deste plano está implementado. Mocks: [M-02](../design/screens.md), M-40, M-44 a M-47.
+**Estado:** plano **Proposto** (28/10/2026). As decisões que o motivam estão **Confirmadas**: [DEC-062](../product/decisions.md) (a etapa muda sozinha), DEC-064 (um só «Agendar»), DEC-065 (folha do Pix) e DEC-066 (encerrar não move a etapa). Nada deste plano está implementado. Mocks: [M-02](../design/screens.md), M-40, M-45 a M-48.
 
 ## O que existe hoje (verificado no código)
 
@@ -47,7 +47,7 @@ Nunca retrocede sozinha: se a etapa já é `horario_proposto`, `agendado` ou ter
 - Testes de `InboxThread` que dependem do botão «Resumo da IA» e do `Agendar` no cabeçalho precisam de ajuste.
 
 **Cliente (PR 3)**
-- Faixa compacta de Pix pendente com «Detalhes» (folha M-46) no lugar do cartão atual dentro da conversa; reaproveita Copiar Pix e Cancelar cobrança já existentes. «Reenviar cobrança» precisa de endpoint (ver Em aberto).
+- Faixa compacta de Pix pendente com «Detalhes» (folha M-47) no lugar do cartão atual dentro da conversa; reaproveita Copiar Pix e Cancelar cobrança já existentes. «Reenviar cobrança» precisa de endpoint (ver Em aberto).
 
 ## Testes
 
