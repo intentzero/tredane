@@ -8,7 +8,13 @@ type Props<T extends string> = {
 }
 
 /** Controle segmentado (pílula): troca de vista ou de modo, sem rolagem extra. */
-export function Segmented<T extends string>({ label, value, options, onChange, role = 'tab' }: Props<T>) {
+export function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  role = 'tab',
+}: Props<T>) {
   return (
     <div
       className="week-mode"
@@ -21,7 +27,9 @@ export function Segmented<T extends string>({ label, value, options, onChange, r
           key={o.id}
           type="button"
           role={role}
-          {...(role === 'tab' ? { 'aria-selected': o.id === value } : { 'aria-checked': o.id === value })}
+          {...(role === 'tab'
+            ? { 'aria-selected': o.id === value }
+            : { 'aria-checked': o.id === value })}
           className="week-mode-btn"
           onClick={() => onChange(o.id)}
         >

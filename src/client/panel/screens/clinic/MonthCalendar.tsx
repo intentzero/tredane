@@ -13,7 +13,20 @@ type Props = {
   onNext: () => void
 }
 
-const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+const MONTHS = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+]
 const pad = (n: number) => String(n).padStart(2, '0')
 
 /** Mês em grade (segunda a domingo); cada folga ou fechamento vira um ponto colorido nos dias que cobre. */
@@ -26,7 +39,11 @@ export function MonthCalendar({ year, month, entries, timezone, todayIso, onPrev
   for (let d = 1; d <= days; d++) cells.push({ iso: `${year}-${pad(month + 1)}-${pad(d)}`, n: d })
   while (cells.length % 7 !== 0) cells.push(null)
 
-  const span = entries.map((e) => ({ ...e, a: civilOf(e.startsAt, timezone), b: civilOf(e.endsAt - 1, timezone) }))
+  const span = entries.map((e) => ({
+    ...e,
+    a: civilOf(e.startsAt, timezone),
+    b: civilOf(e.endsAt - 1, timezone),
+  }))
 
   return (
     <div className="month-cal">
@@ -49,7 +66,11 @@ export function MonthCalendar({ year, month, entries, timezone, todayIso, onPrev
       <div className="month-cal-grid">
         {cells.map((c, i) =>
           c ? (
-            <span key={c.iso} className="month-cal-cell" data-today={c.iso === todayIso ? 'true' : undefined}>
+            <span
+              key={c.iso}
+              className="month-cal-cell"
+              data-today={c.iso === todayIso ? 'true' : undefined}
+            >
               <span className="month-cal-n">{c.n}</span>
               <span className="month-cal-dots">
                 {span
