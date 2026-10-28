@@ -56,6 +56,8 @@ export type PanelRoute =
       opportunityId?: string
       /** Alerta «pago sem horário» — confirma com sinal já pago (#40). */
       alertId?: string
+      /** Dia civil (AAAA-MM-DD) já escolhido na Agenda — abre o Agendar nesse dia. */
+      date?: string
     }
   | {
       kind: 'area'
@@ -251,6 +253,7 @@ export function panelHref(route: PanelRoute): string {
           if (route.contactId) q.set('contactId', route.contactId)
           if (route.opportunityId) q.set('opportunityId', route.opportunityId)
           if (route.alertId) q.set('alertId', route.alertId)
+          if (route.date && /^\d{4}-\d{2}-\d{2}$/.test(route.date)) q.set('date', route.date)
           const qs = q.toString()
           return qs ? `${base}/agendar?${qs}` : `${base}/agendar`
         }

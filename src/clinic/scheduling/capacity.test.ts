@@ -72,6 +72,18 @@ function seed(capacity?: number, notice?: string) {
 }
 
 describe('capacidade por sala', () => {
+  it('sala de 1 lugar não expõe capacidade nem lugares', () => {
+    const s = seed()
+    try {
+      const avail = queryAvailabilityOp(s.db, s.caller, { serviceId: s.svc.id, date: MONDAY }, s.clock)
+      const first = avail.slots[0]!
+      expect(first.roomCapacity ?? null).toBeNull()
+      expect(first.roomSeatsFree ?? null).toBeNull()
+    } finally {
+      s.close()
+    }
+  })
+
   it('padrão 1: comportamento igual ao de antes (um já basta)', () => {
     const s = seed()
     try {
@@ -115,6 +127,10 @@ describe('capacidade por sala', () => {
       const nine = avail.slots.find((x) => x.startsAt === at(9))
       expect(nine).toBeTruthy()
       expect(nine!.roomSharedNotice).toBe('O espaço é compartilhado.')
+      // Lugares livres para exibição: 1 de 2 ocupado às 09:00, nenhum às 11:00.
+      expect(nine!.roomCapacity).toBe(2)
+      expect(nine!.roomSeatsFree).toBe(1)
+      expect(avail.slots.find((x) => x.startsAt === at(11))!.roomSeatsFree).toBe(2)
       s.book(1, at(9))
       avail = queryAvailabilityOp(s.db, s.caller, { serviceId: s.svc.id, date: MONDAY }, s.clock)
       expect(avail.slots.some((x) => x.startsAt === at(9))).toBe(false)
