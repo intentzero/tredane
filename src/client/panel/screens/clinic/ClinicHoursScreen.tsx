@@ -195,7 +195,7 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
   }
 
   return (
-    <div className="clinic-stack clinic-form">
+    <div className="clinic-stack clinic-form hours-screen">
       <div className="clinic-toolbar">
         <Button
           className="panel-btn panel-btn-ghost"
