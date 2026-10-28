@@ -1908,6 +1908,7 @@ export type PipelineListResponse = {
 
 export type RoomRequirementDto =
   | { mode: 'none' }
+  | { mode: 'any' }
   | { mode: 'category'; category: string }
   | { mode: 'resource'; resourceId: string }
 

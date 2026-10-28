@@ -154,13 +154,13 @@ export function checkSlotAvailability(
   }
 
   if (needsRoom && roomId) {
-    const roomWindows = allWindows.filter((w) => w.resourceId === roomId)
     reasons.push(
       ...resourceBusyReasons(
         db,
         tenantId,
         roomId,
-        roomWindows,
+        // Sala/equipamento não tem expediente (decisão 28/10/2026).
+        null,
         dayOfWeek,
         startMinute,
         occMins,

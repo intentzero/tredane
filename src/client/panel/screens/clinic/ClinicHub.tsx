@@ -27,8 +27,10 @@ export function ClinicHub({ tenantId, snap, aiCard, stagingCard }: Props) {
     navigatePanel({ kind: 'area', area: 'clinica', tenantId, section })
 
   const servicesOk = readiness.counts.servicesActive > 0
+  // Sala só conta quando algum serviço pede sala (decisão 28/10/2026).
   const resourcesOk =
-    readiness.counts.professionalsActive > 0 && readiness.counts.roomsActive > 0
+    readiness.counts.professionalsActive > 0
+    && !readiness.missing.includes('room_or_equipment')
   const hoursOk = !readiness.missing.includes('weekly_availability')
   const whatsappOk = !readiness.missing.includes('whatsapp')
 
@@ -59,7 +61,7 @@ export function ClinicHub({ tenantId, snap, aiCard, stagingCard }: Props) {
           <p>
             {readiness.agendaConfigured
               ? 'Conecte o WhatsApp da clínica para receber conversas. A agenda já está pronta para marcar horários.'
-              : 'Cadastre serviços, profissionais, salas e horários de atendimento para começar a marcar horários.'}
+              : 'Cadastre serviços, profissionais e o horário de atendimento de cada profissional para começar a marcar horários. Salas só são necessárias quando um serviço pede sala.'}
           </p>
           <div
             className="panel-progress"

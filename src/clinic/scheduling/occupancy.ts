@@ -127,7 +127,8 @@ export function resourceBusyReasons(
   db: ClinicDb,
   tenantId: string,
   resourceId: string,
-  windows: WeeklyWindowRow[],
+  /** null = recurso sem expediente (sala/equipamento, decisão 28/10/2026). */
+  windows: WeeklyWindowRow[] | null,
   dayOfWeek: number,
   startMinute: number,
   occupiedMins: number,
@@ -139,7 +140,7 @@ export function resourceBusyReasons(
   if (range.endsAt > dayEndsAt) {
     reasons.push('crosses_day_boundary')
   }
-  if (!weeklyCovers(windows, dayOfWeek, startMinute, occupiedMins)) {
+  if (windows !== null && !weeklyCovers(windows, dayOfWeek, startMinute, occupiedMins)) {
     reasons.push('outside_weekly_hours')
   }
   if (listBlocksOverlapping(db, tenantId, resourceId, range).length > 0) {

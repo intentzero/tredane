@@ -127,6 +127,7 @@ export function normalizeRoomRequirement(
   input: RoomRequirement | undefined,
 ): RoomRequirement {
   if (!input || input.mode === 'none') return { mode: 'none' }
+  if (input.mode === 'any') return { mode: 'any' }
   if (input.mode === 'category') {
     const category = assertNonEmptyName(input.category, 'category')
     return { mode: 'category', category }

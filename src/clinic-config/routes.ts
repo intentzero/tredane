@@ -547,6 +547,7 @@ function parseServiceBody(body: Record<string, unknown>) {
     roomRequirement: body.roomRequirement as
       | undefined
       | { mode: 'none' }
+      | { mode: 'any' }
       | { mode: 'category'; category: string }
       | { mode: 'resource'; resourceId: string },
     requiresSignal:

@@ -88,6 +88,18 @@ function resolveRooms(
     return [one]
   }
 
+  if (req.mode === 'any') {
+    const all = [...rooms].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+    if (all.length === 0) {
+      throw new ValidationError(
+        'room_unusable',
+        'nenhuma sala/equipamento activo',
+        {},
+      )
+    }
+    return all
+  }
+
   const matched = rooms
     .filter((r) => r.category === req.category)
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
@@ -256,7 +268,8 @@ export function queryAvailability(
           db,
           tenantId,
           room.id,
-          windowsByResource(allWindows, room.id),
+          // Sala/equipamento não tem expediente (decisão 28/10/2026).
+          null,
           dayOfWeek,
           startMinute,
           occMins,

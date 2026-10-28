@@ -9,6 +9,7 @@ import type {
   AiUpcomingAppointment,
 } from '../../ai/types'
 import { listWeeklyWindows } from '../config/availability'
+import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import type { ClinicDb } from '../store'
@@ -116,8 +117,14 @@ export function buildClinicAiContext(
     hourCycle: 'h23',
   }).format(new Date(now))
 
-  // Horário de funcionamento = união das janelas semanais dos recursos.
-  const windows = listWeeklyWindows(db, tenantId)
+  // Horário de funcionamento = união das janelas semanais dos profissionais
+  // (salas/equipamentos não têm expediente — decisão 28/10/2026).
+  const proIds = new Set(
+    listResources(db, tenantId, clock)
+      .filter((r) => r.kind === 'professional')
+      .map((r) => r.id),
+  )
+  const windows = listWeeklyWindows(db, tenantId).filter((w) => proIds.has(w.resourceId))
   const byDow = new Map<number, { start: number; end: number }>()
   for (const w of windows) {
     const cur = byDow.get(w.dayOfWeek)

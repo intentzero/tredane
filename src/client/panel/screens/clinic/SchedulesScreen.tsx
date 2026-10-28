@@ -29,6 +29,7 @@ export function SchedulesScreen({
   const resources = snap.resources.filter((r) => r.active)
   const [resourceId, setResourceId] = useState(resources[0]?.id ?? '')
   const selected = snap.resources.find((r) => r.id === resourceId)
+  const isProfessional = selected?.kind === 'professional'
   const windows = snap.weeklyWindows.filter((w) => w.resourceId === resourceId)
   const blocks = snap.blocks.filter((b) => b.resourceId === resourceId)
 
@@ -201,6 +202,9 @@ export function SchedulesScreen({
         ))}
       </div>
 
+      {/* Decisão 28/10/2026: só profissional tem expediente; sala/equipamento só bloqueios. */}
+      {isProfessional ? (
+        <>
       <section className="clinic-section">
         <h2>Expediente semanal</h2>
         <ul className="clinic-nav-list">
@@ -270,6 +274,15 @@ export function SchedulesScreen({
           </div>
         </section>
       ) : null}
+        </>
+      ) : (
+        <section className="clinic-section">
+          <h2>Expediente semanal</h2>
+          <p className="clinic-footnote">
+            Salas e equipamentos não têm expediente: ficam livres sempre que não houver marcação ou bloqueio.
+          </p>
+        </section>
+      )}
 
       <section className="clinic-section">
         <h2>Bloqueios</h2>
