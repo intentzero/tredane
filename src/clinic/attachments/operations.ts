@@ -7,9 +7,10 @@ import { RETENTION } from '../../attachments/policy'
 import type { Clock } from '../../db/clock'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller } from '../envelopes'
-import { NotFoundError, ValidationError } from '../errors'
+import { ConflictError, NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
 import { assertClinicSchemaReady } from '../migrations'
+import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import { mapAttachment, type AttachmentSqlRow } from './rows'
@@ -40,12 +41,13 @@ export function listAttachmentsForMessage(
   db: ClinicDb,
   tenantId: string,
   messageId: string,
+  opts: { includeDeleted?: boolean } = {},
 ): AttachmentRow[] {
   assertClinicSchemaReady(db)
   const rows = db.all<AttachmentSqlRow>(
     `SELECT * FROM attachments
-     WHERE tenant_id = ? AND message_id = ? AND deleted_at IS NULL
-     ORDER BY created_at ASC`,
+     WHERE tenant_id = ? AND message_id = ?${opts.includeDeleted ? '' : ' AND deleted_at IS NULL'}
+     ORDER BY created_at ASC, id ASC`,
     tenantId,
     messageId,
   )
@@ -152,7 +154,9 @@ export function markAttachmentReadyOp(
     meta.tenantId,
     input.attachmentId,
   )
-  return getAttachment(db, meta.tenantId, input.attachmentId)!
+  const updated = getAttachment(db, meta.tenantId, input.attachmentId)!
+  emitAttachmentChanged(db, meta.tenantId, updated, clock)
+  return updated
 }
 
 export function markAttachmentFailedOp(
@@ -182,7 +186,9 @@ export function markAttachmentFailedOp(
     meta.tenantId,
     input.attachmentId,
   )
-  return getAttachment(db, meta.tenantId, input.attachmentId)!
+  const updated = getAttachment(db, meta.tenantId, input.attachmentId)!
+  emitAttachmentChanged(db, meta.tenantId, updated, clock)
+  return updated
 }
 
 export function linkAttachmentToMessageOp(
@@ -198,6 +204,25 @@ export function linkAttachmentToMessageOp(
   if (!existing) {
     throw new NotFoundError('attachment_not_found', 'Anexo não encontrado nesta clínica')
   }
+  // P2 (#184): a mensagem tem de existir nesta clínica e pertencer à conversa indicada.
+  const msg = db.get<{ conversation_id: string }>(
+    `SELECT conversation_id FROM messages WHERE tenant_id = ? AND id = ?`,
+    meta.tenantId,
+    input.messageId,
+  )
+  if (!msg || msg.conversation_id !== input.conversationId) {
+    throw new NotFoundError('message_not_found', 'Mensagem não encontrada nesta conversa')
+  }
+  if (existing.conversationId && existing.conversationId !== input.conversationId) {
+    throw new ConflictError('attachment_conversation_mismatch', 'Anexo pertence a outra conversa')
+  }
+  if (existing.messageId && existing.messageId !== input.messageId) {
+    throw new ConflictError('attachment_already_linked', 'Anexo já vinculado a outra mensagem')
+  }
+  if (existing.messageId === input.messageId) {
+    emitAttachmentChanged(db, meta.tenantId, existing, clock)
+    return existing
+  }
   const now = clock.nowMs()
   db.run(
     `UPDATE attachments SET
@@ -211,7 +236,9 @@ export function linkAttachmentToMessageOp(
     meta.tenantId,
     input.attachmentId,
   )
-  return getAttachment(db, meta.tenantId, input.attachmentId)!
+  const updated = getAttachment(db, meta.tenantId, input.attachmentId)!
+  emitAttachmentChanged(db, meta.tenantId, updated, clock)
+  return updated
 }
 
 export function getAttachmentOp(
@@ -257,7 +284,9 @@ export function softDeleteAttachmentOp(
     meta.tenantId,
     attachmentId,
   )
-  return mapAttachment(row!)
+  const deleted = mapAttachment(row!)
+  emitAttachmentChanged(db, meta.tenantId, deleted, clock)
+  return deleted
 }
 
 /**
@@ -298,4 +327,36 @@ export function assertAttachmentOwnedByTenant(
   if (row.tenantId !== tenantId) {
     throw new ValidationError('tenant_mismatch', 'Anexo não pertence a esta clínica')
   }
+}
+
+/**
+ * Evento idempotente para o painel voltar a buscar a conversa depois de o anexo ser
+ * vinculado ou mudar de estado (P2, #184). Só para anexo já vinculado a mensagem/conversa
+ * desta clínica; o payload leva apenas ids e estado (sem bytes, chave R2 ou URL).
+ */
+export function emitAttachmentChanged(
+  db: ClinicDb,
+  tenantId: string,
+  att: AttachmentRow,
+  clock: Clock,
+): OutboxRow | null {
+  if (!att.messageId || !att.conversationId) return null
+  const status = att.deletedAt != null ? 'deleted' : att.status
+  return insertOutboxEvent(
+    db,
+    {
+      tenantId,
+      type: 'message.attachments_updated',
+      aggregateType: 'conversation',
+      aggregateId: att.conversationId,
+      idempotencyKey: `message.attachments_updated:${att.id}:${att.messageId}:${status}`,
+      payload: {
+        conversationId: att.conversationId,
+        messageId: att.messageId,
+        attachmentId: att.id,
+        status,
+      },
+    },
+    clock,
+  )
 }
