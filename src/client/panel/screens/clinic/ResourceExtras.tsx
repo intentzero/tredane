@@ -22,6 +22,7 @@ import {
   type WeekDraft,
 } from './clinicHours'
 import { BLOCK_REASON_LABELS } from './format'
+import { Segmented } from './Segmented'
 import { WeekEditor } from './WeekEditor'
 
 type Common = {
@@ -33,7 +34,10 @@ type Common = {
 }
 
 /** Corpo de gravação de um serviço, preservando tudo o que não muda. */
-export function serviceBody(s: ClinicService, patch: Partial<ServiceUpsertBody> = {}): ServiceUpsertBody {
+export function serviceBody(
+  s: ClinicService,
+  patch: Partial<ServiceUpsertBody> = {},
+): ServiceUpsertBody {
   return {
     name: s.name,
     durationMinutes: s.durationMinutes,
@@ -119,14 +123,17 @@ function BlocksSection({
       ) : (
         <>
           <ul className="clinic-rows">
-            {blocks.length === 0 ? <li className="clinic-empty">Nada marcado daqui para a frente.</li> : null}
+            {blocks.length === 0 ? (
+              <li className="clinic-empty">Nada marcado daqui para a frente.</li>
+            ) : null}
             {blocks.map((b) => {
               const days = countDays(b.startsAt, b.endsAt, tz)
               return (
                 <li key={b.id} className="clinic-row">
                   <span className="clinic-row-main">
                     <strong>
-                      {BLOCK_REASON_LABELS[b.reason] ?? b.reason} · {formatPeriod(b.startsAt, b.endsAt, tz)}
+                      {BLOCK_REASON_LABELS[b.reason] ?? b.reason} ·{' '}
+                      {formatPeriod(b.startsAt, b.endsAt, tz)}
                     </strong>
                     <span>{days === 1 ? '1 dia' : `${days} dias`}</span>
                   </span>
@@ -169,6 +176,7 @@ export function ProfessionalExtras({ resource, ...c }: Common & { resource: Clin
   const ownSaved = useMemo(() => toWeekDraft(windowsOf(c.snap, resource.id)), [c.snap, resource.id])
   const [ownDraft, setOwnDraft] = useState<WeekDraft>(ownSaved)
   const follows = resource.hoursMode === 'clinic'
+  const [tab, setTab] = useState<'servicos' | 'horario' | 'folgas'>('servicos')
   const dirty = JSON.stringify(ownDraft) !== JSON.stringify(ownSaved)
 
   const doesIt = (s: ClinicService) => s.professionalIds.includes(resource.id)
@@ -176,123 +184,171 @@ export function ProfessionalExtras({ resource, ...c }: Common & { resource: Clin
 
   return (
     <>
-      <section className="clinic-section" aria-labelledby={`svc-${resource.id}`}>
-        <h3 id={`svc-${resource.id}`} className="panel-legend">
-          Serviços que faz
-        </h3>
-        <div className="block-form-chips" role="group" aria-label={`Serviços que ${resource.name} faz`}>
-          {services.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="block-form-chip"
-              aria-pressed={doesIt(s)}
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const next = doesIt(s)
-                    ? s.professionalIds.filter((id) => id !== resource.id)
-                    : [...s.professionalIds, resource.id]
-                  await c.api.upsertService(c.tenantId, serviceBody(s, { professionalIds: next }), {
-                    serviceId: s.id,
-                    ...fo,
-                  })
-                  await c.onSaved()
-                }, 'Não foi possível mudar o serviço.')
-              }
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
-        <p className="clinic-footnote">
-          {services.length === 0
-            ? 'Cadastre serviços para marcar aqui. Dá para fazer isso depois.'
-            : `${count} de ${services.length} serviços · toque para marcar ou desmarcar. É a mesma lista de «Quem faz» em cada serviço.`}
-        </p>
-      </section>
-
-      <section className="clinic-section" aria-labelledby={`hrs-${resource.id}`}>
-        <h3 id={`hrs-${resource.id}`} className="panel-legend">
-          Horário
-        </h3>
-        <div className="week-mode" role="radiogroup" aria-label={`Horário de ${resource.name}`}>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={follows}
-            disabled={busy}
-            className="week-mode-btn"
-            onClick={() =>
-              !follows &&
-              void run(async () => {
-                await c.api.upsertResource(
-                  c.tenantId,
-                  { kind: 'professional', name: resource.name, active: resource.active, hoursMode: 'clinic' },
-                  { resourceId: resource.id, ...fo },
-                )
-                await c.onSaved()
-              }, 'Não foi possível mudar o horário.')
-            }
+      <Segmented
+        label={`Ficha de ${resource.name}`}
+        value={tab}
+        options={[
+          { id: 'servicos', label: 'Serviços' },
+          { id: 'horario', label: 'Horário' },
+          { id: 'folgas', label: 'Folgas' },
+        ]}
+        onChange={setTab}
+      />
+      {tab === 'servicos' ? (
+        <section className="clinic-section" aria-labelledby={`svc-${resource.id}`}>
+          <h3 id={`svc-${resource.id}`} className="panel-legend">
+            Serviços que faz
+          </h3>
+          <div
+            className="block-form-chips"
+            role="group"
+            aria-label={`Serviços que ${resource.name} faz`}
           >
-            Igual ao da clínica
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={!follows}
-            disabled={busy}
-            className="week-mode-btn"
-            onClick={() =>
-              follows &&
-              void run(async () => {
-                // Começa de uma cópia do horário da clínica, para não ficar sem horário.
-                if (windowsOf(c.snap, resource.id).length === 0) {
-                  await c.api.setWeeklyWindows(c.tenantId, resource.id, fromWeekDraft(clinicWeek), fo)
-                }
-                await c.api.upsertResource(
-                  c.tenantId,
-                  { kind: 'professional', name: resource.name, active: resource.active, hoursMode: 'own' },
-                  { resourceId: resource.id, ...fo },
-                )
-                await c.onSaved()
-              }, 'Não foi possível mudar o horário.')
-            }
-          >
-            Horário próprio
-          </button>
-        </div>
-        {follows ? (
-          <p className="clinic-footnote">{describeWeek(clinicWeek)}</p>
-        ) : (
-          <>
-            <WeekEditor value={ownDraft} onChange={setOwnDraft} label={`Horário de ${resource.name}`} />
-            <div className="clinic-footer-actions">
-              <Button
-                className="panel-btn panel-btn-primary"
-                isDisabled={!dirty || busy}
-                onPress={() =>
+            {services.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="block-form-chip"
+                aria-pressed={doesIt(s)}
+                disabled={busy}
+                onClick={() =>
                   void run(async () => {
-                    await c.api.setWeeklyWindows(c.tenantId, resource.id, fromWeekDraft(ownDraft), fo)
+                    const next = doesIt(s)
+                      ? s.professionalIds.filter((id) => id !== resource.id)
+                      : [...s.professionalIds, resource.id]
+                    await c.api.upsertService(
+                      c.tenantId,
+                      serviceBody(s, { professionalIds: next }),
+                      {
+                        serviceId: s.id,
+                        ...fo,
+                      },
+                    )
                     await c.onSaved()
-                  }, 'Não foi possível salvar o horário.')
+                  }, 'Não foi possível mudar o serviço.')
                 }
               >
-                {dirty ? 'Salvar horário' : 'Horário salvo'}
-              </Button>
-            </div>
-          </>
-        )}
-      </section>
+                {s.name}
+              </button>
+            ))}
+          </div>
+          <p className="clinic-footnote">
+            {services.length === 0
+              ? 'Cadastre serviços para marcar aqui. Dá para fazer isso depois.'
+              : `${count} de ${services.length} serviços · toque para marcar ou desmarcar. É a mesma lista de «Quem faz» em cada serviço.`}
+          </p>
+        </section>
+      ) : null}
 
-      <BlocksSection
-        resource={resource}
-        title="Folgas e férias"
-        addLabel="Folga ou férias"
-        reasons={['folga', 'ferias', 'outro']}
-        initialReason="folga"
-        {...c}
-      />
+      {tab === 'horario' ? (
+        <section className="clinic-section" aria-labelledby={`hrs-${resource.id}`}>
+          <h3 id={`hrs-${resource.id}`} className="panel-legend">
+            Horário
+          </h3>
+          <div className="week-mode" role="radiogroup" aria-label={`Horário de ${resource.name}`}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={follows}
+              disabled={busy}
+              className="week-mode-btn"
+              onClick={() =>
+                !follows &&
+                void run(async () => {
+                  await c.api.upsertResource(
+                    c.tenantId,
+                    {
+                      kind: 'professional',
+                      name: resource.name,
+                      active: resource.active,
+                      hoursMode: 'clinic',
+                    },
+                    { resourceId: resource.id, ...fo },
+                  )
+                  await c.onSaved()
+                }, 'Não foi possível mudar o horário.')
+              }
+            >
+              Igual ao da clínica
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!follows}
+              disabled={busy}
+              className="week-mode-btn"
+              onClick={() =>
+                follows &&
+                void run(async () => {
+                  // Começa de uma cópia do horário da clínica, para não ficar sem horário.
+                  if (windowsOf(c.snap, resource.id).length === 0) {
+                    await c.api.setWeeklyWindows(
+                      c.tenantId,
+                      resource.id,
+                      fromWeekDraft(clinicWeek),
+                      fo,
+                    )
+                  }
+                  await c.api.upsertResource(
+                    c.tenantId,
+                    {
+                      kind: 'professional',
+                      name: resource.name,
+                      active: resource.active,
+                      hoursMode: 'own',
+                    },
+                    { resourceId: resource.id, ...fo },
+                  )
+                  await c.onSaved()
+                }, 'Não foi possível mudar o horário.')
+              }
+            >
+              Horário próprio
+            </button>
+          </div>
+          {follows ? (
+            <p className="clinic-footnote">{describeWeek(clinicWeek)}</p>
+          ) : (
+            <>
+              <WeekEditor
+                value={ownDraft}
+                onChange={setOwnDraft}
+                label={`Horário de ${resource.name}`}
+              />
+              <div className="clinic-footer-actions">
+                <Button
+                  className="panel-btn panel-btn-primary"
+                  isDisabled={!dirty || busy}
+                  onPress={() =>
+                    void run(async () => {
+                      await c.api.setWeeklyWindows(
+                        c.tenantId,
+                        resource.id,
+                        fromWeekDraft(ownDraft),
+                        fo,
+                      )
+                      await c.onSaved()
+                    }, 'Não foi possível salvar o horário.')
+                  }
+                >
+                  {dirty ? 'Salvar horário' : 'Horário salvo'}
+                </Button>
+              </div>
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {tab === 'folgas' ? (
+        <BlocksSection
+          resource={resource}
+          title="Folgas e férias"
+          addLabel="Folga ou férias"
+          reasons={['folga', 'ferias', 'outro']}
+          initialReason="folga"
+          {...c}
+        />
+      ) : null}
       {error ? (
         <p className="clinic-form-error" role="alert">
           {error}
@@ -316,7 +372,11 @@ export function RoomExtras({ resource, ...c }: Common & { resource: ClinicResour
         <h3 id={`rsv-${resource.id}`} className="panel-legend">
           Serviços feitos aqui
         </h3>
-        <div className="block-form-chips" role="group" aria-label={`Serviços feitos em ${resource.name}`}>
+        <div
+          className="block-form-chips"
+          role="group"
+          aria-label={`Serviços feitos em ${resource.name}`}
+        >
           {services.map((s) => (
             <button
               key={s.id}
@@ -328,7 +388,11 @@ export function RoomExtras({ resource, ...c }: Common & { resource: ClinicResour
                 void run(async () => {
                   await c.api.upsertService(
                     c.tenantId,
-                    serviceBody(s, { roomRequirement: usesIt(s) ? { mode: 'none' } : { mode: 'resource', resourceId: resource.id } }),
+                    serviceBody(s, {
+                      roomRequirement: usesIt(s)
+                        ? { mode: 'none' }
+                        : { mode: 'resource', resourceId: resource.id },
+                    }),
                     { serviceId: s.id, ...fo },
                   )
                   await c.onSaved()
@@ -340,8 +404,8 @@ export function RoomExtras({ resource, ...c }: Common & { resource: ClinicResour
           ))}
         </div>
         <p className="clinic-footnote">
-          Marcar um serviço aqui troca a sala que ele pedia antes. Para aceitar várias salas, use «Qualquer sala livre»
-          dentro do serviço.
+          Marcar um serviço aqui troca a sala que ele pedia antes. Para aceitar várias salas, use
+          «Qualquer sala livre» dentro do serviço.
         </p>
       </section>
       <BlocksSection

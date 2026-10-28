@@ -54,7 +54,7 @@ describe('Horário da clínica', () => {
     const onSaved = vi.fn(async () => undefined)
     render(<ClinicHoursScreen tenantId="t" snap={snap()} api={a} generation={1} onSaved={onSaved} />)
     expect(screen.getByText('1 profissional segue este horário.')).toBeTruthy()
-    expect(screen.getByText('Bia')).toBeTruthy()
+    expect(screen.getAllByText('Bia').length).toBeGreaterThan(1)
     expect(screen.getByText('Seg 14:00–18:00')).toBeTruthy()
     fireEvent.click(screen.getByRole('switch', { name: 'Sábado: fechado' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar horário' }))
@@ -65,6 +65,43 @@ describe('Horário da clínica', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
   })
 
+  it('as bordas das faixas ajustam o horário de 15 em 15 min e liberam salvar', async () => {
+    const a = api()
+    render(<ClinicHoursScreen tenantId="t" snap={snap()} api={a} generation={1} onSaved={async () => undefined} />)
+    const closes = screen.getAllByRole('slider', { name: 'Segunda, fecha' })
+    fireEvent.keyDown(closes[0]!, { key: 'ArrowLeft' })
+    expect(screen.getAllByRole('slider', { name: 'Segunda, fecha' })[0]!.getAttribute('aria-valuetext')).toBe('17:45')
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar horário' }))
+    await waitFor(() => expect(a.setWeeklyWindows).toHaveBeenCalled())
+    const windows = (a.setWeeklyWindows as ReturnType<typeof vi.fn>).mock.calls[0]![2]
+    expect(windows).toContainEqual({ dayOfWeek: 1, startMinute: 480, endMinute: 1065 })
+  })
+
+  it('o painel do dia mostra quem trabalha e copia o dia para segunda a sexta', () => {
+    render(<ClinicHoursScreen tenantId="t" snap={snap()} api={api()} generation={1} onSaved={async () => undefined} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Seg' }))
+    expect(screen.getByText('14:00–18:00')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Sáb' }))
+    expect(screen.getByText('Fechado nesse dia.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar para segunda a sexta' }))
+    expect(screen.getByRole('button', { name: 'Salvar horário' })).toBeTruthy()
+  })
+
+  it('o calendário junta fechamentos da clínica e folgas das pessoas numa lista só', () => {
+    const s = snap()
+    const day = 86_400_000
+    const t0 = Date.now() + 5 * day
+    s.blocks = [
+      { id: 'b1', resourceId: '__clinic__', startsAt: t0, endsAt: t0 + day, reason: 'feriado' },
+      { id: 'b2', resourceId: 'p2', startsAt: t0 + 3 * day, endsAt: t0 + 4 * day, reason: 'folga' },
+    ] as unknown as ClinicConfigSnapshot['blocks']
+    render(<ClinicHoursScreen tenantId="t" snap={s} api={api()} generation={1} onSaved={async () => undefined} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Calendário' }))
+    expect(screen.getByText(/Clínica fechada · Feriado/)).toBeTruthy()
+    expect(screen.getByText(/Bia · Folga/)).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /^Remover/ })).toHaveLength(2)
+  })
+
   it('fechar a clínica mostra o impacto antes de salvar e cria o bloqueio no escopo da clínica', async () => {
     const a = api()
     ;(a.createBlock as ReturnType<typeof vi.fn>).mockImplementation(async (_t: string, body: { dryRun?: boolean }) =>
@@ -73,12 +110,13 @@ describe('Horário da clínica', () => {
         : { created: true, block: {}, affectedAppointments: [] },
     )
     render(<ClinicHoursScreen tenantId="t" snap={snap()} api={a} generation={1} onSaved={async () => undefined} />)
-    fireEvent.click(screen.getByRole('button', { name: '+ Fechar a clínica' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Calendário' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Folga, férias ou fechamento' }))
     const [from, to] = Array.from(document.querySelectorAll('input[type="date"]')) as HTMLInputElement[]
     fireEvent.change(from!, { target: { value: '2026-11-15' } })
     fireEvent.change(to!, { target: { value: '2026-11-15' } })
     expect(await screen.findByText('1 horário marcado nesse período')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Fechar a clínica' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
     await waitFor(() =>
       expect(a.createBlock).toHaveBeenLastCalledWith(
         't',
@@ -119,6 +157,7 @@ describe('Ficha da profissional', () => {
     render(
       <ProfessionalExtras resource={s.resources[0]!} tenantId="t" snap={s} api={a} generation={1} onSaved={async () => undefined} />,
     )
+    fireEvent.click(screen.getByRole('tab', { name: 'Horário' }))
     fireEvent.click(screen.getByRole('radio', { name: 'Horário próprio' }))
     await waitFor(() => expect(a.upsertResource).toHaveBeenCalled())
     const [, scope, windows] = (a.setWeeklyWindows as ReturnType<typeof vi.fn>).mock.calls[0]!

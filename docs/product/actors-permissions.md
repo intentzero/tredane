@@ -28,8 +28,8 @@
 | Ver agenda da clínica | — | ✓ | ✓ | — | — |
 | Criar, cancelar ou reagendar horário | solicitar via WhatsApp | ✓ | ✓ | — | — |
 | Alterar disponibilidade, serviços, profissionais, salas/equipamentos e bloqueios (DEC-042) | — | — | ✓ | — | — |
-| Sinalizar, ocultar e pausar automações (DEC-062, P-1) | — | ✓ | ✓ | — | — |
-| Retomar automações, desbloquear e marcar falso positivo (DEC-062, P-1) | — | — | ✓ | — | — |
+| Sinalizar, ocultar e pausar automações (DEC-067, P-1) | — | ✓ | ✓ | — | — |
+| Retomar automações, desbloquear e marcar falso positivo (DEC-067, P-1) | — | — | ✓ | — | — |
 | Convidar e remover attendants do próprio tenant | — | — | ✓ | — | ✓ |
 | Atribuir, promover, substituir ou remover owners | — | — | — | — | ✓ |
 | Conectar ou trocar o número de WhatsApp (Embedded Signup, DEC-009, DEC-042) | — | — | ✓ | — | acompanhar o estado |

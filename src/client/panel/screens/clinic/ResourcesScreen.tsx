@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Button, Checkbox, Input, Label, TextField } from 'react-aria-components'
+import { Button, Input, Label, TextField } from 'react-aria-components'
+import { ClinicCheck } from './ClinicCheck'
 import { PanelSelect } from '../../ui/PanelSelect'
 import type { ClinicConfigSnapshot, PanelApi, ResourceFutureAppointment } from '../../api'
 import { PanelApiError } from '../../api'
@@ -33,7 +34,7 @@ export function ResourcesList({ tenantId, snap, initialTab = 'professional' }: L
 
   return (
     <div className="clinic-stack">
-      <div className="clinic-toolbar">
+      <div className="clinic-toolbar clinic-desktop-hide">
         <Button
           className="panel-btn panel-btn-ghost"
           onPress={() =>
@@ -43,7 +44,7 @@ export function ResourcesList({ tenantId, snap, initialTab = 'professional' }: L
           Voltar
         </Button>
       </div>
-      <div className="clinic-tabs" role="group" aria-label="Tipo de recurso">
+      <div className="clinic-tabs clinic-desktop-hide" role="group" aria-label="Tipo de recurso">
         <Button
           className={tab === 'professional' ? 'clinic-tab clinic-tab-active' : 'clinic-tab'}
           aria-pressed={tab === 'professional'}
@@ -59,13 +60,13 @@ export function ResourcesList({ tenantId, snap, initialTab = 'professional' }: L
           Salas e equipamentos
         </Button>
       </div>
-      <Checkbox
+      <ClinicCheck
         className="clinic-check"
         isSelected={showInactive}
         onChange={setShowInactive}
       >
         {`Mostrar inativos${inactiveCount > 0 ? ` (${inactiveCount})` : ''}`}
-      </Checkbox>
+      </ClinicCheck>
       <ul className="clinic-nav-list">
         {items.map((r) => (
           <li key={r.id}>

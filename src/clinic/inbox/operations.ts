@@ -41,6 +41,9 @@ import { validateTemplateSend } from './templates'
 import { messagingWindowForConversation } from './window'
 import { contactHasPendingPix } from './pending-pix'
 import { getWhatsappChannel } from '../whatsapp/channel'
+import { advanceToInServiceIfNew } from '../pipeline/auto-stage'
+import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
+import { OPPORTUNITY_STAGE_LABELS } from '../constants'
 import type {
   AssignConversationInput,
   BlockContactInput,
@@ -129,6 +132,17 @@ export function getConversationDetailOp(
     messagesNextBefore: page.nextBefore,
     messagingWindow,
     contactHasPendingPix: contactHasPendingPix(db, meta.tenantId, item.contactId, clock.nowMs()),
+    opportunity: (() => {
+      const opp = findOpenOpportunityForConversation(db, meta.tenantId, input.conversationId)
+      return opp
+        ? {
+            id: opp.id,
+            stage: opp.stage,
+            label: OPPORTUNITY_STAGE_LABELS[opp.stage],
+            updatedAt: opp.updatedAt,
+          }
+        : null
+    })(),
   }
 }
 
@@ -267,10 +281,27 @@ export function assignConversationOp(
       clock,
     )
 
+    // DEC-062: assumir a conversa tira a oportunidade de «Novo contato» (transferir não altera).
+    const stageOutbox =
+      input.assigneeClerkUserId && input.assigneeClerkUserId === input.actorClerkUserId
+        ? advanceToInServiceIfNew(
+            db,
+            {
+              tenantId: meta.tenantId,
+              conversationId: input.conversationId,
+              actorClerkUserId: input.actorClerkUserId,
+              actorDisplayName: input.actorDisplayName,
+              now,
+              reason: 'assumed',
+            },
+            clock,
+          )
+        : null
+
     const item = getConversationWithContact(db, meta.tenantId, input.conversationId)!
     return {
       value: { conversation: item, systemMessage, versionMatched },
-      outbox: [outbox],
+      outbox: stageOutbox ? [outbox, stageOutbox] : [outbox],
     }
   })
 }
@@ -826,6 +857,20 @@ export function sendOutboundMessageOp(
       )
     }
 
+    // DEC-062: a primeira resposta humana tira a oportunidade de «Novo contato».
+    const stageOutbox = advanceToInServiceIfNew(
+      db,
+      {
+        tenantId: meta.tenantId,
+        conversationId: input.conversationId,
+        actorClerkUserId: input.authorClerkUserId,
+        actorDisplayName: input.authorDisplayName,
+        now,
+        reason: 'first_reply',
+      },
+      clock,
+    )
+
     const item = getConversationWithContact(db, meta.tenantId, input.conversationId)!
     const outboundFresh = findOutboundByClientRequestId(
       db,
@@ -839,7 +884,7 @@ export function sendOutboundMessageOp(
         outbound: outboundFresh,
         duplicate: false,
       },
-      outbox: [createdOutbox, sendOutbox],
+      outbox: stageOutbox ? [createdOutbox, sendOutbox, stageOutbox] : [createdOutbox, sendOutbox],
     }
   })
 }

@@ -1,6 +1,6 @@
 # Proteção da equipe: imagens, sinalização e pausa das automações (P1)
 
-**Estado:** especificação de planejamento do [épico #182](https://github.com/intentzero/tredane/issues/182), entrega [#183](https://github.com/intentzero/tredane/issues/183). Decisão-fonte: **DEC-062** ([decisions.md](decisions.md)). Nada aqui declara implementação, liberação ou ativação; código existente não aprova política. Apenas dados fictícios até os gates #18/#45.
+**Estado:** especificação de planejamento do [épico #182](https://github.com/intentzero/tredane/issues/182), entrega [#183](https://github.com/intentzero/tredane/issues/183). Decisão-fonte: **DEC-067** ([decisions.md](decisions.md)). Nada aqui declara implementação, liberação ou ativação; código existente não aprova política. Apenas dados fictícios até os gates #18/#45.
 
 ## 1. Fixo (não depende do Paulo)
 
@@ -12,8 +12,8 @@
 
 ## 2. Reconciliação com DEC-046 e o bloqueio existente
 
-- DEC-046(c) (24/10/2026) continua valendo: em mensagem ofensiva a IA só sugere aviso + resposta cordial; **não bloqueia** contato. DEC-062 não altera isso; acrescenta ações **humanas** (sinalizar, pausar) e efeito de pausa nas automações.
-- O bloqueio de contato já descrito em `BlockContactDialog.tsx` (preserva histórico, compromissos e Pix) é base existente; sua política é registrada pela primeira vez em DEC-062. Bloqueio continua decisão humana, nunca efeito automático de detector.
+- DEC-046(c) (24/10/2026) continua valendo: em mensagem ofensiva a IA só sugere aviso + resposta cordial; **não bloqueia** contato. DEC-067 não altera isso; acrescenta ações **humanas** (sinalizar, pausar) e efeito de pausa nas automações.
+- O bloqueio de contato já descrito em `BlockContactDialog.tsx` (preserva histórico, compromissos e Pix) é base existente; sua política é registrada pela primeira vez em DEC-067. Bloqueio continua decisão humana, nunca efeito automático de detector.
 
 ## 3. Imagens na conversa
 

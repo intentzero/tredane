@@ -65,7 +65,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Estados e eventos propostos](product/states.md)
 - [Cenários de aceite](product/acceptance.md)
 - [Fronteira de dados entre clínicas](product/tenant-boundaries.md)
-- [Proteção da equipe (DEC-062, decidida)](product/protecao-equipe.md): imagens ocultas sob demanda e fora da IA, sinalização humana, pausa das automações; P-1–P-3 decididos em 28/10/2026.
+- [Proteção da equipe (DEC-067, decidida)](product/protecao-equipe.md): imagens ocultas sob demanda e fora da IA, sinalização humana, pausa das automações; P-1–P-3 decididos em 28/10/2026.
 - [Especificação de UI/UX do painel](product/ux-ui.md) (telas, estados visíveis e critérios de UX)
 - [Mocks e guia de implementação da interface](design/README.md): telas mobile M-01 a M-34, componentes, tokens e previews
 - [Landing page do piloto](product/landing.md) (DEC-044): fora do fluxo piloto do painel; site Astro estático em `site/`, sem publicação até fechar domínio, contato e política de privacidade
@@ -99,7 +99,7 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Etapas iniciais propostas para o pipeline:** novo contato, em atendimento, horário proposto, agendado, concluído e perdido. As etapas devem ser configuráveis por clínica após validar o fluxo piloto; até lá, evitar automações dependentes de nomes fixos.
 
-**Papel da IA no MVP:** sugerir respostas para revisão por uma pessoa e resumir a conversa para a equipe. Mensagens sugeridas pela IA só são enviadas após ação explícita do atendente ou do responsável. Respostas automáticas e ações autônomas ficam para uma etapa posterior, com regras de confiança, limites e transferência para humano.
+**Papel da IA no MVP:** sugerir respostas para revisão por uma pessoa e resumir a conversa para a equipe. Mensagens sugeridas pela IA só são enviadas após ação explícita do atendente ou do responsável. Respostas automáticas e ações autônomas ficam para uma etapa posterior, com regras de confiança, limites e transferência para humano. **Exceção — agendamento confirmado pela cliente (DEC-060, revisão Decidida em [DEC-061](product/decisions.md)):** a marcação automática só ocorre quando a própria cliente toca no botão de confirmação do WhatsApp numa proposta montada e versionada pelo backend (válida 30 min); texto livre nunca marca; serviço com sinal segue o Pix sem reserva antes do pagamento (DEC-047); alterar, cancelar e remarcar continuam humanos; o clique não é consentimento LGPD; `AI_AUTOBOOK` desligado por padrão. Piloto: alerta de comunicação pendente aos 5 min e contenção retirada após 20 marcações revistas sem nenhuma indevida. Limites de abuso e quotas: **Em aberto** (Paulo).
 
 ## Requisitos de aceite
 

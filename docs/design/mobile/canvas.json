@@ -24,7 +24,7 @@
       "y": 0,
       "w": 390,
       "h": 844,
-      "title": "M-02 Conversa + sugestão da IA",
+      "title": "M-02 Conversa + sugestão da IA (Enviar em 1 toque)",
       "is_interactive": true,
       "radius": 32
     },
@@ -380,6 +380,38 @@
       "h": 844,
       "title": "M-43 Rascunho da IA em cartão",
       "radius": 32
+    },
+    "ConversaSemResponsavel.dc.html": {
+      "x": 0,
+      "y": 11580,
+      "w": 390,
+      "h": 844,
+      "title": "M-45 Conversa nova, sem responsável (Assumir e responder)",
+      "radius": 32
+    },
+    "ConversaAguardandoPix.dc.html": {
+      "x": 470,
+      "y": 11580,
+      "w": 390,
+      "h": 844,
+      "title": "M-46 Conversa com Pix do sinal pendente",
+      "radius": 32
+    },
+    "PixDetalhes.dc.html": {
+      "x": 940,
+      "y": 11580,
+      "w": 390,
+      "h": 844,
+      "title": "M-47 Folha do Pix pendente",
+      "radius": 32
+    },
+    "ConversaSugestaoLonga.dc.html": {
+      "x": 1410,
+      "y": 11580,
+      "w": 390,
+      "h": 844,
+      "title": "M-48 Sugestão da IA longa (texto completo, rolagem interna)",
+      "radius": 32
     }
   },
   "order": [
@@ -425,7 +457,11 @@
     "AcoesConversa.dc.html",
     "BloquearContato.dc.html",
     "ContatoBloqueado.dc.html",
-    "RascunhoCartao.dc.html"
+    "RascunhoCartao.dc.html",
+    "ConversaSemResponsavel.dc.html",
+    "ConversaAguardandoPix.dc.html",
+    "PixDetalhes.dc.html",
+    "ConversaSugestaoLonga.dc.html"
   ],
   "notes": {
     "row1": {
@@ -495,6 +531,13 @@
       "x": 0,
       "y": 10316,
       "text": "Ações da conversa, bloqueio e rascunho da IA (Proposto, 27/10/2026)",
+      "kind": "title1",
+      "maxW": 1800
+    },
+    "row11": {
+      "x": 0,
+      "y": 11320,
+      "text": "Conversa: estados e Pix pendente (Proposto, 28/10/2026; DEC-061 a DEC-065)",
       "kind": "title1",
       "maxW": 1800
     }
