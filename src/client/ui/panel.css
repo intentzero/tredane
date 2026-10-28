@@ -5511,7 +5511,8 @@
   cursor: pointer;
 }
 
-.week-mode-btn[aria-checked='true'] {
+.week-mode-btn[aria-checked='true'],
+.week-mode-btn[aria-selected='true'] {
   background: var(--color-surface-card);
   color: var(--color-text-primary);
   font-weight: var(--font-weight-semibold);
@@ -5921,4 +5922,8 @@
     flex-direction: column;
     grid-row: span 2;
   }
+}
+
+.week-mode {
+  max-width: 360px;
 }
