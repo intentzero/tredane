@@ -54,6 +54,10 @@ export type ContactSummary = {
   waId: string
   displayName: string | null
   createdAt: number
+  /** Bloqueado pela equipe (Proposto): mensagens novas não entram no painel. */
+  blockedAt: number | null
+  blockedByDisplayName: string | null
+  blockedReason: string | null
 }
 
 export type ConversationListItem = ConversationRow & {
@@ -116,6 +120,20 @@ export type MarkReadInput = {
 
 export type CloseConversationInput = {
   conversationId: string
+  actorClerkUserId: string
+  actorDisplayName: string
+}
+
+export type BlockContactInput = {
+  contactId: string
+  actorClerkUserId: string
+  actorDisplayName: string
+  /** Motivo opcional, só a equipe vê. */
+  reason?: string | null
+}
+
+export type UnblockContactInput = {
+  contactId: string
   actorClerkUserId: string
   actorDisplayName: string
 }

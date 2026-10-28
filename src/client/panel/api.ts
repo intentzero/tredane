@@ -1339,6 +1339,49 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as InboxAssignResponse
     },
 
+    async getTeamMembers(tenantId: string, opts?: FetchOpts): Promise<{ members: TeamMemberLite[] }> {
+      const res = await authFetch(`/api/tenants/${encodeURIComponent(tenantId)}/team`, {}, opts)
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const data = (await res.json()) as { members?: TeamMemberLite[] }
+      return { members: data.members ?? [] }
+    },
+
+    async blockInboxContact(
+      tenantId: string,
+      contactId: string,
+      body: { reason?: string | null },
+      opts?: FetchOpts,
+    ): Promise<{ contact: InboxContact; closedConversationIds: string[] }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/contacts/${encodeURIComponent(contactId)}/block`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { contact: InboxContact; closedConversationIds: string[] }
+    },
+
+    async unblockInboxContact(
+      tenantId: string,
+      contactId: string,
+      opts?: FetchOpts,
+    ): Promise<{ contact: InboxContact }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/contacts/${encodeURIComponent(contactId)}/unblock`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { contact: InboxContact }
+    },
+
     async sendInboxMessage(
       tenantId: string,
       conversationId: string,
@@ -1591,6 +1634,12 @@ export function createPanelApi(getToken: TokenGetter) {
   }
 }
 
+export type TeamMemberLite = {
+  clerkUserId: string
+  role: 'owner' | 'attendant' | string
+  status: string
+}
+
 export type InboxFilter = 'all' | 'new' | 'mine' | 'unassigned' | 'closed'
 
 export type InboxContact = {
@@ -1598,6 +1647,9 @@ export type InboxContact = {
   waId: string
   displayName: string | null
   createdAt: number
+  blockedAt?: number | null
+  blockedByDisplayName?: string | null
+  blockedReason?: string | null
 }
 
 export type InboxConversation = {

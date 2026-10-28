@@ -130,6 +130,8 @@ function createDoGateway(env: WorkerBindings, tenantId: string): InboxGateway {
     assign: (caller, input) => stub.assignInboxConversation(caller, input),
     markRead: (caller, input) => stub.markInboxConversationRead(caller, input),
     close: (caller, input) => stub.closeInboxConversation(caller, input),
+    blockContact: (caller, input) => stub.blockInboxContact(caller, input),
+    unblockContact: (caller, input) => stub.unblockInboxContact(caller, input),
     sendOutbound: (caller, input) => stub.sendInboxOutbound(caller, input),
     seedDemo: (caller, opts) => stub.seedInboxDemo(caller, opts),
   }
@@ -364,6 +366,58 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
           conversation: serializeConversation(result.conversation),
           systemMessage: serializeMessage(result.systemMessage),
         })
+      } catch (err) {
+        return inboxErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.post(
+    '/api/tenants/:tenantId/inbox/contacts/:contactId/block',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.inbox.reply')
+        const tenantId = c.req.param('tenantId')
+        const contactId = c.req.param('contactId')
+        const body = (await c.req.json().catch(() => ({}))) as { reason?: unknown }
+        const reason = typeof body.reason === 'string' ? body.reason : null
+        const gw = await resolveGateway(c.env, tenantId, opts)
+        const result = await gw.blockContact(workerCaller(tenantId, principal.clerkUserId), {
+          contactId,
+          actorClerkUserId: principal.clerkUserId,
+          actorDisplayName: displayNameFromAuth(principal.clerkUserId, ctx.role),
+          reason,
+        })
+        return c.json({
+          contact: serializeContact(result.contact),
+          closedConversationIds: result.closedConversationIds,
+        })
+      } catch (err) {
+        return inboxErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.post(
+    '/api/tenants/:tenantId/inbox/contacts/:contactId/unblock',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.inbox.reply')
+        const tenantId = c.req.param('tenantId')
+        const contactId = c.req.param('contactId')
+        const gw = await resolveGateway(c.env, tenantId, opts)
+        const result = await gw.unblockContact(workerCaller(tenantId, principal.clerkUserId), {
+          contactId,
+          actorClerkUserId: principal.clerkUserId,
+          actorDisplayName: displayNameFromAuth(principal.clerkUserId, ctx.role),
+        })
+        return c.json({ contact: serializeContact(result.contact) })
       } catch (err) {
         return inboxErrorResponse(c, err)
       }

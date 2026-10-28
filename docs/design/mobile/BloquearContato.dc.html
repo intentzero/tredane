@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Bloquear contato — celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button,textarea{font:inherit}
+button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #F5F4EF; color: #142625; font-family: Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
+<header style="background: #FFFFFF; border-bottom: 1px solid #E1E3E0; display: flex; align-items: center; gap: 4px; padding: 8px 4px"><a href="Main.dc.html" aria-label="Voltar para Conversas" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #142625"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></a><a href="Contato.dc.html" style="flex: 1; min-width: 0; display: flex; flex-direction: column; color: #142625; text-decoration: none"><span style="font-size: 18px; font-weight: 600">Juliana Prado</span><span style="font-size: 14px; color: #566160">Em atendimento · toque para detalhes</span></a><a href="Agendar.dc.html" aria-label="Agendar horário" style="flex: none; min-height: 44px; display: flex; align-items: center; padding: 0 12px; border: 1px solid #7A8584; border-radius: 999px; background: #FFFFFF; color: #142625; font-size: 14px; font-weight: 600; text-decoration: none">Agendar</a><button type="button" aria-label="Mais ações da conversa" style="width: 44px; height: 44px; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #142625"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button></header>
+<ol aria-label="Histórico" style="list-style: none; margin: 0; padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 12px"><li style="align-self: flex-start; max-width: 82%; background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 16px 16px 16px 4px; padding: 12px">Pode ser sexta à tarde?</li><li style="align-self: flex-end; max-width: 82%; background: #E7F1F1; border-radius: 16px 16px 4px 16px; padding: 12px">Claro! Sexta tenho 14:00 e 15:30.</li></ol>
+<div style="position: absolute; inset: 0; background: #142625; opacity: 0.4"></div>
+<div role="alertdialog" aria-labelledby="bloq-t" style="position: absolute; left: 16px; right: 16px; top: 120px; box-sizing: border-box; background: #FFFFFF; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 999px; background: #FDF1F0; color: #B42318; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m4.9 4.9 14.2 14.2"></path></svg></span>
+<h2 id="bloq-t" style="margin: 0; font-size: 22px; font-weight: 600">Bloquear Juliana Prado?</h2>
+<ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: #424B4A"><li>Mensagens novas deste número deixam de aparecer no painel.</li><li>Ninguém da clínica consegue responder até desbloquear.</li><li>A conversa é encerrada. O histórico e os horários marcados continuam.</li></ul>
+<fieldset style="margin: 0; padding: 0; border: 0"><legend style="padding: 0 0 4px; font-size: 12px; font-weight: 500; color: #424B4A">Motivo (opcional, só a equipe vê)</legend>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px"><input type="radio" name="motivo" style="width: 20px; height: 20px; accent-color: #0E5A5C">Mensagens ofensivas</label>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px"><input type="radio" name="motivo" checked style="width: 20px; height: 20px; accent-color: #0E5A5C">Spam ou propaganda</label>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px"><input type="radio" name="motivo" style="width: 20px; height: 20px; accent-color: #0E5A5C">Outro motivo</label></fieldset>
+<button type="button" style="height: 48px; border: 0; border-radius: 12px; background: #B42318; color: #FFFFFF; font-size: 16px; font-weight: 600; cursor: pointer">Bloquear contato</button>
+<button type="button" style="height: 48px; border: 1px solid #7A8584; border-radius: 12px; background: #FFFFFF; color: #142625; font-size: 16px; font-weight: 600; cursor: pointer">Cancelar</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

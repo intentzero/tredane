@@ -14,6 +14,9 @@ export function serializeContact(c: ContactSummary) {
     waId: c.waId,
     displayName: c.displayName,
     createdAt: c.createdAt,
+    blockedAt: c.blockedAt,
+    blockedByDisplayName: c.blockedByDisplayName,
+    blockedReason: c.blockedReason,
   }
 }
 

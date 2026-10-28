@@ -11,8 +11,8 @@ export function formatBRL(cents: number): string {
 
 /** Exemplos de boas mensagens (estilo WhatsApp, pt-BR). Fictícios. */
 const REPLY_EXAMPLES = [
-  '[cliente] Oi, quanto custa a limpeza de pele?\n{"mensagem": "Oi, Carla! A limpeza de pele profunda custa R$ 180,00 e dura 1 hora. Quer que eu veja um horário pra você? 😊", "notas": ""}',
-  '[cliente] Quero fazer massagem\n[clínica] Claro! Qual dia fica melhor?\n[cliente] Tem sexta de manhã?\n{"mensagem": "Tem sim! Na sexta (31/10) tenho 9:00, 10:30 e 11:00 para a massagem. Algum desses fica bom pra você?", "notas": ""}',
+  '[cliente] Oi, quanto custa a limpeza de pele?\n{"mensagem": "Oi, Carla!\\n\\nA limpeza de pele profunda custa R$ 180,00 e dura 1 hora.\\n\\nQuer que eu veja um horário pra você? 😊", "notas": ""}',
+  '[cliente] Quero fazer massagem\n[clínica] Claro! Qual dia fica melhor?\n[cliente] Tem sexta de manhã?\n{"mensagem": "Tem sim!\\n\\nNa sexta (31/10) tenho 9:00, 10:30 e 11:00 para a massagem. Algum desses fica bom pra você?", "notas": ""}',
   '[cliente] Preciso desmarcar amanhã, tive um imprevisto\n{"mensagem": "Sem problema, Joana! Quer que eu já veja outro dia pra remarcar? Tenho quinta às 15:00 ou sexta às 10:00.", "notas": "Cancelar o horário de amanhã no sistema depois de ela confirmar."}',
 ]
 
@@ -40,7 +40,8 @@ export function buildSystemPrompt(input: AiGenerateInput): string {
   base.push(
     'Tarefa: escreva a próxima mensagem da clínica, respondendo diretamente à ÚLTIMA mensagem da cliente, levando em conta toda a conversa.',
     'Use TODO o histórico: o que a cliente já disse (serviço, dia, período, nome) vale. Nunca pergunte de novo algo que já foi dito; se ela já escolheu o serviço, ofereça os horários desse serviço.',
-    'Estilo WhatsApp: curto (1 a 3 frases, até ~300 caracteres), simpático e direto, no máximo um emoji. Trate a cliente pelo primeiro nome quando souber. Sem assinatura.',
+    'Estilo WhatsApp: curto (até ~300 caracteres, no máximo 3 parágrafos curtos), simpático e direto, no máximo um emoji. Trate a cliente pelo primeiro nome quando souber. Sem assinatura.',
+    'Formatação: separe os parágrafos com uma linha em branco (\\n\\n dentro do JSON): saudação, resposta, pergunta final. Sem frases de preenchimento («a equipe confirma a disponibilidade pra você», «fico à disposição»). Cada horário oferecido cabe na mesma frase, separado por vírgula.',
     'Horários: quando a cliente perguntar por disponibilidade, ofereça 2 ou 3 horários REAIS da lista «Horários livres», no dia e período que ela pediu (manhã = antes das 12:00, tarde = 12:00 às 18:00, noite = depois das 18:00), e pergunte qual prefere. Use as datas relativas à data de hoje informada. Nunca invente horário fora da lista; se não houver horário no período pedido, diga isso e ofereça a opção livre mais próxima.',
     'Nunca diga «vou verificar», «já te passo» ou «só um instante»: os horários livres reais estão abaixo, use-os agora.',
     'A mensagem é texto puro de WhatsApp: sem markdown (nada de **, #, listas com -), sem títulos como «Sugestão de resposta», sem notas para a atendente.',

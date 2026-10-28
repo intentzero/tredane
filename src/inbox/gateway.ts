@@ -8,6 +8,7 @@ import {
 } from '../clinic'
 import type {
   AssignConversationInput,
+  BlockContactInput,
   CloseConversationInput,
   ConversationDetail,
   ConversationListItem,
@@ -17,6 +18,7 @@ import type {
   MessageRow,
   OutboundMessageRow,
   SendOutboundInput,
+  UnblockContactInput,
 } from '../clinic/inbox'
 import { createSyntheticMetaAdapter } from '../whatsapp/meta'
 import { listPendingOutbox, toEventEnvelope } from '../clinic/outbox'
@@ -58,6 +60,14 @@ export type InboxGateway = {
     caller: ClinicCaller,
     input: CloseConversationInput,
   ): Promise<{ conversation: ConversationListItem; systemMessage: MessageRow }>
+  blockContact(
+    caller: ClinicCaller,
+    input: BlockContactInput,
+  ): Promise<{ contact: ConversationListItem['contact']; closedConversationIds: string[] }>
+  unblockContact(
+    caller: ClinicCaller,
+    input: UnblockContactInput,
+  ): Promise<{ contact: ConversationListItem['contact'] }>
   sendOutbound(
     caller: ClinicCaller,
     input: SendOutboundInput,
@@ -165,6 +175,12 @@ export function createMemoryInboxGateway(db: ClinicDb, clock: Clock): InboxGatew
     },
     async close(caller, input) {
       return clinicInbox.closeConversationOp(db, caller, input, clock).value
+    },
+    async blockContact(caller, input) {
+      return clinicInbox.blockContactOp(db, caller, input, clock).value
+    },
+    async unblockContact(caller, input) {
+      return clinicInbox.unblockContactOp(db, caller, input, clock).value
     },
     async sendOutbound(caller, input) {
       const result = clinicInbox.sendOutboundMessageOp(db, caller, input, clock)
