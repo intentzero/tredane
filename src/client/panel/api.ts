@@ -1786,6 +1786,8 @@ export type InboxConversationDetail = InboxConversation & {
   messagingWindow: MessagingWindow
   /** Contato tem Pix pendente (o bloqueio não cancela o Pix). */
   contactHasPendingPix?: boolean
+  /** Oportunidade aberta da conversa (DEC-061); `null` ou ausente sem oportunidade. */
+  opportunity?: { id: string; stage: string; label: string; updatedAt: number } | null
 }
 
 export type WhatsappTemplateItem = {
