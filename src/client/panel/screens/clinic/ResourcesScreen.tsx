@@ -33,7 +33,7 @@ export function ResourcesList({ tenantId, snap, initialTab = 'professional' }: L
 
   return (
     <div className="clinic-stack">
-      <div className="clinic-toolbar">
+      <div className="clinic-toolbar clinic-desktop-hide">
         <Button
           className="panel-btn panel-btn-ghost"
           onPress={() =>
@@ -43,7 +43,7 @@ export function ResourcesList({ tenantId, snap, initialTab = 'professional' }: L
           Voltar
         </Button>
       </div>
-      <div className="clinic-tabs" role="group" aria-label="Tipo de recurso">
+      <div className="clinic-tabs clinic-desktop-hide" role="group" aria-label="Tipo de recurso">
         <Button
           className={tab === 'professional' ? 'clinic-tab clinic-tab-active' : 'clinic-tab'}
           aria-pressed={tab === 'professional'}
