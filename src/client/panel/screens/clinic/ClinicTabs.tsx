@@ -30,14 +30,14 @@ export function ClinicTabs({ tenantId, section, entityId }: Props) {
   })
   if (!current) return null
   return (
-    <div className="clinic-tabs" role="tablist" aria-label="Áreas da clínica">
+    <div className="clinic-topnav" role="tablist" aria-label="Áreas da clínica">
       {TABS.map((t) => (
         <button
           key={t.id}
           type="button"
           role="tab"
           aria-selected={t.id === current.id}
-          className="clinic-tab"
+          className="clinic-topnav-tab"
           onClick={() =>
             navigatePanel({
               kind: 'area',

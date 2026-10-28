@@ -5727,10 +5727,6 @@
   border-radius: var(--radius-pill);
 }
 
-.clinic-tabs-pad {
-  margin-bottom: var(--space-3);
-}
-
 .hub-week {
   display: flex;
   align-items: center;
@@ -5785,19 +5781,19 @@
 }
 
 /* Desktop da Clínica (≥ 1280 px): abas no topo e Horário em duas colunas. */
-.clinic-tabs {
+.clinic-topnav {
   display: none;
 }
 
 @media (min-width: 1280px) {
-  .clinic-tabs {
+  .clinic-topnav {
     display: flex;
     gap: var(--space-1);
     border-bottom: var(--size-border-width) solid var(--color-border-subtle, #e1e3e0);
     margin-bottom: var(--space-4);
   }
 
-  .clinic-tab {
+  .clinic-topnav-tab {
     min-height: 48px;
     padding: 0 var(--space-4);
     border: 0;
@@ -5808,12 +5804,20 @@
     cursor: pointer;
   }
 
-  .clinic-tab[aria-selected='true'] {
+  .clinic-topnav-tab[aria-selected='true'] {
     border-bottom-color: var(--color-primary-base);
     color: var(--color-primary-ink);
     font-weight: var(--font-weight-semibold);
   }
+}
 
+@media (min-width: 1280px) {
+  .clinic-desktop-hide {
+    display: none;
+  }
+}
+
+@container (min-width: 900px) {
   .hours-split {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 360px;
@@ -5897,7 +5901,7 @@
   display: none;
 }
 
-@media (min-width: 1280px) {
+@container (min-width: 900px) {
   .hours-day {
     display: flex;
     flex-direction: column;
@@ -5926,4 +5930,8 @@
 
 .week-mode {
   max-width: 360px;
+}
+
+.hours-screen {
+  container-type: inline-size;
 }
