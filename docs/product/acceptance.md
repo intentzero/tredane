@@ -238,10 +238,10 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 
 **Dado** duas clínicas sintéticas A e B, duas sessões autorizadas de A, e o harness MVP-31; **quando** se executa a matriz requisito/critério→issue→teste→evidência ([evidence-matrix.md](evidence-matrix.md)); **então** cada AC aplicável tem teste, evidência documental ou gate humano explícito (Confirmado / Proposto / Em aberto / Fora do MVP), cobrindo WhatsApp→atendimento→Acompanhamento→agenda com e sem sinal, IA assistiva, suporte (já coberto em AC-19–35), exclusão e falhas (concorrência, pagamento tardio/duplicado, estorno falhado, envio incerto, reconexão/hibernação). **Dado** checklist go/no-go; **então** o veredicto permanece **NO-GO** até autorização explícita de produto e gates em [pilot-gates.md](pilot-gates.md) — **sem** reivindicar piloto activado. **Requisitos:** aceite do épico #14; implementação [f6-e2e-validation.md](../implementation/f6-e2e-validation.md). **Em aberto:** aparelhos reais 360 px+ (UX-08 / Q-UX-01); Clerk/Meta/LGPD/catálogo/jurídico.
 
-### AC-55 — Proposta de agendamento por botão (Proposto, DEC-061)
+### AC-55 — Proposta de agendamento por botão (Decidido, DEC-061)
 
 **Dado** a flag `AI_AUTOBOOK` ativa numa clínica sintética e uma cliente fictícia que pede «limpeza de pele amanhã às 15h»; **quando** o backend prepara a proposta; **então** a mensagem enviada tem texto fixo, id e versão, os detalhes de REQ-083 e os botões **Confirmar** / **Alterar detalhes**; nenhum compromisso existe ainda. **Dado** mudança de serviço ou horário; **então** nasce nova versão e o clique na anterior não marca. **Dado** 30 min sem clique; **então** a proposta expira. **Requisitos:** REQ-083; JRN-17.
 
-### AC-56 — Marcação só pelo clique (Proposto, DEC-061)
+### AC-56 — Marcação só pelo clique (Decidido, DEC-061)
 
 **Dado** proposta válida; **quando** a cliente responde «sim» ou 👍 em texto; **então** nada é marcado. **Quando** toca em **Confirmar**; **então** um único compromisso é criado com actor `system:ai-autobook`, auditoria `appointment.ai_booked` (proposta, versão, evento) e «Marcado pela IA»; clique repetido, de outro contato/conversa/tenant ou após expiração não cria compromisso. Horário ocupado → «Horário já não está livre…». Serviço com sinal → fluxo Pix, sem reserva antes do pagamento. **Alterar detalhes** → atendente, alerta após 5 min sem resposta. Com a flag desligada, nenhum envio nem marcação. **Requisitos:** REQ-084; JRN-17. **Em aberto:** limites de abuso/quotas (Paulo).

@@ -2,7 +2,7 @@
 
 **Estado:** plano de engenharia **proposto** (28/10/2026). Não altera decisões de produto. Arquitetura: [conversational-hybrid-model.md](../architecture/conversational-hybrid-model.md). Decisão-alvo: DEC-060 ([PR #155](https://github.com/intentzero/tredane/pull/155)). Ordem: 10 passos da [contra-análise](https://tredane-contra-analise-da-arquitetura-xu22.pages.grok.bot/).
 
-**Reconciliação SEG-IA (28/10/2026):** a direção do [épico #171](https://github.com/intentzero/tredane/issues/171) — confirmação **só pelo botão do WhatsApp** numa proposta montada e versionada pelo backend — está formalizada em [DEC-061](../product/decisions.md) (**Proposto, aguarda Curicaca e Paulo**). Texto livre deixa de marcar. Critérios marcados **[substituído por Sx]** abaixo não devem ser implementados como estão; os restantes mantêm-se. Nenhuma tarefa é fechada por esta documentação.
+**Reconciliação SEG-IA (28/10/2026):** a direção do [épico #171](https://github.com/intentzero/tredane/issues/171) — confirmação **só pelo botão do WhatsApp** numa proposta montada e versionada pelo backend — está formalizada em [DEC-061](../product/decisions.md) (**Decidido em 28/10/2026, Paulo, registo D-20261028-200500-CUR**). Texto livre deixa de marcar. Critérios marcados **[substituído por Sx]** abaixo não devem ser implementados como estão; os restantes mantêm-se. Nenhuma tarefa é fechada por esta documentação.
 
 **Valores Decididos (Paulo, 28/10/2026):** proposta válida 30 min · alerta de pendente 5 min · 20 marcações revistas no piloto. **Em aberto (S7):** limites de abuso e janela de quotas.
 
@@ -128,7 +128,7 @@ Mapeado para S9 (#180).
 ## Pontos em aberto
 
 - ~~Vigência da proposta (H4); N minutos (H7); mínimo do piloto (H10)~~ → Decididos (Paulo, 28/10/2026): 30 min, 5 min, 20 marcações.
-- Revisão da DEC-060 por botão: DEC-061 **Proposto — aguarda Curicaca e Paulo**.
+- Revisão da DEC-060 por botão: DEC-061 **Decidido — 28/10/2026, registo D-20261028-200500-CUR**.
 - Limites de abuso por contato/clínica e janela de quotas (S7, #178) — Em aberto (Paulo).
 - Escolha final de modelo e configuração de thinking (H9); metas de latência (H9).
 - Envio automático: não aprovado; critérios só esboçados.

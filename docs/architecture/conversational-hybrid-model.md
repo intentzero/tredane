@@ -10,7 +10,7 @@ Fontes:
 
 ## 0. Reconciliação SEG-IA (28/10/2026)
 
-**Direção:** [épico #171](https://github.com/intentzero/tredane/issues/171) (SEG-IA), formalizada em [DEC-061](../product/decisions.md) — **Proposto, aguarda Curicaca e Paulo**. Enquanto não for decidida, a DEC-060 continua registada, mas o software não deve marcar por texto livre (S2, #173, com `AI_AUTOBOOK` desligado por padrão).
+**Direção:** [épico #171](https://github.com/intentzero/tredane/issues/171) (SEG-IA), formalizada em [DEC-061](../product/decisions.md) — **Decidido em 28/10/2026 (Paulo, registo D-20261028-200500-CUR)**. A DEC-060 fica revista: o software não deve marcar por texto livre (S2, #173, com `AI_AUTOBOOK` desligado por padrão).
 
 - **Confirmação por botão:** a marcação automática só acontece com o toque da cliente no botão do WhatsApp de uma proposta montada e versionada pelo backend. Texto livre («sim» ou pedido completo) só interpreta e prepara a proposta.
 - **Valores Decididos (Paulo, 28/10/2026):** proposta válida por **30 min**; alerta de comunicação pendente após **5 min**; contenção retirada no piloto após **20 marcações revistas** sem nenhuma indevida.
@@ -22,7 +22,7 @@ As secções abaixo mantêm o modelo de interpretação; onde diferem do botão,
 
 ## 1. Princípio
 
-A IA **interpreta**; o backend **decide**. O modelo devolve uma leitura estruturada da conversa e o código determinístico confere cada campo antes de qualquer efeito. Nenhuma marcação acontece só porque o modelo «acha» que a cliente confirmou; com a DEC-061 (Proposto), nem a interpretação validada marca: só o clique no botão de uma proposta válida.
+A IA **interpreta**; o backend **decide**. O modelo devolve uma leitura estruturada da conversa e o código determinístico confere cada campo antes de qualquer efeito. Nenhuma marcação acontece só porque o modelo «acha» que a cliente confirmou; com a DEC-061 (Decidido), nem a interpretação validada marca: só o clique no botão de uma proposta válida.
 
 | Regra | Estado |
 | --- | --- |
@@ -59,7 +59,7 @@ Falha em qualquer passo → não marca; a sugestão pergunta ou passa a humano.
 
 A confiança declarada pelo modelo **nunca** autoriza ação. Só escolhe entre: perguntar à cliente, passar a humano, ou tentar validar. Um JSON bem formado com confiança alta e trechos que não batem é rejeitado.
 
-## 3. Dois caminhos de confirmação (substituídos pela confirmação por botão — DEC-061, Proposto)
+## 3. Dois caminhos de confirmação (substituídos pela confirmação por botão — DEC-061, Decidido)
 
 > Com a DEC-061, os caminhos A e B **deixam de autorizar marcação**: ambos só levam o backend a montar uma proposta com botão. A tabela abaixo fica como histórico e como critério para *preparar* a proposta.
 
@@ -86,14 +86,14 @@ Todos estes casos foram reproduzidos como falhas no fluxo integrado do head do #
 
 ## 5. Execução e Pix
 
-- Com a DEC-061 (Proposto), a execução parte do **clique autenticado** na proposta válida (S5, #176): mesma operação de confirmação, revalidação na transação, idempotência por proposta/versão.
+- Com a DEC-061 (Decidido), a execução parte do **clique autenticado** na proposta válida (S5, #176): mesma operação de confirmação, revalidação na transação, idempotência por proposta/versão.
 
 - Só uma **nova marcação validada** segue para a operação de confirmação existente, com revalidação e idempotência (DEC-060).
 - **Serviço com sinal: sem reserva antes do pagamento.** A IA não marca; segue o fluxo Pix atual, e a confirmação depende da disponibilidade no momento do pagamento (DEC-060, sinal Pix já decidido).
 
 ## 6. Comunicação pendente (Proposto)
 
-Na DEC-060 a IA marca mas não envia. Com a DEC-061 (Proposto), proposta e resultado saem como mensagens determinísticas do sistema (S4, #175); a comunicação pendente passa a cobrir falha ou atraso desse envio: o compromisso passa a existir enquanto a mensagem «Prontinho… agendei» ainda é rascunho. É preciso acompanhar esse intervalo:
+Na DEC-060 a IA marca mas não envia. Com a DEC-061 (Decidido), proposta e resultado saem como mensagens determinísticas do sistema (S4, #175); a comunicação pendente passa a cobrir falha ou atraso desse envio: o compromisso passa a existir enquanto a mensagem «Prontinho… agendei» ainda é rascunho. É preciso acompanhar esse intervalo:
 
 | Situação | Comportamento proposto |
 | --- | --- |

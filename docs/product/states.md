@@ -56,7 +56,7 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 | Estorno solicitado / Devolvido / Estorno falhou | Devolução pedida ao provedor e seu resultado. | Falha mostra Tentar de novo. |
 | Retido | Cancelamento com sinal retido pela clínica. | Registra quem decidiu e o motivo. |
 
-## Proposta de agendamento por botão (Proposto, DEC-061)
+## Proposta de agendamento por botão (Decidido, DEC-061)
 
 `enviada` → `confirmada` (clique válido → compromisso criado, ou encaminhada ao Pix se houver sinal) · `substituída` (nova versão) · `expirada` (30 min) · `recusada_vaga` (horário já não livre) · `encaminhada` (Alterar detalhes/dúvida → atendente). Só `enviada` aceita clique; transições são idempotentes por proposta/versão. Proposta não reserva horário (DEC-008).
 
