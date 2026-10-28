@@ -5835,3 +5835,90 @@
     height: 40px;
   }
 }
+
+.week-bars-day-btn {
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  min-height: 44px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.week-bars-row[data-selected='true'] .week-bars-day {
+  color: var(--color-primary-ink);
+  text-decoration: underline;
+}
+
+.week-bars-off {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border: 2px solid;
+  border-radius: var(--radius-sm);
+  background: repeating-linear-gradient(135deg, rgba(180, 35, 24, 0.18) 0 4px, transparent 4px 8px);
+  pointer-events: none;
+}
+
+.week-bars-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  margin-left: -7px;
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 2;
+}
+
+.week-bars-handle::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 5px;
+  width: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-text-primary);
+  opacity: 0.45;
+}
+
+.week-bars-handle:focus-visible {
+  outline: 2px solid var(--color-primary-base);
+}
+
+.week-bars-track {
+  overflow: visible;
+}
+
+.hours-day {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .hours-day {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-card);
+  }
+
+  .hours-main {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .hours-main > .clinic-footnote {
+    grid-column: 2;
+  }
+
+  .hours-main .week-filters {
+    flex-direction: column;
+    grid-row: span 2;
+  }
+}

@@ -4,6 +4,7 @@ import { Button } from 'react-aria-components'
 import { PanelApiError, type ClinicConfigSnapshot, type PanelApi } from '../../api'
 import { friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
+import { civilMinuteToEpoch } from '../holds/holdFormat'
 import { BlockForm } from './BlockForm'
 import {
   civilOf,
@@ -16,10 +17,10 @@ import {
   windowsOf,
   type WeekDraft,
 } from './clinicHours'
-import { BLOCK_REASON_LABELS } from './format'
+import { BLOCK_REASON_LABELS, dayLabel, formatMinutes } from './format'
 import { MonthCalendar, type CalendarEntry } from './MonthCalendar'
 import { Segmented } from './Segmented'
-import { WeekBars } from './WeekBars'
+import { WeekBars, type WeekBarOverlay } from './WeekBars'
 import { WeekEditor } from './WeekEditor'
 
 type Props = {
@@ -52,6 +53,7 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
   const [confirmAll, setConfirmAll] = useState(false)
   const [view, setView] = useState<'semana' | 'calendario'>('semana')
   const [shown, setShown] = useState<string[]>([])
+  const [selectedDay, setSelectedDay] = useState(2)
   const fo = { generation, expectGeneration: () => generation }
   const tz = snap.settings.timezone
 
@@ -87,6 +89,41 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
             professionals.findIndex((p) => p.id === id),
           ),
         )
+  // Folgas e fechamentos que caem na semana corrente, para desenhar sobre a grade.
+  const weekDates = (() => {
+    const [y, m, d] = todayIso.split('-').map(Number)
+    const base = new Date(Date.UTC(y!, m! - 1, d!))
+    const monday = base.getTime() - ((base.getUTCDay() + 6) % 7) * 86_400_000
+    return [0, 1, 2, 3, 4, 5, 6].map((i) =>
+      new Date(monday + i * 86_400_000).toISOString().slice(0, 10),
+    )
+  })()
+  const overlays: WeekBarOverlay[] = []
+  for (const b of snap.blocks) {
+    const isClinic = b.resourceId === CLINIC_SCOPE_ID
+    if (!isClinic && !shown.includes(b.resourceId)) continue
+    weekDates.forEach((iso, i) => {
+      const dayStart = civilMinuteToEpoch(iso, 0, tz)
+      const dayEnd = civilMinuteToEpoch(iso, 24 * 60, tz)
+      if (b.startsAt >= dayEnd || b.endsAt <= dayStart) return
+      overlays.push({
+        day: i + 1,
+        startMinute: Math.max(0, Math.round((b.startsAt - dayStart) / 60_000)),
+        endMinute: Math.min(24 * 60, Math.round((b.endsAt - dayStart) / 60_000)),
+        color: isClinic ? '#B42318' : colorOf(b.resourceId),
+        label: `${nameOf(b.resourceId)} · ${BLOCK_REASON_LABELS[b.reason] ?? b.reason}`,
+      })
+    })
+  }
+  const dayWorkers = (day: number) =>
+    professionals
+      .map((p, i) => ({
+        id: p.id,
+        name: p.name,
+        color: personColor(i),
+        week: toWeekDraft(windowsOf(snap, p.hoursMode === 'clinic' ? CLINIC_SCOPE_ID : p.id)),
+      }))
+      .filter((p) => (p.week[day] ?? []).length > 0)
   const entries: CalendarEntry[] = snap.blocks
     .filter(
       (b) => b.resourceId === CLINIC_SCOPE_ID || professionals.some((p) => p.id === b.resourceId),
@@ -206,7 +243,15 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
                 </button>
               ))}
             </div>
-            <WeekBars clinic={draft} people={people} label="Semana da clínica" />
+            <WeekBars
+              clinic={draft}
+              people={people}
+              overlays={overlays}
+              label="Semana da clínica"
+              onChangeClinic={setDraft}
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
+            />
             <p className="clinic-footnote">
               Horários em múltiplos de 15 min, no fuso de{' '}
               {tz === 'America/Sao_Paulo' ? 'Brasília' : tz}. Escolha pessoas acima para ver quem
@@ -214,6 +259,51 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
             </p>
           </div>
           <div className="hours-side">
+            <section className="hours-day" aria-labelledby="day-h">
+              <h3 id="day-h" className="panel-legend">
+                {dayLabel(selectedDay)}
+              </h3>
+              <p className="clinic-footnote">
+                {(draft[selectedDay] ?? []).length === 0
+                  ? 'Fechado nesse dia.'
+                  : (draft[selectedDay] ?? [])
+                      .map((w) => `${formatMinutes(w.startMinute)} – ${formatMinutes(w.endMinute)}`)
+                      .join(' · ')}
+              </p>
+              <ul className="clinic-rows">
+                {dayWorkers(selectedDay).map((p) => (
+                  <li key={p.id} className="clinic-row">
+                    <i className="clinic-row-bar" style={{ background: p.color }} />
+                    <span className="clinic-row-main">
+                      <strong>{p.name}</strong>
+                      <span>
+                        {(p.week[selectedDay] ?? [])
+                          .map(
+                            (w) => `${formatMinutes(w.startMinute)}–${formatMinutes(w.endMinute)}`,
+                          )
+                          .join(' e ')}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Button
+                className="panel-btn panel-btn-ghost"
+                onPress={() => {
+                  const src = draft[selectedDay] ?? []
+                  setDraft({
+                    ...draft,
+                    1: [...src],
+                    2: [...src],
+                    3: [...src],
+                    4: [...src],
+                    5: [...src],
+                  })
+                }}
+              >
+                Copiar para segunda a sexta
+              </Button>
+            </section>
             <h3 className="panel-legend">Horas de atendimento</h3>
             <WeekEditor value={draft} onChange={setDraft} label="Horário da clínica" />
             {followers.length > 0 ? (
