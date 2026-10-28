@@ -54,6 +54,8 @@ export type WorkerBindings = {
    * Gateway real exige GATE-06 + chaves; CI usa synthetic / mock.
    */
   AI_MODE?: string
+  /** «off» desliga o agendamento pela IA após confirmação explícita (28/10/2026). */
+  AI_AUTOBOOK?: string
   CF_ACCOUNT_ID?: string
   AI_GATEWAY_ID?: string
   /** Token do AI Gateway — wrangler secret; nunca versionar. */

@@ -92,6 +92,8 @@ export type AppointmentListItem = {
   changeReason: string | null
   /** DEC-051(i): duração aplicada ≠ padrão do serviço → rótulo «duração ajustada». */
   durationAdjusted: boolean
+  /** Compromisso criado pela IA após confirmação explícita da cliente (28/10/2026). */
+  bookedByAi: boolean
 }
 
 export type AgendaViewInput = {

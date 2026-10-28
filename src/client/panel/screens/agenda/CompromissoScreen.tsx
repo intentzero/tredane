@@ -221,6 +221,7 @@ export function CompromissoScreen({
           detail.appliedDurationMinutes !== detail.defaultDurationMinutes
             ? ` · duração ajustada: ${detail.appliedDurationMinutes} min (padrão ${detail.defaultDurationMinutes} min)`
             : ''}
+          {detail.confirmedBy === 'system:ai-autobook' ? ' · Marcado pela IA' : ''}
           <br />
           {formatSlotTime(detail.startsAt, timezone)}
           {detail.contactLabel ? ` · ${detail.contactLabel}` : ''}

@@ -82,6 +82,7 @@ function serializeListItem(item: AppointmentListItem) {
     version: item.version,
     changeReason: item.changeReason,
     durationAdjusted: item.durationAdjusted,
+    bookedByAi: item.bookedByAi,
   }
 }
 

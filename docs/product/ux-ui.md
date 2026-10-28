@@ -309,7 +309,7 @@ Ver seção 6.2.
 - **Pergunta clínica** (contraindicação, gravidez, medicamento, diagnóstico): aviso “Assunto clínico: encaminhe a uma profissional” e nenhuma resposta de mérito (**Confirmado**, DEC-046; antes Proposto, ADR-0004).
 - **Mensagem ofensiva ou fora do assunto (Confirmado, DEC-046, REQ-074):** aviso à atendente (“Mensagem ofensiva. Você não precisa responder.” ou “Fora do assunto da clínica.”) e sugestão curta e cordial que recoloca o limite. Desenhado em M-30.
 - **Em aberto:** critério de detecção dos três casos acima; depende de testes com o provedor e de exemplos fictícios da clínica piloto.
-- A IA não agenda, cancela nem muda etapa (Fora do MVP).
+- **Agendamento pela IA (Decidido, 28/10/2026, DEC-060):** a IA marca sozinha **só** depois de a própria cliente confirmar explicitamente dia, horário e procedimento; faltando algum ou havendo ambiguidade, a sugestão pergunta e nada é marcado. Revalida pelo mesmo caminho das marcações manuais; serviço com sinal não é marcado (a atendente envia o Pix pelo Agendar). A agenda, o compromisso e a conversa mostram «Marcado pela IA»; a atendente cancela pelo fluxo normal. A IA continua sem enviar mensagens, cancelar ou remarcar (antes: «A IA não agenda, cancela nem muda etapa»).
 
 ## 7. Acessibilidade e legibilidade
 

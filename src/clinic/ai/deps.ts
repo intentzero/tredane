@@ -21,6 +21,8 @@ export type AiAssistRpcDeps = {
   simulated?: SimulatedAiOptions
   /** Nome da clínica (D1 tenants.name), preenchido pelo DO. */
   clinicName?: string | null
+  /** false = sem agendamento pela IA (kill switch AI_AUTOBOOK=off). */
+  autoBook?: boolean
 }
 
 export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
@@ -40,6 +42,7 @@ export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
     adapter: buildAiAdapter(build),
     syntheticFallback: isSyntheticFallback(build),
     clinicName: rpc.clinicName ?? null,
+    autoBook: rpc.autoBook !== false,
   }
 }
 
@@ -49,10 +52,12 @@ export function rpcDepsFromEnv(env: {
   AI_GATEWAY_ID?: string
   AI_GATEWAY_TOKEN?: string
   ANTHROPIC_API_KEY?: string
+  AI_AUTOBOOK?: string
 }): AiAssistRpcDeps {
   const mode = resolveAiMode(env.AI_MODE)
   return {
     mode,
+    autoBook: (env.AI_AUTOBOOK ?? '').trim().toLowerCase() !== 'off',
     gateway: {
       accountId: env.CF_ACCOUNT_ID ?? '',
       gatewayId: env.AI_GATEWAY_ID ?? 'default',

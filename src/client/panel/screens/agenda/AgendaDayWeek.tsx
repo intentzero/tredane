@@ -402,6 +402,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
                             {apt.professionalName}
                             {apt.roomResourceName ? ` · ${apt.roomResourceName}` : ''}
                             {apt.durationAdjusted ? ' · duração ajustada' : ''}
+                            {apt.bookedByAi ? ' · Marcado pela IA' : ''}
                           </span>
                         </button>
                       </li>

@@ -2,7 +2,8 @@
  * Rascunho automático da IA a cada mensagem da cliente (aprovado por Paulo, 27/10/2026).
  * - Debounce: junta mensagens seguidas (AI_AUTODRAFT_DEBOUNCE_MS).
  * - Gera em segundo plano (alarme do DO) e guarda como sugestão pendente.
- * - Nunca envia, nunca agenda.
+ * - Nunca envia. Agenda SÓ após confirmação explícita da cliente (dia, horário e
+ *   procedimento) — ver autobook.ts (decidido por Paulo, 28/10/2026).
  */
 import { AI_AUTODRAFT_DEBOUNCE_MS } from '../../ai'
 import type { Clock } from '../../db/clock'
@@ -12,6 +13,7 @@ import { isClinicAiAssistEnabled } from '../config/settings'
 import { getConversation } from '../inbox/conversations'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { ClinicDb } from '../store'
+import { tryAiAutoBook, type AutoBookOutcome } from './autobook'
 import { runGenerateInternal } from './operations'
 import { getSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
@@ -90,6 +92,8 @@ export type AutoDraftOutcome = {
   status: 'ready' | 'failed' | 'skipped' | 'superseded' | 'cap_reached'
   suggestion: AiSuggestionRow | null
   reason?: string
+  /** Tentativa de agendamento pela IA (só com rascunho pronto). */
+  autoBook?: AutoBookOutcome
 }
 
 function lastMessageDirection(db: ClinicDb, tenantId: string, conversationId: string): string | null {
@@ -177,7 +181,42 @@ export async function runDueAutoDrafts(
       continue
     }
     cancelAutoDraft(db, tenantId, job.conversationId)
-    out.push({ ...job, status: suggestion.status === 'failed' ? 'failed' : 'ready', suggestion })
+    let autoBook: AutoBookOutcome | undefined
+    if (suggestion.status !== 'failed') {
+      try {
+        autoBook = tryAiAutoBook(db, caller, clock, {
+          conversationId: job.conversationId,
+          suggestionId: suggestion.id,
+          enabled: deps.autoBook !== false,
+        })
+        if (autoBook.replyText || autoBook.notes) {
+          const text = autoBook.replyText ?? suggestion.suggestedText
+          const notes = [autoBook.notes, autoBook.replyText ? '' : suggestion.internalNotes]
+            .filter(Boolean)
+            .join('\n')
+          db.run(
+            `UPDATE ai_suggestions SET suggested_text = ?, internal_notes = ?, updated_at = ?
+             WHERE tenant_id = ? AND id = ?`,
+            text,
+            notes,
+            clock.nowMs(),
+            tenantId,
+            suggestion.id,
+          )
+          suggestion = getSuggestion(db, tenantId, suggestion.id) ?? suggestion
+        }
+      } catch (err) {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'ai.autobook_error',
+            tenantId,
+            error: err instanceof Error ? err.message : 'unknown',
+          }),
+        )
+      }
+    }
+    out.push({ ...job, status: suggestion.status === 'failed' ? 'failed' : 'ready', suggestion, autoBook })
   }
   return out
 }

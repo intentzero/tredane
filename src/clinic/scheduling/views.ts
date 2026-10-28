@@ -2,6 +2,7 @@
  * Visões dia/semana da agenda (#36 / REQ-034 / TEL-04 / DEC-040).
  */
 import type { Clock } from '../../db/clock'
+import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getResource } from '../config/resources'
 import { getService } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
@@ -38,6 +39,7 @@ type AptSql = {
   occupies_until: number | null
   default_duration_minutes: number | null
   applied_duration_minutes: number | null
+  confirmed_by: string | null
 }
 
 function addCivilDays(date: string, days: number): string {
@@ -95,7 +97,7 @@ export function queryAgendaViewOp(
             starts_at, ends_at, status, contact_label,
             contact_id, conversation_id, opportunity_id,
             version, change_reason, occupies_until,
-            default_duration_minutes, applied_duration_minutes
+            default_duration_minutes, applied_duration_minutes, confirmed_by
      FROM appointments
      WHERE tenant_id = ?
        AND starts_at < ?
@@ -156,6 +158,7 @@ export function queryAgendaViewOp(
         row.applied_duration_minutes != null
         && row.default_duration_minutes != null
         && row.applied_duration_minutes !== row.default_duration_minutes,
+      bookedByAi: row.confirmed_by === AI_AUTOBOOK_ACTOR,
     })
   }
 

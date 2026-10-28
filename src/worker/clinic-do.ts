@@ -2313,9 +2313,17 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         onStart: (job) => this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' }),
       })
       for (const o of outcomes) {
+        // Agendamento pela IA (confirmação explícita da cliente): mesmo fanout do Agendar.
+        if (o.autoBook && o.autoBook.outbox.length > 0) {
+          await this.#fanoutOutboxes(caller, o.autoBook.outbox, true)
+          await this.#drain(caller)
+        }
         await this.#emitAiDraftEvent(caller, o.conversationId, {
           state: o.status,
           suggestionId: o.suggestion?.id ?? null,
+          autoBook: o.autoBook
+            ? { status: o.autoBook.status, appointmentId: o.autoBook.appointmentId ?? null }
+            : null,
         })
       }
     } catch (err) {
