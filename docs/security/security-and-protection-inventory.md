@@ -1,0 +1,191 @@
+# Inventário de proteção e segurança
+
+> Levantamento feito em 28/10/2026 (BRT) a partir do código da `main` em `96c1bb8`, dos documentos em `docs/`, das issues e dos PRs abertos, e do histórico do workflow `deploy.yml` (`gh run list` / `gh run view`). **Nenhuma chamada foi feita à Cloudflare.** Documento só descritivo: não muda decisões nem autoriza merge, deploy ou ativação.
+
+## Como ler os estados
+
+| Estado | Significado neste documento |
+|---|---|
+| **em produção** | publicado no Worker `tredane-dev-production` com evidência |
+| **em staging** | na `main` e incluído num deploy de staging com sucesso do `deploy.yml` |
+| **na main sem deploy** | na `main`, mas depois do último deploy de staging com sucesso |
+| **em PR aberto** | só num PR ainda não integrado |
+| **planeado (issue)** | só existe como issue/decisão |
+
+**Não verificado** = não foi possível confirmar o estado real do ambiente sem consultar a Cloudflare.
+
+### Evidência de deploy (histórico do `deploy.yml`)
+
+- O workflow foi executado 16 vezes (27–28/10/2026), todas por `workflow_dispatch`. **Em todas, o job `Deploy production` ficou `skipped`.** Não há nenhum deploy de produção registrado por este workflow. `docs/DEPLOY.md` §5 indica que a produção ainda não está provisionada (`database_id` placeholder, faltam vars/secrets; `check:env -- production` falha). Por isso **nenhuma funcionalidade está marcada como "em produção"**; o estado real do Worker de produção é **não verificado**.
+- O último deploy de staging com sucesso foi o run `40782048011`, criado em 28/10/2026 19:42 BRT, com SHA `96c1bb8` (= HEAD da `main` neste levantamento). Logo, tudo o que está na `main` hoje está **em staging** (sujeito à configuração de vars/secrets do Worker, que não foi verificada).
+- Deploys anteriores de staging: `40af67e` (#153, 15:37 BRT), `bf28ec3` (#152, 15:29), `9011c27` (#150, 15:00), `471d490` (#148, 27/10 19:28). O run `40593261557` (`9a9e427`, 27/10) falhou.
+- Configuração de runtime fora do código (registro do Paulo, não verificado via Cloudflare): **desde 28/10/2026 19:58 BRT o Worker de staging tem `AI_AUTOBOOK=off`**, definido pelo Paulo. A produção nunca recebeu o #155.
+
+## Inventário
+
+### 1. Autenticação e isolamento por clínica
+
+| Campo | Detalhe |
+|---|---|
+| Estado | **em staging** (produção: não verificado) |
+| Onde | `src/auth/middleware.ts:42` (`requireAuth`), `:55` (`requireSuperadmin`), `:72` (`requireTenantAccess`); `src/auth/authorize.ts:102` (`requireClinicPermission`); `src/auth/superadmin.ts:38`; um Durable Object por clínica: `src/worker/app.ts:318` (`idFromName(tenantId)`), `src/worker/clinic-do.ts:187-190` (recusa DO sem nome estável ou com `tenantId` diferente), `:1128`, `:1248`; `src/clinic/tenant.ts:58` |
+| Decisão | ADR 0006 (Clerk), 0010 (MFA por papel), 0012 (DO com SQLite); DEC-043 (Clerk no piloto) |
+| Testes | `src/auth/auth.test.ts`, `src/auth/http.test.ts`, `src/clinic/clinic.test.ts`, `src/realtime/ticket.test.ts`, `src/security/hardening.test.ts`, `src/worker/runtime.harness.test.ts` |
+| Limites | Modo `synthetic` (`Bearer synth:<id>`, `src/auth/synthetic.ts:8`) só em development; rotas de harness devolvem 404 fora de dev (`src/security/env-gate.ts`). Produção sem `CLERK_PUBLISHABLE_KEY`/`CLERK_AUTHORIZED_PARTIES` (DEPLOY.md §5). |
+
+### 2. Bloqueio de contato (só interno, com aviso de Pix)
+
+| Campo | Detalhe |
+|---|---|
+| Estado | **em staging** (#150 `9011c27`, #151 `8947b37`) |
+| Onde | `src/clinic/inbox/operations.ts:361` (`blockContactOp`, `blocked_at`, auditoria `contact.blocked` em `:447`); `src/inbox/routes.ts`; UI `src/client/panel/screens/inbox/BlockContactDialog.tsx:24` (`hasPendingPix`) |
+| Decisão | DEC-046 (mensagens ofensivas) — sem DEC própria para o bloqueio |
+| Testes | `src/clinic/inbox/block.test.ts`, `src/client/panel/screens/inbox/BlockContactDialog.test.tsx` |
+| Limites | Bloqueio só no Tredane: **não** bloqueia nem denuncia na Meta (#182). Hoje não desliga todas as automações; a negação central de automações para contato bloqueado (`checkConversationProtection`) está **em PR aberto** #191; pausa = #187. |
+
+### 3. Reset de staging bloqueado em produção
+
+| Campo | Detalhe |
+|---|---|
+| Estado | **em staging** (#152 `bf28ec3`) |
+| Onde | `src/clinic-reset/routes.ts:2-6`, `:48`, `:86` (404 se `ENVIRONMENT !== 'staging'`, antes da auth); `src/security/env-gate.ts:39` (`isStagingEnv`); `src/clinic/retention/operational-reset.ts` |
+| Decisão | Pedido do Paulo, 28/10/2026 (STAGING-ONLY) — sem DEC |
+| Testes | `src/clinic-reset/reset.http.test.ts` |
+| Limites | Depende de `ENVIRONMENT` correto em cada Worker (`wrangler.jsonc`); exige `confirmName`. |
+
+### 4. AI_AUTOBOOK (agendamento pela IA) e contenção
+
+| Campo | Detalhe |
+|---|---|
+| Estado | Código: **em staging** (#155 `695fed3`, incluído no deploy `96c1bb8`). Runtime staging: **desligado** por `AI_AUTOBOOK=off` desde 28/10 19:58 BRT (registro do Paulo; não verificado via Cloudflare). Produção: nunca recebeu o #155. |
+| Onde | `src/clinic/ai/deps.ts:24-25`, `:45` (`rpc.autoBook !== false`), `:55-60` — **ligado por padrão**: só `off` desliga; `src/clinic/ai/autobook.ts` (actor `system:ai-autobook`, `:386-420`, auditoria `appointment.ai_booked` em `:398`); `src/worker/bindings.ts:58` |
+| Decisão | DEC-060 (`docs/product/decisions.md:58`); DEC-006 anotado |
+| Testes | `src/clinic/ai/autobook.test.ts`, `src/clinic/ai/amanha-tarde.regression.test.ts` |
+| Limites | Padrão inseguro (fail open): sem a var, marca por texto livre. Qualquer novo Worker/ambiente sem `AI_AUTOBOOK=off` ativa a funcionalidade. Contenção atual depende de uma var manual. **PR aberto #191** (S2/#173) inverte: só liga com `on` exato + clínica em `AI_AUTOBOOK_TENANTS`, e texto livre deixa de marcar. |
+
+### 5. DEC-060, DEC-061 e confirmação por botão
+
+| Campo | Detalhe |
+|---|---|
+| Estado | DEC-060: **em staging** (#155 `695fed3`; docs #157 `48e9661`). DEC-061: **em PR aberto** #181 (S1/#172), redação aprovada pelo Paulo em 28/10, registro D-20261028-200500-CUR, merge pendente. Botão: **planeado (issue)** #174–#176. |
+| Onde | `docs/product/decisions.md:58` (DEC-060); PR #181 (DEC-061 em `docs/product/decisions.md`, `conversational-hybrid-model.md`, ADR 0004, etc.) |
+| Decisão | DEC-061 substitui os caminhos de autorização por texto livre da DEC-060: só o toque da cliente no botão de uma proposta versionada pelo backend autoriza marcação |
+| Testes | Nenhum para o botão (não implementado). |
+| Limites | Até ao merge do #181, a `main` continua a dizer que texto livre autoriza (DEC-060). |
+
+### 6. Validação no backend
+
+| Campo | Detalhe |
+|---|---|
+| Estado | **em staging** |
+| Onde | Revalidação de marcação na transação pelo mesmo caminho das marcações manuais: `src/clinic/scheduling/booking.ts`, `check.ts`, `holds.ts`; horários passados (#156 `cf21d82`); validação de anexos `src/attachments/validate.ts:72`; saída da IA `src/ai/reply-output.ts:110` (`parseReplyOutput`) |
+| Decisão | ADR 0005 (consistência de marcação); DEC-060 (revalidação) |
+| Testes | `src/clinic/scheduling/booking.test.ts`, `scheduling.test.ts`, `past-slots.test.ts`, `holds.test.ts`, `src/ai/reply-output.robust.test.ts`, `src/attachments/attachments.test.ts` |
+| Limites | Validação independente do LLM para propostas/cliques = #176 (planeado). |
+
+### 7. Pix sem reserva de horário antes do pagamento
+
+| Campo | Detalhe |
+|---|---|
+| Estado | **em staging** |
+| Onde | `src/clinic/pix/signal-charge.ts:2-3`, `:135`; IA não marca serviço com sinal: `src/clinic/ai/autobook.ts:246`, `:336-345` |
+| Decisão | DEC-047; ADR 0014 |
+| Testes | `src/clinic/pix/signal-charge.test.ts:167`, `payment.test.ts`, `exceptions.test.ts`, `pix.test.ts`, `autobook.test.ts` |
+| Limites | Pix real depende de `PIX_MODE`/`PIX_TOKEN_SECRET` e gate GATE-08; modo em staging não verificado. |
+
+### 8. Anexos no R2 privado e leitura autenticada
+
+| Campo | Detalhe |
+|---|---|
+| Estado | **em staging** |
+| Onde | `src/attachments/r2.ts:36`, `:111` (`private, no-store`); `src/attachments/routes.ts:187-203` (`requireAuth` + `requireTenantAccess` + permissão); `src/attachments/tokens.ts` (`ATTACHMENT_TOKEN_SECRET`); `src/worker/clinic-do.ts:1248` (anexo de outra clínica ignorado); ingestão `media-ingest` |
+| Decisão | #34; DEC-011 |
+| Testes | `src/attachments/attachments.test.ts` |
+| Limites | Imagens ainda não visíveis na conversa; cartão oculto/visualização sob demanda = #184/#185 (planeado). Retenção/exclusão de anexos sinalizados em aberto (#182). |
+
+### 9. Imagens fora da IA (DEC-011)
+
+| Campo | Detalhe |
+|---|---|
+| Estado | **em staging** |
+| Onde | `src/clinic/ai/context.ts:89` (anexos nunca entram), `:101-123` (só contagem) |
+| Decisão | DEC-011 (`docs/product/decisions.md:65`, "confirmado parcialmente") |
+| Testes | `src/clinic/ai/ai.test.ts:170` (AC-37) |
+| Limites | IA ainda não avisa que há imagem não analisada (#188). Legenda é entrada não confiável. |
+
+### 10. Prompt injection
+
+| Campo | Detalhe |
+|---|---|
+| Estado | Parcial **em staging**; contenção completa **planeado (issue)** #177 (S6) |
+| Onde | `src/ai/reply-output.ts:110` (parse da saída); adaptador simulado recusa injection/tool calls `src/ai/simulated/adapter.ts:65-70`; IA não envia mensagens (rascunho para a atendente) |
+| Decisão | DEC-006, DEC-046; DEC-061 (em PR) retira do LLM a autorização |
+| Testes | `src/ai/reply-output.robust.test.ts`, `src/clinic/ai/ai.test.ts` |
+| Limites | Com #155 ativo, texto da cliente pode levar a marcações (motivo da contenção). Sem fronteira de capacidades formal nem testes adversariais no CI até #177/#180. |
+
+### 11. Limites de abuso (por contato e por clínica)
+
+| Campo | Detalhe |
+|---|---|
+| Estado | **planeado (issue)** #178 (S7) — valores **ainda não decididos** (em aberto para Paulo/Produto, #171) |
+| Onde | Existe apenas `AI_DAILY_DRAFT_CAP = 300` rascunhos/dia por clínica (`src/ai/budgets.ts:27-28`) e debounce de 7 s |
+| Decisão | Nenhuma DEC para limites de propostas/marcações |
+| Testes | — |
+| Limites | Sem limite por contato; sem limite de marcações automáticas. |
+
+### 12. Épicos e PRs em curso
+
+| Item | Estado | Onde |
+|---|---|---|
+| Épico SEG-IA #171 (#172–#180) | **planeado (issue)**, todas abertas | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
+| S1 / #172 | **em PR aberto** #181 (docs; CI verde em `c1dae1a`) | DEC-061 |
+| S2 / #173 | **em PR aberto** #191 (`79590d0`; código: `autobook.ts`, `deps.ts`, `protection.ts`) | CI não reportado no momento do levantamento |
+| Épico PROTEÇÃO #182 (#183–#189) | **planeado (issue)**, todas abertas | #183 P1 · #184 P2 · #185 P3 · #186 P4 · #187 P5 · #188 P6 · #189 P7 |
+| P1 / #183 | **em PR aberto** #190 (docs; CI verde em `b42639d`) | DEC-062 **Proposto**, aguarda Paulo (P-1–P-3); `docs/product/protecao-equipe.md` |
+
+### 13. Segredos e chaves (só nomes, nenhum valor)
+
+Fonte: `src/ops/secrets.ts` (inventário em código, `npm run ops:secrets`), `wrangler.jsonc`, `docs/implementation/environments.md`, `docs/DEPLOY.md`.
+
+| Worker / local | Nomes | Onde ficam |
+|---|---|---|
+| `tredane-dev` (development local) | conforme modo: `CLERK_SECRET_KEY`, `META_*`, `VAPID_*` | `.dev.vars` (fora do git) |
+| `tredane-dev-staging` | Obrigatórios: `CLERK_SECRET_KEY`, `ATTACHMENT_TOKEN_SECRET`, `TOKEN_ENCRYPTION_KEY`; com Meta live: `META_APP_SECRET`, `META_VERIFY_TOKEN`, `META_TOKEN_SECRET`; Pix: `PIX_TOKEN_SECRET`; IA: `CF_ACCOUNT_ID`, `AI_GATEWAY_ID`, `AI_GATEWAY_TOKEN` (+ `ANTHROPIC_API_KEY` se BYOK); push: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`; `DEMO_SEED_TOKEN` (staging-only). Opcional: `CLERK_JWT_KEY` | `wrangler secret put --env staging` (secrets do Worker) |
+| `tredane-dev-production` | Obrigatórios `CLERK_SECRET_KEY`, `ATTACHMENT_TOKEN_SECRET`, `TOKEN_ENCRYPTION_KEY` (+ Meta/Pix se live). IA/push/demo **não** autorizados sem novo OK | Ainda não provisionados (DEPLOY.md §5) |
+| GitHub environments `staging`/`production` | `CLOUDFLARE_API_TOKEN` (secret), `CLOUDFLARE_ACCOUNT_ID` (variable) | Secrets/variables por environment (não ao nível do repo) |
+
+Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY` (`src/security/sealed-secret.ts`, teste `sealed-secret.test.ts`); `scripts/check-env-placeholders.mjs` bloqueia deploy com placeholders; o deploy não cria secrets.
+
+**Plano de chaves — 28/10/2026:** itens 3, 11 e 14 feitos. Item 14: removido o `SENTRY_AUTH_TOKEN` do Worker `doohnut-api-production` (projeto Lucimark, fora deste repo). Itens 3 e 11: rotação do meta verify token do staging (`META_VERIFY_TOKEN`) e atualização do `.dev.vars`, com backups locais. Para o detalhe: feito em 28/10, ver plano de chaves. Estado atual dos secrets nos Workers: **não verificado** (sem chamadas à Cloudflare).
+
+### 14. Dados fictícios e gates #18/#45
+
+| Campo | Detalhe |
+|---|---|
+| Estado | Dados sintéticos **em staging** (seed `npm run db:seed:local` no CI; `src/clinic/demo`); gates: #18 **fechada** em 24/10/2026 (COMPLETED), mas com a checklist da issue sem marcas; #45 (validação ponta a ponta e liberação do piloto) **aberta** |
+| Decisão | DEC-009, DEC-011, DEC-043, DEC-047 |
+| Testes | CI (`.github/workflows/ci.yml`: seed fictício + "Env placeholder guard"); `src/mvp-validation/` |
+| Limites | Dados reais e ativação dependem de #45 e de H10 (#167). O fecho do #18 não traz evidência visível na issue de aprovações Meta/jurídicas/terceiros — tratar como não verificado. |
+
+### 15. Auditoria
+
+| Campo | Detalhe |
+|---|---|
+| Estado | **em staging** |
+| Onde | DO por clínica: tabela `operational_audit` (`src/clinic/migrations/0001_clinic_foundation.ts`), `src/clinic/audit.ts`; marcações pela IA: `appointment.ai_booked` / `appointment.ai_book_conflict` com actor `system:ai-autobook` (`src/clinic/ai/autobook.ts:386-420`); D1 central: `central_audit_events` (`db/migrations/0003_admin_d1_central.sql:111`, índice `:125`), escrita em `src/team/d1-ops.ts:33` |
+| Decisão | ADR 0002, 0007, 0011; DEC-060 (auditoria da IA) |
+| Testes | `src/clinic/ai/autobook.test.ts`, `src/clinic/clinic.test.ts`, testes de equipa/suporte |
+| Limites | Sem trilha de auditoria de propostas/cliques (#174/#176); sem alertas automáticos sobre eventos de auditoria. |
+
+## Lacunas conhecidas (priorizadas)
+
+1. **Agendamento por IA ligado por padrão no código** (`src/clinic/ai/deps.ts:60`). Staging contido só por `AI_AUTOBOOK=off` manual; correção em PR aberto #191 (S2).
+2. **Texto livre da cliente ainda autoriza marcações na `main`** (DEC-060). DEC-061 (botão) aprovada, mas o #181 ainda não foi integrado; botão #174–#176 por implementar.
+3. **Sem limites de abuso por contato/clínica para marcações e propostas** (#178, valores por decidir).
+4. **Prompt injection sem fronteira de capacidades nem testes adversariais no CI** (#177, #180).
+5. **Bloqueio de contato não para todas as automações e não existe pausa** (#191 parcial, #187); bloqueio não chega à Meta.
+6. **Produção sem provisionamento e sem deploy registrado**; secrets de produção ausentes (DEPLOY.md §5).
+7. **Gates de dados reais**: #45 aberta; #18 fechada sem evidência visível na issue.
+8. **Imagens**: sem cartão oculto, sinalização ou fila de revisão (#184–#186); DEC-062 só proposta.
+9. **Minimização/retenção de dados do fluxo de IA** por revisar (#179); DEC-011 só parcialmente confirmada.
+10. **Estado real dos secrets e vars nos Workers não verificado** neste levantamento (sem chamadas à Cloudflare).
