@@ -4503,30 +4503,42 @@
   white-space: nowrap;
 }
 
-/* Faixa de contexto abaixo do cabeçalho (DEC-062/063): etapa só de leitura e um único «Agendar». */
-.inbox-context {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  background: var(--color-surface-card);
-  border-bottom: var(--size-border-width) solid var(--color-line-border);
-}
 
-.inbox-context-stage {
-  flex: 1;
-  min-width: 0;
-  min-height: var(--size-touch);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+
+
+/* Cabeçalho único da conversa (DEC-062/064): etapa em selo só de leitura junto do nome. */
+.inbox-stage-chip {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-tint);
   color: var(--color-primary-ink);
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
 }
 
-.inbox-context-stage strong {
-  font-weight: var(--font-weight-semibold);
+/* Celular: o avatar sai do cabeçalho para o nome e o Agendar caberem; volta no desktop. */
+.inbox-thread-person .inbox-avatar {
+  display: none;
+}
+
+.conversas-3col .inbox-thread-person .inbox-avatar {
+  display: inline-flex;
+}
+
+/* Desktop de 3 colunas: a lista já está ao lado, sem seta de voltar. */
+.conversas-3col .inbox-thread-back {
+  display: none;
+}
+
+/* Desktop de 3 colunas: coluna de leitura de até 700 px e balões até 520 px (sem linhas de 1000 px). */
+.conversas-3col .inbox-timeline,
+.conversas-3col .inbox-composer-wrap {
+  padding-inline: max(var(--space-4), calc((100% - 700px) / 2));
+}
+
+.conversas-3col .inbox-msg {
+  max-width: min(520px, 82%);
 }
 
 /* Faixa de Pix pendente (DEC-065): compacta, um aviso só. */
@@ -4627,10 +4639,6 @@
   color: var(--color-danger-ink);
 }
 
-.inbox-context-label {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-caption);
-}
 
 /* Com o atalho do resumo, o subtítulo não pode passar por baixo dos botões. */
 .inbox-thread-person .inbox-thread-who {

@@ -247,10 +247,19 @@ describe('InboxThread — etapa só de leitura e um único Agendar (DEC-062, DEC
 
   it('mostra a etapa como texto (sem seletor) e um só botão Agendar', async () => {
     renderThread(mockApi(detail({ opportunity })))
-    expect(await screen.findByText('Em atendimento', { selector: 'strong' })).toBeTruthy()
+    // Cabeçalho único: a etapa é um selo junto do nome; o estado da conversa não repete.
+    expect(await screen.findByText('Em atendimento', { selector: '.inbox-stage-chip' })).toBeTruthy()
+    expect(screen.getAllByText('Em atendimento')).toHaveLength(1)
     expect(screen.queryByRole('combobox', { name: /etapa/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /alterar etapa/i })).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Agendar horário' })).toHaveLength(1)
+  })
+
+  it('sem oportunidade mostra o estado da conversa; encerrada mostra o estado e esconde o Agendar', async () => {
+    renderThread(mockApi(detail({ status: 'closed', opportunity })))
+    expect(await screen.findByText('Encerrada')).toBeTruthy()
+    expect(screen.queryByText('Em atendimento', { selector: '.inbox-stage-chip' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Agendar horário' })).toBeNull()
   })
 
   it('«Marcar como perdida» no ⋮ corrige a etapa sem tocar na agenda', async () => {
