@@ -4,6 +4,8 @@ import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import type { ClinicaSection } from '../../routes'
 import { AiAssistCard } from './AiAssistCard'
+import { StagingResetCard } from './StagingResetCard'
+import { isStagingHostname } from './whatsapp/WhatsappDevSyncAction'
 import { ClinicHub } from './ClinicHub'
 import { ResourceForm, ResourcesList } from './ResourcesScreen'
 import { SchedulesScreen } from './SchedulesScreen'
@@ -104,6 +106,17 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
               initialAddress={snap.settings.clinicAddress ?? null}
               initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
             />
+          }
+          stagingCard={
+            isOwner && isStagingHostname() && active.phase === 'ready' ? (
+              <StagingResetCard
+                tenantId={tenantId}
+                clinicName={active.context.name}
+                api={api}
+                generation={generation}
+                onDone={() => void reload()}
+              />
+            ) : null
           }
         />
       )
