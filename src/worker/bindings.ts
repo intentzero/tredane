@@ -56,6 +56,7 @@ export type WorkerBindings = {
   AI_MODE?: string
   /** «off» desliga o agendamento pela IA após confirmação explícita (28/10/2026). */
   AI_AUTOBOOK?: string
+  AI_AUTOBOOK_TENANTS?: string
   CF_ACCOUNT_ID?: string
   AI_GATEWAY_ID?: string
   /** Token do AI Gateway — wrangler secret; nunca versionar. */
