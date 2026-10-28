@@ -219,7 +219,8 @@ export function queryAvailability(
     const occupiesUntil = startsAt + occMins * 60_000
     const range = { startsAt, endsAt: occupiesUntil }
 
-    if (occupiesUntil <= asOf) continue
+    // Horário cujo início já passou não é oferecido (início < agora).
+    if (startsAt < asOf) continue
 
     let chosen: AvailableSlot | null = null
 

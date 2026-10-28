@@ -59,7 +59,8 @@ export function checkSlotAvailability(
   const occupiesUntil = startsAt + occMins * 60_000
   const range = { startsAt, endsAt: occupiesUntil }
 
-  if (occupiesUntil <= asOf) {
+  // Marcar com início no passado é recusado (coerente com a consulta).
+  if (startsAt < asOf) {
     reasons.push('past_slot')
   }
 
