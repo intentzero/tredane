@@ -42,7 +42,7 @@
 | Onde | `src/clinic/inbox/operations.ts:361` (`blockContactOp`, `blocked_at`, auditoria `contact.blocked` em `:447`); `src/inbox/routes.ts`; UI `src/client/panel/screens/inbox/BlockContactDialog.tsx:24` (`hasPendingPix`) |
 | Decisão | DEC-046 (mensagens ofensivas) — sem DEC própria para o bloqueio |
 | Testes | `src/clinic/inbox/block.test.ts`, `src/client/panel/screens/inbox/BlockContactDialog.test.tsx` |
-| Limites | Bloqueio só no Tredane: **não** bloqueia nem denuncia na Meta (#182). Hoje não desliga todas as automações; a negação central de automações para contato bloqueado (`checkConversationProtection`) está **em PR aberto** #191; pausa = #187. |
+| Limites | Bloqueio só no Tredane: **não** bloqueia nem denuncia na Meta (#182). **Limite aceite (decisão do Paulo, 28/10/2026):** bloqueio e pausa ficam só internos; integração com a Meta fora de escopo. Hoje não desliga todas as automações; a negação central de automações para contato bloqueado (`checkConversationProtection`) está **em PR aberto** #191; pausa = #187. |
 
 ### 3. Reset de staging bloqueado em produção
 
@@ -185,7 +185,7 @@ Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY
 2a. **`AI_AUTOBOOK=off` no staging pode ter sido apagado pelo deploy das 20:12 BRT** (não verificado).
 3. **Sem limites de abuso por contato/clínica para marcações e propostas** (#178, valores por decidir).
 4. **Prompt injection sem fronteira de capacidades nem testes adversariais no CI** (#177, #180).
-5. **Bloqueio de contato não para todas as automações e não existe pausa** (#191 parcial, #187); bloqueio não chega à Meta.
+5. **Bloqueio de contato não para todas as automações e não existe pausa** (#191 parcial, #187). Não chegar à Meta é **limite aceite** (decisão do Paulo, 28/10/2026): bloqueio e pausa continuam só internos.
 6. **Produção sem provisionamento e sem deploy registrado**; secrets de produção ausentes (DEPLOY.md §5).
 7. **Gates de dados reais**: #45 aberta; #18 fechada sem evidência visível na issue.
 8. **Imagens**: sem cartão oculto, sinalização ou fila de revisão (#184–#186); DEC-062 só proposta.
