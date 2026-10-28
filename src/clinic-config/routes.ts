@@ -590,5 +590,6 @@ function parseResourceBody(body: Record<string, unknown>) {
     ...(body.sharedSpaceNotice === undefined
       ? {}
       : { sharedSpaceNotice: body.sharedSpaceNotice === null ? null : String(body.sharedSpaceNotice) }),
+    ...(body.hoursMode === undefined ? {} : { hoursMode: String(body.hoursMode) as 'clinic' | 'own' }),
   }
 }

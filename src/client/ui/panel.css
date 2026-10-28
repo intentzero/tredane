@@ -5202,3 +5202,373 @@
 .agenda-body:has(.agenda-list) {
   padding-bottom: calc(var(--size-control-lg) + var(--space-8));
 }
+
+/* ── Configuração da clínica: expediente semanal, folgas e fechamentos ── */
+.week-editor {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+
+.week-editor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.week-editor-day {
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.week-editor-day:first-child {
+  border-top: 0;
+}
+
+.week-editor-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-row-min);
+  padding: var(--space-1) var(--space-4);
+}
+
+.week-editor-name {
+  width: 72px;
+  flex: none;
+  font-weight: var(--font-weight-semibold);
+}
+
+.week-editor-summary {
+  flex: 1;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.week-switch {
+  flex: none;
+  position: relative;
+  width: 48px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-line-disabled);
+  cursor: pointer;
+}
+
+.week-switch[aria-checked='true'] {
+  background: var(--color-primary-base);
+}
+
+.week-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  transition: left 0.12s;
+}
+
+.week-switch[aria-checked='true'] .week-switch-knob {
+  left: 23px;
+}
+
+.week-switch:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.week-editor-windows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.week-editor-window {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.week-editor-window label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.week-editor-lbl {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.week-editor-window input[type='time'] {
+  height: var(--size-control-md);
+  padding: 0 var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--font-size-body);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+}
+
+.week-editor-x {
+  flex: none;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-title);
+  cursor: pointer;
+}
+
+.week-editor-add,
+.week-editor-copy {
+  align-self: flex-start;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-1);
+  border: 0;
+  background: none;
+  color: var(--color-primary-base);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.week-editor-copy {
+  width: 100%;
+  align-self: stretch;
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.clinic-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-h2 {
+  margin: 0;
+  font-size: var(--font-size-headline);
+}
+
+.clinic-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+
+.clinic-rows > li + li {
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.clinic-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--size-row-min);
+  padding: var(--space-2) var(--space-4);
+  box-sizing: border-box;
+}
+
+.clinic-row-btn {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clinic-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.clinic-row-main span {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.clinic-row-x {
+  flex: none;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-title);
+  cursor: pointer;
+}
+
+.block-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+}
+
+.block-form-date {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.block-form-date input {
+  height: var(--size-control-md);
+  padding: 0 var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--font-size-body);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+}
+
+.block-form-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.block-form-chip {
+  min-height: var(--size-control-sm);
+  padding: 0 var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.block-form-chip[aria-pressed='true'] {
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.block-form-impact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  font-size: var(--font-size-small);
+}
+
+.block-form-impact--warn {
+  background: var(--color-warning-tint);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  color: var(--color-warning-ink);
+}
+
+.block-form-impact ul {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.week-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+}
+
+.week-mode-btn {
+  min-height: var(--size-control-sm);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.week-mode-btn[aria-checked='true'] {
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: 0 1px 3px rgba(20, 38, 37, 0.15);
+}
+
+.service-more {
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+
+.service-more-head {
+  width: 100%;
+  min-height: var(--size-row-min);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.service-more-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.service-more-copy span {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.service-more-chev {
+  color: var(--color-text-muted);
+  transition: transform 0.12s;
+}
+
+.service-more-chev[data-open] {
+  transform: rotate(90deg);
+}
+
+.service-more-head:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: calc(var(--size-focus-ring-offset) * -1);
+}
+
+.service-more-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}

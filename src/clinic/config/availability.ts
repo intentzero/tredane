@@ -3,7 +3,7 @@ import { NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
 import type { ClinicDb } from '../store'
 import { getResource } from './resources'
-import type { SetWeeklyWindowsInput, WeeklyWindowRow } from './types'
+import { CLINIC_SCOPE_ID, type SetWeeklyWindowsInput, type WeeklyWindowRow } from './types'
 import { assertDayOfWeek, assertWindowRange } from './validation'
 
 type WindowSql = {
@@ -86,7 +86,8 @@ export function setWeeklyWindows(
   input: SetWeeklyWindowsInput,
   clock: Clock,
 ): WeeklyWindowRow[] {
-  const resource = getResource(db, tenantId, input.resourceId, clock)
+  const resource =
+    input.resourceId === CLINIC_SCOPE_ID ? true : getResource(db, tenantId, input.resourceId, clock)
   if (!resource) {
     throw new NotFoundError(
       'resource_not_found',
@@ -121,4 +122,29 @@ export function setWeeklyWindows(
   }
 
   return listWeeklyWindows(db, tenantId, input.resourceId)
+}
+
+/**
+ * Expediente efetivo de cada profissional: o próprio, ou o da clínica quando
+ * ela segue o horário da clínica (`hours_mode = 'clinic'`). É o que a
+ * disponibilidade, a reserva por bloco e a IA devem ler; o escopo da clínica
+ * não aparece como recurso.
+ */
+export function listEffectiveWeeklyWindows(db: ClinicDb, tenantId: string): WeeklyWindowRow[] {
+  const raw = listWeeklyWindows(db, tenantId)
+  const clinic = raw.filter((w) => w.resourceId === CLINIC_SCOPE_ID)
+  const followers = new Set(
+    db
+      .all<{ id: string }>(
+        `SELECT id FROM resources
+         WHERE tenant_id = ? AND kind = 'professional' AND hours_mode = 'clinic'`,
+        tenantId,
+      )
+      .map((r) => r.id),
+  )
+  const out = raw.filter((w) => w.resourceId !== CLINIC_SCOPE_ID && !followers.has(w.resourceId))
+  for (const id of followers) {
+    for (const w of clinic) out.push({ ...w, id: `${w.id}:${id}`, resourceId: id })
+  }
+  return out
 }

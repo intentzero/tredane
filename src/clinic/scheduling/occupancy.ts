@@ -1,7 +1,7 @@
 import { SCHEDULE_GRID_MINUTES } from '../constants'
 import type { ClinicDb } from '../store'
 import { getService } from '../config/services'
-import type { WeeklyWindowRow } from '../config/types'
+import { CLINIC_SCOPE_ID, type WeeklyWindowRow } from '../config/types'
 import type { UnavailabilityReason } from './types'
 
 export type Interval = { startsAt: number; endsAt: number }
@@ -37,11 +37,12 @@ export function listBlocksOverlapping(
 ): BlockSql[] {
   return db.all<BlockSql>(
     `SELECT id, starts_at, ends_at FROM resource_blocks
-     WHERE tenant_id = ? AND resource_id = ?
+     WHERE tenant_id = ? AND (resource_id = ? OR resource_id = ?)
        AND starts_at < ? AND ends_at > ?
      ORDER BY starts_at, id`,
     tenantId,
     resourceId,
+    CLINIC_SCOPE_ID,
     range.endsAt,
     range.startsAt,
   )

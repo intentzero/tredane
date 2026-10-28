@@ -2,7 +2,7 @@ import type { Clock } from '../../db/clock'
 import { SCHEDULE_GRID_MINUTES } from '../constants'
 import { NotFoundError } from '../errors'
 import type { ClinicDb } from '../store'
-import { listWeeklyWindows } from '../config/availability'
+import { listEffectiveWeeklyWindows } from '../config/availability'
 import { computeConfigReadiness } from '../config/readiness'
 import { getResource } from '../config/resources'
 import { getService } from '../config/services'
@@ -120,7 +120,7 @@ export function checkSlotAvailability(
     roomId = null
   }
 
-  const allWindows = listWeeklyWindows(db, tenantId)
+  const allWindows = listEffectiveWeeklyWindows(db, tenantId)
   const proWindows = allWindows.filter((w) => w.resourceId === pro.id)
   reasons.push(
     ...resourceBusyReasons(

@@ -8,7 +8,7 @@ import type {
   AiFreeSlotDay,
   AiUpcomingAppointment,
 } from '../../ai/types'
-import { listWeeklyWindows } from '../config/availability'
+import { listEffectiveWeeklyWindows } from '../config/availability'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
@@ -124,7 +124,7 @@ export function buildClinicAiContext(
       .filter((r) => r.kind === 'professional')
       .map((r) => r.id),
   )
-  const windows = listWeeklyWindows(db, tenantId).filter((w) => proIds.has(w.resourceId))
+  const windows = listEffectiveWeeklyWindows(db, tenantId).filter((w) => proIds.has(w.resourceId))
   const byDow = new Map<number, { start: number; end: number }>()
   for (const w of windows) {
     const cur = byDow.get(w.dayOfWeek)

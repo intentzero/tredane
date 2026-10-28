@@ -27,7 +27,7 @@ function snap(over: {
 }
 
 describe('ClinicHub — progresso', () => {
-  it('conta as 4 etapas e diz qual é a próxima', () => {
+  it('conta as 5 etapas, na ordem de dependência, e diz qual é a próxima', () => {
     render(
       <ClinicHub
         tenantId="clinic-demo-a"
@@ -35,10 +35,20 @@ describe('ClinicHub — progresso', () => {
       />,
     )
     expect(screen.getByText('Faltam 2 passos para atender')).toBeTruthy()
-    expect(screen.getByText(/2 de 4 etapas prontas · Próxima: Horários e bloqueios/)).toBeTruthy()
+    expect(screen.getByText(/3 de 5 etapas prontas · Próxima: Horário da clínica/)).toBeTruthy()
     const bar = screen.getByRole('progressbar', { name: 'Etapas prontas' })
-    expect(bar.getAttribute('aria-valuenow')).toBe('2')
-    expect(bar.getAttribute('aria-valuemax')).toBe('4')
+    expect(bar.getAttribute('aria-valuenow')).toBe('3')
+    expect(bar.getAttribute('aria-valuemax')).toBe('5')
+  })
+
+  it('a lista de passos segue a ordem horário → salas → profissionais → serviços', () => {
+    render(<ClinicHub tenantId="clinic-demo-a" snap={snap({ missing: [], services: 1, professionals: 1, rooms: 1 })} />)
+    const names = screen
+      .getAllByRole('button')
+      .map((b) => b.textContent ?? '')
+      .filter((t) => /^[1-4] ·/.test(t))
+      .map((t) => t.slice(0, 3))
+    expect(names).toEqual(['1 ·', '2 ·', '3 ·', '4 ·'])
   })
 
   it('tudo pronto: sem barra, com aviso verde', () => {
@@ -61,7 +71,7 @@ describe('ClinicHub — progresso', () => {
     )
     expect(screen.getAllByText('Falta')).toHaveLength(1)
     expect(screen.getByRole('button', { name: /^WhatsApp.*Falta/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /^Serviços.*Pronto/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^4 · Serviços.*Pronto/ })).toBeTruthy()
   })
 
   it('Equipe aparece como «em breve» e não é botão', () => {

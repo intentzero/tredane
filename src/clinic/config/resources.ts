@@ -3,7 +3,7 @@ import { NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
 import { resourceHasHistory } from './resource-history'
 import type { ClinicDb } from '../store'
-import type { ResourceRow, UpsertResourceInput } from './types'
+import { CLINIC_SCOPE_ID, type ResourceRow, type UpsertResourceInput } from './types'
 import { assertNonEmptyName, assertResourceKind } from './validation'
 
 type ResourceSql = {
@@ -15,6 +15,7 @@ type ResourceSql = {
   active: number
   capacity?: number | null
   shared_space_notice?: string | null
+  hours_mode?: string | null
   created_at: number
   updated_at: number
 }
@@ -62,6 +63,7 @@ function toResourceRow(
     active: row.active === 1,
     capacity: row.kind === 'room' ? Math.max(1, row.capacity ?? 1) : 1,
     sharedSpaceNotice: row.kind === 'room' ? row.shared_space_notice ?? null : null,
+    hoursMode: row.kind === 'professional' && row.hours_mode === 'clinic' ? 'clinic' : 'own',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     futureAppointmentCount: countFutureAppointments(
@@ -123,6 +125,7 @@ export function upsertResource(
   const active = input.active === false ? 0 : 1
   const capacityIn = parseCapacity(input)
   const noticeIn = parseNotice(input)
+  const hoursIn = parseHoursMode(input)
 
   if (input.id) {
     const existing = getResource(db, tenantId, input.id, clock)
@@ -137,13 +140,14 @@ export function upsertResource(
     }
     db.run(
       `UPDATE resources SET name = ?, category = ?, active = ?, capacity = ?,
-         shared_space_notice = ?, updated_at = ?
+         shared_space_notice = ?, hours_mode = ?, updated_at = ?
        WHERE tenant_id = ? AND id = ?`,
       name,
       category,
       active,
       capacityIn ?? existing.capacity,
       noticeIn === undefined ? existing.sharedSpaceNotice : noticeIn,
+      input.kind === 'professional' ? (hoursIn ?? existing.hoursMode) : 'own',
       now,
       tenantId,
       input.id,
@@ -155,8 +159,8 @@ export function upsertResource(
   db.run(
     `INSERT INTO resources (
       id, tenant_id, kind, name, category, active, capacity, shared_space_notice,
-      created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      hours_mode, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     input.kind,
@@ -165,6 +169,7 @@ export function upsertResource(
     active,
     capacityIn ?? 1,
     noticeIn ?? null,
+    input.kind === 'professional' ? (hoursIn ?? defaultHoursMode(db, tenantId)) : 'own',
     now,
     now,
   )
@@ -260,4 +265,25 @@ function parseNotice(input: UpsertResourceInput): string | null | undefined {
     )
   }
   return t
+}
+
+function parseHoursMode(input: UpsertResourceInput): 'clinic' | 'own' | undefined {
+  if (input.hoursMode === undefined) return undefined
+  if (input.kind !== 'professional') {
+    throw new ValidationError('hours_mode_professional_only', 'Só a profissional tem horário.')
+  }
+  if (input.hoursMode !== 'clinic' && input.hoursMode !== 'own') {
+    throw new ValidationError('invalid_hours_mode', 'Horário: «clinic» ou «own».')
+  }
+  return input.hoursMode
+}
+
+/** Nova profissional segue o horário da clínica quando ele já existe. */
+function defaultHoursMode(db: ClinicDb, tenantId: string): 'clinic' | 'own' {
+  const n = db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM weekly_windows WHERE tenant_id = ? AND resource_id = ?`,
+    tenantId,
+    CLINIC_SCOPE_ID,
+  )?.n ?? 0
+  return n > 0 ? 'clinic' : 'own'
 }
