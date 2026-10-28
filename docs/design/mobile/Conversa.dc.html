@@ -2,72 +2,92 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Conversa — celular</title>
+<title>Conversa com sugestão da IA</title>
 <script src="./support.js"></script>
 </head>
 <body>
 <x-dc>
 <helmet>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-body{margin:0}
-a{color:#0E5A5C}a:hover{color:#0A4547}
-button,textarea{font:inherit}
-button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+body{margin:0;font-family:Inter,system-ui,sans-serif}
+.ph{--app:#F5F4EF;--card:#fff;--sunk:#EEEDE7;--tx:#142625;--tx2:#424B4A;--mu:#566160;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--prB:#B3D1D1;--ok:#1F7A4D;--okT:#EAF5EF;--wa:#6E4200;--waT:#FFF7EA;--waB:#EBCB94;--dg:#B42318;--dgT:#FDF1F0;--dgB:#F1B8B2;--ai:#4B2A9E;--aiB:#6B3FD4;--aiT:#F7F4FD;--aiAv:#E7E0F8;--ctl:#7A8584;--bd:#E1E3E0;width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;background:var(--app);color:var(--tx);font-size:16px;line-height:1.4;position:relative;overflow:hidden}
+.ph button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+.hd{display:flex;align-items:center;gap:2px;height:60px;padding:0 4px;background:var(--card);border-bottom:1px solid var(--bd);flex:none}
+.ib{width:44px;height:44px;display:grid;place-items:center;border:0;background:none;border-radius:12px;flex:none;padding:0}
+.who{flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:0;background:none;text-align:left;padding:0 4px;height:52px;border-radius:12px}
+.av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:14px;flex:none;background:var(--aiAv);color:var(--ai)}
+.nm{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.st{font-size:14px;color:var(--mu);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.ctx{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--card);border-bottom:1px solid var(--bd);flex:none}
+.stage{flex:1;min-width:0;height:44px;border:0;background:none;text-align:left;padding:0;display:flex;flex-direction:column;justify-content:center}
+.stage small{font-size:12px;color:var(--mu);display:block}
+.stage b{font-size:14px;font-weight:600;display:flex;align-items:center;gap:4px;color:var(--prInk)}
+.btn{height:44px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;padding:0 16px;border:1px solid var(--ctl);background:var(--card)}
+.btn.pr{background:var(--pr);border-color:var(--pr);color:#fff}
+.btn.tn{background:var(--prT);border-color:var(--prB);color:var(--prInk)}
+.tl{flex:1;min-height:0;padding:12px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;overflow:hidden}
+.day{align-self:center;font-size:12px;color:var(--mu);background:var(--sunk);padding:4px 12px;border-radius:999px;margin:4px 0}
+.m{max-width:80%;padding:8px 12px 6px;border-radius:16px;font-size:16px;border:1px solid var(--bd);background:var(--card)}
+.m.in{align-self:flex-start;border-bottom-left-radius:4px}
+.m.out{align-self:flex-end;border-bottom-right-radius:4px;background:var(--prT);border-color:var(--prB)}
+.mt{display:flex;justify-content:flex-end;align-items:center;gap:4px;font-size:12px;color:var(--mu);margin-top:2px}
+.sys{align-self:center;font-size:12px;color:var(--mu);display:flex;align-items:center;gap:6px;padding:2px 0;text-align:center}
+.dock{flex:none;background:var(--card);border-top:1px solid var(--bd);padding:10px 12px 20px;display:flex;flex-direction:column;gap:10px}
+.cmp{display:flex;align-items:flex-end;gap:8px}
+.fld{flex:1;min-height:44px;box-sizing:border-box;border:1px solid var(--ctl);border-radius:22px;padding:10px 16px;color:var(--mu);background:var(--card)}
+.rnd{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none;border:1px solid var(--ctl);background:var(--card);padding:0}
+.rnd.pr{background:var(--pr);border-color:var(--pr);color:#fff}
+.rnd.ai{background:var(--aiT);border-color:var(--aiB);color:var(--ai)}
+.aic{background:var(--aiT);border:1px dashed var(--aiB);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.ail{font-size:14px;font-weight:600;color:var(--ai);display:flex;align-items:center;gap:6px}
+.aib{display:flex;gap:8px}
+.aib .u{flex:1;background:var(--ai);border-color:var(--ai);color:#fff}
 </style>
 </helmet>
-<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F4EF; color: #142625; font-family: Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
-
-<header style="background: #FFFFFF; border-bottom: 1px solid #E1E3E0">
-<div style="display: flex; align-items: center; gap: 4px; padding: 8px 4px">
-<a href="Main.dc.html" aria-label="Voltar para Conversas" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #142625; border-radius: 999px"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></a>
-<a href="Contato.dc.html" style="flex: 1; min-width: 0; display: flex; flex-direction: column; color: #142625; text-decoration: none; padding: 2px 0">
-<span style="font-size: 18px; font-weight: 600">Juliana Prado</span>
-<span style="font-size: 14px; color: #566160">Horário proposto · toque para detalhes</span>
-</a>
-<a href="Agendar.dc.html" aria-label="Agendar horário" style="flex: none; min-height: 44px; display: flex; align-items: center; gap: 4px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 999px; background: #FFFFFF; color: #142625; font-size: 14px; font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M8 3v4M16 3v4M3 10h18M12 13v5M9.5 15.5h5"></path></svg>Agendar</a>
-<button type="button" aria-label="Mais ações: transferir, encerrar, bloquear" style="width: 44px; height: 44px; border: 0; background: transparent; border-radius: 999px; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="19" r="1.8"></circle></svg></button>
-</div>
-<div style="display: flex; align-items: center; gap: 8px; padding: 8px 16px 12px; font-size: 14px; color: #424B4A">
-<span style="padding: 0 8px; border-radius: 8px; background: #EAF5EF; color: #1F7A4D; font-weight: 600">Em atendimento</span>
-<span>Responsável: você</span>
-<button type="button" style="margin-left: auto; height: 40px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 16px; background: #FFFFFF; font-size: 14px; cursor: pointer">Transferir</button>
-</div>
-</header>
-
-<ol aria-label="Histórico" style="list-style: none; margin: 0; padding: 16px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px">
-<li style="align-self: center; font-size: 14px; color: #566160">Hoje</li>
-<li style="align-self: flex-start; max-width: 82%; display: flex; flex-direction: column; gap: 3px"><div style="background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 16px 16px 16px 4px; padding: 12px 12px">Olá, gostaria de agendar uma depilação a laser nas pernas.</div><span style="font-size: 12px; color: #566160">09:12</span></li>
-<li style="align-self: flex-end; max-width: 82%; display: flex; flex-direction: column; align-items: flex-end; gap: 3px"><div style="background: #E7F1F1; border-radius: 16px 16px 4px 16px; padding: 12px 12px">Oi, Juliana! Temos horários nesta semana. Qual período fica melhor?</div><span style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: #0A4547"><svg aria-hidden="true" width="16" height="14" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13l5 5L18 6"></path><path d="M11 18l1 0L24 6"></path></svg>Lida · 09:15</span></li>
-<li style="align-self: center; font-size: 12px; color: #424B4A; background: #EEEDE7; border-radius: 12px; padding: 4px 12px">Ana mudou a etapa para Horário proposto</li>
-<li style="align-self: flex-start; max-width: 82%; display: flex; flex-direction: column; gap: 3px"><div style="background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 16px 16px 16px 4px; padding: 12px 12px">Pode ser sexta à tarde?</div><span style="font-size: 12px; color: #566160">09:30</span></li>
-</ol>
-
-<div style="background: #FFFFFF; border-top: 1px solid #E1E3E0; padding: 12px 12px 26px; display: flex; flex-direction: column; gap: 12px">
-<div role="region" aria-label="Sugestão da IA" style="border: 1.5px dashed #6B3FD4; border-radius: 16px; background: #F7F4FD; padding: 12px 12px; display: flex; flex-direction: column; gap: 8px">
-<span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #4B2A9E"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path></svg>Sugestão da IA — revise antes de enviar</span>
-<p style="margin: 0; font-size: 16px">Claro, Juliana! Vou conferir os horários de sexta à tarde e te envio as opções em seguida.</p>
-<div style="display: flex; gap: 8px">
-<button type="button" style="flex: 1; height: 44px; border: 1px solid #6B3FD4; border-radius: 8px; background: #FFFFFF; color: #4B2A9E; font-weight: 600; cursor: pointer">Usar e editar</button>
-<button type="button" aria-label="Gerar outra sugestão" style="width: 44px; height: 44px; border: 1px solid #6B3FD4; border-radius: 8px; background: #FFFFFF; color: #4B2A9E; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 4v5h-5"></path></svg></button>
-<button type="button" aria-label="Descartar sugestão" style="width: 44px; height: 44px; border: 1px solid #6B3FD4; border-radius: 8px; background: #FFFFFF; color: #566160; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></button>
-</div>
-</div>
-<div style="display: flex; align-items: flex-end; gap: 8px">
-<button type="button" aria-label="Sugerir resposta com IA" style="flex: none; width: 44px; height: 44px; border: 1px solid #6B3FD4; border-radius: 999px; background: #F7F4FD; color: #4B2A9E; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"></path></svg></button>
-<label style="flex: 1; min-width: 0; display: flex"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Resposta para Juliana Prado</span>
-<textarea rows="1" placeholder="Mensagem" style="flex: 1; min-height: 44px; box-sizing: border-box; padding: 11px 16px; border: 1px solid #7A8584; border-radius: 999px; font-size: 16px; color: #142625; resize: none"></textarea></label>
-<button type="button" aria-label="Enviar" style="flex: none; width: 44px; height: 44px; border: 0; border-radius: 999px; background: #0E5A5C; color: #FFFFFF; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></button>
-</div>
-</div>
+<div class="ph">
+  <header class="hd">
+    <button class="ib" aria-label="Voltar às conversas"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button class="who" aria-label="Informações de Juliana Prado">
+      <span class="av" aria-hidden="true">JP</span>
+      <span style="min-width:0"><span class="nm">Juliana Prado</span><span class="st"><span class="dot"></span>Em atendimento · você</span></span>
+    </button>
+    <button class="ib" aria-label="Mais opções da conversa"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>
+  </header>
+  <div class="ctx">
+    <div class="stage"><small>Etapa</small><b>Horário proposto</b></div>
+    <button class="btn tn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M12 14v4M10 16h4"/></svg>Agendar</button>
+  </div>
+  <main class="tl">
+    <span class="day">Hoje</span>
+    <div class="m in">Olá, gostaria de agendar uma depilação a laser nas pernas.<div class="mt">09:12</div></div>
+    <div class="m out">Oi, Juliana! Temos horários nesta semana. Qual período fica melhor?<div class="mt">09:15<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F7A4D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="Lida"><path d="M18 6 7 17l-5-5M22 10l-7.5 7.5L13 16"/></svg></div></div>
+    <div class="sys"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Ana mudou a etapa para Horário proposto</div>
+    <div class="m in">Pode ser sexta à tarde?<div class="mt">09:30</div></div>
+  </main>
+  <div class="dock">
+    <section class="aic" aria-label="Sugestão da IA">
+      <div class="ail"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>Sugestão da IA · revise antes de enviar</div>
+      <div style="max-height:150px;overflow-y:auto;overscroll-behavior:contain">Claro, Juliana! Vou conferir os horários de sexta à tarde e te envio as opções em seguida. Se preferir, também consigo ver sábado de manhã.</div>
+      <div class="aib">
+        <button class="btn u"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>Enviar</button>
+        <button class="btn" style="padding:0 14px;border-color:var(--aiB);color:var(--ai)">Editar</button>
+        <button class="btn" style="width:44px;padding:0;border-color:var(--aiB);color:var(--ai)" aria-label="Gerar outra"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg></button>
+        <button class="btn" style="width:44px;padding:0;border-color:var(--aiB);color:var(--ai)" aria-label="Descartar sugestão"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+    </section>
+    <div class="cmp">
+      <div class="fld">Ou escreva a sua resposta</div>
+      <button class="rnd" disabled aria-label="Enviar (escreva uma mensagem)" style="background:var(--sunk);border-color:var(--bd);color:var(--mu);cursor:default"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+    </div>
+  </div>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
 class Component extends DCLogic {
-renderVals() {
-return {};
-}
+  renderVals() { return {}; }
 }
 </script>
 </body>
