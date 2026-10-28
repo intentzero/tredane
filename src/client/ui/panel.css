@@ -1483,6 +1483,10 @@
   margin: var(--space-2) 0;
   color: var(--color-text-primary);
   white-space: pre-wrap;
+  /* Texto completo, nunca cortado com «…»: textos muito longos rolam dentro do cartão. */
+  max-height: 150px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .ai-block-actions {
@@ -1494,6 +1498,13 @@
 .ai-btn {
   border-color: var(--color-ai-border);
   color: var(--color-ai-ink);
+}
+
+.ai-btn--send {
+  flex: 1;
+  background: var(--color-ai-ink);
+  border-color: var(--color-ai-ink);
+  color: var(--color-text-on-primary);
 }
 
 .inbox-ai-trigger {

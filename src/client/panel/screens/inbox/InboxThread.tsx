@@ -769,6 +769,13 @@ export function InboxThread({
     setAiSuggestion(null)
   }
 
+  // DEC-062: a atendente leu o texto completo e envia em 1 toque; a origem da sugestão fica registrada.
+  async function sendAiSuggestion() {
+    if (!aiSuggestion) return
+    seenSuggestionIdsRef.current.add(aiSuggestion.id)
+    await sendPayload({ body: aiSuggestion.suggestedText, aiSuggestionId: aiSuggestion.id })
+  }
+
   async function sendPayload(payload: {
     body?: string
     template?: {
@@ -1403,12 +1410,21 @@ export function InboxThread({
                 </p>
               ) : null}
               <div className="ai-block-actions">
+                {windowOpen ? (
+                  <Button
+                    className="panel-btn-primary ai-btn ai-btn--send"
+                    onPress={() => void sendAiSuggestion()}
+                    isDisabled={aiBusy || busy}
+                  >
+                    Enviar
+                  </Button>
+                ) : null}
                 <Button
                   className="panel-btn-secondary ai-btn"
                   onPress={() => useAndEditAiSuggestion()}
                   isDisabled={aiBusy || busy}
                 >
-                  Usar e editar
+                  Editar
                 </Button>
                 <Button
                   className="panel-btn-secondary ai-btn"

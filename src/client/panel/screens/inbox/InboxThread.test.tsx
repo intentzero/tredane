@@ -204,4 +204,40 @@ describe('InboxThread — estado de envio', () => {
     const btn = await screen.findByRole('button', { name: 'Sugerir resposta com IA' })
     expect(btn.textContent).toContain('Sugerir resposta')
   })
+
+  it('DEC-062: «Enviar» manda a sugestão da IA inteira em 1 toque, com a origem registrada', async () => {
+    const suggestion = {
+      id: 'ais_ficticia',
+      conversationId: 'cnv_ficticia',
+      kind: 'reply',
+      status: 'ok',
+      provider: 'teste',
+      model: 'teste',
+      suggestedText: 'Claro! Tenho 14h e 16h livres na sexta. Qual prefere?',
+      warningCodes: [],
+      warningLabels: [],
+      sourceRefs: [],
+      requestMeta: { latencyMs: 1, inputTokens: null, outputTokens: null, messageCount: 1, mode: 'test' },
+      errorCode: null,
+      createdAt: NOW,
+      messageSent: false,
+    }
+    const suggestAiReply = vi.fn(async () => ({ suggestion, duplicate: false, messageSent: false }))
+    const sendInboxMessage = vi.fn(async () => ({
+      message: message({ id: 'out_1', direction: 'outbound', body: suggestion.suggestedText }),
+      conversation: detail(),
+    }))
+    renderThread(mockApi(detail(), { suggestAiReply, sendInboxMessage } as unknown as Partial<PanelApi>))
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Sugerir resposta com IA' }))
+    const region = await screen.findByRole('region', { name: 'Sugestão da IA' })
+    expect(within(region).getByText(suggestion.suggestedText)).toBeTruthy()
+    await user.click(within(region).getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(sendInboxMessage).toHaveBeenCalledTimes(1))
+    expect((sendInboxMessage.mock.calls[0] as unknown[])[2]).toMatchObject({
+      body: suggestion.suggestedText,
+      aiSuggestionId: 'ais_ficticia',
+    })
+    expect(within(region).queryByRole('button', { name: 'Usar e editar' })).toBeNull()
+  })
 })
