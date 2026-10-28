@@ -65,6 +65,28 @@ describe('Horário da clínica', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
   })
 
+  it('as bordas das faixas ajustam o horário de 15 em 15 min e liberam salvar', async () => {
+    const a = api()
+    render(<ClinicHoursScreen tenantId="t" snap={snap()} api={a} generation={1} onSaved={async () => undefined} />)
+    const closes = screen.getAllByRole('slider', { name: 'Segunda, fecha' })
+    fireEvent.keyDown(closes[0]!, { key: 'ArrowLeft' })
+    expect(screen.getAllByRole('slider', { name: 'Segunda, fecha' })[0]!.getAttribute('aria-valuetext')).toBe('17:45')
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar horário' }))
+    await waitFor(() => expect(a.setWeeklyWindows).toHaveBeenCalled())
+    const windows = (a.setWeeklyWindows as ReturnType<typeof vi.fn>).mock.calls[0]![2]
+    expect(windows).toContainEqual({ dayOfWeek: 1, startMinute: 480, endMinute: 1065 })
+  })
+
+  it('o painel do dia mostra quem trabalha e copia o dia para segunda a sexta', () => {
+    render(<ClinicHoursScreen tenantId="t" snap={snap()} api={api()} generation={1} onSaved={async () => undefined} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Seg' }))
+    expect(screen.getByText('14:00–18:00')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Sáb' }))
+    expect(screen.getByText('Fechado nesse dia.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar para segunda a sexta' }))
+    expect(screen.getByRole('button', { name: 'Salvar horário' })).toBeTruthy()
+  })
+
   it('o calendário junta fechamentos da clínica e folgas das pessoas numa lista só', () => {
     const s = snap()
     const day = 86_400_000
