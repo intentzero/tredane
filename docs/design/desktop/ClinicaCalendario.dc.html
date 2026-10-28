@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Desktop — calendário de folgas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="display: flex; flex-direction: column; min-height: 900px; background: #F5F4EF; font-family: Inter, system-ui, sans-serif; color: #142625; font-size: 14px; line-height: 1.4">
+  <header style="flex: none; display: flex; align-items: center; gap: 24px; padding: 0 32px; background: #FFFFFF; border-bottom: 1px solid #E1E3E0; min-height: 64px">
+    <h1 style="margin: 0; font-size: 22px; font-weight: 600">Clínica</h1>
+    <div role="tablist" aria-label="Áreas da clínica" style="display: flex; gap: 4px; align-self: stretch">
+      <span role="tab" aria-selected="true" style="display: flex; align-items: center; padding: 0 16px; border-bottom: 3px solid #0E5A5C; font-weight: 600; color: #0A4547">Horário</span>
+      <span role="tab" style="display: flex; align-items: center; padding: 0 16px; color: #424B4A">Profissionais</span>
+      <span role="tab" style="display: flex; align-items: center; padding: 0 16px; color: #424B4A">Salas</span>
+      <span role="tab" style="display: flex; align-items: center; padding: 0 16px; color: #424B4A">Serviços</span>
+      <span role="tab" style="display: flex; align-items: center; padding: 0 16px; color: #424B4A">Atendimento</span>
+    </div>
+  </header>
+
+  <div style="flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 380px">
+    <main style="padding: 24px 32px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div role="tablist" aria-label="Visão" style="display: grid; grid-template-columns: repeat(2, 120px); padding: 3px; border-radius: 999px; background: #EEEDE7">
+          <span role="tab" style="min-height: 36px; display: grid; place-items: center; color: #424B4A">Semana</span>
+          <span role="tab" aria-selected="true" style="min-height: 36px; display: grid; place-items: center; border-radius: 999px; background: #FFFFFF; font-weight: 600; box-shadow: 0 1px 3px rgba(20,38,37,0.15)">Calendário</span>
+        </div>
+        <h2 style="margin: 0 0 0 12px; flex: 1; font-size: 18px; font-weight: 600">Novembro de 2026</h2>
+        <button type="button" aria-label="Mês anterior" style="width: 44px; height: 44px; border: 1px solid #E1E3E0; border-radius: 12px; background: #FFFFFF; font-size: 18px">‹</button>
+        <button type="button" aria-label="Próximo mês" style="width: 44px; height: 44px; border: 1px solid #E1E3E0; border-radius: 12px; background: #FFFFFF; font-size: 18px">›</button>
+      </div>
+      <div style="border-radius: 20px; background: #FFFFFF; padding: 16px 20px 20px">
+        <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; color: #566160; font-size: 12px; padding-bottom: 6px"><span>Segunda</span><span>Terça</span><span>Quarta</span><span>Quinta</span><span>Sexta</span><span>Sábado</span><span>Domingo</span></div>
+        <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px">
+          <sc-for list="{{celulas}}" as="c" hint-placeholder-count="35">
+            <div style="{{c.cel}}">
+              <span style="{{c.num}}">{{c.n}}</span>
+              <sc-for list="{{c.faixas}}" as="f" hint-placeholder-count="1">
+                <span style="{{f.style}}">{{f.texto}}</span>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </main>
+
+    <aside aria-label="Próximos" style="border-left: 1px solid #E1E3E0; background: #FFFFFF; padding: 24px 20px; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: center"><h2 style="margin: 0; flex: 1; font-size: 18px; font-weight: 600">Próximos</h2></div>
+      <div style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 6px 12px; border-radius: 12px; background: #F5F4EF"><i style="flex: none; width: 4px; align-self: stretch; margin: 6px 0; border-radius: 999px; background: #EBCB94"></i><span style="flex: 1; display: flex; flex-direction: column"><strong style="font-weight: 600">Lívia · Férias</strong><span style="font-size: 12px; color: #6E4200">10/11 – 20/11 · 3 horários marcados</span></span></div>
+      <div style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 6px 12px; border-radius: 12px; background: #F5F4EF"><i style="flex: none; width: 4px; align-self: stretch; margin: 6px 0; border-radius: 999px; background: #B42318"></i><span style="flex: 1; display: flex; flex-direction: column"><strong style="font-weight: 600">Clínica fechada · Feriado</strong><span style="font-size: 12px; color: #566160">15/11 · nenhum horário marcado</span></span></div>
+      <div style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 6px 12px; border-radius: 12px; background: #F5F4EF"><i style="flex: none; width: 4px; align-self: stretch; margin: 6px 0; border-radius: 999px; background: #6B3FD4"></i><span style="flex: 1; display: flex; flex-direction: column"><strong style="font-weight: 600">Bruna · Folga</strong><span style="font-size: 12px; color: #566160">24/11 · dia inteiro</span></span></div>
+      <button type="button" style="margin-top: auto; min-height: 48px; border: 0; border-radius: 12px; background: #0E5A5C; color: #FFFFFF; font: inherit; font-weight: 600">+ Folga, férias ou fechamento</button>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const marc = {
+      10: ['Lívia', '#FFF7EA', '#6E4200'], 11: ['Lívia', '#FFF7EA', '#6E4200'], 12: ['Lívia', '#FFF7EA', '#6E4200'], 13: ['Lívia', '#FFF7EA', '#6E4200'], 14: ['Lívia', '#FFF7EA', '#6E4200'],
+      15: ['Clínica fechada', '#FDF1F0', '#B42318'],
+      16: ['Lívia', '#FFF7EA', '#6E4200'], 17: ['Lívia', '#FFF7EA', '#6E4200'], 18: ['Lívia', '#FFF7EA', '#6E4200'], 19: ['Lívia', '#FFF7EA', '#6E4200'], 20: ['Lívia', '#FFF7EA', '#6E4200'],
+      24: ['Bruna', '#E7E0F8', '#4B2A9E'],
+    }
+    const celulas = []
+    for (let k = 0; k < 35; k += 1) {
+      const day = k - 5
+      const fora = day < 1 || day > 30
+      const real = fora ? (day < 1 ? 31 + day : day - 30) : day
+      const m = fora ? null : marc[day]
+      celulas.push({
+        n: real,
+        faixas: m ? [{ texto: m[0], style: 'padding: 2px 8px; border-radius: 8px; font-size: 12px; font-weight: 600; background: ' + m[1] + '; color: ' + m[2] }] : [],
+        cel: 'min-height: 96px; box-sizing: border-box; padding: 8px; border-radius: 12px; display: flex; flex-direction: column; gap: 6px; border: 1px solid ' + (day === 5 ? '#B3D1D1' : '#EEEDE7') + '; ' + (day === 5 ? 'background: #E7F1F1;' : 'background: #FFFFFF;'),
+        num: 'font-weight: 600; ' + (fora ? 'color: #7A8584;' : 'color: #142625;'),
+      })
+    }
+    return { celulas }
+  }
+}
+</script>
+</body>
+</html>
