@@ -246,6 +246,7 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
       return c.json({
         contact: serializeContact(result.contact),
         conversations: result.conversations.map(serializeConversation),
+        hasPendingPix: result.hasPendingPix,
       })
     } catch (err) {
       return inboxErrorResponse(c, err)

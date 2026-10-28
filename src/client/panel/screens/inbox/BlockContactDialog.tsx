@@ -1,5 +1,5 @@
-import { Ban } from 'lucide-react'
-import { useState } from 'react'
+import { Ban } from "lucide-react";
+import { useState } from "react";
 import {
   Button,
   Dialog,
@@ -8,31 +8,45 @@ import {
   ModalOverlay,
   Radio,
   RadioGroup,
-} from 'react-aria-components'
+} from "react-aria-components";
 
-export const BLOCK_REASONS = ['Mensagens ofensivas', 'Spam ou propaganda', 'Outro motivo'] as const
+export const BLOCK_REASONS = [
+  "Mensagens ofensivas",
+  "Spam ou propaganda",
+  "Outro motivo",
+] as const;
 
 type Props = {
-  open: boolean
+  open: boolean;
   /** Nome ou telefone já mascarado. */
-  contactLabel: string
-  busy: boolean
-  error?: string | null
-  onClose: () => void
-  onConfirm: (reason: string | null) => void
-}
+  contactLabel: string;
+  busy: boolean;
+  /** Contato tem Pix pendente: avisa antes de confirmar (o Pix continua válido). */
+  hasPendingPix?: boolean;
+  error?: string | null;
+  onClose: () => void;
+  onConfirm: (reason: string | null) => void;
+};
 
-/** Confirmação de bloqueio do contato (Proposto, 27/10/2026): diálogo central para ação destrutiva. */
-export function BlockContactDialog({ open, contactLabel, busy, error, onClose, onConfirm }: Props) {
-  const [reason, setReason] = useState<string | null>(null)
+/** Confirmação de bloqueio do contato (Decidido, 28/10/2026): diálogo central para ação destrutiva. */
+export function BlockContactDialog({
+  open,
+  contactLabel,
+  busy,
+  hasPendingPix = false,
+  error,
+  onClose,
+  onConfirm,
+}: Props) {
+  const [reason, setReason] = useState<string | null>(null);
   return (
     <ModalOverlay
       isOpen={open}
       onOpenChange={(next) => {
-        if (!next && !busy) onClose()
+        if (!next && !busy) onClose();
       }}
       className="panel-overlay panel-overlay--center"
-      style={{ position: 'fixed', inset: 0, zIndex: 30 }}
+      style={{ position: "fixed", inset: 0, zIndex: 30 }}
       isDismissable={!busy}
     >
       <Modal className="block-contact-modal">
@@ -46,22 +60,42 @@ export function BlockContactDialog({ open, contactLabel, busy, error, onClose, o
               <span className="block-contact-icon" aria-hidden="true">
                 <Ban size={22} strokeWidth={2} />
               </span>
-              <Heading slot="title" id="block-contact-title" className="block-contact-title">
+              <Heading
+                slot="title"
+                id="block-contact-title"
+                className="block-contact-title"
+              >
                 Bloquear {contactLabel}?
               </Heading>
               <ul className="block-contact-list">
-                <li>Mensagens novas deste número deixam de aparecer no painel.</li>
+                <li>
+                  Mensagens novas deste número deixam de aparecer no painel.
+                </li>
                 <li>Ninguém da clínica consegue responder até desbloquear.</li>
-                <li>A conversa é encerrada. O histórico e os horários marcados continuam.</li>
+                <li>
+                  A conversa é encerrada. O histórico e os horários marcados
+                  continuam.
+                </li>
               </ul>
+              {hasPendingPix ? (
+                <p
+                  className="inbox-notice block-contact-pix-warning"
+                  role="note"
+                >
+                  Este contato tem um Pix pendente. O Pix continua válido e não
+                  será cancelado.
+                </p>
+              ) : null}
               <RadioGroup
                 className="block-contact-reasons"
                 aria-label="Motivo (opcional, só a equipe vê)"
-                value={reason ?? ''}
+                value={reason ?? ""}
                 onChange={(v) => setReason(v)}
                 isDisabled={busy}
               >
-                <span className="block-contact-legend">Motivo (opcional, só a equipe vê)</span>
+                <span className="block-contact-legend">
+                  Motivo (opcional, só a equipe vê)
+                </span>
                 {BLOCK_REASONS.map((r) => (
                   <Radio key={r} value={r} className="block-contact-radio">
                     <span className="block-contact-dot" aria-hidden="true" />
@@ -80,15 +114,15 @@ export function BlockContactDialog({ open, contactLabel, busy, error, onClose, o
                   isDisabled={busy}
                   onPress={() => onConfirm(reason)}
                 >
-                  {busy ? 'Bloqueando…' : 'Bloquear contato'}
+                  {busy ? "Bloqueando…" : "Bloquear contato"}
                 </Button>
                 <Button
                   className="panel-btn-secondary"
                   autoFocus
                   isDisabled={busy}
                   onPress={() => {
-                    close()
-                    onClose()
+                    close();
+                    onClose();
                   }}
                 >
                   Cancelar
@@ -99,5 +133,5 @@ export function BlockContactDialog({ open, contactLabel, busy, error, onClose, o
         </Dialog>
       </Modal>
     </ModalOverlay>
-  )
+  );
 }

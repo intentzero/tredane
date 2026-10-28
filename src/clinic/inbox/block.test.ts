@@ -3,6 +3,7 @@ import { ingestContactMessage, workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import {
   blockContactOp,
+  getContactDetailOp,
   getConversationDetailOp,
   listConversationsOp,
   sendOutboundMessageOp,
@@ -88,6 +89,65 @@ describe('Clinic inbox — bloquear contato (Proposto)', () => {
     } finally {
       a.close()
       b.close()
+    }
+  })
+})
+
+describe('Clinic inbox — bloquear contato com Pix pendente (Decidido)', () => {
+  function insertCharge(
+    db: ReturnType<typeof bootClinicDb>['db'],
+    contactId: string,
+    status: string,
+    expiresAt: number | null,
+    nowMs: number,
+  ) {
+    db.run(
+      `INSERT INTO pix_charges (id, tenant_id, account_id, provider, external_reference, amount_cents,
+         status, expires_at, contact_id, created_at, updated_at)
+       VALUES (?, 'clinic-demo-a', 'acc_ficticia', 'fake', ?, 5000, ?, ?, ?, ?, ?)`,
+      `chg_${status}_${expiresAt ?? 'none'}`,
+      `ext_${status}_${expiresAt ?? 'none'}`,
+      status,
+      expiresAt,
+      contactId,
+      nowMs,
+      nowMs,
+    )
+  }
+
+  it('sinaliza Pix pendente no detalhe e o bloqueio não altera a cobrança', () => {
+    const { db, clock, close } = bootClinicDb()
+    try {
+      const caller = workerCaller('clinic-demo-a', ACTOR.actorClerkUserId)
+      const first = ingestContactMessage(
+        db,
+        caller,
+        { providerEventKey: 'wa:blkpix:1', waId: '5511987002011', displayName: 'Contato Fictício', body: 'oi' },
+        clock,
+      )
+      const contactId = first.contact!.id
+      const conversationId = first.conversation!.id
+      const now = clock.nowMs()
+
+      expect(getConversationDetailOp(db, caller, { conversationId }, clock).contactHasPendingPix).toBe(false)
+      expect(getContactDetailOp(db, caller, contactId, clock).hasPendingPix).toBe(false)
+
+      // Pago ou expirado não conta.
+      insertCharge(db, contactId, 'paid', null, now)
+      insertCharge(db, contactId, 'awaiting_payment', now - 1, now)
+      expect(getContactDetailOp(db, caller, contactId, clock).hasPendingPix).toBe(false)
+
+      insertCharge(db, contactId, 'awaiting_payment', now + 3_600_000, now)
+      expect(getConversationDetailOp(db, caller, { conversationId }, clock).contactHasPendingPix).toBe(true)
+      expect(getContactDetailOp(db, caller, contactId, clock).hasPendingPix).toBe(true)
+
+      const before = db.all(`SELECT * FROM pix_charges WHERE contact_id = ? ORDER BY id`, contactId)
+      blockContactOp(db, caller, { contactId, ...ACTOR, reason: null }, clock)
+      const after = db.all(`SELECT * FROM pix_charges WHERE contact_id = ? ORDER BY id`, contactId)
+      expect(after).toEqual(before)
+      expect(getContactDetailOp(db, caller, contactId, clock).hasPendingPix).toBe(true)
+    } finally {
+      close()
     }
   })
 })

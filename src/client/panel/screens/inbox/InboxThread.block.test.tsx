@@ -180,3 +180,100 @@ describe('InboxThread — bloquear contato', () => {
     }
   })
 })
+
+function msg(id: string, direction: 'inbound' | 'outbound' | 'system', at: number) {
+  return {
+    id,
+    tenantId: 'clinic-demo-a',
+    conversationId: 'cnv_ficticia',
+    direction,
+    body: direction === 'system' ? 'Nota interna da equipe' : `texto ${id}`,
+    externalMessageId: null,
+    deliveryState: 'delivered',
+    authorClerkUserId: direction === 'inbound' ? null : 'u1',
+    authorDisplayName: direction === 'inbound' ? null : 'Ana',
+    createdAt: at,
+  }
+}
+
+function withMessages(api: PanelApi, messages: ReturnType<typeof msg>[], extra: Record<string, unknown> = {}) {
+  Object.assign(api, {
+    getInboxConversation: vi.fn(async () => ({ ...detail(null), messages, ...extra })),
+  })
+  return api
+}
+
+describe('InboxThread — «Sugerir resposta» só com a cliente à espera (Decidido)', () => {
+  const T = NOW - 3_600_000
+  it('última mensagem da cliente: mostra «Sugerir resposta»', async () => {
+    renderThread(withMessages(mockApi({ blocked: false }), [msg('a', 'inbound', T)]))
+    expect(await screen.findByRole('button', { name: 'Sugerir resposta com IA' })).toBeTruthy()
+  })
+
+  it('última mensagem da clínica (cliente 18:06–18:07, resposta 19:12): esconde', async () => {
+    renderThread(
+      withMessages(mockApi({ blocked: false }), [
+        msg('a', 'inbound', T),
+        msg('b', 'inbound', T + 60_000),
+        msg('c', 'outbound', T + 66 * 60_000),
+      ]),
+    )
+    expect(await screen.findByRole('textbox', { name: 'Mensagem' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Sugerir resposta com IA' })).toBeNull()
+  })
+
+  it('nota interna/sistema depois da mensagem da cliente: continua a mostrar', async () => {
+    renderThread(
+      withMessages(mockApi({ blocked: false }), [msg('a', 'inbound', T), msg('s', 'system', T + 1000)]),
+    )
+    expect(await screen.findByRole('button', { name: 'Sugerir resposta com IA' })).toBeTruthy()
+  })
+
+  it('nota interna/sistema depois da nossa resposta: continua escondido', async () => {
+    renderThread(
+      withMessages(mockApi({ blocked: false }), [
+        msg('a', 'inbound', T),
+        msg('c', 'outbound', T + 1000),
+        msg('s', 'system', T + 2000),
+      ]),
+    )
+    expect(await screen.findByRole('textbox', { name: 'Mensagem' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Sugerir resposta com IA' })).toBeNull()
+  })
+
+  it('sugestão automática pendente não é inserida quando a última é nossa', async () => {
+    const api = withMessages(mockApi({ blocked: false }), [msg('a', 'inbound', T), msg('c', 'outbound', T + 1000)])
+    Object.assign(api, {
+      getAiDraft: vi.fn(async () => ({
+        job: null,
+        syntheticFallback: false,
+        usage: { day: '2026-10-27', drafts: 1, cap: 300, capReached: false, capReachedAt: null },
+        suggestion: { id: 'sg1', origin: 'auto', status: 'pending', suggestedText: 'Rascunho automático', replyToMessageId: 'a' },
+      })),
+    })
+    renderThread(api)
+    const box = (await screen.findByRole('textbox', { name: 'Mensagem' })) as HTMLTextAreaElement
+    await waitFor(() => expect(api.getAiDraft).toHaveBeenCalled())
+    expect(box.value).toBe('')
+    expect(screen.queryByRole('button', { name: /Sugestão pronta/ })).toBeNull()
+  })
+})
+
+describe('InboxThread — bloquear com Pix pendente (Decidido)', () => {
+  const PIX = 'Este contato tem um Pix pendente. O Pix continua válido e não será cancelado.'
+  it('com Pix pendente o diálogo avisa antes de confirmar; sem Pix não', async () => {
+    const api = withMessages(mockApi({ blocked: false }), [], { contactHasPendingPix: true })
+    renderThread(api)
+    expect(await screen.findByRole('textbox', { name: 'Mensagem' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Bloquear contato' }))
+    expect(await screen.findByText(PIX)).toBeTruthy()
+    cleanup()
+    renderThread(mockApi({ blocked: false }))
+    expect(await screen.findByRole('textbox', { name: 'Mensagem' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Bloquear contato' }))
+    expect(await screen.findByRole('alertdialog')).toBeTruthy()
+    expect(screen.queryByText(PIX)).toBeNull()
+  })
+})

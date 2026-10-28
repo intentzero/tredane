@@ -1764,6 +1764,8 @@ export type InboxConversationDetail = InboxConversation & {
   messagesHasMore: boolean
   messagesNextBefore: number | null
   messagingWindow: MessagingWindow
+  /** Contato tem Pix pendente (o bloqueio não cancela o Pix). */
+  contactHasPendingPix?: boolean
 }
 
 export type WhatsappTemplateItem = {
@@ -1787,6 +1789,8 @@ export type WhatsappTemplatesResponse = {
 export type InboxContactDetail = {
   contact: InboxContact
   conversations: InboxConversation[]
+  /** Contato tem Pix pendente (o bloqueio não cancela o Pix). */
+  hasPendingPix?: boolean
 }
 
 /** Resposta de DELETE contato — sem nome, telefone ou wa_id. */

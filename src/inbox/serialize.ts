@@ -81,6 +81,7 @@ export function serializeConversationDetail(d: ConversationDetail) {
       closesAt: d.messagingWindow.closesAt,
       remainingMs: d.messagingWindow.remainingMs,
     },
+    contactHasPendingPix: d.contactHasPendingPix,
   }
 }
 
