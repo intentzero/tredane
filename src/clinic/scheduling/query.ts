@@ -13,7 +13,13 @@ import {
   clinicDayOfWeek,
   slotStartUtc,
 } from './timezone'
-import { gridStartMinutes, resourceBusyReasons } from './occupancy'
+import {
+  gridStartMinutes,
+  listConfirmedOccupyingResource,
+  peakConcurrent,
+  resourceBusyReasons,
+  resourceCapacity,
+} from './occupancy'
 import { candidateBreaksHolds, listActiveHoldNeeds } from './hold-fit'
 import type {
   AvailabilityQueryInput,
@@ -258,6 +264,22 @@ export function queryAvailability(
           dayEndsAt,
         )
         if (roomReasons.length > 0) continue
+        // Sala compartilhada: lugares livres no pico do período (só para exibição).
+        const roomCapacity = resourceCapacity(db, tenantId, room.id)
+        const roomSeatsFree =
+          roomCapacity > 1
+            ? Math.max(
+                0,
+                roomCapacity
+                  - peakConcurrent(
+                    range,
+                    listConfirmedOccupyingResource(db, tenantId, room.id, range).map((a) => ({
+                      startsAt: a.startsAt,
+                      endsAt: a.occupiesUntil,
+                    })),
+                  ),
+              )
+            : null
         chosen = {
           startsAt,
           endsAt,
@@ -267,6 +289,8 @@ export function queryAvailability(
           roomResourceId: room.id,
           roomResourceName: room.name,
           roomSharedNotice: room.sharedSpaceNotice,
+          roomCapacity: roomCapacity > 1 ? roomCapacity : null,
+          roomSeatsFree,
         }
         break
       }

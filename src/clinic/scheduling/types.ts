@@ -48,6 +48,9 @@ export type AvailableSlot = {
   roomResourceName: string | null
   /** Frase fixa da sala para a confirmação pelo WhatsApp (DEC-053); sem nº de vagas. */
   roomSharedNotice?: string | null
+  /** Sala compartilhada: capacidade e lugares livres no pico do período (só exibição; null em sala de 1). */
+  roomCapacity?: number | null
+  roomSeatsFree?: number | null
 }
 
 export type AvailabilityQueryResult = {

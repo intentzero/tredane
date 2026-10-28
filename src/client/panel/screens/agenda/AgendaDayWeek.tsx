@@ -5,13 +5,18 @@ import {
   PanelApiError,
   type AgendaAppointmentItem,
   type AgendaViewResponse,
+  type ClinicConfigSnapshot,
   type PanelApi,
+  type ScheduleHold,
 } from '../../api'
 import { errorDetail, friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
 import { Badge } from '../../states/Badge'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
+import { useMediaQuery } from '../../ui/useMediaQuery'
+import { AgendaDayList } from './AgendaDayList'
+import { buildDayEntries, initialsOf, shortName } from './dayList'
 import {
   HOUR_HEIGHT,
   layoutDay,
@@ -75,6 +80,24 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
   const [detail, setDetail] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState(() => Date.now())
+  const narrow = useMediaQuery('(max-width: 767.98px)')
+  const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
+  const [selected, setSelected] = useState<string[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .getClinicConfig(tenantId, { generation, expectGeneration: () => generation })
+      .then((snap) => {
+        if (!cancelled) setConfig(snap)
+      })
+      .catch(() => {
+        /* sem cadastro legível: a lista continua, sem filtro por pessoa */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api, tenantId, generation])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -126,9 +149,15 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
     )
   }
 
-  const appointments = (data?.appointments ?? []).filter((a) => a.status !== 'cancelled')
+  const allAppointments = (data?.appointments ?? []).filter((a) => a.status !== 'cancelled')
+  const professionals = (config?.resources ?? [])
+    .filter((r) => r.kind === 'professional' && r.active)
+    .map((r) => ({ id: r.id, name: r.name }))
+  const roomCapacity = new Map(
+    (config?.resources ?? []).filter((r) => r.kind === 'room').map((r) => [r.id, r.capacity ?? 1] as const),
+  )
   const byDay = new Map<string, AgendaAppointmentItem[]>()
-  for (const apt of appointments) {
+  for (const apt of allAppointments) {
     const civil = civilDayOf(apt.startsAt, timezone)
     const list = byDay.get(civil) ?? []
     list.push(apt)
@@ -143,21 +172,53 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
       : formatLongDate(date, timezone)
 
   const goSchedule = () =>
-    navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'agendar' })
+    navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'agendar', date })
+
+  const dayLabel = formatDayLabel(date, timezone)
+  const entries = buildDayEntries(
+    (byDay.get(date) ?? []).filter((a) => selected.length === 0 || selected.includes(a.professionalId)),
+    roomCapacity,
+    date === today ? now : null,
+  )
+  const holds: ScheduleHold[] = (data?.holds ?? []).filter(
+    (h) => h.status === 'active' && civilDayOf(h.windowStartsAt, timezone) === date,
+  )
+  const countOf = (id: string) => (byDay.get(date) ?? []).filter((a) => a.professionalId === id).length
+  const dayCount = byDay.get(date)?.length ?? 0
+  const summary = (() => {
+    if (view !== 'day') return null
+    const names = professionals.filter((p) => selected.includes(p.id)).map((p) => shortName(p.name))
+    const n = entries.filter((e) => e.kind !== 'now').length
+    const base = names.length > 0 ? names.join(' e ') : `Todos os ${professionals.length} profissionais`
+    return `${base} · ${dayCount === 0 ? 'nenhum horário' : `${n} ${n === 1 ? 'horário' : 'horários'}`}`
+  })()
 
   return (
     <div className="agenda-day" data-screen={view === 'week' ? 'm13-semana' : 'm06-agenda'}>
       <header className="agenda-head">
         <div className="agenda-head-text">
-          <h1 className="panel-title">{subtitle}</h1>
-          <span className="panel-subtitle">
-            {view === 'week' ? 'Semana' : date === today ? 'Hoje' : 'Dia'}
-          </span>
+          {narrow ? (
+            <>
+              <h1 className="panel-title agenda-head-title">Agenda</h1>
+              <span className="panel-subtitle">
+                {view === 'week' ? subtitle : `${date === today ? 'Hoje · ' : ''}${subtitle}`}
+              </span>
+            </>
+          ) : (
+            <>
+              <h1 className="panel-title">{subtitle}</h1>
+              <span className="panel-subtitle">
+                {view === 'week' ? 'Semana' : date === today ? 'Hoje' : 'Dia'}
+              </span>
+            </>
+          )}
         </div>
-        <Button className="panel-btn-primary panel-btn-compact agenda-add" onPress={goSchedule}>
-          <Plus aria-hidden size={18} strokeWidth={2} />
-          Agendar
-        </Button>
+        {narrow ? null : (
+          <Button className="panel-btn-primary panel-btn-compact agenda-add" onPress={goSchedule}>
+            <Plus aria-hidden size={18} strokeWidth={2} />
+            Agendar
+          </Button>
+        )}
       </header>
 
       <ToggleButtonGroup
@@ -230,17 +291,72 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
             >
               <span className="agenda-weekday-name">{label.weekday}</span>
               <span className="agenda-weekday-num">{label.day}</span>
-              <span
-                className={`agenda-weekday-dot${count > 0 ? ' agenda-weekday-dot--on' : ''}`}
-                aria-hidden
-              />
+              <span className={`agenda-weekday-count${count > 0 ? ' agenda-weekday-count--on' : ''}`} aria-hidden>
+                {count > 0 ? count : '·'}
+              </span>
             </button>
           )
         })}
       </div>
 
+      {narrow && view === 'day' && professionals.length > 1 ? (
+        <>
+          <div className="agenda-pros">
+            <div className="agenda-pros-list" role="group" aria-label="Filtrar por profissional">
+              {professionals.map((p, i) => {
+                const on = selected.includes(p.id)
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="agenda-pro"
+                    aria-pressed={on}
+                    aria-label={`${p.name}, ${countOf(p.id)} ${countOf(p.id) === 1 ? 'horário' : 'horários'}`}
+                    data-dim={selected.length > 0 && !on ? '' : undefined}
+                    onClick={() =>
+                      setSelected((cur) => (cur.includes(p.id) ? cur.filter((x) => x !== p.id) : [...cur, p.id]))
+                    }
+                  >
+                    <span className={`agenda-avatar agenda-tone-${i % 4}`} aria-hidden>
+                      {initialsOf(p.name)}
+                    </span>
+                    <span>
+                      {shortName(p.name)} · {countOf(p.id)}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <p className="agenda-summary" role="status">
+            <span>{summary}</span>
+            {selected.length > 0 ? (
+              <button type="button" onClick={() => setSelected([])}>
+                Ver todos
+              </button>
+            ) : null}
+          </p>
+        </>
+      ) : null}
+
       <div className="panel-scroll agenda-body">
-        {view === 'day' ? (
+        {view === 'day' && narrow ? (
+          <AgendaDayList
+            entries={entries}
+            holds={holds}
+            professionals={professionals}
+            timezone={timezone}
+            now={now}
+            onOpen={(id) => navigatePanel(detailRoute(tenantId, id))}
+            onSchedule={goSchedule}
+            onOpenHold={(h) =>
+              navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
+            }
+            emptyText={
+              selected.length > 0 ? 'Nenhum horário para esta seleção.' : `Nenhum horário marcado ${date === today ? 'hoje' : `em ${dayLabel.weekday} ${dayLabel.day}`}.`
+            }
+          />
+        ) : view === 'day' ? (
           <DayGrid
             items={byDay.get(date) ?? []}
             timezone={timezone}
@@ -252,7 +368,9 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
         ) : (
           weekDays.map((day) => {
             const label = formatDayLabel(day, timezone)
-            const items = byDay.get(day) ?? []
+            const items = (byDay.get(day) ?? []).filter(
+              (a) => !narrow || selected.length === 0 || selected.includes(a.professionalId),
+            )
             return (
               <section key={day} className="agenda-day-group">
                 <h2 className="panel-legend">
@@ -295,6 +413,13 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
           })
         )}
       </div>
+
+      {narrow && view === 'day' ? (
+        <Button className="agenda-fab" onPress={goSchedule} aria-label={`Agendar ${dayLabel.weekday} ${dayLabel.day}`}>
+          <Plus aria-hidden size={20} strokeWidth={2} />
+          Agendar {date === today ? 'hoje' : dayLabel.weekday}
+        </Button>
+      ) : null}
     </div>
   )
 }

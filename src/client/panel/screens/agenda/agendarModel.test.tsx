@@ -43,3 +43,14 @@ describe('DEC-053 / DEC-051 (Confirmados, card t1868s7504)', () => {
     expect(durationBounds({ durationMinutes: 60, durationAdjustable: true, durationMinMinutes: 30, durationMaxMinutes: 90 })).toEqual({ min: 30, max: 90 })
   })
 })
+
+describe('seatsLabel — sala compartilhada (DEC-059)', () => {
+  it('«2 de 3», «último lugar» e nada em sala de 1 lugar', async () => {
+    const { seatsLabel } = await import('./agendarModel')
+    expect(seatsLabel({ roomCapacity: 3, roomSeatsFree: 2 })).toBe('2 de 3')
+    expect(seatsLabel({ roomCapacity: 3, roomSeatsFree: 1 })).toBe('último lugar')
+    expect(seatsLabel({ roomCapacity: null, roomSeatsFree: null })).toBeNull()
+    expect(seatsLabel({ roomCapacity: 1, roomSeatsFree: 1 })).toBeNull()
+    expect(seatsLabel({})).toBeNull()
+  })
+})

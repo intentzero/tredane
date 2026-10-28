@@ -11,6 +11,8 @@ export type ScheduleContext = {
   contactId?: string
   opportunityId?: string
   alertId?: string
+  /** Dia civil pré-escolhido (vem da Agenda). */
+  date?: string
 }
 
 /** Horizonte do «Ver calendário» (DEC-054 Confirmado: 60 dias no MVP). */
@@ -40,6 +42,14 @@ export function uniqueTimes(slots: AvailabilitySlot[]): AvailabilitySlot[] {
     out.push(s)
   }
   return out
+}
+
+/** «2 de 3» / «último lugar» para horário em sala compartilhada; null em sala de 1 lugar. */
+export function seatsLabel(slot: Pick<AvailabilitySlot, 'roomCapacity' | 'roomSeatsFree'>): string | null {
+  const cap = slot.roomCapacity ?? null
+  const free = slot.roomSeatsFree ?? null
+  if (cap == null || cap <= 1 || free == null) return null
+  return free === 1 ? 'último lugar' : `${free} de ${cap}`
 }
 
 /** Manhã = antes de 12:00 no fuso da clínica; Tarde = 12:00 em diante. */

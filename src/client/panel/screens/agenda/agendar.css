@@ -270,3 +270,24 @@
   outline: var(--size-focus-ring-width) solid var(--color-primary-base);
   outline-offset: var(--size-focus-ring-offset);
 }
+
+/* Sala compartilhada: lugares livres sob a hora («2 de 3», «último lugar»). */
+.agd-time:has(.agd-time-seats) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+}
+.agd-time-seats {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-muted);
+}
+.agd-time-seats[data-last] {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-warning-ink);
+}
+.agd-time[aria-pressed='true'] .agd-time-seats {
+  color: inherit;
+}

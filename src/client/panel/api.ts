@@ -2216,6 +2216,9 @@ export type AvailabilitySlot = {
   roomResourceName: string | null
   /** Frase fixa da sala (DEC-053); nunca diz quantas vagas restam. */
   roomSharedNotice?: string | null
+  /** Sala compartilhada: capacidade e lugares livres (exibição). */
+  roomCapacity?: number | null
+  roomSeatsFree?: number | null
 }
 
 export type AvailabilityResponse = {

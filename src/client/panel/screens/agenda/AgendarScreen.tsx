@@ -39,6 +39,7 @@ import {
   formatWaId,
   initials,
   nearestAlternatives,
+  seatsLabel,
   originLabel,
   originRoute,
   slotKey,
@@ -68,6 +69,7 @@ function readScheduleContext(): ScheduleContext {
     opportunityId: q.get('opportunityId') || undefined,
     /** Alerta pago sem horário — confirma com sinal já pago (#40). */
     alertId: q.get('alertId') || undefined,
+    date: /^\d{4}-\d{2}-\d{2}$/.test(q.get('date') ?? '') ? q.get('date')! : undefined,
   }
 }
 
@@ -178,7 +180,7 @@ function AgendarScreenInner({ tenantId, api, generation }: Props) {
         setPix(pixSnap)
         const firstSvc = snap.services.find((s) => s.active)
         setServiceId((prev) => prev || firstSvc?.id || '')
-        setDate((prev) => prev || upcomingCivilDates(snap.settings.timezone, Date.now(), 1)[0]!)
+        setDate((prev) => prev || ctx.date || upcomingCivilDates(snap.settings.timezone, Date.now(), 1)[0]!)
       } catch (err) {
         if (cancelled) return
         if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
@@ -427,6 +429,7 @@ function AgendarScreenInner({ tenantId, api, generation }: Props) {
           {list.map((slot) => {
             const pressed = selected?.startsAt === slot.startsAt
             const alt = alternatives.has(slot.startsAt)
+            const seats = seatsLabel(slot)
             return (
               <button
                 key={slot.startsAt}
@@ -434,10 +437,15 @@ function AgendarScreenInner({ tenantId, api, generation }: Props) {
                 className="agd-time"
                 data-alt={alt || undefined}
                 aria-pressed={pressed}
-                aria-label={`${formatSlotTime(slot.startsAt, timezone)}${alt ? ', livre mais próximo' : ''}`}
+                aria-label={`${formatSlotTime(slot.startsAt, timezone)}${seats ? `, ${seats === 'último lugar' ? 'último lugar livre na sala' : `${seats} lugares livres na sala`}` : ''}${alt ? ', livre mais próximo' : ''}`}
                 onClick={() => pickTime(slot)}
               >
                 {formatSlotTime(slot.startsAt, timezone)}
+                {seats ? (
+                  <span className="agd-time-seats" data-last={seats === 'último lugar' || undefined}>
+                    {seats}
+                  </span>
+                ) : null}
               </button>
             )
           })}
