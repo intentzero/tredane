@@ -5491,3 +5491,29 @@
   margin: 0;
   padding-left: var(--space-5);
 }
+
+.week-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+}
+
+.week-mode-btn {
+  min-height: var(--size-control-sm);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.week-mode-btn[aria-checked='true'] {
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: 0 1px 3px rgba(20, 38, 37, 0.15);
+}
