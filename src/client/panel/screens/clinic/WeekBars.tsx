@@ -46,8 +46,13 @@ export function WeekBars({ clinic, people = [], label = 'Semana' }: Props) {
               {open.map((w, i) => (
                 <span
                   key={i}
-                  className={people.length ? 'week-bars-clinic week-bars-clinic-soft' : 'week-bars-clinic'}
-                  style={{ left: `${pct(w.startMinute)}%`, width: `${pct(w.endMinute) - pct(w.startMinute)}%` }}
+                  className={
+                    people.length ? 'week-bars-clinic week-bars-clinic-soft' : 'week-bars-clinic'
+                  }
+                  style={{
+                    left: `${pct(w.startMinute)}%`,
+                    width: `${pct(w.endMinute) - pct(w.startMinute)}%`,
+                  }}
                 />
               ))}
               {open.length === 0 ? <span className="week-bars-closed">Fechado</span> : null}
