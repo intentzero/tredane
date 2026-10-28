@@ -46,6 +46,7 @@ import { PanelApiError } from '../../api'
 import { useClinicTimezone } from '../../clinicTimezone'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
 import { BlockContactDialog } from './BlockContactDialog'
+import { awaitingClinicReply } from './lastRelevant'
 import { ThreadActionsSheet, type ThreadAction } from './ThreadActionsSheet'
 import { TransferSheet } from './TransferSheet'
 import { useMediaQuery } from '../../ui/useMediaQuery'
@@ -327,8 +328,9 @@ export function InboxThread({
       if (!s || s.origin !== 'auto' || s.status !== 'pending' || !s.suggestedText) return
       if (seenSuggestionIdsRef.current.has(s.id)) return
       // Só o rascunho da última mensagem da cliente ainda sem resposta.
-      const last = [...messages].reverse().find((m) => m.direction !== 'system')
-      if (!last || last.direction !== 'inbound') return
+      if (!awaitingClinicReply(messages)) return
+      const last = [...messages].reverse().find((m) => m.direction === 'inbound')
+      if (!last) return
       if (s.replyToMessageId && s.replyToMessageId !== last.id) return
       if (draftRef.current.trim() === '') insertDraft(s)
       else setPendingAutoDraft(s)
@@ -959,6 +961,8 @@ export function InboxThread({
     if (id === 'unblock') void unblockContact()
   }
   const windowOpen = detail.messagingWindow?.open !== false && !blocked
+  // Última mensagem relevante nossa (ignora sistema/notas): sem «Sugerir resposta» nem sugestão automática.
+  const canSuggest = awaitingClinicReply(detail.messages)
   const cardMode = windowOpen && aiDraftTagged && !!draft.trim() && !pendingAutoDraft
 
   return (
@@ -1152,6 +1156,7 @@ export function InboxThread({
         open={blockOpen}
         contactLabel={label}
         busy={blockBusy}
+        hasPendingPix={detail.contactHasPendingPix === true}
         error={blockError}
         onClose={() => setBlockOpen(false)}
         onConfirm={(reason) => {
@@ -1446,7 +1451,7 @@ export function InboxThread({
               você pode responder normalmente.
             </p>
           ) : null}
-          {windowOpen && (autoDraftState === 'generating' || pendingAutoDraft) ? (
+          {windowOpen && canSuggest && (autoDraftState === 'generating' || pendingAutoDraft) ? (
             <div className="inbox-ai-status">
               {autoDraftState === 'generating' && !pendingAutoDraft && !aiDraftTagged ? (
                 <AiWorking label="IA escrevendo um rascunho…" />
@@ -1463,7 +1468,7 @@ export function InboxThread({
               ) : null}
             </div>
           ) : null}
-          {windowOpen && !aiSuggestion && !aiDraftTagged ? (
+          {windowOpen && canSuggest && !aiSuggestion && !aiDraftTagged ? (
             <div className="inbox-composer-tools">
               <Button
                 className="inbox-ai-trigger"

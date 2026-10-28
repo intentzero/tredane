@@ -39,6 +39,7 @@ import {
 } from './outbound'
 import { validateTemplateSend } from './templates'
 import { messagingWindowForConversation } from './window'
+import { contactHasPendingPix } from './pending-pix'
 import { getWhatsappChannel } from '../whatsapp/channel'
 import type {
   AssignConversationInput,
@@ -127,6 +128,7 @@ export function getConversationDetailOp(
     messagesHasMore: page.hasMore,
     messagesNextBefore: page.nextBefore,
     messagingWindow,
+    contactHasPendingPix: contactHasPendingPix(db, meta.tenantId, item.contactId, clock.nowMs()),
   }
 }
 
@@ -138,6 +140,7 @@ export function getContactDetailOp(
 ): {
   contact: NonNullable<ReturnType<typeof loadContactSummary>>
   conversations: ConversationListItem[]
+  hasPendingPix: boolean
 } {
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
@@ -148,7 +151,8 @@ export function getContactDetailOp(
   }
   const all = listConversations(db, meta.tenantId, { filter: 'all', limit: 100 })
   const conversations = all.items.filter((c) => c.contactId === contactId)
-  return { contact, conversations }
+  const hasPendingPix = contactHasPendingPix(db, meta.tenantId, contactId, clock.nowMs())
+  return { contact, conversations, hasPendingPix }
 }
 
 /**

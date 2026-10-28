@@ -438,6 +438,7 @@ export function InboxContactScreen({
         open={blockOpen}
         contactLabel={label}
         busy={blockBusy}
+        hasPendingPix={data?.hasPendingPix === true}
         error={blockError}
         onClose={() => setBlockOpen(false)}
         onConfirm={(reason) => {

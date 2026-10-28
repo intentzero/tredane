@@ -76,6 +76,8 @@ export type ConversationDetail = ConversationListItem & {
   messagesHasMore: boolean
   messagesNextBefore: number | null
   messagingWindow: MessagingWindowView
+  /** Contato tem Pix pendente (aviso no diálogo de bloqueio; o Pix não é cancelado). */
+  contactHasPendingPix: boolean
 }
 
 export type ListConversationsInput = {

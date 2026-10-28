@@ -43,6 +43,7 @@ export type InboxGateway = {
   ): Promise<{
     contact: ConversationListItem['contact']
     conversations: ConversationListItem[]
+    hasPendingPix: boolean
   }>
   assign(
     caller: ClinicCaller,
