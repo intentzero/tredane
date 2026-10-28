@@ -82,4 +82,6 @@ export type AiAssistDeps = {
   syntheticFallback?: boolean
   /** Nome da clínica (D1) para o contexto. */
   clinicName?: string | null
+  /** Agendamento pela IA após confirmação explícita (AI_AUTOBOOK=off desliga). */
+  autoBook?: boolean
 }

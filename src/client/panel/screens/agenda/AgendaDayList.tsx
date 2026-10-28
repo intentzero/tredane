@@ -48,6 +48,7 @@ function AptCard({
       <span className="agenda-card-line">
         {item.serviceName} · até {formatSlotTime(item.endsAt, timezone)}
         {item.durationAdjusted ? ' · duração ajustada' : ''}
+        {item.bookedByAi ? ' · Marcado pela IA' : ''}
       </span>
       <span className="agenda-card-meta">
         <Mini pro={{ id: item.professionalId, name: item.professionalName }} professionals={professionals} />

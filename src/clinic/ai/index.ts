@@ -36,5 +36,13 @@ export {
   type AutoDraftJob,
   type AutoDraftOutcome,
 } from './autodraft'
+export {
+  tryAiAutoBook,
+  detectExplicitConfirmation,
+  AI_AUTOBOOK_ACTOR_ID,
+  AI_AUTOBOOK_ACTOR_NAME,
+  type AutoBookOutcome,
+  type AutoBookStatus,
+} from './autobook'
 export { getAiDailyUsage, type AiDailyUsage } from './usage'
 export { buildClinicAiContext } from './schedule-context'

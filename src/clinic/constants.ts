@@ -337,3 +337,6 @@ export type OutboxState = (typeof OUTBOX_STATES)[number]
 export const INBOUND_STATES = ['received', 'processed', 'duplicate'] as const
 
 export type InboundState = (typeof INBOUND_STATES)[number]
+
+/** Actor das marcações feitas pela IA após confirmação explícita da cliente (28/10/2026). */
+export const AI_AUTOBOOK_ACTOR = 'system:ai-autobook'

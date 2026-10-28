@@ -2268,6 +2268,8 @@ export type AgendaAppointmentItem = {
   changeReason: string | null
   /** DEC-051(i): rótulo «duração ajustada». */
   durationAdjusted?: boolean
+  /** Criado pela IA após confirmação explícita da cliente. */
+  bookedByAi?: boolean
 }
 
 export type AgendaViewResponse = {
