@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Button, Checkbox, Input, Label, TextArea, TextField } from 'react-aria-components'
+import { Button, Input, Label, TextArea, TextField } from 'react-aria-components'
+import { ClinicCheck } from './ClinicCheck'
 import { PanelSelect } from '../../ui/PanelSelect'
 import type { ClinicConfigSnapshot, PanelApi, ServiceUpsertBody } from '../../api'
 import { PanelApiError } from '../../api'
@@ -254,7 +255,7 @@ export function ServiceForm({
       <fieldset className="clinic-fieldset">
         <legend>Quem faz</legend>
         {professionals.map((p) => (
-          <Checkbox
+          <ClinicCheck
             key={p.id}
             className="clinic-check"
             isSelected={proIds.includes(p.id)}
@@ -266,7 +267,7 @@ export function ServiceForm({
           >
             {p.name}
             {!p.active ? ' (inativa)' : ''}
-          </Checkbox>
+          </ClinicCheck>
         ))}
         {professionals.length === 0 ? (
           <p className="clinic-footnote">Cadastre profissionais primeiro; dá para voltar depois.</p>
@@ -351,9 +352,9 @@ export function ServiceForm({
             </p>
             <fieldset className="clinic-fieldset">
               <legend>Duração ao agendar</legend>
-              <Checkbox className="clinic-check" isSelected={adjustable} onChange={setAdjustable}>
+              <ClinicCheck className="clinic-check" isSelected={adjustable} onChange={setAdjustable}>
                 A equipe pode ajustar a duração
-              </Checkbox>
+              </ClinicCheck>
               {adjustable ? (
                 <div className="clinic-field-row">
                   <PanelSelect
@@ -383,13 +384,13 @@ export function ServiceForm({
             </fieldset>
             <fieldset className="clinic-fieldset">
               <legend>Sinal por Pix</legend>
-              <Checkbox
+              <ClinicCheck
                 className="clinic-check"
                 isSelected={requiresSignal}
                 onChange={setRequiresSignal}
               >
                 Exige sinal
-              </Checkbox>
+              </ClinicCheck>
               {requiresSignal ? (
                 <>
                   <PanelSelect
@@ -458,9 +459,9 @@ export function ServiceForm({
         ) : null}
       </section>
 
-      <Checkbox className="clinic-check clinic-check-card" isSelected={active} onChange={setActive}>
+      <ClinicCheck className="clinic-check clinic-check-card" isSelected={active} onChange={setActive}>
         Serviço ativo
-      </Checkbox>
+      </ClinicCheck>
       <p className="clinic-footnote">Desativar não apaga compromissos já marcados.</p>
       {formError ? (
         <p className="clinic-form-error" role="alert">

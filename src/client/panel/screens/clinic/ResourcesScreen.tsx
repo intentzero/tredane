@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Button, Checkbox, Input, Label, TextField } from 'react-aria-components'
+import { Button, Input, Label, TextField } from 'react-aria-components'
+import { ClinicCheck } from './ClinicCheck'
 import { PanelSelect } from '../../ui/PanelSelect'
 import type { ClinicConfigSnapshot, PanelApi, ResourceFutureAppointment } from '../../api'
 import { PanelApiError } from '../../api'
@@ -59,13 +60,13 @@ export function ResourcesList({ tenantId, snap, initialTab = 'professional' }: L
           Salas e equipamentos
         </Button>
       </div>
-      <Checkbox
+      <ClinicCheck
         className="clinic-check"
         isSelected={showInactive}
         onChange={setShowInactive}
       >
         {`Mostrar inativos${inactiveCount > 0 ? ` (${inactiveCount})` : ''}`}
-      </Checkbox>
+      </ClinicCheck>
       <ul className="clinic-nav-list">
         {items.map((r) => (
           <li key={r.id}>

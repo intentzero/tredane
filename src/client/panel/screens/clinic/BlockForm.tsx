@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Button, Checkbox } from 'react-aria-components'
+import { Button } from 'react-aria-components'
+import { ClinicCheck } from './ClinicCheck'
 import { PanelApiError, type CreateBlockResponse, type PanelApi } from '../../api'
 import { friendlyError } from '../../copy/errors'
 import { PanelSelect } from '../../ui/PanelSelect'
@@ -127,9 +128,9 @@ export function BlockForm({
           <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
         </label>
       </div>
-      <Checkbox className="clinic-check" isSelected={allDay} onChange={setAllDay}>
+      <ClinicCheck className="clinic-check" isSelected={allDay} onChange={setAllDay}>
         Dia inteiro
-      </Checkbox>
+      </ClinicCheck>
       {!allDay ? (
         <div className="clinic-field-row">
           <label className="block-form-date">
