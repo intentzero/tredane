@@ -276,3 +276,39 @@ describe('InboxThread — etapa só de leitura e um único Agendar (DEC-061, DEC
     expect(screen.queryByRole('menuitem', { name: /Horário proposto/ })).toBeNull()
   })
 })
+
+describe('InboxThread — Pix pendente em faixa compacta (DEC-064)', () => {
+  const charge = {
+    id: 'pix_ficticio',
+    amountCents: 8000,
+    status: 'awaiting_payment',
+    expiresAt: NOW + 3_600_000,
+    pixCopyPaste: '00020126FICTICIO',
+    whatsappSendError: null,
+  }
+
+  it('mostra uma faixa; «Detalhes» abre a folha e «Cancelar cobrança» cancela', async () => {
+    const cancelPixCharge = vi.fn(async () => ({}))
+    renderThread(
+      mockApi(detail(), {
+        listConversationPixCharges: vi.fn(async () => [charge]),
+        cancelPixCharge,
+      } as unknown as Partial<PanelApi>),
+    )
+    const user = userEvent.setup()
+    expect(await screen.findByText(/Aguardando Pix/)).toBeTruthy()
+    expect(screen.getByText('Horário ainda não reservado')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Cancelar cobrança' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Detalhes' }))
+    expect(await screen.findByText('R$ 80,00')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Cancelar cobrança' }))
+    await waitFor(() => expect(cancelPixCharge).toHaveBeenCalledTimes(1))
+    expect((cancelPixCharge.mock.calls[0] as unknown[])[1]).toBe('pix_ficticio')
+  })
+
+  it('sem cobrança pendente não mostra a faixa', async () => {
+    renderThread(mockApi(detail()))
+    await screen.findByRole('button', { name: 'Mais opções da conversa' })
+    expect(screen.queryByText(/Aguardando Pix/)).toBeNull()
+  })
+})

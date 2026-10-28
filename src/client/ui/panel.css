@@ -4505,6 +4505,104 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Faixa de Pix pendente (DEC-064): compacta, um aviso só. */
+.inbox-pix-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  background: var(--color-warning-tint);
+  border-bottom: var(--size-border-width) solid var(--color-warning-border);
+  color: var(--color-warning-ink);
+  font-size: var(--font-size-small);
+}
+
+.inbox-pix-bar svg {
+  flex: none;
+}
+
+.inbox-pix-bar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.inbox-pix-bar-text strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-pix-bar-link {
+  flex: none;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-3);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.pix-sheet-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.pix-sheet-amount {
+  margin: 0;
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pix-sheet-pill {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pix-sheet-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-size-small);
+}
+
+.pix-sheet-row span {
+  color: var(--color-text-muted);
+}
+
+.pix-sheet-note {
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font-size: var(--font-size-small);
+}
+
+.pix-sheet-error {
+  margin: 0 0 var(--space-3);
+  color: var(--color-danger-ink);
+  font-size: var(--font-size-small);
+}
+
+.pix-sheet-cancel {
+  margin-top: var(--space-2);
+  border-color: var(--color-danger-border);
+  color: var(--color-danger-ink);
+}
+
 .inbox-context-label {
   color: var(--color-text-muted);
   font-size: var(--font-size-caption);

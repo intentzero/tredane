@@ -48,6 +48,7 @@ import { BlockContactDialog } from './BlockContactDialog'
 import { awaitingClinicReply } from './lastRelevant'
 import { ThreadActionsSheet, type ThreadAction } from './ThreadActionsSheet'
 import { TransferSheet } from './TransferSheet'
+import { PixPendingBar, PixPendingSheet } from './PixPendingSheet'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { AiWorking } from '../../ui/AiWorking'
 import { navigatePanel } from '../../routes'
@@ -253,6 +254,7 @@ export function InboxThread({
   const [selectedTemplate, setSelectedTemplate] =
     useState<WhatsappTemplateItem | null>(null)
   const [pixCharges, setPixCharges] = useState<PixChargeDetail[]>([])
+  const [pixSheetId, setPixSheetId] = useState<string | null>(null)
   const [pixAlerts, setPixAlerts] = useState<PixPaymentAlert[]>([])
   const [templateParams, setTemplateParams] = useState<Record<string, string>>(
     {},
@@ -1013,6 +1015,7 @@ export function InboxThread({
     }
     if (id === 'unblock') void unblockContact()
   }
+  const pendingPix = pixCharges.find((c) => c.status === 'awaiting_payment') ?? null
   const windowOpen = detail.messagingWindow?.open !== false && !blocked
   // Última mensagem relevante nossa (ignora sistema/notas): sem «Sugerir resposta» nem sugestão automática.
   const canSuggest = awaitingClinicReply(detail.messages)
@@ -1300,50 +1303,21 @@ export function InboxThread({
         </div>
       ) : null}
 
-      {pixCharges.some((c) => c.status === 'awaiting_payment') ? (
-        <div className="inbox-notice" role="status">
-          {pixCharges
-            .filter((c) => c.status === 'awaiting_payment')
-            .map((c) => (
-              <div key={c.id} className="inbox-pix-card">
-                <strong>Aguardando sinal</strong>
-                <p>
-                  {(c.amountCents / 100).toLocaleString('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL',
-                  })}
-                  {c.expiresAt
-                    ? ` · prazo até ${new Date(c.expiresAt).toLocaleString('pt-BR')}`
-                    : ''}
-                  {' · horário não reservado'}
-                </p>
-                <div className="clinic-actions">
-                  {c.pixCopyPaste ? (
-                    <Button
-                      className="panel-btn-secondary"
-                      onPress={() => {
-                        void navigator.clipboard?.writeText(c.pixCopyPaste!)
-                        setNotice('Pix copiado')
-                      }}
-                    >
-                      Copiar Pix
-                    </Button>
-                  ) : null}
-                  <Button
-                    className="panel-btn-secondary"
-                    onPress={() => void cancelCharge(c)}
-                    isDisabled={busy}
-                  >
-                    Cancelar cobrança
-                  </Button>
-                </div>
-                {c.whatsappSendError ? (
-                  <p role="alert">Não foi possível enviar a cobrança pelo WhatsApp. Copie o Pix e envie na conversa.</p>
-                ) : null}
-              </div>
-            ))}
-        </div>
+      {/* DEC-064: faixa compacta; o estado e as ações ficam na folha «Detalhes». */}
+      {pendingPix ? (
+        <PixPendingBar charge={pendingPix} onDetails={() => setPixSheetId(pendingPix.id)} />
       ) : null}
+      <PixPendingSheet
+        charge={pixCharges.find((c) => c.id === pixSheetId && c.status === 'awaiting_payment') ?? null}
+        busy={busy}
+        onClose={() => setPixSheetId(null)}
+        onCopy={(c) => {
+          void navigator.clipboard?.writeText(c.pixCopyPaste!)
+          setPixSheetId(null)
+          setNotice('Pix copiado')
+        }}
+        onCancel={(c) => void cancelCharge(c)}
+      />
 
       <div className="inbox-timeline-wrap">
       <div
