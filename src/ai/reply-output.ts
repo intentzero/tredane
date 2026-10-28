@@ -125,3 +125,84 @@ export function parseReplyOutput(raw: string): ParsedReply {
   const message = stripMarkdown(stripFences(raw))
   return { message: hasJsonResidue(message) ? '' : message, notes: '' }
 }
+
+/* ------------------------------------------------------------------ */
+/* S6 (#177) — schema fechado da saída do modelo                       */
+/* ------------------------------------------------------------------ */
+
+export const REPLY_OUTPUT_MAX_MESSAGE_CHARS = 1000
+export const REPLY_OUTPUT_MAX_NOTES_CHARS = 600
+
+/** Únicos campos aceites no objeto JSON (inclui sinónimos tolerados pelo parser). */
+const ALLOWED_REPLY_KEYS = new Set(['mensagem', 'message', 'resposta', 'notas', 'notes'])
+
+export type ReplyOutputRejection =
+  | 'malformed'
+  | 'extra_fields'
+  | 'invalid_types'
+  | 'too_long'
+  | 'role_marker'
+  | 'privileged_content'
+  | 'claims_booking'
+
+export type GuardedReply =
+  | { ok: true; message: string; notes: string }
+  | { ok: false; reason: ReplyOutputRejection; notes: string }
+
+const OUT_ROLE_MARKER_RE = /\[\s*(cl[ií]nica|cliente|sistema|system|assistant|assistente|admin)\s*\]|<<<|>>>|<\s*\/?\s*(system|assistant|tool)/i
+/** IDs internos, comandos e meios de pagamento que o modelo nunca deve emitir. */
+const OUT_PRIVILEGED_RE =
+  /\b(tenant_?id|clinic_?id|clerk_?user_?id|suggestion_?id|appointment_?id|tool_call|function_call|tool_use|autobook|ai_booked|confirmAppointment)\b|\bchave\s+pix\b|\b000201\d{4,}|\bpix\s+copia\s+e\s+cola\b/i
+/** O modelo nunca afirma que algo foi marcado/confirmado (só o backend pode). */
+const OUT_CLAIMS_BOOKING_RE =
+  /\b(j[aá]\s+)?(est[aá]|ficou|foi|deixei|t[aá])\s+(j[aá]\s+)?(marcad[oa]|agendad[oa]|confirmad[oa]|reservad[oa])\b|\b(marquei|agendei|reservei|confirmei)\b/i
+
+function findTopLevelObject(raw: string): Record<string, unknown> | null | 'invalid' {
+  const src = raw.replace(/```[a-zA-Z]*\s*/g, '').replace(/```/g, '')
+  if (/^\s*\[/.test(src)) return 'invalid'
+  const start = src.indexOf('{')
+  const end = src.lastIndexOf('}')
+  if (start < 0 || end <= start) return null
+  try {
+    const obj: unknown = JSON.parse(src.slice(start, end + 1))
+    if (obj == null || typeof obj !== 'object' || Array.isArray(obj)) return 'invalid'
+    return obj as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Valida a saída do modelo contra o schema fechado `{mensagem, notas}`.
+ * Qualquer desvio → rejeição com fallback humano (a atendente responde sozinha).
+ * A saída nunca autoriza nada; esta validação só decide se o rascunho é mostrado.
+ */
+export function guardReplyOutput(raw: string): GuardedReply {
+  const obj = findTopLevelObject(raw)
+  if (obj === 'invalid') return { ok: false, reason: 'invalid_types', notes: '' }
+  if (obj) {
+    for (const k of Object.keys(obj)) {
+      if (!ALLOWED_REPLY_KEYS.has(k)) return { ok: false, reason: 'extra_fields', notes: '' }
+    }
+    const msg = obj.mensagem ?? obj.message ?? obj.resposta
+    const notes = obj.notas ?? obj.notes
+    const notesOk =
+      notes === undefined ||
+      typeof notes === 'string' ||
+      (Array.isArray(notes) && notes.every((x) => typeof x === 'string'))
+    if (typeof msg !== 'string' || !notesOk) return { ok: false, reason: 'invalid_types', notes: '' }
+  }
+  const parsed = parseReplyOutput(raw)
+  if (!parsed.message) return { ok: false, reason: 'malformed', notes: '' }
+  if (
+    parsed.message.length > REPLY_OUTPUT_MAX_MESSAGE_CHARS ||
+    parsed.notes.length > REPLY_OUTPUT_MAX_NOTES_CHARS
+  ) {
+    return { ok: false, reason: 'too_long', notes: '' }
+  }
+  const both = `${parsed.message}\n${parsed.notes}`
+  if (OUT_ROLE_MARKER_RE.test(both)) return { ok: false, reason: 'role_marker', notes: '' }
+  if (OUT_PRIVILEGED_RE.test(both)) return { ok: false, reason: 'privileged_content', notes: '' }
+  if (OUT_CLAIMS_BOOKING_RE.test(parsed.message)) return { ok: false, reason: 'claims_booking', notes: '' }
+  return { ok: true, message: parsed.message, notes: parsed.notes }
+}
