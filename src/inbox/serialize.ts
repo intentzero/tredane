@@ -82,6 +82,15 @@ export function serializeConversationDetail(d: ConversationDetail) {
       remainingMs: d.messagingWindow.remainingMs,
     },
     contactHasPendingPix: d.contactHasPendingPix,
+    // DEC-062: a etapa mostrada na conversa; sem este campo a faixa «Etapa» nunca aparece.
+    opportunity: d.opportunity
+      ? {
+          id: d.opportunity.id,
+          stage: d.opportunity.stage,
+          label: d.opportunity.label,
+          updatedAt: d.opportunity.updatedAt,
+        }
+      : null,
   }
 }
 
