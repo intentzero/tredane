@@ -1469,18 +1469,20 @@ export function InboxThread({
                   Editar
                 </Button>
                 <Button
-                  className="panel-btn-secondary ai-btn"
+                  className="panel-btn-secondary ai-btn ai-btn--icon"
+                  aria-label="Gerar outra"
                   onPress={() => void requestAiSuggestion(aiSuggestion.id)}
                   isDisabled={aiBusy || busy}
                 >
-                  Gerar outra
+                  <RefreshCw aria-hidden size={20} strokeWidth={2} />
                 </Button>
                 <Button
-                  className="panel-btn-secondary ai-btn"
+                  className="panel-btn-secondary ai-btn ai-btn--icon"
+                  aria-label="Descartar"
                   onPress={() => void discardAiSuggestion()}
                   isDisabled={aiBusy || busy}
                 >
-                  Descartar
+                  <X aria-hidden size={20} strokeWidth={2} />
                 </Button>
               </div>
             </div>

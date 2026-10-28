@@ -1500,11 +1500,27 @@
   color: var(--color-ai-ink);
 }
 
-.ai-btn--send {
+/* Uma linha: Enviar ocupa o espaço; Editar e os ícones têm largura própria (390 px sem empilhar). */
+.ai-block-actions {
+  flex-wrap: nowrap;
+}
+
+.ai-block-actions .ai-btn {
+  width: auto;
+  flex: none;
+}
+
+.ai-block-actions .ai-btn--send {
   flex: 1;
   background: var(--color-ai-ink);
   border-color: var(--color-ai-ink);
   color: var(--color-text-on-primary);
+}
+
+.ai-block-actions .ai-btn--icon {
+  width: var(--size-touch);
+  min-width: var(--size-touch);
+  padding: 0;
 }
 
 .inbox-ai-trigger {
