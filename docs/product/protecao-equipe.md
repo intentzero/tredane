@@ -51,15 +51,15 @@ Toda ação grava auditoria (ator, horário, motivo). Tudo restrito à própria 
 
 ## 6. Em aberto — propostas para o Paulo
 
-### P-1 · Quem sinaliza, oculta e retoma — **Proposto — aguarda Paulo**
+### P-1 · Quem sinaliza, oculta e retoma — **Decidido (28/10/2026, Paulo, D-20261028-201300-CUR)**
 **Proposta:** atendente sinaliza, oculta e pausa (e pode bloquear como medida imediata); só a responsável (owner) da clínica desbloqueia, retoma e marca falso positivo.
 **Porquê:** quem está na linha de frente se protege na hora; desfazer a proteção exige quem responde pela clínica.
 
-### P-2 · Alcance da pausa, retenção e exclusão — **Proposto — aguarda Paulo**
+### P-2 · Alcance da pausa, retenção e exclusão — **Decidido (28/10/2026, Paulo, D-20261028-201300-CUR)**
 **Proposta:** a pausa vale para o **contato na clínica** (todas as conversas atuais e novas desse número na mesma clínica), até retomada humana; nunca afeta outra clínica. Mensagens novas continuam chegando ao painel, mas sem automação. Registros de sinalização ficam enquanto o contato existir e saem junto com a exclusão do contato (#43); imagem sinalizada segue a retenção normal dos anexos, e preservação excepcional (ex.: ameaça) exige ação explícita da responsável com prazo de 90 dias, renovável por ela.
 **Porquê:** pausa só na conversa seria contornada ao reabrir conversa; prazo explícito evita guarda indefinida.
 
-### P-3 · Critérios de aviso à responsável — **Proposto — aguarda Paulo**
+### P-3 · Critérios de aviso à responsável — **Decidido (28/10/2026, Paulo, D-20261028-201300-CUR)**
 **Proposta:** avisar a responsável (no painel, como o pedido de suporte) sempre que houver: sinalização de ameaça ou assédio; pausa ou bloqueio feitos por atendente; segunda sinalização do mesmo contato. Insulto isolado e reclamação entram só na fila de revisão, sem aviso ativo.
 **Porquê:** regra simples, sem depender de contagem calibrada; o que é grave ou repetido chega a quem decide.
 
