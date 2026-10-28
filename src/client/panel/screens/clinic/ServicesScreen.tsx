@@ -12,6 +12,7 @@ import {
   parsePriceToCents,
 } from './format'
 import { friendlyError } from '../../copy/errors'
+import { DeleteServiceDialog } from './ResourceLifecycleDialogs'
 
 type ListProps = {
   tenantId: string
@@ -144,6 +145,29 @@ export function ServiceForm({
   const [durMax, setDurMax] = useState(existing?.durationMaxMinutes ?? 120)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function confirmDelete() {
+    if (!existing) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await api.deleteService(tenantId, existing.id, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      setDeleteOpen(false)
+      await onSaved()
+      navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'servicos' })
+    } catch (err) {
+      if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
+      setDeleteError(friendlyError(err, 'Não foi possível apagar. Tente de novo.'))
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const occupied = duration + buffer
   const [moreOpen, setMoreOpen] = useState(false)
@@ -477,6 +501,37 @@ export function ServiceForm({
           {saving ? 'Salvando…' : 'Salvar serviço'}
         </Button>
       </div>
+      {existing ? (
+        <section className="clinic-stack" aria-label="Apagar serviço">
+          {existing.deletable === true ? (
+            <Button
+              className="panel-btn-danger"
+              isDisabled={saving || deleting}
+              onPress={() => {
+                setDeleteError(null)
+                setDeleteOpen(true)
+              }}
+            >
+              Apagar serviço
+            </Button>
+          ) : (
+            <p className="clinic-footnote">
+              Este serviço já tem marcações (ou Pix/proposta ligada), por isso não pode ser
+              apagado. Basta desativá-lo: sai de novos agendamentos e o histórico fica.
+            </p>
+          )}
+        </section>
+      ) : null}
+      {existing ? (
+        <DeleteServiceDialog
+          open={deleteOpen}
+          serviceName={existing.name}
+          busy={deleting}
+          error={deleteError}
+          onClose={() => setDeleteOpen(false)}
+          onConfirm={() => void confirmDelete()}
+        />
+      ) : null}
     </div>
   )
 }

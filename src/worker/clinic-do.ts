@@ -1465,6 +1465,14 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return row
   }
 
+  async deleteClinicService(caller: ClinicCaller, serviceId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const out = clinicConfig.deleteServiceOp(this.#db, caller, serviceId, this.#clock)
+    await this.#fanoutConfigEvent(caller, 'config.service_deleted', 'service', out.id, {})
+    return out
+  }
+
   async upsertClinicResource(caller: ClinicCaller, input: UpsertResourceInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)

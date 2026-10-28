@@ -224,3 +224,56 @@ export function DeleteResourceDialog({ open, resourceName, busy, error, onClose,
     </ModalOverlay>
   )
 }
+
+type DeleteServiceProps = {
+  open: boolean
+  serviceName: string
+  busy: boolean
+  error: string | null
+  onClose: () => void
+  onConfirm: () => void
+}
+
+export function DeleteServiceDialog({ open, serviceName, busy, error, onClose, onConfirm }: DeleteServiceProps) {
+  return (
+    <ModalOverlay
+      isOpen={open}
+      onOpenChange={(next) => {
+        if (!next && !busy) onClose()
+      }}
+      className="panel-overlay"
+      style={{ position: 'fixed', inset: 0, zIndex: 30 }}
+      isDismissable={!busy}
+    >
+      <Modal>
+        <Dialog
+          className="panel-sheet"
+          style={{ position: 'fixed', left: 0, right: 0, bottom: 0 }}
+          role="alertdialog"
+          aria-labelledby="delete-service-title"
+          aria-describedby="delete-service-desc"
+        >
+          <span className="panel-sheet-handle" aria-hidden="true" />
+          <Heading slot="title" id="delete-service-title" className="panel-title" style={{ margin: '8px 0 2px' }}>
+            Apagar {serviceName}?
+          </Heading>
+          <p id="delete-service-desc" className="panel-subtitle" style={{ margin: '0 0 12px' }}>
+            Nunca teve marcações, por isso pode ser apagado. Os vínculos com profissionais e
+            salas também são removidos. Esta ação não pode ser desfeita.
+          </p>
+          {error ? (
+            <p className="clinic-form-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <Button className="panel-btn-secondary" autoFocus isDisabled={busy} onPress={onClose}>
+            Cancelar
+          </Button>
+          <Button className="panel-btn-danger" style={{ marginTop: 8 }} isDisabled={busy} onPress={onConfirm}>
+            {busy ? 'Apagando…' : 'Apagar permanentemente'}
+          </Button>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  )
+}
