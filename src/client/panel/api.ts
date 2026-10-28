@@ -629,6 +629,21 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as DeactivateResourceResponse
     },
 
+    async deleteService(
+      tenantId: string,
+      serviceId: string,
+      opts?: FetchOpts,
+    ): Promise<{ ok: true; id: string }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/services/${encodeURIComponent(serviceId)}`,
+        { method: 'DELETE' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { ok: true; id: string }
+    },
+
     async deleteResource(
       tenantId: string,
       resourceId: string,
@@ -1931,6 +1946,8 @@ export type ClinicService = {
   durationMaxMinutes?: number | null
   professionalIds: string[]
   roomRequirement: RoomRequirementDto
+  /** Nunca teve marcação, Pix ou proposta: pode ser apagado. */
+  deletable?: boolean
   createdAt: number
   updatedAt: number
 }

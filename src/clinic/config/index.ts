@@ -36,6 +36,7 @@ export {
   assertAppliedDuration,
   upsertService,
   setServiceActive,
+  deleteService,
   assertResourcesUsableForBooking,
 } from './services'
 export {
@@ -61,6 +62,7 @@ export {
   setAiProfileOp,
   upsertServiceOp,
   setServiceActiveOp,
+  deleteServiceOp,
   upsertResourceOp,
   setResourceActiveOp,
   setWeeklyWindowsOp,
@@ -73,6 +75,8 @@ export {
   deleteResourceOp,
 } from './resource-lifecycle'
 export { resourceHasHistory } from './resource-history'
+export { serviceDeleteBlocker } from './service-history'
+export type { ServiceDeleteBlocker } from './service-history'
 export type {
   FutureAppointmentForResource,
   ReassignCandidate,
