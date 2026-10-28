@@ -28,6 +28,7 @@ export type ServiceRow = {
 
 export type RoomRequirement =
   | { mode: 'none' }
+  | { mode: 'any' }
   | { mode: 'category'; category: string }
   | { mode: 'resource'; resourceId: string }
 

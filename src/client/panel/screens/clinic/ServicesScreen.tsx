@@ -121,7 +121,7 @@ export function ServiceForm({
     existing?.signalPercent != null ? String(existing.signalPercent) : '30',
   )
   const [proIds, setProIds] = useState<string[]>(existing?.professionalIds ?? [])
-  const [roomMode, setRoomMode] = useState<'none' | 'category' | 'resource'>(
+  const [roomMode, setRoomMode] = useState<'none' | 'any' | 'category' | 'resource'>(
     existing?.roomRequirement.mode ?? 'none',
   )
   const [roomCategory, setRoomCategory] = useState(
@@ -158,7 +158,9 @@ export function ServiceForm({
       roomRequirement:
         roomMode === 'none'
           ? { mode: 'none' }
-          : roomMode === 'category'
+          : roomMode === 'any'
+            ? { mode: 'any' }
+            : roomMode === 'category'
             ? { mode: 'category', category: roomCategory }
             : { mode: 'resource', resourceId: roomResourceId },
       requiresSignal,
@@ -297,13 +299,19 @@ export function ServiceForm({
         value={
           roomMode === 'none'
             ? 'none'
-            : roomMode === 'category'
+            : roomMode === 'any'
+              ? 'any'
+              : roomMode === 'category'
               ? `cat:${roomCategory}`
               : `res:${roomResourceId}`
         }
         onChange={(v) => {
           if (v === 'none') {
             setRoomMode('none')
+            return
+          }
+          if (v === 'any') {
+            setRoomMode('any')
             return
           }
           if (v.startsWith('cat:')) {
@@ -316,6 +324,7 @@ export function ServiceForm({
         }}
         options={[
           { id: 'none', label: 'Nenhum' },
+          { id: 'any', label: 'Qualquer sala livre' },
           ...[...new Set(rooms.map((r) => r.category).filter(Boolean))].map((cat) => ({
             id: `cat:${cat}`,
             label: `Qualquer · ${cat}`,

@@ -41,6 +41,7 @@ function mapRoomRequirement(
   category: string | null | undefined,
   resourceId: string | null | undefined,
 ): RoomRequirement {
+  if (mode === 'any') return { mode: 'any' }
   if (mode === 'category' && category) return { mode: 'category', category }
   if (mode === 'resource' && resourceId) {
     return { mode: 'resource', resourceId }
