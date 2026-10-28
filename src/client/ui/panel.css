@@ -5939,7 +5939,7 @@
   .clinic-topnav {
     display: flex;
     gap: var(--space-1);
-    border-bottom: var(--size-border-width) solid var(--color-border-subtle, #e1e3e0);
+    border-bottom: var(--size-border-width) solid var(--color-line-border);
     margin-bottom: var(--space-4);
   }
 
