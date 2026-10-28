@@ -164,18 +164,23 @@ export function WeekBars({
                   />
                 )),
               )}
-              {dayOverlays.map((o, i) => (
-                <span
-                  key={`o${i}`}
-                  className="week-bars-off"
-                  title={o.label}
-                  style={{
-                    left: `${Math.max(0, pct(o.startMinute))}%`,
-                    width: `${Math.min(100, pct(o.endMinute)) - Math.max(0, pct(o.startMinute))}%`,
-                    borderColor: o.color,
-                  }}
-                />
-              ))}
+              {dayOverlays.map((o, i) => {
+                const start = Math.max(from, o.startMinute)
+                const end = Math.min(to, o.endMinute)
+                if (end <= start) return null
+                return (
+                  <span
+                    key={`o${i}`}
+                    className="week-bars-off"
+                    title={o.label}
+                    style={{
+                      left: `${pct(start)}%`,
+                      width: `${pct(end) - pct(start)}%`,
+                      borderColor: o.color,
+                    }}
+                  />
+                )
+              })}
               {onChangeClinic
                 ? open.flatMap((w, i) =>
                     (['startMinute', 'endMinute'] as const).map((edge) => (

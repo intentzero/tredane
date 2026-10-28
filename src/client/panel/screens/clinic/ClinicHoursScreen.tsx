@@ -105,7 +105,7 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
     weekDates.forEach((iso, i) => {
       const dayStart = civilMinuteToEpoch(iso, 0, tz)
       const dayEnd = civilMinuteToEpoch(iso, 24 * 60, tz)
-      if (b.startsAt >= dayEnd || b.endsAt <= dayStart) return
+      if (b.startsAt >= dayEnd - 15 * 60_000 || b.endsAt <= dayStart + 15 * 60_000) return
       overlays.push({
         day: i + 1,
         startMinute: Math.max(0, Math.round((b.startsAt - dayStart) / 60_000)),
