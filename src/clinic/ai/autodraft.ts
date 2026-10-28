@@ -187,7 +187,9 @@ export async function runDueAutoDrafts(
         autoBook = tryAiAutoBook(db, caller, clock, {
           conversationId: job.conversationId,
           suggestionId: suggestion.id,
-          enabled: deps.autoBook !== false,
+          enabled: deps.autoBook === true,
+          // Revalidado aqui, na execução do job (inclusive jobs já enfileirados).
+          capability: deps.autoBook === true && (deps.autoBookTenants ?? []).includes(tenantId),
         })
         if (autoBook.replyText || autoBook.notes) {
           const text = autoBook.replyText ?? suggestion.suggestedText

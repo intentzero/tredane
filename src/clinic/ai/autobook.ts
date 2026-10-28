@@ -8,27 +8,24 @@
  * da mensagem da clínica imediatamente anterior quando essa cita UM único valor.
  * Faltou ou ficou ambíguo → não marca (a IA pergunta). Detecção determinística, sem o modelo.
  *
- * Reserva pelo mesmo caminho das marcações manuais (confirmAppointmentOp → checkSlotAvailability
- * dentro da TX: conflitos, sala, blocos e holds). Serviço com sinal: não marca; segue o fluxo
- * atual de Pix (a atendente envia a cobrança no Agendar; o horário só fica reservado após o pagamento).
+ * S2 (#173, épico #171): esta leitura de texto livre NUNCA marca — só produz nota para a atendente.
+ * A marcação automática ficará restrita ao clique numa proposta versionada (S3–S5, DEC-061 proposta).
+ * Serviço com sinal: não marca; segue o fluxo atual de Pix (a atendente envia a cobrança no Agendar;
+ * o horário só fica reservado após o pagamento).
  */
 import type { Clock } from '../../db/clock'
-import { writeOperationalAudit } from '../audit'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
-import { ClinicError } from '../errors'
 import { getConversation } from '../inbox/conversations'
-import { insertMessage } from '../inbox/messages'
 import type { OutboxRow } from '../outbox'
-import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
-import { confirmAppointmentOp } from '../scheduling/booking'
 import { queryAvailability } from '../scheduling/query'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
+import { checkConversationProtection } from './protection'
 
 export const AI_AUTOBOOK_ACTOR_ID = AI_AUTOBOOK_ACTOR
 export const AI_AUTOBOOK_ACTOR_NAME = 'IA (agendamento automático)'
@@ -39,7 +36,8 @@ export type AutoBookStatus =
   | 'ambiguous'
   | 'not_confirmed'
   | 'unavailable'
-  | 'conflict'
+  | 'requires_button'
+  | 'blocked'
   | 'needs_signal'
   | 'disabled'
 
@@ -264,7 +262,13 @@ export function tryAiAutoBook(
   db: ClinicDb,
   caller: ClinicCaller,
   clock: Clock,
-  input: { conversationId: string; suggestionId?: string | null; enabled?: boolean },
+  input: {
+    conversationId: string
+    suggestionId?: string | null
+    enabled?: boolean
+    /** Capacidade de agendar (flag + clínica autorizada). Não é usada pelo texto livre. */
+    capability?: boolean
+  },
 ): AutoBookOutcome {
   const tenantId = caller.tenantId
   const none = (status: AutoBookStatus, extra: Partial<AutoBookOutcome> = {}): AutoBookOutcome => ({
@@ -275,6 +279,9 @@ export function tryAiAutoBook(
     ...extra,
   })
   if (input.enabled === false) return none('disabled')
+  // Proteção (#182): contato bloqueado ou conversa em pausa → nenhuma ação nova.
+  const guard = checkConversationProtection(db, tenantId, input.conversationId)
+  if (!guard.allowed) return none('blocked', { notes: `Ação automática negada (${guard.reason}).` })
   const conv = getConversation(db, tenantId, input.conversationId)
   if (!conv) return none('not_confirmed')
   const settings = ensureClinicSettings(db, tenantId, clock)
@@ -346,115 +353,17 @@ export function tryAiAutoBook(
     }
   }
 
+  // S2 (#173, épico #171; revisão proposta DEC-061): texto livre — «sim», emoji, pedido completo
+  // ou JSON do modelo — NUNCA autoriza marcação, mesmo com AI_AUTOBOOK ligado. A leitura acima só
+  // serve para a nota à atendente. A marcação automática só poderá vir do clique autenticado numa
+  // proposta versionada pelo backend (S3–S5); não há aqui nenhuma chamada à operação de confirmação.
   const avail = queryAvailability(db, tenantId, { serviceId: svc.id, date }, clock)
   const slot = avail.slots.find((s) => localHHMM(tz, s.startsAt) === time)
-  const alternatives = () =>
-    avail.slots
-      .filter((s) => s.startsAt > clock.nowMs())
-      .map((s) => localHHMM(tz, s.startsAt))
-      .filter((t, i, a) => a.indexOf(t) === i)
-      .sort((a, b) => Math.abs(toMin(a) - toMin(time)) - Math.abs(toMin(b) - toMin(time)))
-      .slice(0, 3)
-      .sort()
-  const busyReply = (alts: string[]) =>
-    `Poxa${hi}, o horário de ${dayText(date)} às ${time} para ${svc.name} não está mais livre.` +
-    (alts.length ? ` Tenho ${alts.join(', ')} nesse dia. Algum serve pra você?` : ' Quer que eu veja outro dia?')
-
-  if (!slot) {
-    return {
-      ...none('unavailable', found),
-      replyText: busyReply(alternatives()),
-      notes: `A cliente confirmou ${label}, mas o horário não está livre na agenda. A IA não marcou.`,
-    }
+  void input.capability
+  return {
+    ...none('requires_button', found),
+    notes:
+      `A cliente parece confirmar ${label}${slot ? '' : ' (horário não livre na agenda)'}. ` +
+      'Texto livre não marca automaticamente: confirme pelo Agendar (fluxo normal).',
   }
-
-  const opp = findOpenOpportunityForConversation(db, tenantId, conv.id)
-  try {
-    const res = confirmAppointmentOp(
-      db,
-      caller,
-      {
-        clientRequestId: `ai-autobook:${confirmation.id}`,
-        serviceId: svc.id,
-        professionalId: slot.professionalId,
-        roomResourceId: slot.roomResourceId,
-        startsAt: slot.startsAt,
-        contactLabel: contact?.displayName ?? null,
-        contactId: conv.contactId,
-        conversationId: conv.id,
-        opportunityId: opp?.id ?? null,
-        actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
-        actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
-      },
-      clock,
-    )
-    const apt = res.value
-    if (!res.idempotentReplay) {
-      writeOperationalAudit(
-        db,
-        {
-          tenantId,
-          actor: AI_AUTOBOOK_ACTOR_ID,
-          action: 'appointment.ai_booked',
-          objectType: 'appointment',
-          objectId: apt.id,
-          detail: {
-            conversationId: conv.id,
-            confirmationMessageId: confirmation.id,
-            suggestionId: input.suggestionId ?? null,
-            serviceId: svc.id,
-            startsAt: apt.startsAt,
-          },
-        },
-        clock,
-      )
-      insertMessage(
-        db,
-        {
-          tenantId,
-          conversationId: conv.id,
-          direction: 'system',
-          body: `Marcado pela IA: ${label} · ${apt.professionalName}${apt.roomResourceName ? ` · ${apt.roomResourceName}` : ''} (confirmação da cliente: «${confirmation.body.slice(0, 120)}»)`,
-          deliveryState: 'received',
-          authorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
-          authorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
-        },
-        clock,
-      )
-    }
-    return {
-      ...found,
-      status: 'booked',
-      appointmentId: apt.id,
-      outbox: res.outbox,
-      replyText: `Prontinho${hi}! Agendei ${svc.name} para ${dayText(date)} às ${time} com ${apt.professionalName}. Até lá! 😊`,
-      notes: `Marcado pela IA: ${label}. Para desfazer, cancele o compromisso na Agenda (fluxo normal).`,
-    }
-  } catch (err) {
-    if (err instanceof ClinicError && (err.code === 'appointment_conflict' || err.code === 'slot_occupied')) {
-      writeOperationalAudit(
-        db,
-        {
-          tenantId,
-          actor: AI_AUTOBOOK_ACTOR_ID,
-          action: 'appointment.ai_book_conflict',
-          objectType: 'conversation',
-          objectId: conv.id,
-          detail: { confirmationMessageId: confirmation.id, serviceId: svc.id, startsAt: slot.startsAt },
-        },
-        clock,
-      )
-      return {
-        ...none('conflict', found),
-        replyText: busyReply(alternatives().filter((t) => t !== time)),
-        notes: `A cliente confirmou ${label}, mas o horário foi ocupado na revalidação. A IA não marcou.`,
-      }
-    }
-    throw err
-  }
-}
-
-function toMin(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number) as [number, number]
-  return h * 60 + m
 }
