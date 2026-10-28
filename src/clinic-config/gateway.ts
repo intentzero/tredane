@@ -33,7 +33,11 @@ export type ClinicConfigGateway = {
   setAiAssistEnabled(caller: ClinicCaller, enabled: boolean): Promise<ClinicSettingsRow>
   setAiProfile(
     caller: ClinicCaller,
-    input: { clinicAddress?: string | null; reschedulePolicy?: string | null },
+    input: {
+      clinicAddress?: string | null
+      googleBusinessUrl?: string | null
+      reschedulePolicy?: string | null
+    },
   ): Promise<ClinicSettingsRow>
   upsertService(caller: ClinicCaller, input: UpsertServiceInput): Promise<ServiceRow>
   setServiceActive(

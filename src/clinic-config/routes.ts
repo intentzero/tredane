@@ -181,11 +181,18 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
       const ctx = c.get('tenantContext')!
       requireClinicPermission(ctx, 'clinic.config.write')
       const body = await c.req
-        .json<{ enabled?: unknown; clinicAddress?: unknown; reschedulePolicy?: unknown }>()
+        .json<{
+          enabled?: unknown
+          clinicAddress?: unknown
+          googleBusinessUrl?: unknown
+          reschedulePolicy?: unknown
+        }>()
         .catch(() => null)
       const hasProfile =
         body != null &&
-        (typeof body.clinicAddress === 'string' || typeof body.reschedulePolicy === 'string')
+        (typeof body.clinicAddress === 'string' ||
+          typeof body.googleBusinessUrl === 'string' ||
+          typeof body.reschedulePolicy === 'string')
       if (!body || (typeof body.enabled !== 'boolean' && !hasProfile)) {
         return c.json({ error: 'invalid_body' }, 400)
       }
@@ -195,6 +202,8 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
       if (hasProfile) {
         settings = await gw.setAiProfile(caller, {
           clinicAddress: typeof body.clinicAddress === 'string' ? body.clinicAddress : null,
+          googleBusinessUrl:
+            typeof body.googleBusinessUrl === 'string' ? body.googleBusinessUrl : null,
           reschedulePolicy:
             typeof body.reschedulePolicy === 'string' ? body.reschedulePolicy : null,
         })

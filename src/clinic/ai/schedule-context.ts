@@ -194,6 +194,7 @@ export function buildClinicAiContext(
   return {
     name: opts.clinicName?.trim() || null,
     address: settings.clinicAddress || null,
+    googleBusinessUrl: settings.googleBusinessUrl || null,
     timezone: tz,
     nowLabel,
     today,

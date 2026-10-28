@@ -1,6 +1,10 @@
 import { useState } from 'react'
-import { Button, Label, TextArea, TextField } from 'react-aria-components'
-import type { PanelApi } from '../../api'
+import { Button, Input, Label, Text, TextArea, TextField } from 'react-aria-components'
+import { PanelApiError, type PanelApi } from '../../api'
+import {
+  checkGoogleBusinessUrl,
+  GOOGLE_BUSINESS_URL_MAX_LENGTH,
+} from '../../../../clinic/config/google-business-link'
 
 type Props = {
   tenantId: string
@@ -8,6 +12,7 @@ type Props = {
   generation: number
   initialEnabled: boolean
   initialAddress?: string | null
+  initialGoogleBusinessUrl?: string | null
   initialReschedulePolicy?: string | null
 }
 
@@ -15,32 +20,51 @@ type Props = {
  * Opt-in de IA por clínica (política de privacidade §6). Default desligado.
  * O servidor recusa qualquer sugestão/resumo enquanto estiver desligado.
  */
+const GB_INVALID_MESSAGE = `Link do Google Business inválido: use um link https:// com até ${GOOGLE_BUSINESS_URL_MAX_LENGTH} caracteres.`
+
 export function AiAssistCard({
   tenantId,
   api,
   generation,
   initialEnabled,
   initialAddress = null,
+  initialGoogleBusinessUrl = null,
   initialReschedulePolicy = null,
 }: Props) {
   const [enabled, setEnabled] = useState(initialEnabled)
   const [address, setAddress] = useState(initialAddress ?? '')
+  const [gbUrl, setGbUrl] = useState(initialGoogleBusinessUrl ?? '')
+  const [gbError, setGbError] = useState<string | null>(null)
   const [policy, setPolicy] = useState(initialReschedulePolicy ?? '')
   const [profileBusy, setProfileBusy] = useState(false)
   const [profileNote, setProfileNote] = useState<string | null>(null)
 
   async function saveProfile() {
-    setProfileBusy(true)
     setProfileNote(null)
+    const gb = checkGoogleBusinessUrl(gbUrl)
+    if (!gb.ok) {
+      setGbError(gb.message)
+      return
+    }
+    setGbError(null)
+    setProfileBusy(true)
     try {
       await api.setClinicAiProfile(
         tenantId,
-        { clinicAddress: address.trim(), reschedulePolicy: policy.trim() },
+        {
+          clinicAddress: address.trim(),
+          googleBusinessUrl: gb.value,
+          reschedulePolicy: policy.trim(),
+        },
         { generation, expectGeneration: () => generation },
       )
       setProfileNote('Salvo. A IA passa a usar estes dados nos rascunhos.')
-    } catch {
-      setProfileNote('Não foi possível salvar. Tente de novo.')
+    } catch (err) {
+      if (err instanceof PanelApiError && err.status === 400) {
+        setGbError(GB_INVALID_MESSAGE)
+      } else {
+        setProfileNote('Não foi possível salvar. Tente de novo.')
+      }
     } finally {
       setProfileBusy(false)
     }
@@ -74,8 +98,9 @@ export function AiAssistCard({
           <span className="panel-switch-label">Ativar sugestões de resposta</span>
           <span className="panel-muted-sm">
             A IA prepara um rascunho a cada mensagem da cliente; a equipe sempre revisa antes de
-            enviar. A IA nunca envia nem marca horários. As mensagens
-            não ficam guardadas pelo provedor de IA nem são usadas para treinar modelos.
+            enviar. A IA só marca um horário depois de a cliente confirmar tocando no botão do
+            WhatsApp, e apenas quando essa opção estiver ligada. Alterações e cancelamentos ficam
+            com a equipe. As mensagens não ficam guardadas pelo provedor de IA nem são usadas para treinar modelos.
           </span>
         </span>
         <input
@@ -94,6 +119,31 @@ export function AiAssistCard({
           <TextField className="clinic-field">
             <Label>Endereço da clínica (para a IA)</Label>
             <TextArea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} />
+          </TextField>
+          <TextField
+            className="clinic-field"
+            isInvalid={gbError != null}
+            value={gbUrl}
+            onChange={(v) => {
+              setGbUrl(v)
+              if (gbError) setGbError(null)
+            }}
+          >
+            <Label>Link do Google Business (opcional)</Label>
+            <Input
+              type="url"
+              inputMode="url"
+              placeholder="https://maps.app.goo.gl/…"
+              maxLength={GOOGLE_BUSINESS_URL_MAX_LENGTH}
+            />
+            <Text slot="description" className="panel-muted-sm">
+              A IA envia este link quando a cliente pedir a localização ou como chegar.
+            </Text>
+            {gbError ? (
+              <p className="clinic-footnote clinic-footnote-warn" role="alert">
+                {gbError}
+              </p>
+            ) : null}
           </TextField>
           <TextField className="clinic-field">
             <Label>Regras de remarcação e cancelamento</Label>

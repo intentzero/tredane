@@ -91,6 +91,40 @@ describe('HTTP — configuração da clínica (#28)', () => {
     }
   })
 
+  it('link do Google Business: só https, persiste e volta no snapshot', async () => {
+    const { app, close, auth } = testConfigApp()
+    try {
+      const put = (body: unknown) =>
+        app.request(
+          'http://localhost/api/tenants/clinic-demo-a/config/ai-assist',
+          auth('user_synth_owner_a', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }),
+        )
+      const bad = await put({ googleBusinessUrl: 'http://exemplo.com.br/ficticio' })
+      expect(bad.status).toBe(400)
+      const badBody = (await bad.json()) as { error: string; message: string }
+      expect(badBody.error).toBe('invalid_google_business_url')
+      expect(badBody.message).toMatch(/https:\/\//)
+      const ok = await put({
+        clinicAddress: 'Rua Fictícia, 123',
+        googleBusinessUrl: 'https://maps.app.goo.gl/ficticio123',
+        reschedulePolicy: '',
+      })
+      expect(ok.status).toBe(200)
+      const snap = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config',
+        auth('user_synth_owner_a'),
+      )
+      const s = (await snap.json()) as { settings: { googleBusinessUrl: string } }
+      expect(s.settings.googleBusinessUrl).toBe('https://maps.app.goo.gl/ficticio123')
+    } finally {
+      close()
+    }
+  })
+
   it('attendant lê config mas não escreve; owner escreve', async () => {
     const { app, close, auth } = testConfigApp()
     try {
