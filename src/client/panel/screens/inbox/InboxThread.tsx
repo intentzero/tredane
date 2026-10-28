@@ -8,7 +8,6 @@ import {
   CircleAlert,
   Clock,
   EllipsisVertical,
-  FileText,
   Info,
   Maximize2,
   RefreshCw,
@@ -49,6 +48,7 @@ import { BlockContactDialog } from './BlockContactDialog'
 import { awaitingClinicReply } from './lastRelevant'
 import { ThreadActionsSheet, type ThreadAction } from './ThreadActionsSheet'
 import { TransferSheet } from './TransferSheet'
+import { PixPendingBar, PixPendingSheet } from './PixPendingSheet'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { AiWorking } from '../../ui/AiWorking'
 import { navigatePanel } from '../../routes'
@@ -254,6 +254,7 @@ export function InboxThread({
   const [selectedTemplate, setSelectedTemplate] =
     useState<WhatsappTemplateItem | null>(null)
   const [pixCharges, setPixCharges] = useState<PixChargeDetail[]>([])
+  const [pixSheetId, setPixSheetId] = useState<string | null>(null)
   const [pixAlerts, setPixAlerts] = useState<PixPaymentAlert[]>([])
   const [templateParams, setTemplateParams] = useState<Record<string, string>>(
     {},
@@ -497,6 +498,27 @@ export function InboxThread({
     )
     if (relevant) void load({ quiet: true })
   })
+
+  // Correção manual da etapa (DEC-062): usa o mesmo caminho do Acompanhamento; nunca mexe na agenda (DEC-040).
+  async function correctStage(toStage: 'horario_proposto' | 'perdido') {
+    const opp = detail?.opportunity
+    if (!opp) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      await api.movePipelineStage(
+        tenantId,
+        opp.id,
+        { toStage, expectedUpdatedAt: opp.updatedAt, note: 'Correção manual na conversa' },
+        { generation, expectGeneration: () => generation },
+      )
+      await load({ quiet: true })
+    } catch (err) {
+      setNotice(friendlyError(err, 'Não foi possível corrigir a etapa. Nada foi alterado.'))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function refundAlert(a: PixPaymentAlert) {
     setBusy(true)
@@ -769,6 +791,13 @@ export function InboxThread({
     setAiSuggestion(null)
   }
 
+  // DEC-063: a atendente leu o texto completo e envia em 1 toque; a origem da sugestão fica registrada.
+  async function sendAiSuggestion() {
+    if (!aiSuggestion) return
+    seenSuggestionIdsRef.current.add(aiSuggestion.id)
+    await sendPayload({ body: aiSuggestion.suggestedText, aiSuggestionId: aiSuggestion.id })
+  }
+
   async function sendPayload(payload: {
     body?: string
     template?: {
@@ -933,7 +962,20 @@ export function InboxThread({
   const blocked = detail.contact?.blockedAt != null
   const threadActions: ThreadAction[] = [
     { id: 'contact', label: 'Ver detalhes do contato' },
+    // Atalho do celular; no desktop o resumo fica na coluna do contato.
+    { id: 'summary', label: 'Resumo da IA' },
     ...(detail.status !== 'closed' && !blocked ? [{ id: 'hold', label: 'Reservar bloco' }] : []),
+    // DEC-062: a etapa muda sozinha; aqui só as duas correções manuais.
+    ...(detail.opportunity && detail.status !== 'closed' && !blocked
+      ? [
+          ...(detail.opportunity.stage !== 'horario_proposto'
+            ? [{ id: 'stage-proposed', label: 'Marcar como «Horário proposto»' }]
+            : []),
+          ...(detail.opportunity.stage !== 'perdido'
+            ? [{ id: 'stage-lost', label: 'Marcar como perdida' }]
+            : []),
+        ]
+      : []),
     ...(detail.status !== 'closed' && !blocked ? [{ id: 'transfer', label: 'Transferir para outra pessoa' }] : []),
     ...(detail.status !== 'closed' ? [{ id: 'close', label: 'Encerrar conversa' }] : []),
     blocked
@@ -951,6 +993,19 @@ export function InboxThread({
         contactId: detail!.contactId,
       })
     }
+    if (id === 'summary') {
+      requestSummaryFocus()
+      navigatePanel({
+        kind: 'area',
+        area: 'conversas',
+        tenantId,
+        section: 'contato',
+        conversationId: detail!.id,
+        contactId: detail!.contactId,
+      })
+    }
+    if (id === 'stage-proposed') void correctStage('horario_proposto')
+    if (id === 'stage-lost') void correctStage('perdido')
     if (id === 'hold') setReserveOpen(true)
     if (id === 'transfer') setTransferOpen(true)
     if (id === 'close') setConfirmClose(true)
@@ -960,6 +1015,7 @@ export function InboxThread({
     }
     if (id === 'unblock') void unblockContact()
   }
+  const pendingPix = pixCharges.find((c) => c.status === 'awaiting_payment') ?? null
   const windowOpen = detail.messagingWindow?.open !== false && !blocked
   // Última mensagem relevante nossa (ignora sistema/notas): sem «Sugerir resposta» nem sugestão automática.
   const canSuggest = awaitingClinicReply(detail.messages)
@@ -1012,44 +1068,6 @@ export function InboxThread({
             </span>
           </span>
         </button>
-        {/* Celular: atalho visível para o Resumo da IA (no desktop está na coluna/gaveta do contato). */}
-        <Button
-          className="panel-icon-btn inbox-thread-summary-btn"
-          aria-label="Resumo da IA"
-          onPress={() => {
-            requestSummaryFocus()
-            navigatePanel({
-              kind: 'area',
-              area: 'conversas',
-              tenantId,
-              section: 'contato',
-              conversationId: detail.id,
-              contactId: detail.contactId,
-            })
-          }}
-        >
-          <FileText aria-hidden size={20} strokeWidth={2} />
-        </Button>
-        {detail.status !== 'closed' && !blocked ? (
-          <Button
-            className="panel-header-action"
-            aria-label="Agendar horário"
-            isDisabled={busy}
-            onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'agenda',
-                tenantId,
-                section: 'agendar',
-                conversationId,
-                contactId: detail.contactId,
-              })
-            }
-          >
-            <CalendarPlus aria-hidden size={20} strokeWidth={2} />
-            <span>Agendar</span>
-          </Button>
-        ) : null}
         {narrow ? (
           <Button
             className="panel-icon-btn"
@@ -1088,6 +1106,40 @@ export function InboxThread({
           </MenuTrigger>
         )}
       </header>
+
+      {/* DEC-062/063: etapa só de leitura (muda sozinha) e um único «Agendar». */}
+      {detail.opportunity || (detail.status !== 'closed' && !blocked) ? (
+        <div className="inbox-context">
+          {detail.opportunity ? (
+            <div className="inbox-context-stage" role="status">
+              <span className="inbox-context-label">Etapa</span>
+              <strong>{detail.opportunity.label}</strong>
+            </div>
+          ) : (
+            <span className="inbox-context-stage" />
+          )}
+          {detail.status !== 'closed' && !blocked ? (
+            <Button
+              className="panel-header-action"
+              aria-label="Agendar horário"
+              isDisabled={busy}
+              onPress={() =>
+                navigatePanel({
+                  kind: 'area',
+                  area: 'agenda',
+                  tenantId,
+                  section: 'agendar',
+                  conversationId,
+                  contactId: detail.contactId,
+                })
+              }
+            >
+              <CalendarPlus aria-hidden size={20} strokeWidth={2} />
+              <span>Agendar</span>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {confirmClose ? (
         <div className="inbox-confirm">
@@ -1251,50 +1303,21 @@ export function InboxThread({
         </div>
       ) : null}
 
-      {pixCharges.some((c) => c.status === 'awaiting_payment') ? (
-        <div className="inbox-notice" role="status">
-          {pixCharges
-            .filter((c) => c.status === 'awaiting_payment')
-            .map((c) => (
-              <div key={c.id} className="inbox-pix-card">
-                <strong>Aguardando sinal</strong>
-                <p>
-                  {(c.amountCents / 100).toLocaleString('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL',
-                  })}
-                  {c.expiresAt
-                    ? ` · prazo até ${new Date(c.expiresAt).toLocaleString('pt-BR')}`
-                    : ''}
-                  {' · horário não reservado'}
-                </p>
-                <div className="clinic-actions">
-                  {c.pixCopyPaste ? (
-                    <Button
-                      className="panel-btn-secondary"
-                      onPress={() => {
-                        void navigator.clipboard?.writeText(c.pixCopyPaste!)
-                        setNotice('Pix copiado')
-                      }}
-                    >
-                      Copiar Pix
-                    </Button>
-                  ) : null}
-                  <Button
-                    className="panel-btn-secondary"
-                    onPress={() => void cancelCharge(c)}
-                    isDisabled={busy}
-                  >
-                    Cancelar cobrança
-                  </Button>
-                </div>
-                {c.whatsappSendError ? (
-                  <p role="alert">Não foi possível enviar a cobrança pelo WhatsApp. Copie o Pix e envie na conversa.</p>
-                ) : null}
-              </div>
-            ))}
-        </div>
+      {/* DEC-065: faixa compacta; o estado e as ações ficam na folha «Detalhes». */}
+      {pendingPix ? (
+        <PixPendingBar charge={pendingPix} onDetails={() => setPixSheetId(pendingPix.id)} />
       ) : null}
+      <PixPendingSheet
+        charge={pixCharges.find((c) => c.id === pixSheetId && c.status === 'awaiting_payment') ?? null}
+        busy={busy}
+        onClose={() => setPixSheetId(null)}
+        onCopy={(c) => {
+          void navigator.clipboard?.writeText(c.pixCopyPaste!)
+          setPixSheetId(null)
+          setNotice('Pix copiado')
+        }}
+        onCancel={(c) => void cancelCharge(c)}
+      />
 
       <div className="inbox-timeline-wrap">
       <div
@@ -1403,26 +1426,37 @@ export function InboxThread({
                 </p>
               ) : null}
               <div className="ai-block-actions">
+                {windowOpen ? (
+                  <Button
+                    className="panel-btn-primary ai-btn ai-btn--send"
+                    onPress={() => void sendAiSuggestion()}
+                    isDisabled={aiBusy || busy}
+                  >
+                    Enviar
+                  </Button>
+                ) : null}
                 <Button
                   className="panel-btn-secondary ai-btn"
                   onPress={() => useAndEditAiSuggestion()}
                   isDisabled={aiBusy || busy}
                 >
-                  Usar e editar
+                  Editar
                 </Button>
                 <Button
-                  className="panel-btn-secondary ai-btn"
+                  className="panel-btn-secondary ai-btn ai-btn--icon"
+                  aria-label="Gerar outra"
                   onPress={() => void requestAiSuggestion(aiSuggestion.id)}
                   isDisabled={aiBusy || busy}
                 >
-                  Gerar outra
+                  <RefreshCw aria-hidden size={20} strokeWidth={2} />
                 </Button>
                 <Button
-                  className="panel-btn-secondary ai-btn"
+                  className="panel-btn-secondary ai-btn ai-btn--icon"
+                  aria-label="Descartar"
                   onPress={() => void discardAiSuggestion()}
                   isDisabled={aiBusy || busy}
                 >
-                  Descartar
+                  <X aria-hidden size={20} strokeWidth={2} />
                 </Button>
               </div>
             </div>

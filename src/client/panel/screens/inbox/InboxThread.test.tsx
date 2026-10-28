@@ -204,4 +204,111 @@ describe('InboxThread — estado de envio', () => {
     const btn = await screen.findByRole('button', { name: 'Sugerir resposta com IA' })
     expect(btn.textContent).toContain('Sugerir resposta')
   })
+
+  it('DEC-063: «Enviar» manda a sugestão da IA inteira em 1 toque, com a origem registrada', async () => {
+    const suggestion = {
+      id: 'ais_ficticia',
+      conversationId: 'cnv_ficticia',
+      kind: 'reply',
+      status: 'ok',
+      provider: 'teste',
+      model: 'teste',
+      suggestedText: 'Claro! Tenho 14h e 16h livres na sexta. Qual prefere?',
+      warningCodes: [],
+      warningLabels: [],
+      sourceRefs: [],
+      requestMeta: { latencyMs: 1, inputTokens: null, outputTokens: null, messageCount: 1, mode: 'test' },
+      errorCode: null,
+      createdAt: NOW,
+      messageSent: false,
+    }
+    const suggestAiReply = vi.fn(async () => ({ suggestion, duplicate: false, messageSent: false }))
+    const sendInboxMessage = vi.fn(async () => ({
+      message: message({ id: 'out_1', direction: 'outbound', body: suggestion.suggestedText }),
+      conversation: detail(),
+    }))
+    renderThread(mockApi(detail(), { suggestAiReply, sendInboxMessage } as unknown as Partial<PanelApi>))
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Sugerir resposta com IA' }))
+    const region = await screen.findByRole('region', { name: 'Sugestão da IA' })
+    expect(within(region).getByText(suggestion.suggestedText)).toBeTruthy()
+    await user.click(within(region).getByRole('button', { name: 'Enviar' }))
+    await waitFor(() => expect(sendInboxMessage).toHaveBeenCalledTimes(1))
+    expect((sendInboxMessage.mock.calls[0] as unknown[])[2]).toMatchObject({
+      body: suggestion.suggestedText,
+      aiSuggestionId: 'ais_ficticia',
+    })
+    expect(within(region).queryByRole('button', { name: 'Usar e editar' })).toBeNull()
+  })
+})
+
+describe('InboxThread — etapa só de leitura e um único Agendar (DEC-062, DEC-064)', () => {
+  const opportunity = { id: 'opp_ficticia', stage: 'em_atendimento', label: 'Em atendimento', updatedAt: NOW }
+
+  it('mostra a etapa como texto (sem seletor) e um só botão Agendar', async () => {
+    renderThread(mockApi(detail({ opportunity })))
+    expect(await screen.findByText('Em atendimento', { selector: 'strong' })).toBeTruthy()
+    expect(screen.queryByRole('combobox', { name: /etapa/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /alterar etapa/i })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Agendar horário' })).toHaveLength(1)
+  })
+
+  it('«Marcar como perdida» no ⋮ corrige a etapa sem tocar na agenda', async () => {
+    const movePipelineStage = vi.fn(async () => ({ opportunity: {} }))
+    renderThread(mockApi(detail({ opportunity }), { movePipelineStage } as unknown as Partial<PanelApi>))
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Mais opções da conversa' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Marcar como perdida' }))
+    await waitFor(() => expect(movePipelineStage).toHaveBeenCalledTimes(1))
+    const call = movePipelineStage.mock.calls[0] as unknown[]
+    expect(call[0]).toBe('clinic-demo-a')
+    expect(call[1]).toBe('opp_ficticia')
+    expect(call[2]).toMatchObject({ toStage: 'perdido', expectedUpdatedAt: NOW })
+  })
+
+  it('não oferece a correção que já é a etapa atual', async () => {
+    renderThread(
+      mockApi(detail({ opportunity: { ...opportunity, stage: 'horario_proposto', label: 'Horário proposto' } })),
+    )
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Mais opções da conversa' }))
+    expect(await screen.findByRole('menuitem', { name: 'Marcar como perdida' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /Horário proposto/ })).toBeNull()
+  })
+})
+
+describe('InboxThread — Pix pendente em faixa compacta (DEC-065)', () => {
+  const charge = {
+    id: 'pix_ficticio',
+    amountCents: 8000,
+    status: 'awaiting_payment',
+    expiresAt: NOW + 3_600_000,
+    pixCopyPaste: '00020126FICTICIO',
+    whatsappSendError: null,
+  }
+
+  it('mostra uma faixa; «Detalhes» abre a folha e «Cancelar cobrança» cancela', async () => {
+    const cancelPixCharge = vi.fn(async () => ({}))
+    renderThread(
+      mockApi(detail(), {
+        listConversationPixCharges: vi.fn(async () => [charge]),
+        cancelPixCharge,
+      } as unknown as Partial<PanelApi>),
+    )
+    const user = userEvent.setup()
+    expect(await screen.findByText(/Aguardando Pix/)).toBeTruthy()
+    expect(screen.getByText('Horário ainda não reservado')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Cancelar cobrança' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Detalhes' }))
+    expect(await screen.findByText('R$ 80,00')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Cancelar cobrança' }))
+    await waitFor(() => expect(cancelPixCharge).toHaveBeenCalledTimes(1))
+    expect((cancelPixCharge.mock.calls[0] as unknown[])[1]).toBe('pix_ficticio')
+  })
+
+  it('sem cobrança pendente não mostra a faixa', async () => {
+    renderThread(mockApi(detail()))
+    await screen.findByRole('button', { name: 'Mais opções da conversa' })
+    expect(screen.queryByText(/Aguardando Pix/)).toBeNull()
+  })
 })

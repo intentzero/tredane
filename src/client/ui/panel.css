@@ -1483,6 +1483,10 @@
   margin: var(--space-2) 0;
   color: var(--color-text-primary);
   white-space: pre-wrap;
+  /* Texto completo, nunca cortado com «…»: textos muito longos rolam dentro do cartão. */
+  max-height: 150px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .ai-block-actions {
@@ -1494,6 +1498,29 @@
 .ai-btn {
   border-color: var(--color-ai-border);
   color: var(--color-ai-ink);
+}
+
+/* Uma linha: Enviar ocupa o espaço; Editar e os ícones têm largura própria (390 px sem empilhar). */
+.ai-block-actions {
+  flex-wrap: nowrap;
+}
+
+.ai-block-actions .ai-btn {
+  width: auto;
+  flex: none;
+}
+
+.ai-block-actions .ai-btn--send {
+  flex: 1;
+  background: var(--color-ai-ink);
+  border-color: var(--color-ai-ink);
+  color: var(--color-text-on-primary);
+}
+
+.ai-block-actions .ai-btn--icon {
+  width: var(--size-touch);
+  min-width: var(--size-touch);
+  padding: 0;
 }
 
 .inbox-ai-trigger {
@@ -4476,10 +4503,133 @@
   white-space: nowrap;
 }
 
-/* Atalho «Resumo da IA» no cabeçalho só no celular: no desktop o resumo está
- * na coluna/gaveta do contato (#142). */
-.conversas-3col .inbox-thread-summary-btn {
-  display: none;
+/* Faixa de contexto abaixo do cabeçalho (DEC-062/063): etapa só de leitura e um único «Agendar». */
+.inbox-context {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface-card);
+  border-bottom: var(--size-border-width) solid var(--color-line-border);
+}
+
+.inbox-context-stage {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--size-touch);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  color: var(--color-primary-ink);
+  font-size: var(--font-size-small);
+}
+
+.inbox-context-stage strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Faixa de Pix pendente (DEC-065): compacta, um aviso só. */
+.inbox-pix-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  background: var(--color-warning-tint);
+  border-bottom: var(--size-border-width) solid var(--color-warning-border);
+  color: var(--color-warning-ink);
+  font-size: var(--font-size-small);
+}
+
+.inbox-pix-bar svg {
+  flex: none;
+}
+
+.inbox-pix-bar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.inbox-pix-bar-text strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-pix-bar-link {
+  flex: none;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-3);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.pix-sheet-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.pix-sheet-amount {
+  margin: 0;
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pix-sheet-pill {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.pix-sheet-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-size-small);
+}
+
+.pix-sheet-row span {
+  color: var(--color-text-muted);
+}
+
+.pix-sheet-note {
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font-size: var(--font-size-small);
+}
+
+.pix-sheet-error {
+  margin: 0 0 var(--space-3);
+  color: var(--color-danger-ink);
+  font-size: var(--font-size-small);
+}
+
+.pix-sheet-cancel {
+  margin-top: var(--space-2);
+  border-color: var(--color-danger-border);
+  color: var(--color-danger-ink);
+}
+
+.inbox-context-label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption);
 }
 
 /* Com o atalho do resumo, o subtítulo não pode passar por baixo dos botões. */
@@ -5813,7 +5963,7 @@
   .clinic-topnav {
     display: flex;
     gap: var(--space-1);
-    border-bottom: var(--size-border-width) solid var(--color-border-subtle, #e1e3e0);
+    border-bottom: var(--size-border-width) solid var(--color-line-border);
     margin-bottom: var(--space-4);
   }
 

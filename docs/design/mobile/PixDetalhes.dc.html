@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Folha do Pix pendente</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif}
+.ph{--app:#F5F4EF;--card:#fff;--sunk:#EEEDE7;--tx:#142625;--tx2:#424B4A;--mu:#566160;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--prB:#B3D1D1;--wa:#6E4200;--waT:#FFF7EA;--waB:#EBCB94;--dg:#B42318;--dgB:#F1B8B2;--ctl:#7A8584;--bd:#E1E3E0;width:390px;height:844px;box-sizing:border-box;background:var(--app);color:var(--tx);font-size:16px;line-height:1.4;position:relative;overflow:hidden}
+.ph button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+.bg{position:absolute;inset:0;background:var(--card);padding:16px}
+.bg i{display:block;height:44px;border-radius:16px;background:var(--sunk);margin-bottom:10px;width:70%}
+.scrim{position:absolute;inset:0;background:rgba(20,38,37,.5)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:20px 20px 0 0;padding:8px 16px 24px;display:flex;flex-direction:column;gap:12px}
+.hdl{width:40px;height:4px;border-radius:2px;background:var(--ctl);margin:0 auto 4px}
+.val{display:flex;align-items:baseline;justify-content:space-between}
+.val b{font-size:26px;font-weight:600}
+.pill{font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;background:var(--waT);color:var(--wa);border:1px solid var(--waB)}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:10px 0;border-bottom:1px solid var(--sunk)}
+.kv span:first-child{color:var(--mu)}
+.kv b{font-weight:600;text-align:right}
+.note{display:flex;gap:8px;font-size:14px;color:var(--wa);background:var(--waT);border:1px solid var(--waB);border-radius:12px;padding:10px 12px}
+.btn{height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;border:1px solid var(--ctl);background:var(--card);width:100%}
+.btn.dg{border-color:var(--dgB);color:var(--dg)}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bg" aria-hidden="true"><i></i><i style="margin-left:auto;background:#E7F1F1"></i><i style="width:50%"></i></div>
+  <div class="scrim"></div>
+  <section class="sheet" role="dialog" aria-label="Pix do sinal pendente">
+    <span class="hdl"></span>
+    <div class="val"><b>R$ 80,00</b><span class="pill">Aguardando pagamento</span></div>
+    <div>
+      <div class="kv"><span>Cliente</span><b>Beatriz Souza</b></div>
+      <div class="kv"><span>Serviço</span><b>Limpeza de pele</b></div>
+      <div class="kv"><span>Horário</span><b>sáb 10:00 · Dra. Paula</b></div>
+      <div class="kv"><span>Pix vence</span><b>hoje às 12:10</b></div>
+    </div>
+    <div class="note"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>O horário <b>ainda não está reservado</b>. Se estiver livre quando o Pix cair, confirmamos sozinhos.</span></div>
+    <button class="btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>Reenviar cobrança</button>
+    <button class="btn dg">Cancelar cobrança</button>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
