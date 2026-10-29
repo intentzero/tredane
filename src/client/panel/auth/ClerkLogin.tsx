@@ -10,7 +10,7 @@ const appearance = {
     colorInputBackground: '#FFFFFF',
     colorInputText: '#142625',
     borderRadius: '12px',
-    fontFamily: 'Inter, system-ui, sans-serif',
+    fontFamily: 'Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif',
     fontSize: '16px',
   },
   elements: {
