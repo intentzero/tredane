@@ -14,6 +14,7 @@ export const WEBHOOK_RECEIPT_KINDS = [
   'unsupported',
   'status',
   'account_interrupt',
+  'button_reply',
   'discarded',
 ] as const
 export type WebhookReceiptKind = (typeof WEBHOOK_RECEIPT_KINDS)[number]

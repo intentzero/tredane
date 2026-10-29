@@ -91,17 +91,17 @@ Todos estes casos foram reproduzidos como falhas no fluxo integrado do head do #
 - Só uma **nova marcação validada** segue para a operação de confirmação existente, com revalidação e idempotência (DEC-060).
 - **Serviço com sinal: sem reserva antes do pagamento.** A IA não marca; segue o fluxo Pix atual, e a confirmação depende da disponibilidade no momento do pagamento (DEC-060, sinal Pix já decidido).
 
-## 6. Comunicação pendente (Proposto)
+## 6. Comunicação pendente (Proposto; implementação S4 #175)
 
-Na DEC-060 a IA marca mas não envia. Com a DEC-061 (Decidido), proposta e resultado saem como mensagens determinísticas do sistema (S4, #175); a comunicação pendente passa a cobrir falha ou atraso desse envio: o compromisso passa a existir enquanto a mensagem «Prontinho… agendei» ainda é rascunho. É preciso acompanhar esse intervalo:
+Na DEC-060 a IA marca mas não envia. Com a DEC-061 (Decidido), proposta e resultado saem como mensagens determinísticas do sistema (S4, #175); a comunicação pendente cobre falha ou atraso desse envio: o compromisso pode existir enquanto a mensagem de resultado ainda não foi aceite pela Meta. Tabela `pending_communications` no Clinic DO; alerta aos **5 minutos** (Decidido).
 
-| Situação | Comportamento proposto |
+| Situação | Comportamento |
 | --- | --- |
-| Marcado pela IA, aviso não enviado | Estado «comunicação pendente», visível na agenda e na conversa |
-| Aviso não enviado após N minutos | Alerta na fila da equipe após **5 minutos** — **Decidido (Paulo, 28/10/2026)** |
-| Sugestão descartada ou editada sem a marcação | Perguntar à atendente se mantém ou cancela o compromisso |
-| Falha de envio pelo WhatsApp ou janela de 24 h fechada | Alerta e decisão humana; nada automático |
-| Lembretes | Só depois de o aviso de marcação ser enviado |
+| Proposta/resultado enfileirado ou falhou / incerto | Pendente `open` na conversa (painel); sem retry cego na Meta |
+| Sem resolução após 5 min | Status `alerted` + mensagem de sistema (alarme do DO) |
+| «Alterar detalhes» | Proposta `encaminhada`; pendente `alter_awaiting_team`; sem cancelar compromisso |
+| Janela 24 h fechada / sem template aprovado de proposta | Handoff à equipe; sem envio irregular (**Em aberto:** validação Meta staging + template) |
+| Lembretes | Só depois de o aviso de marcação ser enviado (S5/posterior) |
 
 ## 7. Contenção temporária
 

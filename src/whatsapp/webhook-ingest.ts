@@ -134,6 +134,17 @@ function itemToQueueMessage(
         mediaFilename: item.media.filename,
         providerTimestamp: item.providerTimestamp,
       }
+    case 'button_reply':
+      return {
+        ...base,
+        kind: 'button_reply',
+        waId: item.waId,
+        displayName: item.displayName,
+        buttonId: item.buttonId,
+        buttonTitle: item.buttonTitle,
+        contextMessageId: item.contextMessageId,
+        providerTimestamp: item.providerTimestamp,
+      }
     case 'unsupported':
       return {
         ...base,

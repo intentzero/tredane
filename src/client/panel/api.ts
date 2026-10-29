@@ -1794,6 +1794,29 @@ export type MessagingWindow = {
   remainingMs: number | null
 }
 
+export type InboxActiveProposal = {
+  id: string
+  version: number
+  state: string
+  serviceName: string
+  startsAt: number
+  endsAt: number
+  expiresAt: number | null
+  resultKind: string | null
+  sendProviderMessageId: string | null
+}
+
+export type InboxPendingCommunication = {
+  id: string
+  kind: string
+  status: string
+  startedAt: number
+  alertAfterAt: number
+  alertedAt: number | null
+  detailText: string
+  proposalId: string | null
+}
+
 export type InboxConversationDetail = InboxConversation & {
   messages: InboxMessage[]
   messagesHasMore: boolean
@@ -1803,6 +1826,10 @@ export type InboxConversationDetail = InboxConversation & {
   contactHasPendingPix?: boolean
   /** Oportunidade aberta da conversa (DEC-062); `null` ou ausente sem oportunidade. */
   opportunity?: { id: string; stage: string; label: string; updatedAt: number } | null
+  /** S4 / #175 — proposta versionada (membros autorizados). */
+  activeProposal?: InboxActiveProposal | null
+  /** S4 / H7 — comunicação pendente visível na conversa. */
+  pendingCommunications?: InboxPendingCommunication[]
 }
 
 export type WhatsappTemplateItem = {

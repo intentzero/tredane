@@ -68,6 +68,9 @@ export type QueueConsumerDeps = {
     markAttachmentReady?: MediaIngestClinicStub['markAttachmentReady']
     markAttachmentFailed?: MediaIngestClinicStub['markAttachmentFailed']
     linkAttachmentToMessage?: MediaIngestClinicStub['linkAttachmentToMessage']
+    handleProposalButtonClick?: (
+      ...args: Parameters<ClinicDurableObject['handleProposalButtonClick']>
+    ) => ReturnType<ClinicDurableObject['handleProposalButtonClick']> | Promise<unknown>
   } & Partial<OutboundSendClinicStub>
   metaAdapter?: MetaAdapter
   mediaAdapter?: MetaMediaAdapter
@@ -162,6 +165,72 @@ export async function processWhatsappMessage(
         reason: msg.interruptReason ?? 'webhook_account_update',
         phoneNumberId: msg.phoneNumberId,
       })
+    } else if (msg.kind === 'button_reply') {
+      // S4→S5: clique em botão da proposta. Regista a mensagem e deixa handoff S5.
+      if (!msg.waId || !msg.buttonId) {
+        log({
+          level: 'warn',
+          event: 'queue.invalid_button_reply_shape',
+          detail: { receiptId: msg.receiptId, tenantId: msg.tenantId },
+        })
+        if (deps.syncAdminDb) {
+          markWebhookReceiptProcessed(deps.syncAdminDb, msg.receiptId, clock, {
+            skipped: 'invalid_shape',
+          })
+        } else {
+          const ops = deps.webhookOps ?? createD1WebhookOps(deps.env.DB, clock)
+          await ops.markProcessed(msg.receiptId, { skipped: 'invalid_shape' })
+        }
+        return 'ack'
+      }
+      const buttonTitle = msg.buttonTitle?.trim() || 'Botão'
+      const ingested = (await stub.ingestMessage(
+        caller,
+        {
+          providerEventKey: msg.providerEventKey,
+          waId: msg.waId,
+          displayName: msg.displayName,
+          body: `[Botão] ${buttonTitle}`,
+          occurredAtMs: msg.providerTimestamp ?? undefined,
+        },
+        { drain: true, fanout: true },
+      )) as Awaited<ReturnType<ClinicDurableObject['ingestMessage']>>
+
+      if (
+        ingested &&
+        !ingested.duplicate &&
+        ingested.conversationId &&
+        typeof stub.handleProposalButtonClick === 'function'
+      ) {
+        // Precisamos do contactId — o DO resolve a partir da conversa no handler.
+        await stub.handleProposalButtonClick(caller, {
+          tenantId: msg.tenantId,
+          contactId: ingested.contactId ?? '',
+          conversationId: ingested.conversationId,
+          buttonId: msg.buttonId,
+          buttonTitle: msg.buttonTitle ?? null,
+          contextMessageId: msg.contextMessageId ?? null,
+          providerEventKey: msg.providerEventKey,
+        })
+      }
+
+      const isNewMessage = Boolean(ingested && !ingested.duplicate && ingested.messageId)
+      if ((ingested?.createdConversation || isNewMessage) && ingested?.conversationId) {
+        const { maybeNotifyNewConversationPush } = await import('../push/queue-hook')
+        await maybeNotifyNewConversationPush({
+          env: deps.env,
+          clock,
+          syncAdminDb: deps.syncAdminDb,
+          tenantId: msg.tenantId,
+          conversationId: ingested.conversationId,
+          createdConversation: Boolean(ingested.createdConversation),
+          newMessage: isNewMessage,
+          badgeCount: ingested.unreadConversations,
+          suppressUserIds: ingested.activeViewerUserIds,
+          log,
+          receiptId: msg.receiptId,
+        })
+      }
     } else if (msg.kind === 'media') {
       const mediaStub: MediaIngestClinicStub = {
         ingestMessage: async (c, input, opts) => {

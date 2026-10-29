@@ -22,6 +22,7 @@ const WIPE_TABLES: readonly string[] = [
   'ai_suggestions',
   'ai_commands',
   'ai_daily_usage',
+  'pending_communications',
   'appointment_proposals',
   'pix_exception_commands',
   'pix_lifecycle_events',

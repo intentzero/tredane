@@ -80,6 +80,30 @@ export type MessagingWindowView = {
   remainingMs: number | null
 }
 
+/** Proposta ativa + comunicação pendente (S4 / #175) — só membros autorizados via API. */
+export type ConversationProposalPanel = {
+  id: string
+  version: number
+  state: string
+  serviceName: string
+  startsAt: number
+  endsAt: number
+  expiresAt: number | null
+  resultKind: string | null
+  sendProviderMessageId: string | null
+}
+
+export type ConversationPendingCommunicationPanel = {
+  id: string
+  kind: string
+  status: string
+  startedAt: number
+  alertAfterAt: number
+  alertedAt: number | null
+  detailText: string
+  proposalId: string | null
+}
+
 export type ConversationDetail = ConversationListItem & {
   messages: MessageRow[]
   messagesHasMore: boolean
@@ -94,6 +118,10 @@ export type ConversationDetail = ConversationListItem & {
     label: string
     updatedAt: number
   } | null
+  /** S4: proposta versionada visível na conversa (membros da clínica). */
+  activeProposal: ConversationProposalPanel | null
+  /** S4 / H7: comunicações pendentes abertas ou alertadas. */
+  pendingCommunications: ConversationPendingCommunicationPanel[]
 }
 
 export type ListConversationsInput = {
@@ -162,12 +190,27 @@ export type SendOutboundTemplateInput = {
   params: Record<string, string>
 }
 
+/** Botões reply da Cloud API (interactive type=button) — S4 / #175. */
+export type SendOutboundInteractiveButton = {
+  id: string
+  title: string
+}
+
+export type SendOutboundInteractiveInput = {
+  buttons: SendOutboundInteractiveButton[]
+}
+
 export type SendOutboundInput = {
   conversationId: string
   /** Texto livre — só permitido com janela 24 h aberta. */
   body?: string | null
   /** Modelo aprovado — obrigatório fora da janela. */
   template?: SendOutboundTemplateInput | null
+  /**
+   * Mensagem interactive com botões (Cloud API). Exige janela 24 h aberta;
+   * fora da janela não há envio irregular — a chamada deve escalar à equipe.
+   */
+  interactive?: SendOutboundInteractiveInput | null
   clientRequestId: string
   authorClerkUserId: string
   authorDisplayName: string

@@ -90,11 +90,11 @@ Mapeado para S5 (#176).
 
 Mapeado para S4 (#175): proposta e resultado são mensagens determinísticas do sistema; o pendente cobre falha ou atraso desse envio.
 
-- [ ] Compromisso marcado pela IA com aviso não enviado mostra «comunicação pendente» na agenda e na conversa.
-- [ ] Alerta na fila da equipe após **5 minutos** sem envio (Decidido, Paulo, 28/10/2026).
-- [ ] Descartar ou editar a sugestão removendo a marcação pergunta à atendente se mantém ou cancela o compromisso.
-- [ ] Falha de envio WhatsApp ou janela de 24 h fechada → alerta e decisão humana; nada automático.
-- [ ] Lembretes não saem antes de o aviso de marcação ser enviado (teste).
+- [x] Aviso/resultado não enviado ou incerto → «comunicação pendente» na conversa (painel + `pending_communications`). Agenda: sinal mínimo via mesma conversa; polish de mock Em aberto.
+- [x] Alerta na fila da equipe após **5 minutos** sem envio (Decidido, Paulo, 28/10/2026) — sweep no alarme do Clinic DO.
+- [ ] Descartar ou editar a sugestão removendo a marcação pergunta à atendente se mantém ou cancela o compromisso. (Fluxo IA assistiva; fora do núcleo S4 de botão.)
+- [x] Falha de envio WhatsApp ou janela de 24 h fechada → alerta e decisão humana; nada automático / sem envio irregular.
+- [ ] Lembretes não saem antes de o aviso de marcação ser enviado (teste) — S5/posterior.
 
 ## H8 — Validação de preços e horários nos rascunhos e saída estruturada
 

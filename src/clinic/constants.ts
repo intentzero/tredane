@@ -1,5 +1,5 @@
-/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#43 / #174). */
-export const CLINIC_SCHEMA_VERSION = 28
+/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#43 / #174 / #175). */
+export const CLINIC_SCHEMA_VERSION = 29
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -31,6 +31,7 @@ export const CLINIC_MIGRATION_NAMES = {
   26: '0026_resource_history_indexes',
   27: '0027_service_weekly_windows',
   28: '0028_appointment_proposals',
+  29: '0029_proposal_whatsapp_send',
 } as const
 
 /**
@@ -66,10 +67,43 @@ export type AppointmentProposalOpenState =
 /** Vigência após envio — Decidido (Paulo, 28/10/2026): 30 minutos. */
 export const APPOINTMENT_PROPOSAL_VALIDITY_MS = 30 * 60 * 1000
 
+/**
+ * Alerta H7 / DEC-061 — comunicação pendente após N minutos sem envio/resposta.
+ * Decidido (Paulo, 28/10/2026): 5 minutos.
+ */
+export const PENDING_COMMUNICATION_ALERT_MS = 5 * 60 * 1000
+
+export const PENDING_COMMUNICATION_KINDS = [
+  'proposal_send',
+  'result_send',
+  'alter_awaiting_team',
+] as const
+
+export type PendingCommunicationKind = (typeof PENDING_COMMUNICATION_KINDS)[number]
+
+export const PENDING_COMMUNICATION_STATUSES = ['open', 'alerted', 'resolved'] as const
+
+export type PendingCommunicationStatus = (typeof PENDING_COMMUNICATION_STATUSES)[number]
+
+/** Actor de sistema para envio determinístico da proposta / resultado (S4). */
+export const PROPOSAL_SEND_ACTOR = 'system:proposal-send'
+
+export const PROPOSAL_SEND_ACTOR_DISPLAY = 'Sistema'
+
 export const APPOINTMENT_PROPOSAL_BENEFICIARY_KINDS = ['titular', 'terceiro'] as const
 
 export type AppointmentProposalBeneficiaryKind =
   (typeof APPOINTMENT_PROPOSAL_BENEFICIARY_KINDS)[number]
+
+/** Resultados determinísticos anunciados após commit (S4 / DEC-061). */
+export const PROPOSAL_RESULT_KINDS = [
+  'booked',
+  'slot_refused',
+  'pix_signal',
+  'expired',
+] as const
+
+export type ProposalResultKind = (typeof PROPOSAL_RESULT_KINDS)[number]
 
 /** Estados de sugestão IA (#41 / ADR-0004). */
 export const AI_SUGGESTION_KINDS = ['reply', 'summary'] as const
@@ -384,3 +418,7 @@ export type InboundState = (typeof INBOUND_STATES)[number]
 
 /** Actor das marcações feitas pela IA após confirmação explícita da cliente (28/10/2026). */
 export const AI_AUTOBOOK_ACTOR = 'system:ai-autobook'
+
+/** Prefixo estável de clientRequestId / botão (S4 → S5). */
+export const PROPOSAL_SEND_CLIENT_REQUEST_PREFIX = 'proposal.send:'
+export const PROPOSAL_RESULT_CLIENT_REQUEST_PREFIX = 'proposal.result:'

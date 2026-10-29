@@ -116,7 +116,12 @@ export function deleteContactOp(
       )
     }
 
-    // Propostas versionadas (S3): remover autorização do contacto — não reativável.
+    // S4 H7 + S3 propostas: remover pendentes e autorização do contacto.
+    db.run(
+      `DELETE FROM pending_communications WHERE tenant_id = ? AND contact_id = ?`,
+      meta.tenantId,
+      contactId,
+    )
     db.run(
       `DELETE FROM appointment_proposals WHERE tenant_id = ? AND contact_id = ?`,
       meta.tenantId,

@@ -33,6 +33,13 @@ export type AppointmentProposalRow = {
   sentAt: number | null
   supersededById: string | null
   appointmentId: string | null
+  /** Outbound / mensagem WhatsApp do envio da proposta (S4). */
+  sendOutboundId: string | null
+  sendMessageId: string | null
+  sendProviderMessageId: string | null
+  /** Outbound do resultado determinístico (após commit S5). */
+  resultOutboundId: string | null
+  resultKind: string | null
   createdAt: number
   updatedAt: number
 }

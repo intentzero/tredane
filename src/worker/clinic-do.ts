@@ -1,6 +1,13 @@
-import { countUnreadConversations } from '../clinic/inbox/conversations'
+import { countUnreadConversations, touchConversationMessage } from '../clinic/inbox/conversations'
+import { insertMessage } from '../clinic/inbox/messages'
+import { insertOutboxEvent } from '../clinic/outbox'
+import {
+  PROPOSAL_SEND_ACTOR,
+  PROPOSAL_SEND_ACTOR_DISPLAY,
+} from '../clinic/constants'
 import { isDevelopmentEnv } from '../security/env-gate'
 import { isDemoTenantId, seedDemoClinicOp } from '../clinic/demo'
+import type { ProposalButtonClickInput } from '../clinic/proposals'
 import { DurableObject } from 'cloudflare:workers'
 import {
   claimOutboundSendOp,
@@ -22,6 +29,7 @@ import {
   clinicInbox,
   clinicPipeline,
   clinicPix,
+  clinicProposals,
   clinicRetention,
   clinicScheduling,
   clinicWhatsapp,
@@ -596,6 +604,25 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       input,
       this.#clock,
     )
+    // S4 (#175): estado da proposta / resultado a partir do outbox (sem retry Meta).
+    try {
+      clinicProposals.reconcileProposalOutboundSend(
+        this.#db,
+        caller.tenantId,
+        result.value.outbound,
+        input.outcome,
+        this.#clock,
+      )
+      clinicProposals.reconcileProposalResultOutboundSend(
+        this.#db,
+        caller.tenantId,
+        result.value.outbound,
+        input.outcome,
+        this.#clock,
+      )
+    } catch {
+      /* best-effort */
+    }
     if (result.outbox.length > 0) {
       await this.#fanoutOutboxes(caller, result.outbox, true)
       await this.#drain(caller)
@@ -604,6 +631,55 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       deliveryState: result.value.message.deliveryState,
       advanced: result.value.advanced,
     }
+  }
+
+  /** S4: envia proposta versionada com botões Confirmar / Alterar detalhes. */
+  async sendProposalToWhatsApp(caller: ClinicCaller, input: { proposalId: string }) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicProposals.sendProposalToWhatsAppOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
+  }
+
+  /**
+   * S4→S5: processa button_reply da proposta.
+   * Confirm devolve handoff (S5 executa book/Pix); Alterar encaminha à equipe.
+   */
+  async handleProposalButtonClick(
+    caller: ClinicCaller,
+    input: ProposalButtonClickInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    bindOrAssertTenant(this.#db, caller, this.#clock)
+    let contactId = input.contactId?.trim() ?? ''
+    if (!contactId && input.conversationId) {
+      const conv = this.#db.get<{ contact_id: string }>(
+        `SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?`,
+        caller.tenantId,
+        input.conversationId,
+      )
+      contactId = conv?.contact_id ?? ''
+    }
+    const result = clinicProposals.handleProposalButtonClick(
+      this.#db,
+      { ...input, contactId },
+      this.#clock,
+    )
+    if ('outbox' in result && result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result
   }
 
   /** Interrupção via webhook Meta (#32) — espelho DO + evento WS. */
@@ -2282,6 +2358,74 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.expireDuePixCharges(caller)
     } catch {
       /* best-effort: drain outbox mesmo assim */
+    }
+    try {
+      // H7 / S4: alerta de comunicação pendente após 5 min.
+      const alerted = clinicProposals.sweepPendingCommunicationAlerts(
+        this.#db,
+        meta.tenantId,
+        this.#clock,
+      )
+      for (const pending of alerted) {
+        const label =
+          pending.kind === 'alter_awaiting_team'
+            ? 'Comunicação pendente: cliente pediu alterar a proposta há mais de 5 min'
+            : pending.kind === 'result_send'
+              ? 'Comunicação pendente: resultado do agendamento não enviado há mais de 5 min'
+              : 'Comunicação pendente: proposta WhatsApp sem confirmação de envio há mais de 5 min'
+        const now = this.#clock.nowMs()
+        const sys = insertMessage(
+          this.#db,
+          {
+            tenantId: meta.tenantId,
+            conversationId: pending.conversationId,
+            direction: 'system',
+            body: label,
+            externalMessageId: null,
+            deliveryState: 'received',
+            authorClerkUserId: PROPOSAL_SEND_ACTOR,
+            authorDisplayName: PROPOSAL_SEND_ACTOR_DISPLAY,
+            createdAt: now,
+          },
+          this.#clock,
+        )
+        touchConversationMessage(this.#db, {
+          tenantId: meta.tenantId,
+          conversationId: pending.conversationId,
+          preview: sys.body,
+          direction: 'system',
+          at: now,
+          bumpUnread: true,
+          reopenIfClosed: true,
+        })
+        const ob = insertOutboxEvent(
+          this.#db,
+          {
+            tenantId: meta.tenantId,
+            type: 'message.created',
+            aggregateType: 'message',
+            aggregateId: sys.id,
+            idempotencyKey: `pending_comm.alert:${pending.id}`,
+            payload: {
+              conversationId: pending.conversationId,
+              messageId: sys.id,
+              pendingCommunicationId: pending.id,
+              kind: pending.kind,
+              direction: 'system',
+            },
+          },
+          this.#clock,
+        )
+        await this.#fanoutOutboxes(caller, [ob], true)
+      }
+      const nextAlert = this.#db.get<{ t: number }>(
+        `SELECT MIN(alert_after_at) AS t FROM pending_communications
+         WHERE tenant_id = ? AND status = 'open'`,
+        meta.tenantId,
+      )?.t
+      if (nextAlert != null) await this.#scheduleAlarmNoLaterThan(nextAlert + 500)
+    } catch {
+      /* best-effort H7 */
     }
     const nextSweep = await this.#sweepStuckOutbound(caller)
     await this.#drain(caller)

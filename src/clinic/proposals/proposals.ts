@@ -5,7 +5,8 @@
  * - Não reservam horário ao emitir (DEC-008 / DEC-047).
  * - Vigência 30 min a partir do envio (relógio do backend; expiração preguiçosa).
  * - Conhecer o id não autoriza: exige tenant/contato/conversa + estado `enviada` + não expirada.
- * - Clique / envio WhatsApp ficam para S5 / S4; este módulo expõe as costuras.
+ * - Envio WhatsApp e resultados determinísticos: S4 (`send.ts` / `results.ts`).
+ * - Clique autenticado → S5 (`buttons.ts` deixa a costura pronta).
  */
 import type { Clock } from '../../db/clock'
 import {
@@ -62,6 +63,11 @@ type ProposalSql = {
   sent_at: number | null
   superseded_by_id: string | null
   appointment_id: string | null
+  send_outbound_id?: string | null
+  send_message_id?: string | null
+  send_provider_message_id?: string | null
+  result_outbound_id?: string | null
+  result_kind?: string | null
   created_at: number
   updated_at: number
 }
@@ -96,9 +102,97 @@ function mapRow(row: ProposalSql): AppointmentProposalRow {
     sentAt: row.sent_at,
     supersededById: row.superseded_by_id,
     appointmentId: row.appointment_id,
+    sendOutboundId: row.send_outbound_id ?? null,
+    sendMessageId: row.send_message_id ?? null,
+    sendProviderMessageId: row.send_provider_message_id ?? null,
+    resultOutboundId: row.result_outbound_id ?? null,
+    resultKind: row.result_kind ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+/** Liga proposta ↔ intenção/mensagem WhatsApp após gravar o outbox (S4). */
+export function linkProposalSend(
+  db: ClinicDb,
+  tenantId: string,
+  proposalId: string,
+  links: {
+    sendOutboundId?: string | null
+    sendMessageId?: string | null
+    sendProviderMessageId?: string | null
+  },
+  clock: Clock,
+): AppointmentProposalRow {
+  const current = getProposal(db, tenantId, proposalId)
+  if (!current) throw new NotFoundError('proposal_not_found', 'Proposta não encontrada')
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE appointment_proposals SET
+       send_outbound_id = COALESCE(?, send_outbound_id),
+       send_message_id = COALESCE(?, send_message_id),
+       send_provider_message_id = COALESCE(?, send_provider_message_id),
+       updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    links.sendOutboundId ?? null,
+    links.sendMessageId ?? null,
+    links.sendProviderMessageId ?? null,
+    now,
+    tenantId,
+    proposalId,
+  )
+  return getProposal(db, tenantId, proposalId)!
+}
+
+export function linkProposalResult(
+  db: ClinicDb,
+  tenantId: string,
+  proposalId: string,
+  links: { resultOutboundId?: string | null; resultKind?: string | null },
+  clock: Clock,
+): AppointmentProposalRow {
+  const current = getProposal(db, tenantId, proposalId)
+  if (!current) throw new NotFoundError('proposal_not_found', 'Proposta não encontrada')
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE appointment_proposals SET
+       result_outbound_id = COALESCE(?, result_outbound_id),
+       result_kind = COALESCE(?, result_kind),
+       updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    links.resultOutboundId ?? null,
+    links.resultKind ?? null,
+    now,
+    tenantId,
+    proposalId,
+  )
+  return getProposal(db, tenantId, proposalId)!
+}
+
+export function findProposalBySendOutboundId(
+  db: ClinicDb,
+  tenantId: string,
+  outboundId: string,
+): AppointmentProposalRow | null {
+  const row = db.get<ProposalSql>(
+    `SELECT * FROM appointment_proposals WHERE tenant_id = ? AND send_outbound_id = ?`,
+    tenantId,
+    outboundId,
+  )
+  return row ? mapRow(row) : null
+}
+
+export function findProposalByResultOutboundId(
+  db: ClinicDb,
+  tenantId: string,
+  outboundId: string,
+): AppointmentProposalRow | null {
+  const row = db.get<ProposalSql>(
+    `SELECT * FROM appointment_proposals WHERE tenant_id = ? AND result_outbound_id = ?`,
+    tenantId,
+    outboundId,
+  )
+  return row ? mapRow(row) : null
 }
 
 const OPEN = new Set<string>(APPOINTMENT_PROPOSAL_OPEN_STATES)
@@ -414,6 +508,11 @@ function resolveFacts(
     signalFixedCents: service.signalFixedCents,
     signalPercent: service.signalPercent,
     signalConditionsText: signalConditions,
+    sendOutboundId: null,
+    sendMessageId: null,
+    sendProviderMessageId: null,
+    resultOutboundId: null,
+    resultKind: null,
   }
 }
 

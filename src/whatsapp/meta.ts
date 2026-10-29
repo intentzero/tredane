@@ -28,6 +28,16 @@ export type MetaSendTemplateInput = {
   clientRequestId?: string
 }
 
+/** Cloud API interactive type=button (até 3 reply buttons). */
+export type MetaSendInteractiveButtonsInput = {
+  phoneNumberId: string
+  accessToken: string
+  toWaId: string
+  body: string
+  buttons: Array<{ id: string; title: string }>
+  clientRequestId?: string
+}
+
 export type MetaSendSuccess = {
   outcome: 'succeeded'
   providerMessageId: string
@@ -56,6 +66,9 @@ export type MetaAdapter = {
   }): Promise<MetaTokenExchangeResult>
   sendTextMessage(input: MetaSendTextInput): Promise<MetaSendResult>
   sendTemplateMessage(input: MetaSendTemplateInput): Promise<MetaSendResult>
+  sendInteractiveButtonsMessage(
+    input: MetaSendInteractiveButtonsInput,
+  ): Promise<MetaSendResult>
   /** Recibo de leitura (tiques azuis no celular da cliente). Opcional em fakes. */
   markMessageRead?(input: {
     phoneNumberId: string
@@ -178,6 +191,16 @@ export function createSyntheticMetaAdapter(): MetaAdapter {
         return { outcome: 'failed', errorCode: 'meta_template_missing' }
       }
       const marker = `${input.clientRequestId ?? ''}|${input.templateName}|${input.accessToken}`
+      return syntheticSendResult(marker, input.phoneNumberId)
+    },
+    async sendInteractiveButtonsMessage(input) {
+      if (!input.accessToken || !input.phoneNumberId || !input.toWaId) {
+        return { outcome: 'failed', errorCode: 'meta_send_invalid' }
+      }
+      if (!input.body.trim() || !input.buttons?.length || input.buttons.length > 3) {
+        return { outcome: 'failed', errorCode: 'meta_interactive_invalid' }
+      }
+      const marker = `${input.clientRequestId ?? ''}|${input.body}|${input.accessToken}`
       return syntheticSendResult(marker, input.phoneNumberId)
     },
   }
@@ -372,6 +395,23 @@ export function createLiveMetaAdapter(env: MetaEnv): MetaAdapter {
               parameters: input.bodyParams.map((text) => ({ type: 'text', text })),
             },
           ],
+        },
+      })
+    },
+    async sendInteractiveButtonsMessage(input) {
+      return liveGraphSend(version, input.phoneNumberId, input.accessToken, {
+        messaging_product: 'whatsapp',
+        to: input.toWaId,
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { text: input.body },
+          action: {
+            buttons: input.buttons.map((b) => ({
+              type: 'reply',
+              reply: { id: b.id, title: b.title },
+            })),
+          },
         },
       })
     },
