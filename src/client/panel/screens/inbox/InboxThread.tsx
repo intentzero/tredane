@@ -1025,7 +1025,7 @@ export function InboxThread({
     <div className="inbox-thread">
       <header className="inbox-thread-header">
         <Button
-          className="panel-icon-btn"
+          className="panel-icon-btn inbox-thread-back"
           aria-label="Voltar às conversas"
           onPress={() =>
             navigatePanel({
@@ -1059,8 +1059,14 @@ export function InboxThread({
           <span className="inbox-thread-who">
             <span className="inbox-thread-name">{label}</span>
             <span className="inbox-thread-sub">
+              {/* Uma só etiqueta: a etapa (muda sozinha, DEC-062). O estado da conversa só aparece
+                  quando é exceção (bloqueada/encerrada) ou quando não há oportunidade. */}
               {blocked ? (
                 <Badge tone="closed">Bloqueado</Badge>
+              ) : detail.opportunity && detail.status !== 'closed' ? (
+                <span className="inbox-stage-chip" role="status">
+                  {detail.opportunity.label}
+                </span>
               ) : (
                 <Badge tone={statusTone(detail.status)}>{statusLabel(detail.status)}</Badge>
               )}
@@ -1068,6 +1074,27 @@ export function InboxThread({
             </span>
           </span>
         </button>
+        {/* DEC-064: um único «Agendar», no cabeçalho, ao lado do ⋮. */}
+        {detail.status !== 'closed' && !blocked ? (
+          <Button
+            className="panel-header-action"
+            aria-label="Agendar horário"
+            isDisabled={busy}
+            onPress={() =>
+              navigatePanel({
+                kind: 'area',
+                area: 'agenda',
+                tenantId,
+                section: 'agendar',
+                conversationId,
+                contactId: detail.contactId,
+              })
+            }
+          >
+            <CalendarPlus aria-hidden size={20} strokeWidth={2} />
+            <span>Agendar</span>
+          </Button>
+        ) : null}
         {narrow ? (
           <Button
             className="panel-icon-btn"
@@ -1106,40 +1133,6 @@ export function InboxThread({
           </MenuTrigger>
         )}
       </header>
-
-      {/* DEC-062/063: etapa só de leitura (muda sozinha) e um único «Agendar». */}
-      {detail.opportunity || (detail.status !== 'closed' && !blocked) ? (
-        <div className="inbox-context">
-          {detail.opportunity ? (
-            <div className="inbox-context-stage" role="status">
-              <span className="inbox-context-label">Etapa</span>
-              <strong>{detail.opportunity.label}</strong>
-            </div>
-          ) : (
-            <span className="inbox-context-stage" />
-          )}
-          {detail.status !== 'closed' && !blocked ? (
-            <Button
-              className="panel-header-action"
-              aria-label="Agendar horário"
-              isDisabled={busy}
-              onPress={() =>
-                navigatePanel({
-                  kind: 'area',
-                  area: 'agenda',
-                  tenantId,
-                  section: 'agendar',
-                  conversationId,
-                  contactId: detail.contactId,
-                })
-              }
-            >
-              <CalendarPlus aria-hidden size={20} strokeWidth={2} />
-              <span>Agendar</span>
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
 
       {confirmClose ? (
         <div className="inbox-confirm">
