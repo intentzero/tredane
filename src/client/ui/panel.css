@@ -6612,3 +6612,11 @@
     transition: none;
   }
 }
+
+/* O quadro do Acompanhar (desktop) ocupa toda a altura da área: o painel do contato
+ * (posição absoluta) e as colunas esticam até ao fundo em vez de ficarem cortados. */
+.panel-shell-main:has(> .acomp-wide) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
