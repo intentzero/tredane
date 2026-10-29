@@ -1931,9 +1931,11 @@
   gap: var(--space-2);
 }
 
-/* Agenda dia/semana/detalhe (#36) */
-.agenda-today {
-  height: var(--size-control-sm);
+/* Agenda dia/semana/detalhe (#36). O chip base tem 40 px; «Hoje» fica ao lado
+   das setas de 44 px e o alvo medido tem de ser o mesmo (issue #272). */
+.panel-chip.agenda-today {
+  height: var(--size-touch);
+  min-height: var(--size-touch);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -5525,24 +5527,35 @@
   color: var(--color-text-secondary);
 }
 
+/* A pastilha continua 28 px; a caixa do botão é o alvo de 44 px (issue #272). */
 .week-switch {
   flex: none;
   position: relative;
   width: 48px;
-  height: 28px;
+  height: var(--size-touch);
   border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--color-line-disabled);
+  background: transparent;
   cursor: pointer;
 }
 
-.week-switch[aria-checked='true'] {
+.week-switch::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 48px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--color-line-disabled);
+}
+
+.week-switch[aria-checked='true']::before {
   background: var(--color-primary-base);
 }
 
 .week-switch-knob {
   position: absolute;
-  top: 3px;
+  top: 11px;
   left: 3px;
   width: 22px;
   height: 22px;
