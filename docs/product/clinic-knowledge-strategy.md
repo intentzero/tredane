@@ -7,7 +7,7 @@
 
 ## 1. Síntese executiva
 
-**Recomendação em avaliação:** construir primeiro uma **camada de conhecimento aprovado da clínica** com recuperação estruturada no SQLite do Durable Object da própria clínica. Considerar busca textual **FTS5** caso o volume ou as variações de perguntas justifiquem. Adiar embeddings, Vectorize e RAG vetorial até testes com a clínica piloto demonstraram ganho suficiente para compensar custo, latência, indexação e risco operacional.
+**Recomendação em avaliação:** construir primeiro uma **camada de conhecimento aprovado da clínica** com recuperação estruturada no SQLite do Durable Object da própria clínica. Considerar busca textual **FTS5** caso o volume ou as variações de perguntas justifiquem. Adiar embeddings, Vectorize e RAG vetorial até que testes com a clínica piloto demonstrem ganho suficiente para compensar custo, latência, indexação e risco operacional.
 
 O problema principal não é falta de conhecimento geral no LLM: é a ausência de um lugar explícito, controlado e auditável onde **cada clínica ensina como atende**, com regras de publicação e precedência por fonte.
 
