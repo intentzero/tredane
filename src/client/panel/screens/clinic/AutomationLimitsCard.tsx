@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import { PanelApiError, type AbuseLimitsDto, type PanelApi } from '../../api'
+import { friendlyError } from '../../copy/errors'
 
 type Props = {
   tenantId: string
@@ -85,6 +86,11 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
         generation,
         expectGeneration: () => generation,
       })
+      if (!next?.limits || !next.caps || !next.platformCeilings) {
+        setError('Não foi possível carregar os limites.')
+        setView(null)
+        return
+      }
       setView(next)
       setEnabled(next.enabled)
       setAutoBookPaused(next.autoBookPaused)
@@ -93,8 +99,10 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
       if (err instanceof PanelApiError && err.status === 403) {
         setError(null)
         setView(null)
+      } else if (err instanceof PanelApiError && err.message === 'stale_tenant_response') {
+        return
       } else {
-        setError('Não foi possível carregar os limites.')
+        setError(friendlyError(err, 'Não foi possível carregar os limites.'))
       }
     } finally {
       setLoading(false)
@@ -135,11 +143,8 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
           : 'Limites salvos.',
       )
     } catch (err) {
-      if (err instanceof PanelApiError && err.status === 400) {
-        setError(err.message || 'Valor fora do permitido.')
-      } else {
-        setError('Não foi possível salvar. Tente de novo.')
-      }
+      if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
+      setError(friendlyError(err, 'Não foi possível salvar. Tente de novo.'))
     } finally {
       setBusy(false)
     }
@@ -156,12 +161,12 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
     )
   }
 
-  if (!view || !limits) {
+  if (!view || !limits || !view.caps || !view.platformCeilings) {
     return null
   }
 
   const ceiling = (key: keyof AbuseLimitsDto['limits']) =>
-    Math.min(view.caps[key], view.platformCeilings[key])
+    Math.min(view.caps[key] ?? 1, view.platformCeilings[key] ?? 1)
 
   return (
     <section className="panel-card" aria-labelledby="abuse-limits-t">
