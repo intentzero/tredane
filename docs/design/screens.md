@@ -89,3 +89,7 @@ Cada tela abaixo aparece com **um** estado. Implemente todos:
 
 - Barra inferior: **Conversas · Pipeline · Agenda** para todos; **Clínica** só para o Responsável. Os mocks M-01 a M-14 mostram a visão do Atendente (3 abas); M-15 mostra a do Responsável (4 abas).
 - A aba Clínica e as rotas M-15 a M-26 respondem “Você não tem acesso a esta área” para o Atendente, sem dados, e a API nega a ação (REQ-002). Esconder a aba não substitui a autorização no servidor.
+
+## Desktop (Proposto, sem mock `M-xx`)
+
+A moldura do desktop (≥ 1280 px), o painel de detalhe deslizante, o seletor de clínica, o logotipo no painel e o quadro do Acompanhar em largura total foram desenhados em canvases privados de design e decididos em [DEC-068 a DEC-072](../product/decisions.md); a implementação está no épico [#207](https://github.com/intentzero/tredane/issues/207). Os mocks `M-xx` acima continuam sendo do celular; os do desktop ficam **Em aberto** até a verificação em staging (#215).
