@@ -29,9 +29,17 @@ type Props = {
   api: PanelApi
   generation: number
   viewerClerkUserId: string
+  /** Conversa aberta ao lado (desktop): a linha fica marcada. */
+  activeConversationId?: string
 }
 
-export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Props) {
+export function InboxList({
+  tenantId,
+  api,
+  generation,
+  viewerClerkUserId,
+  activeConversationId,
+}: Props) {
   const [filter, setFilter] = useState<InboxFilter>('all')
   const [q, setQ] = useState('')
   const [items, setItems] = useState<InboxConversation[] | null>(null)
@@ -201,7 +209,8 @@ export function InboxList({ tenantId, api, generation, viewerClerkUserId }: Prop
               <li key={c.id}>
                 <button
                   type="button"
-                  className={`inbox-row${c.unreadCount > 0 ? ' inbox-row--unread' : ''}`}
+                  className={`inbox-row${c.unreadCount > 0 ? ' inbox-row--unread' : ''}${c.id === activeConversationId ? ' inbox-row--active' : ''}`}
+                  aria-current={c.id === activeConversationId ? 'page' : undefined}
                   onClick={() =>
                     navigatePanel({
                       kind: 'area',

@@ -10,6 +10,7 @@ import {
   EllipsisVertical,
   Info,
   Maximize2,
+  PanelRight,
   RefreshCw,
   Send,
   Sparkles,
@@ -76,6 +77,8 @@ type Props = {
   api: PanelApi
   generation: number
   viewerClerkUserId: string
+  /** Desktop: o contato é um painel que desliza por cima (abre e fecha por este controlo). */
+  contactPanel?: { open: boolean; controlsId: string; onToggle: () => void }
 }
 
 /** Texto sempre como nó React — nunca HTML (XSS / conteúdo externo). */
@@ -232,6 +235,7 @@ export function InboxThread({
   api,
   generation,
   viewerClerkUserId,
+  contactPanel,
 }: Props) {
   const [detail, setDetail] = useState<InboxConversationDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -1042,15 +1046,20 @@ export function InboxThread({
           type="button"
           className="inbox-thread-person"
           aria-label={`Informações de ${label}`}
+          {...(contactPanel
+            ? { 'aria-expanded': contactPanel.open, 'aria-controls': contactPanel.controlsId }
+            : {})}
           onClick={() =>
-            navigatePanel({
-              kind: 'area',
-              area: 'conversas',
-              tenantId,
-              section: 'contato',
-              conversationId: detail.id,
-              contactId: detail.contactId,
-            })
+            contactPanel
+              ? contactPanel.onToggle()
+              : navigatePanel({
+                  kind: 'area',
+                  area: 'conversas',
+                  tenantId,
+                  section: 'contato',
+                  conversationId: detail.id,
+                  contactId: detail.contactId,
+                })
           }
         >
           <span className={`inbox-avatar inbox-avatar--sm inbox-avatar--${avatarTone(label)}`} aria-hidden>
@@ -1093,6 +1102,17 @@ export function InboxThread({
           >
             <CalendarPlus aria-hidden size={20} strokeWidth={2} />
             <span>Agendar</span>
+          </Button>
+        ) : null}
+        {contactPanel ? (
+          <Button
+            className="panel-header-action panel-header-action--toggle"
+            aria-pressed={contactPanel.open}
+            aria-controls={contactPanel.controlsId}
+            onPress={contactPanel.onToggle}
+          >
+            <PanelRight aria-hidden size={20} strokeWidth={2} />
+            <span>Contato</span>
           </Button>
         ) : null}
         {narrow ? (
