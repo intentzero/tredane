@@ -63,6 +63,18 @@ export async function subscribePush(
   })
 }
 
+/** Subscrição push já existente neste aparelho (sem pedir permissão). */
+export async function getExistingPushSubscription(): Promise<PushSubscription | null> {
+  if (!isPushSupported()) return null
+  try {
+    const reg = await navigator.serviceWorker.getRegistration()
+    if (!reg) return null
+    return await reg.pushManager.getSubscription()
+  } catch {
+    return null
+  }
+}
+
 export async function unsubscribePush(): Promise<boolean> {
   if (!('serviceWorker' in navigator)) return false
   const reg = await navigator.serviceWorker.getRegistration()
