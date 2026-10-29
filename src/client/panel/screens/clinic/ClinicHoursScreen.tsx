@@ -216,6 +216,7 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
             timezone={tz}
             todayIso={todayIso}
             selectedDay={editingDay}
+            changedDays={changed}
             onPickDay={setEditingDay}
           />
         ) : null}

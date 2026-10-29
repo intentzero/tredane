@@ -70,6 +70,7 @@ describe('Horário da clínica', () => {
     const onSaved = vi.fn(async () => undefined)
     render(<ClinicHoursScreen tenantId="t" snap={snap()} api={a} generation={1} onSaved={onSaved} />)
     const sw = await editDay('Sábado')
+    expect(document.activeElement?.textContent).toBe('Sábado')
     fireEvent.click(sw)
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar a este dia' }))
     expect(a.setWeeklyWindows).not.toHaveBeenCalled()
