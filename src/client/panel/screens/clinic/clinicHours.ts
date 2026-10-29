@@ -108,10 +108,22 @@ export function blockRange(
 /**
  * Cores das pessoas na grade e nas folgas (Confirmado, Paulo, 29/10/2026, #223): azul, laranja e
  * verde; vermelho fica só para fechamento e perigo, e o roxo é a cor da IA. Da 4.ª pessoa em
- * diante as cores se repetem até a decisão em aberto de #223.
+ * diante (Confirmado, Paulo, 29/10/2026, #223): cinza neutro (`text.muted`) com as iniciais no
+ * ponto; o nome continua sempre ao lado, então a cor nunca é o único sinal.
  */
 export const PERSON_COLORS = ['#2563A8', '#C2410C', '#2F7D4F'] as const
-export const personColor = (index: number): string => PERSON_COLORS[index % PERSON_COLORS.length]!
+export const OTHER_PERSON_COLOR = '#566160'
+export const personColor = (index: number): string => PERSON_COLORS[index] ?? OTHER_PERSON_COLOR
+/** Iniciais no ponto das pessoas sem cor própria (4.ª em diante); `undefined` para as demais. */
+export const personMark = (index: number, name: string): string | undefined =>
+  index < PERSON_COLORS.length
+    ? undefined
+    : name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0]!.toUpperCase())
+        .join('')
 
 /**
  * «Quem fica fora»: «Clínica inteira» é exclusiva. Marcá-la desmarca as pessoas; marcar uma

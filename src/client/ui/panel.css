@@ -6705,6 +6705,18 @@
   border-radius: 50%;
 }
 
+.panel-multi-dot-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--color-text-on-primary);
+  font-size: var(--font-size-caption);
+  font-style: normal;
+  font-weight: var(--font-weight-semibold);
+}
+
 .panel-multi-box {
   width: 22px;
   height: 22px;

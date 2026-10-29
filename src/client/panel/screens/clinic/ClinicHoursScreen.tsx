@@ -15,6 +15,7 @@ import {
   fromWeekDraft,
   openNow,
   personColor,
+  personMark,
   toWeekDraft,
   windowsOf,
   type DayWindows,
@@ -394,6 +395,7 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
               label: p.name,
               hint: p.hoursMode === 'clinic' ? 'Segue o horário da clínica' : 'Horário próprio',
               color: personColor(i),
+              mark: personMark(i, p.name),
             })),
           ]}
           reasons={['folga', 'ferias', 'feriado', 'manutencao', 'outro']}

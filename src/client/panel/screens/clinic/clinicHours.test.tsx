@@ -8,6 +8,8 @@ import {
   fromWeekDraft,
   normalizeScopes,
   openNow,
+  personColor,
+  personMark,
   toWeekDraft,
   validateDay,
 } from './clinicHours'
@@ -65,5 +67,14 @@ describe('regras do horário (#223)', () => {
     const ms = Date.UTC(2026, 10, 2, 17, 0)
     expect(openNow(a, ms, 'America/Sao_Paulo')).toEqual({ open: true, closesAt: 1080 })
     expect(openNow(a, Date.UTC(2026, 10, 2, 23, 0), 'America/Sao_Paulo')).toEqual({ open: false })
+  })
+
+  it('da 4.ª pessoa em diante usa cinza com iniciais (#223)', () => {
+    expect([0, 1, 2].map(personColor)).toEqual(['#2563A8', '#C2410C', '#2F7D4F'])
+    expect(personColor(3)).toBe(personColor(7))
+    expect(personColor(3)).not.toBe(personColor(0))
+    expect(personMark(2, 'Lívia')).toBeUndefined()
+    expect(personMark(3, 'Ana Souza')).toBe('AS')
+    expect(personMark(4, 'beatriz')).toBe('B')
   })
 })

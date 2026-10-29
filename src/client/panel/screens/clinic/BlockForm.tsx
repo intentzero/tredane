@@ -17,7 +17,7 @@ type Props = {
   generation: number
   timezone: string
   /** Quem pode ser escolhido em «Para». O primeiro é o padrão (ou `initialScope`). */
-  scopes: Array<{ id: string; label: string; hint?: string; color?: string }>
+  scopes: Array<{ id: string; label: string; hint?: string; color?: string; mark?: string }>
   initialScope?: string
   /** Motivos oferecidos (padrão: todos). */
   reasons?: Reason[]

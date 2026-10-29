@@ -9,7 +9,16 @@ export type PanelMultiOption = {
   hint?: string
   /** Cor do ponto ao lado do nome (pessoas na semana e nas folgas). */
   color?: string
+  /** Iniciais dentro do ponto, para quem não tem cor própria. */
+  mark?: string
 }
+
+const Dot = ({ o }: { o: PanelMultiOption }) =>
+  o.color ? (
+    <i className={o.mark ? 'panel-multi-dot panel-multi-dot-mark' : 'panel-multi-dot'} style={{ background: o.color }} aria-hidden>
+      {o.mark}
+    </i>
+  ) : null
 
 /**
  * Campo de escolha múltipla do painel, irmão de `PanelSelect`: o gatilho mostra as escolhas em
@@ -53,7 +62,7 @@ export function PanelMultiSelect({
             ? placeholder
             : chosen.map((o) => (
                 <span key={o.id} className="panel-multi-chip">
-                  {o.color ? <i className="panel-multi-dot" style={{ background: o.color }} aria-hidden /> : null}
+                  <Dot o={o} />
                   {o.label}
                 </span>
               ))}
@@ -86,7 +95,7 @@ export function PanelMultiSelect({
                       <span className="panel-multi-box" aria-hidden>
                         {isSelected ? <Check size={14} strokeWidth={3} /> : null}
                       </span>
-                      {o.color ? <i className="panel-multi-dot" style={{ background: o.color }} aria-hidden /> : null}
+                      <Dot o={o} />
                       <span className="panel-choice-item-text">
                         {o.label}
                         {o.hint ? <span className="panel-choice-hint">{o.hint}</span> : null}
