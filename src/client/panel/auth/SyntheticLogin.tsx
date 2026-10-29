@@ -10,6 +10,7 @@ import {
 import { navigatePanel } from '../routes'
 import { SYNTH_PERSONAS } from './session'
 import { useAuthSession } from './AuthContext'
+import { BrandHorizontal } from '../ui/Brand'
 
 /**
  * Login local quando AUTH_MODE=synthetic.
@@ -43,10 +44,7 @@ export function SyntheticLogin() {
   return (
     <div className="panel-auth" lang="pt-BR">
       <div className="panel-auth-brand">
-        <span className="panel-auth-mark" aria-hidden="true">
-          T
-        </span>
-        <span className="panel-auth-name">Tredane</span>
+        <BrandHorizontal height={40} />
       </div>
 
       {step === 'email' ? (

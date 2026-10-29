@@ -647,6 +647,37 @@
   border-bottom: var(--size-border-width) solid var(--color-line-border);
 }
 
+.panel-shell-lead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Logotipo oficial: sem deformar e com área livre pelo menos da altura do ponto do símbolo. */
+.brand-mark,
+.brand-horizontal,
+.brand-stacked {
+  display: block;
+  flex: none;
+  height: auto;
+  max-width: 100%;
+  user-select: none;
+}
+
+.brand-mark {
+  margin-top: 2px;
+}
+
+.brand-horizontal {
+  width: auto;
+}
+
+.brand-stacked {
+  align-self: center;
+  margin: var(--space-4) 0 var(--space-3);
+}
+
 .panel-shell-titles {
   display: flex;
   flex-direction: column;
@@ -844,23 +875,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-}
-
-.panel-auth-mark {
-  width: 36px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  background: var(--color-text-primary);
-  color: var(--color-text-on-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: var(--font-weight-semibold);
-}
-
-.panel-auth-name {
-  font-size: var(--font-size-headline);
-  font-weight: var(--font-weight-semibold);
 }
 
 .panel-auth-form {

@@ -17,6 +17,7 @@ import { useWhatsapp } from '../screens/clinic/whatsapp/useWhatsapp'
 import { BottomNav } from './BottomNav'
 import { ClinicSwitcher } from './ClinicSwitcher'
 import { OfflineStrip } from '../states/OfflineStrip'
+import { BrandMark } from '../ui/Brand'
 import { useKeyboardViewport } from '../ui/useKeyboardViewport'
 
 type Props = {
@@ -140,6 +141,8 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
       </a>
       {!avisosOnly ? (
         <header className="panel-shell-header">
+          <div className="panel-shell-lead">
+            <BrandMark size={32} />
           <div className="panel-shell-titles">
             <h1 className="panel-title-lg">{areaTitle(area)}</h1>
             <div className="panel-shell-clinic">
@@ -159,6 +162,7 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
                 {offline ? 'Sem conexão' : 'Ao vivo'}
               </span>
             </div>
+          </div>
           </div>
           <div className="panel-shell-actions">
             <Button
