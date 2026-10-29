@@ -7147,9 +7147,13 @@
 }
 
 .agenda-month-title {
-  text-transform: capitalize;
+  display: block;
   font-size: var(--font-size-body);
   color: var(--color-text-primary);
+}
+
+.agenda-month-title::first-letter {
+  text-transform: uppercase;
 }
 
 .agenda-month-grid {
