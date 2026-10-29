@@ -15,6 +15,7 @@ import { Badge } from '../../states/Badge'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
 import { useMediaQuery } from '../../ui/useMediaQuery'
+import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
 import {
@@ -83,6 +84,9 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
   const narrow = useMediaQuery('(max-width: 767.98px)')
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
   const [selected, setSelected] = useState<string[]>([])
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([])
+  // Desktop (DEC-068): coluna de contexto ao lado da grade.
+  const wide = useMediaQuery('(min-width: 1280px)')
 
   useEffect(() => {
     let cancelled = false
@@ -153,6 +157,9 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
   const professionals = (config?.resources ?? [])
     .filter((r) => r.kind === 'professional' && r.active)
     .map((r) => ({ id: r.id, name: r.name }))
+  const rooms = (config?.resources ?? [])
+    .filter((r) => r.kind === 'room' && r.active)
+    .map((r) => ({ id: r.id, name: r.name }))
   const roomCapacity = new Map(
     (config?.resources ?? []).filter((r) => r.kind === 'room').map((r) => [r.id, r.capacity ?? 1] as const),
   )
@@ -175,8 +182,11 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
     navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'agendar', date })
 
   const dayLabel = formatDayLabel(date, timezone)
+  const passesFilters = (a: AgendaAppointmentItem) =>
+    (selected.length === 0 || selected.includes(a.professionalId)) &&
+    (selectedRooms.length === 0 || (a.roomResourceId != null && selectedRooms.includes(a.roomResourceId)))
   const entries = buildDayEntries(
-    (byDay.get(date) ?? []).filter((a) => selected.length === 0 || selected.includes(a.professionalId)),
+    (byDay.get(date) ?? []).filter(passesFilters),
     roomCapacity,
     date === today ? now : null,
   )
@@ -193,7 +203,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
     return `${base} · ${dayCount === 0 ? 'nenhum horário' : `${n} ${n === 1 ? 'horário' : 'horários'}`}`
   })()
 
-  return (
+  const work = (
     <div className="agenda-day" data-screen={view === 'week' ? 'm13-semana' : 'm06-agenda'}>
       <header className="agenda-head">
         <div className="agenda-head-text">
@@ -213,7 +223,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
             </>
           )}
         </div>
-        {narrow ? null : (
+        {narrow || wide ? null : (
           <Button className="panel-btn-primary panel-btn-compact agenda-add" onPress={goSchedule}>
             <Plus aria-hidden size={18} strokeWidth={2} />
             Agendar
@@ -270,34 +280,36 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
         </Button>
       </div>
 
-      <div className="agenda-weekstrip" role="group" aria-label="Dias da semana">
-        {weekDays.map((day) => {
-          const label = formatDayLabel(day, timezone)
-          const count = byDay.get(day)?.length ?? 0
-          const selected = view === 'day' && day === date
-          return (
-            <button
-              key={day}
-              type="button"
-              className={`agenda-weekday${selected ? ' agenda-weekday--on' : ''}${day === today ? ' agenda-weekday--today' : ''}`}
-              aria-pressed={selected}
-              aria-label={`${formatLongDate(day, timezone)}${count > 0 ? `, ${count} ${count === 1 ? 'horário' : 'horários'}` : ''}`}
-              onClick={() => {
-                setDate(day)
-                if (view !== 'day') {
-                  navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
-                }
-              }}
-            >
-              <span className="agenda-weekday-name">{label.weekday}</span>
-              <span className="agenda-weekday-num">{label.day}</span>
-              <span className={`agenda-weekday-count${count > 0 ? ' agenda-weekday-count--on' : ''}`} aria-hidden>
-                {count > 0 ? count : '·'}
-              </span>
-            </button>
-          )
-        })}
-      </div>
+      {wide ? null : (
+        <div className="agenda-weekstrip" role="group" aria-label="Dias da semana">
+          {weekDays.map((day) => {
+            const label = formatDayLabel(day, timezone)
+            const count = byDay.get(day)?.length ?? 0
+            const selected = view === 'day' && day === date
+            return (
+              <button
+                key={day}
+                type="button"
+                className={`agenda-weekday${selected ? ' agenda-weekday--on' : ''}${day === today ? ' agenda-weekday--today' : ''}`}
+                aria-pressed={selected}
+                aria-label={`${formatLongDate(day, timezone)}${count > 0 ? `, ${count} ${count === 1 ? 'horário' : 'horários'}` : ''}`}
+                onClick={() => {
+                  setDate(day)
+                  if (view !== 'day') {
+                    navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
+                  }
+                }}
+              >
+                <span className="agenda-weekday-name">{label.weekday}</span>
+                <span className="agenda-weekday-num">{label.day}</span>
+                <span className={`agenda-weekday-count${count > 0 ? ' agenda-weekday-count--on' : ''}`} aria-hidden>
+                  {count > 0 ? count : '·'}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {narrow && view === 'day' && professionals.length > 1 ? (
         <>
@@ -358,7 +370,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
           />
         ) : view === 'day' ? (
           <DayGrid
-            items={byDay.get(date) ?? []}
+            items={(byDay.get(date) ?? []).filter(passesFilters)}
             timezone={timezone}
             isToday={date === today}
             now={now}
@@ -421,6 +433,47 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
           Agendar {date === today ? 'hoje' : dayLabel.weekday}
         </Button>
       ) : null}
+    </div>
+  )
+
+  if (!wide) return work
+
+  const toggle = (set: (fn: (cur: string[]) => string[]) => void, id: string) =>
+    set((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
+  return (
+    <div className="agenda-wide">
+      <AgendaContext
+        date={date}
+        today={today}
+        timezone={timezone}
+        now={now}
+        dayTitle={`${date === today ? 'Hoje · ' : ''}${formatLongDate(date, timezone)}`}
+        professionals={professionals}
+        rooms={rooms}
+        selectedPros={selected}
+        selectedRooms={selectedRooms}
+        countOf={countOf}
+        entries={entries}
+        holds={holds}
+        emptyText={
+          selected.length > 0 || selectedRooms.length > 0
+            ? 'Nenhum horário para esta seleção.'
+            : `Nenhum horário marcado ${date === today ? 'hoje' : `em ${dayLabel.weekday} ${dayLabel.day}`}.`
+        }
+        onPickDate={setDate}
+        onTogglePro={(id) => toggle(setSelected, id)}
+        onToggleRoom={(id) => toggle(setSelectedRooms, id)}
+        onClearFilters={() => {
+          setSelected([])
+          setSelectedRooms([])
+        }}
+        onSchedule={goSchedule}
+        onOpen={(id) => navigatePanel(detailRoute(tenantId, id))}
+        onOpenHold={(h) =>
+          navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
+        }
+      />
+      {work}
     </div>
   )
 }
