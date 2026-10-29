@@ -6,7 +6,7 @@
 
 - **Imagens nunca vão para a IA** (DEC-011): nem bytes, nem miniatura, nem descrição gerada. A IA só recebe o marcador «a cliente enviou uma imagem não analisada» (#188). Legenda é texto não confiável, tratado como qualquer mensagem.
 - **Pausa ou bloqueio negam ações novas** em S2 ([#173](https://github.com/intentzero/tredane/issues/173)) e S5 ([#176](https://github.com/intentzero/tredane/issues/176)): sem nova proposta, sem execução de clique, sem Pix automático, sem sugestão automática enquanto ativo. A checagem é no backend, dentro da transação, não na UI.
-- **Staging com `AI_AUTOBOOK=off`**; automações desligadas por padrão até os gates (DEC-061 proposta, PR #181).
+- **Staging:** `AI_AUTOBOOK=on` **só** para a Clínica Teste Paulo (`tenant_b40dc579540c30130840b9ac`) — **Confirmado (Paulo, 29/10/2026)**. Allowlist vazia ou flag ≠ `on` continua fail-closed; production permanece desligada (DEC-061, gates H10/S9).
 - Sem moderação visual por provedor externo, sem diagnóstico por imagem, sem prontuário/anamnese; tipos de mídia permitidos não mudam (#34).
 - Bloqueio interno do Tredane **não** é apresentado como bloqueio/denúncia na Meta.
 

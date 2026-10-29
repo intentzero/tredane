@@ -216,6 +216,7 @@ export async function runDueAutoDrafts(
           enabled: deps.autoBook === true,
           // Revalidado aqui, na execução do job (inclusive jobs já enfileirados).
           capability,
+          abuseLimits: deps.abuseLimits,
         })
         if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }
         if (autoBook.replyText || autoBook.notes) {

@@ -9,8 +9,10 @@
  * Faltou ou ficou ambíguo → não marca (a IA pergunta). Detecção determinística, sem o modelo.
  *
  * S2 (#173, épico #171): esta leitura de texto livre NUNCA marca — só produz nota para a atendente.
- * A marcação automática fica no clique autenticado da proposta versionada (S5 #176 / DEC-061:
- * `executeProposalConfirmOp`). Serviço com sinal: Pix sem hold (DEC-047); horário só após pagamento (#39).
+ * Com capacidade ligada (AI_AUTOBOOK=on + tenant na allowlist), o backend monta e envia a proposta
+ * versionada com botão WhatsApp (S3–S4). A marcação/Pix fica no clique autenticado (S5 #176 /
+ * DEC-061: `executeProposalConfirmOp`). Serviço com sinal: Pix sem hold (DEC-047); horário só
+ * após pagamento (#39).
  */
 import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
@@ -21,9 +23,12 @@ import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
 import { getConversation } from '../inbox/conversations'
 import type { OutboxRow } from '../outbox'
+import { createProposal } from '../proposals/proposals'
+import { sendProposalToWhatsAppOp } from '../proposals/send'
 import { queryAvailability } from '../scheduling/query'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
+import type { AbuseLimits } from './abuse-limits'
 import { checkConversationProtection } from './protection'
 
 export const AI_AUTOBOOK_ACTOR_ID = AI_AUTOBOOK_ACTOR
@@ -49,6 +54,9 @@ export type AutoBookOutcome = {
   date?: string
   time?: string
   appointmentId?: string
+  /** Proposta criada/enviada quando a capacidade está ligada (S3–S4). */
+  proposalId?: string
+  proposalVersion?: number
   /** Texto determinístico para o rascunho (substitui o do modelo), quando aplicável. */
   replyText?: string
   notes?: string
@@ -270,8 +278,13 @@ export function tryAiAutoBook(
     conversationId: string
     suggestionId?: string | null
     enabled?: boolean
-    /** Capacidade de agendar (flag + clínica autorizada). Não é usada pelo texto livre. */
+    /**
+     * Capacidade efetiva (flag + clínica na allowlist + não pausada).
+     * Texto livre nunca marca; com capacidade ligada o backend envia a proposta/botão.
+     */
     capability?: boolean
+    /** Limites S7 ao criar proposta (opcional). */
+    abuseLimits?: AbuseLimits
   },
 ): AutoBookOutcome {
   const tenantId = caller.tenantId
@@ -344,30 +357,81 @@ export function tryAiAutoBook(
   const label = `${svc.name} · ${dayText(date)} às ${time}`
   const found = { ...base, serviceId: svc.id, date, time }
 
-  if (svc.requiresSignal) {
-    const amount = signalAmountCents(svc)
+  // S2 / DEC-061: texto livre NUNCA marca. Com capacidade ligada, monta+envia proposta versionada
+  // (botão WhatsApp); o clique (S5) é que marca ou inicia Pix. Sem capacidade → só nota à atendente.
+  const avail = queryAvailability(db, tenantId, { serviceId: svc.id, date }, clock)
+  const slot = avail.slots.find((s) => localHHMM(tz, s.startsAt) === time)
+
+  if (!slot) {
     return {
-      ...none('needs_signal', found),
-      replyText:
-        `Perfeito${hi}! Para garantir ${svc.name} na ${dayText(date)} às ${time}, a clínica pede um sinal` +
-        `${amount != null ? ` de ${brl(amount)}` : ''} por Pix. O horário fica reservado depois do pagamento; o Pix chega aqui na conversa.`,
+      ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
       notes:
-        `A cliente confirmou ${label}. Serviço exige sinal: a IA NÃO marcou. ` +
-        'Envie a cobrança Pix pelo Agendar (fluxo normal); o compromisso é criado após o pagamento.',
+        `A cliente parece confirmar ${label} (horário não livre na agenda). ` +
+        'Texto livre não marca automaticamente: confirme pelo Agendar (fluxo normal).',
     }
   }
 
-  // S2 (#173, épico #171; revisão proposta DEC-061): texto livre — «sim», emoji, pedido completo
-  // ou JSON do modelo — NUNCA autoriza marcação, mesmo com AI_AUTOBOOK ligado. A leitura acima só
-  // serve para a nota à atendente. A marcação automática só poderá vir do clique autenticado numa
-  // proposta versionada pelo backend (S3–S5); não há aqui nenhuma chamada à operação de confirmação.
-  const avail = queryAvailability(db, tenantId, { serviceId: svc.id, date }, clock)
-  const slot = avail.slots.find((s) => localHHMM(tz, s.startsAt) === time)
-  void input.capability
-  return {
-    ...none('requires_button', found),
-    notes:
-      `A cliente parece confirmar ${label}${slot ? '' : ' (horário não livre na agenda)'}. ` +
-      'Texto livre não marca automaticamente: confirme pelo Agendar (fluxo normal).',
+  if (!input.capability) {
+    if (svc.requiresSignal) {
+      const amount = signalAmountCents(svc)
+      return {
+        ...none('needs_signal', found),
+        replyText:
+          `Perfeito${hi}! Para garantir ${svc.name} na ${dayText(date)} às ${time}, a clínica pede um sinal` +
+          `${amount != null ? ` de ${brl(amount)}` : ''} por Pix. O horário fica reservado depois do pagamento; o Pix chega aqui na conversa.`,
+        notes:
+          `A cliente confirmou ${label}. Serviço exige sinal: a IA NÃO marcou. ` +
+          'Envie a cobrança Pix pelo Agendar (fluxo normal); o compromisso é criado após o pagamento.',
+      }
+    }
+    return {
+      ...none('requires_button', found),
+      notes:
+        `A cliente parece confirmar ${label}. ` +
+        'Texto livre não marca automaticamente: confirme pelo Agendar (fluxo normal).',
+    }
+  }
+
+  try {
+    const proposal = createProposal(
+      db,
+      tenantId,
+      {
+        contactId: conv.contactId,
+        conversationId: conv.id,
+        serviceId: svc.id,
+        professionalId: slot.professionalId,
+        startsAt: slot.startsAt,
+        endsAt: slot.endsAt,
+        durationMinutes: svc.durationMinutes,
+      },
+      clock,
+      input.abuseLimits ? { abuseLimits: input.abuseLimits } : {},
+    )
+    const sent = sendProposalToWhatsAppOp(db, caller, { proposalId: proposal.id }, clock)
+    const status: AutoBookStatus = svc.requiresSignal ? 'needs_signal' : 'requires_button'
+    const sendNote =
+      sent.status === 'queued' || sent.status === 'already_sent'
+        ? `Proposta ${proposal.id} v${proposal.version} enfileirada/enviada com botão Confirmar. ` +
+          'Aguarda o clique da cliente; texto livre («sim») não marca.'
+        : `Proposta ${proposal.id} v${proposal.version} preparada, mas envio entregue à equipe ` +
+          `(${sent.status}). Texto livre não marca.`
+    return {
+      ...none(status, found),
+      proposalId: proposal.id,
+      proposalVersion: proposal.version,
+      // Não afirmar «agendado»: o botão ainda não foi tocado. Rascunho vazio → atendente vê só notas.
+      replyText: '',
+      notes: `A cliente parece confirmar ${label}. ${sendNote}`,
+      outbox: sent.outbox,
+    }
+  } catch (err) {
+    return {
+      ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
+      notes:
+        `A cliente parece confirmar ${label}. Falha ao montar/enviar a proposta: ` +
+        `${err instanceof Error ? err.message.slice(0, 180) : 'erro'}. ` +
+        'Texto livre não marca — confirme pelo Agendar.',
+    }
   }
 }
