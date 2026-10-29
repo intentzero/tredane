@@ -18,7 +18,8 @@ describe('logotipo oficial', () => {
     expect(imgs).toHaveLength(3)
     expect(imgs.map((i) => i.getAttribute('src'))).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('tredane-simbolo-cor'),
+        // O símbolo é pequeno e o Vite o embute (data URI): confere as cores oficiais.
+        expect.stringMatching(/0E5A5C.*E8875A/),
         expect.stringContaining('tredane-horizontal-cor'),
         expect.stringContaining('tredane-empilhado-cor'),
       ]),
