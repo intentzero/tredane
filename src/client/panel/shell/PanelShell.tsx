@@ -1,8 +1,7 @@
-import { Bell, ChevronDown } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from 'react-aria-components'
 import { AccountControl } from '../auth/ClerkBridge'
-import { markPickingClinic } from '../auth/session'
 import { useAuthSession } from '../auth/AuthContext'
 import type { PanelArea } from '../routes'
 import { areaTitle, navigatePanel } from '../routes'
@@ -16,6 +15,7 @@ import { useTenant } from '../tenant/TenantContext'
 import { WhatsappInterruptBanner } from '../screens/clinic/whatsapp/WhatsappScreen'
 import { useWhatsapp } from '../screens/clinic/whatsapp/useWhatsapp'
 import { BottomNav } from './BottomNav'
+import { ClinicSwitcher } from './ClinicSwitcher'
 import { OfflineStrip } from '../states/OfflineStrip'
 import { BrandMark } from '../ui/Brand'
 import { useKeyboardViewport } from '../ui/useKeyboardViewport'
@@ -129,8 +129,6 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
     )
   }
 
-  const multi = listState.phase === 'ready' && listState.tenants.length > 1
-
   const avisosOnly = hideNav || area === 'avisos'
 
   return (
@@ -148,21 +146,12 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
           <div className="panel-shell-titles">
             <h1 className="panel-title-lg">{areaTitle(area)}</h1>
             <div className="panel-shell-clinic">
-              {multi ? (
-                <Button
-                  className="panel-clinic-switch"
-                  onPress={() => {
-                    markPickingClinic()
-                    navigatePanel({ kind: 'clinicas' })
-                  }}
-                  aria-label={`Clínica ativa: ${ctx.name}. Trocar clínica.`}
-                >
-                  <span>{ctx.name}</span>
-                  <ChevronDown aria-hidden="true" size={16} strokeWidth={2} />
-                </Button>
-              ) : (
-                <span className="panel-subtitle">{ctx.name}</span>
-              )}
+              <ClinicSwitcher
+                tenantId={ctx.tenantId}
+                name={ctx.name}
+                area={area}
+                tenants={listState.phase === 'ready' ? listState.tenants : []}
+              />
               <span
                 className={`panel-live${offline ? ' panel-live--offline' : ''}`}
                 role="status"
