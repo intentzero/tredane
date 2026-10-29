@@ -57,6 +57,8 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
   const [filter, setFilter] = useState<Filter>('all')
   const [q, setQ] = useState('')
   const [showLost, setShowLost] = useState(false)
+  const [professionals, setProfessionals] = useState<Array<{ id: string; name: string }>>([])
+  const [profFilter, setProfFilter] = useState<string[]>([])
   const returnFocus = useRef<HTMLElement | null>(null)
   const panelRef = useRef<HTMLElement | null>(null)
 
@@ -104,6 +106,27 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
     }
   }, [api, generation])
 
+  // Profissionais ativas da clínica para o filtro (pelo compromisso ligado ao cartão).
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const snap = await api.getClinicConfig(tenantId, { generation, expectGeneration: () => generation })
+        if (cancelled) return
+        setProfessionals(
+          snap.resources
+            .filter((r) => r.kind === 'professional' && r.active)
+            .map((r) => ({ id: r.id, name: r.name })),
+        )
+      } catch {
+        /* sem cadastro legível: o quadro segue sem o filtro por profissional */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [api, tenantId, generation])
+
   // Esc fecha o painel.
   useEffect(() => {
     if (!openId) return
@@ -147,6 +170,10 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
       const name = contactLabel(card.contact.displayName, card.contact.waId).toLowerCase()
       if (!name.includes(needle) && !card.contact.waId.includes(needle)) return false
     }
+    if (profFilter.length > 0) {
+      // Só cartões com compromisso ligado têm profissional (#254).
+      if (!card.linkedAppointment || !profFilter.includes(card.linkedAppointment.professionalId)) return false
+    }
     if (filter === 'mine') return viewerId != null && card.assigneeClerkUserId === viewerId
     if (filter === 'unassigned') return card.assigneeClerkUserId == null
     if (filter === 'stalled') {
@@ -173,6 +200,8 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
 
   const all = stages.flatMap((s) => byStage[s] ?? [])
   const total = all.filter((c) => c.stage !== 'concluido' && c.stage !== 'perdido').length
+  const proCount = (id: string) => all.filter((c) => c.linkedAppointment?.professionalId === id).length
+  const profNames = professionals.filter((p) => profFilter.includes(p.id)).map((p) => p.name)
   const counts: Record<Filter, number> = {
     all: all.length,
     mine: viewerId ? all.filter((c) => c.assigneeClerkUserId === viewerId).length : 0,
@@ -222,7 +251,33 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
             Perdidos
           </Button>
         </div>
+        {professionals.length > 1 ? (
+          <div className="acomp-wide-filters" role="group" aria-label="Filtrar por profissional">
+            {professionals.map((p) => (
+              <Button
+                key={p.id}
+                className="panel-chip"
+                aria-pressed={profFilter.includes(p.id)}
+                onPress={() =>
+                  setProfFilter((cur) => (cur.includes(p.id) ? cur.filter((x) => x !== p.id) : [...cur, p.id]))
+                }
+              >
+                {p.name}
+                <span className="panel-chip-count">{proCount(p.id)}</span>
+              </Button>
+            ))}
+          </div>
+        ) : null}
       </div>
+
+      {profNames.length > 0 ? (
+        <p className="acomp-wide-note" role="status">
+          Mostrando só quem já tem horário com {profNames.join(' e ')}.{' '}
+          <button type="button" onClick={() => setProfFilter([])}>
+            Limpar
+          </button>
+        </p>
+      ) : null}
 
       {error ? (
         <p className="acomp-banner-error" role="alert">
