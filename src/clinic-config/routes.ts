@@ -21,6 +21,7 @@ import {
 import type { WorkerBindings } from '../worker/bindings'
 import type { ClinicConfigGateway } from './gateway'
 import {
+  serializeAbuseLimits,
   serializeBlockResult,
   serializeReadiness,
   serializeResource,
@@ -29,6 +30,7 @@ import {
   serializeSnapshot,
   serializeWindow,
 } from './serialize'
+import type { UpdateAbuseLimitsInput } from '../clinic/config'
 
 type ConfigEnv = {
   Bindings: WorkerBindings
@@ -87,6 +89,8 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     updateTimezone: (caller, timezone) => stub.updateClinicTimezone(caller, timezone),
     setAiAssistEnabled: (caller, enabled) => stub.setClinicAiAssistEnabled(caller, enabled),
     setAiProfile: (caller, input) => stub.setClinicAiProfile(caller, input),
+    getAbuseLimits: (caller) => stub.getClinicAbuseLimits(caller),
+    updateAbuseLimits: (caller, input) => stub.updateClinicAbuseLimits(caller, input),
     upsertService: (caller, input) => stub.upsertClinicService(caller, input),
     setServiceActive: (caller, serviceId, active) =>
       stub.setClinicServiceActive(caller, serviceId, active),
@@ -171,6 +175,41 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
         body.timezone,
       )
       return c.json(serializeSettings(settings))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  // Limites de abuso / automações: só o responsável (GET+PATCH owner-only; attendants 403).
+  app.get('/api/tenants/:tenantId/config/abuse-limits', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const view = await gw.getAbuseLimits(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+      )
+      return c.json(serializeAbuseLimits(view))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.patch('/api/tenants/:tenantId/config/abuse-limits', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<Record<string, unknown>>().catch(() => null)
+      if (!body || typeof body !== 'object') {
+        return c.json({ error: 'invalid_body' }, 400)
+      }
+      const input = parseAbuseLimitsBody(body)
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const view = await gw.updateAbuseLimits(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        input,
+      )
+      return c.json(serializeAbuseLimits(view))
     } catch (err) {
       return configErrorResponse(c, err)
     }
@@ -548,6 +587,31 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
   })
 
   return app
+}
+
+function parseAbuseLimitsBody(body: Record<string, unknown>): UpdateAbuseLimitsInput {
+  const input: UpdateAbuseLimitsInput = {}
+  if (typeof body.enabled === 'boolean') input.enabled = body.enabled
+  if (typeof body.autoBookPaused === 'boolean') input.autoBookPaused = body.autoBookPaused
+  if (body.resetToDefaults === true) input.resetToDefaults = true
+  const num = (key: keyof UpdateAbuseLimitsInput) => {
+    const v = body[key]
+    if (v === undefined) return
+    if (typeof v === 'number') (input as Record<string, unknown>)[key] = v
+    else if (typeof v === 'string' && /^\d+$/.test(v.trim())) {
+      ;(input as Record<string, unknown>)[key] = Number(v.trim())
+    }
+  }
+  num('windowHours')
+  num('autoDraftsPerContact')
+  num('aiBookingsPerContact')
+  num('aiBookingsPerClinic')
+  num('futureAppointmentsPerContact')
+  num('pendingPixPerContact')
+  num('pendingProposalsPerContact')
+  num('proposalsPerContact')
+  num('proposalsPerClinic')
+  return input
 }
 
 function parseServiceBody(body: Record<string, unknown>) {

@@ -1,4 +1,5 @@
 import type {
+  AbuseLimitsView,
   AppointmentRow,
   ConfigReadiness,
   ConfigSnapshot,
@@ -21,6 +22,30 @@ export function serializeSettings(row: ClinicSettingsRow) {
     googleBusinessUrl: row.googleBusinessUrl,
     reschedulePolicy: row.reschedulePolicy,
     updatedAt: row.updatedAt,
+  }
+}
+
+export function serializeAbuseLimits(view: AbuseLimitsView) {
+  return {
+    enabled: view.enabled,
+    autoBookPaused: view.autoBookPaused,
+    limits: view.limits,
+    defaults: view.defaults,
+    caps: view.caps,
+    platformCeilings: view.platformCeilings,
+    effective: {
+      enabled: view.effective.enabled,
+      windowHours: Math.round(view.effective.windowMs / (60 * 60 * 1000)),
+      autoDraftsPerContact: view.effective.autoDraftsPerContact,
+      aiBookingsPerContact: view.effective.aiBookingsPerContact,
+      aiBookingsPerClinic: view.effective.aiBookingsPerClinic,
+      futureAppointmentsPerContact: view.effective.futureAppointmentsPerContact,
+      pendingPixPerContact: view.effective.pendingPixPerContact,
+      pendingProposalsPerContact: view.effective.pendingProposalsPerContact,
+      proposalsPerContact: view.effective.proposalsPerContact,
+      proposalsPerClinic: view.effective.proposalsPerClinic,
+    },
+    updatedAt: view.updatedAt,
   }
 }
 

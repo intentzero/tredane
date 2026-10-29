@@ -697,9 +697,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       'handoff' in click
     ) {
       const rpc = this.#aiDepsOverride ?? clinicAi.rpcDepsFromEnv(this.env)
+      const autoBookPaused =
+        clinicConfig.isClinicAutoBookPaused(this.#db, caller.tenantId, this.#clock)
       const capability =
         opts?.capability ??
-        clinicAi.autoBookCapability(rpc, caller.tenantId)
+        (clinicAi.autoBookCapability(rpc, caller.tenantId) && !autoBookPaused)
       let pixAdapter = opts?.pixDeps?.simulatedAdapter
       const proposal = click.handoff.proposal
       const needsPix =
@@ -1558,6 +1560,48 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       { aiAssistEnabled: settings.aiAssistEnabled },
     )
     return settings
+  }
+
+  #abuseEnv(): Record<string, string | undefined> {
+    return this.env as unknown as Record<string, string | undefined>
+  }
+
+  async getClinicAbuseLimits(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const env = this.#abuseEnv()
+    const platform = clinicAi.abuseLimitsFromEnv(env)
+    return clinicConfig.getAbuseLimitsOp(this.#db, caller, this.#clock, platform, env)
+  }
+
+  async updateClinicAbuseLimits(
+    caller: ClinicCaller,
+    input: clinicConfig.UpdateAbuseLimitsInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const env = this.#abuseEnv()
+    const platform = clinicAi.abuseLimitsFromEnv(env)
+    const view = clinicConfig.updateAbuseLimitsOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+      platform,
+      env,
+    )
+    await this.#fanoutConfigEvent(
+      caller,
+      'config.abuse_limits_updated',
+      'clinic_settings',
+      '1',
+      {
+        enabled: view.enabled,
+        autoBookPaused: view.autoBookPaused,
+        limits: view.limits,
+      },
+    )
+    return view
   }
 
   async setClinicAiProfile(
@@ -2523,7 +2567,16 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
   async #aiRpcDeps(tenantId: string, rpcDeps?: AiAssistRpcDeps): Promise<AiAssistRpcDeps> {
     const base = rpcDeps ?? this.#aiDepsOverride ?? clinicAi.rpcDepsFromEnv(this.env)
-    return { ...base, clinicName: base.clinicName ?? (await this.#clinicName(tenantId)) }
+    const env = this.#abuseEnv()
+    const platform = base.abuseLimits ?? clinicAi.abuseLimitsFromEnv(env)
+    const settings = clinicConfig.ensureClinicSettings(this.#db, tenantId, this.#clock)
+    const clinic = clinicConfig.clinicAbuseRowFromSettings(settings)
+    return {
+      ...base,
+      clinicName: base.clinicName ?? (await this.#clinicName(tenantId)),
+      abuseLimits: clinicAi.resolveAbuseLimits(platform, clinic, env),
+      autoBookPaused: clinic.autoBookPaused,
+    }
   }
 
   async #emitAiDraftEvent(

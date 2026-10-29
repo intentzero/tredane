@@ -28,6 +28,17 @@ export {
   autoBookCapability,
   type AiAssistRpcDeps,
 } from './deps'
+export {
+  DEFAULT_ABUSE_LIMITS,
+  DEFAULT_ABUSE_LIMIT_NUMBERS,
+  ABUSE_LIMIT_HARD_CAPS,
+  abuseLimitsFromEnv,
+  resolveAbuseLimits,
+  checkAutomationQuota,
+  type AbuseLimits,
+  type AbuseLimitNumbers,
+  type ClinicAbuseLimitsRow,
+} from './abuse-limits'
 export type * from './types'
 export {
   enqueueAutoDraft,

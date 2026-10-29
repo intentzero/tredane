@@ -16,6 +16,11 @@ import {
 import { deleteService, setServiceActive, upsertService } from './services'
 import { listOverCapacitySlots } from '../scheduling/occupancy'
 import {
+  buildAbuseLimitsView,
+  updateClinicAbuseLimits,
+  type AbuseLimitsView,
+} from './abuse-limits-settings'
+import {
   ensureClinicSettings,
   setClinicAiAssistEnabled,
   setClinicAiProfile,
@@ -23,6 +28,7 @@ import {
 } from './settings'
 import { setWeeklyWindows } from './availability'
 import { loadConfigSnapshot } from './snapshot'
+import { abuseLimitsFromEnv, type AbuseLimits } from '../ai/abuse-limits'
 import type {
   ConfigReadiness,
   ConfigSnapshot,
@@ -31,6 +37,7 @@ import type {
   ResourceRow,
   ServiceRow,
   SetWeeklyWindowsInput,
+  UpdateAbuseLimitsInput,
   UpsertResourceInput,
   UpsertServiceInput,
   WeeklyWindowRow,
@@ -387,4 +394,61 @@ export function setAiProfileOp(
     )
     return settings
   })
+}
+
+export function getAbuseLimitsOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  clock: Clock,
+  platform: AbuseLimits = abuseLimitsFromEnv({}),
+  env: Record<string, string | undefined> = {},
+): AbuseLimitsView {
+  const meta = prepare(db, caller, clock)
+  const settings = ensureClinicSettings(db, meta.tenantId, clock)
+  return buildAbuseLimitsView(settings, platform, env)
+}
+
+export function updateAbuseLimitsOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: UpdateAbuseLimitsInput,
+  clock: Clock,
+  platform: AbuseLimits = abuseLimitsFromEnv({}),
+  env: Record<string, string | undefined> = {},
+): AbuseLimitsView {
+  const meta = prepare(db, caller, clock)
+  return db.transactionSync(() => {
+    const before = clinicAbuseSnapshot(ensureClinicSettings(db, meta.tenantId, clock))
+    const settings = updateClinicAbuseLimits(db, meta.tenantId, input, clock, platform, env)
+    const after = clinicAbuseSnapshot(settings)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor: caller.actorId ?? caller.kind,
+        action: 'config.abuse_limits_updated',
+        objectType: 'clinic_settings',
+        objectId: '1',
+        detail: { before, after },
+      },
+      clock,
+    )
+    return buildAbuseLimitsView(settings, platform, env)
+  })
+}
+
+function clinicAbuseSnapshot(settings: ReturnType<typeof ensureClinicSettings>) {
+  return {
+    enabled: settings.abuseLimitsEnabled,
+    autoBookPaused: settings.autoBookPaused,
+    windowHours: settings.abuseWindowHours,
+    autoDraftsPerContact: settings.abuseAutoDraftsPerContact,
+    aiBookingsPerContact: settings.abuseAiBookingsPerContact,
+    aiBookingsPerClinic: settings.abuseAiBookingsPerClinic,
+    futureAppointmentsPerContact: settings.abuseFutureAppointmentsPerContact,
+    pendingPixPerContact: settings.abusePendingPixPerContact,
+    pendingProposalsPerContact: settings.abusePendingProposalsPerContact,
+    proposalsPerContact: settings.abuseProposalsPerContact,
+    proposalsPerClinic: settings.abuseProposalsPerClinic,
+  }
 }

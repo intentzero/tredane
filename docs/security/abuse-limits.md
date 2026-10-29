@@ -1,29 +1,31 @@
 # Limites de abuso das automações (S7, #178)
 
-Estado: **implementado, desligado por padrão** (`ABUSE_LIMITS=on` liga). Valores das quotas: **Confirmado (Paulo, 29/10/2026)** — aceites os números propostos, sem alteração. A flag continua **off** (fail-closed) até ops ligar em staging; não há `ABUSE_LIMITS=on` por defeito em wrangler staging/production.
+Estado: **implementado**. Valores das quotas: **Confirmado (Paulo, 29/10/2026)**. Enable efetivo: **por clínica**, fail-closed (`abuse_limits_enabled` default off até a owner ligar no painel). Env `ABUSE_LIMIT_*` = tetos opcionais / bootstrap da plataforma; `ABUSE_LIMITS=on` no env é só legado (não liga a clínica sozinho).
 
-Código: `src/clinic/ai/abuse-limits.ts` (valores em `DEFAULT_ABUSE_LIMITS`, override por `ABUSE_LIMIT_*`), aplicado em `src/clinic/ai/autodraft.ts` (rascunhos/marcações) e em `src/clinic/proposals/proposals.ts` (efeito `proposal` na tabela `appointment_proposals`, S3 #174 / #264). Testes: `src/clinic/ai/abuse-limits.test.ts`, `src/clinic/proposals/proposals.test.ts`.
+Código: `src/clinic/ai/abuse-limits.ts` (`DEFAULT_ABUSE_LIMITS`, `resolveAbuseLimits`), persistência em `clinic_settings` (migração 30), API owner `GET|PATCH /api/tenants/:id/config/abuse-limits`, UI `AutomationLimitsCard`. Aplicado em `autodraft.ts` e `proposals.ts`. Testes: `abuse-limits.test.ts`, `abuse-limits.http.test.ts`, `proposals.test.ts`.
 
-## Controlo: só variáveis de ambiente (sem UI)
+## Controlo: painel da clínica (owner) + tetos de plataforma
 
-- Controlo é por variáveis de ambiente do Worker: `ABUSE_LIMITS` e `ABUSE_LIMIT_*`.
-- **Não há UI** no painel da clínica para a responsável ajustar quotas.
+- **Confirmado (Paulo, chat 29/10/2026 — «quero ui»):** a responsável vê e ajusta os limites em Clínica → Configurações, cartão **Limites das automações** (junto a Sugestões com IA). Atendentes não vêem o cartão (403 na API).
+- **Aplicar limites de proteção:** liga/desliga a aplicação das quotas nesta clínica (default off).
+- **Pausar novas marcações automáticas por botão:** impede novos efeitos de confirmação automática nesta clínica; **não cancela** compromissos já marcados; **não bloqueia** ações manuais. `AI_AUTOBOOK=off` na plataforma continua a vencer (fail-closed global) — a pausa da clínica não reativa o que a plataforma desligou.
+- Números: min 1, máx = teto da plataforma (hard caps no servidor; `ABUSE_LIMIT_*` no env pode apertar uma chave). Salvar e «Restaurar padrões» (valores Confirmados). Auditoria `config.abuse_limits_updated`.
 - Ações manuais da equipe (painel / Agendar) **continuam sem limite**.
 
 ## Valores Confirmados (Paulo, 29/10/2026)
 
 | Limite | Valor | Estado | Porquê |
 |---|---|---|---|
-| Janela das quotas | 24 h rolantes (`ABUSE_LIMIT_WINDOW_HOURS`) | **Confirmado (Paulo, 29/10/2026)** | Simples de explicar e alinhada com o limite diário de rascunhos já aprovado. |
-| Rascunhos automáticos por contato | 20 / 24 h (`ABUSE_LIMIT_AUTO_DRAFTS_PER_CONTACT`) | **Confirmado (Paulo, 29/10/2026)** | Uma conversa normal raramente passa de 10 mensagens/dia; 20 só corta inundações. |
-| Rascunhos por clínica | 300 / dia | **Já aprovado** (`AI_DAILY_DRAFT_CAP`) | Mantido; não duplicado. |
-| Marcações pela IA por contato | 1 / 24 h (`ABUSE_LIMIT_AI_BOOKINGS_PER_CONTACT`) | **Confirmado (Paulo, 29/10/2026)** | Uma cliente raramente precisa de mais de uma marcação nova por dia; o resto vai à equipe. |
-| Marcações pela IA por clínica | 20 / 24 h (`ABUSE_LIMIT_AI_BOOKINGS_PER_CLINIC`) | **Confirmado (Paulo, 29/10/2026)** | Limite de segurança contra muitos números a encher a agenda; uma clínica piloto pequena fica abaixo disso. |
-| Compromissos futuros por contato | 3 (`ABUSE_LIMIT_FUTURE_APPOINTMENTS_PER_CONTACT`) | **Confirmado (Paulo, 29/10/2026)** | Evita que um contato prenda vários horários; com 3 já marcados, a equipe confirma. |
-| Cobranças Pix pendentes por contato | 2 (`ABUSE_LIMIT_PENDING_PIX_PER_CONTACT`) | **Confirmado (Paulo, 29/10/2026)** | Evita várias cobranças em aberto para a mesma pessoa. |
-| Propostas pendentes por contato | 1 (`ABUSE_LIMIT_PENDING_PROPOSALS_PER_CONTACT`) | **Confirmado (Paulo, 29/10/2026)**; contagem em `appointment_proposals` (S3) | Uma proposta de cada vez evita confusão sobre qual botão vale. Substituição da versão aberta não conta como segunda pendente. |
-| Propostas criadas por contato | 5 / 24 h (`ABUSE_LIMIT_PROPOSALS_PER_CONTACT`) | **Confirmado (Paulo, 29/10/2026)**; contagem em S3 | Dá margem para trocar de horário algumas vezes sem permitir inundação. |
-| Propostas criadas por clínica | 100 / 24 h (`ABUSE_LIMIT_PROPOSALS_PER_CLINIC`) | **Confirmado (Paulo, 29/10/2026)**; contagem em S3 | Limite global de segurança, folgado para uma clínica piloto. |
+| Janela das quotas | 24 h rolantes | **Confirmado (Paulo, 29/10/2026)** | Simples de explicar e alinhada com o limite diário de rascunhos já aprovado. |
+| Rascunhos automáticos por contato | 20 / 24 h | **Confirmado (Paulo, 29/10/2026)** | Uma conversa normal raramente passa de 10 mensagens/dia; 20 só corta inundações. |
+| Rascunhos por clínica | 300 / dia | **Já aprovado** (`AI_DAILY_DRAFT_CAP`) | Mantido; não duplicado na UI. |
+| Marcações pela IA por contato | 1 / 24 h | **Confirmado (Paulo, 29/10/2026)** | Uma cliente raramente precisa de mais de uma marcação nova por dia; o resto vai à equipe. |
+| Marcações pela IA por clínica | 20 / 24 h | **Confirmado (Paulo, 29/10/2026)** | Limite de segurança contra muitos números a encher a agenda; uma clínica piloto pequena fica abaixo disso. |
+| Compromissos futuros por contato | 3 | **Confirmado (Paulo, 29/10/2026)** | Evita que um contato prenda vários horários; com 3 já marcados, a equipe confirma. |
+| Cobranças Pix pendentes por contato | 2 | **Confirmado (Paulo, 29/10/2026)** | Evita várias cobranças em aberto para a mesma pessoa. |
+| Propostas pendentes por contato | 1 | **Confirmado (Paulo, 29/10/2026)**; contagem em `appointment_proposals` (S3) | Uma proposta de cada vez evita confusão sobre qual botão vale. Substituição da versão aberta não conta como segunda pendente. |
+| Propostas criadas por contato | 5 / 24 h | **Confirmado (Paulo, 29/10/2026)**; contagem em S3 | Dá margem para trocar de horário algumas vezes sem permitir inundação. |
+| Propostas criadas por clínica | 100 / 24 h | **Confirmado (Paulo, 29/10/2026)**; contagem em S3 | Limite global de segurança, folgado para uma clínica piloto. |
 
 ## Ao atingir o limite
 
@@ -35,5 +37,5 @@ Código: `src/clinic/ai/abuse-limits.ts` (valores em `DEFAULT_ABUSE_LIMITS`, ove
 ## Garantias e limites
 
 - Contagem nas tabelas de efeitos no próprio DO da clínica (escopo de tenant explícito, single-threaded); jobs em geração contam. Webhook repetido é deduplicado a montante e não cria efeito novo.
-- Com o S2 (#191) a IA não marca por texto livre; a quota de marcações aplica-se ao caminho do botão (S5/#176) quando a capacidade estiver ligada. Quotas de propostas: valores **Confirmados**; `createProposal` / `createOrSupersedeProposal` aplicam o efeito `proposal` quando `ABUSE_LIMITS=on` (tabela `appointment_proposals`, S3 #174 / #264).
-- Desligado por padrão: valores Confirmados; flag continua off até ops ligar em staging (`ABUSE_LIMITS=on`). Sem UI de clínica.
+- Com o S2 (#191) a IA não marca por texto livre; a quota de marcações aplica-se ao caminho do botão (S5/#176) quando a capacidade estiver ligada e a owner não tiver pausado marcações automáticas. Quotas de propostas: valores **Confirmados**; `createProposal` / `createOrSupersedeProposal` aplicam o efeito `proposal` quando os limites da clínica estão ligados.
+- Regra de enable: **clínica** (`abuse_limits_enabled`); env `ABUSE_LIMITS` não liga sozinho. Fora do escopo: Platform Admin a editar todos os tenants; attendant a editar; ligar `AI_AUTOBOOK` globalmente; templates Meta.

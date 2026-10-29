@@ -138,11 +138,11 @@
 
 | Campo | Detalhe |
 |---|---|
-| Estado | **implementado, desligado por padrão** — valores **Confirmado (Paulo, 29/10/2026)**; issue #178 (S7); flag `ABUSE_LIMITS` continua off até ops |
-| Onde | `src/clinic/ai/abuse-limits.ts` (`DEFAULT_ABUSE_LIMITS`); autodraft + `createOrSupersedeProposal`; doc [abuse-limits.md](abuse-limits.md); também `AI_DAILY_DRAFT_CAP = 300` |
-| Decisão | Valores aceites sob DEC-061 (nota S7, Paulo 29/10/2026); controlo só por env do Worker; **sem UI** no painel; ações manuais sem limite |
+| Estado | **implementado** — valores **Confirmado (Paulo, 29/10/2026)**; UI owner; enable por clínica (default off); issue #178 (S7) |
+| Onde | `src/clinic/ai/abuse-limits.ts` + `clinic_settings` (migração 30); `AutomationLimitsCard`; autodraft + propostas; doc [abuse-limits.md](abuse-limits.md); também `AI_DAILY_DRAFT_CAP = 300` |
+| Decisão | Valores aceites sob DEC-061 (nota S7, Paulo 29/10/2026); UI owner **Confirmado** (chat 29/10/2026); enable por clínica; ações manuais sem limite |
 | Testes | `src/clinic/ai/abuse-limits.test.ts`; quotas de propostas em `proposals.test.ts` |
-| Limites | Flag fail-closed; ops liga `ABUSE_LIMITS=on` em staging quando pronto; não bloqueia CI de auth; liberação H10/S9 humana continua Em aberto |
+| Limites | Fail-closed por clínica até a owner ligar; env `ABUSE_LIMIT_*` aperta tetos; `AI_AUTOBOOK=off` vence; liberação H10/S9 humana continua Em aberto |
 
 ### 12. Épicos e PRs em curso
 
@@ -199,7 +199,7 @@ Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY
 1. **Agendamento por IA ligado por padrão no código** (`src/clinic/ai/deps.ts:60`). Staging contido só por `AI_AUTOBOOK=off` manual; correção em PR aberto #191 (S2).
 2. **Texto livre não marca** (S2); botão versionado S3–S5 em `main`, com `AI_AUTOBOOK` fail-closed por padrão até gates S9/H10 humanos.
 2a. **`AI_AUTOBOOK=off` no staging pode ter sido apagado pelo deploy das 20:12 BRT** (não verificado).
-3. **Limites de abuso Confirmados** (#178, Paulo 29/10/2026) mas **flag off** até ops ligar `ABUSE_LIMITS=on` em staging; sem UI de clínica.
+3. **Limites de abuso Confirmados** (#178, Paulo 29/10/2026) com UI owner; enable por clínica (default off).
 4. **Prompt injection** S6 em `main`; S9 harness sintético + runbook prontos — **liberação controlada do botão ainda Em aberto** (#180).
 5. **Bloqueio de contato não para todas as automações e não existe pausa** (#191 parcial, #187). Não chegar à Meta é **limite aceite** (decisão do Paulo, 28/10/2026): bloqueio e pausa continuam só internos.
 6. **Produção sem provisionamento e sem deploy registrado**; secrets de produção ausentes (DEPLOY.md §5).

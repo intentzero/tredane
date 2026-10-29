@@ -176,7 +176,7 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 
 ## JRN-17 — Agendamento confirmado pela cliente por botão
 
-- **Estado:** Decidido (DEC-061, revisão da DEC-060, 28/10/2026, registo D-20261028-200500-CUR; parâmetros 30 min / 5 min / 20 marcações decididos; limites de abuso S7 **Confirmado (Paulo, 29/10/2026)** — [abuse-limits.md](../security/abuse-limits.md); flag `ABUSE_LIMITS` off; sem UI de quotas). Desligado por padrão (`AI_AUTOBOOK=off`).
+- **Estado:** Decidido (DEC-061, revisão da DEC-060, 28/10/2026, registo D-20261028-200500-CUR; parâmetros 30 min / 5 min / 20 marcações decididos; limites de abuso S7 **Confirmado (Paulo, 29/10/2026)** — [abuse-limits.md](../security/abuse-limits.md); UI owner; enable por clínica default off). Desligado por padrão (`AI_AUTOBOOK=off`).
 - **Ator:** cliente final (no WhatsApp); sistema (`system:ai-autobook`); atendente (ACT-02) no fallback.
 - **Gatilho:** a cliente pede um horário em texto livre (ex. fictício: «quero limpeza de pele amanhã às 15h») ou responde a uma sugestão.
 - **Pré-condições:** flag ativa para a clínica; serviço, profissional e sala configurados; janela de 24 h do WhatsApp aberta.

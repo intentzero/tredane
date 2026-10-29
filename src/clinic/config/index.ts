@@ -22,7 +22,16 @@ export type {
   CreateBlockResult,
   RoomRequirement,
   ServiceSignalKind,
+  UpdateAbuseLimitsInput,
 } from './types'
+export {
+  buildAbuseLimitsView,
+  clinicAbuseRowFromSettings,
+  effectiveAbuseLimitsForClinic,
+  isClinicAutoBookPaused,
+  updateClinicAbuseLimits,
+  type AbuseLimitsView,
+} from './abuse-limits-settings'
 export {
   assertMultipleOfGrid,
   assertPositiveDuration,
@@ -60,6 +69,8 @@ export {
   updateTimezoneOp,
   setAiAssistEnabledOp,
   setAiProfileOp,
+  getAbuseLimitsOp,
+  updateAbuseLimitsOp,
   upsertServiceOp,
   setServiceActiveOp,
   deleteServiceOp,

@@ -1,5 +1,6 @@
 import { DEFAULT_CLINIC_TIMEZONE } from '../constants'
 import { DEFAULT_SIGNAL_DEADLINE_SECONDS } from '../../pix/money'
+import { DEFAULT_ABUSE_LIMIT_NUMBERS } from '../ai/abuse-limits'
 import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
 import type { ClinicSettingsRow } from './types'
@@ -16,6 +17,17 @@ type SettingsSql = {
   clinic_address?: string
   google_business_url?: string
   reschedule_policy?: string
+  abuse_limits_enabled?: number
+  auto_book_paused?: number
+  abuse_window_hours?: number
+  abuse_auto_drafts_per_contact?: number
+  abuse_ai_bookings_per_contact?: number
+  abuse_ai_bookings_per_clinic?: number
+  abuse_future_appointments_per_contact?: number
+  abuse_pending_pix_per_contact?: number
+  abuse_pending_proposals_per_contact?: number
+  abuse_proposals_per_contact?: number
+  abuse_proposals_per_clinic?: number
   updated_at: number
 }
 
@@ -30,6 +42,27 @@ function mapSettings(row: SettingsSql): ClinicSettingsRow {
     clinicAddress: row.clinic_address ?? '',
     googleBusinessUrl: row.google_business_url ?? '',
     reschedulePolicy: row.reschedule_policy ?? '',
+    abuseLimitsEnabled: row.abuse_limits_enabled === 1,
+    autoBookPaused: row.auto_book_paused === 1,
+    abuseWindowHours: row.abuse_window_hours ?? DEFAULT_ABUSE_LIMIT_NUMBERS.windowHours,
+    abuseAutoDraftsPerContact:
+      row.abuse_auto_drafts_per_contact ?? DEFAULT_ABUSE_LIMIT_NUMBERS.autoDraftsPerContact,
+    abuseAiBookingsPerContact:
+      row.abuse_ai_bookings_per_contact ?? DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerContact,
+    abuseAiBookingsPerClinic:
+      row.abuse_ai_bookings_per_clinic ?? DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerClinic,
+    abuseFutureAppointmentsPerContact:
+      row.abuse_future_appointments_per_contact ??
+      DEFAULT_ABUSE_LIMIT_NUMBERS.futureAppointmentsPerContact,
+    abusePendingPixPerContact:
+      row.abuse_pending_pix_per_contact ?? DEFAULT_ABUSE_LIMIT_NUMBERS.pendingPixPerContact,
+    abusePendingProposalsPerContact:
+      row.abuse_pending_proposals_per_contact ??
+      DEFAULT_ABUSE_LIMIT_NUMBERS.pendingProposalsPerContact,
+    abuseProposalsPerContact:
+      row.abuse_proposals_per_contact ?? DEFAULT_ABUSE_LIMIT_NUMBERS.proposalsPerContact,
+    abuseProposalsPerClinic:
+      row.abuse_proposals_per_clinic ?? DEFAULT_ABUSE_LIMIT_NUMBERS.proposalsPerClinic,
     updatedAt: row.updated_at,
   }
 }
@@ -41,7 +74,12 @@ export function ensureClinicSettings(
 ): ClinicSettingsRow {
   const existing = db.get<SettingsSql>(
     `SELECT tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, ai_assist_enabled,
-       clinic_address, google_business_url, reschedule_policy, updated_at
+       clinic_address, google_business_url, reschedule_policy,
+       abuse_limits_enabled, auto_book_paused, abuse_window_hours,
+       abuse_auto_drafts_per_contact, abuse_ai_bookings_per_contact, abuse_ai_bookings_per_clinic,
+       abuse_future_appointments_per_contact, abuse_pending_pix_per_contact,
+       abuse_pending_proposals_per_contact, abuse_proposals_per_contact, abuse_proposals_per_clinic,
+       updated_at
      FROM clinic_settings WHERE id = 1`,
   )
   if (existing) {
@@ -70,6 +108,17 @@ export function ensureClinicSettings(
     clinicAddress: '',
     googleBusinessUrl: '',
     reschedulePolicy: '',
+    abuseLimitsEnabled: false,
+    autoBookPaused: false,
+    abuseWindowHours: DEFAULT_ABUSE_LIMIT_NUMBERS.windowHours,
+    abuseAutoDraftsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.autoDraftsPerContact,
+    abuseAiBookingsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerContact,
+    abuseAiBookingsPerClinic: DEFAULT_ABUSE_LIMIT_NUMBERS.aiBookingsPerClinic,
+    abuseFutureAppointmentsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.futureAppointmentsPerContact,
+    abusePendingPixPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.pendingPixPerContact,
+    abusePendingProposalsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.pendingProposalsPerContact,
+    abuseProposalsPerContact: DEFAULT_ABUSE_LIMIT_NUMBERS.proposalsPerContact,
+    abuseProposalsPerClinic: DEFAULT_ABUSE_LIMIT_NUMBERS.proposalsPerClinic,
     updatedAt: now,
   }
 }

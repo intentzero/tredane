@@ -29,7 +29,12 @@ export type AiAssistRpcDeps = {
   autoBook?: boolean
   /** Clínicas autorizadas (AI_AUTOBOOK_TENANTS, separadas por vírgula). Vazio = nenhuma. */
   autoBookTenants?: string[]
-  /** S7 (#178): limites de abuso (ABUSE_LIMITS=on liga; padrões Confirmados Paulo 29/10/2026). */
+  /** Owner pausou marcações automáticas nesta clínica (UI). */
+  autoBookPaused?: boolean
+  /**
+   * S7 (#178): limites efetivos. Em produção o DO resolve com settings da clínica;
+   * env `ABUSE_LIMIT_*` = tetos/bootstrap. `ABUSE_LIMITS=on` só marca platform.enabled legado.
+   */
   abuseLimits?: AbuseLimits
 }
 
@@ -67,6 +72,7 @@ export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
     clinicName: rpc.clinicName ?? null,
     autoBook: rpc.autoBook === true,
     autoBookTenants: rpc.autoBookTenants ?? [],
+    autoBookPaused: rpc.autoBookPaused === true,
     ...(rpc.abuseLimits ? { abuseLimits: rpc.abuseLimits } : {}),
   }
 }

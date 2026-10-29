@@ -140,7 +140,40 @@ export type ClinicSettingsRow = {
   googleBusinessUrl: string
   /** Regras de remarcação e cancelamento (texto da clínica; contexto da IA). */
   reschedulePolicy: string
+  /**
+   * Limites de abuso — owner (DEC-042 / Paulo 29/10/2026).
+   * Default enabled=false (fail-closed por clínica).
+   */
+  abuseLimitsEnabled: boolean
+  /** Pausa novas marcações automáticas por botão; AI_AUTOBOOK=off continua a vencer. */
+  autoBookPaused: boolean
+  abuseWindowHours: number
+  abuseAutoDraftsPerContact: number
+  abuseAiBookingsPerContact: number
+  abuseAiBookingsPerClinic: number
+  abuseFutureAppointmentsPerContact: number
+  abusePendingPixPerContact: number
+  abusePendingProposalsPerContact: number
+  abuseProposalsPerContact: number
+  abuseProposalsPerClinic: number
   updatedAt: number
+}
+
+/** Corpo de PATCH dos limites de abuso (owner). */
+export type UpdateAbuseLimitsInput = {
+  enabled?: boolean
+  autoBookPaused?: boolean
+  windowHours?: number
+  autoDraftsPerContact?: number
+  aiBookingsPerContact?: number
+  aiBookingsPerClinic?: number
+  futureAppointmentsPerContact?: number
+  pendingPixPerContact?: number
+  pendingProposalsPerContact?: number
+  proposalsPerContact?: number
+  proposalsPerClinic?: number
+  /** Restaura números Confirmados (não altera enabled / autoBookPaused salvo se enviados). */
+  resetToDefaults?: boolean
 }
 
 export type ConfigReadiness = {

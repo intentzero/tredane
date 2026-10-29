@@ -109,7 +109,7 @@ Criação remota de D1/R2/Queues/DO namespaces, contas Meta/Clerk e revisão jur
 
 | Ambiente | Estado esperado |
 | --- | --- |
-| development / staging / production | Desligado (sem `ABUSE_LIMITS=on` por defeito). Valores Confirmados; flag continua off até ops ligar em staging. |
+| development / staging / production | Enable por clínica (owner UI, default off). Env `ABUSE_LIMIT_*` = teto opcional; `ABUSE_LIMITS=on` legado não liga a clínica sozinho. |
 
 ## Agendamento automático pela IA (`AI_AUTOBOOK`) — S2 (#173)
 
