@@ -206,9 +206,8 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
         <span>
           <span className="panel-switch-label">Pausar novas marcações automáticas por botão</span>
           <span className="panel-muted-sm">
-            Impede novas confirmações automáticas pelo botão do WhatsApp nesta clínica. Não cancela
-            compromissos já marcados. Se a plataforma tiver o agendamento automático desligado, ele
-            continua desligado.
+            Impede novas propostas e confirmações pelo botão do WhatsApp nesta clínica. Não cancela
+            compromissos já marcados.
           </span>
         </span>
         <input

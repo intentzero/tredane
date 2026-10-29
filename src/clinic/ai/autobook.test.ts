@@ -1,6 +1,6 @@
 /**
- * S2 (#173, épico #171): texto livre nunca grava marcação, mesmo com AI_AUTOBOOK ligado e a
- * clínica autorizada. Caso base = staging: depilação masculina com a Gi, quinta 29/10/2026.
+ * S2 (#173, épico #171): texto livre nunca grava marcação, com a proposta ligada e a
+ * clínica sem pausa. Caso base = staging: depilação masculina com a Gi, quinta 29/10/2026.
  */
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
@@ -122,7 +122,7 @@ const noBooking = (s: ReturnType<typeof seed>) => {
   ).toBe(0)
 }
 
-describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)', () => {
+describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', () => {
   const PROPOSAL = 'Confirma depilação masculina na quinta 29/10 às 14:00?'
   it.each<[string, Array<['inbound' | 'outbound', string]>]>([
     ['escolha do horário após oferta (caso do doc)', [

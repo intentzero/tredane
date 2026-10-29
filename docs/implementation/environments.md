@@ -100,12 +100,7 @@ Criação remota de D1/R2/Queues/DO namespaces, contas Meta/Clerk e revisão jur
 
 ## Limites de abuso (`ABUSE_LIMITS`) — S7 (#178)
 
-**Valores Confirmados (Paulo, 29/10/2026):** ver [abuse-limits.md](../security/abuse-limits.md). Controlo só por variáveis de ambiente do Worker (`ABUSE_LIMITS`, `ABUSE_LIMIT_*`); **não há UI** no painel da clínica. Ações manuais da equipe não são limitadas.
-
-| Variável | Valor | Efeito |
-| --- | --- | --- |
-| `ABUSE_LIMITS` | ausente, vazio ou ≠ `on` | Quotas desligadas (padrão, fail-closed) |
-| `ABUSE_LIMITS` | `on` | Quotas ligadas com os valores Confirmados (ou overrides `ABUSE_LIMIT_*`) |
+**Valores Confirmados (Paulo, 29/10/2026):** ver [abuse-limits.md](../security/abuse-limits.md). A owner liga, pausa e ajusta no cartão **Limites das automações**. Env `ABUSE_LIMIT_*` aperta tetos; `ABUSE_LIMITS=on` é legado e não liga a clínica sozinho. Ações manuais da equipe não são limitadas.
 
 | Ambiente | Estado esperado |
 | --- | --- |

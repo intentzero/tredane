@@ -129,7 +129,7 @@ export const SEG_IA_EVIDENCE_MATRIX: readonly SegIaEvidenceRow[] = [
   {
     id: 'S9-T08',
     requirement: 'Desativação mid-job / capability off',
-    scenario: 'AI_AUTOBOOK off antes do efeito → denied; após commit → replay sem novo book',
+    scenario: 'Pausa da owner antes do efeito → denied; após commit → replay sem novo book',
     issues: [173, 176, 180],
     tests: [
       'src/clinic/proposals/execute-confirm.test.ts',
@@ -247,7 +247,7 @@ export const SEG_IA_EVIDENCE_MATRIX: readonly SegIaEvidenceRow[] = [
   },
   {
     id: 'S9-H10',
-    requirement: 'H10 / #45 — religar AI_AUTOBOOK no piloto',
+    requirement: 'H10 / #45 — qualidade do piloto (capacidade já ligada)',
     scenario: '20 marcações revistas zero indevidas + gates Meta/dados + OK Paulo',
     issues: [45, 167, 180, 18],
     tests: [],
