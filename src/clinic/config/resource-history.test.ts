@@ -12,6 +12,7 @@ describe('índices do aviso «tem histórico» (#226)', () => {
     ['pix_charges', 'professional_id'],
     ['pix_charges', 'room_resource_id'],
     ['schedule_holds', 'professional_id'],
+    ['appointment_proposals', 'professional_id'],
   ]
   it.each(cases)('%s.%s usa índice', (table, column) => {
     const { db } = bootClinicDb({})

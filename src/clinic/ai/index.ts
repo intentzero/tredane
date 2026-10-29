@@ -49,3 +49,19 @@ export {
 } from './autobook'
 export { getAiDailyUsage, type AiDailyUsage } from './usage'
 export { buildClinicAiContext } from './schedule-context'
+export {
+  createProposal,
+  createOrSupersedeProposal,
+  getProposal,
+  getActiveProposalForConversation,
+  getActiveProposalForContact,
+  expireProposalIfNeeded,
+  markProposalSent,
+  markProposalSendPending,
+  markProposalSendUncertain,
+  markProposalConfirmed,
+  markProposalSlotRefused,
+  markProposalForwarded,
+  evaluateProposalAuthorization,
+  restoreProposalAuthorization,
+} from '../proposals'

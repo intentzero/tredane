@@ -1,0 +1,26 @@
+export {
+  getProposal,
+  getActiveProposalForConversation,
+  getActiveProposalForContact,
+  createProposal,
+  createOrSupersedeProposal,
+  expireProposalIfNeeded,
+  markProposalSendPending,
+  markProposalSendUncertain,
+  markProposalSent,
+  markProposalConfirmed,
+  markProposalSlotRefused,
+  markProposalForwarded,
+  restoreProposalAuthorization,
+  evaluateProposalAuthorization,
+  countProposalsCreated,
+  countPendingProposalsForContact,
+  countProposalsForService,
+  type CreateProposalOptions,
+} from './proposals'
+export type {
+  AppointmentProposalRow,
+  CreateAppointmentProposalInput,
+  ProposalAuthorizationDenial,
+  ProposalAuthorizationResult,
+} from './types'

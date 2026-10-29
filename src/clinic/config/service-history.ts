@@ -61,7 +61,16 @@ export function serviceDeleteBlocker(
       message: `Não é possível apagar: há um Pix pendente ligado a este serviço. ${KEEP}`,
     }
   }
-  if (count(db, 'schedule_holds', tenantId, serviceId, ` AND status = 'active'`) > 0) {
+  const pendingProposal =
+    count(db, 'schedule_holds', tenantId, serviceId, ` AND status = 'active'`)
+    + count(
+      db,
+      'appointment_proposals',
+      tenantId,
+      serviceId,
+      ` AND state IN ('preparada', 'envio_pendente', 'envio_incerto', 'enviada')`,
+    )
+  if (pendingProposal > 0) {
     return {
       code: 'service_has_pending_proposal',
       message: `Não é possível apagar: há uma proposta de horário pendente para este serviço. ${KEEP}`,
@@ -71,6 +80,7 @@ export function serviceDeleteBlocker(
     count(db, 'pix_charges', tenantId, serviceId)
     + count(db, 'scheduling_intents', tenantId, serviceId)
     + count(db, 'schedule_holds', tenantId, serviceId)
+    + count(db, 'appointment_proposals', tenantId, serviceId)
   if (history > 0) {
     return {
       code: 'service_has_history',

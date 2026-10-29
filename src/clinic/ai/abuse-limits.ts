@@ -94,7 +94,7 @@ export function abuseLimitsFromEnv(env: Record<string, string | undefined>): Abu
   return out
 }
 
-export type AutomatedEffect = 'auto_draft' | 'ai_booking' | 'pix_charge'
+export type AutomatedEffect = 'auto_draft' | 'ai_booking' | 'pix_charge' | 'proposal'
 
 export type QuotaDecision =
   | { allowed: true }
@@ -165,12 +165,49 @@ export function countPendingPix(db: ClinicDb, tenantId: string, contactId: strin
   )
 }
 
+/** Propostas criadas na janela (S3 / #174). */
+export function countProposalsCreated(
+  db: ClinicDb,
+  tenantId: string,
+  since: number,
+  contactId?: string,
+): number {
+  return n(
+    db.get<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM appointment_proposals
+       WHERE tenant_id = ? AND created_at >= ?${contactId ? ' AND contact_id = ?' : ''}`,
+      ...[tenantId, since, ...(contactId ? [contactId] : [])],
+    ),
+  )
+}
+
+/** Propostas abertas por contacto (S3 / #174). */
+export function countPendingProposalsForContact(
+  db: ClinicDb,
+  tenantId: string,
+  contactId: string,
+): number {
+  return n(
+    db.get<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM appointment_proposals
+       WHERE tenant_id = ? AND contact_id = ?
+         AND state IN ('preparada', 'envio_pendente', 'envio_incerto', 'enviada')`,
+      tenantId,
+      contactId,
+    ),
+  )
+}
+
 const MESSAGES: Record<string, string> = {
   autoDraftsPerContact: 'Limite de rascunhos automáticos para este contato atingido. Responda manualmente.',
   aiBookingsPerContact: 'Limite de marcações automáticas para este contato atingido. Marque pelo Agendar, se fizer sentido.',
   aiBookingsPerClinic: 'Limite diário de marcações automáticas da clínica atingido. Marque pelo Agendar.',
   futureAppointmentsPerContact: 'Este contato já tem vários compromissos futuros. Confirme com a cliente antes de marcar outro.',
   pendingPixPerContact: 'Este contato já tem cobranças Pix pendentes. Verifique antes de gerar outra.',
+  pendingProposalsPerContact:
+    'Já existe uma proposta de horário pendente para este contato. Aguarde resposta ou substitua a proposta atual.',
+  proposalsPerContact: 'Limite de propostas automáticas para este contato atingido. Continue pelo painel, se fizer sentido.',
+  proposalsPerClinic: 'Limite diário de propostas automáticas da clínica atingido. Continue pelo painel.',
 }
 
 /**
@@ -195,6 +232,20 @@ export function checkAutomationQuota(
       ['aiBookingsPerContact', 'contact', () => countAiBookings(db, tenantId, since, contactId)],
       ['aiBookingsPerClinic', 'clinic', () => countAiBookings(db, tenantId, since)],
       ['futureAppointmentsPerContact', 'contact', () => countFutureAppointments(db, tenantId, contactId, now)],
+    )
+  } else if (input.effect === 'proposal') {
+    checks.push(
+      [
+        'pendingProposalsPerContact',
+        'contact',
+        () => countPendingProposalsForContact(db, tenantId, contactId),
+      ],
+      [
+        'proposalsPerContact',
+        'contact',
+        () => countProposalsCreated(db, tenantId, since, contactId),
+      ],
+      ['proposalsPerClinic', 'clinic', () => countProposalsCreated(db, tenantId, since)],
     )
   } else {
     checks.push(['pendingPixPerContact', 'contact', () => countPendingPix(db, tenantId, contactId)])

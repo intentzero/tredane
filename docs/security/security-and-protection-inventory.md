@@ -68,7 +68,7 @@
 
 | Campo | Detalhe |
 |---|---|
-| Estado | DEC-060: **em staging** (#155 `695fed3`; docs #157 `48e9661`). DEC-061: **na main sem deploy** (PR #181 integrado em `4807146`, só docs; redação aprovada pelo Paulo em 28/10, registro D-20261028-200500-CUR). Botão: **planeado (issue)** #174–#176. |
+| Estado | DEC-060: **em staging** (#155 `695fed3`; docs #157 `48e9661`). DEC-061: **na main sem deploy** (PR #181 integrado em `4807146`, só docs; redação aprovada pelo Paulo em 28/10, registro D-20261028-200500-CUR). Persistência da proposta (S3 #174): **em PR / código**. Envio do botão (S4 #175) e clique→marcação (S5 #176): **planeado (issue)**. |
 | Onde | `docs/product/decisions.md:58` (DEC-060), `:59` (DEC-061); `docs/architecture/conversational-hybrid-model.md`; ADR 0004 (via #181) |
 | Decisão | DEC-061 substitui os caminhos de autorização por texto livre da DEC-060: só o toque da cliente no botão de uma proposta versionada pelo backend autoriza marcação |
 | Testes | Nenhum para o botão (não implementado). |

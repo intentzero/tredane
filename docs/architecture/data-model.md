@@ -5,7 +5,7 @@
 ## Distribuição confirmada — DEC-038
 
 - **D1 central:** tenants, tenant_memberships, convites, pedidos/sessões/pedidos de encerramento de suporte e auditoria administrativa/de suporte.
-- **SQLite do DO de cada clínica:** contacts, conversations, messages, opportunities, opportunity_events, services, professionals, resources, service_requirements, availability_rules/time_off, appointments, appointment_allocations/events, inbound_events, outbox_events, outbound_messages, audit_log operacional e ai_suggestions.
+- **SQLite do DO de cada clínica:** contacts, conversations, messages, opportunities, opportunity_events, services, professionals, resources, service_requirements, availability_rules/time_off, appointments, appointment_allocations/events, inbound_events, outbox_events, outbound_messages, audit_log operacional, ai_suggestions e appointment_proposals (S3 #174 / DEC-061).
 - **R2 privado:** conteúdo de anexos; metadados operacionais no SQLite da clínica.
 - Associação global WhatsApp→tenant exige índice verificado; localização/esquema de integração e credenciais serão especificados na F1/F3. Configuração/estado operacional do canal são da clínica.
 
@@ -37,6 +37,7 @@ Referências a memberships/owners em entidades locais são IDs lógicos: não h�
 | outbound_messages | id, tenant_id, conversation_id, client_request_id, provider_message_id, status, attempt_info |
 | audit_log | id, tenant_id, actor, action, object_type, object_id, occurred_at |
 | ai_suggestions | id, tenant_id, conversation_id, status, provider/model id, revised_by, timestamps |
+| appointment_proposals | id opaco, tenant_id, lineage_id, version, contact_id, conversation_id, state, factos (serviço/profissional/horário/preço/sinal/beneficiária/local), expires_at — S3 #174 / DEC-061; não reserva horário |
 
 **Não confirmado:** esquema exato, granularidade temporal, regras de unicidade por ciclo da conversa/oportunidade, campos pessoais de contacto e política de retenção. Os campos são indicativos e não devem ser tratados como recolha autorizada de dados reais.
 
