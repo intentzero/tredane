@@ -1209,7 +1209,7 @@
 
 .clinic-field-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-3);
 }
 
@@ -5706,6 +5706,7 @@
 
 .block-form-date {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -5715,6 +5716,9 @@
 }
 
 .block-form-date input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   height: var(--size-control-md);
   padding: 0 var(--space-3);
   border: var(--size-border-width) solid var(--color-line-control);
@@ -6873,7 +6877,8 @@
 }
 
 .week-grid-day[data-today] .week-grid-name strong::after {
-  content: ' ·';
+  content: ' · hoje';
+  font-weight: var(--font-weight-regular);
   color: var(--color-primary-ink);
 }
 
@@ -6893,6 +6898,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  padding-top: 28px;
   min-height: 28px;
   border-radius: var(--radius-sm);
   background: var(--color-surface-app);
@@ -6971,6 +6977,11 @@
 
 .week-grid-key.week-grid-hatch {
   color: var(--color-text-muted);
+  background: repeating-linear-gradient(135deg, currentColor 0 3px, transparent 3px 6px);
+}
+
+.week-grid-key.week-grid-closed {
+  color: var(--color-danger-ink);
 }
 
 /* Desktop (≥ 1280 px): editor do dia e folga viram o painel que desliza por cima (#212),
