@@ -152,7 +152,7 @@ Nome na interface: **Acompanhamento** (DEC-045). Na barra inferior de quatro ite
 
 **Origem:** JRN-03; REQ-030, REQ-031, REQ-033. **Estado:** Proposto.
 
-**Desktop (Confirmado, DEC-074):** a partir de 1024 px, **Agendar** na conversa abre este fluxo num painel de 420 px à direita, do topo ao fundo da janela, por cima e sem véu, no lugar do contato; a conversa e a navegação não se deslocam. Regra comum a todos os painéis laterais (contato, Agendar, Acompanhar, Agenda, Clínica): deslizam sobre o conteúdo sem empurrá-lo, e um clique fora fecha. Mesmas regras e estados do celular; Esc, × ou clique fora fecham; **Voltar à conversa** só fecha o painel; trocar de conversa fecha o painel. A rota `/agenda/agendar` segue para a Agenda, o Acompanhar e o celular.
+**Desktop (Confirmado, DEC-074):** a partir de 1024 px, **Agendar** na conversa abre este fluxo num painel de 420 px à direita, do topo ao fundo da janela, por cima e sem véu, no lugar do contato; a conversa e a navegação não se deslocam. Regra comum a todos os painéis laterais (contato, Agendar, Acompanhar, Agenda, Clínica): deslizam sobre o conteúdo sem empurrá-lo, e um clique em área vazia fora fecha. Clicar noutro item ou botão não fecha: abre o detalhe do item clicado, trocando o conteúdo do painel. Mesmas regras e estados do celular; Esc, × ou clique fora fecham; **Voltar à conversa** só fecha o painel; trocar de conversa fecha o painel. A rota `/agenda/agendar` segue para a Agenda, o Acompanhar e o celular.
 
 Tela única no celular (M-04, M-34 a M-38), cabeçalho com o contato real e **Voltar** para a origem (conversa, acompanhamento ou agenda). **Proposto** (redesenho de 27/10/2026, em staging).
 

@@ -11,7 +11,7 @@ import { AgendarScreen } from '../agenda/AgendarScreen'
 import { ShellIdentity, useOnline } from '../../shell/ShellIdentity'
 import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
 import { friendlyError } from '../../copy/errors'
-import { PanelScrim } from '../../ui/PanelScrim'
+import { useOutsideClose } from '../../ui/useOutsideClose'
 
 type Props = {
   tenantId: string
@@ -223,6 +223,8 @@ export function ConversasThreeCol({
   const [everOpened, setEverOpened] = useState(false)
   const asideRef = useRef<HTMLElement | null>(null)
   const agendarRef = useRef<HTMLElement | null>(null)
+  useOutsideClose(asideRef, () => setOpen(false), hasThread && panelOpen)
+  useOutsideClose(agendarRef, () => setAgendarOpen(false), agendarOpen)
   const returnFocus = useRef<HTMLElement | null>(null)
   const agendarReturnFocus = useRef<HTMLElement | null>(null)
   const userToggled = useRef(false)
@@ -331,8 +333,6 @@ export function ConversasThreeCol({
           />
         ) : null}
       </div>
-      {hasThread && conversationId && panelOpen && !agendarOpen ? <PanelScrim onClose={() => setOpen(false)} /> : null}
-      {hasThread && conversationId && agendarOpen ? <PanelScrim onClose={() => setAgendarOpen(false)} /> : null}
       {hasThread && conversationId && (panelOpen || everOpened) ? (
         <aside
           id="conversas-contact-panel"

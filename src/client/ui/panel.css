@@ -6497,13 +6497,6 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.panel-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 44;
-  background: transparent;
-}
-
 .acomp-panel,
 .agenda-panel,
 .clinic-panel {

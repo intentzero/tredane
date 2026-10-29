@@ -10,7 +10,7 @@ import {
   type ScheduleHold,
 } from '../../api'
 import { errorDetail, friendlyError } from '../../copy/errors'
-import { PanelScrim } from '../../ui/PanelScrim'
+import { useOutsideClose } from '../../ui/useOutsideClose'
 import { navigatePanel } from '../../routes'
 import { Badge } from '../../states/Badge'
 import { ListSkeleton } from '../../states/ListSkeleton'
@@ -95,6 +95,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view, openId }: Props
   const returnFocus = useRef<HTMLElement | null>(null)
   const panelRef = useRef<HTMLElement | null>(null)
   const panelOpen = wide && openId != null
+  useOutsideClose(panelRef, () => closePanel(), panelOpen)
 
   // Esc fecha o painel; o foco vai ao painel ao abrir e volta ao item ao fechar.
   useEffect(() => {
@@ -504,7 +505,6 @@ export function AgendaDayWeek({ tenantId, api, generation, view, openId }: Props
         }
       />
       {work}
-      {panelOpen ? <PanelScrim onClose={closePanel} /> : null}
       {panelOpen ? (
         <aside
           id="agenda-panel"
