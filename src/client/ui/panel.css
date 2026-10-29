@@ -6969,6 +6969,17 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.week-grid-chip {
+  position: relative;
+}
+
+/* O chip tem 32 px de altura visual; a área de toque chega a 44 px (#274). */
+.week-grid-chip::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
+}
+
 .week-grid-chip[aria-pressed='true'] {
   border-color: var(--color-primary-base);
   background: var(--color-primary-tint);
