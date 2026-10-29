@@ -6160,7 +6160,7 @@
   }
 
   .conversas-3col {
-    grid-template-columns: minmax(300px, 360px) minmax(var(--conversas-thread-min), 1fr);
+    grid-template-columns: clamp(360px, 30vw, 520px) minmax(var(--conversas-thread-min), 1fr);
   }
 
   .conversas-list-head {
@@ -6210,7 +6210,7 @@
  * leitura desliza para a esquerda para não ficar tapada. Sem «reduzir movimento», sem animação. */
 .conversas-3col,
 .conversas-3col:not(.conversas-3col--drawer) {
-  grid-template-columns: minmax(280px, 360px) minmax(var(--conversas-thread-min), 1fr);
+  grid-template-columns: clamp(360px, 30vw, 520px) minmax(var(--conversas-thread-min), 1fr);
 }
 
 .conversas-3col-thread {
