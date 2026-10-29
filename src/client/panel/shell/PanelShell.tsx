@@ -155,6 +155,7 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
             />
           </div>
           </div>
+          </div>
           <div className="panel-shell-actions">
             <Button
               className="panel-icon-btn"
