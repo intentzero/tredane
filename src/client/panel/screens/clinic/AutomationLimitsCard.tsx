@@ -66,7 +66,6 @@ const FIELDS: LimitField[] = [
 /**
  * Limites de proteção das automações — só a responsável (DEC-042).
  * Pausar não cancela horários já marcados nem bloqueia a equipe no painel.
- * AI_AUTOBOOK=off na plataforma continua a impedir marcações automáticas.
  */
 export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
   const [view, setView] = useState<AbuseLimitsDto | null>(null)
@@ -176,8 +175,7 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
       <p className="panel-muted-sm">
         Protege a clínica contra inundações de rascunhos, propostas e marcações feitas pela IA.
         Não cancela horários já marcados e não impede ações manuais da equipe. A plataforma pode
-        impor um teto máximo; se o agendamento automático estiver desligado globalmente
-        (AI_AUTOBOOK), essa pausa da clínica não o reativa.
+        impor um teto máximo. Pausar novas marcações automáticas vale só para esta clínica.
       </p>
 
       <label className="panel-switch-row">

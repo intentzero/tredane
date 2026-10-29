@@ -8,7 +8,7 @@ Código: `src/clinic/ai/abuse-limits.ts` (`DEFAULT_ABUSE_LIMITS`, `resolveAbuseL
 
 - **Confirmado (Paulo, chat 29/10/2026 — «quero ui»):** a responsável vê e ajusta os limites em Clínica → Configurações, cartão **Limites das automações** (junto a Sugestões com IA). Atendentes não vêem o cartão (403 na API).
 - **Aplicar limites de proteção:** liga/desliga a aplicação das quotas nesta clínica (default off).
-- **Pausar novas marcações automáticas por botão:** impede novos efeitos de confirmação automática nesta clínica; **não cancela** compromissos já marcados; **não bloqueia** ações manuais. `AI_AUTOBOOK=off` na plataforma continua a vencer (fail-closed global) — a pausa da clínica não reativa o que a plataforma desligou.
+- **Pausar novas marcações automáticas por botão:** impede novos efeitos de confirmação automática nesta clínica; **não cancela** compromissos já marcados; **não bloqueia** ações manuais. A pausa da owner é o desligamento desta clínica (Paulo, 29/10/2026: não há flag global de ambiente).
 - Números: min 1, máx = teto da plataforma (hard caps no servidor; `ABUSE_LIMIT_*` no env pode apertar uma chave). Salvar e «Restaurar padrões» (valores Confirmados). Auditoria `config.abuse_limits_updated`.
 - Ações manuais da equipe (painel / Agendar) **continuam sem limite**.
 
@@ -38,4 +38,4 @@ Código: `src/clinic/ai/abuse-limits.ts` (`DEFAULT_ABUSE_LIMITS`, `resolveAbuseL
 
 - Contagem nas tabelas de efeitos no próprio DO da clínica (escopo de tenant explícito, single-threaded); jobs em geração contam. Webhook repetido é deduplicado a montante e não cria efeito novo.
 - Com o S2 (#191) a IA não marca por texto livre; a quota de marcações aplica-se ao caminho do botão (S5/#176) quando a capacidade estiver ligada e a owner não tiver pausado marcações automáticas. Quotas de propostas: valores **Confirmados**; `createProposal` / `createOrSupersedeProposal` aplicam o efeito `proposal` quando os limites da clínica estão ligados.
-- Regra de enable: **clínica** (`abuse_limits_enabled`); env `ABUSE_LIMITS` não liga sozinho. Fora do escopo: Platform Admin a editar todos os tenants; attendant a editar; ligar `AI_AUTOBOOK` globalmente; templates Meta.
+- Regra de enable: **clínica** (`abuse_limits_enabled`); env `ABUSE_LIMITS` não liga sozinho. Fora do escopo: Platform Admin a editar todos os tenants; attendant a editar; vars de ambiente da proposta de horário; templates Meta.

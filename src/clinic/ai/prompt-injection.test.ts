@@ -196,8 +196,6 @@ describe('S6: zero efeitos indevidos (AI_AUTOBOOK ligado, clínica autorizada)',
       const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
         mode: 'synthetic',
         adapter: new SimulatedAiAdapter(),
-        autoBook: true,
-        autoBookTenants: [s.tenantId],
       })
       expect(out).toHaveLength(1)
       expect(out[0]!.autoBook?.status).not.toBe('booked')

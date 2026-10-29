@@ -242,7 +242,7 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 
 ### AC-55 — Proposta de agendamento por botão (Decidido, DEC-061)
 
-**Dado** a flag `AI_AUTOBOOK` ativa numa clínica sintética e uma cliente fictícia que pede «limpeza de pele amanhã às 15h»; **quando** o backend prepara a proposta; **então** a mensagem enviada tem texto fixo, id e versão, os detalhes de REQ-083 e os botões **Confirmar** / **Alterar detalhes**; nenhum compromisso existe ainda. **Dado** mudança de serviço ou horário; **então** nasce nova versão e o clique na anterior não marca. **Dado** 30 min sem clique; **então** a proposta expira. **Requisitos:** REQ-083; JRN-17.
+**Dado** a capacidade de proposta ligada numa clínica sintética (pausa da owner desligada) e uma cliente fictícia que pede «limpeza de pele amanhã às 15h»; **quando** o backend prepara a proposta; **então** a mensagem enviada tem texto fixo, id e versão, os detalhes de REQ-083 e os botões **Confirmar** / **Alterar detalhes**; nenhum compromisso existe ainda. **Dado** mudança de serviço ou horário; **então** nasce nova versão e o clique na anterior não marca. **Dado** 30 min sem clique; **então** a proposta expira. **Requisitos:** REQ-083; JRN-17.
 
 ### AC-56 — Marcação só pelo clique (Decidido, DEC-061)
 

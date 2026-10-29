@@ -27,9 +27,9 @@
 
 ---
 
-## H1 — Contenção temporária com `AI_AUTOBOOK=off`
+## H1 — Contenção temporária com `AI_AUTOBOOK=off` (substituída)
 
-Mapeado para S2 (#173) e S7 (#178). Se o #155 entrar antes das correções, entra desligado (ou com toque da atendente) até H2–H9 passarem. DEC-060 continua o alvo.
+**Substituída (Paulo, 29/10/2026):** não há mais flag. A proposta está sempre ligada; a owner pausa na clínica. Os checkboxes abaixo são histórico do plano.
 
 - [ ] Com `AI_AUTOBOOK=off`, nenhuma conversa do conjunto de testes cria compromisso; o rascunho é gerado normalmente.
 - [ ] Teste automatizado cobre o kill switch (desligado → zero chamadas à operação de confirmação).
@@ -115,9 +115,9 @@ Mapeado para S9 (#180). **Gates de autorização/isolamento** (zero book por tex
 - [ ] Latência p95 medida por etapa; meta e timeout definidos a partir da medição (Proposto: 15 s total).
 - [ ] Mantém-se Haiku no primeiro rascunho e Sonnet na regeneração até a matriz justificar mudança (provisório).
 
-## H10 — Religar `AI_AUTOBOOK` no piloto e retirar a contenção
+## H10 — Qualidade do piloto (a contenção por var foi retirada)
 
-Mapeado para S9 (#180). Gates documentados em [seg-ia-s9-e2e-validation.md](../security/seg-ia-s9-e2e-validation.md); kill switch em [ai-autobook-kill-switch.md](runbooks/ai-autobook-kill-switch.md). **Esta documentação não libera clínica.**
+**Confirmado (Paulo, 29/10/2026):** a proposta está sempre ligada. Vars `AI_AUTOBOOK` e `AI_AUTOBOOK_TENANTS` retiradas. O interruptor é a pausa da owner ([ai-autobook-kill-switch.md](runbooks/ai-autobook-kill-switch.md)). Os itens abaixo continuam a medir qualidade; não desligam a capacidade.
 
 - [ ] Ligado só no piloto (quando retomado), com cada marcação da IA revista pela equipe.
 - [ ] Contenção retirada após zero marcações indevidas em **20 marcações revistas** (Decidido, Paulo, 28/10/2026).

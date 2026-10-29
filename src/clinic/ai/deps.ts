@@ -23,13 +23,9 @@ export type AiAssistRpcDeps = {
   /** Nome da clínica (D1 tenants.name), preenchido pelo DO. */
   clinicName?: string | null
   /**
-   * Capacidade de agendamento automático (S2, #173). Desligada por padrão: só `true` explícito
-   * com `AI_AUTOBOOK=on`. Independente do opt-in de sugestões da clínica.
+   * Owner pausou novas propostas e cliques de confirmação nesta clínica.
+   * A capacidade em si está sempre ligada (Paulo, 29/10/2026): não há var de ambiente.
    */
-  autoBook?: boolean
-  /** Clínicas autorizadas (AI_AUTOBOOK_TENANTS, separadas por vírgula). Vazio = nenhuma. */
-  autoBookTenants?: string[]
-  /** Owner pausou marcações automáticas nesta clínica (UI). */
   autoBookPaused?: boolean
   /**
    * S7 (#178): limites efetivos. Em produção o DO resolve com settings da clínica;
@@ -38,19 +34,9 @@ export type AiAssistRpcDeps = {
   abuseLimits?: AbuseLimits
 }
 
-/** Só o valor exato «on» liga; ausente, vazio, inválido ou erro → desligado. */
-export function parseAutoBookFlag(v: unknown): boolean {
-  return typeof v === 'string' && v.trim().toLowerCase() === 'on'
-}
-
-export function parseAutoBookTenants(v: unknown): string[] {
-  if (typeof v !== 'string') return []
-  return v.split(',').map((t) => t.trim()).filter(Boolean)
-}
-
-/** Capacidade efetiva para um tenant; revalidar no momento do efeito. */
-export function autoBookCapability(rpc: Pick<AiAssistRpcDeps, 'autoBook' | 'autoBookTenants'>, tenantId: string): boolean {
-  return rpc.autoBook === true && (rpc.autoBookTenants ?? []).includes(tenantId)
+/** Capacidade de proposta e clique. Sempre ligada; a pausa da owner é o desligamento. */
+export function autoBookCapability(): boolean {
+  return true
 }
 
 export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
@@ -70,8 +56,6 @@ export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
     adapter: buildAiAdapter(build),
     syntheticFallback: isSyntheticFallback(build),
     clinicName: rpc.clinicName ?? null,
-    autoBook: rpc.autoBook === true,
-    autoBookTenants: rpc.autoBookTenants ?? [],
     autoBookPaused: rpc.autoBookPaused === true,
     ...(rpc.abuseLimits ? { abuseLimits: rpc.abuseLimits } : {}),
   }
@@ -83,16 +67,12 @@ export function rpcDepsFromEnv(env: {
   AI_GATEWAY_ID?: string
   AI_GATEWAY_TOKEN?: string
   ANTHROPIC_API_KEY?: string
-  AI_AUTOBOOK?: string
-  AI_AUTOBOOK_TENANTS?: string
   ABUSE_LIMITS?: string
   [key: `ABUSE_LIMIT_${string}`]: string | undefined
 }): AiAssistRpcDeps {
   const mode = resolveAiMode(env.AI_MODE)
   return {
     mode,
-    autoBook: parseAutoBookFlag(env.AI_AUTOBOOK),
-    autoBookTenants: parseAutoBookTenants(env.AI_AUTOBOOK_TENANTS),
     abuseLimits: abuseLimitsFromEnv(env as Record<string, string | undefined>),
     gateway: {
       accountId: env.CF_ACCOUNT_ID ?? '',

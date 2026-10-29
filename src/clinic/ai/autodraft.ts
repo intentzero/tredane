@@ -2,8 +2,8 @@
  * Rascunho automático da IA a cada mensagem da cliente (aprovado por Paulo, 27/10/2026).
  * - Debounce: junta mensagens seguidas (AI_AUTODRAFT_DEBOUNCE_MS).
  * - Gera em segundo plano (alarme do DO) e guarda como sugestão pendente.
- * - Nunca envia. Agenda SÓ após confirmação explícita da cliente (dia, horário e
- *   procedimento) — ver autobook.ts (decidido por Paulo, 28/10/2026).
+ * - O rascunho não sai sozinho. Confirmação clara faz o backend enviar a proposta
+ *   com botões (autobook.ts), salvo pausa da owner.
  */
 import { AI_AUTODRAFT_DEBOUNCE_MS } from '../../ai'
 import type { Clock } from '../../db/clock'
@@ -195,11 +195,8 @@ export async function runDueAutoDrafts(
     let autoBook: AutoBookOutcome | undefined
     if (suggestion.status !== 'failed') {
       try {
-        // AI_AUTOBOOK env + allowlist; pausa da owner (UI) também bloqueia. Env off sempre vence.
-        let capability =
-          deps.autoBook === true &&
-          (deps.autoBookTenants ?? []).includes(tenantId) &&
-          deps.autoBookPaused !== true
+        // Capacidade sempre ligada. A pausa da owner é o único desligamento.
+        let capability = deps.autoBookPaused !== true
         let limitNote: string | null = null
         // S7 (#178): quota de marcações automáticas (contato/clínica) e compromissos futuros.
         if (capability && deps.abuseLimits?.enabled && contactId) {
@@ -213,7 +210,7 @@ export async function runDueAutoDrafts(
         autoBook = tryAiAutoBook(db, caller, clock, {
           conversationId: job.conversationId,
           suggestionId: suggestion.id,
-          enabled: deps.autoBook === true,
+          enabled: true,
           // Revalidado aqui, na execução do job (inclusive jobs já enfileirados).
           capability,
           abuseLimits: deps.abuseLimits,

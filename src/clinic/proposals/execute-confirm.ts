@@ -92,7 +92,7 @@ export type ExecuteProposalConfirmResult =
 
 export type ExecuteProposalConfirmInput = {
   handoff: ProposalConfirmHandoff
-  /** Capacidade efetiva no momento do efeito (AI_AUTOBOOK + tenant). */
+  /** Capacidade efetiva no momento do efeito (ligada, salvo pausa da owner). */
   capability: boolean
   providerEventKey?: string | null
   /** context.id da mensagem Meta (opcional; amarra ao send_provider_message_id). */

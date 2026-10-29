@@ -83,13 +83,9 @@ export type AiAssistDeps = {
   syntheticFallback?: boolean
   /** Nome da clínica (D1) para o contexto. */
   clinicName?: string | null
-  /** Capacidade de agendamento automático (desligada por padrão; S2 #173). */
-  autoBook?: boolean
-  /** Clínicas autorizadas a agendar automaticamente. */
-  autoBookTenants?: string[]
   /**
-   * Owner pausou novas marcações automáticas por botão (por clínica).
-   * AI_AUTOBOOK=off na plataforma continua a vencer (fail-closed global).
+   * Owner pausou novas propostas e cliques de confirmação nesta clínica.
+   * Sem pausa, a capacidade está ligada.
    */
   autoBookPaused?: boolean
   /** S7 (#178): limites de abuso das automações (enable por clínica; default off). */

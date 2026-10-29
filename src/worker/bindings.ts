@@ -54,9 +54,6 @@ export type WorkerBindings = {
    * Gateway real exige GATE-06 + chaves; CI usa synthetic / mock.
    */
   AI_MODE?: string
-  /** «off» desliga o agendamento pela IA após confirmação explícita (28/10/2026). */
-  AI_AUTOBOOK?: string
-  AI_AUTOBOOK_TENANTS?: string
   /** S7 (#178): «on» liga os limites de abuso (padrão desligado). Valores: ABUSE_LIMIT_* (Proposto). */
   ABUSE_LIMITS?: string
   CF_ACCOUNT_ID?: string

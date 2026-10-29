@@ -148,7 +148,7 @@ export type ClinicSettingsRow = {
    * Default enabled=false (fail-closed por clínica).
    */
   abuseLimitsEnabled: boolean
-  /** Pausa novas marcações automáticas por botão; AI_AUTOBOOK=off continua a vencer. */
+  /** Pausa novas propostas e cliques de confirmação nesta clínica. */
   autoBookPaused: boolean
   abuseWindowHours: number
   abuseAutoDraftsPerContact: number

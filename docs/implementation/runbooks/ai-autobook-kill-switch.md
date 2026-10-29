@@ -1,9 +1,9 @@
-# Runbook — Kill switch do botão de agendamento (`AI_AUTOBOOK`)
+# Runbook — Pausar o botão de agendamento
 
-**Estado:** **Proposto** · S9 [#180](https://github.com/intentzero/tredane/issues/180) · H1/H10 · DEC-061  
-**Âmbito:** interromper **novas** marcações/Pix iniciados pelo clique Confirmar da proposta.  
+**Estado:** **Confirmado (Paulo, 29/10/2026)** para o interruptor. S9 [#180](https://github.com/intentzero/tredane/issues/180) · DEC-061  
+**Âmbito:** interromper **novas** propostas e marcações/Pix iniciados pelo clique Confirmar.  
 **Não** cancela automaticamente compromissos já confirmados.  
-**Não** autoriza deploy nem religar o piloto — ver [seg-ia-s9-e2e-validation.md](../../security/seg-ia-s9-e2e-validation.md).
+As vars `AI_AUTOBOOK` e `AI_AUTOBOOK_TENANTS` foram retiradas. A capacidade está sempre ligada; a pausa é por clínica.
 
 ## Quando usar
 
@@ -13,14 +13,12 @@
 
 ## Interromper novas ações (kill switch)
 
-1. **Remover ou alterar** a variável do Worker:
-   - Tirar `AI_AUTOBOOK=on` **ou** definir `AI_AUTOBOOK=off` (qualquer valor ≠ `on` desliga).
-   - Opcional: esvaziar `AI_AUTOBOOK_TENANTS` para que nenhuma clínica fique autorizada mesmo se a flag voltar a `on` por engano.
-2. **Republicar** a configuração do Worker no ambiente afectado (staging/prod — só com autorização humana; este runbook não é ordem de deploy).
-3. **Efeito:** o próximo job/clique lê a capacidade de novo (`capability` fail-closed). Cliques em curso **antes** do commit são negados com `capability_disabled`. Reentregas **depois** de um book já commitado devolvem o resultado existente (idempotência) — **não** criam segundo compromisso e **não** o apagam.
-4. Confirmar no painel/logs técnicos (sem PII): novos `appointment.ai_booked` deixam de aparecer para eventos novos.
+1. A **owner** da clínica abre Clínica → **Limites das automações** e liga **Pausar novas marcações automáticas por botão**.
+2. Não é preciso republicar o Worker. A pausa vale no próximo job de rascunho e no próximo clique.
+3. **Efeito:** novos envios de proposta e cliques Confirmar desta clínica são negados (`capability_disabled` no clique). Reentregas **depois** de um book já commitado devolvem o resultado existente (idempotência) — **não** criam segundo compromisso e **não** o apagam.
+4. Confirmar no painel/logs técnicos (sem PII): novos `appointment.ai_booked` deixam de aparecer para eventos novos desta clínica.
 
-Referência de vars: [environments.md](../environments.md) § `AI_AUTOBOOK`.
+Referência: [environments.md](../environments.md) § proposta de horário.
 
 ## Eventos pendentes sem duplicação
 
@@ -29,7 +27,7 @@ Referência de vars: [environments.md](../environments.md) § `AI_AUTOBOOK`.
 | Clique Confirmar reentregue (Meta/Queue) após book | Replay idempotente (`proposal.book:<id>:v<ver>` / `proposal.pix:…`) — um efeito |
 | Resultado WhatsApp `failed` / `unknown` | Manter `pending_communications`; alerta aos 5 min (H7); equipe envia aviso manual |
 | Proposta `envio_incerto` / não `enviada` | Não autoriza clique; reenviar ou encaminhar à equipe |
-| Job de rascunho IA ainda na fila | Com capacidade off, automações novas são negadas; rascunho assistivo pode continuar conforme opt-in da clínica (independente) |
+| Job de rascunho IA ainda na fila | Com a pausa ligada, a proposta nova é negada; o rascunho assistivo pode continuar conforme opt-in da clínica (independente) |
 
 Não reprocessar cegamente a mesma cobrança Pix: seguir [reprocess.md](reprocess.md) e testes #39/#40 (`paid_without_slot`, replay financeiro).
 
@@ -57,7 +55,7 @@ Não reprocessar cegamente a mesma cobrança Pix: seguir [reprocess.md](reproces
 
 | Fazer | Não fazer |
 | --- | --- |
-| Desligar `AI_AUTOBOOK` e republicar | Cancelar automaticamente todos os `system:ai-autobook` |
+| Pausar na clínica | Cancelar automaticamente todos os `system:ai-autobook` |
 | Tratar pendências de comunicação | Apagar auditoria |
 | Corrigir caso a caso com a equipe | Reprocessar webhooks financeiros sem idempotência |
 | Manter Pix `paid_without_slot` visível à equipe | Inventar estorno automático em massa |
