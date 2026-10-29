@@ -190,6 +190,9 @@ describe('regressão «Amanhã na parte da tarde» (staging 27/10/2026)', () => 
       expect(system).toMatch(/Nunca pergunte de novo/)
       expect(system).toMatch(/"mensagem"/)
       expect(system).toMatch(/sem markdown/)
+      // Continuidade: já houve [clínica] → não re-cumprimentar
+      expect(user).toMatch(/clínica JÁ enviou/)
+      expect(user).toMatch(/NÃO comece com «Oi»/)
       expect(bodies[0]!.model).toBe('claude-haiku-5-5')
       expect(bodies[0]!.temperature).toBeUndefined()
     } finally {
@@ -203,7 +206,9 @@ describe('regressão «Amanhã na parte da tarde» (staging 27/10/2026)', () => 
       const { adapter } = captureGateway(BAD_OUTPUT)
       const r = await suggestReplyOp(db, caller, input(cnv.id, 'r2'), clock, { mode: 'gateway', adapter })
       expect(r.suggestion.suggestedText).not.toMatch(/\*\*|Sugestão de resposta|Observaç/)
-      expect(r.suggestion.suggestedText.startsWith('Oi, Paulo!')).toBe(true)
+      // Já houve outbound («Oi, Paulo! Claro…») → continuidade corta o re-cumprimento.
+      expect(r.suggestion.suggestedText.startsWith('Oi')).toBe(false)
+      expect(r.suggestion.suggestedText).toMatch(/Obrigada pelo retorno|disponibilidade|tarde/i)
       expect(r.suggestion.internalNotes).toMatch(/60 minutos/)
     } finally {
       close()

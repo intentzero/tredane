@@ -423,6 +423,8 @@ describe('S8 minimização de contexto IA (#179)', () => {
         stage: null,
         services: [],
         messages: [{ direction: 'inbound', body: 'Liga 11988887777 agora' }],
+        hasClinicOutbound: false,
+        clinicOutboundCount: 0,
       }),
     ).toThrow(/ai_context_message_contains_phone/)
 
@@ -432,6 +434,8 @@ describe('S8 minimização de contexto IA (#179)', () => {
         stage: null,
         services: [],
         messages: [{ direction: 'inbound', body: 'ok' }],
+        hasClinicOutbound: false,
+        clinicOutboundCount: 0,
         phone: '5511999999999',
       } as Parameters<typeof assertContextMinimized>[0] & { phone: string }),
     ).toThrow(/ai_context_contains_prohibited_keys/)

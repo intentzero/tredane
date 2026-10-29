@@ -102,6 +102,8 @@ const baseInput = (body: string): AiGenerateInput => ({
     stage: null,
     services: [{ name: 'Massagem', durationMinutes: 60, priceCents: 15000, clientExplanation: 'Relaxante.', audiencia: 'qualquer' }],
     messages: [{ direction: 'inbound', body }],
+    hasClinicOutbound: false,
+    clinicOutboundCount: 0,
   },
   warnings: [],
   servicesWithoutPrice: [],

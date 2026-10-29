@@ -80,6 +80,14 @@ export type AiContextPayload = {
   stage: string | null
   services: AiCatalogService[]
   messages: AiContextMessage[]
+  /**
+   * Continuidade do tom (Paulo 29/10/2026): a clínica já enviou ≥1 outbound
+   * nesta conversa → o rascunho não recomeça com cumprimento.
+   * Derivado só das mensagens do contexto (DEC-011); sem PII extra.
+   */
+  hasClinicOutbound: boolean
+  /** Contagem de outbound da clínica no histórico enviado ao modelo. */
+  clinicOutboundCount: number
   /** Ausente em chamadas antigas/testes; presente no rascunho de resposta. */
   clinic?: AiClinicContext
 }

@@ -2,6 +2,7 @@ import {
   AI_CONTEXT_MESSAGE_LIMIT_PROPOSED,
   redactProhibitedFromText,
 } from '../../ai'
+import { countClinicOutbound, hasClinicOutbound } from '../../ai/continuity'
 import type { AiCatalogService, AiContextPayload } from '../../ai/types'
 import {
   currentClientTurnText,
@@ -98,15 +99,19 @@ export function buildAiContextPayload(
   const opportunity = findOpenOpportunityForConversation(db, tenantId, conversationId)
   const lastInbound = [...messages].reverse().find((m) => m.direction === 'inbound')
 
+  const contextMessages = messages.map((m) => ({
+    direction: m.direction,
+    body: redactProhibitedFromText(m.body),
+    // anexos nunca entram — MessageRow.attachments omitidos de propósito
+  }))
+
   const payload: AiContextPayload = {
     contactFirstName: firstNameFromDisplayName(contact.displayName),
     stage: opportunity?.stage ?? null,
     services,
-    messages: messages.map((m) => ({
-      direction: m.direction,
-      body: redactProhibitedFromText(m.body),
-      // anexos nunca entram — MessageRow.attachments omitidos de propósito
-    })),
+    messages: contextMessages,
+    hasClinicOutbound: hasClinicOutbound(contextMessages),
+    clinicOutboundCount: countClinicOutbound(contextMessages),
   }
   if (opts.clock) {
     payload.clinic = buildClinicAiContext(db, tenantId, opts.clock, {

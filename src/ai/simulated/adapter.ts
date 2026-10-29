@@ -165,7 +165,13 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
     const slotReply = this.#buildSlotReply(input, last)
     if (slotReply) return slotReply
 
-    // Fallback cordial
+    // Fallback cordial — cumprimento só no primeiro contacto da clínica
+    const alreadySpoke =
+      input.context.hasClinicOutbound === true ||
+      input.context.messages.some((m) => m.direction === 'outbound')
+    if (alreadySpoke) {
+      return 'Posso ajudar com informações dos nossos serviços ou a encontrar um horário. O que prefere?'
+    }
     return `Olá${input.context.contactFirstName ? ` ${input.context.contactFirstName}` : ''}! Posso ajudar com informações dos nossos serviços ou a encontrar um horário. O que prefere?`
   }
 
