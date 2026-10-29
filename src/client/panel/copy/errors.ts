@@ -73,6 +73,9 @@ function isSentence(text: string): boolean {
 
 export function friendlyError(err: unknown, fallback: string = GENERIC): string {
   if (err instanceof PanelApiError) {
+    // fetch() sem rede vira PanelApiError(0, 'network', «Failed to fetch»): a mensagem tem espaço e
+    // passaria como frase, então a falta de rede é tratada antes.
+    if (err.status === 0 && err.code === 'network') return NETWORK
     if (isSentence(err.message)) return err.message
     const byCode = BY_CODE[err.message] ?? (err.code === 'unknown' ? undefined : BY_CODE[err.code])
     return byCode ?? byStatus(err.status) ?? fallback
