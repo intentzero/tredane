@@ -7470,3 +7470,20 @@
   margin: 0;
   font-weight: var(--font-weight-semibold);
 }
+
+/* Filtro «Profissional» do quadro: aviso de que só aparecem cartões com compromisso. */
+.acomp-wide-note {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.acomp-wide-note button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-primary-ink);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

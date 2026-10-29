@@ -152,3 +152,91 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     expect(container.querySelector('.acomp-wide')?.getAttribute('data-panel')).toBe('open')
   })
 })
+
+describe('AcompanhamentoWideBoard — filtro «Profissional» (#254)', () => {
+  beforeEach(() => navigatePanel.mockReset())
+  afterEach(cleanup)
+
+  const appt = (id: string, professionalId: string) => ({
+    id,
+    startsAt: NOW + DAY,
+    endsAt: NOW + DAY + 3_600_000,
+    status: 'confirmed' as const,
+    contactLabel: null,
+    serviceId: 'svc',
+    professionalId,
+  })
+  const BY_STAGE: Record<string, PipelineOpportunity[]> = {
+    novo_contato: [card('a', 'Maria Souza', 'novo_contato')],
+    em_atendimento: [card('b', 'Sérgio Teixeira', 'em_atendimento')],
+    horario_proposto: [],
+    agendado: [
+      card('d', 'Carla Mendes', 'agendado', { linkedAppointment: appt('ap1', 'p_paula') }),
+      card('f', 'Ana Beatriz', 'agendado', { linkedAppointment: appt('ap2', 'p_livia') }),
+    ],
+    concluido: [],
+  }
+  const api = () =>
+    ({
+      getMe: async () => ({ clerkUserId: 'user_eu' }),
+      listPipelineOpportunities: vi.fn(async (_t: string, q: { stage: string }) => ({
+        opportunities: BY_STAGE[q.stage] ?? [],
+        counts: [],
+      })),
+      getClinicConfig: vi.fn(async () => ({
+        resources: [
+          { id: 'p_paula', kind: 'professional', name: 'Dra. Paula', active: true },
+          { id: 'p_livia', kind: 'professional', name: 'Lívia', active: true },
+          { id: 'p_off', kind: 'professional', name: 'Inativa', active: false },
+          { id: 'r1', kind: 'room', name: 'Sala 1', active: true },
+        ],
+      })),
+    }) as unknown as PanelApi
+
+  it('chips das profissionais ativas com a contagem pelo compromisso ligado', async () => {
+    mount(undefined, api())
+    const group = await screen.findByRole('group', { name: 'Filtrar por profissional' })
+    expect(within(group).getByRole('button', { name: /Dra\. Paula/ }).textContent).toMatch(/1$/)
+    expect(within(group).getByRole('button', { name: /Lívia/ })).toBeTruthy()
+    expect(within(group).queryByText('Inativa')).toBeNull()
+    expect(within(group).queryByText('Sala 1')).toBeNull()
+  })
+
+  it('filtra só cartões com compromisso dessa profissional e avisa; «Limpar» volta a tudo', async () => {
+    mount(undefined, api())
+    const user = userEvent.setup()
+    await screen.findByText('Maria Souza')
+    await user.click(screen.getByRole('button', { name: /Dra\. Paula/ }))
+    expect(screen.getByText('Carla Mendes')).toBeTruthy()
+    expect(screen.queryByText('Ana Beatriz')).toBeNull()
+    // Sem compromisso, não há profissional: ficam ocultos.
+    expect(screen.queryByText('Maria Souza')).toBeNull()
+    expect(screen.queryByText('Sérgio Teixeira')).toBeNull()
+    expect(screen.getByRole('status').textContent).toMatch(/só quem já tem horário com Dra\. Paula/)
+
+    await user.click(screen.getByRole('button', { name: /Lívia/ }))
+    expect(screen.getByText('Ana Beatriz')).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toMatch(/Dra\. Paula e Lívia/)
+
+    await user.click(screen.getByRole('button', { name: 'Limpar' }))
+    expect(screen.getByText('Maria Souza')).toBeTruthy()
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('combina com os outros filtros (E lógico)', async () => {
+    mount(undefined, api())
+    const user = userEvent.setup()
+    await screen.findByText('Maria Souza')
+    await user.click(screen.getByRole('button', { name: /Dra\. Paula/ }))
+    await user.click(screen.getByRole('button', { name: /^Sem responsável/ }))
+    // Carla tem responsável (user_eu): some com «Sem responsável».
+    expect(screen.queryByText('Carla Mendes')).toBeNull()
+  })
+
+  it('sem cadastro legível ou com uma só profissional, o quadro segue sem o filtro', async () => {
+    const broken = { ...api(), getClinicConfig: vi.fn(async () => { throw new Error('x') }) } as unknown as PanelApi
+    mount(undefined, broken)
+    await screen.findByText('Maria Souza')
+    expect(screen.queryByRole('group', { name: 'Filtrar por profissional' })).toBeNull()
+  })
+})
