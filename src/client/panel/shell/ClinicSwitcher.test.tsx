@@ -4,16 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ClinicSwitcher } from './ClinicSwitcher'
 
-const selectTenant = vi.fn()
-const reloadTenants = vi.fn()
 const navigatePanel = vi.fn()
 
 vi.mock('../routes', async (orig) => ({
   ...(await orig<typeof import('../routes')>()),
   navigatePanel: (...a: unknown[]) => navigatePanel(...a),
-}))
-vi.mock('../tenant/TenantContext', () => ({
-  useTenant: () => ({ selectTenant, reloadTenants }),
 }))
 
 const tenants = [
@@ -35,8 +30,6 @@ function stubPhone(phone: boolean) {
 
 describe('ClinicSwitcher (DEC-017: troca explícita)', () => {
   beforeEach(() => {
-    selectTenant.mockReset().mockResolvedValue(true)
-    reloadTenants.mockReset()
     navigatePanel.mockReset()
     stubPhone(false)
   })
@@ -69,11 +62,10 @@ describe('ClinicSwitcher (DEC-017: troca explícita)', () => {
     expect(items[1]?.getAttribute('aria-checked')).toBe('false')
 
     await user.click(items[1]!)
-    await waitFor(() => expect(selectTenant).toHaveBeenCalledWith('clinic-b', 'Espaço Vita'))
+    // Só navega: o PanelRouter faz o selectTenant da rota nova (chamá-lo daqui desfaz a troca).
     await waitFor(() =>
       expect(navigatePanel).toHaveBeenCalledWith(
         expect.objectContaining({ kind: 'area', area: 'agenda', tenantId: 'clinic-b' }),
-        true,
       ),
     )
   })
@@ -88,21 +80,8 @@ describe('ClinicSwitcher (DEC-017: troca explícita)', () => {
     await waitFor(() =>
       expect(navigatePanel).toHaveBeenCalledWith(
         expect.objectContaining({ area: 'conversas', tenantId: 'clinic-b' }),
-        true,
       ),
     )
-  })
-
-  it('se o acesso foi retirado, não navega e atualiza a lista de clínicas', async () => {
-    selectTenant.mockResolvedValue(false)
-    const user = userEvent.setup()
-    render(
-      <ClinicSwitcher tenantId="clinic-a" name="Clínica Bella Pele" area="conversas" tenants={tenants} />,
-    )
-    await user.click(screen.getByRole('button', { name: /Trocar de clínica/ }))
-    await user.click(await screen.findByRole('menuitemradio', { name: /Espaço Vita/ }))
-    await waitFor(() => expect(reloadTenants).toHaveBeenCalled())
-    expect(navigatePanel).not.toHaveBeenCalled()
   })
 
   it('tocar na clínica atual não troca', async () => {
@@ -112,7 +91,7 @@ describe('ClinicSwitcher (DEC-017: troca explícita)', () => {
     )
     await user.click(screen.getByRole('button', { name: /Trocar de clínica/ }))
     await user.click(await screen.findByRole('menuitemradio', { name: /Bella Pele/ }))
-    expect(selectTenant).not.toHaveBeenCalled()
+    expect(navigatePanel).not.toHaveBeenCalled()
   })
 
   it('celular: abre uma folha de baixo com as clínicas e troca ao escolher', async () => {
@@ -127,6 +106,8 @@ describe('ClinicSwitcher (DEC-017: troca explícita)', () => {
     expect(radios).toHaveLength(2)
     expect(radios[0]?.getAttribute('aria-checked')).toBe('true')
     await user.click(radios[1]!)
-    await waitFor(() => expect(selectTenant).toHaveBeenCalledWith('clinic-b', 'Espaço Vita'))
+    await waitFor(() =>
+      expect(navigatePanel).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'clinic-b' })),
+    )
   })
 })
