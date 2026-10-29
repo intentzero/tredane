@@ -26,6 +26,7 @@ import { InboxRealtimeProvider, isScheduleEvent, useInboxRealtime } from '../../
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
 import { friendlyError } from '../../copy/errors'
+import { useVisiblePolling } from '../../ui/useVisiblePolling'
 import { formatDayLabel, formatSlotTime, reasonLabel, upcomingCivilDates } from './format'
 import {
   CALENDAR_HORIZON_DAYS,
@@ -277,10 +278,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
   })
 
   // Polling de reserva (DEC-057) caso o WebSocket caia.
-  useEffect(() => {
-    const id = window.setInterval(() => void reloadSlots(), 15_000)
-    return () => window.clearInterval(id)
-  }, [reloadSlots])
+  useVisiblePolling(() => void reloadSlots(), 15_000)
 
   // «Próximo livre» (DEC-055 Confirmado): mesma escolha, até 14 dias, no cliente.
   useEffect(() => {

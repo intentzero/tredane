@@ -15,6 +15,7 @@ import { Badge } from '../../states/Badge'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
 import { useMediaQuery } from '../../ui/useMediaQuery'
+import { useVisiblePolling } from '../../ui/useVisiblePolling'
 import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
 import { CompromissoScreen } from './CompromissoScreen'
@@ -159,13 +160,10 @@ export function AgendaDayWeek({ tenantId, api, generation, view, openId }: Props
     void load()
   }, [load])
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setNow(Date.now())
-      void load()
-    }, 15_000)
-    return () => window.clearInterval(id)
-  }, [load])
+  useVisiblePolling(() => {
+    setNow(Date.now())
+    void load()
+  }, 15_000)
 
   const timezone = data?.timezone ?? DEFAULT_TZ
   const today = upcomingCivilDates(timezone, now, 1)[0]!
