@@ -55,6 +55,7 @@ export function serializeService(row: ServiceRow) {
     name: row.name,
     durationMinutes: row.durationMinutes,
     bufferMinutes: row.bufferMinutes,
+    audiencia: row.audiencia,
     occupiedMinutes: row.durationMinutes + row.bufferMinutes,
     priceCents: row.priceCents,
     clientExplanation: row.clientExplanation,

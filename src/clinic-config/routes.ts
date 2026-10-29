@@ -666,6 +666,9 @@ function parseServiceBody(body: Record<string, unknown>) {
       body.durationMaxMinutes === null || body.durationMaxMinutes === undefined
         ? null
         : Number(body.durationMaxMinutes),
+    ...(body.audiencia === undefined
+      ? {}
+      : { audiencia: body.audiencia as 'feminino' | 'masculino' | 'qualquer' }),
     ...(body.weeklyWindows === undefined
       ? {}
       : {

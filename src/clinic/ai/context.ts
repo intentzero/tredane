@@ -3,6 +3,11 @@ import {
   redactProhibitedFromText,
 } from '../../ai'
 import type { AiCatalogService, AiContextPayload } from '../../ai/types'
+import {
+  currentClientTurnText,
+  explicitAudienceLine,
+  filterServicesForLine,
+} from '../catalog/audience'
 import { listServices } from '../config/services'
 import { getContact } from '../contacts'
 import { getConversation } from '../inbox/conversations'
@@ -72,16 +77,23 @@ export function buildAiContextPayload(
     limit,
   })
 
-  const services = listServices(db, tenantId)
-    .filter((s) => s.active)
-    .map(
-      (s): AiCatalogService => ({
-        name: sanitizeCatalogField(s.name) ?? 'Serviço',
-        durationMinutes: s.durationMinutes,
-        priceCents: s.priceCents,
-        clientExplanation: sanitizeCatalogField(s.clientExplanation),
-      }),
-    )
+  const turnLine = explicitAudienceLine(
+    currentClientTurnText(
+      messages.map((m) => ({ direction: m.direction, body: m.body })),
+    ),
+  )
+  const services = filterServicesForLine(
+    listServices(db, tenantId).filter((s) => s.active),
+    turnLine,
+  ).map(
+    (s): AiCatalogService => ({
+      name: sanitizeCatalogField(s.name) ?? 'Serviço',
+      durationMinutes: s.durationMinutes,
+      priceCents: s.priceCents,
+      clientExplanation: sanitizeCatalogField(s.clientExplanation),
+      audiencia: s.audiencia,
+    }),
+  )
 
   const opportunity = findOpenOpportunityForConversation(db, tenantId, conversationId)
   const lastInbound = [...messages].reverse().find((m) => m.direction === 'inbound')

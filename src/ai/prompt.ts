@@ -106,7 +106,13 @@ export function buildUserContent(input: AiGenerateInput): string {
         s.clientExplanation == null || s.clientExplanation.trim() === ''
           ? 'explicação: (não cadastrada)'
           : `explicação: ${u(s.clientExplanation.trim())}`
-      return `- ${u(s.name)} (${s.durationMinutes} min; ${price}; ${expl})`
+      const audience =
+        s.audiencia === 'feminino'
+          ? 'audiência: feminino'
+          : s.audiencia === 'masculino'
+            ? 'audiência: masculino'
+            : 'audiência: qualquer'
+      return `- ${u(s.name)} (${s.durationMinutes} min; ${price}; ${audience}; ${expl})`
     })
     .join('\n')
 

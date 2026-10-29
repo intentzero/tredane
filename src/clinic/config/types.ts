@@ -1,3 +1,4 @@
+import type { ServiceAudience } from '../catalog/audience'
 import type { BlockReason, ResourceKind } from '../constants'
 
 export type ServiceSignalKind = 'fixed' | 'percent'
@@ -8,6 +9,8 @@ export type ServiceRow = {
   name: string
   durationMinutes: number
   bufferMinutes: number
+  /** DEC-075 — audiência do serviço (não da pessoa). */
+  audiencia: ServiceAudience
   priceCents: number | null
   clientExplanation: string | null
   active: boolean
@@ -213,6 +216,8 @@ export type UpsertServiceInput = {
   name: string
   durationMinutes: number
   bufferMinutes: number
+  /** Omitido na criação = qualquer; omitido na edição = mantém. Nunca inferir pelo nome. */
+  audiencia?: ServiceAudience
   priceCents?: number | null
   clientExplanation?: string | null
   active?: boolean
