@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 
 const browser = await chromium.launch();
-for (const [dir, w, h, full] of [['mobile', 390, 844, false], ['desktop', 1440, 900, true]]) {
+for (const [dir, w, h, full] of [['mobile', 390, 844, true], ['desktop', 1440, 900, true]]) {
   fs.mkdirSync(`.tmp-png/${dir}`, { recursive: true });
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
   for (const f of fs.readdirSync(`.tmp-html/${dir}`)) {

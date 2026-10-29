@@ -3,6 +3,12 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 29/10/2026 — Redesenho do horário da clínica (#207, #224)
+
+- **M-17 Horários** refeito: resumo, sete dias com editor único, folgas e fechamentos na mesma página, barra de salvar condicional. Novos: **M-49** (editar um dia), **M-50** (folga ou fechamento), **M-51** (quem fica fora). Desktop: `desktop/Horarios` na moldura #211 com painel #212 (**Proposto**, ainda não implementado).
+- **Cores das pessoas** (azul `#2563A8`, laranja `#C2410C`, verde `#2F7D4F`, com fundo e texto próprios): exceção declarada em `tools/check_mocks.py`; não são tokens. 4.ª pessoa em diante: cinza (`text.muted`) com iniciais no ponto (**Confirmado**, 29/10/2026, #223).
+- `tools/shot.mjs` passa a capturar o mobile em página inteira (mocks mais altos que 844 px).
+
 ## 29/10/2026 — Agendar em painel ao lado da conversa (DEC-074)
 
 - **M-04 Agendar:** no desktop abre como painel de 420 px à direita da conversa (por cima, no lugar do contato). Conteúdo e estados do mock não mudam. Implementado em `ConversasThreeCol` e `AgendarScreen` (modo `embedded`). O canvas de design traz também «Preencher pela conversa» e a faixa «Agendado», ainda **Proposto** e fora do código.
