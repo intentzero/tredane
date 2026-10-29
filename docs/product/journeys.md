@@ -25,9 +25,9 @@
 - **Ator e objetivo:** ACT-02 ou ACT-03 transforma uma conversa em agendamento; ACT-01 recebe confirmação pelo WhatsApp quando o envio estiver disponível.
 - **Gatilho e pré-condições:** contato quer marcar horário; serviço, duração, disponibilidade, profissional e sala/equipamento necessários estão definidos para a clínica.
 - **Fluxo principal:** (1) membro autorizado atualiza a etapa da oportunidade; (2) consulta horários disponíveis; (3) seleciona serviço, recurso e horário; (4) confirma o agendamento; (5) conversa, pipeline e agenda exibem o mesmo compromisso; (6) sessões da clínica recebem evento de atualização.
-- **Alternativas:** intervalo ficou ocupado antes da confirmação; recurso está indisponível; contato não aceita o horário proposto; envio da confirmação falha sem desfazer um agendamento já confirmado. A equipe vê o estado correto em cada caso.
-- **Resultado, superfícies e dados:** agendamento confirmado com vínculo ao contato e à oportunidade, sem conflito de recursos; registro de quem confirmou e quando.
-- **Requisitos:** REQ-030, REQ-031, REQ-032, REQ-033, REQ-040.
+- **Alternativas:** intervalo ficou ocupado antes da confirmação; recurso está indisponível; contato não aceita o horário proposto; envio da confirmação falha sem desfazer um agendamento já confirmado. A equipe vê o estado correto em cada caso. **Tempo (DEC-077):** na marcação manual, hora que não cumpre o bloco ou que não deu para confirmar continua selecionável, com aviso, e a confirmação grava. O caminho automático não oferece essa hora.
+- **Resultado, superfícies e dados:** agendamento confirmado com vínculo ao contato e à oportunidade, sem conflito de recursos; registro de quem confirmou e quando. Aviso de tempo não fica gravado no compromisso.
+- **Requisitos:** REQ-030, REQ-031, REQ-032, REQ-033, REQ-040, REQ-092.
 
 ## JRN-04 — Acompanhamento pela clínica
 
@@ -67,10 +67,10 @@
 
 ## JRN-08 — Ativação de uma clínica
 
-- **Estado:** Confirmado: superadmin cria tenant e associa o primeiro owner; owner convida/remove attendants, nunca cria/promove owners (DEC-020 a DEC-025); só o owner configura serviços, profissionais, salas/equipamentos, disponibilidade e bloqueios (DEC-042, DEC-008) e conecta o WhatsApp pelo Embedded Signup, com apoio do Tredane no piloto (DEC-009). **Em aberto:** registro do Tredane como Tech Provider na Meta, valores reais de serviços e jornadas da clínica piloto e localização do índice número → tenant.
-- **Fluxo proposto:** (1) superadmin cria a clínica e o primeiro owner na Platform Admin; (2) owner aceita o convite e entra pela Clerk; (3) cadastra serviços (duração e intervalo), profissionais, salas/equipamentos e expediente; (4) conecta o número pelo Embedded Signup; (5) convida attendants; (6) a clínica passa a “pronta para atender” quando há serviço, profissional, recurso, expediente e WhatsApp conectado (REQ-052, AC-14).
+- **Estado:** Confirmado: superadmin cria tenant e associa o primeiro owner; owner convida/remove attendants, nunca cria/promove owners (DEC-020 a DEC-025); só o owner configura serviços, profissionais, salas/equipamentos, disponibilidade e bloqueios (DEC-042, DEC-008), o bloco Tempo do serviço e o local da previsão (DEC-077) e conecta o WhatsApp pelo Embedded Signup, com apoio do Tredane no piloto (DEC-009). **Em aberto:** registro do Tredane como Tech Provider na Meta, valores reais de serviços e jornadas da clínica piloto e localização do índice número → tenant.
+- **Fluxo proposto:** (1) superadmin cria a clínica e o primeiro owner na Platform Admin; (2) owner aceita o convite e entra pela Clerk; (3) cadastra serviços (duração e intervalo), profissionais, salas/equipamentos e expediente; o bloco Tempo fica em Tanto faz até a responsável o ligar, e o local da previsão é opcional nesse passo (DEC-077); (4) conecta o número pelo Embedded Signup; (5) convida attendants; (6) a clínica passa a “pronta para atender” quando há serviço, profissional, recurso, expediente e WhatsApp conectado (REQ-052, AC-14). Sem local, um serviço que saia de Tanto faz não oferece horário automático.
 - **Alternativas:** configuração incompleta impede agendar; Embedded Signup abandonado ou número já ligado a outra clínica não deixa canal ativo; convite expirado ou cancelado não cria membership.
-- **Requisitos relacionados:** REQ-004, REQ-051, REQ-052.
+- **Requisitos relacionados:** REQ-004, REQ-051, REQ-052, REQ-089, REQ-090.
 
 ## JRN-12 — Owner convida/remove attendant
 
@@ -180,11 +180,11 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Ator:** cliente final (no WhatsApp); sistema (`system:ai-autobook`); atendente (ACT-02) no fallback.
 - **Gatilho:** a cliente pede um horário em texto livre (ex. fictício: «quero limpeza de pele amanhã às 15h») ou responde a uma sugestão.
 - **Pré-condições:** flag ativa para a clínica; serviço, profissional e sala configurados; janela de 24 h do WhatsApp aberta.
-- **Fluxo:** (1) a IA interpreta o pedido; (2) o backend monta a proposta versionada com clínica/local, beneficiária, serviço, data com fuso, início e fim, profissional, preço e sinal; (3) o sistema envia a proposta com **Confirmar** / **Alterar detalhes**; (4) a cliente toca em **Confirmar** em até 30 min; (5) o backend valida tenant/contato/conversa/versão, revalida a vaga na transação e marca uma única vez; (6) envia «Agendado…» e a agenda mostra «Marcado pela IA».
-- **Alternativas/erros:** texto livre («sim», 👍) não marca; proposta expirada ou substituída → nova proposta ou atendente; horário ocupado → «Horário já não está livre…»; serviço com sinal → «Para garantir, sinal Pix…» e JRN-16, sem reserva antes do pagamento; **Alterar detalhes** ou dúvida → atendente, com alerta aos 5 min; clique duplicado → sem segundo compromisso; cancelar/remarcar → JRN-05 (humano).
+- **Fluxo:** (1) a IA interpreta o pedido; (2) o backend monta a proposta versionada só com horas que o bloco Tempo já deixou passar, com clínica/local, beneficiária, serviço, data com fuso, início e fim, profissional, preço e sinal; (3) o sistema envia a proposta com **Confirmar** / **Alterar detalhes**; (4) a cliente toca em **Confirmar** em até 30 min; (5) o backend valida tenant/contato/conversa/versão, corre outra vez o avaliador do tempo (DEC-077) e revalida a vaga na transação, e marca uma única vez; (6) envia «Agendado…» e a agenda mostra «Marcado pela IA».
+- **Alternativas/erros:** texto livre («sim», 👍) não marca; proposta expirada ou substituída → nova proposta ou atendente; horário ocupado → «Horário já não está livre…»; tempo que deixou de servir → «Nesse horário o tempo não serve para este serviço. A equipe envia outra opção em breve.»; previsão que não se confirmou → «Não deu para confirmar o tempo nesse horário. A equipe envia outra opção em breve.» (estado `recusada_tempo`, sem percentagem e sem número de vagas); a responsável alterou céu ou temperatura da proposta ainda enviada → mudança material, atendente, não a frase de horário ocupado; serviço com sinal → «Para garantir, sinal Pix…» e JRN-16, sem reserva antes do pagamento; **Alterar detalhes** ou dúvida → atendente, com alerta aos 5 min; clique duplicado → sem segundo compromisso; cancelar/remarcar → JRN-05 (humano).
 - **Telas:** conversa e agenda (indicador «Marcado pela IA»); mensagens do WhatsApp com botões.
 - **Dados:** proposta (id, versão, validade, detalhes), evento do clique, compromisso, auditoria `appointment.ai_booked`. O clique não é consentimento LGPD nem prova de identidade.
-- **Requisitos:** REQ-083, REQ-084; aceite AC-55, AC-56.
+- **Requisitos:** REQ-083, REQ-084, REQ-092; aceite AC-55, AC-56, AC-65.
 
 ## Validação necessária
 

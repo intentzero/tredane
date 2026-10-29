@@ -2,7 +2,7 @@
 
 **Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). Nenhuma fatia está implementada. Não altera código.
 
-**Decisão:** [DEC-077](../product/decisions.md). Mantém DEC-008 (duração, intervalo, grade de 15 min, fuso da clínica), DEC-042 (só a responsável configura), DEC-011 (contexto da IA), DEC-061 (marcação automática só pelo botão) e DEC-075 (sala, capacidade, modo, audiência e mesmo sexo ficam de fora deste bloco).
+**Decisão:** [DEC-077](../product/decisions.md). A DEC-076 já está na `main` (duração do procedimento não se ajusta ao agendar) e não é este bloco. Mantém DEC-008 (duração, intervalo, grade de 15 min, fuso da clínica), DEC-042 (só a responsável configura), DEC-011 (contexto da IA), DEC-061 (marcação automática só pelo botão) e DEC-075 (sala, capacidade, modo, audiência e mesmo sexo ficam de fora deste bloco).
 
 **Onde vive o dado:** SQLite do Durable Object da clínica (DEC-038). Nada disto vai para o D1 central. Exemplos só com serviços fictícios (bronzeamento, depilação). Sem dados reais de clínica ou de paciente.
 
@@ -20,7 +20,7 @@ Conferido no código da `main` (schema da clínica na versão 31, migração `00
 | --- | --- | --- |
 | Grade de 15 min no fuso da clínica, duração + intervalo, expediente, bloqueio, profissional e sala. Leitura que não cria reserva. | `queryAvailability` em `src/clinic/scheduling/query.ts` | Não criar uma segunda grade. O filtro automático entra nesta consulta, com um modo para a marcação manual (S5). |
 | Confirmação na transação. | `confirmAppointmentInTransaction` e `confirmAppointmentOp` em `src/clinic/scheduling/booking.ts` | A marcação manual continua a confirmar. O tempo, nesse caminho, é aviso, não recusa (S6). |
-| Proposta versionada, texto fixo, botões Confirmar e Alterar detalhes. No clique, revalida com `queryAvailability` e pode recusar a vaga. | `src/clinic/proposals/render.ts` (`renderProposalResultBody`), `execute-confirm.ts` | Não criar outro canal de WhatsApp. A recusa de tempo usa frase própria, não a frase de horário ocupado (S5). |
+| Proposta versionada, texto fixo, botões Confirmar e Alterar detalhes. `renderProposalResultBody` só conhece `booked`, `slot_refused`, `pix_signal` e `expired`. | `src/clinic/proposals/render.ts`, `execute-confirm.ts` | Não criar outro canal de WhatsApp. O clique **não** revalida o tempo só porque chama `queryAvailability`: `resolveRoomForProposal` só a chama quando o serviço pede sala, e devolve cedo se `roomRequirement.mode === 'none'`. A S5 corre o avaliador da S4 em `executeProposalConfirmOp` antes da sala, em todos os serviços. A recusa de tempo é o estado `recusada_tempo` e o resultado `tempo_refused`, não `recusada_vaga` / `slot_refused`. |
 | Contexto da IA com vagas dos próximos dias, já lidas de `queryAvailability`. | `buildScheduleContext` em `src/clinic/ai/schedule-context.ts` (`freeSlots`) | Quando a consulta filtrar, estas vagas já saem filtradas. A S7 só impede o payload do provedor e junta a frase do motivo quando fizer falta. |
 | Fuso por clínica, padrão `America/Sao_Paulo`. | `clinic_settings.timezone`; `clinicDayBounds` | Não criar outro fuso. A hora avaliada é o início do compromisso neste fuso. |
 | Endereço em texto livre, só no cartão «Sugestões com IA», e só com o interruptor ligado. | `clinic_settings.clinic_address`; `AiAssistCard` | Não usar este parágrafo como local da previsão. DEC-011 mantém o endereço fora do conjunto mínimo confirmado. |
@@ -167,13 +167,18 @@ O adaptador fala com o provedor e devolve só símbolo de céu e temperatura int
 
 ## S5 — Filtro na disponibilidade, proposta e revalidação do botão
 
-**Comportamento.** O caminho automático usa a função da S4. Hora que não serve ou está indisponível não entra nas vagas da IA nem numa proposta nova. A grade da equipe (TEL-05) continua a mostrar a hora, com aviso: isso é a S6. No clique do botão, a mesma função corre outra vez dentro da revalidação que já existe. Se não servir ou estiver indisponível, a proposta falha fechada, com a frase de [ux-ui.md](../product/ux-ui.md), e não nasce compromisso nem Pix.
+**Comportamento.** O caminho automático usa a função da S4. Hora que não serve ou está indisponível não entra nas vagas da IA nem numa proposta nova. A grade da equipe (TEL-05) continua a mostrar a hora, com aviso: isso é a S6. No clique, `executeProposalConfirmOp` chama outra vez a função da S4, antes de `resolveRoomForProposal` e antes de `confirmAppointmentOp`, também quando o serviço não pede sala. Se não servir ou estiver indisponível, a proposta passa a `recusada_tempo`, o resultado é `tempo_refused`, a cliente recebe a frase de [ux-ui.md](../product/ux-ui.md), e não nasce compromisso nem Pix.
 
 **Regras.**
 
-- `queryAvailability` ganha um modo. O modo automático (IA, criar proposta, clique) omite a hora. O modo da equipe devolve a hora e o aviso, para a S6. O modo automático é o padrão, para quem já chama a função não passar a oferecer hora que não serve.
-- O clique não reutiliza a leitura feita ao montar a proposta. Corre de novo.
-- Falha de tempo não usa o texto de horário ocupado (`slot_refused` de ocupação permanece para sala, profissional e capacidade).
+- `queryAvailability` ganha um modo. Quem chama:
+  - **Equipe:** `GET /api/tenants/:tenantId/availability` (`src/scheduling/routes.ts`), usado por `AgendarScreen` e `ReservarBlocoSheet`. O handler passa sempre modo equipe. A hora que não serve continua na resposta, com o aviso da S6.
+  - **Automático:** `buildScheduleContext` (`src/clinic/ai/schedule-context.ts`) e a montagem da proposta em `src/clinic/ai/autobook.ts`. Estes passam modo automático e omitem a hora.
+  - **Sala, sem tempo:** `resolveRoomForProposal` continua a resolver sala. Não aplica o filtro de tempo e não trata hora filtrada por tempo como sala em falta. Se passasse a usar o modo automático, um bronzeamento sem sala livre na lista viraria «Horário já não está livre».
+- O padrão da função, se ninguém passar modo, é o modo equipe. O automático é explícito, para o Agendar não esconder a hora.
+- O clique não reutiliza a leitura feita ao montar a proposta. Corre a função da S4 de novo, com o céu e a temperatura gravados agora e a previsão desta hora.
+- Mudar céu, temperatura ou graus do serviço depois da proposta enviada é mudança material: `materialDrift` em `execute-confirm.ts` passa a comparar `tempo_ceu`, `tempo_temperatura` e `tempo_celsius` com o snapshot da proposta. A proposta segue o caminho que já existe para mudança material (encaminhada à atendente). Não se confirma o horário com a regra antiga nem se disfarça isso de horário ocupado.
+- Falha de tempo no clique não usa `markProposalSlotRefused` nem `slot_refused`. Estado novo `recusada_tempo`. Frase de ocupação fica só para sala, profissional e capacidade.
 - Serviço em Tanto faz não muda a lista.
 - Serviço com restrição e sem local: o automático não oferece hora nenhuma desse serviço. Depilação em Tanto faz, na mesma clínica, oferece como hoje.
 - Sinal (DEC-047): a recusa de tempo acontece antes da cobrança. Nada fica reservado.
@@ -187,7 +192,8 @@ O adaptador fala com o provedor e devolve só símbolo de céu e temperatura int
 
 - [ ] Bronzeamento com Sol e Acima de 24, local em Campinas, previsão fictícia de céu limpo e 25 °C às 15h: a vaga automática inclui 15h. Com 22 °C ou céu encoberto, 15h sai da lista automática e não nasce proposta para as 15h.
 - [ ] A mesma hora, no modo da equipe, continua na resposta, com aviso (o texto visível é a S6).
-- [ ] Proposta criada com tempo que servia. No clique, a função devolve não serve ou indisponível: nenhum compromisso, nenhuma cobrança, frase «Nesse horário o tempo não serve para este serviço. A equipe envia outra opção em breve.» ou «Não deu para confirmar o tempo nesse horário. A equipe envia outra opção em breve.». A frase não diz percentagem nem número de vagas.
+- [ ] Proposta criada com tempo que servia. No clique, a função devolve não serve ou indisponível, inclusive num serviço com `roomRequirement.mode === 'none'`: estado `recusada_tempo`, resultado `tempo_refused`, nenhum compromisso, nenhuma cobrança, frase «Nesse horário o tempo não serve para este serviço. A equipe envia outra opção em breve.» ou «Não deu para confirmar o tempo nesse horário. A equipe envia outra opção em breve.». A frase não diz percentagem nem número de vagas. Não passa por `recusada_vaga`.
+- [ ] A responsável muda o bronzeamento de Sol para Chuva com a proposta ainda enviada. `materialDrift` vê a mudança. A proposta não confirma e não responde com a frase de horário ocupado.
 - [ ] Clique com horário ocupado de verdade continua «Horário já não está livre…», distinto da frase de tempo.
 - [ ] Depilação em Tanto faz, sem local na clínica, continua a oferecer horários.
 - [ ] Bronzeamento com Sol e clínica sem local: a lista automática desse serviço vem vazia.
