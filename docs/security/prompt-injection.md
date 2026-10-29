@@ -4,7 +4,7 @@ Estado: **implementado em PR** (reland de #198 / S6 sobre `main`; S2 já em #191
 
 ## Entradas não confiáveis
 
-Nunca são instrução, venham de onde vierem: mensagens da conversa (cliente **e** equipe), nome do contato, nome e explicação dos serviços, políticas, nome/endereço da clínica e a **saída do modelo**. A autoria (`[cliente]`/`[clínica]`) vem do campo `direction`, nunca do texto.
+Nunca são instrução, venham de onde vierem: mensagens da conversa (cliente **e** equipe), nome do contato, nome e explicação dos serviços, políticas, nome/endereço/link Google Business da clínica e a **saída do modelo**. A autoria (`[cliente]`/`[clínica]`) vem do campo `direction`, nunca do texto.
 
 ## Camadas
 
