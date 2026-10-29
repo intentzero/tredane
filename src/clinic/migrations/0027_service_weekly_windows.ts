@@ -2,8 +2,8 @@
  * Horário semanal opcional por serviço (issue #261).
  * Vazio = sem filtro de serviço (comportamento anterior).
  */
-export const MIGRATION_ID = 26
-export const MIGRATION_NAME = '0026_service_weekly_windows'
+export const MIGRATION_ID = 27
+export const MIGRATION_NAME = '0027_service_weekly_windows'
 
 export const STATEMENTS: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS service_weekly_windows (

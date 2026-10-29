@@ -1,4 +1,4 @@
-import { CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, Minus, Plus, TriangleAlert } from 'lucide-react'
+import { CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, Minus, Plus, TriangleAlert, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
@@ -26,6 +26,7 @@ import { InboxRealtimeProvider, isScheduleEvent, useInboxRealtime } from '../../
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
 import { friendlyError } from '../../copy/errors'
+import { useVisiblePolling } from '../../ui/useVisiblePolling'
 import { formatDayLabel, formatSlotTime, reasonLabel, upcomingCivilDates } from './format'
 import {
   CALENDAR_HORIZON_DAYS,
@@ -54,6 +55,11 @@ type Props = {
   tenantId: string
   api: PanelApi
   generation: number
+  /**
+   * DEC-074: no desktop o Agendar abre como painel ao lado da conversa. O contexto vem da
+   * conversa aberta (não da URL) e fechar/«Voltar à conversa» só fecha o painel.
+   */
+  embedded?: { conversationId: string; contactId?: string; onClose: () => void }
 }
 
 type Service = ClinicConfigSnapshot['services'][number]
@@ -133,8 +139,14 @@ export function AgendarScreen(props: Props) {
   )
 }
 
-function AgendarScreenInner({ tenantId, api, generation }: Props) {
-  const ctx = useMemo(() => readScheduleContext(), [])
+function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
+  const ctx = useMemo<ScheduleContext>(
+    () =>
+      embedded
+        ? { conversationId: embedded.conversationId, contactId: embedded.contactId }
+        : readScheduleContext(),
+    [embedded?.conversationId, embedded?.contactId],
+  )
   const fo = useMemo(() => ({ generation, expectGeneration: () => generation }), [generation])
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
   const [pix, setPix] = useState<PixSnapshot | null>(null)
@@ -266,10 +278,7 @@ function AgendarScreenInner({ tenantId, api, generation }: Props) {
   })
 
   // Polling de reserva (DEC-057) caso o WebSocket caia.
-  useEffect(() => {
-    const id = window.setInterval(() => void reloadSlots(), 15_000)
-    return () => window.clearInterval(id)
-  }, [reloadSlots])
+  useVisiblePolling(() => void reloadSlots(), 15_000)
 
   // «Próximo livre» (DEC-055 Confirmado): mesma escolha, até 14 dias, no cliente.
   useEffect(() => {
@@ -336,7 +345,8 @@ function AgendarScreenInner({ tenantId, api, generation }: Props) {
     ) ?? []
 
   function back() {
-    navigatePanel(originRoute(tenantId, ctx))
+    if (embedded) embedded.onClose()
+    else navigatePanel(originRoute(tenantId, ctx))
   }
 
   function pickTime(slot: AvailabilitySlot) {
@@ -364,8 +374,8 @@ function AgendarScreenInner({ tenantId, api, generation }: Props) {
 
   const header = (
     <header className="panel-header agd-header">
-      <Button className="panel-icon-btn" aria-label="Voltar" onPress={back}>
-        <ChevronLeft aria-hidden size={22} strokeWidth={2} />
+      <Button className="panel-icon-btn" aria-label={embedded ? 'Fechar Agendar' : 'Voltar'} onPress={back}>
+        {embedded ? <X aria-hidden size={20} strokeWidth={2} /> : <ChevronLeft aria-hidden size={22} strokeWidth={2} />}
       </Button>
       {contact?.name ? (
         <span className="agd-avatar" aria-hidden="true">

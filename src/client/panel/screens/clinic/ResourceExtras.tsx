@@ -176,6 +176,14 @@ export function ProfessionalExtras({ resource, ...c }: Common & { resource: Clin
   const clinicWeek = toWeekDraft(windowsOf(c.snap, CLINIC_SCOPE_ID))
   const ownSaved = useMemo(() => toWeekDraft(windowsOf(c.snap, resource.id)), [c.snap, resource.id])
   const [ownDraft, setOwnDraft] = useState<WeekDraft>(ownSaved)
+  // O rascunho acompanha o horário salvo (ex.: a cópia da clínica gravada ao trocar para
+  // «Horário próprio»), a menos que haja edição em andamento (#257).
+  const [syncedWith, setSyncedWith] = useState<WeekDraft>(ownSaved)
+  if (ownSaved !== syncedWith) {
+    const editing = JSON.stringify(ownDraft) !== JSON.stringify(syncedWith)
+    setSyncedWith(ownSaved)
+    if (!editing) setOwnDraft(ownSaved)
+  }
   const follows = resource.hoursMode === 'clinic'
   const [tab, setTab] = useState<'servicos' | 'horario' | 'folgas'>('servicos')
   const dirty = JSON.stringify(ownDraft) !== JSON.stringify(ownSaved)

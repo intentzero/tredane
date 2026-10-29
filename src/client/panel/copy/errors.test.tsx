@@ -43,6 +43,9 @@ describe('friendlyError', () => {
 
   it('sem rede mostra o aviso de internet; erro desconhecido usa o texto de reserva', () => {
     expect(friendlyError(new TypeError('Failed to fetch'))).toContain('Sem conexão com a internet')
+    // o cliente da API embrulha a falha do fetch em PanelApiError(0, 'network', mensagem do navegador)
+    expect(friendlyError(new PanelApiError(0, 'network', 'Failed to fetch'))).toContain('Sem conexão com a internet')
+    expect(friendlyError(new PanelApiError(0, 'network', 'Load failed'))).toContain('Sem conexão com a internet')
     expect(friendlyError(new Error('boom'), 'Não foi possível enviar.')).toBe(
       'Não foi possível enviar.',
     )

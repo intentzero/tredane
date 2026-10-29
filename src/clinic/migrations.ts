@@ -130,7 +130,12 @@ import {
   MIGRATION_ID as M26_ID,
   MIGRATION_NAME as M26_NAME,
   STATEMENTS as M26_STATEMENTS,
-} from './migrations/0026_service_weekly_windows'
+} from './migrations/0026_resource_history_indexes'
+import {
+  MIGRATION_ID as M27_ID,
+  MIGRATION_NAME as M27_NAME,
+  STATEMENTS as M27_STATEMENTS,
+} from './migrations/0027_service_weekly_windows'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -167,6 +172,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M24_ID, name: M24_NAME, statements: M24_STATEMENTS },
   { id: M25_ID, name: M25_NAME, statements: M25_STATEMENTS },
   { id: M26_ID, name: M26_NAME, statements: M26_STATEMENTS },
+  { id: M27_ID, name: M27_NAME, statements: M27_STATEMENTS },
 ]
 
 export type MigrationResult = {

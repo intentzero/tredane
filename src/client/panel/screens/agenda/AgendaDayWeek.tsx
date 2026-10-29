@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, ToggleButton, ToggleButtonGroup } from 'react-aria-components'
 import {
   PanelApiError,
@@ -15,7 +15,10 @@ import { Badge } from '../../states/Badge'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
 import { useMediaQuery } from '../../ui/useMediaQuery'
+import { useVisiblePolling } from '../../ui/useVisiblePolling'
+import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
+import { CompromissoScreen } from './CompromissoScreen'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
 import {
   HOUR_HEIGHT,
@@ -36,6 +39,8 @@ type Props = {
   api: PanelApi
   generation: number
   view: 'day' | 'week'
+  /** Compromisso aberto no painel por cima (rota `…/agenda/compromisso/:id`, só no desktop). */
+  openId?: string
 }
 
 const DEFAULT_TZ = 'America/Sao_Paulo'
@@ -73,7 +78,7 @@ function detailRoute(tenantId: string, id: string) {
  * A API de semana traz a semana inteira; o dia usa a mesma resposta (e a faixa
  * da semana mostra quais dias têm horário marcado).
  */
-export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
+export function AgendaDayWeek({ tenantId, api, generation, view, openId }: Props) {
   const [date, setDate] = useState(() => upcomingCivilDates(DEFAULT_TZ, Date.now(), 1)[0]!)
   const [data, setData] = useState<AgendaViewResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -83,6 +88,37 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
   const narrow = useMediaQuery('(max-width: 767.98px)')
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
   const [selected, setSelected] = useState<string[]>([])
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([])
+  // Desktop (DEC-068): coluna de contexto ao lado da grade.
+  const wide = useMediaQuery('(min-width: 1280px)')
+  const returnFocus = useRef<HTMLElement | null>(null)
+  const panelRef = useRef<HTMLElement | null>(null)
+  const panelOpen = wide && openId != null
+
+  // Esc fecha o painel; o foco vai ao painel ao abrir e volta ao item ao fechar.
+  useEffect(() => {
+    if (!panelOpen) return
+    panelRef.current?.focus({ preventScroll: true })
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) closePanel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [panelOpen, openId])
+
+  function closePanel() {
+    navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: view === 'week' ? 'semana' : 'dia' })
+    returnFocus.current?.focus?.({ preventScroll: true })
+  }
+
+  function openAppointment(id: string) {
+    if (wide && openId === id) {
+      closePanel()
+      return
+    }
+    if (wide && !openId) returnFocus.current = document.activeElement as HTMLElement | null
+    navigatePanel(detailRoute(tenantId, id))
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -124,13 +160,10 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
     void load()
   }, [load])
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setNow(Date.now())
-      void load()
-    }, 15_000)
-    return () => window.clearInterval(id)
-  }, [load])
+  useVisiblePolling(() => {
+    setNow(Date.now())
+    void load()
+  }, 15_000)
 
   const timezone = data?.timezone ?? DEFAULT_TZ
   const today = upcomingCivilDates(timezone, now, 1)[0]!
@@ -152,6 +185,9 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
   const allAppointments = (data?.appointments ?? []).filter((a) => a.status !== 'cancelled')
   const professionals = (config?.resources ?? [])
     .filter((r) => r.kind === 'professional' && r.active)
+    .map((r) => ({ id: r.id, name: r.name }))
+  const rooms = (config?.resources ?? [])
+    .filter((r) => r.kind === 'room' && r.active)
     .map((r) => ({ id: r.id, name: r.name }))
   const roomCapacity = new Map(
     (config?.resources ?? []).filter((r) => r.kind === 'room').map((r) => [r.id, r.capacity ?? 1] as const),
@@ -175,8 +211,11 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
     navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'agendar', date })
 
   const dayLabel = formatDayLabel(date, timezone)
+  const passesFilters = (a: AgendaAppointmentItem) =>
+    (selected.length === 0 || selected.includes(a.professionalId)) &&
+    (selectedRooms.length === 0 || (a.roomResourceId != null && selectedRooms.includes(a.roomResourceId)))
   const entries = buildDayEntries(
-    (byDay.get(date) ?? []).filter((a) => selected.length === 0 || selected.includes(a.professionalId)),
+    (byDay.get(date) ?? []).filter(passesFilters),
     roomCapacity,
     date === today ? now : null,
   )
@@ -193,7 +232,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
     return `${base} · ${dayCount === 0 ? 'nenhum horário' : `${n} ${n === 1 ? 'horário' : 'horários'}`}`
   })()
 
-  return (
+  const work = (
     <div className="agenda-day" data-screen={view === 'week' ? 'm13-semana' : 'm06-agenda'}>
       <header className="agenda-head">
         <div className="agenda-head-text">
@@ -213,7 +252,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
             </>
           )}
         </div>
-        {narrow ? null : (
+        {narrow || wide ? null : (
           <Button className="panel-btn-primary panel-btn-compact agenda-add" onPress={goSchedule}>
             <Plus aria-hidden size={18} strokeWidth={2} />
             Agendar
@@ -270,34 +309,36 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
         </Button>
       </div>
 
-      <div className="agenda-weekstrip" role="group" aria-label="Dias da semana">
-        {weekDays.map((day) => {
-          const label = formatDayLabel(day, timezone)
-          const count = byDay.get(day)?.length ?? 0
-          const selected = view === 'day' && day === date
-          return (
-            <button
-              key={day}
-              type="button"
-              className={`agenda-weekday${selected ? ' agenda-weekday--on' : ''}${day === today ? ' agenda-weekday--today' : ''}`}
-              aria-pressed={selected}
-              aria-label={`${formatLongDate(day, timezone)}${count > 0 ? `, ${count} ${count === 1 ? 'horário' : 'horários'}` : ''}`}
-              onClick={() => {
-                setDate(day)
-                if (view !== 'day') {
-                  navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
-                }
-              }}
-            >
-              <span className="agenda-weekday-name">{label.weekday}</span>
-              <span className="agenda-weekday-num">{label.day}</span>
-              <span className={`agenda-weekday-count${count > 0 ? ' agenda-weekday-count--on' : ''}`} aria-hidden>
-                {count > 0 ? count : '·'}
-              </span>
-            </button>
-          )
-        })}
-      </div>
+      {wide ? null : (
+        <div className="agenda-weekstrip" role="group" aria-label="Dias da semana">
+          {weekDays.map((day) => {
+            const label = formatDayLabel(day, timezone)
+            const count = byDay.get(day)?.length ?? 0
+            const selected = view === 'day' && day === date
+            return (
+              <button
+                key={day}
+                type="button"
+                className={`agenda-weekday${selected ? ' agenda-weekday--on' : ''}${day === today ? ' agenda-weekday--today' : ''}`}
+                aria-pressed={selected}
+                aria-label={`${formatLongDate(day, timezone)}${count > 0 ? `, ${count} ${count === 1 ? 'horário' : 'horários'}` : ''}`}
+                onClick={() => {
+                  setDate(day)
+                  if (view !== 'day') {
+                    navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
+                  }
+                }}
+              >
+                <span className="agenda-weekday-name">{label.weekday}</span>
+                <span className="agenda-weekday-num">{label.day}</span>
+                <span className={`agenda-weekday-count${count > 0 ? ' agenda-weekday-count--on' : ''}`} aria-hidden>
+                  {count > 0 ? count : '·'}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {narrow && view === 'day' && professionals.length > 1 ? (
         <>
@@ -347,7 +388,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
             professionals={professionals}
             timezone={timezone}
             now={now}
-            onOpen={(id) => navigatePanel(detailRoute(tenantId, id))}
+            onOpen={(id) => openAppointment(id)}
             onSchedule={goSchedule}
             onOpenHold={(h) =>
               navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
@@ -358,11 +399,11 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
           />
         ) : view === 'day' ? (
           <DayGrid
-            items={byDay.get(date) ?? []}
+            items={(byDay.get(date) ?? []).filter(passesFilters)}
             timezone={timezone}
             isToday={date === today}
             now={now}
-            onOpen={(id) => navigatePanel(detailRoute(tenantId, id))}
+            onOpen={(id) => openAppointment(id)}
             onSchedule={goSchedule}
           />
         ) : (
@@ -386,7 +427,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
                         <button
                           type="button"
                           className="agenda-apt"
-                          onClick={() => navigatePanel(detailRoute(tenantId, apt.id))}
+                          onClick={() => openAppointment(apt.id)}
                         >
                           <span className="agenda-apt-time">
                             {formatSlotTime(apt.startsAt, timezone)}
@@ -420,6 +461,66 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
           <Plus aria-hidden size={20} strokeWidth={2} />
           Agendar {date === today ? 'hoje' : dayLabel.weekday}
         </Button>
+      ) : null}
+    </div>
+  )
+
+  if (!wide) return work
+
+  const toggle = (set: (fn: (cur: string[]) => string[]) => void, id: string) =>
+    set((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
+  return (
+    <div className="agenda-wide">
+      <AgendaContext
+        date={date}
+        today={today}
+        timezone={timezone}
+        now={now}
+        dayTitle={`${date === today ? 'Hoje · ' : ''}${formatLongDate(date, timezone)}`}
+        professionals={professionals}
+        rooms={rooms}
+        selectedPros={selected}
+        selectedRooms={selectedRooms}
+        countOf={countOf}
+        entries={entries}
+        holds={holds}
+        emptyText={
+          selected.length > 0 || selectedRooms.length > 0
+            ? 'Nenhum horário para esta seleção.'
+            : `Nenhum horário marcado ${date === today ? 'hoje' : `em ${dayLabel.weekday} ${dayLabel.day}`}.`
+        }
+        onPickDate={setDate}
+        onTogglePro={(id) => toggle(setSelected, id)}
+        onToggleRoom={(id) => toggle(setSelectedRooms, id)}
+        onClearFilters={() => {
+          setSelected([])
+          setSelectedRooms([])
+        }}
+        onSchedule={goSchedule}
+        onOpen={(id) => openAppointment(id)}
+        onOpenHold={(h) =>
+          navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
+        }
+      />
+      {work}
+      {panelOpen ? (
+        <aside
+          id="agenda-panel"
+          ref={panelRef}
+          tabIndex={-1}
+          className="agenda-panel"
+          aria-label="Compromisso"
+        >
+          <CompromissoScreen
+            key={openId}
+            tenantId={tenantId}
+            appointmentId={openId!}
+            api={api}
+            generation={generation}
+            onClose={closePanel}
+            onChanged={() => void load()}
+          />
+        </aside>
       ) : null}
     </div>
   )

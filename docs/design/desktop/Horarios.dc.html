@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Horário da clínica — desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif}
+.d{--app:#F5F4EF;--card:#fff;--sunk:#EEEDE7;--tx:#142625;--tx2:#424B4A;--mu:#566160;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--prB:#B3D1D1;--ok:#1F7A4D;--okT:#EAF5EF;--wa:#6E4200;--waT:#FFF7EA;--bd:#E1E3E0;--ctl:#7A8584}
+.d button,.d a,.d select,.d input{font-family:inherit}
+.d button,.d a{color:inherit;cursor:pointer}
+.rl a{width:68px;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;font-size:12px;color:var(--mu);text-decoration:none}
+.rl a.on{background:var(--prT);color:var(--prInk);font-weight:600}
+.sc{display:flex;align-items:center;gap:12px;min-height:52px;padding:6px 12px;border-radius:8px;text-decoration:none;font-size:16px}
+.sc small{display:block;font-size:12px;color:var(--mu)}
+.sc.on{background:var(--prT);color:var(--prInk);font-weight:600}
+.sc.on small{color:var(--prInk);font-weight:400}
+.sc i{margin-left:auto;width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.gh{font-size:12px;font-weight:600;color:var(--mu);letter-spacing:.04em;text-transform:uppercase;padding:10px 12px 4px}
+.fl{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600;color:var(--tx2)}
+.tm{height:44px;box-sizing:border-box;border:1px solid var(--ctl);border-radius:8px;padding:0 10px;font-size:16px;color:var(--tx);background:#fff}
+.sec{margin:0;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--tx2)}
+</style>
+</helmet>
+<div class="d" style="position:relative;width:1440px;height:900px;box-sizing:border-box;display:grid;grid-template-columns:84px 360px minmax(0,1fr);background:var(--app);color:var(--tx);overflow:hidden">
+
+  <nav class="rl" aria-label="Áreas" style="background:var(--card);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0">
+    <span style="width:40px;height:40px;border-radius:12px;background:var(--pr);color:#fff;display:grid;place-items:center;font-weight:600;margin-bottom:10px" aria-hidden="true">T</span>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2-5.4A8.4 8.4 0 1 1 21 11.5z"/></svg>Conversas</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 4v16M10 4v6M16 4v16"/></svg>Acompanhar</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>Agenda</a>
+    <a class="on" href="#" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Clínica</a>
+    <span style="flex:1"></span>
+    <button aria-label="Notificações" style="width:44px;height:44px;border:0;background:none;border-radius:12px;display:grid;place-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></button>
+    <button aria-label="Conta de Paulo" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--prB);background:var(--prT);color:var(--prInk);font-weight:600;font-size:14px">P</button>
+  </nav>
+
+  <section aria-label="Secções da clínica" style="background:var(--card);border-right:1px solid var(--bd);display:flex;flex-direction:column;min-height:0">
+    <div style="padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--bd)">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <button style="border:0;background:none;padding:0;display:flex;align-items:center;gap:4px;font-size:14px;color:var(--tx2);height:28px">Clínica Bella Pele (demo)<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ok)"><span style="width:8px;height:8px;border-radius:50%;background:var(--ok)"></span>Ao vivo</span>
+      </div>
+      <h1 style="margin:0;font-size:22px;font-weight:600">Clínica</h1>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:var(--okT);color:var(--ok);font-size:14px;font-weight:600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>Pronta para atender</div>
+    </div>
+    <nav aria-label="Secções" style="padding:8px 12px;display:flex;flex-direction:column;gap:2px">
+      <a class="sc" href="#"><span>Início<small>Resumo e próximos passos</small></span></a>
+      <span class="gh">Agenda</span>
+      <a class="sc on" href="#" aria-current="page"><span>Horário da clínica<small>Aberta 50 h por semana</small></span><i aria-label="Configurado"></i></a>
+      <a class="sc" href="#"><span>Salas e equipamentos<small>2 salas</small></span><i aria-label="Configurado"></i></a>
+      <a class="sc" href="#"><span>Profissionais<small>3 profissionais</small></span><i aria-label="Configurado"></i></a>
+      <a class="sc" href="#"><span>Serviços<small>3 serviços ativos</small></span><i aria-label="Configurado"></i></a>
+      <span class="gh">Atendimento</span>
+      <a class="sc" href="#"><span>WhatsApp<small>Número conectado</small></span><i aria-label="Configurado"></i></a>
+      <a class="sc" href="#"><span>Recebimento de sinais<small>Pix pela Woovi</small></span><i aria-label="Configurado"></i></a>
+      <a class="sc" href="#"><span>Equipe<small>3 pessoas</small></span></a>
+    </nav>
+  </section>
+
+  <main aria-label="Horário da clínica" style="min-width:0;min-height:0;overflow:auto;padding:24px 32px">
+    <div style="max-width:720px;width:100%;display:flex;flex-direction:column;gap:16px">
+
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px">
+        <div style="flex:1 1 280px">
+          <h2 style="margin:0;font-size:20px;font-weight:600">Horário da clínica</h2>
+          <p style="margin:4px 0 0;font-size:14px;color:var(--tx2)">Seg–qui 08:00–12:00 e 13:00–18:00 · sex 08:00–17:00 · sáb 08:00–13:00. Horário de Brasília.</p>
+        </div>
+        <sc-if value="{{dirty}}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 8px 8px 14px;background:var(--waT);border:1px solid #EBCB94;border-radius:12px">
+            <span style="font-size:14px;color:var(--wa)"><b style="font-weight:600">Quarta alterada.</b> Vale para Paula e Tiago.</span>
+            <button type="button" style="height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--ctl);background:#fff;font-size:14px;font-weight:600">Descartar</button>
+            <button type="button" style="height:36px;padding:0 14px;border-radius:8px;border:0;background:var(--pr);color:#fff;font-size:14px;font-weight:600">Salvar horário</button>
+          </div>
+        </sc-if>
+      </div>
+
+      <section aria-labelledby="sem-h" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+          <div style="display:flex;align-items:center;gap:4px;flex:1 1 220px">
+            <button type="button" aria-label="Semana anterior" style="width:36px;height:36px;border:1px solid var(--bd);border-radius:8px;background:#fff;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+            <button type="button" aria-label="Próxima semana" style="width:36px;height:36px;border:1px solid var(--bd);border-radius:8px;background:#fff;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+            <h3 id="sem-h" style="margin:0 0 0 6px;font-size:16px;font-weight:600">2 a 8 de novembro</h3>
+          </div>
+          <div role="group" aria-label="Mostrar profissionais na semana" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px">
+            <span style="font-size:12px;color:var(--tx2)">Mostrar</span>
+            <sc-for list="{{people}}" as="p" hint-placeholder-count="3">
+              <button type="button" aria-pressed="{{p.pressed}}" onClick="{{p.toggle}}" style="height:32px;padding:0 10px;border-radius:999px;border:{{p.border}};background:{{p.bg}};font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><span aria-hidden="true" style="width:8px;height:8px;border-radius:999px;background:{{p.color}}"></span>{{p.name}}</button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div>
+          <div aria-hidden="true" style="display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;padding-bottom:4px">
+            <span></span>
+            <span style="position:relative;height:14px;font-size:12px;color:var(--mu)">
+              <sc-for list="{{ticks}}" as="t" hint-placeholder-count="7">
+                <span style="position:absolute;left:{{t.l}}%;transform:translateX(-50%)">{{t.label}}</span>
+              </sc-for>
+            </span>
+          </div>
+          <sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+            <button type="button" aria-pressed="{{d.pressed}}" aria-label="{{d.aria}}" onClick="{{d.select}}" style="width:100%;display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;align-items:center;min-height:52px;padding:6px 0;border:0;border-top:1px solid var(--sunk);background:{{d.rowBg}};text-align:left;border-radius:0;box-shadow:{{d.bar}}">
+              <span style="display:flex;flex-direction:column;gap:1px;padding-left:10px">
+                <span style="font-size:14px;font-weight:600">{{d.name}}</span>
+                <span style="font-size:12px;color:var(--mu)">{{d.date}}</span>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:4px;padding-right:8px">
+                <span style="position:relative;height:24px;border-radius:8px;background:var(--app)">
+                  <sc-for list="{{d.segs}}" as="s" hint-placeholder-count="2">
+                    <span style="position:absolute;top:0;bottom:0;left:{{s.l}}%;width:{{s.w}}%;background:var(--pr);border-radius:8px;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;padding-left:6px;box-sizing:border-box;overflow:hidden;white-space:nowrap">{{s.label}}</span>
+                  </sc-for>
+                  <sc-if value="{{d.closed}}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute;inset:0;border-radius:8px;background-color:#FDF1F0;background-image:repeating-linear-gradient(135deg,#F1B8B2 0 6px,transparent 6px 12px);border:1px solid #F1B8B2;display:flex;align-items:center;padding-left:8px;color:#B42318;font-size:12px;font-weight:600"><span style="background:#fff;padding:1px 8px;border-radius:999px">Fechada · Feriado (Finados)</span></span>
+                  </sc-if>
+                </span>
+                <sc-for list="{{d.lanes}}" as="ln" hint-placeholder-count="0">
+                  <span style="position:relative;height:6px">
+                    <sc-for list="{{ln.segs}}" as="s" hint-placeholder-count="1">
+                      <span style="position:absolute;top:0;bottom:0;left:{{s.l}}%;width:{{s.w}}%;background:{{s.bg}};border-radius:3px"></span>
+                    </sc-for>
+                  </span>
+                </sc-for>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--tx2)">
+          <span style="display:inline-flex;align-items:center;gap:6px"><span aria-hidden="true" style="width:16px;height:10px;border-radius:3px;background:var(--pr)"></span>Clínica aberta</span>
+          <span style="display:inline-flex;align-items:center;gap:6px"><span aria-hidden="true" style="width:16px;height:10px;border-radius:3px;background-color:#FDF1F0;background-image:repeating-linear-gradient(135deg,#F1B8B2 0 3px,transparent 3px 6px);border:1px solid #F1B8B2"></span>Fechada</span>
+          <span style="display:inline-flex;align-items:center;gap:6px"><span aria-hidden="true" style="width:16px;height:6px;border-radius:3px;background-image:repeating-linear-gradient(135deg,#C2410C 0 3px,#FBEDE3 3px 6px)"></span>Folga</span>
+          <span>Clique num dia para editar.</span>
+        </div>
+      </section>
+
+      <section aria-labelledby="fol-h" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:8px 8px 6px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px">
+          <h3 id="fol-h" style="margin:0;font-size:16px;font-weight:600">Folgas e fechamentos</h3>
+          <button type="button" onClick="{{openFolga}}" style="height:36px;padding:0 12px;border:0;border-radius:8px;background:var(--prT);color:var(--prInk);font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Adicionar</button>
+        </div>
+        <ul style="list-style:none;margin:0;padding:0">
+          <sc-for list="{{offs}}" as="o" hint-placeholder-count="3">
+            <li style="display:flex;align-items:center;gap:12px;padding:10px 4px 10px 12px;border-top:1px solid var(--sunk)">
+              <span aria-hidden="true" style="width:4px;align-self:stretch;border-radius:2px;background:{{o.color}}"></span>
+              <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                <b style="font-size:14px;font-weight:600">{{o.who}}</b>
+                <span style="font-size:14px;color:var(--tx2)">{{o.when}}</span>
+              </span>
+              <button type="button" aria-label="{{o.menu}}" style="width:40px;height:40px;border:0;background:none;color:var(--tx2)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>
+            </li>
+          </sc-for>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <sc-if value="{{isDia}}" hint-placeholder-val="{{ false }}">
+    <aside role="dialog" aria-label="{{selName}}" style="position:absolute;top:0;right:0;bottom:0;width:380px;box-sizing:border-box;box-shadow:-16px 0 40px rgba(20,38,37,.16);background:var(--card);border-left:1px solid var(--bd);display:flex;flex-direction:column;gap:16px;padding:16px 20px;min-height:0;overflow:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <h3 style="margin:0;font-size:18px;font-weight:600">{{selName}}</h3>
+        <button type="button" aria-label="Fechar" onClick="{{closePanel}}" style="width:40px;height:40px;border:0;background:none;border-radius:8px;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="flex:1;display:flex;flex-direction:column;gap:2px"><b style="font-size:16px;font-weight:600">Aberta neste dia</b><span style="font-size:14px;color:var(--mu)">Desligado, ninguém agenda.</span></span>
+        <button type="button" role="switch" aria-checked="{{sel.openAttr}}" aria-label="Aberta neste dia" onClick="{{toggleDay}}" style="position:relative;width:48px;height:28px;padding:0;border:0;border-radius:999px;background:{{sel.track}}"><span aria-hidden="true" style="position:absolute;top:3px;left:{{sel.knob}}px;width:22px;height:22px;border-radius:999px;background:#fff"></span></button>
+      </div>
+      <sc-if value="{{sel.note}}" hint-placeholder-val="{{ false }}">
+        <p style="margin:0;padding:10px 12px;border-radius:8px;background:#FDF1F0;border:1px solid #F1B8B2;font-size:14px;color:#B42318">{{sel.note}}</p>
+      </sc-if>
+      <sc-if value="{{sel.closed}}" hint-placeholder-val="{{ false }}">
+        <p style="margin:0;padding:10px 12px;border-radius:8px;background:var(--app);font-size:14px;color:var(--tx2)">Fechada neste dia. Ligue «Aberta» para definir as faixas.</p>
+      </sc-if>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <h4 class="sec">Faixas de atendimento</h4>
+        <sc-for list="{{sel.wins}}" as="w" hint-placeholder-count="2">
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 12px minmax(0,1fr) 40px;align-items:center;gap:8px">
+            <input class="tm" type="time" step="900" value="{{w.start}}" aria-label="{{w.aStart}}">
+            <span aria-hidden="true" style="text-align:center;color:var(--mu)">–</span>
+            <input class="tm" type="time" step="900" value="{{w.end}}" aria-label="{{w.aEnd}}">
+            <button type="button" aria-label="{{w.aRemove}}" style="width:40px;height:40px;border:0;background:none;color:var(--tx2)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+          </div>
+        </sc-for>
+        <button type="button" style="align-self:flex-start;min-height:40px;padding:0 2px;border:0;background:none;color:var(--pr);font-size:14px;font-weight:600">+ Adicionar faixa</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <h4 class="sec">Usar este horário também em</h4>
+        <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px">
+          <sc-for list="{{chips}}" as="c" hint-placeholder-count="7">
+            <button type="button" aria-pressed="{{c.on}}" aria-label="{{c.full}}" disabled="{{c.disabled}}" onClick="{{c.toggle}}" style="height:40px;padding:0;border-radius:8px;border:{{c.border}};background:{{c.bg}};color:{{c.fg}};font-size:12px;font-weight:600">{{c.short}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <h4 class="sec">Quem atende neste dia</h4>
+        <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px">
+          <sc-for list="{{sel.who}}" as="x" hint-placeholder-count="3">
+            <li style="display:flex;align-items:center;gap:8px;font-size:14px"><span aria-hidden="true" style="width:8px;height:8px;border-radius:999px;background:{{x.color}}"></span>{{x.text}}</li>
+          </sc-for>
+        </ul>
+      </div>
+      <span style="flex:1"></span>
+      <button type="button" onClick="{{closePanel}}" style="height:44px;border-radius:12px;border:0;background:var(--pr);color:#fff;font-weight:600;font-size:16px">{{applyLabel}}</button>
+    </aside>
+  </sc-if>
+
+  <sc-if value="{{isFolga}}" hint-placeholder-val="{{ false }}">
+    <aside role="dialog" aria-labelledby="pf-h" style="position:absolute;top:0;right:0;bottom:0;width:380px;box-sizing:border-box;box-shadow:-16px 0 40px rgba(20,38,37,.16);background:var(--card);border-left:1px solid var(--bd);display:flex;flex-direction:column;gap:16px;padding:16px 20px;min-height:0;overflow:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <h3 id="pf-h" style="margin:0;font-size:18px;font-weight:600">Folga ou fechamento</h3>
+        <button type="button" aria-label="Fechar" onClick="{{closePanel}}" style="width:40px;height:40px;border:0;background:none;border-radius:8px;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span id="pq-l" class="fl" style="display:block">Quem fica fora</span>
+        <button type="button" aria-haspopup="listbox" aria-expanded="{{whoOpenAttr}}" aria-labelledby="pq-l" onClick="{{toggleList}}" style="min-height:48px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:6px 12px;border:{{fieldBorder}};border-radius:12px;background:#fff;text-align:left">
+          <span style="flex:1;display:flex;flex-wrap:wrap;gap:6px">
+            <sc-if value="{{noWho}}" hint-placeholder-val="{{ false }}">
+              <span style="font-size:16px;color:var(--mu)">Escolha quem</span>
+            </sc-if>
+            <sc-for list="{{whoChips}}" as="c" hint-placeholder-count="2">
+              <span style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:999px;background:{{c.tint}};font-size:14px;font-weight:600"><span aria-hidden="true" style="width:8px;height:8px;border-radius:999px;background:{{c.dot}}"></span>{{c.label}}</span>
+            </sc-for>
+          </span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#424B4A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <sc-if value="{{whoOpen}}" hint-placeholder-val="{{ false }}">
+          <div role="listbox" aria-multiselectable="true" aria-labelledby="pq-l" style="background:#fff;border:1px solid var(--bd);border-radius:12px;box-shadow:0 12px 28px rgba(20,38,37,.16);overflow:hidden">
+            <sc-for list="{{opts}}" as="o" hint-placeholder-count="4">
+              <button type="button" role="option" aria-selected="{{o.on}}" onClick="{{o.toggle}}" style="width:100%;display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;border:0;border-top:{{o.border}};background:{{o.bg}};text-align:left">
+                <span aria-hidden="true" style="width:22px;height:22px;box-sizing:border-box;border-radius:8px;border:{{o.box}};background:{{o.boxBg}};display:flex;align-items:center;justify-content:center;flex:none">
+                  <sc-if value="{{o.checked}}" hint-placeholder-val="{{ false }}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+                  </sc-if>
+                </span>
+                <span aria-hidden="true" style="width:10px;height:10px;border-radius:999px;background:{{o.dot}};flex:none"></span>
+                <span style="flex:1;display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;font-weight:600">{{o.label}}</span><span style="font-size:12px;color:var(--mu)">{{o.hint}}</span></span>
+              </button>
+            </sc-for>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px 6px 14px;border-top:1px solid var(--bd);background:var(--app)">
+              <span style="font-size:14px;color:var(--tx2)">{{countText}}</span>
+              <button type="button" onClick="{{toggleList}}" style="height:40px;padding:0 18px;border:0;border-radius:8px;background:var(--pr);color:#fff;font-size:14px;font-weight:600">Concluir</button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <label class="fl">Motivo
+        <select class="tm" style="height:48px;font-size:16px;font-weight:400">
+          <option>Folga</option>
+          <option selected="selected">Férias</option>
+          <option>Feriado</option>
+          <option>Manutenção</option>
+          <option>Outro</option>
+        </select>
+        <span style="font-size:12px;font-weight:400;color:var(--mu)">Um motivo para todos os selecionados.</span>
+      </label>
+
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+        <label class="fl">De<input class="tm" type="date" value="2026-11-10" style="height:48px;font-size:16px;font-weight:400"></label>
+        <label class="fl">Até<input class="tm" type="date" value="2026-11-20" style="height:48px;font-size:16px;font-weight:400"></label>
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;font-size:16px;min-height:36px"><input type="checkbox" checked="checked" style="width:18px;height:18px;accent-color:#0E5A5C">Dia inteiro · 11 dias</label>
+
+      <sc-if value="{{hasWarn}}" hint-placeholder-val="{{ true }}">
+        <div role="status" style="display:flex;gap:10px;padding:12px;border-radius:12px;background:var(--waT);border:1px solid #EBCB94;color:var(--wa)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:1px"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.4">
+            <b style="font-weight:600">{{warnTitle}}</b>
+            <span>{{warnText}} Nada é cancelado; depois de salvar, você decide o que fazer com cada um.</span>
+            <a href="#" style="font-weight:600;color:var(--wa)">Ver os horários</a>
+          </div>
+        </div>
+      </sc-if>
+
+      <span style="flex:1"></span>
+      <div style="display:flex;gap:8px">
+        <button type="button" onClick="{{closePanel}}" style="flex:1;height:44px;border-radius:12px;border:1px solid var(--ctl);background:#fff;font-weight:600;font-size:16px">Cancelar</button>
+        <button type="button" onClick="{{closePanel}}" disabled="{{noWho}}" style="flex:2;height:44px;border-radius:12px;border:0;background:{{saveBg}};color:#fff;font-weight:600;font-size:16px">{{saveLabel}}</button>
+      </div>
+    </aside>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dirty":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { shown: ['tiago', 'livia'], sel: 2, panel: 'dia', whoOpen: false, who: ['livia', 'tiago'], closedDays: [6], copyTo: [3] };
+  }
+  renderVals() {
+    const R0 = 7 * 60, R = 13 * 60, h = (x) => x * 60;
+    const pos = (a, b) => ({ l: ((a - R0) / R * 100).toFixed(2), w: ((b - a) / R * 100).toFixed(2) });
+    const hh = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    const fmt = (a, b) => hh(h(a)) + '–' + hh(h(b));
+    const clinicWeek = [
+      [[8, 12], [13, 18]], [[8, 12], [13, 18]], [[8, 12], [13, 20]], [[8, 12], [13, 18]], [[8, 17]], [[8, 13]], []
+    ];
+    const liviaWeek = [[], [[10, 19]], [[10, 19]], [[10, 19]], [[10, 19]], [[10, 19]], []];
+    const ppl = [
+      { id: 'paula', name: 'Paula', color: '#2563A8', tint: '#E3EDF7' },
+      { id: 'tiago', name: 'Tiago', color: '#C2410C', tint: '#FBEDE3' },
+      { id: 'livia', name: 'Lívia', color: '#2F7D4F', tint: '#E6F2EA' }
+    ];
+    const names = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+    const shortNames = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    const { shown, sel, panel, whoOpen, who, closedDays, copyTo } = this.state;
+    const panelOpen = panel === 'dia' || panel === 'folga';
+
+    const days = names.map((name, i) => {
+      const holiday = i === 0;
+      const closed = closedDays.includes(i) && i !== 0;
+      const segs = (holiday || closed) ? [] : clinicWeek[i].map(([a, b]) => ({ ...pos(h(a), h(b)), label: fmt(a, b) }));
+      const lanes = ppl.filter((p) => shown.includes(p.id)).map((p) => {
+        const wk = p.id === 'livia' ? liviaWeek[i] : clinicWeek[i];
+        let s = (holiday || closed) ? [] : wk.map(([a, b]) => ({ ...pos(h(a), h(b)), bg: p.color }));
+        if (p.id === 'tiago' && i === 4) {
+          s = [
+            { ...pos(h(8), h(13)), bg: p.color },
+            { ...pos(h(13), h(17)), bg: 'repeating-linear-gradient(135deg, #C2410C 0 3px, #FBEDE3 3px 6px)' }
+          ];
+        }
+        return { segs: s };
+      });
+      const on = panel === 'dia' && sel === i;
+      return {
+        name, date: (2 + i) + '/11', closed: holiday, segs, lanes,
+        pressed: on ? 'true' : 'false',
+        aria: 'Editar ' + name,
+        rowBg: on ? '#E7F1F1' : 'transparent',
+        bar: on ? 'inset 4px 0 0 #0E5A5C' : 'none',
+        select: () => this.setState({ sel: i, panel: 'dia', whoOpen: false })
+      };
+    });
+
+    const people = ppl.map((p) => {
+      const on = shown.includes(p.id);
+      return {
+        ...p, pressed: on ? 'true' : 'false',
+        border: on ? '2px solid ' + p.color : '1px solid #7A8584',
+        bg: on ? p.tint : '#FFFFFF',
+        toggle: () => this.setState({ shown: on ? shown.filter((x) => x !== p.id) : [...shown, p.id] })
+      };
+    });
+    const ticks = [7, 9, 11, 13, 15, 17, 19].map((x) => ({ l: ((h(x) - R0) / R * 100).toFixed(2), label: String(x).padStart(2, '0') + 'h' }));
+    const offs = [
+      { who: 'Clínica inteira · Feriado', when: 'Seg, 2/11 · dia inteiro', color: '#B42318' },
+      { who: 'Tiago · Folga', when: 'Sex, 6/11 · 13:00–17:00', color: '#C2410C' },
+      { who: 'Lívia · Férias', when: '10/11 a 20/11 · 11 dias', color: '#2F7D4F' }
+    ].map((o) => ({ ...o, menu: 'Opções de ' + o.who }));
+
+    // editor do dia
+    const isClosed = sel === 0 ? false : closedDays.includes(sel);
+    const wins = isClosed ? [] : clinicWeek[sel].map(([a, b], k) => ({
+      start: hh(h(a)), end: hh(h(b)),
+      aStart: 'Faixa ' + (k + 1) + ', começa', aEnd: 'Faixa ' + (k + 1) + ', termina', aRemove: 'Remover faixa ' + (k + 1)
+    }));
+    const whoList = isClosed ? [] : [
+      { color: '#2563A8', text: 'Paula · igual à clínica' },
+      { color: '#C2410C', text: 'Tiago · igual à clínica' },
+      { color: '#2F7D4F', text: liviaWeek[sel].length ? 'Lívia · ' + fmt(liviaWeek[sel][0][0], liviaWeek[sel][0][1]) + ' (horário próprio)' : 'Lívia · não atende' }
+    ];
+    const selObj = {
+      closed: isClosed,
+      note: sel === 0 ? 'Clínica fechada em 2/11 (Feriado). O horário abaixo é o da semana.' : '',
+      wins, who: whoList,
+      openAttr: isClosed ? 'false' : 'true',
+      track: isClosed ? '#7A8584' : '#0E5A5C',
+      knob: isClosed ? 3 : 23
+    };
+    const chips = shortNames.map((short, i) => {
+      const self = i === sel, on = copyTo.includes(i);
+      return {
+        short, full: names[i] + (self ? ' (este dia)' : ''),
+        on: self || on ? 'true' : 'false', disabled: self,
+        border: self || on ? '2px solid #0E5A5C' : '1px solid #7A8584',
+        bg: self || on ? '#E7F1F1' : '#FFFFFF', fg: self || on ? '#0A4547' : '#142625',
+        toggle: () => this.setState({ copyTo: on ? copyTo.filter((x) => x !== i) : [...copyTo, i] })
+      };
+    });
+    const nCopy = copyTo.filter((x) => x !== sel).length;
+    const applyLabel = nCopy === 0 ? 'Aplicar a este dia' : 'Aplicar a ' + (nCopy + 1) + ' dias';
+
+    // folga
+    const whoDef = [
+      { id: 'clinic', label: 'Clínica inteira', hint: 'Ninguém agenda; desmarca as pessoas', dot: '#B42318', tint: '#FDF1F0', n: 3 },
+      { id: 'paula', label: 'Paula', hint: 'Segue o horário da clínica', dot: '#2563A8', tint: '#E3EDF7', n: 0 },
+      { id: 'tiago', label: 'Tiago', hint: 'Segue o horário da clínica', dot: '#C2410C', tint: '#FBEDE3', n: 1 },
+      { id: 'livia', label: 'Lívia', hint: 'Horário próprio', dot: '#2F7D4F', tint: '#E6F2EA', n: 2 }
+    ];
+    const pick = (id) => {
+      let next;
+      if (id === 'clinic') next = who.includes('clinic') ? [] : ['clinic'];
+      else {
+        const base = who.filter((x) => x !== 'clinic');
+        next = base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
+      }
+      this.setState({ who: next });
+    };
+    const opts = whoDef.map((o, i) => {
+      const on = who.includes(o.id);
+      return {
+        ...o, checked: on, on: on ? 'true' : 'false',
+        border: i === 0 ? '0' : (i === 1 ? '1px solid #CBD0CF' : '1px solid #EEEDE7'),
+        bg: on ? '#E7F1F1' : '#FFFFFF',
+        box: on ? '2px solid #0E5A5C' : '2px solid #7A8584',
+        boxBg: on ? '#0E5A5C' : '#FFFFFF',
+        toggle: () => pick(o.id)
+      };
+    });
+    const chosen = whoDef.filter((o) => who.includes(o.id));
+    const total = chosen.reduce((t, o) => t + o.n, 0);
+    const parts = chosen.filter((o) => o.n > 0).map((o) => o.label + ' (' + o.n + ')');
+    const nPeople = chosen.length;
+    const saveLabel = nPeople === 0 ? 'Escolha quem fica fora' : (who.includes('clinic') ? 'Salvar para a clínica inteira' : 'Salvar para ' + nPeople + (nPeople === 1 ? ' pessoa' : ' pessoas'));
+
+    return {
+      dirty: this.props.dirty ?? true,
+      days, people, ticks, offs, sel: selObj, chips, applyLabel,
+      selName: names[sel] + ', ' + (2 + sel) + '/11',
+      isDia: panel === 'dia', isFolga: panel === 'folga',
+      toggleDay: () => this.setState({ closedDays: closedDays.includes(sel) ? closedDays.filter((x) => x !== sel) : [...closedDays, sel] }),
+      openFolga: () => this.setState({ panel: 'folga', whoOpen: false }),
+      closePanel: () => this.setState({ panel: null, whoOpen: false }),
+      toggleList: () => this.setState({ whoOpen: !whoOpen }),
+      whoOpen, whoOpenAttr: whoOpen ? 'true' : 'false',
+      whoChips: chosen, noWho: nPeople === 0, opts,
+      fieldBorder: whoOpen ? '2px solid #0E5A5C' : '1px solid #7A8584',
+      countText: nPeople === 1 ? '1 selecionada' : nPeople + ' selecionadas',
+      hasWarn: total > 0,
+      warnTitle: total + (total === 1 ? ' horário marcado' : ' horários marcados') + ' nesses dias',
+      warnText: parts.join(' e ') + '.',
+      saveLabel, saveBg: nPeople === 0 ? '#7A8584' : '#0E5A5C'
+    };
+  }
+}
+</script>
+</body>
+</html>

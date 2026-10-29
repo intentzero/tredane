@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ClinicConfigSnapshot, ClinicService, PanelApi } from '../../api'
 import { PanelApiError } from '../../api'
-import { ServiceForm } from './ServicesScreen'
+import { ServiceForm, ServicesList } from './ServicesScreen'
 
 afterEach(cleanup)
 
@@ -82,5 +82,32 @@ describe('ServiceForm — apagar serviço', () => {
     const dialog = await screen.findByRole('alertdialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Apagar permanentemente' }))
     await within(dialog).findByText(/já teve marcações/)
+  })
+})
+
+describe('ServicesList — esqueleto comum e avisos', () => {
+  const snap = {
+    settings: { tenantId: 't', timezone: 'America/Sao_Paulo', updatedAt: 0 },
+    resources: [
+      { id: 'p1', kind: 'professional', name: 'Gi', category: null, active: true, futureAppointmentCount: 0, createdAt: 0, updatedAt: 0 },
+    ],
+    services: [
+      svc({ id: 'a', name: 'Com profissional', professionalIds: ['p1'], bufferMinutes: 15, occupiedMinutes: 75 }),
+      svc({ id: 'b', name: 'Sem ninguém', professionalIds: [] }),
+      svc({ id: 'c', name: 'Antigo', active: false, professionalIds: ['p1'] }),
+    ],
+    weeklyWindows: [],
+    blocks: [],
+  } as unknown as ClinicConfigSnapshot
+
+  it('mostra frase de ocupação, aviso só na exceção e esconde inativos até ligar a chave', () => {
+    render(<ServicesList tenantId="t" snap={snap} />)
+    expect(screen.getByText('Ocupa 75 min (60 + 15 de intervalo)')).toBeTruthy()
+    expect(screen.getAllByText('Sem profissional')).toHaveLength(1)
+    expect(screen.getByText('2 serviços ativos')).toBeTruthy()
+    expect(screen.queryByText('Antigo')).toBeNull()
+    fireEvent.click(screen.getByRole('switch', { name: 'Mostrar inativos (1)' }))
+    expect(screen.getByText('Antigo')).toBeTruthy()
+    expect(screen.getByText('Inativo')).toBeTruthy()
   })
 })

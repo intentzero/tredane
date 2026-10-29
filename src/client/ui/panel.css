@@ -1209,7 +1209,7 @@
 
 .clinic-field-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-3);
 }
 
@@ -4589,9 +4589,6 @@
   white-space: nowrap;
 }
 
-
-
-
 /* Cabeçalho único da conversa (DEC-062/064): etapa em selo só de leitura junto do nome. */
 .inbox-stage-chip {
   padding: 1px var(--space-2);
@@ -4738,7 +4735,6 @@
   border-color: var(--color-danger-border);
   color: var(--color-danger-ink);
 }
-
 
 /* Com o atalho do resumo, o subtítulo não pode passar por baixo dos botões. */
 .inbox-thread-person .inbox-thread-who {
@@ -5710,6 +5706,7 @@
 
 .block-form-date {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -5719,6 +5716,9 @@
 }
 
 .block-form-date input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   height: var(--size-control-md);
   padding: 0 var(--space-3);
   border: var(--size-border-width) solid var(--color-line-control);
@@ -5857,82 +5857,6 @@
 }
 
 /* Horário integrado (TEL-09): semana desenhada, calendário e filtros. */
-.week-filters {
-  display: flex;
-  gap: var(--space-2);
-  overflow-x: auto;
-}
-
-.week-filters-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-pill);
-  margin-right: var(--space-2);
-}
-
-.week-bars {
-  border-radius: var(--radius-xl);
-  background: var(--color-surface-card);
-  padding: var(--space-3) var(--space-4) var(--space-4);
-}
-
-.week-bars-axis,
-.week-bars-row {
-  display: grid;
-  grid-template-columns: 36px 1fr;
-  gap: 0 var(--space-2);
-  align-items: center;
-}
-
-.week-bars-ticks {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
-
-.week-bars-row {
-  min-height: 44px;
-  border-top: var(--size-border-width) solid var(--color-surface-sunken);
-}
-
-.week-bars-day {
-  font-weight: var(--font-weight-semibold);
-}
-
-.week-bars-track {
-  position: relative;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-app);
-  overflow: hidden;
-}
-
-.week-bars-clinic {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: var(--color-primary-base);
-}
-
-.week-bars-clinic-soft {
-  background: var(--color-primary-tint);
-}
-
-.week-bars-person {
-  position: absolute;
-  opacity: 0.9;
-}
-
-.week-bars-closed {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
 
 .month-cal {
   border-radius: var(--radius-xl);
@@ -6062,151 +5986,10 @@
   font-weight: var(--font-weight-semibold);
 }
 
-/* Desktop da Clínica (≥ 1280 px): abas no topo e Horário em duas colunas. */
-.clinic-topnav {
-  display: none;
-}
-
-@media (min-width: 1280px) {
-  .clinic-topnav {
-    display: flex;
-    gap: var(--space-1);
-    border-bottom: var(--size-border-width) solid var(--color-line-border);
-    margin-bottom: var(--space-4);
-  }
-
-  .clinic-topnav-tab {
-    min-height: 48px;
-    padding: 0 var(--space-4);
-    border: 0;
-    border-bottom: 3px solid transparent;
-    background: none;
-    font: inherit;
-    color: var(--color-text-secondary);
-    cursor: pointer;
-  }
-
-  .clinic-topnav-tab[aria-selected='true'] {
-    border-bottom-color: var(--color-primary-base);
-    color: var(--color-primary-ink);
-    font-weight: var(--font-weight-semibold);
-  }
-}
-
+/* Desktop da Clínica (≥ 1280 px): Horário em duas colunas; navegação na coluna de contexto. */
 @media (min-width: 1280px) {
   .clinic-desktop-hide {
     display: none;
-  }
-}
-
-@container (min-width: 900px) {
-  .hours-split {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
-    gap: var(--space-6, 24px);
-    align-items: start;
-  }
-
-  .hours-main,
-  .hours-side {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-  }
-
-  .week-bars-row {
-    min-height: 56px;
-  }
-
-  .week-bars-track {
-    height: 40px;
-  }
-}
-
-.week-bars-day-btn {
-  border: 0;
-  background: none;
-  font: inherit;
-  text-align: left;
-  min-height: 44px;
-  padding: 0;
-  cursor: pointer;
-}
-
-.week-bars-row[data-selected='true'] .week-bars-day {
-  color: var(--color-primary-ink);
-  text-decoration: underline;
-}
-
-.week-bars-off {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border: 2px solid;
-  border-radius: var(--radius-sm);
-  background: repeating-linear-gradient(135deg, rgba(180, 35, 24, 0.18) 0 4px, transparent 4px 8px);
-  pointer-events: none;
-}
-
-.week-bars-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 14px;
-  margin-left: -7px;
-  cursor: ew-resize;
-  touch-action: none;
-  z-index: 2;
-}
-
-.week-bars-handle::after {
-  content: '';
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 5px;
-  width: 4px;
-  border-radius: var(--radius-pill);
-  background: var(--color-text-primary);
-  opacity: 0.45;
-}
-
-.week-bars-handle:focus-visible {
-  outline: 2px solid var(--color-primary-base);
-}
-
-.week-bars-track {
-  overflow: visible;
-}
-
-.hours-day {
-  display: none;
-}
-
-@container (min-width: 900px) {
-  .hours-day {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    padding: var(--space-4);
-    border-radius: var(--radius-lg);
-    background: var(--color-surface-card);
-  }
-
-  .hours-main {
-    display: grid;
-    grid-template-columns: 200px minmax(0, 1fr);
-    gap: var(--space-4);
-    align-items: start;
-  }
-
-  .hours-main > .clinic-footnote {
-    grid-column: 2;
-  }
-
-  .hours-main .week-filters {
-    flex-direction: column;
-    grid-row: span 2;
   }
 }
 
@@ -6217,6 +6000,89 @@
 .hours-screen {
   container-type: inline-size;
 }
+
+/* Cabeçalho comum das listas da Clínica (#226): contagem, chave e ação principal. */
+.clinic-list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.clinic-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-4);
+  min-width: 0;
+}
+
+.clinic-list-count {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.clinic-list-add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch);
+  width: auto;
+}
+
+.clinic-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.clinic-switch-track {
+  flex: none;
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  background: var(--color-line-control);
+  transition: background 0.15s;
+}
+
+.clinic-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  transition: transform 0.15s;
+}
+
+.clinic-switch[data-selected] .clinic-switch-track {
+  background: var(--color-primary-base);
+}
+
+.clinic-switch[data-selected] .clinic-switch-thumb {
+  transform: translateX(18px);
+}
+
+.clinic-switch[data-focus-visible] .clinic-switch-track {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clinic-switch-track,
+  .clinic-switch-thumb {
+    transition: none;
+  }
+}
+
 
 /* ——— Moldura única do desktop (≥ 1280 px): menu 84 · contexto 360 · trabalho ———
  * As quatro áreas usam a mesma grelha. O menu lateral é fixo e o cabeçalho do shell vira
@@ -6284,7 +6150,7 @@
   }
 
   /* Configuração em coluna de leitura, sem esticar a 1200 px. */
-  .panel-app[data-area='clinica'] .panel-shell-main > * {
+  .panel-app[data-area='clinica'] .panel-shell-main > *:not(.clinic-wide) {
     max-width: 760px;
   }
 
@@ -6294,7 +6160,7 @@
   }
 
   .conversas-3col {
-    grid-template-columns: minmax(300px, 360px) minmax(var(--conversas-thread-min), 1fr);
+    grid-template-columns: clamp(360px, 30vw, 520px) minmax(var(--conversas-thread-min), 1fr);
   }
 
   .conversas-list-head {
@@ -6344,7 +6210,7 @@
  * leitura desliza para a esquerda para não ficar tapada. Sem «reduzir movimento», sem animação. */
 .conversas-3col,
 .conversas-3col:not(.conversas-3col--drawer) {
-  grid-template-columns: minmax(280px, 360px) minmax(var(--conversas-thread-min), 1fr);
+  grid-template-columns: clamp(360px, 30vw, 520px) minmax(var(--conversas-thread-min), 1fr);
 }
 
 .conversas-3col-thread {
@@ -6396,11 +6262,62 @@
   color: var(--color-text-on-primary);
 }
 
+/* DEC-074: o Agendar entra da direita no lugar do contato (420 px), com a conversa ao lado. */
+.conversas-3col[data-agendar='open'] .conversas-3col-thread {
+  padding-right: 420px;
+}
+
+.conversas-3col > .conversas-3col-agendar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 420px;
+  max-width: 100%;
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border-left: var(--size-border-width) solid var(--color-line-border);
+  box-shadow: -16px 0 40px rgb(20 38 37 / 16%);
+  background: var(--color-surface-app);
+  outline: none;
+  animation: conversas-agendar-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.conversas-3col-agendar > .agd {
+  flex: 1;
+  min-height: 0;
+}
+
+@keyframes conversas-agendar-in {
+  from {
+    transform: translateX(104%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .conversas-3col-thread,
   .conversas-3col > .conversas-3col-contact {
     transition: none;
   }
+  .conversas-3col > .conversas-3col-agendar {
+    animation: none;
+  }
+}
+
+
+/* Linha de lista: título, detalhes em frases e selo só quando há exceção. */
+.clinic-row-detail {
+  display: block;
+}
+
+.clinic-row-warn {
+  color: var(--color-warning-ink);
+  font-weight: var(--font-weight-medium);
 }
 
 /* ——— Acompanhar no desktop largo: quadro em largura total + contato por cima ——— */
@@ -6420,6 +6337,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
+  transition: padding-right 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .acomp-wide-bar .panel-subtitle {
@@ -6460,8 +6378,9 @@
   transition: padding-right 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.acomp-wide[data-panel='open'] .acomp-wide-board {
-  padding-right: 380px;
+.acomp-wide[data-panel='open'] .acomp-wide-board,
+.acomp-wide[data-panel='open'] .acomp-wide-bar {
+  padding-right: calc(380px + var(--space-3));
 }
 
 .acomp-col {
@@ -6577,7 +6496,9 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.acomp-panel {
+.acomp-panel,
+.agenda-panel,
+.clinic-panel {
   position: absolute;
   top: 0;
   right: 0;
@@ -6585,8 +6506,12 @@
   width: 380px;
   max-width: 100%;
   z-index: 20;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   box-sizing: border-box;
+  padding: var(--space-4);
   background: var(--color-surface-card);
   border-left: var(--size-border-width) solid var(--color-line-border);
   box-shadow: -16px 0 40px rgb(20 38 37 / 16%);
@@ -6604,11 +6529,961 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .acomp-panel {
+  .acomp-panel,
+  .agenda-panel,
+  .clinic-panel {
     animation: none;
   }
 
-  .acomp-wide-board {
+  .acomp-wide-board,
+  .acomp-wide-bar {
     transition: none;
   }
+}
+
+/* O quadro do Acompanhar (desktop) ocupa toda a altura da área: o painel do contato
+ * (posição absoluta) e as colunas esticam até ao fundo em vez de ficarem cortados. */
+.panel-shell-main:has(> .acomp-wide) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── Horário da clínica (#223/#224): resumo, dias, barra de salvar e folhas ── */
+.hours-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+}
+
+.hours-status {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.hours-status[data-open='true'] {
+  background: var(--color-success-tint);
+  color: var(--color-success-ink);
+}
+
+.hours-summary-week {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-default);
+}
+
+.hours-summary-closure {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-tint);
+  color: var(--color-danger-ink);
+  font-size: var(--font-size-small);
+}
+
+.hours-days .hours-day-btn {
+  min-height: var(--size-row-min);
+}
+
+.hours-day-name {
+  flex: none;
+  width: 40px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.hours-day-text {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hours-day-text[data-closed='true'] {
+  color: var(--color-text-muted);
+}
+
+.hours-changed {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+}
+
+.hours-daybar {
+  position: relative;
+  display: block;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
+}
+
+.hours-daybar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+  background: var(--color-primary-base);
+}
+
+.hours-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.hours-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hours-month-toggle {
+  align-self: flex-start;
+}
+
+.hours-followers {
+  margin: 0;
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-default);
+}
+
+.hours-savebar {
+  position: sticky;
+  bottom: var(--space-2);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  box-shadow: 0 -6px 16px rgba(20, 38, 37, 0.08);
+}
+
+.hours-savebar p {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.hours-savebar strong {
+  color: var(--color-warning-ink);
+}
+
+/* Desktop: aviso e botões numa linha só, para não cobrir a semana (#251). */
+@media (min-width: 1280px) {
+  .hours-savebar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .hours-savebar .clinic-footer-actions {
+    flex: none;
+    flex-direction: row;
+    width: auto;
+  }
+
+  .hours-savebar .panel-btn {
+    width: auto;
+    min-width: 120px;
+  }
+}
+
+.clinic-sheet {
+  max-height: 88dvh;
+}
+
+.clinic-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.clinic-sheet-title {
+  margin: var(--space-1) 0;
+}
+
+.clinic-sheet-title:focus {
+  outline: none;
+}
+
+.clinic-sheet-x {
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-secondary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.clinic-sheet-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.clinic-sheet-body .block-form {
+  padding: 0;
+}
+
+.day-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.day-editor-open {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-touch);
+}
+
+.day-editor-open-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.day-editor-open-text span {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.day-editor-windows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.day-editor-gap {
+  margin: 0 0 var(--space-2);
+  text-align: center;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.day-editor-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.day-editor-day {
+  min-height: var(--size-touch);
+  padding: 0;
+}
+
+.day-editor-day:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+/* PanelMultiSelect */
+.panel-multi-trigger {
+  min-height: var(--size-control-lg);
+  height: auto;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.panel-multi-chips {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  text-align: left;
+}
+
+.panel-multi-chips[data-placeholder] {
+  color: var(--color-text-muted);
+}
+
+.panel-multi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.panel-multi-dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.panel-multi-dot-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--color-text-on-primary);
+  font-size: var(--font-size-caption);
+  font-style: normal;
+  font-weight: var(--font-weight-semibold);
+}
+
+.panel-multi-box {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--color-line-control);
+  border-radius: 6px;
+  background: var(--color-surface-card);
+  color: var(--color-text-on-primary);
+}
+
+.panel-choice-item[data-selected] .panel-multi-box {
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-base);
+}
+
+.panel-choice-item:has(.panel-multi-box) {
+  justify-content: flex-start;
+  gap: var(--space-3);
+}
+
+.panel-multi-foot span {
+  white-space: nowrap;
+}
+
+.panel-multi-foot .panel-btn {
+  width: auto;
+  flex: none;
+  min-width: 140px;
+}
+
+.panel-multi-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+/* Semana navegável do desktop (#224): uma linha por dia, clínica ao fundo, pessoas em faixas. */
+.week-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.week-grid-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.week-grid-range {
+  font-size: var(--font-size-body);
+}
+
+.week-grid-show {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.week-grid-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.week-grid-chip[aria-pressed='true'] {
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+}
+
+.week-grid-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  color: var(--color-text-on-primary);
+  font-size: var(--font-size-caption);
+  font-style: normal;
+}
+
+.week-grid-dot:not(:empty) {
+  width: 24px;
+  height: 24px;
+}
+
+.week-grid-ticks {
+  position: relative;
+  height: 16px;
+  margin-left: 112px;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.week-grid-ticks span {
+  position: absolute;
+  top: 0;
+}
+
+.week-grid-days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  border: var(--size-border-width) solid var(--color-line-border);
+  overflow: hidden;
+}
+
+.week-grid-day {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+  min-height: 52px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+}
+
+.week-grid-days li:first-child .week-grid-day {
+  border-top: 0;
+}
+
+.week-grid-day[data-selected] {
+  background: var(--color-primary-tint);
+  box-shadow: inset 4px 0 0 var(--color-primary-base);
+}
+
+.week-grid-day[data-today] .week-grid-name strong::after {
+  content: ' · hoje';
+  font-weight: var(--font-weight-regular);
+  color: var(--color-primary-ink);
+}
+
+.week-grid-name {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-size-small);
+}
+
+.week-grid-name span {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.week-grid-track {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 28px;
+  min-height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-app);
+}
+
+.week-grid-track > i,
+.week-grid-lane > i {
+  position: absolute;
+  top: 0;
+}
+
+.week-grid-lane > i {
+  bottom: 0;
+}
+
+.week-grid-clinic {
+  display: flex;
+  align-items: center;
+  padding-left: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+  font-size: var(--font-size-caption);
+  font-style: normal;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  height: 24px;
+}
+
+.week-grid-lane {
+  position: relative;
+  height: 4px;
+  margin: 0 0 0;
+}
+
+.week-grid-lane > i {
+  border-radius: 2px;
+}
+
+.week-grid-hatch {
+  background: repeating-linear-gradient(135deg, currentColor 0 3px, transparent 3px 6px);
+  border-radius: 2px;
+}
+
+.week-grid-track > .week-grid-closed {
+  height: 24px;
+  color: var(--color-danger-ink);
+  background:
+    repeating-linear-gradient(135deg, var(--color-danger-ink) 0 3px, transparent 3px 6px),
+    var(--color-danger-tint);
+}
+
+.week-grid-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.week-grid-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.week-grid-key {
+  display: inline-block;
+  width: 16px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--color-primary-base);
+}
+
+.week-grid-key.week-grid-hatch {
+  color: var(--color-text-muted);
+  background: repeating-linear-gradient(135deg, currentColor 0 3px, transparent 3px 6px);
+}
+
+.week-grid-key.week-grid-closed {
+  color: var(--color-danger-ink);
+}
+
+/* Desktop (≥ 1280 px): editor do dia e folga viram o painel que desliza por cima (#212),
+ * sem encolher a área de trabalho. No celular continuam folhas de baixo. */
+@media (min-width: 1280px) {
+  .panel-choice-overlay:has(.clinic-sheet) {
+    background: rgb(0 0 0 / 12%);
+  }
+
+  .clinic-sheet.panel-choice-sheet {
+    left: auto;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 380px;
+    max-height: none;
+    border-radius: 0;
+    border-left: var(--size-border-width) solid var(--color-line-border);
+    box-shadow: -8px 0 24px rgb(0 0 0 / 12%);
+    animation: clinic-panel-in 160ms ease-out;
+  }
+
+  .clinic-sheet .panel-sheet-handle {
+    display: none;
+  }
+
+  @keyframes clinic-panel-in {
+    from {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .clinic-sheet.panel-choice-sheet {
+      animation: none;
+    }
+  }
+}
+
+/* ——— Agenda no desktop (≥ 1280 px, DEC-068): coluna de contexto + grade ———
+ * A coluna (360 px) leva o botão Agendar, o mês pequeno, os filtros e a lista do dia; a grade
+ * ocupa o resto. Abaixo de 1280 px a Agenda continua como antes. */
+.agenda-month {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.agenda-month-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.agenda-month-title {
+  display: block;
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.agenda-month-title::first-letter {
+  text-transform: uppercase;
+}
+
+.agenda-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  text-align: center;
+}
+
+.agenda-month-dow {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.agenda-month-day {
+  min-height: 36px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.agenda-month-day:hover {
+  background: var(--color-primary-tint);
+}
+
+.agenda-month-day[aria-current='date'] {
+  font-weight: var(--font-weight-semibold);
+  box-shadow: inset 0 0 0 var(--size-border-width) var(--color-primary-base);
+}
+
+.agenda-month-day[aria-pressed='true'] {
+  background: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.agenda-month-day:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-ink);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.agenda-context-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.agenda-context-initials {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-ink);
+}
+
+.agenda-context-clear {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-primary-ink);
+  font: inherit;
+  font-size: var(--font-size-small);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (min-width: 1280px) {
+  .panel-shell-main:has(> .agenda-wide) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .agenda-wide {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .agenda-wide > .agenda-day {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .agenda-wide .agenda-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .agenda-context {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-4);
+    box-sizing: border-box;
+    background: var(--color-surface-card);
+    border-right: var(--size-border-width) solid var(--color-line-border);
+  }
+
+  .agenda-context-add {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .agenda-context-block,
+  .agenda-context-day {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  /* A lista do dia reaproveita a lista do celular sem o espaço reservado ao botão flutuante. */
+  .agenda-context .agenda-list {
+    padding-bottom: 0;
+  }
+}
+
+/* ——— Clínica no desktop (≥ 1280 px, #211/#226): coluna de contexto + área de trabalho ———
+ * A coluna (360 px) agrupa as áreas; o conteúdo fica em até 720 px. Abaixo de 1280 px a
+ * Clínica continua com a navegação do hub e as abas do celular. */
+.clinic-context-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.clinic-context-title {
+  margin: 0;
+  padding: var(--space-5) var(--space-5) var(--space-1);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.clinic-context-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.clinic-context-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-5);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clinic-context-item:hover {
+  background: var(--color-surface-sunken);
+}
+
+.clinic-context-item[aria-current='page'] {
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.clinic-context-item[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--color-primary-base);
+}
+
+.clinic-context-item:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-ink);
+  outline-offset: calc(var(--size-focus-ring-offset) * -1);
+}
+
+.clinic-context-pending {
+  margin-left: auto;
+  padding: 2px var(--space-2);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (max-width: 1279px) {
+  .clinic-context {
+    display: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .panel-shell-main:has(> .clinic-wide) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .clinic-wide {
+    position: relative;
+    flex: 1;
+    align-self: stretch;
+    width: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+
+  .clinic-context {
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: var(--space-4);
+    background: var(--color-surface-card);
+    border-right: var(--size-border-width) solid var(--color-line-border);
+  }
+
+  .clinic-work {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-6) var(--space-8);
+  }
+
+  .clinic-work > * {
+    max-width: 720px;
+  }
+}
+
+/* Painel de edição da Clínica (desktop): cabeçalho fixo, corpo com rolagem própria. */
+.clinic-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+}
+
+.clinic-panel-head .panel-title {
+  margin: 0;
+}
+
+.clinic-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.clinic-panel-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+}
+
+.clinic-panel-confirm p {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Filtro «Profissional» do quadro: aviso de que só aparecem cartões com compromisso. */
+.acomp-wide-note {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.acomp-wide-note button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-primary-ink);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }

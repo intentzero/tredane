@@ -1,6 +1,6 @@
 # Design do painel — mocks e guia de implementação
 
-**Estado:** design system v0.3.0 **Confirmado** pelo responsável pelo produto ([DEC-041](../product/decisions.md), cor de marca em [DEC-050](../product/decisions.md)); biblioteca-base **Confirmada** — React Aria Components ([DEC-048](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
+**Estado:** design system v0.3.1 **Confirmado** pelo responsável pelo produto ([DEC-041](../product/decisions.md), cor de marca em [DEC-050](../product/decisions.md), fonte Roboto em [DEC-073](../product/decisions.md)); biblioteca-base **Confirmada** — React Aria Components ([DEC-048](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
 
 ## Ordem de autoridade
 
@@ -69,7 +69,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 | M-09 Entrar | É um mock do comportamento | A tela real é o componente do Clerk com a identidade do Tredane |
 | M-01 a M-14 | Mostram a barra de 3 abas (visão do Atendente) | O Responsável vê 4 abas, com **Clínica** (M-15) |
 | M-20 | Aba “Salas · 3” abrevia “Salas e equipamentos” | Manter o título completo no cabeçalho e na descrição da aba; o rótulo curto cabe em 360px |
-| Fonte | Os previews usam a fonte do sistema porque Inter não é carregada | Usar Inter (400/500/600), hospedada pelo Tredane ([ADR-0013](../adr/0013-design-system-components.md)); conferir as quebras de linha com ela, porque a largura do texto muda com a fonte e linhas que cabem nos previews podem quebrar |
+| Fonte | Os mocks pedem Inter e os previews usam a fonte do sistema | Usar **Roboto** (400/500/600), hospedada pelo Tredane ([DEC-073](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); conferir as quebras de linha com ela, porque a largura do texto muda com a fonte e linhas que cabem nos previews podem quebrar |
 | M-01 / M-02 (PR-7) | Lista contínua no lugar de cartões; Assumir em faixa, Agendar em ícone e Encerrar no menu ⋮ com confirmação; um só cabeçalho na conversa | **Proposto**; vale até o responsável do produto revisar. Registrado em [components.md](components.md) |
 | Hora e data | Fixas (sexta, 30 de outubro) | Sempre no fuso da clínica (DEC-008), nunca em UTC |
 

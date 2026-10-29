@@ -7,6 +7,7 @@ import type { ConversasSection } from '../../routes'
 import { InboxContactScreen } from './InboxContact'
 import { InboxList } from './InboxList'
 import { InboxThread } from './InboxThread'
+import { AgendarScreen } from '../agenda/AgendarScreen'
 import { ShellIdentity, useOnline } from '../../shell/ShellIdentity'
 import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
 import { friendlyError } from '../../copy/errors'
@@ -214,12 +215,45 @@ export function ConversasThreeCol({
   const roomy = useMediaQuery(CONTACT_INLINE_QUERY)
   const [pref, setPref] = useState<'open' | 'closed' | null>(readPanelPref)
   const hasThread = Boolean(conversationId)
-  const panelOpen = hasThread && (pref ? pref === 'open' : roomy)
+  // DEC-074: o Agendar ocupa o lugar do contato; ao fechar, o contato volta ao que a pessoa lembrou.
+  const [agendarOpen, setAgendarOpen] = useState(false)
+  const panelOpen = hasThread && !agendarOpen && (pref ? pref === 'open' : roomy)
   // O conteúdo só é buscado na primeira abertura; depois fica montado (escondido).
   const [everOpened, setEverOpened] = useState(false)
   const asideRef = useRef<HTMLElement | null>(null)
+  const agendarRef = useRef<HTMLElement | null>(null)
   const returnFocus = useRef<HTMLElement | null>(null)
+  const agendarReturnFocus = useRef<HTMLElement | null>(null)
   const userToggled = useRef(false)
+
+  // Trocar de conversa fecha o Agendar: o painel nunca marca para a pessoa errada.
+  useEffect(() => {
+    setAgendarOpen(false)
+  }, [conversationId])
+
+  const toggleAgendar = () => {
+    if (agendarOpen) {
+      setAgendarOpen(false)
+    } else {
+      agendarReturnFocus.current = document.activeElement as HTMLElement | null
+      setAgendarOpen(true)
+    }
+  }
+
+  useEffect(() => {
+    if (agendarOpen) agendarRef.current?.focus({ preventScroll: true })
+    else agendarReturnFocus.current?.focus?.({ preventScroll: true })
+  }, [agendarOpen])
+
+  useEffect(() => {
+    if (!agendarOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      // Esc dentro da folha de revisão fecha só a folha.
+      if (e.key === 'Escape' && !document.querySelector('[role="dialog"]')) setAgendarOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [agendarOpen])
 
   useEffect(() => {
     if (panelOpen) setEverOpened(true)
@@ -255,6 +289,7 @@ export function ConversasThreeCol({
     <div
       className={`conversas-3col${hasThread ? '' : ' conversas-3col--empty'}`}
       data-contact={!hasThread ? 'none' : panelOpen ? 'open' : 'closed'}
+      data-agendar={agendarOpen ? 'open' : undefined}
     >
       <div className="conversas-3col-list">
         <ConversasListHead />
@@ -278,7 +313,19 @@ export function ConversasThreeCol({
             contactPanel={{
               open: panelOpen,
               controlsId: 'conversas-contact-panel',
-              onToggle: () => setOpen(!panelOpen),
+              onToggle: () => {
+                if (agendarOpen) {
+                  setAgendarOpen(false)
+                  setOpen(true)
+                } else {
+                  setOpen(!panelOpen)
+                }
+              },
+            }}
+            agendarPanel={{
+              open: agendarOpen,
+              controlsId: 'conversas-agendar-panel',
+              onToggle: toggleAgendar,
             }}
           />
         ) : null}
@@ -312,7 +359,78 @@ export function ConversasThreeCol({
           />
         </aside>
       ) : null}
+      {hasThread && conversationId && agendarOpen ? (
+        <ConversasAgendarPanel
+          asideRef={agendarRef}
+          tenantId={tenantId}
+          conversationId={conversationId}
+          api={api}
+          generation={generation}
+          onClose={() => setAgendarOpen(false)}
+        />
+      ) : null}
     </div>
+  )
+}
+
+/** DEC-074: o contato da conversa vem da própria conversa; o Agendar não lê a URL. */
+function ConversasAgendarPanel({
+  asideRef,
+  tenantId,
+  conversationId,
+  api,
+  generation,
+  onClose,
+}: {
+  asideRef: React.MutableRefObject<HTMLElement | null>
+  tenantId: string
+  conversationId: string
+  api: NonNullable<ReturnType<typeof useAuthSession>['api']>
+  generation: number
+  onClose: () => void
+}) {
+  const [contactId, setContactId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .getInboxConversation(tenantId, conversationId, { messageLimit: 1 }, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      .then((d) => {
+        if (!cancelled) setContactId(d.contactId)
+      })
+      .catch((err) => {
+        if (!cancelled) setError(friendlyError(err, 'Não deu para abrir o Agendar agora. Tente de novo.'))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api, tenantId, conversationId, generation])
+
+  return (
+    <aside
+      id="conversas-agendar-panel"
+      ref={asideRef}
+      tabIndex={-1}
+      className="conversas-3col-agendar"
+      aria-label="Agendar horário"
+    >
+      {error ? (
+        <ErrorState title="Agendar indisponível" description={error} actionLabel="Fechar" onAction={onClose} />
+      ) : !contactId ? (
+        <LoadingState label="Abrindo o Agendar…" />
+      ) : (
+        <AgendarScreen
+          tenantId={tenantId}
+          api={api}
+          generation={generation}
+          embedded={{ conversationId, contactId, onClose }}
+        />
+      )}
+    </aside>
   )
 }
 

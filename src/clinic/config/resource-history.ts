@@ -1,27 +1,38 @@
 import type { ClinicDb } from '../store'
 
-/** Teve algum compromisso, reserva ou cobrança (passado ou futuro)? */
+/** Colunas de cada tabela que apontam para um recurso (profissional, sala ou equipamento). */
+const CHECKS: Array<[string, string[]]> = [
+  ['appointments', ['professional_id', 'room_resource_id']],
+  ['appointment_allocations', ['resource_id']],
+  ['scheduling_intents', ['professional_id', 'room_resource_id']],
+  ['pix_charges', ['professional_id', 'room_resource_id']],
+  ['schedule_holds', ['professional_id']],
+]
+
+/**
+ * Teve algum compromisso, reserva ou cobrança (passado ou futuro)?
+ * Uma consulta por coluna com `LIMIT 1`, cada uma sobre um índice (migração 26): lê no
+ * máximo uma linha por consulta em vez de varrer a tabela da clínica.
+ */
 export function resourceHasHistory(db: ClinicDb, tenantId: string, resourceId: string): boolean {
-  const checks: Array<[string, string]> = [
-    ['appointments', 'professional_id = ? OR room_resource_id = ?'],
-    ['appointment_allocations', 'resource_id = ? OR resource_id = ?'],
-    ['scheduling_intents', 'professional_id = ? OR room_resource_id = ?'],
-    ['pix_charges', 'professional_id = ? OR room_resource_id = ?'],
-    ['schedule_holds', 'professional_id = ? OR professional_id = ?'],
-  ]
-  for (const [table, where] of checks) {
-    const exists = db.get<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = ?`,
-      table,
-    )
-    if (!exists?.n) continue
-    const row = db.get<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM ${table} WHERE tenant_id = ? AND (${where})`,
-      tenantId,
-      resourceId,
-      resourceId,
-    )
-    if ((row?.n ?? 0) > 0) return true
+  const present = new Set(
+    db
+      .all<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${CHECKS.map(() => '?').join(', ')})`,
+        ...CHECKS.map(([table]) => table),
+      )
+      .map((r) => r.name),
+  )
+  for (const [table, columns] of CHECKS) {
+    if (!present.has(table)) continue
+    for (const column of columns) {
+      const hit = db.get<{ one: number }>(
+        `SELECT 1 AS one FROM ${table} WHERE tenant_id = ? AND ${column} = ? LIMIT 1`,
+        tenantId,
+        resourceId,
+      )
+      if (hit) return true
+    }
   }
   return false
 }

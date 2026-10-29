@@ -2,6 +2,7 @@ import { useAuthSession } from '../../auth/AuthContext'
 import { useTenant } from '../../tenant/TenantContext'
 import type { AgendaSection } from '../../routes'
 import { EmptyState, LoadingState } from '../../states/StatusScreens'
+import { useMediaQuery } from '../../ui/useMediaQuery'
 import { AgendarScreen } from './AgendarScreen'
 import { AgendaDayWeek } from './AgendaDayWeek'
 import { CompromissoScreen } from './CompromissoScreen'
@@ -18,6 +19,7 @@ type Props = {
 export function AgendaArea({ tenantId, section, appointmentId }: Props) {
   const { api } = useAuthSession()
   const { active, generation } = useTenant()
+  const wide = useMediaQuery('(min-width: 1280px)')
 
   if (active.phase === 'switching') {
     return <LoadingState label="A mudar de clínica…" />
@@ -44,7 +46,8 @@ export function AgendaArea({ tenantId, section, appointmentId }: Props) {
     )
   }
 
-  if (section === 'compromisso' && appointmentId) {
+  // Desktop: o compromisso abre por cima da grade (DEC-069); abaixo disso, em tela cheia.
+  if (section === 'compromisso' && appointmentId && !wide) {
     return (
       <CompromissoScreen
         tenantId={tenantId}
@@ -61,6 +64,7 @@ export function AgendaArea({ tenantId, section, appointmentId }: Props) {
       api={api}
       generation={generation}
       view={section === 'semana' ? 'week' : 'day'}
+      openId={section === 'compromisso' ? appointmentId : undefined}
     />
   )
 }

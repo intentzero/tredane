@@ -2,12 +2,15 @@ import { useAuthSession } from '../../auth/AuthContext'
 import { useTenant } from '../../tenant/TenantContext'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
-import type { ClinicaSection } from '../../routes'
+import type { ReactNode } from 'react'
+import { navigatePanel, type ClinicaSection } from '../../routes'
 import { AiAssistCard } from './AiAssistCard'
 import { StagingResetCard } from './StagingResetCard'
 import { isStagingHostname } from './whatsapp/WhatsappDevSyncAction'
 import { ClinicHub } from './ClinicHub'
-import { ClinicTabs } from './ClinicTabs'
+import { ClinicContext } from './ClinicContext'
+import { ClinicPanel } from './ClinicPanel'
+import { useMediaQuery } from '../../ui/useMediaQuery'
 import { ResourceForm, ResourcesList } from './ResourcesScreen'
 import { ClinicHoursScreen } from './ClinicHoursScreen'
 import { ServiceForm, ServicesList } from './ServicesScreen'
@@ -26,6 +29,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   const { api } = useAuthSession()
   const { generation, active } = useTenant()
   const { snap, error, loading, reload } = useClinicConfig(api, tenantId, generation)
+  const wide = useMediaQuery('(min-width: 1280px)')
   const clinicName = active.phase === 'ready' ? active.context.name : tenantId
   const isOwner = active.phase === 'ready' && active.context.role === 'owner'
 
@@ -83,6 +87,20 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     return <ListSkeleton label="Carregando configuração da clínica…" rows={5} />
   }
 
+  // Desktop: a edição de serviço, profissional ou sala abre por cima da lista (DEC-069).
+  let panel: ReactNode = null
+  const overList = (title: string, to: ClinicaSection, form: ReactNode) => {
+    panel = (
+      <ClinicPanel
+        key={`${section}:${entityId ?? 'novo'}`}
+        title={title}
+        onClose={() => navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: to })}
+      >
+        {form}
+      </ClinicPanel>
+    )
+  }
+
   const body = (() => {
     switch (section) {
       case 'hub':
@@ -116,8 +134,8 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         )
       case 'servicos':
         return <ServicesList tenantId={tenantId} snap={snap} />
-      case 'servico':
-        return (
+      case 'servico': {
+        const form = (
           <ServiceForm
             tenantId={tenantId}
             entityId={entityId ?? 'novo'}
@@ -127,6 +145,10 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             onSaved={reload}
           />
         )
+        if (!wide) return form
+        overList('Serviço', 'servicos', form)
+        return <ServicesList tenantId={tenantId} snap={snap} />
+      }
       case 'recursos':
         return (
           <ResourcesList
@@ -136,8 +158,8 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             tab={entityId === 'salas' ? 'room' : 'professional'}
           />
         )
-      case 'profissional':
-        return (
+      case 'profissional': {
+        const form = (
           <ResourceForm
             tenantId={tenantId}
             kind="professional"
@@ -148,8 +170,12 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             onSaved={reload}
           />
         )
-      case 'sala':
-        return (
+        if (!wide) return form
+        overList('Profissional', 'recursos', form)
+        return <ResourcesList key="professional" tenantId={tenantId} snap={snap} tab="professional" />
+      }
+      case 'sala': {
+        const form = (
           <ResourceForm
             tenantId={tenantId}
             kind="room"
@@ -160,6 +186,10 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             onSaved={reload}
           />
         )
+        if (!wide) return form
+        overList('Sala', 'recursos', form)
+        return <ResourcesList key="room" tenantId={tenantId} snap={snap} tab="room" />
+      }
       case 'horarios':
         return (
           <ClinicHoursScreen
@@ -173,10 +203,12 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     }
   })()
 
+  if (!wide) return body
   return (
-    <>
-      <ClinicTabs tenantId={tenantId} section={section} entityId={entityId} />
-      {body}
-    </>
+    <div className="clinic-wide">
+      <ClinicContext tenantId={tenantId} section={section} entityId={entityId} snap={snap} />
+      <div className="clinic-work">{body}</div>
+      {panel}
+    </div>
   )
 }

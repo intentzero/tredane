@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
-import { ClinicCheck } from './ClinicCheck'
+import { ChevronRight } from 'lucide-react'
+import { Badge } from '../../states/Badge'
+import { ClinicListHeader } from './ClinicListHeader'
+import { professionalRow, roomRow } from './resourceRows'
 import { PanelSelect } from '../../ui/PanelSelect'
 import type { ClinicConfigSnapshot, PanelApi, ResourceFutureAppointment } from '../../api'
 import { PanelApiError } from '../../api'
@@ -38,7 +41,9 @@ export function ResourcesList({ tenantId, snap, tab = 'professional' }: ListProp
   )
   const all = tab === 'professional' ? professionals : rooms
   const inactiveCount = all.filter((r) => !r.active).length
+  const activeCount = all.length - inactiveCount
   const items = showInactive ? all : all.filter((r) => r.active)
+  const now = useMemo(() => Date.now(), [snap])
 
   return (
     <div className="clinic-stack">
@@ -68,57 +73,17 @@ export function ResourcesList({ tenantId, snap, tab = 'professional' }: ListProp
           Salas e equipamentos
         </Button>
       </div>
-      <ClinicCheck
-        className="clinic-check"
-        isSelected={showInactive}
-        onChange={setShowInactive}
-      >
-        {`Mostrar inativos${inactiveCount > 0 ? ` (${inactiveCount})` : ''}`}
-      </ClinicCheck>
-      <ul className="clinic-nav-list">
-        {items.map((r) => (
-          <li key={r.id}>
-            <Button
-              className="clinic-nav-row"
-              onPress={() =>
-                navigatePanel({
-                  kind: 'area',
-                  area: 'clinica',
-                  tenantId,
-                  section: r.kind === 'professional' ? 'profissional' : 'sala',
-                  entityId: r.id,
-                })
-              }
-            >
-              <span className="clinic-nav-copy">
-                <strong>{r.name}</strong>
-                <span>
-                  {r.active ? 'Ativo' : 'Inativo'}
-                  {r.category ? ` · ${r.category}` : ''}
-                  {r.kind === 'room' && (r.capacity ?? 1) > 1
-                    ? ` · ${r.capacity} ao mesmo tempo`
-                    : ''}
-                  {r.futureAppointmentCount > 0
-                    ? ` · ${r.futureAppointmentCount} ${
-                        r.futureAppointmentCount === 1 ? 'horário marcado' : 'horários marcados'
-                      }`
-                    : ''}
-                </span>
-              </span>
-            </Button>
-          </li>
-        ))}
-        {items.length === 0 ? (
-          <li className="clinic-empty">
-            {inactiveCount > 0 && !showInactive
-              ? 'Nenhum item ativo. Marque «Mostrar inativos» para ver o histórico.'
-              : 'Nenhum item nesta lista.'}
-          </li>
-        ) : null}
-      </ul>
-      <Button
-        className="panel-btn panel-btn-primary"
-        onPress={() =>
+      <ClinicListHeader
+        count={
+          tab === 'professional'
+            ? `${activeCount} ${activeCount === 1 ? 'profissional ativa' : 'profissionais ativas'}`
+            : `${activeCount} ${activeCount === 1 ? 'sala ativa' : 'salas ativas'}`
+        }
+        switchLabel={`Mostrar inativas${inactiveCount > 0 ? ` (${inactiveCount})` : ''}`}
+        showInactive={showInactive}
+        onShowInactive={setShowInactive}
+        addLabel={tab === 'professional' ? 'Adicionar profissional' : 'Adicionar sala'}
+        onAdd={() =>
           navigatePanel({
             kind: 'area',
             area: 'clinica',
@@ -127,9 +92,63 @@ export function ResourcesList({ tenantId, snap, tab = 'professional' }: ListProp
             entityId: 'novo',
           })
         }
-      >
-        {tab === 'professional' ? 'Adicionar profissional' : 'Adicionar sala'}
-      </Button>
+      />
+      <ul className="clinic-nav-list">
+        {items.map((r) => {
+          const pro = r.kind === 'professional' ? professionalRow(snap, r, now) : null
+          const room = r.kind !== 'professional' ? roomRow(snap, r) : null
+          return (
+            <li key={r.id}>
+              <Button
+                className="clinic-nav-row"
+                onPress={() =>
+                  navigatePanel({
+                    kind: 'area',
+                    area: 'clinica',
+                    tenantId,
+                    section: r.kind === 'professional' ? 'profissional' : 'sala',
+                    entityId: r.id,
+                  })
+                }
+              >
+                <span className="clinic-nav-copy">
+                  <strong>{r.name}</strong>
+                  {pro ? (
+                    <>
+                      <span>{pro.services}</span>
+                      {pro.today ? <span>{pro.today}</span> : null}
+                    </>
+                  ) : null}
+                  {room ? (
+                    <>
+                      <span>{room.capacity}</span>
+                      <span>{room.usage}</span>
+                    </>
+                  ) : null}
+                  {r.futureAppointmentCount > 0 ? (
+                    <span>
+                      {r.futureAppointmentCount}{' '}
+                      {r.futureAppointmentCount === 1 ? 'horário marcado' : 'horários marcados'}
+                    </span>
+                  ) : null}
+                </span>
+                {!r.active ? <Badge tone="closed">Inativa</Badge> : null}
+                {r.active && pro?.missingHours ? <Badge tone="wait">Falta horário</Badge> : null}
+                <ChevronRight aria-hidden size={18} />
+              </Button>
+            </li>
+          )
+        })}
+        {items.length === 0 ? (
+          <li className="clinic-empty">
+            {inactiveCount > 0 && !showInactive
+              ? `${tab === 'professional' ? 'Nenhuma profissional ativa' : 'Nenhuma sala ativa'}. Ligue «Mostrar inativas» para ver o histórico.`
+              : tab === 'professional'
+                ? 'Nenhuma profissional cadastrada ainda.'
+                : 'Nenhuma sala cadastrada ainda.'}
+          </li>
+        ) : null}
+      </ul>
     </div>
   )
 }

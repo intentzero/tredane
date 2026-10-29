@@ -1,6 +1,6 @@
-/* Gerado por tools/build_tokens.py a partir de tokens.json v0.3.0 (Confirmado). Não edite à mão. */
+/* Gerado por tools/build_tokens.py a partir de tokens.json v0.3.1 (Confirmado). Não edite à mão. */
 :root {
-  --font-family: Inter, system-ui, sans-serif;
+  --font-family: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
