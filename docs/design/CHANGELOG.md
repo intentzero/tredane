@@ -3,6 +3,14 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 29/10/2026 — Agendar em painel ao lado da conversa (DEC-074)
+
+- **M-04 Agendar:** no desktop abre como painel de 420 px à direita da conversa (por cima, no lugar do contato). Conteúdo e estados do mock não mudam. Implementado em `ConversasThreeCol` e `AgendarScreen` (modo `embedded`). O canvas de design traz também «Preencher pela conversa» e a faixa «Agendado», ainda **Proposto** e fora do código.
+
+## Tokens 0.3.1 — 29/10/2026 (Confirmado)
+
+**Aprovado pelo responsável pelo produto em 29/10/2026** ([DEC-073](../product/decisions.md)): `font.family` passa de `Inter, system-ui, sans-serif` a `Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif`, a fonte do WhatsApp Web. Tamanhos, pesos, alturas de linha e cores não mudam. Painel e login Clerk carregam Roboto 400/500/600 por `@fontsource/roboto` 5.3.0 (licença em `docs/licenses/Roboto-OFL.txt`); `@fontsource/inter` saiu do painel. A landing page continua com Inter. Os mocks `.dc.html` antigos ainda pedem Inter e não foram reescritos.
+
 ## 27/10/2026 — Ajustes da revisão de UX do staging (#134–#139)
 
 - **M-02 Conversa:** botão **Agendar** com texto no cabeçalho; menu ⋮ passa a dizer «reservar bloco, encerrar».

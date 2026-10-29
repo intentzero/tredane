@@ -1,6 +1,6 @@
 # ADR-0013 — Design system, componentes, ícones e fonte do painel
 
-- **Estado:** a **biblioteca-base de componentes** está **Confirmada**: **React Aria Components** ([DEC-048](../product/decisions.md), 24/10/2026, responsável pelo produto). A prova de conceito F0 (issue [#16](https://github.com/intentzero/tredane/issues/16)) mediu M-04 e M-05 nas duas candidatas; a candidata Radix foi **descartada** e removida do repositório. **Confirmados** também (DEC-041): tokens v0.2, ícones Lucide, modo escuro fora do MVP; Inter hospedada localmente com licença SIL OFL 1.1 conferida (`docs/licenses/Inter-OFL.txt`).
+- **Estado:** a **biblioteca-base de componentes** está **Confirmada**: **React Aria Components** ([DEC-048](../product/decisions.md), 24/10/2026, responsável pelo produto). A prova de conceito F0 (issue [#16](https://github.com/intentzero/tredane/issues/16)) mediu M-04 e M-05 nas duas candidatas; a candidata Radix foi **descartada** e removida do repositório. **Confirmados** também (DEC-041): tokens v0.2, ícones Lucide, modo escuro fora do MVP. Fonte: Roboto hospedada localmente (DEC-073, 29/10/2026, substitui a Inter), licença SIL OFL 1.1 em `docs/licenses/Roboto-OFL.txt`.
 - **Origem:** [UI/UX](../product/ux-ui.md), [docs/design](../design/README.md), [DEC-039](../product/decisions.md) (mobile first); decisão de biblioteca [DEC-048](../product/decisions.md) após prova #16.
 - **Data da decisão de biblioteca:** 24/10/2026.
 
@@ -60,7 +60,7 @@ Prova executada em 24/10/2026 (issue #16). Tabela histórica abaixo — a candid
 
 - **Tokens:** variáveis CSS geradas de `tokens.json` (`tokens.css`). A ferramenta de CSS (módulos CSS, utilitários ou outra) fica **em aberto** para a F0; regra independente da ferramenta: nenhum valor de cor, raio, fonte ou espaçamento fora dos tokens (verificado por `tools/check_mocks.py` e, no código, por revisão e lint).
 - **Ícones:** Lucide (`lucide-react`), conforme [icons.md](../design/icons.md). **Confirmado** (DEC-041).
-- **Fonte:** Inter (400, 500, 600), **hospedada pelo próprio Tredane** via `@fontsource/inter` no painel (`src/client/ui/fonts.css`), sem CDN externo. Licença **SIL OFL 1.1** conferida e copiada em [docs/licenses/Inter-OFL.txt](../licenses/Inter-OFL.txt). Lucide: ISC em [docs/licenses/Lucide-ISC.txt](../licenses/Lucide-ISC.txt). **Confirmado** (DEC-041).
+- **Fonte:** Roboto (400, 500, 600), **hospedada pelo próprio Tredane** via `@fontsource/roboto` no painel (`src/client/ui/fonts.css`), sem CDN externo. Licença **SIL OFL 1.1** copiada em [docs/licenses/Roboto-OFL.txt](../licenses/Roboto-OFL.txt). **Confirmado** em DEC-073 (29/10/2026), que substituiu a Inter de DEC-041; a licença da Inter fica em [docs/licenses/Inter-OFL.txt](../licenses/Inter-OFL.txt) porque a landing page ainda a usa. Lucide: ISC em [docs/licenses/Lucide-ISC.txt](../licenses/Lucide-ISC.txt). **Confirmado** (DEC-041).
 - **Modo escuro:** **Fora do MVP** (Confirmado, DEC-041). Os tokens são organizados por papel (superfície, texto, linha) para permitir um segundo tema depois, sem redesenho das telas.
 - **Movimento:** respeitar `prefers-reduced-motion`.
 

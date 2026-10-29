@@ -79,6 +79,8 @@ type Props = {
   viewerClerkUserId: string
   /** Desktop: o contato é um painel que desliza por cima (abre e fecha por este controlo). */
   contactPanel?: { open: boolean; controlsId: string; onToggle: () => void }
+  /** Desktop (DEC-074): «Agendar» abre um painel ao lado da conversa em vez de trocar de área. */
+  agendarPanel?: { open: boolean; controlsId: string; onToggle: () => void }
 }
 
 /** Texto sempre como nó React — nunca HTML (XSS / conteúdo externo). */
@@ -236,6 +238,7 @@ export function InboxThread({
   generation,
   viewerClerkUserId,
   contactPanel,
+  agendarPanel,
 }: Props) {
   const [detail, setDetail] = useState<InboxConversationDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -1086,18 +1089,23 @@ export function InboxThread({
         {/* DEC-064: um único «Agendar», no cabeçalho, ao lado do ⋮. */}
         {detail.status !== 'closed' && !blocked ? (
           <Button
-            className="panel-header-action"
+            className={`panel-header-action${agendarPanel ? ' panel-header-action--toggle' : ''}`}
             aria-label="Agendar horário"
             isDisabled={busy}
+            {...(agendarPanel
+              ? { 'aria-pressed': agendarPanel.open, 'aria-controls': agendarPanel.controlsId }
+              : {})}
             onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'agenda',
-                tenantId,
-                section: 'agendar',
-                conversationId,
-                contactId: detail.contactId,
-              })
+              agendarPanel
+                ? agendarPanel.onToggle()
+                : navigatePanel({
+                    kind: 'area',
+                    area: 'agenda',
+                    tenantId,
+                    section: 'agendar',
+                    conversationId,
+                    contactId: detail.contactId,
+                  })
             }
           >
             <CalendarPlus aria-hidden size={20} strokeWidth={2} />
