@@ -89,7 +89,6 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
 
   useEffect(() => {
     void load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, generation, stages])
 
   useEffect(() => {
@@ -113,7 +112,6 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId])
 
   // Foco no painel ao abrir.
