@@ -144,16 +144,16 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
         <header className="panel-shell-header">
           <div className="panel-shell-lead">
             <BrandMark size={32} />
-          <div className="panel-shell-titles">
-            <h1 className="panel-title-lg">{areaTitle(area)}</h1>
-            <ShellIdentity
-              tenantId={ctx.tenantId}
-              name={ctx.name}
-              area={area}
-              tenants={listState.phase === 'ready' ? listState.tenants : []}
-              offline={offline}
-            />
-          </div>
+            <div className="panel-shell-titles">
+              <h1 className="panel-title-lg">{areaTitle(area)}</h1>
+              <ShellIdentity
+                tenantId={ctx.tenantId}
+                name={ctx.name}
+                area={area}
+                tenants={listState.phase === 'ready' ? listState.tenants : []}
+                offline={offline}
+              />
+            </div>
           </div>
           <div className="panel-shell-actions">
             <Button
