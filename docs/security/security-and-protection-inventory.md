@@ -19,8 +19,7 @@
 - O workflow foi executado 17 vezes (27–28/10/2026), todas por `workflow_dispatch`. **Em todas, o job `Deploy production` ficou `skipped`.** Não há nenhum deploy de produção registrado por este workflow. `docs/DEPLOY.md` §5 indica que a produção ainda não está provisionada (`database_id` placeholder, faltam vars/secrets; `check:env -- production` falha). Por isso **nenhuma funcionalidade está marcada como "em produção"**; o estado real do Worker de produção é **não verificado**.
 - O último deploy de staging com sucesso foi criado em 28/10/2026 20:12 BRT, com SHA `317d163` (#192). Antes: run `40782048011`, 19:42 BRT, `96c1bb8`. Tudo até `317d163` está **em staging**. O commit `4807146` (merge do #181, só docs) está **na main sem deploy** (sujeito à configuração de vars/secrets do Worker, que não foi verificada).
 - Deploys anteriores de staging: `40af67e` (#153, 15:37 BRT), `bf28ec3` (#152, 15:29), `9011c27` (#150, 15:00), `471d490` (#148, 27/10 19:28). O run `40593261557` (`9a9e427`, 27/10) falhou.
-- Configuração de runtime fora do código (registro do Paulo, não verificado via Cloudflare): **desde 28/10/2026 19:58 BRT o Worker de staging tem `AI_AUTOBOOK=off`**, definido pelo Paulo. A produção nunca recebeu o #155.
-- **Atenção:** houve um novo deploy de staging (20:12 BRT) depois dessa alteração. `wrangler.jsonc` não define `AI_AUTOBOOK` nem `keep_vars`. Se o `off` foi gravado como variável de texto (e não como secret), um `wrangler deploy` pode tê-lo removido. **Persistência do `AI_AUTOBOOK=off` depois das 20:12: não verificado.**
+- Configuração de runtime: historicamente staging teve `AI_AUTOBOOK=off` (Paulo, 28/10/2026). **Confirmado (Paulo, 29/10/2026):** staging liga `AI_AUTOBOOK=on` + `AI_AUTOBOOK_TENANTS=tenant_b40dc579540c30130840b9ac` (Clínica Teste Paulo) via `wrangler.jsonc` `env.staging.vars`. Production **não** declara estas vars.
 
 ## Inventário
 
@@ -58,7 +57,7 @@
 
 | Campo | Detalhe |
 |---|---|
-| Estado | Código: **em staging** (#155 `695fed3`, incluído nos deploys `96c1bb8` e `317d163`). Runtime staging: `AI_AUTOBOOK=off` definido em 28/10 19:58 BRT (registro do Paulo); a persistência depois do deploy das 20:12 BRT **não foi verificada**. Produção: nunca recebeu o #155. |
+| Estado | Código fail-closed (S2 #191): só `on` + tenant na allowlist. Staging: allowlist Clínica Teste Paulo (Paulo 29/10/2026). Produção: sem `AI_AUTOBOOK=on`. |
 | Onde | `src/clinic/ai/deps.ts:24-25`, `:45` (`rpc.autoBook !== false`), `:55-60` — **ligado por padrão**: só `off` desliga; `src/clinic/ai/autobook.ts` (actor `system:ai-autobook`, `:386-420`, auditoria `appointment.ai_booked` em `:398`); `src/worker/bindings.ts:58` |
 | Decisão | DEC-060 (`docs/product/decisions.md:58`); DEC-006 anotado |
 | Testes | `src/clinic/ai/autobook.test.ts`, `src/clinic/ai/amanha-tarde.regression.test.ts` |
@@ -198,7 +197,7 @@ Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY
 
 1. **Agendamento por IA ligado por padrão no código** (`src/clinic/ai/deps.ts:60`). Staging contido só por `AI_AUTOBOOK=off` manual; correção em PR aberto #191 (S2).
 2. **Texto livre não marca** (S2); botão versionado S3–S5 em `main`, com `AI_AUTOBOOK` fail-closed por padrão até gates S9/H10 humanos.
-2a. **`AI_AUTOBOOK=off` no staging pode ter sido apagado pelo deploy das 20:12 BRT** (não verificado).
+2a. Staging: allowlist Clínica Teste Paulo (Paulo 29/10/2026); production continua off.
 3. **Limites de abuso Confirmados** (#178, Paulo 29/10/2026) com UI owner; enable por clínica (default off).
 4. **Prompt injection** S6 em `main`; S9 harness sintético + runbook prontos — **liberação controlada do botão ainda Em aberto** (#180).
 5. **Bloqueio de contato não para todas as automações e não existe pausa** (#191 parcial, #187). Não chegar à Meta é **limite aceite** (decisão do Paulo, 28/10/2026): bloqueio e pausa continuam só internos.

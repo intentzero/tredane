@@ -11,8 +11,10 @@ import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
+import { getProposal } from '../proposals/proposals'
 import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
+import { syncWhatsappChannel } from '../whatsapp/channel'
 import { detectExplicitConfirmation } from './autobook'
 import { checkConversationProtection, isConversationPaused } from './protection'
 import { autoBookCapability, parseAutoBookFlag, rpcDepsFromEnv, toAiAssistDeps } from './deps'
@@ -28,6 +30,20 @@ function seed(opts: { signal?: boolean } = {}) {
   const { db } = boot
   const tenantId = 'clinic-demo-a'
   const caller = workerCaller(tenantId, 'user_synth_owner_a')
+  syncWhatsappChannel(
+    db,
+    tenantId,
+    {
+      status: 'connected',
+      bindingId: 'bind_autobook',
+      phoneNumberId: 'pn_autobook',
+      wabaId: 'waba_autobook',
+      displayPhone: '+5511900000009',
+      displayName: 'Clínica Autobook',
+      action: 'channel_connected',
+    },
+    clock,
+  )
   const gi = upsertResourceOp(db, caller, { kind: 'professional', name: 'Gi' }, clock)
   const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala depilação', category: 'Sala' }, clock)
   const svc = upsertServiceOp(
@@ -130,8 +146,8 @@ describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)
       const o = await s.run(true)
       expect(o.autoBook?.status).not.toBe('booked')
       expect(o.autoBook?.appointmentId).toBeUndefined()
-      expect(o.autoBook?.outbox ?? []).toHaveLength(0)
-      expect(o.suggestion!.suggestedText).not.toMatch(/Agendei|Prontinho/)
+      // Com capacidade ligada, confirmação clara pode enfileirar proposta (outbox) — ainda sem compromisso.
+      expect(o.suggestion!.suggestedText).not.toMatch(/Agendei|Prontinho|agendad[oa]|marcad[oa]/i)
       noBooking(s)
     } finally {
       s.close()
@@ -158,30 +174,52 @@ describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)
     }
   })
 
-  it('confirmação clara em texto deixa nota à atendente, sem marcar', async () => {
+  it('capacidade ligada + confirmação clara → envia proposta/botão, sem marcar', async () => {
     const s = seed()
     try {
       s.say('outbound', PROPOSAL)
       s.say('inbound', 'Sim')
       const o = await s.run(true)
       expect(o.autoBook?.status).toBe('requires_button')
-      expect(o.suggestion!.internalNotes).toMatch(/Texto livre não marca automaticamente/)
+      expect(o.autoBook?.proposalId).toBeTruthy()
+      expect(o.autoBook?.outbox.length).toBeGreaterThan(0)
+      expect(o.suggestion!.internalNotes).toMatch(/botão Confirmar/)
+      expect(o.suggestion!.suggestedText).not.toMatch(/agendad|marcad|Prontinho/i)
+      const proposal = getProposal(s.db, s.tenantId, o.autoBook!.proposalId!)
+      expect(proposal).toBeTruthy()
+      expect(['envio_pendente', 'enviada', 'envio_incerto']).toContain(proposal!.state)
       noBooking(s)
     } finally {
       s.close()
     }
   })
 
-  it('serviço com sinal → não marca; segue o fluxo de Pix pelo Agendar', async () => {
+  it('serviço com sinal + capacidade → proposta enviada, sem Pix nem compromisso ainda', async () => {
     const s = seed({ signal: true })
     try {
       s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 15:00?')
       s.say('inbound', 'Sim, pode marcar')
       const o = await s.run(true)
       expect(o.autoBook?.status).toBe('needs_signal')
-      expect(o.suggestion!.suggestedText).toMatch(/sinal de R\$ 50,00 por Pix/)
-      expect(o.suggestion!.internalNotes).toMatch(/Envie a cobrança Pix pelo Agendar/)
+      expect(o.autoBook?.proposalId).toBeTruthy()
+      expect(o.suggestion!.internalNotes).toMatch(/botão Confirmar|equipe/)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM pix_charges`)!.n).toBe(0)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('capacidade desligada (tenant fora da allowlist) → só nota, sem proposta', async () => {
+    const s = seed()
+    try {
+      s.say('outbound', PROPOSAL)
+      s.say('inbound', 'Sim')
+      const o = await s.run(true, ['clinic-demo-b'])
+      expect(o.autoBook?.status).toBe('requires_button')
+      expect(o.autoBook?.proposalId).toBeUndefined()
+      expect(o.autoBook?.outbox ?? []).toHaveLength(0)
+      expect(o.suggestion!.internalNotes).toMatch(/Texto livre não marca automaticamente/)
       noBooking(s)
     } finally {
       s.close()
@@ -200,6 +238,7 @@ describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)
       const o = await s.run(on, [...tenants])
       expect(o.status).toBe('ready')
       expect(o.suggestion).toBeTruthy()
+      expect(o.autoBook?.proposalId).toBeUndefined()
       noBooking(s)
     } finally {
       s.close()
