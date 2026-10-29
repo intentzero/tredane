@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { Button, Input, Label, TextArea, TextField } from 'react-aria-components'
+import { ChevronRight } from 'lucide-react'
+import { Badge } from '../../states/Badge'
 import { ClinicCheck } from './ClinicCheck'
+import { ClinicListHeader } from './ClinicListHeader'
+import { serviceRow } from './resourceRows'
 import { PanelSelect } from '../../ui/PanelSelect'
 import type { ClinicConfigSnapshot, PanelApi, ServiceUpsertBody } from '../../api'
 import { PanelApiError } from '../../api'
@@ -20,9 +24,13 @@ type ListProps = {
 }
 
 export function ServicesList({ tenantId, snap }: ListProps) {
+  const [showInactive, setShowInactive] = useState(false)
+  const inactiveCount = snap.services.filter((s) => !s.active).length
+  const activeCount = snap.services.length - inactiveCount
+  const items = showInactive ? snap.services : snap.services.filter((s) => s.active)
   return (
     <div className="clinic-stack">
-      <div className="clinic-toolbar">
+      <div className="clinic-toolbar clinic-desktop-hide">
         <Button
           className="panel-btn panel-btn-ghost"
           onPress={() =>
@@ -31,48 +39,58 @@ export function ServicesList({ tenantId, snap }: ListProps) {
         >
           Voltar
         </Button>
-        <Button
-          className="panel-btn panel-btn-primary"
-          onPress={() =>
-            navigatePanel({
-              kind: 'area',
-              area: 'clinica',
-              tenantId,
-              section: 'servico',
-              entityId: 'novo',
-            })
-          }
-        >
-          Adicionar serviço
-        </Button>
       </div>
+      <ClinicListHeader
+        count={`${activeCount} ${activeCount === 1 ? 'serviço ativo' : 'serviços ativos'}`}
+        switchLabel={`Mostrar inativos${inactiveCount > 0 ? ` (${inactiveCount})` : ''}`}
+        showInactive={showInactive}
+        onShowInactive={setShowInactive}
+        addLabel="Adicionar serviço"
+        onAdd={() =>
+          navigatePanel({
+            kind: 'area',
+            area: 'clinica',
+            tenantId,
+            section: 'servico',
+            entityId: 'novo',
+          })
+        }
+      />
       <ul className="clinic-nav-list">
-        {snap.services.map((svc) => (
-          <li key={svc.id}>
-            <Button
-              className="clinic-nav-row"
-              onPress={() =>
-                navigatePanel({
-                  kind: 'area',
-                  area: 'clinica',
-                  tenantId,
-                  section: 'servico',
-                  entityId: svc.id,
-                })
-              }
-            >
-              <span className="clinic-nav-copy">
-                <strong>{svc.name}</strong>
-                <span>
-                  {svc.durationMinutes}+{svc.bufferMinutes} min ·{' '}
-                  {svc.active ? 'Ativo' : 'Inativo'}
+        {items.map((svc) => {
+          const row = serviceRow(snap, svc)
+          return (
+            <li key={svc.id}>
+              <Button
+                className="clinic-nav-row"
+                onPress={() =>
+                  navigatePanel({
+                    kind: 'area',
+                    area: 'clinica',
+                    tenantId,
+                    section: 'servico',
+                    entityId: svc.id,
+                  })
+                }
+              >
+                <span className="clinic-nav-copy">
+                  <strong>{svc.name}</strong>
+                  <span>{row.occupies}</span>
+                  <span>{row.detail}</span>
                 </span>
-              </span>
-            </Button>
+                {!svc.active ? <Badge tone="closed">Inativo</Badge> : null}
+                {svc.active && row.warning ? <Badge tone="wait">{row.warning}</Badge> : null}
+                <ChevronRight aria-hidden size={18} />
+              </Button>
+            </li>
+          )
+        })}
+        {items.length === 0 ? (
+          <li className="clinic-empty">
+            {inactiveCount > 0 && !showInactive
+              ? 'Nenhum serviço ativo. Ligue «Mostrar inativos» para ver o histórico.'
+              : 'Nenhum serviço cadastrado ainda.'}
           </li>
-        ))}
-        {snap.services.length === 0 ? (
-          <li className="clinic-empty">Nenhum serviço cadastrado ainda.</li>
         ) : null}
       </ul>
     </div>

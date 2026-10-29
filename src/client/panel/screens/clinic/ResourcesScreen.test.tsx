@@ -48,7 +48,7 @@ function renderForm(resource: ClinicResource, api: Partial<PanelApi>) {
 }
 
 describe('ResourcesList — filtro de inativos', () => {
-  it('esconde inativos por padrão e mostra ao marcar «Mostrar inativos»', () => {
+  it('esconde inativos por padrão e mostra ao ligar «Mostrar inativas»', () => {
     render(
       <ResourcesList
         tenantId="t"
@@ -57,7 +57,7 @@ describe('ResourcesList — filtro de inativos', () => {
     )
     expect(screen.getByText('Ativa')).toBeTruthy()
     expect(screen.queryByText('Antiga')).toBeNull()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Mostrar inativos (1)' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Mostrar inativas (1)' }))
     expect(screen.getByText('Antiga')).toBeTruthy()
   })
 })
