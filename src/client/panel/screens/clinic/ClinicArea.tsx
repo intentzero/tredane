@@ -7,7 +7,8 @@ import { AiAssistCard } from './AiAssistCard'
 import { StagingResetCard } from './StagingResetCard'
 import { isStagingHostname } from './whatsapp/WhatsappDevSyncAction'
 import { ClinicHub } from './ClinicHub'
-import { ClinicTabs } from './ClinicTabs'
+import { ClinicContext } from './ClinicContext'
+import { useMediaQuery } from '../../ui/useMediaQuery'
 import { ResourceForm, ResourcesList } from './ResourcesScreen'
 import { ClinicHoursScreen } from './ClinicHoursScreen'
 import { ServiceForm, ServicesList } from './ServicesScreen'
@@ -26,6 +27,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   const { api } = useAuthSession()
   const { generation, active } = useTenant()
   const { snap, error, loading, reload } = useClinicConfig(api, tenantId, generation)
+  const wide = useMediaQuery('(min-width: 1280px)')
   const clinicName = active.phase === 'ready' ? active.context.name : tenantId
   const isOwner = active.phase === 'ready' && active.context.role === 'owner'
 
@@ -173,10 +175,11 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     }
   })()
 
+  if (!wide) return body
   return (
-    <>
-      <ClinicTabs tenantId={tenantId} section={section} entityId={entityId} />
-      {body}
-    </>
+    <div className="clinic-wide">
+      <ClinicContext tenantId={tenantId} section={section} entityId={entityId} snap={snap} />
+      <div className="clinic-work">{body}</div>
+    </div>
   )
 }
