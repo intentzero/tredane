@@ -3,6 +3,10 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 29/10/2026 — Coluna de Conversas com 30% da janela
+
+- Desktop: a lista deixa de ter 360 px fixos e passa a `30%` da janela, mín. 360 e máx. 520 px (medido no WhatsApp Web: 518 px a 1728 px). Mock `desktop/Main.dc.html` atualizado; preview `Main.png` regerado.
+
 ## 29/10/2026 — Redesenho do horário da clínica (#207, #224)
 
 - **M-17 Horários** refeito: resumo, sete dias com editor único, folgas e fechamentos na mesma página, barra de salvar condicional. Novos: **M-49** (editar um dia), **M-50** (folga ou fechamento), **M-51** (quem fica fora). Desktop: `desktop/Horarios` na moldura #211 com painel #212 (**Proposto**, ainda não implementado).
