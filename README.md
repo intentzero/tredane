@@ -34,6 +34,7 @@ O [escopo inicial do MVP](docs/MVP.md) registra o fluxo, os critérios de aceite
 - [Landing page do piloto](docs/product/landing.md): site Astro separado em `site/` (`cd site && npm install && npm run dev`). Staging: `cd site && npm run deploy:staging` → `https://staging.tredane.com` (requer auth Wrangler na conta da zona `tredane.com`; ver checklist no projeto Campo Próximo).
 - [Plano de implementação por fatias](docs/implementation/plan.md)
 - [Épico de salas partilhadas e audiência do serviço (DEC-075)](docs/implementation/epic-salas-audiencia.md)
+- [Épico do bloco Tempo no serviço (DEC-077)](docs/implementation/epic-tempo-servico.md)
 - [Observabilidade e operação do piloto (F6/#44)](docs/implementation/f6-ops.md) · [runbooks](docs/implementation/runbooks/README.md)
 
 Os ADRs identificam decisões aceitas, propostas técnicas e temas ainda em aberto. Nenhum módulo de aplicação foi implementado apenas por adicionar esta documentação.

@@ -38,7 +38,7 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 
 | Estado | Significado | Regra |
 | --- | --- | --- |
-| Confirmado | Horário reservado para a profissional e a sala dela (DEC-075), mais o equipamento exigido se houver. | A confirmação verifica capacidade, modo de atendimento e mesmo sexo nesse bloco. |
+| Confirmado | Horário reservado para a profissional e a sala dela (DEC-075), mais o equipamento exigido se houver. | A confirmação verifica capacidade, modo de atendimento e mesmo sexo nesse bloco. O bloco Tempo (DEC-077) não cancela este estado se a previsão mudar. |
 | Cancelado | Compromisso não ocupa mais recursos. | Preserva quem cancelou, quando, o motivo (obrigatório, DEC-008) e o vínculo com a conversa. Não há prazo mínimo. |
 | Concluído | Serviço/atendimento ocorreu. | Validar se esta marcação é necessária no MVP e quem a faz. |
 

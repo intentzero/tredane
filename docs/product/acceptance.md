@@ -247,3 +247,31 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 ### AC-56 — Marcação só pelo clique (Decidido, DEC-061)
 
 **Dado** proposta válida; **quando** a cliente responde «sim» ou 👍 em texto; **então** nada é marcado. **Quando** toca em **Confirmar**; **então** um único compromisso é criado com actor `system:ai-autobook`, auditoria `appointment.ai_booked` (proposta, versão, evento) e «Marcado pela IA»; clique repetido, de outro contato/conversa/tenant ou após expiração não cria compromisso. Horário ocupado → «Horário já não está livre…». Serviço com sinal → fluxo Pix, sem reserva antes do pagamento. **Alterar detalhes** → atendente, alerta após 5 min sem resposta. Com a pausa da owner ligada, nenhum envio novo nem marcação. **Requisitos:** REQ-084; JRN-17. **Limites de abuso (S7): Confirmado (Paulo, 29/10/2026)** — [abuse-limits.md](../security/abuse-limits.md); UI owner; enable por clínica (default off).
+
+### AC-61 — Migração do bloco Tempo em Tanto faz (Confirmado, DEC-077)
+
+**Dado** serviços já gravados «Bronzeamento» e «Depilação»; **quando** a migração do bloco Tempo corre; **então** céu e temperatura ficam em Tanto faz, sem graus, o local de previsão fica vazio e `clinic_address` não é copiado. A grade desses serviços é a mesma de antes. O contato não ganha coluna e a audiência (DEC-075) permanece. **Requisitos:** REQ-090.
+
+### AC-62 — Local da clínica (Confirmado, DEC-077)
+
+**Dado** a responsável no hub; **quando** grava a cidade «Campinas»; **então** o local fica cidade e as coordenadas vazias. Trocar para coordenadas válidas apaga a cidade. Latitude 91 é recusada e o valor anterior fica. A atendente não grava. Com as sugestões de IA desligadas, o cartão continua editável. **Requisitos:** REQ-089.
+
+### AC-63 — Bloco Tempo no serviço (Confirmado, DEC-077)
+
+**Dado** «Depilação» criada sem o bloco; **então** céu e temperatura ficam em Tanto faz e a ficha diz «Sem restrição de tempo». **Dado** «Bronzeamento» com Sol e Acima de 24; **então** os dois ficam gravados e a ficha não mostra percentagem. Acima de sem grau, grau não inteiro, ou Acima e Abaixo juntos, são recusados. Voltar a temperatura a Tanto faz apaga o 24. A atendente não grava. O catálogo da IA não traz céu nem graus. **Requisitos:** REQ-090.
+
+### AC-64 — Símbolos, hora e falha fechada do avaliador (Confirmado, DEC-077)
+
+**Dado** uma previsão fictícia, sem rede; **quando** a função avalia o início do compromisso; **então** céu limpo sem chuva e 25 °C servem a Sol e a Acima de 24; 24 °C não serve a Acima de 24; encoberto e nevoeiro não servem a Sol; garoa e trovoada servem a Chuva e não servem a Sol; muito nublado sem chuva não serve a Sol. Tanto faz nos dois não chama o adaptador. Sem local, erro, símbolo desconhecido ou percentagem não mapeada: indisponível, e a saída não contém o corpo do provedor. **Requisitos:** REQ-091.
+
+### AC-65 — Filtro automático, proposta e clique (Confirmado, DEC-077)
+
+**Dado** «Bronzeamento» com Sol e Acima de 24 e local gravado; **quando** a previsão fictícia às 15h é céu limpo e 25 °C; **então** o caminho automático inclui 15h. Com 22 °C ou céu encoberto, 15h sai da lista automática e não nasce proposta. No clique, se a função já não servir ou não confirmar, não há compromisso nem cobrança, e a frase é a de tempo que não serve ou a de não deu para confirmar — sem percentagem e sem número de vagas. Horário ocupado continua com a frase de ocupação. «Depilação» em Tanto faz oferece horários mesmo sem local. «Bronzeamento» com Sol e sem local não oferece horário automático. **Requisitos:** REQ-092; JRN-17.
+
+### AC-66 — Aviso na marcação manual (Confirmado, DEC-077)
+
+**Dado** a mesma hora de bronzeamento com sol que não serve; **quando** a equipe confirma no Agendar; **então** o aviso «Sol fraco neste horário» está visível e o compromisso é criado. Sem previsão, o aviso é «Não deu para confirmar o tempo» e o compromisso também é criado. Céu e temperatura a falhar mostram as duas frases e um compromisso. O clique da proposta, no mesmo resultado da função, não cria compromisso. Um compromisso já confirmado permanece se a previsão dessa hora passar a não servir. **Requisitos:** REQ-092; JRN-03.
+
+### AC-67 — Contexto da IA sem payload (Confirmado, DEC-077)
+
+**Dado** o pedido ao modelo num teste; **então** as horas de bronzeamento são só as que serviram, sem JSON do provedor, sem percentagem e sem o bloco Tempo. Hora pedida que não serviu traz a frase fixa e não entra nas vagas. Rascunho com «40%» ou com hora filtrada não chega à atendente como sugestão utilizável. Depilação em Tanto faz não acrescenta frase de tempo. Texto livre não marca. **Requisitos:** REQ-093, REQ-072; JRN-02, JRN-17.

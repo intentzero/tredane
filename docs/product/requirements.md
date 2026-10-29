@@ -108,7 +108,7 @@
 
 ### REQ-030 — Disponibilidade
 
-**Prioridade/estado:** MVP / Confirmado quanto a recursos, duração e intervalo (DEC-008, DEC-014); expediente semanal, bloqueios pontuais, fuso por clínica e grade de 15 min confirmados (DEC-008). **Origem:** ACT-02, ACT-03; JRN-03. **Comportamento:** equipe consulta horários disponíveis conforme serviço (duração fixa + intervalo após o atendimento), expediente semanal, bloqueios pontuais, a profissional escolhida e a sala dela (DEC-075), e o equipamento exigido pelo serviço, em horários de 15 em 15 min no fuso da clínica. **Aceite:** um intervalo ocupado ou bloqueado não aparece como disponível quando a sala da profissional, o modo ou o equipamento não o permitem (DEC-075); o intervalo após o atendimento mantém ocupados a sala **e o profissional**; horários fora do expediente semanal ou dentro de um bloqueio não aparecem; “Horário proposto” no pipeline não remove horário da lista. **Dados/eventos:** serviço, recurso e disponibilidade sempre por tenant.
+**Prioridade/estado:** MVP / Confirmado quanto a recursos, duração e intervalo (DEC-008, DEC-014); expediente semanal, bloqueios pontuais, fuso por clínica e grade de 15 min confirmados (DEC-008). **Origem:** ACT-02, ACT-03; JRN-03. **Comportamento:** equipe consulta horários disponíveis conforme serviço (duração fixa + intervalo após o atendimento), expediente semanal, bloqueios pontuais, a profissional escolhida e a sala dela (DEC-075), e o equipamento exigido pelo serviço, em horários de 15 em 15 min no fuso da clínica. **Aceite:** um intervalo ocupado ou bloqueado não aparece como disponível quando a sala da profissional, o modo ou o equipamento não o permitem (DEC-075); o intervalo após o atendimento mantém ocupados a sala **e o profissional**; horários fora do expediente semanal ou dentro de um bloqueio não aparecem; “Horário proposto” no pipeline não remove horário da lista. **Dados/eventos:** serviço, recurso e disponibilidade sempre por tenant. **Tempo (DEC-077):** no caminho automático, hora que não cumpre o bloco Tempo do serviço, ou que não deu para confirmar, não entra nesta lista (REQ-092). A grade da equipe continua a mostrá-la, com aviso.
 
 ### REQ-031 — Confirmação sem conflito
 
@@ -158,7 +158,7 @@
 
 **Renumeração (24/10/2026, decisão do responsável):** antes duplicava o ID REQ-060, que permanece com o aviso e a decisão de suporte.
 
-**Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** o contexto enviado à IA contém só mensagens recentes da conversa (proposta: até 20), primeiro nome do contato, catálogo de serviços da clínica (nome, duração, preço e audiência do serviço — feminino, masculino ou qualquer, DEC-075; descreve o serviço, não a pessoa) e etapa da oportunidade. A IA não anuncia vagas nem abre a mistura de sexos no bloco. **Aceite:** inspecionando a solicitação enviada ao AI Gateway em teste, não aparecem telefone, anexos, outras conversas nem dados de outra clínica; o AI Gateway não registra o conteúdo. **Dados/eventos:** não usar dados reais antes da revisão jurídica. **Em aberto (S8/#179):** divergência com H2 (#159) e com o bloco `clinic` já presente no código de rascunho — inventário e estados em [ai-context-minimization.md](../security/ai-context-minimization.md); Paulo aprova o conjunto mínimo antes de uso real.
+**Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** o contexto enviado à IA contém só mensagens recentes da conversa (proposta: até 20), primeiro nome do contato, catálogo de serviços da clínica (nome, duração, preço e audiência do serviço — feminino, masculino ou qualquer, DEC-075; descreve o serviço, não a pessoa) e etapa da oportunidade. A IA não anuncia vagas nem abre a mistura de sexos no bloco. Desde a DEC-077, não recebe céu, temperatura, percentagem nem o payload da previsão: só horários já filtrados e, se preciso, a frase fixa do motivo (REQ-093). A IA não escolhe o tempo. **Aceite:** inspecionando a solicitação enviada ao AI Gateway em teste, não aparecem telefone, anexos, outras conversas nem dados de outra clínica; o AI Gateway não registra o conteúdo. **Dados/eventos:** não usar dados reais antes da revisão jurídica. **Em aberto (S8/#179):** divergência com H2 (#159) e com o bloco `clinic` já presente no código de rascunho — inventário e estados em [ai-context-minimization.md](../security/ai-context-minimization.md); Paulo aprova o conjunto mínimo antes de uso real.
 
 ### REQ-070 — Observabilidade do fluxo
 
@@ -213,7 +213,27 @@
 
 ### REQ-084 — Marcação só por clique de confirmação
 
-**Prioridade/estado:** MVP (piloto) / Decidido (DEC-061). **Origem:** JRN-17. **Comportamento:** só o evento de botão do WhatsApp sobre proposta válida do mesmo tenant, contato e conversa cria o compromisso; texto livre nunca marca. Revalidação na transação pelo caminho manual; idempotente por proposta/versão; serviço com sinal segue REQ-078 sem reserva antes do pagamento. «Alterar detalhes», cancelamento e remarcação vão para a atendente; alerta de comunicação pendente após 5 min. Auditoria `appointment.ai_booked` com proposta, versão e evento do clique; indicador «Marcado pela IA». O clique não é consentimento LGPD. Piloto: contenção até 20 marcações revistas sem nenhuma indevida. **Limites de abuso (S7): Confirmado (Paulo, 29/10/2026)** — ver [abuse-limits.md](../security/abuse-limits.md); UI owner (enable por clínica, default off); env `ABUSE_LIMIT_*` = teto opcional. **Aceite:** AC-56.
+**Prioridade/estado:** MVP (piloto) / Decidido (DEC-061). **Origem:** JRN-17. **Comportamento:** só o evento de botão do WhatsApp sobre proposta válida do mesmo tenant, contato e conversa cria o compromisso; texto livre nunca marca. Revalidação na transação pelo caminho manual; idempotente por proposta/versão; serviço com sinal segue REQ-078 sem reserva antes do pagamento. «Alterar detalhes», cancelamento e remarcação vão para a atendente; alerta de comunicação pendente após 5 min. Auditoria `appointment.ai_booked` com proposta, versão e evento do clique; indicador «Marcado pela IA». O clique não é consentimento LGPD. Piloto: contenção até 20 marcações revistas sem nenhuma indevida. **Limites de abuso (S7): Confirmado (Paulo, 29/10/2026)** — ver [abuse-limits.md](../security/abuse-limits.md); UI owner (enable por clínica, default off); env `ABUSE_LIMIT_*` = teto opcional. **Aceite:** AC-56. No clique, a mesma função do bloco Tempo corre outra vez (DEC-077, REQ-092): se a hora deixou de servir ou a previsão falhou, a proposta falha fechada, sem compromisso e sem cobrança.
+
+### REQ-089 — Local da clínica para a previsão
+
+**Prioridade/estado:** MVP / Confirmado (DEC-077). **Origem:** ACT-03; JRN-08. **Comportamento:** só a responsável grava, uma vez, cidade ou coordenadas no hub da Clínica, sem página nova e sem depender do interruptor de IA. O texto livre «Endereço da clínica (para a IA)» não é esse local. Sem local, um serviço que saia de «Tanto faz» não tem caminho automático. **Aceite:** AC-62. **Dados/tenant:** `clinic_settings` no SQLite da clínica (DEC-038).
+
+### REQ-090 — Bloco Tempo no serviço
+
+**Prioridade/estado:** MVP / Confirmado (DEC-077). **Origem:** ACT-03; JRN-08. **Comportamento:** céu (Tanto faz, Sol ou Chuva) e temperatura (Tanto faz, Acima de X °C ou Abaixo de X °C). X é inteiro e só existe num dos lados. Os dois em Tanto faz são ausência de restrição. A migração grava esse padrão em todos os serviços e não copia o endereço livre para o local. A atendente não edita. **Aceite:** AC-61, AC-63. **Dados/tenant:** colunas no serviço, no SQLite da clínica.
+
+### REQ-091 — Avaliação da previsão
+
+**Prioridade/estado:** MVP / Confirmado (DEC-077). **Origem:** ACT-02, ACT-03; JRN-03. **Comportamento:** uma função, na hora de início e no fuso da clínica, devolve serve, não serve ou indisponível. Sol e Chuva seguem os símbolos da DEC-077. Acima de X e Abaixo de X são estritos. Sem local, sem leitura ou símbolo desconhecido: indisponível, sem adivinhar. O corpo da resposta do provedor não sai da função. O corte numérico, quando o provedor só dá percentagem, fica na spec do adaptador. **Aceite:** AC-64. **Dados/tenant:** só leitura do serviço e do local desta clínica.
+
+### REQ-092 — Horário automático, proposta e marcação manual
+
+**Prioridade/estado:** MVP / Confirmado (DEC-077). **Origem:** ACT-02, ACT-03; JRN-03, JRN-17. **Comportamento:** o caminho automático omite a hora que não serve ou está indisponível e não monta proposta para ela. No clique (DEC-061) a função corre outra vez; se falhar, a proposta falha fechada, com a frase fixa, sem compromisso e sem Pix. A frase de horário ocupado continua a ser outra. Na marcação manual a hora permanece, o painel mostra o aviso e a confirmação grava. Compromisso já marcado não se cancela se o tempo mudar. Serviço em Tanto faz não muda a grade. **Aceite:** AC-65, AC-66. **Dados/eventos:** sem coluna de previsão no compromisso; eventos de agenda já existentes.
+
+### REQ-093 — Contexto da IA sem a previsão bruta
+
+**Prioridade/estado:** MVP / Confirmado (DEC-077, DEC-011). **Origem:** ACT-02; JRN-02, JRN-17. **Comportamento:** a IA recebe só horários já filtrados e, se a hora pedida foi recusada, a frase fixa do motivo. Não recebe payload, percentagem, códigos nem o bloco para escolher. A sugestão não cita percentagem nem hora filtrada. **Aceite:** AC-67. **Dados/tenant:** nada de pessoa; a frase calcula-se na clínica da sessão.
 
 ## Racional de prioridade — proposta para aprovação
 
@@ -248,6 +268,11 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-051 | MVP | Sem vinculação verificável de número, não existe atendimento WhatsApp real. |
 | REQ-052 | MVP | Agenda exige serviços, recursos e disponibilidade configurados. |
 | REQ-072 | MVP | É preciso definir e limitar o contexto antes de usar IA com clientes. |
+| REQ-089 | MVP | Sem local da clínica o bloco Tempo não tem o que avaliar (DEC-077). |
+| REQ-090 | MVP | O serviço declara sol, chuva ou temperatura; o padrão é não restringir. |
+| REQ-091 | MVP | A mesma função decide serve, não serve ou indisponível, sem mostrar percentagem. |
+| REQ-092 | MVP | O automático e o clique falham fechados; a marcação manual avisa e confirma. |
+| REQ-093 | MVP | A IA vê horários filtrados e a frase, não o payload do provedor. |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). |
 
