@@ -6757,3 +6757,256 @@
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
 }
+
+/* Semana navegável do desktop (#224): uma linha por dia, clínica ao fundo, pessoas em faixas. */
+.week-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.week-grid-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.week-grid-range {
+  font-size: var(--font-size-body);
+}
+
+.week-grid-show {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.week-grid-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.week-grid-chip[aria-pressed='true'] {
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+}
+
+.week-grid-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  color: var(--color-text-on-primary);
+  font-size: var(--font-size-caption);
+  font-style: normal;
+}
+
+.week-grid-dot:not(:empty) {
+  width: 24px;
+  height: 24px;
+}
+
+.week-grid-ticks {
+  position: relative;
+  height: 16px;
+  margin-left: 112px;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.week-grid-ticks span {
+  position: absolute;
+  top: 0;
+}
+
+.week-grid-days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  border: var(--size-border-width) solid var(--color-line-border);
+  overflow: hidden;
+}
+
+.week-grid-day {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+  min-height: 52px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+}
+
+.week-grid-days li:first-child .week-grid-day {
+  border-top: 0;
+}
+
+.week-grid-day[data-selected] {
+  background: var(--color-primary-tint);
+  box-shadow: inset 4px 0 0 var(--color-primary-base);
+}
+
+.week-grid-day[data-today] .week-grid-name strong::after {
+  content: ' ·';
+  color: var(--color-primary-ink);
+}
+
+.week-grid-name {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-size-small);
+}
+
+.week-grid-name span {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.week-grid-track {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-app);
+}
+
+.week-grid-track > i,
+.week-grid-lane > i {
+  position: absolute;
+  top: 0;
+}
+
+.week-grid-lane > i {
+  bottom: 0;
+}
+
+.week-grid-clinic {
+  display: flex;
+  align-items: center;
+  padding-left: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+  font-size: var(--font-size-caption);
+  font-style: normal;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  height: 24px;
+}
+
+.week-grid-lane {
+  position: relative;
+  height: 4px;
+  margin: 0 0 0;
+}
+
+.week-grid-lane > i {
+  border-radius: 2px;
+}
+
+.week-grid-hatch {
+  background: repeating-linear-gradient(135deg, currentColor 0 3px, transparent 3px 6px);
+  border-radius: 2px;
+}
+
+.week-grid-track > .week-grid-closed {
+  height: 24px;
+  color: var(--color-danger-ink);
+  background:
+    repeating-linear-gradient(135deg, var(--color-danger-ink) 0 3px, transparent 3px 6px),
+    var(--color-danger-tint);
+}
+
+.week-grid-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.week-grid-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.week-grid-key {
+  display: inline-block;
+  width: 16px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--color-primary-base);
+}
+
+.week-grid-key.week-grid-hatch {
+  color: var(--color-text-muted);
+}
+
+/* Desktop (≥ 1280 px): editor do dia e folga viram o painel que desliza por cima (#212),
+ * sem encolher a área de trabalho. No celular continuam folhas de baixo. */
+@media (min-width: 1280px) {
+  .panel-choice-overlay:has(.clinic-sheet) {
+    background: rgb(0 0 0 / 12%);
+  }
+
+  .clinic-sheet.panel-choice-sheet {
+    left: auto;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 380px;
+    max-height: none;
+    border-radius: 0;
+    border-left: var(--size-border-width) solid var(--color-line-border);
+    box-shadow: -8px 0 24px rgb(0 0 0 / 12%);
+    animation: clinic-panel-in 160ms ease-out;
+  }
+
+  .clinic-sheet .panel-sheet-handle {
+    display: none;
+  }
+
+  @keyframes clinic-panel-in {
+    from {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .clinic-sheet.panel-choice-sheet {
+      animation: none;
+    }
+  }
+}

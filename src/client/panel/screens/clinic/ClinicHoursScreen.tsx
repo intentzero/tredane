@@ -24,6 +24,8 @@ import {
 import { DayEditor } from './DayEditor'
 import { BLOCK_REASON_LABELS, dayLabel, formatMinutes } from './format'
 import { MonthCalendar, type CalendarEntry } from './MonthCalendar'
+import { WeekGrid, type GridPerson } from './WeekGrid'
+import { useMediaQuery } from '../../ui/useMediaQuery'
 
 type Props = {
   tenantId: string
@@ -78,6 +80,7 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
   const [confirmAll, setConfirmAll] = useState(false)
   const [showMonth, setShowMonth] = useState(false)
   const fo = { generation, expectGeneration: () => generation }
+  const wide = useMediaQuery('(min-width: 1280px)')
   const tz = snap.settings.timezone
 
   const professionals = snap.resources.filter((r) => r.kind === 'professional' && r.active)
@@ -101,6 +104,13 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
             professionals.findIndex((p) => p.id === id),
           ),
         )
+  const gridPeople: GridPerson[] = professionals.map((p, i) => ({
+    id: p.id,
+    name: p.name,
+    color: personColor(i),
+    mark: personMark(i, p.name),
+    week: p.hoursMode === 'clinic' ? draft : toWeekDraft(windowsOf(snap, p.id)),
+  }))
   const nameOf = (id: string) =>
     id === CLINIC_SCOPE_ID ? 'Clínica inteira' : (snap.resources.find((r) => r.id === id)?.name ?? 'Outro')
   const inScope = (id: string) => id === CLINIC_SCOPE_ID || professionals.some((p) => p.id === id)
@@ -197,7 +207,19 @@ export function ClinicHoursScreen({ tenantId, snap, api, generation, onSaved }: 
         <h3 id="week-h" className="panel-legend">
           Semana da clínica
         </h3>
-        <ul className="clinic-rows hours-days">
+        {wide ? (
+          <WeekGrid
+            clinic={draft}
+            people={gridPeople}
+            clinicBlocks={snap.blocks.filter((b) => b.resourceId === CLINIC_SCOPE_ID)}
+            personBlocks={snap.blocks.filter((b) => b.resourceId !== CLINIC_SCOPE_ID)}
+            timezone={tz}
+            todayIso={todayIso}
+            selectedDay={editingDay}
+            onPickDay={setEditingDay}
+          />
+        ) : null}
+        <ul className="clinic-rows hours-days" hidden={wide}>
           {[1, 2, 3, 4, 5, 6, 7].map((d) => {
             const list = draft[d] ?? []
             const isChanged = changed.includes(d)
