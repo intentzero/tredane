@@ -97,7 +97,7 @@ export function deleteContactOp(
     const attachmentIds = listAttachmentIdsForMessages(db, meta.tenantId, messageIds)
     const now = clock.nowMs()
 
-    // IA ligada às conversas.
+    // IA ligada às conversas (sugestões, idempotência e jobs de rascunho — S8 / #179).
     for (const conversationId of conversationIds) {
       db.run(
         `DELETE FROM ai_suggestions WHERE tenant_id = ? AND conversation_id = ?`,
@@ -106,6 +106,11 @@ export function deleteContactOp(
       )
       db.run(
         `DELETE FROM ai_commands WHERE tenant_id = ? AND conversation_id = ?`,
+        meta.tenantId,
+        conversationId,
+      )
+      db.run(
+        `DELETE FROM ai_autodraft_jobs WHERE tenant_id = ? AND conversation_id = ?`,
         meta.tenantId,
         conversationId,
       )

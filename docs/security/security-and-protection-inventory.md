@@ -109,10 +109,20 @@
 | Campo | Detalhe |
 |---|---|
 | Estado | **em staging** |
-| Onde | `src/clinic/ai/context.ts:89` (anexos nunca entram), `:101-123` (só contagem) |
-| Decisão | DEC-011 (`docs/product/decisions.md:65`, "confirmado parcialmente") |
-| Testes | `src/clinic/ai/ai.test.ts:170` (AC-37) |
+| Onde | `src/clinic/ai/context.ts` (anexos nunca entram; só contagem em `_debugExcluded`) |
+| Decisão | DEC-011 (`docs/product/decisions.md`, "confirmado parcialmente"); DEC-067 |
+| Testes | `src/clinic/ai/ai.test.ts` (AC-37); `src/clinic/ai/context-minimization.test.ts` (S8) |
 | Limites | IA ainda não avisa que há imagem não analisada (#188). Legenda é entrada não confiável. |
+
+### 9b. Minimização / retenção do contexto IA (S8 / #179)
+
+| Campo | Detalhe |
+|---|---|
+| Estado | **implementado em PR** (inventário + enforcement; gates jurídicos Em aberto) |
+| Onde | `docs/security/ai-context-minimization.md`; `src/clinic/ai/context.ts`; `src/ai/rules.ts` (`redactProhibitedFromText`); `src/clinic/ai/operations.ts` (`ai_commands` mínimo); Gateway `cf-aig-collect-log-payload: false` + `cf-aig-skip-cache: true`; retenção `contact-delete` / `tenant-purge-local` |
+| Decisão | DEC-011; REQ-072; H2 #159 divergência **Em aberto** (Paulo) |
+| Testes | `context-minimization.test.ts`, `ai.test.ts`, `retention.test.ts` |
+| Limites | Conjunto clinic/slots vs DEC-011; GATE-04/06; retenção proposta/clique após S3 |
 
 ### 10. Prompt injection
 
@@ -138,10 +148,11 @@
 
 | Item | Estado | Onde |
 |---|---|---|
-| Épico SEG-IA #171 (#172–#180) | **parcial**: S1/S2/S7 em `main`; S6 em PR de reland; S3–S5/S8/S9 abertas | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
-| S1 / #172 | **na main sem deploy** (#181 integrado em `4807146`; issue #172 ainda aberta) | DEC-061 |
+| Épico SEG-IA #171 (#172–#180) | **parcial**: S1/S2/S6/S7 em `main`; S8 em PR; S3–S5/S9 abertas | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
+| S1 / #172 | **na main sem deploy** (#181) | DEC-061 |
 | S2 / #173 | **na main sem deploy** (#191) | texto livre nunca marca; `AI_AUTOBOOK` off por padrão |
-| S6 / #177 | **em PR de reland para `main`** (código de #198; base original estava errada) | `untrusted.ts`, `guardReplyOutput`, testes de ataque |
+| S6 / #177 | **na main sem deploy** (#263 reland) | `untrusted.ts`, `guardReplyOutput`, testes de ataque |
+| S8 / #179 | **em PR** | inventário + redacção + retenção AI + testes isolamento |
 | Épico PROTEÇÃO #182 (#183–#189) | **planeado (issue)**, todas abertas | #183 P1 · #184 P2 · #185 P3 · #186 P4 · #187 P5 · #188 P6 · #189 P7 |
 | P1 / #183 | **em PR aberto** #190 (docs; CI verde em `b42639d`) | DEC-062 **Proposto**, aguarda Paulo (P-1–P-3); `docs/product/protecao-equipe.md` |
 
@@ -190,5 +201,5 @@ Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY
 6. **Produção sem provisionamento e sem deploy registrado**; secrets de produção ausentes (DEPLOY.md §5).
 7. **Gates de dados reais**: #45 aberta; #18 fechada sem evidência visível na issue.
 8. **Imagens**: sem cartão oculto, sinalização ou fila de revisão (#184–#186); DEC-062 só proposta.
-9. **Minimização/retenção de dados do fluxo de IA** por revisar (#179); DEC-011 só parcialmente confirmada.
+9. **Minimização/retenção IA (S8/#179):** inventário e enforcement em PR; DEC-011 parcial — Paulo fecha conjunto vs H2; GATE-04/06 e propostas S3 Em aberto.
 10. **Estado real dos secrets e vars nos Workers não verificado** neste levantamento (sem chamadas à Cloudflare).

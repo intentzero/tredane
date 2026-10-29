@@ -158,7 +158,7 @@
 
 **Renumeração (24/10/2026, decisão do responsável):** antes duplicava o ID REQ-060, que permanece com o aviso e a decisão de suporte.
 
-**Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** o contexto enviado à IA contém só mensagens recentes da conversa (proposta: até 20), primeiro nome do contato, catálogo de serviços da clínica e etapa da oportunidade. **Aceite:** inspecionando a solicitação enviada ao AI Gateway em teste, não aparecem telefone, anexos, outras conversas nem dados de outra clínica; o AI Gateway não registra o conteúdo. **Dados/eventos:** não usar dados reais antes da revisão jurídica.
+**Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** o contexto enviado à IA contém só mensagens recentes da conversa (proposta: até 20), primeiro nome do contato, catálogo de serviços da clínica e etapa da oportunidade. **Aceite:** inspecionando a solicitação enviada ao AI Gateway em teste, não aparecem telefone, anexos, outras conversas nem dados de outra clínica; o AI Gateway não registra o conteúdo. **Dados/eventos:** não usar dados reais antes da revisão jurídica. **Em aberto (S8/#179):** divergência com H2 (#159) e com o bloco `clinic` já presente no código de rascunho — inventário e estados em [ai-context-minimization.md](../security/ai-context-minimization.md); Paulo aprova o conjunto mínimo antes de uso real.
 
 ### REQ-070 — Observabilidade do fluxo
 

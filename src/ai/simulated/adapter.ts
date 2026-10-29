@@ -57,6 +57,7 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
       ...(input.temperature != null ? { temperature: input.temperature } : {}),
       headers: {
         'cf-aig-collect-log-payload': 'false',
+        'cf-aig-skip-cache': 'true',
         'x-tredane-ai-mode': 'synthetic',
       },
       context: input.context,
