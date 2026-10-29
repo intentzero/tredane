@@ -459,10 +459,16 @@ function resolveFacts(
     professionalName = pro?.name ?? null
   }
 
-  const durationMinutes = input.durationMinutes ?? service.durationMinutes
-  if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
-    throw new ValidationError('invalid_duration', 'Duração da proposta inválida')
+  // DEC-076: a proposta usa a duração do cadastro. Uma duração diferente
+  // ficaria por confirmar depois do clique.
+  if (input.durationMinutes != null && input.durationMinutes !== service.durationMinutes) {
+    throw new ValidationError(
+      'duration_not_adjustable',
+      'a duração do procedimento não se ajusta ao agendar',
+      { serviceId: service.id, durationMinutes: service.durationMinutes },
+    )
   }
+  const durationMinutes = service.durationMinutes
   const startsAt = input.startsAt
   if (!Number.isFinite(startsAt) || startsAt <= 0) {
     throw new ValidationError('invalid_starts_at', 'Início da proposta inválido')

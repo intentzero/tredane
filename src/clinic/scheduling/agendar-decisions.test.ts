@@ -93,6 +93,42 @@ describe('Agendar — DEC-076 retira duração ajustável; DEC-052 mantém-se', 
     }
   })
 
+  it('DEC-076: override de duração sem bloco é recusado', () => {
+    const { close, book } = setup()
+    try {
+      expect(() => book(9, { durationMinutesOverride: 90 })).toThrow(ValidationError)
+      expect(() =>
+        book(10, { appliedDurationMinutes: 60, durationMinutesOverride: 90 }),
+      ).toThrow(ValidationError)
+    } finally {
+      close()
+    }
+  })
+
+  it('DEC-076: reagendar sem coluna de duração mantém o intervalo já gravado', () => {
+    const { db, close, caller, clock, book, pro, tenantId } = setup()
+    try {
+      const r = book(9)
+      const span = r.value.startsAt + 30 * 60_000
+      db.run(
+        `UPDATE appointments SET applied_duration_minutes = NULL, ends_at = ? WHERE tenant_id = ? AND id = ?`,
+        span,
+        tenantId,
+        r.value.id,
+      )
+      const moved = rescheduleAppointmentOp(
+        db,
+        caller,
+        { clientRequestId: 'rs-null', appointmentId: r.value.id, reason: 'contato_remarcou', professionalId: pro.id, startsAt: at(14), actorClerkUserId: ACTOR },
+        clock,
+      )
+      expect(moved.value.endsAt - moved.value.startsAt).toBe(30 * 60_000)
+      expect(moved.value.appliedDurationMinutes).toBe(30)
+    } finally {
+      close()
+    }
+  })
+
   it('DEC-076: gravar o procedimento ignora o pedido de duração ajustável', () => {
     const { db, close, caller, clock, pro } = setup()
     try {

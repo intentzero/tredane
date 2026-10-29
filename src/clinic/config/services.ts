@@ -193,7 +193,7 @@ function normalizeSignalFields(
 }
 
 /** DEC-076: o pedido pode ainda trazer o campo antigo; a gravação limpa-o. */
-function normalizeDurationFields(_input: UpsertServiceInput): {
+function normalizeDurationFields(): {
   adjustable: number
   min: number | null
   max: number | null
@@ -366,7 +366,7 @@ export function upsertService(
   const now = clock.nowMs()
   const active = input.active === false ? 0 : 1
   const signal = normalizeSignalFields(input, priceCents)
-  const dur = normalizeDurationFields(input)
+  const dur = normalizeDurationFields()
   const existing = input.id ? getService(db, tenantId, input.id) : null
   if (input.id && !existing) {
     throw new NotFoundError('service_not_found', `serviço ${input.id} não encontrado`)
