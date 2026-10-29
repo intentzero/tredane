@@ -6117,3 +6117,95 @@
 .hours-screen {
   container-type: inline-size;
 }
+
+/* Cabeçalho comum das listas da Clínica (#226): contagem, chave e ação principal. */
+.clinic-list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.clinic-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-4);
+  min-width: 0;
+}
+
+.clinic-list-count {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.clinic-list-add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch);
+  width: auto;
+}
+
+.clinic-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.clinic-switch-track {
+  flex: none;
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  background: var(--color-line-control);
+  transition: background 0.15s;
+}
+
+.clinic-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  transition: transform 0.15s;
+}
+
+.clinic-switch[data-selected] .clinic-switch-track {
+  background: var(--color-primary-base);
+}
+
+.clinic-switch[data-selected] .clinic-switch-thumb {
+  transform: translateX(18px);
+}
+
+.clinic-switch[data-focus-visible] .clinic-switch-track {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clinic-switch-track,
+  .clinic-switch-thumb {
+    transition: none;
+  }
+}
+
+/* Linha de lista: título, detalhes em frases e selo só quando há exceção. */
+.clinic-row-detail {
+  display: block;
+}
+
+.clinic-row-warn {
+  color: var(--color-warning-ink);
+  font-weight: var(--font-weight-medium);
+}
