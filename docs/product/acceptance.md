@@ -40,9 +40,11 @@
 
 **Dado** dois membros autorizados da clínica A com o painel aberto; **quando** um assume a conversa e muda a etapa da oportunidade; **então** a outra sessão mostra responsável e etapa atualizados sem recarregar a página. Uma sessão da clínica B não recebe o evento. **Requisitos:** REQ-020, REQ-023, REQ-040.
 
-### AC-09 — Conflito de profissional ou sala/equipamento
+### AC-09 — Conflito de sala, profissional ou equipamento
 
-**Dado** um horário confirmado que ocupa profissional P e sala S na clínica A; **quando** outra pessoa tenta confirmar compromisso sobreposto que exige P ou S; **então** a segunda confirmação é recusada com conflito e não cria reserva duplicada. Se profissional e sala/equipamento exigidos forem distintos e estiverem disponíveis, a regra não bloqueia apenas por coincidência de horário. **Requisitos:** REQ-030, REQ-031. **Pendente:** durações e buffers da clínica piloto.
+**Revisto em 29/10/2026 (DEC-075).** A recusa deixa de ser «qualquer sobreposição na profissional ou na sala».
+
+**Dado** a sala da profissional, com capacidade e modo; **quando** a equipa confirma uma marcação; **então** ela cai nessa sala e só é recusada se a sala passar da capacidade, a profissional já estiver noutra sala nesse bloco, o modo «Cada profissional com a sua cliente» já tiver essa profissional com outra cliente, o modo grupo a puser noutra sala, ou o sexo do bloco não coincidir sem «Permitir os dois». Dois serviços da mesma pessoa no mesmo bloco contam como uma pessoa. Equipamento continua uma vaga. **Requisitos:** REQ-030, REQ-031, DEC-075. Casos Gi, salão e Sandra: [épico](../implementation/epic-salas-audiencia.md). **Pendente:** durações e buffers da clínica piloto.
 
 ### AC-10 — Cancelamento e reagendamento
 

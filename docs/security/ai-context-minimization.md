@@ -9,7 +9,7 @@ Este documento inventaria, campo a campo, o que vai ao LLM versus o que fica só
 
 | Afirmação | Estado |
 | --- | --- |
-| Conjunto mínimo DEC-011: mensagens recentes (proposta ≤20), primeiro nome, catálogo (nome, duração, preço; DEC-046 acrescenta explicação), etapa; nunca telefone, anexos, outras conversas, outra clínica | **Confirmado** (parcialmente — DEC-011) |
+| Conjunto mínimo DEC-011: mensagens recentes (proposta ≤20), primeiro nome, catálogo (nome, duração, preço e audiência do serviço — feminino, masculino ou qualquer, DEC-075; descreve o serviço, não a pessoa; DEC-046 acrescenta explicação), etapa; nunca telefone, anexos, outras conversas, outra clínica. A IA não anuncia vagas nem abre a mistura de sexos no bloco | **Confirmado** (parcialmente — DEC-011; audiência Confirmada em DEC-075, 29/10/2026) |
 | DEC-011 listou «horários livres» / conversa inteira como opções **descartadas** | **Confirmado** no texto de 23/10/2026 |
 | H2 (#159) pede compromissos futuros, data/hora por mensagem, vagas do período, sem dados proibidos | **Proposto** (arquitetura híbrida / épico) |
 | Código de rascunho (`buildClinicAiContext`) já envia nome/endereço/URL Google/políticas, `nowLabel`/`today`/`openingHours`, `freeSlots` (7 dias) e `upcomingAppointments` quando há `clock` | **Código à frente da DEC** — **não** Confirmado como política até Paulo fechar |
