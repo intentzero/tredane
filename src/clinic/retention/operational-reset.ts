@@ -56,6 +56,7 @@ export const OPERATIONAL_RESET_KEPT_TABLES: readonly string[] = [
   'services',
   'resources',
   'service_professionals',
+  'service_weekly_windows',
   'service_room_requirements',
   'weekly_windows',
   'resource_blocks',

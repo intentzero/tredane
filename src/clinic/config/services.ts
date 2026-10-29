@@ -10,6 +10,7 @@ import type {
   ServiceSignalKind,
   UpsertServiceInput,
 } from './types'
+import { listServiceWeeklyWindows, setServiceWeeklyWindows } from './service-windows'
 import {
   assertBufferMinutes,
   assertNonEmptyName,
@@ -114,8 +115,21 @@ function toServiceRow(
     updatedAt: row.updated_at,
     professionalIds: loadProfessionals(db, row.tenant_id, row.id),
     roomRequirement: loadRoomRequirement(db, row.tenant_id, row.id),
+    weeklyWindows: loadServiceWeeklyWindows(db, row.tenant_id, row.id),
     deletable: serviceDeleteBlocker(db, row.tenant_id, row.id) === null,
   }
+}
+
+function loadServiceWeeklyWindows(
+  db: ClinicDb,
+  tenantId: string,
+  serviceId: string,
+): Array<{ dayOfWeek: number; startMinute: number; endMinute: number }> {
+  return listServiceWeeklyWindows(db, tenantId, serviceId).map((w) => ({
+    dayOfWeek: w.dayOfWeek,
+    startMinute: w.startMinute,
+    endMinute: w.endMinute,
+  }))
 }
 
 function normalizeSignalFields(
@@ -385,6 +399,9 @@ export function upsertService(
     )
     writeProfessionals(db, tenantId, input.id, input.professionalIds)
     writeRoomRequirement(db, tenantId, input.id, roomRequirement)
+    if (input.weeklyWindows !== undefined) {
+      setServiceWeeklyWindows(db, tenantId, input.id, input.weeklyWindows)
+    }
     return getService(db, tenantId, input.id)!
   }
 
@@ -417,6 +434,9 @@ export function upsertService(
   )
   writeProfessionals(db, tenantId, id, input.professionalIds)
   writeRoomRequirement(db, tenantId, id, roomRequirement)
+  if (input.weeklyWindows !== undefined) {
+    setServiceWeeklyWindows(db, tenantId, id, input.weeklyWindows)
+  }
   return getService(db, tenantId, id)!
 }
 
@@ -460,6 +480,7 @@ export function deleteService(
   }
   db.run(`DELETE FROM service_professionals WHERE tenant_id = ? AND service_id = ?`, tenantId, serviceId)
   db.run(`DELETE FROM service_room_requirements WHERE tenant_id = ? AND service_id = ?`, tenantId, serviceId)
+  db.run(`DELETE FROM service_weekly_windows WHERE tenant_id = ? AND service_id = ?`, tenantId, serviceId)
   db.run(`DELETE FROM services WHERE tenant_id = ? AND id = ?`, tenantId, serviceId)
   return existing
 }

@@ -48,6 +48,7 @@ const WIPE_TABLES: readonly string[] = [
   'weekly_windows',
   'service_room_requirements',
   'service_professionals',
+  'service_weekly_windows',
   'services',
   'resources',
   'clinic_settings',

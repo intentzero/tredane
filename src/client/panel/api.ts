@@ -1929,6 +1929,12 @@ export type RoomRequirementDto =
   | { mode: 'category'; category: string }
   | { mode: 'resource'; resourceId: string }
 
+export type ServiceWeeklyWindowSpec = {
+  dayOfWeek: number
+  startMinute: number
+  endMinute: number
+}
+
 export type ClinicService = {
   id: string
   name: string
@@ -1948,6 +1954,8 @@ export type ClinicService = {
   durationMaxMinutes?: number | null
   professionalIds: string[]
   roomRequirement: RoomRequirementDto
+  /** Horário de oferta do serviço; vazio = qualquer horário no expediente da profissional. */
+  weeklyWindows?: ServiceWeeklyWindowSpec[]
   /** Nunca teve marcação, Pix ou proposta: pode ser apagado. */
   deletable?: boolean
   createdAt: number
@@ -2068,6 +2076,8 @@ export type ServiceUpsertBody = {
   durationAdjustable?: boolean
   durationMinMinutes?: number | null
   durationMaxMinutes?: number | null
+  /** Omitido na atualização mantém faixas; array vazio remove filtro. */
+  weeklyWindows?: ServiceWeeklyWindowSpec[]
 }
 
 export type PixAccountPublic = {

@@ -14,7 +14,7 @@ import {
   clinicDayOfWeek,
   clinicMinuteOfDay,
 } from './timezone'
-import { resourceBusyReasons } from './occupancy'
+import { resourceBusyReasons, serviceOfferingAllows } from './occupancy'
 import { candidateBreaksHolds } from './hold-fit'
 import type {
   AvailableSlot,
@@ -118,6 +118,10 @@ export function checkSlotAvailability(
   } else if (roomId) {
     // Serviço sem sala — ignorar room extra; não falha.
     roomId = null
+  }
+
+  if (!serviceOfferingAllows(service.weeklyWindows, dayOfWeek, startMinute, occMins)) {
+    reasons.push('outside_weekly_hours')
   }
 
   const allWindows = listEffectiveWeeklyWindows(db, tenantId)

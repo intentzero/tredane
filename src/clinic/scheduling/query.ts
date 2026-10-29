@@ -19,6 +19,7 @@ import {
   peakConcurrent,
   resourceBusyReasons,
   resourceCapacity,
+  serviceOfferingAllows,
 } from './occupancy'
 import { candidateBreaksHolds, listActiveHoldNeeds } from './hold-fit'
 import type {
@@ -221,6 +222,10 @@ export function queryAvailability(
 
     // Horário cujo início já passou não é oferecido (início < agora).
     if (startsAt < asOf) continue
+
+    if (!serviceOfferingAllows(service.weeklyWindows, dayOfWeek, startMinute, occMins)) {
+      continue
+    }
 
     let chosen: AvailableSlot | null = null
 

@@ -24,8 +24,26 @@ export type ServiceRow = {
   updatedAt: number
   professionalIds: string[]
   roomRequirement: RoomRequirement
+  /**
+   * Horário semanal em que o serviço pode ser prestado (issue #261).
+   * Vazio = sem filtro (só expediente da profissional / sala).
+   */
+  weeklyWindows: ServiceWeeklyWindowSpec[]
   /** Pode ser apagado: nunca teve marcação, Pix ou proposta ligada. */
   deletable: boolean
+}
+
+/** Faixa semanal de oferta do serviço (sem id estável na API de gravação). */
+export type ServiceWeeklyWindowSpec = {
+  dayOfWeek: number
+  startMinute: number
+  endMinute: number
+}
+
+export type ServiceWeeklyWindowRow = ServiceWeeklyWindowSpec & {
+  id: string
+  tenantId: string
+  serviceId: string
 }
 
 export type RoomRequirement =
@@ -175,6 +193,8 @@ export type UpsertServiceInput = {
   durationAdjustable?: boolean
   durationMinMinutes?: number | null
   durationMaxMinutes?: number | null
+  /** Omitido na atualização = mantém faixas actuais; array (mesmo vazio) substitui. */
+  weeklyWindows?: ServiceWeeklyWindowSpec[]
 }
 
 export type UpsertResourceInput = {
