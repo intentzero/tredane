@@ -107,22 +107,23 @@ Mapeado para S6 (#177) e S4 (#175). Mantido.
 
 ## H9 — Conjunto fictício, matriz de modelos e orçamento de latência
 
-Mapeado para S9 (#180); o conjunto passa a incluir prompt injection, replay e abuso.
+Mapeado para S9 (#180). **Gates de autorização/isolamento** (zero book por texto/JSON/modelo, adversariais) estão no harness sintético — [seg-ia-s9-e2e-validation.md](../security/seg-ia-s9-e2e-validation.md) / `src/seg-ia-validation/`. A **matriz de qualidade de modelo** permanece separada e **Em aberto**.
 
-- [ ] Conjunto de ~150 conversas fictícias com todos os casos de H3–H6; nenhuma conversa real.
-- [ ] Regressão em cada PR: zero marcações indevidas e zero preços/horários fora do catálogo/vagas; falha bloqueia o merge.
+- [x] Regressão CI de autorização: zero marcações indevidas por texto/JSON/saída de modelo e adversariais S9 (`npm run test:seg-ia`).
+- [ ] Conjunto de ~150 conversas fictícias com todos os casos de H3–H6; nenhuma conversa real (**qualidade**, Em aberto).
 - [ ] Matriz comparada nas mesmas conversas (configurações de thinking/effort de Haiku e Sonnet): qualidade, tokens e latência.
 - [ ] Latência p95 medida por etapa; meta e timeout definidos a partir da medição (Proposto: 15 s total).
 - [ ] Mantém-se Haiku no primeiro rascunho e Sonnet na regeneração até a matriz justificar mudança (provisório).
 
 ## H10 — Religar `AI_AUTOBOOK` no piloto e retirar a contenção
 
-Mapeado para S9 (#180).
+Mapeado para S9 (#180). Gates documentados em [seg-ia-s9-e2e-validation.md](../security/seg-ia-s9-e2e-validation.md); kill switch em [ai-autobook-kill-switch.md](runbooks/ai-autobook-kill-switch.md). **Esta documentação não libera clínica.**
 
 - [ ] Ligado só no piloto (quando retomado), com cada marcação da IA revista pela equipe.
 - [ ] Contenção retirada após zero marcações indevidas em **20 marcações revistas** (Decidido, Paulo, 28/10/2026).
 - [ ] Qualidade de rascunho reportada por categoria: correção factual, erros críticos, exceções; «sem edição» só como sinal.
 - [ ] Envio automático continua desligado; qualquer liberação exige nova decisão explícita do Paulo.
+- [ ] Valores S7 (abuse/quotas), UI/aparelhos, Meta staging e #18 — **Em aberto (Paulo)**.
 
 ---
 

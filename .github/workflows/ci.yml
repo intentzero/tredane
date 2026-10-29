@@ -29,6 +29,8 @@ jobs:
         run: npm run lint
       - name: Unit and SQL tests
         run: npm test
+      - name: SEG-IA S9 evidence (synthetic; no pilot)
+        run: npm run seg-ia:evidence
       - name: Cloudflare runtime harness
         run: npm run test:runtime
       - name: Design tokens and mocks

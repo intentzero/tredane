@@ -132,30 +132,31 @@
 | Onde | `src/ai/untrusted.ts`, `src/ai/prompt.ts`, `src/ai/reply-output.ts` (`guardReplyOutput`), `src/ai/rules.ts`, `src/clinic/ai/operations.ts`; doc `docs/security/prompt-injection.md`; adaptador simulado recusa injection/tool calls; IA não envia mensagens (rascunho para a atendente) |
 | Decisão | DEC-006, DEC-046; DEC-061 retira do LLM a autorização (S2/#191 já em `main`) |
 | Testes | `src/clinic/ai/prompt-injection.test.ts` (ataques + zero efeitos); `src/ai/reply-output.robust.test.ts`, `src/clinic/ai/ai.test.ts` |
-| Limites | Heurística `injection_suspected` é Proposta (só aviso). Resumo (`kind: summary`) não passa pelo schema fechado. Não afirma imunidade total; rascunho continua a exigir revisão humana. S9 (#180) fecha a validação ponta a ponta. |
+| Limites | Heurística `injection_suspected` é Proposta (só aviso). Resumo (`kind: summary`) não passa pelo schema fechado. Não afirma imunidade total; rascunho continua a exigir revisão humana. S9 (#180) consolida CI sintético + gates; liberação piloto continua Em aberto. |
 
 ### 11. Limites de abuso (por contato e por clínica)
 
 | Campo | Detalhe |
 |---|---|
-| Estado | **planeado (issue)** #178 (S7) — valores **ainda não decididos** (em aberto para Paulo/Produto, #171) |
-| Onde | Existe apenas `AI_DAILY_DRAFT_CAP = 300` rascunhos/dia por clínica (`src/ai/budgets.ts:27-28`) e debounce de 7 s |
-| Decisão | Nenhuma DEC para limites de propostas/marcações |
-| Testes | — |
-| Limites | Sem limite por contato; sem limite de marcações automáticas. |
+| Estado | **scaffold no código** (#178); valores **Em aberto (Paulo)** — ver [abuse-limits.md](abuse-limits.md) |
+| Onde | `src/clinic/ai/abuse-limits.ts` (`ABUSE_LIMITS=on`); `AI_DAILY_DRAFT_CAP = 300` já aprovado (`src/ai/budgets.ts`) |
+| Decisão | Nenhuma DEC com números finais de propostas/marcações |
+| Testes | `src/clinic/ai/abuse-limits.test.ts` |
+| Limites | Desligado por padrão; não bloqueia CI de auth; bloqueia liberação H10/S9 humana |
 
 ### 12. Épicos e PRs em curso
 
 | Item | Estado | Onde |
 |---|---|---|
-| Épico SEG-IA #171 (#172–#180) | **parcial**: S1–S6/S8 em `main` (ou PR); S7 valores Em aberto; S9 aberta | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
+| Épico SEG-IA #171 (#172–#180) | **parcial**: S1–S6/S8 em `main`; S5 em `main` (#268); S7 valores Em aberto; S9 harness sintético (este PR) **sem** liberar piloto | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
 | S1 / #172 | **na main sem deploy** (#181) | DEC-061 |
 | S2 / #173 | **na main sem deploy** (#191) | texto livre nunca marca; `AI_AUTOBOOK` off por padrão |
 | S3 / #174 | **na main sem deploy** (#264) | propostas versionadas |
 | S4 / #175 | **na main sem deploy** (#267) | botões WhatsApp + resultados determinísticos |
-| S5 / #176 | **em PR / código** | clique autenticado → book/Pix uma vez (`executeProposalConfirmOp`) |
+| S5 / #176 | **na main sem deploy** (#268) | clique autenticado → book/Pix uma vez (`executeProposalConfirmOp`) |
 | S6 / #177 | **na main sem deploy** (#263 reland) | `untrusted.ts`, `guardReplyOutput`, testes de ataque |
 | S8 / #179 | **na main sem deploy** (#266) | inventário + redacção + retenção AI + testes isolamento |
+| S9 / #180 | **harness + docs (PR); NO-GO piloto** | [seg-ia-s9-e2e-validation.md](seg-ia-s9-e2e-validation.md), `src/seg-ia-validation/`, kill switch runbook |
 | Épico PROTEÇÃO #182 (#183–#189) | **planeado (issue)**, todas abertas | #183 P1 · #184 P2 · #185 P3 · #186 P4 · #187 P5 · #188 P6 · #189 P7 |
 | P1 / #183 | **em PR aberto** #190 (docs; CI verde em `b42639d`) | DEC-062 **Proposto**, aguarda Paulo (P-1–P-3); `docs/product/protecao-equipe.md` |
 
@@ -196,10 +197,10 @@ Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY
 ## Lacunas conhecidas (priorizadas)
 
 1. **Agendamento por IA ligado por padrão no código** (`src/clinic/ai/deps.ts:60`). Staging contido só por `AI_AUTOBOOK=off` manual; correção em PR aberto #191 (S2).
-2. **Texto livre não marca** (S2); botão versionado S3–S5 está no código, com `AI_AUTOBOOK` fail-closed por padrão até S9.
+2. **Texto livre não marca** (S2); botão versionado S3–S5 em `main`, com `AI_AUTOBOOK` fail-closed por padrão até gates S9/H10 humanos.
 2a. **`AI_AUTOBOOK=off` no staging pode ter sido apagado pelo deploy das 20:12 BRT** (não verificado).
-3. **Sem limites de abuso por contato/clínica para marcações e propostas** (#178, valores por decidir).
-4. **Prompt injection**: fronteira S6 em PR de reland (#177); validação ponta a ponta e liberação controlada ainda em #180 (S9).
+3. **Sem limites de abuso por contato/clínica para marcações e propostas** (#178, valores Em aberto Paulo); scaffold + testes existem.
+4. **Prompt injection** S6 em `main`; S9 harness sintético + runbook prontos — **liberação controlada do botão ainda Em aberto** (#180).
 5. **Bloqueio de contato não para todas as automações e não existe pausa** (#191 parcial, #187). Não chegar à Meta é **limite aceite** (decisão do Paulo, 28/10/2026): bloqueio e pausa continuam só internos.
 6. **Produção sem provisionamento e sem deploy registrado**; secrets de produção ausentes (DEPLOY.md §5).
 7. **Gates de dados reais**: #45 aberta; #18 fechada sem evidência visível na issue.

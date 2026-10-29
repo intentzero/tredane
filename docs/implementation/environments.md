@@ -110,7 +110,7 @@ Criação remota de D1/R2/Queues/DO namespaces, contas Meta/Clerk e revisão jur
 
 | Ambiente | Estado esperado |
 | --- | --- |
-| development / staging / production | Desligado (sem `AI_AUTOBOOK=on`). Revisão da configuração publicada é gate de liberação (S9 #180, H10 #167). |
+| development / staging / production | Desligado (sem `AI_AUTOBOOK=on`). Revisão da configuração publicada é gate de liberação (S9 #180, H10 #167) — ver [seg-ia-s9-e2e-validation.md](../security/seg-ia-s9-e2e-validation.md) e [ai-autobook-kill-switch.md](runbooks/ai-autobook-kill-switch.md). **Não** religar sem gates humanos Em aberto. |
 
 - O opt-in de sugestões da clínica (assistência de IA) é independente: ligá-lo não liga agendamento nem envio.
 - A capacidade é relida na execução de cada job de rascunho (inclusive jobs já enfileirados); erro → negado.

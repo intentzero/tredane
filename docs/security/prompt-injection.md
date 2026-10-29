@@ -22,4 +22,4 @@ Nunca são instrução, venham de onde vierem: mensagens da conversa (cliente **
 
 - Heurística de deteção é Proposta (pode ter falsos positivos/negativos); serve só para aviso.
 - O resumo (`kind: summary`) não passa pelo schema fechado (é texto interno para a equipe, não vai à cliente).
-- Proposta/clique por botão (S3–S5) ainda não existem; quando existirem, a validação do clique fica no backend (#176).
+- Proposta/clique por botão (S3–S5) estão no código; a validação do clique fica no backend (`executeProposalConfirmOp`, #176). Validação ponta a ponta e liberação controlada: S9 [#180](https://github.com/intentzero/tredane/issues/180) / [seg-ia-s9-e2e-validation.md](seg-ia-s9-e2e-validation.md) — **sem** activar piloto neste documento.
