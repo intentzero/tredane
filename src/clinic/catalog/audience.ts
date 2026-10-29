@@ -35,11 +35,12 @@ export function explicitAudienceLine(text: string): 'feminino' | 'masculino' | n
 }
 
 export function serviceMatchesAudience(
-  audiencia: ServiceAudience,
+  audiencia: ServiceAudience | unknown,
   line: 'feminino' | 'masculino' | null,
 ): boolean {
   if (line == null) return true
-  return audiencia === line || audiencia === 'qualquer'
+  const a = normalizeServiceAudience(audiencia)
+  return a === line || a === 'qualquer'
 }
 
 export function filterServicesForLine<T extends { audiencia: ServiceAudience }>(

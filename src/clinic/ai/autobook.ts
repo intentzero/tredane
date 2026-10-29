@@ -13,7 +13,6 @@
  * `executeProposalConfirmOp`). Serviço com sinal: Pix sem hold (DEC-047); horário só após pagamento (#39).
  */
 import type { Clock } from '../../db/clock'
-import { explicitAudienceLine, filterServicesForLine } from '../catalog/audience'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
 import { listServices } from '../config/services'
@@ -144,12 +143,15 @@ function significantWords(name: string): string[] {
     .filter((w) => w.length >= 3)
 }
 
-/** Serviços activos cujo nome inteiro (todas as palavras) aparece no texto. */
+/**
+ * Serviços activos cujo nome inteiro (todas as palavras) aparece no texto.
+ * Sem filtro de audiência aqui: «masculina»/«feminina» no nome do serviço
+ * (ex.: «Depilação masculina amanhã…») não é pedido de linha da cliente.
+ * O filtro de audiência fica no catálogo da IA (`buildAiContextPayload`).
+ */
 export function extractServices(text: string, services: ServiceRow[]): ServiceRow[] {
-  const line = explicitAudienceLine(text)
-  const scoped = filterServicesForLine(services, line)
   const words = new Set(norm(text).split(/[^a-z0-9]+/).filter(Boolean))
-  const hits = scoped.filter((s) => {
+  const hits = services.filter((s) => {
     const sw = significantWords(s.name)
     return sw.length > 0 && sw.every((w) => words.has(w))
   })
