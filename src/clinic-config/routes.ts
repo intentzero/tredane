@@ -603,7 +603,26 @@ function parseServiceBody(body: Record<string, unknown>) {
       body.durationMaxMinutes === null || body.durationMaxMinutes === undefined
         ? null
         : Number(body.durationMaxMinutes),
+    ...(body.weeklyWindows === undefined
+      ? {}
+      : {
+          weeklyWindows: parseWeeklyWindowsBody(body.weeklyWindows),
+        }),
   }
+}
+
+function parseWeeklyWindowsBody(raw: unknown) {
+  if (!Array.isArray(raw)) {
+    throw new ValidationError('invalid_weekly_windows', 'weeklyWindows deve ser um array')
+  }
+  return raw.map((item) => {
+    const w = item as Record<string, unknown>
+    return {
+      dayOfWeek: Number(w.dayOfWeek),
+      startMinute: Number(w.startMinute),
+      endMinute: Number(w.endMinute),
+    }
+  })
 }
 
 function parseResourceBody(body: Record<string, unknown>) {

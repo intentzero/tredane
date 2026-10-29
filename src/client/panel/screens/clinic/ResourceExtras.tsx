@@ -54,6 +54,7 @@ export function serviceBody(
     durationAdjustable: s.durationAdjustable ?? false,
     durationMinMinutes: s.durationMinMinutes ?? null,
     durationMaxMinutes: s.durationMaxMinutes ?? null,
+    weeklyWindows: s.weeklyWindows ?? [],
     ...patch,
   }
 }

@@ -17,6 +17,8 @@ import {
 } from './format'
 import { friendlyError } from '../../copy/errors'
 import { DeleteServiceDialog } from './ResourceLifecycleDialogs'
+import { fromWeekDraft, toWeekDraft, type WeekDraft } from './clinicHours'
+import { WeekEditor } from './WeekEditor'
 
 type ListProps = {
   tenantId: string
@@ -166,6 +168,17 @@ export function ServiceForm({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [hoursDraft, setHoursDraft] = useState<WeekDraft>(() =>
+    toWeekDraft(
+      (existing?.weeklyWindows ?? []).map((w, i) => ({
+        id: `sw${i}`,
+        resourceId: '',
+        dayOfWeek: w.dayOfWeek,
+        startMinute: w.startMinute,
+        endMinute: w.endMinute,
+      })),
+    ),
+  )
 
   async function confirmDelete() {
     if (!existing) return
@@ -240,6 +253,7 @@ export function ServiceForm({
       durationAdjustable: adjustable,
       durationMinMinutes: adjustable ? Math.min(durMin, duration) : null,
       durationMaxMinutes: adjustable ? Math.max(durMax, duration) : null,
+      weeklyWindows: fromWeekDraft(hoursDraft),
     }
     try {
       await api.upsertService(tenantId, body, {
@@ -318,6 +332,21 @@ export function ServiceForm({
       <p className="clinic-footnote">
         Sem preço, a IA não informa valor: sugere que a equipe vai confirmar.
       </p>
+
+      <section className="clinic-fieldset" aria-labelledby="service-hours-heading">
+        <h2 id="service-hours-heading" className="clinic-section-title">
+          Quando este serviço pode ser prestado
+        </h2>
+        <WeekEditor
+          label="Quando este serviço pode ser prestado"
+          value={hoursDraft}
+          onChange={setHoursDraft}
+        />
+        <p className="clinic-footnote">
+          Com todos os dias fechados, o serviço pode ser agendado em qualquer horário em que a
+          profissional (e a sala, se houver) estiverem disponíveis.
+        </p>
+      </section>
 
       <section className="service-more">
         <button

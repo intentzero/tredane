@@ -11,6 +11,25 @@ export function intervalsOverlap(a: Interval, b: Interval): boolean {
 }
 
 /** Janelas semanais cobrem [startMinute, startMinute + occupiedMinutes]? */
+/** Horário de oferta do serviço: vazio = sem filtro (issue #261). */
+export function serviceOfferingAllows(
+  windows: Array<{ dayOfWeek: number; startMinute: number; endMinute: number }>,
+  dayOfWeek: number,
+  startMinute: number,
+  occupiedMins: number,
+): boolean {
+  if (windows.length === 0) return true
+  const mapped: WeeklyWindowRow[] = windows.map((w, i) => ({
+    id: `svc:${i}`,
+    tenantId: '',
+    resourceId: '',
+    dayOfWeek: w.dayOfWeek,
+    startMinute: w.startMinute,
+    endMinute: w.endMinute,
+  }))
+  return weeklyCovers(mapped, dayOfWeek, startMinute, occupiedMins)
+}
+
 export function weeklyCovers(
   windows: WeeklyWindowRow[],
   dayOfWeek: number,
