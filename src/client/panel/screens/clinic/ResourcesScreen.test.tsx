@@ -196,3 +196,15 @@ describe('ResourceForm — ciclo de vida', () => {
     await screen.findByText(/já teve compromissos/)
   })
 })
+
+describe('ResourceForm — volta para a lista certa', () => {
+  it('Cancelar numa sala volta para a aba Salas; num profissional, para Profissionais', () => {
+    renderForm(res({ id: 'room_1', kind: 'room', name: 'Sala fictícia' }), {})
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(window.location.pathname).toMatch(/\/recursos\/salas$/)
+    cleanup()
+    renderForm(res({}), {})
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(window.location.pathname).toMatch(/\/recursos$/)
+  })
+})

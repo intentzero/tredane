@@ -90,12 +90,20 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
 
   // Desktop: a edição de serviço, profissional ou sala abre por cima da lista (DEC-069).
   let panel: ReactNode = null
-  const overList = (title: string, to: ClinicaSection, form: ReactNode) => {
+  const overList = (title: string, to: ClinicaSection, form: ReactNode, listEntityId?: string) => {
     panel = (
       <ClinicPanel
         key={`${section}:${entityId ?? 'novo'}`}
         title={title}
-        onClose={() => navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: to })}
+        onClose={() =>
+          navigatePanel({
+            kind: 'area',
+            area: 'clinica',
+            tenantId,
+            section: to,
+            ...(listEntityId ? { entityId: listEntityId } : {}),
+          })
+        }
       >
         {form}
       </ClinicPanel>
@@ -197,7 +205,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
           />
         )
         if (!wide) return form
-        overList('Sala', 'recursos', form)
+        overList('Sala', 'recursos', form, 'salas')
         return <ResourcesList key="room" tenantId={tenantId} snap={snap} tab="room" />
       }
       case 'horarios':

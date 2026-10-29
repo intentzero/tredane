@@ -191,8 +191,15 @@ export function ResourceForm({
   const timeZone = snap.settings?.timezone ?? 'America/Sao_Paulo'
   const label = kind === 'professional' ? 'profissional' : 'sala ou equipamento'
 
+  // A lista de salas é a aba «salas» da rota; sem o entityId, voltaria para Profissionais.
   function backToList() {
-    navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'recursos' })
+    navigatePanel({
+      kind: 'area',
+      area: 'clinica',
+      tenantId,
+      section: 'recursos',
+      ...(kind === 'professional' ? {} : { entityId: 'salas' }),
+    })
   }
 
   function errorText(err: unknown, fallback: string): string | null {
@@ -398,7 +405,7 @@ export function ResourceForm({
         })
         return
       }
-      navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'recursos' })
+      backToList()
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
       setFormError(
@@ -414,9 +421,7 @@ export function ResourceForm({
       <div className="clinic-toolbar">
         <Button
           className="panel-btn panel-btn-ghost"
-          onPress={() =>
-            navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'recursos' })
-          }
+          onPress={backToList}
         >
           Cancelar
         </Button>
