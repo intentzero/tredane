@@ -266,3 +266,50 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     )
   })
 })
+
+describe('AgendarScreen embutido nas Conversas (DEC-074)', () => {
+  function renderEmbedded(api: ReturnType<typeof makeApi>, onClose: () => void) {
+    // A URL não traz contexto: tudo vem da conversa aberta.
+    window.history.replaceState(null, '', '/t/t1/conversas/conv_9')
+    return render(
+      <AgendarScreen
+        tenantId="t1"
+        api={api as unknown as PanelApi}
+        generation={1}
+        embedded={{ conversationId: 'conv_1', contactId: 'c1', onClose }}
+      />,
+    )
+  }
+
+  it('usa a conversa recebida, não a URL, e «Fechar Agendar» só fecha o painel', async () => {
+    const onClose = vi.fn()
+    const api = makeApi()
+    renderEmbedded(api, onClose)
+    expect(await screen.findByRole('heading', { name: 'Agendar · Marina Souza' })).toBeTruthy()
+    expect(api.getInboxConversation).toHaveBeenCalledWith('t1', 'conv_1', expect.anything(), expect.anything())
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar Agendar' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(navigatePanel).not.toHaveBeenCalled()
+  })
+
+  it('depois de confirmar, «Voltar à conversa» fecha o painel sem trocar de área', async () => {
+    const onClose = vi.fn()
+    const api = makeApi()
+    renderEmbedded(api, onClose)
+    await screen.findByRole('heading', { name: /Marina/ })
+    await pickTime()
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar e enviar' }))
+    await screen.findByRole('heading', { name: 'Horário agendado' })
+    expect(api.confirmAppointment).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ conversationId: 'conv_1' }),
+      expect.anything(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar à conversa' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(navigatePanel).not.toHaveBeenCalled()
+  })
+})
+

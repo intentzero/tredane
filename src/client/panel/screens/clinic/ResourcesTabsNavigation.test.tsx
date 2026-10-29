@@ -1,9 +1,9 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { useEffect, useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ClinicConfigSnapshot, ClinicResource } from '../../api'
 import { panelHref, resolvePanelRoute, type PanelRoute } from '../../routes'
-import { ClinicTabs } from './ClinicTabs'
+import { ClinicContext } from './ClinicContext'
 import { ResourcesList } from './ResourcesScreen'
 
 afterEach(cleanup)
@@ -23,7 +23,7 @@ const snap = {
   services: [], weeklyWindows: [], blocks: [],
 } as unknown as ClinicConfigSnapshot
 
-/** Espelha ClinicArea: separador e lista lidos da mesma rota. */
+/** Espelha ClinicArea: coluna de contexto e lista lidos da mesma rota. */
 function Harness() {
   const [route, setRoute] = useState<PanelRoute | null>(() => resolvePanelRoute(window.location.pathname))
   useEffect(() => {
@@ -35,15 +35,18 @@ function Harness() {
   const tab = route.entityId === 'salas' ? 'room' : 'professional'
   return (
     <>
-      <ClinicTabs tenantId="t" section={route.section} entityId={route.entityId} />
+      <ClinicContext tenantId="t" section={route.section} entityId={route.entityId} snap={snap} />
       <ResourcesList key={tab} tenantId="t" snap={snap} tab={tab} />
     </>
   )
 }
 
+const context = () => screen.getByRole('navigation', { name: 'Áreas da clínica' })
+
 function expectTab(which: 'Profissionais' | 'Salas') {
-  const selected = screen.getByRole('tab', { selected: true })
-  expect(selected.textContent).toBe(which)
+  const current = document.querySelectorAll('.clinic-context [aria-current="page"]')
+  expect(current).toHaveLength(1)
+  expect(current[0]?.textContent).toMatch(new RegExp(`^${which}`))
   if (which === 'Salas') {
     expect(screen.getByText('Sala depilação')).toBeTruthy()
     expect(screen.getByText('Adicionar sala')).toBeTruthy()
@@ -55,18 +58,18 @@ function expectTab(which: 'Profissionais' | 'Salas') {
   }
 }
 
-describe('Recursos — separadores seguem a rota', () => {
+describe('Recursos — coluna de contexto segue a rota', () => {
   it('base → Salas → Profissionais → voltar no navegador', async () => {
     const base = panelHref({ kind: 'area', area: 'clinica', tenantId: 't', section: 'recursos' })
     window.history.replaceState(null, '', base)
     render(<Harness />)
     expectTab('Profissionais')
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Salas' }))
+    fireEvent.click(within(context()).getByRole('button', { name: 'Salas' }))
     expect(window.location.pathname).toMatch(/\/recursos\/salas$/)
     expectTab('Salas')
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Profissionais' }))
+    fireEvent.click(within(context()).getByRole('button', { name: /^Profissionais/ }))
     expectTab('Profissionais')
 
     await act(async () => {
