@@ -13,7 +13,7 @@ import {
   upsertResource,
   servicesLeftWithoutCategoryResource,
 } from './resources'
-import { setServiceActive, upsertService } from './services'
+import { deleteService, setServiceActive, upsertService } from './services'
 import { listOverCapacitySlots } from '../scheduling/occupancy'
 import {
   ensureClinicSettings,
@@ -109,6 +109,31 @@ export function upsertServiceOp(
       clock,
     )
     return row
+  })
+}
+
+export function deleteServiceOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  serviceId: string,
+  clock: Clock,
+): { ok: true; id: string } {
+  const meta = prepare(db, caller, clock)
+  return db.transactionSync(() => {
+    const row = deleteService(db, meta.tenantId, serviceId)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor: caller.actorId ?? caller.kind,
+        action: 'config.service_deleted',
+        objectType: 'service',
+        objectId: row.id,
+        detail: { name: row.name },
+      },
+      clock,
+    )
+    return { ok: true as const, id: row.id }
   })
 }
 
@@ -338,7 +363,11 @@ export function setAiAssistEnabledOp(
 export function setAiProfileOp(
   db: ClinicDb,
   caller: ClinicCaller,
-  input: { clinicAddress?: string | null; reschedulePolicy?: string | null },
+  input: {
+    clinicAddress?: string | null
+    googleBusinessUrl?: string | null
+    reschedulePolicy?: string | null
+  },
   clock: Clock,
 ) {
   const meta = prepare(db, caller, clock)

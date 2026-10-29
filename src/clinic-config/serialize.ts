@@ -18,6 +18,7 @@ export function serializeSettings(row: ClinicSettingsRow) {
     signalCancellationPolicy: row.signalCancellationPolicy,
     aiAssistEnabled: row.aiAssistEnabled,
     clinicAddress: row.clinicAddress,
+    googleBusinessUrl: row.googleBusinessUrl,
     reschedulePolicy: row.reschedulePolicy,
     updatedAt: row.updatedAt,
   }
@@ -42,6 +43,7 @@ export function serializeService(row: ServiceRow) {
     durationMaxMinutes: row.durationMaxMinutes,
     professionalIds: row.professionalIds,
     roomRequirement: row.roomRequirement,
+    deletable: row.deletable,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }

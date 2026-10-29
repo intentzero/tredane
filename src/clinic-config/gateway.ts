@@ -33,7 +33,11 @@ export type ClinicConfigGateway = {
   setAiAssistEnabled(caller: ClinicCaller, enabled: boolean): Promise<ClinicSettingsRow>
   setAiProfile(
     caller: ClinicCaller,
-    input: { clinicAddress?: string | null; reschedulePolicy?: string | null },
+    input: {
+      clinicAddress?: string | null
+      googleBusinessUrl?: string | null
+      reschedulePolicy?: string | null
+    },
   ): Promise<ClinicSettingsRow>
   upsertService(caller: ClinicCaller, input: UpsertServiceInput): Promise<ServiceRow>
   setServiceActive(
@@ -41,6 +45,7 @@ export type ClinicConfigGateway = {
     serviceId: string,
     active: boolean,
   ): Promise<ServiceRow>
+  deleteService(caller: ClinicCaller, serviceId: string): Promise<{ ok: true; id: string }>
   upsertResource(
     caller: ClinicCaller,
     input: UpsertResourceInput,
@@ -104,6 +109,9 @@ export function createMemoryClinicConfigGateway(
     },
     async setServiceActive(caller, serviceId, active) {
       return clinicConfig.setServiceActiveOp(db, caller, serviceId, active, clock)
+    },
+    async deleteService(caller, serviceId) {
+      return clinicConfig.deleteServiceOp(db, caller, serviceId, clock)
     },
     async upsertResource(caller, input) {
       return clinicConfig.upsertResourceOp(db, caller, input, clock)

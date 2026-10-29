@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Button, Checkbox, Input, Label, TextArea, TextField } from 'react-aria-components'
+import { Button, Input, Label, TextArea, TextField } from 'react-aria-components'
+import { ClinicCheck } from './ClinicCheck'
 import { PanelSelect } from '../../ui/PanelSelect'
 import type { ClinicConfigSnapshot, PanelApi, ServiceUpsertBody } from '../../api'
 import { PanelApiError } from '../../api'
@@ -11,6 +12,7 @@ import {
   parsePriceToCents,
 } from './format'
 import { friendlyError } from '../../copy/errors'
+import { DeleteServiceDialog } from './ResourceLifecycleDialogs'
 
 type ListProps = {
   tenantId: string
@@ -143,6 +145,29 @@ export function ServiceForm({
   const [durMax, setDurMax] = useState(existing?.durationMaxMinutes ?? 120)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function confirmDelete() {
+    if (!existing) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await api.deleteService(tenantId, existing.id, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      setDeleteOpen(false)
+      await onSaved()
+      navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'servicos' })
+    } catch (err) {
+      if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
+      setDeleteError(friendlyError(err, 'Não foi possível apagar. Tente de novo.'))
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const occupied = duration + buffer
   const [moreOpen, setMoreOpen] = useState(false)
@@ -254,7 +279,7 @@ export function ServiceForm({
       <fieldset className="clinic-fieldset">
         <legend>Quem faz</legend>
         {professionals.map((p) => (
-          <Checkbox
+          <ClinicCheck
             key={p.id}
             className="clinic-check"
             isSelected={proIds.includes(p.id)}
@@ -266,7 +291,7 @@ export function ServiceForm({
           >
             {p.name}
             {!p.active ? ' (inativa)' : ''}
-          </Checkbox>
+          </ClinicCheck>
         ))}
         {professionals.length === 0 ? (
           <p className="clinic-footnote">Cadastre profissionais primeiro; dá para voltar depois.</p>
@@ -351,9 +376,9 @@ export function ServiceForm({
             </p>
             <fieldset className="clinic-fieldset">
               <legend>Duração ao agendar</legend>
-              <Checkbox className="clinic-check" isSelected={adjustable} onChange={setAdjustable}>
+              <ClinicCheck className="clinic-check" isSelected={adjustable} onChange={setAdjustable}>
                 A equipe pode ajustar a duração
-              </Checkbox>
+              </ClinicCheck>
               {adjustable ? (
                 <div className="clinic-field-row">
                   <PanelSelect
@@ -383,13 +408,13 @@ export function ServiceForm({
             </fieldset>
             <fieldset className="clinic-fieldset">
               <legend>Sinal por Pix</legend>
-              <Checkbox
+              <ClinicCheck
                 className="clinic-check"
                 isSelected={requiresSignal}
                 onChange={setRequiresSignal}
               >
                 Exige sinal
-              </Checkbox>
+              </ClinicCheck>
               {requiresSignal ? (
                 <>
                   <PanelSelect
@@ -458,9 +483,9 @@ export function ServiceForm({
         ) : null}
       </section>
 
-      <Checkbox className="clinic-check clinic-check-card" isSelected={active} onChange={setActive}>
+      <ClinicCheck className="clinic-check clinic-check-card" isSelected={active} onChange={setActive}>
         Serviço ativo
-      </Checkbox>
+      </ClinicCheck>
       <p className="clinic-footnote">Desativar não apaga compromissos já marcados.</p>
       {formError ? (
         <p className="clinic-form-error" role="alert">
@@ -476,6 +501,37 @@ export function ServiceForm({
           {saving ? 'Salvando…' : 'Salvar serviço'}
         </Button>
       </div>
+      {existing ? (
+        <section className="clinic-stack" aria-label="Apagar serviço">
+          {existing.deletable === true ? (
+            <Button
+              className="panel-btn-danger"
+              isDisabled={saving || deleting}
+              onPress={() => {
+                setDeleteError(null)
+                setDeleteOpen(true)
+              }}
+            >
+              Apagar serviço
+            </Button>
+          ) : (
+            <p className="clinic-footnote">
+              Este serviço já tem marcações (ou Pix/proposta ligada), por isso não pode ser
+              apagado. Basta desativá-lo: sai de novos agendamentos e o histórico fica.
+            </p>
+          )}
+        </section>
+      ) : null}
+      {existing ? (
+        <DeleteServiceDialog
+          open={deleteOpen}
+          serviceName={existing.name}
+          busy={deleting}
+          error={deleteError}
+          onClose={() => setDeleteOpen(false)}
+          onConfirm={() => void confirmDelete()}
+        />
+      ) : null}
     </div>
   )
 }

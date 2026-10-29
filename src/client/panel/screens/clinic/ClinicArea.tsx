@@ -7,6 +7,7 @@ import { AiAssistCard } from './AiAssistCard'
 import { StagingResetCard } from './StagingResetCard'
 import { isStagingHostname } from './whatsapp/WhatsappDevSyncAction'
 import { ClinicHub } from './ClinicHub'
+import { ClinicTabs } from './ClinicTabs'
 import { ResourceForm, ResourcesList } from './ResourcesScreen'
 import { ClinicHoursScreen } from './ClinicHoursScreen'
 import { ServiceForm, ServicesList } from './ServicesScreen'
@@ -25,22 +26,19 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   const { api } = useAuthSession()
   const { generation, active } = useTenant()
   const { snap, error, loading, reload } = useClinicConfig(api, tenantId, generation)
-  const clinicName =
-    active.phase === 'ready' ? active.context.name : tenantId
+  const clinicName = active.phase === 'ready' ? active.context.name : tenantId
   const isOwner = active.phase === 'ready' && active.context.role === 'owner'
 
   if (section === 'whatsapp-dev-sync') {
     if (!api) return <LoadingState label="Carregando…" />
-    return (
-      <WhatsappDevSyncScreen tenantId={tenantId} api={api} generation={generation} />
-    )
+    return <WhatsappDevSyncScreen tenantId={tenantId} api={api} generation={generation} />
   }
 
   if (
-    section === 'whatsapp'
-    || section === 'whatsapp-trocar'
-    || section === 'whatsapp-historico'
-    || section === 'whatsapp-desconectar'
+    section === 'whatsapp' ||
+    section === 'whatsapp-trocar' ||
+    section === 'whatsapp-historico' ||
+    section === 'whatsapp-desconectar'
   ) {
     if (!api) return <LoadingState label="Carregando WhatsApp…" />
     const mode =
@@ -65,13 +63,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
 
   if (section === 'recebimento') {
     if (!api) return <LoadingState label="Carregando recebimento…" />
-    return (
-      <RecebimentoScreen
-        tenantId={tenantId}
-        api={api}
-        generation={generation}
-      />
-    )
+    return <RecebimentoScreen tenantId={tenantId} api={api} generation={generation} />
   }
 
   if (loading && !snap) {
@@ -91,89 +83,100 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     return <ListSkeleton label="Carregando configuração da clínica…" rows={5} />
   }
 
-  switch (section) {
-    case 'hub':
-      return (
-        <ClinicHub
-          tenantId={tenantId}
-          snap={snap}
-          aiCard={
-            <AiAssistCard
-              tenantId={tenantId}
-              api={api}
-              generation={generation}
-              initialEnabled={snap.settings.aiAssistEnabled === true}
-              initialAddress={snap.settings.clinicAddress ?? null}
-              initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
-            />
-          }
-          stagingCard={
-            isOwner && isStagingHostname() && active.phase === 'ready' ? (
-              <StagingResetCard
+  const body = (() => {
+    switch (section) {
+      case 'hub':
+        return (
+          <ClinicHub
+            tenantId={tenantId}
+            snap={snap}
+            aiCard={
+              <AiAssistCard
                 tenantId={tenantId}
-                clinicName={active.context.name}
                 api={api}
                 generation={generation}
-                onDone={() => void reload()}
+                initialEnabled={snap.settings.aiAssistEnabled === true}
+                initialAddress={snap.settings.clinicAddress ?? null}
+                initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
+                initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
               />
-            ) : null
-          }
-        />
-      )
-    case 'servicos':
-      return <ServicesList tenantId={tenantId} snap={snap} />
-    case 'servico':
-      return (
-        <ServiceForm
-          tenantId={tenantId}
-          entityId={entityId ?? 'novo'}
-          snap={snap}
-          api={api}
-          generation={generation}
-          onSaved={reload}
-        />
-      )
-    case 'recursos':
-      return (
-        <ResourcesList
-          tenantId={tenantId}
-          snap={snap}
-          initialTab={entityId === 'salas' ? 'room' : 'professional'}
-        />
-      )
-    case 'profissional':
-      return (
-        <ResourceForm
-          tenantId={tenantId}
-          kind="professional"
-          entityId={entityId ?? 'novo'}
-          snap={snap}
-          api={api}
-          generation={generation}
-          onSaved={reload}
-        />
-      )
-    case 'sala':
-      return (
-        <ResourceForm
-          tenantId={tenantId}
-          kind="room"
-          entityId={entityId ?? 'novo'}
-          snap={snap}
-          api={api}
-          generation={generation}
-          onSaved={reload}
-        />
-      )
-    case 'horarios':
-      return (
-        <ClinicHoursScreen
-          tenantId={tenantId}
-          snap={snap}
-          api={api}
-          generation={generation}
-          onSaved={reload}
-        />
-      )
-  }
+            }
+            stagingCard={
+              isOwner && isStagingHostname() && active.phase === 'ready' ? (
+                <StagingResetCard
+                  tenantId={tenantId}
+                  clinicName={active.context.name}
+                  api={api}
+                  generation={generation}
+                  onDone={() => void reload()}
+                />
+              ) : null
+            }
+          />
+        )
+      case 'servicos':
+        return <ServicesList tenantId={tenantId} snap={snap} />
+      case 'servico':
+        return (
+          <ServiceForm
+            tenantId={tenantId}
+            entityId={entityId ?? 'novo'}
+            snap={snap}
+            api={api}
+            generation={generation}
+            onSaved={reload}
+          />
+        )
+      case 'recursos':
+        return (
+          <ResourcesList
+            key={entityId === 'salas' ? 'room' : 'professional'}
+            tenantId={tenantId}
+            snap={snap}
+            tab={entityId === 'salas' ? 'room' : 'professional'}
+          />
+        )
+      case 'profissional':
+        return (
+          <ResourceForm
+            tenantId={tenantId}
+            kind="professional"
+            entityId={entityId ?? 'novo'}
+            snap={snap}
+            api={api}
+            generation={generation}
+            onSaved={reload}
+          />
+        )
+      case 'sala':
+        return (
+          <ResourceForm
+            tenantId={tenantId}
+            kind="room"
+            entityId={entityId ?? 'novo'}
+            snap={snap}
+            api={api}
+            generation={generation}
+            onSaved={reload}
+          />
+        )
+      case 'horarios':
+        return (
+          <ClinicHoursScreen
+            tenantId={tenantId}
+            snap={snap}
+            api={api}
+            generation={generation}
+            onSaved={reload}
+          />
+        )
+    }
+  })()
+
+  return (
+    <>
+      <ClinicTabs tenantId={tenantId} section={section} entityId={entityId} />
+      {body}
+    </>
+  )
 }

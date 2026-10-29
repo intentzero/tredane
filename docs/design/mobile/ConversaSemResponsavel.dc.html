@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Conversa sem responsável</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif}
+.ph{--app:#F5F4EF;--card:#fff;--sunk:#EEEDE7;--tx:#142625;--tx2:#424B4A;--mu:#566160;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--prB:#B3D1D1;--ok:#1F7A4D;--okT:#EAF5EF;--wa:#6E4200;--waT:#FFF7EA;--waB:#EBCB94;--dg:#B42318;--dgT:#FDF1F0;--dgB:#F1B8B2;--ai:#4B2A9E;--aiB:#6B3FD4;--aiT:#F7F4FD;--aiAv:#E7E0F8;--ctl:#7A8584;--bd:#E1E3E0;width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;background:var(--app);color:var(--tx);font-size:16px;line-height:1.4;position:relative;overflow:hidden}
+.ph button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+.hd{display:flex;align-items:center;gap:2px;height:60px;padding:0 4px;background:var(--card);border-bottom:1px solid var(--bd);flex:none}
+.ib{width:44px;height:44px;display:grid;place-items:center;border:0;background:none;border-radius:12px;flex:none;padding:0}
+.who{flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:0;background:none;text-align:left;padding:0 4px;height:52px;border-radius:12px}
+.av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:14px;flex:none;background:#E7F1F1;color:#0A4547}
+.nm{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.st{font-size:14px;color:var(--mu);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--pr);flex:none}
+.ctx{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--card);border-bottom:1px solid var(--bd);flex:none}
+.stage{flex:1;min-width:0;height:44px;border:0;background:none;text-align:left;padding:0;display:flex;flex-direction:column;justify-content:center}
+.stage small{font-size:12px;color:var(--mu);display:block}
+.stage b{font-size:14px;font-weight:600;display:flex;align-items:center;gap:4px;color:var(--prInk)}
+.btn{height:44px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;padding:0 16px;border:1px solid var(--ctl);background:var(--card)}
+.btn.pr{background:var(--pr);border-color:var(--pr);color:#fff}
+.btn.tn{background:var(--prT);border-color:var(--prB);color:var(--prInk)}
+.tl{flex:1;min-height:0;padding:12px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;overflow:hidden}
+.day{align-self:center;font-size:12px;color:var(--mu);background:var(--sunk);padding:4px 12px;border-radius:999px;margin:4px 0}
+.m{max-width:80%;padding:8px 12px 6px;border-radius:16px;font-size:16px;border:1px solid var(--bd);background:var(--card)}
+.m.in{align-self:flex-start;border-bottom-left-radius:4px}
+.mt{display:flex;justify-content:flex-end;align-items:center;gap:4px;font-size:12px;color:var(--mu);margin-top:2px}
+.sys{align-self:center;font-size:12px;color:var(--mu);display:flex;align-items:center;gap:6px;padding:2px 0;text-align:center}
+.dock{flex:none;background:var(--card);border-top:1px solid var(--bd);padding:12px 12px 20px;display:flex;flex-direction:column;gap:10px}
+.cmp{display:flex;align-items:flex-end;gap:8px}
+.fld{flex:1;min-height:44px;box-sizing:border-box;border:1px solid var(--bd);border-radius:22px;padding:10px 16px;color:var(--mu);background:var(--sunk)}
+.rnd{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none;border:1px solid var(--bd);background:var(--sunk);padding:0;color:var(--mu)}
+.chip{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--prT);color:var(--prInk)}
+</style>
+</helmet>
+<div class="ph">
+  <header class="hd">
+    <button class="ib" aria-label="Voltar às conversas"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button class="who" aria-label="Informações de Marina Alves">
+      <span class="av" aria-hidden="true">MA</span>
+      <span style="min-width:0"><span class="nm">Marina Alves</span><span class="st"><span class="dot"></span>Nova · sem responsável</span></span>
+    </button>
+    <button class="ib" aria-label="Mais opções da conversa"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>
+  </header>
+  <div class="ctx">
+    <div class="stage"><small>Etapa</small><b>Novo contato</b></div>
+    <button class="btn tn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M12 14v4M10 16h4"/></svg>Agendar</button>
+  </div>
+  <main class="tl">
+    <span class="day">Hoje</span>
+    <div class="sys"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>Primeira mensagem desta cliente</div>
+    <div class="m in">Oi! Quanto custa a limpeza de pele?<div class="mt">09:41</div></div>
+    <div class="m in">E tem horário ainda esta semana?<div class="mt">09:42</div></div>
+  </main>
+  <div class="dock">
+    <div style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--tx2)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Ninguém está atendendo esta conversa.</div>
+    <button class="btn pr" style="width:100%;height:48px">Assumir e responder</button>
+    <div class="cmp" aria-hidden="true">
+      <div class="rnd"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></div>
+      <div class="fld">Assuma para responder</div>
+      <div class="rnd"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

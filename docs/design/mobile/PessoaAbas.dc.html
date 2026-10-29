@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Pessoa — perfil, horário e folgas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; overflow: hidden; display: flex; flex-direction: column; background: #F5F4EF; font-family: Inter, system-ui, sans-serif; color: #142625; font-size: 14px; line-height: 1.4">
+  <header style="flex: none; background: #FFFFFF; border-bottom: 1px solid #E1E3E0; padding: 8px 12px 0 4px">
+    <div style="display: flex; align-items: center; gap: 4px; min-height: 56px">
+      <a href="ClinicaSemana.dc.html" aria-label="Voltar" style="width: 44px; height: 44px; display: grid; place-items: center; color: #142625; text-decoration: none"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></a>
+      <span style="width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; font-weight: 600; background: #FFF7EA; color: #6E4200">LI</span>
+      <span style="flex: 1; display: flex; flex-direction: column; margin-left: 4px"><h1 style="margin: 0; font-size: 18px; font-weight: 600">Lívia</h1><span style="font-size: 12px; color: #6E4200">Férias de 10 a 20/11</span></span>
+    </div>
+    <div role="tablist" aria-label="Seções da ficha" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-left: 8px">
+      <sc-for list="{{abas}}" as="a" hint-placeholder-count="3">
+        <button type="button" role="tab" aria-selected="{{a.on}}" onClick="{{a.pick}}" style="{{a.style}}">{{a.nome}}</button>
+      </sc-for>
+    </div>
+  </header>
+
+  <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+    <!-- PERFIL -->
+    <sc-if value="{{emPerfil}}" hint-placeholder-val="{{ true }}">
+      <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 500">Nome
+        <input type="text" value="Lívia" style="height: 48px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 12px; font: inherit; font-size: 16px; background: #FFFFFF">
+      </label>
+      <section aria-labelledby="sv-h" style="border-radius: 16px; background: #FFFFFF; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+        <h2 id="sv-h" style="margin: 0; font-size: 16px; font-weight: 600">Serviços que faz</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <sc-for list="{{servicos}}" as="s" hint-placeholder-count="4">
+            <button type="button" aria-pressed="{{s.on}}" onClick="{{s.pick}}" style="{{s.style}}">{{s.nome}}</button>
+          </sc-for>
+        </div>
+        <span style="font-size: 12px; color: #566160">{{resumoServicos}}</span>
+      </section>
+      <label style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 16px; border-radius: 16px; background: #FFFFFF"><span style="flex: 1"><strong style="font-weight: 600">Aparece para agendar</strong><br><span style="font-size: 12px; color: #566160">Desligue para tirar da agenda sem apagar.</span></span><input type="checkbox" checked style="width: 22px; height: 22px; accent-color: #0E5A5C"></label>
+    </sc-if>
+
+    <!-- HORÁRIO -->
+    <sc-if value="{{emHorario}}" hint-placeholder-val="{{ false }}">
+      <div role="radiogroup" aria-label="Horário de trabalho" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 3px; border-radius: 999px; background: #EEEDE7">
+        <button type="button" role="radio" aria-checked="{{usaClinica}}" onClick="{{escolheClinica}}" style="{{btnClinica}}">Igual à clínica</button>
+        <button type="button" role="radio" aria-checked="{{usaProprio}}" onClick="{{escolheProprio}}" style="{{btnProprio}}">Horário próprio</button>
+      </div>
+
+      <section style="border-radius: 16px; background: #FFFFFF; padding: 14px 16px 8px">
+        <sc-for list="{{semana}}" as="d" hint-placeholder-count="7">
+          <div style="display: grid; grid-template-columns: 36px 1fr auto; gap: 0 10px; align-items: center; min-height: 44px; border-top: 1px solid #EEEDE7">
+            <span style="font-weight: 600">{{d.nome}}</span>
+            <div style="position: relative; height: 22px; border-radius: 8px; background: #F5F4EF">
+              <span aria-hidden="true" style="{{d.barra}}"></span>
+            </div>
+            <span style="min-width: 78px; text-align: right; font-size: 12px; color: #424B4A">{{d.texto}}</span>
+          </div>
+        </sc-for>
+      </section>
+      <sc-if value="{{usaClinica}}" hint-placeholder-val="{{ true }}">
+        <p style="margin: 0; padding: 12px; border-radius: 12px; background: #E7F1F1; color: #0A4547">Segue o horário da clínica. Se a clínica mudar, Lívia muda junto.</p>
+      </sc-if>
+      <sc-if value="{{usaProprio}}" hint-placeholder-val="{{ false }}">
+        <p style="margin: 0; padding: 12px; border-radius: 12px; background: #F5F4EF; border: 1px solid #E1E3E0; color: #424B4A">Toque em um dia para mudar as horas. Fora do horário da clínica a agenda não abre.</p>
+      </sc-if>
+    </sc-if>
+
+    <!-- FOLGAS -->
+    <sc-if value="{{emFolgas}}" hint-placeholder-val="{{ false }}">
+      <section style="border-radius: 16px; background: #FFFFFF; overflow: hidden">
+        <h2 style="margin: 0; padding: 14px 16px 6px; font-size: 16px; font-weight: 600">Próximas</h2>
+        <div style="display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 6px 16px; border-top: 1px solid #EEEDE7">
+          <span style="flex: none; width: 4px; align-self: stretch; margin: 8px 0; border-radius: 999px; background: #EBCB94"></span>
+          <span style="flex: 1; display: flex; flex-direction: column"><strong style="font-weight: 600">Férias</strong><span style="font-size: 12px; color: #6E4200">10/11 – 20/11 · 3 horários marcados</span></span>
+          <button type="button" aria-label="Remover Férias" style="width: 44px; height: 44px; border: 0; background: none; font: inherit; font-size: 18px; cursor: pointer">×</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 6px 16px; border-top: 1px solid #EEEDE7">
+          <span style="flex: none; width: 4px; align-self: stretch; margin: 8px 0; border-radius: 999px; background: #CBD0CF"></span>
+          <span style="flex: 1; display: flex; flex-direction: column"><strong style="font-weight: 600">Folga</strong><span style="font-size: 12px; color: #566160">28/11 · dia inteiro</span></span>
+          <button type="button" aria-label="Remover Folga" style="width: 44px; height: 44px; border: 0; background: none; font: inherit; font-size: 18px; cursor: pointer">×</button>
+        </div>
+      </section>
+      <p style="margin: 0; padding: 12px; border-radius: 12px; background: #E7F1F1; color: #0A4547">Fechamentos da clínica (como feriados) valem para todas as pessoas e ficam em <a href="HorarioSemana.dc.html" style="color: #0A4547; font-weight: 600">Horário › Calendário</a>.</p>
+      <button type="button" style="position: sticky; bottom: 0; min-height: 52px; border: 0; border-radius: 12px; background: #0E5A5C; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 600">+ Folga ou férias</button>
+    </sc-if>
+  </div>
+
+  <div style="flex: none; padding: 12px 16px; background: #FFFFFF; border-top: 1px solid #E1E3E0; display: flex; gap: 10px">
+    <button type="button" style="flex: 1; min-height: 48px; border: 1px solid #7A8584; border-radius: 12px; background: #FFFFFF; font: inherit; font-weight: 600">Cancelar</button>
+    <button type="button" style="flex: 2; min-height: 48px; border: 0; border-radius: 12px; background: #0E5A5C; color: #FFFFFF; font: inherit; font-weight: 600">Salvar</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const s = this.state || {}
+    const aba = s.aba || 'perfil'
+    const modo = s.modo || 'clinica'
+    const sel = s.sel || ['Limpeza de pele', 'Drenagem', 'Peeling']
+    const tab = (on) => 'min-height: 44px; border: 0; background: none; font: inherit; font-size: 14px; cursor: pointer; border-bottom: 3px solid ' + (on ? '#0E5A5C' : 'transparent') + '; ' + (on ? 'font-weight: 600; color: #0A4547;' : 'color: #424B4A;')
+    const abas = [['perfil', 'Perfil'], ['horario', 'Horário'], ['folgas', 'Folgas']].map(([id, nome]) => ({
+      nome, on: aba === id, pick: () => this.setState({ aba: id }), style: tab(aba === id),
+    }))
+    const todos = ['Limpeza de pele', 'Drenagem', 'Peeling', 'Depilação a laser']
+    const servicos = todos.map((nome) => {
+      const on = sel.includes(nome)
+      return {
+        nome, on,
+        pick: () => this.setState({ sel: on ? sel.filter((x) => x !== nome) : [...sel, nome] }),
+        style: 'min-height: 44px; padding: 0 16px; border-radius: 999px; font: inherit; cursor: pointer; ' + (on ? 'border: 1px solid #0E5A5C; background: #E7F1F1; color: #0A4547; font-weight: 600;' : 'border: 1px solid #E1E3E0; background: #FFFFFF; color: #424B4A;'),
+      }
+    })
+    const seg = (on) => 'min-height: 40px; border: 0; border-radius: 999px; font: inherit; cursor: pointer; ' + (on ? 'background: #FFFFFF; color: #142625; font-weight: 600; box-shadow: 0 1px 3px rgba(20,38,37,0.15);' : 'background: none; color: #424B4A;')
+    const pos = (h) => ((h - 8) / 12) * 100
+    const clinica = [[8, 18], [8, 18], [8, 18], [8, 18], [8, 18], [8, 13], null]
+    const proprio = [[9, 17], [9, 17], [9, 17], null, null, null, null]
+    const nomes = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+    const uso = modo === 'clinica' ? clinica : proprio
+    const semana = nomes.map((nome, i) => {
+      const w = uso[i]
+      return {
+        nome,
+        barra: w ? 'position: absolute; top: 0; bottom: 0; left: ' + pos(w[0]) + '%; width: ' + (pos(w[1]) - pos(w[0])) + '%; border-radius: 8px; background: ' + (modo === 'clinica' ? '#B3D1D1' : '#EBCB94') : 'display: none',
+        texto: w ? w[0] + 'h – ' + w[1] + 'h' : 'Não atende',
+      }
+    })
+    return {
+      abas, servicos, semana,
+      emPerfil: aba === 'perfil', emHorario: aba === 'horario', emFolgas: aba === 'folgas',
+      resumoServicos: sel.length + ' de ' + todos.length + ' serviços. Sala definida em cada serviço.',
+      usaClinica: modo === 'clinica', usaProprio: modo === 'proprio',
+      btnClinica: seg(modo === 'clinica'), btnProprio: seg(modo === 'proprio'),
+      escolheClinica: () => this.setState({ modo: 'clinica' }),
+      escolheProprio: () => this.setState({ modo: 'proprio' }),
+    }
+  }
+}
+</script>
+</body>
+</html>

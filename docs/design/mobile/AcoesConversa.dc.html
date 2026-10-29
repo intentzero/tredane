@@ -2,38 +2,60 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Ações da conversa — celular</title>
+<title>Folha Mais da conversa</title>
 <script src="./support.js"></script>
 </head>
 <body>
 <x-dc>
 <helmet>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-body{margin:0}
-button,textarea{font:inherit}
-button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+body{margin:0;font-family:Inter,system-ui,sans-serif}
+.ph{--app:#F5F4EF;--card:#fff;--sunk:#EEEDE7;--tx:#142625;--tx2:#424B4A;--mu:#566160;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--prB:#B3D1D1;--dg:#B42318;--dgB:#F1B8B2;--ai:#4B2A9E;--aiB:#6B3FD4;--aiT:#F7F4FD;--aiAv:#E7E0F8;--ctl:#7A8584;--bd:#E1E3E0;width:390px;height:844px;box-sizing:border-box;background:var(--app);color:var(--tx);font-size:16px;line-height:1.4;position:relative;overflow:hidden}
+.ph button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+.bg{position:absolute;inset:0;background:var(--card);padding:16px}
+.bg i{display:block;height:44px;border-radius:16px;background:var(--sunk);margin-bottom:10px;width:70%}
+.scrim{position:absolute;inset:0;background:rgba(20,38,37,.5)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:20px 20px 0 0;padding:8px 16px 24px;display:flex;flex-direction:column}
+.hdl{width:40px;height:4px;border-radius:2px;background:var(--ctl);margin:0 auto 12px}
+.who{display:flex;align-items:center;gap:12px;padding-bottom:12px}
+.av{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:14px;background:var(--aiAv);color:var(--ai)}
+.sum{background:var(--aiT);border:1px solid var(--aiB);border-radius:16px;padding:12px;margin-bottom:8px}
+.sum h3{margin:0 0 4px;font-size:14px;font-weight:600;color:var(--ai);display:flex;gap:6px;align-items:center}
+.sum p{margin:0;font-size:14px;color:var(--tx2)}
+.row{display:flex;align-items:center;gap:14px;height:52px;border:0;background:none;text-align:left;width:100%;padding:0 4px;border-bottom:1px solid var(--bd);font-weight:500}
+.row svg{flex:none;color:var(--tx2)}
+.row.dg{color:var(--dg);border-bottom:0;margin-top:4px}
+.row.dg svg{color:var(--dg)}
 </style>
 </helmet>
-<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #F5F4EF; color: #142625; font-family: Inter, system-ui, sans-serif; font-size: 16px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
-<header style="background: #FFFFFF; border-bottom: 1px solid #E1E3E0; display: flex; align-items: center; gap: 4px; padding: 8px 4px"><a href="Main.dc.html" aria-label="Voltar para Conversas" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #142625"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></a><a href="Contato.dc.html" style="flex: 1; min-width: 0; display: flex; flex-direction: column; color: #142625; text-decoration: none"><span style="font-size: 18px; font-weight: 600">Juliana Prado</span><span style="font-size: 14px; color: #566160">Em atendimento · toque para detalhes</span></a><a href="Agendar.dc.html" aria-label="Agendar horário" style="flex: none; min-height: 44px; display: flex; align-items: center; padding: 0 12px; border: 1px solid #7A8584; border-radius: 999px; background: #FFFFFF; color: #142625; font-size: 14px; font-weight: 600; text-decoration: none">Agendar</a><button type="button" aria-label="Mais ações da conversa" style="width: 44px; height: 44px; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #142625"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button></header>
-<ol aria-label="Histórico" style="list-style: none; margin: 0; padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 12px"><li style="align-self: flex-start; max-width: 82%; background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 16px 16px 16px 4px; padding: 12px">Pode ser sexta à tarde?</li><li style="align-self: flex-end; max-width: 82%; background: #E7F1F1; border-radius: 16px 16px 4px 16px; padding: 12px">Claro! Sexta tenho 14:00 e 15:30.</li></ol>
-<div style="position: absolute; inset: 0; background: #142625; opacity: 0.4"></div>
-<div role="dialog" aria-label="Conversa com Juliana Prado" style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-radius: 20px 20px 0 0; padding: 8px 12px 28px; display: flex; flex-direction: column"><span aria-hidden="true" style="align-self: center; width: 36px; height: 4px; border-radius: 999px; background: #CBD0CF; margin-bottom: 8px"></span><span style="padding: 4px 8px 8px; font-size: 14px; font-weight: 600; color: #566160">Conversa com Juliana Prado</span>
-<button type="button" style="display: flex; align-items: center; min-height: 52px; padding: 0 8px; border: 0; background: transparent; font-size: 16px; color: #142625; text-align: left; cursor: pointer">Ver detalhes do contato</button>
-<button type="button" style="display: flex; align-items: center; min-height: 52px; padding: 0 8px; border: 0; background: transparent; font-size: 16px; color: #142625; text-align: left; cursor: pointer">Transferir para outra pessoa</button>
-<button type="button" style="display: flex; align-items: center; min-height: 52px; padding: 0 8px; border: 0; background: transparent; font-size: 16px; color: #142625; text-align: left; cursor: pointer">Encerrar conversa</button>
-<hr style="width: 100%; margin: 4px 0; border: 0; border-top: 1px solid #EEEDE7">
-<button type="button" style="display: flex; align-items: center; min-height: 52px; padding: 0 8px; border: 0; background: transparent; font-size: 16px; color: #B42318; text-align: left; cursor: pointer">Bloquear contato</button>
-<button type="button" style="margin-top: 8px; height: 48px; border: 1px solid #7A8584; border-radius: 12px; background: #FFFFFF; font-size: 16px; font-weight: 600; color: #142625; cursor: pointer">Cancelar</button></div>
+<div class="ph">
+  <div class="bg" aria-hidden="true"><i></i><i style="margin-left:auto;background:#E7F1F1"></i><i style="width:50%"></i></div>
+  <div class="scrim"></div>
+  <section class="sheet" role="dialog" aria-label="Opções da conversa">
+    <span class="hdl"></span>
+    <div class="who">
+      <span class="av" aria-hidden="true">JP</span>
+      <div style="flex:1;min-width:0"><div style="font-weight:600">Juliana Prado</div><div style="font-size:14px;color:var(--mu)">+55 11 9••••-0142 · Depilação a laser</div></div>
+    </div>
+    <div class="sum">
+      <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>Resumo da IA</h3>
+      <p>Quer depilação a laser nas pernas. Pediu sexta à tarde. Ainda não há horário proposto.</p>
+    </div>
+    <button class="row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Ver contato e oportunidade</button>
+    <button class="row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Reservar bloco (por período)</button>
+    <button class="row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg><span style="flex:1">Corrigir etapa<span style="display:block;font-size:12px;font-weight:400;color:var(--mu)">Atual: Horário proposto · muda sozinha ao agendar</span></span></button>
+    <button class="row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>Marcar como perdida</button>
+    <button class="row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/></svg>Transferir para outra pessoa</button>
+    <button class="row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Encerrar conversa</button>
+    <button class="row dg"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>Bloquear contato</button>
+  </section>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
 class Component extends DCLogic {
-renderVals() {
-return {};
-}
+  renderVals() { return {}; }
 }
 </script>
 </body>

@@ -134,6 +134,39 @@ describe('HTTP — caixa de entrada (#29)', () => {
     }
   })
 
+  it('o detalhe da conversa traz a oportunidade (etapa) pela API HTTP', async () => {
+    const { app, close, auth } = testInboxApp()
+    try {
+      await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/inbox/seed-demo',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        }),
+      )
+      const list = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/inbox/conversations',
+        auth('user_synth_attendant_a'),
+      )
+      const { conversations } = (await list.json()) as { conversations: Array<{ id: string }> }
+      const detail = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/inbox/conversations/${encodeURIComponent(conversations[0]!.id)}`,
+        auth('user_synth_attendant_a'),
+      )
+      expect(detail.status).toBe(200)
+      const body = (await detail.json()) as Record<string, unknown>
+      // A chave tem de existir (null sem oportunidade); sem ela a faixa «Etapa» nunca aparece.
+      expect('opportunity' in body).toBe(true)
+      const opp = body.opportunity as { id: string; stage: string; label: string; updatedAt: number } | null
+      if (opp) {
+        expect(opp).toMatchObject({ id: expect.any(String), stage: expect.any(String), label: expect.any(String) })
+      }
+    } finally {
+      close()
+    }
+  })
+
   it('assumir valida membership; transferir para não-membro falha', async () => {
     const { app, close, auth } = testInboxApp()
     try {
