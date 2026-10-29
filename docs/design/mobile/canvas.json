@@ -152,15 +152,6 @@
       "is_interactive": true,
       "radius": 32
     },
-    "Horarios.dc.html": {
-      "x": 940,
-      "y": 4976,
-      "w": 390,
-      "h": 844,
-      "title": "M-17 Horários e bloqueios",
-      "is_interactive": true,
-      "radius": 32
-    },
     "Equipe.dc.html": {
       "x": 1410,
       "y": 4976,
@@ -411,6 +402,39 @@
       "w": 390,
       "h": 844,
       "title": "M-48 Sugestão da IA longa (texto completo, rolagem interna)",
+      "radius": 32
+    },
+    "Horarios.dc.html": {
+      "x": 0,
+      "y": 12600,
+      "w": 390,
+      "h": 1740,
+      "title": "M-17 Horários e bloqueios (visão geral)",
+      "radius": 32,
+      "is_interactive": true
+    },
+    "HorarioEditarDia.dc.html": {
+      "x": 470,
+      "y": 12600,
+      "w": 390,
+      "h": 844,
+      "title": "M-49 Horário · editar um dia",
+      "radius": 32
+    },
+    "HorarioNovaFolga.dc.html": {
+      "x": 940,
+      "y": 12600,
+      "w": 390,
+      "h": 844,
+      "title": "M-50 Horário · folga ou fechamento",
+      "radius": 32
+    },
+    "HorarioNovaFolgaQuem.dc.html": {
+      "x": 1410,
+      "y": 12600,
+      "w": 390,
+      "h": 844,
+      "title": "M-51 Horário · escolher quem fica fora",
       "radius": 32
     }
   },

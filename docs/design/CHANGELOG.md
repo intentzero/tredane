@@ -3,6 +3,12 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 29/10/2026 — Redesenho do horário da clínica (#207, #224)
+
+- **M-17 Horários** refeito: resumo, sete dias com editor único, folgas e fechamentos na mesma página, barra de salvar condicional. Novos: **M-49** (editar um dia), **M-50** (folga ou fechamento), **M-51** (quem fica fora). Desktop: `desktop/Horarios` na moldura #211 com painel #212 (**Proposto**, ainda não implementado).
+- **Cores das pessoas** (azul `#2563A8`, laranja `#C2410C`, verde `#2F7D4F`, com fundo e texto próprios): exceção declarada em `tools/check_mocks.py`; não são tokens. 4.ª pessoa em diante: **Em aberto** (#223).
+- `tools/shot.mjs` passa a capturar o mobile em página inteira (mocks mais altos que 844 px).
+
 ## 27/10/2026 — Ajustes da revisão de UX do staging (#134–#139)
 
 - **M-02 Conversa:** botão **Agendar** com texto no cabeçalho; menu ⋮ passa a dizer «reservar bloco, encerrar».
