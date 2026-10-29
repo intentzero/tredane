@@ -6692,6 +6692,28 @@
   color: var(--color-warning-ink);
 }
 
+/* Desktop: aviso e botões numa linha só, para não cobrir a semana (#251). */
+@media (min-width: 1280px) {
+  .hours-savebar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .hours-savebar .clinic-footer-actions {
+    flex: none;
+    flex-direction: row;
+    width: auto;
+  }
+
+  .hours-savebar .panel-btn {
+    width: auto;
+    min-width: 120px;
+  }
+}
+
 .clinic-sheet {
   max-height: 88dvh;
 }
@@ -6705,6 +6727,10 @@
 
 .clinic-sheet-title {
   margin: var(--space-1) 0;
+}
+
+.clinic-sheet-title:focus {
+  outline: none;
 }
 
 .clinic-sheet-x {
@@ -6857,6 +6883,16 @@
 .panel-choice-item:has(.panel-multi-box) {
   justify-content: flex-start;
   gap: var(--space-3);
+}
+
+.panel-multi-foot span {
+  white-space: nowrap;
+}
+
+.panel-multi-foot .panel-btn {
+  width: auto;
+  flex: none;
+  min-width: 140px;
 }
 
 .panel-multi-foot {

@@ -51,4 +51,10 @@ describe('WeekGrid', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Quarta, 04\/11/ }))
     expect(onPickDay).toHaveBeenCalledWith(3)
   })
+
+  it('marca «Alterado» nos dias com rascunho não salvo', () => {
+    render(<WeekGrid {...base} changedDays={[3]} />)
+    expect(screen.getAllByText('Alterado')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: /^Quarta, 04\/11.*, alterado\. Editar/ })).toBeTruthy()
+  })
 })

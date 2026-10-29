@@ -48,6 +48,7 @@ export function WeekGrid({
   timezone,
   todayIso,
   selectedDay,
+  changedDays = [],
   onPickDay,
 }: {
   clinic: WeekDraft
@@ -57,6 +58,8 @@ export function WeekGrid({
   timezone: string
   todayIso: string
   selectedDay: number | null
+  /** Dias da semana (1–7) com rascunho ainda não salvo. */
+  changedDays?: number[]
   onPickDay: (day: number) => void
 }) {
   const [offset, setOffset] = useState(0)
@@ -137,7 +140,7 @@ export function WeekGrid({
                 data-selected={selectedDay === dow ? true : undefined}
                 data-today={iso === todayIso ? true : undefined}
                 aria-pressed={selectedDay === dow}
-                aria-label={`${name}, ${dd}/${mm}, ${text}${closure.length ? ', com fechamento' : ''}. Editar`}
+                aria-label={`${name}, ${dd}/${mm}, ${text}${closure.length ? ', com fechamento' : ''}${changedDays.includes(dow) ? ', alterado' : ''}. Editar`}
                 onPress={() => onPickDay(dow)}
               >
                 <span className="week-grid-name">
@@ -145,6 +148,7 @@ export function WeekGrid({
                   <span>
                     {dd}/{mm}
                   </span>
+                  {changedDays.includes(dow) ? <em className="hours-changed">Alterado</em> : null}
                 </span>
                 <span className="week-grid-track" aria-hidden>
                   {windows.map((w, k) => (
