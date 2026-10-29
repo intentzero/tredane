@@ -1597,24 +1597,6 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as WhatsappTemplatesResponse
     },
 
-    async seedInboxDemo(
-      tenantId: string,
-      opts?: FetchOpts & { force?: boolean },
-    ): Promise<{ seeded: boolean; conversationCount: number }> {
-      const res = await authFetch(
-        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/seed-demo`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ force: opts?.force === true }),
-        },
-        opts,
-      )
-      assertGeneration(opts)
-      if (!res.ok) throw await parseError(res)
-      return (await res.json()) as { seeded: boolean; conversationCount: number }
-    },
-
     async listPipelineOpportunities(
       tenantId: string,
       query: { stage?: OpportunityStage; includeClosed?: boolean; limit?: number } = {},

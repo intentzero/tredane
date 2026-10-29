@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { Button, Input, SearchField } from 'react-aria-components'
 import type { InboxConversation, InboxCounts, InboxFilter, PanelApi } from '../../api'
 import { navigatePanel } from '../../routes'
-import { TestOnly } from '../../states/TestOnly'
 import { EmptyState, ErrorState } from '../../states/StatusScreens'
 import {
   assigneeLine,
@@ -46,7 +45,6 @@ export function InboxList({
   const [counts, setCounts] = useState<InboxCounts | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [seeding, setSeeding] = useState(false)
 
   async function load(opts?: { keep?: boolean }) {
     if (!opts?.keep) setLoading(true)
@@ -78,21 +76,6 @@ export function InboxList({
   useInboxRealtime(() => {
     void load({ keep: true })
   })
-
-  async function seedDemo() {
-    setSeeding(true)
-    try {
-      await api.seedInboxDemo(tenantId, {
-        generation,
-        expectGeneration: () => generation,
-      })
-      await load()
-    } catch (err) {
-      setError(friendlyError(err, 'Não foi possível criar os exemplos.'))
-    } finally {
-      setSeeding(false)
-    }
-  }
 
   if (loading && !items) {
     return <ListSkeleton label="Carregando conversas…" />
@@ -189,17 +172,6 @@ export function InboxList({
                   }
             }
           />
-          {emptyAll ? (
-            <TestOnly note="Cria conversas de exemplo nesta clínica de teste.">
-              <Button
-                className="panel-btn-secondary"
-                isDisabled={seeding}
-                onPress={() => void seedDemo()}
-              >
-                {seeding ? 'Criando…' : 'Criar conversas de exemplo'}
-              </Button>
-            </TestOnly>
-          ) : null}
         </>
       ) : (
         <ul className="inbox-list">
