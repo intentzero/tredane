@@ -9,9 +9,11 @@ import { useAuthSession } from '../auth/AuthContext'
 import {
   detectInstallPlatform,
   getDeferredInstallPrompt,
+  getExistingPushSubscription,
   isPushSupported,
   isStandaloneDisplay,
   subscribePush,
+  unsubscribePush,
   clearDeferredInstallPrompt,
 } from '../pwa'
 import { navigatePanel } from '../routes'
@@ -38,6 +40,18 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
   const [installed, setInstalled] = useState(isStandaloneDisplay())
   const platform = detectInstallPlatform()
   const pushOk = isPushSupported()
+  const [active, setActive] = useState(false)
+
+  useEffect(() => {
+    if (!pushOk) return
+    let cancelled = false
+    void getExistingPushSubscription().then((sub) => {
+      if (!cancelled && sub) setActive(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [pushOk])
 
   useEffect(() => {
     const onChange = () => setInstalled(isStandaloneDisplay())
@@ -118,6 +132,7 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
         },
         notifyNewConversation: notifyNew,
       })
+      setActive(true)
       setStatus({
         phase: 'ok',
         message: `Avisos ativos. Em nova conversa verá «Nova conversa na ${clinicName}» — sem o texto da mensagem.`,
@@ -129,6 +144,29 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
       })
     }
   }, [api, clinicName, notifyNew, pushOk, tenantId])
+
+  const onDeactivate = useCallback(async () => {
+    setStatus({ phase: 'working' })
+    try {
+      const sub = await getExistingPushSubscription()
+      const endpoint = sub?.endpoint
+      if (api && endpoint) {
+        try {
+          await api.unsubscribePush(tenantId, endpoint)
+        } catch {
+          // Segue com a remoção local; o servidor descarta endpoints inválidos.
+        }
+      }
+      await unsubscribePush()
+      setActive(false)
+      setStatus({ phase: 'ok', message: 'Avisos desativados neste aparelho.' })
+    } catch {
+      setStatus({
+        phase: 'error',
+        message: 'Não foi possível desativar os avisos. Tente de novo.',
+      })
+    }
+  }, [api, tenantId])
 
   return (
     <div className="panel-avisos" lang="pt-BR">
@@ -275,6 +313,10 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
           fica dentro do app.
         </p>
 
+        {active ? (
+          <p className="panel-ok-text">Avisos ativos neste aparelho</p>
+        ) : null}
+
         {status.phase !== 'idle' && status.phase !== 'working' ? (
           <p
             className={
@@ -293,11 +335,27 @@ export function AvisosScreen({ tenantId, clinicName }: Props) {
           onPress={() => void onActivate()}
           isDisabled={status.phase === 'working'}
         >
-          {status.phase === 'working' ? 'A ativar…' : 'Ativar avisos'}
+          {status.phase === 'working'
+            ? active
+              ? 'A guardar…'
+              : 'A ativar…'
+            : active
+              ? 'Guardar alterações'
+              : 'Ativar avisos'}
         </Button>
-        <Button className="panel-btn-ghost" onPress={goBack}>
-          Agora não
-        </Button>
+        {active ? (
+          <Button
+            className="panel-btn-secondary"
+            onPress={() => void onDeactivate()}
+            isDisabled={status.phase === 'working'}
+          >
+            Desativar avisos
+          </Button>
+        ) : (
+          <Button className="panel-btn-ghost" onPress={goBack}>
+            Agora não
+          </Button>
+        )}
       </footer>
     </div>
   )
