@@ -1,5 +1,10 @@
 import type { Clock } from '../../db/clock'
 import { assertValidSignalConfig } from '../../pix/money'
+import {
+  isServiceAudience,
+  normalizeServiceAudience,
+  type ServiceAudience,
+} from '../catalog/audience'
 import { ConflictError, NotFoundError, ValidationError } from '../errors'
 import { serviceDeleteBlocker } from './service-history'
 import { newId } from '../ids'
@@ -24,6 +29,7 @@ type ServiceSql = {
   name: string
   duration_minutes: number
   buffer_minutes: number
+  audiencia?: string | null
   price_cents: number | null
   client_explanation: string | null
   active: number
@@ -101,6 +107,7 @@ function toServiceRow(
     name: row.name,
     durationMinutes: row.duration_minutes,
     bufferMinutes: row.buffer_minutes,
+    audiencia: normalizeServiceAudience(row.audiencia),
     priceCents: row.price_cents,
     clientExplanation: row.client_explanation,
     active: row.active === 1,
@@ -336,6 +343,21 @@ function writeRoomRequirement(
   )
 }
 
+function resolveAudience(
+  input: UpsertServiceInput,
+  existing: ServiceRow | null,
+): ServiceAudience {
+  if (input.audiencia === undefined) return existing?.audiencia ?? 'qualquer'
+  if (!isServiceAudience(input.audiencia)) {
+    throw new ValidationError(
+      'invalid_audiencia',
+      'Audiência deve ser feminino, masculino ou qualquer',
+      { audiencia: input.audiencia },
+    )
+  }
+  return input.audiencia
+}
+
 export function upsertService(
   db: ClinicDb,
   tenantId: string,
@@ -366,15 +388,16 @@ export function upsertService(
   const active = input.active === false ? 0 : 1
   const signal = normalizeSignalFields(input, priceCents)
   const dur = normalizeDurationFields(input)
+  const existing = input.id ? getService(db, tenantId, input.id) : null
+  if (input.id && !existing) {
+    throw new NotFoundError('service_not_found', `serviço ${input.id} não encontrado`)
+  }
+  const audiencia = resolveAudience(input, existing)
 
   if (input.id) {
-    const existing = getService(db, tenantId, input.id)
-    if (!existing) {
-      throw new NotFoundError('service_not_found', `serviço ${input.id} não encontrado`)
-    }
     db.run(
       `UPDATE services SET
-        name = ?, duration_minutes = ?, buffer_minutes = ?,
+        name = ?, duration_minutes = ?, buffer_minutes = ?, audiencia = ?,
         price_cents = ?, client_explanation = ?, active = ?,
         requires_signal = ?, signal_kind = ?, signal_fixed_cents = ?, signal_percent = ?,
         duration_adjustable = ?, duration_min_minutes = ?, duration_max_minutes = ?,
@@ -383,6 +406,7 @@ export function upsertService(
       name,
       input.durationMinutes,
       input.bufferMinutes,
+      audiencia,
       priceCents,
       explanation,
       active,
@@ -408,17 +432,18 @@ export function upsertService(
   const id = newId('svc')
   db.run(
     `INSERT INTO services (
-      id, tenant_id, name, duration_minutes, buffer_minutes,
+      id, tenant_id, name, duration_minutes, buffer_minutes, audiencia,
       price_cents, client_explanation, active,
       requires_signal, signal_kind, signal_fixed_cents, signal_percent,
       duration_adjustable, duration_min_minutes, duration_max_minutes,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     name,
     input.durationMinutes,
     input.bufferMinutes,
+    audiencia,
     priceCents,
     explanation,
     active,

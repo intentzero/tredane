@@ -143,7 +143,12 @@ function significantWords(name: string): string[] {
     .filter((w) => w.length >= 3)
 }
 
-/** Serviços activos cujo nome inteiro (todas as palavras) aparece no texto. */
+/**
+ * Serviços activos cujo nome inteiro (todas as palavras) aparece no texto.
+ * Sem filtro de audiência aqui: «masculina»/«feminina» no nome do serviço
+ * (ex.: «Depilação masculina amanhã…») não é pedido de linha da cliente.
+ * O filtro de audiência fica no catálogo da IA (`buildAiContextPayload`).
+ */
 export function extractServices(text: string, services: ServiceRow[]): ServiceRow[] {
   const words = new Set(norm(text).split(/[^a-z0-9]+/).filter(Boolean))
   const hits = services.filter((s) => {

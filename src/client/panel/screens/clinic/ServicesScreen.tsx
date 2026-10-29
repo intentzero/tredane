@@ -125,6 +125,11 @@ export function ServiceForm({
   const [name, setName] = useState(existing?.name ?? '')
   const [duration, setDuration] = useState(existing?.durationMinutes ?? 60)
   const [buffer, setBuffer] = useState(existing?.bufferMinutes ?? 15)
+  const [audiencia, setAudiencia] = useState<'feminino' | 'masculino' | 'qualquer'>(
+    existing?.audiencia === 'feminino' || existing?.audiencia === 'masculino'
+      ? existing.audiencia
+      : 'qualquer',
+  )
   const [price, setPrice] = useState(
     existing?.priceCents != null ? formatPriceCents(existing.priceCents) : '',
   )
@@ -228,6 +233,7 @@ export function ServiceForm({
       name,
       durationMinutes: duration,
       bufferMinutes: buffer,
+      audiencia,
       priceCents,
       clientExplanation: explanation.trim() || null,
       active,
@@ -308,6 +314,23 @@ export function ServiceForm({
           />
         </TextField>
       </div>
+      <PanelSelect
+        className="clinic-field"
+        label="Audiência"
+        value={audiencia}
+        onChange={(v) => {
+          if (v === 'feminino' || v === 'masculino' || v === 'qualquer') setAudiencia(v)
+        }}
+        options={[
+          { id: 'qualquer', label: 'Qualquer' },
+          { id: 'feminino', label: 'Feminino' },
+          { id: 'masculino', label: 'Masculino' },
+        ]}
+      />
+      <p className="clinic-footnote">
+        Descreve o serviço, não a pessoa. Um nome como «Bronzeamento feminino» não preenche
+        este campo.
+      </p>
       <fieldset className="clinic-fieldset">
         <legend>Quem faz</legend>
         {professionals.map((p) => (

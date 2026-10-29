@@ -27,6 +27,8 @@ export type AiCatalogService = {
   priceCents: number | null
   /** Texto «Explicação para clientes»; null = não descrever procedimento. */
   clientExplanation: string | null
+  /** DEC-075 — audiência do serviço (feminino | masculino | qualquer); descreve o serviço. */
+  audiencia: 'feminino' | 'masculino' | 'qualquer'
 }
 
 export type AiContextMessage = {

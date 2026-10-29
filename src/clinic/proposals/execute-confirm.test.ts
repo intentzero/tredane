@@ -240,7 +240,7 @@ async function confirmClick(
 
 describe('S5: schema e chaves', () => {
   it('mantém CLINIC_SCHEMA_VERSION e prefixos estáveis', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(30)
+    expect(CLINIC_SCHEMA_VERSION).toBe(31)
     expect(PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX).toBe('proposal.book:')
     expect(PROPOSAL_PIX_CLIENT_REQUEST_PREFIX).toBe('proposal.pix:')
     expect(proposalBookClientRequestId('p1', 2)).toBe('proposal.book:p1:v2')

@@ -100,9 +100,18 @@ export function serviceRow(snap: ClinicConfigSnapshot, svc: ClinicService): Serv
   else if (req.mode === 'resource') {
     room = snap.resources.find((r) => r.id === req.resourceId)?.name ?? null
   }
+  const audienceLabel =
+    svc.audiencia === 'feminino'
+      ? 'Feminino'
+      : svc.audiencia === 'masculino'
+        ? 'Masculino'
+        : svc.audiencia === 'qualquer'
+          ? 'Qualquer'
+          : null
   const parts = [
     pros.length > 0 ? joinNames(pros.map((p) => p.name)) : null,
     room,
+    audienceLabel,
     svc.priceCents != null ? formatPriceCents(svc.priceCents) : 'Sem preço',
   ].filter((p): p is string => p !== null)
   return {

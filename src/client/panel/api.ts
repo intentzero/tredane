@@ -2001,6 +2001,8 @@ export type ClinicService = {
   durationMinutes: number
   bufferMinutes: number
   occupiedMinutes: number
+  /** DEC-075 — audiência do serviço (não da pessoa). */
+  audiencia?: 'feminino' | 'masculino' | 'qualquer'
   priceCents: number | null
   clientExplanation: string | null
   active: boolean
@@ -2153,6 +2155,8 @@ export type ServiceUpsertBody = {
   name: string
   durationMinutes: number
   bufferMinutes: number
+  /** DEC-075 — omitido na criação = qualquer; omitido na edição = mantém. */
+  audiencia?: 'feminino' | 'masculino' | 'qualquer'
   priceCents?: number | null
   clientExplanation?: string | null
   active?: boolean
