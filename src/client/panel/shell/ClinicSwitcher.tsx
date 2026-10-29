@@ -17,7 +17,6 @@ import type { TenantSummary } from '../api'
 import { markPickingClinic } from '../auth/session'
 import type { PanelArea } from '../routes'
 import { areaRoute, navigatePanel } from '../routes'
-import { useTenant } from '../tenant/TenantContext'
 import { useMediaQuery } from '../ui/useMediaQuery'
 
 const SEE_ALL = '__todas__'
@@ -43,12 +42,11 @@ type Props = {
 }
 
 /**
- * Troca de clínica sem sair da tela (DEC-017: troca explícita; o `selectTenant` revalida o
- * membership e limpa cache e conexões da clínica anterior). Com uma só clínica não há escolha:
+ * Troca de clínica sem sair da tela (DEC-017: troca explícita; ao abrir a rota da clínica nova o
+ * `selectTenant` revalida o membership e limpa cache e conexões da clínica anterior). Com uma só clínica não há escolha:
  * o nome é texto. Desktop: menu; celular: folha de baixo.
  */
 export function ClinicSwitcher({ tenantId, name, area, tenants }: Props) {
-  const { selectTenant, reloadTenants } = useTenant()
   const phone = useMediaQuery('(max-width: 767.98px)')
   const [sheetOpen, setSheetOpen] = useState(false)
 
@@ -61,18 +59,14 @@ export function ClinicSwitcher({ tenantId, name, area, tenants }: Props) {
     navigatePanel({ kind: 'clinicas' })
   }
 
+  // A rota é a fonte de verdade da clínica ativa: o PanelRouter vê a rota nova, chama o
+  // `selectTenant` (revalida o membership) e mostra a tela de estado se o acesso foi retirado.
+  // Chamar `selectTenant` aqui, com a rota ainda na clínica antiga, faz o router desfazer a troca.
   const choose = (target: TenantSummary) => {
     if (target.tenantId === tenantId) return
-    void selectTenant(target.tenantId, target.name).then((ok) => {
-      if (ok) {
-        // A área «clinica» é só do responsável: na outra clínica pode não ser.
-        const next: PanelArea = area === 'clinica' && target.role !== 'owner' ? 'conversas' : area
-        navigatePanel(areaRoute(target.tenantId, next), true)
-      } else {
-        // Acesso retirado ou erro: a tela de estado já avisa; atualiza a lista de clínicas.
-        reloadTenants()
-      }
-    })
+    // A área «clinica» é só do responsável: na outra clínica pode não ser.
+    const next: PanelArea = area === 'clinica' && target.role !== 'owner' ? 'conversas' : area
+    navigatePanel(areaRoute(target.tenantId, next))
   }
 
   const label = `Clínica ativa: ${name}. Trocar de clínica.`
