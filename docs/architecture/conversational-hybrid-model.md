@@ -10,7 +10,7 @@ Fontes:
 
 ## 0. Reconciliação SEG-IA (28/10/2026)
 
-**Direção:** [épico #171](https://github.com/intentzero/tredane/issues/171) (SEG-IA), formalizada em [DEC-061](../product/decisions.md) — **Decidido em 28/10/2026 (Paulo, registo D-20261028-200500-CUR)**. A DEC-060 fica revista: o software não deve marcar por texto livre (S2, #173, com `AI_AUTOBOOK` desligado por padrão).
+**Direção:** [épico #171](https://github.com/intentzero/tredane/issues/171) (SEG-IA), formalizada em [DEC-061](../product/decisions.md) — **Decidido em 28/10/2026 (Paulo, registo D-20261028-200500-CUR)**. A DEC-060 fica revista: o software não deve marcar por texto livre (S2, #173). A proposta está sempre ligada (Paulo, 29/10/2026); a owner pausa na clínica.
 
 - **Confirmação por botão:** a marcação automática só acontece com o toque da cliente no botão do WhatsApp de uma proposta montada e versionada pelo backend. Texto livre («sim» ou pedido completo) só interpreta e prepara a proposta.
 - **Valores Decididos (Paulo, 28/10/2026):** proposta válida por **30 min**; alerta de comunicação pendente após **5 min**; contenção retirada no piloto após **20 marcações revistas** sem nenhuma indevida.
@@ -105,7 +105,7 @@ Na DEC-060 a IA marca mas não envia. Com a DEC-061 (Decidido), proposta e resul
 
 ## 7. Contenção temporária
 
-**DEC-060 é o objetivo.** `AI_AUTOBOOK=off` ou um toque da atendente antes de marcar são **apenas contenção temporária** enquanto os testes obrigatórios (§9) não passam; não substituem a decisão. A saída da contenção segue os critérios de piloto (§9). Número mínimo de marcações revistas no piloto — **Decidido (Paulo, 28/10/2026): 20**, com zero indevidas.
+**DEC-061 é a regra.** Texto livre não marca. A proposta está sempre ligada (Paulo, 29/10/2026); o interruptor é a pausa da owner, não uma var de ambiente. A revisão de qualidade do piloto continua: 20 marcações revistas, zero indevidas (**Decidido**, Paulo, 28/10/2026). Esse número não desliga a capacidade.
 
 ## 8. Modelos (provisório)
 
@@ -119,7 +119,7 @@ Na DEC-060 a IA marca mas não envia. Com a DEC-061 (Decidido), proposta e resul
 | --- | --- | --- |
 | Regressão (cada PR) | Zero marcações indevidas e zero preços/horários fora do catálogo e das vagas no conjunto fictício | Proposto |
 | Validação | Erro factual que passou a validação → corrigir o validador | Proposto |
-| Piloto com `AI_AUTOBOOK` ligado | Cada marcação da IA revista pela equipe; zero indevidas em 20 marcações revistas (Decidido, Paulo, 28/10/2026) | Proposto |
+| Piloto (capacidade já ligada) | Cada marcação da IA revista pela equipe; zero indevidas em 20 marcações revistas (Decidido, Paulo, 28/10/2026). Não desliga a proposta | Proposto |
 | Qualidade do rascunho | Por categoria: correção factual, erros críticos, adequação; taxa sem edição é só sinal | Proposto |
 | **Envio automático** | **Não aprovado.** Se um dia for considerado: só por categoria de baixo risco, com correção factual, zero erros críticos, exceções por categoria listadas e decisão explícita do Paulo — **não** apenas «95% sem edição» | Fora do MVP |
 

@@ -100,37 +100,26 @@ Criação remota de D1/R2/Queues/DO namespaces, contas Meta/Clerk e revisão jur
 
 ## Limites de abuso (`ABUSE_LIMITS`) — S7 (#178)
 
-**Valores Confirmados (Paulo, 29/10/2026):** ver [abuse-limits.md](../security/abuse-limits.md). Controlo só por variáveis de ambiente do Worker (`ABUSE_LIMITS`, `ABUSE_LIMIT_*`); **não há UI** no painel da clínica. Ações manuais da equipe não são limitadas.
-
-| Variável | Valor | Efeito |
-| --- | --- | --- |
-| `ABUSE_LIMITS` | ausente, vazio ou ≠ `on` | Quotas desligadas (padrão, fail-closed) |
-| `ABUSE_LIMITS` | `on` | Quotas ligadas com os valores Confirmados (ou overrides `ABUSE_LIMIT_*`) |
+**Valores Confirmados (Paulo, 29/10/2026):** ver [abuse-limits.md](../security/abuse-limits.md). A owner liga, pausa e ajusta no cartão **Limites das automações**. Env `ABUSE_LIMIT_*` aperta tetos; `ABUSE_LIMITS=on` é legado e não liga a clínica sozinho. Ações manuais da equipe não são limitadas.
 
 | Ambiente | Estado esperado |
 | --- | --- |
 | development / staging / production | Enable por clínica (owner UI, default off). Env `ABUSE_LIMIT_*` = teto opcional; `ABUSE_LIMITS=on` legado não liga a clínica sozinho. |
 
-## Agendamento automático pela IA (`AI_AUTOBOOK`) — S2 (#173)
+## Proposta de horário pela IA — S2 (#173)
 
-**Estado no código:** texto livre («sim», emoji, pedido completo, JSON) **nunca** cria compromisso, em nenhum ambiente e qualquer que seja a flag. A leitura do texto só gera nota à atendente. Propostas versionadas (S3 #174), envio do botão WhatsApp (S4 #175) e clique→marcação/Pix (S5 #176, DEC-061 **Decidido**) estão no código. O efeito transacional do botão **Confirmar** só corre quando a capacidade está ligada para o tenant (`AI_AUTOBOOK=on` + lista); texto continua a não marcar mesmo com a flag ligada. `AI_AUTOBOOK` permanece desligado por padrão (fail-closed).
+**Confirmado (Paulo, 29/10/2026):** a capacidade está sempre ligada em development, staging e production. As vars `AI_AUTOBOOK` e `AI_AUTOBOOK_TENANTS` foram retiradas; não há allowlist nem flag de ambiente.
 
-| Variável | Valor | Efeito |
-| --- | --- | --- |
-| `AI_AUTOBOOK` | ausente, vazio, `off` ou qualquer valor ≠ `on` | Capacidade desligada (padrão) |
-| `AI_AUTOBOOK` | `on` (exato, sem distinção de maiúsculas) | Capacidade ligada **só** para as clínicas de `AI_AUTOBOOK_TENANTS` |
-| `AI_AUTOBOOK_TENANTS` | ids de tenant separados por vírgula | Lista de clínicas autorizadas; vazio = nenhuma |
+Texto livre («sim», emoji, pedido completo, JSON) **nunca** cria compromisso. O backend monta a proposta versionada (S3 #174), envia os botões no WhatsApp (S4 #175) e o clique **Confirmar** marca ou inicia Pix (S5 #176, DEC-061). Serviço com sinal não reserva o horário antes do pagamento (DEC-047).
 
 | Ambiente | Estado esperado |
 | --- | --- |
-| development | Desligado (sem `AI_AUTOBOOK=on`). |
-| staging | **Confirmado (Paulo, 29/10/2026):** `AI_AUTOBOOK=on` + `AI_AUTOBOOK_TENANTS=tenant_b40dc579540c30130840b9ac` (Clínica Teste Paulo). Outras clínicas da allowlist vazias continuam fail-closed. Ver [seg-ia-s9-e2e-validation.md](../security/seg-ia-s9-e2e-validation.md) e [ai-autobook-kill-switch.md](runbooks/ai-autobook-kill-switch.md). |
-| production | Desligado (sem `AI_AUTOBOOK=on`). H10/#167 e gates S9 humanos Em aberto — **não** religar em produção sem autorização explícita. |
+| development / staging / production | Propostas e cliques ligados, salvo pausa da owner na clínica. |
 
-- O opt-in de sugestões da clínica (assistência de IA) é independente: ligá-lo não liga agendamento nem envio.
-- A capacidade é relida na execução de cada job de rascunho (inclusive jobs já enfileirados); erro → negado.
+- O opt-in de sugestões da clínica (assistência de IA) é independente: ligá-lo não liga nem desliga a proposta.
+- A pausa da owner (`auto_book_paused`) é relida na execução de cada job e de cada clique.
 - Contato bloqueado (e, quando existir, conversa/contato em pausa — TODO #182) nega qualquer ação automática nova (`src/clinic/ai/protection.ts`).
-- **Interrupção:** remover `AI_AUTOBOOK` ou defini-lo diferente de `on` e republicar; efeito no próximo job. Relação com H1 (#158): esta é a contenção permanente por padrão; H1 continua a cobrir o kill switch.
+- **Interrupção:** a owner pausa em Clínica → Limites das automações. Não cancela horários já marcados. Ver [ai-autobook-kill-switch.md](runbooks/ai-autobook-kill-switch.md). Gates humanos de qualidade do piloto (H10/S9) continuam **Em aberto** e não são o interruptor.
 
 ## AI Gateway — logs e cache (S8 / #179)
 

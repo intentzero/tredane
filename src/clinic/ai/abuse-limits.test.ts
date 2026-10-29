@@ -521,18 +521,11 @@ describe('S7: UI clínica — persistência e pausa', () => {
       updateClinicAbuseLimits(s.db, s.tenantId, { autoBookPaused: true }, s.clock)
       const paused = toAiAssistDeps({
         mode: 'synthetic',
-        autoBook: true,
-        autoBookTenants: [s.tenantId],
         autoBookPaused: true,
         abuseLimits: effective,
       })
       expect(paused.autoBookPaused).toBe(true)
-      // Capacidade efetiva no autodraft: autoBook && tenant && !paused
-      expect(
-        paused.autoBook === true &&
-          (paused.autoBookTenants ?? []).includes(s.tenantId) &&
-          paused.autoBookPaused !== true,
-      ).toBe(false)
+      expect(paused.autoBookPaused !== true).toBe(false)
     } finally {
       s.close()
     }

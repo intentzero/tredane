@@ -113,7 +113,7 @@ export const DEFAULT_ABUSE_LIMIT_NUMBERS: Readonly<AbuseLimitNumbers> = Object.f
 /** Preferências persistidas por clínica (SQLite do DO). */
 export type ClinicAbuseLimitsRow = AbuseLimitNumbers & {
   enabled: boolean
-  /** Pausa marcações/propostas automáticas por botão; não cancela o já marcado; AI_AUTOBOOK=off continua a vencer. */
+  /** Pausa novas propostas e cliques de confirmação; não cancela o já marcado. */
   autoBookPaused: boolean
   updatedAt: number
 }

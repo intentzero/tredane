@@ -9,7 +9,7 @@
  * Faltou ou ficou ambíguo → não marca (a IA pergunta). Detecção determinística, sem o modelo.
  *
  * S2 (#173, épico #171): esta leitura de texto livre NUNCA marca — só produz nota para a atendente.
- * Com capacidade ligada (AI_AUTOBOOK=on + tenant na allowlist), o backend monta e envia a proposta
+ * Com a capacidade ligada (sempre, salvo pausa da owner), o backend monta e envia a proposta
  * versionada com botão WhatsApp (S3–S4). A marcação/Pix fica no clique autenticado (S5 #176 /
  * DEC-061: `executeProposalConfirmOp`). Serviço com sinal: Pix sem hold (DEC-047); horário só
  * após pagamento (#39).
@@ -279,7 +279,7 @@ export function tryAiAutoBook(
     suggestionId?: string | null
     enabled?: boolean
     /**
-     * Capacidade efetiva (flag + clínica na allowlist + não pausada).
+     * Capacidade efetiva (ligada, salvo pausa da owner).
      * Texto livre nunca marca; com capacidade ligada o backend envia a proposta/botão.
      */
     capability?: boolean

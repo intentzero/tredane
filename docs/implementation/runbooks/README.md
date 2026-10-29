@@ -9,6 +9,6 @@
 | [Credenciais](credentials.md) | Rotação Clerk/Meta/Pix/AI/VAPID |
 | [Recuperação](recovery.md) | Restore por clínica, schema, PITR |
 | [Incidentes](incidents.md) | Classificação, correlação, comunicação |
-| [Kill switch AI_AUTOBOOK](ai-autobook-kill-switch.md) | Interromper novas marcações/Pix do botão (S9 #180); sem auto-cancel |
+| [Pausar o botão de agendamento](ai-autobook-kill-switch.md) | Owner pausa novas propostas/Pix do botão; sem auto-cancel |
 
 Código de apoio: [f6-ops.md](../f6-ops.md), `src/ops/`, `npm run ops:smoke`. Gates SEG-IA: [seg-ia-s9-e2e-validation.md](../../security/seg-ia-s9-e2e-validation.md).

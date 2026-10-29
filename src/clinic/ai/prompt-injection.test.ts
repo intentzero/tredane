@@ -3,7 +3,7 @@
  * Garantias verificadas: (1) texto não confiável não consegue fingir autoria/sistema no
  * prompt; (2) a atendente é avisada; (3) saída fora do schema fechado é descartada com
  * fallback humano; (4) zero efeitos: nenhum compromisso, auditoria ai_booked, Pix ou envio,
- * mesmo com AI_AUTOBOOK ligado e a clínica autorizada; (5) anexos/imagens nunca vão à IA.
+ * mesmo com a proposta ligada e a clínica sem pausa; (5) anexos/imagens nunca vão à IA.
  * Não prova imunidade total a prompt injection — o modelo real pode ser enganado no texto
  * do rascunho, que continua a exigir revisão humana.
  */
@@ -185,7 +185,7 @@ describe('S6: schema fechado da saída do modelo', () => {
   })
 })
 
-describe('S6: zero efeitos indevidos (AI_AUTOBOOK ligado, clínica autorizada)', () => {
+describe('S6: zero efeitos indevidos (proposta ligada, clínica sem pausa)', () => {
   it.each(ATTACKS)('%s → aviso à atendente, nada marcado/enviado', async (_l, body) => {
     const s = seed()
     try {
@@ -196,8 +196,6 @@ describe('S6: zero efeitos indevidos (AI_AUTOBOOK ligado, clínica autorizada)',
       const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
         mode: 'synthetic',
         adapter: new SimulatedAiAdapter(),
-        autoBook: true,
-        autoBookTenants: [s.tenantId],
       })
       expect(out).toHaveLength(1)
       expect(out[0]!.autoBook?.status).not.toBe('booked')

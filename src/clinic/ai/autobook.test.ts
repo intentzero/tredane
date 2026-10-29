@@ -1,6 +1,6 @@
 /**
- * S2 (#173, épico #171): texto livre nunca grava marcação, mesmo com AI_AUTOBOOK ligado e a
- * clínica autorizada. Caso base = staging: depilação masculina com a Gi, quinta 29/10/2026.
+ * S2 (#173, épico #171): texto livre nunca grava marcação, com a proposta ligada e a
+ * clínica sem pausa. Caso base = staging: depilação masculina com a Gi, quinta 29/10/2026.
  */
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
@@ -17,7 +17,7 @@ import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { detectExplicitConfirmation } from './autobook'
 import { checkConversationProtection, isConversationPaused } from './protection'
-import { autoBookCapability, parseAutoBookFlag, rpcDepsFromEnv, toAiAssistDeps } from './deps'
+import { autoBookCapability, toAiAssistDeps } from './deps'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 
 const TZ = 'America/Sao_Paulo'
@@ -88,14 +88,18 @@ function seed(opts: { signal?: boolean } = {}) {
     t += 60_000
     return m
   }
-  const run = async (autoBook = true, autoBookTenants: string[] = [tenantId]) => {
+  const run = async (paused = false) => {
     const last = db.get<{ id: string }>(
       `SELECT id FROM messages WHERE conversation_id = ? AND direction = 'inbound' ORDER BY created_at DESC LIMIT 1`,
       cnv.id,
     )!
     enqueueAutoDraft(db, tenantId, { conversationId: cnv.id, messageId: last.id }, clock)
     clock.advance(7_000)
-    const out = await runDueAutoDrafts(db, caller, clock, { mode: 'synthetic', adapter: new SimulatedAiAdapter(), autoBook, autoBookTenants })
+    const out = await runDueAutoDrafts(db, caller, clock, {
+      mode: 'synthetic',
+      adapter: new SimulatedAiAdapter(),
+      autoBookPaused: paused,
+    })
     expect(out).toHaveLength(1)
     return out[0]!
   }
@@ -118,7 +122,7 @@ const noBooking = (s: ReturnType<typeof seed>) => {
   ).toBe(0)
 }
 
-describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)', () => {
+describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', () => {
   const PROPOSAL = 'Confirma depilação masculina na quinta 29/10 às 14:00?'
   it.each<[string, Array<['inbound' | 'outbound', string]>]>([
     ['escolha do horário após oferta (caso do doc)', [
@@ -143,7 +147,7 @@ describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)
     const s = seed()
     try {
       for (const [d, b] of turns) s.say(d, b)
-      const o = await s.run(true)
+      const o = await s.run()
       expect(o.autoBook?.status).not.toBe('booked')
       expect(o.autoBook?.appointmentId).toBeUndefined()
       // Com capacidade ligada, confirmação clara pode enfileirar proposta (outbox) — ainda sem compromisso.
@@ -166,7 +170,7 @@ describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)
       const before = s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)!.n
       s.say('outbound', 'Prontinho! Depilação masculina agendada na quinta 29/10 às 14:00.')
       s.say('inbound', 'ok')
-      const o = await s.run(true)
+      const o = await s.run()
       expect(o.autoBook?.status).not.toBe('booked')
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)!.n).toBe(before)
     } finally {
@@ -179,7 +183,7 @@ describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)
     try {
       s.say('outbound', PROPOSAL)
       s.say('inbound', 'Sim')
-      const o = await s.run(true)
+      const o = await s.run()
       expect(o.autoBook?.status).toBe('requires_button')
       expect(o.autoBook?.proposalId).toBeTruthy()
       expect(o.autoBook?.outbox.length).toBeGreaterThan(0)
@@ -199,7 +203,7 @@ describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)
     try {
       s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 15:00?')
       s.say('inbound', 'Sim, pode marcar')
-      const o = await s.run(true)
+      const o = await s.run()
       expect(o.autoBook?.status).toBe('needs_signal')
       expect(o.autoBook?.proposalId).toBeTruthy()
       expect(o.suggestion!.internalNotes).toMatch(/botão Confirmar|equipe/)
@@ -210,12 +214,13 @@ describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)
     }
   })
 
-  it('capacidade desligada (tenant fora da allowlist) → só nota, sem proposta', async () => {
+  it('pausa da owner → só nota, sem proposta', async () => {
     const s = seed()
     try {
       s.say('outbound', PROPOSAL)
       s.say('inbound', 'Sim')
-      const o = await s.run(true, ['clinic-demo-b'])
+      const o = await s.run(true)
+      expect(o.status).toBe('ready')
       expect(o.autoBook?.status).toBe('requires_button')
       expect(o.autoBook?.proposalId).toBeUndefined()
       expect(o.autoBook?.outbox ?? []).toHaveLength(0)
@@ -226,37 +231,6 @@ describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)
     }
   })
 
-  it.each([
-    ['desligado', false, ['clinic-demo-a']],
-    ['ligado sem clínica autorizada', true, []],
-    ['ligado para outra clínica', true, ['clinic-demo-b']],
-  ] as const)('capacidade %s → não marca e o rascunho sai normalmente', async (_l, on, tenants) => {
-    const s = seed()
-    try {
-      s.say('outbound', PROPOSAL)
-      s.say('inbound', 'Sim')
-      const o = await s.run(on, [...tenants])
-      expect(o.status).toBe('ready')
-      expect(o.suggestion).toBeTruthy()
-      expect(o.autoBook?.proposalId).toBeUndefined()
-      noBooking(s)
-    } finally {
-      s.close()
-    }
-  })
-
-  it('desligar com o job já enfileirado → zero compromissos', async () => {
-    const s = seed()
-    try {
-      s.say('outbound', PROPOSAL)
-      s.say('inbound', 'Sim')
-      const o = await s.run(false)
-      expect(o.autoBook?.status).toBe('disabled')
-      noBooking(s)
-    } finally {
-      s.close()
-    }
-  })
 })
 
 describe('proteção (#182)', () => {
@@ -266,7 +240,7 @@ describe('proteção (#182)', () => {
       s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 14:00?')
       s.say('inbound', 'Sim')
       s.db.run(`UPDATE contacts SET blocked_at = ? WHERE tenant_id = ?`, NOW, s.tenantId)
-      const o = await s.run(true)
+      const o = await s.run()
       expect(o.autoBook?.status).toBe('blocked')
       noBooking(s)
     } finally {
@@ -285,26 +259,11 @@ describe('proteção (#182)', () => {
   })
 })
 
-describe('flags de agendamento automático', () => {
-  it.each([[undefined], [''], ['off'], ['true'], ['1'], ['yes'], ['ON-ish'], [42]])(
-    'AI_AUTOBOOK=%s → desligado',
-    (v) => {
-      expect(parseAutoBookFlag(v)).toBe(false)
-      expect(rpcDepsFromEnv({ AI_AUTOBOOK: v as never, AI_AUTOBOOK_TENANTS: 'clinic-demo-a' }).autoBook).toBe(false)
-    },
-  )
-  it('só «on» explícito liga, e ainda exige clínica autorizada', () => {
-    expect(parseAutoBookFlag(' On ')).toBe(true)
-    const rpc = rpcDepsFromEnv({ AI_AUTOBOOK: 'on' })
-    expect(autoBookCapability(rpc, 'clinic-demo-a')).toBe(false)
-    const rpc2 = rpcDepsFromEnv({ AI_AUTOBOOK: 'on', AI_AUTOBOOK_TENANTS: ' clinic-demo-a , x ' })
-    expect(autoBookCapability(rpc2, 'clinic-demo-a')).toBe(true)
-    expect(autoBookCapability(rpc2, 'clinic-demo-b')).toBe(false)
-  })
-  it('deps RPC sem autoBook → desligado (opt-in de sugestões não liga agendamento)', () => {
-    const d = toAiAssistDeps({ mode: 'synthetic' })
-    expect(d.autoBook).toBe(false)
-    expect(d.autoBookTenants).toEqual([])
+describe('capacidade de proposta', () => {
+  it('está sempre ligada; a pausa é da clínica', () => {
+    expect(autoBookCapability()).toBe(true)
+    expect(toAiAssistDeps({ mode: 'synthetic' }).autoBookPaused).toBe(false)
+    expect(toAiAssistDeps({ mode: 'synthetic', autoBookPaused: true }).autoBookPaused).toBe(true)
   })
 })
 

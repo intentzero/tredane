@@ -209,7 +209,7 @@
 
 ### REQ-083 — Proposta de agendamento versionada
 
-**Prioridade/estado:** MVP (piloto, flag desligada por padrão) / Decidido (DEC-061). **Origem:** JRN-17. **Comportamento:** o backend monta a proposta (id + versão) a partir da interpretação da IA e envia-a como mensagem determinística de texto fixo com os botões **Confirmar** e **Alterar detalhes**; mostra clínica/local, beneficiária, serviço, data completa com fuso, início e fim (ou duração), profissional quando aplicável, preço e sinal/condições. Validade de 30 min. Mudança material cria nova versão e invalida a anterior. O LLM não redige a proposta nem o resultado. **Aceite:** AC-55. **Dados/eventos:** proposta no SQLite da clínica; contexto da IA continua o de REQ-072/DEC-011.
+**Prioridade/estado:** MVP (capacidade sempre ligada; a owner pausa na clínica) / Decidido (DEC-061, Paulo 29/10/2026). **Origem:** JRN-17. **Comportamento:** o backend monta a proposta (id + versão) a partir da interpretação da IA e envia-a como mensagem determinística de texto fixo com os botões **Confirmar** e **Alterar detalhes**; mostra clínica/local, beneficiária, serviço, data completa com fuso, início e fim (ou duração), profissional quando aplicável, preço e sinal/condições. Validade de 30 min. Mudança material cria nova versão e invalida a anterior. O LLM não redige a proposta nem o resultado. **Aceite:** AC-55. **Dados/eventos:** proposta no SQLite da clínica; contexto da IA continua o de REQ-072/DEC-011.
 
 ### REQ-084 — Marcação só por clique de confirmação
 

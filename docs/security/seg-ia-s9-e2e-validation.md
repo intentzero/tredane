@@ -2,7 +2,7 @@
 
 **Estado:** **Proposto** (engenharia) · épico [SEG-IA #171](https://github.com/intentzero/tredane/issues/171) · issue [#180](https://github.com/intentzero/tredane/issues/180)  
 **Dados:** só fictícios (`clinic-demo-*`, Ana Silva, etc.)  
-**Esta entrega não activa piloto, não faz deploy staging/prod e não liga `AI_AUTOBOOK` para clínicas reais.**
+**Esta entrega (o harness S9) não faz deploy.** **Confirmado depois (Paulo, 29/10/2026):** a proposta de horário está sempre ligada; as vars `AI_AUTOBOOK` e `AI_AUTOBOOK_TENANTS` foram retiradas. A owner pausa na clínica. Texto livre não marca.
 
 ## Resumo
 
@@ -13,9 +13,9 @@
 | Abuse scaffold (S7) | **Proposto** | Código + testes; **valores Em aberto (Paulo)** |
 | Qualidade de modelo (H9) | **Em aberto** | Separada dos gates de auth; não bloqueia merge de isolamento |
 | UI / aparelhos / Meta staging | **Em aberto (Paulo / Meta)** | Checklist abaixo; engenharia não fecha |
-| H10 / #45 religar `AI_AUTOBOOK` | **Em aberto** | Gates documentados; **NO-GO** para clínica real |
+| H10 / #45 qualidade do piloto | **Em aberto** (o interruptor não) | Capacidade **Confirmada** sempre ligada (Paulo, 29/10/2026). Gates de qualidade abaixo continuam abertos |
 
-**Veredicto actual:** **NO-GO** para liberação do botão em clínica piloto.
+**Veredicto da capacidade:** ligada (Paulo, 29/10/2026). **Veredicto da qualidade do piloto (20 marcações revistas, Meta, aparelhos):** ainda **Em aberto**.
 
 ## Harness e CI
 
@@ -72,11 +72,11 @@ Runtime Cloudflare (WebSocket hibernável, revoke): `src/worker/runtime.harness.
 
 **Confirmado (engenharia):** autorização e isolamento são gates independentes. Um modelo «bom» não autoriza marcação; um modelo «mau» não deve conseguir efeito não autorizado se S2–S6/S9-T* passarem.
 
-**Em aberto (H9 / #166):** conjunto ~150 conversas, matriz Haiku/Sonnet, p95 de latência, escolha final de thinking. Esses critérios medem **qualidade de rascunho**, não liberam `AI_AUTOBOOK`.
+**Em aberto (H9 / #166):** conjunto ~150 conversas, matriz Haiku/Sonnet, p95 de latência, escolha final de thinking. Esses critérios medem **qualidade de rascunho**. A capacidade de proposta já não depende deles (Paulo, 29/10/2026).
 
-## Gates H10 / #45 (não liberar clínica)
+## Gates H10 / #45 (qualidade do piloto)
 
-Antes de religar `AI_AUTOBOOK=on` + `AI_AUTOBOOK_TENANTS=<piloto>` em staging/produção:
+**Confirmado (Paulo, 29/10/2026):** a proposta está sempre ligada. Não há `AI_AUTOBOOK` nem allowlist para religar. Os gates abaixo medem qualidade e operação do piloto; não são o interruptor.
 
 | # | Gate | Estado | Responsável |
 | --- | --- | --- | --- |
@@ -86,9 +86,9 @@ Antes de religar `AI_AUTOBOOK=on` + `AI_AUTOBOOK_TENANTS=<piloto>` em staging/pr
 | G-S9-04 | Meta staging: interactive buttons + TMPL-04 / janela 24 h | **Em aberto** | Paulo / Meta |
 | G-S9-05 | #18 dados/LGPD/Tech Provider evidência explícita | **Em aberto** | Paulo / jurídico |
 | G-S9-06 | Checklist aparelhos piloto (abaixo) | **Em aberto** | Paulo |
-| G-S9-07 | Config remota: `AI_AUTOBOOK` fail-closed verificado no Worker | **Em aberto** | Engenharia + Paulo |
+| G-S9-07 | Config remota da flag | **Substituído (Paulo, 29/10/2026):** vars retiradas; o interruptor é a pausa da owner | Paulo |
 | G-S9-08 | 20 marcações revistas, zero indevidas (Decidido) | **Em aberto** | Equipe piloto |
-| G-S9-09 | Autorização explícita «activar botão no piloto» | **Em aberto** | Paulo |
+| G-S9-09 | Autorização explícita para a proposta | **Confirmado (Paulo, 29/10/2026):** sempre ligada, em todos os ambientes | Paulo |
 | G-S9-10 | Runbook kill switch ensaiado (sintético ok; live Em aberto) | Proposto | Engenharia / ops |
 
 **Não inventar** critérios de amostra de Paulo nem autorização Meta. Mínimo de 20 marcações revistas (Decidido 28/10/2026) permanece; o resto dos gates humanos não está fechado neste PR.

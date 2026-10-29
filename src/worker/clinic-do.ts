@@ -659,7 +659,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     caller: ClinicCaller,
     input: ProposalButtonClickInput,
     opts?: {
-      /** Override de capacidade (testes); default = AI_AUTOBOOK + tenant. */
+      /** Override de capacidade (testes); default = ligada, salvo pausa da owner. */
       capability?: boolean
       pixDeps?: PixConnectDeps & { simulatedAdapter?: PixProviderAdapter }
     },
@@ -696,12 +696,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       click.action === 'confirm' &&
       'handoff' in click
     ) {
-      const rpc = this.#aiDepsOverride ?? clinicAi.rpcDepsFromEnv(this.env)
       const autoBookPaused =
         clinicConfig.isClinicAutoBookPaused(this.#db, caller.tenantId, this.#clock)
       const capability =
         opts?.capability ??
-        (clinicAi.autoBookCapability(rpc, caller.tenantId) && !autoBookPaused)
+        (clinicAi.autoBookCapability() && !autoBookPaused)
       let pixAdapter = opts?.pixDeps?.simulatedAdapter
       const proposal = click.handoff.proposal
       const needsPix =

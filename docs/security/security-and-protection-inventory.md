@@ -19,7 +19,7 @@
 - O workflow foi executado 17 vezes (27–28/10/2026), todas por `workflow_dispatch`. **Em todas, o job `Deploy production` ficou `skipped`.** Não há nenhum deploy de produção registrado por este workflow. `docs/DEPLOY.md` §5 indica que a produção ainda não está provisionada (`database_id` placeholder, faltam vars/secrets; `check:env -- production` falha). Por isso **nenhuma funcionalidade está marcada como "em produção"**; o estado real do Worker de produção é **não verificado**.
 - O último deploy de staging com sucesso foi criado em 28/10/2026 20:12 BRT, com SHA `317d163` (#192). Antes: run `40782048011`, 19:42 BRT, `96c1bb8`. Tudo até `317d163` está **em staging**. O commit `4807146` (merge do #181, só docs) está **na main sem deploy** (sujeito à configuração de vars/secrets do Worker, que não foi verificada).
 - Deploys anteriores de staging: `40af67e` (#153, 15:37 BRT), `bf28ec3` (#152, 15:29), `9011c27` (#150, 15:00), `471d490` (#148, 27/10 19:28). O run `40593261557` (`9a9e427`, 27/10) falhou.
-- Configuração de runtime: historicamente staging teve `AI_AUTOBOOK=off` (Paulo, 28/10/2026). **Confirmado (Paulo, 29/10/2026):** staging liga `AI_AUTOBOOK=on` + `AI_AUTOBOOK_TENANTS=tenant_b40dc579540c30130840b9ac` (Clínica Teste Paulo) via `wrangler.jsonc` `env.staging.vars`. Production **não** declara estas vars.
+- Configuração de runtime: historicamente staging teve `AI_AUTOBOOK=off` (Paulo, 28/10/2026) e, no mesmo dia 29/10, uma allowlist só da Clínica Teste Paulo. **Confirmado (Paulo, 29/10/2026, mais tarde):** as vars `AI_AUTOBOOK` e `AI_AUTOBOOK_TENANTS` foram retiradas. A proposta está ligada em todos os ambientes; a owner pausa na clínica.
 
 ## Inventário
 
@@ -57,11 +57,11 @@
 
 | Campo | Detalhe |
 |---|---|
-| Estado | Código fail-closed (S2 #191): só `on` + tenant na allowlist. Staging: allowlist Clínica Teste Paulo (Paulo 29/10/2026). Produção: sem `AI_AUTOBOOK=on`. |
+| Estado | **Confirmado (Paulo, 29/10/2026):** capacidade sempre ligada. Vars de ambiente retiradas. Texto livre não marca. A owner pausa na clínica. |
 | Onde | `src/clinic/ai/deps.ts:24-25`, `:45` (`rpc.autoBook !== false`), `:55-60` — **ligado por padrão**: só `off` desliga; `src/clinic/ai/autobook.ts` (actor `system:ai-autobook`, `:386-420`, auditoria `appointment.ai_booked` em `:398`); `src/worker/bindings.ts:58` |
 | Decisão | DEC-060 (`docs/product/decisions.md:58`); DEC-006 anotado |
 | Testes | `src/clinic/ai/autobook.test.ts`, `src/clinic/ai/amanha-tarde.regression.test.ts` |
-| Limites | Padrão inseguro (fail open): sem a var, marca por texto livre. Qualquer novo Worker/ambiente sem `AI_AUTOBOOK=off` ativa a funcionalidade. Contenção atual depende de uma var manual. **PR aberto #191** (S2/#173) inverte: só liga com `on` exato + clínica em `AI_AUTOBOOK_TENANTS`, e texto livre deixa de marcar. |
+| Limites | Texto livre não marca (S2). O interruptor é a pausa da owner, não uma var do Worker. O histórico de #191 (flag + allowlist) foi substituído em 29/10/2026. |
 
 ### 5. DEC-060, DEC-061 e confirmação por botão
 
@@ -141,7 +141,7 @@
 | Onde | `src/clinic/ai/abuse-limits.ts` + `clinic_settings` (migração 30); `AutomationLimitsCard`; autodraft + propostas; doc [abuse-limits.md](abuse-limits.md); também `AI_DAILY_DRAFT_CAP = 300` |
 | Decisão | Valores aceites sob DEC-061 (nota S7, Paulo 29/10/2026); UI owner **Confirmado** (chat 29/10/2026); enable por clínica; ações manuais sem limite |
 | Testes | `src/clinic/ai/abuse-limits.test.ts`; quotas de propostas em `proposals.test.ts` |
-| Limites | Fail-closed por clínica até a owner ligar; env `ABUSE_LIMIT_*` aperta tetos; `AI_AUTOBOOK=off` vence; liberação H10/S9 humana continua Em aberto |
+| Limites | Fail-closed por clínica até a owner ligar; env `ABUSE_LIMIT_*` aperta tetos; a pausa da owner desliga novas propostas nesta clínica; qualidade do piloto H10/S9 continua Em aberto |
 
 ### 12. Épicos e PRs em curso
 
@@ -149,7 +149,7 @@
 |---|---|---|
 | Épico SEG-IA #171 (#172–#180) | **parcial**: S1–S6/S8/S5 em `main`; S7 valores Confirmados (flag off); S9 harness sintético em `main` **sem** liberar piloto | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
 | S1 / #172 | **na main sem deploy** (#181) | DEC-061 |
-| S2 / #173 | **na main sem deploy** (#191) | texto livre nunca marca; `AI_AUTOBOOK` off por padrão |
+| S2 / #173 | **na main** | texto livre nunca marca; proposta sempre ligada; pausa da owner (29/10/2026) |
 | S3 / #174 | **na main sem deploy** (#264) | propostas versionadas |
 | S4 / #175 | **na main sem deploy** (#267) | botões WhatsApp + resultados determinísticos |
 | S5 / #176 | **na main sem deploy** (#268) | clique autenticado → book/Pix uma vez (`executeProposalConfirmOp`) |
@@ -195,9 +195,7 @@ Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY
 
 ## Lacunas conhecidas (priorizadas)
 
-1. **Agendamento por IA ligado por padrão no código** (`src/clinic/ai/deps.ts:60`). Staging contido só por `AI_AUTOBOOK=off` manual; correção em PR aberto #191 (S2).
-2. **Texto livre não marca** (S2); botão versionado S3–S5 em `main`, com `AI_AUTOBOOK` fail-closed por padrão até gates S9/H10 humanos.
-2a. Staging: allowlist Clínica Teste Paulo (Paulo 29/10/2026); production continua off.
+1. **Proposta de horário sempre ligada** (Paulo, 29/10/2026). Vars `AI_AUTOBOOK` / `AI_AUTOBOOK_TENANTS` retiradas. Texto livre não marca; a owner pausa na clínica. Qualidade do piloto (H10/S9) continua **Em aberto**.
 3. **Limites de abuso Confirmados** (#178, Paulo 29/10/2026) com UI owner; enable por clínica (default off).
 4. **Prompt injection** S6 em `main`; S9 harness sintético + runbook prontos — **liberação controlada do botão ainda Em aberto** (#180).
 5. **Bloqueio de contato não para todas as automações e não existe pausa** (#191 parcial, #187). Não chegar à Meta é **limite aceite** (decisão do Paulo, 28/10/2026): bloqueio e pausa continuam só internos.
