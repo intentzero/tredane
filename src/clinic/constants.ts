@@ -422,3 +422,7 @@ export const AI_AUTOBOOK_ACTOR = 'system:ai-autobook'
 /** Prefixo estável de clientRequestId / botão (S4 → S5). */
 export const PROPOSAL_SEND_CLIENT_REQUEST_PREFIX = 'proposal.send:'
 export const PROPOSAL_RESULT_CLIENT_REQUEST_PREFIX = 'proposal.result:'
+/** Idempotência S5: confirmação de compromisso a partir do clique. */
+export const PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX = 'proposal.book:'
+/** Idempotência S5: cobrança Pix de sinal a partir do clique (sem hold). */
+export const PROPOSAL_PIX_CLIENT_REQUEST_PREFIX = 'proposal.pix:'

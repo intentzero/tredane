@@ -54,6 +54,6 @@ Inventário campo a campo e divergência H2: [ai-context-minimization.md](../sec
 - Conjunto mínimo vs H2 (horários livres / timestamps) — Paulo; ver inventário S8
 - Critérios finos de detecção ofensiva/clínico (**Em aberto** / Proposto)
 - Limite 20 mensagens e budgets — medir com piloto
-- Propostas versionadas / botão / clique — S3–S5
+- Propostas versionadas / botão / clique — S3–S5 no código; liberação piloto = S9
 - PWA / push — ver [f5-pwa-push.md](f5-pwa-push.md) (#42)
 - Dados reais de pacientes

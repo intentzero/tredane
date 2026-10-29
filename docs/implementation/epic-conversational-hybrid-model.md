@@ -79,12 +79,13 @@ Mapeado para S6 (#177). Mantido; a interpretação validada só prepara a propos
 
 ## H6 — Execução pelo caminho atual e Pix
 
-Mapeado para S5 (#176).
+Mapeado para S5 (#176). Implementação em `executeProposalConfirmOp` (PR da issue #176); critérios abaixo reflectem o código.
 
-- [ ] **[alterado por S5]** Só o clique autenticado numa proposta válida (antes: intenção «nova marcação» validada) chega à operação de confirmação existente, com revalidação na transação e idempotência.
-- [ ] Teste: serviço com sinal → nenhum compromisso nem reserva; segue o fluxo Pix.
-- [ ] Teste: conflito surgido entre interpretação e transação → nada criado; rascunho oferece alternativas.
-- [ ] Auditoria `appointment.ai_booked` com actor `system:ai-autobook` e a mensagem de confirmação.
+- [x] **[alterado por S5]** Só o clique autenticado numa proposta válida chega à operação de confirmação existente / Pix, com revalidação na transação e idempotência por proposta+versão.
+- [x] Teste: serviço com sinal → nenhum compromisso nem reserva; segue o fluxo Pix (`createSignalChargeAndSendOp`).
+- [x] Teste: conflito de profissional/sala → `recusada_vaga` + resultado `slot_refused`; nada criado pelo clique.
+- [x] Auditoria `appointment.ai_booked` com actor `system:ai-autobook` (proposta/versão/evento; indicador «Marcado pela IA»).
+- [ ] Lembretes só após aviso de marcação enviado — S5/posterior (ainda Em aberto com H7).
 
 ## H7 — Comunicação pendente
 

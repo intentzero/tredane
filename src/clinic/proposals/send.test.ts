@@ -381,7 +381,7 @@ describe('S4: botões e resultado', () => {
     }
   })
 
-  it('Confirmar só devolve handoff S5 (sem book)', () => {
+  it('Confirmar só devolve handoff (book/Pix ficam em executeProposalConfirmOp)', () => {
     const s = seed()
     try {
       const proposal = createProposal(

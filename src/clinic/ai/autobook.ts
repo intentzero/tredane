@@ -9,9 +9,8 @@
  * Faltou ou ficou ambíguo → não marca (a IA pergunta). Detecção determinística, sem o modelo.
  *
  * S2 (#173, épico #171): esta leitura de texto livre NUNCA marca — só produz nota para a atendente.
- * A marcação automática ficará restrita ao clique numa proposta versionada (S3–S5, DEC-061 proposta).
- * Serviço com sinal: não marca; segue o fluxo atual de Pix (a atendente envia a cobrança no Agendar;
- * o horário só fica reservado após o pagamento).
+ * A marcação automática fica no clique autenticado da proposta versionada (S5 #176 / DEC-061:
+ * `executeProposalConfirmOp`). Serviço com sinal: Pix sem hold (DEC-047); horário só após pagamento (#39).
  */
 import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'

@@ -104,6 +104,7 @@ import type {
   UpdateSignalSettingsInput,
 } from '../clinic/pix'
 import type { PixProviderAdapter } from '../pix'
+import { pixSealKeys } from '../security/sealed-secret'
 import type {
   AiAssistRpcDeps,
   DecideSuggestionInput,
@@ -652,11 +653,16 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
   /**
    * S4→S5: processa button_reply da proposta.
-   * Confirm devolve handoff (S5 executa book/Pix); Alterar encaminha à equipe.
+   * Alterar encaminha; Confirmar → executeProposalConfirmOp (book ou Pix uma vez).
    */
   async handleProposalButtonClick(
     caller: ClinicCaller,
     input: ProposalButtonClickInput,
+    opts?: {
+      /** Override de capacidade (testes); default = AI_AUTOBOOK + tenant. */
+      capability?: boolean
+      pixDeps?: PixConnectDeps & { simulatedAdapter?: PixProviderAdapter }
+    },
   ) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -670,16 +676,78 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       )
       contactId = conv?.contact_id ?? ''
     }
-    const result = clinicProposals.handleProposalButtonClick(
+    const click = clinicProposals.handleProposalButtonClick(
       this.#db,
       { ...input, contactId },
       this.#clock,
     )
-    if ('outbox' in result && result.outbox.length > 0) {
-      await this.#fanoutOutboxes(caller, result.outbox, true)
+    const outboxes: OutboxRow[] = []
+    if ('outbox' in click && click.outbox.length > 0) {
+      outboxes.push(...click.outbox)
+    }
+
+    let execution: Awaited<
+      ReturnType<typeof clinicProposals.executeProposalConfirmOp>
+    > | null = null
+
+    if (
+      click.handled &&
+      'action' in click &&
+      click.action === 'confirm' &&
+      'handoff' in click
+    ) {
+      const rpc = this.#aiDepsOverride ?? clinicAi.rpcDepsFromEnv(this.env)
+      const capability =
+        opts?.capability ??
+        clinicAi.autoBookCapability(rpc, caller.tenantId)
+      let pixAdapter = opts?.pixDeps?.simulatedAdapter
+      const proposal = click.handoff.proposal
+      const needsPix =
+        click.handoff.authorization.allowed &&
+        proposal?.requiresSignal === true
+      if (needsPix && !pixAdapter) {
+        const env = this.env as WorkerBindings
+        const pixMode = (env.PIX_MODE ?? 'synthetic').toLowerCase()
+        const environment =
+          pixMode === 'live' ? 'live' : pixMode === 'sandbox' ? 'sandbox' : 'synthetic'
+        try {
+          const built = await clinicPix.buildClinicPixAdapter(
+            this.#db,
+            caller.tenantId,
+            opts?.pixDeps ?? {
+              sealKeys: pixSealKeys(env),
+              environment,
+            },
+          )
+          pixAdapter = built.adapter
+        } catch {
+          pixAdapter = undefined
+        }
+      }
+      execution = await clinicProposals.executeProposalConfirmOp(
+        this.#db,
+        caller,
+        {
+          handoff: click.handoff,
+          capability,
+          providerEventKey: input.providerEventKey,
+          contextMessageId: input.contextMessageId,
+          senderContactId: contactId || null,
+        },
+        this.#clock,
+        pixAdapter ? { pixAdapter } : {},
+      )
+      if (execution.outbox.length > 0) outboxes.push(...execution.outbox)
+      if (execution.status === 'pix_signal') {
+        await this.#scheduleNextPixExpiry(caller)
+      }
+    }
+
+    if (outboxes.length > 0) {
+      await this.#fanoutOutboxes(caller, outboxes, true)
       await this.#drain(caller)
     }
-    return result
+    return { click, execution }
   }
 
   /** Interrupção via webhook Meta (#32) — espelho DO + evento WS. */
