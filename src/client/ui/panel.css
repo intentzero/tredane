@@ -4589,9 +4589,6 @@
   white-space: nowrap;
 }
 
-
-
-
 /* Cabeçalho único da conversa (DEC-062/064): etapa em selo só de leitura junto do nome. */
 .inbox-stage-chip {
   padding: 1px var(--space-2);
@@ -4738,7 +4735,6 @@
   border-color: var(--color-danger-border);
   color: var(--color-danger-ink);
 }
-
 
 /* Com o atalho do resumo, o subtítulo não pode passar por baixo dos botões. */
 .inbox-thread-person .inbox-thread-who {
@@ -5857,82 +5853,6 @@
 }
 
 /* Horário integrado (TEL-09): semana desenhada, calendário e filtros. */
-.week-filters {
-  display: flex;
-  gap: var(--space-2);
-  overflow-x: auto;
-}
-
-.week-filters-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-pill);
-  margin-right: var(--space-2);
-}
-
-.week-bars {
-  border-radius: var(--radius-xl);
-  background: var(--color-surface-card);
-  padding: var(--space-3) var(--space-4) var(--space-4);
-}
-
-.week-bars-axis,
-.week-bars-row {
-  display: grid;
-  grid-template-columns: 36px 1fr;
-  gap: 0 var(--space-2);
-  align-items: center;
-}
-
-.week-bars-ticks {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
-
-.week-bars-row {
-  min-height: 44px;
-  border-top: var(--size-border-width) solid var(--color-surface-sunken);
-}
-
-.week-bars-day {
-  font-weight: var(--font-weight-semibold);
-}
-
-.week-bars-track {
-  position: relative;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-app);
-  overflow: hidden;
-}
-
-.week-bars-clinic {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: var(--color-primary-base);
-}
-
-.week-bars-clinic-soft {
-  background: var(--color-primary-tint);
-}
-
-.week-bars-person {
-  position: absolute;
-  opacity: 0.9;
-}
-
-.week-bars-closed {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: var(--font-size-small);
-  color: var(--color-text-muted);
-}
 
 .month-cal {
   border-radius: var(--radius-xl);
@@ -6096,117 +6016,6 @@
 @media (min-width: 1280px) {
   .clinic-desktop-hide {
     display: none;
-  }
-}
-
-@container (min-width: 900px) {
-  .hours-split {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
-    gap: var(--space-6, 24px);
-    align-items: start;
-  }
-
-  .hours-main,
-  .hours-side {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-  }
-
-  .week-bars-row {
-    min-height: 56px;
-  }
-
-  .week-bars-track {
-    height: 40px;
-  }
-}
-
-.week-bars-day-btn {
-  border: 0;
-  background: none;
-  font: inherit;
-  text-align: left;
-  min-height: 44px;
-  padding: 0;
-  cursor: pointer;
-}
-
-.week-bars-row[data-selected='true'] .week-bars-day {
-  color: var(--color-primary-ink);
-  text-decoration: underline;
-}
-
-.week-bars-off {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border: 2px solid;
-  border-radius: var(--radius-sm);
-  background: repeating-linear-gradient(135deg, rgba(180, 35, 24, 0.18) 0 4px, transparent 4px 8px);
-  pointer-events: none;
-}
-
-.week-bars-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 14px;
-  margin-left: -7px;
-  cursor: ew-resize;
-  touch-action: none;
-  z-index: 2;
-}
-
-.week-bars-handle::after {
-  content: '';
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 5px;
-  width: 4px;
-  border-radius: var(--radius-pill);
-  background: var(--color-text-primary);
-  opacity: 0.45;
-}
-
-.week-bars-handle:focus-visible {
-  outline: 2px solid var(--color-primary-base);
-}
-
-.week-bars-track {
-  overflow: visible;
-}
-
-.hours-day {
-  display: none;
-}
-
-@container (min-width: 900px) {
-  .hours-day {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    padding: var(--space-4);
-    border-radius: var(--radius-lg);
-    background: var(--color-surface-card);
-  }
-
-  .hours-main {
-    display: grid;
-    grid-template-columns: 200px minmax(0, 1fr);
-    gap: var(--space-4);
-    align-items: start;
-  }
-
-  .hours-main > .clinic-footnote {
-    grid-column: 2;
-  }
-
-  .hours-main .week-filters {
-    flex-direction: column;
-    grid-row: span 2;
   }
 }
 
@@ -6620,7 +6429,6 @@
   flex-direction: column;
   min-height: 0;
 }
-
 
 /* ── Horário da clínica (#223/#224): resumo, dias, barra de salvar e folhas ── */
 .hours-summary {
