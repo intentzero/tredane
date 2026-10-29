@@ -227,3 +227,53 @@ describe('Ficha da profissional', () => {
     expect((a.upsertResource as ReturnType<typeof vi.fn>).mock.calls[0]![1].hoursMode).toBe('own')
   })
 })
+
+describe('Ficha da profissional — rascunho do horário próprio (#257)', () => {
+  /** Estado logo depois de trocar para «Horário próprio»: modo `own`, ainda sem janelas salvas. */
+  function ownWithoutWindows(): ClinicConfigSnapshot {
+    const s = snap()
+    return {
+      ...s,
+      resources: s.resources.map((r) => (r.id === 'p1' ? { ...r, hoursMode: 'own' } : r)),
+    } as unknown as ClinicConfigSnapshot
+  }
+
+  /** Mesmo estado depois de gravar a cópia do horário da clínica para a profissional. */
+  function ownWithCopy(): ClinicConfigSnapshot {
+    const s = ownWithoutWindows()
+    return {
+      ...s,
+      weeklyWindows: [...s.weeklyWindows, ...[1, 2, 3, 4, 5].map((d) => win('p1', d, 480, 1080))],
+    } as unknown as ClinicConfigSnapshot
+  }
+
+  const extras = (s: ClinicConfigSnapshot) => (
+    <ProfessionalExtras
+      resource={s.resources.find((r) => r.id === 'p1')!}
+      tenantId="t"
+      snap={s}
+      api={api()}
+      generation={1}
+      onSaved={async () => undefined}
+    />
+  )
+
+  it('depois de gravar a cópia da clínica, o editor mostra os dias abertos e não há nada a salvar', () => {
+    const view = render(extras(ownWithoutWindows()))
+    fireEvent.click(screen.getByRole('tab', { name: 'Horário' }))
+    expect(screen.getAllByText('Fechado')).toHaveLength(7)
+    view.rerender(extras(ownWithCopy()))
+    expect(screen.getAllByText('Fechado')).toHaveLength(2)
+    expect(screen.getAllByText('08:00 – 18:00')).toHaveLength(5)
+    expect((screen.getByRole('button', { name: 'Horário salvo' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('edição em andamento não é descartada quando o horário salvo é atualizado', () => {
+    const view = render(extras(ownWithoutWindows()))
+    fireEvent.click(screen.getByRole('tab', { name: 'Horário' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Sábado: fechado' }))
+    expect(screen.getByRole('switch', { name: 'Sábado: aberto' })).toBeTruthy()
+    view.rerender(extras(ownWithCopy()))
+    expect(screen.getByRole('switch', { name: 'Sábado: aberto' })).toBeTruthy()
+  })
+})
