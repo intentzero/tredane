@@ -30,6 +30,12 @@ describe('friendlyError', () => {
     )
   })
 
+  it('erro interno do servidor vira «do nosso lado», sem texto técnico', () => {
+    expect(friendlyError(new PanelApiError(500, 'unknown', 'internal_error'))).toBe(
+      'Algo deu errado do nosso lado. Tente de novo em instantes.',
+    )
+  })
+
   it('mantém mensagens que já são frases', () => {
     const msg = 'A conexão com o WhatsApp ainda não está liberada. Fale com o suporte.'
     expect(friendlyError(new PanelApiError(501, 'unknown', msg))).toBe(msg)

@@ -75,10 +75,9 @@ function configErrorResponse(
         : 400
     return c.json({ error: err.code, message: err.message }, status)
   }
-  return c.json(
-    { error: err instanceof Error ? err.message : 'config_error' },
-    400,
-  )
+  // Falha inesperada (ex.: cota do Durable Object): vai para o log, nunca para a resposta.
+  console.error('clinic-config: erro inesperado', err)
+  return c.json({ error: 'internal_error' }, 500)
 }
 
 function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGateway {
