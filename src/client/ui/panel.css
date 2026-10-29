@@ -4541,6 +4541,20 @@
   max-width: min(520px, 82%);
 }
 
+/* Painel do contato: os botões de ação ocupam a largura útil (margem do conteúdo, sem rolagem lateral)
+ * e o texto quebra em vez de sair da coluna; o padding do conteúdo vem dos filhos, não da coluna. */
+.inbox-contact .panel-btn-secondary:not(.ai-btn),
+.inbox-contact .panel-btn-danger {
+  margin: 0 var(--space-4) var(--space-3);
+  width: calc(100% - 2 * var(--space-4));
+  white-space: normal;
+  text-align: center;
+}
+
+.conversas-3col-contact {
+  padding-inline: 0;
+}
+
 /* Faixa de Pix pendente (DEC-065): compacta, um aviso só. */
 .inbox-pix-bar {
   flex: none;
