@@ -23,27 +23,59 @@ function stubMatchMedia(wideContact: boolean) {
 const api = new Proxy({}, { get: () => () => new Promise(() => {}) }) as never
 
 describe('ConversasThreeCol', () => {
-  it('abaixo de 1280px: contato fica numa gaveta que abre pelo botão', () => {
-    stubMatchMedia(false)
-    const { container } = render(
-      <ConversasThreeCol tenantId="t" conversationId="c" api={api} generation={1} viewerId="u" isOwner />,
-    )
-    expect(container.querySelector('.conversas-3col--drawer')).toBeTruthy()
-    expect(screen.queryByRole('complementary', { name: 'Contato' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Ver contato' }))
-    expect(container.querySelector('#conversas-contact-panel')).toBeTruthy()
-    fireEvent.keyDown(window, { key: 'Escape' })
-    expect(container.querySelector('#conversas-contact-panel')).toBeNull()
-  })
-
-  it('a partir de 1280px: 3 colunas com o contato em linha, sem botão', () => {
+  it('a partir de 1280px o painel do contato abre aberto, por cima (sem coluna própria)', () => {
+    localStorage.clear()
     stubMatchMedia(true)
     const { container } = render(
       <ConversasThreeCol tenantId="t" conversationId="c" api={api} generation={1} viewerId="u" isOwner />,
     )
-    expect(container.querySelector('.conversas-3col--drawer')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Ver contato' })).toBeNull()
+    expect(container.querySelector('.conversas-3col')?.getAttribute('data-contact')).toBe('open')
     expect(screen.getByRole('complementary', { name: 'Contato' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Ver contato' })).toBeNull()
+  })
+
+  it('abaixo de 1280px abre fechado: o painel não é montado nem buscado', () => {
+    localStorage.clear()
+    stubMatchMedia(false)
+    const { container } = render(
+      <ConversasThreeCol tenantId="t" conversationId="c" api={api} generation={1} viewerId="u" isOwner />,
+    )
+    expect(container.querySelector('.conversas-3col')?.getAttribute('data-contact')).toBe('closed')
+    expect(container.querySelector('#conversas-contact-panel')).toBeNull()
+  })
+
+  it('Esc fecha o painel, lembra a escolha e o painel fechado fica fora do alcance (inert)', () => {
+    localStorage.clear()
+    stubMatchMedia(true)
+    const { container } = render(
+      <ConversasThreeCol tenantId="t" conversationId="c" api={api} generation={1} viewerId="u" isOwner />,
+    )
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(container.querySelector('.conversas-3col')?.getAttribute('data-contact')).toBe('closed')
+    expect(localStorage.getItem('tredane.contactPanel')).toBe('closed')
+    const aside = container.querySelector('#conversas-contact-panel')
+    expect(aside?.getAttribute('aria-hidden')).toBe('true')
+    expect(aside?.hasAttribute('inert')).toBe(true)
+  })
+
+  it('a escolha lembrada vale mais que a largura da janela', () => {
+    localStorage.setItem('tredane.contactPanel', 'open')
+    stubMatchMedia(false)
+    const { container } = render(
+      <ConversasThreeCol tenantId="t" conversationId="c" api={api} generation={1} viewerId="u" isOwner />,
+    )
+    expect(container.querySelector('.conversas-3col')?.getAttribute('data-contact')).toBe('open')
+  })
+
+  it('sem conversa aberta: mesma moldura, estado vazio e sem painel de contato', () => {
+    stubMatchMedia(true)
+    const { container } = render(
+      <ConversasThreeCol tenantId="t" api={api} generation={1} viewerId="u" isOwner />,
+    )
+    expect(container.querySelector('.conversas-3col--empty')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Escolha uma conversa' })).toBeTruthy()
+    expect(screen.queryByRole('complementary', { name: 'Contato' })).toBeNull()
+    expect(container.querySelector('.conversas-3col-list')).toBeTruthy()
   })
 
   it('sem conversa aberta: mesma moldura, estado vazio e sem coluna de contato', () => {

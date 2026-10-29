@@ -6297,11 +6297,6 @@
     grid-template-columns: minmax(300px, 360px) minmax(var(--conversas-thread-min), 1fr);
   }
 
-  .conversas-3col:not(.conversas-3col--drawer):not(.conversas-3col--empty) {
-    grid-template-columns:
-      minmax(300px, 360px) minmax(var(--conversas-thread-min), 1fr) minmax(260px, 320px);
-  }
-
   .conversas-list-head {
     display: flex;
     flex-direction: column;
@@ -6342,4 +6337,68 @@
 
 .inbox-row--active:active {
   background: var(--color-primary-tint);
+}
+
+/* ——— Painel de detalhe deslizante (Conversas): por cima, sem véu, sem empurrar a lista ———
+ * Duas colunas fixas (lista · conversa). O contato entra da direita em 200 ms; a coluna de
+ * leitura desliza para a esquerda para não ficar tapada. Sem «reduzir movimento», sem animação. */
+.conversas-3col,
+.conversas-3col:not(.conversas-3col--drawer) {
+  grid-template-columns: minmax(280px, 360px) minmax(var(--conversas-thread-min), 1fr);
+}
+
+.conversas-3col-thread {
+  transition: padding-right 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.conversas-3col[data-contact='open'] .conversas-3col-thread {
+  padding-right: 380px;
+}
+
+.conversas-3col > .conversas-3col-contact {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: 100%;
+  z-index: 20;
+  padding: var(--space-2) 0 var(--space-4);
+  box-sizing: border-box;
+  border-left: var(--size-border-width) solid var(--color-line-border);
+  box-shadow: -16px 0 40px rgb(20 38 37 / 16%);
+  background: var(--color-surface-card);
+  transform: translateX(104%);
+  visibility: hidden;
+  transition:
+    transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 200ms;
+  outline: none;
+}
+
+.conversas-3col[data-contact='open'] > .conversas-3col-contact {
+  transform: translateX(0);
+  visibility: visible;
+  transition:
+    transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s;
+}
+
+.conversas-contact-head {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 var(--space-2);
+}
+
+.panel-header-action--toggle[aria-pressed='true'] {
+  background: var(--color-text-primary);
+  border-color: var(--color-text-primary);
+  color: var(--color-text-on-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conversas-3col-thread,
+  .conversas-3col > .conversas-3col-contact {
+    transition: none;
+  }
 }
