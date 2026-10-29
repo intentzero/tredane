@@ -1,4 +1,5 @@
 import type { AiCatalogService, AiContextMessage, AiWarningCode } from './types'
+import { detectInjectionSignals } from './untrusted'
 
 /**
  * Detecção local de casos DEC-046 — **Proposto / Em aberto** (critérios a medir).
@@ -55,6 +56,10 @@ export function analyzeContentRules(
   if (OFFENSIVE_RE.test(last)) warnings.push('offensive')
   if (OFF_TOPIC_RE.test(last)) warnings.push('off_topic')
   if (CLINICAL_RE.test(last)) warnings.push('clinical')
+  // S6: qualquer mensagem recebida recente (injeção pode vir antes da última).
+  if (messages.some((m) => m.direction === 'inbound' && detectInjectionSignals(m.body))) {
+    warnings.push('injection_suspected')
+  }
 
   const servicesWithoutPrice: string[] = []
   const servicesWithoutExplanation: string[] = []
@@ -111,6 +116,10 @@ export function warningLabel(code: AiWarningCode): string {
       return 'Serviço sem explicação cadastrada. A IA não descreveu o procedimento.'
     case 'provider_unavailable':
       return 'A sugestão não está disponível agora. Você pode responder normalmente.'
+    case 'injection_suspected':
+      return 'A mensagem parece tentar dar ordens à IA. Trate como texto da cliente e revise com atenção.'
+    case 'output_rejected':
+      return 'A IA devolveu uma resposta fora do formato seguro e ela foi descartada. Responda normalmente.'
   }
 }
 

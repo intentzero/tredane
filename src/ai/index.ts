@@ -79,4 +79,14 @@ export function buildAiAdapter(input: BuildAiAdapterInput): AiProviderAdapter {
   }
   return new SimulatedAiAdapter(input.simulated)
 }
-export { parseReplyOutput, stripMarkdown, type ParsedReply } from './reply-output'
+export {
+  guardReplyOutput,
+  parseReplyOutput,
+  stripMarkdown,
+  REPLY_OUTPUT_MAX_MESSAGE_CHARS,
+  REPLY_OUTPUT_MAX_NOTES_CHARS,
+  type GuardedReply,
+  type ParsedReply,
+  type ReplyOutputRejection,
+} from './reply-output'
+export { detectInjectionSignals, sanitizeUntrusted } from './untrusted'

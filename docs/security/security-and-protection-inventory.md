@@ -118,11 +118,11 @@
 
 | Campo | Detalhe |
 |---|---|
-| Estado | Parcial **em staging**; contenção completa **planeado (issue)** #177 (S6) |
-| Onde | `src/ai/reply-output.ts:110` (parse da saída); adaptador simulado recusa injection/tool calls `src/ai/simulated/adapter.ts:65-70`; IA não envia mensagens (rascunho para a atendente) |
-| Decisão | DEC-006, DEC-046; DEC-061 (em PR) retira do LLM a autorização |
-| Testes | `src/ai/reply-output.robust.test.ts`, `src/clinic/ai/ai.test.ts` |
-| Limites | Com #155 ativo, texto da cliente pode levar a marcações (motivo da contenção). Sem fronteira de capacidades formal nem testes adversariais no CI até #177/#180. |
+| Estado | **implementado em PR** (S6 / #177; reland para `main` após #198 ter entrado na base errada). Sem deploy. |
+| Onde | `src/ai/untrusted.ts`, `src/ai/prompt.ts`, `src/ai/reply-output.ts` (`guardReplyOutput`), `src/ai/rules.ts`, `src/clinic/ai/operations.ts`; doc `docs/security/prompt-injection.md`; adaptador simulado recusa injection/tool calls; IA não envia mensagens (rascunho para a atendente) |
+| Decisão | DEC-006, DEC-046; DEC-061 retira do LLM a autorização (S2/#191 já em `main`) |
+| Testes | `src/clinic/ai/prompt-injection.test.ts` (ataques + zero efeitos); `src/ai/reply-output.robust.test.ts`, `src/clinic/ai/ai.test.ts` |
+| Limites | Heurística `injection_suspected` é Proposta (só aviso). Resumo (`kind: summary`) não passa pelo schema fechado. Não afirma imunidade total; rascunho continua a exigir revisão humana. S9 (#180) fecha a validação ponta a ponta. |
 
 ### 11. Limites de abuso (por contato e por clínica)
 
@@ -138,9 +138,10 @@
 
 | Item | Estado | Onde |
 |---|---|---|
-| Épico SEG-IA #171 (#172–#180) | **planeado (issue)**, todas abertas | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
+| Épico SEG-IA #171 (#172–#180) | **parcial**: S1/S2/S7 em `main`; S6 em PR de reland; S3–S5/S8/S9 abertas | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
 | S1 / #172 | **na main sem deploy** (#181 integrado em `4807146`; issue #172 ainda aberta) | DEC-061 |
-| S2 / #173 | **em PR aberto** #191 (`79590d0`; código: `autobook.ts`, `deps.ts`, `protection.ts`) | CI não reportado no momento do levantamento |
+| S2 / #173 | **na main sem deploy** (#191) | texto livre nunca marca; `AI_AUTOBOOK` off por padrão |
+| S6 / #177 | **em PR de reland para `main`** (código de #198; base original estava errada) | `untrusted.ts`, `guardReplyOutput`, testes de ataque |
 | Épico PROTEÇÃO #182 (#183–#189) | **planeado (issue)**, todas abertas | #183 P1 · #184 P2 · #185 P3 · #186 P4 · #187 P5 · #188 P6 · #189 P7 |
 | P1 / #183 | **em PR aberto** #190 (docs; CI verde em `b42639d`) | DEC-062 **Proposto**, aguarda Paulo (P-1–P-3); `docs/product/protecao-equipe.md` |
 
@@ -184,7 +185,7 @@ Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY
 2. **O código da `main` ainda marca por texto livre**, apesar da DEC-061 (botão) já estar na `main`; botão #174–#176 por implementar.
 2a. **`AI_AUTOBOOK=off` no staging pode ter sido apagado pelo deploy das 20:12 BRT** (não verificado).
 3. **Sem limites de abuso por contato/clínica para marcações e propostas** (#178, valores por decidir).
-4. **Prompt injection sem fronteira de capacidades nem testes adversariais no CI** (#177, #180).
+4. **Prompt injection**: fronteira S6 em PR de reland (#177); validação ponta a ponta e liberação controlada ainda em #180 (S9).
 5. **Bloqueio de contato não para todas as automações e não existe pausa** (#191 parcial, #187). Não chegar à Meta é **limite aceite** (decisão do Paulo, 28/10/2026): bloqueio e pausa continuam só internos.
 6. **Produção sem provisionamento e sem deploy registrado**; secrets de produção ausentes (DEPLOY.md §5).
 7. **Gates de dados reais**: #45 aberta; #18 fechada sem evidência visível na issue.

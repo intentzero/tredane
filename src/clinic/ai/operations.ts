@@ -1,5 +1,5 @@
 import {
-  parseReplyOutput,
+  guardReplyOutput,
   AI_MODEL_AUTODRAFT,
   AI_MODEL_REGENERATE,
   AI_MAX_OUTPUT_TOKENS_REPLY,
@@ -151,14 +151,23 @@ async function runGenerate(
       : {}),
   })
   // Saída estruturada: mensagem limpa à cliente + notas internas separadas.
-  const parsedReply = gen.ok && input.kind === 'reply' ? parseReplyOutput(gen.text) : null
-  // Sem mensagem utilizável (só JSON/chaves) → falha amigável, nunca texto cru.
+  // S6 (#177): schema fechado; desvio → descartado, fallback humano.
+  const guarded = gen.ok && input.kind === 'reply' ? guardReplyOutput(gen.text) : null
+  const parsedReply = guarded?.ok ? { message: guarded.message, notes: guarded.notes } : null
+  const rejected = guarded != null && !guarded.ok
+  // Sem mensagem utilizável → falha amigável, nunca texto cru.
   const unusable = gen.ok && input.kind === 'reply' && !parsedReply?.message
   const ok = gen.ok && !unusable
 
   const now = clock.nowMs()
   const warningCodes = [...rules.warnings]
-  if (!ok) warningCodes.push('provider_unavailable')
+  if (rejected) {
+    warningCodes.push('output_rejected')
+    aiLog('warn', 'ai.output_rejected', {
+      tenantId: meta.tenantId,
+      reason: guarded && !guarded.ok ? guarded.reason : 'unknown',
+    })
+  } else if (!ok) warningCodes.push('provider_unavailable')
   const warningLabels = warningCodes.map(warningLabel)
   const sourceRefs = rules.explanationSources.map((s) => ({
     serviceName: s.serviceName,

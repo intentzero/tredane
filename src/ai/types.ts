@@ -15,6 +15,10 @@ export type AiWarningCode =
   | 'clinical'
   | 'no_explanation'
   | 'provider_unavailable'
+  /** S6 (#177): mensagem com sinais de manipulação da IA (heurístico). */
+  | 'injection_suspected'
+  /** S6 (#177): saída do modelo fora do schema fechado — descartada. */
+  | 'output_rejected'
 
 export type AiCatalogService = {
   name: string
