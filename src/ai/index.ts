@@ -16,6 +16,13 @@ export {
 } from './budgets'
 export { buildSystemPrompt, buildUserContent, formatBRL } from './prompt'
 export {
+  applyDraftContinuity,
+  countClinicOutbound,
+  hasClinicOutbound,
+  startsWithGreeting,
+  stripLeadingGreeting,
+} from './continuity'
+export {
   analyzeContentRules,
   warningLabel,
   redactProhibitedFromText,

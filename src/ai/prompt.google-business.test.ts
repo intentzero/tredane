@@ -10,6 +10,8 @@ function input(clinic: Partial<AiClinicContext>, inbound: string): AiGenerateInp
       stage: null,
       services: [],
       messages: [{ direction: 'inbound', body: inbound }],
+      hasClinicOutbound: false,
+      clinicOutboundCount: 0,
       clinic: {
         name: 'Clínica Fictícia',
         address: 'Rua Fictícia, 123',

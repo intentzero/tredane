@@ -9,6 +9,7 @@ import {
   warningLabel,
   type AiProviderAdapter,
 } from '../../ai'
+import { applyDraftContinuity } from '../../ai/continuity'
 import type { Clock } from '../../db/clock'
 import { assertValidCaller, type ClinicCaller } from '../envelopes'
 import { ClinicError, NotFoundError, ValidationError } from '../errors'
@@ -209,7 +210,13 @@ async function runGenerate(
   // Saída estruturada: mensagem limpa à cliente + notas internas separadas.
   // S6 (#177): schema fechado; desvio → descartado, fallback humano.
   const guarded = gen.ok && input.kind === 'reply' ? guardReplyOutput(gen.text) : null
-  const parsedReply = guarded?.ok ? { message: guarded.message, notes: guarded.notes } : null
+  // Continuidade (Paulo 29/10/2026): se a clínica já falou, corta re-cumprimento residual.
+  const parsedReply = guarded?.ok
+    ? {
+        message: applyDraftContinuity(guarded.message, contextInspection.payload.messages),
+        notes: guarded.notes,
+      }
+    : null
   const rejected = guarded != null && !guarded.ok
   // Sem mensagem utilizável → falha amigável, nunca texto cru.
   const unusable = gen.ok && input.kind === 'reply' && !parsedReply?.message
