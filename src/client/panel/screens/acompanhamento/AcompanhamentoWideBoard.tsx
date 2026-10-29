@@ -5,6 +5,7 @@ import type { OpportunityStage, PanelApi, PipelineOpportunity } from '../../api'
 import { useClinicTimezone } from '../../clinicTimezone'
 import { friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
+import { PanelScrim } from '../../ui/PanelScrim'
 import { ErrorState } from '../../states/StatusScreens'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { AcompanhamentoDetail } from './AcompanhamentoDetail'
@@ -345,6 +346,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
         })}
       </div>
 
+      {openId ? <PanelScrim onClose={closePanel} /> : null}
       {openId ? (
         <aside
           id="acomp-panel"

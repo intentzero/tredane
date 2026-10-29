@@ -10,6 +10,7 @@ import {
   type ScheduleHold,
 } from '../../api'
 import { errorDetail, friendlyError } from '../../copy/errors'
+import { PanelScrim } from '../../ui/PanelScrim'
 import { navigatePanel } from '../../routes'
 import { Badge } from '../../states/Badge'
 import { ListSkeleton } from '../../states/ListSkeleton'
@@ -503,6 +504,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view, openId }: Props
         }
       />
       {work}
+      {panelOpen ? <PanelScrim onClose={closePanel} /> : null}
       {panelOpen ? (
         <aside
           id="agenda-panel"
