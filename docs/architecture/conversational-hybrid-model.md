@@ -14,7 +14,7 @@ Fontes:
 
 - **Confirmação por botão:** a marcação automática só acontece com o toque da cliente no botão do WhatsApp de uma proposta montada e versionada pelo backend. Texto livre («sim» ou pedido completo) só interpreta e prepara a proposta.
 - **Valores Decididos (Paulo, 28/10/2026):** proposta válida por **30 min**; alerta de comunicação pendente após **5 min**; contenção retirada no piloto após **20 marcações revistas** sem nenhuma indevida.
-- **Em aberto (Paulo, S7 #178):** limites de abuso por contato/clínica e janela de quotas.
+- **Limites de abuso (S7 #178): Confirmado (Paulo, 29/10/2026)** — [abuse-limits.md](../security/abuse-limits.md); controlo por env; sem UI; `ABUSE_LIMITS` off até ops.
 - **Ordem:** S1 (#172) → S2 (#173) / S3 (#174) / S6 (#177) / S8 (#179) → S4 (#175) → S5 (#176) → S7 (#178) → S9 (#180).
 - **Onde entra o trabalho H:** H2 (contexto factual) → S8; H3 (intenções) e H5 (interpretação estruturada) → S6, para decidir *se* e *que* proposta montar, nunca para autorizar; H8 (validação de preços/horários) → S6 e S4 (texto da proposta); H1 → S2/S7; H4 → S3; H6 → S5; H7 → S4; H9/H10 → S9.
 

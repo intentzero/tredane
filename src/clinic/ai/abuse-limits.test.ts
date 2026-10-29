@@ -1,6 +1,6 @@
 /**
- * S7 (#178): limites de abuso. Valores «Proposto — aguarda Paulo»; desligado por padrão.
- * Dados fictícios.
+ * S7 (#178): limites de abuso. Valores Confirmados (Paulo, 29/10/2026); desligado por padrão.
+ * Dados fictícios. Sem UI de clínica — só env `ABUSE_LIMITS` / `ABUSE_LIMIT_*`.
  */
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
@@ -11,11 +11,15 @@ import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
+import { upsertResourceOp, upsertServiceOp } from '../config'
+import { createProposal } from '../proposals/proposals'
 import { bootClinicDb } from '../test-db'
 import {
-  PROPOSED_ABUSE_LIMITS,
+  DEFAULT_ABUSE_LIMITS,
   abuseLimitsFromEnv,
   checkAutomationQuota,
+  countPendingProposalsForContact,
+  countProposalsCreated,
   type AbuseLimits,
 } from './abuse-limits'
 import { rpcDepsFromEnv, toAiAssistDeps } from './deps'
@@ -59,11 +63,11 @@ function seed(tenantId = 'clinic-demo-a') {
   return { ...boot, clock, caller, tenantId, addContact, inbound, drain, audits }
 }
 
-const on = (over: Partial<AbuseLimits> = {}): AbuseLimits => ({ ...PROPOSED_ABUSE_LIMITS, enabled: true, ...over })
+const on = (over: Partial<AbuseLimits> = {}): AbuseLimits => ({ ...DEFAULT_ABUSE_LIMITS, enabled: true, ...over })
 
 describe('S7: configuração', () => {
   it('desligado por padrão; só «on» liga', () => {
-    expect(PROPOSED_ABUSE_LIMITS.enabled).toBe(false)
+    expect(DEFAULT_ABUSE_LIMITS.enabled).toBe(false)
     expect(abuseLimitsFromEnv({}).enabled).toBe(false)
     expect(abuseLimitsFromEnv({ ABUSE_LIMITS: 'true' }).enabled).toBe(false)
     expect(abuseLimitsFromEnv({ ABUSE_LIMITS: ' ON ' }).enabled).toBe(true)
@@ -71,7 +75,7 @@ describe('S7: configuração', () => {
     expect(toAiAssistDeps(rpcDepsFromEnv({ ABUSE_LIMITS: 'on' })).abuseLimits?.enabled).toBe(true)
   })
 
-  it('padrões propostos e sobrescrita por ABUSE_LIMIT_* (inválido → padrão)', () => {
+  it('padrões Confirmados e sobrescrita por ABUSE_LIMIT_* (inválido → padrão)', () => {
     const l = abuseLimitsFromEnv({
       ABUSE_LIMITS: 'on',
       ABUSE_LIMIT_AUTO_DRAFTS_PER_CONTACT: '5',
@@ -81,9 +85,9 @@ describe('S7: configuração', () => {
     })
     expect(l.autoDraftsPerContact).toBe(5)
     expect(l.windowMs).toBe(12 * HOUR)
-    expect(l.aiBookingsPerClinic).toBe(PROPOSED_ABUSE_LIMITS.aiBookingsPerClinic)
-    expect(l.pendingPixPerContact).toBe(PROPOSED_ABUSE_LIMITS.pendingPixPerContact)
-    expect(PROPOSED_ABUSE_LIMITS).toMatchObject({
+    expect(l.aiBookingsPerClinic).toBe(DEFAULT_ABUSE_LIMITS.aiBookingsPerClinic)
+    expect(l.pendingPixPerContact).toBe(DEFAULT_ABUSE_LIMITS.pendingPixPerContact)
+    expect(DEFAULT_ABUSE_LIMITS).toMatchObject({
       windowMs: 24 * HOUR,
       autoDraftsPerContact: 20,
       autoDraftsPerClinic: 300,
@@ -272,6 +276,165 @@ describe('S7: marcações automáticas e Pix (quota consultada no backend)', () 
       insertAppt(s, 'apt_ai_x', a.contactId, { ai: true })
       expect(
         checkAutomationQuota(s.db, on(), { tenantId: 'clinic-demo-b', contactId: a.contactId, effect: 'ai_booking' }, s.clock).allowed,
+      ).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+})
+
+describe('S7: quotas de propostas (appointment_proposals, S3)', () => {
+  function seedWithService() {
+    const s = seed()
+    const pro = upsertResourceOp(
+      s.db,
+      s.caller,
+      { kind: 'professional', name: 'Dra. Paula Reis' },
+      s.clock,
+    )
+    const svc = upsertServiceOp(
+      s.db,
+      s.caller,
+      {
+        name: 'Limpeza de pele fictícia',
+        durationMinutes: 60,
+        bufferMinutes: 15,
+        priceCents: 15_000,
+        professionalIds: [pro.id],
+        roomRequirement: { mode: 'none' },
+      },
+      s.clock,
+    )
+    return { ...s, pro, svc }
+  }
+
+  it('1 proposta pendente por contato; criação conta na janela', () => {
+    const s = seedWithService()
+    try {
+      const a = s.addContact('a', '5511900000701')
+      const b = s.addContact('b', '5511900000702')
+      const startsAt = NOW + 48 * HOUR
+      createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: a.contactId,
+          conversationId: a.conversationId,
+          serviceId: s.svc.id,
+          startsAt,
+        },
+        s.clock,
+      )
+      expect(countPendingProposalsForContact(s.db, s.tenantId, a.contactId)).toBe(1)
+      expect(countProposalsCreated(s.db, s.tenantId, NOW - HOUR, a.contactId)).toBe(1)
+      const l = on()
+      expect(
+        checkAutomationQuota(s.db, l, { tenantId: s.tenantId, contactId: a.contactId, effect: 'proposal' }, s.clock),
+      ).toMatchObject({ allowed: false, limit: 'pendingProposalsPerContact', scope: 'contact' })
+      expect(
+        checkAutomationQuota(s.db, l, { tenantId: s.tenantId, contactId: b.contactId, effect: 'proposal' }, s.clock).allowed,
+      ).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('5 propostas por contato / 100 por clínica em 24 h (quando habilitado)', () => {
+    const s = seedWithService()
+    try {
+      const a = s.addContact('a', '5511900000801')
+      const since = NOW - HOUR
+      for (let i = 0; i < 5; i++) {
+        s.db.run(
+          `INSERT INTO appointment_proposals (
+             id, tenant_id, lineage_id, version, contact_id, conversation_id, state,
+             clinic_location_text, beneficiary_kind, beneficiary_name, service_id, service_name,
+             starts_at, ends_at, duration_minutes, timezone, requires_signal, signal_conditions_text,
+             created_at, updated_at
+           ) VALUES (?, ?, ?, 1, ?, ?, 'expirada', '', 'titular', 'Contato a', ?, 'Limpeza',
+             ?, ?, 60, 'America/Sao_Paulo', 0, '', ?, ?)`,
+          `aprop_c_${i}`,
+          s.tenantId,
+          `aprop_c_${i}`,
+          a.contactId,
+          a.conversationId,
+          s.svc.id,
+          NOW + (i + 1) * HOUR,
+          NOW + (i + 2) * HOUR,
+          NOW - 60_000 + i,
+          NOW - 60_000 + i,
+        )
+      }
+      expect(countProposalsCreated(s.db, s.tenantId, since, a.contactId)).toBe(5)
+      expect(
+        checkAutomationQuota(
+          s.db,
+          on({ pendingProposalsPerContact: 99 }),
+          { tenantId: s.tenantId, contactId: a.contactId, effect: 'proposal' },
+          s.clock,
+        ),
+      ).toMatchObject({ allowed: false, limit: 'proposalsPerContact', scope: 'contact' })
+
+      for (let i = 0; i < 100; i++) {
+        const c = s.addContact(`clinic_${i}`, `55119000009${String(i).padStart(2, '0')}`)
+        s.db.run(
+          `INSERT INTO appointment_proposals (
+             id, tenant_id, lineage_id, version, contact_id, conversation_id, state,
+             clinic_location_text, beneficiary_kind, beneficiary_name, service_id, service_name,
+             starts_at, ends_at, duration_minutes, timezone, requires_signal, signal_conditions_text,
+             created_at, updated_at
+           ) VALUES (?, ?, ?, 1, ?, ?, 'expirada', '', 'titular', 'X', ?, 'Limpeza',
+             ?, ?, 60, 'America/Sao_Paulo', 0, '', ?, ?)`,
+          `aprop_clinic_${i}`,
+          s.tenantId,
+          `aprop_clinic_${i}`,
+          c.contactId,
+          c.conversationId,
+          s.svc.id,
+          NOW + HOUR,
+          NOW + 2 * HOUR,
+          NOW - 30_000,
+          NOW - 30_000,
+        )
+      }
+      const fresh = s.addContact('fresh', '5511900000999')
+      expect(countProposalsCreated(s.db, s.tenantId, since)).toBeGreaterThanOrEqual(100)
+      expect(
+        checkAutomationQuota(
+          s.db,
+          on({ pendingProposalsPerContact: 99, proposalsPerContact: 99 }),
+          { tenantId: s.tenantId, contactId: fresh.contactId, effect: 'proposal' },
+          s.clock,
+        ),
+      ).toMatchObject({ allowed: false, limit: 'proposalsPerClinic', scope: 'clinic' })
+    } finally {
+      s.close()
+    }
+  })
+
+  it('desligado → criar proposta não aplica quota', () => {
+    const s = seedWithService()
+    try {
+      const a = s.addContact('a', '5511900001001')
+      createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: a.contactId,
+          conversationId: a.conversationId,
+          serviceId: s.svc.id,
+          startsAt: NOW + 48 * HOUR,
+        },
+        s.clock,
+        { abuseLimits: on({ enabled: false, pendingProposalsPerContact: 0 }) },
+      )
+      expect(
+        checkAutomationQuota(
+          s.db,
+          on({ enabled: false }),
+          { tenantId: s.tenantId, contactId: a.contactId, effect: 'proposal' },
+          s.clock,
+        ).allowed,
       ).toBe(true)
     } finally {
       s.close()

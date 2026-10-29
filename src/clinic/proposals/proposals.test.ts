@@ -493,7 +493,7 @@ describe('S3: exclusão de contacto e quotas', () => {
   it('limites de abuso (desligados por padrão) contam propostas quando ligados', () => {
     const s = seed()
     try {
-      expect(PROPOSED_ABUSE_LIMITS.enabled).toBe(false)
+      expect(PROPOSED_ABUSE_LIMITS.enabled).toBe(false) // alias de DEFAULT_ABUSE_LIMITS; fail-closed
       createProposal(
         s.db,
         s.tenantId,

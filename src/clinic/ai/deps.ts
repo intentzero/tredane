@@ -29,7 +29,7 @@ export type AiAssistRpcDeps = {
   autoBook?: boolean
   /** Clínicas autorizadas (AI_AUTOBOOK_TENANTS, separadas por vírgula). Vazio = nenhuma. */
   autoBookTenants?: string[]
-  /** S7 (#178): limites de abuso (ABUSE_LIMITS=on liga; padrões «Proposto»). */
+  /** S7 (#178): limites de abuso (ABUSE_LIMITS=on liga; padrões Confirmados Paulo 29/10/2026). */
   abuseLimits?: AbuseLimits
 }
 

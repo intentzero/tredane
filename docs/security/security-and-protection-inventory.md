@@ -138,17 +138,17 @@
 
 | Campo | Detalhe |
 |---|---|
-| Estado | **scaffold no código** (#178); valores **Em aberto (Paulo)** — ver [abuse-limits.md](abuse-limits.md) |
-| Onde | `src/clinic/ai/abuse-limits.ts` (`ABUSE_LIMITS=on`); `AI_DAILY_DRAFT_CAP = 300` já aprovado (`src/ai/budgets.ts`) |
-| Decisão | Nenhuma DEC com números finais de propostas/marcações |
-| Testes | `src/clinic/ai/abuse-limits.test.ts` |
-| Limites | Desligado por padrão; não bloqueia CI de auth; bloqueia liberação H10/S9 humana |
+| Estado | **implementado, desligado por padrão** — valores **Confirmado (Paulo, 29/10/2026)**; issue #178 (S7); flag `ABUSE_LIMITS` continua off até ops |
+| Onde | `src/clinic/ai/abuse-limits.ts` (`DEFAULT_ABUSE_LIMITS`); autodraft + `createOrSupersedeProposal`; doc [abuse-limits.md](abuse-limits.md); também `AI_DAILY_DRAFT_CAP = 300` |
+| Decisão | Valores aceites sob DEC-061 (nota S7, Paulo 29/10/2026); controlo só por env do Worker; **sem UI** no painel; ações manuais sem limite |
+| Testes | `src/clinic/ai/abuse-limits.test.ts`; quotas de propostas em `proposals.test.ts` |
+| Limites | Flag fail-closed; ops liga `ABUSE_LIMITS=on` em staging quando pronto; não bloqueia CI de auth; liberação H10/S9 humana continua Em aberto |
 
 ### 12. Épicos e PRs em curso
 
 | Item | Estado | Onde |
 |---|---|---|
-| Épico SEG-IA #171 (#172–#180) | **parcial**: S1–S6/S8 em `main`; S5 em `main` (#268); S7 valores Em aberto; S9 harness sintético (este PR) **sem** liberar piloto | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
+| Épico SEG-IA #171 (#172–#180) | **parcial**: S1–S6/S8/S5 em `main`; S7 valores Confirmados (flag off); S9 harness sintético em `main` **sem** liberar piloto | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
 | S1 / #172 | **na main sem deploy** (#181) | DEC-061 |
 | S2 / #173 | **na main sem deploy** (#191) | texto livre nunca marca; `AI_AUTOBOOK` off por padrão |
 | S3 / #174 | **na main sem deploy** (#264) | propostas versionadas |
@@ -199,7 +199,7 @@ Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY
 1. **Agendamento por IA ligado por padrão no código** (`src/clinic/ai/deps.ts:60`). Staging contido só por `AI_AUTOBOOK=off` manual; correção em PR aberto #191 (S2).
 2. **Texto livre não marca** (S2); botão versionado S3–S5 em `main`, com `AI_AUTOBOOK` fail-closed por padrão até gates S9/H10 humanos.
 2a. **`AI_AUTOBOOK=off` no staging pode ter sido apagado pelo deploy das 20:12 BRT** (não verificado).
-3. **Sem limites de abuso por contato/clínica para marcações e propostas** (#178, valores Em aberto Paulo); scaffold + testes existem.
+3. **Limites de abuso Confirmados** (#178, Paulo 29/10/2026) mas **flag off** até ops ligar `ABUSE_LIMITS=on` em staging; sem UI de clínica.
 4. **Prompt injection** S6 em `main`; S9 harness sintético + runbook prontos — **liberação controlada do botão ainda Em aberto** (#180).
 5. **Bloqueio de contato não para todas as automações e não existe pausa** (#191 parcial, #187). Não chegar à Meta é **limite aceite** (decisão do Paulo, 28/10/2026): bloqueio e pausa continuam só internos.
 6. **Produção sem provisionamento e sem deploy registrado**; secrets de produção ausentes (DEPLOY.md §5).
