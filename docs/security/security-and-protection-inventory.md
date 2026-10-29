@@ -68,7 +68,7 @@
 
 | Campo | Detalhe |
 |---|---|
-| Estado | DEC-060: **em staging** (#155 `695fed3`; docs #157 `48e9661`). DEC-061: **na main sem deploy** (PR #181 integrado em `4807146`, só docs; redação aprovada pelo Paulo em 28/10, registro D-20261028-200500-CUR). Persistência da proposta (S3 #174): **em PR / código**. Envio do botão (S4 #175) e clique→marcação (S5 #176): **planeado (issue)**. |
+| Estado | DEC-060: **em staging** (#155 `695fed3`; docs #157 `48e9661`). DEC-061: **na main sem deploy** (PR #181 integrado em `4807146`, só docs; redação aprovada pelo Paulo em 28/10, registro D-20261028-200500-CUR). Persistência da proposta (S3 #174), envio do botão (S4 #175) e clique→marcação/Pix (S5 #176): **no código / main sem deploy**. |
 | Onde | `docs/product/decisions.md:58` (DEC-060), `:59` (DEC-061); `docs/architecture/conversational-hybrid-model.md`; ADR 0004 (via #181) |
 | Decisão | DEC-061 substitui os caminhos de autorização por texto livre da DEC-060: só o toque da cliente no botão de uma proposta versionada pelo backend autoriza marcação |
 | Testes | Nenhum para o botão (não implementado). |
@@ -148,11 +148,14 @@
 
 | Item | Estado | Onde |
 |---|---|---|
-| Épico SEG-IA #171 (#172–#180) | **parcial**: S1/S2/S6/S7 em `main`; S8 em PR; S3–S5/S9 abertas | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
+| Épico SEG-IA #171 (#172–#180) | **parcial**: S1–S6/S8 em `main` (ou PR); S7 valores Em aberto; S9 aberta | #172 S1 · #173 S2 · #174 S3 · #175 S4 · #176 S5 · #177 S6 · #178 S7 · #179 S8 · #180 S9 |
 | S1 / #172 | **na main sem deploy** (#181) | DEC-061 |
 | S2 / #173 | **na main sem deploy** (#191) | texto livre nunca marca; `AI_AUTOBOOK` off por padrão |
+| S3 / #174 | **na main sem deploy** (#264) | propostas versionadas |
+| S4 / #175 | **na main sem deploy** (#267) | botões WhatsApp + resultados determinísticos |
+| S5 / #176 | **em PR / código** | clique autenticado → book/Pix uma vez (`executeProposalConfirmOp`) |
 | S6 / #177 | **na main sem deploy** (#263 reland) | `untrusted.ts`, `guardReplyOutput`, testes de ataque |
-| S8 / #179 | **em PR** | inventário + redacção + retenção AI + testes isolamento |
+| S8 / #179 | **na main sem deploy** (#266) | inventário + redacção + retenção AI + testes isolamento |
 | Épico PROTEÇÃO #182 (#183–#189) | **planeado (issue)**, todas abertas | #183 P1 · #184 P2 · #185 P3 · #186 P4 · #187 P5 · #188 P6 · #189 P7 |
 | P1 / #183 | **em PR aberto** #190 (docs; CI verde em `b42639d`) | DEC-062 **Proposto**, aguarda Paulo (P-1–P-3); `docs/product/protecao-equipe.md` |
 
@@ -193,7 +196,7 @@ Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY
 ## Lacunas conhecidas (priorizadas)
 
 1. **Agendamento por IA ligado por padrão no código** (`src/clinic/ai/deps.ts:60`). Staging contido só por `AI_AUTOBOOK=off` manual; correção em PR aberto #191 (S2).
-2. **O código da `main` ainda marca por texto livre**, apesar da DEC-061 (botão) já estar na `main`; botão #174–#176 por implementar.
+2. **Texto livre não marca** (S2); botão versionado S3–S5 está no código, com `AI_AUTOBOOK` fail-closed por padrão até S9.
 2a. **`AI_AUTOBOOK=off` no staging pode ter sido apagado pelo deploy das 20:12 BRT** (não verificado).
 3. **Sem limites de abuso por contato/clínica para marcações e propostas** (#178, valores por decidir).
 4. **Prompt injection**: fronteira S6 em PR de reland (#177); validação ponta a ponta e liberação controlada ainda em #180 (S9).

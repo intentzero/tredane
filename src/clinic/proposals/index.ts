@@ -57,6 +57,15 @@ export {
   type ProposalConfirmHandoff,
 } from './buttons'
 export {
+  executeProposalConfirmOp,
+  proposalBookClientRequestId,
+  proposalPixClientRequestId,
+  type ExecuteProposalConfirmInput,
+  type ExecuteProposalConfirmResult,
+  type ExecuteProposalConfirmDeps,
+  type ExecuteProposalConfirmDenial,
+} from './execute-confirm'
+export {
   openPendingCommunication,
   resolvePendingCommunication,
   resolvePendingByProposalKind,

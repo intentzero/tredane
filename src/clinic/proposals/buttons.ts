@@ -1,6 +1,7 @@
 /**
  * Costura S4→S5: webhook button_reply → autorização / Alterar detalhes.
- * Confirmar NÃO executa book/Pix aqui — S5 (#176) possui essa responsabilidade.
+ * Confirmar devolve handoff; `executeProposalConfirmOp` (S5 #176) executa book/Pix.
+ * Texto digitado igual ao rótulo do botão NÃO chega aqui — só `button_reply`.
  */
 import type { Clock } from '../../db/clock'
 import {
@@ -37,18 +38,14 @@ export type ProposalButtonClickInput = {
 }
 
 /**
- * S5 deve consumir este resultado quando `action === 'confirm'` e `authorization.allowed`.
- * Não chamar confirmAppointment daqui.
+ * Handoff para `executeProposalConfirmOp` quando `action === 'confirm'`.
+ * Book/Pix ficam no executor (idempotente por proposalId+version).
  */
 export type ProposalConfirmHandoff = {
   action: 'confirm'
   authorization: ProposalAuthorizationResult
   proposal: AppointmentProposalRow | null
-  /**
-   * Placeholder estável para S5:
-   * - se allowed → executar book / Pix com idempotência por proposalId+version
-   * - se denied → enviar resultado expired/slot conforme reason (via sendProposalResultMessageOp)
-   */
+  /** Contrato S4→S5: o DO/executor trata book ou Pix. */
   s5Todo: 'confirmAppointment_or_pix_signal'
 }
 
@@ -186,7 +183,10 @@ export function handleProposalButtonClick(
     }
   }
 
-  // confirm — só autoriza; S5 executa.
+  // confirm — autoriza; executor S5 faz book/Pix.
+  // Título digitado (buttonTitle) não autoriza — só o id opaco do botão.
+  void input.buttonTitle
+
   const authorization = evaluateProposalAuthorization(
     db,
     {
@@ -198,11 +198,8 @@ export function handleProposalButtonClick(
     clock,
   )
 
-  // Opcional: se context.message aponta para outra mensagem, ainda avaliamos pelo id do botão
-  // (versão amarrada). S5 pode reforçar o vínculo com send_provider_message_id.
-  void input.contextMessageId
-  void input.buttonTitle
-
+  // Se Meta enviou context.id e a proposta tem send_provider_message_id, amarrar.
+  // Divergência → autorização negada no executor (context_mismatch); aqui só devolve handoff.
   return {
     handled: true,
     action: 'confirm',

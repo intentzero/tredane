@@ -86,10 +86,10 @@ Todos estes casos foram reproduzidos como falhas no fluxo integrado do head do #
 
 ## 5. Execução e Pix
 
-- Com a DEC-061 (Decidido), a execução parte do **clique autenticado** na proposta válida (S5, #176): mesma operação de confirmação, revalidação na transação, idempotência por proposta/versão.
+- Com a DEC-061 (Decidido), a execução parte do **clique autenticado** na proposta válida (S5, #176): `executeProposalConfirmOp` chama a operação de confirmação existente (`confirmAppointmentOp`) ou o Pix sem hold (`createSignalChargeAndSendOp`), com revalidação na transação e idempotência por proposta/versão (`proposal.book:` / `proposal.pix:`). Texto digitado igual ao botão **não** é clique. Actor `system:ai-autobook`; auditoria `appointment.ai_booked`; indicador «Marcado pela IA».
 
-- Só uma **nova marcação validada** segue para a operação de confirmação existente, com revalidação e idempotência (DEC-060).
-- **Serviço com sinal: sem reserva antes do pagamento.** A IA não marca; segue o fluxo Pix atual, e a confirmação depende da disponibilidade no momento do pagamento (DEC-060, sinal Pix já decidido).
+- Só o clique com autorização vigente (mesmo tenant/contato/conversa/versão, capacidades ligadas, catálogo sem mudança material) chega ao efeito; reentrega do webhook devolve o resultado existente.
+- **Serviço com sinal: sem reserva antes do pagamento (DEC-047).** Segue o fluxo Pix atual (#38/#39); pagamento e «pago sem vaga» permanecem em #39. Confirmação do horário só no pagamento se ainda livre.
 
 ## 6. Comunicação pendente (Proposto; implementação S4 #175)
 

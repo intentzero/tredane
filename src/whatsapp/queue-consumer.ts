@@ -166,7 +166,8 @@ export async function processWhatsappMessage(
         phoneNumberId: msg.phoneNumberId,
       })
     } else if (msg.kind === 'button_reply') {
-      // S4→S5: clique em botão da proposta. Regista a mensagem e deixa handoff S5.
+      // S4→S5: clique autenticado — regista mensagem e executa book/Pix (idempotente).
+      // Reentrega após commit-antes-do-ack: ainda chama o handler (duplicate ingest).
       if (!msg.waId || !msg.buttonId) {
         log({
           level: 'warn',
@@ -198,11 +199,11 @@ export async function processWhatsappMessage(
 
       if (
         ingested &&
-        !ingested.duplicate &&
         ingested.conversationId &&
         typeof stub.handleProposalButtonClick === 'function'
       ) {
-        // Precisamos do contactId — o DO resolve a partir da conversa no handler.
+        // contactId: o DO resolve a partir da conversa se vazio.
+        // duplicate=true (crash após commit / reentrega) → executor devolve resultado existente.
         await stub.handleProposalButtonClick(caller, {
           tenantId: msg.tenantId,
           contactId: ingested.contactId ?? '',
