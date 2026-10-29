@@ -142,8 +142,10 @@ export function ResourcesList({ tenantId, snap, tab = 'professional' }: ListProp
         {items.length === 0 ? (
           <li className="clinic-empty">
             {inactiveCount > 0 && !showInactive
-              ? 'Nenhum item ativo. Ligue «Mostrar inativas» para ver o histórico.'
-              : 'Nenhum item nesta lista.'}
+              ? `${tab === 'professional' ? 'Nenhuma profissional ativa' : 'Nenhuma sala ativa'}. Ligue «Mostrar inativas» para ver o histórico.`
+              : tab === 'professional'
+                ? 'Nenhuma profissional cadastrada ainda.'
+                : 'Nenhuma sala cadastrada ainda.'}
           </li>
         ) : null}
       </ul>
