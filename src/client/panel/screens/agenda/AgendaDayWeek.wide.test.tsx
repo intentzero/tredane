@@ -101,11 +101,15 @@ describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
     const api = mockApi()
     render(<AgendaDayWeek tenantId="t" api={api} generation={1} view="day" />)
     const context = await screen.findByRole('complementary', { name: 'Contexto da agenda' })
+    // A agenda e o cadastro chegam em chamadas separadas: espera as duas antes de mexer no mês,
+    // senão a segunda resposta pode redesenhar a coluna depois do clique (teste instável no CI).
+    await within(context).findByText('Laura Pires')
+    await within(within(context).getByRole('group', { name: 'Filtrar por profissional' })).findByRole('button', { name: /Dra\. Paula/ })
     const today = within(context).getByRole('button', { name: /, 28 de outubro/ })
     expect(today.getAttribute('aria-pressed')).toBe('true')
     expect(today.getAttribute('aria-current')).toBe('date')
     fireEvent.click(within(context).getByRole('button', { name: 'Próximo mês' }))
-    fireEvent.click(within(context).getByRole('button', { name: /, 3 de novembro/ }))
+    fireEvent.click(await within(context).findByRole('button', { name: /, 3 de novembro/ }))
     await waitFor(() =>
       expect(api.queryAgenda).toHaveBeenLastCalledWith(
         't',
