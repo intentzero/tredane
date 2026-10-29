@@ -5,7 +5,7 @@ import type { OpportunityStage, PanelApi, PipelineOpportunity } from '../../api'
 import { useClinicTimezone } from '../../clinicTimezone'
 import { friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
-import { PanelScrim } from '../../ui/PanelScrim'
+import { useOutsideClose } from '../../ui/useOutsideClose'
 import { ErrorState } from '../../states/StatusScreens'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { AcompanhamentoDetail } from './AcompanhamentoDetail'
@@ -62,6 +62,7 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
   const [profFilter, setProfFilter] = useState<string[]>([])
   const returnFocus = useRef<HTMLElement | null>(null)
   const panelRef = useRef<HTMLElement | null>(null)
+  useOutsideClose(panelRef, () => closePanel(), openId != null)
 
   const stages = useMemo<OpportunityStage[]>(
     () => (showLost ? [...MAIN_STAGES, 'perdido'] : MAIN_STAGES),
@@ -346,7 +347,6 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
         })}
       </div>
 
-      {openId ? <PanelScrim onClose={closePanel} /> : null}
       {openId ? (
         <aside
           id="acomp-panel"
