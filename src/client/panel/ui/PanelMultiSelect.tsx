@@ -80,6 +80,9 @@ export function PanelMultiSelect({
               aria-labelledby={`${labelId}-title`}
               className="panel-choice-list"
               selectionMode="multiple"
+              autoFocus
+              // Esc fecha a lista; o padrão do react-aria limpava a seleção antes de fechar.
+              escapeKeyBehavior="none"
               selectedKeys={value}
               onSelectionChange={(keys) => {
                 if (keys === 'all') return
