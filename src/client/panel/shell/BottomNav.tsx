@@ -1,5 +1,6 @@
 import { Calendar, Kanban, MessageCircle, SlidersHorizontal } from 'lucide-react'
 import type { PanelArea } from '../routes'
+import { BrandMark } from '../ui/Brand'
 import { areaNavLabel, areaRoute, navigatePanel, panelHref } from '../routes'
 
 const BASE_AREAS: PanelArea[] = ['conversas', 'acompanhamento', 'agenda']
@@ -18,6 +19,9 @@ export function BottomNav({ tenantId, active, showClinica }: Props) {
       className={`panel-nav panel-nav-${areas.length}`}
       aria-label="Áreas"
     >
+      <span className="panel-nav-brand" aria-hidden="true">
+        <BrandMark size={40} label="" />
+      </span>
       {areas.map((area) => {
         const Icon =
           area === 'conversas'

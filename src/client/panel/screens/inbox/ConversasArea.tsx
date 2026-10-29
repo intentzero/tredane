@@ -1,3 +1,4 @@
+import { MessageCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuthSession } from '../../auth/AuthContext'
 import { useTenant } from '../../tenant/TenantContext'
@@ -6,6 +7,7 @@ import type { ConversasSection } from '../../routes'
 import { InboxContactScreen } from './InboxContact'
 import { InboxList } from './InboxList'
 import { InboxThread } from './InboxThread'
+import { ShellIdentity, useOnline } from '../../shell/ShellIdentity'
 import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
 import { friendlyError } from '../../copy/errors'
 
@@ -143,6 +145,18 @@ function ConversasSectionView({
     )
   }
 
+  if (wide) {
+    return (
+      <ConversasThreeCol
+        tenantId={tenantId}
+        api={api}
+        generation={generation}
+        viewerId={viewerId}
+        isOwner={isOwner}
+      />
+    )
+  }
+
   return (
     <InboxList
       tenantId={tenantId}
@@ -169,7 +183,8 @@ export function ConversasThreeCol({
   isOwner,
 }: {
   tenantId: string
-  conversationId: string
+  /** Sem conversa aberta (`/conversas`), a área de trabalho mostra um estado vazio. */
+  conversationId?: string
   api: NonNullable<ReturnType<typeof useAuthSession>['api']>
   generation: number
   viewerId: string
@@ -188,17 +203,28 @@ export function ConversasThreeCol({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [drawerOpen])
-  const showContact = inlineContact || drawerOpen
+  const hasThread = Boolean(conversationId)
+  const showContact = hasThread && (inlineContact || drawerOpen)
   return (
     <div
-      className={`conversas-3col${inlineContact ? '' : ' conversas-3col--drawer'}`}
-      data-contact={inlineContact ? 'inline' : drawerOpen ? 'drawer-open' : 'drawer-closed'}
+      className={`conversas-3col${inlineContact ? '' : ' conversas-3col--drawer'}${hasThread ? '' : ' conversas-3col--empty'}`}
+      data-contact={
+        !hasThread ? 'none' : inlineContact ? 'inline' : drawerOpen ? 'drawer-open' : 'drawer-closed'
+      }
     >
       <div className="conversas-3col-list">
-        <InboxList tenantId={tenantId} api={api} generation={generation} viewerClerkUserId={viewerId} />
+        <ConversasListHead />
+        <InboxList
+          tenantId={tenantId}
+          api={api}
+          generation={generation}
+          viewerClerkUserId={viewerId}
+          activeConversationId={conversationId}
+        />
       </div>
       <div className="conversas-3col-thread">
-        {!inlineContact ? (
+        {!hasThread ? <ConversasEmptyPane /> : null}
+        {hasThread && !inlineContact ? (
           <button
             type="button"
             className="conversas-contact-toggle"
@@ -209,18 +235,20 @@ export function ConversasThreeCol({
             {drawerOpen ? 'Fechar contato' : 'Ver contato'}
           </button>
         ) : null}
-        <InboxThread
-          tenantId={tenantId}
-          conversationId={conversationId}
-          api={api}
-          generation={generation}
-          viewerClerkUserId={viewerId}
-        />
+        {conversationId ? (
+          <InboxThread
+            tenantId={tenantId}
+            conversationId={conversationId}
+            api={api}
+            generation={generation}
+            viewerClerkUserId={viewerId}
+          />
+        ) : null}
       </div>
       {drawerOpen && !inlineContact ? (
         <div className="conversas-contact-scrim" aria-hidden="true" onClick={() => setDrawerOpen(false)} />
       ) : null}
-      {showContact ? (
+      {showContact && conversationId ? (
         <aside
           id="conversas-contact-panel"
           className="conversas-3col-contact"
@@ -326,5 +354,39 @@ function ContactViaConversation({
       generation={generation}
       isOwner={isOwner}
     />
+  )
+}
+
+/**
+ * Topo da coluna da lista no desktop largo (≥ 1280 px): título, clínica ativa e «Ao vivo».
+ * O cabeçalho do shell some nesse tamanho, então a identidade fica aqui.
+ */
+function ConversasListHead() {
+  const { active, listState } = useTenant()
+  const online = useOnline()
+  if (active.phase !== 'ready') return null
+  const ctx = active.context
+  return (
+    <div className="conversas-list-head">
+      <h1 className="panel-title-lg">Conversas</h1>
+      <ShellIdentity
+        tenantId={ctx.tenantId}
+        name={ctx.name}
+        area="conversas"
+        tenants={listState.phase === 'ready' ? listState.tenants : []}
+        offline={!online}
+      />
+    </div>
+  )
+}
+
+/** Área de trabalho de `/conversas` sem conversa aberta: a moldura não muda ao abrir uma. */
+function ConversasEmptyPane() {
+  return (
+    <div className="conversas-empty-pane">
+      <MessageCircle aria-hidden size={28} strokeWidth={2} />
+      <h2>Escolha uma conversa</h2>
+      <p>A lista fica no mesmo lugar quando uma conversa abre.</p>
+    </div>
   )
 }

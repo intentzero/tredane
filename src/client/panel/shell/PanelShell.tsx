@@ -15,7 +15,7 @@ import { useTenant } from '../tenant/TenantContext'
 import { WhatsappInterruptBanner } from '../screens/clinic/whatsapp/WhatsappScreen'
 import { useWhatsapp } from '../screens/clinic/whatsapp/useWhatsapp'
 import { BottomNav } from './BottomNav'
-import { ClinicSwitcher } from './ClinicSwitcher'
+import { ShellIdentity } from './ShellIdentity'
 import { OfflineStrip } from '../states/OfflineStrip'
 import { BrandMark } from '../ui/Brand'
 import { useKeyboardViewport } from '../ui/useKeyboardViewport'
@@ -134,6 +134,7 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
   return (
     <div
       className={`panel-app${immersiveOnPhone ? ' panel-app--immersive' : ''}`}
+      data-area={area}
       lang="pt-BR"
     >
       <a className="panel-skip-link" href="#panel-main">
@@ -143,26 +144,16 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
         <header className="panel-shell-header">
           <div className="panel-shell-lead">
             <BrandMark size={32} />
-          <div className="panel-shell-titles">
-            <h1 className="panel-title-lg">{areaTitle(area)}</h1>
-            <div className="panel-shell-clinic">
-              <ClinicSwitcher
+            <div className="panel-shell-titles">
+              <h1 className="panel-title-lg">{areaTitle(area)}</h1>
+              <ShellIdentity
                 tenantId={ctx.tenantId}
                 name={ctx.name}
                 area={area}
                 tenants={listState.phase === 'ready' ? listState.tenants : []}
+                offline={offline}
               />
-              <span
-                className={`panel-live${offline ? ' panel-live--offline' : ''}`}
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                <span className="panel-live-dot" aria-hidden="true" />
-                {offline ? 'Sem conexão' : 'Ao vivo'}
-              </span>
             </div>
-          </div>
           </div>
           <div className="panel-shell-actions">
             <Button

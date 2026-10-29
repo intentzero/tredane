@@ -6217,3 +6217,129 @@
 .hours-screen {
   container-type: inline-size;
 }
+
+/* ——— Moldura única do desktop (≥ 1280 px): menu 84 · contexto 360 · trabalho ———
+ * As quatro áreas usam a mesma grelha. O menu lateral é fixo e o cabeçalho do shell vira
+ * uma barra só sobre a área de trabalho; nas Conversas a identidade (clínica, «Ao vivo»)
+ * passa para o topo da coluna da lista. Abaixo de 1280 px nada muda. */
+.panel-nav-brand,
+.conversas-list-head,
+.conversas-empty-pane {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .panel-app {
+    width: 100%;
+    max-width: none;
+    grid-template-columns: 84px minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+  }
+
+  .panel-nav {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .panel-nav-brand {
+    display: block;
+    margin: var(--space-1) 0 var(--space-3);
+  }
+
+  .panel-nav a {
+    width: 68px;
+    min-height: 60px;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-1);
+    padding: 0;
+    font-size: var(--font-size-caption);
+    text-align: center;
+  }
+
+  .panel-shell-header {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .panel-shell-lead .brand-mark {
+    display: none;
+  }
+
+  .panel-strip,
+  .whatsapp-global-banner {
+    grid-column: 2;
+    grid-row: auto;
+  }
+
+  .panel-shell-main {
+    grid-column: 2;
+    grid-row: 4;
+    min-height: 0;
+  }
+
+  /* Configuração em coluna de leitura, sem esticar a 1200 px. */
+  .panel-app[data-area='clinica'] .panel-shell-main > * {
+    max-width: 760px;
+  }
+
+  /* Conversas: o contexto é a coluna da lista; o cabeçalho do shell não repete o título. */
+  .panel-app:has(.conversas-3col) .panel-shell-header {
+    display: none;
+  }
+
+  .conversas-3col {
+    grid-template-columns: minmax(300px, 360px) minmax(var(--conversas-thread-min), 1fr);
+  }
+
+  .conversas-3col:not(.conversas-3col--drawer):not(.conversas-3col--empty) {
+    grid-template-columns:
+      minmax(300px, 360px) minmax(var(--conversas-thread-min), 1fr) minmax(260px, 320px);
+  }
+
+  .conversas-list-head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: 0 0 var(--space-3);
+  }
+
+  .conversas-empty-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-6);
+    text-align: center;
+    color: var(--color-text-secondary);
+  }
+
+  .conversas-empty-pane h2 {
+    margin: 0;
+    font-size: var(--font-size-headline);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+  }
+
+  .conversas-empty-pane p {
+    margin: 0;
+    max-width: 320px;
+  }
+}
+
+/* A lista mostra qual conversa está aberta: fundo da marca e barra à esquerda. */
+.inbox-row--active {
+  background: var(--color-primary-tint);
+  box-shadow: inset 4px 0 0 var(--color-primary-base);
+}
+
+.inbox-row--active:active {
+  background: var(--color-primary-tint);
+}
