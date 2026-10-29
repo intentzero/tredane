@@ -195,7 +195,11 @@ export async function runDueAutoDrafts(
     let autoBook: AutoBookOutcome | undefined
     if (suggestion.status !== 'failed') {
       try {
-        let capability = deps.autoBook === true && (deps.autoBookTenants ?? []).includes(tenantId)
+        // AI_AUTOBOOK env + allowlist; pausa da owner (UI) também bloqueia. Env off sempre vence.
+        let capability =
+          deps.autoBook === true &&
+          (deps.autoBookTenants ?? []).includes(tenantId) &&
+          deps.autoBookPaused !== true
         let limitNote: string | null = null
         // S7 (#178): quota de marcações automáticas (contato/clínica) e compromissos futuros.
         if (capability && deps.abuseLimits?.enabled && contactId) {

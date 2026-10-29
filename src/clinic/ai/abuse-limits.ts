@@ -2,8 +2,10 @@
  * S7 (#178, épico #171) — limites de abuso das automações.
  *
  * Valores das quotas: **Confirmado (Paulo, 29/10/2026)** — ver docs/security/abuse-limits.md.
- * Desligado por padrão (fail-closed): só `ABUSE_LIMITS=on` liga. Controlo por env do Worker
- * (`ABUSE_LIMITS`, `ABUSE_LIMIT_*`); **não há UI** no painel da clínica.
+ * Controlo por clínica (owner no painel): `clinic_settings.abuse_limits_enabled` (default off,
+ * fail-closed por tenant). Env `ABUSE_LIMIT_*` = tetos/bootstrap da plataforma; `ABUSE_LIMITS=on`
+ * no env continua a preencher `platform.enabled` só como legado/testes — a aplicação efetiva
+ * usa o enable da clínica (`resolveAbuseLimits`).
  *
  * Princípios:
  * - Só limita efeitos AUTOMÁTICOS (rascunho automático, marcação/proposta pela IA). Ações da
@@ -67,6 +69,55 @@ export const DEFAULT_ABUSE_LIMITS: Readonly<AbuseLimits> = Object.freeze({
 /** @deprecated Use DEFAULT_ABUSE_LIMITS (valores Confirmados Paulo 29/10/2026). */
 export const PROPOSED_ABUSE_LIMITS = DEFAULT_ABUSE_LIMITS
 
+/** Quotas numéricas editáveis pela owner (sem `enabled` / sem teto diário de rascunhos da clínica). */
+export type AbuseLimitNumericKey = Exclude<keyof AbuseLimits, 'enabled' | 'autoDraftsPerClinic'>
+
+/** Limites em horas / contagens como a owner vê e grava (não ms). */
+export type AbuseLimitNumbers = {
+  windowHours: number
+  autoDraftsPerContact: number
+  aiBookingsPerContact: number
+  aiBookingsPerClinic: number
+  futureAppointmentsPerContact: number
+  pendingPixPerContact: number
+  pendingProposalsPerContact: number
+  proposalsPerContact: number
+  proposalsPerClinic: number
+}
+
+/** Teto absoluto (servidor) — a clínica não pode gravar acima disto. */
+export const ABUSE_LIMIT_HARD_CAPS: Readonly<AbuseLimitNumbers> = Object.freeze({
+  windowHours: 168,
+  autoDraftsPerContact: 200,
+  aiBookingsPerContact: 20,
+  aiBookingsPerClinic: 500,
+  futureAppointmentsPerContact: 20,
+  pendingPixPerContact: 20,
+  pendingProposalsPerContact: 10,
+  proposalsPerContact: 50,
+  proposalsPerClinic: 1000,
+})
+
+export const DEFAULT_ABUSE_LIMIT_NUMBERS: Readonly<AbuseLimitNumbers> = Object.freeze({
+  windowHours: Math.round(DEFAULT_ABUSE_LIMITS.windowMs / (60 * 60 * 1000)),
+  autoDraftsPerContact: DEFAULT_ABUSE_LIMITS.autoDraftsPerContact,
+  aiBookingsPerContact: DEFAULT_ABUSE_LIMITS.aiBookingsPerContact,
+  aiBookingsPerClinic: DEFAULT_ABUSE_LIMITS.aiBookingsPerClinic,
+  futureAppointmentsPerContact: DEFAULT_ABUSE_LIMITS.futureAppointmentsPerContact,
+  pendingPixPerContact: DEFAULT_ABUSE_LIMITS.pendingPixPerContact,
+  pendingProposalsPerContact: DEFAULT_ABUSE_LIMITS.pendingProposalsPerContact,
+  proposalsPerContact: DEFAULT_ABUSE_LIMITS.proposalsPerContact,
+  proposalsPerClinic: DEFAULT_ABUSE_LIMITS.proposalsPerClinic,
+})
+
+/** Preferências persistidas por clínica (SQLite do DO). */
+export type ClinicAbuseLimitsRow = AbuseLimitNumbers & {
+  enabled: boolean
+  /** Pausa marcações/propostas automáticas por botão; não cancela o já marcado; AI_AUTOBOOK=off continua a vencer. */
+  autoBookPaused: boolean
+  updatedAt: number
+}
+
 type NumericKey = Exclude<keyof AbuseLimits, 'enabled'>
 const ENV_KEYS: Record<NumericKey, string> = {
   windowMs: 'ABUSE_LIMIT_WINDOW_HOURS',
@@ -82,8 +133,10 @@ const ENV_KEYS: Record<NumericKey, string> = {
 }
 
 /**
- * `ABUSE_LIMITS=on` liga (qualquer outro valor → desligado). Cada limite pode ser sobrescrito por
- * `ABUSE_LIMIT_*` (inteiro ≥ 0; inválido → padrão Confirmado). Janela em horas.
+ * Bootstrap / tetos da plataforma a partir do env.
+ * `ABUSE_LIMITS=on` preenche `enabled` só como legado (testes / ops antiga); a aplicação efetiva
+ * usa o enable da clínica via `resolveAbuseLimits`.
+ * Cada `ABUSE_LIMIT_*` (inteiro ≥ 1; inválido → padrão Confirmado) é teto e default numérico.
  */
 export function abuseLimitsFromEnv(env: Record<string, string | undefined>): AbuseLimits {
   const out: AbuseLimits = { ...DEFAULT_ABUSE_LIMITS }
@@ -96,9 +149,125 @@ export function abuseLimitsFromEnv(env: Record<string, string | undefined>): Abu
     const n = Number(raw.trim())
     if (key === 'windowMs') {
       if (n >= 1) out.windowMs = n * 60 * 60 * 1000
-    } else out[key] = n
+    } else if (n >= 1) out[key] = n
   }
   return out
+}
+
+export function abuseLimitNumbersFromLimits(limits: AbuseLimits): AbuseLimitNumbers {
+  return {
+    windowHours: Math.max(1, Math.round(limits.windowMs / (60 * 60 * 1000))),
+    autoDraftsPerContact: limits.autoDraftsPerContact,
+    aiBookingsPerContact: limits.aiBookingsPerContact,
+    aiBookingsPerClinic: limits.aiBookingsPerClinic,
+    futureAppointmentsPerContact: limits.futureAppointmentsPerContact,
+    pendingPixPerContact: limits.pendingPixPerContact,
+    pendingProposalsPerContact: limits.pendingProposalsPerContact,
+    proposalsPerContact: limits.proposalsPerContact,
+    proposalsPerClinic: limits.proposalsPerClinic,
+  }
+}
+
+/**
+ * Tetos para a clínica: hard caps por omissão.
+ * Se o env define `ABUSE_LIMIT_*`, esse valor (≤ hard) aperta o teto dessa chave.
+ * Assim a owner pode subir até o máximo seguro; ops só restringe quando quiser.
+ */
+export function platformAbuseCeilings(
+  platform: AbuseLimits,
+  env: Record<string, string | undefined> = {},
+): AbuseLimitNumbers {
+  const p = abuseLimitNumbersFromLimits(platform)
+  const pick = (key: keyof AbuseLimitNumbers, envName: string, platformKey: NumericKey): number => {
+    const hard = ABUSE_LIMIT_HARD_CAPS[key]
+    const raw = env[envName]
+    if (raw != null && raw.trim() !== '' && /^\d+$/.test(raw.trim())) {
+      const n = Number(raw.trim())
+      if (n >= 1) return Math.min(hard, platformKey === 'windowMs' ? n : p[key])
+    }
+    return hard
+  }
+  return {
+    windowHours: pick('windowHours', 'ABUSE_LIMIT_WINDOW_HOURS', 'windowMs'),
+    autoDraftsPerContact: pick(
+      'autoDraftsPerContact',
+      'ABUSE_LIMIT_AUTO_DRAFTS_PER_CONTACT',
+      'autoDraftsPerContact',
+    ),
+    aiBookingsPerContact: pick(
+      'aiBookingsPerContact',
+      'ABUSE_LIMIT_AI_BOOKINGS_PER_CONTACT',
+      'aiBookingsPerContact',
+    ),
+    aiBookingsPerClinic: pick(
+      'aiBookingsPerClinic',
+      'ABUSE_LIMIT_AI_BOOKINGS_PER_CLINIC',
+      'aiBookingsPerClinic',
+    ),
+    futureAppointmentsPerContact: pick(
+      'futureAppointmentsPerContact',
+      'ABUSE_LIMIT_FUTURE_APPOINTMENTS_PER_CONTACT',
+      'futureAppointmentsPerContact',
+    ),
+    pendingPixPerContact: pick(
+      'pendingPixPerContact',
+      'ABUSE_LIMIT_PENDING_PIX_PER_CONTACT',
+      'pendingPixPerContact',
+    ),
+    pendingProposalsPerContact: pick(
+      'pendingProposalsPerContact',
+      'ABUSE_LIMIT_PENDING_PROPOSALS_PER_CONTACT',
+      'pendingProposalsPerContact',
+    ),
+    proposalsPerContact: pick(
+      'proposalsPerContact',
+      'ABUSE_LIMIT_PROPOSALS_PER_CONTACT',
+      'proposalsPerContact',
+    ),
+    proposalsPerClinic: pick(
+      'proposalsPerClinic',
+      'ABUSE_LIMIT_PROPOSALS_PER_CLINIC',
+      'proposalsPerClinic',
+    ),
+  }
+}
+
+function clampInt(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return min
+  return Math.min(max, Math.max(min, Math.trunc(n)))
+}
+
+/**
+ * Limites efetivos para enforcement: enable da clínica; números da clínica limitados ao teto
+ * da plataforma. `platform.enabled` (env) não liga a clínica.
+ */
+export function resolveAbuseLimits(
+  platform: AbuseLimits,
+  clinic: Pick<ClinicAbuseLimitsRow, 'enabled' | keyof AbuseLimitNumbers>,
+  env: Record<string, string | undefined> = {},
+): AbuseLimits {
+  const ceilings = platformAbuseCeilings(platform, env)
+  return {
+    enabled: clinic.enabled === true,
+    windowMs: clampInt(clinic.windowHours, 1, ceilings.windowHours) * 60 * 60 * 1000,
+    autoDraftsPerContact: clampInt(clinic.autoDraftsPerContact, 1, ceilings.autoDraftsPerContact),
+    autoDraftsPerClinic: platform.autoDraftsPerClinic,
+    aiBookingsPerContact: clampInt(clinic.aiBookingsPerContact, 1, ceilings.aiBookingsPerContact),
+    aiBookingsPerClinic: clampInt(clinic.aiBookingsPerClinic, 1, ceilings.aiBookingsPerClinic),
+    futureAppointmentsPerContact: clampInt(
+      clinic.futureAppointmentsPerContact,
+      1,
+      ceilings.futureAppointmentsPerContact,
+    ),
+    pendingPixPerContact: clampInt(clinic.pendingPixPerContact, 1, ceilings.pendingPixPerContact),
+    pendingProposalsPerContact: clampInt(
+      clinic.pendingProposalsPerContact,
+      1,
+      ceilings.pendingProposalsPerContact,
+    ),
+    proposalsPerContact: clampInt(clinic.proposalsPerContact, 1, ceilings.proposalsPerContact),
+    proposalsPerClinic: clampInt(clinic.proposalsPerClinic, 1, ceilings.proposalsPerClinic),
+  }
 }
 
 export type AutomatedEffect = 'auto_draft' | 'ai_booking' | 'pix_charge' | 'proposal'

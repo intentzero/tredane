@@ -87,6 +87,11 @@ export type AiAssistDeps = {
   autoBook?: boolean
   /** Clínicas autorizadas a agendar automaticamente. */
   autoBookTenants?: string[]
-  /** S7 (#178): limites de abuso das automações (desligado por padrão). */
+  /**
+   * Owner pausou novas marcações automáticas por botão (por clínica).
+   * AI_AUTOBOOK=off na plataforma continua a vencer (fail-closed global).
+   */
+  autoBookPaused?: boolean
+  /** S7 (#178): limites de abuso das automações (enable por clínica; default off). */
   abuseLimits?: AbuseLimits
 }

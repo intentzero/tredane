@@ -151,11 +151,11 @@ describe('S4: schema', () => {
   it('migração 29 sobe CLINIC_SCHEMA_VERSION e cria pending_communications', () => {
     const { db, close } = bootClinicDb()
     try {
-      expect(CLINIC_SCHEMA_VERSION).toBe(29)
+      expect(CLINIC_SCHEMA_VERSION).toBeGreaterThanOrEqual(29)
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
-      expect(state).toEqual({ version: 29, status: 'ready' })
+      expect(state).toEqual({ version: CLINIC_SCHEMA_VERSION, status: 'ready' })
       const kind = db.get<{ sql: string }>(
         `SELECT sql FROM sqlite_master WHERE type='table' AND name='outbound_messages'`,
       )

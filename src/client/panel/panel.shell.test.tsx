@@ -64,7 +64,53 @@ function mockApis(opts: {
           headers: { 'Content-Type': 'application/json' },
         })
       }
-      if (/\/api\/tenants\/[^/]+\/config/.test(url)) {
+      if (/\/api\/tenants\/[^/]+\/config\/abuse-limits/.test(url)) {
+        const limits = {
+          windowHours: 24,
+          autoDraftsPerContact: 20,
+          aiBookingsPerContact: 1,
+          aiBookingsPerClinic: 20,
+          futureAppointmentsPerContact: 3,
+          pendingPixPerContact: 2,
+          pendingProposalsPerContact: 1,
+          proposalsPerContact: 5,
+          proposalsPerClinic: 100,
+        }
+        return new Response(
+          JSON.stringify({
+            enabled: false,
+            autoBookPaused: false,
+            limits,
+            defaults: limits,
+            caps: {
+              windowHours: 168,
+              autoDraftsPerContact: 200,
+              aiBookingsPerContact: 20,
+              aiBookingsPerClinic: 500,
+              futureAppointmentsPerContact: 20,
+              pendingPixPerContact: 20,
+              pendingProposalsPerContact: 10,
+              proposalsPerContact: 50,
+              proposalsPerClinic: 1000,
+            },
+            platformCeilings: {
+              windowHours: 168,
+              autoDraftsPerContact: 200,
+              aiBookingsPerContact: 20,
+              aiBookingsPerClinic: 500,
+              futureAppointmentsPerContact: 20,
+              pendingPixPerContact: 20,
+              pendingProposalsPerContact: 10,
+              proposalsPerContact: 50,
+              proposalsPerClinic: 1000,
+            },
+            effective: { enabled: false, ...limits },
+            updatedAt: 0,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      if (/\/api\/tenants\/[^/]+\/config(?:\?|$)/.test(url)) {
         return new Response(
           JSON.stringify({
             settings: {

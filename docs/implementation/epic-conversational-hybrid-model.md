@@ -4,7 +4,7 @@
 
 **Reconciliação SEG-IA (28/10/2026):** a direção do [épico #171](https://github.com/intentzero/tredane/issues/171) — confirmação **só pelo botão do WhatsApp** numa proposta montada e versionada pelo backend — está formalizada em [DEC-061](../product/decisions.md) (**Decidido em 28/10/2026, Paulo, registo D-20261028-200500-CUR**). Texto livre deixa de marcar. Critérios marcados **[substituído por Sx]** abaixo não devem ser implementados como estão; os restantes mantêm-se. Nenhuma tarefa é fechada por esta documentação.
 
-**Valores Decididos (Paulo, 28/10/2026):** proposta válida 30 min · alerta de pendente 5 min · 20 marcações revistas no piloto. **Limites de abuso (S7): Confirmado (Paulo, 29/10/2026)** — [abuse-limits.md](../security/abuse-limits.md); `ABUSE_LIMITS` off por padrão; sem UI.
+**Valores Decididos (Paulo, 28/10/2026):** proposta válida 30 min · alerta de pendente 5 min · 20 marcações revistas no piloto. **Limites de abuso (S7): Confirmado (Paulo, 29/10/2026)** — [abuse-limits.md](../security/abuse-limits.md); UI owner; enable por clínica (default off).
 
 **Nova ordem:** S1 (#172) → S2 (#173) / S3 (#174) / S6 (#177) / S8 (#179) → S4 (#175) → S5 (#176) → S7 (#178) → S9 (#180).
 

@@ -1,10 +1,11 @@
 /**
  * S7 (#178): limites de abuso. Valores Confirmados (Paulo, 29/10/2026); desligado por padrão.
- * Dados fictícios. Sem UI de clínica — só env `ABUSE_LIMITS` / `ABUSE_LIMIT_*`.
+ * Dados fictícios. Enable efetivo = clínica (UI owner); env = tetos/bootstrap.
  */
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
 import { createControllableClock } from '../../db/clock'
+import { updateClinicAbuseLimits } from '../config/abuse-limits-settings'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
@@ -16,10 +17,12 @@ import { createProposal } from '../proposals/proposals'
 import { bootClinicDb } from '../test-db'
 import {
   DEFAULT_ABUSE_LIMITS,
+  DEFAULT_ABUSE_LIMIT_NUMBERS,
   abuseLimitsFromEnv,
   checkAutomationQuota,
   countPendingProposalsForContact,
   countProposalsCreated,
+  resolveAbuseLimits,
   type AbuseLimits,
 } from './abuse-limits'
 import { rpcDepsFromEnv, toAiAssistDeps } from './deps'
@@ -66,13 +69,42 @@ function seed(tenantId = 'clinic-demo-a') {
 const on = (over: Partial<AbuseLimits> = {}): AbuseLimits => ({ ...DEFAULT_ABUSE_LIMITS, enabled: true, ...over })
 
 describe('S7: configuração', () => {
-  it('desligado por padrão; só «on» liga', () => {
+  it('desligado por padrão; env «on» só marca platform.enabled legado', () => {
     expect(DEFAULT_ABUSE_LIMITS.enabled).toBe(false)
     expect(abuseLimitsFromEnv({}).enabled).toBe(false)
     expect(abuseLimitsFromEnv({ ABUSE_LIMITS: 'true' }).enabled).toBe(false)
     expect(abuseLimitsFromEnv({ ABUSE_LIMITS: ' ON ' }).enabled).toBe(true)
     expect(rpcDepsFromEnv({}).abuseLimits?.enabled).toBe(false)
     expect(toAiAssistDeps(rpcDepsFromEnv({ ABUSE_LIMITS: 'on' })).abuseLimits?.enabled).toBe(true)
+  })
+
+  it('resolveAbuseLimits: enable da clínica; env on não liga sozinho; env aperta teto', () => {
+    const env = {
+      ABUSE_LIMITS: 'on',
+      ABUSE_LIMIT_AUTO_DRAFTS_PER_CONTACT: '10',
+    }
+    const platform = abuseLimitsFromEnv(env)
+    expect(
+      resolveAbuseLimits(
+        platform,
+        { enabled: false, ...DEFAULT_ABUSE_LIMIT_NUMBERS, autoDraftsPerContact: 10 },
+        env,
+      ).enabled,
+    ).toBe(false)
+    const onClinic = resolveAbuseLimits(
+      platform,
+      { enabled: true, ...DEFAULT_ABUSE_LIMIT_NUMBERS, autoDraftsPerContact: 99 },
+      env,
+    )
+    expect(onClinic.enabled).toBe(true)
+    expect(onClinic.autoDraftsPerContact).toBe(10)
+    // Sem env de teto, a clínica pode subir até o hard cap.
+    const raised = resolveAbuseLimits(
+      abuseLimitsFromEnv({}),
+      { enabled: true, ...DEFAULT_ABUSE_LIMIT_NUMBERS, autoDraftsPerContact: 50 },
+      {},
+    )
+    expect(raised.autoDraftsPerContact).toBe(50)
   })
 
   it('padrões Confirmados e sobrescrita por ABUSE_LIMIT_* (inválido → padrão)', () => {
@@ -436,6 +468,71 @@ describe('S7: quotas de propostas (appointment_proposals, S3)', () => {
           s.clock,
         ).allowed,
       ).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+})
+
+describe('S7: UI clínica — persistência e pausa', () => {
+  it('owner liga limites na clínica; quota passa a aplicar; pausa bloqueia autoBookPaused', async () => {
+    const s = seed()
+    try {
+      s.addContact('a', '5511900000199')
+      // Sem enable da clínica → quota não aplica mesmo com limites baixos no objeto passado?
+      // Aqui exercitamos persistência + resolve.
+      updateClinicAbuseLimits(
+        s.db,
+        s.tenantId,
+        { enabled: true, autoDraftsPerContact: 1 },
+        s.clock,
+      )
+      const platform = abuseLimitsFromEnv({})
+      const settings = updateClinicAbuseLimits(
+        s.db,
+        s.tenantId,
+        { enabled: true, autoDraftsPerContact: 1 },
+        s.clock,
+        platform,
+      )
+      const effective = resolveAbuseLimits(platform, {
+        enabled: settings.abuseLimitsEnabled,
+        windowHours: settings.abuseWindowHours,
+        autoDraftsPerContact: settings.abuseAutoDraftsPerContact,
+        aiBookingsPerContact: settings.abuseAiBookingsPerContact,
+        aiBookingsPerClinic: settings.abuseAiBookingsPerClinic,
+        futureAppointmentsPerContact: settings.abuseFutureAppointmentsPerContact,
+        pendingPixPerContact: settings.abusePendingPixPerContact,
+        pendingProposalsPerContact: settings.abusePendingProposalsPerContact,
+        proposalsPerContact: settings.abuseProposalsPerContact,
+        proposalsPerClinic: settings.abuseProposalsPerClinic,
+      })
+      expect(effective.enabled).toBe(true)
+      expect(effective.autoDraftsPerContact).toBe(1)
+
+      s.inbound('a', 'primeira')
+      const first = await s.drain(effective)
+      expect(first[0]?.status).toBe('ready')
+      s.inbound('a', 'segunda')
+      const second = await s.drain(effective)
+      expect(second[0]?.status).toMatch(/^skipped|abuse_limit/)
+      expect(second[0]?.reason ?? second[0]?.status).toMatch(/abuse_limit/)
+
+      updateClinicAbuseLimits(s.db, s.tenantId, { autoBookPaused: true }, s.clock)
+      const paused = toAiAssistDeps({
+        mode: 'synthetic',
+        autoBook: true,
+        autoBookTenants: [s.tenantId],
+        autoBookPaused: true,
+        abuseLimits: effective,
+      })
+      expect(paused.autoBookPaused).toBe(true)
+      // Capacidade efetiva no autodraft: autoBook && tenant && !paused
+      expect(
+        paused.autoBook === true &&
+          (paused.autoBookTenants ?? []).includes(s.tenantId) &&
+          paused.autoBookPaused !== true,
+      ).toBe(false)
     } finally {
       s.close()
     }

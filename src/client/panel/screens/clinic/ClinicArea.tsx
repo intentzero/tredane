@@ -5,6 +5,7 @@ import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import type { ReactNode } from 'react'
 import { navigatePanel, type ClinicaSection } from '../../routes'
 import { AiAssistCard } from './AiAssistCard'
+import { AutomationLimitsCard } from './AutomationLimitsCard'
 import { StagingResetCard } from './StagingResetCard'
 import { isStagingHostname } from './whatsapp/WhatsappDevSyncAction'
 import { ClinicHub } from './ClinicHub'
@@ -109,15 +110,24 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             tenantId={tenantId}
             snap={snap}
             aiCard={
-              <AiAssistCard
-                tenantId={tenantId}
-                api={api}
-                generation={generation}
-                initialEnabled={snap.settings.aiAssistEnabled === true}
-                initialAddress={snap.settings.clinicAddress ?? null}
-                initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
-                initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
-              />
+              <>
+                <AiAssistCard
+                  tenantId={tenantId}
+                  api={api}
+                  generation={generation}
+                  initialEnabled={snap.settings.aiAssistEnabled === true}
+                  initialAddress={snap.settings.clinicAddress ?? null}
+                  initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
+                  initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
+                />
+                {isOwner ? (
+                  <AutomationLimitsCard
+                    tenantId={tenantId}
+                    api={api}
+                    generation={generation}
+                  />
+                ) : null}
+              </>
             }
             stagingCard={
               isOwner && isStagingHostname() && active.phase === 'ready' ? (

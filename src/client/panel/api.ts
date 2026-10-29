@@ -468,6 +468,39 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as ClinicConfigSnapshot['settings']
     },
 
+    async getClinicAbuseLimits(
+      tenantId: string,
+      opts?: FetchOpts,
+    ): Promise<AbuseLimitsDto> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/abuse-limits`,
+        { method: 'GET' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AbuseLimitsDto
+    },
+
+    async patchClinicAbuseLimits(
+      tenantId: string,
+      body: AbuseLimitsPatchBody,
+      opts?: FetchOpts,
+    ): Promise<AbuseLimitsDto> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/abuse-limits`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AbuseLimitsDto
+    },
+
     async setClinicAiProfile(
       tenantId: string,
       body: { clinicAddress: string; googleBusinessUrl: string; reschedulePolicy: string },
@@ -2085,6 +2118,35 @@ export type ClinicConfigSnapshot = {
   weeklyWindows: ClinicWeeklyWindow[]
   blocks: ClinicBlock[]
   readiness: ClinicConfigReadiness
+}
+
+export type AbuseLimitNumbersDto = {
+  windowHours: number
+  autoDraftsPerContact: number
+  aiBookingsPerContact: number
+  aiBookingsPerClinic: number
+  futureAppointmentsPerContact: number
+  pendingPixPerContact: number
+  pendingProposalsPerContact: number
+  proposalsPerContact: number
+  proposalsPerClinic: number
+}
+
+export type AbuseLimitsDto = {
+  enabled: boolean
+  autoBookPaused: boolean
+  limits: AbuseLimitNumbersDto
+  defaults: AbuseLimitNumbersDto
+  caps: AbuseLimitNumbersDto
+  platformCeilings: AbuseLimitNumbersDto
+  effective: AbuseLimitNumbersDto & { enabled: boolean }
+  updatedAt: number
+}
+
+export type AbuseLimitsPatchBody = Partial<AbuseLimitNumbersDto> & {
+  enabled?: boolean
+  autoBookPaused?: boolean
+  resetToDefaults?: boolean
 }
 
 export type ServiceUpsertBody = {

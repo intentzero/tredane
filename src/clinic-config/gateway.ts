@@ -6,6 +6,7 @@ import {
   workerCaller,
 } from '../clinic'
 import type {
+  AbuseLimitsView,
   ConfigReadiness,
   ConfigSnapshot,
   CreateBlockInput,
@@ -13,6 +14,7 @@ import type {
   ResourceRow,
   ServiceRow,
   SetWeeklyWindowsInput,
+  UpdateAbuseLimitsInput,
   UpsertResourceInput,
   UpsertServiceInput,
   WeeklyWindowRow,
@@ -22,6 +24,7 @@ import type {
   DeactivateResourceResult,
   FutureAppointmentForResource,
 } from '../clinic/config'
+import type { AbuseLimits } from '../clinic/ai/abuse-limits'
 
 /**
  * Gateway de configuração da clínica — abstrai DO vs SQLite em memória (testes HTTP).
@@ -39,6 +42,12 @@ export type ClinicConfigGateway = {
       reschedulePolicy?: string | null
     },
   ): Promise<ClinicSettingsRow>
+  getAbuseLimits(caller: ClinicCaller, platform?: AbuseLimits): Promise<AbuseLimitsView>
+  updateAbuseLimits(
+    caller: ClinicCaller,
+    input: UpdateAbuseLimitsInput,
+    platform?: AbuseLimits,
+  ): Promise<AbuseLimitsView>
   upsertService(caller: ClinicCaller, input: UpsertServiceInput): Promise<ServiceRow>
   setServiceActive(
     caller: ClinicCaller,
@@ -103,6 +112,12 @@ export function createMemoryClinicConfigGateway(
     },
     async setAiProfile(caller, input) {
       return clinicConfig.setAiProfileOp(db, caller, input, clock)
+    },
+    async getAbuseLimits(caller, platform) {
+      return clinicConfig.getAbuseLimitsOp(db, caller, clock, platform)
+    },
+    async updateAbuseLimits(caller, input, platform) {
+      return clinicConfig.updateAbuseLimitsOp(db, caller, input, clock, platform)
     },
     async upsertService(caller, input) {
       return clinicConfig.upsertServiceOp(db, caller, input, clock)
