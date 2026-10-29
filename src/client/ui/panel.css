@@ -6116,7 +6116,7 @@
   }
 
   /* Estados de tela cheia (sem acesso, sem conexão, clínica pausada…) não têm menu: ocupam a
-   * grade toda, e não só a coluna de 84 px do menu (#274). */
+   * grade toda, e não só a coluna de 84 px do menu (#276). */
   .panel-app > .panel-status {
     grid-column: 1 / -1;
     grid-row: 1 / -1;
