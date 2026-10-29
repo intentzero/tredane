@@ -7019,5 +7019,149 @@
     .clinic-sheet.panel-choice-sheet {
       animation: none;
     }
+/* ——— Agenda no desktop (≥ 1280 px, DEC-068): coluna de contexto + grade ———
+ * A coluna (360 px) leva o botão Agendar, o mês pequeno, os filtros e a lista do dia; a grade
+ * ocupa o resto. Abaixo de 1280 px a Agenda continua como antes. */
+.agenda-month {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.agenda-month-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.agenda-month-title {
+  text-transform: capitalize;
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.agenda-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  text-align: center;
+}
+
+.agenda-month-dow {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.agenda-month-day {
+  min-height: 36px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.agenda-month-day:hover {
+  background: var(--color-primary-tint);
+}
+
+.agenda-month-day[aria-current='date'] {
+  font-weight: var(--font-weight-semibold);
+  box-shadow: inset 0 0 0 var(--size-border-width) var(--color-primary-base);
+}
+
+.agenda-month-day[aria-pressed='true'] {
+  background: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.agenda-month-day:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-ink);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.agenda-context-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.agenda-context-initials {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary-ink);
+}
+
+.agenda-context-clear {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-primary-ink);
+  font: inherit;
+  font-size: var(--font-size-small);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (min-width: 1280px) {
+  .panel-shell-main:has(> .agenda-wide) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .agenda-wide {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .agenda-wide > .agenda-day {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .agenda-wide .agenda-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .agenda-context {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-4);
+    box-sizing: border-box;
+    background: var(--color-surface-card);
+    border-right: var(--size-border-width) solid var(--color-line-border);
+  }
+
+  .agenda-context-add {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .agenda-context-block,
+  .agenda-context-day {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  /* A lista do dia reaproveita a lista do celular sem o espaço reservado ao botão flutuante. */
+  .agenda-context .agenda-list {
+    padding-bottom: 0;
   }
 }
