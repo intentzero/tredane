@@ -328,7 +328,6 @@ export function InboxContactScreen({
       </p>
       <Button
         className="panel-btn-secondary"
-        style={{ margin: '0 16px 12px' }}
         onPress={() =>
           navigatePanel({
             kind: 'area',
@@ -387,7 +386,6 @@ export function InboxContactScreen({
         {data.contact.blockedAt != null ? (
           <Button
             className="panel-btn-secondary"
-            style={{ margin: '0 16px 24px' }}
             isDisabled={blockBusy}
             onPress={() => void handleUnblock()}
           >
@@ -396,7 +394,6 @@ export function InboxContactScreen({
         ) : (
           <Button
             className="panel-btn-danger"
-            style={{ margin: '0 16px 24px' }}
             onPress={() => {
               setBlockError(null)
               setBlockOpen(true)
@@ -423,7 +420,6 @@ export function InboxContactScreen({
           ) : null}
           <Button
             className="panel-btn-danger"
-            style={{ margin: '0 16px 24px' }}
             onPress={() => {
               setDeleteError(null)
               setConfirmOpen(true)

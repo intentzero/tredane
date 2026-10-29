@@ -45,21 +45,19 @@ body{margin:0;font-family:Inter,system-ui,sans-serif}
 .ail{font-size:14px;font-weight:600;color:var(--ai);display:flex;align-items:center;gap:6px}
 .aib{display:flex;gap:8px}
 .aib .u{flex:1;background:var(--ai);border-color:var(--ai);color:#fff}
+.sub{font-size:14px;color:var(--mu);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.stg{font-size:12px;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--prT);color:var(--prInk)}
+.btnh{height:44px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:600;padding:0 12px;border:1px solid var(--prB);background:var(--prT);color:var(--prInk);flex:none;font-size:14px;cursor:pointer;font-family:inherit}
+.who2{flex:1;min-width:0;overflow:hidden;border:0;background:none;text-align:left;padding:0 4px;height:52px;border-radius:12px;display:flex;flex-direction:column;justify-content:center;cursor:pointer;font-family:inherit;color:inherit}
 </style>
 </helmet>
 <div class="ph">
-  <header class="hd">
+  <header class="hd" style="gap:4px;padding:0 4px">
     <button class="ib" aria-label="Voltar às conversas"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
-    <button class="who" aria-label="Informações de Juliana Prado">
-      <span class="av" aria-hidden="true">JP</span>
-      <span style="min-width:0"><span class="nm">Juliana Prado</span><span class="st"><span class="dot"></span>Em atendimento · você</span></span>
-    </button>
+    <button class="who2" aria-label="Informações de Juliana Prado"><span class="nm">Juliana Prado</span><span class="sub"><span class="stg">Horário proposto</span>Você atende</span></button>
+    <button class="btnh" aria-label="Agendar horário"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M12 14v4M10 16h4"/></svg>Agendar</button>
     <button class="ib" aria-label="Mais opções da conversa"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>
   </header>
-  <div class="ctx">
-    <div class="stage"><small>Etapa</small><b>Horário proposto</b></div>
-    <button class="btn tn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M12 14v4M10 16h4"/></svg>Agendar</button>
-  </div>
   <main class="tl">
     <span class="day">Hoje</span>
     <div class="m in">Olá, gostaria de agendar uma depilação a laser nas pernas.<div class="mt">09:12</div></div>
