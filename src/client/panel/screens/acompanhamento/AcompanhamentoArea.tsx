@@ -4,6 +4,8 @@ import { LoadingState } from '../../states/StatusScreens'
 import type { AcompanhamentoSection } from '../../routes'
 import { AcompanhamentoBoard } from './AcompanhamentoBoard'
 import { AcompanhamentoDetail } from './AcompanhamentoDetail'
+import { AcompanhamentoWideBoard } from './AcompanhamentoWideBoard'
+import { useMediaQuery } from '../../ui/useMediaQuery'
 
 type Props = {
   tenantId: string
@@ -18,9 +20,22 @@ type Props = {
 export function AcompanhamentoArea({ tenantId, section, opportunityId }: Props) {
   const { api, status } = useAuthSession()
   const { generation } = useTenant()
+  const wide = useMediaQuery('(min-width: 1280px)')
 
   if (!api || status.phase !== 'ready') {
     return <LoadingState label="Preparando sessão…" />
+  }
+
+  // Desktop largo: quadro em largura total; o contato abre num painel por cima.
+  if (wide) {
+    return (
+      <AcompanhamentoWideBoard
+        tenantId={tenantId}
+        api={api}
+        generation={generation}
+        openId={section === 'detalhe' ? opportunityId : undefined}
+      />
+    )
   }
 
   if (section === 'detalhe' && opportunityId) {
