@@ -6497,7 +6497,8 @@
 }
 
 .acomp-panel,
-.agenda-panel {
+.agenda-panel,
+.clinic-panel {
   position: absolute;
   top: 0;
   right: 0;
@@ -6529,7 +6530,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .acomp-panel,
-  .agenda-panel {
+  .agenda-panel,
+  .clinic-panel {
     animation: none;
   }
 
@@ -7365,6 +7367,7 @@
   }
 
   .clinic-wide {
+    position: relative;
     flex: 1;
     align-self: stretch;
     width: 100%;
@@ -7391,4 +7394,39 @@
   .clinic-work > * {
     max-width: 720px;
   }
+}
+
+/* Painel de edição da Clínica (desktop): cabeçalho fixo, corpo com rolagem própria. */
+.clinic-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+}
+
+.clinic-panel-head .panel-title {
+  margin: 0;
+}
+
+.clinic-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.clinic-panel-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+}
+
+.clinic-panel-confirm p {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
 }
