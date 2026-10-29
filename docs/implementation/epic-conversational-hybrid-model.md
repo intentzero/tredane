@@ -38,7 +38,7 @@ Mapeado para S2 (#173) e S7 (#178). Se o #155 entrar antes das correções, entr
 
 ## H2 — Contexto factual antes de interpretar
 
-Mapeado para S8 (#179). Mantido.
+Mapeado para S8 (#179). Mantido. Inventário campo a campo e tensão com DEC-011: [ai-context-minimization.md](../security/ai-context-minimization.md) (**Em aberto** — Paulo aprova o conjunto mínimo).
 
 - [ ] O contexto da IA inclui compromissos futuros do contacto, data e hora de cada mensagem e vagas do período pedido.
 - [ ] Teste: mensagem «amanhã» enviada às 23:50 e lida às 00:10 resolve para o dia relativo à data da mensagem.

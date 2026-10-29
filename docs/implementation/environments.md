@@ -116,3 +116,14 @@ Criação remota de D1/R2/Queues/DO namespaces, contas Meta/Clerk e revisão jur
 - A capacidade é relida na execução de cada job de rascunho (inclusive jobs já enfileirados); erro → negado.
 - Contato bloqueado (e, quando existir, conversa/contato em pausa — TODO #182) nega qualquer ação automática nova (`src/clinic/ai/protection.ts`).
 - **Interrupção:** remover `AI_AUTOBOOK` ou defini-lo diferente de `on` e republicar; efeito no próximo job. Relação com H1 (#158): esta é a contenção permanente por padrão; H1 continua a cobrir o kill switch.
+
+## AI Gateway — logs e cache (S8 / #179)
+
+**Expectativa efectiva no código** (DEC-011; inventário [ai-context-minimization.md](../security/ai-context-minimization.md)):
+
+| Header / controlo | Valor | Motivo |
+| --- | --- | --- |
+| `cf-aig-collect-log-payload` | `false` | Não gravar corpos de prompt/resposta nos logs do Gateway (default Cloudflare é `true`) |
+| `cf-aig-skip-cache` | `true` | Respostas personalizadas por conversa não devem ser servidas de cache |
+
+**Dashboard do gateway (por ambiente):** cache de respostas **desligado** (default Cloudflare); logging de payload alinhado ao header. **Em aberto (GATE-06):** evidência de captura de ecrã / API de que o gateway em staging/produção não retém payloads; confirmação contratual Anthropic / ZDR. Logs internos do Worker (`ai.generated`) usam só IDs e métricas, sem texto de conversa.

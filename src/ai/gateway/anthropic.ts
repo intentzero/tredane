@@ -25,8 +25,9 @@ export type AiGatewayConfig = {
 }
 
 /**
- * Claude via Cloudflare AI Gateway (DEC-011).
- * Header cf-aig-collect-log-payload: false — GATE-06 ainda pendente de evidência.
+ * Claude via Cloudflare AI Gateway (DEC-011 / S8 #179).
+ * `cf-aig-collect-log-payload: false` + `cf-aig-skip-cache: true`.
+ * Evidência dashboard / contrato = GATE-06 Em aberto.
  */
 export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
   readonly providerId = AI_PROVIDER_ANTHROPIC
@@ -59,6 +60,8 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
       'cf-aig-authorization': `Bearer ${this.#cfg.gatewayToken}`,
       // Confirmado como intenção de produto (DEC-011); evidência GATE-06 Em aberto.
       'cf-aig-collect-log-payload': 'false',
+      // S8 (#179): respostas personalizadas não devem ser reutilizadas entre pedidos.
+      'cf-aig-skip-cache': 'true',
       'anthropic-version': '2023-06-01',
     }
     if (this.#cfg.anthropicApiKey) {
@@ -73,6 +76,7 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
       maxTokens: input.maxOutputTokens,
       headers: {
         'cf-aig-collect-log-payload': 'false',
+        'cf-aig-skip-cache': 'true',
         'anthropic-version': '2023-06-01',
         'x-tredane-ai-mode': 'gateway',
       },

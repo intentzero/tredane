@@ -123,12 +123,22 @@ export function warningLabel(code: AiWarningCode): string {
   }
 }
 
-/** Remove telefones / wa-like digits do texto recente antes de enviar ao provedor. */
+/**
+ * Remove dados proibidos no texto livre antes de enviar ao provedor (S8 / #179).
+ * Confirmado: telefones e wa.me (DEC-011). Proposto: e-mails e padrões de token/credencial.
+ */
 export function redactProhibitedFromText(text: string): string {
   let out = text
   // E.164 / BR mobile patterns
   out = out.replace(/\+?\d[\d\s().-]{8,}\d/g, '[redacted]')
   // wa.me links
   out = out.replace(/wa\.me\/\d+/gi, '[redacted]')
+  // E-mails (não necessários ao LLM; risco de PII)
+  out = out.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[redacted]')
+  // Tokens / credenciais comuns em texto colado
+  out = out.replace(/\bBearer\s+[A-Za-z0-9._\-+/=]{8,}/gi, '[redacted]')
+  out = out.replace(/\bsk-[A-Za-z0-9_-]{8,}/g, '[redacted]')
+  out = out.replace(/\b(api[_-]?key|access[_-]?token|secret[_-]?key)\s*[:=]\s*\S+/gi, '[redacted]')
+  out = out.replace(/\b(xox[baprs]-|ghp_|gho_|github_pat_)[A-Za-z0-9_-]{8,}/g, '[redacted]')
   return out
 }

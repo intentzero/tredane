@@ -17,7 +17,11 @@ import { getConversation } from '../inbox/conversations'
 import { assertClinicSchemaReady } from '../migrations'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
-import { assertContextMinimized, buildAiContextPayload } from './context'
+import {
+  assertAiCommandResultMinimized,
+  assertContextMinimized,
+  buildAiContextPayload,
+} from './context'
 import {
   findAiCommand,
   getSuggestion,
@@ -48,6 +52,16 @@ export type SuggestResult = {
   messageSent: false
 }
 
+/**
+ * Persistência mínima de idempotência (S8 / #179).
+ * Nunca guarda prompts, mensagens, catálogo nem inspeção de gateway em `ai_commands`.
+ */
+export type StoredAiCommandV2 = {
+  v: 2
+  suggestionId: string
+  messageSent: false
+}
+
 /** Log estruturado sem conteúdo pessoal. */
 function aiLog(level: 'info' | 'warn', event: string, detail: Record<string, unknown>): void {
   const line = JSON.stringify({ level, event, ...detail })
@@ -55,8 +69,43 @@ function aiLog(level: 'info' | 'warn', event: string, detail: Record<string, unk
   else console.log(line)
 }
 
-function parseCachedSuggest(json: string): SuggestResult {
-  return JSON.parse(json) as SuggestResult
+function storedCommandRef(suggestionId: string): StoredAiCommandV2 {
+  return { v: 2, suggestionId, messageSent: false }
+}
+
+function hydrateSuggestFromCommand(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  resultJson: string,
+  clock: Clock,
+  deps: AiAssistDeps,
+  kind: 'reply' | 'summary',
+): SuggestResult {
+  assertAiCommandResultMinimized(resultJson)
+  const parsed = JSON.parse(resultJson) as StoredAiCommandV2 | SuggestResult
+  const suggestionId =
+    'v' in parsed && parsed.v === 2
+      ? parsed.suggestionId
+      : (parsed as SuggestResult).suggestion?.id
+  if (!suggestionId) {
+    throw new ClinicError('ai_command_corrupt', 'Comando de IA sem sugestão')
+  }
+  const suggestion = getSuggestion(db, tenantId, suggestionId)
+  if (!suggestion || suggestion.conversationId !== conversationId) {
+    throw new NotFoundError('suggestion_not_found', 'Sugestão não encontrada')
+  }
+  const contextInspection = buildAiContextPayload(db, tenantId, conversationId, {
+    ...(kind === 'reply' ? { clock, clinicName: deps.clinicName ?? null } : {}),
+  })
+  assertContextMinimized(contextInspection.payload)
+  return {
+    suggestion,
+    contextInspection,
+    gatewayInspection: null,
+    duplicate: true,
+    messageSent: false,
+  }
 }
 
 async function runGenerate(
@@ -93,8 +142,15 @@ async function runGenerate(
   const cached =
     origin === 'manual' ? findAiCommand(db, meta.tenantId, input.clientRequestId) : null
   if (cached) {
-    const parsed = parseCachedSuggest(cached.resultJson)
-    return { ...parsed, duplicate: true, messageSent: false }
+    return hydrateSuggestFromCommand(
+      db,
+      meta.tenantId,
+      input.conversationId,
+      cached.resultJson,
+      clock,
+      deps,
+      input.kind,
+    )
   }
 
   if (!getConversation(db, meta.tenantId, input.conversationId)) {
@@ -229,22 +285,19 @@ async function runGenerate(
       createdAt: now,
     })
 
-    const result: SuggestResult = {
-      suggestion: row,
-      contextInspection,
-      gatewayInspection: deps.adapter.lastInspection(),
-      duplicate: false,
-      messageSent: false,
+    if (origin === 'manual') {
+      const stored = storedCommandRef(row.id)
+      assertAiCommandResultMinimized(JSON.stringify(stored))
+      insertAiCommand(db, {
+        tenantId: meta.tenantId,
+        clientRequestId: input.clientRequestId,
+        command: input.command,
+        conversationId: input.conversationId,
+        suggestionId: row.id,
+        result: stored,
+        createdAt: now,
+      })
     }
-    if (origin === 'manual') insertAiCommand(db, {
-      tenantId: meta.tenantId,
-      clientRequestId: input.clientRequestId,
-      command: input.command,
-      conversationId: input.conversationId,
-      suggestionId: row.id,
-      result,
-      createdAt: now,
-    })
     return row
   })
 
@@ -329,8 +382,20 @@ export function decideSuggestionOp(
 
   const cached = findAiCommand(db, meta.tenantId, input.clientRequestId)
   if (cached) {
-    const parsed = JSON.parse(cached.resultJson) as DecideResult
-    return { ...parsed, duplicate: true, messageSent: false }
+    assertAiCommandResultMinimized(cached.resultJson)
+    const parsed = JSON.parse(cached.resultJson) as StoredAiCommandV2 | DecideResult
+    const suggestionId =
+      'v' in parsed && parsed.v === 2
+        ? parsed.suggestionId
+        : (parsed as DecideResult).suggestion?.id
+    if (!suggestionId) {
+      throw new ClinicError('ai_command_corrupt', 'Comando de IA sem sugestão')
+    }
+    const suggestion = getSuggestion(db, meta.tenantId, suggestionId)
+    if (!suggestion) {
+      throw new NotFoundError('suggestion_not_found', 'Sugestão não encontrada')
+    }
+    return { suggestion, duplicate: true, messageSent: false }
   }
 
   const existing = getSuggestion(db, meta.tenantId, input.suggestionId)
@@ -362,18 +427,15 @@ export function decideSuggestionOp(
       outboundMessageId: input.outboundMessageId ?? null,
       updatedAt: now,
     })
-    const result: DecideResult = {
-      suggestion: row,
-      duplicate: false,
-      messageSent: false,
-    }
+    const stored = storedCommandRef(row.id)
+    assertAiCommandResultMinimized(JSON.stringify(stored))
     insertAiCommand(db, {
       tenantId: meta.tenantId,
       clientRequestId: input.clientRequestId,
       command: 'decide',
       conversationId: row.conversationId,
       suggestionId: row.id,
-      result,
+      result: stored,
       createdAt: now,
     })
     return row

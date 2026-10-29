@@ -20,9 +20,16 @@ export function firstNameFromDisplayName(displayName: string | null): string | n
   return part && part.length > 0 ? part : null
 }
 
+function sanitizeCatalogField(value: string | null | undefined): string | null {
+  if (value == null) return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  return redactProhibitedFromText(trimmed)
+}
+
 /**
- * Constrói contexto mínimo autorizado (REQ-072 / AC-37).
- * Exclui: telefone/wa_id, anexos, outras conversas, outros tenants.
+ * Constrói contexto mínimo autorizado (REQ-072 / AC-37 / S8 #179).
+ * Exclui: telefone/wa_id, anexos, outras conversas, outros tenants, tokens/credenciais.
  */
 export function buildAiContextPayload(
   db: ClinicDb,
@@ -69,10 +76,10 @@ export function buildAiContextPayload(
     .filter((s) => s.active)
     .map(
       (s): AiCatalogService => ({
-        name: s.name,
+        name: sanitizeCatalogField(s.name) ?? 'Serviço',
         durationMinutes: s.durationMinutes,
         priceCents: s.priceCents,
-        clientExplanation: s.clientExplanation,
+        clientExplanation: sanitizeCatalogField(s.clientExplanation),
       }),
     )
 
@@ -126,14 +133,58 @@ export function buildAiContextPayload(
   }
 }
 
-/** Serializa o payload para inspeção — garante ausência de chaves proibidas. */
+/** Chaves JSON que nunca devem aparecer no payload enviado ao LLM. */
+const PROHIBITED_PAYLOAD_KEY_RE =
+  /"(waId|wa_id|phone|telefone|mobile|r2Key|r2_key|attachmentId|attachment_id|apiKey|api_key|accessToken|access_token|refreshToken|refresh_token|gatewayToken|gateway_token|authorization|credential|secret|password|privateKey|private_key)"\s*:/i
+
+/** Valores tipicamente de credencial / PII proibida no JSON serializado. */
+const PROHIBITED_PAYLOAD_VALUE_RE =
+  /\b(sk-[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9._\-+/=]{8,}|ghp_[A-Za-z0-9]{8,}|xox[baprs]-[A-Za-z0-9-]{8,})\b/i
+
+/**
+ * Serializa o payload para inspeção — garante ausência de chaves/valores proibidos (S8 / AC-37).
+ * Lança se o contexto mínimo for violado.
+ */
 export function assertContextMinimized(payload: AiContextPayload): void {
   const json = JSON.stringify(payload)
-  if (/"waId"|"wa_id"|"phone"|"telefone"|"r2Key"|"r2_key"/i.test(json)) {
+  if (PROHIBITED_PAYLOAD_KEY_RE.test(json)) {
     throw new Error('ai_context_contains_prohibited_keys')
+  }
+  if (PROHIBITED_PAYLOAD_VALUE_RE.test(json)) {
+    throw new Error('ai_context_contains_prohibited_secrets')
   }
   // Nenhum número longo tipo telefone no JSON serializado do primeiro nome
   if (payload.contactFirstName && /\d{8,}/.test(payload.contactFirstName)) {
     throw new Error('ai_context_firstname_looks_like_phone')
+  }
+  for (const msg of payload.messages) {
+    if (/\+?\d[\d\s().-]{8,}\d/.test(msg.body) || /wa\.me\/\d+/i.test(msg.body)) {
+      throw new Error('ai_context_message_contains_phone')
+    }
+  }
+  for (const svc of payload.services) {
+    if (/\+?\d[\d\s().-]{8,}\d/.test(svc.name)) {
+      throw new Error('ai_context_catalog_contains_phone')
+    }
+    if (svc.clientExplanation && /\+?\d[\d\s().-]{8,}\d/.test(svc.clientExplanation)) {
+      throw new Error('ai_context_catalog_contains_phone')
+    }
+  }
+}
+
+/**
+ * Asserts usados em testes S8: o JSON persistido de idempotência não guarda
+ * prompts, corpos de mensagem nem inspeção de gateway.
+ */
+export function assertAiCommandResultMinimized(resultJson: string): void {
+  if (
+    /"(contextInspection|gatewayInspection|systemPrompt|userContent|messages|services|_debugExcluded)"\s*:/.test(
+      resultJson,
+    )
+  ) {
+    throw new Error('ai_command_stores_prohibited_context')
+  }
+  if (PROHIBITED_PAYLOAD_VALUE_RE.test(resultJson)) {
+    throw new Error('ai_command_contains_prohibited_secrets')
   }
 }

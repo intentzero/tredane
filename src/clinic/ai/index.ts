@@ -1,6 +1,7 @@
 export {
   buildAiContextPayload,
   assertContextMinimized,
+  assertAiCommandResultMinimized,
   firstNameFromDisplayName,
 } from './context'
 export {
