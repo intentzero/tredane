@@ -22,6 +22,8 @@ O redesenho visual (cartões de serviço, botões de profissional, grade de dias
 
 ## DEC-051 — Duração personalizada no Agendar
 
+**Revogada por DEC-076 (Paulo, 29/10/2026).** O texto abaixo fica como histórico da escolha de 27/10. A duração do procedimento já não se ajusta ao agendar.
+
 **Status: Confirmado** — Paulo aprovou a recomendação (card t1868s7504, 27/10/2026). Implementado no staging conforme a recomendação.
 
 **Pergunta:** a atendente pode mudar a duração ao agendar? **Bloqueia:** qualquer controle de duração no Agendar (mock a07 fica só como variante). Não bloqueia o restante do redesenho.

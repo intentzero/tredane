@@ -19,7 +19,7 @@ export type ServiceRow = {
   signalKind: ServiceSignalKind | null
   signalFixedCents: number | null
   signalPercent: number | null
-  /** DEC-051 — a atendente pode ajustar a duração no Agendar (só a owner configura). */
+  /** DEC-076: sempre falso. A coluna antiga já não configura o procedimento. */
   durationAdjustable: boolean
   durationMinMinutes: number | null
   durationMaxMinutes: number | null
@@ -148,7 +148,7 @@ export type ClinicSettingsRow = {
    * Default enabled=false (fail-closed por clínica).
    */
   abuseLimitsEnabled: boolean
-  /** Pausa novas marcações automáticas por botão; AI_AUTOBOOK=off continua a vencer. */
+  /** Pausa novas propostas e cliques de confirmação nesta clínica. */
   autoBookPaused: boolean
   abuseWindowHours: number
   abuseAutoDraftsPerContact: number

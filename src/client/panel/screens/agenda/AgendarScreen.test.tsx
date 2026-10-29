@@ -178,29 +178,12 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     expect(within(dialog).getByRole('button', { name: 'Confirmar agendamento' })).toBeTruthy()
   })
 
-  it('DEC-051: serviço com duração ajustável — passos de 15 min recalculam a grade e vão na confirmação', async () => {
-    const api = makeApi({ service: { durationAdjustable: true, durationMinMinutes: 30, durationMaxMinutes: 90 } })
-    renderScreen(api)
-    await screen.findByRole('heading', { name: /Marina/ })
-    const plus = await screen.findByRole('button', { name: 'Aumentar 15 min' })
-    fireEvent.click(plus)
-    await waitFor(() =>
-      expect(api.queryAvailability).toHaveBeenCalledWith('t1', expect.objectContaining({ durationMinutes: 60 }), expect.anything()),
-    )
-    expect(screen.getByText(/Duração ajustada/)).toBeTruthy()
-    await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
-    const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar e enviar' }))
-    await screen.findByRole('heading', { name: 'Horário agendado' })
-    expect(api.confirmAppointment).toHaveBeenCalledWith('t1', expect.objectContaining({ durationMinutes: 60 }), expect.anything())
-  })
-
-  it('DEC-051: serviço sem duração ajustável não mostra o controle', async () => {
-    renderScreen(makeApi())
+  it('DEC-076: não há controle de duração, mesmo com o campo antigo no serviço', async () => {
+    renderScreen(makeApi({ service: { durationAdjustable: true, durationMinMinutes: 30, durationMaxMinutes: 90 } }))
     await screen.findByRole('heading', { name: /Marina/ })
     await pickTime()
     expect(screen.queryByRole('button', { name: 'Aumentar 15 min' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Diminuir 15 min' })).toBeNull()
   })
 
   it('conflito: «Nada foi reservado», mantém serviço e profissional', async () => {

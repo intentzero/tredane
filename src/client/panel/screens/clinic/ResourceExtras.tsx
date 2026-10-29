@@ -51,9 +51,9 @@ export function serviceBody(
     signalKind: s.signalKind,
     signalFixedCents: s.signalFixedCents,
     signalPercent: s.signalPercent,
-    durationAdjustable: s.durationAdjustable ?? false,
-    durationMinMinutes: s.durationMinMinutes ?? null,
-    durationMaxMinutes: s.durationMaxMinutes ?? null,
+    durationAdjustable: false,
+    durationMinMinutes: null,
+    durationMaxMinutes: null,
     weeklyWindows: s.weeklyWindows ?? [],
     ...patch,
   }

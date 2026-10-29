@@ -667,7 +667,9 @@ export function rescheduleAppointmentOp(
         roomResourceId: input.roomResourceId,
         startsAt: input.startsAt,
         excludeAppointmentId: before.id,
-        // DEC-051(f): reagendar mantém a duração aplicada (mesmo serviço).
+        // DEC-076: marcações novas usam a duração do cadastro. Reagendar
+        // mantém a duração já gravada neste compromisso (inclui visitas
+        // antigas que foram ajustadas quando isso ainda existia).
         durationMinutesOverride:
           serviceId === before.serviceId && before.appliedDurationMinutes != null
             ? before.appliedDurationMinutes
