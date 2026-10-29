@@ -6240,7 +6240,7 @@
   bottom: 0;
   width: 380px;
   max-width: 100%;
-  z-index: 40;
+  z-index: 45;
   padding: var(--space-2) 0 var(--space-4);
   box-sizing: border-box;
   border-left: var(--size-border-width) solid var(--color-line-border);
@@ -6282,7 +6282,7 @@
   bottom: 0;
   width: 420px;
   max-width: 100%;
-  z-index: 41;
+  z-index: 46;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -6500,7 +6500,7 @@
 .panel-scrim {
   position: fixed;
   inset: 0;
-  z-index: 39;
+  z-index: 44;
   background: transparent;
 }
 
@@ -6513,7 +6513,7 @@
   bottom: 0;
   width: 380px;
   max-width: 100%;
-  z-index: 40;
+  z-index: 45;
   display: flex;
   flex-direction: column;
   min-height: 0;
