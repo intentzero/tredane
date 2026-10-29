@@ -1,4 +1,4 @@
-import { ChevronLeft, CircleAlert } from 'lucide-react'
+import { ChevronLeft, CircleAlert, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from 'react-aria-components'
 import type { PanelApi, PipelineOpportunityDetail } from '../../api'
@@ -20,6 +20,10 @@ type Props = {
   opportunityId: string
   api: PanelApi
   generation: number
+  /** No painel do desktop: fecha o painel (no lugar do «Voltar» de tela cheia). */
+  onClose?: () => void
+  /** Chamado depois de mover a etapa, para o quadro recarregar. */
+  onChanged?: () => void
 }
 
 /**
@@ -30,6 +34,8 @@ export function AcompanhamentoDetail({
   opportunityId,
   api,
   generation,
+  onClose,
+  onChanged,
 }: Props) {
   const timezone = useClinicTimezone(api, tenantId, generation)
   const [data, setData] = useState<PipelineOpportunityDetail | null>(null)
@@ -74,6 +80,7 @@ export function AcompanhamentoDetail({
       )
       setData(res.opportunity)
       setMoveOpen(false)
+      onChanged?.()
     } catch (err) {
       setData(previous)
       setMoveError(
@@ -109,20 +116,22 @@ export function AcompanhamentoDetail({
   return (
     <div className="acomp-detail">
       <header className="inbox-thread-header">
-        <Button
-          className="panel-icon-btn"
-          aria-label="Voltar ao Acompanhamento"
-          onPress={() =>
-            navigatePanel({
-              kind: 'area',
-              area: 'acompanhamento',
-              tenantId,
-              section: 'quadro',
-            })
-          }
-        >
-          <ChevronLeft aria-hidden size={22} strokeWidth={2} />
-        </Button>
+        {onClose ? null : (
+          <Button
+            className="panel-icon-btn"
+            aria-label="Voltar ao Acompanhamento"
+            onPress={() =>
+              navigatePanel({
+                kind: 'area',
+                area: 'acompanhamento',
+                tenantId,
+                section: 'quadro',
+              })
+            }
+          >
+            <ChevronLeft aria-hidden size={22} strokeWidth={2} />
+          </Button>
+        )}
         <div className="inbox-thread-title">
           <span className="inbox-thread-name">{name}</span>
           <span className="inbox-thread-sub">Contato em andamento</span>
@@ -130,6 +139,11 @@ export function AcompanhamentoDetail({
         <Button className="panel-move" onPress={() => setMoveOpen(true)}>
           Mover
         </Button>
+        {onClose ? (
+          <Button className="panel-icon-btn" aria-label="Fechar contato" onPress={onClose}>
+            <X aria-hidden size={20} strokeWidth={2} />
+          </Button>
+        ) : null}
       </header>
 
       {moveError ? (

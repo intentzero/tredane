@@ -54,13 +54,13 @@ TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carr
 
 ### 3.1 Padrões de layout mobile first
 
-**Estado:** Proposto, decorrente de DEC-039.
+**Estado:** Proposto, decorrente de DEC-039. A linha **Desktop** foi confirmada em 29/10/2026 (DEC-068, DEC-069, DEC-072); o restante continua Proposto.
 
 | Largura | Navegação | Conversas | Acompanhamento | Agenda |
 | --- | --- | --- | --- | --- |
 | Base (360–767 px) | Barra inferior com Conversas, Acompanhamento e Agenda (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
 | Tablet (≥ 768 px) | Barra lateral compacta. | Lista + conversa lado a lado; detalhes em gaveta. | Quadro com rolagem horizontal. | Grade com colunas por recurso. |
-| Desktop (≥ 1280 px) | Cabeçalho superior. | Três colunas (lista, conversa, detalhes). | Quadro completo; arrastar e soltar além do menu “Mover para…”. | Grade completa e painel lateral de agendamento. |
+| Desktop (≥ 1280 px) | **Confirmado (DEC-068):** menu lateral fixo de 84 px com o símbolo (DEC-070), barra superior com título, clínica e «Ao vivo». | Lista (360 px) e conversa; contato num painel por cima (DEC-069). `/conversas` e `/conversas/:id` partilham a moldura. | **Confirmado (DEC-072):** quadro em largura total sem coluna de contexto, filtros no topo, contato por cima. Sem arrastar (DEC-062). | Grade completa; painel lateral de agendamento. **Em aberto:** coluna de contexto (mês, filtros) e detalhe por cima. |
 
 Regras comuns:
 - Alvos de toque ≥ 44 × 44 px; ações principais (Enviar, Agendar, Confirmar) ficam na zona inferior da tela, alcançáveis com o polegar.
@@ -127,6 +127,7 @@ Nome na interface: **Acompanhamento** (DEC-045). Na barra inferior de quatro ite
 - Quadro com as etapas propostas: **Novo contato → Em atendimento → Horário proposto → Agendado → Concluído** e coluna **Perdido** separada visualmente à direita. As etapas vêm da configuração da clínica; a interface não fixa nomes no código de apresentação, para permitir etapas configuráveis depois (MVP).
 - Cartão: nome do contato, responsável, último contato (relativo), próximo compromisso (ou “Sem horário marcado”), ação “Abrir conversa”, indicador de mensagem pendente/falha.
 - No celular (M-05), uma etapa por vez em abas roláveis com contagem; o botão **Mover** abre uma folha inferior com as etapas. No desktop, arrastar entre colunas **ou** menu **Mover para…** (alternativa acessível por teclado). O cartão fica em estado “Movendo…” até confirmação; em falha, volta à coluna original com aviso.
+- **Desktop ≥ 1280 px (Confirmado, DEC-072; Proposto de desenho em canvas privado):** quadro em largura total, sem coluna de contexto; barra com busca e filtros «Todos», «Minhas», «Sem responsável», «Parados há mais de 2 dias» e «Perdidos» (acrescenta a coluna); clique no cartão abre o contato num painel por cima (DEC-069); **sem arrastar** (DEC-062), a etapa muda pela conversa. **Em aberto:** filtro por profissional, critério de «parado» e paginação por coluna.
 - Mover para **Horário proposto** mostra a nota “Etapa da negociação — não reserva horário na agenda” (states.md).
 - Mover para **Agendado** sem compromisso vinculado é **permitido** (Confirmado, DEC-040): o cartão exibe “Sem compromisso vinculado” e oferece **Agendar horário**; mudar etapa nunca cria compromisso.
 - Filtros: responsável, “Minhas”, busca por nome. Relatórios e totais avançados ficam **Fora do MVP**.
@@ -188,9 +189,10 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
 **Origem:** DEC-007; REQ-005; AC-17. **Estado:** Proposto.
 
+- **Marca (Confirmado, DEC-070):** o logotipo horizontal fica acima do formulário de entrada e o empilhado acima da lista de clínicas.
 - **Entrar:** fluxo do Clerk com código por e-mail: campo de e-mail → campo do código, com preenchimento automático no celular (`autocomplete="one-time-code"`) e reenvio. A mensagem de erro não revela se o e-mail tem conta. Textos e cores seguem a spec; o comportamento é o do Clerk.
 - **Escolher clínica:** lista com nome de cada clínica e papel (Atendente/Responsável). Com uma só clínica, a tela é pulada.
-- **Trocar de clínica:** tocar no nome da clínica no cabeçalho abre a mesma lista. Ao trocar, a tela mostra “Abrindo Clínica B…”, descarta os dados da anterior e reconecta o tempo real; texto não enviado no compositor é descartado com confirmação.
+- **Trocar de clínica (Confirmado, DEC-071):** tocar no nome da clínica abre um menu no desktop ou uma folha de baixo no celular com as clínicas da pessoa, o papel em cada uma e ✓ na atual; com uma só clínica é texto. «Ver todas as clínicas» abre esta página inteira. Antes: tocar no nome abria a mesma lista em tela cheia. Ao trocar, a tela mostra “Abrindo Clínica B…”, descarta os dados da anterior e reconecta o tempo real; texto não enviado no compositor é descartado com confirmação.
 - Clínica removida do acesso some da lista; se era a ativa, aparece o estado “Acesso encerrado” (6.2).
 
 ### TEL-09 — Clínica (configuração, só o responsável)
