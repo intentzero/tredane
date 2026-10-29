@@ -10,6 +10,7 @@ import {
   LoadingState,
 } from '../states/StatusScreens'
 import { useTenant } from '../tenant/TenantContext'
+import { BrandStacked } from '../ui/Brand'
 
 function roleLabel(role: 'owner' | 'attendant'): string {
   return role === 'owner' ? 'Responsável' : 'Atendente'
@@ -115,6 +116,7 @@ export function ClinicSelector() {
   return (
     <div className="panel-selector" lang="pt-BR">
       <header className="panel-selector-header">
+        <BrandStacked width={132} />
         <h1 className="panel-auth-title">Escolha a clínica</h1>
         <p>
           Você tem acesso a mais de uma. Dá para trocar depois, pelo nome da clínica no topo.

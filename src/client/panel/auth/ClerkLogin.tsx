@@ -1,4 +1,5 @@
 import { SignIn } from '@clerk/react'
+import { BrandHorizontal } from '../ui/Brand'
 
 const appearance = {
   variables: {
@@ -30,10 +31,7 @@ export function ClerkLogin() {
   return (
     <div className="panel-auth" lang="pt-BR">
       <div className="panel-auth-brand">
-        <span className="panel-auth-mark" aria-hidden="true">
-          T
-        </span>
-        <span className="panel-auth-name">Tredane</span>
+        <BrandHorizontal height={40} />
       </div>
       <div className="panel-auth-clerk">
         <SignIn
