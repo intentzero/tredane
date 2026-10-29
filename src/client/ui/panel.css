@@ -6217,3 +6217,312 @@
 .hours-screen {
   container-type: inline-size;
 }
+
+/* ── Horário da clínica (#223/#224): resumo, dias, barra de salvar e folhas ── */
+.hours-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+}
+
+.hours-status {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.hours-status[data-open='true'] {
+  background: var(--color-success-tint);
+  color: var(--color-success-ink);
+}
+
+.hours-summary-week {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-default);
+}
+
+.hours-summary-closure {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-tint);
+  color: var(--color-danger-ink);
+  font-size: var(--font-size-small);
+}
+
+.hours-days .hours-day-btn {
+  min-height: var(--size-row-min);
+}
+
+.hours-day-name {
+  flex: none;
+  width: 40px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.hours-day-text {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hours-day-text[data-closed='true'] {
+  color: var(--color-text-muted);
+}
+
+.hours-changed {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+}
+
+.hours-daybar {
+  position: relative;
+  display: block;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
+}
+
+.hours-daybar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+  background: var(--color-primary-base);
+}
+
+.hours-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.hours-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hours-month-toggle {
+  align-self: flex-start;
+}
+
+.hours-followers {
+  margin: 0;
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-default);
+}
+
+.hours-savebar {
+  position: sticky;
+  bottom: var(--space-2);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  box-shadow: 0 -6px 16px rgba(20, 38, 37, 0.08);
+}
+
+.hours-savebar p {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.hours-savebar strong {
+  color: var(--color-warning-ink);
+}
+
+.clinic-sheet {
+  max-height: 88dvh;
+}
+
+.clinic-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.clinic-sheet-title {
+  margin: var(--space-1) 0;
+}
+
+.clinic-sheet-x {
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-secondary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.clinic-sheet-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.clinic-sheet-body .block-form {
+  padding: 0;
+}
+
+.day-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.day-editor-open {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-touch);
+}
+
+.day-editor-open-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.day-editor-open-text span {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.day-editor-windows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.day-editor-gap {
+  margin: 0 0 var(--space-2);
+  text-align: center;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.day-editor-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.day-editor-day {
+  min-height: var(--size-touch);
+  padding: 0;
+}
+
+.day-editor-day:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+/* PanelMultiSelect */
+.panel-multi-trigger {
+  min-height: var(--size-control-lg);
+  height: auto;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.panel-multi-chips {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  text-align: left;
+}
+
+.panel-multi-chips[data-placeholder] {
+  color: var(--color-text-muted);
+}
+
+.panel-multi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.panel-multi-dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.panel-multi-box {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--color-line-control);
+  border-radius: 6px;
+  background: var(--color-surface-card);
+  color: var(--color-text-on-primary);
+}
+
+.panel-choice-item[data-selected] .panel-multi-box {
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-base);
+}
+
+.panel-choice-item:has(.panel-multi-box) {
+  justify-content: flex-start;
+  gap: var(--space-3);
+}
+
+.panel-multi-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
