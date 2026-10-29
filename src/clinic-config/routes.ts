@@ -90,6 +90,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     upsertService: (caller, input) => stub.upsertClinicService(caller, input),
     setServiceActive: (caller, serviceId, active) =>
       stub.setClinicServiceActive(caller, serviceId, active),
+    deleteService: (caller, serviceId) => stub.deleteClinicService(caller, serviceId),
     upsertResource: (caller, input) => stub.upsertClinicResource(caller, input),
     setResourceActive: (caller, resourceId, active) =>
       stub.setClinicResourceActive(caller, resourceId, active),
@@ -181,11 +182,18 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
       const ctx = c.get('tenantContext')!
       requireClinicPermission(ctx, 'clinic.config.write')
       const body = await c.req
-        .json<{ enabled?: unknown; clinicAddress?: unknown; reschedulePolicy?: unknown }>()
+        .json<{
+          enabled?: unknown
+          clinicAddress?: unknown
+          googleBusinessUrl?: unknown
+          reschedulePolicy?: unknown
+        }>()
         .catch(() => null)
       const hasProfile =
         body != null &&
-        (typeof body.clinicAddress === 'string' || typeof body.reschedulePolicy === 'string')
+        (typeof body.clinicAddress === 'string' ||
+          typeof body.googleBusinessUrl === 'string' ||
+          typeof body.reschedulePolicy === 'string')
       if (!body || (typeof body.enabled !== 'boolean' && !hasProfile)) {
         return c.json({ error: 'invalid_body' }, 400)
       }
@@ -195,6 +203,8 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
       if (hasProfile) {
         settings = await gw.setAiProfile(caller, {
           clinicAddress: typeof body.clinicAddress === 'string' ? body.clinicAddress : null,
+          googleBusinessUrl:
+            typeof body.googleBusinessUrl === 'string' ? body.googleBusinessUrl : null,
           reschedulePolicy:
             typeof body.reschedulePolicy === 'string' ? body.reschedulePolicy : null,
         })
@@ -258,6 +268,25 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
           body.active,
         )
         return c.json(serializeService(row))
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.delete(
+    '/api/tenants/:tenantId/config/services/:serviceId',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const out = await gw.deleteService(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          c.req.param('serviceId'),
+        )
+        return c.json(out)
       } catch (err) {
         return configErrorResponse(c, err)
       }

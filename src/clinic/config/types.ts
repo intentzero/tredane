@@ -24,6 +24,8 @@ export type ServiceRow = {
   updatedAt: number
   professionalIds: string[]
   roomRequirement: RoomRequirement
+  /** Pode ser apagado: nunca teve marcação, Pix ou proposta ligada. */
+  deletable: boolean
 }
 
 export type RoomRequirement =
@@ -116,6 +118,8 @@ export type ClinicSettingsRow = {
   aiAssistEnabled: boolean
   /** Endereço da clínica (contexto da IA). */
   clinicAddress: string
+  /** Link do Google Business (https; vazio = sem link). Definido só pela clínica; contexto da IA. */
+  googleBusinessUrl: string
   /** Regras de remarcação e cancelamento (texto da clínica; contexto da IA). */
   reschedulePolicy: string
   updatedAt: number

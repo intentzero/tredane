@@ -97,3 +97,22 @@ Detalhe: [f6-ops.md](f6-ops.md) e [runbooks/](runbooks/README.md).
 ## O que ainda não está provisionado
 
 Criação remota de D1/R2/Queues/DO namespaces, contas Meta/Clerk e revisão jurídica permanecem gates (#18/#44). Este documento fixa **nomes, guards e runbooks** para a implementação não divergir entre ambientes.
+
+## Agendamento automático pela IA (`AI_AUTOBOOK`) — S2 (#173)
+
+**Estado no código:** texto livre («sim», emoji, pedido completo, JSON) **nunca** cria compromisso, em nenhum ambiente e qualquer que seja a flag. A leitura do texto só gera nota à atendente. A marcação automática ficará restrita ao clique numa proposta versionada (S3–S5, épico #171; revisão DEC-061 **Proposto**).
+
+| Variável | Valor | Efeito |
+| --- | --- | --- |
+| `AI_AUTOBOOK` | ausente, vazio, `off` ou qualquer valor ≠ `on` | Capacidade desligada (padrão) |
+| `AI_AUTOBOOK` | `on` (exato, sem distinção de maiúsculas) | Capacidade ligada **só** para as clínicas de `AI_AUTOBOOK_TENANTS` |
+| `AI_AUTOBOOK_TENANTS` | ids de tenant separados por vírgula | Lista de clínicas autorizadas; vazio = nenhuma |
+
+| Ambiente | Estado esperado |
+| --- | --- |
+| development / staging / production | Desligado (sem `AI_AUTOBOOK=on`). Revisão da configuração publicada é gate de liberação (S9 #180, H10 #167). |
+
+- O opt-in de sugestões da clínica (assistência de IA) é independente: ligá-lo não liga agendamento nem envio.
+- A capacidade é relida na execução de cada job de rascunho (inclusive jobs já enfileirados); erro → negado.
+- Contato bloqueado (e, quando existir, conversa/contato em pausa — TODO #182) nega qualquer ação automática nova (`src/clinic/ai/protection.ts`).
+- **Interrupção:** remover `AI_AUTOBOOK` ou defini-lo diferente de `on` e republicar; efeito no próximo job. Relação com H1 (#158): esta é a contenção permanente por padrão; H1 continua a cobrir o kill switch.

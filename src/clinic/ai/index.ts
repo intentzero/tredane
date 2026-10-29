@@ -22,6 +22,9 @@ export {
 export {
   toAiAssistDeps,
   rpcDepsFromEnv,
+  parseAutoBookFlag,
+  parseAutoBookTenants,
+  autoBookCapability,
   type AiAssistRpcDeps,
 } from './deps'
 export type * from './types'

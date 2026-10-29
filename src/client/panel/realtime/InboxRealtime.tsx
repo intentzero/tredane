@@ -33,7 +33,9 @@ export function isInboxEvent(event: RealtimeServerEvent): boolean {
   return (
     event.eventType.startsWith('message.') ||
     event.eventType.startsWith('conversation.') ||
-    event.eventType.startsWith('contact.')
+    event.eventType.startsWith('contact.') ||
+    // DEC-062: a etapa mostrada na conversa muda sozinha e por correção de outra pessoa.
+    event.eventType === 'opportunity.stage_changed'
   )
 }
 

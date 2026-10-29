@@ -97,6 +97,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
                 generation={generation}
                 initialEnabled={snap.settings.aiAssistEnabled === true}
                 initialAddress={snap.settings.clinicAddress ?? null}
+                initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
                 initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
               />
             }
@@ -129,9 +130,10 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
       case 'recursos':
         return (
           <ResourcesList
+            key={entityId === 'salas' ? 'room' : 'professional'}
             tenantId={tenantId}
             snap={snap}
-            initialTab={entityId === 'salas' ? 'room' : 'professional'}
+            tab={entityId === 'salas' ? 'room' : 'professional'}
           />
         )
       case 'profissional':

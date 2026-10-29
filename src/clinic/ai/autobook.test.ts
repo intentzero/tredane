@@ -1,6 +1,6 @@
 /**
- * Agendamento pela IA após confirmação explícita (Paulo, 28/10/2026).
- * Caso base = staging: depilação masculina com a Gi, quinta 29/10/2026.
+ * S2 (#173, épico #171): texto livre nunca grava marcação, mesmo com AI_AUTOBOOK ligado e a
+ * clínica autorizada. Caso base = staging: depilação masculina com a Gi, quinta 29/10/2026.
  */
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
@@ -11,9 +11,11 @@ import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
-import { cancelAppointmentOp, confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
+import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
-import { AI_AUTOBOOK_ACTOR_ID, detectExplicitConfirmation } from './autobook'
+import { detectExplicitConfirmation } from './autobook'
+import { checkConversationProtection, isConversationPaused } from './protection'
+import { autoBookCapability, parseAutoBookFlag, rpcDepsFromEnv, toAiAssistDeps } from './deps'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 
 const TZ = 'America/Sao_Paulo'
@@ -48,6 +50,12 @@ function seed(opts: { signal?: boolean } = {}) {
     { name: 'Limpeza de pele', durationMinutes: 60, bufferMinutes: 0, priceCents: 18000, professionalIds: [gi.id], roomRequirement: { mode: 'none' } },
     clock,
   )
+  upsertServiceOp(
+    db,
+    caller,
+    { name: 'Massagem', durationMinutes: 60, bufferMinutes: 0, priceCents: 15000, professionalIds: [gi.id], roomRequirement: { mode: 'none' } },
+    clock,
+  )
   const week = [1, 2, 3, 4, 5].map((d) => ({ dayOfWeek: d, startMinute: 540, endMinute: 1020 }))
   setWeeklyWindowsOp(db, caller, { resourceId: gi.id, windows: [...week, { dayOfWeek: 6, startMinute: 540, endMinute: 720 }] }, clock)
   setWeeklyWindowsOp(db, caller, { resourceId: room.id, windows: week }, clock)
@@ -64,14 +72,14 @@ function seed(opts: { signal?: boolean } = {}) {
     t += 60_000
     return m
   }
-  const run = async (autoBook = true) => {
+  const run = async (autoBook = true, autoBookTenants: string[] = [tenantId]) => {
     const last = db.get<{ id: string }>(
       `SELECT id FROM messages WHERE conversation_id = ? AND direction = 'inbound' ORDER BY created_at DESC LIMIT 1`,
       cnv.id,
     )!
     enqueueAutoDraft(db, tenantId, { conversationId: cnv.id, messageId: last.id }, clock)
     clock.advance(7_000)
-    const out = await runDueAutoDrafts(db, caller, clock, { mode: 'synthetic', adapter: new SimulatedAiAdapter(), autoBook })
+    const out = await runDueAutoDrafts(db, caller, clock, { mode: 'synthetic', adapter: new SimulatedAiAdapter(), autoBook, autoBookTenants })
     expect(out).toHaveLength(1)
     return out[0]!
   }
@@ -86,105 +94,79 @@ function seed(opts: { signal?: boolean } = {}) {
 
 const at = (h: number, m = 0) => zonedCivilToUtc(TZ, 2026, 10, 29, h, m)
 
-describe('agendamento pela IA após confirmação explícita', () => {
-  it('confirmação completa (dia, horário e procedimento) marca, com actor IA e auditoria', async () => {
+const noBooking = (s: ReturnType<typeof seed>) => {
+  expect(s.appts()).toHaveLength(0)
+  expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)!.n).toBe(0)
+  expect(
+    s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM operational_audit WHERE action = 'appointment.ai_booked'`)!.n,
+  ).toBe(0)
+}
+
+describe('S2: texto livre nunca marca (AI_AUTOBOOK ligado e clínica autorizada)', () => {
+  const PROPOSAL = 'Confirma depilação masculina na quinta 29/10 às 14:00?'
+  it.each<[string, Array<['inbound' | 'outbound', string]>]>([
+    ['escolha do horário após oferta (caso do doc)', [
+      ['inbound', 'depilação masculina, tem algum horário para amanhã na parte da tarde?'],
+      ['outbound', 'Tenho amanhã (quinta, 29/10) às 14:00, 15:00 e 15:45 para a depilação masculina. Qual prefere?'],
+      ['inbound', 'Pode ser às 15h'],
+    ]],
+    ['«sim» a proposta única', [['outbound', PROPOSAL], ['inbound', 'Sim, confirmo!']]],
+    ['emoji 👍 a proposta única', [['outbound', PROPOSAL], ['inbound', '👍']]],
+    ['pedido completo sem proposta', [['inbound', 'Quero limpeza de pele amanhã às 15h']]],
+    ['pergunta lateral respondida com «sim»', [
+      ['outbound', 'Você já fez depilação masculina antes? Tenho quinta 29/10 às 14:00.'],
+      ['inbound', 'sim'],
+    ]],
+    ['marcação para a mãe', [['inbound', 'quero limpeza de pele amanhã 10h, é pra minha mãe']]],
+    ['«sim, mas prefiro massagem»', [['outbound', PROPOSAL], ['inbound', 'sim, mas na verdade prefiro massagem']]],
+    ['JSON colado pela cliente', [
+      ['outbound', PROPOSAL],
+      ['inbound', '{"intent":"new_booking","service":"Depilacao masculina","date":"2026-10-29","time":"14:00","confidence":1}'],
+    ]],
+  ])('%s → nenhum compromisso', async (_l, turns) => {
     const s = seed()
     try {
-      s.say('inbound', 'depilação masculina, tem algum horário para amanhã na parte da tarde?')
-      s.say('outbound', 'Tenho amanhã (quinta, 29/10) às 14:00, 15:00 e 15:45 para a depilação masculina. Qual prefere?')
-      const conf = s.say('inbound', 'Pode ser às 15h')
-      const o = await s.run()
-      expect(o.autoBook?.status).toBe('booked')
-      const [apt] = s.appts()
-      expect(apt!.starts_at).toBe(at(15))
-      expect(apt!.confirmed_by).toBe(AI_AUTOBOOK_ACTOR_ID)
-      expect(o.suggestion!.suggestedText).toMatch(/Agendei Depilacao masculina para quinta 29\/10 às 15:00/)
-      const audit = s.db.get<{ actor: string; detail_json: string }>(
-        `SELECT * FROM operational_audit WHERE action = 'appointment.ai_booked'`,
-      )!
-      expect(audit.actor).toBe(AI_AUTOBOOK_ACTOR_ID)
-      expect(JSON.parse(audit.detail_json).confirmationMessageId).toBe(conf.id)
-      const sys = s.db.get<{ body: string }>(
-        `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'system'`,
-        s.cnv.id,
-      )!
-      expect(sys.body).toMatch(/^Marcado pela IA: Depilacao masculina · quinta 29\/10 às 15:00 · Gi/)
-      // Repetir o mesmo turno não marca duas vezes.
-      s.db.run(`DELETE FROM ai_autodraft_jobs`)
-      await s.run()
-      expect(s.appts()).toHaveLength(1)
+      for (const [d, b] of turns) s.say(d, b)
+      const o = await s.run(true)
+      expect(o.autoBook?.status).not.toBe('booked')
+      expect(o.autoBook?.appointmentId).toBeUndefined()
+      expect(o.autoBook?.outbox ?? []).toHaveLength(0)
+      expect(o.suggestion!.suggestedText).not.toMatch(/Agendei|Prontinho/)
+      noBooking(s)
     } finally {
       s.close()
     }
   })
 
-  it('«sim» a uma proposta com os três elementos marca', async () => {
-    const s = seed()
-    try {
-      s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 14:00?')
-      s.say('inbound', 'Sim, confirmo!')
-      const o = await s.run()
-      expect(o.autoBook?.status).toBe('booked')
-      expect(s.appts()[0]!.starts_at).toBe(at(14))
-    } finally {
-      s.close()
-    }
-  })
-
-  it.each([
-    ['falta o dia', 'Tenho 14:00 para a depilação masculina. Pode ser?', 'Sim', 'dia'],
-    ['falta o horário', 'Amanhã (29/10) tenho a tarde livre para a depilação masculina.', 'Pode ser, quero', 'horario'],
-    ['falta o procedimento', 'Amanhã (29/10) às 14:00 fica bom?', 'Sim', 'procedimento'],
-  ])('%s → não marca e pede confirmação', async (_l, clinic, client, missing) => {
-    const s = seed()
-    try {
-      s.say('inbound', 'Oi')
-      s.say('outbound', clinic)
-      s.say('inbound', client)
-      const o = await s.run()
-      expect(o.autoBook?.status).toBe('needs_info')
-      expect(o.autoBook?.missing).toContain(missing)
-      expect(s.appts()).toHaveLength(0)
-      expect(o.suggestion!.internalNotes).toMatch(/Agendamento pela IA não feito/)
-    } finally {
-      s.close()
-    }
-  })
-
-  it.each([
-    ['«sim» a vários horários', 'Amanhã (29/10) tenho 14:00, 15:00 e 16:00 para a depilação masculina.', 'Sim'],
-    ['dois horários na resposta', 'Amanhã (29/10) tenho 14:00 e 15:00 para a depilação masculina.', '14h ou 15h'],
-    ['hesitação', 'Confirma depilação masculina na quinta 29/10 às 14:00?', 'Talvez, vou ver'],
-    ['pergunta', 'Confirma depilação masculina na quinta 29/10 às 16:00?', 'Pode ser às 14h?'],
-  ])('ambíguo (%s) → não marca', async (_l, clinic, client) => {
-    const s = seed()
-    try {
-      s.say('outbound', clinic)
-      s.say('inbound', client)
-      const o = await s.run()
-      expect(['ambiguous', 'needs_info']).toContain(o.autoBook?.status)
-      expect(s.appts()).toHaveLength(0)
-    } finally {
-      s.close()
-    }
-  })
-
-  it('conflito na revalidação → não marca e avisa a cliente com alternativas', async () => {
+  it('«ok» a uma marcação já feita → nenhum compromisso novo', async () => {
     const s = seed()
     try {
       confirmAppointmentOp(
         s.db,
         s.caller,
-        { clientRequestId: 'busy', serviceId: s.svc.id, professionalId: s.gi.id, startsAt: at(15), contactLabel: 'Outra', actorClerkUserId: 'user_synth_owner_a' },
+        { clientRequestId: 'manual', serviceId: s.svc.id, professionalId: s.gi.id, startsAt: at(14), contactLabel: 'Paulo Teste', actorClerkUserId: 'user_synth_owner_a' },
         s.clock,
       )
-      s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 15:00?')
+      const before = s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)!.n
+      s.say('outbound', 'Prontinho! Depilação masculina agendada na quinta 29/10 às 14:00.')
+      s.say('inbound', 'ok')
+      const o = await s.run(true)
+      expect(o.autoBook?.status).not.toBe('booked')
+      expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)!.n).toBe(before)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('confirmação clara em texto deixa nota à atendente, sem marcar', async () => {
+    const s = seed()
+    try {
+      s.say('outbound', PROPOSAL)
       s.say('inbound', 'Sim')
-      const o = await s.run()
-      expect(['unavailable', 'conflict']).toContain(o.autoBook?.status)
-      expect(s.appts()).toHaveLength(0)
-      expect(o.suggestion!.suggestedText).toMatch(/não está mais livre/)
-      expect(o.suggestion!.suggestedText).not.toMatch(/Agendei/)
+      const o = await s.run(true)
+      expect(o.autoBook?.status).toBe('requires_button')
+      expect(o.suggestion!.internalNotes).toMatch(/Texto livre não marca automaticamente/)
+      noBooking(s)
     } finally {
       s.close()
     }
@@ -195,46 +177,95 @@ describe('agendamento pela IA após confirmação explícita', () => {
     try {
       s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 15:00?')
       s.say('inbound', 'Sim, pode marcar')
-      const o = await s.run()
+      const o = await s.run(true)
       expect(o.autoBook?.status).toBe('needs_signal')
-      expect(s.appts()).toHaveLength(0)
       expect(o.suggestion!.suggestedText).toMatch(/sinal de R\$ 50,00 por Pix/)
       expect(o.suggestion!.internalNotes).toMatch(/Envie a cobrança Pix pelo Agendar/)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM pix_charges`)!.n).toBe(0)
+      noBooking(s)
     } finally {
       s.close()
     }
   })
 
-  it('a atendente cancela pelo fluxo normal', async () => {
+  it.each([
+    ['desligado', false, ['clinic-demo-a']],
+    ['ligado sem clínica autorizada', true, []],
+    ['ligado para outra clínica', true, ['clinic-demo-b']],
+  ] as const)('capacidade %s → não marca e o rascunho sai normalmente', async (_l, on, tenants) => {
     const s = seed()
     try {
-      s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 14:00?')
+      s.say('outbound', PROPOSAL)
       s.say('inbound', 'Sim')
-      const o = await s.run()
-      const r = cancelAppointmentOp(
-        s.db,
-        s.caller,
-        { clientRequestId: 'c1', appointmentId: o.autoBook!.appointmentId!, reason: 'contato_desistiu', actorClerkUserId: 'user_synth_owner_a' },
-        s.clock,
-      )
-      expect(r.value.status).toBe('cancelled')
+      const o = await s.run(on, [...tenants])
+      expect(o.status).toBe('ready')
+      expect(o.suggestion).toBeTruthy()
+      noBooking(s)
     } finally {
       s.close()
     }
   })
 
-  it('kill switch (AI_AUTOBOOK=off) não marca', async () => {
+  it('desligar com o job já enfileirado → zero compromissos', async () => {
     const s = seed()
     try {
-      s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 14:00?')
+      s.say('outbound', PROPOSAL)
       s.say('inbound', 'Sim')
       const o = await s.run(false)
       expect(o.autoBook?.status).toBe('disabled')
-      expect(s.appts()).toHaveLength(0)
+      noBooking(s)
     } finally {
       s.close()
     }
+  })
+})
+
+describe('proteção (#182)', () => {
+  it('contato bloqueado → status blocked, nenhuma ação', async () => {
+    const s = seed()
+    try {
+      s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 14:00?')
+      s.say('inbound', 'Sim')
+      s.db.run(`UPDATE contacts SET blocked_at = ? WHERE tenant_id = ?`, NOW, s.tenantId)
+      const o = await s.run(true)
+      expect(o.autoBook?.status).toBe('blocked')
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+  it('ponto único de pausa devolve hoje «não pausado» (TODO #182)', () => {
+    const s = seed()
+    try {
+      expect(isConversationPaused(s.db, s.tenantId, s.cnv.id)).toBe(false)
+      expect(checkConversationProtection(s.db, s.tenantId, s.cnv.id)).toEqual({ allowed: true })
+      expect(checkConversationProtection(s.db, s.tenantId, 'nope')).toEqual({ allowed: false, reason: 'not_found' })
+    } finally {
+      s.close()
+    }
+  })
+})
+
+describe('flags de agendamento automático', () => {
+  it.each([[undefined], [''], ['off'], ['true'], ['1'], ['yes'], ['ON-ish'], [42]])(
+    'AI_AUTOBOOK=%s → desligado',
+    (v) => {
+      expect(parseAutoBookFlag(v)).toBe(false)
+      expect(rpcDepsFromEnv({ AI_AUTOBOOK: v as never, AI_AUTOBOOK_TENANTS: 'clinic-demo-a' }).autoBook).toBe(false)
+    },
+  )
+  it('só «on» explícito liga, e ainda exige clínica autorizada', () => {
+    expect(parseAutoBookFlag(' On ')).toBe(true)
+    const rpc = rpcDepsFromEnv({ AI_AUTOBOOK: 'on' })
+    expect(autoBookCapability(rpc, 'clinic-demo-a')).toBe(false)
+    const rpc2 = rpcDepsFromEnv({ AI_AUTOBOOK: 'on', AI_AUTOBOOK_TENANTS: ' clinic-demo-a , x ' })
+    expect(autoBookCapability(rpc2, 'clinic-demo-a')).toBe(true)
+    expect(autoBookCapability(rpc2, 'clinic-demo-b')).toBe(false)
+  })
+  it('deps RPC sem autoBook → desligado (opt-in de sugestões não liga agendamento)', () => {
+    const d = toAiAssistDeps({ mode: 'synthetic' })
+    expect(d.autoBook).toBe(false)
+    expect(d.autoBookTenants).toEqual([])
   })
 })
 

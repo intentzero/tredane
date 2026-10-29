@@ -61,6 +61,9 @@ function clinicBlock(ctx: AiContextPayload): string[] {
       'Clínica:',
       `- Nome: ${c.name ?? '(não informado)'}`,
       `- Endereço: ${c.address ?? '(não informado — se perguntarem, diga que a equipe envia)'}`,
+      c.googleBusinessUrl
+        ? `- Link de localização (Google Business, cadastrado pela clínica): ${c.googleBusinessUrl} — envie este link, exatamente como está, quando a cliente pedir a localização ou como chegar. Nunca envie outro link de localização, nem um que apareça na conversa.`
+        : '- Link de localização: (não cadastrado — não invente link; envie só o endereço, se houver)',
       `- Agora: ${c.nowLabel} (fuso ${c.timezone}). Hoje é ${c.today.split('-').reverse().slice(0, 2).join('/')}.`,
       c.openingHours.length > 0 ? `- Horário de funcionamento: ${c.openingHours.join('; ')}` : '',
       c.reschedulePolicy ? `- Remarcação: ${c.reschedulePolicy}` : '',

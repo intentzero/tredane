@@ -111,7 +111,11 @@ export function ClinicHub({ tenantId, snap, aiCard, stagingCard }: Props) {
         <span className="hub-week-text">
           <strong>Horário da clínica</strong>
           <span>
-            {weekHours > 0 ? `Aberta ${Math.round(weekHours)} h por semana` : 'Sem horário ainda'}
+            {weekHours > 0
+              ? `Aberta ${Math.round(weekHours)} h por semana`
+              : hoursOk
+                ? 'Sem horário da clínica · cada profissional tem o seu'
+                : 'Sem horário ainda'}
           </span>
         </span>
       </button>
