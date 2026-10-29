@@ -151,6 +151,8 @@ Nome na interface: **Acompanhamento** (DEC-045). Na barra inferior de quatro ite
 
 **Origem:** JRN-03; REQ-030, REQ-031, REQ-033. **Estado:** Proposto.
 
+**Desktop (Confirmado, DEC-074):** a partir de 1024 px, **Agendar** na conversa abre este fluxo num painel de 420 px à direita, por cima e sem véu, no lugar do contato; a conversa continua visível. Mesmas regras e estados do celular; Esc ou × fecham; **Voltar à conversa** só fecha o painel; trocar de conversa fecha o painel. A rota `/agenda/agendar` segue para a Agenda, o Acompanhar e o celular.
+
 Tela única no celular (M-04, M-34 a M-38), cabeçalho com o contato real e **Voltar** para a origem (conversa, acompanhamento ou agenda). **Proposto** (redesenho de 27/10/2026, em staging).
 
 1. **Serviço** — cartões com nome, duração e valor.
@@ -343,7 +345,7 @@ Ver seção 6.2.
 
 ## 8. Direção visual proposta
 
-**Estado:** **Confirmado** ([DEC-041](decisions.md), 24/10/2026), exceto a biblioteca de componentes (**Proposto**). A fonte única dos valores é [docs/design/tokens.json](../design/tokens.json) (versão 0.3.0); **esta seção não repete os valores** para não haver versões concorrentes. Resumo da direção: Inter (400/500/600) em seis tamanhos (12, 14, 16, 18, 22, 26); 25 cores por papel; cinco raios (8, 12, 16, 20, pílula); espaçamento em múltiplos de 4 px; borda de controle com 3:1 sobre o fundo. Componentes e estados: [catálogo](../design/catalog/index.html) e [components.md](../design/components.md). Ícones: [icons.md](../design/icons.md). Base de componentes: [ADR-0013](../adr/0013-design-system-components.md).
+**Estado:** **Confirmado** ([DEC-041](decisions.md), 24/10/2026), exceto a biblioteca de componentes (**Proposto**). A fonte única dos valores é [docs/design/tokens.json](../design/tokens.json) (versão 0.3.1; fonte Roboto desde [DEC-073](decisions.md)); **esta seção não repete os valores** para não haver versões concorrentes. Resumo da direção: Inter (400/500/600) em seis tamanhos (12, 14, 16, 18, 22, 26); 25 cores por papel; cinco raios (8, 12, 16, 20, pílula); espaçamento em múltiplos de 4 px; borda de controle com 3:1 sobre o fundo. Componentes e estados: [catálogo](../design/catalog/index.html) e [components.md](../design/components.md). Ícones: [icons.md](../design/icons.md). Base de componentes: [ADR-0013](../adr/0013-design-system-components.md).
 
 ## 9. Rastreabilidade
 

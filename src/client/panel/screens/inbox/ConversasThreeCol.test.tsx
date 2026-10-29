@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ConversasThreeCol } from './ConversasArea'
 
@@ -89,5 +89,59 @@ describe('ConversasThreeCol', () => {
     expect(screen.queryByRole('button', { name: 'Ver contato' })).toBeNull()
     // A lista continua no mesmo lugar (mesma coluna) que com a conversa aberta.
     expect(container.querySelector('.conversas-3col-list')).toBeTruthy()
+  })
+
+  it('DEC-074: Agendar abre um painel no lugar do contato; fechar devolve o contato lembrado', async () => {
+    localStorage.clear()
+    stubMatchMedia(true)
+    const now = Date.now()
+    const detail = {
+      id: 'c',
+      tenantId: 't',
+      contactId: 'ctc',
+      status: 'open',
+      assigneeClerkUserId: 'u',
+      assigneeDisplayName: 'Ana',
+      assignmentVersion: 1,
+      lastMessageAt: now,
+      lastMessagePreview: 'Oi',
+      lastMessageDirection: 'inbound',
+      unreadCount: 0,
+      createdAt: now,
+      updatedAt: now,
+      contact: { id: 'ctc', waId: '5511999000111', displayName: 'Marina Fictícia' },
+      messages: [],
+      messagesHasMore: false,
+      messagesNextBefore: null,
+      messagingWindow: { open: true, lastInboundAt: now, closesAt: now + 3_600_000, remainingMs: 3_600_000 },
+    }
+    const ready: Record<string, unknown> = {
+      getInboxConversation: async () => detail,
+      listConversationPixCharges: async () => [],
+      listPixPaymentAlerts: async () => [],
+      listWhatsappTemplates: async () => ({ items: [] }),
+      markInboxRead: async () => ({ conversation: detail }),
+    }
+    const smartApi = new Proxy({}, {
+      get: (_t, name: string) => (typeof ready[name] === 'function' ? ready[name] : () => new Promise(() => {})),
+    }) as never
+    const { container } = render(
+      <ConversasThreeCol tenantId="t" conversationId="c" api={smartApi} generation={1} viewerId="u" isOwner />,
+    )
+    const frame = () => container.querySelector('.conversas-3col')
+    expect(frame()?.getAttribute('data-contact')).toBe('open')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Agendar horário' }))
+    await screen.findByRole('complementary', { name: 'Agendar horário' })
+    expect(frame()?.getAttribute('data-agendar')).toBe('open')
+    expect(frame()?.getAttribute('data-contact')).toBe('closed')
+    expect(screen.getByRole('button', { name: 'Agendar horário' }).getAttribute('aria-pressed')).toBe('true')
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Agendar horário' })).toBeNull())
+    expect(frame()?.getAttribute('data-agendar')).toBeNull()
+    expect(frame()?.getAttribute('data-contact')).toBe('open')
+    // Fechar o Agendar não mexe na escolha lembrada do contato.
+    expect(localStorage.getItem('tredane.contactPanel')).toBeNull()
   })
 })
