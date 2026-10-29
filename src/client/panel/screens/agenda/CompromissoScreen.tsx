@@ -1,4 +1,4 @@
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { PanelSelect } from '../../ui/PanelSelect'
 import {
@@ -22,6 +22,10 @@ type Props = {
   appointmentId: string
   api: PanelApi
   generation: number
+  /** No desktop o compromisso abre num painel por cima da grade (DEC-069): fecha em vez de voltar. */
+  onClose?: () => void
+  /** Cancelamento ou devolução concluídos: a grade refaz a leitura. */
+  onChanged?: () => void
 }
 
 /**
@@ -33,6 +37,8 @@ export function CompromissoScreen({
   appointmentId,
   api,
   generation,
+  onClose,
+  onChanged,
 }: Props) {
   const timezone = useClinicTimezone(api, tenantId, generation)
   const [detail, setDetail] = useState<AppointmentDetailResponse | null>(null)
@@ -118,6 +124,7 @@ export function CompromissoScreen({
         setDetail(result.appointment)
         setPaidSignal(result.charge)
         setMode('view')
+        onChanged?.()
         if (disposition === 'retain') {
           setMessage('Compromisso cancelado. Sinal retido (decisão registrada).')
         } else if (result.refundConfirmed) {
@@ -144,6 +151,7 @@ export function CompromissoScreen({
         )
         setDetail(updated)
         setMode('view')
+        onChanged?.()
         setMessage('Compromisso cancelado. Recursos liberados.')
       }
     } catch (err) {
@@ -189,21 +197,32 @@ export function CompromissoScreen({
   return (
     <div className="agenda-detail" data-screen="m05-compromisso">
       <header className="panel-header">
-        <Button
-          className="panel-icon-btn"
-          aria-label="Voltar à agenda"
-          onPress={() =>
-            navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
-          }
-        >
-          <ChevronLeft aria-hidden size={22} strokeWidth={2} />
-        </Button>
-        <div>
-          <h1 className="panel-title">Compromisso</h1>
+        {onClose ? null : (
+          <Button
+            className="panel-icon-btn"
+            aria-label="Voltar à agenda"
+            onPress={() =>
+              navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
+            }
+          >
+            <ChevronLeft aria-hidden size={22} strokeWidth={2} />
+          </Button>
+        )}
+        <div style={onClose ? { flex: 1 } : undefined}>
+          {onClose ? (
+            <h2 className="panel-title">Compromisso</h2>
+          ) : (
+            <h1 className="panel-title">Compromisso</h1>
+          )}
           <span className="panel-subtitle">
             {detail.status === 'confirmed' ? 'Confirmado' : 'Cancelado'}
           </span>
         </div>
+        {onClose ? (
+          <Button className="panel-icon-btn" aria-label="Fechar compromisso" onPress={onClose}>
+            <X aria-hidden size={20} strokeWidth={2} />
+          </Button>
+        ) : null}
       </header>
 
       <div className="panel-scroll">

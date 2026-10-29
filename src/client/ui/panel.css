@@ -6683,7 +6683,8 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.acomp-panel {
+.acomp-panel,
+.agenda-panel {
   position: absolute;
   top: 0;
   right: 0;
@@ -6714,7 +6715,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .acomp-panel {
+  .acomp-panel,
+  .agenda-panel {
     animation: none;
   }
 
@@ -6829,6 +6831,7 @@
   }
 
   .agenda-wide {
+    position: relative;
     flex: 1;
     min-height: 0;
     display: grid;

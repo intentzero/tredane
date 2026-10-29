@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, ToggleButton, ToggleButtonGroup } from 'react-aria-components'
 import {
   PanelApiError,
@@ -17,6 +17,7 @@ import { ErrorState } from '../../states/StatusScreens'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
+import { CompromissoScreen } from './CompromissoScreen'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
 import {
   HOUR_HEIGHT,
@@ -37,6 +38,8 @@ type Props = {
   api: PanelApi
   generation: number
   view: 'day' | 'week'
+  /** Compromisso aberto no painel por cima (rota `…/agenda/compromisso/:id`, só no desktop). */
+  openId?: string
 }
 
 const DEFAULT_TZ = 'America/Sao_Paulo'
@@ -74,7 +77,7 @@ function detailRoute(tenantId: string, id: string) {
  * A API de semana traz a semana inteira; o dia usa a mesma resposta (e a faixa
  * da semana mostra quais dias têm horário marcado).
  */
-export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
+export function AgendaDayWeek({ tenantId, api, generation, view, openId }: Props) {
   const [date, setDate] = useState(() => upcomingCivilDates(DEFAULT_TZ, Date.now(), 1)[0]!)
   const [data, setData] = useState<AgendaViewResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -87,6 +90,34 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
   const [selectedRooms, setSelectedRooms] = useState<string[]>([])
   // Desktop (DEC-068): coluna de contexto ao lado da grade.
   const wide = useMediaQuery('(min-width: 1280px)')
+  const returnFocus = useRef<HTMLElement | null>(null)
+  const panelRef = useRef<HTMLElement | null>(null)
+  const panelOpen = wide && openId != null
+
+  // Esc fecha o painel; o foco vai ao painel ao abrir e volta ao item ao fechar.
+  useEffect(() => {
+    if (!panelOpen) return
+    panelRef.current?.focus({ preventScroll: true })
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) closePanel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [panelOpen, openId])
+
+  function closePanel() {
+    navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: view === 'week' ? 'semana' : 'dia' })
+    returnFocus.current?.focus?.({ preventScroll: true })
+  }
+
+  function openAppointment(id: string) {
+    if (wide && openId === id) {
+      closePanel()
+      return
+    }
+    if (wide && !openId) returnFocus.current = document.activeElement as HTMLElement | null
+    navigatePanel(detailRoute(tenantId, id))
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -359,7 +390,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
             professionals={professionals}
             timezone={timezone}
             now={now}
-            onOpen={(id) => navigatePanel(detailRoute(tenantId, id))}
+            onOpen={(id) => openAppointment(id)}
             onSchedule={goSchedule}
             onOpenHold={(h) =>
               navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
@@ -374,7 +405,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
             timezone={timezone}
             isToday={date === today}
             now={now}
-            onOpen={(id) => navigatePanel(detailRoute(tenantId, id))}
+            onOpen={(id) => openAppointment(id)}
             onSchedule={goSchedule}
           />
         ) : (
@@ -398,7 +429,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
                         <button
                           type="button"
                           className="agenda-apt"
-                          onClick={() => navigatePanel(detailRoute(tenantId, apt.id))}
+                          onClick={() => openAppointment(apt.id)}
                         >
                           <span className="agenda-apt-time">
                             {formatSlotTime(apt.startsAt, timezone)}
@@ -468,12 +499,31 @@ export function AgendaDayWeek({ tenantId, api, generation, view }: Props) {
           setSelectedRooms([])
         }}
         onSchedule={goSchedule}
-        onOpen={(id) => navigatePanel(detailRoute(tenantId, id))}
+        onOpen={(id) => openAppointment(id)}
         onOpenHold={(h) =>
           navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
         }
       />
       {work}
+      {panelOpen ? (
+        <aside
+          id="agenda-panel"
+          ref={panelRef}
+          tabIndex={-1}
+          className="agenda-panel"
+          aria-label="Compromisso"
+        >
+          <CompromissoScreen
+            key={openId}
+            tenantId={tenantId}
+            appointmentId={openId!}
+            api={api}
+            generation={generation}
+            onClose={closePanel}
+            onChanged={() => void load()}
+          />
+        </aside>
+      ) : null}
     </div>
   )
 }
