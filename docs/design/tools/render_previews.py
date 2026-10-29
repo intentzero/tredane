@@ -3,7 +3,8 @@
 Uso (a partir da raiz do repositório):
     python3 docs/design/tools/render_previews.py
 Requer: python3, Node 18+, `npm i -D playwright` e um Chromium instalado.
-Gera HTML temporário em docs/design/.tmp-html (ignorado) e atualiza os PNG em
+Gera HTML temporário em docs/design/.tmp-html (ignorado), expande <sc-for>/<sc-if> dos mocks
+interativos com o renderVals do componente (tools/expand_dc.mjs) e atualiza os PNG em
 mobile/previews e desktop/previews. Telas com estado (M-09 e M-20) saem no
 estado inicial: passo de e-mail e aba Profissionais.
 """
@@ -38,6 +39,7 @@ for name in ('mobile', 'desktop'):
     for f in glob.glob(os.path.join(ROOT, name, '*.dc.html')):
         open(os.path.join(out, os.path.basename(f).replace('.dc.html', '.html')), 'w').write(conv(open(f).read()))
 
+subprocess.check_call(['node', os.path.join(ROOT, 'tools', 'expand_dc.mjs')], cwd=ROOT)
 subprocess.check_call(['node', os.path.join(ROOT, 'tools', 'shot.mjs')], cwd=ROOT)
 # nomes dos PNG mobile: M-xx-Arquivo.png, conforme canvas.json
 boards = json.load(open(os.path.join(ROOT, 'mobile', 'canvas.json')))['boards']
