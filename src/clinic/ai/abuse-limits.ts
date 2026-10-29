@@ -1,8 +1,9 @@
 /**
  * S7 (#178, épico #171) — limites de abuso das automações.
  *
- * TODOS OS VALORES SÃO «Proposto — aguarda Paulo». Desligado por padrão: só `ABUSE_LIMITS=on`
- * liga. Não usa dados de uso real (não existem); os valores são pontos de partida simples.
+ * Valores das quotas: **Confirmado (Paulo, 29/10/2026)** — ver docs/security/abuse-limits.md.
+ * Desligado por padrão (fail-closed): só `ABUSE_LIMITS=on` liga. Controlo por env do Worker
+ * (`ABUSE_LIMITS`, `ABUSE_LIMIT_*`); **não há UI** no painel da clínica.
  *
  * Princípios:
  * - Só limita efeitos AUTOMÁTICOS (rascunho automático, marcação/proposta pela IA). Ações da
@@ -37,16 +38,19 @@ export type AbuseLimits = {
   futureAppointmentsPerContact: number
   /** Cobranças Pix aguardando pagamento por contato antes de nova cobrança automática. */
   pendingPixPerContact: number
-  /** Propostas pendentes por contato (aplicado quando S3/#174 existir). */
+  /** Propostas pendentes por contato (tabela appointment_proposals, S3/#174/#264). */
   pendingProposalsPerContact: number
-  /** Propostas criadas por contato na janela (S3/#174). */
+  /** Propostas criadas por contato na janela (S3/#174/#264). */
   proposalsPerContact: number
-  /** Propostas criadas por clínica na janela (S3/#174). */
+  /** Propostas criadas por clínica na janela (S3/#174/#264). */
   proposalsPerClinic: number
 }
 
-/** Proposto — aguarda Paulo. Ver docs/security/abuse-limits.md. */
-export const PROPOSED_ABUSE_LIMITS: Readonly<AbuseLimits> = Object.freeze({
+/**
+ * Padrões Confirmados (Paulo, 29/10/2026). `enabled` continua false (fail-closed).
+ * Ver docs/security/abuse-limits.md.
+ */
+export const DEFAULT_ABUSE_LIMITS: Readonly<AbuseLimits> = Object.freeze({
   enabled: false,
   windowMs: 24 * 60 * 60 * 1000,
   autoDraftsPerContact: 20,
@@ -59,6 +63,9 @@ export const PROPOSED_ABUSE_LIMITS: Readonly<AbuseLimits> = Object.freeze({
   proposalsPerContact: 5,
   proposalsPerClinic: 100,
 })
+
+/** @deprecated Use DEFAULT_ABUSE_LIMITS (valores Confirmados Paulo 29/10/2026). */
+export const PROPOSED_ABUSE_LIMITS = DEFAULT_ABUSE_LIMITS
 
 type NumericKey = Exclude<keyof AbuseLimits, 'enabled'>
 const ENV_KEYS: Record<NumericKey, string> = {
@@ -76,10 +83,10 @@ const ENV_KEYS: Record<NumericKey, string> = {
 
 /**
  * `ABUSE_LIMITS=on` liga (qualquer outro valor → desligado). Cada limite pode ser sobrescrito por
- * `ABUSE_LIMIT_*` (inteiro ≥ 0; inválido → padrão proposto). Janela em horas.
+ * `ABUSE_LIMIT_*` (inteiro ≥ 0; inválido → padrão Confirmado). Janela em horas.
  */
 export function abuseLimitsFromEnv(env: Record<string, string | undefined>): AbuseLimits {
-  const out: AbuseLimits = { ...PROPOSED_ABUSE_LIMITS }
+  const out: AbuseLimits = { ...DEFAULT_ABUSE_LIMITS }
   out.enabled = typeof env.ABUSE_LIMITS === 'string' && env.ABUSE_LIMITS.trim().toLowerCase() === 'on'
   for (const [key, name] of Object.entries(ENV_KEYS) as Array<[NumericKey, string]>) {
     if (!name) continue

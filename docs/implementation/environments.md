@@ -98,6 +98,19 @@ Detalhe: [f6-ops.md](f6-ops.md) e [runbooks/](runbooks/README.md).
 
 Criação remota de D1/R2/Queues/DO namespaces, contas Meta/Clerk e revisão jurídica permanecem gates (#18/#44). Este documento fixa **nomes, guards e runbooks** para a implementação não divergir entre ambientes.
 
+## Limites de abuso (`ABUSE_LIMITS`) — S7 (#178)
+
+**Valores Confirmados (Paulo, 29/10/2026):** ver [abuse-limits.md](../security/abuse-limits.md). Controlo só por variáveis de ambiente do Worker (`ABUSE_LIMITS`, `ABUSE_LIMIT_*`); **não há UI** no painel da clínica. Ações manuais da equipe não são limitadas.
+
+| Variável | Valor | Efeito |
+| --- | --- | --- |
+| `ABUSE_LIMITS` | ausente, vazio ou ≠ `on` | Quotas desligadas (padrão, fail-closed) |
+| `ABUSE_LIMITS` | `on` | Quotas ligadas com os valores Confirmados (ou overrides `ABUSE_LIMIT_*`) |
+
+| Ambiente | Estado esperado |
+| --- | --- |
+| development / staging / production | Desligado (sem `ABUSE_LIMITS=on` por defeito). Valores Confirmados; flag continua off até ops ligar em staging. |
+
 ## Agendamento automático pela IA (`AI_AUTOBOOK`) — S2 (#173)
 
 **Estado no código:** texto livre («sim», emoji, pedido completo, JSON) **nunca** cria compromisso, em nenhum ambiente e qualquer que seja a flag. A leitura do texto só gera nota à atendente. Propostas versionadas (S3 #174), envio do botão WhatsApp (S4 #175) e clique→marcação/Pix (S5 #176, DEC-061 **Decidido**) estão no código. O efeito transacional do botão **Confirmar** só corre quando a capacidade está ligada para o tenant (`AI_AUTOBOOK=on` + lista); texto continua a não marcar mesmo com a flag ligada. `AI_AUTOBOOK` permanece desligado por padrão (fail-closed).

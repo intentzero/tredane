@@ -4,7 +4,7 @@
 
 **Reconciliação SEG-IA (28/10/2026):** a direção do [épico #171](https://github.com/intentzero/tredane/issues/171) — confirmação **só pelo botão do WhatsApp** numa proposta montada e versionada pelo backend — está formalizada em [DEC-061](../product/decisions.md) (**Decidido em 28/10/2026, Paulo, registo D-20261028-200500-CUR**). Texto livre deixa de marcar. Critérios marcados **[substituído por Sx]** abaixo não devem ser implementados como estão; os restantes mantêm-se. Nenhuma tarefa é fechada por esta documentação.
 
-**Valores Decididos (Paulo, 28/10/2026):** proposta válida 30 min · alerta de pendente 5 min · 20 marcações revistas no piloto. **Em aberto (S7):** limites de abuso e janela de quotas.
+**Valores Decididos (Paulo, 28/10/2026):** proposta válida 30 min · alerta de pendente 5 min · 20 marcações revistas no piloto. **Limites de abuso (S7): Confirmado (Paulo, 29/10/2026)** — [abuse-limits.md](../security/abuse-limits.md); `ABUSE_LIMITS` off por padrão; sem UI.
 
 **Nova ordem:** S1 (#172) → S2 (#173) / S3 (#174) / S6 (#177) / S8 (#179) → S4 (#175) → S5 (#176) → S7 (#178) → S9 (#180).
 
@@ -131,6 +131,6 @@ Mapeado para S9 (#180). Gates documentados em [seg-ia-s9-e2e-validation.md](../s
 
 - ~~Vigência da proposta (H4); N minutos (H7); mínimo do piloto (H10)~~ → Decididos (Paulo, 28/10/2026): 30 min, 5 min, 20 marcações.
 - Revisão da DEC-060 por botão: DEC-061 **Decidido — 28/10/2026, registo D-20261028-200500-CUR**.
-- Limites de abuso por contato/clínica e janela de quotas (S7, #178) — Em aberto (Paulo).
+- ~~Limites de abuso por contato/clínica e janela de quotas (S7, #178)~~ → **Confirmado (Paulo, 29/10/2026)** — [abuse-limits.md](../security/abuse-limits.md); flag continua off até ops.
 - Escolha final de modelo e configuração de thinking (H9); metas de latência (H9).
 - Envio automático: não aprovado; critérios só esboçados.
