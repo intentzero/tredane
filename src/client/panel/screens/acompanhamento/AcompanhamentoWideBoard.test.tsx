@@ -89,6 +89,27 @@ describe('AcompanhamentoWideBoard (quadro em largura total)', () => {
     expect(screen.queryByText('Renata Lopes')).toBeNull()
   })
 
+  it('pede ao servidor as oportunidades encerradas só para Concluído e Perdido', async () => {
+    const api = makeApi()
+    mount(undefined, api)
+    const user = userEvent.setup()
+    await screen.findByText('Maria Souza')
+    await user.click(screen.getByRole('button', { name: 'Perdidos' }))
+    await screen.findByText('Renata Lopes')
+    const calls = (api.listPipelineOpportunities as ReturnType<typeof vi.fn>).mock.calls as Array<
+      [string, { stage: string; includeClosed?: boolean }]
+    >
+    const closedFlag = Object.fromEntries(calls.map(([, q]) => [q.stage, q.includeClosed]))
+    expect(closedFlag).toMatchObject({
+      novo_contato: false,
+      em_atendimento: false,
+      horario_proposto: false,
+      agendado: false,
+      concluido: true,
+      perdido: true,
+    })
+  })
+
   it('«Perdidos» acrescenta a coluna Perdido', async () => {
     mount()
     const user = userEvent.setup()

@@ -74,7 +74,8 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
         stages.map((stage) =>
           api.listPipelineOpportunities(
             tenantId,
-            { stage, limit: 100 },
+            // Concluído e Perdido são etapas finais (oportunidade «closed»): sem isto vêm sempre vazias.
+            { stage, limit: 100, includeClosed: stage === 'concluido' || stage === 'perdido' },
             { generation, expectGeneration: () => generation },
           ),
         ),
