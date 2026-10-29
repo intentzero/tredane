@@ -111,3 +111,16 @@ export function serviceRow(snap: ClinicConfigSnapshot, svc: ClinicService): Serv
     warning: pros.length === 0 ? 'Sem profissional' : null,
   }
 }
+
+export type PendingCounts = { professionals: number; services: number }
+
+/** Itens ativos com exceção (mesmas regras dos selos das listas); alimenta «1 pendência». */
+export function pendingCounts(snap: ClinicConfigSnapshot, now: number): PendingCounts {
+  const professionals = snap.resources.filter(
+    (r) => r.kind === 'professional' && r.active && professionalRow(snap, r, now).missingHours,
+  ).length
+  const services = snap.services.filter(
+    (s) => s.active && serviceRow(snap, s).warning !== null,
+  ).length
+  return { professionals, services }
+}

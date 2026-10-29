@@ -6062,37 +6062,7 @@
   font-weight: var(--font-weight-semibold);
 }
 
-/* Desktop da Clínica (≥ 1280 px): abas no topo e Horário em duas colunas. */
-.clinic-topnav {
-  display: none;
-}
-
-@media (min-width: 1280px) {
-  .clinic-topnav {
-    display: flex;
-    gap: var(--space-1);
-    border-bottom: var(--size-border-width) solid var(--color-line-border);
-    margin-bottom: var(--space-4);
-  }
-
-  .clinic-topnav-tab {
-    min-height: 48px;
-    padding: 0 var(--space-4);
-    border: 0;
-    border-bottom: 3px solid transparent;
-    background: none;
-    font: inherit;
-    color: var(--color-text-secondary);
-    cursor: pointer;
-  }
-
-  .clinic-topnav-tab[aria-selected='true'] {
-    border-bottom-color: var(--color-primary-base);
-    color: var(--color-primary-ink);
-    font-weight: var(--font-weight-semibold);
-  }
-}
-
+/* Desktop da Clínica (≥ 1280 px): Horário em duas colunas; navegação na coluna de contexto. */
 @media (min-width: 1280px) {
   .clinic-desktop-hide {
     display: none;
@@ -6367,7 +6337,7 @@
   }
 
   /* Configuração em coluna de leitura, sem esticar a 1200 px. */
-  .panel-app[data-area='clinica'] .panel-shell-main > * {
+  .panel-app[data-area='clinica'] .panel-shell-main > *:not(.clinic-wide) {
     max-width: 760px;
   }
 
@@ -6866,5 +6836,122 @@
   /* A lista do dia reaproveita a lista do celular sem o espaço reservado ao botão flutuante. */
   .agenda-context .agenda-list {
     padding-bottom: 0;
+  }
+}
+
+/* ——— Clínica no desktop (≥ 1280 px, #211/#226): coluna de contexto + área de trabalho ———
+ * A coluna (360 px) agrupa as áreas; o conteúdo fica em até 720 px. Abaixo de 1280 px a
+ * Clínica continua com a navegação do hub e as abas do celular. */
+.clinic-context-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.clinic-context-title {
+  margin: 0;
+  padding: var(--space-5) var(--space-5) var(--space-1);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.clinic-context-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.clinic-context-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-5);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clinic-context-item:hover {
+  background: var(--color-surface-sunken);
+}
+
+.clinic-context-item[aria-current='page'] {
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.clinic-context-item[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--color-primary-base);
+}
+
+.clinic-context-item:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-ink);
+  outline-offset: calc(var(--size-focus-ring-offset) * -1);
+}
+
+.clinic-context-pending {
+  margin-left: auto;
+  padding: 2px var(--space-2);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (max-width: 1279px) {
+  .clinic-context {
+    display: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .panel-shell-main:has(> .clinic-wide) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .clinic-wide {
+    flex: 1;
+    align-self: stretch;
+    width: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+
+  .clinic-context {
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: var(--space-4);
+    background: var(--color-surface-card);
+    border-right: var(--size-border-width) solid var(--color-line-border);
+  }
+
+  .clinic-work {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-6) var(--space-8);
+  }
+
+  .clinic-work > * {
+    max-width: 720px;
   }
 }

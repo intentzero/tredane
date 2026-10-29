@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ClinicConfigSnapshot, ClinicResource, ClinicService } from '../../api'
 import { CLINIC_SCOPE_ID } from './clinicHours'
-import { dayOfWeekIn, professionalRow, roomRow, serviceRow } from './resourceRows'
+import { dayOfWeekIn, pendingCounts, professionalRow, roomRow, serviceRow } from './resourceRows'
 
 function res(over: Partial<ClinicResource>): ClinicResource {
   return {
@@ -149,5 +149,23 @@ describe('serviceRow', () => {
     expect(row.warning).toBe('Sem profissional')
     expect(row.occupies).toBe('Ocupa 60 min')
     expect(row.detail).toBe('Sem preço')
+  })
+})
+
+describe('pendingCounts', () => {
+  it('conta só itens ativos com exceção', () => {
+    const gi = res({ id: 'gi', hoursMode: 'own' })
+    const sandra = res({ id: 'sa', name: 'Sandra', hoursMode: 'own' })
+    const velha = res({ id: 've', name: 'Velha', hoursMode: 'own', active: false })
+    const s = snap(
+      [gi, sandra, velha],
+      [
+        svc({ id: 'a', professionalIds: ['gi'] }),
+        svc({ id: 'b', name: 'Sem ninguém', professionalIds: [] }),
+        svc({ id: 'c', name: 'Inativo sem ninguém', professionalIds: [], active: false }),
+      ],
+      [{ id: 'w', resourceId: 'gi', dayOfWeek: 5, startMinute: 540, endMinute: 1080 }],
+    )
+    expect(pendingCounts(s, FRIDAY)).toEqual({ professionals: 1, services: 1 })
   })
 })
