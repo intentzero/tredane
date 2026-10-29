@@ -321,3 +321,32 @@ describe('InboxThread — Pix pendente em faixa compacta (DEC-065)', () => {
     expect(screen.queryByText(/Aguardando Pix/)).toBeNull()
   })
 })
+
+describe('InboxThread — painel do contato (desktop)', () => {
+  it('sem painel, o nome abre a página do contato; com painel, «Contato» e o nome alternam o painel', async () => {
+    const onToggle = vi.fn()
+    render(
+      <InboxThread
+        tenantId="clinic-demo-a"
+        conversationId="cnv_ficticia"
+        api={mockApi(detail())}
+        generation={1}
+        viewerClerkUserId={VIEWER}
+        contactPanel={{ open: false, controlsId: 'conversas-contact-panel', onToggle }}
+      />,
+    )
+    const toggle = await screen.findByRole('button', { name: 'Contato' })
+    expect(toggle.getAttribute('aria-pressed')).toBe('false')
+    expect(toggle.getAttribute('aria-controls')).toBe('conversas-contact-panel')
+    const user = userEvent.setup()
+    await user.click(toggle)
+    await user.click(screen.getByRole('button', { name: /Informações de/ }))
+    expect(onToggle).toHaveBeenCalledTimes(2)
+  })
+
+  it('sem contactPanel (celular) não há botão «Contato»', async () => {
+    renderThread(mockApi(detail()))
+    await screen.findByRole('button', { name: 'Agendar horário' })
+    expect(screen.queryByRole('button', { name: 'Contato' })).toBeNull()
+  })
+})
