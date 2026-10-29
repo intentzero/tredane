@@ -7019,6 +7019,9 @@
     .clinic-sheet.panel-choice-sheet {
       animation: none;
     }
+  }
+}
+
 /* ——— Agenda no desktop (≥ 1280 px, DEC-068): coluna de contexto + grade ———
  * A coluna (360 px) leva o botão Agendar, o mês pequeno, os filtros e a lista do dia; a grade
  * ocupa o resto. Abaixo de 1280 px a Agenda continua como antes. */
