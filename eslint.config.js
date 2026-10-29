@@ -28,4 +28,9 @@ export default tseslint.config(
     files: ['docs/design/tools/*.mjs', 'site/*.mjs', 'scripts/**/*.mjs'],
     languageOptions: { globals: { ...globals.node } },
   },
+  {
+    // expand_dc.mjs roda DOM (DOMParser/document) via jsdom ou navegador.
+    files: ['docs/design/tools/expand_dc.mjs'],
+    languageOptions: { globals: { ...globals.browser } },
+  },
 )

@@ -6233,22 +6233,14 @@
   grid-template-columns: clamp(360px, 30vw, 520px) minmax(var(--conversas-thread-min), 1fr);
 }
 
-.conversas-3col-thread {
-  transition: padding-right 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.conversas-3col[data-contact='open'] .conversas-3col-thread {
-  padding-right: 380px;
-}
-
 .conversas-3col > .conversas-3col-contact {
-  position: absolute;
+  position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
   width: 380px;
   max-width: 100%;
-  z-index: 20;
+  z-index: 45;
   padding: var(--space-2) 0 var(--space-4);
   box-sizing: border-box;
   border-left: var(--size-border-width) solid var(--color-line-border);
@@ -6282,19 +6274,15 @@
   color: var(--color-text-on-primary);
 }
 
-/* DEC-074: o Agendar entra da direita no lugar do contato (420 px), com a conversa ao lado. */
-.conversas-3col[data-agendar='open'] .conversas-3col-thread {
-  padding-right: 420px;
-}
-
+/* DEC-074: o Agendar entra da direita por cima do contato (420 px), até ao topo. */
 .conversas-3col > .conversas-3col-agendar {
-  position: absolute;
+  position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
   width: 420px;
   max-width: 100%;
-  z-index: 21;
+  z-index: 46;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -6320,7 +6308,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .conversas-3col-thread,
   .conversas-3col > .conversas-3col-contact {
     transition: none;
   }
@@ -6395,12 +6382,6 @@
   gap: var(--space-3);
   overflow-x: auto;
   padding-bottom: var(--space-2);
-  transition: padding-right 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.acomp-wide[data-panel='open'] .acomp-wide-board,
-.acomp-wide[data-panel='open'] .acomp-wide-bar {
-  padding-right: calc(380px + var(--space-3));
 }
 
 .acomp-col {
@@ -6516,16 +6497,23 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.panel-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  background: transparent;
+}
+
 .acomp-panel,
 .agenda-panel,
 .clinic-panel {
-  position: absolute;
+  position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
   width: 380px;
   max-width: 100%;
-  z-index: 20;
+  z-index: 45;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -6553,11 +6541,6 @@
   .agenda-panel,
   .clinic-panel {
     animation: none;
-  }
-
-  .acomp-wide-board,
-  .acomp-wide-bar {
-    transition: none;
   }
 }
 

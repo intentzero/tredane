@@ -11,6 +11,7 @@ import { AgendarScreen } from '../agenda/AgendarScreen'
 import { ShellIdentity, useOnline } from '../../shell/ShellIdentity'
 import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
 import { friendlyError } from '../../copy/errors'
+import { PanelScrim } from '../../ui/PanelScrim'
 
 type Props = {
   tenantId: string
@@ -330,6 +331,8 @@ export function ConversasThreeCol({
           />
         ) : null}
       </div>
+      {hasThread && conversationId && panelOpen && !agendarOpen ? <PanelScrim onClose={() => setOpen(false)} /> : null}
+      {hasThread && conversationId && agendarOpen ? <PanelScrim onClose={() => setAgendarOpen(false)} /> : null}
       {hasThread && conversationId && (panelOpen || everOpened) ? (
         <aside
           id="conversas-contact-panel"
