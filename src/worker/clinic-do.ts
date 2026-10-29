@@ -1418,7 +1418,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
   async setClinicAiProfile(
     caller: ClinicCaller,
-    input: { clinicAddress?: string | null; reschedulePolicy?: string | null },
+    input: {
+      clinicAddress?: string | null
+      googleBusinessUrl?: string | null
+      reschedulePolicy?: string | null
+    },
   ) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)

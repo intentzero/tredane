@@ -4,6 +4,8 @@ import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
 import type { ClinicSettingsRow } from './types'
 import { normalizeTimezone } from './validation'
+import { checkGoogleBusinessUrl } from './google-business-link'
+import { ValidationError } from '../errors'
 
 type SettingsSql = {
   tenant_id: string
@@ -12,6 +14,7 @@ type SettingsSql = {
   signal_cancellation_policy?: string
   ai_assist_enabled?: number
   clinic_address?: string
+  google_business_url?: string
   reschedule_policy?: string
   updated_at: number
 }
@@ -25,6 +28,7 @@ function mapSettings(row: SettingsSql): ClinicSettingsRow {
     signalCancellationPolicy: row.signal_cancellation_policy ?? '',
     aiAssistEnabled: row.ai_assist_enabled === 1,
     clinicAddress: row.clinic_address ?? '',
+    googleBusinessUrl: row.google_business_url ?? '',
     reschedulePolicy: row.reschedule_policy ?? '',
     updatedAt: row.updated_at,
   }
@@ -37,7 +41,7 @@ export function ensureClinicSettings(
 ): ClinicSettingsRow {
   const existing = db.get<SettingsSql>(
     `SELECT tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, ai_assist_enabled,
-       clinic_address, reschedule_policy, updated_at
+       clinic_address, google_business_url, reschedule_policy, updated_at
      FROM clinic_settings WHERE id = 1`,
   )
   if (existing) {
@@ -64,6 +68,7 @@ export function ensureClinicSettings(
     signalCancellationPolicy: '',
     aiAssistEnabled: false,
     clinicAddress: '',
+    googleBusinessUrl: '',
     reschedulePolicy: '',
     updatedAt: now,
   }
@@ -113,14 +118,28 @@ export function isClinicAiAssistEnabled(db: ClinicDb, tenantId: string): boolean
   return row?.ai_assist_enabled === 1
 }
 
-/** Endereço e regras de remarcação/cancelamento usados no contexto da IA (só o responsável). */
+/** Endereço, link do Google Business e regras de remarcação/cancelamento usados no contexto da IA (só o responsável). */
 export function setClinicAiProfile(
   db: ClinicDb,
   tenantId: string,
-  input: { clinicAddress?: string | null; reschedulePolicy?: string | null },
+  input: {
+    clinicAddress?: string | null
+    googleBusinessUrl?: string | null
+    reschedulePolicy?: string | null
+  },
   clock: Clock,
 ): ClinicSettingsRow {
   const cur = ensureClinicSettings(db, tenantId, clock)
+  let googleBusinessUrl = cur.googleBusinessUrl
+  if (input.googleBusinessUrl != null) {
+    const check = checkGoogleBusinessUrl(input.googleBusinessUrl)
+    if (!check.ok) {
+      throw new ValidationError('invalid_google_business_url', check.message, {
+        field: 'googleBusinessUrl',
+      })
+    }
+    googleBusinessUrl = check.value
+  }
   const address =
     input.clinicAddress == null ? cur.clinicAddress : input.clinicAddress.trim().slice(0, 300)
   const policy =
@@ -128,9 +147,10 @@ export function setClinicAiProfile(
       ? cur.reschedulePolicy
       : input.reschedulePolicy.trim().slice(0, 1000)
   db.run(
-    `UPDATE clinic_settings SET clinic_address = ?, reschedule_policy = ?, updated_at = ?
+    `UPDATE clinic_settings SET clinic_address = ?, google_business_url = ?, reschedule_policy = ?, updated_at = ?
      WHERE id = 1 AND tenant_id = ?`,
     address,
+    googleBusinessUrl,
     policy,
     clock.nowMs(),
     tenantId,

@@ -470,7 +470,7 @@ export function createPanelApi(getToken: TokenGetter) {
 
     async setClinicAiProfile(
       tenantId: string,
-      body: { clinicAddress: string; reschedulePolicy: string },
+      body: { clinicAddress: string; googleBusinessUrl: string; reschedulePolicy: string },
       opts?: FetchOpts,
     ): Promise<ClinicConfigSnapshot['settings']> {
       const res = await authFetch(
@@ -2041,6 +2041,7 @@ export type ClinicConfigSnapshot = {
     /** Opt-in de IA da clínica (default false). */
     aiAssistEnabled?: boolean
     clinicAddress?: string | null
+    googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
     updatedAt: number
   }
