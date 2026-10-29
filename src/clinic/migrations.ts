@@ -126,6 +126,11 @@ import {
   MIGRATION_NAME as M25_NAME,
   STATEMENTS as M25_STATEMENTS,
 } from './migrations/0025_google_business_url'
+import {
+  MIGRATION_ID as M26_ID,
+  MIGRATION_NAME as M26_NAME,
+  STATEMENTS as M26_STATEMENTS,
+} from './migrations/0026_resource_history_indexes'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -161,6 +166,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M23_ID, name: M23_NAME, statements: M23_STATEMENTS },
   { id: M24_ID, name: M24_NAME, statements: M24_STATEMENTS },
   { id: M25_ID, name: M25_NAME, statements: M25_STATEMENTS },
+  { id: M26_ID, name: M26_NAME, statements: M26_STATEMENTS },
 ]
 
 export type MigrationResult = {
