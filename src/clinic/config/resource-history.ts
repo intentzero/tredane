@@ -7,6 +7,7 @@ const CHECKS: Array<[string, string[]]> = [
   ['scheduling_intents', ['professional_id', 'room_resource_id']],
   ['pix_charges', ['professional_id', 'room_resource_id']],
   ['schedule_holds', ['professional_id']],
+  ['appointment_proposals', ['professional_id']],
 ]
 
 /**

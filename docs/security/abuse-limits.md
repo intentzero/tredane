@@ -15,9 +15,9 @@ Código: `src/clinic/ai/abuse-limits.ts` (valores em `PROPOSED_ABUSE_LIMITS`, ov
 | Marcações pela IA por clínica | 20 / 24 h (`ABUSE_LIMIT_AI_BOOKINGS_PER_CLINIC`) | Proposto — aguarda Paulo | Limite de segurança contra muitos números a encher a agenda; uma clínica piloto pequena fica abaixo disso. |
 | Compromissos futuros por contato | 3 (`ABUSE_LIMIT_FUTURE_APPOINTMENTS_PER_CONTACT`) | Proposto — aguarda Paulo | Evita que um contato prenda vários horários; com 3 já marcados, a equipe confirma. |
 | Cobranças Pix pendentes por contato | 2 (`ABUSE_LIMIT_PENDING_PIX_PER_CONTACT`) | Proposto — aguarda Paulo | Evita várias cobranças em aberto para a mesma pessoa. |
-| Propostas pendentes por contato | 1 (`ABUSE_LIMIT_PENDING_PROPOSALS_PER_CONTACT`) | Proposto — aguarda Paulo; aplicado quando S3 (#174) existir | Uma proposta de cada vez evita confusão sobre qual botão vale. |
-| Propostas criadas por contato | 5 / 24 h (`ABUSE_LIMIT_PROPOSALS_PER_CONTACT`) | Proposto — aguarda Paulo; S3 | Dá margem para trocar de horário algumas vezes sem permitir inundação. |
-| Propostas criadas por clínica | 100 / 24 h (`ABUSE_LIMIT_PROPOSALS_PER_CLINIC`) | Proposto — aguarda Paulo; S3 | Limite global de segurança, folgado para uma clínica piloto. |
+| Propostas pendentes por contato | 1 (`ABUSE_LIMIT_PENDING_PROPOSALS_PER_CONTACT`) | Proposto — aguarda Paulo; contagem ligada em S3 (#174) via efeito `proposal` | Uma proposta de cada vez evita confusão sobre qual botão vale. Substituição da versão aberta não conta como segunda pendente. |
+| Propostas criadas por contato | 5 / 24 h (`ABUSE_LIMIT_PROPOSALS_PER_CONTACT`) | Proposto — aguarda Paulo; contagem ligada em S3 | Dá margem para trocar de horário algumas vezes sem permitir inundação. |
+| Propostas criadas por clínica | 100 / 24 h (`ABUSE_LIMIT_PROPOSALS_PER_CLINIC`) | Proposto — aguarda Paulo; contagem ligada em S3 | Limite global de segurança, folgado para uma clínica piloto. |
 
 ## Ao atingir o limite
 
@@ -29,5 +29,5 @@ Código: `src/clinic/ai/abuse-limits.ts` (valores em `PROPOSED_ABUSE_LIMITS`, ov
 ## Garantias e limites
 
 - Contagem nas tabelas de efeitos no próprio DO da clínica (escopo de tenant explícito, single-threaded); jobs em geração contam. Webhook repetido é deduplicado a montante e não cria efeito novo.
-- Com o S2 (#191) a IA não marca por texto livre; a quota de marcações fica pronta para o botão (S5/#176). Quotas de propostas: só valores, aplicação quando S3 existir.
+- Com o S2 (#191) a IA não marca por texto livre; a quota de marcações fica pronta para o botão (S5/#176). Quotas de propostas: valores ainda **Proposto**; `createProposal` / `createOrSupersedeProposal` aplicam o efeito `proposal` quando `ABUSE_LIMITS=on` (S3 #174).
 - Desligado por padrão: ligar exige decisão do Paulo sobre os valores e configuração do Worker (fora deste PR).

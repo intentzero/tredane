@@ -100,7 +100,7 @@ Criação remota de D1/R2/Queues/DO namespaces, contas Meta/Clerk e revisão jur
 
 ## Agendamento automático pela IA (`AI_AUTOBOOK`) — S2 (#173)
 
-**Estado no código:** texto livre («sim», emoji, pedido completo, JSON) **nunca** cria compromisso, em nenhum ambiente e qualquer que seja a flag. A leitura do texto só gera nota à atendente. A marcação automática ficará restrita ao clique numa proposta versionada (S3–S5, épico #171; revisão DEC-061 **Proposto**).
+**Estado no código:** texto livre («sim», emoji, pedido completo, JSON) **nunca** cria compromisso, em nenhum ambiente e qualquer que seja a flag. A leitura do texto só gera nota à atendente. Propostas versionadas já persistem no SQLite do Clinic DO (S3 #174, DEC-061 **Decidido**); envio do botão WhatsApp (S4 #175) e clique→marcação (S5 #176) ainda não estão neste recorte. `AI_AUTOBOOK` continua desligado por padrão e **não** autoriza marcação por texto.
 
 | Variável | Valor | Efeito |
 | --- | --- | --- |

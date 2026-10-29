@@ -60,6 +60,8 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 
 `enviada` → `confirmada` (clique válido → compromisso criado, ou encaminhada ao Pix se houver sinal) · `substituída` (nova versão) · `expirada` (30 min) · `recusada_vaga` (horário já não livre) · `encaminhada` (Alterar detalhes/dúvida → atendente). Só `enviada` aceita clique; transições são idempotentes por proposta/versão. Proposta não reserva horário (DEC-008).
 
+**Extensão de engenharia (Proposto, S3 #174):** antes de `enviada`, a proposta pode estar `preparada` → `envio_pendente` → `envio_incerto` (costuras do envio WhatsApp em S4). Vigência de 30 min conta a partir de `enviada` (relógio do backend; expiração preguiçosa sem job). Persistência: tabela `appointment_proposals` no SQLite do Clinic DO.
+
 ## Eventos de interface propostos
 
 | Evento lógico | Quando ocorre | Visões afetadas |

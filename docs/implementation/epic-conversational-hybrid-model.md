@@ -59,11 +59,11 @@ Mapeado para S6 (#177). Mantido para interpretar e decidir se há proposta; não
 
 Mapeado para S3 (#174). **Caminhos A/B substituídos:** a proposta é persistida, versionada, com expiração de 30 min e confirmada só por botão.
 
-- [ ] Toda proposta de horário da clínica tem id, serviço, dia e horário únicos, estado de entrega e vigência.
+- [x] Toda proposta de horário da clínica tem id opaco, versão, serviço, dia e horário únicos, estado (prep/envio/vigência/consumo) e vigência de 30 min a partir do envio — persistida no SQLite do Clinic DO (`appointment_proposals`, migração 28). **Confirmado** no código S3; envio WhatsApp = S4; clique = S5.
 - [ ] ~~Teste: «sim» a proposta entregue, vigente e que é a última pergunta → elegível a marcar.~~ **[substituído por S3/S5: só o clique no botão da proposta válida é elegível; «sim» em texto → não marca]**
-- [ ] Teste: «sim» a proposta não entregue, expirada ou com vários horários → não marca.
+- [x] Teste (S3): proposta substituída, expirada, id fabricado ou cruzado entre clínicas/conversas → não autoriza clique. (O «sim» em texto continua a não marcar — S2.)
 - [ ] ~~Teste: «Quero limpeza de pele amanhã às 15h» sem proposta → elegível (caminho B).~~ **[substituído por S2/S3: gera proposta com botão; não marca]**
-- [ ] Teste: «quero massagem amanhã 10h, é pra minha mãe» → não marca no contacto da cliente; passa a humano.
+- [ ] Teste: «quero massagem amanhã 10h, é pra minha mãe» → não marca no contacto da cliente; passa a humano. (Interpretação S6; S3 só persiste beneficiária `terceiro` quando o backend montar a proposta.)
 - [ ] Teste: «sim, mas na verdade prefiro massagem» → pergunta, não marca.
 - [x] Prazo de vigência da proposta fixado: **30 minutos** (Decidido, Paulo, 28/10/2026).
 

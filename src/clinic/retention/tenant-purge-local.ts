@@ -20,6 +20,7 @@ import type { ClinicPurgeStateRow } from './types'
 const WIPE_TABLES: readonly string[] = [
   'ai_suggestions',
   'ai_commands',
+  'appointment_proposals',
   'pix_exception_commands',
   'pix_lifecycle_events',
   'pix_webhook_events',

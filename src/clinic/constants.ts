@@ -1,5 +1,5 @@
-/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#43). */
-export const CLINIC_SCHEMA_VERSION = 27
+/** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#43 / #174). */
+export const CLINIC_SCHEMA_VERSION = 28
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -30,7 +30,46 @@ export const CLINIC_MIGRATION_NAMES = {
   25: '0025_google_business_url',
   26: '0026_resource_history_indexes',
   27: '0027_service_weekly_windows',
+  28: '0028_appointment_proposals',
 } as const
+
+/**
+ * Estados da proposta de agendamento por botão (DEC-061 / S3 #174).
+ * `preparada` / `envio_*` = extensão de engenharia (Proposto) até o envio WhatsApp (S4).
+ * Só `enviada` (e não expirada) aceita clique (S5).
+ */
+export const APPOINTMENT_PROPOSAL_STATES = [
+  'preparada',
+  'envio_pendente',
+  'envio_incerto',
+  'enviada',
+  'confirmada',
+  'substituida',
+  'expirada',
+  'recusada_vaga',
+  'encaminhada',
+] as const
+
+export type AppointmentProposalState = (typeof APPOINTMENT_PROPOSAL_STATES)[number]
+
+/** Estados ainda não consumidos / terminais — candidatos a substituição. */
+export const APPOINTMENT_PROPOSAL_OPEN_STATES = [
+  'preparada',
+  'envio_pendente',
+  'envio_incerto',
+  'enviada',
+] as const
+
+export type AppointmentProposalOpenState =
+  (typeof APPOINTMENT_PROPOSAL_OPEN_STATES)[number]
+
+/** Vigência após envio — Decidido (Paulo, 28/10/2026): 30 minutos. */
+export const APPOINTMENT_PROPOSAL_VALIDITY_MS = 30 * 60 * 1000
+
+export const APPOINTMENT_PROPOSAL_BENEFICIARY_KINDS = ['titular', 'terceiro'] as const
+
+export type AppointmentProposalBeneficiaryKind =
+  (typeof APPOINTMENT_PROPOSAL_BENEFICIARY_KINDS)[number]
 
 /** Estados de sugestão IA (#41 / ADR-0004). */
 export const AI_SUGGESTION_KINDS = ['reply', 'summary'] as const

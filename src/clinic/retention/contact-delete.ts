@@ -111,6 +111,13 @@ export function deleteContactOp(
       )
     }
 
+    // Propostas versionadas (S3): remover autorização do contacto — não reativável.
+    db.run(
+      `DELETE FROM appointment_proposals WHERE tenant_id = ? AND contact_id = ?`,
+      meta.tenantId,
+      contactId,
+    )
+
     // Anexos: remover metadados (R2 apagado pelo Worker com deletedAttachmentIds).
     for (const conversationId of conversationIds) {
       db.run(

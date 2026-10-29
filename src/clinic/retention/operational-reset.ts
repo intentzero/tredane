@@ -21,6 +21,7 @@ export const OPERATIONAL_RESET_TABLES: readonly string[] = [
   'ai_suggestions',
   'ai_commands',
   'ai_daily_usage',
+  'appointment_proposals',
   'pix_exception_commands',
   'pix_lifecycle_events',
   'pix_webhook_events',
