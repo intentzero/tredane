@@ -41,6 +41,19 @@ export type ParsedWebhookItem =
       providerTimestamp: number | null
     }
   | {
+      /** Clique em botão reply (proposta S4/S5) — Cloud API interactive.button_reply. */
+      kind: 'button_reply'
+      providerEventKey: string
+      phoneNumberId: string
+      waId: string
+      displayName?: string
+      buttonId: string
+      buttonTitle: string
+      /** context.id da mensagem interactive da clínica, quando Meta envia. */
+      contextMessageId: string | null
+      providerTimestamp: number | null
+    }
+  | {
       kind: 'unsupported'
       providerEventKey: string
       phoneNumberId: string
@@ -237,6 +250,38 @@ export function parseWhatsappWebhookPayload(rawJson: unknown): ParseWebhookResul
             messageType: 'text',
             providerTimestamp,
           })
+        } else if (messageType === 'interactive') {
+          const interactive = asRecord(m.interactive)
+          const interactiveType = interactive ? asString(interactive.type) : null
+          const buttonReply = interactive ? asRecord(interactive.button_reply) : null
+          const buttonId = buttonReply ? asString(buttonReply.id) : null
+          const buttonTitle = buttonReply ? asString(buttonReply.title) : null
+          const context = asRecord(m.context)
+          const contextMessageId = context ? asString(context.id) : null
+          if (interactiveType === 'button_reply' && buttonId && buttonTitle) {
+            items.push({
+              kind: 'button_reply',
+              providerEventKey: `wa:msg:${id}`,
+              phoneNumberId,
+              waId: from,
+              displayName,
+              buttonId,
+              buttonTitle,
+              contextMessageId,
+              providerTimestamp,
+            })
+          } else {
+            items.push({
+              kind: 'unsupported',
+              providerEventKey: `wa:msg:${id}`,
+              phoneNumberId,
+              waId: from,
+              displayName,
+              body: unsupportedBody(messageType),
+              messageType,
+              providerTimestamp,
+            })
+          }
         } else if (isWhatsappMessageMedia(messageType)) {
           const media = extractMedia(m, messageType)
           if (!media) {

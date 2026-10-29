@@ -141,6 +141,11 @@ import {
   MIGRATION_NAME as M28_NAME,
   STATEMENTS as M28_STATEMENTS,
 } from './migrations/0028_appointment_proposals'
+import {
+  MIGRATION_ID as M29_ID,
+  MIGRATION_NAME as M29_NAME,
+  STATEMENTS as M29_STATEMENTS,
+} from './migrations/0029_proposal_whatsapp_send'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -179,6 +184,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M26_ID, name: M26_NAME, statements: M26_STATEMENTS },
   { id: M27_ID, name: M27_NAME, statements: M27_STATEMENTS },
   { id: M28_ID, name: M28_NAME, statements: M28_STATEMENTS },
+  { id: M29_ID, name: M29_NAME, statements: M29_STATEMENTS },
 ]
 
 export type MigrationResult = {

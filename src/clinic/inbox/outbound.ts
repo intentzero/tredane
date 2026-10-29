@@ -12,6 +12,8 @@ import { assertClinicSchemaReady } from '../migrations'
 import type { ClinicDb } from '../store'
 import type { MessageRow } from './types'
 
+export type OutboundInteractiveButton = { id: string; title: string }
+
 export type OutboundMessageRow = {
   id: string
   tenantId: string
@@ -19,10 +21,12 @@ export type OutboundMessageRow = {
   messageId: string
   clientRequestId: string
   providerMessageId: string | null
-  kind: 'text' | 'template'
+  kind: 'text' | 'template' | 'interactive'
   templateName: string | null
   templateLanguage: string | null
   templateParams: Record<string, string> | null
+  /** Botões Cloud API quando kind=interactive (S4). */
+  interactiveButtons: OutboundInteractiveButton[] | null
   deliveryState: OutboundDeliveryState
   failureReason: string | null
   outboxEventId: string | null
@@ -41,11 +45,31 @@ type ObSql = {
   template_name: string | null
   template_language: string | null
   template_params_json: string | null
+  interactive_json: string | null
   delivery_state: string
   failure_reason: string | null
   outbox_event_id: string | null
   created_at: number
   updated_at: number
+}
+
+function parseInteractiveButtons(raw: string | null): OutboundInteractiveButton[] | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as { buttons?: unknown }
+    if (!parsed || !Array.isArray(parsed.buttons)) return null
+    const buttons: OutboundInteractiveButton[] = []
+    for (const b of parsed.buttons) {
+      if (!b || typeof b !== 'object') continue
+      const id = typeof (b as { id?: unknown }).id === 'string' ? (b as { id: string }).id : ''
+      const title =
+        typeof (b as { title?: unknown }).title === 'string' ? (b as { title: string }).title : ''
+      if (id && title) buttons.push({ id, title })
+    }
+    return buttons.length > 0 ? buttons : null
+  } catch {
+    return null
+  }
 }
 
 function mapOutbound(row: ObSql): OutboundMessageRow {
@@ -68,10 +92,11 @@ function mapOutbound(row: ObSql): OutboundMessageRow {
     messageId: row.message_id,
     clientRequestId: row.client_request_id,
     providerMessageId: row.provider_message_id,
-    kind: row.kind as 'text' | 'template',
+    kind: row.kind as 'text' | 'template' | 'interactive',
     templateName: row.template_name,
     templateLanguage: row.template_language,
     templateParams,
+    interactiveButtons: parseInteractiveButtons(row.interactive_json ?? null),
     deliveryState: row.delivery_state as OutboundDeliveryState,
     failureReason: row.failure_reason,
     outboxEventId: row.outbox_event_id,
@@ -132,10 +157,11 @@ export function insertOutboundMessage(
     conversationId: string
     messageId: string
     clientRequestId: string
-    kind: 'text' | 'template'
+    kind: 'text' | 'template' | 'interactive'
     templateName?: string | null
     templateLanguage?: string | null
     templateParams?: Record<string, string> | null
+    interactiveButtons?: OutboundInteractiveButton[] | null
     deliveryState?: OutboundDeliveryState
     failureReason?: string | null
     outboxEventId?: string | null
@@ -147,13 +173,17 @@ export function insertOutboundMessage(
   const id = input.id ?? newId('obm')
   const now = clock.nowMs()
   const state = input.deliveryState ?? 'pending'
+  const interactiveJson =
+    input.kind === 'interactive' && input.interactiveButtons && input.interactiveButtons.length > 0
+      ? JSON.stringify({ buttons: input.interactiveButtons })
+      : null
   db.run(
     `INSERT INTO outbound_messages (
       id, tenant_id, conversation_id, message_id, client_request_id,
       provider_message_id, kind, template_name, template_language,
-      template_params_json, delivery_state, failure_reason, outbox_event_id,
+      template_params_json, interactive_json, delivery_state, failure_reason, outbox_event_id,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     input.tenantId,
     input.conversationId,
@@ -163,6 +193,7 @@ export function insertOutboundMessage(
     input.templateName ?? null,
     input.templateLanguage ?? null,
     input.templateParams ? JSON.stringify(input.templateParams) : null,
+    interactiveJson,
     state,
     input.failureReason ?? null,
     input.outboxEventId ?? null,

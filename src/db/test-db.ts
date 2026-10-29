@@ -68,6 +68,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0013_tenant_purge.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0014_webhook_receipt_button_reply.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

@@ -93,6 +93,30 @@ export function serializeConversationDetail(d: ConversationDetail) {
           updatedAt: d.opportunity.updatedAt,
         }
       : null,
+    // S4 / #175 — proposta e H7 só para membros autorizados (rota já exige membership).
+    activeProposal: d.activeProposal
+      ? {
+          id: d.activeProposal.id,
+          version: d.activeProposal.version,
+          state: d.activeProposal.state,
+          serviceName: d.activeProposal.serviceName,
+          startsAt: d.activeProposal.startsAt,
+          endsAt: d.activeProposal.endsAt,
+          expiresAt: d.activeProposal.expiresAt,
+          resultKind: d.activeProposal.resultKind,
+          sendProviderMessageId: d.activeProposal.sendProviderMessageId,
+        }
+      : null,
+    pendingCommunications: (d.pendingCommunications ?? []).map((c) => ({
+      id: c.id,
+      kind: c.kind,
+      status: c.status,
+      startedAt: c.startedAt,
+      alertAfterAt: c.alertAfterAt,
+      alertedAt: c.alertedAt,
+      detailText: c.detailText,
+      proposalId: c.proposalId,
+    })),
   }
 }
 

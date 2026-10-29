@@ -278,7 +278,12 @@ export async function processClinicOutboxMessage(
   const outboundId = typeof payload.outboundId === 'string' ? payload.outboundId : ''
   const clientRequestId =
     typeof payload.clientRequestId === 'string' ? payload.clientRequestId : ''
-  const kind = payload.kind === 'template' ? 'template' : 'text'
+  const kind =
+    payload.kind === 'template'
+      ? 'template'
+      : payload.kind === 'interactive'
+        ? 'interactive'
+        : 'text'
   const waId = typeof payload.waId === 'string' ? payload.waId : ''
   const body = typeof payload.body === 'string' ? payload.body : ''
   const templateName =
@@ -289,6 +294,14 @@ export async function processClinicOutboxMessage(
     payload.templateParams && typeof payload.templateParams === 'object'
       ? (payload.templateParams as Record<string, string>)
       : null
+  const interactiveButtons = Array.isArray(payload.interactiveButtons)
+    ? (payload.interactiveButtons as Array<{ id?: unknown; title?: unknown }>)
+        .map((b) => ({
+          id: typeof b?.id === 'string' ? b.id : '',
+          title: typeof b?.title === 'string' ? b.title : '',
+        }))
+        .filter((b) => b.id && b.title)
+    : []
 
   if (isDemoTenantId(msg.tenantId)) {
     // Clínica demo (contatos fictícios): nunca chamar a Meta.
@@ -361,6 +374,15 @@ export async function processClinicOutboxMessage(
           templateName,
           language: templateLanguage,
           bodyParams: orderedTemplateParams(templateName, templateLanguage, templateParams),
+          clientRequestId,
+        })
+      } else if (kind === 'interactive') {
+        sendResult = await meta.sendInteractiveButtonsMessage({
+          phoneNumberId: creds.phoneNumberId,
+          accessToken: creds.accessToken,
+          toWaId: waId,
+          body,
+          buttons: interactiveButtons,
           clientRequestId,
         })
       } else {

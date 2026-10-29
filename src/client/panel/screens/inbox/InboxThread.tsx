@@ -1340,6 +1340,37 @@ export function InboxThread({
         onCancel={(c) => void cancelCharge(c)}
       />
 
+      {/* S4 / #175 — proposta versionada + H7 comunicação pendente (sinal mínimo; mocks Em aberto). */}
+      {detail.activeProposal ? (
+        <div className="inbox-notice" role="status" data-testid="proposal-panel">
+          <strong>
+            Proposta v{detail.activeProposal.version} · {detail.activeProposal.state}
+          </strong>
+          <p>
+            {detail.activeProposal.serviceName}
+            {detail.activeProposal.resultKind
+              ? ` · resultado: ${detail.activeProposal.resultKind}`
+              : ''}
+            {detail.activeProposal.expiresAt
+              ? ` · vale até ${new Date(detail.activeProposal.expiresAt).toLocaleString('pt-BR')}`
+              : ''}
+          </p>
+        </div>
+      ) : null}
+      {(detail.pendingCommunications ?? []).some((c) => c.status === 'alerted' || c.status === 'open') ? (
+        <div className="inbox-notice inbox-pix-alert" role="alert" data-testid="pending-comm-panel">
+          <strong>Comunicação pendente</strong>
+          {(detail.pendingCommunications ?? [])
+            .filter((c) => c.status === 'alerted' || c.status === 'open')
+            .map((c) => (
+              <p key={c.id}>
+                {c.status === 'alerted' ? 'Alerta (≥5 min) · ' : ''}
+                {c.detailText || c.kind}
+              </p>
+            ))}
+        </div>
+      ) : null}
+
       <div className="inbox-timeline-wrap">
       <div
         className="inbox-timeline"

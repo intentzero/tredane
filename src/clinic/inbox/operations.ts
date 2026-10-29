@@ -44,6 +44,8 @@ import { getWhatsappChannel } from '../whatsapp/channel'
 import { advanceToInServiceIfNew } from '../pipeline/auto-stage'
 import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
 import { OPPORTUNITY_STAGE_LABELS } from '../constants'
+import { getActiveProposalForConversation } from '../proposals/proposals'
+import { listOpenPendingCommunicationsForConversation } from '../proposals/pending-communication'
 import type {
   AssignConversationInput,
   BlockContactInput,
@@ -136,6 +138,40 @@ export function getConversationDetailOp(
           }
         : null
     })(),
+    activeProposal: (() => {
+      const p = getActiveProposalForConversation(
+        db,
+        meta.tenantId,
+        input.conversationId,
+        clock,
+      )
+      if (!p) return null
+      return {
+        id: p.id,
+        version: p.version,
+        state: p.state,
+        serviceName: p.serviceName,
+        startsAt: p.startsAt,
+        endsAt: p.endsAt,
+        expiresAt: p.expiresAt,
+        resultKind: p.resultKind,
+        sendProviderMessageId: p.sendProviderMessageId,
+      }
+    })(),
+    pendingCommunications: listOpenPendingCommunicationsForConversation(
+      db,
+      meta.tenantId,
+      input.conversationId,
+    ).map((c) => ({
+      id: c.id,
+      kind: c.kind,
+      status: c.status,
+      startedAt: c.startedAt,
+      alertAfterAt: c.alertAfterAt,
+      alertedAt: c.alertedAt,
+      detailText: c.detailText,
+      proposalId: c.proposalId,
+    })),
   }
 }
 
@@ -618,19 +654,33 @@ export function sendOutboundMessageOp(
   }
 
   const hasTemplate = Boolean(input.template?.name?.trim())
+  const hasInteractive = Boolean(input.interactive?.buttons?.length)
   const rawBody = (input.body ?? '').trim()
+  const modes = [hasTemplate, hasInteractive, Boolean(rawBody && !hasInteractive)].filter(Boolean)
+    .length
+  // interactive exige body + botões; text e template são exclusivos entre si.
+  if (hasTemplate && hasInteractive) {
+    throw new ValidationError(
+      'send_template_and_interactive',
+      'Envie modelo ou mensagem com botões, não ambos',
+    )
+  }
   if (hasTemplate && rawBody) {
     throw new ValidationError(
       'send_body_and_template',
       'Envie texto livre ou modelo, não ambos',
     )
   }
-  if (!hasTemplate && !rawBody) {
+  if (hasInteractive && !rawBody) {
+    throw new ValidationError('empty_body', 'Mensagem interativa sem corpo')
+  }
+  if (!hasTemplate && !hasInteractive && !rawBody) {
     throw new ValidationError('empty_body', 'Mensagem vazia')
   }
   if (rawBody.length > 4000) {
     throw new ValidationError('body_too_long', 'Mensagem demasiado longa')
   }
+  void modes
 
   return db.transactionSync(() => {
     const convForSend = requireConversation(db, meta.tenantId, input.conversationId)
@@ -704,10 +754,11 @@ export function sendOutboundMessageOp(
     )
 
     let body: string
-    let kind: 'text' | 'template' = 'text'
+    let kind: 'text' | 'template' | 'interactive' = 'text'
     let templateName: string | null = null
     let templateLanguage: string | null = null
     let templateParams: Record<string, string> | null = null
+    let interactiveButtons: Array<{ id: string; title: string }> | null = null
 
     if (hasTemplate) {
       const tpl = input.template!
@@ -721,6 +772,45 @@ export function sendOutboundMessageOp(
       templateName = validated.template.name
       templateLanguage = validated.template.language
       templateParams = { ...tpl.params }
+    } else if (hasInteractive) {
+      if (!window.open) {
+        throw new ValidationError(
+          'outside_messaging_window',
+          'Fora da janela de 24 h do WhatsApp — mensagem com botões exige janela aberta; use a equipe (sem envio irregular)',
+        )
+      }
+      const buttons = (input.interactive!.buttons ?? [])
+        .map((b) => ({ id: b.id.trim(), title: b.title.trim() }))
+        .filter((b) => b.id && b.title)
+      if (buttons.length < 1 || buttons.length > 3) {
+        throw new ValidationError(
+          'interactive_buttons_invalid',
+          'Mensagem interativa exige 1 a 3 botões',
+        )
+      }
+      for (const b of buttons) {
+        if (b.title.length > 20) {
+          throw new ValidationError(
+            'interactive_button_title_too_long',
+            'Título de botão WhatsApp limitado a 20 caracteres',
+          )
+        }
+        if (b.id.length > 256) {
+          throw new ValidationError(
+            'interactive_button_id_too_long',
+            'Id de botão WhatsApp limitado a 256 caracteres',
+          )
+        }
+      }
+      if (rawBody.length > 1024) {
+        throw new ValidationError(
+          'interactive_body_too_long',
+          'Corpo interativo limitado a 1024 caracteres',
+        )
+      }
+      body = rawBody
+      kind = 'interactive'
+      interactiveButtons = buttons
     } else {
       if (!window.open) {
         throw new ValidationError(
@@ -759,6 +849,7 @@ export function sendOutboundMessageOp(
         templateName,
         templateLanguage,
         templateParams,
+        interactiveButtons,
         deliveryState: 'pending',
       },
       clock,
@@ -827,6 +918,7 @@ export function sendOutboundMessageOp(
           // Corpo só na fila interna — logs do consumer não devem ecoá-lo.
           body,
           templateParams,
+          interactiveButtons,
         },
       },
       clock,

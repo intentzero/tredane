@@ -13,8 +13,12 @@ export type {
   MessageRow,
   MessagingWindowView,
   SendOutboundInput,
+  SendOutboundInteractiveInput,
+  SendOutboundInteractiveButton,
   SendOutboundTemplateInput,
   UnblockContactInput,
+  ConversationProposalPanel,
+  ConversationPendingCommunicationPanel,
 } from './types'
 
 export {

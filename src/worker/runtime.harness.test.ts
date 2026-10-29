@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createTestHarness } from 'wrangler'
 import { CLINIC_SCHEMA_VERSION } from '../clinic'
+import { ADMIN_SCHEMA_VERSION } from '../db/admin/constants'
 import { hashToken } from '../db/tokens'
 
 const seedSql = readFileSync(new URL('../../db/seed.sql', import.meta.url), 'utf8')
@@ -78,7 +79,7 @@ describe('Cloudflare runtime harness — F0', () => {
     const schema = await env.DB.prepare(
       'SELECT version FROM admin_schema_state WHERE id = 1',
     ).first() as { version: number } | null
-    expect(schema?.version).toBe(13)
+    expect(schema?.version).toBe(ADMIN_SCHEMA_VERSION)
 
     const multi = await env.DB.prepare(
       `SELECT tenant_id, role FROM tenant_memberships

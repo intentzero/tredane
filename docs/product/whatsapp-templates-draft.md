@@ -65,6 +65,14 @@ Dúvidas? Responda esta mensagem.
 
 **Notas:** o texto da política específica da clínica substitui a frase genérica acima antes da submissão. Requisitos de recibo/nota fiscal: pergunta 10 do [dossiê jurídico](legal-review-brief.md) — **não afirmar conformidade** até o parecer.
 
+## TMPL-04 — Proposta de horário com botões (S4 / DEC-061) — **Em aberto**
+
+**Objetivo:** quando a janela de 24 h está fechada, apresentar a proposta versionada fora da sessão (hoje o código **não** envia interactive irregularmente; faz handoff à equipe).
+
+**Estado:** Em aberto · **Aprovação Meta:** Pendente · **Gate staging:** validação live Cloud API interactive + eventual template com botões/CTA ainda não submetido.
+
+No MVP S4 (#175), com janela aberta usa-se `type=interactive` / `button` (Confirmar · Alterar detalhes) com corpo determinístico do snapshot. Com janela fechada: mensagem de sistema + comunicação pendente; **sem** template inventado.
+
 ## Fora deste recorte
 
 - Lembrete automático de consulta (**posterior**, Q-UX-06).
