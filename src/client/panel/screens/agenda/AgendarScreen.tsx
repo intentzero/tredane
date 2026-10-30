@@ -1,3 +1,4 @@
+import { variantKindWord } from '../../../../ai/types'
 import { CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, TriangleAlert, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -87,8 +88,8 @@ function signalAmountCents(svc: Service, priceCents: number | null = svc.priceCe
   return null
 }
 
-function variantTitle(svc: Service | undefined) {
-  return svc?.variantKind?.trim() || 'Variantes'
+function variantTitle(svc: Service | undefined, count = 2) {
+  return variantKindWord(svc?.variantKind, svc?.variantKindPlural, count)
 }
 
 function genderLabel(audience: string | undefined) {
@@ -572,7 +573,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
                   <span className="agd-service-name">{s.name}</span>
                   {activeZonesOf(s).length > 0 ? (
                     <span className="agd-service-meta">
-                      {activeZonesOf(s).length} {variantTitle(s)}
+                      {activeZonesOf(s).length} {variantTitle(s, activeZonesOf(s).length)}
                     </span>
                   ) : (
                     <>

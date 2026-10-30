@@ -416,7 +416,7 @@ export async function tryAiAutoBook(
   const time = det.time
   const activeZones = svc.zones.filter((z) => z.active)
   const namedZones = zonesChosenByClient(clientTurn, older, activeZones)
-  const kind = svc.variantKind?.trim() || 'variantes'
+  const kind = svc.variantKindPlural?.trim() || svc.variantKind?.trim() || 'variantes'
   if (activeZones.length > 0 && namedZones.length === 0) {
     const names = activeZones.map((z) => z.name)
     return {

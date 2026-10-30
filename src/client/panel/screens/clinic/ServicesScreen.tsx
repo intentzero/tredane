@@ -1,3 +1,4 @@
+import { variantKindWord } from '../../../../ai/types'
 import { useState } from 'react'
 import { Button, Input, Label, NumberField, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components'
 import { ChevronRight } from 'lucide-react'
@@ -153,6 +154,7 @@ export function ServiceForm({
     existing?.priceCents != null ? formatPriceCents(existing.priceCents) : '',
   )
   const [variantKind, setVariantKind] = useState(existing?.variantKind ?? '')
+  const [variantKindPlural, setVariantKindPlural] = useState(existing?.variantKindPlural ?? '')
   const [zones, setZones] = useState<ZoneDraft[]>(() =>
     (existing?.zones ?? []).map((z) => ({
       key: z.id,
@@ -294,31 +296,58 @@ export function ServiceForm({
       tempoTemperatura,
       tempoCelsius: tempoTemperatura === 'tanto_faz' ? null : tempoCelsius,
       variantKind: zones.length > 0 ? variantKind.trim() || null : null,
+      variantKindPlural: zones.length > 0 ? variantKindPlural.trim() || null : null,
     }
-    if (zones.length > 0 && !variantKind.trim()) {
-      setFormError('Dê um nome ao tipo das variantes. O que você digitou continua aqui.')
+    if (zones.length > 0 && (!variantKind.trim() || !variantKindPlural.trim())) {
+      setFormError('Dê o singular e o plural do tipo. O que você digitou continua aqui.')
       setSaving(false)
       return
     }
+    if (zones.some((z) => !z.name.trim())) {
+      setFormError('Dê um nome a cada variante. O que você digitou continua aqui.')
+      setSaving(false)
+      return
+    }
+    const hadZones = (existing?.zones?.length ?? 0) > 0
+    const zoneBody: ServiceZoneInput[] = zones.map((z) => ({
+      id: z.id,
+      name: z.name.trim(),
+      durationMinutes: z.durationMinutes,
+      priceCents: z.price.trim() ? parsePriceToCents(z.price) : null,
+      audience: z.audience,
+      active: z.active,
+    }))
     try {
+      // Limpar o tipo com variantes ainda gravadas deixa o cadastro inconsistente.
+      if (zones.length === 0 && hadZones && existing) {
+        await api.replaceServiceZones(tenantId, existing.id, [], {
+          generation,
+          expectGeneration: () => generation,
+        })
+      }
       const saved = await api.upsertService(tenantId, body, {
         serviceId: existing?.id,
         generation,
         expectGeneration: () => generation,
       })
-      const zoneBody: ServiceZoneInput[] = zones.map((z) => ({
-        id: z.id,
-        name: z.name.trim(),
-        durationMinutes: z.durationMinutes,
-        priceCents: z.price.trim() ? parsePriceToCents(z.price) : null,
-        audience: z.audience,
-        active: z.active,
-      }))
-      if (zoneBody.length > 0 || (existing?.zones?.length ?? 0) > 0) {
-        await api.replaceServiceZones(tenantId, saved.id, zoneBody, {
-          generation,
-          expectGeneration: () => generation,
-        })
+      if (zoneBody.length > 0) {
+        try {
+          await api.replaceServiceZones(tenantId, saved.id, zoneBody, {
+            generation,
+            expectGeneration: () => generation,
+          })
+        } catch (zoneErr) {
+          if (!hadZones) {
+            await api
+              .upsertService(tenantId, { ...body, variantKind: null, variantKindPlural: null }, {
+                serviceId: saved.id,
+                generation,
+                expectGeneration: () => generation,
+              })
+              .catch(() => {})
+          }
+          throw zoneErr
+        }
       }
       await onSaved()
       navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'servicos' })
@@ -368,19 +397,32 @@ export function ServiceForm({
         </TextField>
       </div>
       <section className="clinic-stack" aria-labelledby="svc-zones">
-        <h2 id="svc-zones" className="agd-label">{variantKind.trim() || 'Variantes'}</h2>
+        <h2 id="svc-zones" className="agd-label">
+          {variantKindWord(variantKind, variantKindPlural, 2)}
+        </h2>
         <p className="agd-note">
           Cada uma tem duração, preço e gênero. Várias entram no mesmo horário, sem misturar masculino e feminino. Ambos combina com os dois. Sem variantes, vale a duração e o preço da linha.
         </p>
-        <TextField className="clinic-field">
-          <Label>Tipo</Label>
-          <Input
-            autoComplete="off"
-            value={variantKind}
-            placeholder="Zona, Técnica"
-            onChange={(e) => setVariantKind(e.target.value)}
-          />
-        </TextField>
+        <div className="clinic-field-row">
+          <TextField className="clinic-field">
+            <Label>Singular</Label>
+            <Input
+              autoComplete="off"
+              value={variantKind}
+              placeholder="Zona"
+              onChange={(e) => setVariantKind(e.target.value)}
+            />
+          </TextField>
+          <TextField className="clinic-field">
+            <Label>Plural</Label>
+            <Input
+              autoComplete="off"
+              value={variantKindPlural}
+              placeholder="Zonas"
+              onChange={(e) => setVariantKindPlural(e.target.value)}
+            />
+          </TextField>
+        </div>
         {zones.map((z) => (
           <div className="clinic-field-row" key={z.key}>
             <TextField className="clinic-field">
