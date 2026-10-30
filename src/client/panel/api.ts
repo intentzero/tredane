@@ -2051,6 +2051,8 @@ export type ClinicService = {
   weeklyWindows?: ServiceWeeklyWindowSpec[]
   /** Nunca teve marcação, Pix ou proposta: pode ser apagado. */
   deletable?: boolean
+  /** DEC-079 — nome do tipo das variantes. Nulo sem variantes. */
+  variantKind?: string | null
   /** DEC-078. Vazio: a linha do serviço vale. */
   zones?: ClinicServiceZone[]
   createdAt: number
@@ -2062,6 +2064,8 @@ export type ClinicServiceZone = {
   name: string
   durationMinutes: number
   priceCents: number | null
+  /** DEC-079. */
+  audience: 'feminino' | 'masculino' | 'ambos'
   active: boolean
   sortOrder: number
 }
@@ -2071,6 +2075,7 @@ export type ServiceZoneInput = {
   name: string
   durationMinutes?: number
   priceCents?: number | null
+  audience: 'feminino' | 'masculino' | 'ambos'
   active?: boolean
 }
 
@@ -2230,6 +2235,8 @@ export type ServiceUpsertBody = {
   durationMaxMinutes?: number | null
   /** Omitido na atualização mantém faixas; array vazio remove filtro. */
   weeklyWindows?: ServiceWeeklyWindowSpec[]
+  /** DEC-079 — omitido na edição mantém. Vazio limpa. */
+  variantKind?: string | null
 }
 
 export type PixAccountPublic = {

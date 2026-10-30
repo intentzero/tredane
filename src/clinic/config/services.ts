@@ -46,6 +46,7 @@ type ServiceSql = {
   duration_adjustable?: number
   duration_min_minutes?: number | null
   duration_max_minutes?: number | null
+  variant_kind?: string | null
   created_at: number
   updated_at: number
 }
@@ -140,6 +141,7 @@ function toServiceRow(
     roomRequirement: loadRoomRequirement(db, row.tenant_id, row.id),
     weeklyWindows: loadServiceWeeklyWindows(db, row.tenant_id, row.id),
     deletable: serviceDeleteBlocker(db, row.tenant_id, row.id) === null,
+    variantKind: row.variant_kind?.trim() || null,
     zones: listZones(db, row.tenant_id, row.id),
   }
 }
@@ -392,6 +394,25 @@ function resolveTempo(
   return { ceu, temperatura, celsius: raw }
 }
 
+const VARIANT_KIND_MAX = 40
+
+function resolveVariantKind(
+  input: UpsertServiceInput,
+  existing: ServiceRow | null,
+): string | null {
+  if (input.variantKind === undefined) return existing?.variantKind ?? null
+  if (input.variantKind === null) return null
+  const text = input.variantKind.trim()
+  if (!text) return null
+  if (text.length > VARIANT_KIND_MAX) {
+    throw new ValidationError(
+      'invalid_variant_kind',
+      'o tipo das variantes tem no máximo 40 caracteres',
+    )
+  }
+  return text
+}
+
 export function upsertService(
   db: ClinicDb,
   tenantId: string,
@@ -428,6 +449,7 @@ export function upsertService(
   }
   const audiencia = resolveAudience(input, existing)
   const tempo = resolveTempo(input, existing)
+  const variantKind = resolveVariantKind(input, existing)
 
   if (input.id) {
     db.run(
@@ -437,7 +459,7 @@ export function upsertService(
         price_cents = ?, client_explanation = ?, active = ?,
         requires_signal = ?, signal_kind = ?, signal_fixed_cents = ?, signal_percent = ?,
         duration_adjustable = ?, duration_min_minutes = ?, duration_max_minutes = ?,
-        updated_at = ?
+        variant_kind = ?, updated_at = ?
        WHERE tenant_id = ? AND id = ?`,
       name,
       input.durationMinutes,
@@ -456,6 +478,7 @@ export function upsertService(
       dur.adjustable,
       dur.min,
       dur.max,
+      variantKind,
       now,
       tenantId,
       input.id,
@@ -476,8 +499,8 @@ export function upsertService(
       price_cents, client_explanation, active,
       requires_signal, signal_kind, signal_fixed_cents, signal_percent,
       duration_adjustable, duration_min_minutes, duration_max_minutes,
-      created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      variant_kind, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     name,
@@ -497,6 +520,7 @@ export function upsertService(
     dur.adjustable,
     dur.min,
     dur.max,
+    variantKind,
     now,
     now,
   )

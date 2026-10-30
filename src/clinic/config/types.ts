@@ -42,11 +42,24 @@ export type ServiceRow = {
   weeklyWindows: ServiceWeeklyWindowSpec[]
   /** Pode ser apagado: nunca teve marcação, Pix ou proposta ligada. */
   deletable: boolean
+  /**
+   * DEC-079 — nome do tipo das variantes (ex.: Zona, Técnica).
+   * Nulo quando o serviço não tem variantes.
+   */
+  variantKind: string | null
   /** DEC-078 — vazio = o serviço continua uma linha só. */
   zones: ServiceZoneRow[]
 }
 
-/** Zona de um serviço (DEC-078). A visita soma as escolhidas. */
+/** Género da variante (DEC-079). Distinto da audiência do serviço. */
+export const VARIANT_AUDIENCES = ['feminino', 'masculino', 'ambos'] as const
+export type VariantAudience = (typeof VARIANT_AUDIENCES)[number]
+
+export function isVariantAudience(value: unknown): value is VariantAudience {
+  return value === 'feminino' || value === 'masculino' || value === 'ambos'
+}
+
+/** Variante de um serviço (DEC-078 / DEC-079). A visita soma as escolhidas. */
 export type ServiceZoneRow = {
   id: string
   tenantId: string
@@ -54,6 +67,8 @@ export type ServiceZoneRow = {
   name: string
   durationMinutes: number
   priceCents: number | null
+  /** DEC-079. */
+  audience: VariantAudience
   active: boolean
   sortOrder: number
 }
@@ -61,10 +76,12 @@ export type ServiceZoneRow = {
 export type ServiceZoneInput = {
   id?: string
   name: string
-  /** Omitida na primeira zona de um serviço sem zonas: copia a duração da linha. */
+  /** Omitida na primeira variante de um serviço sem variantes: copia a duração da linha. */
   durationMinutes?: number
   /** Omitido: copia o preço da linha. `null` = sem preço. */
   priceCents?: number | null
+  /** DEC-079 — obrigatório na gravação. A migração é que preenche `ambos`. */
+  audience: VariantAudience
   active?: boolean
 }
 
@@ -74,6 +91,7 @@ export type ZoneSnapshot = {
   name: string
   durationMinutes: number
   priceCents: number | null
+  audience: VariantAudience
   sortOrder: number
 }
 
@@ -288,6 +306,11 @@ export type UpsertServiceInput = {
   durationMaxMinutes?: number | null
   /** Omitido na atualização = mantém faixas actuais; array (mesmo vazio) substitui. */
   weeklyWindows?: ServiceWeeklyWindowSpec[]
+  /**
+   * DEC-079 — omitido na edição mantém. `null` ou vazio limpa.
+   * Obrigatório quando o serviço tem variantes (a gravação das variantes recusa a falta).
+   */
+  variantKind?: string | null
 }
 
 export type UpsertResourceInput = {

@@ -87,9 +87,10 @@ export type ServiceRow = {
 export function serviceRow(snap: ClinicConfigSnapshot, svc: ClinicService): ServiceRow {
   const activeZones = (svc.zones ?? []).filter((z) => z.active)
   const total = svc.occupiedMinutes || svc.durationMinutes + svc.bufferMinutes
+  const kind = svc.variantKind?.trim() || 'Variantes'
   const occupies =
     activeZones.length > 0
-      ? `${activeZones.length} ${activeZones.length === 1 ? 'zona' : 'zonas'}`
+      ? `${activeZones.length} ${kind}`
       : svc.bufferMinutes > 0
         ? `Ocupa ${total} min (${svc.durationMinutes} + ${svc.bufferMinutes} de intervalo)`
         : `Ocupa ${total} min`

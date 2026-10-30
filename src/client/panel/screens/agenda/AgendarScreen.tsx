@@ -87,6 +87,16 @@ function signalAmountCents(svc: Service, priceCents: number | null = svc.priceCe
   return null
 }
 
+function variantTitle(svc: Service | undefined) {
+  return svc?.variantKind?.trim() || 'Variantes'
+}
+
+function genderLabel(audience: string | undefined) {
+  if (audience === 'feminino') return 'Feminino'
+  if (audience === 'masculino') return 'Masculino'
+  return 'Ambos'
+}
+
 function activeZonesOf(svc: Service | undefined) {
   return (svc?.zones ?? []).filter((z) => z.active).slice().sort((a, b) => a.sortOrder - b.sortOrder)
 }
@@ -561,7 +571,9 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
                 >
                   <span className="agd-service-name">{s.name}</span>
                   {activeZonesOf(s).length > 0 ? (
-                    <span className="agd-service-meta">{activeZonesOf(s).length} zonas</span>
+                    <span className="agd-service-meta">
+                      {activeZonesOf(s).length} {variantTitle(s)}
+                    </span>
                   ) : (
                     <>
                       <span className="agd-service-meta">{s.durationMinutes} min</span>
@@ -577,30 +589,41 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
 
         {visit.zoned ? (
           <section aria-labelledby="agd-zones">
-            <h2 id="agd-zones" className="agd-label">Zonas</h2>
+            <h2 id="agd-zones" className="agd-label">{variantTitle(service)}</h2>
             <div className="agd-pills" role="group" aria-labelledby="agd-zones">
               {activeZonesOf(service).map((z) => {
                 const on = zoneIds.includes(z.id)
+                const chosen = chosenZones(service, zoneIds)
+                const opposite = z.audience === 'feminino' ? 'masculino' : z.audience === 'masculino' ? 'feminino' : null
+                const blocked = !on && opposite != null && chosen.some((row) => row.audience === opposite)
                 return (
                   <button
                     key={z.id}
                     type="button"
                     className="agd-pill"
                     aria-pressed={on}
+                    disabled={blocked}
                     onClick={() => {
-                      setZoneIds((prev) => (prev.includes(z.id) ? prev.filter((id) => id !== z.id) : [...prev, z.id]))
+                      setZoneIds((prev) => {
+                        if (prev.includes(z.id)) return prev.filter((id) => id !== z.id)
+                        const active = activeZonesOf(service)
+                        const kept = opposite
+                          ? prev.filter((id) => active.find((row) => row.id === id)?.audience !== opposite)
+                          : prev
+                        return [...kept, z.id]
+                      })
                       setSelected(null)
                       setConflict(null)
                     }}
                   >
-                    {z.name} · {z.durationMinutes} min
+                    {z.name} · {genderLabel(z.audience)} · {z.durationMinutes} min
                     {z.priceCents != null ? ` · ${formatBrl(z.priceCents)}` : ' · sem preço'}
                   </button>
                 )
               })}
             </div>
             {visit.zones.length === 0 ? (
-              <p className="agd-note">Escolha ao menos uma zona para ver horários.</p>
+              <p className="agd-note">Escolha ao menos uma para ver horários.</p>
             ) : (
               <p className="agd-note">
                 {visit.minutes} min
@@ -699,7 +722,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
       <footer className="panel-footer agd-footer">
         <p className="agd-summary" aria-live="polite">
           {percentBlocked ? (
-            <span>Sinal em porcentagem precisa de preço em todas as zonas escolhidas. </span>
+            <span>Sinal em porcentagem precisa de preço em todas as variantes escolhidas. </span>
           ) : null}
           {service ? <strong>{service.name}</strong> : null}
           {selected ? ` · ${selected.professionalName}` : professionalId !== ANY ? ` · ${professionals.find((p) => p.id === professionalId)?.name ?? ''}` : ''}

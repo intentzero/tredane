@@ -105,6 +105,7 @@ type ZoneDraft = {
   name: string
   durationMinutes: number
   price: string
+  audience: 'feminino' | 'masculino' | 'ambos'
   active: boolean
 }
 
@@ -151,6 +152,7 @@ export function ServiceForm({
   const [price, setPrice] = useState(
     existing?.priceCents != null ? formatPriceCents(existing.priceCents) : '',
   )
+  const [variantKind, setVariantKind] = useState(existing?.variantKind ?? '')
   const [zones, setZones] = useState<ZoneDraft[]>(() =>
     (existing?.zones ?? []).map((z) => ({
       key: z.id,
@@ -158,6 +160,7 @@ export function ServiceForm({
       name: z.name,
       durationMinutes: z.durationMinutes,
       price: z.priceCents != null ? formatPriceCents(z.priceCents) : '',
+      audience: z.audience === 'feminino' || z.audience === 'masculino' ? z.audience : 'ambos',
       active: z.active,
     })),
   )
@@ -290,6 +293,12 @@ export function ServiceForm({
       tempoCeu,
       tempoTemperatura,
       tempoCelsius: tempoTemperatura === 'tanto_faz' ? null : tempoCelsius,
+      variantKind: zones.length > 0 ? variantKind.trim() || null : null,
+    }
+    if (zones.length > 0 && !variantKind.trim()) {
+      setFormError('Dê um nome ao tipo das variantes. O que você digitou continua aqui.')
+      setSaving(false)
+      return
     }
     try {
       const saved = await api.upsertService(tenantId, body, {
@@ -302,6 +311,7 @@ export function ServiceForm({
         name: z.name.trim(),
         durationMinutes: z.durationMinutes,
         priceCents: z.price.trim() ? parsePriceToCents(z.price) : null,
+        audience: z.audience,
         active: z.active,
       }))
       if (zoneBody.length > 0 || (existing?.zones?.length ?? 0) > 0) {
@@ -358,10 +368,19 @@ export function ServiceForm({
         </TextField>
       </div>
       <section className="clinic-stack" aria-labelledby="svc-zones">
-        <h2 id="svc-zones" className="agd-label">Zonas</h2>
+        <h2 id="svc-zones" className="agd-label">{variantKind.trim() || 'Variantes'}</h2>
         <p className="agd-note">
-          Cada zona tem duração e preço. Várias zonas entram no mesmo horário. Sem zonas, vale a duração e o preço da linha.
+          Cada uma tem duração, preço e gênero. Várias entram no mesmo horário, sem misturar masculino e feminino. Ambos combina com os dois. Sem variantes, vale a duração e o preço da linha.
         </p>
+        <TextField className="clinic-field">
+          <Label>Tipo</Label>
+          <Input
+            autoComplete="off"
+            value={variantKind}
+            placeholder="Zona, Técnica"
+            onChange={(e) => setVariantKind(e.target.value)}
+          />
+        </TextField>
         {zones.map((z) => (
           <div className="clinic-field-row" key={z.key}>
             <TextField className="clinic-field">
@@ -395,6 +414,21 @@ export function ServiceForm({
                 }
               />
             </TextField>
+            <PanelSelect
+              className="clinic-field"
+              label="Gênero"
+              value={z.audience}
+              onChange={(v) => {
+                if (v === 'feminino' || v === 'masculino' || v === 'ambos') {
+                  setZones((prev) => prev.map((row) => (row.key === z.key ? { ...row, audience: v } : row)))
+                }
+              }}
+              options={[
+                { id: 'feminino', label: 'Feminino' },
+                { id: 'masculino', label: 'Masculino' },
+                { id: 'ambos', label: 'Ambos' },
+              ]}
+            />
             <ClinicCheck
               isSelected={z.active}
               onChange={(selected) =>
@@ -421,12 +455,13 @@ export function ServiceForm({
                 name: '',
                 durationMinutes: prev.length === 0 ? duration : 15,
                 price: prev.length === 0 ? price : '',
+                audience: 'ambos',
                 active: true,
               },
             ])
           }
         >
-          Adicionar zona
+          Adicionar variante
         </Button>
       </section>
       <PanelSelect

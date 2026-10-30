@@ -6,7 +6,14 @@ import type { Clock } from '../../db/clock'
 import { ValidationError } from '../errors'
 import { newId } from '../ids'
 import type { ClinicDb } from '../store'
-import type { ServiceRow, ServiceZoneInput, ServiceZoneRow, ZoneSnapshot } from './types'
+import {
+  isVariantAudience,
+  type ServiceRow,
+  type ServiceZoneInput,
+  type ServiceZoneRow,
+  type VariantAudience,
+  type ZoneSnapshot,
+} from './types'
 
 export type ZoneOwnerKind = 'appointment' | 'proposal' | 'pix_charge' | 'scheduling_intent'
 
@@ -17,6 +24,7 @@ type ZoneSql = {
   name: string
   duration_minutes: number
   price_cents: number | null
+  audience?: string | null
   active: number
   sort_order: number
 }
@@ -26,6 +34,7 @@ type SnapSql = {
   name: string
   duration_minutes: number
   price_cents: number | null
+  audience?: string | null
   sort_order: number
 }
 
@@ -37,6 +46,7 @@ function mapZone(row: ZoneSql): ServiceZoneRow {
     name: row.name,
     durationMinutes: row.duration_minutes,
     priceCents: row.price_cents,
+    audience: readAudience(row.audience),
     active: row.active === 1,
     sortOrder: row.sort_order,
   }
@@ -52,6 +62,31 @@ export function listZones(db: ClinicDb, tenantId: string, serviceId: string): Se
       serviceId,
     )
     .map(mapZone)
+}
+
+function readAudience(value: string | null | undefined): VariantAudience {
+  return isVariantAudience(value) ? value : 'ambos'
+}
+
+function requireAudience(value: unknown): VariantAudience {
+  if (isVariantAudience(value)) return value
+  throw new ValidationError(
+    'invalid_variant_audience',
+    'cada variante é masculina, feminina ou ambos',
+  )
+}
+
+/** `ambos` combina com qualquer um. Masculino e feminino juntos recusam a visita. */
+export function variantAudiencesConflict(
+  zones: readonly { audience: VariantAudience }[],
+): boolean {
+  let feminino = false
+  let masculino = false
+  for (const zone of zones) {
+    if (zone.audience === 'feminino') feminino = true
+    if (zone.audience === 'masculino') masculino = true
+  }
+  return feminino && masculino
 }
 
 function assertDuration(minutes: number): void {
@@ -80,7 +115,7 @@ function zoneInUse(db: ClinicDb, tenantId: string, zoneId: string): boolean {
 export function replaceZones(
   db: ClinicDb,
   tenantId: string,
-  service: Pick<ServiceRow, 'id' | 'durationMinutes' | 'priceCents'>,
+  service: Pick<ServiceRow, 'id' | 'durationMinutes' | 'priceCents' | 'variantKind'>,
   input: ServiceZoneInput[],
   clock: Clock,
 ): ServiceZoneRow[] {
@@ -100,7 +135,20 @@ export function replaceZones(
       }
     }
     db.run(`DELETE FROM service_zones WHERE tenant_id = ? AND service_id = ?`, tenantId, service.id)
+    db.run(
+      `UPDATE services SET variant_kind = NULL, updated_at = ? WHERE tenant_id = ? AND id = ?`,
+      now,
+      tenantId,
+      service.id,
+    )
     return []
+  }
+
+  if (!service.variantKind?.trim()) {
+    throw new ValidationError(
+      'variant_kind_required',
+      'dê um nome ao tipo das variantes',
+    )
   }
 
   const rows: ServiceZoneRow[] = []
@@ -134,8 +182,9 @@ export function replaceZones(
           : (prior?.priceCents ?? null)
         : item.priceCents
     if (priceCents != null && (!Number.isInteger(priceCents) || priceCents < 0)) {
-      throw new ValidationError('invalid_price', 'preço da zona inválido', { priceCents })
+      throw new ValidationError('invalid_price', 'preço da variante inválido', { priceCents })
     }
+    const audience = requireAudience(item.audience)
 
     const id = prior?.id ?? newId('zone')
     kept.add(id)
@@ -143,11 +192,12 @@ export function replaceZones(
     if (prior) {
       db.run(
         `UPDATE service_zones
-         SET name = ?, duration_minutes = ?, price_cents = ?, active = ?, sort_order = ?, updated_at = ?
+         SET name = ?, duration_minutes = ?, price_cents = ?, audience = ?, active = ?, sort_order = ?, updated_at = ?
          WHERE tenant_id = ? AND id = ?`,
         name,
         durationMinutes,
         priceCents,
+        audience,
         active,
         index,
         now,
@@ -157,14 +207,15 @@ export function replaceZones(
     } else {
       db.run(
         `INSERT INTO service_zones (
-          id, tenant_id, service_id, name, duration_minutes, price_cents, active, sort_order, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          id, tenant_id, service_id, name, duration_minutes, price_cents, audience, active, sort_order, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         id,
         tenantId,
         service.id,
         name,
         durationMinutes,
         priceCents,
+        audience,
         active,
         index,
         now,
@@ -178,6 +229,7 @@ export function replaceZones(
       name,
       durationMinutes,
       priceCents,
+      audience,
       active: active === 1,
       sortOrder: index,
     })
@@ -252,6 +304,12 @@ export function quoteVisit(
     }
     chosen.push(zone)
   }
+  if (variantAudiencesConflict(chosen)) {
+    throw new ValidationError(
+      'variant_audience_conflict',
+      'a mesma visita não mistura variante masculina e feminina',
+    )
+  }
   chosen.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'pt-BR'))
   const priceCents = chosen.every((z) => z.priceCents != null)
     ? chosen.reduce((sum, z) => sum + (z.priceCents ?? 0), 0)
@@ -264,6 +322,7 @@ export function quoteVisit(
       name: z.name,
       durationMinutes: z.durationMinutes,
       priceCents: z.priceCents,
+      audience: z.audience,
       sortOrder: z.sortOrder,
     })),
   }
@@ -285,8 +344,8 @@ export function writeZoneSnapshots(
   zones.forEach((zone, index) => {
     db.run(
       `INSERT INTO visit_zone_snapshots (
-        id, tenant_id, owner_kind, owner_id, zone_id, name, duration_minutes, price_cents, sort_order
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, tenant_id, owner_kind, owner_id, zone_id, name, duration_minutes, price_cents, audience, sort_order
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       newId('vz'),
       tenantId,
       ownerKind,
@@ -295,6 +354,7 @@ export function writeZoneSnapshots(
       zone.name,
       zone.durationMinutes,
       zone.priceCents,
+      zone.audience,
       index,
     )
   })
@@ -308,7 +368,7 @@ export function readZoneSnapshots(
 ): ZoneSnapshot[] {
   return db
     .all<SnapSql>(
-      `SELECT zone_id, name, duration_minutes, price_cents, sort_order
+      `SELECT zone_id, name, duration_minutes, price_cents, audience, sort_order
        FROM visit_zone_snapshots
        WHERE tenant_id = ? AND owner_kind = ? AND owner_id = ?
        ORDER BY sort_order, name`,
@@ -321,6 +381,7 @@ export function readZoneSnapshots(
       name: row.name,
       durationMinutes: row.duration_minutes,
       priceCents: row.price_cents,
+      audience: readAudience(row.audience),
       sortOrder: row.sort_order,
     }))
 }
@@ -377,6 +438,7 @@ export function zoneSnapshotsDrifted(
     if (live.name !== snap.name) return true
     if (live.durationMinutes !== snap.durationMinutes) return true
     if ((live.priceCents ?? null) !== (snap.priceCents ?? null)) return true
+    if (live.audience !== snap.audience) return true
   }
   return false
 }

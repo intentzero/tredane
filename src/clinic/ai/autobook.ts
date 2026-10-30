@@ -20,7 +20,7 @@ import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
 import { listServices } from '../config/services'
-import { quoteVisit, zonesNamedInText } from '../config/zones'
+import { quoteVisit, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
@@ -398,12 +398,20 @@ export function tryAiAutoBook(
   const time = det.time
   const activeZones = svc.zones.filter((z) => z.active)
   const namedZones = zonesChosenByClient(clientTurn, older, activeZones)
+  const kind = svc.variantKind?.trim() || 'variantes'
   if (activeZones.length > 0 && namedZones.length === 0) {
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       notes:
-        `A cliente falou em ${svc.name} sem escolher zonas (${activeZones.map((z) => z.name).join(', ')}). ` +
-        'Pergunte as zonas. Não informe valor nem «a partir de».',
+        `A cliente falou em ${svc.name} sem escolher ${kind} (${activeZones.map((z) => z.name).join(', ')}). ` +
+        `Pergunte as ${kind}. Não informe valor nem «a partir de».`,
+    }
+  }
+  if (variantAudiencesConflict(namedZones)) {
+    return {
+      ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
+      notes:
+        `As ${kind} escolhidas misturam masculino e feminino. Peça um conjunto compatível. Ambos combina com os dois. Não informe valor nem envie proposta.`,
     }
   }
   let quote

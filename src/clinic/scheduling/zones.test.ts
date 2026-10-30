@@ -40,6 +40,7 @@ function seed() {
       durationMinutes: 60,
       bufferMinutes: 15,
       priceCents: 12_000,
+      variantKind: 'Zona',
       professionalIds: [pro.id],
       roomRequirement: { mode: 'none' },
     },
@@ -52,7 +53,13 @@ describe('zonas do serviço (DEC-078)', () => {
   it('a primeira zona copia duração e preço; a visita soma um intervalo', () => {
     const { db, close, clock, caller, pro, svc } = seed()
     try {
-      const copied = replaceServiceZonesOp(db, caller, svc.id, [{ name: 'Axila' }], clock)
+      const copied = replaceServiceZonesOp(
+        db,
+        caller,
+        svc.id,
+        [{ name: 'Axila', audience: 'ambos' }],
+        clock,
+      )
       expect(copied).toMatchObject([{ name: 'Axila', durationMinutes: 60, priceCents: 12_000 }])
 
       const zones = replaceServiceZonesOp(
@@ -60,8 +67,8 @@ describe('zonas do serviço (DEC-078)', () => {
         caller,
         svc.id,
         [
-          { id: copied[0]!.id, name: 'Axila', durationMinutes: 15, priceCents: 4_000 },
-          { name: 'Meia perna', durationMinutes: 30, priceCents: 8_000 },
+          { id: copied[0]!.id, name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'ambos' },
+          { name: 'Meia perna', durationMinutes: 30, priceCents: 8_000, audience: 'ambos' },
         ],
         clock,
       )
@@ -149,6 +156,7 @@ describe('zonas do serviço (DEC-078)', () => {
           name: 'Limpeza',
           durationMinutes: 30,
           bufferMinutes: 0,
+          variantKind: 'Zona',
           professionalIds: [pro.id],
           roomRequirement: { mode: 'none' },
         },
@@ -159,8 +167,8 @@ describe('zonas do serviço (DEC-078)', () => {
         caller,
         svc.id,
         [
-          { name: 'Axila', durationMinutes: 15, priceCents: 4_000 },
-          { name: 'Virilha', durationMinutes: 30, priceCents: null },
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'ambos' },
+          { name: 'Virilha', durationMinutes: 30, priceCents: null, audience: 'ambos' },
         ],
         clock,
       )
@@ -168,7 +176,7 @@ describe('zonas do serviço (DEC-078)', () => {
         db,
         caller,
         other.id,
-        [{ name: 'Rosto', durationMinutes: 30, priceCents: 9_000 }],
+        [{ name: 'Rosto', durationMinutes: 30, priceCents: 9_000, audience: 'ambos' }],
         clock,
       )
       const fresh = { ...svc, zones }
@@ -244,8 +252,8 @@ describe('zonas do serviço (DEC-078)', () => {
         clientExplanation: null,
         audiencia: 'qualquer' as const,
         zones: [
-          { name: 'Axila', durationMinutes: 15, priceCents: 4_000 },
-          { name: 'Meia perna', durationMinutes: 30, priceCents: 8_000 },
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'ambos' as const },
+          { name: 'Meia perna', durationMinutes: 30, priceCents: 8_000, audience: 'ambos' as const },
         ],
       },
     ]
@@ -259,6 +267,182 @@ describe('zonas do serviço (DEC-078)', () => {
       services,
     )
     expect(named.warnings).not.toContain('no_price')
+    const mixed = analyzeContentRules(
+      [{ direction: 'inbound', body: 'quanto custa depilação na axila e na barba?' }],
+      [
+        {
+          ...services[0]!,
+          variantKind: 'Zona',
+          zones: [
+            { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' as const },
+            { name: 'Barba', durationMinutes: 15, priceCents: 5_000, audience: 'masculino' as const },
+          ],
+        },
+      ],
+    )
+    expect(mixed.warnings).toContain('no_price')
+  })
+})
+
+describe('tipo e género das variantes (DEC-079)', () => {
+  it('exige o tipo quando há variantes e recusa a omissão do género', () => {
+    const { db, close, clock, caller, svc } = seed()
+    try {
+      const bare = upsertServiceOp(
+        db,
+        caller,
+        {
+          id: svc.id,
+          name: 'Depilação',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 12_000,
+          variantKind: null,
+          professionalIds: svc.professionalIds,
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      expect(bare.variantKind).toBeNull()
+      expect(() =>
+        replaceServiceZonesOp(
+          db,
+          caller,
+          svc.id,
+          [{ name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' }],
+          clock,
+        ),
+      ).toThrow(ValidationError)
+      expect(
+        db.get('SELECT COUNT(*) AS n FROM service_zones WHERE tenant_id = ?', caller.tenantId),
+      ).toEqual({ n: 0 })
+
+      upsertServiceOp(
+        db,
+        caller,
+        {
+          id: svc.id,
+          name: 'Depilação',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 12_000,
+          variantKind: 'Zona',
+          professionalIds: svc.professionalIds,
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      expect(() =>
+        replaceServiceZonesOp(
+          db,
+          caller,
+          svc.id,
+          [{ name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: undefined as never }],
+          clock,
+        ),
+      ).toThrow(ValidationError)
+    } finally {
+      close()
+    }
+  })
+
+  it('recusa masculino com feminino e não grava a visita; ambos combina', () => {
+    const { db, close, clock, caller, pro, svc } = seed()
+    try {
+      const zones = replaceServiceZonesOp(
+        db,
+        caller,
+        svc.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' },
+          { name: 'Barba', durationMinutes: 15, priceCents: 5_000, audience: 'masculino' },
+          { name: 'Braços', durationMinutes: 30, priceCents: 8_000, audience: 'ambos' },
+        ],
+        clock,
+      )
+      const axila = zones.find((z) => z.name === 'Axila')!
+      const barba = zones.find((z) => z.name === 'Barba')!
+      const bracos = zones.find((z) => z.name === 'Braços')!
+      const startsAt = zonedCivilToUtc(TZ, 2024, 1, 8, 10, 0)
+      expect(() =>
+        confirmAppointmentOp(
+          db,
+          caller,
+          {
+            clientRequestId: 'req-mix',
+            serviceId: svc.id,
+            professionalId: pro.id,
+            startsAt,
+            actorClerkUserId: caller.actorId!,
+            zoneIds: [axila.id, barba.id],
+          },
+          clock,
+        ),
+      ).toThrow(ValidationError)
+      expect(
+        db.get('SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ?', caller.tenantId),
+      ).toEqual({ n: 0 })
+
+      const booked = confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-both',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          startsAt,
+          actorClerkUserId: caller.actorId!,
+          zoneIds: [axila.id, bracos.id],
+        },
+        clock,
+      )
+      expect(booked.value.endsAt - booked.value.startsAt).toBe(45 * 60_000)
+      expect(booked.value.zones.map((z) => z.audience).sort()).toEqual(['ambos', 'feminino'])
+    } finally {
+      close()
+    }
+  })
+
+  it('variante gravada sem género explícito fica ambos e marca', () => {
+    const { db, close, clock, caller, pro, svc } = seed()
+    try {
+      const now = clock.nowMs()
+      db.run(
+        `INSERT INTO service_zones (
+          id, tenant_id, service_id, name, duration_minutes, price_cents, active, sort_order, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        'zone_legacy',
+        caller.tenantId,
+        svc.id,
+        'Axila',
+        15,
+        4_000,
+        1,
+        0,
+        now,
+        now,
+      )
+      const quote = quoteVisit(db, caller.tenantId, svc, ['zone_legacy'])
+      expect(quote.zones[0]?.audience).toBe('ambos')
+      const startsAt = zonedCivilToUtc(TZ, 2024, 1, 8, 10, 0)
+      const booked = confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-legacy',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          startsAt,
+          actorClerkUserId: caller.actorId!,
+          zoneIds: ['zone_legacy'],
+        },
+        clock,
+      )
+      expect(booked.value.zones[0]?.audience).toBe('ambos')
+      expect(booked.value.endsAt - booked.value.startsAt).toBe(15 * 60_000)
+    } finally {
+      close()
+    }
   })
 })
 

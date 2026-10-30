@@ -55,6 +55,7 @@ function seed(opts: { signal?: boolean } = {}) {
       durationMinutes: 60,
       bufferMinutes: 15,
       priceCents: 20000,
+      variantKind: 'Zona',
       professionalIds: [gi.id],
       roomRequirement: { mode: 'none' },
       ...(opts.signal ? { requiresSignal: true, signalKind: 'fixed' as const, signalFixedCents: 5000 } : {}),
@@ -243,6 +244,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
           durationMinutes: 60,
           bufferMinutes: 15,
           priceCents: 18_000,
+          variantKind: 'Zona',
           professionalIds: [s.gi.id],
           roomRequirement: { mode: 'none' },
         },
@@ -253,9 +255,9 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
         s.caller,
         dep.id,
         [
-          { name: 'Axila', durationMinutes: 30, priceCents: 5_000 },
-          { name: 'Peitoral', durationMinutes: 30, priceCents: 7_000 },
-          { name: 'Barriga', durationMinutes: 30, priceCents: 7_000 },
+          { name: 'Axila', durationMinutes: 30, priceCents: 5_000, audience: 'ambos' },
+          { name: 'Peitoral', durationMinutes: 30, priceCents: 7_000, audience: 'ambos' },
+          { name: 'Barriga', durationMinutes: 30, priceCents: 7_000, audience: 'ambos' },
         ],
         s.clock,
       )
@@ -287,7 +289,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
         s.db,
         s.caller,
         s.svc.id,
-        [{ name: 'Axila', durationMinutes: 30, priceCents: 5_000, active: false }],
+        [{ name: 'Axila', durationMinutes: 30, priceCents: 5_000, active: false, audience: 'ambos' }],
         s.clock,
       )
       s.say('outbound', 'Confirma depilacao masculina na quinta 29/10 às 14:00?')

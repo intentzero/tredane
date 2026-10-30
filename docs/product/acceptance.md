@@ -291,3 +291,7 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 ### AC-67 — Contexto da IA sem payload (Confirmado, DEC-077)
 
 **Dado** o pedido ao modelo num teste; **então** as horas de bronzeamento são só as que serviram, sem JSON do provedor, sem percentagem e sem o bloco Tempo. Hora pedida que não serviu traz a frase fixa e não entra nas vagas. Rascunho com «40%» ou com hora filtrada não chega à atendente como sugestão utilizável. Depilação em Tanto faz não acrescenta frase de tempo. Texto livre não marca. **Requisitos:** REQ-093, REQ-072; JRN-02, JRN-17.
+
+### AC-68 — Tipo obrigatório e géneros da visita (Confirmado, DEC-079)
+
+**Dado** o serviço fictício «Depilação» com variantes e sem tipo; **quando** a responsável grava «Axila»; **então** a gravação é recusada e nenhuma variante fica. Com o tipo «Zona», omitir o género também é recusado. **Dado** «Axila» feminina e «Barba» masculina; **quando** a equipe marca as duas; **então** a visita é recusada e nenhum compromisso nasce. **Dado** «Axila» feminina e «Braços» ambos; **então** o compromisso nasce com as duas. Uma variante já gravada, migrada como ambos, continua a marcar. **Requisitos:** REQ-094.

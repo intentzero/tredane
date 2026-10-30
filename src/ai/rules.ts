@@ -1,4 +1,4 @@
-import type { AiCatalogService, AiContextMessage, AiWarningCode } from './types'
+import { variantAudiencesConflict, type AiCatalogService, type AiContextMessage, type AiWarningCode } from './types'
 import { detectInjectionSignals } from './untrusted'
 
 /**
@@ -75,7 +75,7 @@ export function analyzeContentRules(
       const named = s.zones.filter(
         (z) => z.name.trim().length >= 2 && last.toLowerCase().includes(z.name.trim().toLowerCase()),
       )
-      if (named.length === 0 || named.some((z) => z.priceCents == null)) {
+      if (named.length === 0 || named.some((z) => z.priceCents == null) || variantAudiencesConflict(named)) {
         if (!servicesWithoutPrice.includes(s.name)) servicesWithoutPrice.push(s.name)
       }
     } else if (priceAsk && s.priceCents == null) {

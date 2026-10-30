@@ -243,7 +243,7 @@ async function confirmClick(
 
 describe('S5: schema e chaves', () => {
   it('mantém CLINIC_SCHEMA_VERSION e prefixos estáveis', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(34)
+    expect(CLINIC_SCHEMA_VERSION).toBe(35)
     expect(PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX).toBe('proposal.book:')
     expect(PROPOSAL_PIX_CLIENT_REQUEST_PREFIX).toBe('proposal.pix:')
     expect(proposalBookClientRequestId('p1', 2)).toBe('proposal.book:p1:v2')
@@ -287,6 +287,7 @@ describe('S5: book sem sinal', () => {
           durationMinutes: 60,
           bufferMinutes: 0,
           priceCents: 5_000,
+          variantKind: 'Zona',
           professionalIds: [s.pro.id],
           roomRequirement: { mode: 'category', category: 'Padrão' },
         },
@@ -296,7 +297,7 @@ describe('S5: book sem sinal', () => {
         s.db,
         s.caller,
         svc.id,
-        [{ name: 'Axila', durationMinutes: 30, priceCents: 5_000 }],
+        [{ name: 'Axila', durationMinutes: 30, priceCents: 5_000, audience: 'ambos' }],
         s.clock,
       )
       confirmAppointmentOp(
