@@ -1,17 +1,17 @@
-/* Gerado por tools/build_tokens.py a partir de tokens.json v0.3.1 (Confirmado). Não edite à mão. */
+/* Gerado por tools/build_tokens.py a partir de tokens.json v0.4.0 (Confirmado). Não edite à mão. */
 :root {
   --font-family: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
-  --font-size-caption: 12px;
-  --font-size-small: 14px;
-  --font-size-body: 16px;
-  --font-size-title: 18px;
-  --font-size-headline: 22px;
-  --font-size-display: 26px;
-  --line-height-default: 1.4;
-  --line-height-relaxed: 1.45;
+  --font-size-caption: 11px;
+  --font-size-small: 13px;
+  --font-size-body: 14px;
+  --font-size-title: 16px;
+  --font-size-headline: 18px;
+  --font-size-display: 22px;
+  --line-height-default: 1.35;
+  --line-height-relaxed: 1.4;
   --color-surface-app: #F5F4EF;
   --color-surface-card: #FFFFFF;
   --color-surface-sunken: #EEEDE7;
@@ -39,10 +39,10 @@
   --color-ai-border: #6B3FD4;
   --color-ai-tint: #F7F4FD;
   --color-ai-avatar: #E7E0F8;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-pill: 999px;
   --space-1: 4px;
   --space-2: 8px;
@@ -52,16 +52,17 @@
   --space-6: 24px;
   --space-8: 32px;
   --size-touch: 44px;
-  --size-control-sm: 40px;
-  --size-control-md: 48px;
-  --size-control-lg: 52px;
-  --size-avatar-sm: 40px;
-  --size-avatar-md: 44px;
-  --size-row-min: 64px;
-  --size-bottom-nav: 52px;
+  --size-control-sm: 28px;
+  --size-control-md: 32px;
+  --size-control-lg: 36px;
+  --size-avatar-sm: 32px;
+  --size-avatar-md: 40px;
+  --size-row-min: 60px;
+  --size-bottom-nav: 48px;
   --size-viewport-width: 390px;
   --size-viewport-min: 360px;
   --size-border-width: 1px;
   --size-focus-ring-width: 2px;
   --size-focus-ring-offset: 2px;
+  --size-control-default: 36px;
 }

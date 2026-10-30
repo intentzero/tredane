@@ -38,7 +38,7 @@
   top: var(--space-3);
   z-index: 100;
   padding: var(--space-2) var(--space-4);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   display: inline-flex;
   align-items: center;
   border-radius: var(--radius-md);
@@ -181,7 +181,7 @@
 .panel-control,
 .panel-select-trigger {
   height: var(--size-control-md);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border: var(--size-border-width) solid var(--color-line-control);
   border-radius: var(--radius-sm);
@@ -216,7 +216,7 @@
 
 .panel-select-item {
   height: var(--size-control-md);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border-radius: var(--radius-sm);
   display: flex;
@@ -251,7 +251,7 @@
   width: 60px;
   height: 64px;
   min-width: var(--size-touch);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   border: var(--size-border-width) solid var(--color-line-control);
   border-radius: var(--radius-md);
   background: var(--color-surface-card);
@@ -290,7 +290,7 @@
   justify-content: space-between;
   align-items: center;
   height: var(--size-control-lg);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-4);
   border: var(--size-border-width) solid var(--color-line-control);
   border-radius: var(--radius-md);
@@ -343,7 +343,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   cursor: pointer;
   color: var(--color-text-primary);
 }
@@ -388,7 +388,7 @@
 
 .panel-move {
   height: var(--size-control-sm);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border: var(--size-border-width) solid var(--color-line-control);
   border-radius: var(--radius-pill);
@@ -404,7 +404,7 @@
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   text-decoration: none;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   display: inline-flex;
   align-items: center;
 }
@@ -587,7 +587,7 @@
   padding: var(--space-4);
   color: inherit;
   text-decoration: none;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
 }
 
 .panel-hub a.card:hover {
@@ -696,7 +696,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-2);
   margin: 0 0 0 calc(var(--space-2) * -1);
   border: 0;
@@ -775,7 +775,7 @@
 }
 
 .clinic-sheet-all {
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   justify-content: center;
 }
 
@@ -919,7 +919,7 @@
 }
 
 .panel-link-btn {
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border: 0;
   background: transparent;
@@ -1037,7 +1037,7 @@
 
 .panel-clerk-primary {
   background: var(--color-primary-base) !important;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
 }
 
 @media (min-width: 768px) {
@@ -1198,7 +1198,7 @@
   border-radius: var(--radius-sm);
   background: var(--color-surface-card);
   color: var(--color-text-primary);
-  font-size: 16px;
+  font-size: var(--font-size-body);
 }
 
 .clinic-field textarea {
@@ -1282,7 +1282,7 @@
 .clinic-tab {
   flex: none;
   height: var(--size-touch);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   min-width: var(--size-touch);
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
@@ -1935,7 +1935,7 @@
    das setas de 44 px e o alvo medido tem de ser o mesmo (issue #272). */
 .panel-chip.agenda-today {
   height: var(--size-touch);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -2169,7 +2169,7 @@
 
 .panel-status-detail summary,
 .clinic-details summary {
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   display: flex;
   align-items: center;
   cursor: pointer;
@@ -2252,7 +2252,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-4);
   border: var(--size-border-width) solid transparent;
   border-radius: var(--radius-md);
@@ -2323,10 +2323,14 @@
   font-size: var(--font-size-small);
 }
 
+.panel-btn-compact {
+  position: relative;
+}
+
 .panel-btn-compact::after {
   content: '';
   position: absolute;
-  inset: -2px 0;
+  inset: -10px 0;
 }
 
 .panel-btn-primary:disabled,
@@ -2372,7 +2376,7 @@
 .panel-chip::after {
   content: '';
   position: absolute;
-  inset: -2px 0;
+  inset: -9px 0;
 }
 
 .panel-chip[aria-selected='true'],
@@ -2850,7 +2854,7 @@
 .inbox-thread-person {
   flex: 1;
   min-width: 0;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -2923,7 +2927,7 @@
 }
 
 .panel-menu-item {
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   display: flex;
   align-items: center;
   padding: 0 var(--space-3);
@@ -3057,7 +3061,7 @@
 }
 
 .inbox-msg-retry {
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-2);
   border: 0;
   background: transparent;
@@ -3110,7 +3114,7 @@
 
 .inbox-composer-input {
   width: 100%;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   max-height: 120px;
   resize: none;
   padding: 10px var(--space-4);
@@ -3279,7 +3283,7 @@
 }
 
 .panel-segmented-item {
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -3607,7 +3611,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
@@ -3970,7 +3974,7 @@
 
 .hold-sheet textarea,
 .hold-sheet input {
-  font-size: 16px;
+  font-size: var(--font-size-body);
 }
 
 .hold-grid-3 {
@@ -3996,7 +4000,7 @@
 
 .hold-select-trigger {
   min-height: var(--size-control-md);
-  font-size: 16px;
+  font-size: var(--font-size-body);
 }
 
 .hold-select-sheet {
@@ -4024,7 +4028,7 @@
   min-height: var(--size-control-md);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
-  font-size: 16px;
+  font-size: var(--font-size-body);
   line-height: 1.3;
   color: var(--color-text-primary);
   cursor: pointer;
@@ -4053,8 +4057,8 @@
 
 .panel-choice-trigger {
   min-width: 0;
-  min-height: var(--size-touch);
-  font-size: 16px;
+  min-height: var(--size-control-default);
+  font-size: var(--font-size-body);
 }
 
 .panel-choice-trigger:disabled {
@@ -4120,10 +4124,10 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
-  font-size: 16px;
+  font-size: var(--font-size-body);
   line-height: 1.3;
   color: var(--color-text-primary);
   cursor: pointer;
@@ -4542,7 +4546,7 @@
 /* Ação de cabeçalho com texto (ex.: «Agendar» na conversa): ícone + rótulo, alvo ≥ 44 px. */
 .panel-header-action {
   flex: none;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
@@ -4574,7 +4578,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: var(--space-2) var(--space-3);
   border: var(--size-border-width) solid var(--color-line-control);
   border-radius: var(--radius-md);
@@ -4674,7 +4678,7 @@
 
 .inbox-pix-bar-link {
   flex: none;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border: 0;
   background: none;
@@ -4849,7 +4853,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-md);
@@ -5039,7 +5043,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   cursor: pointer;
 }
 
@@ -5406,7 +5410,7 @@
 .agenda-room-person,
 .agenda-room-free {
   width: 100%;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -5628,7 +5632,7 @@
 .week-editor-add,
 .week-editor-copy {
   align-self: flex-start;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-1);
   border: 0;
   background: none;
@@ -6045,7 +6049,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   width: auto;
 }
 
@@ -6053,7 +6057,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -6765,7 +6769,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
 }
 
 .day-editor-open-text {
@@ -6800,7 +6804,7 @@
 }
 
 .day-editor-day {
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0;
 }
 
@@ -7359,7 +7363,7 @@
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-5);
   border: 0;
   background: transparent;
@@ -7792,4 +7796,92 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-success-ink);
   text-align: right;
+}
+
+/* Área clicável ≥ 44 px (UX-08) nos controles de altura visual menor (v0.4.0, DEC-081).
+   Campos de texto nativos ficam fora: não aceitam pseudo-elemento (ver ux-ui.md §5). */
+.agd-day,
+.agd-link,
+.agd-mode-btn,
+.agd-pill,
+.agd-service,
+.agd-table-row,
+.agenda-room-free,
+.agenda-room-person,
+.clinic-nav-icon,
+.clinic-switch,
+.clinic-tab,
+.day-editor-day,
+.day-editor-open,
+.hold-option--two,
+.hold-summary,
+.inbox-msg-retry,
+.panel-btn-danger,
+.panel-btn-primary,
+.panel-btn-secondary,
+.panel-check-row,
+.panel-choice-item,
+.panel-choice-trigger,
+.panel-control,
+.panel-link,
+.panel-menu-item,
+.panel-multi-trigger,
+.panel-segmented-item,
+.panel-select-trigger,
+.panel-slot,
+.vc-seg-item,
+.week-editor-add,
+.week-editor-copy {
+  position: relative;
+}
+
+.agd-day::after,
+.agd-link::after,
+.agd-mode-btn::after,
+.agd-pill::after,
+.agd-service::after,
+.agd-table-row::after,
+.agenda-room-free::after,
+.agenda-room-person::after,
+.clinic-nav-icon::after,
+.clinic-switch::after,
+.clinic-tab::after,
+.day-editor-day::after,
+.day-editor-open::after,
+.hold-option--two::after,
+.hold-summary::after,
+.inbox-msg-retry::after,
+.panel-btn-danger::after,
+.panel-btn-primary::after,
+.panel-btn-secondary::after,
+.panel-check-row::after,
+.panel-choice-item::after,
+.panel-choice-trigger::after,
+.panel-control::after,
+.panel-link::after,
+.panel-menu-item::after,
+.panel-multi-trigger::after,
+.panel-segmented-item::after,
+.panel-select-trigger::after,
+.panel-slot::after,
+.vc-seg-item::after,
+.week-editor-add::after,
+.week-editor-copy::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: max(100%, var(--size-touch));
+  transform: translateY(-50%);
+}
+
+/* iOS amplia a tela ao focar campo com fonte < 16 px. Só em aparelho de toque o campo volta a 16 px;
+   no resto da interface o corpo é 14 px (v0.4.0, DEC-081). */
+@media (hover: none) and (pointer: coarse) {
+  .panel-root input,
+  .panel-root textarea,
+  .panel-root select {
+    font-size: 16px;
+  }
 }

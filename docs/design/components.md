@@ -6,9 +6,9 @@ Padrões que se repetem nos mocks. Implemente cada um **uma vez** como component
 | --- | --- | --- |
 | **Cabeçalho de tela** | M-02 a M-04, M-11 a M-26 | Botão voltar 44×44 (`aria-label` “Voltar para …”), título 17px/600 e subtítulo 13px muted. Telas de formulário fecham com “Fechar sem agendar”/“Voltar sem …” quando há alteração a perder |
 | **Cabeçalho da conversa** | M-02 | Único (o cabeçalho de aba raiz some na conversa): voltar, avatar, nome, selo de estado e responsável; ícone **Agendar** e menu ⋮ com **Encerrar conversa** (confirmação em aviso, foco em **Cancelar**). Abaixo, faixa **Assumir** quando a conversa não é do usuário. Proposto (PR-7) |
-| **Cabeçalho de aba raiz** | M-01, M-05, M-06, M-13, M-15 | Título 22px/600, subtítulo com clínica e estado (“Ao vivo”), avatar do usuário 44px à direita só em Conversas |
+| **Cabeçalho de aba raiz** | M-01, M-05, M-06, M-13, M-15 | Título 18px/600, subtítulo com clínica e estado (“Ao vivo”), avatar do usuário 40px à direita só em Conversas |
 | **Barra inferior** | M-01, M-05, M-06, M-13, M-15 | 3 itens (4 para o Responsável), ícone 24 + rótulo 12px, item atual `aria-current="page"` em primary.ink/600, badge numérico no item Conversas, `padding-bottom` 22 para a área segura |
-| **Chip de filtro / aba por etapa** | M-01, M-05, M-06, M-13, M-17 | Linha rolável horizontal, 40px visual (`size.controlSm`), `aria-pressed` ou `role="tab"`/`aria-selected`; selecionado = fundo text.primary e texto branco. **Hit area ≥ 44px** | **Contador** à direita do rótulo (pílula `surface.sunken`, 12px/600, `tabular-nums`; `primary.base` em “Novas” quando > 0), sempre visível em todos os filtros. Componente: classes `panel-chip` + `panel-chip-count`.
+| **Chip de filtro / aba por etapa** | M-01, M-05, M-06, M-13, M-17 | Linha rolável horizontal, 28px visual (`size.controlSm`), área clicável 44px, `aria-pressed` ou `role="tab"`/`aria-selected`; selecionado = fundo text.primary e texto branco. **Hit area ≥ 44px** | **Contador** à direita do rótulo (pílula `surface.sunken`, 12px/600, `tabular-nums`; `primary.base` em “Novas” quando > 0), sempre visível em todos os filtros. Componente: classes `panel-chip` + `panel-chip-count`.
 | **Item de lista de conversa** | M-01 | **Lista contínua** (um cartão com divisores, linha ≥ 64px, não cartões soltos). Avatar 44 com iniciais em 4 tons estáveis por nome (`primary`, `success`, `warning`, `ai`), nome 16/600, hora 13 (primary.ink e 600 se não lida), prévia 16 (600 se não lida), selo de estado e responsável em 13. Alvo todo clicável |
 | **Selo de estado** | M-01, M-18, M-20 | Raio 8 (`radius.sm`), 12px/600 (`font.size.caption`), fundo tint e texto ink; nunca só cor: sempre texto (“Nova”, “Em atendimento”, “Encerrada”, “Ativa”) |
 | **Balão de mensagem** | M-02, M-07, M-11 | Recebida à esquerda (branco, borda), enviada à direita (primary.tint), largura máx. 82%, raio 16 com um canto de 4. Linha de estado de envio abaixo (ícone + texto, 6 estados da spec §6.1). Evento de sistema centralizado em cápsula neutra | **Implementado (PR-7):** hora e estado de envio dentro do balão, com ícone (relógio, visto, dois vistos, alerta); falha em `danger.tint` com **Tentar de novo** abaixo; separador de dia (“Hoje”, “Ontem”, “20 de outubro”) no fuso da clínica.
@@ -21,8 +21,8 @@ Padrões que se repetem nos mocks. Implemente cada um **uma vez** como component
 | **Faixa sem conexão** | M-07 | Faixa escura (`text.primary`) com ícone e uma frase: dados podem estar desatualizados e agenda/pagamento só confirmam com internet. Some sozinha quando volta; o indicador do cabeçalho passa a `danger.ink` |
 | **Folha inferior (bottom sheet)** | M-05 | Fundo escurecido, alça, título, opções de 52–56px, **Cancelar**. `role="dialog"`, foco preso, Esc fecha. Usada para escolhas curtas |
 | **Diálogo de confirmação** | M-26, M-08 | `role="alertdialog"`, ícone, título, consequências, campo de confirmação quando destrutivo, botão destrutivo desabilitado até confirmar, **Cancelar** |
-| **Rodapé de ação** | M-03, M-04, M-12, M-16 a M-22, M-24 a M-25 | Barra fixa com `padding-bottom` 30 (área segura), botão primário 52px de largura total; secundário ao lado (Cancelar) ou abaixo (link) |
-| **Campo de formulário** | M-04, M-09, M-12, M-16, M-21, M-22 | Rótulo 14px acima (sempre `<label>`), controle 48px, raio 10, borda input, texto 16px. Erro: borda danger + mensagem abaixo ligada por `aria-describedby` |
+| **Rodapé de ação** | M-03, M-04, M-12, M-16 a M-22, M-24 a M-25 | Barra fixa com `padding-bottom` 30 (área segura), botão primário 36px (`size.controlLg`) de largura total; secundário ao lado (Cancelar) ou abaixo (link) |
+| **Campo de formulário** | M-04, M-09, M-12, M-16, M-21, M-22 | Rótulo 13px acima (sempre `<label>`), controle 36px, raio 8, borda input, texto 14px (16px em aparelho de toque). Erro: borda danger + mensagem abaixo ligada por `aria-describedby` |
 | **Lista de linhas com ação** | M-15, M-17, M-18, M-20 | Cartão branco com divisores; linha ≥ 64px com título 16/600, subtítulo 14 muted, estado à direita e seta. Linha toda clicável |
 | **Seletor de horário** | M-04 | Faixa rolável de dias (60×64) e botões de horário de 52px com recurso à direita; selecionado = borda 2px primary e tint. Horário indisponível sai da lista |
 | **Item de compromisso** | M-06, M-13 | Hora 14/600 + cartão com contato, serviço, recurso e estado. Bloqueio e fora do expediente em hachura com **rótulo de texto** |
@@ -30,7 +30,7 @@ Padrões que se repetem nos mocks. Implemente cada um **uma vez** como component
 | **Barra de progresso** | M-15 | Dentro do banner de aviso: `role="progressbar"` com `aria-valuenow`/`aria-valuemax` e o texto “2 de 4 etapas prontas · Próxima: …”. As quatro etapas são Serviços, Profissionais e salas, Horários e bloqueios e WhatsApp. Proposto (PR-8) |
 | **Alternador segmentado** | M-06, M-13 | `ToggleButtonGroup` com seleção única (Dia / Semana), altura 44, item ativo em `surface.card` com contorno. Proposto (PR-8) |
 | **Faixa da semana** | M-06, M-13 | Sete dias (seg a dom) de largura total, cada um com nome, número e ponto quando há horário marcado; selecionado em `primary.base`; “Hoje” em `primary.ink`. Rótulo acessível com data por extenso e quantidade de horários. Proposto (PR-8) |
-| **Grade de horas do dia** | M-06 | Uma linha por hora (64px), compromissos posicionados pelo horário e altura mínima de 44px; compromissos que se sobrepõem ficam lado a lado; linha vermelha de “agora” só no dia de hoje. Faixa visível 8h–19h, ampliada se houver compromisso fora dela. **Ainda não mostra** bloqueios nem horários livres: a API de agenda não os devolve. Proposto (PR-8) |
+| **Grade de horas do dia** | M-06 | Uma linha por hora (60px), compromissos posicionados pelo horário e altura mínima de 44px; compromissos que se sobrepõem ficam lado a lado; linha vermelha de “agora” só no dia de hoje. Faixa visível 8h–19h, ampliada se houver compromisso fora dela. **Ainda não mostra** bloqueios nem horários livres: a API de agenda não os devolve. Proposto (PR-8) |
 | **Interruptor / caixa de seleção** | M-14, M-16, M-21, M-22 | `<input type="checkbox">` nativo de 22–28px, na linha inteira clicável (≥ 44px) |
 
 ## Onde estão no código
@@ -40,7 +40,7 @@ Padrões que se repetem nos mocks. Implemente cada um **uma vez** como component
 | Botão (`panel-btn-primary`/`-secondary`/`-ghost`/`-danger`/`-compact`) e chip com contador, selo (classes), banner, estado, esqueleto e faixa | `src/client/ui/panel.css`, bloco «Componentes base» (fonte única; só tokens) |
 | `Banner`, `Badge`, `ListSkeleton`, `OfflineStrip`, `TestOnly`, `EmptyState`/`ErrorState` | `src/client/panel/states/` |
 
-Regras do botão: um primário por tela ou bloco; primário, secundário e perigo ocupam a largura toda (use `panel-btn-compact` para botão em linha: 40px visuais, área de toque de 44px); fantasma é só texto na cor `primary.ink`.
+Regras do botão: um primário por tela ou bloco; primário, secundário e perigo ocupam a largura toda (use `panel-btn-compact` para botão em linha: 28px visuais, área de toque de 44px); fantasma é só texto na cor `primary.ink`.
 
 ## Estados dos componentes interativos
 

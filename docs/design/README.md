@@ -1,6 +1,6 @@
 # Design do painel — mocks e guia de implementação
 
-**Estado:** design system v0.3.1 **Confirmado** pelo responsável pelo produto ([DEC-041](../product/decisions.md), cor de marca em [DEC-050](../product/decisions.md), fonte Roboto em [DEC-073](../product/decisions.md)); biblioteca-base **Confirmada** — React Aria Components ([DEC-048](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
+**Estado:** design system v0.3.1 Confirmado, substituído em tamanhos pela v0.4.0 compacta (tipografia do WhatsApp Web, controles 28–36px) **Confirmada** ([DEC-081](../product/decisions.md)), ver [CHANGELOG.md](CHANGELOG.md); aprovado pelo responsável pelo produto ([DEC-041](../product/decisions.md), cor de marca em [DEC-050](../product/decisions.md), fonte Roboto em [DEC-073](../product/decisions.md)); biblioteca-base **Confirmada** — React Aria Components ([DEC-048](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); mocks das telas **Proposto**. 24 de outubro de 2026. Esta pasta registra, dentro do repositório, os mocks de UI/UX do painel para que qualquer agente ou pessoa implemente as telas sem depender de links externos. Os mocks ilustram a [especificação de UI/UX](../product/ux-ui.md); não a substituem.
 
 ## Ordem de autoridade
 
@@ -63,7 +63,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 
 | Onde | Divergência | Implementar assim |
 | --- | --- | --- |
-| Chips e botões pequenos (altura visual de 40px) | Abaixo dos 44px de área clicável (UX-08) | Mesma aparência, com área clicável ≥ 44px (padding ou pseudo-elemento, como no [catálogo](catalog/index.html)) |
+| Chips e botões pequenos (altura visual de 28 a 36px, v0.4.0) | Abaixo dos 44px de área clicável (UX-08) | Mesma aparência, com área clicável ≥ 44px (padding ou pseudo-elemento, como no [catálogo](catalog/index.html)) |
 | M-06 Agenda do dia | Não mostra o alternador **Dia / Semana** | Incluir como em M-13 (DEC-040) |
 | M-15 Clínica | O item “WhatsApp” abre M-19 (não conectado) | Abrir M-19, M-23 ou M-24 conforme o estado real da conexão |
 | M-09 Entrar | É um mock do comportamento | A tela real é o componente do Clerk com a identidade do Tredane |

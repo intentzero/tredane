@@ -13,24 +13,24 @@
 body{margin:0}
 </style>
 </helmet>
-<div style="width: 390px; height: 844px; overflow: hidden; display: flex; flex-direction: column; background: #F5F4EF; font-family: Inter, system-ui, sans-serif; color: #142625; font-size: 14px; line-height: 1.4">
+<div style="width: 390px; height: 844px; overflow: hidden; display: flex; flex-direction: column; background: #F5F4EF; font-family: Inter, system-ui, sans-serif; color: #142625; font-size: 13px; line-height: 1.4">
   <header style="flex: none; padding: 16px 16px 12px; background: #FFFFFF; border-bottom: 1px solid #E1E3E0">
-    <h1 style="margin: 0; font-size: 22px; font-weight: 600">Clínica</h1>
+    <h1 style="margin: 0; font-size: 18px; font-weight: 600">Clínica</h1>
     <span style="color: #424B4A">Clínica Bem Viver · Horário de Brasília</span>
   </header>
 
   <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px">
     <!-- Preparação: uma linha, não um bloco -->
-    <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: #FFF7EA; border: 1px solid #EBCB94; color: #6E4200; text-decoration: none">
+    <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: #FFF7EA; border: 1px solid #EBCB94; color: #6E4200; text-decoration: none">
       <span aria-hidden="true" style="display: flex; gap: 4px"><i style="width: 8px; height: 8px; border-radius: 999px; background: #6E4200"></i><i style="width: 8px; height: 8px; border-radius: 999px; background: #6E4200"></i><i style="width: 8px; height: 8px; border-radius: 999px; background: #6E4200"></i><i style="width: 8px; height: 8px; border-radius: 999px; border: 1.5px solid #6E4200; box-sizing: border-box"></i></span>
       <span style="flex: 1"><strong style="font-weight: 600">Falta 1 passo:</strong> cadastrar um serviço</span>
       <span aria-hidden="true">›</span>
     </a>
 
     <!-- A semana num olhar -->
-    <a href="HorarioSemana.dc.html" aria-label="Abrir o horário da semana" style="display: block; padding: 16px; border-radius: 20px; background: #FFFFFF; color: inherit; text-decoration: none">
+    <a href="HorarioSemana.dc.html" aria-label="Abrir o horário da semana" style="display: block; padding: 16px; border-radius: 16px; background: #FFFFFF; color: inherit; text-decoration: none">
       <div style="display: flex; align-items: baseline; gap: 8px">
-        <h2 style="margin: 0; flex: 1; font-size: 16px; font-weight: 600">Horário da clínica</h2>
+        <h2 style="margin: 0; flex: 1; font-size: 14px; font-weight: 600">Horário da clínica</h2>
         <span style="font-weight: 600; color: #0E5A5C">Abrir ›</span>
       </div>
       <p style="margin: 2px 0 14px; color: #566160">Aberta 56 h por semana · 3 pessoas</p>
@@ -42,47 +42,47 @@ body{margin:0}
           </div>
         </sc-for>
       </div>
-      <p style="margin: 12px 0 0; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #566160"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 3px; background: #0E5A5C"></span>Horário da clínica<span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 3px; background: #CBD0CF; margin-left: 8px"></span>Fechado</p>
+      <p style="margin: 12px 0 0; display: flex; align-items: center; gap: 8px; font-size: 11px; color: #566160"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 3px; background: #0E5A5C"></span>Horário da clínica<span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 3px; background: #CBD0CF; margin-left: 8px"></span>Fechado</p>
     </a>
 
     <!-- Pessoas -->
     <section aria-labelledby="eq-h">
-      <div style="display: flex; align-items: baseline; padding: 0 4px 8px"><h2 id="eq-h" style="margin: 0; flex: 1; font-size: 16px; font-weight: 600">Profissionais</h2><a href="PessoaAbas.dc.html" style="font-weight: 600; color: #0E5A5C; text-decoration: none">Ver todas ›</a></div>
+      <div style="display: flex; align-items: baseline; padding: 0 4px 8px"><h2 id="eq-h" style="margin: 0; flex: 1; font-size: 14px; font-weight: 600">Profissionais</h2><a href="PessoaAbas.dc.html" style="font-weight: 600; color: #0E5A5C; text-decoration: none">Ver todas ›</a></div>
       <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px">
         <sc-for list="{{pessoas}}" as="p" hint-placeholder-count="3">
-          <a href="PessoaAbas.dc.html" style="flex: none; width: 148px; box-sizing: border-box; padding: 12px; border-radius: 16px; background: #FFFFFF; color: inherit; text-decoration: none; display: flex; flex-direction: column; gap: 8px">
+          <a href="PessoaAbas.dc.html" style="flex: none; width: 148px; box-sizing: border-box; padding: 12px; border-radius: 12px; background: #FFFFFF; color: inherit; text-decoration: none; display: flex; flex-direction: column; gap: 8px">
             <span style="{{p.avatar}}">{{p.ini}}</span>
-            <span style="display: flex; flex-direction: column"><strong style="font-weight: 600">{{p.nome}}</strong><span style="font-size: 12px; color: #566160">{{p.sub}}</span></span>
+            <span style="display: flex; flex-direction: column"><strong style="font-weight: 600">{{p.nome}}</strong><span style="font-size: 11px; color: #566160">{{p.sub}}</span></span>
             <span style="{{p.chip}}">{{p.estado}}</span>
           </a>
         </sc-for>
-        <a href="#" style="flex: none; width: 96px; box-sizing: border-box; padding: 12px; border-radius: 16px; border: 1.5px dashed #7A8584; color: #0E5A5C; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-weight: 600"><span style="font-size: 22px">+</span>Nova</a>
+        <a href="#" style="flex: none; width: 96px; box-sizing: border-box; padding: 12px; border-radius: 12px; border: 1.5px dashed #7A8584; color: #0E5A5C; text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-weight: 600"><span style="font-size: 18px">+</span>Nova</a>
       </div>
     </section>
 
     <!-- Serviços e salas lado a lado -->
     <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
-      <a href="#" style="padding: 14px; border-radius: 16px; background: #FFFFFF; color: inherit; text-decoration: none; display: flex; flex-direction: column; gap: 4px; min-height: 96px; border: 1.5px dashed #EBCB94">
+      <a href="#" style="padding: 14px; border-radius: 12px; background: #FFFFFF; color: inherit; text-decoration: none; display: flex; flex-direction: column; gap: 4px; min-height: 96px; border: 1.5px dashed #EBCB94">
         <strong style="font-weight: 600">Serviços</strong>
         <span style="color: #6E4200">Nenhum ainda</span>
         <span style="margin-top: auto; font-weight: 600; color: #0E5A5C">+ Primeiro serviço</span>
       </a>
-      <a href="#" style="padding: 14px; border-radius: 16px; background: #FFFFFF; color: inherit; text-decoration: none; display: flex; flex-direction: column; gap: 4px; min-height: 96px">
+      <a href="#" style="padding: 14px; border-radius: 12px; background: #FFFFFF; color: inherit; text-decoration: none; display: flex; flex-direction: column; gap: 4px; min-height: 96px">
         <strong style="font-weight: 600">Salas</strong>
         <span style="color: #566160">3 · uma com 3 lugares</span>
         <span style="margin-top: auto; font-weight: 600; color: #0E5A5C">Abrir ›</span>
       </a>
     </div>
 
-    <section aria-labelledby="at-h" style="border-radius: 16px; background: #FFFFFF; overflow: hidden">
-      <h2 id="at-h" style="margin: 0; padding: 14px 16px 6px; font-size: 16px; font-weight: 600">Atendimento</h2>
-      <a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 16px; border-top: 1px solid #EEEDE7; color: inherit; text-decoration: none"><span style="flex: 1">WhatsApp</span><span style="font-size: 12px; font-weight: 600; color: #1F7A4D">Conectado</span><span aria-hidden="true" style="color: #566160">›</span></a>
-      <a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 16px; border-top: 1px solid #EEEDE7; color: inherit; text-decoration: none"><span style="flex: 1">Sinal por Pix</span><span style="font-size: 12px; color: #566160">Opcional</span><span aria-hidden="true" style="color: #566160">›</span></a>
-      <a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 16px; border-top: 1px solid #EEEDE7; color: inherit; text-decoration: none"><span style="flex: 1">Sugestões com IA</span><span style="font-size: 12px; color: #566160">Ligadas</span><span aria-hidden="true" style="color: #566160">›</span></a>
+    <section aria-labelledby="at-h" style="border-radius: 12px; background: #FFFFFF; overflow: hidden">
+      <h2 id="at-h" style="margin: 0; padding: 14px 16px 6px; font-size: 14px; font-weight: 600">Atendimento</h2>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 16px; border-top: 1px solid #EEEDE7; color: inherit; text-decoration: none"><span style="flex: 1">WhatsApp</span><span style="font-size: 11px; font-weight: 600; color: #1F7A4D">Conectado</span><span aria-hidden="true" style="color: #566160">›</span></a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 16px; border-top: 1px solid #EEEDE7; color: inherit; text-decoration: none"><span style="flex: 1">Sinal por Pix</span><span style="font-size: 11px; color: #566160">Opcional</span><span aria-hidden="true" style="color: #566160">›</span></a>
+      <a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 16px; border-top: 1px solid #EEEDE7; color: inherit; text-decoration: none"><span style="flex: 1">Sugestões com IA</span><span style="font-size: 11px; color: #566160">Ligadas</span><span aria-hidden="true" style="color: #566160">›</span></a>
     </section>
   </div>
 
-  <nav aria-label="Áreas" style="flex: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); height: 60px; background: #FFFFFF; border-top: 1px solid #E1E3E0; font-size: 12px">
+  <nav aria-label="Áreas" style="flex: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); height: 60px; background: #FFFFFF; border-top: 1px solid #E1E3E0; font-size: 11px">
     <a href="#" style="display: grid; place-items: center; color: #424B4A; text-decoration: none">Conversas</a>
     <a href="#" style="display: grid; place-items: center; color: #424B4A; text-decoration: none">Acompanhar</a>
     <a href="#" style="display: grid; place-items: center; color: #424B4A; text-decoration: none">Agenda</a>
@@ -98,7 +98,7 @@ class Component extends DCLogic {
     const semana = horas.map((h, i) => ({
       nome: nomes[i],
       barra: 'width: 100%; border-radius: 8px; ' + (h > 0 ? 'height: ' + (h / 10 * 64) + 'px; background: #0E5A5C;' : 'height: 8px; background: #CBD0CF;'),
-      rotulo: 'font-size: 12px; font-weight: 600; ' + (h > 0 ? 'color: #142625;' : 'color: #566160;'),
+      rotulo: 'font-size: 11px; font-weight: 600; ' + (h > 0 ? 'color: #142625;' : 'color: #566160;'),
     }))
     const tone = (bg, ink) => ({ bg, ink })
     const pessoas = [
@@ -108,7 +108,7 @@ class Component extends DCLogic {
     ].map((p) => ({
       ...p,
       avatar: 'width: 44px; height: 44px; border-radius: 999px; display: grid; place-items: center; font-weight: 600; background: ' + p.bg + '; color: ' + p.ink,
-      chip: 'align-self: flex-start; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; ' + (p.livre ? 'background: #EEEDE7; color: #424B4A;' : 'background: #FFF7EA; color: #6E4200;'),
+      chip: 'align-self: flex-start; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; ' + (p.livre ? 'background: #EEEDE7; color: #424B4A;' : 'background: #FFF7EA; color: #6E4200;'),
     }))
     return { semana, pessoas }
   }
