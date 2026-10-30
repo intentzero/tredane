@@ -156,6 +156,29 @@ describe('S3: persistência e validação', () => {
     }
   })
 
+  it('DEC-076: rejeita duração diferente da do cadastro', () => {
+    const s = seed()
+    try {
+      expect(() =>
+        createProposal(
+          s.db,
+          s.tenantId,
+          {
+            contactId: s.contact.id,
+            conversationId: s.conversation.id,
+            serviceId: s.svc.id,
+            professionalId: s.pro.id,
+            startsAt: s.startsAt,
+            durationMinutes: 90,
+          },
+          s.clock,
+        ),
+      ).toThrow(ValidationError)
+    } finally {
+      s.close()
+    }
+  })
+
   it('rejeita serviço / profissional / conversa fabricados', () => {
     const s = seed()
     try {

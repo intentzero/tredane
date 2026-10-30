@@ -115,9 +115,10 @@ function toServiceRow(
     signalKind: requiresSignal ? signalKind : null,
     signalFixedCents: requiresSignal ? (row.signal_fixed_cents ?? null) : null,
     signalPercent: requiresSignal ? (row.signal_percent ?? null) : null,
-    durationAdjustable: (row.duration_adjustable ?? 0) === 1,
-    durationMinMinutes: (row.duration_adjustable ?? 0) === 1 ? (row.duration_min_minutes ?? null) : null,
-    durationMaxMinutes: (row.duration_adjustable ?? 0) === 1 ? (row.duration_max_minutes ?? null) : null,
+    // DEC-076: o cadastro já não oferece duração ajustável. Colunas antigas são ignoradas.
+    durationAdjustable: false,
+    durationMinMinutes: null,
+    durationMaxMinutes: null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     professionalIds: loadProfessionals(db, row.tenant_id, row.id),
@@ -191,47 +192,25 @@ function normalizeSignalFields(
   }
 }
 
-/** DEC-051(b): múltiplos de 15 min, mín ≤ padrão ≤ máx. */
-function normalizeDurationFields(input: UpsertServiceInput): {
+/** DEC-076: o pedido pode ainda trazer o campo antigo; a gravação limpa-o. */
+function normalizeDurationFields(): {
   adjustable: number
   min: number | null
   max: number | null
 } {
-  if (input.durationAdjustable !== true) return { adjustable: 0, min: null, max: null }
-  const min = input.durationMinMinutes ?? input.durationMinutes
-  const max = input.durationMaxMinutes ?? input.durationMinutes
-  const ok = (n: number) => Number.isInteger(n) && n > 0 && n % 15 === 0 && n <= 24 * 60
-  if (!ok(min) || !ok(max) || min > input.durationMinutes || max < input.durationMinutes || min === max) {
-    throw new ValidationError(
-      'invalid_duration_range',
-      'duração ajustável: mínimo e máximo em múltiplos de 15 min, com mínimo ≤ duração padrão ≤ máximo',
-      { durationMinMinutes: min, durationMaxMinutes: max, durationMinutes: input.durationMinutes },
-    )
-  }
-  return { adjustable: 1, min, max }
+  return { adjustable: 0, min: null, max: null }
 }
 
 /**
- * DEC-051: duração aplicada no Agendar. `null` = padrão do serviço.
- * Só serviços marcados pela owner; múltiplo de 15 min dentro de [mín, máx].
+ * DEC-076: a marcação nova usa a duração do cadastro.
+ * `null` quando o pedido omite ou repete essa duração.
  */
 export function assertAppliedDuration(service: ServiceRow, minutes: number | null | undefined): number | null {
   if (minutes == null || minutes === service.durationMinutes) return null
-  if (!service.durationAdjustable) {
-    throw new ValidationError('duration_not_adjustable', 'este serviço não tem duração ajustável', {
-      serviceId: service.id,
-    })
-  }
-  const min = service.durationMinMinutes ?? service.durationMinutes
-  const max = service.durationMaxMinutes ?? service.durationMinutes
-  if (!Number.isInteger(minutes) || minutes % 15 !== 0 || minutes < min || minutes > max) {
-    throw new ValidationError('invalid_duration', `duração deve ser múltiplo de 15 min entre ${min} e ${max}`, {
-      durationMinutes: minutes,
-      min,
-      max,
-    })
-  }
-  return minutes
+  throw new ValidationError('duration_not_adjustable', 'a duração do procedimento não se ajusta ao agendar', {
+    serviceId: service.id,
+    durationMinutes: service.durationMinutes,
+  })
 }
 
 export function listServices(db: ClinicDb, tenantId: string): ServiceRow[] {
@@ -387,7 +366,7 @@ export function upsertService(
   const now = clock.nowMs()
   const active = input.active === false ? 0 : 1
   const signal = normalizeSignalFields(input, priceCents)
-  const dur = normalizeDurationFields(input)
+  const dur = normalizeDurationFields()
   const existing = input.id ? getService(db, tenantId, input.id) : null
   if (input.id && !existing) {
     throw new NotFoundError('service_not_found', `serviço ${input.id} não encontrado`)

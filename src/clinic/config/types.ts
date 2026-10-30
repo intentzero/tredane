@@ -19,7 +19,7 @@ export type ServiceRow = {
   signalKind: ServiceSignalKind | null
   signalFixedCents: number | null
   signalPercent: number | null
-  /** DEC-051 — a atendente pode ajustar a duração no Agendar (só a owner configura). */
+  /** DEC-076: sempre falso. A coluna antiga já não configura o procedimento. */
   durationAdjustable: boolean
   durationMinMinutes: number | null
   durationMaxMinutes: number | null

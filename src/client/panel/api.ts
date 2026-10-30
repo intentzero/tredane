@@ -866,7 +866,7 @@ export function createPanelApi(getToken: TokenGetter) {
         contactId?: string | null
         conversationId?: string | null
         opportunityId?: string | null
-        /** DEC-051: duração aplicada (só serviços com duração ajustável). */
+        /** DEC-076: ignorado, salvo se repetir a duração do cadastro. */
         durationMinutes?: number | null
       },
       opts?: FetchOpts,
@@ -1992,7 +1992,7 @@ export type ClinicService = {
   signalKind: 'fixed' | 'percent' | null
   signalFixedCents: number | null
   signalPercent: number | null
-  /** DEC-051 — duração ajustável no Agendar (owner). */
+  /** DEC-076: o servidor grava sempre falso. O campo antigo deixa de configurar o procedimento. */
   durationAdjustable?: boolean
   durationMinMinutes?: number | null
   durationMaxMinutes?: number | null
@@ -2374,7 +2374,7 @@ export type AgendaAppointmentItem = {
   opportunityId: string | null
   version: number
   changeReason: string | null
-  /** DEC-051(i): rótulo «duração ajustada». */
+  /** Compromisso antigo cuja duração gravada difere da do cadastro (DEC-076). */
   durationAdjusted?: boolean
   /** Criado pela IA após confirmação explícita da cliente. */
   bookedByAi?: boolean

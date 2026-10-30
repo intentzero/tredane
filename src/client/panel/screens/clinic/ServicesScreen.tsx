@@ -164,10 +164,6 @@ export function ServiceForm({
       ? existing.roomRequirement.resourceId
       : rooms[0]?.id ?? '',
   )
-  // DEC-051 (Confirmado, card t1868s7504): só a owner marca «duração ajustável».
-  const [adjustable, setAdjustable] = useState(existing?.durationAdjustable ?? false)
-  const [durMin, setDurMin] = useState(existing?.durationMinMinutes ?? 30)
-  const [durMax, setDurMax] = useState(existing?.durationMaxMinutes ?? 120)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -218,7 +214,6 @@ export function ServiceForm({
   const moreSummary = [
     roomLabel,
     buffer === 0 ? 'sem intervalo' : `intervalo ${buffer} min`,
-    adjustable ? 'duração ajustável' : null,
     requiresSignal ? 'exige sinal' : 'sem sinal',
     explanation.trim() ? 'com explicação' : null,
   ]
@@ -256,9 +251,6 @@ export function ServiceForm({
         requiresSignal && signalKind === 'percent'
           ? Number.parseInt(signalPercent, 10) || null
           : null,
-      durationAdjustable: adjustable,
-      durationMinMinutes: adjustable ? Math.min(durMin, duration) : null,
-      durationMaxMinutes: adjustable ? Math.max(durMax, duration) : null,
       weeklyWindows: fromWeekDraft(hoursDraft),
     }
     try {
@@ -444,38 +436,6 @@ export function ServiceForm({
               Ocupa {occupied} min na agenda: {duration} de atendimento + {buffer} de intervalo. O intervalo
               bloqueia a profissional e a sala.
             </p>
-            <fieldset className="clinic-fieldset">
-              <legend>Duração ao agendar</legend>
-              <ClinicCheck className="clinic-check" isSelected={adjustable} onChange={setAdjustable}>
-                A equipe pode ajustar a duração
-              </ClinicCheck>
-              {adjustable ? (
-                <div className="clinic-field-row">
-                  <PanelSelect
-                    className="clinic-field"
-                    label="Mínimo"
-                    value={String(Math.min(durMin, duration))}
-                    onChange={(v) => setDurMin(Number(v))}
-                    options={durationOptions()
-                      .filter((m) => m <= duration)
-                      .map((m) => ({ id: String(m), label: `${m} min` }))}
-                  />
-                  <PanelSelect
-                    className="clinic-field"
-                    label="Máximo"
-                    value={String(Math.max(durMax, duration))}
-                    onChange={(v) => setDurMax(Number(v))}
-                    options={durationOptions()
-                      .filter((m) => m >= duration)
-                      .map((m) => ({ id: String(m), label: `${m} min` }))}
-                  />
-                </div>
-              ) : null}
-              <p className="clinic-footnote">
-                A equipe escolhe em passos de 15 min entre o mínimo e o máximo. O intervalo é somado
-                depois; preço e sinal não mudam.
-              </p>
-            </fieldset>
             <fieldset className="clinic-fieldset">
               <legend>Sinal por Pix</legend>
               <ClinicCheck

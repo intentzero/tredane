@@ -1,4 +1,4 @@
-import { CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, Minus, Plus, TriangleAlert, X } from 'lucide-react'
+import { CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, TriangleAlert, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
@@ -34,7 +34,6 @@ import {
   WAIVE_REASONS,
   defaultConfirmationMessage,
   defaultNotify,
-  durationBounds,
   formatBrl,
   formatDeadline,
   formatWaId,
@@ -155,8 +154,6 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
   /** «Por período» = reserva por bloco (antigo «Reservar bloco»); só com conversa. */
   const [periodOpen, setPeriodOpen] = useState(false)
   const [serviceId, setServiceId] = useState('')
-  /** DEC-051: duração aplicada (null = padrão do serviço). */
-  const [appliedDuration, setAppliedDuration] = useState<number | null>(null)
   const [professionalId, setProfessionalId] = useState<string>(ANY)
   const [date, setDate] = useState('')
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null)
@@ -242,7 +239,6 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           serviceId,
           date,
           professionalId: professionalId === ANY ? undefined : professionalId,
-          durationMinutes: appliedDuration ?? undefined,
         },
         fo,
       )
@@ -266,7 +262,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
     } finally {
       setLoadingSlots(false)
     }
-  }, [api, tenantId, fo, serviceId, date, professionalId, appliedDuration])
+  }, [api, tenantId, fo, serviceId, date, professionalId])
 
   useEffect(() => {
     void reloadSlots()
@@ -297,7 +293,6 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
               serviceId,
               date: d,
               professionalId: professionalId === ANY ? undefined : professionalId,
-              durationMinutes: appliedDuration ?? undefined,
             },
             fo,
           )
@@ -317,22 +312,13 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
     return () => {
       cancelled = true
     }
-  }, [availability, date, allDays, api, tenantId, fo, serviceId, professionalId, appliedDuration])
+  }, [availability, date, allDays, api, tenantId, fo, serviceId, professionalId])
 
   useEffect(() => {
     if (conflict) conflictRef.current?.focus()
   }, [conflict])
 
   const service = config?.services.find((s) => s.id === serviceId)
-  const bounds = service ? durationBounds(service) : null
-  const currentDuration = appliedDuration ?? service?.durationMinutes ?? 0
-  function stepDuration(delta: number) {
-    if (!service || !bounds) return
-    const next = Math.min(bounds.max, Math.max(bounds.min, currentDuration + delta))
-    setAppliedDuration(next === service.durationMinutes ? null : next)
-    setSelected(null)
-    setConflict(null)
-  }
   const amountCents = service ? signalAmountCents(service) : null
   const paidSignalMode = Boolean(ctx.alertId)
   const requiresSignal = !paidSignalMode && Boolean(service?.requiresSignal && amountCents != null)
@@ -524,7 +510,6 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
                   aria-pressed={s.id === serviceId}
                   onClick={() => {
                     setServiceId(s.id)
-                    setAppliedDuration(null)
                     setSelected(null)
                     setConflict(null)
                   }}
@@ -538,38 +523,6 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
               ))}
           </div>
         </section>
-
-        {service && bounds && !requiresSignal && !paidSignalMode ? (
-          <section aria-labelledby="agd-dur">
-            <h2 id="agd-dur" className="agd-label">Duração</h2>
-            <div className="agd-duration" role="group" aria-labelledby="agd-dur">
-              <Button
-                className="panel-icon-btn"
-                aria-label="Diminuir 15 min"
-                isDisabled={currentDuration <= bounds.min}
-                onPress={() => stepDuration(-15)}
-              >
-                <Minus aria-hidden size={20} strokeWidth={2} />
-              </Button>
-              <output className="agd-duration-value" aria-live="polite">
-                {currentDuration} min
-              </output>
-              <Button
-                className="panel-icon-btn"
-                aria-label="Aumentar 15 min"
-                isDisabled={currentDuration >= bounds.max}
-                onPress={() => stepDuration(15)}
-              >
-                <Plus aria-hidden size={20} strokeWidth={2} />
-              </Button>
-            </div>
-            <p className="panel-meta">
-              {appliedDuration != null ? 'Duração ajustada. ' : ''}
-              Padrão {service.durationMinutes} min · de {bounds.min} a {bounds.max} min
-              {service.bufferMinutes > 0 ? ` · +${service.bufferMinutes} min de intervalo` : ''}. Preço e sinal não mudam.
-            </p>
-          </section>
-        ) : null}
 
         <section aria-labelledby="agd-pro">
           <h2 id="agd-pro" className="agd-label">Profissional</h2>
@@ -696,7 +649,6 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           fo={fo}
           ctx={ctx}
           service={service}
-          appliedDuration={appliedDuration}
           slot={selected}
           date={date}
           timezone={timezone}
@@ -809,7 +761,6 @@ type ReviewProps = {
   fo: { generation: number; expectGeneration: () => number }
   ctx: ScheduleContext
   service: Service
-  appliedDuration: number | null
   slot: AvailabilitySlot
   date: string
   timezone: string
@@ -875,7 +826,6 @@ function ReviewSheet(p: ReviewProps) {
         professionalId: slot.professionalId,
         roomResourceId: slot.roomResourceId,
         startsAt: slot.startsAt,
-        durationMinutes: p.appliedDuration,
       },
       fo,
     )
@@ -944,7 +894,6 @@ function ReviewSheet(p: ReviewProps) {
           conversationId: ctx.conversationId,
           contactId: ctx.contactId,
           opportunityId: ctx.opportunityId,
-          durationMinutes: p.appliedDuration,
         },
         fo,
       )

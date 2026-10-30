@@ -287,7 +287,7 @@ export async function executeProposalConfirmOp(
           conversationId: proposal.conversationId,
           actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
           actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
-          appliedDurationMinutes: proposal.durationMinutes,
+          appliedDurationMinutes: null,
         },
         clock,
       )
@@ -484,7 +484,7 @@ export async function executeProposalConfirmOp(
         contactLabel,
         actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
         actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
-        appliedDurationMinutes: proposal.durationMinutes,
+        appliedDurationMinutes: null,
       },
       clock,
     )

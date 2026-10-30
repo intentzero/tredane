@@ -185,20 +185,3 @@ export function defaultNotify(
 ): boolean {
   return hasConversation && window24?.open === true
 }
-
-/**
- * DEC-051 (Confirmado, card t1868s7504): limites da duração ajustável, ou null
- * se o serviço não foi marcado pela owner como «duração ajustável».
- */
-export function durationBounds(svc: {
-  durationMinutes: number
-  durationAdjustable?: boolean
-  durationMinMinutes?: number | null
-  durationMaxMinutes?: number | null
-}): { min: number; max: number } | null {
-  if (!svc.durationAdjustable) return null
-  const min = svc.durationMinMinutes ?? svc.durationMinutes
-  const max = svc.durationMaxMinutes ?? svc.durationMinutes
-  if (min >= max) return null
-  return { min, max }
-}

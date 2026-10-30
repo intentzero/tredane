@@ -250,11 +250,25 @@ export function confirmAppointmentInTransaction(
     }
   }
 
-  let durationOverride = input.durationMinutesOverride ?? null
-  if (input.appliedDurationMinutes != null) {
-    const svcForDuration = getService(db, meta.tenantId, input.serviceId)
-    if (svcForDuration) {
-      durationOverride = assertAppliedDuration(svcForDuration, input.appliedDurationMinutes) ?? durationOverride
+  // DEC-076: só o bloco («por período») traz duração própria, via excludeHoldId.
+  // Fora disso, duração diferente da do cadastro é recusada — inclusive um
+  // durationMinutesOverride que sobreviveria quando a duração pedida coincide
+  // com o cadastro.
+  const svcForDuration = getService(db, meta.tenantId, input.serviceId)
+  let durationOverride: number | null = null
+  if (input.excludeHoldId) {
+    durationOverride = input.durationMinutesOverride ?? null
+  } else if (svcForDuration) {
+    assertAppliedDuration(svcForDuration, input.appliedDurationMinutes)
+    if (
+      input.durationMinutesOverride != null &&
+      input.durationMinutesOverride !== svcForDuration.durationMinutes
+    ) {
+      throw new ValidationError(
+        'duration_not_adjustable',
+        'a duração do procedimento não se ajusta ao agendar',
+        { serviceId: svcForDuration.id, durationMinutes: svcForDuration.durationMinutes },
+      )
     }
   }
 
@@ -667,10 +681,13 @@ export function rescheduleAppointmentOp(
         roomResourceId: input.roomResourceId,
         startsAt: input.startsAt,
         excludeAppointmentId: before.id,
-        // DEC-051(f): reagendar mantém a duração aplicada (mesmo serviço).
+        // DEC-076: marcações novas usam a duração do cadastro. Reagendar
+        // mantém a duração deste compromisso. Se a coluna veio vazia
+        // (migração 0020, sem backfill), vale o intervalo já gravado.
         durationMinutesOverride:
-          serviceId === before.serviceId && before.appliedDurationMinutes != null
-            ? before.appliedDurationMinutes
+          serviceId === before.serviceId
+            ? (before.appliedDurationMinutes ??
+              Math.round((before.endsAt - before.startsAt) / 60_000))
             : null,
       },
       clock,

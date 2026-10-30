@@ -11,7 +11,7 @@ const TZ = 'America/Sao_Paulo'
 const ACTOR = 'user_synth_owner_a'
 const at = (h: number, m = 0) => zonedCivilToUtc(TZ, 2024, 1, 8, h, m)
 
-function setup(adjustable = true) {
+function setup() {
   const clock = createControllableClock(Date.UTC(2024, 0, 5, 12))
   const booted = bootClinicDb({ clock })
   const { db } = booted
@@ -27,9 +27,6 @@ function setup(adjustable = true) {
       bufferMinutes: 15,
       professionalIds: [pro.id],
       roomRequirement: { mode: 'none' },
-      durationAdjustable: adjustable,
-      durationMinMinutes: adjustable ? 30 : null,
-      durationMaxMinutes: adjustable ? 90 : null,
     },
     clock,
   )
@@ -56,45 +53,33 @@ function setup(adjustable = true) {
   return { ...booted, clock, caller, tenantId, pro, svc, book }
 }
 
-describe('Agendar — DEC-051/052 (Confirmados, card t1868s7504)', () => {
-  it('DEC-051: duração aplicada grava padrão + aplicada e ocupa aplicada + buffer', () => {
+describe('Agendar — DEC-076 retira duração ajustável; DEC-052 mantém-se', () => {
+  it('DEC-076: duração diferente da do cadastro é recusada; a do cadastro ocupa duração + intervalo', () => {
     const { db, close, caller, clock, book, svc, pro } = setup()
     try {
-      const r = book(9, { appliedDurationMinutes: 90 })
-      expect(r.value.endsAt).toBe(at(10, 30))
-      expect(r.value.occupiesUntil).toBe(at(10, 45))
+      expect(() => book(9, { appliedDurationMinutes: 90 })).toThrow(ValidationError)
+      const r = book(9, { appliedDurationMinutes: 60 })
+      expect(r.value.endsAt).toBe(at(10))
+      expect(r.value.occupiesUntil).toBe(at(10, 15))
       expect(r.value.defaultDurationMinutes).toBe(60)
-      expect(r.value.appliedDurationMinutes).toBe(90)
+      expect(r.value.appliedDurationMinutes).toBe(60)
       const starts = queryAvailabilityOp(db, caller, { serviceId: svc.id, date: '2024-01-08', professionalId: pro.id }, clock).slots.map((s) => s.startsAt)
-      expect(starts).not.toContain(at(10, 30))
-      expect(starts).toContain(at(10, 45))
+      expect(starts).not.toContain(at(10))
+      expect(starts).toContain(at(10, 15))
     } finally {
       close()
     }
   })
 
-  it('DEC-051: fora dos limites, fora de 15 min ou serviço não ajustável → erro', () => {
-    const a = setup()
+  it('DEC-076: reagendar mantém a duração já gravada, mesmo que tenha sido ajustada antes', () => {
+    const { db, close, caller, clock, book, pro, tenantId } = setup()
     try {
-      expect(() => a.book(9, { appliedDurationMinutes: 100 })).toThrow(ValidationError)
-      expect(() => a.book(9, { appliedDurationMinutes: 120 })).toThrow(ValidationError)
-      expect(() => a.book(9, { appliedDurationMinutes: 15 })).toThrow(ValidationError)
-    } finally {
-      a.close()
-    }
-    const b = setup(false)
-    try {
-      expect(() => b.book(9, { appliedDurationMinutes: 90 })).toThrow(ValidationError)
-      expect(b.book(9, { appliedDurationMinutes: 60 }).value.appliedDurationMinutes).toBe(60)
-    } finally {
-      b.close()
-    }
-  })
-
-  it('DEC-051(f): reagendar mantém a duração aplicada', () => {
-    const { db, close, caller, clock, book, pro } = setup()
-    try {
-      const r = book(9, { appliedDurationMinutes: 30 })
+      const r = book(9)
+      db.run(
+        `UPDATE appointments SET applied_duration_minutes = 30 WHERE tenant_id = ? AND id = ?`,
+        tenantId,
+        r.value.id,
+      )
       const moved = rescheduleAppointmentOp(
         db,
         caller,
@@ -108,17 +93,54 @@ describe('Agendar — DEC-051/052 (Confirmados, card t1868s7504)', () => {
     }
   })
 
-  it('DEC-051(b): owner só grava limites válidos', () => {
+  it('DEC-076: override de duração sem bloco é recusado', () => {
+    const { close, book } = setup()
+    try {
+      expect(() => book(9, { durationMinutesOverride: 90 })).toThrow(ValidationError)
+      expect(() =>
+        book(10, { appliedDurationMinutes: 60, durationMinutesOverride: 90 }),
+      ).toThrow(ValidationError)
+    } finally {
+      close()
+    }
+  })
+
+  it('DEC-076: reagendar sem coluna de duração mantém o intervalo já gravado', () => {
+    const { db, close, caller, clock, book, pro, tenantId } = setup()
+    try {
+      const r = book(9)
+      const span = r.value.startsAt + 30 * 60_000
+      db.run(
+        `UPDATE appointments SET applied_duration_minutes = NULL, ends_at = ? WHERE tenant_id = ? AND id = ?`,
+        span,
+        tenantId,
+        r.value.id,
+      )
+      const moved = rescheduleAppointmentOp(
+        db,
+        caller,
+        { clientRequestId: 'rs-null', appointmentId: r.value.id, reason: 'contato_remarcou', professionalId: pro.id, startsAt: at(14), actorClerkUserId: ACTOR },
+        clock,
+      )
+      expect(moved.value.endsAt - moved.value.startsAt).toBe(30 * 60_000)
+      expect(moved.value.appliedDurationMinutes).toBe(30)
+    } finally {
+      close()
+    }
+  })
+
+  it('DEC-076: gravar o procedimento ignora o pedido de duração ajustável', () => {
     const { db, close, caller, clock, pro } = setup()
     try {
-      expect(() =>
-        upsertServiceOp(
-          db,
-          caller,
-          { name: 'X', durationMinutes: 60, bufferMinutes: 0, professionalIds: [pro.id], durationAdjustable: true, durationMinMinutes: 70, durationMaxMinutes: 90 },
-          clock,
-        ),
-      ).toThrow(ValidationError)
+      const saved = upsertServiceOp(
+        db,
+        caller,
+        { name: 'X', durationMinutes: 60, bufferMinutes: 0, professionalIds: [pro.id], durationAdjustable: true, durationMinMinutes: 30, durationMaxMinutes: 90 },
+        clock,
+      )
+      expect(saved.durationAdjustable).toBe(false)
+      expect(saved.durationMinMinutes).toBeNull()
+      expect(saved.durationMaxMinutes).toBeNull()
     } finally {
       close()
     }
