@@ -78,13 +78,37 @@ function readScheduleContext(): ScheduleContext {
   }
 }
 
-function signalAmountCents(svc: Service): number | null {
+function signalAmountCents(svc: Service, priceCents: number | null = svc.priceCents): number | null {
   if (!svc.requiresSignal) return null
   if (svc.signalKind === 'fixed' && svc.signalFixedCents != null) return svc.signalFixedCents
-  if (svc.signalKind === 'percent' && svc.signalPercent != null && svc.priceCents != null) {
-    return Math.trunc((svc.priceCents * svc.signalPercent) / 100)
+  if (svc.signalKind === 'percent' && svc.signalPercent != null && priceCents != null) {
+    return Math.trunc((priceCents * svc.signalPercent) / 100)
   }
   return null
+}
+
+function activeZonesOf(svc: Service | undefined) {
+  return (svc?.zones ?? []).filter((z) => z.active).slice().sort((a, b) => a.sortOrder - b.sortOrder)
+}
+
+function chosenZones(svc: Service | undefined, ids: string[]) {
+  const active = activeZonesOf(svc)
+  return active.filter((z) => ids.includes(z.id))
+}
+
+function visitQuote(svc: Service | undefined, ids: string[]) {
+  const active = activeZonesOf(svc)
+  if (active.length === 0) {
+    return { zoned: false, zones: [], minutes: svc?.durationMinutes ?? null, priceCents: svc?.priceCents ?? null }
+  }
+  const zones = chosenZones(svc, ids)
+  const priced = zones.length > 0 && zones.every((z) => z.priceCents != null)
+  return {
+    zoned: true,
+    zones,
+    minutes: zones.reduce((sum, z) => sum + z.durationMinutes, 0) || null,
+    priceCents: priced ? zones.reduce((sum, z) => sum + (z.priceCents ?? 0), 0) : null,
+  }
 }
 
 function isConflictError(err: unknown): boolean {
@@ -154,6 +178,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
   /** «Por período» = reserva por bloco (antigo «Reservar bloco»); só com conversa. */
   const [periodOpen, setPeriodOpen] = useState(false)
   const [serviceId, setServiceId] = useState('')
+  const [zoneIds, setZoneIds] = useState<string[]>([])
   const [professionalId, setProfessionalId] = useState<string>(ANY)
   const [date, setDate] = useState('')
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null)
@@ -231,6 +256,13 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
 
   const reloadSlots = useCallback(async () => {
     if (!serviceId || !date) return
+    const svc = config?.services.find((s) => s.id === serviceId)
+    const visit = visitQuote(svc, zoneIds)
+    if (visit.zoned && visit.zones.length === 0) {
+      setAvailability(null)
+      setSelected(null)
+      return
+    }
     setLoadingSlots(true)
     try {
       const res = await api.queryAvailability(
@@ -239,6 +271,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           serviceId,
           date,
           professionalId: professionalId === ANY ? undefined : professionalId,
+          ...(visit.zoned && visit.minutes ? { durationMinutes: visit.minutes } : {}),
         },
         fo,
       )
@@ -262,7 +295,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
     } finally {
       setLoadingSlots(false)
     }
-  }, [api, tenantId, fo, serviceId, date, professionalId])
+  }, [api, tenantId, fo, serviceId, date, professionalId, config, zoneIds])
 
   useEffect(() => {
     void reloadSlots()
@@ -287,12 +320,15 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
       const candidates = allDays.slice(idx + 1, idx + 1 + NEXT_FREE_HORIZON_DAYS)
       for (const d of candidates) {
         try {
+          const svc = config?.services.find((s) => s.id === serviceId)
+          const visit = visitQuote(svc, zoneIds)
           const res = await api.queryAvailability(
             tenantId,
             {
               serviceId,
               date: d,
               professionalId: professionalId === ANY ? undefined : professionalId,
+              ...(visit.zoned && visit.minutes ? { durationMinutes: visit.minutes } : {}),
             },
             fo,
           )
@@ -312,14 +348,22 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
     return () => {
       cancelled = true
     }
-  }, [availability, date, allDays, api, tenantId, fo, serviceId, professionalId])
+  }, [availability, date, allDays, api, tenantId, fo, serviceId, professionalId, config, zoneIds])
 
   useEffect(() => {
     if (conflict) conflictRef.current?.focus()
   }, [conflict])
 
   const service = config?.services.find((s) => s.id === serviceId)
-  const amountCents = service ? signalAmountCents(service) : null
+  const visit = visitQuote(service, zoneIds)
+  const amountCents = service ? signalAmountCents(service, visit.zoned ? visit.priceCents : service.priceCents) : null
+  const percentBlocked = Boolean(
+    visit.zoned &&
+      visit.zones.length > 0 &&
+      visit.priceCents == null &&
+      service?.requiresSignal &&
+      service.signalKind === 'percent',
+  )
   const paidSignalMode = Boolean(ctx.alertId)
   const requiresSignal = !paidSignalMode && Boolean(service?.requiresSignal && amountCents != null)
   const professionals =
@@ -510,19 +554,61 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
                   aria-pressed={s.id === serviceId}
                   onClick={() => {
                     setServiceId(s.id)
+                    setZoneIds([])
                     setSelected(null)
                     setConflict(null)
                   }}
                 >
                   <span className="agd-service-name">{s.name}</span>
-                  <span className="agd-service-meta">{s.durationMinutes} min</span>
-                  {s.priceCents != null ? (
-                    <span className="agd-service-meta">{formatBrl(s.priceCents)}</span>
-                  ) : null}
+                  {activeZonesOf(s).length > 0 ? (
+                    <span className="agd-service-meta">{activeZonesOf(s).length} zonas</span>
+                  ) : (
+                    <>
+                      <span className="agd-service-meta">{s.durationMinutes} min</span>
+                      {s.priceCents != null ? (
+                        <span className="agd-service-meta">{formatBrl(s.priceCents)}</span>
+                      ) : null}
+                    </>
+                  )}
                 </button>
               ))}
           </div>
         </section>
+
+        {visit.zoned ? (
+          <section aria-labelledby="agd-zones">
+            <h2 id="agd-zones" className="agd-label">Zonas</h2>
+            <div className="agd-pills" role="group" aria-labelledby="agd-zones">
+              {activeZonesOf(service).map((z) => {
+                const on = zoneIds.includes(z.id)
+                return (
+                  <button
+                    key={z.id}
+                    type="button"
+                    className="agd-pill"
+                    aria-pressed={on}
+                    onClick={() => {
+                      setZoneIds((prev) => (prev.includes(z.id) ? prev.filter((id) => id !== z.id) : [...prev, z.id]))
+                      setSelected(null)
+                      setConflict(null)
+                    }}
+                  >
+                    {z.name} · {z.durationMinutes} min
+                    {z.priceCents != null ? ` · ${formatBrl(z.priceCents)}` : ' · sem preço'}
+                  </button>
+                )
+              })}
+            </div>
+            {visit.zones.length === 0 ? (
+              <p className="agd-note">Escolha ao menos uma zona para ver horários.</p>
+            ) : (
+              <p className="agd-note">
+                {visit.minutes} min
+                {visit.priceCents != null ? ` · ${formatBrl(visit.priceCents)}` : ' · sem preço somado'}
+              </p>
+            )}
+          </section>
+        ) : null}
 
         <section aria-labelledby="agd-pro">
           <h2 id="agd-pro" className="agd-label">Profissional</h2>
@@ -612,6 +698,9 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
 
       <footer className="panel-footer agd-footer">
         <p className="agd-summary" aria-live="polite">
+          {percentBlocked ? (
+            <span>Sinal em porcentagem precisa de preço em todas as zonas escolhidas. </span>
+          ) : null}
           {service ? <strong>{service.name}</strong> : null}
           {selected ? ` · ${selected.professionalName}` : professionalId !== ANY ? ` · ${professionals.find((p) => p.id === professionalId)?.name ?? ''}` : ''}
           {selected
@@ -620,7 +709,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
         </p>
         <Button
           className="panel-btn panel-btn-primary agd-btn"
-          isDisabled={!selected}
+          isDisabled={!selected || percentBlocked || (visit.zoned && visit.zones.length === 0)}
           onPress={() => setReviewOpen(true)}
         >
           Revisar e confirmar
@@ -649,6 +738,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           fo={fo}
           ctx={ctx}
           service={service}
+          zoneIds={visit.zones.map((z) => z.id)}
           slot={selected}
           date={date}
           timezone={timezone}
@@ -761,6 +851,7 @@ type ReviewProps = {
   fo: { generation: number; expectGeneration: () => number }
   ctx: ScheduleContext
   service: Service
+  zoneIds: string[]
   slot: AvailabilitySlot
   date: string
   timezone: string
@@ -826,6 +917,7 @@ function ReviewSheet(p: ReviewProps) {
         professionalId: slot.professionalId,
         roomResourceId: slot.roomResourceId,
         startsAt: slot.startsAt,
+        durationMinutes: Math.round((slot.endsAt - slot.startsAt) / 60_000),
       },
       fo,
     )
@@ -894,6 +986,7 @@ function ReviewSheet(p: ReviewProps) {
           conversationId: ctx.conversationId,
           contactId: ctx.contactId,
           opportunityId: ctx.opportunityId,
+          zoneIds: p.zoneIds,
         },
         fo,
       )
@@ -920,6 +1013,7 @@ function ReviewSheet(p: ReviewProps) {
           contactId: ctx.contactId,
           opportunityId: ctx.opportunityId,
           waiveReason,
+          zoneIds: p.zoneIds,
         },
         fo,
       )
@@ -940,6 +1034,7 @@ function ReviewSheet(p: ReviewProps) {
           professionalId: slot.professionalId,
           roomResourceId: slot.roomResourceId,
           startsAt: slot.startsAt,
+          zoneIds: p.zoneIds,
         },
         fo,
       )

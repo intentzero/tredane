@@ -10,6 +10,7 @@ import { assertValidCaller } from '../envelopes'
 import { NotFoundError, ValidationError } from '../errors'
 import { assertClinicSchemaReady } from '../migrations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
+import { readZoneSnapshots, snapshotDuration } from '../config/zones'
 import { confirmAppointmentInTransaction } from '../scheduling/booking'
 import { checkSlotAvailability } from '../scheduling/check'
 import type { ClinicDb } from '../store'
@@ -252,6 +253,8 @@ export function processPixPaymentOp(
     ) {
       withoutSlotReason = 'intent_unavailable'
     } else {
+      const paidZones = readZoneSnapshots(db, meta.tenantId, 'pix_charge', charge.id)
+      const paidMinutes = snapshotDuration(paidZones)
       const check = checkSlotAvailability(
         db,
         meta.tenantId,
@@ -260,6 +263,7 @@ export function processPixPaymentOp(
           professionalId: charge.professionalId,
           roomResourceId: charge.roomResourceId,
           startsAt: charge.startsAt,
+          ...(paidMinutes != null ? { durationMinutesOverride: paidMinutes } : {}),
         },
         clock,
       )
@@ -296,6 +300,7 @@ export function processPixPaymentOp(
             conversationId: charge.conversationId,
             opportunityId: charge.opportunityId,
             actorClerkUserId: 'system:pix_webhook',
+            frozenZoneSnapshots: readZoneSnapshots(db, meta.tenantId, 'pix_charge', charge.id),
           },
           clock,
         )

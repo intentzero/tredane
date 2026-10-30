@@ -92,6 +92,8 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     getAbuseLimits: (caller) => stub.getClinicAbuseLimits(caller),
     updateAbuseLimits: (caller, input) => stub.updateClinicAbuseLimits(caller, input),
     upsertService: (caller, input) => stub.upsertClinicService(caller, input),
+    replaceServiceZones: (caller, serviceId, zones) =>
+      stub.replaceClinicServiceZones(caller, serviceId, zones),
     setServiceActive: (caller, serviceId, active) =>
       stub.setClinicServiceActive(caller, serviceId, active),
     deleteService: (caller, serviceId) => stub.deleteClinicService(caller, serviceId),
@@ -302,6 +304,43 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
       const row = await gw.upsertService(
         callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
         { ...parseServiceBody(body), id: c.req.param('serviceId') },
+      )
+      return c.json(serializeService(row))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.put('/api/tenants/:tenantId/config/services/:serviceId/zones', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<{ zones?: unknown }>()
+      if (!Array.isArray(body.zones)) {
+        throw new ValidationError('invalid_zones', 'zones deve ser uma lista')
+      }
+      const zones = body.zones.map((raw) => {
+        if (!raw || typeof raw !== 'object') {
+          throw new ValidationError('invalid_zones', 'zona inválida')
+        }
+        const z = raw as Record<string, unknown>
+        if (typeof z.name !== 'string') {
+          throw new ValidationError('invalid_zones', 'nome da zona é obrigatório')
+        }
+        return {
+          id: typeof z.id === 'string' ? z.id : undefined,
+          name: z.name,
+          durationMinutes: typeof z.durationMinutes === 'number' ? z.durationMinutes : undefined,
+          priceCents:
+            z.priceCents === null ? null : typeof z.priceCents === 'number' ? z.priceCents : undefined,
+          active: typeof z.active === 'boolean' ? z.active : undefined,
+        }
+      })
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const row = await gw.replaceServiceZones(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        c.req.param('serviceId'),
+        zones,
       )
       return c.json(serializeService(row))
     } catch (err) {

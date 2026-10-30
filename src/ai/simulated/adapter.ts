@@ -141,6 +141,20 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
     for (const s of input.context.services) {
       if (!lower.includes(s.name.toLowerCase())) continue
       if (/\b(quanto|pre[cç]o|custa|valor)/i.test(last)) {
+        if (s.zones && s.zones.length > 0) {
+          const named = s.zones.filter(
+            (z) => z.name.trim().length >= 2 && lower.includes(z.name.trim().toLowerCase()),
+          )
+          if (named.length === 0) {
+            return `Para ${s.name}, quais zonas você quer? Temos ${s.zones.map((z) => z.name).join(', ')}. Me diz e eu confirmo o valor.`
+          }
+          if (named.some((z) => z.priceCents == null)) {
+            return `Sobre ${s.name} (${named.map((z) => z.name).join(', ')}), a equipe vai confirmar o valor certinho com você.`
+          }
+          const sum = named.reduce((acc, z) => acc + (z.priceCents ?? 0), 0)
+          const reais = (sum / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+          return `A ${s.name} (${named.map((z) => z.name).join(', ')}) fica ${reais}. Quer que eu veja horários disponíveis?`
+        }
         if (s.priceCents == null) {
           return `Sobre ${s.name}, a equipe vai confirmar o valor certinho com você. Posso anotar o melhor horário para retorno?`
         }

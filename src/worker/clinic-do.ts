@@ -75,6 +75,7 @@ import type {
   CreateBlockInput,
   SetWeeklyWindowsInput,
   UpsertResourceInput,
+  ServiceZoneInput,
   UpsertServiceInput,
 } from '../clinic/config'
 import type {
@@ -1667,6 +1668,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       'service',
       row.id,
       { name: row.name, active: row.active },
+    )
+    return row
+  }
+
+  async replaceClinicServiceZones(
+    caller: ClinicCaller,
+    serviceId: string,
+    zones: ServiceZoneInput[],
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    clinicConfig.replaceServiceZonesOp(this.#db, caller, serviceId, zones, this.#clock)
+    const row = clinicConfig.getService(this.#db, caller.tenantId, serviceId)
+    if (!row) throw new Error('service_not_found')
+    await this.#fanoutConfigEvent(
+      caller,
+      'config.service_updated',
+      'service',
+      row.id,
+      { name: row.name, zones: row.zones.length },
     )
     return row
   }

@@ -24,6 +24,12 @@ import {
 import { getResource } from '../config/resources'
 import { ensureClinicSettings } from '../config/settings'
 import { getService } from '../config/services'
+import {
+  quoteVisit,
+  readZoneSnapshots,
+  writeZoneSnapshots,
+} from '../config/zones'
+import type { ZoneSnapshot } from '../config/types'
 import { ConflictError, NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
 import { getConversation } from '../inbox/conversations'
@@ -201,6 +207,12 @@ function isOpenState(state: AppointmentProposalState): state is AppointmentPropo
   return OPEN.has(state)
 }
 
+function readProposalZoneKey(db: ClinicDb, tenantId: string, proposalId: string): string {
+  return readZoneSnapshots(db, tenantId, 'proposal', proposalId)
+    .map((z) => z.zoneId)
+    .join(',')
+}
+
 function materialKey(p: {
   serviceId: string
   professionalId: string | null
@@ -213,6 +225,7 @@ function materialKey(p: {
   signalKind: string | null
   signalFixedCents: number | null
   signalPercent: number | null
+  zoneKey?: string
 }): string {
   return [
     p.serviceId,
@@ -226,6 +239,7 @@ function materialKey(p: {
     p.signalKind ?? '',
     p.signalFixedCents ?? '',
     p.signalPercent ?? '',
+    p.zoneKey ?? '',
   ].join('|')
 }
 
@@ -408,7 +422,7 @@ function resolveFacts(
   | 'appointmentId'
   | 'createdAt'
   | 'updatedAt'
-> {
+> & { zoneKey: string; zones: ZoneSnapshot[] } {
   const contact = getContact(db, tenantId, input.contactId)
   if (!contact) {
     throw new NotFoundError('contact_not_found', 'Contacto não encontrado nesta clínica')
@@ -459,21 +473,20 @@ function resolveFacts(
     professionalName = pro?.name ?? null
   }
 
-  // DEC-076: a proposta usa a duração do cadastro. Uma duração diferente
-  // ficaria por confirmar depois do clique.
-  if (input.durationMinutes != null && input.durationMinutes !== service.durationMinutes) {
+  const quote = quoteVisit(db, tenantId, service, input.zoneIds)
+  const durationMinutes = quote.durationMinutes
+  if (input.durationMinutes != null && input.durationMinutes !== durationMinutes) {
     throw new ValidationError(
       'duration_not_adjustable',
       'a duração do procedimento não se ajusta ao agendar',
-      { serviceId: service.id, durationMinutes: service.durationMinutes },
+      { serviceId: service.id, durationMinutes },
     )
   }
-  const durationMinutes = service.durationMinutes
   const startsAt = input.startsAt
   if (!Number.isFinite(startsAt) || startsAt <= 0) {
     throw new ValidationError('invalid_starts_at', 'Início da proposta inválido')
   }
-  const endsAt = input.endsAt ?? startsAt + durationMinutes * 60_000
+  const endsAt = startsAt + durationMinutes * 60_000
   if (endsAt <= startsAt) {
     throw new ValidationError('invalid_ends_at', 'Fim da proposta deve ser depois do início')
   }
@@ -508,7 +521,9 @@ function resolveFacts(
     endsAt,
     durationMinutes,
     timezone: settings.timezone,
-    priceCents: service.priceCents,
+    priceCents: quote.priceCents,
+    zoneKey: quote.zones.map((z) => z.zoneId).join(','),
+    zones: quote.zones,
     requiresSignal: service.requiresSignal,
     signalKind: service.signalKind,
     signalFixedCents: service.signalFixedCents,
@@ -625,6 +640,7 @@ export function createOrSupersedeProposal(
           signalKind: active.signalKind,
           signalFixedCents: active.signalFixedCents,
           signalPercent: active.signalPercent,
+          zoneKey: readProposalZoneKey(db, tenantId, active.id),
         }) ===
         materialKey({
           serviceId: facts.serviceId,
@@ -638,6 +654,7 @@ export function createOrSupersedeProposal(
           signalKind: facts.signalKind,
           signalFixedCents: facts.signalFixedCents,
           signalPercent: facts.signalPercent,
+          zoneKey: facts.zoneKey,
         })
       if (same) {
         return { proposal: active, superseded: null }
@@ -692,6 +709,7 @@ export function createOrSupersedeProposal(
         { lineageId: active.lineageId, version: active.version + 1, id: nextId },
         clock,
       )
+      writeZoneSnapshots(db, tenantId, 'proposal', next.id, facts.zones)
       return { proposal: next, superseded: getProposal(db, tenantId, active.id) }
     }
 
@@ -703,6 +721,7 @@ export function createOrSupersedeProposal(
       { lineageId: id, version: 1, id },
       clock,
     )
+    writeZoneSnapshots(db, tenantId, 'proposal', proposal.id, facts.zones)
     return { proposal, superseded: null }
   })
 }

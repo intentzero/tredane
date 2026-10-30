@@ -215,6 +215,22 @@
 
 **Prioridade/estado:** MVP (piloto) / Decidido (DEC-061). **Origem:** JRN-17. **Comportamento:** só o evento de botão do WhatsApp sobre proposta válida do mesmo tenant, contato e conversa cria o compromisso; texto livre nunca marca. Revalidação na transação pelo caminho manual; idempotente por proposta/versão; serviço com sinal segue REQ-078 sem reserva antes do pagamento. «Alterar detalhes», cancelamento e remarcação vão para a atendente; alerta de comunicação pendente após 5 min. Auditoria `appointment.ai_booked` com proposta, versão e evento do clique; indicador «Marcado pela IA». O clique não é consentimento LGPD. Piloto: contenção até 20 marcações revistas sem nenhuma indevida. **Limites de abuso (S7): Confirmado (Paulo, 29/10/2026)** — ver [abuse-limits.md](../security/abuse-limits.md); UI owner (enable por clínica, default off); env `ABUSE_LIMIT_*` = teto opcional. **Aceite:** AC-56. No clique, a mesma função do bloco Tempo corre outra vez em todos os serviços (DEC-077, REQ-092): se a hora deixou de servir ou a previsão falhou, a proposta fica `recusada_tempo`, sem compromisso e sem cobrança, e a frase não é a de horário ocupado.
 
+### REQ-085 — Catálogo de zonas no serviço
+
+**Prioridade/estado:** MVP / Confirmado (DEC-078). **Origem:** ACT-03; [#293](https://github.com/intentzero/tredane/issues/293). **Comportamento:** só a responsável grava zonas no serviço (DEC-042). Nome único no serviço, duração múltipla de 15 min, preço opcional, ativo e ordem. A primeira zona pode copiar duração e preço da linha quando o catálogo está vazio e esses campos vêm omitidos. Com zonas gravadas, marcação nova não usa a duração nem o preço da linha. Zona já usada não se apaga. Editar não reescreve visitas. A atendente lê. Outra clínica não lê nem grava. **Aceite:** AC-57. **Dados/tenant:** `service_zones` no SQLite da clínica.
+
+### REQ-086 — Várias zonas num horário
+
+**Prioridade/estado:** MVP / Confirmado (DEC-078). **Origem:** ACT-02. **Comportamento:** a visita é um compromisso e um bloco contínuo: soma das durações escolhidas mais o intervalo do serviço uma vez. Cada zona no máximo uma vez. Zona de outro serviço ou clínica é recusada e nada é gravado. O compromisso guarda a cópia (nome, duração, preço). A agenda mostra «Depilação · Axila, Meia perna». Reagendar mantém o conjunto. Trocar zonas revalida o bloco na mesma transação. Serviço sem zonas continua na duração do cadastro (DEC-076). **Aceite:** AC-58.
+
+### REQ-087 — Preço e um sinal por visita
+
+**Prioridade/estado:** MVP / Confirmado (DEC-078, DEC-047). **Origem:** ACT-02. **Comportamento:** o preço da visita é a soma só se todas as zonas escolhidas têm preço. Sinal fixo cobra o valor do serviço uma vez. Sinal em porcentagem usa a soma; sem soma, o envio fica indisponível. Uma cobrança por visita, com a cópia das zonas e do preço. O horário não reserva antes do Pix. «Pago sem horário» oferece outro horário do mesmo conjunto e do mesmo bloco. **Aceite:** AC-59.
+
+### REQ-088 — IA e proposta só com as zonas escolhidas
+
+**Prioridade/estado:** MVP / Confirmado (DEC-078, DEC-061). **Origem:** JRN-17. **Comportamento:** o contexto lista cada zona ativa. Se a cliente cita só o serviço, a sugestão pergunta as zonas e não diz valor nem «a partir de». A proposta mostra as zonas, o bloco e a soma ou a ausência de preço. Mudar o conjunto é mudança material: nova versão. Uma visita conta como um compromisso e uma proposta nos limites de abuso já existentes. **Aceite:** AC-60.
+
 ### REQ-089 — Local da clínica para a previsão
 
 **Prioridade/estado:** MVP / Confirmado (DEC-077). **Origem:** ACT-03; JRN-08. **Comportamento:** só a responsável grava, uma vez, cidade ou coordenadas no hub da Clínica, sem página nova e sem depender do interruptor de IA. O texto livre «Endereço da clínica (para a IA)» não é esse local. Sem local, um serviço que saia de «Tanto faz» não tem caminho automático. **Aceite:** AC-62. **Dados/tenant:** `clinic_settings` no SQLite da clínica (DEC-038).

@@ -10,6 +10,7 @@ import { writeOperationalAudit } from '../audit'
 import { getContact } from '../contacts'
 import { getResource } from '../config/resources'
 import { getService } from '../config/services'
+import { quoteVisit, readZoneSnapshots, writeZoneSnapshots, zoneLabel } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import { occupiedMinutes } from '../config/validation'
 import type { ClinicCaller } from '../envelopes'
@@ -123,13 +124,16 @@ function buildFreeTextBody(input: {
   deadlineLabel: string
   policy: string
   pixCopyPaste: string
+  totalLabel?: string | null
 }): string {
   const policyLine = input.policy.trim()
     ? `\nPolítica de cancelamento: ${input.policy.trim()}`
     : ''
+  const totalLine = input.totalLabel ? ` Total da visita: ${input.totalLabel}.` : ''
   return (
     `Olá, ${input.contactName}! Sinal de ${input.amountLabel} por Pix para ` +
-    `${input.serviceName} em ${input.slotLabel} na ${input.clinicName}. ` +
+    `${input.serviceName} em ${input.slotLabel} na ${input.clinicName}.` +
+    `${totalLine} ` +
     `Prazo para pagar: ${input.deadlineLabel}.${policyLine}\n` +
     `Pix copia-e-cola:\n${input.pixCopyPaste}\n` +
     `O horário só fica reservado após o pagamento.`
@@ -252,6 +256,7 @@ export async function createSignalChargeAndSendOp(
       const service = getService(db, meta.tenantId, priorCharge.serviceId!)!
       const settings = getPixSignalSettings(db, meta.tenantId, clock)
       const contact = getContact(db, meta.tenantId, intent.contactId)!
+      const snaps = readZoneSnapshots(db, meta.tenantId, 'pix_charge', priorCharge.id)
       return {
         intent,
         charge: priorCharge,
@@ -261,7 +266,11 @@ export async function createSignalChargeAndSendOp(
           priorCharge.deadlineSecondsSnapshot ?? settings.deadlineSeconds,
         cancellationPolicy:
           priorCharge.cancellationPolicySnapshot ?? settings.cancellationPolicy,
-        serviceName: service.name,
+        serviceName: zoneLabel(service.name, snaps),
+        totalLabel:
+          snaps.length > 0 && priorCharge.servicePriceCentsSnapshot != null
+            ? formatBrl(priorCharge.servicePriceCentsSnapshot)
+            : null,
         contactName: contact.displayName?.trim() || contact.waId || 'Cliente',
         timezone: intent.timezone,
         expiresAt: priorCharge.expiresAt ?? clock.nowMs() + settings.deadlineSeconds * 1000,
@@ -305,6 +314,7 @@ export async function createSignalChargeAndSendOp(
         'Este serviço não exige sinal — use Confirmar',
       )
     }
+    const visit = quoteVisit(db, meta.tenantId, service, input.zoneIds)
     const amount = computeSignalAmountCents(
       {
         requiresSignal: true,
@@ -312,7 +322,7 @@ export async function createSignalChargeAndSendOp(
         fixedCents: service.signalFixedCents,
         percent: service.signalPercent,
       },
-      service.priceCents,
+      visit.priceCents,
     )
     if (!amount.ok) {
       throw new ValidationError(amount.code, amount.message)
@@ -341,8 +351,8 @@ export async function createSignalChargeAndSendOp(
 
     const settings = getPixSignalSettings(db, meta.tenantId, clock)
     const clinicSettings = ensureClinicSettings(db, meta.tenantId, clock)
-    const occMin = occupiedMinutes(service.durationMinutes, service.bufferMinutes)
-    const endsAt = input.startsAt + service.durationMinutes * 60_000
+    const occMin = occupiedMinutes(visit.durationMinutes, service.bufferMinutes)
+    const endsAt = input.startsAt + visit.durationMinutes * 60_000
     const occupiesUntil = input.startsAt + occMin * 60_000
     const expiresAt = clock.nowMs() + settings.deadlineSeconds * 1000
 
@@ -393,12 +403,16 @@ export async function createSignalChargeAndSendOp(
         signalKindSnapshot: service.signalKind,
         signalFixedCentsSnapshot: service.signalFixedCents,
         signalPercentSnapshot: service.signalPercent,
-        servicePriceCentsSnapshot: service.priceCents,
+        servicePriceCentsSnapshot: visit.priceCents,
         createdByClerkUserId: actorId,
         expiresAt,
       },
       clock,
     )
+    if (visit.zones.length > 0) {
+      writeZoneSnapshots(db, meta.tenantId, 'pix_charge', charge.id, visit.zones)
+      writeZoneSnapshots(db, meta.tenantId, 'scheduling_intent', intent.id, visit.zones)
+    }
 
     return {
       intent,
@@ -407,7 +421,8 @@ export async function createSignalChargeAndSendOp(
       amountCents: amount.amountCents,
       deadlineSeconds: settings.deadlineSeconds,
       cancellationPolicy: settings.cancellationPolicy,
-      serviceName: service.name,
+      serviceName: zoneLabel(service.name, visit.zones),
+      totalLabel: visit.zones.length > 0 && visit.priceCents != null ? formatBrl(visit.priceCents) : null,
       contactName: contact.displayName?.trim() || contact.waId || 'Cliente',
       timezone: clinicSettings.timezone,
       expiresAt,
@@ -599,6 +614,7 @@ export async function createSignalChargeAndSendOp(
                 deadlineLabel,
                 policy: prepared.cancellationPolicy,
                 pixCopyPaste: pixCode,
+                totalLabel: prepared.totalLabel,
               }),
               authorClerkUserId: actorId,
               authorDisplayName: input.authorDisplayName ?? 'Atendente',
@@ -612,7 +628,9 @@ export async function createSignalChargeAndSendOp(
                 params: {
                   nome_contato: prepared.contactName,
                   nome_clinica: 'clínica',
-                  servico: prepared.serviceName,
+                  servico: prepared.totalLabel
+                    ? `${prepared.serviceName} (total ${prepared.totalLabel})`
+                    : prepared.serviceName,
                   data_hora: slotLabel,
                   valor_sinal: amountLabel,
                   prazo_pagamento: deadlineLabel,
@@ -940,6 +958,7 @@ export async function confirmWithoutSignalOp(
       conversationId: input.conversationId ?? null,
       opportunityId: input.opportunityId ?? null,
       actorClerkUserId: actorId,
+      zoneIds: input.zoneIds,
     },
     clock,
   )

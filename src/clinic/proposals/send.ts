@@ -179,7 +179,7 @@ export function sendProposalToWhatsAppOp(
     }
   }
 
-  const interactive = renderProposalInteractive(proposal)
+  const interactive = renderProposalInteractive(proposal, db)
   const clientRequestId = proposalSendClientRequestId(proposal.id, proposal.version)
   markProposalSendPending(db, meta.tenantId, proposal.id, clock)
 

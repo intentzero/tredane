@@ -13,7 +13,9 @@ import {
   upsertResource,
   servicesLeftWithoutCategoryResource,
 } from './resources'
-import { deleteService, setServiceActive, upsertService } from './services'
+import { deleteService, setServiceActive, upsertService, getService } from './services'
+import { replaceZones } from './zones'
+import { NotFoundError } from '../errors'
 import { listOverCapacitySlots } from '../scheduling/occupancy'
 import {
   buildAbuseLimitsView,
@@ -38,6 +40,8 @@ import type {
   ForecastPlaceInput,
   ResourceRow,
   ServiceRow,
+  ServiceZoneInput,
+  ServiceZoneRow,
   SetWeeklyWindowsInput,
   UpdateAbuseLimitsInput,
   UpsertResourceInput,
@@ -118,6 +122,36 @@ export function upsertServiceOp(
       clock,
     )
     return row
+  })
+}
+
+export function replaceServiceZonesOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  serviceId: string,
+  zones: ServiceZoneInput[],
+  clock: Clock,
+): ServiceZoneRow[] {
+  const meta = prepare(db, caller, clock)
+  return db.transactionSync(() => {
+    const service = getService(db, meta.tenantId, serviceId)
+    if (!service) {
+      throw new NotFoundError('service_not_found', `serviço ${serviceId} não encontrado`)
+    }
+    const rows = replaceZones(db, meta.tenantId, service, zones, clock)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor: caller.actorId ?? caller.kind,
+        action: 'config.service_zones_updated',
+        objectType: 'service',
+        objectId: service.id,
+        detail: { count: rows.length },
+      },
+      clock,
+    )
+    return rows
   })
 }
 
