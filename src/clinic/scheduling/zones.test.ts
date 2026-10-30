@@ -11,6 +11,7 @@ import {
   quoteVisit,
   readZoneSnapshots,
   replaceServiceZonesOp,
+  zonesNamedInText,
   setWeeklyWindowsOp,
   upsertResourceOp,
   upsertServiceOp,
@@ -258,5 +259,24 @@ describe('zonas do serviço (DEC-078)', () => {
       services,
     )
     expect(named.warnings).not.toContain('no_price')
+  })
+})
+
+describe('zonesNamedInText', () => {
+  const zone = (id: string, name: string) => ({
+    id,
+    tenantId: 't',
+    serviceId: 's',
+    name,
+    durationMinutes: 30,
+    priceCents: 100,
+    active: true,
+    sortOrder: 0,
+  })
+
+  it('o nome mais longo ganha e um nome curto não casa dentro dele', () => {
+    const zones = [zone('a', 'Perna'), zone('b', 'Meia perna')]
+    expect(zonesNamedInText('quero meia perna', zones).map((z) => z.name)).toEqual(['Meia perna'])
+    expect(zonesNamedInText('só a perna', zones).map((z) => z.name)).toEqual(['Perna'])
   })
 })

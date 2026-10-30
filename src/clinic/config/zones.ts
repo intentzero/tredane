@@ -335,10 +335,30 @@ export function zoneLabel(serviceName: string, zones: readonly { name: string }[
   return `${serviceName} · ${zones.map((z) => z.name).join(', ')}`
 }
 
-/** Nomes de zona que aparecem no texto. A ordem é a do catálogo. */
+function foldZoneName(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** Nomes de zona que aparecem no texto, como palavras. O nome mais longo ganha. A ordem é a do catálogo. */
 export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[]): ServiceZoneRow[] {
-  const lower = text.toLowerCase()
-  return zones.filter((z) => z.active && z.name.trim().length >= 2 && lower.includes(z.name.trim().toLowerCase()))
+  const candidates = zones.filter((z) => z.active && z.name.trim().length >= 2)
+  const byLength = [...candidates].sort(
+    (a, b) => foldZoneName(b.name).length - foldZoneName(a.name).length,
+  )
+  let rest = foldZoneName(text)
+  const hit = new Set<string>()
+  for (const zone of byLength) {
+    const name = foldZoneName(zone.name.trim())
+    const re = new RegExp(`(?<![a-z0-9])${escapeRegExp(name)}(?![a-z0-9])`, 'g')
+    if (!re.test(rest)) continue
+    hit.add(zone.id)
+    rest = rest.replace(re, ' ')
+  }
+  return zones.filter((z) => hit.has(z.id))
 }
 
 /** A cópia deixou de bater com o catálogo (duração, preço, nome ou zona inativa). */

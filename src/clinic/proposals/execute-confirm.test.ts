@@ -12,6 +12,7 @@ import {
   PROPOSAL_PIX_CLIENT_REQUEST_PREFIX,
 } from '../constants'
 import {
+  replaceServiceZonesOp,
   setAiProfileOp,
   setServiceActiveOp,
   setWeeklyWindowsOp,
@@ -270,6 +271,70 @@ describe('S5: book sem sinal', () => {
       expect(ai?.detailJson).toMatch(/Marcado pela IA/)
       expect(ai?.detailJson).toMatch(proposal.id)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(1)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('clique com zona curta acha a sala quando a duração da linha não cabe', async () => {
+    const s = await seedBookable()
+    try {
+      const svc = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilacao axila',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          priceCents: 5_000,
+          professionalIds: [s.pro.id],
+          roomRequirement: { mode: 'category', category: 'Padrão' },
+        },
+        s.clock,
+      )
+      const zones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        svc.id,
+        [{ name: 'Axila', durationMinutes: 30, priceCents: 5_000 }],
+        s.clock,
+      )
+      confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'block-tail-s5',
+          serviceId: s.svc.id,
+          professionalId: s.pro.id,
+          roomResourceId: s.room.id,
+          startsAt: s.startsAt + 30 * 60_000,
+          contactId: s.contact.id,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        s.clock,
+      )
+      const proposal = createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: s.contact.id,
+          conversationId: s.conversation.id,
+          serviceId: svc.id,
+          professionalId: s.pro.id,
+          startsAt: s.startsAt,
+          zoneIds: [zones[0]!.id],
+        },
+        s.clock,
+      )
+      const marked = markProposalSent(s.db, s.tenantId, proposal.id, s.clock)
+      s.db.run(
+        `UPDATE appointment_proposals SET send_provider_message_id = ? WHERE tenant_id = ? AND id = ?`,
+        'wamid.proposal_s5',
+        s.tenantId,
+        proposal.id,
+      )
+      const result = await confirmClick(s, marked.id, marked.version)
+      expect(result.status).toBe('booked')
     } finally {
       s.close()
     }

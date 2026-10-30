@@ -223,8 +223,8 @@ export async function runDueAutoDrafts(
           abuseLimits: deps.abuseLimits,
         })
         if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }
-        if (autoBook.replyText || autoBook.notes) {
-          const text = autoBook.replyText ?? suggestion.suggestedText
+        if (autoBook.proposalId || autoBook.replyText != null || autoBook.notes) {
+          const text = autoBook.proposalId ? '' : (autoBook.replyText ?? suggestion.suggestedText)
           const notes = [autoBook.notes, autoBook.replyText ? '' : suggestion.internalNotes]
             .filter(Boolean)
             .join('\n')

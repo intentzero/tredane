@@ -280,6 +280,30 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
     }
   })
 
+  it('zonas todas inativas deixam nota e não enviam o rascunho', async () => {
+    const s = seed()
+    try {
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        s.svc.id,
+        [{ name: 'Axila', durationMinutes: 30, priceCents: 5_000, active: false }],
+        s.clock,
+      )
+      s.say('outbound', 'Confirma depilacao masculina na quinta 29/10 às 14:00?')
+      s.say('inbound', 'Sim')
+      const o = await s.run()
+      expect(o.autoBook?.proposalId).toBeUndefined()
+      expect(o.autoBook?.status).toBe('needs_info')
+      expect(o.suggestion!.internalNotes).toMatch(/inativas|calcular/i)
+      expect(o.suggestion!.suggestedText.trim()).toBe('')
+      expect(o.replyOutbox ?? []).toHaveLength(0)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
   it('texto da IA sai sem clique quando não há proposta', async () => {
     const s = seed()
     try {

@@ -250,7 +250,7 @@ export function detectExplicitConfirmation(input: {
   if (missing.length > 0) {
     return { ok: false, status: ambiguous ? 'ambiguous' : 'needs_info', missing }
   }
-  return { ok: true, status: 'booked', missing: [], date, time, service }
+  return { ok: true, status: 'requires_button', missing: [], date, time, service }
 }
 
 /** Zona escolhida pela cliente. A mensagem da clínica que lista o cardápio não conta. */
@@ -406,12 +406,23 @@ export function tryAiAutoBook(
         'Pergunte as zonas. Não informe valor nem «a partir de».',
     }
   }
-  const quote = quoteVisit(
-    db,
-    tenantId,
-    svc,
-    namedZones.map((z) => z.id),
-  )
+  let quote
+  try {
+    quote = quoteVisit(
+      db,
+      tenantId,
+      svc,
+      namedZones.map((z) => z.id),
+    )
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'erro'
+    return {
+      ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
+      replyText: '',
+      notes:
+        `Não deu para calcular ${svc.name}: ${message}. Confirme pelo Agendar. Texto livre não marca.`,
+    }
+  }
   const label = `${svc.name} · ${dayText(date)} às ${time}`
   const found = { ...base, serviceId: svc.id, date, time }
 
