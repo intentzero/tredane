@@ -135,6 +135,13 @@ export function replaceCombos(
     }
   })
 
+  // Trocar nomes entre combos não pode bater na restrição de nome único a meio caminho.
+  db.run(
+    `UPDATE service_combos SET name = id WHERE tenant_id = ? AND service_id = ?`,
+    tenantId,
+    serviceId,
+  )
+
   for (const [index, item] of input.entries()) {
     const name = item.name.trim()
     const active = item.active === false ? 0 : 1

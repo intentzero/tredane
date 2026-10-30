@@ -306,13 +306,10 @@ export function confirmAppointmentInTransaction(
     const priced = zones.every((z) => z.priceCents != null)
     visit = {
       durationMinutes,
-      priceCents: input.frozenCombo
-        ? input.frozenCombo.priceCents +
-          zones.reduce((sum, z) => sum + (z.priceCents ?? 0), 0) -
-          input.frozenCombo.listPriceCents
-        : priced
-          ? zones.reduce((sum, z) => sum + (z.priceCents ?? 0), 0)
-          : null,
+      priceCents: !priced
+        ? null
+        : zones.reduce((sum, z) => sum + (z.priceCents ?? 0), 0) -
+          (input.frozenCombo ? input.frozenCombo.listPriceCents - input.frozenCombo.priceCents : 0),
       zones,
       combo: input.frozenCombo ?? null,
     }

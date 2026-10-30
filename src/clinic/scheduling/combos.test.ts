@@ -179,4 +179,33 @@ describe('combos de variantes (DEC-080)', () => {
       close()
     }
   })
+
+  it('troca de nomes entre combos na mesma gravação', () => {
+    const { db, close, clock, caller, svc, id } = seed()
+    try {
+      const [a, b] = replaceServiceCombosOp(
+        db,
+        caller,
+        svc.id,
+        [
+          { name: 'A', priceCents: 7000, zoneIds: [id('Buço'), id('Axila')] },
+          { name: 'B', priceCents: 12000, zoneIds: [id('Meia perna'), id('Axila')] },
+        ],
+        clock,
+      )
+      const swapped = replaceServiceCombosOp(
+        db,
+        caller,
+        svc.id,
+        [
+          { id: a!.id, name: 'B', priceCents: 7000, zoneIds: a!.zoneIds },
+          { id: b!.id, name: 'A', priceCents: 12000, zoneIds: b!.zoneIds },
+        ],
+        clock,
+      )
+      expect(swapped.map((c) => c.name)).toEqual(['B', 'A'])
+    } finally {
+      close()
+    }
+  })
 })

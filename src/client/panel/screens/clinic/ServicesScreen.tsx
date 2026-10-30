@@ -363,9 +363,17 @@ export function ServiceForm({
       active: z.active,
     }))
     const zoneKeys = new Set(draftZones.map((z) => z.key))
-    const draftCombos = combos
-      .map((c) => ({ ...c, zoneKeys: c.zoneKeys.filter((key) => zoneKeys.has(key)) }))
-      .filter((c) => c.zoneKeys.length >= 2 || c.id)
+    const draftCombos = withVariants
+      ? combos.map((c) => ({ ...c, zoneKeys: c.zoneKeys.filter((key) => zoneKeys.has(key)) }))
+      : []
+    const small = draftCombos.find((c) => c.zoneKeys.length < 2)
+    if (small) {
+      setFormError(
+        `O combo «${small.name.trim() || 'sem nome'}» precisa de pelo menos 2 variantes. Complete ou remova. O que você digitou continua aqui.`,
+      )
+      setSaving(false)
+      return
+    }
     if (draftCombos.some((c) => !c.name.trim() || (parsePriceToCents(c.price) ?? 0) <= 0)) {
       setFormError('Dê nome e preço a cada combo. O que você digitou continua aqui.')
       setSaving(false)
@@ -426,15 +434,13 @@ export function ServiceForm({
         await api.replaceServiceCombos(
           tenantId,
           saved.id,
-          draftCombos
-            .map((c) => ({
-              id: c.id,
-              name: c.name.trim(),
-              priceCents: parsePriceToCents(c.price) ?? 0,
-              zoneIds: c.zoneKeys.map(idOfKey).filter((id): id is string => id != null),
-              active: c.active,
-            }))
-            .filter((c) => c.zoneIds.length >= 2 || c.id),
+          draftCombos.map((c) => ({
+            id: c.id,
+            name: c.name.trim(),
+            priceCents: parsePriceToCents(c.price) ?? 0,
+            zoneIds: c.zoneKeys.map(idOfKey).filter((id): id is string => id != null),
+            active: c.active,
+          })),
           { generation, expectGeneration: () => generation },
         )
       }
