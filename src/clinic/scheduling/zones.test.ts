@@ -152,6 +152,72 @@ describe('zonas do serviço (DEC-078)', () => {
     }
   })
 
+  it('aceita duração em minutos que não é múltiplo de 15', () => {
+    const { db, close, clock, caller, pro, svc } = seed()
+    try {
+      const saved = upsertServiceOp(
+        db,
+        caller,
+        {
+          id: svc.id,
+          name: 'Depilação',
+          durationMinutes: 10,
+          bufferMinutes: 0,
+          priceCents: 12_000,
+          variantKind: 'Zona',
+          professionalIds: [pro.id],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      expect(saved.durationMinutes).toBe(10)
+      const zones = replaceServiceZonesOp(
+        db,
+        caller,
+        svc.id,
+        [{ name: 'Axila', durationMinutes: 7, priceCents: 5_000, audience: 'ambos' }],
+        clock,
+      )
+      expect(zones[0]?.durationMinutes).toBe(7)
+      expect(() =>
+        upsertServiceOp(
+          db,
+          caller,
+          {
+            id: svc.id,
+            name: 'Depilação',
+            durationMinutes: 10,
+            bufferMinutes: 0,
+            priceCents: 12_000,
+            variantKind: null,
+            professionalIds: [pro.id],
+            roomRequirement: { mode: 'none' },
+          },
+          clock,
+        ),
+      ).toThrow(/remova as variantes/)
+      replaceServiceZonesOp(db, caller, svc.id, [], clock)
+      const cleared = upsertServiceOp(
+        db,
+        caller,
+        {
+          id: svc.id,
+          name: 'Depilação',
+          durationMinutes: 10,
+          bufferMinutes: 0,
+          priceCents: 12_000,
+          variantKind: null,
+          professionalIds: [pro.id],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      expect(cleared.variantKind).toBeNull()
+    } finally {
+      close()
+    }
+  })
+
   it('recusa zona repetida, de outro serviço ou sem preço somável no sinal percentual', () => {
     const { db, close, clock, caller, pro, svc } = seed()
     try {

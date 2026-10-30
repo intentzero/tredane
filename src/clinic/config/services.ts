@@ -450,6 +450,12 @@ export function upsertService(
   const audiencia = resolveAudience(input, existing)
   const tempo = resolveTempo(input, existing)
   const variantKind = resolveVariantKind(input, existing)
+  if (existing && !variantKind && listZones(db, tenantId, existing.id).length > 0) {
+    throw new ValidationError(
+      'variant_kind_required',
+      'remova as variantes antes de limpar o tipo',
+    )
+  }
 
   if (input.id) {
     db.run(

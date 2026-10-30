@@ -90,10 +90,10 @@ export function variantAudiencesConflict(
 }
 
 function assertDuration(minutes: number): void {
-  if (!Number.isInteger(minutes) || minutes <= 0 || minutes % 15 !== 0 || minutes > 24 * 60) {
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 24 * 60) {
     throw new ValidationError(
       'invalid_zone_duration',
-      'a duração da zona é um múltiplo de 15 minutos',
+      'a duração é um número inteiro de minutos, de 1 a 24 h',
       { durationMinutes: minutes },
     )
   }

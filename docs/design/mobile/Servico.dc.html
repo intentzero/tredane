@@ -30,12 +30,12 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{ou
 <input type="text" value="Depilação a laser — pernas" style="height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; font-size: 16px; color: #142625"></label>
 
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
-<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #424B4A">Duração
-<select style="height: 48px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; background: #FFFFFF; font-size: 16px; color: #142625"><option>30 min</option><option>45 min</option><option selected>60 min</option><option>75 min</option><option>90 min</option></select></label>
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #424B4A">Duração (min)
+<input type="number" min="1" max="1440" step="1" value="60" style="height: 48px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; font-size: 16px; color: #142625"></label>
 <label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #424B4A">Intervalo depois
 <select style="height: 48px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 8px; background: #FFFFFF; font-size: 16px; color: #142625"><option>Nenhum</option><option selected>15 min</option><option>30 min</option></select></label>
 </div>
-<div style="margin-top: -8px; padding: 12px 12px; border-radius: 8px; background: #E7F1F1; color: #0A4547; font-size: 14px">Ocupa 75 min na agenda: 60 de atendimento + 15 de intervalo. O intervalo bloqueia o profissional e a sala. Horários em múltiplos de 15 min.</div>
+<div style="margin-top: -8px; padding: 12px 12px; border-radius: 8px; background: #E7F1F1; color: #0A4547; font-size: 14px">Ocupa 75 min na agenda: 60 de atendimento + 15 de intervalo. O intervalo bloqueia o profissional e a sala. O início do horário continua de 15 em 15 minutos.</div>
 
 <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 4px">
 <legend style="padding: 0 0 8px; font-size: 14px; color: #424B4A">Quem pode fazer este serviço</legend>
