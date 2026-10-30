@@ -28,7 +28,7 @@ describe('bloco Tempo (S1)', () => {
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
-      expect(state).toEqual({ version: 42, status: 'ready' })
+      expect(state).toEqual({ version: 43, status: 'ready' })
 
       const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
       const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala 1' }, clock)
