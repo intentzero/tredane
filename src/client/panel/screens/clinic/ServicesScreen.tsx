@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Input, Label, TextArea, TextField } from 'react-aria-components'
+import { Button, Input, Label, NumberField, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components'
 import { ChevronRight } from 'lucide-react'
 import { Badge } from '../../states/Badge'
 import { ClinicCheck } from './ClinicCheck'
@@ -139,6 +139,15 @@ export function ServiceForm({
       ? existing.audiencia
       : 'qualquer',
   )
+  const [tempoCeu, setTempoCeu] = useState<'tanto_faz' | 'sol' | 'chuva'>(
+    existing?.tempoCeu === 'sol' || existing?.tempoCeu === 'chuva' ? existing.tempoCeu : 'tanto_faz',
+  )
+  const [tempoTemperatura, setTempoTemperatura] = useState<'tanto_faz' | 'acima' | 'abaixo'>(
+    existing?.tempoTemperatura === 'acima' || existing?.tempoTemperatura === 'abaixo'
+      ? existing.tempoTemperatura
+      : 'tanto_faz',
+  )
+  const [tempoCelsius, setTempoCelsius] = useState<number | null>(existing?.tempoCelsius ?? null)
   const [price, setPrice] = useState(
     existing?.priceCents != null ? formatPriceCents(existing.priceCents) : '',
   )
@@ -240,8 +249,15 @@ export function ServiceForm({
     .join(' · ')
 
   async function save() {
-    setSaving(true)
     setFormError(null)
+    if (
+      tempoTemperatura !== 'tanto_faz' &&
+      (tempoCelsius == null || !Number.isInteger(tempoCelsius))
+    ) {
+      setFormError('Informe os graus em número inteiro.')
+      return
+    }
+    setSaving(true)
     const priceCents = parsePriceToCents(price)
     const body: ServiceUpsertBody = {
       name,
@@ -271,6 +287,9 @@ export function ServiceForm({
           ? Number.parseInt(signalPercent, 10) || null
           : null,
       weeklyWindows: fromWeekDraft(hoursDraft),
+      tempoCeu,
+      tempoTemperatura,
+      tempoCelsius: tempoTemperatura === 'tanto_faz' ? null : tempoCelsius,
     }
     try {
       const saved = await api.upsertService(tenantId, body, {
@@ -448,6 +467,77 @@ export function ServiceForm({
           <p className="clinic-footnote">Cadastre profissionais primeiro; dá para voltar depois.</p>
         ) : null}
       </fieldset>
+      <section className="clinic-fieldset" aria-labelledby="service-tempo-heading">
+        <h2 id="service-tempo-heading" className="clinic-section-title">
+          Tempo
+        </h2>
+        {tempoCeu === 'tanto_faz' && tempoTemperatura === 'tanto_faz' ? (
+          <p className="clinic-footnote">Sem restrição de tempo.</p>
+        ) : null}
+        <RadioGroup
+          className="clinic-fieldset"
+          aria-label="Céu"
+          value={tempoCeu}
+          onChange={(value) => {
+            if (value === 'tanto_faz' || value === 'sol' || value === 'chuva') setTempoCeu(value)
+          }}
+        >
+          <span className="clinic-section-title">Céu</span>
+          <Radio className="clinic-check" value="tanto_faz">
+            Tanto faz
+          </Radio>
+          <Radio className="clinic-check" value="sol">
+            Sol
+          </Radio>
+          <Radio className="clinic-check" value="chuva">
+            Chuva
+          </Radio>
+        </RadioGroup>
+        {tempoCeu === 'sol' ? (
+          <p className="clinic-footnote">
+            Na hora marcada: céu limpo, pouco nublado ou parcialmente nublado, sem chuva.
+          </p>
+        ) : null}
+        {tempoCeu === 'chuva' ? (
+          <p className="clinic-footnote">
+            Na hora marcada tem de estar chovendo (chuva, garoa ou trovoada).
+          </p>
+        ) : null}
+        <RadioGroup
+          className="clinic-fieldset"
+          aria-label="Temperatura"
+          value={tempoTemperatura}
+          onChange={(value) => {
+            if (value === 'tanto_faz' || value === 'acima' || value === 'abaixo') {
+              setTempoTemperatura(value)
+              if (value === 'tanto_faz') setTempoCelsius(null)
+            }
+          }}
+        >
+          <span className="clinic-section-title">Temperatura</span>
+          <Radio className="clinic-check" value="tanto_faz">
+            Tanto faz
+          </Radio>
+          <Radio className="clinic-check" value="acima">
+            Acima de
+          </Radio>
+          <Radio className="clinic-check" value="abaixo">
+            Abaixo de
+          </Radio>
+        </RadioGroup>
+        {tempoTemperatura !== 'tanto_faz' ? (
+          <NumberField
+            className="clinic-field"
+            aria-label="Graus (°C)"
+            value={tempoCelsius ?? Number.NaN}
+            onChange={(value) => setTempoCelsius(Number.isNaN(value) ? null : value)}
+            step={1}
+          >
+            <Label>Graus (°C)</Label>
+            <Input />
+          </NumberField>
+        ) : null}
+      </section>
       <p className="clinic-footnote">
         Sem preço, a IA não informa valor: sugere que a equipe vai confirmar.
       </p>

@@ -1,6 +1,6 @@
 # Épico — Bloco Tempo no serviço (DEC-077)
 
-**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). S1 está na migração `0033_service_tempo`. S2 grava o local no hub. S3 a S7 não estão implementadas.
+**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). S1 está na migração `0033_service_tempo`. S2 grava o local no hub. S3 grava o bloco na ficha do serviço. S4 a S7 não estão implementadas.
 
 **Decisão:** [DEC-077](../product/decisions.md). A DEC-076 já está na `main` (duração do procedimento não se ajusta ao agendar) e não é este bloco. Mantém DEC-008 (duração, intervalo, grade de 15 min, fuso da clínica), DEC-042 (só a responsável configura), DEC-011 (contexto da IA), DEC-061 (marcação automática só pelo botão) e DEC-075 (sala, capacidade, modo, audiência e mesmo sexo ficam de fora deste bloco).
 
@@ -126,11 +126,11 @@ S1 → S2 → S3 → S4 → S5 → S6 → S7. Cada fatia é verificável sozinha
 
 **Critérios de aceite.** AC-63.
 
-- [ ] Criar «Depilação» sem tocar no bloco grava céu e temperatura `tanto_faz` e graus nulos. A ficha diz «Sem restrição de tempo».
-- [ ] A responsável grava «Bronzeamento» com Sol e Acima de 24. Os dois ficam gravados. A ficha não mostra percentagem.
-- [ ] Acima de sem grau, ou com 24,5, é recusado. Pedir Acima e Abaixo no mesmo serviço é recusado.
-- [ ] Voltar a temperatura para Tanto faz apaga o 24. O céu Sol permanece.
-- [ ] A atendente não grava o bloco (a API recusa). O payload de catálogo da IA não traz `tempo_ceu` nem graus.
+- [x] Criar «Depilação» sem tocar no bloco grava céu e temperatura `tanto_faz` e graus nulos. A ficha diz «Sem restrição de tempo».
+- [x] A responsável grava «Bronzeamento» com Sol e Acima de 24. Os dois ficam gravados. A ficha não mostra percentagem.
+- [x] Acima de sem grau, ou com 24,5, é recusado. Pedir Acima e Abaixo no mesmo serviço é recusado.
+- [x] Voltar a temperatura para Tanto faz apaga o 24. O céu Sol permanece.
+- [x] A atendente não grava o bloco (a API recusa). O payload de catálogo da IA não traz `tempo_ceu` nem graus.
 
 ---
 
@@ -269,6 +269,6 @@ Serviço «Bronzeamento», Sol e Acima de 24 °C. Clínica com cidade. Às 15h, 
 
 ## O que este épico não fecha
 
-Qual provedor de previsão e o corte numérico (spec do adaptador, na S4). Valores reais da clínica piloto. Revisão jurídica antes de dados reais (GATE-04). S1 é a migração `0033_service_tempo`. S2 grava o local no hub (`PUT /config/forecast-place`). S3 a S7 seguem, um PR por fatia.
+Qual provedor de previsão e o corte numérico (spec do adaptador, na S4). Valores reais da clínica piloto. Revisão jurídica antes de dados reais (GATE-04). S1 é a migração `0033_service_tempo`. S2 grava o local no hub (`PUT /config/forecast-place`). S3 grava céu e temperatura no serviço. S4 a S7 seguem, um PR por fatia.
 
 **Aceite por fatia:** S1 AC-61; S2 AC-62 (REQ-089); S3 AC-63 (REQ-090); S4 AC-64 (REQ-091); S5 AC-65 (REQ-092); S6 AC-66 (REQ-092); S7 AC-67 (REQ-093). Jornadas: JRN-03, JRN-08, JRN-17.

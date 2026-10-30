@@ -2030,6 +2030,10 @@ export type ClinicService = {
   occupiedMinutes: number
   /** DEC-075 — audiência do serviço (não da pessoa). */
   audiencia?: 'feminino' | 'masculino' | 'qualquer'
+  /** DEC-077. Omitidos = Tanto faz. */
+  tempoCeu?: 'tanto_faz' | 'sol' | 'chuva'
+  tempoTemperatura?: 'tanto_faz' | 'acima' | 'abaixo'
+  tempoCelsius?: number | null
   priceCents: number | null
   clientExplanation: string | null
   active: boolean
@@ -2208,6 +2212,10 @@ export type ServiceUpsertBody = {
   bufferMinutes: number
   /** DEC-075 — omitido na criação = qualquer; omitido na edição = mantém. */
   audiencia?: 'feminino' | 'masculino' | 'qualquer'
+  /** DEC-077 — omitir os três numa edição mantém o bloco. */
+  tempoCeu?: 'tanto_faz' | 'sol' | 'chuva'
+  tempoTemperatura?: 'tanto_faz' | 'acima' | 'abaixo'
+  tempoCelsius?: number | null
   priceCents?: number | null
   clientExplanation?: string | null
   active?: boolean
