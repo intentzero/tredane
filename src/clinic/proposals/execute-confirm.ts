@@ -167,6 +167,7 @@ function resolveRoomForProposal(
   if (!service || service.roomRequirement.mode === 'none') return null
   const settings = ensureClinicSettings(db, tenantId, clock)
   const date = clinicCivilDateFromUtc(settings.timezone, proposal.startsAt)
+  const snaps = readZoneSnapshots(db, tenantId, 'proposal', proposal.id)
   const avail = queryAvailability(
     db,
     tenantId,
@@ -174,6 +175,7 @@ function resolveRoomForProposal(
       serviceId: proposal.serviceId,
       date,
       professionalId: proposal.professionalId ?? undefined,
+      ...(snaps.length > 0 ? { durationMinutesOverride: proposal.durationMinutes } : {}),
     },
     clock,
   )

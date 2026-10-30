@@ -5,7 +5,8 @@
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
 import { createControllableClock } from '../../db/clock'
-import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { readZoneSnapshots } from '../config/zones'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
@@ -15,7 +16,7 @@ import { getProposal } from '../proposals/proposals'
 import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
-import { detectExplicitConfirmation } from './autobook'
+import { detectExplicitConfirmation, extractTimes } from './autobook'
 import { checkConversationProtection, isConversationPaused } from './protection'
 import { autoBookCapability, toAiAssistDeps } from './deps'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
@@ -214,6 +215,115 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
     }
   })
 
+  it('«1530» com dia e serviço já ditos envia a proposta, sem pergunta Confirma', async () => {
+    const s = seed()
+    try {
+      s.say('inbound', 'quero depilação masculina na quinta')
+      s.say('outbound', 'Tenho quinta 29/10 às 14:00, 15:30 e 16:00. Qual prefere?')
+      s.say('inbound', '1530')
+      const o = await s.run()
+      expect(o.autoBook?.status).toBe('requires_button')
+      expect(o.autoBook?.proposalId).toBeTruthy()
+      expect(o.suggestion!.suggestedText.trim()).toBe('')
+      expect(o.replyOutbox ?? []).toHaveLength(0)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('«as 13» com a zona já dita envia a proposta e não repete o preço', async () => {
+    const s = seed()
+    try {
+      const dep = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilacao',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 18_000,
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        dep.id,
+        [
+          { name: 'Axila', durationMinutes: 30, priceCents: 5_000 },
+          { name: 'Peitoral', durationMinutes: 30, priceCents: 7_000 },
+          { name: 'Barriga', durationMinutes: 30, priceCents: 7_000 },
+        ],
+        s.clock,
+      )
+      s.say('inbound', 'Quero agendar uma depilação')
+      s.say('outbound', 'Quais zonas você quer depilar? Temos axila, peitoral e barriga.')
+      s.say('inbound', 'Axila')
+      s.say(
+        'outbound',
+        'A depilação de axila custa R$ 50,00. Amanhã tenho 13:00, 14:00 ou 15:30. Qual fica melhor pra você?',
+      )
+      s.say('inbound', 'Amanha as 13')
+      const o = await s.run()
+      expect(o.autoBook?.status).toBe('requires_button')
+      expect(o.autoBook?.proposalId).toBeTruthy()
+      expect(o.suggestion!.suggestedText.trim()).toBe('')
+      expect(o.replyOutbox ?? []).toHaveLength(0)
+      const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', o.autoBook!.proposalId!)
+      expect(snaps.map((z) => z.name)).toEqual(['Axila'])
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('zonas todas inativas deixam nota e não enviam o rascunho', async () => {
+    const s = seed()
+    try {
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        s.svc.id,
+        [{ name: 'Axila', durationMinutes: 30, priceCents: 5_000, active: false }],
+        s.clock,
+      )
+      s.say('outbound', 'Confirma depilacao masculina na quinta 29/10 às 14:00?')
+      s.say('inbound', 'Sim')
+      const o = await s.run()
+      expect(o.autoBook?.proposalId).toBeUndefined()
+      expect(o.autoBook?.status).toBe('needs_info')
+      expect(o.suggestion!.internalNotes).toMatch(/inativas|calcular/i)
+      expect(o.suggestion!.suggestedText.trim()).toBe('')
+      expect(o.replyOutbox ?? []).toHaveLength(0)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('texto da IA sai sem clique quando não há proposta', async () => {
+    const s = seed()
+    try {
+      s.say('inbound', 'Oi, quanto custa a depilação masculina?')
+      const o = await s.run()
+      expect(o.autoBook?.proposalId).toBeUndefined()
+      expect(o.replyOutbox?.length).toBeGreaterThan(0)
+      expect(o.suggestion!.status).toBe('used')
+      const sent = s.db.get<{ body: string }>(
+        `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+        s.tenantId,
+        s.cnv.id,
+      )
+      expect(sent!.body.trim().length).toBeGreaterThan(0)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
   it('pausa da owner → só nota, sem proposta', async () => {
     const s = seed()
     try {
@@ -273,6 +383,11 @@ describe('detectExplicitConfirmation', () => {
     { id: 's2', name: 'Depilação feminina', active: true },
   ] as never
   const base = { clientToday: '2026-10-28', clinicToday: '2026-10-28', services }
+  it('«1530» é 15:30 e não lê o ano de uma data', () => {
+    expect(extractTimes('1530')).toEqual(new Set(['15:30']))
+    expect(extractTimes('Hoje as 13')).toEqual(new Set(['13:00']))
+    expect(extractTimes('sexta 30/10/2026')).not.toContain('20:26')
+  })
   it('«1 hora» de duração não é horário', () => {
     const r = detectExplicitConfirmation({ ...base, clientTexts: ['Sim'], previousClinicText: 'Depilação masculina amanhã às 15:00, dura 1 hora.' })
     expect(r).toMatchObject({ ok: true, date: '2026-10-29', time: '15:00' })
