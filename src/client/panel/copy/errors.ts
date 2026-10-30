@@ -34,6 +34,7 @@ const BY_CODE: Record<string, string> = {
   not_found: 'Não encontramos isso. Pode ter sido removido.',
   conflict: CONFLICT,
   invalid_state: 'Isso não pode ser feito agora. Atualize a tela e tente de novo.',
+  zone_name_taken: 'Já existe uma variante com o mesmo nome, gênero, duração e preço.',
 
   // agenda e sinal
   slot_occupied: 'Esse horário acabou de ser ocupado. Escolha outro.',

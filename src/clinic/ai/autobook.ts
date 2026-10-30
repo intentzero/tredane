@@ -20,7 +20,7 @@ import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
 import { listServices } from '../config/services'
-import { quoteVisit, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
+import { quoteVisit, variantAudiencesConflict, variantChoiceLabel, zonesNamedInText } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
@@ -417,7 +417,7 @@ export async function tryAiAutoBook(
   const kind = plural || singular || 'variantes'
   const phrase = plural || !singular ? `as ${kind}` : `a ${kind}`
   if (activeZones.length > 0 && namedZones.length === 0) {
-    const names = activeZones.map((z) => z.name)
+    const names = activeZones.map((z) => variantChoiceLabel(z, activeZones))
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
@@ -452,7 +452,7 @@ export async function tryAiAutoBook(
       // Não silenciar: o modelo pode ter deixado a mensagem vazia à espera da proposta.
       replyText:
         activeZones.length > 0
-          ? askZonesReply(phrase, activeZones.map((z) => z.name), time)
+          ? askZonesReply(phrase, activeZones.map((z) => variantChoiceLabel(z, activeZones)), time)
           : `Não consegui fechar ${svc.name} às ${time} agora. A equipe confirma pelo Agendar.`,
       notes:
         `Não deu para calcular ${svc.name}: ${message}. Pergunta/aviso automático enviado. Texto livre não marca.`,

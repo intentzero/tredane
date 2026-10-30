@@ -559,15 +559,61 @@ describe('tipo e género das variantes (DEC-079)', () => {
   })
 })
 
+describe('mesmo nome, variante diferente (Paulo, 30/10/2026)', () => {
+  it('grava Axila masculino e Axila feminino e recusa a cópia igual', () => {
+    const { db, close, clock, caller, svc } = seed()
+    try {
+      const zones = replaceServiceZonesOp(
+        db,
+        caller,
+        svc.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 5_000, audience: 'masculino' },
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' },
+        ],
+        clock,
+      )
+      expect(zones.map((z) => [z.name, z.audience, z.priceCents])).toEqual([
+        ['Axila', 'masculino', 5_000],
+        ['Axila', 'feminino', 4_000],
+      ])
+      expect(() =>
+        replaceServiceZonesOp(
+          db,
+          caller,
+          svc.id,
+          [
+            ...zones.map((z) => ({
+              id: z.id,
+              name: z.name,
+              durationMinutes: z.durationMinutes,
+              priceCents: z.priceCents,
+              audience: z.audience,
+            })),
+            { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' },
+          ],
+          clock,
+        ),
+      ).toThrow(ValidationError)
+    } finally {
+      close()
+    }
+  })
+})
+
 describe('zonesNamedInText', () => {
-  const zone = (id: string, name: string) => ({
+  const zone = (
+    id: string,
+    name: string,
+    audience: 'feminino' | 'masculino' | 'ambos' = 'ambos',
+  ) => ({
     id,
     tenantId: 't',
     serviceId: 's',
     name,
     durationMinutes: 30,
     priceCents: 100,
-    audience: 'ambos' as const,
+    audience,
     active: true,
     sortOrder: 0,
   })
@@ -576,6 +622,12 @@ describe('zonesNamedInText', () => {
     const zones = [zone('a', 'Perna'), zone('b', 'Meia perna')]
     expect(zonesNamedInText('quero meia perna', zones).map((z) => z.name)).toEqual(['Meia perna'])
     expect(zonesNamedInText('só a perna', zones).map((z) => z.name)).toEqual(['Perna'])
+  })
+
+  it('o mesmo nome devolve as duas variantes, ou só o género dito', () => {
+    const zones = [zone('m', 'Axila', 'masculino'), zone('f', 'Axila', 'feminino')]
+    expect(zonesNamedInText('quero axila', zones).map((z) => z.id)).toEqual(['m', 'f'])
+    expect(zonesNamedInText('axila feminina', zones).map((z) => z.id)).toEqual(['f'])
   })
 })
 
