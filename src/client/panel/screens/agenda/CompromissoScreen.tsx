@@ -14,7 +14,6 @@ import {
 import { useClinicTimezone } from '../../clinicTimezone'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
-import { useTenant } from '../../tenant/TenantContext'
 import { formatSlotTime } from './format'
 import { friendlyError } from '../../copy/errors'
 
@@ -23,6 +22,8 @@ type Props = {
   appointmentId: string
   api: PanelApi
   generation: number
+  /** Responsável: vê «Permitir os dois» (DEC-075 / S5). */
+  isOwner?: boolean
   /** No desktop o compromisso abre num painel por cima da grade (DEC-069): fecha em vez de voltar. */
   onClose?: () => void
   /** Cancelamento ou devolução concluídos: a grade refaz a leitura. */
@@ -38,12 +39,11 @@ export function CompromissoScreen({
   appointmentId,
   api,
   generation,
+  isOwner = false,
   onClose,
   onChanged,
 }: Props) {
   const timezone = useClinicTimezone(api, tenantId, generation)
-  const { active } = useTenant()
-  const isOwner = active.phase === 'ready' && active.context.role === 'owner'
   const [detail, setDetail] = useState<AppointmentDetailResponse | null>(null)
   const [reasons, setReasons] = useState<AppointmentReasonOption[]>([])
   const [paidSignal, setPaidSignal] = useState<PixChargeDetail | null>(null)

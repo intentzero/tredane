@@ -20,6 +20,7 @@ export function AgendaArea({ tenantId, section, appointmentId }: Props) {
   const { api } = useAuthSession()
   const { active, generation } = useTenant()
   const wide = useMediaQuery('(min-width: 1280px)')
+  const isOwner = active.phase === 'ready' && active.context.role === 'owner'
 
   if (active.phase === 'switching') {
     return <LoadingState label="A mudar de clínica…" />
@@ -54,6 +55,7 @@ export function AgendaArea({ tenantId, section, appointmentId }: Props) {
         appointmentId={appointmentId}
         api={api}
         generation={generation}
+        isOwner={isOwner}
       />
     )
   }
@@ -65,6 +67,7 @@ export function AgendaArea({ tenantId, section, appointmentId }: Props) {
       generation={generation}
       view={section === 'semana' ? 'week' : 'day'}
       openId={section === 'compromisso' ? appointmentId : undefined}
+      isOwner={isOwner}
     />
   )
 }
