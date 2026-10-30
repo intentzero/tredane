@@ -200,34 +200,51 @@ export async function runDueAutoDrafts(
     }
     cancelAutoDraft(db, tenantId, job.conversationId)
     let autoBook: AutoBookOutcome | undefined
-    if (suggestion.status !== 'failed') {
-      try {
-        // Capacidade sempre ligada. A pausa da owner é o único desligamento.
-        let capability = deps.autoBookPaused !== true
-        let limitNote: string | null = null
-        // S7 (#178): quota de marcações automáticas (contato/clínica) e compromissos futuros.
-        if (capability && deps.abuseLimits?.enabled && contactId) {
-          const decision = checkAutomationQuota(db, deps.abuseLimits, { tenantId, contactId, effect: 'ai_booking' }, clock)
-          if (!decision.allowed) {
-            recordLimitReached(db, deps.abuseLimits, { tenantId, contactId, effect: 'ai_booking', decision }, clock)
-            capability = false
-            limitNote = decision.message
-          }
+    // Sempre tenta o caminho determinístico (proposta / pergunta de variantes),
+    // mesmo se o modelo falhou — evita silêncio indevido no WhatsApp.
+    try {
+      // Capacidade sempre ligada. A pausa da owner é o único desligamento.
+      let capability = deps.autoBookPaused !== true
+      let limitNote: string | null = null
+      // S7 (#178): quota de marcações automáticas (contato/clínica) e compromissos futuros.
+      if (capability && deps.abuseLimits?.enabled && contactId) {
+        const decision = checkAutomationQuota(db, deps.abuseLimits, { tenantId, contactId, effect: 'ai_booking' }, clock)
+        if (!decision.allowed) {
+          recordLimitReached(db, deps.abuseLimits, { tenantId, contactId, effect: 'ai_booking', decision }, clock)
+          capability = false
+          limitNote = decision.message
         }
-        autoBook = await tryAiAutoBook(db, caller, clock, {
-          conversationId: job.conversationId,
-          suggestionId: suggestion.id,
-          enabled: true,
-          // Revalidado aqui, na execução do job (inclusive jobs já enfileirados).
-          capability,
-          abuseLimits: deps.abuseLimits,
-        })
-        if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }
-        if (autoBook.proposalId || autoBook.replyText != null || autoBook.notes) {
-          const text = autoBook.proposalId ? '' : (autoBook.replyText ?? suggestion.suggestedText)
-          const notes = [autoBook.notes, autoBook.replyText ? '' : suggestion.internalNotes]
-            .filter(Boolean)
-            .join('\n')
+      }
+      autoBook = await tryAiAutoBook(db, caller, clock, {
+        conversationId: job.conversationId,
+        suggestionId: suggestion.id,
+        enabled: true,
+        // Revalidado aqui, na execução do job (inclusive jobs já enfileirados).
+        capability,
+        abuseLimits: deps.abuseLimits,
+      })
+      if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }
+      if (autoBook.proposalId || autoBook.replyText != null || autoBook.notes) {
+        const deterministic = Boolean(autoBook.proposalId || (autoBook.replyText != null && autoBook.replyText !== ''))
+        const text = autoBook.proposalId
+          ? ''
+          : (autoBook.replyText ?? (suggestion.status === 'pending' ? suggestion.suggestedText : ''))
+        const notes = [autoBook.notes, autoBook.replyText ? '' : suggestion.internalNotes]
+          .filter(Boolean)
+          .join('\n')
+        // Texto determinístico promove a sugestão a pending para o envio automático.
+        if (deterministic && suggestion.status === 'failed') {
+          db.run(
+            `UPDATE ai_suggestions
+             SET status = 'pending', suggested_text = ?, internal_notes = ?, error_code = NULL, updated_at = ?
+             WHERE tenant_id = ? AND id = ?`,
+            text,
+            notes,
+            clock.nowMs(),
+            tenantId,
+            suggestion.id,
+          )
+        } else {
           db.run(
             `UPDATE ai_suggestions SET suggested_text = ?, internal_notes = ?, updated_at = ?
              WHERE tenant_id = ? AND id = ?`,
@@ -237,27 +254,29 @@ export async function runDueAutoDrafts(
             tenantId,
             suggestion.id,
           )
-          suggestion = getSuggestion(db, tenantId, suggestion.id) ?? suggestion
         }
-      } catch (err) {
-        console.warn(
-          JSON.stringify({
-            level: 'warn',
-            event: 'ai.autobook_error',
-            tenantId,
-            error: err instanceof Error ? err.message : 'unknown',
-          }),
-        )
+        suggestion = getSuggestion(db, tenantId, suggestion.id) ?? suggestion
       }
+    } catch (err) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'ai.autobook_error',
+          tenantId,
+          error: err instanceof Error ? err.message : 'unknown',
+        }),
+      )
     }
     let replyOutbox: OutboxRow[] | undefined
     const draftText = suggestion.suggestedText.trim()
     const unsafe = suggestion.warningCodes.some((c) => c === 'injection_suspected' || c === 'output_rejected')
+    // Resposta determinística do autobook (ex.: pedir variantes) ignora rejeição do modelo.
+    const deterministicReply = Boolean(autoBook?.replyText && autoBook.replyText.trim())
     if (
       suggestion.status === 'pending' &&
       draftText &&
       !autoBook?.proposalId &&
-      !unsafe
+      (!unsafe || deterministicReply)
     ) {
       try {
         const sent = sendOutboundMessageOp(
