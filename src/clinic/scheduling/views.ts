@@ -5,6 +5,7 @@ import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getResource } from '../config/resources'
 import { getService } from '../config/services'
+import { readZoneSnapshots, zoneLabel } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import { occupiedMinutes } from '../config/validation'
 import type { ClinicCaller } from '../envelopes'
@@ -139,7 +140,10 @@ export function queryAgendaViewOp(
     appointments.push({
       id: row.id,
       serviceId: row.service_id,
-      serviceName: svc?.name ?? row.service_id,
+      serviceName: zoneLabel(
+        svc?.name ?? row.service_id,
+        readZoneSnapshots(db, meta.tenantId, 'appointment', row.id),
+      ),
       professionalId: row.professional_id,
       professionalName: pro?.name ?? row.professional_id,
       roomResourceId: row.room_resource_id,

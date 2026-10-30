@@ -16,6 +16,7 @@ import type {
   UpsertServiceInput,
 } from './types'
 import { listServiceWeeklyWindows, setServiceWeeklyWindows } from './service-windows'
+import { listZones } from './zones'
 import {
   assertBufferMinutes,
   assertNonEmptyName,
@@ -125,6 +126,7 @@ function toServiceRow(
     roomRequirement: loadRoomRequirement(db, row.tenant_id, row.id),
     weeklyWindows: loadServiceWeeklyWindows(db, row.tenant_id, row.id),
     deletable: serviceDeleteBlocker(db, row.tenant_id, row.id) === null,
+    zones: listZones(db, row.tenant_id, row.id),
   }
 }
 

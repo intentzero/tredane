@@ -267,6 +267,8 @@ export type CreateSignalChargeInput = {
   startsAt: number
   actorClerkUserId: string
   authorDisplayName?: string | null
+  /** DEC-078: zonas da visita. Obrigatório quando o serviço tem zonas ativas. */
+  zoneIds?: string[] | null
 }
 
 export type ConfirmWithoutSignalInput = {
@@ -282,6 +284,7 @@ export type ConfirmWithoutSignalInput = {
   /** Motivo obrigatório (AC-51). */
   waiveReason: string
   actorClerkUserId: string
+  zoneIds?: string[] | null
   /** Cobrança aberta a superseder (opcional; senão procura por conversa/slot). */
   supersedeChargeId?: string | null
 }

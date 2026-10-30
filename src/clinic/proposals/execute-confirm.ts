@@ -9,6 +9,7 @@ import { AI_AUTOBOOK_ACTOR_ID, AI_AUTOBOOK_ACTOR_NAME } from '../ai/autobook'
 import { checkConversationProtection } from '../ai/protection'
 import { getContact } from '../contacts'
 import { getService } from '../config/services'
+import { readZoneSnapshots, zoneSnapshotsDrifted } from '../config/zones'
 import { getResource } from '../config/resources'
 import {
   PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX,
@@ -137,11 +138,14 @@ function materialDrift(
   const service = getService(db, tenantId, proposal.serviceId)
   if (!service || !service.active) return true
   if (service.requiresSignal !== proposal.requiresSignal) return true
-  if ((service.priceCents ?? null) !== (proposal.priceCents ?? null)) return true
+  const snaps = readZoneSnapshots(db, tenantId, 'proposal', proposal.id)
+  if (snaps.length > 0) {
+    if (zoneSnapshotsDrifted(db, tenantId, proposal.serviceId, snaps)) return true
+  } else if ((service.priceCents ?? null) !== (proposal.priceCents ?? null)) return true
   if ((service.signalKind ?? null) !== (proposal.signalKind ?? null)) return true
   if ((service.signalFixedCents ?? null) !== (proposal.signalFixedCents ?? null)) return true
   if ((service.signalPercent ?? null) !== (proposal.signalPercent ?? null)) return true
-  if (service.durationMinutes !== proposal.durationMinutes) return true
+  if (snaps.length === 0 && service.durationMinutes !== proposal.durationMinutes) return true
   if (proposal.professionalId) {
     const pro = getResource(db, tenantId, proposal.professionalId, clock)
     if (!pro || pro.kind !== 'professional' || !pro.active) return true
@@ -302,6 +306,9 @@ export async function executeProposalConfirmOp(
           actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
           appliedDurationMinutes: null,
           stageNote: BUTTON_STAGE_NOTE,
+          zoneIds: readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
+            .map((z) => z.zoneId)
+            .filter((id): id is string => Boolean(id)),
         },
         clock,
       )
@@ -446,6 +453,9 @@ export async function executeProposalConfirmOp(
         startsAt: proposal.startsAt,
         actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
         authorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
+        zoneIds: readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
+          .map((z) => z.zoneId)
+          .filter((id): id is string => Boolean(id)),
       },
       clock,
       { adapter: deps.pixAdapter },
@@ -502,6 +512,9 @@ export async function executeProposalConfirmOp(
         actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
         appliedDurationMinutes: null,
         stageNote: BUTTON_STAGE_NOTE,
+        zoneIds: readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
+          .map((z) => z.zoneId)
+          .filter((id): id is string => Boolean(id)),
       },
       clock,
     )

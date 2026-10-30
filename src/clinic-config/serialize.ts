@@ -21,6 +21,10 @@ export function serializeSettings(row: ClinicSettingsRow) {
     clinicAddress: row.clinicAddress,
     googleBusinessUrl: row.googleBusinessUrl,
     reschedulePolicy: row.reschedulePolicy,
+    forecastMode: row.forecastMode,
+    forecastCity: row.forecastCity,
+    forecastLatitude: row.forecastLatitude,
+    forecastLongitude: row.forecastLongitude,
     updatedAt: row.updatedAt,
   }
 }
@@ -71,6 +75,14 @@ export function serializeService(row: ServiceRow) {
     roomRequirement: row.roomRequirement,
     weeklyWindows: row.weeklyWindows,
     deletable: row.deletable,
+    zones: row.zones.map((z) => ({
+      id: z.id,
+      name: z.name,
+      durationMinutes: z.durationMinutes,
+      priceCents: z.priceCents,
+      active: z.active,
+      sortOrder: z.sortOrder,
+    })),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }

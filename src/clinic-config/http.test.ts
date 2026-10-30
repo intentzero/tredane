@@ -366,3 +366,132 @@ describe('HTTP — configuração da clínica (#28)', () => {
     }
   })
 })
+
+describe('HTTP — local da previsão (DEC-077 S2)', () => {
+  type Place = {
+    aiAssistEnabled: boolean
+    clinicAddress: string
+    forecastMode: string
+    forecastCity: string | null
+    forecastLatitude: number | null
+    forecastLongitude: number | null
+    timezone: string
+  }
+
+  it('a responsável grava cidade ou coordenadas; a atendente não; o endereço da IA fica de fora', async () => {
+    const { app, close, auth } = testConfigApp()
+    try {
+      const url = 'http://localhost/api/tenants/clinic-demo-a/config/forecast-place'
+      const put = (user: string, body: unknown) =>
+        app.request(
+          url,
+          auth(user, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }),
+        )
+      const snap = async () => {
+        const res = await app.request(
+          'http://localhost/api/tenants/clinic-demo-a/config',
+          auth('user_synth_owner_a'),
+        )
+        const body = (await res.json()) as { settings: Place }
+        return body.settings
+      }
+
+      expect((await snap()).aiAssistEnabled).toBe(false)
+      expect((await put('user_synth_attendant_a', { mode: 'cidade', city: 'Campinas' })).status).toBe(
+        403,
+      )
+
+      const city = await put('user_synth_owner_a', { mode: 'cidade', city: '  Campinas  ' })
+      expect(city.status).toBe(200)
+      expect(await snap()).toMatchObject({
+        aiAssistEnabled: false,
+        clinicAddress: '',
+        forecastMode: 'cidade',
+        forecastCity: 'Campinas',
+        forecastLatitude: null,
+        forecastLongitude: null,
+      })
+
+      const empty = await put('user_synth_owner_a', { mode: 'cidade', city: '   ' })
+      expect(empty.status).toBe(400)
+      expect((await snap()).forecastCity).toBe('Campinas')
+
+      const badLat = await put('user_synth_owner_a', {
+        mode: 'coordenadas',
+        latitude: 91,
+        longitude: -47,
+      })
+      expect(badLat.status).toBe(400)
+      expect(await snap()).toMatchObject({
+        forecastMode: 'cidade',
+        forecastCity: 'Campinas',
+        forecastLatitude: null,
+        forecastLongitude: null,
+      })
+
+      const coords = await put('user_synth_owner_a', {
+        mode: 'coordenadas',
+        latitude: -90,
+        longitude: 180,
+      })
+      expect(coords.status).toBe(200)
+      expect(await snap()).toMatchObject({
+        forecastMode: 'coordenadas',
+        forecastCity: null,
+        forecastLatitude: -90,
+        forecastLongitude: 180,
+      })
+
+      const address = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/ai-assist',
+        auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clinicAddress: 'Rua Fictícia, 10' }),
+        }),
+      )
+      expect(address.status).toBe(200)
+      const tz = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/settings',
+        auth('user_synth_owner_a', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ timezone: 'America/Sao_Paulo' }),
+        }),
+      )
+      expect(tz.status).toBe(200)
+      expect(await snap()).toMatchObject({
+        aiAssistEnabled: false,
+        clinicAddress: 'Rua Fictícia, 10',
+        forecastMode: 'coordenadas',
+        forecastCity: null,
+        forecastLatitude: -90,
+        forecastLongitude: 180,
+        timezone: 'America/Sao_Paulo',
+      })
+
+      const cross = await app.request(
+        'http://localhost/api/tenants/clinic-demo-b/config/forecast-place',
+        auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 'cidade', city: 'Campinas' }),
+        }),
+      )
+      expect(cross.status).toBe(403)
+      const other = await app.request(
+        'http://localhost/api/tenants/clinic-demo-b/config',
+        auth('user_synth_owner_b'),
+      )
+      const otherSettings = ((await other.json()) as { settings: Place }).settings
+      expect(otherSettings.forecastMode).toBe('nenhum')
+      expect(otherSettings.forecastCity).toBeNull()
+    } finally {
+      close()
+    }
+  })
+})

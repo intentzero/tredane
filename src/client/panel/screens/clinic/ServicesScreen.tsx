@@ -6,7 +6,7 @@ import { ClinicCheck } from './ClinicCheck'
 import { ClinicListHeader } from './ClinicListHeader'
 import { serviceRow } from './resourceRows'
 import { PanelSelect } from '../../ui/PanelSelect'
-import type { ClinicConfigSnapshot, PanelApi, ServiceUpsertBody } from '../../api'
+import type { ClinicConfigSnapshot, PanelApi, ServiceUpsertBody, ServiceZoneInput } from '../../api'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
 import {
@@ -99,6 +99,15 @@ export function ServicesList({ tenantId, snap }: ListProps) {
   )
 }
 
+type ZoneDraft = {
+  key: string
+  id?: string
+  name: string
+  durationMinutes: number
+  price: string
+  active: boolean
+}
+
 type FormProps = {
   tenantId: string
   entityId: string
@@ -132,6 +141,16 @@ export function ServiceForm({
   )
   const [price, setPrice] = useState(
     existing?.priceCents != null ? formatPriceCents(existing.priceCents) : '',
+  )
+  const [zones, setZones] = useState<ZoneDraft[]>(() =>
+    (existing?.zones ?? []).map((z) => ({
+      key: z.id,
+      id: z.id,
+      name: z.name,
+      durationMinutes: z.durationMinutes,
+      price: z.priceCents != null ? formatPriceCents(z.priceCents) : '',
+      active: z.active,
+    })),
   )
   const [explanation, setExplanation] = useState(existing?.clientExplanation ?? '')
   const [active, setActive] = useState(existing?.active ?? true)
@@ -254,11 +273,24 @@ export function ServiceForm({
       weeklyWindows: fromWeekDraft(hoursDraft),
     }
     try {
-      await api.upsertService(tenantId, body, {
+      const saved = await api.upsertService(tenantId, body, {
         serviceId: existing?.id,
         generation,
         expectGeneration: () => generation,
       })
+      const zoneBody: ServiceZoneInput[] = zones.map((z) => ({
+        id: z.id,
+        name: z.name.trim(),
+        durationMinutes: z.durationMinutes,
+        priceCents: z.price.trim() ? parsePriceToCents(z.price) : null,
+        active: z.active,
+      }))
+      if (zoneBody.length > 0 || (existing?.zones?.length ?? 0) > 0) {
+        await api.replaceServiceZones(tenantId, saved.id, zoneBody, {
+          generation,
+          expectGeneration: () => generation,
+        })
+      }
       await onSaved()
       navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'servicos' })
     } catch (err) {
@@ -306,6 +338,78 @@ export function ServiceForm({
           />
         </TextField>
       </div>
+      <section className="clinic-stack" aria-labelledby="svc-zones">
+        <h2 id="svc-zones" className="agd-label">Zonas</h2>
+        <p className="agd-note">
+          Cada zona tem duração e preço. Várias zonas entram no mesmo horário. Sem zonas, vale a duração e o preço da linha.
+        </p>
+        {zones.map((z) => (
+          <div className="clinic-field-row" key={z.key}>
+            <TextField className="clinic-field">
+              <Label>Nome</Label>
+              <Input
+                value={z.name}
+                onChange={(e) =>
+                  setZones((prev) => prev.map((row) => (row.key === z.key ? { ...row, name: e.target.value } : row)))
+                }
+              />
+            </TextField>
+            <PanelSelect
+              className="clinic-field"
+              label="Duração"
+              value={String(z.durationMinutes)}
+              onChange={(v) =>
+                setZones((prev) =>
+                  prev.map((row) => (row.key === z.key ? { ...row, durationMinutes: Number(v) } : row)),
+                )
+              }
+              options={durationOptions().map((m) => ({ id: String(m), label: `${m} min` }))}
+            />
+            <TextField className="clinic-field">
+              <Label>Preço</Label>
+              <Input
+                value={z.price}
+                placeholder="sem preço"
+                inputMode="decimal"
+                onChange={(e) =>
+                  setZones((prev) => prev.map((row) => (row.key === z.key ? { ...row, price: e.target.value } : row)))
+                }
+              />
+            </TextField>
+            <ClinicCheck
+              isSelected={z.active}
+              onChange={(selected) =>
+                setZones((prev) => prev.map((row) => (row.key === z.key ? { ...row, active: selected } : row)))
+              }
+            >
+              Ativa
+            </ClinicCheck>
+            <Button
+              className="panel-btn panel-btn-ghost"
+              onPress={() => setZones((prev) => prev.filter((row) => row.key !== z.key))}
+            >
+              Remover
+            </Button>
+          </div>
+        ))}
+        <Button
+          className="panel-btn panel-btn-secondary"
+          onPress={() =>
+            setZones((prev) => [
+              ...prev,
+              {
+                key: crypto.randomUUID(),
+                name: '',
+                durationMinutes: prev.length === 0 ? duration : 15,
+                price: prev.length === 0 ? price : '',
+                active: true,
+              },
+            ])
+          }
+        >
+          Adicionar zona
+        </Button>
+      </section>
       <PanelSelect
         className="clinic-field"
         label="Audiência"

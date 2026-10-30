@@ -12,6 +12,7 @@ import { assertValidCaller } from '../envelopes'
 import { ConflictError, NotFoundError, ValidationError } from '../errors'
 import { assertClinicSchemaReady } from '../migrations'
 import type { OutboxRow } from '../outbox'
+import { readZoneSnapshots } from '../config/zones'
 import { confirmAppointmentInTransaction } from '../scheduling/booking'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
@@ -143,6 +144,7 @@ export function resolveAlertAltSlotOp(
         conversationId: charge.conversationId,
         opportunityId: charge.opportunityId,
         actorClerkUserId: actorId,
+        frozenZoneSnapshots: readZoneSnapshots(db, meta.tenantId, 'pix_charge', charge.id),
       },
       clock,
     )

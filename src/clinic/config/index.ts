@@ -22,7 +22,11 @@ export type {
   CreateBlockResult,
   RoomRequirement,
   ServiceSignalKind,
+  ServiceZoneInput,
+  ServiceZoneRow,
+  ZoneSnapshot,
   UpdateAbuseLimitsInput,
+  ForecastPlaceInput,
 } from './types'
 export {
   buildAbuseLimitsView,
@@ -61,6 +65,17 @@ export {
   listAffectedAppointments,
   insertSyntheticAppointment,
 } from './appointments'
+export {
+  listZones,
+  replaceZones,
+  quoteVisit,
+  writeZoneSnapshots,
+  readZoneSnapshots,
+  snapshotDuration,
+  zoneLabel,
+  zonesNamedInText,
+  zoneSnapshotsDrifted,
+} from './zones'
 export { computeConfigReadiness } from './readiness'
 export { loadConfigSnapshot } from './snapshot'
 export {
@@ -69,9 +84,11 @@ export {
   updateTimezoneOp,
   setAiAssistEnabledOp,
   setAiProfileOp,
+  setForecastPlaceOp,
   getAbuseLimitsOp,
   updateAbuseLimitsOp,
   upsertServiceOp,
+  replaceServiceZonesOp,
   setServiceActiveOp,
   deleteServiceOp,
   upsertResourceOp,

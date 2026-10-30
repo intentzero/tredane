@@ -11,6 +11,14 @@ import {
 import { toAppointment } from '../config/appointments'
 import { getResource } from '../config/resources'
 import { assertAppliedDuration, getService } from '../config/services'
+import {
+  quoteVisit,
+  readZoneSnapshots,
+  snapshotDuration,
+  writeZoneSnapshots,
+  zoneLabel,
+  type VisitQuote,
+} from '../config/zones'
 import type { AppointmentRow } from '../config/types'
 import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
@@ -137,11 +145,13 @@ function enrichDetail(
   const room = apt.roomResourceId
     ? getResource(db, tenantId, apt.roomResourceId, clock)
     : null
+  const zones = readZoneSnapshots(db, tenantId, 'appointment', apt.id)
   return {
     ...apt,
-    serviceName: svc?.name ?? apt.serviceId,
+    serviceName: zoneLabel(svc?.name ?? apt.serviceId, zones),
     professionalName: pro?.name ?? apt.professionalId,
     roomResourceName: room?.name ?? null,
+    zones,
     events: listAppointmentEvents(db, tenantId, apt.id),
   }
 }
@@ -284,25 +294,48 @@ export function confirmAppointmentInTransaction(
   }
 
   // DEC-076: só o bloco («por período») traz duração própria, via excludeHoldId.
-  // Fora disso, duração diferente da do cadastro é recusada — inclusive um
-  // durationMinutesOverride que sobreviveria quando a duração pedida coincide
-  // com o cadastro.
+  // DEC-078: um serviço com zonas ocupa a soma delas, não a linha do cadastro.
   const svcForDuration = getService(db, meta.tenantId, input.serviceId)
   let durationOverride: number | null = null
-  if (input.excludeHoldId) {
+  let visit: VisitQuote | null = null
+  if (input.frozenZoneSnapshots && input.frozenZoneSnapshots.length > 0) {
+    const zones = input.frozenZoneSnapshots
+    const durationMinutes = zones.reduce((sum, z) => sum + z.durationMinutes, 0)
+    const priced = zones.every((z) => z.priceCents != null)
+    visit = {
+      durationMinutes,
+      priceCents: priced ? zones.reduce((sum, z) => sum + (z.priceCents ?? 0), 0) : null,
+      zones,
+    }
+    durationOverride = durationMinutes
+  } else if (input.excludeHoldId && !input.zoneIds?.length) {
     durationOverride = input.durationMinutesOverride ?? null
   } else if (svcForDuration) {
-    assertAppliedDuration(svcForDuration, input.appliedDurationMinutes)
-    if (
-      input.durationMinutesOverride != null &&
-      input.durationMinutesOverride !== svcForDuration.durationMinutes
+    visit = quoteVisit(db, meta.tenantId, svcForDuration, input.zoneIds)
+    const expected = visit.zones.length > 0 ? visit.durationMinutes : svcForDuration.durationMinutes
+    if (visit.zones.length === 0) {
+      assertAppliedDuration(svcForDuration, input.appliedDurationMinutes)
+    } else if (
+      input.appliedDurationMinutes != null &&
+      input.appliedDurationMinutes !== expected
     ) {
       throw new ValidationError(
         'duration_not_adjustable',
         'a duração do procedimento não se ajusta ao agendar',
-        { serviceId: svcForDuration.id, durationMinutes: svcForDuration.durationMinutes },
+        { serviceId: svcForDuration.id, durationMinutes: expected },
       )
     }
+    if (
+      input.durationMinutesOverride != null &&
+      input.durationMinutesOverride !== expected
+    ) {
+      throw new ValidationError(
+        'duration_not_adjustable',
+        'a duração do procedimento não se ajusta ao agendar',
+        { serviceId: svcForDuration.id, durationMinutes: expected },
+      )
+    }
+    if (visit.zones.length > 0) durationOverride = visit.durationMinutes
   }
 
   // Re-check dentro da TX (ADR-0005) — SELECT+INSERT separados não bastam.
@@ -362,9 +395,12 @@ export function confirmAppointmentInTransaction(
     actorId,
     now,
     occupiesUntil,
-    service.durationMinutes,
+    visit && visit.zones.length > 0 ? visit.durationMinutes : service.durationMinutes,
     Math.round((endsAt - check.slot.startsAt) / 60_000),
   )
+  if (visit && visit.zones.length > 0) {
+    writeZoneSnapshots(db, meta.tenantId, 'appointment', id, visit.zones)
+  }
 
   insertAllocations(db, {
     tenantId: meta.tenantId,
@@ -684,6 +720,18 @@ export function rescheduleAppointmentOp(
     }
 
     const serviceId = input.serviceId ?? before.serviceId
+    const keptZones =
+      serviceId === before.serviceId && !input.zoneIds
+        ? readZoneSnapshots(db, meta.tenantId, 'appointment', before.id)
+        : []
+    const rescheduleService = getService(db, meta.tenantId, serviceId)
+    const rescheduleVisit =
+      input.zoneIds || (rescheduleService && rescheduleService.zones.length > 0 && keptZones.length === 0)
+        ? rescheduleService
+          ? quoteVisit(db, meta.tenantId, rescheduleService, input.zoneIds)
+          : null
+        : null
+    const keptMinutes = snapshotDuration(keptZones)
     const check = checkSlotAvailability(
       db,
       meta.tenantId,
@@ -693,14 +741,17 @@ export function rescheduleAppointmentOp(
         roomResourceId: input.roomResourceId,
         startsAt: input.startsAt,
         excludeAppointmentId: before.id,
-        // DEC-076: marcações novas usam a duração do cadastro. Reagendar
-        // mantém a duração deste compromisso. Se a coluna veio vazia
-        // (migração 0020, sem backfill), vale o intervalo já gravado.
+        // DEC-076 / DEC-078: reagendar mantém a duração gravada. Com zonas,
+        // o conjunto antigo permanece até o pedido trazer outro.
         durationMinutesOverride:
-          serviceId === before.serviceId
-            ? (before.appliedDurationMinutes ??
-              Math.round((before.endsAt - before.startsAt) / 60_000))
-            : null,
+          rescheduleVisit && rescheduleVisit.zones.length > 0
+            ? rescheduleVisit.durationMinutes
+            : keptMinutes != null
+              ? keptMinutes
+              : serviceId === before.serviceId
+                ? (before.appliedDurationMinutes ??
+                  Math.round((before.endsAt - before.startsAt) / 60_000))
+                : null,
       },
       clock,
     )
@@ -744,13 +795,18 @@ export function rescheduleAppointmentOp(
       check.slot.startsAt,
       check.slot.endsAt,
       check.slot.occupiesUntil,
-      getService(db, meta.tenantId, serviceId)?.durationMinutes ?? null,
+      rescheduleVisit && rescheduleVisit.zones.length > 0
+        ? rescheduleVisit.durationMinutes
+        : keptMinutes,
       Math.round((check.slot.endsAt - check.slot.startsAt) / 60_000),
       reason,
       now,
       meta.tenantId,
       before.id,
     )
+    if (rescheduleVisit) {
+      writeZoneSnapshots(db, meta.tenantId, 'appointment', before.id, rescheduleVisit.zones)
+    }
     insertAllocations(db, {
       tenantId: meta.tenantId,
       appointmentId: before.id,

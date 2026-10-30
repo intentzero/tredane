@@ -520,6 +520,27 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as ClinicConfigSnapshot['settings']
     },
 
+    async setForecastPlace(
+      tenantId: string,
+      body:
+        | { mode: 'cidade'; city: string }
+        | { mode: 'coordenadas'; latitude: number; longitude: number },
+      opts?: FetchOpts,
+    ): Promise<ClinicConfigSnapshot['settings']> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/forecast-place`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicConfigSnapshot['settings']
+    },
+
     async updatePixSignalSettings(
       tenantId: string,
       body: { deadlineSeconds?: number; cancellationPolicy?: string },
@@ -554,6 +575,26 @@ export function createPanelApi(getToken: TokenGetter) {
           method: opts?.serviceId ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicService
+    },
+
+    async replaceServiceZones(
+      tenantId: string,
+      serviceId: string,
+      zones: ServiceZoneInput[],
+      opts?: FetchOpts,
+    ): Promise<ClinicService> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/services/${encodeURIComponent(serviceId)}/zones`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ zones }),
         },
         opts,
       )
@@ -868,6 +909,8 @@ export function createPanelApi(getToken: TokenGetter) {
         opportunityId?: string | null
         /** DEC-076: ignorado, salvo se repetir a duração do cadastro. */
         durationMinutes?: number | null
+        /** DEC-078: zonas da visita. */
+        zoneIds?: string[] | null
       },
       opts?: FetchOpts,
     ): Promise<AppointmentDetailResponse & { createdReservation: true; idempotentReplay: boolean }> {
@@ -943,6 +986,7 @@ export function createPanelApi(getToken: TokenGetter) {
         roomResourceId?: string | null
         startsAt: number
         authorDisplayName?: string | null
+        zoneIds?: string[] | null
       },
       opts?: FetchOpts,
     ): Promise<PixChargeCreateResponse> {
@@ -1200,6 +1244,7 @@ export function createPanelApi(getToken: TokenGetter) {
         contactLabel?: string | null
         waiveReason: string
         supersedeChargeId?: string | null
+        zoneIds?: string[] | null
       },
       opts?: FetchOpts,
     ): Promise<ConfirmWithoutSignalResponse> {
@@ -2002,8 +2047,27 @@ export type ClinicService = {
   weeklyWindows?: ServiceWeeklyWindowSpec[]
   /** Nunca teve marcação, Pix ou proposta: pode ser apagado. */
   deletable?: boolean
+  /** DEC-078. Vazio: a linha do serviço vale. */
+  zones?: ClinicServiceZone[]
   createdAt: number
   updatedAt: number
+}
+
+export type ClinicServiceZone = {
+  id: string
+  name: string
+  durationMinutes: number
+  priceCents: number | null
+  active: boolean
+  sortOrder: number
+}
+
+export type ServiceZoneInput = {
+  id?: string
+  name: string
+  durationMinutes?: number
+  priceCents?: number | null
+  active?: boolean
 }
 
 export type ClinicResource = {
@@ -2095,6 +2159,11 @@ export type ClinicConfigSnapshot = {
     clinicAddress?: string | null
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
+    /** DEC-077 — local da previsão. Independente do endereço da IA. */
+    forecastMode?: 'nenhum' | 'cidade' | 'coordenadas'
+    forecastCity?: string | null
+    forecastLatitude?: number | null
+    forecastLongitude?: number | null
     updatedAt: number
   }
   services: ClinicService[]

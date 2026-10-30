@@ -85,11 +85,24 @@ export type ServiceRow = {
 }
 
 export function serviceRow(snap: ClinicConfigSnapshot, svc: ClinicService): ServiceRow {
+  const activeZones = (svc.zones ?? []).filter((z) => z.active)
   const total = svc.occupiedMinutes || svc.durationMinutes + svc.bufferMinutes
   const occupies =
-    svc.bufferMinutes > 0
-      ? `Ocupa ${total} min (${svc.durationMinutes} + ${svc.bufferMinutes} de intervalo)`
-      : `Ocupa ${total} min`
+    activeZones.length > 0
+      ? `${activeZones.length} ${activeZones.length === 1 ? 'zona' : 'zonas'}`
+      : svc.bufferMinutes > 0
+        ? `Ocupa ${total} min (${svc.durationMinutes} + ${svc.bufferMinutes} de intervalo)`
+        : `Ocupa ${total} min`
+  const zonePrices = activeZones.map((z) => z.priceCents)
+  const allPriced = activeZones.length > 0 && zonePrices.every((p) => p != null)
+  const zonePriceLabel = allPriced
+    ? (() => {
+        const values = zonePrices.filter((p): p is number => p != null)
+        const min = Math.min(...values)
+        const max = Math.max(...values)
+        return min === max ? formatPriceCents(min) : `${formatPriceCents(min)}–${formatPriceCents(max)}`
+      })()
+    : null
   const pros = snap.resources.filter(
     (r) => r.kind === 'professional' && r.active && svc.professionalIds.includes(r.id),
   )
@@ -112,7 +125,7 @@ export function serviceRow(snap: ClinicConfigSnapshot, svc: ClinicService): Serv
     pros.length > 0 ? joinNames(pros.map((p) => p.name)) : null,
     room,
     audienceLabel,
-    svc.priceCents != null ? formatPriceCents(svc.priceCents) : 'Sem preço',
+    zonePriceLabel ?? (svc.priceCents != null ? formatPriceCents(svc.priceCents) : 'Sem preço'),
   ].filter((p): p is string => p !== null)
   return {
     occupies,

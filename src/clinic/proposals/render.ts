@@ -2,6 +2,8 @@
  * Corpo e botões determinísticos da proposta (S4 / #175 / DEC-061 / H8).
  * Texto autorizado e campos factuais vêm só do snapshot persistido — nunca do LLM.
  */
+import type { ClinicDb } from '../store'
+import { readZoneSnapshots, zoneLabel } from '../config/zones'
 import type { AppointmentProposalRow } from './types'
 
 /** Limite Cloud API para título de botão reply. */
@@ -115,7 +117,9 @@ function formatSignal(proposal: AppointmentProposalRow): string | null {
  */
 export function renderProposalInteractive(
   proposal: AppointmentProposalRow,
+  db?: ClinicDb,
 ): ProposalInteractivePayload {
+  const zones = db ? readZoneSnapshots(db, proposal.tenantId, 'proposal', proposal.id) : []
   const lines: string[] = [
     'Proposta de horário',
     '',
@@ -123,7 +127,7 @@ export function renderProposalInteractive(
     `Beneficiária: ${proposal.beneficiaryName}${
       proposal.beneficiaryKind === 'terceiro' ? ' (terceiro)' : ''
     }`,
-    `Serviço: ${proposal.serviceName}`,
+    `Serviço: ${zoneLabel(proposal.serviceName, zones)}`,
     `Quando: ${formatSlotRange(proposal)}`,
     `Duração: ${proposal.durationMinutes} min`,
   ]

@@ -13,12 +13,14 @@ import type {
   CreateBlockResult,
   ResourceRow,
   ServiceRow,
+  ServiceZoneInput,
   SetWeeklyWindowsInput,
   UpdateAbuseLimitsInput,
   UpsertResourceInput,
   UpsertServiceInput,
   WeeklyWindowRow,
   ClinicSettingsRow,
+  ForecastPlaceInput,
   AppointmentRow,
   DeactivateResourceInput,
   DeactivateResourceResult,
@@ -42,6 +44,7 @@ export type ClinicConfigGateway = {
       reschedulePolicy?: string | null
     },
   ): Promise<ClinicSettingsRow>
+  setForecastPlace(caller: ClinicCaller, input: ForecastPlaceInput): Promise<ClinicSettingsRow>
   getAbuseLimits(caller: ClinicCaller, platform?: AbuseLimits): Promise<AbuseLimitsView>
   updateAbuseLimits(
     caller: ClinicCaller,
@@ -49,6 +52,11 @@ export type ClinicConfigGateway = {
     platform?: AbuseLimits,
   ): Promise<AbuseLimitsView>
   upsertService(caller: ClinicCaller, input: UpsertServiceInput): Promise<ServiceRow>
+  replaceServiceZones(
+    caller: ClinicCaller,
+    serviceId: string,
+    zones: ServiceZoneInput[],
+  ): Promise<ServiceRow>
   setServiceActive(
     caller: ClinicCaller,
     serviceId: string,
@@ -113,6 +121,9 @@ export function createMemoryClinicConfigGateway(
     async setAiProfile(caller, input) {
       return clinicConfig.setAiProfileOp(db, caller, input, clock)
     },
+    async setForecastPlace(caller, input) {
+      return clinicConfig.setForecastPlaceOp(db, caller, input, clock)
+    },
     async getAbuseLimits(caller, platform) {
       return clinicConfig.getAbuseLimitsOp(db, caller, clock, platform)
     },
@@ -121,6 +132,12 @@ export function createMemoryClinicConfigGateway(
     },
     async upsertService(caller, input) {
       return clinicConfig.upsertServiceOp(db, caller, input, clock)
+    },
+    async replaceServiceZones(caller, serviceId, zones) {
+      clinicConfig.replaceServiceZonesOp(db, caller, serviceId, zones, clock)
+      const row = clinicConfig.getService(db, caller.tenantId, serviceId)
+      if (!row) throw new Error('service_not_found')
+      return row
     },
     async setServiceActive(caller, serviceId, active) {
       return clinicConfig.setServiceActiveOp(db, caller, serviceId, active, clock)

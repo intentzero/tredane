@@ -1,6 +1,6 @@
 import type { ScheduleHoldView } from './hold-rows'
 import type { AppointmentChangeReason } from '../constants'
-import type { AppointmentRow } from '../config/types'
+import type { AppointmentRow, ZoneSnapshot } from '../config/types'
 import type { OutboxRow } from '../outbox'
 import type { UnavailabilityReason } from './types'
 
@@ -33,6 +33,13 @@ export type ConfirmAppointmentInput = {
   stageNote?: string | null
   /** DEC-051: duração escolhida no Agendar (validada contra mín/máx do serviço). */
   appliedDurationMinutes?: number | null
+  /** DEC-078: zonas escolhidas. Obrigatório quando o serviço tem zonas ativas. */
+  zoneIds?: string[] | null
+  /**
+   * Cópia já gravada na cobrança. O pagamento marca o mesmo bloco,
+   * mesmo que o catálogo tenha mudado depois.
+   */
+  frozenZoneSnapshots?: ZoneSnapshot[] | null
   actorDisplayName?: string | null
 }
 
@@ -55,12 +62,16 @@ export type RescheduleAppointmentInput = {
   startsAt: number
   actorClerkUserId: string
   expectedVersion?: number | null
+  /** DEC-078: troca o conjunto de zonas e revalida o bloco. Omitido: mantém a cópia. */
+  zoneIds?: string[] | null
 }
 
 export type AppointmentDetail = AppointmentRow & {
   serviceName: string
   professionalName: string
   roomResourceName: string | null
+  /** Cópia das zonas no momento da marcação (DEC-078). */
+  zones: ZoneSnapshot[]
   events: AppointmentEventView[]
 }
 

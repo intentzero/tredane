@@ -75,6 +75,7 @@ import type {
   CreateBlockInput,
   SetWeeklyWindowsInput,
   UpsertResourceInput,
+  ServiceZoneInput,
   UpsertServiceInput,
 } from '../clinic/config'
 import type {
@@ -1618,6 +1619,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return settings
   }
 
+  async setForecastPlace(
+    caller: ClinicCaller,
+    input: {
+      mode: 'cidade'
+      city: string
+    } | {
+      mode: 'coordenadas'
+      latitude: number
+      longitude: number
+    },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const settings = clinicConfig.setForecastPlaceOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutConfigEvent(caller, 'config.settings_updated', 'clinic_settings', '1', {
+      forecastMode: settings.forecastMode,
+    })
+    return settings
+  }
+
   async updateClinicTimezone(caller: ClinicCaller, timezone: string) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -1647,6 +1668,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       'service',
       row.id,
       { name: row.name, active: row.active },
+    )
+    return row
+  }
+
+  async replaceClinicServiceZones(
+    caller: ClinicCaller,
+    serviceId: string,
+    zones: ServiceZoneInput[],
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    clinicConfig.replaceServiceZonesOp(this.#db, caller, serviceId, zones, this.#clock)
+    const row = clinicConfig.getService(this.#db, caller.tenantId, serviceId)
+    if (!row) throw new Error('service_not_found')
+    await this.#fanoutConfigEvent(
+      caller,
+      'config.service_updated',
+      'service',
+      row.id,
+      { name: row.name, zones: row.zones.length },
     )
     return row
   }

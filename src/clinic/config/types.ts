@@ -34,6 +34,39 @@ export type ServiceRow = {
   weeklyWindows: ServiceWeeklyWindowSpec[]
   /** Pode ser apagado: nunca teve marcação, Pix ou proposta ligada. */
   deletable: boolean
+  /** DEC-078 — vazio = o serviço continua uma linha só. */
+  zones: ServiceZoneRow[]
+}
+
+/** Zona de um serviço (DEC-078). A visita soma as escolhidas. */
+export type ServiceZoneRow = {
+  id: string
+  tenantId: string
+  serviceId: string
+  name: string
+  durationMinutes: number
+  priceCents: number | null
+  active: boolean
+  sortOrder: number
+}
+
+export type ServiceZoneInput = {
+  id?: string
+  name: string
+  /** Omitida na primeira zona de um serviço sem zonas: copia a duração da linha. */
+  durationMinutes?: number
+  /** Omitido: copia o preço da linha. `null` = sem preço. */
+  priceCents?: number | null
+  active?: boolean
+}
+
+/** Cópia gravada na visita, na proposta ou na cobrança. */
+export type ZoneSnapshot = {
+  zoneId: string | null
+  name: string
+  durationMinutes: number
+  priceCents: number | null
+  sortOrder: number
 }
 
 /** Faixa semanal de oferta do serviço (sem id estável na API de gravação). */
@@ -143,6 +176,11 @@ export type ClinicSettingsRow = {
   googleBusinessUrl: string
   /** Regras de remarcação e cancelamento (texto da clínica; contexto da IA). */
   reschedulePolicy: string
+  /** DEC-077 — local da previsão. Não é `clinicAddress`. */
+  forecastMode: 'nenhum' | 'cidade' | 'coordenadas'
+  forecastCity: string | null
+  forecastLatitude: number | null
+  forecastLongitude: number | null
   /**
    * Limites de abuso — owner (DEC-042 / Paulo 29/10/2026).
    * Default enabled=false (fail-closed por clínica).
@@ -161,6 +199,11 @@ export type ClinicSettingsRow = {
   abuseProposalsPerClinic: number
   updatedAt: number
 }
+
+/** DEC-077 — gravação do local da previsão. Um modo apaga o outro. */
+export type ForecastPlaceInput =
+  | { mode: 'cidade'; city: string }
+  | { mode: 'coordenadas'; latitude: number; longitude: number }
 
 /** Corpo de PATCH dos limites de abuso (owner). */
 export type UpdateAbuseLimitsInput = {

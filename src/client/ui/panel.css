@@ -3296,6 +3296,10 @@
   box-shadow: 0 0 0 var(--size-border-width) var(--color-line-border);
 }
 
+.panel-card .panel-segmented {
+  margin: 0;
+}
+
 .panel-segmented-item[data-focus-visible] {
   outline: var(--size-focus-ring-width) solid var(--color-primary-base);
   outline-offset: var(--size-focus-ring-offset);

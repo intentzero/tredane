@@ -71,7 +71,14 @@ export function analyzeContentRules(
     CLINICAL_RE.test(last)
 
   for (const s of mentioned.length > 0 ? mentioned : priceAsk || procedureAsk ? services : []) {
-    if (priceAsk && s.priceCents == null) {
+    if (priceAsk && s.zones && s.zones.length > 0) {
+      const named = s.zones.filter(
+        (z) => z.name.trim().length >= 2 && last.toLowerCase().includes(z.name.trim().toLowerCase()),
+      )
+      if (named.length === 0 || named.some((z) => z.priceCents == null)) {
+        if (!servicesWithoutPrice.includes(s.name)) servicesWithoutPrice.push(s.name)
+      }
+    } else if (priceAsk && s.priceCents == null) {
       if (!servicesWithoutPrice.includes(s.name)) servicesWithoutPrice.push(s.name)
     }
     if (procedureAsk) {
