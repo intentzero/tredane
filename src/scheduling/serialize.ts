@@ -38,6 +38,7 @@ export function serializeAvailability(result: AvailabilityQueryResult) {
       roomSharedNotice: s.roomSharedNotice ?? null,
       roomCapacity: s.roomCapacity ?? null,
       roomSeatsFree: s.roomSeatsFree ?? null,
+      tempoWarnings: s.tempoWarnings ?? [],
     })),
   }
 }
