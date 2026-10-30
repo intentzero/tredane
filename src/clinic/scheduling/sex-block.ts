@@ -98,6 +98,31 @@ export function hasAllowBothException(
   return Boolean(row)
 }
 
+/** Sexo actual do bloco (sobreposição), se a sala tiver mesmo sexo ligado. */
+export function currentRoomBlockSex(
+  db: ClinicDb,
+  tenantId: string,
+  roomId: string,
+  range: Interval,
+  opts?: { excludeAppointmentId?: string | null },
+): BlockSex | null {
+  const room = db.get<{ same_sex_in_slot: number; capacity: number | null; kind: string }>(
+    `SELECT same_sex_in_slot, capacity, kind FROM resources WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    roomId,
+  )
+  if (!room || room.kind !== 'room') return null
+  if (room.same_sex_in_slot !== 1 || Math.max(1, room.capacity ?? 1) <= 1) return null
+  const overlapping = listOverlappingRoomAppointments(
+    db,
+    tenantId,
+    roomId,
+    range,
+    opts?.excludeAppointmentId,
+  )
+  return blockSexFromAppointments(overlapping)
+}
+
 /**
  * Recusa se o serviço candidato tem audiência oposta ao sexo do bloco,
  * sem «Permitir os dois» activo para o intervalo.
@@ -110,25 +135,10 @@ export function roomSexConflict(
   candidateAudience: ServiceAudience,
   opts?: { excludeAppointmentId?: string | null },
 ): boolean {
-  const room = db.get<{ same_sex_in_slot: number; capacity: number | null; kind: string }>(
-    `SELECT same_sex_in_slot, capacity, kind FROM resources WHERE tenant_id = ? AND id = ?`,
-    tenantId,
-    roomId,
-  )
-  if (!room || room.kind !== 'room') return false
-  if (room.same_sex_in_slot !== 1 || Math.max(1, room.capacity ?? 1) <= 1) return false
-
   const cand = normalizeServiceAudience(candidateAudience)
   if (cand === 'qualquer') return false
 
-  const overlapping = listOverlappingRoomAppointments(
-    db,
-    tenantId,
-    roomId,
-    range,
-    opts?.excludeAppointmentId,
-  )
-  const sex = blockSexFromAppointments(overlapping)
+  const sex = currentRoomBlockSex(db, tenantId, roomId, range, opts)
   if (!sex || sex === cand) return false
   if (hasAllowBothException(db, tenantId, roomId, range)) return false
   return true

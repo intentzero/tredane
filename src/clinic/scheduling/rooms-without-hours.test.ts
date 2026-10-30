@@ -122,7 +122,7 @@ describe('sala sem expediente', () => {
       s.book(0, at(9))
       const r = s.check(1, at(9))
       expect(r.available).toBe(false)
-      expect(r.reasons).toContain('appointment_conflict')
+      expect(r.reasons).toContain('room_at_capacity')
       expect(r.reasons).not.toContain('outside_weekly_hours')
     } finally {
       s.close()

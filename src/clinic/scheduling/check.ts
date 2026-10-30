@@ -17,7 +17,7 @@ import {
 import { resourceBusyReasons, serviceOfferingAllows } from './occupancy'
 import { candidateBreaksHolds } from './hold-fit'
 import { resolveHomeRoom, resolveRequiredEquipment } from './query'
-import { roomSexConflict } from './sex-block'
+import { currentRoomBlockSex, roomSexConflict, type BlockSex } from './sex-block'
 import type {
   AvailableSlot,
   CheckSlotInput,
@@ -135,6 +135,7 @@ export function checkSlotAvailability(
       dayEndsAt,
       input.excludeAppointmentId,
       groupRoomId,
+      roomId,
     ),
   )
 
@@ -155,6 +156,7 @@ export function checkSlotAvailability(
     reasons.push('hold_conflict')
   }
 
+  let blockSex: BlockSex | null = null
   if (roomId) {
     reasons.push(
       ...resourceBusyReasons(
@@ -171,6 +173,9 @@ export function checkSlotAvailability(
         input.excludeAppointmentId,
       ),
     )
+    blockSex = currentRoomBlockSex(db, tenantId, roomId, range, {
+      excludeAppointmentId: input.excludeAppointmentId,
+    })
     if (
       roomSexConflict(db, tenantId, roomId, range, service.audiencia, {
         excludeAppointmentId: input.excludeAppointmentId,
@@ -215,6 +220,7 @@ export function checkSlotAvailability(
   return {
     available,
     reasons: unique,
+    blockSex: unique.includes('room_sex_mismatch') ? blockSex : null,
     slot,
     asOf,
     createdReservation: false,

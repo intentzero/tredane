@@ -132,7 +132,7 @@ describe('S4 — Uma profissional para todas', () => {
         s.clock,
       )
       expect(other.available).toBe(false)
-      expect(other.reasons).toContain('appointment_conflict')
+      expect(other.reasons).toContain('professional_other_room')
     } finally {
       s.close()
     }

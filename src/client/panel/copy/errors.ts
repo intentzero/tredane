@@ -38,6 +38,9 @@ const BY_CODE: Record<string, string> = {
   // agenda e sinal
   slot_occupied: 'Esse horário acabou de ser ocupado. Escolha outro.',
   appointment_conflict: 'Esse horário acabou de ser ocupado. Escolha outro.',
+  room_at_capacity: 'Esse horário nesta sala já está cheio.',
+  professional_other_room: 'A profissional já está noutra sala nesse horário.',
+  room_sex_mismatch: 'Nesse horário a sala está só para um dos públicos.',
   payment_after_expiry: 'O Pix chegou depois do prazo do sinal.',
 
   // WhatsApp

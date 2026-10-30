@@ -88,6 +88,12 @@ export function reasonLabel(code: string): string {
   switch (code) {
     case 'appointment_conflict':
       return 'Horário ocupado por compromisso confirmado'
+    case 'room_at_capacity':
+      return 'Esse horário nesta sala já está cheio.'
+    case 'professional_other_room':
+      return 'A profissional já está noutra sala nesse horário.'
+    case 'room_sex_mismatch':
+      return 'Nesse horário a sala está só para um dos públicos.'
     case 'resource_block':
       return 'Bloqueio pontual no recurso'
     case 'outside_weekly_hours':

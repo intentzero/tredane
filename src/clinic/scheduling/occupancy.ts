@@ -175,7 +175,12 @@ export function gridStartMinutes(occupiedMins: number): number[] {
 export type ResourceBusyReason =
   | Extract<
       UnavailabilityReason,
-      'outside_weekly_hours' | 'resource_block' | 'appointment_conflict' | 'crosses_day_boundary'
+      | 'outside_weekly_hours'
+      | 'resource_block'
+      | 'appointment_conflict'
+      | 'room_at_capacity'
+      | 'professional_other_room'
+      | 'crosses_day_boundary'
     >
 
 /**
@@ -186,6 +191,8 @@ export type ResourceBusyReason =
  *   modo «Uma profissional para todas», as marcações dela *nesta* sala não a
  *   travam (a capacidade da sala limita). Marcações noutra sala continuam a
  *   bloquear.
+ * @param targetRoomId DEC-075 / S6 — sala do candidato; distingue «outra sala»
+ *   de compromisso na mesma sala.
  */
 export function resourceBusyReasons(
   db: ClinicDb,
@@ -200,6 +207,7 @@ export function resourceBusyReasons(
   dayEndsAt: number,
   excludeAppointmentId?: string | null,
   groupModeRoomId?: string | null,
+  targetRoomId?: string | null,
 ): ResourceBusyReason[] {
   const reasons: ResourceBusyReason[] = []
   if (range.endsAt > dayEndsAt) {
@@ -221,9 +229,17 @@ export function resourceBusyReasons(
   if (groupModeRoomId) {
     occupying = occupying.filter((a) => a.roomResourceId !== groupModeRoomId)
   }
-  if (occupying.length > 0) {
+  if (occupying.length === 0) return reasons
+
+  const kindRow = db.get<{ kind: string }>(
+    `SELECT kind FROM resources WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    resourceId,
+  )
+  const kind = kindRow?.kind ?? ''
+
+  if (kind === 'room') {
     const capacity = resourceCapacity(db, tenantId, resourceId)
-    // DEC-075: pico de pessoas distintas (mesmo contacto = 1) por bloco de 15 min.
     if (
       capacity <= 1
       || peakConcurrentPeople(
@@ -235,8 +251,35 @@ export function resourceBusyReasons(
         })),
       ) >= capacity
     ) {
-      reasons.push('appointment_conflict')
+      reasons.push('room_at_capacity')
     }
+    return reasons
+  }
+
+  if (kind === 'professional' && targetRoomId) {
+    const inOther = occupying.some(
+      (a) => a.roomResourceId != null && a.roomResourceId !== targetRoomId,
+    )
+    if (inOther) {
+      reasons.push('professional_other_room')
+      return reasons
+    }
+  }
+
+  const capacity = resourceCapacity(db, tenantId, resourceId)
+  // DEC-075: pico de pessoas distintas (mesmo contacto = 1) por bloco de 15 min.
+  if (
+    capacity <= 1
+    || peakConcurrentPeople(
+      range,
+      occupying.map((a) => ({
+        startsAt: a.startsAt,
+        endsAt: a.occupiesUntil,
+        personKey: a.personKey,
+      })),
+    ) >= capacity
+  ) {
+    reasons.push('appointment_conflict')
   }
   return reasons
 }

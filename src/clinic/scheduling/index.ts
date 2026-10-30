@@ -55,10 +55,19 @@ export type {
 export {
   allowBothSexesInBlock,
   blockSexFromAppointments,
+  currentRoomBlockSex,
   roomSexConflict,
   type AllowBothSexesResult,
   type BlockSex,
 } from './sex-block'
+export {
+  REFUSAL_PRO_OTHER_ROOM,
+  REFUSAL_RACE,
+  REFUSAL_ROOM_FULL,
+  REFUSAL_SEX_FEMININO,
+  REFUSAL_SEX_MASCULINO,
+  refusalMessageForReasons,
+} from './refusal-messages'
 export {
   previewHoldOp,
   createHoldOp,

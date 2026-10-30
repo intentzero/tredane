@@ -11,6 +11,10 @@ export const UNAVAILABILITY_REASONS = [
   'outside_weekly_hours',
   'resource_block',
   'appointment_conflict',
+  /** DEC-075 / S6 — sala sem vaga de pessoa no bloco. */
+  'room_at_capacity',
+  /** DEC-075 / S6 — profissional já marcada noutra sala no mesmo bloco. */
+  'professional_other_room',
   /** DEC-075 / S5 — audiência oposta ao sexo do bloco na sala. */
   'room_sex_mismatch',
   'crosses_day_boundary',
@@ -99,6 +103,8 @@ export type CheckSlotInput = {
 export type CheckSlotResult = {
   available: boolean
   reasons: UnavailabilityReason[]
+  /** Sexo do bloco quando a recusa é room_sex_mismatch (S6). */
+  blockSex?: 'feminino' | 'masculino' | null
   slot: AvailableSlot | null
   asOf: number
   /** Leitura pura — não cria reserva (AC #35). */
