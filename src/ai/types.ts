@@ -43,8 +43,14 @@ export type AiCatalogService = {
     name: string
     durationMinutes: number
     priceCents: number | null
-    audience?: 'feminino' | 'masculino' | 'ambos'
+    audience?: 'feminino' | 'masculino' | 'ambos' | null
   }[]
+  /** DEC-008 — minutos de intervalo depois do atendimento. */
+  bufferMinutes?: number
+  /** Quem faz o serviço (DEC-082). */
+  professionalNames?: string[]
+  /** Salas da lista do serviço. */
+  roomNames?: string[]
 }
 
 /** DEC-079 — `ambos` combina. Masculino e feminino juntos não têm preço nem proposta. */

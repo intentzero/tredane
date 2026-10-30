@@ -109,6 +109,7 @@ Marcar só com evidência live. Engenharia **não** reivindica conclusão.
 - Contenção e vars: [environments.md](../implementation/environments.md)
 - Kill switch: [ai-autobook-kill-switch.md](../implementation/runbooks/ai-autobook-kill-switch.md)
 - S6 / S7 / S8: [prompt-injection.md](prompt-injection.md), [abuse-limits.md](abuse-limits.md), [ai-context-minimization.md](ai-context-minimization.md)
+- Sonda de staging 30/10/2026 (**Observado**, não fecha H10): [staging-conversational-probe-2026-10-30.md](staging-conversational-probe-2026-10-30.md)
 - Inventário: [security-and-protection-inventory.md](security-and-protection-inventory.md)
 - H9/H10 plano: [epic-conversational-hybrid-model.md](../implementation/epic-conversational-hybrid-model.md)
 - Go/no-go MVP #45: [f6-e2e-validation.md](../implementation/f6-e2e-validation.md)

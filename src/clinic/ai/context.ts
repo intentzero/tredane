@@ -9,6 +9,7 @@ import {
   explicitAudienceLine,
   filterServicesForLine,
 } from '../catalog/audience'
+import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { bestCombo } from '../catalog/combo'
 import type { ServiceRow } from '../config/types'
@@ -87,11 +88,22 @@ export async function buildAiContextPayload(
       messages.map((m) => ({ direction: m.direction, body: m.body })),
     ),
   )
+  const catalogResources = opts.clock ? listResources(db, tenantId, opts.clock) : []
   const services = filterServicesForLine(
     listServices(db, tenantId).filter((s) => s.active),
     turnLine,
   ).map(
-    (s): AiCatalogService => ({
+    (s): AiCatalogService => {
+      const professionalNames = s.professionalIds
+        .map((id) => catalogResources.find((r) => r.id === id)?.name)
+        .filter((n): n is string => Boolean(n))
+      const roomNames =
+        s.roomRequirement.mode === 'rooms'
+          ? s.roomRequirement.resourceIds
+              .map((id) => catalogResources.find((r) => r.id === id)?.name)
+              .filter((n): n is string => Boolean(n))
+          : []
+      return {
       name: sanitizeCatalogField(s.name) ?? 'Serviço',
       durationMinutes: s.durationMinutes,
       priceCents: s.priceCents,
@@ -99,6 +111,9 @@ export async function buildAiContextPayload(
       audiencia: s.audiencia,
       variantKind: s.variantKind,
       variantKindPlural: s.variantKindPlural,
+      bufferMinutes: s.bufferMinutes,
+      professionalNames,
+      roomNames,
       combos: usableCombos(s),
       zones: s.zones
         .filter((z) => z.active)
@@ -108,7 +123,8 @@ export async function buildAiContextPayload(
           priceCents: z.priceCents,
           audience: z.audience,
         })),
-    }),
+      }
+    },
   )
 
   const opportunity = findOpenOpportunityForConversation(db, tenantId, conversationId)

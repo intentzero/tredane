@@ -20,6 +20,7 @@ import {
 } from './proposals'
 import { openPendingCommunication } from './pending-communication'
 import { parseProposalButtonId, type ProposalButtonAction } from './render'
+import { notifyHumanHandoff } from '../ai/human-handoff'
 import type {
   AppointmentProposalRow,
   ProposalAuthorizationResult,
@@ -53,6 +54,13 @@ export type ProposalButtonClickResult =
   | {
       handled: false
       reason: 'not_proposal_button'
+    }
+  | {
+      handled: true
+      action: 'human'
+      proposal: AppointmentProposalRow
+      paused: true
+      outbox: OutboxRow[]
     }
   | {
       handled: true
@@ -110,6 +118,26 @@ export function handleProposalButtonClick(
       reason: 'version_mismatch',
       proposal,
       outbox: [],
+    }
+  }
+
+  if (parsed.action === 'human') {
+    const handoff = notifyHumanHandoff(
+      db,
+      input.tenantId,
+      {
+        conversationId: proposal.conversationId,
+        reason: 'customer_requested',
+        clientRequestId: `proposal.human:${proposal.id}:v${proposal.version}:${input.providerEventKey ?? 'click'}`,
+      },
+      clock,
+    )
+    return {
+      handled: true,
+      action: 'human',
+      proposal,
+      paused: true,
+      outbox: handoff.outbox,
     }
   }
 
@@ -172,13 +200,23 @@ export function handleProposalButtonClick(
       },
       clock,
     )
+    const handoff = notifyHumanHandoff(
+      db,
+      input.tenantId,
+      {
+        conversationId: proposal.conversationId,
+        reason: 'customer_requested',
+        clientRequestId: `proposal.alter:${proposal.id}:v${proposal.version}:${input.providerEventKey ?? 'click'}`,
+      },
+      clock,
+    )
     return {
       handled: true,
       action: 'alter',
       proposal: forwarded,
       forwarded: true,
       systemMessageId: systemMessage.id,
-      outbox: [outbox],
+      outbox: [outbox, ...handoff.outbox],
       cancelledExistingAppointment: false,
     }
   }

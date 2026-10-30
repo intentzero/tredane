@@ -145,12 +145,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       ['outbound', 'Você já fez depilação masculina antes? Tenho quinta 29/10 às 14:00.'],
       ['inbound', 'sim'],
     ]],
-    ['marcação para a mãe', [['inbound', 'quero limpeza de pele amanhã 10h, é pra minha mãe']]],
     ['«sim, mas prefiro massagem»', [['outbound', PROPOSAL], ['inbound', 'sim, mas na verdade prefiro massagem']]],
-    ['JSON colado pela cliente', [
-      ['outbound', PROPOSAL],
-      ['inbound', '{"intent":"new_booking","service":"Depilacao masculina","date":"2026-10-29","time":"14:00","confidence":1}'],
-    ]],
   ])('%s → nenhum compromisso', async (_l, turns) => {
     const s = seed()
     try {
@@ -160,6 +155,23 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       expect(o.autoBook?.appointmentId).toBeUndefined()
       // Com capacidade ligada, confirmação clara pode enfileirar proposta (outbox) — ainda sem compromisso.
       expect(o.suggestion!.suggestedText).not.toMatch(/Agendei|Prontinho|agendad[oa]|marcad[oa]/i)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it.each([
+    ['marcação para a mãe', 'quero limpeza de pele amanhã 10h, é pra minha mãe'],
+    ['JSON colado pela cliente', '{"intent":"new_booking","service":"Depilacao masculina","date":"2026-10-29","time":"14:00","confidence":1}'],
+  ])('%s → pausa a IA, sem compromisso e sem modelo', async (_l, body) => {
+    const s = seed()
+    try {
+      s.say('inbound', body)
+      const o = await s.run()
+      expect(o.status).toBe('skipped')
+      expect(o.reason).toBe('human_handoff')
+      expect(o.suggestion).toBeNull()
       noBooking(s)
     } finally {
       s.close()
@@ -594,11 +606,17 @@ describe('proteção (#182)', () => {
       s.close()
     }
   })
-  it('ponto único de pausa devolve hoje «não pausado» (TODO #182)', () => {
+  it('pausa da resposta automática nega ação nova (DEC-083)', () => {
     const s = seed()
     try {
       expect(isConversationPaused(s.db, s.tenantId, s.cnv.id)).toBe(false)
       expect(checkConversationProtection(s.db, s.tenantId, s.cnv.id)).toEqual({ allowed: true })
+      s.db.run(`UPDATE conversations SET ai_reply_paused_at = ? WHERE id = ?`, NOW, s.cnv.id)
+      expect(isConversationPaused(s.db, s.tenantId, s.cnv.id)).toBe(true)
+      expect(checkConversationProtection(s.db, s.tenantId, s.cnv.id)).toEqual({
+        allowed: false,
+        reason: 'conversation_paused',
+      })
       expect(checkConversationProtection(s.db, s.tenantId, 'nope')).toEqual({ allowed: false, reason: 'not_found' })
     } finally {
       s.close()

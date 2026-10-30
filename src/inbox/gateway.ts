@@ -6,6 +6,7 @@ import {
   type ClinicDb,
   workerCaller,
 } from '../clinic'
+import { resumeAiReply } from '../clinic/ai/human-handoff'
 import type {
   AssignConversationInput,
   BlockContactInput,
@@ -53,6 +54,7 @@ export type InboxGateway = {
     systemMessage: MessageRow
     versionMatched: boolean
   }>
+  resumeAiReply(caller: ClinicCaller, conversationId: string): Promise<{ aiReplyPause: null }>
   markRead(
     caller: ClinicCaller,
     input: MarkReadInput,
@@ -170,6 +172,10 @@ export function createMemoryInboxGateway(db: ClinicDb, clock: Clock): InboxGatew
     },
     async assign(caller, input) {
       return clinicInbox.assignConversationOp(db, caller, input, clock).value
+    },
+    async resumeAiReply(caller, conversationId) {
+      resumeAiReply(db, caller.tenantId, conversationId, clock)
+      return { aiReplyPause: null }
     },
     async markRead(caller, input) {
       return clinicInbox.markConversationReadOp(db, caller, input, clock).value

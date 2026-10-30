@@ -172,6 +172,16 @@ export function getConversationDetailOp(
       detailText: c.detailText,
       proposalId: c.proposalId,
     })),
+    aiReplyPause: (() => {
+      const row = db.get<{ at: number | null; reason: string | null }>(
+        `SELECT ai_reply_paused_at AS at, ai_reply_pause_reason AS reason
+         FROM conversations WHERE tenant_id = ? AND id = ?`,
+        meta.tenantId,
+        input.conversationId,
+      )
+      if (!row?.at) return null
+      return { at: row.at, reason: row.reason ?? 'off_purpose' }
+    })(),
   }
 }
 

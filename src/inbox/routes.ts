@@ -128,6 +128,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): InboxGateway {
     getConversation: (caller, input) => stub.getInboxConversation(caller, input),
     getContact: (caller, contactId) => stub.getInboxContact(caller, contactId),
     assign: (caller, input) => stub.assignInboxConversation(caller, input),
+    resumeAiReply: (caller, conversationId) => stub.resumeInboxAiReply(caller, conversationId),
     markRead: (caller, input) => stub.markInboxConversationRead(caller, input),
     close: (caller, input) => stub.closeInboxConversation(caller, input),
     blockContact: (caller, input) => stub.blockInboxContact(caller, input),
@@ -315,6 +316,28 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
           },
           status,
         )
+      } catch (err) {
+        return inboxErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.post(
+    '/api/tenants/:tenantId/inbox/conversations/:conversationId/resume-ai',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.inbox.reply')
+        const tenantId = c.req.param('tenantId')
+        const conversationId = c.req.param('conversationId')
+        const gw = await resolveGateway(c.env, tenantId, opts)
+        const result = await gw.resumeAiReply(
+          workerCaller(tenantId, principal.clerkUserId),
+          conversationId,
+        )
+        return c.json(result)
       } catch (err) {
         return inboxErrorResponse(c, err)
       }

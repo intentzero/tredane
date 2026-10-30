@@ -4,8 +4,9 @@
  * - Gera em segundo plano (alarme do DO) e guarda como sugestão pendente.
  * - Quando dia, horário e serviço ficam claros, o backend envia a proposta e não manda
  *   a pergunta «Confirma…?» (autobook.ts), salvo pausa da owner.
- * - Nos outros casos, o texto da IA sai sozinho, sem clique em Enviar. Injeção ou
- *   saída rejeitada fica só para a atendente.
+ * - Nos outros casos, o texto da IA sai sozinho, sem clique em Enviar, com o botão
+ *   de falar com a equipe. Injeção, assunto fora do agendamento ou saída rejeitada
+ *   pausam a IA e enviam uma frase fixa, sem nova chamada ao modelo (DEC-083).
  */
 import { AI_AUTODRAFT_DEBOUNCE_MS } from '../../ai'
 import type { Clock } from '../../db/clock'
@@ -18,7 +19,15 @@ import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import { tryAiAutoBook, type AutoBookOutcome } from './autobook'
+import { catalogReply } from './catalog-reply'
+import {
+  HUMAN_HANDOFF_BUTTON_ID,
+  HUMAN_HANDOFF_BUTTON_TITLE,
+  handoffReason,
+  notifyHumanHandoff,
+} from './human-handoff'
 import { runGenerateInternal } from './operations'
+import { isConversationPaused } from './protection'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
 import { getAiDailyUsage } from './usage'
@@ -63,6 +72,7 @@ export function enqueueAutoDraft(
   clock: Clock,
 ): AutoDraftJob | null {
   if (!isClinicAiAssistEnabled(db, tenantId)) return null
+  if (isConversationPaused(db, tenantId, input.conversationId)) return null
   const now = clock.nowMs()
   db.run(
     `INSERT INTO ai_autodraft_jobs (tenant_id, conversation_id, message_id, due_at, state, created_at, updated_at)
@@ -144,8 +154,62 @@ export async function runDueAutoDrafts(
     if (!conv || conv.status === 'closed') { skip('conversation_closed'); continue }
     if (!isClinicAiAssistEnabled(db, tenantId)) { skip('ai_not_enabled'); continue }
     if (!messagingWindowForConversation(db, tenantId, job.conversationId, now).open) { skip('window_closed'); continue }
+    if (isConversationPaused(db, tenantId, job.conversationId)) { skip('ai_reply_paused'); continue }
     // A atendente já respondeu durante a espera.
     if (lastMessageDirection(db, tenantId, job.conversationId) !== 'inbound') { skip('already_answered'); continue }
+    const inboundBody =
+      db.get<{ body: string }>(
+        `SELECT body FROM messages WHERE tenant_id = ? AND id = ?`,
+        tenantId,
+        job.messageId,
+      )?.body ?? ''
+    const reason = handoffReason(db, tenantId, inboundBody, clock)
+    if (reason) {
+      const handoff = notifyHumanHandoff(
+        db,
+        tenantId,
+        {
+          conversationId: job.conversationId,
+          reason,
+          clientRequestId: `ai-handoff:${job.messageId}`,
+        },
+        clock,
+      )
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      out.push({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'human_handoff',
+        replyOutbox: handoff.outbox,
+      })
+      continue
+    }
+    const catalogText = catalogReply(db, tenantId, inboundBody, clock)
+    if (catalogText) {
+      let replyOutbox: OutboxRow[] = []
+      try {
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body: catalogText,
+            interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+            clientRequestId: `ai-catalog:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox = sent.outbox
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      out.push({ ...job, status: 'skipped', suggestion: null, reason: 'catalog_reply', replyOutbox })
+      continue
+    }
     if (getAiDailyUsage(db, tenantId, clock).capReached) {
       cancelAutoDraft(db, tenantId, job.conversationId)
       out.push({ ...job, status: 'cap_reached', suggestion: null })
@@ -318,11 +382,22 @@ export async function runDueAutoDrafts(
     const deterministicReply = Boolean(autoBook?.replyText && autoBook.replyText.trim())
     const proposalDelivered =
       Boolean(autoBook?.proposalId) && !deterministicReply
-    if (
+    if (unsafe && !deterministicReply && !proposalDelivered) {
+      const handoff = notifyHumanHandoff(
+        db,
+        tenantId,
+        {
+          conversationId: job.conversationId,
+          reason: 'off_purpose',
+          clientRequestId: `ai-handoff:${suggestion.id}`,
+        },
+        clock,
+      )
+      replyOutbox = handoff.outbox
+    } else if (
       suggestion.status === 'pending' &&
       draftText &&
-      !proposalDelivered &&
-      (!unsafe || deterministicReply)
+      !proposalDelivered
     ) {
       try {
         const sent = sendOutboundMessageOp(
@@ -331,6 +406,9 @@ export async function runDueAutoDrafts(
           {
             conversationId: job.conversationId,
             body: draftText,
+            interactive: deterministicReply
+              ? null
+              : { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
             clientRequestId: `ai-reply:${suggestion.id}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
