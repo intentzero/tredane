@@ -23,6 +23,10 @@ import type {
 } from './booking-types'
 import { checkSlotAvailability } from './check'
 import { queryAvailability } from './query'
+import {
+  allowBothSexesInBlock,
+  type AllowBothSexesResult,
+} from './sex-block'
 import type {
   AvailabilityQueryInput,
   AvailabilityQueryResult,
@@ -57,6 +61,35 @@ export function checkSlotAvailabilityOp(
 ): CheckSlotResult {
   const meta = prepare(db, caller, clock)
   return checkSlotAvailability(db, meta.tenantId, input, clock)
+}
+
+export type AllowBothSexesInput = {
+  roomResourceId: string
+  startsAt: number
+  endsAt?: number
+}
+
+/** «Permitir os dois» — HTTP exige clinic.config.write; aqui valida o ator. */
+export function allowBothSexesInBlockOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: AllowBothSexesInput,
+  clock: Clock,
+): AllowBothSexesResult {
+  const meta = prepare(db, caller, clock)
+  return db.transactionSync(() =>
+    allowBothSexesInBlock(
+      db,
+      meta.tenantId,
+      {
+        roomResourceId: input.roomResourceId,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        actorClerkUserId: caller.actorId ?? '',
+      },
+      clock,
+    ),
+  )
 }
 
 export {

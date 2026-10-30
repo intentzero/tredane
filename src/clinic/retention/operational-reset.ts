@@ -41,6 +41,7 @@ export const OPERATIONAL_RESET_TABLES: readonly string[] = [
   'appointment_allocations',
   'appointments',
   'visit_zone_snapshots',
+  'room_sex_block_exceptions',
   'conversations',
   'contact_deletion_tombstones',
   'contacts',

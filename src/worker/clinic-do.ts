@@ -1853,6 +1853,34 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return result
   }
 
+  /** DEC-075 / S5 — «Permitir os dois» (só responsável via clinic.config.write). */
+  async allowBothSexesInClinicBlock(
+    caller: ClinicCaller,
+    input: clinicScheduling.AllowBothSexesInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const row = clinicScheduling.allowBothSexesInBlockOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    // appointment.* → a grade de disponibilidade recarrega (DEC-057).
+    await this.#fanoutConfigEvent(
+      caller,
+      'appointment.room_sex_exception',
+      'room',
+      row.roomResourceId,
+      {
+        exceptionId: row.id,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+      },
+    )
+    return row
+  }
+
   async insertSyntheticAppointmentForTests(
     caller: ClinicCaller,
     input: {

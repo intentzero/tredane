@@ -108,6 +108,8 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     setWeeklyWindows: (caller, input) => stub.setClinicWeeklyWindows(caller, input),
     createBlock: (caller, input) => stub.createClinicBlock(caller, input),
     deleteBlock: (caller, blockId) => stub.deleteClinicBlock(caller, blockId),
+    allowBothSexesInBlock: (caller, input) =>
+      stub.allowBothSexesInClinicBlock(caller, input),
     insertAppointment: (caller, input) =>
       stub.insertSyntheticAppointmentForTests(caller, input),
   }
@@ -618,6 +620,44 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
     },
   )
 
+  /** DEC-075 / S5 — «Permitir os dois» no bloco da sala (só responsável). */
+  app.post(
+    '/api/tenants/:tenantId/config/rooms/:resourceId/allow-both-sexes',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const body = await c.req.json<Record<string, unknown>>()
+        if (typeof body.startsAt !== 'number') {
+          return c.json({ error: 'invalid_body' }, 400)
+        }
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const row = await gw.allowBothSexesInBlock(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          {
+            roomResourceId: c.req.param('resourceId'),
+            startsAt: body.startsAt,
+            ...(typeof body.endsAt === 'number' ? { endsAt: body.endsAt } : {}),
+          },
+        )
+        return c.json(
+          {
+            id: row.id,
+            roomResourceId: row.roomResourceId,
+            startsAt: row.startsAt,
+            endsAt: row.endsAt,
+            actorClerkUserId: row.actorClerkUserId,
+            createdAt: row.createdAt,
+          },
+          201,
+        )
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
   /**
    * Harness sintético: cria compromisso mínimo para testes de impacto de bloqueio.
    * Não é API de produto de agenda.
@@ -828,5 +868,8 @@ function parseResourceBody(body: Record<string, unknown>) {
             | 'cada_profissional'
             | 'uma_para_todas',
         }),
+    ...(body.sameSexInSlot === undefined
+      ? {}
+      : { sameSexInSlot: Boolean(body.sameSexInSlot) }),
   }
 }

@@ -31,6 +31,7 @@ export { checkSlotAvailability } from './check'
 export {
   queryAvailabilityOp,
   checkSlotAvailabilityOp,
+  allowBothSexesInBlockOp,
   confirmAppointmentOp,
   confirmAppointmentInTransaction,
   cancelAppointmentOp,
@@ -38,6 +39,7 @@ export {
   getAppointmentDetailOp,
   queryAgendaViewOp,
 } from './operations'
+export type { AllowBothSexesInput } from './operations'
 export type {
   AgendaViewInput,
   AgendaViewResult,
@@ -50,6 +52,13 @@ export type {
   RescheduleAppointmentInput,
   SlotConflictDetails,
 } from './booking-types'
+export {
+  allowBothSexesInBlock,
+  blockSexFromAppointments,
+  roomSexConflict,
+  type AllowBothSexesResult,
+  type BlockSex,
+} from './sex-block'
 export {
   previewHoldOp,
   createHoldOp,

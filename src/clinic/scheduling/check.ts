@@ -17,6 +17,7 @@ import {
 import { resourceBusyReasons, serviceOfferingAllows } from './occupancy'
 import { candidateBreaksHolds } from './hold-fit'
 import { resolveHomeRoom, resolveRequiredEquipment } from './query'
+import { roomSexConflict } from './sex-block'
 import type {
   AvailableSlot,
   CheckSlotInput,
@@ -170,6 +171,13 @@ export function checkSlotAvailability(
         input.excludeAppointmentId,
       ),
     )
+    if (
+      roomSexConflict(db, tenantId, roomId, range, service.audiencia, {
+        excludeAppointmentId: input.excludeAppointmentId,
+      })
+    ) {
+      reasons.push('room_sex_mismatch')
+    }
   }
 
   const requiredEquipment = resolveRequiredEquipment(db, tenantId, service, clock)

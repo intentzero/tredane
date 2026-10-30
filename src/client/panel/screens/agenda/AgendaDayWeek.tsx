@@ -42,6 +42,8 @@ type Props = {
   view: 'day' | 'week'
   /** Compromisso aberto no painel por cima (rota `…/agenda/compromisso/:id`, só no desktop). */
   openId?: string
+  /** Responsável: «Permitir os dois» no detalhe (DEC-075 / S5). */
+  isOwner?: boolean
 }
 
 const DEFAULT_TZ = 'America/Sao_Paulo'
@@ -79,7 +81,7 @@ function detailRoute(tenantId: string, id: string) {
  * A API de semana traz a semana inteira; o dia usa a mesma resposta (e a faixa
  * da semana mostra quais dias têm horário marcado).
  */
-export function AgendaDayWeek({ tenantId, api, generation, view, openId }: Props) {
+export function AgendaDayWeek({ tenantId, api, generation, view, openId, isOwner = false }: Props) {
   const [date, setDate] = useState(() => upcomingCivilDates(DEFAULT_TZ, Date.now(), 1)[0]!)
   const [data, setData] = useState<AgendaViewResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -519,6 +521,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view, openId }: Props
             appointmentId={openId!}
             api={api}
             generation={generation}
+            isOwner={isOwner}
             onClose={closePanel}
             onChanged={() => void load()}
           />

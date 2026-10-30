@@ -782,6 +782,41 @@ export function createPanelApi(getToken: TokenGetter) {
       if (!res.ok) throw await parseError(res)
     },
 
+    /** DEC-075 / S5 — «Permitir os dois» no bloco (só responsável). */
+    async allowBothSexesInBlock(
+      tenantId: string,
+      roomResourceId: string,
+      body: { startsAt: number; endsAt?: number },
+      opts?: FetchOpts,
+    ): Promise<{
+      id: string
+      roomResourceId: string
+      startsAt: number
+      endsAt: number
+      actorClerkUserId: string
+      createdAt: number
+    }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/rooms/${encodeURIComponent(roomResourceId)}/allow-both-sexes`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        id: string
+        roomResourceId: string
+        startsAt: number
+        endsAt: number
+        actorClerkUserId: string
+        createdAt: number
+      }
+    },
+
     async queryAvailability(
       tenantId: string,
       query: {
@@ -2094,6 +2129,8 @@ export type ClinicResource = {
   homeRoomId?: string | null
   /** DEC-075 — modo da sala; padrão cada_profissional. */
   attendanceMode?: 'cada_profissional' | 'uma_para_todas'
+  /** DEC-075 / S5 — mesmo sexo neste horário; só salas com capacidade > 1. */
+  sameSexInSlot?: boolean
   /** Horários acima da nova capacidade (só na resposta de editar). */
   overCapacity?: Array<{ startsAt: number; endsAt: number; count: number }>
   futureAppointmentCount: number
@@ -2378,6 +2415,8 @@ export type ResourceUpsertBody = {
   homeRoomId?: string | null
   /** Só sala — modo de atendimento (DEC-075). */
   attendanceMode?: 'cada_profissional' | 'uma_para_todas'
+  /** Só sala — mesmo sexo neste horário (DEC-075 / S5). */
+  sameSexInSlot?: boolean
 }
 
 export type WeeklyWindowInput = {

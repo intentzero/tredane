@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import { ChevronRight } from 'lucide-react'
 import { Badge } from '../../states/Badge'
+import { ClinicCheck } from './ClinicCheck'
 import { ClinicListHeader } from './ClinicListHeader'
 import { professionalRow, roomRow } from './resourceRows'
 import { PanelSelect } from '../../ui/PanelSelect'
@@ -184,6 +185,7 @@ export function ResourceForm({
   const [attendanceMode, setAttendanceMode] = useState<'cada_profissional' | 'uma_para_todas'>(
     existing?.attendanceMode === 'uma_para_todas' ? 'uma_para_todas' : 'cada_profissional',
   )
+  const [sameSexInSlot, setSameSexInSlot] = useState(Boolean(existing?.sameSexInSlot))
   const [resourceKind, setResourceKind] = useState<'room' | 'equipment'>(
     existing?.kind === 'equipment' ? 'equipment' : 'room',
   )
@@ -371,6 +373,7 @@ export function ResourceForm({
                 capacity: capacityNumber,
                 sharedSpaceNotice: sharedNotice.trim() || null,
                 attendanceMode: capacityNumber > 1 ? attendanceMode : 'cada_profissional',
+                sameSexInSlot: capacityNumber > 1 ? sameSexInSlot : false,
               }
             : {}),
         },
@@ -534,6 +537,16 @@ export function ResourceForm({
                     {attendanceMode === 'uma_para_todas'
                       ? 'A mesma profissional pode atender várias clientes nesta sala, até à capacidade. Não fica noutra sala no mesmo horário.'
                       : 'Cada profissional trava só a si. A sala recusa quando chega à capacidade.'}
+                  </p>
+                  <ClinicCheck
+                    isSelected={sameSexInSlot}
+                    onChange={setSameSexInSlot}
+                  >
+                    Mesmo sexo neste horário
+                  </ClinicCheck>
+                  <p className="clinic-footnote">
+                    Ligado, o bloco fica com o sexo da primeira marcação feminina ou masculina.
+                    «Permitir os dois» naquele horário é só da responsável, na agenda.
                   </p>
                 </>
               ) : null}

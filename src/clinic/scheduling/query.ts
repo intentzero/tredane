@@ -22,6 +22,7 @@ import {
   serviceOfferingAllows,
 } from './occupancy'
 import { candidateBreaksHolds, listActiveHoldNeeds } from './hold-fit'
+import { roomSexConflict } from './sex-block'
 import type {
   AvailabilityQueryInput,
   AvailabilityQueryResult,
@@ -248,6 +249,12 @@ export function queryAvailability(
         dayEndsAt,
       )
       if (roomReasons.length > 0) continue
+
+      if (
+        roomSexConflict(db, tenantId, room.id, range, service.audiencia)
+      ) {
+        continue
+      }
 
       if (requiredEquipment) {
         const eqReasons = resourceBusyReasons(
