@@ -69,6 +69,8 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 | M-49 | `HorarioEditarDia` | TEL-09 horários (**Proposto**) | JRN-08 · REQ-030 · AC-38 | Folha «Quarta»: aberto/fechado, faixas com intervalo, «Usar este horário também em» (chips de dias), quem atende neste dia, **Aplicar a N dias** (só altera o rascunho) | M-17 |
 | M-50 | `HorarioNovaFolga` | TEL-09 horários (**Proposto**) | JRN-08 · REQ-030 · AC-38 | Folha «Folga ou fechamento»: «Quem fica fora» em multi-seleção, motivo em dropdown (único para todos), período, dia inteiro, aviso de compromissos afetados por pessoa, **Salvar para N pessoas** | M-17, M-51 |
 | M-51 | `HorarioNovaFolgaQuem` | TEL-09 horários (**Proposto**) | JRN-08 · REQ-030 | Lista de «Quem fica fora» aberta (`aria-multiselectable`): Clínica inteira exclusiva, pessoas com cor e ponto, «N selecionadas», **Concluir** | M-50 |
+| M-52 | `Conferir` (sem `.dc.html`; mock em artefato) | TEL-09 conferência (**Proposto**, 30/10/2026) | JRN-08 · REQ-052 · AC-14 | Tela só de leitura, serviço a serviço: quem faz, onde, quando e o motivo de um serviço estar sem horário (sala inativa, profissional sem horário), com atalho para corrigir. Faixa de topo com a contagem. Depende de regra do servidor que explique cada bloqueio | M-15, M-16, M-21, M-22 |
+| M-53 | `ServicoTempo` (sem `.dc.html`; mock em artefato) | TEL-09 serviço (**Proposto**, 30/10/2026) | JRN-08 · DEC-077 | Folha inferior «Tempo»: Céu e Temperatura em controles segmentados, graus só em Acima/Abaixo de e frase «O que isso faz». Mesmas regras da DEC-077 | M-16 |
 
 ## Estados que a UI real precisa ter e os mocks mostram em uma tela só
 
