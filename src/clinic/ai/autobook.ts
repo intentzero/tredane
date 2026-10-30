@@ -278,13 +278,9 @@ function zonesChosenByClient(
   return []
 }
 
-function askZonesReply(kind: string, zoneNames: string[], time: string): string {
-  const label = kind.trim() || 'variantes'
+function askZonesReply(phrase: string, zoneNames: string[], time: string): string {
   const list = zoneNames.join(', ')
-  return (
-    `Para fechar às ${time}, me diga ${label === 'variantes' ? 'as variantes' : `a ${label}`}: ${list}. ` +
-    `Pode ser mais de uma.`
-  )
+  return `Para fechar às ${time}, me diga ${phrase}: ${list}. Pode ser mais de uma.`
 }
 
 function firstName(label: string | null | undefined): string | null {
@@ -416,13 +412,16 @@ export async function tryAiAutoBook(
   const time = det.time
   const activeZones = svc.zones.filter((z) => z.active)
   const namedZones = zonesChosenByClient(clientTurn, older, activeZones)
-  const kind = svc.variantKindPlural?.trim() || svc.variantKind?.trim() || 'variantes'
+  const plural = svc.variantKindPlural?.trim() || ''
+  const singular = svc.variantKind?.trim() || ''
+  const kind = plural || singular || 'variantes'
+  const phrase = plural || !singular ? `as ${kind}` : `a ${kind}`
   if (activeZones.length > 0 && namedZones.length === 0) {
     const names = activeZones.map((z) => z.name)
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
-      replyText: askZonesReply(kind, names, time),
+      replyText: askZonesReply(phrase, names, time),
       notes:
         `A cliente falou em ${svc.name} sem escolher ${kind} (${names.join(', ')}). ` +
         `Pergunta automática enviada. Não informe valor nem «a partir de».`,
@@ -453,7 +452,7 @@ export async function tryAiAutoBook(
       // Não silenciar: o modelo pode ter deixado a mensagem vazia à espera da proposta.
       replyText:
         activeZones.length > 0
-          ? askZonesReply(kind, activeZones.map((z) => z.name), time)
+          ? askZonesReply(phrase, activeZones.map((z) => z.name), time)
           : `Não consegui fechar ${svc.name} às ${time} agora. A equipe confirma pelo Agendar.`,
       notes:
         `Não deu para calcular ${svc.name}: ${message}. Pergunta/aviso automático enviado. Texto livre não marca.`,

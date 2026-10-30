@@ -323,7 +323,8 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       const o = await s.run()
       expect(o.autoBook?.status).toBe('needs_info')
       expect(o.autoBook?.proposalId).toBeUndefined()
-      expect(o.autoBook?.replyText).toMatch(/regiao|Axila|Peitoral/i)
+      expect(o.autoBook?.replyText).toMatch(/as regioes/i)
+      expect(o.autoBook?.replyText).not.toMatch(/\ba regioes\b/i)
       expect(o.replyOutbox?.length).toBeGreaterThan(0)
       const sent = s.db.get<{ body: string }>(
         `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
