@@ -1,6 +1,6 @@
 # Épico — Bloco Tempo no serviço (DEC-077)
 
-**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). Nenhuma fatia está implementada. Não altera código.
+**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). S1 está na migração `0033_service_tempo`. S2 a S7 não estão implementadas.
 
 **Decisão:** [DEC-077](../product/decisions.md). A DEC-076 já está na `main` (duração do procedimento não se ajusta ao agendar) e não é este bloco. Mantém DEC-008 (duração, intervalo, grade de 15 min, fuso da clínica), DEC-042 (só a responsável configura), DEC-011 (contexto da IA), DEC-061 (marcação automática só pelo botão) e DEC-075 (sala, capacidade, modo, audiência e mesmo sexo ficam de fora deste bloco).
 
@@ -14,7 +14,7 @@
 
 ## Já existe em `main` — não reimplementar a agenda
 
-Conferido no código da `main` (schema da clínica na versão 31, migração `0031_service_audience`). As fatias abaixo só acrescentam o tempo. A busca de vaga, a confirmação e a proposta continuam as que já existem.
+Conferido no código da `main` (schema da clínica na versão 33, migração `0033_service_tempo`; a agenda ainda não lê estas colunas). As fatias abaixo só acrescentam o tempo. A busca de vaga, a confirmação e a proposta continuam as que já existem.
 
 | Já existe | Onde | O que a DEC-077 não manda refazer |
 | --- | --- | --- |
@@ -78,7 +78,7 @@ S1 → S2 → S3 → S4 → S5 → S6 → S7. Cada fatia é verificável sozinha
 
 **Regras.** Não inferir o bloco pelo nome do serviço. Não preencher a cidade a partir de `clinic_address`. Não apagar audiência nem capacidade (DEC-075).
 
-**Dados por tenant.** No SQLite da clínica, na migração seguinte à versão 31 (conferir `CLINIC_SCHEMA_VERSION` na `main` ao implementar; em 29/10/2026 está em 31, `0031_service_audience`; não reutilizar esse número):
+**Dados por tenant.** No SQLite da clínica, migração `0033_service_tempo` (`CLINIC_SCHEMA_VERSION` 33; a 32 é a DEC-076, duração não ajustável):
 
 - No serviço: `tempo_ceu` `tanto_faz` | `sol` | `chuva`, padrão `tanto_faz`. `tempo_temperatura` `tanto_faz` | `acima` | `abaixo`, padrão `tanto_faz`. `tempo_celsius` inteiro nulo.
 - Na clínica (`clinic_settings`): tipo de local `nenhum` | `cidade` | `coordenadas`, padrão `nenhum`; cidade nula; latitude e longitude nulas.
@@ -88,10 +88,10 @@ S1 → S2 → S3 → S4 → S5 → S6 → S7. Cada fatia é verificável sozinha
 
 **Critérios de aceite.** AC-61.
 
-- [ ] «Bronzeamento» e «Depilação», já gravados, ficam com céu e temperatura em `tanto_faz` e sem graus.
-- [ ] A clínica fica sem local de previsão. `clinic_address` não é copiado para esse local.
-- [ ] A grade que `queryAvailability` devolve para esses serviços é a mesma de antes da migração.
-- [ ] A tabela de contatos não ganha coluna de tempo. `audiencia` (DEC-075) permanece.
+- [x] «Bronzeamento» e «Depilação», já gravados, ficam com céu e temperatura em `tanto_faz` e sem graus.
+- [x] A clínica fica sem local de previsão. `clinic_address` não é copiado para esse local.
+- [x] A grade que `queryAvailability` devolve para esses serviços é a mesma de antes da migração.
+- [x] A tabela de contatos não ganha coluna de tempo. `audiencia` (DEC-075) permanece.
 
 ---
 
@@ -269,6 +269,6 @@ Serviço «Bronzeamento», Sol e Acima de 24 °C. Clínica com cidade. Às 15h, 
 
 ## O que este épico não fecha
 
-Qual provedor de previsão e o corte numérico (spec do adaptador, na S4). Valores reais da clínica piloto. Revisão jurídica antes de dados reais (GATE-04). Implementação: PRs seguintes, um por fatia. Este PR não contém migração, ecrã nem chamada a provedor.
+Qual provedor de previsão e o corte numérico (spec do adaptador, na S4). Valores reais da clínica piloto. Revisão jurídica antes de dados reais (GATE-04). S1 é a migração `0033_service_tempo`. S2 a S7 seguem, um PR por fatia.
 
 **Aceite por fatia:** S1 AC-61; S2 AC-62 (REQ-089); S3 AC-63 (REQ-090); S4 AC-64 (REQ-091); S5 AC-65 (REQ-092); S6 AC-66 (REQ-092); S7 AC-67 (REQ-093). Jornadas: JRN-03, JRN-08, JRN-17.
