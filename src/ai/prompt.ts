@@ -93,6 +93,11 @@ function clinicBlock(ctx: AiContextPayload): string[] {
   } else {
     out.push('Horários livres: (nenhum horário livre encontrado nos próximos 7 dias — diga que a equipe confirma a disponibilidade)')
   }
+  if (c.tempoNote) {
+    out.push(
+      `Horário pedido que não está na lista: ${c.tempoNote} Pode repetir esta frase. Não cite percentagem, código de tempo nem um horário que a lista não tenha.`,
+    )
+  }
   out.push(
     c.upcomingAppointments.length > 0
       ? `Próximos agendamentos desta cliente:\n${c.upcomingAppointments.map((a) => `- ${u(a.serviceName)}: ${a.when}`).join('\n')}`

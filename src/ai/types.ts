@@ -106,6 +106,11 @@ export type AiClinicContext = {
   today: string
   openingHours: string[]
   freeSlots: AiFreeSlotDay[]
+  /**
+   * Frase fixa do WhatsApp quando a cliente pediu uma hora que o tempo recusou (DEC-077).
+   * Não traz payload, percentagem nem a hora recusada.
+   */
+  tempoNote?: string | null
   upcomingAppointments: AiUpcomingAppointment[]
   reschedulePolicy: string | null
   cancellationPolicy: string | null

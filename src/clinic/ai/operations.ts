@@ -33,6 +33,7 @@ import {
   supersedePendingAutoDrafts,
   updateSuggestionDecision,
 } from './suggestions'
+import { tempoDraftRejected } from './tempo-draft'
 import { getAiDailyUsage, incrementAiDailyUsage } from './usage'
 import { writeOperationalAudit } from '../audit'
 import type {
@@ -97,7 +98,9 @@ async function hydrateSuggestFromCommand(
     throw new NotFoundError('suggestion_not_found', 'Sugestão não encontrada')
   }
   const contextInspection = await buildAiContextPayload(db, tenantId, conversationId, {
-    ...(kind === 'reply' ? { clock, clinicName: deps.clinicName ?? null } : {}),
+    ...(kind === 'reply'
+      ? { clock, clinicName: deps.clinicName ?? null, forecast: deps.forecast }
+      : {}),
   })
   assertContextMinimized(contextInspection.payload)
   return {
@@ -180,7 +183,9 @@ async function runGenerate(
     db,
     meta.tenantId,
     input.conversationId,
-    input.kind === 'reply' ? { clock, clinicName: deps.clinicName ?? null } : {},
+    input.kind === 'reply'
+      ? { clock, clinicName: deps.clinicName ?? null, forecast: deps.forecast }
+      : {},
   )
   assertContextMinimized(contextInspection.payload)
 
@@ -209,7 +214,13 @@ async function runGenerate(
   })
   // Saída estruturada: mensagem limpa à cliente + notas internas separadas.
   // S6 (#177): schema fechado; desvio → descartado, fallback humano.
-  const guarded = gen.ok && input.kind === 'reply' ? guardReplyOutput(gen.text) : null
+  let guarded = gen.ok && input.kind === 'reply' ? guardReplyOutput(gen.text) : null
+  if (
+    guarded?.ok
+    && tempoDraftRejected(guarded.message, contextInspection.payload.clinic)
+  ) {
+    guarded = { ok: false, reason: 'tempo_leak', notes: '' }
+  }
   // Continuidade (Paulo 29/10/2026): se a clínica já falou, corta re-cumprimento residual.
   const parsedReply = guarded?.ok
     ? {

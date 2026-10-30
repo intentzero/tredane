@@ -80,7 +80,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - ADRs: [Cloudflare-native](adr/0001-cloudflare-native.md), [topologia D1](adr/0002-d1-topology.md), [Durable Objects e tempo real](adr/0003-durable-objects-realtime.md), [IA com revisão humana](adr/0004-ai-human-in-loop.md) e [consistência da agenda](adr/0005-d1-booking-consistency.md).
 - [Plano de implementação proposto](implementation/plan.md) — ligado ao [épico #14](https://github.com/intentzero/tredane/issues/14); decomposição de engenharia, sem renumerar DEC/REQ.
 - [Épico de salas partilhadas e audiência (DEC-075)](implementation/epic-salas-audiencia.md) — desenho fechado em 29/10/2026; a implementação ainda não está na `main`.
-- [Épico do bloco Tempo no serviço (DEC-077)](implementation/epic-tempo-servico.md) — desenho fechado em 29/10/2026; a implementação ainda não está na `main`.
+- [Épico do bloco Tempo no serviço (DEC-077)](implementation/epic-tempo-servico.md) — desenho fechado em 29/10/2026; S1–S7 estão na `main`. Valores reais da clínica e a revisão jurídica continuam em aberto.
 - [ADR Clerk e Platform Admin](adr/0006-clerk-platform-admin.md), [ADR Impersonação de suporte](adr/0007-support-impersonation.md) e [contratos de identidade/admin](architecture/identity-and-admin.md).
 
 Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora **confirmados**. Topologia resolvida por DEC-038; continuam em aberto: protocolo de revogação D1/DO, migrações/recuperação por clínica, fluxo de ligação do WhatsApp, política de dados reais, proteção do handoff e capacidades de manutenção das sessões próprias de suporte. Plano, custo e residência do Clerk: tratados como pré-condição de go-live (DEC-043).
