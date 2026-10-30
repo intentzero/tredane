@@ -1,5 +1,16 @@
 /** Rotas produtivas do painel (#22/#28/#29/#30). Sem React Router — pathname + history. */
 
+function isCivilDateParam(value: string | null | undefined): value is string {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+function agendaDateQuery(search: string | undefined): string | undefined {
+  if (!search) return undefined
+  const q = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+  const date = q.get('date')
+  return isCivilDateParam(date) ? date : undefined
+}
+
 export type PanelArea = 'conversas' | 'acompanhamento' | 'agenda' | 'clinica' | 'avisos'
 
 export type ClinicaSection =
@@ -147,7 +158,7 @@ function parseConversasRest(rest: string | undefined): {
   return { section: 'thread', conversationId }
 }
 
-export function resolvePanelRoute(pathname: string): PanelRoute | null {
+export function resolvePanelRoute(pathname: string, search = ''): PanelRoute | null {
   const path = pathname.replace(/\/+$/, '') || '/'
   // Prefixo: Clerk SignIn usa /entrar/factor-one etc.
   if (path === '/entrar' || path.startsWith('/entrar/')) return { kind: 'entrar' }
@@ -199,8 +210,9 @@ export function resolvePanelRoute(pathname: string): PanelRoute | null {
   if (area === 'agenda') {
     const parts = (match[3] ?? '').split('/').filter(Boolean)
     const head = parts[0]
+    const date = agendaDateQuery(search)
     if (head === 'agendar') {
-      return { kind: 'area', area: 'agenda', tenantId, section: 'agendar' }
+      return { kind: 'area', area: 'agenda', tenantId, section: 'agendar', date }
     }
     if (head === 'semana') {
       return { kind: 'area', area: 'agenda', tenantId, section: 'semana' }
@@ -212,9 +224,10 @@ export function resolvePanelRoute(pathname: string): PanelRoute | null {
         tenantId,
         section: 'compromisso',
         appointmentId: decodeURIComponent(parts[1]),
+        date,
       }
     }
-    return { kind: 'area', area: 'agenda', tenantId, section: 'dia' }
+    return { kind: 'area', area: 'agenda', tenantId, section: 'dia', date }
   }
   return null
 }
@@ -254,13 +267,17 @@ export function panelHref(route: PanelRoute): string {
           if (route.contactId) q.set('contactId', route.contactId)
           if (route.opportunityId) q.set('opportunityId', route.opportunityId)
           if (route.alertId) q.set('alertId', route.alertId)
-          if (route.date && /^\d{4}-\d{2}-\d{2}$/.test(route.date)) q.set('date', route.date)
+          if (isCivilDateParam(route.date)) q.set('date', route.date)
           const qs = q.toString()
           return qs ? `${base}/agendar?${qs}` : `${base}/agendar`
         }
         if (route.section === 'semana') return `${base}/semana`
         if (route.section === 'compromisso' && route.appointmentId) {
-          return `${base}/compromisso/${encodeURIComponent(route.appointmentId)}`
+          const path = `${base}/compromisso/${encodeURIComponent(route.appointmentId)}`
+          return isCivilDateParam(route.date) ? `${path}?date=${route.date}` : path
+        }
+        if (route.section === 'dia' && isCivilDateParam(route.date)) {
+          return `${base}?date=${route.date}`
         }
         return base
       }

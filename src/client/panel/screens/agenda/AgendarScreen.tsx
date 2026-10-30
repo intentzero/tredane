@@ -457,8 +457,15 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
         onAgenda={() =>
           navigatePanel(
             success.appointmentId
-              ? { kind: 'area', area: 'agenda', tenantId, section: 'compromisso', appointmentId: success.appointmentId }
-              : { kind: 'area', area: 'agenda', tenantId, section: 'dia' },
+              ? {
+                  kind: 'area',
+                  area: 'agenda',
+                  tenantId,
+                  section: 'compromisso',
+                  appointmentId: success.appointmentId,
+                  date,
+                }
+              : { kind: 'area', area: 'agenda', tenantId, section: 'dia', date },
           )
         }
       />

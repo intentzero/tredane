@@ -4,6 +4,7 @@ import { Button } from 'react-aria-components'
 import type { PanelApi, PipelineOpportunityDetail } from '../../api'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
+import { civilDateInZone } from '../agenda/format'
 import {
   STAGE_LABELS,
   appointmentLine,
@@ -222,7 +223,9 @@ export function AcompanhamentoDetail({
                   kind: 'area',
                   area: 'agenda',
                   tenantId,
-                  section: 'dia',
+                  section: 'compromisso',
+                  appointmentId: data.linkedAppointment!.id,
+                  date: civilDateInZone(data.linkedAppointment!.startsAt, timezone),
                 })
               }
             >
