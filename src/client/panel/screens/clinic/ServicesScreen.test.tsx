@@ -49,7 +49,7 @@ describe('ServiceForm — duração e variantes', () => {
     const order: string[] = []
     const replaceServiceZones = vi.fn(async () => {
       order.push('zones')
-      return []
+      return svc({})
     })
     const upsertService = vi.fn(async () => {
       order.push('service')
@@ -92,7 +92,7 @@ describe('ServiceForm — duração e variantes', () => {
   })
 
   it('se a primeira variante não grava, o tipo não fica sozinho', async () => {
-    const upsertService = vi.fn(async () => svc({}))
+    const upsertService = vi.fn(async (_tenantId: string, _body: Record<string, unknown>) => svc({}))
     const replaceServiceZones = vi.fn(async () => {
       throw new Error('nome')
     })
