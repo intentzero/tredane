@@ -450,9 +450,13 @@ export async function tryAiAutoBook(
     const message = err instanceof Error ? err.message : 'erro'
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
-      replyText: '',
+      // Não silenciar: o modelo pode ter deixado a mensagem vazia à espera da proposta.
+      replyText:
+        activeZones.length > 0
+          ? askZonesReply(kind, activeZones.map((z) => z.name), time)
+          : `Não consegui fechar ${svc.name} às ${time} agora. A equipe confirma pelo Agendar.`,
       notes:
-        `Não deu para calcular ${svc.name}: ${message}. Confirme pelo Agendar. Texto livre não marca.`,
+        `Não deu para calcular ${svc.name}: ${message}. Pergunta/aviso automático enviado. Texto livre não marca.`,
     }
   }
   const label = `${svc.name} · ${dayText(date)} às ${time}`
@@ -474,11 +478,20 @@ export async function tryAiAutoBook(
   const slot = avail.slots.find((s) => localHHMM(tz, s.startsAt) === time)
 
   if (!slot) {
+    const alts = avail.slots
+      .slice(0, 3)
+      .map((s) => localHHMM(tz, s.startsAt))
+      .filter((t) => t !== time)
+    const altText =
+      alts.length > 0
+        ? ` Tenho ${alts.join(', ')}. Qual fica melhor?`
+        : ' Quer que eu veja outro horário?'
     return {
       ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
+      replyText: `Nesse horário das ${time} já não tenho vaga.${altText}`,
       notes:
         `A cliente parece confirmar ${label} (horário não livre na agenda). ` +
-        'Texto livre não marca automaticamente: confirme pelo Agendar (fluxo normal).',
+        'Aviso automático enviado. Texto livre não marca — confirme pelo Agendar se precisar.',
     }
   }
 
@@ -497,9 +510,11 @@ export async function tryAiAutoBook(
     }
     return {
       ...none('requires_button', found),
+      replyText:
+        `Perfeito${hi}! Anotei ${svc.name} na ${dayText(date)} às ${time}. A equipe confirma o horário em seguida.`,
       notes:
         `A cliente parece confirmar ${label}. ` +
-        'Texto livre não marca automaticamente: confirme pelo Agendar (fluxo normal).',
+        'Capacidade pausada: aviso automático enviado; confirme pelo Agendar (fluxo normal).',
     }
   }
 
@@ -522,28 +537,32 @@ export async function tryAiAutoBook(
     )
     const sent = sendProposalToWhatsAppOp(db, caller, { proposalId: proposal.id }, clock)
     const status: AutoBookStatus = svc.requiresSignal ? 'needs_signal' : 'requires_button'
-    const sendNote =
-      sent.status === 'queued' || sent.status === 'already_sent'
-        ? `Proposta ${proposal.id} v${proposal.version} enfileirada/enviada com botão Confirmar. ` +
-          'Aguarda o clique da cliente; texto livre («sim») não marca.'
-        : `Proposta ${proposal.id} v${proposal.version} preparada, mas envio entregue à equipe ` +
-          `(${sent.status}). Texto livre não marca.`
+    const delivered = sent.status === 'queued' || sent.status === 'already_sent'
+    const sendNote = delivered
+      ? `Proposta ${proposal.id} v${proposal.version} enfileirada/enviada com botão Confirmar. ` +
+        'Aguarda o clique da cliente; texto livre («sim») não marca.'
+      : `Proposta ${proposal.id} v${proposal.version} preparada, mas envio entregue à equipe ` +
+        `(${sent.status}). Texto livre não marca.`
     return {
       ...none(status, found),
       proposalId: proposal.id,
       proposalVersion: proposal.version,
-      // Não afirmar «agendado»: o botão ainda não foi tocado. Rascunho vazio → atendente vê só notas.
-      replyText: '',
+      // Proposta no WhatsApp → sem texto. Falha de envio → aviso, para não silenciar.
+      replyText: delivered
+        ? ''
+        : `Quase lá${hi}! Vou confirmar ${svc.name} na ${dayText(date)} às ${time} com a equipe e já te retorno.`,
       notes: `A cliente parece confirmar ${label}. ${sendNote}`,
       outbox: sent.outbox,
     }
   } catch (err) {
     return {
       ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
+      replyText:
+        `Quase lá${hi}! Vou confirmar ${svc.name} na ${dayText(date)} às ${time} com a equipe e já te retorno.`,
       notes:
         `A cliente parece confirmar ${label}. Falha ao montar/enviar a proposta: ` +
         `${err instanceof Error ? err.message.slice(0, 180) : 'erro'}. ` +
-        'Texto livre não marca — confirme pelo Agendar.',
+        'Aviso automático enviado — confirme pelo Agendar.',
     }
   }
 }
