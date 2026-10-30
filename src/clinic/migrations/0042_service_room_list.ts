@@ -5,6 +5,7 @@
  * A categoria vira a lista das salas ativas dessa categoria.
  * Uma sala já escolhida mantém-se, mesmo inativa.
  * Equipamento exigido fica à parte (mode equipment).
+ * Serviço que só exigia equipamento passa a «Sem espaço definido» e mantém o equipamento.
  * Uma sala criada depois não entra sozinha: a lista é a cópia deste instante.
  */
 export const MIGRATION_ID = 42
@@ -46,7 +47,7 @@ export const STATEMENTS: readonly string[] = [
    WHERE q.mode = 'resource' AND q.resource_id IS NOT NULL`,
 
   `INSERT INTO service_room_requirements__m42 (tenant_id, service_id, mode, resource_id)
-   SELECT q.tenant_id, q.service_id, 'rooms', ''
+   SELECT q.tenant_id, q.service_id, 'none', ''
    FROM service_room_requirements q
    WHERE q.mode = 'resource'
      AND q.resource_id IS NOT NULL

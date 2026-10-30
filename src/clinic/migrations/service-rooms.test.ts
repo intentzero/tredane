@@ -70,7 +70,7 @@ describe('migração 0042', () => {
         { service_id: 's-cat', mode: 'rooms', resource_id: '' },
         { service_id: 's-empty', mode: 'none', resource_id: '' },
         { service_id: 's-eq', mode: 'equipment', resource_id: 'eq' },
-        { service_id: 's-eq', mode: 'rooms', resource_id: '' },
+        { service_id: 's-eq', mode: 'none', resource_id: '' },
         { service_id: 's-none', mode: 'none', resource_id: '' },
         { service_id: 's-off', mode: 'room', resource_id: 'off' },
         { service_id: 's-off', mode: 'rooms', resource_id: '' },
