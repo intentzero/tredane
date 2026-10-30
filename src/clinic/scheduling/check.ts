@@ -92,6 +92,7 @@ export function checkSlotAvailability(
   // Troca pontual: roomResourceId no pedido; senão a sala da profissional.
   let roomId: string | null = input.roomResourceId ?? null
   let roomName: string | null = null
+  let groupRoomId: string | null = null
   if (!roomId) {
     const home = resolveHomeRoom(db, tenantId, pro, clock)
     roomId = home?.id ?? null
@@ -108,6 +109,10 @@ export function checkSlotAvailability(
       )
     }
     roomName = room.name
+    // S4: modo grupo nesta sala.
+    if (room.attendanceMode === 'uma_para_todas' && room.capacity > 1) {
+      groupRoomId = room.id
+    }
   }
 
   if (!serviceOfferingAllows(service.weeklyWindows, dayOfWeek, startMinute, occMins)) {
@@ -128,6 +133,7 @@ export function checkSlotAvailability(
       range,
       dayEndsAt,
       input.excludeAppointmentId,
+      groupRoomId,
     ),
   )
 

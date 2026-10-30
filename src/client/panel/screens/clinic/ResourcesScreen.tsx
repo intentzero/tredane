@@ -181,6 +181,9 @@ export function ResourceForm({
   const [capacity, setCapacity] = useState(String(existing?.capacity ?? 1))
   const [sharedNotice, setSharedNotice] = useState(existing?.sharedSpaceNotice ?? '')
   const [homeRoomId, setHomeRoomId] = useState<string | null>(existing?.homeRoomId ?? null)
+  const [attendanceMode, setAttendanceMode] = useState<'cada_profissional' | 'uma_para_todas'>(
+    existing?.attendanceMode === 'uma_para_todas' ? 'uma_para_todas' : 'cada_profissional',
+  )
   const [resourceKind, setResourceKind] = useState<'room' | 'equipment'>(
     existing?.kind === 'equipment' ? 'equipment' : 'room',
   )
@@ -364,7 +367,11 @@ export function ResourceForm({
           active,
           ...(kind === 'professional' ? { homeRoomId } : {}),
           ...(kind !== 'professional' && resourceKind === 'room'
-            ? { capacity: capacityNumber, sharedSpaceNotice: sharedNotice.trim() || null }
+            ? {
+                capacity: capacityNumber,
+                sharedSpaceNotice: sharedNotice.trim() || null,
+                attendanceMode: capacityNumber > 1 ? attendanceMode : 'cada_profissional',
+              }
             : {}),
         },
         {
@@ -499,13 +506,36 @@ export function ResourceForm({
               </TextField>
               <p className="clinic-footnote">
                 De 1 a 50. Com 1, a sala atende uma pessoa de cada vez — sem perguntas de modo nem de
-                sexo. Com mais de 1, o padrão é «Cada profissional com a sua cliente».
+                sexo.
               </p>
               {capacityValid && capacityNumber > 1 ? (
-                <p className="clinic-footnote" role="note">
-                  Modo desta sala: cada profissional com a sua cliente. (O modo «Uma profissional
-                  para todas» chega na próxima fatia.)
-                </p>
+                <>
+                  <PanelSelect
+                    className="clinic-field"
+                    label="Modo de atendimento"
+                    value={attendanceMode}
+                    onChange={(id) =>
+                      setAttendanceMode(
+                        id === 'uma_para_todas' ? 'uma_para_todas' : 'cada_profissional',
+                      )
+                    }
+                    options={[
+                      {
+                        id: 'cada_profissional' as const,
+                        label: 'Cada profissional com a sua cliente',
+                      },
+                      {
+                        id: 'uma_para_todas' as const,
+                        label: 'Uma profissional para todas',
+                      },
+                    ]}
+                  />
+                  <p className="clinic-footnote">
+                    {attendanceMode === 'uma_para_todas'
+                      ? 'A mesma profissional pode atender várias clientes nesta sala, até à capacidade. Não fica noutra sala no mesmo horário.'
+                      : 'Cada profissional trava só a si. A sala recusa quando chega à capacidade.'}
+                  </p>
+                </>
               ) : null}
               <TextField className="clinic-field">
                 <Label>Frase para a confirmação pelo WhatsApp (opcional)</Label>

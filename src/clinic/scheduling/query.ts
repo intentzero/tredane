@@ -200,6 +200,13 @@ export function queryAvailability(
     let chosen: AvailableSlot | null = null
 
     for (const pro of professionals) {
+      const room = resolveHomeRoom(db, tenantId, pro, clock)
+      if (!room) continue
+
+      // S4: modo grupo — a profissional não trava só a si nesta sala.
+      const groupRoomId =
+        room.attendanceMode === 'uma_para_todas' && room.capacity > 1 ? room.id : null
+
       const proReasons = resourceBusyReasons(
         db,
         tenantId,
@@ -210,6 +217,8 @@ export function queryAvailability(
         occMins,
         range,
         dayEndsAt,
+        undefined,
+        groupRoomId,
       )
       if (proReasons.length > 0) continue
       if (
@@ -225,9 +234,6 @@ export function queryAvailability(
       ) {
         continue
       }
-
-      const room = resolveHomeRoom(db, tenantId, pro, clock)
-      if (!room) continue
 
       const roomReasons = resourceBusyReasons(
         db,
