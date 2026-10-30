@@ -2,6 +2,8 @@
 
 **Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «vamos considerar estes casos de uso no sistema, prepara um epico de implementacao»). Este documento é o épico. Issue: [#284](https://github.com/intentzero/tredane/issues/284). S1 (docs) e S2 (audiência) em `main`. S3 (sala da profissional / salão partilhado) em implementação.
 
+**Revista em parte pela [DEC-082](../product/decisions.md) (Paulo, 30/10/2026, «concordo»).** A marcação nova ocupa uma sala livre da lista do serviço e uma profissional que faz o serviço e está livre. A sala na ficha da profissional deixa de escolher o horário. Sala exclusiva na profissional fica fora deste recorte. Capacidade, modo e audiência deste épico mantêm-se. «Qualquer sala livre» e a categoria saem da ficha (DEC-082). Uma sala nova só entra no serviço se a responsável a acrescentar. Serviços já gravados continuam a marcar: «Sem sala» passa a «Sem espaço definido»; «Qualquer sala livre» e a categoria viram a lista das salas ativas que já serviam. Uma sala nova não entra sozinha. Fica fechado na DEC-082: com todas as salas da lista desativadas, a marcação nova não aparece; as salas continuam na lista até a responsável reativar uma, escolher outra, ou passar a «Sem espaço definido».
+
 **Decisão:** [DEC-075](../product/decisions.md). Revisa só a frase «profissional atende 1 de cada vez» da [DEC-059](../product/decisions.md). Mantém DEC-008 (duração, intervalo, grade de 15 min), DEC-042 (só a responsável configura), DEC-011 (contexto da IA) e DEC-061 (marcação automática só pelo botão).
 
 **Onde vive o dado:** SQLite do Durable Object da clínica (DEC-038). Nada disto vai para o D1 central. Exemplos só com nomes fictícios (Gi, Ana, Bia, Sandra, colega).
@@ -17,7 +19,7 @@ Conferido no código da `main` (schema da clínica na versão 30). O que já est
 | Capacidade da sala, inteiro de 1 a 50, padrão 1. Equipamento e profissional devolvem capacidade 1. | Migração `0021_room_capacity`; `resourceCapacity` em `src/clinic/scheduling/occupancy.ts`; teste «valida limites: 1–50, só sala» | Não criar uma segunda capacidade. Não dar capacidade ao equipamento. |
 | Pico por bloco de 15 min. Lotado bloqueia. Reduzir a capacidade abaixo do já marcado avisa e não apaga. Sala de 1 lugar não mostra «1/1». | `peakConcurrent`, `listOverCapacitySlots`; testes em `src/clinic/scheduling/capacity.test.ts` | Manter o bloco de 15 min. O que muda, na fatia S3, é contar **pessoas** e não marcações. |
 | A mesma profissional não se sobrepõe, mesmo numa sala de capacidade 5. Duas profissionais diferentes já cabem na mesma sala se a capacidade permitir. | Testes «a profissional continua a atender uma pessoa de cada vez» e «capacidade 2: aceita duas pessoas e bloqueia a terceira no pico» | O modo padrão «Cada profissional com a sua cliente» é este comportamento. Não o reescrever como se a sala de capacidade > 1 ainda fosse exclusiva de uma profissional. |
-| A sala da marcação vem do serviço (`service_room_requirements`: `none`, `category`, `resource` ou `any`, migração 0023), não da profissional. A profissional não tem sala. | `resolveRooms` em `src/clinic/scheduling/query.ts`; `appointments.room_resource_id` | Passa a faltar: a sala é a da profissional escolhida (S3). O requisito de sala no serviço deixa de escolher a sala da marcação nova. |
+| A sala da marcação vem do serviço (`service_room_requirements`: `none`, `category`, `resource` ou `any`, migração 0023), não da profissional. A profissional não tem sala. | `resolveRooms` em `src/clinic/scheduling/query.ts`; `appointments.room_resource_id` | Passa a faltar na S3, e **fica revisto pela DEC-082 (30/10/2026, «concordo»)**: a marcação nova ocupa uma sala livre da lista do serviço. A sala na profissional deixa de escolher o horário. Capacidade, modo e partilha mantêm-se. |
 | O pico conta intervalos de marcação, não pessoas distintas. Dois serviços da mesma pessoa no mesmo bloco contam hoje como duas vagas. | `peakConcurrent` soma intervalos que se sobrepõem ao bloco | Passa a faltar: a mesma pessoa no mesmo bloco conta 1 (S3). |
 | Contato sem sexo: `contacts` tem `id`, `tenant_id`, `wa_id`, `display_name`, `created_at` (migração 0001). | `src/clinic/migrations/0001_clinic_foundation.ts` | Não acrescentar coluna de sexo. |
 | Serviço sem audiência. Catálogo da IA: nome, duração, preço e explicação para clientes. | Tabela `services` (migração 0003); `AiCatalogService` em `src/ai/types.ts` | Passa a faltar: audiência (S2) e o filtro de linha (S6). |
@@ -86,7 +88,7 @@ S1 → S2 → S3 → S4 → S5 → S6. Cada fatia é verificável sozinha com da
 
 ## S3 — Sala da profissional e partilha
 
-**Comportamento.** Cada profissional tem uma sala (M-21). Várias profissionais podem apontar para a mesma sala. A sala não é exclusiva. A marcação nova cai na sala da profissional escolhida. A equipa pode trocar a sala só naquela marcação; as seguintes voltam à sala da profissional. Com capacidade 1 não há perguntas de modo nem de sexo: uma cliente e uma profissional (caso da Gi). Com capacidade maior, o padrão «Cada profissional com a sua cliente» fica visível (o modo grupo é a S4; aqui só se prova o padrão).
+**Comportamento.** **Revisto pela DEC-082 (30/10/2026, «concordo»).** A marcação nova ocupa uma sala livre da lista do serviço, com uma profissional que faz o serviço e está livre. A sala na ficha da profissional deixa de escolher o horário. A equipa pode trocar a sala só naquela marcação, para outra sala do mesmo serviço; as seguintes voltam a uma sala livre da lista. Várias profissionais podem usar a mesma sala quando a capacidade chega. Com capacidade 1 não há perguntas de modo nem de sexo: uma cliente e uma profissional (caso da Gi). Com capacidade maior, o padrão «Cada profissional com a sua cliente» fica visível (o modo grupo é a S4; aqui só se prova o padrão).
 
 **Regras.**
 
@@ -94,20 +96,20 @@ S1 → S2 → S3 → S4 → S5 → S6. Cada fatia é verificável sozinha com da
 - Dois serviços da **mesma pessoa** no mesmo bloco contam como uma pessoa. Duas marcações sem o mesmo contato contam como duas pessoas (na dúvida, não fundir).
 - A sala recusa quando o pico de pessoas distintas no bloco de 15 min chega à capacidade.
 - Uma profissional não ocupa a vaga da outra.
-- O requisito de sala no serviço (`category`, `resource`, `any`) deixa de escolher a sala da marcação nova. Equipamento exigido pelo serviço continua uma vaga, sem capacidade (DEC-059).
+- O requisito de sala no serviço escolhe a sala da marcação nova (DEC-082): uma sala livre da lista. Equipamento exigido pelo serviço continua uma vaga, sem capacidade (DEC-059).
 - Capacidade 1 não mostra modo nem «Mesmo sexo neste horário».
-- Se a migração não conseguir uma sala única e inequívoca para a profissional (os serviços ativos dela não apontam todos para a mesma sala em modo `resource`), a sala fica por preencher e a marcação nova dessa profissional espera a responsável escolher. Compromissos antigos não mudam de sala.
+- Compromissos antigos não mudam de sala. A marcação nova não espera uma sala na profissional.
 
-**Dados por tenant.** Na profissional, referência à sala da mesma clínica. Na marcação, `room_resource_id` continua a ser a sala daquele compromisso (a da profissional, ou a troca pontual). Contagem por `contact_id` dentro do bloco; sem contato, cada marcação é uma pessoa. Isolado por `tenant_id`.
+**Dados por tenant.** Na marcação, `room_resource_id` é uma sala da lista do serviço naquele compromisso, ou a troca pontual para outra sala do mesmo serviço. A profissional não precisa de sala para a marcação nova. Contagem por `contact_id` dentro do bloco; sem contato, cada marcação é uma pessoa. Isolado por `tenant_id`.
 
 **Tempo real.** Confirmar, cancelar, reagendar ou trocar a sala da marcação reutiliza `appointment.confirmed`, `appointment.cancelled` e `appointment.rescheduled`. Duas sessões da clínica vêem a mudança; a outra clínica não. Horário que enche deixa de aparecer no Agendar pela mesma reconciliação já usada (DEC-057, REQ-041).
 
 **Critérios de aceite.**
 
-- [ ] Gi tem a sala Depilação (capacidade 1). A colega tem a sala Massagem (capacidade 1). Depilação é feita pela Gi; massagem, pela Gi e pela colega. Massagem com a Gi usa a sala da Gi. Massagem com a colega usa a sala de Massagem.
-- [ ] Gi em depilação às 9h não massaja às 9h. A colega massaja às 9h na sala dela.
-- [ ] A equipa troca a sala só numa marcação da Gi. A marcação seguinte da Gi volta à sala Depilação.
-- [ ] Ana e Bia apontam para a mesma sala, capacidade 2, modo «Cada profissional com a sua cliente». Às 9h cada uma tem uma cliente. A terceira pessoa não entra. Ana não fica com a cliente da Bia, nem o contrário.
+- [ ] «Depilação» lista a Sala depilação. «Massagem» lista o Espaço Bronzeamento e a Sala depilação. A Gi faz os dois. Massagem com a Gi às 10:00, com as duas salas livres, usa a primeira por ordem de nome. Com a Sala depilação ocupada, usa o Espaço Bronzeamento.
+- [ ] Gi em depilação às 9h não massaja às 9h, nem noutra sala.
+- [ ] A equipa troca a sala só numa marcação da Gi, para outra sala desse serviço. A marcação seguinte volta a uma sala livre da lista.
+- [ ] O serviço lista a sala partilhada, capacidade 2, modo «Cada profissional com a sua cliente». A Ana e a Bia fazem esse serviço. Às 9h cada uma tem uma cliente. A terceira pessoa não entra. Ana não fica com a cliente da Bia, nem o contrário.
 - [ ] A mesma cliente com dois serviços da Ana no mesmo bloco ocupa uma pessoa, e a Bia ainda cabe na capacidade 2.
 - [ ] Sala de capacidade 1 não mostra as duas escolhas nem «Mesmo sexo neste horário».
 - [ ] Equipamento continua a recusar uma segunda marcação sobreposta, sem campo de capacidade.
@@ -118,7 +120,7 @@ S1 → S2 → S3 → S4 → S5 → S6. Cada fatia é verificável sozinha com da
 
 **Comportamento.** Sala com capacidade maior que 1 mostra duas escolhas. O padrão continua «Cada profissional com a sua cliente» (S3). A outra é «Uma profissional para todas»: a mesma profissional ocupa várias vagas naquela sala, até à capacidade, e não está noutra sala no mesmo bloco.
 
-**Regras.** Contagem de pessoas da S3. A profissional no modo grupo pode ter N pessoas distintas na sala dela e zero noutra sala nesse bloco. Não se exige uma segunda profissional. Não se cria capacidade à parte na profissional. Capacidade 1 não oferece esta escolha. Equipamento não tem modo.
+**Regras.** Contagem de pessoas da S3. A profissional no modo grupo pode ter N pessoas distintas nessa sala e zero noutra sala nesse bloco. Não se exige uma segunda profissional. Não se cria capacidade à parte na profissional. Capacidade 1 não oferece esta escolha. Equipamento não tem modo.
 
 **Dados por tenant.** O modo fica na sala, no SQLite da clínica. Padrão `cada_profissional` (S1). Escrita só pela responsável.
 
