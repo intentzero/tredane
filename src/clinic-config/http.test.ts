@@ -254,7 +254,7 @@ describe('HTTP — configuração da clínica (#28)', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: 'Ruim',
-            durationMinutes: 17,
+            durationMinutes: 0,
             bufferMinutes: 0,
             professionalIds: [],
           }),

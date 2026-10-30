@@ -45,10 +45,6 @@ export function parsePriceToCents(value: string): number | null {
   return Math.round(n * 100)
 }
 
-export function durationOptions(): number[] {
-  return [15, 30, 45, 60, 75, 90, 105, 120]
-}
-
 export function bufferOptions(): number[] {
   return [0, 15, 30, 45, 60]
 }
