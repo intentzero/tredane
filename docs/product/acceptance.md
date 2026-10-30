@@ -42,9 +42,9 @@
 
 ### AC-09 — Conflito de sala, profissional ou equipamento
 
-**Revisto em 29/10/2026 (DEC-075).** A recusa deixa de ser «qualquer sobreposição na profissional ou na sala».
+**Revisto em 30/10/2026 (DEC-082).** A marcação nova cai numa sala livre da lista do serviço, com uma profissional que faz o serviço e está livre. Se várias salas estão livres, entra a primeira por ordem de nome. A sala da profissional deixa de escolher.
 
-**Dado** a sala da profissional, com capacidade e modo; **quando** a equipa confirma uma marcação; **então** ela cai nessa sala e só é recusada se a sala passar da capacidade, a profissional já estiver noutra sala nesse bloco, o modo «Cada profissional com a sua cliente» já tiver essa profissional com outra cliente, o modo grupo a puser noutra sala, ou o sexo do bloco não coincidir sem «Permitir os dois». Dois serviços da mesma pessoa no mesmo bloco contam como uma pessoa. Equipamento continua uma vaga. **Requisitos:** REQ-030, REQ-031, DEC-075. Casos Gi, salão e Sandra: [épico](../implementation/epic-salas-audiencia.md). **Pendente:** durações e buffers da clínica piloto.
+**Dado** «Depilação» nas salas «Sala depilação» e «Espaço Bronzeamento», feitas pela Gi e pela Ana; **quando** a equipa confirma às 10:00 com a Gi e as duas salas livres; **então** a marcação fica com a Gi na primeira sala por ordem de nome. Com a Sala depilação ocupada e o Espaço Bronzeamento livre, a Gi fica no Espaço Bronzeamento. A marcação só é recusada se nenhuma sala da lista tiver vaga, a profissional já estiver ocupada nesse bloco (mesmo noutra sala), o modo «Cada profissional com a sua cliente» já tiver essa profissional com outra cliente, o modo grupo a puser noutra sala, ou o sexo do bloco não coincidir sem «Permitir os dois». Dois serviços da mesma pessoa no mesmo bloco contam como uma pessoa. Equipamento continua uma vaga. **Requisitos:** REQ-030, REQ-031, REQ-096, DEC-075, DEC-082. **Pendente:** durações e buffers da clínica piloto.
 
 ### AC-10 — Cancelamento e reagendamento
 
@@ -164,7 +164,7 @@
 
 ### AC-38 — Cadastro de recursos da agenda
 
-**Dado** o responsável da clínica A; **quando** cadastra uma profissional, uma sala com a categoria exigida por um serviço e o expediente de ambas; **então** a agenda passa a oferecer horários desse serviço com os dois recursos livres. **Quando** desativa a única sala dessa categoria, o serviço deixa de oferecer novos horários e os compromissos futuros permanecem marcados. Um atendente não consegue cadastrar, editar ou desativar recursos. **Requisitos:** REQ-002, REQ-030, REQ-052.
+**Dado** o responsável da clínica A; **quando** cadastra uma profissional, um serviço com uma ou mais salas (DEC-082) e o expediente da profissional; **então** a agenda oferece horários quando a profissional e uma sala da lista estão livres. «Sem espaço definido» oferece horário sem sala. **Quando** desativa todas as salas da lista, o serviço deixa de oferecer horários novos e os compromissos futuros permanecem. Reativar uma sala volta a oferecê-la. Um atendente não consegue cadastrar, editar ou desativar recursos. **Requisitos:** REQ-002, REQ-030, REQ-052, REQ-096.
 
 ### AC-39 — Conexão do WhatsApp interrompida
 
@@ -267,6 +267,10 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 ### AC-69 — Combos de variantes (Confirmado, DEC-080)
 
 **Dado** o combo «Buço + axila» a R$ 70,00 com as variantes a R$ 35,00 e R$ 50,00; **quando** a visita escolhe as duas; **então** o total é R$ 70,00, a duração é a soma mais o intervalo uma vez e a cópia guarda o combo (R$ 70,00; soma R$ 85,00). **Dado** a visita escolhe também «Meia perna» (R$ 90,00); **então** o total é R$ 160,00. **Dado** uma só das duas; **então** não há combo. **Dado** dois combos que cabem; **então** vale o de maior desconto, só um. **Dado** o preço de uma variante cai e o combo deixa de ser mais barato; **então** ele deixa de se aplicar e o painel avisa. **Dado** uma proposta aberta cujo total mudou por causa do combo; **então** o clique é negado como mudança material. **Dado** um combo com variante masculina e feminina, de outro serviço, com menos de 2 variantes, sem preço ou com nome repetido; **então** nada é gravado. **Dado** um combo que já entrou numa visita; **então** não se apaga, só se desativa. **Requisitos:** REQ-095.
+
+### AC-70 — Salas do serviço (Confirmado, DEC-082)
+
+**Dado** a responsável a criar o serviço fictício «Depilação» sem sala e sem «Sem espaço definido»; **quando** grava; **então** a gravação é recusada e o serviço não existe. **Dado** ela marca «Espaço Bronzeamento» e «Sala depilação»; **então** as duas ficam no serviço. **Dado** ela escolhe «Sem espaço definido»; **então** o serviço grava sem sala e as salas anteriores saem. Marcar de novo uma sala tira «Sem espaço definido». Sala inativa, equipamento, sala de outra clínica, «Qualquer sala livre» ou categoria é recusado e nada muda. A atendente não grava. Clínica B não lê as salas de A. Um compromisso já marcado não muda de sala. **Dado** «Depilação» com «Espaço Bronzeamento» e «Sala depilação», e a Gi a fazer o serviço; **quando** as duas salas estão livres às 10:00; **então** a marcação fica com a Gi na primeira sala por ordem de nome. Com uma delas ocupada, fica na outra. Trocar a sala dessa marcação para uma sala fora da lista é recusado. **Dado** «Depilação» já gravada em «Sem sala», «Massagem» em «Qualquer sala livre» com as salas ativas «Sala depilação» e «Espaço Bronzeamento», e «Laser» na categoria «Laser» cuja única sala ativa é «Sala laser»; **quando** a migração corre; **então** «Depilação» fica «Sem espaço definido» e continua a marcar sem sala, «Massagem» fica com as duas salas e «Laser» fica com «Sala laser». Uma sala criada depois não entra em «Massagem». Compromissos já marcados não mudam de sala. **Dado** uma categoria sem sala ativa; **então** a lista fica vazia — salas inativas dessa categoria não entram — e a marcação nova espera a responsável escolher. **Dado** «Depilação» na Sala depilação e no Espaço Bronzeamento, com as duas salas desativadas; **então** a marcação nova não aparece, as duas salas continuam na lista, e um compromisso já marcado fica. Reativar a Sala depilação volta a oferecê-la. **Requisitos:** REQ-096.
 
 ### AC-61 — Migração do bloco Tempo em Tanto faz (Confirmado, DEC-077)
 
