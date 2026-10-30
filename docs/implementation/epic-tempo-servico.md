@@ -1,6 +1,6 @@
 # Épico — Bloco Tempo no serviço (DEC-077)
 
-**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). S1 está na migração `0033_service_tempo`. S2 grava o local no hub. S3 grava o bloco na ficha do serviço. S4 avalia a hora (`src/clinic/tempo/evaluate.ts`); a agenda ainda não filtra. S5 a S7 não estão implementadas.
+**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). S1 está na migração `0033_service_tempo`. S2 grava o local no hub. S3 grava o bloco na ficha do serviço. S4 avalia a hora (`src/clinic/tempo/evaluate.ts`). S5 omite a hora no caminho automático e recusa o clique (`recusada_tempo`); a grade da equipe continua a mostrar a hora. S6 e S7 não estão implementadas.
 
 **Decisão:** [DEC-077](../product/decisions.md). A DEC-076 já está na `main` (duração do procedimento não se ajusta ao agendar) e não é este bloco. Mantém DEC-008 (duração, intervalo, grade de 15 min, fuso da clínica), DEC-042 (só a responsável configura), DEC-011 (contexto da IA), DEC-061 (marcação automática só pelo botão) e DEC-075 (sala, capacidade, modo, audiência e mesmo sexo ficam de fora deste bloco).
 
@@ -190,13 +190,13 @@ O adaptador fala com o provedor e devolve só símbolo de céu e temperatura int
 
 **Critérios de aceite.** AC-65.
 
-- [ ] Bronzeamento com Sol e Acima de 24, local em Campinas, previsão fictícia de céu limpo e 25 °C às 15h: a vaga automática inclui 15h. Com 22 °C ou céu encoberto, 15h sai da lista automática e não nasce proposta para as 15h.
-- [ ] A mesma hora, no modo da equipe, continua na resposta, com aviso (o texto visível é a S6).
-- [ ] Proposta criada com tempo que servia. No clique, a função devolve não serve ou indisponível, inclusive num serviço com `roomRequirement.mode === 'none'`: estado `recusada_tempo`, resultado `tempo_refused`, nenhum compromisso, nenhuma cobrança, frase «Nesse horário o tempo não serve para este serviço. A equipe envia outra opção em breve.» ou «Não deu para confirmar o tempo nesse horário. A equipe envia outra opção em breve.». A frase não diz percentagem nem número de vagas. Não passa por `recusada_vaga`.
-- [ ] A responsável muda o bronzeamento de Sol para Chuva com a proposta ainda enviada. `materialDrift` vê a mudança. A proposta não confirma e não responde com a frase de horário ocupado.
-- [ ] Clique com horário ocupado de verdade continua «Horário já não está livre…», distinto da frase de tempo.
-- [ ] Depilação em Tanto faz, sem local na clínica, continua a oferecer horários.
-- [ ] Bronzeamento com Sol e clínica sem local: a lista automática desse serviço vem vazia.
+- [x] Bronzeamento com Sol e Acima de 24, local em Campinas, previsão fictícia de céu limpo e 25 °C às 15h: a vaga automática inclui 15h. Com 22 °C ou céu encoberto, 15h sai da lista automática e não nasce proposta para as 15h.
+- [x] A mesma hora, no modo da equipe, continua na resposta, com aviso (o texto visível é a S6).
+- [x] Proposta criada com tempo que servia. No clique, a função devolve não serve ou indisponível, inclusive num serviço com `roomRequirement.mode === 'none'`: estado `recusada_tempo`, resultado `tempo_refused`, nenhum compromisso, nenhuma cobrança, frase «Nesse horário o tempo não serve para este serviço. A equipe envia outra opção em breve.» ou «Não deu para confirmar o tempo nesse horário. A equipe envia outra opção em breve.». A frase não diz percentagem nem número de vagas. Não passa por `recusada_vaga`.
+- [x] A responsável muda o bronzeamento de Sol para Chuva com a proposta ainda enviada. `materialDrift` vê a mudança. A proposta não confirma e não responde com a frase de horário ocupado.
+- [x] Clique com horário ocupado de verdade continua «Horário já não está livre…», distinto da frase de tempo.
+- [x] Depilação em Tanto faz, sem local na clínica, continua a oferecer horários.
+- [x] Bronzeamento com Sol e clínica sem local: a lista automática desse serviço vem vazia.
 
 ---
 
@@ -269,6 +269,6 @@ Serviço «Bronzeamento», Sol e Acima de 24 °C. Clínica com cidade. Às 15h, 
 
 ## O que este épico não fecha
 
-O provedor e o corte numérico ficam na spec do adaptador (`src/clinic/tempo/open-meteo.ts`): Open-Meteo, percentagem sem código só vira chuva a partir de 60, e esse número não entra na interface nem na DEC-077. Valores reais da clínica piloto. Revisão jurídica antes de dados reais (GATE-04). S1 é a migração `0033_service_tempo`. S2 grava o local no hub (`PUT /config/forecast-place`). S3 grava céu e temperatura no serviço. S4 avalia e não filtra a agenda. S5 a S7 seguem, um PR por fatia.
+O provedor e o corte numérico ficam na spec do adaptador (`src/clinic/tempo/open-meteo.ts`): Open-Meteo, percentagem sem código só vira chuva a partir de 60, e esse número não entra na interface nem na DEC-077. Valores reais da clínica piloto. Revisão jurídica antes de dados reais (GATE-04). S1 é a migração `0033_service_tempo`. S2 grava o local no hub (`PUT /config/forecast-place`). S3 grava céu e temperatura no serviço. S4 avalia. S5 filtra o automático e o clique (`0036_proposal_tempo_state`). S6 e S7 seguem, um PR por fatia.
 
 **Aceite por fatia:** S1 AC-61; S2 AC-62 (REQ-089); S3 AC-63 (REQ-090); S4 AC-64 (REQ-091); S5 AC-65 (REQ-092); S6 AC-66 (REQ-092); S7 AC-67 (REQ-093). Jornadas: JRN-03, JRN-08, JRN-17.

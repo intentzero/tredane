@@ -243,7 +243,7 @@ async function confirmClick(
 
 describe('S5: schema e chaves', () => {
   it('mantém CLINIC_SCHEMA_VERSION e prefixos estáveis', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(35)
+    expect(CLINIC_SCHEMA_VERSION).toBe(36)
     expect(PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX).toBe('proposal.book:')
     expect(PROPOSAL_PIX_CLIENT_REQUEST_PREFIX).toBe('proposal.pix:')
     expect(proposalBookClientRequestId('p1', 2)).toBe('proposal.book:p1:v2')
@@ -455,6 +455,12 @@ describe('S5: book sem sinal', () => {
       expect(result.status).toBe('slot_refused')
       if (result.status !== 'slot_refused') return
       expect(result.proposal.state).toBe('recusada_vaga')
+      const bodies = s.db.all<{ body: string }>(
+        `SELECT body FROM messages WHERE tenant_id = ?`,
+        s.tenantId,
+      )
+      expect(bodies.some((row) => row.body.includes('Horário já não está livre'))).toBe(true)
+      expect(bodies.some((row) => row.body.includes('tempo não serve'))).toBe(false)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(1)
     } finally {
       s.close()

@@ -37,7 +37,10 @@ import {
   markProposalConfirmed,
   markProposalForwarded,
   markProposalSlotRefused,
+  markProposalTempoRefused,
 } from './proposals'
+import { evaluateServiceTempo, type ForecastAdapter } from '../tempo/evaluate'
+import { readOpenMeteo } from '../tempo/open-meteo'
 import { sendProposalResultMessageOp, type SendProposalResultOutcome } from './results'
 import type { AppointmentProposalRow } from './types'
 
@@ -87,6 +90,13 @@ export type ExecuteProposalConfirmResult =
       idempotentReplay: boolean
     }
   | {
+      status: 'tempo_refused'
+      proposal: AppointmentProposalRow
+      result: SendProposalResultOutcome
+      outbox: OutboxRow[]
+      idempotentReplay: boolean
+    }
+  | {
       status: 'pix_signal'
       proposal: AppointmentProposalRow
       charge: PixChargeRow
@@ -117,6 +127,8 @@ export type ExecuteProposalConfirmInput = {
 export type ExecuteProposalConfirmDeps = {
   /** Obrigatório quando a proposta exige sinal. */
   pixAdapter?: PixProviderAdapter
+  /** Previsão do clique. Omisso = Open-Meteo. Testes injetam uma leitura fictícia. */
+  forecast?: ForecastAdapter
 }
 
 function collectOutbox(
@@ -150,6 +162,9 @@ function materialDrift(
     const pro = getResource(db, tenantId, proposal.professionalId, clock)
     if (!pro || pro.kind !== 'professional' || !pro.active) return true
   }
+  if (service.tempoCeu !== proposal.tempoCeu) return true
+  if (service.tempoTemperatura !== proposal.tempoTemperatura) return true
+  if ((service.tempoCelsius ?? null) !== (proposal.tempoCelsius ?? null)) return true
   return false
 }
 
@@ -176,6 +191,7 @@ function resolveRoomForProposal(
       date,
       professionalId: proposal.professionalId ?? undefined,
       ...(snaps.length > 0 ? { durationMinutesOverride: proposal.durationMinutes } : {}),
+      tempoMode: 'equipe',
     },
     clock,
   )
@@ -229,7 +245,7 @@ async function ensureResult(
   db: ClinicDb,
   caller: ClinicCaller,
   proposalId: string,
-  resultKind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired',
+  resultKind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired' | 'tempo_refused' | 'tempo_unconfirmed',
   clock: Clock,
 ): Promise<SendProposalResultOutcome> {
   return sendProposalResultMessageOp(
@@ -337,6 +353,18 @@ export async function executeProposalConfirmOp(
     }
   }
 
+  if (proposal?.state === 'recusada_tempo') {
+    const kind = proposal.resultKind === 'tempo_unconfirmed' ? 'tempo_unconfirmed' : 'tempo_refused'
+    const result = await ensureResult(db, caller, proposal.id, kind, clock)
+    return {
+      status: 'tempo_refused',
+      proposal,
+      result,
+      outbox: collectOutbox('outbox' in result ? result.outbox : []),
+      idempotentReplay: true,
+    }
+  }
+
   if (!input.capability) {
     return {
       status: 'denied',
@@ -417,6 +445,26 @@ export async function executeProposalConfirmOp(
 
   const contact = getContact(db, meta.tenantId, proposal.contactId)
   const contactLabel = contact?.displayName ?? proposal.beneficiaryName
+
+  const tempo = await evaluateServiceTempo(
+    db,
+    meta.tenantId,
+    { serviceId: proposal.serviceId, startsAt: proposal.startsAt },
+    deps.forecast ?? { read: readOpenMeteo },
+    clock,
+  )
+  if (tempo.outcome !== 'serve') {
+    const refused = markProposalTempoRefused(db, meta.tenantId, proposal.id, clock)
+    const kind = tempo.outcome === 'nao_serve' ? 'tempo_refused' : 'tempo_unconfirmed'
+    const result = await ensureResult(db, caller, refused.id, kind, clock)
+    return {
+      status: 'tempo_refused',
+      proposal: refused,
+      result,
+      outbox: collectOutbox('outbox' in result ? result.outbox : []),
+      idempotentReplay: false,
+    }
+  }
 
   const roomResourceId = resolveRoomForProposal(db, meta.tenantId, proposal, clock)
   const service = getService(db, meta.tenantId, proposal.serviceId)

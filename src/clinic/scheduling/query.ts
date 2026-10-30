@@ -319,5 +319,19 @@ export function queryAvailability(
     if (chosen) slots.push(chosen)
   }
 
-  return empty(slots)
+  const mode = input.tempoMode ?? 'equipe'
+  const visible = mode === 'automatico'
+    ? slots.filter((slot) => keepsTempo(service, slot.startsAt, input.tempoKeeps))
+    : slots
+  return empty(visible)
+}
+
+function keepsTempo(
+  service: NonNullable<ReturnType<typeof getService>>,
+  startsAt: number,
+  keeps: ((startsAt: number) => boolean) | undefined,
+): boolean {
+  if (service.tempoCeu === 'tanto_faz' && service.tempoTemperatura === 'tanto_faz') return true
+  if (!keeps) return false
+  return keeps(startsAt)
 }

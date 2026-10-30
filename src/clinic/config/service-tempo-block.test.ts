@@ -12,7 +12,7 @@ import { insertMessage } from '../inbox/messages'
 import { upsertContact } from '../contacts'
 
 describe('bloco Tempo no serviço (S3)', () => {
-  it('não infere pelo nome, limpa os graus e não entra no catálogo da IA', () => {
+  it('não infere pelo nome, limpa os graus e não entra no catálogo da IA', async () => {
     const clock = createControllableClock(Date.UTC(2024, 0, 1))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -106,7 +106,7 @@ describe('bloco Tempo no serviço (S3)', () => {
         },
         clock,
       )
-      const built = buildAiContextPayload(db, 'clinic-demo-a', conv.id)
+      const built = await buildAiContextPayload(db, 'clinic-demo-a', conv.id)
       const raw = JSON.stringify(built.payload)
       expect(raw).not.toMatch(/tempo_ceu|tempoCeu|tempoCelsius|tempo_celsius|percentagem/)
       expect(built.payload.services.map((s) => s.name).sort()).toEqual([

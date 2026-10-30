@@ -37,7 +37,7 @@ function sanitizeCatalogField(value: string | null | undefined): string | null {
  * Constrói contexto mínimo autorizado (REQ-072 / AC-37 / S8 #179).
  * Exclui: telefone/wa_id, anexos, outras conversas, outros tenants, tokens/credenciais.
  */
-export function buildAiContextPayload(
+export async function buildAiContextPayload(
   db: ClinicDb,
   tenantId: string,
   conversationId: string,
@@ -47,7 +47,7 @@ export function buildAiContextPayload(
     clock?: Clock
     clinicName?: string | null
   } = {},
-): {
+): Promise<{
   payload: AiContextPayload
   contactId: string
   /** Última mensagem da cliente (a que o rascunho responde). */
@@ -58,7 +58,7 @@ export function buildAiContextPayload(
     attachmentCount: number
     otherConversationIds: string[]
   }
-} {
+}> {
   const conversation = getConversation(db, tenantId, conversationId)
   if (!conversation) {
     throw new NotFoundError('conversation_not_found', 'Conversa não encontrada')
@@ -123,7 +123,7 @@ export function buildAiContextPayload(
     clinicOutboundCount: countClinicOutbound(contextMessages),
   }
   if (opts.clock) {
-    payload.clinic = buildClinicAiContext(db, tenantId, opts.clock, {
+    payload.clinic = await buildClinicAiContext(db, tenantId, opts.clock, {
       clinicName: opts.clinicName ?? null,
       contactId: contact.id,
       recentTexts: messages.map((m) => m.body),

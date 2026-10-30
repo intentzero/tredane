@@ -46,7 +46,7 @@ import type {
 export type SuggestResult = {
   suggestion: AiSuggestionRow
   /** Payload exacto inspecionado (AC-37) — sem PII proibida. */
-  contextInspection: ReturnType<typeof buildAiContextPayload>
+  contextInspection: Awaited<ReturnType<typeof buildAiContextPayload>>
   gatewayInspection: ReturnType<AiProviderAdapter['lastInspection']>
   duplicate: boolean
   /** Sempre false — a IA nunca envia. */
@@ -74,7 +74,7 @@ function storedCommandRef(suggestionId: string): StoredAiCommandV2 {
   return { v: 2, suggestionId, messageSent: false }
 }
 
-function hydrateSuggestFromCommand(
+async function hydrateSuggestFromCommand(
   db: ClinicDb,
   tenantId: string,
   conversationId: string,
@@ -82,7 +82,7 @@ function hydrateSuggestFromCommand(
   clock: Clock,
   deps: AiAssistDeps,
   kind: 'reply' | 'summary',
-): SuggestResult {
+): Promise<SuggestResult> {
   assertAiCommandResultMinimized(resultJson)
   const parsed = JSON.parse(resultJson) as StoredAiCommandV2 | SuggestResult
   const suggestionId =
@@ -96,7 +96,7 @@ function hydrateSuggestFromCommand(
   if (!suggestion || suggestion.conversationId !== conversationId) {
     throw new NotFoundError('suggestion_not_found', 'Sugestão não encontrada')
   }
-  const contextInspection = buildAiContextPayload(db, tenantId, conversationId, {
+  const contextInspection = await buildAiContextPayload(db, tenantId, conversationId, {
     ...(kind === 'reply' ? { clock, clinicName: deps.clinicName ?? null } : {}),
   })
   assertContextMinimized(contextInspection.payload)
@@ -143,7 +143,7 @@ async function runGenerate(
   const cached =
     origin === 'manual' ? findAiCommand(db, meta.tenantId, input.clientRequestId) : null
   if (cached) {
-    return hydrateSuggestFromCommand(
+    return await hydrateSuggestFromCommand(
       db,
       meta.tenantId,
       input.conversationId,
@@ -176,7 +176,7 @@ async function runGenerate(
     }
   }
 
-  const contextInspection = buildAiContextPayload(
+  const contextInspection = await buildAiContextPayload(
     db,
     meta.tenantId,
     input.conversationId,

@@ -161,7 +161,14 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)
       const result = await gw.queryAvailability(
         callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
-        { serviceId, date, professionalId, excludeHoldId, durationMinutesOverride },
+        {
+          serviceId,
+          date,
+          professionalId,
+          excludeHoldId,
+          durationMinutesOverride,
+          tempoMode: 'equipe',
+        },
       )
       return c.json(serializeAvailability(result))
     } catch (err) {

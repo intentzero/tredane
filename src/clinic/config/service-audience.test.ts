@@ -102,7 +102,7 @@ describe('audiência do serviço (S2)', () => {
     }
   })
 
-  it('catálogo da IA inclui audiência; pedido explícito filtra; contacto sem sexo', () => {
+  it('catálogo da IA inclui audiência; pedido explícito filtra; contacto sem sexo', async () => {
     const clock = createControllableClock(Date.UTC(2024, 0, 1))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -170,7 +170,7 @@ describe('audiência do serviço (S2)', () => {
         clock,
       )
 
-      const built = buildAiContextPayload(db, 'clinic-demo-a', conv.id)
+      const built = await buildAiContextPayload(db, 'clinic-demo-a', conv.id)
       expect(built.payload.services.map((s) => s.name).sort()).toEqual([
         'Bronzeamento feminino',
         'Depilação',

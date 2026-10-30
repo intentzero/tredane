@@ -28,8 +28,10 @@ import { getConversation } from '../inbox/conversations'
 import type { OutboxRow } from '../outbox'
 import { createProposal } from '../proposals/proposals'
 import { sendProposalToWhatsAppOp } from '../proposals/send'
-import { queryAvailability } from '../scheduling/query'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
+import { queryAutomaticAvailability } from '../tempo/automatic'
+import type { ForecastAdapter } from '../tempo/evaluate'
+import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import { checkConversationProtection } from './protection'
@@ -308,7 +310,7 @@ function brl(cents: number): string {
  * Tenta marcar pela IA para a conversa. Não lança: devolve o resultado.
  * Idempotente por mensagem de confirmação (clientRequestId = ai-autobook:<messageId>).
  */
-export function tryAiAutoBook(
+export async function tryAiAutoBook(
   db: ClinicDb,
   caller: ClinicCaller,
   clock: Clock,
@@ -323,8 +325,10 @@ export function tryAiAutoBook(
     capability?: boolean
     /** Limites S7 ao criar proposta (opcional). */
     abuseLimits?: AbuseLimits
+    /** Previsão fictícia nos testes. Omisso = Open-Meteo. */
+    forecast?: ForecastAdapter
   },
-): AutoBookOutcome {
+): Promise<AutoBookOutcome> {
   const tenantId = caller.tenantId
   const none = (status: AutoBookStatus, extra: Partial<AutoBookOutcome> = {}): AutoBookOutcome => ({
     status,
@@ -436,7 +440,7 @@ export function tryAiAutoBook(
 
   // S2 / DEC-061: texto livre NUNCA marca. Com capacidade ligada, monta+envia proposta versionada
   // (botão WhatsApp); o clique (S5) é que marca ou inicia Pix. Sem capacidade → só nota à atendente.
-  const avail = queryAvailability(
+  const avail = await queryAutomaticAvailability(
     db,
     tenantId,
     {
@@ -445,6 +449,7 @@ export function tryAiAutoBook(
       ...(quote.zones.length > 0 ? { durationMinutesOverride: quote.durationMinutes } : {}),
     },
     clock,
+    input.forecast ?? { read: readOpenMeteo },
   )
   const slot = avail.slots.find((s) => localHHMM(tz, s.startsAt) === time)
 

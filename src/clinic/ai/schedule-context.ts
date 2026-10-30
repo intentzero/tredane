@@ -13,8 +13,10 @@ import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import type { ClinicDb } from '../store'
-import { queryAvailability } from '../scheduling/query'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
+import { queryAutomaticAvailability } from '../tempo/automatic'
+import type { ForecastAdapter } from '../tempo/evaluate'
+import { readOpenMeteo } from '../tempo/open-meteo'
 
 export const AI_FREE_SLOT_DAYS = 7
 export const AI_FREE_SLOT_MAX_SERVICES = 3
@@ -91,7 +93,7 @@ function thin(mins: number[]): number[] {
   return out
 }
 
-export function buildClinicAiContext(
+export async function buildClinicAiContext(
   db: ClinicDb,
   tenantId: string,
   clock: Clock,
@@ -99,8 +101,9 @@ export function buildClinicAiContext(
     clinicName?: string | null
     contactId: string
     recentTexts: string[]
+    forecast?: ForecastAdapter
   },
-): AiClinicContext {
+): Promise<AiClinicContext> {
   const settings = ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
   const now = clock.nowMs()
@@ -148,7 +151,13 @@ export function buildClinicAiContext(
       const date = addDays(today, i)
       let times: string[] = []
       try {
-        const r = queryAvailability(db, tenantId, { serviceId: svc.id, date }, clock)
+        const r = await queryAutomaticAvailability(
+          db,
+          tenantId,
+          { serviceId: svc.id, date },
+          clock,
+          opts.forecast ?? { read: readOpenMeteo },
+        )
         if (!r.schedulingAllowed) continue
         const mins = r.slots
           .filter((s) => s.startsAt > now)

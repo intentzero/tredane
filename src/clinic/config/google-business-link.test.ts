@@ -39,7 +39,7 @@ describe('Link do Google Business — validação', () => {
 })
 
 describe('Link do Google Business — persistência e contexto da IA', () => {
-  it('persiste com o endereço, preserva quando omitido, recusa inválido e entra no contexto', () => {
+  it('persiste com o endereço, preserva quando omitido, recusa inválido e entra no contexto', async () => {
     const { db, clock, close } = bootClinicDb()
     try {
       const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
@@ -67,7 +67,7 @@ describe('Link do Google Business — persistência e contexto da IA', () => {
       s = getConfigSnapshotOp(db, caller, clock).settings
       expect(s.googleBusinessUrl).toBe('https://maps.app.goo.gl/ficticio123')
 
-      const ctx = buildClinicAiContext(db, 'clinic-demo-a', clock, {
+      const ctx = await buildClinicAiContext(db, 'clinic-demo-a', clock, {
         contactId: 'contato-ficticio',
         recentTexts: [],
       })

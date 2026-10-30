@@ -541,7 +541,7 @@ describe('clinic AI assistiva (#41)', () => {
     expect(redactProhibitedFromText('wa.me/5511988887777')).toContain('[redacted]')
   })
 
-  it('buildAiContextPayload isola tenant e limita mensagens', () => {
+  it('buildAiContextPayload isola tenant e limita mensagens', async () => {
     const { db, clock, close } = bootClinicDb()
     try {
       const tenantId = 'clinic-demo-ai-limit'
@@ -551,7 +551,7 @@ describe('clinic AI assistiva (#41)', () => {
         waId: '5511987002005',
         inboundBodies: bodies,
       })
-      const built = buildAiContextPayload(db, tenantId, seeded.conversationId)
+      const built = await buildAiContextPayload(db, tenantId, seeded.conversationId)
       expect(built.payload.messages.length).toBeLessThanOrEqual(
         AI_CONTEXT_MESSAGE_LIMIT_PROPOSED,
       )

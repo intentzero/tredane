@@ -176,7 +176,7 @@ export function renderProposalInteractive(
 /** Textos fixos de resultado — só após commit / decisão (DEC-061). */
 export function renderProposalResultBody(
   proposal: AppointmentProposalRow,
-  kind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired',
+  kind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired' | 'tempo_refused' | 'tempo_unconfirmed',
 ): string {
   const when = formatSlotRange(proposal)
   switch (kind) {
@@ -201,5 +201,9 @@ export function renderProposalResultBody(
         `A proposta de ${proposal.serviceName} em ${when} expirou. ` +
         `A equipe pode enviar uma nova proposta.`
       )
+    case 'tempo_refused':
+      return 'Nesse horário o tempo não serve para este serviço. A equipe envia outra opção em breve.'
+    case 'tempo_unconfirmed':
+      return 'Não deu para confirmar o tempo nesse horário. A equipe envia outra opção em breve.'
   }
 }
