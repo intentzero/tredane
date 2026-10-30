@@ -383,7 +383,7 @@ export function deleteResourceOp(
     const t = meta.tenantId
     const required = db.get<{ n: number }>(
       `SELECT COUNT(*) AS n FROM service_room_requirements
-       WHERE tenant_id = ? AND mode = 'resource' AND resource_id = ?`,
+       WHERE tenant_id = ? AND mode IN ('room', 'equipment') AND resource_id = ?`,
       t,
       resource.id,
     )

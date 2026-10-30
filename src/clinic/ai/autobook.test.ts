@@ -359,6 +359,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
         signalPercent: null,
         professionalIds: [],
         roomRequirement: { mode: 'none' as const },
+        equipmentResourceId: null,
         audiencia: 'qualquer' as const,
         clientExplanation: null,
         createdAt: 0,

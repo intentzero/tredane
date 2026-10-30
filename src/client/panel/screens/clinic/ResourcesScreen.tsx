@@ -117,7 +117,6 @@ export function ResourcesList({ tenantId, snap, tab = 'professional' }: ListProp
                   {pro ? (
                     <>
                       <span>{pro.services}</span>
-                      <span>{pro.homeRoom ? `Sala: ${pro.homeRoom}` : 'Sem sala'}</span>
                       {pro.today ? <span>{pro.today}</span> : null}
                     </>
                   ) : null}
@@ -135,7 +134,6 @@ export function ResourcesList({ tenantId, snap, tab = 'professional' }: ListProp
                   ) : null}
                 </span>
                 {!r.active ? <Badge tone="closed">Inativa</Badge> : null}
-                {r.active && pro?.missingHomeRoom ? <Badge tone="wait">Falta sala</Badge> : null}
                 {r.active && pro?.missingHours ? <Badge tone="wait">Falta horário</Badge> : null}
                 <ChevronRight aria-hidden size={18} />
               </Button>
@@ -181,7 +179,6 @@ export function ResourceForm({
   const [category, setCategory] = useState(existing?.category ?? '')
   const [capacity, setCapacity] = useState(String(existing?.capacity ?? 1))
   const [sharedNotice, setSharedNotice] = useState(existing?.sharedSpaceNotice ?? '')
-  const [homeRoomId, setHomeRoomId] = useState<string | null>(existing?.homeRoomId ?? null)
   const [attendanceMode, setAttendanceMode] = useState<'cada_profissional' | 'uma_para_todas'>(
     existing?.attendanceMode === 'uma_para_todas' ? 'uma_para_todas' : 'cada_profissional',
   )
@@ -189,10 +186,6 @@ export function ResourceForm({
   const [resourceKind, setResourceKind] = useState<'room' | 'equipment'>(
     existing?.kind === 'equipment' ? 'equipment' : 'room',
   )
-  const roomOptions = snap.resources
-    .filter((r) => r.kind === 'room' && r.active)
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-    .map((r) => ({ id: r.id, label: r.name }))
   const active = existing?.active ?? true
   const [saving, setSaving] = useState(false)
   const [lifecycleBusy, setLifecycleBusy] = useState(false)
@@ -347,7 +340,7 @@ export function ResourceForm({
 
   // «Categoria» só aparece em salas que já a usam; no lugar dela, a sala lista os serviços feitos ali.
   const showCategory =
-    category.trim() !== '' || snap.services.some((s) => s.roomRequirement.mode === 'category')
+    category.trim() !== ''
   const capacityNumber = Number(capacity)
   const capacityValid = Number.isInteger(capacityNumber) && capacityNumber >= 1 && capacityNumber <= 50
 
@@ -367,7 +360,6 @@ export function ResourceForm({
           name,
           category: kind === 'professional' ? null : category || null,
           active,
-          ...(kind === 'professional' ? { homeRoomId } : {}),
           ...(kind !== 'professional' && resourceKind === 'room'
             ? {
                 capacity: capacityNumber,
@@ -453,22 +445,10 @@ export function ResourceForm({
       </TextField>
 
       {kind === 'professional' ? (
-        <>
-          <PanelSelect
-            className="clinic-field"
-            label="Sala"
-            placeholder={roomOptions.length === 0 ? 'Cadastre uma sala primeiro' : 'Escolha a sala'}
-            value={homeRoomId}
-            onChange={(id) => setHomeRoomId(id)}
-            options={roomOptions}
-            isDisabled={roomOptions.length === 0}
-          />
-          <p className="clinic-footnote">
-            Marcações novas caem nesta sala. Várias profissionais podem partilhar a mesma. A equipa
-            pode trocar a sala só numa marcação; as seguintes voltam a esta. A profissional não
-            precisa de acesso ao painel: quem usa o painel é a equipe da clínica.
-          </p>
-        </>
+        <p className="clinic-footnote">
+          A marcação nova ocupa uma sala livre da lista do serviço. A profissional não precisa de
+          acesso ao painel: quem usa o painel é a equipe da clínica.
+        </p>
       ) : (
         <>
           <PanelSelect

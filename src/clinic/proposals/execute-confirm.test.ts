@@ -86,7 +86,7 @@ async function seedBookable(tenantId = 'clinic-demo-s5-a') {
       bufferMinutes: 15,
       priceCents: 18_000,
       professionalIds: [pro.id],
-      roomRequirement: { mode: 'category', category: 'Padrão' },
+      roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
     },
     clock,
   )
@@ -151,7 +151,7 @@ async function seedWithSignal(tenantId = 'clinic-demo-s5-pix') {
       bufferMinutes: 15,
       priceCents: 54_000,
       professionalIds: [base.pro.id],
-      roomRequirement: { mode: 'category', category: 'Padrão' },
+      roomRequirement: { mode: 'rooms', resourceIds: [base.room.id] },
       requiresSignal: true,
       signalKind: 'fixed',
       signalFixedCents: 5_400,
@@ -245,7 +245,7 @@ async function confirmClick(
 
 describe('S5: schema e chaves', () => {
   it('mantém CLINIC_SCHEMA_VERSION e prefixos estáveis', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(41)
+    expect(CLINIC_SCHEMA_VERSION).toBe(42)
     expect(PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX).toBe('proposal.book:')
     expect(PROPOSAL_PIX_CLIENT_REQUEST_PREFIX).toBe('proposal.pix:')
     expect(proposalBookClientRequestId('p1', 2)).toBe('proposal.book:p1:v2')
@@ -292,7 +292,7 @@ describe('S5: book sem sinal', () => {
           variantKind: 'Zona',
           variantKindPlural: 'Zonas',
           professionalIds: [s.pro.id],
-          roomRequirement: { mode: 'category', category: 'Padrão' },
+          roomRequirement: { mode: 'rooms', resourceIds: [s.room.id] },
         },
         s.clock,
       )
@@ -357,7 +357,7 @@ describe('S5: book sem sinal', () => {
           variantKind: 'Zona',
           variantKindPlural: 'Zonas',
           professionalIds: [s.pro.id],
-          roomRequirement: { mode: 'category', category: 'Padrão' },
+          roomRequirement: { mode: 'rooms', resourceIds: [s.room.id] },
         },
         s.clock,
       )

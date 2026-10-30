@@ -22,12 +22,9 @@ function joinNames(names: string[]): string {
 
 export type ProfessionalRow = {
   services: string
-  /** Nome da sala da profissional, ou null se ainda não tem. */
-  homeRoom: string | null
   /** «Hoje 09:00–18:00», «Hoje sem atendimento» ou null quando falta horário. */
   today: string | null
   missingHours: boolean
-  missingHomeRoom: boolean
 }
 
 export function professionalRow(
@@ -41,13 +38,8 @@ export function professionalRow(
   const own = pro.hoursMode === 'own'
   const windows = windowsOf(snap, own ? pro.id : CLINIC_SCOPE_ID)
   const services = names.length > 0 ? joinNames(names) : 'Nenhum serviço ainda'
-  const home = pro.homeRoomId
-    ? snap.resources.find((r) => r.id === pro.homeRoomId && r.kind === 'room')
-    : null
-  const homeRoom = home?.name ?? null
-  const missingHomeRoom = !home
   if (windows.length === 0) {
-    return { services, homeRoom, today: null, missingHours: true, missingHomeRoom }
+    return { services, today: null, missingHours: true }
   }
   const tz = snap.settings?.timezone ?? 'America/Sao_Paulo'
   const dow = dayOfWeekIn(now, tz)
@@ -57,10 +49,8 @@ export function professionalRow(
     .map((w) => `${formatMinutes(w.startMinute)}–${formatMinutes(w.endMinute)}`)
   return {
     services,
-    homeRoom,
     today: today.length > 0 ? `Hoje ${today.join(' e ')}` : 'Hoje sem atendimento',
     missingHours: false,
-    missingHomeRoom,
   }
 }
 
@@ -69,21 +59,8 @@ export type RoomRow = { capacity: string; usage: string }
 export function usedByServices(snap: ClinicConfigSnapshot, room: ClinicResource): ClinicService[] {
   return snap.services.filter((s) => {
     if (!s.active) return false
-    const req = s.roomRequirement
-    if (req.mode === 'resource') return req.resourceId === room.id
-    if (req.mode === 'category') return Boolean(room.category) && req.category === room.category
-    return false
+    return s.roomRequirement.mode === 'rooms' && s.roomRequirement.resourceIds.includes(room.id)
   })
-}
-
-/** Profissionais que têm esta sala como sala da profissional (DEC-075). */
-export function homeOfProfessionals(
-  snap: ClinicConfigSnapshot,
-  room: ClinicResource,
-): ClinicResource[] {
-  return snap.resources.filter(
-    (r) => r.kind === 'professional' && r.active && r.homeRoomId === room.id,
-  )
 }
 
 export function roomRow(snap: ClinicConfigSnapshot, room: ClinicResource): RoomRow {
@@ -94,13 +71,15 @@ export function roomRow(snap: ClinicConfigSnapshot, room: ClinicResource): RoomR
       : n > 1
         ? `Atende ${n} clientes ao mesmo tempo`
         : '1 cliente por vez'
-  const pros = homeOfProfessionals(snap, room)
+  const here = usedByServices(snap, room)
   const usage =
-    pros.length === 0
-      ? 'Nenhuma profissional usa'
-      : pros.length === 1
-        ? `Sala de ${pros[0]!.name}`
-        : `Sala de ${joinNames(pros.map((p) => p.name))}`
+    room.kind === 'room' && n > 1
+      ? room.attendanceMode === 'uma_para_todas'
+        ? 'Uma profissional para todas'
+        : 'Cada profissional com a sua cliente'
+      : here.length > 0
+        ? joinNames(here.map((s) => s.name))
+        : ''
   return { capacity, usage }
 }
 
@@ -135,12 +114,15 @@ export function serviceRow(snap: ClinicConfigSnapshot, svc: ClinicService): Serv
     (r) => r.kind === 'professional' && r.active && svc.professionalIds.includes(r.id),
   )
   const req = svc.roomRequirement
-  let room: string | null = null
-  if (req.mode === 'any') room = 'Qualquer sala'
-  else if (req.mode === 'category') room = req.category
-  else if (req.mode === 'resource') {
-    room = snap.resources.find((r) => r.id === req.resourceId)?.name ?? null
-  }
+  const room =
+    req.mode === 'rooms'
+      ? joinNames(
+          req.resourceIds
+            .map((id) => snap.resources.find((r) => r.id === id)?.name)
+            .filter((name): name is string => Boolean(name))
+            .sort((a, b) => a.localeCompare(b, 'pt-BR')),
+        ) || null
+      : null
   const audienceLabel =
     svc.audiencia === 'feminino'
       ? 'Feminino'
@@ -169,7 +151,7 @@ export function pendingCounts(snap: ClinicConfigSnapshot, now: number): PendingC
   const professionals = snap.resources.filter((r) => {
     if (r.kind !== 'professional' || !r.active) return false
     const row = professionalRow(snap, r, now)
-    return row.missingHours || row.missingHomeRoom
+    return row.missingHours
   }).length
   const services = snap.services.filter(
     (s) => s.active && serviceRow(snap, s).warning !== null,

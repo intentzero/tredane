@@ -78,10 +78,8 @@ describe('professionalRow', () => {
     )
     expect(professionalRow(s, gi, FRIDAY)).toEqual({
       services: 'Bronzeamento Feminino e Bronzeamento Masculino',
-      homeRoom: null,
       today: 'Hoje 09:00–18:00',
       missingHours: false,
-      missingHomeRoom: true,
     })
   })
 
@@ -89,22 +87,8 @@ describe('professionalRow', () => {
     const p = res({ id: 'sandra', hoursMode: 'own' })
     const row = professionalRow(snap([p], []), p, FRIDAY)
     expect(row.missingHours).toBe(true)
-    expect(row.missingHomeRoom).toBe(true)
     expect(row.today).toBeNull()
     expect(row.services).toBe('Nenhum serviço ainda')
-  })
-
-  it('mostra a sala da profissional e deixa de marcar falta de sala', () => {
-    const room = res({ id: 'sala', kind: 'room', name: 'Depilação' })
-    const gi = res({ id: 'gi', hoursMode: 'own', homeRoomId: 'sala' })
-    const s = snap(
-      [gi, room],
-      [],
-      [{ id: 'w', resourceId: 'gi', dayOfWeek: 5, startMinute: 540, endMinute: 1080 }],
-    )
-    const row = professionalRow(s, gi, FRIDAY)
-    expect(row.homeRoom).toBe('Depilação')
-    expect(row.missingHomeRoom).toBe(false)
   })
 
   it('segue o horário da clínica quando não tem o próprio', () => {
@@ -128,12 +112,12 @@ describe('roomRow', () => {
     const s = snap([room, ana, bia], [])
     expect(roomRow(s, room)).toEqual({
       capacity: 'Atende 4 clientes ao mesmo tempo',
-      usage: 'Sala de Ana e Bia',
+      usage: 'Cada profissional com a sua cliente',
     })
     const solo = res({ id: 'd', kind: 'room', name: 'Depilação' })
     expect(roomRow(snap([solo], []), solo)).toEqual({
       capacity: '1 cliente por vez',
-      usage: 'Nenhuma profissional usa',
+      usage: '',
     })
   })
 })
@@ -144,7 +128,7 @@ describe('serviceRow', () => {
     const room = res({ id: 'e', kind: 'room', name: 'Espaço Bronzeamento' })
     const service = svc({
       professionalIds: ['gi'],
-      roomRequirement: { mode: 'resource', resourceId: 'e' },
+      roomRequirement: { mode: 'rooms', resourceIds: ['e'] },
       priceCents: 18000,
     })
     const row = serviceRow(snap([gi, room], [service]), service)
@@ -177,7 +161,7 @@ describe('pendingCounts', () => {
       ],
       [{ id: 'w', resourceId: 'gi', dayOfWeek: 5, startMinute: 540, endMinute: 1080 }],
     )
-    // Gi tem horário mas falta sala; Sandra falta horário e sala.
-    expect(pendingCounts(s, FRIDAY)).toEqual({ professionals: 2, services: 1 })
+    // Gi tem horário. Sandra falta horário.
+    expect(pendingCounts(s, FRIDAY)).toEqual({ professionals: 1, services: 1 })
   })
 })

@@ -56,7 +56,7 @@ function seedSandra() {
       bufferMinutes: 0,
       audiencia: 'feminino',
       professionalIds: [sandra.id],
-      roomRequirement: { mode: 'none' },
+      roomRequirement: { mode: 'rooms', resourceIds: [sala.id] },
     },
     clock,
   )
@@ -69,7 +69,7 @@ function seedSandra() {
       bufferMinutes: 0,
       audiencia: 'masculino',
       professionalIds: [sandra.id],
-      roomRequirement: { mode: 'none' },
+      roomRequirement: { mode: 'rooms', resourceIds: [sala.id] },
     },
     clock,
   )
@@ -82,7 +82,7 @@ function seedSandra() {
       bufferMinutes: 0,
       audiencia: 'qualquer',
       professionalIds: [sandra.id],
-      roomRequirement: { mode: 'none' },
+      roomRequirement: { mode: 'rooms', resourceIds: [sala.id] },
     },
     clock,
   )

@@ -98,7 +98,7 @@ async function seedBookable(tenantId = 'clinic-demo-s9-a') {
       bufferMinutes: 15,
       priceCents: 18_000,
       professionalIds: [pro.id],
-      roomRequirement: { mode: 'category', category: 'Padrão' },
+      roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
     },
     clock,
   )
@@ -238,7 +238,7 @@ function allocationCount(s: { db: ReturnType<typeof bootClinicDb>['db']; tenantI
 
 describe('S9: schema estável', () => {
   it('mantém CLINIC_SCHEMA_VERSION com propostas/envio/limites', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(41)
+    expect(CLINIC_SCHEMA_VERSION).toBe(42)
   })
 })
 
@@ -613,7 +613,7 @@ describe('S9: hibernate/restore sintético (persistência SQLite)', () => {
         bufferMinutes: 15,
         priceCents: 18_000,
         professionalIds: [pro.id],
-        roomRequirement: { mode: 'category', category: 'Padrão' },
+        roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
       },
       clock,
     )

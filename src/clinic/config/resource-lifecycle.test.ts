@@ -39,7 +39,7 @@ function seed() {
       durationMinutes: 60,
       bufferMinutes: 0,
       professionalIds: [paula.id, bia.id],
-      roomRequirement: { mode: 'category', category: 'Sala com laser' },
+      roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
     },
     clock,
   )

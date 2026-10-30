@@ -41,7 +41,7 @@ function seedSandra(mode: 'cada_profissional' | 'uma_para_todas' = 'uma_para_tod
   const outra = upsertResourceOp(
     boot.db,
     caller,
-    { kind: 'room', name: 'Outra sala', capacity: 1 },
+      { kind: 'room', name: 'Sala extra', capacity: 1 },
     clock,
   )
   const sandra = upsertResourceOp(
@@ -59,7 +59,7 @@ function seedSandra(mode: 'cada_profissional' | 'uma_para_todas' = 'uma_para_tod
       durationMinutes: 60,
       bufferMinutes: 0,
       professionalIds: [sandra.id],
-      roomRequirement: { mode: 'none' },
+      roomRequirement: { mode: 'rooms', resourceIds: [sala.id, outra.id] },
     },
     clock,
   )

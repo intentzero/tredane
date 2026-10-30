@@ -71,7 +71,7 @@ async function seed(
       bufferMinutes: 15,
       priceCents: 54_000,
       professionalIds: [pro.id],
-      roomRequirement: { mode: 'category', category: 'Sala com laser' },
+      roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
       requiresSignal: true,
       signalKind: 'fixed',
       signalFixedCents: 5_400,

@@ -73,7 +73,7 @@ async function setup(h: ReturnType<typeof harness>) {
       durationMinutes: 60,
       bufferMinutes: 0,
       professionalIds: [proId],
-      roomRequirement: { mode: 'any' },
+      roomRequirement: { mode: 'none' },
     }),
   })
   expect(svc.status).toBe(201)

@@ -107,7 +107,7 @@ async function seedReadyClinic(
         durationMinutes: 60,
         bufferMinutes: 15,
         professionalIds: [proBody.id],
-        roomRequirement: { mode: 'category', category: 'Sala com laser' },
+        roomRequirement: { mode: 'rooms', resourceIds: [roomBody.id] },
       }),
     }),
   )

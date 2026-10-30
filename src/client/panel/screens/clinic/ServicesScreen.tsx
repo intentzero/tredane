@@ -143,9 +143,8 @@ export function ServiceForm({
 }: FormProps) {
   const existing = entityId === 'novo' ? null : snap.services.find((s) => s.id === entityId)
   const professionals = snap.resources.filter((r) => r.kind === 'professional')
-  const rooms = snap.resources.filter(
-    (r) => r.kind === 'room' || r.kind === 'equipment',
-  )
+  const rooms = snap.resources.filter((r) => r.kind === 'room')
+  const equipment = snap.resources.filter((r) => r.kind === 'equipment' && r.active)
 
   const [name, setName] = useState(existing?.name ?? '')
   const [duration, setDuration] = useState(existing?.durationMinutes ?? 60)
@@ -212,18 +211,14 @@ export function ServiceForm({
   const [proIds, setProIds] = useState<string[]>(
     existing?.professionalIds ?? professionals.filter((p) => p.active).map((p) => p.id),
   )
-  const [roomMode, setRoomMode] = useState<'none' | 'any' | 'category' | 'resource'>(
-    existing?.roomRequirement.mode ?? 'none',
+  const [space, setSpace] = useState<'unset' | 'none' | 'rooms'>(
+    !existing ? 'unset' : existing.roomRequirement.mode === 'rooms' ? 'rooms' : 'none',
   )
-  const [roomCategory, setRoomCategory] = useState(
-    existing?.roomRequirement.mode === 'category'
-      ? existing.roomRequirement.category
-      : '',
+  const [roomIds, setRoomIds] = useState<string[]>(
+    existing?.roomRequirement.mode === 'rooms' ? existing.roomRequirement.resourceIds : [],
   )
-  const [roomResourceId, setRoomResourceId] = useState(
-    existing?.roomRequirement.mode === 'resource'
-      ? existing.roomRequirement.resourceId
-      : rooms[0]?.id ?? '',
+  const [equipmentId, setEquipmentId] = useState<string | null>(
+    existing?.equipmentResourceId ?? null,
   )
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -269,14 +264,16 @@ export function ServiceForm({
   const audienceConflict =
     withVariants && ((audiencia === 'masculino' && hasFemale) || (audiencia === 'feminino' && hasMale))
   const [moreOpen, setMoreOpen] = useState(false)
+  const roomNames = roomIds
+    .map((id) => rooms.find((r) => r.id === id)?.name)
+    .filter((name): name is string => Boolean(name))
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'))
   const roomLabel =
-    roomMode === 'none'
-      ? 'sem sala'
-      : roomMode === 'any'
-        ? 'qualquer sala livre'
-        : roomMode === 'category'
-          ? `qualquer · ${roomCategory}`
-          : (rooms.find((r) => r.id === roomResourceId)?.name ?? 'sala')
+    space === 'none'
+      ? 'sem espaço definido'
+      : roomNames.length > 0
+        ? roomNames.join(', ')
+        : 'onde acontece'
   const moreSummary = [
     roomLabel,
     buffer === 0 ? 'sem intervalo' : `intervalo ${buffer} min`,
@@ -295,6 +292,10 @@ export function ServiceForm({
       setFormError('Informe os graus em número inteiro.')
       return
     }
+    if (space === 'unset' || (space === 'rooms' && roomIds.length === 0)) {
+      setFormError('Escolha uma ou mais salas, ou Sem espaço definido. O que você digitou continua aqui.')
+      return
+    }
     setSaving(true)
     // Com variantes o preço da linha fica escondido; a marcação usa a soma das variantes.
     const priceCents = withVariants ? null : parsePriceToCents(price)
@@ -308,13 +309,8 @@ export function ServiceForm({
       active,
       professionalIds: proIds,
       roomRequirement:
-        roomMode === 'none'
-          ? { mode: 'none' }
-          : roomMode === 'any'
-            ? { mode: 'any' }
-            : roomMode === 'category'
-            ? { mode: 'category', category: roomCategory }
-            : { mode: 'resource', resourceId: roomResourceId },
+        space === 'none' ? { mode: 'none' } : { mode: 'rooms', resourceIds: roomIds },
+      equipmentResourceId: equipmentId,
       requiresSignal,
       signalKind: requiresSignal ? signalKind : null,
       signalFixedCents:
@@ -708,48 +704,58 @@ export function ServiceForm({
         </button>
         {moreOpen ? (
           <div className="service-more-body">
-            <PanelSelect
-              className="clinic-field"
-              label="Onde acontece"
-              value={
-                roomMode === 'none'
-                  ? 'none'
-                  : roomMode === 'any'
-                    ? 'any'
-                    : roomMode === 'category'
-                      ? `cat:${roomCategory}`
-                      : `res:${roomResourceId}`
-              }
-              onChange={(v) => {
-                if (v === 'none') {
-                  setRoomMode('none')
-                  return
-                }
-                if (v === 'any') {
-                  setRoomMode('any')
-                  return
-                }
-                if (v.startsWith('cat:')) {
-                  setRoomMode('category')
-                  setRoomCategory(v.slice(4))
-                  return
-                }
-                setRoomMode('resource')
-                setRoomResourceId(v.slice(4))
-              }}
-              options={[
-                { id: 'none', label: 'Sem sala' },
-                { id: 'any', label: 'Qualquer sala livre' },
-                ...[...new Set(rooms.map((r) => r.category).filter(Boolean))].map((cat) => ({
-                  id: `cat:${cat}`,
-                  label: `Qualquer · ${cat}`,
-                })),
-                ...rooms.map((r) => ({
-                  id: `res:${r.id}`,
-                  label: `${r.name}${r.category ? ` (${r.category})` : ''}`,
-                })),
-              ]}
-            />
+            <fieldset className="clinic-fieldset">
+              <legend>Onde acontece</legend>
+              <ClinicCheck
+                className="clinic-check"
+                isSelected={space === 'none'}
+                onChange={(selected) => {
+                  if (selected) {
+                    setSpace('none')
+                    setRoomIds([])
+                  } else {
+                    setSpace('unset')
+                  }
+                }}
+              >
+                Sem espaço definido
+              </ClinicCheck>
+              {rooms
+                .filter((r) => r.active || roomIds.includes(r.id))
+                .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+                .map((r) => (
+                  <ClinicCheck
+                    key={r.id}
+                    className="clinic-check"
+                    isSelected={space === 'rooms' && roomIds.includes(r.id)}
+                    onChange={(selected) => {
+                      const next = selected
+                        ? [...roomIds, r.id]
+                        : roomIds.filter((id) => id !== r.id)
+                      setRoomIds(next)
+                      setSpace(next.length > 0 ? 'rooms' : 'unset')
+                    }}
+                  >
+                    {r.active ? r.name : `${r.name} (inativa)`}
+                  </ClinicCheck>
+                ))}
+              <p className="clinic-footnote">
+                A marcação nova ocupa a primeira sala livre desta lista, por ordem de nome. Várias
+                profissionais podem partilhar a mesma sala. Sem espaço definido não ocupa sala.
+              </p>
+            </fieldset>
+            {equipment.length > 0 ? (
+              <PanelSelect
+                className="clinic-field"
+                label="Equipamento (opcional)"
+                value={equipmentId ?? ''}
+                onChange={(id) => setEquipmentId(id || null)}
+                options={[
+                  { id: '', label: 'Nenhum' },
+                  ...equipment.map((r) => ({ id: r.id, label: r.name })),
+                ]}
+              />
+            ) : null}
             <PanelSelect
               className="clinic-field"
               label="Intervalo depois"

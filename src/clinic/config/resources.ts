@@ -252,39 +252,14 @@ export function setResourceActive(
   return getResource(db, tenantId, resourceId, clock)!
 }
 
-/** Serviços activos que exigem a categoria e ficariam sem recurso activo. */
+/** DEC-082: a categoria deixou de escolher as salas do serviço. */
 export function servicesLeftWithoutCategoryResource(
-  db: ClinicDb,
-  tenantId: string,
-  category: string,
-  excludingResourceId?: string,
+  _db: ClinicDb,
+  _tenantId: string,
+  _category: string,
+  _excludingResourceId?: string,
 ): string[] {
-  const remaining = excludingResourceId
-    ? db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM resources
-         WHERE tenant_id = ? AND active = 1 AND category = ?
-           AND kind IN ('room', 'equipment') AND id != ?`,
-        tenantId,
-        category,
-        excludingResourceId,
-      )
-    : db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM resources
-         WHERE tenant_id = ? AND active = 1 AND category = ?
-           AND kind IN ('room', 'equipment')`,
-        tenantId,
-        category,
-      )
-  if ((remaining?.n ?? 0) > 0) return []
-
-  return db
-    .all<{ service_id: string }>(
-      `SELECT service_id FROM service_room_requirements
-       WHERE tenant_id = ? AND mode = 'category' AND category = ?`,
-      tenantId,
-      category,
-    )
-    .map((r) => r.service_id)
+  return []
 }
 
 export const MAX_ROOM_CAPACITY = 50

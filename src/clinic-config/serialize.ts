@@ -76,6 +76,7 @@ export function serializeService(row: ServiceRow) {
     durationMaxMinutes: row.durationMaxMinutes,
     professionalIds: row.professionalIds,
     roomRequirement: row.roomRequirement,
+    equipmentResourceId: row.equipmentResourceId,
     weeklyWindows: row.weeklyWindows,
     deletable: row.deletable,
     variantKind: row.variantKind,

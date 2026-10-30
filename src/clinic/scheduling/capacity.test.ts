@@ -41,7 +41,7 @@ function seed(capacity?: number, notice?: string) {
       durationMinutes: 60,
       bufferMinutes: 0,
       professionalIds: pros.map((p) => p.id),
-      roomRequirement: { mode: 'resource', resourceId: room.id },
+      roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
     },
     clock,
   )

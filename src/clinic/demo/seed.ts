@@ -325,7 +325,7 @@ export function seedDemoClinicOp(
               clientExplanation: s.explanation,
               active: true,
               professionalIds: [pros.get(s.pro)!.id],
-              roomRequirement: { mode: 'resource', resourceId: rooms.get(s.room)!.id },
+              roomRequirement: { mode: 'rooms', resourceIds: [rooms.get(s.room)!.id] },
             },
             clock,
           ),

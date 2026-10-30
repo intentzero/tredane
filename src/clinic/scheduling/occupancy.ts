@@ -113,9 +113,8 @@ export function listConfirmedOccupyingResource(
   /** Ao reagendar, o próprio compromisso não conta como conflito. */
   excludeAppointmentId?: string | null,
 ): OccupyingAppointment[] {
-  // DEC-075: room_resource_id é a sala da profissional. Equipamento exigido pelo
-  // serviço (mode=resource → kind=equipment) continua a ocupar uma vaga via o
-  // requisito do serviço, sem ser o room_resource_id da marcação.
+  // DEC-082: room_resource_id é uma sala da lista do serviço. Equipamento exigido
+  // (mode=equipment) ocupa uma vaga à parte, sem ser o room_resource_id.
   const rows = db.all<AptSql>(
     `SELECT a.id, a.service_id, a.professional_id, a.room_resource_id, a.contact_id,
             a.starts_at, a.ends_at, a.occupies_until
@@ -134,7 +133,7 @@ export function listConfirmedOccupyingResource(
             AND eq.kind = 'equipment'
            WHERE q.tenant_id = a.tenant_id
              AND q.service_id = a.service_id
-             AND q.mode = 'resource'
+             AND q.mode = 'equipment'
              AND q.resource_id = ?
          )
        )

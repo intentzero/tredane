@@ -65,7 +65,7 @@ describe('S3 — Gi (capacidade 1)', () => {
         durationMinutes: 60,
         bufferMinutes: 0,
         professionalIds: [gi.id],
-        roomRequirement: { mode: 'none' },
+        roomRequirement: { mode: 'rooms', resourceIds: [depilacao.id] },
       },
       clock,
     )
@@ -77,14 +77,14 @@ describe('S3 — Gi (capacidade 1)', () => {
         durationMinutes: 60,
         bufferMinutes: 0,
         professionalIds: [gi.id, colega.id],
-        roomRequirement: { mode: 'none' },
+        roomRequirement: { mode: 'rooms', resourceIds: [depilacao.id, massagem.id] },
       },
       clock,
     )
     return { ...boot, clock, caller, gi, colega, depilacao, massagem, svcDep, svcMas }
   }
 
-  it('Massagem com a Gi usa a sala da Gi; com a colega, a sala de Massagem', () => {
+  it('Massagem usa a primeira sala livre por nome; com essa ocupada, a seguinte', () => {
     const s = seedGi()
     try {
       const withGi = queryAvailabilityOp(
@@ -94,13 +94,26 @@ describe('S3 — Gi (capacidade 1)', () => {
         s.clock,
       )
       expect(withGi.slots[0]!.roomResourceId).toBe(s.depilacao.id)
-      const withColega = queryAvailabilityOp(
+      confirmAppointmentOp(
         s.db,
         s.caller,
-        { serviceId: s.svcMas.id, date: MONDAY, professionalId: s.colega.id },
+        {
+          clientRequestId: 'ocupa-depilacao',
+          serviceId: s.svcMas.id,
+          professionalId: s.colega.id,
+          roomResourceId: s.depilacao.id,
+          startsAt: at(9),
+          actorClerkUserId: 'user_synth_owner_a',
+        },
         s.clock,
       )
-      expect(withColega.slots[0]!.roomResourceId).toBe(s.massagem.id)
+      const moved = queryAvailabilityOp(
+        s.db,
+        s.caller,
+        { serviceId: s.svcMas.id, date: MONDAY, professionalId: s.gi.id },
+        s.clock,
+      )
+      expect(moved.slots.find((x) => x.startsAt === at(9))!.roomResourceId).toBe(s.massagem.id)
     } finally {
       s.close()
     }
@@ -230,7 +243,7 @@ describe('S3 — Ana e Bia (salão partilhado, cada profissional)', () => {
         durationMinutes: 60,
         bufferMinutes: 0,
         professionalIds: [ana.id, bia.id, cris.id],
-        roomRequirement: { mode: 'none' },
+        roomRequirement: { mode: 'rooms', resourceIds: [salao.id] },
       },
       clock,
     )

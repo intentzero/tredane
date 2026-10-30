@@ -14,10 +14,9 @@ import {
   clinicDayOfWeek,
   clinicMinuteOfDay,
 } from './timezone'
-import { resourceBusyReasons, serviceOfferingAllows } from './occupancy'
-import { candidateBreaksHolds } from './hold-fit'
-import { resolveHomeRoom, resolveRequiredEquipment } from './query'
-import { currentRoomBlockSex, roomSexConflict, type BlockSex } from './sex-block'
+import { serviceOfferingAllows } from './occupancy'
+import { activeRoomsForService, placementBlockers } from './query'
+import { currentRoomBlockSex, type BlockSex } from './sex-block'
 import type {
   AvailableSlot,
   CheckSlotInput,
@@ -28,7 +27,7 @@ import type {
 /**
  * Revalida um horário candidato (leitura pura).
  * Usado pela UI após mudança remota e pelo comando de confirmar (#36).
- * DEC-075 / S3: sala = home room da profissional, ou troca pontual em `roomResourceId`.
+ * DEC-082: sala = primeira livre da lista do serviço, ou a sala pedida se estiver nessa lista.
  */
 export function checkSlotAvailability(
   db: ClinicDb,
@@ -90,117 +89,69 @@ export function checkSlotAvailability(
     reasons.push('professional_not_linked')
   }
 
-  // Troca pontual: roomResourceId no pedido; senão a sala da profissional.
-  let roomId: string | null = input.roomResourceId ?? null
-  let roomName: string | null = null
-  let groupRoomId: string | null = null
-  if (!roomId) {
-    const home = resolveHomeRoom(db, tenantId, pro, clock)
-    roomId = home?.id ?? null
-  }
-
-  if (!roomId) {
-    reasons.push('room_required')
-  } else {
-    const room = getResource(db, tenantId, roomId, clock)
-    if (!room || room.kind !== 'room' || !room.active) {
-      throw new NotFoundError(
-        'room_not_found',
-        `sala ${roomId} não encontrada nesta clínica`,
-      )
-    }
-    roomName = room.name
-    // S4: modo grupo nesta sala.
-    if (room.attendanceMode === 'uma_para_todas' && room.capacity > 1) {
-      groupRoomId = room.id
-    }
-  }
-
   if (!serviceOfferingAllows(service.weeklyWindows, dayOfWeek, startMinute, occMins)) {
     reasons.push('outside_weekly_hours')
   }
 
   const allWindows = listEffectiveWeeklyWindows(db, tenantId)
-  const proWindows = allWindows.filter((w) => w.resourceId === pro.id)
-  reasons.push(
-    ...resourceBusyReasons(
-      db,
-      tenantId,
-      pro.id,
-      proWindows,
-      dayOfWeek,
-      startMinute,
-      occMins,
-      range,
-      dayEndsAt,
-      input.excludeAppointmentId,
-      groupRoomId,
-      roomId,
-    ),
-  )
-
-  if (
-    !reasons.includes('outside_weekly_hours')
-    && candidateBreaksHolds(
-      db,
-      tenantId,
-      pro.id,
-      range,
-      { timezone, windows: proWindows, nowMs: asOf },
-      {
-        excludeAppointmentId: input.excludeAppointmentId,
-        excludeHoldId: input.excludeHoldId,
-      },
-    )
-  ) {
-    reasons.push('hold_conflict')
+  const place = {
+    range,
+    dayOfWeek,
+    startMinute,
+    occMins,
+    dayEndsAt,
+    allWindows,
+    asOf,
+    timezone,
+    excludeAppointmentId: input.excludeAppointmentId,
+    excludeHoldId: input.excludeHoldId,
   }
-
+  let roomId: string | null = null
+  let roomName: string | null = null
   let blockSex: BlockSex | null = null
-  if (roomId) {
-    reasons.push(
-      ...resourceBusyReasons(
-        db,
-        tenantId,
-        roomId,
-        // Sala/equipamento não tem expediente (decisão 28/10/2026).
-        null,
-        dayOfWeek,
-        startMinute,
-        occMins,
-        range,
-        dayEndsAt,
-        input.excludeAppointmentId,
-      ),
-    )
-    blockSex = currentRoomBlockSex(db, tenantId, roomId, range, {
-      excludeAppointmentId: input.excludeAppointmentId,
-    })
-    if (
-      roomSexConflict(db, tenantId, roomId, range, service.audiencia, {
-        excludeAppointmentId: input.excludeAppointmentId,
-      })
-    ) {
-      reasons.push('room_sex_mismatch')
-    }
-  }
 
-  const requiredEquipment = resolveRequiredEquipment(db, tenantId, service, clock)
-  if (requiredEquipment) {
-    reasons.push(
-      ...resourceBusyReasons(
-        db,
-        tenantId,
-        requiredEquipment.id,
-        null,
-        dayOfWeek,
-        startMinute,
-        occMins,
-        range,
-        dayEndsAt,
-        input.excludeAppointmentId,
-      ),
-    )
+  if (service.roomRequirement.mode === 'none') {
+    if (input.roomResourceId) reasons.push('room_requirement_mismatch')
+    else reasons.push(...placementBlockers(db, tenantId, service, pro, null, place, clock))
+  } else if (input.roomResourceId) {
+    if (!service.roomRequirement.resourceIds.includes(input.roomResourceId)) {
+      reasons.push('room_requirement_mismatch')
+    } else {
+      const room = getResource(db, tenantId, input.roomResourceId, clock)
+      if (!room || room.kind !== 'room' || !room.active) {
+        reasons.push('room_unusable')
+      } else {
+        roomId = room.id
+        roomName = room.name
+        reasons.push(...placementBlockers(db, tenantId, service, pro, room, place, clock))
+        blockSex = currentRoomBlockSex(db, tenantId, room.id, range, {
+          excludeAppointmentId: input.excludeAppointmentId,
+        })
+      }
+    }
+  } else {
+    const rooms = activeRoomsForService(db, tenantId, service, clock)
+    if (rooms.length === 0) {
+      reasons.push('room_required')
+    } else {
+      let first: UnavailabilityReason[] | null = null
+      for (const room of rooms) {
+        const blockers = placementBlockers(db, tenantId, service, pro, room, place, clock)
+        if (blockers.length === 0) {
+          roomId = room.id
+          roomName = room.name
+          break
+        }
+        if (!first) first = blockers
+      }
+      if (!roomId && first) reasons.push(...first)
+      const sexRoomId = roomId ?? rooms[0]?.id
+      if (sexRoomId) {
+        blockSex = currentRoomBlockSex(db, tenantId, sexRoomId, range, {
+          excludeAppointmentId: input.excludeAppointmentId,
+        })
+      }
+    }
   }
 
   const unique = [...new Set(reasons)]

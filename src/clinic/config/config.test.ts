@@ -59,7 +59,7 @@ describe('Clinic config (#28)', () => {
           priceCents: 18000,
           clientExplanation: 'Limpeza profunda fictícia para testes.',
           professionalIds: [pro.id],
-          roomRequirement: { mode: 'category', category: 'Sala com laser' },
+          roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
         },
         clock,
       )
@@ -107,6 +107,7 @@ describe('Clinic config (#28)', () => {
           durationMinutes: 20,
           bufferMinutes: 0,
           professionalIds: [],
+          roomRequirement: { mode: 'none' },
         },
         clock,
       )
@@ -120,6 +121,7 @@ describe('Clinic config (#28)', () => {
             durationMinutes: 0,
             bufferMinutes: 0,
             professionalIds: [],
+            roomRequirement: { mode: 'none' },
           },
           clock,
         ),
@@ -148,6 +150,7 @@ describe('Clinic config (#28)', () => {
           durationMinutes: 60,
           bufferMinutes: 0,
           professionalIds: [pro.id],
+          roomRequirement: { mode: 'none' },
         },
         clock,
       )
@@ -214,7 +217,7 @@ describe('Clinic config (#28)', () => {
           durationMinutes: 45,
           bufferMinutes: 15,
           professionalIds: [pro.id],
-          roomRequirement: { mode: 'resource', resourceId: room.id },
+          roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
         },
         clock,
       )

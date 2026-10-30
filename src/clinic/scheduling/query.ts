@@ -21,12 +21,13 @@ import {
   resourceCapacity,
   serviceOfferingAllows,
 } from './occupancy'
-import { candidateBreaksHolds, listActiveHoldNeeds } from './hold-fit'
+import { candidateBreaksHolds } from './hold-fit'
 import { roomSexConflict } from './sex-block'
 import type {
   AvailabilityQueryInput,
   AvailabilityQueryResult,
   AvailableSlot,
+  UnavailabilityReason,
 } from './types'
 
 function resolveProfessionals(
@@ -65,35 +66,127 @@ function resolveProfessionals(
   return [...linked].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 }
 
-/**
- * DEC-075 / S3: a sala da marcação é a da profissional (`homeRoomId`).
- * O requisito de sala do serviço deixa de escolher a sala.
- * Equipamento exigido pelo serviço continua a ser verificado à parte (vaga única).
- */
-export function resolveHomeRoom(
+/** Salas ativas da lista do serviço, primeira por nome (DEC-082). */
+export function activeRoomsForService(
   db: ClinicDb,
   tenantId: string,
-  professional: ResourceRow,
+  service: NonNullable<ReturnType<typeof getService>>,
   clock: Clock,
-): ResourceRow | null {
-  if (!professional.homeRoomId) return null
-  const room = getResource(db, tenantId, professional.homeRoomId, clock)
-  if (!room || room.kind !== 'room' || !room.active) return null
-  return room
+): ResourceRow[] {
+  if (service.roomRequirement.mode !== 'rooms') return []
+  const rooms: ResourceRow[] = []
+  for (const id of service.roomRequirement.resourceIds) {
+    const room = getResource(db, tenantId, id, clock)
+    if (room && room.kind === 'room' && room.active) rooms.push(room)
+  }
+  rooms.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR') || a.id.localeCompare(b.id))
+  return rooms
 }
 
-/** Equipamento exigido pelo serviço (DEC-059: uma vaga), se o requisito apontar para equipamento. */
+/** Equipamento exigido pelo serviço (DEC-059: uma vaga), à parte da lista de salas. */
 export function resolveRequiredEquipment(
   db: ClinicDb,
   tenantId: string,
   service: NonNullable<ReturnType<typeof getService>>,
   clock: Clock,
 ): ResourceRow | null {
-  const req = service.roomRequirement
-  if (req.mode !== 'resource' || !req.resourceId) return null
-  const res = getResource(db, tenantId, req.resourceId, clock)
+  if (!service.equipmentResourceId) return null
+  const res = getResource(db, tenantId, service.equipmentResourceId, clock)
   if (!res || res.kind !== 'equipment' || !res.active) return null
   return res
+}
+
+/** Profissional (e sala, se houver) livres neste bloco. Lista vazia = cabe. */
+export function placementBlockers(
+  db: ClinicDb,
+  tenantId: string,
+  service: NonNullable<ReturnType<typeof getService>>,
+  pro: ResourceRow,
+  room: ResourceRow | null,
+  ctx: {
+    range: { startsAt: number; endsAt: number }
+    dayOfWeek: number
+    startMinute: number
+    occMins: number
+    dayEndsAt: number
+    allWindows: WeeklyWindowRow[]
+    asOf: number
+    timezone: string
+    excludeAppointmentId?: string | null
+    excludeHoldId?: string | null
+  },
+  clock: Clock,
+): UnavailabilityReason[] {
+  const groupRoomId =
+    room && room.attendanceMode === 'uma_para_todas' && room.capacity > 1 ? room.id : null
+  const reasons: UnavailabilityReason[] = [
+    ...resourceBusyReasons(
+      db,
+      tenantId,
+      pro.id,
+      windowsByResource(ctx.allWindows, pro.id),
+      ctx.dayOfWeek,
+      ctx.startMinute,
+      ctx.occMins,
+      ctx.range,
+      ctx.dayEndsAt,
+      ctx.excludeAppointmentId,
+      groupRoomId,
+      room?.id,
+    ),
+  ]
+  if (
+    !reasons.includes('outside_weekly_hours')
+    && candidateBreaksHolds(
+      db,
+      tenantId,
+      pro.id,
+      ctx.range,
+      { timezone: ctx.timezone, windows: windowsByResource(ctx.allWindows, pro.id), nowMs: ctx.asOf },
+      { excludeAppointmentId: ctx.excludeAppointmentId, excludeHoldId: ctx.excludeHoldId },
+    )
+  ) {
+    reasons.push('hold_conflict')
+  }
+  if (room) {
+    reasons.push(
+      ...resourceBusyReasons(
+        db,
+        tenantId,
+        room.id,
+        null,
+        ctx.dayOfWeek,
+        ctx.startMinute,
+        ctx.occMins,
+        ctx.range,
+        ctx.dayEndsAt,
+        ctx.excludeAppointmentId,
+      ),
+    )
+    if (roomSexConflict(db, tenantId, room.id, ctx.range, service.audiencia, {
+      excludeAppointmentId: ctx.excludeAppointmentId,
+    })) {
+      reasons.push('room_sex_mismatch')
+    }
+  }
+  const requiredEquipment = resolveRequiredEquipment(db, tenantId, service, clock)
+  if (requiredEquipment) {
+    reasons.push(
+      ...resourceBusyReasons(
+        db,
+        tenantId,
+        requiredEquipment.id,
+        null,
+        ctx.dayOfWeek,
+        ctx.startMinute,
+        ctx.occMins,
+        ctx.range,
+        ctx.dayEndsAt,
+        ctx.excludeAppointmentId,
+      ),
+    )
+  }
+  return [...new Set(reasons)]
 }
 
 function windowsByResource(
@@ -164,24 +257,11 @@ export function queryAvailability(
     return empty([])
   }
 
-  const requiredEquipment = resolveRequiredEquipment(db, tenantId, service, clock)
-
   const allWindows = listEffectiveWeeklyWindows(db, tenantId)
-  const prosWithHolds = new Set(
-    professionals
-      .filter(
-        (p) =>
-          listActiveHoldNeeds(
-            db,
-            tenantId,
-            p.id,
-            { startsAt: dayStartsAt, endsAt: dayEndsAt },
-            asOf,
-            input.excludeHoldId,
-          ).length > 0,
-      )
-      .map((p) => p.id),
-  )
+  const roomCandidates: Array<ResourceRow | null> =
+    service.roomRequirement.mode === 'none'
+      ? [null]
+      : activeRoomsForService(db, tenantId, service, clock)
   const candidateStarts = gridStartMinutes(occMins)
   const slots: AvailableSlot[] = []
 
@@ -201,106 +281,58 @@ export function queryAvailability(
     let chosen: AvailableSlot | null = null
 
     for (const pro of professionals) {
-      const room = resolveHomeRoom(db, tenantId, pro, clock)
-      if (!room) continue
-
-      // S4: modo grupo — a profissional não trava só a si nesta sala.
-      const groupRoomId =
-        room.attendanceMode === 'uma_para_todas' && room.capacity > 1 ? room.id : null
-
-      const proReasons = resourceBusyReasons(
-        db,
-        tenantId,
-        pro.id,
-        windowsByResource(allWindows, pro.id),
-        dayOfWeek,
-        startMinute,
-        occMins,
-        range,
-        dayEndsAt,
-        undefined,
-        groupRoomId,
-      )
-      if (proReasons.length > 0) continue
-      if (
-        prosWithHolds.has(pro.id)
-        && candidateBreaksHolds(
+      for (const room of roomCandidates) {
+        const blockers = placementBlockers(
           db,
           tenantId,
-          pro.id,
-          range,
-          { timezone, windows: windowsByResource(allWindows, pro.id), nowMs: asOf },
-          { excludeHoldId: input.excludeHoldId },
+          service,
+          pro,
+          room,
+          {
+            range,
+            dayOfWeek,
+            startMinute,
+            occMins,
+            dayEndsAt,
+            allWindows,
+            asOf,
+            timezone,
+            excludeHoldId: input.excludeHoldId,
+          },
+          clock,
         )
-      ) {
-        continue
+        if (blockers.length > 0) continue
+        const roomCapacity = room ? resourceCapacity(db, tenantId, room.id) : 1
+        const roomSeatsFree =
+          room && roomCapacity > 1
+            ? Math.max(
+                0,
+                roomCapacity
+                  - peakConcurrentPeople(
+                    range,
+                    listConfirmedOccupyingResource(db, tenantId, room.id, range).map((a) => ({
+                      startsAt: a.startsAt,
+                      endsAt: a.occupiesUntil,
+                      personKey: a.personKey,
+                    })),
+                  ),
+              )
+            : null
+        chosen = {
+          startsAt,
+          endsAt,
+          occupiesUntil,
+          professionalId: pro.id,
+          professionalName: pro.name,
+          roomResourceId: room?.id ?? null,
+          roomResourceName: room?.name ?? null,
+          roomSharedNotice: room?.sharedSpaceNotice ?? null,
+          roomCapacity: room && roomCapacity > 1 ? roomCapacity : null,
+          roomSeatsFree,
+        }
+        break
       }
-
-      const roomReasons = resourceBusyReasons(
-        db,
-        tenantId,
-        room.id,
-        // Sala/equipamento não tem expediente (decisão 28/10/2026).
-        null,
-        dayOfWeek,
-        startMinute,
-        occMins,
-        range,
-        dayEndsAt,
-      )
-      if (roomReasons.length > 0) continue
-
-      if (
-        roomSexConflict(db, tenantId, room.id, range, service.audiencia)
-      ) {
-        continue
-      }
-
-      if (requiredEquipment) {
-        const eqReasons = resourceBusyReasons(
-          db,
-          tenantId,
-          requiredEquipment.id,
-          null,
-          dayOfWeek,
-          startMinute,
-          occMins,
-          range,
-          dayEndsAt,
-        )
-        if (eqReasons.length > 0) continue
-      }
-
-      // Sala compartilhada: lugares livres no pico do período (só para exibição).
-      const roomCapacity = resourceCapacity(db, tenantId, room.id)
-      const roomSeatsFree =
-        roomCapacity > 1
-          ? Math.max(
-              0,
-              roomCapacity
-                - peakConcurrentPeople(
-                  range,
-                  listConfirmedOccupyingResource(db, tenantId, room.id, range).map((a) => ({
-                    startsAt: a.startsAt,
-                    endsAt: a.occupiesUntil,
-                    personKey: a.personKey,
-                  })),
-                ),
-            )
-          : null
-      chosen = {
-        startsAt,
-        endsAt,
-        occupiesUntil,
-        professionalId: pro.id,
-        professionalName: pro.name,
-        roomResourceId: room.id,
-        roomResourceName: room.name,
-        roomSharedNotice: room.sharedSpaceNotice,
-        roomCapacity: roomCapacity > 1 ? roomCapacity : null,
-        roomSeatsFree,
-      }
-      break
+      if (chosen) break
     }
 
     if (chosen) slots.push(chosen)
