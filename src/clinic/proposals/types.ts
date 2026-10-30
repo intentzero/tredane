@@ -53,6 +53,8 @@ export type CreateAppointmentProposalInput = {
   startsAt: number
   endsAt?: number
   durationMinutes?: number
+  /** DEC-078. Obrigatório quando o serviço tem zonas ativas. */
+  zoneIds?: string[] | null
   beneficiaryKind?: AppointmentProposalBeneficiaryKind
   /** Obrigatório se beneficiaryKind = terceiro. */
   beneficiaryName?: string | null

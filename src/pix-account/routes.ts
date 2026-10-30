@@ -21,6 +21,14 @@ import {
   workerCaller,
 } from '../clinic'
 import type { WorkerBindings } from '../worker/bindings'
+
+function parseZoneIds(raw: unknown): string[] | null {
+  if (raw == null) return null
+  if (!Array.isArray(raw) || raw.some((id) => typeof id !== 'string' || !id.trim())) {
+    throw new ValidationError('invalid_zone_ids', 'zoneIds deve ser uma lista de ids')
+  }
+  return raw as string[]
+}
 import type { PixAccountGateway, PixChargeCreateDeps } from './gateway'
 import {
   serializePixAccount,
@@ -276,6 +284,7 @@ export function createPixAccountRoutes(opts: PixAccountRouteOptions = {}) {
         roomResourceId?: string | null
         startsAt?: number
         authorDisplayName?: string | null
+        zoneIds?: unknown
       }
       if (!body.clientRequestId || !body.conversationId || !body.serviceId
         || !body.professionalId || typeof body.startsAt !== 'number') {
@@ -302,6 +311,7 @@ export function createPixAccountRoutes(opts: PixAccountRouteOptions = {}) {
           startsAt: body.startsAt,
           actorClerkUserId: principal.clerkUserId,
           authorDisplayName: body.authorDisplayName,
+          zoneIds: parseZoneIds(body.zoneIds),
         },
         deps,
       )
@@ -421,6 +431,7 @@ export function createPixAccountRoutes(opts: PixAccountRouteOptions = {}) {
           contactLabel?: string | null
           waiveReason?: string
           supersedeChargeId?: string | null
+          zoneIds?: unknown
         }
         if (!body.clientRequestId || !body.serviceId || !body.professionalId
           || typeof body.startsAt !== 'number') {
@@ -455,6 +466,7 @@ export function createPixAccountRoutes(opts: PixAccountRouteOptions = {}) {
             roomResourceId: body.roomResourceId,
             startsAt: body.startsAt,
             contactLabel: body.contactLabel,
+            zoneIds: parseZoneIds(body.zoneIds),
             waiveReason: body.waiveReason,
             actorClerkUserId: principal.clerkUserId,
             supersedeChargeId: body.supersedeChargeId,

@@ -71,6 +71,14 @@ export function serializeService(row: ServiceRow) {
     roomRequirement: row.roomRequirement,
     weeklyWindows: row.weeklyWindows,
     deletable: row.deletable,
+    zones: row.zones.map((z) => ({
+      id: z.id,
+      name: z.name,
+      durationMinutes: z.durationMinutes,
+      priceCents: z.priceCents,
+      active: z.active,
+      sortOrder: z.sortOrder,
+    })),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }

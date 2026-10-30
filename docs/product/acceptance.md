@@ -248,6 +248,22 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 
 **Dado** proposta válida; **quando** a cliente responde «sim» ou 👍 em texto; **então** nada é marcado. **Quando** toca em **Confirmar**; **então** um único compromisso é criado com actor `system:ai-autobook`, auditoria `appointment.ai_booked` (proposta, versão, evento) e «Marcado pela IA»; clique repetido, de outro contato/conversa/tenant ou após expiração não cria compromisso. Horário ocupado → «Horário já não está livre…». Serviço com sinal → fluxo Pix, sem reserva antes do pagamento. **Alterar detalhes** → atendente, alerta após 5 min sem resposta. Com a pausa da owner ligada, nenhum envio novo nem marcação. **Requisitos:** REQ-084; JRN-17. **Limites de abuso (S7): Confirmado (Paulo, 29/10/2026)** — [abuse-limits.md](../security/abuse-limits.md); UI owner; enable por clínica (default off).
 
+### AC-57 — Catálogo de zonas (Confirmado, DEC-078)
+
+**Dado** o serviço fictício «Depilação» com 60 min e R$ 120,00 e catálogo de zonas vazio; **quando** a responsável grava a primeira zona «Axila» sem duração nem preço; **então** a zona fica com 60 min e R$ 120,00. Preço explícito vazio fica sem preço. A atendente não grava. Clínica B não lê as zonas de A. Com zonas gravadas, marcação nova não usa a linha. Zona já usada numa visita não se apaga; editar a zona não muda a cópia do compromisso. **Requisitos:** REQ-085.
+
+### AC-58 — Várias zonas num horário (Confirmado, DEC-078)
+
+**Dado** «Axila» 15 min e «Meia perna» 30 min, intervalo do serviço 15 min; **quando** a equipe marca as duas às 10:00; **então** existe um compromisso das 10:00 às 10:45, ocupando até 11:00, com o rótulo «Depilação · Axila, Meia perna». Zona repetida, de outro serviço ou de outra clínica é recusada e nenhum compromisso nasce. Reagendar sem trocar zonas mantém o conjunto e o bloco. Serviço sem zonas marca os 60 min do cadastro. **Requisitos:** REQ-086.
+
+### AC-59 — Preço e um sinal (Confirmado, DEC-078)
+
+**Dado** as duas zonas com preço; **então** o preço da visita é a soma. **Dado** uma zona sem preço; **então** a visita não tem preço citável e o sinal em porcentagem não é enviado, com o motivo visível; o sinal fixo cobra o valor do serviço uma vez. A cobrança guarda a cópia das zonas. «Pago sem horário» oferece outro horário do mesmo conjunto e da mesma duração. **Requisitos:** REQ-087.
+
+### AC-60 — IA e proposta (Confirmado, DEC-078)
+
+**Dado** a cliente pergunta o preço de «Depilação» sem nomear zona; **então** a sugestão pede as zonas e não cita valor nem «a partir de». **Dado** ela nomeia «Axila» e «Meia perna»; **então** só a soma do backend pode ser citada. A proposta lista as zonas, o início e o fim do bloco e a soma ou a ausência de preço. Trocar o conjunto gera nova versão. Serviço sem zonas continua a citar o preço da linha. **Requisitos:** REQ-088.
+
 ### AC-61 — Migração do bloco Tempo em Tanto faz (Confirmado, DEC-077)
 
 **Dado** serviços já gravados «Bronzeamento» e «Depilação»; **quando** a migração do bloco Tempo corre; **então** céu e temperatura ficam em Tanto faz, sem graus, o local de previsão fica vazio e `clinic_address` não é copiado. A grade desses serviços é a mesma de antes. O contato não ganha coluna e a audiência (DEC-075) permanece. **Requisitos:** REQ-090.

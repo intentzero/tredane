@@ -75,6 +75,7 @@ import type {
   CreateBlockInput,
   SetWeeklyWindowsInput,
   UpsertResourceInput,
+  ServiceZoneInput,
   UpsertServiceInput,
 } from '../clinic/config'
 import type {
@@ -1651,6 +1652,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return row
   }
 
+  async replaceClinicServiceZones(
+    caller: ClinicCaller,
+    serviceId: string,
+    zones: ServiceZoneInput[],
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    clinicConfig.replaceServiceZonesOp(this.#db, caller, serviceId, zones, this.#clock)
+    const row = clinicConfig.getService(this.#db, caller.tenantId, serviceId)
+    if (!row) throw new Error('service_not_found')
+    await this.#fanoutConfigEvent(
+      caller,
+      'config.service_updated',
+      'service',
+      row.id,
+      { name: row.name, zones: row.zones.length },
+    )
+    return row
+  }
+
   async setClinicServiceActive(
     caller: ClinicCaller,
     serviceId: string,
@@ -2609,8 +2630,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       })
       for (const o of outcomes) {
         // Agendamento pela IA (confirmação explícita da cliente): mesmo fanout do Agendar.
-        if (o.autoBook && o.autoBook.outbox.length > 0) {
-          await this.#fanoutOutboxes(caller, o.autoBook.outbox, true)
+        const queued = [...(o.autoBook?.outbox ?? []), ...(o.replyOutbox ?? [])]
+        if (queued.length > 0) {
+          await this.#fanoutOutboxes(caller, queued, true)
           await this.#drain(caller)
         }
         await this.#emitAiDraftEvent(caller, o.conversationId, {

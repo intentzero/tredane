@@ -2,11 +2,11 @@
  * Agendamento pela IA após confirmação explícita da própria cliente
  * (decidido por Paulo, 28/10/2026 — ver DEC-006 / DEC-056 em docs/product/decisions.md).
  *
- * Regra: só marca quando, na vez atual da cliente (mensagens desde a última da clínica),
- * ficam determinados SEM ambiguidade os três elementos — dia, horário e procedimento —
- * e a cliente confirma. Cada elemento vem do texto da cliente ou, se ela não o repetir,
- * da mensagem da clínica imediatamente anterior quando essa cita UM único valor.
- * Faltou ou ficou ambíguo → não marca (a IA pergunta). Detecção determinística, sem o modelo.
+ * Regra: o backend envia a proposta quando dia, horário e procedimento ficam determinados
+ * sem ambiguidade. Cada elemento vem da vez atual da cliente ou, se ela não o repetir,
+ * da mensagem mais recente que cite um único valor (não só a bolha imediatamente anterior).
+ * «1530» conta como 15:30. Faltou ou ficou ambíguo → não envia proposta. Detecção
+ * determinística, sem o modelo.
  *
  * S2 (#173, épico #171): esta leitura de texto livre NUNCA marca — só produz nota para a atendente.
  * Com a capacidade ligada (sempre, salvo pausa da owner), o backend monta e envia a proposta
@@ -18,6 +18,7 @@ import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
 import { listServices } from '../config/services'
+import { quoteVisit, zonesNamedInText } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
@@ -142,6 +143,10 @@ export function extractTimes(text: string): Set<string> {
     add(Number(m[1]), Number(m[2] ?? m[3] ?? 0))
   }
   for (const m of t.matchAll(/\bas\s+([01]?\d|2[0-3])\b(?![:h\d/])/g)) add(Number(m[1]), 0)
+  // «1530» = 15:30. Não casa o ano em «30/10/2026» nem um valor depois de «r$».
+  for (const m of t.matchAll(/(?<![\d/])(?<!r\$\s*)\b([01]\d|2[0-3])([0-5]\d)\b(?![\d/,])/g)) {
+    add(Number(m[1]), Number(m[2]))
+  }
   return out
 }
 
@@ -186,6 +191,8 @@ type Msg = { id: string; direction: string; body: string; created_at: number }
 export function detectExplicitConfirmation(input: {
   clientTexts: string[]
   previousClinicText: string | null
+  /** Mensagens mais antigas, da mais recente para a mais antiga, fora da vez atual. */
+  historyTexts?: string[]
   clientToday: string
   clinicToday: string
   services: ServiceRow[]
@@ -211,22 +218,33 @@ export function detectExplicitConfirmation(input: {
   const pServices = extractServices(prev, input.services)
 
   const affirmative = AFFIRMATIVE.test(c)
-  // Confirmação = «sim/pode ser…» OU a própria cliente escolhe o horário pelo nome.
+  // «sim/pode ser…» OU a cliente escolhe o horário («15h», «1530»).
   if (!affirmative && cTimes.size === 0) return { ok: false, status: 'not_confirmed', missing: [] }
 
   const missing: Array<'dia' | 'horario' | 'procedimento'> = []
   let ambiguous = false
-  const pick = <T,>(own: T[], prior: T[], label: 'dia' | 'horario' | 'procedimento'): T | undefined => {
+  const history = input.historyTexts ?? []
+  const resolve = <T,>(
+    own: T[],
+    prior: T[],
+    label: 'dia' | 'horario' | 'procedimento',
+    fromText: (text: string) => T[],
+  ): T | undefined => {
     if (own.length === 1) return own[0]
     if (own.length > 1) { ambiguous = true; missing.push(label); return undefined }
     if (prior.length === 1) return prior[0]
-    if (prior.length > 1) ambiguous = true
+    if (prior.length > 1) { ambiguous = true; missing.push(label); return undefined }
+    for (const text of history) {
+      const found = fromText(text)
+      if (found.length === 1) return found[0]
+      if (found.length > 1) { ambiguous = true; missing.push(label); return undefined }
+    }
     missing.push(label)
     return undefined
   }
-  const date = pick([...cDates], [...pDates], 'dia')
-  const time = pick([...cTimes], [...pTimes], 'horario')
-  const service = pick(cServices, pServices, 'procedimento')
+  const date = resolve([...cDates], [...pDates], 'dia', (text) => [...extractDates(text, input.clinicToday)])
+  const time = resolve([...cTimes], [...pTimes], 'horario', (text) => [...extractTimes(text)])
+  const service = resolve(cServices, pServices, 'procedimento', (text) => extractServices(text, input.services))
   if (missing.length > 0) {
     return { ok: false, status: ambiguous ? 'ambiguous' : 'needs_info', missing }
   }
@@ -252,11 +270,11 @@ function localHHMM(tz: string, ms: number): string {
   }).format(new Date(ms))
 }
 
-function signalAmountCents(svc: ServiceRow): number | null {
+function signalAmountCents(svc: ServiceRow, priceCents: number | null = svc.priceCents): number | null {
   if (!svc.requiresSignal) return null
   if (svc.signalKind === 'fixed' && svc.signalFixedCents != null) return svc.signalFixedCents
-  if (svc.signalKind === 'percent' && svc.signalPercent != null && svc.priceCents != null) {
-    return Math.trunc((svc.priceCents * svc.signalPercent) / 100)
+  if (svc.signalKind === 'percent' && svc.signalPercent != null && priceCents != null) {
+    return Math.trunc((priceCents * svc.signalPercent) / 100)
   }
   return null
 }
@@ -314,15 +332,18 @@ export function tryAiAutoBook(
     )
   const clientTurn: Msg[] = []
   let prevClinic: Msg | null = null
+  const older: Msg[] = []
   for (const m of recent) {
-    if (m.direction === 'inbound') {
-      if (prevClinic) break
-      clientTurn.push(m)
-    } else if (clientTurn.length > 0) {
-      prevClinic = m
-      break
+    if (!prevClinic) {
+      if (m.direction === 'inbound') {
+        clientTurn.push(m)
+      } else if (clientTurn.length > 0) {
+        prevClinic = m
+      } else {
+        return none('not_confirmed') // a clínica falou por último
+      }
     } else {
-      return none('not_confirmed') // a clínica falou por último
+      older.push(m)
     }
   }
   if (clientTurn.length === 0) return none('not_confirmed')
@@ -333,6 +354,7 @@ export function tryAiAutoBook(
   const det = detectExplicitConfirmation({
     clientTexts: clientTurn.map((m) => m.body),
     previousClinicText: prevClinic?.body ?? null,
+    historyTexts: older.map((m) => m.body),
     clientToday: clinicCivilDateFromUtc(tz, confirmation.created_at),
     clinicToday: clinicCivilDateFromUtc(tz, prevClinic?.created_at ?? confirmation.created_at),
     services,
@@ -354,12 +376,37 @@ export function tryAiAutoBook(
   const svc = det.service
   const date = det.date
   const time = det.time
+  const activeZones = svc.zones.filter((z) => z.active)
+  const namedZones = zonesNamedInText(clientTurn.map((m) => m.body).join('\n'), activeZones)
+  if (activeZones.length > 0 && namedZones.length === 0) {
+    return {
+      ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
+      notes:
+        `A cliente falou em ${svc.name} sem escolher zonas (${activeZones.map((z) => z.name).join(', ')}). ` +
+        'Pergunte as zonas. Não informe valor nem «a partir de».',
+    }
+  }
+  const quote = quoteVisit(
+    db,
+    tenantId,
+    svc,
+    namedZones.map((z) => z.id),
+  )
   const label = `${svc.name} · ${dayText(date)} às ${time}`
   const found = { ...base, serviceId: svc.id, date, time }
 
   // S2 / DEC-061: texto livre NUNCA marca. Com capacidade ligada, monta+envia proposta versionada
   // (botão WhatsApp); o clique (S5) é que marca ou inicia Pix. Sem capacidade → só nota à atendente.
-  const avail = queryAvailability(db, tenantId, { serviceId: svc.id, date }, clock)
+  const avail = queryAvailability(
+    db,
+    tenantId,
+    {
+      serviceId: svc.id,
+      date,
+      ...(quote.zones.length > 0 ? { durationMinutesOverride: quote.durationMinutes } : {}),
+    },
+    clock,
+  )
   const slot = avail.slots.find((s) => localHHMM(tz, s.startsAt) === time)
 
   if (!slot) {
@@ -373,7 +420,7 @@ export function tryAiAutoBook(
 
   if (!input.capability) {
     if (svc.requiresSignal) {
-      const amount = signalAmountCents(svc)
+      const amount = signalAmountCents(svc, quote.priceCents)
       return {
         ...none('needs_signal', found),
         replyText:
@@ -402,8 +449,9 @@ export function tryAiAutoBook(
         serviceId: svc.id,
         professionalId: slot.professionalId,
         startsAt: slot.startsAt,
-        endsAt: slot.endsAt,
-        durationMinutes: svc.durationMinutes,
+        endsAt: slot.startsAt + quote.durationMinutes * 60_000,
+        durationMinutes: quote.durationMinutes,
+        zoneIds: quote.zones.map((z) => z.zoneId).filter((id): id is string => Boolean(id)),
       },
       clock,
       input.abuseLimits ? { abuseLimits: input.abuseLimits } : {},

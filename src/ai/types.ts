@@ -29,6 +29,8 @@ export type AiCatalogService = {
   clientExplanation: string | null
   /** DEC-075 — audiência do serviço (feminino | masculino | qualquer); descreve o serviço. */
   audiencia: 'feminino' | 'masculino' | 'qualquer'
+  /** DEC-078 — zonas ativas. Ausente ou vazio: a linha do serviço vale. */
+  zones?: { name: string; durationMinutes: number; priceCents: number | null }[]
 }
 
 export type AiContextMessage = {

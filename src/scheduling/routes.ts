@@ -20,6 +20,14 @@ import {
   workerCaller,
 } from '../clinic'
 import type { AppointmentChangeReason } from '../clinic/constants'
+
+function parseZoneIds(raw: unknown): string[] | null {
+  if (raw == null) return null
+  if (!Array.isArray(raw) || raw.some((id) => typeof id !== 'string' || !id.trim())) {
+    throw new ValidationError('invalid_zone_ids', 'zoneIds deve ser uma lista de ids')
+  }
+  return raw as string[]
+}
 import type { WorkerBindings } from '../worker/bindings'
 import type { SchedulingGateway } from './gateway'
 import {
@@ -272,6 +280,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
         conversationId?: string | null
         opportunityId?: string | null
         durationMinutes?: number | null
+        zoneIds?: unknown
       }>()
       if (!body.clientRequestId?.trim()) {
         throw new ValidationError(
@@ -306,6 +315,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           actorDisplayName: displayNameFromRole(ctx.role),
           appliedDurationMinutes:
             body.durationMinutes == null ? null : finiteNumber(body.durationMinutes, 'durationMinutes'),
+          zoneIds: parseZoneIds(body.zoneIds),
         },
       )
       return c.json(
@@ -382,6 +392,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           roomResourceId?: string | null
           startsAt?: number
           expectedVersion?: number | null
+          zoneIds?: unknown
         }>()
         if (!body.clientRequestId?.trim()) {
           throw new ValidationError(
@@ -415,6 +426,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
             startsAt: body.startsAt!,
             actorClerkUserId: actor,
             expectedVersion: body.expectedVersion ?? null,
+            zoneIds: parseZoneIds(body.zoneIds),
           },
         )
         return c.json({
