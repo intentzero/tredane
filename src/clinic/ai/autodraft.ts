@@ -19,7 +19,7 @@ import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import { tryAiAutoBook, type AutoBookOutcome } from './autobook'
 import { runGenerateInternal } from './operations'
-import { getSuggestion, markSuggestionSuperseded } from './suggestions'
+import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
 import { getAiDailyUsage } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
@@ -172,7 +172,8 @@ export async function runDueAutoDrafts(
     )
     await opts.onStart?.(job)
 
-    let suggestion: AiSuggestionRow
+    let suggestion: AiSuggestionRow | null = null
+    let generateError: string | null = null
     try {
       const res = await runGenerateInternal(db, caller, clock, deps, {
         conversationId: job.conversationId,
@@ -186,9 +187,40 @@ export async function runDueAutoDrafts(
       suggestion = res.suggestion
     } catch (err) {
       const code = err instanceof ClinicError ? err.code : 'autodraft_error'
-      cancelAutoDraft(db, tenantId, job.conversationId)
-      out.push({ ...job, status: code === 'ai_daily_cap_reached' ? 'cap_reached' : 'failed', suggestion: null, reason: code })
-      continue
+      // Cap / IA desligada: não há o que enviar. Outros erros → ainda tenta autobook.
+      if (code === 'ai_daily_cap_reached' || code === 'ai_not_enabled') {
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        out.push({ ...job, status: code === 'ai_daily_cap_reached' ? 'cap_reached' : 'failed', suggestion: null, reason: code })
+        continue
+      }
+      generateError = code
+      suggestion = insertSuggestion(db, {
+        tenantId,
+        conversationId: job.conversationId,
+        kind: 'reply',
+        status: 'failed',
+        provider: 'none',
+        model: 'none',
+        suggestedText: '',
+        internalNotes: '',
+        warningCodes: [],
+        warningLabels: [],
+        sourceRefs: [],
+        requestMeta: {
+          latencyMs: 0,
+          inputTokens: null,
+          outputTokens: null,
+          messageCount: 0,
+          mode: deps.mode,
+        },
+        errorCode: code,
+        requestedByClerkUserId: AUTODRAFT_ACTOR_ID,
+        requestedByDisplayName: 'Rascunho automático',
+        parentSuggestionId: null,
+        replyToMessageId: null,
+        origin: 'auto',
+        createdAt: clock.nowMs(),
+      })
     }
 
     // Chegou outra mensagem durante a geração → descarta este; o job novo segue.
@@ -224,9 +256,21 @@ export async function runDueAutoDrafts(
         abuseLimits: deps.abuseLimits,
       })
       if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }
+      if (generateError) {
+        autoBook = {
+          ...autoBook,
+          notes: [autoBook.notes, `Geração do modelo falhou (${generateError}); seguiu o caminho determinístico.`]
+            .filter(Boolean)
+            .join('\n'),
+        }
+      }
       if (autoBook.proposalId || autoBook.replyText != null || autoBook.notes) {
-        const deterministic = Boolean(autoBook.proposalId || (autoBook.replyText != null && autoBook.replyText !== ''))
-        const text = autoBook.proposalId
+        const deterministic = Boolean(autoBook.replyText != null && autoBook.replyText !== '')
+        // Proposta entregue no WhatsApp → texto vazio. Aviso determinístico (falha de envio,
+        // zona em falta, horário ocupado) prevalece mesmo com proposalId.
+        const proposalDelivered =
+          Boolean(autoBook.proposalId) && !(autoBook.replyText && autoBook.replyText.trim())
+        const text = proposalDelivered
           ? ''
           : (autoBook.replyText ?? (suggestion.status === 'pending' ? suggestion.suggestedText : ''))
         const notes = [autoBook.notes, autoBook.replyText ? '' : suggestion.internalNotes]
@@ -272,10 +316,12 @@ export async function runDueAutoDrafts(
     const unsafe = suggestion.warningCodes.some((c) => c === 'injection_suspected' || c === 'output_rejected')
     // Resposta determinística do autobook (ex.: pedir variantes) ignora rejeição do modelo.
     const deterministicReply = Boolean(autoBook?.replyText && autoBook.replyText.trim())
+    const proposalDelivered =
+      Boolean(autoBook?.proposalId) && !deterministicReply
     if (
       suggestion.status === 'pending' &&
       draftText &&
-      !autoBook?.proposalId &&
+      !proposalDelivered &&
       (!unsafe || deterministicReply)
     ) {
       try {

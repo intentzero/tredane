@@ -429,7 +429,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
     }
   })
 
-  it('zonas todas inativas deixam nota e não enviam o rascunho', async () => {
+  it('zonas todas inativas avisam a cliente (não silencia o WhatsApp)', async () => {
     const s = seed()
     try {
       replaceServiceZonesOp(
@@ -445,8 +445,8 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       expect(o.autoBook?.proposalId).toBeUndefined()
       expect(o.autoBook?.status).toBe('needs_info')
       expect(o.suggestion!.internalNotes).toMatch(/inativas|calcular/i)
-      expect(o.suggestion!.suggestedText.trim()).toBe('')
-      expect(o.replyOutbox ?? []).toHaveLength(0)
+      expect(o.autoBook?.replyText?.trim().length).toBeGreaterThan(0)
+      expect(o.replyOutbox?.length).toBeGreaterThan(0)
       noBooking(s)
     } finally {
       s.close()
@@ -473,7 +473,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
     }
   })
 
-  it('pausa da owner → só nota, sem proposta', async () => {
+  it('pausa da owner → aviso à cliente, sem proposta', async () => {
     const s = seed()
     try {
       s.say('outbound', PROPOSAL)
@@ -483,8 +483,47 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       expect(o.autoBook?.status).toBe('requires_button')
       expect(o.autoBook?.proposalId).toBeUndefined()
       expect(o.autoBook?.outbox ?? []).toHaveLength(0)
-      expect(o.suggestion!.internalNotes).toMatch(/Texto livre não marca automaticamente/)
+      expect(o.autoBook?.replyText).toMatch(/equipe confirma/i)
+      expect(o.replyOutbox?.length).toBeGreaterThan(0)
+      expect(o.suggestion!.internalNotes).toMatch(/Capacidade pausada|Agendar/)
       noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('horário pedido sem vaga → oferece alternativas em vez de silenciar', async () => {
+    const s = seed()
+    try {
+      // Ocupa 14:00 com outro contato; deixa outros horários livres.
+      const other = upsertContact(
+        s.db,
+        { tenantId: s.tenantId, waId: '5511900000099', displayName: 'Outra' },
+        s.clock,
+      )
+      confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          contactId: other.id,
+          serviceId: s.svc.id,
+          professionalId: s.gi.id,
+          startsAt: at(14),
+          actorClerkUserId: s.caller.actorId!,
+          clientRequestId: 'hold-14',
+        },
+        s.clock,
+      )
+      s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 14:00?')
+      s.say('inbound', 'Sim')
+      const o = await s.run()
+      expect(o.autoBook?.proposalId).toBeUndefined()
+      expect(o.autoBook?.replyText).toMatch(/já não tenho vaga|14/i)
+      expect(o.replyOutbox?.length).toBeGreaterThan(0)
+      expect(s.appts()).toHaveLength(0)
+      expect(
+        s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM operational_audit WHERE action = 'appointment.ai_booked'`)!.n,
+      ).toBe(0)
     } finally {
       s.close()
     }
