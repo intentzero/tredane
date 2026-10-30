@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Button, Input, Label, TextField } from 'react-aria-components'
+import { Button, Input, Label, Radio, RadioGroup, TextField } from 'react-aria-components'
 import { ChevronRight } from 'lucide-react'
 import { Badge } from '../../states/Badge'
 import { ClinicCheck } from './ClinicCheck'
 import { ClinicListHeader } from './ClinicListHeader'
 import { professionalRow, roomRow } from './resourceRows'
-import { PanelSelect } from '../../ui/PanelSelect'
+import { Segmented } from './Segmented'
 import type { ClinicConfigSnapshot, PanelApi, ResourceFutureAppointment } from '../../api'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
@@ -446,22 +446,22 @@ export function ResourceForm({
 
       {kind === 'professional' ? (
         <p className="clinic-footnote">
-          A marcação nova ocupa uma sala livre da lista do serviço. A profissional não precisa de
-          acesso ao painel: quem usa o painel é a equipe da clínica.
+          A profissional não precisa de acesso ao painel: quem usa o painel é a equipe da clínica.
         </p>
       ) : (
         <>
-          <PanelSelect
-            className="clinic-field"
-            label="Tipo"
-            value={resourceKind}
-            onChange={(v) => setResourceKind(v)}
-            isDisabled={Boolean(existing)}
-            options={[
-              { id: 'room' as const, label: 'Sala' },
-              { id: 'equipment' as const, label: 'Equipamento' },
-            ]}
-          />
+          {existing ? null : (
+            <Segmented
+              label="Tipo"
+              role="radio"
+              value={resourceKind}
+              options={[
+                { id: 'room' as const, label: 'Sala' },
+                { id: 'equipment' as const, label: 'Equipamento' },
+              ]}
+              onChange={setResourceKind}
+            />
+          )}
           {showCategory ? (
           <TextField className="clinic-field">
             <Label>Categoria (opcional)</Label>
@@ -475,58 +475,62 @@ export function ResourceForm({
           ) : null}
           {resourceKind === 'room' ? (
             <>
-              <TextField className="clinic-field">
-                <Label>Atende ao mesmo tempo (pessoas)</Label>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={50}
-                  step={1}
-                  value={capacity}
-                  onChange={(e) => setCapacity(e.target.value)}
-                />
-              </TextField>
-              <p className="clinic-footnote">
-                De 1 a 50. Com 1, a sala atende uma pessoa de cada vez — sem perguntas de modo nem de
-                sexo.
-              </p>
+              <div className="clinic-field" role="group" aria-labelledby="room-cap-label">
+                <span id="room-cap-label" className="panel-legend">
+                  Quantas clientes ao mesmo tempo
+                </span>
+                <div className="room-stepper">
+                  <Button
+                    className="room-stepper-btn"
+                    aria-label="Menos uma"
+                    isDisabled={!capacityValid || capacityNumber <= 1}
+                    onPress={() => setCapacity(String(Math.max(1, capacityNumber - 1)))}
+                  >
+                    −
+                  </Button>
+                  <Input
+                    className="room-stepper-input"
+                    aria-label="Quantas clientes ao mesmo tempo"
+                    inputMode="numeric"
+                    value={capacity}
+                    onChange={(e) => setCapacity(e.target.value.replace(/\D/g, ''))}
+                  />
+                  <Button
+                    className="room-stepper-btn"
+                    aria-label="Mais uma"
+                    isDisabled={capacityValid && capacityNumber >= 50}
+                    onPress={() => setCapacity(String(Math.min(50, (capacityValid ? capacityNumber : 0) + 1)))}
+                  >
+                    +
+                  </Button>
+                  <span className="clinic-footnote">de 1 a 50</span>
+                </div>
+              </div>
               {capacityValid && capacityNumber > 1 ? (
                 <>
-                  <PanelSelect
-                    className="clinic-field"
-                    label="Modo de atendimento"
+                  <RadioGroup
+                    className="clinic-stack"
+                    aria-label="Modo de atendimento"
                     value={attendanceMode}
                     onChange={(id) =>
-                      setAttendanceMode(
-                        id === 'uma_para_todas' ? 'uma_para_todas' : 'cada_profissional',
-                      )
+                      setAttendanceMode(id === 'uma_para_todas' ? 'uma_para_todas' : 'cada_profissional')
                     }
-                    options={[
-                      {
-                        id: 'cada_profissional' as const,
-                        label: 'Cada profissional com a sua cliente',
-                      },
-                      {
-                        id: 'uma_para_todas' as const,
-                        label: 'Uma profissional para todas',
-                      },
-                    ]}
-                  />
-                  <p className="clinic-footnote">
-                    {attendanceMode === 'uma_para_todas'
-                      ? 'A mesma profissional pode atender várias clientes nesta sala, até à capacidade. Não fica noutra sala no mesmo horário.'
-                      : 'Cada profissional trava só a si. A sala recusa quando chega à capacidade.'}
-                  </p>
-                  <ClinicCheck
-                    isSelected={sameSexInSlot}
-                    onChange={setSameSexInSlot}
                   >
+                    <Radio value="cada_profissional" className="room-mode">
+                      <strong>Cada profissional com a sua cliente</strong>
+                      <span>Cada uma bloqueia só a si. A sala fecha quando chega a {capacityNumber} clientes.</span>
+                    </Radio>
+                    <Radio value="uma_para_todas" className="room-mode">
+                      <strong>Uma profissional para todas</strong>
+                      <span>A mesma profissional atende as {capacityNumber} aqui, no mesmo horário.</span>
+                    </Radio>
+                  </RadioGroup>
+                  <ClinicCheck isSelected={sameSexInSlot} onChange={setSameSexInSlot}>
                     Mesmo sexo neste horário
                   </ClinicCheck>
                   <p className="clinic-footnote">
-                    Ligado, o bloco fica com o sexo da primeira marcação feminina ou masculina.
-                    «Permitir os dois» naquele horário é só da responsável, na agenda.
+                    O horário fica com o sexo da primeira marcação. «Permitir os dois» é só da
+                    responsável, na agenda.
                   </p>
                 </>
               ) : null}

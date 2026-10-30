@@ -264,20 +264,14 @@ export function ServiceForm({
   const audienceConflict =
     withVariants && ((audiencia === 'masculino' && hasFemale) || (audiencia === 'feminino' && hasMale))
   const [moreOpen, setMoreOpen] = useState(false)
-  const roomNames = roomIds
-    .map((id) => rooms.find((r) => r.id === id)?.name)
-    .filter((name): name is string => Boolean(name))
-    .sort((a, b) => a.localeCompare(b, 'pt-BR'))
-  const roomLabel =
-    space === 'none'
-      ? 'sem espaço definido'
-      : roomNames.length > 0
-        ? roomNames.join(', ')
-        : 'onde acontece'
+  const hasWeather = tempoCeu !== 'tanto_faz' || tempoTemperatura !== 'tanto_faz'
+  const hasOwnHours = fromWeekDraft(hoursDraft).length > 0
   const moreSummary = [
-    roomLabel,
     buffer === 0 ? 'sem intervalo' : `intervalo ${buffer} min`,
+    audiencia === 'qualquer' ? null : audiencia,
     requiresSignal ? 'exige sinal' : 'sem sinal',
+    hasWeather ? 'com restrição de tempo' : null,
+    hasOwnHours ? 'com horário do serviço' : null,
     explanation.trim() ? 'com explicação' : null,
   ]
     .filter(Boolean)
@@ -554,32 +548,6 @@ export function ServiceForm({
           </>
         )}
       </section>
-      <PanelSelect
-        className="clinic-field"
-        label="Audiência"
-        value={audiencia}
-        onChange={(v) => {
-          if (v === 'feminino' || v === 'masculino' || v === 'qualquer') setAudiencia(v)
-        }}
-        options={[
-          { id: 'qualquer', label: 'Qualquer' },
-          { id: 'feminino', label: 'Feminino' },
-          { id: 'masculino', label: 'Masculino' },
-        ]}
-      />
-      <p className="clinic-footnote">
-        Descreve o serviço, não a pessoa. Um nome como «Bronzeamento feminino» não preenche
-        este campo.
-      </p>
-      {audienceConflict ? (
-        <p className="clinic-warn" role="status">
-          <TriangleAlert aria-hidden size={16} />
-          <span>
-            O serviço está como {audiencia}, e há variantes só para{' '}
-            {audiencia === 'masculino' ? 'feminino' : 'masculino'}. A audiência do serviço não esconde essas variantes.
-          </span>
-        </p>
-      ) : null}
       <fieldset className="clinic-fieldset">
         <legend>Quem faz</legend>
         {professionals.map((p) => (
@@ -601,92 +569,60 @@ export function ServiceForm({
           <p className="clinic-footnote">Cadastre profissionais primeiro; dá para voltar depois.</p>
         ) : null}
       </fieldset>
-      <section className="clinic-fieldset" aria-labelledby="service-tempo-heading">
-        <h2 id="service-tempo-heading" className="clinic-section-title">
-          Tempo
-        </h2>
-        {tempoCeu === 'tanto_faz' && tempoTemperatura === 'tanto_faz' ? (
-          <p className="clinic-footnote">Sem restrição de tempo.</p>
-        ) : null}
-        <RadioGroup
-          className="clinic-fieldset"
-          aria-label="Céu"
-          value={tempoCeu}
-          onChange={(value) => {
-            if (value === 'tanto_faz' || value === 'sol' || value === 'chuva') setTempoCeu(value)
-          }}
-        >
-          <span className="clinic-section-title">Céu</span>
-          <Radio className="clinic-check" value="tanto_faz">
-            Tanto faz
-          </Radio>
-          <Radio className="clinic-check" value="sol">
-            Sol
-          </Radio>
-          <Radio className="clinic-check" value="chuva">
-            Chuva
-          </Radio>
-        </RadioGroup>
-        {tempoCeu === 'sol' ? (
-          <p className="clinic-footnote">
-            Na hora marcada: céu limpo, pouco nublado ou parcialmente nublado, sem chuva.
-          </p>
-        ) : null}
-        {tempoCeu === 'chuva' ? (
-          <p className="clinic-footnote">
-            Na hora marcada tem de estar chovendo (chuva, garoa ou trovoada).
-          </p>
-        ) : null}
-        <RadioGroup
-          className="clinic-fieldset"
-          aria-label="Temperatura"
-          value={tempoTemperatura}
-          onChange={(value) => {
-            if (value === 'tanto_faz' || value === 'acima' || value === 'abaixo') {
-              setTempoTemperatura(value)
-              if (value === 'tanto_faz') setTempoCelsius(null)
-            }
-          }}
-        >
-          <span className="clinic-section-title">Temperatura</span>
-          <Radio className="clinic-check" value="tanto_faz">
-            Tanto faz
-          </Radio>
-          <Radio className="clinic-check" value="acima">
-            Acima de
-          </Radio>
-          <Radio className="clinic-check" value="abaixo">
-            Abaixo de
-          </Radio>
-        </RadioGroup>
-        {tempoTemperatura !== 'tanto_faz' ? (
-          <NumberField
-            className="clinic-field"
-            aria-label="Graus (°C)"
-            value={tempoCelsius ?? Number.NaN}
-            onChange={(value) => setTempoCelsius(Number.isNaN(value) ? null : value)}
-            step={1}
+        <fieldset className="clinic-fieldset">
+          <legend>
+                Onde acontece <span className="clinic-req">obrigatório</span>
+              </legend>
+          <ClinicCheck
+            className="clinic-check"
+            isSelected={space === 'none'}
+            onChange={(selected) => {
+              if (selected) {
+                setSpace('none')
+                setRoomIds([])
+              } else {
+                setSpace('unset')
+              }
+            }}
           >
-            <Label>Graus (°C)</Label>
-            <Input />
-          </NumberField>
-        ) : null}
-      </section>
-      <section className="clinic-fieldset" aria-labelledby="service-hours-heading">
-        <h2 id="service-hours-heading" className="clinic-section-title">
-          Quando este serviço pode ser prestado
-        </h2>
-        <WeekEditor
-          label="Quando este serviço pode ser prestado"
-          value={hoursDraft}
-          onChange={setHoursDraft}
-        />
-        <p className="clinic-footnote">
-          Com todos os dias fechados, o serviço pode ser agendado em qualquer horário em que a
-          profissional (e a sala, se houver) estiverem disponíveis.
+            Sem espaço definido
+          </ClinicCheck>
+          {rooms
+            .filter((r) => r.active || roomIds.includes(r.id))
+            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+            .map((r) => (
+              <ClinicCheck
+                key={r.id}
+                className="clinic-check"
+                isSelected={space === 'rooms' && roomIds.includes(r.id)}
+                onChange={(selected) => {
+                  const next = selected
+                    ? [...roomIds, r.id]
+                    : roomIds.filter((id) => id !== r.id)
+                  setRoomIds(next)
+                  setSpace(next.length > 0 ? 'rooms' : 'unset')
+                }}
+              >
+                {r.active ? r.name : `${r.name} (inativa)`}
+              </ClinicCheck>
+            ))}
+          <p className="clinic-footnote">
+            A marcação nova ocupa a primeira sala livre desta lista, por ordem de nome. Várias
+            profissionais podem partilhar a mesma sala. Sem espaço definido não ocupa sala.
+          </p>
+        </fieldset>
+      <div className="clinic-hint-box" aria-label="Como fica na agenda">
+        <strong>Como fica na agenda:</strong> ocupa {occupied} min ({duration} de atendimento + {buffer} de intervalo). O intervalo bloqueia a profissional e a sala.
+      </div>
+      {audienceConflict ? (
+        <p className="clinic-warn" role="status">
+          <TriangleAlert aria-hidden size={16} />
+          <span>
+            O serviço está como {audiencia}, e há variantes só para{' '}
+            {audiencia === 'masculino' ? 'feminino' : 'masculino'}. A audiência do serviço não esconde essas variantes.
+          </span>
         </p>
-      </section>
-
+      ) : null}
       <section className="service-more">
         <button
           type="button"
@@ -704,141 +640,201 @@ export function ServiceForm({
         </button>
         {moreOpen ? (
           <div className="service-more-body">
-            <fieldset className="clinic-fieldset">
-              <legend>Onde acontece</legend>
-              <ClinicCheck
-                className="clinic-check"
-                isSelected={space === 'none'}
-                onChange={(selected) => {
-                  if (selected) {
-                    setSpace('none')
-                    setRoomIds([])
-                  } else {
-                    setSpace('unset')
-                  }
-                }}
-              >
-                Sem espaço definido
-              </ClinicCheck>
-              {rooms
-                .filter((r) => r.active || roomIds.includes(r.id))
-                .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-                .map((r) => (
-                  <ClinicCheck
-                    key={r.id}
-                    className="clinic-check"
-                    isSelected={space === 'rooms' && roomIds.includes(r.id)}
-                    onChange={(selected) => {
-                      const next = selected
-                        ? [...roomIds, r.id]
-                        : roomIds.filter((id) => id !== r.id)
-                      setRoomIds(next)
-                      setSpace(next.length > 0 ? 'rooms' : 'unset')
-                    }}
-                  >
-                    {r.active ? r.name : `${r.name} (inativa)`}
-                  </ClinicCheck>
-                ))}
-              <p className="clinic-footnote">
-                A marcação nova ocupa a primeira sala livre desta lista, por ordem de nome. Várias
-                profissionais podem partilhar a mesma sala. Sem espaço definido não ocupa sala.
-              </p>
-            </fieldset>
-            {equipment.length > 0 ? (
+            
+            {/* regras que fogem do padrão: audiência, equipamento, intervalo, sinal, tempo, janela, explicação */}
+        <PanelSelect
+          className="clinic-field"
+          label="Audiência"
+          value={audiencia}
+          onChange={(v) => {
+            if (v === 'feminino' || v === 'masculino' || v === 'qualquer') setAudiencia(v)
+          }}
+          options={[
+            { id: 'qualquer', label: 'Qualquer' },
+            { id: 'feminino', label: 'Feminino' },
+            { id: 'masculino', label: 'Masculino' },
+          ]}
+        />
+        <p className="clinic-footnote">
+          Descreve o serviço, não a pessoa. Um nome como «Bronzeamento feminino» não preenche
+          este campo.
+        </p>
+              {equipment.length > 0 ? (
+                <PanelSelect
+                  className="clinic-field"
+                  label="Equipamento (opcional)"
+                  value={equipmentId ?? ''}
+                  onChange={(id) => setEquipmentId(id || null)}
+                  options={[
+                    { id: '', label: 'Nenhum' },
+                    ...equipment.map((r) => ({ id: r.id, label: r.name })),
+                  ]}
+                />
+              ) : null}
               <PanelSelect
                 className="clinic-field"
-                label="Equipamento (opcional)"
-                value={equipmentId ?? ''}
-                onChange={(id) => setEquipmentId(id || null)}
-                options={[
-                  { id: '', label: 'Nenhum' },
-                  ...equipment.map((r) => ({ id: r.id, label: r.name })),
-                ]}
+                label="Intervalo depois"
+                value={String(buffer)}
+                onChange={(v) => setBuffer(Number(v))}
+                options={bufferOptions().map((m) => ({
+                  id: String(m),
+                  label: m === 0 ? 'Nenhum' : `${m} min`,
+                }))}
               />
-            ) : null}
-            <PanelSelect
-              className="clinic-field"
-              label="Intervalo depois"
-              value={String(buffer)}
-              onChange={(v) => setBuffer(Number(v))}
-              options={bufferOptions().map((m) => ({
-                id: String(m),
-                label: m === 0 ? 'Nenhum' : `${m} min`,
-              }))}
-            />
-            <p className="clinic-hint-box">
-              Ocupa {occupied} min na agenda: {duration} de atendimento + {buffer} de intervalo. O intervalo
-              bloqueia a profissional e a sala.
-            </p>
-            <fieldset className="clinic-fieldset">
-              <legend>Sinal por Pix</legend>
-              <ClinicCheck
-                className="clinic-check"
-                isSelected={requiresSignal}
-                onChange={setRequiresSignal}
-              >
-                Exige sinal
-              </ClinicCheck>
-              {requiresSignal ? (
-                <>
-                  <PanelSelect
-                    className="clinic-field"
-                    label="Tipo"
-                    value={signalKind}
-                    onChange={(v) => setSignalKind(v === 'percent' ? 'percent' : 'fixed')}
-                    options={[
-                      { id: 'fixed', label: 'Valor fixo (R$)' },
-                      {
-                        id: 'percent',
-                        label: 'Percentual do preço',
-                        hint: signalBase ? undefined : 'Cadastre o preço primeiro',
-                        disabled: !signalBase,
-                      },
-                    ]}
-                  />
-                  {signalKind === 'fixed' ? (
-                    <TextField className="clinic-field">
-                      <Label>Valor do sinal</Label>
-                      <Input
-                        value={signalFixed}
-                        onChange={(e) => setSignalFixed(e.target.value)}
-                        inputMode="decimal"
-                        placeholder="R$ 0,00"
-                      />
-                    </TextField>
-                  ) : (
-                    <TextField className="clinic-field">
-                      <Label>Percentual (1–100)</Label>
-                      <Input
-                        value={signalPercent}
-                        onChange={(e) => setSignalPercent(e.target.value)}
-                        inputMode="numeric"
-                      />
-                    </TextField>
-                  )}
-                  {signalKind === 'percent' && signalBase != null ? (
-                    <p className="clinic-hint-box">
-                      Resumo: sinal de{' '}
-                      {formatPriceCents(
-                        Math.trunc((signalBase * (Number.parseInt(signalPercent, 10) || 0)) / 100),
-                      )}{' '}
-                      ({signalPercent}% de {formatPriceCents(signalBase)}).
-                    </p>
-                  ) : null}
-                </>
-              ) : null}
-            </fieldset>
-            <TextField className="clinic-field">
-              <Label>Explicação para clientes (opcional)</Label>
-              <TextArea
-                value={explanation}
-                onChange={(e) => setExplanation(e.target.value)}
-                rows={4}
-              />
-            </TextField>
+              <fieldset className="clinic-fieldset">
+                <legend>Sinal por Pix</legend>
+                <ClinicCheck
+                  className="clinic-check"
+                  isSelected={requiresSignal}
+                  onChange={setRequiresSignal}
+                >
+                  Exige sinal
+                </ClinicCheck>
+                {requiresSignal ? (
+                  <>
+                    <PanelSelect
+                      className="clinic-field"
+                      label="Tipo"
+                      value={signalKind}
+                      onChange={(v) => setSignalKind(v === 'percent' ? 'percent' : 'fixed')}
+                      options={[
+                        { id: 'fixed', label: 'Valor fixo (R$)' },
+                        {
+                          id: 'percent',
+                          label: 'Percentual do preço',
+                          hint: signalBase ? undefined : 'Cadastre o preço primeiro',
+                          disabled: !signalBase,
+                        },
+                      ]}
+                    />
+                    {signalKind === 'fixed' ? (
+                      <TextField className="clinic-field">
+                        <Label>Valor do sinal</Label>
+                        <Input
+                          value={signalFixed}
+                          onChange={(e) => setSignalFixed(e.target.value)}
+                          inputMode="decimal"
+                          placeholder="R$ 0,00"
+                        />
+                      </TextField>
+                    ) : (
+                      <TextField className="clinic-field">
+                        <Label>Percentual (1–100)</Label>
+                        <Input
+                          value={signalPercent}
+                          onChange={(e) => setSignalPercent(e.target.value)}
+                          inputMode="numeric"
+                        />
+                      </TextField>
+                    )}
+                    {signalKind === 'percent' && signalBase != null ? (
+                      <p className="clinic-hint-box">
+                        Resumo: sinal de{' '}
+                        {formatPriceCents(
+                          Math.trunc((signalBase * (Number.parseInt(signalPercent, 10) || 0)) / 100),
+                        )}{' '}
+                        ({signalPercent}% de {formatPriceCents(signalBase)}).
+                      </p>
+                    ) : null}
+                  </>
+                ) : null}
+              </fieldset>
+        <section className="clinic-fieldset" aria-labelledby="service-tempo-heading">
+          <h2 id="service-tempo-heading" className="clinic-section-title">
+            Tempo
+          </h2>
+          {tempoCeu === 'tanto_faz' && tempoTemperatura === 'tanto_faz' ? (
+            <p className="clinic-footnote">Sem restrição de tempo.</p>
+          ) : null}
+          <RadioGroup
+            className="clinic-fieldset"
+            aria-label="Céu"
+            value={tempoCeu}
+            onChange={(value) => {
+              if (value === 'tanto_faz' || value === 'sol' || value === 'chuva') setTempoCeu(value)
+            }}
+          >
+            <span className="clinic-section-title">Céu</span>
+            <Radio className="clinic-check" value="tanto_faz">
+              Tanto faz
+            </Radio>
+            <Radio className="clinic-check" value="sol">
+              Sol
+            </Radio>
+            <Radio className="clinic-check" value="chuva">
+              Chuva
+            </Radio>
+          </RadioGroup>
+          {tempoCeu === 'sol' ? (
             <p className="clinic-footnote">
-              A IA usa só este texto para explicar o serviço. Não escreva promessas de resultado.
+              Na hora marcada: céu limpo, pouco nublado ou parcialmente nublado, sem chuva.
             </p>
+          ) : null}
+          {tempoCeu === 'chuva' ? (
+            <p className="clinic-footnote">
+              Na hora marcada tem de estar chovendo (chuva, garoa ou trovoada).
+            </p>
+          ) : null}
+          <RadioGroup
+            className="clinic-fieldset"
+            aria-label="Temperatura"
+            value={tempoTemperatura}
+            onChange={(value) => {
+              if (value === 'tanto_faz' || value === 'acima' || value === 'abaixo') {
+                setTempoTemperatura(value)
+                if (value === 'tanto_faz') setTempoCelsius(null)
+              }
+            }}
+          >
+            <span className="clinic-section-title">Temperatura</span>
+            <Radio className="clinic-check" value="tanto_faz">
+              Tanto faz
+            </Radio>
+            <Radio className="clinic-check" value="acima">
+              Acima de
+            </Radio>
+            <Radio className="clinic-check" value="abaixo">
+              Abaixo de
+            </Radio>
+          </RadioGroup>
+          {tempoTemperatura !== 'tanto_faz' ? (
+            <NumberField
+              className="clinic-field"
+              aria-label="Graus (°C)"
+              value={tempoCelsius ?? Number.NaN}
+              onChange={(value) => setTempoCelsius(Number.isNaN(value) ? null : value)}
+              step={1}
+            >
+              <Label>Graus (°C)</Label>
+              <Input />
+            </NumberField>
+          ) : null}
+        </section>
+        <section className="clinic-fieldset" aria-labelledby="service-hours-heading">
+          <h2 id="service-hours-heading" className="clinic-section-title">
+            Quando este serviço pode ser prestado
+          </h2>
+          <WeekEditor
+            label="Quando este serviço pode ser prestado"
+            value={hoursDraft}
+            onChange={setHoursDraft}
+          />
+          <p className="clinic-footnote">
+            Com todos os dias fechados, o serviço pode ser agendado em qualquer horário em que a
+            profissional (e a sala, se houver) estiverem disponíveis.
+          </p>
+        </section>
+              <TextField className="clinic-field">
+                <Label>Explicação para clientes (opcional)</Label>
+                <TextArea
+                  value={explanation}
+                  onChange={(e) => setExplanation(e.target.value)}
+                  rows={4}
+                />
+              </TextField>
+              <p className="clinic-footnote">
+                A IA usa só este texto para explicar o serviço. Não escreva promessas de resultado.
+              </p>
           </div>
         ) : null}
       </section>

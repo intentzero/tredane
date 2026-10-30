@@ -90,7 +90,6 @@ describe('ServiceForm — duração e variantes', () => {
       },
     ]
     renderForm(svc({ roomRequirement: { mode: 'none' } }), { upsertService }, rooms)
-    fireEvent.click(screen.getByRole('button', { name: /Mais opções/ }))
     const none = screen.getByRole('checkbox', { name: 'Sem espaço definido' })
     expect(none).toHaveProperty('checked', true)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Sala A' }))
@@ -110,7 +109,6 @@ describe('ServiceForm — duração e variantes', () => {
     cleanup()
     const blocked = vi.fn()
     renderForm(svc({ roomRequirement: { mode: 'none' } }), { upsertService: blocked }, rooms)
-    fireEvent.click(screen.getByRole('button', { name: /Mais opções/ }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Sem espaço definido' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     expect(blocked).not.toHaveBeenCalled()

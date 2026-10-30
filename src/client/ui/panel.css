@@ -7886,3 +7886,76 @@
     font-size: 16px;
   }
 }
+
+/* Selo «obrigatório» ao lado do rótulo de um grupo que a gravação exige (DEC-082). */
+.clinic-req {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Capacidade da sala: − / número / +, alvos ≥ 44 px. */
+.room-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.room-stepper-btn {
+  min-width: 44px;
+  min-height: 44px;
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-headline);
+  cursor: pointer;
+}
+
+.room-stepper-btn[data-disabled] {
+  color: var(--color-line-disabled);
+  cursor: default;
+}
+
+.room-stepper-input {
+  width: 64px;
+  min-height: 44px;
+  text-align: center;
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-semibold);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-md);
+}
+
+/* Modo de atendimento: cartão escolhível com a consequência escrita. */
+.room-mode {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  cursor: pointer;
+}
+
+.room-mode span {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.room-mode[data-selected] {
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-tint);
+  box-shadow: inset 0 0 0 1px var(--color-primary-base);
+}
+
+.room-mode[data-focus-visible] {
+  outline: 2px solid var(--color-primary-base);
+  outline-offset: 2px;
+}

@@ -27,6 +27,7 @@ describe('ficha do serviço — Tempo', () => {
         onSaved={async () => {}}
       />,
     )
+    fireEvent.click(screen.getByRole('button', { name: /Mais opções/ }))
     expect(screen.getByText('Sem restrição de tempo.')).toBeTruthy()
     expect(screen.queryByLabelText('Graus (°C)')).toBeNull()
     expect(document.body.textContent).not.toMatch(/percentagem|%/)
