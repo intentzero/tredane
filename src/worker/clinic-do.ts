@@ -1,3 +1,5 @@
+import { readOpenMeteo } from '../clinic/tempo/open-meteo'
+import { tempoWarningsAt, withTempoWarnings } from '../clinic/tempo/warnings'
 import { countUnreadConversations, touchConversationMessage } from '../clinic/inbox/conversations'
 import { insertMessage } from '../clinic/inbox/messages'
 import { insertOutboxEvent } from '../clinic/outbox'
@@ -1910,7 +1912,15 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async queryClinicAvailability(caller: ClinicCaller, input: AvailabilityQueryInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    return clinicScheduling.queryAvailabilityOp(this.#db, caller, input, this.#clock)
+    const result = clinicScheduling.queryAvailabilityOp(this.#db, caller, input, this.#clock)
+    if (input.tempoMode === 'automatico') return result
+    return withTempoWarnings(
+      this.#db,
+      caller.tenantId,
+      result,
+      { read: readOpenMeteo },
+      this.#clock,
+    )
   }
 
   /** Revalidação de horário (#35; usada no confirmar #36). */
@@ -1943,7 +1953,15 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#fanoutOutboxes(caller, result.outbox, true)
       await this.#drain(caller)
     }
-    return result
+    const tempoWarnings = await tempoWarningsAt(
+      this.#db,
+      caller.tenantId,
+      input.serviceId,
+      input.startsAt,
+      { read: readOpenMeteo },
+      this.#clock,
+    )
+    return { ...result, tempoWarnings }
   }
 
   async cancelClinicAppointment(
@@ -1981,7 +1999,15 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#fanoutOutboxes(caller, result.outbox, true)
       await this.#drain(caller)
     }
-    return result
+    const tempoWarnings = await tempoWarningsAt(
+      this.#db,
+      caller.tenantId,
+      result.value.serviceId,
+      result.value.startsAt,
+      { read: readOpenMeteo },
+      this.#clock,
+    )
+    return { ...result, tempoWarnings }
   }
 
   async getClinicAppointment(caller: ClinicCaller, appointmentId: string) {

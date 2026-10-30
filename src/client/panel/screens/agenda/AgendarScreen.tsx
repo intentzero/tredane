@@ -711,6 +711,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           ) : null}
           {renderTimes(periods.manha, 'Manhã')}
           {renderTimes(periods.tarde, 'Tarde')}
+          <TempoNotice phrases={selected?.tempoWarnings} />
           {lostLabel && !times.some((t) => t.startsAt === conflict?.lostStartsAt) ? (
             <p className="agd-lost">
               <s>{lostLabel}</s> ocupado
@@ -863,6 +864,17 @@ function CalendarSheet(props: {
         </Dialog>
       </Modal>
     </ModalOverlay>
+  )
+}
+
+function TempoNotice({ phrases }: { phrases: string[] | undefined }) {
+  if (!phrases?.length) return null
+  return (
+    <div role="status">
+      {phrases.map((phrase) => (
+        <p key={phrase} className="agd-note">{phrase}</p>
+      ))}
+    </div>
   )
 }
 
@@ -1093,6 +1105,7 @@ function ReviewSheet(p: ReviewProps) {
             {p.requiresSignal ? 'Sinal por Pix' : 'Revisar agendamento'}
           </Heading>
           <div className="agd-sheet-body">
+            <TempoNotice phrases={slot.tempoWarnings} />
             {err ? (
               <div className="agd-banner" role="alert">
                 <TriangleAlert aria-hidden size={20} strokeWidth={2} />

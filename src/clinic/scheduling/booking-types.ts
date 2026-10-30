@@ -9,6 +9,8 @@ export type AppointmentMutationResult<T> = {
   outbox: OutboxRow[]
   /** true se o clientRequestId já tinha sido processado. */
   idempotentReplay: boolean
+  /** Aviso do bloco Tempo na resposta da marcação manual (DEC-077). Não fica no compromisso. */
+  tempoWarnings?: string[]
 }
 
 export type ConfirmAppointmentInput = {

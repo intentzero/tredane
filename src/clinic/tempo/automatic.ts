@@ -10,7 +10,7 @@ import type { AvailabilityQueryInput, AvailabilityQueryResult } from '../schedul
 import { evaluateServiceTempo, type ForecastAdapter, type ForecastRead } from './evaluate'
 import { localHourStart } from './open-meteo'
 
-function memoAdapter(inner: ForecastAdapter): ForecastAdapter {
+export function memoAdapter(inner: ForecastAdapter): ForecastAdapter {
   const cache = new Map<string, Promise<ForecastRead>>()
   return {
     read(query) {
