@@ -68,7 +68,7 @@ function systemCaller(tenantId: string): ClinicCaller {
 }
 
 /**
- * Envia a proposta persistida como mensagem interactive (Confirmar / Alterar detalhes).
+ * Envia a proposta persistida como mensagem interactive (Confirmar / Alterar detalhes / Falar com a equipe).
  * Idempotente por `proposal.send:<id>:v<version>`.
  */
 export function sendProposalToWhatsAppOp(

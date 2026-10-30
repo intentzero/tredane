@@ -122,6 +122,8 @@ export type ConversationDetail = ConversationListItem & {
   activeProposal: ConversationProposalPanel | null
   /** S4 / H7: comunicações pendentes abertas ou alertadas. */
   pendingCommunications: ConversationPendingCommunicationPanel[]
+  /** DEC-083: IA pausada até a equipe devolver. */
+  aiReplyPause: { at: number; reason: string } | null
 }
 
 export type ListConversationsInput = {

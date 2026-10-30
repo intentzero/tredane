@@ -40,6 +40,39 @@ function hhmm(min: number): string {
   return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 }
 
+/**
+ * Faixas do expediente sem unir o almoço. 09:00–12:00 e 13:00–18:00 ficam as duas.
+ * Sobreposição no mesmo dia junta-se; um vão no meio permanece.
+ */
+export function formatOpeningHours(
+  windows: readonly { dayOfWeek: number; startMinute: number; endMinute: number }[],
+): string[] {
+  const byDow = new Map<number, { start: number; end: number }[]>()
+  for (const w of windows) {
+    const list = byDow.get(w.dayOfWeek) ?? []
+    list.push({ start: w.startMinute, end: w.endMinute })
+    byDow.set(w.dayOfWeek, list)
+  }
+  const lines: string[] = []
+  for (let dow = 1; dow <= 7; dow++) {
+    const name = WEEKDAYS[dow]!
+    const raw = byDow.get(dow)
+    if (!raw || raw.length === 0) {
+      lines.push(`${name}: fechado`)
+      continue
+    }
+    const sorted = [...raw].sort((a, b) => a.start - b.start || a.end - b.end)
+    const merged: { start: number; end: number }[] = []
+    for (const span of sorted) {
+      const last = merged[merged.length - 1]
+      if (last && span.start <= last.end) last.end = Math.max(last.end, span.end)
+      else merged.push({ start: span.start, end: span.end })
+    }
+    lines.push(`${name}: ${merged.map((h) => `${hhmm(h.start)}–${hhmm(h.end)}`).join(' e ')}`)
+  }
+  return lines
+}
+
 export function formatClinicTime(timeZone: string, utcMs: number): string {
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone,
@@ -131,20 +164,13 @@ export async function buildClinicAiContext(
       .map((r) => r.id),
   )
   const windows = listEffectiveWeeklyWindows(db, tenantId).filter((w) => proIds.has(w.resourceId))
-  const byDow = new Map<number, { start: number; end: number }>()
-  for (const w of windows) {
-    const cur = byDow.get(w.dayOfWeek)
-    byDow.set(w.dayOfWeek, {
-      start: Math.min(cur?.start ?? w.startMinute, w.startMinute),
-      end: Math.max(cur?.end ?? w.endMinute, w.endMinute),
-    })
-  }
-  const openingHours: string[] = []
-  for (let dow = 1; dow <= 7; dow++) {
-    const h = byDow.get(dow)
-    const name = WEEKDAYS[dow]!
-    openingHours.push(h ? `${name}: ${hhmm(h.start)}–${hhmm(h.end)}` : `${name}: fechado`)
-  }
+  const openingHours = formatOpeningHours(
+    windows.map((w) => ({
+      dayOfWeek: w.dayOfWeek,
+      startMinute: w.startMinute,
+      endMinute: w.endMinute,
+    })),
+  )
 
   const active = listServices(db, tenantId).filter((s) => s.active)
   const chosen = pickServicesForSlots(active, opts.recentTexts)

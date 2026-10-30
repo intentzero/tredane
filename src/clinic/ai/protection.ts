@@ -12,12 +12,18 @@ export type ProtectionVerdict =
   | { allowed: true }
   | { allowed: false; reason: 'contact_blocked' | 'conversation_paused' | 'not_found' | 'check_failed' }
 
-/** TODO(#182): ler o estado de pausa da conversa/contato quando o épico de Proteção o definir. */
+/** DEC-083: resposta automática pausada até a equipe devolver à IA. */
 export function isConversationPaused(db: ClinicDb, tenantId: string, conversationId: string): boolean {
-  void db
-  void tenantId
-  void conversationId
-  return false
+  try {
+    const row = db.get<{ at: number | null }>(
+      `SELECT ai_reply_paused_at AS at FROM conversations WHERE tenant_id = ? AND id = ?`,
+      tenantId,
+      conversationId,
+    )
+    return row?.at != null
+  } catch {
+    return false
+  }
 }
 
 export function checkConversationProtection(

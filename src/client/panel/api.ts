@@ -1478,6 +1478,21 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as InboxAssignResponse
     },
 
+    async resumeInboxAi(
+      tenantId: string,
+      conversationId: string,
+      opts?: FetchOpts,
+    ): Promise<{ aiReplyPause: null }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/conversations/${encodeURIComponent(conversationId)}/resume-ai`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { aiReplyPause: null }
+    },
+
     async markInboxRead(
       tenantId: string,
       conversationId: string,
@@ -1944,6 +1959,8 @@ export type InboxConversationDetail = InboxConversation & {
   opportunity?: { id: string; stage: string; label: string; updatedAt: number } | null
   /** S4 / #175 — proposta versionada (membros autorizados). */
   activeProposal?: InboxActiveProposal | null
+  /** DEC-083 — IA pausada até Devolver à IA. */
+  aiReplyPause?: { at: number; reason: string } | null
   /** S4 / H7 — comunicação pendente visível na conversa. */
   pendingCommunications?: InboxPendingCommunication[]
 }

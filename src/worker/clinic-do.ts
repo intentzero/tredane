@@ -115,6 +115,7 @@ import type {
   SuggestReplyInput,
   SummarizeInput,
 } from '../clinic/ai'
+import { HUMAN_HANDOFF_BUTTON_ID, notifyHumanHandoff, resumeAiReply } from '../clinic/ai/human-handoff'
 import { systemClock, type Clock } from '../db/clock'
 import { fromD1 } from '../db/admin/async-store'
 import {
@@ -492,8 +493,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       result.outboxes.some((o) => o.type === 'conversation.created')
 
     if (!result.duplicate && result.message && result.conversation && result.message.direction === 'inbound') {
-      // Rascunho automático da IA (debounce) — nunca envia.
-      try {
+      // Rascunho automático da IA (debounce). Pausa DEC-083 não enfileira.
+        try {
         const job = clinicAi.enqueueAutoDraft(
           this.#db,
           caller.tenantId,
@@ -638,7 +639,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
   }
 
-  /** S4: envia proposta versionada com botões Confirmar / Alterar detalhes. */
+  /** S4: envia proposta versionada com botões Confirmar, Alterar detalhes e Falar com a equipe. */
   async sendProposalToWhatsApp(caller: ClinicCaller, input: { proposalId: string }) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
@@ -671,6 +672,19 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     bindOrAssertTenant(this.#db, caller, this.#clock)
+    if (input.buttonId.trim() === HUMAN_HANDOFF_BUTTON_ID && input.conversationId) {
+      notifyHumanHandoff(
+        this.#db,
+        caller.tenantId,
+        {
+          conversationId: input.conversationId,
+          reason: 'customer_requested',
+          clientRequestId: `handoff.button:${input.providerEventKey ?? input.conversationId}`,
+        },
+        this.#clock,
+      )
+      return { handled: true, action: 'human' as const }
+    }
     let contactId = input.contactId?.trim() ?? ''
     if (!contactId && input.conversationId) {
       const conv = this.#db.get<{ contact_id: string }>(
@@ -882,6 +896,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     await this.#fanoutOutboxes(caller, result.outbox, true)
     await this.#drain(caller)
     return result.value
+  }
+
+  async resumeInboxAiReply(caller: ClinicCaller, conversationId: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    resumeAiReply(this.#db, caller.tenantId, conversationId, this.#clock)
+    return { aiReplyPause: null as null }
   }
 
   async markInboxConversationRead(caller: ClinicCaller, input: MarkReadInput) {
@@ -2909,7 +2930,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return new Response(null, { status: 101, webSocket: client })
   }
 
-  /** IA assistiva (#41) — sob demanda; nunca envia WhatsApp. */
+  /** IA assistiva (#41) — o resumo é sob demanda. A resposta automática envia no WhatsApp (DEC-083). */
   async suggestAiReply(
     caller: ClinicCaller,
     input: SuggestReplyInput,

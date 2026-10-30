@@ -117,6 +117,7 @@ export function serializeConversationDetail(d: ConversationDetail) {
       detailText: c.detailText,
       proposalId: c.proposalId,
     })),
+    aiReplyPause: d.aiReplyPause,
   }
 }
 

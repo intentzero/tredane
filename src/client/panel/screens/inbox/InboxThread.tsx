@@ -595,6 +595,23 @@ export function InboxThread({
     }
   }
 
+  async function resumeAi() {
+    if (!detail) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      await api.resumeInboxAi(tenantId, conversationId, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      setDetail((prev) => (prev ? { ...prev, aiReplyPause: null } : prev))
+    } catch (err) {
+      setNotice(friendlyError(err, 'Não foi possível devolver a conversa à IA.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function assume() {
     if (!detail) return
     setBusy(true)
@@ -1186,6 +1203,19 @@ export function InboxThread({
               </Button>
             </div>
           </Banner>
+        </div>
+      ) : null}
+
+      {detail.aiReplyPause ? (
+        <div className="inbox-assign" role="status">
+          <p>A IA está pausada. Uma pessoa continua esta conversa.</p>
+          <Button
+            className="panel-btn-secondary panel-btn-compact"
+            onPress={() => void resumeAi()}
+            isDisabled={busy}
+          >
+            Devolver à IA
+          </Button>
         </div>
       ) : null}
 

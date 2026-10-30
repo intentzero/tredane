@@ -192,7 +192,8 @@ describe('S4: render determinístico', () => {
       expect(rendered.body).toContain('Rua das Flores')
       expect(rendered.body).toContain('Ana Silva')
       expect(rendered.body).not.toMatch(/LLM|sugestão livre/i)
-      expect(rendered.buttons).toHaveLength(2)
+      expect(rendered.buttons).toHaveLength(3)
+      expect(rendered.buttons[2]!.title).toBe('Falar com a equipe')
       expect(rendered.buttons[0]!.title).toBe('Confirmar')
       expect(rendered.buttons[1]!.title).toBe('Alterar detalhes')
       expect(rendered.buttons[0]!.id).toBe(proposalButtonId(proposal.id, 1, 'confirm'))
@@ -235,7 +236,7 @@ describe('S4: envio WhatsApp', () => {
       expect(queued.outbound.clientRequestId.startsWith(PROPOSAL_SEND_CLIENT_REQUEST_PREFIX)).toBe(
         true,
       )
-      expect(queued.outbound.interactiveButtons).toHaveLength(2)
+      expect(queued.outbound.interactiveButtons).toHaveLength(3)
       expect(getProposal(s.db, s.tenantId, proposal.id)?.state).toBe('envio_pendente')
 
       simulateMetaAccepted(s.db, s.tenantId, s.clock, queued.outbound.clientRequestId)

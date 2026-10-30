@@ -3,8 +3,12 @@
  * Texto autorizado e campos factuais vêm só do snapshot persistido — nunca do LLM.
  */
 import type { ClinicDb } from '../store'
+import { systemClock } from '../../db/clock'
+import { getResource } from '../config/resources'
+import { getService } from '../config/services'
 import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots, zoneLabel } from '../config/zones'
+import { HUMAN_HANDOFF_BUTTON_TITLE } from '../ai/human-handoff'
 import type { AppointmentProposalRow } from './types'
 
 /** Limite Cloud API para título de botão reply. */
@@ -16,9 +20,10 @@ export const PROPOSAL_BODY_MAX = 1024
 export const PROPOSAL_BUTTON_TITLES = {
   confirm: 'Confirmar',
   alter: 'Alterar detalhes',
+  human: HUMAN_HANDOFF_BUTTON_TITLE,
 } as const
 
-export type ProposalButtonAction = 'confirm' | 'alter'
+export type ProposalButtonAction = 'confirm' | 'alter' | 'human'
 
 export type ProposalInteractiveButton = {
   id: string
@@ -28,7 +33,7 @@ export type ProposalInteractiveButton = {
 
 export type ProposalInteractivePayload = {
   body: string
-  buttons: [ProposalInteractiveButton, ProposalInteractiveButton]
+  buttons: [ProposalInteractiveButton, ProposalInteractiveButton, ProposalInteractiveButton]
   proposalId: string
   version: number
 }
@@ -45,7 +50,7 @@ export function proposalButtonId(
 export function parseProposalButtonId(
   raw: string,
 ): { proposalId: string; version: number; action: ProposalButtonAction } | null {
-  const m = /^prop:([^:]+):v(\d+):(confirm|alter)$/.exec(raw.trim())
+  const m = /^prop:([^:]+):v(\d+):(confirm|alter|human)$/.exec(raw.trim())
   if (!m) return null
   const version = Number(m[2])
   if (!Number.isInteger(version) || version < 1) return null
@@ -136,6 +141,25 @@ export function renderProposalInteractive(
   if (proposal.professionalName) {
     lines.push(`Profissional: ${proposal.professionalName}`)
   }
+  if (db) {
+    const service = getService(db, proposal.tenantId, proposal.serviceId)
+    if (service?.roomRequirement.mode === 'rooms') {
+      const names = service.roomRequirement.resourceIds
+        .map((id) => getResource(db, proposal.tenantId, id, systemClock)?.name)
+        .filter((n): n is string => Boolean(n))
+      if (names.length > 0) lines.push(`Sala: ${names.join(' ou ')}`)
+    }
+    if (service && service.bufferMinutes > 0) {
+      const occupied = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: proposal.timezone,
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(proposal.endsAt + service.bufferMinutes * 60_000))
+      lines.push(
+        `Intervalo: ${service.bufferMinutes} min depois do atendimento (a agenda fica ocupada até ${occupied})`,
+      )
+    }
+  }
   if (proposal.priceCents != null) {
     lines.push(
       combo
@@ -149,7 +173,7 @@ export function renderProposalInteractive(
   if (signal) lines.push(signal)
   lines.push('')
   lines.push('Esta proposta vale 30 minutos após o envio.')
-  lines.push('Toque em Confirmar para seguir ou em Alterar detalhes para falar com a equipe.')
+  lines.push('Toque em Confirmar para seguir, em Alterar detalhes para mudar ou em Falar com a equipe.')
 
   let body = lines.join('\n')
   if (body.length > PROPOSAL_BODY_MAX) {
@@ -158,7 +182,12 @@ export function renderProposalInteractive(
 
   const confirmTitle = PROPOSAL_BUTTON_TITLES.confirm
   const alterTitle = PROPOSAL_BUTTON_TITLES.alter
-  if (confirmTitle.length > PROPOSAL_BUTTON_TITLE_MAX || alterTitle.length > PROPOSAL_BUTTON_TITLE_MAX) {
+  const humanTitle = PROPOSAL_BUTTON_TITLES.human
+  if (
+    confirmTitle.length > PROPOSAL_BUTTON_TITLE_MAX ||
+    alterTitle.length > PROPOSAL_BUTTON_TITLE_MAX ||
+    humanTitle.length > PROPOSAL_BUTTON_TITLE_MAX
+  ) {
     throw new Error('proposal_button_title_too_long')
   }
 
@@ -174,6 +203,11 @@ export function renderProposalInteractive(
         id: proposalButtonId(proposal.id, proposal.version, 'alter'),
         title: alterTitle,
         action: 'alter',
+      },
+      {
+        id: proposalButtonId(proposal.id, proposal.version, 'human'),
+        title: humanTitle,
+        action: 'human',
       },
     ],
     proposalId: proposal.id,

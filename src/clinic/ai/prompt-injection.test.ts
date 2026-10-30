@@ -234,7 +234,7 @@ describe('S6: guarda do resumo interno', () => {
 })
 
 describe('S6: zero efeitos indevidos (proposta ligada, clínica sem pausa)', () => {
-  it.each(ATTACKS)('%s → aviso à atendente, nada marcado/enviado', async (_l, body) => {
+  it.each(ATTACKS)('%s → pausa sem modelo e sem marcação', async (_l, body) => {
     const s = seed()
     try {
       s.say('outbound', 'Tenho quinta 29/10 às 15:00 para massagem. Quer?')
@@ -243,12 +243,28 @@ describe('S6: zero efeitos indevidos (proposta ligada, clínica sem pausa)', () 
       s.clock.advance(7_000)
       const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
         mode: 'synthetic',
-        adapter: new SimulatedAiAdapter(),
+        adapter: {
+          providerId: 'test',
+          mode: 'synthetic' as const,
+          async generate() {
+            throw new Error('model_called')
+          },
+          lastInspection() {
+            return null
+          },
+        },
       })
       expect(out).toHaveLength(1)
-      expect(out[0]!.autoBook?.status).not.toBe('booked')
-      expect(out[0]!.suggestion!.warningCodes).toContain('injection_suspected')
-      s.noEffects()
+      expect(out[0]!.status).toBe('skipped')
+      expect(out[0]!.reason).toBe('human_handoff')
+      expect(out[0]!.suggestion).toBeNull()
+      const n = (sql: string) => s.db.get<{ n: number }>(sql)!.n
+      expect(n('SELECT COUNT(*) AS n FROM appointments')).toBe(0)
+      const paused = s.db.get<{ at: number | null }>(
+        `SELECT ai_reply_paused_at AS at FROM conversations WHERE id = ?`,
+        s.cnv.id,
+      )
+      expect(paused?.at).not.toBeNull()
     } finally {
       s.close()
     }

@@ -272,7 +272,7 @@ export function InboxContactScreen({
               </>
             ) : (
               <p className="ai-block-source">
-                Gerado sob demanda — a IA não envia mensagens.
+                Gerado sob demanda. As respostas de agendamento podem sair sozinhas no WhatsApp.
               </p>
             )}
             {summaryError ? (
