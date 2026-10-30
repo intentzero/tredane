@@ -77,16 +77,16 @@ async function seedBookable(tenantId = 'clinic-demo-s9-a') {
     clock,
   )
   clinicInbox.seedSyntheticWhatsappTemplates(db, tenantId, clock)
-  const pro = upsertResourceOp(
-    db,
-    caller,
-    { kind: 'professional', name: 'Dra. Paula Reis' },
-    clock,
-  )
   const room = upsertResourceOp(
     db,
     caller,
     { kind: 'room', name: 'Sala 1', category: 'Padrão' },
+    clock,
+  )
+  const pro = upsertResourceOp(
+    db,
+    caller,
+    { kind: 'professional', name: 'Dra. Paula Reis', homeRoomId: room.id },
     clock,
   )
   const svc = upsertServiceOp(
@@ -238,7 +238,7 @@ function allocationCount(s: { db: ReturnType<typeof bootClinicDb>['db']; tenantI
 
 describe('S9: schema estável', () => {
   it('mantém CLINIC_SCHEMA_VERSION com propostas/envio/limites', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(36)
+    expect(CLINIC_SCHEMA_VERSION).toBe(37)
   })
 })
 
@@ -592,11 +592,16 @@ describe('S9: hibernate/restore sintético (persistência SQLite)', () => {
       clock,
     )
     clinicInbox.seedSyntheticWhatsappTemplates(db1, tenantId, clock)
-    const pro = upsertResourceOp(db1, caller, { kind: 'professional', name: 'Dra. Paula Reis' }, clock)
     const room = upsertResourceOp(
       db1,
       caller,
       { kind: 'room', name: 'Sala 1', category: 'Padrão' },
+      clock,
+    )
+    const pro = upsertResourceOp(
+      db1,
+      caller,
+      { kind: 'professional', name: 'Dra. Paula Reis', homeRoomId: room.id },
       clock,
     )
     const svc = upsertServiceOp(
