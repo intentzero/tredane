@@ -108,7 +108,7 @@ describe('ServiceForm — duração e variantes', () => {
   })
 
   it('se a primeira variante não grava, o tipo não fica sozinho', async () => {
-    const upsertService = vi.fn(async (_tenantId: string, _body: Record<string, unknown>) => svc({}))
+    const upsertService = vi.fn(async () => svc({}))
     const replaceServiceZones = vi.fn(async () => {
       throw new Error('nome')
     })
@@ -120,7 +120,8 @@ describe('ServiceForm — duração e variantes', () => {
     fireEvent.change(names[1]!, { target: { value: 'Axila' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(upsertService).toHaveBeenCalledTimes(2))
-    expect(upsertService.mock.calls[1]?.[1]).toMatchObject({ variantKind: null, variantKindPlural: null })
+    const second = (upsertService.mock.calls as unknown[][])[1]
+    expect(second?.[1]).toMatchObject({ variantKind: null, variantKindPlural: null })
     expect(screen.getByText(/nome/)).toBeTruthy()
   })
 })
