@@ -1,5 +1,6 @@
 import {
   guardReplyOutput,
+  guardSummaryOutput,
   AI_MODEL_AUTODRAFT,
   AI_MODEL_REGENERATE,
   AI_MAX_OUTPUT_TOKENS_REPLY,
@@ -214,7 +215,9 @@ async function runGenerate(
   })
   // Saída estruturada: mensagem limpa à cliente + notas internas separadas.
   // S6 (#177): schema fechado; desvio → descartado, fallback humano.
+  // Resumo é prosa interna: guarda própria, sem exigir {mensagem, notas}.
   let guarded = gen.ok && input.kind === 'reply' ? guardReplyOutput(gen.text) : null
+  const summaryGuard = gen.ok && input.kind === 'summary' ? guardSummaryOutput(gen.text) : null
   if (
     guarded?.ok
     && tempoDraftRejected(guarded.message, contextInspection.payload.clinic)
@@ -228,9 +231,11 @@ async function runGenerate(
         notes: guarded.notes,
       }
     : null
-  const rejected = guarded != null && !guarded.ok
+  const summaryRejected = summaryGuard != null && !summaryGuard.ok
+  const rejected = (guarded != null && !guarded.ok) || summaryRejected
   // Sem mensagem utilizável → falha amigável, nunca texto cru.
-  const unusable = gen.ok && input.kind === 'reply' && !parsedReply?.message
+  const unusable =
+    (gen.ok && input.kind === 'reply' && !parsedReply?.message) || summaryRejected
   const ok = gen.ok && !unusable
 
   const now = clock.nowMs()
@@ -239,7 +244,12 @@ async function runGenerate(
     warningCodes.push('output_rejected')
     aiLog('warn', 'ai.output_rejected', {
       tenantId: meta.tenantId,
-      reason: guarded && !guarded.ok ? guarded.reason : 'unknown',
+      reason:
+        guarded && !guarded.ok
+          ? guarded.reason
+          : summaryGuard && !summaryGuard.ok
+            ? summaryGuard.reason
+            : 'unknown',
     })
   } else if (!ok) warningCodes.push('provider_unavailable')
   const warningLabels = warningCodes.map(warningLabel)
@@ -282,7 +292,13 @@ async function runGenerate(
       status: ok ? 'pending' : 'failed',
       provider: gen.provider,
       model: gen.model,
-      suggestedText: ok ? (parsedReply ? parsedReply.message : gen.text) : '',
+      suggestedText: ok
+        ? parsedReply
+          ? parsedReply.message
+          : summaryGuard?.ok
+            ? summaryGuard.text
+            : gen.text
+        : '',
       internalNotes: ok ? (parsedReply?.notes ?? '') : '',
       warningCodes,
       warningLabels,

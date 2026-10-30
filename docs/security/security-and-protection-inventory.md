@@ -1,6 +1,8 @@
 # Inventário de proteção e segurança
 
 > Levantamento feito em 28/10/2026 (BRT) a partir do código da `main` em `4807146`, dos documentos em `docs/`, das issues e dos PRs abertos, e do histórico do workflow `deploy.yml` (`gh run list` / `gh run view`). **Nenhuma chamada foi feita à Cloudflare.** Documento só descritivo: não muda decisões nem autoriza merge, deploy ou ativação.
+>
+> A leitura destes controles contra a ISO/IEC 42001 está na [matriz](iso-42001-control-matrix.md) (**Proposta**). O procedimento está no [manual](aims.md). O inventário não é essa matriz: aqui o estado é de código e deploy; lá o estado é de aplicabilidade do controle.
 
 ## Como ler os estados
 
@@ -131,7 +133,7 @@
 | Onde | `src/ai/untrusted.ts`, `src/ai/prompt.ts`, `src/ai/reply-output.ts` (`guardReplyOutput`), `src/ai/rules.ts`, `src/clinic/ai/operations.ts`; doc `docs/security/prompt-injection.md`; adaptador simulado recusa injection/tool calls; IA não envia mensagens (rascunho para a atendente) |
 | Decisão | DEC-006, DEC-046; DEC-061 retira do LLM a autorização (S2/#191 já em `main`) |
 | Testes | `src/clinic/ai/prompt-injection.test.ts` (ataques + zero efeitos); `src/ai/reply-output.robust.test.ts`, `src/clinic/ai/ai.test.ts` |
-| Limites | Heurística `injection_suspected` é Proposta (só aviso). Resumo (`kind: summary`) não passa pelo schema fechado. Não afirma imunidade total; rascunho continua a exigir revisão humana. S9 (#180) consolida CI sintético + gates; liberação piloto continua Em aberto. |
+| Limites | Heurística `injection_suspected` é Proposta (só aviso). Resumo passa por `guardSummaryOutput` (marcador, ferramenta, «marquei/enviei»); prosa interna, inclusive «ficou marcado», continua. Não afirma imunidade total; rascunho continua a exigir revisão humana. S9 (#180) consolida CI sintético + gates; liberação piloto continua Em aberto. |
 
 ### 11. Limites de abuso (por contato e por clínica)
 
@@ -188,10 +190,10 @@ Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY
 | Campo | Detalhe |
 |---|---|
 | Estado | **em staging** |
-| Onde | DO por clínica: tabela `operational_audit` (`src/clinic/migrations/0001_clinic_foundation.ts`), `src/clinic/audit.ts`; marcações pela IA: `appointment.ai_booked` / `appointment.ai_book_conflict` com actor `system:ai-autobook` (`src/clinic/ai/autobook.ts:386-420`); D1 central: `central_audit_events` (`db/migrations/0003_admin_d1_central.sql:111`, índice `:125`), escrita em `src/team/d1-ops.ts:33` |
-| Decisão | ADR 0002, 0007, 0011; DEC-060 (auditoria da IA) |
-| Testes | `src/clinic/ai/autobook.test.ts`, `src/clinic/clinic.test.ts`, testes de equipa/suporte |
-| Limites | Sem trilha de auditoria de propostas/cliques (#174/#176); sem alertas automáticos sobre eventos de auditoria. |
+| Onde | DO por clínica: tabela `operational_audit`; marcações pela IA: `appointment.ai_booked` com actor `system:ai-autobook`; criação e recusa de clique: `proposal.created` e `proposal.confirm_refused` em `src/clinic/proposals/proposals.ts` e `execute-confirm.ts` (ids e motivo, sem corpo); D1 central: `central_audit_events` |
+| Decisão | ADR 0002, 0007, 0011; DEC-060 (auditoria da IA); trilha de proposta alinhada a A.6.2.8 da [matriz](iso-42001-control-matrix.md) |
+| Testes | `src/clinic/ai/autobook.test.ts`, `src/clinic/proposals/proposals.test.ts`, `src/clinic/proposals/execute-confirm.test.ts`, `src/clinic/clinic.test.ts` |
+| Limites | Retenção de `operational_audit` **Em aberto** (NC-05). Sem alertas automáticos sobre eventos de auditoria. |
 
 ## Lacunas conhecidas (priorizadas)
 

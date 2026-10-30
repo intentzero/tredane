@@ -215,6 +215,64 @@ function resolveRoomForProposal(
   return slot?.roomResourceId ?? null
 }
 
+const CONFIRM_REFUSED_REASONS = new Set([
+  'expired',
+  'contact_mismatch',
+  'tenant_mismatch',
+  'conversation_mismatch',
+  'capability_disabled',
+  'slot_refused',
+  'tempo_refused',
+  'tempo_unconfirmed',
+])
+
+function writeProposalConfirmRefusedOnce(
+  db: ClinicDb,
+  input: {
+    tenantId: string
+    proposalId: string
+    version: number | null
+    reason: string
+    contactId: string | null
+    conversationId: string | null
+  },
+  clock: Clock,
+): void {
+  if (!CONFIRM_REFUSED_REASONS.has(input.reason)) return
+  const prior = db.all<{ detail_json: string | null }>(
+    `SELECT detail_json FROM operational_audit
+     WHERE tenant_id = ? AND action = 'proposal.confirm_refused' AND object_id = ?`,
+    input.tenantId,
+    input.proposalId,
+  )
+  const already = prior.some((row) => {
+    if (!row.detail_json) return false
+    try {
+      return (JSON.parse(row.detail_json) as { reason?: string }).reason === input.reason
+    } catch {
+      return false
+    }
+  })
+  if (already) return
+  writeOperationalAudit(
+    db,
+    {
+      tenantId: input.tenantId,
+      actor: 'system',
+      action: 'proposal.confirm_refused',
+      objectType: 'appointment_proposal',
+      objectId: input.proposalId,
+      detail: {
+        reason: input.reason,
+        proposalVersion: input.version,
+        contactId: input.contactId,
+        conversationId: input.conversationId,
+      },
+    },
+    clock,
+  )
+}
+
 function writeAiBookedAudit(
   db: ClinicDb,
   input: {
@@ -378,6 +436,20 @@ export async function executeProposalConfirmOp(
   }
 
   if (!input.capability) {
+    if (proposal) {
+      writeProposalConfirmRefusedOnce(
+        db,
+        {
+          tenantId: meta.tenantId,
+          proposalId: proposal.id,
+          version: proposal.version,
+          reason: 'capability_disabled',
+          contactId: proposal.contactId,
+          conversationId: proposal.conversationId,
+        },
+        clock,
+      )
+    }
     return {
       status: 'denied',
       reason: 'capability_disabled',
@@ -405,6 +477,26 @@ export async function executeProposalConfirmOp(
     let result: SendProposalResultOutcome | undefined
     const outbox: OutboxRow[] = []
     const denialReason = auth.allowed ? undefined : auth.reason
+    if (
+      proposal &&
+      (denialReason === 'expired' ||
+        denialReason === 'contact_mismatch' ||
+        denialReason === 'tenant_mismatch' ||
+        denialReason === 'conversation_mismatch')
+    ) {
+      writeProposalConfirmRefusedOnce(
+        db,
+        {
+          tenantId: meta.tenantId,
+          proposalId: proposal.id,
+          version: proposal.version,
+          reason: denialReason,
+          contactId: proposal.contactId,
+          conversationId: proposal.conversationId,
+        },
+        clock,
+      )
+    }
     if (proposal && (denialReason === 'expired' || denialReason === 'not_enviada')) {
       result = await ensureResult(db, caller, proposal.id, 'expired', clock)
       if ('outbox' in result) outbox.push(...result.outbox)
@@ -468,6 +560,18 @@ export async function executeProposalConfirmOp(
   if (tempo.outcome !== 'serve') {
     const refused = markProposalTempoRefused(db, meta.tenantId, proposal.id, clock)
     const kind = tempo.outcome === 'nao_serve' ? 'tempo_refused' : 'tempo_unconfirmed'
+    writeProposalConfirmRefusedOnce(
+      db,
+      {
+        tenantId: meta.tenantId,
+        proposalId: refused.id,
+        version: refused.version,
+        reason: kind,
+        contactId: refused.contactId,
+        conversationId: refused.conversationId,
+      },
+      clock,
+    )
     const result = await ensureResult(db, caller, refused.id, kind, clock)
     return {
       status: 'tempo_refused',
@@ -482,6 +586,18 @@ export async function executeProposalConfirmOp(
   const service = getService(db, meta.tenantId, proposal.serviceId)
   if (service && service.roomRequirement.mode !== 'none' && !roomResourceId) {
     const refused = markProposalSlotRefused(db, meta.tenantId, proposal.id, clock)
+    writeProposalConfirmRefusedOnce(
+      db,
+      {
+        tenantId: meta.tenantId,
+        proposalId: refused.id,
+        version: refused.version,
+        reason: 'slot_refused',
+        contactId: refused.contactId,
+        conversationId: refused.conversationId,
+      },
+      clock,
+    )
     const result = await ensureResult(db, caller, refused.id, 'slot_refused', clock)
     return {
       status: 'slot_refused',
@@ -612,6 +728,18 @@ export async function executeProposalConfirmOp(
   } catch (err) {
     if (err instanceof ConflictError && err.code === 'appointment_conflict') {
       const refused = markProposalSlotRefused(db, meta.tenantId, proposal.id, clock)
+      writeProposalConfirmRefusedOnce(
+        db,
+        {
+          tenantId: meta.tenantId,
+          proposalId: refused.id,
+          version: refused.version,
+          reason: 'slot_refused',
+          contactId: refused.contactId,
+          conversationId: refused.conversationId,
+        },
+        clock,
+      )
       const result = await ensureResult(db, caller, refused.id, 'slot_refused', clock)
       return {
         status: 'slot_refused',

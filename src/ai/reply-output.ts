@@ -207,3 +207,23 @@ export function guardReplyOutput(raw: string): GuardedReply {
   if (OUT_CLAIMS_BOOKING_RE.test(parsed.message)) return { ok: false, reason: 'claims_booking', notes: '' }
   return { ok: true, message: parsed.message, notes: parsed.notes }
 }
+
+/* Resumo interno: prosa simples, sem o schema {mensagem, notas}. */
+export type SummaryOutputRejection = 'empty' | 'role_marker' | 'tool_call' | 'claims_action'
+
+export type GuardedSummary =
+  | { ok: true; text: string }
+  | { ok: false; reason: SummaryOutputRejection }
+
+const SUMMARY_TOOL_RE = /\b(tool_call|function_call|tool_use)\b|<\s*\/?\s*tool\b/i
+/** Primeira pessoa: o modelo diz que marcou ou enviou. «Ficou marcado» continua válido no resumo. */
+const SUMMARY_CLAIMS_ACTION_RE = /\b(marquei|agendei|reservei|confirmei|enviei)\b/i
+
+export function guardSummaryOutput(raw: string): GuardedSummary {
+  const text = raw.replace(/\r\n/g, '\n').trim()
+  if (!text) return { ok: false, reason: 'empty' }
+  if (OUT_ROLE_MARKER_RE.test(text)) return { ok: false, reason: 'role_marker' }
+  if (SUMMARY_TOOL_RE.test(text)) return { ok: false, reason: 'tool_call' }
+  if (SUMMARY_CLAIMS_ACTION_RE.test(text)) return { ok: false, reason: 'claims_action' }
+  return { ok: true, text }
+}

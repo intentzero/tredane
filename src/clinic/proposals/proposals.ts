@@ -32,6 +32,7 @@ import {
 import type { ComboSnapshot, ZoneSnapshot } from '../config/types'
 import { ConflictError, NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
+import { writeOperationalAudit } from '../audit'
 import { getConversation } from '../inbox/conversations'
 import type { ClinicDb } from '../store'
 import type {
@@ -629,6 +630,30 @@ export type CreateProposalOptions = {
   abuseLimits?: AbuseLimits
 }
 
+function writeProposalCreated(
+  db: ClinicDb,
+  tenantId: string,
+  proposal: AppointmentProposalRow,
+  clock: Clock,
+): void {
+  writeOperationalAudit(
+    db,
+    {
+      tenantId,
+      actor: 'system',
+      action: 'proposal.created',
+      objectType: 'appointment_proposal',
+      objectId: proposal.id,
+      detail: {
+        proposalVersion: proposal.version,
+        contactId: proposal.contactId,
+        conversationId: proposal.conversationId,
+      },
+    },
+    clock,
+  )
+}
+
 /**
  * Cria proposta em `preparada`. Se já houver versão aberta na conversa com os mesmos
  * factos materiais, devolve-a (idempotente). Mudança material → substitui e cria nova versão.
@@ -729,6 +754,7 @@ export function createOrSupersedeProposal(
         clock,
       )
       writeZoneSnapshots(db, tenantId, 'proposal', next.id, facts.zones, facts.combo)
+      writeProposalCreated(db, tenantId, next, clock)
       return { proposal: next, superseded: getProposal(db, tenantId, active.id) }
     }
 
@@ -741,6 +767,7 @@ export function createOrSupersedeProposal(
       clock,
     )
     writeZoneSnapshots(db, tenantId, 'proposal', proposal.id, facts.zones, facts.combo)
+    writeProposalCreated(db, tenantId, proposal, clock)
     return { proposal, superseded: null }
   })
 }
