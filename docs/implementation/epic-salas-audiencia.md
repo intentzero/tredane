@@ -1,6 +1,6 @@
 # Épico — Salas partilhadas e audiência do serviço (DEC-075)
 
-**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «vamos considerar estes casos de uso no sistema, prepara um epico de implementacao»). Este documento é o épico. Issue: [#284](https://github.com/intentzero/tredane/issues/284). S1 (docs) e S2 (audiência) em `main`. S3 (sala da profissional / salão partilhado) em implementação.
+**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «vamos considerar estes casos de uso no sistema, prepara um epico de implementacao»). Este documento é o épico. Issue: [#284](https://github.com/intentzero/tredane/issues/284). S1 (docs) e S2 (audiência) em `main`. S3 (salas do serviço e salão partilhado) em implementação.
 
 **Revista em parte pela [DEC-082](../product/decisions.md) (Paulo, 30/10/2026, «concordo»).** A marcação nova ocupa uma sala livre da lista do serviço e uma profissional que faz o serviço e está livre. A sala na ficha da profissional deixa de escolher o horário. Sala exclusiva na profissional fica fora deste recorte. Capacidade, modo e audiência deste épico mantêm-se. «Qualquer sala livre» e a categoria saem da ficha (DEC-082). Uma sala nova só entra no serviço se a responsável a acrescentar. Serviços já gravados continuam a marcar: «Sem sala» passa a «Sem espaço definido»; «Qualquer sala livre» e a categoria viram a lista das salas ativas que já serviam. Uma sala nova não entra sozinha. Fica fechado na DEC-082: com todas as salas da lista desativadas, a marcação nova não aparece; as salas continuam na lista até a responsável reativar uma, escolher outra, ou passar a «Sem espaço definido».
 
@@ -25,9 +25,9 @@ Conferido no código da `main` (schema da clínica na versão 30). O que já est
 | Serviço sem audiência. Catálogo da IA: nome, duração, preço e explicação para clientes. | Tabela `services` (migração 0003); `AiCatalogService` em `src/ai/types.ts` | Passa a faltar: audiência (S2) e o filtro de linha (S6). |
 | Frase fixa da sala na confirmação WhatsApp, sem número de vagas. A IA não fala de vagas. Sinal Pix por pessoa. Bloco pendente ocupa vaga. | DEC-059; `sharedSpaceNotice` no horário | Manter. As frases novas (S6) também não dizem quantas vagas há. |
 | Eventos da agenda já publicados no outbox da clínica: `appointment.confirmed`, `appointment.cancelled`, `appointment.rescheduled`. | `src/clinic/scheduling/booking.ts` | Reutilizar. Não criar outro canal de tempo real. |
-| Configuração só pela responsável (`clinic.config.write`, DEC-042). A atendente marca. | Rotas em `src/clinic-config/routes.ts` | Audiência, sala da profissional, modo e mesmo sexo seguem esta escrita. «Permitir os dois» também é só da responsável (S5). |
+| Configuração só pela responsável (`clinic.config.write`, DEC-042). A atendente marca. | Rotas em `src/clinic-config/routes.ts` | Audiência, salas do serviço, modo e mesmo sexo seguem esta escrita. «Permitir os dois» também é só da responsável (S5). |
 
-**O que falta, por fatia:** audiência do serviço (S2); sala na profissional, marcação nessa sala, partilha e contagem por pessoa (S3); modo grupo (S4); mesmo sexo e «Permitir os dois» (S5); frases da agenda, do WhatsApp e da IA (S6).
+**O que falta, por fatia:** audiência do serviço (S2); salas do serviço, partilha e contagem por pessoa (S3, DEC-082); modo grupo (S4); mesmo sexo e «Permitir os dois» (S5); frases da agenda, do WhatsApp e da IA (S6).
 
 ---
 
@@ -45,7 +45,7 @@ S1 → S2 → S3 → S4 → S5 → S6. Cada fatia é verificável sozinha com da
 
 ## S1 — Decisão, aceite e migração que preserva o atual
 
-**Comportamento.** O desenho fica registado em DEC-075. A migração da clínica só grava os padrões que reproduzem o que `main` faz hoje: capacidade que a sala já tem, modo «Cada profissional com a sua cliente», «Mesmo sexo neste horário» desligado, audiência `qualquer` em todas as linhas de serviço, inclusive quando o nome contém «feminino» ou «masculino». Compromissos já gravados mantêm `room_resource_id`. A profissional ainda não passa a escolher a sala nesta fatia: isso é S3.
+**Comportamento.** O desenho fica registado em DEC-075. A migração da clínica só grava os padrões que reproduzem o que `main` faz hoje: capacidade que a sala já tem, modo «Cada profissional com a sua cliente», «Mesmo sexo neste horário» desligado, audiência `qualquer` em todas as linhas de serviço, inclusive quando o nome contém «feminino» ou «masculino». Compromissos já gravados mantêm `room_resource_id`. A marcação pela lista do serviço é a DEC-082. Esta fatia não escolhe a sala.
 
 **Regras.** Não inferir audiência pelo nome. Não ligar mesmo sexo. Não mudar uma sala para «Uma profissional para todas». Não apagar capacidade. Equipamento continua sem estes campos. Contato continua sem sexo.
 
@@ -199,11 +199,11 @@ Nomes fictícios. Os três têm de passar com S2–S6 feitas. Não substituem os
 
 ### 1. Gi — capacidade 1 e duas salas
 
-Sala Depilação, capacidade 1, da Gi. Sala Massagem, capacidade 1, da colega. Depilação: Gi, audiência qualquer. Massagem: Gi e colega, audiência qualquer. Massagem com a Gi usa a sala da Gi. Com a colega, a sala de massagem. Gi em depilação às 9h não massaja às 9h. A colega pode. A equipa troca a sala numa marcação; a seguinte da mesma profissional usa de novo a sala dela.
+«Depilação» lista a Sala depilação, capacidade 1. «Massagem» lista a Sala depilação e a Sala massagem, capacidade 1. A Gi faz os dois; a colega faz massagem. Massagem com a Gi, com as duas salas livres, usa a primeira por ordem de nome. Com a Sala depilação ocupada, usa a Sala massagem. Gi em depilação às 9h não massaja às 9h, nem noutra sala. A colega pode massajar às 9h numa sala livre da lista. A equipa troca a sala numa marcação para outra sala desse serviço; a seguinte volta a uma sala livre da lista.
 
 ### 2. Salão partilhado
 
-Ana e Bia na mesma sala, capacidade 2 ou mais, «Cada profissional com a sua cliente». Às 9h cada uma tem uma cliente. A terceira espera. Uma não ocupa a cadeira da outra.
+O serviço lista uma sala, capacidade 2 ou mais, «Cada profissional com a sua cliente». A Ana e a Bia fazem esse serviço. Às 9h cada uma tem uma cliente nessa sala. A terceira espera. Uma não ocupa a cadeira da outra.
 
 ### 3. Sandra — grupo e mesmo sexo
 
