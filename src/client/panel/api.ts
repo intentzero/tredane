@@ -520,6 +520,27 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as ClinicConfigSnapshot['settings']
     },
 
+    async setForecastPlace(
+      tenantId: string,
+      body:
+        | { mode: 'cidade'; city: string }
+        | { mode: 'coordenadas'; latitude: number; longitude: number },
+      opts?: FetchOpts,
+    ): Promise<ClinicConfigSnapshot['settings']> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/forecast-place`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicConfigSnapshot['settings']
+    },
+
     async updatePixSignalSettings(
       tenantId: string,
       body: { deadlineSeconds?: number; cancellationPolicy?: string },
@@ -2095,6 +2116,11 @@ export type ClinicConfigSnapshot = {
     clinicAddress?: string | null
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
+    /** DEC-077 — local da previsão. Independente do endereço da IA. */
+    forecastMode?: 'nenhum' | 'cidade' | 'coordenadas'
+    forecastCity?: string | null
+    forecastLatitude?: number | null
+    forecastLongitude?: number | null
     updatedAt: number
   }
   services: ClinicService[]

@@ -143,6 +143,11 @@ export type ClinicSettingsRow = {
   googleBusinessUrl: string
   /** Regras de remarcação e cancelamento (texto da clínica; contexto da IA). */
   reschedulePolicy: string
+  /** DEC-077 — local da previsão. Não é `clinicAddress`. */
+  forecastMode: 'nenhum' | 'cidade' | 'coordenadas'
+  forecastCity: string | null
+  forecastLatitude: number | null
+  forecastLongitude: number | null
   /**
    * Limites de abuso — owner (DEC-042 / Paulo 29/10/2026).
    * Default enabled=false (fail-closed por clínica).
@@ -161,6 +166,11 @@ export type ClinicSettingsRow = {
   abuseProposalsPerClinic: number
   updatedAt: number
 }
+
+/** DEC-077 — gravação do local da previsão. Um modo apaga o outro. */
+export type ForecastPlaceInput =
+  | { mode: 'cidade'; city: string }
+  | { mode: 'coordenadas'; latitude: number; longitude: number }
 
 /** Corpo de PATCH dos limites de abuso (owner). */
 export type UpdateAbuseLimitsInput = {
