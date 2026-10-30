@@ -485,27 +485,6 @@ export function confirmAppointmentOp(
   input: ConfirmAppointmentInput,
   clock: Clock,
 ): AppointmentMutationResult<AppointmentDetail> {
-  assertClinicSchemaReady(db)
-  assertValidCaller(caller)
-  const meta = bindOrAssertTenant(db, caller, clock)
-  const clientRequestId = requireClientRequestId(input.clientRequestId)
-
-  const existing = findAppointmentCommand(db, meta.tenantId, clientRequestId)
-  if (existing) {
-    if (existing.command !== 'confirm') {
-      throw new ConflictError(
-        'client_request_id_reuse',
-        'clientRequestId já usado noutra operação',
-      )
-    }
-    const apt = loadAppointment(db, meta.tenantId, existing.appointmentId)
-    return {
-      value: enrichDetail(db, meta.tenantId, apt, clock),
-      outbox: [],
-      idempotentReplay: true,
-    }
-  }
-
   return db.transactionSync(() =>
     confirmAppointmentInTransaction(db, caller, input, clock),
   )

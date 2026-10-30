@@ -33,6 +33,7 @@ import {
   createProposal,
   executeProposalConfirmOp,
   handleProposalButtonClick,
+  markProposalConfirmed,
   markProposalSent,
   proposalBookClientRequestId,
   proposalButtonId,
@@ -295,6 +296,51 @@ describe('S5: book sem sinal', () => {
       expect(after?.linkedAppointmentId).toBe(
         result.status === 'booked' ? result.appointment.id : null,
       )
+    } finally {
+      s.close()
+    }
+  })
+
+  it('reentrega do clique move a oportunidade que o book antigo deixou em atendimento', async () => {
+    const s = await seedBookable()
+    try {
+      const opp = insertOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contact.id,
+          conversationId: s.conversation.id,
+          stage: 'em_atendimento',
+        },
+        s.clock,
+      )
+      const proposal = makeSent(s)
+      const booked = confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: proposalBookClientRequestId(proposal.id, proposal.version),
+          serviceId: proposal.serviceId,
+          professionalId: proposal.professionalId,
+          roomResourceId: s.room.id,
+          startsAt: proposal.startsAt,
+          contactId: proposal.contactId,
+          conversationId: proposal.conversationId,
+          actorClerkUserId: AI_AUTOBOOK_ACTOR,
+        },
+        s.clock,
+      )
+      markProposalConfirmed(s.db, s.tenantId, proposal.id, s.clock, booked.value.id)
+      expect(getOpportunity(s.db, s.tenantId, opp.id)?.stage).toBe('em_atendimento')
+
+      const result = await confirmClick(s, proposal.id, proposal.version)
+      expect(result.status).toBe('booked')
+      if (result.status !== 'booked') return
+      expect(result.idempotentReplay).toBe(true)
+      expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(1)
+      const after = getOpportunity(s.db, s.tenantId, opp.id)
+      expect(after?.stage).toBe('agendado')
+      expect(after?.linkedAppointmentId).toBe(result.appointment.id)
     } finally {
       s.close()
     }

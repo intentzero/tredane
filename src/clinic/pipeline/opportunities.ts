@@ -65,6 +65,7 @@ export function findOpenOpportunityForConversation(
   const row = db.get<OppSql>(
     `SELECT * FROM opportunities
      WHERE tenant_id = ? AND conversation_id = ? AND status = 'open'
+     ORDER BY updated_at DESC, id DESC
      LIMIT 1`,
     tenantId,
     conversationId,
