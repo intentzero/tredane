@@ -5,6 +5,7 @@ import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import type { ReactNode } from 'react'
 import { navigatePanel, type ClinicaSection } from '../../routes'
 import { AiAssistCard } from './AiAssistCard'
+import { ForecastPlaceCard } from './ForecastPlaceCard'
 import { AutomationLimitsCard } from './AutomationLimitsCard'
 import { StagingResetCard } from './StagingResetCard'
 import { isStagingHostname } from './whatsapp/WhatsappDevSyncAction'
@@ -119,6 +120,20 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             snap={snap}
             aiCard={
               <>
+                {isOwner ? (
+                  <ForecastPlaceCard
+                    tenantId={tenantId}
+                    api={api}
+                    generation={generation}
+                    place={{
+                      mode: snap.settings.forecastMode,
+                      city: snap.settings.forecastCity,
+                      latitude: snap.settings.forecastLatitude,
+                      longitude: snap.settings.forecastLongitude,
+                    }}
+                    onSaved={() => void reload()}
+                  />
+                ) : null}
                 <AiAssistCard
                   tenantId={tenantId}
                   api={api}

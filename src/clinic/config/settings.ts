@@ -3,7 +3,7 @@ import { DEFAULT_SIGNAL_DEADLINE_SECONDS } from '../../pix/money'
 import { DEFAULT_ABUSE_LIMIT_NUMBERS } from '../ai/abuse-limits'
 import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
-import type { ClinicSettingsRow } from './types'
+import type { ClinicSettingsRow, ForecastPlaceInput } from './types'
 import { normalizeTimezone } from './validation'
 import { checkGoogleBusinessUrl } from './google-business-link'
 import { ValidationError } from '../errors'
@@ -17,6 +17,10 @@ type SettingsSql = {
   clinic_address?: string
   google_business_url?: string
   reschedule_policy?: string
+  tempo_local?: string
+  tempo_cidade?: string | null
+  tempo_latitude?: number | null
+  tempo_longitude?: number | null
   abuse_limits_enabled?: number
   auto_book_paused?: number
   abuse_window_hours?: number
@@ -42,6 +46,13 @@ function mapSettings(row: SettingsSql): ClinicSettingsRow {
     clinicAddress: row.clinic_address ?? '',
     googleBusinessUrl: row.google_business_url ?? '',
     reschedulePolicy: row.reschedule_policy ?? '',
+    forecastMode:
+      row.tempo_local === 'cidade' || row.tempo_local === 'coordenadas'
+        ? row.tempo_local
+        : 'nenhum',
+    forecastCity: row.tempo_cidade ?? null,
+    forecastLatitude: row.tempo_latitude ?? null,
+    forecastLongitude: row.tempo_longitude ?? null,
     abuseLimitsEnabled: row.abuse_limits_enabled === 1,
     autoBookPaused: row.auto_book_paused === 1,
     abuseWindowHours: row.abuse_window_hours ?? DEFAULT_ABUSE_LIMIT_NUMBERS.windowHours,
@@ -75,6 +86,7 @@ export function ensureClinicSettings(
   const existing = db.get<SettingsSql>(
     `SELECT tenant_id, timezone, signal_deadline_seconds, signal_cancellation_policy, ai_assist_enabled,
        clinic_address, google_business_url, reschedule_policy,
+       tempo_local, tempo_cidade, tempo_latitude, tempo_longitude,
        abuse_limits_enabled, auto_book_paused, abuse_window_hours,
        abuse_auto_drafts_per_contact, abuse_ai_bookings_per_contact, abuse_ai_bookings_per_clinic,
        abuse_future_appointments_per_contact, abuse_pending_pix_per_contact,
@@ -108,6 +120,10 @@ export function ensureClinicSettings(
     clinicAddress: '',
     googleBusinessUrl: '',
     reschedulePolicy: '',
+    forecastMode: 'nenhum',
+    forecastCity: null,
+    forecastLatitude: null,
+    forecastLongitude: null,
     abuseLimitsEnabled: false,
     autoBookPaused: false,
     abuseWindowHours: DEFAULT_ABUSE_LIMIT_NUMBERS.windowHours,
@@ -202,6 +218,64 @@ export function setClinicAiProfile(
     googleBusinessUrl,
     policy,
     clock.nowMs(),
+    tenantId,
+  )
+  return ensureClinicSettings(db, tenantId, clock)
+}
+
+const FORECAST_CITY_MAX = 80
+
+/** Local da previsão (DEC-077). Não altera `clinic_address`. Um modo apaga o outro. */
+export function setForecastPlace(
+  db: ClinicDb,
+  tenantId: string,
+  input: ForecastPlaceInput,
+  clock: Clock,
+): ClinicSettingsRow {
+  ensureClinicSettings(db, tenantId, clock)
+  const now = clock.nowMs()
+  if (input.mode === 'cidade') {
+    const city = input.city.trim()
+    if (!city) {
+      throw new ValidationError('invalid_forecast_place', 'Informe a cidade.')
+    }
+    if (city.length > FORECAST_CITY_MAX) {
+      throw new ValidationError(
+        'invalid_forecast_place',
+        `A cidade pode ter até ${FORECAST_CITY_MAX} caracteres.`,
+      )
+    }
+    db.run(
+      `UPDATE clinic_settings
+         SET tempo_local = 'cidade', tempo_cidade = ?, tempo_latitude = NULL, tempo_longitude = NULL,
+             updated_at = ?
+       WHERE id = 1 AND tenant_id = ?`,
+      city,
+      now,
+      tenantId,
+    )
+    return ensureClinicSettings(db, tenantId, clock)
+  }
+  if (!Number.isFinite(input.latitude) || input.latitude < -90 || input.latitude > 90) {
+    throw new ValidationError(
+      'invalid_forecast_place',
+      'Latitude tem de estar entre −90 e 90.',
+    )
+  }
+  if (!Number.isFinite(input.longitude) || input.longitude < -180 || input.longitude > 180) {
+    throw new ValidationError(
+      'invalid_forecast_place',
+      'Longitude tem de estar entre −180 e 180.',
+    )
+  }
+  db.run(
+    `UPDATE clinic_settings
+       SET tempo_local = 'coordenadas', tempo_cidade = NULL, tempo_latitude = ?, tempo_longitude = ?,
+           updated_at = ?
+     WHERE id = 1 AND tenant_id = ?`,
+    input.latitude,
+    input.longitude,
+    now,
     tenantId,
   )
   return ensureClinicSettings(db, tenantId, clock)

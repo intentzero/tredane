@@ -88,6 +88,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     updateTimezone: (caller, timezone) => stub.updateClinicTimezone(caller, timezone),
     setAiAssistEnabled: (caller, enabled) => stub.setClinicAiAssistEnabled(caller, enabled),
     setAiProfile: (caller, input) => stub.setClinicAiProfile(caller, input),
+    setForecastPlace: (caller, input) => stub.setForecastPlace(caller, input),
     getAbuseLimits: (caller) => stub.getClinicAbuseLimits(caller),
     updateAbuseLimits: (caller, input) => stub.updateClinicAbuseLimits(caller, input),
     upsertService: (caller, input) => stub.upsertClinicService(caller, input),
@@ -251,6 +252,26 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
         settings = await gw.setAiAssistEnabled(caller, body.enabled)
       }
       return c.json(serializeSettings(settings!))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.put('/api/tenants/:tenantId/config/forecast-place', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<Record<string, unknown>>().catch(() => null)
+      if (!body || typeof body !== 'object') {
+        return c.json({ error: 'invalid_body' }, 400)
+      }
+      const input = parseForecastPlaceBody(body)
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const settings = await gw.setForecastPlace(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        input,
+      )
+      return c.json(serializeSettings(settings))
     } catch (err) {
       return configErrorResponse(c, err)
     }
@@ -586,6 +607,26 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
   })
 
   return app
+}
+
+function parseForecastPlaceBody(body: Record<string, unknown>) {
+  if (body.mode === 'cidade') {
+    if (typeof body.city !== 'string') {
+      throw new ValidationError('invalid_forecast_place', 'Informe a cidade.')
+    }
+    return { mode: 'cidade' as const, city: body.city }
+  }
+  if (body.mode === 'coordenadas') {
+    if (typeof body.latitude !== 'number' || typeof body.longitude !== 'number') {
+      throw new ValidationError('invalid_forecast_place', 'Informe latitude e longitude.')
+    }
+    return {
+      mode: 'coordenadas' as const,
+      latitude: body.latitude,
+      longitude: body.longitude,
+    }
+  }
+  throw new ValidationError('invalid_forecast_place', 'Escolha cidade ou coordenadas.')
 }
 
 function parseAbuseLimitsBody(body: Record<string, unknown>): UpdateAbuseLimitsInput {

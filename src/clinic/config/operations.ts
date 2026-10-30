@@ -24,6 +24,7 @@ import {
   ensureClinicSettings,
   setClinicAiAssistEnabled,
   setClinicAiProfile,
+  setForecastPlace,
   updateClinicTimezone,
 } from './settings'
 import { setWeeklyWindows } from './availability'
@@ -34,6 +35,7 @@ import type {
   ConfigSnapshot,
   CreateBlockInput,
   CreateBlockResult,
+  ForecastPlaceInput,
   ResourceRow,
   ServiceRow,
   SetWeeklyWindowsInput,
@@ -389,6 +391,31 @@ export function setAiProfileOp(
         objectType: 'clinic_settings',
         objectId: '1',
         detail: {},
+      },
+      clock,
+    )
+    return settings
+  })
+}
+
+export function setForecastPlaceOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: ForecastPlaceInput,
+  clock: Clock,
+) {
+  const meta = prepare(db, caller, clock)
+  return db.transactionSync(() => {
+    const settings = setForecastPlace(db, meta.tenantId, input, clock)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor: caller.actorId ?? caller.kind,
+        action: 'config.forecast_place_updated',
+        objectType: 'clinic_settings',
+        objectId: '1',
+        detail: { forecastMode: settings.forecastMode },
       },
       clock,
     )

@@ -1618,6 +1618,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return settings
   }
 
+  async setForecastPlace(
+    caller: ClinicCaller,
+    input: {
+      mode: 'cidade'
+      city: string
+    } | {
+      mode: 'coordenadas'
+      latitude: number
+      longitude: number
+    },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const settings = clinicConfig.setForecastPlaceOp(this.#db, caller, input, this.#clock)
+    await this.#fanoutConfigEvent(caller, 'config.settings_updated', 'clinic_settings', '1', {
+      forecastMode: settings.forecastMode,
+    })
+    return settings
+  }
+
   async updateClinicTimezone(caller: ClinicCaller, timezone: string) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)

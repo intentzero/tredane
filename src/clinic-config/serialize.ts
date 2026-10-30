@@ -21,6 +21,10 @@ export function serializeSettings(row: ClinicSettingsRow) {
     clinicAddress: row.clinicAddress,
     googleBusinessUrl: row.googleBusinessUrl,
     reschedulePolicy: row.reschedulePolicy,
+    forecastMode: row.forecastMode,
+    forecastCity: row.forecastCity,
+    forecastLatitude: row.forecastLatitude,
+    forecastLongitude: row.forecastLongitude,
     updatedAt: row.updatedAt,
   }
 }
