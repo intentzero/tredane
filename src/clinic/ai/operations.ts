@@ -82,7 +82,7 @@ async function hydrateSuggestFromCommand(
   clock: Clock,
   deps: AiAssistDeps,
   kind: 'reply' | 'summary',
-): SuggestResult {
+): Promise<SuggestResult> {
   assertAiCommandResultMinimized(resultJson)
   const parsed = JSON.parse(resultJson) as StoredAiCommandV2 | SuggestResult
   const suggestionId =
