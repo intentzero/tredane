@@ -454,6 +454,7 @@ describe('zonesNamedInText', () => {
     name,
     durationMinutes: 30,
     priceCents: 100,
+    audience: 'ambos' as const,
     active: true,
     sortOrder: 0,
   })
