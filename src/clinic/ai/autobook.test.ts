@@ -436,6 +436,47 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
     }
   })
 
+  it('duas Axila do mesmo género não viram uma proposta só com o nome', async () => {
+    const s = seed()
+    try {
+      const dep = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilacao',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 18_000,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        dep.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 5_000, audience: 'masculino' },
+          { name: 'Axila', durationMinutes: 30, priceCents: 8_000, audience: 'masculino' },
+        ],
+        s.clock,
+      )
+      s.say('outbound', 'Confirma depilacao na quinta 29/10 às 14:00?')
+      s.say('inbound', 'Sim, axila')
+      const o = await s.run()
+      expect(o.autoBook?.proposalId).toBeUndefined()
+      expect(o.autoBook?.status).toBe('needs_info')
+      expect(o.autoBook?.replyText).toMatch(/Axila \(masculino, 15 min\)/)
+      expect(o.autoBook?.replyText).toMatch(/Axila \(masculino, 30 min\)/)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
   it('zonas todas inativas avisam a cliente (não silencia o WhatsApp)', async () => {
     const s = seed()
     try {

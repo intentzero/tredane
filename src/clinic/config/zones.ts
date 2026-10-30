@@ -423,38 +423,64 @@ function variantIdentity(
   durationMinutes: number,
   priceCents: number | null,
 ): string {
-  return `${name.toLocaleLowerCase('pt-BR')}\0${audience}\0${durationMinutes}\0${priceCents ?? ''}`
+  return `${nameKey(name)}\0${audience}\0${durationMinutes}\0${priceCents ?? ''}`
 }
 
-/** Na agenda, o mesmo nome leva género e duração para não ficar «Axila, Axila». */
-export function zoneLabel(
-  serviceName: string,
-  zones: readonly { name: string; audience?: VariantAudience; durationMinutes?: number }[],
-): string {
+function nameKey(name: string): string {
+  return name.trim().toLocaleLowerCase('pt-BR')
+}
+
+function genderWord(audience: VariantAudience | undefined): string {
+  return audience === 'feminino' || audience === 'masculino' ? audience : 'ambos'
+}
+
+function centsLabel(cents: number | null | undefined): string {
+  if (cents == null) return 'sem preço'
+  const [reais, frac] = (cents / 100).toFixed(2).split('.')
+  return `R$ ${reais!.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${frac}`
+}
+
+type LabeledZone = {
+  name: string
+  audience?: VariantAudience
+  durationMinutes?: number
+  priceCents?: number | null
+}
+
+function sameName(zones: readonly LabeledZone[], name: string): LabeledZone[] {
+  const key = nameKey(name)
+  return zones.filter((z) => nameKey(z.name) === key)
+}
+
+/** Na agenda, o mesmo nome leva género, duração e, se ainda coincidir, o preço. */
+export function zoneLabel(serviceName: string, zones: readonly LabeledZone[]): string {
   if (zones.length === 0) return serviceName
   const labels = zones.map((z) => {
-    const key = z.name.trim().toLocaleLowerCase('pt-BR')
-    const shared =
-      zones.filter((o) => o.name.trim().toLocaleLowerCase('pt-BR') === key).length > 1
-    if (!shared || z.durationMinutes == null) return z.name
+    const same = sameName(zones, z.name)
+    if (same.length < 2 || z.durationMinutes == null) return z.name
     const gender =
       z.audience === 'feminino' || z.audience === 'masculino' ? ` ${z.audience}` : ''
-    return `${z.name}${gender} ${z.durationMinutes} min`
+    const twin = same.filter(
+      (o) => o.audience === z.audience && o.durationMinutes === z.durationMinutes,
+    )
+    const price = twin.length > 1 ? ` ${centsLabel(z.priceCents)}` : ''
+    return `${z.name}${gender} ${z.durationMinutes} min${price}`
   })
   return `${serviceName} · ${labels.join(', ')}`
 }
 
-/** Na pergunta à cliente, o mesmo nome leva género e duração. */
+/** Na pergunta à cliente, o mesmo nome leva género, duração e, se ainda coincidir, o preço. */
 export function variantChoiceLabel(
-  zone: Pick<ServiceZoneRow, 'name' | 'audience' | 'durationMinutes'>,
-  peers: readonly Pick<ServiceZoneRow, 'name'>[],
+  zone: Pick<ServiceZoneRow, 'name' | 'audience' | 'durationMinutes' | 'priceCents'>,
+  peers: readonly Pick<ServiceZoneRow, 'name' | 'audience' | 'durationMinutes' | 'priceCents'>[],
 ): string {
-  const key = zone.name.trim().toLocaleLowerCase('pt-BR')
-  const shared = peers.filter((p) => p.name.trim().toLocaleLowerCase('pt-BR') === key).length > 1
-  if (!shared) return zone.name
-  const gender =
-    zone.audience === 'feminino' ? 'feminino' : zone.audience === 'masculino' ? 'masculino' : 'ambos'
-  return `${zone.name} (${gender}, ${zone.durationMinutes} min)`
+  const same = sameName(peers, zone.name)
+  if (same.length < 2) return zone.name
+  const twin = same.filter(
+    (p) => p.audience === zone.audience && p.durationMinutes === zone.durationMinutes,
+  )
+  const base = `${zone.name} (${genderWord(zone.audience)}, ${zone.durationMinutes} min`
+  return twin.length > 1 ? `${base}, ${centsLabel(zone.priceCents)})` : `${base})`
 }
 
 function foldZoneName(s: string): string {
@@ -472,10 +498,18 @@ function audienceHint(folded: string): VariantAudience | null {
   return fem ? 'feminino' : 'masculino'
 }
 
+function durationHint(folded: string): number | null {
+  const match = folded.match(/\b(\d+)\s*min\b/)
+  if (!match) return null
+  const minutes = Number(match[1])
+  return Number.isInteger(minutes) && minutes > 0 ? minutes : null
+}
+
 /** Nomes de zona que aparecem no texto, como palavras. O nome mais longo ganha. A ordem é a do catálogo. O mesmo nome inclui cada variante; «feminina» ou «masculino» no texto fica só com esse género. */
 export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[]): ServiceZoneRow[] {
   const folded = foldZoneName(text)
   const hint = audienceHint(folded)
+  const minutes = durationHint(folded)
   const candidates = zones.filter((z) => z.active && z.name.trim().length >= 2)
   const byLength = [...candidates].sort(
     (a, b) => foldZoneName(b.name).length - foldZoneName(a.name).length,
@@ -494,6 +528,7 @@ export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[])
       rest = rest.replace(re, ' ')
     }
     if (hint != null && zone.audience !== hint) continue
+    if (minutes != null && zone.durationMinutes !== minutes) continue
     hit.add(zone.id)
   }
   return zones.filter((z) => hit.has(z.id))

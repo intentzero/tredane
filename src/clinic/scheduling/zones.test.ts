@@ -624,10 +624,15 @@ describe('zonesNamedInText', () => {
     expect(zonesNamedInText('só a perna', zones).map((z) => z.name)).toEqual(['Perna'])
   })
 
-  it('o mesmo nome devolve as duas variantes, ou só o género dito', () => {
+  it('o mesmo nome devolve as duas variantes, ou só o género e a duração ditos', () => {
     const zones = [zone('m', 'Axila', 'masculino'), zone('f', 'Axila', 'feminino')]
     expect(zonesNamedInText('quero axila', zones).map((z) => z.id)).toEqual(['m', 'f'])
     expect(zonesNamedInText('axila feminina', zones).map((z) => z.id)).toEqual(['f'])
+    const timed = [
+      { ...zone('short', 'Axila', 'masculino'), durationMinutes: 15 },
+      { ...zone('long', 'Axila', 'masculino'), durationMinutes: 30 },
+    ]
+    expect(zonesNamedInText('axila 15 min', timed).map((z) => z.id)).toEqual(['short'])
   })
 })
 
