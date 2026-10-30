@@ -207,11 +207,7 @@ export function VariantCatalog({
                   </div>
                 </div>
               ) : (
-                <Button
-                  className="vc-row"
-                  aria-label={`Editar ${z.name || lower}`}
-                  onPress={() => setOpenKey(z.key)}
-                >
+                <Button className="vc-row" onPress={() => setOpenKey(z.key)}>
                   <span className="vc-row-copy">
                     <strong>{z.name || 'Sem nome'}</strong>
                     <span className="vc-row-meta">

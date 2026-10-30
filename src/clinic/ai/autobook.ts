@@ -279,11 +279,11 @@ function zonesChosenByClient(
   return []
 }
 
-function askZonesReply(kind: string, zoneNames: string[], time: string): string {
+export function askZonesReply(kind: string, zoneNames: string[], time: string): string {
   const label = kind.trim() || 'variantes'
   const list = zoneNames.join(', ')
   return (
-    `Para fechar às ${time}, me diga ${label === 'variantes' ? 'as variantes' : `a ${label}`}: ${list}. ` +
+    `Para fechar às ${time}, me diga ${label === 'variantes' ? 'as variantes' : `as ${label}`}: ${list}. ` +
     `Pode ser mais de uma.`
   )
 }
