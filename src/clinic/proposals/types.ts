@@ -40,6 +40,10 @@ export type AppointmentProposalRow = {
   /** Outbound do resultado determinístico (após commit S5). */
   resultOutboundId: string | null
   resultKind: string | null
+  /** Snapshot do bloco Tempo no momento da proposta (DEC-077). */
+  tempoCeu: 'tanto_faz' | 'sol' | 'chuva'
+  tempoTemperatura: 'tanto_faz' | 'acima' | 'abaixo'
+  tempoCelsius: number | null
   createdAt: number
   updatedAt: number
 }

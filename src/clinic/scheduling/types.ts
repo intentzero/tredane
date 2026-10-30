@@ -34,6 +34,13 @@ export type AvailabilityQueryInput = {
   excludeHoldId?: string | null
   /** Reserva por bloco: o compromisso ocupa a duração do bloco, não a do serviço. */
   durationMinutesOverride?: number | null
+  /**
+   * DEC-077. Omisso = equipe: a hora fica na lista.
+   * Automático omite a hora que não serve; quem chama passa `tempoKeeps`.
+   */
+  tempoMode?: 'equipe' | 'automatico'
+  /** Só no modo automático, quando o serviço tem restrição. Sem isto, a lista fica vazia. */
+  tempoKeeps?: (startsAt: number) => boolean
 }
 
 export type AvailableSlot = {

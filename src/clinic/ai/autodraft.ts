@@ -214,7 +214,7 @@ export async function runDueAutoDrafts(
             limitNote = decision.message
           }
         }
-        autoBook = tryAiAutoBook(db, caller, clock, {
+        autoBook = await tryAiAutoBook(db, caller, clock, {
           conversationId: job.conversationId,
           suggestionId: suggestion.id,
           enabled: true,

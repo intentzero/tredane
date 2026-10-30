@@ -67,10 +67,10 @@ function captureGateway(reply: string) {
 }
 
 describe('continuidade do rascunho (staging Paulo)', () => {
-  it('contexto: primeiro contacto → hasClinicOutbound false; com outbound → true', () => {
+  it('contexto: primeiro contacto → hasClinicOutbound false; com outbound → true', async () => {
     const first = seedConversation([['inbound', 'Oi, tem horário de bronzeamento masculino?']])
     try {
-      const built = buildAiContextPayload(first.db, first.tenantId, first.cnv.id)
+      const built = await buildAiContextPayload(first.db, first.tenantId, first.cnv.id)
       expect(built.payload.hasClinicOutbound).toBe(false)
       expect(built.payload.clinicOutboundCount).toBe(0)
     } finally {
@@ -83,7 +83,7 @@ describe('continuidade do rascunho (staging Paulo)', () => {
       ['inbound', 'Tem horário de bronzeamento masculino?'],
     ])
     try {
-      const built = buildAiContextPayload(mid.db, mid.tenantId, mid.cnv.id)
+      const built = await buildAiContextPayload(mid.db, mid.tenantId, mid.cnv.id)
       expect(built.payload.hasClinicOutbound).toBe(true)
       expect(built.payload.clinicOutboundCount).toBe(1)
     } finally {

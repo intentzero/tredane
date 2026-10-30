@@ -74,6 +74,9 @@ type ProposalSql = {
   send_provider_message_id?: string | null
   result_outbound_id?: string | null
   result_kind?: string | null
+  tempo_ceu?: string | null
+  tempo_temperatura?: string | null
+  tempo_celsius?: number | null
   created_at: number
   updated_at: number
 }
@@ -113,6 +116,12 @@ function mapRow(row: ProposalSql): AppointmentProposalRow {
     sendProviderMessageId: row.send_provider_message_id ?? null,
     resultOutboundId: row.result_outbound_id ?? null,
     resultKind: row.result_kind ?? null,
+    tempoCeu: row.tempo_ceu === 'sol' || row.tempo_ceu === 'chuva' ? row.tempo_ceu : 'tanto_faz',
+    tempoTemperatura:
+      row.tempo_temperatura === 'acima' || row.tempo_temperatura === 'abaixo'
+        ? row.tempo_temperatura
+        : 'tanto_faz',
+    tempoCelsius: row.tempo_celsius ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -257,6 +266,7 @@ function assertTransition(
         to === 'substituida' ||
         to === 'expirada' ||
         to === 'recusada_vaga' ||
+        to === 'recusada_tempo' ||
         to === 'encaminhada'))
   if (!ok) {
     throw new ConflictError(
@@ -534,6 +544,9 @@ function resolveFacts(
     sendProviderMessageId: null,
     resultOutboundId: null,
     resultKind: null,
+    tempoCeu: service.tempoCeu,
+    tempoTemperatura: service.tempoTemperatura,
+    tempoCelsius: service.tempoCelsius,
   }
 }
 
@@ -553,14 +566,16 @@ function insertProposalRow(
       service_id, service_name, professional_id, professional_name,
       starts_at, ends_at, duration_minutes, timezone, price_cents,
       requires_signal, signal_kind, signal_fixed_cents, signal_percent, signal_conditions_text,
-      expires_at, sent_at, superseded_by_id, appointment_id, created_at, updated_at
+      expires_at, sent_at, superseded_by_id, appointment_id, created_at, updated_at,
+      tempo_ceu, tempo_temperatura, tempo_celsius
     ) VALUES (
       ?, ?, ?, ?, ?, ?, 'preparada',
       ?, ?, ?,
       ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
-      NULL, NULL, NULL, NULL, ?, ?
+      NULL, NULL, NULL, NULL, ?, ?,
+      ?, ?, ?
     )`,
     id,
     tenantId,
@@ -587,6 +602,9 @@ function insertProposalRow(
     facts.signalConditionsText,
     now,
     now,
+    facts.tempoCeu,
+    facts.tempoTemperatura,
+    facts.tempoCelsius,
   )
   return getProposal(db, tenantId, id)!
 }
@@ -807,6 +825,20 @@ export function markProposalConfirmed(
   if (current.state === 'confirmada') return current
   return transitionRow(db, tenantId, proposalId, current.state, 'confirmada', clock, {
     appointmentId: appointmentId ?? current.appointmentId,
+    expectedVersion: current.version,
+  })
+}
+
+export function markProposalTempoRefused(
+  db: ClinicDb,
+  tenantId: string,
+  proposalId: string,
+  clock: Clock,
+): AppointmentProposalRow {
+  const current = expireProposalIfNeeded(db, tenantId, proposalId, clock)
+  if (!current) throw new NotFoundError('proposal_not_found', 'Proposta não encontrada')
+  if (current.state === 'recusada_tempo') return current
+  return transitionRow(db, tenantId, proposalId, current.state, 'recusada_tempo', clock, {
     expectedVersion: current.version,
   })
 }

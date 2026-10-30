@@ -1,5 +1,5 @@
 /** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#43 / #174 / #175 / abuse UI). */
-export const CLINIC_SCHEMA_VERSION = 35
+export const CLINIC_SCHEMA_VERSION = 36
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -38,6 +38,7 @@ export const CLINIC_MIGRATION_NAMES = {
   33: '0033_service_tempo',
   34: '0034_service_zones',
   35: '0035_variant_kind_audience',
+  36: '0036_proposal_tempo_state',
 } as const
 
 /**
@@ -54,6 +55,7 @@ export const APPOINTMENT_PROPOSAL_STATES = [
   'substituida',
   'expirada',
   'recusada_vaga',
+  'recusada_tempo',
   'encaminhada',
 ] as const
 
@@ -107,6 +109,8 @@ export const PROPOSAL_RESULT_KINDS = [
   'slot_refused',
   'pix_signal',
   'expired',
+  'tempo_refused',
+  'tempo_unconfirmed',
 ] as const
 
 export type ProposalResultKind = (typeof PROPOSAL_RESULT_KINDS)[number]

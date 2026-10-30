@@ -313,7 +313,7 @@ describe('caso real: Gi seg–sex 09–17, sáb 09–12, sala sem horário', () 
     }
   })
 
-  it('IA usa só o horário dos profissionais', () => {
+  it('IA usa só o horário dos profissionais', async () => {
     const s = real()
     try {
       // Janela larga na sala não pode alargar o horário de funcionamento.
@@ -323,7 +323,7 @@ describe('caso real: Gi seg–sex 09–17, sáb 09–12, sala sem horário', () 
         { resourceId: s.room.id, windows: [{ dayOfWeek: 7, startMinute: 6 * 60, endMinute: 22 * 60 }, { dayOfWeek: 4, startMinute: 6 * 60, endMinute: 22 * 60 }] },
         s.clock,
       )
-      const ctx = buildClinicAiContext(s.db, 'clinic-demo-a', s.clock, { contactId: 'c-none', recentTexts: [] })
+      const ctx = await buildClinicAiContext(s.db, 'clinic-demo-a', s.clock, { contactId: 'c-none', recentTexts: [] })
       const joined = ctx.openingHours.join(' | ')
       expect(joined).toMatch(/09:00–17:00/)
       expect(joined).toMatch(/09:00–12:00/)

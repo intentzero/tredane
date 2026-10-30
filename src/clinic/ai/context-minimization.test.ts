@@ -120,7 +120,7 @@ describe('S8 minimização de contexto IA (#179)', () => {
     expect(redactProhibitedFromText('ghp_ABCDEFGHIJKLMNOP')).toContain('[redacted]')
   })
 
-  it('catálogo com telefone no nome/explicação é redigido e assert falha se vazar', () => {
+  it('catálogo com telefone no nome/explicação é redigido e assert falha se vazar', async () => {
     const { db, clock, close } = bootClinicDb()
     try {
       const tenantId = 'clinic-demo-s8-catalog'
@@ -136,7 +136,7 @@ describe('S8 minimização de contexto IA (#179)', () => {
           },
         ],
       })
-      const built = buildAiContextPayload(db, tenantId, seeded.conversationId)
+      const built = await buildAiContextPayload(db, tenantId, seeded.conversationId)
       expect(built.payload.services[0]?.name).toContain('[redacted]')
       expect(built.payload.services[0]?.clientExplanation).toContain('[redacted]')
       assertContextMinimized(built.payload)
@@ -146,7 +146,7 @@ describe('S8 minimização de contexto IA (#179)', () => {
     }
   })
 
-  it('multi-conversa: só a conversa alvo entra no payload', () => {
+  it('multi-conversa: só a conversa alvo entra no payload', async () => {
     const { db, clock, close } = bootClinicDb()
     try {
       const tenantId = 'clinic-demo-s8-multi'
@@ -178,7 +178,7 @@ describe('S8 minimização de contexto IA (#179)', () => {
         clock,
       )
 
-      const built = buildAiContextPayload(db, tenantId, a.conversationId, { clock })
+      const built = await buildAiContextPayload(db, tenantId, a.conversationId, { clock })
       assertContextMinimized(built.payload)
       const json = JSON.stringify(built.payload)
       expect(json).toContain('laser facial')
@@ -354,7 +354,7 @@ describe('S8 minimização de contexto IA (#179)', () => {
         now,
       )
       // Proposta não entra no payload LLM.
-      const built = buildAiContextPayload(db, tenantId, seeded.conversationId, { clock })
+      const built = await buildAiContextPayload(db, tenantId, seeded.conversationId, { clock })
       assertContextMinimized(built.payload)
       expect(JSON.stringify(built.payload)).not.toMatch(/prop_s8_1|lin_s8_1|appointment_proposal/)
 
