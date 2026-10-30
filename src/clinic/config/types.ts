@@ -117,6 +117,8 @@ export type RoomRequirement =
 /** Escopo reservado: horário e fechamentos da clínica inteira (em `weekly_windows` / `resource_blocks`). */
 export const CLINIC_SCOPE_ID = '__clinic__'
 
+export type RoomAttendanceMode = 'cada_profissional' | 'uma_para_todas'
+
 export type ResourceRow = {
   id: string
   tenantId: string
@@ -132,6 +134,10 @@ export type ResourceRow = {
   sharedSpaceNotice: string | null
   /** Profissional: segue o horário da clínica (`clinic`) ou tem horário próprio (`own`). */
   hoursMode: 'clinic' | 'own'
+  /** DEC-075 / S3 — sala da profissional (várias podem partilhar). */
+  homeRoomId: string | null
+  /** DEC-075 — modo da sala; padrão cada_profissional. */
+  attendanceMode: RoomAttendanceMode
   futureAppointmentCount: number
   /** Já teve compromisso (passado ou futuro): não pode ser excluído. */
   hasAppointmentHistory: boolean
@@ -324,6 +330,10 @@ export type UpsertResourceInput = {
   sharedSpaceNotice?: string | null
   /** Só profissional. Omitido = mantém (ao criar: `clinic` se a clínica já tem horário, senão `own`). */
   hoursMode?: 'clinic' | 'own'
+  /** Só profissional — sala da profissional (DEC-075). null limpa. Omitido = mantém. */
+  homeRoomId?: string | null
+  /** Só sala — modo de atendimento (DEC-075). Omitido = mantém / padrão. */
+  attendanceMode?: RoomAttendanceMode
 }
 
 export type SetWeeklyWindowsInput = {

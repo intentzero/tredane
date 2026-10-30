@@ -71,15 +71,6 @@ async function seedReadyClinic(
   app: ReturnType<typeof createApp>,
   auth: ReturnType<typeof testSchedulingApp>['auth'],
 ) {
-  const pro = await app.request(
-    'http://localhost/api/tenants/clinic-demo-a/config/resources',
-    auth('user_synth_owner_a', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind: 'professional', name: 'Dra. Paula Reis' }),
-    }),
-  )
-  const proBody = (await pro.json()) as { id: string }
   const room = await app.request(
     'http://localhost/api/tenants/clinic-demo-a/config/resources',
     auth('user_synth_owner_a', {
@@ -93,6 +84,19 @@ async function seedReadyClinic(
     }),
   )
   const roomBody = (await room.json()) as { id: string }
+  const pro = await app.request(
+    'http://localhost/api/tenants/clinic-demo-a/config/resources',
+    auth('user_synth_owner_a', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kind: 'professional',
+        name: 'Dra. Paula Reis',
+        homeRoomId: roomBody.id,
+      }),
+    }),
+  )
+  const proBody = (await pro.json()) as { id: string }
   const svc = await app.request(
     'http://localhost/api/tenants/clinic-demo-a/config/services',
     auth('user_synth_owner_a', {

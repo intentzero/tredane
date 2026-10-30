@@ -25,7 +25,13 @@ function setup() {
   const { db } = booted
   const tenantId = 'clinic-demo-a'
   const caller = workerCaller(tenantId, ACTOR)
-  const pro = upsertResourceOp(db, caller, { kind: 'professional', name: 'Dra. Ana' }, clock)
+  const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala 1', category: 'Geral' }, clock)
+  const pro = upsertResourceOp(
+    db,
+    caller,
+    { kind: 'professional', name: 'Dra. Ana', homeRoomId: room.id },
+    clock,
+  )
   const svc = upsertServiceOp(
     db,
     caller,
@@ -44,7 +50,6 @@ function setup() {
     { resourceId: pro.id, windows: [{ dayOfWeek: 1, startMinute: 8 * 60, endMinute: 18 * 60 }] },
     clock,
   )
-  const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala 1', category: 'Geral' }, clock)
   setWeeklyWindowsOp(
     db,
     caller,

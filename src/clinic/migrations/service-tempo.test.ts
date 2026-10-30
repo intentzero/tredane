@@ -24,14 +24,20 @@ describe('bloco Tempo (S1)', () => {
     const clock = createControllableClock(Date.UTC(2024, 0, 1))
     const { db, close } = bootClinicDb({ clock })
     try {
-      expect(CLINIC_SCHEMA_VERSION).toBe(36)
+      expect(CLINIC_SCHEMA_VERSION).toBe(37)
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
-      expect(state).toEqual({ version: 36, status: 'ready' })
+      expect(state).toEqual({ version: 37, status: 'ready' })
 
       const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
-      const pro = upsertResourceOp(db, caller, { kind: 'professional', name: 'Gi' }, clock)
+      const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala 1' }, clock)
+      const pro = upsertResourceOp(
+        db,
+        caller,
+        { kind: 'professional', name: 'Gi', homeRoomId: room.id },
+        clock,
+      )
       const windows = [{ dayOfWeek: 1, startMinute: 9 * 60, endMinute: 12 * 60 }]
       setWeeklyWindowsOp(db, caller, { resourceId: pro.id, windows }, clock)
 

@@ -24,8 +24,14 @@ function seed() {
   const clock = createControllableClock(Date.UTC(2024, 0, 1))
   const boot = bootClinicDb({ clock })
   const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
+  const sharedRoom = upsertResourceOp(boot.db, caller, { kind: 'room', name: 'Sala comum' }, clock)
   const mk = (name: string, extra: Record<string, unknown> = {}) =>
-    upsertResourceOp(boot.db, caller, { kind: 'professional', name, ...extra }, clock)
+    upsertResourceOp(
+      boot.db,
+      caller,
+      { kind: 'professional', name, homeRoomId: sharedRoom.id, ...extra },
+      clock,
+    )
   const svcFor = (ids: string[]) =>
     upsertServiceOp(
       boot.db,

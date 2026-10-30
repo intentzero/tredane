@@ -1,6 +1,7 @@
 /**
- * Salas/equipamentos sem expediente + requisito «qualquer sala livre»
- * (decisão do Paulo, 28/10/2026).
+ * Salas sem expediente + sala da profissional (DEC-075 / S3).
+ * Decisão 28/10/2026: salas não têm expediente.
+ * DEC-075: a marcação usa a sala da profissional, não o requisito do serviço.
  */
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
@@ -29,20 +30,34 @@ const MONDAY = '2024-01-08'
 const at = (h: number, m = 0) => zonedCivilToUtc(TZ, 2024, 1, 8, h, m)
 const DAY = { dayOfWeek: 1, startMinute: 8 * 60, endMinute: 18 * 60 }
 
-function seed(mode: 'resource' | 'any' = 'resource') {
+function seed(sharedHome = false) {
   const clock = createControllableClock(Date.UTC(2024, 0, 1))
   const boot = bootClinicDb({ clock })
   const db = boot.db
   const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
-  const pros = ['Ana', 'Bia'].map((n) =>
-    upsertResourceOp(db, caller, { kind: 'professional', name: n }, clock),
-  )
-  for (const p of pros) {
-    setWeeklyWindowsOp(db, caller, { resourceId: p.id, windows: [DAY] }, clock)
-  }
   // Salas SEM nenhuma janela semanal.
   const roomB = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala B' }, clock)
   const roomA = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala A' }, clock)
+  const ana = upsertResourceOp(
+    db,
+    caller,
+    { kind: 'professional', name: 'Ana', homeRoomId: roomA.id },
+    clock,
+  )
+  const bia = upsertResourceOp(
+    db,
+    caller,
+    {
+      kind: 'professional',
+      name: 'Bia',
+      homeRoomId: sharedHome ? roomA.id : roomB.id,
+    },
+    clock,
+  )
+  const pros = [ana, bia]
+  for (const p of pros) {
+    setWeeklyWindowsOp(db, caller, { resourceId: p.id, windows: [DAY] }, clock)
+  }
   const svc = upsertServiceOp(
     db,
     caller,
@@ -51,12 +66,13 @@ function seed(mode: 'resource' | 'any' = 'resource') {
       durationMinutes: 60,
       bufferMinutes: 0,
       professionalIds: pros.map((p) => p.id),
-      roomRequirement: mode === 'any' ? { mode: 'any' } : { mode: 'resource', resourceId: roomA.id },
+      // Requisito legado — não escolhe a sala da marcação (DEC-075).
+      roomRequirement: { mode: 'any' },
     },
     clock,
   )
   let n = 0
-  const book = (proIdx: number, roomId: string, startsAt: number) =>
+  const book = (proIdx: number, startsAt: number, roomId?: string) =>
     confirmAppointmentOp(
       db,
       caller,
@@ -70,11 +86,16 @@ function seed(mode: 'resource' | 'any' = 'resource') {
       },
       clock,
     )
-  const check = (proIdx: number, roomId: string, startsAt: number) =>
+  const check = (proIdx: number, startsAt: number, roomId?: string) =>
     checkSlotAvailabilityOp(
       db,
       caller,
-      { serviceId: svc.id, professionalId: pros[proIdx]!.id, roomResourceId: roomId, startsAt },
+      {
+        serviceId: svc.id,
+        professionalId: pros[proIdx]!.id,
+        roomResourceId: roomId,
+        startsAt,
+      },
       clock,
     )
   return { ...boot, clock, caller, pros, roomA, roomB, svc, book, check }
@@ -86,18 +107,20 @@ describe('sala sem expediente', () => {
     try {
       const avail = queryAvailabilityOp(s.db, s.caller, { serviceId: s.svc.id, date: MONDAY }, s.clock)
       expect(avail.slots.some((x) => x.startsAt === at(9))).toBe(true)
-      expect(s.check(0, s.roomA.id, at(9)).available).toBe(true)
-      expect(s.book(0, s.roomA.id, at(9)).value.status).toBe('confirmed')
+      expect(s.check(0, at(9)).available).toBe(true)
+      const booked = s.book(0, at(9))
+      expect(booked.value.status).toBe('confirmed')
+      expect(booked.value.roomResourceId).toBe(s.roomA.id)
     } finally {
       s.close()
     }
   })
 
-  it('sala com marcação fica ocupada', () => {
-    const s = seed()
+  it('sala com marcação fica ocupada (capacidade 1)', () => {
+    const s = seed(true)
     try {
-      s.book(0, s.roomA.id, at(9))
-      const r = s.check(1, s.roomA.id, at(9))
+      s.book(0, at(9))
+      const r = s.check(1, at(9))
       expect(r.available).toBe(false)
       expect(r.reasons).toContain('appointment_conflict')
       expect(r.reasons).not.toContain('outside_weekly_hours')
@@ -115,30 +138,38 @@ describe('sala sem expediente', () => {
         { resourceId: s.roomA.id, startsAt: at(9), endsAt: at(10), reason: 'manutencao' },
         s.clock,
       )
-      const r = s.check(0, s.roomA.id, at(9))
+      const r = s.check(0, at(9))
       expect(r.reasons).toContain('resource_block')
       const avail = queryAvailabilityOp(s.db, s.caller, { serviceId: s.svc.id, date: MONDAY }, s.clock)
-      expect(avail.slots.some((x) => x.startsAt === at(9))).toBe(false)
-      expect(avail.slots.some((x) => x.startsAt === at(10))).toBe(true)
+      // Ana (sala A) bloqueada às 9; Bia (sala B) ainda livre.
+      const nine = avail.slots.filter((x) => x.startsAt === at(9))
+      expect(nine.every((x) => x.professionalId === s.pros[1]!.id)).toBe(true)
+      expect(
+        avail.slots.some((x) => x.startsAt === at(10) && x.professionalId === s.pros[0]!.id),
+      ).toBe(true)
     } finally {
       s.close()
     }
   })
 })
 
-describe('requisito «qualquer sala livre»', () => {
-  it('escolhe a primeira sala livre por nome e recusa quando todas ocupadas', () => {
-    const s = seed('any')
+describe('sala da profissional (DEC-075 S3)', () => {
+  it('cada profissional usa a sua sala; partilha com capacidade 1 bloqueia a segunda', () => {
+    const s = seed()
     try {
-      expect(s.svc.roomRequirement).toEqual({ mode: 'any' })
       let avail = queryAvailabilityOp(s.db, s.caller, { serviceId: s.svc.id, date: MONDAY }, s.clock)
-      expect(avail.slots.find((x) => x.startsAt === at(9))!.roomResourceId).toBe(s.roomA.id)
-      s.book(0, s.roomA.id, at(9))
+      const nineAna = avail.slots.find(
+        (x) => x.startsAt === at(9) && x.professionalId === s.pros[0]!.id,
+      )
+      expect(nineAna!.roomResourceId).toBe(s.roomA.id)
+      s.book(0, at(9))
       avail = queryAvailabilityOp(s.db, s.caller, { serviceId: s.svc.id, date: MONDAY }, s.clock)
-      const nine = avail.slots.find((x) => x.startsAt === at(9))
-      expect(nine!.roomResourceId).toBe(s.roomB.id)
-      expect(s.check(1, s.roomB.id, at(9)).available).toBe(true)
-      s.book(1, s.roomB.id, at(9))
+      const nineBia = avail.slots.find(
+        (x) => x.startsAt === at(9) && x.professionalId === s.pros[1]!.id,
+      )
+      expect(nineBia!.roomResourceId).toBe(s.roomB.id)
+      expect(s.check(1, at(9)).available).toBe(true)
+      s.book(1, at(9))
       avail = queryAvailabilityOp(s.db, s.caller, { serviceId: s.svc.id, date: MONDAY }, s.clock)
       expect(avail.slots.some((x) => x.startsAt === at(9))).toBe(false)
     } finally {
@@ -146,11 +177,21 @@ describe('requisito «qualquer sala livre»', () => {
     }
   })
 
-  it('aceita qualquer sala activa na verificação', () => {
-    const s = seed('any')
+  it('troca pontual: roomResourceId no pedido; consulta seguinte volta à sala da profissional', () => {
+    const s = seed()
     try {
-      const r = s.check(0, s.roomB.id, at(11))
+      const r = s.check(0, at(11), s.roomB.id)
       expect(r.available).toBe(true)
+      expect(r.slot?.roomResourceId).toBe(s.roomB.id)
+      s.book(0, at(11), s.roomB.id)
+      const avail = queryAvailabilityOp(
+        s.db,
+        s.caller,
+        { serviceId: s.svc.id, date: MONDAY, professionalId: s.pros[0]!.id },
+        s.clock,
+      )
+      const twelve = avail.slots.find((x) => x.startsAt === at(12))
+      expect(twelve!.roomResourceId).toBe(s.roomA.id)
     } finally {
       s.close()
     }
@@ -184,10 +225,18 @@ describe('migração 0023', () => {
       const m23 = CLINIC_MIGRATIONS.find((x) => x.id === 23)!
       expect(m23.name).toBe('0023_room_requirement_any')
       for (const st of m23.statements) db.exec(st)
-      const after = db.all<{ tenant_id: string; service_id: string; mode: string; category: string | null; resource_id: string | null }>(
+      const after = db.all<{
+        tenant_id: string
+        service_id: string
+        mode: string
+        category: string | null
+        resource_id: string | null
+      }>(
         `SELECT tenant_id, service_id, mode, category, resource_id FROM service_room_requirements ORDER BY service_id`,
       )
-      expect(after.map((a) => [a.tenant_id, a.service_id, a.mode, a.category, a.resource_id])).toEqual(rows)
+      expect(after.map((a) => [a.tenant_id, a.service_id, a.mode, a.category, a.resource_id])).toEqual(
+        rows,
+      )
       db.run(
         `INSERT INTO service_room_requirements (tenant_id, service_id, mode) VALUES ('t', 's4', 'any')`,
       )
@@ -218,7 +267,13 @@ describe('readiness sem expediente de sala', () => {
       upsertServiceOp(
         s.db,
         s.caller,
-        { name: 'Avaliação', durationMinutes: 30, bufferMinutes: 0, professionalIds: [s.pro.id], roomRequirement: { mode: 'none' } },
+        {
+          name: 'Avaliação',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          professionalIds: [s.pro.id],
+          roomRequirement: { mode: 'none' },
+        },
         s.clock,
       )
       const r = getReadinessOp(s.db, s.caller, s.clock)
@@ -236,7 +291,13 @@ describe('readiness sem expediente de sala', () => {
       upsertServiceOp(
         s.db,
         s.caller,
-        { name: 'Laser', durationMinutes: 30, bufferMinutes: 0, professionalIds: [s.pro.id], roomRequirement: { mode: 'category', category: 'Laser' } },
+        {
+          name: 'Laser',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          professionalIds: [s.pro.id],
+          roomRequirement: { mode: 'category', category: 'Laser' },
+        },
         s.clock,
       )
       let r = getReadinessOp(s.db, s.caller, s.clock)
@@ -280,19 +341,37 @@ describe('caso real: Gi seg–sex 09–17, sáb 09–12, sala sem horário', () 
     const clock = createControllableClock(thu(11, 50))
     const boot = bootClinicDb({ clock })
     const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
-    const gi = upsertResourceOp(boot.db, caller, { kind: 'professional', name: 'Gi' }, clock)
     const room = upsertResourceOp(boot.db, caller, { kind: 'room', name: 'Sala 1' }, clock)
-    const week = [1, 2, 3, 4, 5].map((d) => ({ dayOfWeek: d, startMinute: 9 * 60, endMinute: 17 * 60 }))
+    const gi = upsertResourceOp(
+      boot.db,
+      caller,
+      { kind: 'professional', name: 'Gi', homeRoomId: room.id },
+      clock,
+    )
+    const week = [1, 2, 3, 4, 5].map((d) => ({
+      dayOfWeek: d,
+      startMinute: 9 * 60,
+      endMinute: 17 * 60,
+    }))
     setWeeklyWindowsOp(
       boot.db,
       caller,
-      { resourceId: gi.id, windows: [...week, { dayOfWeek: 6, startMinute: 9 * 60, endMinute: 12 * 60 }] },
+      {
+        resourceId: gi.id,
+        windows: [...week, { dayOfWeek: 6, startMinute: 9 * 60, endMinute: 12 * 60 }],
+      },
       clock,
     )
     const svc = upsertServiceOp(
       boot.db,
       caller,
-      { name: 'Limpeza de pele', durationMinutes: 60, bufferMinutes: 15, professionalIds: [gi.id], roomRequirement: { mode: 'none' } },
+      {
+        name: 'Limpeza de pele',
+        durationMinutes: 60,
+        bufferMinutes: 15,
+        professionalIds: [gi.id],
+        roomRequirement: { mode: 'none' },
+      },
       clock,
     )
     return { ...boot, clock, caller, gi, room, svc }
@@ -301,13 +380,19 @@ describe('caso real: Gi seg–sex 09–17, sáb 09–12, sala sem horário', () 
   it('quinta tem vagas das 12:00 às 15:45', () => {
     const s = real()
     try {
-      const avail = queryAvailabilityOp(s.db, s.caller, { serviceId: s.svc.id, date: '2026-11-05' }, s.clock)
+      const avail = queryAvailabilityOp(
+        s.db,
+        s.caller,
+        { serviceId: s.svc.id, date: '2026-11-05' },
+        s.clock,
+      )
       // Vagas que ainda dá para marcar: início a partir de agora (11:50).
       const starts = avail.slots.map((x) => x.startsAt).filter((t) => t >= s.clock.nowMs())
       expect(starts.length).toBeGreaterThan(0)
       expect(Math.min(...starts)).toBe(thu(12))
       expect(Math.max(...starts)).toBe(thu(15, 45))
       expect(getReadinessOp(s.db, s.caller, s.clock).agendaConfigured).toBe(true)
+      expect(avail.slots.every((x) => x.roomResourceId === s.room.id)).toBe(true)
     } finally {
       s.close()
     }
@@ -320,10 +405,19 @@ describe('caso real: Gi seg–sex 09–17, sáb 09–12, sala sem horário', () 
       setWeeklyWindowsOp(
         s.db,
         s.caller,
-        { resourceId: s.room.id, windows: [{ dayOfWeek: 7, startMinute: 6 * 60, endMinute: 22 * 60 }, { dayOfWeek: 4, startMinute: 6 * 60, endMinute: 22 * 60 }] },
+        {
+          resourceId: s.room.id,
+          windows: [
+            { dayOfWeek: 7, startMinute: 6 * 60, endMinute: 22 * 60 },
+            { dayOfWeek: 4, startMinute: 6 * 60, endMinute: 22 * 60 },
+          ],
+        },
         s.clock,
       )
-      const ctx = await buildClinicAiContext(s.db, 'clinic-demo-a', s.clock, { contactId: 'c-none', recentTexts: [] })
+      const ctx = await buildClinicAiContext(s.db, 'clinic-demo-a', s.clock, {
+        contactId: 'c-none',
+        recentTexts: [],
+      })
       const joined = ctx.openingHours.join(' | ')
       expect(joined).toMatch(/09:00–17:00/)
       expect(joined).toMatch(/09:00–12:00/)
@@ -331,6 +425,77 @@ describe('caso real: Gi seg–sex 09–17, sáb 09–12, sala sem horário', () 
       expect(ctx.openingHours.filter((l) => /fechado/.test(l))).toHaveLength(1)
     } finally {
       s.close()
+    }
+  })
+})
+
+describe('equipamento exigido (DEC-059 + DEC-075)', () => {
+  it('equipamento continua uma vaga mesmo com sala partilhada', () => {
+    const clock = createControllableClock(Date.UTC(2024, 0, 1))
+    const boot = bootClinicDb({ clock })
+    try {
+      const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
+      const room = upsertResourceOp(
+        boot.db,
+        caller,
+        { kind: 'room', name: 'Sala 1', capacity: 2 },
+        clock,
+      )
+      const laser = upsertResourceOp(
+        boot.db,
+        caller,
+        { kind: 'equipment', name: 'Laser diodo' },
+        clock,
+      )
+      const gi = upsertResourceOp(
+        boot.db,
+        caller,
+        { kind: 'professional', name: 'Gi', homeRoomId: room.id },
+        clock,
+      )
+      const colega = upsertResourceOp(
+        boot.db,
+        caller,
+        { kind: 'professional', name: 'Colega', homeRoomId: room.id },
+        clock,
+      )
+      for (const p of [gi, colega]) {
+        setWeeklyWindowsOp(boot.db, caller, { resourceId: p.id, windows: [DAY] }, clock)
+      }
+      const svc = upsertServiceOp(
+        boot.db,
+        caller,
+        {
+          name: 'Laser',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          professionalIds: [gi.id, colega.id],
+          roomRequirement: { mode: 'resource', resourceId: laser.id },
+        },
+        clock,
+      )
+      confirmAppointmentOp(
+        boot.db,
+        caller,
+        {
+          clientRequestId: 'eq-1',
+          serviceId: svc.id,
+          professionalId: gi.id,
+          startsAt: at(9),
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      const blocked = checkSlotAvailabilityOp(
+        boot.db,
+        caller,
+        { serviceId: svc.id, professionalId: colega.id, startsAt: at(9) },
+        clock,
+      )
+      expect(blocked.available).toBe(false)
+      expect(blocked.reasons).toContain('appointment_conflict')
+    } finally {
+      boot.close()
     }
   })
 })

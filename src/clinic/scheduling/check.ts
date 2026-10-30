@@ -16,6 +16,7 @@ import {
 } from './timezone'
 import { resourceBusyReasons, serviceOfferingAllows } from './occupancy'
 import { candidateBreaksHolds } from './hold-fit'
+import { resolveHomeRoom, resolveRequiredEquipment } from './query'
 import type {
   AvailableSlot,
   CheckSlotInput,
@@ -26,6 +27,7 @@ import type {
 /**
  * Revalida um horário candidato (leitura pura).
  * Usado pela UI após mudança remota e pelo comando de confirmar (#36).
+ * DEC-075 / S3: sala = home room da profissional, ou troca pontual em `roomResourceId`.
  */
 export function checkSlotAvailability(
   db: ClinicDb,
@@ -87,37 +89,25 @@ export function checkSlotAvailability(
     reasons.push('professional_not_linked')
   }
 
-  const needsRoom = service.roomRequirement.mode !== 'none'
-  let roomName: string | null = null
+  // Troca pontual: roomResourceId no pedido; senão a sala da profissional.
   let roomId: string | null = input.roomResourceId ?? null
+  let roomName: string | null = null
+  if (!roomId) {
+    const home = resolveHomeRoom(db, tenantId, pro, clock)
+    roomId = home?.id ?? null
+  }
 
-  if (needsRoom) {
-    if (!roomId) {
-      reasons.push('room_required')
-    } else {
-      const room = getResource(db, tenantId, roomId, clock)
-      if (
-        !room
-        || (room.kind !== 'room' && room.kind !== 'equipment')
-        || !room.active
-      ) {
-        throw new NotFoundError(
-          'room_not_found',
-          `sala/equipamento ${roomId} não encontrado nesta clínica`,
-        )
-      }
-      roomName = room.name
-      const req = service.roomRequirement
-      if (req.mode === 'resource' && req.resourceId !== room.id) {
-        reasons.push('room_requirement_mismatch')
-      }
-      if (req.mode === 'category' && room.category !== req.category) {
-        reasons.push('room_category_mismatch')
-      }
+  if (!roomId) {
+    reasons.push('room_required')
+  } else {
+    const room = getResource(db, tenantId, roomId, clock)
+    if (!room || room.kind !== 'room' || !room.active) {
+      throw new NotFoundError(
+        'room_not_found',
+        `sala ${roomId} não encontrada nesta clínica`,
+      )
     }
-  } else if (roomId) {
-    // Serviço sem sala — ignorar room extra; não falha.
-    roomId = null
+    roomName = room.name
   }
 
   if (!serviceOfferingAllows(service.weeklyWindows, dayOfWeek, startMinute, occMins)) {
@@ -158,13 +148,31 @@ export function checkSlotAvailability(
     reasons.push('hold_conflict')
   }
 
-  if (needsRoom && roomId) {
+  if (roomId) {
     reasons.push(
       ...resourceBusyReasons(
         db,
         tenantId,
         roomId,
         // Sala/equipamento não tem expediente (decisão 28/10/2026).
+        null,
+        dayOfWeek,
+        startMinute,
+        occMins,
+        range,
+        dayEndsAt,
+        input.excludeAppointmentId,
+      ),
+    )
+  }
+
+  const requiredEquipment = resolveRequiredEquipment(db, tenantId, service, clock)
+  if (requiredEquipment) {
+    reasons.push(
+      ...resourceBusyReasons(
+        db,
+        tenantId,
+        requiredEquipment.id,
         null,
         dayOfWeek,
         startMinute,

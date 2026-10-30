@@ -818,5 +818,15 @@ function parseResourceBody(body: Record<string, unknown>) {
       ? {}
       : { sharedSpaceNotice: body.sharedSpaceNotice === null ? null : String(body.sharedSpaceNotice) }),
     ...(body.hoursMode === undefined ? {} : { hoursMode: String(body.hoursMode) as 'clinic' | 'own' }),
+    ...(body.homeRoomId === undefined
+      ? {}
+      : { homeRoomId: body.homeRoomId === null ? null : String(body.homeRoomId) }),
+    ...(body.attendanceMode === undefined
+      ? {}
+      : {
+          attendanceMode: String(body.attendanceMode) as
+            | 'cada_profissional'
+            | 'uma_para_todas',
+        }),
   }
 }

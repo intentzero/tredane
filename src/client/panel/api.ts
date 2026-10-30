@@ -2090,6 +2090,10 @@ export type ClinicResource = {
   sharedSpaceNotice?: string | null
   /** Profissional: segue o horário da clínica ou tem o próprio. */
   hoursMode?: 'clinic' | 'own'
+  /** DEC-075 / S3 — sala da profissional (várias podem partilhar). */
+  homeRoomId?: string | null
+  /** DEC-075 — modo da sala; padrão cada_profissional. */
+  attendanceMode?: 'cada_profissional' | 'uma_para_todas'
   /** Horários acima da nova capacidade (só na resposta de editar). */
   overCapacity?: Array<{ startsAt: number; endsAt: number; count: number }>
   futureAppointmentCount: number
@@ -2370,6 +2374,10 @@ export type ResourceUpsertBody = {
   capacity?: number
   sharedSpaceNotice?: string | null
   hoursMode?: 'clinic' | 'own'
+  /** Só profissional — sala da profissional (DEC-075). null limpa. */
+  homeRoomId?: string | null
+  /** Só sala — modo de atendimento (DEC-075). */
+  attendanceMode?: 'cada_profissional' | 'uma_para_todas'
 }
 
 export type WeeklyWindowInput = {

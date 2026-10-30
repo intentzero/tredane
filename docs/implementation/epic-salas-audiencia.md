@@ -1,6 +1,6 @@
 # Épico — Salas partilhadas e audiência do serviço (DEC-075)
 
-**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «vamos considerar estes casos de uso no sistema, prepara um epico de implementacao»). Este documento é o épico. Issue: [#284](https://github.com/intentzero/tredane/issues/284). Nenhuma fatia está implementada. Não altera código.
+**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «vamos considerar estes casos de uso no sistema, prepara um epico de implementacao»). Este documento é o épico. Issue: [#284](https://github.com/intentzero/tredane/issues/284). S1 (docs) e S2 (audiência) em `main`. S3 (sala da profissional / salão partilhado) em implementação.
 
 **Decisão:** [DEC-075](../product/decisions.md). Revisa só a frase «profissional atende 1 de cada vez» da [DEC-059](../product/decisions.md). Mantém DEC-008 (duração, intervalo, grade de 15 min), DEC-042 (só a responsável configura), DEC-011 (contexto da IA) e DEC-061 (marcação automática só pelo botão).
 

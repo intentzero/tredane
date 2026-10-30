@@ -25,7 +25,13 @@ function seed() {
   const clock = createControllableClock(Date.UTC(2024, 0, 1))
   const { db, close } = bootClinicDb({ clock })
   const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
-  const pro = upsertResourceOp(db, caller, { kind: 'professional', name: 'Dra. Paula Reis' }, clock)
+  const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala 1' }, clock)
+  const pro = upsertResourceOp(
+    db,
+    caller,
+    { kind: 'professional', name: 'Dra. Paula Reis', homeRoomId: room.id },
+    clock,
+  )
   setWeeklyWindowsOp(
     db,
     caller,

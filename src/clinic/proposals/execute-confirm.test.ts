@@ -63,16 +63,16 @@ async function seedBookable(tenantId = 'clinic-demo-s5-a') {
     clock,
   )
   clinicInbox.seedSyntheticWhatsappTemplates(db, tenantId, clock)
-  const pro = upsertResourceOp(
-    db,
-    caller,
-    { kind: 'professional', name: 'Dra. Paula Reis' },
-    clock,
-  )
   const room = upsertResourceOp(
     db,
     caller,
     { kind: 'room', name: 'Sala 1', category: 'Padrão' },
+    clock,
+  )
+  const pro = upsertResourceOp(
+    db,
+    caller,
+    { kind: 'professional', name: 'Dra. Paula Reis', homeRoomId: room.id },
     clock,
   )
   const svc = upsertServiceOp(
@@ -243,7 +243,7 @@ async function confirmClick(
 
 describe('S5: schema e chaves', () => {
   it('mantém CLINIC_SCHEMA_VERSION e prefixos estáveis', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(36)
+    expect(CLINIC_SCHEMA_VERSION).toBe(37)
     expect(PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX).toBe('proposal.book:')
     expect(PROPOSAL_PIX_CLIENT_REQUEST_PREFIX).toBe('proposal.pix:')
     expect(proposalBookClientRequestId('p1', 2)).toBe('proposal.book:p1:v2')

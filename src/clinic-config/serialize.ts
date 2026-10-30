@@ -108,6 +108,8 @@ export function serializeResource(
     capacity: row.capacity,
     sharedSpaceNotice: row.sharedSpaceNotice,
     hoursMode: row.hoursMode,
+    homeRoomId: row.homeRoomId,
+    attendanceMode: row.attendanceMode,
     overCapacity: row.overCapacity,
     futureAppointmentCount: row.futureAppointmentCount,
     hasAppointmentHistory: row.hasAppointmentHistory,

@@ -45,7 +45,13 @@ function seedList() {
   const clock = createControllableClock(CLOCK)
   const boot = bootClinicDb({ clock })
   const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
-  const pro = upsertResourceOp(boot.db, caller, { kind: 'professional', name: 'Gi' }, clock)
+  const room = upsertResourceOp(boot.db, caller, { kind: 'room', name: 'Sala 1' }, clock)
+  const pro = upsertResourceOp(
+    boot.db,
+    caller,
+    { kind: 'professional', name: 'Gi', homeRoomId: room.id },
+    clock,
+  )
   setWeeklyWindowsOp(
     boot.db,
     caller,
@@ -195,7 +201,13 @@ function seedClick() {
     clock,
   )
   clinicInbox.seedSyntheticWhatsappTemplates(boot.db, tenantId, clock)
-  const pro = upsertResourceOp(boot.db, caller, { kind: 'professional', name: 'Gi' }, clock)
+  const room = upsertResourceOp(boot.db, caller, { kind: 'room', name: 'Sala 1' }, clock)
+  const pro = upsertResourceOp(
+    boot.db,
+    caller,
+    { kind: 'professional', name: 'Gi', homeRoomId: room.id },
+    clock,
+  )
   setWeeklyWindowsOp(
     boot.db,
     caller,

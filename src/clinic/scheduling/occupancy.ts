@@ -72,6 +72,7 @@ type AptSql = {
   service_id: string
   professional_id: string
   room_resource_id: string | null
+  contact_id?: string | null
   starts_at: number
   ends_at: number
   occupies_until: number | null
@@ -94,6 +95,15 @@ export function appointmentOccupiesUntil(
   return apt.ends_at + (svc ? svc.bufferMinutes * 60_000 : 0)
 }
 
+export type OccupyingAppointment = {
+  id: string
+  startsAt: number
+  occupiesUntil: number
+  /** Contacto da marcação; sem contacto cada marcação conta como pessoa distinta. */
+  contactId: string | null
+  personKey: string
+}
+
 export function listConfirmedOccupyingResource(
   db: ClinicDb,
   tenantId: string,
@@ -101,24 +111,51 @@ export function listConfirmedOccupyingResource(
   range: Interval,
   /** Ao reagendar, o próprio compromisso não conta como conflito. */
   excludeAppointmentId?: string | null,
-): Array<{ id: string; startsAt: number; occupiesUntil: number }> {
+): OccupyingAppointment[] {
+  // DEC-075: room_resource_id é a sala da profissional. Equipamento exigido pelo
+  // serviço (mode=resource → kind=equipment) continua a ocupar uma vaga via o
+  // requisito do serviço, sem ser o room_resource_id da marcação.
   const rows = db.all<AptSql>(
-    `SELECT id, service_id, professional_id, room_resource_id, starts_at, ends_at, occupies_until
-     FROM appointments
-     WHERE tenant_id = ?
-       AND status = 'confirmed'
-       AND (professional_id = ? OR room_resource_id = ?)
-     ORDER BY starts_at, id`,
+    `SELECT a.id, a.service_id, a.professional_id, a.room_resource_id, a.contact_id,
+            a.starts_at, a.ends_at, a.occupies_until
+     FROM appointments a
+     WHERE a.tenant_id = ?
+       AND a.status = 'confirmed'
+       AND (
+         a.professional_id = ?
+         OR a.room_resource_id = ?
+         OR EXISTS (
+           SELECT 1
+           FROM service_room_requirements q
+           JOIN resources eq
+             ON eq.tenant_id = q.tenant_id
+            AND eq.id = q.resource_id
+            AND eq.kind = 'equipment'
+           WHERE q.tenant_id = a.tenant_id
+             AND q.service_id = a.service_id
+             AND q.mode = 'resource'
+             AND q.resource_id = ?
+         )
+       )
+     ORDER BY a.starts_at, a.id`,
     tenantId,
     resourceId,
     resourceId,
+    resourceId,
   )
-  const out: Array<{ id: string; startsAt: number; occupiesUntil: number }> = []
+  const out: OccupyingAppointment[] = []
   for (const row of rows) {
     if (excludeAppointmentId && row.id === excludeAppointmentId) continue
     const occupiesUntil = appointmentOccupiesUntil(db, tenantId, row)
     if (intervalsOverlap(range, { startsAt: row.starts_at, endsAt: occupiesUntil })) {
-      out.push({ id: row.id, startsAt: row.starts_at, occupiesUntil })
+      const contactId = row.contact_id ?? null
+      out.push({
+        id: row.id,
+        startsAt: row.starts_at,
+        occupiesUntil,
+        contactId,
+        personKey: contactId ?? `apt:${row.id}`,
+      })
     }
   }
   return out
@@ -175,13 +212,16 @@ export function resourceBusyReasons(
   )
   if (occupying.length > 0) {
     const capacity = resourceCapacity(db, tenantId, resourceId)
-    // DEC-008 + capacidade (D-20261027-180200-CUR): ocupado quando o pico de
-    // pessoas num bloco de 15 min do período já chegou à capacidade.
+    // DEC-075: pico de pessoas distintas (mesmo contacto = 1) por bloco de 15 min.
     if (
       capacity <= 1
-      || peakConcurrent(
+      || peakConcurrentPeople(
         range,
-        occupying.map((a) => ({ startsAt: a.startsAt, endsAt: a.occupiesUntil })),
+        occupying.map((a) => ({
+          startsAt: a.startsAt,
+          endsAt: a.occupiesUntil,
+          personKey: a.personKey,
+        })),
       ) >= capacity
     ) {
       reasons.push('appointment_conflict')
@@ -206,8 +246,8 @@ export function resourceCapacity(db: ClinicDb, tenantId: string, resourceId: str
 }
 
 /**
- * Pico de pessoas ao mesmo tempo dentro de `range`, contando cada bloco de
- * 15 min da grade (DEC-008). Um intervalo conta num bloco se se sobrepõe a ele.
+ * Pico de intervalos (marcações) ao mesmo tempo — útil em testes de grade.
+ * Para capacidade da sala use {@link peakConcurrentPeople}.
  */
 export function peakConcurrent(range: Interval, intervals: Interval[]): number {
   const step = SCHEDULE_GRID_MINUTES * 60_000
@@ -217,6 +257,27 @@ export function peakConcurrent(range: Interval, intervals: Interval[]): number {
     let n = 0
     for (const iv of intervals) if (intervalsOverlap(chunk, iv)) n += 1
     if (n > peak) peak = n
+  }
+  return peak
+}
+
+/**
+ * Pico de pessoas distintas (DEC-075): dois serviços do mesmo contacto no
+ * mesmo bloco contam como uma pessoa.
+ */
+export function peakConcurrentPeople(
+  range: Interval,
+  intervals: Array<Interval & { personKey: string }>,
+): number {
+  const step = SCHEDULE_GRID_MINUTES * 60_000
+  let peak = 0
+  for (let t = range.startsAt; t < range.endsAt; t += step) {
+    const chunk = { startsAt: t, endsAt: Math.min(t + step, range.endsAt) }
+    const people = new Set<string>()
+    for (const iv of intervals) {
+      if (intervalsOverlap(chunk, iv)) people.add(iv.personKey)
+    }
+    if (people.size > peak) peak = people.size
   }
   return peak
 }
@@ -234,7 +295,8 @@ export function listOverCapacitySlots(
   fromMs: number,
 ): Array<{ startsAt: number; endsAt: number; count: number }> {
   const rows = db.all<AptSql>(
-    `SELECT id, service_id, professional_id, room_resource_id, starts_at, ends_at, occupies_until
+    `SELECT id, service_id, professional_id, room_resource_id, contact_id,
+            starts_at, ends_at, occupies_until
      FROM appointments
      WHERE tenant_id = ? AND status = 'confirmed' AND room_resource_id = ?
      ORDER BY starts_at, id`,
@@ -242,7 +304,11 @@ export function listOverCapacitySlots(
     roomId,
   )
   const ivs = rows
-    .map((r) => ({ startsAt: r.starts_at, endsAt: appointmentOccupiesUntil(db, tenantId, r) }))
+    .map((r) => ({
+      startsAt: r.starts_at,
+      endsAt: appointmentOccupiesUntil(db, tenantId, r),
+      personKey: r.contact_id ?? `apt:${r.id}`,
+    }))
     .filter((iv) => iv.endsAt > fromMs)
   if (ivs.length <= capacity) return []
   const step = SCHEDULE_GRID_MINUTES * 60_000
@@ -254,7 +320,11 @@ export function listOverCapacitySlots(
   const out: Array<{ startsAt: number; endsAt: number; count: number }> = []
   for (const t of [...points].sort((a, b) => a - b)) {
     const chunk = { startsAt: t, endsAt: t + step }
-    const n = ivs.filter((iv) => intervalsOverlap(chunk, iv)).length
+    const people = new Set<string>()
+    for (const iv of ivs) {
+      if (intervalsOverlap(chunk, iv)) people.add(iv.personKey)
+    }
+    const n = people.size
     if (n <= capacity) continue
     const last = out[out.length - 1]
     if (last && last.endsAt === t && last.count === n) last.endsAt = chunk.endsAt

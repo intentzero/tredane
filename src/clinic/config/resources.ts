@@ -3,7 +3,12 @@ import { NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
 import { resourceHasHistory } from './resource-history'
 import type { ClinicDb } from '../store'
-import { CLINIC_SCOPE_ID, type ResourceRow, type UpsertResourceInput } from './types'
+import {
+  CLINIC_SCOPE_ID,
+  type ResourceRow,
+  type RoomAttendanceMode,
+  type UpsertResourceInput,
+} from './types'
 import { assertNonEmptyName, assertResourceKind } from './validation'
 
 type ResourceSql = {
@@ -16,6 +21,8 @@ type ResourceSql = {
   capacity?: number | null
   shared_space_notice?: string | null
   hours_mode?: string | null
+  home_room_id?: string | null
+  attendance_mode?: string | null
   created_at: number
   updated_at: number
 }
@@ -49,6 +56,10 @@ function countFutureAppointments(
   return row?.n ?? 0
 }
 
+function toAttendanceMode(value: string | null | undefined): RoomAttendanceMode {
+  return value === 'uma_para_todas' ? 'uma_para_todas' : 'cada_profissional'
+}
+
 function toResourceRow(
   db: ClinicDb,
   row: ResourceSql,
@@ -64,6 +75,9 @@ function toResourceRow(
     capacity: row.kind === 'room' ? Math.max(1, row.capacity ?? 1) : 1,
     sharedSpaceNotice: row.kind === 'room' ? row.shared_space_notice ?? null : null,
     hoursMode: row.kind === 'professional' && row.hours_mode === 'clinic' ? 'clinic' : 'own',
+    homeRoomId: row.kind === 'professional' ? row.home_room_id ?? null : null,
+    attendanceMode:
+      row.kind === 'room' ? toAttendanceMode(row.attendance_mode) : 'cada_profissional',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     futureAppointmentCount: countFutureAppointments(
@@ -126,6 +140,8 @@ export function upsertResource(
   const capacityIn = parseCapacity(input)
   const noticeIn = parseNotice(input)
   const hoursIn = parseHoursMode(input)
+  const homeRoomIn = parseHomeRoomId(db, tenantId, input)
+  const attendanceIn = parseAttendanceMode(input)
 
   if (input.id) {
     const existing = getResource(db, tenantId, input.id, clock)
@@ -140,7 +156,8 @@ export function upsertResource(
     }
     db.run(
       `UPDATE resources SET name = ?, category = ?, active = ?, capacity = ?,
-         shared_space_notice = ?, hours_mode = ?, updated_at = ?
+         shared_space_notice = ?, hours_mode = ?, home_room_id = ?, attendance_mode = ?,
+         updated_at = ?
        WHERE tenant_id = ? AND id = ?`,
       name,
       category,
@@ -148,6 +165,12 @@ export function upsertResource(
       capacityIn ?? existing.capacity,
       noticeIn === undefined ? existing.sharedSpaceNotice : noticeIn,
       input.kind === 'professional' ? (hoursIn ?? existing.hoursMode) : 'own',
+      input.kind === 'professional'
+        ? (homeRoomIn === undefined ? existing.homeRoomId : homeRoomIn)
+        : null,
+      input.kind === 'room'
+        ? (attendanceIn ?? existing.attendanceMode)
+        : 'cada_profissional',
       now,
       tenantId,
       input.id,
@@ -159,8 +182,8 @@ export function upsertResource(
   db.run(
     `INSERT INTO resources (
       id, tenant_id, kind, name, category, active, capacity, shared_space_notice,
-      hours_mode, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      hours_mode, home_room_id, attendance_mode, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     input.kind,
@@ -170,6 +193,8 @@ export function upsertResource(
     capacityIn ?? 1,
     noticeIn ?? null,
     input.kind === 'professional' ? (hoursIn ?? defaultHoursMode(db, tenantId)) : 'own',
+    input.kind === 'professional' ? (homeRoomIn ?? null) : null,
+    input.kind === 'room' ? (attendanceIn ?? 'cada_profissional') : 'cada_profissional',
     now,
     now,
   )
@@ -286,4 +311,47 @@ function defaultHoursMode(db: ClinicDb, tenantId: string): 'clinic' | 'own' {
     CLINIC_SCOPE_ID,
   )?.n ?? 0
   return n > 0 ? 'clinic' : 'own'
+}
+
+function parseHomeRoomId(
+  db: ClinicDb,
+  tenantId: string,
+  input: UpsertResourceInput,
+): string | null | undefined {
+  if (input.homeRoomId === undefined) return undefined
+  if (input.kind !== 'professional') {
+    if (input.homeRoomId == null) return null
+    throw new ValidationError('home_room_professional_only', 'Só a profissional tem sala.')
+  }
+  if (input.homeRoomId === null || input.homeRoomId === '') return null
+  const room = db.get<{ kind: string; active: number }>(
+    `SELECT kind, active FROM resources WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    input.homeRoomId,
+  )
+  if (!room || room.kind !== 'room' || room.active !== 1) {
+    throw new ValidationError(
+      'invalid_home_room',
+      'A sala da profissional tem de ser uma sala activa desta clínica.',
+      { homeRoomId: input.homeRoomId },
+    )
+  }
+  return input.homeRoomId
+}
+
+function parseAttendanceMode(input: UpsertResourceInput): RoomAttendanceMode | undefined {
+  if (input.attendanceMode === undefined) return undefined
+  if (input.kind !== 'room') {
+    throw new ValidationError('attendance_mode_room_only', 'O modo de atendimento é da sala.')
+  }
+  if (
+    input.attendanceMode !== 'cada_profissional'
+    && input.attendanceMode !== 'uma_para_todas'
+  ) {
+    throw new ValidationError(
+      'invalid_attendance_mode',
+      'Modo: cada profissional com a sua cliente, ou uma profissional para todas.',
+    )
+  }
+  return input.attendanceMode
 }
