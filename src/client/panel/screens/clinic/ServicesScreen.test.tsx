@@ -45,6 +45,22 @@ function renderForm(service: ClinicService, api: Partial<PanelApi>) {
 }
 
 describe('ServiceForm — duração e variantes', () => {
+  it('aceita um número de minutos fora da lista antiga', async () => {
+    const upsertService = vi.fn(async () => svc({ durationMinutes: 7 }))
+    renderForm(svc({}), { upsertService, replaceServiceZones: vi.fn() } as Partial<PanelApi>)
+    const field = screen.getByRole('textbox', { name: 'Duração (min)' })
+    fireEvent.change(field, { target: { value: '7' } })
+    fireEvent.blur(field)
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() =>
+      expect(upsertService).toHaveBeenCalledWith(
+        't',
+        expect.objectContaining({ durationMinutes: 7 }),
+        expect.anything(),
+      ),
+    )
+  })
+
   it('ao tirar as variantes, apaga-as antes de limpar o tipo', async () => {
     const order: string[] = []
     const replaceServiceZones = vi.fn(async () => {

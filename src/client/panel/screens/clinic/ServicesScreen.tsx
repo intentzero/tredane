@@ -12,7 +12,6 @@ import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
 import {
   bufferOptions,
-  durationOptions,
   formatPriceCents,
   parsePriceToCents,
 } from './format'
@@ -379,13 +378,20 @@ export function ServiceForm({
         <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
       </TextField>
       <div className="clinic-field-row">
-        <PanelSelect
+        <NumberField
           className="clinic-field"
-          label="Duração"
-          value={String(duration)}
-          onChange={(v) => setDuration(Number(v))}
-          options={durationOptions().map((m) => ({ id: String(m), label: `${m} min` }))}
-        />
+          minValue={1}
+          maxValue={24 * 60}
+          step={1}
+          formatOptions={{ maximumFractionDigits: 0 }}
+          value={duration}
+          onChange={(value) => {
+            if (Number.isInteger(value) && value >= 1 && value <= 24 * 60) setDuration(value)
+          }}
+        >
+          <Label>Duração (min)</Label>
+          <Input />
+        </NumberField>
         <TextField className="clinic-field">
           <Label>Preço (opcional)</Label>
           <Input
@@ -434,17 +440,23 @@ export function ServiceForm({
                 }
               />
             </TextField>
-            <PanelSelect
+            <NumberField
               className="clinic-field"
-              label="Duração"
-              value={String(z.durationMinutes)}
-              onChange={(v) =>
+              minValue={1}
+              maxValue={24 * 60}
+              step={1}
+              formatOptions={{ maximumFractionDigits: 0 }}
+              value={z.durationMinutes}
+              onChange={(value) => {
+                if (!Number.isInteger(value) || value < 1 || value > 24 * 60) return
                 setZones((prev) =>
-                  prev.map((row) => (row.key === z.key ? { ...row, durationMinutes: Number(v) } : row)),
+                  prev.map((row) => (row.key === z.key ? { ...row, durationMinutes: value } : row)),
                 )
-              }
-              options={durationOptions().map((m) => ({ id: String(m), label: `${m} min` }))}
-            />
+              }}
+            >
+              <Label>Duração (min)</Label>
+              <Input />
+            </NumberField>
             <TextField className="clinic-field">
               <Label>Preço</Label>
               <Input

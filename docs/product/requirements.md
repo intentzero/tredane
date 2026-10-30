@@ -217,7 +217,7 @@
 
 ### REQ-085 — Catálogo de zonas no serviço
 
-**Prioridade/estado:** MVP / Confirmado (DEC-078). **Origem:** ACT-03; [#293](https://github.com/intentzero/tredane/issues/293). **Comportamento:** só a responsável grava zonas no serviço (DEC-042). Nome único no serviço, duração múltipla de 15 min, preço opcional, ativo e ordem. A primeira zona pode copiar duração e preço da linha quando o catálogo está vazio e esses campos vêm omitidos. Com zonas gravadas, marcação nova não usa a duração nem o preço da linha. Zona já usada não se apaga. Editar não reescreve visitas. A atendente lê. Outra clínica não lê nem grava. **Aceite:** AC-57. **Dados/tenant:** `service_zones` no SQLite da clínica.
+**Prioridade/estado:** MVP / Confirmado (DEC-078). **Origem:** ACT-03; [#293](https://github.com/intentzero/tredane/issues/293). **Comportamento:** só a responsável grava zonas no serviço (DEC-042). Nome único no serviço, duração em minutos inteiros de 1 a 24 h (Paulo, 30/10/2026), preço opcional, ativo e ordem. A primeira zona pode copiar duração e preço da linha quando o catálogo está vazio e esses campos vêm omitidos. Com zonas gravadas, marcação nova não usa a duração nem o preço da linha. Zona já usada não se apaga. Editar não reescreve visitas. A atendente lê. Outra clínica não lê nem grava. **Aceite:** AC-57. **Dados/tenant:** `service_zones` no SQLite da clínica.
 
 ### REQ-086 — Várias zonas num horário
 

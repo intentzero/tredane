@@ -101,6 +101,28 @@ async function pickTime(label = '14:15') {
 }
 
 describe('AgendarScreen (TEL-05 redesenho)', () => {
+  it('DEC-077: hora com tempo fraco continua selecionável e o aviso volta na revisão', async () => {
+    const api = makeApi()
+    api.queryAvailability.mockImplementation(async (_t: string, q: { date: string }) => ({
+      date: q.date,
+      slots: [{ ...slot(q.date, 15), tempoWarnings: ['Sol fraco neste horário', 'Abaixo de 24 °C neste horário'] }],
+    }))
+    renderScreen(api)
+    await pickTime('15:00')
+    const chosen = screen.getByRole('status')
+    expect(chosen.textContent).toContain('Sol fraco neste horário')
+    expect(chosen.textContent).toContain('Abaixo de 24 °C neste horário')
+    expect(screen.getByRole('button', { name: 'Revisar e confirmar' }).hasAttribute('disabled')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('status').textContent).toContain('Sol fraco neste horário')
+    expect(within(dialog).getByRole('status').textContent).toContain('Abaixo de 24 °C neste horário')
+    fireEvent.click(within(dialog).getByRole('checkbox'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar agendamento' }))
+    await screen.findByRole('heading', { name: 'Horário agendado' })
+    expect(api.confirmAppointment).toHaveBeenCalled()
+  })
+
   it('mostra o contato real, cartões de serviço e «Qualquer» primeiro', async () => {
     const api = makeApi()
     renderScreen(api)

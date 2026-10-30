@@ -8,7 +8,7 @@ Exemplos fictícios. Nenhum dado de paciente ou clínica real.
 
 ## O que fica no serviço
 
-Quem atende, sala, janela semanal, intervalo, explicação e regra de sinal (DEC-047) continuam no serviço. Cada zona tem nome único naquele serviço, duração múltipla de 15 minutos, preço opcional, ativo e ordem. Só a responsável grava (DEC-042). A atendente lê. Outra clínica não lê nem grava.
+Quem atende, sala, janela semanal, intervalo, explicação e regra de sinal (DEC-047) continuam no serviço. Cada zona tem nome único naquele serviço, duração em minutos inteiros de 1 a 24 h (Paulo, 30/10/2026), preço opcional, ativo e ordem. A grade de início do horário continua de 15 em 15 minutos. Só a responsável grava (DEC-042). A atendente lê. Outra clínica não lê nem grava.
 
 A primeira zona, com o catálogo vazio e duração ou preço omitidos, copia a linha do serviço. Preço explícito vazio fica sem preço. Com alguma zona gravada, marcação nova não usa a duração nem o preço da linha. Se todas as zonas estão inativas, não há marcação nova. Desativar não cancela o já marcado. Se nenhuma zona entrou em visita, proposta ou cobrança, a responsável pode removê-las e o serviço volta à linha. Zona já usada não se apaga: a cópia fica. Editar a zona não reescreve compromissos.
 

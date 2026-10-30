@@ -963,6 +963,7 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as AppointmentDetailResponse & {
         createdReservation: true
         idempotentReplay: boolean
+        tempoWarnings: string[]
       }
     },
 
@@ -2462,6 +2463,8 @@ export type AvailabilitySlot = {
   /** Sala compartilhada: capacidade e lugares livres (exibição). */
   roomCapacity?: number | null
   roomSeatsFree?: number | null
+  /** Avisos do bloco Tempo (DEC-077). A hora continua selecionável. */
+  tempoWarnings?: string[]
 }
 
 export type AvailabilityResponse = {
