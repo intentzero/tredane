@@ -19,10 +19,14 @@ function seed(now: number, windows: Array<{ dayOfWeek: number; startMinute: numb
   const clock = createControllableClock(now)
   const boot = bootClinicDb({ clock })
   const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
-  const pro = upsertResourceOp(boot.db, caller, { kind: 'professional', name: 'Gi' }, clock)
-  setWeeklyWindowsOp(boot.db, caller, { resourceId: pro.id, windows }, clock)
-  // No main a agenda só fica configurada com uma sala com expediente.
   const room = upsertResourceOp(boot.db, caller, { kind: 'room', name: 'Sala 1' }, clock)
+  const pro = upsertResourceOp(
+    boot.db,
+    caller,
+    { kind: 'professional', name: 'Gi', homeRoomId: room.id },
+    clock,
+  )
+  setWeeklyWindowsOp(boot.db, caller, { resourceId: pro.id, windows }, clock)
   setWeeklyWindowsOp(boot.db, caller, { resourceId: room.id, windows }, clock)
   const svc = upsertServiceOp(
     boot.db,

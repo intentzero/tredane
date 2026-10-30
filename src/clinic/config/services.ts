@@ -622,41 +622,46 @@ export function assertResourcesUsableForBooking(
     )
   }
 
+  // DEC-075 / S3: a sala da marcação é a da profissional (ou troca pontual).
+  // O requisito de sala do serviço deixa de validar a sala escolhida.
+  // Equipamento exigido continua a ser verificado na disponibilidade (ocupação).
   if (opts.roomResourceId) {
-    const room = db.get<{ kind: string; active: number; category: string | null }>(
-      `SELECT kind, active, category FROM resources WHERE tenant_id = ? AND id = ?`,
+    const room = db.get<{ kind: string; active: number }>(
+      `SELECT kind, active FROM resources WHERE tenant_id = ? AND id = ?`,
       tenantId,
       opts.roomResourceId,
     )
-    if (
-      !room
-      || (room.kind !== 'room' && room.kind !== 'equipment')
-      || room.active !== 1
-    ) {
+    if (!room || room.kind !== 'room' || room.active !== 1) {
       throw new ValidationError(
         'room_unusable',
-        'sala/equipamento inativo ou de outro tenant',
+        'sala inactiva ou de outro tenant',
         { roomResourceId: opts.roomResourceId },
       )
     }
-    const req = service.roomRequirement
-    if (req.mode === 'resource' && req.resourceId !== opts.roomResourceId) {
-      throw new ValidationError(
-        'room_requirement_mismatch',
-        'recurso não corresponde ao exigido pelo serviço',
-      )
-    }
-    if (req.mode === 'category' && room.category !== req.category) {
-      throw new ValidationError(
-        'room_category_mismatch',
-        'categoria do recurso não corresponde à exigida',
-        { required: req.category, actual: room.category },
-      )
-    }
-  } else if (service.roomRequirement.mode !== 'none') {
-    throw new ValidationError(
-      'room_required',
-      'serviço exige sala/equipamento para novos agendamentos',
+  } else {
+    const home = db.get<{ home_room_id: string | null }>(
+      `SELECT home_room_id FROM resources WHERE tenant_id = ? AND id = ?`,
+      tenantId,
+      opts.professionalId,
     )
+    if (!home?.home_room_id) {
+      throw new ValidationError(
+        'room_required',
+        'a profissional precisa de uma sala para novos agendamentos',
+        { professionalId: opts.professionalId },
+      )
+    }
+    const homeRoom = db.get<{ kind: string; active: number }>(
+      `SELECT kind, active FROM resources WHERE tenant_id = ? AND id = ?`,
+      tenantId,
+      home.home_room_id,
+    )
+    if (!homeRoom || homeRoom.kind !== 'room' || homeRoom.active !== 1) {
+      throw new ValidationError(
+        'room_required',
+        'a profissional precisa de uma sala activa para novos agendamentos',
+        { professionalId: opts.professionalId },
+      )
+    }
   }
 }

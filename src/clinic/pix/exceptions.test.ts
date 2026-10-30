@@ -50,16 +50,16 @@ async function seed(
 ) {
   const tenantId = 'clinic-demo-a'
   const caller = workerCaller(tenantId, 'user_synth_owner_a')
-  const pro = upsertResourceOp(
-    db,
-    caller,
-    { kind: 'professional', name: 'Dra. Paula Reis' },
-    clock,
-  )
   const room = upsertResourceOp(
     db,
     caller,
     { kind: 'room', name: 'Sala 2', category: 'Sala com laser' },
+    clock,
+  )
+  const pro = upsertResourceOp(
+    db,
+    caller,
+    { kind: 'professional', name: 'Dra. Paula Reis', homeRoomId: room.id },
     clock,
   )
   const svc = upsertServiceOp(

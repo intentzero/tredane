@@ -45,8 +45,13 @@ function seed(opts: { signal?: boolean } = {}) {
     },
     clock,
   )
-  const gi = upsertResourceOp(db, caller, { kind: 'professional', name: 'Gi' }, clock)
   const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala depilação', category: 'Sala' }, clock)
+  const gi = upsertResourceOp(
+    db,
+    caller,
+    { kind: 'professional', name: 'Gi', homeRoomId: room.id },
+    clock,
+  )
   const svc = upsertServiceOp(
     db,
     caller,

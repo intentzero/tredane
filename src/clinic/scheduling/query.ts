@@ -16,7 +16,7 @@ import {
 import {
   gridStartMinutes,
   listConfirmedOccupyingResource,
-  peakConcurrent,
+  peakConcurrentPeople,
   resourceBusyReasons,
   resourceCapacity,
   serviceOfferingAllows,
@@ -64,54 +64,35 @@ function resolveProfessionals(
   return [...linked].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 }
 
-function resolveRooms(
+/**
+ * DEC-075 / S3: a sala da marcação é a da profissional (`homeRoomId`).
+ * O requisito de sala do serviço deixa de escolher a sala.
+ * Equipamento exigido pelo serviço continua a ser verificado à parte (vaga única).
+ */
+export function resolveHomeRoom(
+  db: ClinicDb,
+  tenantId: string,
+  professional: ResourceRow,
+  clock: Clock,
+): ResourceRow | null {
+  if (!professional.homeRoomId) return null
+  const room = getResource(db, tenantId, professional.homeRoomId, clock)
+  if (!room || room.kind !== 'room' || !room.active) return null
+  return room
+}
+
+/** Equipamento exigido pelo serviço (DEC-059: uma vaga), se o requisito apontar para equipamento. */
+export function resolveRequiredEquipment(
   db: ClinicDb,
   tenantId: string,
   service: NonNullable<ReturnType<typeof getService>>,
   clock: Clock,
-): ResourceRow[] {
+): ResourceRow | null {
   const req = service.roomRequirement
-  if (req.mode === 'none') return []
-
-  const rooms = listResources(db, tenantId, clock).filter(
-    (r) => (r.kind === 'room' || r.kind === 'equipment') && r.active,
-  )
-
-  if (req.mode === 'resource') {
-    const one = rooms.find((r) => r.id === req.resourceId)
-    if (!one) {
-      throw new ValidationError(
-        'room_unusable',
-        'sala/equipamento exigido inactivo ou inexistente',
-        { resourceId: req.resourceId },
-      )
-    }
-    return [one]
-  }
-
-  if (req.mode === 'any') {
-    const all = [...rooms].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-    if (all.length === 0) {
-      throw new ValidationError(
-        'room_unusable',
-        'nenhuma sala/equipamento activo',
-        {},
-      )
-    }
-    return all
-  }
-
-  const matched = rooms
-    .filter((r) => r.category === req.category)
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-  if (matched.length === 0) {
-    throw new ValidationError(
-      'room_unusable',
-      `nenhuma sala/equipamento activo na categoria ${req.category}`,
-      { category: req.category },
-    )
-  }
-  return matched
+  if (req.mode !== 'resource' || !req.resourceId) return null
+  const res = getResource(db, tenantId, req.resourceId, clock)
+  if (!res || res.kind !== 'equipment' || !res.active) return null
+  return res
 }
 
 function windowsByResource(
@@ -182,18 +163,7 @@ export function queryAvailability(
     return empty([])
   }
 
-  let rooms: ResourceRow[]
-  try {
-    rooms = resolveRooms(db, tenantId, service, clock)
-  } catch (err) {
-    if (err instanceof ValidationError) return empty([])
-    throw err
-  }
-
-  const needsRoom = service.roomRequirement.mode !== 'none'
-  if (needsRoom && rooms.length === 0) {
-    return empty([])
-  }
+  const requiredEquipment = resolveRequiredEquipment(db, tenantId, service, clock)
 
   const allWindows = listEffectiveWeeklyWindows(db, tenantId)
   const prosWithHolds = new Set(
@@ -256,25 +226,28 @@ export function queryAvailability(
         continue
       }
 
-      if (!needsRoom) {
-        chosen = {
-          startsAt,
-          endsAt,
-          occupiesUntil,
-          professionalId: pro.id,
-          professionalName: pro.name,
-          roomResourceId: null,
-          roomResourceName: null,
-        }
-        break
-      }
+      const room = resolveHomeRoom(db, tenantId, pro, clock)
+      if (!room) continue
 
-      for (const room of rooms) {
-        const roomReasons = resourceBusyReasons(
+      const roomReasons = resourceBusyReasons(
+        db,
+        tenantId,
+        room.id,
+        // Sala/equipamento não tem expediente (decisão 28/10/2026).
+        null,
+        dayOfWeek,
+        startMinute,
+        occMins,
+        range,
+        dayEndsAt,
+      )
+      if (roomReasons.length > 0) continue
+
+      if (requiredEquipment) {
+        const eqReasons = resourceBusyReasons(
           db,
           tenantId,
-          room.id,
-          // Sala/equipamento não tem expediente (decisão 28/10/2026).
+          requiredEquipment.id,
           null,
           dayOfWeek,
           startMinute,
@@ -282,38 +255,39 @@ export function queryAvailability(
           range,
           dayEndsAt,
         )
-        if (roomReasons.length > 0) continue
-        // Sala compartilhada: lugares livres no pico do período (só para exibição).
-        const roomCapacity = resourceCapacity(db, tenantId, room.id)
-        const roomSeatsFree =
-          roomCapacity > 1
-            ? Math.max(
-                0,
-                roomCapacity
-                  - peakConcurrent(
-                    range,
-                    listConfirmedOccupyingResource(db, tenantId, room.id, range).map((a) => ({
-                      startsAt: a.startsAt,
-                      endsAt: a.occupiesUntil,
-                    })),
-                  ),
-              )
-            : null
-        chosen = {
-          startsAt,
-          endsAt,
-          occupiesUntil,
-          professionalId: pro.id,
-          professionalName: pro.name,
-          roomResourceId: room.id,
-          roomResourceName: room.name,
-          roomSharedNotice: room.sharedSpaceNotice,
-          roomCapacity: roomCapacity > 1 ? roomCapacity : null,
-          roomSeatsFree,
-        }
-        break
+        if (eqReasons.length > 0) continue
       }
-      if (chosen) break
+
+      // Sala compartilhada: lugares livres no pico do período (só para exibição).
+      const roomCapacity = resourceCapacity(db, tenantId, room.id)
+      const roomSeatsFree =
+        roomCapacity > 1
+          ? Math.max(
+              0,
+              roomCapacity
+                - peakConcurrentPeople(
+                  range,
+                  listConfirmedOccupyingResource(db, tenantId, room.id, range).map((a) => ({
+                    startsAt: a.startsAt,
+                    endsAt: a.occupiesUntil,
+                    personKey: a.personKey,
+                  })),
+                ),
+            )
+          : null
+      chosen = {
+        startsAt,
+        endsAt,
+        occupiesUntil,
+        professionalId: pro.id,
+        professionalName: pro.name,
+        roomResourceId: room.id,
+        roomResourceName: room.name,
+        roomSharedNotice: room.sharedSpaceNotice,
+        roomCapacity: roomCapacity > 1 ? roomCapacity : null,
+        roomSeatsFree,
+      }
+      break
     }
 
     if (chosen) slots.push(chosen)

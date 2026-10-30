@@ -21,9 +21,12 @@ function joinNames(names: string[]): string {
 
 export type ProfessionalRow = {
   services: string
+  /** Nome da sala da profissional, ou null se ainda não tem. */
+  homeRoom: string | null
   /** «Hoje 09:00–18:00», «Hoje sem atendimento» ou null quando falta horário. */
   today: string | null
   missingHours: boolean
+  missingHomeRoom: boolean
 }
 
 export function professionalRow(
@@ -37,7 +40,14 @@ export function professionalRow(
   const own = pro.hoursMode === 'own'
   const windows = windowsOf(snap, own ? pro.id : CLINIC_SCOPE_ID)
   const services = names.length > 0 ? joinNames(names) : 'Nenhum serviço ainda'
-  if (windows.length === 0) return { services, today: null, missingHours: true }
+  const home = pro.homeRoomId
+    ? snap.resources.find((r) => r.id === pro.homeRoomId && r.kind === 'room')
+    : null
+  const homeRoom = home?.name ?? null
+  const missingHomeRoom = !home
+  if (windows.length === 0) {
+    return { services, homeRoom, today: null, missingHours: true, missingHomeRoom }
+  }
   const tz = snap.settings?.timezone ?? 'America/Sao_Paulo'
   const dow = dayOfWeekIn(now, tz)
   const today = windows
@@ -46,8 +56,10 @@ export function professionalRow(
     .map((w) => `${formatMinutes(w.startMinute)}–${formatMinutes(w.endMinute)}`)
   return {
     services,
+    homeRoom,
     today: today.length > 0 ? `Hoje ${today.join(' e ')}` : 'Hoje sem atendimento',
     missingHours: false,
+    missingHomeRoom,
   }
 }
 
@@ -63,6 +75,16 @@ export function usedByServices(snap: ClinicConfigSnapshot, room: ClinicResource)
   })
 }
 
+/** Profissionais que têm esta sala como sala da profissional (DEC-075). */
+export function homeOfProfessionals(
+  snap: ClinicConfigSnapshot,
+  room: ClinicResource,
+): ClinicResource[] {
+  return snap.resources.filter(
+    (r) => r.kind === 'professional' && r.active && r.homeRoomId === room.id,
+  )
+}
+
 export function roomRow(snap: ClinicConfigSnapshot, room: ClinicResource): RoomRow {
   const n = room.capacity ?? 1
   const capacity =
@@ -71,9 +93,13 @@ export function roomRow(snap: ClinicConfigSnapshot, room: ClinicResource): RoomR
       : n > 1
         ? `Atende ${n} clientes ao mesmo tempo`
         : '1 cliente por vez'
-  const used = usedByServices(snap, room).length
+  const pros = homeOfProfessionals(snap, room)
   const usage =
-    used === 0 ? 'Nenhum serviço usa' : used === 1 ? 'Usada em 1 serviço' : `Usada em ${used} serviços`
+    pros.length === 0
+      ? 'Nenhuma profissional usa'
+      : pros.length === 1
+        ? `Sala de ${pros[0]!.name}`
+        : `Sala de ${joinNames(pros.map((p) => p.name))}`
   return { capacity, usage }
 }
 
@@ -139,9 +165,11 @@ export type PendingCounts = { professionals: number; services: number }
 
 /** Itens ativos com exceção (mesmas regras dos selos das listas); alimenta «1 pendência». */
 export function pendingCounts(snap: ClinicConfigSnapshot, now: number): PendingCounts {
-  const professionals = snap.resources.filter(
-    (r) => r.kind === 'professional' && r.active && professionalRow(snap, r, now).missingHours,
-  ).length
+  const professionals = snap.resources.filter((r) => {
+    if (r.kind !== 'professional' || !r.active) return false
+    const row = professionalRow(snap, r, now)
+    return row.missingHours || row.missingHomeRoom
+  }).length
   const services = snap.services.filter(
     (s) => s.active && serviceRow(snap, s).warning !== null,
   ).length

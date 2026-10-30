@@ -44,10 +44,16 @@ function seed(tenantId = 'clinic-demo-proposals-a') {
   const boot = bootClinicDb({ clock })
   const { db } = boot
   const caller = workerCaller(tenantId, 'user_synth_owner_a')
+  const room = upsertResourceOp(
+    db,
+    caller,
+    { kind: 'room', name: 'Sala 1' },
+    clock,
+  )
   const pro = upsertResourceOp(
     db,
     caller,
-    { kind: 'professional', name: 'Dra. Paula Reis' },
+    { kind: 'professional', name: 'Dra. Paula Reis', homeRoomId: room.id },
     clock,
   )
   const svc = upsertServiceOp(

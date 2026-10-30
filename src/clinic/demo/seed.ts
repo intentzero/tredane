@@ -260,13 +260,43 @@ export function seedDemoClinicOp(
     const t0 = clock.nowMs()
     const existingRes = listResources(db, tenantId, clock)
 
-    const pros = new Map<ProKey, ResourceRow>()
-    for (const p of PROFESSIONALS) {
-      pros.set(p.key, ensureResource(db, tenantId, existingRes, { kind: 'professional', name: p.name }, clock))
-    }
     const rooms = new Map<RoomKey, ResourceRow>()
     for (const r of ROOMS) {
       rooms.set(r.key, ensureResource(db, tenantId, existingRes, { kind: 'room', name: r.name, category: r.category }, clock))
+    }
+    /** DEC-075: sala da profissional (uma sala típica por profissional no demo). */
+    const homeRoomByPro: Record<ProKey, RoomKey> = {
+      luiza: 'sala1',
+      conceicao: 'sala2',
+      thais: 'laser',
+    }
+    const pros = new Map<ProKey, ResourceRow>()
+    for (const p of PROFESSIONALS) {
+      const found = existingRes.find((r) => r.kind === 'professional' && r.name === p.name)
+      const homeRoomId = rooms.get(homeRoomByPro[p.key])!.id
+      pros.set(
+        p.key,
+        found
+          ? found.homeRoomId
+            ? found
+            : upsertResource(
+                db,
+                tenantId,
+                {
+                  id: found.id,
+                  kind: 'professional',
+                  name: found.name,
+                  homeRoomId,
+                },
+                clock,
+              )
+          : upsertResource(
+              db,
+              tenantId,
+              { kind: 'professional', name: p.name, active: true, homeRoomId },
+              clock,
+            ),
+      )
     }
 
     // Horários: seg–sex 9h–19h, sáb 9h–13h (profissionais e salas).

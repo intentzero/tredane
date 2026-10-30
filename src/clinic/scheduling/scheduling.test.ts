@@ -38,12 +38,6 @@ function seedClinic(
 ) {
   const tenantId = opts.tenantId ?? 'clinic-demo-a'
   const caller = workerCaller(tenantId, 'user_synth_owner_a')
-  const pro = upsertResourceOp(
-    db,
-    caller,
-    { kind: 'professional', name: 'Dra. Paula Reis' },
-    clock,
-  )
   const room = upsertResourceOp(
     db,
     caller,
@@ -54,6 +48,12 @@ function seedClinic(
     db,
     caller,
     { kind: 'room', name: 'Sala 3', category: 'Sala com laser' },
+    clock,
+  )
+  const pro = upsertResourceOp(
+    db,
+    caller,
+    { kind: 'professional', name: 'Dra. Paula Reis', homeRoomId: room.id },
     clock,
   )
   const svc = upsertServiceOp(
@@ -258,7 +258,7 @@ describe('queryAvailability (#35 / REQ-030)', () => {
     }
   })
 
-  it('múltiplos recursos: bloqueio numa sala usa outra da mesma categoria', () => {
+  it('DEC-075: bloqueio na sala da profissional remove o horário; troca pontual usa outra sala', () => {
     const clock = createControllableClock(Date.UTC(2024, 0, 1))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -280,11 +280,22 @@ describe('queryAvailability (#35 / REQ-030)', () => {
         { serviceId: svc.id, date: MONDAY, professionalId: pro.id },
         clock,
       )
-      const nine = result.slots.find(
-        (s) => s.startsAt === zonedCivilToUtc(TZ, 2024, 1, 8, 9, 0),
+      const nine = zonedCivilToUtc(TZ, 2024, 1, 8, 9, 0)
+      expect(result.slots.some((s) => s.startsAt === nine)).toBe(false)
+      // Troca pontual: a equipa marca nesta vez na Sala 3.
+      const check = checkSlotAvailabilityOp(
+        db,
+        caller,
+        {
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: roomB.id,
+          startsAt: nine,
+        },
+        clock,
       )
-      expect(nine?.roomResourceId).toBe(roomB.id)
-      expect(nine?.roomResourceName).toBe('Sala 3')
+      expect(check.available).toBe(true)
+      expect(check.slot?.roomResourceId).toBe(roomB.id)
     } finally {
       close()
     }

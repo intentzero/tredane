@@ -40,16 +40,16 @@ async function seed(
 ) {
   const tenantId = 'clinic-demo-a'
   const caller = workerCaller(tenantId, 'user_synth_owner_a')
-  const pro = upsertResourceOp(
-    db,
-    caller,
-    { kind: 'professional', name: 'Dra. Paula Reis' },
-    clock,
-  )
   const room = upsertResourceOp(
     db,
     caller,
     { kind: 'room', name: 'Sala 2', category: 'Sala com laser' },
+    clock,
+  )
+  const pro = upsertResourceOp(
+    db,
+    caller,
+    { kind: 'professional', name: 'Dra. Paula Reis', homeRoomId: room.id },
     clock,
   )
   const svc = upsertServiceOp(
@@ -426,16 +426,16 @@ describe('pix payment → atomic confirm (#39)', () => {
     const { db: dbB } = bootClinicDb({ clock })
     const a = await seed(dbA, clock)
     const callerB = workerCaller('clinic-demo-b', 'owner_b')
-    const proB = upsertResourceOp(
-      dbB,
-      callerB,
-      { kind: 'professional', name: 'Pro B' },
-      clock,
-    )
     const roomB = upsertResourceOp(
       dbB,
       callerB,
       { kind: 'room', name: 'Sala B', category: 'Sala com laser' },
+      clock,
+    )
+    const proB = upsertResourceOp(
+      dbB,
+      callerB,
+      { kind: 'professional', name: 'Pro B', homeRoomId: roomB.id },
       clock,
     )
     const svcB = upsertServiceOp(

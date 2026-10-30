@@ -18,9 +18,6 @@ function seed(capacity?: number, notice?: string) {
   const boot = bootClinicDb({ clock })
   const db = boot.db
   const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
-  const pros = ['Ana', 'Bia', 'Cris'].map((n) =>
-    upsertResourceOp(db, caller, { kind: 'professional', name: n }, clock),
-  )
   const room = upsertResourceOp(
     db,
     caller,
@@ -32,6 +29,9 @@ function seed(capacity?: number, notice?: string) {
       ...(notice ? { sharedSpaceNotice: notice } : {}),
     },
     clock,
+  )
+  const pros = ['Ana', 'Bia', 'Cris'].map((n) =>
+    upsertResourceOp(db, caller, { kind: 'professional', name: n, homeRoomId: room.id }, clock),
   )
   const svc = upsertServiceOp(
     db,

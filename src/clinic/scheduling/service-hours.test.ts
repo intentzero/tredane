@@ -26,10 +26,11 @@ function seedBase(
   } = {},
 ) {
   const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
+  const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala 1' }, clock)
   const pro = upsertResourceOp(
     db,
     caller,
-    { kind: 'professional', name: 'Dra. Ana' },
+    { kind: 'professional', name: 'Dra. Ana', homeRoomId: room.id },
     clock,
   )
   const svc = upsertServiceOp(
