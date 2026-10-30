@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { analyzeContentRules } from '../../ai/rules'
+import { variantKindWord } from '../../ai/types'
 import { createControllableClock } from '../../db/clock'
 import { computeSignalAmountCents } from '../../pix/money'
 import { ValidationError, workerCaller } from '../index'
@@ -47,6 +48,7 @@ function seed() {
       bufferMinutes: 15,
       priceCents: 12_000,
       variantKind: 'Zona',
+      variantKindPlural: 'Zonas',
       professionalIds: [pro.id],
       roomRequirement: { mode: 'none' },
     },
@@ -152,6 +154,72 @@ describe('zonas do serviço (DEC-078)', () => {
     }
   })
 
+  it('aceita duração em minutos que não é múltiplo de 15', () => {
+    const { db, close, clock, caller, pro, svc } = seed()
+    try {
+      const saved = upsertServiceOp(
+        db,
+        caller,
+        {
+          id: svc.id,
+          name: 'Depilação',
+          durationMinutes: 10,
+          bufferMinutes: 0,
+          priceCents: 12_000,
+          variantKind: 'Zona',
+          professionalIds: [pro.id],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      expect(saved.durationMinutes).toBe(10)
+      const zones = replaceServiceZonesOp(
+        db,
+        caller,
+        svc.id,
+        [{ name: 'Axila', durationMinutes: 7, priceCents: 5_000, audience: 'ambos' }],
+        clock,
+      )
+      expect(zones[0]?.durationMinutes).toBe(7)
+      expect(() =>
+        upsertServiceOp(
+          db,
+          caller,
+          {
+            id: svc.id,
+            name: 'Depilação',
+            durationMinutes: 10,
+            bufferMinutes: 0,
+            priceCents: 12_000,
+            variantKind: null,
+            professionalIds: [pro.id],
+            roomRequirement: { mode: 'none' },
+          },
+          clock,
+        ),
+      ).toThrow(/singular e o plural/)
+      replaceServiceZonesOp(db, caller, svc.id, [], clock)
+      const cleared = upsertServiceOp(
+        db,
+        caller,
+        {
+          id: svc.id,
+          name: 'Depilação',
+          durationMinutes: 10,
+          bufferMinutes: 0,
+          priceCents: 12_000,
+          variantKind: null,
+          professionalIds: [pro.id],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      expect(cleared.variantKind).toBeNull()
+    } finally {
+      close()
+    }
+  })
+
   it('recusa zona repetida, de outro serviço ou sem preço somável no sinal percentual', () => {
     const { db, close, clock, caller, pro, svc } = seed()
     try {
@@ -163,6 +231,7 @@ describe('zonas do serviço (DEC-078)', () => {
           durationMinutes: 30,
           bufferMinutes: 0,
           variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
           professionalIds: [pro.id],
           roomRequirement: { mode: 'none' },
         },
@@ -291,6 +360,13 @@ describe('zonas do serviço (DEC-078)', () => {
 })
 
 describe('tipo e género das variantes (DEC-079)', () => {
+  it('usa o singular para uma variante e o plural para várias', () => {
+    expect(variantKindWord('Zona', 'Zonas', 1)).toBe('Zona')
+    expect(variantKindWord('Zona', 'Zonas', 3)).toBe('Zonas')
+    expect(variantKindWord(null, null, 2)).toBe('Variantes')
+  })
+
+
   it('exige o tipo quando há variantes e recusa a omissão do género', () => {
     const { db, close, clock, caller, svc } = seed()
     try {
@@ -304,12 +380,14 @@ describe('tipo e género das variantes (DEC-079)', () => {
           bufferMinutes: 15,
           priceCents: 12_000,
           variantKind: null,
+          variantKindPlural: null,
           professionalIds: svc.professionalIds,
           roomRequirement: { mode: 'none' },
         },
         clock,
       )
       expect(bare.variantKind).toBeNull()
+      expect(bare.variantKindPlural).toBeNull()
       expect(() =>
         replaceServiceZonesOp(
           db,
@@ -333,6 +411,35 @@ describe('tipo e género das variantes (DEC-079)', () => {
           bufferMinutes: 15,
           priceCents: 12_000,
           variantKind: 'Zona',
+          professionalIds: svc.professionalIds,
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      expect(() =>
+        replaceServiceZonesOp(
+          db,
+          caller,
+          svc.id,
+          [{ name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' }],
+          clock,
+        ),
+      ).toThrow(ValidationError)
+      expect(
+        db.get('SELECT COUNT(*) AS n FROM service_zones WHERE tenant_id = ?', caller.tenantId),
+      ).toEqual({ n: 0 })
+
+      upsertServiceOp(
+        db,
+        caller,
+        {
+          id: svc.id,
+          name: 'Depilação',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 12_000,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
           professionalIds: svc.professionalIds,
           roomRequirement: { mode: 'none' },
         },

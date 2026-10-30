@@ -20,7 +20,6 @@ import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
 import { listServices } from '../config/services'
-import { variantKindLabels } from '../catalog/variant-kind'
 import { quoteVisit, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
@@ -279,13 +278,9 @@ function zonesChosenByClient(
   return []
 }
 
-export function askZonesReply(kind: string, zoneNames: string[], time: string): string {
-  const label = kind.trim() || 'variantes'
+export function askZonesReply(phrase: string, zoneNames: string[], time: string): string {
   const list = zoneNames.join(', ')
-  return (
-    `Para fechar às ${time}, me diga ${label === 'variantes' ? 'as variantes' : `as ${label}`}: ${list}. ` +
-    `Pode ser mais de uma.`
-  )
+  return `Para fechar às ${time}, me diga ${phrase}: ${list}. Pode ser mais de uma.`
 }
 
 function firstName(label: string | null | undefined): string | null {
@@ -417,15 +412,16 @@ export async function tryAiAutoBook(
   const time = det.time
   const activeZones = svc.zones.filter((z) => z.active)
   const namedZones = zonesChosenByClient(clientTurn, older, activeZones)
-  const kind = svc.variantKind?.trim()
-    ? variantKindLabels(svc).plural.toLocaleLowerCase('pt-BR')
-    : 'variantes'
+  const plural = svc.variantKindPlural?.trim() || ''
+  const singular = svc.variantKind?.trim() || ''
+  const kind = plural || singular || 'variantes'
+  const phrase = plural || !singular ? `as ${kind}` : `a ${kind}`
   if (activeZones.length > 0 && namedZones.length === 0) {
     const names = activeZones.map((z) => z.name)
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
-      replyText: askZonesReply(kind, names, time),
+      replyText: askZonesReply(phrase, names, time),
       notes:
         `A cliente falou em ${svc.name} sem escolher ${kind} (${names.join(', ')}). ` +
         `Pergunta automática enviada. Não informe valor nem «a partir de».`,
@@ -453,9 +449,13 @@ export async function tryAiAutoBook(
     const message = err instanceof Error ? err.message : 'erro'
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
-      replyText: '',
+      // Não silenciar: o modelo pode ter deixado a mensagem vazia à espera da proposta.
+      replyText:
+        activeZones.length > 0
+          ? askZonesReply(phrase, activeZones.map((z) => z.name), time)
+          : `Não consegui fechar ${svc.name} às ${time} agora. A equipe confirma pelo Agendar.`,
       notes:
-        `Não deu para calcular ${svc.name}: ${message}. Confirme pelo Agendar. Texto livre não marca.`,
+        `Não deu para calcular ${svc.name}: ${message}. Pergunta/aviso automático enviado. Texto livre não marca.`,
     }
   }
   const label = `${svc.name} · ${dayText(date)} às ${time}`
@@ -477,11 +477,20 @@ export async function tryAiAutoBook(
   const slot = avail.slots.find((s) => localHHMM(tz, s.startsAt) === time)
 
   if (!slot) {
+    const alts = avail.slots
+      .slice(0, 3)
+      .map((s) => localHHMM(tz, s.startsAt))
+      .filter((t) => t !== time)
+    const altText =
+      alts.length > 0
+        ? ` Tenho ${alts.join(', ')}. Qual fica melhor?`
+        : ' Quer que eu veja outro horário?'
     return {
       ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
+      replyText: `Nesse horário das ${time} já não tenho vaga.${altText}`,
       notes:
         `A cliente parece confirmar ${label} (horário não livre na agenda). ` +
-        'Texto livre não marca automaticamente: confirme pelo Agendar (fluxo normal).',
+        'Aviso automático enviado. Texto livre não marca — confirme pelo Agendar se precisar.',
     }
   }
 
@@ -500,9 +509,11 @@ export async function tryAiAutoBook(
     }
     return {
       ...none('requires_button', found),
+      replyText:
+        `Perfeito${hi}! Anotei ${svc.name} na ${dayText(date)} às ${time}. A equipe confirma o horário em seguida.`,
       notes:
         `A cliente parece confirmar ${label}. ` +
-        'Texto livre não marca automaticamente: confirme pelo Agendar (fluxo normal).',
+        'Capacidade pausada: aviso automático enviado; confirme pelo Agendar (fluxo normal).',
     }
   }
 
@@ -525,28 +536,32 @@ export async function tryAiAutoBook(
     )
     const sent = sendProposalToWhatsAppOp(db, caller, { proposalId: proposal.id }, clock)
     const status: AutoBookStatus = svc.requiresSignal ? 'needs_signal' : 'requires_button'
-    const sendNote =
-      sent.status === 'queued' || sent.status === 'already_sent'
-        ? `Proposta ${proposal.id} v${proposal.version} enfileirada/enviada com botão Confirmar. ` +
-          'Aguarda o clique da cliente; texto livre («sim») não marca.'
-        : `Proposta ${proposal.id} v${proposal.version} preparada, mas envio entregue à equipe ` +
-          `(${sent.status}). Texto livre não marca.`
+    const delivered = sent.status === 'queued' || sent.status === 'already_sent'
+    const sendNote = delivered
+      ? `Proposta ${proposal.id} v${proposal.version} enfileirada/enviada com botão Confirmar. ` +
+        'Aguarda o clique da cliente; texto livre («sim») não marca.'
+      : `Proposta ${proposal.id} v${proposal.version} preparada, mas envio entregue à equipe ` +
+        `(${sent.status}). Texto livre não marca.`
     return {
       ...none(status, found),
       proposalId: proposal.id,
       proposalVersion: proposal.version,
-      // Não afirmar «agendado»: o botão ainda não foi tocado. Rascunho vazio → atendente vê só notas.
-      replyText: '',
+      // Proposta no WhatsApp → sem texto. Falha de envio → aviso, para não silenciar.
+      replyText: delivered
+        ? ''
+        : `Quase lá${hi}! Vou confirmar ${svc.name} na ${dayText(date)} às ${time} com a equipe e já te retorno.`,
       notes: `A cliente parece confirmar ${label}. ${sendNote}`,
       outbox: sent.outbox,
     }
   } catch (err) {
     return {
       ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
+      replyText:
+        `Quase lá${hi}! Vou confirmar ${svc.name} na ${dayText(date)} às ${time} com a equipe e já te retorno.`,
       notes:
         `A cliente parece confirmar ${label}. Falha ao montar/enviar a proposta: ` +
         `${err instanceof Error ? err.message.slice(0, 180) : 'erro'}. ` +
-        'Texto livre não marca — confirme pelo Agendar.',
+        'Aviso automático enviado — confirme pelo Agendar.',
     }
   }
 }

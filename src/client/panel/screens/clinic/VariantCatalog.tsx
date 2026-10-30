@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { Button, Input, Label, Radio, RadioGroup, TextField } from 'react-aria-components'
+import { Button, Input, Label, NumberField, Radio, RadioGroup, TextField } from 'react-aria-components'
 import { ArrowDown, ArrowUp, ChevronRight } from 'lucide-react'
 import { variantKindLabels } from '../../../../clinic/catalog/variant-kind'
-import { PanelSelect } from '../../ui/PanelSelect'
 import { ClinicCheck } from './ClinicCheck'
-import { durationOptions, formatPriceCents, parsePriceToCents } from './format'
+import { formatPriceCents, parsePriceToCents } from './format'
 
 export type VariantAudience = 'feminino' | 'masculino' | 'ambos'
 
@@ -141,13 +140,21 @@ export function VariantCatalog({
                       />
                     </TextField>
                   </div>
-                  <PanelSelect
+                  <NumberField
                     className="clinic-field"
-                    label="Duração"
-                    value={String(z.durationMinutes)}
-                    onChange={(v) => patch(z.key, { durationMinutes: Number(v) })}
-                    options={durationOptions().map((m) => ({ id: String(m), label: `${m} min` }))}
-                  />
+                    minValue={1}
+                    maxValue={24 * 60}
+                    step={1}
+                    formatOptions={{ maximumFractionDigits: 0 }}
+                    value={z.durationMinutes}
+                    onChange={(value) => {
+                      if (!Number.isInteger(value) || value < 1 || value > 24 * 60) return
+                      patch(z.key, { durationMinutes: value })
+                    }}
+                  >
+                    <Label>Duração (min)</Label>
+                    <Input />
+                  </NumberField>
                   <RadioGroup
                     className="vc-audience"
                     aria-label={`Gênero de ${z.name || lower}`}

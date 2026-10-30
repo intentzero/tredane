@@ -217,7 +217,7 @@
 
 ### REQ-085 — Catálogo de zonas no serviço
 
-**Prioridade/estado:** MVP / Confirmado (DEC-078). **Origem:** ACT-03; [#293](https://github.com/intentzero/tredane/issues/293). **Comportamento:** só a responsável grava zonas no serviço (DEC-042). Nome único no serviço, duração múltipla de 15 min, preço opcional, ativo e ordem. A primeira zona pode copiar duração e preço da linha quando o catálogo está vazio e esses campos vêm omitidos. Com zonas gravadas, marcação nova não usa a duração nem o preço da linha. Zona já usada não se apaga. Editar não reescreve visitas. A atendente lê. Outra clínica não lê nem grava. **Aceite:** AC-57. **Dados/tenant:** `service_zones` no SQLite da clínica.
+**Prioridade/estado:** MVP / Confirmado (DEC-078). **Origem:** ACT-03; [#293](https://github.com/intentzero/tredane/issues/293). **Comportamento:** só a responsável grava zonas no serviço (DEC-042). Nome único no serviço, duração em minutos inteiros de 1 a 24 h (Paulo, 30/10/2026), preço opcional, ativo e ordem. A primeira zona pode copiar duração e preço da linha quando o catálogo está vazio e esses campos vêm omitidos. Com zonas gravadas, marcação nova não usa a duração nem o preço da linha. Zona já usada não se apaga. Editar não reescreve visitas. A atendente lê. Outra clínica não lê nem grava. **Aceite:** AC-57. **Dados/tenant:** `service_zones` no SQLite da clínica.
 
 ### REQ-086 — Várias zonas num horário
 
@@ -252,7 +252,7 @@
 
 ### REQ-094 — Tipo e género das variantes
 
-**Prioridade/estado:** MVP / Confirmado (DEC-079). **Origem:** ACT-03; DEC-078. **Comportamento:** com variantes, o serviço tem um tipo em texto livre, obrigatório, no máximo 40 caracteres; sem variantes, o tipo fica vazio. Cada variante tem género masculino, feminino ou ambos; omitir o género na gravação é recusado. A migração deixa as variantes já gravadas como ambos. Na mesma visita, ambos combina com qualquer um; masculino e feminino juntos são recusados (`variant_audience_conflict`) e nenhum compromisso, proposta ou cobrança nasce. A cópia guarda o género. A audiência do serviço não filtra as variantes. A atendente lê; só a responsável grava (DEC-042). **Aceite:** AC-68. **Dados/tenant:** `services.variant_kind`, `service_zones.audience` e `visit_zone_snapshots.audience` no SQLite da clínica.
+**Prioridade/estado:** MVP / Confirmado (DEC-079). **Origem:** ACT-03; DEC-078. **Comportamento:** com variantes, o serviço tem o tipo em texto livre no singular e no plural, os dois obrigatórios, no máximo 40 caracteres cada; uma variante usa o singular e várias usam o plural; sem variantes, os dois ficam vazios. Cada variante tem género masculino, feminino ou ambos; omitir o género na gravação é recusado. A migração deixa as variantes já gravadas como ambos. Na mesma visita, ambos combina com qualquer um; masculino e feminino juntos são recusados (`variant_audience_conflict`) e nenhum compromisso, proposta ou cobrança nasce. A cópia guarda o género. A audiência do serviço não filtra as variantes. A atendente lê; só a responsável grava (DEC-042). **Aceite:** AC-68. **Dados/tenant:** `services.variant_kind`, `services.variant_kind_plural`, `service_zones.audience` e `visit_zone_snapshots.audience` no SQLite da clínica.
 
 ## Racional de prioridade — proposta para aprovação
 

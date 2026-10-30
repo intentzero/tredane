@@ -44,6 +44,90 @@ function renderForm(service: ClinicService, api: Partial<PanelApi>) {
   return { onSaved }
 }
 
+describe('ServiceForm — duração e variantes', () => {
+  it('aceita um número de minutos fora da lista antiga', async () => {
+    const upsertService = vi.fn(async () => svc({ durationMinutes: 7 }))
+    renderForm(svc({}), { upsertService, replaceServiceZones: vi.fn() } as Partial<PanelApi>)
+    const field = screen.getByRole('textbox', { name: 'Duração (min)' })
+    fireEvent.change(field, { target: { value: '7' } })
+    fireEvent.blur(field)
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() =>
+      expect(upsertService).toHaveBeenCalledWith(
+        't',
+        expect.objectContaining({ durationMinutes: 7 }),
+        expect.anything(),
+      ),
+    )
+  })
+
+  it('ao tirar as variantes, apaga-as antes de limpar o tipo', async () => {
+    const order: string[] = []
+    const replaceServiceZones = vi.fn(async () => {
+      order.push('zones')
+      return svc({})
+    })
+    const upsertService = vi.fn(async () => {
+      order.push('service')
+      return svc({})
+    })
+    renderForm(
+      svc({
+        variantKind: 'Zona',
+        zones: [
+          {
+            id: 'z1',
+            name: 'Axila',
+            durationMinutes: 15,
+            priceCents: 5_000,
+            audience: 'ambos',
+            active: true,
+            sortOrder: 0,
+          },
+        ],
+      }),
+      { upsertService, replaceServiceZones } as Partial<PanelApi>,
+    )
+    fireEvent.click(screen.getByRole('radio', { name: 'Opção única' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(order).toEqual(['zones', 'service']))
+    expect(replaceServiceZones).toHaveBeenCalledWith('t', 'svc_1', [], expect.anything())
+  })
+
+  it('não grava variante sem nome', async () => {
+    const upsertService = vi.fn()
+    const replaceServiceZones = vi.fn()
+    renderForm(svc({}), { upsertService, replaceServiceZones } as Partial<PanelApi>)
+    fireEvent.click(screen.getByRole('radio', { name: 'Com variantes' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), { target: { value: 'Zona' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Adicionar zona' }), { target: { value: 'Axila' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
+    const names = screen.getAllByRole('textbox', { name: /^Nome$/ })
+    fireEvent.change(names[names.length - 1]!, { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    expect(upsertService).not.toHaveBeenCalled()
+    expect(replaceServiceZones).not.toHaveBeenCalled()
+    expect(screen.getByText(/Dê um nome a cada variante/)).toBeTruthy()
+  })
+
+  it('se a primeira variante não grava, o tipo não fica sozinho', async () => {
+    const upsertService = vi.fn(async () => svc({}))
+    const replaceServiceZones = vi.fn(async () => {
+      throw new Error('nome')
+    })
+    renderForm(svc({}), { upsertService, replaceServiceZones } as Partial<PanelApi>)
+    fireEvent.click(screen.getByRole('radio', { name: 'Com variantes' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), { target: { value: 'Zona' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Adicionar zona' }), { target: { value: 'Axila' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(upsertService).toHaveBeenCalledTimes(2))
+    const second = (upsertService.mock.calls as unknown[][])[1]
+    expect(second?.[1]).toMatchObject({ variantKind: null, variantKindPlural: null })
+    expect(screen.getByText(/nome/)).toBeTruthy()
+  })
+})
+
 describe('ServiceForm — apagar serviço', () => {
   it('sem marcações: «Apagar serviço» abre confirmação e apaga', async () => {
     const deleteService = vi.fn(async () => ({ ok: true as const, id: 'svc_1' }))
@@ -123,7 +207,7 @@ describe('ServiceForm — catálogo de variantes', () => {
     sortOrder: 0,
   })
 
-  it('mostra singular e plural, sugere o plural e envia só o que foi corrigido', async () => {
+  it('mostra singular e plural e grava o plural sugerido', async () => {
     const upsertService = vi.fn(async () => ({ id: 'svc_1' }))
     const replaceServiceZones = vi.fn(async () => [])
     renderForm(
@@ -140,7 +224,7 @@ describe('ServiceForm — catálogo de variantes', () => {
     await waitFor(() => expect(upsertService).toHaveBeenCalled())
     const body = (upsertService.mock.calls[0] as unknown[])[1] as Record<string, unknown>
     expect(body.variantKind).toBe('Sessão')
-    expect(body.variantKindPlural).toBeNull()
+    expect(body.variantKindPlural).toBe('Sessões')
   })
 
   it('avisa quando o serviço é masculino e há variante só feminina', () => {

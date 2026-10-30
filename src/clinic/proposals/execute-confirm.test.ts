@@ -288,6 +288,7 @@ describe('S5: book sem sinal', () => {
           bufferMinutes: 0,
           priceCents: 5_000,
           variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
           professionalIds: [s.pro.id],
           roomRequirement: { mode: 'category', category: 'Padrão' },
         },

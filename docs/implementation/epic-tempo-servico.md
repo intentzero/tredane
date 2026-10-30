@@ -1,6 +1,6 @@
 # Épico — Bloco Tempo no serviço (DEC-077)
 
-**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). S1 está na migração `0033_service_tempo`. S2 grava o local no hub. S3 grava o bloco na ficha do serviço. S4 avalia a hora (`src/clinic/tempo/evaluate.ts`). S5 omite a hora no caminho automático e recusa o clique (`recusada_tempo`); a grade da equipe continua a mostrar a hora. S6 e S7 não estão implementadas.
+**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). S1 está na migração `0033_service_tempo`. S2 grava o local no hub. S3 grava o bloco na ficha do serviço. S4 avalia a hora (`src/clinic/tempo/evaluate.ts`). S5 omite a hora no caminho automático e recusa o clique (`recusada_tempo`); a grade da equipe continua a mostrar a hora. S6 avisa na marcação manual e confirma na mesma. S7 manda à IA só as horas que serviram e, se a hora pedida caiu, a frase do WhatsApp.
 
 **Decisão:** [DEC-077](../product/decisions.md). A DEC-076 já está na `main` (duração do procedimento não se ajusta ao agendar) e não é este bloco. Mantém DEC-008 (duração, intervalo, grade de 15 min, fuso da clínica), DEC-042 (só a responsável configura), DEC-011 (contexto da IA), DEC-061 (marcação automática só pelo botão) e DEC-075 (sala, capacidade, modo, audiência e mesmo sexo ficam de fora deste bloco).
 
@@ -221,11 +221,11 @@ O adaptador fala com o provedor e devolve só símbolo de céu e temperatura int
 
 **Critérios de aceite.** AC-66.
 
-- [ ] Na grade da equipe, 15h de bronzeamento com sol fraco aparece, com «Sol fraco neste horário». Confirmar cria o compromisso. A resposta da API traz o aviso.
-- [ ] Sem previsão, o aviso é «Não deu para confirmar o tempo» e o compromisso também é criado.
-- [ ] Sol e temperatura a falhar: as duas frases, um compromisso.
-- [ ] O mesmo confirmar, feito pelo clique da proposta, não cria compromisso (S5). Os dois caminhos chamam a função da S4.
-- [ ] Um compromisso já confirmado permanece se, noutro teste, a previsão fictícia dessa hora passar a não servir. Nada o cancela sozinho.
+- [x] Na grade da equipe, 15h de bronzeamento com sol fraco aparece, com «Sol fraco neste horário». Confirmar cria o compromisso. A resposta da API traz o aviso.
+- [x] Sem previsão, o aviso é «Não deu para confirmar o tempo» e o compromisso também é criado.
+- [x] Sol e temperatura a falhar: as duas frases, um compromisso.
+- [x] O mesmo confirmar, feito pelo clique da proposta, não cria compromisso (S5). Os dois caminhos chamam a função da S4.
+- [x] Um compromisso já confirmado permanece se, noutro teste, a previsão fictícia dessa hora passar a não servir. Nada o cancela sozinho.
 
 ---
 
@@ -241,11 +241,11 @@ O adaptador fala com o provedor e devolve só símbolo de céu e temperatura int
 
 **Critérios de aceite.** AC-67.
 
-- [ ] Inspecionando o pedido ao modelo num teste: as horas de bronzeamento são só as que serviram; não há JSON do provedor, percentagem nem `tempo_ceu`.
-- [ ] Hora pedida que não serviu: o contexto tem a frase fixa e não tem essa hora em `freeSlots`.
-- [ ] Rascunho que cita «40%» de chuva ou uma hora filtrada não chega à atendente como sugestão utilizável.
-- [ ] Depilação em Tanto faz não acrescenta frase de tempo.
-- [ ] Texto livre não marca (DEC-061).
+- [x] Inspecionando o pedido ao modelo num teste: as horas de bronzeamento são só as que serviram; não há JSON do provedor, percentagem nem `tempo_ceu`.
+- [x] Hora pedida que não serviu: o contexto tem a frase fixa e não tem essa hora em `freeSlots`.
+- [x] Rascunho que cita «40%» de chuva ou uma hora filtrada não chega à atendente como sugestão utilizável.
+- [x] Depilação em Tanto faz não acrescenta frase de tempo.
+- [x] Texto livre não marca (DEC-061).
 
 ---
 
@@ -269,6 +269,6 @@ Serviço «Bronzeamento», Sol e Acima de 24 °C. Clínica com cidade. Às 15h, 
 
 ## O que este épico não fecha
 
-O provedor e o corte numérico ficam na spec do adaptador (`src/clinic/tempo/open-meteo.ts`): Open-Meteo, percentagem sem código só vira chuva a partir de 60, e esse número não entra na interface nem na DEC-077. Valores reais da clínica piloto. Revisão jurídica antes de dados reais (GATE-04). S1 é a migração `0033_service_tempo`. S2 grava o local no hub (`PUT /config/forecast-place`). S3 grava céu e temperatura no serviço. S4 avalia. S5 filtra o automático e o clique (`0036_proposal_tempo_state`). S6 e S7 seguem, um PR por fatia.
+O provedor e o corte numérico ficam na spec do adaptador (`src/clinic/tempo/open-meteo.ts`): Open-Meteo, percentagem sem código só vira chuva a partir de 60, e esse número não entra na interface nem na DEC-077. Valores reais da clínica piloto. Revisão jurídica antes de dados reais (GATE-04). S1 é a migração `0033_service_tempo`. S2 grava o local no hub (`PUT /config/forecast-place`). S3 grava céu e temperatura no serviço. S4 avalia. S5 filtra o automático e o clique (`0036_proposal_tempo_state`). S6 devolve o aviso na grade da equipe e na confirmação manual, sem coluna nova. S7 junta a frase do WhatsApp ao contexto da IA e descarta rascunho com percentagem ou hora filtrada.
 
 **Aceite por fatia:** S1 AC-61; S2 AC-62 (REQ-089); S3 AC-63 (REQ-090); S4 AC-64 (REQ-091); S5 AC-65 (REQ-092); S6 AC-66 (REQ-092); S7 AC-67 (REQ-093). Jornadas: JRN-03, JRN-08, JRN-17.

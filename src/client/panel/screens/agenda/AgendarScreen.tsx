@@ -1,3 +1,4 @@
+import { variantKindWord } from '../../../../ai/types'
 import { CalendarDays, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, TriangleAlert, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -21,7 +22,6 @@ import {
   type PixSnapshot,
 } from '../../api'
 import { navigatePanel } from '../../routes'
-import { variantKindLabels } from '../../../../clinic/catalog/variant-kind'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
 import { InboxRealtimeProvider, isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
 import { ListSkeleton } from '../../states/ListSkeleton'
@@ -88,8 +88,8 @@ function signalAmountCents(svc: Service, priceCents: number | null = svc.priceCe
   return null
 }
 
-function variantTitle(svc: Service | undefined) {
-  return variantKindLabels(svc ?? {}, 'Variantes').plural
+function variantTitle(svc: Service | undefined, count = 2) {
+  return variantKindWord(svc?.variantKind, svc?.variantKindPlural, count)
 }
 
 function genderLabel(audience: string | undefined) {
@@ -573,7 +573,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
                   <span className="agd-service-name">{s.name}</span>
                   {activeZonesOf(s).length > 0 ? (
                     <span className="agd-service-meta">
-                      {variantKindLabels(s).count(activeZonesOf(s).length)}
+                      {activeZonesOf(s).length} {variantTitle(s, activeZonesOf(s).length)}
                     </span>
                   ) : (
                     <>
@@ -712,6 +712,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           ) : null}
           {renderTimes(periods.manha, 'Manhã')}
           {renderTimes(periods.tarde, 'Tarde')}
+          <TempoNotice phrases={selected?.tempoWarnings} />
           {lostLabel && !times.some((t) => t.startsAt === conflict?.lostStartsAt) ? (
             <p className="agd-lost">
               <s>{lostLabel}</s> ocupado
@@ -864,6 +865,17 @@ function CalendarSheet(props: {
         </Dialog>
       </Modal>
     </ModalOverlay>
+  )
+}
+
+function TempoNotice({ phrases }: { phrases: string[] | undefined }) {
+  if (!phrases?.length) return null
+  return (
+    <div role="status">
+      {phrases.map((phrase) => (
+        <p key={phrase} className="agd-note">{phrase}</p>
+      ))}
+    </div>
   )
 }
 
@@ -1094,6 +1106,7 @@ function ReviewSheet(p: ReviewProps) {
             {p.requiresSignal ? 'Sinal por Pix' : 'Revisar agendamento'}
           </Heading>
           <div className="agd-sheet-body">
+            <TempoNotice phrases={slot.tempoWarnings} />
             {err ? (
               <div className="agd-banner" role="alert">
                 <TriangleAlert aria-hidden size={20} strokeWidth={2} />

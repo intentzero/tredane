@@ -13,7 +13,6 @@ import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
 import {
   bufferOptions,
-  durationOptions,
   formatPriceCents,
   parsePriceToCents,
 } from './format'
@@ -229,7 +228,6 @@ export function ServiceForm({
     }
   }
 
-  const usesVariants = withVariants && zones.length > 0
   const occupied = duration + buffer
   const hasFemale = zones.some((z) => z.active && z.audience === 'feminino')
   const hasMale = zones.some((z) => z.active && z.audience === 'masculino')
@@ -295,36 +293,60 @@ export function ServiceForm({
       tempoCeu,
       tempoTemperatura,
       tempoCelsius: tempoTemperatura === 'tanto_faz' ? null : tempoCelsius,
-      variantKind: usesVariants ? variantKind.trim() || null : null,
-      variantKindPlural:
-        usesVariants && pluralTouched && variantKindPlural.trim() !== suggestVariantKindPlural(variantKind)
-          ? variantKindPlural.trim() || null
-          : null,
+      variantKind: (withVariants ? zones : []).length > 0 ? variantKind.trim() || null : null,
+      variantKindPlural: (withVariants ? zones : []).length > 0 ? variantKindPlural.trim() || null : null,
     }
-    if (usesVariants && !variantKind.trim()) {
-      setFormError('Dê um nome ao tipo das variantes. O que você digitou continua aqui.')
+    const draftZones = withVariants ? zones : []
+    if (draftZones.length > 0 && (!variantKind.trim() || !variantKindPlural.trim())) {
+      setFormError('Dê o singular e o plural do tipo. O que você digitou continua aqui.')
       setSaving(false)
       return
     }
+    if (draftZones.some((z) => !z.name.trim())) {
+      setFormError('Dê um nome a cada variante. O que você digitou continua aqui.')
+      setSaving(false)
+      return
+    }
+    const hadZones = (existing?.zones?.length ?? 0) > 0
+    const zoneBody: ServiceZoneInput[] = draftZones.map((z) => ({
+      id: z.id,
+      name: z.name.trim(),
+      durationMinutes: z.durationMinutes,
+      priceCents: z.price.trim() ? parsePriceToCents(z.price) : null,
+      audience: z.audience,
+      active: z.active,
+    }))
     try {
+      // Limpar o tipo com variantes ainda gravadas deixa o cadastro inconsistente.
+      if (zoneBody.length === 0 && hadZones && existing) {
+        await api.replaceServiceZones(tenantId, existing.id, [], {
+          generation,
+          expectGeneration: () => generation,
+        })
+      }
       const saved = await api.upsertService(tenantId, body, {
         serviceId: existing?.id,
         generation,
         expectGeneration: () => generation,
       })
-      const zoneBody: ServiceZoneInput[] = (usesVariants ? zones : []).map((z) => ({
-        id: z.id,
-        name: z.name.trim(),
-        durationMinutes: z.durationMinutes,
-        priceCents: z.price.trim() ? parsePriceToCents(z.price) : null,
-        audience: z.audience,
-        active: z.active,
-      }))
-      if (zoneBody.length > 0 || (existing?.zones?.length ?? 0) > 0) {
-        await api.replaceServiceZones(tenantId, saved.id, zoneBody, {
-          generation,
-          expectGeneration: () => generation,
-        })
+      if (zoneBody.length > 0) {
+        try {
+          await api.replaceServiceZones(tenantId, saved.id, zoneBody, {
+            generation,
+            expectGeneration: () => generation,
+          })
+        } catch (zoneErr) {
+          if (!hadZones) {
+            await api
+              .upsertService(tenantId, { ...body, variantKind: null, variantKindPlural: null }, {
+                serviceId: saved.id,
+                generation,
+                expectGeneration: () => generation,
+              })
+              .catch(() => {})
+          }
+          throw zoneErr
+        }
       }
       await onSaved()
       navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'servicos' })
@@ -395,13 +417,20 @@ export function ServiceForm({
         ) : (
           <>
             <div className="clinic-field-row">
-              <PanelSelect
+              <NumberField
                 className="clinic-field"
-                label="Duração"
-                value={String(duration)}
-                onChange={(v) => setDuration(Number(v))}
-                options={durationOptions().map((m) => ({ id: String(m), label: `${m} min` }))}
-              />
+                minValue={1}
+                maxValue={24 * 60}
+                step={1}
+                formatOptions={{ maximumFractionDigits: 0 }}
+                value={duration}
+                onChange={(value) => {
+                  if (Number.isInteger(value) && value >= 1 && value <= 24 * 60) setDuration(value)
+                }}
+              >
+                <Label>Duração (min)</Label>
+                <Input />
+              </NumberField>
               <TextField className="clinic-field">
                 <Label>Preço (opcional)</Label>
                 <Input
@@ -445,8 +474,8 @@ export function ServiceForm({
         <p className="clinic-warn" role="status">
           <TriangleAlert aria-hidden size={16} />
           <span>
-            O serviço está como {audiencia}, mas há variantes só para{' '}
-            {audiencia === 'masculino' ? 'feminino' : 'masculino'}. Essas opções não serão oferecidas.
+            O serviço está como {audiencia}, e há variantes só para{' '}
+            {audiencia === 'masculino' ? 'feminino' : 'masculino'}. A audiência do serviço não esconde essas variantes.
           </span>
         </p>
       ) : null}

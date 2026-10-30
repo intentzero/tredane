@@ -26,12 +26,12 @@ export function assertMultipleOfGrid(value: number, field: string): void {
   }
 }
 
+/** Duração do serviço ou da variante: qualquer minuto inteiro, até 24 h. O início do horário continua na grade de 15 min. */
 export function assertPositiveDuration(minutes: number): void {
-  assertMultipleOfGrid(minutes, 'durationMinutes')
-  if (minutes < SCHEDULE_GRID_MINUTES) {
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 24 * 60) {
     throw new ValidationError(
       'invalid_duration',
-      `duração mínima ${SCHEDULE_GRID_MINUTES} min`,
+      'a duração é um número inteiro de minutos, de 1 a 24 h',
       { durationMinutes: minutes },
     )
   }

@@ -95,17 +95,29 @@ describe('Clinic config (#28)', () => {
     }
   })
 
-  it('rejeita duração fora da grade de 15 min', () => {
+  it('aceita qualquer minuto inteiro e recusa duração fora de 1 a 24 h', () => {
     const { db, clock, close } = bootClinicDb()
     try {
       const caller = workerCaller('clinic-demo-a', 'owner')
+      const saved = upsertServiceOp(
+        db,
+        caller,
+        {
+          name: 'Curto',
+          durationMinutes: 20,
+          bufferMinutes: 0,
+          professionalIds: [],
+        },
+        clock,
+      )
+      expect(saved.durationMinutes).toBe(20)
       expect(() =>
         upsertServiceOp(
           db,
           caller,
           {
             name: 'Inválido',
-            durationMinutes: 20,
+            durationMinutes: 0,
             bufferMinutes: 0,
             professionalIds: [],
           },

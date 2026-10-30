@@ -43,11 +43,11 @@ export type ServiceRow = {
   /** Pode ser apagado: nunca teve marcação, Pix ou proposta ligada. */
   deletable: boolean
   /**
-   * DEC-079 — nome do tipo das variantes (ex.: Zona, Técnica).
+   * DEC-079 — singular do tipo (ex.: Zona, Técnica).
    * Nulo quando o serviço não tem variantes.
    */
   variantKind: string | null
-  /** Plural do tipo. Nulo: a interface sugere a partir do singular. */
+  /** DEC-079 — plural do tipo (ex.: Zonas, Técnicas). Nulo junto com o singular. */
   variantKindPlural: string | null
   /** DEC-078 — vazio = o serviço continua uma linha só. */
   zones: ServiceZoneRow[]
@@ -318,10 +318,9 @@ export type UpsertServiceInput = {
   weeklyWindows?: ServiceWeeklyWindowSpec[]
   /**
    * DEC-079 — omitido na edição mantém. `null` ou vazio limpa.
-   * Obrigatório quando o serviço tem variantes (a gravação das variantes recusa a falta).
+   * Singular e plural são obrigatórios quando o serviço tem variantes.
    */
   variantKind?: string | null
-  /** Omitido mantém; vazio ou nulo volta a sugerir pelo singular. */
   variantKindPlural?: string | null
 }
 

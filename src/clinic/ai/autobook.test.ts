@@ -61,7 +61,7 @@ function seed(opts: { signal?: boolean } = {}) {
       bufferMinutes: 15,
       priceCents: 20000,
       variantKind: 'Zona',
-      variantKindPlural: null,
+      variantKindPlural: 'Zonas',
       professionalIds: [gi.id],
       roomRequirement: { mode: 'none' },
       ...(opts.signal ? { requiresSignal: true, signalKind: 'fixed' as const, signalFixedCents: 5000 } : {}),
@@ -251,7 +251,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
           bufferMinutes: 15,
           priceCents: 18_000,
           variantKind: 'regiao',
-          variantKindPlural: null,
+          variantKindPlural: 'regioes',
           professionalIds: [s.gi.id],
           roomRequirement: { mode: 'none' },
         },
@@ -302,7 +302,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
           bufferMinutes: 15,
           priceCents: 18_000,
           variantKind: 'regiao',
-          variantKindPlural: null,
+          variantKindPlural: 'regioes',
           professionalIds: [s.gi.id],
           roomRequirement: { mode: 'none' },
         },
@@ -323,7 +323,8 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       const o = await s.run()
       expect(o.autoBook?.status).toBe('needs_info')
       expect(o.autoBook?.proposalId).toBeUndefined()
-      expect(o.autoBook?.replyText).toMatch(/regiao|Axila|Peitoral/i)
+      expect(o.autoBook?.replyText).toMatch(/as regioes/i)
+      expect(o.autoBook?.replyText).not.toMatch(/\ba regioes\b/i)
       expect(o.replyOutbox?.length).toBeGreaterThan(0)
       const sent = s.db.get<{ body: string }>(
         `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
@@ -350,7 +351,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
         priceCents: 18_000,
         zones: [],
         variantKind: 'regiao',
-        variantKindPlural: null,
+        variantKindPlural: 'regioes',
         requiresSignal: false,
         signalKind: null,
         signalFixedCents: null,
@@ -396,7 +397,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
           bufferMinutes: 15,
           priceCents: 18_000,
           variantKind: 'Zona',
-          variantKindPlural: null,
+          variantKindPlural: 'Zonas',
           professionalIds: [s.gi.id],
           roomRequirement: { mode: 'none' },
         },
@@ -434,7 +435,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
     }
   })
 
-  it('zonas todas inativas deixam nota e não enviam o rascunho', async () => {
+  it('zonas todas inativas avisam a cliente (não silencia o WhatsApp)', async () => {
     const s = seed()
     try {
       replaceServiceZonesOp(
@@ -450,8 +451,8 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       expect(o.autoBook?.proposalId).toBeUndefined()
       expect(o.autoBook?.status).toBe('needs_info')
       expect(o.suggestion!.internalNotes).toMatch(/inativas|calcular/i)
-      expect(o.suggestion!.suggestedText.trim()).toBe('')
-      expect(o.replyOutbox ?? []).toHaveLength(0)
+      expect(o.autoBook?.replyText?.trim().length).toBeGreaterThan(0)
+      expect(o.replyOutbox?.length).toBeGreaterThan(0)
       noBooking(s)
     } finally {
       s.close()
@@ -478,7 +479,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
     }
   })
 
-  it('pausa da owner → só nota, sem proposta', async () => {
+  it('pausa da owner → aviso à cliente, sem proposta', async () => {
     const s = seed()
     try {
       s.say('outbound', PROPOSAL)
@@ -488,8 +489,47 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       expect(o.autoBook?.status).toBe('requires_button')
       expect(o.autoBook?.proposalId).toBeUndefined()
       expect(o.autoBook?.outbox ?? []).toHaveLength(0)
-      expect(o.suggestion!.internalNotes).toMatch(/Texto livre não marca automaticamente/)
+      expect(o.autoBook?.replyText).toMatch(/equipe confirma/i)
+      expect(o.replyOutbox?.length).toBeGreaterThan(0)
+      expect(o.suggestion!.internalNotes).toMatch(/Capacidade pausada|Agendar/)
       noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('horário pedido sem vaga → oferece alternativas em vez de silenciar', async () => {
+    const s = seed()
+    try {
+      // Ocupa 14:00 com outro contato; deixa outros horários livres.
+      const other = upsertContact(
+        s.db,
+        { tenantId: s.tenantId, waId: '5511900000099', displayName: 'Outra' },
+        s.clock,
+      )
+      confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          contactId: other.id,
+          serviceId: s.svc.id,
+          professionalId: s.gi.id,
+          startsAt: at(14),
+          actorClerkUserId: s.caller.actorId!,
+          clientRequestId: 'hold-14',
+        },
+        s.clock,
+      )
+      s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 14:00?')
+      s.say('inbound', 'Sim')
+      const o = await s.run()
+      expect(o.autoBook?.proposalId).toBeUndefined()
+      expect(o.autoBook?.replyText).toMatch(/já não tenho vaga|14/i)
+      expect(o.replyOutbox?.length).toBeGreaterThan(0)
+      expect(s.appts()).toHaveLength(0)
+      expect(
+        s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM operational_audit WHERE action = 'appointment.ai_booked'`)!.n,
+      ).toBe(0)
     } finally {
       s.close()
     }
@@ -558,7 +598,7 @@ describe('detectExplicitConfirmation', () => {
 
 describe('pergunta das variantes usa o plural do tipo', () => {
   it('«as zonas», não «a Zona»', () => {
-    const reply = askZonesReply('zonas', ['Axila', 'Buço'], '14:00')
+    const reply = askZonesReply('as zonas', ['Axila', 'Buço'], '14:00')
     expect(reply).toBe('Para fechar às 14:00, me diga as zonas: Axila, Buço. Pode ser mais de uma.')
   })
 })

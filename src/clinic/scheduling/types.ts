@@ -64,6 +64,8 @@ export type AvailableSlot = {
   /** Sala compartilhada: capacidade e lugares livres no pico do período (só exibição; null em sala de 1). */
   roomCapacity?: number | null
   roomSeatsFree?: number | null
+  /** Avisos do bloco Tempo para a equipe (DEC-077). A hora continua na lista. */
+  tempoWarnings?: string[]
 }
 
 export type AvailabilityQueryResult = {

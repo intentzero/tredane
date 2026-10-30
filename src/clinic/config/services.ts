@@ -398,37 +398,18 @@ function resolveTempo(
 }
 
 
-function resolveVariantKind(
-  input: UpsertServiceInput,
-  existing: ServiceRow | null,
+function resolveKindText(
+  value: string | null | undefined,
+  existing: string | null | undefined,
 ): string | null {
-  if (input.variantKind === undefined) return existing?.variantKind ?? null
-  if (input.variantKind === null) return null
-  const text = input.variantKind.trim()
+  if (value === undefined) return existing ?? null
+  if (value === null) return null
+  const text = value.trim()
   if (!text) return null
   if (text.length > VARIANT_KIND_MAX) {
     throw new ValidationError(
       'invalid_variant_kind',
-      'o tipo das variantes tem no máximo 40 caracteres',
-    )
-  }
-  return text
-}
-
-function resolveVariantKindPlural(
-  input: UpsertServiceInput,
-  existing: ServiceRow | null,
-  variantKind: string | null,
-): string | null {
-  if (variantKind === null) return null
-  if (input.variantKindPlural === undefined) return existing?.variantKindPlural ?? null
-  if (input.variantKindPlural === null) return null
-  const text = input.variantKindPlural.trim()
-  if (!text) return null
-  if (text.length > VARIANT_KIND_MAX) {
-    throw new ValidationError(
-      'invalid_variant_kind',
-      'o plural do tipo das variantes tem no máximo 40 caracteres',
+      'o singular e o plural do tipo têm no máximo 40 caracteres',
     )
   }
   return text
@@ -470,8 +451,19 @@ export function upsertService(
   }
   const audiencia = resolveAudience(input, existing)
   const tempo = resolveTempo(input, existing)
-  const variantKind = resolveVariantKind(input, existing)
-  const variantKindPlural = resolveVariantKindPlural(input, existing, variantKind)
+  const variantKind = resolveKindText(input.variantKind, existing?.variantKind)
+  let variantKindPlural = resolveKindText(input.variantKindPlural, existing?.variantKindPlural)
+  if (!variantKind) variantKindPlural = null
+  if (
+    existing &&
+    listZones(db, tenantId, existing.id).length > 0 &&
+    (!variantKind || !variantKindPlural)
+  ) {
+    throw new ValidationError(
+      'variant_kind_required',
+      'dê o singular e o plural do tipo das variantes',
+    )
+  }
 
   if (input.id) {
     db.run(

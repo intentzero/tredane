@@ -10,7 +10,6 @@ import {
   filterServicesForLine,
 } from '../catalog/audience'
 import { listServices } from '../config/services'
-import { variantKindLabels } from '../catalog/variant-kind'
 import { getContact } from '../contacts'
 import { getConversation } from '../inbox/conversations'
 import { listMessages } from '../inbox/messages'
@@ -18,6 +17,7 @@ import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
 import type { ClinicDb } from '../store'
 import { NotFoundError } from '../errors'
 import type { Clock } from '../../db/clock'
+import type { ForecastAdapter } from '../tempo/evaluate'
 import { buildClinicAiContext } from './schedule-context'
 
 /** Extrai primeiro nome do display_name (DEC-011 — nunca telefone). */
@@ -47,6 +47,7 @@ export async function buildAiContextPayload(
     /** Com relógio → inclui clínica, data/hora, horários livres e agendamentos. */
     clock?: Clock
     clinicName?: string | null
+    forecast?: ForecastAdapter
   } = {},
 ): Promise<{
   payload: AiContextPayload
@@ -94,9 +95,8 @@ export async function buildAiContextPayload(
       priceCents: s.priceCents,
       clientExplanation: sanitizeCatalogField(s.clientExplanation),
       audiencia: s.audiencia,
-      variantKind: s.variantKind
-        ? variantKindLabels(s).plural
-        : s.variantKind,
+      variantKind: s.variantKind,
+      variantKindPlural: s.variantKindPlural,
       zones: s.zones
         .filter((z) => z.active)
         .map((z) => ({
@@ -130,6 +130,7 @@ export async function buildAiContextPayload(
       clinicName: opts.clinicName ?? null,
       contactId: contact.id,
       recentTexts: messages.map((m) => m.body),
+      forecast: opts.forecast,
     })
   }
 

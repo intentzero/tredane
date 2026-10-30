@@ -963,6 +963,7 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as AppointmentDetailResponse & {
         createdReservation: true
         idempotentReplay: boolean
+        tempoWarnings: string[]
       }
     },
 
@@ -2086,9 +2087,9 @@ export type ClinicService = {
   weeklyWindows?: ServiceWeeklyWindowSpec[]
   /** Nunca teve marcação, Pix ou proposta: pode ser apagado. */
   deletable?: boolean
-  /** DEC-079 — nome do tipo das variantes. Nulo sem variantes. */
+  /** DEC-079 — singular do tipo. Nulo sem variantes. */
   variantKind?: string | null
-  /** Plural do tipo; nulo = sugerido pelo singular. */
+  /** DEC-079 — plural do tipo. Nulo sem variantes. */
   variantKindPlural?: string | null
   /** DEC-078. Vazio: a linha do serviço vale. */
   zones?: ClinicServiceZone[]
@@ -2278,7 +2279,7 @@ export type ServiceUpsertBody = {
   durationMaxMinutes?: number | null
   /** Omitido na atualização mantém faixas; array vazio remove filtro. */
   weeklyWindows?: ServiceWeeklyWindowSpec[]
-  /** DEC-079 — omitido na edição mantém. Vazio limpa. */
+  /** DEC-079 — omitido na edição mantém. Vazio limpa. Singular e plural juntos. */
   variantKind?: string | null
   variantKindPlural?: string | null
 }
@@ -2462,6 +2463,8 @@ export type AvailabilitySlot = {
   /** Sala compartilhada: capacidade e lugares livres (exibição). */
   roomCapacity?: number | null
   roomSeatsFree?: number | null
+  /** Avisos do bloco Tempo (DEC-077). A hora continua selecionável. */
+  tempoWarnings?: string[]
 }
 
 export type AvailabilityResponse = {
