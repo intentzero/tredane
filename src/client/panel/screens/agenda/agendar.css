@@ -36,7 +36,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   border: 0;
   background: transparent;
   color: var(--color-primary-ink);
@@ -63,7 +63,7 @@
   background: var(--color-surface-card);
   border: var(--size-border-width) solid var(--color-line-control);
   cursor: pointer;
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   -webkit-tap-highlight-color: transparent;
 }
 .agd-service {
@@ -109,7 +109,7 @@
 }
 .agd-day span:first-child { font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .agd-day span:last-child { font-size: var(--font-size-title); font-weight: var(--font-weight-semibold); }
-.agd-day-sm { min-height: var(--size-touch); padding: var(--space-1) 0; }
+.agd-day-sm { min-height: var(--size-control-default); padding: var(--space-1) 0; }
 .agd-day-sm span:first-child { font-size: var(--font-size-caption); }
 .agd-day-sm span:last-child { font-size: var(--font-size-body); }
 .agd-period { margin-top: var(--space-2); }
@@ -185,7 +185,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3);
-  min-height: var(--size-touch);
+  min-height: var(--size-control-default);
   align-items: center;
 }
 .agd-table-row + .agd-table-row { border-top: var(--size-border-width) solid var(--color-line-divider); }
@@ -194,7 +194,7 @@
 .agd-table dd[data-notice='sent'] { color: var(--color-success-ink); }
 .agd-table dd[data-notice='failed'] { color: var(--color-danger-ink); }
 .agd-notice { display: flex; flex-direction: column; gap: var(--space-3); }
-.agd-check { display: flex; gap: var(--space-3); align-items: center; min-height: var(--size-touch); cursor: pointer; }
+.agd-check { display: flex; gap: var(--space-3); align-items: center; min-height: var(--size-control-default); cursor: pointer; }
 .agd-check input { width: 22px; height: 22px; accent-color: var(--color-primary-base); }
 .agd-textarea {
   font: inherit;

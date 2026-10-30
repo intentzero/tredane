@@ -3,6 +3,21 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## Tokens 0.4.0 — 30/10/2026 (Proposto: design system compacto)
+
+Pedido do responsável pelo produto (30/10/2026): alinhar a tipografia ao WhatsApp Web e deixar botões e campos menos altos. Valores **Propostos** até revisão; DEC-041 continua valendo até lá.
+
+| Token | Antes | Depois |
+| --- | --- | --- |
+| font.size caption / small / body / title / headline / display | 12 / 14 / 16 / 18 / 22 / 26 | 11 / 13 / 14 / 16 / 18 / 22 |
+| font.lineHeight default / relaxed | 1,4 / 1,45 | 1,35 / 1,4 |
+| radius sm / md / lg / xl | 8 / 12 / 16 / 20 | 6 / 8 / 12 / 16 |
+| size controlSm / Md / Lg | 40 / 48 / 52 | 28 / 32 / 36 |
+| size controlDefault (novo) | — | 36 (altura visual padrão; substitui `--size-touch` em `min-height` de controles com texto) |
+| size avatarSm / avatarMd, rowMin, bottomNav | 40 / 44, 64, 52 | 32 / 40, 60, 48 |
+
+`--size-touch` (44) fica para botões só de ícone. **Pendente:** área clicável ≥ 44 px (UX-08) nos controles que encolheram; campos em 16 px no iOS (hoje `font-size: 16px` literal em `panel.css`); Os 26 mocks mobile e o Horarios do desktop foram convertidos para a escala nova (`check_mocks.py` passa); os PNG de `mobile/previews` ainda mostram a escala antiga e precisam de `render_previews.py` (requer Playwright e Chromium).
+
 ## 29/10/2026 — Coluna de Conversas com 30% da janela
 
 - Desktop: a lista deixa de ter 360 px fixos e passa a `30%` da janela, mín. 360 e máx. 520 px (medido no WhatsApp Web: 518 px a 1728 px). Mock `desktop/Main.dc.html` atualizado; preview `Main.png` regerado.
