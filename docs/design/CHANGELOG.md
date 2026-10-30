@@ -16,7 +16,7 @@ Pedido do responsável pelo produto (30/10/2026): alinhar a tipografia ao WhatsA
 | size controlDefault (novo) | — | 36 (altura visual padrão; substitui `--size-touch` em `min-height` de controles com texto) |
 | size avatarSm / avatarMd, rowMin, bottomNav | 40 / 44, 64, 52 | 32 / 40, 60, 48 |
 
-`--size-touch` (44) fica para botões só de ícone. **Pendente:** área clicável ≥ 44 px (UX-08) nos controles que encolheram; campos em 16 px no iOS (hoje `font-size: 16px` literal em `panel.css`); Os 26 mocks mobile e o Horarios do desktop foram convertidos para a escala nova (`check_mocks.py` passa); os PNG de `mobile/previews` ainda mostram a escala antiga e precisam de `render_previews.py` (requer Playwright e Chromium).
+`--size-touch` (44) fica para botões só de ícone. Pendências tratadas depois: área clicável de 44 px por pseudo-elemento nos controles que encolheram (campos de texto nativos ficam com 36 px, exceção **Proposta** em `ux-ui.md`); campos em 16 px só em aparelho de toque; mocks e PNG regenerados. Segue **Proposto** até revisão do responsável.
 
 ## 29/10/2026 — Coluna de Conversas com 30% da janela
 

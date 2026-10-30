@@ -1198,7 +1198,7 @@
   border-radius: var(--radius-sm);
   background: var(--color-surface-card);
   color: var(--color-text-primary);
-  font-size: 16px;
+  font-size: var(--font-size-body);
 }
 
 .clinic-field textarea {
@@ -2326,7 +2326,7 @@
 .panel-btn-compact::after {
   content: '';
   position: absolute;
-  inset: -2px 0;
+  inset: -8px 0;
 }
 
 .panel-btn-primary:disabled,
@@ -2372,7 +2372,7 @@
 .panel-chip::after {
   content: '';
   position: absolute;
-  inset: -2px 0;
+  inset: -8px 0;
 }
 
 .panel-chip[aria-selected='true'],
@@ -3970,7 +3970,7 @@
 
 .hold-sheet textarea,
 .hold-sheet input {
-  font-size: 16px;
+  font-size: var(--font-size-body);
 }
 
 .hold-grid-3 {
@@ -3996,7 +3996,7 @@
 
 .hold-select-trigger {
   min-height: var(--size-control-md);
-  font-size: 16px;
+  font-size: var(--font-size-body);
 }
 
 .hold-select-sheet {
@@ -4024,7 +4024,7 @@
   min-height: var(--size-control-md);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
-  font-size: 16px;
+  font-size: var(--font-size-body);
   line-height: 1.3;
   color: var(--color-text-primary);
   cursor: pointer;
@@ -4054,7 +4054,7 @@
 .panel-choice-trigger {
   min-width: 0;
   min-height: var(--size-control-default);
-  font-size: 16px;
+  font-size: var(--font-size-body);
 }
 
 .panel-choice-trigger:disabled {
@@ -4123,7 +4123,7 @@
   min-height: var(--size-control-default);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
-  font-size: 16px;
+  font-size: var(--font-size-body);
   line-height: 1.3;
   color: var(--color-text-primary);
   cursor: pointer;
@@ -7783,4 +7783,92 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-success-ink);
   text-align: right;
+}
+
+/* Área clicável ≥ 44 px (UX-08) nos controles de altura visual menor (v0.4.0, Proposto).
+   Campos de texto nativos ficam fora: não aceitam pseudo-elemento (ver ux-ui.md §5). */
+.agd-day,
+.agd-link,
+.agd-mode-btn,
+.agd-pill,
+.agd-service,
+.agd-table-row,
+.agenda-room-free,
+.agenda-room-person,
+.clinic-nav-icon,
+.clinic-switch,
+.clinic-tab,
+.day-editor-day,
+.day-editor-open,
+.hold-option--two,
+.hold-summary,
+.inbox-msg-retry,
+.panel-btn-danger,
+.panel-btn-primary,
+.panel-btn-secondary,
+.panel-check-row,
+.panel-choice-item,
+.panel-choice-trigger,
+.panel-control,
+.panel-link,
+.panel-menu-item,
+.panel-multi-trigger,
+.panel-segmented-item,
+.panel-select-trigger,
+.panel-slot,
+.vc-seg-item,
+.week-editor-add,
+.week-editor-copy {
+  position: relative;
+}
+
+.agd-day::after,
+.agd-link::after,
+.agd-mode-btn::after,
+.agd-pill::after,
+.agd-service::after,
+.agd-table-row::after,
+.agenda-room-free::after,
+.agenda-room-person::after,
+.clinic-nav-icon::after,
+.clinic-switch::after,
+.clinic-tab::after,
+.day-editor-day::after,
+.day-editor-open::after,
+.hold-option--two::after,
+.hold-summary::after,
+.inbox-msg-retry::after,
+.panel-btn-danger::after,
+.panel-btn-primary::after,
+.panel-btn-secondary::after,
+.panel-check-row::after,
+.panel-choice-item::after,
+.panel-choice-trigger::after,
+.panel-control::after,
+.panel-link::after,
+.panel-menu-item::after,
+.panel-multi-trigger::after,
+.panel-segmented-item::after,
+.panel-select-trigger::after,
+.panel-slot::after,
+.vc-seg-item::after,
+.week-editor-add::after,
+.week-editor-copy::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: max(100%, var(--size-touch));
+  transform: translateY(-50%);
+}
+
+/* iOS amplia a tela ao focar campo com fonte < 16 px. Só em aparelho de toque o campo volta a 16 px;
+   no resto da interface o corpo é 14 px (v0.4.0, Proposto). */
+@media (hover: none) and (pointer: coarse) {
+  .panel-root input,
+  .panel-root textarea,
+  .panel-root select {
+    font-size: 16px;
+  }
 }
