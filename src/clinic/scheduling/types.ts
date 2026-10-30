@@ -11,6 +11,8 @@ export const UNAVAILABILITY_REASONS = [
   'outside_weekly_hours',
   'resource_block',
   'appointment_conflict',
+  /** DEC-075 / S5 — audiência oposta ao sexo do bloco na sala. */
+  'room_sex_mismatch',
   'crosses_day_boundary',
   'invalid_grid',
   'past_slot',

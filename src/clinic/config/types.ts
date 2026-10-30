@@ -138,6 +138,8 @@ export type ResourceRow = {
   homeRoomId: string | null
   /** DEC-075 — modo da sala; padrão cada_profissional. */
   attendanceMode: RoomAttendanceMode
+  /** DEC-075 / S5 — mesmo sexo neste horário; só salas com capacidade > 1. */
+  sameSexInSlot: boolean
   futureAppointmentCount: number
   /** Já teve compromisso (passado ou futuro): não pode ser excluído. */
   hasAppointmentHistory: boolean
@@ -334,6 +336,8 @@ export type UpsertResourceInput = {
   homeRoomId?: string | null
   /** Só sala — modo de atendimento (DEC-075). Omitido = mantém / padrão. */
   attendanceMode?: RoomAttendanceMode
+  /** Só sala — mesmo sexo neste horário (DEC-075 / S5). Omitido = mantém. */
+  sameSexInSlot?: boolean
 }
 
 export type SetWeeklyWindowsInput = {

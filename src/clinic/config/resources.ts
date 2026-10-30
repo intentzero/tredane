@@ -23,6 +23,7 @@ type ResourceSql = {
   hours_mode?: string | null
   home_room_id?: string | null
   attendance_mode?: string | null
+  same_sex_in_slot?: number | null
   created_at: number
   updated_at: number
 }
@@ -78,6 +79,10 @@ function toResourceRow(
     homeRoomId: row.kind === 'professional' ? row.home_room_id ?? null : null,
     attendanceMode:
       row.kind === 'room' ? toAttendanceMode(row.attendance_mode) : 'cada_profissional',
+    sameSexInSlot:
+      row.kind === 'room'
+      && Math.max(1, row.capacity ?? 1) > 1
+      && row.same_sex_in_slot === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     futureAppointmentCount: countFutureAppointments(
@@ -142,6 +147,7 @@ export function upsertResource(
   const hoursIn = parseHoursMode(input)
   const homeRoomIn = parseHomeRoomId(db, tenantId, input)
   const attendanceIn = parseAttendanceMode(input)
+  const sameSexIn = parseSameSexInSlot(input)
 
   if (input.id) {
     const existing = getResource(db, tenantId, input.id, clock)
@@ -154,28 +160,41 @@ export function upsertResource(
         'tipo do recurso não pode mudar após criação',
       )
     }
+    const cap = capacityIn ?? existing.capacity
+    const attendance =
+      input.kind === 'room'
+        ? cap <= 1
+          ? 'cada_profissional'
+          : (attendanceIn ?? existing.attendanceMode)
+        : 'cada_profissional'
+    const sameSex =
+      input.kind === 'room'
+        ? cap <= 1
+          ? 0
+          : sameSexIn === undefined
+            ? existing.sameSexInSlot
+              ? 1
+              : 0
+            : sameSexIn
+              ? 1
+              : 0
+        : 0
     db.run(
       `UPDATE resources SET name = ?, category = ?, active = ?, capacity = ?,
          shared_space_notice = ?, hours_mode = ?, home_room_id = ?, attendance_mode = ?,
-         updated_at = ?
+         same_sex_in_slot = ?, updated_at = ?
        WHERE tenant_id = ? AND id = ?`,
       name,
       category,
       active,
-      capacityIn ?? existing.capacity,
+      cap,
       noticeIn === undefined ? existing.sharedSpaceNotice : noticeIn,
       input.kind === 'professional' ? (hoursIn ?? existing.hoursMode) : 'own',
       input.kind === 'professional'
         ? (homeRoomIn === undefined ? existing.homeRoomId : homeRoomIn)
         : null,
-      input.kind === 'room'
-        ? (() => {
-            const cap = capacityIn ?? existing.capacity
-            // Capacidade 1: sem modo grupo (DEC-075 / S4).
-            if (cap <= 1) return 'cada_profissional'
-            return attendanceIn ?? existing.attendanceMode
-          })()
-        : 'cada_profissional',
+      attendance,
+      sameSex,
       now,
       tenantId,
       input.id,
@@ -184,26 +203,28 @@ export function upsertResource(
   }
 
   const id = newId(input.kind === 'professional' ? 'pro' : 'res')
+  const createCap = capacityIn ?? 1
   db.run(
     `INSERT INTO resources (
       id, tenant_id, kind, name, category, active, capacity, shared_space_notice,
-      hours_mode, home_room_id, attendance_mode, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      hours_mode, home_room_id, attendance_mode, same_sex_in_slot, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     input.kind,
     name,
     category,
     active,
-    capacityIn ?? 1,
+    createCap,
     noticeIn ?? null,
     input.kind === 'professional' ? (hoursIn ?? defaultHoursMode(db, tenantId)) : 'own',
     input.kind === 'professional' ? (homeRoomIn ?? null) : null,
     input.kind === 'room'
-      ? (capacityIn ?? 1) <= 1
+      ? createCap <= 1
         ? 'cada_profissional'
         : (attendanceIn ?? 'cada_profissional')
       : 'cada_profissional',
+    input.kind === 'room' && createCap > 1 && sameSexIn ? 1 : 0,
     now,
     now,
   )
@@ -363,4 +384,15 @@ function parseAttendanceMode(input: UpsertResourceInput): RoomAttendanceMode | u
     )
   }
   return input.attendanceMode
+}
+
+function parseSameSexInSlot(input: UpsertResourceInput): boolean | undefined {
+  if (input.sameSexInSlot === undefined) return undefined
+  if (input.kind !== 'room') {
+    throw new ValidationError(
+      'same_sex_room_only',
+      '«Mesmo sexo neste horário» é só da sala.',
+    )
+  }
+  return Boolean(input.sameSexInSlot)
 }

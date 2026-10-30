@@ -110,6 +110,7 @@ export function serializeResource(
     hoursMode: row.hoursMode,
     homeRoomId: row.homeRoomId,
     attendanceMode: row.attendanceMode,
+    sameSexInSlot: row.sameSexInSlot,
     overCapacity: row.overCapacity,
     futureAppointmentCount: row.futureAppointmentCount,
     hasAppointmentHistory: row.hasAppointmentHistory,

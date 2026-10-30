@@ -1,6 +1,7 @@
 import type { Clock } from '../db/clock'
 import {
   clinicConfig,
+  clinicScheduling,
   type ClinicCaller,
   type ClinicDb,
   workerCaller,
@@ -27,6 +28,10 @@ import type {
   FutureAppointmentForResource,
 } from '../clinic/config'
 import type { AbuseLimits } from '../clinic/ai/abuse-limits'
+import type {
+  AllowBothSexesInput,
+  AllowBothSexesResult,
+} from '../clinic/scheduling'
 
 /**
  * Gateway de configuração da clínica — abstrai DO vs SQLite em memória (testes HTTP).
@@ -87,6 +92,11 @@ export type ClinicConfigGateway = {
   ): Promise<WeeklyWindowRow[]>
   createBlock(caller: ClinicCaller, input: CreateBlockInput): Promise<CreateBlockResult>
   deleteBlock(caller: ClinicCaller, blockId: string): Promise<{ ok: true }>
+  /** DEC-075 / S5 — «Permitir os dois» no bloco (só responsável). */
+  allowBothSexesInBlock(
+    caller: ClinicCaller,
+    input: AllowBothSexesInput,
+  ): Promise<AllowBothSexesResult>
   /** Só testes / seeds. */
   insertAppointment?(
     caller: ClinicCaller,
@@ -168,6 +178,9 @@ export function createMemoryClinicConfigGateway(
     },
     async deleteBlock(caller, blockId) {
       return clinicConfig.deleteBlockOp(db, caller, blockId, clock)
+    },
+    async allowBothSexesInBlock(caller, input) {
+      return clinicScheduling.allowBothSexesInBlockOp(db, caller, input, clock)
     },
     async insertAppointment(caller, input) {
       clinicConfig.getConfigSnapshotOp(db, caller, clock)

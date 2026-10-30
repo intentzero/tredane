@@ -14,6 +14,7 @@ import {
 import { useClinicTimezone } from '../../clinicTimezone'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
+import { useTenant } from '../../tenant/TenantContext'
 import { formatSlotTime } from './format'
 import { friendlyError } from '../../copy/errors'
 
@@ -41,20 +42,23 @@ export function CompromissoScreen({
   onChanged,
 }: Props) {
   const timezone = useClinicTimezone(api, tenantId, generation)
+  const { active } = useTenant()
+  const isOwner = active.phase === 'ready' && active.context.role === 'owner'
   const [detail, setDetail] = useState<AppointmentDetailResponse | null>(null)
   const [reasons, setReasons] = useState<AppointmentReasonOption[]>([])
   const [paidSignal, setPaidSignal] = useState<PixChargeDetail | null>(null)
   const [reason, setReason] = useState<string>('')
   const [disposition, setDisposition] = useState<'refund' | 'retain' | ''>('')
-  const [mode, setMode] = useState<'view' | 'cancel' | 'reschedule'>('view')
+  const [mode, setMode] = useState<'view' | 'cancel' | 'reschedule' | 'allow-both'>('view')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [roomSameSex, setRoomSameSex] = useState(false)
 
   const load = useCallback(async () => {
     setError(null)
     try {
-      const [d, r, signal] = await Promise.all([
+      const [d, r, signal, snap] = await Promise.all([
         api.getAppointment(tenantId, appointmentId, {
           generation,
           expectGeneration: () => generation,
@@ -67,15 +71,27 @@ export function CompromissoScreen({
           generation,
           expectGeneration: () => generation,
         }),
+        isOwner
+          ? api.getClinicConfig(tenantId, {
+              generation,
+              expectGeneration: () => generation,
+            })
+          : Promise.resolve(null),
       ])
       setDetail(d)
       setReasons(r)
       setPaidSignal(signal)
+      if (snap && d.roomResourceId) {
+        const room = snap.resources.find((x) => x.id === d.roomResourceId)
+        setRoomSameSex(Boolean(room?.sameSexInSlot && (room.capacity ?? 1) > 1))
+      } else {
+        setRoomSameSex(false)
+      }
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
       setError(friendlyError(err, 'Não conseguimos carregar. Tente de novo.'))
     }
-  }, [api, tenantId, appointmentId, generation])
+  }, [api, tenantId, appointmentId, generation, isOwner])
 
   useEffect(() => {
     void load()
@@ -194,6 +210,27 @@ export function CompromissoScreen({
     }
   }
 
+  async function allowBoth() {
+    if (!detail?.roomResourceId) return
+    setBusy(true)
+    setMessage(null)
+    try {
+      await api.allowBothSexesInBlock(
+        tenantId,
+        detail.roomResourceId,
+        { startsAt: detail.startsAt, endsAt: detail.endsAt },
+        { generation, expectGeneration: () => generation },
+      )
+      setMode('view')
+      onChanged?.()
+      setMessage('Neste horário a sala aceita os dois públicos.')
+    } catch (err) {
+      setMessage(friendlyError(err, 'Não foi possível permitir os dois neste horário.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="agenda-detail" data-screen="m05-compromisso">
       <header className="panel-header">
@@ -307,6 +344,39 @@ export function CompromissoScreen({
             >
               Reagendar
             </Button>
+            {isOwner && roomSameSex && detail.roomResourceId ? (
+              <Button
+                className="panel-btn-secondary"
+                onPress={() => setMode('allow-both')}
+              >
+                Permitir os dois
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {mode === 'allow-both' && detail.roomResourceId ? (
+          <div className="agenda-reason" style={{ padding: '0 16px 24px' }}>
+            <p className="panel-field-hint" role="note">
+              Neste horário a sala passa a aceitar público feminino e masculino, só enquanto houver
+              sobreposição. Depois de a sala ficar livre, o bloco seguinte volta à regra «mesmo sexo».
+            </p>
+            <div className="clinic-actions">
+              <Button
+                className="panel-btn-secondary"
+                onPress={() => setMode('view')}
+                isDisabled={busy}
+              >
+                Voltar
+              </Button>
+              <Button
+                className="panel-btn-primary"
+                isDisabled={busy}
+                onPress={() => void allowBoth()}
+              >
+                {busy ? 'A confirmar…' : 'Confirmar permitir os dois'}
+              </Button>
+            </div>
           </div>
         ) : null}
 
