@@ -29,8 +29,28 @@ export type AiCatalogService = {
   clientExplanation: string | null
   /** DEC-075 — audiência do serviço (feminino | masculino | qualquer); descreve o serviço. */
   audiencia: 'feminino' | 'masculino' | 'qualquer'
-  /** DEC-078 — zonas ativas. Ausente ou vazio: a linha do serviço vale. */
-  zones?: { name: string; durationMinutes: number; priceCents: number | null }[]
+  /** DEC-079 — nome do tipo, uma vez. Ausente: a interface diz «variantes». */
+  variantKind?: string | null
+  /** DEC-078 / DEC-079 — variantes ativas. Ausente ou vazio: a linha do serviço vale. */
+  zones?: {
+    name: string
+    durationMinutes: number
+    priceCents: number | null
+    audience?: 'feminino' | 'masculino' | 'ambos'
+  }[]
+}
+
+/** DEC-079 — `ambos` combina. Masculino e feminino juntos não têm preço nem proposta. */
+export function variantAudiencesConflict(
+  zones: readonly { audience?: 'feminino' | 'masculino' | 'ambos' | null }[],
+): boolean {
+  let feminino = false
+  let masculino = false
+  for (const zone of zones) {
+    if (zone.audience === 'feminino') feminino = true
+    if (zone.audience === 'masculino') masculino = true
+  }
+  return feminino && masculino
 }
 
 export type AiContextMessage = {

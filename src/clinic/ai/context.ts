@@ -93,12 +93,14 @@ export function buildAiContextPayload(
       priceCents: s.priceCents,
       clientExplanation: sanitizeCatalogField(s.clientExplanation),
       audiencia: s.audiencia,
+      variantKind: s.variantKind,
       zones: s.zones
         .filter((z) => z.active)
         .map((z) => ({
           name: sanitizeCatalogField(z.name) ?? z.name,
           durationMinutes: z.durationMinutes,
           priceCents: z.priceCents,
+          audience: z.audience,
         })),
     }),
   )

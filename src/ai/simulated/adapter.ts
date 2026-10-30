@@ -5,10 +5,11 @@ import {
   AI_PROVIDER_SYNTHETIC,
 } from '../budgets'
 import { buildSystemPrompt, buildUserContent } from '../prompt'
-import type {
-  AiGenerateInput,
-  AiGenerateResult,
-  AiGatewayRequestInspection,
+import {
+  variantAudiencesConflict,
+  type AiGenerateInput,
+  type AiGenerateResult,
+  type AiGatewayRequestInspection,
 } from '../types'
 
 export type SimulatedAiOptions = {
@@ -146,7 +147,11 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
             (z) => z.name.trim().length >= 2 && lower.includes(z.name.trim().toLowerCase()),
           )
           if (named.length === 0) {
-            return `Para ${s.name}, quais zonas você quer? Temos ${s.zones.map((z) => z.name).join(', ')}. Me diz e eu confirmo o valor.`
+            const kind = s.variantKind?.trim() || 'variantes'
+            return `Para ${s.name}, quais ${kind} você quer? Temos ${s.zones.map((z) => z.name).join(', ')}. Me diz e eu confirmo o valor.`
+          }
+          if (variantAudiencesConflict(named)) {
+            return `Para ${s.name}, masculino e feminino não entram juntos. Ambos combina com os dois. Me diz um conjunto compatível que eu confirmo o valor.`
           }
           if (named.some((z) => z.priceCents == null)) {
             return `Sobre ${s.name} (${named.map((z) => z.name).join(', ')}), a equipe vai confirmar o valor certinho com você.`

@@ -1,6 +1,8 @@
-# Zonas do serviço — DEC-078
+# Variantes do serviço — DEC-078 e DEC-079
 
 **Confirmado** (Paulo, 29/10/2026, «implementa o epico», [issue #293](https://github.com/intentzero/tredane/issues/293)). A issue citava DEC-075; no repositório a DEC-075 é salas e audiência. Esta decisão é a DEC-078. Não revive a duração ajustável (DEC-076).
+
+**Confirmado (DEC-079, Paulo, 30/10/2026).** O tipo não é «zona». O serviço tem um único nome de tipo, texto livre, e cada variante tem género masculino, feminino ou ambos. Na mesma visita, ambos combina com qualquer um; masculino e feminino juntos são recusados e nada é gravado. A audiência do serviço (DEC-075) e a ausência de sexo no contacto mantêm-se. Com variantes, o tipo é obrigatório; sem variantes, o tipo limpa. Variantes já gravadas ficam ambos. A cópia da visita inclui o género. As tabelas `service_zones` e `visit_zone_snapshots` não se renomeiam.
 
 Exemplos fictícios. Nenhum dado de paciente ou clínica real.
 

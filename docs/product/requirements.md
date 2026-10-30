@@ -250,6 +250,10 @@
 
 **Prioridade/estado:** MVP / Confirmado (DEC-077, DEC-011). **Origem:** ACT-02; JRN-02, JRN-17. **Comportamento:** a IA recebe só horários já filtrados e, se a hora pedida foi recusada, a frase fixa do motivo. Não recebe payload, percentagem, códigos nem o bloco para escolher. A sugestão não cita percentagem nem hora filtrada. **Aceite:** AC-67. **Dados/tenant:** nada de pessoa; a frase calcula-se na clínica da sessão.
 
+### REQ-094 — Tipo e género das variantes
+
+**Prioridade/estado:** MVP / Confirmado (DEC-079). **Origem:** ACT-03; DEC-078. **Comportamento:** com variantes, o serviço tem um tipo em texto livre, obrigatório, no máximo 40 caracteres; sem variantes, o tipo fica vazio. Cada variante tem género masculino, feminino ou ambos; omitir o género na gravação é recusado. A migração deixa as variantes já gravadas como ambos. Na mesma visita, ambos combina com qualquer um; masculino e feminino juntos são recusados (`variant_audience_conflict`) e nenhum compromisso, proposta ou cobrança nasce. A cópia guarda o género. A audiência do serviço não filtra as variantes. A atendente lê; só a responsável grava (DEC-042). **Aceite:** AC-68. **Dados/tenant:** `services.variant_kind`, `service_zones.audience` e `visit_zone_snapshots.audience` no SQLite da clínica.
+
 ## Racional de prioridade — proposta para aprovação
 
 Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP interno** para gestão da plataforma) porque contribuem para a primeira jornada demonstrável, para a segurança multi-tenant ou para operar a plataforma sem depender de intervenção no banco. Estas justificativas **não significam aprovação final**, nem liberam uso de dados reais. Quando parte do comportamento estiver em aberto, a aprovação da prioridade não fecha a regra de produto.

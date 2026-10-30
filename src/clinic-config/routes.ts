@@ -19,6 +19,7 @@ import {
   workerCaller,
 } from '../clinic'
 import type { WorkerBindings } from '../worker/bindings'
+import { isVariantAudience } from '../clinic/config/types'
 import type { ClinicConfigGateway } from './gateway'
 import {
   serializeAbuseLimits,
@@ -325,7 +326,13 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
         }
         const z = raw as Record<string, unknown>
         if (typeof z.name !== 'string') {
-          throw new ValidationError('invalid_zones', 'nome da zona é obrigatório')
+          throw new ValidationError('invalid_zones', 'nome da variante é obrigatório')
+        }
+        if (!isVariantAudience(z.audience)) {
+          throw new ValidationError(
+            'invalid_variant_audience',
+            'cada variante é masculina, feminina ou ambos',
+          )
         }
         return {
           id: typeof z.id === 'string' ? z.id : undefined,
@@ -334,6 +341,7 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
           priceCents:
             z.priceCents === null ? null : typeof z.priceCents === 'number' ? z.priceCents : undefined,
           active: typeof z.active === 'boolean' ? z.active : undefined,
+          audience: z.audience,
         }
       })
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)
@@ -755,6 +763,9 @@ function parseServiceBody(body: Record<string, unknown>) {
       : {
           weeklyWindows: parseWeeklyWindowsBody(body.weeklyWindows),
         }),
+    ...(body.variantKind === undefined
+      ? {}
+      : { variantKind: body.variantKind === null ? null : String(body.variantKind) }),
   }
 }
 
