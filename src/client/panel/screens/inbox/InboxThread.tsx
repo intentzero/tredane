@@ -1554,7 +1554,7 @@ export function InboxThread({
               ) : null}
             </div>
           ) : null}
-          {windowOpen && canSuggest && !aiSuggestion && !aiDraftTagged ? (
+          {windowOpen && canSuggest && !aiSuggestion && !aiDraftTagged && autoDraftState !== 'generating' ? (
             <div className="inbox-composer-tools">
               <Button
                 className="inbox-ai-trigger"

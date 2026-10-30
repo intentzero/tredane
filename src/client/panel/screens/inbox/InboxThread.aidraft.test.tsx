@@ -106,6 +106,21 @@ describe('InboxThread — rascunho automático da IA', () => {
     expect(screen.getByRole('button', { name: 'Gerar outra' })).toBeTruthy()
   })
 
+  it('esconde «Sugerir resposta» enquanto a IA escreve o rascunho', async () => {
+    const api = mockApi()
+    api.getAiDraft = vi.fn(async () => ({
+      job: { state: 'generating' as const, messageId: 'msg_in', dueAt: NOW },
+      syntheticFallback: false,
+      usage: { day: '2026-10-27', drafts: 0, cap: 300, capReached: false, capReachedAt: null },
+      suggestion: null,
+    }))
+    render(
+      <InboxThread tenantId="clinic-demo-a" conversationId="cnv_ficticia" api={api} generation={1} viewerClerkUserId="u1" />,
+    )
+    expect(await screen.findByText(/IA escrevendo um rascunho/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Sugerir resposta com IA' })).toBeNull()
+  })
+
   it('rascunho vira cartão de largura total: Outra, Nota, Enviar, tela cheia e descartar', async () => {
     render(
       <InboxThread tenantId="clinic-demo-a" conversationId="cnv_ficticia" api={mockApi()} generation={1} viewerClerkUserId="u1" />,
