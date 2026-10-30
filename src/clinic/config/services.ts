@@ -19,6 +19,7 @@ import type {
 } from './types'
 import { listServiceWeeklyWindows, setServiceWeeklyWindows } from './service-windows'
 import { listZones } from './zones'
+import { VARIANT_KIND_MAX } from '../catalog/variant-kind'
 import {
   assertBufferMinutes,
   assertNonEmptyName,
@@ -396,7 +397,6 @@ function resolveTempo(
   return { ceu, temperatura, celsius: raw }
 }
 
-const VARIANT_KIND_MAX = 40
 
 function resolveKindText(
   value: string | null | undefined,
@@ -452,7 +452,8 @@ export function upsertService(
   const audiencia = resolveAudience(input, existing)
   const tempo = resolveTempo(input, existing)
   const variantKind = resolveKindText(input.variantKind, existing?.variantKind)
-  const variantKindPlural = resolveKindText(input.variantKindPlural, existing?.variantKindPlural)
+  let variantKindPlural = resolveKindText(input.variantKindPlural, existing?.variantKindPlural)
+  if (!variantKind) variantKindPlural = null
   if (
     existing &&
     listZones(db, tenantId, existing.id).length > 0 &&

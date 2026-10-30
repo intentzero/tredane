@@ -278,7 +278,7 @@ function zonesChosenByClient(
   return []
 }
 
-function askZonesReply(phrase: string, zoneNames: string[], time: string): string {
+export function askZonesReply(phrase: string, zoneNames: string[], time: string): string {
   const list = zoneNames.join(', ')
   return `Para fechar às ${time}, me diga ${phrase}: ${list}. Pode ser mais de uma.`
 }

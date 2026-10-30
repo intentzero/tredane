@@ -88,7 +88,7 @@ describe('ServiceForm — duração e variantes', () => {
       }),
       { upsertService, replaceServiceZones } as Partial<PanelApi>,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Opção única' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(order).toEqual(['zones', 'service']))
     expect(replaceServiceZones).toHaveBeenCalledWith('t', 'svc_1', [], expect.anything())
@@ -98,9 +98,12 @@ describe('ServiceForm — duração e variantes', () => {
     const upsertService = vi.fn()
     const replaceServiceZones = vi.fn()
     renderForm(svc({}), { upsertService, replaceServiceZones } as Partial<PanelApi>)
-    fireEvent.change(screen.getByRole('textbox', { name: 'Singular' }), { target: { value: 'Zona' } })
-    fireEvent.change(screen.getByRole('textbox', { name: 'Plural' }), { target: { value: 'Zonas' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Adicionar variante' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Com variantes' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), { target: { value: 'Zona' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Adicionar zona' }), { target: { value: 'Axila' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
+    const names = screen.getAllByRole('textbox', { name: /^Nome$/ })
+    fireEvent.change(names[names.length - 1]!, { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     expect(upsertService).not.toHaveBeenCalled()
     expect(replaceServiceZones).not.toHaveBeenCalled()
@@ -113,11 +116,10 @@ describe('ServiceForm — duração e variantes', () => {
       throw new Error('nome')
     })
     renderForm(svc({}), { upsertService, replaceServiceZones } as Partial<PanelApi>)
-    fireEvent.change(screen.getByRole('textbox', { name: 'Singular' }), { target: { value: 'Zona' } })
-    fireEvent.change(screen.getByRole('textbox', { name: 'Plural' }), { target: { value: 'Zonas' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Adicionar variante' }))
-    const names = screen.getAllByRole('textbox', { name: 'Nome' })
-    fireEvent.change(names[1]!, { target: { value: 'Axila' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Com variantes' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), { target: { value: 'Zona' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Adicionar zona' }), { target: { value: 'Axila' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(upsertService).toHaveBeenCalledTimes(2))
     const second = (upsertService.mock.calls as unknown[][])[1]
@@ -191,5 +193,55 @@ describe('ServicesList — esqueleto comum e avisos', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Mostrar inativos (1)' }))
     expect(screen.getByText('Antigo')).toBeTruthy()
     expect(screen.getByText('Inativo')).toBeTruthy()
+  })
+})
+
+describe('ServiceForm — catálogo de variantes', () => {
+  const zone = (id: string, name: string, audience: 'ambos' | 'feminino' | 'masculino') => ({
+    id,
+    name,
+    durationMinutes: 15,
+    priceCents: 5000,
+    audience,
+    active: true,
+    sortOrder: 0,
+  })
+
+  it('mostra singular e plural e grava o plural sugerido', async () => {
+    const upsertService = vi.fn(async () => ({ id: 'svc_1' }))
+    const replaceServiceZones = vi.fn(async () => [])
+    renderForm(
+      svc({ variantKind: 'Zona', zones: [zone('z1', 'Axila', 'ambos')] }),
+      { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
+    )
+    expect((screen.getByLabelText('Nome no singular') as HTMLInputElement).value).toBe('Zona')
+    expect((screen.getByLabelText('No plural') as HTMLInputElement).value).toBe('Zonas')
+
+    fireEvent.change(screen.getByLabelText('Nome no singular'), { target: { value: 'Sessão' } })
+    expect((screen.getByLabelText('No plural') as HTMLInputElement).value).toBe('Sessões')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(upsertService).toHaveBeenCalled())
+    const body = (upsertService.mock.calls[0] as unknown[])[1] as Record<string, unknown>
+    expect(body.variantKind).toBe('Sessão')
+    expect(body.variantKindPlural).toBe('Sessões')
+  })
+
+  it('avisa quando o serviço é masculino e há variante só feminina', () => {
+    renderForm(
+      svc({
+        audiencia: 'masculino',
+        variantKind: 'Zona',
+        zones: [zone('z1', 'Buço', 'feminino')],
+      }),
+      {},
+    )
+    expect(screen.getByRole('status').textContent).toMatch(/só para feminino/)
+  })
+
+  it('opção única esconde o catálogo e mostra duração e preço', () => {
+    renderForm(svc({}), {})
+    expect(screen.queryByLabelText('Nome no singular')).toBeNull()
+    expect(screen.getByText('Preço (opcional)')).toBeTruthy()
   })
 })

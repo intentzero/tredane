@@ -578,3 +578,101 @@ describe('zonesNamedInText', () => {
     expect(zonesNamedInText('só a perna', zones).map((z) => z.name)).toEqual(['Perna'])
   })
 })
+
+describe('plural do tipo das variantes (DEC-079, revisão 30/10/2026)', () => {
+  it('grava o plural, mantém quando omitido e limpa com o tipo', () => {
+    const { db, close, clock, caller, svc } = seed()
+    try {
+      const base = {
+        id: svc.id,
+        name: 'Depilação',
+        durationMinutes: 60,
+        bufferMinutes: 15,
+        priceCents: 12_000,
+        professionalIds: svc.professionalIds,
+        roomRequirement: { mode: 'none' as const },
+      }
+      const withPlural = upsertServiceOp(
+        db,
+        caller,
+        { ...base, variantKind: 'Sessão', variantKindPlural: 'Sessões' },
+        clock,
+      )
+      expect(withPlural).toMatchObject({ variantKind: 'Sessão', variantKindPlural: 'Sessões' })
+
+      const kept = upsertServiceOp(db, caller, { ...base, variantKind: 'Sessão' }, clock)
+      expect(kept.variantKindPlural).toBe('Sessões')
+
+      const cleared = upsertServiceOp(
+        db,
+        caller,
+        { ...base, variantKind: 'Sessão', variantKindPlural: null },
+        clock,
+      )
+      expect(cleared.variantKindPlural).toBeNull()
+
+      upsertServiceOp(db, caller, { ...base, variantKind: 'Sessão', variantKindPlural: 'Sessões' }, clock)
+      const bare = upsertServiceOp(db, caller, { ...base, variantKind: null }, clock)
+      expect(bare.variantKindPlural).toBeNull()
+    } finally {
+      close()
+    }
+  })
+
+  it('recusa plural com mais de 40 caracteres', () => {
+    const { db, close, clock, caller, svc } = seed()
+    try {
+      expect(() =>
+        upsertServiceOp(
+          db,
+          caller,
+          {
+            id: svc.id,
+            name: 'Depilação',
+            durationMinutes: 60,
+            bufferMinutes: 15,
+            variantKind: 'Zona',
+            variantKindPlural: 'z'.repeat(41),
+            professionalIds: svc.professionalIds,
+            roomRequirement: { mode: 'none' },
+          },
+          clock,
+        ),
+      ).toThrow(ValidationError)
+    } finally {
+      close()
+    }
+  })
+
+  it('remover todas as variantes limpa singular e plural', () => {
+    const { db, close, clock, caller, svc } = seed()
+    try {
+      upsertServiceOp(
+        db,
+        caller,
+        {
+          id: svc.id,
+          name: 'Depilação',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: svc.professionalIds,
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      replaceServiceZonesOp(db, caller, svc.id, [{ name: 'Axila', audience: 'ambos' }], clock)
+      replaceServiceZonesOp(db, caller, svc.id, [], clock)
+      expect(
+        db.get(
+          'SELECT variant_kind AS k, variant_kind_plural AS p FROM services WHERE tenant_id = ? AND id = ?',
+          caller.tenantId,
+          svc.id,
+        ),
+      ).toEqual({ k: null, p: null })
+    } finally {
+      close()
+    }
+  })
+})

@@ -4,6 +4,8 @@
 
 **Confirmado (DEC-079, Paulo, 30/10/2026).** O tipo não é «zona». O serviço define o tipo no singular e no plural, texto livre, e cada variante tem género masculino, feminino ou ambos. Uma variante usa o singular; várias usam o plural. Na mesma visita, ambos combina com qualquer um; masculino e feminino juntos são recusados e nada é gravado. A audiência do serviço (DEC-075) e a ausência de sexo no contacto mantêm-se. Com variantes, o singular e o plural são obrigatórios; sem variantes, os dois limpam. Variantes já gravadas ficam ambos. A cópia da visita inclui o género. As tabelas `service_zones` e `visit_zone_snapshots` não se renomeiam.
 
+**Confirmado (Paulo, 30/10/2026, pedido para publicar o catálogo).** A ficha alterna Opção única e Com variantes. Com variantes, a duração e o preço da linha saem da tela. O plural começa sugerido na ficha e fica gravado quando a responsável salva; sem variantes, singular e plural limpam. «Em uso» e «Fora de uso» não dependem do género da palavra. A audiência do serviço não esconde variantes. Combos de variantes continuam **Em aberto**.
+
 Exemplos fictícios. Nenhum dado de paciente ou clínica real.
 
 ## O que fica no serviço

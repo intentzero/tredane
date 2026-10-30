@@ -16,7 +16,7 @@ import { getProposal } from '../proposals/proposals'
 import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
-import { detectExplicitConfirmation, extractTimes } from './autobook'
+import { askZonesReply, detectExplicitConfirmation, extractTimes } from './autobook'
 import { checkConversationProtection, isConversationPaused } from './protection'
 import { autoBookCapability, toAiAssistDeps } from './deps'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
@@ -593,5 +593,12 @@ describe('detectExplicitConfirmation', () => {
   it('«depilação» sozinha com dois serviços parecidos é ambígua', () => {
     const r = detectExplicitConfirmation({ ...base, clientTexts: ['Sim, amanhã às 15h'], previousClinicText: 'Tenho depilação masculina e depilação feminina.' })
     expect(r.ok).toBe(false)
+  })
+})
+
+describe('pergunta das variantes usa o plural do tipo', () => {
+  it('«as zonas», não «a Zona»', () => {
+    const reply = askZonesReply('as zonas', ['Axila', 'Buço'], '14:00')
+    expect(reply).toBe('Para fechar às 14:00, me diga as zonas: Axila, Buço. Pode ser mais de uma.')
   })
 })

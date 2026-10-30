@@ -1,7 +1,8 @@
-import { variantKindWord } from '../../../../ai/types'
 import { useState } from 'react'
 import { Button, Input, Label, NumberField, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, TriangleAlert } from 'lucide-react'
+import { suggestVariantKindPlural } from '../../../../clinic/catalog/variant-kind'
+import { VariantCatalog, type ZoneDraft } from './VariantCatalog'
 import { Badge } from '../../states/Badge'
 import { ClinicCheck } from './ClinicCheck'
 import { ClinicListHeader } from './ClinicListHeader'
@@ -99,16 +100,6 @@ export function ServicesList({ tenantId, snap }: ListProps) {
   )
 }
 
-type ZoneDraft = {
-  key: string
-  id?: string
-  name: string
-  durationMinutes: number
-  price: string
-  audience: 'feminino' | 'masculino' | 'ambos'
-  active: boolean
-}
-
 type FormProps = {
   tenantId: string
   entityId: string
@@ -153,7 +144,10 @@ export function ServiceForm({
     existing?.priceCents != null ? formatPriceCents(existing.priceCents) : '',
   )
   const [variantKind, setVariantKind] = useState(existing?.variantKind ?? '')
-  const [variantKindPlural, setVariantKindPlural] = useState(existing?.variantKindPlural ?? '')
+  const [variantKindPlural, setVariantKindPlural] = useState(
+    existing?.variantKindPlural ?? (existing?.variantKind ? suggestVariantKindPlural(existing.variantKind) : ''),
+  )
+  const [pluralTouched, setPluralTouched] = useState(Boolean(existing?.variantKindPlural))
   const [zones, setZones] = useState<ZoneDraft[]>(() =>
     (existing?.zones ?? []).map((z) => ({
       key: z.id,
@@ -165,6 +159,7 @@ export function ServiceForm({
       active: z.active,
     })),
   )
+  const [withVariants, setWithVariants] = useState((existing?.zones?.length ?? 0) > 0)
   const [explanation, setExplanation] = useState(existing?.clientExplanation ?? '')
   const [active, setActive] = useState(existing?.active ?? true)
   const [requiresSignal, setRequiresSignal] = useState(existing?.requiresSignal ?? false)
@@ -234,6 +229,10 @@ export function ServiceForm({
   }
 
   const occupied = duration + buffer
+  const hasFemale = zones.some((z) => z.active && z.audience === 'feminino')
+  const hasMale = zones.some((z) => z.active && z.audience === 'masculino')
+  const audienceConflict =
+    withVariants && ((audiencia === 'masculino' && hasFemale) || (audiencia === 'feminino' && hasMale))
   const [moreOpen, setMoreOpen] = useState(false)
   const roomLabel =
     roomMode === 'none'
@@ -294,21 +293,22 @@ export function ServiceForm({
       tempoCeu,
       tempoTemperatura,
       tempoCelsius: tempoTemperatura === 'tanto_faz' ? null : tempoCelsius,
-      variantKind: zones.length > 0 ? variantKind.trim() || null : null,
-      variantKindPlural: zones.length > 0 ? variantKindPlural.trim() || null : null,
+      variantKind: (withVariants ? zones : []).length > 0 ? variantKind.trim() || null : null,
+      variantKindPlural: (withVariants ? zones : []).length > 0 ? variantKindPlural.trim() || null : null,
     }
-    if (zones.length > 0 && (!variantKind.trim() || !variantKindPlural.trim())) {
+    const draftZones = withVariants ? zones : []
+    if (draftZones.length > 0 && (!variantKind.trim() || !variantKindPlural.trim())) {
       setFormError('Dê o singular e o plural do tipo. O que você digitou continua aqui.')
       setSaving(false)
       return
     }
-    if (zones.some((z) => !z.name.trim())) {
+    if (draftZones.some((z) => !z.name.trim())) {
       setFormError('Dê um nome a cada variante. O que você digitou continua aqui.')
       setSaving(false)
       return
     }
     const hadZones = (existing?.zones?.length ?? 0) > 0
-    const zoneBody: ServiceZoneInput[] = zones.map((z) => ({
+    const zoneBody: ServiceZoneInput[] = draftZones.map((z) => ({
       id: z.id,
       name: z.name.trim(),
       durationMinutes: z.durationMinutes,
@@ -318,7 +318,7 @@ export function ServiceForm({
     }))
     try {
       // Limpar o tipo com variantes ainda gravadas deixa o cadastro inconsistente.
-      if (zones.length === 0 && hadZones && existing) {
+      if (zoneBody.length === 0 && hadZones && existing) {
         await api.replaceServiceZones(tenantId, existing.id, [], {
           generation,
           expectGeneration: () => generation,
@@ -377,146 +377,81 @@ export function ServiceForm({
         <Label>Nome</Label>
         <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
       </TextField>
-      <div className="clinic-field-row">
-        <NumberField
-          className="clinic-field"
-          minValue={1}
-          maxValue={24 * 60}
-          step={1}
-          formatOptions={{ maximumFractionDigits: 0 }}
-          value={duration}
-          onChange={(value) => {
-            if (Number.isInteger(value) && value >= 1 && value <= 24 * 60) setDuration(value)
-          }}
-        >
-          <Label>Duração (min)</Label>
-          <Input />
-        </NumberField>
-        <TextField className="clinic-field">
-          <Label>Preço (opcional)</Label>
-          <Input
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            inputMode="decimal"
-            placeholder="R$ 0,00"
-          />
-        </TextField>
-      </div>
-      <section className="clinic-stack" aria-labelledby="svc-zones">
-        <h2 id="svc-zones" className="agd-label">
-          {variantKindWord(variantKind, variantKindPlural, 2)}
-        </h2>
-        <p className="agd-note">
-          Cada uma tem duração, preço e gênero. Várias entram no mesmo horário, sem misturar masculino e feminino. Ambos combina com os dois. Sem variantes, vale a duração e o preço da linha.
-        </p>
-        <div className="clinic-field-row">
-          <TextField className="clinic-field">
-            <Label>Singular</Label>
-            <Input
-              autoComplete="off"
-              value={variantKind}
-              placeholder="Zona"
-              onChange={(e) => setVariantKind(e.target.value)}
-            />
-          </TextField>
-          <TextField className="clinic-field">
-            <Label>Plural</Label>
-            <Input
-              autoComplete="off"
-              value={variantKindPlural}
-              placeholder="Zonas"
-              onChange={(e) => setVariantKindPlural(e.target.value)}
-            />
-          </TextField>
+      <section className="clinic-stack" aria-labelledby="svc-price">
+        <div className="vc-head">
+          <h2 id="svc-price" className="clinic-section-title">
+            Preço e duração
+          </h2>
+          <RadioGroup
+            className="vc-seg"
+            aria-label="Formato do serviço"
+            orientation="horizontal"
+            value={withVariants ? 'variantes' : 'unica'}
+            onChange={(v) => setWithVariants(v === 'variantes')}
+          >
+            <Radio value="unica" className="vc-seg-item">
+              Opção única
+            </Radio>
+            <Radio value="variantes" className="vc-seg-item">
+              Com variantes
+            </Radio>
+          </RadioGroup>
         </div>
-        {zones.map((z) => (
-          <div className="clinic-field-row" key={z.key}>
-            <TextField className="clinic-field">
-              <Label>Nome</Label>
-              <Input
-                value={z.name}
-                onChange={(e) =>
-                  setZones((prev) => prev.map((row) => (row.key === z.key ? { ...row, name: e.target.value } : row)))
-                }
-              />
-            </TextField>
-            <NumberField
-              className="clinic-field"
-              minValue={1}
-              maxValue={24 * 60}
-              step={1}
-              formatOptions={{ maximumFractionDigits: 0 }}
-              value={z.durationMinutes}
-              onChange={(value) => {
-                if (!Number.isInteger(value) || value < 1 || value > 24 * 60) return
-                setZones((prev) =>
-                  prev.map((row) => (row.key === z.key ? { ...row, durationMinutes: value } : row)),
-                )
-              }}
-            >
-              <Label>Duração (min)</Label>
-              <Input />
-            </NumberField>
-            <TextField className="clinic-field">
-              <Label>Preço</Label>
-              <Input
-                value={z.price}
-                placeholder="sem preço"
-                inputMode="decimal"
-                onChange={(e) =>
-                  setZones((prev) => prev.map((row) => (row.key === z.key ? { ...row, price: e.target.value } : row)))
-                }
-              />
-            </TextField>
-            <PanelSelect
-              className="clinic-field"
-              label="Gênero"
-              value={z.audience}
-              onChange={(v) => {
-                if (v === 'feminino' || v === 'masculino' || v === 'ambos') {
-                  setZones((prev) => prev.map((row) => (row.key === z.key ? { ...row, audience: v } : row)))
-                }
-              }}
-              options={[
-                { id: 'feminino', label: 'Feminino' },
-                { id: 'masculino', label: 'Masculino' },
-                { id: 'ambos', label: 'Ambos' },
-              ]}
-            />
-            <ClinicCheck
-              isSelected={z.active}
-              onChange={(selected) =>
-                setZones((prev) => prev.map((row) => (row.key === z.key ? { ...row, active: selected } : row)))
-              }
-            >
-              Ativa
-            </ClinicCheck>
-            <Button
-              className="panel-btn panel-btn-ghost"
-              onPress={() => setZones((prev) => prev.filter((row) => row.key !== z.key))}
-            >
-              Remover
-            </Button>
-          </div>
-        ))}
-        <Button
-          className="panel-btn panel-btn-secondary"
-          onPress={() =>
-            setZones((prev) => [
-              ...prev,
-              {
-                key: crypto.randomUUID(),
-                name: '',
-                durationMinutes: prev.length === 0 ? duration : 15,
-                price: prev.length === 0 ? price : '',
-                audience: 'ambos',
-                active: true,
-              },
-            ])
-          }
-        >
-          Adicionar variante
-        </Button>
+        {withVariants ? (
+          <VariantCatalog
+            singular={variantKind}
+            plural={variantKindPlural}
+            pluralTouched={pluralTouched}
+            onSingular={(value) => {
+              setVariantKind(value)
+              if (!pluralTouched) setVariantKindPlural(suggestVariantKindPlural(value))
+            }}
+            onPlural={(value) => {
+              setVariantKindPlural(value)
+              setPluralTouched(true)
+            }}
+            zones={zones}
+            onZones={(update) => setZones(update)}
+            seed={{ durationMinutes: duration, price }}
+          />
+        ) : (
+          <>
+            <div className="clinic-field-row">
+              <NumberField
+                className="clinic-field"
+                minValue={1}
+                maxValue={24 * 60}
+                step={1}
+                formatOptions={{ maximumFractionDigits: 0 }}
+                value={duration}
+                onChange={(value) => {
+                  if (Number.isInteger(value) && value >= 1 && value <= 24 * 60) setDuration(value)
+                }}
+              >
+                <Label>Duração (min)</Label>
+                <Input />
+              </NumberField>
+              <TextField className="clinic-field">
+                <Label>Preço (opcional)</Label>
+                <Input
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="R$ 0,00"
+                />
+              </TextField>
+            </div>
+            <p className="clinic-footnote">
+              Sem preço, a IA não informa valor: sugere que a equipe vai confirmar.
+            </p>
+            {zones.length > 0 ? (
+              <p className="clinic-hint-box">
+                As variantes já cadastradas ficam guardadas, mas não valem enquanto o serviço for opção
+                única. Ao salvar, elas só saem se nunca entraram numa visita.
+              </p>
+            ) : null}
+          </>
+        )}
       </section>
       <PanelSelect
         className="clinic-field"
@@ -535,6 +470,15 @@ export function ServiceForm({
         Descreve o serviço, não a pessoa. Um nome como «Bronzeamento feminino» não preenche
         este campo.
       </p>
+      {audienceConflict ? (
+        <p className="clinic-warn" role="status">
+          <TriangleAlert aria-hidden size={16} />
+          <span>
+            O serviço está como {audiencia}, e há variantes só para{' '}
+            {audiencia === 'masculino' ? 'feminino' : 'masculino'}. A audiência do serviço não esconde essas variantes.
+          </span>
+        </p>
+      ) : null}
       <fieldset className="clinic-fieldset">
         <legend>Quem faz</legend>
         {professionals.map((p) => (
@@ -627,10 +571,6 @@ export function ServiceForm({
           </NumberField>
         ) : null}
       </section>
-      <p className="clinic-footnote">
-        Sem preço, a IA não informa valor: sugere que a equipe vai confirmar.
-      </p>
-
       <section className="clinic-fieldset" aria-labelledby="service-hours-heading">
         <h2 id="service-hours-heading" className="clinic-section-title">
           Quando este serviço pode ser prestado
