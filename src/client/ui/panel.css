@@ -7460,10 +7460,19 @@
   margin: 0;
 }
 
+/* O corpo é o contêiner posicionado dos campos escondidos do React Aria (radio, checkbox).
+ * Sem isto eles ficavam posicionados contra o painel inteiro: ao focar um deles (ex.: ao abrir
+ * uma variante) o navegador rolava o <aside> e empurrava o cabeçalho para fora, cortando o painel. */
 .clinic-panel-body {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+
+/* `clip` impede até a rolagem programática do painel; só o corpo rola. */
+.clinic-panel {
+  overflow: clip;
 }
 
 .clinic-panel-confirm {
