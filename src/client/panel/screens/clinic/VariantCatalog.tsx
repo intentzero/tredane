@@ -118,6 +118,7 @@ export function VariantCatalog({
       <ul className="vc-list" aria-label={labels.plural}>
         {zones.map((z, index) => {
           const open = openKey === z.key
+          const priceCents = parsePriceToCents(z.price)
           return (
             <li key={z.key} className="vc-item" data-open={open || undefined} data-off={!z.active || undefined}>
               {open ? (
@@ -226,7 +227,7 @@ export function VariantCatalog({
                     </span>
                   </span>
                   <span className="vc-price">
-                    {z.price.trim() ? formatPriceCents(parsePriceToCents(z.price)) : 'Sem preço'}
+                    {priceCents != null ? formatPriceCents(priceCents) : 'Sem preço'}
                   </span>
                   <ChevronRight aria-hidden size={18} />
                 </Button>

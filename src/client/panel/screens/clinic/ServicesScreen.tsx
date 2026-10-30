@@ -21,6 +21,23 @@ import { DeleteServiceDialog } from './ResourceLifecycleDialogs'
 import { fromWeekDraft, toWeekDraft, type WeekDraft } from './clinicHours'
 import { WeekEditor } from './WeekEditor'
 
+/** Preço que o sinal percentual enxerga: a linha, ou a soma das variantes em uso. */
+function signalBaseCents(withVariants: boolean, price: string, zones: ZoneDraft[]): number | null {
+  if (!withVariants) {
+    const cents = parsePriceToCents(price)
+    return cents != null && cents > 0 ? cents : null
+  }
+  const active = zones.filter((z) => z.active)
+  if (active.length === 0) return null
+  let sum = 0
+  for (const zone of active) {
+    const cents = parsePriceToCents(zone.price)
+    if (cents == null) return null
+    sum += cents
+  }
+  return sum > 0 ? sum : null
+}
+
 type ListProps = {
   tenantId: string
   snap: ClinicConfigSnapshot
@@ -229,6 +246,7 @@ export function ServiceForm({
   }
 
   const occupied = duration + buffer
+  const signalBase = signalBaseCents(withVariants, price, zones)
   const hasFemale = zones.some((z) => z.active && z.audience === 'feminino')
   const hasMale = zones.some((z) => z.active && z.audience === 'masculino')
   const audienceConflict =
@@ -261,7 +279,8 @@ export function ServiceForm({
       return
     }
     setSaving(true)
-    const priceCents = parsePriceToCents(price)
+    // Com variantes o preço da linha fica escondido; a marcação usa a soma das variantes.
+    const priceCents = withVariants ? null : parsePriceToCents(price)
     const body: ServiceUpsertBody = {
       name,
       durationMinutes: duration,
@@ -297,6 +316,11 @@ export function ServiceForm({
       variantKindPlural: (withVariants ? zones : []).length > 0 ? variantKindPlural.trim() || null : null,
     }
     const draftZones = withVariants ? zones : []
+    if (withVariants && draftZones.length === 0) {
+      setFormError('Adicione ao menos uma variante. O que você digitou continua aqui.')
+      setSaving(false)
+      return
+    }
     if (draftZones.length > 0 && (!variantKind.trim() || !variantKindPlural.trim())) {
       setFormError('Dê o singular e o plural do tipo. O que você digitou continua aqui.')
       setSaving(false)
@@ -304,6 +328,11 @@ export function ServiceForm({
     }
     if (draftZones.some((z) => !z.name.trim())) {
       setFormError('Dê um nome a cada variante. O que você digitou continua aqui.')
+      setSaving(false)
+      return
+    }
+    if (requiresSignal && signalKind === 'percent' && signalBase == null) {
+      setFormError('Cadastre o preço antes do sinal percentual. O que você digitou continua aqui.')
       setSaving(false)
       return
     }
@@ -338,11 +367,20 @@ export function ServiceForm({
         } catch (zoneErr) {
           if (!hadZones) {
             await api
-              .upsertService(tenantId, { ...body, variantKind: null, variantKindPlural: null }, {
-                serviceId: saved.id,
-                generation,
-                expectGeneration: () => generation,
-              })
+              .upsertService(
+                tenantId,
+                {
+                  ...body,
+                  variantKind: null,
+                  variantKindPlural: null,
+                  priceCents: existing?.priceCents ?? null,
+                },
+                {
+                  serviceId: saved.id,
+                  generation,
+                  expectGeneration: () => generation,
+                },
+              )
               .catch(() => {})
           }
           throw zoneErr
@@ -680,8 +718,8 @@ export function ServiceForm({
                       {
                         id: 'percent',
                         label: 'Percentual do preço',
-                        hint: parsePriceToCents(price) ? undefined : 'Cadastre o preço primeiro',
-                        disabled: !parsePriceToCents(price),
+                        hint: signalBase ? undefined : 'Cadastre o preço primeiro',
+                        disabled: !signalBase,
                       },
                     ]}
                   />
@@ -705,17 +743,13 @@ export function ServiceForm({
                       />
                     </TextField>
                   )}
-                  {signalKind === 'percent' && parsePriceToCents(price) != null ? (
+                  {signalKind === 'percent' && signalBase != null ? (
                     <p className="clinic-hint-box">
                       Resumo: sinal de{' '}
                       {formatPriceCents(
-                        Math.trunc(
-                          ((parsePriceToCents(price) ?? 0) *
-                            (Number.parseInt(signalPercent, 10) || 0)) /
-                            100,
-                        ),
+                        Math.trunc((signalBase * (Number.parseInt(signalPercent, 10) || 0)) / 100),
                       )}{' '}
-                      ({signalPercent}% de {formatPriceCents(parsePriceToCents(price))}).
+                      ({signalPercent}% de {formatPriceCents(signalBase)}).
                     </p>
                   ) : null}
                 </>

@@ -18,6 +18,7 @@ import type {
   UpsertServiceInput,
 } from './types'
 import { listServiceWeeklyWindows, setServiceWeeklyWindows } from './service-windows'
+import { listCombos } from './combos'
 import { listZones } from './zones'
 import { VARIANT_KIND_MAX } from '../catalog/variant-kind'
 import {
@@ -146,6 +147,7 @@ function toServiceRow(
     variantKind: row.variant_kind?.trim() || null,
     variantKindPlural: row.variant_kind_plural?.trim() || null,
     zones: listZones(db, row.tenant_id, row.id),
+    combos: listCombos(db, row.tenant_id, row.id),
   }
 }
 
@@ -188,6 +190,21 @@ function normalizeSignalFields(
     kind === 'percent' && input.signalPercent != null
       ? Math.trunc(input.signalPercent)
       : null
+  // Com variantes o preço da linha fica vazio; o valor do sinal sai da visita.
+  if (kind === 'percent' && input.variantKind?.trim() && !(priceCents != null && priceCents > 0)) {
+    if (percent === null || !Number.isInteger(percent) || percent < 1 || percent > 100) {
+      throw new ValidationError('invalid_percent', 'configuração de sinal inválida: invalid_percent', {
+        signalKind: kind,
+        signalPercent: percent,
+      })
+    }
+    return {
+      requiresSignal: 1,
+      signalKind: 'percent',
+      signalFixedCents: null,
+      signalPercent: percent,
+    }
+  }
   const err = assertValidSignalConfig(
     {
       requiresSignal: true,
