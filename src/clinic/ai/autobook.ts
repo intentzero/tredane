@@ -186,8 +186,12 @@ export function extractServices(text: string, services: ServiceRow[]): ServiceRo
 
 const AFFIRMATIVE =
   /\b(sim|pode ser|pode marcar|pode agendar|pode|confirmo|confirmado|confirma|fechado|combinado|quero|isso|ok|okay|perfeito|beleza|blz|otimo|bora|marca|marcar|agenda|agendar|serve|fica bom|esta otimo|ta bom|ta otimo|certo)\b/
+/** Hesitação/negativa. «?» sozinho não conta: «pode ser às 14?» é escolha, não dúvida. */
 const NEGATIVE_OR_HESITANT =
-  /\b(nao|talvez|acho|sera|depois|ver|vou ver|pensar|outro|outra|mais tarde|ou)\b|\?/
+  /\b(nao|talvez|acho|sera|depois|ver|vou ver|pensar|outro|outra|mais tarde|ou)\b/
+/** «Tudo» / «todas» = todas as variantes activas (REQ-088: escolha da cliente). */
+const ALL_ZONES =
+  /\b(tudo|todas|todos|as\s+duas|as\s+tres|as\s+tr[eê]s|completo|completa)\b/
 const RESCHEDULE = /\b(remarc\w*|desmarc\w*|cancel\w*|mudar|trocar|adiar)\b/
 
 type Msg = { id: string; direction: string; body: string; created_at: number }
@@ -267,10 +271,20 @@ function zonesChosenByClient(
     if (m.direction === 'inbound') texts.push(m.body)
   }
   for (const text of texts) {
+    if (ALL_ZONES.test(norm(text))) return [...zones]
     const found = zonesNamedInText(text, zones)
     if (found.length > 0) return found
   }
   return []
+}
+
+function askZonesReply(kind: string, zoneNames: string[], time: string): string {
+  const label = kind.trim() || 'variantes'
+  const list = zoneNames.join(', ')
+  return (
+    `Para fechar às ${time}, me diga ${label === 'variantes' ? 'as variantes' : `a ${label}`}: ${list}. ` +
+    `Pode ser mais de uma.`
+  )
 }
 
 function firstName(label: string | null | undefined): string | null {
@@ -404,16 +418,22 @@ export async function tryAiAutoBook(
   const namedZones = zonesChosenByClient(clientTurn, older, activeZones)
   const kind = svc.variantKind?.trim() || 'variantes'
   if (activeZones.length > 0 && namedZones.length === 0) {
+    const names = activeZones.map((z) => z.name)
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
+      // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
+      replyText: askZonesReply(kind, names, time),
       notes:
-        `A cliente falou em ${svc.name} sem escolher ${kind} (${activeZones.map((z) => z.name).join(', ')}). ` +
-        `Pergunte as ${kind}. Não informe valor nem «a partir de».`,
+        `A cliente falou em ${svc.name} sem escolher ${kind} (${names.join(', ')}). ` +
+        `Pergunta automática enviada. Não informe valor nem «a partir de».`,
     }
   }
   if (variantAudiencesConflict(namedZones)) {
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
+      replyText:
+        `As ${kind} que misturam masculino e feminino não entram na mesma visita. ` +
+        `Escolha um conjunto compatível (ambos combina com os dois).`,
       notes:
         `As ${kind} escolhidas misturam masculino e feminino. Peça um conjunto compatível. Ambos combina com os dois. Não informe valor nem envie proposta.`,
     }
