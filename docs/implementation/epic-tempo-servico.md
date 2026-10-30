@@ -1,6 +1,6 @@
 # Épico — Bloco Tempo no serviço (DEC-077)
 
-**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). S1 está na migração `0033_service_tempo`. S2 grava o local no hub. S3 grava o bloco na ficha do serviço. S4 a S7 não estão implementadas.
+**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «ok, vamos criar um epico para isto, considerando os elementos de ui necessarios»). Este documento é o épico. Issue: [#301](https://github.com/intentzero/tredane/issues/301). S1 está na migração `0033_service_tempo`. S2 grava o local no hub. S3 grava o bloco na ficha do serviço. S4 avalia a hora (`src/clinic/tempo/evaluate.ts`); a agenda ainda não filtra. S5 a S7 não estão implementadas.
 
 **Decisão:** [DEC-077](../product/decisions.md). A DEC-076 já está na `main` (duração do procedimento não se ajusta ao agendar) e não é este bloco. Mantém DEC-008 (duração, intervalo, grade de 15 min, fuso da clínica), DEC-042 (só a responsável configura), DEC-011 (contexto da IA), DEC-061 (marcação automática só pelo botão) e DEC-075 (sala, capacidade, modo, audiência e mesmo sexo ficam de fora deste bloco).
 
@@ -138,7 +138,7 @@ S1 → S2 → S3 → S4 → S5 → S6 → S7. Cada fatia é verificável sozinha
 
 **Comportamento.** Uma função avalia o serviço numa hora de início. Entrada: restrição do serviço, fuso, local, instante de início. Saída: serve, não serve (céu, temperatura ou os dois) ou indisponível (sem local, sem previsão, símbolo desconhecido, erro ou tempo esgotado). Não oferece horário e não confirma nada: quem chama é a S5 e a S6.
 
-O adaptador fala com o provedor e devolve só símbolo de céu e temperatura inteira, ou falha. A spec técnica do adaptador, nesse PR, regista o provedor, o mapa dos códigos para os símbolos desta decisão, o corte quando só houver percentagem, como um decimal vira inteiro e qual amostra horária contém o início no fuso da clínica. Esse corte não aparece na interface nem nesta decisão.
+O adaptador fala com o provedor e devolve só símbolo de céu e temperatura inteira, ou falha. A spec técnica do adaptador, nesse PR, regista o provedor, o mapa dos códigos para os símbolos desta decisão, o corte quando só houver percentagem, como um decimal vira inteiro e qual amostra horária contém o início no fuso da clínica. Esse corte não aparece na interface nem nesta decisão. Quem a S5 chama é `evaluateServiceTempo` (`src/clinic/tempo/evaluate.ts`), com o adaptador injetado. O adaptador Open-Meteo é `readOpenMeteo`.
 
 **Regras.**
 
@@ -156,12 +156,12 @@ O adaptador fala com o provedor e devolve só símbolo de céu e temperatura int
 
 **Critérios de aceite.** AC-64.
 
-- [ ] Teste com previsão fictícia, sem rede: céu limpo sem chuva e 25 °C serve a Sol e a Acima de 24. 24 °C não serve a Acima de 24. Céu encoberto não serve a Sol. Garoa serve a Chuva e não serve a Sol.
-- [ ] Nevoeiro não serve a Sol nem a Chuva. Trovoada serve a Chuva.
-- [ ] Muito nublado sem chuva não serve a Sol.
-- [ ] Serviço em Tanto faz / Tanto faz devolve serve sem chamada ao adaptador.
-- [ ] Sem local, erro do adaptador, símbolo desconhecido ou percentagem que o adaptador não mapeia: indisponível. O teste não vê o corpo do provedor na saída.
-- [ ] A spec do adaptador (comentário ou nota junto do código dessa fatia) contém o corte numérico. Nenhuma frase de [ux-ui.md](../product/ux-ui.md) contém percentagem.
+- [x] Teste com previsão fictícia, sem rede: céu limpo sem chuva e 25 °C serve a Sol e a Acima de 24. 24 °C não serve a Acima de 24. Céu encoberto não serve a Sol. Garoa serve a Chuva e não serve a Sol.
+- [x] Nevoeiro não serve a Sol nem a Chuva. Trovoada serve a Chuva.
+- [x] Muito nublado sem chuva não serve a Sol.
+- [x] Serviço em Tanto faz / Tanto faz devolve serve sem chamada ao adaptador.
+- [x] Sem local, erro do adaptador, símbolo desconhecido ou percentagem que o adaptador não mapeia: indisponível. O teste não vê o corpo do provedor na saída.
+- [x] A spec do adaptador (comentário junto de `src/clinic/tempo/open-meteo.ts`) contém o corte numérico. [ux-ui.md](../product/ux-ui.md) não ganhou o corte: continua só «sem percentagem».
 
 ---
 
@@ -269,6 +269,6 @@ Serviço «Bronzeamento», Sol e Acima de 24 °C. Clínica com cidade. Às 15h, 
 
 ## O que este épico não fecha
 
-Qual provedor de previsão e o corte numérico (spec do adaptador, na S4). Valores reais da clínica piloto. Revisão jurídica antes de dados reais (GATE-04). S1 é a migração `0033_service_tempo`. S2 grava o local no hub (`PUT /config/forecast-place`). S3 grava céu e temperatura no serviço. S4 a S7 seguem, um PR por fatia.
+O provedor e o corte numérico ficam na spec do adaptador (`src/clinic/tempo/open-meteo.ts`): Open-Meteo, percentagem sem código só vira chuva a partir de 60, e esse número não entra na interface nem na DEC-077. Valores reais da clínica piloto. Revisão jurídica antes de dados reais (GATE-04). S1 é a migração `0033_service_tempo`. S2 grava o local no hub (`PUT /config/forecast-place`). S3 grava céu e temperatura no serviço. S4 avalia e não filtra a agenda. S5 a S7 seguem, um PR por fatia.
 
 **Aceite por fatia:** S1 AC-61; S2 AC-62 (REQ-089); S3 AC-63 (REQ-090); S4 AC-64 (REQ-091); S5 AC-65 (REQ-092); S6 AC-66 (REQ-092); S7 AC-67 (REQ-093). Jornadas: JRN-03, JRN-08, JRN-17.
