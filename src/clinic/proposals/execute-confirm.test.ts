@@ -25,6 +25,7 @@ import { insertMessage } from '../inbox/messages'
 import { clinicInbox, clinicWhatsapp, workerCaller } from '../index'
 import { connectPixAccountOp } from '../pix'
 import { createWooviSandboxFixture } from '../../pix'
+import { insertOpportunity, getOpportunity } from '../pipeline/opportunities'
 import { confirmAppointmentOp } from '../scheduling/booking'
 import { bootClinicDb } from '../test-db'
 import { listOperationalAudit } from '../audit'
@@ -268,6 +269,32 @@ describe('S5: book sem sinal', () => {
       expect(ai?.detailJson).toMatch(/Marcado pela IA/)
       expect(ai?.detailJson).toMatch(proposal.id)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(1)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('clique move a oportunidade aberta da conversa para Agendado', async () => {
+    const s = await seedBookable()
+    try {
+      const opp = insertOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contact.id,
+          conversationId: s.conversation.id,
+          stage: 'em_atendimento',
+        },
+        s.clock,
+      )
+      const proposal = makeSent(s)
+      const result = await confirmClick(s, proposal.id, proposal.version)
+      expect(result.status).toBe('booked')
+      const after = getOpportunity(s.db, s.tenantId, opp.id)
+      expect(after?.stage).toBe('agendado')
+      expect(after?.linkedAppointmentId).toBe(
+        result.status === 'booked' ? result.appointment.id : null,
+      )
     } finally {
       s.close()
     }

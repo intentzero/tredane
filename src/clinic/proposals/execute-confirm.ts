@@ -22,6 +22,7 @@ import type { OutboxRow } from '../outbox'
 import { getPixChargeByIdempotencyKey } from '../pix/charges'
 import { createSignalChargeAndSendOp } from '../pix/signal-charge'
 import type { PixChargeRow } from '../pix/types'
+import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
 import { confirmAppointmentOp } from '../scheduling/booking'
 import type { AppointmentDetail } from '../scheduling/booking-types'
 import { queryAvailability } from '../scheduling/query'
@@ -45,6 +46,17 @@ export function proposalBookClientRequestId(proposalId: string, version: number)
 
 export function proposalPixClientRequestId(proposalId: string, version: number): string {
   return `${PROPOSAL_PIX_CLIENT_REQUEST_PREFIX}${proposalId}:v${version}`
+}
+
+const BUTTON_STAGE_NOTE = 'Compromisso confirmado pelo botão do WhatsApp'
+
+function openOpportunityId(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string | null,
+): string | null {
+  if (!conversationId) return null
+  return findOpenOpportunityForConversation(db, tenantId, conversationId)?.id ?? null
 }
 
 export type ExecuteProposalConfirmDenial =
@@ -285,9 +297,11 @@ export async function executeProposalConfirmOp(
           startsAt: proposal.startsAt,
           contactId: proposal.contactId,
           conversationId: proposal.conversationId,
+          opportunityId: openOpportunityId(db, meta.tenantId, proposal.conversationId),
           actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
           actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
           appliedDurationMinutes: null,
+          stageNote: BUTTON_STAGE_NOTE,
         },
         clock,
       )
@@ -425,6 +439,7 @@ export async function executeProposalConfirmOp(
         clientRequestId: proposalPixClientRequestId(proposal.id, proposal.version),
         conversationId: proposal.conversationId,
         contactId: proposal.contactId,
+        opportunityId: openOpportunityId(db, meta.tenantId, proposal.conversationId),
         serviceId: proposal.serviceId,
         professionalId: proposal.professionalId,
         roomResourceId,
@@ -481,10 +496,12 @@ export async function executeProposalConfirmOp(
         startsAt: proposal.startsAt,
         contactId: proposal.contactId,
         conversationId: proposal.conversationId,
+        opportunityId: openOpportunityId(db, meta.tenantId, proposal.conversationId),
         contactLabel,
         actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
         actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
         appliedDurationMinutes: null,
+        stageNote: BUTTON_STAGE_NOTE,
       },
       clock,
     )
