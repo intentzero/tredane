@@ -749,11 +749,33 @@ function parseServiceBody(body: Record<string, unknown>) {
     ...(body.audiencia === undefined
       ? {}
       : { audiencia: body.audiencia as 'feminino' | 'masculino' | 'qualquer' }),
+    ...parseTempoBody(body),
     ...(body.weeklyWindows === undefined
       ? {}
       : {
           weeklyWindows: parseWeeklyWindowsBody(body.weeklyWindows),
         }),
+  }
+}
+
+function parseTempoBody(body: Record<string, unknown>) {
+  const present =
+    body.tempoCeu !== undefined ||
+    body.tempoTemperatura !== undefined ||
+    body.tempoCelsius !== undefined
+  if (!present) return {}
+  if (Array.isArray(body.tempoTemperatura) || Array.isArray(body.tempoCeu)) {
+    throw new ValidationError(
+      'invalid_tempo',
+      'Não dá para pedir acima e abaixo ao mesmo tempo.',
+    )
+  }
+  return {
+    ...(body.tempoCeu === undefined ? {} : { tempoCeu: body.tempoCeu as 'tanto_faz' | 'sol' | 'chuva' }),
+    ...(body.tempoTemperatura === undefined
+      ? {}
+      : { tempoTemperatura: body.tempoTemperatura as 'tanto_faz' | 'acima' | 'abaixo' }),
+    ...(body.tempoCelsius === undefined ? {} : { tempoCelsius: body.tempoCelsius as number | null }),
   }
 }
 

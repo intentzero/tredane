@@ -3,6 +3,9 @@ import type { BlockReason, ResourceKind } from '../constants'
 
 export type ServiceSignalKind = 'fixed' | 'percent'
 
+export type TempoCeu = 'tanto_faz' | 'sol' | 'chuva'
+export type TempoTemperatura = 'tanto_faz' | 'acima' | 'abaixo'
+
 export type ServiceRow = {
   id: string
   tenantId: string
@@ -11,6 +14,11 @@ export type ServiceRow = {
   bufferMinutes: number
   /** DEC-075 — audiência do serviço (não da pessoa). */
   audiencia: ServiceAudience
+  /** DEC-077 — céu exigido na hora de início. Tanto faz = sem restrição. */
+  tempoCeu: TempoCeu
+  /** DEC-077 — um lado só. Tanto faz limpa os graus. */
+  tempoTemperatura: TempoTemperatura
+  tempoCelsius: number | null
   priceCents: number | null
   clientExplanation: string | null
   active: boolean
@@ -261,6 +269,10 @@ export type UpsertServiceInput = {
   bufferMinutes: number
   /** Omitido na criação = qualquer; omitido na edição = mantém. Nunca inferir pelo nome. */
   audiencia?: ServiceAudience
+  /** Omitido o bloco inteiro na edição = mantém. Nunca inferir pelo nome. */
+  tempoCeu?: TempoCeu
+  tempoTemperatura?: TempoTemperatura
+  tempoCelsius?: number | null
   priceCents?: number | null
   clientExplanation?: string | null
   active?: boolean

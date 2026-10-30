@@ -495,3 +495,95 @@ describe('HTTP — local da previsão (DEC-077 S2)', () => {
     }
   })
 })
+
+describe('HTTP — bloco Tempo no serviço (DEC-077 S3)', () => {
+  it('grava Sol e Acima de 24, recusa grau quebrado ou os dois lados, e a atendente não grava', async () => {
+    const { app, close, auth } = testConfigApp()
+    try {
+      const pro = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/resources',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'professional', name: 'Gi' }),
+        }),
+      )
+      const proId = ((await pro.json()) as { id: string }).id
+      const post = (user: string, body: unknown) =>
+        app.request(
+          'http://localhost/api/tenants/clinic-demo-a/config/services',
+          auth(user, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }),
+        )
+      const denied = await post('user_synth_attendant_a', {
+        name: 'Bronzeamento',
+        durationMinutes: 60,
+        bufferMinutes: 0,
+        professionalIds: [proId],
+        roomRequirement: { mode: 'none' },
+        tempoCeu: 'sol',
+        tempoTemperatura: 'acima',
+        tempoCelsius: 24,
+      })
+      expect(denied.status).toBe(403)
+
+      const created = await post('user_synth_owner_a', {
+        name: 'Bronzeamento',
+        durationMinutes: 60,
+        bufferMinutes: 0,
+        professionalIds: [proId],
+        roomRequirement: { mode: 'none' },
+        tempoCeu: 'sol',
+        tempoTemperatura: 'acima',
+        tempoCelsius: 24,
+      })
+      expect(created.status).toBe(201)
+      const saved = (await created.json()) as {
+        id: string
+        tempoCeu: string
+        tempoTemperatura: string
+        tempoCelsius: number | null
+      }
+      expect(saved).toMatchObject({
+        tempoCeu: 'sol',
+        tempoTemperatura: 'acima',
+        tempoCelsius: 24,
+      })
+      expect(JSON.stringify(saved)).not.toMatch(/percentagem|%/)
+
+      const fraction = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/config/services/${saved.id}`,
+        auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Bronzeamento',
+            durationMinutes: 60,
+            bufferMinutes: 0,
+            professionalIds: [proId],
+            roomRequirement: { mode: 'none' },
+            tempoCeu: 'sol',
+            tempoTemperatura: 'acima',
+            tempoCelsius: 24.5,
+          }),
+        }),
+      )
+      expect(fraction.status).toBe(400)
+      const both = await post('user_synth_owner_a', {
+        name: 'Banho',
+        durationMinutes: 30,
+        bufferMinutes: 0,
+        professionalIds: [proId],
+        roomRequirement: { mode: 'none' },
+        tempoTemperatura: ['acima', 'abaixo'],
+        tempoCelsius: 18,
+      })
+      expect(both.status).toBe(400)
+    } finally {
+      close()
+    }
+  })
+})
