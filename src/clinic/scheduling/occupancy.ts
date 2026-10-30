@@ -102,6 +102,7 @@ export type OccupyingAppointment = {
   /** Contacto da marcação; sem contacto cada marcação conta como pessoa distinta. */
   contactId: string | null
   personKey: string
+  roomResourceId: string | null
 }
 
 export function listConfirmedOccupyingResource(
@@ -155,6 +156,7 @@ export function listConfirmedOccupyingResource(
         occupiesUntil,
         contactId,
         personKey: contactId ?? `apt:${row.id}`,
+        roomResourceId: row.room_resource_id ?? null,
       })
     }
   }
@@ -179,6 +181,11 @@ export type ResourceBusyReason =
 /**
  * Verifica se um recurso está livre no intervalo de ocupação.
  * Não cria nem altera dados.
+ *
+ * @param groupModeRoomId DEC-075 / S4 — se a profissional marca nesta sala em
+ *   modo «Uma profissional para todas», as marcações dela *nesta* sala não a
+ *   travam (a capacidade da sala limita). Marcações noutra sala continuam a
+ *   bloquear.
  */
 export function resourceBusyReasons(
   db: ClinicDb,
@@ -192,6 +199,7 @@ export function resourceBusyReasons(
   range: Interval,
   dayEndsAt: number,
   excludeAppointmentId?: string | null,
+  groupModeRoomId?: string | null,
 ): ResourceBusyReason[] {
   const reasons: ResourceBusyReason[] = []
   if (range.endsAt > dayEndsAt) {
@@ -203,13 +211,16 @@ export function resourceBusyReasons(
   if (listBlocksOverlapping(db, tenantId, resourceId, range).length > 0) {
     reasons.push('resource_block')
   }
-  const occupying = listConfirmedOccupyingResource(
+  let occupying = listConfirmedOccupyingResource(
     db,
     tenantId,
     resourceId,
     range,
     excludeAppointmentId,
   )
+  if (groupModeRoomId) {
+    occupying = occupying.filter((a) => a.roomResourceId !== groupModeRoomId)
+  }
   if (occupying.length > 0) {
     const capacity = resourceCapacity(db, tenantId, resourceId)
     // DEC-075: pico de pessoas distintas (mesmo contacto = 1) por bloco de 15 min.

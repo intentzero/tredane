@@ -169,7 +169,12 @@ export function upsertResource(
         ? (homeRoomIn === undefined ? existing.homeRoomId : homeRoomIn)
         : null,
       input.kind === 'room'
-        ? (attendanceIn ?? existing.attendanceMode)
+        ? (() => {
+            const cap = capacityIn ?? existing.capacity
+            // Capacidade 1: sem modo grupo (DEC-075 / S4).
+            if (cap <= 1) return 'cada_profissional'
+            return attendanceIn ?? existing.attendanceMode
+          })()
         : 'cada_profissional',
       now,
       tenantId,
@@ -194,7 +199,11 @@ export function upsertResource(
     noticeIn ?? null,
     input.kind === 'professional' ? (hoursIn ?? defaultHoursMode(db, tenantId)) : 'own',
     input.kind === 'professional' ? (homeRoomIn ?? null) : null,
-    input.kind === 'room' ? (attendanceIn ?? 'cada_profissional') : 'cada_profissional',
+    input.kind === 'room'
+      ? (capacityIn ?? 1) <= 1
+        ? 'cada_profissional'
+        : (attendanceIn ?? 'cada_profissional')
+      : 'cada_profissional',
     now,
     now,
   )
