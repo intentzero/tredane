@@ -4,6 +4,7 @@
  * quando algo foge do normal.
  */
 import type { ClinicConfigSnapshot, ClinicResource, ClinicService } from '../../api'
+import { variantKindLabels } from '../../../../clinic/catalog/variant-kind'
 import { CLINIC_SCOPE_ID, windowsOf } from './clinicHours'
 import { formatMinutes, formatPriceCents } from './format'
 
@@ -113,10 +114,9 @@ export type ServiceRow = {
 export function serviceRow(snap: ClinicConfigSnapshot, svc: ClinicService): ServiceRow {
   const activeZones = (svc.zones ?? []).filter((z) => z.active)
   const total = svc.occupiedMinutes || svc.durationMinutes + svc.bufferMinutes
-  const kind = svc.variantKind?.trim() || 'Variantes'
   const occupies =
     activeZones.length > 0
-      ? `${activeZones.length} ${kind}`
+      ? variantKindLabels(svc).count(activeZones.length)
       : svc.bufferMinutes > 0
         ? `Ocupa ${total} min (${svc.durationMinutes} + ${svc.bufferMinutes} de intervalo)`
         : `Ocupa ${total} min`

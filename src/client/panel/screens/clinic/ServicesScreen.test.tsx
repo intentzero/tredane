@@ -111,3 +111,53 @@ describe('ServicesList — esqueleto comum e avisos', () => {
     expect(screen.getByText('Inativo')).toBeTruthy()
   })
 })
+
+describe('ServiceForm — catálogo de variantes', () => {
+  const zone = (id: string, name: string, audience: 'ambos' | 'feminino' | 'masculino') => ({
+    id,
+    name,
+    durationMinutes: 15,
+    priceCents: 5000,
+    audience,
+    active: true,
+    sortOrder: 0,
+  })
+
+  it('mostra singular e plural, sugere o plural e envia só o que foi corrigido', async () => {
+    const upsertService = vi.fn(async () => ({ id: 'svc_1' }))
+    const replaceServiceZones = vi.fn(async () => [])
+    renderForm(
+      svc({ variantKind: 'Zona', zones: [zone('z1', 'Axila', 'ambos')] }),
+      { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
+    )
+    expect((screen.getByLabelText('Nome no singular') as HTMLInputElement).value).toBe('Zona')
+    expect((screen.getByLabelText('No plural') as HTMLInputElement).value).toBe('Zonas')
+
+    fireEvent.change(screen.getByLabelText('Nome no singular'), { target: { value: 'Sessão' } })
+    expect((screen.getByLabelText('No plural') as HTMLInputElement).value).toBe('Sessões')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(upsertService).toHaveBeenCalled())
+    const body = (upsertService.mock.calls[0] as unknown[])[1] as Record<string, unknown>
+    expect(body.variantKind).toBe('Sessão')
+    expect(body.variantKindPlural).toBeNull()
+  })
+
+  it('avisa quando o serviço é masculino e há variante só feminina', () => {
+    renderForm(
+      svc({
+        audiencia: 'masculino',
+        variantKind: 'Zona',
+        zones: [zone('z1', 'Buço', 'feminino')],
+      }),
+      {},
+    )
+    expect(screen.getByRole('status').textContent).toMatch(/só para feminino/)
+  })
+
+  it('opção única esconde o catálogo e mostra duração e preço', () => {
+    renderForm(svc({}), {})
+    expect(screen.queryByLabelText('Nome no singular')).toBeNull()
+    expect(screen.getByText('Preço (opcional)')).toBeTruthy()
+  })
+})

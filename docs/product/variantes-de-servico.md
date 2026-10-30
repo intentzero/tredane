@@ -4,6 +4,8 @@
 
 **Confirmado (DEC-079, Paulo, 30/10/2026).** O tipo não é «zona». O serviço tem um único nome de tipo, texto livre, e cada variante tem género masculino, feminino ou ambos. Na mesma visita, ambos combina com qualquer um; masculino e feminino juntos são recusados e nada é gravado. A audiência do serviço (DEC-075) e a ausência de sexo no contacto mantêm-se. Com variantes, o tipo é obrigatório; sem variantes, o tipo limpa. Variantes já gravadas ficam ambos. A cópia da visita inclui o género. As tabelas `service_zones` e `visit_zone_snapshots` não se renomeiam.
 
+**Proposto (revisão da DEC-079, 30/10/2026; falta confirmação de Paulo).** O nome do tipo ganha singular e plural: «Zona» e «Zonas». O singular é o `variant_kind` (migração `0039_variant_kind_plural` acrescenta `variant_kind_plural`, nulo = sugerido pelas regras do português). A tela usa «1 zona» e «4 zonas» conforme a quantidade; a IA e a cobrança continuam a receber o plural. Textos de estado deixam de depender do gênero gramatical do tipo: «Em uso» / «Fora de uso» no lugar de «Ativa» / «Inativa». Combos de variantes **não** entram: continuam **Em aberto** e contradizem «sem desconto de pacote» até haver decisão.
+
 Exemplos fictícios. Nenhum dado de paciente ou clínica real.
 
 ## O que fica no serviço

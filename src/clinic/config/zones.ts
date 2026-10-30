@@ -136,7 +136,8 @@ export function replaceZones(
     }
     db.run(`DELETE FROM service_zones WHERE tenant_id = ? AND service_id = ?`, tenantId, service.id)
     db.run(
-      `UPDATE services SET variant_kind = NULL, updated_at = ? WHERE tenant_id = ? AND id = ?`,
+      `UPDATE services SET variant_kind = NULL, variant_kind_plural = NULL, updated_at = ?
+       WHERE tenant_id = ? AND id = ?`,
       now,
       tenantId,
       service.id,

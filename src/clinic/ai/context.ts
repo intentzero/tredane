@@ -10,6 +10,7 @@ import {
   filterServicesForLine,
 } from '../catalog/audience'
 import { listServices } from '../config/services'
+import { variantKindLabels } from '../catalog/variant-kind'
 import { getContact } from '../contacts'
 import { getConversation } from '../inbox/conversations'
 import { listMessages } from '../inbox/messages'
@@ -93,7 +94,9 @@ export async function buildAiContextPayload(
       priceCents: s.priceCents,
       clientExplanation: sanitizeCatalogField(s.clientExplanation),
       audiencia: s.audiencia,
-      variantKind: s.variantKind,
+      variantKind: s.variantKind
+        ? variantKindLabels(s).plural
+        : s.variantKind,
       zones: s.zones
         .filter((z) => z.active)
         .map((z) => ({

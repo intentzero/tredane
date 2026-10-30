@@ -47,6 +47,8 @@ export type ServiceRow = {
    * Nulo quando o serviço não tem variantes.
    */
   variantKind: string | null
+  /** Plural do tipo. Nulo: a interface sugere a partir do singular. */
+  variantKindPlural: string | null
   /** DEC-078 — vazio = o serviço continua uma linha só. */
   zones: ServiceZoneRow[]
 }
@@ -319,6 +321,8 @@ export type UpsertServiceInput = {
    * Obrigatório quando o serviço tem variantes (a gravação das variantes recusa a falta).
    */
   variantKind?: string | null
+  /** Omitido mantém; vazio ou nulo volta a sugerir pelo singular. */
+  variantKindPlural?: string | null
 }
 
 export type UpsertResourceInput = {

@@ -20,6 +20,7 @@ import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
 import { listServices } from '../config/services'
+import { variantKindLabels } from '../catalog/variant-kind'
 import { quoteVisit, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
@@ -416,7 +417,9 @@ export async function tryAiAutoBook(
   const time = det.time
   const activeZones = svc.zones.filter((z) => z.active)
   const namedZones = zonesChosenByClient(clientTurn, older, activeZones)
-  const kind = svc.variantKind?.trim() || 'variantes'
+  const kind = svc.variantKind?.trim()
+    ? variantKindLabels(svc).plural.toLocaleLowerCase('pt-BR')
+    : 'variantes'
   if (activeZones.length > 0 && namedZones.length === 0) {
     const names = activeZones.map((z) => z.name)
     return {

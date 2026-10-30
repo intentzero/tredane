@@ -21,6 +21,7 @@ import {
   type PixSnapshot,
 } from '../../api'
 import { navigatePanel } from '../../routes'
+import { variantKindLabels } from '../../../../clinic/catalog/variant-kind'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
 import { InboxRealtimeProvider, isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
 import { ListSkeleton } from '../../states/ListSkeleton'
@@ -88,7 +89,7 @@ function signalAmountCents(svc: Service, priceCents: number | null = svc.priceCe
 }
 
 function variantTitle(svc: Service | undefined) {
-  return svc?.variantKind?.trim() || 'Variantes'
+  return variantKindLabels(svc ?? {}, 'Variantes').plural
 }
 
 function genderLabel(audience: string | undefined) {
@@ -572,7 +573,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
                   <span className="agd-service-name">{s.name}</span>
                   {activeZonesOf(s).length > 0 ? (
                     <span className="agd-service-meta">
-                      {activeZonesOf(s).length} {variantTitle(s)}
+                      {variantKindLabels(s).count(activeZonesOf(s).length)}
                     </span>
                   ) : (
                     <>
