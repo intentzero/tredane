@@ -163,6 +163,11 @@ function throwSlotConflict(
   throw new ConflictError('appointment_conflict', message, details)
 }
 
+function scheduledStageNote(input: ConfirmAppointmentInput): string {
+  const note = input.stageNote?.trim()
+  return note || 'Compromisso confirmado no Agendar'
+}
+
 function linkOpportunityIfPresent(
   db: ClinicDb,
   tenantId: string,
@@ -253,9 +258,37 @@ export function confirmAppointmentInTransaction(
       )
     }
     const apt = loadAppointment(db, meta.tenantId, existing.appointmentId)
+    const outbox: OutboxRow[] = []
+    // Reentrega do mesmo clique: o book antigo pode ter ficado sem a oportunidade.
+    if (input.opportunityId && !input.skipStageMove) {
+      if (!apt.opportunityId) {
+        linkOpportunityIfPresent(
+          db,
+          meta.tenantId,
+          apt.id,
+          input.opportunityId,
+          input.contactId ?? null,
+          input.conversationId ?? null,
+          clock.nowMs(),
+          outbox,
+          clock,
+        )
+      }
+      moveStage(
+        db,
+        meta.tenantId,
+        input.opportunityId,
+        'agendado',
+        { id: actorId, name: input.actorDisplayName ?? null },
+        scheduledStageNote(input),
+        clock,
+        outbox,
+      )
+    }
+    const linked = outbox.length > 0 ? loadAppointment(db, meta.tenantId, apt.id) : apt
     return {
-      value: enrichDetail(db, meta.tenantId, apt, clock),
-      outbox: [],
+      value: enrichDetail(db, meta.tenantId, linked, clock),
+      outbox,
       idempotentReplay: true,
     }
   }
@@ -414,7 +447,7 @@ export function confirmAppointmentInTransaction(
       input.opportunityId,
       'agendado',
       { id: actorId, name: input.actorDisplayName ?? null },
-      'Compromisso confirmado no Agendar',
+      scheduledStageNote(input),
       clock,
       outbox,
     )
@@ -488,27 +521,6 @@ export function confirmAppointmentOp(
   input: ConfirmAppointmentInput,
   clock: Clock,
 ): AppointmentMutationResult<AppointmentDetail> {
-  assertClinicSchemaReady(db)
-  assertValidCaller(caller)
-  const meta = bindOrAssertTenant(db, caller, clock)
-  const clientRequestId = requireClientRequestId(input.clientRequestId)
-
-  const existing = findAppointmentCommand(db, meta.tenantId, clientRequestId)
-  if (existing) {
-    if (existing.command !== 'confirm') {
-      throw new ConflictError(
-        'client_request_id_reuse',
-        'clientRequestId já usado noutra operação',
-      )
-    }
-    const apt = loadAppointment(db, meta.tenantId, existing.appointmentId)
-    return {
-      value: enrichDetail(db, meta.tenantId, apt, clock),
-      outbox: [],
-      idempotentReplay: true,
-    }
-  }
-
   return db.transactionSync(() =>
     confirmAppointmentInTransaction(db, caller, input, clock),
   )

@@ -29,6 +29,8 @@ export type ConfirmAppointmentInput = {
   durationMinutesOverride?: number | null
   /** DEC-052: quem chama já move a etapa (ex.: bloco com nota própria). */
   skipStageMove?: boolean
+  /** Nota do histórico ao ir para «Agendado». Padrão: confirmação no Agendar. */
+  stageNote?: string | null
   /** DEC-051: duração escolhida no Agendar (validada contra mín/máx do serviço). */
   appliedDurationMinutes?: number | null
   /** DEC-078: zonas escolhidas. Obrigatório quando o serviço tem zonas ativas. */
