@@ -1513,6 +1513,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return clinicConfig.getReadinessOp(this.#db, caller, this.#clock)
   }
 
+  async reviewClinicServices(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicConfig.reviewClinicServicesOp(this.#db, caller, this.#clock)
+  }
+
   /**
    * Espelho do canal WhatsApp (#31). Chamado pelo Worker após bind/release no D1.
    * Não armazena tokens — só estado de UI/readiness.

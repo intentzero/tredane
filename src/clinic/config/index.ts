@@ -83,8 +83,14 @@ export { listCombos, replaceCombos, readComboSnapshot, writeComboSnapshot } from
 export { computeConfigReadiness } from './readiness'
 export { loadConfigSnapshot } from './snapshot'
 export {
+  reviewClinicServices,
+  type ServiceReviewItem,
+  type ServiceReviewResult,
+} from './service-review'
+export {
   getConfigSnapshotOp,
   getReadinessOp,
+  reviewClinicServicesOp,
   updateTimezoneOp,
   setAiAssistEnabledOp,
   setAiProfileOp,

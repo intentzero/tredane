@@ -32,6 +32,7 @@ import {
 } from './settings'
 import { setWeeklyWindows } from './availability'
 import { loadConfigSnapshot } from './snapshot'
+import { reviewClinicServices } from './service-review'
 import { abuseLimitsFromEnv, type AbuseLimits } from '../ai/abuse-limits'
 import type {
   ConfigReadiness,
@@ -58,6 +59,15 @@ function prepare(db: ClinicDb, caller: ClinicCaller, clock: Clock) {
   const meta = bindOrAssertTenant(db, caller, clock)
   ensureClinicSettings(db, meta.tenantId, clock)
   return meta
+}
+
+export function reviewClinicServicesOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  clock: Clock,
+) {
+  const meta = prepare(db, caller, clock)
+  return reviewClinicServices(db, meta.tenantId, clock)
 }
 
 export function getConfigSnapshotOp(

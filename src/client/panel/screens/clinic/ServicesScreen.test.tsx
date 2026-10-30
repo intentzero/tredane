@@ -90,12 +90,13 @@ describe('ServiceForm — duração e variantes', () => {
       },
     ]
     renderForm(svc({ roomRequirement: { mode: 'none' } }), { upsertService }, rooms)
-    fireEvent.click(screen.getByRole('button', { name: /Mais opções/ }))
-    const none = screen.getByRole('checkbox', { name: 'Sem espaço definido' })
-    expect(none).toHaveProperty('checked', true)
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Sala A' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Sala B' }))
-    expect(screen.getByRole('checkbox', { name: 'Sem espaço definido' })).toHaveProperty('checked', false)
+    const none = screen.getByRole('button', { name: 'Sem espaço definido' })
+    expect(none.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: 'Sala A' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sala B' }))
+    expect(screen.getByRole('button', { name: 'Sem espaço definido' }).getAttribute('aria-pressed')).toBe(
+      'false',
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() =>
       expect(upsertService).toHaveBeenCalledWith(
@@ -110,8 +111,7 @@ describe('ServiceForm — duração e variantes', () => {
     cleanup()
     const blocked = vi.fn()
     renderForm(svc({ roomRequirement: { mode: 'none' } }), { upsertService: blocked }, rooms)
-    fireEvent.click(screen.getByRole('button', { name: /Mais opções/ }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Sem espaço definido' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sem espaço definido' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     expect(blocked).not.toHaveBeenCalled()
     expect(
@@ -294,7 +294,7 @@ describe('ServiceForm — catálogo de variantes', () => {
       }),
       {},
     )
-    expect(screen.getByRole('status').textContent).toMatch(/só para feminino/)
+    expect(screen.getByText(/só para feminino/).textContent).toMatch(/só para feminino/)
   })
 
   it('não grava opção única quando o formato é com variantes e não há linha', () => {
@@ -324,7 +324,7 @@ describe('ServiceForm — catálogo de variantes', () => {
       }),
       { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
     )
-    fireEvent.click(screen.getByRole('button', { name: /Mais opções/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Sinal Pix/i }))
     const summary = screen.getByText(/30% de/).textContent ?? ''
     expect(summary).toMatch(/50,00/)
     expect(summary).not.toMatch(/100,00/)

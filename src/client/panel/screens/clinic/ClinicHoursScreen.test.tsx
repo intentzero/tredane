@@ -7,6 +7,7 @@ vi.mock('../../routes', () => ({ navigatePanel: vi.fn() }))
 
 import { ClinicHoursScreen } from './ClinicHoursScreen'
 import { ProfessionalExtras } from './ResourceExtras'
+import { toWeekDraft, windowsOf } from './clinicHours'
 
 afterEach(cleanup)
 
@@ -190,10 +191,11 @@ describe('Horário da clínica', () => {
   })
 })
 
-describe('Ficha da profissional', () => {
-  it('chip de serviço grava a lista de quem faz o serviço, preservando o resto', async () => {
+describe('Ficha da profissional — rascunho (DEC-083)', () => {
+  it('chip de serviço só atualiza o rascunho; não grava no servidor', () => {
     const a = api()
     const s = snap()
+    const onToggle = vi.fn()
     render(
       <ProfessionalExtras
         resource={s.resources[0]!}
@@ -202,78 +204,70 @@ describe('Ficha da profissional', () => {
         api={a}
         generation={1}
         onSaved={async () => undefined}
+        draftServiceIds={['s1']}
+        onToggleService={onToggle}
+        hoursMode="clinic"
+        onHoursMode={vi.fn()}
+        ownDraft={toWeekDraft([])}
+        onOwnDraft={vi.fn()}
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Peeling' }))
-    await waitFor(() => expect(a.upsertService).toHaveBeenCalled())
-    const [, body, opts] = (a.upsertService as ReturnType<typeof vi.fn>).mock.calls[0]!
-    expect(opts.serviceId).toBe('s2')
-    expect(body.professionalIds).toEqual(['p1'])
-    expect(body.durationMinutes).toBe(45)
+    expect(onToggle).toHaveBeenCalledWith('s2')
+    expect(a.upsertService).not.toHaveBeenCalled()
   })
 
-  it('«Horário próprio» copia o da clínica antes de trocar o modo', async () => {
+  it('«Horário próprio» só muda o rascunho e copia o da clínica no editor', () => {
     const a = api()
     const s = snap()
+    const onHoursMode = vi.fn()
+    const onOwnDraft = vi.fn()
     render(
-      <ProfessionalExtras resource={s.resources[0]!} tenantId="t" snap={s} api={a} generation={1} onSaved={async () => undefined} />,
+      <ProfessionalExtras
+        resource={s.resources[0]!}
+        tenantId="t"
+        snap={s}
+        api={a}
+        generation={1}
+        onSaved={async () => undefined}
+        draftServiceIds={['s1']}
+        onToggleService={vi.fn()}
+        hoursMode="clinic"
+        onHoursMode={onHoursMode}
+        ownDraft={toWeekDraft([])}
+        onOwnDraft={onOwnDraft}
+      />,
     )
     fireEvent.click(screen.getByRole('tab', { name: 'Horário' }))
     fireEvent.click(screen.getByRole('radio', { name: 'Horário próprio' }))
-    await waitFor(() => expect(a.upsertResource).toHaveBeenCalled())
-    const [, scope, windows] = (a.setWeeklyWindows as ReturnType<typeof vi.fn>).mock.calls[0]!
-    expect(scope).toBe('p1')
-    expect(windows).toHaveLength(5)
-    expect((a.upsertResource as ReturnType<typeof vi.fn>).mock.calls[0]![1].hoursMode).toBe('own')
+    expect(onHoursMode).toHaveBeenCalledWith('own')
+    expect(onOwnDraft).toHaveBeenCalled()
+    expect(a.upsertResource).not.toHaveBeenCalled()
+    expect(a.setWeeklyWindows).not.toHaveBeenCalled()
   })
-})
 
-describe('Ficha da profissional — rascunho do horário próprio (#257)', () => {
-  /** Estado logo depois de trocar para «Horário próprio»: modo `own`, ainda sem janelas salvas. */
-  function ownWithoutWindows(): ClinicConfigSnapshot {
+  it('com horário próprio no rascunho, o editor mostra as janelas passadas', () => {
     const s = snap()
-    return {
-      ...s,
-      resources: s.resources.map((r) => (r.id === 'p1' ? { ...r, hoursMode: 'own' } : r)),
-    } as unknown as ClinicConfigSnapshot
-  }
-
-  /** Mesmo estado depois de gravar a cópia do horário da clínica para a profissional. */
-  function ownWithCopy(): ClinicConfigSnapshot {
-    const s = ownWithoutWindows()
-    return {
-      ...s,
-      weeklyWindows: [...s.weeklyWindows, ...[1, 2, 3, 4, 5].map((d) => win('p1', d, 480, 1080))],
-    } as unknown as ClinicConfigSnapshot
-  }
-
-  const extras = (s: ClinicConfigSnapshot) => (
-    <ProfessionalExtras
-      resource={s.resources.find((r) => r.id === 'p1')!}
-      tenantId="t"
-      snap={s}
-      api={api()}
-      generation={1}
-      onSaved={async () => undefined}
-    />
-  )
-
-  it('depois de gravar a cópia da clínica, o editor mostra os dias abertos e não há nada a salvar', () => {
-    const view = render(extras(ownWithoutWindows()))
+    const own = toWeekDraft([...[1, 2, 3, 4, 5].map((d) => win('p1', d, 480, 1080))])
+    render(
+      <ProfessionalExtras
+        resource={{ ...s.resources[0]!, hoursMode: 'own' }}
+        tenantId="t"
+        snap={s}
+        api={api()}
+        generation={1}
+        onSaved={async () => undefined}
+        draftServiceIds={['s1']}
+        onToggleService={vi.fn()}
+        hoursMode="own"
+        onHoursMode={vi.fn()}
+        ownDraft={own}
+        onOwnDraft={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getByRole('tab', { name: 'Horário' }))
-    expect(screen.getAllByText('Fechado')).toHaveLength(7)
-    view.rerender(extras(ownWithCopy()))
     expect(screen.getAllByText('Fechado')).toHaveLength(2)
     expect(screen.getAllByText('08:00 – 18:00')).toHaveLength(5)
-    expect((screen.getByRole('button', { name: 'Horário salvo' }) as HTMLButtonElement).disabled).toBe(true)
-  })
-
-  it('edição em andamento não é descartada quando o horário salvo é atualizado', () => {
-    const view = render(extras(ownWithoutWindows()))
-    fireEvent.click(screen.getByRole('tab', { name: 'Horário' }))
-    fireEvent.click(screen.getByRole('switch', { name: 'Sábado: fechado' }))
-    expect(screen.getByRole('switch', { name: 'Sábado: aberto' })).toBeTruthy()
-    view.rerender(extras(ownWithCopy()))
-    expect(screen.getByRole('switch', { name: 'Sábado: aberto' })).toBeTruthy()
+    expect(windowsOf(s, 'p1')).toHaveLength(0)
   })
 })

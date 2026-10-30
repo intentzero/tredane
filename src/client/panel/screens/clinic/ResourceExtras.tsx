@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Button } from 'react-aria-components'
+import { useState } from 'react'
+import { Button, Input, Label, TextField } from 'react-aria-components'
 import {
   PanelApiError,
   type ClinicConfigSnapshot,
@@ -168,28 +168,33 @@ function BlocksSection({
   )
 }
 
-/** Ficha da profissional: serviços que faz, horário (clínica ou próprio) e folgas. */
-export function ProfessionalExtras({ resource, ...c }: Common & { resource: ClinicResource }) {
-  const { error, busy, run } = useGuard()
-  const fo = { generation: c.generation, expectGeneration: () => c.generation }
+type ProDraftProps = Common & {
+  resource: ClinicResource
+  /** IDs dos serviços no rascunho (DEC-083). */
+  draftServiceIds: string[]
+  onToggleService: (serviceId: string) => void
+  hoursMode: 'clinic' | 'own'
+  onHoursMode: (mode: 'clinic' | 'own') => void
+  ownDraft: WeekDraft
+  onOwnDraft: (draft: WeekDraft) => void
+}
+
+/** Ficha da profissional em rascunho: chips e horário só gravam com Salvar (DEC-083). */
+export function ProfessionalExtras({
+  resource,
+  draftServiceIds,
+  onToggleService,
+  hoursMode,
+  onHoursMode,
+  ownDraft,
+  onOwnDraft,
+  ...c
+}: ProDraftProps) {
   const services = c.snap.services.filter((s) => s.active)
   const clinicWeek = toWeekDraft(windowsOf(c.snap, CLINIC_SCOPE_ID))
-  const ownSaved = useMemo(() => toWeekDraft(windowsOf(c.snap, resource.id)), [c.snap, resource.id])
-  const [ownDraft, setOwnDraft] = useState<WeekDraft>(ownSaved)
-  // O rascunho acompanha o horário salvo (ex.: a cópia da clínica gravada ao trocar para
-  // «Horário próprio»), a menos que haja edição em andamento (#257).
-  const [syncedWith, setSyncedWith] = useState<WeekDraft>(ownSaved)
-  if (ownSaved !== syncedWith) {
-    const editing = JSON.stringify(ownDraft) !== JSON.stringify(syncedWith)
-    setSyncedWith(ownSaved)
-    if (!editing) setOwnDraft(ownSaved)
-  }
-  const follows = resource.hoursMode === 'clinic'
+  const follows = hoursMode === 'clinic'
   const [tab, setTab] = useState<'servicos' | 'horario' | 'folgas'>('servicos')
-  const dirty = JSON.stringify(ownDraft) !== JSON.stringify(ownSaved)
-
-  const doesIt = (s: ClinicService) => s.professionalIds.includes(resource.id)
-  const count = services.filter(doesIt).length
+  const count = draftServiceIds.length
 
   return (
     <>
@@ -218,24 +223,8 @@ export function ProfessionalExtras({ resource, ...c }: Common & { resource: Clin
                 key={s.id}
                 type="button"
                 className="block-form-chip"
-                aria-pressed={doesIt(s)}
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    const next = doesIt(s)
-                      ? s.professionalIds.filter((id) => id !== resource.id)
-                      : [...s.professionalIds, resource.id]
-                    await c.api.upsertService(
-                      c.tenantId,
-                      serviceBody(s, { professionalIds: next }),
-                      {
-                        serviceId: s.id,
-                        ...fo,
-                      },
-                    )
-                    await c.onSaved()
-                  }, 'Não foi possível mudar o serviço.')
-                }
+                aria-pressed={draftServiceIds.includes(s.id)}
+                onClick={() => onToggleService(s.id)}
               >
                 {s.name}
               </button>
@@ -244,7 +233,7 @@ export function ProfessionalExtras({ resource, ...c }: Common & { resource: Clin
           <p className="clinic-footnote">
             {services.length === 0
               ? 'Cadastre serviços para marcar aqui. Dá para fazer isso depois.'
-              : `${count} de ${services.length} serviços · toque para marcar ou desmarcar. É a mesma lista de «Quem faz» em cada serviço.`}
+              : `${count} de ${services.length} serviços · toque para marcar ou desmarcar. Salvar aplica também em «Quem faz» de cada serviço.`}
           </p>
         </section>
       ) : null}
@@ -259,24 +248,8 @@ export function ProfessionalExtras({ resource, ...c }: Common & { resource: Clin
               type="button"
               role="radio"
               aria-checked={follows}
-              disabled={busy}
               className="week-mode-btn"
-              onClick={() =>
-                !follows &&
-                void run(async () => {
-                  await c.api.upsertResource(
-                    c.tenantId,
-                    {
-                      kind: 'professional',
-                      name: resource.name,
-                      active: resource.active,
-                      hoursMode: 'clinic',
-                    },
-                    { resourceId: resource.id, ...fo },
-                  )
-                  await c.onSaved()
-                }, 'Não foi possível mudar o horário.')
-              }
+              onClick={() => onHoursMode('clinic')}
             >
               Igual ao da clínica
             </button>
@@ -284,33 +257,15 @@ export function ProfessionalExtras({ resource, ...c }: Common & { resource: Clin
               type="button"
               role="radio"
               aria-checked={!follows}
-              disabled={busy}
               className="week-mode-btn"
-              onClick={() =>
-                follows &&
-                void run(async () => {
-                  // Começa de uma cópia do horário da clínica, para não ficar sem horário.
-                  if (windowsOf(c.snap, resource.id).length === 0) {
-                    await c.api.setWeeklyWindows(
-                      c.tenantId,
-                      resource.id,
-                      fromWeekDraft(clinicWeek),
-                      fo,
-                    )
-                  }
-                  await c.api.upsertResource(
-                    c.tenantId,
-                    {
-                      kind: 'professional',
-                      name: resource.name,
-                      active: resource.active,
-                      hoursMode: 'own',
-                    },
-                    { resourceId: resource.id, ...fo },
-                  )
-                  await c.onSaved()
-                }, 'Não foi possível mudar o horário.')
-              }
+              onClick={() => {
+                if (follows) {
+                  // Ao passar a próprio, começa com cópia do da clínica se ainda vazio.
+                  const empty = Object.values(ownDraft).every((d) => (d?.length ?? 0) === 0)
+                  if (empty) onOwnDraft(clinicWeek)
+                }
+                onHoursMode('own')
+              }}
             >
               Horário próprio
             </button>
@@ -318,32 +273,11 @@ export function ProfessionalExtras({ resource, ...c }: Common & { resource: Clin
           {follows ? (
             <p className="clinic-footnote">{describeWeek(clinicWeek)}</p>
           ) : (
-            <>
-              <WeekEditor
-                value={ownDraft}
-                onChange={setOwnDraft}
-                label={`Horário de ${resource.name}`}
-              />
-              <div className="clinic-footer-actions">
-                <Button
-                  className="panel-btn panel-btn-primary"
-                  isDisabled={!dirty || busy}
-                  onPress={() =>
-                    void run(async () => {
-                      await c.api.setWeeklyWindows(
-                        c.tenantId,
-                        resource.id,
-                        fromWeekDraft(ownDraft),
-                        fo,
-                      )
-                      await c.onSaved()
-                    }, 'Não foi possível salvar o horário.')
-                  }
-                >
-                  {dirty ? 'Salvar horário' : 'Horário salvo'}
-                </Button>
-              </div>
-            </>
+            <WeekEditor
+              value={ownDraft}
+              onChange={onOwnDraft}
+              label={`Horário de ${resource.name}`}
+            />
           )}
         </section>
       ) : null}
@@ -358,22 +292,33 @@ export function ProfessionalExtras({ resource, ...c }: Common & { resource: Clin
           {...c}
         />
       ) : null}
-      {error ? (
-        <p className="clinic-form-error" role="alert">
-          {error}
-        </p>
-      ) : null}
     </>
   )
 }
 
-/** Ficha da sala: serviços feitos ali (no lugar da categoria) e fechamentos. */
-export function RoomExtras({ resource, ...c }: Common & { resource: ClinicResource }) {
-  const { error, busy, run } = useGuard()
-  const fo = { generation: c.generation, expectGeneration: () => c.generation }
+type RoomDraftProps = Common & {
+  resource: ClinicResource
+  draftServiceIds: string[]
+  onToggleService: (serviceId: string) => void
+  /** Frase WhatsApp e manutenção ficam em «Mais» (DEC-084 / #336). */
+  moreOpen: boolean
+  onMoreOpen: (open: boolean) => void
+  sharedNotice: string
+  onSharedNotice: (value: string) => void
+}
+
+/** Ficha da sala em rascunho: serviços feitos aqui só gravam com Salvar (DEC-083). */
+export function RoomExtras({
+  resource,
+  draftServiceIds,
+  onToggleService,
+  moreOpen,
+  onMoreOpen,
+  sharedNotice,
+  onSharedNotice,
+  ...c
+}: RoomDraftProps) {
   const services = c.snap.services.filter((s) => s.active)
-  const usesIt = (s: ClinicService) =>
-    s.roomRequirement.mode === 'rooms' && s.roomRequirement.resourceIds.includes(resource.id)
 
   return (
     <>
@@ -391,55 +336,108 @@ export function RoomExtras({ resource, ...c }: Common & { resource: ClinicResour
               key={s.id}
               type="button"
               className="block-form-chip"
-              aria-pressed={usesIt(s)}
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const current =
-                    s.roomRequirement.mode === 'rooms' ? s.roomRequirement.resourceIds : []
-                  const nextIds = usesIt(s)
-                    ? current.filter((id) => id !== resource.id)
-                    : [...current, resource.id]
-                  if (nextIds.length === 0) {
-                    throw new PanelApiError(
-                      400,
-                      'unknown',
-                      'Este era o único lugar do serviço. Na ficha do serviço, escolha outra sala ou Sem espaço definido.',
-                    )
-                  }
-                  await c.api.upsertService(
-                    c.tenantId,
-                    serviceBody(s, {
-                      roomRequirement: { mode: 'rooms', resourceIds: nextIds },
-                    }),
-                    { serviceId: s.id, ...fo },
-                  )
-                  await c.onSaved()
-                }, 'Não foi possível mudar o serviço.')
-              }
+              aria-pressed={draftServiceIds.includes(s.id)}
+              onClick={() => onToggleService(s.id)}
             >
               {s.name}
             </button>
           ))}
         </div>
         <p className="clinic-footnote">
-          Marcar inclui esta sala no serviço. Desmarcar tira só esta. Sem espaço definido
-          escolhe-se na ficha do serviço.
+          Marcar inclui esta sala no serviço («Onde acontece»). Desmarcar tira só esta. Sem espaço
+          definido escolhe-se na ficha do serviço. As alterações só gravam ao Salvar.
         </p>
       </section>
-      <BlocksSection
-        resource={resource}
-        title="Fechada para manutenção"
-        addLabel="Fechar esta sala"
-        reasons={['manutencao', 'outro']}
-        initialReason="manutencao"
-        {...c}
-      />
-      {error ? (
-        <p className="clinic-form-error" role="alert">
-          {error}
-        </p>
-      ) : null}
+
+      <section className="service-more">
+        <button
+          type="button"
+          className="service-more-head"
+          aria-expanded={moreOpen}
+          onClick={() => onMoreOpen(!moreOpen)}
+        >
+          <span className="service-more-copy">
+            <strong>Mais</strong>
+            <span>
+              {[
+                sharedNotice.trim() ? 'frase no WhatsApp' : null,
+                'manutenção',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          </span>
+          <span aria-hidden className="service-more-chev" data-open={moreOpen || undefined}>
+            ›
+          </span>
+        </button>
+        {moreOpen ? (
+          <div className="service-more-body">
+            {resource.kind === 'room' ? (
+              <>
+                <TextField className="clinic-field">
+                  <Label>Frase para a confirmação pelo WhatsApp (opcional)</Label>
+                  <Input
+                    autoComplete="off"
+                    maxLength={300}
+                    value={sharedNotice}
+                    onChange={(e) => onSharedNotice(e.target.value)}
+                    placeholder="Ex.: O espaço de bronzeamento é compartilhado."
+                  />
+                </TextField>
+                <p className="clinic-footnote">
+                  Entra na mensagem de confirmação dos horários nesta sala. Não diga quantas vagas
+                  restam.
+                </p>
+              </>
+            ) : null}
+            <BlocksSection
+              resource={resource}
+              title="Fechada para manutenção"
+              addLabel="Fechar esta sala"
+              reasons={['manutencao', 'outro']}
+              initialReason="manutencao"
+              {...c}
+            />
+          </div>
+        ) : null}
+      </section>
     </>
   )
 }
+
+/** Nomes dos serviços cujo «Quem faz» muda ao gravar a profissional. */
+export function professionalEffectNames(
+  snap: ClinicConfigSnapshot,
+  resourceId: string,
+  draftServiceIds: string[],
+): string[] {
+  const names: string[] = []
+  for (const s of snap.services) {
+    if (!s.active) continue
+    const was = s.professionalIds.includes(resourceId)
+    const now = draftServiceIds.includes(s.id)
+    if (was !== now) names.push(s.name)
+  }
+  return names
+}
+
+/** Nomes dos serviços cujo «Onde acontece» muda ao gravar a sala. */
+export function roomEffectNames(
+  snap: ClinicConfigSnapshot,
+  resourceId: string,
+  draftServiceIds: string[],
+): string[] {
+  const names: string[] = []
+  for (const s of snap.services) {
+    if (!s.active) continue
+    const was =
+      s.roomRequirement.mode === 'rooms' && s.roomRequirement.resourceIds.includes(resourceId)
+    const now = draftServiceIds.includes(s.id)
+    if (was !== now) names.push(s.name)
+  }
+  return names
+}
+
+export { fromWeekDraft, toWeekDraft, windowsOf, CLINIC_SCOPE_ID }
+export type { WeekDraft }

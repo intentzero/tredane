@@ -267,6 +267,23 @@ export function createPanelApi(getToken: TokenGetter) {
       return body
     },
 
+    /** Conferir configuração (DEC-085 / M-52): motivos e próximo horário vêm do servidor. */
+    async getClinicConfigReview(
+      tenantId: string,
+      opts?: FetchOpts,
+    ): Promise<ClinicConfigReview> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/review`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const body = (await res.json()) as ClinicConfigReview
+      assertGeneration(opts)
+      return body
+    },
+
     async getWhatsappConnection(
       tenantId: string,
       opts?: FetchOpts,
@@ -2281,6 +2298,27 @@ export type ClinicConfigSnapshot = {
   weeklyWindows: ClinicWeeklyWindow[]
   blocks: ClinicBlock[]
   readiness: ClinicConfigReadiness
+}
+
+/** Resposta de GET /config/review (DEC-085). */
+export type ClinicConfigReview = {
+  tenantId: string
+  timezone: string
+  asOf: number
+  services: Array<{
+    serviceId: string
+    serviceName: string
+    active: boolean
+    who: string[]
+    whereLabel: string
+    ready: boolean
+    blockReason: string | null
+    nextSlotStartsAt: number | null
+    fix: {
+      section: 'servico' | 'profissional' | 'sala' | 'horarios'
+      entityId?: string
+    }
+  }>
 }
 
 export type AbuseLimitNumbersDto = {

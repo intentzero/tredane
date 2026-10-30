@@ -5877,6 +5877,166 @@
   border-top: var(--size-border-width) solid var(--color-line-divider);
 }
 
+/* Revisão de UX das fichas (DEC-084): linhas de regra + chips obrigatórios. */
+.rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rule-row {
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+
+.rule-row-btn {
+  width: 100%;
+  min-height: var(--size-row-min);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rule-row-btn:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: calc(var(--size-focus-ring-offset) * -1);
+}
+
+.rule-row-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rule-row-copy strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.rule-row-copy span {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.rule-row-copy span[data-tone='warn'] {
+  color: var(--color-warning-ink);
+}
+
+.rule-row-chev {
+  color: var(--color-text-muted);
+}
+
+.rule-row > .clinic-field,
+.rule-row > .clinic-fieldset,
+.rule-row > .clinic-footnote,
+.rule-row > .clinic-hint-box {
+  margin: 0 var(--space-4) var(--space-3);
+}
+
+.rule-row-error {
+  margin: 0 var(--space-4) var(--space-3);
+}
+
+.clinic-required {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-warning-ink);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.capacity-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.capacity-stepper .panel-btn {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+}
+
+.capacity-stepper output {
+  min-width: 2.5rem;
+  text-align: center;
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mode-cards {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: var(--space-3) var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mode-card[aria-pressed='true'] {
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-tint);
+}
+
+.mode-card:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.mode-card strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.mode-card span {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.conferir-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+}
+
+.conferir-card[data-ready='false'] {
+  border: var(--size-border-width) solid var(--color-warning-border, #ebcb94);
+}
+
 /* Horário integrado (TEL-09): semana desenhada, calendário e filtros. */
 
 .month-cal {
