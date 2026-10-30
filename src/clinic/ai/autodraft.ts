@@ -165,7 +165,7 @@ export async function runDueAutoDrafts(
       )?.body ?? ''
     const reason = handoffReason(db, tenantId, inboundBody, clock)
     if (reason) {
-      notifyHumanHandoff(
+      const handoff = notifyHumanHandoff(
         db,
         tenantId,
         {
@@ -175,13 +175,21 @@ export async function runDueAutoDrafts(
         },
         clock,
       )
-      skip('human_handoff')
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      out.push({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'human_handoff',
+        replyOutbox: handoff.outbox,
+      })
       continue
     }
     const catalogText = catalogReply(db, tenantId, inboundBody, clock)
     if (catalogText) {
+      let replyOutbox: OutboxRow[] = []
       try {
-        sendOutboundMessageOp(
+        const sent = sendOutboundMessageOp(
           db,
           caller,
           {
@@ -194,10 +202,12 @@ export async function runDueAutoDrafts(
           },
           clock,
         )
+        replyOutbox = sent.outbox
       } catch (err) {
         if (!(err instanceof ClinicError)) throw err
       }
-      skip('catalog_reply')
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      out.push({ ...job, status: 'skipped', suggestion: null, reason: 'catalog_reply', replyOutbox })
       continue
     }
     if (getAiDailyUsage(db, tenantId, clock).capReached) {
@@ -373,7 +383,7 @@ export async function runDueAutoDrafts(
     const proposalDelivered =
       Boolean(autoBook?.proposalId) && !deterministicReply
     if (unsafe && !deterministicReply && !proposalDelivered) {
-      notifyHumanHandoff(
+      const handoff = notifyHumanHandoff(
         db,
         tenantId,
         {
@@ -383,6 +393,7 @@ export async function runDueAutoDrafts(
         },
         clock,
       )
+      replyOutbox = handoff.outbox
     } else if (
       suggestion.status === 'pending' &&
       draftText &&

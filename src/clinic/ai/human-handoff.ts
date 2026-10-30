@@ -8,9 +8,13 @@ import { workerCaller } from '../envelopes'
 import { ClinicError } from '../errors'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
+import { setConversationAssignee } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
+import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import type { ClinicDb } from '../store'
+
+const AI_ASSIGNEE = 'system:ai-autodraft'
 
 export const HUMAN_HANDOFF_TEXT = 'Vou pedir para a equipe continuar daqui.'
 export const HUMAN_HANDOFF_BUTTON_ID = 'handoff:human'
@@ -47,14 +51,54 @@ export function resumeAiReply(
   tenantId: string,
   conversationId: string,
   clock: Clock,
-): void {
+): OutboxRow[] {
+  const now = clock.nowMs()
   db.run(
     `UPDATE conversations SET ai_reply_paused_at = NULL, ai_reply_pause_reason = NULL, updated_at = ?
      WHERE tenant_id = ? AND id = ?`,
-    clock.nowMs(),
+    now,
     tenantId,
     conversationId,
   )
+  return [pauseEvent(db, tenantId, conversationId, false, clock)]
+}
+
+function pauseEvent(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  paused: boolean,
+  clock: Clock,
+): OutboxRow {
+  return insertOutboxEvent(
+    db,
+    {
+      tenantId,
+      type: 'conversation.ai_pause',
+      aggregateType: 'conversation',
+      aggregateId: conversationId,
+      idempotencyKey: `conversation.ai_pause:${conversationId}:${clock.nowMs()}:${paused ? 'on' : 'off'}`,
+      payload: { conversationId, aiReplyPaused: paused },
+    },
+    clock,
+  )
+}
+
+/** A frase automática não deixa a conversa «com a IA» enquanto a equipe deve assumir. */
+function clearAiAssignee(db: ClinicDb, tenantId: string, conversationId: string, clock: Clock): void {
+  const row = db.get<{ assignee: string | null }>(
+    `SELECT assignee_clerk_user_id AS assignee FROM conversations WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    conversationId,
+  )
+  if (row?.assignee !== AI_ASSIGNEE) return
+  setConversationAssignee(db, {
+    tenantId,
+    conversationId,
+    assigneeClerkUserId: null,
+    assigneeDisplayName: null,
+    updatedAt: clock.nowMs(),
+  })
 }
 
 function professionalOutsideService(db: ClinicDb, tenantId: string, text: string, clock: Clock): boolean {
@@ -101,9 +145,9 @@ export function notifyHumanHandoff(
   tenantId: string,
   input: { conversationId: string; reason: AiReplyPauseReason; clientRequestId: string },
   clock: Clock,
-): { already: boolean; sent: boolean } {
+): { already: boolean; sent: boolean; outbox: OutboxRow[] } {
   const existing = readAiReplyPause(db, tenantId, input.conversationId)
-  if (existing) return { already: true, sent: false }
+  if (existing) return { already: true, sent: false, outbox: [] }
   const now = clock.nowMs()
   db.run(
     `UPDATE conversations SET ai_reply_paused_at = ?, ai_reply_pause_reason = ?, updated_at = ?
@@ -119,7 +163,9 @@ export function notifyHumanHandoff(
     tenantId,
     input.conversationId,
   )
-  if (!conv) return { already: false, sent: false }
+  if (!conv) {
+    return { already: false, sent: false, outbox: [pauseEvent(db, tenantId, input.conversationId, true, clock)] }
+  }
   const open = db.get<{ id: string }>(
     `SELECT id FROM pending_communications
      WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team' AND status != 'resolved'
@@ -147,22 +193,27 @@ export function notifyHumanHandoff(
       clock,
     )
   }
+  const outbox: OutboxRow[] = []
+  let sent = false
   try {
-    sendOutboundMessageOp(
+    const result = sendOutboundMessageOp(
       db,
-      workerCaller(tenantId, 'system:ai-autodraft'),
+      workerCaller(tenantId, AI_ASSIGNEE),
       {
         conversationId: input.conversationId,
         body: HUMAN_HANDOFF_TEXT,
         clientRequestId: input.clientRequestId,
-        authorClerkUserId: 'system:ai-autodraft',
+        authorClerkUserId: AI_ASSIGNEE,
         authorDisplayName: 'IA',
       },
       clock,
     )
-    return { already: false, sent: true }
+    sent = true
+    outbox.push(...result.outbox)
   } catch (err) {
     if (!(err instanceof ClinicError)) throw err
-    return { already: false, sent: false }
   }
+  clearAiAssignee(db, tenantId, input.conversationId, clock)
+  outbox.push(pauseEvent(db, tenantId, input.conversationId, true, clock))
+  return { already: false, sent, outbox }
 }

@@ -673,7 +673,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#assertInstanceTenant(caller)
     bindOrAssertTenant(this.#db, caller, this.#clock)
     if (input.buttonId.trim() === HUMAN_HANDOFF_BUTTON_ID && input.conversationId) {
-      notifyHumanHandoff(
+      const handoff = notifyHumanHandoff(
         this.#db,
         caller.tenantId,
         {
@@ -683,6 +683,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         },
         this.#clock,
       )
+      if (handoff.outbox.length > 0) {
+        await this.#fanoutOutboxes(caller, handoff.outbox, true)
+        await this.#drain(caller)
+      }
       return { handled: true, action: 'human' as const }
     }
     let contactId = input.contactId?.trim() ?? ''
@@ -901,7 +905,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async resumeInboxAiReply(caller: ClinicCaller, conversationId: string) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
-    resumeAiReply(this.#db, caller.tenantId, conversationId, this.#clock)
+    const outbox = resumeAiReply(this.#db, caller.tenantId, conversationId, this.#clock)
+    if (outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, outbox, true)
+      await this.#drain(caller)
+    }
     return { aiReplyPause: null as null }
   }
 

@@ -3,8 +3,7 @@
  * sobre uma conversa (S2, #173). Falha ou dúvida → nega.
  *
  * - Contato bloqueado: usa `contacts.blocked_at` (já existente).
- * - Conversa/contato em pausa: TODO(#182) — o estado ainda não existe no modelo de dados;
- *   `isConversationPaused` devolve hoje «não pausado» e é o único sítio a ligar quando existir.
+ * - Pausa da resposta automática (DEC-083): `conversations.ai_reply_paused_at`.
  */
 import type { ClinicDb } from '../store'
 

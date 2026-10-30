@@ -122,7 +122,7 @@ export function handleProposalButtonClick(
   }
 
   if (parsed.action === 'human') {
-    notifyHumanHandoff(
+    const handoff = notifyHumanHandoff(
       db,
       input.tenantId,
       {
@@ -137,7 +137,7 @@ export function handleProposalButtonClick(
       action: 'human',
       proposal,
       paused: true,
-      outbox: [],
+      outbox: handoff.outbox,
     }
   }
 
@@ -200,7 +200,7 @@ export function handleProposalButtonClick(
       },
       clock,
     )
-    notifyHumanHandoff(
+    const handoff = notifyHumanHandoff(
       db,
       input.tenantId,
       {
@@ -216,7 +216,7 @@ export function handleProposalButtonClick(
       proposal: forwarded,
       forwarded: true,
       systemMessageId: systemMessage.id,
-      outbox: [outbox],
+      outbox: [outbox, ...handoff.outbox],
       cancelledExistingAppointment: false,
     }
   }

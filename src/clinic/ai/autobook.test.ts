@@ -606,11 +606,17 @@ describe('proteção (#182)', () => {
       s.close()
     }
   })
-  it('ponto único de pausa devolve hoje «não pausado» (TODO #182)', () => {
+  it('pausa da resposta automática nega ação nova (DEC-083)', () => {
     const s = seed()
     try {
       expect(isConversationPaused(s.db, s.tenantId, s.cnv.id)).toBe(false)
       expect(checkConversationProtection(s.db, s.tenantId, s.cnv.id)).toEqual({ allowed: true })
+      s.db.run(`UPDATE conversations SET ai_reply_paused_at = ? WHERE id = ?`, NOW, s.cnv.id)
+      expect(isConversationPaused(s.db, s.tenantId, s.cnv.id)).toBe(true)
+      expect(checkConversationProtection(s.db, s.tenantId, s.cnv.id)).toEqual({
+        allowed: false,
+        reason: 'conversation_paused',
+      })
       expect(checkConversationProtection(s.db, s.tenantId, 'nope')).toEqual({ allowed: false, reason: 'not_found' })
     } finally {
       s.close()

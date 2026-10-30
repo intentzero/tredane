@@ -102,7 +102,13 @@ describe('pausa da IA na divergência', () => {
       s.clock.advance(7_000)
       const first = await runDueAutoDrafts(s.db, s.caller, s.clock, { mode: 'synthetic', adapter: s.adapter })
       expect(first[0]?.reason).toBe('human_handoff')
+      expect(first[0]?.replyOutbox?.some((row) => row.type === 'whatsapp.send')).toBe(true)
       expect(s.calls()).toBe(0)
+      const assignee = s.db.get<{ assignee: string | null }>(
+        `SELECT assignee_clerk_user_id AS assignee FROM conversations WHERE id = ?`,
+        s.cnv.id,
+      )
+      expect(assignee?.assignee).toBeNull()
       const sent = s.db.get<{ body: string }>(
         `SELECT body FROM messages WHERE tenant_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
         s.tenantId,
