@@ -3,9 +3,9 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
-## Tokens 0.4.0 — 30/10/2026 (Proposto: design system compacto)
+## Tokens 0.4.0 — 30/10/2026 (Confirmado, DEC-081)
 
-Pedido do responsável pelo produto (30/10/2026): alinhar a tipografia ao WhatsApp Web e deixar botões e campos menos altos. Valores **Propostos** até revisão; DEC-041 continua valendo até lá.
+Pedido do responsável pelo produto (30/10/2026): alinhar a tipografia ao WhatsApp Web e deixar botões e campos menos altos. Valores **Confirmados** em 30/10/2026 (DEC-081).
 
 | Token | Antes | Depois |
 | --- | --- | --- |
@@ -16,7 +16,7 @@ Pedido do responsável pelo produto (30/10/2026): alinhar a tipografia ao WhatsA
 | size controlDefault (novo) | — | 36 (altura visual padrão; substitui `--size-touch` em `min-height` de controles com texto) |
 | size avatarSm / avatarMd, rowMin, bottomNav | 40 / 44, 64, 52 | 32 / 40, 60, 48 |
 
-`--size-touch` (44) fica para botões só de ícone. Pendências tratadas depois: área clicável de 44 px por pseudo-elemento nos controles que encolheram (campos de texto nativos ficam com 36 px, exceção **Proposta** em `ux-ui.md`); campos em 16 px só em aparelho de toque; mocks e PNG regenerados. Segue **Proposto** até revisão do responsável.
+`--size-touch` (44) fica para botões só de ícone. Pendências tratadas depois: área clicável de 44 px por pseudo-elemento nos controles que encolheram (campos de texto nativos ficam com 36 px, exceção **Confirmada** em `ux-ui.md`); campos em 16 px só em aparelho de toque; mocks e PNG regenerados. Confirmado pelo responsável (DEC-081).
 
 ## 29/10/2026 — Coluna de Conversas com 30% da janela
 

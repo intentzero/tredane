@@ -63,11 +63,11 @@ TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carr
 | Desktop (≥ 1280 px) | **Confirmado (DEC-068):** menu lateral fixo de 84 px com o símbolo (DEC-070), barra superior com título, clínica e «Ao vivo». | Lista com 30% da janela (mín. 360, máx. 520 px; medido no WhatsApp Web em 29/10/2026, pedido de Paulo) e conversa; contato num painel por cima (DEC-069). `/conversas` e `/conversas/:id` partilham a moldura. | **Confirmado (DEC-072):** quadro em largura total sem coluna de contexto, filtros no topo, contato por cima. Sem arrastar (DEC-062). | **Confirmado (DEC-068/069), implementado:** coluna de 360 px com Agendar, mês pequeno, filtros por profissional e sala e a lista do dia; grade ao lado; o compromisso abre por cima (380 px, Esc/×). A faixa da semana sai neste tamanho. **Em aberto:** verificação em staging (E6, [#241](https://github.com/intentzero/tredane/issues/241)). |
 
 Regras comuns:
-- Alvos de toque ≥ 44 × 44 px (altura visual dos botões e chips pode ser menor, com área clicável de 44 px; v0.4.0, **Proposto**); ações principais (Enviar, Agendar, Confirmar) ficam na zona inferior da tela, alcançáveis com o polegar.
+- Alvos de toque ≥ 44 × 44 px (altura visual dos botões e chips pode ser menor, com área clicável de 44 px; v0.4.0, **Confirmado**, DEC-081); ações principais (Enviar, Agendar, Confirmar) ficam na zona inferior da tela, alcançáveis com o polegar.
 - Ação principal fixa no rodapé em telas de formulário (Detalhes, Agendar), respeitando a área segura do aparelho.
 - Folhas inferiores (bottom sheets) para escolhas curtas: mover etapa, transferir responsável, ações da conversa. Diálogos centrais só para confirmação destrutiva (cancelar compromisso) e acesso encerrado.
 - O compositor acompanha o teclado virtual; abrir o teclado não cobre a última mensagem nem a sugestão da IA.
-- Campos com fonte de 16 px **em aparelho de toque** (`hover: none` e `pointer: coarse`) para o navegador não aplicar zoom automático ao focar; nas demais telas o corpo é 14 px (design system compacto v0.4.0, **Proposto**, pedido de Paulo em 30/10/2026).
+- Campos com fonte de 16 px **em aparelho de toque** (`hover: none` e `pointer: coarse`) para o navegador não aplicar zoom automático ao focar; nas demais telas o corpo é 14 px (design system compacto v0.4.0, **Confirmado**, DEC-081, pedido de Paulo em 30/10/2026).
 - Faixa de conexão (6.2) fica logo abaixo do cabeçalho em todas as larguras.
 - Arrastar nunca é o único jeito de fazer algo.
 
@@ -345,10 +345,10 @@ Ver seção 6.2.
 - Contraste mínimo 4,5:1 para texto, 3:1 para ícones e bordas de controles (tokens + `check_contrast.py`; axe desliga contraste no jsdom).
 - Estados com ícone + texto; nunca só cor (vermelho/verde em especial) — estados de envio falhou/desconhecido na conversa.
 - Todas as ações disponíveis por teclado: navegação da lista, Enter abre, Esc fecha folhas/diálogos React Aria; mover cartão pelo menu “Mover para…”; escolher horário por botões; skip link «Saltar para o conteúdo».
-- Alvos de toque ≥ 44 × 44 px em CSS (`--size-touch`; botões e chips encolhidos mantêm a área por pseudo-elemento). **Exceção Proposta:** campos de texto nativos têm 36 px de altura (não aceitam pseudo-elemento; o alvo continua largo e acima do mínimo de 24 px do WCAG 2.2 AA). **Em aberto:** medição real em ≥360 px (UX-08 / Q-UX-01).
+- Alvos de toque ≥ 44 × 44 px em CSS (`--size-touch`; botões e chips encolhidos mantêm a área por pseudo-elemento). **Exceção Confirmada (DEC-081):** campos de texto nativos têm 36 px de altura (não aceitam pseudo-elemento; o alvo continua largo e acima do mínimo de 24 px do WCAG 2.2 AA). **Em aberto:** medição real em ≥360 px (UX-08 / Q-UX-01).
 - Atualizações em tempo real anunciadas com `aria-live="polite"` somente para o que afeta o item em foco (nova mensagem na conversa aberta, mudança de conexão); mudanças em massa na lista não são lidas uma a uma.
 - Foco nunca é roubado por evento remoto (UX-07); confirmações destrutivas focam a ação segura (Cancelar).
-- Texto base 14 px (alinhado ao WhatsApp Web, tokens v0.4.0, **Proposto**; antes 16 px). Campos em 16 px só em aparelho de toque, ver regras comuns do §5.
+- Texto base 14 px (alinhado ao WhatsApp Web, tokens v0.4.0, **Confirmado**, DEC-081; antes 16 px). Campos em 16 px só em aparelho de toque, ver regras comuns do §5.
 
 ## 8. Direção visual proposta
 

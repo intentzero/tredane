@@ -7785,7 +7785,7 @@
   text-align: right;
 }
 
-/* Área clicável ≥ 44 px (UX-08) nos controles de altura visual menor (v0.4.0, Proposto).
+/* Área clicável ≥ 44 px (UX-08) nos controles de altura visual menor (v0.4.0, DEC-081).
    Campos de texto nativos ficam fora: não aceitam pseudo-elemento (ver ux-ui.md §5). */
 .agd-day,
 .agd-link,
@@ -7864,7 +7864,7 @@
 }
 
 /* iOS amplia a tela ao focar campo com fonte < 16 px. Só em aparelho de toque o campo volta a 16 px;
-   no resto da interface o corpo é 14 px (v0.4.0, Proposto). */
+   no resto da interface o corpo é 14 px (v0.4.0, DEC-081). */
 @media (hover: none) and (pointer: coarse) {
   .panel-root input,
   .panel-root textarea,
