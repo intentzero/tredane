@@ -189,7 +189,7 @@ describe('HTTP — configuração da clínica (#28)', () => {
             priceCents: 18000,
             clientExplanation: 'Texto fictício para IA.',
             professionalIds: [proBody.id],
-            roomRequirement: { mode: 'category', category: 'Sala com laser' },
+            roomRequirement: { mode: 'rooms', resourceIds: [roomBody.id] },
           }),
         }),
       )

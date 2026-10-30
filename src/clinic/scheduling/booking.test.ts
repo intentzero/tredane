@@ -45,7 +45,7 @@ function seedClinic(
       durationMinutes: 60,
       bufferMinutes: 15,
       professionalIds: [pro.id],
-      roomRequirement: { mode: 'category', category: 'Sala com laser' },
+      roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
     },
     clock,
   )

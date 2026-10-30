@@ -2066,11 +2066,10 @@ export type PipelineListResponse = {
   counts: PipelineStageCount[]
 }
 
+/** DEC-082: salas do serviço, ou «Sem espaço definido». */
 export type RoomRequirementDto =
   | { mode: 'none' }
-  | { mode: 'any' }
-  | { mode: 'category'; category: string }
-  | { mode: 'resource'; resourceId: string }
+  | { mode: 'rooms'; resourceIds: string[] }
 
 export type ServiceWeeklyWindowSpec = {
   dayOfWeek: number
@@ -2103,6 +2102,8 @@ export type ClinicService = {
   durationMaxMinutes?: number | null
   professionalIds: string[]
   roomRequirement: RoomRequirementDto
+  /** DEC-082 — equipamento exigido, à parte das salas. */
+  equipmentResourceId?: string | null
   /** Horário de oferta do serviço; vazio = qualquer horário no expediente da profissional. */
   weeklyWindows?: ServiceWeeklyWindowSpec[]
   /** Nunca teve marcação, Pix ou proposta: pode ser apagado. */
@@ -2309,6 +2310,7 @@ export type ServiceUpsertBody = {
   active?: boolean
   professionalIds: string[]
   roomRequirement?: RoomRequirementDto
+  equipmentResourceId?: string | null
   requiresSignal?: boolean
   signalKind?: 'fixed' | 'percent' | null
   signalFixedCents?: number | null

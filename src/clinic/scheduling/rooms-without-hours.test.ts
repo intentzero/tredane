@@ -1,7 +1,7 @@
 /**
- * Salas sem expediente + sala da profissional (DEC-075 / S3).
+ * Salas sem expediente (DEC-075) e lista de salas do serviço (DEC-082).
  * Decisão 28/10/2026: salas não têm expediente.
- * DEC-075: a marcação usa a sala da profissional, não o requisito do serviço.
+ * DEC-082: a marcação ocupa uma sala livre da lista do serviço.
  */
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
@@ -66,8 +66,10 @@ function seed(sharedHome = false) {
       durationMinutes: 60,
       bufferMinutes: 0,
       professionalIds: pros.map((p) => p.id),
-      // Requisito legado — não escolhe a sala da marcação (DEC-075).
-      roomRequirement: { mode: 'any' },
+      roomRequirement: {
+        mode: 'rooms',
+        resourceIds: sharedHome ? [roomA.id] : [roomA.id, roomB.id],
+      },
     },
     clock,
   )
@@ -138,12 +140,13 @@ describe('sala sem expediente', () => {
         { resourceId: s.roomA.id, startsAt: at(9), endsAt: at(10), reason: 'manutencao' },
         s.clock,
       )
-      const r = s.check(0, at(9))
+      const r = s.check(0, at(9), s.roomA.id)
       expect(r.reasons).toContain('resource_block')
       const avail = queryAvailabilityOp(s.db, s.caller, { serviceId: s.svc.id, date: MONDAY }, s.clock)
-      // Ana (sala A) bloqueada às 9; Bia (sala B) ainda livre.
-      const nine = avail.slots.filter((x) => x.startsAt === at(9))
-      expect(nine.every((x) => x.professionalId === s.pros[1]!.id)).toBe(true)
+      // Sala A bloqueada às 9: a primeira profissional usa a outra sala da lista.
+      const nine = avail.slots.find((x) => x.startsAt === at(9))
+      expect(nine?.professionalId).toBe(s.pros[0]!.id)
+      expect(nine?.roomResourceId).toBe(s.roomB.id)
       expect(
         avail.slots.some((x) => x.startsAt === at(10) && x.professionalId === s.pros[0]!.id),
       ).toBe(true)
@@ -285,10 +288,16 @@ describe('readiness sem expediente de sala', () => {
     }
   })
 
-  it('falta sala quando um serviço pede sala que não existe', () => {
+  it('sala desativada da lista impede a marcação nova; uma sala nova não entra sozinha', () => {
     const s = base()
     try {
-      upsertServiceOp(
+      const laser = upsertResourceOp(
+        s.db,
+        s.caller,
+        { kind: 'room', name: 'Laser' },
+        s.clock,
+      )
+      const svc = upsertServiceOp(
         s.db,
         s.caller,
         {
@@ -296,20 +305,21 @@ describe('readiness sem expediente de sala', () => {
           durationMinutes: 30,
           bufferMinutes: 0,
           professionalIds: [s.pro.id],
-          roomRequirement: { mode: 'category', category: 'Laser' },
+          roomRequirement: { mode: 'rooms', resourceIds: [laser.id] },
         },
         s.clock,
       )
+      upsertResourceOp(s.db, s.caller, { id: laser.id, kind: 'room', name: 'Laser', active: false }, s.clock)
       let r = getReadinessOp(s.db, s.caller, s.clock)
       expect(r.missing).toContain('room_or_equipment')
       expect(r.agendaConfigured).toBe(false)
-      // Sala de outra categoria não satisfaz; a certa sim (sem expediente).
-      upsertResourceOp(s.db, s.caller, { kind: 'room', name: 'Sala 1', category: 'Facial' }, s.clock)
+      upsertResourceOp(s.db, s.caller, { kind: 'room', name: 'Sala nova' }, s.clock)
       expect(getReadinessOp(s.db, s.caller, s.clock).missing).toContain('room_or_equipment')
-      upsertResourceOp(s.db, s.caller, { kind: 'room', name: 'Sala 2', category: 'Laser' }, s.clock)
+      upsertResourceOp(s.db, s.caller, { id: laser.id, kind: 'room', name: 'Laser', active: true }, s.clock)
       r = getReadinessOp(s.db, s.caller, s.clock)
       expect(r.missing).not.toContain('room_or_equipment')
       expect(r.agendaConfigured).toBe(true)
+      void svc
     } finally {
       s.close()
     }
@@ -324,7 +334,13 @@ describe('readiness sem expediente de sala', () => {
       upsertServiceOp(
         boot.db,
         caller,
-        { name: 'Avaliação', durationMinutes: 30, bufferMinutes: 0, professionalIds: [pro.id] },
+        {
+          name: 'Avaliação',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          professionalIds: [pro.id],
+          roomRequirement: { mode: 'none' },
+        },
         clock,
       )
       expect(getReadinessOp(boot.db, caller, clock).missing).toContain('weekly_availability')
@@ -370,7 +386,7 @@ describe('caso real: Gi seg–sex 09–17, sáb 09–12, sala sem horário', () 
         durationMinutes: 60,
         bufferMinutes: 15,
         professionalIds: [gi.id],
-        roomRequirement: { mode: 'none' },
+        roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
       },
       clock,
     )
@@ -470,7 +486,8 @@ describe('equipamento exigido (DEC-059 + DEC-075)', () => {
           durationMinutes: 30,
           bufferMinutes: 0,
           professionalIds: [gi.id, colega.id],
-          roomRequirement: { mode: 'resource', resourceId: laser.id },
+          roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
+          equipmentResourceId: laser.id,
         },
         clock,
       )

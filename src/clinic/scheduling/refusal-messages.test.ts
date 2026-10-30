@@ -80,7 +80,7 @@ describe('S6 — textos de recusa', () => {
           durationMinutes: 60,
           bufferMinutes: 0,
           professionalIds: [ana.id, bia.id],
-          roomRequirement: { mode: 'none' },
+          roomRequirement: { mode: 'rooms', resourceIds: [sala.id, outra.id] },
         },
         clock,
       )
@@ -91,6 +91,7 @@ describe('S6 — textos de recusa', () => {
           clientRequestId: 's6-1',
           serviceId: svc.id,
           professionalId: ana.id,
+          roomResourceId: sala.id,
           startsAt: at(9),
           actorClerkUserId: 'user_synth_owner_a',
         },
@@ -103,6 +104,7 @@ describe('S6 — textos de recusa', () => {
           clientRequestId: 's6-2',
           serviceId: svc.id,
           professionalId: bia.id,
+          roomResourceId: sala.id,
           startsAt: at(9),
           actorClerkUserId: 'user_synth_owner_a',
         },
@@ -189,7 +191,7 @@ describe('S6 — textos de recusa', () => {
           bufferMinutes: 0,
           audiencia: 'feminino',
           professionalIds: [sandra.id],
-          roomRequirement: { mode: 'none' },
+          roomRequirement: { mode: 'rooms', resourceIds: [sala.id] },
         },
         clock,
       )
@@ -202,7 +204,7 @@ describe('S6 — textos de recusa', () => {
           bufferMinutes: 0,
           audiencia: 'masculino',
           professionalIds: [sandra.id],
-          roomRequirement: { mode: 'none' },
+          roomRequirement: { mode: 'rooms', resourceIds: [sala.id] },
         },
         clock,
       )

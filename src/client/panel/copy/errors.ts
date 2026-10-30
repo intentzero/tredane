@@ -42,6 +42,9 @@ const BY_CODE: Record<string, string> = {
   room_at_capacity: 'Esse horário nesta sala já está cheio.',
   professional_other_room: 'A profissional já está noutra sala nesse horário.',
   room_sex_mismatch: 'Nesse horário a sala está só para um dos públicos.',
+  invalid_room_requirement: 'Escolha uma ou mais salas, ou Sem espaço definido.',
+  room_requirement_mismatch: 'Essa sala não serve para este serviço.',
+  room_required: 'Este serviço não tem sala ativa para marcar.',
   payment_after_expiry: 'O Pix chegou depois do prazo do sinal.',
 
   // WhatsApp

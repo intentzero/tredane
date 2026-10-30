@@ -35,6 +35,8 @@ export type ServiceRow = {
   updatedAt: number
   professionalIds: string[]
   roomRequirement: RoomRequirement
+  /** DEC-059 / DEC-082 — equipamento exigido, à parte da lista de salas. */
+  equipmentResourceId: string | null
   /**
    * Horário semanal em que o serviço pode ser prestado (issue #261).
    * Vazio = sem filtro (só expediente da profissional / sala).
@@ -140,11 +142,10 @@ export type ServiceWeeklyWindowRow = ServiceWeeklyWindowSpec & {
   serviceId: string
 }
 
+/** DEC-082: salas marcadas, ou «Sem espaço definido» (não ocupa sala). */
 export type RoomRequirement =
   | { mode: 'none' }
-  | { mode: 'any' }
-  | { mode: 'category'; category: string }
-  | { mode: 'resource'; resourceId: string }
+  | { mode: 'rooms'; resourceIds: string[] }
 
 /** Escopo reservado: horário e fechamentos da clínica inteira (em `weekly_windows` / `resource_blocks`). */
 export const CLINIC_SCOPE_ID = '__clinic__'
@@ -335,7 +336,10 @@ export type UpsertServiceInput = {
   clientExplanation?: string | null
   active?: boolean
   professionalIds: string[]
+  /** Omitido na criação é recusado. Omitido na edição mantém. */
   roomRequirement?: RoomRequirement
+  /** Omitido na edição mantém. `null` tira o equipamento. */
+  equipmentResourceId?: string | null
   requiresSignal?: boolean
   signalKind?: ServiceSignalKind | null
   signalFixedCents?: number | null

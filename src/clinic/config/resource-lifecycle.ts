@@ -341,7 +341,7 @@ export function deactivateResourceOp(
     const row = getResource(db, meta.tenantId, resource.id, clock)!
     const keptAppointmentIds = future.filter((a) => !seen.has(a.id)).map((a) => a.id)
     const servicesWithoutResource = row.category
-      ? servicesLeftWithoutCategoryResource(db, meta.tenantId, row.category, row.id)
+      ? servicesLeftWithoutCategoryResource()
       : undefined
     writeOperationalAudit(
       db,
@@ -383,7 +383,7 @@ export function deleteResourceOp(
     const t = meta.tenantId
     const required = db.get<{ n: number }>(
       `SELECT COUNT(*) AS n FROM service_room_requirements
-       WHERE tenant_id = ? AND mode = 'resource' AND resource_id = ?`,
+       WHERE tenant_id = ? AND mode IN ('room', 'equipment') AND resource_id = ?`,
       t,
       resource.id,
     )

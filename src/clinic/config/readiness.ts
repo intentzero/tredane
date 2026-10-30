@@ -104,22 +104,20 @@ export function computeConfigReadiness(
 }
 
 function roomRequirementUnmet(db: ClinicDb, tenantId: string): boolean {
-  const reqs = db.all<{ mode: string; category: string | null; resource_id: string | null }>(
-    `SELECT q.mode, q.category, q.resource_id
+  const row = db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n
      FROM service_room_requirements q
      INNER JOIN services s ON s.tenant_id = q.tenant_id AND s.id = q.service_id
-     WHERE q.tenant_id = ? AND s.active = 1 AND q.mode <> 'none'`,
+     WHERE q.tenant_id = ? AND s.active = 1 AND q.mode = 'rooms'
+       AND NOT EXISTS (
+         SELECT 1
+         FROM service_room_requirements m
+         JOIN resources r
+           ON r.tenant_id = m.tenant_id AND r.id = m.resource_id
+          AND r.kind = 'room' AND r.active = 1
+         WHERE m.tenant_id = q.tenant_id AND m.service_id = q.service_id AND m.mode = 'room'
+       )`,
     tenantId,
   )
-  if (reqs.length === 0) return false
-  const rooms = db.all<{ id: string; category: string | null }>(
-    `SELECT id, category FROM resources
-     WHERE tenant_id = ? AND kind IN ('room', 'equipment') AND active = 1`,
-    tenantId,
-  )
-  return reqs.some((q) => {
-    if (q.mode === 'resource') return !rooms.some((r) => r.id === q.resource_id)
-    if (q.mode === 'category') return !rooms.some((r) => r.category === q.category)
-    return rooms.length === 0
-  })
+  return (row?.n ?? 0) > 0
 }

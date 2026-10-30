@@ -811,9 +811,13 @@ function parseServiceBody(body: Record<string, unknown>) {
     roomRequirement: body.roomRequirement as
       | undefined
       | { mode: 'none' }
-      | { mode: 'any' }
-      | { mode: 'category'; category: string }
-      | { mode: 'resource'; resourceId: string },
+      | { mode: 'rooms'; resourceIds: string[] },
+    equipmentResourceId:
+      body.equipmentResourceId === undefined
+        ? undefined
+        : body.equipmentResourceId === null
+          ? null
+          : String(body.equipmentResourceId),
     requiresSignal:
       body.requiresSignal === undefined ? undefined : body.requiresSignal === true,
     signalKind,

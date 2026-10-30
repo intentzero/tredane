@@ -54,17 +54,29 @@ type ServiceSql = {
   updated_at: number
 }
 
-function mapRoomRequirement(
-  mode: string | undefined,
-  category: string | null | undefined,
-  resourceId: string | null | undefined,
-): RoomRequirement {
-  if (mode === 'any') return { mode: 'any' }
-  if (mode === 'category' && category) return { mode: 'category', category }
-  if (mode === 'resource' && resourceId) {
-    return { mode: 'resource', resourceId }
+function loadSpace(
+  db: ClinicDb,
+  tenantId: string,
+  serviceId: string,
+): { roomRequirement: RoomRequirement; equipmentResourceId: string | null } {
+  const rows = db.all<{ mode: string; resource_id: string }>(
+    `SELECT mode, resource_id FROM service_room_requirements
+     WHERE tenant_id = ? AND service_id = ?`,
+    tenantId,
+    serviceId,
+  )
+  const equipment =
+    rows.find((r) => r.mode === 'equipment' && r.resource_id)?.resource_id ?? null
+  if (rows.some((r) => r.mode === 'none')) {
+    return { roomRequirement: { mode: 'none' }, equipmentResourceId: equipment }
   }
-  return { mode: 'none' }
+  const resourceIds = rows
+    .filter((r) => r.mode === 'room' && r.resource_id)
+    .map((r) => r.resource_id)
+  if (rows.some((r) => r.mode === 'rooms') || resourceIds.length > 0) {
+    return { roomRequirement: { mode: 'rooms', resourceIds }, equipmentResourceId: equipment }
+  }
+  return { roomRequirement: { mode: 'none' }, equipmentResourceId: equipment }
 }
 
 function loadProfessionals(
@@ -81,25 +93,6 @@ function loadProfessionals(
       serviceId,
     )
     .map((r) => r.professional_id)
-}
-
-function loadRoomRequirement(
-  db: ClinicDb,
-  tenantId: string,
-  serviceId: string,
-): RoomRequirement {
-  const row = db.get<{
-    mode: string
-    category: string | null
-    resource_id: string | null
-  }>(
-    `SELECT mode, category, resource_id FROM service_room_requirements
-     WHERE tenant_id = ? AND service_id = ?`,
-    tenantId,
-    serviceId,
-  )
-  if (!row) return { mode: 'none' }
-  return mapRoomRequirement(row.mode, row.category, row.resource_id)
 }
 
 function toServiceRow(
@@ -141,7 +134,7 @@ function toServiceRow(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     professionalIds: loadProfessionals(db, row.tenant_id, row.id),
-    roomRequirement: loadRoomRequirement(db, row.tenant_id, row.id),
+    ...loadSpace(db, row.tenant_id, row.id),
     weeklyWindows: loadServiceWeeklyWindows(db, row.tenant_id, row.id),
     deletable: serviceDeleteBlocker(db, row.tenant_id, row.id) === null,
     variantKind: row.variant_kind?.trim() || null,
@@ -294,24 +287,48 @@ function assertProfessionalsBelong(
   }
 }
 
-function assertRoomRequirementRefs(
+function assertServiceRooms(
   db: ClinicDb,
   tenantId: string,
   req: RoomRequirement,
+  already: readonly string[],
 ): void {
-  if (req.mode === 'resource') {
-    const row = db.get<{ kind: string }>(
-      `SELECT kind FROM resources WHERE tenant_id = ? AND id = ?`,
+  if (req.mode !== 'rooms') return
+  const kept = new Set(already)
+  for (const id of req.resourceIds) {
+    const row = db.get<{ kind: string; active: number }>(
+      `SELECT kind, active FROM resources WHERE tenant_id = ? AND id = ?`,
       tenantId,
-      req.resourceId,
+      id,
     )
-    if (!row || (row.kind !== 'room' && row.kind !== 'equipment')) {
+    if (!row || row.kind !== 'room' || (row.active !== 1 && !kept.has(id))) {
       throw new ValidationError(
         'invalid_room_ref',
-        `sala/equipamento inexistente neste tenant: ${req.resourceId}`,
-        { resourceId: req.resourceId },
+        'A lista só aceita salas ativas desta clínica.',
+        { resourceId: id },
       )
     }
+  }
+}
+
+function assertEquipment(
+  db: ClinicDb,
+  tenantId: string,
+  equipmentId: string | null,
+  already: string | null,
+): void {
+  if (!equipmentId) return
+  const row = db.get<{ kind: string; active: number }>(
+    `SELECT kind, active FROM resources WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    equipmentId,
+  )
+  if (!row || row.kind !== 'equipment' || (row.active !== 1 && equipmentId !== already)) {
+    throw new ValidationError(
+      'invalid_room_ref',
+      'O equipamento não está ativo nesta clínica.',
+      { resourceId: equipmentId },
+    )
   }
 }
 
@@ -337,27 +354,74 @@ function writeProfessionals(
   }
 }
 
-function writeRoomRequirement(
+function writeSpace(
   db: ClinicDb,
   tenantId: string,
   serviceId: string,
   req: RoomRequirement,
+  equipmentId: string | null,
 ): void {
   db.run(
     `DELETE FROM service_room_requirements WHERE tenant_id = ? AND service_id = ?`,
     tenantId,
     serviceId,
   )
-  db.run(
-    `INSERT INTO service_room_requirements
-      (tenant_id, service_id, mode, category, resource_id)
-     VALUES (?, ?, ?, ?, ?)`,
-    tenantId,
-    serviceId,
-    req.mode,
-    req.mode === 'category' ? req.category : null,
-    req.mode === 'resource' ? req.resourceId : null,
-  )
+  if (req.mode === 'none') {
+    db.run(
+      `INSERT INTO service_room_requirements (tenant_id, service_id, mode, resource_id)
+       VALUES (?, ?, 'none', '')`,
+      tenantId,
+      serviceId,
+    )
+  } else {
+    db.run(
+      `INSERT INTO service_room_requirements (tenant_id, service_id, mode, resource_id)
+       VALUES (?, ?, 'rooms', '')`,
+      tenantId,
+      serviceId,
+    )
+    for (const id of req.resourceIds) {
+      db.run(
+        `INSERT INTO service_room_requirements (tenant_id, service_id, mode, resource_id)
+         VALUES (?, ?, 'room', ?)`,
+        tenantId,
+        serviceId,
+        id,
+      )
+    }
+  }
+  if (equipmentId) {
+    db.run(
+      `INSERT INTO service_room_requirements (tenant_id, service_id, mode, resource_id)
+       VALUES (?, ?, 'equipment', ?)`,
+      tenantId,
+      serviceId,
+      equipmentId,
+    )
+  }
+}
+
+function resolveRoomRequirement(
+  input: UpsertServiceInput,
+  existing: ServiceRow | null,
+): RoomRequirement {
+  if (input.roomRequirement === undefined) {
+    if (existing) return existing.roomRequirement
+    throw new ValidationError(
+      'invalid_room_requirement',
+      'Escolha uma ou mais salas, ou Sem espaço definido.',
+    )
+  }
+  return normalizeRoomRequirement(input.roomRequirement)
+}
+
+function resolveEquipment(
+  input: UpsertServiceInput,
+  existing: ServiceRow | null,
+): string | null {
+  if (input.equipmentResourceId === undefined) return existing?.equipmentResourceId ?? null
+  if (input.equipmentResourceId === null || input.equipmentResourceId === '') return null
+  return input.equipmentResourceId.trim()
 }
 
 function resolveAudience(
@@ -441,9 +505,7 @@ export function upsertService(
   const name = assertNonEmptyName(input.name)
   assertPositiveDuration(input.durationMinutes)
   assertBufferMinutes(input.bufferMinutes)
-  const roomRequirement = normalizeRoomRequirement(input.roomRequirement)
   assertProfessionalsBelong(db, tenantId, input.professionalIds)
-  assertRoomRequirementRefs(db, tenantId, roomRequirement)
 
   const priceCents =
     input.priceCents === undefined || input.priceCents === null
@@ -466,6 +528,15 @@ export function upsertService(
   if (input.id && !existing) {
     throw new NotFoundError('service_not_found', `serviço ${input.id} não encontrado`)
   }
+  const roomRequirement = resolveRoomRequirement(input, existing)
+  const equipmentId = resolveEquipment(input, existing)
+  assertServiceRooms(
+    db,
+    tenantId,
+    roomRequirement,
+    existing?.roomRequirement.mode === 'rooms' ? existing.roomRequirement.resourceIds : [],
+  )
+  assertEquipment(db, tenantId, equipmentId, existing?.equipmentResourceId ?? null)
   const audiencia = resolveAudience(input, existing)
   const tempo = resolveTempo(input, existing)
   const variantKind = resolveKindText(input.variantKind, existing?.variantKind)
@@ -516,7 +587,7 @@ export function upsertService(
       input.id,
     )
     writeProfessionals(db, tenantId, input.id, input.professionalIds)
-    writeRoomRequirement(db, tenantId, input.id, roomRequirement)
+    writeSpace(db, tenantId, input.id, roomRequirement, equipmentId)
     if (input.weeklyWindows !== undefined) {
       setServiceWeeklyWindows(db, tenantId, input.id, input.weeklyWindows)
     }
@@ -558,7 +629,7 @@ export function upsertService(
     now,
   )
   writeProfessionals(db, tenantId, id, input.professionalIds)
-  writeRoomRequirement(db, tenantId, id, roomRequirement)
+  writeSpace(db, tenantId, id, roomRequirement, equipmentId)
   if (input.weeklyWindows !== undefined) {
     setServiceWeeklyWindows(db, tenantId, id, input.weeklyWindows)
   }
@@ -655,46 +726,33 @@ export function assertResourcesUsableForBooking(
     )
   }
 
-  // DEC-075 / S3: a sala da marcação é a da profissional (ou troca pontual).
-  // O requisito de sala do serviço deixa de validar a sala escolhida.
-  // Equipamento exigido continua a ser verificado na disponibilidade (ocupação).
-  if (opts.roomResourceId) {
-    const room = db.get<{ kind: string; active: number }>(
-      `SELECT kind, active FROM resources WHERE tenant_id = ? AND id = ?`,
-      tenantId,
-      opts.roomResourceId,
-    )
-    if (!room || room.kind !== 'room' || room.active !== 1) {
+  if (service.roomRequirement.mode === 'none') {
+    if (opts.roomResourceId) {
       throw new ValidationError(
-        'room_unusable',
-        'sala inactiva ou de outro tenant',
-        { roomResourceId: opts.roomResourceId },
+        'room_requirement_mismatch',
+        'Este serviço não ocupa sala.',
+        { serviceId: opts.serviceId },
       )
     }
-  } else {
-    const home = db.get<{ home_room_id: string | null }>(
-      `SELECT home_room_id FROM resources WHERE tenant_id = ? AND id = ?`,
-      tenantId,
-      opts.professionalId,
+    return
+  }
+  if (!opts.roomResourceId || !service.roomRequirement.resourceIds.includes(opts.roomResourceId)) {
+    throw new ValidationError(
+      'room_requirement_mismatch',
+      'A sala não está na lista deste serviço.',
+      { roomResourceId: opts.roomResourceId, serviceId: opts.serviceId },
     )
-    if (!home?.home_room_id) {
-      throw new ValidationError(
-        'room_required',
-        'a profissional precisa de uma sala para novos agendamentos',
-        { professionalId: opts.professionalId },
-      )
-    }
-    const homeRoom = db.get<{ kind: string; active: number }>(
-      `SELECT kind, active FROM resources WHERE tenant_id = ? AND id = ?`,
-      tenantId,
-      home.home_room_id,
+  }
+  const room = db.get<{ kind: string; active: number }>(
+    `SELECT kind, active FROM resources WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    opts.roomResourceId,
+  )
+  if (!room || room.kind !== 'room' || room.active !== 1) {
+    throw new ValidationError(
+      'room_unusable',
+      'sala inactiva ou de outro tenant',
+      { roomResourceId: opts.roomResourceId },
     )
-    if (!homeRoom || homeRoom.kind !== 'room' || homeRoom.active !== 1) {
-      throw new ValidationError(
-        'room_required',
-        'a profissional precisa de uma sala activa para novos agendamentos',
-        { professionalId: opts.professionalId },
-      )
-    }
   }
 }

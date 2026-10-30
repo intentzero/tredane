@@ -100,6 +100,7 @@ export function seedSyntheticPipelineOp(
         bufferMinutes: 15,
         active: true,
         professionalIds: [pro.id],
+        roomRequirement: { mode: 'none' },
       },
       clock,
     )

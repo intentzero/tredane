@@ -373,7 +373,7 @@ export function RoomExtras({ resource, ...c }: Common & { resource: ClinicResour
   const fo = { generation: c.generation, expectGeneration: () => c.generation }
   const services = c.snap.services.filter((s) => s.active)
   const usesIt = (s: ClinicService) =>
-    s.roomRequirement.mode === 'resource' && s.roomRequirement.resourceId === resource.id
+    s.roomRequirement.mode === 'rooms' && s.roomRequirement.resourceIds.includes(resource.id)
 
   return (
     <>
@@ -395,12 +395,22 @@ export function RoomExtras({ resource, ...c }: Common & { resource: ClinicResour
               disabled={busy}
               onClick={() =>
                 void run(async () => {
+                  const current =
+                    s.roomRequirement.mode === 'rooms' ? s.roomRequirement.resourceIds : []
+                  const nextIds = usesIt(s)
+                    ? current.filter((id) => id !== resource.id)
+                    : [...current, resource.id]
+                  if (nextIds.length === 0) {
+                    throw new PanelApiError(
+                      400,
+                      'unknown',
+                      'Este era o único lugar do serviço. Na ficha do serviço, escolha outra sala ou Sem espaço definido.',
+                    )
+                  }
                   await c.api.upsertService(
                     c.tenantId,
                     serviceBody(s, {
-                      roomRequirement: usesIt(s)
-                        ? { mode: 'none' }
-                        : { mode: 'resource', resourceId: resource.id },
+                      roomRequirement: { mode: 'rooms', resourceIds: nextIds },
                     }),
                     { serviceId: s.id, ...fo },
                   )
@@ -413,8 +423,8 @@ export function RoomExtras({ resource, ...c }: Common & { resource: ClinicResour
           ))}
         </div>
         <p className="clinic-footnote">
-          Marcar um serviço aqui troca a sala que ele pedia antes. Para aceitar várias salas, use
-          «Qualquer sala livre» dentro do serviço.
+          Marcar inclui esta sala no serviço. Desmarcar tira só esta. Sem espaço definido
+          escolhe-se na ficha do serviço.
         </p>
       </section>
       <BlocksSection

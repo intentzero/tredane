@@ -1,6 +1,6 @@
 # Épico — Salas partilhadas e audiência do serviço (DEC-075)
 
-**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «vamos considerar estes casos de uso no sistema, prepara um epico de implementacao»). Este documento é o épico. Issue: [#284](https://github.com/intentzero/tredane/issues/284). S1 (docs) e S2 (audiência) em `main`. S3 (salas do serviço e salão partilhado) em implementação.
+**Estado:** especificação de implementação **Confirmada** no desenho (Paulo, 29/10/2026: «vamos considerar estes casos de uso no sistema, prepara um epico de implementacao»). Este documento é o épico. Issue: [#284](https://github.com/intentzero/tredane/issues/284). S1 (docs), S2 (audiência) e S3 revista pela DEC-082 (lista de salas do serviço) estão no código. S4 (modo grupo), S5 (mesmo sexo) e S6 (frases) também, agora sobre a sala da lista do serviço.
 
 **Revista em parte pela [DEC-082](../product/decisions.md) (Paulo, 30/10/2026, «concordo»).** A marcação nova ocupa uma sala livre da lista do serviço e uma profissional que faz o serviço e está livre. A sala na ficha da profissional deixa de escolher o horário. Sala exclusiva na profissional fica fora deste recorte. Capacidade, modo e audiência deste épico mantêm-se. «Qualquer sala livre» e a categoria saem da ficha (DEC-082). Uma sala nova só entra no serviço se a responsável a acrescentar. Serviços já gravados continuam a marcar: «Sem sala» passa a «Sem espaço definido»; «Qualquer sala livre» e a categoria viram a lista das salas ativas que já serviam. Uma sala nova não entra sozinha. Fica fechado na DEC-082: com todas as salas da lista desativadas, a marcação nova não aparece; as salas continuam na lista até a responsável reativar uma, escolher outra, ou passar a «Sem espaço definido».
 
@@ -27,7 +27,7 @@ Conferido no código da `main` (schema da clínica na versão 30). O que já est
 | Eventos da agenda já publicados no outbox da clínica: `appointment.confirmed`, `appointment.cancelled`, `appointment.rescheduled`. | `src/clinic/scheduling/booking.ts` | Reutilizar. Não criar outro canal de tempo real. |
 | Configuração só pela responsável (`clinic.config.write`, DEC-042). A atendente marca. | Rotas em `src/clinic-config/routes.ts` | Audiência, salas do serviço, modo e mesmo sexo seguem esta escrita. «Permitir os dois» também é só da responsável (S5). |
 
-**O que falta, por fatia:** audiência do serviço (S2); salas do serviço, partilha e contagem por pessoa (S3, DEC-082); modo grupo (S4); mesmo sexo e «Permitir os dois» (S5); frases da agenda, do WhatsApp e da IA (S6).
+**O que falta, por fatia:** nada das fatias S2–S6 no comportamento já coberto pelos testes. Sala exclusiva na profissional continua fora deste recorte (DEC-082).
 
 ---
 
@@ -106,13 +106,13 @@ S1 → S2 → S3 → S4 → S5 → S6. Cada fatia é verificável sozinha com da
 
 **Critérios de aceite.**
 
-- [ ] «Depilação» lista a Sala depilação. «Massagem» lista o Espaço Bronzeamento e a Sala depilação. A Gi faz os dois. Massagem com a Gi às 10:00, com as duas salas livres, usa a primeira por ordem de nome. Com a Sala depilação ocupada, usa o Espaço Bronzeamento.
-- [ ] Gi em depilação às 9h não massaja às 9h, nem noutra sala.
-- [ ] A equipa troca a sala só numa marcação da Gi, para outra sala desse serviço. A marcação seguinte volta a uma sala livre da lista.
-- [ ] O serviço lista a sala partilhada, capacidade 2, modo «Cada profissional com a sua cliente». A Ana e a Bia fazem esse serviço. Às 9h cada uma tem uma cliente. A terceira pessoa não entra. Ana não fica com a cliente da Bia, nem o contrário.
-- [ ] A mesma cliente com dois serviços da Ana no mesmo bloco ocupa uma pessoa, e a Bia ainda cabe na capacidade 2.
-- [ ] Sala de capacidade 1 não mostra as duas escolhas nem «Mesmo sexo neste horário».
-- [ ] Equipamento continua a recusar uma segunda marcação sobreposta, sem campo de capacidade.
+- [x] «Depilação» lista a Sala depilação. «Massagem» lista o Espaço Bronzeamento e a Sala depilação. A Gi faz os dois. Massagem com a Gi às 10:00, com as duas salas livres, usa a primeira por ordem de nome. Com a Sala depilação ocupada, usa o Espaço Bronzeamento.
+- [x] Gi em depilação às 9h não massaja às 9h, nem noutra sala.
+- [x] A equipa troca a sala só numa marcação da Gi, para outra sala desse serviço. A marcação seguinte volta a uma sala livre da lista.
+- [x] O serviço lista a sala partilhada, capacidade 2, modo «Cada profissional com a sua cliente». A Ana e a Bia fazem esse serviço. Às 9h cada uma tem uma cliente. A terceira pessoa não entra. Ana não fica com a cliente da Bia, nem o contrário.
+- [x] A mesma cliente com dois serviços da Ana no mesmo bloco ocupa uma pessoa, e a Bia ainda cabe na capacidade 2.
+- [x] Sala de capacidade 1 não mostra as duas escolhas nem «Mesmo sexo neste horário».
+- [x] Equipamento continua a recusar uma segunda marcação sobreposta, sem campo de capacidade.
 
 ---
 

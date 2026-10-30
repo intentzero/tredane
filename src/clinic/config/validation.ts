@@ -123,25 +123,22 @@ export function assertNonEmptyName(name: string, field = 'name'): string {
   return trimmed
 }
 
-export function normalizeRoomRequirement(
-  input: RoomRequirement | undefined,
-): RoomRequirement {
-  if (!input || input.mode === 'none') return { mode: 'none' }
-  if (input.mode === 'any') return { mode: 'any' }
-  if (input.mode === 'category') {
-    const category = assertNonEmptyName(input.category, 'category')
-    return { mode: 'category', category }
-  }
-  if (input.mode === 'resource') {
-    if (!input.resourceId?.trim()) {
+export function normalizeRoomRequirement(input: RoomRequirement): RoomRequirement {
+  if (input.mode === 'none') return { mode: 'none' }
+  if (input.mode === 'rooms') {
+    const resourceIds = [...new Set(input.resourceIds.map((id) => id.trim()).filter(Boolean))]
+    if (resourceIds.length === 0) {
       throw new ValidationError(
         'invalid_room_requirement',
-        'resourceId obrigatório no modo resource',
+        'Escolha uma ou mais salas, ou Sem espaço definido.',
       )
     }
-    return { mode: 'resource', resourceId: input.resourceId.trim() }
+    return { mode: 'rooms', resourceIds }
   }
-  throw new ValidationError('invalid_room_requirement', 'modo de recurso inválido')
+  throw new ValidationError(
+    'invalid_room_requirement',
+    'Escolha uma ou mais salas, ou Sem espaço definido.',
+  )
 }
 
 export function assertTimeRange(startsAt: number, endsAt: number): void {

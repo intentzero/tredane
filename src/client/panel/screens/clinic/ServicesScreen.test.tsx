@@ -29,11 +29,15 @@ function svc(over: Partial<ClinicService>): ClinicService {
   }
 }
 
-function renderForm(service: ClinicService, api: Partial<PanelApi>) {
+function renderForm(
+  service: ClinicService,
+  api: Partial<PanelApi>,
+  resources: ClinicConfigSnapshot['resources'] = [],
+) {
   const onSaved = vi.fn(async () => {})
   const snap = {
     settings: { tenantId: 't', timezone: 'America/Sao_Paulo', updatedAt: 0 },
-    resources: [],
+    resources,
     services: [service],
     weeklyWindows: [],
     blocks: [],
@@ -59,6 +63,60 @@ describe('ServiceForm — duração e variantes', () => {
         expect.anything(),
       ),
     )
+  })
+
+  it('pede salas ou Sem espaço definido e grava as salas marcadas', async () => {
+    const upsertService = vi.fn(async () => svc({}))
+    const rooms: ClinicConfigSnapshot['resources'] = [
+      {
+        id: 'sala-b',
+        kind: 'room',
+        name: 'Sala B',
+        category: null,
+        active: true,
+        futureAppointmentCount: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+      {
+        id: 'sala-a',
+        kind: 'room',
+        name: 'Sala A',
+        category: null,
+        active: true,
+        futureAppointmentCount: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+    renderForm(svc({ roomRequirement: { mode: 'none' } }), { upsertService }, rooms)
+    fireEvent.click(screen.getByRole('button', { name: /Mais opções/ }))
+    const none = screen.getByRole('checkbox', { name: 'Sem espaço definido' })
+    expect(none).toHaveProperty('checked', true)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sala A' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sala B' }))
+    expect(screen.getByRole('checkbox', { name: 'Sem espaço definido' })).toHaveProperty('checked', false)
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() =>
+      expect(upsertService).toHaveBeenCalledWith(
+        't',
+        expect.objectContaining({
+          roomRequirement: { mode: 'rooms', resourceIds: ['sala-a', 'sala-b'] },
+        }),
+        expect.anything(),
+      ),
+    )
+
+    cleanup()
+    const blocked = vi.fn()
+    renderForm(svc({ roomRequirement: { mode: 'none' } }), { upsertService: blocked }, rooms)
+    fireEvent.click(screen.getByRole('button', { name: /Mais opções/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sem espaço definido' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    expect(blocked).not.toHaveBeenCalled()
+    expect(
+      screen.getByText('Escolha uma ou mais salas, ou Sem espaço definido. O que você digitou continua aqui.'),
+    ).toBeTruthy()
   })
 
   it('ao tirar as variantes, apaga-as antes de limpar o tipo', async () => {

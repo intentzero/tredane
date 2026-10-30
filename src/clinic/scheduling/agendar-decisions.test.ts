@@ -140,7 +140,16 @@ describe('Agendar — DEC-076 retira duração ajustável; DEC-052 mantém-se', 
       const saved = upsertServiceOp(
         db,
         caller,
-        { name: 'X', durationMinutes: 60, bufferMinutes: 0, professionalIds: [pro.id], durationAdjustable: true, durationMinMinutes: 30, durationMaxMinutes: 90 },
+        {
+          name: 'X',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          professionalIds: [pro.id],
+          roomRequirement: { mode: 'none' },
+          durationAdjustable: true,
+          durationMinMinutes: 30,
+          durationMaxMinutes: 90,
+        },
         clock,
       )
       expect(saved.durationAdjustable).toBe(false)
