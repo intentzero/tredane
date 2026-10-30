@@ -95,6 +95,8 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     upsertService: (caller, input) => stub.upsertClinicService(caller, input),
     replaceServiceZones: (caller, serviceId, zones) =>
       stub.replaceClinicServiceZones(caller, serviceId, zones),
+    replaceServiceCombos: (caller, serviceId, combos) =>
+      stub.replaceClinicServiceCombos(caller, serviceId, combos),
     setServiceActive: (caller, serviceId, active) =>
       stub.setClinicServiceActive(caller, serviceId, active),
     deleteService: (caller, serviceId) => stub.deleteClinicService(caller, serviceId),
@@ -351,6 +353,48 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
         callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
         c.req.param('serviceId'),
         zones,
+      )
+      return c.json(serializeService(row))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.put('/api/tenants/:tenantId/config/services/:serviceId/combos', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const body = await c.req.json<{ combos?: unknown }>()
+      if (!Array.isArray(body.combos)) {
+        throw new ValidationError('invalid_combos', 'combos deve ser uma lista')
+      }
+      const combos = body.combos.map((raw) => {
+        if (!raw || typeof raw !== 'object') {
+          throw new ValidationError('invalid_combos', 'combo inválido')
+        }
+        const k = raw as Record<string, unknown>
+        if (typeof k.name !== 'string') {
+          throw new ValidationError('invalid_combos', 'o nome do combo é obrigatório')
+        }
+        if (typeof k.priceCents !== 'number') {
+          throw new ValidationError('invalid_combo_price', 'o preço do combo é obrigatório')
+        }
+        if (!Array.isArray(k.zoneIds) || k.zoneIds.some((id) => typeof id !== 'string')) {
+          throw new ValidationError('invalid_combos', 'zoneIds deve ser uma lista de ids')
+        }
+        return {
+          id: typeof k.id === 'string' ? k.id : undefined,
+          name: k.name,
+          priceCents: k.priceCents,
+          zoneIds: k.zoneIds as string[],
+          active: typeof k.active === 'boolean' ? k.active : undefined,
+        }
+      })
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const row = await gw.replaceServiceCombos(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        c.req.param('serviceId'),
+        combos,
       )
       return c.json(serializeService(row))
     } catch (err) {

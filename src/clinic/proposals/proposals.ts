@@ -29,7 +29,7 @@ import {
   readZoneSnapshots,
   writeZoneSnapshots,
 } from '../config/zones'
-import type { ZoneSnapshot } from '../config/types'
+import type { ComboSnapshot, ZoneSnapshot } from '../config/types'
 import { ConflictError, NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
 import { getConversation } from '../inbox/conversations'
@@ -432,7 +432,7 @@ function resolveFacts(
   | 'appointmentId'
   | 'createdAt'
   | 'updatedAt'
-> & { zoneKey: string; zones: ZoneSnapshot[] } {
+> & { zoneKey: string; zones: ZoneSnapshot[]; combo: ComboSnapshot | null } {
   const contact = getContact(db, tenantId, input.contactId)
   if (!contact) {
     throw new NotFoundError('contact_not_found', 'Contacto não encontrado nesta clínica')
@@ -534,6 +534,7 @@ function resolveFacts(
     priceCents: quote.priceCents,
     zoneKey: quote.zones.map((z) => z.zoneId).join(','),
     zones: quote.zones,
+    combo: quote.combo,
     requiresSignal: service.requiresSignal,
     signalKind: service.signalKind,
     signalFixedCents: service.signalFixedCents,
@@ -727,7 +728,7 @@ export function createOrSupersedeProposal(
         { lineageId: active.lineageId, version: active.version + 1, id: nextId },
         clock,
       )
-      writeZoneSnapshots(db, tenantId, 'proposal', next.id, facts.zones)
+      writeZoneSnapshots(db, tenantId, 'proposal', next.id, facts.zones, facts.combo)
       return { proposal: next, superseded: getProposal(db, tenantId, active.id) }
     }
 
@@ -739,7 +740,7 @@ export function createOrSupersedeProposal(
       { lineageId: id, version: 1, id },
       clock,
     )
-    writeZoneSnapshots(db, tenantId, 'proposal', proposal.id, facts.zones)
+    writeZoneSnapshots(db, tenantId, 'proposal', proposal.id, facts.zones, facts.combo)
     return { proposal, superseded: null }
   })
 }

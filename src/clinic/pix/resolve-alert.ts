@@ -12,6 +12,7 @@ import { assertValidCaller } from '../envelopes'
 import { ConflictError, NotFoundError, ValidationError } from '../errors'
 import { assertClinicSchemaReady } from '../migrations'
 import type { OutboxRow } from '../outbox'
+import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots } from '../config/zones'
 import { confirmAppointmentInTransaction } from '../scheduling/booking'
 import type { ClinicDb } from '../store'
@@ -145,6 +146,7 @@ export function resolveAlertAltSlotOp(
         opportunityId: charge.opportunityId,
         actorClerkUserId: actorId,
         frozenZoneSnapshots: readZoneSnapshots(db, meta.tenantId, 'pix_charge', charge.id),
+            frozenCombo: readComboSnapshot(db, meta.tenantId, 'pix_charge', charge.id),
       },
       clock,
     )

@@ -77,6 +77,7 @@ import type {
   CreateBlockInput,
   SetWeeklyWindowsInput,
   UpsertResourceInput,
+  ServiceComboInput,
   ServiceZoneInput,
   UpsertServiceInput,
 } from '../clinic/config'
@@ -1690,6 +1691,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       'service',
       row.id,
       { name: row.name, zones: row.zones.length },
+    )
+    return row
+  }
+
+  async replaceClinicServiceCombos(
+    caller: ClinicCaller,
+    serviceId: string,
+    combos: ServiceComboInput[],
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    clinicConfig.replaceServiceCombosOp(this.#db, caller, serviceId, combos, this.#clock)
+    const row = clinicConfig.getService(this.#db, caller.tenantId, serviceId)
+    if (!row) throw new Error('service_not_found')
+    await this.#fanoutConfigEvent(
+      caller,
+      'config.service_updated',
+      'service',
+      row.id,
+      { name: row.name, combos: row.combos.length },
     )
     return row
   }

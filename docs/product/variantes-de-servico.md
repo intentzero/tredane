@@ -16,7 +16,7 @@ A primeira zona, com o catálogo vazio e duração ou preço omitidos, copia a l
 
 ## A visita
 
-Um compromisso, um bloco contínuo: soma das durações escolhidas mais o intervalo do serviço uma vez. A busca de horários recebe essa duração; o servidor recalcula na confirmação. O bloco inteiro cabe na profissional, na sala, na janela do serviço e na capacidade (DEC-008, DEC-014, DEC-059). Cada zona no máximo uma vez. Zona de outro serviço ou clínica é recusada e nada é gravado. Sem folga entre zonas, sem misturar serviços, sem profissional ou sala por zona, sem desconto de pacote e sem «a partir de».
+Um compromisso, um bloco contínuo: soma das durações escolhidas mais o intervalo do serviço uma vez. A busca de horários recebe essa duração; o servidor recalcula na confirmação. O bloco inteiro cabe na profissional, na sala, na janela do serviço e na capacidade (DEC-008, DEC-014, DEC-059). Cada zona no máximo uma vez. Zona de outro serviço ou clínica é recusada e nada é gravado. Sem folga entre zonas, sem misturar serviços, sem profissional ou sala por zona, sem desconto de pacote além dos combos (DEC-080) e sem «a partir de».
 
 O compromisso guarda nome, duração e preço de cada zona. A agenda mostra «Depilação · Axila, Meia perna», na ordem do catálogo. Reagendar mantém o conjunto. Trocar zonas revalida o bloco; o compromisso antigo só muda quando o novo é confirmado, na mesma transação.
 
@@ -32,6 +32,14 @@ O contexto lista o serviço e cada zona ativa: nome, duração, preço ou «sem 
 
 Serviço sem zonas não muda: duração do cadastro (DEC-076), preço, sinal fixo e percentual, proposta e sugestão de preço (AC-41, AC-55).
 
+## Combos (DEC-080)
+
+**Confirmado (Paulo, 30/10/2026, «concordo»).** Um combo é um conjunto de 2 ou mais variantes do mesmo serviço, sem misturar masculino e feminino, com nome, preço próprio e ativo/inativo. Só a responsável grava. O combo **entra sozinho** quando a cliente escolhe todas as variantes dele; vale **um por visita** (o de maior desconto) e as outras variantes saem pelo preço normal. O combo **só vale** se todas as suas variantes estão em uso e têm preço e se ele sai **mais barato** que a soma atual; se o preço de uma variante muda e deixa de compensar, o combo deixa de se aplicar e o painel avisa.
+
+O total da visita é o do servidor (`quoteVisit`). O sinal em porcentagem usa esse total; o fixo não muda. A proposta mostra «Preço: R$ 70,00 (combo Buço + axila, economia de R$ 15,00)». A visita, a proposta e a cobrança guardam o nome, o preço do combo e a soma sem desconto; editar o combo não reescreve compromissos, e uma proposta aberta cujo total mudou fica desatualizada (nova versão). O contexto da IA lista os combos que valem hoje, e o valor final continua o do servidor. Combo usado não se apaga, só se desativa; tirar uma variante do catálogo tira-a dos combos, e o combo com menos de 2 variantes é apagado (ou desativado, se já foi usado).
+
+Fora: pacotes de sessões, combos entre serviços, desconto percentual, combos que se somam, «a partir de».
+
 ## Requisitos
 
-REQ-085 a REQ-088. Aceite AC-57 a AC-60. Migração do SQLite da clínica: `0034_service_zones`.
+REQ-085 a REQ-088 e REQ-095 (combos). Aceite AC-57 a AC-60 e AC-69. Migrações do SQLite da clínica: `0034_service_zones` e `0040_service_combos` (combos).

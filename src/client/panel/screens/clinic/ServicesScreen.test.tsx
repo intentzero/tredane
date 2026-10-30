@@ -294,3 +294,68 @@ describe('ServiceForm — catálogo de variantes', () => {
     expect(screen.getByText('Preço (opcional)')).toBeTruthy()
   })
 })
+
+describe('ServiceForm — combos de variantes (DEC-080)', () => {
+  const zone = (id: string, name: string, priceCents: number, audience: 'ambos' | 'feminino' | 'masculino') => ({
+    id,
+    name,
+    durationMinutes: 15,
+    priceCents,
+    audience,
+    active: true,
+    sortOrder: 0,
+  })
+  const base = () =>
+    svc({
+      variantKind: 'Zona',
+      variantKindPlural: 'Zonas',
+      zones: [
+        zone('z1', 'Axila', 5000, 'ambos'),
+        zone('z2', 'Buço', 3500, 'feminino'),
+        zone('z3', 'Peitoral', 12000, 'masculino'),
+      ],
+      combos: [{ id: 'c1', name: 'Buço + axila', priceCents: 7000, zoneIds: ['z1', 'z2'], active: true, sortOrder: 0 }],
+    })
+
+  it('mostra o combo com a economia e grava o preço novo com as variantes', async () => {
+    const upsertService = vi.fn(async () => ({ id: 'svc_1' }))
+    const replaceServiceZones = vi.fn(async () => base())
+    const replaceServiceCombos = vi.fn(async () => base())
+    renderForm(base(), { upsertService, replaceServiceZones, replaceServiceCombos } as unknown as Partial<PanelApi>)
+
+    expect(screen.getByText('Buço + axila')).toBeTruthy()
+    expect(screen.getByText(/economia R\$\s?15,00/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /Buço \+ axila/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Preço do combo' }), { target: { value: '6500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+
+    await waitFor(() => expect(replaceServiceCombos).toHaveBeenCalled())
+    const sent = (replaceServiceCombos.mock.calls[0] as unknown[])[2] as Array<Record<string, unknown>>
+    expect(sent).toMatchObject([{ id: 'c1', name: 'Buço + axila', priceCents: 650000, zoneIds: ['z1', 'z2'] }])
+  })
+
+  it('não deixa misturar masculino e feminino no mesmo combo', () => {
+    renderForm(base(), {})
+    fireEvent.click(screen.getByRole('button', { name: /Buço \+ axila/ }))
+    const peitoral = screen.getByRole('button', { name: 'Peitoral' }) as HTMLButtonElement
+    expect(peitoral.disabled).toBe(true)
+  })
+
+  it('avisa quando o combo não sai mais barato que a soma', () => {
+    renderForm(base(), {})
+    fireEvent.click(screen.getByRole('button', { name: /Buço \+ axila/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Preço do combo' }), { target: { value: '9000' } })
+    expect(screen.getByText(/não sai mais barato/)).toBeTruthy()
+  })
+
+  it('combo sem nome ou preço não grava', async () => {
+    const upsertService = vi.fn()
+    renderForm(base(), { upsertService } as unknown as Partial<PanelApi>)
+    fireEvent.click(screen.getByRole('button', { name: /Buço \+ axila/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome do combo' }), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    expect(upsertService).not.toHaveBeenCalled()
+    expect(screen.getByText(/Dê nome e preço a cada combo/)).toBeTruthy()
+  })
+})

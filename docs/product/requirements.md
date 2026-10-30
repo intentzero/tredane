@@ -292,6 +292,7 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-091 | MVP | A mesma função decide serve, não serve ou indisponível, sem mostrar percentagem. |
 | REQ-092 | MVP | O automático e o clique falham fechados; a marcação manual avisa e confirma. |
 | REQ-093 | MVP | A IA vê horários filtrados e a frase, não o payload do provedor. |
+| REQ-095 | MVP | Combos de variantes entram sozinhos, um por visita, só se forem mais baratos que a soma (DEC-080). |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). |
 
@@ -311,3 +312,7 @@ Antes de converter este catálogo em issues de implementação, fechar ou manter
 ## Persistência confirmada — DEC-038
 
 REQ-001/010/011/020–023/030–034/040–042 usam dados operacionais no SQLite do DO da clínica; REQ-003/004/005/006/007/008 e autorizações de suporte mantêm fonte central D1. Não renumerar requisitos nem alterar prioridades por esta decisão. Critérios de isolamento, concorrência, reconexão, migração, restauração e revogação estão no [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md). Campos, regras de agenda e políticas ainda não aprovadas continuam propostas/em aberto.
+
+### REQ-095 — Combos de variantes
+
+**Prioridade/estado:** MVP / Confirmado (DEC-080, DEC-078). **Origem:** ACT-02, JRN-17. **Comportamento:** a responsável cria combos de 2 ou mais variantes do mesmo serviço, sem misturar masculino e feminino, com nome e preço próprios. O combo entra sozinho na visita quando todas as suas variantes foram escolhidas, vale um por visita (o de maior desconto) e as variantes que sobram saem pelo preço normal. Só vale se todas as variantes estão em uso, têm preço e a soma é maior que o preço do combo. O total, o sinal em porcentagem, a proposta e a cobrança usam o preço final; a cópia guarda o combo. A IA recebe os combos que valem hoje e nunca calcula o valor. **Aceite:** AC-69.

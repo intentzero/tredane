@@ -306,8 +306,15 @@ export function confirmAppointmentInTransaction(
     const priced = zones.every((z) => z.priceCents != null)
     visit = {
       durationMinutes,
-      priceCents: priced ? zones.reduce((sum, z) => sum + (z.priceCents ?? 0), 0) : null,
+      priceCents: input.frozenCombo
+        ? input.frozenCombo.priceCents +
+          zones.reduce((sum, z) => sum + (z.priceCents ?? 0), 0) -
+          input.frozenCombo.listPriceCents
+        : priced
+          ? zones.reduce((sum, z) => sum + (z.priceCents ?? 0), 0)
+          : null,
       zones,
+      combo: input.frozenCombo ?? null,
     }
     durationOverride = durationMinutes
   } else if (input.excludeHoldId && !input.zoneIds?.length) {
@@ -409,7 +416,7 @@ export function confirmAppointmentInTransaction(
     Math.round((endsAt - check.slot.startsAt) / 60_000),
   )
   if (visit && visit.zones.length > 0) {
-    writeZoneSnapshots(db, meta.tenantId, 'appointment', id, visit.zones)
+    writeZoneSnapshots(db, meta.tenantId, 'appointment', id, visit.zones, visit.combo)
   }
 
   insertAllocations(db, {
@@ -815,7 +822,14 @@ export function rescheduleAppointmentOp(
       before.id,
     )
     if (rescheduleVisit) {
-      writeZoneSnapshots(db, meta.tenantId, 'appointment', before.id, rescheduleVisit.zones)
+      writeZoneSnapshots(
+        db,
+        meta.tenantId,
+        'appointment',
+        before.id,
+        rescheduleVisit.zones,
+        rescheduleVisit.combo,
+      )
     }
     insertAllocations(db, {
       tenantId: meta.tenantId,

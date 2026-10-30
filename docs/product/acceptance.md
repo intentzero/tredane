@@ -264,6 +264,10 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 
 **Dado** a cliente pergunta o preço de «Depilação» sem nomear zona; **então** a sugestão pede as zonas e não cita valor nem «a partir de». **Dado** ela nomeia «Axila» e «Meia perna»; **então** só a soma do backend pode ser citada. A proposta lista as zonas, o início e o fim do bloco e a soma ou a ausência de preço. Trocar o conjunto gera nova versão. Serviço sem zonas continua a citar o preço da linha. **Requisitos:** REQ-088.
 
+### AC-69 — Combos de variantes (Confirmado, DEC-080)
+
+**Dado** o combo «Buço + axila» a R$ 70,00 com as variantes a R$ 35,00 e R$ 50,00; **quando** a visita escolhe as duas; **então** o total é R$ 70,00, a duração é a soma mais o intervalo uma vez e a cópia guarda o combo (R$ 70,00; soma R$ 85,00). **Dado** a visita escolhe também «Meia perna» (R$ 90,00); **então** o total é R$ 160,00. **Dado** uma só das duas; **então** não há combo. **Dado** dois combos que cabem; **então** vale o de maior desconto, só um. **Dado** o preço de uma variante cai e o combo deixa de ser mais barato; **então** ele deixa de se aplicar e o painel avisa. **Dado** uma proposta aberta cujo total mudou por causa do combo; **então** o clique é negado como mudança material. **Dado** um combo com variante masculina e feminina, de outro serviço, com menos de 2 variantes, sem preço ou com nome repetido; **então** nada é gravado. **Dado** um combo que já entrou numa visita; **então** não se apaga, só se desativa. **Requisitos:** REQ-095.
+
 ### AC-61 — Migração do bloco Tempo em Tanto faz (Confirmado, DEC-077)
 
 **Dado** serviços já gravados «Bronzeamento» e «Depilação»; **quando** a migração do bloco Tempo corre; **então** céu e temperatura ficam em Tanto faz, sem graus, o local de previsão fica vazio e `clinic_address` não é copiado. A grade desses serviços é a mesma de antes. O contato não ganha coluna e a audiência (DEC-075) permanece. **Requisitos:** REQ-090.

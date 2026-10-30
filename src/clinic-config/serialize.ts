@@ -89,6 +89,14 @@ export function serializeService(row: ServiceRow) {
       active: z.active,
       sortOrder: z.sortOrder,
     })),
+    combos: row.combos.map((k) => ({
+      id: k.id,
+      name: k.name,
+      priceCents: k.priceCents,
+      zoneIds: k.zoneIds,
+      active: k.active,
+      sortOrder: k.sortOrder,
+    })),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }

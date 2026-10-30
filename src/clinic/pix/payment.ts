@@ -10,6 +10,7 @@ import { assertValidCaller } from '../envelopes'
 import { NotFoundError, ValidationError } from '../errors'
 import { assertClinicSchemaReady } from '../migrations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
+import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots, snapshotDuration } from '../config/zones'
 import { confirmAppointmentInTransaction } from '../scheduling/booking'
 import { checkSlotAvailability } from '../scheduling/check'
@@ -301,6 +302,7 @@ export function processPixPaymentOp(
             opportunityId: charge.opportunityId,
             actorClerkUserId: 'system:pix_webhook',
             frozenZoneSnapshots: readZoneSnapshots(db, meta.tenantId, 'pix_charge', charge.id),
+            frozenCombo: readComboSnapshot(db, meta.tenantId, 'pix_charge', charge.id),
           },
           clock,
         )

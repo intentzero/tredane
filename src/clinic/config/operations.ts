@@ -14,6 +14,7 @@ import {
   servicesLeftWithoutCategoryResource,
 } from './resources'
 import { deleteService, setServiceActive, upsertService, getService } from './services'
+import { replaceCombos } from './combos'
 import { replaceZones } from './zones'
 import { NotFoundError } from '../errors'
 import { listOverCapacitySlots } from '../scheduling/occupancy'
@@ -39,6 +40,8 @@ import type {
   CreateBlockResult,
   ForecastPlaceInput,
   ResourceRow,
+  ServiceComboInput,
+  ServiceComboRow,
   ServiceRow,
   ServiceZoneInput,
   ServiceZoneRow,
@@ -145,6 +148,36 @@ export function replaceServiceZonesOp(
         tenantId: meta.tenantId,
         actor: caller.actorId ?? caller.kind,
         action: 'config.service_zones_updated',
+        objectType: 'service',
+        objectId: service.id,
+        detail: { count: rows.length },
+      },
+      clock,
+    )
+    return rows
+  })
+}
+
+export function replaceServiceCombosOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  serviceId: string,
+  combos: ServiceComboInput[],
+  clock: Clock,
+): ServiceComboRow[] {
+  const meta = prepare(db, caller, clock)
+  return db.transactionSync(() => {
+    const service = getService(db, meta.tenantId, serviceId)
+    if (!service) {
+      throw new NotFoundError('service_not_found', `serviço ${serviceId} não encontrado`)
+    }
+    const rows = replaceCombos(db, meta.tenantId, service.id, combos, clock)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor: caller.actorId ?? caller.kind,
+        action: 'config.service_combos_updated',
         objectType: 'service',
         objectId: service.id,
         detail: { count: rows.length },

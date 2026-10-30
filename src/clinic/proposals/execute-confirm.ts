@@ -9,7 +9,7 @@ import { AI_AUTOBOOK_ACTOR_ID, AI_AUTOBOOK_ACTOR_NAME } from '../ai/autobook'
 import { checkConversationProtection } from '../ai/protection'
 import { getContact } from '../contacts'
 import { getService } from '../config/services'
-import { readZoneSnapshots, zoneSnapshotsDrifted } from '../config/zones'
+import { quoteVisit, readZoneSnapshots, zoneSnapshotsDrifted } from '../config/zones'
 import { getResource } from '../config/resources'
 import {
   PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX,
@@ -153,6 +153,18 @@ function materialDrift(
   const snaps = readZoneSnapshots(db, tenantId, 'proposal', proposal.id)
   if (snaps.length > 0) {
     if (zoneSnapshotsDrifted(db, tenantId, proposal.serviceId, snaps)) return true
+    // DEC-080: combo criado, editado ou desativado muda o total sem mexer nas variantes.
+    try {
+      const live = quoteVisit(
+        db,
+        tenantId,
+        service,
+        snaps.map((z) => z.zoneId).filter((id): id is string => id != null),
+      )
+      if ((live.priceCents ?? null) !== (proposal.priceCents ?? null)) return true
+    } catch {
+      return true
+    }
   } else if ((service.priceCents ?? null) !== (proposal.priceCents ?? null)) return true
   if ((service.signalKind ?? null) !== (proposal.signalKind ?? null)) return true
   if ((service.signalFixedCents ?? null) !== (proposal.signalFixedCents ?? null)) return true

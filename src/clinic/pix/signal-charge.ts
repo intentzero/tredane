@@ -410,8 +410,8 @@ export async function createSignalChargeAndSendOp(
       clock,
     )
     if (visit.zones.length > 0) {
-      writeZoneSnapshots(db, meta.tenantId, 'pix_charge', charge.id, visit.zones)
-      writeZoneSnapshots(db, meta.tenantId, 'scheduling_intent', intent.id, visit.zones)
+      writeZoneSnapshots(db, meta.tenantId, 'pix_charge', charge.id, visit.zones, visit.combo)
+      writeZoneSnapshots(db, meta.tenantId, 'scheduling_intent', intent.id, visit.zones, visit.combo)
     }
 
     return {

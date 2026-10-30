@@ -22,8 +22,11 @@ export type {
   CreateBlockResult,
   RoomRequirement,
   ServiceSignalKind,
+  ServiceComboInput,
+  ServiceComboRow,
   ServiceZoneInput,
   ServiceZoneRow,
+  ComboSnapshot,
   ZoneSnapshot,
   UpdateAbuseLimitsInput,
   ForecastPlaceInput,
@@ -76,6 +79,7 @@ export {
   zonesNamedInText,
   zoneSnapshotsDrifted,
 } from './zones'
+export { listCombos, replaceCombos, readComboSnapshot, writeComboSnapshot } from './combos'
 export { computeConfigReadiness } from './readiness'
 export { loadConfigSnapshot } from './snapshot'
 export {
@@ -89,6 +93,7 @@ export {
   updateAbuseLimitsOp,
   upsertServiceOp,
   replaceServiceZonesOp,
+  replaceServiceCombosOp,
   setServiceActiveOp,
   deleteServiceOp,
   upsertResourceOp,

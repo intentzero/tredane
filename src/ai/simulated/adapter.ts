@@ -1,4 +1,5 @@
 import type { AiProviderAdapter } from '../contract'
+import { priceVisit } from '../../clinic/catalog/combo'
 import {
   AI_MODEL_REPLY_PROPOSED,
   AI_MODEL_SUMMARY_PROPOSED,
@@ -156,7 +157,18 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
           if (named.some((z) => z.priceCents == null)) {
             return `Sobre ${s.name} (${named.map((z) => z.name).join(', ')}), a equipe vai confirmar o valor certinho com você.`
           }
-          const sum = named.reduce((acc, z) => acc + (z.priceCents ?? 0), 0)
+          const sum =
+            priceVisit(
+              named.map((z) => ({ id: z.name, priceCents: z.priceCents, active: true })),
+              (s.combos ?? []).map((k, i) => ({
+                id: `c${i}`,
+                name: k.name,
+                priceCents: k.priceCents,
+                zoneIds: k.zoneNames,
+                active: true,
+                sortOrder: i,
+              })),
+            ).priceCents ?? 0
           const reais = (sum / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
           return `A ${s.name} (${named.map((z) => z.name).join(', ')}) fica ${reais}. Quer que eu veja horários disponíveis?`
         }

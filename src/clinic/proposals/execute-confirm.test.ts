@@ -12,6 +12,7 @@ import {
   PROPOSAL_PIX_CLIENT_REQUEST_PREFIX,
 } from '../constants'
 import {
+  replaceServiceCombosOp,
   replaceServiceZonesOp,
   setAiProfileOp,
   setServiceActiveOp,
@@ -39,6 +40,7 @@ import {
   proposalBookClientRequestId,
   proposalButtonId,
   proposalPixClientRequestId,
+  renderProposalInteractive,
 } from './index'
 
 const T0 = Date.UTC(2026, 9, 29, 15, 0)
@@ -243,7 +245,7 @@ async function confirmClick(
 
 describe('S5: schema e chaves', () => {
   it('mantém CLINIC_SCHEMA_VERSION e prefixos estáveis', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(39)
+    expect(CLINIC_SCHEMA_VERSION).toBe(40)
     expect(PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX).toBe('proposal.book:')
     expect(PROPOSAL_PIX_CLIENT_REQUEST_PREFIX).toBe('proposal.pix:')
     expect(proposalBookClientRequestId('p1', 2)).toBe('proposal.book:p1:v2')
@@ -337,6 +339,76 @@ describe('S5: book sem sinal', () => {
       )
       const result = await confirmClick(s, marked.id, marked.version)
       expect(result.status).toBe('booked')
+    } finally {
+      s.close()
+    }
+  })
+
+  it('combo (DEC-080): a proposta cobra o preço do combo e fica desatualizada se o combo some', async () => {
+    const s = await seedBookable()
+    try {
+      const svc = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilacao combo',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [s.pro.id],
+          roomRequirement: { mode: 'category', category: 'Padrão' },
+        },
+        s.clock,
+      )
+      const zones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        svc.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 5_000, audience: 'ambos' },
+          { name: 'Buço', durationMinutes: 15, priceCents: 3_500, audience: 'feminino' },
+        ],
+        s.clock,
+      )
+      const [combo] = replaceServiceCombosOp(
+        s.db,
+        s.caller,
+        svc.id,
+        [{ name: 'Buço + axila', priceCents: 7_000, zoneIds: zones.map((z) => z.id) }],
+        s.clock,
+      )
+      const proposal = createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: s.contact.id,
+          conversationId: s.conversation.id,
+          serviceId: svc.id,
+          professionalId: s.pro.id,
+          startsAt: s.startsAt,
+          zoneIds: zones.map((z) => z.id),
+        },
+        s.clock,
+      )
+      expect(proposal.priceCents).toBe(7_000)
+      expect(renderProposalInteractive(proposal, s.db).body).toMatch(/combo Buço \+ axila, economia de R\$\s?15,00/)
+      const marked = markProposalSent(s.db, s.tenantId, proposal.id, s.clock)
+      s.db.run(
+        `UPDATE appointment_proposals SET send_provider_message_id = ? WHERE tenant_id = ? AND id = ?`,
+        'wamid.proposal_s5',
+        s.tenantId,
+        proposal.id,
+      )
+      replaceServiceCombosOp(
+        s.db,
+        s.caller,
+        svc.id,
+        [{ id: combo!.id, name: combo!.name, priceCents: 7_000, zoneIds: combo!.zoneIds, active: false }],
+        s.clock,
+      )
+      const result = await confirmClick(s, marked.id, marked.version)
+      expect(result).toMatchObject({ status: 'denied', reason: 'material_changed' })
     } finally {
       s.close()
     }
