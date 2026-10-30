@@ -239,6 +239,55 @@ describe('ServiceForm — catálogo de variantes', () => {
     expect(screen.getByRole('status').textContent).toMatch(/só para feminino/)
   })
 
+  it('não grava opção única quando o formato é com variantes e não há linha', () => {
+    const upsertService = vi.fn()
+    renderForm(svc({}), { upsertService } as Partial<PanelApi>)
+    fireEvent.click(screen.getByRole('radio', { name: 'Com variantes' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), {
+      target: { value: 'Zona' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    expect(upsertService).not.toHaveBeenCalled()
+    expect(screen.getByText(/Adicione ao menos uma variante/)).toBeTruthy()
+  })
+
+  it('com variantes, o sinal percentual usa a soma e não grava o preço da linha', async () => {
+    const upsertService = vi.fn(async () => ({ id: 'svc_1' }))
+    const replaceServiceZones = vi.fn(async () => [])
+    renderForm(
+      svc({
+        priceCents: 10_000,
+        requiresSignal: true,
+        signalKind: 'percent',
+        signalPercent: 30,
+        variantKind: 'Zona',
+        variantKindPlural: 'Zonas',
+        zones: [zone('z1', 'Axila', 'ambos')],
+      }),
+      { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Mais opções/ }))
+    const summary = screen.getByText(/30% de/).textContent ?? ''
+    expect(summary).toMatch(/50,00/)
+    expect(summary).not.toMatch(/100,00/)
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(upsertService).toHaveBeenCalled())
+    const body = (upsertService.mock.calls[0] as unknown[])[1] as Record<string, unknown>
+    expect(body.priceCents).toBeNull()
+    expect(body.signalPercent).toBe(30)
+  })
+
+  it('preço ilegível na linha recolhida aparece como sem preço', () => {
+    renderForm(
+      svc({ variantKind: 'Zona', zones: [zone('z1', 'Axila', 'ambos')] }),
+      {},
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Axila/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Preço' }), { target: { value: 'abc' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Pronto' }))
+    expect(screen.getByText('Sem preço')).toBeTruthy()
+  })
+
   it('opção única esconde o catálogo e mostra duração e preço', () => {
     renderForm(svc({}), {})
     expect(screen.queryByLabelText('Nome no singular')).toBeNull()

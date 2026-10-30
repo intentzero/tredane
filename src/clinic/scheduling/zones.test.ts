@@ -675,4 +675,50 @@ describe('plural do tipo das variantes (DEC-079, revisão 30/10/2026)', () => {
       close()
     }
   })
+
+  it('aceita sinal percentual sem preço da linha quando há tipo de variante', () => {
+    const { db, close, clock, caller, pro } = seed()
+    try {
+      const saved = upsertServiceOp(
+        db,
+        caller,
+        {
+          name: 'Com variantes',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          priceCents: null,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          requiresSignal: true,
+          signalKind: 'percent',
+          signalPercent: 30,
+          professionalIds: [pro.id],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      expect(saved.priceCents).toBeNull()
+      expect(saved.signalPercent).toBe(30)
+      expect(() =>
+        upsertServiceOp(
+          db,
+          caller,
+          {
+            name: 'Sem variantes',
+            durationMinutes: 30,
+            bufferMinutes: 0,
+            priceCents: null,
+            requiresSignal: true,
+            signalKind: 'percent',
+            signalPercent: 30,
+            professionalIds: [pro.id],
+            roomRequirement: { mode: 'none' },
+          },
+          clock,
+        ),
+      ).toThrow(ValidationError)
+    } finally {
+      close()
+    }
+  })
 })

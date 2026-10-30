@@ -188,6 +188,21 @@ function normalizeSignalFields(
     kind === 'percent' && input.signalPercent != null
       ? Math.trunc(input.signalPercent)
       : null
+  // Com variantes o preço da linha fica vazio; o valor do sinal sai da visita.
+  if (kind === 'percent' && input.variantKind?.trim() && !(priceCents != null && priceCents > 0)) {
+    if (percent === null || !Number.isInteger(percent) || percent < 1 || percent > 100) {
+      throw new ValidationError('invalid_percent', 'configuração de sinal inválida: invalid_percent', {
+        signalKind: kind,
+        signalPercent: percent,
+      })
+    }
+    return {
+      requiresSignal: 1,
+      signalKind: 'percent',
+      signalFixedCents: null,
+      signalPercent: percent,
+    }
+  }
   const err = assertValidSignalConfig(
     {
       requiresSignal: true,
