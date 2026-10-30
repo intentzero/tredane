@@ -130,7 +130,13 @@ export function buildUserContent(input: AiGenerateInput): string {
             return `  · ${u(z.name)}: ${z.durationMinutes} min; ${zp}; gênero: ${gender}`
           })
           .join('\n')
-        return `- ${u(s.name)} (tipo: ${u(one)} / ${u(many)}; duração e preço da linha não valem para marcação nova; ${audience}; ${expl})\n${zoneLines}`
+        const comboLines = (s.combos ?? [])
+          .map(
+            (k) =>
+              `  · combo «${u(k.name)}»: ${k.zoneNames.map((n) => u(n)).join(' + ')} por ${formatBRL(k.priceCents)} (vale sozinho se a cliente escolher todas; o valor final é o do sistema)`,
+          )
+          .join('\n')
+        return `- ${u(s.name)} (tipo: ${u(one)} / ${u(many)}; duração e preço da linha não valem para marcação nova; ${audience}; ${expl})\n${zoneLines}${comboLines ? `\n${comboLines}` : ''}`
       }
       return `- ${u(s.name)} (${s.durationMinutes} min; ${price}; ${audience}; ${expl})`
     })

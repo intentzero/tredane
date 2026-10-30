@@ -10,6 +10,8 @@ import {
   filterServicesForLine,
 } from '../catalog/audience'
 import { listServices } from '../config/services'
+import { bestCombo } from '../catalog/combo'
+import type { ServiceRow } from '../config/types'
 import { getContact } from '../contacts'
 import { getConversation } from '../inbox/conversations'
 import { listMessages } from '../inbox/messages'
@@ -97,6 +99,7 @@ export async function buildAiContextPayload(
       audiencia: s.audiencia,
       variantKind: s.variantKind,
       variantKindPlural: s.variantKindPlural,
+      combos: usableCombos(s),
       zones: s.zones
         .filter((z) => z.active)
         .map((z) => ({
@@ -217,4 +220,20 @@ export function assertAiCommandResultMinimized(resultJson: string): void {
   if (PROHIBITED_PAYLOAD_VALUE_RE.test(resultJson)) {
     throw new Error('ai_command_contains_prohibited_secrets')
   }
+}
+
+/** DEC-080 — combos que valem hoje: ativos, com todas as variantes em uso, com preço e mais baratos. */
+function usableCombos(service: ServiceRow): NonNullable<AiCatalogService['combos']> {
+  const zones = new Map(service.zones.map((z) => [z.id, z]))
+  return service.combos
+    .filter((combo) => {
+      const members = combo.zoneIds.map((id) => zones.get(id))
+      if (members.some((z) => !z)) return false
+      return Boolean(bestCombo(members as NonNullable<(typeof members)[number]>[], [combo]))
+    })
+    .map((combo) => ({
+      name: sanitizeCatalogField(combo.name) ?? combo.name,
+      zoneNames: combo.zoneIds.map((id) => sanitizeCatalogField(zones.get(id)!.name) ?? zones.get(id)!.name),
+      priceCents: combo.priceCents,
+    }))
 }

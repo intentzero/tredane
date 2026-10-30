@@ -33,6 +33,11 @@ export type AiCatalogService = {
   variantKind?: string | null
   /** DEC-079 — plural do tipo. Ausente: cai no singular, senão «Variantes». */
   variantKindPlural?: string | null
+  /**
+   * DEC-080 — combos que valem hoje (ativos, variantes em uso e com preço, mais baratos que a
+   * soma). Aplicam-se sozinhos quando a cliente escolhe todas as variantes. O valor final é o do sistema.
+   */
+  combos?: { name: string; zoneNames: string[]; priceCents: number }[]
   /** DEC-078 / DEC-079 — variantes ativas. Ausente ou vazio: a linha do serviço vale. */
   zones?: {
     name: string

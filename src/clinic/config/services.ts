@@ -18,6 +18,7 @@ import type {
   UpsertServiceInput,
 } from './types'
 import { listServiceWeeklyWindows, setServiceWeeklyWindows } from './service-windows'
+import { listCombos } from './combos'
 import { listZones } from './zones'
 import { VARIANT_KIND_MAX } from '../catalog/variant-kind'
 import {
@@ -146,6 +147,7 @@ function toServiceRow(
     variantKind: row.variant_kind?.trim() || null,
     variantKindPlural: row.variant_kind_plural?.trim() || null,
     zones: listZones(db, row.tenant_id, row.id),
+    combos: listCombos(db, row.tenant_id, row.id),
   }
 }
 

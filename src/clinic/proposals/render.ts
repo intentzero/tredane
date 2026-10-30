@@ -3,6 +3,7 @@
  * Texto autorizado e campos factuais vêm só do snapshot persistido — nunca do LLM.
  */
 import type { ClinicDb } from '../store'
+import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots, zoneLabel } from '../config/zones'
 import type { AppointmentProposalRow } from './types'
 
@@ -120,6 +121,7 @@ export function renderProposalInteractive(
   db?: ClinicDb,
 ): ProposalInteractivePayload {
   const zones = db ? readZoneSnapshots(db, proposal.tenantId, 'proposal', proposal.id) : []
+  const combo = db ? readComboSnapshot(db, proposal.tenantId, 'proposal', proposal.id) : null
   const lines: string[] = [
     'Proposta de horário',
     '',
@@ -135,7 +137,13 @@ export function renderProposalInteractive(
     lines.push(`Profissional: ${proposal.professionalName}`)
   }
   if (proposal.priceCents != null) {
-    lines.push(`Preço: ${formatBrl(proposal.priceCents)}`)
+    lines.push(
+      combo
+        ? `Preço: ${formatBrl(proposal.priceCents)} (combo ${combo.name}, economia de ${formatBrl(
+            combo.listPriceCents - combo.priceCents,
+          )})`
+        : `Preço: ${formatBrl(proposal.priceCents)}`,
+    )
   }
   const signal = formatSignal(proposal)
   if (signal) lines.push(signal)

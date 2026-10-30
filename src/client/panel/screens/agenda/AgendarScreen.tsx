@@ -22,6 +22,7 @@ import {
   type PixSnapshot,
 } from '../../api'
 import { navigatePanel } from '../../routes'
+import { priceVisit } from '../../../../clinic/catalog/combo'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
 import { InboxRealtimeProvider, isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
 import { ListSkeleton } from '../../states/ListSkeleton'
@@ -110,15 +111,27 @@ function chosenZones(svc: Service | undefined, ids: string[]) {
 function visitQuote(svc: Service | undefined, ids: string[]) {
   const active = activeZonesOf(svc)
   if (active.length === 0) {
-    return { zoned: false, zones: [], minutes: svc?.durationMinutes ?? null, priceCents: svc?.priceCents ?? null }
+    return {
+      zoned: false,
+      zones: [],
+      minutes: svc?.durationMinutes ?? null,
+      priceCents: svc?.priceCents ?? null,
+      listPriceCents: null,
+      combo: null,
+    }
   }
   const zones = chosenZones(svc, ids)
-  const priced = zones.length > 0 && zones.every((z) => z.priceCents != null)
+  const price = priceVisit(
+    zones,
+    svc?.combos ?? [],
+  )
   return {
     zoned: true,
     zones,
     minutes: zones.reduce((sum, z) => sum + z.durationMinutes, 0) || null,
-    priceCents: priced ? zones.reduce((sum, z) => sum + (z.priceCents ?? 0), 0) : null,
+    priceCents: price.priceCents,
+    listPriceCents: price.listPriceCents,
+    combo: price.applied,
   }
 }
 
@@ -629,6 +642,9 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
               <p className="agd-note">
                 {visit.minutes} min
                 {visit.priceCents != null ? ` · ${formatBrl(visit.priceCents)}` : ' · sem preço somado'}
+                {visit.combo
+                  ? ` · combo ${visit.combo.combo.name}, economia de ${formatBrl(visit.combo.discountCents)}`
+                  : ''}
               </p>
             )}
           </section>

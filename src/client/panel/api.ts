@@ -603,6 +603,26 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as ClinicService
     },
 
+    async replaceServiceCombos(
+      tenantId: string,
+      serviceId: string,
+      combos: ServiceComboInput[],
+      opts?: FetchOpts,
+    ): Promise<ClinicService> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/services/${encodeURIComponent(serviceId)}/combos`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ combos }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicService
+    },
+
     async setServiceActive(
       tenantId: string,
       serviceId: string,
@@ -2093,6 +2113,8 @@ export type ClinicService = {
   variantKindPlural?: string | null
   /** DEC-078. Vazio: a linha do serviço vale. */
   zones?: ClinicServiceZone[]
+  /** DEC-080. */
+  combos?: ClinicServiceCombo[]
   createdAt: number
   updatedAt: number
 }
@@ -2106,6 +2128,23 @@ export type ClinicServiceZone = {
   audience: 'feminino' | 'masculino' | 'ambos'
   active: boolean
   sortOrder: number
+}
+
+export type ClinicServiceCombo = {
+  id: string
+  name: string
+  priceCents: number
+  zoneIds: string[]
+  active: boolean
+  sortOrder: number
+}
+
+export type ServiceComboInput = {
+  id?: string
+  name: string
+  priceCents: number
+  zoneIds: string[]
+  active?: boolean
 }
 
 export type ServiceZoneInput = {

@@ -2,13 +2,20 @@ import { useState } from 'react'
 import { Button, Input, Label, NumberField, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components'
 import { ChevronRight, TriangleAlert } from 'lucide-react'
 import { suggestVariantKindPlural } from '../../../../clinic/catalog/variant-kind'
+import { ComboCatalog, type ComboDraft } from './ComboCatalog'
 import { VariantCatalog, type ZoneDraft } from './VariantCatalog'
 import { Badge } from '../../states/Badge'
 import { ClinicCheck } from './ClinicCheck'
 import { ClinicListHeader } from './ClinicListHeader'
 import { serviceRow } from './resourceRows'
 import { PanelSelect } from '../../ui/PanelSelect'
-import type { ClinicConfigSnapshot, PanelApi, ServiceUpsertBody, ServiceZoneInput } from '../../api'
+import type {
+  ClinicConfigSnapshot,
+  ClinicService,
+  PanelApi,
+  ServiceUpsertBody,
+  ServiceZoneInput,
+} from '../../api'
 import { PanelApiError } from '../../api'
 import { navigatePanel } from '../../routes'
 import {
@@ -174,6 +181,16 @@ export function ServiceForm({
       price: z.priceCents != null ? formatPriceCents(z.priceCents) : '',
       audience: z.audience === 'feminino' || z.audience === 'masculino' ? z.audience : 'ambos',
       active: z.active,
+    })),
+  )
+  const [combos, setCombos] = useState<ComboDraft[]>(() =>
+    (existing?.combos ?? []).map((c) => ({
+      key: c.id,
+      id: c.id,
+      name: c.name,
+      price: formatPriceCents(c.priceCents),
+      zoneKeys: c.zoneIds,
+      active: c.active,
     })),
   )
   const [withVariants, setWithVariants] = useState((existing?.zones?.length ?? 0) > 0)
@@ -345,6 +362,24 @@ export function ServiceForm({
       audience: z.audience,
       active: z.active,
     }))
+    const zoneKeys = new Set(draftZones.map((z) => z.key))
+    const draftCombos = withVariants
+      ? combos.map((c) => ({ ...c, zoneKeys: c.zoneKeys.filter((key) => zoneKeys.has(key)) }))
+      : []
+    const small = draftCombos.find((c) => c.zoneKeys.length < 2)
+    if (small) {
+      setFormError(
+        `O combo «${small.name.trim() || 'sem nome'}» precisa de pelo menos 2 variantes. Complete ou remova. O que você digitou continua aqui.`,
+      )
+      setSaving(false)
+      return
+    }
+    if (draftCombos.some((c) => !c.name.trim() || (parsePriceToCents(c.price) ?? 0) <= 0)) {
+      setFormError('Dê nome e preço a cada combo. O que você digitou continua aqui.')
+      setSaving(false)
+      return
+    }
+    const hadCombos = (existing?.combos?.length ?? 0) > 0
     try {
       // Limpar o tipo com variantes ainda gravadas deixa o cadastro inconsistente.
       if (zoneBody.length === 0 && hadZones && existing) {
@@ -358,9 +393,10 @@ export function ServiceForm({
         generation,
         expectGeneration: () => generation,
       })
+      let zonesSaved: ClinicService | null = null
       if (zoneBody.length > 0) {
         try {
-          await api.replaceServiceZones(tenantId, saved.id, zoneBody, {
+          zonesSaved = await api.replaceServiceZones(tenantId, saved.id, zoneBody, {
             generation,
             expectGeneration: () => generation,
           })
@@ -385,6 +421,28 @@ export function ServiceForm({
           }
           throw zoneErr
         }
+      }
+      if (zoneBody.length > 0 && (draftCombos.length > 0 || hadCombos)) {
+        const idByName = new Map(
+          (zonesSaved?.zones ?? []).map((z) => [z.name.trim().toLocaleLowerCase('pt-BR'), z.id]),
+        )
+        const idOfKey = (key: string): string | null => {
+          const draft = draftZones.find((z) => z.key === key)
+          if (!draft) return null
+          return draft.id ?? idByName.get(draft.name.trim().toLocaleLowerCase('pt-BR')) ?? null
+        }
+        await api.replaceServiceCombos(
+          tenantId,
+          saved.id,
+          draftCombos.map((c) => ({
+            id: c.id,
+            name: c.name.trim(),
+            priceCents: parsePriceToCents(c.price) ?? 0,
+            zoneIds: c.zoneKeys.map(idOfKey).filter((id): id is string => id != null),
+            active: c.active,
+          })),
+          { generation, expectGeneration: () => generation },
+        )
       }
       await onSaved()
       navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'servicos' })
@@ -436,6 +494,7 @@ export function ServiceForm({
           </RadioGroup>
         </div>
         {withVariants ? (
+          <>
           <VariantCatalog
             singular={variantKind}
             plural={variantKindPlural}
@@ -452,6 +511,14 @@ export function ServiceForm({
             onZones={(update) => setZones(update)}
             seed={{ durationMinutes: duration, price }}
           />
+          <ComboCatalog
+            singular={variantKind}
+            plural={variantKindPlural}
+            zones={zones}
+            combos={combos}
+            onCombos={(update) => setCombos(update)}
+          />
+          </>
         ) : (
           <>
             <div className="clinic-field-row">

@@ -238,7 +238,7 @@ function allocationCount(s: { db: ReturnType<typeof bootClinicDb>['db']; tenantI
 
 describe('S9: schema estável', () => {
   it('mantém CLINIC_SCHEMA_VERSION com propostas/envio/limites', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(39)
+    expect(CLINIC_SCHEMA_VERSION).toBe(40)
   })
 })
 

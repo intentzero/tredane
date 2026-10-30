@@ -1,6 +1,6 @@
 import type { ScheduleHoldView } from './hold-rows'
 import type { AppointmentChangeReason } from '../constants'
-import type { AppointmentRow, ZoneSnapshot } from '../config/types'
+import type { AppointmentRow, ComboSnapshot, ZoneSnapshot } from '../config/types'
 import type { OutboxRow } from '../outbox'
 import type { UnavailabilityReason } from './types'
 
@@ -42,6 +42,8 @@ export type ConfirmAppointmentInput = {
    * mesmo que o catálogo tenha mudado depois.
    */
   frozenZoneSnapshots?: ZoneSnapshot[] | null
+  /** Combo já cobrado (DEC-080): vem da cobrança Pix junto com as variantes. */
+  frozenCombo?: ComboSnapshot | null
   actorDisplayName?: string | null
 }
 

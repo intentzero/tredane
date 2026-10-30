@@ -14,6 +14,7 @@ import type {
   CreateBlockResult,
   ResourceRow,
   ServiceRow,
+  ServiceComboInput,
   ServiceZoneInput,
   SetWeeklyWindowsInput,
   UpdateAbuseLimitsInput,
@@ -61,6 +62,11 @@ export type ClinicConfigGateway = {
     caller: ClinicCaller,
     serviceId: string,
     zones: ServiceZoneInput[],
+  ): Promise<ServiceRow>
+  replaceServiceCombos(
+    caller: ClinicCaller,
+    serviceId: string,
+    combos: ServiceComboInput[],
   ): Promise<ServiceRow>
   setServiceActive(
     caller: ClinicCaller,
@@ -142,6 +148,12 @@ export function createMemoryClinicConfigGateway(
     },
     async upsertService(caller, input) {
       return clinicConfig.upsertServiceOp(db, caller, input, clock)
+    },
+    async replaceServiceCombos(caller, serviceId, combos) {
+      clinicConfig.replaceServiceCombosOp(db, caller, serviceId, combos, clock)
+      const row = clinicConfig.getService(db, caller.tenantId, serviceId)
+      if (!row) throw new Error('service_not_found')
+      return row
     },
     async replaceServiceZones(caller, serviceId, zones) {
       clinicConfig.replaceServiceZonesOp(db, caller, serviceId, zones, clock)

@@ -3,14 +3,17 @@
  * A visita é um bloco: soma das durações + o intervalo do serviço uma vez.
  */
 import type { Clock } from '../../db/clock'
+import { priceVisit } from '../catalog/combo'
 import { ValidationError } from '../errors'
 import { newId } from '../ids'
 import type { ClinicDb } from '../store'
+import { listCombos, pruneCombos, writeComboSnapshot } from './combos'
 import {
   isVariantAudience,
   type ServiceRow,
   type ServiceZoneInput,
   type ServiceZoneRow,
+  type ComboSnapshot,
   type VariantAudience,
   type ZoneSnapshot,
 } from './types'
@@ -141,6 +144,7 @@ export function replaceZones(
       tenantId,
       service.id,
     )
+    pruneCombos(db, tenantId, service.id, now)
     return []
   }
 
@@ -246,13 +250,17 @@ export function replaceZones(
     }
     db.run(`DELETE FROM service_zones WHERE tenant_id = ? AND id = ?`, tenantId, zone.id)
   }
+  pruneCombos(db, tenantId, service.id, now)
   return rows
 }
 
 export type VisitQuote = {
   durationMinutes: number
+  /** Total a cobrar, já com o combo (DEC-080). Nulo se alguma variante não tem preço. */
   priceCents: number | null
   zones: ZoneSnapshot[]
+  /** Combo aplicado. Vale um por visita: o de maior desconto. */
+  combo: ComboSnapshot | null
 }
 
 /** Duração e preço da visita. Sem zonas, usa a linha do serviço. */
@@ -272,7 +280,12 @@ export function quoteVisit(
         { serviceId: service.id },
       )
     }
-    return { durationMinutes: service.durationMinutes, priceCents: service.priceCents, zones: [] }
+    return {
+      durationMinutes: service.durationMinutes,
+      priceCents: service.priceCents,
+      zones: [],
+      combo: null,
+    }
   }
   const active = catalog.filter((z) => z.active)
   if (active.length === 0) {
@@ -311,12 +324,21 @@ export function quoteVisit(
     )
   }
   chosen.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'pt-BR'))
-  const priceCents = chosen.every((z) => z.priceCents != null)
-    ? chosen.reduce((sum, z) => sum + (z.priceCents ?? 0), 0)
-    : null
+  const priced = priceVisit(
+    chosen,
+    listCombos(db, tenantId, service.id).map((c) => ({ ...c })),
+  )
   return {
     durationMinutes: chosen.reduce((sum, z) => sum + z.durationMinutes, 0),
-    priceCents,
+    priceCents: priced.priceCents,
+    combo: priced.applied
+      ? {
+          comboId: priced.applied.combo.id,
+          name: priced.applied.combo.name,
+          priceCents: priced.applied.combo.priceCents,
+          listPriceCents: priced.applied.listCents,
+        }
+      : null,
     zones: chosen.map((z) => ({
       zoneId: z.id,
       name: z.name,
@@ -334,7 +356,9 @@ export function writeZoneSnapshots(
   ownerKind: ZoneOwnerKind,
   ownerId: string,
   zones: readonly ZoneSnapshot[],
+  combo: ComboSnapshot | null = null,
 ): void {
+  writeComboSnapshot(db, tenantId, ownerKind, ownerId, zones.length > 0 ? combo : null)
   db.run(
     `DELETE FROM visit_zone_snapshots WHERE tenant_id = ? AND owner_kind = ? AND owner_id = ?`,
     tenantId,

@@ -51,6 +51,8 @@ export type ServiceRow = {
   variantKindPlural: string | null
   /** DEC-078 — vazio = o serviço continua uma linha só. */
   zones: ServiceZoneRow[]
+  /** DEC-080 — vazio = sem combos. */
+  combos: ServiceComboRow[]
 }
 
 /** Género da variante (DEC-079). Distinto da audiência do serviço. */
@@ -85,6 +87,34 @@ export type ServiceZoneInput = {
   /** DEC-079 — obrigatório na gravação. A migração é que preenche `ambos`. */
   audience: VariantAudience
   active?: boolean
+}
+
+/** Combo de variantes de um serviço (DEC-080). */
+export type ServiceComboRow = {
+  id: string
+  tenantId: string
+  serviceId: string
+  name: string
+  priceCents: number
+  zoneIds: string[]
+  active: boolean
+  sortOrder: number
+}
+
+export type ServiceComboInput = {
+  id?: string
+  name: string
+  priceCents: number
+  zoneIds: string[]
+  active?: boolean
+}
+
+/** Cópia do combo aplicado, gravada na visita, na proposta ou na cobrança. */
+export type ComboSnapshot = {
+  comboId: string | null
+  name: string
+  priceCents: number
+  listPriceCents: number
 }
 
 /** Cópia gravada na visita, na proposta ou na cobrança. */

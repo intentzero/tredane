@@ -352,6 +352,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
         zones: [],
         variantKind: 'regiao',
         variantKindPlural: 'regioes',
+        combos: [],
         requiresSignal: false,
         signalKind: null,
         signalFixedCents: null,
