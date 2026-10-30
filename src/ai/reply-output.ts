@@ -144,6 +144,7 @@ export type ReplyOutputRejection =
   | 'role_marker'
   | 'privileged_content'
   | 'claims_booking'
+  | 'tempo_leak'
 
 export type GuardedReply =
   | { ok: true; message: string; notes: string }

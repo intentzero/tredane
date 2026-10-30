@@ -13,10 +13,13 @@ import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import type { ClinicDb } from '../store'
+import { TEMPO_REFUSED_PHRASE, TEMPO_UNCONFIRMED_PHRASE } from '../proposals/render'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
-import { queryAutomaticAvailability } from '../tempo/automatic'
-import type { ForecastAdapter } from '../tempo/evaluate'
+import { queryAvailability } from '../scheduling/query'
+import { memoAdapter, queryAutomaticAvailability } from '../tempo/automatic'
+import { evaluateServiceTempo, type ForecastAdapter } from '../tempo/evaluate'
 import { readOpenMeteo } from '../tempo/open-meteo'
+import { extractTimes } from './autobook'
 
 export const AI_FREE_SLOT_DAYS = 7
 export const AI_FREE_SLOT_MAX_SERVICES = 3
@@ -145,20 +148,41 @@ export async function buildClinicAiContext(
 
   const active = listServices(db, tenantId).filter((s) => s.active)
   const chosen = pickServicesForSlots(active, opts.recentTexts)
+  const mentioned = extractTimes(opts.recentTexts.join('\n'))
+  const tempoNotes = new Set<string>()
+  const forecast = memoAdapter(opts.forecast ?? { read: readOpenMeteo })
   const freeSlots: AiFreeSlotDay[] = []
   for (const svc of chosen) {
     for (let i = 0; i < AI_FREE_SLOT_DAYS; i++) {
       const date = addDays(today, i)
       let times: string[] = []
       try {
+        const preview = queryAvailability(db, tenantId, { serviceId: svc.id, date }, clock)
         const r = await queryAutomaticAvailability(
           db,
           tenantId,
           { serviceId: svc.id, date },
           clock,
-          opts.forecast ?? { read: readOpenMeteo },
+          forecast,
         )
         if (!r.schedulingAllowed) continue
+        if (mentioned.size > 0) {
+          const kept = new Set(r.slots.map((slot) => slot.startsAt))
+          for (const slot of preview.slots) {
+            if (slot.startsAt <= now) continue
+            const label = formatClinicTime(tz, slot.startsAt)
+            if (!mentioned.has(label) || kept.has(slot.startsAt)) continue
+            const verdict = await evaluateServiceTempo(
+              db,
+              tenantId,
+              { serviceId: svc.id, startsAt: slot.startsAt },
+              forecast,
+              clock,
+            )
+            if (verdict.outcome === 'nao_serve') tempoNotes.add(TEMPO_REFUSED_PHRASE)
+            if (verdict.outcome === 'indisponivel') tempoNotes.add(TEMPO_UNCONFIRMED_PHRASE)
+          }
+        }
         const mins = r.slots
           .filter((s) => s.startsAt > now)
           .map((s) => {
@@ -180,6 +204,10 @@ export async function buildClinicAiContext(
       })
     }
   }
+  const tempoNote = [
+    tempoNotes.has(TEMPO_REFUSED_PHRASE) ? TEMPO_REFUSED_PHRASE : null,
+    tempoNotes.has(TEMPO_UNCONFIRMED_PHRASE) ? TEMPO_UNCONFIRMED_PHRASE : null,
+  ].filter((phrase): phrase is string => phrase != null).join(' ') || null
 
   const appts = db.all<{ starts_at: number; service_name: string | null }>(
     `SELECT a.starts_at AS starts_at, s.name AS service_name
@@ -209,6 +237,7 @@ export async function buildClinicAiContext(
     today,
     openingHours: windows.length > 0 ? openingHours : [],
     freeSlots,
+    tempoNote,
     upcomingAppointments,
     reschedulePolicy: settings.reschedulePolicy || null,
     cancellationPolicy: settings.signalCancellationPolicy || null,
