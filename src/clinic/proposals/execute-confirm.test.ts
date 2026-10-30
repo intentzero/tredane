@@ -321,7 +321,7 @@ describe('S5: book sem sinal', () => {
         {
           clientRequestId: proposalBookClientRequestId(proposal.id, proposal.version),
           serviceId: proposal.serviceId,
-          professionalId: proposal.professionalId,
+          professionalId: s.pro.id,
           roomResourceId: s.room.id,
           startsAt: proposal.startsAt,
           contactId: proposal.contactId,
