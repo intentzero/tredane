@@ -2,8 +2,10 @@
  * Rascunho automático da IA a cada mensagem da cliente (aprovado por Paulo, 27/10/2026).
  * - Debounce: junta mensagens seguidas (AI_AUTODRAFT_DEBOUNCE_MS).
  * - Gera em segundo plano (alarme do DO) e guarda como sugestão pendente.
- * - O rascunho não sai sozinho. Confirmação clara faz o backend enviar a proposta
- *   com botões (autobook.ts), salvo pausa da owner.
+ * - Quando dia, horário e serviço ficam claros, o backend envia a proposta e não manda
+ *   a pergunta «Confirma…?» (autobook.ts), salvo pausa da owner.
+ * - Nos outros casos, o texto da IA sai sozinho, sem clique em Enviar. Injeção ou
+ *   saída rejeitada fica só para a atendente.
  */
 import { AI_AUTODRAFT_DEBOUNCE_MS } from '../../ai'
 import type { Clock } from '../../db/clock'
@@ -11,7 +13,9 @@ import type { ClinicCaller } from '../envelopes'
 import { ClinicError } from '../errors'
 import { isClinicAiAssistEnabled } from '../config/settings'
 import { getConversation } from '../inbox/conversations'
+import { sendOutboundMessageOp } from '../inbox/operations'
 import { messagingWindowForConversation } from '../inbox/window'
+import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import { tryAiAutoBook, type AutoBookOutcome } from './autobook'
 import { runGenerateInternal } from './operations'
@@ -21,6 +25,7 @@ import { getAiDailyUsage } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
 
 export const AUTODRAFT_ACTOR_ID = 'system:ai-autodraft'
+const AUTODRAFT_ACTOR_NAME = 'IA'
 
 export type AutoDraftJob = {
   conversationId: string
@@ -95,6 +100,8 @@ export type AutoDraftOutcome = {
   reason?: string
   /** Tentativa de agendamento pela IA (só com rascunho pronto). */
   autoBook?: AutoBookOutcome
+  /** Texto da IA enviado sem clique, quando não houve proposta. */
+  replyOutbox?: OutboxRow[]
 }
 
 function lastMessageDirection(db: ClinicDb, tenantId: string, conversationId: string): string | null {
@@ -243,7 +250,42 @@ export async function runDueAutoDrafts(
         )
       }
     }
-    out.push({ ...job, status: suggestion.status === 'failed' ? 'failed' : 'ready', suggestion, autoBook })
+    let replyOutbox: OutboxRow[] | undefined
+    const draftText = suggestion.suggestedText.trim()
+    const unsafe = suggestion.warningCodes.some((c) => c === 'injection_suspected' || c === 'output_rejected')
+    if (
+      suggestion.status === 'pending' &&
+      draftText &&
+      !autoBook?.proposalId &&
+      !unsafe
+    ) {
+      try {
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body: draftText,
+            clientRequestId: `ai-reply:${suggestion.id}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            aiSuggestionId: suggestion.id,
+          },
+          clock,
+        )
+        replyOutbox = sent.outbox
+        suggestion = getSuggestion(db, tenantId, suggestion.id) ?? suggestion
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+    }
+    out.push({
+      ...job,
+      status: suggestion.status === 'failed' ? 'failed' : 'ready',
+      suggestion,
+      autoBook,
+      replyOutbox,
+    })
   }
   return out
 }

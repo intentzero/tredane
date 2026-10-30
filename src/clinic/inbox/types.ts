@@ -216,7 +216,7 @@ export type SendOutboundInput = {
   authorDisplayName: string
   /**
    * Sugestão IA usada neste envio humano (#41 / AC-06).
-   * A IA nunca envia sozinha — só liga origem interna após clique em Enviar.
+   * Origem da sugestão. O rascunho automático envia sozinho; o clique em Enviar continua válido.
    */
   aiSuggestionId?: string | null
 }

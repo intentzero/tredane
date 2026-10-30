@@ -2650,8 +2650,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       })
       for (const o of outcomes) {
         // Agendamento pela IA (confirmação explícita da cliente): mesmo fanout do Agendar.
-        if (o.autoBook && o.autoBook.outbox.length > 0) {
-          await this.#fanoutOutboxes(caller, o.autoBook.outbox, true)
+        const queued = [...(o.autoBook?.outbox ?? []), ...(o.replyOutbox ?? [])]
+        if (queued.length > 0) {
+          await this.#fanoutOutboxes(caller, queued, true)
           await this.#drain(caller)
         }
         await this.#emitAiDraftEvent(caller, o.conversationId, {

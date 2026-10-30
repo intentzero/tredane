@@ -5,7 +5,9 @@
  * Regra: o backend envia a proposta quando dia, horário e procedimento ficam determinados
  * sem ambiguidade. Cada elemento vem da vez atual da cliente ou, se ela não o repetir,
  * da mensagem mais recente que cite um único valor (não só a bolha imediatamente anterior).
- * «1530» conta como 15:30. Faltou ou ficou ambíguo → não envia proposta. Detecção
+ * «1530» e «às 13» contam como horário. Zona já dita pela cliente numa mensagem
+ * anterior conta; a lista que a clínica ofereceu não escolhe a zona. Faltou ou
+ * ficou ambíguo → não envia proposta. Detecção
  * determinística, sem o modelo.
  *
  * S2 (#173, épico #171): esta leitura de texto livre NUNCA marca — só produz nota para a atendente.
@@ -251,6 +253,24 @@ export function detectExplicitConfirmation(input: {
   return { ok: true, status: 'booked', missing: [], date, time, service }
 }
 
+/** Zona escolhida pela cliente. A mensagem da clínica que lista o cardápio não conta. */
+function zonesChosenByClient(
+  clientTurn: Msg[],
+  older: Msg[],
+  zones: ServiceRow['zones'],
+): ServiceRow['zones'] {
+  if (zones.length === 0) return []
+  const texts = [clientTurn.map((m) => m.body).join('\n')]
+  for (const m of older) {
+    if (m.direction === 'inbound') texts.push(m.body)
+  }
+  for (const text of texts) {
+    const found = zonesNamedInText(text, zones)
+    if (found.length > 0) return found
+  }
+  return []
+}
+
 function firstName(label: string | null | undefined): string | null {
   const f = label?.trim().split(/\s+/)[0]
   return f ? f : null
@@ -377,7 +397,7 @@ export function tryAiAutoBook(
   const date = det.date
   const time = det.time
   const activeZones = svc.zones.filter((z) => z.active)
-  const namedZones = zonesNamedInText(clientTurn.map((m) => m.body).join('\n'), activeZones)
+  const namedZones = zonesChosenByClient(clientTurn, older, activeZones)
   if (activeZones.length > 0 && namedZones.length === 0) {
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
