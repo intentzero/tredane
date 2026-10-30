@@ -31,6 +31,7 @@ import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import { deleteAllocationsForAppointment, insertAllocations } from './allocations'
 import { checkSlotAvailability } from './check'
+import { refusalMessageForReasons } from './refusal-messages'
 import { moveStage } from './stage'
 import { findAppointmentCommand, saveAppointmentCommand } from './commands'
 import { insertAppointmentEvent, listAppointmentEvents } from './events'
@@ -159,8 +160,9 @@ function enrichDetail(
 function throwSlotConflict(
   details: SlotConflictDetails,
   message: string,
+  code = 'appointment_conflict',
 ): never {
-  throw new ConflictError('appointment_conflict', message, details)
+  throw new ConflictError(code, message, details)
 }
 
 function scheduledStageNote(input: ConfirmAppointmentInput): string {
@@ -353,12 +355,20 @@ export function confirmAppointmentInTransaction(
     clock,
   )
   if (!check.available || !check.slot) {
+    const code = check.reasons.includes('room_sex_mismatch')
+      ? 'room_sex_mismatch'
+      : check.reasons.includes('professional_other_room')
+        ? 'professional_other_room'
+        : check.reasons.includes('room_at_capacity')
+          ? 'room_at_capacity'
+          : 'appointment_conflict'
     throwSlotConflict(
       {
         reasons: check.reasons,
         conflictingAppointmentIds: [],
       },
-      'Esse horário acabou de ser ocupado. Nada foi reservado. Escolha outro horário.',
+      refusalMessageForReasons(check.reasons, check.blockSex),
+      code,
     )
   }
 
