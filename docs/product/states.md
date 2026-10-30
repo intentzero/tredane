@@ -38,7 +38,7 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 
 | Estado | Significado | Regra |
 | --- | --- | --- |
-| Confirmado | Horário reservado para a profissional e a sala dela (DEC-075), mais o equipamento exigido se houver. | A confirmação verifica capacidade, modo de atendimento e mesmo sexo nesse bloco. |
+| Confirmado | Horário reservado para a profissional e a sala dela (DEC-075), mais o equipamento exigido se houver. | A confirmação verifica capacidade, modo de atendimento e mesmo sexo nesse bloco. O bloco Tempo (DEC-077) não cancela este estado se a previsão mudar. |
 | Cancelado | Compromisso não ocupa mais recursos. | Preserva quem cancelou, quando, o motivo (obrigatório, DEC-008) e o vínculo com a conversa. Não há prazo mínimo. |
 | Concluído | Serviço/atendimento ocorreu. | Validar se esta marcação é necessária no MVP e quem a faz. |
 
@@ -58,9 +58,9 @@ Etapas iniciais: **Novo contato → Em atendimento → Horário proposto → Age
 
 ## Proposta de agendamento por botão (Decidido, DEC-061)
 
-`enviada` → `confirmada` (clique válido → compromisso criado, ou autorização consumida ao abrir Pix se houver sinal) · `substituída` (nova versão) · `expirada` (30 min) · `recusada_vaga` (horário já não livre) · `encaminhada` (Alterar detalhes/dúvida/mudança material → atendente). Só `enviada` aceita clique; transições são idempotentes por proposta/versão. Proposta não reserva horário (DEC-008 / DEC-047).
+`enviada` → `confirmada` (clique válido → compromisso criado, ou autorização consumida ao abrir Pix se houver sinal) · `substituída` (nova versão) · `expirada` (30 min) · `recusada_vaga` (horário já não livre: sala, profissional ou capacidade) · `recusada_tempo` (DEC-077: a previsão na hora de início não serve ou não deu para confirmar; frases próprias, sem percentagem e sem número de vagas; não reutiliza `recusada_vaga`) · `encaminhada` (Alterar detalhes/dúvida/mudança material, inclusive céu, temperatura ou graus do serviço alterados depois do envio → atendente). Só `enviada` aceita clique; transições são idempotentes por proposta/versão. Proposta não reserva horário (DEC-008 / DEC-047).
 
-**Extensão de engenharia (S3 #174 / S4 #175 / S5 #176):** antes de `enviada`, a proposta pode estar `preparada` → `envio_pendente` → `envio_incerto` (envio WhatsApp interactive). Vigência de 30 min conta a partir de `enviada` (relógio do backend; expiração preguiçosa sem job). Persistência: `appointment_proposals` + ligação `send_*` / `result_*` e `pending_communications` (H7, alerta 5 min) no SQLite do Clinic DO. Corpo e botões **Confirmar** / **Alterar detalhes** são montados só a partir do snapshot; clique Confirmar (S5) executa `confirmAppointmentOp` ou Pix sem hold com chaves `proposal.book:` / `proposal.pix:`. Janela 24 h fechada → handoff à equipe sem envio irregular (template de proposta com botões: **Em aberto** — gate Meta staging).
+**Extensão de engenharia (S3 #174 / S4 #175 / S5 #176):** antes de `enviada`, a proposta pode estar `preparada` → `envio_pendente` → `envio_incerto` (envio WhatsApp interactive). Vigência de 30 min conta a partir de `enviada` (relógio do backend; expiração preguiçosa sem job). Persistência: `appointment_proposals` + ligação `send_*` / `result_*` e `pending_communications` (H7, alerta 5 min) no SQLite do Clinic DO. Corpo e botões **Confirmar** / **Alterar detalhes** são montados só a partir do snapshot; clique Confirmar (S5) corre primeiro o avaliador do tempo (DEC-077; `recusada_tempo` se falhar) e só depois executa `confirmAppointmentOp` ou Pix sem hold com chaves `proposal.book:` / `proposal.pix:`. Janela 24 h fechada → handoff à equipe sem envio irregular (template de proposta com botões: **Em aberto** — gate Meta staging).
 
 ## Eventos de interface propostos
 

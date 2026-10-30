@@ -9,12 +9,14 @@ Este documento inventaria, campo a campo, o que vai ao LLM versus o que fica só
 
 | Afirmação | Estado |
 | --- | --- |
-| Conjunto mínimo DEC-011: mensagens recentes (proposta ≤20), primeiro nome, catálogo (nome, duração, preço e audiência do serviço — feminino, masculino ou qualquer, DEC-075; descreve o serviço, não a pessoa; DEC-046 acrescenta explicação), etapa; nunca telefone, anexos, outras conversas, outra clínica. A IA não anuncia vagas nem abre a mistura de sexos no bloco | **Confirmado** (parcialmente — DEC-011; audiência Confirmada em DEC-075, 29/10/2026) |
+| Conjunto mínimo DEC-011: mensagens recentes (proposta ≤20), primeiro nome, catálogo (nome, duração, preço e audiência do serviço — feminino, masculino ou qualquer, DEC-075; descreve o serviço, não a pessoa; DEC-046 acrescenta explicação), etapa; nunca telefone, anexos, outras conversas, outra clínica. A IA não anuncia vagas nem abre a mistura de sexos no bloco. Desde a DEC-077, os horários já vêm filtrados pelo tempo do serviço e a frase fixa do motivo pode entrar; ficam de fora o payload do provedor, a percentagem de precipitação e a escolha de céu ou temperatura | **Confirmado** (parcialmente — DEC-011; audiência Confirmada em DEC-075; bloco Tempo Confirmado em DEC-077, 29/10/2026) |
 | DEC-011 listou «horários livres» / conversa inteira como opções **descartadas** | **Confirmado** no texto de 23/10/2026 |
 | H2 (#159) pede compromissos futuros, data/hora por mensagem, vagas do período, sem dados proibidos | **Proposto** (arquitetura híbrida / épico) |
 | Código de rascunho (`buildClinicAiContext`) já envia nome/endereço/URL Google/políticas, `nowLabel`/`today`/`openingHours`, `freeSlots` (7 dias) e `upcomingAppointments` quando há `clock` | **Código à frente da DEC** — **não** Confirmado como política até Paulo fechar |
 | Timestamp por mensagem no payload LLM | **Em aberto** (pedido H2; `AiContextMessage` só tem `direction`+`body`) |
 | Propostas versionadas no contexto LLM | **Confirmado engenharia:** objecto S3 existe em `main` (`appointment_proposals`) mas **não** entra no payload LLM neste PR; inclusão no prompt continua **Em aberto** (H2/arch) |
+
+**DEC-077 não fecha o bloco `clinic`.** Confirma só isto: se a IA receber horários, são os já filtrados pelo tempo do serviço; a frase fixa do motivo pode entrar; o payload da previsão, a percentagem e a escolha de céu ou temperatura não entram. Endereço, políticas e o restante do H2 continuam na linha «Código à frente da DEC».
 
 **Não confundir:** confirmação de marcação (DEC-061 / botão) **não** é consentimento LGPD para tratamento de dados.
 
