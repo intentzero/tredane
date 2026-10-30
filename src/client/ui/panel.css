@@ -2323,10 +2323,14 @@
   font-size: var(--font-size-small);
 }
 
+.panel-btn-compact {
+  position: relative;
+}
+
 .panel-btn-compact::after {
   content: '';
   position: absolute;
-  inset: -8px 0;
+  inset: -10px 0;
 }
 
 .panel-btn-primary:disabled,
@@ -2372,7 +2376,7 @@
 .panel-chip::after {
   content: '';
   position: absolute;
-  inset: -8px 0;
+  inset: -9px 0;
 }
 
 .panel-chip[aria-selected='true'],
