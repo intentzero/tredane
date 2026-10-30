@@ -115,7 +115,7 @@ function zoneInUse(db: ClinicDb, tenantId: string, zoneId: string): boolean {
 export function replaceZones(
   db: ClinicDb,
   tenantId: string,
-  service: Pick<ServiceRow, 'id' | 'durationMinutes' | 'priceCents' | 'variantKind'>,
+  service: Pick<ServiceRow, 'id' | 'durationMinutes' | 'priceCents' | 'variantKind' | 'variantKindPlural'>,
   input: ServiceZoneInput[],
   clock: Clock,
 ): ServiceZoneRow[] {
@@ -136,7 +136,7 @@ export function replaceZones(
     }
     db.run(`DELETE FROM service_zones WHERE tenant_id = ? AND service_id = ?`, tenantId, service.id)
     db.run(
-      `UPDATE services SET variant_kind = NULL, updated_at = ? WHERE tenant_id = ? AND id = ?`,
+      `UPDATE services SET variant_kind = NULL, variant_kind_plural = NULL, updated_at = ? WHERE tenant_id = ? AND id = ?`,
       now,
       tenantId,
       service.id,
@@ -144,10 +144,10 @@ export function replaceZones(
     return []
   }
 
-  if (!service.variantKind?.trim()) {
+  if (!service.variantKind?.trim() || !service.variantKindPlural?.trim()) {
     throw new ValidationError(
       'variant_kind_required',
-      'dê um nome ao tipo das variantes',
+      'dê o singular e o plural do tipo das variantes',
     )
   }
 

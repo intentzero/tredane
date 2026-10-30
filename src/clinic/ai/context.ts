@@ -94,6 +94,7 @@ export async function buildAiContextPayload(
       clientExplanation: sanitizeCatalogField(s.clientExplanation),
       audiencia: s.audiencia,
       variantKind: s.variantKind,
+      variantKindPlural: s.variantKindPlural,
       zones: s.zones
         .filter((z) => z.active)
         .map((z) => ({

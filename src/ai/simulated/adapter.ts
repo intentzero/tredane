@@ -147,7 +147,7 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
             (z) => z.name.trim().length >= 2 && lower.includes(z.name.trim().toLowerCase()),
           )
           if (named.length === 0) {
-            const kind = s.variantKind?.trim() || 'variantes'
+            const kind = s.variantKindPlural?.trim() || s.variantKind?.trim() || 'variantes'
             return `Para ${s.name}, quais ${kind} você quer? Temos ${s.zones.map((z) => z.name).join(', ')}. Me diz e eu confirmo o valor.`
           }
           if (variantAudiencesConflict(named)) {

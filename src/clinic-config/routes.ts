@@ -806,6 +806,12 @@ function parseServiceBody(body: Record<string, unknown>) {
     ...(body.variantKind === undefined
       ? {}
       : { variantKind: body.variantKind === null ? null : String(body.variantKind) }),
+    ...(body.variantKindPlural === undefined
+      ? {}
+      : {
+          variantKindPlural:
+            body.variantKindPlural === null ? null : String(body.variantKindPlural),
+        }),
   }
 }
 

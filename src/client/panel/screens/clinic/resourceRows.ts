@@ -3,6 +3,7 @@
  * Puro, sem React: cada linha responde «quem / onde / quanto» e só avisa
  * quando algo foge do normal.
  */
+import { variantKindWord } from '../../../../ai/types'
 import type { ClinicConfigSnapshot, ClinicResource, ClinicService } from '../../api'
 import { CLINIC_SCOPE_ID, windowsOf } from './clinicHours'
 import { formatMinutes, formatPriceCents } from './format'
@@ -113,7 +114,7 @@ export type ServiceRow = {
 export function serviceRow(snap: ClinicConfigSnapshot, svc: ClinicService): ServiceRow {
   const activeZones = (svc.zones ?? []).filter((z) => z.active)
   const total = svc.occupiedMinutes || svc.durationMinutes + svc.bufferMinutes
-  const kind = svc.variantKind?.trim() || 'Variantes'
+  const kind = variantKindWord(svc.variantKind, svc.variantKindPlural, activeZones.length)
   const occupies =
     activeZones.length > 0
       ? `${activeZones.length} ${kind}`

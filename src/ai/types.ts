@@ -29,8 +29,10 @@ export type AiCatalogService = {
   clientExplanation: string | null
   /** DEC-075 — audiência do serviço (feminino | masculino | qualquer); descreve o serviço. */
   audiencia: 'feminino' | 'masculino' | 'qualquer'
-  /** DEC-079 — nome do tipo, uma vez. Ausente: a interface diz «variantes». */
+  /** DEC-079 — singular do tipo. Ausente: a interface diz «Variante». */
   variantKind?: string | null
+  /** DEC-079 — plural do tipo. Ausente: cai no singular, senão «Variantes». */
+  variantKindPlural?: string | null
   /** DEC-078 / DEC-079 — variantes ativas. Ausente ou vazio: a linha do serviço vale. */
   zones?: {
     name: string
@@ -51,6 +53,18 @@ export function variantAudiencesConflict(
     if (zone.audience === 'masculino') masculino = true
   }
   return feminino && masculino
+}
+
+/** Uma variante usa o singular; várias, o plural. Forma em falta cai na outra. */
+export function variantKindWord(
+  singular: string | null | undefined,
+  plural: string | null | undefined,
+  count: number,
+): string {
+  const one = singular?.trim() || ''
+  const many = plural?.trim() || ''
+  if (count === 1) return one || many || 'Variante'
+  return many || one || 'Variantes'
 }
 
 export type AiContextMessage = {

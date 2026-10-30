@@ -47,6 +47,7 @@ type ServiceSql = {
   duration_min_minutes?: number | null
   duration_max_minutes?: number | null
   variant_kind?: string | null
+  variant_kind_plural?: string | null
   created_at: number
   updated_at: number
 }
@@ -142,6 +143,7 @@ function toServiceRow(
     weeklyWindows: loadServiceWeeklyWindows(db, row.tenant_id, row.id),
     deletable: serviceDeleteBlocker(db, row.tenant_id, row.id) === null,
     variantKind: row.variant_kind?.trim() || null,
+    variantKindPlural: row.variant_kind_plural?.trim() || null,
     zones: listZones(db, row.tenant_id, row.id),
   }
 }
@@ -396,18 +398,18 @@ function resolveTempo(
 
 const VARIANT_KIND_MAX = 40
 
-function resolveVariantKind(
-  input: UpsertServiceInput,
-  existing: ServiceRow | null,
+function resolveKindText(
+  value: string | null | undefined,
+  existing: string | null | undefined,
 ): string | null {
-  if (input.variantKind === undefined) return existing?.variantKind ?? null
-  if (input.variantKind === null) return null
-  const text = input.variantKind.trim()
+  if (value === undefined) return existing ?? null
+  if (value === null) return null
+  const text = value.trim()
   if (!text) return null
   if (text.length > VARIANT_KIND_MAX) {
     throw new ValidationError(
       'invalid_variant_kind',
-      'o tipo das variantes tem no máximo 40 caracteres',
+      'o singular e o plural do tipo têm no máximo 40 caracteres',
     )
   }
   return text
@@ -449,11 +451,16 @@ export function upsertService(
   }
   const audiencia = resolveAudience(input, existing)
   const tempo = resolveTempo(input, existing)
-  const variantKind = resolveVariantKind(input, existing)
-  if (existing && !variantKind && listZones(db, tenantId, existing.id).length > 0) {
+  const variantKind = resolveKindText(input.variantKind, existing?.variantKind)
+  const variantKindPlural = resolveKindText(input.variantKindPlural, existing?.variantKindPlural)
+  if (
+    existing &&
+    listZones(db, tenantId, existing.id).length > 0 &&
+    (!variantKind || !variantKindPlural)
+  ) {
     throw new ValidationError(
       'variant_kind_required',
-      'remova as variantes antes de limpar o tipo',
+      'dê o singular e o plural do tipo das variantes',
     )
   }
 
@@ -465,7 +472,7 @@ export function upsertService(
         price_cents = ?, client_explanation = ?, active = ?,
         requires_signal = ?, signal_kind = ?, signal_fixed_cents = ?, signal_percent = ?,
         duration_adjustable = ?, duration_min_minutes = ?, duration_max_minutes = ?,
-        variant_kind = ?, updated_at = ?
+        variant_kind = ?, variant_kind_plural = ?, updated_at = ?
        WHERE tenant_id = ? AND id = ?`,
       name,
       input.durationMinutes,
@@ -485,6 +492,7 @@ export function upsertService(
       dur.min,
       dur.max,
       variantKind,
+      variantKindPlural,
       now,
       tenantId,
       input.id,
@@ -505,8 +513,8 @@ export function upsertService(
       price_cents, client_explanation, active,
       requires_signal, signal_kind, signal_fixed_cents, signal_percent,
       duration_adjustable, duration_min_minutes, duration_max_minutes,
-      variant_kind, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      variant_kind, variant_kind_plural, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     name,
@@ -527,6 +535,7 @@ export function upsertService(
     dur.min,
     dur.max,
     variantKind,
+    variantKindPlural,
     now,
     now,
   )

@@ -79,6 +79,7 @@ export function serializeService(row: ServiceRow) {
     weeklyWindows: row.weeklyWindows,
     deletable: row.deletable,
     variantKind: row.variantKind,
+    variantKindPlural: row.variantKindPlural,
     zones: row.zones.map((z) => ({
       id: z.id,
       name: z.name,

@@ -65,7 +65,7 @@ describe('ServiceForm — duração e variantes', () => {
     const order: string[] = []
     const replaceServiceZones = vi.fn(async () => {
       order.push('zones')
-      return []
+      return svc({})
     })
     const upsertService = vi.fn(async () => {
       order.push('service')
@@ -86,7 +86,7 @@ describe('ServiceForm — duração e variantes', () => {
           },
         ],
       }),
-      { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
+      { upsertService, replaceServiceZones } as Partial<PanelApi>,
     )
     fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
@@ -94,20 +94,34 @@ describe('ServiceForm — duração e variantes', () => {
     expect(replaceServiceZones).toHaveBeenCalledWith('t', 'svc_1', [], expect.anything())
   })
 
+  it('não grava variante sem nome', async () => {
+    const upsertService = vi.fn()
+    const replaceServiceZones = vi.fn()
+    renderForm(svc({}), { upsertService, replaceServiceZones } as Partial<PanelApi>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Singular' }), { target: { value: 'Zona' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Plural' }), { target: { value: 'Zonas' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar variante' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    expect(upsertService).not.toHaveBeenCalled()
+    expect(replaceServiceZones).not.toHaveBeenCalled()
+    expect(screen.getByText(/Dê um nome a cada variante/)).toBeTruthy()
+  })
+
   it('se a primeira variante não grava, o tipo não fica sozinho', async () => {
     const upsertService = vi.fn(async () => svc({}))
     const replaceServiceZones = vi.fn(async () => {
       throw new Error('nome')
     })
-    renderForm(svc({}), { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>)
-    fireEvent.change(screen.getByRole('textbox', { name: 'Tipo' }), { target: { value: 'Zona' } })
+    renderForm(svc({}), { upsertService, replaceServiceZones } as Partial<PanelApi>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Singular' }), { target: { value: 'Zona' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Plural' }), { target: { value: 'Zonas' } })
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar variante' }))
     const names = screen.getAllByRole('textbox', { name: 'Nome' })
     fireEvent.change(names[1]!, { target: { value: 'Axila' } })
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(upsertService).toHaveBeenCalledTimes(2))
     const second = (upsertService.mock.calls as unknown[][])[1]
-    expect(second?.[1]).toMatchObject({ variantKind: null })
+    expect(second?.[1]).toMatchObject({ variantKind: null, variantKindPlural: null })
     expect(screen.getByText(/nome/)).toBeTruthy()
   })
 })
