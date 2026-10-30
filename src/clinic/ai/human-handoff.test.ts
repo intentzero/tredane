@@ -2,7 +2,7 @@
  * DEC-083: mensagem hostil não chama o modelo, envia uma frase e a seguinte também não chama.
  */
 import { describe, expect, it } from 'vitest'
-import type { AiGenerateInput, AiGenerateResult } from '../../ai'
+import type { AiGenerateResult } from '../../ai'
 import { createControllableClock } from '../../db/clock'
 import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { setClinicAiAssistEnabled } from '../config/settings'
@@ -82,7 +82,7 @@ function seed() {
   const adapter = {
     providerId: 'test',
     mode: 'synthetic' as const,
-    async generate(_input: AiGenerateInput): Promise<AiGenerateResult> {
+    async generate(): Promise<AiGenerateResult> {
       calls += 1
       throw new Error('model_called')
     },
