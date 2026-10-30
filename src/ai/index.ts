@@ -88,11 +88,13 @@ export function buildAiAdapter(input: BuildAiAdapterInput): AiProviderAdapter {
 }
 export {
   guardReplyOutput,
+  guardSummaryOutput,
   parseReplyOutput,
   stripMarkdown,
   REPLY_OUTPUT_MAX_MESSAGE_CHARS,
   REPLY_OUTPUT_MAX_NOTES_CHARS,
   type GuardedReply,
+  type GuardedSummary,
   type ParsedReply,
   type ReplyOutputRejection,
 } from './reply-output'

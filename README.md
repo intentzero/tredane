@@ -36,6 +36,7 @@ O [escopo inicial do MVP](docs/MVP.md) registra o fluxo, os critérios de aceite
 - [Épico de salas partilhadas e audiência do serviço (DEC-075)](docs/implementation/epic-salas-audiencia.md)
 - [Épico do bloco Tempo no serviço (DEC-077)](docs/implementation/epic-tempo-servico.md)
 - [Observabilidade e operação do piloto (F6/#44)](docs/implementation/f6-ops.md) · [runbooks](docs/implementation/runbooks/README.md)
+- [Matriz de controles ISO/IEC 42001](docs/security/iso-42001-control-matrix.md) — aplicabilidade **Proposta**; o [manual](docs/security/aims.md) e o [registo](docs/security/aims-register.md) são o sistema de gestão, não uma certificação.
 
 Os ADRs identificam decisões aceitas, propostas técnicas e temas ainda em aberto. Nenhum módulo de aplicação foi implementado apenas por adicionar esta documentação.
 

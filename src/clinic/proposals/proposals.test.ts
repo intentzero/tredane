@@ -157,6 +157,32 @@ describe('S3: persistência e validação', () => {
       const allocs = s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointment_allocations`)
       expect(appts?.n).toBe(0)
       expect(allocs?.n).toBe(0)
+
+      const again = createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: s.contact.id,
+          conversationId: s.conversation.id,
+          serviceId: s.svc.id,
+          professionalId: s.pro.id,
+          startsAt: s.startsAt,
+        },
+        s.clock,
+      )
+      expect(again.id).toBe(proposal.id)
+      const created = s.db.all<{ detail_json: string }>(
+        `SELECT detail_json FROM operational_audit WHERE tenant_id = ? AND action = 'proposal.created'`,
+        s.tenantId,
+      )
+      expect(created).toHaveLength(1)
+      expect(JSON.parse(created[0]!.detail_json)).toEqual({
+        proposalVersion: 1,
+        contactId: s.contact.id,
+        conversationId: s.conversation.id,
+      })
+      expect(created[0]!.detail_json).not.toContain('Ana')
+      expect(created[0]!.detail_json).not.toContain('Limpeza')
     } finally {
       s.close()
     }
@@ -351,6 +377,11 @@ describe('S3: máquina de estados, vigência e substituição', () => {
         s.clock,
       )
       expect(newClick.allowed).toBe(true)
+      const created = s.db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM operational_audit WHERE tenant_id = ? AND action = 'proposal.created'`,
+        s.tenantId,
+      )
+      expect(created?.n).toBe(2)
     } finally {
       s.close()
     }

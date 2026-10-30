@@ -535,6 +535,19 @@ describe('S5: book sem sinal', () => {
       expect(bodies.some((row) => row.body.includes('Horário já não está livre'))).toBe(true)
       expect(bodies.some((row) => row.body.includes('tempo não serve'))).toBe(false)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(1)
+      const replay = await confirmClick(s, proposal.id, proposal.version, {
+        providerEventKey: 'evt_s5_slot_replay',
+      })
+      expect(replay.status).toBe('slot_refused')
+      if (replay.status === 'slot_refused') expect(replay.idempotentReplay).toBe(true)
+      const refused = s.db.all<{ detail_json: string }>(
+        `SELECT detail_json FROM operational_audit WHERE tenant_id = ? AND action = 'proposal.confirm_refused'`,
+        s.tenantId,
+      )
+      expect(refused).toHaveLength(1)
+      expect(JSON.parse(refused[0]!.detail_json).reason).toBe('slot_refused')
+      expect(refused[0]!.detail_json).not.toContain('Ana')
+      expect(refused[0]!.detail_json).not.toContain('Horário')
     } finally {
       s.close()
     }
@@ -564,6 +577,76 @@ describe('S5: book sem sinal', () => {
       expect(replay.status).toBe('booked')
       if (replay.status !== 'booked') return
       expect(replay.idempotentReplay).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('pausa e contato errado gravam confirm_refused uma vez, sem texto', async () => {
+    const s = await seedBookable()
+    try {
+      const proposal = makeSent(s)
+      await confirmClick(s, proposal.id, proposal.version, {
+        capability: false,
+        providerEventKey: 'evt_pause_1',
+      })
+      await confirmClick(s, proposal.id, proposal.version, {
+        capability: false,
+        providerEventKey: 'evt_pause_2',
+      })
+      const paused = s.db.all<{ detail_json: string }>(
+        `SELECT detail_json FROM operational_audit WHERE tenant_id = ? AND action = 'proposal.confirm_refused'`,
+        s.tenantId,
+      )
+      expect(paused).toHaveLength(1)
+      expect(JSON.parse(paused[0]!.detail_json).reason).toBe('capability_disabled')
+
+      const other = upsertContact(
+        s.db,
+        { tenantId: s.tenantId, waId: '5511999000999', displayName: 'Beatriz Costa' },
+        s.clock,
+      )
+      const click = handleProposalButtonClick(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: other.id,
+          conversationId: s.conversation.id,
+          buttonId: proposalButtonId(proposal.id, proposal.version, 'confirm'),
+          contextMessageId: 'wamid.proposal_s5',
+          providerEventKey: 'evt_mismatch_1',
+        },
+        s.clock,
+      )
+      expect(click.handled).toBe(true)
+      if (!('handoff' in click)) throw new Error('expected handoff')
+      const run = () =>
+        executeProposalConfirmOp(
+          s.db,
+          s.caller,
+          {
+            handoff: click.handoff,
+            capability: true,
+            providerEventKey: 'evt_mismatch_1',
+            contextMessageId: 'wamid.proposal_s5',
+            senderContactId: other.id,
+          },
+          s.clock,
+        )
+      const denied = await run()
+      await run()
+      expect(denied.status).toBe('denied')
+      if (denied.status === 'denied') expect(denied.authorizationReason).toBe('contact_mismatch')
+      const rows = s.db.all<{ detail_json: string; object_id: string }>(
+        `SELECT detail_json, object_id FROM operational_audit
+         WHERE tenant_id = ? AND action = 'proposal.confirm_refused' AND object_id = ?`,
+        s.tenantId,
+        proposal.id,
+      )
+      const mismatch = rows.filter((row) => JSON.parse(row.detail_json).reason === 'contact_mismatch')
+      expect(mismatch).toHaveLength(1)
+      expect(mismatch[0]!.detail_json).not.toContain('Beatriz')
+      expect(mismatch[0]!.detail_json).not.toContain('Ana')
     } finally {
       s.close()
     }
