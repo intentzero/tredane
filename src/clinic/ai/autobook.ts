@@ -20,7 +20,7 @@ import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
 import { listServices } from '../config/services'
-import { quoteVisit, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
+import { quoteVisit, variantAudiencesConflict, variantChoiceLabel, zonesNamedInText } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
@@ -259,23 +259,34 @@ export function detectExplicitConfirmation(input: {
   return { ok: true, status: 'requires_button', missing: [], date, time, service }
 }
 
+/** O mesmo nome citado mais de uma vez ainda não escolhe a variante. «Tudo» não entra aqui. */
+function nameCitedTwice(zones: ServiceRow['zones']): boolean {
+  const seen = new Set<string>()
+  for (const zone of zones) {
+    const key = zone.name.trim().toLocaleLowerCase('pt-BR')
+    if (seen.has(key)) return true
+    seen.add(key)
+  }
+  return false
+}
+
 /** Zona escolhida pela cliente. A mensagem da clínica que lista o cardápio não conta. */
 function zonesChosenByClient(
   clientTurn: Msg[],
   older: Msg[],
   zones: ServiceRow['zones'],
-): ServiceRow['zones'] {
-  if (zones.length === 0) return []
+): { zones: ServiceRow['zones']; ambiguous: boolean } {
+  if (zones.length === 0) return { zones: [], ambiguous: false }
   const texts = [clientTurn.map((m) => m.body).join('\n')]
   for (const m of older) {
     if (m.direction === 'inbound') texts.push(m.body)
   }
   for (const text of texts) {
-    if (ALL_ZONES.test(norm(text))) return [...zones]
+    if (ALL_ZONES.test(norm(text))) return { zones: [...zones], ambiguous: false }
     const found = zonesNamedInText(text, zones)
-    if (found.length > 0) return found
+    if (found.length > 0) return { zones: found, ambiguous: nameCitedTwice(found) }
   }
-  return []
+  return { zones: [], ambiguous: false }
 }
 
 export function askZonesReply(phrase: string, zoneNames: string[], time: string): string {
@@ -411,20 +422,22 @@ export async function tryAiAutoBook(
   const date = det.date
   const time = det.time
   const activeZones = svc.zones.filter((z) => z.active)
-  const namedZones = zonesChosenByClient(clientTurn, older, activeZones)
+  const chosen = zonesChosenByClient(clientTurn, older, activeZones)
+  const namedZones = chosen.zones
   const plural = svc.variantKindPlural?.trim() || ''
   const singular = svc.variantKind?.trim() || ''
   const kind = plural || singular || 'variantes'
   const phrase = plural || !singular ? `as ${kind}` : `a ${kind}`
-  if (activeZones.length > 0 && namedZones.length === 0) {
-    const names = activeZones.map((z) => z.name)
+  if (activeZones.length > 0 && (namedZones.length === 0 || chosen.ambiguous)) {
+    const names = activeZones.map((z) => variantChoiceLabel(z, activeZones))
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
       replyText: askZonesReply(phrase, names, time),
-      notes:
-        `A cliente falou em ${svc.name} sem escolher ${kind} (${names.join(', ')}). ` +
-        `Pergunta automática enviada. Não informe valor nem «a partir de».`,
+      notes: chosen.ambiguous
+        ? `O nome citado casa com mais de uma ${kind}. Pergunta automática enviada. Não informe valor nem envie proposta.`
+        : `A cliente falou em ${svc.name} sem escolher ${kind} (${names.join(', ')}). ` +
+          `Pergunta automática enviada. Não informe valor nem «a partir de».`,
     }
   }
   if (variantAudiencesConflict(namedZones)) {
@@ -452,7 +465,7 @@ export async function tryAiAutoBook(
       // Não silenciar: o modelo pode ter deixado a mensagem vazia à espera da proposta.
       replyText:
         activeZones.length > 0
-          ? askZonesReply(phrase, activeZones.map((z) => z.name), time)
+          ? askZonesReply(phrase, activeZones.map((z) => variantChoiceLabel(z, activeZones)), time)
           : `Não consegui fechar ${svc.name} às ${time} agora. A equipe confirma pelo Agendar.`,
       notes:
         `Não deu para calcular ${svc.name}: ${message}. Pergunta/aviso automático enviado. Texto livre não marca.`,

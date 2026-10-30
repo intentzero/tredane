@@ -161,13 +161,6 @@ export function replaceZones(
     if (!name || name.length > 80) {
       throw new ValidationError('invalid_zone_name', 'o nome da zona é obrigatório', { name })
     }
-    const key = name.toLocaleLowerCase('pt-BR')
-    if (names.has(key)) {
-      throw new ValidationError('zone_name_taken', 'já existe uma zona com esse nome neste procedimento', {
-        name,
-      })
-    }
-    names.add(key)
 
     const prior = item.id ? existing.find((z) => z.id === item.id) : undefined
     if (item.id && !prior) {
@@ -189,6 +182,15 @@ export function replaceZones(
       throw new ValidationError('invalid_price', 'preço da variante inválido', { priceCents })
     }
     const audience = requireAudience(item.audience)
+    const key = variantIdentity(name, audience, durationMinutes, priceCents)
+    if (names.has(key)) {
+      throw new ValidationError(
+        'zone_name_taken',
+        'já existe uma variante com o mesmo nome, género, duração e preço',
+        { name, audience },
+      )
+    }
+    names.add(key)
 
     const id = prior?.id ?? newId('zone')
     kept.add(id)
@@ -415,9 +417,70 @@ export function snapshotDuration(zones: readonly ZoneSnapshot[]): number | null 
   return zones.reduce((sum, z) => sum + z.durationMinutes, 0)
 }
 
-export function zoneLabel(serviceName: string, zones: readonly { name: string }[]): string {
+function variantIdentity(
+  name: string,
+  audience: VariantAudience,
+  durationMinutes: number,
+  priceCents: number | null,
+): string {
+  return `${nameKey(name)}\0${audience}\0${durationMinutes}\0${priceCents ?? ''}`
+}
+
+function nameKey(name: string): string {
+  return name.trim().toLocaleLowerCase('pt-BR')
+}
+
+function genderWord(audience: VariantAudience | undefined): string {
+  return audience === 'feminino' || audience === 'masculino' ? audience : 'ambos'
+}
+
+function centsLabel(cents: number | null | undefined): string {
+  if (cents == null) return 'sem preço'
+  const [reais, frac] = (cents / 100).toFixed(2).split('.')
+  return `R$ ${reais!.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${frac}`
+}
+
+type LabeledZone = {
+  name: string
+  audience?: VariantAudience
+  durationMinutes?: number
+  priceCents?: number | null
+}
+
+function sameName(zones: readonly LabeledZone[], name: string): LabeledZone[] {
+  const key = nameKey(name)
+  return zones.filter((z) => nameKey(z.name) === key)
+}
+
+/** Na agenda, o mesmo nome leva género, duração e, se ainda coincidir, o preço. */
+export function zoneLabel(serviceName: string, zones: readonly LabeledZone[]): string {
   if (zones.length === 0) return serviceName
-  return `${serviceName} · ${zones.map((z) => z.name).join(', ')}`
+  const labels = zones.map((z) => {
+    const same = sameName(zones, z.name)
+    if (same.length < 2 || z.durationMinutes == null) return z.name
+    const gender =
+      z.audience === 'feminino' || z.audience === 'masculino' ? ` ${z.audience}` : ''
+    const twin = same.filter(
+      (o) => o.audience === z.audience && o.durationMinutes === z.durationMinutes,
+    )
+    const price = twin.length > 1 ? ` ${centsLabel(z.priceCents)}` : ''
+    return `${z.name}${gender} ${z.durationMinutes} min${price}`
+  })
+  return `${serviceName} · ${labels.join(', ')}`
+}
+
+/** Na pergunta à cliente, o mesmo nome leva género, duração e, se ainda coincidir, o preço. */
+export function variantChoiceLabel(
+  zone: Pick<ServiceZoneRow, 'name' | 'audience' | 'durationMinutes' | 'priceCents'>,
+  peers: readonly Pick<ServiceZoneRow, 'name' | 'audience' | 'durationMinutes' | 'priceCents'>[],
+): string {
+  const same = sameName(peers, zone.name)
+  if (same.length < 2) return zone.name
+  const twin = same.filter(
+    (p) => p.audience === zone.audience && p.durationMinutes === zone.durationMinutes,
+  )
+  const base = `${zone.name} (${genderWord(zone.audience)}, ${zone.durationMinutes} min`
+  return twin.length > 1 ? `${base}, ${centsLabel(zone.priceCents)})` : `${base})`
 }
 
 function foldZoneName(s: string): string {
@@ -428,20 +491,45 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-/** Nomes de zona que aparecem no texto, como palavras. O nome mais longo ganha. A ordem é a do catálogo. */
+function audienceHint(folded: string): VariantAudience | null {
+  const fem = /\bfeminin[oa]s?\b/.test(folded)
+  const masc = /\bmasculin[oa]s?\b/.test(folded)
+  if (fem === masc) return null
+  return fem ? 'feminino' : 'masculino'
+}
+
+function durationHint(folded: string): number | null {
+  const match = folded.match(/\b(\d+)\s*min\b/)
+  if (!match) return null
+  const minutes = Number(match[1])
+  return Number.isInteger(minutes) && minutes > 0 ? minutes : null
+}
+
+/** Nomes de zona que aparecem no texto, como palavras. O nome mais longo ganha. A ordem é a do catálogo. O mesmo nome inclui cada variante; «feminina» ou «masculino» no texto fica só com esse género. */
 export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[]): ServiceZoneRow[] {
+  const folded = foldZoneName(text)
+  const hint = audienceHint(folded)
+  const minutes = durationHint(folded)
   const candidates = zones.filter((z) => z.active && z.name.trim().length >= 2)
   const byLength = [...candidates].sort(
     (a, b) => foldZoneName(b.name).length - foldZoneName(a.name).length,
   )
-  let rest = foldZoneName(text)
+  let rest = folded
   const hit = new Set<string>()
+  const matched = new Set<string>()
   for (const zone of byLength) {
     const name = foldZoneName(zone.name.trim())
-    const re = new RegExp(`(?<![a-z0-9])${escapeRegExp(name)}(?![a-z0-9])`, 'g')
-    if (!re.test(rest)) continue
+    const sameName = matched.has(name)
+    if (!sameName) {
+      const re = new RegExp(`(?<![a-z0-9])${escapeRegExp(name)}(?![a-z0-9])`, 'g')
+      if (!re.test(rest)) continue
+      re.lastIndex = 0
+      matched.add(name)
+      rest = rest.replace(re, ' ')
+    }
+    if (hint != null && zone.audience !== hint) continue
+    if (minutes != null && zone.durationMinutes !== minutes) continue
     hit.add(zone.id)
-    rest = rest.replace(re, ' ')
   }
   return zones.filter((z) => hit.has(z.id))
 }

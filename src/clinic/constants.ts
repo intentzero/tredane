@@ -1,5 +1,5 @@
 /** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#43 / #174 / #175 / abuse UI). */
-export const CLINIC_SCHEMA_VERSION = 40
+export const CLINIC_SCHEMA_VERSION = 41
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -43,6 +43,7 @@ export const CLINIC_MIGRATION_NAMES = {
   38: '0038_room_same_sex',
   39: '0039_variant_kind_plural',
   40: '0040_service_combos',
+  41: '0041_variant_same_name',
 } as const
 
 /**
