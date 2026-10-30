@@ -260,12 +260,7 @@ export function upsertResourceOp(
     }
     let servicesWithoutResource: string[] | undefined
     if (row.active === false && row.category) {
-      servicesWithoutResource = servicesLeftWithoutCategoryResource(
-        db,
-        meta.tenantId,
-        row.category,
-        row.id,
-      )
+      servicesWithoutResource = servicesLeftWithoutCategoryResource()
     }
     writeOperationalAudit(
       db,
@@ -303,12 +298,7 @@ export function setResourceActiveOp(
     const row = setResourceActive(db, meta.tenantId, resourceId, active, clock)
     let servicesWithoutResource: string[] | undefined
     if (!active && row.category) {
-      servicesWithoutResource = servicesLeftWithoutCategoryResource(
-        db,
-        meta.tenantId,
-        row.category,
-        row.id,
-      )
+      servicesWithoutResource = servicesLeftWithoutCategoryResource()
     }
     writeOperationalAudit(
       db,

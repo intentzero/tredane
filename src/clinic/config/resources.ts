@@ -253,12 +253,7 @@ export function setResourceActive(
 }
 
 /** DEC-082: a categoria deixou de escolher as salas do serviço. */
-export function servicesLeftWithoutCategoryResource(
-  _db: ClinicDb,
-  _tenantId: string,
-  _category: string,
-  _excludingResourceId?: string,
-): string[] {
+export function servicesLeftWithoutCategoryResource(): string[] {
   return []
 }
 

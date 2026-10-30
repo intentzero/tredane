@@ -341,7 +341,7 @@ export function deactivateResourceOp(
     const row = getResource(db, meta.tenantId, resource.id, clock)!
     const keptAppointmentIds = future.filter((a) => !seen.has(a.id)).map((a) => a.id)
     const servicesWithoutResource = row.category
-      ? servicesLeftWithoutCategoryResource(db, meta.tenantId, row.category, row.id)
+      ? servicesLeftWithoutCategoryResource()
       : undefined
     writeOperationalAudit(
       db,
