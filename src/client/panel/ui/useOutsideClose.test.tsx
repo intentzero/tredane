@@ -83,4 +83,28 @@ describe('painéis laterais (CSS)', () => {
     )
     expect(css).toMatch(/\.conversas-3col-list\s+\.inbox-search-input\s*\{[^}]*background:\s*var\(--color-surface-sunken\)/s)
   })
+
+  it('Conversas mobile M-54: lista full-bleed, busca sunken, sem cartão (Opção A Confirmada)', () => {
+    expect(css).toMatch(/Lista Conversas \(M-54 Confirmado/)
+    // Primeiro `.inbox-root {` do ficheiro = base mobile (antes dos overrides desktop).
+    const root = css.match(/\.inbox-root\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(root).toMatch(/background:\s*var\(--color-surface-card\)/)
+    expect(root).toMatch(/padding:\s*var\(--space-3\)\s+0\s+0/)
+
+    const searchIdx = css.search(/(?<![-\w.])\.inbox-search-input\s*\{/)
+    const search = css.slice(searchIdx).match(/\.inbox-search-input\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(search).toMatch(/background:\s*var\(--color-surface-sunken\)/)
+    expect(search).toMatch(/border:\s*0/)
+    expect(search).toMatch(/border-radius:\s*var\(--radius-md\)/)
+    expect(search).toMatch(/min-height:\s*var\(--size-control-default\)/)
+
+    const listIdx = css.indexOf('Conversas: lista contínua')
+    const list = css.slice(listIdx).match(/\.inbox-list\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(list).toMatch(/border:\s*0/)
+    expect(list).toMatch(/border-radius:\s*0/)
+    expect(list).not.toMatch(/border-radius:\s*var\(--radius-lg\)/)
+
+    expect(css).toMatch(/\.inbox-row-name\s*\{[^}]*font-size:\s*var\(--font-size-title\)/s)
+    expect(css).toMatch(/\.inbox-row-preview\s*\{[^}]*font-size:\s*var\(--font-size-body\)/s)
+  })
 })
