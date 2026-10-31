@@ -88,6 +88,8 @@ export function filterLabel(filter: InboxFilter): string {
       return 'Minhas'
     case 'unassigned':
       return 'Sem responsável'
+    case 'needs_person':
+      return 'Precisa de alguém'
     case 'closed':
       return 'Encerradas'
   }

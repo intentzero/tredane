@@ -206,6 +206,43 @@ describe('S4: render determinístico', () => {
       s.close()
     }
   })
+
+  it('com a base, o texto inclui a sala e o intervalo', () => {
+    const s = seed()
+    try {
+      const room = upsertResourceOp(s.db, s.caller, { kind: 'room', name: 'Sala Depilação', category: 'Sala' }, s.clock)
+      const svc = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 15,
+          bufferMinutes: 15,
+          priceCents: 5000,
+          professionalIds: [s.pro.id],
+          roomRequirement: { mode: 'rooms', resourceIds: [room.id] },
+        },
+        s.clock,
+      )
+      const proposal = createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: s.contact.id,
+          conversationId: s.conversation.id,
+          serviceId: svc.id,
+          professionalId: s.pro.id,
+          startsAt: s.startsAt,
+        },
+        s.clock,
+      )
+      const rendered = renderProposalInteractive(proposal, s.db)
+      expect(rendered.body).toContain('Sala: Sala Depilação')
+      expect(rendered.body).toContain('Intervalo: 15 min')
+    } finally {
+      s.close()
+    }
+  })
 })
 
 describe('S4: envio WhatsApp', () => {

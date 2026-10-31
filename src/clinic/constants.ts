@@ -389,6 +389,7 @@ export const INBOX_FILTERS = [
   'new',
   'mine',
   'unassigned',
+  'needs_person',
   'closed',
 ] as const
 

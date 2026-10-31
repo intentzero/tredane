@@ -694,6 +694,65 @@ describe('S5: book sem sinal', () => {
     }
   })
 
+  it('pausa da IA não impede Confirmar; contato bloqueado continua a negar', async () => {
+    const s = await seedBookable()
+    try {
+      const proposal = makeSent(s)
+      s.db.run(
+        `UPDATE conversations SET ai_reply_paused_at = ?, ai_reply_pause_reason = ? WHERE tenant_id = ? AND id = ?`,
+        s.clock.nowMs(),
+        'customer_requested',
+        s.tenantId,
+        s.conversation.id,
+      )
+      const booked = await confirmClick(s, proposal.id, proposal.version)
+      expect(booked.status).toBe('booked')
+      if (booked.status === 'booked') expect(booked.proposal.state).toBe('confirmada')
+      expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(1)
+      const pause = s.db.get<{ at: number | null }>(
+        `SELECT ai_reply_paused_at AS at FROM conversations WHERE tenant_id = ? AND id = ?`,
+        s.tenantId,
+        s.conversation.id,
+      )
+      expect(pause?.at).not.toBeNull()
+
+      const blockedSeed = await seedBookable('clinic-demo-s5-paused-block')
+      try {
+        const blockedProposal = makeSent(blockedSeed)
+        blockedSeed.db.run(
+          `UPDATE conversations SET ai_reply_paused_at = ? WHERE tenant_id = ? AND id = ?`,
+          blockedSeed.clock.nowMs(),
+          blockedSeed.tenantId,
+          blockedSeed.conversation.id,
+        )
+        blockContactOp(
+          blockedSeed.db,
+          blockedSeed.caller,
+          {
+            contactId: blockedSeed.contact.id,
+            actorClerkUserId: 'user_synth_owner_a',
+            actorDisplayName: 'Owner',
+            reason: 'Spam sintético',
+          },
+          blockedSeed.clock,
+        )
+        blockedSeed.db.run(
+          `UPDATE conversations SET status = 'open' WHERE tenant_id = ? AND id = ?`,
+          blockedSeed.tenantId,
+          blockedSeed.conversation.id,
+        )
+        const blocked = await confirmClick(blockedSeed, blockedProposal.id, blockedProposal.version)
+        expect(blocked.status).toBe('denied')
+        if (blocked.status === 'denied') expect(blocked.reason).toBe('protection')
+        expect(blockedSeed.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(0)
+      } finally {
+        blockedSeed.close()
+      }
+    } finally {
+      s.close()
+    }
+  })
+
   it('serviço desativado a meio → material_changed; texto do botão não marca', async () => {
     const s = await seedBookable()
     try {

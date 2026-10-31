@@ -35,6 +35,7 @@ export function serializeConversation(c: ConversationRow | ConversationListItem)
     unreadCount: c.unreadCount,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
+    needsPerson: 'needsPerson' in c ? c.needsPerson : false,
   }
   if ('contact' in c) {
     return { ...base, contact: serializeContact(c.contact) }
@@ -129,5 +130,6 @@ export function serializeCounts(c: InboxCounts) {
     unassigned: c.unassigned,
     closed: c.closed,
     unread: c.unread ?? 0,
+    needsPerson: c.needsPerson ?? 0,
   }
 }

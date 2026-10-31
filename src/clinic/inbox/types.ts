@@ -71,6 +71,8 @@ export type ContactSummary = {
 
 export type ConversationListItem = ConversationRow & {
   contact: ContactSummary
+  /** IA pausada ou alerta de equipe ainda aberto (DEC-083, 31/10/2026). */
+  needsPerson: boolean
 }
 
 export type MessagingWindowView = {
@@ -231,4 +233,6 @@ export type InboxCounts = {
   closed: number
   /** Conversas com mensagens não lidas (badge do ícone da app). */
   unread: number
+  /** IA pausada ou alerta de equipe aberto. */
+  needsPerson: number
 }

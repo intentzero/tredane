@@ -13,6 +13,15 @@ import type {
   ListConversationsInput,
 } from './types'
 
+const NEEDS_PERSON_SQL = `(
+  c.ai_reply_paused_at IS NOT NULL
+  OR EXISTS (
+    SELECT 1 FROM pending_communications p
+    WHERE p.tenant_id = c.tenant_id AND p.conversation_id = c.id
+      AND p.kind = 'alter_awaiting_team' AND p.status IN ('open', 'alerted')
+  )
+)`
+
 const CONV_COLS = `c.id, c.tenant_id, c.contact_id, c.status,
   c.assignee_clerk_user_id, c.assignee_display_name, c.assignment_version,
   c.last_message_at, c.last_message_preview, c.last_message_direction,
@@ -257,6 +266,11 @@ function filterClause(
         sql: `AND c.assignee_clerk_user_id IS NULL AND c.status != 'closed'`,
         params: [],
       }
+    case 'needs_person':
+      return {
+        sql: `AND ${NEEDS_PERSON_SQL} AND c.status != 'closed'`,
+        params: [],
+      }
     case 'closed':
       return { sql: `AND c.status = 'closed'`, params: [] }
     case 'all':
@@ -297,9 +311,11 @@ export function listConversations(
       contact_blocked_at: number | null
       contact_blocked_by: string | null
       contact_blocked_reason: string | null
+      needs_person: number
     }
   >(
     `SELECT ${CONV_COLS},
+       CASE WHEN ${NEEDS_PERSON_SQL} THEN 1 ELSE 0 END AS needs_person,
        ct.wa_id AS contact_wa_id,
        ct.display_name AS contact_display_name,
        ct.created_at AS contact_created_at,
@@ -337,6 +353,7 @@ export function listConversations(
       blocked_by_display_name: row.contact_blocked_by,
       blocked_reason: row.contact_blocked_reason,
     }),
+    needsPerson: row.needs_person === 1,
   }))
   const nextBefore =
     rows.length > limit && page.length > 0
@@ -376,7 +393,20 @@ export function countInboxFilters(
     `SELECT COUNT(*) AS n FROM conversations WHERE tenant_id = ? AND status = 'closed'`,
     tenantId,
   )?.n ?? 0
-  return { all, new: neu, mine, unassigned, closed, unread: countUnreadConversations(db, tenantId) }
+  const needsPerson = db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM conversations c
+     WHERE c.tenant_id = ? AND c.status != 'closed' AND ${NEEDS_PERSON_SQL}`,
+    tenantId,
+  )?.n ?? 0
+  return {
+    all,
+    new: neu,
+    mine,
+    unassigned,
+    closed,
+    unread: countUnreadConversations(db, tenantId),
+    needsPerson,
+  }
 }
 
 /** Nº de conversas com não lidas — badge do ícone (sem conteúdo). */
@@ -403,9 +433,11 @@ export function getConversationWithContact(
       contact_blocked_at: number | null
       contact_blocked_by: string | null
       contact_blocked_reason: string | null
+      needs_person: number
     }
   >(
     `SELECT ${CONV_COLS},
+       CASE WHEN ${NEEDS_PERSON_SQL} THEN 1 ELSE 0 END AS needs_person,
        ct.wa_id AS contact_wa_id,
        ct.display_name AS contact_display_name,
        ct.created_at AS contact_created_at,
@@ -431,6 +463,7 @@ export function getConversationWithContact(
       blocked_by_display_name: row.contact_blocked_by,
       blocked_reason: row.contact_blocked_reason,
     }),
+    needsPerson: row.needs_person === 1,
   }
 }
 

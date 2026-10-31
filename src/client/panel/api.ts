@@ -1823,7 +1823,7 @@ export type TeamMemberLite = {
   status: string
 }
 
-export type InboxFilter = 'all' | 'new' | 'mine' | 'unassigned' | 'closed'
+export type InboxFilter = 'all' | 'new' | 'mine' | 'unassigned' | 'needs_person' | 'closed'
 
 export type InboxContact = {
   id: string
@@ -1849,6 +1849,8 @@ export type InboxConversation = {
   unreadCount: number
   createdAt: number
   updatedAt: number
+  /** IA pausada ou alerta de equipe ainda aberto. */
+  needsPerson?: boolean
   contact: InboxContact
 }
 
@@ -1926,6 +1928,8 @@ export type InboxCounts = {
   unassigned: number
   /** Conversas com não lidas (badge). */
   unread?: number
+  /** IA pausada ou alerta de equipe aberto. */
+  needsPerson?: number
   closed: number
 }
 
