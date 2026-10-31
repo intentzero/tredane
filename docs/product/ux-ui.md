@@ -295,7 +295,7 @@ Ver seção 6.2.
 
 | Componente | Uso | Regras |
 | --- | --- | --- |
-| Cabeçalho global | Todas as telas | Nome da clínica ativa, navegação, indicador de conexão, menu do usuário. No desktop (≥ 1280 px) o sino e a conta ficam no rail. Menu: **Dados pessoais** abre o UserProfile hospedado do Clerk (`openUserProfile`; firstName alimenta o prefixo DEC-088); **Sair**. Em AUTH_MODE sintético não há «Dados pessoais». |
+| Cabeçalho global | Todas as telas | Nome da clínica ativa, navegação, indicador de conexão, menu do usuário. No desktop (≥ 1280 px) o sino e a conta ficam no rail. Menu: **Dados pessoais** abre o UserProfile hospedado do Clerk (`openUserProfile`; firstName alimenta o prefixo DEC-088); **Aparência** (Confirmado, DEC-092: Sistema, Claro ou Escuro); **Sair**. Em AUTH_MODE sintético não há «Dados pessoais». |
 | Item de conversa | TEL-01 | Estado da conversa por rótulo; não lido em peso de fonte + marcador com texto acessível. |
 | Balão de mensagem | TEL-01 | Direção, horário, estado de envio (6.1), autor da equipe em mensagens enviadas. |
 | Evento de sistema | TEL-01, TEL-06 | Texto curto centralizado com autor e hora. |
@@ -368,6 +368,8 @@ Ver seção 6.2.
 - Texto base 14 px (alinhado ao WhatsApp Web, tokens v0.4.0, **Confirmado**, DEC-081; antes 16 px). Campos em 16 px só em aparelho de toque, ver regras comuns do §5.
 
 ## 8. Direção visual proposta
+
+**Tema claro, escuro e do sistema (**Confirmado**, DEC-092, 31/10/2026; implementado).** O painel oferece **Sistema** (padrão), **Claro** e **Escuro** em **Aparência**, seção do menu da conta (`AccountMenu`, itens de rádio com Sistema, Claro e Escuro; o mock M-56 mostra a mesma escolha em tela cheia). Sem escolha salva, segue `prefers-color-scheme` e acompanha a mudança do sistema sem recarregar. A escolha fica só no aparelho; se o armazenamento local estiver indisponível, vale Sistema. O tema é aplicado antes da primeira pintura (`data-theme` na raiz). Valores escuros: `colorDark` em [tokens.json](../design/tokens.json) (v0.5.0), mesmos papéis dos claros; contraste validado nos dois temas por `check_contrast.py`. Pendente: variante escura de marca e imagens.
 
 **Estado:** **Confirmado** ([DEC-041](decisions.md), 24/10/2026), exceto a biblioteca de componentes (**Proposto**). A fonte única dos valores é [docs/design/tokens.json](../design/tokens.json) (versão 0.3.1; fonte Roboto desde [DEC-073](decisions.md)); **esta seção não repete os valores** para não haver versões concorrentes. Resumo da direção: Inter (400/500/600) em seis tamanhos (12, 14, 16, 18, 22, 26); 25 cores por papel; cinco raios (8, 12, 16, 20, pílula); espaçamento em múltiplos de 4 px; borda de controle com 3:1 sobre o fundo. Componentes e estados: [catálogo](../design/catalog/index.html) e [components.md](../design/components.md). Ícones: [icons.md](../design/icons.md). Base de componentes: [ADR-0013](../adr/0013-design-system-components.md).
 

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Aparência — celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F4EF; color: #142625; font-family: Roboto, system-ui, sans-serif; font-size: 14px; line-height: 1.35; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; gap: 4px; padding: 8px 16px 8px 4px; background: #FFFFFF; border-bottom: 1px solid #E1E3E0">
+<button type="button" aria-label="Voltar" style="width: 44px; height: 44px; border: 0; background: transparent; color: #142625; font-size: 18px">‹</button>
+<h1 style="margin: 0; font-size: 16px; font-weight: 600">Aparência</h1>
+</div>
+<div style="flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 16px">
+<fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px">
+<legend style="padding: 0 0 8px; font-size: 13px; font-weight: 500; color: #424B4A">Tema</legend>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; background: #EEEDE7; border-radius: 12px">
+<label style="height: 56px; box-sizing: border-box; border-radius: 8px; background: #FFFFFF; box-shadow: inset 0 0 0 2px #0E5A5C; color: #0A4547; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 13px; font-weight: 500"><input type="radio" name="tema" checked style="position: absolute; opacity: 0">Sistema</label>
+<label style="height: 56px; box-sizing: border-box; border-radius: 8px; color: #424B4A; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 13px; font-weight: 500"><input type="radio" name="tema" style="position: absolute; opacity: 0">Claro</label>
+<label style="height: 56px; box-sizing: border-box; border-radius: 8px; color: #424B4A; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 13px; font-weight: 500"><input type="radio" name="tema" style="position: absolute; opacity: 0">Escuro</label>
+</div>
+<p style="margin: 0; font-size: 13px; color: #566160">Segue o aparelho e muda sozinho quando o sistema mudar. A escolha vale só neste aparelho.</p>
+</fieldset>
+<div style="background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 12px; overflow: hidden">
+<div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #EEEDE7">
+<div style="width: 40px; height: 40px; border-radius: 999px; background: #E7F1F1; color: #0A4547; display: flex; align-items: center; justify-content: center; font-weight: 600">MS</div>
+<div style="flex: 1; min-width: 0">
+<div style="font-weight: 500">Marina Souza</div>
+<div style="font-size: 13px; color: #566160">Tem horário para quinta à tarde?</div>
+</div>
+</div>
+<div style="padding: 12px 16px; background: #F7F4FD">
+<div style="font-size: 11px; font-weight: 600; color: #4B2A9E; margin-bottom: 4px">Sugestão da IA</div>
+<div style="font-size: 13px; color: #424B4A">Posso oferecer quinta, 15h ou 16h30. Quer revisar antes de enviar?</div>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

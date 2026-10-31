@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#FFFFFF" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="description" content="Tredane — atendimento inteligente para clínicas de estética." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -14,6 +14,18 @@
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <script>
+      /* DEC-092: aplica o tema salvo antes da primeira pintura (sem piscar). Sistema = sem data-theme. */
+      try {
+        var t = localStorage.getItem('tredane-theme')
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t)
+          if (t === 'dark') {
+            document.querySelector('meta[name="theme-color"]').setAttribute('content', '#162423')
+          }
+        }
+      } catch (e) {}
+    </script>
     <title>Tredane | Atendimento inteligente</title>
   </head>
   <body>

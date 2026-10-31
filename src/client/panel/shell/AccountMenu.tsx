@@ -1,4 +1,5 @@
-import { LogOut, User, UserRound } from 'lucide-react'
+import { Check, LogOut, Monitor, Moon, Sun, User, UserRound } from 'lucide-react'
+import { useState } from 'react'
 import {
   Button,
   Header,
@@ -9,6 +10,18 @@ import {
   Popover,
   Separator,
 } from 'react-aria-components'
+import {
+  readThemePreference,
+  saveThemePreference,
+  isThemePreference,
+  type ThemePreference,
+} from '../theme'
+
+const THEME_OPTIONS: { id: ThemePreference; label: string; Icon: typeof Sun }[] = [
+  { id: 'system', label: 'Sistema', Icon: Monitor },
+  { id: 'light', label: 'Claro', Icon: Sun },
+  { id: 'dark', label: 'Escuro', Icon: Moon },
+]
 
 export type AccountMenuProps = {
   name?: string | null
@@ -43,6 +56,7 @@ export function AccountMenu({
 }: AccountMenuProps) {
   const initials = accountInitials(name, email)
   const who = name?.trim() || email?.trim() || 'sua conta'
+  const [theme, setTheme] = useState<ThemePreference>(() => readThemePreference())
   return (
     <MenuTrigger>
       <Button className="panel-avatar-btn" aria-label={`Conta: ${who}. Abrir menu.`}>
@@ -81,6 +95,33 @@ export function AccountMenu({
               </MenuItem>
             </>
           ) : null}
+          <Separator className="panel-account-sep" />
+          <MenuSection
+            aria-label="Aparência"
+            selectionMode="single"
+            disallowEmptySelection
+            selectedKeys={[theme]}
+            onSelectionChange={(keys) => {
+              const next = [...keys][0]
+              if (isThemePreference(next)) {
+                setTheme(next)
+                saveThemePreference(next)
+              }
+            }}
+          >
+            <Header className="panel-account-section-title">Aparência</Header>
+            {THEME_OPTIONS.map(({ id, label, Icon }) => (
+              <MenuItem key={id} id={id} className="panel-account-item" textValue={label}>
+                {({ isSelected }) => (
+                  <>
+                    <Icon aria-hidden="true" size={18} strokeWidth={2} />
+                    <span className="panel-account-item-label">{label}</span>
+                    {isSelected ? <Check aria-hidden="true" size={16} strokeWidth={2.5} /> : null}
+                  </>
+                )}
+              </MenuItem>
+            ))}
+          </MenuSection>
           <Separator className="panel-account-sep" />
           <MenuItem id="sair" className="panel-account-item panel-account-item--danger" textValue="Sair">
             <LogOut aria-hidden="true" size={18} strokeWidth={2} />
