@@ -4,6 +4,7 @@
  * Puro, sem React.
  */
 import type { AgendaAppointmentItem } from '../../api'
+import { EMPTY_DAY_FREE_PREVIEW, type FreeSlot } from './freeSlots'
 
 const STEP = 15 * 60_000
 
@@ -20,6 +21,7 @@ export type DayEntry =
       items: AgendaAppointmentItem[]
     }
   | { kind: 'now'; key: string; startsAt: number }
+  | { kind: 'free'; key: string; startsAt: number; slot: FreeSlot }
 
 function peakOf(items: AgendaAppointmentItem[], from: number, to: number): number {
   let peak = 0
@@ -36,6 +38,8 @@ export function buildDayEntries(
   items: AgendaAppointmentItem[],
   roomCapacity: ReadonlyMap<string, number>,
   now: number | null,
+  /** Livres do dia (Proposto, TEL-04): dia sem horários mostra só os primeiros. */
+  free: FreeSlot[] = [],
 ): DayEntry[] {
   const entries: DayEntry[] = []
   const byRoom = new Map<string, AgendaAppointmentItem[]>()
@@ -75,8 +79,12 @@ export function buildDayEntries(
     }
     flush()
   }
+  const shownFree = entries.length === 0 ? free.slice(0, EMPTY_DAY_FREE_PREVIEW) : free
+  for (const slot of shownFree) {
+    entries.push({ kind: 'free', key: `free:${slot.key}`, startsAt: slot.startsAt, slot })
+  }
   entries.sort((a, b) => a.startsAt - b.startsAt || a.key.localeCompare(b.key))
-  if (now != null && entries.length > 0) {
+  if (now != null && entries.some((e) => e.kind !== 'free')) {
     const idx = entries.findIndex((e) => e.startsAt > now)
     const marker: DayEntry = { kind: 'now', key: 'now', startsAt: now }
     if (idx === -1) entries.push(marker)

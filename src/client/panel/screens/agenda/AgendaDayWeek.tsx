@@ -22,6 +22,7 @@ import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
 import { CompromissoScreen } from './CompromissoScreen'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
+import { freeSlotsOfDay, occupancyOfDay, type DayOccupancy, type FreeSlot } from './freeSlots'
 import {
   HOUR_HEIGHT,
   layoutDay,
@@ -286,6 +287,23 @@ export function AgendaDayWeek({
     roomCapacity,
     date === today ? now : null,
   )
+  const freeToday = freeSlotsOfDay(data?.availability, date, selected)
+  const listEntries = buildDayEntries(
+    (byDay.get(date) ?? []).filter(passesFilters),
+    roomCapacity,
+    date === today ? now : null,
+    freeToday,
+  )
+  const goScheduleAt = (slot: FreeSlot) =>
+    navigatePanel({
+      kind: 'area',
+      area: 'agenda',
+      tenantId,
+      section: 'agendar',
+      date,
+      time: formatSlotTime(slot.startsAt, timezone),
+      professionalId: slot.professionalId,
+    })
   const holds: ScheduleHold[] = (data?.holds ?? []).filter(
     (h) => h.status === 'active' && civilDayOf(h.windowStartsAt, timezone) === date,
   )
@@ -450,13 +468,14 @@ export function AgendaDayWeek({
       <div className="panel-scroll agenda-body">
         {view === 'day' && narrow ? (
           <AgendaDayList
-            entries={entries}
+            entries={listEntries}
             holds={holds}
             professionals={professionals}
             timezone={timezone}
             now={now}
             onOpen={(id) => openAppointment(id)}
             onSchedule={goSchedule}
+            onScheduleAt={goScheduleAt}
             onOpenHold={(h) =>
               navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
             }
@@ -475,6 +494,8 @@ export function AgendaDayWeek({
             const items = (byDay.get(day) ?? []).filter(
               (a) => !narrow || selected.length === 0 || selected.includes(a.professionalId),
             )
+            const occupancy = occupancyOfDay(data?.availability, day, narrow ? selected : [])
+            const freeCount = freeSlotsOfDay(data?.availability, day, narrow ? selected : []).length
             if (narrow) {
               const isOpen = (openDay ?? today) === day
               const n = items.length
@@ -499,9 +520,11 @@ export function AgendaDayWeek({
                     <span className="agenda-week-card-title">
                       {day === today ? 'Hoje · ' : ''}
                       {n === 0 ? 'Nenhum horário' : `${n} ${n === 1 ? 'horário' : 'horários'}`}
+                      {freeCount > 0 ? <span className="agenda-week-card-free"> · {freeCount} livres</span> : null}
                     </span>
                     {n > 0 ? <ChevronDown aria-hidden size={18} className="agenda-week-card-chev" /> : null}
                   </button>
+                  <OccupancyBars occupancy={occupancy} />
                   {isOpen && n > 0 ? (
                     <div id={panelId} className="agenda-week-card-body">
                       <ul className="agenda-apt-list">
@@ -544,7 +567,9 @@ export function AgendaDayWeek({
                 <h2 className="panel-legend">
                   {label.weekday} {label.day}
                   {day === today ? <Badge tone="new">Hoje</Badge> : null}
+                  {freeCount > 0 ? <span className="agenda-week-card-free"> · {freeCount} livres</span> : null}
                 </h2>
+                <OccupancyBars occupancy={occupancy} />
                 {items.length === 0 ? (
                   <p className="panel-meta">Nenhum horário marcado.</p>
                 ) : (
@@ -646,6 +671,31 @@ export function AgendaDayWeek({
         </aside>
       ) : null}
     </div>
+  )
+}
+
+/** Barra de ocupação do expediente por profissional (Proposto, TEL-04). */
+function OccupancyBars({ occupancy }: { occupancy: DayOccupancy[] }) {
+  if (occupancy.length === 0) return null
+  return (
+    <ul className="agenda-occ" aria-label="Ocupação do expediente">
+      {occupancy.map((o) => {
+        return (
+          <li
+            key={o.professionalId}
+            className="agenda-occ-row"
+            role="img"
+            aria-label={`${shortName(o.professionalName)}: ${o.percent}% do expediente ocupado`}
+          >
+            <span className="agenda-occ-name" aria-hidden>{shortName(o.professionalName)}</span>
+            <span className="agenda-occ-track" aria-hidden>
+              <span className="agenda-occ-fill" style={{ width: `${o.percent}%` }} />
+            </span>
+            <span className="agenda-occ-pct" aria-hidden>{o.percent}%</span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 

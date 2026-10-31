@@ -129,6 +129,35 @@ export type AgendaViewInput = {
   includeCancelled?: boolean
 }
 
+/** Bloqueio que cai no dia (da profissional ou da clínica inteira). */
+export type AgendaBlockView = {
+  id: string
+  startsAt: number
+  endsAt: number
+  reason: string
+  scope: 'professional' | 'clinic'
+}
+
+export type AgendaDayAvailability = {
+  /** Dia civil AAAA-MM-DD no fuso da clínica. */
+  date: string
+  /** Expediente do dia em minutos (0 = fechado). */
+  openMinutes: number
+  /** Minutos do expediente tomados por compromissos ou bloqueios. */
+  busyMinutes: number
+  /** Expediente aberto (UTC ms), já unido. */
+  windows: Array<{ startsAt: number; endsAt: number }>
+  /** Blocos livres daqui para a frente, mínimo uma grade (15 min). */
+  free: Array<{ startsAt: number; endsAt: number }>
+  blocks: AgendaBlockView[]
+}
+
+export type AgendaProfessionalAvailability = {
+  professionalId: string
+  professionalName: string
+  days: AgendaDayAvailability[]
+}
+
 export type AgendaViewResult = {
   tenantId: string
   timezone: string
@@ -140,6 +169,8 @@ export type AgendaViewResult = {
   appointments: AppointmentListItem[]
   /** Reservas por bloco activas no intervalo (faixa «hora a definir»). */
   holds: ScheduleHoldView[]
+  /** Expediente, livres e bloqueios por profissional (sem decidir conflito). */
+  availability: AgendaProfessionalAvailability[]
 }
 
 export type SlotConflictDetails = {

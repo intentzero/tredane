@@ -13,6 +13,9 @@ export type ScheduleContext = {
   alertId?: string
   /** Dia civil pré-escolhido (vem da Agenda). */
   date?: string
+  /** Hora e profissional de um horário livre escolhido na Agenda (pré-seleção). */
+  time?: string
+  professionalId?: string
   /** DEC-096: reagendar este compromisso em vez de criar outro. */
   rescheduleAppointmentId?: string
 }
