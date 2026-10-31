@@ -77,6 +77,8 @@ function readScheduleContext(): ScheduleContext {
     /** Alerta pago sem horário — confirma com sinal já pago (#40). */
     alertId: q.get('alertId') || undefined,
     date: /^\d{4}-\d{2}-\d{2}$/.test(q.get('date') ?? '') ? q.get('date')! : undefined,
+    time: /^([01]\d|2[0-3]):[0-5]\d$/.test(q.get('time') ?? '') ? q.get('time')! : undefined,
+    professionalId: q.get('professionalId') || undefined,
     rescheduleAppointmentId: q.get('rescheduleAppointmentId') || undefined,
   }
 }
@@ -205,7 +207,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
   const [periodOpen, setPeriodOpen] = useState(false)
   const [serviceId, setServiceId] = useState('')
   const [zoneIds, setZoneIds] = useState<string[]>([])
-  const [professionalId, setProfessionalId] = useState<string>(ANY)
+  const [professionalId, setProfessionalId] = useState<string>(ctx.professionalId ?? ANY)
   const [date, setDate] = useState('')
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null)
   const [selected, setSelected] = useState<AvailabilitySlot | null>(null)
@@ -219,6 +221,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
   const [success, setSuccess] = useState<Success | null>(null)
   const [reschedule, setReschedule] = useState<{ id: string; version: number } | null>(null)
   const conflictRef = useRef<HTMLDivElement | null>(null)
+  const prefillTime = useRef<string | null>(ctx.time ?? null)
 
   const timezone = config?.settings.timezone ?? 'America/Sao_Paulo'
   const allDays = useMemo(
@@ -327,6 +330,16 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
       )
       setAvailability(res)
       setSelected((prev) => {
+        if (!prev && prefillTime.current) {
+          // Horário livre escolhido na Agenda: pré-seleciona se este serviço o oferece.
+          const hit = res.slots.find(
+            (s) =>
+              formatSlotTime(s.startsAt, timezone) === prefillTime.current
+              && (!ctx.professionalId || s.professionalId === ctx.professionalId),
+          )
+          prefillTime.current = null
+          return hit ?? null
+        }
         if (!prev) return null
         const still = res.slots.find((s) => slotKey(s) === slotKey(prev))
         if (!still) {
@@ -345,7 +358,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
     } finally {
       setLoadingSlots(false)
     }
-  }, [api, tenantId, fo, serviceId, date, professionalId, config, zoneIds])
+  }, [api, tenantId, fo, serviceId, date, professionalId, config, zoneIds, timezone, ctx.professionalId])
 
   useEffect(() => {
     void reloadSlots()

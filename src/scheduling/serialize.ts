@@ -145,6 +145,7 @@ export function serializeAgendaView(result: AgendaViewResult) {
     asOf: result.asOf,
     appointments: result.appointments.map(serializeListItem),
     holds: result.holds.map(serializeHold),
+    availability: result.availability,
   }
 }
 

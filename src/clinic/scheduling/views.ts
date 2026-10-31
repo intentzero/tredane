@@ -15,6 +15,7 @@ import { assertClinicSchemaReady } from '../migrations'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import type { AgendaViewInput, AgendaViewResult, AppointmentListItem } from './booking-types'
+import { buildAgendaAvailability } from './agenda-availability'
 import { HOLD_SELECT, mapHold, type HoldSql, type ScheduleHoldView } from './hold-rows'
 import {
   clinicDayBounds,
@@ -81,15 +82,18 @@ export function queryAgendaViewOp(
 
   let rangeStartsAt: number
   let rangeEndsAt: number
+  let civilDates: string[]
   if (input.view === 'day') {
     const bounds = clinicDayBounds(timezone, input.date)
     rangeStartsAt = bounds.dayStartsAt
     rangeEndsAt = bounds.dayEndsAt
+    civilDates = [input.date]
   } else {
     const weekStart = weekStartCivil(timezone, input.date)
     const weekEnd = addCivilDays(weekStart, 7)
     rangeStartsAt = clinicDayBounds(timezone, weekStart).dayStartsAt
     rangeEndsAt = clinicDayBounds(timezone, weekEnd).dayStartsAt
+    civilDates = Array.from({ length: 7 }, (_, i) => addCivilDays(weekStart, i))
   }
 
   const includeCancelled = input.includeCancelled === true
@@ -176,6 +180,15 @@ export function queryAgendaViewOp(
     asOf: clock.nowMs(),
     appointments,
     holds: listAgendaHolds(db, meta.tenantId, rangeStartsAt, rangeEndsAt, input.professionalId ?? null),
+    availability: buildAgendaAvailability(
+      db,
+      meta.tenantId,
+      timezone,
+      civilDates,
+      input.professionalId,
+      clock.nowMs(),
+      clock,
+    ),
   }
 }
 

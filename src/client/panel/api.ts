@@ -2767,6 +2767,26 @@ export type AgendaAppointmentItem = {
   bookedByAi?: boolean
 }
 
+export type AgendaInterval = { startsAt: number; endsAt: number }
+
+export type AgendaDayAvailability = {
+  date: string
+  /** Expediente do dia em minutos (0 = fechado). */
+  openMinutes: number
+  /** Minutos do expediente tomados por compromissos ou bloqueios. */
+  busyMinutes: number
+  windows: AgendaInterval[]
+  /** Blocos livres daqui para a frente (grade de 15 min). */
+  free: AgendaInterval[]
+  blocks: Array<AgendaInterval & { id: string; reason: string; scope: 'professional' | 'clinic' }>
+}
+
+export type AgendaProfessionalAvailability = {
+  professionalId: string
+  professionalName: string
+  days: AgendaDayAvailability[]
+}
+
 export type AgendaViewResponse = {
   tenantId: string
   timezone: string
@@ -2778,6 +2798,8 @@ export type AgendaViewResponse = {
   appointments: AgendaAppointmentItem[]
   /** Reservas por bloco activas (faixa «hora a definir»). */
   holds?: ScheduleHold[]
+  /** Expediente, livres e bloqueios por profissional; ausente em respostas antigas. */
+  availability?: AgendaProfessionalAvailability[]
 }
 
 export type ScheduleHoldStatus = 'active' | 'resolved' | 'expired' | 'cancelled'
