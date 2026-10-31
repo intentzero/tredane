@@ -761,6 +761,7 @@ export function createPixAccountRoutes(opts: PixAccountRouteOptions = {}) {
           refundConfirmed: result.refund?.refundConfirmed ?? false,
           uncertain: result.refund?.uncertain ?? false,
           idempotentReplay: result.idempotentReplay,
+          cancelNotice: result.cancelNotice ?? 'skipped',
         })
       } catch (err) {
         return pixErrorResponse(c, err)

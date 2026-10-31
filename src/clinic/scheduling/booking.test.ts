@@ -660,7 +660,7 @@ describe('agendamento atómico (#36)', () => {
         'O horário passou de segunda-feira, 8 de janeiro às 14:00 para segunda-feira, 8 de janeiro às 16:00.',
       )
 
-      rescheduleAppointmentOp(
+      const replay = rescheduleAppointmentOp(
         db,
         caller,
         {
@@ -674,11 +674,91 @@ describe('agendamento atómico (#36)', () => {
         },
         clock,
       )
+      expect(replay.idempotentReplay).toBe(true)
+      expect(replay.rescheduleNotice).toBe('sent')
       const n = db.get<{ n: number }>(
         `SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ? AND direction = 'outbound'`,
         cnv.id,
       )
       expect(n?.n).toBe(1)
+
+      const button = rescheduleAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-move-4',
+          appointmentId: apt.value.id,
+          reason: 'contato_remarcou',
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 11, 0),
+          expectedVersion: open.value.version,
+          actorClerkUserId: 'user_synth_owner_a',
+          skipRescheduleNotice: true,
+        },
+        clock,
+      )
+      expect(button.rescheduleNotice).toBe('skipped')
+      expect(button.value.startsAt).toBe(zonedCivilToUtc(TZ, 2024, 1, 8, 11, 0))
+      const afterButton = db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ? AND direction = 'outbound'`,
+        cnv.id,
+      )
+      expect(afterButton?.n).toBe(1)
+    } finally {
+      close()
+    }
+  })
+
+  it('dois horários futuros: o cartão aponta para o mais próximo', () => {
+    const clock = createControllableClock(Date.UTC(2024, 0, 1))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const { caller, pro, room, svc, tenantId } = seedClinic(db, clock)
+      const contact = upsertContact(db, { tenantId, waId: '5511900003333', displayName: 'Marina Souza' }, clock)
+      const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
+      const opp = ensureOpenOpportunity(
+        db,
+        { tenantId, contactId: contact.id, conversationId: cnv.id },
+        clock,
+      ).opportunity
+      const early = confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-link-1',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 9, 0),
+          contactId: contact.id,
+          conversationId: cnv.id,
+          opportunityId: opp.id,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-link-2',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 14, 0),
+          contactId: contact.id,
+          conversationId: cnv.id,
+          opportunityId: opp.id,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      const linked = db.get<{ linked: string | null }>(
+        `SELECT linked_appointment_id AS linked FROM opportunities WHERE id = ?`,
+        opp.id,
+      )
+      expect(linked?.linked).toBe(early.value.id)
     } finally {
       close()
     }

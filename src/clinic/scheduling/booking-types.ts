@@ -72,6 +72,8 @@ export type RescheduleAppointmentInput = {
   expectedVersion?: number | null
   /** DEC-078: troca o conjunto de zonas e revalida o bloco. Omitido: mantém a cópia. */
   zoneIds?: string[] | null
+  /** DEC-091: o botão da proposta já avisa. O aviso do painel (DEC-097) não sai. */
+  skipRescheduleNotice?: boolean
 }
 
 export type AppointmentDetail = AppointmentRow & {

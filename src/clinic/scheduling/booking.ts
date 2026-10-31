@@ -37,7 +37,12 @@ import { deleteAllocationsForAppointment, insertAllocations } from './allocation
 import { checkSlotAvailability } from './check'
 import { refusalMessageForReasons } from './refusal-messages'
 import { moveStage } from './stage'
-import { findAppointmentCommand, saveAppointmentCommand } from './commands'
+import {
+  findAppointmentCommand,
+  rememberAppointmentNotice,
+  saveAppointmentCommand,
+  savedAppointmentNotice,
+} from './commands'
 import { insertAppointmentEvent, listAppointmentEvents } from './events'
 import type {
   AppointmentDetail,
@@ -290,6 +295,21 @@ export function confirmAppointmentInTransaction(
         clock,
         outbox,
       )
+      if (input.conversationId) {
+        outbox.push(
+          ...alignOpportunityToAppointments(
+            db,
+            {
+              tenantId: meta.tenantId,
+              conversationId: input.conversationId,
+              now: clock.nowMs(),
+              actorClerkUserId: actorId,
+              actorDisplayName: input.actorDisplayName ?? actorId,
+            },
+            clock,
+          ),
+        )
+      }
     }
     const linked = outbox.length > 0 ? loadAppointment(db, meta.tenantId, apt.id) : apt
     return {
@@ -456,6 +476,21 @@ export function confirmAppointmentInTransaction(
     outbox,
     clock,
   )
+  if (input.opportunityId && input.conversationId && !input.skipStageMove) {
+    outbox.push(
+      ...alignOpportunityToAppointments(
+        db,
+        {
+          tenantId: meta.tenantId,
+          conversationId: input.conversationId,
+          now,
+          actorClerkUserId: actorId,
+          actorDisplayName: input.actorDisplayName ?? actorId,
+        },
+        clock,
+      ),
+    )
+  }
   // DEC-052 (Confirmado, card t1868s7504): confirmar com oportunidade move
   // para «Agendado», com evento no histórico.
   if (input.opportunityId && !input.skipStageMove) {
@@ -570,6 +605,7 @@ export function cancelAppointmentOp(
       value: enrichDetail(db, meta.tenantId, apt, clock),
       outbox: [],
       idempotentReplay: true,
+      cancelNotice: savedAppointmentNotice(existing.resultJson, 'cancelNotice'),
     }
   }
 
@@ -694,14 +730,14 @@ export function cancelAppointmentOp(
     return { value: detail, outbox, idempotentReplay: false as const }
   })
 
-  if (!committed.value.conversationId) {
-    return { ...committed, cancelNotice: 'skipped' }
-  }
-  const notice = deliverCancelNotice(db, committed.value, clock)
+  const cancelNotice = committed.value.conversationId
+    ? deliverCancelNotice(db, committed.value, clock)
+    : { status: 'skipped' as const, outbox: [] as OutboxRow[] }
+  rememberAppointmentNotice(db, meta.tenantId, clientRequestId, 'cancelNotice', cancelNotice.status)
   return {
     ...committed,
-    outbox: [...committed.outbox, ...notice.outbox],
-    cancelNotice: notice.status,
+    outbox: [...committed.outbox, ...cancelNotice.outbox],
+    cancelNotice: cancelNotice.status,
   }
 }
 
@@ -824,6 +860,7 @@ export function rescheduleAppointmentOp(
       value: enrichDetail(db, meta.tenantId, apt, clock),
       outbox: [],
       idempotentReplay: true,
+      rescheduleNotice: savedAppointmentNotice(existing.resultJson, 'rescheduleNotice'),
     }
   }
 
@@ -1033,21 +1070,30 @@ export function rescheduleAppointmentOp(
     return { value: detail, outbox, idempotentReplay: false as const, previousStartsAt: before.startsAt }
   })
 
-  if (!committed.value.conversationId || committed.previousStartsAt === committed.value.startsAt) {
-    return { ...committed, rescheduleNotice: 'skipped' }
-  }
-  const notice = deliverRescheduleNotice(
+  const rescheduleNotice =
+    input.skipRescheduleNotice
+    || !committed.value.conversationId
+    || committed.previousStartsAt === committed.value.startsAt
+      ? { status: 'skipped' as const, outbox: [] as OutboxRow[] }
+      : deliverRescheduleNotice(
+          db,
+          committed.previousStartsAt,
+          committed.value,
+          clientRequestId,
+          clock,
+        )
+  rememberAppointmentNotice(
     db,
-    committed.previousStartsAt,
-    committed.value,
+    meta.tenantId,
     clientRequestId,
-    clock,
+    'rescheduleNotice',
+    rescheduleNotice.status,
   )
   return {
     value: committed.value,
-    outbox: [...committed.outbox, ...notice.outbox],
+    outbox: [...committed.outbox, ...rescheduleNotice.outbox],
     idempotentReplay: false,
-    rescheduleNotice: notice.status,
+    rescheduleNotice: rescheduleNotice.status,
   }
 }
 

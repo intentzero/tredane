@@ -1368,6 +1368,7 @@ export function createPanelApi(getToken: TokenGetter) {
         charge: PixChargeDetail | null
         refundConfirmed: boolean
         uncertain: boolean
+        cancelNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
       }
     },
 
