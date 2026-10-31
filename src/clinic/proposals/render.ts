@@ -1,11 +1,9 @@
 /**
  * Corpo e botões determinísticos da proposta (S4 / #175 / DEC-061 / H8).
  * Texto autorizado e campos factuais vêm só do snapshot persistido — nunca do LLM.
+ * DEC-090: sem sala nem intervalo/buffer ao cliente; localização só se a clínica tiver morada.
  */
 import type { ClinicDb } from '../store'
-import { systemClock } from '../../db/clock'
-import { getResource } from '../config/resources'
-import { getService } from '../config/services'
 import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots, zoneLabel } from '../config/zones'
 import { HUMAN_HANDOFF_BUTTON_TITLE } from '../ai/human-handoff'
@@ -127,39 +125,21 @@ export function renderProposalInteractive(
 ): ProposalInteractivePayload {
   const zones = db ? readZoneSnapshots(db, proposal.tenantId, 'proposal', proposal.id) : []
   const combo = db ? readComboSnapshot(db, proposal.tenantId, 'proposal', proposal.id) : null
-  const lines: string[] = [
-    'Proposta de horário',
-    '',
-    `Local: ${proposal.clinicLocationText || 'Clínica'}`,
+  const location = proposal.clinicLocationText.trim()
+  const lines: string[] = ['Proposta de horário', '']
+  if (location) lines.push(`Local: ${location}`)
+  lines.push(
     `Beneficiária: ${proposal.beneficiaryName}${
       proposal.beneficiaryKind === 'terceiro' ? ' (terceiro)' : ''
     }`,
     `Serviço: ${zoneLabel(proposal.serviceName, zones)}`,
     `Quando: ${formatSlotRange(proposal)}`,
     `Duração: ${proposal.durationMinutes} min`,
-  ]
+  )
   if (proposal.professionalName) {
     lines.push(`Profissional: ${proposal.professionalName}`)
   }
-  if (db) {
-    const service = getService(db, proposal.tenantId, proposal.serviceId)
-    if (service?.roomRequirement.mode === 'rooms') {
-      const names = service.roomRequirement.resourceIds
-        .map((id) => getResource(db, proposal.tenantId, id, systemClock)?.name)
-        .filter((n): n is string => Boolean(n))
-      if (names.length > 0) lines.push(`Sala: ${names.join(' ou ')}`)
-    }
-    if (service && service.bufferMinutes > 0) {
-      const occupied = new Intl.DateTimeFormat('pt-BR', {
-        timeZone: proposal.timezone,
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(new Date(proposal.endsAt + service.bufferMinutes * 60_000))
-      lines.push(
-        `Intervalo: ${service.bufferMinutes} min depois do atendimento (a agenda fica ocupada até ${occupied})`,
-      )
-    }
-  }
+  // DEC-090: sala e intervalo/buffer são internos — nunca entram no WhatsApp ao cliente.
   if (proposal.priceCents != null) {
     lines.push(
       combo
@@ -230,12 +210,16 @@ export function renderProposalResultBody(
 ): string {
   const when = formatSlotRange(proposal)
   switch (kind) {
-    case 'booked':
+    case 'booked': {
+      const location = proposal.clinicLocationText.trim()
       return (
         `Agendado: ${proposal.serviceName} em ${when}` +
         (proposal.professionalName ? ` com ${proposal.professionalName}` : '') +
-        `. Qualquer dúvida, responda esta mensagem.`
+        `.` +
+        (location ? ` Local: ${location}.` : '') +
+        ` Qualquer dúvida, responda esta mensagem.`
       )
+    }
     case 'slot_refused':
       return (
         `Horário já não está livre para ${proposal.serviceName} em ${when}. ` +

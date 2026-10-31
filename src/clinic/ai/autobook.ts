@@ -21,7 +21,7 @@ import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
 import { listServices } from '../config/services'
 import { explicitAudienceLine } from '../catalog/audience'
-import { quoteVisit, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
+import { quoteVisit, variantAudiencesConflict } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
@@ -36,6 +36,7 @@ import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import { checkConversationProtection } from './protection'
+import { audienceLineFromClientTexts, zonesChosenInClientTexts } from './schedule-choice'
 import { getScheduleSession, saveScheduleLine, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
 import {
   audienceLineQuestion,
@@ -197,9 +198,6 @@ const AFFIRMATIVE =
 /** Hesitação/negativa. «?» sozinho não conta: «pode ser às 14?» é escolha, não dúvida. */
 const NEGATIVE_OR_HESITANT =
   /\b(nao|talvez|acho|sera|depois|ver|vou ver|pensar|outro|outra|mais tarde|ou)\b/
-/** «Tudo» / «todas» = todas as variantes activas (REQ-088: escolha da cliente). */
-const ALL_ZONES =
-  /\b(tudo|todas|todos|as\s+duas|as\s+tres|as\s+tr[eê]s|completo|completa)\b/
 const RESCHEDULE = /\b(remarc\w*|desmarc\w*|cancel\w*|mudar|trocar|adiar)\b/
 
 type Msg = { id: string; direction: string; body: string; created_at: number }
@@ -267,34 +265,17 @@ export function detectExplicitConfirmation(input: {
   return { ok: true, status: 'requires_button', missing: [], date, time, service }
 }
 
-/** O mesmo nome citado mais de uma vez ainda não escolhe a variante. «Tudo» não entra aqui. */
-function nameCitedTwice(zones: ServiceRow['zones']): boolean {
-  const seen = new Set<string>()
-  for (const zone of zones) {
-    const key = zone.name.trim().toLocaleLowerCase('pt-BR')
-    if (seen.has(key)) return true
-    seen.add(key)
-  }
-  return false
-}
-
 /** Zona escolhida pela cliente. A mensagem da clínica que lista o cardápio não conta. */
 function zonesChosenByClient(
   clientTurn: Msg[],
   older: Msg[],
   zones: ServiceRow['zones'],
 ): { zones: ServiceRow['zones']; ambiguous: boolean } {
-  if (zones.length === 0) return { zones: [], ambiguous: false }
-  const texts = [clientTurn.map((m) => m.body).join('\n')]
-  for (const m of older) {
-    if (m.direction === 'inbound') texts.push(m.body)
-  }
-  for (const text of texts) {
-    if (ALL_ZONES.test(norm(text))) return { zones: [...zones], ambiguous: false }
-    const found = zonesNamedInText(text, zones)
-    if (found.length > 0) return { zones: found, ambiguous: nameCitedTwice(found) }
-  }
-  return { zones: [], ambiguous: false }
+  const texts = [
+    clientTurn.map((m) => m.body).join('\n'),
+    ...older.filter((m) => m.direction === 'inbound').map((m) => m.body),
+  ]
+  return zonesChosenInClientTexts(texts, zones)
 }
 
 export function askZonesReply(phrase: string, zoneNames: string[], time: string): string {
@@ -461,9 +442,15 @@ export async function tryAiAutoBook(
   const time = det.time
   rememberDayPeriod(svc.id)
   const activeZones = svc.zones.filter((z) => z.active)
+  const inboundNewestFirst = [
+    ...clientTurn.map((m) => m.body),
+    ...older.filter((m) => m.direction === 'inbound').map((m) => m.body),
+  ]
+  // DEC-090: linha já dita nesta conversa (turno, sessão ou inbound anterior) não se reperguntar.
   const turnExplicit = explicitAudienceLine(turnText)
+  const historyLine = audienceLineFromClientTexts(inboundNewestFirst)
   const carried = session?.serviceId === svc.id ? session.audienceLine : null
-  const line = needsAudienceLine(activeZones) ? (turnExplicit ?? carried) : null
+  const line = needsAudienceLine(activeZones) ? (turnExplicit ?? carried ?? historyLine) : null
   if (needsAudienceLine(activeZones) && !line) {
     saveScheduleLine(db, tenantId, input.conversationId, svc.id, null, clock)
     return {
@@ -474,8 +461,8 @@ export async function tryAiAutoBook(
         'Não se infere pelo nome, pelo histórico nem por marcações. Texto livre não marca.',
     }
   }
-  if (turnExplicit) {
-    saveScheduleLine(db, tenantId, input.conversationId, svc.id, turnExplicit, clock)
+  if (line && (turnExplicit || historyLine || carried)) {
+    saveScheduleLine(db, tenantId, input.conversationId, svc.id, line, clock)
   }
   const scoped = needsAudienceLine(activeZones) ? zonesForAudienceLine(activeZones, line) : activeZones
   const chosen = zonesChosenByClient(clientTurn, older, scoped)

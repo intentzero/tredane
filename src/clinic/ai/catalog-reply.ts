@@ -1,6 +1,6 @@
 /**
  * Respostas de catálogo sem modelo: preço com duração, expediente com o vão,
- * quem faz e a sala, zona antes do horário, soma com o intervalo.
+ * quem faz e a sala, zona antes do horário. Sem mencionar intervalo/buffer ao cliente (DEC-090).
  */
 import { formatBRL } from '../../ai/prompt'
 import type { Clock } from '../../db/clock'
@@ -12,6 +12,7 @@ import type { ServiceRow } from '../config/types'
 import { zonesNamedInText } from '../config/zones'
 import { listMessages } from '../inbox/messages'
 import type { ClinicDb } from '../store'
+import { audienceLineFromClientTexts, zonesChosenInClientTexts } from './schedule-choice'
 import { formatOpeningHours } from './schedule-context'
 import {
   getScheduleSession,
@@ -31,14 +32,6 @@ const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
 const PRICE = /\b(pre[cç]o|custa|valor|quanto)\b/i
 const PERIOD = /\b(amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|manh[aã]|tarde|noite)\b/i
 const CLOCK = /\b(\d{1,2}[:h]\d{2}|\d{3,4}|[aà]s\s+\d{1,2})\b/i
-
-function roomNames(db: ClinicDb, tenantId: string, service: ServiceRow, clock: Clock): string[] {
-  if (service.roomRequirement.mode !== 'rooms') return []
-  const resources = listResources(db, tenantId, clock)
-  return service.roomRequirement.resourceIds
-    .map((id) => resources.find((r) => r.id === id)?.name)
-    .filter((n): n is string => Boolean(n))
-}
 
 function proNames(db: ClinicDb, tenantId: string, service: ServiceRow, clock: Clock): string[] {
   const resources = listResources(db, tenantId, clock)
@@ -99,12 +92,11 @@ export function catalogReply(
   const targets = poolFor(services, body)
   const who = WHO.test(body)
   if (who) {
+    // DEC-090: a sala é organização interna — nunca nomear sala ao cliente.
     const lines = targets.map((s) => {
       const people = proNames(db, tenantId, s, clock)
-      const rooms = roomNames(db, tenantId, s, clock)
       const whoText = people.length > 0 ? people.join(', ') : 'a equipe confirma quem atende'
-      const where = rooms.length > 0 ? rooms.join(' ou ') : 'sem sala definida'
-      return `${s.name}: ${whoText}, na ${where}.`
+      return `${s.name}: ${whoText}.`
     })
     return lines.join('\n')
   }
@@ -129,11 +121,22 @@ export function catalogReply(
   if (mixed && !inPlay) return null
 
   const facts = scheduleFactsFromText(source)
+  // listMessages vem do mais novo para o mais antigo — mantém essa ordem (DEC-090).
+  const priorInboundNewestFirst = opts.conversationId
+    ? listMessages(db, tenantId, { conversationId: opts.conversationId, limit: 40 })
+        .messages.filter((message) => message.direction === 'inbound')
+        .map((message) => message.body)
+    : []
+  const inboundNewestFirst = [source, ...priorInboundNewestFirst.filter((body) => body !== source)]
   const carried = session?.serviceId === svc.id ? session.audienceLine : null
-  const line = mixed ? (explicit ?? carried) : null
+  // Histórico só recupera a linha quando o serviço já está na sessão (mesmo funil).
+  // Não reaproveitar «masculino» de um turno antigo antes do serviço entrar (DEC-090).
+  const historyLine =
+    session?.serviceId === svc.id ? audienceLineFromClientTexts(inboundNewestFirst) : null
+  const line = mixed ? (explicit ?? carried ?? historyLine) : null
   if (opts.conversationId && inPlay) {
     const patch: ScheduleSessionPatch = { serviceId: inPlay.id }
-    if (explicit) patch.audienceLine = explicit
+    if (explicit || (mixed && line)) patch.audienceLine = line
     else if (mixed && !line) patch.audienceLine = null
     if (facts.dayLabel) patch.dayLabel = facts.dayLabel
     if (facts.period) patch.period = facts.period
@@ -150,6 +153,19 @@ export function catalogReply(
 
   const scoped = mixed ? zonesForAudienceLine(active, line) : active
   const named = scoped.length > 0 ? zonesNamedInText(source, scoped) : []
+  const chosenEarlier =
+    scoped.length > 0 ? zonesChosenInClientTexts(inboundNewestFirst, scoped) : { zones: [] as typeof scoped, ambiguous: false }
+
+  // Linha/zonas já ditas nesta conversa: não reperguntar — deixa o autobook/proposta seguir (DEC-090).
+  if (
+    active.length > 0 &&
+    named.length === 0 &&
+    !asksPrice &&
+    chosenEarlier.zones.length > 0 &&
+    !chosenEarlier.ambiguous
+  ) {
+    return null
+  }
 
   if (active.length > 0 && named.length === 0 && (asksPrice || openPeriod || lineOnly)) {
     const pool = scoped.length > 0 ? scoped : active
@@ -171,11 +187,8 @@ export function catalogReply(
     const missing = named.some((z) => z.priceCents == null)
     const cents = named.reduce((n, z) => n + (z.priceCents ?? 0), 0)
     const price = missing ? 'a equipe confirma o valor' : formatBRL(cents)
-    const buffer =
-      svc.bufferMinutes > 0
-        ? ` O intervalo de ${svc.bufferMinutes} min ocupa a agenda depois do atendimento.`
-        : ''
-    return `Juntas, ficam ${price} e ${minutes} min de atendimento.${buffer}`
+    // DEC-090: duração de atendimento ok; nunca citar intervalo/buffer da agenda ao cliente.
+    return `Juntas, ficam ${price} e ${minutes} min de atendimento.`
   }
 
   if (!asksPrice && active.length === 0 && openPeriod) return null

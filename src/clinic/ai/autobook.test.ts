@@ -663,3 +663,65 @@ describe('pergunta das variantes usa o plural do tipo', () => {
     expect(reply).toBe('Para fechar às 14:00, me diga as zonas: Axila, Buço. Pode ser mais de uma.')
   })
 })
+
+describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026)', () => {
+  it('«As 14» com Masculina + Todas já ditos envia proposta sem reperguntar', async () => {
+    const s = seed()
+    try {
+      const dep = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilacao',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 19_000,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        dep.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 5_000, audience: 'masculino' },
+          { name: 'Pernas', durationMinutes: 30, priceCents: 14_000, audience: 'masculino' },
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' },
+          { name: 'Pernas', durationMinutes: 30, priceCents: 12_000, audience: 'feminino' },
+        ],
+        s.clock,
+      )
+      s.say('inbound', 'Quero agendar uma depilação')
+      s.say('outbound', 'Claro! A depilação tem opções feminina e masculina. Qual você quer fazer?')
+      s.say('inbound', 'Masculina')
+      s.say('outbound', 'Perfeito! Na depilação masculina temos axila ou pernas. Qual zona você quer, ou as duas?')
+      s.say('inbound', 'Todas')
+      s.say(
+        'outbound',
+        'Tenho amanhã (quinta, 29/10) às 09:00, 10:00 ou 14:00 para a depilação de pernas e axila. Algum desses fica bom pra você?',
+      )
+      s.say('inbound', 'As 14')
+      const o = await s.run()
+      expect(o.autoBook?.status).toBe('requires_button')
+      expect(o.autoBook?.proposalId).toBeTruthy()
+      expect(o.autoBook?.time).toBe('14:00')
+      expect(o.autoBook?.date).toBe('2026-10-29')
+      expect(o.autoBook?.replyText ?? '').not.toMatch(/feminina ou masculina/i)
+      expect(o.autoBook?.replyText ?? '').not.toMatch(/qual zona/i)
+      expect(o.suggestion!.suggestedText.trim()).toBe('')
+      const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', o.autoBook!.proposalId!)
+      expect(snaps.map((z) => z.name).sort()).toEqual(['Axila', 'Pernas'])
+      expect(snaps.every((z) => z.audience === 'masculino')).toBe(true)
+      const body = getProposal(s.db, s.tenantId, o.autoBook!.proposalId!)
+      // Proposta (confirmação) pode ter preço; oferta de slots a meio do funil é que não.
+      expect(body?.priceCents).toBe(19_000)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+})
