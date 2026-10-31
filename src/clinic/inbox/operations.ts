@@ -28,6 +28,7 @@ import {
 } from './conversations'
 import { findMessageByExternalId, insertMessage, listMessages } from './messages'
 import { captionFromBody, listAttachmentsForMessage, summarizeAttachment } from '../attachments'
+import { rescheduleConversationIdle } from '../followup/idle-state'
 import {
   applyHumanOutboundPrefix,
   shouldPrefixHumanOutbound,
@@ -904,6 +905,14 @@ export function sendOutboundMessageOp(
       bumpUnread: false,
       reopenIfClosed: true,
     })
+    // DEC-087: outbound útil reinicia idle (follow-up idle sobrescreve a fase se precisar).
+    try {
+      rescheduleConversationIdle(db, meta.tenantId, input.conversationId, clock, {
+        progressAt: now,
+      })
+    } catch {
+      /* schema/idle best-effort */
+    }
     const afterTouch = requireConversation(db, meta.tenantId, input.conversationId)
     if (!afterTouch.assigneeClerkUserId) {
       setConversationAssignee(db, {
@@ -1371,6 +1380,14 @@ export function appendInboundToConversation(
     bumpUnread: true,
     reopenIfClosed: true,
   })
+  // DEC-087: inbound reinicia o relógio de idle (system não passa por aqui).
+  try {
+    rescheduleConversationIdle(db, input.tenantId, conversation.id, clock, {
+      progressAt: now,
+    })
+  } catch {
+    /* schema/idle best-effort */
+  }
 
   return { conversation, message, createdConversation }
 }

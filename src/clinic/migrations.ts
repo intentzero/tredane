@@ -226,6 +226,11 @@ import {
   MIGRATION_NAME as M45_NAME,
   STATEMENTS as M45_STATEMENTS,
 } from './migrations/0045_virtual_attendant'
+import {
+  MIGRATION_ID as M46_ID,
+  MIGRATION_NAME as M46_NAME,
+  STATEMENTS as M46_STATEMENTS,
+} from './migrations/0046_conversation_idle'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -281,6 +286,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M43_ID, name: M43_NAME, statements: M43_STATEMENTS },
   { id: M44_ID, name: M44_NAME, statements: M44_STATEMENTS },
   { id: M45_ID, name: M45_NAME, statements: M45_STATEMENTS },
+  { id: M46_ID, name: M46_NAME, statements: M46_STATEMENTS },
 ]
 
 export type MigrationResult = {
