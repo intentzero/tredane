@@ -160,6 +160,28 @@ describe('InboxThread — bolhas com estado de entrega', () => {
     expect(screen.getByText(/Você pode responder livremente até/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Enviar' })).toBeTruthy()
   })
+
+  it('o compositor é texto livre: fora de senha, cartão e morada, sem popover nosso', async () => {
+    const user = userEvent.setup()
+    renderThread(mockApi(detail({ status: 'open', assigneeClerkUserId: VIEWER })))
+    const box = (await screen.findByRole('textbox', { name: 'Mensagem' })) as HTMLTextAreaElement
+    expect(box.tagName).toBe('TEXTAREA')
+    expect(box.getAttribute('type')).toBeNull()
+    expect(box.getAttribute('autocomplete')).toBe('organization-title')
+    expect(box.getAttribute('autocomplete')).not.toMatch(/password|username|cc-|address|street|postal|email|tel|webauthn|^off$/i)
+    expect(box.getAttribute('name')).toBe('mensagem')
+    expect(box.getAttribute('inputmode')).toBe('text')
+    expect(box.getAttribute('autocorrect')).toBe('on')
+    expect(box.getAttribute('autocapitalize')).toBe('sentences')
+    expect(box.getAttribute('spellcheck')).toBe('true')
+    await user.click(box)
+    await user.type(box, 'Oi')
+    expect(box.value).toBe('Oi')
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText(/Você pode responder livremente até/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Enviar' })).toBeTruthy()
+  })
 })
 
 describe('InboxThread — estado de envio', () => {
