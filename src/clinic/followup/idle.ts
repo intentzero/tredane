@@ -23,7 +23,6 @@ import {
   IDLE_CLOSE_AFTER_MS,
   IDLE_PROMPT_AFTER_MS,
   lastUsefulMessageAt,
-  nextIdleDueAt,
   rescheduleConversationIdle,
   setConversationIdle,
 } from './idle-state'
