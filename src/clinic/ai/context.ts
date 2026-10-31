@@ -118,10 +118,8 @@ export async function buildAiContextPayload(
   const turnLine = explicitAudienceLine(turnText)
   const scheduleSession = getScheduleSession(db, tenantId, conversationId)
   const catalogResources = opts.clock ? listResources(db, tenantId, opts.clock) : []
-  const services = filterServicesForLine(
-    listServices(db, tenantId).filter((s) => s.active),
-    turnLine,
-  ).map(
+  const activeServices = listServices(db, tenantId).filter((s) => s.active)
+  const services = filterServicesForLine(activeServices, turnLine).map(
     (s): AiCatalogService => {
       const professionalNames = s.professionalIds
         .map((id) => catalogResources.find((r) => r.id === id)?.name)
@@ -170,6 +168,17 @@ export async function buildAiContextPayload(
     messages: contextMessages,
     hasClinicOutbound: hasClinicOutbound(contextMessages),
     clinicOutboundCount: countClinicOutbound(contextMessages),
+  }
+  if (scheduleSession) {
+    const held = activeServices.find((service) => service.id === scheduleSession.serviceId)
+    if (held) {
+      payload.schedule = {
+        serviceName: sanitizeCatalogField(held.name) ?? held.name,
+        dayLabel: scheduleSession.dayLabel,
+        period: scheduleSession.period,
+        audienceLine: scheduleSession.audienceLine,
+      }
+    }
   }
   if (opts.clock) {
     payload.clinic = await buildClinicAiContext(db, tenantId, opts.clock, {

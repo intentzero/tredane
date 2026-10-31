@@ -36,7 +36,7 @@ import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import { checkConversationProtection } from './protection'
-import { getScheduleSession, saveScheduleLine } from './schedule-session'
+import { getScheduleSession, saveScheduleLine, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
 import {
   audienceLineQuestion,
   needsAudienceLine,
@@ -404,6 +404,7 @@ export async function tryAiAutoBook(
   const confirmation = clientTurn[clientTurn.length - 1]!
 
   const services = listServices(db, tenantId).filter((s) => s.active)
+  const turnText = clientTurn.map((m) => m.body).join('\n')
   const det = detectExplicitConfirmation({
     clientTexts: clientTurn.map((m) => m.body),
     previousClinicText: prevClinic?.body ?? null,
@@ -412,12 +413,42 @@ export async function tryAiAutoBook(
     clinicToday: clinicCivilDateFromUtc(tz, prevClinic?.created_at ?? confirmation.created_at),
     services,
   })
-  const base = { confirmationMessageId: confirmation.id, missing: det.missing }
+  const session = getScheduleSession(db, tenantId, input.conversationId)
+  let date = det.date
+  let missing = [...det.missing]
+  // O período (tarde) não vira horário. O dia já dito na sessão preenche só o dia.
+  if (!date && det.status === 'needs_info' && session?.dayLabel) {
+    const resolved = [...extractDates(session.dayLabel, clinicCivilDateFromUtc(tz, confirmation.created_at))]
+    if (resolved.length === 1) {
+      date = resolved[0]
+      missing = missing.filter((item) => item !== 'dia')
+    }
+  }
+  const turnFacts = scheduleFactsFromText(turnText)
+  const rememberDayPeriod = (serviceId: string) => {
+    if (!turnFacts.dayLabel && !turnFacts.period) return
+    saveScheduleSession(
+      db,
+      tenantId,
+      input.conversationId,
+      {
+        serviceId,
+        ...(turnFacts.dayLabel ? { dayLabel: turnFacts.dayLabel } : {}),
+        ...(turnFacts.period ? { period: turnFacts.period } : {}),
+      },
+      clock,
+    )
+  }
+  const base = { confirmationMessageId: confirmation.id, missing }
   const contact = getContact(db, tenantId, conv.contactId)
   const name = firstName(contact?.displayName)
   const hi = name ? `, ${name}` : ''
-  if (!det.ok || !det.service || !det.date || !det.time) {
-    const faltam = det.missing.length ? det.missing.join(', ') : 'confirmação clara'
+  const ready =
+    Boolean(det.service && date && det.time) &&
+    (det.ok || (det.status === 'needs_info' && missing.length === 0))
+  if (!ready || !det.service || !date || !det.time) {
+    if (det.service) rememberDayPeriod(det.service.id)
+    const faltam = missing.length ? missing.join(', ') : 'confirmação clara'
     return {
       ...none(det.status, base),
       notes:
@@ -427,11 +458,10 @@ export async function tryAiAutoBook(
     }
   }
   const svc = det.service
-  const date = det.date
   const time = det.time
+  rememberDayPeriod(svc.id)
   const activeZones = svc.zones.filter((z) => z.active)
-  const turnExplicit = explicitAudienceLine(clientTurn.map((m) => m.body).join('\n'))
-  const session = getScheduleSession(db, tenantId, input.conversationId)
+  const turnExplicit = explicitAudienceLine(turnText)
   const carried = session?.serviceId === svc.id ? session.audienceLine : null
   const line = needsAudienceLine(activeZones) ? (turnExplicit ?? carried) : null
   if (needsAudienceLine(activeZones) && !line) {

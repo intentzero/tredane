@@ -43,6 +43,7 @@ export const OPERATIONAL_RESET_TABLES: readonly string[] = [
   'visit_zone_snapshots',
   'visit_combo_snapshots',
   'room_sex_block_exceptions',
+  'schedule_sessions',
   'conversations',
   'contact_deletion_tombstones',
   'contacts',

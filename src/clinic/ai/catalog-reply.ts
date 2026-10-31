@@ -13,7 +13,12 @@ import { zonesNamedInText } from '../config/zones'
 import { listMessages } from '../inbox/messages'
 import type { ClinicDb } from '../store'
 import { formatOpeningHours } from './schedule-context'
-import { getScheduleSession, saveScheduleLine, type ScheduleSession } from './schedule-session'
+import {
+  getScheduleSession,
+  saveScheduleSession,
+  scheduleFactsFromText,
+  type ScheduleSessionPatch,
+} from './schedule-session'
 import {
   audienceLineQuestion,
   needsAudienceLine,
@@ -54,21 +59,6 @@ function namedServices(services: ServiceRow[], text: string): ServiceRow[] {
     const name = service.name.trim().toLowerCase()
     return name.length > 0 && folded.includes(name)
   })
-}
-
-function serviceForVariants(
-  services: ServiceRow[],
-  source: string,
-  session: ScheduleSession | null,
-  fallback: ServiceRow | undefined,
-): ServiceRow | undefined {
-  const named = namedServices(services, source)
-  if (named.length > 0) return named.find((service) => service.zones.some((zone) => zone.active)) ?? named[0]
-  if (session) {
-    const held = services.find((service) => service.id === session.serviceId)
-    if (held) return held
-  }
-  return fallback
 }
 
 function clientSource(db: ClinicDb, tenantId: string, body: string, conversationId?: string): string {
@@ -119,30 +109,47 @@ export function catalogReply(
     return lines.join('\n')
   }
 
+  const namedService = namedServices(services, source)
+  const namedPick =
+    namedService.find((service) => service.zones.some((zone) => zone.active)) ?? namedService[0]
+  const held = session ? services.find((service) => service.id === session.serviceId) : undefined
+  const inPlay = namedPick ?? held
   const fallback = targets.find((service) => service.zones.some((zone) => zone.active)) ?? targets[0]
-  const svc = serviceForVariants(services, source, session, fallback)
-  if (opts.conversationId && svc && explicit && (session?.serviceId !== svc.id || session.audienceLine !== explicit)) {
-    saveScheduleLine(db, tenantId, opts.conversationId, svc.id, explicit, clock)
-  }
+  const svc = inPlay ?? fallback
 
   const asksPrice = PRICE.test(source)
   const openPeriod = PERIOD.test(source) && !CLOCK.test(source)
   const lineOnly = explicit != null && !asksPrice && !PERIOD.test(source) && !CLOCK.test(source)
   if (!asksPrice && !openPeriod && !lineOnly) return null
-
   if (!svc) return null
-  const active = svc.zones.filter((zone) => zone.active)
-  const carried = session?.serviceId === svc.id ? session.audienceLine : null
-  const line = needsAudienceLine(active) ? (explicit ?? carried) : null
-  const scoped = needsAudienceLine(active) ? zonesForAudienceLine(active, line) : active
-  const named = scoped.length > 0 ? zonesNamedInText(source, scoped) : []
 
-  if (active.length > 0 && needsAudienceLine(active) && !line) {
-    if (opts.conversationId && (!session || session.serviceId !== svc.id || session.audienceLine != null)) {
-      saveScheduleLine(db, tenantId, opts.conversationId, svc.id, null, clock)
+  const active = svc.zones.filter((zone) => zone.active)
+  const mixed = needsAudienceLine(active)
+  // A linha só entra quando o serviço já está em jogo. Sem isso, não lista zonas duplicadas.
+  if (mixed && !inPlay) return null
+
+  const facts = scheduleFactsFromText(source)
+  const carried = session?.serviceId === svc.id ? session.audienceLine : null
+  const line = mixed ? (explicit ?? carried) : null
+  if (opts.conversationId && inPlay) {
+    const patch: ScheduleSessionPatch = { serviceId: inPlay.id }
+    if (explicit) patch.audienceLine = explicit
+    else if (mixed && !line) patch.audienceLine = null
+    if (facts.dayLabel) patch.dayLabel = facts.dayLabel
+    if (facts.period) patch.period = facts.period
+    const sameService = session?.serviceId === inPlay.id
+    const lineChanging = patch.audienceLine !== undefined && patch.audienceLine !== (sameService ? session?.audienceLine : null)
+    const dayChanging = patch.dayLabel !== undefined && patch.dayLabel !== session?.dayLabel
+    const periodChanging = patch.period !== undefined && patch.period !== session?.period
+    if (lineChanging || dayChanging || periodChanging || !sameService) {
+      saveScheduleSession(db, tenantId, opts.conversationId, patch, clock)
     }
-    return audienceLineQuestion(svc.name)
   }
+
+  if (active.length > 0 && mixed && !line) return audienceLineQuestion(svc.name)
+
+  const scoped = mixed ? zonesForAudienceLine(active, line) : active
+  const named = scoped.length > 0 ? zonesNamedInText(source, scoped) : []
 
   if (active.length > 0 && named.length === 0 && (asksPrice || openPeriod || lineOnly)) {
     const pool = scoped.length > 0 ? scoped : active

@@ -10,7 +10,7 @@ import { bootClinicDb } from '../test-db'
 import { catalogReply } from './catalog-reply'
 import { formatOpeningHours } from './schedule-context'
 import { handoffReason } from './human-handoff'
-import { getScheduleSession } from './schedule-session'
+import { getScheduleSession, scheduleFactsFromText } from './schedule-session'
 
 const NOW = Date.UTC(2026, 9, 30, 21, 0)
 
@@ -247,6 +247,55 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       expect(columns).not.toContain('sexo')
       expect(columns).not.toContain('sex')
       expect(columns).not.toContain('gender')
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('«Quero depilação na segunda à tarde.» pergunta a linha e guarda segunda e tarde', () => {
+    const boot = seedMixed()
+    try {
+      const opts = { conversationId: boot.conversation.id }
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação na segunda à tarde.', boot.clock, opts)).toBe(LINE)
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toEqual({
+        serviceId: boot.svc.id,
+        audienceLine: null,
+        dayLabel: 'segunda',
+        period: 'tarde',
+      })
+      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toBe(ZONES)
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toEqual({
+        serviceId: boot.svc.id,
+        audienceLine: 'feminino',
+        dayLabel: 'segunda',
+        period: 'tarde',
+      })
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação feminina na segunda à tarde.', boot.clock, opts)).toBe(
+        ZONES,
+      )
+      const columns = boot.db.all<{ name: string }>(`PRAGMA table_info(contacts)`).map((column) => column.name)
+      expect(columns).not.toContain('sexo')
+      expect(columns).not.toContain('sex')
+      expect(columns).not.toContain('gender')
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('não pergunta a linha antes de o serviço entrar na conversa', () => {
+    const boot = seedMixed()
+    try {
+      const opts = { conversationId: boot.conversation.id }
+      expect(catalogReply(boot.db, boot.tenantId, 'Oi', boot.clock, opts)).toBeNull()
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toBeNull()
+      expect(catalogReply(boot.db, boot.tenantId, 'amanhã à tarde', boot.clock, opts)).toBeNull()
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toBeNull()
+      expect(scheduleFactsFromText('pode ser mais tarde')).toEqual({})
+      expect(scheduleFactsFromText('segunda ou terça à tarde')).toEqual({ period: 'tarde' })
+      expect(scheduleFactsFromText('Quero depilação na segunda à tarde.')).toEqual({
+        dayLabel: 'segunda',
+        period: 'tarde',
+      })
     } finally {
       boot.close()
     }

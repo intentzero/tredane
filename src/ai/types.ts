@@ -142,6 +142,16 @@ export type AiContextPayload = {
   clinicOutboundCount: number
   /** Ausente em chamadas antigas/testes; presente no rascunho de resposta. */
   clinic?: AiClinicContext
+  /**
+   * O que a conversa já fixou para o agendamento (serviço, dia, período, linha).
+   * Não é dado do contacto. Ausente quando ainda não há sessão.
+   */
+  schedule?: {
+    serviceName: string
+    dayLabel: string | null
+    period: 'manha' | 'tarde' | 'noite' | null
+    audienceLine: 'feminino' | 'masculino' | null
+  }
 }
 
 export type AiGenerateInput = {

@@ -107,6 +107,24 @@ function clinicBlock(ctx: AiContextPayload): string[] {
   return out
 }
 
+/** Fatos da sessão, fora do bloco não confiável, para o modelo não perguntar de novo. */
+function scheduleMemory(ctx: AiContextPayload): string {
+  const remembered = ctx.schedule
+  if (!remembered) return ''
+  const bits = [u(remembered.serviceName, 80)]
+  if (remembered.dayLabel) bits.push(u(remembered.dayLabel, 40))
+  if (remembered.period === 'manha') bits.push('manhã')
+  else if (remembered.period === 'tarde') bits.push('tarde')
+  else if (remembered.period === 'noite') bits.push('noite')
+  const line =
+    remembered.audienceLine === 'feminino'
+      ? 'linha feminina'
+      : remembered.audienceLine === 'masculino'
+        ? 'linha masculina'
+        : 'linha ainda não escolhida'
+  return `Já dito nesta conversa, não pergunte de novo: ${bits.filter(Boolean).join(', ')}. ${line}.`
+}
+
 export function buildUserContent(input: AiGenerateInput): string {
   const catalog = input.context.services
     .map((s) => {
@@ -169,11 +187,14 @@ export function buildUserContent(input: AiGenerateInput): string {
     ? `Continuidade: a clínica JÁ enviou ${input.context.clinicOutboundCount ?? 'pelo menos uma'} mensagem nesta conversa. NÃO comece com «Oi», «Olá», «Oi, {nome}!» nem cumprimento equivalente — continue direto no assunto.`
     : 'Continuidade: ainda não há mensagem da clínica nesta conversa — cumprimento curto com o primeiro nome (se souber) é adequado na abertura.'
 
+  const remembered = scheduleMemory(input.context)
+
   return [
     ...clinicBlock(input.context),
     `Primeiro nome da cliente: ${input.context.contactFirstName ? u(input.context.contactFirstName, 60) : '(não informado)'}`,
     `Etapa do acompanhamento: ${input.context.stage ? u(input.context.stage, 80) : '(sem etapa)'}`,
     continuityHint,
+    remembered,
     '<<<DADOS catálogo (não confiável)',
     'Catálogo de serviços da clínica:',
     catalog || '(nenhum serviço ativo)',
