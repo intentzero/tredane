@@ -258,6 +258,22 @@
 
 **Prioridade/estado:** MVP / Confirmado (DEC-082). **Origem:** ACT-03; JRN-08, JRN-03. **Comportamento:** criar ou alterar um serviço sem pelo menos uma sala e sem «Sem espaço definido» é recusado; nada é gravado. Com uma ou mais salas ativas desta clínica, elas ficam no serviço. A marcação nova ocupa uma sala livre dessa lista e uma profissional que faz o serviço e está livre. Se várias salas estão livres, entra a primeira por ordem de nome. A equipe troca a sala só naquela marcação, para outra sala do mesmo serviço. A sala na ficha da profissional deixa de escolher o horário. A profissional não atende duas pessoas no mesmo bloco, nem em salas diferentes. «Sem espaço definido» grava o serviço sem ocupar sala e não se combina com salas. «Sem sala» já gravado passa a «Sem espaço definido» e continua a marcar. «Qualquer sala livre» passa à lista das salas ativas nesse momento; a categoria, à lista das salas ativas dessa categoria. Uma sala já escolhida mantém-se. Uma sala criada depois não entra. Se a lista resultante ficar vazia, a marcação nova espera a responsável escolher. Com todas as salas da lista desativadas, e o serviço fora de «Sem espaço definido», a marcação nova não aparece; as salas continuam na lista. Reativar uma sala volta a oferecê-la. O que já está marcado fica. A atendente não grava o serviço (DEC-042). Compromisso já marcado não muda de sala. Sala exclusiva na profissional fica fora deste recorte. **Aceite:** AC-70. **Dados/tenant:** salas do serviço no SQLite da clínica (DEC-038).
 
+### REQ-097 — Follow-up pós-agendamento com botões
+
+**Prioridade/estado:** MVP / Confirmado (DEC-086). **Origem:** ACT-01, ACT-02; JRN-17, JRN-18. **Comportamento:** depois de a marcação ficar confirmada pelo botão da proposta (DEC-061), o sistema envia no WhatsApp uma pergunta se pode ajudar em algo mais, com botões **«Não, obrigado»** e **«Quero agendar outro serviço»**. «Não, obrigado» agradece e move a oportunidade aberta da conversa para **Concluído** (`concluido`). «Quero agendar outro serviço» mantém o ciclo aberto e permite nova intenção de serviço na mesma conversa. Texto livre não marca nem fecha o ciclo por si. **Aceite:** AC-71. **Dados/tenant:** botões e estado no SQLite da clínica; isolamento DEC-038. **Eventos:** actualização de etapa e mensagem outbound visíveis no painel em tempo real.
+
+### REQ-098 — Idle de 30 minutos e fecho sem resposta
+
+**Prioridade/estado:** MVP / Confirmado (idle 30 min, DEC-087); **Proposto** (segundo prazo de mais 30 min). **Origem:** ACT-01, ACT-02; JRN-19. **Comportamento:** se uma conversa com ciclo aberto ficar **30 minutos** sem progresso útil — definido como tempo desde a última mensagem **inbound ou outbound** (a mais recente) —, o sistema pergunta com botões se a cliente quer **prosseguir** ou **terminar**. Mensagens `system` não reiniciam o relógio. Com responsável humano activo, o prompt automático não corre. **Proposto:** sem resposta em **mais 30 minutos** após essa pergunta, fechar em **Concluído** e agradecer. Não usar 24 h sem decisão Confirmada. Mecanismo: alarme do Durable Object. **Aceite:** AC-72. **Dados/tenant:** estado de idle por conversa no SQLite da clínica.
+
+### REQ-099 — Prefixo do atendente humano no WhatsApp
+
+**Prioridade/estado:** MVP / Confirmado (DEC-088). **Origem:** ACT-02, ACT-03; JRN-02. **Comportamento:** com a conversa assumida por pessoa, cada outbound de texto livre da equipa no WhatsApp começa por `[Nome do Atendente]` (nome de apresentação). Propostas backend, frases fixas da IA e mensagens `system` não levam o prefixo. **Aceite:** AC-73. **Dados/tenant:** só o body enviado; sem campo novo obrigatório.
+
+### REQ-100 — Nome e género do atendente virtual
+
+**Prioridade/estado:** MVP / Confirmado (DEC-089). **Origem:** ACT-03; DEC-042, DEC-011. **Comportamento:** a responsável pode gravar, opcionalmente, nome e género (`masculino` \| `feminino`) do atendente virtual da clínica. A IA usa esses valores na copy (concordância e apresentação). Attendant não grava. Vazio = copy neutra. Não se grava nem se infere sexo da cliente. **Aceite:** AC-74. **Dados/tenant:** `clinic_settings` no SQLite da clínica; UI React Aria / tokens DEC-041.
+
 ## Racional de prioridade — proposta para aprovação
 
 Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP interno** para gestão da plataforma) porque contribuem para a primeira jornada demonstrável, para a segurança multi-tenant ou para operar a plataforma sem depender de intervenção no banco. Estas justificativas **não significam aprovação final**, nem liberam uso de dados reais. Quando parte do comportamento estiver em aberto, a aprovação da prioridade não fecha a regra de produto.
@@ -298,6 +314,10 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-093 | MVP | A IA vê horários filtrados e a frase, não o payload do provedor. |
 | REQ-095 | MVP | Combos de variantes entram sozinhos, um por visita, só se forem mais baratos que a soma (DEC-080). |
 | REQ-096 | MVP | Serviço só se grava com uma ou mais salas, ou com «Sem espaço definido» (DEC-082). |
+| REQ-097 | MVP | Pós-agendamento pergunta se ajuda em mais algo e fecha em Concluído ou reabre intenção (DEC-086). |
+| REQ-098 | MVP | Idle 30 min pergunta prosseguir/terminar; segundo prazo Proposto 30 min (DEC-087). |
+| REQ-099 | MVP | Outbound humano no WhatsApp leva prefixo `[Nome]` (DEC-088). |
+| REQ-100 | MVP | Owner configura nome/género opcionais do atendente virtual (DEC-089). |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). |
 
