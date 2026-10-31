@@ -3,9 +3,10 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
-## 31/10/2026 — Entrar / splash (Proposto, revisão Paulo)
+## 31/10/2026 — Entrar / splash (Confirmado Paulo, «Faz»)
 
-- **M-09 Entrar** e novo `desktop/Entrar.dc.html`: marca horizontal (DEC-070) + formulário + «Sem convite?» num bloco centrado; fundo `surface.app` com mancha `primary.tint` (sem branco plano partido). Corrige o ecrã de staging com logo no topo, meio vazio e nota no fundo. **À espera de aprovação — sem implementação no painel.**
+- **M-09 Entrar** e `desktop/Entrar.dc.html`: marca horizontal (DEC-070) + formulário + «Sem convite?» num bloco centrado; fundo `surface.app` com mancha `primary.tint`.
+- **Implementação:** `.panel-auth` / `.panel-auth-stack` / `.panel-auth-atmosphere` em `panel.css`; `ClerkLogin` e `SyntheticLogin` usam o bloco centrado (fluxo Clerk inalterado).
 - `tools/render_previews.py` resolve `../brand/` para `file://` absoluto nos HTML temporários.
 
 ## Tokens 0.4.0 — 30/10/2026 (Confirmado, DEC-081)
