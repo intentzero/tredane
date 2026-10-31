@@ -26,6 +26,7 @@ describe('AccountMenu', () => {
     await user.click(trigger)
     expect(await screen.findByRole('menu')).toBeTruthy()
     expect(screen.getByText('paulo@ex.com')).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Dados pessoais' })).toBeNull()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('menu')).toBeNull()
     await waitFor(() => expect(document.activeElement).toBe(trigger))
@@ -34,6 +35,22 @@ describe('AccountMenu', () => {
     await user.click(trigger)
     await user.click(await screen.findByRole('menuitem', { name: 'Sair' }))
     expect(onSignOut).toHaveBeenCalledTimes(1)
+  })
+
+  it('Dados pessoais chama onOpenProfile quando há Clerk', async () => {
+    const user = userEvent.setup()
+    const onOpenProfile = vi.fn()
+    render(
+      <AccountMenu
+        name="Paulo"
+        email="paulo@ex.com"
+        onSignOut={vi.fn()}
+        onOpenProfile={onOpenProfile}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: /Conta: Paulo/ }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Dados pessoais' }))
+    expect(onOpenProfile).toHaveBeenCalledTimes(1)
   })
 
   it('sem dados mostra ícone e rótulo genérico', () => {

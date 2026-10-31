@@ -1,7 +1,4 @@
-import { Bell } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
-import { Button } from 'react-aria-components'
-import { AccountControl } from '../auth/ClerkBridge'
 import { useAuthSession } from '../auth/AuthContext'
 import type { PanelArea } from '../routes'
 import { areaTitle, navigatePanel } from '../routes'
@@ -15,6 +12,7 @@ import { useTenant } from '../tenant/TenantContext'
 import { WhatsappInterruptBanner } from '../screens/clinic/whatsapp/WhatsappScreen'
 import { useWhatsapp } from '../screens/clinic/whatsapp/useWhatsapp'
 import { BottomNav } from './BottomNav'
+import { ShellActions } from './ShellActions'
 import { ShellIdentity } from './ShellIdentity'
 import { OfflineStrip } from '../states/OfflineStrip'
 import { BrandMark } from '../ui/Brand'
@@ -155,18 +153,11 @@ export function PanelShell({ area, tenantId, children, hideNav, immersiveOnPhone
               />
             </div>
           </div>
-          <div className="panel-shell-actions">
-            <Button
-              className="panel-icon-btn"
-              aria-label="Avisos no celular"
-              onPress={() =>
-                navigatePanel({ kind: 'area', area: 'avisos', tenantId: ctx.tenantId })
-              }
-            >
-              <Bell aria-hidden="true" size={20} strokeWidth={2} />
-            </Button>
-            <AccountControl />
-          </div>
+          <ShellActions
+            className="panel-shell-actions"
+            tenantId={ctx.tenantId}
+            accountPlacement="bottom end"
+          />
         </header>
       ) : null}
 

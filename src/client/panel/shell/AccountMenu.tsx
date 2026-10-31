@@ -1,4 +1,4 @@
-import { LogOut, User } from 'lucide-react'
+import { LogOut, User, UserRound } from 'lucide-react'
 import {
   Button,
   Header,
@@ -14,6 +14,10 @@ export type AccountMenuProps = {
   name?: string | null
   email?: string | null
   onSignOut: () => void
+  /** Abre o perfil Clerk (só em AUTH_MODE=clerk). */
+  onOpenProfile?: () => void
+  /** Posição do menu (cabeçalho: bottom end; rail desktop: top). */
+  placement?: 'bottom end' | 'top' | 'top start' | 'top end'
 }
 
 /** Iniciais (até 2) do nome; senão do e-mail; vazio quando não há dados. */
@@ -29,8 +33,14 @@ export function accountInitials(name?: string | null, email?: string | null): st
   return e ? e[0]!.toUpperCase() : ''
 }
 
-/** Avatar no cabeçalho com menu da conta (nome, e-mail e Sair separado). */
-export function AccountMenu({ name, email, onSignOut }: AccountMenuProps) {
+/** Avatar no cabeçalho / rail com menu da conta (perfil Clerk opcional + Sair). */
+export function AccountMenu({
+  name,
+  email,
+  onSignOut,
+  onOpenProfile,
+  placement = 'bottom end',
+}: AccountMenuProps) {
   const initials = accountInitials(name, email)
   const who = name?.trim() || email?.trim() || 'sua conta'
   return (
@@ -40,11 +50,12 @@ export function AccountMenu({ name, email, onSignOut }: AccountMenuProps) {
           {initials || <User size={20} strokeWidth={2} />}
         </span>
       </Button>
-      <Popover className="panel-account-popover" placement="bottom end" offset={4}>
+      <Popover className="panel-account-popover" placement={placement} offset={4}>
         <Menu
           className="panel-account-menu"
           aria-label="Menu da conta"
           onAction={(key) => {
+            if (key === 'perfil') onOpenProfile?.()
             if (key === 'sair') onSignOut()
           }}
         >
@@ -57,6 +68,19 @@ export function AccountMenu({ name, email, onSignOut }: AccountMenuProps) {
               ) : null}
             </Header>
           </MenuSection>
+          {onOpenProfile ? (
+            <>
+              <Separator className="panel-account-sep" />
+              <MenuItem
+                id="perfil"
+                className="panel-account-item"
+                textValue="Dados pessoais"
+              >
+                <UserRound aria-hidden="true" size={18} strokeWidth={2} />
+                <span>Dados pessoais</span>
+              </MenuItem>
+            </>
+          ) : null}
           <Separator className="panel-account-sep" />
           <MenuItem id="sair" className="panel-account-item panel-account-item--danger" textValue="Sair">
             <LogOut aria-hidden="true" size={18} strokeWidth={2} />

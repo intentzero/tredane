@@ -2,6 +2,7 @@ import { Calendar, Kanban, MessageCircle, SlidersHorizontal } from 'lucide-react
 import type { PanelArea } from '../routes'
 import { BrandMark } from '../ui/Brand'
 import { areaNavLabel, areaRoute, navigatePanel, panelHref } from '../routes'
+import { ShellActions } from './ShellActions'
 
 const BASE_AREAS: PanelArea[] = ['conversas', 'acompanhamento', 'agenda']
 
@@ -48,6 +49,12 @@ export function BottomNav({ tenantId, active, showClinica }: Props) {
           </a>
         )
       })}
+      {/* Desktop ≥ 1280: sino + conta no fundo do rail (mock ConversasDesktopProposta). */}
+      <ShellActions
+        className="panel-nav-actions"
+        tenantId={tenantId}
+        accountPlacement="top"
+      />
     </nav>
   )
 }
