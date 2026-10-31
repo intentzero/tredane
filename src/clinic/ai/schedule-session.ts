@@ -26,6 +26,8 @@ export type ScheduleSession = {
   audienceLine: ScheduleAudienceLine | null
   dayLabel: ScheduleDayLabel | null
   period: SchedulePeriod | null
+  /** Início deste funil (insert ou troca de serviço). Não avança ao gravar linha/dia/período. */
+  updatedAt: number
 }
 
 /** Campo omitido mantém o valor já gravado. `null` limpa. Trocar o serviço limpa a linha. */
@@ -41,6 +43,7 @@ type SessionSql = {
   audience_line: string | null
   day_label: string | null
   period: string | null
+  updated_at: number
 }
 
 const DAY_LABELS = new Set<ScheduleDayLabel>([
@@ -117,7 +120,7 @@ export function getScheduleSession(
   conversationId: string,
 ): ScheduleSession | null {
   const row = db.get<SessionSql>(
-    `SELECT service_id, audience_line, day_label, period FROM schedule_sessions
+    `SELECT service_id, audience_line, day_label, period, updated_at FROM schedule_sessions
      WHERE tenant_id = ? AND conversation_id = ?`,
     tenantId,
     conversationId,
@@ -128,6 +131,7 @@ export function getScheduleSession(
     audienceLine: asLine(row.audience_line),
     dayLabel: asDay(row.day_label),
     period: asPeriod(row.period),
+    updatedAt: row.updated_at,
   }
 }
 
@@ -154,7 +158,10 @@ export function saveScheduleSession(
        audience_line = excluded.audience_line,
        day_label = excluded.day_label,
        period = excluded.period,
-       updated_at = excluded.updated_at`,
+       updated_at = CASE
+         WHEN schedule_sessions.service_id != excluded.service_id THEN excluded.updated_at
+         ELSE schedule_sessions.updated_at
+       END`,
     tenantId,
     conversationId,
     patch.serviceId,

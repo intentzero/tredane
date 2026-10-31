@@ -121,18 +121,22 @@ export function catalogReply(
   if (mixed && !inPlay) return null
 
   const facts = scheduleFactsFromText(source)
-  // listMessages vem do mais novo para o mais antigo — mantém essa ordem (DEC-090).
-  const priorInboundNewestFirst = opts.conversationId
+  const sameFunnel = Boolean(session && session.serviceId === svc.id)
+  // listMessages devolve ordem cronológica; filtramos ao início do funil e invertemos (mais novo primeiro).
+  const funnelInboundNewestFirst = opts.conversationId
     ? listMessages(db, tenantId, { conversationId: opts.conversationId, limit: 40 })
-        .messages.filter((message) => message.direction === 'inbound')
+        .messages.filter(
+          (message) =>
+            message.direction === 'inbound' &&
+            (!sameFunnel || !session || message.createdAt >= session.updatedAt),
+        )
         .map((message) => message.body)
+        .reverse()
     : []
-  const inboundNewestFirst = [source, ...priorInboundNewestFirst.filter((body) => body !== source)]
-  const carried = session?.serviceId === svc.id ? session.audienceLine : null
-  // Histórico só recupera a linha quando o serviço já está na sessão (mesmo funil).
-  // Não reaproveitar «masculino» de um turno antigo antes do serviço entrar (DEC-090).
-  const historyLine =
-    session?.serviceId === svc.id ? audienceLineFromClientTexts(inboundNewestFirst) : null
+  const inboundNewestFirst = [source, ...funnelInboundNewestFirst.filter((body) => body !== source)]
+  const carried = sameFunnel && session ? session.audienceLine : null
+  // Histórico só no funil activo (sessão do serviço). Após DEC-086 a sessão foi limpa.
+  const historyLine = sameFunnel ? audienceLineFromClientTexts(inboundNewestFirst) : null
   const line = mixed ? (explicit ?? carried ?? historyLine) : null
   if (opts.conversationId && inPlay) {
     const patch: ScheduleSessionPatch = { serviceId: inPlay.id }
@@ -154,13 +158,16 @@ export function catalogReply(
   const scoped = mixed ? zonesForAudienceLine(active, line) : active
   const named = scoped.length > 0 ? zonesNamedInText(source, scoped) : []
   const chosenEarlier =
-    scoped.length > 0 ? zonesChosenInClientTexts(inboundNewestFirst, scoped) : { zones: [] as typeof scoped, ambiguous: false }
+    sameFunnel && scoped.length > 0
+      ? zonesChosenInClientTexts(inboundNewestFirst, scoped)
+      : { zones: [] as typeof scoped, ambiguous: false }
 
-  // Linha/zonas já ditas nesta conversa: não reperguntar — deixa o autobook/proposta seguir (DEC-090).
+  // Zonas já ditas neste funil (sessão do serviço + mensagens desde o início do funil).
   if (
     active.length > 0 &&
     named.length === 0 &&
     !asksPrice &&
+    sameFunnel &&
     chosenEarlier.zones.length > 0 &&
     !chosenEarlier.ambiguous
   ) {

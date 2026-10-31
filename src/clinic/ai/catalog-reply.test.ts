@@ -10,7 +10,7 @@ import { bootClinicDb } from '../test-db'
 import { catalogReply } from './catalog-reply'
 import { formatOpeningHours } from './schedule-context'
 import { handoffReason } from './human-handoff'
-import { getScheduleSession, scheduleFactsFromText } from './schedule-session'
+import { clearScheduleSession, getScheduleSession, scheduleFactsFromText } from './schedule-session'
 
 const NOW = Date.UTC(2026, 9, 30, 21, 0)
 
@@ -258,14 +258,14 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     try {
       const opts = { conversationId: boot.conversation.id }
       expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação na segunda à tarde.', boot.clock, opts)).toBe(LINE)
-      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toEqual({
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toMatchObject({
         serviceId: boot.svc.id,
         audienceLine: null,
         dayLabel: 'segunda',
         period: 'tarde',
       })
       expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toBe(ZONES)
-      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toEqual({
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toMatchObject({
         serviceId: boot.svc.id,
         audienceLine: 'feminino',
         dayLabel: 'segunda',
@@ -308,8 +308,8 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       const opts = { conversationId: boot.conversation.id }
       // Abre a sessão com o serviço (como a pergunta de linha).
       expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toBe(LINE)
-      let t = NOW - 60_000
       const say = (direction: 'inbound' | 'outbound', body: string) => {
+        boot.clock.advance(1_000)
         insertMessage(
           boot.db,
           {
@@ -318,11 +318,10 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
             direction,
             body,
             deliveryState: direction === 'inbound' ? 'received' : 'delivered',
-            createdAt: t,
+            createdAt: boot.clock.nowMs(),
           },
           boot.clock,
         )
-        t += 1_000
       }
       say('inbound', 'Quero depilação amanhã à tarde.')
       say('outbound', LINE)
@@ -333,6 +332,43 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       // Repergunta errada da linha após «As 14»: não listar zonas de novo.
       expect(catalogReply(boot.db, boot.tenantId, 'Masculina', boot.clock, opts)).toBeNull()
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.audienceLine).toBe('masculino')
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('após limpar a sessão (DEC-086) «Todas» antiga não salta a pergunta de zonas', () => {
+    const boot = seedMixed()
+    try {
+      const opts = { conversationId: boot.conversation.id }
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toBe(LINE)
+      const say = (direction: 'inbound' | 'outbound', body: string) => {
+        boot.clock.advance(1_000)
+        insertMessage(
+          boot.db,
+          {
+            tenantId: boot.tenantId,
+            conversationId: boot.conversation.id,
+            direction,
+            body,
+            deliveryState: direction === 'inbound' ? 'received' : 'delivered',
+            createdAt: boot.clock.nowMs(),
+          },
+          boot.clock,
+        )
+      }
+      say('inbound', 'Masculina')
+      say('outbound', ZONES)
+      say('inbound', 'Todas')
+      say('outbound', 'Agendado. Quer agendar outro serviço?')
+      clearScheduleSession(boot.db, boot.tenantId, boot.conversation.id)
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toBeNull()
+      boot.clock.advance(1_000)
+      // Novo funil: sem sessão, «Todas» antiga não suprime a lista de zonas.
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toBe(LINE)
+      boot.clock.advance(1_000)
+      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toBe(ZONES)
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.audienceLine).toBe('feminino')
     } finally {
       boot.close()
     }

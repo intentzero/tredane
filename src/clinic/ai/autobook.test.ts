@@ -20,13 +20,15 @@ import { askZonesReply, detectExplicitConfirmation, extractTimes } from './autob
 import { checkConversationProtection, isConversationPaused } from './protection'
 import { autoBookCapability, toAiAssistDeps } from './deps'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
+import { clearScheduleSession, saveScheduleSession } from './schedule-session'
 
 const TZ = 'America/Sao_Paulo'
 // Quarta 28/10/2026 15:51 em São Paulo.
 const NOW = Date.UTC(2026, 9, 28, 18, 51)
 
 function seed(opts: { signal?: boolean } = {}) {
-  const clock = createControllableClock(NOW)
+  // Relógio começa 10 min antes de NOW para as mensagens do funil ficarem ≤ nowMs na corrida.
+  const clock = createControllableClock(NOW - 10 * 60_000)
   const boot = bootClinicDb({ clock })
   const { db } = boot
   const tenantId = 'clinic-demo-a'
@@ -86,15 +88,25 @@ function seed(opts: { signal?: boolean } = {}) {
   setClinicAiAssistEnabled(db, tenantId, true, clock)
   const contact = upsertContact(db, { tenantId, waId: '5511900000009', displayName: 'Paulo Teste' }, clock)
   const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
-  let t = NOW - 10 * 60_000
   const say = (direction: 'inbound' | 'outbound', body: string) => {
     const m = insertMessage(
       db,
-      { tenantId, conversationId: cnv.id, direction, body, deliveryState: direction === 'inbound' ? 'received' : 'delivered', createdAt: t },
+      {
+        tenantId,
+        conversationId: cnv.id,
+        direction,
+        body,
+        deliveryState: direction === 'inbound' ? 'received' : 'delivered',
+        createdAt: clock.nowMs(),
+      },
       clock,
     )
-    t += 60_000
+    clock.advance(60_000)
     return m
+  }
+  /** Abre o funil de agendamento (DEC-090 / DEC-086): histórico de zonas/linha só conta depois. */
+  const openFunnel = (serviceId: string, audienceLine: 'feminino' | 'masculino' | null = null) => {
+    saveScheduleSession(db, tenantId, cnv.id, { serviceId, audienceLine }, clock)
   }
   const run = async (paused = false) => {
     const last = db.get<{ id: string }>(
@@ -117,7 +129,7 @@ function seed(opts: { signal?: boolean } = {}) {
       tenantId,
       contact.id,
     )
-  return { ...boot, clock, caller, tenantId, gi, svc, cnv, say, run, appts }
+  return { ...boot, clock, caller, tenantId, gi, svc, cnv, say, run, appts, openFunnel }
 }
 
 const at = (h: number, m = 0) => zonedCivilToUtc(TZ, 2026, 10, 29, h, m)
@@ -282,6 +294,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       )
       s.say('outbound', 'Oi! Quer agendar depilação?')
       s.say('inbound', 'Sim, tem vaga para amanhã à tarde?')
+      s.openFunnel(dep.id)
       s.say(
         'outbound',
         'Tenho amanhã (quinta, 29/10) às 14:00, 15:00 e 16:00 para depilação. Quer região axila OU peitoral e barriga?',
@@ -430,6 +443,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       )
       s.say('inbound', 'Quero agendar uma depilação')
       s.say('outbound', 'Quais zonas você quer depilar? Temos axila, peitoral e barriga.')
+      s.openFunnel(dep.id)
       s.say('inbound', 'Axila')
       s.say(
         'outbound',
@@ -697,7 +711,9 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       )
       s.say('inbound', 'Quero agendar uma depilação')
       s.say('outbound', 'Claro! A depilação tem opções feminina e masculina. Qual você quer fazer?')
+      s.openFunnel(dep.id)
       s.say('inbound', 'Masculina')
+      s.openFunnel(dep.id, 'masculino')
       s.say('outbound', 'Perfeito! Na depilação masculina temos axila ou pernas. Qual zona você quer, ou as duas?')
       s.say('inbound', 'Todas')
       s.say(
@@ -719,6 +735,57 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       const body = getProposal(s.db, s.tenantId, o.autoBook!.proposalId!)
       // Proposta (confirmação) pode ter preço; oferta de slots a meio do funil é que não.
       expect(body?.priceCents).toBe(19_000)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('após limpar a sessão (DEC-086) não reusa Masculina/Todas do funil anterior', async () => {
+    const s = seed()
+    try {
+      const dep = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilacao',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 19_000,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        dep.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 5_000, audience: 'masculino' },
+          { name: 'Pernas', durationMinutes: 30, priceCents: 14_000, audience: 'masculino' },
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' },
+          { name: 'Pernas', durationMinutes: 30, priceCents: 12_000, audience: 'feminino' },
+        ],
+        s.clock,
+      )
+      s.say('inbound', 'Masculina')
+      s.say('outbound', 'Qual zona?')
+      s.say('inbound', 'Todas')
+      s.say('outbound', 'Agendado. Quer agendar outro serviço?')
+      s.say('inbound', 'Quero agendar outro serviço')
+      clearScheduleSession(s.db, s.tenantId, s.cnv.id)
+      s.say(
+        'outbound',
+        'Tenho amanhã (quinta, 29/10) às 09:00, 10:00 ou 14:00 para a depilação. Qual fica melhor?',
+      )
+      s.say('inbound', 'As 14')
+      const o = await s.run()
+      expect(o.autoBook?.proposalId).toBeUndefined()
+      expect(o.autoBook?.status).toBe('needs_info')
+      expect(o.autoBook?.replyText).toMatch(/feminina ou masculina/i)
       noBooking(s)
     } finally {
       s.close()
