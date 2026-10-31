@@ -19,6 +19,15 @@
       "is_interactive": true,
       "radius": 32
     },
+    "ConversasListaProposta.dc.html": {
+      "x": -470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "M-54 Conversas lista (proposta mobile full-bleed)",
+      "is_interactive": false,
+      "radius": 32
+    },
     "Conversa.dc.html": {
       "x": 470,
       "y": 0,

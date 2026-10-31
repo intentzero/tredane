@@ -71,6 +71,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 | M-20 | Aba “Salas · 3” abrevia “Salas e equipamentos” | Manter o título completo no cabeçalho e na descrição da aba; o rótulo curto cabe em 360px |
 | Fonte | Os mocks pedem Inter e os previews usam a fonte do sistema | Usar **Roboto** (400/500/600), hospedada pelo Tredane ([DEC-073](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); conferir as quebras de linha com ela, porque a largura do texto muda com a fonte e linhas que cabem nos previews podem quebrar |
 | M-01 / M-02 (PR-7) | Lista contínua no lugar de cartões; Assumir em faixa, Agendar em ícone e Encerrar no menu ⋮ com confirmação; um só cabeçalho na conversa | **Proposto**; vale até o responsável do produto revisar. Registrado em [components.md](components.md) |
+| Staging Conversas (lista) vs M-01 / M-54 | Lista em cartão flutuante (borda + raio) sobre `surface.app`; busca em pílula | **Proposto (M-54):** lista contínua full-bleed e busca sunken no celular; shell sem mudança. À espera do Paulo — sem implementação |
 | Hora e data | Fixas (sexta, 30 de outubro) | Sempre no fuso da clínica (DEC-008), nunca em UTC |
 
 ## Manutenção

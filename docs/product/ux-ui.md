@@ -81,7 +81,7 @@ Cada tela lista jornada e requisitos de origem, conteúdo, ações, eventos em t
 
 **Origem:** JRN-01, JRN-02, JRN-04; REQ-010, REQ-011, REQ-012, REQ-020, REQ-021, REQ-022. **Estado:** Proposto.
 
-No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhes do contato e oportunidade (M-03), aberta ao tocar no nome no cabeçalho da conversa. No tablet, lista e conversa ficam lado a lado e os detalhes viram gaveta; no desktop (≥ 1280 px), lista com 30% da janela (360–520 px) e conversa fluida, com o contato num painel de 380 px que desliza por cima (DEC-069; substitui a terceira coluna de 320 px).
+No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhes do contato e oportunidade (M-03), aberta ao tocar no nome no cabeçalho da conversa. **Proposto (31/10/2026):** melhoria visual só da lista — lista contínua full-bleed e busca sunken, shell intacto (mock M-54); não muda jornada nem regras. À espera do Paulo. No tablet, lista e conversa ficam lado a lado e os detalhes viram gaveta; no desktop (≥ 1280 px), lista com 30% da janela (360–520 px) e conversa fluida, com o contato num painel de 380 px que desliza por cima (DEC-069; substitui a terceira coluna de 320 px).
 
 **Lista de conversas**
 - Item: nome do contato (ou telefone mascarado quando não houver nome), trecho da última mensagem, horário relativo, estado da conversa (Nova / Em atendimento / Encerrada), avatar ou iniciais do responsável atribuído, etapa da oportunidade.

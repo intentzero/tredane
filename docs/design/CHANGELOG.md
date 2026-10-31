@@ -3,6 +3,10 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 31/10/2026 — M-54 Conversas lista (proposta mobile)
+
+- Novo mock **Proposto** `mobile/ConversasListaProposta.dc.html` + preview `M-54-ConversasListaProposta.png`: lista contínua full-bleed no celular, shell intacto (4 abas do Responsável), busca sunken e chips com contador. Não substitui M-01 até o Paulo decidir. Índice em [screens.md](screens.md).
+
 ## Tokens 0.4.0 — 30/10/2026 (Confirmado, DEC-081)
 
 Pedido do responsável pelo produto (30/10/2026): alinhar a tipografia ao WhatsApp Web e deixar botões e campos menos altos. Valores **Confirmados** em 30/10/2026 (DEC-081).
