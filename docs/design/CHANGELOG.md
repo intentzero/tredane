@@ -3,6 +3,11 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 31/10/2026 — Entrar / splash (Proposto, revisão Paulo)
+
+- **M-09 Entrar** e novo `desktop/Entrar.dc.html`: marca horizontal (DEC-070) + formulário + «Sem convite?» num bloco centrado; fundo `surface.app` com mancha `primary.tint` (sem branco plano partido). Corrige o ecrã de staging com logo no topo, meio vazio e nota no fundo. **À espera de aprovação — sem implementação no painel.**
+- `tools/render_previews.py` resolve `../brand/` para `file://` absoluto nos HTML temporários.
+
 ## Tokens 0.4.0 — 30/10/2026 (Confirmado, DEC-081)
 
 Pedido do responsável pelo produto (30/10/2026): alinhar a tipografia ao WhatsApp Web e deixar botões e campos menos altos. Valores **Confirmados** em 30/10/2026 (DEC-081).
