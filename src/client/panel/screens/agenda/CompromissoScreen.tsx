@@ -335,6 +335,25 @@ export function CompromissoScreen({
           </div>
         ) : null}
 
+        {mode === 'view' && detail.conversationId ? (
+          <div style={{ padding: '12px 16px 0' }}>
+            <Button
+              className="panel-btn-primary agenda-open-chat"
+              onPress={() =>
+                navigatePanel({
+                  kind: 'area',
+                  area: 'conversas',
+                  tenantId,
+                  section: 'thread',
+                  conversationId: detail.conversationId!,
+                })
+              }
+            >
+              Abrir conversa
+            </Button>
+          </div>
+        ) : null}
+
         {canChange && mode === 'view' ? (
           <div className="clinic-actions" style={{ padding: '12px 16px' }}>
             <Button
