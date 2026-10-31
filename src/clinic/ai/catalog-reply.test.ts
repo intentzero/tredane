@@ -1,4 +1,4 @@
-/** Respostas de catálogo sem modelo: almoço, duração, sala, zona e intervalo. */
+/** Respostas de catálogo sem modelo: almoço, duração, quem faz, zona (sem sala/buffer ao cliente). */
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
 import { replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
@@ -15,7 +15,7 @@ import { getScheduleSession, scheduleFactsFromText } from './schedule-session'
 const NOW = Date.UTC(2026, 9, 30, 21, 0)
 
 describe('catalogReply', () => {
-  it('mantém o vão do almoço e responde preço, sala, zona e intervalo', () => {
+  it('mantém o vão do almoço e responde preço e quem faz (sem sala nem buffer)', () => {
     const clock = createControllableClock(NOW)
     const boot = bootClinicDb({ clock })
     const tenantId = 'clinic-demo-a'
@@ -72,8 +72,10 @@ describe('catalogReply', () => {
     expect(catalogReply(boot.db, tenantId, 'Quanto custa a axila masculina e quanto tempo dura?', clock)).toBe(
       'Axila masculina custa R$ 50,00 e dura 15 min.',
     )
-    expect(catalogReply(boot.db, tenantId, 'Quem faz a depilação e em qual sala?', clock)).toContain('Gi')
-    expect(catalogReply(boot.db, tenantId, 'Quem faz a depilação e em qual sala?', clock)).toContain('Sala Depilação')
+    const who = catalogReply(boot.db, tenantId, 'Quem faz a depilação e em qual sala?', clock)
+    expect(who).toContain('Gi')
+    expect(who).not.toContain('Sala Depilação')
+    expect(who).not.toMatch(/\bsala\b/i)
     expect(catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)).toMatch(/qual/i)
     expect(catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)).not.toMatch(/13:00/)
     const both = catalogReply(
@@ -82,9 +84,8 @@ describe('catalogReply', () => {
       'Se eu fizer axila masculina e pernas masculinas juntas, qual o preço e a duração?',
       clock,
     )
-    expect(both).toContain('R$ 190,00')
-    expect(both).toContain('45 min')
-    expect(both).toContain('15 min')
+    expect(both).toBe('Juntas, ficam R$ 190,00 e 45 min de atendimento.')
+    expect(both).not.toMatch(/intervalo|ocupa a agenda|buffer/i)
     expect(handoffReason(boot.db, tenantId, 'Quero marcar com a Sandra.', clock)).toBe('human_only')
     expect(handoffReason(boot.db, tenantId, 'Quero com a Gi.', clock)).toBeNull()
     void sandra
@@ -296,6 +297,42 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
         dayLabel: 'segunda',
         period: 'tarde',
       })
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('«Masculina» com zonas já ditas não repergunta zonas (DEC-090)', () => {
+    const boot = seedMixed()
+    try {
+      const opts = { conversationId: boot.conversation.id }
+      // Abre a sessão com o serviço (como a pergunta de linha).
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toBe(LINE)
+      let t = NOW - 60_000
+      const say = (direction: 'inbound' | 'outbound', body: string) => {
+        insertMessage(
+          boot.db,
+          {
+            tenantId: boot.tenantId,
+            conversationId: boot.conversation.id,
+            direction,
+            body,
+            deliveryState: direction === 'inbound' ? 'received' : 'delivered',
+            createdAt: t,
+          },
+          boot.clock,
+        )
+        t += 1_000
+      }
+      say('inbound', 'Quero depilação amanhã à tarde.')
+      say('outbound', LINE)
+      say('inbound', 'Masculina')
+      say('outbound', ZONES)
+      say('inbound', 'Todas')
+      say('outbound', 'Tenho quarta às 14:00 para pernas e axila.')
+      // Repergunta errada da linha após «As 14»: não listar zonas de novo.
+      expect(catalogReply(boot.db, boot.tenantId, 'Masculina', boot.clock, opts)).toBeNull()
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.audienceLine).toBe('masculino')
     } finally {
       boot.close()
     }

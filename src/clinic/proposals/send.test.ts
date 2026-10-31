@@ -32,6 +32,7 @@ import {
   parseProposalButtonId,
   proposalButtonId,
   renderProposalInteractive,
+  renderProposalResultBody,
   sendProposalResultMessageOp,
   sendProposalToWhatsAppOp,
   sweepPendingCommunicationAlerts,
@@ -207,7 +208,7 @@ describe('S4: render determinístico', () => {
     }
   })
 
-  it('com a base, o texto inclui a sala e o intervalo', () => {
+  it('proposta e Agendado: morada se houver; sem sala nem intervalo (DEC-090)', () => {
     const s = seed()
     try {
       const room = upsertResourceOp(s.db, s.caller, { kind: 'room', name: 'Sala Depilação', category: 'Sala' }, s.clock)
@@ -237,8 +238,35 @@ describe('S4: render determinístico', () => {
         s.clock,
       )
       const rendered = renderProposalInteractive(proposal, s.db)
-      expect(rendered.body).toContain('Sala: Sala Depilação')
-      expect(rendered.body).toContain('Intervalo: 15 min')
+      expect(rendered.body).toContain('Local: Rua das Flores, 100 — São Paulo')
+      expect(rendered.body).toContain('Preço:')
+      expect(rendered.body).not.toMatch(/Sala:/i)
+      expect(rendered.body).not.toContain('Sala Depilação')
+      expect(rendered.body).not.toMatch(/Intervalo:/i)
+      expect(rendered.body).not.toMatch(/ocupa a agenda|15 min depois/i)
+
+      const booked = renderProposalResultBody(proposal, 'booked')
+      expect(booked).toMatch(/^Agendado:/)
+      expect(booked).toContain('Local: Rua das Flores, 100 — São Paulo')
+      expect(booked).not.toContain('Sala Depilação')
+      expect(booked).not.toMatch(/intervalo|buffer/i)
+
+      setAiProfileOp(s.db, s.caller, { clinicAddress: '' }, s.clock)
+      const bare = createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: s.contact.id,
+          conversationId: s.conversation.id,
+          serviceId: svc.id,
+          professionalId: s.pro.id,
+          startsAt: s.startsAt + 3_600_000,
+        },
+        s.clock,
+      )
+      expect(bare.clinicLocationText).toBe('')
+      expect(renderProposalInteractive(bare, s.db).body).not.toMatch(/^Local:/m)
+      expect(renderProposalResultBody(bare, 'booked')).not.toMatch(/Local:/)
     } finally {
       s.close()
     }
