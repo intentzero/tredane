@@ -17,6 +17,7 @@ import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { askZonesReply, detectExplicitConfirmation, extractTimes } from './autobook'
+import { getScheduleSession } from './schedule-session'
 import { checkConversationProtection, isConversationPaused } from './protection'
 import { autoBookCapability, toAiAssistDeps } from './deps'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
@@ -675,6 +676,63 @@ describe('pergunta das variantes usa o plural do tipo', () => {
   it('«as zonas», não «a Zona»', () => {
     const reply = askZonesReply('as zonas', ['Axila', 'Buço'], '14:00')
     expect(reply).toBe('Para fechar às 14:00, me diga as zonas: Axila, Buço. Pode ser mais de uma.')
+  })
+
+  it('lembra a variante e o horário e escreve o plural em minúsculas', async () => {
+    const s = seed()
+    try {
+      const dep = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Bronzeamento',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 15_000,
+          variantKind: 'Região',
+          variantKindPlural: 'Regiões',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        dep.id,
+        [
+          { name: 'Axila', durationMinutes: 30, priceCents: 5_000, audience: 'ambos' },
+          { name: 'Perna', durationMinutes: 30, priceCents: 8_000, audience: 'ambos' },
+        ],
+        s.clock,
+      )
+      s.say('inbound', 'Quero bronzeamento amanhã às 14:00')
+      const asked = await s.run()
+      const question = asked.suggestion?.suggestedText ?? ''
+      expect(question.toLocaleLowerCase('pt-BR')).toContain('as regiões')
+      expect(question).not.toContain('as Regiões')
+
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: 'Só a axila',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs() + 1_000,
+        },
+        s.clock,
+      )
+      const booked = await s.run()
+      expect(booked.autoBook?.status).toBe('requires_button')
+      expect(booked.autoBook?.replyText ?? '').not.toMatch(/regiões/i)
+      const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
+      expect(session?.clockTime).toBe('14:00')
+      expect(session?.variantIds?.length).toBe(1)
+    } finally {
+      s.close()
+    }
   })
 })
 

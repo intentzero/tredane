@@ -720,6 +720,7 @@ export async function executeProposalConfirmOp(
             startsAt: proposal.startsAt,
             actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
             zoneIds: null,
+            skipRescheduleNotice: true,
           },
           clock,
         )

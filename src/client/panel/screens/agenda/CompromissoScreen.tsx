@@ -14,7 +14,7 @@ import {
 import { useClinicTimezone } from '../../clinicTimezone'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
-import { formatSlotTime } from './format'
+import { civilDateInZone, formatSlotTime } from './format'
 import { friendlyError } from '../../copy/errors'
 
 type Props = {
@@ -141,17 +141,25 @@ export function CompromissoScreen({
         setPaidSignal(result.charge)
         setMode('view')
         onChanged?.()
+        const aviso =
+          result.cancelNotice === 'sent'
+            ? ' A cliente foi avisada no WhatsApp.'
+            : result.cancelNotice === 'window_closed'
+              ? ' A janela de 24 h está fechada: o aviso não foi enviado.'
+              : result.cancelNotice === 'failed'
+                ? ' O aviso no WhatsApp não saiu.'
+                : ''
         if (disposition === 'retain') {
-          setMessage('Compromisso cancelado. Sinal retido (decisão registrada).')
+          setMessage(`Compromisso cancelado. Sinal retido (decisão registrada).${aviso}`)
         } else if (result.refundConfirmed) {
-          setMessage('Compromisso cancelado. Sinal devolvido.')
+          setMessage(`Compromisso cancelado. Sinal devolvido.${aviso}`)
         } else if (result.uncertain) {
           setMessage(
-            'Compromisso cancelado. Pedido de devolução do sinal enviado; o dinheiro ainda não voltou para a cliente.',
+            `Compromisso cancelado. Pedido de devolução do sinal enviado; o dinheiro ainda não voltou para a cliente.${aviso}`,
           )
         } else {
           setMessage(
-            'Compromisso cancelado. Devolução do sinal em andamento. O horário já ficou livre.',
+            `Compromisso cancelado. Devolução do sinal em andamento. O horário já ficou livre.${aviso}`,
           )
         }
       } else {
@@ -168,7 +176,15 @@ export function CompromissoScreen({
         setDetail(updated)
         setMode('view')
         onChanged?.()
-        setMessage('Compromisso cancelado. Recursos liberados.')
+        setMessage(
+          updated.cancelNotice === 'sent'
+            ? 'Compromisso cancelado. A cliente foi avisada no WhatsApp.'
+            : updated.cancelNotice === 'window_closed'
+              ? 'Compromisso cancelado. A janela de 24 h está fechada: o aviso não foi enviado.'
+              : updated.cancelNotice === 'failed'
+                ? 'Compromisso cancelado. O aviso no WhatsApp não saiu.'
+                : 'Compromisso cancelado. Recursos liberados.',
+        )
       }
     } catch (err) {
       setMessage(friendlyError(err, 'Não foi possível cancelar o compromisso.'))
@@ -339,6 +355,11 @@ export function CompromissoScreen({
                   area: 'agenda',
                   tenantId,
                   section: 'agendar',
+                  rescheduleAppointmentId: detail.id,
+                  conversationId: detail.conversationId ?? undefined,
+                  contactId: detail.contactId ?? undefined,
+                  opportunityId: detail.opportunityId ?? undefined,
+                  date: civilDateInZone(detail.startsAt, timezone),
                 })
               }
             >

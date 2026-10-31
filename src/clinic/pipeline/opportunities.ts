@@ -101,8 +101,9 @@ export function loadLinkedAppointment(
     contact_label: string | null
     service_id: string
     professional_id: string
+    change_reason: string | null
   }>(
-    `SELECT id, starts_at, ends_at, status, contact_label, service_id, professional_id
+    `SELECT id, starts_at, ends_at, status, contact_label, service_id, professional_id, change_reason
      FROM appointments WHERE tenant_id = ? AND id = ?`,
     tenantId,
     appointmentId,

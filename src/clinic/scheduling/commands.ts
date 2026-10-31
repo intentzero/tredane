@@ -28,6 +28,40 @@ export function findAppointmentCommand(
   }
 }
 
+export function rememberAppointmentNotice(
+  db: ClinicDb,
+  tenantId: string,
+  clientRequestId: string,
+  key: 'cancelNotice' | 'rescheduleNotice',
+  status: 'sent' | 'window_closed' | 'failed' | 'skipped',
+): void {
+  const existing = findAppointmentCommand(db, tenantId, clientRequestId)
+  if (!existing) return
+  const parsed = JSON.parse(existing.resultJson) as Record<string, unknown>
+  db.run(
+    `UPDATE appointment_commands SET result_json = ?
+     WHERE tenant_id = ? AND client_request_id = ?`,
+    JSON.stringify({ ...parsed, [key]: status }),
+    tenantId,
+    clientRequestId,
+  )
+}
+
+export function savedAppointmentNotice(
+  resultJson: string,
+  key: 'cancelNotice' | 'rescheduleNotice',
+): 'sent' | 'window_closed' | 'failed' | 'skipped' {
+  try {
+    const value = (JSON.parse(resultJson) as Record<string, unknown>)[key]
+    if (value === 'sent' || value === 'window_closed' || value === 'failed' || value === 'skipped') {
+      return value
+    }
+  } catch {
+    /* comando antigo, sem o aviso gravado */
+  }
+  return 'skipped'
+}
+
 export function saveAppointmentCommand(
   db: ClinicDb,
   input: {

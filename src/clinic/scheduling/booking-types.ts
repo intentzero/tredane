@@ -11,6 +11,10 @@ export type AppointmentMutationResult<T> = {
   idempotentReplay: boolean
   /** Aviso do bloco Tempo na resposta da marcação manual (DEC-077). Não fica no compromisso. */
   tempoWarnings?: string[]
+  /** DEC-095: aviso de cancelamento no WhatsApp. A falha não desfaz o cancelamento. */
+  cancelNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
+  /** DEC-097: aviso de reagendamento no WhatsApp. A falha não desfaz a mudança. */
+  rescheduleNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
 }
 
 export type ConfirmAppointmentInput = {
@@ -68,6 +72,8 @@ export type RescheduleAppointmentInput = {
   expectedVersion?: number | null
   /** DEC-078: troca o conjunto de zonas e revalida o bloco. Omitido: mantém a cópia. */
   zoneIds?: string[] | null
+  /** DEC-091: o botão da proposta já avisa. O aviso do painel (DEC-097) não sai. */
+  skipRescheduleNotice?: boolean
 }
 
 export type AppointmentDetail = AppointmentRow & {

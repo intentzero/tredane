@@ -121,6 +121,7 @@ import {
   nextIdleDueAt,
   sweepDueIdleConversations,
 } from '../clinic/followup/idle'
+import { nextOpenAppointmentEndAt, sweepEndedAppointments } from '../clinic/pipeline/appointment-stage'
 import { handlePostBookingButtonClick } from '../clinic/followup/post-booking'
 import { systemClock, type Clock } from '../db/clock'
 import { fromD1 } from '../db/admin/async-store'
@@ -2115,6 +2116,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#fanoutOutboxes(caller, result.outbox, true)
       await this.#drain(caller)
     }
+    const nextEnd = nextOpenAppointmentEndAt(this.#db, caller.tenantId, this.#clock.nowMs())
+    if (nextEnd != null) await this.#scheduleAlarmNoLaterThan(nextEnd + 500)
     const tempoWarnings = await tempoWarningsAt(
       this.#db,
       caller.tenantId,
@@ -2142,6 +2145,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#fanoutOutboxes(caller, result.outbox, true)
       await this.#drain(caller)
     }
+    const nextEnd = nextOpenAppointmentEndAt(this.#db, caller.tenantId, this.#clock.nowMs())
+    if (nextEnd != null) await this.#scheduleAlarmNoLaterThan(nextEnd + 500)
     return result
   }
 
@@ -2161,6 +2166,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#fanoutOutboxes(caller, result.outbox, true)
       await this.#drain(caller)
     }
+    const nextEnd = nextOpenAppointmentEndAt(this.#db, caller.tenantId, this.#clock.nowMs())
+    if (nextEnd != null) await this.#scheduleAlarmNoLaterThan(nextEnd + 500)
     const tempoWarnings = await tempoWarningsAt(
       this.#db,
       caller.tenantId,
@@ -2796,7 +2803,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       /* best-effort H7 */
     }
     try {
-      // DEC-087: idle 30 min + segundo prazo Proposto +30 min.
+      // DEC-087: idle 30 min + segundo prazo de mais 30 min.
       const idleItems = sweepDueIdleConversations(
         this.#db,
         meta.tenantId,
@@ -2814,6 +2821,14 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle + 500)
     } catch {
       /* best-effort idle */
+    }
+    try {
+      const ended = sweepEndedAppointments(this.#db, meta.tenantId, this.#clock)
+      if (ended.length > 0) await this.#fanoutOutboxes(caller, ended, true)
+      const nextEnd = nextOpenAppointmentEndAt(this.#db, meta.tenantId, this.#clock.nowMs())
+      if (nextEnd != null) await this.#scheduleAlarmNoLaterThan(nextEnd + 500)
+    } catch {
+      /* best-effort DEC-094 */
     }
     const nextSweep = await this.#sweepStuckOutbound(caller)
     await this.#drain(caller)

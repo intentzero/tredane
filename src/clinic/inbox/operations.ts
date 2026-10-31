@@ -55,6 +55,7 @@ import { messagingWindowForConversation } from './window'
 import { contactHasPendingPix } from './pending-pix'
 import { getWhatsappChannel } from '../whatsapp/channel'
 import { advanceToInServiceIfNew } from '../pipeline/auto-stage'
+import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
 import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
 import { OPPORTUNITY_STAGE_LABELS } from '../constants'
 import { getActiveProposalForConversation } from '../proposals/proposals'
@@ -370,6 +371,13 @@ export function assignConversationOp(
 
     const now = clock.nowMs()
     const updated = setConversationAssignee(db, {
+      tenantId: meta.tenantId,
+      conversationId: input.conversationId,
+      assigneeClerkUserId: input.assigneeClerkUserId,
+      assigneeDisplayName: input.assigneeDisplayName,
+      updatedAt: now,
+    })
+    syncOpenOpportunityAssignee(db, {
       tenantId: meta.tenantId,
       conversationId: input.conversationId,
       assigneeClerkUserId: input.assigneeClerkUserId,
@@ -1043,6 +1051,13 @@ export function sendOutboundMessageOp(
     const afterTouch = requireConversation(db, meta.tenantId, input.conversationId)
     if (!afterTouch.assigneeClerkUserId) {
       setConversationAssignee(db, {
+        tenantId: meta.tenantId,
+        conversationId: input.conversationId,
+        assigneeClerkUserId: input.authorClerkUserId,
+        assigneeDisplayName: input.authorDisplayName,
+        updatedAt: now,
+      })
+      syncOpenOpportunityAssignee(db, {
         tenantId: meta.tenantId,
         conversationId: input.conversationId,
         assigneeClerkUserId: input.authorClerkUserId,

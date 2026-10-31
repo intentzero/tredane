@@ -29,6 +29,7 @@ import {
 import { isCancelIntent, isRescheduleIntent, loadUpcomingAppointment, tryAiReschedule } from './reschedule'
 import { runGenerateInternal } from './operations'
 import { isConversationPaused } from './protection'
+import { getScheduleSession } from './schedule-session'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
 import { getAiDailyUsage } from './usage'
@@ -494,17 +495,22 @@ export async function runDueAutoDrafts(
     const proposalDelivered =
       Boolean(autoBook?.proposalId) && !deterministicReply
     if (unsafe && !deterministicReply && !proposalDelivered) {
-      const handoff = notifyHumanHandoff(
-        db,
-        tenantId,
-        {
-          conversationId: job.conversationId,
-          reason: 'off_purpose',
-          clientRequestId: `ai-handoff:${suggestion.id}`,
-        },
-        clock,
+      const bookingOpen = Boolean(
+        getScheduleSession(db, tenantId, job.conversationId)?.serviceId || autoBook?.serviceId,
       )
-      replyOutbox = handoff.outbox
+      if (!bookingOpen) {
+        const handoff = notifyHumanHandoff(
+          db,
+          tenantId,
+          {
+            conversationId: job.conversationId,
+            reason: 'off_purpose',
+            clientRequestId: `ai-handoff:${suggestion.id}`,
+          },
+          clock,
+        )
+        replyOutbox = handoff.outbox
+      }
     } else if (
       suggestion.status === 'pending' &&
       draftText &&

@@ -79,6 +79,8 @@ export type PanelRoute =
       alertId?: string
       /** Dia civil (AAAA-MM-DD) já escolhido na Agenda — abre o Agendar nesse dia. */
       date?: string
+      /** DEC-096: move o mesmo compromisso, com o formulário já preenchido. */
+      rescheduleAppointmentId?: string
     }
   | {
       kind: 'area'
@@ -232,7 +234,20 @@ export function resolvePanelRoute(pathname: string, search = ''): PanelRoute | n
     const head = parts[0]
     const date = agendaDateQuery(search)
     if (head === 'agendar') {
-      return { kind: 'area', area: 'agenda', tenantId, section: 'agendar', date }
+      const q = new URLSearchParams(search?.startsWith('?') ? search.slice(1) : (search ?? ''))
+      const pick = (key: string) => q.get(key) || undefined
+      return {
+        kind: 'area',
+        area: 'agenda',
+        tenantId,
+        section: 'agendar',
+        date,
+        conversationId: pick('conversationId'),
+        contactId: pick('contactId'),
+        opportunityId: pick('opportunityId'),
+        alertId: pick('alertId'),
+        rescheduleAppointmentId: pick('rescheduleAppointmentId'),
+      }
     }
     if (head === 'semana') {
       return { kind: 'area', area: 'agenda', tenantId, section: 'semana' }
@@ -301,6 +316,7 @@ export function panelHref(route: PanelRoute): string {
           if (route.contactId) q.set('contactId', route.contactId)
           if (route.opportunityId) q.set('opportunityId', route.opportunityId)
           if (route.alertId) q.set('alertId', route.alertId)
+          if (route.rescheduleAppointmentId) q.set('rescheduleAppointmentId', route.rescheduleAppointmentId)
           if (isCivilDateParam(route.date)) q.set('date', route.date)
           const qs = q.toString()
           return qs ? `${base}/agendar?${qs}` : `${base}/agendar`

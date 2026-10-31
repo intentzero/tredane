@@ -1,6 +1,6 @@
 /**
  * DEC-086 — follow-up pós-agendamento com botões.
- * «Não, obrigado» → Concluído; «Quero agendar outro serviço» → nova intenção.
+ * «Não, obrigado» agradece e não muda a etapa. «Quero agendar outro serviço» abre nova intenção.
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'
@@ -12,10 +12,7 @@ import { messagingWindowForConversation } from '../inbox/window'
 import { assertClinicSchemaReady } from '../migrations'
 import type { OutboxRow } from '../outbox'
 import { PROPOSAL_BUTTON_TITLE_MAX } from '../proposals/render'
-import {
-  findOpenOpportunityForConversation,
-  moveOpportunityStageOp,
-} from '../pipeline'
+import { clearConversationIdle } from './idle-state'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 
@@ -223,29 +220,7 @@ export function handlePostBookingButtonClick(
       clock,
     )
     outbox.push(...thanks.outbox)
-
-    const opp = findOpenOpportunityForConversation(
-      db,
-      input.tenantId,
-      input.conversationId,
-    )
-    let closedOpportunityId: string | null = null
-    if (opp && opp.stage !== 'concluido') {
-      const moved = moveOpportunityStageOp(
-        db,
-        caller,
-        {
-          opportunityId: opp.id,
-          toStage: 'concluido',
-          actorClerkUserId: FOLLOWUP_ACTOR,
-          actorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-          note: 'Cliente: Não, obrigado (follow-up pós-agendamento)',
-        },
-        clock,
-      )
-      outbox.push(...moved.outbox)
-      closedOpportunityId = opp.id
-    }
+    clearConversationIdle(db, input.tenantId, input.conversationId, clock.nowMs())
 
     writeOperationalAudit(
       db,
@@ -257,13 +232,13 @@ export function handlePostBookingButtonClick(
         objectId: input.conversationId,
         detail: {
           appointmentId: parsed.appointmentId,
-          closedOpportunityId,
+          closedOpportunityId: null,
         },
       },
       clock,
     )
 
-    return { handled: true, action: 'thanks', closedOpportunityId, outbox }
+    return { handled: true, action: 'thanks', closedOpportunityId: null, outbox }
   }
 
   // another — limpa sessão de agendamento e pergunta o próximo serviço

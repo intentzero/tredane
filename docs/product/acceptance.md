@@ -48,7 +48,7 @@
 
 ### AC-10 — Cancelamento e reagendamento
 
-**Dado** um compromisso confirmado; **quando** a equipe o cancela, **então** ele deixa de ocupar recursos e mantém histórico. **Quando** tenta reagendar para horário conflituoso, o compromisso válido anterior não desaparece. A falha de mensagem ao contato aparece separada do estado da agenda. **Requisitos:** REQ-032, REQ-033.
+**Dado** um compromisso confirmado; **quando** a equipe o cancela, **então** ele deixa de ocupar recursos e mantém histórico. **Quando** tenta reagendar para horário conflituoso, o compromisso válido anterior não desaparece. A falha de mensagem ao contato aparece separada do estado da agenda. **Quando** o reagendamento no painel conclui dentro da janela de 24 h, **então** a cliente recebe «O horário passou de {dia antigo} às {hora} para {dia novo} às {hora}.» e uma falha dessa frase não desfaz a mudança (DEC-097). **Requisitos:** REQ-032, REQ-033.
 
 ## Tempo real e recuperação
 
@@ -306,11 +306,11 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 
 ### AC-71 — Follow-up pós-agendamento (Confirmado, DEC-086)
 
-**Dado** a cliente fictícia «Mariana» confirma pelo botão uma proposta válida de «Limpeza de pele» amanhã às 15:00 na clínica Aurora; **quando** a marcação fica confirmada; **então** recebe no WhatsApp a pergunta se pode ajudar em algo mais, com **«Não, obrigado»** e **«Quero agendar outro serviço»**. **Quando** toca em «Não, obrigado»; **então** recebe agradecimento e a oportunidade da conversa passa a **Concluído**. **Quando**, noutro caso, toca em «Quero agendar outro serviço»; **então** o ciclo permanece aberto e pode pedir outro serviço na mesma conversa; texto livre ainda não marca (DEC-061). **Requisitos:** REQ-097; JRN-18.
+**Dado** a cliente fictícia «Mariana» confirma pelo botão uma proposta válida de «Limpeza de pele» amanhã às 15:00 na clínica Aurora; **quando** a marcação fica confirmada; **então** recebe no WhatsApp a pergunta se pode ajudar em algo mais, com **«Não, obrigado»** e **«Quero agendar outro serviço»**. **Quando** toca em «Não, obrigado»; **então** recebe agradecimento, a oportunidade permanece em **Agendado** e o cartão mostra o horário (revisão DEC-086, 31/10/2026). **Quando**, noutro caso, toca em «Quero agendar outro serviço»; **então** o ciclo permanece aberto e pode pedir outro serviço na mesma conversa; texto livre ainda não marca (DEC-061). **Requisitos:** REQ-097; JRN-18.
 
-### AC-72 — Idle de 30 minutos (Confirmado, DEC-087; segundo prazo Proposto)
+### AC-72 — Idle de 30 minutos (Confirmado, DEC-087)
 
-**Dado** conversa em aberto na Aurora sem responsável humano, última mensagem (inbound ou outbound) há 30 minutos; **quando** o alarme corre; **então** a cliente recebe pergunta com botões para **prosseguir** ou **terminar**. Uma mensagem `system` no painel entretanto **não** evita o prompt. **Dado** a Ana assumiu a conversa; **então** o prompt automático de idle não é enviado. **Proposto:** sem resposta em mais 30 minutos após a pergunta; **então** a oportunidade passa a **Concluído** e a cliente recebe agradecimento. **Requisitos:** REQ-098; JRN-19.
+**Dado** conversa em aberto na Aurora sem responsável humano, última mensagem (inbound ou outbound) há 30 minutos; **quando** o alarme corre; **então** a cliente recebe pergunta com botões para **prosseguir** ou **terminar**. Uma mensagem `system` no painel entretanto **não** evita o prompt. **Dado** a Ana assumiu a conversa; **então** o prompt automático de idle não é enviado. **Quando** a cliente toca em **Terminar** com um horário futuro confirmado; **então** recebe agradecimento e a oportunidade permanece em **Agendado**. **Quando** toca em **Terminar** sem horário futuro; **então** recebe agradecimento e a oportunidade passa a **Perdido** (revisão DEC-087, 31/10/2026). **Quando** passam mais 30 minutos após a pergunta sem resposta; **então** o destino é o mesmo do **Terminar** (a etapa não muda se houver horário futuro; **Perdido** se não houver). **Requisitos:** REQ-098; JRN-19.
 
 ### AC-73 — Prefixo do atendente no WhatsApp (Confirmado, DEC-088)
 

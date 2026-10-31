@@ -42,7 +42,7 @@
 
 - **Ator e objetivo:** ACT-01 solicita mudança pelo WhatsApp; ACT-02 ou ACT-03 resolve o compromisso.
 - **Gatilho e pré-condições:** existe agendamento; a clínica define quem pode alterá-lo e quais recursos ficam livres após cancelamento.
-- **Fluxo principal:** (1) equipe encontra o compromisso na conversa ou agenda; (2) escolhe o motivo, obrigatório, numa lista (DEC-008); (3) cancela ou procura novo horário, sem prazo mínimo; (4) confirma a mudança; (5) agenda, pipeline e conversa passam a refletir o novo estado; (6) sessões autorizadas recebem a atualização.
+- **Fluxo principal:** (1) equipe encontra o compromisso na conversa ou agenda; (2) escolhe o motivo, obrigatório, numa lista (DEC-008); (3) cancela, ou Reagendar abre o mesmo compromisso já preenchido (contacto, zona, preço, profissional e sala) e só liberta o bloco antigo quando o novo cabe (DEC-096); (4) confirma a mudança; (5) agenda, pipeline e conversa passam a refletir o novo estado — se o cancelado era o último horário futuro, o cartão volta a Em atendimento e o próximo compromisso fica «Sem horário marcado», salvo **Não compareceu**, que leva o cartão a Concluído com «Não compareceu» e a data; se resta outro horário futuro, o cartão permanece em Agendado e aponta para esse (DEC-092); dentro da janela de 24 h sai a frase fixa de cancelamento (DEC-095) ou, no reagendamento, «O horário passou de {dia antigo} às {hora} para {dia novo} às {hora}.» (DEC-097); a falha dessa frase não desfaz o horário; (6) sessões autorizadas recebem a atualização.
 - **Alternativas:** novo horário entrou em conflito; compromisso já foi alterado por outra pessoa; comunicação da mudança ao contato falhou. O sistema preserva o estado confirmado e informa a falha de mensagem separadamente.
 - **Resultado, superfícies e dados:** histórico do compromisso, com motivo, e disponibilidade coerentes. Não há prazo mínimo de cancelamento (Confirmado, DEC-008).
 - **Requisitos:** REQ-031, REQ-032, REQ-033, REQ-040.
@@ -193,16 +193,16 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Ator:** cliente final (WhatsApp); sistema; ACT-02 no fallback.
 - **Gatilho:** marcação confirmada pelo botão da proposta (DEC-061) — ou o caminho que confirma o horário após Pix pago, sem duplicar a pergunta.
 - **Pré-condições:** compromisso criado; janela de WhatsApp aberta.
-- **Fluxo:** (1) o sistema envia pergunta se pode ajudar em algo mais, com **«Não, obrigado»** e **«Quero agendar outro serviço»**; (2a) «Não, obrigado» → agradecimento e etapa **Concluído**; (2b) «Quero agendar outro serviço» → ciclo aberto, nova intenção de serviço na mesma conversa.
+- **Fluxo:** (1) o sistema envia pergunta se pode ajudar em algo mais, com **«Não, obrigado»** e **«Quero agendar outro serviço»**; (2a) «Não, obrigado» → agradecimento, etapa permanece **Agendado** e o cartão mostra a data (revisão DEC-086, 31/10/2026); (2b) «Quero agendar outro serviço» → ciclo aberto, nova intenção de serviço na mesma conversa. O evento que leva o cartão a **Concluído** depois da visita é o fim do horário confirmado, sem outro horário futuro (DEC-094).
 - **Alternativas:** texto livre não marca nem conclui o ciclo; falha de envio fica observável sem desfazer o compromisso; conversa com humano activo não dispara este follow-up automático em paralelo se a equipa já assumiu.
 - **Requisitos:** REQ-097; aceite AC-71.
 
 ## JRN-19 — Idle de conversa em aberto
 
-- **Estado:** Confirmado no idle de 30 min (DEC-087); segundo prazo **Proposto** (mais 30 min).
+- **Estado:** Confirmado (DEC-087), incluindo o segundo prazo de mais 30 min.
 - **Ator:** cliente final; sistema.
 - **Gatilho:** 30 minutos desde a última mensagem inbound ou outbound da conversa (a mais recente), com ciclo aberto e sem responsável humano activo.
-- **Fluxo:** (1) pergunta com botões **prosseguir** ou **terminar**; (2a) prosseguir → reinicia o atendimento / cancela o fecho automático; (2b) terminar → agradece e **Concluído**; (2c) **Proposto:** sem resposta em mais 30 min → agradece e **Concluído**.
+- **Fluxo:** (1) pergunta com botões **prosseguir** ou **terminar**; (2a) prosseguir → reinicia o atendimento / cancela o fecho automático; (2b) terminar com horário futuro confirmado → agradece e a etapa permanece **Agendado**; terminar sem horário futuro → agradece e **Perdido** (revisão DEC-087, 31/10/2026); (2c) sem resposta em mais 30 min → o mesmo destino do terminar (permanece em **Agendado** se houver horário futuro; **Perdido** se não houver).
 - **Alternativas:** mensagem nova reinicia a contagem; `system` no painel não conta; humano Assumir cancela o idle automático.
 - **Requisitos:** REQ-098; aceite AC-72.
 

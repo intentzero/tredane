@@ -46,7 +46,7 @@ describe('DEC-086 post-booking follow-up', () => {
     expect(parsePostBookingButtonId('prop:x:v1:confirm')).toBeNull()
   })
 
-  it('envia pergunta com botões e «Não, obrigado» fecha em Concluído', () => {
+  it('envia pergunta com botões e «Não, obrigado» agradece sem mudar a etapa', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 16))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -125,13 +125,13 @@ describe('DEC-086 post-booking follow-up', () => {
       )
       expect(click.handled).toBe(true)
       if (!click.handled || click.action !== 'thanks') return
-      expect(click.closedOpportunityId).toBe(opp.id)
+      expect(click.closedOpportunityId).toBeNull()
 
       const closed = db.get<{ stage: string; status: string }>(
         `SELECT stage, status FROM opportunities WHERE id = ?`,
         opp.id,
       )
-      expect(closed).toEqual({ stage: 'concluido', status: 'closed' })
+      expect(closed).toEqual({ stage: 'agendado', status: 'open' })
 
       const thanksBody = db.get<{ body: string }>(
         `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'

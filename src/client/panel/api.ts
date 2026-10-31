@@ -1368,6 +1368,7 @@ export function createPanelApi(getToken: TokenGetter) {
         charge: PixChargeDetail | null
         refundConfirmed: boolean
         uncertain: boolean
+        cancelNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
       }
     },
 
@@ -1413,7 +1414,12 @@ export function createPanelApi(getToken: TokenGetter) {
         expectedVersion?: number | null
       },
       opts?: FetchOpts,
-    ): Promise<AppointmentDetailResponse & { idempotentReplay: boolean }> {
+    ): Promise<
+      AppointmentDetailResponse & {
+        idempotentReplay: boolean
+        cancelNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
+      }
+    > {
       const res = await authFetch(
         `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/cancel`,
         {
@@ -1441,9 +1447,15 @@ export function createPanelApi(getToken: TokenGetter) {
         startsAt: number
         serviceId?: string
         expectedVersion?: number | null
+        zoneIds?: string[]
       },
       opts?: FetchOpts,
-    ): Promise<AppointmentDetailResponse & { idempotentReplay: boolean }> {
+    ): Promise<
+      AppointmentDetailResponse & {
+        idempotentReplay: boolean
+        rescheduleNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
+      }
+    > {
       const res = await authFetch(
         `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/reschedule`,
         {
@@ -1457,6 +1469,7 @@ export function createPanelApi(getToken: TokenGetter) {
       if (!res.ok) throw await parseError(res)
       return (await res.json()) as AppointmentDetailResponse & {
         idempotentReplay: boolean
+        rescheduleNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
       }
     },
 
@@ -2189,6 +2202,7 @@ export type PipelineLinkedAppointment = {
   contactLabel: string | null
   serviceId: string
   professionalId: string
+  changeReason?: string | null
 }
 
 export type PipelineOpportunity = {
@@ -2831,6 +2845,13 @@ export type AppointmentDetailResponse = {
     previousJson: string | null
     newJson: string | null
     occurredAt: number
+  }>
+  zones?: Array<{
+    zoneId: string | null
+    name: string
+    audience: string
+    durationMinutes: number
+    priceCents: number | null
   }>
 }
 
