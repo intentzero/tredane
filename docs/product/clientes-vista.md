@@ -1,7 +1,7 @@
 # Vista Clientes / Contato — ficha operacional
 
-**Estado:** **Proposto** (aguarda decisão do Paulo; 31/10/2026).  
-**Não Confirmado.** Sem implementação no painel até decisão de navegação e recorte.
+**Estado:** **Confirmado** — navegação **Opção C** (híbrido) (Paulo, 31/10/2026).  
+Recorte de fases (leitura → edição/comparecimento) e campos extras continuam **Proposto** / Em aberto. Sem implementação no painel neste PR.
 
 ## Problema
 
@@ -16,29 +16,29 @@ O contacto vive sobretudo no sidepane Contato da thread ([#365](https://github.c
 - Sem sexo/género na ficha do contacto; sem inferência (DEC-075, DEC-089).
 - Nome humano outbound ([DEC-088](decisions.md)) ≠ persona do atendente virtual ([DEC-089](decisions.md)).
 
-## Navegação (a decidir)
+## Navegação
 
-| Opção | Ideia |
-| --- | --- |
-| **A** | Novo item «Clientes» na nav (lista + ficha). |
-| **B** | Só aprofundar o Contato actual / a partir de Conversas. |
-| **C (recomendação Proposta)** | Híbrido: manter Contato Confirmado na thread + área Clientes com a **mesma ficha** canónica. |
+| Opção | Ideia | Estado |
+| --- | --- | --- |
+| A | Novo item «Clientes» na nav (lista + ficha). | Descartada |
+| B | Só aprofundar o Contato actual / a partir de Conversas. | Descartada |
+| **C** | Híbrido: manter Contato Confirmado na thread + área **Clientes** com a **mesma ficha** canónica. | **Confirmado** (Paulo, 31/10/2026) |
 
-## Recorte Proposto (MVP+)
+## Recorte MVP+ (fases ainda Propostas)
 
-1. **Fase 1 — leitura:** lista, busca, ficha com dados existentes, conversas e compromissos derivados; Resumo da IA e Bloquear como em #365; exclusão REQ-071 intacta.
-2. **Fase 2 — edição + comparecimento:** nome (e só campos explícitos aprovados); estados compareceu/faltou alinhados a REQ-032 (**Proposto**).
+1. **Fase 1 — leitura (Proposto):** lista, busca, ficha com dados existentes, conversas e compromissos derivados; Resumo da IA e Bloquear como em #365; exclusão REQ-071 intacta.
+2. **Fase 2 — edição + comparecimento (Proposto):** nome (e só campos explícitos aprovados); estados compareceu/faltou alinhados a REQ-032 (**Proposto**).
 3. **Fora:** prontuário, sexo na ficha, marketing, campos novos sem decisão LGPD.
 
-## Perguntas ao Paulo
+## Perguntas ainda abertas
 
-1. Opção A, B ou C?  
-2. Rótulo «Clientes» vs «Contato»?  
-3. Quem edita na fase 2 (atendente + owner, ou só owner)?  
-4. Campos pessoais novos no MVP+?  
-5. Comparecimento: só motivo de cancelamento ou estado próprio?  
+1. Rótulo «Clientes» vs «Contato» no interior da ficha?  
+2. Quem edita na fase 2 (atendente + owner, ou só owner)?  
+3. Campos pessoais novos no MVP+?  
+4. Comparecimento: só motivo de cancelamento ou estado próprio?  
+5. Contactos sem conversa activa na lista? Bloqueados: filtro ou secção?  
 6. Prioridade face ao trabalho F5/F6 em curso?
 
 ## Relação com a spec
 
-Atualizar [ux-ui.md](ux-ui.md) (mapa de telas / nav) e mocks em `docs/design/` **somente após** decisão Confirmada. Wireframes de exploração (não Confirmados) podem viver fora do índice de telas até lá.
+[ux-ui.md](ux-ui.md) regista a área Clientes como Confirmada (Opção C). Mocks oficiais em `docs/design/` e mapa de tela detalhado seguem em fatia própria; este PR é só documentação de produto.
