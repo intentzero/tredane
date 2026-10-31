@@ -4599,7 +4599,7 @@
 @media (min-width: 1280px) {
   .conversas-3col:not(.conversas-3col--drawer) {
     --conversas-thread-min: 400px;
-    --conversas-list-width: 400px;
+    --conversas-list-width: clamp(420px, 44vw, 760px);
     grid-template-columns: var(--conversas-list-width) minmax(var(--conversas-thread-min), 1fr);
   }
 }
@@ -6554,11 +6554,11 @@
 
   /*
    * Densidade Conversas desktop (Confirmado Paulo 31/10/2026, Opção A / mocks WA):
-   * lista estável ~400 px (ainda no intervalo DEC-068 360–520), header compacto,
-   * busca sunken, linhas densas, empty simples, thread com bolhas/compositor.
+   * header compacto, busca sunken, linhas densas, empty simples, thread com bolhas.
+   * Largura revista no mesmo dia («aplica»): 44% da janela, mín. 420, máx. 760.
    */
   .conversas-3col {
-    --conversas-list-width: 400px;
+    --conversas-list-width: clamp(420px, 44vw, 760px);
     grid-template-columns: var(--conversas-list-width) minmax(var(--conversas-thread-min), 1fr);
   }
 
@@ -6749,8 +6749,8 @@
 }
 
 /* ——— Painel de detalhe deslizante (Conversas): por cima, sem véu, sem empurrar a lista ———
- * Duas colunas (lista · conversa). Em ≥1280 px a lista fica ~400 px (Opção A Confirmada);
- * entre 1024 e 1279 px usa o intervalo DEC-068. O contato entra da direita em 200 ms. */
+ * Duas colunas (lista · conversa). Em ≥1280 px a lista é 44% da janela (420–760 px);
+ * entre 1024 e 1279 px fica em 30% (360–520). O contato entra da direita em 200 ms. */
 .conversas-3col,
 .conversas-3col:not(.conversas-3col--drawer) {
   grid-template-columns: clamp(360px, 30vw, 520px) minmax(var(--conversas-thread-min), 1fr);
@@ -6759,7 +6759,7 @@
 @media (min-width: 1280px) {
   .conversas-3col,
   .conversas-3col:not(.conversas-3col--drawer) {
-    --conversas-list-width: 400px;
+    --conversas-list-width: clamp(420px, 44vw, 760px);
     grid-template-columns: var(--conversas-list-width) minmax(var(--conversas-thread-min), 1fr);
   }
 }

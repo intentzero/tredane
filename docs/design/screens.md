@@ -102,7 +102,7 @@ A moldura do desktop (≥ 1280 px), o painel de detalhe deslizante, o seletor de
 
 | Ficheiro | Tela | O que mostra | Estado |
 | --- | --- | --- | --- |
-| `desktop/ConversasDesktopProposta.dc.html` | TEL-01 lista + empty | Rail DEC-068, lista 400 px (busca sunken, chips Todas/Novas/Minhas/Sem responsável, linhas densas com Em atendimento / Precisa de alguém), empty centrado «Escolha uma conversa» — sem card promo | **Confirmado** (Paulo 31/10/2026, Opção A); implementado no painel |
+| `desktop/ConversasDesktopProposta.dc.html` | TEL-01 lista + empty | Rail DEC-068, lista a 44% de 1440 px (634 px; busca sunken, chips Todas/Novas/Minhas/Sem responsável, linhas densas com Em atendimento / Precisa de alguém), empty centrado «Escolha uma conversa» — sem card promo | **Confirmado** (Paulo 31/10/2026, Opção A; largura revista no mesmo dia, «aplica»); implementado no painel |
 | `desktop/ConversasDesktopPropostaThread.dc.html` | TEL-01 thread | Mesma moldura com Juliana aberta: cabeçalho, bolhas, sugestão IA e compositor; linha activa na lista | **Confirmado** (Paulo 31/10/2026, Opção A); implementado no painel |
 
 `desktop/Main.dc.html` permanece como exploração antiga (três colunas); a referência visual do desktop de Conversas são os mocks `ConversasDesktopProposta*`.
