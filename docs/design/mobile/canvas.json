@@ -469,6 +469,30 @@
       "h": 844,
       "title": "M-55 Ações da conversa (proposta sem duplicatas)",
       "radius": 32
+    },
+    "AgendaSemanaCartoes.dc.html": {
+      "x": 0,
+      "y": 14808,
+      "w": 390,
+      "h": 844,
+      "title": "M-57 Agenda · Semana em cartões",
+      "radius": 32
+    },
+    "CompromissoCancelarSinal.dc.html": {
+      "x": 470,
+      "y": 14808,
+      "w": 390,
+      "h": 844,
+      "title": "M-58 Compromisso e cancelar com sinal",
+      "radius": 32
+    },
+    "AgendaDiaVazio.dc.html": {
+      "x": 940,
+      "y": 14808,
+      "w": 390,
+      "h": 844,
+      "title": "M-59 Agenda · Dia sem horários",
+      "radius": 32
     }
   },
   "order": [
@@ -521,7 +545,10 @@
     "PixDetalhes.dc.html",
     "ConversaSugestaoLonga.dc.html",
     "Conferir.dc.html",
-    "TempoServico.dc.html"
+    "TempoServico.dc.html",
+    "AgendaSemanaCartoes.dc.html",
+    "CompromissoCancelarSinal.dc.html",
+    "AgendaDiaVazio.dc.html"
   ],
   "notes": {
     "row1": {
