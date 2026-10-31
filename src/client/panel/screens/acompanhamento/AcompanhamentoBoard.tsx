@@ -22,6 +22,7 @@ import {
 import { MoveSheet } from './MoveSheet'
 import { friendlyError } from '../../copy/errors'
 import { ListSkeleton } from '../../states/ListSkeleton'
+import { useInboxRealtime } from '../../realtime/InboxRealtime'
 
 type Props = {
   tenantId: string
@@ -65,6 +66,18 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
   useEffect(() => {
     void load()
   }, [tenantId, generation, stage])
+
+  // Exclusão de contacto (ou resync): tirar cartões com identidade do contacto.
+  useInboxRealtime((signals) => {
+    const touch = signals.some(
+      (s) =>
+        s.kind === 'resync' ||
+        (s.kind === 'event' &&
+          (s.event.eventType === 'contact.deleted' ||
+            s.event.eventType === 'opportunity.stage_changed')),
+    )
+    if (touch) void load({ keep: true })
+  })
 
   async function seedDemo() {
     setSeeding(true)

@@ -17,6 +17,7 @@ import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { useVisiblePolling } from '../../ui/useVisiblePolling'
+import { isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
 import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
 import { CompromissoScreen } from './CompromissoScreen'
@@ -219,6 +220,16 @@ export function AgendaDayWeek({
     setNow(Date.now())
     void load()
   }, 15_000)
+
+  // contact.deleted anonimiza rótulos — refetch imediato (AC-52), sem esperar o poll.
+  useInboxRealtime((signals) => {
+    const touch = signals.some(
+      (s) =>
+        s.kind === 'resync' ||
+        (s.kind === 'event' && isScheduleEvent(s.event)),
+    )
+    if (touch) void load()
+  })
 
   const timezone = data?.timezone ?? DEFAULT_TZ
   const today = upcomingCivilDates(timezone, now, 1)[0]!

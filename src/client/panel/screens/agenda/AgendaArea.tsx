@@ -1,5 +1,6 @@
 import { useAuthSession } from '../../auth/AuthContext'
 import { useTenant } from '../../tenant/TenantContext'
+import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
 import type { AgendaSection } from '../../routes'
 import { EmptyState, LoadingState } from '../../states/StatusScreens'
 import { useMediaQuery } from '../../ui/useMediaQuery'
@@ -63,14 +64,16 @@ export function AgendaArea({ tenantId, section, appointmentId, focusDate }: Prop
   }
 
   return (
-    <AgendaDayWeek
-      tenantId={tenantId}
-      api={api}
-      generation={generation}
-      view={section === 'semana' ? 'week' : 'day'}
-      openId={section === 'compromisso' ? appointmentId : undefined}
-      focusDate={focusDate}
-      isOwner={isOwner}
-    />
+    <InboxRealtimeProvider tenantId={tenantId} api={api} generation={generation}>
+      <AgendaDayWeek
+        tenantId={tenantId}
+        api={api}
+        generation={generation}
+        view={section === 'semana' ? 'week' : 'day'}
+        openId={section === 'compromisso' ? appointmentId : undefined}
+        focusDate={focusDate}
+        isOwner={isOwner}
+      />
+    </InboxRealtimeProvider>
   )
 }

@@ -45,6 +45,8 @@ export function isScheduleEvent(event: RealtimeServerEvent): boolean {
     event.eventType.startsWith('appointment.')
     || event.eventType.startsWith('schedule_hold.')
     || event.eventType === 'cobranca.paga'
+    // Exclusão anonimiza compromissos — a grade precisa refetch (REQ-071 / AC-52).
+    || event.eventType === 'contact.deleted'
   )
 }
 
@@ -54,6 +56,27 @@ export function eventConversationId(event: RealtimeServerEvent): string | null {
   if (typeof fromPayload === 'string') return fromPayload
   if (event.entity?.type === 'conversation') return event.entity.id
   return null
+}
+
+/** contactId no payload de `contact.*` (sem PII). */
+export function eventContactId(event: RealtimeServerEvent): string | null {
+  const fromPayload = event.payload?.contactId
+  if (typeof fromPayload === 'string') return fromPayload
+  if (event.entity?.type === 'contact') return event.entity.id
+  return null
+}
+
+/**
+ * A conversa foi apagada com o contacto (`contact.deleted` com conversationIds).
+ * Usado pelo thread para não manter mensagens em cache após exclusão.
+ */
+export function eventDeletesConversation(
+  event: RealtimeServerEvent,
+  conversationId: string,
+): boolean {
+  if (event.eventType !== 'contact.deleted') return false
+  const ids = event.payload?.conversationIds
+  return Array.isArray(ids) && ids.includes(conversationId)
 }
 
 export function InboxRealtimeProvider({

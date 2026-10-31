@@ -256,10 +256,41 @@ describe('MVP-31 — jornada E2E sintética (#45)', () => {
         a.clock,
       )
 
+      // Sessão de agendamento com FK → conversations (regressão staging: sem cascata a TX abortava).
+      a.db.run(
+        `INSERT INTO schedule_sessions (
+          tenant_id, conversation_id, service_id, audience_line, day_label, period, updated_at
+        ) VALUES (?, ?, ?, NULL, NULL, NULL, ?)`,
+        CLINIC_A,
+        a.conversation.id,
+        a.svcPlain.id,
+        a.clock.nowMs(),
+      )
+
       const contactsBBefore = listContacts(b.db, CLINIC_B).length
       const deleted = deleteContactOp(a.db, a.caller, a.contact.id, a.clock)
       expect(deleted.value.deletedMessageCount).toBeGreaterThanOrEqual(1)
+      expect(deleted.value.deletedConversationCount).toBeGreaterThanOrEqual(1)
       expect(getContact(a.db, CLINIC_A, a.contact.id)).toBeUndefined()
+      expect(
+        a.db.get<{ n: number }>(
+          `SELECT COUNT(*) AS n FROM conversations WHERE tenant_id = ?`,
+          CLINIC_A,
+        )?.n,
+      ).toBe(0)
+      expect(
+        a.db.get<{ n: number }>(
+          `SELECT COUNT(*) AS n FROM opportunities WHERE tenant_id = ? AND contact_id = ?`,
+          CLINIC_A,
+          a.contact.id,
+        )?.n,
+      ).toBe(0)
+      expect(
+        a.db.get<{ n: number }>(
+          `SELECT COUNT(*) AS n FROM schedule_sessions WHERE tenant_id = ?`,
+          CLINIC_A,
+        )?.n,
+      ).toBe(0)
 
       const appt = a.db.get<{ contact_label: string | null; contact_id: string | null }>(
         `SELECT contact_label, contact_id FROM appointments WHERE tenant_id = ? LIMIT 1`,

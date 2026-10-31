@@ -98,6 +98,102 @@ describe('retenção — exclusão de contacto', () => {
     }
   })
 
+  it('AC-52: cascade com schedule_sessions — mensagens/pipeline somem e agenda anonimiza', () => {
+    const { db, close } = bootClinicDb()
+    try {
+      const clock = systemClock
+      const tenantId = 'clinic-demo-retention-session'
+      const caller = workerCaller(tenantId, 'user_synth_owner_session')
+
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:evt:ret-session-1',
+          waId: '5511999888777',
+          displayName: 'Paulo',
+          body: 'Quero marcar',
+        },
+        clock,
+      )
+      const contactId = ingested.contact!.id
+      const conversationId = ingested.conversation!.id
+
+      // Sessão de agendamento (DEC-078) — FK para conversations; regressão do bug de staging.
+      db.run(
+        `INSERT INTO schedule_sessions (
+          tenant_id, conversation_id, service_id, audience_line, day_label, period, updated_at
+        ) VALUES (?, ?, ?, NULL, NULL, NULL, ?)`,
+        tenantId,
+        conversationId,
+        'svc-session',
+        clock.nowMs(),
+      )
+
+      const apptId = newId('apt')
+      const now = clock.nowMs()
+      db.run(
+        `INSERT INTO appointments (
+          id, tenant_id, service_id, professional_id, room_resource_id,
+          starts_at, ends_at, status, contact_label, created_at, contact_id, conversation_id
+        ) VALUES (?, ?, ?, ?, NULL, ?, ?, 'confirmed', ?, ?, ?, ?)`,
+        apptId,
+        tenantId,
+        'svc-x',
+        'pro-x',
+        now + 3600_000,
+        now + 5400_000,
+        'Paulo',
+        now,
+        contactId,
+        conversationId,
+      )
+
+      const deleted = deleteContactOp(db, caller, contactId, clock)
+      expect(deleted.value.deletedMessageCount).toBeGreaterThanOrEqual(1)
+      expect(deleted.value.deletedConversationCount).toBe(1)
+      expect(deleted.value.deletedOpportunityCount).toBeGreaterThanOrEqual(1)
+      expect(deleted.value.anonymizedAppointmentCount).toBe(1)
+
+      expect(getContact(db, tenantId, contactId)).toBeUndefined()
+      expect(
+        db.get<{ n: number }>(
+          `SELECT COUNT(*) AS n FROM messages WHERE tenant_id = ?`,
+          tenantId,
+        )?.n,
+      ).toBe(0)
+      expect(
+        db.get<{ n: number }>(
+          `SELECT COUNT(*) AS n FROM conversations WHERE tenant_id = ?`,
+          tenantId,
+        )?.n,
+      ).toBe(0)
+      expect(
+        db.get<{ n: number }>(
+          `SELECT COUNT(*) AS n FROM opportunities WHERE tenant_id = ?`,
+          tenantId,
+        )?.n,
+      ).toBe(0)
+      expect(
+        db.get<{ n: number }>(
+          `SELECT COUNT(*) AS n FROM schedule_sessions WHERE tenant_id = ?`,
+          tenantId,
+        )?.n,
+      ).toBe(0)
+
+      const appt = db.get<{ contact_id: string | null; contact_label: string | null }>(
+        `SELECT contact_id, contact_label FROM appointments WHERE tenant_id = ? AND id = ?`,
+        tenantId,
+        apptId,
+      )
+      expect(appt?.contact_id).toBeNull()
+      expect(appt?.contact_label).toBe(ANONYMIZED_CONTACT_LABEL)
+      expect(appt?.contact_label).not.toBe('Paulo')
+    } finally {
+      close()
+    }
+  })
+
   it('isolamento: exclusão em A não afecta B', () => {
     const a = bootClinicDb()
     const b = bootClinicDb()

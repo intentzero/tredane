@@ -181,9 +181,8 @@ export function InboxContactScreen({
       )
       setConfirmOpen(false)
       setData(null)
-      window.setTimeout(() => {
-        navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'lista' })
-      }, 1200)
+      // Voltar já à lista — evita thread/pipeline em cache com o contacto ainda aberto.
+      navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'lista' })
     } catch (err) {
       // Não registar nome/telefone no console — mensagem genérica ao usuário.
       setDeleteError(deleteErrorMessage(err))
