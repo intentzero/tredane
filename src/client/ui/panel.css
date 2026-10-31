@@ -636,13 +636,21 @@
   position: relative;
 }
 
+/*
+ * Ritmo horizontal do cabeçalho de área (título + clínica / Ao vivo).
+ * Conversas no desktop (≥ 1280 px) reutiliza --panel-header-inline no
+ * .conversas-list-head para o título cair no mesmo X que Acompanhar/Agenda/Clínica.
+ */
 .panel-shell-header {
+  --panel-header-inline: var(--space-4);
+  --panel-header-block-start: calc(var(--space-4) + env(safe-area-inset-top, 0px));
+  --panel-header-block-end: var(--space-3);
   flex: none;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-4) var(--space-3);
+  padding: var(--panel-header-block-start) var(--panel-header-inline) var(--panel-header-block-end);
   background: var(--color-surface-card);
   border-bottom: var(--size-border-width) solid var(--color-line-border);
 }
@@ -6433,9 +6441,10 @@
   }
 
   /*
-   * Padding da coluna a 0: o cabeçalho usa o mesmo ritmo do .panel-shell-header
-   * (space-4 / space-4 / space-3) e .inbox-root já traz space-4 horizontal.
-   * Antes, space-3 da coluna + space-4 do inbox desalinhava o título face à busca/lista.
+   * Padding da coluna a 0: o list-head herda o ritmo do shell via
+   * --panel-header-inline / block (mesmo X que Acompanhar). .inbox-root
+   * já traz space-4 horizontal — alinhado ao título. Antes, space-3 da
+   * coluna + space-4 do inbox desalinhava o título face à busca/lista.
    */
   .conversas-3col-list {
     padding: 0;
@@ -6444,11 +6453,15 @@
   }
 
   .conversas-list-head {
+    --panel-header-inline: var(--space-4);
+    --panel-header-block-start: var(--space-4);
+    --panel-header-block-end: var(--space-3);
     display: flex;
     flex-direction: column;
     flex: none;
-    padding: var(--space-4) var(--space-4) var(--space-3);
+    padding: var(--panel-header-block-start) var(--panel-header-inline) var(--panel-header-block-end);
     border-bottom: var(--size-border-width) solid var(--color-line-border);
+    background: var(--color-surface-card);
   }
 
   /* Loading / erro da lista (sem .inbox-root): mesma margem horizontal do cabeçalho. */
