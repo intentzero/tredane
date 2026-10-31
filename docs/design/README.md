@@ -72,6 +72,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 | Fonte | Os mocks pedem Inter e os previews usam a fonte do sistema | Usar **Roboto** (400/500/600), hospedada pelo Tredane ([DEC-073](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); conferir as quebras de linha com ela, porque a largura do texto muda com a fonte e linhas que cabem nos previews podem quebrar |
 | M-01 / M-02 (PR-7) | Lista contínua no lugar de cartões; Assumir em faixa, Agendar em ícone e Encerrar no menu ⋮ com confirmação; um só cabeçalho na conversa | **Proposto**; vale até o responsável do produto revisar. Registrado em [components.md](components.md) |
 | M-01 vs M-54 / painel | M-01 ainda mostra lista antiga no canvas | **Confirmado (M-54, Paulo 31/10/2026):** painel usa lista full-bleed + busca sunken; M-01 pode ser regenerado depois |
+| M-40 vs M-55 / painel | M-40 e o painel ainda mostram Resumo da IA e Bloquear no ⋮ (duplicados no Contato) | **Proposto (31/10/2026):** Opção A — Resumo e Bloquear só no Contato; ⋮ = conversa/pipeline (M-55 + mocks `ConversasControles*`). Vale após o Paulo decidir |
 | Hora e data | Fixas (sexta, 30 de outubro) | Sempre no fuso da clínica (DEC-008), nunca em UTC |
 
 ## Manutenção

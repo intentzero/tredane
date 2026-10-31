@@ -3,6 +3,13 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 31/10/2026 — Controlos da thread (proposta de simplificação)
+
+- **Proposto** (à espera do Paulo): reorganizar Resumo da IA e Bloquear para uma só entrada no Contato; menu ⋮ / folha só com conversa/pipeline.
+- Desktop: `ConversasControlesMenu.dc.html`, `ConversasControlesContato.dc.html` + previews.
+- Mobile: M-55 `AcoesConversaProposta.dc.html` (M-40 mantém o estado anterior até decisão).
+- Spec: nota **Proposto** em `ux-ui.md` TEL-01; sem implementação de código.
+
 ## 31/10/2026 — M-54 Conversas lista mobile (**Confirmado**, Opção A)
 
 - Mock `mobile/ConversasListaProposta.dc.html` + preview `M-54-ConversasListaProposta.png`: lista contínua full-bleed, busca sunken, densidade DEC-081, shell intacto.
