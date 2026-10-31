@@ -44,7 +44,7 @@ describe('DEC-088 human outbound prefix', () => {
     ).toBe(false)
   })
 
-  it('sendOutboundMessageOp grava body com [Nome]', () => {
+  it('sendOutboundMessageOp prefixa só o payload whatsapp.send', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 15))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -85,7 +85,11 @@ describe('DEC-088 human outbound prefix', () => {
         },
         clock,
       )
-      expect(sent.value.message.body).toBe('[Ana] Pode ser às 16h?')
+      expect(sent.value.message.body).toBe('Pode ser às 16h?')
+      const sendOb = sent.outbox.find((o) => o.type === 'whatsapp.send')
+      expect(sendOb).toBeTruthy()
+      const payload = JSON.parse(sendOb!.payloadJson) as { body: string }
+      expect(payload.body).toBe('[Ana] Pode ser às 16h?')
       const dup = sendOutboundMessageOp(
         db,
         caller,
@@ -99,7 +103,7 @@ describe('DEC-088 human outbound prefix', () => {
         clock,
       )
       expect(dup.value.duplicate).toBe(true)
-      expect(dup.value.message.body).toBe('[Ana] Pode ser às 16h?')
+      expect(dup.value.message.body).toBe('Pode ser às 16h?')
     } finally {
       close()
     }

@@ -1,6 +1,7 @@
 /**
- * DEC-088 — prefixo `[Nome]` em outbound de texto livre humano.
- * Não aplica a templates, interactivos, IA nem actors `system:*`.
+ * DEC-088 — prefixo `[Nome]` no texto livre enviado à cliente no WhatsApp.
+ * Não altera o body persistido/API do painel. Não aplica a templates,
+ * interactivos, IA nem actors `system:*`.
  */
 
 const SYSTEM_AUTHOR_PREFIX = 'system:'
