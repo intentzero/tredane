@@ -537,14 +537,17 @@ function ConversasListHead() {
   const ctx = active.context
   return (
     <div className="conversas-list-head">
-      <h1 className="panel-title-lg">Conversas</h1>
-      <ShellIdentity
-        tenantId={ctx.tenantId}
-        name={ctx.name}
-        area="conversas"
-        tenants={listState.phase === 'ready' ? listState.tenants : []}
-        offline={!online}
-      />
+      {/* Mesma composição do .panel-shell-header (título + clínica / Ao vivo). */}
+      <div className="panel-shell-titles">
+        <h1 className="panel-title-lg">Conversas</h1>
+        <ShellIdentity
+          tenantId={ctx.tenantId}
+          name={ctx.name}
+          area="conversas"
+          tenants={listState.phase === 'ready' ? listState.tenants : []}
+          offline={!online}
+        />
+      </div>
     </div>
   )
 }

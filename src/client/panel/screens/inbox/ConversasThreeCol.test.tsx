@@ -1,10 +1,20 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConversasThreeCol } from './ConversasArea'
 
-vi.mock('../../tenant/TenantContext', () => ({
-  useTenant: () => ({ active: { phase: 'none' }, listState: { phase: 'idle' } }),
+const tenantState = vi.hoisted(() => ({
+  active: { phase: 'none' as string, context: undefined as undefined | { tenantId: string; name: string } },
+  listState: { phase: 'idle' as string, tenants: [] as { tenantId: string; name: string }[] },
 }))
+
+vi.mock('../../tenant/TenantContext', () => ({
+  useTenant: () => tenantState,
+}))
+
+beforeEach(() => {
+  tenantState.active = { phase: 'none', context: undefined }
+  tenantState.listState = { phase: 'idle', tenants: [] }
+})
 
 afterEach(() => {
   cleanup()
@@ -76,6 +86,26 @@ describe('ConversasThreeCol', () => {
     expect(screen.getByRole('heading', { name: 'Escolha uma conversa' })).toBeTruthy()
     expect(screen.queryByRole('complementary', { name: 'Contato' })).toBeNull()
     expect(container.querySelector('.conversas-3col-list')).toBeTruthy()
+  })
+
+  it('cabeçalho da lista usa a mesma composição do shell (título + clínica)', () => {
+    stubMatchMedia(true)
+    tenantState.active = {
+      phase: 'ready',
+      context: { tenantId: 't', name: 'Clínica Demo' },
+    }
+    tenantState.listState = {
+      phase: 'ready',
+      tenants: [{ tenantId: 't', name: 'Clínica Demo' }],
+    }
+    const { container } = render(
+      <ConversasThreeCol tenantId="t" api={api} generation={1} viewerId="u" isOwner />,
+    )
+    const head = container.querySelector('.conversas-list-head')
+    expect(head).toBeTruthy()
+    expect(head?.querySelector('.panel-shell-titles')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Conversas' })).toBeTruthy()
+    expect(head?.querySelector('.panel-live')?.textContent).toContain('Ao vivo')
   })
 
   it('sem conversa aberta: mesma moldura, estado vazio e sem coluna de contato', () => {

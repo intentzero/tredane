@@ -6432,11 +6432,28 @@
     grid-template-columns: clamp(360px, 30vw, 520px) minmax(var(--conversas-thread-min), 1fr);
   }
 
+  /*
+   * Padding da coluna a 0: o cabeçalho usa o mesmo ritmo do .panel-shell-header
+   * (space-4 / space-4 / space-3) e .inbox-root já traz space-4 horizontal.
+   * Antes, space-3 da coluna + space-4 do inbox desalinhava o título face à busca/lista.
+   */
+  .conversas-3col-list {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .conversas-list-head {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
-    padding: 0 0 var(--space-3);
+    flex: none;
+    padding: var(--space-4) var(--space-4) var(--space-3);
+    border-bottom: var(--size-border-width) solid var(--color-line-border);
+  }
+
+  /* Loading / erro da lista (sem .inbox-root): mesma margem horizontal do cabeçalho. */
+  .conversas-3col-list > :not(.conversas-list-head):not(.inbox-root) {
+    padding: var(--space-3) var(--space-4);
   }
 
   .conversas-empty-pane {
