@@ -1,5 +1,4 @@
 import { Users } from 'lucide-react'
-import { Button } from 'react-aria-components'
 import type { AgendaAppointmentItem, ScheduleHold } from '../../api'
 import { formatSlotTime } from './format'
 import { initialsOf, PROFESSIONAL_TONES, shortName, type DayEntry } from './dayList'
@@ -15,7 +14,6 @@ type Props = {
   onOpen: (id: string) => void
   onSchedule: () => void
   onOpenHold: (hold: ScheduleHold) => void
-  emptyText: string
 }
 
 function toneOf(professionals: AgendaProfessional[], id: string): number {
@@ -69,7 +67,6 @@ export function AgendaDayList({
   onOpen,
   onSchedule,
   onOpenHold,
-  emptyText,
 }: Props) {
   return (
     <div className="agenda-list">
@@ -88,14 +85,8 @@ export function AgendaDayList({
         </section>
       ) : null}
 
-      {entries.length === 0 ? (
-        <div className="agenda-empty" role="status">
-          <p>{emptyText}</p>
-          <Button className="panel-btn-secondary panel-btn-compact" onPress={onSchedule}>
-            Agendar horário
-          </Button>
-        </div>
-      ) : (
+      {/* Dia vazio: sem faixa tracejada nem «Agendar horário» — o «+ Agendar» do topo já cobre (Paulo). */}
+      {entries.length === 0 ? null : (
         <ol className="agenda-rows" aria-label="Horários do dia">
           {entries.map((e) => {
             if (e.kind === 'now') {

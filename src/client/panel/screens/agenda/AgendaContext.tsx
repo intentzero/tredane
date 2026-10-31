@@ -20,7 +20,6 @@ type Props = {
   countOf: (professionalId: string) => number
   entries: DayEntry[]
   holds: ScheduleHold[]
-  emptyText: string
   onPickDate: (iso: string) => void
   onTogglePro: (id: string) => void
   onToggleRoom: (id: string) => void
@@ -47,7 +46,6 @@ export function AgendaContext({
   countOf,
   entries,
   holds,
-  emptyText,
   onPickDate,
   onTogglePro,
   onToggleRoom,
@@ -136,7 +134,6 @@ export function AgendaContext({
           onOpen={onOpen}
           onSchedule={onSchedule}
           onOpenHold={onOpenHold}
-          emptyText={emptyText}
         />
       </section>
     </aside>

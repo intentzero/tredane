@@ -3549,23 +3549,6 @@
   padding-top: 0;
 }
 
-.agenda-empty {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-card);
-  border: var(--size-border-width) dashed var(--color-line-control);
-}
-
-.agenda-empty p {
-  margin: 0;
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-}
-
 .agenda-grid {
   --agenda-gutter: 52px;
   position: relative;
