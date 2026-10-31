@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
+import { setClinicAiAssistEnabled } from '../config/settings'
 import { ingestContactMessage, workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
+import { enqueueAutoDraft } from '../ai/autodraft'
 import {
   assignConversationOp,
   closeConversationOp,
@@ -12,6 +14,7 @@ import {
 import { seedSyntheticInboxOp } from './seed'
 import { seedSyntheticWhatsappTemplates } from './templates'
 import { syncWhatsappChannel } from '../whatsapp/channel'
+import { serializeConversation } from '../../inbox/serialize'
 
 describe('Clinic inbox — conversas e histórico (#29)', () => {
   it('mesmo waId em clínicas A e B gera contactos/conversas independentes', () => {
@@ -387,6 +390,41 @@ describe('Clinic inbox — conversas e histórico (#29)', () => {
       )
       expect(detail.messages.some((m) => m.body === 'antes')).toBe(true)
       expect(detail.messages.some((m) => m.body === 'voltei')).toBe(true)
+    } finally {
+      close()
+    }
+  })
+
+  it('lista marca aiDrafting enquanto há job de rascunho automático', () => {
+    const { db, clock, close } = bootClinicDb()
+    try {
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      setClinicAiAssistEnabled(db, caller.tenantId, true, clock)
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:aidraft:1',
+          waId: '5511987001999',
+          displayName: 'Paulo',
+          body: 'Quero agendar uma depilação?',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      const messageId = ingested.message!.id
+
+      let listed = listConversationsOp(db, caller, { filter: 'all' }, clock)
+      expect(listed.items.find((c) => c.id === conversationId)?.aiDrafting).toBe(false)
+
+      expect(
+        enqueueAutoDraft(db, caller.tenantId, { conversationId, messageId }, clock),
+      ).not.toBeNull()
+
+      listed = listConversationsOp(db, caller, { filter: 'all' }, clock)
+      const row = listed.items.find((c) => c.id === conversationId)
+      expect(row?.aiDrafting).toBe(true)
+      expect(serializeConversation(row!).aiDrafting).toBe(true)
     } finally {
       close()
     }

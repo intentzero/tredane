@@ -22,6 +22,12 @@ const NEEDS_PERSON_SQL = `(
   )
 )`
 
+/** Job de rascunho automático ainda vivo (debounce ou a gerar). */
+const AI_DRAFTING_SQL = `EXISTS (
+  SELECT 1 FROM ai_autodraft_jobs j
+  WHERE j.tenant_id = c.tenant_id AND j.conversation_id = c.id
+)`
+
 const CONV_COLS = `c.id, c.tenant_id, c.contact_id, c.status,
   c.assignee_clerk_user_id, c.assignee_display_name, c.assignment_version,
   c.last_message_at, c.last_message_preview, c.last_message_direction,
@@ -312,10 +318,12 @@ export function listConversations(
       contact_blocked_by: string | null
       contact_blocked_reason: string | null
       needs_person: number
+      ai_drafting: number
     }
   >(
     `SELECT ${CONV_COLS},
        CASE WHEN ${NEEDS_PERSON_SQL} THEN 1 ELSE 0 END AS needs_person,
+       CASE WHEN ${AI_DRAFTING_SQL} THEN 1 ELSE 0 END AS ai_drafting,
        ct.wa_id AS contact_wa_id,
        ct.display_name AS contact_display_name,
        ct.created_at AS contact_created_at,
@@ -354,6 +362,7 @@ export function listConversations(
       blocked_reason: row.contact_blocked_reason,
     }),
     needsPerson: row.needs_person === 1,
+    aiDrafting: row.ai_drafting === 1,
   }))
   const nextBefore =
     rows.length > limit && page.length > 0
@@ -434,10 +443,12 @@ export function getConversationWithContact(
       contact_blocked_by: string | null
       contact_blocked_reason: string | null
       needs_person: number
+      ai_drafting: number
     }
   >(
     `SELECT ${CONV_COLS},
        CASE WHEN ${NEEDS_PERSON_SQL} THEN 1 ELSE 0 END AS needs_person,
+       CASE WHEN ${AI_DRAFTING_SQL} THEN 1 ELSE 0 END AS ai_drafting,
        ct.wa_id AS contact_wa_id,
        ct.display_name AS contact_display_name,
        ct.created_at AS contact_created_at,
@@ -464,6 +475,7 @@ export function getConversationWithContact(
       blocked_reason: row.contact_blocked_reason,
     }),
     needsPerson: row.needs_person === 1,
+    aiDrafting: row.ai_drafting === 1,
   }
 }
 

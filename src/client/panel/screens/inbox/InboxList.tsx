@@ -15,11 +15,16 @@ import {
   statusTone,
   statusLabel,
 } from './format'
-import { useInboxRealtime } from '../../realtime/InboxRealtime'
+import {
+  eventConversationId,
+  useInboxRealtime,
+  type InboxRealtimeSignal,
+} from '../../realtime/InboxRealtime'
 import { friendlyError } from '../../copy/errors'
 import { Badge } from '../../states/Badge'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { applyAppBadge } from '../../badge'
+import { AI_DRAFTING_SR_LABEL, draftingFlagFromAiDraftState } from './aiDrafting'
 
 const FILTERS: InboxFilter[] = ['all', 'new', 'mine', 'unassigned', 'needs_person', 'closed']
 
@@ -30,6 +35,61 @@ type Props = {
   viewerClerkUserId: string
   /** Conversa aberta ao lado (desktop): a linha fica marcada. */
   activeConversationId?: string
+}
+
+/** Aplica sinais WS ao mapa de drafting (imutável se nada mudar). */
+export function applyDraftingSignals(
+  prev: Record<string, boolean>,
+  signals: InboxRealtimeSignal[],
+): Record<string, boolean> {
+  let next = prev
+  for (const signal of signals) {
+    if (signal.kind === 'resync') continue
+    const { event } = signal
+    const id = eventConversationId(event)
+    if (!id) continue
+    if (event.eventType === 'conversation.ai_draft') {
+      const flag = draftingFlagFromAiDraftState(event.payload?.state)
+      if (flag == null) continue
+      if (next === prev) next = { ...prev }
+      next[id] = flag
+      continue
+    }
+    // Pausa DEC-083 cancela o job — desliga o spinner sem esperar o refetch.
+    if (
+      event.eventType === 'conversation.ai_pause' &&
+      event.payload?.aiReplyPaused === true
+    ) {
+      if (next === prev) next = { ...prev }
+      next[id] = false
+    }
+  }
+  return next
+}
+
+function draftingMapFromList(conversations: InboxConversation[]): Record<string, boolean> {
+  const map: Record<string, boolean> = {}
+  for (const c of conversations) {
+    if (c.aiDrafting) map[c.id] = true
+  }
+  return map
+}
+
+function InboxAiDraftingIndicator() {
+  return (
+    <span
+      className="inbox-row-ai"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <span className="inbox-row-ai-spinner" aria-hidden />
+      <span className="inbox-row-ai-label" aria-hidden>
+        IA
+      </span>
+      <span className="panel-sr-only">{AI_DRAFTING_SR_LABEL}</span>
+    </span>
+  )
 }
 
 export function InboxList({
@@ -45,6 +105,8 @@ export function InboxList({
   const [counts, setCounts] = useState<InboxCounts | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  /** Overlay WS: true/false por conversa até o próximo refetch reconciliar. */
+  const [draftingById, setDraftingById] = useState<Record<string, boolean>>({})
 
   async function load(opts?: { keep?: boolean }) {
     if (!opts?.keep) setLoading(true)
@@ -57,6 +119,8 @@ export function InboxList({
       )
       setItems(res.conversations)
       setCounts(res.counts)
+      // API é a fonte de verdade após refetch (resync / evento).
+      setDraftingById(draftingMapFromList(res.conversations))
       // Badge do ícone coerente com a lista que a pessoa está vendo.
       const unread = res.counts?.unread ?? 0
       const needsPerson = res.counts?.needsPerson ?? 0
@@ -73,9 +137,9 @@ export function InboxList({
     void load()
   }, [tenantId, generation, filter, q])
 
-  // Tempo real: qualquer evento do inbox ou (re)ligação → refetch silencioso
-  // (mantém lista visível, filtro, busca e scroll).
-  useInboxRealtime(() => {
+  // Tempo real: actualiza o spinner já no payload; refetch silencioso reconcilia.
+  useInboxRealtime((signals) => {
+    setDraftingById((prev) => applyDraftingSignals(prev, signals))
     void load({ keep: true })
   })
 
@@ -181,6 +245,7 @@ export function InboxList({
         <ul className="inbox-list">
           {list.map((c) => {
             const label = contactLabel(c.contact)
+            const drafting = draftingById[c.id] === true
             return (
               <li key={c.id}>
                 <button
@@ -211,6 +276,7 @@ export function InboxList({
                     <span className="inbox-row-meta">
                       <Badge tone={statusTone(c.status)}>{statusLabel(c.status)}</Badge>
                       {c.needsPerson ? <Badge tone="wait">Precisa de alguém</Badge> : null}
+                      {drafting ? <InboxAiDraftingIndicator /> : null}
                       <span className="inbox-row-assignee">
                         {assigneeLine(c, viewerClerkUserId)}
                       </span>
