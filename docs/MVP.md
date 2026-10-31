@@ -70,6 +70,7 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 - [Fronteira de dados entre clínicas](product/tenant-boundaries.md)
 - [Proteção da equipe (DEC-067, decidida)](product/protecao-equipe.md): imagens ocultas sob demanda e fora da IA, sinalização humana, pausa das automações; P-1–P-3 decididos em 28/10/2026.
 - [Especificação de UI/UX do painel](product/ux-ui.md) (telas, estados visíveis e critérios de UX)
+- [Vista Clientes / Contato (ficha operacional)](product/clientes-vista.md) — **Proposto** (MVP+; aguarda decisão de navegação A/B/híbrido); não é prontuário clínico
 - [Mocks e guia de implementação da interface](design/README.md): telas mobile M-01 a M-34, componentes, tokens e previews
 - [Landing page do piloto](product/landing.md) (DEC-044): fora do fluxo piloto do painel; site Astro estático em `site/`, sem publicação até fechar domínio, contato e política de privacidade
 - [Registro de hipóteses a validar](product/validation-register.md) e [auditoria do Issue #1 (23/10/2026)](product/definition-audit-2026-10-23.md) — acompanhamento, não decisões novas.
