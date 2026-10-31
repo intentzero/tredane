@@ -3,6 +3,10 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 31/10/2026 — Agenda: semana em cartões e Abrir conversa (**Proposto**)
+
+- Propostas visuais (canvas externo «Agenda: segunda rodada de UI/UX», privado): Semana, Compromisso com cancelar e sinal, Dia sem horários, Semana desktop. Implementado só o que os dados permitem: semana no celular em cartões por dia e «Abrir conversa» no compromisso. Fora: barra de ocupação, horários livres sugeridos, cancelar com cartões de rádio.
+
 ## 31/10/2026 — Controlos da thread (Opção A **Confirmada**)
 
 - **Confirmado (Paulo, 31/10/2026, Opção A):** Resumo da IA e Bloquear só no Contato; menu ⋮ / folha M-55 só conversa/pipeline; header Agendar · Contato · ⋮.

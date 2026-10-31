@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, ToggleButton, ToggleButtonGroup } from 'react-aria-components'
 import {
@@ -101,6 +101,7 @@ export function AgendaDayWeek({
   const [detail, setDetail] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState(() => Date.now())
+  const [openDay, setOpenDay] = useState<string | null>(null)
   const narrow = useMediaQuery('(max-width: 767.98px)')
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
   const [selected, setSelected] = useState<string[]>([])
@@ -474,6 +475,70 @@ export function AgendaDayWeek({
             const items = (byDay.get(day) ?? []).filter(
               (a) => !narrow || selected.length === 0 || selected.includes(a.professionalId),
             )
+            if (narrow) {
+              const isOpen = (openDay ?? today) === day
+              const n = items.length
+              const panelId = `agenda-week-${day}`
+              return (
+                <section
+                  key={day}
+                  className={`agenda-week-card${day === today ? ' agenda-week-card--today' : ''}${n === 0 ? ' agenda-week-card--empty' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="agenda-week-card-head"
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                    disabled={n === 0}
+                    onClick={() => setOpenDay(isOpen ? '' : day)}
+                  >
+                    <span className="agenda-week-card-date" aria-hidden>
+                      <span className="agenda-week-card-wd">{label.weekday}</span>
+                      <span className="agenda-week-card-n">{label.day}</span>
+                    </span>
+                    <span className="agenda-week-card-title">
+                      {day === today ? 'Hoje · ' : ''}
+                      {n === 0 ? 'Nenhum horário' : `${n} ${n === 1 ? 'horário' : 'horários'}`}
+                    </span>
+                    {n > 0 ? <ChevronDown aria-hidden size={18} className="agenda-week-card-chev" /> : null}
+                  </button>
+                  {isOpen && n > 0 ? (
+                    <div id={panelId} className="agenda-week-card-body">
+                      <ul className="agenda-apt-list">
+                        {items.map((apt) => (
+                          <li key={apt.id}>
+                            <button type="button" className="agenda-apt" onClick={() => openAppointment(apt.id)}>
+                              <span className="agenda-apt-time">
+                                {formatSlotTime(apt.startsAt, timezone)}
+                                {' – '}
+                                {formatSlotTime(apt.endsAt, timezone)}
+                              </span>
+                              <span className="agenda-apt-title">{apt.contactLabel || apt.serviceName}</span>
+                              <span className="agenda-apt-meta">
+                                {apt.serviceName}
+                                {' · '}
+                                {apt.professionalName}
+                                {apt.roomResourceName ? ` · ${apt.roomResourceName}` : ''}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      <button
+                        type="button"
+                        className="agenda-week-card-open"
+                        onClick={() => {
+                          setDate(day)
+                          navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
+                        }}
+                      >
+                        Abrir o dia
+                      </button>
+                    </div>
+                  ) : null}
+                </section>
+              )
+            }
             return (
               <section key={day} className="agenda-day-group">
                 <h2 className="panel-legend">
