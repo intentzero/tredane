@@ -9150,3 +9150,91 @@
     grid-row: 1 / span 2;
   }
 }
+
+/* Compositor em cartão único (Proposto): janela, IA, texto e ações num só bloco. */
+.inbox-composer-wrap {
+  padding-top: var(--space-2);
+  padding-left: calc(var(--space-3) + env(safe-area-inset-left, 0px));
+  padding-right: calc(var(--space-3) + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+}
+
+:root[data-keyboard='open'] .inbox-composer-wrap {
+  padding-bottom: var(--space-2);
+}
+
+.inbox-dock {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-card);
+  overflow: hidden;
+}
+
+.inbox-dock > .inbox-window-banner {
+  order: -2;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-small);
+  background: transparent;
+  border-bottom: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.inbox-dock > .inbox-ai-status {
+  order: -1;
+  margin: var(--space-3) var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--size-border-width) solid var(--color-ai-border);
+  border-radius: var(--radius-md);
+  background: var(--color-ai-tint);
+  color: var(--color-ai-ink);
+}
+
+.inbox-dock > .inbox-composer:not(.inbox-ai-card) {
+  border-top: 0;
+  background: transparent;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+}
+
+.inbox-dock > .inbox-composer:not(.inbox-ai-card) .inbox-composer-input {
+  min-height: var(--size-touch);
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.inbox-dock > .inbox-composer:not(.inbox-ai-card) .inbox-composer-input:focus {
+  outline: none;
+}
+
+.inbox-dock > .inbox-composer:focus-within:not(.inbox-ai-card) {
+  box-shadow: inset 0 0 0 var(--size-focus-ring-width) var(--color-primary-border);
+}
+
+/* «Horários livres» e «Sugerir resposta» passam para uma barra de ações abaixo do texto. */
+.inbox-dock > .free-slots,
+.inbox-dock > .inbox-composer-tools {
+  order: 2;
+}
+
+.inbox-dock > .free-slots--closed {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.inbox-dock > .free-slots:not(.free-slots--closed) {
+  border: 0;
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+  border-radius: 0;
+}
+
+.inbox-dock > .inbox-composer-tools {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.inbox-dock > .inbox-composer-tools + .inbox-composer {
+  padding-top: var(--space-3);
+}
