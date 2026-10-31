@@ -9117,3 +9117,30 @@
 .hub-alert strong {
   font-size: var(--font-size-body);
 }
+
+/* Clínica pronta: áreas em cartões no desktop (M-61, Proposto). */
+.hub-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.hub-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .clinic-work > .clinic-stack--hub {
+    max-width: 1040px;
+  }
+
+  .clinic-stack--hub .hub-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4) var(--space-6);
+    align-items: start;
+  }
+}

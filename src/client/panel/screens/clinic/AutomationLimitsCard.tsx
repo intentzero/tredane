@@ -72,6 +72,7 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
   const [enabled, setEnabled] = useState(false)
   const [autoBookPaused, setAutoBookPaused] = useState(false)
   const [limits, setLimits] = useState<AbuseLimitsDto['limits'] | null>(null)
+  const [showNumbers, setShowNumbers] = useState(false)
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [note, setNote] = useState<string | null>(null)
@@ -226,6 +227,17 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
         />
       </label>
 
+      <Button
+        className="panel-btn-ghost"
+        aria-expanded={showNumbers}
+        aria-controls="abuse-numbers"
+        onPress={() => setShowNumbers((v) => !v)}
+      >
+        {showNumbers ? 'Ocultar os números' : `Personalizar os ${FIELDS.length} limites`}
+      </Button>
+
+      {showNumbers ? (
+        <div id="abuse-numbers">
       <div className="clinic-stack" style={{ gap: 12, marginTop: 12 }}>
         {FIELDS.map((f) => (
           <TextField key={f.key} className="clinic-field">
@@ -266,6 +278,9 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
           Restaurar padrões
         </Button>
       </div>
+
+        </div>
+      ) : null}
 
       {note ? (
         <p className="clinic-footnote" role="status">

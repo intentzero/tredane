@@ -130,7 +130,7 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
   }
 
   return (
-    <div className="clinic-stack">
+    <div className={`clinic-stack${stepsLeft === 0 ? ' clinic-stack--hub' : ''}`}>
       {stepsLeft > 0 && next ? (
         <>
           <section className="hub-next" aria-labelledby="hub-next-t">
@@ -233,7 +233,9 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
             </Button>
           ) : null}
 
-          <h2 className="panel-legend">Quando atende</h2>
+          <div className="hub-groups">
+            <section className="hub-group">
+              <h2 className="panel-legend">Quando atende</h2>
           <button
             type="button"
             className="hub-week"
@@ -266,8 +268,9 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
               </span>
             </span>
           </button>
-
-          <h2 className="panel-legend">Quem, o quê e onde</h2>
+            </section>
+            <section className="hub-group">
+              <h2 className="panel-legend">Quem, o quê e onde</h2>
           <ul className="clinic-nav-list">
             <li>
               <NavRow
@@ -289,8 +292,9 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
               />
             </li>
           </ul>
-
-          <h2 className="panel-legend">Como fala com as clientes</h2>
+            </section>
+            <section className="hub-group">
+              <h2 className="panel-legend">Como fala com as clientes</h2>
           <ul className="clinic-nav-list">
             <li>
               <NavRow
@@ -302,6 +306,8 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
             </li>
             {optionalRows}
           </ul>
+            </section>
+          </div>
         </>
       )}
 
