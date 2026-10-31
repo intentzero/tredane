@@ -22,7 +22,7 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 
 | ID | Arquivo | Tela da spec | Jornadas · Requisitos · Cenários | Mostra | Navega para |
 | --- | --- | --- | --- | --- | --- |
-| M-09 | `Entrar` (interativo) | TEL-08 | JRN-07, JRN-08 · REQ-005 · AC-17 | Passo e-mail → passo código de 6 dígitos (`autocomplete="one-time-code"`). **Mock do comportamento:** a tela real é o componente do Clerk estilizado | M-10 |
+| M-09 | `Entrar` (interativo) | TEL-08 | JRN-07, JRN-08 · REQ-005 · AC-17 | **Confirmado (Paulo 31/10/2026, «Faz»):** marca horizontal centrada (hero), formulário e «Sem convite?» num único bloco vertical centrado sobre fundo `surface.app` com mancha `primary.tint`. Passo e-mail → código (`autocomplete="one-time-code"`). Tela real: Clerk estilizado (`ClerkLogin`); synthetic alinhado. Desktop: `desktop/Entrar.dc.html` (coluna ~400 px) | M-10 |
 | M-10 | `Clinicas` | TEL-08 | JRN-07 · REQ-005 · AC-17 | Escolha da clínica com papel em cada uma; aparece só com mais de uma clínica | M-01 |
 | M-11 | `JanelaFechada` | TEL-01, DEC-040 | JRN-02 · REQ-012 | Fora da janela de 24 h: texto livre **bloqueado**, aviso, **Escolher modelo** | M-12 |
 | M-12 | `Modelos` | TEL-01, DEC-040 | JRN-02 · REQ-012 | Lista de modelos aprovados, campos a preencher, prévia não editável, aviso de custo, **Enviar modelo** | M-11 |
@@ -98,4 +98,11 @@ Cada tela abaixo aparece com **um** estado. Implemente todos:
 
 ## Desktop (Proposto, sem mock `M-xx`)
 
-A moldura do desktop (≥ 1280 px), o painel de detalhe deslizante, o seletor de clínica, o logotipo no painel e o quadro do Acompanhar em largura total foram desenhados em canvases privados de design e decididos em [DEC-068 a DEC-072](../product/decisions.md); a implementação está no épico [#207](https://github.com/intentzero/tredane/issues/207). Os mocks `M-xx` acima continuam sendo do celular; os do desktop ficam **Em aberto**: a implementação foi verificada em staging (#215, 29/10/2026), mas o aceite de usabilidade em aparelho real segue em Q-UX-01. Pendências do épico em [#232](https://github.com/intentzero/tredane/issues/232).
+A moldura do desktop (≥ 1280 px), o painel de detalhe deslizante, o seletor de clínica, o logotipo no painel e o quadro do Acompanhar em largura total foram desenhados em canvases privados de design e decididos em [DEC-068 a DEC-072](../product/decisions.md); a implementação está no épico [#207](https://github.com/intentzero/tredane/issues/207). Os mocks `M-xx` acima continuam sendo do celular; o aceite de usabilidade em aparelho real segue em Q-UX-01. Pendências do épico em [#232](https://github.com/intentzero/tredane/issues/232).
+
+| Ficheiro | Tela | O que mostra | Estado |
+| --- | --- | --- | --- |
+| `desktop/ConversasDesktopProposta.dc.html` | TEL-01 lista + empty | Rail DEC-068, lista 400 px (busca sunken, chips Todas/Novas/Minhas/Sem responsável, linhas densas com Em atendimento / Precisa de alguém), empty centrado «Escolha uma conversa» — sem card promo | **Confirmado** (Paulo 31/10/2026, Opção A); implementado no painel |
+| `desktop/ConversasDesktopPropostaThread.dc.html` | TEL-01 thread | Mesma moldura com Juliana aberta: cabeçalho, bolhas, sugestão IA e compositor; linha activa na lista | **Confirmado** (Paulo 31/10/2026, Opção A); implementado no painel |
+
+`desktop/Main.dc.html` permanece como exploração antiga (três colunas); a referência visual do desktop de Conversas são os mocks `ConversasDesktopProposta*`.

@@ -7,6 +7,18 @@ Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas n
 
 - Novo mock **Proposto** `mobile/ConversasListaProposta.dc.html` + preview `M-54-ConversasListaProposta.png`: lista contínua full-bleed no celular, shell intacto (4 abas do Responsável), busca sunken e chips com contador. Não substitui M-01 até o Paulo decidir. Índice em [screens.md](screens.md).
 
+## 31/10/2026 — Conversas desktop densidade WA (**Confirmado**, Opção A)
+
+- Mocks `desktop/ConversasDesktopProposta.dc.html` (empty) e `ConversasDesktopPropostaThread.dc.html` (thread): rail Tredane (DEC-068/070), lista ~400 px, empty simples, thread com bolhas/compositor; tokens DEC-041/050/073/081. Sem logo WhatsApp, verde Meta nem Meta AI.
+- Previews: `desktop/previews/ConversasDesktopProposta.png`, `ConversasDesktopPropostaThread.png`.
+- **Confirmado (Paulo, 31/10/2026, Opção A):** implementação no painel (`panel.css` / empty pane) — lista 400 px ≥1280, busca sunken, linhas densas, thread alinhada aos mocks.
+
+## 31/10/2026 — Entrar / splash (Confirmado Paulo, «Faz»)
+
+- **M-09 Entrar** e `desktop/Entrar.dc.html`: marca horizontal (DEC-070) + formulário + «Sem convite?» num bloco centrado; fundo `surface.app` com mancha `primary.tint`.
+- **Implementação:** `.panel-auth` / `.panel-auth-stack` / `.panel-auth-atmosphere` em `panel.css`; `ClerkLogin` e `SyntheticLogin` usam o bloco centrado (fluxo Clerk inalterado).
+- `tools/render_previews.py` resolve `../brand/` para `file://` absoluto nos HTML temporários.
+
 ## Tokens 0.4.0 — 30/10/2026 (Confirmado, DEC-081)
 
 Pedido do responsável pelo produto (30/10/2026): alinhar a tipografia ao WhatsApp Web e deixar botões e campos menos altos. Valores **Confirmados** em 30/10/2026 (DEC-081).

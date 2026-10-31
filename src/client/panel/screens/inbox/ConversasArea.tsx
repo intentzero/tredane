@@ -556,7 +556,7 @@ function ConversasListHead() {
 function ConversasEmptyPane() {
   return (
     <div className="conversas-empty-pane">
-      <MessageCircle aria-hidden size={28} strokeWidth={2} />
+      <MessageCircle aria-hidden size={40} strokeWidth={1.6} />
       <h2>Escolha uma conversa</h2>
       <p>A lista fica no mesmo lugar quando uma conversa abre.</p>
     </div>

@@ -29,6 +29,9 @@ def conv(src):
     body = body.replace('aria-selected="{{proSelected}}"', 'aria-selected="true"').replace('aria-selected="{{roomSelected}}"', 'aria-selected="false"')
     body = re.sub(r'\s+onClick="\{\{\w+\}\}"', '', body)
     body = re.sub(r'href="[A-Za-z]+\.dc\.html"', 'href="#"', body)
+    # Marca em ../brand/… (relativo ao .dc.html) → file:// absoluto para o Chromium do shot.mjs
+    brand_base = 'file://' + os.path.abspath(os.path.join(ROOT, 'brand')).replace('\\', '/')
+    body = body.replace('src="../brand/', 'src="%s/' % brand_base)
     title = re.search(r'<title>(.*?)</title>', src).group(1)
     return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>%s</title><style>%s</style></head><body>%s</body></html>' % (title, style, body)
 

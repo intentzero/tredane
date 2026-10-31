@@ -87,12 +87,15 @@ export function ClinicSelector() {
   if (listState.phase === 'empty') {
     return (
       <div className="panel-auth" lang="pt-BR">
-        <EmptyState
-          title="Nenhuma clínica"
-          description="O seu login está válido, mas ainda não tem membership numa clínica. Peça um convite ao responsável."
-        />
-        <div className="panel-auth-foot">
-          <SignOutButton />
+        <div className="panel-auth-atmosphere" aria-hidden="true" />
+        <div className="panel-auth-stack">
+          <EmptyState
+            title="Nenhuma clínica"
+            description="O seu login está válido, mas ainda não tem membership numa clínica. Peça um convite ao responsável."
+          />
+          <div className="panel-auth-foot">
+            <SignOutButton />
+          </div>
         </div>
       </div>
     )

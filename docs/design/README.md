@@ -26,7 +26,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 | `mobile/*.dc.html` | **Fonte dos mocks mobile** (base do produto, DEC-039). Um arquivo por tela |
 | `mobile/previews/M-xx-*.png` | Imagem de cada mock, 390×844, para ver sem rodar nada |
 | `mobile/canvas.json` | Posição e título de cada tela no canvas do editor de design |
-| `desktop/` | Quatro telas de uma exploração anterior para tela larga (Conversas, Pipeline, Agenda, Estados). Ver [aviso](#desktop) |
+| `desktop/` | Telas largas: exploração antiga (Conversas/`Main`, Pipeline, Agenda, Estados) e propostas recentes (`Entrar`, `ConversasDesktopProposta` · empty/thread). Ver [aviso](#desktop) |
 | [brand/](brand/README.md) | Identidade visual (DEC-050): símbolo, nome, versões, ícone do app, favicon e paleta da marca |
 | `landing/` | Mock aprovado da landing page do piloto (`Main.dc.html`, `Celular.dc.html`) e previews do site implementado; spec em [landing.md](../product/landing.md) |
 | `tools/` | `build_tokens.py` (gera `tokens.css`), `check_contrast.py` (valida contraste), `check_mocks.py` (valida que os mocks só usam tokens), `build_catalog.py` (gera o catálogo), `render_previews.py` (gera os PNG; `expand_dc.mjs` expande os `<sc-for>`/`<sc-if>` dos mocks interativos), `build_brand.py` (gera os ficheiros da marca) |
@@ -55,7 +55,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 
 ## Desktop
 
-`desktop/` guarda quatro telas anteriores às decisões DEC-039 (mobile first) e DEC-040 e **não** cobrem login, seletor de clínica, janela de 24 h, semana, área Clínica nem WhatsApp. Use-as apenas como referência de como as telas de atendimento se ampliam em largura (três colunas em Conversas, quadro completo no Pipeline, grade com painel lateral na Agenda). Onde divergirem de `mobile/`, vale o mobile. **Confirmado (24/10/2026):** o piloto é só mobile; versões desktop dedicadas das telas novas ficam **Fora do MVP**, e no desktop as mesmas telas apenas ganham largura.
+`desktop/` guarda telas anteriores às decisões DEC-039 (mobile first) e DEC-040 (`Main`, Pipeline, Agenda, Estados) e referências recentes (`Entrar` Confirmado; `ConversasDesktopProposta` / `ConversasDesktopPropostaThread` **Confirmado** Paulo 31/10/2026 Opção A — densidade estilo WhatsApp Web com tokens Tredane, implementada no painel). Onde `Main` (exploração antiga de três colunas) divergir dos mocks WA ou de `mobile/`, valem os mocks WA e o mobile.
 
 ## Divergências conhecidas entre mocks e especificação
 
@@ -66,7 +66,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 | Chips e botões pequenos (altura visual de 28 a 36px, v0.4.0) | Abaixo dos 44px de área clicável (UX-08) | Mesma aparência, com área clicável ≥ 44px (padding ou pseudo-elemento, como no [catálogo](catalog/index.html)) |
 | M-06 Agenda do dia | Não mostra o alternador **Dia / Semana** | Incluir como em M-13 (DEC-040) |
 | M-15 Clínica | O item “WhatsApp” abre M-19 (não conectado) | Abrir M-19, M-23 ou M-24 conforme o estado real da conexão |
-| M-09 Entrar | É um mock do comportamento | A tela real é o componente do Clerk com a identidade do Tredane |
+| M-09 Entrar | É um mock do comportamento; composição do bloco centrado **Confirmada** (Paulo 31/10/2026) | A tela real é o Clerk com a identidade do Tredane; layout alinhado ao mock em `.panel-auth` |
 | M-01 a M-14 | Mostram a barra de 3 abas (visão do Atendente) | O Responsável vê 4 abas, com **Clínica** (M-15) |
 | M-20 | Aba “Salas · 3” abrevia “Salas e equipamentos” | Manter o título completo no cabeçalho e na descrição da aba; o rótulo curto cabe em 360px |
 | Fonte | Os mocks pedem Inter e os previews usam a fonte do sistema | Usar **Roboto** (400/500/600), hospedada pelo Tredane ([DEC-073](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); conferir as quebras de linha com ela, porque a largura do texto muda com a fonte e linhas que cabem nos previews podem quebrar |

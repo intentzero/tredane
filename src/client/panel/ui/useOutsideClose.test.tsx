@@ -75,4 +75,12 @@ describe('painéis laterais (CSS)', () => {
     expect(css).not.toMatch(/data-agendar='open'\]\s*\.conversas-3col-thread/)
     expect(css).not.toMatch(/data-panel='open'\]\s*\.acomp-wide-(board|bar)/)
   })
+
+  it('Conversas desktop ≥1280 px: lista estável ~400 px (Opção A Confirmada)', () => {
+    expect(css).toMatch(/--conversas-list-width:\s*400px/)
+    expect(css).toMatch(
+      /grid-template-columns:\s*var\(--conversas-list-width\)\s+minmax\(var\(--conversas-thread-min\),\s*1fr\)/,
+    )
+    expect(css).toMatch(/\.conversas-3col-list\s+\.inbox-search-input\s*\{[^}]*background:\s*var\(--color-surface-sunken\)/s)
+  })
 })

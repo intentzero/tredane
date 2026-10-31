@@ -267,5 +267,7 @@ export async function buildClinicAiContext(
     upcomingAppointments,
     reschedulePolicy: settings.reschedulePolicy || null,
     cancellationPolicy: settings.signalCancellationPolicy || null,
+    virtualAttendantName: settings.virtualAttendantName || null,
+    virtualAttendantGender: settings.virtualAttendantGender,
   }
 }
