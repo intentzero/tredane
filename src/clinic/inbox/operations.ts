@@ -29,6 +29,10 @@ import {
 import { findMessageByExternalId, insertMessage, listMessages } from './messages'
 import { captionFromBody, listAttachmentsForMessage, summarizeAttachment } from '../attachments'
 import {
+  applyHumanOutboundPrefix,
+  shouldPrefixHumanOutbound,
+} from './human-prefix'
+import {
   applyOutboundDeliveryUpdate,
   findOutboundByClientRequestId,
   findOutboundByProviderMessageId,
@@ -844,6 +848,17 @@ export function sendOutboundMessageOp(
         )
       }
       body = rawBody
+    }
+
+    // DEC-088: texto livre de humano → `[Nome] ` no WhatsApp (não em template/interactive/IA).
+    if (
+      shouldPrefixHumanOutbound({
+        kind,
+        authorClerkUserId: input.authorClerkUserId,
+        authorDisplayName: input.authorDisplayName,
+      })
+    ) {
+      body = applyHumanOutboundPrefix(body, input.authorDisplayName)
     }
 
     const now = clock.nowMs()
