@@ -924,6 +924,38 @@
   background: var(--color-surface-app);
 }
 
+.brand-swap {
+  display: inline-grid;
+  justify-items: center;
+  align-items: center;
+}
+
+.brand-swap > .brand-horizontal {
+  grid-area: 1 / 1;
+}
+
+.brand-on-dark {
+  display: none;
+}
+
+:root[data-theme='dark'] .brand-on-light {
+  display: none;
+}
+
+:root[data-theme='dark'] .brand-on-dark {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .brand-on-light {
+    display: none;
+  }
+
+  :root:not([data-theme='light']) .brand-on-dark {
+    display: block;
+  }
+}
+
 .panel-auth-brand {
   display: flex;
   justify-content: center;
@@ -933,6 +965,26 @@
 .panel-auth-brand .brand-horizontal {
   height: 48px;
   width: auto;
+}
+
+.panel-auth-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-6);
+}
+
+.panel-auth-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.panel-auth-stack:has(.panel-clerk-title) .panel-auth-fallback,
+.panel-auth-stack:has(.panel-auth-form) .panel-auth-fallback {
+  display: none;
 }
 
 .panel-auth-form {
@@ -960,6 +1012,11 @@
   color: var(--color-text-secondary);
 }
 
+.panel-auth-copy p {
+  max-width: 22rem;
+  line-height: var(--line-height-relaxed);
+}
+
 .panel-auth-foot {
   margin: 0;
   text-align: center;
@@ -967,8 +1024,57 @@
   color: var(--color-text-muted);
 }
 
+.panel-auth-note {
+  max-width: 18rem;
+  align-self: center;
+  line-height: var(--line-height-relaxed);
+  text-wrap: balance;
+}
+
+.panel-auth-note-lead {
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
 .panel-selector .panel-auth-foot {
   margin-top: auto;
+}
+
+@media (max-width: 767.98px) {
+  .panel-auth {
+    padding: calc(env(safe-area-inset-top, 0px) + var(--space-8)) var(--space-6)
+      calc(env(safe-area-inset-bottom, 0px) + var(--space-8) + var(--space-8));
+  }
+
+  .panel-auth-stack {
+    gap: var(--space-6);
+  }
+
+  /* Sem cartão do Clerk e sem formulário: marca, título e nota formam um bloco só. */
+  .panel-auth-stack:not(:has(.cl-card)):not(:has(.panel-clerk-card)):not(:has(.panel-auth-form)):not(
+      :has(.panel-auth-copy)
+    ) {
+    gap: var(--space-4);
+  }
+
+  .panel-auth-note {
+    font-size: var(--font-size-body);
+    color: var(--color-text-secondary);
+  }
+
+  .panel-auth-atmosphere {
+    background:
+      radial-gradient(
+        88% 46% at 50% 42%,
+        var(--color-primary-tint) 0%,
+        transparent 68%
+      ),
+      radial-gradient(
+        70% 36% at 50% 100%,
+        var(--color-surface-sunken) 0%,
+        transparent 62%
+      );
+  }
 }
 
 @media (min-width: 768px) {
@@ -1093,6 +1199,10 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+}
+
+.panel-auth-clerk:not(:has(.cl-card)):not(:has(.panel-clerk-card)):not(:has(input)) {
+  display: none;
 }
 
 .panel-clerk-root {

@@ -15,12 +15,13 @@ describe('logotipo oficial', () => {
       </>,
     )
     const imgs = screen.getAllByRole('img', { name: 'Tredane' })
-    expect(imgs).toHaveLength(3)
+    expect(imgs).toHaveLength(4)
     expect(imgs.map((i) => i.getAttribute('src'))).toEqual(
       expect.arrayContaining([
         // O símbolo é pequeno e o Vite o embute (data URI): confere as cores oficiais.
         expect.stringMatching(/0E5A5C.*E8875A/),
         expect.stringContaining('tredane-horizontal-cor'),
+        expect.stringContaining('tredane-horizontal-escuro'),
         expect.stringContaining('tredane-empilhado-cor'),
       ]),
     )

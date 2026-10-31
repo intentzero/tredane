@@ -1,4 +1,5 @@
 import horizontalUrl from '../../../../docs/design/brand/svg/tredane-horizontal-cor.svg?url'
+import horizontalDarkUrl from '../../../../docs/design/brand/svg/tredane-horizontal-escuro.svg?url'
 import stackedUrl from '../../../../docs/design/brand/svg/tredane-empilhado-cor.svg?url'
 import symbolUrl from '../../../../docs/design/brand/svg/tredane-simbolo-cor.svg?url'
 
@@ -21,16 +22,29 @@ export function BrandMark({ size = 32, label = 'Tredane' }: { size?: number; lab
   )
 }
 
-/** Símbolo + nome lado a lado (entrar). */
+/**
+ * Símbolo + nome lado a lado (entrar).
+ * Fundo claro: arte `cor`. Fundo escuro: arte `escuro` (DEC-098). O CSS escolhe;
+ * as duas ficam no DOM para o tema do sistema mudar sem flash.
+ */
 export function BrandHorizontal({ height = 40 }: { height?: number }) {
   return (
-    <img
-      className="brand-horizontal"
-      src={horizontalUrl}
-      height={height}
-      alt="Tredane"
-      draggable={false}
-    />
+    <span className="brand-swap">
+      <img
+        className="brand-horizontal brand-on-light"
+        src={horizontalUrl}
+        height={height}
+        alt="Tredane"
+        draggable={false}
+      />
+      <img
+        className="brand-horizontal brand-on-dark"
+        src={horizontalDarkUrl}
+        height={height}
+        alt="Tredane"
+        draggable={false}
+      />
+    </span>
   )
 }
 

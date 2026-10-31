@@ -4,13 +4,9 @@ import { ListBox, ListBoxItem } from 'react-aria-components'
 import { SignOutButton } from '../auth/ClerkBridge'
 import { isPickingClinic, readLastTenantId } from '../auth/session'
 import { navigatePanel } from '../routes'
-import {
-  EmptyState,
-  ErrorState,
-  LoadingState,
-} from '../states/StatusScreens'
+import { ErrorState, LoadingState } from '../states/StatusScreens'
 import { useTenant } from '../tenant/TenantContext'
-import { BrandStacked } from '../ui/Brand'
+import { BrandHorizontal, BrandStacked } from '../ui/Brand'
 
 function roleLabel(role: 'owner' | 'attendant'): string {
   return role === 'owner' ? 'Responsável' : 'Atendente'
@@ -89,10 +85,18 @@ export function ClinicSelector() {
       <div className="panel-auth" lang="pt-BR">
         <div className="panel-auth-atmosphere" aria-hidden="true" />
         <div className="panel-auth-stack">
-          <EmptyState
-            title="Nenhuma clínica"
-            description="O seu login está válido, mas ainda não tem membership numa clínica. Peça um convite ao responsável."
-          />
+          <div className="panel-auth-hero">
+            <div className="panel-auth-brand">
+              <BrandHorizontal height={48} />
+            </div>
+            <div className="panel-auth-copy">
+              <h1 className="panel-auth-title">Nenhuma clínica</h1>
+              <p>
+                O seu login está válido, mas ainda não tem membership numa clínica. Peça um
+                convite ao responsável.
+              </p>
+            </div>
+          </div>
           <div className="panel-auth-foot">
             <SignOutButton />
           </div>
