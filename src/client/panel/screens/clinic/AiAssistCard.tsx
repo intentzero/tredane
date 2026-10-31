@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Button, Input, Label, Text, TextArea, TextField } from 'react-aria-components'
+import { Button, Input, Label, Radio, RadioGroup, Text, TextArea, TextField } from 'react-aria-components'
 import { PanelApiError, type PanelApi } from '../../api'
 import {
   checkGoogleBusinessUrl,
   GOOGLE_BUSINESS_URL_MAX_LENGTH,
 } from '../../../../clinic/config/google-business-link'
+
+type VirtualGender = 'masculino' | 'feminino' | ''
 
 type Props = {
   tenantId: string
@@ -14,6 +16,8 @@ type Props = {
   initialAddress?: string | null
   initialGoogleBusinessUrl?: string | null
   initialReschedulePolicy?: string | null
+  initialVirtualAttendantName?: string | null
+  initialVirtualAttendantGender?: 'masculino' | 'feminino' | null
 }
 
 /**
@@ -30,12 +34,18 @@ export function AiAssistCard({
   initialAddress = null,
   initialGoogleBusinessUrl = null,
   initialReschedulePolicy = null,
+  initialVirtualAttendantName = null,
+  initialVirtualAttendantGender = null,
 }: Props) {
   const [enabled, setEnabled] = useState(initialEnabled)
   const [address, setAddress] = useState(initialAddress ?? '')
   const [gbUrl, setGbUrl] = useState(initialGoogleBusinessUrl ?? '')
   const [gbError, setGbError] = useState<string | null>(null)
   const [policy, setPolicy] = useState(initialReschedulePolicy ?? '')
+  const [virtualName, setVirtualName] = useState(initialVirtualAttendantName ?? '')
+  const [virtualGender, setVirtualGender] = useState<VirtualGender>(
+    initialVirtualAttendantGender ?? '',
+  )
   const [profileBusy, setProfileBusy] = useState(false)
   const [profileNote, setProfileNote] = useState<string | null>(null)
 
@@ -55,6 +65,8 @@ export function AiAssistCard({
           clinicAddress: address.trim(),
           googleBusinessUrl: gb.value,
           reschedulePolicy: policy.trim(),
+          virtualAttendantName: virtualName.trim(),
+          virtualAttendantGender: virtualGender,
         },
         { generation, expectGeneration: () => generation },
       )
@@ -149,6 +161,40 @@ export function AiAssistCard({
             <Label>Regras de remarcação e cancelamento</Label>
             <TextArea value={policy} onChange={(e) => setPolicy(e.target.value)} rows={3} />
           </TextField>
+          <TextField className="clinic-field">
+            <Label>Nome do atendente virtual (opcional)</Label>
+            <Input
+              value={virtualName}
+              onChange={(e) => setVirtualName(e.target.value)}
+              maxLength={60}
+              placeholder="Ex.: Luna"
+            />
+            <Text slot="description" className="panel-muted-sm">
+              Usado na apresentação e na concordância da IA. Não grava dados da cliente.
+            </Text>
+          </TextField>
+          <RadioGroup
+            className="clinic-field"
+            value={virtualGender || 'nenhum'}
+            onChange={(v) =>
+              setVirtualGender(v === 'masculino' || v === 'feminino' ? v : '')
+            }
+            aria-label="Género do atendente virtual"
+          >
+            <Label>Género do atendente virtual</Label>
+            <Radio value="nenhum" className="panel-radio">
+              Neutro
+            </Radio>
+            <Radio value="feminino" className="panel-radio">
+              Feminino
+            </Radio>
+            <Radio value="masculino" className="panel-radio">
+              Masculino
+            </Radio>
+            <Text slot="description" className="panel-muted-sm">
+              Só a responsável altera.
+            </Text>
+          </RadioGroup>
           <Button
             className="panel-btn panel-btn-secondary"
             onPress={() => void saveProfile()}

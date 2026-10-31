@@ -1675,6 +1675,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       clinicAddress?: string | null
       googleBusinessUrl?: string | null
       reschedulePolicy?: string | null
+      virtualAttendantName?: string | null
+      virtualAttendantGender?: 'masculino' | 'feminino' | '' | null
     },
   ) {
     this.#ensureReady()
