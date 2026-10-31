@@ -1,6 +1,11 @@
 import { MessageCircle, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useUser } from '@clerk/react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useAuthSession } from '../../auth/AuthContext'
+import {
+  staffFirstNameFromDisplay,
+  synthStaffFirstName,
+} from '../../auth/staffDisplayName'
 import { useTenant } from '../../tenant/TenantContext'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import type { ConversasSection } from '../../routes'
@@ -20,6 +25,17 @@ type Props = {
   contactId?: string
 }
 
+/** Só montar dentro de ClerkProvider (AUTH_MODE=clerk). */
+function ClerkStaffDisplayName({
+  children,
+}: {
+  children: (name: string | null) => ReactNode
+}) {
+  const { user } = useUser()
+  const name = staffFirstNameFromDisplay(user?.firstName, user?.fullName)
+  return <>{children(name)}</>
+}
+
 /**
  * Área Conversas (#29): lista partilhada, thread e ficha do contato.
  * Sem Acompanhamento (#30) nem webhooks WhatsApp (F3).
@@ -30,7 +46,7 @@ export function ConversasArea({
   conversationId,
   contactId,
 }: Props) {
-  const { api, status } = useAuthSession()
+  const { api, status, authMode } = useAuthSession()
   const { generation, active } = useTenant()
   const isOwner = active.phase === 'ready' && active.context.role === 'owner'
   const [viewerId, setViewerId] = useState<string | null>(null)
@@ -58,19 +74,32 @@ export function ConversasArea({
     return <LoadingState label="Identificando você…" />
   }
 
+  const sectionView = (staffDisplayName: string | null) => (
+    <ConversasSectionView
+      tenantId={tenantId}
+      section={section}
+      conversationId={conversationId}
+      contactId={contactId}
+      api={api}
+      generation={generation}
+      viewerId={viewerId}
+      isOwner={isOwner}
+      staffDisplayName={staffDisplayName}
+    />
+  )
+
   // Uma ligação WS por clínica enquanto a área Conversas está aberta.
   return (
     <InboxRealtimeProvider tenantId={tenantId} api={api} generation={generation}>
-      <ConversasSectionView
-        tenantId={tenantId}
-        section={section}
-        conversationId={conversationId}
-        contactId={contactId}
-        api={api}
-        generation={generation}
-        viewerId={viewerId}
-        isOwner={isOwner}
-      />
+      {authMode === 'clerk' ? (
+        <ClerkStaffDisplayName>
+          {(clerkName) =>
+            sectionView(clerkName ?? synthStaffFirstName(viewerId))
+          }
+        </ClerkStaffDisplayName>
+      ) : (
+        sectionView(synthStaffFirstName(viewerId))
+      )}
     </InboxRealtimeProvider>
   )
 }
@@ -84,11 +113,13 @@ function ConversasSectionView({
   generation,
   viewerId,
   isOwner,
+  staffDisplayName,
 }: Props & {
   api: NonNullable<ReturnType<typeof useAuthSession>['api']>
   generation: number
   viewerId: string
   isOwner: boolean
+  staffDisplayName: string | null
 }) {
   const wide = useWideLayout()
   if (section === 'thread' && conversationId) {
@@ -99,6 +130,7 @@ function ConversasSectionView({
         api={api}
         generation={generation}
         viewerClerkUserId={viewerId}
+        staffDisplayName={staffDisplayName}
       />
     )
     if (!wide) return thread
@@ -110,6 +142,7 @@ function ConversasSectionView({
         generation={generation}
         viewerId={viewerId}
         isOwner={isOwner}
+        staffDisplayName={staffDisplayName}
       />
     )
   }
@@ -155,6 +188,7 @@ function ConversasSectionView({
         generation={generation}
         viewerId={viewerId}
         isOwner={isOwner}
+        staffDisplayName={staffDisplayName}
       />
     )
   }
@@ -204,6 +238,7 @@ export function ConversasThreeCol({
   generation,
   viewerId,
   isOwner,
+  staffDisplayName = null,
 }: {
   tenantId: string
   /** Sem conversa aberta (`/conversas`), a área de trabalho mostra um estado vazio. */
@@ -212,6 +247,8 @@ export function ConversasThreeCol({
   generation: number
   viewerId: string
   isOwner: boolean
+  /** DEC-088: nome de apresentação para o prefixo WhatsApp. */
+  staffDisplayName?: string | null
 }) {
   const roomy = useMediaQuery(CONTACT_INLINE_QUERY)
   const [pref, setPref] = useState<'open' | 'closed' | null>(readPanelPref)
@@ -313,6 +350,7 @@ export function ConversasThreeCol({
             api={api}
             generation={generation}
             viewerClerkUserId={viewerId}
+            staffDisplayName={staffDisplayName}
             contactPanel={{
               open: panelOpen,
               controlsId: 'conversas-contact-panel',

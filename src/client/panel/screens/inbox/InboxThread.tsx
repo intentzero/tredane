@@ -70,6 +70,10 @@ import {
 import { friendlyError } from '../../copy/errors'
 import { Badge } from '../../states/Badge'
 import { Banner } from '../../states/Banner'
+import {
+  staffFirstNameFromDisplay,
+  synthStaffFirstName,
+} from '../../auth/staffDisplayName'
 
 type Props = {
   tenantId: string
@@ -77,6 +81,11 @@ type Props = {
   api: PanelApi
   generation: number
   viewerClerkUserId: string
+  /**
+   * DEC-088: primeiro nome / apresentação (Clerk). Se omitido, usa persona sintética.
+   * Nunca passar o rótulo do papel.
+   */
+  staffDisplayName?: string | null
   /** Desktop: o contato é um painel que desliza por cima (abre e fecha por este controlo). */
   contactPanel?: { open: boolean; controlsId: string; onToggle: () => void }
   /** Desktop (DEC-074): «Agendar» abre um painel ao lado da conversa em vez de trocar de área. */
@@ -237,9 +246,13 @@ export function InboxThread({
   api,
   generation,
   viewerClerkUserId,
+  staffDisplayName = null,
   contactPanel,
   agendarPanel,
 }: Props) {
+  const authorDisplayName =
+    staffFirstNameFromDisplay(staffDisplayName) ??
+    synthStaffFirstName(viewerClerkUserId)
   const [detail, setDetail] = useState<InboxConversationDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -870,6 +883,7 @@ export function InboxThread({
           ...payload,
           clientRequestId,
           aiSuggestionId,
+          authorDisplayName: authorDisplayName ?? undefined,
         },
         { generation, expectGeneration: () => generation },
       )
