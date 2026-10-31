@@ -53,6 +53,7 @@ import { awaitingClinicReply } from './lastRelevant'
 import { ThreadActionsSheet, type ThreadAction } from './ThreadActionsSheet'
 import { TransferSheet } from './TransferSheet'
 import { PixPendingBar, PixPendingSheet } from './PixPendingSheet'
+import { FreeSlotsStrip } from './FreeSlotsStrip'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { AiWorking } from '../../ui/AiWorking'
 import { navigatePanel } from '../../routes'
@@ -1572,6 +1573,16 @@ export function InboxThread({
                 {aiBusy ? <AiWorking compact label="Gerando sugestão…" /> : 'Sugerir resposta'}
               </Button>
             </div>
+          ) : null}
+          {windowOpen ? (
+            <FreeSlotsStrip
+              tenantId={tenantId}
+              api={api}
+              generation={generation}
+              onPropose={(text) =>
+                setDraft((prev) => (prev.trim() ? `${prev.trimEnd()}\n${text}` : text))
+              }
+            />
           ) : null}
           {windowOpen ? (
             <form
