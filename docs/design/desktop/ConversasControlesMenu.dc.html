@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Conversas — controlos: menu ⋮ (proposta)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button,input,textarea{font:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+.d{--app:#F5F4EF;--card:#FFFFFF;--sunk:#EEEDE7;--tx:#142625;--tx2:#424B4A;--mu:#566160;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--prB:#B3D1D1;--ok:#1F7A4D;--okT:#EAF5EF;--wa:#6E4200;--waT:#FFF7EA;--ai:#4B2A9E;--aiB:#6B3FD4;--aiT:#F7F4FD;--aiAv:#E7E0F8;--ctl:#7A8584;--bd:#E1E3E0;--div:#EEEDE7}
+.d button,.d a{color:inherit;cursor:pointer}
+.rl a{width:68px;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;font-size:11px;color:var(--mu);text-decoration:none}
+.rl a.on{background:var(--prT);color:var(--prInk);font-weight:600}
+.chip{flex:none;height:28px;padding:0 12px;border-radius:999px;border:1px solid var(--ctl);background:var(--card);font-size:13px;color:var(--tx);display:inline-flex;align-items:center;gap:6px}
+.chip.on{border-color:var(--tx);background:var(--tx);color:#FFFFFF;font-weight:600}
+.chip .n{font-size:11px;font-weight:600;padding:0 6px;border-radius:999px;background:var(--sunk);color:var(--tx2);font-variant-numeric:tabular-nums}
+.chip.on .n{background:rgba(255,255,255,.2);color:#FFFFFF}
+.row{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;border:0;background:transparent;padding:10px 16px;min-height:60px;box-sizing:border-box;border-bottom:1px solid var(--div);cursor:pointer}
+.row.on{background:var(--prT);box-shadow:inset 4px 0 0 var(--pr)}
+.av{flex:none;width:40px;height:40px;border-radius:999px;display:grid;place-items:center;font-size:13px;font-weight:600}
+.meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.nm{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm{font-size:11px;color:var(--mu);flex:none}
+.sn{font-size:14px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--mu);margin-top:2px}
+.tag{padding:1px 8px;border-radius:6px;font-weight:600}
+.tag.ok{background:var(--okT);color:var(--ok)}
+.tag.wa{background:var(--waT);color:var(--wa)}
+.tag.pr{background:var(--prT);color:var(--prInk)}
+.m{max-width:65%;padding:8px 12px 6px;border-radius:12px;font-size:14px;border:1px solid var(--bd);background:var(--card);line-height:1.4}
+.m.in{align-self:flex-start;border-bottom-left-radius:4px}
+.m.out{align-self:flex-end;border-bottom-right-radius:4px;background:var(--prT);border-color:var(--prB)}
+.mt{display:flex;justify-content:flex-end;align-items:center;gap:4px;font-size:11px;color:var(--mu);margin-top:2px}
+.day{align-self:center;font-size:11px;color:var(--mu);background:var(--sunk);padding:4px 12px;border-radius:999px;margin:4px 0}
+.sys{align-self:center;font-size:11px;color:var(--mu);display:flex;align-items:center;gap:6px;padding:4px 0;text-align:center}
+.hdr-btn{height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--prB);background:var(--card);color:var(--prInk);font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px;flex:none}
+.menu{position:absolute;top:52px;right:0;min-width:280px;background:var(--card);border:1px solid var(--bd);border-radius:12px;box-shadow:0 8px 24px rgba(20,38,37,.12);padding:6px;z-index:5;display:flex;flex-direction:column}
+.menu button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:10px 12px;border-radius:8px;font-size:14px;color:var(--tx);font-weight:500}
+.menu .hint{margin:4px 8px 8px;font-size:11px;color:var(--mu);line-height:1.35}
+</style>
+</helmet>
+<!--
+  Confirmado (Paulo, 31/10/2026, Opção A): header Agendar + Contato + ⋮ só conversa/pipeline.
+  Sem Resumo da IA nem Bloquear no menu (ficam no sidepane Contato).
+-->
+<div class="d" style="width:1440px;height:900px;box-sizing:border-box;display:grid;grid-template-columns:84px 400px minmax(0,1fr);background:var(--app);color:var(--tx);font-family:Roboto,&quot;Helvetica Neue&quot;,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.35;overflow:hidden">
+
+  <nav class="rl" aria-label="Áreas" style="background:var(--card);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0">
+    <img src="../brand/svg/tredane-simbolo-cor.svg" alt="" width="40" height="40" style="width:40px;height:40px;margin-bottom:10px;display:block" aria-hidden="true">
+    <a class="on" href="#" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2-5.4A8.4 8.4 0 1 1 21 11.5z"/></svg>Conversas</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 4v16M10 4v6M16 4v16"/></svg>Acompanhar</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>Agenda</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Clínica</a>
+    <span style="flex:1"></span>
+    <button type="button" aria-label="Notificações" style="width:44px;height:44px;border:0;background:none;border-radius:12px;display:grid;place-items:center;color:var(--mu)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></button>
+    <button type="button" aria-label="Conta de Paulo" style="width:36px;height:36px;border-radius:999px;border:1px solid var(--prB);background:var(--prT);color:var(--prInk);font-weight:600;font-size:13px">P</button>
+  </nav>
+
+  <section aria-label="Lista de conversas" style="background:var(--card);border-right:1px solid var(--bd);display:flex;flex-direction:column;min-height:0">
+    <div style="padding:16px 16px 12px;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid var(--bd);flex:none">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.02em">Conversas</h1>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <button type="button" style="border:0;background:none;padding:0;display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--tx2);height:28px;max-width:70%;min-width:0">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Clínica Aurora</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ok);flex:none"><span style="width:8px;height:8px;border-radius:999px;background:var(--ok)"></span>Ao vivo</span>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:8px;background:var(--sunk)">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#566160" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Buscar nesta clínica</span>
+        <input type="search" placeholder="Buscar nome ou telefone" style="flex:1;min-width:0;border:0;background:transparent;font-size:14px;color:var(--tx);outline:none">
+      </label>
+      <div role="group" aria-label="Filtros" style="display:flex;gap:6px;overflow-x:auto;margin:0 -16px;padding:0 16px">
+        <button type="button" class="chip on" aria-pressed="true">Todas<span class="n">5</span></button>
+        <button type="button" class="chip" aria-pressed="false">Novas<span class="n">1</span></button>
+        <button type="button" class="chip" aria-pressed="false">Minhas<span class="n">2</span></button>
+        <button type="button" class="chip" aria-pressed="false">Sem responsável<span class="n">1</span></button>
+      </div>
+    </div>
+
+    <ul style="list-style:none;margin:0;padding:0;overflow-y:auto;flex:1">
+      <li>
+        <button type="button" class="row">
+          <span class="av" style="background:var(--prT);color:var(--prInk)">MA</span>
+          <span class="meta">
+            <span class="top"><span class="nm">Marina Alves</span><span class="tm" style="color:var(--prInk);font-weight:600">09:41</span></span>
+            <span class="sn" style="color:var(--tx);font-weight:600">Oi! Quanto custa a limpeza de pele?</span>
+            <span class="tags"><span class="tag pr">Nova</span><span>Sem responsável</span></span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="row on" aria-current="true">
+          <span class="av" style="background:var(--aiAv);color:var(--ai)">JP</span>
+          <span class="meta">
+            <span class="top"><span class="nm">Juliana Prado</span><span class="tm">09:31</span></span>
+            <span class="sn">Você: Vou verificar a agenda e já te retorno.</span>
+            <span class="tags"><span class="tag ok">Em atendimento</span><span>Você · Horário proposto</span></span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="row">
+          <span class="av" style="background:#E7E0F8;color:var(--ai)">PA</span>
+          <span class="meta">
+            <span class="top"><span class="nm">Paulo</span><span class="tm">55 min</span></span>
+            <span class="sn">Obrigado</span>
+            <span class="tags"><span class="tag ok">Em atendimento</span><span class="tag wa">Precisa de alguém</span><span>Você</span></span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="row">
+          <span class="av" style="background:var(--okT);color:var(--ok)">CM</span>
+          <span class="meta">
+            <span class="top"><span class="nm">Carla Mendes</span><span class="tm">ontem</span></span>
+            <span class="sn">Combinado, até sexta!</span>
+            <span class="tags"><span class="tag ok">Em atendimento</span><span>Bruno · sex 14:00</span></span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="row">
+          <span class="av" style="background:var(--sunk);color:var(--tx2)">#</span>
+          <span class="meta">
+            <span class="top"><span class="nm">+55 11 9••••-0042</span><span class="tm">ontem</span></span>
+            <span class="sn" style="color:#B42318;font-weight:500">Resposta não enviada</span>
+            <span class="tags"><span class="tag ok">Em atendimento</span><span>Bruno</span></span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="row">
+          <span class="av" style="background:var(--sunk);color:var(--tx2)">RL</span>
+          <span class="meta">
+            <span class="top"><span class="nm">Renata Lima</span><span class="tm">20 out</span></span>
+            <span class="sn">Obrigada pelo atendimento.</span>
+            <span class="tags"><span class="tag" style="background:var(--sunk);color:var(--tx2)">Encerrada</span><span>Ana</span></span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="row">
+          <span class="av" style="background:var(--prT);color:var(--prInk)">BS</span>
+          <span class="meta">
+            <span class="top"><span class="nm">Beatriz Santos</span><span class="tm">19 out</span></span>
+            <span class="sn">Vocês fazem peeling de diamante?</span>
+            <span class="tags"><span class="tag ok">Em atendimento</span><span>Ana · Em atendimento</span></span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="row">
+          <span class="av" style="background:var(--okT);color:var(--ok)">FO</span>
+          <span class="meta">
+            <span class="top"><span class="nm">Fernanda Oliveira</span><span class="tm">18 out</span></span>
+            <span class="sn">Você: Confirmado para terça às 10h.</span>
+            <span class="tags"><span class="tag ok">Em atendimento</span><span>Você · Agendado</span></span>
+          </span>
+        </button>
+      </li>
+    </ul>
+  </section>
+
+  <section aria-label="Conversa com Juliana Prado" style="min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--app)">
+    <header style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 16px;min-height:60px;background:var(--card);border-bottom:1px solid var(--bd)">
+      <button type="button" aria-label="Informações de Juliana Prado" style="flex:1;min-width:0;border:0;background:none;padding:4px 0;display:flex;align-items:center;gap:12px;text-align:left;border-radius:8px;height:52px">
+        <span class="av" style="background:var(--aiAv);color:var(--ai)">JP</span>
+        <span style="min-width:0;display:flex;flex-direction:column;gap:2px">
+          <span style="font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Juliana Prado</span>
+          <span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            <span class="tag ok">Em atendimento</span>
+            <span>Você · Horário proposto</span>
+          </span>
+        </span>
+      </button>
+      <button type="button" class="hdr-btn" aria-label="Agendar horário" style="background:var(--prT)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M12 14v4M10 16h4"/></svg>
+        Agendar
+      </button>
+      <button type="button" class="hdr-btn" aria-label="Abrir Contato" aria-pressed="false">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6M9 16h6"/></svg>
+        Contato
+      </button>
+      <span style="position:relative;flex:none">
+        <button type="button" aria-label="Mais opções da conversa" aria-expanded="true" style="width:36px;height:36px;border:0;background:var(--sunk);border-radius:8px;display:grid;place-items:center;color:var(--tx);flex:none">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+        </button>
+        <div class="menu" role="menu" aria-label="Acções da conversa">
+          <p class="hint">Só conversa e pipeline. Resumo da IA e Bloquear ficam em Contato.</p>
+          <button type="button" role="menuitem">Reservar bloco</button>
+          <button type="button" role="menuitem">Marcar como «Horário proposto»</button>
+          <button type="button" role="menuitem">Marcar como perdida</button>
+          <button type="button" role="menuitem">Transferir para outra pessoa</button>
+          <button type="button" role="menuitem">Encerrar conversa</button>
+        </div>
+      </span>
+    </header>
+
+    <div style="flex:1;min-height:0;overflow:hidden;padding:16px 48px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px">
+      <span class="day">Hoje · sex 31 out</span>
+      <div class="m in">Olá, gostaria de agendar uma depilação a laser nas pernas.<div class="mt">09:12</div></div>
+      <div class="m out">Oi, Juliana! Temos horários nesta semana. Qual período fica melhor para você?<div class="mt">Ana · 09:15<svg width="16" height="14" viewBox="0 0 28 24" fill="none" stroke="#0E5A5C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="Lida"><path d="M2 13l5 5L18 6"/><path d="M11 18l1 0L24 6"/></svg></div></div>
+      <div class="sys"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>Ana mudou a etapa para Horário proposto · 09:16</div>
+      <div class="m in">Pode ser sexta à tarde?<div class="mt">09:30</div></div>
+      <div class="m out">Vou verificar a agenda e já te retorno.<div class="mt">Ana · 09:31<svg width="16" height="14" viewBox="0 0 28 24" fill="none" stroke="#0E5A5C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="Entregue"><path d="M2 13l5 5L18 6"/><path d="M11 18l1 0L24 6"/></svg></div></div>
+    </div>
+
+    <div style="flex:none;background:var(--card);border-top:1px solid var(--bd);padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px">
+      <section aria-label="Sugestão da IA" style="border:1.5px dashed var(--aiB);border-radius:12px;background:var(--aiT);padding:12px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:13px;font-weight:600;color:var(--ai);display:flex;align-items:center;gap:6px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
+          Sugestão da IA — revise antes de enviar
+        </div>
+        <p style="margin:0;font-size:14px">Claro, Juliana! Vou conferir os horários de sexta à tarde e te envio as opções em seguida.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <button type="button" style="height:32px;padding:0 12px;border-radius:8px;border:0;background:var(--ai);color:#FFFFFF;font-weight:600;font-size:13px">Enviar</button>
+          <button type="button" style="height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--aiB);background:var(--card);color:var(--ai);font-weight:500;font-size:13px">Editar</button>
+          <button type="button" style="height:32px;padding:0 12px;border-radius:8px;border:0;background:transparent;color:var(--ai);font-size:13px">Gerar outra</button>
+          <button type="button" style="height:32px;padding:0 12px;border-radius:8px;border:0;background:transparent;color:var(--mu);font-size:13px">Descartar</button>
+        </div>
+      </section>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <label style="flex:1;min-width:0">
+          <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Resposta para Juliana Prado</span>
+          <textarea rows="1" placeholder="Ou escreva a sua resposta" style="width:100%;box-sizing:border-box;min-height:36px;max-height:96px;padding:8px 14px;border:1px solid var(--ctl);border-radius:18px;font-size:14px;color:var(--tx);resize:none;background:var(--card)"></textarea>
+        </label>
+        <button type="button" disabled aria-label="Enviar (escreva uma mensagem)" style="width:36px;height:36px;border-radius:999px;border:1px solid var(--bd);background:var(--sunk);color:var(--mu);display:grid;place-items:center;cursor:default;flex:none">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PanelApi } from '../../api'
 import { InboxContactScreen } from './InboxContact'
 import { InboxThread } from './InboxThread'
-import { consumeSummaryFocus } from './summaryFocus'
 
 afterEach(() => {
   cleanup()
@@ -34,16 +33,15 @@ const api = new Proxy(impl, {
   get: (t, k: string) => t[k] ?? (async () => (/Pix|Alerts|Charges/.test(k) ? [] : { items: [] })),
 }) as unknown as PanelApi
 
-describe('Resumo da IA no celular', () => {
-  it('o menu ⋮ da conversa tem «Resumo da IA» e leva à ficha focada no resumo', async () => {
+describe('Resumo da IA — só no Contato (Opção A)', () => {
+  it('menu ⋮ não tem «Resumo da IA»; a ficha Contato tem Gerar resumo', async () => {
     render(<InboxThread tenantId="t" conversationId="cnv1" api={api} generation={1} viewerClerkUserId="u1" />)
     fireEvent.click(await screen.findByRole('button', { name: 'Mais opções da conversa' }))
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Resumo da IA' }))
+    expect(await screen.findByRole('menuitem', { name: 'Encerrar conversa' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Resumo da IA' })).toBeNull()
     cleanup()
     render(<InboxContactScreen tenantId="t" contactId="ctc1" conversationId="cnv1" api={api} generation={1} isOwner />)
-    const h = await screen.findByRole('heading', { name: 'Resumo da IA' })
-    expect(document.activeElement).toBe(h)
+    expect(await screen.findByRole('heading', { name: 'Resumo da IA' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Gerar resumo' })).toBeTruthy()
-    expect(consumeSummaryFocus()).toBe(false)
   })
 })

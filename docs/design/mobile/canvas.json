@@ -461,6 +461,14 @@
       "h": 844,
       "title": "M-53 Tempo do serviço",
       "radius": 32
+    },
+    "AcoesConversaProposta.dc.html": {
+      "x": -470,
+      "y": 10616,
+      "w": 390,
+      "h": 844,
+      "title": "M-55 Ações da conversa (proposta sem duplicatas)",
+      "radius": 32
     }
   },
   "order": [
@@ -504,6 +512,7 @@
     "AgendarSucesso.dc.html",
     "ReservarBloco.dc.html",
     "AcoesConversa.dc.html",
+    "AcoesConversaProposta.dc.html",
     "BloquearContato.dc.html",
     "ContatoBloqueado.dc.html",
     "RascunhoCartao.dc.html",
