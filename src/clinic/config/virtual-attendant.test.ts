@@ -19,7 +19,7 @@ describe('DEC-089 virtual attendant', () => {
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
-      expect(state).toEqual({ version: 46, status: 'ready' })
+      expect(state).toEqual({ version: 47, status: 'ready' })
       const cols = db
         .all<{ name: string }>(`PRAGMA table_info(clinic_settings)`)
         .map((c) => c.name)
