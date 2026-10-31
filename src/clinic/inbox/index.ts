@@ -29,13 +29,17 @@ export {
   closeConversationOp,
   getContactDetailOp,
   getConversationDetailOp,
+  listContactsDirectoryOp,
   listConversationsOp,
   markConversationReadOp,
   reconcileOutboundStatusOp,
   sendOutboundMessageOp,
   unblockContactOp,
+  type ContactAppointmentItem,
   type InboxMutationResult,
 } from './operations'
+
+export type { ContactDirectoryFilter } from './conversations'
 
 export { seedSyntheticInboxOp } from './seed'
 

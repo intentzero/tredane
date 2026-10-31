@@ -972,6 +972,19 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return clinicInbox.getConversationDetailOp(this.#db, caller, input, this.#clock)
   }
 
+  async listInboxContacts(
+    caller: ClinicCaller,
+    input: {
+      q?: string | null
+      filter?: 'all' | 'blocked' | 'with_appointment'
+      limit?: number
+    },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicInbox.listContactsDirectoryOp(this.#db, caller, input, this.#clock)
+  }
+
   async getInboxContact(caller: ClinicCaller, contactId: string) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)

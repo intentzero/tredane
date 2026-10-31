@@ -132,6 +132,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): InboxGateway {
   return {
     listConversations: (caller, input) => stub.listInboxConversations(caller, input),
     getConversation: (caller, input) => stub.getInboxConversation(caller, input),
+    listContacts: (caller, input) => stub.listInboxContacts(caller, input),
     getContact: (caller, contactId) => stub.getInboxContact(caller, contactId),
     assign: (caller, input) => stub.assignInboxConversation(caller, input),
     resumeAiReply: (caller, conversationId) => stub.resumeInboxAiReply(caller, conversationId),
@@ -275,6 +276,37 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
     },
   )
 
+  app.get('/api/tenants/:tenantId/inbox/contacts', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      const principal = c.get('principal')
+      requireClinicPermission(ctx, 'clinic.inbox.read')
+      const tenantId = c.req.param('tenantId')
+      const gw = await resolveGateway(c.env, tenantId, opts)
+      const filterRaw = c.req.query('filter') ?? 'all'
+      if (
+        filterRaw !== 'all' &&
+        filterRaw !== 'blocked' &&
+        filterRaw !== 'with_appointment'
+      ) {
+        throw new ValidationError('invalid_filter', `Filtro inválido: ${filterRaw}`)
+      }
+      const limitRaw = c.req.query('limit')
+      const limit = limitRaw ? Number(limitRaw) : undefined
+      const result = await gw.listContacts(workerCaller(tenantId, principal.clerkUserId), {
+        q: c.req.query('q') ?? null,
+        filter: filterRaw,
+        limit: Number.isFinite(limit) ? limit : undefined,
+      })
+      return c.json({
+        contacts: result.contacts.map(serializeContact),
+        nextBefore: result.nextBefore,
+      })
+    } catch (err) {
+      return inboxErrorResponse(c, err)
+    }
+  })
+
   app.get('/api/tenants/:tenantId/inbox/contacts/:contactId', ...tenant, async (c) => {
     try {
       const ctx = c.get('tenantContext')!
@@ -291,6 +323,10 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
         contact: serializeContact(result.contact),
         conversations: result.conversations.map(serializeConversation),
         hasPendingPix: result.hasPendingPix,
+        appointments: {
+          upcoming: result.appointments.upcoming,
+          past: result.appointments.past,
+        },
       })
     } catch (err) {
       return inboxErrorResponse(c, err)

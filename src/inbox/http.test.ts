@@ -256,4 +256,64 @@ describe('HTTP — caixa de entrada (#29)', () => {
       close()
     }
   })
+
+  it('lista Clientes por clínica + detalhe com appointments (fase 1)', async () => {
+    const { app, close, auth } = testInboxApp()
+    try {
+      await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/inbox/seed-demo',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        }),
+      )
+
+      const listA = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/inbox/contacts',
+        auth('user_synth_attendant_a'),
+      )
+      expect(listA.status).toBe(200)
+      const bodyA = (await listA.json()) as {
+        contacts: Array<{ id: string; displayName: string | null; waId: string }>
+      }
+      expect(bodyA.contacts.length).toBeGreaterThan(0)
+      const first = bodyA.contacts[0]!
+      const q = (first.displayName ?? first.waId).slice(0, 3)
+      const search = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/inbox/contacts?q=${encodeURIComponent(q)}`,
+        auth('user_synth_attendant_a'),
+      )
+      expect(search.status).toBe(200)
+      const searched = (await search.json()) as { contacts: Array<{ id: string }> }
+      expect(searched.contacts.some((c) => c.id === first.id)).toBe(true)
+
+      const detail = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/inbox/contacts/${encodeURIComponent(first.id)}`,
+        auth('user_synth_attendant_a'),
+      )
+      expect(detail.status).toBe(200)
+      const detailBody = (await detail.json()) as {
+        contact: { id: string }
+        conversations: unknown[]
+        appointments: { upcoming: unknown[]; past: unknown[] }
+      }
+      expect(detailBody.contact.id).toBe(first.id)
+      expect(detailBody.appointments).toEqual({ upcoming: [], past: [] })
+
+      const cross = await app.request(
+        `http://localhost/api/tenants/clinic-demo-b/inbox/contacts/${encodeURIComponent(first.id)}`,
+        auth('user_synth_owner_b'),
+      )
+      expect(cross.status).toBe(404)
+
+      const noAccess = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/inbox/contacts',
+        auth('user_synth_owner_b'),
+      )
+      expect(noAccess.status).toBe(403)
+    } finally {
+      close()
+    }
+  })
 })

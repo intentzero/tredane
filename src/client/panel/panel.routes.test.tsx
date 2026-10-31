@@ -212,6 +212,41 @@ describe('panel routes (#22)', () => {
     ).toBe('/c/clinic-demo-a/clinica/whatsapp/dev-sync')
   })
 
+  it('resolve Clientes lista e ficha (Opção C)', () => {
+    expect(resolvePanelRoute('/c/clinic-demo-a/clientes')).toEqual({
+      kind: 'area',
+      area: 'clientes',
+      tenantId: 'clinic-demo-a',
+      section: 'lista',
+    })
+    expect(resolvePanelRoute('/c/clinic-demo-a/clientes/ctc_1')).toEqual({
+      kind: 'area',
+      area: 'clientes',
+      tenantId: 'clinic-demo-a',
+      section: 'ficha',
+      contactId: 'ctc_1',
+    })
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'clientes',
+        tenantId: 'clinic-demo-a',
+        section: 'lista',
+      }),
+    ).toBe('/c/clinic-demo-a/clientes')
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'clientes',
+        tenantId: 'clinic-demo-a',
+        section: 'ficha',
+        contactId: 'ctc_1',
+      }),
+    ).toBe('/c/clinic-demo-a/clientes/ctc_1')
+    expect(areaTitle('clientes')).toBe('Clientes')
+    expect(areaNavLabel('clientes')).toBe('Clientes')
+  })
+
   it('resolve sub-rotas de conversas (#29)', () => {
     expect(resolvePanelRoute('/c/clinic-demo-a/conversas')).toEqual({
       kind: 'area',

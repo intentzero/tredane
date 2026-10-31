@@ -6,6 +6,7 @@ import { Button } from 'react-aria-components'
 import {
   PanelApiError,
   type AiSuggestion,
+  type ContactAppointmentItem,
   type InboxContactDetail,
   type PanelApi,
 } from '../../api'
@@ -25,6 +26,66 @@ type Props = {
   generation: number
   /** Só owner vê e executa exclusão (clinic.contacts.delete). */
   isOwner: boolean
+  /**
+   * Origem da ficha: Conversas (sidepane / Contato) ou Clientes (directório).
+   * Mesmo conteúdo canónico (Opção C Confirmada).
+   */
+  origin?: 'conversas' | 'clientes'
+}
+
+function formatAppointmentWhen(startsAt: number, endsAt: number): string {
+  const start = new Date(startsAt)
+  const end = new Date(endsAt)
+  const day = start.toLocaleString('pt-BR', { dateStyle: 'short' })
+  const from = start.toLocaleString('pt-BR', { timeStyle: 'short' })
+  const to = end.toLocaleString('pt-BR', { timeStyle: 'short' })
+  return `${day}, ${from}–${to}`
+}
+
+function AppointmentBlock({
+  title,
+  items,
+  tenantId,
+}: {
+  title: string
+  items: ContactAppointmentItem[]
+  tenantId: string
+}) {
+  if (items.length === 0) return null
+  return (
+    <div className="inbox-contact-appts">
+      <h3 className="inbox-contact-h3">{title}</h3>
+      <ul className="inbox-contact-appt-list">
+        {items.map((a) => (
+          <li key={a.id}>
+            <button
+              type="button"
+              className="inbox-contact-appt"
+              onClick={() =>
+                navigatePanel({
+                  kind: 'area',
+                  area: 'agenda',
+                  tenantId,
+                  section: 'compromisso',
+                  appointmentId: a.id,
+                })
+              }
+            >
+              <strong>
+                {formatAppointmentWhen(a.startsAt, a.endsAt)} · {a.serviceName}
+              </strong>
+              <span>
+                {a.status === 'confirmed' ? 'Confirmado' : 'Cancelado'}
+                {a.professionalName ? ` · ${a.professionalName}` : ''}
+                {a.roomResourceName ? ` · ${a.roomResourceName}` : ''}
+                {a.changeReason ? ` · ${a.changeReason}` : ''}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }
 
 function deleteErrorMessage(err: unknown): string {
@@ -49,6 +110,7 @@ export function InboxContactScreen({
   api,
   generation,
   isOwner,
+  origin = 'conversas',
 }: Props) {
   const [data, setData] = useState<InboxContactDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -110,15 +172,17 @@ export function InboxContactScreen({
         actionLabel="Voltar"
         onAction={() =>
           navigatePanel(
-            conversationId
-              ? {
-                  kind: 'area',
-                  area: 'conversas',
-                  tenantId,
-                  section: 'thread',
-                  conversationId,
-                }
-              : { kind: 'area', area: 'conversas', tenantId, section: 'lista' },
+            origin === 'clientes'
+              ? { kind: 'area', area: 'clientes', tenantId, section: 'lista' }
+              : conversationId
+                ? {
+                    kind: 'area',
+                    area: 'conversas',
+                    tenantId,
+                    section: 'thread',
+                    conversationId,
+                  }
+                : { kind: 'area', area: 'conversas', tenantId, section: 'lista' },
           )
         }
       />
@@ -127,6 +191,12 @@ export function InboxContactScreen({
   if (!data) return null
 
   const label = contactLabel(data.contact)
+  const summaryConversationId =
+    conversationId ??
+    data.conversations.find((c) => c.status !== 'closed')?.id ??
+    data.conversations[0]?.id
+  const upcoming = data.appointments?.upcoming ?? []
+  const past = data.appointments?.past ?? []
 
   async function handleBlock(reason: string | null) {
     setBlockBusy(true)
@@ -181,8 +251,12 @@ export function InboxContactScreen({
       )
       setConfirmOpen(false)
       setData(null)
-      // Voltar já à lista — evita thread/pipeline em cache com o contacto ainda aberto.
-      navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'lista' })
+      // Voltar já à lista — evita thread/pipeline em cache com o contato ainda aberto.
+      navigatePanel(
+        origin === 'clientes'
+          ? { kind: 'area', area: 'clientes', tenantId, section: 'lista' }
+          : { kind: 'area', area: 'conversas', tenantId, section: 'lista' },
+      )
     } catch (err) {
       // Não registar nome/telefone no console — mensagem genérica ao usuário.
       setDeleteError(deleteErrorMessage(err))
@@ -200,15 +274,17 @@ export function InboxContactScreen({
           aria-label="Voltar"
           onPress={() =>
             navigatePanel(
-              conversationId
-                ? {
-                    kind: 'area',
-                    area: 'conversas',
-                    tenantId,
-                    section: 'thread',
-                    conversationId,
-                  }
-                : { kind: 'area', area: 'conversas', tenantId, section: 'lista' },
+              origin === 'clientes'
+                ? { kind: 'area', area: 'clientes', tenantId, section: 'lista' }
+                : conversationId
+                  ? {
+                      kind: 'area',
+                      area: 'conversas',
+                      tenantId,
+                      section: 'thread',
+                      conversationId,
+                    }
+                  : { kind: 'area', area: 'conversas', tenantId, section: 'lista' },
             )
           }
         >
@@ -240,7 +316,7 @@ export function InboxContactScreen({
         </div>
       </dl>
 
-      {conversationId ? (
+      {summaryConversationId ? (
         <>
           <h2
             className="inbox-contact-h"
@@ -289,7 +365,7 @@ export function InboxContactScreen({
                   void api
                     .summarizeAiConversation(
                       tenantId,
-                      conversationId,
+                      summaryConversationId,
                       {
                         clientRequestId: crypto.randomUUID(),
                         actorDisplayName: 'Atendente',
@@ -338,6 +414,16 @@ export function InboxContactScreen({
       >
         Abrir Acompanhamento
       </Button>
+
+      <h2 className="inbox-contact-h">Horários</h2>
+      {upcoming.length === 0 && past.length === 0 ? (
+        <p className="inbox-contact-note">Nenhum horário marcado para este contacto.</p>
+      ) : (
+        <>
+          <AppointmentBlock title="Próximos" items={upcoming} tenantId={tenantId} />
+          <AppointmentBlock title="Anteriores" items={past} tenantId={tenantId} />
+        </>
+      )}
 
       <h2 className="inbox-contact-h">Conversas</h2>
       <ul className="inbox-list">

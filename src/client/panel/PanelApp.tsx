@@ -6,6 +6,7 @@ import { ClinicArea } from './screens/clinic/ClinicArea'
 import { ConversasArea } from './screens/inbox/ConversasArea'
 import { AcompanhamentoArea } from './screens/acompanhamento/AcompanhamentoArea'
 import { AgendaArea } from './screens/agenda/AgendaArea'
+import { ClientesArea } from './screens/clientes/ClientesArea'
 import { AvisosScreen } from './screens/AvisosScreen'
 import { PanelShell } from './shell/PanelShell'
 import { ErrorState, LoadingState } from './states/StatusScreens'
@@ -134,6 +135,12 @@ function PanelRouter() {
           tenantId={route.tenantId}
           section={route.section}
           opportunityId={route.opportunityId}
+        />
+      ) : route.area === 'clientes' ? (
+        <ClientesArea
+          tenantId={route.tenantId}
+          section={route.section}
+          contactId={route.contactId}
         />
       ) : (
         <AgendaArea

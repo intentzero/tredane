@@ -1506,6 +1506,30 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as InboxConversationDetail
     },
 
+    async listInboxContacts(
+      tenantId: string,
+      query: {
+        q?: string
+        filter?: 'all' | 'blocked' | 'with_appointment'
+        limit?: number
+      } = {},
+      opts?: FetchOpts,
+    ): Promise<InboxContactListResponse> {
+      const params = new URLSearchParams()
+      if (query.q?.trim()) params.set('q', query.q.trim())
+      if (query.filter && query.filter !== 'all') params.set('filter', query.filter)
+      if (query.limit != null) params.set('limit', String(query.limit))
+      const qs = params.toString()
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/contacts${qs ? `?${qs}` : ''}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as InboxContactListResponse
+    },
+
     async getInboxContact(
       tenantId: string,
       contactId: string,
@@ -2080,11 +2104,43 @@ export type WhatsappTemplatesResponse = {
   note: string
 }
 
+export type InboxContactListResponse = {
+  contacts: InboxContact[]
+  nextBefore: number | null
+}
+
+export type ContactAppointmentItem = {
+  id: string
+  serviceId: string
+  serviceName: string
+  professionalId: string
+  professionalName: string
+  roomResourceId: string | null
+  roomResourceName: string | null
+  startsAt: number
+  endsAt: number
+  occupiesUntil: number
+  status: 'confirmed' | 'cancelled'
+  contactLabel: string | null
+  contactId: string | null
+  conversationId: string | null
+  opportunityId: string | null
+  version: number
+  changeReason: string | null
+  durationAdjusted?: boolean
+  bookedByAi?: boolean
+}
+
 export type InboxContactDetail = {
   contact: InboxContact
   conversations: InboxConversation[]
   /** Contato tem Pix pendente (o bloqueio não cancela o Pix). */
   hasPendingPix?: boolean
+  /** Horários do contacto (fase 1 Clientes / paridade Contato). */
+  appointments?: {
+    upcoming: ContactAppointmentItem[]
+    past: ContactAppointmentItem[]
+  }
 }
 
 /** Resposta de DELETE contato — sem nome, telefone ou wa_id. */

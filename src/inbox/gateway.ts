@@ -11,6 +11,7 @@ import type {
   AssignConversationInput,
   BlockContactInput,
   CloseConversationInput,
+  ContactAppointmentItem,
   ConversationDetail,
   ConversationListItem,
   InboxCounts,
@@ -38,6 +39,17 @@ export type InboxGateway = {
     caller: ClinicCaller,
     input: { conversationId: string; messageLimit?: number; before?: number | null },
   ): Promise<ConversationDetail>
+  listContacts(
+    caller: ClinicCaller,
+    input: {
+      q?: string | null
+      filter?: 'all' | 'blocked' | 'with_appointment'
+      limit?: number
+    },
+  ): Promise<{
+    contacts: ConversationListItem['contact'][]
+    nextBefore: null
+  }>
   getContact(
     caller: ClinicCaller,
     contactId: string,
@@ -45,6 +57,10 @@ export type InboxGateway = {
     contact: ConversationListItem['contact']
     conversations: ConversationListItem[]
     hasPendingPix: boolean
+    appointments: {
+      upcoming: ContactAppointmentItem[]
+      past: ContactAppointmentItem[]
+    }
   }>
   assign(
     caller: ClinicCaller,
@@ -166,6 +182,9 @@ export function createMemoryInboxGateway(db: ClinicDb, clock: Clock): InboxGatew
     },
     async getConversation(caller, input) {
       return clinicInbox.getConversationDetailOp(db, caller, input, clock)
+    },
+    async listContacts(caller, input) {
+      return clinicInbox.listContactsDirectoryOp(db, caller, input, clock)
     },
     async getContact(caller, contactId) {
       return clinicInbox.getContactDetailOp(db, caller, contactId, clock)

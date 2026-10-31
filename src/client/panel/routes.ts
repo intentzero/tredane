@@ -11,7 +11,16 @@ function agendaDateQuery(search: string | undefined): string | undefined {
   return isCivilDateParam(date) ? date : undefined
 }
 
-export type PanelArea = 'conversas' | 'acompanhamento' | 'agenda' | 'clinica' | 'avisos'
+export type PanelArea =
+  | 'conversas'
+  | 'acompanhamento'
+  | 'agenda'
+  | 'clientes'
+  | 'clinica'
+  | 'avisos'
+
+/** Sub-rotas de Clientes (Opção C Confirmada): lista → ficha. */
+export type ClientesSection = 'lista' | 'ficha'
 
 export type ClinicaSection =
   | 'hub'
@@ -73,6 +82,13 @@ export type PanelRoute =
     }
   | {
       kind: 'area'
+      area: 'clientes'
+      tenantId: string
+      section: ClientesSection
+      contactId?: string
+    }
+  | {
+      kind: 'area'
       area: 'clinica'
       tenantId: string
       section: ClinicaSection
@@ -88,6 +104,7 @@ const AREA_PATH: Record<PanelArea, string> = {
   conversas: 'conversas',
   acompanhamento: 'acompanhamento',
   agenda: 'agenda',
+  clientes: 'clientes',
   clinica: 'clinica',
   avisos: 'avisos',
 }
@@ -96,6 +113,7 @@ const PATH_AREA: Record<string, PanelArea> = {
   conversas: 'conversas',
   acompanhamento: 'acompanhamento',
   agenda: 'agenda',
+  clientes: 'clientes',
   clinica: 'clinica',
   avisos: 'avisos',
 }
@@ -231,6 +249,20 @@ export function resolvePanelRoute(pathname: string, search = ''): PanelRoute | n
     }
     return { kind: 'area', area: 'agenda', tenantId, section: 'dia', date }
   }
+  if (area === 'clientes') {
+    const rest = match[3]
+    if (rest) {
+      const contactId = decodeURIComponent(rest.split('/')[0]!)
+      return {
+        kind: 'area',
+        area: 'clientes',
+        tenantId,
+        section: 'ficha',
+        contactId,
+      }
+    }
+    return { kind: 'area', area: 'clientes', tenantId, section: 'lista' }
+  }
   return null
 }
 
@@ -283,6 +315,12 @@ export function panelHref(route: PanelRoute): string {
         }
         return base
       }
+      if (route.area === 'clientes') {
+        if (route.section === 'ficha' && route.contactId) {
+          return `${base}/${encodeURIComponent(route.contactId)}`
+        }
+        return base
+      }
       if (route.area !== 'clinica') return base
       switch (route.section) {
         case 'hub':
@@ -326,6 +364,8 @@ export function areaTitle(area: PanelArea): string {
       return 'Acompanhamento'
     case 'agenda':
       return 'Agenda'
+    case 'clientes':
+      return 'Clientes'
     case 'clinica':
       return 'Clínica'
     case 'avisos':
@@ -362,6 +402,9 @@ export function areaRoute(tenantId: string, area: PanelArea): PanelRoute {
   }
   if (area === 'acompanhamento') {
     return { kind: 'area', area: 'acompanhamento', tenantId, section: 'quadro' }
+  }
+  if (area === 'clientes') {
+    return { kind: 'area', area: 'clientes', tenantId, section: 'lista' }
   }
   return { kind: 'area', area: 'agenda', tenantId, section: 'dia' }
 }
