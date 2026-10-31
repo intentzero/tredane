@@ -4722,7 +4722,7 @@
 @media (min-width: 1280px) {
   .conversas-3col:not(.conversas-3col--drawer) {
     --conversas-thread-min: 400px;
-    --conversas-list-width: 400px;
+    --conversas-list-width: clamp(440px, 30vw, 520px);
     grid-template-columns: var(--conversas-list-width) minmax(var(--conversas-thread-min), 1fr);
   }
 }
@@ -6692,11 +6692,11 @@
 
   /*
    * Densidade Conversas desktop (Confirmado Paulo 31/10/2026, Opção A / mocks WA):
-   * lista estável ~400 px (ainda no intervalo DEC-068 360–520), header compacto,
+   * lista 30% da janela, 440–520 px (intervalo DEC-068 360–520), header compacto,
    * busca sunken, linhas densas, empty simples, thread com bolhas/compositor.
    */
   .conversas-3col {
-    --conversas-list-width: 400px;
+    --conversas-list-width: clamp(440px, 30vw, 520px);
     grid-template-columns: var(--conversas-list-width) minmax(var(--conversas-thread-min), 1fr);
   }
 
@@ -6883,7 +6883,7 @@
 }
 
 /* ——— Painel de detalhe deslizante (Conversas): por cima, sem véu, sem empurrar a lista ———
- * Duas colunas (lista · conversa). Em ≥1280 px a lista fica ~400 px (Opção A Confirmada);
+ * Duas colunas (lista · conversa). Em ≥1280 px a lista fica 30vw, 440–520 px;
  * entre 1024 e 1279 px usa o intervalo DEC-068. O contato entra da direita em 200 ms. */
 .conversas-3col,
 .conversas-3col:not(.conversas-3col--drawer) {
@@ -6893,7 +6893,7 @@
 @media (min-width: 1280px) {
   .conversas-3col,
   .conversas-3col:not(.conversas-3col--drawer) {
-    --conversas-list-width: 400px;
+    --conversas-list-width: clamp(440px, 30vw, 520px);
     grid-template-columns: var(--conversas-list-width) minmax(var(--conversas-thread-min), 1fr);
   }
 }
@@ -8687,4 +8687,178 @@
   .clientes-2col {
     grid-template-columns: 400px minmax(0, 1fr);
   }
+}
+
+/* ——— Horários livres sobre o compositor (proposta Conversas, 31/10/2026) ——— */
+.free-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+}
+
+.free-slots--closed {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  align-items: flex-start;
+}
+
+.free-slots-head,
+.free-slots-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.free-slots-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-control-md);
+  padding: 0 var(--space-3);
+  border: var(--size-border-width) solid var(--color-primary-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.free-slots-service {
+  flex: 1;
+  min-width: 0;
+}
+
+.free-slots-select {
+  width: 100%;
+  min-height: var(--size-control-md);
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-body);
+  padding: 0 var(--space-2);
+}
+
+.free-slots-days,
+.free-slots-pros {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+}
+
+.free-slots-day {
+  flex: none;
+  min-width: 48px;
+  min-height: 44px;
+  border: var(--size-border-width) solid var(--color-line-control);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.15;
+  cursor: pointer;
+}
+
+.free-slots-day small {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.free-slots-day b {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+}
+
+.free-slots-day[aria-pressed='true'] {
+  background: var(--color-text-primary);
+  border-color: var(--color-text-primary);
+  color: var(--color-surface-card);
+}
+
+.free-slots-day[aria-pressed='true'] small {
+  color: var(--color-surface-card);
+}
+
+.free-slots-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: var(--space-2);
+}
+
+.free-slots-slot {
+  width: 100%;
+  min-height: 44px;
+  border: var(--size-border-width) solid var(--color-primary-border);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.15;
+  cursor: pointer;
+}
+
+.free-slots-slot small {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-secondary);
+}
+
+.free-slots-slot[aria-pressed='true'] {
+  background: var(--color-primary-base);
+  border-color: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+}
+
+.free-slots-slot[aria-pressed='true'] small {
+  color: var(--color-text-on-primary);
+}
+
+.free-slots-slot[data-disabled] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.free-slots-note,
+.free-slots-hint {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.free-slots-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.free-slots-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--size-border-width) solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-tint);
 }

@@ -104,7 +104,7 @@ A moldura do desktop (≥ 1280 px), o painel de detalhe deslizante, o seletor de
 
 | Ficheiro | Tela | O que mostra | Estado |
 | --- | --- | --- | --- |
-| `desktop/ConversasDesktopProposta.dc.html` | TEL-01 lista + empty | Rail DEC-068, lista 400 px (busca sunken, chips Todas/Novas/Minhas/Sem responsável, linhas densas com Em atendimento / Precisa de alguém), empty centrado «Escolha uma conversa» — sem card promo | **Confirmado** (Paulo 31/10/2026, Opção A); implementado no painel |
+| `desktop/ConversasDesktopProposta.dc.html` | TEL-01 lista + empty | Rail DEC-068, lista 440–520 px (30vw; revisto 31/10/2026, mock ainda mostra 400 px; busca sunken, chips Todas/Novas/Minhas/Sem responsável, linhas densas com Em atendimento / Precisa de alguém), empty centrado «Escolha uma conversa» — sem card promo | **Confirmado** (Paulo 31/10/2026, Opção A); implementado no painel |
 | `desktop/ConversasDesktopPropostaThread.dc.html` | TEL-01 thread | Mesma moldura com Juliana aberta: cabeçalho, bolhas, sugestão IA e compositor; linha activa na lista | **Confirmado** (Paulo 31/10/2026, Opção A); implementado no painel |
 | `desktop/ConversasControlesMenu.dc.html` | TEL-01 thread · ⋮ | Header Agendar + Contato + menu ⋮ só com acções de conversa/pipeline (sem Resumo da IA nem Bloquear) | **Confirmado** (Paulo 31/10/2026, Opção A); implementado |
 | `desktop/ConversasControlesContato.dc.html` | TEL-01 thread · Contato | Sidepane 380 px: dados, Resumo da IA, Acompanhamento, conversas, Bloquear, zona de risco (únicas entradas de Resumo e Bloquear) | **Confirmado** (Paulo 31/10/2026, Opção A); implementado |

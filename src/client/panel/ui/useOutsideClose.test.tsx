@@ -76,8 +76,8 @@ describe('painéis laterais (CSS)', () => {
     expect(css).not.toMatch(/data-panel='open'\]\s*\.acomp-wide-(board|bar)/)
   })
 
-  it('Conversas desktop ≥1280 px: lista estável ~400 px (Opção A Confirmada)', () => {
-    expect(css).toMatch(/--conversas-list-width:\s*400px/)
+  it('Conversas desktop ≥1280 px: lista larga estilo WhatsApp Web, 30vw entre 440 e 520 px', () => {
+    expect(css).toMatch(/--conversas-list-width:\s*clamp\(440px,\s*30vw,\s*520px\)/)
     expect(css).toMatch(
       /grid-template-columns:\s*var\(--conversas-list-width\)\s+minmax\(var\(--conversas-thread-min\),\s*1fr\)/,
     )

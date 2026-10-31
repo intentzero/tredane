@@ -4,6 +4,7 @@ import { setClinicAiAssistEnabled } from '../config/settings'
 import { ingestContactMessage, workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import { enqueueAutoDraft } from '../ai/autodraft'
+import { saveScheduleSession } from '../ai/schedule-session'
 import {
   assignConversationOp,
   closeConversationOp,
@@ -171,6 +172,32 @@ describe('Clinic inbox — conversas e histórico (#29)', () => {
       expect(detail.messages.some((m) => m.direction === 'system')).toBe(true)
       // Estado permanece open — atribuição separada do status
       expect(detail.status).toBe('open')
+    } finally {
+      close()
+    }
+  })
+
+  it('o detalhe devolve o procedimento, dia e período já definidos na conversa', () => {
+    const { db, clock, close } = bootClinicDb()
+    try {
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      seedSyntheticInboxOp(db, caller, clock)
+      const listed = listConversationsOp(db, caller, { filter: 'all', limit: 5 }, clock)
+      const id = listed.items[0]!.id
+      expect(getConversationDetailOp(db, caller, { conversationId: id }, clock).scheduleHint).toBeNull()
+
+      saveScheduleSession(
+        db,
+        'clinic-demo-a',
+        id,
+        { serviceId: 'svc_laser', dayLabel: 'sexta', period: 'tarde' },
+        clock,
+      )
+      expect(getConversationDetailOp(db, caller, { conversationId: id }, clock).scheduleHint).toEqual({
+        serviceId: 'svc_laser',
+        dayLabel: 'sexta',
+        period: 'tarde',
+      })
     } finally {
       close()
     }

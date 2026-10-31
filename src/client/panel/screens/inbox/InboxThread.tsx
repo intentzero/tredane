@@ -53,6 +53,7 @@ import { awaitingClinicReply } from './lastRelevant'
 import { ThreadActionsSheet, type ThreadAction } from './ThreadActionsSheet'
 import { TransferSheet } from './TransferSheet'
 import { PixPendingBar, PixPendingSheet } from './PixPendingSheet'
+import { FreeSlotsStrip } from './FreeSlotsStrip'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { AiWorking } from '../../ui/AiWorking'
 import { navigatePanel } from '../../routes'
@@ -92,6 +93,8 @@ type Props = {
   contactPanel?: { open: boolean; controlsId: string; onToggle: () => void }
   /** Desktop (DEC-074): «Agendar» abre um painel ao lado da conversa em vez de trocar de área. */
   agendarPanel?: { open: boolean; controlsId: string; onToggle: () => void }
+  /** Texto vindo da coluna de contexto (horários livres): entra no campo de mensagem. */
+  incomingDraft?: { id: number; conversationId: string; text: string } | null
 }
 
 /** Texto sempre como nó React — nunca HTML (XSS / conteúdo externo). */
@@ -251,6 +254,7 @@ export function InboxThread({
   staffDisplayName = null,
   contactPanel,
   agendarPanel,
+  incomingDraft = null,
 }: Props) {
   const authorDisplayName =
     staffFirstNameFromDisplay(staffDisplayName) ??
@@ -259,6 +263,13 @@ export function InboxThread({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [draft, setDraft] = useState('')
+  const lastIncoming = useRef<number | null>(null)
+  useEffect(() => {
+    if (!incomingDraft || incomingDraft.conversationId !== conversationId) return
+    if (lastIncoming.current === incomingDraft.id) return
+    lastIncoming.current = incomingDraft.id
+    setDraft((prev) => (prev.trim() ? `${prev.trimEnd()}\n${incomingDraft.text}` : incomingDraft.text))
+  }, [incomingDraft, conversationId])
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [reserveOpen, setReserveOpen] = useState(false)
@@ -1572,6 +1583,21 @@ export function InboxThread({
                 {aiBusy ? <AiWorking compact label="Gerando sugestão…" /> : 'Sugerir resposta'}
               </Button>
             </div>
+          ) : null}
+          {windowOpen && !contactPanel?.open ? (
+            <FreeSlotsStrip
+              tenantId={tenantId}
+              api={api}
+              generation={generation}
+              conversationId={detail.id}
+              hint={detail.scheduleHint ?? null}
+              contactId={detail.contactId}
+              opportunityId={detail.opportunity?.id ?? null}
+              authorDisplayName={authorDisplayName}
+              onPropose={(text) =>
+                setDraft((prev) => (prev.trim() ? `${prev.trimEnd()}\n${text}` : text))
+              }
+            />
           ) : null}
           {windowOpen ? (
             <form
