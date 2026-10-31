@@ -116,6 +116,7 @@ import type {
   SummarizeInput,
 } from '../clinic/ai'
 import { HUMAN_HANDOFF_BUTTON_ID, notifyHumanHandoff, resumeAiReply } from '../clinic/ai/human-handoff'
+import { handlePostBookingButtonClick } from '../clinic/followup/post-booking'
 import { systemClock, type Clock } from '../db/clock'
 import { fromD1 } from '../db/admin/async-store'
 import {
@@ -715,6 +716,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         await this.#drain(caller)
       }
       return { handled: true, action: 'human' as const }
+    }
+    // DEC-086 — follow-up pós-agendamento («Não, obrigado» / «Quero outro serviço»).
+    if (input.conversationId) {
+      const post = handlePostBookingButtonClick(
+        this.#db,
+        {
+          tenantId: caller.tenantId,
+          conversationId: input.conversationId,
+          buttonId: input.buttonId,
+          providerEventKey: input.providerEventKey,
+        },
+        this.#clock,
+      )
+      if (post.handled) {
+        if (post.outbox.length > 0) {
+          await this.#fanoutOutboxes(caller, post.outbox, true)
+          await this.#drain(caller)
+        }
+        return { handled: true, action: post.action }
+      }
     }
     let contactId = input.contactId?.trim() ?? ''
     if (!contactId && input.conversationId) {

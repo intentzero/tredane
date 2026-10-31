@@ -41,6 +41,7 @@ import {
 } from './proposals'
 import { evaluateServiceTempo, type ForecastAdapter } from '../tempo/evaluate'
 import { readOpenMeteo } from '../tempo/open-meteo'
+import { appendPostBookingFollowup } from '../followup/post-booking'
 import { sendProposalResultMessageOp, type SendProposalResultOutcome } from './results'
 import type { AppointmentProposalRow } from './types'
 
@@ -401,12 +402,22 @@ export async function executeProposalConfirmOp(
         clock,
       )
       const result = await ensureResult(db, caller, proposal.id, 'booked', clock)
+      const outbox = appendPostBookingFollowup(
+        db,
+        caller,
+        {
+          conversationId: proposal.conversationId,
+          appointmentId: booked.value.id,
+        },
+        clock,
+        collectOutbox(booked.outbox, 'outbox' in result ? result.outbox : []),
+      )
       return {
         status: 'booked',
         proposal,
         appointment: booked.value,
         result,
-        outbox: collectOutbox(booked.outbox, 'outbox' in result ? result.outbox : []),
+        outbox,
         idempotentReplay: true,
       }
     }
@@ -719,12 +730,22 @@ export async function executeProposalConfirmOp(
       clock,
     )
     const result = await ensureResult(db, caller, confirmed.id, 'booked', clock)
+    const outbox = appendPostBookingFollowup(
+      db,
+      caller,
+      {
+        conversationId: confirmed.conversationId,
+        appointmentId: booked.value.id,
+      },
+      clock,
+      collectOutbox(booked.outbox, 'outbox' in result ? result.outbox : []),
+    )
     return {
       status: 'booked',
       proposal: confirmed,
       appointment: booked.value,
       result,
-      outbox: collectOutbox(booked.outbox, 'outbox' in result ? result.outbox : []),
+      outbox,
       idempotentReplay: Boolean(booked.idempotentReplay),
     }
   } catch (err) {

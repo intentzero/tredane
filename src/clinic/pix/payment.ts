@@ -12,6 +12,7 @@ import { assertClinicSchemaReady } from '../migrations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots, snapshotDuration } from '../config/zones'
+import { appendPostBookingFollowup } from '../followup/post-booking'
 import { confirmAppointmentInTransaction } from '../scheduling/booking'
 import { checkSlotAvailability } from '../scheduling/check'
 import type { ClinicDb } from '../store'
@@ -379,6 +380,16 @@ export function processPixPaymentOp(
           },
           clock,
         )
+        const followOutbox = appendPostBookingFollowup(
+          db,
+          caller,
+          {
+            conversationId: charge.conversationId,
+            appointmentId: confirmedAppointmentId,
+          },
+          clock,
+          outbox,
+        )
         saveWebhookEvent(db, {
           tenantId: meta.tenantId,
           eventId: input.eventId,
@@ -394,7 +405,7 @@ export function processPixPaymentOp(
           appointmentId: confirmedAppointmentId,
           alert: null,
           intent: nextIntent,
-          outbox,
+          outbox: followOutbox,
           idempotentReplay: false,
           reason: null,
         }
