@@ -158,6 +158,13 @@ export function notifyHumanHandoff(
     tenantId,
     input.conversationId,
   )
+  // Pausa: cancela rascunho em curso para o spinner da lista sumir no refetch.
+  // SQL directo (evita import circular com autodraft.ts).
+  db.run(
+    `DELETE FROM ai_autodraft_jobs WHERE tenant_id = ? AND conversation_id = ?`,
+    tenantId,
+    input.conversationId,
+  )
   // DEC-087: humano activo — cancela idle automático.
   db.run(
     `UPDATE conversations

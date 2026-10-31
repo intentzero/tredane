@@ -2882,6 +2882,45 @@
   font-size: var(--font-size-caption);
 }
 
+/* Spinner «IA a preparar sugestão» na row da lista (WS conversation.ai_draft). */
+.inbox-row-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-ai-ink);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+}
+
+.inbox-row-ai-spinner {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--color-ai-border);
+  border-top-color: var(--color-ai-ink);
+  border-radius: 50%;
+  animation: inbox-ai-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.inbox-row-ai-label {
+  letter-spacing: 0.02em;
+}
+
+@keyframes inbox-ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inbox-row-ai-spinner {
+    animation: none;
+    border-top-color: var(--color-ai-border);
+    opacity: 0.85;
+  }
+}
+
 /* Não lida: nome em negrito, prévia em cor forte, hora na cor da marca. */
 .inbox-row--unread .inbox-row-name {
   font-weight: 700;

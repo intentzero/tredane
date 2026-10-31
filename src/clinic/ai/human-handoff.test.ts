@@ -104,6 +104,12 @@ describe('pausa da IA na divergência', () => {
       expect(first[0]?.reason).toBe('human_handoff')
       expect(first[0]?.replyOutbox?.some((row) => row.type === 'whatsapp.send')).toBe(true)
       expect(s.calls()).toBe(0)
+      expect(
+        s.db.get<{ n: number }>(
+          `SELECT COUNT(*) AS n FROM ai_autodraft_jobs WHERE conversation_id = ?`,
+          s.cnv.id,
+        )?.n,
+      ).toBe(0)
       const assignee = s.db.get<{ assignee: string | null }>(
         `SELECT assignee_clerk_user_id AS assignee FROM conversations WHERE id = ?`,
         s.cnv.id,

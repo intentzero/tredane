@@ -507,7 +507,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           { conversationId: result.conversation.id, messageId: result.message.id },
           this.#clock,
         )
-        if (job) await this.#scheduleAlarmNoLaterThan(job.dueAt)
+        if (job) {
+          await this.#scheduleAlarmNoLaterThan(job.dueAt)
+          // Lista: spinner desde o debounce (mesmo canal que `generating` / outcome).
+          await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'queued' })
+        }
       } catch {
         /* best-effort: a ingestão nunca falha por causa da IA */
       }

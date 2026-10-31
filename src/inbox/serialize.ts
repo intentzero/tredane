@@ -36,6 +36,7 @@ export function serializeConversation(c: ConversationRow | ConversationListItem)
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
     needsPerson: 'needsPerson' in c ? c.needsPerson : false,
+    aiDrafting: 'aiDrafting' in c ? c.aiDrafting === true : false,
   }
   if ('contact' in c) {
     return { ...base, contact: serializeContact(c.contact) }

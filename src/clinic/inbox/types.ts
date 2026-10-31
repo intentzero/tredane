@@ -73,6 +73,11 @@ export type ConversationListItem = ConversationRow & {
   contact: ContactSummary
   /** IA pausada ou alerta de equipe ainda aberto (DEC-083, 31/10/2026). */
   needsPerson: boolean
+  /**
+   * Rascunho automático em curso (`ai_autodraft_jobs`: queued | generating).
+   * Alimenta o spinner da lista; o WS `conversation.ai_draft` actualiza em tempo real.
+   */
+  aiDrafting: boolean
 }
 
 export type MessagingWindowView = {

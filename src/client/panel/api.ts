@@ -1920,6 +1920,8 @@ export type InboxConversation = {
   updatedAt: number
   /** IA pausada ou alerta de equipe ainda aberto. */
   needsPerson?: boolean
+  /** Rascunho automático em curso — spinner na lista (WS `conversation.ai_draft`). */
+  aiDrafting?: boolean
   contact: InboxContact
 }
 
