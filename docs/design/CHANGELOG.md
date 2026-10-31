@@ -1,5 +1,12 @@
 # Histórico do design
 
+## 31/10/2026 — Clínica: menos carga cognitiva (**Proposto**)
+
+- Novos mocks `mobile/ClinicaPassoAgora` (M-60), `ClinicaPronta` (M-61), `ClinicaAssistente` (M-62) e `desktop/ClinicaVisaoGeral`. Não substituem M-15 até a confirmação; sem token novo.
+- Proposta: um só próximo passo enquanto falta configurar; áreas agrupadas por pergunta quando pronta; «Conferir» vira alerta só com pendência; IA e limites saem do início para «Assistente e automações». Previews PNG ainda não gerados (falta Playwright neste ambiente).
+- **Implementado a pedido de Paulo («implementa», 31/10/2026):** `ClinicHub` com próximo passo + «O caminho» (a configurar) e áreas por pergunta (pronta); nova rota `/clinica/assistente` com Local da previsão, Sugestões com IA e Limites das automações (só owner vê a entrada); alerta «N serviços não podem ser marcados» no lugar da linha «Conferir» no hub. Também: limites com «Personalizar os 9 limites» (números recolhidos por padrão) e hub pronto em duas colunas no desktop. Fora: opção «Neutro» de género (não está na DEC-089).
+
+
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 

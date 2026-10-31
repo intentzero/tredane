@@ -121,42 +121,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
           <ClinicHub
             tenantId={tenantId}
             snap={snap}
-            aiCard={
-              <>
-                {isOwner ? (
-                  <ForecastPlaceCard
-                    tenantId={tenantId}
-                    api={api}
-                    generation={generation}
-                    place={{
-                      mode: snap.settings.forecastMode,
-                      city: snap.settings.forecastCity,
-                      latitude: snap.settings.forecastLatitude,
-                      longitude: snap.settings.forecastLongitude,
-                    }}
-                    onSaved={() => void reload()}
-                  />
-                ) : null}
-                <AiAssistCard
-                  tenantId={tenantId}
-                  api={api}
-                  generation={generation}
-                  initialEnabled={snap.settings.aiAssistEnabled === true}
-                  initialAddress={snap.settings.clinicAddress ?? null}
-                  initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
-                  initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
-                  initialVirtualAttendantName={snap.settings.virtualAttendantName ?? null}
-                  initialVirtualAttendantGender={snap.settings.virtualAttendantGender ?? null}
-                />
-                {isOwner ? (
-                  <AutomationLimitsCard
-                    tenantId={tenantId}
-                    api={api}
-                    generation={generation}
-                  />
-                ) : null}
-              </>
-            }
+            showAssistant={isOwner}
             stagingCard={
               isOwner && isStagingHostname() && active.phase === 'ready' ? (
                 <StagingResetCard
@@ -169,6 +134,39 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
               ) : null
             }
           />
+        )
+      case 'assistente':
+        return (
+          <div className="clinic-stack">
+            {isOwner ? (
+              <ForecastPlaceCard
+                tenantId={tenantId}
+                api={api}
+                generation={generation}
+                place={{
+                  mode: snap.settings.forecastMode,
+                  city: snap.settings.forecastCity,
+                  latitude: snap.settings.forecastLatitude,
+                  longitude: snap.settings.forecastLongitude,
+                }}
+                onSaved={() => void reload()}
+              />
+            ) : null}
+            <AiAssistCard
+              tenantId={tenantId}
+              api={api}
+              generation={generation}
+              initialEnabled={snap.settings.aiAssistEnabled === true}
+              initialAddress={snap.settings.clinicAddress ?? null}
+              initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
+              initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
+              initialVirtualAttendantName={snap.settings.virtualAttendantName ?? null}
+              initialVirtualAttendantGender={snap.settings.virtualAttendantGender ?? null}
+            />
+            {isOwner ? (
+              <AutomationLimitsCard tenantId={tenantId} api={api} generation={generation} />
+            ) : null}
+          </div>
         )
       case 'servicos':
         return <ServicesList tenantId={tenantId} snap={snap} />

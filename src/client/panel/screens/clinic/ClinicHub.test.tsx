@@ -34,15 +34,22 @@ describe('ClinicHub — progresso', () => {
         snap={snap({ missing: ['weekly_availability', 'whatsapp'], services: 3, professionals: 1, rooms: 1 })}
       />,
     )
-    expect(screen.getByText('Faltam 2 passos para atender')).toBeTruthy()
+    expect(screen.getByText(/Faltam 2 passos para atender/)).toBeTruthy()
     expect(screen.getByText(/3 de 5 etapas prontas · Próxima: Horário da clínica/)).toBeTruthy()
+    expect(screen.getByText('Agora · passo 1')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Definir horário' })).toBeTruthy()
     const bar = screen.getByRole('progressbar', { name: 'Etapas prontas' })
     expect(bar.getAttribute('aria-valuenow')).toBe('3')
     expect(bar.getAttribute('aria-valuemax')).toBe('5')
   })
 
   it('a lista de passos segue a ordem horário → salas → profissionais → serviços', () => {
-    render(<ClinicHub tenantId="clinic-demo-a" snap={snap({ missing: [], services: 1, professionals: 1, rooms: 1 })} />)
+    render(
+      <ClinicHub
+        tenantId="clinic-demo-a"
+        snap={snap({ missing: ['whatsapp'], services: 1, professionals: 1, rooms: 1 })}
+      />,
+    )
     const names = screen
       .getAllByRole('button')
       .map((b) => b.textContent ?? '')
@@ -60,6 +67,9 @@ describe('ClinicHub — progresso', () => {
     )
     expect(screen.getByText('Pronta para atender')).toBeTruthy()
     expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByText('Quando atende')).toBeTruthy()
+    expect(screen.getByText('Quem, o quê e onde')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Assistente e automações/ })).toBeTruthy()
   })
 
   it('marca «Falta» só onde falta e «Pronto» só para leitor de tela onde está pronto', () => {
@@ -70,8 +80,9 @@ describe('ClinicHub — progresso', () => {
       />,
     )
     expect(screen.getAllByText('Falta')).toHaveLength(1)
-    expect(screen.getByRole('button', { name: /^WhatsApp.*Falta/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^5 · WhatsApp.*Falta/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /^4 · Serviços.*Pronto/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Conectar WhatsApp' })).toBeTruthy()
   })
 
   it('Equipe aparece como «em breve» e não é botão', () => {

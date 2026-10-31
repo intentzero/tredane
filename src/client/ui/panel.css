@@ -9053,3 +9053,94 @@
   border-radius: var(--radius-md);
   background: var(--color-warning-tint);
 }
+
+/* Clínica: um próximo passo de cada vez (M-60) e alerta de pendência (M-61), Proposto. */
+.hub-next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-card);
+}
+
+.hub-next-eyebrow {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-primary-base);
+}
+
+.hub-next-title {
+  margin: 0;
+  font-size: var(--font-size-headline);
+  font-weight: var(--font-weight-semibold);
+}
+
+.hub-next-why {
+  margin: 0;
+  font-size: var(--font-size-body);
+  color: var(--color-text-secondary);
+}
+
+.hub-next-cta {
+  margin-top: var(--space-2);
+  min-height: var(--size-touch);
+  align-self: stretch;
+}
+
+.hub-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hub-alert > span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-small);
+}
+
+.hub-alert strong {
+  font-size: var(--font-size-body);
+}
+
+/* Clínica pronta: áreas em cartões no desktop (M-61, Proposto). */
+.hub-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.hub-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .clinic-work > .clinic-stack--hub {
+    max-width: 1040px;
+  }
+
+  .clinic-stack--hub .hub-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4) var(--space-6);
+    align-items: start;
+  }
+}

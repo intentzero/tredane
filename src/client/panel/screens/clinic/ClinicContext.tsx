@@ -66,6 +66,7 @@ export function ClinicContext({ tenantId, section, entityId, snap }: Props) {
       items: [
         { id: 'whatsapp', label: 'WhatsApp', go: 'whatsapp', sections: ['whatsapp'] },
         { id: 'recebimento', label: 'Recebimento', go: 'recebimento', sections: ['recebimento'] },
+        { id: 'assistente', label: 'Assistente e automações', go: 'assistente', sections: ['assistente'] },
       ],
     },
   ]

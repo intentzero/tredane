@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Clínica no desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0E5A5C}a:hover{color:#0A4547}
+.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.side a{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 12px;border-radius:8px;font-size:14px;color:#142625;text-decoration:none}
+.side h3{margin:16px 12px 4px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#566160}
+.st{margin-left:auto;width:8px;height:8px;border-radius:999px}
+.card{background:#FFFFFF;border:1px solid #E1E3E0;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.ch{margin:0;font-size:16px;font-weight:600}
+.kv{display:flex;align-items:center;gap:12px;min-height:48px;text-decoration:none;color:#142625}
+.kv+.kv{border-top:1px solid #EEEDE7}
+.kv span{flex:1;display:flex;flex-direction:column;gap:2px}
+.kv b{font-size:14px;font-weight:500}
+.kv small{font-size:13px;color:#566160}
+.pill{font-size:11px;font-weight:500;border-radius:999px;padding:3px 8px}
+.day{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;font-size:11px;color:#566160}
+.day i{display:block;width:100%;max-width:36px;border-radius:4px;background:#0E5A5C}
+</style>
+</helmet>
+<div style="min-height:820px;background:#F5F4EF;font-family:Roboto, 'Helvetica Neue', Arial, sans-serif;color:#142625;display:flex;flex-wrap:wrap;box-sizing:border-box">
+
+  <aside class="side" aria-label="Clínica" style="flex:1 1 240px;max-width:280px;background:#FFFFFF;border-right:1px solid #E1E3E0;padding:20px 12px;box-sizing:border-box;display:flex;flex-direction:column">
+    <div style="padding:0 12px 8px;display:flex;flex-direction:column;gap:2px">
+      <span style="font-size:13px;color:#566160">Clínica Aurora</span>
+      <strong style="font-size:18px;font-weight:600">Clínica</strong>
+    </div>
+    <a href="#" aria-current="page" style="background:#E7F1F1;color:#0A4547;font-weight:500">Visão geral</a>
+    <h3>Agenda</h3>
+    <a href="#">Horário e folgas<i class="st" style="background:#1F7A4D" aria-label="Pronto"></i></a>
+    <a href="#">Profissionais<i class="st" style="background:#1F7A4D" aria-label="Pronto"></i></a>
+    <a href="#">Serviços<i class="st" style="background:#6E4200" aria-label="1 pendência"></i></a>
+    <a href="#">Salas e equipamentos<i class="st" style="background:#1F7A4D" aria-label="Pronto"></i></a>
+    <h3>Atendimento</h3>
+    <a href="#">WhatsApp<i class="st" style="background:#1F7A4D" aria-label="Pronto"></i></a>
+    <a href="#">Assistente e automações</a>
+    <a href="#">Sinal por Pix</a>
+  </aside>
+
+  <main style="flex:999 1 560px;min-width:0;padding:28px 32px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px;max-width:1040px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <h1 style="margin:0;font-size:22px;font-weight:600;flex:1">Visão geral</h1>
+      <span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:#1F7A4D;background:#EAF5EF;border-radius:999px;padding:6px 10px"><i style="width:8px;height:8px;border-radius:999px;background:#1F7A4D"></i>Pronta para atender</span>
+    </div>
+
+    <a href="#" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;background:#FFF7EA;border:1px solid #EBCB94;color:#6E4200;text-decoration:none">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+      <span style="flex:1;font-size:14px"><b style="font-weight:600">1 serviço não pode ser marcado.</b> Drenagem linfática · ninguém faz este serviço.</span>
+      <span style="font-size:14px;font-weight:600">Resolver</span>
+    </a>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr));gap:16px">
+      <section class="card" aria-labelledby="d1">
+        <h2 class="ch" id="d1">Quando atende</h2>
+        <div style="display:flex;gap:8px;align-items:flex-end;height:96px" aria-hidden="true">
+          <span class="day"><i style="height:64px"></i>Seg</span>
+          <span class="day"><i style="height:64px"></i>Ter</span>
+          <span class="day"><i style="height:64px"></i>Qua</span>
+          <span class="day"><i style="height:64px"></i>Qui</span>
+          <span class="day"><i style="height:64px"></i>Sex</span>
+          <span class="day"><i style="height:26px"></i>Sáb</span>
+          <span class="day"><i style="height:6px;background:#CBD0CF"></i>Dom</span>
+        </div>
+        <p style="margin:0;font-size:13px;color:#566160">Seg a sex 9h–19h · Sáb 9h–13h · feriado de 15/11 marcado</p>
+        <a href="#" style="font-size:14px;font-weight:500">Editar horário e folgas</a>
+      </section>
+
+      <section class="card" aria-labelledby="d2" style="gap:0">
+        <h2 class="ch" id="d2" style="margin-bottom:4px">Quem, o quê e onde</h2>
+        <a class="kv" href="#"><span><b>Profissionais</b><small>Ana, Bia, Carla</small></span><b style="font-size:18px">3</b></a>
+        <a class="kv" href="#"><span><b>Serviços</b><small>1 sem profissional</small></span><b style="font-size:18px">11</b></a>
+        <a class="kv" href="#"><span><b>Salas e equipamentos</b><small>Sala 1, Sala 2, Laser</small></span><b style="font-size:18px">3</b></a>
+      </section>
+
+      <section class="card" aria-labelledby="d3" style="gap:0">
+        <h2 class="ch" id="d3" style="margin-bottom:4px">Como fala com as clientes</h2>
+        <a class="kv" href="#"><span><b>WhatsApp</b><small>(19) 9••••-0142</small></span><span class="pill" style="flex:none;color:#1F7A4D;background:#EAF5EF">Conectado</span></a>
+        <a class="kv" href="#"><span><b>Sinal por Pix</b><small>Opcional</small></span><span class="pill" style="flex:none;color:#424B4A;background:#EEEDE7">Desligado</span></a>
+      </section>
+
+      <section class="card" aria-labelledby="d4" style="gap:0;border-color:#E7E0F8">
+        <h2 class="ch" id="d4" style="margin-bottom:4px;color:#4B2A9E">Assistente e automações</h2>
+        <a class="kv" href="#"><span><b>Sugestões com IA</b><small>Apresenta-se como Luna</small></span><span class="pill" style="flex:none;color:#4B2A9E;background:#F7F4FD">Ligadas</span></a>
+        <a class="kv" href="#"><span><b>Proteções</b><small>Limites recomendados · marcação por botão ativa</small></span><span class="pill" style="flex:none;color:#424B4A;background:#EEEDE7">Padrão</span></a>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
