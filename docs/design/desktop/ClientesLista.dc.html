@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Clientes — lista (Confirmado)</title>
+<style>
+body{margin:0}
+button,input{font:inherit}
+button:focus-visible,input:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+.d{--app:#F5F4EF;--card:#FFFFFF;--sunk:#EEEDE7;--tx:#142625;--tx2:#424B4A;--mu:#566160;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--prB:#B3D1D1;--ok:#1F7A4D;--okT:#EAF5EF;--wa:#6E4200;--waT:#FFF7EA;--bd:#E1E3E0;--div:#EEEDE7;--ctl:#7A8584}
+.rl a{width:68px;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;font-size:11px;color:var(--mu);text-decoration:none}
+.rl a.on{background:var(--prT);color:var(--prInk);font-weight:600}
+.chip{flex:none;height:28px;padding:0 12px;border-radius:999px;border:1px solid var(--ctl);background:var(--card);font-size:13px;color:var(--tx);display:inline-flex;align-items:center;gap:6px}
+.chip.on{border-color:var(--tx);background:var(--tx);color:#fff;font-weight:600}
+.row{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;border:0;background:transparent;padding:12px 16px;min-height:64px;box-sizing:border-box;border-bottom:1px solid var(--div);cursor:pointer}
+.row.on{background:var(--prT);box-shadow:inset 4px 0 0 var(--pr)}
+.av{flex:none;width:40px;height:40px;border-radius:999px;display:grid;place-items:center;font-size:13px;font-weight:600}
+.meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.nm{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sn{font-size:13px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{padding:1px 8px;border-radius:6px;font-weight:600;font-size:11px}
+.tag.ok{background:var(--okT);color:var(--ok)}
+.tag.wa{background:var(--waT);color:var(--wa)}
+.tag.pr{background:var(--prT);color:var(--prInk)}
+.badge{position:absolute;top:8px;right:12px;font-size:10px;font-weight:600;color:var(--mu);background:var(--sunk);padding:2px 8px;border-radius:999px}
+</style>
+</head>
+<body>
+<!-- Confirmado — wire desktop lista Clientes. Não Confirmado. Exemplos fictícios. -->
+<div class="d" style="width:1440px;height:900px;box-sizing:border-box;display:grid;grid-template-columns:84px 400px minmax(0,1fr);background:var(--app);color:var(--tx);font-family:Roboto,&quot;Helvetica Neue&quot;,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.35;overflow:hidden;position:relative">
+  <span class="badge">Confirmado · Opção C</span>
+
+  <nav class="rl" aria-label="Áreas" style="background:var(--card);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0">
+    <div style="width:40px;height:40px;border-radius:10px;background:var(--pr);color:#fff;display:grid;place-items:center;font-weight:700;margin-bottom:10px" aria-hidden="true">T</div>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2-5.4A8.4 8.4 0 1 1 21 11.5z"/></svg>Conversas</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v16M10 4v6M16 4v16"/></svg>Acompanhar</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>Agenda</a>
+    <a class="on" href="#" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Clientes</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Clínica</a>
+  </nav>
+
+  <section aria-label="Lista de clientes" style="background:var(--card);border-right:1px solid var(--bd);display:flex;flex-direction:column;min-height:0">
+    <div style="padding:16px;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid var(--bd)">
+      <h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.02em">Clientes</h1>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span style="font-size:13px;color:var(--tx2)">Clínica Aurora</span>
+        <span style="font-size:12px;color:var(--ok)">Ao vivo</span>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:8px;background:var(--sunk)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#566160" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input type="search" placeholder="Buscar nome ou telefone" style="flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:14px;color:var(--tx)">
+      </label>
+      <div role="group" aria-label="Filtros" style="display:flex;gap:6px;overflow-x:auto">
+        <button type="button" class="chip on">Todas</button>
+        <button type="button" class="chip">Com horário</button>
+        <button type="button" class="chip">Bloqueadas</button>
+      </div>
+    </div>
+    <ul style="list-style:none;margin:0;padding:0;overflow-y:auto;flex:1">
+      <li>
+        <button type="button" class="row on" aria-current="true">
+          <span class="av" style="background:var(--prT);color:var(--prInk)">JP</span>
+          <span class="meta">
+            <span class="nm">Juliana Prado</span>
+            <span class="sn">(11) •••••-4281 · Próximo: amanhã 15:00</span>
+            <span style="display:flex;gap:6px;margin-top:4px"><span class="tag ok">Em atendimento</span><span class="tag pr">Limpeza de pele</span></span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="row">
+          <span class="av" style="background:var(--prT);color:var(--prInk)">MA</span>
+          <span class="meta">
+            <span class="nm">Marina Alves</span>
+            <span class="sn">(11) •••••-9102 · Sem horário</span>
+            <span style="display:flex;gap:6px;margin-top:4px"><span class="tag pr">Nova</span></span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="row">
+          <span class="av" style="background:var(--sunk);color:var(--mu)">CS</span>
+          <span class="meta">
+            <span class="nm">Carla Santos</span>
+            <span class="sn">(11) •••••-3340 · Última visita: 12/10</span>
+            <span style="display:flex;gap:6px;margin-top:4px"><span class="tag wa">Concluído</span></span>
+          </span>
+        </button>
+      </li>
+    </ul>
+  </section>
+
+  <section aria-label="Ficha" style="background:var(--card);margin:16px;border-radius:12px;border:1px solid var(--bd);padding:24px;overflow:auto">
+    <p style="margin:0 0 8px;font-size:12px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.04em">Ficha (mesma do Contato da thread)</p>
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:20px">
+      <span class="av" style="width:56px;height:56px;font-size:18px;background:var(--prT);color:var(--prInk)">JP</span>
+      <div>
+        <h2 style="margin:0;font-size:22px;font-weight:600">Juliana Prado</h2>
+        <p style="margin:4px 0 0;color:var(--mu)">(11) •••••-4281</p>
+      </div>
+    </div>
+    <dl style="margin:0;display:grid;grid-template-columns:140px 1fr;gap:10px 16px;font-size:14px">
+      <dt style="color:var(--mu)">Estado</dt><dd style="margin:0;font-weight:500">Em atendimento · Ana</dd>
+      <dt style="color:var(--mu)">Próximo horário</dt><dd style="margin:0;font-weight:500">Amanhã, 15:00 · Limpeza de pele · Sala 2</dd>
+      <dt style="color:var(--mu)">Últimas conversas</dt><dd style="margin:0;font-weight:500">2 abertas · ver lista na ficha completa</dd>
+    </dl>
+    <p style="margin:24px 0 0;font-size:13px;color:var(--mu);line-height:1.45">Wire Confirmado · ver <code>ficha-desktop.html</code> e proposta em docs. Sem sexo na ficha. Dados derivados de contactos, conversas e agenda (DEC-038).</p>
+  </section>
+</div>
+</body>
+</html>

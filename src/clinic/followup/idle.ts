@@ -1,5 +1,5 @@
 /**
- * DEC-087 — idle 30 min em conversas em aberto + segundo prazo Proposto (+30 min).
+ * DEC-087 — idle 30 min em conversas em aberto + segundo prazo de mais 30 min.
  * Mensagens system não reiniciam o relógio; humano activo (Assumir) isenta o prompt.
  */
 import type { Clock } from '../../db/clock'
@@ -10,6 +10,7 @@ import { sendOutboundMessageOp } from '../inbox/operations'
 import { messagingWindowForConversation } from '../inbox/window'
 import { assertClinicSchemaReady } from '../migrations'
 import type { OutboxRow } from '../outbox'
+import { conversationHasFutureConfirmed } from '../pipeline/appointment-stage'
 import {
   findOpenOpportunityForConversation,
   moveOpportunityStageOp,
@@ -268,6 +269,55 @@ export function sendIdlePromptOp(
   }
 }
 
+function settleIdle(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  tenantId: string,
+  conversationId: string,
+  clock: Clock,
+  input: { thanks: boolean; note: string; clientRequestId: string },
+): { closedOpportunityId: string | null; outbox: OutboxRow[] } {
+  const outbox: OutboxRow[] = []
+  const future = conversationHasFutureConfirmed(db, tenantId, conversationId, clock.nowMs())
+  let closedOpportunityId: string | null = null
+  if (!future) {
+    const opp = findOpenOpportunityForConversation(db, tenantId, conversationId)
+    if (opp && opp.stage !== 'perdido' && opp.stage !== 'concluido') {
+      const moved = moveOpportunityStageOp(
+        db,
+        caller,
+        {
+          opportunityId: opp.id,
+          toStage: 'perdido',
+          actorClerkUserId: FOLLOWUP_ACTOR,
+          actorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
+          note: input.note,
+        },
+        clock,
+      )
+      outbox.push(...moved.outbox)
+      closedOpportunityId = opp.id
+    }
+  }
+  if (input.thanks) {
+    const thanks = sendOutboundMessageOp(
+      db,
+      caller,
+      {
+        conversationId,
+        body: THANKS_REPLY_BODY,
+        clientRequestId: input.clientRequestId,
+        authorClerkUserId: FOLLOWUP_ACTOR,
+        authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
+      },
+      clock,
+    )
+    outbox.push(...thanks.outbox)
+  }
+  clearConversationIdle(db, tenantId, conversationId, clock.nowMs())
+  return { closedOpportunityId, outbox }
+}
+
 function closeIdleConversation(
   db: ClinicDb,
   caller: ClinicCaller,
@@ -275,41 +325,12 @@ function closeIdleConversation(
   clock: Clock,
 ): { closedOpportunityId: string | null; outbox: OutboxRow[] } {
   const meta = bindOrAssertTenant(db, caller, clock)
-  const outbox: OutboxRow[] = []
-  const thanks = sendOutboundMessageOp(
-    db,
-    caller,
-    {
-      conversationId,
-      body: THANKS_REPLY_BODY,
-      clientRequestId: `followup.idle.close:${conversationId}:${clock.nowMs()}`,
-      authorClerkUserId: FOLLOWUP_ACTOR,
-      authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-    },
-    clock,
-  )
-  outbox.push(...thanks.outbox)
-
-  const opp = findOpenOpportunityForConversation(db, meta.tenantId, conversationId)
-  let closedOpportunityId: string | null = null
-  if (opp && opp.stage !== 'concluido') {
-    const moved = moveOpportunityStageOp(
-      db,
-      caller,
-      {
-        opportunityId: opp.id,
-        toStage: 'concluido',
-        actorClerkUserId: FOLLOWUP_ACTOR,
-        actorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-        note: 'Idle: sem resposta (fecho automático)',
-      },
-      clock,
-    )
-    outbox.push(...moved.outbox)
-    closedOpportunityId = opp.id
-  }
-
-  clearConversationIdle(db, meta.tenantId, conversationId, clock.nowMs())
+  const future = conversationHasFutureConfirmed(db, meta.tenantId, conversationId, clock.nowMs())
+  const settled = settleIdle(db, caller, meta.tenantId, conversationId, clock, {
+    thanks: !future,
+    note: 'Idle: sem resposta (fecho automático)',
+    clientRequestId: `followup.idle.close:${conversationId}:${clock.nowMs()}`,
+  })
   writeOperationalAudit(
     db,
     {
@@ -318,11 +339,11 @@ function closeIdleConversation(
       action: 'followup.idle_closed',
       objectType: 'conversation',
       objectId: conversationId,
-      detail: { closedOpportunityId },
+      detail: { closedOpportunityId: settled.closedOpportunityId },
     },
     clock,
   )
-  return { closedOpportunityId, outbox }
+  return settled
 }
 
 export type IdleButtonResult =
@@ -356,42 +377,11 @@ export function handleIdleButtonClick(
   const key = input.providerEventKey ?? 'x'
 
   if (parsed.action === 'end') {
-    const thanks = sendOutboundMessageOp(
-      db,
-      caller,
-      {
-        conversationId: input.conversationId,
-        body: THANKS_REPLY_BODY,
-        clientRequestId: `followup.idle.end:${input.conversationId}:${key}`,
-        authorClerkUserId: FOLLOWUP_ACTOR,
-        authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-      },
-      clock,
-    )
-    outbox.push(...thanks.outbox)
-    const opp = findOpenOpportunityForConversation(
-      db,
-      input.tenantId,
-      input.conversationId,
-    )
-    let closedOpportunityId: string | null = null
-    if (opp && opp.stage !== 'concluido') {
-      const moved = moveOpportunityStageOp(
-        db,
-        caller,
-        {
-          opportunityId: opp.id,
-          toStage: 'concluido',
-          actorClerkUserId: FOLLOWUP_ACTOR,
-          actorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-          note: 'Cliente: Terminar (idle)',
-        },
-        clock,
-      )
-      outbox.push(...moved.outbox)
-      closedOpportunityId = opp.id
-    }
-    clearConversationIdle(db, input.tenantId, input.conversationId, clock.nowMs())
+    const settled = settleIdle(db, caller, input.tenantId, input.conversationId, clock, {
+      thanks: true,
+      note: 'Cliente: Terminar (idle)',
+      clientRequestId: `followup.idle.end:${input.conversationId}:${key}`,
+    })
     writeOperationalAudit(
       db,
       {
@@ -400,11 +390,11 @@ export function handleIdleButtonClick(
         action: 'followup.idle_end',
         objectType: 'conversation',
         objectId: input.conversationId,
-        detail: { closedOpportunityId },
+        detail: { closedOpportunityId: settled.closedOpportunityId },
       },
       clock,
     )
-    return { handled: true, action: 'end', closedOpportunityId, outbox }
+    return { handled: true, action: 'end', closedOpportunityId: settled.closedOpportunityId, outbox: settled.outbox }
   }
 
   const reply = sendOutboundMessageOp(

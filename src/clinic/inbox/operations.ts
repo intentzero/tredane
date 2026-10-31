@@ -19,13 +19,21 @@ import {
   createConversation,
   findConversationForContact,
   getConversationWithContact,
+  listContactsDirectory,
   listConversations,
   loadContactSummary,
   requireConversation,
   setConversationAssignee,
   setConversationStatus,
   touchConversationMessage,
+  type ContactDirectoryFilter,
 } from './conversations'
+import { getService } from '../config/services'
+import { getResource } from '../config/resources'
+import { occupiedMinutes } from '../config/validation'
+import { readZoneSnapshots, zoneLabel } from '../config/zones'
+import { AI_AUTOBOOK_ACTOR } from '../constants'
+import type { AppointmentListItem } from '../scheduling/booking-types'
 import { findMessageByExternalId, insertMessage, listMessages } from './messages'
 import { captionFromBody, listAttachmentsForMessage, summarizeAttachment } from '../attachments'
 import { rescheduleConversationIdle } from '../followup/idle-state'
@@ -47,6 +55,7 @@ import { messagingWindowForConversation } from './window'
 import { contactHasPendingPix } from './pending-pix'
 import { getWhatsappChannel } from '../whatsapp/channel'
 import { advanceToInServiceIfNew } from '../pipeline/auto-stage'
+import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
 import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
 import { OPPORTUNITY_STAGE_LABELS } from '../constants'
 import { getActiveProposalForConversation } from '../proposals/proposals'
@@ -193,6 +202,122 @@ export function getConversationDetailOp(
   }
 }
 
+export type ContactAppointmentItem = AppointmentListItem
+
+function listAppointmentsForContact(
+  db: ClinicDb,
+  tenantId: string,
+  contactId: string,
+  clock: Clock,
+): { upcoming: ContactAppointmentItem[]; past: ContactAppointmentItem[] } {
+  const now = clock.nowMs()
+  const rows = db.all<{
+    id: string
+    service_id: string
+    professional_id: string
+    room_resource_id: string | null
+    starts_at: number
+    ends_at: number
+    status: string
+    contact_label: string | null
+    contact_id: string | null
+    conversation_id: string | null
+    opportunity_id: string | null
+    version: number | null
+    change_reason: string | null
+    occupies_until: number | null
+    default_duration_minutes: number | null
+    applied_duration_minutes: number | null
+    confirmed_by: string | null
+  }>(
+    `SELECT id, service_id, professional_id, room_resource_id,
+            starts_at, ends_at, status, contact_label,
+            contact_id, conversation_id, opportunity_id,
+            version, change_reason, occupies_until,
+            default_duration_minutes, applied_duration_minutes, confirmed_by
+     FROM appointments
+     WHERE tenant_id = ? AND contact_id = ?
+     ORDER BY starts_at DESC, id
+     LIMIT 40`,
+    tenantId,
+    contactId,
+  )
+
+  const items: ContactAppointmentItem[] = []
+  for (const row of rows) {
+    const svc = getService(db, tenantId, row.service_id)
+    const pro = getResource(db, tenantId, row.professional_id, clock)
+    const room = row.room_resource_id
+      ? getResource(db, tenantId, row.room_resource_id, clock)
+      : null
+    const occupiesUntil =
+      row.occupies_until ??
+      (svc
+        ? row.starts_at + occupiedMinutes(svc.durationMinutes, svc.bufferMinutes) * 60_000
+        : row.ends_at)
+    items.push({
+      id: row.id,
+      serviceId: row.service_id,
+      serviceName: zoneLabel(
+        svc?.name ?? row.service_id,
+        readZoneSnapshots(db, tenantId, 'appointment', row.id),
+      ),
+      professionalId: row.professional_id,
+      professionalName: pro?.name ?? row.professional_id,
+      roomResourceId: row.room_resource_id,
+      roomResourceName: room?.name ?? null,
+      startsAt: row.starts_at,
+      endsAt: row.ends_at,
+      occupiesUntil,
+      status: row.status as 'confirmed' | 'cancelled',
+      contactLabel: row.contact_label,
+      contactId: row.contact_id,
+      conversationId: row.conversation_id,
+      opportunityId: row.opportunity_id,
+      version: row.version ?? 1,
+      changeReason: row.change_reason,
+      durationAdjusted:
+        row.applied_duration_minutes != null &&
+        row.default_duration_minutes != null &&
+        row.applied_duration_minutes !== row.default_duration_minutes,
+      bookedByAi: row.confirmed_by === AI_AUTOBOOK_ACTOR,
+    })
+  }
+
+  const upcoming = items
+    .filter((a) => a.startsAt > now && a.status === 'confirmed')
+    .sort((a, b) => a.startsAt - b.startsAt)
+  const past = items
+    .filter((a) => a.startsAt <= now || a.status === 'cancelled')
+    .sort((a, b) => b.startsAt - a.startsAt)
+  return { upcoming, past }
+}
+
+export function listContactsDirectoryOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: {
+    q?: string | null
+    filter?: ContactDirectoryFilter
+    limit?: number
+  },
+  clock: Clock,
+): {
+  contacts: NonNullable<ReturnType<typeof loadContactSummary>>[]
+  nextBefore: null
+} {
+  assertClinicSchemaReady(db)
+  assertValidCaller(caller)
+  const meta = bindOrAssertTenant(db, caller, clock)
+  const result = listContactsDirectory(db, meta.tenantId, {
+    q: input.q,
+    filter: input.filter,
+    limit: input.limit,
+    nowMs: clock.nowMs(),
+  })
+  return { contacts: result.items, nextBefore: result.nextBefore }
+}
+
 export function getContactDetailOp(
   db: ClinicDb,
   caller: ClinicCaller,
@@ -202,6 +327,7 @@ export function getContactDetailOp(
   contact: NonNullable<ReturnType<typeof loadContactSummary>>
   conversations: ConversationListItem[]
   hasPendingPix: boolean
+  appointments: { upcoming: ContactAppointmentItem[]; past: ContactAppointmentItem[] }
 } {
   assertClinicSchemaReady(db)
   assertValidCaller(caller)
@@ -213,7 +339,8 @@ export function getContactDetailOp(
   const all = listConversations(db, meta.tenantId, { filter: 'all', limit: 100 })
   const conversations = all.items.filter((c) => c.contactId === contactId)
   const hasPendingPix = contactHasPendingPix(db, meta.tenantId, contactId, clock.nowMs())
-  return { contact, conversations, hasPendingPix }
+  const appointments = listAppointmentsForContact(db, meta.tenantId, contactId, clock)
+  return { contact, conversations, hasPendingPix, appointments }
 }
 
 /**
@@ -244,6 +371,13 @@ export function assignConversationOp(
 
     const now = clock.nowMs()
     const updated = setConversationAssignee(db, {
+      tenantId: meta.tenantId,
+      conversationId: input.conversationId,
+      assigneeClerkUserId: input.assigneeClerkUserId,
+      assigneeDisplayName: input.assigneeDisplayName,
+      updatedAt: now,
+    })
+    syncOpenOpportunityAssignee(db, {
       tenantId: meta.tenantId,
       conversationId: input.conversationId,
       assigneeClerkUserId: input.assigneeClerkUserId,
@@ -917,6 +1051,13 @@ export function sendOutboundMessageOp(
     const afterTouch = requireConversation(db, meta.tenantId, input.conversationId)
     if (!afterTouch.assigneeClerkUserId) {
       setConversationAssignee(db, {
+        tenantId: meta.tenantId,
+        conversationId: input.conversationId,
+        assigneeClerkUserId: input.authorClerkUserId,
+        assigneeDisplayName: input.authorDisplayName,
+        updatedAt: now,
+      })
+      syncOpenOpportunityAssignee(db, {
         tenantId: meta.tenantId,
         conversationId: input.conversationId,
         assigneeClerkUserId: input.authorClerkUserId,

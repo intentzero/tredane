@@ -21,7 +21,7 @@ import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
 import { listServices } from '../config/services'
 import { explicitAudienceLine } from '../catalog/audience'
-import { quoteVisit, variantAudiencesConflict } from '../config/zones'
+import { quoteVisit, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
@@ -30,8 +30,11 @@ import type { OutboxRow } from '../outbox'
 import { createProposal } from '../proposals/proposals'
 import { sendProposalToWhatsAppOp } from '../proposals/send'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
+import { openPendingCommunication } from '../proposals/pending-communication'
+import { TEMPO_REFUSED_PHRASE, TEMPO_UNCONFIRMED_PHRASE } from '../proposals/render'
+import { queryAvailability } from '../scheduling/query'
 import { queryAutomaticAvailability } from '../tempo/automatic'
-import type { ForecastAdapter } from '../tempo/evaluate'
+import { evaluateServiceTempo, type ForecastAdapter } from '../tempo/evaluate'
 import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
@@ -42,6 +45,7 @@ import {
   audienceLineQuestion,
   needsAudienceLine,
   stableVariantLabelList,
+  variantListQuestion,
   zonesForAudienceLine,
 } from './variant-line'
 
@@ -386,7 +390,7 @@ export async function tryAiAutoBook(
 
   const services = listServices(db, tenantId).filter((s) => s.active)
   const turnText = clientTurn.map((m) => m.body).join('\n')
-  const det = detectExplicitConfirmation({
+  let det = detectExplicitConfirmation({
     clientTexts: clientTurn.map((m) => m.body),
     previousClinicText: prevClinic?.body ?? null,
     historyTexts: older.map((m) => m.body),
@@ -398,7 +402,7 @@ export async function tryAiAutoBook(
   let date = det.date
   let missing = [...det.missing]
   // O período (tarde) não vira horário. O dia já dito na sessão preenche só o dia.
-  if (!date && det.status === 'needs_info' && session?.dayLabel) {
+  if (!date && session?.dayLabel && (!det.service || session.serviceId === det.service.id)) {
     const resolved = [...extractDates(session.dayLabel, clinicCivilDateFromUtc(tz, confirmation.created_at))]
     if (resolved.length === 1) {
       date = resolved[0]
@@ -424,22 +428,107 @@ export async function tryAiAutoBook(
   const contact = getContact(db, tenantId, conv.contactId)
   const name = firstName(contact?.displayName)
   const hi = name ? `, ${name}` : ''
+  const clockFromTurn = (() => {
+    const times = [...extractTimes(turnText)]
+    return times.length === 1 ? times[0]! : null
+  })()
+  if (!det.service && session?.serviceId) {
+    const stored = services.find((item) => item.id === session.serviceId)
+    if (
+      stored &&
+      (clockFromTurn ||
+        zonesNamedInText(turnText, stored.zones.filter((zone) => zone.active)).length > 0)
+    ) {
+      det = { ...det, service: stored }
+    }
+  }
+  let time = det.time
+  if (!time && det.service && session?.serviceId === det.service.id && session.clockTime) {
+    time = session.clockTime
+    missing = missing.filter((item) => item !== 'horario')
+  }
   const ready =
-    Boolean(det.service && date && det.time) &&
+    Boolean(det.service && date && time) &&
     (det.ok || (det.status === 'needs_info' && missing.length === 0))
-  if (!ready || !det.service || !date || !det.time) {
-    if (det.service) rememberDayPeriod(det.service.id)
-    const faltam = missing.length ? missing.join(', ') : 'confirmação clara'
-    return {
-      ...none(det.status, base),
-      notes:
-        det.status === 'needs_info' || det.status === 'ambiguous'
-          ? `Agendamento pela IA não feito: falta/ambíguo (${faltam}). Confirme com a cliente dia, horário e procedimento.`
-          : undefined,
+  if (!ready || !det.service || !date || !time) {
+    let replyText: string | undefined
+    if (det.service) {
+      const active = det.service.zones.filter((z) => z.active)
+      const turnExplicit = explicitAudienceLine(turnText)
+      const carried = session?.serviceId === det.service.id ? session.audienceLine : null
+      const line = needsAudienceLine(active) ? (turnExplicit ?? carried) : null
+      const pool = needsAudienceLine(active) && line ? zonesForAudienceLine(active, line) : active
+      const chosen = zonesChosenByClient(clientTurn, older, pool.length > 0 ? pool : active)
+      let kept = chosen.zones
+      if (
+        kept.length === 0 &&
+        !chosen.ambiguous &&
+        session?.serviceId === det.service.id &&
+        session.variantIds?.length
+      ) {
+        const fromSession = (pool.length > 0 ? pool : active).filter((z) => session.variantIds!.includes(z.id))
+        if (fromSession.length === session.variantIds.length) kept = fromSession
+      }
+      saveScheduleSession(
+        db,
+        tenantId,
+        input.conversationId,
+        {
+          serviceId: det.service.id,
+          ...(turnExplicit ? { audienceLine: turnExplicit } : {}),
+          ...(turnFacts.dayLabel ? { dayLabel: turnFacts.dayLabel } : {}),
+          ...(turnFacts.period ? { period: turnFacts.period } : {}),
+          ...(clockFromTurn ? { clockTime: clockFromTurn } : {}),
+          ...(kept.length > 0 && !chosen.ambiguous ? { variantIds: kept.map((z) => z.id) } : {}),
+        },
+        clock,
+      )
+      const contributed =
+        Boolean(clockFromTurn) ||
+        zonesNamedInText(turnText, pool.length > 0 ? pool : active).length > 0
+      if (!(date && time && kept.length > 0 && !chosen.ambiguous && contributed)) {
+        const plural = det.service.variantKindPlural?.trim() || ''
+        const singular = det.service.variantKind?.trim() || ''
+        const kindLabel = (plural || singular || 'variantes').toLocaleLowerCase('pt-BR')
+        const earlyPhrase = plural || !singular ? `as ${kindLabel}` : `a ${kindLabel}`
+        if (needsAudienceLine(active) && !line) {
+          replyText = audienceLineQuestion(det.service.name)
+        } else if (active.length > 0 && (kept.length === 0 || chosen.ambiguous)) {
+          const names = stableVariantLabelList(pool.length > 0 ? pool : active)
+          replyText = time
+            ? askZonesReply(earlyPhrase, names, time)
+            : variantListQuestion(
+                det.service.name,
+                det.service.variantKindPlural || det.service.variantKind,
+                pool.length > 0 ? pool : active,
+              )
+        } else if (!time) {
+          replyText = `Qual horário fica melhor para ${det.service.name}?`
+        } else if (!date) {
+          replyText = `Me diga o dia para ${det.service.name}.`
+        }
+        const faltam = missing.length ? missing.join(', ') : 'confirmação clara'
+        return {
+          ...none(det.status, base),
+          ...(replyText ? { replyText } : {}),
+          notes:
+            det.status === 'needs_info' || det.status === 'ambiguous'
+              ? `Agendamento pela IA não feito: falta/ambíguo (${faltam}). Confirme com a cliente dia, horário e procedimento.`
+              : undefined,
+        }
+      }
+    } else {
+      const faltam = missing.length ? missing.join(', ') : 'confirmação clara'
+      return {
+        ...none(det.status, base),
+        notes:
+          det.status === 'needs_info' || det.status === 'ambiguous'
+            ? `Agendamento pela IA não feito: falta/ambíguo (${faltam}). Confirme com a cliente dia, horário e procedimento.`
+            : undefined,
+      }
     }
   }
   const svc = det.service
-  const time = det.time
   rememberDayPeriod(svc.id)
   const activeZones = svc.zones.filter((z) => z.active)
   // DEC-090: linha já dita neste funil não se reperguntar.
@@ -475,10 +564,40 @@ export async function tryAiAutoBook(
   const chosen = sameFunnel
     ? zonesChosenByClient(clientTurn, funnelOlder, scoped)
     : zonesChosenByClient(clientTurn, [], scoped)
-  const namedZones = chosen.zones
+  let namedZones = chosen.zones
+  if (
+    namedZones.length === 0 &&
+    !chosen.ambiguous &&
+    sameFunnel &&
+    session?.variantIds?.length
+  ) {
+    const fromSession = scoped.filter((z) => session.variantIds!.includes(z.id))
+    if (fromSession.length === session.variantIds.length) namedZones = fromSession
+  }
+  if (namedZones.length > 0 && !chosen.ambiguous) {
+    saveScheduleSession(
+      db,
+      tenantId,
+      input.conversationId,
+      {
+        serviceId: svc.id,
+        variantIds: namedZones.map((z) => z.id),
+        ...(clockFromTurn ? { clockTime: clockFromTurn } : { clockTime: time }),
+      },
+      clock,
+    )
+  } else if (clockFromTurn || time) {
+    saveScheduleSession(
+      db,
+      tenantId,
+      input.conversationId,
+      { serviceId: svc.id, clockTime: clockFromTurn ?? time },
+      clock,
+    )
+  }
   const plural = svc.variantKindPlural?.trim() || ''
   const singular = svc.variantKind?.trim() || ''
-  const kind = plural || singular || 'variantes'
+  const kind = (plural || singular || 'variantes').toLocaleLowerCase('pt-BR')
   const phrase = plural || !singular ? `as ${kind}` : `a ${kind}`
   if (activeZones.length > 0 && (namedZones.length === 0 || chosen.ambiguous)) {
     const names = stableVariantLabelList(scoped.length > 0 ? scoped : activeZones)
@@ -542,6 +661,49 @@ export async function tryAiAutoBook(
   const slot = avail.slots.find((s) => localHHMM(tz, s.startsAt) === time)
 
   if (!slot) {
+    const team = queryAvailability(
+      db,
+      tenantId,
+      {
+        serviceId: svc.id,
+        date,
+        ...(quote.zones.length > 0 ? { durationMinutesOverride: quote.durationMinutes } : {}),
+      },
+      clock,
+    )
+    const teamSlot = team.slots.find((s) => localHHMM(tz, s.startsAt) === time)
+    if (teamSlot) {
+      const verdict = await evaluateServiceTempo(
+        db,
+        tenantId,
+        { serviceId: svc.id, startsAt: teamSlot.startsAt },
+        input.forecast ?? { read: readOpenMeteo },
+        clock,
+      )
+      if (verdict.outcome !== 'serve') {
+        const phraseTempo =
+          verdict.outcome === 'indisponivel' ? TEMPO_UNCONFIRMED_PHRASE : TEMPO_REFUSED_PHRASE
+        openPendingCommunication(
+          db,
+          {
+            tenantId,
+            conversationId: conv.id,
+            contactId: conv.contactId,
+            proposalId: null,
+            kind: 'alter_awaiting_team',
+            detailText: phraseTempo,
+          },
+          clock,
+        )
+        return {
+          ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
+          replyText: phraseTempo,
+          notes:
+            `O horário das ${time} não passa no tempo de ${svc.name}. Frase fixa enviada. ` +
+            'A equipe vê o alerta. Texto livre não marca.',
+        }
+      }
+    }
     const alts = avail.slots
       .slice(0, 3)
       .map((s) => localHHMM(tz, s.startsAt))

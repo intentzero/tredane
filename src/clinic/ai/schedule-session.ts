@@ -26,16 +26,22 @@ export type ScheduleSession = {
   audienceLine: ScheduleAudienceLine | null
   dayLabel: ScheduleDayLabel | null
   period: SchedulePeriod | null
+  /** Ids das variantes já escolhidas nesta conversa. */
+  variantIds: string[] | null
+  /** Horário HH:MM já dito, no fuso da clínica. */
+  clockTime: string | null
   /** Início deste funil (insert ou troca de serviço). Não avança ao gravar linha/dia/período. */
   updatedAt: number
 }
 
-/** Campo omitido mantém o valor já gravado. `null` limpa. Trocar o serviço limpa a linha. */
+/** Campo omitido mantém o valor já gravado. `null` limpa. Trocar o serviço limpa a linha, as variantes e o horário. */
 export type ScheduleSessionPatch = {
   serviceId: string
   audienceLine?: ScheduleAudienceLine | null
   dayLabel?: ScheduleDayLabel | null
   period?: SchedulePeriod | null
+  variantIds?: string[] | null
+  clockTime?: string | null
 }
 
 type SessionSql = {
@@ -43,6 +49,8 @@ type SessionSql = {
   audience_line: string | null
   day_label: string | null
   period: string | null
+  variant_ids: string | null
+  clock_time: string | null
   updated_at: number
 }
 
@@ -73,6 +81,22 @@ function asDay(value: string | null): ScheduleDayLabel | null {
 
 function asPeriod(value: string | null): SchedulePeriod | null {
   return value === 'manha' || value === 'tarde' || value === 'noite' ? value : null
+}
+
+function asVariantIds(raw: string | null): string[] | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return null
+    const ids = parsed.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    return ids.length > 0 ? ids : null
+  } catch {
+    return null
+  }
+}
+
+function asClock(value: string | null): string | null {
+  return value != null && /^\d{2}:\d{2}$/.test(value) ? value : null
 }
 
 /**
@@ -120,7 +144,8 @@ export function getScheduleSession(
   conversationId: string,
 ): ScheduleSession | null {
   const row = db.get<SessionSql>(
-    `SELECT service_id, audience_line, day_label, period, updated_at FROM schedule_sessions
+    `SELECT service_id, audience_line, day_label, period, variant_ids, clock_time, updated_at
+     FROM schedule_sessions
      WHERE tenant_id = ? AND conversation_id = ?`,
     tenantId,
     conversationId,
@@ -131,6 +156,8 @@ export function getScheduleSession(
     audienceLine: asLine(row.audience_line),
     dayLabel: asDay(row.day_label),
     period: asPeriod(row.period),
+    variantIds: asVariantIds(row.variant_ids),
+    clockTime: asClock(row.clock_time),
     updatedAt: row.updated_at,
   }
 }
@@ -148,16 +175,23 @@ export function saveScheduleSession(
     patch.audienceLine !== undefined ? patch.audienceLine : serviceChanged ? null : (existing?.audienceLine ?? null)
   const dayLabel = patch.dayLabel !== undefined ? patch.dayLabel : (existing?.dayLabel ?? null)
   const period = patch.period !== undefined ? patch.period : (existing?.period ?? null)
+  const variantIds =
+    patch.variantIds !== undefined ? patch.variantIds : serviceChanged ? null : (existing?.variantIds ?? null)
+  const clockTime =
+    patch.clockTime !== undefined ? patch.clockTime : serviceChanged ? null : (existing?.clockTime ?? null)
   const now = clock.nowMs()
   db.run(
     `INSERT INTO schedule_sessions (
-       tenant_id, conversation_id, service_id, audience_line, day_label, period, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?)
+       tenant_id, conversation_id, service_id, audience_line, day_label, period,
+       variant_ids, clock_time, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (tenant_id, conversation_id) DO UPDATE SET
        service_id = excluded.service_id,
        audience_line = excluded.audience_line,
        day_label = excluded.day_label,
        period = excluded.period,
+       variant_ids = excluded.variant_ids,
+       clock_time = excluded.clock_time,
        updated_at = CASE
          WHEN schedule_sessions.service_id != excluded.service_id THEN excluded.updated_at
          ELSE schedule_sessions.updated_at
@@ -168,6 +202,8 @@ export function saveScheduleSession(
     audienceLine,
     dayLabel,
     period,
+    variantIds && variantIds.length > 0 ? JSON.stringify(variantIds) : null,
+    clockTime,
     now,
   )
 }

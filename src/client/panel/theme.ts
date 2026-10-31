@@ -1,4 +1,4 @@
-/** Tema do painel (DEC-092): Sistema (padrão), Claro ou Escuro; a escolha fica só neste aparelho. */
+/** Tema do painel (DEC-098): Sistema (padrão), Claro ou Escuro; a escolha fica só neste aparelho. */
 export type ThemePreference = 'system' | 'light' | 'dark'
 
 export const THEME_STORAGE_KEY = 'tredane-theme'

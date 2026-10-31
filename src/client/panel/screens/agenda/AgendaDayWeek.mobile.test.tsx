@@ -113,4 +113,24 @@ describe('Agenda — dia no celular', () => {
       ),
     )
   })
+
+  it('dia sem horários não mostra a faixa «Nenhum horário…» nem «Agendar horário»', async () => {
+    const api = mockApi()
+    ;(api.queryAgenda as ReturnType<typeof vi.fn>).mockResolvedValue({
+      tenantId: 't',
+      timezone: TZ,
+      view: 'week',
+      date: '2026-10-28',
+      rangeStartsAt: Date.UTC(2026, 9, 26, 3),
+      rangeEndsAt: Date.UTC(2026, 10, 2, 3),
+      asOf: FIXED_NOW,
+      appointments: [],
+      holds: [],
+    })
+    render(<AgendaDayWeek tenantId="t" api={api} generation={1} view="day" />)
+    expect(await screen.findByRole('button', { name: 'Agendar qua 28' })).toBeTruthy()
+    expect(document.querySelector('.agenda-empty')).toBeNull()
+    expect(screen.queryByText(/Nenhum horário marcado/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Agendar horário' })).toBeNull()
+  })
 })

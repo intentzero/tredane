@@ -33,6 +33,8 @@ export type CancelPaidWithSignalResult = {
   refund: RefundOpResult | null
   outbox: OutboxRow[]
   idempotentReplay: boolean
+  /** DEC-095. Ausente em comandos gravados antes deste campo. */
+  cancelNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
 }
 
 function requireClientRequestId(id: string): string {
@@ -158,6 +160,7 @@ export async function cancelPaidAppointmentWithSignalOp(
     refund,
     outbox,
     idempotentReplay: false,
+    cancelNotice: cancelled.cancelNotice ?? 'skipped',
   }
 
   db.transactionSync(() => {
@@ -175,6 +178,7 @@ export async function cancelPaidAppointmentWithSignalOp(
           : null,
         outbox: [],
         idempotentReplay: false,
+        cancelNotice: payload.cancelNotice,
       },
       createdAt: clock.nowMs(),
     })

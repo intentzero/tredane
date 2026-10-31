@@ -202,6 +202,7 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
               appointmentLine(
                 card.linkedAppointment?.startsAt,
                 card.missingAppointment,
+                card.linkedAppointment?.changeReason,
               ),
             ].join(' · ')
             return (

@@ -459,9 +459,6 @@ export function AgendaDayWeek({
             onOpenHold={(h) =>
               navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
             }
-            emptyText={
-              selected.length > 0 ? 'Nenhum horário para esta seleção.' : `Nenhum horário marcado ${date === today ? 'hoje' : `em ${dayLabel.weekday} ${dayLabel.day}`}.`
-            }
           />
         ) : view === 'day' ? (
           <DayGrid
@@ -470,7 +467,6 @@ export function AgendaDayWeek({
             isToday={date === today}
             now={now}
             onOpen={(id) => openAppointment(id)}
-            onSchedule={goSchedule}
           />
         ) : (
           weekDays.map((day) => {
@@ -550,11 +546,6 @@ export function AgendaDayWeek({
         countOf={countOf}
         entries={entries}
         holds={holds}
-        emptyText={
-          selected.length > 0 || selectedRooms.length > 0
-            ? 'Nenhum horário para esta seleção.'
-            : `Nenhum horário marcado ${date === today ? 'hoje' : `em ${dayLabel.weekday} ${dayLabel.day}`}.`
-        }
         onPickDate={setDate}
         onTogglePro={(id) => toggle(setSelected, id)}
         onToggleRoom={(id) => toggle(setSelectedRooms, id)}
@@ -599,14 +590,12 @@ function DayGrid({
   isToday,
   now,
   onOpen,
-  onSchedule,
 }: {
   items: AgendaAppointmentItem[]
   timezone: string
   isToday: boolean
   now: number
   onOpen: (id: string) => void
-  onSchedule: () => void
 }) {
   const { startHour, endHour } = visibleHours(items, timezone)
   const placed = layoutDay(items, timezone, startHour)
@@ -614,62 +603,52 @@ function DayGrid({
   const nowTop = isToday ? nowOffset(now, timezone, startHour, endHour) : null
 
   return (
-    <>
-      {items.length === 0 ? (
-        <div className="agenda-empty" role="status">
-          <p>Nenhum horário marcado neste dia.</p>
-          <Button className="panel-btn-secondary panel-btn-compact" onPress={onSchedule}>
-            Agendar horário
-          </Button>
+    <div
+      className="agenda-grid"
+      style={{ height: hours.length * HOUR_HEIGHT }}
+      role="list"
+      aria-label="Horários do dia"
+    >
+      {hours.map((h, i) => (
+        <div key={h} className="agenda-hour" style={{ top: i * HOUR_HEIGHT }} aria-hidden>
+          <span className="agenda-hour-label">{h}:00</span>
+        </div>
+      ))}
+      {nowTop != null ? (
+        <div className="agenda-now" style={{ top: nowTop }} aria-hidden>
+          <span className="agenda-now-dot" />
         </div>
       ) : null}
-      <div
-        className="agenda-grid"
-        style={{ height: hours.length * HOUR_HEIGHT }}
-        role="list"
-        aria-label="Horários do dia"
-      >
-        {hours.map((h, i) => (
-          <div key={h} className="agenda-hour" style={{ top: i * HOUR_HEIGHT }} aria-hidden>
-            <span className="agenda-hour-label">{h}:00</span>
-          </div>
-        ))}
-        {nowTop != null ? (
-          <div className="agenda-now" style={{ top: nowTop }} aria-hidden>
-            <span className="agenda-now-dot" />
-          </div>
-        ) : null}
-        {placed.map(({ item, top, height, lane, lanes }) => (
-          <button
-            key={item.id}
-            type="button"
-            role="listitem"
-            className="agenda-block"
-            style={{
-              top,
-              height,
-              left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${lane / lanes})`,
-              width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes} - 4px)`,
-            }}
-            onClick={() => onOpen(item.id)}
-          >
-            <span className="agenda-block-title">{item.serviceName}</span>
-            <span className="agenda-block-time">
-              {formatSlotTime(item.startsAt, timezone)}
-              {' – '}
-              {formatSlotTime(item.endsAt, timezone)}
+      {placed.map(({ item, top, height, lane, lanes }) => (
+        <button
+          key={item.id}
+          type="button"
+          role="listitem"
+          className="agenda-block"
+          style={{
+            top,
+            height,
+            left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${lane / lanes})`,
+            width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes} - 4px)`,
+          }}
+          onClick={() => onOpen(item.id)}
+        >
+          <span className="agenda-block-title">{item.serviceName}</span>
+          <span className="agenda-block-time">
+            {formatSlotTime(item.startsAt, timezone)}
+            {' – '}
+            {formatSlotTime(item.endsAt, timezone)}
+          </span>
+          {height >= 64 ? (
+            <span className="agenda-block-meta">
+              {item.contactLabel ?? 'Sem nome'}
+              {' · '}
+              {item.professionalName}
+              {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
             </span>
-            {height >= 64 ? (
-              <span className="agenda-block-meta">
-                {item.contactLabel ?? 'Sem nome'}
-                {' · '}
-                {item.professionalName}
-                {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
-              </span>
-            ) : null}
-          </button>
-        ))}
-      </div>
-    </>
+          ) : null}
+        </button>
+      ))}
+    </div>
   )
 }

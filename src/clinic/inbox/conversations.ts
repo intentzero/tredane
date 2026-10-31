@@ -502,3 +502,75 @@ export function loadContactSummary(
   )
   return row ? mapContactSummary(row) : undefined
 }
+
+export type ContactDirectoryFilter = 'all' | 'blocked' | 'with_appointment'
+
+/**
+ * Directório Clientes (fase 1): lista + busca por nome/telefone; filtros bloqueadas / com horário.
+ * Ordenação alfabética por nome (ou wa_id). Sem sexo / campos clínicos.
+ */
+export function listContactsDirectory(
+  db: ClinicDb,
+  tenantId: string,
+  input: {
+    q?: string | null
+    filter?: ContactDirectoryFilter
+    limit?: number
+    nowMs: number
+  },
+): { items: ContactSummary[]; nextBefore: null } {
+  assertClinicSchemaReady(db)
+  const limit = Math.min(Math.max(input.limit ?? 100, 1), 100)
+  const q = input.q?.trim()
+  const filter = input.filter ?? 'all'
+  const searchSql = q
+    ? `AND (
+        IFNULL(ct.display_name, '') LIKE ? OR
+        ct.wa_id LIKE ?
+      )`
+    : ''
+  const searchParams = q ? [`%${q}%`, `%${q}%`] : []
+
+  let filterSql = ''
+  const filterParams: number[] = []
+  if (filter === 'blocked') {
+    filterSql = `AND ct.blocked_at IS NOT NULL`
+  } else if (filter === 'with_appointment') {
+    filterSql = `AND EXISTS (
+      SELECT 1 FROM appointments a
+      WHERE a.tenant_id = ct.tenant_id
+        AND a.contact_id = ct.id
+        AND a.status = 'confirmed'
+        AND a.starts_at > ?
+    )`
+    filterParams.push(input.nowMs)
+  }
+
+  const rows = db.all<{
+    id: string
+    wa_id: string
+    display_name: string | null
+    created_at: number
+    blocked_at: number | null
+    blocked_by_display_name: string | null
+    blocked_reason: string | null
+  }>(
+    `SELECT ct.id, ct.wa_id, ct.display_name, ct.created_at,
+            ct.blocked_at, ct.blocked_by_display_name, ct.blocked_reason
+     FROM contacts ct
+     WHERE ct.tenant_id = ?
+       ${searchSql}
+       ${filterSql}
+     ORDER BY LOWER(IFNULL(ct.display_name, ct.wa_id)), ct.id
+     LIMIT ?`,
+    tenantId,
+    ...searchParams,
+    ...filterParams,
+    limit,
+  )
+
+  return {
+    items: rows.map((row) => mapContactSummary(row)),
+    nextBefore: null,
+  }
+}

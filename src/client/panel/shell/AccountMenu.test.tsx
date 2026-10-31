@@ -58,7 +58,7 @@ describe('AccountMenu', () => {
     expect(screen.getByRole('button', { name: /Conta: sua conta/ }).querySelector('svg')).toBeTruthy()
   })
 
-  it('Aparência: três opções, Sistema marcada por padrão, escolher Escuro aplica e salva (DEC-092)', async () => {
+  it('Aparência: três opções, Sistema marcada por padrão, escolher Escuro aplica e salva (DEC-098)', async () => {
     window.localStorage.clear()
     document.documentElement.removeAttribute('data-theme')
     const user = userEvent.setup()

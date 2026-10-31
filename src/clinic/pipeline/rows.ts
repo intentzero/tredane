@@ -69,6 +69,7 @@ export function mapLinkedAppointment(row: {
   contact_label: string | null
   service_id: string
   professional_id: string
+  change_reason: string | null
 }): LinkedAppointmentSummary {
   return {
     id: row.id,
@@ -78,5 +79,6 @@ export function mapLinkedAppointment(row: {
     contactLabel: row.contact_label,
     serviceId: row.service_id,
     professionalId: row.professional_id,
+    changeReason: row.change_reason,
   }
 }

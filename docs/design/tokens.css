@@ -66,7 +66,7 @@
   --size-focus-ring-offset: 2px;
   --size-control-default: 36px;
 }
-/* Tema escuro (Proposto, DEC-092) */
+/* Tema escuro (Confirmado, DEC-098) */
 :root[data-theme="dark"] {
   --color-surface-app: #0F1A19;
   --color-surface-card: #162423;

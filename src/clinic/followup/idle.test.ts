@@ -1,5 +1,5 @@
 /**
- * DEC-087 — idle 30 min + segundo prazo Proposto +30.
+ * DEC-087 — idle 30 min + segundo prazo de mais 30 min.
  */
 import { describe, expect, it } from 'vitest'
 import { createControllableClock } from '../../db/clock'
@@ -47,7 +47,7 @@ function connectWa(
 
 describe('DEC-087 idle follow-up', () => {
   it('migração 46 e parse de botões', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(47)
+    expect(CLINIC_SCHEMA_VERSION).toBe(48)
     expect(parseIdleButtonId(idleButtonId('cnv_1', 'continue'))).toEqual({
       conversationId: 'cnv_1',
       action: 'continue',
@@ -55,7 +55,7 @@ describe('DEC-087 idle follow-up', () => {
     expect(parseIdleButtonId('fu:post:x:thanks')).toBeNull()
   })
 
-  it('após 30 min envia prompt; Terminar fecha em Concluído', () => {
+  it('após 30 min envia prompt; Terminar sem horário futuro vai a Perdido', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 12))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -120,7 +120,7 @@ describe('DEC-087 idle follow-up', () => {
         `SELECT stage, status FROM opportunities WHERE conversation_id = ?`,
         conversationId,
       )
-      expect(opp).toEqual({ stage: 'concluido', status: 'closed' })
+      expect(opp).toEqual({ stage: 'perdido', status: 'closed' })
       const thanks = db.get<{ n: number }>(
         `SELECT COUNT(*) AS n FROM messages
          WHERE conversation_id = ? AND direction = 'outbound' AND body = ?`,

@@ -13,6 +13,8 @@ export type ScheduleContext = {
   alertId?: string
   /** Dia civil pré-escolhido (vem da Agenda). */
   date?: string
+  /** DEC-096: reagendar este compromisso em vez de criar outro. */
+  rescheduleAppointmentId?: string
 }
 
 /** Horizonte do «Ver calendário» (DEC-054 Confirmado: 60 dias no MVP). */

@@ -18,7 +18,7 @@ function mockSystemDark(dark: boolean) {
   )
 }
 
-describe('tema do painel (DEC-092)', () => {
+describe('tema do painel (DEC-098)', () => {
   beforeEach(() => {
     window.localStorage.clear()
     document.documentElement.removeAttribute('data-theme')

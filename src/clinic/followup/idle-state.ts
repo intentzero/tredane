@@ -9,7 +9,7 @@ import type { ClinicDb } from '../store'
 
 /** Confirmado: 30 minutos sem progresso útil. */
 export const IDLE_PROMPT_AFTER_MS = 30 * 60_000
-/** Proposto: mais 30 minutos sem resposta à pergunta de idle. */
+/** Confirmado (DEC-087): mais 30 minutos sem resposta à pergunta de idle. */
 export const IDLE_CLOSE_AFTER_MS = 30 * 60_000
 
 export type IdlePhase = 'prompt' | 'close'

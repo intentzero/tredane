@@ -1351,6 +1351,7 @@ export function createPanelApi(getToken: TokenGetter) {
       charge: PixChargeDetail | null
       refundConfirmed: boolean
       uncertain: boolean
+      cancelNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
     }> {
       const res = await authFetch(
         `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/cancel-with-signal`,
@@ -1368,6 +1369,7 @@ export function createPanelApi(getToken: TokenGetter) {
         charge: PixChargeDetail | null
         refundConfirmed: boolean
         uncertain: boolean
+        cancelNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
       }
     },
 
@@ -1413,7 +1415,12 @@ export function createPanelApi(getToken: TokenGetter) {
         expectedVersion?: number | null
       },
       opts?: FetchOpts,
-    ): Promise<AppointmentDetailResponse & { idempotentReplay: boolean }> {
+    ): Promise<
+      AppointmentDetailResponse & {
+        idempotentReplay: boolean
+        cancelNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
+      }
+    > {
       const res = await authFetch(
         `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/cancel`,
         {
@@ -1441,9 +1448,15 @@ export function createPanelApi(getToken: TokenGetter) {
         startsAt: number
         serviceId?: string
         expectedVersion?: number | null
+        zoneIds?: string[]
       },
       opts?: FetchOpts,
-    ): Promise<AppointmentDetailResponse & { idempotentReplay: boolean }> {
+    ): Promise<
+      AppointmentDetailResponse & {
+        idempotentReplay: boolean
+        rescheduleNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
+      }
+    > {
       const res = await authFetch(
         `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/reschedule`,
         {
@@ -1457,6 +1470,7 @@ export function createPanelApi(getToken: TokenGetter) {
       if (!res.ok) throw await parseError(res)
       return (await res.json()) as AppointmentDetailResponse & {
         idempotentReplay: boolean
+        rescheduleNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
       }
     },
 
@@ -1504,6 +1518,30 @@ export function createPanelApi(getToken: TokenGetter) {
       assertGeneration(opts)
       if (!res.ok) throw await parseError(res)
       return (await res.json()) as InboxConversationDetail
+    },
+
+    async listInboxContacts(
+      tenantId: string,
+      query: {
+        q?: string
+        filter?: 'all' | 'blocked' | 'with_appointment'
+        limit?: number
+      } = {},
+      opts?: FetchOpts,
+    ): Promise<InboxContactListResponse> {
+      const params = new URLSearchParams()
+      if (query.q?.trim()) params.set('q', query.q.trim())
+      if (query.filter && query.filter !== 'all') params.set('filter', query.filter)
+      if (query.limit != null) params.set('limit', String(query.limit))
+      const qs = params.toString()
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/contacts${qs ? `?${qs}` : ''}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as InboxContactListResponse
     },
 
     async getInboxContact(
@@ -2080,11 +2118,43 @@ export type WhatsappTemplatesResponse = {
   note: string
 }
 
+export type InboxContactListResponse = {
+  contacts: InboxContact[]
+  nextBefore: number | null
+}
+
+export type ContactAppointmentItem = {
+  id: string
+  serviceId: string
+  serviceName: string
+  professionalId: string
+  professionalName: string
+  roomResourceId: string | null
+  roomResourceName: string | null
+  startsAt: number
+  endsAt: number
+  occupiesUntil: number
+  status: 'confirmed' | 'cancelled'
+  contactLabel: string | null
+  contactId: string | null
+  conversationId: string | null
+  opportunityId: string | null
+  version: number
+  changeReason: string | null
+  durationAdjusted?: boolean
+  bookedByAi?: boolean
+}
+
 export type InboxContactDetail = {
   contact: InboxContact
   conversations: InboxConversation[]
   /** Contato tem Pix pendente (o bloqueio não cancela o Pix). */
   hasPendingPix?: boolean
+  /** Horários do contacto (fase 1 Clientes / paridade Contato). */
+  appointments?: {
+    upcoming: ContactAppointmentItem[]
+    past: ContactAppointmentItem[]
+  }
 }
 
 /** Resposta de DELETE contato — sem nome, telefone ou wa_id. */
@@ -2133,6 +2203,7 @@ export type PipelineLinkedAppointment = {
   contactLabel: string | null
   serviceId: string
   professionalId: string
+  changeReason?: string | null
 }
 
 export type PipelineOpportunity = {
@@ -2775,6 +2846,13 @@ export type AppointmentDetailResponse = {
     previousJson: string | null
     newJson: string | null
     occurredAt: number
+  }>
+  zones?: Array<{
+    zoneId: string | null
+    name: string
+    audience: string
+    durationMinutes: number
+    priceCents: number | null
   }>
 }
 

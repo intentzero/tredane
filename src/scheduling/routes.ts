@@ -450,6 +450,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
         return c.json({
           ...serializeAppointmentDetail(result.value),
           idempotentReplay: result.idempotentReplay,
+          cancelNotice: result.cancelNotice ?? 'skipped',
         })
       } catch (err) {
         return schedulingErrorResponse(c, err)
@@ -513,6 +514,7 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
           ...serializeAppointmentDetail(result.value),
           idempotentReplay: result.idempotentReplay,
           tempoWarnings: result.tempoWarnings ?? [],
+          rescheduleNotice: result.rescheduleNotice ?? 'skipped',
         })
       } catch (err) {
         return schedulingErrorResponse(c, err)

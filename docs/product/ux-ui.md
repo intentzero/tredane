@@ -14,7 +14,7 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Usuários do painel: atendente (ACT-02) e responsável (ACT-03), com as mesmas telas de atendimento | **Confirmado** | DEC-013, DEC-015, DEC-016. Não há tela de profissional nem de operador. |
 | Contato (ACT-01) só interage pelo WhatsApp | **Confirmado** | O painel nunca expõe tela ao contato. |
 | Três áreas principais: Conversas, Acompanhamento, Agenda | **Proposto** | Derivado do fluxo principal do MVP e do ADR-0003. |
-| Área **Clientes** (lista + ficha operacional do contacto; não prontuário) | **Confirmado** (Opção C, Paulo 31/10/2026) | Híbrido: item Clientes na nav + **mesma ficha** canónica que o sidepane Contato da thread ([#365](https://github.com/intentzero/tredane/pull/365)). Ver [clientes-vista.md](clientes-vista.md). Fases de conteúdo (leitura → edição) ainda Propostas. |
+| Área **Clientes** (lista + ficha operacional do contacto; não prontuário) | **Confirmado** (Opção C, Paulo 31/10/2026) | Híbrido: item Clientes na nav + **mesma ficha** canónica que o sidepane Contato da thread ([#365](https://github.com/intentzero/tredane/pull/365)). TEL-12; [clientes-vista.md](clientes-vista.md). Fase 1 (leitura) implementada; fase 2 (edição/comparecimento) ainda **Proposta**. |
 | Na interface, o pipeline se chama **Acompanhamento** e a oportunidade aparece como **contato em andamento**; “pipeline” e “oportunidade” ficam só nos documentos e no código | **Confirmado** | DEC-045 (24/10/2026): muitas leitoras não sabem o que é pipeline. Validar o nome com a clínica piloto. |
 | **Mobile first:** o celular é o alvo de base e precisa concluir todo o fluxo piloto (mensagem → resposta → etapa → agendamento); tablet e desktop são ampliações progressivas | **Confirmado** | DEC-039, pedido do responsável pelo produto em 23 de outubro de 2026. Substitui a proposta anterior deste documento de desktop como alvo principal. |
 | Larguras de referência: 360–430 px (base), ≥ 768 px (tablet), ≥ 1280 px (desktop) | **Proposto** | **Em aberto:** modelos e sistemas dos aparelhos da clínica piloto (Q-UX-01). Bloqueia o aceite de usabilidade, não o desenvolvimento das telas. |
@@ -47,7 +47,7 @@ TEL-09 Clínica (só responsável): Serviços · Profissionais e salas · Horár
 │     └── abre a conversa vinculada em TEL-01
 ├── TEL-04 Agenda (dia por profissional / por sala)
 │     └── TEL-06 Detalhe do compromisso (cancelar, reagendar)
-└── Clientes (lista + ficha operacional; **Confirmado** Opção C, Paulo 31/10/2026) — mesma ficha canónica que o painel Contato de TEL-01; id de tela e mocks oficiais em fatia seguinte; ver [clientes-vista.md](clientes-vista.md)
+└── TEL-12 Clientes (lista + ficha operacional; **Confirmado** Opção C, Paulo 31/10/2026) — mesma ficha canónica que o painel Contato de TEL-01; ver [clientes-vista.md](clientes-vista.md)
 TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carregamento
 ```
 
@@ -59,11 +59,11 @@ TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carr
 
 **Estado:** Proposto, decorrente de DEC-039. A linha **Desktop** foi confirmada em 29/10/2026 (DEC-068, DEC-069, DEC-072); o restante continua Proposto.
 
-| Largura | Navegação | Conversas | Acompanhamento | Agenda |
-| --- | --- | --- | --- | --- |
-| Base (360–767 px) | Barra inferior com Conversas, Acompanhamento e Agenda (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
-| Tablet (≥ 768 px) | Barra lateral compacta. | Lista + conversa lado a lado; detalhes em gaveta. | Quadro com rolagem horizontal. | Grade com colunas por recurso. |
-| Desktop (≥ 1280 px) | **Confirmado (DEC-068):** menu lateral fixo de 84 px com o símbolo (DEC-070); sino de avisos e menu da conta no fundo do rail (**Confirmado**, Paulo 31/10/2026); barra superior com título, clínica e «Ao vivo». | Lista estável **~400 px** (ainda no intervalo DEC-068 360–520; Opção A / [#369](https://github.com/intentzero/tredane/pull/369)) e conversa; contato num painel por cima (DEC-069). `/conversas` e `/conversas/:id` partilham a moldura; o chrome do topo da lista (título + clínica / «Ao vivo») iguala Acompanhar/Agenda/Clínica. | **Confirmado (DEC-072):** quadro em largura total sem coluna de contexto, filtros no topo, contato por cima. Sem arrastar (DEC-062). | **Confirmado (DEC-068/069), implementado:** coluna de 360 px com Agendar, mês pequeno, filtros por profissional e sala e a lista do dia; grade ao lado; o compromisso abre por cima (380 px, Esc/×). A faixa da semana sai neste tamanho. **Em aberto:** verificação em staging (E6, [#241](https://github.com/intentzero/tredane/issues/241)). |
+| Largura | Navegação | Conversas | Acompanhamento | Agenda | Clientes |
+| --- | --- | --- | --- | --- | --- |
+| Base (360–767 px) | Barra inferior com Conversas, Acompanhamento, Agenda e Clientes (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. | Lista → ficha (TEL-12); mesma ficha que Contato. |
+| Tablet (≥ 768 px) | Barra lateral compacta. | Lista + conversa lado a lado; detalhes em gaveta. | Quadro com rolagem horizontal. | Grade com colunas por recurso. | Lista + ficha. |
+| Desktop (≥ 1280 px) | **Confirmado (DEC-068):** menu lateral fixo de 84 px com o símbolo (DEC-070); sino de avisos e menu da conta no fundo do rail (**Confirmado**, Paulo 31/10/2026); barra superior com título, clínica e «Ao vivo». Item **Clientes** no rail (Opção C). | Lista estável **~400 px** (ainda no intervalo DEC-068 360–520; Opção A / [#369](https://github.com/intentzero/tredane/pull/369)) e conversa; contato num painel por cima (DEC-069). `/conversas` e `/conversas/:id` partilham a moldura; o chrome do topo da lista (título + clínica / «Ao vivo») iguala Acompanhar/Agenda/Clínica. | **Confirmado (DEC-072):** quadro em largura total sem coluna de contexto, filtros no topo, contato por cima. Sem arrastar (DEC-062). | **Confirmado (DEC-068/069), implementado:** coluna de 360 px com Agendar, mês pequeno, filtros por profissional e sala e a lista do dia; grade ao lado; o compromisso abre por cima (380 px, Esc/×). A faixa da semana sai neste tamanho. **Em aberto:** verificação em staging (E6, [#241](https://github.com/intentzero/tredane/issues/241)). | Lista ~400 px + ficha (TEL-12); mesma ficha canónica que Contato. |
 
 Regras comuns:
 - Alvos de toque ≥ 44 × 44 px (altura visual dos botões e chips pode ser menor, com área clicável de 44 px; v0.4.0, **Confirmado**, DEC-081); ações principais (Enviar, Agendar, Confirmar) ficam na zona inferior da tela, alcançáveis com o polegar.
@@ -147,6 +147,7 @@ Nome na interface: **Acompanhamento** (DEC-045). Na barra inferior de quatro ite
 - Bloqueios e fora de expediente em hachura com rótulo (“Bloqueado”, “Fora do expediente”), não só cor.
 - Navegação de dia (anterior/hoje/próximo) e seletor de data. **Visão semanal (Confirmado, DEC-040):** alternância Dia/Semana; no tablet e no desktop, grade de sete dias com os compromissos por dia; no celular, lista agrupada por dia, com filtros por profissional ou sala. Clicar num dia leva à visão do dia. Desenhada em M-13.
 - **Dia no celular (Proposto, 28/10/2026):** cabeçalho único («Agenda» + data + Dia/Semana), faixa da semana com o **número de horários** de cada dia, e filtro por **quem atende**: rostos (iniciais) das profissionais ativas com a contagem do dia («Paula · 2»), **seleção múltipla**, linha de resumo («Dra. Paula e Lívia · 4 horários») e «Ver todos». A lista é cronológica: o cartão começa pelo **nome da cliente**, mostra serviço, fim e quem atende (inicial colorida), com a linha «Agora» no dia de hoje e a faixa «Hora a definir» para reservas por período. O botão **Agendar {dia}** fica na zona do polegar e abre o Agendar **já nesse dia** (`?date=`). A grade de horas segue no tablet e no desktop. **Ainda não implementado:** horários livres, bloqueios e fora do expediente na lista (a API da agenda ainda não os devolve), botão de ajustes (sala, livres, cancelados), folha do compromisso, Por sala no celular e o desktop por profissional/sala.
+- **Dia sem horários (Confirmado, Paulo 31/10/2026):** não há faixa tracejada «Nenhum horário marcado…» nem botão secundário **Agendar horário** na lista do dia nem na grade. O **+ Agendar** do cabeçalho / coluna de contexto / FAB já cobre a ação; o cabeçalho do dia («Hoje · …») permanece.
 - **Sala com mais de um lugar (DEC-059, Proposto na tela):** na lista do dia, os compromissos que se sobrepõem na mesma sala compartilhada formam **um bloco por faixa** («Sala Bem-estar · 2/3», bolinhas de ocupação, as pessoas dentro e «1 lugar livre · Agendar»); lotada = «lotada · 3/3». Sala de 1 lugar não mostra «1/1». No **Agendar**, cada horário de sala compartilhada mostra os lugares livres («2 de 3», «último lugar»); lotado ou sem profissional livre não aparece. Os números são só de exibição para a equipa (o servidor continua a decidir o conflito no pico de 15 min, bloco pendente não entra na contagem da tela). Não vão para o WhatsApp nem para a IA (DEC-059, DEC-075).
 - **Modo da sala e mesmo sexo (Confirmado, DEC-075, 29/10/2026).** Capacidade 1 não pergunta mais nada: uma cliente e uma profissional. Capacidade maior que 1 mostra duas escolhas, padrão na primeira: **«Cada profissional com a sua cliente»** e **«Uma profissional para todas»**. **«Mesmo sexo neste horário»** só aparece nesse caso e vem desligado. No bloco da agenda, a responsável tem **«Permitir os dois»**, com confirmação explícita; a atendente não vê a ação. A marcação nova ocupa uma sala livre da lista do serviço (DEC-082); a troca de sala é edição daquela marcação, para outra sala do mesmo serviço. Frases de recusa, sem número de vagas: [épico](../implementation/epic-salas-audiencia.md).
 - Clique em espaço livre abre TEL-05 com horário pré-preenchido; clique em compromisso abre TEL-06.
@@ -267,6 +268,20 @@ Reduz a carga cognitiva de configurar e conferir a clínica. Não altera DEC-042
 Ver seção 6.2.
 
 
+### TEL-12 — Clientes (lista + ficha operacional)
+
+**Origem:** Opção C Confirmada (Paulo, 31/10/2026); [clientes-vista.md](clientes-vista.md); paridade Contato [#365](https://github.com/intentzero/tredane/pull/365). **Estado:** navegação e fase 1 (leitura) **Confirmadas**; fase 2 (edição/comparecimento) **Proposta**.
+
+Directório operacional da clínica activa (DEC-038): encontrar o contacto sem abrir thread. Não é prontuário nem CRM clínico (ACT-01).
+
+- **Navegação:** item **Clientes** no rail / barra (depois de Agenda; Clínica continua só owner, DEC-042).
+- **Lista:** busca por nome de apresentação e telefone (mascarado na UI); filtros Todas / Com horário / Bloqueadas; isolamento por tenant.
+- **Ficha:** mesmos dados canónicos do sidepane Contato (TEL-01): nome, telefone mascarado, criado em, Resumo da IA sob demanda, Abrir Acompanhamento, Horários (próximos + anteriores derivados), Conversas, Bloquear/Desbloquear, exclusão owner (REQ-071 / AC-52). Sem sexo / género / inferência (DEC-075, DEC-089).
+- **Desktop (≥ 1280 px):** lista ~400 px + ficha. **Celular:** lista → ficha com voltar.
+- **Fora da fase 1:** edição de nome, comparecimento, campos pessoais novos, prontuário, marketing.
+
+Mocks: `desktop/ClientesLista.dc.html`, `desktop/ClientesFicha.dc.html` (screens.md).
+
 ### TEL-11 — Sinal por Pix
 
 **Estado:** telas **propostas** sobre decisões **Confirmadas** (DEC-047, [sinal.md](sinal.md), REQ-076 a REQ-082).
@@ -295,7 +310,7 @@ Ver seção 6.2.
 
 | Componente | Uso | Regras |
 | --- | --- | --- |
-| Cabeçalho global | Todas as telas | Nome da clínica ativa, navegação, indicador de conexão, menu do usuário. No desktop (≥ 1280 px) o sino e a conta ficam no rail. Menu: **Dados pessoais** abre o UserProfile hospedado do Clerk (`openUserProfile`; firstName alimenta o prefixo DEC-088); **Aparência** (Confirmado, DEC-092: Sistema, Claro ou Escuro); **Sair**. Em AUTH_MODE sintético não há «Dados pessoais». |
+| Cabeçalho global | Todas as telas | Nome da clínica ativa, navegação, indicador de conexão, menu do usuário. No desktop (≥ 1280 px) o sino e a conta ficam no rail. Menu: **Dados pessoais** abre o UserProfile hospedado do Clerk (`openUserProfile`; firstName alimenta o prefixo DEC-088); **Aparência** (Confirmado, DEC-098: Sistema, Claro ou Escuro); **Sair**. Em AUTH_MODE sintético não há «Dados pessoais». |
 | Item de conversa | TEL-01 | Estado da conversa por rótulo; não lido em peso de fonte + marcador com texto acessível. |
 | Balão de mensagem | TEL-01 | Direção, horário, estado de envio (6.1), autor da equipe em mensagens enviadas. |
 | Evento de sistema | TEL-01, TEL-06 | Texto curto centralizado com autor e hora. |
@@ -369,7 +384,7 @@ Ver seção 6.2.
 
 ## 8. Direção visual proposta
 
-**Tema claro, escuro e do sistema (**Confirmado**, DEC-092, 31/10/2026; implementado).** O painel oferece **Sistema** (padrão), **Claro** e **Escuro** em **Aparência**, seção do menu da conta (`AccountMenu`, itens de rádio com Sistema, Claro e Escuro; o mock M-56 mostra a mesma escolha em tela cheia). Sem escolha salva, segue `prefers-color-scheme` e acompanha a mudança do sistema sem recarregar. A escolha fica só no aparelho; se o armazenamento local estiver indisponível, vale Sistema. O tema é aplicado antes da primeira pintura (`data-theme` na raiz). Valores escuros: `colorDark` em [tokens.json](../design/tokens.json) (v0.5.0), mesmos papéis dos claros; contraste validado nos dois temas por `check_contrast.py`. Pendente: variante escura de marca e imagens.
+**Tema claro, escuro e do sistema (**Confirmado**, DEC-098, 31/10/2026; implementado).** O painel oferece **Sistema** (padrão), **Claro** e **Escuro** em **Aparência**, seção do menu da conta (`AccountMenu`, itens de rádio com Sistema, Claro e Escuro; o mock M-56 mostra a mesma escolha em tela cheia). Sem escolha salva, segue `prefers-color-scheme` e acompanha a mudança do sistema sem recarregar. A escolha fica só no aparelho; se o armazenamento local estiver indisponível, vale Sistema. O tema é aplicado antes da primeira pintura (`data-theme` na raiz). Valores escuros: `colorDark` em [tokens.json](../design/tokens.json) (v0.5.0), mesmos papéis dos claros; contraste validado nos dois temas por `check_contrast.py`. Pendente: variante escura de marca e imagens.
 
 **Estado:** **Confirmado** ([DEC-041](decisions.md), 24/10/2026), exceto a biblioteca de componentes (**Proposto**). A fonte única dos valores é [docs/design/tokens.json](../design/tokens.json) (versão 0.3.1; fonte Roboto desde [DEC-073](decisions.md)); **esta seção não repete os valores** para não haver versões concorrentes. Resumo da direção: Inter (400/500/600) em seis tamanhos (12, 14, 16, 18, 22, 26); 25 cores por papel; cinco raios (8, 12, 16, 20, pílula); espaçamento em múltiplos de 4 px; borda de controle com 3:1 sobre o fundo. Componentes e estados: [catálogo](../design/catalog/index.html) e [components.md](../design/components.md). Ícones: [icons.md](../design/icons.md). Base de componentes: [ADR-0013](../adr/0013-design-system-components.md).
 

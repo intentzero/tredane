@@ -53,7 +53,19 @@ export function relativeTime(ms: number | null): string {
 export function appointmentLine(
   startsAt: number | null | undefined,
   missing: boolean,
+  changeReason?: string | null,
 ): string {
+  if (changeReason === 'nao_compareceu' && startsAt != null) {
+    const when = new Date(startsAt).toLocaleString('pt-BR', {
+      timeZone: getClinicTimezone(),
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    return `Não compareceu · ${when}`
+  }
   if (missing || startsAt == null) return 'Sem horário marcado'
   return new Date(startsAt).toLocaleString('pt-BR', {
     timeZone: getClinicTimezone(),

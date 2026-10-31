@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Clientes — ficha (Confirmado)</title>
+<style>
+body{margin:0}
+button{font:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+.d{--app:#F5F4EF;--card:#FFFFFF;--sunk:#EEEDE7;--tx:#142625;--tx2:#424B4A;--mu:#566160;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--prB:#B3D1D1;--ok:#1F7A4D;--okT:#EAF5EF;--wa:#6E4200;--waT:#FFF7EA;--ai:#4B2A9E;--aiB:#6B3FD4;--aiT:#F7F4FD;--bd:#E1E3E0;--div:#EEEDE7;--danger:#B42318}
+.rl a{width:68px;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;font-size:11px;color:var(--mu);text-decoration:none}
+.rl a.on{background:var(--prT);color:var(--prInk);font-weight:600}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec h2{margin:0;font-size:13px;font-weight:600}
+.sec-btn{height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-weight:500;font-size:14px;width:100%;text-align:center}
+.danger-btn{height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--danger);font-weight:600;font-size:14px;width:100%}
+.ai-box{border:1.5px dashed var(--aiB);border-radius:12px;background:var(--aiT);padding:12px;display:flex;flex-direction:column;gap:8px}
+.appt{padding:10px 12px;border-radius:10px;background:var(--sunk);display:flex;flex-direction:column;gap:2px}
+.appt strong{font-size:14px}
+.appt span{font-size:12px;color:var(--mu)}
+.badge{position:absolute;top:8px;right:12px;font-size:10px;font-weight:600;color:var(--mu);background:var(--sunk);padding:2px 8px;border-radius:999px;z-index:2}
+.conv{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--div);font-size:14px}
+.conv:last-child{border-bottom:0}
+</style>
+</head>
+<body>
+<!-- Confirmado — wire desktop ficha Clientes (paridade com Contato #365). Exemplos fictícios. -->
+<div class="d" style="width:1440px;height:900px;box-sizing:border-box;display:grid;grid-template-columns:84px minmax(0,1fr) 420px;background:var(--app);color:var(--tx);font-family:Roboto,&quot;Helvetica Neue&quot;,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.35;overflow:hidden;position:relative">
+  <span class="badge">Confirmado · ficha partilhada</span>
+
+  <nav class="rl" aria-label="Áreas" style="background:var(--card);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0">
+    <div style="width:40px;height:40px;border-radius:10px;background:var(--pr);color:#fff;display:grid;place-items:center;font-weight:700;margin-bottom:10px" aria-hidden="true">T</div>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2-5.4A8.4 8.4 0 1 1 21 11.5z"/></svg>Conversas</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v16M10 4v6M16 4v16"/></svg>Acompanhar</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>Agenda</a>
+    <a class="on" href="#" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Clientes</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Clínica</a>
+  </nav>
+
+  <section style="padding:24px 28px;overflow:auto;min-width:0">
+    <p style="margin:0 0 4px;font-size:13px;color:var(--mu)">Clientes · Clínica Aurora</p>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px">
+      <div style="display:flex;gap:16px;align-items:center">
+        <span style="width:64px;height:64px;border-radius:999px;background:var(--prT);color:var(--prInk);display:grid;place-items:center;font-weight:600;font-size:20px">JP</span>
+        <div>
+          <h1 style="margin:0;font-size:28px;font-weight:600;letter-spacing:-.02em">Juliana Prado</h1>
+          <p style="margin:6px 0 0;color:var(--mu)">(11) •••••-4281 · Cliente desde set/2026</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex:none">
+        <button type="button" class="sec-btn" style="width:auto;border-color:var(--prB);color:var(--prInk);font-weight:600">Abrir conversa</button>
+        <button type="button" class="sec-btn" style="width:auto">Abrir Acompanhar</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="sec" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+        <h2>Dados</h2>
+        <dl style="margin:0;display:grid;grid-template-columns:110px 1fr;gap:8px 12px;font-size:14px">
+          <dt style="color:var(--mu)">Nome</dt><dd style="margin:0;font-weight:500">Juliana Prado</dd>
+          <dt style="color:var(--mu)">WhatsApp</dt><dd style="margin:0;font-weight:500">(11) •••••-4281</dd>
+          <dt style="color:var(--mu)">Bloqueio</dt><dd style="margin:0;font-weight:500">Não</dd>
+        </dl>
+        <p style="margin:8px 0 0;font-size:12px;color:var(--mu)">Só dados explícitos. Sem sexo / género na ficha (Confirmado).</p>
+      </div>
+
+      <div class="sec" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+        <h2>Acompanhar</h2>
+        <p style="margin:0;font-size:14px"><strong>Em atendimento</strong> · responsável Ana</p>
+        <p style="margin:6px 0 0;font-size:13px;color:var(--mu)">Última interação hoje, 09:31</p>
+        <button type="button" class="sec-btn" style="margin-top:8px">Abrir no Acompanhar</button>
+      </div>
+
+      <div class="sec" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;grid-column:1 / -1">
+        <h2>Horários</h2>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="appt" style="background:var(--okT)">
+            <strong>Amanhã, 15:00–15:45 · Limpeza de pele</strong>
+            <span>Confirmado · Ana · Sala 2 · fase 1: só leitura</span>
+          </div>
+          <div class="appt">
+            <strong>12/10/2026, 10:00 · Peeling</strong>
+            <span>Concluído · (comparecimento: fase 2 Confirmado)</span>
+          </div>
+          <div class="appt">
+            <strong>03/09/2026, 16:30 · Limpeza de pele</strong>
+            <span>Cancelado · motivo: contacto remarcou</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+        <h2>Conversas</h2>
+        <div class="conv"><span>Thread actual · Em atendimento</span><span style="color:var(--mu)">hoje</span></div>
+        <div class="conv"><span>Encerrada · set/2026</span><span style="color:var(--mu)">12/09</span></div>
+      </div>
+
+      <div class="sec" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+        <h2>Resumo da IA</h2>
+        <div class="ai-box">
+          <p style="margin:0;font-size:13px;color:var(--mu)">Única entrada (Confirmado #365). Sob demanda.</p>
+          <button type="button" class="sec-btn">Gerar resumo</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside aria-label="Ações e risco" style="background:var(--card);border-left:1px solid var(--bd);padding:20px 16px;display:flex;flex-direction:column;gap:16px;overflow:auto">
+    <p style="margin:0;font-size:12px;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.04em">Paridade com Contato</p>
+    <p style="margin:0;font-size:13px;color:var(--mu);line-height:1.45">No thread, o sidepane Contato mostra o mesmo núcleo. Aqui a ficha abre a partir de Clientes, sem precisar de conversa activa.</p>
+    <div class="sec">
+      <h2>Zona de risco</h2>
+      <button type="button" class="danger-btn">Bloquear contacto</button>
+      <p style="margin:0;font-size:12px;color:var(--mu)">Owner: exclusão LGPD (REQ-071 / AC-52) noutro fluxo já existente.</p>
+    </div>
+    <div class="sec" style="margin-top:auto;padding-top:16px;border-top:1px solid var(--div)">
+      <h2>Fora deste recorte</h2>
+      <ul style="margin:0;padding-left:18px;font-size:13px;color:var(--mu);line-height:1.5">
+        <li>Prontuário clínico</li>
+        <li>Sexo na ficha</li>
+        <li>Edição e comparecimento (fase 2)</li>
+      </ul>
+    </div>
+  </aside>
+</div>
+</body>
+</html>

@@ -3,7 +3,7 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
-## 31/10/2026 — Tema claro/escuro/sistema (paleta **Confirmada**, DEC-092)
+## 31/10/2026 — Tema claro/escuro/sistema (paleta **Confirmada**, DEC-098)
 
 - `tokens.json` v0.5.0: novo grupo `colorDark` (mesmos papéis de `color`); `tokens.css` passa a emitir `:root[data-theme="dark"]` e `@media (prefers-color-scheme: dark)` com `:root:not([data-theme="light"])`. `check_contrast.py` valida os pares nos dois temas (54 verificações, todas dentro do mínimo).
 - Mock M-56 `mobile/Aparencia.dc.html` (Sistema, Claro, Escuro; escolha só no aparelho). Preview PNG ainda não gerado.
