@@ -116,6 +116,11 @@ import type {
   SummarizeInput,
 } from '../clinic/ai'
 import { HUMAN_HANDOFF_BUTTON_ID, notifyHumanHandoff, resumeAiReply } from '../clinic/ai/human-handoff'
+import {
+  handleIdleButtonClick,
+  nextIdleDueAt,
+  sweepDueIdleConversations,
+} from '../clinic/followup/idle'
 import { handlePostBookingButtonClick } from '../clinic/followup/post-booking'
 import { systemClock, type Clock } from '../db/clock'
 import { fromD1 } from '../db/admin/async-store'
@@ -506,6 +511,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       } catch {
         /* best-effort: a ingestão nunca falha por causa da IA */
       }
+      try {
+        const nextIdle = nextIdleDueAt(this.#db, caller.tenantId)
+        if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle)
+      } catch {
+        /* best-effort DEC-087 */
+      }
     }
 
     if (!result.duplicate && result.outboxes.length > 0) {
@@ -716,6 +727,28 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         await this.#drain(caller)
       }
       return { handled: true, action: 'human' as const }
+    }
+    // DEC-087 — idle («Prosseguir» / «Terminar»).
+    if (input.conversationId) {
+      const idle = handleIdleButtonClick(
+        this.#db,
+        {
+          tenantId: caller.tenantId,
+          conversationId: input.conversationId,
+          buttonId: input.buttonId,
+          providerEventKey: input.providerEventKey,
+        },
+        this.#clock,
+      )
+      if (idle.handled) {
+        if (idle.outbox.length > 0) {
+          await this.#fanoutOutboxes(caller, idle.outbox, true)
+          await this.#drain(caller)
+        }
+        const nextIdle = nextIdleDueAt(this.#db, caller.tenantId)
+        if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle)
+        return { handled: true, action: idle.action }
+      }
     }
     // DEC-086 — follow-up pós-agendamento («Não, obrigado» / «Quero outro serviço»).
     if (input.conversationId) {
@@ -1027,6 +1060,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#scheduleAlarmNoLaterThan(
         this.#clock.nowMs() + OUTBOUND_PENDING_STALE_MS + 5_000,
       )
+    }
+    try {
+      const nextIdle = nextIdleDueAt(this.#db, caller.tenantId)
+      if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle)
+    } catch {
+      /* best-effort DEC-087 */
     }
     const inlineDispatch: ClinicOutboxQueueMessage | null = sendRow
       ? {
@@ -2738,6 +2777,26 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       if (nextAlert != null) await this.#scheduleAlarmNoLaterThan(nextAlert + 500)
     } catch {
       /* best-effort H7 */
+    }
+    try {
+      // DEC-087: idle 30 min + segundo prazo Proposto +30 min.
+      const idleItems = sweepDueIdleConversations(
+        this.#db,
+        meta.tenantId,
+        this.#clock,
+      )
+      for (const item of idleItems) {
+        if (
+          (item.action === 'prompted' || item.action === 'closed') &&
+          item.outbox.length > 0
+        ) {
+          await this.#fanoutOutboxes(caller, item.outbox, true)
+        }
+      }
+      const nextIdle = nextIdleDueAt(this.#db, meta.tenantId)
+      if (nextIdle != null) await this.#scheduleAlarmNoLaterThan(nextIdle + 500)
+    } catch {
+      /* best-effort idle */
     }
     const nextSweep = await this.#sweepStuckOutbound(caller)
     await this.#drain(caller)

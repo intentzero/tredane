@@ -158,6 +158,14 @@ export function notifyHumanHandoff(
     tenantId,
     input.conversationId,
   )
+  // DEC-087: humano activo — cancela idle automático.
+  db.run(
+    `UPDATE conversations
+     SET idle_due_at = NULL, idle_phase = NULL, idle_prompt_sent_at = NULL
+     WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    input.conversationId,
+  )
   const conv = db.get<{ contact_id: string }>(
     `SELECT contact_id FROM conversations WHERE tenant_id = ? AND id = ?`,
     tenantId,
