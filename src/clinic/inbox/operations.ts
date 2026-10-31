@@ -45,7 +45,10 @@ import { advanceToInServiceIfNew } from '../pipeline/auto-stage'
 import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
 import { OPPORTUNITY_STAGE_LABELS } from '../constants'
 import { getActiveProposalForConversation } from '../proposals/proposals'
-import { listOpenPendingCommunicationsForConversation } from '../proposals/pending-communication'
+import {
+  listOpenPendingCommunicationsForConversation,
+  resolvePendingCommunication,
+} from '../proposals/pending-communication'
 import type {
   AssignConversationInput,
   BlockContactInput,
@@ -281,6 +284,18 @@ export function assignConversationOp(
       bumpUnread: false,
       reopenIfClosed: false,
     })
+
+    if (input.assigneeClerkUserId) {
+      for (const pending of listOpenPendingCommunicationsForConversation(
+        db,
+        meta.tenantId,
+        input.conversationId,
+      )) {
+        if (pending.kind === 'alter_awaiting_team') {
+          resolvePendingCommunication(db, meta.tenantId, pending.id, clock)
+        }
+      }
+    }
 
     writeOperationalAudit(
       db,

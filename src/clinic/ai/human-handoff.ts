@@ -137,8 +137,8 @@ export function handoffReason(
 }
 
 /**
- * Pausa e, se ainda não estava pausada, envia uma frase e abre o alerta da equipe.
- * Falha de WhatsApp não desfaz a pausa: a equipe vê a comunicação pendente.
+ * Pausa e abre o alerta da equipe. A frase no WhatsApp sai uma vez enquanto o alerta
+ * seguir aberto. Falha de WhatsApp não desfaz a pausa.
  */
 export function notifyHumanHandoff(
   db: ClinicDb,
@@ -166,8 +166,8 @@ export function notifyHumanHandoff(
   if (!conv) {
     return { already: false, sent: false, outbox: [pauseEvent(db, tenantId, input.conversationId, true, clock)] }
   }
-  const open = db.get<{ id: string }>(
-    `SELECT id FROM pending_communications
+  const open = db.get<{ id: string; started_at: number }>(
+    `SELECT id, started_at FROM pending_communications
      WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team' AND status != 'resolved'
      LIMIT 1`,
     tenantId,
@@ -192,9 +192,36 @@ export function notifyHumanHandoff(
       },
       clock,
     )
+  } else {
+    db.run(
+      `UPDATE pending_communications
+       SET status = 'alerted', alerted_at = COALESCE(alerted_at, ?), updated_at = ?
+       WHERE tenant_id = ? AND id = ?`,
+      now,
+      now,
+      tenantId,
+      open.id,
+    )
   }
+  const alreadySaid = open
+    ? db.get<{ id: string }>(
+        `SELECT id FROM messages
+         WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound' AND body = ?
+           AND created_at >= ?
+         LIMIT 1`,
+        tenantId,
+        input.conversationId,
+        HUMAN_HANDOFF_TEXT,
+        open.started_at,
+      )
+    : undefined
   const outbox: OutboxRow[] = []
   let sent = false
+  if (alreadySaid) {
+    clearAiAssignee(db, tenantId, input.conversationId, clock)
+    outbox.push(pauseEvent(db, tenantId, input.conversationId, true, clock))
+    return { already: false, sent: false, outbox }
+  }
   try {
     const result = sendOutboundMessageOp(
       db,

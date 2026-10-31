@@ -21,7 +21,7 @@ import { Badge } from '../../states/Badge'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { applyAppBadge } from '../../badge'
 
-const FILTERS: InboxFilter[] = ['all', 'new', 'mine', 'unassigned', 'closed']
+const FILTERS: InboxFilter[] = ['all', 'new', 'mine', 'unassigned', 'needs_person', 'closed']
 
 type Props = {
   tenantId: string
@@ -58,7 +58,9 @@ export function InboxList({
       setItems(res.conversations)
       setCounts(res.counts)
       // Badge do ícone coerente com a lista que a pessoa está vendo.
-      if (typeof res.counts?.unread === 'number') applyAppBadge(res.counts.unread)
+      const unread = res.counts?.unread ?? 0
+      const needsPerson = res.counts?.needsPerson ?? 0
+      applyAppBadge(Math.max(unread, needsPerson))
     } catch (err) {
       setError(friendlyError(err, 'Não conseguimos carregar as conversas.'))
       if (!opts?.keep) setItems(null)
@@ -131,7 +133,9 @@ export function InboxList({
                     ? counts.mine
                     : f === 'unassigned'
                       ? counts.unassigned
-                      : counts.closed
+                      : f === 'needs_person'
+                        ? (counts.needsPerson ?? 0)
+                        : counts.closed
           const selected = filter === f
           return (
             <Button
@@ -143,7 +147,7 @@ export function InboxList({
               {filterLabel(f)}
               {count != null ? (
                 <span
-                  className={`panel-chip-count${f === 'new' && count > 0 ? ' panel-chip-count--hot' : ''}`}
+                  className={`panel-chip-count${(f === 'new' || f === 'needs_person') && count > 0 ? ' panel-chip-count--hot' : ''}`}
                 >
                   {count}
                 </span>
@@ -206,6 +210,7 @@ export function InboxList({
                     </span>
                     <span className="inbox-row-meta">
                       <Badge tone={statusTone(c.status)}>{statusLabel(c.status)}</Badge>
+                      {c.needsPerson ? <Badge tone="wait">Precisa de alguém</Badge> : null}
                       <span className="inbox-row-assignee">
                         {assigneeLine(c, viewerClerkUserId)}
                       </span>

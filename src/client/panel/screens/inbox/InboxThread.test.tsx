@@ -100,6 +100,23 @@ describe('InboxThread — cabeçalho e Assumir', () => {
     )
     await screen.findByText('Bruno está atendendo esta conversa.')
   })
+
+  it('pausa da IA mostra Devolver à IA; Assumir não religa', async () => {
+    const user = userEvent.setup()
+    const resumeInboxAi = vi.fn(async () => ({ aiReplyPause: null }))
+    const assignInboxConversation = vi.fn()
+    renderThread(
+      mockApi(detail({ aiReplyPause: { at: NOW, reason: 'customer_requested' } }), {
+        resumeInboxAi,
+        assignInboxConversation,
+      }),
+    )
+    await screen.findByText('A IA está pausada. Uma pessoa continua esta conversa.')
+    expect(screen.getByRole('button', { name: 'Assumir' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Devolver à IA' }))
+    await waitFor(() => expect(resumeInboxAi).toHaveBeenCalledTimes(1))
+    expect(assignInboxConversation).not.toHaveBeenCalled()
+  })
 })
 
 describe('InboxThread — Encerrar fica no menu e pede confirmação', () => {

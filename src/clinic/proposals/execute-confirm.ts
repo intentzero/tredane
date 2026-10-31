@@ -463,7 +463,9 @@ export async function executeProposalConfirmOp(
     (auth.allowed ? auth.proposal.conversationId : null)
   if (conversationId) {
     const guard = checkConversationProtection(db, meta.tenantId, conversationId)
-    if (!guard.allowed) {
+    // DEC-083 / JRN-17: proposta já enviada aceita Confirmar com a resposta automática pausada.
+    // Contato bloqueado, conversa ausente e falha da checagem continuam a negar.
+    if (!guard.allowed && guard.reason !== 'conversation_paused') {
       return {
         status: 'denied',
         reason: 'protection',
