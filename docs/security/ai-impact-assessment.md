@@ -27,3 +27,9 @@ O sistema atende a conversa comercial de uma clínica. Não pontua pessoas, não
 ## O que esta avaliação não conclui
 
 Os controles da tabela mitigam. Não significam que o risco acabou. NC-01, NC-02, NC-03 e NC-04 continuam abertas no [registo](aims-register.md). Dados reais continuam bloqueados por esses gates.
+
+## Adendo — evolução autónoma, 31/10/2026
+
+**Confirmado:** DEC-084 aprova a direção arquitetural. **Proposto:** a avaliação de impacto acrescenta o risco de uma alteração ruim alcançar muitas conversas, reduzir acesso humano ou expor dados através de avaliação/telemetria. Clientes, equipe e clínicas podem sofrer efeito em escala mesmo se cada resposta parecer aceitável isoladamente. Controles propostos: população limitada, invariantes protegidas, métricas por segmento, orçamento, controlador independente e recuperação. A comparação de frustração pode produzir rótulos incorretos; não usar esses rótulos para discriminar clientes ou restringir atendimento.
+
+Riscos e evidências exigidas estão no [modelo de ameaças](evolucao-autonoma-threat-model.md). EA-G01–06 permanecem **Em aberto**; não foi observada eficácia desses controles nesta análise. NCs e gates de dados reais permanecem aplicáveis. Este adendo preserva a avaliação anterior e não declara liberação da autonomia.

@@ -1,6 +1,6 @@
 # Sistema de gestão de IA — Tredane
 
-**Estado:** **Proposto** (30/10/2026). Procedimento interno para manter os controles da [matriz ISO/IEC 42001](iso-42001-control-matrix.md). Não é certificação, não é parecer jurídico e não substitui uma DEC.
+**Estado:** **Proposto** (revisto em 31/10/2026 para DEC-084). Procedimento interno para manter os controles da [matriz ISO/IEC 42001](iso-42001-control-matrix.md). Não é certificação, não é parecer jurídico e não substitui uma DEC.
 
 **Controlo deste documento:** a data e o estado no cabeçalho. Uma mudança de âmbito, de política ou de método de risco atualiza a data. O [registo](aims-register.md) guarda o que muda a cada auditoria; este ficheiro guarda o procedimento.
 
@@ -25,7 +25,9 @@ O sistema de IA no âmbito é o mesmo da matriz:
 1. Sugestão de resposta e resumo para a equipe (Claude via Cloudflare AI Gateway).
 2. Interpretação para proposta de horário. A marcação só ocorre quando a cliente toca em **Confirmar** numa proposta versionada pelo backend (DEC-061).
 
-Ficam de fora: treino de modelo próprio, resposta clínica, prontuário, campanhas e qualquer autonomia além da exceção DEC-061.
+3. Evolução autónoma dentro de política previamente aprovada (DEC-084, 31/10/2026): direção confirmada; ativação depende dos [gates EA-G01–06](evolucao-autonoma-threat-model.md). A autonomia de evolução não amplia as ações permitidas no atendimento.
+
+Ficam de fora: treino de modelo próprio, resposta clínica, prontuário, campanhas e ações além das capacidades aprovadas. A política concreta de evolução permanece pendente.
 
 Partes, ainda como hipótese do [dossiê jurídico](../product/legal-review-brief.md): a clínica trata os dados dos seus clientes; o Tredane opera esse tratamento e trata os dados de quem usa o painel; a cliente da clínica, a atendente e a responsável são as pessoas afetadas; Anthropic, Cloudflare, Meta, Clerk e Woovi são fornecedores. O parecer que confirma estes papéis é o GATE-04 (NC-03).
 
@@ -42,6 +44,7 @@ A política é o conjunto das decisões já registadas, mais as proibições aba
 | Imagens fora da IA | DEC-067 |
 | Pausa e quotas pela responsável | [abuse-limits.md](abuse-limits.md) |
 | Sugestão identificada | ADR-0004, REQ-022 |
+| Evolução autónoma sob política e controlador independente | DEC-084, [modelo de ameaças](evolucao-autonoma-threat-model.md); ativação pendente |
 
 Proibições em vigor: orientação clínica ou promessa de resultado; dado de outra clínica no contexto; treino ou ajuste de modelo com conversas; marcação por texto livre; a saída do modelo autorizar envio, Pix ou horário.
 

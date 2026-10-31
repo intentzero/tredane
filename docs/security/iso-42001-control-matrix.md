@@ -27,7 +27,7 @@ Entram neste âmbito:
 1. **Sugestão e resumo** para a equipe (Claude via Cloudflare AI Gateway). Preço, explicação e pergunta de saúde seguem DEC-046. Contexto em DEC-011 / [ai-context-minimization.md](ai-context-minimization.md).
 2. **Interpretação para proposta de horário.** A marcação só ocorre quando a cliente toca em **Confirmar** (DEC-061). Texto livre não marca. Serviço com sinal não reserva horário antes do Pix (DEC-047). A responsável pausa novas marcações automáticas na clínica.
 
-Ficam de fora: treino de modelo próprio, resposta clínica, prontuário, campanhas, e autonomia além da exceção DEC-061.
+Adendo de âmbito — 31/10/2026: a DEC-084 confirma evolução autónoma sob política e controlador independente. O [modelo de ameaças](evolucao-autonoma-threat-model.md) acrescenta EA-R01–15 e gates EA-G01–06, ainda sem evidência. Este adendo não promove controles da matriz a Cobertos. Ficam de fora treino próprio, resposta clínica, prontuário, campanhas e efeitos além das capacidades aprovadas.
 
 **NC-01 — quem envia o texto sugerido.** DEC-063, ADR-0004, REQ-022 e [f5-ai-assist.md](../implementation/f5-ai-assist.md) dizem que a pessoa envia. [MVP.md](../MVP.md) (29/10/2026) diz que as mensagens sugeridas saem sozinhas, salvo injeção ou saída rejeitada. `src/ai/prompt.ts` diz que o sistema envia a mensagem sozinho. Esta matriz não escolhe. A.9 fica **Parcial**.
 
@@ -148,5 +148,5 @@ A minuta de revisão pela direção, no mesmo registo, está **Em aberto**.
 
 - **Confirmado** e usado só como evidência: DEC-011 (parcial), DEC-046, DEC-047, DEC-061, DEC-063, DEC-067, quotas de abuso (29/10/2026), pausa pela responsável.
 - **Em aberto:** NC-01 a NC-06, H9/H10, produção, aceite desta matriz.
-- **Fora do MVP:** treino de modelo, resposta clínica, autonomia além do que a NC-01 vier a confirmar.
+- **Fora do MVP:** treino de modelo e resposta clínica. NC-01 continua sobre envio; a evolução autónoma é direção confirmada separadamente pela DEC-084, com política e gates ainda pendentes.
 - Nenhum controle está **Coberto**. A auditoria de 30/10/2026 conclui que o sistema não está conforme para certificação.
