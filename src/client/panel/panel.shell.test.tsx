@@ -110,6 +110,12 @@ function mockApis(opts: {
           { status: 200, headers: { 'Content-Type': 'application/json' } },
         )
       }
+      if (/\/api\/tenants\/[^/]+\/inbox\/contacts(?:\?|$)/.test(url)) {
+        return new Response(JSON.stringify({ contacts: [], nextBefore: null }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
       if (/\/api\/tenants\/[^/]+\/config(?:\?|$)/.test(url)) {
         return new Response(
           JSON.stringify({
@@ -204,10 +210,17 @@ describe('panel shell (#22)', () => {
     expect(await screen.findByRole('heading', { name: 'Conversas' })).toBeTruthy()
     const nav = screen.getByRole('navigation', { name: 'Áreas' })
     expect(within(nav).getByText('Acompanhar')).toBeTruthy()
+    expect(within(nav).getByText('Clientes')).toBeTruthy()
     expect(within(nav).getByText('Clínica')).toBeTruthy()
 
     await user.click(within(nav).getByText('Acompanhar'))
     expect(await screen.findByRole('heading', { name: 'Acompanhamento' })).toBeTruthy()
+
+    await user.click(within(nav).getByText('Clientes'))
+    expect(await screen.findByRole('heading', { name: 'Clientes' })).toBeTruthy()
+    expect(
+      await screen.findByRole('searchbox', { name: 'Buscar nome ou telefone' }),
+    ).toBeTruthy()
 
     await user.click(within(nav).getByText('Clínica'))
     expect(

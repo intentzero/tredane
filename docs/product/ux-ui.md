@@ -14,7 +14,7 @@ Este documento descreve telas, componentes e estados visíveis que materializam 
 | Usuários do painel: atendente (ACT-02) e responsável (ACT-03), com as mesmas telas de atendimento | **Confirmado** | DEC-013, DEC-015, DEC-016. Não há tela de profissional nem de operador. |
 | Contato (ACT-01) só interage pelo WhatsApp | **Confirmado** | O painel nunca expõe tela ao contato. |
 | Três áreas principais: Conversas, Acompanhamento, Agenda | **Proposto** | Derivado do fluxo principal do MVP e do ADR-0003. |
-| Área **Clientes** (lista + ficha operacional do contacto; não prontuário) | **Confirmado** (Opção C, Paulo 31/10/2026) | Híbrido: item Clientes na nav + **mesma ficha** canónica que o sidepane Contato da thread ([#365](https://github.com/intentzero/tredane/pull/365)). Ver [clientes-vista.md](clientes-vista.md). Fases de conteúdo (leitura → edição) ainda Propostas. |
+| Área **Clientes** (lista + ficha operacional do contacto; não prontuário) | **Confirmado** (Opção C, Paulo 31/10/2026) | Híbrido: item Clientes na nav + **mesma ficha** canónica que o sidepane Contato da thread ([#365](https://github.com/intentzero/tredane/pull/365)). TEL-12; [clientes-vista.md](clientes-vista.md). Fase 1 (leitura) implementada; fase 2 (edição/comparecimento) ainda **Proposta**. |
 | Na interface, o pipeline se chama **Acompanhamento** e a oportunidade aparece como **contato em andamento**; “pipeline” e “oportunidade” ficam só nos documentos e no código | **Confirmado** | DEC-045 (24/10/2026): muitas leitoras não sabem o que é pipeline. Validar o nome com a clínica piloto. |
 | **Mobile first:** o celular é o alvo de base e precisa concluir todo o fluxo piloto (mensagem → resposta → etapa → agendamento); tablet e desktop são ampliações progressivas | **Confirmado** | DEC-039, pedido do responsável pelo produto em 23 de outubro de 2026. Substitui a proposta anterior deste documento de desktop como alvo principal. |
 | Larguras de referência: 360–430 px (base), ≥ 768 px (tablet), ≥ 1280 px (desktop) | **Proposto** | **Em aberto:** modelos e sistemas dos aparelhos da clínica piloto (Q-UX-01). Bloqueia o aceite de usabilidade, não o desenvolvimento das telas. |
@@ -47,7 +47,7 @@ TEL-09 Clínica (só responsável): Serviços · Profissionais e salas · Horár
 │     └── abre a conversa vinculada em TEL-01
 ├── TEL-04 Agenda (dia por profissional / por sala)
 │     └── TEL-06 Detalhe do compromisso (cancelar, reagendar)
-└── Clientes (lista + ficha operacional; **Confirmado** Opção C, Paulo 31/10/2026) — mesma ficha canónica que o painel Contato de TEL-01; id de tela e mocks oficiais em fatia seguinte; ver [clientes-vista.md](clientes-vista.md)
+└── TEL-12 Clientes (lista + ficha operacional; **Confirmado** Opção C, Paulo 31/10/2026) — mesma ficha canónica que o painel Contato de TEL-01; ver [clientes-vista.md](clientes-vista.md)
 TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carregamento
 ```
 
@@ -59,11 +59,11 @@ TEL-07 Estados globais: conexão, sincronização, acesso revogado, erro de carr
 
 **Estado:** Proposto, decorrente de DEC-039. A linha **Desktop** foi confirmada em 29/10/2026 (DEC-068, DEC-069, DEC-072); o restante continua Proposto.
 
-| Largura | Navegação | Conversas | Acompanhamento | Agenda |
-| --- | --- | --- | --- | --- |
-| Base (360–767 px) | Barra inferior com Conversas, Acompanhamento e Agenda (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. |
-| Tablet (≥ 768 px) | Barra lateral compacta. | Lista + conversa lado a lado; detalhes em gaveta. | Quadro com rolagem horizontal. | Grade com colunas por recurso. |
-| Desktop (≥ 1280 px) | **Confirmado (DEC-068):** menu lateral fixo de 84 px com o símbolo (DEC-070); sino de avisos e menu da conta no fundo do rail (**Confirmado**, Paulo 31/10/2026); barra superior com título, clínica e «Ao vivo». | Lista estável **~400 px** (ainda no intervalo DEC-068 360–520; Opção A / [#369](https://github.com/intentzero/tredane/pull/369)) e conversa; contato num painel por cima (DEC-069). `/conversas` e `/conversas/:id` partilham a moldura; o chrome do topo da lista (título + clínica / «Ao vivo») iguala Acompanhar/Agenda/Clínica. | **Confirmado (DEC-072):** quadro em largura total sem coluna de contexto, filtros no topo, contato por cima. Sem arrastar (DEC-062). | **Confirmado (DEC-068/069), implementado:** coluna de 360 px com Agendar, mês pequeno, filtros por profissional e sala e a lista do dia; grade ao lado; o compromisso abre por cima (380 px, Esc/×). A faixa da semana sai neste tamanho. **Em aberto:** verificação em staging (E6, [#241](https://github.com/intentzero/tredane/issues/241)). |
+| Largura | Navegação | Conversas | Acompanhamento | Agenda | Clientes |
+| --- | --- | --- | --- | --- | --- |
+| Base (360–767 px) | Barra inferior com Conversas, Acompanhamento, Agenda e Clientes (e **Clínica**, só para o responsável); badge de novas conversas. | Lista em tela cheia → conversa em tela cheia (sem barra inferior) → “Detalhes” em tela própria. | Abas roláveis por etapa; cartões em lista; mover pelo botão **Mover** em folha inferior. | Lista cronológica do dia com filtros por profissional e sala; espaços livres com **Agendar**. | Lista → ficha (TEL-12); mesma ficha que Contato. |
+| Tablet (≥ 768 px) | Barra lateral compacta. | Lista + conversa lado a lado; detalhes em gaveta. | Quadro com rolagem horizontal. | Grade com colunas por recurso. | Lista + ficha. |
+| Desktop (≥ 1280 px) | **Confirmado (DEC-068):** menu lateral fixo de 84 px com o símbolo (DEC-070); sino de avisos e menu da conta no fundo do rail (**Confirmado**, Paulo 31/10/2026); barra superior com título, clínica e «Ao vivo». Item **Clientes** no rail (Opção C). | Lista estável **~400 px** (ainda no intervalo DEC-068 360–520; Opção A / [#369](https://github.com/intentzero/tredane/pull/369)) e conversa; contato num painel por cima (DEC-069). `/conversas` e `/conversas/:id` partilham a moldura; o chrome do topo da lista (título + clínica / «Ao vivo») iguala Acompanhar/Agenda/Clínica. | **Confirmado (DEC-072):** quadro em largura total sem coluna de contexto, filtros no topo, contato por cima. Sem arrastar (DEC-062). | **Confirmado (DEC-068/069), implementado:** coluna de 360 px com Agendar, mês pequeno, filtros por profissional e sala e a lista do dia; grade ao lado; o compromisso abre por cima (380 px, Esc/×). A faixa da semana sai neste tamanho. **Em aberto:** verificação em staging (E6, [#241](https://github.com/intentzero/tredane/issues/241)). | Lista ~400 px + ficha (TEL-12); mesma ficha canónica que Contato. |
 
 Regras comuns:
 - Alvos de toque ≥ 44 × 44 px (altura visual dos botões e chips pode ser menor, com área clicável de 44 px; v0.4.0, **Confirmado**, DEC-081); ações principais (Enviar, Agendar, Confirmar) ficam na zona inferior da tela, alcançáveis com o polegar.
@@ -267,6 +267,20 @@ Reduz a carga cognitiva de configurar e conferir a clínica. Não altera DEC-042
 
 Ver seção 6.2.
 
+
+### TEL-12 — Clientes (lista + ficha operacional)
+
+**Origem:** Opção C Confirmada (Paulo, 31/10/2026); [clientes-vista.md](clientes-vista.md); paridade Contato [#365](https://github.com/intentzero/tredane/pull/365). **Estado:** navegação e fase 1 (leitura) **Confirmadas**; fase 2 (edição/comparecimento) **Proposta**.
+
+Directório operacional da clínica activa (DEC-038): encontrar o contacto sem abrir thread. Não é prontuário nem CRM clínico (ACT-01).
+
+- **Navegação:** item **Clientes** no rail / barra (depois de Agenda; Clínica continua só owner, DEC-042).
+- **Lista:** busca por nome de apresentação e telefone (mascarado na UI); filtros Todas / Com horário / Bloqueadas; isolamento por tenant.
+- **Ficha:** mesmos dados canónicos do sidepane Contato (TEL-01): nome, telefone mascarado, criado em, Resumo da IA sob demanda, Abrir Acompanhamento, Horários (próximos + anteriores derivados), Conversas, Bloquear/Desbloquear, exclusão owner (REQ-071 / AC-52). Sem sexo / género / inferência (DEC-075, DEC-089).
+- **Desktop (≥ 1280 px):** lista ~400 px + ficha. **Celular:** lista → ficha com voltar.
+- **Fora da fase 1:** edição de nome, comparecimento, campos pessoais novos, prontuário, marketing.
+
+Mocks: `desktop/ClientesLista.dc.html`, `desktop/ClientesFicha.dc.html` (screens.md).
 
 ### TEL-11 — Sinal por Pix
 

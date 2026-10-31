@@ -1,15 +1,31 @@
-import { Calendar, Kanban, MessageCircle, SlidersHorizontal } from 'lucide-react'
+import { Calendar, Kanban, MessageCircle, SlidersHorizontal, Users } from 'lucide-react'
 import type { PanelArea } from '../routes'
 import { BrandMark } from '../ui/Brand'
 import { areaNavLabel, areaRoute, navigatePanel, panelHref } from '../routes'
 import { ShellActions } from './ShellActions'
 
-const BASE_AREAS: PanelArea[] = ['conversas', 'acompanhamento', 'agenda']
+/** Conversas · Acompanhar · Agenda · Clientes (+ Clínica owner). Opção C Confirmada. */
+const BASE_AREAS: PanelArea[] = ['conversas', 'acompanhamento', 'agenda', 'clientes']
 
 type Props = {
   tenantId: string
   active: PanelArea
   showClinica: boolean
+}
+
+function areaIcon(area: PanelArea) {
+  switch (area) {
+    case 'conversas':
+      return MessageCircle
+    case 'acompanhamento':
+      return Kanban
+    case 'agenda':
+      return Calendar
+    case 'clientes':
+      return Users
+    default:
+      return SlidersHorizontal
+  }
 }
 
 export function BottomNav({ tenantId, active, showClinica }: Props) {
@@ -24,14 +40,7 @@ export function BottomNav({ tenantId, active, showClinica }: Props) {
         <BrandMark size={40} label="" />
       </span>
       {areas.map((area) => {
-        const Icon =
-          area === 'conversas'
-            ? MessageCircle
-            : area === 'acompanhamento'
-              ? Kanban
-              : area === 'agenda'
-                ? Calendar
-                : SlidersHorizontal
+        const Icon = areaIcon(area)
         const current = area === active
         const route = areaRoute(tenantId, area)
         return (
