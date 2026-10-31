@@ -3,6 +3,7 @@ import { ptBR } from '@clerk/localizations'
 import { AccountMenu } from '../shell/AccountMenu'
 import { useEffect, type ReactNode } from 'react'
 import { useAuthSession, useClientConfig } from './AuthContext'
+import { clerkAppearance } from './clerkAppearance'
 import { ClerkLogin } from './ClerkLogin'
 import { SyntheticLogin } from './SyntheticLogin'
 import { LoadingState, ErrorState } from '../states/StatusScreens'
@@ -55,7 +56,12 @@ export function AuthModeGate({ children }: { children: ReactNode }) {
       )
     }
     return (
-      <ClerkProvider publishableKey={pk} afterSignOutUrl="/entrar" localization={ptBR}>
+      <ClerkProvider
+        publishableKey={pk}
+        afterSignOutUrl="/entrar"
+        localization={ptBR}
+        appearance={clerkAppearance}
+      >
         <ClerkSessionBridge>{children}</ClerkSessionBridge>
       </ClerkProvider>
     )
@@ -70,14 +76,21 @@ export function LoginScreen() {
   return <SyntheticLogin />
 }
 
-function ClerkAccountControl() {
+type AccountControlProps = {
+  /** Posição do menu da conta (rail desktop abre para cima). */
+  placement?: 'bottom end' | 'top' | 'top start' | 'top end'
+}
+
+function ClerkAccountControl({ placement }: AccountControlProps) {
   const { signOut: clearLocal } = useAuthSession()
-  const { signOut } = useClerk()
+  const { signOut, openUserProfile } = useClerk()
   const { user } = useUser()
   return (
     <AccountMenu
       name={user?.fullName ?? user?.firstName ?? null}
       email={user?.primaryEmailAddress?.emailAddress ?? null}
+      placement={placement}
+      onOpenProfile={() => openUserProfile({ appearance: clerkAppearance })}
       onSignOut={() => {
         void (async () => {
           await clearLocal()
@@ -88,10 +101,11 @@ function ClerkAccountControl() {
   )
 }
 
-function SyntheticAccountControl() {
+function SyntheticAccountControl({ placement }: AccountControlProps) {
   const { signOut } = useAuthSession()
   return (
     <AccountMenu
+      placement={placement}
       onSignOut={() => {
         void signOut().then(() => navigatePanel({ kind: 'entrar' }, true))
       }}
@@ -100,10 +114,10 @@ function SyntheticAccountControl() {
 }
 
 /** Avatar com menu da conta (Sair dentro do menu). */
-export function AccountControl() {
+export function AccountControl({ placement }: AccountControlProps = {}) {
   const { authMode } = useAuthSession()
-  if (authMode === 'clerk') return <ClerkAccountControl />
-  return <SyntheticAccountControl />
+  if (authMode === 'clerk') return <ClerkAccountControl placement={placement} />
+  return <SyntheticAccountControl placement={placement} />
 }
 
 function ClerkSignOutControl() {

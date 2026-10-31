@@ -2100,6 +2100,11 @@
   gap: var(--space-2, 8px);
 }
 
+/* Sino + conta no rail: só no desktop ≥ 1280 (ver moldura abaixo). */
+.panel-nav-actions {
+  display: none;
+}
+
 .panel-shell-main--flush {
   padding: 0;
 }
@@ -3738,6 +3743,7 @@
   min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
   font-size: var(--font-size-body);
   cursor: pointer;
   outline: none;
@@ -3750,12 +3756,21 @@
 
 .panel-account-item[data-focused],
 .panel-account-item[data-hovered] {
+  background: var(--color-primary-tint);
+}
+
+.panel-account-item--danger[data-focused],
+.panel-account-item--danger[data-hovered] {
   background: var(--color-danger-tint);
 }
 
 .panel-account-item[data-focus-visible] {
-  outline: 2px solid var(--color-danger-ink);
+  outline: 2px solid var(--color-primary-base);
   outline-offset: -2px;
+}
+
+.panel-account-item--danger[data-focus-visible] {
+  outline-color: var(--color-danger-ink);
 }
 
 /* —— Reserva por bloco (hora a definir) —— */
@@ -6472,8 +6487,9 @@
 
 /* ——— Moldura única do desktop (≥ 1280 px): menu 84 · contexto 360 · trabalho ———
  * As quatro áreas usam a mesma grelha. O menu lateral é fixo e o cabeçalho do shell vira
- * uma barra só sobre a área de trabalho; nas Conversas a identidade (clínica, «Ao vivo»)
- * passa para o topo da coluna da lista. Abaixo de 1280 px nada muda. */
+ * uma barra só sobre a área de trabalho (título, clínica, «Ao vivo»); sino e conta passam
+ * para o fundo do rail. Nas Conversas a identidade passa para o topo da coluna da lista.
+ * Abaixo de 1280 px nada muda. */
 .panel-nav-brand,
 .conversas-list-head,
 .conversas-empty-pane {
@@ -6519,6 +6535,20 @@
     padding: 0;
     font-size: var(--font-size-caption);
     text-align: center;
+  }
+
+  /* Sino + conta no fundo do rail (mock ConversasDesktopProposta). */
+  .panel-shell-actions {
+    display: none;
+  }
+
+  .panel-nav-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: auto;
+    padding-top: var(--space-3);
   }
 
   .panel-shell-header {
@@ -6573,6 +6603,11 @@
     flex-direction: column;
   }
 
+  /*
+   * Chrome da lista = tipografia/estrutura do .panel-shell-header
+   * (panel-title-lg + panel-shell-titles gap space-1 + ShellIdentity).
+   * block-end 0: a busca/filtros WA começam já a seguir (densidade da lista).
+   */
   .conversas-list-head {
     --panel-header-inline: var(--space-4);
     --panel-header-block-start: var(--space-4);
@@ -6585,17 +6620,8 @@
     background: var(--color-surface-card);
   }
 
-  .conversas-list-head .panel-title-lg {
-    font-size: var(--font-size-display);
-    letter-spacing: -0.02em;
-  }
-
-  .conversas-list-head .panel-shell-titles {
-    gap: var(--space-3);
-  }
-
+  /* Sem BrandMark nesta coluna: o switcher não precisa do offset negativo do shell. */
   .conversas-list-head .panel-clinic-switch {
-    min-height: var(--size-control-sm);
     padding-inline: 0;
     margin-left: 0;
   }

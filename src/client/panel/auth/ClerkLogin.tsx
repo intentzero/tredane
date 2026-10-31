@@ -1,27 +1,6 @@
 import { SignIn } from '@clerk/react'
 import { BrandHorizontal } from '../ui/Brand'
-
-const appearance = {
-  variables: {
-    colorPrimary: '#0E5A5C',
-    colorText: '#142625',
-    colorTextSecondary: '#424B4A',
-    colorBackground: '#FFFFFF',
-    colorInputBackground: '#FFFFFF',
-    colorInputText: '#142625',
-    borderRadius: '12px',
-    fontFamily: 'Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif',
-    fontSize: '16px',
-  },
-  elements: {
-    rootBox: 'panel-clerk-root',
-    card: 'panel-clerk-card',
-    headerTitle: 'panel-clerk-title',
-    headerSubtitle: 'panel-clerk-subtitle',
-    formButtonPrimary: 'panel-clerk-primary',
-    footerAction: 'panel-clerk-footer',
-  },
-} as const
+import { clerkAppearance } from './clerkAppearance'
 
 /**
  * Componente Clerk real (TEL-08 / M-09).
@@ -42,7 +21,7 @@ export function ClerkLogin() {
             path="/entrar"
             forceRedirectUrl="/clinicas"
             signUpUrl="/entrar"
-            appearance={appearance}
+            appearance={clerkAppearance}
           />
         </div>
         <p className="panel-auth-foot">Sem convite? Peça ao responsável da sua clínica.</p>

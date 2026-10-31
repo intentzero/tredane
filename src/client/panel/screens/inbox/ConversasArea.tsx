@@ -565,8 +565,8 @@ function ContactViaConversation({
 }
 
 /**
- * Topo da coluna da lista no desktop largo (≥ 1280 px): título, clínica ativa e «Ao vivo».
- * O cabeçalho do shell some nesse tamanho, então a identidade fica aqui.
+ * Topo da coluna da lista no desktop largo (≥ 1280 px): mesmo chrome do shell
+ * (título + clínica com chevron + «Ao vivo»). Sino/conta ficam no rail.
  */
 function ConversasListHead() {
   const { active, listState } = useTenant()
@@ -575,7 +575,6 @@ function ConversasListHead() {
   const ctx = active.context
   return (
     <div className="conversas-list-head">
-      {/* Mesma composição do .panel-shell-header (título + clínica / Ao vivo). */}
       <div className="panel-shell-titles">
         <h1 className="panel-title-lg">Conversas</h1>
         <ShellIdentity
