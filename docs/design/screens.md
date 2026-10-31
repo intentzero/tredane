@@ -21,7 +21,7 @@ Cada linha liga um mock a sua especificação. **A especificação manda:** em c
 
 | ID | Arquivo | Tela da spec | Jornadas · Requisitos · Cenários | Mostra | Navega para |
 | --- | --- | --- | --- | --- | --- |
-| M-09 | `Entrar` (interativo) | TEL-08 | JRN-07, JRN-08 · REQ-005 · AC-17 | Passo e-mail → passo código de 6 dígitos (`autocomplete="one-time-code"`). **Mock do comportamento:** a tela real é o componente do Clerk estilizado | M-10 |
+| M-09 | `Entrar` (interativo) | TEL-08 | JRN-07, JRN-08 · REQ-005 · AC-17 | **Proposto (31/10/2026, revisão Paulo):** marca horizontal centrada (hero), formulário e «Sem convite?» num único bloco vertical centrado sobre fundo `surface.app` com mancha `primary.tint` — corrige splash partido (logo no topo, meio vazio, nota no fundo). Passo e-mail → código (`autocomplete="one-time-code"`). **Mock do comportamento:** a tela real é o Clerk estilizado. Desktop: `desktop/Entrar.dc.html` (mesma composição, coluna ~400 px) | M-10 |
 | M-10 | `Clinicas` | TEL-08 | JRN-07 · REQ-005 · AC-17 | Escolha da clínica com papel em cada uma; aparece só com mais de uma clínica | M-01 |
 | M-11 | `JanelaFechada` | TEL-01, DEC-040 | JRN-02 · REQ-012 | Fora da janela de 24 h: texto livre **bloqueado**, aviso, **Escolher modelo** | M-12 |
 | M-12 | `Modelos` | TEL-01, DEC-040 | JRN-02 · REQ-012 | Lista de modelos aprovados, campos a preencher, prévia não editável, aviso de custo, **Enviar modelo** | M-11 |

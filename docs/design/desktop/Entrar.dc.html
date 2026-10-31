@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Entrar — desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0E5A5C}a:hover{color:#0A4547}
+button,input{font:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+</style>
+</helmet>
+<!--
+  Entrar desktop — mesma composição do M-09 (Proposta 31/10/2026).
+  Viewport do pipeline de previews: 1440×900. Coluna de autenticação
+  centrada (~400 px). Sem cards no hero; marca horizontal (DEC-070).
+-->
+<div style="width: 1440px; height: 900px; box-sizing: border-box; position: relative; overflow: hidden; background: #F5F4EF; color: #142625; font-family: Roboto, &quot;Helvetica Neue&quot;, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.4; display: flex; align-items: center; justify-content: center; padding: 40px">
+
+<div aria-hidden="true" style="position: absolute; inset: 0; pointer-events: none; background:
+  radial-gradient(80% 70% at 50% 35%, #E7F1F1 0%, rgba(231,241,241,0) 58%),
+  radial-gradient(70% 45% at 50% 100%, #EEEDE7 0%, rgba(238,237,231,0) 50%),
+  #F5F4EF"></div>
+
+<div style="position: relative; width: 400px; max-width: 100%; display: flex; flex-direction: column; gap: 32px">
+
+<div style="display: flex; justify-content: center">
+<img src="../brand/svg/tredane-horizontal-cor.svg" alt="Tredane" height="56" style="height: 56px; width: auto; display: block">
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 8px; text-align: center">
+<h1 style="margin: 0; font-size: 22px; font-weight: 600">Entrar</h1>
+<p style="margin: 0; color: #424B4A">Use o e-mail do seu convite. Enviaremos um código de 6 dígitos.</p>
+</div>
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A; text-align: left">E-mail
+<input type="email" autocomplete="email" placeholder="nome@clinica.com.br" style="height: 36px; box-sizing: border-box; padding: 0 16px; border: 1px solid #7A8584; border-radius: 8px; font-size: 14px; color: #142625; background: #FFFFFF"></label>
+<button type="button" style="height: 36px; border: 0; border-radius: 8px; background: #0E5A5C; color: #FFFFFF; font-size: 14px; font-weight: 600; cursor: pointer">Continuar</button>
+</div>
+
+<p style="margin: 0; font-size: 13px; color: #566160; text-align: center">Sem convite? Peça ao responsável da sua clínica.</p>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
