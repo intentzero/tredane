@@ -22,12 +22,41 @@ import { NotFoundError } from '../errors'
 import type { Clock } from '../../db/clock'
 import type { ForecastAdapter } from '../tempo/evaluate'
 import { buildClinicAiContext } from './schedule-context'
+import { getScheduleSession, type ScheduleSession } from './schedule-session'
+import { needsAudienceLine, zonesForAudienceLine, type AudienceLine } from './variant-line'
 
 /** Extrai primeiro nome do display_name (DEC-011 — nunca telefone). */
 export function firstNameFromDisplayName(displayName: string | null): string | null {
   if (!displayName) return null
   const part = displayName.trim().split(/\s+/)[0]
   return part && part.length > 0 ? part : null
+}
+
+function lineForService(
+  service: ServiceRow,
+  turnText: string,
+  turnLine: AudienceLine | null,
+  session: ScheduleSession | null,
+): AudienceLine | null {
+  const name = service.name.trim().toLowerCase()
+  const named = name.length > 0 && turnText.toLowerCase().includes(name)
+  if (turnLine && named) return turnLine
+  if (session?.serviceId === service.id) return turnLine ?? session.audienceLine
+  return null
+}
+
+/** Com linha explícita ou já gravada na sessão, o modelo só vê as variantes dessa linha. */
+function zonesForAi(
+  service: ServiceRow,
+  turnText: string,
+  turnLine: AudienceLine | null,
+  session: ScheduleSession | null,
+): ServiceRow['zones'] {
+  const active = service.zones.filter((zone) => zone.active)
+  if (!needsAudienceLine(active)) return active
+  const line = lineForService(service, turnText, turnLine, session)
+  if (!line) return active
+  return zonesForAudienceLine(active, line)
 }
 
 function sanitizeCatalogField(value: string | null | undefined): string | null {
@@ -83,16 +112,14 @@ export async function buildAiContextPayload(
     limit,
   })
 
-  const turnLine = explicitAudienceLine(
-    currentClientTurnText(
-      messages.map((m) => ({ direction: m.direction, body: m.body })),
-    ),
+  const turnText = currentClientTurnText(
+    messages.map((m) => ({ direction: m.direction, body: m.body })),
   )
+  const turnLine = explicitAudienceLine(turnText)
+  const scheduleSession = getScheduleSession(db, tenantId, conversationId)
   const catalogResources = opts.clock ? listResources(db, tenantId, opts.clock) : []
-  const services = filterServicesForLine(
-    listServices(db, tenantId).filter((s) => s.active),
-    turnLine,
-  ).map(
+  const activeServices = listServices(db, tenantId).filter((s) => s.active)
+  const services = filterServicesForLine(activeServices, turnLine).map(
     (s): AiCatalogService => {
       const professionalNames = s.professionalIds
         .map((id) => catalogResources.find((r) => r.id === id)?.name)
@@ -115,9 +142,7 @@ export async function buildAiContextPayload(
       professionalNames,
       roomNames,
       combos: usableCombos(s),
-      zones: s.zones
-        .filter((z) => z.active)
-        .map((z) => ({
+      zones: zonesForAi(s, turnText, turnLine, scheduleSession).map((z) => ({
           name: sanitizeCatalogField(z.name) ?? z.name,
           durationMinutes: z.durationMinutes,
           priceCents: z.priceCents,
@@ -143,6 +168,17 @@ export async function buildAiContextPayload(
     messages: contextMessages,
     hasClinicOutbound: hasClinicOutbound(contextMessages),
     clinicOutboundCount: countClinicOutbound(contextMessages),
+  }
+  if (scheduleSession) {
+    const held = activeServices.find((service) => service.id === scheduleSession.serviceId)
+    if (held) {
+      payload.schedule = {
+        serviceName: sanitizeCatalogField(held.name) ?? held.name,
+        dayLabel: scheduleSession.dayLabel,
+        period: scheduleSession.period,
+        audienceLine: scheduleSession.audienceLine,
+      }
+    }
   }
   if (opts.clock) {
     payload.clinic = await buildClinicAiContext(db, tenantId, opts.clock, {

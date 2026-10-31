@@ -185,7 +185,9 @@ export async function runDueAutoDrafts(
       })
       continue
     }
-    const catalogText = catalogReply(db, tenantId, inboundBody, clock)
+    const catalogText = catalogReply(db, tenantId, inboundBody, clock, {
+      conversationId: job.conversationId,
+    })
     if (catalogText) {
       let replyOutbox: OutboxRow[] = []
       try {

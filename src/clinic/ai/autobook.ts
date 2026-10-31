@@ -20,7 +20,8 @@ import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
 import { listServices } from '../config/services'
-import { quoteVisit, variantAudiencesConflict, variantChoiceLabel, zonesNamedInText } from '../config/zones'
+import { explicitAudienceLine } from '../catalog/audience'
+import { quoteVisit, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
@@ -35,6 +36,13 @@ import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import { checkConversationProtection } from './protection'
+import { getScheduleSession, saveScheduleLine, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
+import {
+  audienceLineQuestion,
+  needsAudienceLine,
+  stableVariantLabelList,
+  zonesForAudienceLine,
+} from './variant-line'
 
 export const AI_AUTOBOOK_ACTOR_ID = AI_AUTOBOOK_ACTOR
 export const AI_AUTOBOOK_ACTOR_NAME = 'IA (agendamento automático)'
@@ -396,6 +404,7 @@ export async function tryAiAutoBook(
   const confirmation = clientTurn[clientTurn.length - 1]!
 
   const services = listServices(db, tenantId).filter((s) => s.active)
+  const turnText = clientTurn.map((m) => m.body).join('\n')
   const det = detectExplicitConfirmation({
     clientTexts: clientTurn.map((m) => m.body),
     previousClinicText: prevClinic?.body ?? null,
@@ -404,12 +413,42 @@ export async function tryAiAutoBook(
     clinicToday: clinicCivilDateFromUtc(tz, prevClinic?.created_at ?? confirmation.created_at),
     services,
   })
-  const base = { confirmationMessageId: confirmation.id, missing: det.missing }
+  const session = getScheduleSession(db, tenantId, input.conversationId)
+  let date = det.date
+  let missing = [...det.missing]
+  // O período (tarde) não vira horário. O dia já dito na sessão preenche só o dia.
+  if (!date && det.status === 'needs_info' && session?.dayLabel) {
+    const resolved = [...extractDates(session.dayLabel, clinicCivilDateFromUtc(tz, confirmation.created_at))]
+    if (resolved.length === 1) {
+      date = resolved[0]
+      missing = missing.filter((item) => item !== 'dia')
+    }
+  }
+  const turnFacts = scheduleFactsFromText(turnText)
+  const rememberDayPeriod = (serviceId: string) => {
+    if (!turnFacts.dayLabel && !turnFacts.period) return
+    saveScheduleSession(
+      db,
+      tenantId,
+      input.conversationId,
+      {
+        serviceId,
+        ...(turnFacts.dayLabel ? { dayLabel: turnFacts.dayLabel } : {}),
+        ...(turnFacts.period ? { period: turnFacts.period } : {}),
+      },
+      clock,
+    )
+  }
+  const base = { confirmationMessageId: confirmation.id, missing }
   const contact = getContact(db, tenantId, conv.contactId)
   const name = firstName(contact?.displayName)
   const hi = name ? `, ${name}` : ''
-  if (!det.ok || !det.service || !det.date || !det.time) {
-    const faltam = det.missing.length ? det.missing.join(', ') : 'confirmação clara'
+  const ready =
+    Boolean(det.service && date && det.time) &&
+    (det.ok || (det.status === 'needs_info' && missing.length === 0))
+  if (!ready || !det.service || !date || !det.time) {
+    if (det.service) rememberDayPeriod(det.service.id)
+    const faltam = missing.length ? missing.join(', ') : 'confirmação clara'
     return {
       ...none(det.status, base),
       notes:
@@ -419,17 +458,34 @@ export async function tryAiAutoBook(
     }
   }
   const svc = det.service
-  const date = det.date
   const time = det.time
+  rememberDayPeriod(svc.id)
   const activeZones = svc.zones.filter((z) => z.active)
-  const chosen = zonesChosenByClient(clientTurn, older, activeZones)
+  const turnExplicit = explicitAudienceLine(turnText)
+  const carried = session?.serviceId === svc.id ? session.audienceLine : null
+  const line = needsAudienceLine(activeZones) ? (turnExplicit ?? carried) : null
+  if (needsAudienceLine(activeZones) && !line) {
+    saveScheduleLine(db, tenantId, input.conversationId, svc.id, null, clock)
+    return {
+      ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
+      replyText: audienceLineQuestion(svc.name),
+      notes:
+        `A cliente falou em ${svc.name} sem escolher a linha. Pergunta automática enviada. ` +
+        'Não se infere pelo nome, pelo histórico nem por marcações. Texto livre não marca.',
+    }
+  }
+  if (turnExplicit) {
+    saveScheduleLine(db, tenantId, input.conversationId, svc.id, turnExplicit, clock)
+  }
+  const scoped = needsAudienceLine(activeZones) ? zonesForAudienceLine(activeZones, line) : activeZones
+  const chosen = zonesChosenByClient(clientTurn, older, scoped)
   const namedZones = chosen.zones
   const plural = svc.variantKindPlural?.trim() || ''
   const singular = svc.variantKind?.trim() || ''
   const kind = plural || singular || 'variantes'
   const phrase = plural || !singular ? `as ${kind}` : `a ${kind}`
   if (activeZones.length > 0 && (namedZones.length === 0 || chosen.ambiguous)) {
-    const names = activeZones.map((z) => variantChoiceLabel(z, activeZones))
+    const names = stableVariantLabelList(scoped.length > 0 ? scoped : activeZones)
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
@@ -465,7 +521,7 @@ export async function tryAiAutoBook(
       // Não silenciar: o modelo pode ter deixado a mensagem vazia à espera da proposta.
       replyText:
         activeZones.length > 0
-          ? askZonesReply(phrase, activeZones.map((z) => variantChoiceLabel(z, activeZones)), time)
+          ? askZonesReply(phrase, stableVariantLabelList(scoped.length > 0 ? scoped : activeZones), time)
           : `Não consegui fechar ${svc.name} às ${time} agora. A equipe confirma pelo Agendar.`,
       notes:
         `Não deu para calcular ${svc.name}: ${message}. Pergunta/aviso automático enviado. Texto livre não marca.`,

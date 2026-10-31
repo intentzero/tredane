@@ -4,13 +4,27 @@
  */
 import { formatBRL } from '../../ai/prompt'
 import type { Clock } from '../../db/clock'
+import { currentClientTurnText, explicitAudienceLine } from '../catalog/audience'
 import { listEffectiveWeeklyWindows } from '../config/availability'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import type { ServiceRow } from '../config/types'
 import { zonesNamedInText } from '../config/zones'
+import { listMessages } from '../inbox/messages'
 import type { ClinicDb } from '../store'
 import { formatOpeningHours } from './schedule-context'
+import {
+  getScheduleSession,
+  saveScheduleSession,
+  scheduleFactsFromText,
+  type ScheduleSessionPatch,
+} from './schedule-session'
+import {
+  audienceLineQuestion,
+  needsAudienceLine,
+  variantListQuestion,
+  zonesForAudienceLine,
+} from './variant-line'
 
 const HOURS = /\b(hor[aá]rio de funcionamento|que horas (voc[eê]s )?(abrem|funcionam|atendem)|at[eé] que horas)\b/i
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
@@ -39,8 +53,29 @@ function poolFor(services: ServiceRow[], text: string): ServiceRow[] {
   return services.length === 1 ? services : services
 }
 
+function namedServices(services: ServiceRow[], text: string): ServiceRow[] {
+  const folded = text.toLowerCase()
+  return services.filter((service) => {
+    const name = service.name.trim().toLowerCase()
+    return name.length > 0 && folded.includes(name)
+  })
+}
+
+function clientSource(db: ClinicDb, tenantId: string, body: string, conversationId?: string): string {
+  if (!conversationId) return body
+  const { messages } = listMessages(db, tenantId, { conversationId, limit: 40 })
+  const turn = currentClientTurnText(messages.map((message) => ({ direction: message.direction, body: message.body })))
+  return turn.trim() || body
+}
+
 /** Texto determinístico, ou null para seguir o modelo / a proposta. */
-export function catalogReply(db: ClinicDb, tenantId: string, text: string, clock: Clock): string | null {
+export function catalogReply(
+  db: ClinicDb,
+  tenantId: string,
+  text: string,
+  clock: Clock,
+  opts: { conversationId?: string } = {},
+): string | null {
   const body = text.trim()
   if (!body) return null
   const services = listServices(db, tenantId).filter((s) => s.active)
@@ -58,6 +93,9 @@ export function catalogReply(db: ClinicDb, tenantId: string, text: string, clock
     return `Funcionamos assim:\n${lines.join('\n')}`
   }
 
+  const source = clientSource(db, tenantId, body, opts.conversationId)
+  const session = opts.conversationId ? getScheduleSession(db, tenantId, opts.conversationId) : null
+  const explicit = explicitAudienceLine(source)
   const targets = poolFor(services, body)
   const who = WHO.test(body)
   if (who) {
@@ -71,26 +109,60 @@ export function catalogReply(db: ClinicDb, tenantId: string, text: string, clock
     return lines.join('\n')
   }
 
-  if (!PRICE.test(body) && !(PERIOD.test(body) && !CLOCK.test(body))) return null
+  const namedService = namedServices(services, source)
+  const namedPick =
+    namedService.find((service) => service.zones.some((zone) => zone.active)) ?? namedService[0]
+  const held = session ? services.find((service) => service.id === session.serviceId) : undefined
+  const inPlay = namedPick ?? held
+  const fallback = targets.find((service) => service.zones.some((zone) => zone.active)) ?? targets[0]
+  const svc = inPlay ?? fallback
 
-  const svc = targets.find((s) => s.zones.some((z) => z.active)) ?? targets[0]
+  const asksPrice = PRICE.test(source)
+  const openPeriod = PERIOD.test(source) && !CLOCK.test(source)
+  const lineOnly = explicit != null && !asksPrice && !PERIOD.test(source) && !CLOCK.test(source)
+  if (!asksPrice && !openPeriod && !lineOnly) return null
   if (!svc) return null
-  const active = svc.zones.filter((z) => z.active)
-  const named = active.length > 0 ? zonesNamedInText(body, active) : []
 
-  if (active.length > 0 && named.length === 0 && (PRICE.test(body) || (PERIOD.test(body) && !CLOCK.test(body)))) {
-    const kind = svc.variantKindPlural?.trim() || svc.variantKind?.trim() || 'variante'
-    const options = active.map((z) => z.name).join(', ')
-    return `Para ${svc.name}, qual ${kind} você quer? Temos ${options}.`
+  const active = svc.zones.filter((zone) => zone.active)
+  const mixed = needsAudienceLine(active)
+  // A linha só entra quando o serviço já está em jogo. Sem isso, não lista zonas duplicadas.
+  if (mixed && !inPlay) return null
+
+  const facts = scheduleFactsFromText(source)
+  const carried = session?.serviceId === svc.id ? session.audienceLine : null
+  const line = mixed ? (explicit ?? carried) : null
+  if (opts.conversationId && inPlay) {
+    const patch: ScheduleSessionPatch = { serviceId: inPlay.id }
+    if (explicit) patch.audienceLine = explicit
+    else if (mixed && !line) patch.audienceLine = null
+    if (facts.dayLabel) patch.dayLabel = facts.dayLabel
+    if (facts.period) patch.period = facts.period
+    const sameService = session?.serviceId === inPlay.id
+    const lineChanging = patch.audienceLine !== undefined && patch.audienceLine !== (sameService ? session?.audienceLine : null)
+    const dayChanging = patch.dayLabel !== undefined && patch.dayLabel !== session?.dayLabel
+    const periodChanging = patch.period !== undefined && patch.period !== session?.period
+    if (lineChanging || dayChanging || periodChanging || !sameService) {
+      saveScheduleSession(db, tenantId, opts.conversationId, patch, clock)
+    }
   }
 
-  if (PRICE.test(body) && named.length === 1) {
+  if (active.length > 0 && mixed && !line) return audienceLineQuestion(svc.name)
+
+  const scoped = mixed ? zonesForAudienceLine(active, line) : active
+  const named = scoped.length > 0 ? zonesNamedInText(source, scoped) : []
+
+  if (active.length > 0 && named.length === 0 && (asksPrice || openPeriod || lineOnly)) {
+    const pool = scoped.length > 0 ? scoped : active
+    return variantListQuestion(svc.name, svc.variantKind, pool)
+  }
+
+  if (asksPrice && named.length === 1) {
     const z = named[0]!
     const price = z.priceCents == null ? 'a equipe confirma o valor' : formatBRL(z.priceCents)
     return `${z.name} custa ${price} e dura ${z.durationMinutes} min.`
   }
 
-  if (PRICE.test(body) && named.length >= 2) {
+  if (asksPrice && named.length >= 2) {
     const genders = new Set(named.map((z) => z.audience))
     if (genders.has('feminino') && genders.has('masculino')) {
       return 'Masculino e feminino não entram na mesma visita. Escolha um conjunto compatível.'
@@ -106,6 +178,6 @@ export function catalogReply(db: ClinicDb, tenantId: string, text: string, clock
     return `Juntas, ficam ${price} e ${minutes} min de atendimento.${buffer}`
   }
 
-  if (!PRICE.test(body) && active.length === 0 && PERIOD.test(body) && !CLOCK.test(body)) return null
+  if (!asksPrice && active.length === 0 && openPeriod) return null
   return null
 }
