@@ -55,7 +55,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 
 ## Desktop
 
-`desktop/` guarda telas anteriores às decisões DEC-039 (mobile first) e DEC-040 (`Main`, Pipeline, Agenda, Estados) e propostas mais recentes (`Entrar` Confirmado; `ConversasDesktopProposta` / `ConversasDesktopPropostaThread` **Proposto** 31/10/2026 — densidade estilo WhatsApp Web com tokens Tredane). Onde `Main` (exploração antiga de três colunas) divergir da proposta WA ou de `mobile/`, a proposta WA e o mobile prevalecem sobre `Main` até o Paulo decidir. A moldura Confirmada (DEC-068+) já está no painel; os mocks novos só pedem densidade visual.
+`desktop/` guarda telas anteriores às decisões DEC-039 (mobile first) e DEC-040 (`Main`, Pipeline, Agenda, Estados) e referências recentes (`Entrar` Confirmado; `ConversasDesktopProposta` / `ConversasDesktopPropostaThread` **Confirmado** Paulo 31/10/2026 Opção A — densidade estilo WhatsApp Web com tokens Tredane, implementada no painel). Onde `Main` (exploração antiga de três colunas) divergir dos mocks WA ou de `mobile/`, valem os mocks WA e o mobile.
 
 ## Divergências conhecidas entre mocks e especificação
 

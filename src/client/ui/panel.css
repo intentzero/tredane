@@ -4540,8 +4540,8 @@
 @media (min-width: 1280px) {
   .conversas-3col:not(.conversas-3col--drawer) {
     --conversas-thread-min: 400px;
-    grid-template-columns:
-      minmax(240px, 300px) minmax(var(--conversas-thread-min), 1fr) minmax(260px, 320px);
+    --conversas-list-width: 400px;
+    grid-template-columns: var(--conversas-list-width) minmax(var(--conversas-thread-min), 1fr);
   }
 }
 
@@ -6493,15 +6493,20 @@
     display: none;
   }
 
+  /*
+   * Densidade Conversas desktop (Confirmado Paulo 31/10/2026, Opção A / mocks WA):
+   * lista estável ~400 px (ainda no intervalo DEC-068 360–520), header compacto,
+   * busca sunken, linhas densas, empty simples, thread com bolhas/compositor.
+   */
   .conversas-3col {
-    grid-template-columns: clamp(360px, 30vw, 520px) minmax(var(--conversas-thread-min), 1fr);
+    --conversas-list-width: 400px;
+    grid-template-columns: var(--conversas-list-width) minmax(var(--conversas-thread-min), 1fr);
   }
 
   /*
    * Padding da coluna a 0: o list-head herda o ritmo do shell via
-   * --panel-header-inline / block (mesmo X que Acompanhar). .inbox-root
-   * já traz space-4 horizontal — alinhado ao título. Antes, space-3 da
-   * coluna + space-4 do inbox desalinhava o título face à busca/lista.
+   * --panel-header-inline / block (mesmo X que Acompanhar). A busca/filtros
+   * alinham ao título; as linhas da lista vão de bordo a bordo (sem cartão).
    */
   .conversas-3col-list {
     padding: 0;
@@ -6512,13 +6517,71 @@
   .conversas-list-head {
     --panel-header-inline: var(--space-4);
     --panel-header-block-start: var(--space-4);
-    --panel-header-block-end: var(--space-3);
+    --panel-header-block-end: 0;
     display: flex;
     flex-direction: column;
     flex: none;
     padding: var(--panel-header-block-start) var(--panel-header-inline) var(--panel-header-block-end);
-    border-bottom: var(--size-border-width) solid var(--color-line-border);
+    border-bottom: 0;
     background: var(--color-surface-card);
+  }
+
+  .conversas-list-head .panel-title-lg {
+    font-size: var(--font-size-display);
+    letter-spacing: -0.02em;
+  }
+
+  .conversas-list-head .panel-shell-titles {
+    gap: var(--space-3);
+  }
+
+  .conversas-list-head .panel-clinic-switch {
+    min-height: var(--size-control-sm);
+    padding-inline: 0;
+    margin-left: 0;
+  }
+
+  .conversas-3col-list .inbox-root {
+    padding: var(--space-3) 0 0;
+    gap: var(--space-3);
+  }
+
+  .conversas-3col-list .inbox-search,
+  .conversas-3col-list .inbox-filters {
+    margin-inline: var(--space-4);
+  }
+
+  .conversas-3col-list .inbox-search-input {
+    min-height: var(--size-control-default);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunken);
+    padding-block: 0;
+  }
+
+  .conversas-3col-list .inbox-filters {
+    gap: 6px;
+    padding-bottom: var(--space-3);
+    border-bottom: var(--size-border-width) solid var(--color-line-border);
+    margin-bottom: 0;
+  }
+
+  .conversas-3col-list .inbox-row {
+    padding: 10px var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .conversas-3col-list .inbox-row-name {
+    font-size: var(--font-size-title);
+  }
+
+  .conversas-3col-list .inbox-row-preview {
+    font-size: var(--font-size-body);
+  }
+
+  .conversas-3col-list .inbox-row-meta {
+    margin-top: 2px;
+    gap: 6px;
   }
 
   /* Loading / erro da lista (sem .inbox-root): mesma margem horizontal do cabeçalho. */
@@ -6536,6 +6599,14 @@
     padding: var(--space-6);
     text-align: center;
     color: var(--color-text-secondary);
+    background: var(--color-surface-app);
+  }
+
+  .conversas-empty-pane svg {
+    width: 40px;
+    height: 40px;
+    color: var(--color-text-muted);
+    opacity: 0.7;
   }
 
   .conversas-empty-pane h2 {
@@ -6548,6 +6619,63 @@
   .conversas-empty-pane p {
     margin: 0;
     max-width: 320px;
+    color: var(--color-text-muted);
+  }
+
+  /* Thread: cabeçalho, bolhas e compositor alinhados à densidade do mock. */
+  .conversas-3col .inbox-thread > .inbox-thread-header {
+    min-height: var(--size-row-min);
+    padding: var(--space-2) var(--space-4);
+    gap: var(--space-2);
+  }
+
+  .conversas-3col .inbox-thread-who .inbox-thread-name {
+    font-size: var(--font-size-title);
+  }
+
+  .conversas-3col .panel-header-action {
+    height: var(--size-control-default);
+    min-height: var(--size-control-default);
+    border-radius: var(--radius-md);
+    border-color: var(--color-primary-border);
+    background: var(--color-primary-tint);
+    color: var(--color-primary-ink);
+  }
+
+  .conversas-3col .inbox-timeline {
+    gap: 6px;
+    padding-block: var(--space-4);
+  }
+
+  .conversas-3col .inbox-msg-bubble {
+    border-radius: var(--radius-lg);
+    padding: var(--space-2) var(--space-3) 6px;
+  }
+
+  .conversas-3col .inbox-msg-in .inbox-msg-bubble {
+    border-bottom-left-radius: 4px;
+  }
+
+  .conversas-3col .inbox-msg-out .inbox-msg-bubble {
+    border-bottom-right-radius: 4px;
+  }
+
+  .conversas-3col .inbox-composer {
+    padding: var(--space-3) var(--space-4) var(--space-4);
+    border-top: 0;
+  }
+
+  .conversas-3col .inbox-composer-input {
+    min-height: var(--size-control-default);
+    border-radius: 18px;
+    border-color: var(--color-line-control);
+    background: var(--color-surface-card);
+    padding: 8px 14px;
+  }
+
+  .conversas-3col .inbox-send {
+    width: var(--size-control-default);
+    height: var(--size-control-default);
   }
 }
 
@@ -6562,11 +6690,19 @@
 }
 
 /* ——— Painel de detalhe deslizante (Conversas): por cima, sem véu, sem empurrar a lista ———
- * Duas colunas fixas (lista · conversa). O contato entra da direita em 200 ms; a coluna de
- * leitura desliza para a esquerda para não ficar tapada. Sem «reduzir movimento», sem animação. */
+ * Duas colunas (lista · conversa). Em ≥1280 px a lista fica ~400 px (Opção A Confirmada);
+ * entre 1024 e 1279 px usa o intervalo DEC-068. O contato entra da direita em 200 ms. */
 .conversas-3col,
 .conversas-3col:not(.conversas-3col--drawer) {
   grid-template-columns: clamp(360px, 30vw, 520px) minmax(var(--conversas-thread-min), 1fr);
+}
+
+@media (min-width: 1280px) {
+  .conversas-3col,
+  .conversas-3col:not(.conversas-3col--drawer) {
+    --conversas-list-width: 400px;
+    grid-template-columns: var(--conversas-list-width) minmax(var(--conversas-thread-min), 1fr);
+  }
 }
 
 .conversas-3col > .conversas-3col-contact {
