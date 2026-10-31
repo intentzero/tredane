@@ -501,6 +501,33 @@
       "h": 844,
       "title": "M-59 Agenda · Dia sem horários",
       "radius": 32
+    },
+    "ClinicaPassoAgora.dc.html": {
+      "x": 0,
+      "y": 15768,
+      "w": 390,
+      "h": 844,
+      "title": "M-60 Clínica a configurar: um passo de cada vez (Proposto)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "ClinicaPronta.dc.html": {
+      "x": 470,
+      "y": 15768,
+      "w": 390,
+      "h": 844,
+      "title": "M-61 Clínica pronta: áreas por pergunta (Proposto)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "ClinicaAssistente.dc.html": {
+      "x": 940,
+      "y": 15768,
+      "w": 390,
+      "h": 844,
+      "title": "M-62 Assistente e automações (Proposto)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -557,7 +584,10 @@
     "Aparencia.dc.html",
     "AgendaSemanaCartoes.dc.html",
     "CompromissoCancelarSinal.dc.html",
-    "AgendaDiaVazio.dc.html"
+    "AgendaDiaVazio.dc.html",
+    "ClinicaPassoAgora.dc.html",
+    "ClinicaPronta.dc.html",
+    "ClinicaAssistente.dc.html"
   ],
   "notes": {
     "row1": {
@@ -636,6 +666,13 @@
       "text": "Conversa: estados e Pix pendente (Proposto, 28/10/2026; DEC-061 a DEC-065)",
       "kind": "title1",
       "maxW": 1800
+    },
+    "row12": {
+      "x": 0,
+      "y": 15528,
+      "text": "Clínica: menos carga cognitiva (Proposto, 31/10/2026)",
+      "kind": "title1",
+      "maxW": 1330
     }
   },
   "designSystems": []

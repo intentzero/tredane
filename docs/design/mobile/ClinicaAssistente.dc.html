@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Assistente e automações</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0E5A5C}a:hover{color:#0A4547}
+.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.card{background:#FFFFFF;border:1px solid #E1E3E0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.h{margin:0;font-size:16px;font-weight:600}
+.sw{display:flex;align-items:center;gap:12px;min-height:44px}
+.sw span{flex:1;display:flex;flex-direction:column;gap:2px}
+.sw b{font-size:14px;font-weight:500}
+.sw small{font-size:13px;color:#566160}
+.tg{width:44px;height:26px;border-radius:999px;position:relative;flex:none;border:0;padding:0}
+.tg i{position:absolute;top:3px;width:20px;height:20px;border-radius:999px;background:#FFFFFF}
+.f{display:flex;flex-direction:column;gap:6px}
+.f label{font-size:13px;font-weight:500;color:#424B4A}
+.f input,.f textarea{font:inherit;font-size:14px;color:#142625;border:1px solid #7A8584;border-radius:8px;padding:10px 12px;background:#FFFFFF;box-sizing:border-box;width:100%}
+.seg{display:flex;background:#EEEDE7;border-radius:8px;padding:3px;gap:3px}
+.seg button{flex:1;height:34px;border:0;border-radius:6px;font:inherit;font-size:13px;background:transparent;color:#424B4A}
+.lnk{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:500;color:#0E5A5C;text-decoration:none;min-height:44px}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#F5F4EF;font-family:Roboto, 'Helvetica Neue', Arial, sans-serif;color:#142625;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden">
+
+  <header style="display:flex;align-items:center;gap:4px;padding:8px 8px 8px 4px;background:#F5F4EF;flex:none">
+    <a href="ClinicaPronta.dc.html" aria-label="Voltar à Clínica" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:#142625"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></a>
+    <h1 style="margin:0;font-size:18px;font-weight:600">Assistente e automações</h1>
+  </header>
+
+  <main style="flex:1;overflow:hidden;padding:4px 16px 16px;display:flex;flex-direction:column;gap:12px">
+
+    <section class="card" style="border-color:#6B3FD4;background:#F7F4FD">
+      <div class="sw">
+        <span><b>Sugestões de resposta com IA</b><small>A equipe revê cada sugestão antes de enviar.</small></span>
+        <button class="tg" type="button" role="switch" aria-checked="true" aria-label="Sugestões de resposta com IA" style="background:#4B2A9E"><i style="right:3px"></i></button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="who">
+      <h2 class="h" id="who">Como se apresenta</h2>
+      <div class="f"><label for="nm">Nome (opcional)</label><input id="nm" value="Luna"></div>
+      <div class="f">
+        <span style="font-size:13px;font-weight:500;color:#424B4A" id="gn">Fala como</span>
+        <div class="seg" role="radiogroup" aria-labelledby="gn">
+          <button type="button" role="radio" aria-checked="true" style="background:#FFFFFF;color:#142625;font-weight:500">Feminino</button>
+          <button type="button" role="radio" aria-checked="false">Masculino</button>
+          <button type="button" role="radio" aria-checked="false">Neutro</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="know">
+      <h2 class="h" id="know">O que sabe da clínica</h2>
+      <div class="f"><label for="ad">Endereço</label><input id="ad" value="Rua das Acácias, 120 · Campinas"></div>
+      <div class="f"><label for="rp">Remarcação e cancelamento</label><textarea id="rp" rows="2" style="resize:none">Remarcar sem custo até 24 h antes.</textarea></div>
+      <a class="lnk" href="#" style="min-height:32px"><svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Link do Google · cidade da previsão do tempo</a>
+    </section>
+
+    <section class="card" aria-labelledby="prot" style="gap:4px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <svg class="ic" style="color:#424B4A" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
+        <h2 class="h" id="prot">Proteções</h2>
+      </div>
+      <div class="sw">
+        <span><b>Limites recomendados</b><small>Travam excessos de rascunhos, marcações e Pix por contato.</small></span>
+        <button class="tg" type="button" role="switch" aria-checked="true" aria-label="Limites recomendados" style="background:#0E5A5C"><i style="right:3px"></i></button>
+      </div>
+      <div class="sw" style="border-top:1px solid #EEEDE7;padding-top:8px">
+        <span><b>Pausar marcação por botão</b><small>O que já está marcado continua.</small></span>
+        <button class="tg" type="button" role="switch" aria-checked="false" aria-label="Pausar marcação por botão" style="background:#7A8584"><i style="left:3px"></i></button>
+      </div>
+      <a class="lnk" href="#" style="border-top:1px solid #EEEDE7">Personalizar os 9 limites<svg class="ic" style="width:18px;height:18px;margin-left:auto;color:#7A8584" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
