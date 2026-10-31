@@ -442,14 +442,21 @@ export async function tryAiAutoBook(
   const time = det.time
   rememberDayPeriod(svc.id)
   const activeZones = svc.zones.filter((z) => z.active)
-  const inboundNewestFirst = [
-    ...clientTurn.map((m) => m.body),
-    ...older.filter((m) => m.direction === 'inbound').map((m) => m.body),
+  // DEC-090: linha já dita neste funil não se reperguntar.
+  // Só a sessão activa do mesmo serviço + mensagens desde o início do funil contam.
+  // Após DEC-086 (sessão limpa) ou serviço diferente, «Masculina»/«Todas» antigas não valem.
+  const sameFunnel = Boolean(session && session.serviceId === svc.id)
+  const funnelStartedAt = sameFunnel && session ? session.updatedAt : Number.POSITIVE_INFINITY
+  const funnelOlder = sameFunnel
+    ? older.filter((m) => m.direction !== 'inbound' || m.created_at >= funnelStartedAt)
+    : []
+  const funnelInboundNewestFirst = [
+    ...[...clientTurn].reverse().map((m) => m.body),
+    ...funnelOlder.filter((m) => m.direction === 'inbound').map((m) => m.body),
   ]
-  // DEC-090: linha já dita nesta conversa (turno, sessão ou inbound anterior) não se reperguntar.
   const turnExplicit = explicitAudienceLine(turnText)
-  const historyLine = audienceLineFromClientTexts(inboundNewestFirst)
-  const carried = session?.serviceId === svc.id ? session.audienceLine : null
+  const historyLine = sameFunnel ? audienceLineFromClientTexts(funnelInboundNewestFirst) : null
+  const carried = sameFunnel && session ? session.audienceLine : null
   const line = needsAudienceLine(activeZones) ? (turnExplicit ?? carried ?? historyLine) : null
   if (needsAudienceLine(activeZones) && !line) {
     saveScheduleLine(db, tenantId, input.conversationId, svc.id, null, clock)
@@ -465,7 +472,9 @@ export async function tryAiAutoBook(
     saveScheduleLine(db, tenantId, input.conversationId, svc.id, line, clock)
   }
   const scoped = needsAudienceLine(activeZones) ? zonesForAudienceLine(activeZones, line) : activeZones
-  const chosen = zonesChosenByClient(clientTurn, older, scoped)
+  const chosen = sameFunnel
+    ? zonesChosenByClient(clientTurn, funnelOlder, scoped)
+    : zonesChosenByClient(clientTurn, [], scoped)
   const namedZones = chosen.zones
   const plural = svc.variantKindPlural?.trim() || ''
   const singular = svc.variantKind?.trim() || ''
