@@ -1,7 +1,7 @@
 import { CalendarClock } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from 'react-aria-components'
-import type { AvailabilitySlot, ClinicService, PanelApi } from '../../api'
+import type { AvailabilitySlot, ClinicService, PanelApi, PixSnapshot } from '../../api'
 import { friendlyError } from '../../copy/errors'
 import {
   formatDayLabel,
@@ -9,6 +9,7 @@ import {
   formatSlotTime,
   upcomingCivilDates,
 } from '../agenda/format'
+import { formatBrl } from '../agenda/agendarModel'
 
 const DAYS = 5
 const MAX_PICKS = 3
@@ -21,6 +22,23 @@ type Props = {
   generation: number
   /** Texto montado para o campo de mensagem; nada é enviado daqui. */
   onPropose: (text: string) => void
+  /** Conversa para a cobrança do sinal; sem ela o atalho de Pix não aparece. */
+  conversationId?: string
+  contactId?: string | null
+  opportunityId?: string | null
+  authorDisplayName?: string | null
+  /** Chamado depois de a cobrança sair (a conversa recarrega). */
+  onCharged?: () => void
+}
+
+/** Sinal do serviço em centavos; mesma regra do Agendar. */
+export function signalCents(svc: ClinicService): number | null {
+  if (!svc.requiresSignal) return null
+  if (svc.signalKind === 'fixed' && svc.signalFixedCents != null) return svc.signalFixedCents
+  if (svc.signalKind === 'percent' && svc.signalPercent != null && svc.priceCents != null) {
+    return Math.trunc((svc.priceCents * svc.signalPercent) / 100)
+  }
+  return null
 }
 
 /** «15h30» a partir de «15:30». */
@@ -49,7 +67,17 @@ export function buildProposalText(picks: Pick[], timeZone: string): string {
  * rascunho: quem revisa e envia é a pessoa. Horário com aviso do bloco Tempo
  * (DEC-077) não é proposto aqui; fica para o Agendar.
  */
-export function FreeSlotsStrip({ tenantId, api, generation, onPropose }: Props) {
+export function FreeSlotsStrip({
+  tenantId,
+  api,
+  generation,
+  onPropose,
+  conversationId,
+  contactId,
+  opportunityId,
+  authorDisplayName,
+  onCharged,
+}: Props) {
   const [open, setOpen] = useState(false)
   const [services, setServices] = useState<ClinicService[] | null>(null)
   const [timezone, setTimezone] = useState('America/Sao_Paulo')
@@ -60,6 +88,10 @@ export function FreeSlotsStrip({ tenantId, api, generation, onPropose }: Props) 
   const [picks, setPicks] = useState<Pick[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [pix, setPix] = useState<PixSnapshot | null>(null)
+  const [confirmPix, setConfirmPix] = useState(false)
+  const [charging, setCharging] = useState(false)
+  const [chargeId, setChargeId] = useState(() => crypto.randomUUID())
   const fo = useMemo(
     () => ({ generation, expectGeneration: () => generation }),
     [generation],
@@ -82,6 +114,14 @@ export function FreeSlotsStrip({ tenantId, api, generation, onPropose }: Props) 
       })
       .catch((err) => {
         if (!cancelled) setError(friendlyError(err, 'Não conseguimos carregar os horários.'))
+      })
+    api
+      .getPix(tenantId, fo)
+      .then((snap) => {
+        if (!cancelled) setPix(snap)
+      })
+      .catch(() => {
+        /* sem Pix legível o atalho de sinal simplesmente não aparece */
       })
     return () => {
       cancelled = true
@@ -130,6 +170,54 @@ export function FreeSlotsStrip({ tenantId, api, generation, onPropose }: Props) 
       if (prev.length >= MAX_PICKS) return prev
       return [...prev, { date, slot }]
     })
+  }
+
+  const service = (services ?? []).find((s) => s.id === serviceId)
+  const amount = service ? signalCents(service) : null
+  const single = picks.length === 1 ? picks[0]! : null
+  // Zonas mudam preço e duração: o sinal dessas passa pelo Agendar.
+  const zoned = (service?.zones?.length ?? 0) > 0
+  const canCharge =
+    Boolean(conversationId) &&
+    pix?.account.canCreateCharge === true &&
+    amount != null &&
+    !zoned &&
+    single != null
+
+  async function sendCharge() {
+    if (!single || !service || !conversationId || charging) return
+    setCharging(true)
+    setError(null)
+    try {
+      const created = await api.createPixCharge(
+        tenantId,
+        {
+          clientRequestId: chargeId,
+          conversationId,
+          contactId: contactId ?? null,
+          opportunityId: opportunityId ?? null,
+          serviceId: service.id,
+          professionalId: single.slot.professionalId,
+          roomResourceId: single.slot.roomResourceId,
+          startsAt: single.slot.startsAt,
+          authorDisplayName: authorDisplayName ?? null,
+        },
+        fo,
+      )
+      if (created.whatsappSendError) {
+        setError('A cobrança foi criada, mas a mensagem não saiu. Abra a conversa e tente de novo.')
+      } else {
+        setPicks([])
+        setConfirmPix(false)
+        setChargeId(crypto.randomUUID())
+        setOpen(false)
+      }
+      onCharged?.()
+    } catch (err) {
+      setError(friendlyError(err, 'Não conseguimos enviar a cobrança.'))
+    } finally {
+      setCharging(false)
+    }
   }
 
   function propose() {
@@ -249,12 +337,40 @@ export function FreeSlotsStrip({ tenantId, api, generation, onPropose }: Props) 
         </ul>
       )}
 
-      <div className="free-slots-foot">
-        <span className="free-slots-hint">Nada é enviado até você apertar Enviar. Até {MAX_PICKS} horários.</span>
-        <Button className="panel-btn-primary" isDisabled={picks.length === 0} onPress={propose}>
-          Colocar no campo{picks.length > 0 ? ` · ${picks.length}` : ''}
-        </Button>
-      </div>
+      {confirmPix && canCharge && amount != null ? (
+        <div className="free-slots-confirm" role="alertdialog" aria-label="Confirmar cobrança do sinal">
+          <p className="free-slots-note">
+            Vai enviar agora, pelo WhatsApp, a cobrança Pix de {formatBrl(amount)}. O horário só
+            fica reservado depois do pagamento.
+          </p>
+          <div className="free-slots-foot">
+            <Button className="panel-btn-secondary" isDisabled={charging} onPress={() => setConfirmPix(false)}>
+              Voltar
+            </Button>
+            <Button className="panel-btn-primary" isDisabled={charging} onPress={() => void sendCharge()}>
+              {charging ? 'Enviando…' : `Enviar sinal de ${formatBrl(amount)}`}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="free-slots-foot">
+          <span className="free-slots-hint">
+            {single && conversationId && !canCharge
+              ? 'Para cobrar o sinal: serviço com sinal, sem zonas, e Pix conectado.'
+              : `Nada é enviado até você apertar Enviar. Até ${MAX_PICKS} horários.`}
+          </span>
+          <span className="free-slots-actions">
+            {canCharge && amount != null ? (
+              <Button className="panel-btn-secondary" onPress={() => setConfirmPix(true)}>
+                Cobrar sinal · {formatBrl(amount)}
+              </Button>
+            ) : null}
+            <Button className="panel-btn-primary" isDisabled={picks.length === 0} onPress={propose}>
+              Colocar no campo{picks.length > 0 ? ` · ${picks.length}` : ''}
+            </Button>
+          </span>
+        </div>
+      )}
     </section>
   )
 }

@@ -1579,6 +1579,10 @@ export function InboxThread({
               tenantId={tenantId}
               api={api}
               generation={generation}
+              conversationId={detail.id}
+              contactId={detail.contactId}
+              opportunityId={detail.opportunity?.id ?? null}
+              authorDisplayName={authorDisplayName}
               onPropose={(text) =>
                 setDraft((prev) => (prev.trim() ? `${prev.trimEnd()}\n${text}` : text))
               }

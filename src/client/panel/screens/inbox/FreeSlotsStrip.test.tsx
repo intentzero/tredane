@@ -51,6 +51,7 @@ describe('FreeSlotsStrip', () => {
       queryAvailability: vi.fn().mockResolvedValue({
         slots: [slot(t1530), slot(t1630, { tempoWarnings: ['Sem previsão'] })],
       }),
+      getPix: vi.fn().mockRejectedValue(new Error('sem pix')),
     } as unknown as PanelApi
     const onPropose = vi.fn()
     render(<FreeSlotsStrip tenantId="t" api={api} generation={1} onPropose={onPropose} />)
@@ -63,5 +64,48 @@ describe('FreeSlotsStrip', () => {
     fireEvent.click(screen.getByRole('button', { name: /Colocar no campo/ }))
     await waitFor(() => expect(onPropose).toHaveBeenCalledTimes(1))
     expect(onPropose.mock.calls[0]![0]).toMatch(/às \d{2}h\d{2}\. Serve para você\?$/)
+  })
+
+  it('cobra o sinal só depois de confirmar, com uma chave de idempotência', async () => {
+    const createPixCharge = vi.fn().mockResolvedValue({ whatsappSendError: null })
+    const api = {
+      getClinicConfig: vi.fn().mockResolvedValue({
+        services: [
+          {
+            id: 's1',
+            name: 'Depilação a laser',
+            active: true,
+            requiresSignal: true,
+            signalKind: 'fixed',
+            signalFixedCents: 5000,
+            priceCents: 18000,
+            zones: [],
+          },
+        ],
+        settings: { timezone: TZ },
+      }),
+      queryAvailability: vi.fn().mockResolvedValue({ slots: [slot(t1530)] }),
+      getPix: vi.fn().mockResolvedValue({ account: { canCreateCharge: true } }),
+      createPixCharge,
+    } as unknown as PanelApi
+    render(
+      <FreeSlotsStrip
+        tenantId="t"
+        api={api}
+        generation={1}
+        conversationId="c1"
+        contactId="k1"
+        onPropose={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Horários livres/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Bruna/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Cobrar sinal/ }))
+    expect(createPixCharge).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /Enviar sinal de/ }))
+    await waitFor(() => expect(createPixCharge).toHaveBeenCalledTimes(1))
+    const body = createPixCharge.mock.calls[0]![1]
+    expect(body).toMatchObject({ conversationId: 'c1', serviceId: 's1', startsAt: t1530 })
+    expect(typeof body.clientRequestId).toBe('string')
   })
 })
