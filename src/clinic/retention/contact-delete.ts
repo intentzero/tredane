@@ -1,7 +1,7 @@
 /**
  * Exclusão de contacto pelo responsável (#43 / REQ-071 / DEC-011).
- * TX SQLite: tombstone + cascata mensagens/anexos meta/conversas/oportunidades;
- * compromissos anonimizados. R2 fora da TX (caller).
+ * TX SQLite: tombstone + cascata mensagens/anexos meta/schedule_sessions/
+ * conversas/oportunidades; compromissos anonimizados. R2 fora da TX (caller).
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'
@@ -217,6 +217,16 @@ export function deleteContactOp(
     // Também anonimizar por rótulo legado se contact_id já era null mas label tinha nome.
     // (não aplicamos fuzzy — só o vínculo contact_id.)
 
+    // Sessão de agendamento (DEC-078 / migração 44) tem FK para conversations —
+    // sem isto a TX falha com FOREIGN KEY e nada é apagado (inbox/pipeline/agenda intactos).
+    for (const conversationId of conversationIds) {
+      db.run(
+        `DELETE FROM schedule_sessions WHERE tenant_id = ? AND conversation_id = ?`,
+        meta.tenantId,
+        conversationId,
+      )
+    }
+
     for (const conversationId of conversationIds) {
       db.run(
         `DELETE FROM conversations WHERE tenant_id = ? AND id = ?`,
@@ -271,8 +281,12 @@ export function deleteContactOp(
         aggregateId: contactId,
         payload: {
           contactId,
+          // Ids sem PII — painel reconcilia thread/pipeline/agenda sem refetch cego.
+          conversationIds,
+          opportunityIds: oppIds,
           messageCount: messageIds.length,
           attachmentCount: attachmentIds.length,
+          anonymizedAppointmentCount,
         },
         idempotencyKey: `contact.deleted:${contactId}`,
       },

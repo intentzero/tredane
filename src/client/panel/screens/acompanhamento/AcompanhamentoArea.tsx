@@ -1,5 +1,6 @@
 import { useAuthSession } from '../../auth/AuthContext'
 import { useTenant } from '../../tenant/TenantContext'
+import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
 import { LoadingState } from '../../states/StatusScreens'
 import type { AcompanhamentoSection } from '../../routes'
 import { AcompanhamentoBoard } from './AcompanhamentoBoard'
@@ -26,30 +27,26 @@ export function AcompanhamentoArea({ tenantId, section, opportunityId }: Props) 
     return <LoadingState label="Preparando sessão…" />
   }
 
-  // Desktop largo: quadro em largura total; o contato abre num painel por cima.
-  if (wide) {
-    return (
-      <AcompanhamentoWideBoard
-        tenantId={tenantId}
-        api={api}
-        generation={generation}
-        openId={section === 'detalhe' ? opportunityId : undefined}
-      />
-    )
-  }
-
-  if (section === 'detalhe' && opportunityId) {
-    return (
-      <AcompanhamentoDetail
-        tenantId={tenantId}
-        opportunityId={opportunityId}
-        api={api}
-        generation={generation}
-      />
-    )
-  }
-
+  // WS partilhado: contact.deleted remove cartões sem hard reload (AC-52).
   return (
-    <AcompanhamentoBoard tenantId={tenantId} api={api} generation={generation} />
+    <InboxRealtimeProvider tenantId={tenantId} api={api} generation={generation}>
+      {wide ? (
+        <AcompanhamentoWideBoard
+          tenantId={tenantId}
+          api={api}
+          generation={generation}
+          openId={section === 'detalhe' ? opportunityId : undefined}
+        />
+      ) : section === 'detalhe' && opportunityId ? (
+        <AcompanhamentoDetail
+          tenantId={tenantId}
+          opportunityId={opportunityId}
+          api={api}
+          generation={generation}
+        />
+      ) : (
+        <AcompanhamentoBoard tenantId={tenantId} api={api} generation={generation} />
+      )}
+    </InboxRealtimeProvider>
   )
 }

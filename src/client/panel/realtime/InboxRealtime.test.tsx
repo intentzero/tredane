@@ -3,7 +3,11 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InboxConversationDetail, PanelApi } from '../api'
 import { InboxThread } from '../screens/inbox/InboxThread'
-import { InboxRealtimeProvider } from './InboxRealtime'
+import {
+  eventDeletesConversation,
+  InboxRealtimeProvider,
+  isScheduleEvent,
+} from './InboxRealtime'
 
 class StubWebSocket {
   static all: StubWebSocket[] = []
@@ -56,6 +60,53 @@ function detail(body: string): InboxConversationDetail {
     messagingWindow: { open: true, lastInboundAt: 1, closesAt: null, remainingMs: null },
   } as unknown as InboxConversationDetail
 }
+
+describe('helpers contact.deleted / agenda', () => {
+  it('eventDeletesConversation reconhece conversationIds no payload', () => {
+    expect(
+      eventDeletesConversation(
+        {
+          type: 'event',
+          seq: 1,
+          eventId: 'e',
+          eventType: 'contact.deleted',
+          entity: { type: 'contact', id: 'ct_1' },
+          occurredAt: 1,
+          payload: { contactId: 'ct_1', conversationIds: ['cnv_1', 'cnv_2'] },
+        },
+        'cnv_2',
+      ),
+    ).toBe(true)
+    expect(
+      eventDeletesConversation(
+        {
+          type: 'event',
+          seq: 1,
+          eventId: 'e',
+          eventType: 'contact.deleted',
+          entity: { type: 'contact', id: 'ct_1' },
+          occurredAt: 1,
+          payload: { contactId: 'ct_1', conversationIds: ['cnv_1'] },
+        },
+        'cnv_other',
+      ),
+    ).toBe(false)
+  })
+
+  it('isScheduleEvent inclui contact.deleted (anonimiza agenda)', () => {
+    expect(
+      isScheduleEvent({
+        type: 'event',
+        seq: 1,
+        eventId: 'e',
+        eventType: 'contact.deleted',
+        entity: { type: 'contact', id: 'ct_1' },
+        occurredAt: 1,
+        payload: { contactId: 'ct_1' },
+      }),
+    ).toBe(true)
+  })
+})
 
 describe('InboxRealtimeProvider + InboxThread', () => {
   beforeEach(() => {
@@ -157,5 +208,44 @@ describe('InboxRealtimeProvider + InboxThread', () => {
     })
     await new Promise((r) => setTimeout(r, 300))
     expect(getInboxConversation.mock.calls.length).toBe(callsBefore)
+  })
+
+  it('contact.deleted com conversationIds limpa a thread aberta (AC-52)', async () => {
+    const getInboxConversation = vi.fn(async () => detail('antes'))
+    const api = {
+      getRealtimeTicket: vi.fn(async () => ({ ticket: 'wst_t', expiresAt: 0 })),
+      getInboxConversation,
+      markInboxRead: vi.fn(),
+      listWhatsappTemplates: vi.fn(async () => ({ items: [] })),
+      listConversationPixCharges: vi.fn(async () => []),
+      listPixPaymentAlerts: vi.fn(async () => []),
+    } as unknown as PanelApi
+    render(
+      <InboxRealtimeProvider tenantId="clinic-demo-a" api={api} generation={1}>
+        <InboxThread
+          tenantId="clinic-demo-a"
+          conversationId="cnv_1"
+          api={api}
+          generation={1}
+          viewerClerkUserId="user_a"
+        />
+      </InboxRealtimeProvider>,
+    )
+    await screen.findByText('antes')
+    await waitFor(() => expect(StubWebSocket.all).toHaveLength(1))
+    act(() => {
+      StubWebSocket.all[0]!.push({
+        v: 1,
+        type: 'event',
+        seq: 9,
+        eventId: 'evt_del',
+        eventType: 'contact.deleted',
+        entity: { type: 'contact', id: 'ct_1' },
+        occurredAt: 9,
+        payload: { contactId: 'ct_1', conversationIds: ['cnv_1'] },
+      })
+    })
+    await screen.findByText(/Este contato foi excluído/)
+    expect(screen.queryByText('antes')).toBeNull()
   })
 })

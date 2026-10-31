@@ -8,6 +8,7 @@ import { navigatePanel } from '../../routes'
 import { useOutsideClose } from '../../ui/useOutsideClose'
 import { ErrorState } from '../../states/StatusScreens'
 import { ListSkeleton } from '../../states/ListSkeleton'
+import { useInboxRealtime } from '../../realtime/InboxRealtime'
 import { AcompanhamentoDetail } from './AcompanhamentoDetail'
 import {
   STAGE_LABELS,
@@ -95,6 +96,17 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
   useEffect(() => {
     void load()
   }, [tenantId, generation, stages])
+
+  useInboxRealtime((signals) => {
+    const touch = signals.some(
+      (s) =>
+        s.kind === 'resync' ||
+        (s.kind === 'event' &&
+          (s.event.eventType === 'contact.deleted' ||
+            s.event.eventType === 'opportunity.stage_changed')),
+    )
+    if (touch) void load()
+  })
 
   useEffect(() => {
     let cancelled = false

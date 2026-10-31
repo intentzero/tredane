@@ -15,6 +15,7 @@ import { MoveSheet } from './MoveSheet'
 import type { OpportunityStage } from '../../api'
 import { useClinicTimezone } from '../../clinicTimezone'
 import { friendlyError } from '../../copy/errors'
+import { useInboxRealtime } from '../../realtime/InboxRealtime'
 
 type Props = {
   tenantId: string
@@ -66,6 +67,25 @@ export function AcompanhamentoDetail({
   useEffect(() => {
     void load()
   }, [tenantId, opportunityId, generation])
+
+  useInboxRealtime((signals) => {
+    const gone = signals.some((s) => {
+      if (s.kind !== 'event' || s.event.eventType !== 'contact.deleted') return false
+      const ids = s.event.payload?.opportunityIds
+      return Array.isArray(ids) && ids.includes(opportunityId)
+    })
+    if (gone) {
+      setData(null)
+      setError('Este contato foi excluído. O acompanhamento já não está disponível.')
+      return
+    }
+    const touch = signals.some(
+      (s) =>
+        s.kind === 'resync' ||
+        (s.kind === 'event' && s.event.eventType === 'opportunity.stage_changed'),
+    )
+    if (touch) void load()
+  })
 
   async function handleMove(toStage: OpportunityStage) {
     if (!data) return

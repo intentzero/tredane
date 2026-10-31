@@ -18,7 +18,11 @@ import {
   X,
 } from 'lucide-react'
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
-import { eventConversationId, useInboxRealtime } from '../../realtime/InboxRealtime'
+import {
+  eventConversationId,
+  eventDeletesConversation,
+  useInboxRealtime,
+} from '../../realtime/InboxRealtime'
 import {
   Button,
   Dialog,
@@ -507,7 +511,16 @@ export function InboxThread({
 
   // Tempo real: (re)ligação/aba visível ou evento desta conversa → refetch
   // silencioso. O rascunho (estado local) e o scroll não são tocados.
+  // contact.deleted que inclui esta conversa: limpar (não quiet-swallow 404).
   useInboxRealtime((signals) => {
+    const deletedHere = signals.some(
+      (s) => s.kind === 'event' && eventDeletesConversation(s.event, conversationId),
+    )
+    if (deletedHere) {
+      setDetail(null)
+      setError('Este contato foi excluído. A conversa já não está disponível.')
+      return
+    }
     const relevant = signals.some(
       (s) => s.kind === 'resync' || eventConversationId(s.event) === conversationId,
     )
