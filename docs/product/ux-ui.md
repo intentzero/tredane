@@ -199,7 +199,7 @@ A IA não preenche nem confirma este painel no MVP (ADR-0004).
 
 **Origem:** DEC-007; REQ-005; AC-17. **Estado:** Proposto.
 
-- **Marca (Confirmado, DEC-070):** o logotipo horizontal fica acima do formulário de entrada e o empilhado acima da lista de clínicas.
+- **Marca (Confirmado, DEC-070):** o logotipo horizontal fica acima do formulário de entrada e o empilhado acima da lista de clínicas. No tema escuro (DEC-098) a horizontal usa a versão oficial de fundo escuro, sem alterar o desenho. Se o cabeçalho do Clerk ainda não aparecer, o título «Entrar» do mock M-09 fica visível acima da nota de convite.
 - **Composição do ecrã de entrada (Confirmado, Paulo 31/10/2026, «Faz»):** marca + formulário (ou shell do Clerk) + nota «Sem convite? Peça ao responsável da sua clínica.» formam um único bloco centrado no eixo vertical, sobre fundo `surface.app` com atmosfera suave (`primary.tint`), sem marcar a marca no topo e a nota no fundo com o meio vazio. Mock: M-09 e `desktop/Entrar`; implementação em `ClerkLogin` / `SyntheticLogin` + `.panel-auth`.
 - **Entrar:** fluxo do Clerk com código por e-mail: campo de e-mail → campo do código, com preenchimento automático no celular (`autocomplete="one-time-code"`) e reenvio. A mensagem de erro não revela se o e-mail tem conta. Textos e cores seguem a spec; o comportamento é o do Clerk.
 - **Escolher clínica:** lista com nome de cada clínica e papel (Atendente/Responsável). Com uma só clínica, a tela é pulada.

@@ -45,8 +45,10 @@ export function SyntheticLogin() {
     <div className="panel-auth" lang="pt-BR">
       <div className="panel-auth-atmosphere" aria-hidden="true" />
       <div className="panel-auth-stack">
-        <div className="panel-auth-brand">
-          <BrandHorizontal height={48} />
+        <div className="panel-auth-hero">
+          <div className="panel-auth-brand">
+            <BrandHorizontal height={48} />
+          </div>
         </div>
 
         {step === 'email' ? (
@@ -153,7 +155,10 @@ export function SyntheticLogin() {
           </div>
         ) : null}
 
-        <p className="panel-auth-foot">Sem convite? Peça ao responsável da sua clínica.</p>
+        <p className="panel-auth-foot panel-auth-note">
+          <span className="panel-auth-note-lead">Sem convite?</span>
+          Peça ao responsável da sua clínica.
+        </p>
       </div>
     </div>
   )

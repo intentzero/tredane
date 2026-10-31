@@ -4,14 +4,18 @@
  */
 export const clerkAppearance = {
   variables: {
-    colorPrimary: '#0E5A5C',
-    colorText: '#142625',
-    colorTextSecondary: '#424B4A',
-    colorBackground: '#FFFFFF',
-    colorInputBackground: '#FFFFFF',
-    colorInputText: '#142625',
-    borderRadius: '12px',
-    fontFamily: 'Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif',
+    colorPrimary: 'var(--color-primary-base)',
+    colorPrimaryForeground: 'var(--color-text-on-primary)',
+    colorForeground: 'var(--color-text-primary)',
+    colorMutedForeground: 'var(--color-text-secondary)',
+    colorBackground: 'var(--color-surface-card)',
+    colorInput: 'var(--color-surface-card)',
+    colorInputForeground: 'var(--color-text-primary)',
+    colorNeutral: 'var(--color-text-primary)',
+    colorBorder: 'var(--color-line-border)',
+    colorDanger: 'var(--color-danger-ink)',
+    borderRadius: 'var(--radius-lg)',
+    fontFamily: 'var(--font-family)',
     fontSize: '16px',
   },
   elements: {

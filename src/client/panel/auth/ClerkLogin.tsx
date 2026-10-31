@@ -12,8 +12,14 @@ export function ClerkLogin() {
     <div className="panel-auth" lang="pt-BR">
       <div className="panel-auth-atmosphere" aria-hidden="true" />
       <div className="panel-auth-stack">
-        <div className="panel-auth-brand">
-          <BrandHorizontal height={48} />
+        <div className="panel-auth-hero">
+          <div className="panel-auth-brand">
+            <BrandHorizontal height={48} />
+          </div>
+          {/* O Clerk traz o próprio título quando o cartão pinta. Até lá, «Entrar» (M-09) segura a nota. */}
+          <div className="panel-auth-fallback">
+            <h1 className="panel-auth-title">Entrar</h1>
+          </div>
         </div>
         <div className="panel-auth-clerk">
           <SignIn
@@ -24,7 +30,10 @@ export function ClerkLogin() {
             appearance={clerkAppearance}
           />
         </div>
-        <p className="panel-auth-foot">Sem convite? Peça ao responsável da sua clínica.</p>
+        <p className="panel-auth-foot panel-auth-note">
+          <span className="panel-auth-note-lead">Sem convite?</span>
+          Peça ao responsável da sua clínica.
+        </p>
       </div>
     </div>
   )
