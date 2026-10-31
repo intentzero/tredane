@@ -652,11 +652,25 @@ export function ResourceForm({
 
   return (
     <div className="clinic-stack clinic-form">
-      <div className="clinic-toolbar">
-        <Button className="panel-btn panel-btn-ghost" onPress={requestLeave}>
-          Cancelar
+      <header className="clinic-page-head clinic-desktop-hide">
+        <Button className="panel-icon-btn" aria-label="Voltar" onPress={requestLeave}>
+          ‹
         </Button>
-      </div>
+        <div className="clinic-page-head-copy">
+          <h1 className="panel-title">
+            {kind === 'professional'
+              ? existing
+                ? 'Editar profissional'
+                : 'Nova profissional'
+              : existing
+                ? resourceKind === 'equipment'
+                  ? 'Editar equipamento'
+                  : 'Editar sala'
+                : 'Nova sala'}
+          </h1>
+          <span className="panel-subtitle">Profissionais e salas</span>
+        </div>
+      </header>
 
       <TextField className="clinic-field">
         <Label>

@@ -6024,6 +6024,41 @@
   color: var(--color-text-muted);
 }
 
+.clinic-page-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: calc(var(--space-2) * -1) calc(var(--space-1) * -1) 0;
+}
+
+.clinic-page-head-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.conferir-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-tint, #fff7ea);
+  border: var(--size-border-width) solid var(--color-warning-border, #ebcb94);
+  color: var(--color-warning-ink, #6e4200);
+  font-size: var(--font-size-small);
+}
+
+.conferir-summary[data-tone='ok'] {
+  background: var(--color-success-tint, #e7f1f1);
+  border-color: var(--color-primary-base, #0e5a5c);
+  color: var(--color-primary-ink, #0a4547);
+}
+
+.conferir-summary strong {
+  font-weight: var(--font-weight-semibold);
+}
+
 .conferir-card {
   display: flex;
   flex-direction: column;
@@ -6035,6 +6070,52 @@
 
 .conferir-card[data-ready='false'] {
   border: var(--size-border-width) solid var(--color-warning-border, #ebcb94);
+}
+
+.conferir-open {
+  align-self: flex-start;
+  min-height: var(--size-touch);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary-ink);
+  text-decoration: underline;
+}
+
+.tempo-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.tempo-radio {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-touch);
+  cursor: pointer;
+  font-size: var(--font-size-body);
+}
+
+.tempo-radio-dot {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 2px solid var(--color-line-control);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+}
+
+.tempo-radio[data-selected] .tempo-radio-dot {
+  border-color: var(--color-primary-base);
+  box-shadow: inset 0 0 0 4px var(--color-surface-card);
+  background: var(--color-primary-base);
+}
+
+.tempo-radio[data-focus-visible] .tempo-radio-dot {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
 }
 
 /* Horário integrado (TEL-09): semana desenhada, calendário e filtros. */

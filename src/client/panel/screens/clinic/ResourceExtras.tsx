@@ -322,32 +322,33 @@ export function RoomExtras({
 
   return (
     <>
-      <section className="clinic-section" aria-labelledby={`rsv-${resource.id}`}>
-        <h3 id={`rsv-${resource.id}`} className="panel-legend">
-          Serviços feitos aqui
-        </h3>
-        <div
-          className="block-form-chips"
-          role="group"
-          aria-label={`Serviços feitos em ${resource.name}`}
-        >
-          {services.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="block-form-chip"
-              aria-pressed={draftServiceIds.includes(s.id)}
-              onClick={() => onToggleService(s.id)}
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
-        <p className="clinic-footnote">
-          Marcar inclui esta sala no serviço («Onde acontece»). Desmarcar tira só esta. Sem espaço
-          definido escolhe-se na ficha do serviço. As alterações só gravam ao Salvar.
-        </p>
-      </section>
+      {resource.kind === 'room' ? (
+        <section className="clinic-section" aria-labelledby={`rsv-${resource.id}`}>
+          <h3 id={`rsv-${resource.id}`} className="panel-legend">
+            Serviços feitos aqui
+          </h3>
+          <div
+            className="block-form-chips"
+            role="group"
+            aria-label={`Serviços feitos em ${resource.name}`}
+          >
+            {services.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="block-form-chip"
+                aria-pressed={draftServiceIds.includes(s.id)}
+                onClick={() => onToggleService(s.id)}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+          <p className="clinic-footnote">
+            Marcar muda «Onde acontece» no serviço. Só grava ao Salvar.
+          </p>
+        </section>
+      ) : null}
 
       <section className="service-more">
         <button

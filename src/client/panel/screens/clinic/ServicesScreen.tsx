@@ -462,18 +462,27 @@ export function ServiceForm({
     }
   }
 
+  const serviceCount = snap.services.length
+
   return (
     <div className="clinic-stack clinic-form">
-      <div className="clinic-toolbar">
+      <header className="clinic-page-head clinic-desktop-hide">
         <Button
-          className="panel-btn panel-btn-ghost"
+          className="panel-icon-btn"
+          aria-label="Voltar"
           onPress={() =>
             navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'servicos' })
           }
         >
-          Cancelar
+          ‹
         </Button>
-      </div>
+        <div className="clinic-page-head-copy">
+          <h1 className="panel-title">{existing ? 'Editar serviço' : 'Novo serviço'}</h1>
+          <span className="panel-subtitle">
+            Serviços · {serviceCount} {serviceCount === 1 ? 'cadastrado' : 'cadastrados'}
+          </span>
+        </div>
+      </header>
       <TextField className="clinic-field">
         <Label>Nome</Label>
         <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
@@ -866,6 +875,15 @@ export function ServiceForm({
         </p>
       ) : null}
       <div className="clinic-footer-actions">
+        <Button
+          className="panel-btn panel-btn-ghost clinic-desktop-hide"
+          isDisabled={saving}
+          onPress={() =>
+            navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'servicos' })
+          }
+        >
+          Cancelar
+        </Button>
         <Button
           className="panel-btn panel-btn-primary"
           isDisabled={saving || !name.trim()}

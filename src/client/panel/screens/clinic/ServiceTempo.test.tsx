@@ -29,6 +29,7 @@ describe('ficha do serviço — Tempo (M-53)', () => {
     )
     expect(screen.getByRole('button', { name: /Tempo/i })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Tempo/i }))
+    expect(screen.getByRole('button', { name: 'Fechar' })).toBeTruthy()
     expect(screen.getByText('Sem restrição de tempo.')).toBeTruthy()
     expect(screen.queryByLabelText('Graus (°C)')).toBeNull()
     expect(document.body.textContent).not.toMatch(/percentagem/)

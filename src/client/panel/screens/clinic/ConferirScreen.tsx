@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Button } from 'react-aria-components'
-import { ClipboardCheck } from 'lucide-react'
 import type { ClinicConfigReview, PanelApi } from '../../api'
 import { navigatePanel } from '../../routes'
 import { Banner } from '../../states/Banner'
@@ -56,6 +55,9 @@ export function ConferirScreen({ tenantId, api, generation }: Props) {
     }
   }, [api, tenantId, generation])
 
+  const goHub = () =>
+    navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'hub' })
+
   if (loading && !review) return <LoadingState label="A conferir serviços…" />
   if (error && !review) {
     return (
@@ -63,9 +65,7 @@ export function ConferirScreen({ tenantId, api, generation }: Props) {
         title="Não foi possível conferir"
         description={error}
         actionLabel="Voltar ao início"
-        onAction={() =>
-          navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'hub' })
-        }
+        onAction={goHub}
       />
     )
   }
@@ -76,42 +76,36 @@ export function ConferirScreen({ tenantId, api, generation }: Props) {
 
   return (
     <div className="clinic-stack">
-      <div className="clinic-toolbar">
-        <Button
-          className="panel-btn panel-btn-ghost"
-          onPress={() =>
-            navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'hub' })
-          }
-        >
-          Voltar
+      <header className="clinic-page-head">
+        <Button className="panel-icon-btn" aria-label="Voltar" onPress={goHub}>
+          ‹
         </Button>
-      </div>
-      <h1 className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <ClipboardCheck aria-hidden size={22} />
-        Conferir configuração
-      </h1>
-      <p className="clinic-footnote">
-        Só leitura. O motivo de cada bloqueio e o próximo horário vêm do servidor desta clínica.
-      </p>
+        <div className="clinic-page-head-copy">
+          <h1 className="panel-title">Conferir configuração</h1>
+          <span className="panel-subtitle">Só leitura · início da Clínica</span>
+        </div>
+      </header>
       {review.services.length === 0 ? (
         <Banner tone="warn" title="Nenhum serviço ativo">
           <p>Cadastre um serviço para conferir quem faz, onde e quando.</p>
         </Banner>
       ) : (
-        <Banner
-          tone={blocked === 0 ? 'ok' : 'warn'}
-          title={
-            blocked === 0
+        <div
+          className="conferir-summary"
+          data-tone={blocked === 0 ? 'ok' : 'warn'}
+          role="status"
+        >
+          <strong>
+            {blocked === 0
               ? 'Todos os serviços prontos'
               : blocked === 1
                 ? '1 serviço incompleto'
-                : `${blocked} serviços incompletos`
-          }
-        >
-          <p>
+                : `${blocked} serviços incompletos`}
+          </strong>
+          <span>
             {ready} prontos · {blocked} a corrigir
-          </p>
-        </Banner>
+          </span>
+        </div>
       )}
       <ul className="clinic-stack" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 12 }}>
         {review.services.map((s) => (
@@ -131,7 +125,7 @@ export function ConferirScreen({ tenantId, api, generation }: Props) {
               </span>
             )}
             <Button
-              className="panel-btn panel-btn-ghost"
+              className="panel-link conferir-open"
               onPress={() =>
                 navigatePanel({
                   kind: 'area',

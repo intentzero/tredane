@@ -23,7 +23,7 @@ export function TempoSheet({ open, value, onChange, onOpenChange }: Props) {
           <p className="clinic-footnote">Sem restrição de tempo.</p>
         ) : null}
         <RadioGroup
-          className="clinic-fieldset"
+          className="tempo-fieldset"
           aria-label="Céu"
           value={value.ceu}
           onChange={(next) => {
@@ -33,13 +33,16 @@ export function TempoSheet({ open, value, onChange, onOpenChange }: Props) {
           }}
         >
           <span className="clinic-section-title">Céu</span>
-          <Radio className="clinic-check" value="tanto_faz">
+          <Radio className="tempo-radio" value="tanto_faz">
+            <span className="tempo-radio-dot" aria-hidden="true" />
             Tanto faz
           </Radio>
-          <Radio className="clinic-check" value="sol">
+          <Radio className="tempo-radio" value="sol">
+            <span className="tempo-radio-dot" aria-hidden="true" />
             Sol
           </Radio>
-          <Radio className="clinic-check" value="chuva">
+          <Radio className="tempo-radio" value="chuva">
+            <span className="tempo-radio-dot" aria-hidden="true" />
             Chuva
           </Radio>
         </RadioGroup>
@@ -54,7 +57,7 @@ export function TempoSheet({ open, value, onChange, onOpenChange }: Props) {
           </p>
         ) : null}
         <RadioGroup
-          className="clinic-fieldset"
+          className="tempo-fieldset"
           aria-label="Temperatura"
           value={value.temperatura}
           onChange={(next) => {
@@ -68,13 +71,16 @@ export function TempoSheet({ open, value, onChange, onOpenChange }: Props) {
           }}
         >
           <span className="clinic-section-title">Temperatura</span>
-          <Radio className="clinic-check" value="tanto_faz">
+          <Radio className="tempo-radio" value="tanto_faz">
+            <span className="tempo-radio-dot" aria-hidden="true" />
             Tanto faz
           </Radio>
-          <Radio className="clinic-check" value="acima">
+          <Radio className="tempo-radio" value="acima">
+            <span className="tempo-radio-dot" aria-hidden="true" />
             Acima de
           </Radio>
-          <Radio className="clinic-check" value="abaixo">
+          <Radio className="tempo-radio" value="abaixo">
+            <span className="tempo-radio-dot" aria-hidden="true" />
             Abaixo de
           </Radio>
         </RadioGroup>
