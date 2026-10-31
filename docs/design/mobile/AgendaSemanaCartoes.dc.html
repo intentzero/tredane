@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Agenda · Semana</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&display=swap">
+<style>
+body{margin:0;font-family:Roboto,"Helvetica Neue",Arial,sans-serif}
+button{font-family:inherit}
+button:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+</style>
+</helmet>
+<div style="width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;background:#F5F4EF;color:#142625;font-family:Roboto,'Helvetica Neue',Arial,sans-serif;font-size: 14px;line-height:1.35;overflow:hidden">
+
+<header style="background:#FFFFFF;border-bottom:1px solid #E1E3E0;padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:8px">
+<h1 style="margin:0;font-size: 18px;font-weight:600;flex:1">Agenda</h1>
+<div role="group" aria-label="Visão" style="display:flex;background:#EEEDE7;border-radius: 8px;padding:2px">
+<button aria-pressed="false" style="height:32px;padding:0 14px;border:0;border-radius: 6px;background:transparent;color:#424B4A;font-size: 13px;font-weight:500">Dia</button>
+<button aria-pressed="true" style="height:32px;padding:0 14px;border:0;border-radius: 6px;background:#FFFFFF;color:#0A4547;font-size: 13px;font-weight:500;box-shadow:0 0 0 1px #B3D1D1 inset">Semana</button>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:4px">
+<button aria-label="Semana anterior" style="width:44px;height:44px;margin-left:-12px;border:0;background:transparent;color:#142625;display:flex;align-items:center;justify-content:center">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+</button>
+<div style="flex:1;text-align:center">
+<div style="font-weight:600">27 out – 2 nov</div>
+<div style="font-size: 13px;color:#566160">24 horários · 9 livres em Paula e Lívia</div>
+</div>
+<button aria-label="Próxima semana" style="width:44px;height:44px;margin-right:-12px;border:0;background:transparent;color:#142625;display:flex;align-items:center;justify-content:center">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+</button>
+</div>
+</header>
+
+<div style="flex:1;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+<div style="{{d.boxStyle}}">
+<button aria-expanded="{{d.open}}" onClick="{{d.toggle}}" style="width:100%;min-height:56px;border:0;background:transparent;padding:8px 12px;display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;text-align:left;color:#142625;cursor:pointer">
+<span style="{{d.dateStyle}}"><span style="font-size: 11px;font-weight:500">{{d.wd}}</span><span style="font-size: 16px;font-weight:600">{{d.n}}</span></span>
+<span style="display:flex;flex-direction:column;gap:6px;min-width:0">
+<span style="font-size: 13px;font-weight:500">{{d.title}}</span>
+<span aria-hidden="true" style="height:6px;border-radius: 999px;background:#EEEDE7;overflow:hidden;display:flex"><span style="{{d.barPaula}}"></span><span style="{{d.barLivia}}"></span></span>
+</span>
+<span style="font-size: 13px;color:#566160;white-space:nowrap">{{d.free}}</span>
+</button>
+<sc-if value="{{d.open}}" hint-placeholder-val="{{ false }}">
+<div style="padding:0 12px 12px 68px;display:flex;flex-direction:column;gap:6px">
+<sc-for list="{{d.items}}" as="it" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:8px;font-size: 13px">
+<span style="width:40px;color:#566160;font-variant-numeric:tabular-nums">{{it.t}}</span>
+<span style="{{it.dot}}"></span>
+<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{it.label}}</span>
+</div>
+</sc-for>
+<a href="#" style="height:44px;margin-top:4px;border-radius: 8px;background:#E7F1F1;color:#0A4547;font-size: 13px;font-weight:500;display:flex;align-items:center;justify-content:center;text-decoration:none">Abrir o dia</a>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+
+<div style="display:flex;gap:16px;justify-content:center;padding:4px 16px 8px;font-size: 11px;color:#424B4A">
+<span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius: 999px;background:#2563A8"></span>Paula</span>
+<span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius: 999px;background:#C2410C"></span>Lívia</span>
+<span>Barra = ocupação do expediente</span>
+</div>
+
+<nav aria-label="Principal" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:#FFFFFF;border-top:1px solid #E1E3E0;padding:4px 0 18px">
+<div style="height:44px;display:flex;align-items:center;justify-content:center;font-size: 11px;color:#566160">Conversas</div>
+<div style="height:44px;display:flex;align-items:center;justify-content:center;font-size: 11px;color:#566160">Funil</div>
+<div style="height:44px;display:flex;align-items:center;justify-content:center;font-size: 11px;font-weight:600;color:#0A4547">Agenda</div>
+<div style="height:44px;display:flex;align-items:center;justify-content:center;font-size: 11px;color:#566160">Clínica</div>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+const DAYS = [
+  { wd: 'SEG', n: '27', p: 30, l: 20, count: 2, free: '6 livres', items: [['10:00','paula','Marina Souza · Limpeza de pele'],['15:00','livia','Beatriz Alves · Peeling']] },
+  { wd: 'TER', n: '28', p: 55, l: 35, count: 5, free: '3 livres', items: [['09:00','paula','Renata Lima · Limpeza de pele'],['11:00','livia','Helena Dias · Drenagem'],['14:00','paula','Camila Rocha · Drenagem']] },
+  { wd: 'QUA', n: '29', p: 40, l: 30, count: 4, free: '4 livres', items: [['09:30','livia','Juliana Prado · Laser'],['13:00','paula','Ana Costa · Peeling']] },
+  { wd: 'QUI', n: '30', p: 70, l: 55, count: 6, free: '1 livre', items: [['09:00','paula','Lara Mendes · Limpeza'],['10:00','livia','Sofia Ramos · Laser']] },
+  { wd: 'SEX', n: '31', p: 75, l: 60, count: 7, free: 'Lotado', today: true, items: [['09:00','paula','Marina Souza · Limpeza de pele'],['14:30','livia','Juliana Prado · Laser, perna inteira'],['16:00','paula','Camila Rocha · Drenagem'],['17:30','paula','Renata Lima · Limpeza de pele']] },
+  { wd: 'SÁB', n: '1', p: 0, l: 0, count: 0, free: 'Fechado', closed: true, items: [] },
+  { wd: 'DOM', n: '2', p: 0, l: 0, count: 0, free: 'Fechado', closed: true, items: [] }
+];
+const DOT = { paula: '#2563A8', livia: '#C2410C' };
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { open: 4 }; }
+  renderVals() {
+    const days = DAYS.map((d, i) => {
+      const open = this.state.open === i && !d.closed;
+      return {
+        wd: d.wd, n: d.n, open, free: d.free,
+        title: d.closed ? 'Clínica fechada' : (d.today ? 'Hoje · ' : '') + d.count + (d.count === 1 ? ' horário' : ' horários'),
+        toggle: () => this.setState({ open: open ? -1 : i }),
+        boxStyle: `background:${d.closed ? 'transparent' : '#FFFFFF'};border:1px solid ${d.today ? '#0E5A5C' : '#E1E3E0'};border-radius: 12px;` + (d.closed ? 'border-style:dashed' : ''),
+        dateStyle: `width:44px;height:44px;border-radius: 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;` + (d.today ? 'background:#0E5A5C;color:#FFFFFF' : 'background:#EEEDE7;color:#142625'),
+        barPaula: `display:block;width:${d.p / 2}%;background:#2563A8`,
+        barLivia: `display:block;width:${d.l / 2}%;background:#C2410C;margin-left:2px`,
+        items: d.items.map((x) => ({ t: x[0], label: x[2], dot: `flex:none;width:8px;height:8px;border-radius: 999px;background:${DOT[x[1]]}` }))
+      };
+    });
+    return { days };
+  }
+}
+</script>
+</body>
+</html>

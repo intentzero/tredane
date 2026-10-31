@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Agenda · Semana (desktop)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&display=swap">
+<style>
+body{margin:0;font-family:Roboto,"Helvetica Neue",Arial,sans-serif}
+button{font-family:inherit}
+button:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+</style>
+</helmet>
+<div style="width:1280px;height:844px;box-sizing:border-box;display:flex;background:#F5F4EF;color:#142625;font-family:Roboto,'Helvetica Neue',Arial,sans-serif;font-size: 14px;line-height:1.35;overflow:hidden">
+
+<nav aria-label="Principal" style="width:84px;flex:none;background:#FFFFFF;border-right:1px solid #E1E3E0;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:16px;font-size: 11px;color:#566160">
+<div style="width:40px;height:40px;border-radius: 12px;background:#0E5A5C;margin-bottom:12px"></div>
+<div style="height:44px;display:flex;align-items:center">Conversas</div>
+<div style="height:44px;display:flex;align-items:center">Funil</div>
+<div style="height:44px;width:68px;border-radius: 8px;background:#E7F1F1;color:#0A4547;font-weight:600;display:flex;align-items:center;justify-content:center">Agenda</div>
+<div style="height:44px;display:flex;align-items:center">Clínica</div>
+</nav>
+
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:12px;padding:12px 24px;background:#FFFFFF;border-bottom:1px solid #E1E3E0">
+<h1 style="margin:0;font-size: 18px;font-weight:600">27 out – 2 nov</h1>
+<button style="height:36px;padding:0 14px;border:1px solid #7A8584;border-radius: 8px;background:transparent;color:#142625;font-size: 13px;font-weight:500">Esta semana</button>
+<button aria-label="Semana anterior" style="width:36px;height:36px;border:1px solid #7A8584;border-radius: 8px;background:transparent;color:#142625">‹</button>
+<button aria-label="Próxima semana" style="width:36px;height:36px;border:1px solid #7A8584;border-radius: 8px;background:transparent;color:#142625">›</button>
+<span style="font-size: 13px;color:#566160;margin-left:8px">24 horários · 9 livres</span>
+<span style="flex:1"></span>
+<div role="group" aria-label="Quem atende" style="display:flex;gap:6px">
+<button aria-pressed="true" style="height:36px;padding:0 12px;border-radius: 999px;border:1px solid #2563A8;background:#E3EDF7;color:#1D4F86;font-size: 13px;font-weight:500;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius: 999px;background:#2563A8"></span>Paula</button>
+<button aria-pressed="true" style="height:36px;padding:0 12px;border-radius: 999px;border:1px solid #C2410C;background:#FBEDE3;color:#8A3410;font-size: 13px;font-weight:500;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius: 999px;background:#C2410C"></span>Lívia</button>
+</div>
+<div role="group" aria-label="Visão" style="display:flex;background:#EEEDE7;border-radius: 8px;padding:2px">
+<button aria-pressed="false" style="height:32px;padding:0 14px;border:0;border-radius: 6px;background:transparent;color:#424B4A;font-size: 13px;font-weight:500">Dia</button>
+<button aria-pressed="true" style="height:32px;padding:0 14px;border:0;border-radius: 6px;background:#FFFFFF;color:#0A4547;font-size: 13px;font-weight:500;box-shadow:0 0 0 1px #B3D1D1 inset">Semana</button>
+</div>
+<button style="height:36px;padding:0 16px;border:0;border-radius: 8px;background:#0E5A5C;color:#FFFFFF;font-size: 13px;font-weight:600">Agendar</button>
+</div>
+
+<div style="display:grid;grid-template-columns:56px repeat(7,minmax(0,1fr));background:#FFFFFF;border-bottom:1px solid #E1E3E0">
+<div></div>
+<sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+<a href="#" style="{{d.headStyle}}">
+<span style="font-size: 11px;font-weight:500;color:#566160">{{d.wd}}</span>
+<span style="{{d.numStyle}}">{{d.n}}</span>
+<span style="font-size: 11px;color:#424B4A">{{d.sub}}</span>
+</a>
+</sc-for>
+</div>
+
+<div style="flex:1;position:relative;overflow:hidden;background:#FFFFFF">
+<sc-for list="{{hours}}" as="h" hint-placeholder-count="12">
+<div style="{{h.style}}"><span style="width:56px;text-align:right;padding-right:10px;margin-top:-7px;font-size: 11px;color:#566160;font-variant-numeric:tabular-nums">{{h.label}}</span></div>
+</sc-for>
+<div style="position:absolute;left:56px;right:0;top:0;bottom:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr))">
+<sc-for list="{{cols}}" as="c" hint-placeholder-count="7">
+<div style="{{c.style}}">
+<sc-for list="{{c.blocks}}" as="b" hint-placeholder-count="3">
+<button style="{{b.style}}"><span style="font-weight:600">{{b.t}}</span> {{b.name}}</button>
+</sc-for>
+</div>
+</sc-for>
+</div>
+<div style="position:absolute;left:calc(56px + 4 * (100% - 56px) / 7);width:calc((100% - 56px) / 7);top:291px;height:2px;background:#B42318"></div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":844}}'>
+const H = 56, START = 8;
+const P = { paula: ['#E3EDF7', '#2563A8', '#1D4F86'], livia: ['#FBEDE3', '#C2410C', '#8A3410'] };
+const WEEK = [
+  ['SEG', '27', '6 livres', [['10:00', 1, 'paula', 'Marina S.'], ['15:00', 1, 'livia', 'Beatriz A.']]],
+  ['TER', '28', '3 livres', [['09:00', 1, 'paula', 'Renata L.'], ['11:00', 1, 'livia', 'Helena D.'], ['14:00', 1, 'paula', 'Camila R.'], ['16:00', 1, 'livia', 'Ana C.'], ['17:00', 0.75, 'paula', 'Lara M.']]],
+  ['QUA', '29', '4 livres', [['09:30', 1, 'livia', 'Juliana P.'], ['13:30', 1, 'paula', 'Ana C.'], ['15:00', 1, 'livia', 'Sofia R.'], ['16:30', 1, 'paula', 'Marina S.']]],
+  ['QUI', '30', '1 livre', [['09:00', 1, 'paula', 'Lara M.'], ['10:00', 1, 'livia', 'Sofia R.'], ['11:00', 1, 'paula', 'Renata L.'], ['14:00', 1, 'livia', 'Helena D.'], ['15:00', 1, 'paula', 'Camila R.'], ['16:00', 1, 'livia', 'Beatriz A.']]],
+  ['SEX', '31', 'Lotado', [['09:00', 0.75, 'paula', 'Marina S.'], ['11:30', 1, 'livia', 'Beatriz A.'], ['14:30', 1, 'livia', 'Juliana P.'], ['16:00', 1, 'paula', 'Camila R.'], ['16:00', 1, 'livia', 'Helena D.'], ['17:30', 0.75, 'paula', 'Renata L.']], true],
+  ['SÁB', '1', 'Fechado', [], false, true],
+  ['DOM', '2', 'Fechado', [], false, true]
+];
+class Component extends DCLogic {
+  renderVals() {
+    const hours = [];
+    for (let h = START; h <= 19; h++) hours.push({ label: String(h).padStart(2, '0') + ':00', style: `position:absolute;left:0;right:0;top:${(h - START) * H}px;height:${H}px;border-top:1px solid #EEEDE7;display:flex` });
+    const days = WEEK.map((d) => ({
+      wd: d[0], n: d[1], sub: d[2],
+      headStyle: `display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;border-left:1px solid #EEEDE7;text-decoration:none;color:#142625;` + (d[4] ? 'background:#E7F1F1' : ''),
+      numStyle: `font-size: 16px;font-weight:600;width:32px;height:32px;border-radius: 999px;display:flex;align-items:center;justify-content:center;` + (d[4] ? 'background:#0E5A5C;color:#FFFFFF' : '')
+    }));
+    const cols = WEEK.map((d) => {
+      const lanes = {};
+      const blocks = d[3].map((b) => {
+        const [hh, mm] = b[0].split(':').map(Number);
+        const top = (hh - START) * H + (mm / 60) * H;
+        const key = b[0];
+        const lane = lanes[key] = (lanes[key] ?? -1) + 1;
+        const both = d[3].filter((x) => x[0] === key).length > 1;
+        const c = P[b[2]];
+        const left = both ? (lane === 0 ? '4px' : '50%') : '4px';
+        const right = both ? (lane === 0 ? '50%' : '4px') : '4px';
+        return { t: b[0], name: b[3], style: `position:absolute;left:${left};right:${right};top:${top + 2}px;height:${b[1] * H - 4}px;box-sizing:border-box;border:1px solid ${c[1]};border-radius: 6px;background:${c[0]};color:${c[2]};font-size: 11px;text-align:left;padding:3px 6px;overflow:hidden;cursor:pointer` };
+      });
+      return {
+        blocks,
+        style: `position:relative;border-left:1px solid #EEEDE7;` + (d[5] ? 'background:repeating-linear-gradient(135deg,#EEEDE7 0 6px,#FFFFFF 6px 12px)' : '')
+      };
+    });
+    return { hours, days, cols };
+  }
+}
+</script>
+</body>
+</html>
