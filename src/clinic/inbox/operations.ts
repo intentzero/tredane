@@ -852,7 +852,8 @@ export function sendOutboundMessageOp(
     }
 
     // DEC-088: `[Nome] ` só no payload WhatsApp à cliente — o body persistido/API
-    // permanece o texto livre (painel, sanitização, preview).
+    // permanece o texto livre (painel, sanitização, preview). Nome = pessoa
+    // (nunca rótulo de papel); sem nome útil → «Equipe».
     const whatsappBody =
       shouldPrefixHumanOutbound({
         kind,

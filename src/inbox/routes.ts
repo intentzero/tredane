@@ -35,6 +35,12 @@ import {
   serializeCounts,
   serializeMessage,
 } from './serialize'
+import {
+  resolveHumanOutboundDisplayName,
+  SYNTH_STAFF_FIRST_NAMES,
+} from '../clinic/inbox/human-prefix'
+import { resolveAuthMode } from '../auth/deps'
+import { createClerkClientFromConfig } from '../auth/clerk-backend'
 
 type InboxEnv = {
   Bindings: WorkerBindings
@@ -153,9 +159,46 @@ function parseFilter(raw: string | undefined): InboxFilter {
   throw new ValidationError('invalid_filter', `Filtro inválido: ${raw}`)
 }
 
-function displayNameFromAuth(clerkUserId: string, role: string): string {
+/** Papel para textos internos do painel (atribuir / encerrar) — não usar no WhatsApp. */
+function displayNameFromAuth(_clerkUserId: string, role: string): string {
   if (role === 'owner') return 'Responsável'
   return 'Atendente'
+}
+
+/**
+ * DEC-088: nome da pessoa no outbound WhatsApp.
+ * Preferência: body.authorDisplayName → Clerk firstName → persona sintética → «Equipe».
+ * Nunca o rótulo do papel (Responsável / Atendente).
+ */
+async function resolveOutboundAuthorDisplayName(
+  env: WorkerBindings,
+  clerkUserId: string,
+  bodyDisplayName?: string | null,
+): Promise<string> {
+  const fromBody = (bodyDisplayName ?? '').trim() || null
+
+  let fromClerk: string | null = null
+  try {
+    if (resolveAuthMode(env) === 'clerk' && env.CLERK_SECRET_KEY && env.CLERK_PUBLISHABLE_KEY) {
+      const client = createClerkClientFromConfig({
+        secretKey: env.CLERK_SECRET_KEY,
+        publishableKey: env.CLERK_PUBLISHABLE_KEY,
+        jwtKey: env.CLERK_JWT_KEY,
+        authorizedParties: [],
+      })
+      const user = await client.users.getUser(clerkUserId)
+      fromClerk =
+        user.firstName?.trim() ||
+        user.fullName?.trim() ||
+        user.username?.trim() ||
+        null
+    }
+  } catch {
+    fromClerk = null
+  }
+
+  const fromSynth = SYNTH_STAFF_FIRST_NAMES[clerkUserId] ?? null
+  return resolveHumanOutboundDisplayName(fromBody, fromClerk, fromSynth)
 }
 
 export function createInboxRoutes(opts: InboxRouteOptions = {}) {
@@ -462,6 +505,8 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
           body?: string
           clientRequestId?: string
           aiSuggestionId?: string | null
+          /** Nome de apresentação (Clerk / membership) — nunca o papel. */
+          authorDisplayName?: string | null
           template?: {
             name?: string
             language?: string
@@ -481,6 +526,11 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
             'body ou template são obrigatórios',
           )
         }
+        const authorDisplayName = await resolveOutboundAuthorDisplayName(
+          c.env,
+          principal.clerkUserId,
+          body.authorDisplayName,
+        )
         const gw = await resolveGateway(c.env, tenantId, opts)
         const result = await gw.sendOutbound(
           workerCaller(tenantId, principal.clerkUserId),
@@ -496,7 +546,7 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
               : null,
             clientRequestId: body.clientRequestId,
             authorClerkUserId: principal.clerkUserId,
-            authorDisplayName: displayNameFromAuth(principal.clerkUserId, ctx.role),
+            authorDisplayName,
             aiSuggestionId: body.aiSuggestionId ?? null,
           },
         )

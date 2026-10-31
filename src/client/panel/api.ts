@@ -1665,6 +1665,11 @@ export function createPanelApi(getToken: TokenGetter) {
         }
         /** Origem assistiva — só após clique humano em Enviar (#41). */
         aiSuggestionId?: string | null
+        /**
+         * DEC-088: nome de apresentação da pessoa (Clerk firstName / display).
+         * O servidor rejeita rótulos de papel e faz fallback para «Equipe».
+         */
+        authorDisplayName?: string | null
       },
       opts?: FetchOpts,
     ): Promise<InboxSendResponse> {
