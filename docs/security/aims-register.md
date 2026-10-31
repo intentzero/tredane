@@ -15,7 +15,7 @@
 
 ## Riscos acrescentados depois do manual
 
-Nenhum além dos cinco efeitos do [manual](aims.md) §5.
+**31/10/2026 — evolução autónoma (DEC-084):** riscos EA-R01–15 registrados no [modelo de ameaças](evolucao-autonoma-threat-model.md), incluindo escalada de autoridade, falsificação de avaliação, adulteração de artefato, envenenamento de métricas, isolamento, orçamento e recuperação. Donos funcionais e gates EA-G01–06 definidos; nomes e evidências **Em aberto**. Revisão documental pelo mesmo autor do desenho, sem auditoria independente, testes executados ou NC fechada. A ativação aguarda evidência de todos os gates.
 
 ## Auditoria interna — 30/10/2026
 

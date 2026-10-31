@@ -78,6 +78,8 @@ O [épico #1](https://github.com/intentzero/tredane/issues/1) acompanha a defini
 ## Documentação de arquitetura e execução
 
 - [Arquitetura de referência](architecture/overview.md) e [modelo lógico D1 central/SQLite por clínica](architecture/data-model.md).
+- [Avaliação e melhoria contínua do atendimento conversacional](architecture/avaliacao-continua-conversacional.md) — **Autonomia desde a arquitetura inicial confirmada (DEC-084, 31/10/2026):** promoção e reversão dentro de política previamente aprovada, com controlador independente. KPIs, limites, inclusão no piloto e ativação continuam pendentes.
+- [Segurança da evolução autónoma](security/evolucao-autonoma-threat-model.md) — análise de ameaças e gates EA-G01–06; controles propostos e evidências de ativação pendentes.
 - ADRs: [Cloudflare-native](adr/0001-cloudflare-native.md), [topologia D1](adr/0002-d1-topology.md), [Durable Objects e tempo real](adr/0003-durable-objects-realtime.md), [IA com revisão humana](adr/0004-ai-human-in-loop.md) e [consistência da agenda](adr/0005-d1-booking-consistency.md).
 - [Plano de implementação proposto](implementation/plan.md) — ligado ao [épico #14](https://github.com/intentzero/tredane/issues/14); decomposição de engenharia, sem renumerar DEC/REQ.
 - [Épico de salas partilhadas e audiência (DEC-075)](implementation/epic-salas-audiencia.md) — desenho fechado em 29/10/2026; a implementação ainda não está na `main`.
