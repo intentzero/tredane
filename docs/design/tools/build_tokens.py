@@ -26,5 +26,24 @@ for k, v in t['space'].items(): add('space-' + k, '%dpx' % v)
 for k, v in t['size'].items():
     add('size-' + kebab(k), '%dpx' % v)
 out.append('}')
+
+def dark_block(indent):
+    lines = []
+    for group, items in t['colorDark'].items():
+        for k, v in items.items(): lines.append('%s--color-%s-%s: %s;' % (indent, kebab(group), kebab(k), v))
+    return lines
+
+# Tema escuro (Proposto, DEC-092): data-theme explícito vence; sem ele, segue o sistema.
+out.append('/* Tema escuro (Proposto, DEC-092) */')
+out.append(':root[data-theme="dark"] {')
+out += dark_block('  ')
+out.append('  color-scheme: dark;')
+out.append('}')
+out.append('@media (prefers-color-scheme: dark) {')
+out.append('  :root:not([data-theme="light"]) {')
+out += dark_block('    ')
+out.append('    color-scheme: dark;')
+out.append('  }')
+out.append('}')
 open(os.path.join(ROOT, 'tokens.css'), 'w').write('\n'.join(out) + '\n')
-print('tokens.css gerado com %d variáveis' % (len(out) - 3))
+print('tokens.css gerado com %d linhas' % len(out))

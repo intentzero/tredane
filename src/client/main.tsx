@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { resolveProvaRoute } from './prova/routes'
 import { resolveRootRedirect } from './panel/routes'
 import './styles.css'
+import { initTheme } from './panel/theme'
+
+initTheme()
 
 const root = document.getElementById('root')
 if (!root) throw new Error('Root element not found')

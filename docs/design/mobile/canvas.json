@@ -470,6 +470,14 @@
       "title": "M-55 Ações da conversa (proposta sem duplicatas)",
       "radius": 32
     },
+    "Aparencia.dc.html": {
+      "x": 940,
+      "y": 13844,
+      "w": 390,
+      "h": 844,
+      "title": "M-56 Aparência (tema)",
+      "radius": 32
+    },
     "AgendaSemanaCartoes.dc.html": {
       "x": 0,
       "y": 14808,
@@ -546,6 +554,7 @@
     "ConversaSugestaoLonga.dc.html",
     "Conferir.dc.html",
     "TempoServico.dc.html",
+    "Aparencia.dc.html",
     "AgendaSemanaCartoes.dc.html",
     "CompromissoCancelarSinal.dc.html",
     "AgendaDiaVazio.dc.html"
