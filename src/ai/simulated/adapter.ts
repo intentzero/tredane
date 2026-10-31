@@ -1,6 +1,13 @@
 import type { AiProviderAdapter } from '../contract'
 import { priceVisit } from '../../clinic/catalog/combo'
-import { variantChoiceLabel } from '../../clinic/config/zones'
+import { explicitAudienceLine } from '../../clinic/catalog/audience'
+import {
+  audienceLineQuestion,
+  needsAudienceLine,
+  stableVariantLabelList,
+  variantListQuestion,
+  zonesForAudienceLine,
+} from '../../clinic/ai/variant-line'
 import {
   AI_MODEL_REPLY_PROPOSED,
   AI_MODEL_SUMMARY_PROPOSED,
@@ -145,28 +152,17 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
       if (!lower.includes(s.name.toLowerCase())) continue
       if (/\b(quanto|pre[cç]o|custa|valor)/i.test(last)) {
         if (s.zones && s.zones.length > 0) {
-          const named = s.zones.filter(
+          const line = explicitAudienceLine(last)
+          if (needsAudienceLine(s.zones) && !line) {
+            return audienceLineQuestion(s.name)
+          }
+          const scoped = zonesForAudienceLine(s.zones, needsAudienceLine(s.zones) ? line : null)
+          const named = scoped.filter(
             (z) => z.name.trim().length >= 2 && lower.includes(z.name.trim().toLowerCase()),
           )
-          const labels = s.zones.map((z) =>
-            variantChoiceLabel(
-              {
-                name: z.name,
-                audience: z.audience ?? 'ambos',
-                durationMinutes: z.durationMinutes,
-                priceCents: z.priceCents,
-              },
-              s.zones!.map((peer) => ({
-                name: peer.name,
-                audience: peer.audience ?? 'ambos',
-                durationMinutes: peer.durationMinutes,
-                priceCents: peer.priceCents,
-              })),
-            ),
-          )
+          const labels = stableVariantLabelList(scoped)
           if (named.length === 0) {
-            const kind = s.variantKindPlural?.trim() || s.variantKind?.trim() || 'variantes'
-            return `Para ${s.name}, quais ${kind} você quer? Temos ${labels.join(', ')}. Me diz e eu confirmo o valor.`
+            return `${variantListQuestion(s.name, s.variantKind, scoped)} Me diz e eu confirmo o valor.`
           }
           const seen = new Set<string>()
           const repeated = named.some((z) => {
