@@ -29,6 +29,10 @@ import {
 import { findMessageByExternalId, insertMessage, listMessages } from './messages'
 import { captionFromBody, listAttachmentsForMessage, summarizeAttachment } from '../attachments'
 import {
+  applyHumanOutboundPrefix,
+  shouldPrefixHumanOutbound,
+} from './human-prefix'
+import {
   applyOutboundDeliveryUpdate,
   findOutboundByClientRequestId,
   findOutboundByProviderMessageId,
@@ -846,6 +850,17 @@ export function sendOutboundMessageOp(
       body = rawBody
     }
 
+    // DEC-088: `[Nome] ` só no payload WhatsApp à cliente — o body persistido/API
+    // permanece o texto livre (painel, sanitização, preview).
+    const whatsappBody =
+      shouldPrefixHumanOutbound({
+        kind,
+        authorClerkUserId: input.authorClerkUserId,
+        authorDisplayName: input.authorDisplayName,
+      })
+        ? applyHumanOutboundPrefix(body, input.authorDisplayName)
+        : body
+
     const now = clock.nowMs()
     const message = insertMessage(
       db,
@@ -941,7 +956,8 @@ export function sendOutboundMessageOp(
             .waId,
           phoneNumberId: channel.phoneNumberId,
           // Corpo só na fila interna — logs do consumer não devem ecoá-lo.
-          body,
+          // Texto livre humano: body com prefixo [Nome] (DEC-088).
+          body: whatsappBody,
           templateParams,
           interactiveButtons,
         },
