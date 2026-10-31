@@ -477,7 +477,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     fanout: { delivered: string[]; revoked: string[]; skippedUnavailable: string[] } | null
     /** #42 — dispara push de nova conversa no Worker após ingest. */
     createdConversation: boolean
-    /** #43 — wa_id tombstoned; sem recriação de contacto. */
+    /** DEC-099 — replay de evento já gravado; sem conversa nova. */
     suppressedTombstone: boolean
     /** Push: utilizadores com a app aberta e visível (não recebem push). */
     activeViewerUserIds: string[]
@@ -496,6 +496,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     } | null = null
 
     const createdConversation =
+      !result.suppressedTombstone &&
       !result.duplicate &&
       result.outboxes.some((o) => o.type === 'conversation.created')
 

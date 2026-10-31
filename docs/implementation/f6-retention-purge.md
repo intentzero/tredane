@@ -24,7 +24,7 @@
 1. Owner com `clinic.contacts.delete` → `DELETE /api/tenants/:id/contacts/:contactId`.
 2. TX no DO: soft-delete anexos meta → apaga IA/mensagens/conversas/oportunidades → anonimiza compromissos (`contact_label = «Contacto removido»`) → tombstone `wa_id` → apaga contacto → audit **sem** PII → outbox `contact.deleted`.
 3. Worker apaga objectos R2 pelos ids devolvidos (fora de `transactionSync`).
-4. Replay webhook/job com o mesmo `wa_id` → ingest **suprimido** (`suppressedTombstone`); não recria contacto.
+4. **Confirmado (DEC-099, Paulo, 31/10/2026, «faz»).** O replay do mesmo evento do provedor (chave já em `inbound_events`, que esta exclusão não apaga) fica **suprimido** (`suppressedTombstone`): não restaura mensagem nem histórico e não abre conversa. Uma mensagem nova (id de evento novo) do mesmo `wa_id` abre contacto limpo — sem mensagens, compromissos ou pipeline antigos — e apaga o tombstone. **Bloquear** continua a ser a recusa. **Excluir** não é banimento.
 
 ### UI no painel (Confirmado neste polish)
 
@@ -77,7 +77,7 @@ Idempotência da instância: `tenant-purge-{commandId}`. Re-create com o mesmo i
 
 | Vector | Guard |
 | --- | --- |
-| Ingest / upsert contacto | Tombstone por `wa_id` |
+| Ingest / upsert contacto | DEC-099: `inbound_events` bloqueia o replay do evento já gravado. O tombstone por `wa_id` recusa o upsert directo até uma mensagem nova, que abre contacto limpo e limpa o tombstone. |
 | Fila WhatsApp | `assertTenantAcceptsClinicalIngest` — ack sem mutar se `purged` / `pending_deletion` |
 | Restore / rebind | `purged_tenants` + status `purged`; memberships revogados |
 | Evidência de exclusão | Audit sem corpos, nomes ou `wa_id` |

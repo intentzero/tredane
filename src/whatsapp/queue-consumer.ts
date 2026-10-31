@@ -215,8 +215,18 @@ export async function processWhatsappMessage(
         })
       }
 
-      const isNewMessage = Boolean(ingested && !ingested.duplicate && ingested.messageId)
-      if ((ingested?.createdConversation || isNewMessage) && ingested?.conversationId) {
+      // Replay suprimido (DEC-099): o recibo segue como processado, sem conversa nova.
+      const isNewMessage = Boolean(
+        ingested &&
+          !ingested.suppressedTombstone &&
+          !ingested.duplicate &&
+          ingested.messageId,
+      )
+      if (
+        !ingested?.suppressedTombstone &&
+        (ingested?.createdConversation || isNewMessage) &&
+        ingested?.conversationId
+      ) {
         const { maybeNotifyNewConversationPush } = await import('../push/queue-hook')
         await maybeNotifyNewConversationPush({
           env: deps.env,
@@ -334,8 +344,18 @@ export async function processWhatsappMessage(
         { drain: true, fanout: true },
       )) as Awaited<ReturnType<ClinicDurableObject['ingestMessage']>>
 
-      const isNewMessage = Boolean(ingested && !ingested.duplicate && ingested.messageId)
-      if ((ingested?.createdConversation || isNewMessage) && ingested?.conversationId) {
+      // Replay suprimido (DEC-099): ack do recibo, sem fingir conversa nova.
+      const isNewMessage = Boolean(
+        ingested &&
+          !ingested.suppressedTombstone &&
+          !ingested.duplicate &&
+          ingested.messageId,
+      )
+      if (
+        !ingested?.suppressedTombstone &&
+        (ingested?.createdConversation || isNewMessage) &&
+        ingested?.conversationId
+      ) {
         const { maybeNotifyNewConversationPush } = await import('../push/queue-hook')
         await maybeNotifyNewConversationPush({
           env: deps.env,

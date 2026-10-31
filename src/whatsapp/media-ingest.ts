@@ -133,8 +133,16 @@ async function linkAfterIngest(
     conversationId: string | null
     createdConversation?: boolean
     duplicate?: boolean
+    suppressedTombstone?: boolean
     activeViewerUserIds?: string[]
     unreadConversations?: number
+  }
+  if (ingested.suppressedTombstone) {
+    return {
+      createdConversation: false,
+      newMessage: false,
+      conversationId: null,
+    }
   }
   if (ingested.messageId && ingested.conversationId) {
     await stub.linkAttachmentToMessage(caller, {

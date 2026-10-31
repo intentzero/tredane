@@ -40,7 +40,11 @@ export function assertTenantAcceptsClinicalIngest(
   return { ok: true }
 }
 
-/** Replay de webhook/job não recria contacto tombstoned. */
+/**
+ * Tombstone ainda presente (DEC-099): o upsert directo não recria o contacto.
+ * Uma mensagem nova do WhatsApp limpa a linha. O replay de evento já gravado
+ * não depende desta função — fica em inbound_events.
+ */
 export function isContactWaIdTombstoned(
   clinicDb: ClinicDb,
   tenantId: string,

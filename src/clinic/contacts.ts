@@ -17,7 +17,7 @@ export class ContactTombstonedError extends ValidationError {
   constructor(waId: string) {
     super(
       'contact_tombstoned',
-      `Contacto com wa_id excluído; reintrodução bloqueada (${waId.slice(0, 4)}…)`,
+      `Contacto excluído; upsert directo recusado até mensagem nova do WhatsApp (${waId.slice(0, 4)}…)`,
     )
   }
 }

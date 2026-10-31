@@ -166,7 +166,7 @@
 
 ### REQ-071 — Retenção e exclusão
 
-**Prioridade/estado:** MVP / Confirmado (DEC-011); revisão jurídica pendente. **Origem:** ACT-03, ACT-05. **Comportamento:** dados ficam enquanto a clínica for cliente; o responsável pode excluir um contato; ao encerrar a clínica, todos os dados dela são excluídos em até 30 dias. **Aceite:** após excluir um contato, suas mensagens e anexos não são mais encontrados por busca, API ou R2, e seus agendamentos permanecem sem dados pessoais; após o prazo de encerramento, os dados da clínica (SQLite do Durable Object e prefixo R2) não existem mais. **Dados/eventos:** exclusão registrada na auditoria sem o conteúdo excluído.
+**Prioridade/estado:** MVP / Confirmado (DEC-011); a volta do mesmo número está **Confirmada** em DEC-099; revisão jurídica pendente. **Origem:** ACT-03, ACT-05. **Comportamento:** dados ficam enquanto a clínica for cliente; o responsável pode excluir um contato; ao encerrar a clínica, todos os dados dela são excluídos em até 30 dias. Excluir não é banimento (DEC-099): o replay do evento já gravado não restaura mensagens, compromissos nem pipeline; uma mensagem nova do mesmo número abre um contacto limpo, só com essa mensagem. Recusar a pessoa continua a ser Bloquear. **Aceite:** após excluir um contato, suas mensagens e anexos não são mais encontrados por busca, API ou R2, e seus agendamentos permanecem sem dados pessoais; um replay do evento já recebido não devolve esse histórico; um evento novo do mesmo número cria contacto só com essa mensagem; após o prazo de encerramento, os dados da clínica (SQLite do Durable Object e prefixo R2) não existem mais. **Dados/eventos:** exclusão registrada na auditoria sem o conteúdo excluído.
 
 ### REQ-073 — Preço na sugestão da IA
 
@@ -324,7 +324,7 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-100 | MVP | Owner configura nome/género opcionais do atendente virtual (DEC-089). |
 | REQ-101 | MVP | Reagendar com compromisso existente mantém serviço/zonas e confirma por botão (DEC-091). |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
-| REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). |
+| REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). Mensagem nova após exclusão abre contacto limpo (DEC-099). |
 
 **Fora do MVP (já definido):** prontuário, pagamentos além do sinal por Pix (DEC-047), estoque, integração com agendas externas, campanhas em massa, bot com envios ou reservas autónomas, painéis de profissionais e relatórios avançados. **Posterior:** autosserviço avançado de onboarding, configurações sofisticadas de pipeline e automações de IA, exceto se outra decisão formal substituir este recorte.
 

@@ -67,3 +67,17 @@ export function insertContactTombstone(
     deletedByClerkUserId: input.deletedByClerkUserId ?? null,
   }
 }
+
+/** DEC-099: uma mensagem nova do mesmo wa_id limpa o tombstone. */
+export function deleteContactTombstone(
+  db: ClinicDb,
+  tenantId: string,
+  waId: string,
+): void {
+  assertClinicSchemaReady(db)
+  db.run(
+    `DELETE FROM contact_deletion_tombstones WHERE tenant_id = ? AND wa_id = ?`,
+    tenantId,
+    waId,
+  )
+}

@@ -370,7 +370,8 @@ describe('S8 minimização de contexto IA (#179)', () => {
       expect(db.get<{ n: number }>('SELECT COUNT(*) AS n FROM ai_autodraft_jobs')?.n).toBe(0)
       expect(db.get<{ n: number }>('SELECT COUNT(*) AS n FROM appointment_proposals')?.n).toBe(0)
 
-      // Reconexão / novo contacto com mesmo wa_id fica bloqueado por tombstone (#43).
+      // Após a exclusão o contacto some. DEC-099: um evento novo do mesmo wa_id
+      // abriria contacto limpo; este teste não envia esse evento.
       expect(listContacts(db, tenantId)).toHaveLength(0)
     } finally {
       close()

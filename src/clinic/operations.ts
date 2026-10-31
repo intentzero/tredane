@@ -9,7 +9,7 @@ import type { ClinicCaller } from './envelopes'
 import { assertValidCaller } from './envelopes'
 import { appendInboundToConversation } from './inbox/operations'
 import type { ConversationRow, MessageRow } from './inbox/types'
-import { recordInboundEvent, type InboundRow } from './inbound'
+import { findInboundByKey, recordInboundEvent, type InboundRow } from './inbound'
 import { assertClinicSchemaReady } from './migrations'
 import {
   drainOutbox,
@@ -18,7 +18,10 @@ import {
   type OutboxRow,
 } from './outbox'
 import { ensureOpenOpportunity } from './pipeline/operations'
-import { findContactTombstoneByWaId } from './retention/tombstones'
+import {
+  deleteContactTombstone,
+  findContactTombstoneByWaId,
+} from './retention/tombstones'
 import type { ClinicDb } from './store'
 import { bindOrAssertTenant } from './tenant'
 import { touchWhatsappLastInbound } from './whatsapp/channel'
@@ -48,8 +51,10 @@ type IngestContactMessageBase = {
 }
 
 /**
- * Resultado da ingestão. `suppressedTombstone` discrimina contacto ausente
- * após exclusão (#43 / REQ-071) vs fluxo normal.
+ * Resultado da ingestão. `suppressedTombstone` (DEC-099): replay de um evento
+ * de provedor já gravado enquanto o wa_id ainda tem tombstone. Não abre
+ * conversa. Um evento novo do mesmo wa_id abre contacto limpo e limpa o
+ * tombstone.
  */
 export type IngestContactMessageResult =
   | (IngestContactMessageBase & {
@@ -77,26 +82,23 @@ export function ingestContactMessage(
 
   return db.transactionSync(() => {
     const tombstone = findContactTombstoneByWaId(db, meta.tenantId, input.waId)
+    const priorInbound = findInboundByKey(db, meta.tenantId, input.providerEventKey)
 
-    const inbound = recordInboundEvent(
-      db,
-      {
-        tenantId: meta.tenantId,
-        providerEventKey: input.providerEventKey,
-        payload: {
-          waId: input.waId,
-          displayName: input.displayName ?? null,
-          // Sem corpo completo no inbound_events para alinhar REQ-070 em dumps;
-          // a mensagem lógica guarda o texto na tabela messages.
-          bodyPreview: tombstone ? null : input.body.slice(0, 120),
-          occurredAtMs: input.occurredAtMs ?? null,
-          suppressedTombstone: tombstone ? true : undefined,
+    // DEC-099: replay de evento já gravado (também os de antes da exclusão)
+    // não recria mensagem nem histórico. A exclusão não apaga inbound_events.
+    if (priorInbound && tombstone) {
+      const inbound = recordInboundEvent(
+        db,
+        {
+          tenantId: meta.tenantId,
+          providerEventKey: input.providerEventKey,
+          payload: {
+            occurredAtMs: input.occurredAtMs ?? null,
+            suppressedTombstone: true,
+          },
         },
-      },
-      clock,
-    )
-
-    if (tombstone) {
+        clock,
+      )
       writeOperationalAudit(
         db,
         {
@@ -113,7 +115,7 @@ export function ingestContactMessage(
         clock,
       )
       return {
-        duplicate: inbound.duplicate,
+        duplicate: true,
         contact: null,
         inbound: inbound.row,
         conversation: null,
@@ -124,6 +126,31 @@ export function ingestContactMessage(
         externalCallsInsideTransaction: 0,
       }
     }
+
+    // Evento novo do wa_id excluído: contacto limpo e o tombstone sai,
+    // para as mensagens seguintes seguirem o fluxo normal.
+    let reopenedFromContactId: string | null = null
+    if (tombstone) {
+      deleteContactTombstone(db, meta.tenantId, input.waId)
+      reopenedFromContactId = tombstone.contactId
+    }
+
+    const inbound = recordInboundEvent(
+      db,
+      {
+        tenantId: meta.tenantId,
+        providerEventKey: input.providerEventKey,
+        payload: {
+          waId: input.waId,
+          displayName: input.displayName ?? null,
+          // Sem corpo completo no inbound_events para alinhar REQ-070 em dumps;
+          // a mensagem lógica guarda o texto na tabela messages.
+          bodyPreview: input.body.slice(0, 120),
+          occurredAtMs: input.occurredAtMs ?? null,
+        },
+      },
+      clock,
+    )
 
     if (inbound.duplicate) {
       let contact: ContactRow
@@ -167,6 +194,25 @@ export function ingestContactMessage(
       { tenantId: meta.tenantId, waId: input.waId, displayName: input.displayName },
       clock,
     )
+
+    if (reopenedFromContactId) {
+      writeOperationalAudit(
+        db,
+        {
+          tenantId: meta.tenantId,
+          actor: caller.actorId ?? caller.kind,
+          action: 'contact.reopened_after_delete',
+          objectType: 'contact',
+          objectId: contact.id,
+          detail: {
+            previousContactId: reopenedFromContactId,
+            providerEventKey: input.providerEventKey,
+            // Sem wa_id completo / corpo
+          },
+        },
+        clock,
+      )
+    }
 
     // Contato bloqueado pela equipe: o evento fica deduplicado, mas não entra
     // mensagem nem conversa no painel (sem corpo no audit).
@@ -243,7 +289,8 @@ export function ingestContactMessage(
         objectId: contact.id,
         detail: {
           providerEventKey: input.providerEventKey,
-          waId: input.waId,
+          // DEC-099: a reabertura não regista wa_id nem corpo.
+          ...(reopenedFromContactId ? {} : { waId: input.waId }),
           conversationId: appended.conversation.id,
           messageId: appended.message.id,
           opportunityId: ensured.opportunity.id,

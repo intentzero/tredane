@@ -85,7 +85,7 @@
 
 | Critério | Issue(s) | Teste / harness | Evidência | Estado |
 | --- | --- | --- | --- | --- |
-| AC-52 exclusão contacto / purge | #43 | `src/clinic/retention/*`; `src/retention/*`; `journey.e2e.test.ts` | Tombstone; B intacto | Confirmado (sintético) |
+| AC-52 exclusão contacto / purge | #43 | `src/clinic/retention/*`; `src/retention/*`; `journey.e2e.test.ts` | Replay do evento não restaura histórico; mensagem nova abre contacto limpo (DEC-099); B intacto | Confirmado (sintético) |
 | VAL-09 / GATE-04 jurídico | #18 | legal-review-brief | Antes de dados reais | Em aberto |
 
 ## UX (UI humana / aparelhos)

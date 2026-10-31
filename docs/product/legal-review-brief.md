@@ -33,7 +33,7 @@
 ## 4. Retenção e exclusão (Confirmado, sujeito a esta revisão)
 
 - Dados ficam enquanto a clínica for cliente, sem prazo fixo.
-- O responsável pode excluir um contato: apaga mensagens e anexos; o agendamento permanece anonimizado.
+- O responsável pode excluir um contato: apaga mensagens e anexos; o agendamento permanece anonimizado. Excluir não é banimento (DEC-099, Confirmado, Paulo, 31/10/2026): o replay do evento já gravado não restaura o histórico; uma mensagem nova do mesmo número abre um contacto limpo. Recusar a pessoa continua a ser Bloquear.
 - Ao encerrar a conta: exclusão total em até 30 dias (SQLite do DO e prefixo R2).
 - Suporte do Tredane: acesso só com aprovação do responsável, sessão de 30 min, com auditoria (DEC-029 a DEC-037).
 
