@@ -78,6 +78,39 @@ function makeApi(opts: { emptyFirstDay?: boolean; service?: Record<string, unkno
     confirmAppointment: vi.fn(async () => ({ id: 'apt_1' })),
     confirmWithoutSignal: vi.fn(async () => ({ appointmentId: 'apt_2' })),
     createPixCharge: vi.fn(async () => ({ charge: { amountCents: 9000 }, whatsappSendError: null })),
+    createAndSendProposal: vi.fn(
+      async (): Promise<{
+        appointmentCreated: false
+        sendStatus: 'queued' | 'already_sent' | 'handed_off_closed_window'
+        proposal: {
+          id: string
+          version: number
+          state: string
+          serviceName: string
+          startsAt: number
+          endsAt: number
+          expiresAt: number | null
+          requiresSignal: boolean
+          resultKind: string | null
+          sendProviderMessageId: string | null
+        }
+      }> => ({
+        appointmentCreated: false,
+        sendStatus: 'queued',
+        proposal: {
+          id: 'aprop_1',
+          version: 1,
+          state: 'envio_pendente',
+          serviceName: 'Limpeza',
+          startsAt: 0,
+          endsAt: 0,
+          expiresAt: null,
+          requiresSignal: false,
+          resultKind: null,
+          sendProviderMessageId: null,
+        },
+      }),
+    ),
     confirmPixAlertSlot: vi.fn(),
     sendInboxMessage: vi.fn(async () => ({})),
   }
@@ -112,15 +145,15 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const chosen = screen.getByRole('status')
     expect(chosen.textContent).toContain('Sol fraco neste horário')
     expect(chosen.textContent).toContain('Abaixo de 24 °C neste horário')
-    expect(screen.getByRole('button', { name: 'Revisar e confirmar' }).hasAttribute('disabled')).toBe(false)
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
+    expect(screen.getByRole('button', { name: 'Revisar proposta' }).hasAttribute('disabled')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('status').textContent).toContain('Sol fraco neste horário')
     expect(within(dialog).getByRole('status').textContent).toContain('Abaixo de 24 °C neste horário')
-    fireEvent.click(within(dialog).getByRole('checkbox'))
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar agendamento' }))
-    await screen.findByRole('heading', { name: 'Horário agendado' })
-    expect(api.confirmAppointment).toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
+    await screen.findByRole('heading', { name: 'Proposta enviada' })
+    expect(api.createAndSendProposal).toHaveBeenCalled()
+    expect(api.confirmAppointment).not.toHaveBeenCalled()
   })
 
   it('mostra o contato real, cartões de serviço e «Qualquer» primeiro', async () => {
@@ -141,63 +174,71 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const manha = await screen.findByRole('group', { name: 'Manhã' })
     expect(within(manha).getByRole('button', { name: '09:00' })).toBeTruthy()
     expect(within(screen.getByRole('group', { name: 'Tarde' })).getByRole('button', { name: '14:15' })).toBeTruthy()
-    const cta = screen.getByRole('button', { name: 'Revisar e confirmar' })
+    const cta = screen.getByRole('button', { name: 'Revisar proposta' })
     expect(cta.hasAttribute('disabled') || cta.getAttribute('data-disabled') === 'true').toBe(true)
     const t = await pickTime()
     expect(t.getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('button', { name: 'Revisar e confirmar' }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getByRole('button', { name: 'Revisar proposta' }).hasAttribute('disabled')).toBe(false)
   })
 
-  it('DEC-053: com conversa e janela aberta o aviso vem ligado; desligar e confirmar não envia', async () => {
+  it('DEC-061: com conversa envia proposta versionada e não confirma o horário', async () => {
     const api = makeApi()
     renderScreen(api)
     await screen.findByRole('heading', { name: /Marina/ })
     await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
     const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: 'Enviar proposta' })).toBeTruthy()
     expect(within(dialog).getByText('Marina Souza')).toBeTruthy()
-    const toggle = within(dialog).getByRole('checkbox') as HTMLInputElement
-    expect(toggle.checked).toBe(true)
-    expect(within(dialog).getByRole('button', { name: 'Confirmar e enviar' })).toBeTruthy()
-    fireEvent.click(toggle)
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar agendamento' }))
-    expect(await screen.findByRole('heading', { name: 'Horário agendado' })).toBeTruthy()
-    expect(api.confirmAppointment).toHaveBeenCalledWith(
+    expect(within(dialog).getByText(/botões Confirmar e Alterar detalhes/)).toBeTruthy()
+    expect(within(dialog).queryByRole('checkbox')).toBeNull()
+    expect(within(dialog).queryByRole('textbox')).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
+    expect(await screen.findByRole('heading', { name: 'Proposta enviada' })).toBeTruthy()
+    expect(api.createAndSendProposal).toHaveBeenCalledWith(
       't1',
-      expect.objectContaining({ contactLabel: 'Marina Souza', conversationId: 'conv_1' }),
+      expect.objectContaining({
+        contactId: 'c1',
+        conversationId: 'conv_1',
+        serviceId: 'svc_limpeza',
+      }),
       expect.anything(),
     )
+    expect(api.confirmAppointment).not.toHaveBeenCalled()
     expect(api.sendInboxMessage).not.toHaveBeenCalled()
-    expect(screen.getByText('Não enviada (desligado)')).toBeTruthy()
+    expect(screen.getByText('Aguarda confirmação no WhatsApp')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Voltar à conversa' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Ver na agenda' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Ver na agenda' })).toBeNull()
   })
 
-  it('envia a mensagem editada quando o aviso está ligado', async () => {
-    const api = makeApi()
+  it('janela de 24 h fechada: ainda oferece enviar proposta (handoff)', async () => {
+    const api = makeApi({ windowOpen: false })
+    api.createAndSendProposal.mockResolvedValueOnce({
+      appointmentCreated: false as const,
+      sendStatus: 'handed_off_closed_window' as const,
+      proposal: {
+        id: 'aprop_2',
+        version: 1,
+        state: 'envio_pendente',
+        serviceName: 'Limpeza',
+        startsAt: 0,
+        endsAt: 0,
+        expiresAt: null,
+        requiresSignal: false,
+        resultKind: null,
+        sendProviderMessageId: null,
+      },
+    })
     renderScreen(api)
     await screen.findByRole('heading', { name: /Marina/ })
     await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
-    const dialog = await screen.findByRole('dialog')
-    expect((within(dialog).getByRole('checkbox') as HTMLInputElement).checked).toBe(true)
-    const box = within(dialog).getByRole('textbox', { name: /Mensagem para a paciente/ }) as HTMLTextAreaElement
-    expect(box.value).toContain('Oi, Marina!')
-    fireEvent.change(box, { target: { value: 'Texto editado' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar e enviar' }))
-    expect(await screen.findByText('Mensagem enviada')).toBeTruthy()
-    expect(api.sendInboxMessage).toHaveBeenCalledWith('t1', 'conv_1', expect.objectContaining({ body: 'Texto editado' }), expect.anything())
-  })
-
-  it('fora da janela de 24 h o aviso fica indisponível', async () => {
-    renderScreen(makeApi({ windowOpen: false }))
-    await screen.findByRole('heading', { name: /Marina/ })
-    await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/janela de 24 h está fechada/)).toBeTruthy()
-    expect(within(dialog).queryByRole('checkbox')).toBeNull()
-    expect(within(dialog).getByRole('button', { name: 'Confirmar agendamento' })).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
+    expect(await screen.findByRole('heading', { name: 'Proposta enviada' })).toBeTruthy()
+    expect(screen.getByText(/Proposta preparada · janela fechada/)).toBeTruthy()
+    expect(api.confirmAppointment).not.toHaveBeenCalled()
   })
 
   it('DEC-076: não há controle de duração, mesmo com o campo antigo no serviço', async () => {
@@ -215,9 +256,9 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     await screen.findByRole('heading', { name: /Marina/ })
     fireEvent.click(screen.getByRole('button', { name: 'Dra. Ana' }))
     await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar e enviar' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain('Nada foi reservado')
     expect(alert.textContent).toContain('Suas escolhas foram mantidas')
@@ -225,6 +266,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     expect(screen.getByRole('button', { name: /Limpeza/ }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByRole('button', { name: 'Dra. Ana' }).getAttribute('aria-pressed')).toBe('true')
     expect(api.confirmAppointment).not.toHaveBeenCalled()
+    expect(api.createAndSendProposal).not.toHaveBeenCalled()
   })
 
   it('dia sem horários oferece «Próximo livre»', async () => {
@@ -234,32 +276,24 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const next = await screen.findByRole('button', { name: /Próximo livre: .*09:00/ })
     fireEvent.click(next)
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Revisar e confirmar' }).hasAttribute('disabled')).toBe(false),
+      expect(screen.getByRole('button', { name: 'Revisar proposta' }).hasAttribute('disabled')).toBe(false),
     )
   })
 
-  it('sinal Pix: prazo da clínica e motivo por chips para confirmar sem sinal', async () => {
+  it('sinal Pix com conversa: proposta inclui o sinal (sem marcar)', async () => {
     const api = makeApi({ service: { requiresSignal: true, signalKind: 'fixed', signalFixedCents: 9000 } })
     renderScreen(api)
     await screen.findByRole('heading', { name: /Marina/ })
     await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByText('prazo 2 h')).toBeTruthy()
-    expect(within(dialog).getByText('Horário só é reservado após o pagamento')).toBeTruthy()
-    fireEvent.click(within(dialog).getAllByRole('button', { name: 'Confirmar sem sinal' })[0]!)
-    const submit = within(dialog).getAllByRole('button', { name: 'Confirmar sem sinal' })[1]!
-    expect(submit.hasAttribute('disabled')).toBe(true)
-    const chip = within(dialog).getByRole('button', { name: 'Pagará na clínica' })
-    fireEvent.click(chip)
-    expect(chip.getAttribute('aria-pressed')).toBe('true')
-    fireEvent.click(within(dialog).getAllByRole('button', { name: 'Confirmar sem sinal' })[1]!)
-    expect(await screen.findByRole('heading', { name: 'Horário agendado sem sinal' })).toBeTruthy()
-    expect(api.confirmWithoutSignal).toHaveBeenCalledWith(
-      't1',
-      expect.objectContaining({ waiveReason: 'Pagará na clínica', contactLabel: 'Marina Souza' }),
-      expect.anything(),
-    )
+    expect(within(dialog).getByRole('heading', { name: 'Enviar proposta' })).toBeTruthy()
+    expect(within(dialog).getByText(/Sinal Pix de/)).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
+    expect(await screen.findByRole('heading', { name: 'Proposta enviada' })).toBeTruthy()
+    expect(api.createAndSendProposal).toHaveBeenCalled()
+    expect(api.createPixCharge).not.toHaveBeenCalled()
+    expect(api.confirmWithoutSignal).not.toHaveBeenCalled()
   })
 
   it('Voltar regressa à conversa de origem', async () => {
@@ -297,21 +331,22 @@ describe('AgendarScreen embutido nas Conversas (DEC-074)', () => {
     expect(navigatePanel).not.toHaveBeenCalled()
   })
 
-  it('depois de confirmar, «Voltar à conversa» fecha o painel sem trocar de área', async () => {
+  it('depois de enviar proposta, «Voltar à conversa» fecha o painel sem trocar de área', async () => {
     const onClose = vi.fn()
     const api = makeApi()
     renderEmbedded(api, onClose)
     await screen.findByRole('heading', { name: /Marina/ })
     await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar e confirmar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
     const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar e enviar' }))
-    await screen.findByRole('heading', { name: 'Horário agendado' })
-    expect(api.confirmAppointment).toHaveBeenCalledWith(
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
+    await screen.findByRole('heading', { name: 'Proposta enviada' })
+    expect(api.createAndSendProposal).toHaveBeenCalledWith(
       't1',
-      expect.objectContaining({ conversationId: 'conv_1' }),
+      expect.objectContaining({ conversationId: 'conv_1', contactId: 'c1' }),
       expect.anything(),
     )
+    expect(api.confirmAppointment).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Voltar à conversa' }))
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(navigatePanel).not.toHaveBeenCalled()

@@ -103,6 +103,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): SchedulingGatew
     previewHold: (caller, input) => stub.previewClinicHold(caller, input),
     createHold: (caller, input) => stub.createClinicHold(caller, input),
     listHolds: (caller, input) => stub.listClinicHolds(caller, input),
+    createAndSendProposal: (caller, input) => stub.createAndSendStaffProposal(caller, input),
   }
 }
 
@@ -267,6 +268,77 @@ export function createSchedulingRoutes(opts: SchedulingRouteOptions = {}) {
         c.req.param('appointmentId'),
       )
       return c.json(serializeAppointmentDetail(detail))
+    } catch (err) {
+      return schedulingErrorResponse(c, err)
+    }
+  })
+
+  /**
+   * DEC-061 (Paulo, 31/10/2026): Agendar envia proposta versionada com botões.
+   * Não cria compromisso nem muda etapa — só o clique da cliente marca.
+   */
+  app.post('/api/tenants/:tenantId/appointment-proposals', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.agenda.operate')
+      const body = await c.req.json<{
+        clientRequestId?: string
+        contactId?: string
+        conversationId?: string
+        serviceId?: string
+        professionalId?: string | null
+        startsAt?: number
+        endsAt?: number
+        durationMinutes?: number
+        zoneIds?: unknown
+      }>()
+      if (!body.contactId?.trim() || !body.conversationId?.trim()) {
+        throw new ValidationError(
+          'proposal_requires_conversation',
+          'contactId e conversationId são obrigatórios',
+        )
+      }
+      if (!body.serviceId?.trim()) {
+        throw new ValidationError('missing_service', 'serviceId é obrigatório')
+      }
+      if (!Number.isFinite(body.startsAt)) {
+        throw new ValidationError('missing_body', 'startsAt é obrigatório')
+      }
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const result = await gw.createAndSendProposal(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+        {
+          clientRequestId: body.clientRequestId?.trim(),
+          contactId: body.contactId.trim(),
+          conversationId: body.conversationId.trim(),
+          serviceId: body.serviceId.trim(),
+          professionalId: body.professionalId ?? null,
+          startsAt: body.startsAt!,
+          endsAt: body.endsAt,
+          durationMinutes: body.durationMinutes,
+          zoneIds: parseZoneIds(body.zoneIds),
+        },
+      )
+      const p = result.proposal
+      return c.json(
+        {
+          appointmentCreated: false as const,
+          sendStatus: result.sendStatus,
+          proposal: {
+            id: p.id,
+            version: p.version,
+            state: p.state,
+            serviceName: p.serviceName,
+            startsAt: p.startsAt,
+            endsAt: p.endsAt,
+            expiresAt: p.expiresAt,
+            requiresSignal: p.requiresSignal,
+            resultKind: p.resultKind,
+            sendProviderMessageId: p.sendProviderMessageId,
+          },
+        },
+        201,
+      )
     } catch (err) {
       return schedulingErrorResponse(c, err)
     }

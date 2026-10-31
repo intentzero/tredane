@@ -26,6 +26,18 @@ import type {
   ListHoldsInput,
   ScheduleHoldView,
 } from '../clinic/scheduling'
+import type {
+  AppointmentProposalRow,
+  CreateAndSendStaffProposalInput,
+  SendProposalResult,
+} from '../clinic/proposals'
+import { clinicProposals } from '../clinic'
+
+export type StaffProposalSendResult = {
+  appointmentCreated: false
+  sendStatus: SendProposalResult['status']
+  proposal: AppointmentProposalRow
+}
 
 export type SchedulingGateway = {
   queryAvailability(
@@ -62,6 +74,11 @@ export type SchedulingGateway = {
     input: CreateHoldInput,
   ): Promise<HoldMutationResult<CreateHoldResult>>
   listHolds(caller: ClinicCaller, input: ListHoldsInput): Promise<ScheduleHoldView[]>
+  /** DEC-061: atendente envia proposta (sem marcar). */
+  createAndSendProposal(
+    caller: ClinicCaller,
+    input: CreateAndSendStaffProposalInput,
+  ): Promise<StaffProposalSendResult>
 }
 
 export function createMemorySchedulingGateway(
@@ -103,6 +120,14 @@ export function createMemorySchedulingGateway(
     },
     async listHolds(caller, input) {
       return clinicScheduling.listHoldsOp(db, caller, input, clock)
+    },
+    async createAndSendProposal(caller, input) {
+      const result = clinicProposals.createAndSendStaffProposalOp(db, caller, input, clock)
+      return {
+        appointmentCreated: false as const,
+        sendStatus: result.sendStatus,
+        proposal: result.proposal,
+      }
     },
   }
 }

@@ -155,11 +155,12 @@ function slashDate(iso: string): string {
 
 type Contact = { name: string | null; phone: string }
 
-type NoticeStatus = 'sent' | 'failed' | 'off' | 'unavailable'
+type NoticeStatus = 'sent' | 'failed' | 'off' | 'unavailable' | 'proposed' | 'proposal_handoff'
 
 type Success = {
-  kind: 'confirmed' | 'waived' | 'paid' | 'signal'
+  kind: 'confirmed' | 'waived' | 'paid' | 'signal' | 'proposed'
   appointmentId?: string
+  proposalId?: string
   serviceLabel: string
   professionalName: string
   whenLabel: string
@@ -760,7 +761,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           isDisabled={!selected || percentBlocked || (visit.zoned && visit.zones.length === 0)}
           onPress={() => setReviewOpen(true)}
         >
-          Revisar e confirmar
+          {ctx.conversationId && ctx.contactId ? 'Revisar proposta' : 'Revisar e confirmar'}
         </Button>
       </footer>
 
@@ -935,6 +936,7 @@ function ReviewSheet(p: ReviewProps) {
   const canNotify = Boolean(ctx.conversationId) && p.window24?.open === true
   // DEC-053 (Confirmado, card t1868s7504): com conversa, ligado dentro da janela
   // de 24 h; fora dela desligado com explicação.
+  const proposalPath = Boolean(ctx.conversationId && ctx.contactId) && !p.paidSignalMode
   const [notify, setNotify] = useState(() => defaultNotify(Boolean(ctx.conversationId), p.window24))
   const notifyTouched = useRef(false)
   useEffect(() => {
@@ -1020,6 +1022,36 @@ function ReviewSheet(p: ReviewProps) {
     }
   }
 
+  async function createAndSendProposalAction() {
+    if (!ctx.conversationId || !ctx.contactId) return
+    if (!(await stillFree())) return
+    const result = await api.createAndSendProposal(
+      tenantId,
+      {
+        clientRequestId,
+        contactId: ctx.contactId,
+        conversationId: ctx.conversationId,
+        serviceId: service.id,
+        professionalId: slot.professionalId,
+        startsAt: slot.startsAt,
+        endsAt: slot.endsAt,
+        durationMinutes: Math.round((slot.endsAt - slot.startsAt) / 60_000),
+        zoneIds: p.zoneIds,
+      },
+      fo,
+    )
+    const handoff = result.sendStatus === 'handed_off_closed_window'
+    p.onSuccess({
+      ...base,
+      kind: 'proposed',
+      proposalId: result.proposal.id,
+      notice: handoff ? 'proposal_handoff' : 'proposed',
+      noticeDetail: handoff
+        ? 'A janela de 24 h está fechada. A proposta ficou preparada para a equipe retomar o contato.'
+        : undefined,
+    })
+  }
+
   const confirm = () =>
     run(async () => {
       if (!(await stillFree())) return
@@ -1031,6 +1063,10 @@ function ReviewSheet(p: ReviewProps) {
           fo,
         )
         p.onSuccess({ ...base, kind: 'paid', appointmentId: r.appointmentId, ...(await sendNotice()) })
+        return
+      }
+      if (proposalPath) {
+        await createAndSendProposalAction()
         return
       }
       const created = await api.confirmAppointment(
@@ -1126,7 +1162,11 @@ function ReviewSheet(p: ReviewProps) {
         <Dialog className="panel-sheet agd-sheet" aria-labelledby="agd-review-title">
           <span className="panel-sheet-handle" aria-hidden="true" />
           <Heading slot="title" id="agd-review-title" className="panel-title">
-            {p.requiresSignal ? 'Sinal por Pix' : 'Revisar agendamento'}
+            {proposalPath
+              ? 'Enviar proposta'
+              : p.requiresSignal
+                ? 'Sinal por Pix'
+                : 'Revisar agendamento'}
           </Heading>
           <div className="agd-sheet-body">
             <TempoNotice phrases={slot.tempoWarnings} />
@@ -1137,7 +1177,51 @@ function ReviewSheet(p: ReviewProps) {
               </div>
             ) : null}
 
-            {p.requiresSignal && p.amountCents != null ? (
+            {proposalPath ? (
+              <>
+                <dl className="agd-table">
+                  {rows.map(([k, v]) => (
+                    <div key={k} className="agd-table-row">
+                      <dt>{k}</dt>
+                      <dd>{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {p.requiresSignal && p.amountCents != null ? (
+                  <div className="agd-warn" role="note">
+                    <Clock aria-hidden size={20} strokeWidth={2} />
+                    <div>
+                      <strong>Sinal Pix de {formatBrl(p.amountCents)}</strong>
+                      <span>Se a cliente confirmar, o Pix é enviado e o horário só reserva após o pagamento.</span>
+                    </div>
+                  </div>
+                ) : null}
+                <section className="agd-proposal" aria-labelledby="agd-proposal-title">
+                  <h3 id="agd-proposal-title" className="agd-proposal-title">
+                    Proposta pelo WhatsApp
+                  </h3>
+                  {canNotify ? (
+                    <p className="agd-proposal-hint">
+                      A cliente recebe a proposta com os botões Confirmar e Alterar detalhes.
+                      O horário só fica marcado depois do toque em Confirmar. Texto livre («sim», «obrigado») não confirma.
+                    </p>
+                  ) : (
+                    <p className="agd-proposal-hint" role="note">
+                      {ctx.conversationId
+                        ? 'A janela de 24 h está fechada: a proposta fica preparada e a equipe retoma o contato (sem envio irregular).'
+                        : 'Sem conversa vinculada não dá para enviar a proposta pelo WhatsApp.'}
+                    </p>
+                  )}
+                </section>
+                <Button
+                  className="panel-btn panel-btn-primary agd-btn"
+                  isDisabled={busy}
+                  onPress={() => void run(() => createAndSendProposalAction())}
+                >
+                  {busy ? 'Enviando proposta…' : 'Enviar proposta'}
+                </Button>
+              </>
+            ) : p.requiresSignal && p.amountCents != null ? (
               <>
                 <div className="agd-signal">
                   <div>
@@ -1256,11 +1340,11 @@ function NoticeField(p: {
     <div className="agd-notice">
       <label className="agd-check">
         <input type="checkbox" checked={p.notify} onChange={(e) => p.setNotify(e.target.checked)} />
-        <span>Enviar confirmação à paciente pelo WhatsApp</span>
+        <span>Enviar confirmação ao contato pelo WhatsApp</span>
       </label>
       {p.notify ? (
         <TextField className="panel-field" value={p.message} onChange={p.setMessage}>
-          <Label>Mensagem para a paciente (WhatsApp)</Label>
+          <Label>Mensagem para o contato (WhatsApp)</Label>
           <TextArea className="agd-textarea" rows={4} />
           <span className="panel-field-hint">Enviada ao confirmar. Você pode editar o texto.</span>
         </TextField>
@@ -1284,12 +1368,16 @@ function AgendarSuccess(props: {
       ? 'Sinal enviado'
       : success.kind === 'waived'
         ? 'Horário agendado sem sinal'
-        : 'Horário agendado'
+        : success.kind === 'proposed'
+          ? 'Proposta enviada'
+          : 'Horário agendado'
   const noticeText: Record<NoticeStatus, string> = {
     sent: success.kind === 'signal' ? 'Cobrança enviada' : 'Mensagem enviada',
     failed: 'Não enviada',
     off: 'Não enviada (desligado)',
     unavailable: 'Não enviada',
+    proposed: 'Aguarda confirmação no WhatsApp',
+    proposal_handoff: 'Proposta preparada · janela fechada',
   }
   return (
     <div className="agd agd-success" data-screen="m04-agendar-sucesso">
@@ -1306,20 +1394,33 @@ function AgendarSuccess(props: {
         {success.kind === 'signal' ? (
           <p className="agd-note" role="note">O horário só é reservado quando o Pix for pago.</p>
         ) : null}
+        {success.kind === 'proposed' ? (
+          <p className="agd-note" role="note">
+            O horário e o atendimento só mudam depois do toque em Confirmar no WhatsApp.
+          </p>
+        ) : null}
         <dl className="agd-table">
           <div className="agd-table-row"><dt>Serviço</dt><dd>{success.serviceLabel}</dd></div>
           <div className="agd-table-row"><dt>Profissional</dt><dd>{success.professionalName}</dd></div>
           <div className="agd-table-row"><dt>Quando</dt><dd>{success.whenLabel}</dd></div>
           <div className="agd-table-row">
             <dt>WhatsApp</dt>
-            <dd data-notice={success.notice} role={success.notice === 'failed' ? 'alert' : undefined}>
-              {success.notice === 'sent' ? <CheckCheck aria-hidden size={16} strokeWidth={2} /> : null}
+            <dd
+              data-notice={success.notice === 'proposed' || success.notice === 'sent' ? 'sent' : success.notice === 'failed' ? 'failed' : undefined}
+              role={success.notice === 'failed' ? 'alert' : undefined}
+            >
+              {success.notice === 'sent' || success.notice === 'proposed' ? (
+                <CheckCheck aria-hidden size={16} strokeWidth={2} />
+              ) : null}
               {noticeText[success.notice]}
             </dd>
           </div>
         </dl>
         {success.notice === 'failed' && success.noticeDetail ? (
           <p className="panel-meta">{success.noticeDetail} O compromisso continua confirmado.</p>
+        ) : null}
+        {success.notice === 'proposal_handoff' && success.noticeDetail ? (
+          <p className="panel-meta">{success.noticeDetail}</p>
         ) : null}
       </div>
       <footer className="panel-footer agd-footer">
@@ -1328,12 +1429,14 @@ function AgendarSuccess(props: {
             Voltar à conversa
           </Button>
         ) : null}
-        <Button
-          className={`panel-btn ${props.hasConversation ? 'panel-btn-secondary' : 'panel-btn-primary'} agd-btn`}
-          onPress={props.onAgenda}
-        >
-          Ver na agenda
-        </Button>
+        {success.kind !== 'proposed' ? (
+          <Button
+            className={`panel-btn ${props.hasConversation ? 'panel-btn-secondary' : 'panel-btn-primary'} agd-btn`}
+            onPress={props.onAgenda}
+          >
+            Ver na agenda
+          </Button>
+        ) : null}
       </footer>
     </div>
   )

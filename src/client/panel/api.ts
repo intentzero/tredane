@@ -1004,6 +1004,69 @@ export function createPanelApi(getToken: TokenGetter) {
       }
     },
 
+    /**
+     * DEC-061: atendente envia proposta versionada com botões WhatsApp.
+     * Não cria compromisso nem muda etapa.
+     */
+    async createAndSendProposal(
+      tenantId: string,
+      body: {
+        clientRequestId: string
+        contactId: string
+        conversationId: string
+        serviceId: string
+        professionalId?: string | null
+        startsAt: number
+        endsAt?: number
+        durationMinutes?: number
+        zoneIds?: string[] | null
+      },
+      opts?: FetchOpts,
+    ): Promise<{
+      appointmentCreated: false
+      sendStatus: 'queued' | 'already_sent' | 'handed_off_closed_window'
+      proposal: {
+        id: string
+        version: number
+        state: string
+        serviceName: string
+        startsAt: number
+        endsAt: number
+        expiresAt: number | null
+        requiresSignal: boolean
+        resultKind: string | null
+        sendProviderMessageId: string | null
+      }
+    }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/appointment-proposals`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        appointmentCreated: false
+        sendStatus: 'queued' | 'already_sent' | 'handed_off_closed_window'
+        proposal: {
+          id: string
+          version: number
+          state: string
+          serviceName: string
+          startsAt: number
+          endsAt: number
+          expiresAt: number | null
+          requiresSignal: boolean
+          resultKind: string | null
+          sendProviderMessageId: string | null
+        }
+      }
+    },
+
     /** Reserva por bloco — quanto cabe no período (leitura). */
     async previewHold(
       tenantId: string,

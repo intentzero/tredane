@@ -657,6 +657,33 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   /**
+   * Agendar / Revisar (atendente): cria proposta versionada e envia botões WhatsApp (DEC-061).
+   * Não confirma horário nem muda etapa — só o clique da cliente marca.
+   */
+  async createAndSendStaffProposal(
+    caller: ClinicCaller,
+    input: clinicProposals.CreateAndSendStaffProposalInput,
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicProposals.createAndSendStaffProposalOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return {
+      appointmentCreated: false as const,
+      sendStatus: result.sendStatus,
+      proposal: result.proposal,
+    }
+  }
+
+  /**
    * S4→S5: processa button_reply da proposta.
    * Alterar encaminha; Confirmar → executeProposalConfirmOp (book ou Pix uma vez).
    */
