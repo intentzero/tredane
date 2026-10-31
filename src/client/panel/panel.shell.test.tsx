@@ -223,9 +223,8 @@ describe('panel shell (#22)', () => {
     ).toBeTruthy()
 
     await user.click(within(nav).getByText('Clínica'))
-    expect(
-      await screen.findByRole('heading', { name: /passos? para atender/i }),
-    ).toBeTruthy()
+    expect(await screen.findByText(/passos? para atender/i)).toBeTruthy()
+    expect(screen.getByText(/^Agora · passo \d$/)).toBeTruthy()
     expect(screen.getByText('4 · Serviços')).toBeTruthy()
 
     await expectNoAxeViolations(container)
