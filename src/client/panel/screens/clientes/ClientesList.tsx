@@ -141,7 +141,7 @@ export function ClientesList({ tenantId, api, generation, activeContactId }: Pro
           title={emptyAll ? 'Nenhum cliente ainda' : 'Nenhum cliente neste filtro'}
           description={
             emptyAll
-              ? 'Os contactos aparecem aqui quando chegam pelo WhatsApp ou são marcados na agenda.'
+              ? 'Os contatos aparecem aqui quando chegam pelo WhatsApp ou são marcados na agenda.'
               : 'Tente outro filtro ou limpe a busca.'
           }
         />

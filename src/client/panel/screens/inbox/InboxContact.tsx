@@ -417,7 +417,7 @@ export function InboxContactScreen({
 
       <h2 className="inbox-contact-h">Horários</h2>
       {upcoming.length === 0 && past.length === 0 ? (
-        <p className="inbox-contact-note">Nenhum horário marcado para este contacto.</p>
+        <p className="inbox-contact-note">Nenhum horário marcado para este contato.</p>
       ) : (
         <>
           <AppointmentBlock title="Próximos" items={upcoming} tenantId={tenantId} />
