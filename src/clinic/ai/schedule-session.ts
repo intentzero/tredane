@@ -165,6 +165,19 @@ export function saveScheduleSession(
   )
 }
 
+/** Apaga a sessão de agendamento da conversa (nova intenção de serviço — DEC-086). */
+export function clearScheduleSession(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): void {
+  db.run(
+    `DELETE FROM schedule_sessions WHERE tenant_id = ? AND conversation_id = ?`,
+    tenantId,
+    conversationId,
+  )
+}
+
 /** Grava a linha explícita, ou null enquanto a pergunta ainda não foi respondida. Mantém dia e período. */
 export function saveScheduleLine(
   db: ClinicDb,

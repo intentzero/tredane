@@ -14,6 +14,7 @@ import { assertClinicSchemaReady } from '../migrations'
 import type { OutboxRow } from '../outbox'
 import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots } from '../config/zones'
+import { appendPostBookingFollowup } from '../followup/post-booking'
 import { confirmAppointmentInTransaction } from '../scheduling/booking'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
@@ -187,11 +188,21 @@ export function resolveAlertAltSlotOp(
       clock,
     )
 
+    const followOutbox = appendPostBookingFollowup(
+      db,
+      caller,
+      {
+        conversationId: charge.conversationId,
+        appointmentId: confirmed.value.id,
+      },
+      clock,
+      confirmed.outbox,
+    )
     const payload: ResolveAlertAltSlotResult = {
       alert: resolved,
       charge: linked,
       appointmentId: confirmed.value.id,
-      outbox: confirmed.outbox,
+      outbox: followOutbox,
       idempotentReplay: false,
     }
     savePixExceptionCommand(db, {
