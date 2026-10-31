@@ -12,7 +12,7 @@ import type { ConversasSection } from '../../routes'
 import { InboxContactScreen } from './InboxContact'
 import { InboxList } from './InboxList'
 import { InboxThread } from './InboxThread'
-import { FreeSlotsStrip } from './FreeSlotsStrip'
+import { FreeSlotsStrip, type ScheduleHint } from './FreeSlotsStrip'
 import { AgendarScreen } from '../agenda/AgendarScreen'
 import { ShellIdentity, useOnline } from '../../shell/ShellIdentity'
 import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
@@ -394,13 +394,12 @@ export function ConversasThreeCol({
               <X aria-hidden size={20} strokeWidth={2} />
             </button>
           </div>
-          <FreeSlotsStrip
+          <ConversationSlots
             key={conversationId}
-            pinned
             tenantId={tenantId}
+            conversationId={conversationId}
             api={api}
             generation={generation}
-            conversationId={conversationId}
             authorDisplayName={staffDisplayName}
             onPropose={(text) => setIncomingDraft((prev) => ({ id: (prev?.id ?? 0) + 1, conversationId, text }))}
           />
@@ -424,6 +423,68 @@ export function ConversasThreeCol({
         />
       ) : null}
     </div>
+  )
+}
+
+/** Horários livres da coluna: abre no procedimento, dia e período que a conversa já definiu. */
+function ConversationSlots({
+  tenantId,
+  conversationId,
+  api,
+  generation,
+  authorDisplayName,
+  onPropose,
+}: {
+  tenantId: string
+  conversationId: string
+  api: NonNullable<ReturnType<typeof useAuthSession>['api']>
+  generation: number
+  authorDisplayName: string | null
+  onPropose: (text: string) => void
+}) {
+  const [info, setInfo] = useState<{
+    contactId: string
+    opportunityId: string | null
+    hint: ScheduleHint | null
+  } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void api
+      .getInboxConversation(tenantId, conversationId, { messageLimit: 1 }, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      .then((d) => {
+        if (cancelled) return
+        setInfo({
+          contactId: d.contactId,
+          opportunityId: d.opportunity?.id ?? null,
+          hint: d.scheduleHint ?? null,
+        })
+      })
+      .catch(() => {
+        if (!cancelled) setInfo({ contactId: '', opportunityId: null, hint: null })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api, tenantId, conversationId, generation])
+
+  if (!info) return null
+  return (
+    <FreeSlotsStrip
+      pinned
+      tenantId={tenantId}
+      api={api}
+      generation={generation}
+      conversationId={conversationId}
+      contactId={info.contactId || null}
+      opportunityId={info.opportunityId}
+      authorDisplayName={authorDisplayName}
+      hint={info.hint}
+      onPropose={onPropose}
+    />
   )
 }
 

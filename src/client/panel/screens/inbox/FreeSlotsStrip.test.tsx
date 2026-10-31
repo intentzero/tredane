@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AvailabilitySlot, PanelApi } from '../../api'
-import { buildProposalText, FreeSlotsStrip } from './FreeSlotsStrip'
+import { buildProposalText, dateForDayLabel, FreeSlotsStrip } from './FreeSlotsStrip'
 
 const TZ = 'America/Sao_Paulo'
 // 2026-11-06 15:30 e 16:30 em São Paulo (UTC-3).
@@ -125,5 +125,50 @@ describe('FreeSlotsStrip', () => {
     fireEvent.click(screen.getByRole('button', { name: /Colocar no campo/ }))
     await waitFor(() => expect(onPropose).toHaveBeenCalledTimes(1))
     expect(screen.getByRole('region', { name: 'Horários livres' })).toBeTruthy()
+  })
+
+  it('abre no procedimento e no período que a conversa já definiu', async () => {
+    const queryAvailability = vi.fn().mockResolvedValue({
+      slots: [slot(Date.UTC(2026, 10, 6, 13, 0)), slot(t1530)],
+    })
+    const api = {
+      getClinicConfig: vi.fn().mockResolvedValue({
+        services: [
+          { id: 's1', name: 'Limpeza de pele', active: true },
+          { id: 's2', name: 'Depilação a laser', active: true },
+        ],
+        settings: { timezone: TZ },
+      }),
+      queryAvailability,
+      getPix: vi.fn().mockRejectedValue(new Error('sem pix')),
+    } as unknown as PanelApi
+    render(
+      <FreeSlotsStrip
+        pinned
+        tenantId="t"
+        api={api}
+        generation={1}
+        onPropose={vi.fn()}
+        hint={{ serviceId: 's2', dayLabel: null, period: 'tarde' }}
+      />,
+    )
+    await waitFor(() => expect(queryAvailability).toHaveBeenCalled())
+    expect(queryAvailability.mock.calls[0]![1]).toMatchObject({ serviceId: 's2' })
+    // 10h (manhã) sai; 15h30 (tarde) fica.
+    expect(await screen.findAllByRole('button', { name: /Bruna/ })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: /Pedido: tarde/ }))
+    expect(await screen.findAllByRole('button', { name: /Bruna/ })).toHaveLength(2)
+  })
+})
+
+describe('dateForDayLabel', () => {
+  // quinta, 5 de novembro de 2026, 12h em São Paulo
+  const now = Date.UTC(2026, 10, 5, 15, 0)
+  it('traduz hoje, amanhã e dia da semana', () => {
+    expect(dateForDayLabel('hoje', TZ, now)).toBe('2026-11-05')
+    expect(dateForDayLabel('amanhã', TZ, now)).toBe('2026-11-06')
+    expect(dateForDayLabel('sexta', TZ, now)).toBe('2026-11-06')
+    expect(dateForDayLabel('sábado', TZ, now)).toBe('2026-11-07')
+    expect(dateForDayLabel(null, TZ, now)).toBeNull()
   })
 })

@@ -131,6 +131,12 @@ export type ConversationDetail = ConversationListItem & {
   pendingCommunications: ConversationPendingCommunicationPanel[]
   /** DEC-083: IA pausada até a equipe devolver. */
   aiReplyPause: { at: number; reason: string } | null
+  /** Procedimento, dia e período que a conversa já definiu (sessão de agendamento); `null` sem sessão. */
+  scheduleHint: {
+    serviceId: string
+    dayLabel: string | null
+    period: 'manha' | 'tarde' | 'noite' | null
+  } | null
 }
 
 export type ListConversationsInput = {

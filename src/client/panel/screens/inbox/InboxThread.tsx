@@ -1590,6 +1590,7 @@ export function InboxThread({
               api={api}
               generation={generation}
               conversationId={detail.id}
+              hint={detail.scheduleHint ?? null}
               contactId={detail.contactId}
               opportunityId={detail.opportunity?.id ?? null}
               authorDisplayName={authorDisplayName}

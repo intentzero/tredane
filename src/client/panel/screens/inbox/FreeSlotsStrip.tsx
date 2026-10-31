@@ -11,7 +11,32 @@ import {
 } from '../agenda/format'
 import { formatBrl } from '../agenda/agendarModel'
 
-const DAYS = 5
+const DAYS = 7
+const PERIOD_LABEL = { manha: 'manhã', tarde: 'tarde', noite: 'noite' } as const
+
+export type ScheduleHint = {
+  serviceId: string
+  dayLabel: string | null
+  period: 'manha' | 'tarde' | 'noite' | null
+}
+
+/** Dia civil que o rótulo da conversa («sexta», «amanhã») designa a partir de hoje. */
+export function dateForDayLabel(label: string | null, timeZone: string, nowMs: number): string | null {
+  if (!label) return null
+  const days = upcomingCivilDates(timeZone, nowMs, 8)
+  if (label === 'hoje') return days[0]!
+  if (label === 'amanhã') return days[1]!
+  if (label === 'depois de amanhã') return days[2]!
+  const short = label.slice(0, 3)
+  return days.find((d) => formatDayLabel(d, timeZone).weekday === short) ?? null
+}
+
+function inPeriod(startsAt: number, period: 'manha' | 'tarde' | 'noite', timeZone: string): boolean {
+  const hour = Number(formatSlotTime(startsAt, timeZone).slice(0, 2))
+  if (period === 'manha') return hour < 12
+  if (period === 'tarde') return hour >= 12 && hour < 18
+  return hour >= 18
+}
 const MAX_PICKS = 3
 
 type Pick = { date: string; slot: AvailabilitySlot }
@@ -31,6 +56,8 @@ type Props = {
   onCharged?: () => void
   /** Coluna de contexto do desktop: já aberta e sem «Fechar». */
   pinned?: boolean
+  /** Procedimento, dia e período que a conversa já definiu: a faixa abre neles. */
+  hint?: ScheduleHint | null
 }
 
 /** Sinal do serviço em centavos; mesma regra do Agendar. */
@@ -80,6 +107,7 @@ export function FreeSlotsStrip({
   authorDisplayName,
   onCharged,
   pinned = false,
+  hint = null,
 }: Props) {
   const [openState, setOpen] = useState(false)
   const open = pinned || openState
@@ -89,6 +117,7 @@ export function FreeSlotsStrip({
   const [date, setDate] = useState('')
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null)
   const [professionalId, setProfessionalId] = useState('any')
+  const [onlyPeriod, setOnlyPeriod] = useState(true)
   const [picks, setPicks] = useState<Pick[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -113,8 +142,14 @@ export function FreeSlotsStrip({
         const active = snap.services.filter((s) => s.active)
         setServices(active)
         setTimezone(snap.settings.timezone)
-        setServiceId((prev) => prev || active[0]?.id || '')
-        setDate((prev) => prev || upcomingCivilDates(snap.settings.timezone, Date.now(), 1)[0]!)
+        const hinted = active.find((s) => s.id === hint?.serviceId)
+        setServiceId((prev) => prev || hinted?.id || active[0]?.id || '')
+        setDate(
+          (prev) =>
+            prev ||
+            dateForDayLabel(hint?.dayLabel ?? null, snap.settings.timezone, Date.now()) ||
+            upcomingCivilDates(snap.settings.timezone, Date.now(), 1)[0]!,
+        )
       })
       .catch((err) => {
         if (!cancelled) setError(friendlyError(err, 'Não conseguimos carregar os horários.'))
@@ -156,6 +191,12 @@ export function FreeSlotsStrip({
     }
   }, [open, tenantId, serviceId, date, professionalId, api, fo])
 
+  const period = hint?.period ?? null
+  const visibleSlots = useMemo(
+    () =>
+      period && onlyPeriod ? (slots ?? []).filter((s) => inPeriod(s.startsAt, period, timezone)) : slots,
+    [slots, period, onlyPeriod, timezone],
+  )
   const days = useMemo(() => upcomingCivilDates(timezone, Date.now(), DAYS), [timezone])
   const professionals = useMemo(() => {
     const seen = new Map<string, string>()
@@ -309,6 +350,14 @@ export function FreeSlotsStrip({
         </div>
       ) : null}
 
+      {period ? (
+        <div className="free-slots-pros">
+          <Button className="panel-chip" aria-pressed={onlyPeriod} onPress={() => setOnlyPeriod((v) => !v)}>
+            Pedido: {PERIOD_LABEL[period]}
+          </Button>
+        </div>
+      ) : null}
+
       {error ? (
         <p className="free-slots-note" role="alert">
           {error}
@@ -317,13 +366,15 @@ export function FreeSlotsStrip({
         <p className="free-slots-note" role="status">
           Buscando horários…
         </p>
-      ) : slots && slots.length === 0 ? (
+      ) : visibleSlots && visibleSlots.length === 0 ? (
         <p className="free-slots-note" role="status">
-          Nada livre neste dia. Tente outro dia.
+          {period && onlyPeriod && (slots?.length ?? 0) > 0
+            ? `Nada livre de ${PERIOD_LABEL[period]} neste dia.`
+            : 'Nada livre neste dia. Tente outro dia.'}
         </p>
       ) : (
         <ul className="free-slots-list">
-          {(slots ?? []).map((s) => {
+          {(visibleSlots ?? []).map((s) => {
             const blocked = (s.tempoWarnings?.length ?? 0) > 0
             const time = formatSlotTime(s.startsAt, timezone)
             return (

@@ -1,5 +1,6 @@
 import type { Clock } from '../../db/clock'
 import { attachSuggestionToOutboundOp } from '../ai/operations'
+import { getScheduleSession } from '../ai/schedule-session'
 import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller } from '../envelopes'
@@ -198,6 +199,11 @@ export function getConversationDetailOp(
       )
       if (!row?.at) return null
       return { at: row.at, reason: row.reason ?? 'off_purpose' }
+    })(),
+    scheduleHint: (() => {
+      const session = getScheduleSession(db, meta.tenantId, input.conversationId)
+      if (!session) return null
+      return { serviceId: session.serviceId, dayLabel: session.dayLabel, period: session.period }
     })(),
   }
 }
