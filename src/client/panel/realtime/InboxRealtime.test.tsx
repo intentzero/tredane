@@ -66,7 +66,6 @@ describe('helpers contact.deleted / agenda', () => {
     expect(
       eventDeletesConversation(
         {
-          v: 1,
           type: 'event',
           seq: 1,
           eventId: 'e',
@@ -81,7 +80,6 @@ describe('helpers contact.deleted / agenda', () => {
     expect(
       eventDeletesConversation(
         {
-          v: 1,
           type: 'event',
           seq: 1,
           eventId: 'e',
@@ -98,7 +96,6 @@ describe('helpers contact.deleted / agenda', () => {
   it('isScheduleEvent inclui contact.deleted (anonimiza agenda)', () => {
     expect(
       isScheduleEvent({
-        v: 1,
         type: 'event',
         seq: 1,
         eventId: 'e',
