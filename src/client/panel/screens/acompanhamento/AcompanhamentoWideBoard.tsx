@@ -338,7 +338,11 @@ export function AcompanhamentoWideBoard({ tenantId, api, generation, openId }: P
                           <span className="acomp-card-time">{relativeTime(card.lastInteractionAt)}</span>
                         </span>
                         <span className="acomp-card-line">
-                          {appointmentLine(card.linkedAppointment?.startsAt, card.missingAppointment)}
+                          {appointmentLine(
+                            card.linkedAppointment?.startsAt,
+                            card.missingAppointment,
+                            card.linkedAppointment?.changeReason,
+                          )}
                         </span>
                         <span className="acomp-card-foot">
                           <span>{card.assigneeDisplayName ?? 'Sem responsável'}</span>

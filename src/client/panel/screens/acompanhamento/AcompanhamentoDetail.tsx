@@ -192,6 +192,7 @@ export function AcompanhamentoDetail({
             {appointmentLine(
               data.linkedAppointment?.startsAt,
               data.missingAppointment,
+              data.linkedAppointment?.changeReason,
             )}
           </dd>
         </div>

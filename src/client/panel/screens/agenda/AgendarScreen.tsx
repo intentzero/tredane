@@ -29,7 +29,7 @@ import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState } from '../../states/StatusScreens'
 import { friendlyError } from '../../copy/errors'
 import { useVisiblePolling } from '../../ui/useVisiblePolling'
-import { formatDayLabel, formatSlotTime, reasonLabel, upcomingCivilDates } from './format'
+import { civilDateInZone, formatDayLabel, formatSlotTime, reasonLabel, upcomingCivilDates } from './format'
 import {
   CALENDAR_HORIZON_DAYS,
   NEXT_FREE_HORIZON_DAYS,
@@ -77,6 +77,7 @@ function readScheduleContext(): ScheduleContext {
     /** Alerta pago sem horário — confirma com sinal já pago (#40). */
     alertId: q.get('alertId') || undefined,
     date: /^\d{4}-\d{2}-\d{2}$/.test(q.get('date') ?? '') ? q.get('date')! : undefined,
+    rescheduleAppointmentId: q.get('rescheduleAppointmentId') || undefined,
   }
 }
 
@@ -158,7 +159,7 @@ type Contact = { name: string | null; phone: string }
 type NoticeStatus = 'sent' | 'failed' | 'off' | 'unavailable' | 'proposed' | 'proposal_handoff'
 
 type Success = {
-  kind: 'confirmed' | 'waived' | 'paid' | 'signal' | 'proposed'
+  kind: 'confirmed' | 'waived' | 'paid' | 'signal' | 'proposed' | 'rescheduled'
   appointmentId?: string
   proposalId?: string
   serviceLabel: string
@@ -216,6 +217,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [success, setSuccess] = useState<Success | null>(null)
+  const [reschedule, setReschedule] = useState<{ id: string; version: number } | null>(null)
   const conflictRef = useRef<HTMLDivElement | null>(null)
 
   const timezone = config?.settings.timezone ?? 'America/Sao_Paulo'
@@ -253,6 +255,29 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
       cancelled = true
     }
   }, [api, tenantId, fo])
+
+  useEffect(() => {
+    const id = ctx.rescheduleAppointmentId
+    if (!id || !config) return
+    let cancelled = false
+    void api
+      .getAppointment(tenantId, id, fo)
+      .then((apt) => {
+        if (cancelled || apt.status !== 'confirmed') return
+        setReschedule({ id: apt.id, version: apt.version })
+        setServiceId(apt.serviceId)
+        setProfessionalId(apt.professionalId)
+        const ids = (apt.zones ?? []).map((z) => z.zoneId).filter((z): z is string => Boolean(z))
+        if (ids.length > 0) setZoneIds(ids)
+        setDate(civilDateInZone(apt.startsAt, config.settings.timezone))
+      })
+      .catch(() => {
+        /* o formulário continua utilizável se o compromisso não carregar */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api, tenantId, fo, config, ctx.rescheduleAppointmentId])
 
   // Contato real no cabeçalho (substitui «Contato sintético»).
   useEffect(() => {
@@ -798,6 +823,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           amountCents={amountCents}
           canCreateCharge={pix?.account.canCreateCharge === true}
           deadlineSeconds={pix?.signalSettings.deadlineSeconds ?? config.settings.signalDeadlineSeconds ?? DEFAULT_DEADLINE_SECONDS}
+          reschedule={reschedule}
           onConflict={onConflict}
           onSuccess={(s) => {
             setReviewOpen(false)
@@ -924,6 +950,7 @@ type ReviewProps = {
   deadlineSeconds: number
   onConflict: (message: string) => Promise<void>
   onSuccess: (s: Success) => void
+  reschedule: { id: string; version: number } | null
 }
 
 function ReviewSheet(p: ReviewProps) {
@@ -936,7 +963,8 @@ function ReviewSheet(p: ReviewProps) {
   const canNotify = Boolean(ctx.conversationId) && p.window24?.open === true
   // DEC-053 (Confirmado, card t1868s7504): com conversa, ligado dentro da janela
   // de 24 h; fora dela desligado com explicação.
-  const proposalPath = Boolean(ctx.conversationId && ctx.contactId) && !p.paidSignalMode
+  const proposalPath =
+    !p.reschedule && Boolean(ctx.conversationId && ctx.contactId) && !p.paidSignalMode
   const [notify, setNotify] = useState(() => defaultNotify(Boolean(ctx.conversationId), p.window24))
   const notifyTouched = useRef(false)
   useEffect(() => {
@@ -961,6 +989,7 @@ function ReviewSheet(p: ReviewProps) {
   const [waiveChip, setWaiveChip] = useState<string | null>(null)
   const [waiveOther, setWaiveOther] = useState('')
   const [clientRequestId, setClientRequestId] = useState(() => crypto.randomUUID())
+  const [rescheduleReason, setRescheduleReason] = useState('contato_remarcou')
   const contactLabel = p.contact?.name || p.contact?.phone || null
   const waiveReason = waiveChip === 'Outro' ? waiveOther.trim() : waiveChip ?? ''
 
@@ -979,12 +1008,16 @@ function ReviewSheet(p: ReviewProps) {
         roomResourceId: slot.roomResourceId,
         startsAt: slot.startsAt,
         durationMinutes: Math.round((slot.endsAt - slot.startsAt) / 60_000),
+        ...(p.reschedule ? { excludeAppointmentId: p.reschedule.id } : {}),
       },
       fo,
     )
     if (!check.available) {
       const detail = check.reasons.map(reasonLabel).join(' · ')
-      await p.onConflict(`Esse horário acabou de ser ocupado${detail ? ` (${detail})` : ''}. Nada foi reservado.`)
+      const kept = p.reschedule ? ' O horário anterior continua marcado.' : ''
+      await p.onConflict(
+        `Esse horário acabou de ser ocupado${detail ? ` (${detail})` : ''}. Nada foi reservado.${kept}`,
+      )
       return false
     }
     return true
@@ -1009,9 +1042,11 @@ function ReviewSheet(p: ReviewProps) {
     } catch (e) {
       if (isConflictError(e)) {
         await p.onConflict(
-          p.paidSignalMode
-            ? 'Esse horário acabou de ser ocupado. Nada foi reservado. O sinal pago continua guardado.'
-            : 'Esse horário acabou de ser ocupado. Nada foi reservado.',
+          p.reschedule
+            ? 'Esse horário acabou de ser ocupado. O horário anterior continua marcado.'
+            : p.paidSignalMode
+              ? 'Esse horário acabou de ser ocupado. Nada foi reservado. O sinal pago continua guardado.'
+              : 'Esse horário acabou de ser ocupado. Nada foi reservado.',
         )
       } else {
         setErr(`Não foi possível concluir. Nada foi reservado. ${friendlyError(e, '')}`.trim())
@@ -1067,6 +1102,41 @@ function ReviewSheet(p: ReviewProps) {
       }
       if (proposalPath) {
         await createAndSendProposalAction()
+        return
+      }
+      if (p.reschedule) {
+        const updated = await api.rescheduleAppointment(
+          tenantId,
+          p.reschedule.id,
+          {
+            clientRequestId,
+            reason: rescheduleReason,
+            serviceId: service.id,
+            professionalId: slot.professionalId,
+            roomResourceId: slot.roomResourceId,
+            startsAt: slot.startsAt,
+            expectedVersion: p.reschedule.version,
+            zoneIds: p.zoneIds,
+          },
+          fo,
+        )
+        p.onSuccess({
+          ...base,
+          kind: 'rescheduled',
+          appointmentId: updated.id,
+          notice:
+            updated.rescheduleNotice === 'sent'
+              ? 'sent'
+              : updated.rescheduleNotice === 'failed'
+                ? 'failed'
+                : 'unavailable',
+          noticeDetail:
+            updated.rescheduleNotice === 'window_closed'
+              ? 'A janela de 24 h está fechada: o aviso não foi enviado.'
+              : updated.rescheduleNotice === 'failed'
+                ? 'O aviso no WhatsApp não saiu.'
+                : undefined,
+        })
         return
       }
       const created = await api.confirmAppointment(
@@ -1154,7 +1224,18 @@ function ReviewSheet(p: ReviewProps) {
     ['Quando', whenLong],
   ]
   if (slot.roomResourceName) rows.push(['Sala', slot.roomResourceName])
-  if (service.priceCents != null) rows.push(['Valor', formatBrl(service.priceCents)])
+  const quote = visitQuote(service, p.zoneIds)
+  const kindLabel = variantTitle(service, 1)
+  if (quote.zoned && quote.zones.length > 0) {
+    for (const zone of quote.zones) {
+      const bits = [zone.name, genderLabel(zone.audience)]
+      if (zone.priceCents != null) bits.push(formatBrl(zone.priceCents))
+      rows.push([kindLabel, bits.join(' · ')])
+    }
+    if (quote.priceCents != null) rows.push(['Valor', formatBrl(quote.priceCents)])
+  } else if (service.priceCents != null) {
+    rows.push(['Valor', formatBrl(service.priceCents)])
+  }
 
   return (
     <ModalOverlay isOpen={p.isOpen} onOpenChange={(v) => !busy && p.onOpenChange(v)} isDismissable={!busy} className="panel-overlay">
@@ -1164,9 +1245,11 @@ function ReviewSheet(p: ReviewProps) {
           <Heading slot="title" id="agd-review-title" className="panel-title">
             {proposalPath
               ? 'Enviar proposta'
-              : p.requiresSignal
-                ? 'Sinal por Pix'
-                : 'Revisar agendamento'}
+              : p.reschedule
+                ? 'Reagendar'
+                : p.requiresSignal
+                  ? 'Sinal por Pix'
+                  : 'Revisar agendamento'}
           </Heading>
           <div className="agd-sheet-body">
             <TempoNotice phrases={slot.tempoWarnings} />
@@ -1181,7 +1264,7 @@ function ReviewSheet(p: ReviewProps) {
               <>
                 <dl className="agd-table">
                   {rows.map(([k, v]) => (
-                    <div key={k} className="agd-table-row">
+                    <div key={`${k}:${v}`} className="agd-table-row">
                       <dt>{k}</dt>
                       <dd>{v}</dd>
                     </div>
@@ -1215,11 +1298,16 @@ function ReviewSheet(p: ReviewProps) {
                 </section>
                 <Button
                   className="panel-btn panel-btn-primary agd-btn"
-                  isDisabled={busy}
+                  isDisabled={busy || (slot.tempoWarnings?.length ?? 0) > 0}
                   onPress={() => void run(() => createAndSendProposalAction())}
                 >
                   {busy ? 'Enviando proposta…' : 'Enviar proposta'}
                 </Button>
+                {(slot.tempoWarnings?.length ?? 0) > 0 ? (
+                  <p className="agd-note" role="note">
+                    Este horário não passa no tempo do serviço. A proposta não é enviada.
+                  </p>
+                ) : null}
               </>
             ) : p.requiresSignal && p.amountCents != null ? (
               <>
@@ -1290,12 +1378,26 @@ function ReviewSheet(p: ReviewProps) {
               <>
                 <dl className="agd-table">
                   {rows.map(([k, v]) => (
-                    <div key={k} className="agd-table-row">
+                    <div key={`${k}:${v}`} className="agd-table-row">
                       <dt>{k}</dt>
                       <dd>{v}</dd>
                     </div>
                   ))}
                 </dl>
+                {p.reschedule ? (
+                  <label className="panel-field">
+                    Motivo
+                    <select
+                      value={rescheduleReason}
+                      onChange={(e) => setRescheduleReason(e.target.value)}
+                    >
+                      <option value="contato_remarcou">Contacto remarcou</option>
+                      <option value="clinica_cancelou">Clínica cancelou</option>
+                      <option value="contato_desistiu">Contacto desistiu</option>
+                      <option value="outro">Outro</option>
+                    </select>
+                  </label>
+                ) : null}
                 <NoticeField
                   canNotify={canNotify}
                   hasConversation={Boolean(ctx.conversationId)}
@@ -1305,7 +1407,15 @@ function ReviewSheet(p: ReviewProps) {
                   setMessage={setMessage}
                 />
                 <Button className="panel-btn panel-btn-primary agd-btn" isDisabled={busy || (notify && !message.trim())} onPress={() => void confirm()}>
-                  {busy ? 'Confirmando…' : p.paidSignalMode ? 'Confirmar com sinal pago' : notify ? 'Confirmar e enviar' : 'Confirmar agendamento'}
+                  {busy
+                    ? 'Confirmando…'
+                    : p.reschedule
+                      ? 'Confirmar reagendamento'
+                      : p.paidSignalMode
+                        ? 'Confirmar com sinal pago'
+                        : notify
+                          ? 'Confirmar e enviar'
+                          : 'Confirmar agendamento'}
                 </Button>
               </>
             )}
@@ -1368,7 +1478,9 @@ function AgendarSuccess(props: {
       ? 'Sinal enviado'
       : success.kind === 'waived'
         ? 'Horário agendado sem sinal'
-        : success.kind === 'proposed'
+        : success.kind === 'rescheduled'
+          ? 'Horário reagendado'
+          : success.kind === 'proposed'
           ? 'Proposta enviada'
           : 'Horário agendado'
   const noticeText: Record<NoticeStatus, string> = {
@@ -1420,6 +1532,9 @@ function AgendarSuccess(props: {
           <p className="panel-meta">{success.noticeDetail} O compromisso continua confirmado.</p>
         ) : null}
         {success.notice === 'proposal_handoff' && success.noticeDetail ? (
+          <p className="panel-meta">{success.noticeDetail}</p>
+        ) : null}
+        {success.kind === 'rescheduled' && success.notice === 'unavailable' && success.noticeDetail ? (
           <p className="panel-meta">{success.noticeDetail}</p>
         ) : null}
       </div>

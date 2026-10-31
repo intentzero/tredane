@@ -150,9 +150,8 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('status').textContent).toContain('Sol fraco neste horário')
     expect(within(dialog).getByRole('status').textContent).toContain('Abaixo de 24 °C neste horário')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
-    await screen.findByRole('heading', { name: 'Proposta enviada' })
-    expect(api.createAndSendProposal).toHaveBeenCalled()
+    expect(within(dialog).getByRole('button', { name: 'Enviar proposta' }).hasAttribute('disabled')).toBe(true)
+    expect(api.createAndSendProposal).not.toHaveBeenCalled()
     expect(api.confirmAppointment).not.toHaveBeenCalled()
   })
 

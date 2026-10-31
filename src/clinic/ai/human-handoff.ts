@@ -11,6 +11,7 @@ import { listServices } from '../config/services'
 import { setConversationAssignee } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
+import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import type { ClinicDb } from '../store'
 
@@ -63,6 +64,15 @@ export function resumeAiReply(
     tenantId,
     conversationId,
   )
+  db.run(
+    `UPDATE pending_communications
+     SET status = 'resolved', resolved_at = ?, updated_at = ?
+     WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team' AND status != 'resolved'`,
+    now,
+    now,
+    tenantId,
+    conversationId,
+  )
   return [pauseEvent(db, tenantId, conversationId, false, clock)]
 }
 
@@ -95,12 +105,20 @@ function clearAiAssignee(db: ClinicDb, tenantId: string, conversationId: string,
     conversationId,
   )
   if (row?.assignee !== AI_ASSIGNEE) return
+  const now = clock.nowMs()
   setConversationAssignee(db, {
     tenantId,
     conversationId,
     assigneeClerkUserId: null,
     assigneeDisplayName: null,
-    updatedAt: clock.nowMs(),
+    updatedAt: now,
+  })
+  syncOpenOpportunityAssignee(db, {
+    tenantId,
+    conversationId,
+    assigneeClerkUserId: null,
+    assigneeDisplayName: null,
+    updatedAt: now,
   })
 }
 

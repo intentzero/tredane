@@ -19,6 +19,7 @@ export function serializeLinkedAppointment(a: LinkedAppointmentSummary | null) {
     contactLabel: a.contactLabel,
     serviceId: a.serviceId,
     professionalId: a.professionalId,
+    changeReason: a.changeReason,
   }
 }
 

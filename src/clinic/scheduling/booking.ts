@@ -22,11 +22,15 @@ import {
 import type { AppointmentRow } from '../config/types'
 import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
-import { assertValidCaller } from '../envelopes'
-import { ConflictError, NotFoundError, ValidationError } from '../errors'
+import { assertValidCaller, workerCaller } from '../envelopes'
+import { ConflictError, ClinicError, NotFoundError, ValidationError } from '../errors'
 import { newId } from '../ids'
+import { sendOutboundMessageOp } from '../inbox/operations'
+import { messagingWindowForConversation } from '../inbox/window'
 import { assertClinicSchemaReady } from '../migrations'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
+import { alignOpportunityToAppointments } from '../pipeline/appointment-stage'
+import { ensureClinicSettings } from '../config/settings'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
 import { deleteAllocationsForAppointment, insertAllocations } from './allocations'
@@ -569,7 +573,7 @@ export function cancelAppointmentOp(
     }
   }
 
-  return db.transactionSync(() => {
+  const committed = db.transactionSync(() => {
     const before = loadAppointment(db, meta.tenantId, input.appointmentId)
     if (before.status !== 'confirmed') {
       throw new ConflictError(
@@ -660,6 +664,23 @@ export function cancelAppointmentOp(
       clock,
     )
 
+    if (after.conversationId) {
+      outbox.push(
+        ...alignOpportunityToAppointments(
+          db,
+          {
+            tenantId: meta.tenantId,
+            conversationId: after.conversationId,
+            now,
+            actorClerkUserId: actorId,
+            actorDisplayName: actorId,
+            noShowAppointmentId: reason === 'nao_compareceu' ? after.id : null,
+          },
+          clock,
+        ),
+      )
+    }
+
     const detail = enrichDetail(db, meta.tenantId, after, clock)
     saveAppointmentCommand(db, {
       tenantId: meta.tenantId,
@@ -670,8 +691,107 @@ export function cancelAppointmentOp(
       createdAt: now,
     })
 
-    return { value: detail, outbox, idempotentReplay: false }
+    return { value: detail, outbox, idempotentReplay: false as const }
   })
+
+  if (!committed.value.conversationId) {
+    return { ...committed, cancelNotice: 'skipped' }
+  }
+  const notice = deliverCancelNotice(db, committed.value, clock)
+  return {
+    ...committed,
+    outbox: [...committed.outbox, ...notice.outbox],
+    cancelNotice: notice.status,
+  }
+}
+
+function deliverCancelNotice(
+  db: ClinicDb,
+  detail: AppointmentDetail,
+  clock: Clock,
+): { status: 'sent' | 'window_closed' | 'failed'; outbox: OutboxRow[] } {
+  const conversationId = detail.conversationId
+  if (!conversationId) return { status: 'failed', outbox: [] }
+  const now = clock.nowMs()
+  const window = messagingWindowForConversation(db, detail.tenantId, conversationId, now)
+  if (!window.open) return { status: 'window_closed', outbox: [] }
+  const when = slotWhen(db, detail.tenantId, detail.startsAt, clock)
+  try {
+    const sent = sendOutboundMessageOp(
+      db,
+      workerCaller(detail.tenantId, 'system:cancel-notice'),
+      {
+        conversationId,
+        body: `O horário de ${when.day} às ${when.hour} foi cancelado.`,
+        clientRequestId: `cancel.notice:${detail.id}`,
+        authorClerkUserId: 'system:cancel-notice',
+        authorDisplayName: 'Sistema',
+      },
+      clock,
+    )
+    return { status: 'sent', outbox: sent.outbox }
+  } catch (err) {
+    if (err instanceof ClinicError) return { status: 'failed', outbox: [] }
+    throw err
+  }
+}
+
+function slotWhen(
+  db: ClinicDb,
+  tenantId: string,
+  startsAt: number,
+  clock: Clock,
+): { day: string; hour: string } {
+  const tz = ensureClinicSettings(db, tenantId, clock).timezone
+  const date = new Date(startsAt)
+  return {
+    day: new Intl.DateTimeFormat('pt-BR', {
+      timeZone: tz,
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    }).format(date),
+    hour: new Intl.DateTimeFormat('pt-BR', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(date),
+  }
+}
+
+function deliverRescheduleNotice(
+  db: ClinicDb,
+  previousStartsAt: number,
+  detail: AppointmentDetail,
+  clientRequestId: string,
+  clock: Clock,
+): { status: 'sent' | 'window_closed' | 'failed'; outbox: OutboxRow[] } {
+  const conversationId = detail.conversationId
+  if (!conversationId) return { status: 'failed', outbox: [] }
+  const now = clock.nowMs()
+  const window = messagingWindowForConversation(db, detail.tenantId, conversationId, now)
+  if (!window.open) return { status: 'window_closed', outbox: [] }
+  const from = slotWhen(db, detail.tenantId, previousStartsAt, clock)
+  const to = slotWhen(db, detail.tenantId, detail.startsAt, clock)
+  try {
+    const sent = sendOutboundMessageOp(
+      db,
+      workerCaller(detail.tenantId, 'system:reschedule-notice'),
+      {
+        conversationId,
+        body: `O horário passou de ${from.day} às ${from.hour} para ${to.day} às ${to.hour}.`,
+        clientRequestId: `reschedule.notice:${clientRequestId}`,
+        authorClerkUserId: 'system:reschedule-notice',
+        authorDisplayName: 'Sistema',
+      },
+      clock,
+    )
+    return { status: 'sent', outbox: sent.outbox }
+  } catch (err) {
+    if (err instanceof ClinicError) return { status: 'failed', outbox: [] }
+    throw err
+  }
 }
 
 /**
@@ -707,7 +827,7 @@ export function rescheduleAppointmentOp(
     }
   }
 
-  return db.transactionSync(() => {
+  const committed = db.transactionSync(() => {
     const before = loadAppointment(db, meta.tenantId, input.appointmentId)
     if (before.status !== 'confirmed') {
       throw new ConflictError(
@@ -910,8 +1030,25 @@ export function rescheduleAppointmentOp(
       createdAt: now,
     })
 
-    return { value: detail, outbox, idempotentReplay: false }
+    return { value: detail, outbox, idempotentReplay: false as const, previousStartsAt: before.startsAt }
   })
+
+  if (!committed.value.conversationId || committed.previousStartsAt === committed.value.startsAt) {
+    return { ...committed, rescheduleNotice: 'skipped' }
+  }
+  const notice = deliverRescheduleNotice(
+    db,
+    committed.previousStartsAt,
+    committed.value,
+    clientRequestId,
+    clock,
+  )
+  return {
+    value: committed.value,
+    outbox: [...committed.outbox, ...notice.outbox],
+    idempotentReplay: false,
+    rescheduleNotice: notice.status,
+  }
 }
 
 export function getAppointmentDetailOp(

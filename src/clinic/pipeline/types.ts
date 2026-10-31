@@ -37,6 +37,7 @@ export type LinkedAppointmentSummary = {
   endsAt: number
   status: 'confirmed' | 'cancelled'
   contactLabel: string | null
+  changeReason: string | null
   serviceId: string
   professionalId: string
 }

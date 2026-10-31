@@ -19,7 +19,7 @@ Conferido no código da `main` (schema da clínica na versão 44). As fatias aba
 | Já existe | Onde | O que este épico não manda refazer |
 | --- | --- | --- |
 | Marcação só pelo botão versionado; texto livre não marca. | DEC-061; `handleProposalButtonClick`, `executeProposalConfirmOp` | Não reabrir marcação por texto. O follow-up pós-agendamento é **depois** do sucesso do botão. |
-| Etapa terminal **Concluído** (`concluido`) fecha o ciclo; **Perdido** também. | `OPPORTUNITY_STAGES`, `TERMINAL_OPPORTUNITY_STAGES`; migração `0005_pipeline` | Usar `concluido` no «Não, obrigado» e no fecho por idle sem resposta. Não inventar outra etapa de ganho. |
+| Etapa terminal **Concluído** (`concluido`) fecha o ciclo; **Perdido** também. | `OPPORTUNITY_STAGES`, `TERMINAL_OPPORTUNITY_STAGES`; migração `0005_pipeline` | **Revisão DEC-086 (31/10/2026):** «Não, obrigado» não move a etapa. Concluído é o fim do horário confirmado, sem outro horário futuro (DEC-094), ou a falta Não compareceu (DEC-092). Não inventar outra etapa de ganho. |
 | Botões WhatsApp interactivos (proposta, «Falar com a equipe»). | `sendOutboundMessageOp` com `interactive`; `button_reply` no webhook | Reutilizar o mesmo canal de botões versionados / ids estáveis. |
 | Alarme do Durable Object: Pix, comunicação pendente (5 min), outbound stuck, autodraft. | `ClinicDurableObject.alarm` | Estender o alarme (ou o mesmo padrão) para idle 30 min + segundo prazo; não criar Workflow só para isto se o alarme bastar. |
 | `clinic_settings` com fuso, Pix, abuse limits, Tempo, IA opt-in; escrita só owner. | migrações `0003`…`0030`; `AutomationLimitsCard` | Acrescentar nome/género do atendente virtual na mesma tabela e no hub owner. |
@@ -36,7 +36,7 @@ Conferido no código da `main` (schema da clínica na versão 44). As fatias aba
 
 Depois de a marcação ficar confirmada pelo botão da proposta (DEC-061), o sistema envia uma mensagem a perguntar se pode ajudar em algo mais, com **dois botões**:
 
-- **«Não, obrigado»** → agradecer e passar a oportunidade aberta da conversa para a etapa **Concluído** (`concluido`), a mesma já usada para «atendimento concluído» / ciclo fechado com ganho.
+- **«Não, obrigado»** → agradecer e manter a oportunidade em **Agendado**, com a data do horário (revisão DEC-086, 31/10/2026). A frase original, que movia para `concluido` no clique, deixa de valer.
 - **«Quero agendar outro serviço»** → continua o fluxo de agendamento na mesma conversa (nova intenção de serviço; a IA ou a equipa retoma o catálogo sem fechar o ciclo).
 
 DEC-061 inalterado: texto livre nunca marca.
@@ -47,7 +47,7 @@ DEC-061 inalterado: texto livre nunca marca.
 
 Após **30 minutos** Confirmados sem progresso útil, perguntar se quer **prosseguir** ou **terminar** o atendimento (botões).
 
-**Sem resposta:** segundo prazo **Proposto = mais 30 minutos** a contar do envio da pergunta de idle (Paulo fixou o primeiro idle em 30 min e não fixou o segundo; não se inventa 24 h). Ao expirar sem resposta: fechar o atendimento (etapa **Concluído**), agradecer educadamente e deixar a conversa sem ciclo aberto a exigir follow-up automático.
+**Sem resposta:** segundo prazo **Confirmado = mais 30 minutos** a contar do envio da pergunta de idle (Paulo, 31/10/2026, «ok»). O destino é o do **Terminar** (DEC-087): com horário futuro confirmado a etapa não muda; sem horário, **Perdido**. A frase que fechava em **Concluído** deixa de valer.
 
 **Excepções (Confirmado no desenho da implementação):** conversa com atendente humano activo (DEC-083 / Assumir) **não** recebe o prompt de idle automático enquanto a pessoa estiver responsável; nova mensagem inbound ou outbound cancela o prazo corrente e reinicia a contagem.
 
@@ -87,7 +87,7 @@ S1 → S2 → S3 → S4 → S5. Cada fatia é verificável sozinha. S1 não muda
 
 **Critérios de aceite.**
 
-- [ ] `docs/product/decisions.md` tem DEC-086…089 com idle **30 min** Confirmado e segundo prazo **Proposto 30 min**.
+- [ ] `docs/product/decisions.md` tem DEC-086…089 com idle **30 min** e segundo prazo **Confirmados**.
 - [ ] A etapa de fecho documentada é `concluido` / Concluído.
 - [ ] Issue/épico GitHub aponta para este ficheiro.
 - [ ] `docs/MVP.md` resume as quatro regras sem duplicar o detalhe.
@@ -114,7 +114,7 @@ S1 → S2 → S3 → S4 → S5. Cada fatia é verificável sozinha. S1 não muda
 
 ## S4 — Pós-agendamento com botões
 
-**Comportamento.** Após `executeProposalConfirmOp` com `status: 'booked'` (e o caminho Pix pago que confirma o horário, quando aplicável sem duplicar), enfileira mensagem interactiva de follow-up. Clique «Não, obrigado» → agradecimento + etapa `concluido`. Clique «Quero agendar outro serviço» → limpa intenção de serviço na sessão da conversa (se houver) e deixa a conversa aberta para novo pedido; não fecha o ciclo.
+**Comportamento.** Após `executeProposalConfirmOp` com `status: 'booked'` (e o caminho Pix pago que confirma o horário, quando aplicável sem duplicar), enfileira mensagem interactiva de follow-up. Clique «Não, obrigado» → agradecimento, etapa permanece `agendado` (revisão DEC-086). Clique «Quero agendar outro serviço» → limpa intenção de serviço na sessão da conversa (se houver) e deixa a conversa aberta para novo pedido; não fecha o ciclo.
 
 **Aceite:** AC-71; REQ-097. DEC-061 intacto.
 
@@ -122,7 +122,7 @@ S1 → S2 → S3 → S4 → S5. Cada fatia é verificável sozinha. S1 não muda
 
 ## S5 — Idle 30 min + fecho
 
-**Comportamento.** Em cada inbound/outbound de mensagem da conversa, agenda (ou reagenda) o alarme do DO para `last_message_at + 30 min` nas conversas elegíveis (ciclo aberto, sem responsável humano activo). No alarme: se ainda idle, envia pergunta prosseguir/terminar e agenda o segundo prazo (**Proposto** +30 min). Sem resposta: agradece, move para `concluido`, cancela alarmes dessa conversa.
+**Comportamento.** Em cada inbound/outbound de mensagem da conversa, agenda (ou reagenda) o alarme do DO para `last_message_at + 30 min` nas conversas elegíveis (ciclo aberto, sem responsável humano activo). No alarme: se ainda idle, envia pergunta prosseguir/terminar e agenda o segundo prazo (+30 min, Confirmado). **Terminar** e esse silêncio: com horário futuro confirmado agradece e permanece em `agendado`; sem horário futuro agradece e vai para `perdido` (DEC-087).
 
 **Aceite:** AC-72; REQ-098.
 

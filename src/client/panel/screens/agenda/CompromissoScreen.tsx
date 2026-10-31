@@ -14,7 +14,7 @@ import {
 import { useClinicTimezone } from '../../clinicTimezone'
 import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
-import { formatSlotTime } from './format'
+import { civilDateInZone, formatSlotTime } from './format'
 import { friendlyError } from '../../copy/errors'
 
 type Props = {
@@ -168,7 +168,15 @@ export function CompromissoScreen({
         setDetail(updated)
         setMode('view')
         onChanged?.()
-        setMessage('Compromisso cancelado. Recursos liberados.')
+        setMessage(
+          updated.cancelNotice === 'sent'
+            ? 'Compromisso cancelado. A cliente foi avisada no WhatsApp.'
+            : updated.cancelNotice === 'window_closed'
+              ? 'Compromisso cancelado. A janela de 24 h está fechada: o aviso não foi enviado.'
+              : updated.cancelNotice === 'failed'
+                ? 'Compromisso cancelado. O aviso no WhatsApp não saiu.'
+                : 'Compromisso cancelado. Recursos liberados.',
+        )
       }
     } catch (err) {
       setMessage(friendlyError(err, 'Não foi possível cancelar o compromisso.'))
@@ -339,6 +347,11 @@ export function CompromissoScreen({
                   area: 'agenda',
                   tenantId,
                   section: 'agendar',
+                  rescheduleAppointmentId: detail.id,
+                  conversationId: detail.conversationId ?? undefined,
+                  contactId: detail.contactId ?? undefined,
+                  opportunityId: detail.opportunityId ?? undefined,
+                  date: civilDateInZone(detail.startsAt, timezone),
                 })
               }
             >

@@ -180,7 +180,7 @@ describe('DEC-083', () => {
     }
   })
 
-  it('alerta aberto: devolver e pedir de novo não repete a frase e a lista pede alguém', () => {
+  it('devolver à IA fecha o alerta; um pedido novo manda a frase outra vez', () => {
     const s = seed()
     try {
       s.say('Oi')
@@ -193,6 +193,12 @@ describe('DEC-083', () => {
       const n = s.outboundCount()
       s.clock.advance(1_000)
       resumeAiReply(s.db, s.tenantId, s.cnv.id, s.clock)
+      expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      expect(
+        listOpenPendingCommunicationsForConversation(s.db, s.tenantId, s.cnv.id).some(
+          (row) => row.kind === 'alter_awaiting_team',
+        ),
+      ).toBe(false)
       s.clock.advance(1_000)
       const again = notifyHumanHandoff(
         s.db,
@@ -200,9 +206,8 @@ describe('DEC-083', () => {
         { conversationId: s.cnv.id, reason: 'off_purpose', clientRequestId: 'handoff-again' },
         s.clock,
       )
-      expect(again.sent).toBe(false)
-      expect(again.outbox.some((row) => row.type === 'conversation.ai_pause')).toBe(true)
-      expect(s.outboundCount()).toBe(n)
+      expect(again.sent).toBe(true)
+      expect(s.outboundCount()).toBe(n + 1)
       expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).not.toBeNull()
       const listed = listConversations(s.db, s.tenantId, { filter: 'needs_person' })
       expect(listed.items.some((item) => item.id === s.cnv.id && item.needsPerson)).toBe(true)
@@ -399,6 +404,31 @@ describe('DEC-083', () => {
         conversationId: s.cnv.id,
         aiReplyPaused: false,
       })
+      expect(
+        listOpenPendingCommunicationsForConversation(s.db, s.tenantId, s.cnv.id).some(
+          (row) => row.kind === 'alter_awaiting_team',
+        ),
+      ).toBe(false)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('«Remarca meu horário de segunda para terça, 3 de novembro, às 10:00.» pausa antes do modelo', async () => {
+    const s = seed()
+    try {
+      const out = await runInbound(
+        s,
+        'Remarca meu horário de segunda para terça, 3 de novembro, às 10:00.',
+      )
+      expect(out.reason).toBe('human_handoff')
+      expect(s.calls()).toBe(0)
+      const sent = s.db.get<{ body: string }>(
+        `SELECT body FROM messages WHERE tenant_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+        s.tenantId,
+      )
+      expect(sent?.body).toBe(HUMAN_HANDOFF_TEXT)
+      expect(sent?.body).not.toMatch(/para qual dia/i)
     } finally {
       s.close()
     }

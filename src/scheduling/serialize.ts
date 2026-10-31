@@ -124,6 +124,13 @@ export function serializeAppointmentDetail(detail: AppointmentDetail) {
       newJson: e.newJson,
       occurredAt: e.occurredAt,
     })),
+    zones: detail.zones.map((z) => ({
+      zoneId: z.zoneId,
+      name: z.name,
+      audience: z.audience,
+      durationMinutes: z.durationMinutes,
+      priceCents: z.priceCents,
+    })),
   }
 }
 

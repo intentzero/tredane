@@ -7,6 +7,12 @@ import {
   upsertResourceOp,
   upsertServiceOp,
 } from '../config'
+import { upsertContact } from '../contacts'
+import { createConversation } from '../inbox/conversations'
+import { insertMessage } from '../inbox/messages'
+import { syncWhatsappChannel } from '../whatsapp/channel'
+import { ensureOpenOpportunity } from '../pipeline/operations'
+import { sweepEndedAppointments } from '../pipeline/appointment-stage'
 import {
   cancelAppointmentOp,
   confirmAppointmentOp,
@@ -345,6 +351,7 @@ describe('agendamento atómico (#36)', () => {
       expect(moved.value.startsAt).toBe(okStart)
       expect(moved.value.version).toBe(2)
       expect(moved.value.changeReason).toBe('contato_remarcou')
+      expect(moved.rescheduleNotice).toBe('skipped')
     } finally {
       close()
     }
@@ -435,6 +442,243 @@ describe('agendamento atómico (#36)', () => {
       )
       expect(row?.status).toBe('confirmed')
       expect(row?.n).toBe(2)
+    } finally {
+      close()
+    }
+  })
+
+  it('cancelar o último horário volta a Em atendimento; não compareceu conclui; o fim do horário conclui', () => {
+    const clock = createControllableClock(Date.UTC(2024, 0, 1))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const { caller, pro, room, svc, tenantId } = seedClinic(db, clock)
+      const contact = upsertContact(db, { tenantId, waId: '5511900001111', displayName: 'Marina Souza' }, clock)
+      const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
+      const opp = ensureOpenOpportunity(
+        db,
+        { tenantId, contactId: contact.id, conversationId: cnv.id },
+        clock,
+      ).opportunity
+      const first = confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-stage-1',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 9, 0),
+          contactId: contact.id,
+          conversationId: cnv.id,
+          opportunityId: opp.id,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      const second = confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-stage-2',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 11, 0),
+          contactId: contact.id,
+          conversationId: cnv.id,
+          opportunityId: opp.id,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      const kept = cancelAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-stage-3',
+          appointmentId: second.value.id,
+          reason: 'contato_desistiu',
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      expect(kept.value.status).toBe('cancelled')
+      expect(kept.cancelNotice).toBe('window_closed')
+      const still = db.get<{ stage: string; linked: string | null; status: string }>(
+        `SELECT stage, linked_appointment_id AS linked, status FROM opportunities WHERE id = ?`,
+        opp.id,
+      )
+      expect(still).toEqual({ stage: 'agendado', linked: first.value.id, status: 'open' })
+
+      const last = cancelAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-stage-4',
+          appointmentId: first.value.id,
+          reason: 'nao_compareceu',
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      expect(last.value.status).toBe('cancelled')
+      const noshow = db.get<{ stage: string; linked: string | null; status: string }>(
+        `SELECT stage, linked_appointment_id AS linked, status FROM opportunities WHERE id = ?`,
+        opp.id,
+      )
+      expect(noshow).toEqual({ stage: 'concluido', linked: first.value.id, status: 'closed' })
+
+      const cnv2 = cnv
+      const opp2 = ensureOpenOpportunity(
+        db,
+        { tenantId, contactId: contact.id, conversationId: cnv2.id },
+        clock,
+      ).opportunity
+      const visit = confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-stage-5',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 14, 0),
+          contactId: contact.id,
+          conversationId: cnv2.id,
+          opportunityId: opp2.id,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      clock.advance(10 * 24 * 60 * 60 * 1000)
+      sweepEndedAppointments(db, tenantId, clock)
+      const done = db.get<{ stage: string; status: string; linked: string | null }>(
+        `SELECT stage, status, linked_appointment_id AS linked FROM opportunities WHERE id = ?`,
+        opp2.id,
+      )
+      expect(done).toEqual({ stage: 'concluido', status: 'closed', linked: visit.value.id })
+      const apt = db.get<{ status: string; reason: string | null }>(
+        `SELECT status, change_reason AS reason FROM appointments WHERE id = ?`,
+        visit.value.id,
+      )
+      expect(apt).toEqual({ status: 'confirmed', reason: null })
+    } finally {
+      close()
+    }
+  })
+
+  it('reagendar avisa no WhatsApp dentro da janela e não desfaz fora dela (DEC-097)', () => {
+    const clock = createControllableClock(Date.UTC(2024, 0, 1))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      const { caller, pro, room, svc, tenantId } = seedClinic(db, clock)
+      const contact = upsertContact(db, { tenantId, waId: '5511900002222', displayName: 'Marina Souza' }, clock)
+      const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
+      const start = zonedCivilToUtc(TZ, 2024, 1, 8, 9, 0)
+      const apt = confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-move-1',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: start,
+          contactId: contact.id,
+          conversationId: cnv.id,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      const closed = rescheduleAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-move-2',
+          appointmentId: apt.value.id,
+          reason: 'contato_remarcou',
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 14, 0),
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      expect(closed.rescheduleNotice).toBe('window_closed')
+      expect(closed.value.startsAt).toBe(zonedCivilToUtc(TZ, 2024, 1, 8, 14, 0))
+      expect(
+        db.get(`SELECT id FROM messages WHERE conversation_id = ? AND direction = 'outbound'`, cnv.id),
+      ).toBeUndefined()
+
+      syncWhatsappChannel(
+        db,
+        tenantId,
+        {
+          status: 'connected',
+          bindingId: 'b1',
+          phoneNumberId: 'pn1',
+          wabaId: 'w1',
+          displayPhone: '+1555',
+          action: 'channel_connected',
+        },
+        clock,
+      )
+      insertMessage(
+        db,
+        {
+          tenantId,
+          conversationId: cnv.id,
+          direction: 'inbound',
+          body: 'Oi',
+          externalMessageId: 'wamid.move.1',
+          deliveryState: 'received',
+          createdAt: clock.nowMs(),
+        },
+        clock,
+      )
+      const open = rescheduleAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-move-3',
+          appointmentId: apt.value.id,
+          reason: 'contato_remarcou',
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 16, 0),
+          expectedVersion: closed.value.version,
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      expect(open.rescheduleNotice).toBe('sent')
+      const body = db.get<{ body: string }>(
+        `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound'`,
+        cnv.id,
+      )?.body
+      expect(body).toBe(
+        'O horário passou de segunda-feira, 8 de janeiro às 14:00 para segunda-feira, 8 de janeiro às 16:00.',
+      )
+
+      rescheduleAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'req-move-3',
+          appointmentId: apt.value.id,
+          reason: 'contato_remarcou',
+          professionalId: pro.id,
+          roomResourceId: room.id,
+          startsAt: zonedCivilToUtc(TZ, 2024, 1, 8, 16, 0),
+          actorClerkUserId: 'user_synth_owner_a',
+        },
+        clock,
+      )
+      const n = db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ? AND direction = 'outbound'`,
+        cnv.id,
+      )
+      expect(n?.n).toBe(1)
     } finally {
       close()
     }
