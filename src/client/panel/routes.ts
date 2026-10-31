@@ -79,6 +79,9 @@ export type PanelRoute =
       alertId?: string
       /** Dia civil (AAAA-MM-DD) já escolhido na Agenda — abre o Agendar nesse dia. */
       date?: string
+      /** Hora (HH:MM, fuso da clínica) e profissional escolhidos num horário livre da Agenda. */
+      time?: string
+      professionalId?: string
       /** DEC-096: move o mesmo compromisso, com o formulário já preenchido. */
       rescheduleAppointmentId?: string
     }
@@ -247,6 +250,8 @@ export function resolvePanelRoute(pathname: string, search = ''): PanelRoute | n
         opportunityId: pick('opportunityId'),
         alertId: pick('alertId'),
         rescheduleAppointmentId: pick('rescheduleAppointmentId'),
+        time: /^([01]\d|2[0-3]):[0-5]\d$/.test(q.get('time') ?? '') ? q.get('time')! : undefined,
+        professionalId: pick('professionalId'),
       }
     }
     if (head === 'semana') {
@@ -318,6 +323,8 @@ export function panelHref(route: PanelRoute): string {
           if (route.alertId) q.set('alertId', route.alertId)
           if (route.rescheduleAppointmentId) q.set('rescheduleAppointmentId', route.rescheduleAppointmentId)
           if (isCivilDateParam(route.date)) q.set('date', route.date)
+          if (route.time && /^([01]\d|2[0-3]):[0-5]\d$/.test(route.time)) q.set('time', route.time)
+          if (route.professionalId) q.set('professionalId', route.professionalId)
           const qs = q.toString()
           return qs ? `${base}/agendar?${qs}` : `${base}/agendar`
         }

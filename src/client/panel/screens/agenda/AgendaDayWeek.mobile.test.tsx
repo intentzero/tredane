@@ -133,4 +133,19 @@ describe('Agenda — dia no celular', () => {
     expect(screen.queryByText(/Nenhum horário marcado/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Agendar horário' })).toBeNull()
   })
+
+  it('semana no celular: cartões por dia, hoje aberto, «Abrir o dia» leva ao dia', async () => {
+    render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="week" />)
+    const todayHead = await screen.findByRole('button', { name: /Hoje · \d+ horários?/ })
+    expect(todayHead.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText('Laura Pires')).toBeTruthy()
+    fireEvent.click(todayHead)
+    expect(todayHead.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByText('Laura Pires')).toBeNull()
+    fireEvent.click(todayHead)
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir o dia' }))
+    expect(navigatePanel).toHaveBeenCalledWith(
+      expect.objectContaining({ section: 'dia', area: 'agenda' }),
+    )
+  })
 })

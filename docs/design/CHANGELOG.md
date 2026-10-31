@@ -3,12 +3,20 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 31/10/2026 — Agenda: livres e ocupação do expediente (**Proposto**)
+
+- Sem mock novo: segue o canvas privado «Agenda: segunda rodada de UI/UX» (Semana, Dia sem horários, Semana desktop). Texto em `ux-ui.md` (TEL-04).
+- **Implementado:** `GET …/agenda` devolve `availability` (expediente, livres, bloqueios por profissional e dia); semana com «N livres» e barra de ocupação; dia com livres e «Agendar» que leva dia, hora e profissional ao Agendar; dia sem horários mostra os três primeiros livres. Sem token novo.
+
 ## 31/10/2026 — Tema claro/escuro/sistema (paleta **Confirmada**, DEC-098)
 
 - `tokens.json` v0.5.0: novo grupo `colorDark` (mesmos papéis de `color`); `tokens.css` passa a emitir `:root[data-theme="dark"]` e `@media (prefers-color-scheme: dark)` com `:root:not([data-theme="light"])`. `check_contrast.py` valida os pares nos dois temas (54 verificações, todas dentro do mínimo).
 - Mock M-56 `mobile/Aparencia.dc.html` (Sistema, Claro, Escuro; escolha só no aparelho). Preview PNG ainda não gerado.
 - **Confirmado (Paulo, 31/10/2026, «Aprovar paleta» e «implementa»):** valores escuros, armazenamento no aparelho e Sistema como padrão.
 - **Implementado:** `src/client/panel/theme.ts` (leitura, aplicação e escuta do sistema), script em `index.html` que aplica `data-theme` antes da primeira pintura, seção Aparência no `AccountMenu`, `tokens.css` sincronizado e cores fixas do `panel.css` trocadas por tokens. Fora do tema ainda: pessoas na agenda (paleta própria) e telas hospedadas do Clerk. Nada do painel implementado consome `colorDark` ainda.
+## 31/10/2026 — Agenda: semana em cartões e Abrir conversa (**Proposto**)
+
+- Propostas visuais (canvas externo «Agenda: segunda rodada de UI/UX», privado): Semana, Compromisso com cancelar e sinal, Dia sem horários, Semana desktop. Implementado só o que os dados permitem: semana no celular em cartões por dia e «Abrir conversa» no compromisso. Fora: barra de ocupação, horários livres sugeridos, cancelar com cartões de rádio.
 
 ## 31/10/2026 — Controlos da thread (Opção A **Confirmada**)
 

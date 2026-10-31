@@ -2136,6 +2136,197 @@
   padding: 0 var(--space-4) var(--space-4);
 }
 
+.agenda-week-card {
+  margin: 0 var(--space-4) var(--space-2);
+  background: var(--color-surface-card);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+}
+
+.agenda-week-card--today {
+  border-color: var(--color-primary-base);
+}
+
+.agenda-week-card--empty {
+  background: transparent;
+  border-style: dashed;
+}
+
+.agenda-week-card-head {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.agenda-week-card-head:disabled {
+  cursor: default;
+  color: var(--color-text-muted);
+}
+
+.agenda-week-card-head:focus-visible,
+.agenda-week-card-open:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.agenda-week-card-date {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.agenda-week-card--today .agenda-week-card-date {
+  background: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+}
+
+.agenda-week-card-wd {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+}
+
+.agenda-week-card-n {
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-semibold);
+}
+
+.agenda-week-card-title {
+  flex: 1;
+  font-weight: var(--font-weight-medium);
+}
+
+.agenda-week-card-chev {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+.agenda-week-card-head[aria-expanded="true"] .agenda-week-card-chev {
+  transform: rotate(180deg);
+}
+
+.agenda-week-card-body {
+  padding: 0 var(--space-3) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.agenda-week-card-open {
+  min-height: var(--size-touch);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.agenda-week-card-free {
+  color: var(--color-primary-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.agenda-occ {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.agenda-day-group > .agenda-occ {
+  padding-inline: 0;
+}
+
+.agenda-occ-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 40px;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.agenda-occ-track {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.agenda-occ-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-base);
+}
+
+.agenda-occ-pct {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.agenda-free {
+  flex: 1;
+  min-height: var(--size-touch);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--size-border-width) dashed var(--color-line-border);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agenda-free-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: var(--font-size-caption);
+}
+
+.agenda-free-text strong {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.agenda-free-cta {
+  color: var(--color-primary-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.agenda-free:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.agenda-open-chat {
+  width: 100%;
+}
+
 .agenda-apt-list {
   margin: 0;
   padding: 0;

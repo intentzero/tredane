@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, ToggleButton, ToggleButtonGroup } from 'react-aria-components'
 import {
@@ -22,6 +22,7 @@ import { AgendaContext } from './AgendaContext'
 import { AgendaDayList } from './AgendaDayList'
 import { CompromissoScreen } from './CompromissoScreen'
 import { buildDayEntries, initialsOf, shortName } from './dayList'
+import { freeSlotsOfDay, occupancyOfDay, type DayOccupancy, type FreeSlot } from './freeSlots'
 import {
   HOUR_HEIGHT,
   layoutDay,
@@ -101,6 +102,7 @@ export function AgendaDayWeek({
   const [detail, setDetail] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState(() => Date.now())
+  const [openDay, setOpenDay] = useState<string | null>(null)
   const narrow = useMediaQuery('(max-width: 767.98px)')
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
   const [selected, setSelected] = useState<string[]>([])
@@ -285,6 +287,23 @@ export function AgendaDayWeek({
     roomCapacity,
     date === today ? now : null,
   )
+  const freeToday = freeSlotsOfDay(data?.availability, date, selected)
+  const listEntries = buildDayEntries(
+    (byDay.get(date) ?? []).filter(passesFilters),
+    roomCapacity,
+    date === today ? now : null,
+    freeToday,
+  )
+  const goScheduleAt = (slot: FreeSlot) =>
+    navigatePanel({
+      kind: 'area',
+      area: 'agenda',
+      tenantId,
+      section: 'agendar',
+      date,
+      time: formatSlotTime(slot.startsAt, timezone),
+      professionalId: slot.professionalId,
+    })
   const holds: ScheduleHold[] = (data?.holds ?? []).filter(
     (h) => h.status === 'active' && civilDayOf(h.windowStartsAt, timezone) === date,
   )
@@ -449,13 +468,14 @@ export function AgendaDayWeek({
       <div className="panel-scroll agenda-body">
         {view === 'day' && narrow ? (
           <AgendaDayList
-            entries={entries}
+            entries={listEntries}
             holds={holds}
             professionals={professionals}
             timezone={timezone}
             now={now}
             onOpen={(id) => openAppointment(id)}
             onSchedule={goSchedule}
+            onScheduleAt={goScheduleAt}
             onOpenHold={(h) =>
               navigatePanel({ kind: 'area', area: 'conversas', tenantId, section: 'thread', conversationId: h.conversationId })
             }
@@ -474,12 +494,82 @@ export function AgendaDayWeek({
             const items = (byDay.get(day) ?? []).filter(
               (a) => !narrow || selected.length === 0 || selected.includes(a.professionalId),
             )
+            const occupancy = occupancyOfDay(data?.availability, day, narrow ? selected : [])
+            const freeCount = freeSlotsOfDay(data?.availability, day, narrow ? selected : []).length
+            if (narrow) {
+              const isOpen = (openDay ?? today) === day
+              const n = items.length
+              const panelId = `agenda-week-${day}`
+              return (
+                <section
+                  key={day}
+                  className={`agenda-week-card${day === today ? ' agenda-week-card--today' : ''}${n === 0 ? ' agenda-week-card--empty' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="agenda-week-card-head"
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                    disabled={n === 0}
+                    onClick={() => setOpenDay(isOpen ? '' : day)}
+                  >
+                    <span className="agenda-week-card-date" aria-hidden>
+                      <span className="agenda-week-card-wd">{label.weekday}</span>
+                      <span className="agenda-week-card-n">{label.day}</span>
+                    </span>
+                    <span className="agenda-week-card-title">
+                      {day === today ? 'Hoje · ' : ''}
+                      {n === 0 ? 'Nenhum horário' : `${n} ${n === 1 ? 'horário' : 'horários'}`}
+                      {freeCount > 0 ? <span className="agenda-week-card-free"> · {freeCount} livres</span> : null}
+                    </span>
+                    {n > 0 ? <ChevronDown aria-hidden size={18} className="agenda-week-card-chev" /> : null}
+                  </button>
+                  <OccupancyBars occupancy={occupancy} />
+                  {isOpen && n > 0 ? (
+                    <div id={panelId} className="agenda-week-card-body">
+                      <ul className="agenda-apt-list">
+                        {items.map((apt) => (
+                          <li key={apt.id}>
+                            <button type="button" className="agenda-apt" onClick={() => openAppointment(apt.id)}>
+                              <span className="agenda-apt-time">
+                                {formatSlotTime(apt.startsAt, timezone)}
+                                {' – '}
+                                {formatSlotTime(apt.endsAt, timezone)}
+                              </span>
+                              <span className="agenda-apt-title">{apt.contactLabel || apt.serviceName}</span>
+                              <span className="agenda-apt-meta">
+                                {apt.serviceName}
+                                {' · '}
+                                {apt.professionalName}
+                                {apt.roomResourceName ? ` · ${apt.roomResourceName}` : ''}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      <button
+                        type="button"
+                        className="agenda-week-card-open"
+                        onClick={() => {
+                          setDate(day)
+                          navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: 'dia' })
+                        }}
+                      >
+                        Abrir o dia
+                      </button>
+                    </div>
+                  ) : null}
+                </section>
+              )
+            }
             return (
               <section key={day} className="agenda-day-group">
                 <h2 className="panel-legend">
                   {label.weekday} {label.day}
                   {day === today ? <Badge tone="new">Hoje</Badge> : null}
+                  {freeCount > 0 ? <span className="agenda-week-card-free"> · {freeCount} livres</span> : null}
                 </h2>
+                <OccupancyBars occupancy={occupancy} />
                 {items.length === 0 ? (
                   <p className="panel-meta">Nenhum horário marcado.</p>
                 ) : (
@@ -581,6 +671,31 @@ export function AgendaDayWeek({
         </aside>
       ) : null}
     </div>
+  )
+}
+
+/** Barra de ocupação do expediente por profissional (Proposto, TEL-04). */
+function OccupancyBars({ occupancy }: { occupancy: DayOccupancy[] }) {
+  if (occupancy.length === 0) return null
+  return (
+    <ul className="agenda-occ" aria-label="Ocupação do expediente">
+      {occupancy.map((o) => {
+        return (
+          <li
+            key={o.professionalId}
+            className="agenda-occ-row"
+            role="img"
+            aria-label={`${shortName(o.professionalName)}: ${o.percent}% do expediente ocupado`}
+          >
+            <span className="agenda-occ-name" aria-hidden>{shortName(o.professionalName)}</span>
+            <span className="agenda-occ-track" aria-hidden>
+              <span className="agenda-occ-fill" style={{ width: `${o.percent}%` }} />
+            </span>
+            <span className="agenda-occ-pct" aria-hidden>{o.percent}%</span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 
