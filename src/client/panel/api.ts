@@ -520,7 +520,13 @@ export function createPanelApi(getToken: TokenGetter) {
 
     async setClinicAiProfile(
       tenantId: string,
-      body: { clinicAddress: string; googleBusinessUrl: string; reschedulePolicy: string },
+      body: {
+        clinicAddress: string
+        googleBusinessUrl: string
+        reschedulePolicy: string
+        virtualAttendantName?: string
+        virtualAttendantGender?: 'masculino' | 'feminino' | '' | null
+      },
       opts?: FetchOpts,
     ): Promise<ClinicConfigSnapshot['settings']> {
       const res = await authFetch(
@@ -2353,6 +2359,9 @@ export type ClinicConfigSnapshot = {
     clinicAddress?: string | null
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
+    /** DEC-089 — atendente virtual (persona da IA). */
+    virtualAttendantName?: string | null
+    virtualAttendantGender?: 'masculino' | 'feminino' | null
     /** DEC-077 — local da previsão. Independente do endereço da IA. */
     forecastMode?: 'nenhum' | 'cidade' | 'coordenadas'
     forecastCity?: string | null

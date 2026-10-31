@@ -249,13 +249,20 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
           clinicAddress?: unknown
           googleBusinessUrl?: unknown
           reschedulePolicy?: unknown
+          virtualAttendantName?: unknown
+          virtualAttendantGender?: unknown
         }>()
         .catch(() => null)
       const hasProfile =
         body != null &&
         (typeof body.clinicAddress === 'string' ||
           typeof body.googleBusinessUrl === 'string' ||
-          typeof body.reschedulePolicy === 'string')
+          typeof body.reschedulePolicy === 'string' ||
+          typeof body.virtualAttendantName === 'string' ||
+          body.virtualAttendantGender === null ||
+          body.virtualAttendantGender === '' ||
+          body.virtualAttendantGender === 'masculino' ||
+          body.virtualAttendantGender === 'feminino')
       if (!body || (typeof body.enabled !== 'boolean' && !hasProfile)) {
         return c.json({ error: 'invalid_body' }, 400)
       }
@@ -263,12 +270,22 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
       const caller = callerFromContext(ctx.tenantId, c.get('principal').clerkUserId)
       let settings = null
       if (hasProfile) {
+        const genderRaw = body.virtualAttendantGender
+        const virtualAttendantGender =
+          genderRaw === 'masculino' || genderRaw === 'feminino'
+            ? genderRaw
+            : genderRaw === null || genderRaw === ''
+              ? (genderRaw as '' | null)
+              : undefined
         settings = await gw.setAiProfile(caller, {
           clinicAddress: typeof body.clinicAddress === 'string' ? body.clinicAddress : null,
           googleBusinessUrl:
             typeof body.googleBusinessUrl === 'string' ? body.googleBusinessUrl : null,
           reschedulePolicy:
             typeof body.reschedulePolicy === 'string' ? body.reschedulePolicy : null,
+          virtualAttendantName:
+            typeof body.virtualAttendantName === 'string' ? body.virtualAttendantName : null,
+          virtualAttendantGender,
         })
       }
       if (typeof body.enabled === 'boolean') {

@@ -25,6 +25,8 @@ export function serializeSettings(row: ClinicSettingsRow) {
     forecastCity: row.forecastCity,
     forecastLatitude: row.forecastLatitude,
     forecastLongitude: row.forecastLongitude,
+    virtualAttendantName: row.virtualAttendantName,
+    virtualAttendantGender: row.virtualAttendantGender,
     updatedAt: row.updatedAt,
   }
 }

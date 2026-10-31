@@ -49,6 +49,8 @@ export type ClinicConfigGateway = {
       clinicAddress?: string | null
       googleBusinessUrl?: string | null
       reschedulePolicy?: string | null
+      virtualAttendantName?: string | null
+      virtualAttendantGender?: 'masculino' | 'feminino' | '' | null
     },
   ): Promise<ClinicSettingsRow>
   setForecastPlace(caller: ClinicCaller, input: ForecastPlaceInput): Promise<ClinicSettingsRow>

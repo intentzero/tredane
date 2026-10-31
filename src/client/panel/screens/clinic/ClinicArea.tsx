@@ -145,6 +145,8 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
                   initialAddress={snap.settings.clinicAddress ?? null}
                   initialGoogleBusinessUrl={snap.settings.googleBusinessUrl ?? null}
                   initialReschedulePolicy={snap.settings.reschedulePolicy ?? null}
+                  initialVirtualAttendantName={snap.settings.virtualAttendantName ?? null}
+                  initialVirtualAttendantGender={snap.settings.virtualAttendantGender ?? null}
                 />
                 {isOwner ? (
                   <AutomationLimitsCard

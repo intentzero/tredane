@@ -443,6 +443,8 @@ export function setAiProfileOp(
     clinicAddress?: string | null
     googleBusinessUrl?: string | null
     reschedulePolicy?: string | null
+    virtualAttendantName?: string | null
+    virtualAttendantGender?: 'masculino' | 'feminino' | '' | null
   },
   clock: Clock,
 ) {
@@ -457,7 +459,10 @@ export function setAiProfileOp(
         action: 'config.ai_profile_updated',
         objectType: 'clinic_settings',
         objectId: '1',
-        detail: {},
+        detail: {
+          virtualAttendantName: settings.virtualAttendantName || null,
+          virtualAttendantGender: settings.virtualAttendantGender,
+        },
       },
       clock,
     )
