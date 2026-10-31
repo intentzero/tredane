@@ -1657,7 +1657,15 @@ export function InboxThread({
                   className={`inbox-composer-input${cardMode ? ' inbox-composer-input--card' : ''}`}
                   placeholder="Escreva uma resposta…"
                   rows={1}
-                  autoComplete="off"
+                  // WebKit trata autocomplete="off" como tipo vazio e o iOS mostra a cápsula
+                  // de senhas, cartão e morada. organization-title é um tipo concreto fora
+                  // dessas três; o teclado e as sugestões de texto ficam os de uma textarea.
+                  autoComplete="organization-title"
+                  name="mensagem"
+                  inputMode="text"
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  spellCheck
                   data-form-type="other"
                   data-lpignore="true"
                   data-1p-ignore
