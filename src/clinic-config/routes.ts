@@ -86,6 +86,7 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
   return {
     getSnapshot: (caller) => stub.getConfigSnapshot(caller),
     getReadiness: (caller) => stub.getConfigReadiness(caller),
+    reviewServices: (caller) => stub.reviewClinicServices(caller),
     updateTimezone: (caller, timezone) => stub.updateClinicTimezone(caller, timezone),
     setAiAssistEnabled: (caller, enabled) => stub.setClinicAiAssistEnabled(caller, enabled),
     setAiProfile: (caller, input) => stub.setClinicAiProfile(caller, input),
@@ -163,6 +164,21 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
         callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
       )
       return c.json(serializeReadiness(readiness))
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  // Conferir configuração (DEC-085): só a responsável (clinic.config.write = owner).
+  app.get('/api/tenants/:tenantId/config/review', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const review = await gw.reviewServices(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+      )
+      return c.json(review)
     } catch (err) {
       return configErrorResponse(c, err)
     }

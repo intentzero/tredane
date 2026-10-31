@@ -1,15 +1,29 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Button, Input, Label, TextField } from 'react-aria-components'
 import { ChevronRight } from 'lucide-react'
 import { Badge } from '../../states/Badge'
 import { ClinicCheck } from './ClinicCheck'
 import { ClinicListHeader } from './ClinicListHeader'
 import { professionalRow, roomRow } from './resourceRows'
-import { PanelSelect } from '../../ui/PanelSelect'
 import type { ClinicConfigSnapshot, PanelApi, ResourceFutureAppointment } from '../../api'
 import { PanelApiError } from '../../api'
+import { friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
-import { ProfessionalExtras, RoomExtras } from './ResourceExtras'
+import {
+  ProfessionalExtras,
+  RoomExtras,
+  professionalEffectNames,
+  roomEffectNames,
+  serviceBody,
+  fromWeekDraft,
+  toWeekDraft,
+  windowsOf,
+  type WeekDraft,
+} from './ResourceExtras'
+import { DraftSaveBar } from './DraftSaveBar'
+import { UnsavedChangesDialog } from './UnsavedChangesDialog'
+import { useClinicPanelCloseGuard } from './ClinicPanel'
+import { Segmented } from './Segmented'
 import {
   DeleteResourceDialog,
   FutureAppointmentsDialog,
@@ -164,6 +178,21 @@ type FormProps = {
   onSaved: () => Promise<void>
 }
 
+function initialProServiceIds(snap: ClinicConfigSnapshot, resourceId: string): string[] {
+  return snap.services.filter((s) => s.active && s.professionalIds.includes(resourceId)).map((s) => s.id)
+}
+
+function initialRoomServiceIds(snap: ClinicConfigSnapshot, resourceId: string): string[] {
+  return snap.services
+    .filter(
+      (s) =>
+        s.active &&
+        s.roomRequirement.mode === 'rooms' &&
+        s.roomRequirement.resourceIds.includes(resourceId),
+    )
+    .map((s) => s.id)
+}
+
 export function ResourceForm({
   tenantId,
   kind,
@@ -173,11 +202,10 @@ export function ResourceForm({
   generation,
   onSaved,
 }: FormProps) {
-  const existing =
-    entityId === 'novo' ? null : snap.resources.find((r) => r.id === entityId)
+  const existing = entityId === 'novo' ? null : snap.resources.find((r) => r.id === entityId)
   const [name, setName] = useState(existing?.name ?? '')
   const [category, setCategory] = useState(existing?.category ?? '')
-  const [capacity, setCapacity] = useState(String(existing?.capacity ?? 1))
+  const [capacity, setCapacity] = useState(existing?.capacity ?? 1)
   const [sharedNotice, setSharedNotice] = useState(existing?.sharedSpaceNotice ?? '')
   const [attendanceMode, setAttendanceMode] = useState<'cada_profissional' | 'uma_para_todas'>(
     existing?.attendanceMode === 'uma_para_todas' ? 'uma_para_todas' : 'cada_profissional',
@@ -187,16 +215,118 @@ export function ResourceForm({
     existing?.kind === 'equipment' ? 'equipment' : 'room',
   )
   const active = existing?.active ?? true
+  const [draftServiceIds, setDraftServiceIds] = useState<string[]>(() => {
+    if (!existing) return []
+    return kind === 'professional'
+      ? initialProServiceIds(snap, existing.id)
+      : initialRoomServiceIds(snap, existing.id)
+  })
+  const [hoursMode, setHoursMode] = useState<'clinic' | 'own'>(
+    existing?.hoursMode === 'own' ? 'own' : 'clinic',
+  )
+  const [ownDraft, setOwnDraft] = useState<WeekDraft>(() =>
+    existing ? toWeekDraft(windowsOf(snap, existing.id)) : toWeekDraft([]),
+  )
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [unsavedOpen, setUnsavedOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [lifecycleBusy, setLifecycleBusy] = useState(false)
   const [futureApts, setFutureApts] = useState<ResourceFutureAppointment[] | null>(null)
   const [choices, setChoices] = useState<FutureChoice>({})
   const [dialogError, setDialogError] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const timeZone = snap.settings?.timezone ?? 'America/Sao_Paulo'
   const label = kind === 'professional' ? 'profissional' : 'sala ou equipamento'
+  const showCategory = category.trim() !== ''
+  const capacityValid = Number.isInteger(capacity) && capacity >= 1 && capacity <= 50
 
-  // A lista de salas é a aba «salas» da rota; sem o entityId, voltaria para Profissionais.
+  const savedFingerprint = useMemo(() => {
+    if (!existing) {
+      return JSON.stringify({
+        name: '',
+        category: '',
+        capacity: 1,
+        sharedNotice: '',
+        attendanceMode: 'cada_profissional',
+        sameSexInSlot: false,
+        resourceKind: 'room',
+        draftServiceIds: [] as string[],
+        hoursMode: 'clinic',
+        ownDraft: toWeekDraft([]),
+      })
+    }
+    return JSON.stringify({
+      name: existing.name,
+      category: existing.category ?? '',
+      capacity: existing.capacity ?? 1,
+      sharedNotice: existing.sharedSpaceNotice ?? '',
+      attendanceMode:
+        existing.attendanceMode === 'uma_para_todas' ? 'uma_para_todas' : 'cada_profissional',
+      sameSexInSlot: Boolean(existing.sameSexInSlot),
+      resourceKind: existing.kind === 'equipment' ? 'equipment' : 'room',
+      draftServiceIds:
+        kind === 'professional'
+          ? initialProServiceIds(snap, existing.id)
+          : initialRoomServiceIds(snap, existing.id),
+      hoursMode: existing.hoursMode === 'own' ? 'own' : 'clinic',
+      ownDraft: toWeekDraft(windowsOf(snap, existing.id)),
+    })
+  }, [existing, kind, snap])
+
+  // Contagem simples de campos que divergem (DEC-083).
+  const changeCount = (() => {
+    if (!existing && !name.trim() && draftServiceIds.length === 0) return 0
+    let n = 0
+    const saved = JSON.parse(savedFingerprint) as {
+      name: string
+      category: string
+      capacity: number
+      sharedNotice: string
+      attendanceMode: string
+      sameSexInSlot: boolean
+      resourceKind: string
+      draftServiceIds: string[]
+      hoursMode: string
+      ownDraft: WeekDraft
+    }
+    if (name !== saved.name) n++
+    if (kind !== 'professional') {
+      if (resourceKind !== saved.resourceKind) n++
+      if (category !== saved.category) n++
+      if (resourceKind === 'room') {
+        if (capacity !== saved.capacity) n++
+        if (attendanceMode !== saved.attendanceMode) n++
+        if (sameSexInSlot !== saved.sameSexInSlot) n++
+        if (sharedNotice !== saved.sharedNotice) n++
+      }
+    }
+    const a = [...draftServiceIds].sort().join(',')
+    const b = [...saved.draftServiceIds].sort().join(',')
+    if (a !== b) n++
+    if (kind === 'professional') {
+      if (hoursMode !== saved.hoursMode) n++
+      if (hoursMode === 'own' && JSON.stringify(ownDraft) !== JSON.stringify(saved.ownDraft)) n++
+    }
+    return n
+  })()
+
+  const effectNames =
+    kind === 'professional'
+      ? existing
+        ? professionalEffectNames(snap, existing.id, draftServiceIds)
+        : []
+      : existing
+        ? roomEffectNames(snap, existing.id, draftServiceIds)
+        : []
+  const effect =
+    effectNames.length === 0
+      ? null
+      : kind === 'professional'
+        ? `muda Quem faz em ${effectNames.slice(0, 3).join(', ')}${effectNames.length > 3 ? '…' : ''}`
+        : `muda Onde acontece em ${effectNames.slice(0, 3).join(', ')}${effectNames.length > 3 ? '…' : ''}`
+
   function backToList() {
     navigatePanel({
       kind: 'area',
@@ -205,6 +335,43 @@ export function ResourceForm({
       section: 'recursos',
       ...(kind === 'professional' ? {} : { entityId: 'salas' }),
     })
+  }
+
+  function requestLeave() {
+    if (changeCount > 0) setUnsavedOpen(true)
+    else backToList()
+  }
+
+  function discardDraft() {
+    if (!existing) {
+      setName('')
+      setCategory('')
+      setCapacity(1)
+      setSharedNotice('')
+      setAttendanceMode('cada_profissional')
+      setSameSexInSlot(false)
+      setResourceKind('room')
+      setDraftServiceIds([])
+      setHoursMode('clinic')
+      setOwnDraft(toWeekDraft([]))
+      return
+    }
+    setName(existing.name)
+    setCategory(existing.category ?? '')
+    setCapacity(existing.capacity ?? 1)
+    setSharedNotice(existing.sharedSpaceNotice ?? '')
+    setAttendanceMode(
+      existing.attendanceMode === 'uma_para_todas' ? 'uma_para_todas' : 'cada_profissional',
+    )
+    setSameSexInSlot(Boolean(existing.sameSexInSlot))
+    setResourceKind(existing.kind === 'equipment' ? 'equipment' : 'room')
+    setDraftServiceIds(
+      kind === 'professional'
+        ? initialProServiceIds(snap, existing.id)
+        : initialRoomServiceIds(snap, existing.id),
+    )
+    setHoursMode(existing.hoursMode === 'own' ? 'own' : 'clinic')
+    setOwnDraft(toWeekDraft(windowsOf(snap, existing.id)))
   }
 
   function errorText(err: unknown, fallback: string): string | null {
@@ -217,8 +384,11 @@ export function ResourceForm({
       if (code === 'resource_required_by_service') {
         return 'Não é possível excluir: um serviço exige esta sala ou equipamento. Altere o serviço antes.'
       }
-      if (code === 'reassign_conflict' || code === 'appointment_not_on_resource'
-        || code === 'appointment_version_conflict') {
+      if (
+        code === 'reassign_conflict' ||
+        code === 'appointment_not_on_resource' ||
+        code === 'appointment_version_conflict'
+      ) {
         return 'A agenda mudou e um destino deixou de estar livre. Nada foi alterado — revise as escolhas.'
       }
     }
@@ -268,10 +438,14 @@ export function ResourceForm({
       const parts = [`${existing.name} foi desativado para novos agendamentos. O histórico foi mantido.`]
       if (row.reassigned.length > 0) parts.push(`${row.reassigned.length} compromisso(s) remanejado(s).`)
       if (row.keptAppointmentIds.length > 0) {
-        parts.push(`${row.keptAppointmentIds.length} compromisso(s) mantido(s) — trate-os na agenda se precisar.`)
+        parts.push(
+          `${row.keptAppointmentIds.length} compromisso(s) mantido(s) — trate-os na agenda se precisar.`,
+        )
       }
       if (row.servicesWithoutResource && row.servicesWithoutResource.length > 0) {
-        parts.push('Alguns serviços ficaram sem recurso ativo nesta categoria e deixam de oferecer novos horários.')
+        parts.push(
+          'Alguns serviços ficaram sem recurso ativo nesta categoria e deixam de oferecer novos horários.',
+        )
       }
       setNotice(parts.join(' '))
     } catch (err) {
@@ -335,15 +509,6 @@ export function ResourceForm({
     }
   }
 
-  const [formError, setFormError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-
-  // «Categoria» só aparece em salas que já a usam; no lugar dela, a sala lista os serviços feitos ali.
-  const showCategory =
-    category.trim() !== ''
-  const capacityNumber = Number(capacity)
-  const capacityValid = Number.isInteger(capacityNumber) && capacityNumber >= 1 && capacityNumber <= 50
-
   async function save() {
     setFormError(null)
     setNotice(null)
@@ -352,6 +517,7 @@ export function ResourceForm({
       return
     }
     setSaving(true)
+    const fo = { generation, expectGeneration: () => generation }
     try {
       const row = await api.upsertResource(
         tenantId,
@@ -360,21 +526,65 @@ export function ResourceForm({
           name,
           category: kind === 'professional' ? null : category || null,
           active,
+          ...(kind === 'professional' ? { hoursMode } : {}),
           ...(kind !== 'professional' && resourceKind === 'room'
             ? {
-                capacity: capacityNumber,
+                capacity,
                 sharedSpaceNotice: sharedNotice.trim() || null,
-                attendanceMode: capacityNumber > 1 ? attendanceMode : 'cada_profissional',
-                sameSexInSlot: capacityNumber > 1 ? sameSexInSlot : false,
+                attendanceMode: capacity > 1 ? attendanceMode : 'cada_profissional',
+                sameSexInSlot: capacity > 1 ? sameSexInSlot : false,
               }
             : {}),
         },
         {
           resourceId: existing?.id,
-          generation,
-          expectGeneration: () => generation,
+          ...fo,
         },
       )
+
+      const resourceId = row.id
+
+      if (kind === 'professional') {
+        for (const s of snap.services.filter((x) => x.active)) {
+          const want = draftServiceIds.includes(s.id)
+          const had = s.professionalIds.includes(resourceId)
+          if (want === had) continue
+          const next = want
+            ? [...s.professionalIds, resourceId]
+            : s.professionalIds.filter((id) => id !== resourceId)
+          await api.upsertService(tenantId, serviceBody(s, { professionalIds: next }), {
+            serviceId: s.id,
+            ...fo,
+          })
+        }
+        if (hoursMode === 'own') {
+          await api.setWeeklyWindows(tenantId, resourceId, fromWeekDraft(ownDraft), fo)
+        }
+      } else if (resourceKind === 'room') {
+        for (const s of snap.services.filter((x) => x.active)) {
+          const want = draftServiceIds.includes(s.id)
+          const current =
+            s.roomRequirement.mode === 'rooms' ? s.roomRequirement.resourceIds : []
+          const had = current.includes(resourceId)
+          if (want === had) continue
+          const nextIds = want
+            ? [...current, resourceId]
+            : current.filter((id) => id !== resourceId)
+          if (nextIds.length === 0 && had) {
+            throw new PanelApiError(
+              400,
+              'unknown',
+              'Este era o único lugar do serviço. Na ficha do serviço, escolha outra sala ou Sem espaço definido.',
+            )
+          }
+          await api.upsertService(
+            tenantId,
+            serviceBody(s, { roomRequirement: { mode: 'rooms', resourceIds: nextIds } }),
+            { serviceId: s.id, ...fo },
+          )
+        }
+      }
+
       const notes: string[] = []
       if (row.servicesWithoutResource && row.servicesWithoutResource.length > 0) {
         notes.push(
@@ -405,7 +615,6 @@ export function ResourceForm({
         return
       }
       if (!existing) {
-        // Nova ficha: segue para ela, onde ficam serviços, horário e folgas.
         navigatePanel({
           kind: 'area',
           area: 'clinica',
@@ -419,23 +628,49 @@ export function ResourceForm({
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
       setFormError(
-        'Não foi possível salvar. Os dados do formulário foram mantidos.',
+        friendlyError(err, 'Não foi possível salvar. Os dados do formulário foram mantidos.'),
       )
     } finally {
       setSaving(false)
     }
   }
 
+  const changeCountRef = useRef(changeCount)
+  changeCountRef.current = changeCount
+  const saveRef = useRef(save)
+  saveRef.current = save
+  const closeGuard = useMemo(
+    () => ({
+      isDirty: () => changeCountRef.current > 0,
+      save: async () => {
+        await saveRef.current()
+      },
+    }),
+    [],
+  )
+  useClinicPanelCloseGuard(closeGuard)
+
   return (
     <div className="clinic-stack clinic-form">
-      <div className="clinic-toolbar">
-        <Button
-          className="panel-btn panel-btn-ghost"
-          onPress={backToList}
-        >
-          Cancelar
+      <header className="clinic-page-head clinic-desktop-hide">
+        <Button className="panel-icon-btn" aria-label="Voltar" onPress={requestLeave}>
+          ‹
         </Button>
-      </div>
+        <div className="clinic-page-head-copy">
+          <h1 className="panel-title">
+            {kind === 'professional'
+              ? existing
+                ? 'Editar profissional'
+                : 'Nova profissional'
+              : existing
+                ? resourceKind === 'equipment'
+                  ? 'Editar equipamento'
+                  : 'Editar sala'
+                : 'Nova sala'}
+          </h1>
+          <span className="panel-subtitle">Profissionais e salas</span>
+        </div>
+      </header>
 
       <TextField className="clinic-field">
         <Label>
@@ -451,77 +686,86 @@ export function ResourceForm({
         </p>
       ) : (
         <>
-          <PanelSelect
-            className="clinic-field"
+          <Segmented
             label="Tipo"
+            role="radio"
             value={resourceKind}
-            onChange={(v) => setResourceKind(v)}
-            isDisabled={Boolean(existing)}
+            onChange={(v) => {
+              if (!existing) setResourceKind(v)
+            }}
             options={[
               { id: 'room' as const, label: 'Sala' },
               { id: 'equipment' as const, label: 'Equipamento' },
             ]}
           />
           {showCategory ? (
-          <TextField className="clinic-field">
-            <Label>Categoria (opcional)</Label>
-            <Input
-              autoComplete="off"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Ex.: Sala com laser"
-            />
-          </TextField>
+            <TextField className="clinic-field">
+              <Label>Categoria (opcional)</Label>
+              <Input
+                autoComplete="off"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="Ex.: Sala com laser"
+              />
+            </TextField>
           ) : null}
           {resourceKind === 'room' ? (
             <>
-              <TextField className="clinic-field">
-                <Label>Atende ao mesmo tempo (pessoas)</Label>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={50}
-                  step={1}
-                  value={capacity}
-                  onChange={(e) => setCapacity(e.target.value)}
-                />
-              </TextField>
-              <p className="clinic-footnote">
-                De 1 a 50. Com 1, a sala atende uma pessoa de cada vez — sem perguntas de modo nem de
-                sexo.
-              </p>
-              {capacityValid && capacityNumber > 1 ? (
-                <>
-                  <PanelSelect
-                    className="clinic-field"
-                    label="Modo de atendimento"
-                    value={attendanceMode}
-                    onChange={(id) =>
-                      setAttendanceMode(
-                        id === 'uma_para_todas' ? 'uma_para_todas' : 'cada_profissional',
-                      )
-                    }
-                    options={[
-                      {
-                        id: 'cada_profissional' as const,
-                        label: 'Cada profissional com a sua cliente',
-                      },
-                      {
-                        id: 'uma_para_todas' as const,
-                        label: 'Uma profissional para todas',
-                      },
-                    ]}
-                  />
-                  <p className="clinic-footnote">
-                    {attendanceMode === 'uma_para_todas'
-                      ? 'A mesma profissional pode atender várias clientes nesta sala, até à capacidade. Não fica noutra sala no mesmo horário.'
-                      : 'Cada profissional trava só a si. A sala recusa quando chega à capacidade.'}
-                  </p>
-                  <ClinicCheck
-                    isSelected={sameSexInSlot}
-                    onChange={setSameSexInSlot}
+              <div className="clinic-section">
+                <h2 className="clinic-section-title">Atende ao mesmo tempo</h2>
+                <div className="capacity-stepper" role="group" aria-label="Capacidade">
+                  <Button
+                    className="panel-btn panel-btn-ghost"
+                    aria-label="Diminuir"
+                    isDisabled={capacity <= 1}
+                    onPress={() => setCapacity((c) => Math.max(1, c - 1))}
                   >
+                    −
+                  </Button>
+                  <output aria-live="polite">{capacity}</output>
+                  <Button
+                    className="panel-btn panel-btn-ghost"
+                    aria-label="Aumentar"
+                    isDisabled={capacity >= 50}
+                    onPress={() => setCapacity((c) => Math.min(50, c + 1))}
+                  >
+                    +
+                  </Button>
+                </div>
+                <p className="clinic-footnote">
+                  De 1 a 50. Com 1, a sala atende uma pessoa de cada vez — sem perguntas de modo nem
+                  de sexo.
+                </p>
+              </div>
+              {capacityValid && capacity > 1 ? (
+                <>
+                  <div className="clinic-section" role="radiogroup" aria-label="Modo de atendimento">
+                    <h2 className="clinic-section-title">Modo de atendimento</h2>
+                    <div className="mode-cards">
+                      <button
+                        type="button"
+                        className="mode-card"
+                        aria-pressed={attendanceMode === 'cada_profissional'}
+                        onClick={() => setAttendanceMode('cada_profissional')}
+                      >
+                        <strong>Cada profissional com a sua cliente</strong>
+                        <span>Cada profissional trava só a si. A sala recusa quando chega à capacidade.</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="mode-card"
+                        aria-pressed={attendanceMode === 'uma_para_todas'}
+                        onClick={() => setAttendanceMode('uma_para_todas')}
+                      >
+                        <strong>Uma profissional para todas</strong>
+                        <span>
+                          A mesma profissional pode atender várias clientes nesta sala, até à
+                          capacidade. Não fica noutra sala no mesmo horário.
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                  <ClinicCheck isSelected={sameSexInSlot} onChange={setSameSexInSlot}>
                     Mesmo sexo neste horário
                   </ClinicCheck>
                   <p className="clinic-footnote">
@@ -530,19 +774,6 @@ export function ResourceForm({
                   </p>
                 </>
               ) : null}
-              <TextField className="clinic-field">
-                <Label>Frase para a confirmação pelo WhatsApp (opcional)</Label>
-                <Input
-                  autoComplete="off"
-                  maxLength={300}
-                  value={sharedNotice}
-                  onChange={(e) => setSharedNotice(e.target.value)}
-                  placeholder="Ex.: O espaço de bronzeamento é compartilhado."
-                />
-              </TextField>
-              <p className="clinic-footnote">
-                Entra na mensagem de confirmação dos horários nesta sala. Não diga quantas vagas restam.
-              </p>
             </>
           ) : null}
         </>
@@ -556,6 +787,16 @@ export function ResourceForm({
           api={api}
           generation={generation}
           onSaved={onSaved}
+          draftServiceIds={draftServiceIds}
+          onToggleService={(id) =>
+            setDraftServiceIds((prev) =>
+              prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+            )
+          }
+          hoursMode={hoursMode}
+          onHoursMode={setHoursMode}
+          ownDraft={ownDraft}
+          onOwnDraft={setOwnDraft}
         />
       ) : null}
       {existing && kind !== 'professional' ? (
@@ -566,6 +807,16 @@ export function ResourceForm({
           api={api}
           generation={generation}
           onSaved={onSaved}
+          draftServiceIds={draftServiceIds}
+          onToggleService={(id) =>
+            setDraftServiceIds((prev) =>
+              prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+            )
+          }
+          moreOpen={moreOpen}
+          onMoreOpen={setMoreOpen}
+          sharedNotice={sharedNotice}
+          onSharedNotice={setSharedNotice}
         />
       ) : null}
 
@@ -584,7 +835,7 @@ export function ResourceForm({
           {active ? (
             <Button
               className="panel-btn panel-btn-ghost"
-              isDisabled={lifecycleBusy || saving}
+              isDisabled={lifecycleBusy || saving || changeCount > 0}
               onPress={() => void startDeactivate()}
             >
               {lifecycleBusy ? 'Aguarde…' : 'Desativar'}
@@ -632,30 +883,39 @@ export function ResourceForm({
         </p>
       ) : null}
 
-      <div className="clinic-footer-actions">
-        <Button
-          className="panel-btn panel-btn-primary"
-          isDisabled={saving || !name.trim()}
-          onPress={() => void save()}
-        >
-          {saving ? 'Salvando…' : 'Salvar'}
-        </Button>
-        {notice ? (
+      <DraftSaveBar
+        count={changeCount}
+        effect={effect}
+        saving={saving}
+        onDiscard={discardDraft}
+        onSave={() => void save()}
+      />
+      {changeCount === 0 && !existing ? (
+        <div className="clinic-footer-actions">
           <Button
-            className="panel-btn panel-btn-ghost"
-            onPress={() =>
-              navigatePanel({
-                kind: 'area',
-                area: 'clinica',
-                tenantId,
-                section: 'recursos',
-              })
-            }
+            className="panel-btn panel-btn-primary"
+            isDisabled={saving || !name.trim()}
+            onPress={() => void save()}
           >
-            Voltar à lista
+            {saving ? 'Salvando…' : 'Salvar'}
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
+      {notice ? (
+        <Button
+          className="panel-btn panel-btn-ghost"
+          onPress={() =>
+            navigatePanel({
+              kind: 'area',
+              area: 'clinica',
+              tenantId,
+              section: 'recursos',
+            })
+          }
+        >
+          Voltar à lista
+        </Button>
+      ) : null}
       {existing ? (
         <>
           <FutureAppointmentsDialog
@@ -681,6 +941,22 @@ export function ResourceForm({
           />
         </>
       ) : null}
+      <UnsavedChangesDialog
+        open={unsavedOpen}
+        busy={saving}
+        onContinue={() => setUnsavedOpen(false)}
+        onDiscard={() => {
+          discardDraft()
+          setUnsavedOpen(false)
+          backToList()
+        }}
+        onSave={() => {
+          void (async () => {
+            await save()
+            setUnsavedOpen(false)
+          })()
+        }}
+      />
     </div>
   )
 }

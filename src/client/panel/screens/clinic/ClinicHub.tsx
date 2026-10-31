@@ -1,4 +1,4 @@
-import { Clock, DoorOpen, ListChecks, MessageCircle, Users, Wallet } from 'lucide-react'
+import { ClipboardCheck, Clock, DoorOpen, ListChecks, MessageCircle, Users, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { ClinicConfigSnapshot } from '../../api'
 import { navigatePanel, type ClinicaSection } from '../../routes'
@@ -119,6 +119,19 @@ export function ClinicHub({ tenantId, snap, aiCard, stagingCard }: Props) {
           </span>
         </span>
       </button>
+
+      <h2 className="panel-legend">Conferir</h2>
+      <ul className="clinic-nav-list">
+        <li>
+          <NavRow
+            icon={ClipboardCheck}
+            title="Conferir configuração"
+            detail="Serviço a serviço: quem faz, onde, quando e o que falta"
+            state="neutral"
+            onPress={go('conferir')}
+          />
+        </li>
+      </ul>
 
       <h2 className="panel-legend">Agenda</h2>
       <ul className="clinic-nav-list">

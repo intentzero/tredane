@@ -436,6 +436,22 @@
       "h": 844,
       "title": "M-51 Horário · escolher quem fica fora",
       "radius": 32
+    },
+    "Conferir.dc.html": {
+      "x": 0,
+      "y": 13844,
+      "w": 390,
+      "h": 844,
+      "title": "M-52 Conferir configuração",
+      "radius": 32
+    },
+    "TempoServico.dc.html": {
+      "x": 470,
+      "y": 13844,
+      "w": 390,
+      "h": 844,
+      "title": "M-53 Tempo do serviço",
+      "radius": 32
     }
   },
   "order": [
@@ -485,7 +501,9 @@
     "ConversaSemResponsavel.dc.html",
     "ConversaAguardandoPix.dc.html",
     "PixDetalhes.dc.html",
-    "ConversaSugestaoLonga.dc.html"
+    "ConversaSugestaoLonga.dc.html",
+    "Conferir.dc.html",
+    "TempoServico.dc.html"
   ],
   "notes": {
     "row1": {

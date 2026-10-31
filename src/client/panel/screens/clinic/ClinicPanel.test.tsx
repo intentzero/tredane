@@ -21,7 +21,7 @@ function setup() {
   return onClose
 }
 
-describe('ClinicPanel (DEC-069)', () => {
+describe('ClinicPanel (DEC-069 / DEC-083)', () => {
   it('abre com o foco no painel', () => {
     setup()
     const panel = screen.getByRole('complementary', { name: 'Profissional' })
@@ -36,13 +36,13 @@ describe('ClinicPanel (DEC-069)', () => {
     expect(onClose).toHaveBeenCalledTimes(2)
   })
 
-  it('com alterações, × pede confirmação; «Continuar editando» mantém e «Descartar» fecha', () => {
+  it('com alterações, × pede confirmação; continuar mantém e descartar fecha', () => {
     const onClose = setup()
     fireEvent.input(screen.getByLabelText('Nome'), { target: { value: 'Outra' } })
     fireEvent.click(screen.getByRole('button', { name: 'Fechar profissional' }))
     expect(onClose).not.toHaveBeenCalled()
-    expect(screen.getByRole('alertdialog', { name: 'Descartar alterações' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Continuar editando' }))
+    expect(screen.getByRole('alertdialog', { name: 'Alterações não salvas' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar a editar' }))
     expect(screen.queryByRole('alertdialog')).toBeNull()
     expect((screen.getByLabelText('Nome') as HTMLInputElement).value).toBe('Outra')
     fireEvent.click(screen.getByRole('button', { name: 'Fechar profissional' }))
@@ -87,7 +87,7 @@ describe('ClinicPanel (DEC-069)', () => {
     fireEvent.input(screen.getByLabelText('Nome'), { target: { value: 'Outra' } })
     fireEvent.pointerDown(document.body)
     expect(onClose).not.toHaveBeenCalled()
-    expect(screen.getByRole('alertdialog', { name: 'Descartar alterações' })).toBeTruthy()
+    expect(screen.getByRole('alertdialog', { name: 'Alterações não salvas' })).toBeTruthy()
   })
 
   it('clicar noutro botão fora do painel não o fecha', () => {

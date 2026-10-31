@@ -15,6 +15,7 @@ export type PanelArea = 'conversas' | 'acompanhamento' | 'agenda' | 'clinica' | 
 
 export type ClinicaSection =
   | 'hub'
+  | 'conferir'
   | 'servicos'
   | 'servico'
   | 'recursos'
@@ -130,6 +131,7 @@ function parseClinicaRest(rest: string | undefined): {
     return { section: 'recursos' }
   }
   if (head === 'horarios') return { section: 'horarios' }
+  if (head === 'conferir') return { section: 'conferir' }
   if (head === 'whatsapp') {
     if (parts[1] === 'trocar') return { section: 'whatsapp-trocar' }
     if (parts[1] === 'historico') return { section: 'whatsapp-historico' }
@@ -285,6 +287,8 @@ export function panelHref(route: PanelRoute): string {
       switch (route.section) {
         case 'hub':
           return base
+        case 'conferir':
+          return `${base}/conferir`
         case 'servicos':
           return `${base}/servicos`
         case 'servico':

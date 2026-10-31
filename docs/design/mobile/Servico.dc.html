@@ -9,7 +9,7 @@
 <x-dc>
 <helmet>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <style>
 body{margin:0}
 a{color:#0E5A5C}a:hover{color:#0A4547}
@@ -17,58 +17,57 @@ button,select,input{font:inherit}
 button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
 </style>
 </helmet>
-<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F4EF; color: #142625; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.4; display: flex; flex-direction: column; overflow: hidden">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F4EF; color: #142625; font-family: Roboto, system-ui, sans-serif; font-size: 14px; line-height: 1.35; display: flex; flex-direction: column; overflow: hidden">
 
 <header style="background: #FFFFFF; border-bottom: 1px solid #E1E3E0; display: flex; align-items: center; gap: 4px; padding: 8px 4px">
-<a href="Clinica.dc.html" aria-label="Voltar para Clínica" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #142625; border-radius: 999px"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></a>
+<a href="Clinica.dc.html" aria-label="Voltar para Clínica" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #142625; border-radius: 999px; text-decoration: none">‹</a>
 <div style="display: flex; flex-direction: column"><h1 style="margin: 0; font-size: 16px; font-weight: 600">Editar serviço</h1><span style="font-size: 13px; color: #566160">Serviços · 3 cadastrados</span></div>
 </header>
 
 <div style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px">
 
-<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Nome do serviço
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Nome
 <input type="text" value="Depilação a laser — pernas" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7A8584; border-radius: 6px; font-size: 14px; color: #142625"></label>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #7A8584; border-radius: 6px; overflow: hidden">
+<button type="button" aria-pressed="true" style="height: 36px; border: 0; background: #142625; color: #FFFFFF; font-size: 13px; font-weight: 600">Opção única</button>
+<button type="button" aria-pressed="false" style="height: 36px; border: 0; background: #FFFFFF; color: #142625; font-size: 13px">Com variantes</button>
+</div>
 
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
 <label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Duração (min)
-<input type="number" min="1" max="1440" step="1" value="60" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7A8584; border-radius: 6px; font-size: 14px; color: #142625"></label>
-<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Intervalo depois
-<select style="height: 36px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 6px; background: #FFFFFF; font-size: 14px; color: #142625"><option>Nenhum</option><option selected>15 min</option><option>30 min</option></select></label>
-</div>
-<div style="margin-top: -8px; padding: 12px 12px; border-radius: 6px; background: #E7F1F1; color: #0A4547; font-size: 13px">Ocupa 75 min na agenda: 60 de atendimento + 15 de intervalo. O intervalo bloqueia o profissional e a sala. O início do horário continua de 15 em 15 minutos.</div>
-
-<fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 4px">
-<legend style="padding: 0 0 8px; font-size: 13px; color: #424B4A">Quem pode fazer este serviço</legend>
-<label style="display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 0 12px; background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 6px"><input type="checkbox" checked style="width: 22px; height: 22px">Dra. Paula Reis</label>
-<label style="display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 0 12px; background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 6px"><input type="checkbox" checked style="width: 22px; height: 22px">Dr. Tiago Nunes</label>
-<label style="display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 0 12px; background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 6px"><input type="checkbox" style="width: 22px; height: 22px">Lívia Costa</label>
-</fieldset>
-
-<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Sala ou equipamento exigido
-<select style="height: 36px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 6px; background: #FFFFFF; font-size: 14px; color: #142625"><option selected>Sala com laser (Sala 2)</option><option>Qualquer sala</option><option>Sala 1</option><option>Sala 3</option></select></label>
-
+<input type="number" value="60" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7A8584; border-radius: 6px; font-size: 14px"></label>
 <label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Preço (opcional)
-<input type="text" inputmode="decimal" value="R$ 180,00" placeholder="R$ 0,00" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7A8584; border-radius: 6px; font-size: 14px; color: #142625"></label>
-<span style="margin-top: -12px; font-size: 13px; color: #566160">Sem preço, a IA não informa valor: sugere que a equipe vai confirmar.</span>
-
-<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Explicação para clientes (opcional)
-<textarea rows="5" style="padding: 12px; border: 1px solid #7A8584; border-radius: 6px; font: inherit; font-size: 14px; line-height: 1.4; color: #142625; resize: vertical">Limpeza profunda com extração e máscara calmante. Dura cerca de 60 minutos. Evite sol forte nas 48 horas seguintes.</textarea></label>
-<span style="margin-top: -12px; font-size: 13px; color: #566160">A IA usa só este texto para explicar o serviço. Não escreva promessas de resultado; dúvidas de saúde vão para a profissional.</span>
-
-<fieldset style="margin: 0; padding: 12px; border: 1px solid #E1E3E0; border-radius: 8px; background: #FFFFFF; display: flex; flex-direction: column; gap: 12px">
-<legend style="padding: 0 4px; font-size: 13px; color: #424B4A">Sinal por Pix</legend>
-<label style="display: flex; align-items: center; justify-content: space-between; min-height: 44px">Exige sinal para confirmar<input type="checkbox" checked style="width: 28px; height: 28px"></label>
-<div style="display: flex; gap: 8px">
-<label style="flex: 1; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 2px solid #0E5A5C; background: #E7F1F1; border-radius: 6px; font-size: 13px"><input type="radio" name="tipo-sinal" checked>% do preço</label>
-<label style="flex: 1; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid #7A8584; border-radius: 6px; font-size: 13px"><input type="radio" name="tipo-sinal">Valor fixo</label>
+<input type="text" value="R$ 180,00" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7A8584; border-radius: 6px; font-size: 14px"></label>
 </div>
-<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Percentual
-<input type="text" inputmode="numeric" value="30%" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7A8584; border-radius: 6px; font-size: 14px; color: #142625"></label>
-<span style="font-size: 13px; color: #566160">Sinal de R$ 54,00 sobre R$ 180,00. Vai para a conta da clínica. O horário só fica reservado depois do pagamento.</span>
-</fieldset>
 
-<label style="display: flex; align-items: center; justify-content: space-between; min-height: 36px; padding: 0 12px; background: #FFFFFF; border: 1px solid #E1E3E0; border-radius: 6px">Serviço ativo<input type="checkbox" checked style="width: 28px; height: 28px"></label>
-<span style="margin-top: -8px; font-size: 13px; color: #566160">Desativar não apaga compromissos já marcados.</span>
+<section>
+<div style="font-size: 13px; color: #424B4A; margin-bottom: 8px">Quem faz</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" aria-pressed="true" style="min-height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid #0E5A5C; background: #E7F1F1; font-weight: 500">Dra. Paula Reis</button>
+<button type="button" aria-pressed="true" style="min-height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid #0E5A5C; background: #E7F1F1; font-weight: 500">Dr. Tiago Nunes</button>
+<button type="button" aria-pressed="false" style="min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid #7A8584; background: #FFFFFF">Lívia Costa</button>
+</div>
+</section>
+
+<section>
+<div style="font-size: 13px; color: #424B4A; margin-bottom: 8px">Onde acontece <span style="color: #6E4200; font-weight: 500">obrigatório</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" aria-pressed="false" style="min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid #7A8584; background: #FFFFFF">Sem espaço definido</button>
+<button type="button" aria-pressed="true" style="min-height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid #0E5A5C; background: #E7F1F1; font-weight: 500">Sala 2 (laser)</button>
+</div>
+</section>
+
+<div style="padding: 12px; border-radius: 6px; background: #E7F1F1; color: #0A4547; font-size: 13px"><strong>Como fica na agenda.</strong> Ocupa 75 min: 60 de atendimento + 15 de intervalo. Bloqueia a profissional e uma sala livre de: Sala 2 (laser).</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<button type="button" style="min-height: 60px; padding: 8px 16px; border: 0; border-radius: 12px; background: #FFFFFF; text-align: left; display: flex; flex-direction: column"><strong>Intervalo</strong><span style="font-size: 11px; color: #566160">15 min</span></button>
+<button type="button" style="min-height: 60px; padding: 8px 16px; border: 0; border-radius: 12px; background: #FFFFFF; text-align: left; display: flex; flex-direction: column"><strong>Para quem</strong><span style="font-size: 11px; color: #566160">Qualquer</span></button>
+<button type="button" style="min-height: 60px; padding: 8px 16px; border: 0; border-radius: 12px; background: #FFFFFF; text-align: left; display: flex; flex-direction: column"><strong>Sinal Pix</strong><span style="font-size: 11px; color: #566160">30% do preço</span></button>
+<button type="button" style="min-height: 60px; padding: 8px 16px; border: 0; border-radius: 12px; background: #FFFFFF; text-align: left; display: flex; flex-direction: column"><strong>Tempo</strong><span style="font-size: 11px; color: #566160">Sem restrição</span></button>
+<button type="button" style="min-height: 60px; padding: 8px 16px; border: 0; border-radius: 12px; background: #FFFFFF; text-align: left; display: flex; flex-direction: column"><strong>Dias e horas</strong><span style="font-size: 11px; color: #566160">Qualquer dia com profissional livre</span></button>
+<button type="button" style="min-height: 60px; padding: 8px 16px; border: 0; border-radius: 12px; background: #FFFFFF; text-align: left; display: flex; flex-direction: column"><strong>Explicação IA</strong><span style="font-size: 11px; color: #566160">Com texto para a IA</span></button>
+</div>
 </div>
 
 <div style="flex: none; background: #FFFFFF; border-top: 1px solid #E1E3E0; padding: 12px 16px 30px; display: flex; gap: 8px">
@@ -79,9 +78,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{ou
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
 class Component extends DCLogic {
-renderVals() {
-return {};
-}
+renderVals() { return {}; }
 }
 </script>
 </body>

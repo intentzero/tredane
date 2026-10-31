@@ -12,6 +12,7 @@ import { isStagingHostname } from './whatsapp/WhatsappDevSyncAction'
 import { ClinicHub } from './ClinicHub'
 import { ClinicContext } from './ClinicContext'
 import { ClinicPanel } from './ClinicPanel'
+import { ConferirScreen } from './ConferirScreen'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { ResourceForm, ResourcesList } from './ResourcesScreen'
 import { ClinicHoursScreen } from './ClinicHoursScreen'
@@ -113,6 +114,8 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
 
   const body = (() => {
     switch (section) {
+      case 'conferir':
+        return <ConferirScreen tenantId={tenantId} api={api} generation={generation} />
       case 'hub':
         return (
           <ClinicHub

@@ -15,8 +15,8 @@ const snap = {
   readiness: { missing: [], counts: { servicesActive: 0, professionalsActive: 1, roomsActive: 0, resourcesWithWeekly: 0 } },
 } as unknown as ClinicConfigSnapshot
 
-describe('ficha do serviço — Tempo', () => {
-  it('mostra sem restrição e só pede graus em Acima de, sem percentagem', () => {
+describe('ficha do serviço — Tempo (M-53)', () => {
+  it('abre a folha Tempo e só pede graus em Acima de, sem percentagem', () => {
     render(
       <ServiceForm
         tenantId="clinic-demo-a"
@@ -27,9 +27,12 @@ describe('ficha do serviço — Tempo', () => {
         onSaved={async () => {}}
       />,
     )
+    expect(screen.getByRole('button', { name: /Tempo/i })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Tempo/i }))
+    expect(screen.getByRole('button', { name: 'Fechar' })).toBeTruthy()
     expect(screen.getByText('Sem restrição de tempo.')).toBeTruthy()
     expect(screen.queryByLabelText('Graus (°C)')).toBeNull()
-    expect(document.body.textContent).not.toMatch(/percentagem|%/)
+    expect(document.body.textContent).not.toMatch(/percentagem/)
     fireEvent.click(screen.getByRole('radio', { name: 'Acima de' }))
     expect(screen.getByLabelText('Graus (°C)')).toBeTruthy()
     expect(screen.queryByText('Sem restrição de tempo.')).toBeNull()

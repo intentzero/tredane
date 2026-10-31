@@ -34,7 +34,10 @@ export function ClinicContext({ tenantId, section, entityId, snap }: Props) {
   const groups: Array<{ title: string; items: Item[] }> = [
     {
       title: 'Visão geral',
-      items: [{ id: 'hub', label: 'Início', go: 'hub', sections: ['hub'] }],
+      items: [
+        { id: 'hub', label: 'Início', go: 'hub', sections: ['hub'] },
+        { id: 'conferir', label: 'Conferir', go: 'conferir', sections: ['conferir'] },
+      ],
     },
     {
       title: 'Agenda',
