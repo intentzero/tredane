@@ -3,6 +3,10 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 31/10/2026 — M-54 Conversas lista (proposta mobile)
+
+- Novo mock **Proposto** `mobile/ConversasListaProposta.dc.html` + preview `M-54-ConversasListaProposta.png`: lista contínua full-bleed no celular, shell intacto (4 abas do Responsável), busca sunken e chips com contador. Não substitui M-01 até o Paulo decidir. Índice em [screens.md](screens.md).
+
 ## 31/10/2026 — Conversas desktop densidade WA (**Confirmado**, Opção A)
 
 - Mocks `desktop/ConversasDesktopProposta.dc.html` (empty) e `ConversasDesktopPropostaThread.dc.html` (thread): rail Tredane (DEC-068/070), lista ~400 px, empty simples, thread com bolhas/compositor; tokens DEC-041/050/073/081. Sem logo WhatsApp, verde Meta nem Meta AI.
