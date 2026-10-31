@@ -29,6 +29,8 @@ type Props = {
   authorDisplayName?: string | null
   /** Chamado depois de a cobrança sair (a conversa recarrega). */
   onCharged?: () => void
+  /** Coluna de contexto do desktop: já aberta e sem «Fechar». */
+  pinned?: boolean
 }
 
 /** Sinal do serviço em centavos; mesma regra do Agendar. */
@@ -77,8 +79,10 @@ export function FreeSlotsStrip({
   opportunityId,
   authorDisplayName,
   onCharged,
+  pinned = false,
 }: Props) {
-  const [open, setOpen] = useState(false)
+  const [openState, setOpen] = useState(false)
+  const open = pinned || openState
   const [services, setServices] = useState<ClinicService[] | null>(null)
   const [timezone, setTimezone] = useState('America/Sao_Paulo')
   const [serviceId, setServiceId] = useState('')
@@ -210,7 +214,7 @@ export function FreeSlotsStrip({
         setPicks([])
         setConfirmPix(false)
         setChargeId(crypto.randomUUID())
-        setOpen(false)
+        if (!pinned) setOpen(false)
       }
       onCharged?.()
     } catch (err) {
@@ -224,7 +228,7 @@ export function FreeSlotsStrip({
     const ordered = [...picks].sort((a, b) => a.slot.startsAt - b.slot.startsAt)
     onPropose(buildProposalText(ordered, timezone))
     setPicks([])
-    setOpen(false)
+    if (!pinned) setOpen(false)
   }
 
   if (!open) {
@@ -259,9 +263,11 @@ export function FreeSlotsStrip({
             ))}
           </select>
         </label>
-        <Button className="free-slots-toggle" onPress={() => setOpen(false)}>
-          Fechar
-        </Button>
+        {pinned ? null : (
+          <Button className="free-slots-toggle" onPress={() => setOpen(false)}>
+            Fechar
+          </Button>
+        )}
       </div>
 
       <div className="free-slots-days" role="group" aria-label="Dia">

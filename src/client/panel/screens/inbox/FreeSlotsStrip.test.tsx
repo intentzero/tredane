@@ -108,4 +108,22 @@ describe('FreeSlotsStrip', () => {
     expect(body).toMatchObject({ conversationId: 'c1', serviceId: 's1', startsAt: t1530 })
     expect(typeof body.clientRequestId).toBe('string')
   })
+
+  it('fixada na coluna: já aberta, sem Fechar, e continua aberta depois de propor', async () => {
+    const api = {
+      getClinicConfig: vi.fn().mockResolvedValue({
+        services: [{ id: 's1', name: 'Depilação a laser', active: true }],
+        settings: { timezone: TZ },
+      }),
+      queryAvailability: vi.fn().mockResolvedValue({ slots: [slot(t1530)] }),
+      getPix: vi.fn().mockRejectedValue(new Error('sem pix')),
+    } as unknown as PanelApi
+    const onPropose = vi.fn()
+    render(<FreeSlotsStrip pinned tenantId="t" api={api} generation={1} onPropose={onPropose} />)
+    expect(screen.queryByRole('button', { name: 'Fechar' })).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: /Bruna/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Colocar no campo/ }))
+    await waitFor(() => expect(onPropose).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('region', { name: 'Horários livres' })).toBeTruthy()
+  })
 })

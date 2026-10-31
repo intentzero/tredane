@@ -12,6 +12,7 @@ import type { ConversasSection } from '../../routes'
 import { InboxContactScreen } from './InboxContact'
 import { InboxList } from './InboxList'
 import { InboxThread } from './InboxThread'
+import { FreeSlotsStrip } from './FreeSlotsStrip'
 import { AgendarScreen } from '../agenda/AgendarScreen'
 import { ShellIdentity, useOnline } from '../../shell/ShellIdentity'
 import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
@@ -265,6 +266,7 @@ export function ConversasThreeCol({
   const returnFocus = useRef<HTMLElement | null>(null)
   const agendarReturnFocus = useRef<HTMLElement | null>(null)
   const userToggled = useRef(false)
+  const [incomingDraft, setIncomingDraft] = useState<{ id: number; conversationId: string; text: string } | null>(null)
 
   // Trocar de conversa fecha o Agendar: o painel nunca marca para a pessoa errada.
   useEffect(() => {
@@ -351,6 +353,7 @@ export function ConversasThreeCol({
             generation={generation}
             viewerClerkUserId={viewerId}
             staffDisplayName={staffDisplayName}
+            incomingDraft={incomingDraft}
             contactPanel={{
               open: panelOpen,
               controlsId: 'conversas-contact-panel',
@@ -391,6 +394,16 @@ export function ConversasThreeCol({
               <X aria-hidden size={20} strokeWidth={2} />
             </button>
           </div>
+          <FreeSlotsStrip
+            key={conversationId}
+            pinned
+            tenantId={tenantId}
+            api={api}
+            generation={generation}
+            conversationId={conversationId}
+            authorDisplayName={staffDisplayName}
+            onPropose={(text) => setIncomingDraft((prev) => ({ id: (prev?.id ?? 0) + 1, conversationId, text }))}
+          />
           <ContactViaConversation
             tenantId={tenantId}
             conversationId={conversationId}
