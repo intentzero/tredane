@@ -3,12 +3,12 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
-## 31/10/2026 — Controlos da thread (proposta de simplificação)
+## 31/10/2026 — Controlos da thread (Opção A **Confirmada**)
 
-- **Proposto** (à espera do Paulo): reorganizar Resumo da IA e Bloquear para uma só entrada no Contato; menu ⋮ / folha só com conversa/pipeline.
+- **Confirmado (Paulo, 31/10/2026, Opção A):** Resumo da IA e Bloquear só no Contato; menu ⋮ / folha M-55 só conversa/pipeline; header Agendar · Contato · ⋮.
 - Desktop: `ConversasControlesMenu.dc.html`, `ConversasControlesContato.dc.html` + previews.
-- Mobile: M-55 `AcoesConversaProposta.dc.html` (M-40 mantém o estado anterior até decisão).
-- Spec: nota **Proposto** em `ux-ui.md` TEL-01; sem implementação de código.
+- Mobile: M-55 `AcoesConversaProposta.dc.html` (M-40 histórico).
+- Implementação: `InboxThread` / `InboxContact`; testes de menu e bloqueio no Contato.
 
 ## 31/10/2026 — M-54 Conversas lista mobile (**Confirmado**, Opção A)
 

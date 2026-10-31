@@ -45,7 +45,6 @@ import type {
 import { PanelApiError } from '../../api'
 import { useClinicTimezone } from '../../clinicTimezone'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
-import { BlockContactDialog } from './BlockContactDialog'
 import { awaitingClinicReply } from './lastRelevant'
 import { ThreadActionsSheet, type ThreadAction } from './ThreadActionsSheet'
 import { TransferSheet } from './TransferSheet'
@@ -53,7 +52,6 @@ import { PixPendingBar, PixPendingSheet } from './PixPendingSheet'
 import { useMediaQuery } from '../../ui/useMediaQuery'
 import { AiWorking } from '../../ui/AiWorking'
 import { navigatePanel } from '../../routes'
-import { requestSummaryFocus } from './summaryFocus'
 import { ErrorState } from '../../states/StatusScreens'
 import {
   assigneeLine,
@@ -263,12 +261,9 @@ export function InboxThread({
   const [templates, setTemplates] = useState<WhatsappTemplateItem[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
-  const [blockOpen, setBlockOpen] = useState(false)
   const [actionsOpen, setActionsOpen] = useState(false)
   const [transferOpen, setTransferOpen] = useState(false)
   const narrow = useMediaQuery('(max-width: 767.98px)')
-  const [blockBusy, setBlockBusy] = useState(false)
-  const [blockError, setBlockError] = useState<string | null>(null)
   // Datas e horas no fuso da clínica (Agenda → Horários).
   useClinicTimezone(api, tenantId, generation)
   const [selectedTemplate, setSelectedTemplate] =
@@ -707,25 +702,6 @@ export function InboxThread({
     }
   }
 
-  async function blockContact(reason: string | null) {
-    if (!detail) return
-    setBlockBusy(true)
-    setBlockError(null)
-    try {
-      await api.blockInboxContact(tenantId, detail.contactId, { reason }, {
-        generation,
-        expectGeneration: () => generation,
-      })
-      setBlockOpen(false)
-      discardDraftInComposer()
-      await load({ quiet: true })
-    } catch {
-      setBlockError('Não foi possível bloquear agora. Tente de novo.')
-    } finally {
-      setBlockBusy(false)
-    }
-  }
-
   async function unblockContact() {
     if (!detail) return
     setBusy(true)
@@ -998,10 +974,11 @@ export function InboxThread({
     detail.assigneeClerkUserId != null &&
     detail.assigneeClerkUserId === viewerClerkUserId
   const blocked = detail.contact?.blockedAt != null
+  // Confirmado (Paulo, 31/10/2026, Opção A): ⋮ / folha = só conversa/pipeline.
+  // Resumo da IA e Bloquear ficam só no Contato / Detalhes.
   const threadActions: ThreadAction[] = [
-    { id: 'contact', label: 'Ver detalhes do contato' },
-    // Atalho do celular; no desktop o resumo fica na coluna do contato.
-    { id: 'summary', label: 'Resumo da IA' },
+    // Folha mobile: atalho à ficha (no desktop o header já tem Contato).
+    { id: 'contact', label: 'Ver contato' },
     ...(detail.status !== 'closed' && !blocked ? [{ id: 'hold', label: 'Reservar bloco' }] : []),
     // DEC-062: a etapa muda sozinha; aqui só as duas correções manuais.
     ...(detail.opportunity && detail.status !== 'closed' && !blocked
@@ -1016,23 +993,12 @@ export function InboxThread({
       : []),
     ...(detail.status !== 'closed' && !blocked ? [{ id: 'transfer', label: 'Transferir para outra pessoa' }] : []),
     ...(detail.status !== 'closed' ? [{ id: 'close', label: 'Encerrar conversa' }] : []),
-    blocked
-      ? { id: 'unblock', label: 'Desbloquear contato' }
-      : { id: 'block', label: 'Bloquear contato', danger: true },
   ]
+  // Desktop: Contato já está no header — não duplicar no ⋮. Sem itens → esconder o ⋮.
+  const menuActions = narrow ? threadActions : threadActions.filter((a) => a.id !== 'contact')
+  const hasMenuActions = menuActions.length > 0
   function runThreadAction(id: string) {
     if (id === 'contact') {
-      navigatePanel({
-        kind: 'area',
-        area: 'conversas',
-        tenantId,
-        section: 'contato',
-        conversationId: detail!.id,
-        contactId: detail!.contactId,
-      })
-    }
-    if (id === 'summary') {
-      requestSummaryFocus()
       navigatePanel({
         kind: 'area',
         area: 'conversas',
@@ -1047,11 +1013,6 @@ export function InboxThread({
     if (id === 'hold') setReserveOpen(true)
     if (id === 'transfer') setTransferOpen(true)
     if (id === 'close') setConfirmClose(true)
-    if (id === 'block') {
-      setBlockError(null)
-      setBlockOpen(true)
-    }
-    if (id === 'unblock') void unblockContact()
   }
   const pendingPix = pixCharges.find((c) => c.status === 'awaiting_payment') ?? null
   const windowOpen = detail.messagingWindow?.open !== false && !blocked
@@ -1154,7 +1115,7 @@ export function InboxThread({
             <span>Contato</span>
           </Button>
         ) : null}
-        {narrow ? (
+        {hasMenuActions && narrow ? (
           <Button
             className="panel-icon-btn"
             aria-label="Mais opções da conversa"
@@ -1163,7 +1124,8 @@ export function InboxThread({
           >
             <EllipsisVertical aria-hidden size={22} strokeWidth={2} />
           </Button>
-        ) : (
+        ) : null}
+        {hasMenuActions && !narrow ? (
           <MenuTrigger>
             <Button className="panel-icon-btn" aria-label="Mais opções da conversa">
               <EllipsisVertical aria-hidden size={22} strokeWidth={2} />
@@ -1174,23 +1136,21 @@ export function InboxThread({
                 aria-label="Opções da conversa"
                 onAction={(key) => runThreadAction(String(key))}
               >
-                {threadActions
-                  .filter((a) => a.id !== 'contact')
-                  .map((a, i) => (
-                    <Fragment key={a.id}>
-                      {a.danger && i > 0 ? <Separator className="panel-menu-separator" /> : null}
-                      <MenuItem
-                        id={a.id}
-                        className={`panel-menu-item${a.danger ? ' panel-menu-item--danger' : ''}`}
-                      >
-                        {a.label}
-                      </MenuItem>
-                    </Fragment>
-                  ))}
+                {menuActions.map((a, i) => (
+                  <Fragment key={a.id}>
+                    {a.danger && i > 0 ? <Separator className="panel-menu-separator" /> : null}
+                    <MenuItem
+                      id={a.id}
+                      className={`panel-menu-item${a.danger ? ' panel-menu-item--danger' : ''}`}
+                    >
+                      {a.label}
+                    </MenuItem>
+                  </Fragment>
+                ))}
               </Menu>
             </Popover>
           </MenuTrigger>
-        )}
+        ) : null}
       </header>
 
       {confirmClose ? (
@@ -1252,9 +1212,9 @@ export function InboxThread({
       ) : null}
 
       <ThreadActionsSheet
-        open={actionsOpen && narrow}
+        open={actionsOpen && narrow && hasMenuActions}
         title={`Conversa com ${label}`}
-        actions={threadActions}
+        actions={menuActions}
         onAction={runThreadAction}
         onClose={() => setActionsOpen(false)}
       />
@@ -1268,17 +1228,6 @@ export function InboxThread({
         busy={busy}
         onClose={() => setTransferOpen(false)}
         onPick={(m) => void transferTo(m)}
-      />
-      <BlockContactDialog
-        open={blockOpen}
-        contactLabel={label}
-        busy={blockBusy}
-        hasPendingPix={detail.contactHasPendingPix === true}
-        error={blockError}
-        onClose={() => setBlockOpen(false)}
-        onConfirm={(reason) => {
-          void blockContact(reason)
-        }}
       />
       <ReservarBlocoSheet
         open={reserveOpen}
