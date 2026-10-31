@@ -66,7 +66,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 | Chips e botões pequenos (altura visual de 28 a 36px, v0.4.0) | Abaixo dos 44px de área clicável (UX-08) | Mesma aparência, com área clicável ≥ 44px (padding ou pseudo-elemento, como no [catálogo](catalog/index.html)) |
 | M-06 Agenda do dia | Não mostra o alternador **Dia / Semana** | Incluir como em M-13 (DEC-040) |
 | M-15 Clínica | O item “WhatsApp” abre M-19 (não conectado) | Abrir M-19, M-23 ou M-24 conforme o estado real da conexão |
-| M-09 Entrar | É um mock do comportamento; composição do bloco centrado **Proposta** (31/10/2026) | A tela real é o componente do Clerk com a identidade do Tredane; não implementar o redesenho do splash até o responsável aprovar o mock |
+| M-09 Entrar | É um mock do comportamento; composição do bloco centrado **Confirmada** (Paulo 31/10/2026) | A tela real é o Clerk com a identidade do Tredane; layout alinhado ao mock em `.panel-auth` |
 | M-01 a M-14 | Mostram a barra de 3 abas (visão do Atendente) | O Responsável vê 4 abas, com **Clínica** (M-15) |
 | M-20 | Aba “Salas · 3” abrevia “Salas e equipamentos” | Manter o título completo no cabeçalho e na descrição da aba; o rótulo curto cabe em 360px |
 | Fonte | Os mocks pedem Inter e os previews usam a fonte do sistema | Usar **Roboto** (400/500/600), hospedada pelo Tredane ([DEC-073](../product/decisions.md), [ADR-0013](../adr/0013-design-system-components.md)); conferir as quebras de linha com ela, porque a largura do texto muda com a fonte e linhas que cabem nos previews podem quebrar |

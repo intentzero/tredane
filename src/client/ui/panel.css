@@ -858,38 +858,82 @@
   }
 }
 
-.panel-auth,
+/*
+ * TEL-08 / M-09 Entrar — Confirmado Paulo 31/10/2026.
+ * Bloco centrado (marca → formulário/Clerk → nota); fundo surface.app +
+ * mancha primary.tint. Não usar margin-top:auto no rodapé (splash partido).
+ */
+.panel-auth {
+  position: relative;
+  width: 100%;
+  min-width: min(100%, var(--size-viewport-min));
+  min-height: 100dvh;
+  margin: 0;
+  padding: calc(var(--space-8) + env(safe-area-inset-top, 0px)) var(--space-6)
+    calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: var(--color-surface-app);
+}
+
+.panel-auth-atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      120% 70% at 50% 28%,
+      var(--color-primary-tint) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      90% 50% at 50% 100%,
+      var(--color-surface-sunken) 0%,
+      transparent 55%
+    );
+}
+
+.panel-auth-stack {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 400px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
 .panel-selector {
   width: min(100%, 430px);
   min-width: min(100%, var(--size-viewport-min));
   min-height: 100dvh;
   margin: 0 auto;
-  padding: calc(var(--space-8) + env(safe-area-inset-top, 0px)) var(--space-6)
+  padding: calc(var(--space-8) + env(safe-area-inset-top, 0px)) var(--space-4)
     calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
   box-sizing: border-box;
-  background: var(--color-surface-card);
-}
-
-.panel-selector {
   background: var(--color-surface-app);
-  padding-left: var(--space-4);
-  padding-right: var(--space-4);
 }
 
 .panel-auth-brand {
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: var(--space-3);
+}
+
+.panel-auth-brand .brand-horizontal {
+  height: 48px;
+  width: auto;
 }
 
 .panel-auth-form {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: var(--space-5);
 }
 
@@ -897,6 +941,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  text-align: center;
 }
 
 .panel-auth-title {
@@ -913,10 +958,23 @@
 
 .panel-auth-foot {
   margin: 0;
-  margin-top: auto;
   text-align: center;
   font-size: var(--font-size-small);
   color: var(--color-text-muted);
+}
+
+.panel-selector .panel-auth-foot {
+  margin-top: auto;
+}
+
+@media (min-width: 768px) {
+  .panel-auth {
+    padding: 40px;
+  }
+
+  .panel-auth-brand .brand-horizontal {
+    height: 56px;
+  }
 }
 
 .panel-otp {
@@ -1028,10 +1086,9 @@
 }
 
 .panel-auth-clerk {
-  flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  width: 100%;
 }
 
 .panel-clerk-root {
