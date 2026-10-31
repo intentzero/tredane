@@ -192,7 +192,7 @@ export function AiAssistCard({
               Masculino
             </Radio>
             <Text slot="description" className="panel-muted-sm">
-              Só a responsável altera (DEC-042 / DEC-089).
+              Só a responsável altera.
             </Text>
           </RadioGroup>
           <Button
