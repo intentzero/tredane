@@ -3,9 +3,10 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
-## 31/10/2026 — M-54 Conversas lista (proposta mobile)
+## 31/10/2026 — M-54 Conversas lista mobile (**Confirmado**, Opção A)
 
-- Novo mock **Proposto** `mobile/ConversasListaProposta.dc.html` + preview `M-54-ConversasListaProposta.png`: lista contínua full-bleed no celular, shell intacto (4 abas do Responsável), busca sunken e chips com contador. Não substitui M-01 até o Paulo decidir. Índice em [screens.md](screens.md).
+- Mock `mobile/ConversasListaProposta.dc.html` + preview `M-54-ConversasListaProposta.png`: lista contínua full-bleed, busca sunken, densidade DEC-081, shell intacto.
+- **Confirmado (Paulo, 31/10/2026, Opção A):** implementação em `panel.css` (`.inbox-root` / `.inbox-search-input` / `.inbox-list` / tipografia da linha). Sem mudança de filtros, jornada ou regras.
 
 ## 31/10/2026 — Conversas desktop densidade WA (**Confirmado**, Opção A)
 

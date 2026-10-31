@@ -1412,19 +1412,26 @@
 }
 
 /* —— Inbox / Conversas (#29) —— */
+/*
+ * Lista Conversas (M-54 Confirmado, Paulo 31/10/2026, Opção A):
+ * full-bleed contínuo no celular — sem cartão flutuante; busca sunken;
+ * densidade DEC-081. Shell e filtros intactos.
+ */
 .inbox-root {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   min-height: 0;
   flex: 1;
-  padding: 0 var(--space-4) var(--space-4);
+  padding: var(--space-3) 0 0;
+  background: var(--color-surface-card);
 }
 
 .inbox-search {
   position: relative;
   display: flex;
   align-items: center;
+  margin-inline: var(--space-4);
 }
 
 .inbox-search-icon {
@@ -1436,11 +1443,11 @@
 
 .inbox-search-input {
   width: 100%;
-  min-height: 44px;
-  padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) + 24px);
-  border: var(--size-border-width) solid var(--color-line-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-card);
+  min-height: var(--size-control-default);
+  padding: 0 var(--space-3) 0 calc(var(--space-3) + 24px);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
   color: var(--color-text-primary);
 }
 
@@ -1448,8 +1455,15 @@
   display: flex;
   gap: var(--space-2);
   overflow-x: auto;
-  padding-bottom: var(--space-1);
+  margin-inline: var(--space-4);
+  margin-bottom: 0;
+  padding-bottom: var(--space-3);
+  border-bottom: var(--size-border-width) solid var(--color-line-border);
   -webkit-overflow-scrolling: touch;
+}
+
+.inbox-root > .panel-status {
+  padding-inline: var(--space-4);
 }
 
 /* Faixas de chips: sem barra de rolagem; o esmaecimento à direita indica que há mais. */
@@ -2744,10 +2758,16 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  overflow: hidden;
-  border: var(--size-border-width) solid var(--color-line-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-card);
+  overflow-x: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.inbox-root > .inbox-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .inbox-list > li + li {
@@ -2827,7 +2847,7 @@
 }
 
 .inbox-row-name {
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-title);
   font-weight: var(--font-weight-semibold);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2846,15 +2866,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-body);
 }
 
 .inbox-row-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .inbox-row-assignee {
