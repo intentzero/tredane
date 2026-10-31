@@ -28,7 +28,10 @@ const HEALTH = /\b(gr[aá]vid|\bd[oó]i\b|\bmedicamento|\bcontraindica)/i
 const OFFENSE = /\b(idiota|porra|merda|vsf|fdp)\b/i
 const OFF_TOPIC = /\b(piada|esquece a cl[ií]nica)\b/i
 const PIX = /\b(chave\s+pix|j[aá] paguei|pix copia)\b/i
-const RESCHEDULE = /\b(remarca|remarcar|remarque|cancela|cancelar|desmarca|desmarcar)\b/i
+/** Cancelar/desmarcar: humano. Remarcar com compromisso existente = DEC-091 (fora daqui). */
+const CANCEL = /\b(cancela|cancelar|desmarca|desmarcar)\b/i
+/** Remarcar sem compromisso futuro (tratado no autodraft) ou legado. */
+const RESCHEDULE_ONLY = /\b(reagendar|remarca|remarcar|remarque|adiar|mudar(\s+o)?\s+hor[aá]rio|trocar(\s+o)?\s+hor[aá]rio)\b/i
 const THIRD_PARTY = /\b(minha m[aã]e|meu pai|minha filha|meu filho|n[aã]o [eé] para mim|para a minha)\b/i
 
 export function readAiReplyPause(
@@ -130,9 +133,11 @@ export function handoffReason(
   ) {
     return 'off_purpose'
   }
-  if (RESCHEDULE.test(body) || THIRD_PARTY.test(body) || professionalOutsideService(db, tenantId, body, clock)) {
+  if (CANCEL.test(body) || THIRD_PARTY.test(body) || professionalOutsideService(db, tenantId, body, clock)) {
     return 'human_only'
   }
+  // Remarcação: o autodraft tenta DEC-091 antes; sem compromisso futuro → human_only lá.
+  if (RESCHEDULE_ONLY.test(body)) return 'human_only'
   return null
 }
 

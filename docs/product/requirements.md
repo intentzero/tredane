@@ -274,6 +274,10 @@
 
 **Prioridade/estado:** MVP / Confirmado (DEC-089). **Origem:** ACT-03; DEC-042, DEC-011. **Comportamento:** a responsável pode gravar, opcionalmente, nome e género (`masculino` \| `feminino`) do atendente virtual da clínica. A IA usa esses valores na copy (concordância e apresentação). Attendant não grava. Vazio = copy neutra. Não se grava nem se infere sexo da cliente. **Aceite:** AC-74. **Dados/tenant:** `clinic_settings` no SQLite da clínica; UI React Aria / tokens DEC-041.
 
+### REQ-101 — Reagendamento conversacional sem reiniciar o funil
+
+**Prioridade/estado:** MVP / Confirmado (DEC-091, Paulo 31/10/2026). **Origem:** ACT-01; JRN-05, JRN-17; DEC-008, DEC-061, DEC-078. **Comportamento:** com compromisso confirmado futuro no contacto, pedido de reagendar (reagendar, remarcar, mudar/trocar horário, «posso … para [dia]») **não** reabre o funil de serviço/zonas/linha. O sistema oferece slots no dia/período pedido para o mesmo serviço e variantes do compromisso; confirmação só pelo botão da proposta (DEC-061) que, no clique, chama o reagendamento atómico existente (`rescheduleAppointmentOp`, motivo `contato_remarcou`, zonas mantidas). Sem slots: avisar e pedir outro dia, sem perguntar zonas. Cancelar/desmarcar e remarcar sem compromisso futuro → handoff humano (DEC-083). **Aceite:** AC-75. **Dados/tenant:** proposta com `replaces_appointment_id`; SQLite da clínica; isolamento DEC-038.
+
 ## Racional de prioridade — proposta para aprovação
 
 Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP interno** para gestão da plataforma) porque contribuem para a primeira jornada demonstrável, para a segurança multi-tenant ou para operar a plataforma sem depender de intervenção no banco. Estas justificativas **não significam aprovação final**, nem liberam uso de dados reais. Quando parte do comportamento estiver em aberto, a aprovação da prioridade não fecha a regra de produto.
@@ -318,6 +322,7 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-098 | MVP | Idle 30 min pergunta prosseguir/terminar; segundo prazo Proposto 30 min (DEC-087). |
 | REQ-099 | MVP | Outbound humano no WhatsApp leva prefixo `[Nome]` (DEC-088). |
 | REQ-100 | MVP | Owner configura nome/género opcionais do atendente virtual (DEC-089). |
+| REQ-101 | MVP | Reagendar com compromisso existente mantém serviço/zonas e confirma por botão (DEC-091). |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). |
 

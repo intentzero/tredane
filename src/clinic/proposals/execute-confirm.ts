@@ -24,7 +24,7 @@ import { getPixChargeByIdempotencyKey } from '../pix/charges'
 import { createSignalChargeAndSendOp } from '../pix/signal-charge'
 import type { PixChargeRow } from '../pix/types'
 import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
-import { confirmAppointmentOp } from '../scheduling/booking'
+import { confirmAppointmentOp, rescheduleAppointmentOp } from '../scheduling/booking'
 import type { AppointmentDetail } from '../scheduling/booking-types'
 import { queryAvailability } from '../scheduling/query'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
@@ -379,28 +379,47 @@ export async function executeProposalConfirmOp(
     }
     if (proposal.appointmentId && proposal.professionalId) {
       const roomResourceId = resolveRoomForProposal(db, meta.tenantId, proposal, clock)
-      const booked = confirmAppointmentOp(
-        db,
-        caller,
-        {
-          clientRequestId: proposalBookClientRequestId(proposal.id, proposal.version),
-          serviceId: proposal.serviceId,
-          professionalId: proposal.professionalId,
-          roomResourceId,
-          startsAt: proposal.startsAt,
-          contactId: proposal.contactId,
-          conversationId: proposal.conversationId,
-          opportunityId: openOpportunityId(db, meta.tenantId, proposal.conversationId),
-          actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
-          actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
-          appliedDurationMinutes: null,
-          stageNote: BUTTON_STAGE_NOTE,
-          zoneIds: readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
-            .map((z) => z.zoneId)
-            .filter((id): id is string => Boolean(id)),
-        },
-        clock,
-      )
+      const clientRequestId = proposalBookClientRequestId(proposal.id, proposal.version)
+      const booked = proposal.replacesAppointmentId
+        ? rescheduleAppointmentOp(
+            db,
+            caller,
+            {
+              clientRequestId,
+              appointmentId: proposal.replacesAppointmentId,
+              reason: 'contato_remarcou',
+              serviceId: proposal.serviceId,
+              professionalId: proposal.professionalId,
+              roomResourceId,
+              startsAt: proposal.startsAt,
+              actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
+              // Mantém zonas do compromisso (DEC-078 / DEC-091).
+              zoneIds: null,
+            },
+            clock,
+          )
+        : confirmAppointmentOp(
+            db,
+            caller,
+            {
+              clientRequestId,
+              serviceId: proposal.serviceId,
+              professionalId: proposal.professionalId,
+              roomResourceId,
+              startsAt: proposal.startsAt,
+              contactId: proposal.contactId,
+              conversationId: proposal.conversationId,
+              opportunityId: openOpportunityId(db, meta.tenantId, proposal.conversationId),
+              actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
+              actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
+              appliedDurationMinutes: null,
+              stageNote: BUTTON_STAGE_NOTE,
+              zoneIds: readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
+                .map((z) => z.zoneId)
+                .filter((id): id is string => Boolean(id)),
+            },
+            clock,
+          )
       const result = await ensureResult(db, caller, proposal.id, 'booked', clock)
       const outbox = appendPostBookingFollowup(
         db,
@@ -686,29 +705,47 @@ export async function executeProposalConfirmOp(
   }
 
   try {
-    const booked = confirmAppointmentOp(
-      db,
-      caller,
-      {
-        clientRequestId: proposalBookClientRequestId(proposal.id, proposal.version),
-        serviceId: proposal.serviceId,
-        professionalId: proposal.professionalId,
-        roomResourceId,
-        startsAt: proposal.startsAt,
-        contactId: proposal.contactId,
-        conversationId: proposal.conversationId,
-        opportunityId: openOpportunityId(db, meta.tenantId, proposal.conversationId),
-        contactLabel,
-        actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
-        actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
-        appliedDurationMinutes: null,
-        stageNote: BUTTON_STAGE_NOTE,
-        zoneIds: readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
-          .map((z) => z.zoneId)
-          .filter((id): id is string => Boolean(id)),
-      },
-      clock,
-    )
+    const clientRequestId = proposalBookClientRequestId(proposal.id, proposal.version)
+    const booked = proposal.replacesAppointmentId
+      ? rescheduleAppointmentOp(
+          db,
+          caller,
+          {
+            clientRequestId,
+            appointmentId: proposal.replacesAppointmentId,
+            reason: 'contato_remarcou',
+            serviceId: proposal.serviceId,
+            professionalId: proposal.professionalId,
+            roomResourceId,
+            startsAt: proposal.startsAt,
+            actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
+            zoneIds: null,
+          },
+          clock,
+        )
+      : confirmAppointmentOp(
+          db,
+          caller,
+          {
+            clientRequestId,
+            serviceId: proposal.serviceId,
+            professionalId: proposal.professionalId,
+            roomResourceId,
+            startsAt: proposal.startsAt,
+            contactId: proposal.contactId,
+            conversationId: proposal.conversationId,
+            opportunityId: openOpportunityId(db, meta.tenantId, proposal.conversationId),
+            contactLabel,
+            actorClerkUserId: AI_AUTOBOOK_ACTOR_ID,
+            actorDisplayName: AI_AUTOBOOK_ACTOR_NAME,
+            appliedDurationMinutes: null,
+            stageNote: BUTTON_STAGE_NOTE,
+            zoneIds: readZoneSnapshots(db, meta.tenantId, 'proposal', proposal.id)
+              .map((z) => z.zoneId)
+              .filter((id): id is string => Boolean(id)),
+          },
+          clock,
+        )
     const confirmed = markProposalConfirmed(
       db,
       meta.tenantId,
