@@ -8471,7 +8471,7 @@
 
 .clientes-list-head {
   flex: none;
-  padding: var(--panel-header-block, var(--space-3)) var(--panel-header-inline, var(--space-4));
+  padding: var(--space-3) var(--space-4);
   border-bottom: var(--size-border-width) solid var(--color-line-border);
 }
 
@@ -8517,7 +8517,7 @@
   margin: 0;
   font-size: var(--font-size-title);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
+  color: var(--color-text-primary);
 }
 
 .clientes-empty-pane p {
@@ -8561,7 +8561,7 @@
   flex-direction: column;
   gap: 2px;
   cursor: pointer;
-  color: var(--color-text);
+  color: var(--color-text-primary);
   font: inherit;
 }
 
