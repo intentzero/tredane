@@ -3,6 +3,11 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 31/10/2026 — Lista de Conversas mais larga no desktop
+
+- **Confirmado** (Paulo, 31/10/2026, «aplica»): em ≥ 1280 px a lista deixa os 400 px fixos da Opção A e passa a 44% da janela, mín. 420 e máx. 760 px. A densidade (busca sunken, linhas de ponta a ponta, thread) mantém-se. Entre 1024 e 1279 px continua 30% (360–520).
+- Mocks `ConversasDesktopProposta.dc.html` e `ConversasDesktopPropostaThread.dc.html` no artboard de 1440 px: coluna de 634 px. DEC-068.
+
 ## 31/10/2026 — M-54 Conversas lista mobile (**Confirmado**, Opção A)
 
 - Mock `mobile/ConversasListaProposta.dc.html` + preview `M-54-ConversasListaProposta.png`: lista contínua full-bleed, busca sunken, densidade DEC-081, shell intacto.
