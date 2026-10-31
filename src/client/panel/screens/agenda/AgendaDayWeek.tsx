@@ -28,10 +28,12 @@ import {
   visibleHours,
 } from './dayGrid'
 import {
+  civilDateInZone,
   formatDateRange,
   formatDayLabel,
   formatLongDate,
   formatSlotTime,
+  isCivilDateParam,
   upcomingCivilDates,
 } from './format'
 
@@ -42,6 +44,8 @@ type Props = {
   view: 'day' | 'week'
   /** Compromisso aberto no painel por cima (rota `…/agenda/compromisso/:id`, só no desktop). */
   openId?: string
+  /** Dia civil AAAA-MM-DD da rota/query — deep link (Acompanhamento / Agendar). */
+  focusDate?: string
   /** Responsável: «Permitir os dois» no detalhe (DEC-075 / S5). */
   isOwner?: boolean
 }
@@ -58,21 +62,17 @@ function shiftCivil(date: string, delta: number): string {
 }
 
 function civilDayOf(ms: number, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date(ms))
+  return civilDateInZone(ms, timeZone)
 }
 
-function detailRoute(tenantId: string, id: string) {
+function detailRoute(tenantId: string, id: string, date?: string) {
   return {
     kind: 'area',
     area: 'agenda',
     tenantId,
     section: 'compromisso',
     appointmentId: id,
+    ...(isCivilDateParam(date) ? { date } : {}),
   } as const
 }
 
@@ -81,8 +81,20 @@ function detailRoute(tenantId: string, id: string) {
  * A API de semana traz a semana inteira; o dia usa a mesma resposta (e a faixa
  * da semana mostra quais dias têm horário marcado).
  */
-export function AgendaDayWeek({ tenantId, api, generation, view, openId, isOwner = false }: Props) {
-  const [date, setDate] = useState(() => upcomingCivilDates(DEFAULT_TZ, Date.now(), 1)[0]!)
+export function AgendaDayWeek({
+  tenantId,
+  api,
+  generation,
+  view,
+  openId,
+  focusDate,
+  isOwner = false,
+}: Props) {
+  const [date, setDate] = useState(
+    () =>
+      (isCivilDateParam(focusDate) ? focusDate : null) ??
+      upcomingCivilDates(DEFAULT_TZ, Date.now(), 1)[0]!,
+  )
   const [data, setData] = useState<AgendaViewResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [detail, setDetail] = useState<string | null>(null)
@@ -111,7 +123,13 @@ export function AgendaDayWeek({ tenantId, api, generation, view, openId, isOwner
   }, [panelOpen, openId])
 
   function closePanel() {
-    navigatePanel({ kind: 'area', area: 'agenda', tenantId, section: view === 'week' ? 'semana' : 'dia' })
+    navigatePanel({
+      kind: 'area',
+      area: 'agenda',
+      tenantId,
+      section: view === 'week' ? 'semana' : 'dia',
+      date,
+    })
     returnFocus.current?.focus?.({ preventScroll: true })
   }
 
@@ -121,7 +139,7 @@ export function AgendaDayWeek({ tenantId, api, generation, view, openId, isOwner
       return
     }
     if (wide && !openId) returnFocus.current = document.activeElement as HTMLElement | null
-    navigatePanel(detailRoute(tenantId, id))
+    navigatePanel(detailRoute(tenantId, id, date))
   }
 
   useEffect(() => {
@@ -138,6 +156,39 @@ export function AgendaDayWeek({ tenantId, api, generation, view, openId, isOwner
       cancelled = true
     }
   }, [api, tenantId, generation])
+
+  // Deep link: query `date=` e/ou compromisso noutro dia ≠ hoje.
+  useEffect(() => {
+    if (isCivilDateParam(focusDate)) {
+      setDate((cur) => (cur === focusDate ? cur : focusDate))
+      return
+    }
+    if (!openId) return
+    let cancelled = false
+    const local = data?.appointments.find((a) => a.id === openId)
+    if (local) {
+      const civil = civilDayOf(local.startsAt, data!.timezone)
+      setDate((cur) => (cur === civil ? cur : civil))
+      return
+    }
+    void api
+      .getAppointment(tenantId, openId, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      .then((apt) => {
+        if (cancelled) return
+        const tz = data?.timezone ?? config?.settings?.timezone ?? DEFAULT_TZ
+        const civil = civilDayOf(apt.startsAt, tz)
+        setDate((cur) => (cur === civil ? cur : civil))
+      })
+      .catch(() => {
+        /* mantém o dia actual se o compromisso não carregar */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [openId, focusDate, data, api, tenantId, generation, config])
 
   const load = useCallback(async () => {
     setLoading(true)

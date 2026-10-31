@@ -59,19 +59,28 @@ export function formatDateRange(
   return `${fmt.format(civilProbe(startIso))} – ${fmt.format(civilProbe(endIso))}`
 }
 
+/** Dia civil AAAA-MM-DD no fuso dado (ex.: compromisso → Agenda). */
+export function civilDateInZone(ms: number, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(ms))
+}
+
+/** Query/rota de dia civil AAAA-MM-DD. */
+export function isCivilDateParam(value: string | null | undefined): value is string {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
 /** Próximos N dias civis a partir de «hoje» no fuso da clínica. */
 export function upcomingCivilDates(
   timeZone: string,
   fromMs: number,
   count: number,
 ): string[] {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-  const today = fmt.format(new Date(fromMs))
+  const today = civilDateInZone(fromMs, timeZone)
   const [y, m, d] = today.split('-').map(Number)
   const out: string[] = []
   for (let i = 0; i < count; i++) {

@@ -38,12 +38,14 @@ describe('panel routes (#22)', () => {
       area: 'agenda',
       tenantId: 'clinic-demo-a',
       section: 'dia',
+      date: undefined,
     })
     expect(resolvePanelRoute('/c/clinic-demo-a/agenda/agendar')).toEqual({
       kind: 'area',
       area: 'agenda',
       tenantId: 'clinic-demo-a',
       section: 'agendar',
+      date: undefined,
     })
     expect(resolvePanelRoute('/c/clinic-demo-a/agenda/semana')).toEqual({
       kind: 'area',
@@ -57,6 +59,24 @@ describe('panel routes (#22)', () => {
       tenantId: 'clinic-demo-a',
       section: 'compromisso',
       appointmentId: 'apt_1',
+      date: undefined,
+    })
+    expect(
+      resolvePanelRoute('/c/clinic-demo-a/agenda/compromisso/apt_1', '?date=2026-11-02'),
+    ).toEqual({
+      kind: 'area',
+      area: 'agenda',
+      tenantId: 'clinic-demo-a',
+      section: 'compromisso',
+      appointmentId: 'apt_1',
+      date: '2026-11-02',
+    })
+    expect(resolvePanelRoute('/c/clinic-demo-a/agenda', '?date=2026-11-02')).toEqual({
+      kind: 'area',
+      area: 'agenda',
+      tenantId: 'clinic-demo-a',
+      section: 'dia',
+      date: '2026-11-02',
     })
     expect(resolvePanelRoute('/c/clinic-demo-a/avisos')).toEqual({
       kind: 'area',
@@ -87,6 +107,15 @@ describe('panel routes (#22)', () => {
         kind: 'area',
         area: 'agenda',
         tenantId: 'clinic-demo-a',
+        section: 'dia',
+        date: '2026-11-02',
+      }),
+    ).toBe('/c/clinic-demo-a/agenda?date=2026-11-02')
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'agenda',
+        tenantId: 'clinic-demo-a',
         section: 'agendar',
       }),
     ).toBe('/c/clinic-demo-a/agenda/agendar')
@@ -107,6 +136,16 @@ describe('panel routes (#22)', () => {
         appointmentId: 'apt_1',
       }),
     ).toBe('/c/clinic-demo-a/agenda/compromisso/apt_1')
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'agenda',
+        tenantId: 'clinic-demo-a',
+        section: 'compromisso',
+        appointmentId: 'apt_1',
+        date: '2026-11-02',
+      }),
+    ).toBe('/c/clinic-demo-a/agenda/compromisso/apt_1?date=2026-11-02')
   })
 
   it('rótulo curto Acompanhar e título Acompanhamento (DEC-045)', () => {

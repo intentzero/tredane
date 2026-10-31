@@ -11,12 +11,14 @@ type Props = {
   tenantId: string
   section: AgendaSection
   appointmentId?: string
+  /** Dia civil AAAA-MM-DD (query `date=`) — deep link do compromisso / Acompanhamento. */
+  focusDate?: string
 }
 
 /**
  * Área Agenda (#35/#36): dia/semana, detalhe e Agendar com confirmação atómica.
  */
-export function AgendaArea({ tenantId, section, appointmentId }: Props) {
+export function AgendaArea({ tenantId, section, appointmentId, focusDate }: Props) {
   const { api } = useAuthSession()
   const { active, generation } = useTenant()
   const wide = useMediaQuery('(min-width: 1280px)')
@@ -67,6 +69,7 @@ export function AgendaArea({ tenantId, section, appointmentId }: Props) {
       generation={generation}
       view={section === 'semana' ? 'week' : 'day'}
       openId={section === 'compromisso' ? appointmentId : undefined}
+      focusDate={focusDate}
       isOwner={isOwner}
     />
   )

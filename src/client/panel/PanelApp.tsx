@@ -19,10 +19,11 @@ import {
 
 function usePanelPath(): PanelRoute | null {
   const [route, setRoute] = useState<PanelRoute | null>(() =>
-    resolvePanelRoute(window.location.pathname),
+    resolvePanelRoute(window.location.pathname, window.location.search),
   )
   useEffect(() => {
-    const onPop = () => setRoute(resolvePanelRoute(window.location.pathname))
+    const onPop = () =>
+      setRoute(resolvePanelRoute(window.location.pathname, window.location.search))
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
@@ -139,6 +140,7 @@ function PanelRouter() {
           tenantId={route.tenantId}
           section={route.section}
           appointmentId={route.appointmentId}
+          focusDate={route.date}
         />
       )}
     </PanelShell>

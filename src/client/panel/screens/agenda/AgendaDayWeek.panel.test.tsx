@@ -97,7 +97,12 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const dayRoute = expect.objectContaining({ kind: 'area', area: 'agenda', section: 'dia' })
+const dayRoute = expect.objectContaining({
+  kind: 'area',
+  area: 'agenda',
+  section: 'dia',
+  date: '2026-10-28',
+})
 
 describe('Agenda — compromisso em painel por cima no desktop (DEC-069)', () => {
   it('com um compromisso na rota, abre o painel ao lado da grade', async () => {
@@ -135,5 +140,118 @@ describe('Agenda — compromisso em painel por cima no desktop (DEC-069)', () =>
     render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="day" openId="a1" />)
     await waitFor(() => expect(document.querySelector('.agenda-grid')).toBeTruthy())
     expect(screen.queryByRole('complementary', { name: 'Compromisso' })).toBeNull()
+  })
+})
+
+describe('Agenda — deep link do compromisso', () => {
+  it('focusDate noutro dia muda a vista para esse dia civil', async () => {
+    const api = mockApi()
+    render(
+      <AgendaDayWeek
+        tenantId="t"
+        api={api}
+        generation={1}
+        view="day"
+        openId="a_future"
+        focusDate="2026-11-02"
+      />,
+    )
+    await waitFor(() =>
+      expect(api.queryAgenda).toHaveBeenCalledWith(
+        't',
+        expect.objectContaining({ date: '2026-11-02' }),
+        expect.anything(),
+      ),
+    )
+    expect(screen.getAllByText(/Segunda, 2 de novembro/i).length).toBeGreaterThan(0)
+  })
+
+  it('compromisso no dia de hoje mantém a vista em hoje', async () => {
+    const api = mockApi()
+    render(
+      <AgendaDayWeek
+        tenantId="t"
+        api={api}
+        generation={1}
+        view="day"
+        openId="a1"
+        focusDate="2026-10-28"
+      />,
+    )
+    await waitFor(() =>
+      expect(api.queryAgenda).toHaveBeenCalledWith(
+        't',
+        expect.objectContaining({ date: '2026-10-28' }),
+        expect.anything(),
+      ),
+    )
+    expect(screen.getByRole('heading', { name: /Hoje ·/ })).toBeTruthy()
+  })
+
+  it('sem openId nem focusDate abre o dia de hoje', async () => {
+    const api = mockApi()
+    render(<AgendaDayWeek tenantId="t" api={api} generation={1} view="day" />)
+    await waitFor(() =>
+      expect(api.queryAgenda).toHaveBeenCalledWith(
+        't',
+        expect.objectContaining({ date: '2026-10-28' }),
+        expect.anything(),
+      ),
+    )
+  })
+
+  it('openId sem focusDate sincroniza o dia via getAppointment', async () => {
+    const futureStart = Date.UTC(2026, 10, 2, 18, 0, 0)
+    const queryAgenda = vi.fn(async (_t: string, query: { date: string }) => {
+      const civil = query.date
+      const isFutureWeek = civil >= '2026-11-02'
+      return {
+        tenantId: 't',
+        timezone: TZ,
+        view: 'week' as const,
+        date: civil,
+        rangeStartsAt: isFutureWeek ? Date.UTC(2026, 10, 2, 3) : Date.UTC(2026, 9, 26, 3),
+        rangeEndsAt: isFutureWeek ? Date.UTC(2026, 10, 9, 3) : Date.UTC(2026, 10, 2, 3),
+        asOf: FIXED_NOW,
+        appointments: isFutureWeek
+          ? [
+              {
+                ...apt('a_future', 'Paulo', 'Depilação a laser', 15, 0, 30, 'p_paula', 'r_1'),
+                startsAt: futureStart,
+                endsAt: futureStart + 30 * 60_000,
+                occupiesUntil: futureStart + 30 * 60_000,
+              },
+            ]
+          : [apt('a1', 'Laura Pires', 'Depilação a laser', 9, 0, 30, 'p_paula', 'r_1')],
+        holds: [],
+      }
+    })
+    const api = {
+      ...mockApi(),
+      getAppointment: vi.fn(async () => ({
+        id: 'a_future',
+        status: 'confirmed',
+        version: 1,
+        serviceName: 'Depilação a laser',
+        professionalName: 'Dra. Paula',
+        roomResourceName: 'Sala 1',
+        contactLabel: 'Paulo',
+        startsAt: futureStart,
+        endsAt: futureStart + 30 * 60_000,
+        events: [],
+      })),
+      queryAgenda,
+    } as unknown as PanelApi
+
+    render(
+      <AgendaDayWeek tenantId="t" api={api} generation={1} view="day" openId="a_future" />,
+    )
+    await waitFor(() =>
+      expect(queryAgenda).toHaveBeenCalledWith(
+        't',
+        expect.objectContaining({ date: '2026-11-02' }),
+        expect.anything(),
+      ),
+    )
   })
 })
