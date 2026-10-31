@@ -57,4 +57,18 @@ describe('AccountMenu', () => {
     render(<AccountMenu onSignOut={vi.fn()} />)
     expect(screen.getByRole('button', { name: /Conta: sua conta/ }).querySelector('svg')).toBeTruthy()
   })
+
+  it('Aparência: três opções, Sistema marcada por padrão, escolher Escuro aplica e salva (DEC-098)', async () => {
+    window.localStorage.clear()
+    document.documentElement.removeAttribute('data-theme')
+    const user = userEvent.setup()
+    render(<AccountMenu onSignOut={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: /Conta:/ }))
+    const sistema = await screen.findByRole('menuitemradio', { name: 'Sistema' })
+    expect(sistema.getAttribute('aria-checked')).toBe('true')
+    expect(screen.getByRole('menuitemradio', { name: 'Claro' })).toBeTruthy()
+    await user.click(screen.getByRole('menuitemradio', { name: 'Escuro' }))
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    expect(window.localStorage.getItem('tredane-theme')).toBe('dark')
+  })
 })

@@ -469,6 +469,14 @@
       "h": 844,
       "title": "M-55 Ações da conversa (proposta sem duplicatas)",
       "radius": 32
+    },
+    "Aparencia.dc.html": {
+      "x": 940,
+      "y": 13844,
+      "w": 390,
+      "h": 844,
+      "title": "M-56 Aparência (tema)",
+      "radius": 32
     }
   },
   "order": [
@@ -521,7 +529,8 @@
     "PixDetalhes.dc.html",
     "ConversaSugestaoLonga.dc.html",
     "Conferir.dc.html",
-    "TempoServico.dc.html"
+    "TempoServico.dc.html",
+    "Aparencia.dc.html"
   ],
   "notes": {
     "row1": {

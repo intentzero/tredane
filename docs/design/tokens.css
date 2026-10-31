@@ -1,4 +1,4 @@
-/* Gerado por tools/build_tokens.py a partir de tokens.json v0.4.0 (Confirmado). Não edite à mão. */
+/* Gerado por tools/build_tokens.py a partir de tokens.json v0.5.0 (Confirmado). Não edite à mão. */
 :root {
   --font-family: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-weight-regular: 400;
@@ -65,4 +65,67 @@
   --size-focus-ring-width: 2px;
   --size-focus-ring-offset: 2px;
   --size-control-default: 36px;
+}
+/* Tema escuro (Confirmado, DEC-098) */
+:root[data-theme="dark"] {
+  --color-surface-app: #0F1A19;
+  --color-surface-card: #162423;
+  --color-surface-sunken: #0B1413;
+  --color-text-primary: #ECF1F0;
+  --color-text-secondary: #BFCAC9;
+  --color-text-muted: #9BA9A8;
+  --color-text-on-primary: #06201F;
+  --color-line-divider: #223130;
+  --color-line-border: #2A3A39;
+  --color-line-control: #74878A;
+  --color-line-disabled: #3A4A49;
+  --color-primary-base: #5FB8BA;
+  --color-primary-ink: #8ED3D4;
+  --color-primary-tint: #133130;
+  --color-primary-border: #2C5A5B;
+  --color-success-ink: #5CC590;
+  --color-success-tint: #10281D;
+  --color-warning-ink: #E5B25C;
+  --color-warning-tint: #2B2210;
+  --color-warning-border: #5C4719;
+  --color-danger-ink: #F28B82;
+  --color-danger-tint: #2E1513;
+  --color-danger-border: #6B2B26;
+  --color-ai-ink: #BBA6F6;
+  --color-ai-border: #8E6FE8;
+  --color-ai-tint: #1D1832;
+  --color-ai-avatar: #2C2250;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-surface-app: #0F1A19;
+    --color-surface-card: #162423;
+    --color-surface-sunken: #0B1413;
+    --color-text-primary: #ECF1F0;
+    --color-text-secondary: #BFCAC9;
+    --color-text-muted: #9BA9A8;
+    --color-text-on-primary: #06201F;
+    --color-line-divider: #223130;
+    --color-line-border: #2A3A39;
+    --color-line-control: #74878A;
+    --color-line-disabled: #3A4A49;
+    --color-primary-base: #5FB8BA;
+    --color-primary-ink: #8ED3D4;
+    --color-primary-tint: #133130;
+    --color-primary-border: #2C5A5B;
+    --color-success-ink: #5CC590;
+    --color-success-tint: #10281D;
+    --color-warning-ink: #E5B25C;
+    --color-warning-tint: #2B2210;
+    --color-warning-border: #5C4719;
+    --color-danger-ink: #F28B82;
+    --color-danger-tint: #2E1513;
+    --color-danger-border: #6B2B26;
+    --color-ai-ink: #BBA6F6;
+    --color-ai-border: #8E6FE8;
+    --color-ai-tint: #1D1832;
+    --color-ai-avatar: #2C2250;
+    color-scheme: dark;
+  }
 }
