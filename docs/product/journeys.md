@@ -15,10 +15,10 @@
 
 - **Ator e objetivo:** ACT-02 ou ACT-03 assume a conversa, entende o pedido e responde. Ambos veem todas as conversas da própria clínica.
 - **Gatilho e pré-condições:** há conversa recebida e membro autorizado na clínica.
-- **Fluxo principal:** (1) atendente ou responsável abre e assume a conversa; (2) lê mensagens e histórico disponível; (3) pede sugestão ou resumo à IA; (4) revisa e, se quiser, edita o texto; (5) envia a resposta; (6) o painel mostra tentativa e estado de envio; (7) a outra sessão autorizada vê a mudança.
+- **Fluxo principal:** (1) atendente ou responsável abre e assume a conversa; (2) lê mensagens e histórico disponível; (3) pede sugestão ou resumo à IA; (4) revisa e, se quiser, edita o texto; (5) envia a resposta; (6) o painel mostra tentativa e estado de envio; (7) a outra sessão autorizada vê a mudança. **Confirmado (DEC-088):** o texto livre outbound no WhatsApp é precedido por `[Nome do Atendente]`.
 - **Alternativas:** atendente ignora a sugestão; provedor de IA falha e a resposta manual continua possível; envio falha ou fica com resultado desconhecido e o painel não apresenta sucesso falso; conversa é transferida para outro membro; duas pessoas tentam assumir ao mesmo tempo e o estado final fica claro.
 - **Resultado, superfícies e dados:** caixa de entrada atualizada com responsável, histórico, origem da sugestão e estado da mensagem. Texto não revisado não é enviado automaticamente.
-- **Requisitos:** REQ-020, REQ-021, REQ-022, REQ-041, REQ-072.
+- **Requisitos:** REQ-020, REQ-021, REQ-022, REQ-041, REQ-072, REQ-099.
 
 ## JRN-03 — Oportunidade até horário confirmado
 
@@ -185,6 +185,26 @@ A solicitação pendente dura até 24 horas (DEC-031) para o owner aprovar; quan
 - **Telas:** conversa e agenda (indicador «Marcado pela IA»); mensagens do WhatsApp com botões.
 - **Dados:** proposta (id, versão, validade, detalhes), evento do clique, compromisso, auditoria `appointment.ai_booked`. O clique não é consentimento LGPD nem prova de identidade.
 - **Requisitos:** REQ-083, REQ-084, REQ-092; aceite AC-55, AC-56, AC-65.
+- **Seguinte:** após marcação bem-sucedida, JRN-18 (follow-up pós-agendamento, DEC-086).
+
+## JRN-18 — Follow-up após agendamento confirmado
+
+- **Estado:** Confirmado (DEC-086, Paulo, 31/10/2026).
+- **Ator:** cliente final (WhatsApp); sistema; ACT-02 no fallback.
+- **Gatilho:** marcação confirmada pelo botão da proposta (DEC-061) — ou o caminho que confirma o horário após Pix pago, sem duplicar a pergunta.
+- **Pré-condições:** compromisso criado; janela de WhatsApp aberta.
+- **Fluxo:** (1) o sistema envia pergunta se pode ajudar em algo mais, com **«Não, obrigado»** e **«Quero agendar outro serviço»**; (2a) «Não, obrigado» → agradecimento e etapa **Concluído**; (2b) «Quero agendar outro serviço» → ciclo aberto, nova intenção de serviço na mesma conversa.
+- **Alternativas:** texto livre não marca nem conclui o ciclo; falha de envio fica observável sem desfazer o compromisso; conversa com humano activo não dispara este follow-up automático em paralelo se a equipa já assumiu.
+- **Requisitos:** REQ-097; aceite AC-71.
+
+## JRN-19 — Idle de conversa em aberto
+
+- **Estado:** Confirmado no idle de 30 min (DEC-087); segundo prazo **Proposto** (mais 30 min).
+- **Ator:** cliente final; sistema.
+- **Gatilho:** 30 minutos desde a última mensagem inbound ou outbound da conversa (a mais recente), com ciclo aberto e sem responsável humano activo.
+- **Fluxo:** (1) pergunta com botões **prosseguir** ou **terminar**; (2a) prosseguir → reinicia o atendimento / cancela o fecho automático; (2b) terminar → agradece e **Concluído**; (2c) **Proposto:** sem resposta em mais 30 min → agradece e **Concluído**.
+- **Alternativas:** mensagem nova reinicia a contagem; `system` no painel não conta; humano Assumir cancela o idle automático.
+- **Requisitos:** REQ-098; aceite AC-72.
 
 ## Validação necessária
 

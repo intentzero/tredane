@@ -303,3 +303,19 @@ Executar AC-01 (isolamento), AC-09/10 (agenda) e AC-11/12 (reconexão/hibernaç�
 ### AC-68 — Tipo obrigatório e géneros da visita (Confirmado, DEC-079)
 
 **Dado** o serviço fictício «Depilação» com variantes e sem tipo; **quando** a responsável grava «Axila»; **então** a gravação é recusada e nenhuma variante fica. Com o singular «Zona» e sem plural, a gravação também é recusada. Com «Zona» e «Zonas», omitir o género é recusado. **Dado** «Axila» feminina e «Barba» masculina; **quando** a equipe marca as duas; **então** a visita é recusada e nenhum compromisso nasce. **Dado** «Axila» feminina e «Braços» ambos; **então** o compromisso nasce com as duas. Uma variante já gravada, migrada como ambos, continua a marcar. **Requisitos:** REQ-094.
+
+### AC-71 — Follow-up pós-agendamento (Confirmado, DEC-086)
+
+**Dado** a cliente fictícia «Mariana» confirma pelo botão uma proposta válida de «Limpeza de pele» amanhã às 15:00 na clínica Aurora; **quando** a marcação fica confirmada; **então** recebe no WhatsApp a pergunta se pode ajudar em algo mais, com **«Não, obrigado»** e **«Quero agendar outro serviço»**. **Quando** toca em «Não, obrigado»; **então** recebe agradecimento e a oportunidade da conversa passa a **Concluído**. **Quando**, noutro caso, toca em «Quero agendar outro serviço»; **então** o ciclo permanece aberto e pode pedir outro serviço na mesma conversa; texto livre ainda não marca (DEC-061). **Requisitos:** REQ-097; JRN-18.
+
+### AC-72 — Idle de 30 minutos (Confirmado, DEC-087; segundo prazo Proposto)
+
+**Dado** conversa em aberto na Aurora sem responsável humano, última mensagem (inbound ou outbound) há 30 minutos; **quando** o alarme corre; **então** a cliente recebe pergunta com botões para **prosseguir** ou **terminar**. Uma mensagem `system` no painel entretanto **não** evita o prompt. **Dado** a Ana assumiu a conversa; **então** o prompt automático de idle não é enviado. **Proposto:** sem resposta em mais 30 minutos após a pergunta; **então** a oportunidade passa a **Concluído** e a cliente recebe agradecimento. **Requisitos:** REQ-098; JRN-19.
+
+### AC-73 — Prefixo do atendente no WhatsApp (Confirmado, DEC-088)
+
+**Dado** a Ana assumiu a conversa com a Mariana; **quando** envia «Pode ser às 16h?» pelo painel; **então** a mensagem no WhatsApp começa por `[Ana]`. Uma proposta com botões montada pelo backend e a frase fixa da pausa da IA **não** levam o prefixo. **Requisitos:** REQ-099; JRN-02.
+
+### AC-74 — Atendente virtual opcional (Confirmado, DEC-089)
+
+**Dado** a responsável da Aurora; **quando** grava nome «Luna» e género feminino; **então** a copy da IA usa concordância feminina e pode apresentar-se com esse nome. Attendant que tenta gravar é recusado. Campos vazios mantêm a copy neutra. A ficha do contacto da Mariana **não** ganha sexo. **Requisitos:** REQ-100.
