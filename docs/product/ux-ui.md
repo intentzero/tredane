@@ -160,9 +160,9 @@ Tela única no celular (M-04, M-34 a M-38), cabeçalho com o contato real e **Vo
 2. **Profissional** — botões, **Qualquer** primeiro.
 3. **Dia** — grade de 5 dias e **Ver calendário** (60 dias, DEC-054 Confirmado). Dia sem horários mostra **Próximo livre** (busca no cliente, 14 dias, mesma escolha de profissional; não há endpoint próprio — DEC-055 Confirmado).
 4. **Horário** — grade de 4 colunas separada em Manhã e Tarde; selecionado em destaque preenchido; sala só no rodapé e na revisão (DEC-056 Confirmado). Horários ocupados somem na hora por evento WebSocket, com polling de reserva (DEC-057 Confirmado).
-5. **Rodapé fixo** — resumo e **Revisar e confirmar** (alvos ≥ 44 px).
-6. **Revisão** (folha inferior, M-35) — paciente, serviço, profissional, quando, sala, valor; **Enviar confirmação pelo WhatsApp** com texto editável (ligado por padrão quando há conversa e a janela está aberta; fora da janela fica indisponível com explicação — DEC-053 Confirmado). Só disponível com conversa e janela de 24 h aberta; enviada depois de confirmar, pela mesma API do inbox.
-7. **Sinal por Pix** (M-34, DEC-047/049) — valor, prazo (padrão 2 h, configurável pela clínica), **Enviar sinal** e **Confirmar sem sinal** com motivo em chips. O texto da cobrança Pix não é editável (a API não recebe texto).
+5. **Rodapé fixo** — resumo e **Revisar proposta** (com conversa) ou **Revisar e confirmar** (sem conversa); alvos ≥ 44 px.
+6. **Revisão / proposta** (folha inferior, M-35) — paciente, serviço, profissional, quando, sala, valor. **Com conversa (Confirmado, Paulo, 31/10/2026, DEC-061):** título **Enviar proposta**, secção WhatsApp (sem texto editável de «está confirmado») e CTA **Enviar proposta**. Cria proposta versionada com botões Confirmar / Alterar detalhes; **não** cria compromisso nem muda etapa do atendimento — só o clique autenticado em Confirmar marca (texto livre nunca marca). Janela de 24 h fechada: proposta preparada + handoff à equipe, sem envio irregular (DEC-053 / S4). **Sem conversa:** confirmação manual sem WhatsApp. Serviço com sinal na conversa: a proposta inclui o sinal; o Pix só sai se a cliente confirmar.
+7. **Sinal por Pix sem conversa** (M-34, DEC-047/049) — valor, prazo (padrão 2 h, configurável pela clínica), **Enviar sinal** e **Confirmar sem sinal** com motivo em chips. O texto da cobrança Pix não é editável (a API não recebe texto).
 
 Resultados:
 - **Sucesso** (M-38): “Horário agendado”, estado do aviso (enviada / não enviada), **Voltar à conversa** e **Ver na agenda**. Falha no aviso não desfaz o compromisso (REQ-033).
