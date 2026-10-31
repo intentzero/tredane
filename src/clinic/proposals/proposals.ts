@@ -70,6 +70,7 @@ type ProposalSql = {
   sent_at: number | null
   superseded_by_id: string | null
   appointment_id: string | null
+  replaces_appointment_id?: string | null
   send_outbound_id?: string | null
   send_message_id?: string | null
   send_provider_message_id?: string | null
@@ -112,6 +113,7 @@ function mapRow(row: ProposalSql): AppointmentProposalRow {
     sentAt: row.sent_at,
     supersededById: row.superseded_by_id,
     appointmentId: row.appointment_id,
+    replacesAppointmentId: row.replaces_appointment_id ?? null,
     sendOutboundId: row.send_outbound_id ?? null,
     sendMessageId: row.send_message_id ?? null,
     sendProviderMessageId: row.send_provider_message_id ?? null,
@@ -236,6 +238,7 @@ function materialKey(p: {
   signalFixedCents: number | null
   signalPercent: number | null
   zoneKey?: string
+  replacesAppointmentId?: string | null
 }): string {
   return [
     p.serviceId,
@@ -244,6 +247,7 @@ function materialKey(p: {
     p.endsAt,
     p.beneficiaryKind,
     p.beneficiaryName.trim().toLowerCase(),
+    p.replacesAppointmentId ?? '',
     p.priceCents ?? '',
     p.requiresSignal ? 1 : 0,
     p.signalKind ?? '',
@@ -518,6 +522,42 @@ function resolveFacts(
     input.signalConditionsText?.trim() ||
     (service.requiresSignal ? settings.signalCancellationPolicy || '' : '')
 
+  const replacesAppointmentId: string | null = input.replacesAppointmentId?.trim() || null
+  if (replacesAppointmentId) {
+    const apt = db.get<{
+      id: string
+      contact_id: string | null
+      service_id: string
+      status: string
+    }>(
+      `SELECT id, contact_id, service_id, status FROM appointments
+       WHERE tenant_id = ? AND id = ?`,
+      tenantId,
+      replacesAppointmentId,
+    )
+    if (!apt || apt.status !== 'confirmed') {
+      throw new ValidationError(
+        'replaces_appointment_not_confirmed',
+        'Só se remarca um compromisso confirmado',
+        { appointmentId: replacesAppointmentId },
+      )
+    }
+    if (apt.contact_id !== contact.id) {
+      throw new ValidationError(
+        'replaces_appointment_contact_mismatch',
+        'O compromisso a remarcar não pertence a este contacto',
+        { appointmentId: replacesAppointmentId, contactId: contact.id },
+      )
+    }
+    if (apt.service_id !== service.id) {
+      throw new ValidationError(
+        'replaces_appointment_service_mismatch',
+        'A remarcação mantém o serviço do compromisso actual',
+        { appointmentId: replacesAppointmentId, serviceId: service.id },
+      )
+    }
+  }
+
   return {
     contactId: contact.id,
     conversationId: conversation.id,
@@ -536,11 +576,13 @@ function resolveFacts(
     zoneKey: quote.zones.map((z) => z.zoneId).join(','),
     zones: quote.zones,
     combo: quote.combo,
-    requiresSignal: service.requiresSignal,
-    signalKind: service.signalKind,
-    signalFixedCents: service.signalFixedCents,
-    signalPercent: service.signalPercent,
-    signalConditionsText: signalConditions,
+    // Remarcação de compromisso já confirmado: não reabre Pix (DEC-091).
+    requiresSignal: replacesAppointmentId ? false : service.requiresSignal,
+    signalKind: replacesAppointmentId ? null : service.signalKind,
+    signalFixedCents: replacesAppointmentId ? null : service.signalFixedCents,
+    signalPercent: replacesAppointmentId ? null : service.signalPercent,
+    signalConditionsText: replacesAppointmentId ? '' : signalConditions,
+    replacesAppointmentId,
     sendOutboundId: null,
     sendMessageId: null,
     sendProviderMessageId: null,
@@ -568,7 +610,8 @@ function insertProposalRow(
       service_id, service_name, professional_id, professional_name,
       starts_at, ends_at, duration_minutes, timezone, price_cents,
       requires_signal, signal_kind, signal_fixed_cents, signal_percent, signal_conditions_text,
-      expires_at, sent_at, superseded_by_id, appointment_id, created_at, updated_at,
+      expires_at, sent_at, superseded_by_id, appointment_id, replaces_appointment_id,
+      created_at, updated_at,
       tempo_ceu, tempo_temperatura, tempo_celsius
     ) VALUES (
       ?, ?, ?, ?, ?, ?, 'preparada',
@@ -576,7 +619,8 @@ function insertProposalRow(
       ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?,
-      NULL, NULL, NULL, NULL, ?, ?,
+      NULL, NULL, NULL, NULL, ?,
+      ?, ?,
       ?, ?, ?
     )`,
     id,
@@ -602,6 +646,7 @@ function insertProposalRow(
     facts.signalFixedCents,
     facts.signalPercent,
     facts.signalConditionsText,
+    facts.replacesAppointmentId,
     now,
     now,
     facts.tempoCeu,
@@ -685,6 +730,7 @@ export function createOrSupersedeProposal(
           signalFixedCents: active.signalFixedCents,
           signalPercent: active.signalPercent,
           zoneKey: readProposalZoneKey(db, tenantId, active.id),
+          replacesAppointmentId: active.replacesAppointmentId,
         }) ===
         materialKey({
           serviceId: facts.serviceId,
@@ -699,6 +745,7 @@ export function createOrSupersedeProposal(
           signalFixedCents: facts.signalFixedCents,
           signalPercent: facts.signalPercent,
           zoneKey: facts.zoneKey,
+          replacesAppointmentId: facts.replacesAppointmentId,
         })
       if (same) {
         return { proposal: active, superseded: null }

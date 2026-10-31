@@ -33,6 +33,11 @@ export type AppointmentProposalRow = {
   sentAt: number | null
   supersededById: string | null
   appointmentId: string | null
+  /**
+   * Compromisso confirmado que o clique Confirmar actualiza (DEC-091).
+   * Null = marcação nova (DEC-061).
+   */
+  replacesAppointmentId: string | null
   /** Outbound / mensagem WhatsApp do envio da proposta (S4). */
   sendOutboundId: string | null
   sendMessageId: string | null
@@ -64,6 +69,8 @@ export type CreateAppointmentProposalInput = {
   beneficiaryName?: string | null
   /** Texto de condições do sinal (opcional; snapshot). */
   signalConditionsText?: string | null
+  /** DEC-091: proposta de remarcação do compromisso indicado. */
+  replacesAppointmentId?: string | null
 }
 
 export type ProposalAuthorizationDenial =

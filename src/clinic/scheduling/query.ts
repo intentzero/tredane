@@ -298,6 +298,7 @@ export function queryAvailability(
             asOf,
             timezone,
             excludeHoldId: input.excludeHoldId,
+            excludeAppointmentId: input.excludeAppointmentId,
           },
           clock,
         )

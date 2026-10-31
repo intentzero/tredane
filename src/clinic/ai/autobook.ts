@@ -198,7 +198,7 @@ const AFFIRMATIVE =
 /** Hesitação/negativa. «?» sozinho não conta: «pode ser às 14?» é escolha, não dúvida. */
 const NEGATIVE_OR_HESITANT =
   /\b(nao|talvez|acho|sera|depois|ver|vou ver|pensar|outro|outra|mais tarde|ou)\b/
-const RESCHEDULE = /\b(remarc\w*|desmarc\w*|cancel\w*|mudar|trocar|adiar)\b/
+const RESCHEDULE = /\b(reagend\w*|remarc\w*|desmarc\w*|cancel\w*|mudar|trocar|adiar)\b/
 
 type Msg = { id: string; direction: string; body: string; created_at: number }
 

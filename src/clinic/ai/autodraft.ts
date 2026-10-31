@@ -26,6 +26,7 @@ import {
   handoffReason,
   notifyHumanHandoff,
 } from './human-handoff'
+import { isCancelIntent, isRescheduleIntent, loadUpcomingAppointment, tryAiReschedule } from './reschedule'
 import { runGenerateInternal } from './operations'
 import { isConversationPaused } from './protection'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
@@ -163,6 +164,114 @@ export async function runDueAutoDrafts(
         tenantId,
         job.messageId,
       )?.body ?? ''
+    // DEC-091: remarcação com compromisso futuro — antes do handoff e do funil de zonas.
+    const upcoming = conv.contactId
+      ? loadUpcomingAppointment(db, tenantId, conv.contactId, clock.nowMs())
+      : null
+    if (
+      !isCancelIntent(inboundBody) &&
+      isRescheduleIntent(inboundBody, { hasUpcoming: Boolean(upcoming), priorOffer: false })
+    ) {
+      const reschedule = await tryAiReschedule(db, caller, clock, {
+        conversationId: job.conversationId,
+        inboundText: inboundBody,
+        capability: deps.autoBookPaused !== true,
+        abuseLimits: deps.abuseLimits,
+      })
+      if (reschedule) {
+        let replyOutbox: OutboxRow[] = [...reschedule.outbox]
+        if (reschedule.replyText.trim()) {
+          try {
+            const sent = sendOutboundMessageOp(
+              db,
+              caller,
+              {
+                conversationId: job.conversationId,
+                body: reschedule.replyText,
+                interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+                clientRequestId: `ai-reschedule:${job.messageId}`,
+                authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              },
+              clock,
+            )
+            replyOutbox = [...replyOutbox, ...sent.outbox]
+          } catch (err) {
+            if (!(err instanceof ClinicError)) throw err
+          }
+        }
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        out.push({
+          ...job,
+          status: 'skipped',
+          suggestion: null,
+          reason: 'reschedule_flow',
+          replyOutbox,
+        })
+        continue
+      }
+      // Pedido de remarcar sem compromisso futuro → equipe.
+      const handoff = notifyHumanHandoff(
+        db,
+        tenantId,
+        {
+          conversationId: job.conversationId,
+          reason: 'human_only',
+          clientRequestId: `ai-handoff:${job.messageId}`,
+        },
+        clock,
+      )
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      out.push({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'human_handoff',
+        replyOutbox: handoff.outbox,
+      })
+      continue
+    }
+    // Continuação da oferta de remarcação (escolha de horário / outro dia).
+    if (upcoming) {
+      const cont = await tryAiReschedule(db, caller, clock, {
+        conversationId: job.conversationId,
+        inboundText: inboundBody,
+        capability: deps.autoBookPaused !== true,
+        abuseLimits: deps.abuseLimits,
+      })
+      if (cont) {
+        let replyOutbox: OutboxRow[] = [...cont.outbox]
+        if (cont.replyText.trim()) {
+          try {
+            const sent = sendOutboundMessageOp(
+              db,
+              caller,
+              {
+                conversationId: job.conversationId,
+                body: cont.replyText,
+                interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+                clientRequestId: `ai-reschedule:${job.messageId}`,
+                authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              },
+              clock,
+            )
+            replyOutbox = [...replyOutbox, ...sent.outbox]
+          } catch (err) {
+            if (!(err instanceof ClinicError)) throw err
+          }
+        }
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        out.push({
+          ...job,
+          status: 'skipped',
+          suggestion: null,
+          reason: 'reschedule_flow',
+          replyOutbox,
+        })
+        continue
+      }
+    }
     const reason = handoffReason(db, tenantId, inboundBody, clock)
     if (reason) {
       const handoff = notifyHumanHandoff(
