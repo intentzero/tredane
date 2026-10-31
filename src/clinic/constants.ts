@@ -216,8 +216,8 @@ export const APPOINTMENT_CHANGE_REASON_LABELS: Record<
   AppointmentChangeReason,
   string
 > = {
-  contato_desistiu: 'Contacto desistiu',
-  contato_remarcou: 'Contacto remarcou',
+  contato_desistiu: 'Contato desistiu',
+  contato_remarcou: 'Contato remarcou',
   clinica_cancelou: 'Clínica cancelou',
   nao_compareceu: 'Não compareceu',
   outro: 'Outro',

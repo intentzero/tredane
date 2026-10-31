@@ -1391,9 +1391,9 @@ function ReviewSheet(p: ReviewProps) {
                       value={rescheduleReason}
                       onChange={(e) => setRescheduleReason(e.target.value)}
                     >
-                      <option value="contato_remarcou">Contacto remarcou</option>
+                      <option value="contato_remarcou">Contato remarcou</option>
                       <option value="clinica_cancelou">Clínica cancelou</option>
-                      <option value="contato_desistiu">Contacto desistiu</option>
+                      <option value="contato_desistiu">Contato desistiu</option>
                       <option value="outro">Outro</option>
                     </select>
                   </label>
