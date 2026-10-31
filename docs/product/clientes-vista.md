@@ -1,7 +1,8 @@
 # Vista Clientes / Contato — ficha operacional
 
 **Estado:** **Confirmado** — navegação **Opção C** (híbrido) (Paulo, 31/10/2026).  
-Recorte de fases (leitura → edição/comparecimento) e campos extras continuam **Proposto** / Em aberto. Sem implementação no painel neste PR.
+**Fase 1 (leitura)** implementada no painel (TEL-12): lista + ficha partilhada com Contato; `GET /inbox/contacts` e horários no detalhe.  
+Recorte da **fase 2** (edição/comparecimento) e campos extras continuam **Proposto** / Em aberto.
 
 ## Problema
 
@@ -24,9 +25,9 @@ O contacto vive sobretudo no sidepane Contato da thread ([#365](https://github.c
 | B | Só aprofundar o Contato actual / a partir de Conversas. | Descartada |
 | **C** | Híbrido: manter Contato Confirmado na thread + área **Clientes** com a **mesma ficha** canónica. | **Confirmado** (Paulo, 31/10/2026) |
 
-## Recorte MVP+ (fases ainda Propostas)
+## Recorte MVP+
 
-1. **Fase 1 — leitura (Proposto):** lista, busca, ficha com dados existentes, conversas e compromissos derivados; Resumo da IA e Bloquear como em #365; exclusão REQ-071 intacta.
+1. **Fase 1 — leitura:** **Confirmado** no produto; **implementado** no painel (TEL-12 / mocks `desktop/Clientes*`). Lista, busca, ficha com dados existentes, conversas e compromissos derivados; Resumo da IA e Bloquear como em #365; exclusão REQ-071 intacta. Sem sexo / prontuário.
 2. **Fase 2 — edição + comparecimento (Proposto):** nome (e só campos explícitos aprovados); estados compareceu/faltou alinhados a REQ-032 (**Proposto**).
 3. **Fora:** prontuário, sexo na ficha, marketing, campos novos sem decisão LGPD.
 
@@ -41,4 +42,4 @@ O contacto vive sobretudo no sidepane Contato da thread ([#365](https://github.c
 
 ## Relação com a spec
 
-[ux-ui.md](ux-ui.md) regista a área Clientes como Confirmada (Opção C). Mocks oficiais em `docs/design/` e mapa de tela detalhado seguem em fatia própria; este PR é só documentação de produto.
+[ux-ui.md](ux-ui.md) TEL-12 · mocks `docs/design/desktop/ClientesLista.dc.html` e `ClientesFicha.dc.html` · índice em [screens.md](../design/screens.md).

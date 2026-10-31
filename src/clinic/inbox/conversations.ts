@@ -532,7 +532,7 @@ export function listContactsDirectory(
   const searchParams = q ? [`%${q}%`, `%${q}%`] : []
 
   let filterSql = ''
-  const filterParams: unknown[] = []
+  const filterParams: number[] = []
   if (filter === 'blocked') {
     filterSql = `AND ct.blocked_at IS NOT NULL`
   } else if (filter === 'with_appointment') {

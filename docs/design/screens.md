@@ -94,7 +94,7 @@ Cada tela abaixo aparece com **um** estado. Implemente todos:
 
 ## Navegação entre abas e permissões
 
-- Barra inferior: **Conversas · Pipeline · Agenda** para todos; **Clínica** só para o Responsável. Os mocks M-01 a M-14 mostram a visão do Atendente (3 abas); M-15 mostra a do Responsável (4 abas).
+- Barra inferior / rail: **Conversas · Acompanhar · Agenda · Clientes** para todos; **Clínica** só para o Responsável (Opção C Confirmada, Paulo 31/10/2026). Owner = 5 itens; attendant = 4. Os mocks M-01 a M-14 antigos mostram 3 abas do Atendente; M-15 mostrava 4 do Responsável — actualizados pela área Clientes (TEL-12).
 - A aba Clínica e as rotas M-15 a M-26 respondem “Você não tem acesso a esta área” para o Atendente, sem dados, e a API nega a ação (REQ-002). Esconder a aba não substitui a autorização no servidor.
 
 ## Desktop (Proposto, sem mock `M-xx`)
@@ -107,5 +107,7 @@ A moldura do desktop (≥ 1280 px), o painel de detalhe deslizante, o seletor de
 | `desktop/ConversasDesktopPropostaThread.dc.html` | TEL-01 thread | Mesma moldura com Juliana aberta: cabeçalho, bolhas, sugestão IA e compositor; linha activa na lista | **Confirmado** (Paulo 31/10/2026, Opção A); implementado no painel |
 | `desktop/ConversasControlesMenu.dc.html` | TEL-01 thread · ⋮ | Header Agendar + Contato + menu ⋮ só com acções de conversa/pipeline (sem Resumo da IA nem Bloquear) | **Confirmado** (Paulo 31/10/2026, Opção A); implementado |
 | `desktop/ConversasControlesContato.dc.html` | TEL-01 thread · Contato | Sidepane 380 px: dados, Resumo da IA, Acompanhamento, conversas, Bloquear, zona de risco (únicas entradas de Resumo e Bloquear) | **Confirmado** (Paulo 31/10/2026, Opção A); implementado |
+| `desktop/ClientesLista.dc.html` | TEL-12 lista | Rail com item Clientes; lista ~400 px (busca, filtros Todas/Com horário/Bloqueadas); ficha resumida ao lado | **Confirmado** (Opção C, Paulo 31/10/2026); fase 1 implementada |
+| `desktop/ClientesFicha.dc.html` | TEL-12 ficha | Ficha completa partilhada com Contato: dados, horários, conversas, Resumo da IA, Bloquear; sem sexo | **Confirmado** (Opção C, Paulo 31/10/2026); fase 1 implementada |
 
-`desktop/Main.dc.html` permanece como exploração antiga (três colunas); a referência visual do desktop de Conversas são os mocks `ConversasDesktopProposta*`. Os mocks `ConversasControles*` documentam a Opção A Confirmada do header/menu/sidepane.
+`desktop/Main.dc.html` permanece como exploração antiga (três colunas); a referência visual do desktop de Conversas são os mocks `ConversasDesktopProposta*`. Os mocks `ConversasControles*` documentam a Opção A Confirmada do header/menu/sidepane. Os mocks `Clientes*` documentam a Opção C (directório + ficha partilhada).
