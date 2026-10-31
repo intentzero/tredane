@@ -1351,6 +1351,7 @@ export function createPanelApi(getToken: TokenGetter) {
       charge: PixChargeDetail | null
       refundConfirmed: boolean
       uncertain: boolean
+      cancelNotice?: 'sent' | 'window_closed' | 'failed' | 'skipped'
     }> {
       const res = await authFetch(
         `/api/tenants/${encodeURIComponent(tenantId)}/appointments/${encodeURIComponent(appointmentId)}/cancel-with-signal`,
