@@ -97,4 +97,11 @@ Cada tela abaixo aparece com **um** estado. Implemente todos:
 
 ## Desktop (Proposto, sem mock `M-xx`)
 
-A moldura do desktop (≥ 1280 px), o painel de detalhe deslizante, o seletor de clínica, o logotipo no painel e o quadro do Acompanhar em largura total foram desenhados em canvases privados de design e decididos em [DEC-068 a DEC-072](../product/decisions.md); a implementação está no épico [#207](https://github.com/intentzero/tredane/issues/207). Os mocks `M-xx` acima continuam sendo do celular; os do desktop ficam **Em aberto**: a implementação foi verificada em staging (#215, 29/10/2026), mas o aceite de usabilidade em aparelho real segue em Q-UX-01. Pendências do épico em [#232](https://github.com/intentzero/tredane/issues/232).
+A moldura do desktop (≥ 1280 px), o painel de detalhe deslizante, o seletor de clínica, o logotipo no painel e o quadro do Acompanhar em largura total foram desenhados em canvases privados de design e decididos em [DEC-068 a DEC-072](../product/decisions.md); a implementação está no épico [#207](https://github.com/intentzero/tredane/issues/207). Os mocks `M-xx` acima continuam sendo do celular; o aceite de usabilidade em aparelho real segue em Q-UX-01. Pendências do épico em [#232](https://github.com/intentzero/tredane/issues/232).
+
+| Ficheiro | Tela | O que mostra | Estado |
+| --- | --- | --- | --- |
+| `desktop/ConversasDesktopProposta.dc.html` | TEL-01 lista + empty | Rail DEC-068, lista 400 px (busca sunken, chips Todas/Novas/Minhas/Sem responsável, linhas densas com Em atendimento / Precisa de alguém), empty centrado «Escolha uma conversa» — sem card promo | **Proposto** (31/10/2026), densidade estilo WhatsApp Web com tokens Tredane; à espera do Paulo |
+| `desktop/ConversasDesktopPropostaThread.dc.html` | TEL-01 thread | Mesma moldura com Juliana aberta: cabeçalho, bolhas, sugestão IA e compositor; linha activa na lista | **Proposto** (31/10/2026), mesmo pacote |
+
+`desktop/Main.dc.html` permanece como exploração antiga (três colunas); se o Paulo aprovar a proposta WA, ela passa a ser a referência visual do desktop de Conversas e `Main` deixa de orientar implementação.

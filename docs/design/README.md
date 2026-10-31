@@ -26,7 +26,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 | `mobile/*.dc.html` | **Fonte dos mocks mobile** (base do produto, DEC-039). Um arquivo por tela |
 | `mobile/previews/M-xx-*.png` | Imagem de cada mock, 390×844, para ver sem rodar nada |
 | `mobile/canvas.json` | Posição e título de cada tela no canvas do editor de design |
-| `desktop/` | Quatro telas de uma exploração anterior para tela larga (Conversas, Pipeline, Agenda, Estados). Ver [aviso](#desktop) |
+| `desktop/` | Telas largas: exploração antiga (Conversas/`Main`, Pipeline, Agenda, Estados) e propostas recentes (`Entrar`, `ConversasDesktopProposta` · empty/thread). Ver [aviso](#desktop) |
 | [brand/](brand/README.md) | Identidade visual (DEC-050): símbolo, nome, versões, ícone do app, favicon e paleta da marca |
 | `landing/` | Mock aprovado da landing page do piloto (`Main.dc.html`, `Celular.dc.html`) e previews do site implementado; spec em [landing.md](../product/landing.md) |
 | `tools/` | `build_tokens.py` (gera `tokens.css`), `check_contrast.py` (valida contraste), `check_mocks.py` (valida que os mocks só usam tokens), `build_catalog.py` (gera o catálogo), `render_previews.py` (gera os PNG; `expand_dc.mjs` expande os `<sc-for>`/`<sc-if>` dos mocks interativos), `build_brand.py` (gera os ficheiros da marca) |
@@ -55,7 +55,7 @@ Os mocks mostram **um** estado por tela e dados fictícios. Estados de carregame
 
 ## Desktop
 
-`desktop/` guarda quatro telas anteriores às decisões DEC-039 (mobile first) e DEC-040 e **não** cobrem login, seletor de clínica, janela de 24 h, semana, área Clínica nem WhatsApp. Use-as apenas como referência de como as telas de atendimento se ampliam em largura (três colunas em Conversas, quadro completo no Pipeline, grade com painel lateral na Agenda). Onde divergirem de `mobile/`, vale o mobile. **Confirmado (24/10/2026):** o piloto é só mobile; versões desktop dedicadas das telas novas ficam **Fora do MVP**, e no desktop as mesmas telas apenas ganham largura.
+`desktop/` guarda telas anteriores às decisões DEC-039 (mobile first) e DEC-040 (`Main`, Pipeline, Agenda, Estados) e propostas mais recentes (`Entrar` Confirmado; `ConversasDesktopProposta` / `ConversasDesktopPropostaThread` **Proposto** 31/10/2026 — densidade estilo WhatsApp Web com tokens Tredane). Onde `Main` (exploração antiga de três colunas) divergir da proposta WA ou de `mobile/`, a proposta WA e o mobile prevalecem sobre `Main` até o Paulo decidir. A moldura Confirmada (DEC-068+) já está no painel; os mocks novos só pedem densidade visual.
 
 ## Divergências conhecidas entre mocks e especificação
 

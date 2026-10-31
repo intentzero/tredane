@@ -3,6 +3,12 @@
 Registra mudanças nos tokens e nos mocks. Mais recente primeiro. IDs de telas não são renumerados.
 
 
+## 31/10/2026 — Conversas desktop densidade WA (**Proposto**)
+
+- Novos mocks `desktop/ConversasDesktopProposta.dc.html` (empty) e `desktop/ConversasDesktopPropostaThread.dc.html` (thread): rail Tredane (DEC-068/070), lista ~400 px, empty simples, thread com bolhas/compositor; tokens DEC-041/050/073/081. Sem logo WhatsApp, verde Meta nem Meta AI.
+- Previews: `desktop/previews/ConversasDesktopProposta.png`, `ConversasDesktopPropostaThread.png`.
+- **À espera de aprovação do Paulo — sem implementação de código do painel.**
+
 ## 31/10/2026 — Entrar / splash (Confirmado Paulo, «Faz»)
 
 - **M-09 Entrar** e `desktop/Entrar.dc.html`: marca horizontal (DEC-070) + formulário + «Sem convite?» num bloco centrado; fundo `surface.app` com mancha `primary.tint`.
