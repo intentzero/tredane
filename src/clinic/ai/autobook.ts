@@ -165,8 +165,9 @@ function preferredProfessionalId(
   text: string,
   service: ServiceRow,
   clock: Clock,
+  resources?: import('../config/types').ResourceRow[],
 ): string | undefined {
-  const pros = listResources(db, tenantId, clock).filter(
+  const pros = (resources ?? listResources(db, tenantId, clock)).filter(
     (r) => r.kind === 'professional' && r.active && r.name.trim().length >= 2,
   )
   const mentioned = pros.filter((p) =>
@@ -437,6 +438,8 @@ export async function tryAiAutoBook(
     abuseLimits?: AbuseLimits
     /** Previsão fictícia nos testes. Omisso = Open-Meteo. */
     forecast?: ForecastAdapter
+    /** #411 TurnContext — settings, catálogo e preferência sem releitura. */
+    turn?: import('./turn-context').TurnContext
   },
 ): Promise<AutoBookOutcome> {
   const tenantId = caller.tenantId
@@ -453,17 +456,29 @@ export async function tryAiAutoBook(
   if (!guard.allowed) return none('blocked', { notes: `Ação automática negada (${guard.reason}).` })
   const conv = getConversation(db, tenantId, input.conversationId)
   if (!conv) return none('not_confirmed')
-  const settings = ensureClinicSettings(db, tenantId, clock)
+  const settings = input.turn?.settings ?? ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
 
-  const recent = db
-    .all<Msg>(
-      `SELECT id, direction, body, created_at FROM messages
+  const recent = input.turn
+    ? [...input.turn.messages]
+        .filter((m) => m.direction === 'inbound' || m.direction === 'outbound')
+        .reverse()
+        .slice(0, 20)
+        .map(
+          (m): Msg => ({
+            id: m.id,
+            direction: m.direction,
+            body: m.body,
+            created_at: m.createdAt,
+          }),
+        )
+    : db.all<Msg>(
+        `SELECT id, direction, body, created_at FROM messages
        WHERE tenant_id = ? AND conversation_id = ? AND direction IN ('inbound', 'outbound')
        ORDER BY created_at DESC, id DESC LIMIT 20`,
-      tenantId,
-      input.conversationId,
-    )
+        tenantId,
+        input.conversationId,
+      )
   const clientTurn: Msg[] = []
   let prevClinic: Msg | null = null
   const older: Msg[] = []
@@ -484,7 +499,7 @@ export async function tryAiAutoBook(
   clientTurn.reverse()
   const confirmation = clientTurn[clientTurn.length - 1]!
 
-  const services = listServices(db, tenantId).filter((s) => s.active)
+  const services = input.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
   const turnText = clientTurn.map((m) => m.body).join('\n')
   let det = detectExplicitConfirmation({
     clientTexts: clientTurn.map((m) => m.body),
@@ -494,6 +509,7 @@ export async function tryAiAutoBook(
     clinicToday: clinicCivilDateFromUtc(tz, prevClinic?.created_at ?? confirmation.created_at),
     services,
   })
+  // Sessão: sempre relê (catalogReply / funil podem ter gravado depois do TurnContext).
   const session = getScheduleSession(db, tenantId, input.conversationId)
   let date = det.date
   let missing = [...det.missing]
@@ -620,6 +636,7 @@ export async function tryAiAutoBook(
               [turnText, ...older.map((m) => m.body)].join('\n'),
               det.service,
               clock,
+              input.turn?.catalog.resources,
             )
             replyText = await offerZonesInPeriod(
               db,
@@ -707,6 +724,7 @@ export async function tryAiAutoBook(
     [turnText, ...older.map((m) => m.body)].join('\n'),
     svc,
     clock,
+    input.turn?.catalog.resources,
   )
   const activeZones = svc.zones.filter((z) => z.active)
   // DEC-090: linha já dita neste funil não se reperguntar.

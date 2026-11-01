@@ -100,11 +100,17 @@ function weekdayOf(date: string): number {
   return js === 0 ? 7 : js
 }
 
-/** Escolhe serviços citados nas mensagens; senão, os primeiros activos. */
+/** Escolhe serviços citados nas mensagens; senão, os primeiros activos.
+ * Com `serviceIdInPlay` (#411), restringe ao serviço do funil. */
 export function pickServicesForSlots(
   services: Array<{ id: string; name: string }>,
   recentTexts: string[],
+  serviceIdInPlay?: string | null,
 ): Array<{ id: string; name: string }> {
+  if (serviceIdInPlay) {
+    const hit = services.find((s) => s.id === serviceIdInPlay)
+    if (hit) return [hit]
+  }
   const hay = norm(recentTexts.join(' \n '))
   // Pontua por palavras do nome citadas (ex.: «depilação masculina» > «depilação feminina»).
   const mentioned = services
@@ -138,9 +144,15 @@ export async function buildClinicAiContext(
     contactId: string
     recentTexts: string[]
     forecast?: ForecastAdapter
+    /** #411: reusa settings/catálogo e restringe horários ao serviço em jogo. */
+    turn?: {
+      settings: import('../config/types').ClinicSettingsRow
+      catalog: { services: import('../config/types').ServiceRow[]; resources: import('../config/types').ResourceRow[] }
+      serviceIdInPlay: string | null
+    }
   },
 ): Promise<AiClinicContext> {
-  const settings = ensureClinicSettings(db, tenantId, clock)
+  const settings = opts.turn?.settings ?? ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
   const now = clock.nowMs()
   const today = clinicCivilDateFromUtc(tz, now)
@@ -158,10 +170,9 @@ export async function buildClinicAiContext(
 
   // Horário de funcionamento = união das janelas semanais dos profissionais
   // (salas/equipamentos não têm expediente — decisão 28/10/2026).
+  const resources = opts.turn?.catalog.resources ?? listResources(db, tenantId, clock)
   const proIds = new Set(
-    listResources(db, tenantId, clock)
-      .filter((r) => r.kind === 'professional')
-      .map((r) => r.id),
+    resources.filter((r) => r.kind === 'professional').map((r) => r.id),
   )
   const windows = listEffectiveWeeklyWindows(db, tenantId).filter((w) => proIds.has(w.resourceId))
   const openingHours = formatOpeningHours(
@@ -172,8 +183,8 @@ export async function buildClinicAiContext(
     })),
   )
 
-  const active = listServices(db, tenantId).filter((s) => s.active)
-  const chosen = pickServicesForSlots(active, opts.recentTexts)
+  const active = opts.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
+  const chosen = pickServicesForSlots(active, opts.recentTexts, opts.turn?.serviceIdInPlay)
   const mentioned = extractTimes(opts.recentTexts.join('\n'))
   const tempoNotes = new Set<string>()
   const forecast = memoAdapter(opts.forecast ?? { read: readOpenMeteo })

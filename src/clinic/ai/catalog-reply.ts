@@ -98,11 +98,18 @@ function ambiguousAfternoonHour(text: string): string | null {
   return `Às ${hour} da tarde seria ${hour + 12}:00. É esse horário?`
 }
 
-function clientSource(db: ClinicDb, tenantId: string, body: string, conversationId?: string): string {
+function clientSource(
+  db: ClinicDb,
+  tenantId: string,
+  body: string,
+  conversationId?: string,
+  turn?: { messages: Array<{ direction: string; body: string }>; turnText: string },
+): string {
+  if (turn?.turnText.trim()) return turn.turnText.trim()
   if (!conversationId) return body
   const { messages } = listMessages(db, tenantId, { conversationId, limit: 40 })
-  const turn = currentClientTurnText(messages.map((message) => ({ direction: message.direction, body: message.body })))
-  return turn.trim() || body
+  const text = currentClientTurnText(messages.map((message) => ({ direction: message.direction, body: message.body })))
+  return text.trim() || body
 }
 
 /**
@@ -127,6 +134,7 @@ function askSlotWhenZonesKnown(
   session: ReturnType<typeof getScheduleSession>,
   clock: Clock,
   conversationId: string | undefined,
+  turn?: { messages: Array<{ direction: string; body: string }> },
 ): string | null {
   if (PRICE.test(source) || PERIOD.test(source) || CLOCK.test(source)) return null
   const held = session ? services.find((service) => service.id === session.serviceId) : undefined
@@ -135,12 +143,17 @@ function askSlotWhenZonesKnown(
   const active = svc.zones.filter((zone) => zone.active)
   if (active.length === 0) return null
   const mixed = needsAudienceLine(active)
-  const prior = conversationId
-    ? listMessages(db, tenantId, { conversationId, limit: 40 })
-        .messages.filter((message) => message.direction === 'inbound')
+  const prior = turn
+    ? turn.messages
+        .filter((message) => message.direction === 'inbound')
         .map((message) => message.body)
         .reverse()
-    : []
+    : conversationId
+      ? listMessages(db, tenantId, { conversationId, limit: 40 })
+          .messages.filter((message) => message.direction === 'inbound')
+          .map((message) => message.body)
+          .reverse()
+      : []
   const carried = session && session.serviceId === svc.id ? session.audienceLine : null
   const line = mixed ? (explicitAudienceLine(source) ?? carried ?? audienceLineFromClientTexts(prior)) : null
   if (mixed && !line) return null
@@ -166,16 +179,23 @@ export function catalogReply(
   tenantId: string,
   text: string,
   clock: Clock,
-  opts: { conversationId?: string } = {},
+  opts: {
+    conversationId?: string
+    turn?: {
+      catalog: { services: ServiceRow[]; resources: import('../config/types').ResourceRow[] }
+      messages: Array<{ direction: string; body: string; createdAt?: number }>
+      turnText: string
+      session: ReturnType<typeof getScheduleSession>
+    }
+  } = {},
 ): string | null {
   const body = text.trim()
   if (!body) return null
-  const services = listServices(db, tenantId).filter((s) => s.active)
+  const services = opts.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
   if (HOURS.test(body) && !PRICE.test(body)) {
+    const resources = opts.turn?.catalog.resources ?? listResources(db, tenantId, clock)
     const pros = new Set(
-      listResources(db, tenantId, clock)
-        .filter((r) => r.kind === 'professional')
-        .map((r) => r.id),
+      resources.filter((r) => r.kind === 'professional').map((r) => r.id),
     )
     const lines = formatOpeningHours(
       listEffectiveWeeklyWindows(db, tenantId)
@@ -185,7 +205,8 @@ export function catalogReply(
     return `Funcionamos assim:\n${lines.join('\n')}`
   }
 
-  const source = clientSource(db, tenantId, body, opts.conversationId)
+  const source = clientSource(db, tenantId, body, opts.conversationId, opts.turn)
+  // Sessão: relê sempre (gravações no mesmo turno invalidam o snapshot do TurnContext).
   const session = opts.conversationId ? getScheduleSession(db, tenantId, opts.conversationId) : null
   const explicit = explicitAudienceLine(source)
   const targets = poolFor(services, body)
@@ -193,7 +214,11 @@ export function catalogReply(
   if (who) {
     // DEC-090: a sala é organização interna — nunca nomear sala ao cliente.
     const lines = targets.map((s) => {
-      const people = proNames(db, tenantId, s, clock)
+      const people = opts.turn
+        ? (opts.turn.catalog.resources
+            .filter((r) => r.kind === 'professional' && s.professionalIds.includes(r.id))
+            .map((r) => r.name) )
+        : proNames(db, tenantId, s, clock)
       const whoText = people.length > 0 ? people.join(', ') : 'a equipe confirma quem atende'
       return `${s.name}: ${whoText}.`
     })
@@ -218,7 +243,16 @@ export function catalogReply(
   // Antes da recusa de géneros, para a linha já conhecida filtrar o catálogo.
   // Sem isto o rascunho cai no modelo (contexto de 7 dias + Claude) e, se o
   // fetch não voltar, o job fica em `generating` com o spinner preso.
-  const zonesThenSlot = askSlotWhenZonesKnown(db, tenantId, services, source, session, clock, opts.conversationId)
+  const zonesThenSlot = askSlotWhenZonesKnown(
+    db,
+    tenantId,
+    services,
+    source,
+    session,
+    clock,
+    opts.conversationId,
+    opts.turn,
+  )
   if (zonesThenSlot) return zonesThenSlot
 
   const mixedVisit = mixedAudienceRefusal(services, source)
@@ -297,16 +331,19 @@ export function catalogReply(
   const facts = scheduleFactsFromText(source)
   const sameFunnel = Boolean(session && session.serviceId === svc.id)
   // listMessages devolve ordem cronológica; filtramos ao início do funil e invertemos (mais novo primeiro).
-  const funnelInboundNewestFirst = opts.conversationId
-    ? listMessages(db, tenantId, { conversationId: opts.conversationId, limit: 40 })
-        .messages.filter(
-          (message) =>
-            message.direction === 'inbound' &&
-            (!sameFunnel || !session || message.createdAt >= session.updatedAt),
-        )
-        .map((message) => message.body)
-        .reverse()
-    : []
+  const historyMsgs =
+    opts.turn?.messages ??
+    (opts.conversationId
+      ? listMessages(db, tenantId, { conversationId: opts.conversationId, limit: 40 }).messages
+      : [])
+  const funnelInboundNewestFirst = historyMsgs
+    .filter(
+      (message) =>
+        message.direction === 'inbound' &&
+        (!sameFunnel || !session || (message.createdAt ?? 0) >= session.updatedAt),
+    )
+    .map((message) => message.body)
+    .reverse()
   const inboundNewestFirst = [source, ...funnelInboundNewestFirst.filter((body) => body !== source)]
   const carried = sameFunnel && session ? session.audienceLine : null
   // Histórico só no funil activo (sessão do serviço). Após DEC-086 a sessão foi limpa.

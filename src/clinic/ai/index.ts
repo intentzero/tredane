@@ -62,6 +62,15 @@ export {
 export { getAiDailyUsage, type AiDailyUsage } from './usage'
 export { buildClinicAiContext } from './schedule-context'
 export {
+  loadTurnContext,
+  getOrCompileCatalog,
+  clearCompiledCatalogCache,
+  readCatalogVersion,
+  type TurnContext,
+  type CompiledCatalog,
+  type CatalogReadStats,
+} from './turn-context'
+export {
   createProposal,
   createOrSupersedeProposal,
   getProposal,

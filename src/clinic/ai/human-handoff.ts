@@ -138,11 +138,19 @@ function clearAiAssignee(db: ClinicDb, tenantId: string, conversationId: string,
   })
 }
 
-function professionalOutsideService(db: ClinicDb, tenantId: string, text: string, clock: Clock): boolean {
-  const pros = listResources(db, tenantId, clock).filter((r) => r.kind === 'professional' && r.name.trim().length >= 2)
+function professionalOutsideService(
+  db: ClinicDb,
+  tenantId: string,
+  text: string,
+  clock: Clock,
+  turn?: { catalog: { services: import('../config/types').ServiceRow[]; resources: import('../config/types').ResourceRow[] } },
+): boolean {
+  const pros = (turn?.catalog.resources ?? listResources(db, tenantId, clock)).filter(
+    (r) => r.kind === 'professional' && r.name.trim().length >= 2,
+  )
   const mentioned = pros.filter((p) => new RegExp(`\\b${p.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text))
   if (mentioned.length === 0) return false
-  const services = listServices(db, tenantId).filter((s) => s.active)
+  const services = (turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active))
   const named = services.filter((s) => text.toLowerCase().includes(s.name.trim().toLowerCase()))
   const pool = named.length > 0 ? named : services
   return mentioned.some((p) => !pool.some((s) => s.professionalIds.includes(p.id)))
@@ -154,6 +162,7 @@ export function handoffReason(
   tenantId: string,
   text: string,
   clock: Clock,
+  turn?: { catalog: { services: import('../config/types').ServiceRow[]; resources: import('../config/types').ResourceRow[] } },
 ): AiReplyPauseReason | null {
   const body = text.trim()
   if (!body) return null
@@ -161,7 +170,7 @@ export function handoffReason(
   // CF-04: pergunta condicional sobre política não pausa (responde a política no autodraft).
   if (hasPolicyQuestion(hits)) return null
   if (!wantsHumanPause(hits) && !OFF_TOPIC_RE.test(body) && !PIX_OFF_PURPOSE_RE.test(body)) {
-    if (professionalOutsideService(db, tenantId, body, clock)) return 'human_only'
+    if (professionalOutsideService(db, tenantId, body, clock, turn)) return 'human_only'
     // Remarcação: o autodraft tenta DEC-091 antes; sem compromisso futuro → human_only lá.
     if (RESCHEDULE_RE.test(body) && !hits.some((h) => h.label === 'pedir_pessoa')) return 'human_only'
     return null
