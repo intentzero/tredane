@@ -1751,6 +1751,28 @@ export function createPanelApi(getToken: TokenGetter) {
       }
     },
 
+    /**
+     * Aceite do link de e-mail (S3 / #25). Body só com `token`; tenant/role do
+     * cliente são ignorados no Worker. Nunca logar o token.
+     */
+    async acceptInvitation(
+      token: string,
+      opts?: FetchOpts,
+    ): Promise<AcceptInvitationResult> {
+      const res = await authFetch(
+        '/api/invitations/accept',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as AcceptInvitationResult
+    },
+
     async blockInboxContact(
       tenantId: string,
       contactId: string,
@@ -2059,6 +2081,16 @@ export type TeamSnapshot = {
   tenantId: string
   members: TeamMemberLite[]
   invitations: TeamInvitation[]
+}
+
+export type AcceptInvitationResult = {
+  invitation: TeamInvitation
+  membership: {
+    tenantId: string
+    clerkUserId: string
+    role: 'attendant' | string
+    status: string
+  }
 }
 
 export type InboxFilter = 'all' | 'new' | 'mine' | 'unassigned' | 'needs_person' | 'closed'

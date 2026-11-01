@@ -19,6 +19,7 @@
 | Path | Ecrã |
 | --- | --- |
 | `/entrar` (+ `/entrar/*` Clerk) | Login |
+| `/invite/accept` | Aceite de convite (S3); `?token=` guardado na sessão e retirado da barra |
 | `/clinicas` | Seletor (M-10) |
 | `/c/:tenantId/conversas` | Shell + placeholder |
 | `/c/:tenantId/acompanhamento` | Shell + placeholder |

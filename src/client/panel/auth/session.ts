@@ -2,6 +2,8 @@
 
 const SYNTH_USER_KEY = 'tredane.synthUserId'
 const ACTIVE_TENANT_KEY = 'tredane.activeTenantId'
+/** Token de aceite pós-login. Nunca logar nem mostrar o valor completo. */
+const PENDING_INVITE_TOKEN_KEY = 'tredane.pendingInviteToken'
 
 export function readSynthUserId(): string | null {
   try {
@@ -91,6 +93,53 @@ export function clearPickingClinic(): void {
   }
 }
 
+export function readPendingInviteToken(): string | null {
+  try {
+    return sessionStorage.getItem(PENDING_INVITE_TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function writePendingInviteToken(token: string | null): void {
+  try {
+    if (token) sessionStorage.setItem(PENDING_INVITE_TOKEN_KEY, token)
+    else sessionStorage.removeItem(PENDING_INVITE_TOKEN_KEY)
+  } catch {
+    /* private mode */
+  }
+}
+
+export function clearPendingInviteToken(): void {
+  writePendingInviteToken(null)
+}
+
+/**
+ * Lê `?token=` do link de e-mail, guarda na sessão e tira o token da barra de
+ * endereço. Devolve o token (URL ou sessão). Nunca logar o valor.
+ */
+export function captureInviteTokenFromLocation(
+  pathname = typeof window !== 'undefined' ? window.location.pathname : '',
+  search = typeof window !== 'undefined' ? window.location.search : '',
+): string | null {
+  const path = pathname.replace(/\/+$/, '') || '/'
+  if (path !== '/invite/accept') return readPendingInviteToken()
+
+  const q = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+  const fromUrl = q.get('token')?.trim() || null
+  if (fromUrl) {
+    writePendingInviteToken(fromUrl)
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      const next = '/invite/accept'
+      if (`${window.location.pathname}${window.location.search}` !== next) {
+        window.history.replaceState(null, '', next)
+      }
+    }
+    return fromUrl
+  }
+  return readPendingInviteToken()
+}
+
 /** Personas sintéticas fictícias alinhadas a db/seed.sql — só development. */
 export const SYNTH_PERSONAS = [
   {
@@ -112,6 +161,11 @@ export const SYNTH_PERSONAS = [
     clerkUserId: 'user_synth_owner_b',
     label: 'Diego (responsável Horizonte)',
     detail: 'Owner · Estúdio Horizonte (fictício)',
+  },
+  {
+    clerkUserId: 'user_synth_invitee',
+    label: 'Elena (convite pendente)',
+    detail: 'Sem clínica · e-mail invitee@example.test',
   },
   {
     clerkUserId: 'user_synth_no_access',

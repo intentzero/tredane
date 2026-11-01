@@ -1,6 +1,6 @@
 /**
  * Equipe (M-18 / S1+S2): membros + convites; convidar / reenviar / cancelar; remover attendant.
- * Aceite do link fica para S3. Sem faixa TEL-10 neste recorte.
+ * Aceite do link = AcceptInviteScreen (S3). Sem faixa TEL-10 neste recorte.
  */
 import { MoreVertical } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'

@@ -53,6 +53,8 @@ export type AgendaSection = 'dia' | 'semana' | 'agendar' | 'compromisso'
 export type PanelRoute =
   | { kind: 'entrar' }
   | { kind: 'clinicas' }
+  /** Aceite de convite (S3). Token fica na query/sessão — nunca no objeto da rota. */
+  | { kind: 'invite-accept' }
   | {
       kind: 'area'
       area: 'conversas'
@@ -193,6 +195,8 @@ export function resolvePanelRoute(pathname: string, search = ''): PanelRoute | n
   // Prefixo: Clerk SignIn usa /entrar/factor-one etc.
   if (path === '/entrar' || path.startsWith('/entrar/')) return { kind: 'entrar' }
   if (path === '/clinicas') return { kind: 'clinicas' }
+  // Link do e-mail (#25 / S3): `/invite/accept?token=…` — token não entra na rota.
+  if (path === '/invite/accept') return { kind: 'invite-accept' }
 
   const match = /^\/c\/([^/]+)\/([^/]+)(?:\/(.*))?$/.exec(path)
   if (!match) return null
@@ -297,6 +301,8 @@ export function panelHref(route: PanelRoute): string {
       return '/entrar'
     case 'clinicas':
       return '/clinicas'
+    case 'invite-accept':
+      return '/invite/accept'
     case 'area': {
       const base = `/c/${encodeURIComponent(route.tenantId)}/${AREA_PATH[route.area]}`
       if (route.area === 'avisos') return base

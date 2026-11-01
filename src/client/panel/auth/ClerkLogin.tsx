@@ -1,5 +1,6 @@
 import { SignIn } from '@clerk/react'
 import { BrandHorizontal } from '../ui/Brand'
+import { readPendingInviteToken } from './session'
 import { clerkAppearance } from './clerkAppearance'
 
 /**
@@ -8,6 +9,7 @@ import { clerkAppearance } from './clerkAppearance'
  * Layout Confirmado Paulo 31/10/2026: bloco centrado + fundo surface.app.
  */
 export function ClerkLogin() {
+  const afterLogin = readPendingInviteToken() ? '/invite/accept' : '/clinicas'
   return (
     <div className="panel-auth" lang="pt-BR">
       <div className="panel-auth-atmosphere" aria-hidden="true" />
@@ -25,7 +27,7 @@ export function ClerkLogin() {
           <SignIn
             routing="path"
             path="/entrar"
-            forceRedirectUrl="/clinicas"
+            forceRedirectUrl={afterLogin}
             signUpUrl="/entrar"
             appearance={clerkAppearance}
           />
