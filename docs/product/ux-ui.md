@@ -417,7 +417,7 @@ Artboards do canvas mobile: M-01 e M-02 → TEL-01; M-03 → TEL-01 (detalhes); 
 Complementam os [cenários de aceite](acceptance.md); IDs novos e estáveis.
 
 - **UX-01 — Estado de envio legível.** Para cada estado da tabela 6.1, um usuário identifica o estado sem depender de cor e sem abrir detalhes; “Verificando envio…” não oferece nova tentativa. Requisitos: REQ-012.
-- **UX-02 — Sugestão nunca enviada sozinha.** Em teste com leitor de tela e com mouse, não existe caminho de envio dentro do bloco de sugestão; o contato só recebe texto após **Enviar** no compositor. Requisitos: REQ-022.
+- **UX-02 — Sugestão nunca enviada sozinha.** Em teste com leitor de tela e com mouse, não existe caminho de envio dentro do bloco de sugestão; o contato só recebe texto após **Enviar** no compositor. Vale para o bloco de sugestão do painel; o atendimento automático segue DEC-061 e DEC-104. Requisitos: REQ-022.
 - **UX-03 — Conflito sem perda de trabalho.** Ao receber conflito em TEL-05, serviço e profissional continuam selecionados e a lista de horários é atualizada em até uma releitura. Requisitos: REQ-031.
 - **UX-04 — Faixa de conexão.** Em desconexão simulada de mais de 3 s, a faixa aparece; ao reconectar e reconciliar, some sem recarregar a página. Requisitos: REQ-042.
 - **UX-05 — Revogação limpa a tela.** Após revogação, nenhum dado da clínica permanece visível ou acessível pelo histórico do navegador sem nova autenticação. Requisitos: REQ-003.

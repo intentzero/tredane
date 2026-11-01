@@ -30,7 +30,7 @@ O caminho normal passa a ser determinístico e guiado pelo grafo de dados da cl�
 
 | Ordem | Issue | Fatia | Fecha (matriz / achados) | Depende |
 | --- | --- | --- | --- | --- |
-| 0 | [#402](https://github.com/intentzero/tredane/issues/402) | D0: decisões pendentes (NC-01, listas, sinónimos, lint, debounce, NC-02, alvos, orçamento, copy) | n/a | Paulo |
+| 0 | [#402](https://github.com/intentzero/tredane/issues/402) | D0: decisões pendentes (NC-01 ✅ DEC-104, listas, sinónimos, lint, debounce, NC-02, alvos, orçamento, copy) | n/a | Paulo |
 | 1 | [#403](https://github.com/intentzero/tredane/issues/403) | R1: validador factual da saída do LLM | I-07, I-08, J-08 · CF-01 | |
 | 1 | [#404](https://github.com/intentzero/tredane/issues/404) | R2: nenhum silêncio, frase de fallback | K-01 · CF-14 | copy na #402 |
 | 1 | [#405](https://github.com/intentzero/tredane/issues/405) | R3: copy sem jargão; corte de cumprimento | J-04, J-09, D-04 · CF-12, CF-16 | |
@@ -41,10 +41,10 @@ O caminho normal passa a ser determinístico e guiado pelo grafo de dados da cl�
 | 3 | [#410](https://github.com/intentzero/tredane/issues/410) | M1c: hesitação lexical e preferência de profissional | C-01, C-02, C-08, C-11, D-06 · CF-05, CF-20 | |
 | 3 | [#411](https://github.com/intentzero/tredane/issues/411) | M1d: `TurnContext` e catálogo compilado por versão | eficiência | |
 | 4 | [#412](https://github.com/intentzero/tredane/issues/412) | M2: ADR-0015 + estado persistente (datas absolutas, pergunta pendente, última oferta) | B-13, A-07, A-08, C-05–C-07, J-06 · CF-21, CF-22 | #406, #408, #409, #411 |
-| 5 | [#413](https://github.com/intentzero/tredane/issues/413) | M3: decidir antes de gerar; oferta proativa; alternativas próximas | A-02, A-06, A-12, B-09–B-11, D-01, D-02, E-01, F-08 · CA-03, CF-15, CF-19 | #402 (1), #412 |
-| 5 | [#414](https://github.com/intentzero/tredane/issues/414) | M4: frases naturais (eco, variação) e validador único | J-07, J-09 · rubrica Q | #402 (1), #403, #405 |
+| 5 | [#413](https://github.com/intentzero/tredane/issues/413) | M3: decidir antes de gerar; oferta proativa; alternativas próximas | A-02, A-06, A-12, B-09–B-11, D-01, D-02, E-01, F-08 · CA-03, CF-15, CF-19 | #412 (item 1 decidido: DEC-104) |
+| 5 | [#414](https://github.com/intentzero/tredane/issues/414) | M4: frases naturais (eco, variação) e validador único | J-07, J-09 · rubrica Q | #403, #405 (item 1 decidido: DEC-104) |
 | 6 | [#415](https://github.com/intentzero/tredane/issues/415) | M5: listas e botões de escolha no WhatsApp | A-03 em ≤ 4 turnos | #402 (2), #412 |
-| 6 | [#416](https://github.com/intentzero/tredane/issues/416) | M6: LLM extrator restrito e redator de exceção; fim do prompt monolítico | L3 coloquial · CA-04, CA-05, CA-07 | #402 (1, 6), #412, #413 |
+| 6 | [#416](https://github.com/intentzero/tredane/issues/416) | M6: LLM extrator restrito e redator de exceção; fim do prompt monolítico | L3 coloquial · CA-04, CA-05, CA-07 | #402 (6), #412, #413 (item 1 decidido: DEC-104) |
 | 6 | [#418](https://github.com/intentzero/tredane/issues/418) | M7: diálogos gerados pelo grafo; lint de configuração | cobertura de catálogo | #402 (4) para a UI |
 | contínuo | [#417](https://github.com/intentzero/tredane/issues/417) | L2/L3: LLM no circuito, juiz calibrado, cliente simulada | rubrica Q, EE-04/06 | #402 (7, 8) |
 | contínuo | [#419](https://github.com/intentzero/tredane/issues/419) | Iteração 1 da matriz (modelo das iterações seguintes) | §7 do plano | |

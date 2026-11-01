@@ -110,7 +110,7 @@ O Tredane já aplica a parte mais difícil, que é a autorização fora do LLM. 
 | CA-07 | **Modelo e debounce sem base de avaliação:** o Haiku gera o texto que sai sem revisão, e o Sonnet só corre em «Gerar outra». O debounce de 7 s soma-se a todas as respostas. `AI_REPLY_TEMPERATURE` é exportado mas não é usado. | Escolhas sem evidência. | Decidir com as métricas EE-04 e EE-06 e a rubrica Q na matriz (L2). Remover a configuração morta. |
 | CA-08 | **Avaliação limitada:** só `booking-object.eval.test.ts` (≈30 casos, uma função). Faltam a avaliação ponta a ponta por diálogo, o LLM no circuito, o simulador de cliente e o juiz calibrado. | Regressões de diálogo só aparecem no staging (sondas de 30–31/10). | Os níveis L1–L3 da secção 5. |
 | CA-09 | **Sem evento de decisão por turno.** Hoje não se sabe, sem ler o texto, que rota foi tomada, porquê e com que slots. | Os KPIs da [avaliação contínua](../architecture/avaliacao-continua-conversacional.md) não são mensuráveis. | Evento `ai.turn_decided` (rota, motivo, slots preenchidos e em falta, versão, latência, tokens), sem texto da conversa. |
-| CA-10 | **Divergência documental (NC-01):** a DEC-061 diz «envio livre de texto pelo LLM continua fora do recorte» e, mais adiante, «o texto da IA é enviado automaticamente». O código envia. | Um critério de aceite não pode ter dois sentidos. | **Em aberto (Paulo):** fechar a NC-01 no [registo AIMS](../security/aims-register.md). Até lá, este plano testa o comportamento atual (envio automático) e trata o CF-01 como gate. |
+| CA-10 | **Divergência documental (NC-01):** a DEC-061 diz «envio livre de texto pelo LLM continua fora do recorte» e, mais adiante, «o texto da IA é enviado automaticamente». O código envia. | Um critério de aceite não pode ter dois sentidos. | **Decidido: DEC-104 (Paulo, 01/11/2026).** Opção A: frases determinísticas no caminho normal e o LLM só nas exceções, com validador. Até ao M4, o texto do LLM continua a sair, mas só com o validador da #403. O CF-01 continua a ser gate. |
 
 ## 4. Critérios objetivos de avaliação
 
@@ -233,5 +233,5 @@ O plano é acompanhado no [épico #401](epic-nucleo-conversacional.md), com sub-
 | Os alvos da secção 4 (EF, EE, κ, tolerâncias) são aceites como gate? | Aceitar como estão; ajustar depois da iteração 1; só informativos até haver linha de base. | Paulo | Uso como gate no CI |
 | Orçamento de tokens para L2/L3 por iteração | Valor fixo mensal; por execução. | Paulo + engenharia | L2/L3 |
 | Frase de handoff fora do expediente (CF-17) | Manter a frase única da DEC-083; variante com o próximo horário de abertura. | Paulo | CF-17 |
-| NC-01: o texto livre do LLM sai sozinho? (CA-10) | Confirmar o envio automático (e então o CF-01 é obrigatório); voltar à revisão humana. | Paulo | Redação de INV e AC |
+| ~~NC-01: o texto livre do LLM sai sozinho? (CA-10)~~ | **Decidido: DEC-104 (01/11/2026), opção A.** | Paulo | — |
 | Interpretador estruturado com LLM (CA-01) | Só determinístico melhorado; híbrido com *tool use* validado. | Paulo + engenharia (ADR) | Passo 7 |
