@@ -30,7 +30,7 @@ class FixedJsonAdapter extends SimulatedAiAdapter {
   }
 }
 
-/** Todos os P0 — 53 IDs. */
+/** P0 da matriz (53) + casos P1 do aceite #408 registados no harness (61 no total). */
 export const P0_DIALOG_CASES: DialogCase[] = [
   {
     id: 'A-01',
