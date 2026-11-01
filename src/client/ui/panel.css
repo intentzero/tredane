@@ -9528,9 +9528,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: var(--size-list-row, 60px);
+  min-height: var(--size-row-min);
   padding: var(--space-2) var(--space-4);
-  border-bottom: var(--size-border-width) solid var(--color-line-subtle, var(--color-line-border));
+  border-bottom: var(--size-border-width) solid var(--color-line-divider);
 }
 
 .equipe-row:last-child {
@@ -9541,7 +9541,7 @@
   flex: none;
   width: var(--size-avatar-md);
   height: var(--size-avatar-md);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-primary-tint);
   color: var(--color-primary-ink);
   font-weight: var(--font-weight-semibold);
@@ -9552,8 +9552,8 @@
 }
 
 .equipe-avatar--owner {
-  background: var(--color-ai-tint, #e7e0f8);
-  color: var(--color-ai-ink, #4b2a9e);
+  background: var(--color-ai-avatar);
+  color: var(--color-ai-ink);
 }
 
 .equipe-copy {
@@ -9585,7 +9585,7 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  border-bottom: var(--size-border-width) solid var(--color-line-subtle, var(--color-line-border));
+  border-bottom: var(--size-border-width) solid var(--color-line-divider);
 }
 
 .equipe-invite:last-child {
@@ -9605,14 +9605,14 @@
 }
 
 .equipe-action-btn {
-  height: var(--size-control-compact, 28px);
-  min-height: var(--size-control-compact, 28px);
+  height: var(--size-control-sm);
+  min-height: var(--size-control-sm);
   padding: 0 var(--space-3);
   font-size: var(--font-size-small);
 }
 
 .equipe-cancel {
-  color: var(--color-danger-ink, #b42318);
+  color: var(--color-danger-ink);
   border-color: var(--color-line-control);
 }
 
@@ -9621,7 +9621,7 @@
   bottom: 0;
   margin-top: auto;
   padding: var(--space-3) 0 calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(transparent, var(--color-surface-canvas, var(--color-surface-page, #f5f4ef)) 28%);
+  background: linear-gradient(transparent, var(--color-surface-app) 28%);
 }
 
 .equipe-cta .panel-btn-primary {
