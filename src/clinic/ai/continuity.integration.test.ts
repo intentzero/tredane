@@ -99,7 +99,8 @@ describe('continuidade do rascunho (staging Paulo)', () => {
     ])
     try {
       const { adapter, bodies } = captureGateway(
-        '{"mensagem":"Oi, Paulo!\\n\\nPara bronzeamento masculino tenho amanhã às 15:00. Quer?", "notas":""}',
+        // Sem hora: o validador factual (#403) recusa horários fora da agenda do teste.
+        '{"mensagem":"Oi, Paulo!\\n\\nPara bronzeamento masculino, qual dia fica melhor?", "notas":""}',
       )
       const r = await suggestReplyOp(
         db,

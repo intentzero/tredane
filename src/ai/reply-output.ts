@@ -145,6 +145,8 @@ export type ReplyOutputRejection =
   | 'privileged_content'
   | 'claims_booking'
   | 'tempo_leak'
+  /** #403 / DEC-104: preço, horário ou reserva sem correspondência no contexto. */
+  | 'factual_mismatch'
 
 export type GuardedReply =
   | { ok: true; message: string; notes: string }
