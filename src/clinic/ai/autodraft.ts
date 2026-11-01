@@ -5,8 +5,9 @@
  * - Quando dia, horário e serviço ficam claros, o backend envia a proposta e não manda
  *   a pergunta «Confirma…?» (autobook.ts), salvo pausa da owner.
  * - Nos outros casos, o texto da IA sai sozinho, sem clique em Enviar, com o botão
- *   de falar com a equipe. Injeção, assunto fora do agendamento ou saída rejeitada
- *   pausam a IA e enviam uma frase fixa, sem nova chamada ao modelo (DEC-083).
+ *   de falar com a equipe. Injeção e assunto fora do agendamento pausam a IA
+ *   (DEC-083). Modelo falhou / saída rejeitada sem injeção → frase DEC-107 (#404)
+ *   sem pausar a IA.
  */
 import { AI_AUTODRAFT_DEBOUNCE_MS, AI_TIMEOUT_MS } from '../../ai'
 import type { Clock } from '../../db/clock'
@@ -26,6 +27,7 @@ import {
   handoffReason,
   notifyHumanHandoff,
 } from './human-handoff'
+import { notifyModelFallback } from './model-fallback'
 import { isCancelIntent, isRescheduleIntent, loadUpcomingAppointment, tryAiReschedule } from './reschedule'
 import { runGenerateInternal } from './operations'
 import { isConversationPaused } from './protection'
@@ -545,12 +547,13 @@ export async function runDueAutoDrafts(
     }
     let replyOutbox: OutboxRow[] | undefined
     const draftText = suggestion.suggestedText.trim()
-    const unsafe = suggestion.warningCodes.some((c) => c === 'injection_suspected' || c === 'output_rejected')
+    // Só injeção pausa (DEC-083). Saída rejeitada sem injeção → fallback DEC-107 (#404).
+    const injectionSuspected = suggestion.warningCodes.includes('injection_suspected')
     // Resposta determinística do autobook (ex.: pedir variantes) ignora rejeição do modelo.
     const deterministicReply = Boolean(autoBook?.replyText && autoBook.replyText.trim())
     const proposalDelivered =
       Boolean(autoBook?.proposalId) && !deterministicReply
-    if (unsafe && !deterministicReply && !proposalDelivered) {
+    if (injectionSuspected && !deterministicReply && !proposalDelivered) {
       const bookingOpen = Boolean(
         getScheduleSession(db, tenantId, job.conversationId)?.serviceId || autoBook?.serviceId,
       )
@@ -594,6 +597,19 @@ export async function runDueAutoDrafts(
       } catch (err) {
         if (!(err instanceof ClinicError)) throw err
       }
+    }
+    // #404 / DEC-107 / INV-09: turno elegível sem saída → frase de fallback (sem pausar).
+    // Injeção mantém o caminho DEC-083 (mesmo sem outbox se já estava pausada).
+    const tookInjectionPath = injectionSuspected && !deterministicReply && !proposalDelivered
+    const hasOutbound = Boolean(replyOutbox && replyOutbox.length > 0)
+    if (!tookInjectionPath && !hasOutbound && !proposalDelivered && !deterministicReply) {
+      const fallback = notifyModelFallback(
+        db,
+        tenantId,
+        { conversationId: job.conversationId, messageId: job.messageId },
+        clock,
+      )
+      replyOutbox = fallback.outbox
     }
     out.push({
       ...job,
