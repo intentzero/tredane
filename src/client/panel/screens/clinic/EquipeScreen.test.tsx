@@ -213,8 +213,7 @@ describe('EquipeScreen — S2 remoção', () => {
     ).toBeTruthy()
   })
 
-  it('mostra erro claro quando a API recusa remover responsável', async () => {
-    const user = userEvent.setup()
+  it('não mostra ação de remover em responsáveis (DEC-020)', async () => {
     const team = snap({
       members: [
         {
@@ -237,9 +236,6 @@ describe('EquipeScreen — S2 remoção', () => {
       ],
     })
     const api = mockApi(team)
-    api.revokeMember = vi.fn(async () => {
-      throw new PanelApiError(403, 'permission_denied', 'cannot_revoke_owner')
-    })
 
     render(
       <EquipeScreen
