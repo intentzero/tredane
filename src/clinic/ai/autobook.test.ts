@@ -1034,8 +1034,9 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       const asked = await s.run()
       expect(asked.reason).toBe('catalog_reply')
 
+      // A manhã fica no histórico. Não se corre o rascunho: essa oferta varre
+      // vários dias e, no CI, estoura os 5 s. O caso é o aceite das 10:00.
       s.say('inbound', 'Na parte da manhã')
-      await s.run()
       s.say(
         'outbound',
         'Perfeito! Tenho amanhã, segunda (02/11), às 9:00, 9:30 ou 10:00 para axila e íntima. Algum desses fica bom pra você?',
