@@ -39,6 +39,7 @@ export type ClinicaSection =
   | 'whatsapp-dev-sync'
   | 'recebimento'
   | 'assistente'
+  | 'equipe'
 
 /** Sub-rotas de Conversas (#29): lista → thread → contato. */
 export type ConversasSection = 'lista' | 'thread' | 'contato'
@@ -166,6 +167,7 @@ function parseClinicaRest(rest: string | undefined): {
   }
   if (head === 'recebimento') return { section: 'recebimento' }
   if (head === 'assistente') return { section: 'assistente' }
+  if (head === 'equipe') return { section: 'equipe' }
   return { section: 'hub' }
 }
 
@@ -379,6 +381,8 @@ export function panelHref(route: PanelRoute): string {
           return `${base}/recebimento`
         case 'assistente':
           return `${base}/assistente`
+        case 'equipe':
+          return `${base}/equipe`
       }
     }
   }

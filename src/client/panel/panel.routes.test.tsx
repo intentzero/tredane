@@ -161,6 +161,23 @@ describe('panel routes (#22)', () => {
     ).toBe('/c/clinic-demo-a/clinica')
   })
 
+  it('resolve Equipe (S1)', () => {
+    expect(resolvePanelRoute('/c/clinic-demo-a/clinica/equipe')).toEqual({
+      kind: 'area',
+      area: 'clinica',
+      tenantId: 'clinic-demo-a',
+      section: 'equipe',
+    })
+    expect(
+      panelHref({
+        kind: 'area',
+        area: 'clinica',
+        tenantId: 'clinic-demo-a',
+        section: 'equipe',
+      }),
+    ).toBe('/c/clinic-demo-a/clinica/equipe')
+  })
+
   it('resolve sub-rotas WhatsApp (#31)', () => {
     expect(resolvePanelRoute('/c/clinic-demo-a/clinica/whatsapp')).toEqual({
       kind: 'area',

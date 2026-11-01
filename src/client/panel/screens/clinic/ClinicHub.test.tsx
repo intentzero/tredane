@@ -85,11 +85,12 @@ describe('ClinicHub — progresso', () => {
     expect(screen.getByRole('button', { name: 'Conectar WhatsApp' })).toBeTruthy()
   })
 
-  it('Equipe aparece como «em breve» e não é botão', () => {
+  it('Equipe é botão e usa copy Atendente (não recepcionista)', () => {
     render(<ClinicHub tenantId="clinic-demo-a" snap={snap({ missing: [] })} />)
-    expect(screen.getByText('Convidar recepcionistas')).toBeTruthy()
-    expect(screen.getByText('Em breve')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /Equipe/ })).toBeNull()
+    expect(screen.getByText('Convidar atendentes')).toBeTruthy()
+    expect(screen.queryByText('Em breve')).toBeNull()
+    expect(screen.queryByText(/recepcionista/i)).toBeNull()
+    expect(screen.getByRole('button', { name: /Equipe/ })).toBeTruthy()
   })
 })
 

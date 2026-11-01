@@ -189,12 +189,23 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
           ? loadTeamSnapshot(services, ctx.tenantId)
           : await d1ListTeam(c.env.DB, ctx.tenantId, now)
 
+        // DEC-102: enriquecer nome + e-mail no Worker (sem cache D1 neste recorte).
+        const profileReader = c.get('authServices').staffProfiles
+        const profiles = profileReader
+          ? await profileReader.readStaffProfiles(snap.members.map((m) => m.clerkUserId))
+          : new Map()
+
         c.header('Cache-Control', 'no-store')
         return c.json({
           tenantId: ctx.tenantId,
-          members: snap.members.map((m) =>
-            serializeTeamMember(m, { callerIsOwner }),
-          ),
+          members: snap.members.map((m) => {
+            const profile = profiles.get(m.clerkUserId)
+            return serializeTeamMember(m, {
+              callerIsOwner,
+              displayName: profile?.displayName ?? null,
+              email: profile?.email ?? null,
+            })
+          }),
           invitations: snap.invitations.map((inv) =>
             serializeInvitation(inv, {
               nowMs: now,

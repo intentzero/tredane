@@ -1655,6 +1655,72 @@ export function createPanelApi(getToken: TokenGetter) {
       return { members: data.members ?? [] }
     },
 
+    /** Equipe completa: membros (nome + e-mail) e convites pendentes (DEC-102 / #25). */
+    async getTeam(tenantId: string, opts?: FetchOpts): Promise<TeamSnapshot> {
+      const res = await authFetch(`/api/tenants/${encodeURIComponent(tenantId)}/team`, {}, opts)
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const data = (await res.json()) as {
+        tenantId?: string
+        members?: TeamMemberLite[]
+        invitations?: TeamInvitation[]
+      }
+      return {
+        tenantId: data.tenantId ?? tenantId,
+        members: data.members ?? [],
+        invitations: data.invitations ?? [],
+      }
+    },
+
+    async inviteAttendant(
+      tenantId: string,
+      email: string,
+      opts?: FetchOpts,
+    ): Promise<{ invitation: TeamInvitation; emailSent: boolean }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/invitations`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { invitation: TeamInvitation; emailSent: boolean }
+    },
+
+    async resendInvitation(
+      tenantId: string,
+      invitationId: string,
+      opts?: FetchOpts,
+    ): Promise<{ invitation: TeamInvitation; emailSent: boolean }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/invitations/${encodeURIComponent(invitationId)}/resend`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { invitation: TeamInvitation; emailSent: boolean }
+    },
+
+    async cancelInvitation(
+      tenantId: string,
+      invitationId: string,
+      opts?: FetchOpts,
+    ): Promise<{ invitation: TeamInvitation }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/invitations/${encodeURIComponent(invitationId)}/cancel`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { invitation: TeamInvitation }
+    },
+
     async blockInboxContact(
       tenantId: string,
       contactId: string,
@@ -1931,8 +1997,38 @@ export function createPanelApi(getToken: TokenGetter) {
 
 export type TeamMemberLite = {
   clerkUserId: string
+  /** DEC-102: nome de apresentação (Clerk / sintético); nunca o id como rótulo principal. */
+  displayName?: string | null
+  email?: string | null
   role: 'owner' | 'attendant' | string
   status: string
+  manageActions?: { canRevoke: boolean; canInvite: boolean }
+}
+
+export type TeamInvitation = {
+  id: string
+  tenantId: string
+  email: string
+  role: 'attendant' | string
+  status: string
+  issuedAt: number
+  expiresAt: number
+  lastResentAt: number | null
+  manageActions: { canResend: boolean; canCancel: boolean }
+  resend: {
+    cooldownMs: number
+    cooldownRemainingMs: number
+    windowMs: number
+    maxPerWindow: number
+    usedInWindow: number
+    remainingInWindow: number
+  }
+}
+
+export type TeamSnapshot = {
+  tenantId: string
+  members: TeamMemberLite[]
+  invitations: TeamInvitation[]
 }
 
 export type InboxFilter = 'all' | 'new' | 'mine' | 'unassigned' | 'needs_person' | 'closed'

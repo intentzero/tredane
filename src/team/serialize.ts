@@ -9,13 +9,21 @@ import {
 /** Membro na visão Equipe — owners sem ações de gestão pela clínica. */
 export function serializeTeamMember(
   member: MembershipRow,
-  opts: { callerIsOwner: boolean },
+  opts: {
+    callerIsOwner: boolean
+    /** DEC-102: nome e e-mail resolvidos no Worker (Clerk / sintético). */
+    displayName?: string | null
+    email?: string | null
+  },
 ) {
   const isOwner = member.role === 'owner'
   const canRevoke =
     opts.callerIsOwner && member.role === 'attendant' && member.status === 'active'
   return {
     clerkUserId: member.clerkUserId,
+    /** Nome de apresentação — nunca o id como rótulo principal na UI. */
+    displayName: opts.displayName ?? null,
+    email: opts.email ?? null,
     role: member.role,
     status: member.status,
     createdAt: member.createdAt,

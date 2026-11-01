@@ -1,6 +1,6 @@
 # F1 — Equipe, convites por e-mail e remoção de attendants
 
-**Estado:** implementação da issue [#25](https://github.com/intentzero/tredane/issues/25) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Equipe + convites + e-mail simulado + remoção com barreira D1→DO (#23). UI login/nav = [#22](f1-login-nav.md); UI Equipe ainda fora. Dados sintéticos apenas.
+**Estado:** implementação da issue [#25](https://github.com/intentzero/tredane/issues/25) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Equipe + convites + e-mail simulado + remoção com barreira D1→DO (#23). UI login/nav = [#22](f1-login-nav.md). **S1 UI Equipe (lista + convite + pendentes)** na Clinic App: `EquipeScreen`, hub sem «Em breve», copy **Atendente**, enriquecimento nome+e-mail no GET `/team` (DEC-102). Remoção na UI = S2; aceite do link = S3. Dados sintéticos apenas.
 
 ## Decisões aplicadas (Confirmado)
 
@@ -29,7 +29,7 @@
 
 | Método | Caminho | Authz |
 | --- | --- | --- |
-| GET | `/api/tenants/:tenantId/team` | membership; owners sem `canRevoke` |
+| GET | `/api/tenants/:tenantId/team` | membership; owners sem `canRevoke`; membros com `displayName` + `email` (DEC-102, Clerk Backend / sintético) |
 | POST | `/api/tenants/:tenantId/invitations` | owner (`clinic.members.invite_attendant`) |
 | POST | `.../invitations/:id/resend` | owner; 429 + `retryAfterMs` em cooldown/quota |
 | POST | `.../invitations/:id/cancel` | owner do mesmo tenant |
@@ -45,9 +45,10 @@ Código: `src/team/`, `src/email/`, e-mail verificado em `src/auth/verified-emai
 - HTTP: `src/team/http.test.ts` (AC-21–23, limites, e-mail errado/não verificado, corridas)
 - Harness: aceite D1 + revoke; tenant B preservado
 
-## Fora deste PR
+## Fora da API #25 / ainda em fatias
 
-- UI Equipe (login = [#22](f1-login-nav.md))
+- UI remoção de attendant (S2) e aceite do link no painel (S3)
 - Provedor de e-mail real e secrets de produção
 - Controles antiabuso globais (IP/owner) além de DEC-024
 - Notificação ao destinatário quando o convite é cancelado
+- Faixa TEL-10 (suporte) dentro de Equipe
