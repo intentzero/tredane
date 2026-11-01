@@ -39,6 +39,7 @@ import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import { checkConversationProtection } from './protection'
+import { resolveBookingObject, servicesFromBookingMatch } from './booking-object'
 import {
   audienceLineFromClientTexts,
   citesServiceName,
@@ -198,17 +199,23 @@ export function extractServices(text: string, services: ServiceRow[]): ServiceRo
     const sw = significantWords(s.name)
     return sw.length > 0 && sw.every((w) => words.has(w))
   })
-  if (hits.length === 0) return services.filter((s) => citesServiceName(text, s.name))
-  // «depilação masculina» citado ⇒ «depilação» (subconjunto) não conta como alternativa.
-  return hits.filter(
-    (s) =>
-      !hits.some(
-        (o) =>
-          o.id !== s.id
-          && significantWords(o.name).length > significantWords(s.name).length
-          && significantWords(s.name).every((w) => significantWords(o.name).includes(w)),
-      ),
-  )
+  // Preferência: matching exacto legado (todas as palavras). Depois, o resolver de objecto.
+  if (hits.length > 0) {
+    return hits.filter(
+      (s) =>
+        !hits.some(
+          (o) =>
+            o.id !== s.id
+            && significantWords(o.name).length > significantWords(s.name).length
+            && significantWords(s.name).every((w) => significantWords(o.name).includes(w)),
+        ),
+    )
+  }
+  const fuzzy = services.filter((s) => citesServiceName(text, s.name))
+  if (fuzzy.length > 0) return fuzzy
+  // Só usa o resolver quando o catálogo traz zonas (fixtures parciais ficam no legado).
+  if (!services.every((s) => Array.isArray(s.zones))) return []
+  return servicesFromBookingMatch(resolveBookingObject({ text, services }), services)
 }
 
 const AFFIRMATIVE =
@@ -661,9 +668,49 @@ export async function tryAiAutoBook(
         }
       }
     } else {
+      const booking = resolveBookingObject({
+        text: turnText,
+        services,
+        session: session
+          ? {
+              serviceId: session.serviceId,
+              audienceLine: session.audienceLine,
+              variantIds: session.variantIds,
+            }
+          : null,
+      })
+      let replyText: string | undefined
+      if (booking.kind === 'handoff') {
+        if (booking.handoffReason === 'terceiro') {
+          replyText =
+            'Para agendar para outra pessoa, a equipe precisa continuar este atendimento.'
+        } else if (booking.handoffReason === 'multiplos_servicos') {
+          replyText = 'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?'
+        } else if (booking.handoffReason === 'inexistente') {
+          replyText =
+            'Não encontrei esse procedimento no nosso catálogo. Quer ver as opções que temos?'
+        } else if (booking.handoffReason === 'historico_indisponivel') {
+          replyText = 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
+        }
+      } else if (booking.kind === 'clarify' && booking.question) {
+        replyText = booking.question
+        if (booking.serviceId) {
+          saveScheduleSession(
+            db,
+            tenantId,
+            input.conversationId,
+            {
+              serviceId: booking.serviceId,
+              ...(booking.variantIds.length > 0 ? { variantIds: booking.variantIds } : {}),
+            },
+            clock,
+          )
+        }
+      }
       const faltam = missing.length ? missing.join(', ') : 'confirmação clara'
       return {
         ...none(det.status, base),
+        ...(replyText ? { replyText } : {}),
         notes:
           det.status === 'needs_info' || det.status === 'ambiguous'
             ? `Agendamento pela IA não feito: falta/ambíguo (${faltam}). Confirme com a cliente dia, horário e procedimento.`
