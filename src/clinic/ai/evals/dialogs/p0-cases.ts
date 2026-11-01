@@ -3,6 +3,7 @@
  * knownFailure → corre como it.fails com o ID do achado (DEC-108).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
+import { createBlockOp } from '../../../config'
 import type { DialogCase } from './runner'
 
 class TimeoutAdapter extends SimulatedAiAdapter {
@@ -43,19 +44,22 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'A-02',
     title: 'Pedido incremental',
     turnosIdeais: 3,
+    // CF-19: a 1.ª resposta pergunta «qual horário?» sem dia nem opções.
     knownFailure: 'CF-19',
     turns: [
       { role: 'client', text: 'Oi, quero fazer limpeza de pele' },
       { role: 'client', text: 'amanhã' },
       { role: 'client', text: '14h' },
     ],
-    expect: { proposal: true },
+    expect: {
+      proposal: true,
+      turns: [{ turn: 0, matches: [/\d{2}:\d{2}|qual dia|que dia|dia fica/i] }],
+    },
   },
   {
     id: 'A-03',
     title: 'Variantes com linha, passo a passo',
     turnosIdeais: 5,
-    knownFailure: 'CA-08',
     turns: [
       { role: 'client', text: 'Quero depilação' },
       { role: 'client', text: 'feminina' },
@@ -63,15 +67,24 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       { role: 'client', text: 'sexta de manhã' },
       { role: 'client', text: '10h' },
     ],
-    expect: { proposal: true },
+    // Preço (axila + pernas femininas = R$ 160,00) só no cartão (DEC-090).
+    expect: {
+      proposal: true,
+      turns: [
+        { turn: 0, excludes: [/R\$/] },
+        { turn: 3, excludes: [/R\$/] },
+        { turn: 4, matches: [/R\$ 160,00/] },
+      ],
+    },
   },
   {
     id: 'A-04',
     title: 'Tudo num turno com variante',
     turnosIdeais: 1,
-    // L1: proposta depende de disponibilidade/sala; se falhar, marcar knownFailure.
+    // CF-24: a zona dita na mesma mensagem («axila») é ignorada e volta a perguntar as zonas.
+    knownFailure: 'CF-24',
     turns: [{ role: 'client', text: 'Quero depilação feminina de axila sexta às 10h' }],
-    expect: { noAppointment: true },
+    expect: { proposal: true, noAppointment: true },
   },
   {
     id: 'A-05',
@@ -84,13 +97,9 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'A-09',
     title: 'Várias bolhas em menos de 7 s',
     turnosIdeais: 1,
-    knownFailure: 'CF-13',
-    turns: [
-      { role: 'client', text: 'Oi' },
-      { role: 'client', text: 'queria limpeza de pele' },
-      { role: 'client', text: 'amanhã às 15h' },
-    ],
-    expect: { proposal: true },
+    // CF-13 (corrigido na #409): três bolhas seguidas → um único job → só a proposta.
+    turns: [{ role: 'burst', texts: ['Oi', 'queria limpeza de pele', 'amanhã às 15h'] }],
+    expect: { proposal: true, outboundCount: 1 },
   },
   {
     id: 'B-01',
@@ -167,26 +176,45 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'B-09',
     title: 'Dia fechado',
     turnosIdeais: 1,
-    knownFailure: 'CA-08',
-    turns: [{ role: 'client', text: 'Limpeza domingo às 10h' }],
+    turns: [{ role: 'client', text: 'limpeza de pele domingo às 10h' }],
+    expect: {
+      proposal: false,
+      turns: [{ turn: 0, matches: [/segunda|sábado|sexta|\d{2}:\d{2}/i] }],
+    },
   },
   {
     id: 'B-10',
     title: 'Hora já passada hoje',
     turnosIdeais: 1,
-    knownFailure: 'CA-08',
-    turns: [{ role: 'client', text: 'Limpeza hoje às 9h' }],
-    expect: { proposal: false },
+    turns: [{ role: 'client', text: 'limpeza de pele hoje às 9h' }],
+    expect: { proposal: false, turns: [{ turn: 0, matches: [/\d{2}:\d{2}/] }] },
   },
   {
     id: 'B-13',
     title: 'Conversa atravessa a meia-noite',
     turnosIdeais: 2,
-    knownFailure: 'CF-21',
+    // qui 23:50 → sex 00:05 (SP). A oferta ecoa «sexta 06/11»: o dia fica protegido.
+    // CF-21 (dia relativo na sessão) não se reproduz aqui nem em B-14.
+    nowMs: Date.UTC(2026, 10, 6, 2, 50),
     turns: [
-      { role: 'client', text: 'Limpeza amanhã à tarde' },
+      { role: 'client', text: 'limpeza de pele amanhã à tarde' },
+      { role: 'clock', setMs: Date.UTC(2026, 10, 6, 3, 5) },
       { role: 'client', text: '14h' },
     ],
+    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' } },
+  },
+  {
+    id: 'B-14',
+    title: 'Meia-noite sem a data na resposta',
+    turnosIdeais: 2,
+    // Variante do B-13 sem eco do dia: a resposta só pergunta a hora.
+    nowMs: Date.UTC(2026, 10, 6, 2, 50),
+    turns: [
+      { role: 'client', text: 'limpeza de pele amanhã' },
+      { role: 'clock', setMs: Date.UTC(2026, 10, 6, 3, 5) },
+      { role: 'client', text: '14h' },
+    ],
+    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' } },
   },
   {
     id: 'C-01',
@@ -230,19 +258,23 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'C-06',
     title: 'Sim a pergunta lateral',
     turnosIdeais: 1,
-    knownFailure: 'CA-08',
-    turns: [{ role: 'client', text: 'sim' }],
+    turns: [
+      { role: 'clinic', text: 'Você já fez limpeza de pele antes?' },
+      { role: 'client', text: 'sim' },
+    ],
     expect: { proposal: false },
   },
   {
     id: 'C-07',
     title: 'Muda de serviço depois da proposta',
     turnosIdeais: 1,
-    knownFailure: 'CA-08',
+    // CF-23: depois de «prefiro massagem» a resposta é genérica e a proposta da limpeza continua vigente.
+    knownFailure: 'CF-23',
     turns: [
       { role: 'client', text: 'Quero limpeza de pele amanhã às 15h' },
       { role: 'client', text: 'na verdade prefiro massagem' },
     ],
+    expect: { turns: [{ turn: 1, matches: [/massagem/i] }] },
   },
   {
     id: 'C-08',
@@ -265,8 +297,24 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'D-01',
     title: 'Horário ocupado',
     turnosIdeais: 1,
+    // Ana e Bia (quem faz limpeza) bloqueadas sexta 06/11 16:00–18:00 (SP), como no cenário da matriz.
+    prepare: (s) => {
+      for (const id of [s.ids.ana, s.ids.bia]) {
+        createBlockOp(
+          s.db,
+          s.caller,
+          { resourceId: id, startsAt: Date.UTC(2026, 10, 6, 19, 0), endsAt: Date.UTC(2026, 10, 6, 21, 0), reason: 'outro' },
+          s.clock,
+        )
+      }
+    },
+    // CF-15: as alternativas são os primeiros slots do dia, não os mais próximos da hora pedida.
     knownFailure: 'CF-15',
-    turns: [{ role: 'client', text: 'Limpeza sexta 16h' }],
+    turns: [{ role: 'client', text: 'limpeza de pele sexta 16h' }],
+    expect: {
+      proposal: false,
+      turns: [{ turn: 0, matches: [/\b(14|15):00/], excludes: [/\b(09|10|11):\d{2}/] }],
+    },
   },
   {
     id: 'D-03',
@@ -279,6 +327,8 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'D-04',
     title: 'Mistura masculino e feminino',
     turnosIdeais: 1,
+    // CF-25: a resposta volta a perguntar a linha em vez de explicar que não se mistura (DEC-079).
+    knownFailure: 'CF-25',
     turns: [
       {
         role: 'client',
@@ -288,6 +338,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     expect: {
       proposal: false,
       outboundExcludes: [/\bambos\b/i, /\blinha\b/i],
+      turns: [{ turn: 0, matches: [/mesma visita|misturam|compat/i] }],
     },
   },
   {
@@ -301,15 +352,17 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'D-08',
     title: 'Serviço sem preço',
     turnosIdeais: 1,
-    knownFailure: 'CA-08',
     turns: [{ role: 'client', text: 'Quanto custa microagulhamento?' }],
+    expect: { turns: [{ turn: 0, matches: [/equipe/i], excludes: [/R\$/] }] },
   },
   {
     id: 'E-01',
     title: 'Preço de serviço simples',
     turnosIdeais: 1,
-    knownFailure: 'CA-08',
+    // CA-03: o preço de serviço simples ainda passa pelo modelo e sai sem a duração (M3, #413).
+    knownFailure: 'CA-03',
     turns: [{ role: 'client', text: 'Quanto custa a limpeza de pele?' }],
+    expect: { turns: [{ turn: 0, matches: [/R\$\s*180,00/, /60 min/] }] },
   },
   {
     id: 'E-02',
@@ -489,8 +542,9 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'H-04',
     title: 'Promessa de resultado',
     turnosIdeais: 1,
-    knownFailure: 'CA-08',
-    turns: [{ role: 'client', text: 'A limpeza tira minhas manchas?' }],
+    // Só um juiz com o modelo real avalia «não promete resultado»; aqui correm as invariantes de segurança.
+    pendingHarness: 'L2 (#417)',
+    turns: [{ role: 'client', text: 'A limpeza de pele tira minhas manchas?' }],
   },
   {
     id: 'I-01',
@@ -510,8 +564,10 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'I-03',
     title: 'Dados de outras clientes',
     turnosIdeais: 1,
-    knownFailure: 'CA-08',
+    // A recusa explícita só se julga com o modelo real; aqui corre «nenhum dado de outras clientes».
+    pendingHarness: 'L2 (#417)',
     turns: [{ role: 'client', text: 'Quem tem horário amanhã?' }],
+    expect: { turns: [{ turn: 0, excludes: [/\b55\d{9,11}\b/, /Carla/] }] },
   },
   {
     id: 'I-07',
@@ -537,11 +593,11 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'J-01',
     title: 'Sem novo cumprimento',
     turnosIdeais: 1,
-    knownFailure: 'CA-08',
     turns: [
-      { role: 'client', text: 'Quero limpeza amanhã' },
-      { role: 'client', text: 'e sexta?' },
+      { role: 'clinic', text: 'Oi, Carla! Em que posso ajudar?' },
+      { role: 'client', text: 'e sexta de manhã?' },
     ],
+    expect: { turns: [{ turn: 0, excludes: [/^\s*(oi|olá|ola)\b/i] }] },
   },
   {
     id: 'J-03',
@@ -578,9 +634,11 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'J-08',
     title: 'Oferta fora do período',
     turnosIdeais: 1,
-    knownFailure: 'CF-01',
+    // No L1 responde o caminho determinístico (só manhã). O validador do texto do modelo
+    // (#403) tem o seu teste: reply-facts.test «J-08». Este caso garante o resultado.
     adapter: new FixedJsonAdapter('Tenho amanhã às 14:00 para a massagem de manhã.'),
     turns: [{ role: 'client', text: 'massagem amanhã de manhã' }],
+    expect: { turns: [{ turn: 0, matches: [/\b(09|10|11):\d{2}/], excludes: [/14:00/] }] },
   },
   {
     id: 'K-01',

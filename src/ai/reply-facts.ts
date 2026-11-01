@@ -132,7 +132,7 @@ export function timesInText(text: string): TimeHit[] {
 }
 
 /** Horas que a cliente disse (inclui «às 3 da tarde» e «meio-dia») — podem ser repetidas. */
-function clientTimes(text: string): Set<string> {
+export function clientTimes(text: string): Set<string> {
   const out = new Set(timesInText(text).map((h) => h.time))
   const t = fold(text)
   if (/\bmeio[\s-]?dia\b/.test(t)) out.add('12:00')

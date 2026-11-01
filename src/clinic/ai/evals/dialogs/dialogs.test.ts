@@ -1,39 +1,37 @@
 /**
  * Harness L1 — casos P0 da matriz (#406, DEC-108).
- * INV bloqueiam; EE/Q informativos.
- * knownFailure: regista o achado; se o L1 ainda não reproduz, o relatório avisa
- * (não bloqueia o CI). Quando a correção entra, remove-se o flag.
+ * As invariantes (INV) bloqueiam o merge. EE/Q ficam informativos.
+ *
+ * - `knownFailure` é um it.fails verdadeiro: o caso corre sempre e TEM de falhar;
+ *   se passar, o CI falha até se remover a marca. INV-01 (marcação) bloqueia sempre.
+ * - `pendingHarness`: só as invariantes de segurança; fora da contagem de passes.
+ * - `coverageOnly`: aponta para outro teste; não conta como executado.
  */
 import { describe, expect, it } from 'vitest'
 import { P0_DIALOG_CASES, P0_IDS } from './p0-cases'
 import { formatDialogReport, runDialogCase, type DialogRunResult } from './runner'
 
+/** Mesmo em pendentes ou falhas conhecidas, estas nunca podem falhar. */
+const ALWAYS_BLOCKING = ['INV-01', 'INV-02', 'INV-04', 'INV-05', 'INV-11']
+
 describe('harness L1 diálogos P0 (#406)', () => {
-  // Multi-turno com autodraft: o default 5 s do Vitest estoura no CI.
   const CASE_TIMEOUT_MS = 30_000
 
-  it('regista todos os P0 da matriz (69 IDs no harness It.1)', () => {
-    expect(P0_IDS).toHaveLength(69)
-    expect(new Set(P0_IDS).size).toBe(69)
+  it('regista todos os P0 da matriz', () => {
+    expect(P0_IDS).toHaveLength(P0_DIALOG_CASES.length)
+    expect(new Set(P0_IDS).size).toBe(P0_IDS.length)
   })
 
   const results: DialogRunResult[] = []
 
   for (const c of P0_DIALOG_CASES) {
-    const label = `${c.id} · ${c.title}${c.knownFailure ? ` [${c.knownFailure}]` : ''}`
+    const tag = c.knownFailure ? ` [${c.knownFailure}]` : c.pendingHarness ? ` [pendente: ${c.pendingHarness}]` : ''
+    const label = `${c.id} · ${c.title}${tag}`
 
     if (c.coverageOnly) {
       it(`${label} (cobertura: ${c.coverageOnly})`, () => {
         expect(c.coverageOnly!.length).toBeGreaterThan(0)
-        results.push({
-          id: c.id,
-          ok: true,
-          invariants: [],
-          outbound: [],
-          proposals: 0,
-          appointments: 0,
-          agentTurns: 0,
-        })
+        results.push({ id: c.id, ok: true, status: 'covered', invariants: [], outbound: [], proposals: 0, appointments: 0, agentTurns: 0 })
       })
       continue
     }
@@ -42,15 +40,27 @@ describe('harness L1 diálogos P0 (#406)', () => {
       label,
       async () => {
         const r = await runDialogCase(c)
-        results.push(r)
+        const hardFails = r.invariants.filter((i) => !i.ok && ALWAYS_BLOCKING.includes(i.id))
+
         if (c.knownFailure) {
-          // Preferimos reproduzir a falha; se o L1 ainda não a apanha, não bloqueia merge
-          // (DEC-108: INV nos P0; EE informativos). O relatório lista os não reproduzidos.
+          r.status = 'known_failure'
+          results.push(r)
+          const inv01 = r.invariants.find((i) => i.id === 'INV-01')
+          if (inv01 && !inv01.ok) throw new Error(`${c.id}: INV-01 (marcação sem clique) bloqueia mesmo com falha conhecida`)
           if (r.ok) {
-            r.knownFailure = `${c.knownFailure} (L1 ainda não reproduz)`
+            r.status = 'fail'
+            throw new Error(`${c.id} passou: remover knownFailure «${c.knownFailure}» e creditar a correção na matriz`)
           }
           return
         }
+        if (c.pendingHarness) {
+          r.status = 'pending'
+          results.push(r)
+          if (hardFails.length > 0) throw new Error(`${c.id}: ${hardFails.map((f) => f.id).join(', ')}`)
+          return
+        }
+        r.status = r.ok ? 'pass' : 'fail'
+        results.push(r)
         if (!r.ok) throw new Error(r.error ?? 'dialog failed')
       },
       CASE_TIMEOUT_MS,
