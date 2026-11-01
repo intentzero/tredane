@@ -139,7 +139,7 @@ Antes de cada chamada, reservar orçamento conservador por tenant/tarefa e limit
 | --- | --- | --- |
 | 0. Contrato de medição | Dicionário de episódio/eventos, elegibilidade, versão e casos sem dados; revisão de privacidade | Paulo decide KPI e escopo; jurídico fecha GATE-04/06 para dados reais. |
 | 1. Telemetria mínima | Eventos idempotentes por clínica e dashboard de linha de base; reconciliação Meta/IA; exclusão de contato coberta | Testes A/B de isolamento, replay, atraso, permissões e purge; sem corpos em logs. |
-| 2. Avaliação offline | Corpus sintético versionado, rubrica humana, guardrails e relatório por versão/custo | Zero regressões críticas conhecidas; avaliador independente dos casos que gerou. |
+| 2. Avaliação offline | Corpus sintético versionado, rubrica humana, guardrails e relatório por versão/custo — corpus e critérios iniciais no [plano de testes](../implementation/plano-testes-conversacional.md) e na [matriz de diálogos](../implementation/matriz-dialogos-conversacional.md) | Zero regressões críticas conhecidas; avaliador independente dos casos que gerou. |
 | 3. Triagem contínua | Alertas, registro de achados com dono e severidade, hipóteses e testes reproduzíveis | Pausa e reversão exercitadas; casos detectados levam a correção verificável. |
 | 4. Experimento controlado | Sombra e canário por clínica consentida, comparação estratificada e rollback | Política previamente aprovada e verificada pelo controlador; promoção automática dentro dos limites (DEC-084); gates do piloto preservados. |
 
