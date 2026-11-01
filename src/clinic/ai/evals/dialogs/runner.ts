@@ -22,6 +22,8 @@ export type DialogCase = {
   coverageOnly?: string
   /** Adaptador opcional (timeout, texto fixo…). */
   adapter?: AiProviderAdapter
+  /** Relógio do cenário (ex. G-10 sábado 17:00). */
+  nowMs?: number
   /** Asserções extra além das INV. */
   expect?: {
     outboundIncludes?: string[]
@@ -32,6 +34,8 @@ export type DialogCase = {
     noAppointment?: boolean
     paused?: boolean
     notPaused?: boolean
+    /** DEC-114: pausa sem mensagem automática (excepção INV-09). */
+    silentPause?: boolean
   }
 }
 
@@ -48,7 +52,7 @@ export type DialogRunResult = {
 }
 
 export async function runDialogCase(c: DialogCase): Promise<DialogRunResult> {
-  const s = bootDialogScenario({ adapter: c.adapter })
+  const s = bootDialogScenario({ adapter: c.adapter, nowMs: c.nowMs })
   let agentTurns = 0
   try {
     for (const turn of c.turns) {
@@ -72,6 +76,7 @@ export async function runDialogCase(c: DialogCase): Promise<DialogRunResult> {
       eligibleTurns: c.turns.filter((t) => t.role === 'client').length,
       requirePause: c.expect?.paused,
       requireNoPause: c.expect?.notPaused ?? c.expect?.paused === false,
+      allowSilentPause: c.expect?.silentPause,
     })
 
     const outbound = s.outboundBodies()

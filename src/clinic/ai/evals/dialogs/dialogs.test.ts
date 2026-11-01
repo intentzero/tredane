@@ -12,9 +12,9 @@ describe('harness L1 diálogos P0 (#406)', () => {
   // Multi-turno com autodraft: o default 5 s do Vitest estoura no CI.
   const CASE_TIMEOUT_MS = 30_000
 
-  it('regista todos os P0 da matriz (67 IDs no harness It.1)', () => {
-    expect(P0_IDS).toHaveLength(67)
-    expect(new Set(P0_IDS).size).toBe(67)
+  it('regista todos os P0 da matriz (69 IDs no harness It.1)', () => {
+    expect(P0_IDS).toHaveLength(69)
+    expect(new Set(P0_IDS).size).toBe(69)
   })
 
   const results: DialogRunResult[] = []

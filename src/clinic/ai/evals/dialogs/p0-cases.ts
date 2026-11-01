@@ -378,9 +378,36 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'G-03',
     title: 'É robô?',
     turnosIdeais: 1,
-    // Copy DEC-115 → #420; aqui só classificação (sem pausa).
     turns: [{ role: 'client', text: 'Você é a atendente da clínica ou um robô?' }],
-    expect: { notPaused: true },
+    expect: {
+      notPaused: true,
+      outboundIncludes: ['Sou a assistente virtual da clínica. Se preferir, chamo a equipe.'],
+    },
+  },
+  {
+    id: 'F-07',
+    title: 'Pare de me mandar mensagem',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Pare de me mandar mensagem' }],
+    expect: {
+      paused: true,
+      silentPause: true,
+      outboundExcludes: [/Vou pedir para a equipe continuar daqui/i],
+    },
+  },
+  {
+    id: 'G-10',
+    title: 'Handoff fora do expediente',
+    turnosIdeais: 1,
+    // Sábado 07/11/2026 17:00 America/Sao_Paulo = 20:00 UTC.
+    nowMs: Date.UTC(2026, 10, 7, 20, 0),
+    turns: [{ role: 'client', text: 'Quero falar com alguém' }],
+    expect: {
+      paused: true,
+      outboundIncludes: [
+        'Vou pedir para a equipe continuar daqui. A equipe responde a partir de segunda às 09:00.',
+      ],
+    },
   },
   {
     id: 'G-04',

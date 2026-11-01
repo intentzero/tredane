@@ -26,13 +26,12 @@ describe('classifySensitive (#409)', () => {
       pause: false,
       injection: 'fraca',
     },
-    // G-03 — pergunta sobre robô: fraca, sem pausa (copy DEC-115 → #420)
+    // G-03 — transparência DEC-115: pergunta_ia, sem pausa
     {
       id: 'G-03',
       text: 'Você é a atendente da clínica ou um robô?',
-      labels: ['injecao'],
+      labels: ['pergunta_ia'],
       pause: false,
-      injection: 'fraca',
     },
     // CF-03 / G-05
     {

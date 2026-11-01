@@ -21,7 +21,7 @@ import {
   forbiddenClientTermsIn,
   teamConfirmsSoonReply,
 } from './client-copy'
-import { HUMAN_HANDOFF_TEXT } from './human-handoff'
+import { AI_TRANSPARENCY_TEXT, HUMAN_HANDOFF_TEXT } from './human-handoff'
 import { MODEL_FALLBACK_TEXT } from './model-fallback'
 import { audienceLineQuestion, variantListQuestion } from './variant-line'
 
@@ -81,6 +81,11 @@ describe('#405 copy sem jargão (J-09, INV-05)', () => {
       ['SERVICE_CHANGED_REPLY', SERVICE_CHANGED_REPLY],
       ['teamConfirmsSoonReply', teamConfirmsSoonReply('Massagem', '15:00')],
       ['HUMAN_HANDOFF_TEXT', HUMAN_HANDOFF_TEXT],
+      [
+        'HUMAN_HANDOFF_TEXT DEC-113',
+        `${HUMAN_HANDOFF_TEXT} A equipe responde a partir de segunda às 09:00.`,
+      ],
+      ['AI_TRANSPARENCY_TEXT', AI_TRANSPARENCY_TEXT],
       ['MODEL_FALLBACK_TEXT', MODEL_FALLBACK_TEXT],
       ['TEMPO_REFUSED_PHRASE', TEMPO_REFUSED_PHRASE],
       ['TEMPO_UNCONFIRMED_PHRASE', TEMPO_UNCONFIRMED_PHRASE],
