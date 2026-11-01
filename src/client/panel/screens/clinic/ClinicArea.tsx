@@ -2,7 +2,7 @@ import { useAuthSession } from '../../auth/AuthContext'
 import { useTenant } from '../../tenant/TenantContext'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { navigatePanel, type ClinicaSection } from '../../routes'
 import { AiAssistCard } from './AiAssistCard'
 import { ForecastPlaceCard } from './ForecastPlaceCard'
@@ -21,6 +21,7 @@ import { useClinicConfig } from './useClinicConfig'
 import { WhatsappScreen } from './whatsapp/WhatsappScreen'
 import { RecebimentoScreen } from './pix/RecebimentoScreen'
 import { WhatsappDevSyncScreen } from './whatsapp/WhatsappDevSyncScreen'
+import { EquipeScreen } from './EquipeScreen'
 
 type Props = {
   tenantId: string
@@ -35,6 +36,35 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   const wide = useMediaQuery('(min-width: 1280px)')
   const clinicName = active.phase === 'ready' ? active.context.name : tenantId
   const isOwner = active.phase === 'ready' && active.context.role === 'owner'
+  const [viewerClerkUserId, setViewerClerkUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!api || section !== 'equipe') return
+    let cancelled = false
+    void api
+      .getMe({ generation, expectGeneration: () => generation })
+      .then((me) => {
+        if (!cancelled) setViewerClerkUserId(me.clerkUserId)
+      })
+      .catch(() => {
+        if (!cancelled) setViewerClerkUserId(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [api, section, generation])
+
+  if (section === 'equipe') {
+    if (!api) return <LoadingState label="Carregando equipe…" />
+    return (
+      <EquipeScreen
+        tenantId={tenantId}
+        api={api}
+        generation={generation}
+        viewerClerkUserId={viewerClerkUserId}
+      />
+    )
+  }
 
   if (section === 'whatsapp-dev-sync') {
     if (!api) return <LoadingState label="Carregando…" />

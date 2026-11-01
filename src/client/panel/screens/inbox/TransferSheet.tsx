@@ -47,10 +47,12 @@ export function TransferSheet(p: Props) {
   const options = (members ?? []).filter(
     (m) => m.status === 'active' && m.clerkUserId !== p.viewerClerkUserId,
   )
-  // Sem nomes no cadastro de equipe: «Atendente 2» quando há mais de um do mesmo papel.
+  // Preferir nome (DEC-102); sem nome, «Atendente 2» quando há mais de um do mesmo papel.
   const counters = new Map<string, number>()
   const labelled = options.map((m) => {
-    const total = options.filter((o) => o.role === m.role).length
+    const named = m.displayName?.trim()
+    if (named) return { ...m, label: named }
+    const total = options.filter((o) => o.role === m.role && !o.displayName?.trim()).length
     const n = (counters.get(m.role) ?? 0) + 1
     counters.set(m.role, n)
     return { ...m, label: total > 1 ? `${roleName(m.role)} ${n}` : roleName(m.role) }

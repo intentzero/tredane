@@ -5,6 +5,7 @@ import { asyncFromSync } from '../db/admin/async-store'
 import {
   createSyntheticAuthorityReader,
   createSyntheticSessionAuthenticator,
+  createSyntheticStaffProfileReader,
   createSyntheticVerifiedEmailReader,
   synthAuthHeader,
   type AuthServices,
@@ -35,6 +36,7 @@ function testTeamApp() {
     authority: createSyntheticAuthorityReader(),
     adminDb: asyncFromSync(boot.db),
     verifiedEmails: createSyntheticVerifiedEmailReader(),
+    staffProfiles: createSyntheticStaffProfileReader(),
   }
   const app = createApp({
     authServicesFactory: () => services,
@@ -438,14 +440,28 @@ describe('HTTP — Equipe e convites (#25)', () => {
       const body = (await team.json()) as {
         members: Array<{
           role: string
+          displayName: string | null
+          email: string | null
           manageActions: { canRevoke: boolean }
         }>
+        invitations: Array<{ id: string }>
       }
+      expect(JSON.stringify(body)).not.toMatch(/token/i)
       const owners = body.members.filter((m) => m.role === 'owner')
       expect(owners.length).toBeGreaterThan(0)
       expect(owners.every((o) => o.manageActions.canRevoke === false)).toBe(true)
       const attendants = body.members.filter((m) => m.role === 'attendant')
       expect(attendants.every((a) => a.manageActions.canRevoke === true)).toBe(true)
+
+      // DEC-102: nome + e-mail (não só clerkUserId) na lista.
+      const ownerA = body.members.find((m) => m.email === 'owner.a@example.test')
+      expect(ownerA?.displayName).toBe('Bruno')
+      const attendant = body.members.find((m) => m.email === 'attendant.a@example.test')
+      expect(attendant?.displayName).toBe('Carla')
+      expect(body.members.every((m) => typeof m.displayName === 'string' || m.displayName === null)).toBe(
+        true,
+      )
+      expect(Array.isArray(body.invitations)).toBe(true)
     } finally {
       ctx.close()
     }

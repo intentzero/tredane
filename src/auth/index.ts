@@ -67,3 +67,11 @@ export {
   type VerifiedEmailSnapshot,
   type SyntheticVerifiedEmailFixture,
 } from './verified-email'
+export {
+  createClerkStaffProfileReader,
+  createSyntheticStaffProfileReader,
+  defaultSyntheticStaffProfiles,
+  type StaffProfile,
+  type StaffProfileReader,
+  type SyntheticStaffProfileFixture,
+} from './staff-profile'

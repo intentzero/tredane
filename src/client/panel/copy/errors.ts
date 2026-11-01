@@ -60,6 +60,16 @@ const BY_CODE: Record<string, string> = {
     'Essa conta do Facebook não tem número de WhatsApp. Escolha ou crie um número e tente de novo.',
   code_invalid: 'A autorização do Facebook expirou. Tente conectar de novo.',
   unknown_or_released_phone: 'Esse número não está mais conectado a esta clínica.',
+
+  // Equipe / convites
+  email_required: 'Informe o e-mail da pessoa.',
+  invitation_already_pending: 'Já existe um convite pendente para este e-mail.',
+  invitation_not_found: 'Não encontramos este convite. Pode ter sido cancelado.',
+  invitation_not_pending: 'Este convite já não está pendente.',
+  invitation_expired: 'Este convite expirou. Envie um novo.',
+  invitation_resend_cooldown: 'Aguarde alguns minutos antes de reenviar.',
+  invitation_resend_quota: 'Limite de 5 reenvios em 24 horas atingido. Tente amanhã.',
+  invitation_cancel_conflict: 'Outra pessoa acabou de mudar este convite. Atualize a tela.',
 }
 
 function byStatus(status: number): string | null {

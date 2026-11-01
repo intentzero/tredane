@@ -11,6 +11,10 @@ import {
   createSyntheticSessionAuthenticator,
 } from './synthetic'
 import {
+  createClerkStaffProfileReader,
+  createSyntheticStaffProfileReader,
+} from './staff-profile'
+import {
   createClerkVerifiedEmailReader,
   createSyntheticVerifiedEmailReader,
 } from './verified-email'
@@ -77,6 +81,7 @@ export function buildAuthServices(env?: WorkerAuthEnv | null): AuthServices {
       authority: createSyntheticAuthorityReader(),
       adminDb,
       verifiedEmails: createSyntheticVerifiedEmailReader(),
+      staffProfiles: createSyntheticStaffProfileReader(),
     }
   }
 
@@ -106,5 +111,6 @@ export function buildAuthServices(env?: WorkerAuthEnv | null): AuthServices {
     authority: createClerkAuthorityReader(client),
     adminDb,
     verifiedEmails: createClerkVerifiedEmailReader(client),
+    staffProfiles: createClerkStaffProfileReader(client),
   }
 }

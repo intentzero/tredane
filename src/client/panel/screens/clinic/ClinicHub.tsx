@@ -117,7 +117,13 @@ export function ClinicHub({ tenantId, snap, showAssistant = true, stagingCard }:
         />
       </li>
       <li>
-        <NavRow icon={Users} title="Equipe" detail="Convidar recepcionistas" state="neutral" soon />
+        <NavRow
+          icon={Users}
+          title="Equipe"
+          detail="Convidar atendentes"
+          state="neutral"
+          onPress={go('equipe')}
+        />
       </li>
     </>
   )
