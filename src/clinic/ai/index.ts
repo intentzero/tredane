@@ -71,6 +71,21 @@ export {
   type CatalogReadStats,
 } from './turn-context'
 export {
+  DIALOGUE_ACTS,
+  dialogueActIndex,
+  renderDialogueAct,
+  type DialogueActId,
+  type DialogueVars,
+} from './dialogue-acts'
+export {
+  validateClientOutbound,
+  countQuestions,
+  countParagraphs,
+  type OutboundValidateOpts,
+  type OutboundValidateResult,
+  type OutboundRejection,
+} from './outbound-validate'
+export {
   createProposal,
   createOrSupersedeProposal,
   getProposal,

@@ -6,12 +6,14 @@ import {
   AI_MAX_OUTPUT_TOKENS_REPLY,
   AI_MAX_OUTPUT_TOKENS_SUMMARY,
   AI_TIMEOUT_MS,
+  REPLY_OUTPUT_MAX_MESSAGE_CHARS,
   analyzeContentRules,
   warningLabel,
   type AiProviderAdapter,
+  type ReplyOutputRejection,
 } from '../../ai'
 import { applyDraftContinuity } from '../../ai/continuity'
-import { validateReplyFacts } from '../../ai/reply-facts'
+import { validateClientOutbound } from './outbound-validate'
 import type { Clock } from '../../db/clock'
 import { assertValidCaller, type ClinicCaller } from '../envelopes'
 import { ClinicError, NotFoundError, ValidationError } from '../errors'
@@ -236,17 +238,30 @@ async function runGenerate(
   ) {
     guarded = { ok: false, reason: 'tempo_leak', notes: '' }
   }
-  // #403 + DEC-118: preço/hora/reserva batem com factos locais (agendaFacts), não com o payload ao gateway.
+  // #403 + #414 + DEC-118: validador único com factos locais (agendaFacts), sem slots no gateway.
+  // J-07 estrito (1 pergunta / 300 chars) fica no módulo; no LLM mantém o teto S6 até ok Paulo no M4.
   let factsViolation: string | null = null
   if (guarded?.ok) {
-    const facts = validateReplyFacts(
-      guarded.message,
-      contextInspection.payload,
-      contextInspection.agendaFacts,
-    )
-    if (!facts.ok) {
-      factsViolation = facts.violation
-      guarded = { ok: false, reason: 'factual_mismatch', notes: '' }
+    const out = validateClientOutbound(guarded.message, {
+      source: 'llm',
+      context: contextInspection.payload,
+      agendaFacts: contextInspection.agendaFacts,
+      requireSingleQuestion: false,
+      maxChars: REPLY_OUTPUT_MAX_MESSAGE_CHARS,
+    })
+    if (!out.ok) {
+      factsViolation = out.detail ?? out.reason
+      const reason: ReplyOutputRejection =
+        out.reason === 'claims_booking'
+          ? 'claims_booking'
+          : out.reason === 'factual_mismatch'
+            ? 'factual_mismatch'
+            : out.reason === 'forbidden_terms'
+              ? 'privileged_content'
+              : out.reason === 'too_long'
+                ? 'too_long'
+                : 'malformed'
+      guarded = { ok: false, reason, notes: '' }
     }
   }
   // Continuidade (Paulo 29/10/2026): se a clínica já falou, corta re-cumprimento residual.
