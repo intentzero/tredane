@@ -61,6 +61,9 @@ import {
   variantListQuestion,
   zonesForAudienceLine,
 } from './variant-line'
+import { extractDates, extractTimes, norm } from './nlu/temporal'
+
+export { extractDates, extractTimes, norm }
 
 export const AI_AUTOBOOK_ACTOR_ID = AI_AUTOBOOK_ACTOR
 export const AI_AUTOBOOK_ACTOR_NAME = 'IA (agendamento automático)'
@@ -94,20 +97,7 @@ export type AutoBookOutcome = {
   outbox: OutboxRow[]
 }
 
-const WEEKDAY_NAMES: Array<[RegExp, number]> = [
-  [/\bsegunda\b/, 1],
-  [/\bterca\b/, 2],
-  [/\bquarta\b/, 3],
-  [/\bquinta\b/, 4],
-  [/\bsexta\b/, 5],
-  [/\bsabado\b/, 6],
-  [/\bdomingo\b/, 7],
-]
 const WEEKDAY_LABEL = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
-
-export function norm(s: string): string {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-}
 
 function addDays(date: string, n: number): string {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number]
@@ -118,73 +108,6 @@ function weekdayOf(date: string): number {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number]
   const js = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
   return js === 0 ? 7 : js
-}
-
-/** Datas civis (YYYY-MM-DD) citadas no texto, relativas a `today`. */
-export function extractDates(text: string, today: string): Set<string> {
-  const t = norm(text)
-  const out = new Set<string>()
-  const [ty, tm] = today.split('-').map(Number) as [number, number, number]
-  for (const m of t.matchAll(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g)) {
-    const d = Number(m[1])
-    const mo = Number(m[2])
-    if (d < 1 || d > 31 || mo < 1 || mo > 12) continue
-    let y = m[3] ? Number(m[3]) : ty
-    if (y < 100) y += 2000
-    let iso = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    if (!m[3] && iso < today) iso = `${y + 1}${iso.slice(4)}`
-    out.add(iso)
-  }
-  for (const m of t.matchAll(/\bdia\s+(\d{1,2})\b(?!\s*\/)/g)) {
-    const d = Number(m[1])
-    if (d < 1 || d > 31) continue
-    let iso = `${ty}-${String(tm).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    if (iso < today) {
-      const ny = tm === 12 ? ty + 1 : ty
-      const nm = tm === 12 ? 1 : tm + 1
-      iso = `${ny}-${String(nm).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    }
-    out.add(iso)
-  }
-  if (/\bdepois de amanha\b/.test(t)) out.add(addDays(today, 2))
-  else if (/\bamanha\b/.test(t)) out.add(addDays(today, 1))
-  if (/\bhoje\b/.test(t)) out.add(today)
-  for (const [re, dow] of WEEKDAY_NAMES) {
-    if (!re.test(t)) continue
-    let diff = (dow - weekdayOf(today) + 7) % 7
-    // «quinta» dito numa quinta = próxima semana só se não houver outra pista; usa hoje.
-    if (diff < 0) diff += 7
-    out.add(addDays(today, diff))
-  }
-  return out
-}
-
-/** Horários HH:MM citados («15h», «15:00», «15h30», «às 15»). */
-export function extractTimes(text: string): Set<string> {
-  const t = norm(text)
-  const out = new Set<string>()
-  const add = (h: number, m: number) => {
-    if (h > 23 || m > 59) return
-    out.add(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
-  }
-  for (const m of t.matchAll(
-    /\b([01]?\d|2[0-3])(?::([0-5]\d)|\s?h(?:rs|s)?(?:\s?([0-5]\d))?)(?![\d/a-z])/g,
-  )) {
-    add(Number(m[1]), Number(m[2] ?? m[3] ?? 0))
-  }
-  const period = /\b(manha|tarde|noite)\b/.test(t)
-  for (const m of t.matchAll(/\bas\s+([01]?\d|2[0-3])\b(?![:h\d/])/g)) {
-    const hour = Number(m[1])
-    // «às 3» sem período não é 03:00. Com tarde, 1–7 vira 13–19.
-    if (!period && hour >= 1 && hour <= 7) continue
-    if (period && /\btarde\b/.test(t) && hour >= 1 && hour <= 7) add(hour + 12, 0)
-    else add(hour, 0)
-  }
-  // «1530» = 15:30. Não casa o ano em «30/10/2026» nem um valor depois de «r$».
-  for (const m of t.matchAll(/(?<![\d/])(?<!r\$\s*)\b([01]\d|2[0-3])([0-5]\d)\b(?![\d/,])/g)) {
-    add(Number(m[1]), Number(m[2]))
-  }
-  return out
 }
 
 function significantWords(name: string): string[] {
@@ -263,8 +186,11 @@ export function detectExplicitConfirmation(input: {
   const pServices = extractServices(prev, input.services)
 
   const affirmative = AFFIRMATIVE.test(c)
-  // «sim/pode ser…» OU a cliente escolhe o horário («15h», «1530»).
-  if (!affirmative && cTimes.size === 0) return { ok: false, status: 'not_confirmed', missing: [] }
+  // «sim/pode ser…» OU horário de relógio («15h», «1530») OU dia absoluto
+  // já resolvido com um serviço (oferta de período, ex. B-04 «semana que vem de manhã»).
+  if (!affirmative && cTimes.size === 0 && !(cDates.size === 1 && cServices.length === 1)) {
+    return { ok: false, status: 'not_confirmed', missing: [] }
+  }
 
   const missing: Array<'dia' | 'horario' | 'procedimento'> = []
   let ambiguous = false
@@ -291,7 +217,15 @@ export function detectExplicitConfirmation(input: {
   const time = resolve([...cTimes], [...pTimes], 'horario', (text) => [...extractTimes(text)])
   const service = resolve(cServices, pServices, 'procedimento', (text) => extractServices(text, input.services))
   if (missing.length > 0) {
-    return { ok: false, status: ambiguous ? 'ambiguous' : 'needs_info', missing }
+    // Devolve o que já está determinado para a oferta de período / perguntas (#408 B-04).
+    return {
+      ok: false,
+      status: ambiguous ? 'ambiguous' : 'needs_info',
+      missing,
+      ...(date ? { date } : {}),
+      ...(time ? { time } : {}),
+      ...(service ? { service } : {}),
+    }
   }
   return { ok: true, status: 'requires_button', missing: [], date, time, service }
 }
@@ -437,8 +371,9 @@ async function offerZonesInPeriod(
       if (picked.length >= 3) break
     }
   }
+  const subject = label || service.name
   if (picked.length === 0) {
-    return `Para ${label}, ${when} não tenho horário livre. Quer ver outro período?`
+    return `Para ${subject}, ${when} não tenho horário livre. Quer ver outro período?`
   }
   const byDay = new Map<string, string[]>()
   for (const slot of picked) {
@@ -448,7 +383,7 @@ async function offerZonesInPeriod(
   }
   const bits = [...byDay.entries()].map(([day, times]) => `${dayText(day)} às ${times.join(', ')}`)
   const listed = bits.length === 1 ? bits[0]! : `${bits.slice(0, -1).join(', ')} e ${bits[bits.length - 1]}`
-  return `Para ${label}, ${when} tenho ${listed}. Qual fica melhor?`
+  return `Para ${subject}, ${when} tenho ${listed}. Qual fica melhor?`
 }
 
 /**
@@ -643,7 +578,12 @@ export async function tryAiAutoBook(
         } else if (!time) {
           const period =
             turnFacts.period ?? (session?.serviceId === det.service.id ? session?.period : null)
-          if (period && kept.length > 0 && !chosen.ambiguous) {
+          // Serviço sem variantes (ex. massagem): oferta de período com a data absoluta (#408 B-04).
+          const canOfferPeriod =
+            Boolean(period) &&
+            !chosen.ambiguous &&
+            (kept.length > 0 || active.length === 0)
+          if (canOfferPeriod && period) {
             replyText = await offerZonesInPeriod(
               db,
               tenantId,
