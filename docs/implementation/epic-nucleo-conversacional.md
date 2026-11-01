@@ -46,6 +46,8 @@ O caminho normal passa a ser determinístico e guiado pelo grafo de dados da cl�
 | 6 | [#415](https://github.com/intentzero/tredane/issues/415) | M5: listas e botões de escolha no WhatsApp | A-03 em ≤ 4 turnos | #402 (2), #412 |
 | 6 | [#416](https://github.com/intentzero/tredane/issues/416) | M6: LLM extrator restrito e redator de exceção; fim do prompt monolítico | L3 coloquial · CA-04, CA-05, CA-07 | #412, #413 (DEC-104, DEC-109) |
 | 6 | [#418](https://github.com/intentzero/tredane/issues/418) | M7: diálogos gerados pelo grafo; lint de configuração | cobertura de catálogo | DEC-112 (informativo) |
+| 4 | [#420](https://github.com/intentzero/tredane/issues/420) | P1: handoff fora do expediente, pedido para parar, transparência sobre IA (DEC-113–115) | G-10, F-07, G-03 | #409 |
+| 4 | [#421](https://github.com/intentzero/tredane/issues/421) | P2: sinónimos na ficha, só pela owner (DEC-110) | léxico | #411 |
 | contínuo | [#417](https://github.com/intentzero/tredane/issues/417) | L2/L3: LLM no circuito, juiz calibrado, cliente simulada | rubrica Q, EE-04/06 | #402 (8: valor do orçamento) |
 | contínuo | [#419](https://github.com/intentzero/tredane/issues/419) | Iteração 1 da matriz (modelo das iterações seguintes) | §7 do plano | |
 
