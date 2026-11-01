@@ -73,6 +73,21 @@ export function resumeAiReply(
     tenantId,
     conversationId,
   )
+  // Devolver à IA: a pessoa largou o cartão. A IA volta a ser a responsável (DEC-093).
+  setConversationAssignee(db, {
+    tenantId,
+    conversationId,
+    assigneeClerkUserId: AI_ASSIGNEE,
+    assigneeDisplayName: 'IA',
+    updatedAt: now,
+  })
+  syncOpenOpportunityAssignee(db, {
+    tenantId,
+    conversationId,
+    assigneeClerkUserId: AI_ASSIGNEE,
+    assigneeDisplayName: 'IA',
+    updatedAt: now,
+  })
   return [pauseEvent(db, tenantId, conversationId, false, clock)]
 }
 
@@ -216,7 +231,7 @@ export function notifyHumanHandoff(
       input.reason === 'customer_requested'
         ? 'A cliente pediu atendimento humano.'
         : input.reason === 'human_only'
-          ? 'Pedido que a IA não cumpre (remarcar, cancelar, terceiro ou profissional fora do serviço). A equipe continua.'
+          ? 'Pedido que a IA não cumpre (cancelar, terceiro ou profissional fora do serviço). A equipe continua.'
           : 'A mensagem saiu do agendamento. A IA ficou pausada.'
     openPendingCommunication(
       db,

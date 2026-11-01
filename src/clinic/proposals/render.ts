@@ -128,10 +128,8 @@ export function renderProposalInteractive(
   const location = proposal.clinicLocationText.trim()
   const lines: string[] = ['Proposta de horário', '']
   if (location) lines.push(`Local: ${location}`)
+  // DEC-100: o cartão não imprime «beneficiária». O facto interno (titular/terceiro) continua na proposta.
   lines.push(
-    `Beneficiária: ${proposal.beneficiaryName}${
-      proposal.beneficiaryKind === 'terceiro' ? ' (terceiro)' : ''
-    }`,
     `Serviço: ${zoneLabel(proposal.serviceName, zones)}`,
     `Quando: ${formatSlotRange(proposal)}`,
     `Duração: ${proposal.durationMinutes} min`,

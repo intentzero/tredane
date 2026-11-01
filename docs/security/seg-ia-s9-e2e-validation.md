@@ -98,7 +98,7 @@ Runtime Cloudflare (WebSocket hibernável, revoke): `src/worker/runtime.harness.
 Marcar só com evidência live. Engenharia **não** reivindica conclusão.
 
 - [ ] Botões **Confirmar** / **Alterar detalhes** visíveis e utilizáveis no WhatsApp do aparelho piloto (Android e iOS usados pela clínica).
-- [ ] Corpo da proposta com clínica, beneficiária, serviço, data/fuso, horário, profissional, preço/sinal — sem truncar de forma a tornar o botão ambíguo.
+- [ ] Corpo da proposta com clínica, serviço, data/fuso, horário, profissional, preço/sinal — sem o rótulo «beneficiária» (DEC-100) e sem truncar de forma a tornar o botão ambíguo.
 - [ ] Clique Confirmar numa proposta válida (staging sintético ou piloto autorizado) produz book ou Pix conforme serviço — **sem** caminho de marcação por texto se o botão falhar.
 - [ ] Se o botão não for utilizável (cliente sem UI de botões / falha Meta): mensagem de fallback humano na conversa; atendente assume; **proibido** degradar silenciosamente para «sim»/texto livre a marcar.
 - [ ] «Alterar detalhes» encaminha à equipe sem cancelar compromisso legítimo já existente.

@@ -22,7 +22,7 @@ import {
 import { zonedCivilToUtc } from '../scheduling/timezone'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
-import { enqueueAutoDraft, runDueAutoDrafts } from './index'
+import { enqueueAutoDraft, enqueueLatestUnansweredInbound, runDueAutoDrafts } from './index'
 import { HUMAN_HANDOFF_TEXT, notifyHumanHandoff, readAiReplyPause, resumeAiReply } from './human-handoff'
 import {
   listOpenPendingCommunicationsForConversation,
@@ -192,8 +192,19 @@ describe('DEC-083', () => {
       )
       const n = s.outboundCount()
       s.clock.advance(1_000)
+      const paused = listConversations(s.db, s.tenantId, { filter: 'all' }).items.find(
+        (item) => item.id === s.cnv.id,
+      )
+      expect(paused?.status).toBe('open')
+      expect(paused?.assigneeClerkUserId).toBeNull()
       resumeAiReply(s.db, s.tenantId, s.cnv.id, s.clock)
       expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      const returned = listConversations(s.db, s.tenantId, { filter: 'all' }).items.find(
+        (item) => item.id === s.cnv.id,
+      )
+      expect(returned?.assigneeClerkUserId).toBe('system:ai-autodraft')
+      expect(returned?.assigneeDisplayName).toBe('IA')
+      expect(returned?.status).toBe('open')
       expect(
         listOpenPendingCommunicationsForConversation(s.db, s.tenantId, s.cnv.id).some(
           (row) => row.kind === 'alter_awaiting_team',
@@ -211,6 +222,27 @@ describe('DEC-083', () => {
       expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).not.toBeNull()
       const listed = listConversations(s.db, s.tenantId, { filter: 'needs_person' })
       expect(listed.items.some((item) => item.id === s.cnv.id && item.needsPerson)).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('devolver à IA enfileira a mensagem que chegou durante a pausa', () => {
+    const s = seed()
+    try {
+      notifyHumanHandoff(
+        s.db,
+        s.tenantId,
+        { conversationId: s.cnv.id, reason: 'human_only', clientRequestId: 'handoff-sandra' },
+        s.clock,
+      )
+      s.clock.advance(1_000)
+      const pending = s.say('Quero marcar com a Sandra.')
+      expect(enqueueLatestUnansweredInbound(s.db, s.tenantId, s.cnv.id, s.clock)).toBeNull()
+      s.clock.advance(1_000)
+      resumeAiReply(s.db, s.tenantId, s.cnv.id, s.clock)
+      const job = enqueueLatestUnansweredInbound(s.db, s.tenantId, s.cnv.id, s.clock)
+      expect(job?.messageId).toBe(pending.id)
     } finally {
       s.close()
     }

@@ -190,12 +190,15 @@ export function setConversationAssignee(
   },
 ): ConversationRow {
   const current = requireConversation(db, input.tenantId, input.conversationId)
+  // Tirar o responsável de uma conversa já aberta não a devolve a «Nova».
   const nextStatus: ConversationStatus =
     current.status === 'closed'
       ? 'closed'
       : input.assigneeClerkUserId
         ? 'open'
-        : 'new'
+        : current.status === 'open'
+          ? 'open'
+          : 'new'
   db.run(
     `UPDATE conversations SET
       assignee_clerk_user_id = ?,

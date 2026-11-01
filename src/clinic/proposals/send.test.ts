@@ -191,7 +191,7 @@ describe('S4: render determinístico', () => {
       const rendered = renderProposalInteractive(proposal)
       expect(rendered.body).toContain('Limpeza de pele')
       expect(rendered.body).toContain('Rua das Flores')
-      expect(rendered.body).toContain('Ana Silva')
+      expect(rendered.body).not.toMatch(/Beneficiár/)
       expect(rendered.body).not.toMatch(/LLM|sugestão livre/i)
       expect(rendered.buttons).toHaveLength(3)
       expect(rendered.buttons[2]!.title).toBe('Falar com a equipe')
