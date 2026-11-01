@@ -9545,8 +9545,33 @@
   border-bottom: var(--size-border-width) solid var(--color-line-divider);
 }
 
+.equipe-row--actions {
+  gap: var(--space-1);
+  padding-right: var(--space-1);
+}
+
 .equipe-row:last-child {
   border-bottom: 0;
+}
+
+.equipe-row-menu {
+  flex: none;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.equipe-row-menu:disabled,
+.equipe-row-menu[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .equipe-avatar {
