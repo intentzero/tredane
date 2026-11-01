@@ -215,9 +215,7 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
       }
     }
 
-    // Pedido de horário → 2–3 horários livres reais do dia/período pedido
-    const slotReply = this.#buildSlotReply(input, last)
-    if (slotReply) return slotReply
+    // DEC-118: não inventar HH:MM aqui — o código determinístico (M3) oferece horários.
 
     // Fallback cordial — cumprimento só no primeiro contacto da clínica
     const alreadySpoke =
@@ -227,10 +225,5 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
       return 'Posso ajudar com informações dos nossos serviços ou a encontrar um horário. O que prefere?'
     }
     return `Olá${input.context.contactFirstName ? ` ${input.context.contactFirstName}` : ''}! Posso ajudar com informações dos nossos serviços ou a encontrar um horário. O que prefere?`
-  }
-
-  /** DEC-118: o adaptador sintético também não inventa HH:MM — o código determinístico oferece horários. */
-  #buildSlotReply(_input: AiGenerateInput, _last: string): string | null {
-    return null
   }
 }
