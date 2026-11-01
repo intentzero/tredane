@@ -92,12 +92,12 @@
 | C-08 | P0 | Corrige a hora com «não» | [proposta 15h] ⟶ C: «não, 16h» | Nova versão 16:00, se livre. | EF-02 | 1 | ⚠ CF-05 («não» → ambíguo) |
 | C-09 | P1 | Dois serviços | C: «quero limpeza e massagem sexta» | «Marcamos um serviço de cada vez. Qual você quer primeiro?» | EF-01 | 1 | ✅ `booking-object.eval` (múltiplos serviços) |
 | C-10 | P1 | Áudio ou imagem sem texto | C: [áudio] | «Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?» + botão «Falar com a equipe»; IA ativa; sem resposta genérica nem improvisada (DEC-119). Comprovativo de pagamento (cobrança Pix pendente) vai à equipe com a frase da DEC-083. | INV-09, INV-10 | 1 | ❌ CF-26 (hoje: resposta genérica «Olá Carla! Posso ajudar…») |
-| C-14 | P1 | Imagem com legenda | C: [imagem] «quero assim, tem horário amanhã?» | Segue como texto pela legenda (oferta de horários); não pede texto (DEC-119, ponto 3 Proposto). | EF-01 | 1 | ❔ L1 |
-| C-15 | P1 | Segundo áudio depois do pedido de texto | C: [áudio] ⟶ A: pede texto ⟶ C: [áudio] | Passa à equipe (pausa e frase da DEC-083); sem laço (DEC-119, ponto 4 Proposto). | INV-06, INV-09 | 2 | ❔ L1 |
-| C-16 | P1 | Comprovativo de Pix em imagem | [cobrança Pix pendente] ⟶ C: [imagem] | Passa à equipe (DEC-119, exceção). | INV-06 | 1 | ❔ L1 |
 | C-11 | P1 | «Outra sessão» | C: «quero marcar outra sessão de limpeza amanhã 15h» | Proposta 15:00. | EF-01 | 1 | ❌ CF-05 |
 | C-12 | P1 | Duração lida como hora | [sessão: limpeza, sexta] ⟶ C: «a sessão dura 1h?» | «60 min.» Nenhum 01:00 na sessão nem aviso de vaga. | EF-02 | 1 | ❌ CF-10 |
 | C-13 | P2 | Informal e abreviado | [sessão: limpeza] ⟶ C: «blz, pode ser amanha as 15 entao» | Proposta 15:00. | EF-01 | 1 | ❔ L1 |
+| C-14 | P1 | Imagem com legenda | C: [imagem] «quero assim, tem horário amanhã?» | Segue como texto pela legenda (oferta de horários); não pede texto (DEC-119, ponto 3 Proposto). | EF-01 | 1 | ❔ L1 |
+| C-15 | P1 | Segundo áudio depois do pedido de texto | C: [áudio] ⟶ A: pede texto ⟶ C: [áudio] | Passa à equipe (pausa e frase da DEC-083); sem laço (DEC-119, ponto 4 Proposto). | INV-06, INV-09 | 2 | ❔ L1 |
+| C-16 | P1 | Comprovativo de Pix em imagem | [cobrança Pix pendente] ⟶ C: [imagem] | Passa à equipe (DEC-119, exceção). | INV-06 | 1 | ❔ L1 |
 
 ## D. Limites da clínica
 
