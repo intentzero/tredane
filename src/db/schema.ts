@@ -110,14 +110,14 @@ export const tenantMemberships = sqliteTable('tenant_memberships', {
 ])
 
 /**
- * Convites de attendant (DEC-021–025 / ADR-0008).
+ * Convites de equipe (DEC-021–025 / ADR-0008; papel owner em DEC-103).
  * Apenas `token_hash` é persistido — nunca o token em claro.
  */
 export const tenantInvitations = sqliteTable('tenant_invitations', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   normalizedEmail: text('normalized_email').notNull(),
-  role: text('role', { enum: ['attendant'] }).notNull().default('attendant'),
+  role: text('role', { enum: ['owner', 'attendant'] }).notNull().default('attendant'),
   issuedByClerkUserId: text('issued_by_clerk_user_id').notNull(),
   tokenHash: text('token_hash').notNull(),
   status: text('status', { enum: INVITATION_STATUSES }).notNull().default('pending'),

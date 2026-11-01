@@ -6,19 +6,29 @@ import {
   INVITATION_RESEND_WINDOW_MS,
 } from '../db/admin/constants'
 
-/** Membro na visão Equipe — owners sem ações de gestão pela clínica. */
+/** Membro na visão Equipe — ações conforme DEC-103. */
 export function serializeTeamMember(
   member: MembershipRow,
   opts: {
     callerIsOwner: boolean
+    activeOwnerCount: number
     /** DEC-102: nome e e-mail resolvidos no Worker (Clerk / sintético). */
     displayName?: string | null
     email?: string | null
   },
 ) {
   const isOwner = member.role === 'owner'
+  const isActive = member.status === 'active'
+  const canTouchOwners = opts.callerIsOwner && opts.activeOwnerCount > 1
   const canRevoke =
-    opts.callerIsOwner && member.role === 'attendant' && member.status === 'active'
+    opts.callerIsOwner
+    && isActive
+    && (member.role === 'attendant' || (isOwner && canTouchOwners))
+  const canPromote =
+    opts.callerIsOwner && isActive && member.role === 'attendant'
+  const canDemote =
+    opts.callerIsOwner && isActive && isOwner && canTouchOwners
+
   return {
     clerkUserId: member.clerkUserId,
     /** Nome de apresentação — nunca o id como rótulo principal na UI. */
@@ -28,10 +38,12 @@ export function serializeTeamMember(
     status: member.status,
     createdAt: member.createdAt,
     revokedAt: member.revokedAt,
-    /** Owners listados sem ações de gestão (só superadmin gere owners). */
-    manageActions: isOwner
-      ? { canRevoke: false, canInvite: false }
-      : { canRevoke, canInvite: false },
+    manageActions: {
+      canRevoke,
+      canInvite: false,
+      canPromote,
+      canDemote,
+    },
   }
 }
 

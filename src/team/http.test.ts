@@ -421,7 +421,7 @@ describe('HTTP — Equipe e convites (#25)', () => {
     }
   })
 
-  it('owner só gere attendants da própria clínica; lista equipe marca owners sem ações', async () => {
+  it('owner gere equipe da própria clínica; lista marca ações DEC-103', async () => {
     const ctx = testTeamApp()
     try {
       const cross = await invite(
@@ -442,16 +442,23 @@ describe('HTTP — Equipe e convites (#25)', () => {
           role: string
           displayName: string | null
           email: string | null
-          manageActions: { canRevoke: boolean }
+          manageActions: {
+            canRevoke: boolean
+            canPromote?: boolean
+            canDemote?: boolean
+          }
         }>
         invitations: Array<{ id: string }>
       }
       expect(JSON.stringify(body)).not.toMatch(/token/i)
       const owners = body.members.filter((m) => m.role === 'owner')
-      expect(owners.length).toBeGreaterThan(0)
-      expect(owners.every((o) => o.manageActions.canRevoke === false)).toBe(true)
+      expect(owners.length).toBeGreaterThan(1)
+      // Com ≥2 owners, demote/revoke de owner ficam liberados na lista.
+      expect(owners.every((o) => o.manageActions.canDemote === true)).toBe(true)
+      expect(owners.every((o) => o.manageActions.canRevoke === true)).toBe(true)
       const attendants = body.members.filter((m) => m.role === 'attendant')
       expect(attendants.every((a) => a.manageActions.canRevoke === true)).toBe(true)
+      expect(attendants.every((a) => a.manageActions.canPromote === true)).toBe(true)
 
       // DEC-102: nome + e-mail (não só clerkUserId) na lista.
       const ownerA = body.members.find((m) => m.email === 'owner.a@example.test')
@@ -462,6 +469,104 @@ describe('HTTP — Equipe e convites (#25)', () => {
         true,
       )
       expect(Array.isArray(body.invitations)).toBe(true)
+    } finally {
+      ctx.close()
+    }
+  })
+
+  it('DEC-103: convidar owner, promover e despromover com last_owner_protected', async () => {
+    const ctx = testTeamApp()
+    try {
+      const created = await ctx.app.request(
+        'http://localhost/api/tenants/clinic-demo-a/invitations',
+        ctx.auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'novo.owner@example.test', role: 'owner' }),
+        }),
+      )
+      expect(created.status).toBe(201)
+      const createdBody = (await created.json()) as {
+        invitation: { role: string; email: string }
+      }
+      expect(createdBody.invitation.role).toBe('owner')
+      expect(createdBody.invitation.email).toBe('novo.owner@example.test')
+
+      const token = lastToken(ctx.transport)
+      const accept = await ctx.app.request(
+        'http://localhost/api/invitations/accept',
+        ctx.auth('user_synth_invitee', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Synth-Verified-Email': 'novo.owner@example.test',
+          },
+          body: JSON.stringify({ token, role: 'attendant' }),
+        }),
+      )
+      expect(accept.status).toBe(200)
+      const accepted = (await accept.json()) as {
+        membership: { role: string; tenantId: string }
+      }
+      expect(accepted.membership).toMatchObject({
+        tenantId: 'clinic-demo-a',
+        role: 'owner',
+      })
+      expect(
+        getMembership(ctx.boot.db, 'clinic-demo-a', 'user_synth_invitee')?.role,
+      ).toBe('owner')
+
+      const promote = await ctx.app.request(
+        'http://localhost/api/tenants/clinic-demo-a/members/user_synth_attendant_a/promote',
+        ctx.auth('user_synth_owner_a', { method: 'POST' }),
+      )
+      expect(promote.status).toBe(200)
+      expect(
+        getMembership(ctx.boot.db, 'clinic-demo-a', 'user_synth_attendant_a')?.role,
+      ).toBe('owner')
+
+      const demote = await ctx.app.request(
+        'http://localhost/api/tenants/clinic-demo-a/members/user_synth_attendant_a/demote',
+        ctx.auth('user_synth_owner_a', { method: 'POST' }),
+      )
+      expect(demote.status).toBe(200)
+      expect(
+        getMembership(ctx.boot.db, 'clinic-demo-a', 'user_synth_attendant_a')?.role,
+      ).toBe('attendant')
+
+      // Reduzir a um só owner (seed: a, a2, multi + invitee) e tentar demote do último.
+      for (const id of [
+        'user_synth_owner_a2',
+        'user_synth_invitee',
+        'user_synth_multi',
+      ]) {
+        const drop = await ctx.app.request(
+          `http://localhost/api/tenants/clinic-demo-a/members/${id}/demote`,
+          ctx.auth('user_synth_owner_a', { method: 'POST' }),
+        )
+        expect(drop.status).toBe(200)
+      }
+
+      const last = await ctx.app.request(
+        'http://localhost/api/tenants/clinic-demo-a/members/user_synth_owner_a/demote',
+        ctx.auth('user_synth_owner_a', { method: 'POST' }),
+      )
+      expect(last.status).toBe(403)
+      expect(await last.json()).toEqual({ error: 'last_owner_protected' })
+      expect(
+        getMembership(ctx.boot.db, 'clinic-demo-a', 'user_synth_owner_a')?.role,
+      ).toBe('owner')
+
+      const badRole = await ctx.app.request(
+        'http://localhost/api/tenants/clinic-demo-a/invitations',
+        ctx.auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'x@example.test', role: 'admin' }),
+        }),
+      )
+      expect(badRole.status).toBe(400)
+      expect(await badRole.json()).toEqual({ error: 'invalid_invitation_role' })
     } finally {
       ctx.close()
     }

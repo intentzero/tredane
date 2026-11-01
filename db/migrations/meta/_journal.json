@@ -99,6 +99,13 @@
       "when": 1793299000000,
       "tag": "0014_webhook_receipt_button_reply",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1793549500000,
+      "tag": "0015_invitation_owner_role",
+      "breakpoints": true
     }
   ]
 }

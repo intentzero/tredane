@@ -71,10 +71,15 @@ async function requireOwner(
   }
 }
 
+function mapInvitationRole(role: string): InvitationRow['role'] {
+  return role === 'owner' ? 'owner' : 'attendant'
+}
+
 function mapInvitation(row: {
   id: string
   tenant_id: string
   normalized_email: string
+  role: string
   issued_by_clerk_user_id: string
   status: string
   issued_at: number
@@ -89,7 +94,7 @@ function mapInvitation(row: {
     id: row.id,
     tenantId: row.tenant_id,
     normalizedEmail: row.normalized_email,
-    role: 'attendant',
+    role: mapInvitationRole(row.role),
     issuedByClerkUserId: row.issued_by_clerk_user_id,
     status: row.status as InvitationRow['status'],
     issuedAt: row.issued_at,
@@ -108,7 +113,7 @@ async function getInvitation(
 ): Promise<InvitationRow | null> {
   const row = await db
     .prepare(
-      `SELECT id, tenant_id, normalized_email, issued_by_clerk_user_id, status,
+      `SELECT id, tenant_id, normalized_email, role, issued_by_clerk_user_id, status,
               issued_at, expires_at, accepted_at, accepted_by_clerk_user_id,
               cancelled_at, cancelled_by_clerk_user_id, last_resent_at
        FROM tenant_invitations WHERE id = ?`,
@@ -118,6 +123,7 @@ async function getInvitation(
       id: string
       tenant_id: string
       normalized_email: string
+      role: string
       issued_by_clerk_user_id: string
       status: string
       issued_at: number
@@ -242,9 +248,11 @@ export async function d1CreateInvitation(
     issuedByClerkUserId: string
     appBaseUrl: string
     now: number
+    role?: InvitationRow['role']
   },
 ): Promise<{ invitation: InvitationRow; emailSent: boolean; deliveryJobId: string }> {
   await requireOwner(db, input.tenantId, input.issuedByClerkUserId)
+  const role: InvitationRow['role'] = input.role === 'owner' ? 'owner' : 'attendant'
   const email = normalizeEmail(input.email)
   const pending = await db
     .prepare(
@@ -274,9 +282,9 @@ export async function d1CreateInvitation(
         id, tenant_id, normalized_email, role, issued_by_clerk_user_id, token_hash,
         status, issued_at, expires_at, accepted_at, accepted_by_clerk_user_id,
         cancelled_at, cancelled_by_clerk_user_id, last_resent_at
-      ) VALUES (?, ?, ?, 'attendant', ?, ?, 'pending', ?, ?, NULL, NULL, NULL, NULL, NULL)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, NULL, NULL, NULL, NULL, NULL)`,
     )
-    .bind(id, input.tenantId, email, input.issuedByClerkUserId, tokenHash, input.now, expiresAt)
+    .bind(id, input.tenantId, email, role, input.issuedByClerkUserId, tokenHash, input.now, expiresAt)
     .run()
 
   await audit(db, {
@@ -286,7 +294,7 @@ export async function d1CreateInvitation(
     objectType: 'tenant_invitation',
     objectId: id,
     now: input.now,
-    metadata: { email },
+    metadata: { email, role },
   })
 
   const invitation = (await getInvitation(db, id))!
@@ -452,7 +460,7 @@ export async function d1AcceptInvitation(
   const email = normalizeEmail(input.verifiedEmail)
   const row = await db
     .prepare(
-      `SELECT id, tenant_id, normalized_email, status, expires_at
+      `SELECT id, tenant_id, normalized_email, role, status, expires_at
        FROM tenant_invitations WHERE token_hash = ?`,
     )
     .bind(tokenHash)
@@ -460,6 +468,7 @@ export async function d1AcceptInvitation(
       id: string
       tenant_id: string
       normalized_email: string
+      role: string
       status: string
       expires_at: number
     }>()
@@ -490,6 +499,7 @@ export async function d1AcceptInvitation(
     throw new ConflictError('invitation_accept_conflict', 'Aceite concorrente negado')
   }
 
+  const role = mapInvitationRole(row.role)
   const existing = await db
     .prepare(
       `SELECT role, status FROM tenant_memberships
@@ -499,7 +509,7 @@ export async function d1AcceptInvitation(
     .first<{ role: string; status: string }>()
 
   if (existing?.status === 'active') {
-    if (existing.role !== 'attendant') {
+    if (existing.role !== role) {
       throw new ConflictError(
         'membership_role_conflict',
         'Membership ativo com role diferente; não sobrescrever automaticamente',
@@ -509,10 +519,10 @@ export async function d1AcceptInvitation(
     await db
       .prepare(
         `UPDATE tenant_memberships
-         SET role = 'attendant', status = 'active', created_at = ?, revoked_at = NULL
+         SET role = ?, status = 'active', created_at = ?, revoked_at = NULL
          WHERE tenant_id = ? AND clerk_user_id = ?`,
       )
-      .bind(input.now, row.tenant_id, input.acceptorClerkUserId)
+      .bind(role, input.now, row.tenant_id, input.acceptorClerkUserId)
       .run()
     await audit(db, {
       actorClerkUserId: input.acceptorClerkUserId,
@@ -522,15 +532,15 @@ export async function d1AcceptInvitation(
       objectType: 'tenant_membership',
       objectId: `${row.tenant_id}:${input.acceptorClerkUserId}`,
       now: input.now,
-      metadata: { role: 'attendant' },
+      metadata: { role },
     })
   } else {
     await db
       .prepare(
         `INSERT INTO tenant_memberships (tenant_id, clerk_user_id, role, status, created_at, revoked_at)
-         VALUES (?, ?, 'attendant', 'active', ?, NULL)`,
+         VALUES (?, ?, ?, 'active', ?, NULL)`,
       )
-      .bind(row.tenant_id, input.acceptorClerkUserId, input.now)
+      .bind(row.tenant_id, input.acceptorClerkUserId, role, input.now)
       .run()
     await audit(db, {
       actorClerkUserId: input.acceptorClerkUserId,
@@ -540,7 +550,7 @@ export async function d1AcceptInvitation(
       objectType: 'tenant_membership',
       objectId: `${row.tenant_id}:${input.acceptorClerkUserId}`,
       now: input.now,
-      metadata: { role: 'attendant' },
+      metadata: { role },
     })
   }
 
@@ -552,7 +562,7 @@ export async function d1AcceptInvitation(
     objectType: 'tenant_invitation',
     objectId: row.id,
     now: input.now,
-    metadata: { email },
+    metadata: { email, role },
   })
 
   return { invitation: (await getInvitation(db, row.id))! }
@@ -584,7 +594,7 @@ export async function d1ListTeam(
 
   const invRows = await db
     .prepare(
-      `SELECT id, tenant_id, normalized_email, issued_by_clerk_user_id, status,
+      `SELECT id, tenant_id, normalized_email, role, issued_by_clerk_user_id, status,
               issued_at, expires_at, accepted_at, accepted_by_clerk_user_id,
               cancelled_at, cancelled_by_clerk_user_id, last_resent_at
        FROM tenant_invitations
@@ -596,6 +606,7 @@ export async function d1ListTeam(
       id: string
       tenant_id: string
       normalized_email: string
+      role: string
       issued_by_clerk_user_id: string
       status: string
       issued_at: number

@@ -1,18 +1,18 @@
 # F1 — Equipe, convites por e-mail e remoção de attendants
 
-**Estado:** implementação da issue [#25](https://github.com/intentzero/tredane/issues/25) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Equipe + convites + e-mail simulado + remoção com barreira D1→DO (#23). UI login/nav = [#22](f1-login-nav.md). **S1 UI Equipe (lista + convite + pendentes)** na Clinic App: `EquipeScreen`, hub sem «Em breve», copy **Atendente**, enriquecimento nome+e-mail no GET `/team` (DEC-102). **S2 UI remoção:** owner confirma e chama `POST …/members/:clerkUserId/revoke`; lista atualiza; owners sem ação (DEC-020). **S3 aceite do link:** rota `/invite/accept` → login se preciso → `POST /api/invitations/accept` → entrada na clínica (`AcceptInviteScreen`). Dados sintéticos apenas.
+**Estado:** implementação da issue [#25](https://github.com/intentzero/tredane/issues/25) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Equipe + convites + e-mail simulado + remoção com barreira D1→DO (#23). UI login/nav = [#22](f1-login-nav.md). **S1 UI Equipe (lista + convite + pendentes)** na Clinic App: `EquipeScreen`, hub sem «Em breve», copy **Atendente**, enriquecimento nome+e-mail no GET `/team` (DEC-102). **S2 UI remoção:** owner confirma e chama `POST …/members/:clerkUserId/revoke`; lista atualiza. **S3 aceite do link:** rota `/invite/accept` → login se preciso → `POST /api/invitations/accept` → entrada na clínica (`AcceptInviteScreen`). **DEC-103 (01/11/2026):** owner convida `role=owner`, promove attendant→owner, despromove owner→attendant e remove outros owners, com `last_owner_protected`. Dados sintéticos apenas.
 
 ## Decisões aplicadas (Confirmado)
 
 | DEC / ADR | Comportamento neste entrega |
 | --- | --- |
-| DEC-021 / ADR-0008 | Owner convida só `attendant` no próprio tenant; aceite com Clerk + e-mail verificado correspondente |
+| DEC-021 / ADR-0008 | Owner convida no próprio tenant; aceite com Clerk + e-mail verificado correspondente |
 | DEC-022 | Validade 7 dias (168 h); `expires_at` no servidor; login não prolonga |
 | DEC-023 | Reenvio roda token + novo prazo 7 dias; token anterior inválido na mesma operação |
 | DEC-024 | Cooldown 10 min; máx. 5 reenvios / 24 h por `(tenant, e-mail)`; bloqueio **não** invalida link vigente |
 | DEC-025 | Qualquer owner do tenant cancela pending; não altera memberships |
 | DEC-026 / ADR-0009 | Remoção usa `POST .../members/:id/revoke` + fence DO; B preservado; sem logout Clerk |
-| DEC-020 | Owners listados na Equipe **sem** ações de gestão pela clínica |
+| DEC-020 / **DEC-103** | Owner gere attendants e outros owners na Equipe (convidar/promover/despromover/remover); último owner protegido; Platform Admin continua |
 
 ## Transporte de e-mail (Em aberto → simulador)
 
@@ -20,21 +20,23 @@
 
 **Em aberto (produto):** provedor real (Resend, SES, etc.), remetente, bounces e política de dados. Envio real bloqueado até escolha + configuração. Variáveis: `EMAIL_TRANSPORT=simulated` (default em development), `APP_BASE_URL`.
 
-## Migração `0005_email_delivery_jobs.sql`
+## Migrações relevantes
 
-- Tabela `email_delivery_jobs` (status, tentativas, `idempotency_key` único).
-- `admin_schema_state.version = 5`.
+- `0005_email_delivery_jobs.sql` — tabela `email_delivery_jobs` (status, tentativas, `idempotency_key` único).
+- **`0015_invitation_owner_role.sql` (DEC-103)** — rebuild de `tenant_invitations` para `role IN ('owner','attendant')`; `admin_schema_state.version = 15`.
 
 ## Rotas
 
 | Método | Caminho | Authz |
 | --- | --- | --- |
-| GET | `/api/tenants/:tenantId/team` | membership; owners sem `canRevoke`; membros com `displayName` + `email` (DEC-102, Clerk Backend / sintético) |
-| POST | `/api/tenants/:tenantId/invitations` | owner (`clinic.members.invite_attendant`) |
+| GET | `/api/tenants/:tenantId/team` | membership; `manageActions` (canRevoke / canPromote / canDemote); membros com `displayName` + `email` (DEC-102) |
+| POST | `/api/tenants/:tenantId/invitations` | owner; body `{ email, role?: 'attendant' \| 'owner' }` (default attendant) |
 | POST | `.../invitations/:id/resend` | owner; 429 + `retryAfterMs` em cooldown/quota |
 | POST | `.../invitations/:id/cancel` | owner do mesmo tenant |
-| POST | `/api/invitations/accept` | sessão Clerk + e-mail verificado; ignora tenant/role do body |
-| POST | `/api/tenants/:tenantId/members/:clerkUserId/revoke` | owner — barreira #23 |
+| POST | `/api/invitations/accept` | sessão Clerk + e-mail verificado; ignora tenant/role do body; aplica role do D1 |
+| POST | `/api/tenants/:tenantId/members/:clerkUserId/promote` | owner — attendant→owner |
+| POST | `/api/tenants/:tenantId/members/:clerkUserId/demote` | owner — owner→attendant; `last_owner_protected` |
+| POST | `/api/tenants/:tenantId/members/:clerkUserId/revoke` | owner — attendants e owners; `last_owner_protected`; barreira #23 |
 
 Código: `src/team/`, `src/email/`, e-mail verificado em `src/auth/verified-email.ts`. Remoção já em `src/realtime/routes.ts`.
 
@@ -53,7 +55,7 @@ Código: `src/team/`, `src/email/`, e-mail verificado em `src/auth/verified-emai
 | Sessão | Sem login → guarda token em `sessionStorage` (nunca logado) → `/entrar` → retoma aceite |
 | API | `acceptInvitation(token)` no cliente; Worker ignora tenant/role do body |
 | Erros | Expirado / inválido-cancelado / e-mail diferente / e-mail não confirmado em PT-BR |
-| Sucesso | Membership attendant → abre Conversas da clínica (ou seletor se a abertura falhar) |
+| Sucesso | Membership com a role do convite → abre Conversas da clínica (ou seletor se a abertura falhar) |
 
 ## Fora da API #25 / ainda em fatias
 

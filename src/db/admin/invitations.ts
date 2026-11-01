@@ -10,14 +10,17 @@ import {
 import { ConflictError, NotFoundError } from './errors'
 import { assertAdminSchemaReady } from './gate'
 import { newId, normalizeEmail } from './ids'
+import type { MembershipRole } from '../schema'
 import { requireActiveOwner, upsertMembershipInTx } from './memberships'
 import type { AdminDb } from './store'
+
+export type InvitationRole = Extract<MembershipRole, 'owner' | 'attendant'>
 
 export type InvitationRow = {
   id: string
   tenantId: string
   normalizedEmail: string
-  role: 'attendant'
+  role: InvitationRole
   issuedByClerkUserId: string
   status: 'pending' | 'accepted' | 'cancelled' | 'expired'
   issuedAt: number
@@ -27,6 +30,10 @@ export type InvitationRow = {
   cancelledAt: number | null
   cancelledByClerkUserId: string | null
   lastResentAt: number | null
+}
+
+function mapInvitationRole(role: string): InvitationRole {
+  return role === 'owner' ? 'owner' : 'attendant'
 }
 
 function mapInvitation(row: {
@@ -48,7 +55,7 @@ function mapInvitation(row: {
     id: row.id,
     tenantId: row.tenant_id,
     normalizedEmail: row.normalized_email,
-    role: 'attendant',
+    role: mapInvitationRole(row.role),
     issuedByClerkUserId: row.issued_by_clerk_user_id,
     status: row.status as InvitationRow['status'],
     issuedAt: row.issued_at,
@@ -99,10 +106,13 @@ export async function createInvitation(
     tenantId: string
     email: string
     issuedByClerkUserId: string
+    /** DEC-103: default attendant; owner permitido na Equipe. */
+    role?: InvitationRole
   },
 ): Promise<IssuedInvitation> {
   assertAdminSchemaReady(db)
   requireActiveOwner(db, input.tenantId, input.issuedByClerkUserId)
+  const role: InvitationRole = input.role === 'owner' ? 'owner' : 'attendant'
   const now = clock.nowMs()
   const email = normalizeEmail(input.email)
   const rawToken = generateOpaqueToken()
@@ -125,10 +135,11 @@ export async function createInvitation(
         id, tenant_id, normalized_email, role, issued_by_clerk_user_id, token_hash,
         status, issued_at, expires_at, accepted_at, accepted_by_clerk_user_id,
         cancelled_at, cancelled_by_clerk_user_id, last_resent_at
-      ) VALUES (?, ?, ?, 'attendant', ?, ?, 'pending', ?, ?, NULL, NULL, NULL, NULL, NULL)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, NULL, NULL, NULL, NULL, NULL)`,
       id,
       input.tenantId,
       email,
+      role,
       input.issuedByClerkUserId,
       tokenHash,
       now,
@@ -142,7 +153,7 @@ export async function createInvitation(
       objectType: 'tenant_invitation',
       objectId: id,
       outcome: 'success',
-      metadata: { email },
+      metadata: { email, role },
     })
 
     return { invitation: getInvitation(db, id)!, rawToken }
@@ -281,7 +292,8 @@ export function cancelInvitation(
 }
 
 /**
- * Consome token (hash) + cria membership attendant atomicamente (DEC-021).
+ * Consome token (hash) + cria membership com a role do convite (DEC-021 / DEC-103).
+ * Role no body do cliente é ignorada — só a persistida no D1.
  * Dois consumos concorrentes: só um obtém changes=1.
  */
 export async function acceptInvitation(
@@ -304,10 +316,11 @@ export async function acceptInvitation(
       id: string
       tenant_id: string
       normalized_email: string
+      role: string
       status: string
       expires_at: number
     }>(
-      `SELECT id, tenant_id, normalized_email, status, expires_at
+      `SELECT id, tenant_id, normalized_email, role, status, expires_at
        FROM tenant_invitations WHERE token_hash = ?`,
       tokenHash,
     )
@@ -338,10 +351,11 @@ export async function acceptInvitation(
       throw new ConflictError('invitation_accept_conflict', 'Aceite concorrente negado')
     }
 
+    const role = mapInvitationRole(row.role)
     upsertMembershipInTx(db, clock, {
       tenantId: row.tenant_id,
       clerkUserId: input.acceptorClerkUserId,
-      role: 'attendant',
+      role,
       actorClerkUserId: input.acceptorClerkUserId,
     })
 
@@ -353,7 +367,7 @@ export async function acceptInvitation(
       objectType: 'tenant_invitation',
       objectId: row.id,
       outcome: 'success',
-      metadata: { email },
+      metadata: { email, role },
     })
 
     return { invitation: getInvitation(db, row.id)! }

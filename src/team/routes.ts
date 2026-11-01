@@ -9,8 +9,12 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  promoteAttendantToOwner,
+  demoteOwnerToAttendant,
 } from '../db/admin'
+import { newId } from '../db/admin/ids'
 import { requireClinicPermission } from '../auth/authorize'
+import type { Permission } from '../auth/types'
 import {
   authErrorResponse,
   requireAuth,
@@ -89,12 +93,12 @@ function teamErrorResponse(
 }
 
 function resolveEmail(
-  env: WorkerBindings,
+  env: WorkerBindings | undefined,
   opts: TeamRouteOptions,
   clock: Clock,
 ): EmailTransport {
   const email =
-    opts.emailFactory?.(env)
+    opts.emailFactory?.((env ?? {}) as WorkerBindings)
     ?? createSimulatedEmailTransport({ clock })
   if (
     opts.onSimulatedTransport
@@ -106,19 +110,19 @@ function resolveEmail(
   return email
 }
 
-function resolveAppBaseUrl(env: WorkerBindings, opts: TeamRouteOptions): string {
+function resolveAppBaseUrl(env: WorkerBindings | undefined, opts: TeamRouteOptions): string {
   return (
-    opts.appBaseUrlFactory?.(env)
-    ?? env.APP_BASE_URL
+    opts.appBaseUrlFactory?.((env ?? {}) as WorkerBindings)
+    ?? env?.APP_BASE_URL
     ?? 'http://localhost:5173'
   )
 }
 
 function resolveTeamServices(
-  env: WorkerBindings,
+  env: WorkerBindings | undefined,
   opts: TeamRouteOptions,
 ): TeamServices | null {
-  const db = opts.syncAdminDbFactory?.(env) ?? null
+  const db = opts.syncAdminDbFactory?.((env ?? {}) as WorkerBindings) ?? null
   if (!db) return null
   const clock = opts.clockFactory?.() ?? systemClock
   return {
@@ -189,6 +193,10 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
           ? loadTeamSnapshot(services, ctx.tenantId)
           : await d1ListTeam(c.env.DB, ctx.tenantId, now)
 
+        const activeOwnerCount = snap.members.filter(
+          (m) => m.role === 'owner' && m.status === 'active',
+        ).length
+
         // DEC-102: enriquecer nome + e-mail no Worker (sem cache D1 neste recorte).
         const profileReader = c.get('authServices').staffProfiles
         const profiles = profileReader
@@ -202,6 +210,7 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
             const profile = profiles.get(m.clerkUserId)
             return serializeTeamMember(m, {
               callerIsOwner,
+              activeOwnerCount,
               displayName: profile?.displayName ?? null,
               email: profile?.email ?? null,
             })
@@ -228,15 +237,27 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
       const ctx = c.get('tenantContext')
       const principal = c.get('principal')
       if (!ctx) return c.json({ error: 'tenant_access_denied' }, 403)
+
+      const body = await c.req
+        .json<{ email?: string; role?: string }>()
+        .catch(() => null)
+      const email = body?.email?.trim()
+      if (!email) return c.json({ error: 'email_required' }, 400)
+
+      const roleRaw = body?.role?.trim()
+      if (roleRaw && roleRaw !== 'attendant' && roleRaw !== 'owner') {
+        return c.json({ error: 'invalid_invitation_role' }, 400)
+      }
+      const role = roleRaw === 'owner' ? 'owner' : 'attendant'
+      const invitePermission: Permission =
+        role === 'owner'
+          ? 'clinic.members.invite_owner'
+          : 'clinic.members.invite_attendant'
       try {
-        requireClinicPermission(ctx, 'clinic.members.invite_attendant')
+        requireClinicPermission(ctx, invitePermission)
       } catch (err) {
         return authErrorResponse(c, err)
       }
-
-      const body = await c.req.json<{ email?: string }>().catch(() => null)
-      const email = body?.email?.trim()
-      if (!email) return c.json({ error: 'email_required' }, 400)
 
       const services = resolveTeamServices(c.env, opts)
       const clock = opts.clockFactory?.() ?? systemClock
@@ -247,6 +268,7 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
             tenantId: ctx.tenantId,
             email,
             issuedByClerkUserId: principal.clerkUserId,
+            role,
           })
           c.header('Cache-Control', 'no-store')
           return c.json(
@@ -272,6 +294,7 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
             issuedByClerkUserId: principal.clerkUserId,
             appBaseUrl: resolveAppBaseUrl(c.env, opts),
             now: clock.nowMs(),
+            role,
           },
         )
         c.header('Cache-Control', 'no-store')
@@ -473,7 +496,7 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
         membership: {
           tenantId: result.invitation.tenantId,
           clerkUserId: principal.clerkUserId,
-          role: 'attendant',
+          role: result.invitation.role,
           status: 'active',
         },
       })
@@ -482,5 +505,252 @@ export function createTeamRoutes(opts: TeamRouteOptions = {}): Hono<TeamEnv> {
     }
   })
 
+  /** DEC-103: promove attendant ativo → owner. */
+  routes.post(
+    '/api/tenants/:tenantId/members/:clerkUserId/promote',
+    requireAuth(),
+    requireTenantAccess({}),
+    async (c) => {
+      const ctx = c.get('tenantContext')
+      const principal = c.get('principal')
+      if (!ctx) return c.json({ error: 'tenant_access_denied' }, 403)
+      try {
+        requireClinicPermission(ctx, 'clinic.members.promote_to_owner')
+      } catch (err) {
+        return authErrorResponse(c, err)
+      }
+
+      const targetUserId = c.req.param('clerkUserId')
+      if (!targetUserId) return c.json({ error: 'member_required' }, 400)
+
+      const services = resolveTeamServices(c.env, opts)
+      try {
+        if (services) {
+          const membership = promoteAttendantToOwner(services.db, services.clock, {
+            tenantId: ctx.tenantId,
+            clerkUserId: targetUserId,
+            actorClerkUserId: principal.clerkUserId,
+          })
+          c.header('Cache-Control', 'no-store')
+          return c.json({
+            membership: {
+              tenantId: membership.tenantId,
+              clerkUserId: membership.clerkUserId,
+              role: membership.role,
+              status: membership.status,
+            },
+          })
+        }
+
+        const membership = await d1PromoteAttendant(c.env.DB, {
+          tenantId: ctx.tenantId,
+          clerkUserId: targetUserId,
+          actorClerkUserId: principal.clerkUserId,
+          now: (opts.clockFactory?.() ?? systemClock).nowMs(),
+        })
+        c.header('Cache-Control', 'no-store')
+        return c.json({ membership })
+      } catch (err) {
+        return teamErrorResponse(c, err)
+      }
+    },
+  )
+
+  /** DEC-103: despromove owner → attendant; protege o último. */
+  routes.post(
+    '/api/tenants/:tenantId/members/:clerkUserId/demote',
+    requireAuth(),
+    requireTenantAccess({}),
+    async (c) => {
+      const ctx = c.get('tenantContext')
+      const principal = c.get('principal')
+      if (!ctx) return c.json({ error: 'tenant_access_denied' }, 403)
+      try {
+        requireClinicPermission(ctx, 'clinic.members.demote_owner')
+      } catch (err) {
+        return authErrorResponse(c, err)
+      }
+
+      const targetUserId = c.req.param('clerkUserId')
+      if (!targetUserId) return c.json({ error: 'member_required' }, 400)
+
+      const services = resolveTeamServices(c.env, opts)
+      try {
+        if (services) {
+          const membership = demoteOwnerToAttendant(services.db, services.clock, {
+            tenantId: ctx.tenantId,
+            clerkUserId: targetUserId,
+            actorClerkUserId: principal.clerkUserId,
+          })
+          c.header('Cache-Control', 'no-store')
+          return c.json({
+            membership: {
+              tenantId: membership.tenantId,
+              clerkUserId: membership.clerkUserId,
+              role: membership.role,
+              status: membership.status,
+            },
+          })
+        }
+
+        const membership = await d1DemoteOwner(c.env.DB, {
+          tenantId: ctx.tenantId,
+          clerkUserId: targetUserId,
+          actorClerkUserId: principal.clerkUserId,
+          now: (opts.clockFactory?.() ?? systemClock).nowMs(),
+        })
+        c.header('Cache-Control', 'no-store')
+        return c.json({ membership })
+      } catch (err) {
+        return teamErrorResponse(c, err)
+      }
+    },
+  )
+
   return routes
+}
+
+async function d1PromoteAttendant(
+  db: D1Database,
+  input: {
+    tenantId: string
+    clerkUserId: string
+    actorClerkUserId: string
+    now: number
+  },
+): Promise<{
+  tenantId: string
+  clerkUserId: string
+  role: string
+  status: string
+}> {
+  const existing = await db
+    .prepare(
+      `SELECT role, status FROM tenant_memberships
+       WHERE tenant_id = ? AND clerk_user_id = ?`,
+    )
+    .bind(input.tenantId, input.clerkUserId)
+    .first<{ role: string; status: string }>()
+  if (!existing || existing.status !== 'active') {
+    throw new NotFoundError('membership_not_found', 'Membership ativo inexistente')
+  }
+  if (existing.role === 'owner') {
+    return {
+      tenantId: input.tenantId,
+      clerkUserId: input.clerkUserId,
+      role: 'owner',
+      status: 'active',
+    }
+  }
+  if (existing.role !== 'attendant') {
+    throw new ConflictError('not_an_attendant', 'Só atendentes podem ser promovidos a responsável')
+  }
+  const updated = await db
+    .prepare(
+      `UPDATE tenant_memberships SET role = 'owner'
+       WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active' AND role = 'attendant'`,
+    )
+    .bind(input.tenantId, input.clerkUserId)
+    .run()
+  if (!updated.meta.changes || updated.meta.changes < 1) {
+    throw new ConflictError('owner_promote_conflict', 'Promoção não aplicada')
+  }
+  await db
+    .prepare(
+      `INSERT INTO central_audit_events (
+        id, occurred_at, actor_clerk_user_id, subject_clerk_user_id, tenant_id,
+        action, object_type, object_id, outcome, support_session_id, metadata_json
+      ) VALUES (?, ?, ?, ?, ?, 'owner.promote', 'tenant_membership', ?, 'success', NULL, ?)`,
+    )
+    .bind(
+      newId('aud'),
+      input.now,
+      input.actorClerkUserId,
+      input.clerkUserId,
+      input.tenantId,
+      `${input.tenantId}:${input.clerkUserId}`,
+      JSON.stringify({ from: 'attendant', to: 'owner', via: 'clinic_equipe' }),
+    )
+    .run()
+  return {
+    tenantId: input.tenantId,
+    clerkUserId: input.clerkUserId,
+    role: 'owner',
+    status: 'active',
+  }
+}
+
+async function d1DemoteOwner(
+  db: D1Database,
+  input: {
+    tenantId: string
+    clerkUserId: string
+    actorClerkUserId: string
+    now: number
+  },
+): Promise<{
+  tenantId: string
+  clerkUserId: string
+  role: string
+  status: string
+}> {
+  const existing = await db
+    .prepare(
+      `SELECT role, status FROM tenant_memberships
+       WHERE tenant_id = ? AND clerk_user_id = ?`,
+    )
+    .bind(input.tenantId, input.clerkUserId)
+    .first<{ role: string; status: string }>()
+  if (!existing || existing.status !== 'active') {
+    throw new NotFoundError('membership_not_found', 'Membership inexistente')
+  }
+  if (existing.role !== 'owner') {
+    throw new ConflictError('not_an_owner', 'Só responsáveis podem ser despromovidos')
+  }
+  const count = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM tenant_memberships
+       WHERE tenant_id = ? AND role = 'owner' AND status = 'active'`,
+    )
+    .bind(input.tenantId)
+    .first<{ n: number }>()
+  if (Number(count?.n ?? 0) <= 1) {
+    throw new ForbiddenError(
+      'last_owner_protected',
+      'Não é permitido despromover o último owner ativo',
+    )
+  }
+  const updated = await db
+    .prepare(
+      `UPDATE tenant_memberships SET role = 'attendant'
+       WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active' AND role = 'owner'`,
+    )
+    .bind(input.tenantId, input.clerkUserId)
+    .run()
+  if (!updated.meta.changes || updated.meta.changes < 1) {
+    throw new ConflictError('owner_demote_conflict', 'Despromoção não aplicada')
+  }
+  await db
+    .prepare(
+      `INSERT INTO central_audit_events (
+        id, occurred_at, actor_clerk_user_id, subject_clerk_user_id, tenant_id,
+        action, object_type, object_id, outcome, support_session_id, metadata_json
+      ) VALUES (?, ?, ?, ?, ?, 'owner.demote', 'tenant_membership', ?, 'success', NULL, ?)`,
+    )
+    .bind(
+      newId('aud'),
+      input.now,
+      input.actorClerkUserId,
+      input.clerkUserId,
+      input.tenantId,
+      `${input.tenantId}:${input.clerkUserId}`,
+      JSON.stringify({ from: 'owner', to: 'attendant' }),
+    )
+    .run()
+  return {
+    tenantId: input.tenantId,
+    clerkUserId: input.clerkUserId,
+    role: 'attendant',
+    status: 'active',
+  }
 }

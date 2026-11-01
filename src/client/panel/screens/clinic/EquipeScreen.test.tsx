@@ -16,7 +16,12 @@ function snap(over: Partial<TeamSnapshot> = {}): TeamSnapshot {
         email: 'luciana@belapele.example',
         role: 'owner',
         status: 'active',
-        manageActions: { canRevoke: false, canInvite: false },
+        manageActions: {
+          canRevoke: false,
+          canInvite: false,
+          canPromote: false,
+          canDemote: true,
+        },
       },
       {
         clerkUserId: 'user_att',
@@ -24,7 +29,12 @@ function snap(over: Partial<TeamSnapshot> = {}): TeamSnapshot {
         email: 'ana@belapele.example',
         role: 'attendant',
         status: 'active',
-        manageActions: { canRevoke: true, canInvite: false },
+        manageActions: {
+          canRevoke: true,
+          canInvite: false,
+          canPromote: true,
+          canDemote: false,
+        },
       },
     ],
     invitations: [
@@ -58,6 +68,22 @@ function mockApi(team: TeamSnapshot): PanelApi {
     inviteAttendant: vi.fn(async () => ({
       invitation: team.invitations[0]!,
       emailSent: true,
+    })),
+    promoteMember: vi.fn(async () => ({
+      membership: {
+        tenantId: team.tenantId,
+        clerkUserId: 'user_att',
+        role: 'owner',
+        status: 'active',
+      },
+    })),
+    demoteMember: vi.fn(async () => ({
+      membership: {
+        tenantId: team.tenantId,
+        clerkUserId: 'user_other_owner',
+        role: 'attendant',
+        status: 'active',
+      },
     })),
     resendInvitation: vi.fn(async () => ({
       invitation: {
@@ -133,7 +159,7 @@ describe('EquipeScreen — S1', () => {
     )
   })
 
-  it('abre a folha Convidar atendente', async () => {
+  it('abre a folha Convidar pessoa e envia com papel', async () => {
     const user = userEvent.setup()
     const api = mockApi(snap({ invitations: [] }))
     render(
@@ -145,23 +171,24 @@ describe('EquipeScreen — S1', () => {
       />,
     )
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Convidar atendente' })).toBeTruthy(),
+      expect(screen.getByRole('button', { name: 'Convidar pessoa' })).toBeTruthy(),
     )
-    await user.click(screen.getByRole('button', { name: 'Convidar atendente' }))
+    await user.click(screen.getByRole('button', { name: 'Convidar pessoa' }))
     expect(screen.getByLabelText('E-mail')).toBeTruthy()
+    await user.click(screen.getByRole('radio', { name: 'Responsável' }))
     await user.type(screen.getByLabelText('E-mail'), 'nova@clinica.example')
     await user.click(screen.getByRole('button', { name: 'Enviar convite' }))
     await waitFor(() =>
       expect(api.inviteAttendant).toHaveBeenCalledWith(
         'clinic-demo-a',
         'nova@clinica.example',
-        expect.anything(),
+        expect.objectContaining({ role: 'owner' }),
       ),
     )
   })
 })
 
-describe('EquipeScreen — S2 remoção', () => {
+describe('EquipeScreen — S2 remoção e DEC-103', () => {
   it('owner remove attendant com confirmação e atualiza a lista', async () => {
     const user = userEvent.setup()
     const initial = snap()
@@ -186,15 +213,8 @@ describe('EquipeScreen — S2 remoção', () => {
     )
     await waitFor(() => expect(screen.getByText('Ana Souza')).toBeTruthy())
 
-    expect(
-      screen.queryByRole('button', {
-        name: /Ações para Luciana Moraes/,
-      }),
-    ).toBeNull()
-
-    await user.click(
-      screen.getByRole('button', { name: 'Ações para Ana Souza: remover acesso' }),
-    )
+    await user.click(screen.getByRole('button', { name: 'Ações para Ana Souza' }))
+    await user.click(screen.getByRole('button', { name: 'Remover acesso' }))
     expect(screen.getByRole('heading', { name: 'Remover acesso de Ana Souza?' })).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Remover acesso' }))
 
@@ -213,7 +233,56 @@ describe('EquipeScreen — S2 remoção', () => {
     ).toBeTruthy()
   })
 
-  it('não mostra ação de remover em responsáveis (DEC-020)', async () => {
+  it('promove attendant a responsável', async () => {
+    const user = userEvent.setup()
+    const initial = snap()
+    const after: TeamSnapshot = {
+      ...initial,
+      members: initial.members.map((m) =>
+        m.clerkUserId === 'user_att'
+          ? {
+              ...m,
+              role: 'owner',
+              manageActions: {
+                canRevoke: true,
+                canInvite: false,
+                canPromote: false,
+                canDemote: true,
+              },
+            }
+          : m,
+      ),
+    }
+    const api = mockApi(initial)
+    let calls = 0
+    api.getTeam = vi.fn(async () => {
+      calls += 1
+      return calls === 1 ? initial : after
+    })
+
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Ana Souza')).toBeTruthy())
+    await user.click(screen.getByRole('button', { name: 'Ações para Ana Souza' }))
+    await user.click(screen.getByRole('button', { name: 'Tornar responsável' }))
+    await user.click(screen.getByRole('button', { name: 'Tornar responsável' }))
+    await waitFor(() =>
+      expect(api.promoteMember).toHaveBeenCalledWith(
+        'clinic-demo-a',
+        'user_att',
+        expect.anything(),
+      ),
+    )
+  })
+
+  it('despromove outro responsável e protege o último na UI', async () => {
+    const user = userEvent.setup()
     const team = snap({
       members: [
         {
@@ -222,7 +291,12 @@ describe('EquipeScreen — S2 remoção', () => {
           email: 'luciana@belapele.example',
           role: 'owner',
           status: 'active',
-          manageActions: { canRevoke: false, canInvite: false },
+          manageActions: {
+            canRevoke: false,
+            canInvite: false,
+            canPromote: false,
+            canDemote: true,
+          },
         },
         {
           clerkUserId: 'user_other_owner',
@@ -230,8 +304,12 @@ describe('EquipeScreen — S2 remoção', () => {
           email: 'paula@belapele.example',
           role: 'owner',
           status: 'active',
-          // UI não deveria mostrar ação; se forçar via canRevoke, a API ainda nega.
-          manageActions: { canRevoke: true, canInvite: false },
+          manageActions: {
+            canRevoke: true,
+            canInvite: false,
+            canPromote: false,
+            canDemote: true,
+          },
         },
       ],
     })
@@ -247,17 +325,89 @@ describe('EquipeScreen — S2 remoção', () => {
     )
     await waitFor(() => expect(screen.getByText('Paula Owner')).toBeTruthy())
 
-    // canShowRevoke bloqueia owners mesmo com canRevoke true
+    await user.click(screen.getByRole('button', { name: 'Ações para Paula Owner' }))
+    expect(screen.getByRole('button', { name: 'Tornar atendente' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remover acesso' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Tornar atendente' }))
+    await user.click(screen.getByRole('button', { name: 'Tornar atendente' }))
+    await waitFor(() =>
+      expect(api.demoteMember).toHaveBeenCalledWith(
+        'clinic-demo-a',
+        'user_other_owner',
+        expect.anything(),
+      ),
+    )
+  })
+
+  it('não mostra remoção no único responsável (canRevoke false)', async () => {
+    const team = snap({
+      members: [
+        {
+          clerkUserId: 'user_owner',
+          displayName: 'Luciana Moraes',
+          email: 'luciana@belapele.example',
+          role: 'owner',
+          status: 'active',
+          manageActions: {
+            canRevoke: false,
+            canInvite: false,
+            canPromote: false,
+            canDemote: false,
+          },
+        },
+      ],
+    })
+    const api = mockApi(team)
+
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Luciana Moraes (você)')).toBeTruthy())
     expect(
-      screen.queryByRole('button', { name: /Ações para Paula Owner/ }),
+      screen.queryByRole('button', { name: /Ações para Luciana Moraes/ }),
     ).toBeNull()
   })
 
-  it('mostra erro amigável se revoke falhar para attendant', async () => {
+  it('mostra erro amigável de último owner', async () => {
     const user = userEvent.setup()
-    const api = mockApi(snap())
-    api.revokeMember = vi.fn(async () => {
-      throw new PanelApiError(403, 'permission_denied', 'cannot_revoke_owner')
+    const team = snap({
+      members: [
+        {
+          clerkUserId: 'user_owner',
+          displayName: 'Luciana Moraes',
+          email: 'luciana@belapele.example',
+          role: 'owner',
+          status: 'active',
+          manageActions: {
+            canRevoke: false,
+            canInvite: false,
+            canPromote: false,
+            canDemote: true,
+          },
+        },
+        {
+          clerkUserId: 'user_other_owner',
+          displayName: 'Paula Owner',
+          email: 'paula@belapele.example',
+          role: 'owner',
+          status: 'active',
+          manageActions: {
+            canRevoke: true,
+            canInvite: false,
+            canPromote: false,
+            canDemote: true,
+          },
+        },
+      ],
+    })
+    const api = mockApi(team)
+    api.demoteMember = vi.fn(async () => {
+      throw new PanelApiError(403, 'permission_denied', 'last_owner_protected')
     })
 
     render(
@@ -268,15 +418,14 @@ describe('EquipeScreen — S2 remoção', () => {
         viewerClerkUserId="user_owner"
       />,
     )
-    await waitFor(() => expect(screen.getByText('Ana Souza')).toBeTruthy())
-    await user.click(
-      screen.getByRole('button', { name: 'Ações para Ana Souza: remover acesso' }),
-    )
-    await user.click(screen.getByRole('button', { name: 'Remover acesso' }))
+    await waitFor(() => expect(screen.getByText('Paula Owner')).toBeTruthy())
+    await user.click(screen.getByRole('button', { name: 'Ações para Paula Owner' }))
+    await user.click(screen.getByRole('button', { name: 'Tornar atendente' }))
+    await user.click(screen.getByRole('button', { name: 'Tornar atendente' }))
     await waitFor(() =>
       expect(
         screen.getByText(
-          'Responsáveis não podem ser removidos por aqui. Fale com a equipe do Tredane.',
+          'A clínica precisa de pelo menos um responsável. Indique outra pessoa antes de remover ou despromover.',
         ),
       ).toBeTruthy(),
     )

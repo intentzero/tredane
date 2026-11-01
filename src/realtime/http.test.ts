@@ -118,8 +118,8 @@ describe('HTTP — revogação e realtime (#23)', () => {
     }
   })
 
-  it('attendant não revoga; owner não remove owner', async () => {
-    const { app, close, auth } = testApp()
+  it('attendant não revoga; owner remove outro owner; último owner protegido (DEC-103)', async () => {
+    const { app, boot, close, auth } = testApp()
     try {
       const asAttendant = await app.request(
         'http://localhost/api/tenants/clinic-demo-a/members/user_synth_owner_a2/revoke',
@@ -131,8 +131,25 @@ describe('HTTP — revogação e realtime (#23)', () => {
         'http://localhost/api/tenants/clinic-demo-a/members/user_synth_owner_a2/revoke',
         auth('user_synth_owner_a', { method: 'POST' }),
       )
-      expect(ownerTarget.status).toBe(403)
-      expect(await ownerTarget.json()).toEqual({ error: 'cannot_revoke_owner' })
+      expect(ownerTarget.status).toBe(200)
+      expect(
+        getMembership(boot.db, 'clinic-demo-a', 'user_synth_owner_a2')?.status,
+      ).toBe('revoked')
+
+      const selfRevoke = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/members/user_synth_owner_a/revoke',
+        auth('user_synth_owner_a', { method: 'POST' }),
+      )
+      expect(selfRevoke.status).toBe(400)
+      expect(await selfRevoke.json()).toEqual({ error: 'cannot_revoke_self' })
+
+      // Só resta um owner ativo — revoke por outro caminho de membership continua protegido.
+      expect(
+        getMembership(boot.db, 'clinic-demo-a', 'user_synth_owner_a')?.role,
+      ).toBe('owner')
+      expect(
+        getMembership(boot.db, 'clinic-demo-a', 'user_synth_owner_a')?.status,
+      ).toBe('active')
     } finally {
       close()
     }

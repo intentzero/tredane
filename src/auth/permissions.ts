@@ -15,7 +15,11 @@ const OWNER_PERMISSIONS: ReadonlySet<Permission> = new Set([
   'clinic.config.write',
   'clinic.contacts.delete',
   'clinic.members.invite_attendant',
+  'clinic.members.invite_owner',
+  'clinic.members.promote_to_owner',
+  'clinic.members.demote_owner',
   'clinic.members.revoke_attendant',
+  'clinic.members.revoke_owner',
   'clinic.support.decide',
 ])
 
@@ -60,7 +64,11 @@ export const ALL_PERMISSIONS: readonly Permission[] = [
   'clinic.config.write',
   'clinic.contacts.delete',
   'clinic.members.invite_attendant',
+  'clinic.members.invite_owner',
+  'clinic.members.promote_to_owner',
+  'clinic.members.demote_owner',
   'clinic.members.revoke_attendant',
+  'clinic.members.revoke_owner',
   'clinic.support.decide',
   'platform.tenants.read',
   'platform.tenants.write',
