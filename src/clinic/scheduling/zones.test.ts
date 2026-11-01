@@ -624,6 +624,22 @@ describe('zonesNamedInText', () => {
     expect(zonesNamedInText('só a perna', zones).map((z) => z.name)).toEqual(['Perna'])
   })
 
+  it('«íntima» casa «Parte íntima» e «parte da manhã» não', () => {
+    const zones = [
+      zone('af', 'Axila', 'feminino'),
+      zone('am', 'Axila', 'masculino'),
+      zone('pf', 'Pernas', 'feminino'),
+      zone('pm', 'Pernas', 'masculino'),
+      zone('if', 'Parte íntima', 'feminino'),
+      zone('im', 'Parte íntima', 'masculino'),
+    ]
+    expect(zonesNamedInText('axila e íntima feminina', zones).map((z) => z.id).sort()).toEqual(['af', 'if'])
+    expect(zonesNamedInText('Na parte da manhã', zones)).toEqual([])
+    expect(zonesNamedInText('só a perna', [zone('p', 'Perna'), zone('m', 'Meia perna')]).map((z) => z.name)).toEqual([
+      'Perna',
+    ])
+  })
+
   it('o mesmo nome devolve as duas variantes, ou só o género e a duração ditos', () => {
     const zones = [zone('m', 'Axila', 'masculino'), zone('f', 'Axila', 'feminino')]
     expect(zonesNamedInText('quero axila', zones).map((z) => z.id)).toEqual(['m', 'f'])

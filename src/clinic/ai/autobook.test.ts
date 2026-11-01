@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
 import { createControllableClock } from '../../db/clock'
 import { replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { replaceCombos } from '../config/combos'
 import { readZoneSnapshots } from '../config/zones'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
@@ -90,6 +91,10 @@ function seed(opts: { signal?: boolean } = {}) {
   const contact = upsertContact(db, { tenantId, waId: '5511900000009', displayName: 'Paulo Teste' }, clock)
   const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
   const say = (direction: 'inbound' | 'outbound', body: string) => {
+    // A resposta anterior (catálogo, proposta) grava no instante atual.
+    // Sem este avanço, o próximo texto empata no created_at e o id desempata
+    // ao contrário: o autobook acha que a clínica falou por último.
+    clock.advance(60_000)
     const m = insertMessage(
       db,
       {
@@ -102,7 +107,6 @@ function seed(opts: { signal?: boolean } = {}) {
       },
       clock,
     )
-    clock.advance(60_000)
     return m
   }
   /** Abre o funil de agendamento (DEC-090 / DEC-086): histórico de zonas/linha só conta depois. */
@@ -846,6 +850,393 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       expect(o.autoBook?.proposalId).toBeUndefined()
       expect(o.autoBook?.status).toBe('needs_info')
       expect(o.autoBook?.replyText).toMatch(/feminina ou masculina/i)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('«íntima» + «de manhã» oferece o período e não pergunta axila ou pernas de novo', async () => {
+    const s = seed()
+    try {
+      const dep = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 19_000,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      const zones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        dep.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' },
+          { name: 'Pernas', durationMinutes: 30, priceCents: 12_000, audience: 'feminino' },
+          { name: 'Axila', durationMinutes: 15, priceCents: 5_000, audience: 'masculino' },
+          { name: 'Pernas', durationMinutes: 30, priceCents: 14_000, audience: 'masculino' },
+          { name: 'Parte íntima', durationMinutes: 20, priceCents: 9_000, audience: 'feminino' },
+          { name: 'Parte íntima', durationMinutes: 25, priceCents: 11_000, audience: 'masculino' },
+        ],
+        s.clock,
+      )
+      s.say('inbound', 'Bom dia. Gostaria agendar um horário para fazer axila e íntima feminina')
+      const asked = await s.run()
+      expect(asked.reason).toBe('catalog_reply')
+      const question = s.db.get<{ body: string }>(
+        `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+        s.cnv.id,
+      )
+      expect(question?.body).toBe('Qual horário fica melhor para Depilação?')
+      const fem = zones
+        .filter((zone) => zone.audience === 'feminino' && (zone.name === 'Axila' || zone.name === 'Parte íntima'))
+        .map((zone) => zone.id)
+        .sort()
+      expect([...(getScheduleSession(s.db, s.tenantId, s.cnv.id)?.variantIds ?? [])].sort()).toEqual(fem)
+
+      s.say('inbound', 'Na parte da manhã')
+      const next = await s.run()
+      const text = next.autoBook?.replyText ?? next.suggestion?.suggestedText ?? ''
+      expect(text).toMatch(/de manhã/i)
+      expect(text).toMatch(/09:00/)
+      expect(text).toMatch(/Axila/)
+      expect(text).toMatch(/Parte íntima/)
+      expect(text).not.toMatch(/pernas/i)
+      expect(text).not.toMatch(/qual zona/i)
+      expect(text).not.toMatch(/equipe confirma/i)
+      expect(text).not.toMatch(/R\$/)
+      expect(next.autoBook?.proposalId).toBeUndefined()
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('sem «Parte íntima» no catálogo, manhã segue a axila e não inventa confirmação da equipe', async () => {
+    const s = seed()
+    try {
+      const dep = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 19_000,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        dep.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' },
+          { name: 'Pernas', durationMinutes: 30, priceCents: 12_000, audience: 'feminino' },
+          { name: 'Axila', durationMinutes: 15, priceCents: 5_000, audience: 'masculino' },
+          { name: 'Pernas', durationMinutes: 30, priceCents: 14_000, audience: 'masculino' },
+        ],
+        s.clock,
+      )
+      s.say('inbound', 'Bom dia. Gostaria agendar um horário para fazer axila e íntima feminina')
+      const asked = await s.run()
+      expect(asked.reason).toBe('catalog_reply')
+      const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
+      expect(session?.audienceLine).toBe('feminino')
+      expect(session?.variantIds?.length).toBe(1)
+
+      s.say('inbound', 'Na parte da manhã')
+      const next = await s.run()
+      const text = next.autoBook?.replyText ?? next.suggestion?.suggestedText ?? ''
+      expect(text).toMatch(/Para Axila, de manhã tenho/)
+      expect(text).toMatch(/09:00/)
+      expect(text).not.toMatch(/pernas/i)
+      expect(text).not.toMatch(/íntima/i)
+      expect(text).not.toMatch(/equipe confirma/i)
+      expect(text).not.toMatch(/qual zona/i)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('aceitar 10:00 depois de axila e íntima não leva o resto do catálogo', async () => {
+    const s = seed()
+    try {
+      // Domingo 01/11/2026 10:40 em São Paulo — 10:00 de segunda ainda é futuro.
+      s.clock.set(Date.UTC(2026, 10, 1, 13, 40))
+      const dep = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 45_000,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      const zones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        dep.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' },
+          { name: 'Pernas', durationMinutes: 25, priceCents: 12_000, audience: 'feminino' },
+          { name: 'Braços', durationMinutes: 20, priceCents: 10_000, audience: 'feminino' },
+          { name: 'Intima', durationMinutes: 20, priceCents: 15_000, audience: 'feminino' },
+          { name: 'Buço', durationMinutes: 10, priceCents: 4_000, audience: 'feminino' },
+          { name: 'Axila', durationMinutes: 15, priceCents: 5_000, audience: 'masculino' },
+          { name: 'Pernas', durationMinutes: 25, priceCents: 14_000, audience: 'masculino' },
+          { name: 'Braços', durationMinutes: 20, priceCents: 11_000, audience: 'masculino' },
+          { name: 'Intima', durationMinutes: 20, priceCents: 16_000, audience: 'masculino' },
+          { name: 'Buço', durationMinutes: 10, priceCents: 5_000, audience: 'masculino' },
+        ],
+        s.clock,
+      )
+      const fem = (name: string) => zones.find((z) => z.name === name && z.audience === 'feminino')!
+      replaceCombos(
+        s.db,
+        s.tenantId,
+        dep.id,
+        [
+          {
+            name: 'Axila + íntima',
+            priceCents: 16_000,
+            zoneIds: [fem('Axila').id, fem('Intima').id],
+          },
+          {
+            name: 'Completa',
+            priceCents: 40_000,
+            zoneIds: ['Axila', 'Pernas', 'Braços', 'Intima', 'Buço'].map((name) => fem(name).id),
+          },
+        ],
+        s.clock,
+      )
+      s.say('outbound', 'Agradecemos o contato. Estamos à disposição quando precisar.')
+      s.say('inbound', 'Bom dia. Gostaria agendar um horário para fazer axila e íntima feminina')
+      const asked = await s.run()
+      expect(asked.reason).toBe('catalog_reply')
+
+      // A manhã fica no histórico. Não se corre o rascunho: essa oferta varre
+      // vários dias e, no CI, estoura os 5 s. O caso é o aceite das 10:00.
+      s.say('inbound', 'Na parte da manhã')
+      s.say(
+        'outbound',
+        'Perfeito! Tenho amanhã, segunda (02/11), às 9:00, 9:30 ou 10:00 para axila e íntima. Algum desses fica bom pra você?',
+      )
+      s.say('inbound', 'Pode ser as 10:00 horas')
+      const booked = await s.run()
+      expect(booked.autoBook?.proposalId).toBeTruthy()
+      expect(booked.autoBook?.time).toBe('10:00')
+      expect(booked.autoBook?.date).toBe('2026-11-02')
+      const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', booked.autoBook!.proposalId!)
+      expect(snaps.map((z) => z.name)).toEqual(['Axila', 'Intima'])
+      expect(snaps.every((z) => z.audience === 'feminino')).toBe(true)
+      const proposal = getProposal(s.db, s.tenantId, booked.autoBook!.proposalId!)
+      // 15+20 min. O combo do par aplica (DEC-080); o combo das cinco não entra.
+      expect(proposal?.durationMinutes).toBe(35)
+      expect(proposal?.priceCents).toBe(16_000)
+      const body = s.db.get<{ body: string }>(
+        `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+        s.cnv.id,
+      )
+      expect(body?.body ?? '').not.toMatch(/Pernas|Braços|Buço/)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('«as duas» e a sessão com o catálogo inteiro não entram na proposta do par', async () => {
+    const s = seed()
+    try {
+      s.clock.set(Date.UTC(2026, 10, 1, 13, 40))
+      const dep = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 45_000,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      const zones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        dep.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' },
+          { name: 'Pernas', durationMinutes: 25, priceCents: 12_000, audience: 'feminino' },
+          { name: 'Braços', durationMinutes: 20, priceCents: 10_000, audience: 'feminino' },
+          { name: 'Intima', durationMinutes: 20, priceCents: 15_000, audience: 'feminino' },
+          { name: 'Buço', durationMinutes: 10, priceCents: 4_000, audience: 'feminino' },
+          { name: 'Axila', durationMinutes: 15, priceCents: 5_000, audience: 'masculino' },
+          { name: 'Pernas', durationMinutes: 30, priceCents: 14_000, audience: 'masculino' },
+        ],
+        s.clock,
+      )
+      const femIds = zones.filter((z) => z.audience === 'feminino').map((z) => z.id)
+      // Sessão suja com a linha inteira, aberta antes do par. «As duas» num
+      // âmbito de cinco nomes não pode substituir axila e íntima.
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        { serviceId: dep.id, audienceLine: 'feminino', variantIds: femIds },
+        s.clock,
+      )
+      s.say('inbound', 'Bom dia. Gostaria agendar um horário para fazer axila e íntima feminina')
+      s.say('inbound', 'as duas')
+      s.say(
+        'outbound',
+        'Tenho amanhã, segunda (02/11), às 9:00, 9:30 ou 10:00 para Depilação. Algum desses fica bom?',
+      )
+      s.say('inbound', 'Pode ser as 10:00 horas')
+      const booked = await s.run()
+      expect(booked.autoBook?.proposalId).toBeTruthy()
+      const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', booked.autoBook!.proposalId!)
+      expect(snaps.map((z) => z.name)).toEqual(['Axila', 'Intima'])
+      expect(snaps.every((z) => z.audience === 'feminino')).toBe(true)
+      const proposal = getProposal(s.db, s.tenantId, booked.autoBook!.proposalId!)
+      expect(proposal?.durationMinutes).toBe(35)
+      expect(proposal?.priceCents).toBe(19_000)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('oferta «para axila e íntima» vence a sessão com o catálogo inteiro', async () => {
+    const s = seed()
+    try {
+      s.clock.set(Date.UTC(2026, 10, 1, 13, 40))
+      const dep = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 45_000,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      const zones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        dep.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' },
+          { name: 'Pernas', durationMinutes: 25, priceCents: 12_000, audience: 'feminino' },
+          { name: 'Braços', durationMinutes: 20, priceCents: 10_000, audience: 'feminino' },
+          { name: 'Intima', durationMinutes: 20, priceCents: 15_000, audience: 'feminino' },
+          { name: 'Buço', durationMinutes: 10, priceCents: 4_000, audience: 'feminino' },
+        ],
+        s.clock,
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: dep.id,
+          audienceLine: 'feminino',
+          variantIds: zones.map((z) => z.id),
+        },
+        s.clock,
+      )
+      s.say(
+        'outbound',
+        'Perfeito! Tenho amanhã, segunda (02/11), às 9:00, 9:30 ou 10:00 para a depilação de axila e íntima. Algum desses fica bom pra você?',
+      )
+      s.say('inbound', 'Pode ser as 10:00 horas')
+      const booked = await s.run()
+      expect(booked.autoBook?.proposalId).toBeTruthy()
+      const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', booked.autoBook!.proposalId!)
+      expect(snaps.map((z) => z.name)).toEqual(['Axila', 'Intima'])
+      expect(getProposal(s.db, s.tenantId, booked.autoBook!.proposalId!)?.durationMinutes).toBe(35)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('a lista «temos… qual zona» não substitui o par já escolhido', async () => {
+    const s = seed()
+    try {
+      s.clock.set(Date.UTC(2026, 10, 1, 13, 40))
+      const dep = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 45_000,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      const zones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        dep.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 4_000, audience: 'feminino' },
+          { name: 'Pernas', durationMinutes: 25, priceCents: 12_000, audience: 'feminino' },
+          { name: 'Braços', durationMinutes: 20, priceCents: 10_000, audience: 'feminino' },
+          { name: 'Intima', durationMinutes: 20, priceCents: 15_000, audience: 'feminino' },
+          { name: 'Buço', durationMinutes: 10, priceCents: 4_000, audience: 'feminino' },
+        ],
+        s.clock,
+      )
+      const pair = zones.filter((z) => z.name === 'Axila' || z.name === 'Intima').map((z) => z.id)
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        { serviceId: dep.id, audienceLine: 'feminino', variantIds: pair },
+        s.clock,
+      )
+      s.say(
+        'outbound',
+        'Amanhã, segunda (02/11), tenho 10:00 para Depilação. Temos Axila, Pernas, Braços, Intima e Buço. Qual zona você quer?',
+      )
+      s.say('inbound', 'Pode ser as 10:00 horas')
+      const booked = await s.run()
+      expect(booked.autoBook?.proposalId).toBeTruthy()
+      const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', booked.autoBook!.proposalId!)
+      expect(snaps.map((z) => z.name).sort()).toEqual(['Axila', 'Intima'])
       noBooking(s)
     } finally {
       s.close()

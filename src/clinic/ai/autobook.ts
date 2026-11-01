@@ -39,7 +39,13 @@ import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import { checkConversationProtection } from './protection'
-import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
+import {
+  audienceLineFromClientTexts,
+  citesServiceName,
+  claimsWholeCatalog,
+  zonesChosenInClientTexts,
+  zonesOfferedToClient,
+} from './schedule-choice'
 import { getScheduleSession, saveScheduleLine, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
 import {
   audienceLineQuestion,
@@ -328,6 +334,110 @@ function brl(cents: number): string {
   return `R$ ${v[0]!.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${v[1]}`
 }
 
+function periodWord(period: 'manha' | 'tarde' | 'noite'): string {
+  if (period === 'manha') return 'de manhã'
+  if (period === 'tarde') return 'à tarde'
+  return 'à noite'
+}
+
+function inPeriod(period: 'manha' | 'tarde' | 'noite', hhmm: string): boolean {
+  const hour = Number(hhmm.slice(0, 2))
+  if (period === 'manha') return hour < 12
+  if (period === 'tarde') return hour >= 12 && hour < 18
+  return hour >= 18
+}
+
+function clockLabel(tz: string, ms: number): string {
+  const raw = localHHMM(tz, ms)
+  const match = raw.match(/(\d{1,2})\D(\d{2})/)
+  if (!match) return raw
+  return `${match[1]!.padStart(2, '0')}:${match[2]}`
+}
+
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  if (names.length === 2) return `${names[0]} e ${names[1]}`
+  return `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`
+}
+
+/**
+ * Zonas e linha já escolhidas, período sem hora de relógio (DEC-090).
+ * Oferece horários reais desse período. Não volta a perguntar a linha nem as zonas.
+ */
+async function offerZonesInPeriod(
+  db: ClinicDb,
+  tenantId: string,
+  service: ServiceRow,
+  zones: ServiceRow['zones'],
+  period: 'manha' | 'tarde' | 'noite',
+  date: string | null,
+  tz: string,
+  clock: Clock,
+  forecast: ForecastAdapter | undefined,
+): Promise<string> {
+  const names: string[] = []
+  for (const zone of zones) {
+    if (!names.includes(zone.name)) names.push(zone.name)
+  }
+  const label = joinNames(names)
+  const when = periodWord(period)
+  let duration = service.durationMinutes
+  try {
+    duration = quoteVisit(
+      db,
+      tenantId,
+      service,
+      zones.map((zone) => zone.id),
+    ).durationMinutes
+  } catch {
+    duration = service.durationMinutes
+  }
+  const today = clinicCivilDateFromUtc(tz, clock.nowMs())
+  const dates = date ? [date] : [0, 1, 2, 3, 4, 5, 6].map((offset) => addDays(today, offset))
+  const picked: { date: string; time: string }[] = []
+  const lastMinute = new Map<string, number>()
+  for (const day of dates) {
+    if (picked.length >= 3) break
+    let slots: { startsAt: number }[] = []
+    try {
+      const avail = await queryAutomaticAvailability(
+        db,
+        tenantId,
+        { serviceId: service.id, date: day, durationMinutesOverride: duration },
+        clock,
+        forecast ?? { read: readOpenMeteo },
+      )
+      if (!avail.schedulingAllowed) continue
+      slots = avail.slots
+    } catch {
+      continue
+    }
+    for (const slot of slots) {
+      if (slot.startsAt <= clock.nowMs()) continue
+      const time = clockLabel(tz, slot.startsAt)
+      if (!inPeriod(period, time)) continue
+      const minute = Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
+      const prev = lastMinute.get(day)
+      if (prev != null && minute - prev < 30) continue
+      lastMinute.set(day, minute)
+      picked.push({ date: day, time })
+      if (picked.length >= 3) break
+    }
+  }
+  if (picked.length === 0) {
+    return `Para ${label}, ${when} não tenho horário livre. Quer ver outro período?`
+  }
+  const byDay = new Map<string, string[]>()
+  for (const slot of picked) {
+    const list = byDay.get(slot.date) ?? []
+    list.push(slot.time)
+    byDay.set(slot.date, list)
+  }
+  const bits = [...byDay.entries()].map(([day, times]) => `${dayText(day)} às ${times.join(', ')}`)
+  const listed = bits.length === 1 ? bits[0]! : `${bits.slice(0, -1).join(', ')} e ${bits[bits.length - 1]}`
+  return `Para ${label}, ${when} tenho ${listed}. Qual fica melhor?`
+}
+
 /**
  * Tenta marcar pela IA para a conversa. Não lança: devolve o resultado.
  * Idempotente por mensagem de confirmação (clientRequestId = ai-autobook:<messageId>).
@@ -442,10 +552,14 @@ export async function tryAiAutoBook(
   })()
   if (!det.service && session?.serviceId) {
     const stored = services.find((item) => item.id === session.serviceId)
+    // «Na parte da manhã» não repete o serviço nem a zona. A sessão já os tem.
+    const periodContinues =
+      Boolean(turnFacts.period) && !clockFromTurn && Boolean(session.variantIds?.length)
     if (
       stored &&
       (clockFromTurn ||
-        zonesNamedInText(turnText, stored.zones.filter((zone) => zone.active)).length > 0)
+        zonesNamedInText(turnText, stored.zones.filter((zone) => zone.active)).length > 0 ||
+        periodContinues)
     ) {
       det = { ...det, service: stored }
     }
@@ -516,7 +630,23 @@ export async function tryAiAutoBook(
                 pool.length > 0 ? pool : active,
               )
         } else if (!time) {
-          replyText = `Qual horário fica melhor para ${det.service.name}?`
+          const period =
+            turnFacts.period ?? (session?.serviceId === det.service.id ? session?.period : null)
+          if (period && kept.length > 0 && !chosen.ambiguous) {
+            replyText = await offerZonesInPeriod(
+              db,
+              tenantId,
+              det.service,
+              kept,
+              period,
+              date ?? null,
+              tz,
+              clock,
+              input.forecast,
+            )
+          } else {
+            replyText = `Qual horário fica melhor para ${det.service.name}?`
+          }
         } else if (!date) {
           replyText = `Me diga o dia para ${det.service.name}.`
         }
@@ -587,7 +717,20 @@ export async function tryAiAutoBook(
     const fromSession = scoped.filter((z) => session.variantIds!.includes(z.id))
     if (fromSession.length === session.variantIds.length) namedZones = fromSession
   }
-  if (namedZones.length > 0 && !chosen.ambiguous) {
+  // A cliente aceitou a hora. O conjunto é o da oferta («para axila e íntima»),
+  // não o resto do catálogo que a sessão ou «as duas» tenham arrastado.
+  let ambiguous = chosen.ambiguous
+  const offered = zonesOfferedToClient(prevClinic?.body ?? null, scoped)
+  if (
+    offered.length > 0 &&
+    clockFromTurn &&
+    zonesNamedInText(turnText, scoped).length === 0 &&
+    !claimsWholeCatalog(turnText)
+  ) {
+    namedZones = offered
+    ambiguous = false
+  }
+  if (namedZones.length > 0 && !ambiguous) {
     saveScheduleSession(
       db,
       tenantId,
@@ -612,13 +755,13 @@ export async function tryAiAutoBook(
   const singular = svc.variantKind?.trim() || ''
   const kind = (plural || singular || 'variantes').toLocaleLowerCase('pt-BR')
   const phrase = plural || !singular ? `as ${kind}` : `a ${kind}`
-  if (activeZones.length > 0 && (namedZones.length === 0 || chosen.ambiguous)) {
+  if (activeZones.length > 0 && (namedZones.length === 0 || ambiguous)) {
     const names = stableVariantLabelList(scoped.length > 0 ? scoped : activeZones)
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
       replyText: askZonesReply(phrase, names, time),
-      notes: chosen.ambiguous
+      notes: ambiguous
         ? `O nome citado casa com mais de uma ${kind}. Pergunta automática enviada. Não informe valor nem envie proposta.`
         : `A cliente falou em ${svc.name} sem escolher ${kind} (${names.join(', ')}). ` +
           `Pergunta automática enviada. Não informe valor nem «a partir de».`,

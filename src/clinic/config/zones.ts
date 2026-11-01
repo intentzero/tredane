@@ -505,7 +505,34 @@ function durationHint(folded: string): number | null {
   return Number.isInteger(minutes) && minutes > 0 ? minutes : null
 }
 
-/** Nomes de zona que aparecem no texto, como palavras. O nome mais longo ganha. A ordem é a do catálogo. O mesmo nome inclui cada variante; «feminina» ou «masculino» no texto fica só com esse género. */
+/**
+ * Palavras de linha, período ou pedido. Não escolhem zona.
+ * «parte» fica de fora pelo tamanho: «na parte da manhã» não é «Parte íntima».
+ */
+const ZONE_ALIAS_STOP = new Set([
+  'feminina',
+  'feminino',
+  'masculina',
+  'masculino',
+  'horario',
+  'horarios',
+  'agendar',
+  'gostaria',
+])
+
+function zoneAliasWords(name: string): string[] {
+  return foldZoneName(name)
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 6 && !ZONE_ALIAS_STOP.has(word))
+}
+
+/**
+ * Nomes de zona que aparecem no texto, como palavras. O nome mais longo ganha.
+ * A ordem é a do catálogo. O mesmo nome inclui cada variante; «feminina» ou
+ * «masculino» no texto fica só com esse género.
+ * Uma palavra longa e única do nome também conta («íntima» = «Parte íntima»)
+ * quando nenhuma outra zona do âmbito usa essa palavra.
+ */
 export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[]): ServiceZoneRow[] {
   const folded = foldZoneName(text)
   const hint = audienceHint(folded)
@@ -517,6 +544,11 @@ export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[])
   let rest = folded
   const hit = new Set<string>()
   const matched = new Set<string>()
+  const accept = (zone: ServiceZoneRow): void => {
+    if (hint != null && zone.audience !== hint) return
+    if (minutes != null && zone.durationMinutes !== minutes) return
+    hit.add(zone.id)
+  }
   for (const zone of byLength) {
     const name = foldZoneName(zone.name.trim())
     const sameName = matched.has(name)
@@ -527,9 +559,28 @@ export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[])
       matched.add(name)
       rest = rest.replace(re, ' ')
     }
-    if (hint != null && zone.audience !== hint) continue
-    if (minutes != null && zone.durationMinutes !== minutes) continue
-    hit.add(zone.id)
+    accept(zone)
+  }
+  const namesByWord = new Map<string, Set<string>>()
+  for (const zone of candidates) {
+    const name = foldZoneName(zone.name.trim())
+    for (const word of zoneAliasWords(zone.name)) {
+      const set = namesByWord.get(word) ?? new Set<string>()
+      set.add(name)
+      namesByWord.set(word, set)
+    }
+  }
+  for (const [word, names] of namesByWord) {
+    if (names.size !== 1) continue
+    const name = [...names][0]!
+    if (matched.has(name)) continue
+    const re = new RegExp(`(?<![a-z0-9])${escapeRegExp(word)}(?![a-z0-9])`)
+    if (!re.test(folded)) continue
+    matched.add(name)
+    for (const zone of candidates) {
+      if (foldZoneName(zone.name.trim()) !== name) continue
+      accept(zone)
+    }
   }
   return zones.filter((z) => hit.has(z.id))
 }
