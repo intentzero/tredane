@@ -235,6 +235,9 @@ export function deleteContactOp(
       )
     }
 
+    // DEC-099: as chaves em inbound_events ficam. Sem elas, o replay do mesmo
+    // evento da Meta pareceria mensagem nova e reporia conteúdo já apagado.
+    // O histórico (messages, conversas, pipeline) sai; a chave do evento não.
     insertContactTombstone(
       db,
       {

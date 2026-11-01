@@ -7,8 +7,10 @@ export const MIGRATION_NAME = '0015_contact_retention'
 
 export const STATEMENTS: readonly string[] = [
   /**
-   * Tombstone por wa_id: impede upsert/replay após exclusão do contacto.
-   * O contacto e as mensagens são removidos; o wa_id permanece só aqui.
+   * Tombstone por wa_id (DEC-099): enquanto existir, o upsert directo não
+   * recria o contacto. Uma mensagem nova (evento de provedor ainda não
+   * gravado) limpa esta linha e abre contacto limpo. O replay do evento já
+   * gravado fica em inbound_events, que a exclusão do contacto não apaga.
    */
   `CREATE TABLE IF NOT EXISTS contact_deletion_tombstones (
     tenant_id TEXT NOT NULL,
