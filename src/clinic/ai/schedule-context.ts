@@ -4,6 +4,7 @@
  */
 import type { Clock } from '../../db/clock'
 import type {
+  AiAgendaFacts,
   AiClinicContext,
   AiFreeSlotDay,
   AiUpcomingAppointment,
@@ -151,7 +152,7 @@ export async function buildClinicAiContext(
       serviceIdInPlay: string | null
     }
   },
-): Promise<AiClinicContext> {
+): Promise<{ clinic: AiClinicContext; agendaFacts: AiAgendaFacts }> {
   const settings = opts.turn?.settings ?? ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
   const now = clock.nowMs()
@@ -265,20 +266,22 @@ export async function buildClinicAiContext(
     }
   })
 
+  // DEC-118: freeSlots/upcoming ficam só em agendaFacts (validador local), nunca no payload ao modelo.
   return {
-    name: opts.clinicName?.trim() || null,
-    address: settings.clinicAddress || null,
-    googleBusinessUrl: settings.googleBusinessUrl || null,
-    timezone: tz,
-    nowLabel,
-    today,
-    openingHours: windows.length > 0 ? openingHours : [],
-    freeSlots,
-    tempoNote,
-    upcomingAppointments,
-    reschedulePolicy: settings.reschedulePolicy || null,
-    cancellationPolicy: settings.signalCancellationPolicy || null,
-    virtualAttendantName: settings.virtualAttendantName || null,
-    virtualAttendantGender: settings.virtualAttendantGender,
+    clinic: {
+      name: opts.clinicName?.trim() || null,
+      address: settings.clinicAddress || null,
+      googleBusinessUrl: settings.googleBusinessUrl || null,
+      timezone: tz,
+      nowLabel,
+      today,
+      openingHours: windows.length > 0 ? openingHours : [],
+      tempoNote,
+      reschedulePolicy: settings.reschedulePolicy || null,
+      cancellationPolicy: settings.signalCancellationPolicy || null,
+      virtualAttendantName: settings.virtualAttendantName || null,
+      virtualAttendantGender: settings.virtualAttendantGender,
+    },
+    agendaFacts: { freeSlots, upcomingAppointments },
   }
 }

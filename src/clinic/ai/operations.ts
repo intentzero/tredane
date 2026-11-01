@@ -228,15 +228,22 @@ async function runGenerate(
   const summaryGuard = gen.ok && input.kind === 'summary' ? guardSummaryOutput(gen.text) : null
   if (
     guarded?.ok
-    && tempoDraftRejected(guarded.message, contextInspection.payload.clinic)
+    && tempoDraftRejected(
+      guarded.message,
+      contextInspection.payload.clinic,
+      contextInspection.agendaFacts,
+    )
   ) {
     guarded = { ok: false, reason: 'tempo_leak', notes: '' }
   }
-  // #403 / DEC-104: o texto sai sozinho, por isso preço, horário e reserva têm de bater
-  // com o contexto que o modelo recebeu. Falha → descartado (fallback ou equipe).
+  // #403 + DEC-118: preço/hora/reserva batem com factos locais (agendaFacts), não com o payload ao gateway.
   let factsViolation: string | null = null
   if (guarded?.ok) {
-    const facts = validateReplyFacts(guarded.message, contextInspection.payload)
+    const facts = validateReplyFacts(
+      guarded.message,
+      contextInspection.payload,
+      contextInspection.agendaFacts,
+    )
     if (!facts.ok) {
       factsViolation = facts.violation
       guarded = { ok: false, reason: 'factual_mismatch', notes: '' }

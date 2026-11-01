@@ -133,10 +133,11 @@ describe('contexto da IA no bloco Tempo (S7)', () => {
         },
       )
       const clinic = shown.contextInspection.payload.clinic
-      const times = clinic?.freeSlots.flatMap((day) => day.times) ?? []
+      const times = shown.contextInspection.agendaFacts?.freeSlots.flatMap((day) => day.times) ?? []
       expect(times).not.toContain('15:00')
       expect(clinic?.tempoNote).toBe(TEMPO_REFUSED_PHRASE)
       const raw = JSON.stringify(shown.contextInspection.payload)
+      expect(raw).not.toMatch(/"freeSlots"|"upcomingAppointments"/)
       expect(raw).not.toMatch(/tempo_ceu|tempoCeu|percentagem|weather_code|precipitation|ceu_limpo|open-meteo/i)
       expect(shown.suggestion.status).toBe('pending')
       expect(shown.suggestion.suggestedText).toBe(TEMPO_REFUSED_PHRASE)
@@ -189,7 +190,7 @@ describe('contexto da IA no bloco Tempo (S7)', () => {
   it('depilação em Tanto faz não acrescenta frase, mesmo sem leitura', async () => {
     const s = seed('Quero depilação hoje às 15h')
     try {
-      const clinic = await buildClinicAiContext(s.db, s.tenantId, s.clock, {
+      const { clinic } = await buildClinicAiContext(s.db, s.tenantId, s.clock, {
         contactId: s.contact.id,
         recentTexts: ['Quero depilação hoje às 15h'],
         forecast: { async read() { return { ok: false as const } } },
@@ -206,13 +207,13 @@ describe('contexto da IA no bloco Tempo (S7)', () => {
   it('sem previsão a frase é a de não confirmar e 15h fica de fora', async () => {
     const s = seed('Quero bronzeamento hoje às 15h')
     try {
-      const clinic = await buildClinicAiContext(s.db, s.tenantId, s.clock, {
+      const { clinic, agendaFacts } = await buildClinicAiContext(s.db, s.tenantId, s.clock, {
         contactId: s.contact.id,
         recentTexts: ['Quero bronzeamento hoje às 15h'],
         forecast: { async read() { return { ok: false as const } } },
       })
       expect(clinic.tempoNote).toBe(TEMPO_UNCONFIRMED_PHRASE)
-      expect(clinic.freeSlots.flatMap((day) => day.times)).not.toContain('15:00')
+      expect(agendaFacts.freeSlots.flatMap((day) => day.times)).not.toContain('15:00')
     } finally {
       s.close()
     }

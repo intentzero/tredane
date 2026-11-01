@@ -536,7 +536,8 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
   it('texto da IA sai sem clique quando não há proposta', async () => {
     const s = seed()
     try {
-      s.say('inbound', 'Oi, quanto custa a depilação masculina?')
+      // Cumprimento aberto → caminho de modelo (não catálogo / não autobook).
+      s.say('inbound', 'Oi, tudo bem?')
       const o = await s.run()
       expect(o.autoBook?.proposalId).toBeUndefined()
       expect(o.replyOutbox?.length).toBeGreaterThan(0)

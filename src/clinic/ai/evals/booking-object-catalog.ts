@@ -65,6 +65,14 @@ export const EVAL_BOOKING_CATALOG: ServiceRow[] = [
     zones: [],
   }),
   service({
+    id: 'svc-limpeza-profunda',
+    name: 'Limpeza de pele profunda',
+    durationMinutes: 90,
+    priceCents: 25000,
+    audiencia: 'qualquer',
+    zones: [],
+  }),
+  service({
     id: 'svc-massagem',
     name: 'Massagem',
     durationMinutes: 50,

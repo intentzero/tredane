@@ -3,7 +3,7 @@ import {
   redactProhibitedFromText,
 } from '../../ai'
 import { countClinicOutbound, hasClinicOutbound } from '../../ai/continuity'
-import type { AiCatalogService, AiContextPayload } from '../../ai/types'
+import type { AiAgendaFacts, AiCatalogService, AiContextPayload } from '../../ai/types'
 import {
   currentClientTurnText,
   explicitAudienceLine,
@@ -85,6 +85,11 @@ export async function buildAiContextPayload(
   } = {},
 ): Promise<{
   payload: AiContextPayload
+  /**
+   * Factos de agenda locais (DEC-118) — validador #403 e código determinístico.
+   * Nunca serializados no pedido ao gateway.
+   */
+  agendaFacts: AiAgendaFacts | null
   contactId: string
   /** Última mensagem da cliente (a que o rascunho responde). */
   lastInboundMessageId: string | null
@@ -187,8 +192,9 @@ export async function buildAiContextPayload(
       }
     }
   }
+  let agendaFacts: AiAgendaFacts | null = null
   if (opts.clock) {
-    payload.clinic = await buildClinicAiContext(db, tenantId, opts.clock, {
+    const built = await buildClinicAiContext(db, tenantId, opts.clock, {
       clinicName: opts.clinicName ?? null,
       contactId: contact.id,
       recentTexts: messages.map((m) => m.body),
@@ -203,6 +209,8 @@ export async function buildAiContextPayload(
           }
         : {}),
     })
+    payload.clinic = built.clinic
+    agendaFacts = built.agendaFacts
   }
 
   const attRow = db.get<{ n: number }>(
@@ -224,6 +232,7 @@ export async function buildAiContextPayload(
 
   return {
     payload,
+    agendaFacts,
     contactId: contact.id,
     lastInboundMessageId: lastInbound?.id ?? null,
     _debugExcluded: {
@@ -248,6 +257,10 @@ const PROHIBITED_PAYLOAD_VALUE_RE =
  */
 export function assertContextMinimized(payload: AiContextPayload): void {
   const json = JSON.stringify(payload)
+  // DEC-118: freeSlots / upcomingAppointments nunca no payload ao provedor.
+  if (/"freeSlots"\s*:/.test(json) || /"upcomingAppointments"\s*:/.test(json)) {
+    throw new Error('ai_context_contains_agenda_slots')
+  }
   if (PROHIBITED_PAYLOAD_KEY_RE.test(json)) {
     throw new Error('ai_context_contains_prohibited_keys')
   }

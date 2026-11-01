@@ -8,7 +8,7 @@
  * Conservador de propósito: uma hora que a cliente já disse, o expediente e os compromissos
  * dela podem ser repetidos. O que o modelo «oferece» tem de estar na lista do dia citado.
  */
-import type { AiCatalogService, AiContextPayload } from './types'
+import type { AiAgendaFacts, AiCatalogService, AiContextPayload } from './types'
 
 export type ReplyFactsViolation =
   | 'claims_booking'
@@ -233,7 +233,15 @@ function clientTurn(messages: AiContextPayload['messages']): string {
 /* Validador                                                           */
 /* ------------------------------------------------------------------ */
 
-export function validateReplyFacts(message: string, ctx: AiContextPayload): ReplyFactsResult {
+/**
+ * Valida factos da mensagem. `agendaFacts` (DEC-118) são locais — nunca no payload ao gateway.
+ * Sem agendaFacts, horários oferecidos que não sejam eco da cliente/expediente são recusados.
+ */
+export function validateReplyFacts(
+  message: string,
+  ctx: AiContextPayload,
+  agendaFacts?: AiAgendaFacts | null,
+): ReplyFactsResult {
   if (claimsBooking(message)) return { ok: false, violation: 'claims_booking' }
 
   const prices = pricesInText(message)
@@ -247,18 +255,21 @@ export function validateReplyFacts(message: string, ctx: AiContextPayload): Repl
   const offered = timesInText(message)
   if (offered.length === 0) return { ok: true }
 
+  const freeSlots = agendaFacts?.freeSlots ?? []
+  const upcoming = agendaFacts?.upcomingAppointments ?? []
+
   // Pode repetir: o que a cliente disse, o expediente e os compromissos dela.
   const repeatable = new Set<string>()
   for (const m of ctx.messages) if (m.direction === 'inbound') for (const t of clientTimes(m.body)) repeatable.add(t)
   // Horas do expediente só valem numa frase sobre o expediente, não numa oferta.
   const hoursTimes = new Set<string>()
   for (const line of clinic.openingHours) for (const h of timesInText(line)) hoursTimes.add(h.time)
-  for (const a of clinic.upcomingAppointments) for (const h of timesInText(a.when)) repeatable.add(h.time)
+  for (const a of upcoming) for (const h of timesInText(a.when)) repeatable.add(h.time)
   if (clinic.tempoNote) for (const h of timesInText(clinic.tempoNote)) repeatable.add(h.time)
 
-  // Horários da lista, restritos ao serviço quando a mensagem (ou a sessão) o identifica.
+  // Horários da lista local, restritos ao serviço quando a mensagem (ou a sessão) o identifica.
   const folded = fold(message)
-  const listed = [...new Set(clinic.freeSlots.map((d) => d.serviceName))]
+  const listed = [...new Set(freeSlots.map((d) => d.serviceName))]
   const named = listed.filter((n) => n.trim().length >= 3 && folded.includes(fold(n.trim())))
   const scope =
     named.length === 1
@@ -266,7 +277,7 @@ export function validateReplyFacts(message: string, ctx: AiContextPayload): Repl
       : ctx.schedule?.serviceName && listed.includes(ctx.schedule.serviceName)
         ? ctx.schedule.serviceName
         : null
-  const slots = clinic.freeSlots.filter((d) => scope == null || d.serviceName === scope)
+  const slots = freeSlots.filter((d) => scope == null || d.serviceName === scope)
   const byDay = new Map<string, Set<string>>()
   for (const d of slots) {
     const set = byDay.get(d.date) ?? new Set<string>()

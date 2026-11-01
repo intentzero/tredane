@@ -320,6 +320,19 @@ export function catalogReply(
     return bookingMatch.question
   }
 
+  // E-01 / E-07 / C-12: preço ou duração de serviço sem variantes — antes do early-return.
+  const asksDuration = /\b(dura|dura[cç][aã]o|tempo|minutos)\b/i.test(source)
+  if ((asksPrice || asksDuration) && svc) {
+    const activeZones = svc.zones.filter((zone) => zone.active)
+    if (activeZones.length === 0) {
+      if (asksPrice) {
+        if (svc.priceCents == null) return 'A equipe confirma o valor.'
+        return `${formatBRL(svc.priceCents)}, ${svc.durationMinutes} min. Quer que eu veja horários?`
+      }
+      return `${svc.durationMinutes} min.`
+    }
+  }
+
   if (!asksPrice && !openPeriod && !lineOnly) return null
   if (!svc) return null
 
