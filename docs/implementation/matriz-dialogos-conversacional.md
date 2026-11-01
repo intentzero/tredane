@@ -194,7 +194,7 @@
 
 | ID | P | Cenário | Diálogo | Esperado | Verifica | T\* | It. 0 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| K-01 | P0 | Modelo indisponível | C: «oi, tudo bem?» [adaptador com timeout] | «Não consegui entender bem. Pode me dizer de outro jeito, ou prefere falar com a equipe?» + botão; alerta à equipe sem pausar a IA (DEC-107). | INV-09 | 1 | ⚠ CF-14 |
+| K-01 | P0 | Modelo indisponível | C: «oi, tudo bem?» [adaptador com timeout] | «Não consegui entender bem. Pode me dizer de outro jeito, ou prefere falar com a equipe?» + botão; alerta à equipe sem pausar a IA (DEC-107). | INV-09 | 1 | ✅ `model-fallback.test` (#404, CF-14) |
 | K-02 | P0 | Webhook duplicado | [a mesma mensagem entregue 2×] | Uma única resposta. | INV-09 | 1 | ✅ `whatsapp/webhook.test` (suite `test:seg-ia`) |
 | K-03 | P0 | Janela de 24 h fechada | [última mensagem da cliente há 25 h] | Nenhum texto livre; a equipe decide. | — | 0 | ◐ `window_closed` em `autodraft.ts` |
 | K-04 | P0 | Clique duplo | [proposta] ⟶ Confirmar 2× | Um único compromisso. | INV-01 | 1 | ✅ `execute-confirm.test` «clique duplo» |
@@ -226,8 +226,8 @@ Um diálogo L3 que falha é triado (plano §6). Se revela um caso novo, ganha um
 | Estado | Casos |
 | --- | --- |
 | ❌ Falha verificada | A-10, B-01, B-02, B-03, B-06, B-07, B-08, C-01, C-02, C-03, C-11, C-12, E-06, G-02, G-03, G-05, I-07, I-08, J-04, J-08 (20) |
-| ⚠ Falha provável | A-02, A-07, A-08, B-04, B-13, C-05, C-08, D-01, D-02, D-04, D-06, F-07, G-10, G-11, H-02, H-03, J-09, K-01 (18) |
-| ✅ Coberto por teste | A-01, A-04, A-05, A-11, B-05, C-09, D-03, D-07, E-02, E-03, E-05, E-08, F-03, F-05, F-06, G-01, G-04, G-06, G-07, G-08, G-09, G-12, I-01, I-02, I-05, J-01, J-03, J-05, K-02, K-04, K-05, K-06 (32) |
+| ⚠ Falha provável | A-02, A-07, A-08, B-04, B-13, C-05, C-08, D-01, D-02, D-04, D-06, F-07, G-10, G-11, H-02, H-03, J-09 (17) |
+| ✅ Coberto por teste | A-01, A-04, A-05, A-11, B-05, C-09, D-03, D-07, E-02, E-03, E-05, E-08, F-03, F-05, F-06, G-01, G-04, G-06, G-07, G-08, G-09, G-12, I-01, I-02, I-05, J-01, J-03, J-05, K-01, K-02, K-04, K-05, K-06 (33) |
 | ◐ Passa por código | A-03, D-05, H-01, K-03, K-07 (5) |
 | ❔ Por medir | A-06, A-09, A-12, B-09, B-10, B-11, B-12, C-04, C-06, C-07, C-10, C-13, D-08, D-09, D-10, D-11, E-01, E-04, E-07, F-01, F-02, F-04, F-08, H-04, I-03, I-04, I-06, J-02, J-06, J-07 (30) |
 
