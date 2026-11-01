@@ -233,7 +233,7 @@ Um diálogo L3 que falha é triado (plano §6). Se revela um caso novo, ganha um
 
 Total: 105 casos.
 
-## Iteração 1 (em curso, [#419](https://github.com/intentzero/tredane/issues/419))
+## Iteração 1 (fechada, [#419](https://github.com/intentzero/tredane/issues/419))
 
 | Caso | Antes (It. 0) | Agora | Por |
 | --- | --- | --- | --- |
@@ -267,7 +267,7 @@ Total: 105 casos.
 
 Infraestrutura sem caso de matriz dedicado: [#411](https://github.com/intentzero/tredane/issues/411) (`TurnContext` + catálogo compilado; L1 regressão verde).
 
-### Resumo após It. 1 (L1 local, tip `4921b53`)
+### Resumo após It. 1 (L1, `main` `0501e30`)
 
 | Estado | Contagem / notas |
 | --- | --- |
