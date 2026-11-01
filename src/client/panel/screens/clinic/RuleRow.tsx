@@ -12,7 +12,7 @@ type Props = {
 }
 
 /**
- * Linha de regra da ficha do serviço (DEC-084): rótulo + estado; toque abre editor ou folha.
+ * Linha de regra da ficha do serviço (DEC-106): rótulo + estado; toque abre editor ou folha.
  */
 export function RuleRow({ label, value, onPress, tone = 'neutral', error, children }: Props) {
   const body = (

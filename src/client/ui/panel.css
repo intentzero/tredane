@@ -6317,7 +6317,7 @@
   border-top: var(--size-border-width) solid var(--color-line-divider);
 }
 
-/* Revisão de UX das fichas (DEC-084): linhas de regra + chips obrigatórios. */
+/* Revisão de UX das fichas (DEC-106): linhas de regra + chips obrigatórios. */
 .rule-list {
   display: flex;
   flex-direction: column;

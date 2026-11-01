@@ -14,7 +14,7 @@ type Props = {
 
 /**
  * Diálogo ao fechar ficha com rascunho.
- * Profissional e sala: gravar, descartar ou continuar (DEC-083).
+ * Profissional e sala: gravar, descartar ou continuar (DEC-105).
  * Serviço: continuar editando ou sair sem salvar — sem gravar neste diálogo.
  */
 export function UnsavedChangesDialog({

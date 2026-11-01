@@ -191,7 +191,7 @@ describe('Horário da clínica', () => {
   })
 })
 
-describe('Ficha da profissional — rascunho (DEC-083)', () => {
+describe('Ficha da profissional — rascunho (DEC-105)', () => {
   it('chip de serviço só atualiza o rascunho; não grava no servidor', () => {
     const a = api()
     const s = snap()

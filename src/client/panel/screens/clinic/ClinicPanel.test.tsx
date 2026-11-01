@@ -21,7 +21,7 @@ function setup() {
   return onClose
 }
 
-describe('ClinicPanel (DEC-069 / DEC-083)', () => {
+describe('ClinicPanel (DEC-069 / DEC-105)', () => {
   it('abre com o foco no painel', () => {
     setup()
     const panel = screen.getByRole('complementary', { name: 'Profissional' })

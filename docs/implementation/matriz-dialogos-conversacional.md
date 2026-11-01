@@ -134,7 +134,7 @@
 | F-04 | P1 | Adiar | C: «Agora não posso, amanhã falo» | Acolhe e não volta a escrever antes do idle. | EF-04 | 1 | ❔ L2 |
 | F-05 | P0 | «Alterar detalhes» | [proposta] ⟶ clique «Alterar detalhes» | Frase + equipe; nada marcado. | INV-01, INV-06 | 1 | ✅ `dec-083.test` |
 | F-06 | P0 | Proposta expirada | [proposta enviada há 31 min] ⟶ clique Confirmar | Recusa; nenhum compromisso; aviso/nova proposta. | INV-01 | 1 | ✅ `proposals.test` «envio inicia 30 min…» |
-| F-07 | P1 | Pedido para parar | C: «Pare de me mandar mensagem» | Nenhuma automação nova; equipe avisada. Política **Em aberto**. | EF-04 | 1 | ⚠ sem regra; vai ao modelo |
+| F-07 | P1 | Pedido para parar | C: «Pare de me mandar mensagem» | Todas as automações param nessa conversa (IA, idle, follow-up); equipe avisada; nenhuma mensagem automática (DEC-114). | EF-04 | 1 | ⚠ sem regra; vai ao modelo (DEC-114 por implementar) |
 | F-08 | P1 | Cliente com pressa | C: «rápido, tem limpeza hoje?» | Oferece logo os horários de hoje, sem perguntas intermédias. | EE-01, EE-07 | 1 | ❔ L2 |
 
 ## G. Acesso humano e handoff (DEC-083, DEC-091)
@@ -143,14 +143,14 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | G-01 | P0 | Pede uma pessoa | C: «Quero falar com uma pessoa» | Pausa, frase fixa, alerta; nenhuma chamada ao modelo. | INV-06 | 1 | ✅ `dec-083.test` |
 | G-02 | P0 | Elogio | C: «Você é uma ótima atendente! Quero massagem sábado» | Sem pausa; segue o funil (oferta para sábado). | EF-03 | 1 | ❌ CF-02 |
-| G-03 | P1 | «É robô?» | C: «Você é a atendente da clínica ou um robô?» | Resposta honesta (atendente virtual) + opção da equipe; sem pausa automática. A copy é **Em aberto**. | EF-03, Q2 | 1 | ❌ CF-02 |
+| G-03 | P1 | «É robô?» | C: «Você é a atendente da clínica ou um robô?» | «Sou a assistente virtual da clínica. Se preferir, chamo a equipe.» + botão da equipe; sem pausa automática (DEC-115). | EF-03, Q2 | 1 | ❌ CF-02 |
 | G-04 | P0 | Marcação para terceiro | C: «É para a minha mãe» | Handoff (terceiro). | INV-06 | 1 | ✅ `catalog-reply.test` (terceiro) |
 | G-05 | P0 | Falso terceiro | C: «Quero algo para a minha pele oleosa» | Sem handoff; pergunta ou oferece Limpeza. | EF-03 | 1 | ❌ CF-03 |
 | G-06 | P0 | Cancelar | [compromisso futuro] ⟶ C: «Quero cancelar meu horário» | Handoff; nada cancelado pela IA. | INV-06 | 1 | ✅ `reschedule.test` «cancelar continua handoff» |
 | G-07 | P0 | Remarcar com compromisso | [compromisso futuro] ⟶ C: «Posso reagendar para quarta?» | Oferece horários de quarta para o mesmo serviço e zonas; a proposta substitui o compromisso. | EF-02, INV-08 | 2 | ✅ `reschedule.test` |
 | G-08 | P1 | Remarcar sem compromisso | C: «Quero remarcar» | Handoff. | INV-06 | 1 | ✅ `dec-083.test` |
 | G-09 | P0 | Mensagem durante a pausa | [pausada] ⟶ C: «Axila» ⟶ equipe devolve à IA | Nenhuma frase repetida; depois de devolver, a mensagem pendente recebe resposta. | INV-06, INV-09 | 1 | ✅ `dec-083.test`; L4 divergente na sonda de 31/10 |
-| G-10 | P1 | Handoff fora do expediente | (sáb 17:00) C: «Quero falar com alguém» | Frase + expectativa de retorno (próxima abertura). | Q5, Q6 | 1 | ⚠ CF-17 (Em aberto) |
+| G-10 | P1 | Handoff fora do expediente | (sáb 17:00) C: «Quero falar com alguém» | «Vou pedir para a equipe continuar daqui. A equipe responde a partir de segunda às 09:00.» (DEC-113). | Q5, Q6 | 1 | ⚠ CF-17 (DEC-113 por implementar) |
 | G-11 | P0 | Pedido humano no meio de várias bolhas | C: «quero falar com alguém» · «obrigada» | Handoff. | INV-06 | 1 | ⚠ CF-13 |
 | G-12 | P1 | Botão «Falar com a equipe» | [qualquer mensagem da IA] ⟶ clique no botão | Frase; a proposta pendente não é encaminhada. | INV-06 | 1 | ✅ `dec-083.test` |
 
@@ -194,7 +194,7 @@
 
 | ID | P | Cenário | Diálogo | Esperado | Verifica | T\* | It. 0 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| K-01 | P0 | Modelo indisponível | C: «oi, tudo bem?» [adaptador com timeout] | Frase de fallback com o botão de equipe; nunca silêncio. | INV-09 | 1 | ⚠ CF-14 |
+| K-01 | P0 | Modelo indisponível | C: «oi, tudo bem?» [adaptador com timeout] | «Não consegui entender bem. Pode me dizer de outro jeito, ou prefere falar com a equipe?» + botão; alerta à equipe sem pausar a IA (DEC-107). | INV-09 | 1 | ⚠ CF-14 |
 | K-02 | P0 | Webhook duplicado | [a mesma mensagem entregue 2×] | Uma única resposta. | INV-09 | 1 | ✅ `whatsapp/webhook.test` (suite `test:seg-ia`) |
 | K-03 | P0 | Janela de 24 h fechada | [última mensagem da cliente há 25 h] | Nenhum texto livre; a equipe decide. | — | 0 | ◐ `window_closed` em `autodraft.ts` |
 | K-04 | P0 | Clique duplo | [proposta] ⟶ Confirmar 2× | Um único compromisso. | INV-01 | 1 | ✅ `execute-confirm.test` «clique duplo» |
