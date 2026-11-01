@@ -264,6 +264,16 @@ export function catalogReply(
     sameFunnel && scoped.length > 0
       ? zonesChosenInClientTexts(inboundNewestFirst, scoped)
       : { zones: [] as typeof scoped, ambiguous: false }
+  // A gravação da sessão não avança updated_at no mesmo serviço, então a mensagem
+  // que escolheu as zonas pode ficar de fora da janela. Os ids da sessão contam.
+  const sessionZones =
+    sameFunnel && session?.variantIds?.length && scoped.length > 0
+      ? scoped.filter((zone) => session.variantIds!.includes(zone.id))
+      : []
+  const sessionKept =
+    session?.variantIds != null &&
+    session.variantIds.length > 0 &&
+    sessionZones.length === session.variantIds.length
 
   // Zonas já ditas neste funil (sessão do serviço + mensagens desde o início do funil).
   if (
@@ -271,7 +281,7 @@ export function catalogReply(
     named.length === 0 &&
     !asksPrice &&
     sameFunnel &&
-    chosenEarlier.zones.length > 0 &&
+    (chosenEarlier.zones.length > 0 || sessionKept) &&
     !chosenEarlier.ambiguous
   ) {
     return null
