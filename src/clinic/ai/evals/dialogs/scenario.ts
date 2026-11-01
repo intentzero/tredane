@@ -3,6 +3,9 @@
  * Relógio: qui 05/11/2026 10:00 America/Sao_Paulo. Dados fictícios.
  */
 import { SimulatedAiAdapter, type AiProviderAdapter } from '../../../../ai'
+import { allowedPricesCents as allowedPricesCentsOf } from '../../../../ai/reply-facts'
+import { listServices } from '../../../config/services'
+import { queryAvailability } from '../../../scheduling/query'
 import { createControllableClock, type Clock } from '../../../../db/clock'
 import {
   replaceServiceZonesOp,
@@ -43,6 +46,13 @@ export type DialogScenario = {
   adapter: AiProviderAdapter
   close: () => void
   sayInbound: (body: string) => string
+  /** Mensagem da clínica (já enviada) antes do turno da cliente. */
+  sayOutbound: (body: string) => string
+  inboundBodies: () => string[]
+  /** Preços (centavos) que o catálogo permite dizer: linha, variantes por linha, somas, combos, sinal. */
+  allowedPricesCents: () => Set<number>
+  /** HH:MM livres (qualquer serviço, próximos 7 dias) — superconjunto independente do validador. */
+  freeTimesUnion: () => Set<string>
   outboundBodies: () => string[]
   proposalCount: () => number
   appointmentCount: () => number
@@ -272,6 +282,87 @@ export function bootDialogScenario(opts: {
     return m.id
   }
 
+  const sayOutbound = (body: string) => {
+    clock.advance(1_000)
+    const m = insertMessage(
+      db,
+      {
+        tenantId,
+        conversationId: cnv.id,
+        direction: 'outbound',
+        body,
+        deliveryState: 'delivered',
+        createdAt: clock.nowMs(),
+      },
+      clock,
+    )
+    return m.id
+  }
+
+  const allowedPricesCents = (): Set<number> => {
+    const active = listServices(db, tenantId).filter((x) => x.active)
+    const asCatalog = (line: 'feminino' | 'masculino' | null) =>
+      active.map((x) => ({
+        name: x.name,
+        durationMinutes: x.durationMinutes,
+        priceCents: x.priceCents,
+        clientExplanation: null,
+        audiencia: x.audiencia,
+        zones: x.zones
+          .filter((z) => z.active && (line == null || z.audience === 'ambos' || z.audience === line))
+          .map((z) => ({
+            name: z.name,
+            durationMinutes: z.durationMinutes,
+            priceCents: z.priceCents,
+            audience: z.audience,
+          })),
+        combos: x.combos
+          .filter((c) => c.active)
+          .map((c) => ({
+            name: c.name,
+            zoneNames: c.zoneIds.map((id) => x.zones.find((z) => z.id === id)?.name ?? ''),
+            priceCents: c.priceCents,
+          })),
+      }))
+    // Somas só dentro de cada linha: masculino com feminino nunca tem preço (DEC-079).
+    const out = new Set<number>([
+      ...allowedPricesCentsOf(asCatalog('feminino')),
+      ...allowedPricesCentsOf(asCatalog('masculino')),
+    ])
+    for (const x of active) {
+      if (!x.requiresSignal || x.priceCents == null) continue
+      if (x.signalKind === 'fixed' && x.signalFixedCents != null) out.add(x.signalFixedCents)
+      if (x.signalKind === 'percent' && x.signalPercent != null) {
+        out.add(Math.trunc((x.priceCents * x.signalPercent) / 100))
+      }
+    }
+    return out
+  }
+
+  const freeTimesUnion = (): Set<string> => {
+    const fmt = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: DIALOG_TZ,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+    const out = new Set<string>()
+    const now = clock.nowMs()
+    for (const svc of listServices(db, tenantId).filter((x) => x.active)) {
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(now + i * 86_400_000).toLocaleDateString('en-CA', { timeZone: DIALOG_TZ })
+        try {
+          for (const slot of queryAvailability(db, tenantId, { serviceId: svc.id, date }, clock).slots) {
+            if (slot.startsAt > now) out.add(fmt.format(new Date(slot.startsAt)).replace(/^(\d):/, '0$1:'))
+          }
+        } catch {
+          /* serviço sem recurso utilizável */
+        }
+      }
+    }
+    return out
+  }
+
   return {
     db,
     clock,
@@ -282,6 +373,16 @@ export function bootDialogScenario(opts: {
     adapter,
     close: boot.close,
     sayInbound,
+    sayOutbound,
+    allowedPricesCents,
+    freeTimesUnion,
+    inboundBodies: () =>
+      db
+        .all<{ body: string }>(
+          `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'inbound' ORDER BY created_at ASC`,
+          cnv.id,
+        )
+        .map((r) => r.body),
     outboundBodies: () =>
       db
         .all<{ body: string }>(

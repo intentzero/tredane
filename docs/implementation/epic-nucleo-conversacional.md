@@ -48,6 +48,9 @@ O caminho normal passa a ser determinístico e guiado pelo grafo de dados da cl�
 | 6 | [#418](https://github.com/intentzero/tredane/issues/418) | M7: diálogos gerados pelo grafo; lint de configuração | cobertura de catálogo | DEC-112 (informativo) |
 | 4 | [#420](https://github.com/intentzero/tredane/issues/420) | P1: handoff fora do expediente, pedido para parar, transparência sobre IA (DEC-113–115) | G-10, F-07, G-03 | #409 |
 | 4 | [#421](https://github.com/intentzero/tredane/issues/421) | P2: sinónimos na ficha, só pela owner (DEC-110) | léxico | #411 |
+| 4 | [#435](https://github.com/intentzero/tredane/issues/435) | B1: zona dita na mesma mensagem é ignorada (CF-24) | A-04 | |
+| 4 | [#436](https://github.com/intentzero/tredane/issues/436) | B2: mudança de serviço depois da proposta (CF-23) | C-07 | |
+| 4 | [#437](https://github.com/intentzero/tredane/issues/437) | B3: recusa da mistura de linhas explicada (CF-25) | D-04 | |
 | contínuo | [#417](https://github.com/intentzero/tredane/issues/417) | L2/L3: LLM no circuito, juiz calibrado, cliente simulada | rubrica Q, EE-04/06 | #402 (8: valor do orçamento) |
 | contínuo | [#419](https://github.com/intentzero/tredane/issues/419) | Iteração 1 da matriz (modelo das iterações seguintes) | §7 do plano | |
 
