@@ -76,7 +76,7 @@ describe('catalogReply', () => {
     expect(who).toContain('Gi')
     expect(who).not.toContain('Sala Depilação')
     expect(who).not.toMatch(/\bsala\b/i)
-    expect(catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)).toMatch(/qual/i)
+    expect(catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)).toMatch(/quais zonas/i)
     expect(catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)).not.toMatch(/13:00/)
     const both = catalogReply(
       boot.db,
@@ -95,7 +95,7 @@ describe('catalogReply', () => {
 
 describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
   const LINE = 'Depilação feminina ou masculina?'
-  const ZONES = 'Para Depilação, qual zona você quer? Temos Axila, Pernas.'
+  const ZONES = 'Para Depilação, quais zonas você quer? Temos Axila, Pernas.'
 
   function seedMixed() {
     const clock = createControllableClock(NOW)
@@ -198,7 +198,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       )
       const reply = catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)
       expect(reply).toBe(
-        'Para Depilação, qual zona você quer? Temos Axila, Pernas (feminino, 30 min), Pernas (feminino, 45 min).',
+        'Para Depilação, quais zonas você quer? Temos Axila, Pernas (feminino, 30 min), Pernas (feminino, 45 min).',
       )
       expect(reply).not.toMatch(/feminina ou masculina/i)
       expect(reply).not.toMatch(/^oi|^ol[aá]/i)

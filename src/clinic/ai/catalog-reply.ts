@@ -367,7 +367,7 @@ export function catalogReply(
 
   if (active.length > 0 && named.length === 0 && (asksPrice || openPeriod || lineOnly)) {
     const pool = scoped.length > 0 ? scoped : active
-    return variantListQuestion(svc.name, svc.variantKind, pool)
+    return variantListQuestion(svc.name, svc.variantKindPlural || svc.variantKind, pool)
   }
 
   if (asksPrice && named.length === 1) {
