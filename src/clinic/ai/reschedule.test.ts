@@ -27,8 +27,9 @@ import { HUMAN_HANDOFF_TEXT } from './human-handoff'
 import { RESCHEDULE_OFFER_MARKER, isRescheduleIntent } from './reschedule'
 
 const TZ = 'America/Sao_Paulo'
-// Sexta 31/10/2026 14:40 em São Paulo (turno do screenshot).
-const NOW = Date.UTC(2026, 9, 31, 17, 40)
+// Sexta 30/10/2026 14:40 em São Paulo (dentro do expediente Mon–Sex 09–18).
+// 31/10/2026 é sábado — fora do expediente → DEC-113 acrescenta a próxima abertura.
+const NOW = Date.UTC(2026, 9, 30, 17, 40)
 
 function seed() {
   const clock = createControllableClock(NOW)
