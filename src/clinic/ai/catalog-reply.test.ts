@@ -405,6 +405,78 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
+  it('com a linha já dita, zonas sem dia nem preço perguntam o horário', () => {
+    const boot = seedMixed()
+    try {
+      const existing = boot.db.all<{
+        id: string
+        name: string
+        duration_minutes: number
+        price_cents: number
+        audience: 'feminino' | 'masculino'
+      }>(
+        `SELECT id, name, duration_minutes, price_cents, audience
+         FROM service_zones WHERE tenant_id = ? AND service_id = ? ORDER BY sort_order`,
+        boot.tenantId,
+        boot.svc.id,
+      )
+      const zones = replaceServiceZonesOp(
+        boot.db,
+        boot.caller,
+        boot.svc.id,
+        [
+          ...existing.map((zone) => ({
+            id: zone.id,
+            name: zone.name,
+            durationMinutes: zone.duration_minutes,
+            priceCents: zone.price_cents,
+            audience: zone.audience,
+          })),
+          { name: 'Parte íntima', durationMinutes: 20, priceCents: 9_000, audience: 'feminino' as const },
+          { name: 'Parte íntima', durationMinutes: 25, priceCents: 11_000, audience: 'masculino' as const },
+        ],
+        boot.clock,
+      )
+      const opts = { conversationId: boot.conversation.id }
+      const say = (direction: 'inbound' | 'outbound', body: string) => {
+        boot.clock.advance(1_000)
+        insertMessage(
+          boot.db,
+          {
+            tenantId: boot.tenantId,
+            conversationId: boot.conversation.id,
+            direction,
+            body,
+            deliveryState: direction === 'inbound' ? 'received' : 'delivered',
+            createdAt: boot.clock.nowMs(),
+          },
+          boot.clock,
+        )
+      }
+      // A linha chegou numa volta anterior que não gravou sessão (atalho ainda fechado).
+      say('inbound', 'Feminina')
+      say('outbound', 'Qual zona e qual dia?')
+      say('inbound', 'Parte intima e axila')
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toBeNull()
+      expect(catalogReply(boot.db, boot.tenantId, 'Parte intima e axila', boot.clock, opts)).toBe(
+        'Qual horário fica melhor para Depilação?',
+      )
+      const fem = zones
+        .filter((zone) => zone.audience === 'feminino' && (zone.name === 'Axila' || zone.name === 'Parte íntima'))
+        .map((zone) => zone.id)
+        .sort()
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toMatchObject({
+        serviceId: boot.svc.id,
+        audienceLine: 'feminino',
+      })
+      expect([...(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.variantIds ?? [])].sort()).toEqual(
+        fem,
+      )
+    } finally {
+      boot.close()
+    }
+  })
+
   it('reconhece Brinzeamento escrito com uma letra a menos', () => {
     const boot = seedMixed()
     try {

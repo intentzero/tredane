@@ -47,6 +47,7 @@ export {
   getAutoDraftJob,
   cancelAutoDraft,
   AUTODRAFT_ACTOR_ID,
+  AUTODRAFT_STALE_MS,
   type AutoDraftJob,
   type AutoDraftOutcome,
 } from './autodraft'
