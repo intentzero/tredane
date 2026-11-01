@@ -239,7 +239,7 @@ O plano é acompanhado no [épico #401](epic-nucleo-conversacional.md), com sub-
 | Pergunta | Opções | Responsável | Bloqueia |
 | --- | --- | --- | --- |
 | ~~Os alvos da secção 4 são aceites como gate?~~ | **Decidido: DEC-108** — invariantes bloqueiam o merge nos P0; EE e Q informativos até à linha de base. | Paulo | — |
-| Orçamento de tokens para L2/L3 por iteração | Valor fixo mensal; por execução. **Valor ainda por definir.** | Paulo + engenharia | L2/L3 |
+| ~~Orçamento de tokens para L2/L3 por iteração~~ | **Decidido: DEC-117** — teto de US$ 10 **por execução** do L2; o L3 terá valor próprio. | Paulo | — |
 | ~~Frase de handoff fora do expediente (CF-17)~~ | **Decidido: DEC-113.** | Paulo | — |
 | ~~NC-01: o texto livre do LLM sai sozinho? (CA-10)~~ | **Decidido: DEC-104 (01/11/2026), opção A.** | Paulo | — |
 | Interpretador estruturado com LLM (CA-01) | Só determinístico melhorado; híbrido com *tool use* validado. | Paulo + engenharia (ADR) | Passo 7 |
