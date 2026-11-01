@@ -819,6 +819,25 @@ export function createOrSupersedeProposal(
   })
 }
 
+/**
+ * A cliente mudou de intenção (ex.: outro serviço) e não há proposta nova para a substituir
+ * já: a aberta deixa de valer, sem sucessora (DEC-061: qualquer mudança material invalida a
+ * versão anterior). O clique no botão antigo passa a ser recusado como proposta substituída.
+ * CF-23 (#436).
+ */
+export function retireActiveProposal(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  clock: Clock,
+): AppointmentProposalRow | null {
+  const active = getActiveProposalForConversation(db, tenantId, conversationId, clock)
+  if (!active) return null
+  return transitionRow(db, tenantId, active.id, active.state, 'substituida', clock, {
+    expectedVersion: active.version,
+  })
+}
+
 /** Alias estável da API do módulo (S3). */
 export function createProposal(
   db: ClinicDb,

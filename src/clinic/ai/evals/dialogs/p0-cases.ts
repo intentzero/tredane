@@ -81,8 +81,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'A-04',
     title: 'Tudo num turno com variante',
     turnosIdeais: 1,
-    // CF-24: a zona dita na mesma mensagem («axila») é ignorada e volta a perguntar as zonas.
-    knownFailure: 'CF-24',
+    // CF-24 (#435, corrigido): «às 10h» era lida como duração de 10 h e descartava as zonas.
     turns: [{ role: 'client', text: 'Quero depilação feminina de axila sexta às 10h' }],
     expect: { proposal: true, noAppointment: true },
   },
@@ -268,13 +267,17 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'C-07',
     title: 'Muda de serviço depois da proposta',
     turnosIdeais: 1,
-    // CF-23: depois de «prefiro massagem» a resposta é genérica e a proposta da limpeza continua vigente.
-    knownFailure: 'CF-23',
+    // CF-23 (#436, corrigido): a proposta da limpeza deixa de valer e sai a da massagem, no mesmo dia e hora.
     turns: [
       { role: 'client', text: 'Quero limpeza de pele amanhã às 15h' },
       { role: 'client', text: 'na verdade prefiro massagem' },
     ],
-    expect: { turns: [{ turn: 1, matches: [/massagem/i] }] },
+    expect: {
+      turns: [{ turn: 1, matches: [/Serviço:\s*Massagem/i] }],
+      openProposals: 1,
+      supersededProposals: 1,
+      proposalAt: { date: '2026-11-06', time: '15:00' },
+    },
   },
   {
     id: 'C-08',
@@ -327,8 +330,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'D-04',
     title: 'Mistura masculino e feminino',
     turnosIdeais: 1,
-    // CF-25: a resposta volta a perguntar a linha em vez de explicar que não se mistura (DEC-079).
-    knownFailure: 'CF-25',
+    // CF-25 (#437): tinha a mesma causa do CF-24 («sexta 10h» lido como duração descartava as zonas).
     turns: [
       {
         role: 'client',

@@ -2,6 +2,7 @@
  * Zonas de um serviço (DEC-078 / #293).
  * A visita é um bloco: soma das durações + o intervalo do serviço uma vez.
  */
+import { durationMinutesFromText } from '../catalog/duration'
 import type { Clock } from '../../db/clock'
 import { priceVisit } from '../catalog/combo'
 import { ValidationError } from '../errors'
@@ -498,23 +499,6 @@ function audienceHint(folded: string): VariantAudience | null {
   return fem ? 'feminino' : 'masculino'
 }
 
-function durationHint(folded: string): number | null {
-  if (/\bmeia\s+hora\b/.test(folded) || /\b30\s*min(utos?)?\b/.test(folded)) return 30
-  if (/\b(uma|1)\s*h(ora)?\b/.test(folded) || /\b60\s*min(utos?)?\b/.test(folded)) return 60
-  if (/\b(duas|2)\s*h(oras?)?\b/.test(folded) || /\b120\s*min(utos?)?\b/.test(folded)) return 120
-  if (/\b(uma|1)\s+hora\s+e\s+meia\b/.test(folded) || /\b90\s*min(utos?)?\b/.test(folded)) return 90
-  const match = folded.match(/\b(\d{1,3})\s*min(utos?)?\b/)
-  if (match) {
-    const minutes = Number(match[1])
-    return Number.isInteger(minutes) && minutes > 0 ? minutes : null
-  }
-  const hours = folded.match(/\b(\d{1,2})\s*h(?:oras?)?\b/)
-  if (hours) {
-    const n = Number(hours[1])
-    return Number.isInteger(n) && n > 0 && n <= 24 ? n * 60 : null
-  }
-  return null
-}
 
 /**
  * Palavras de linha, período ou pedido. Não escolhem zona.
@@ -547,7 +531,7 @@ function zoneAliasWords(name: string): string[] {
 export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[]): ServiceZoneRow[] {
   const folded = foldZoneName(text)
   const hint = audienceHint(folded)
-  const minutes = durationHint(folded)
+  const minutes = durationMinutesFromText(text)
   const candidates = zones.filter((z) => z.active && z.name.trim().length >= 2)
   const byLength = [...candidates].sort(
     (a, b) => foldZoneName(b.name).length - foldZoneName(a.name).length,
