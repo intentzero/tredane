@@ -192,11 +192,18 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'C-01',
     title: 'Aceite com acho',
     turnosIdeais: 1,
-    knownFailure: 'CF-05',
     turns: [
       { role: 'client', text: 'Quero limpeza de pele amanhã' },
       { role: 'client', text: 'acho que 15h tá ótimo' },
     ],
+    expect: { proposal: true },
+  },
+  {
+    id: 'C-02',
+    title: 'ver no pedido completo',
+    turnosIdeais: 1,
+    // Matriz: «a limpeza»; no catálogo L1 há duas limpezas → nome completo (CF-05 = «ver»).
+    turns: [{ role: 'client', text: 'quero ver amanhã às 15h a limpeza de pele' }],
     expect: { proposal: true },
   },
   {
@@ -241,11 +248,18 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'C-08',
     title: 'Corrige a hora com não',
     turnosIdeais: 1,
-    knownFailure: 'CF-05',
     turns: [
       { role: 'client', text: 'Quero limpeza de pele amanhã às 15h' },
       { role: 'client', text: 'não, 16h' },
     ],
+    expect: { proposal: true },
+  },
+  {
+    id: 'C-11',
+    title: 'Outra sessão',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'quero marcar outra sessão de limpeza de pele amanhã 15h' }],
+    expect: { proposal: true },
   },
   {
     id: 'D-01',
@@ -275,6 +289,13 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       proposal: false,
       outboundExcludes: [/\bambos\b/i, /\blinha\b/i],
     },
+  },
+  {
+    id: 'D-06',
+    title: 'Profissional que faz',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Limpeza de pele com a Bia sexta 10h' }],
+    expect: { proposal: true, professionalKey: 'bia' },
   },
   {
     id: 'D-08',
@@ -307,9 +328,10 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'F-01',
     title: 'Vou pensar',
     turnosIdeais: 1,
-    knownFailure: 'CA-08',
+    // Matriz: A:[oferta] → C:«Vou pensar…». Sem pedido completo no turno, para não
+    // contar a proposta do pedido anterior como falha de proposal:false (#410).
     turns: [
-      { role: 'client', text: 'Quero limpeza amanhã às 15h' },
+      { role: 'client', text: 'Quero limpeza amanhã' },
       { role: 'client', text: 'Vou pensar e te falo' },
     ],
     expect: { proposal: false },

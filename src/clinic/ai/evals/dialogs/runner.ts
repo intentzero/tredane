@@ -27,6 +27,8 @@ export type DialogCase = {
     outboundIncludes?: string[]
     outboundExcludes?: RegExp[]
     proposal?: boolean
+    /** Chave em `scenario.ids` da profissional da proposta (CF-20 / D-06). */
+    professionalKey?: 'ana' | 'bia' | 'gi' | 'sandra'
     noAppointment?: boolean
     paused?: boolean
     notPaused?: boolean
@@ -92,6 +94,20 @@ export async function runDialogCase(c: DialogCase): Promise<DialogRunResult> {
     }
     if (c.expect?.proposal === false && s.proposalCount() > 0) {
       throw new Error('unexpected proposal')
+    }
+    if (c.expect?.professionalKey) {
+      const want = s.ids[c.expect.professionalKey]
+      const pro = s.db.get<{ professional_id: string | null }>(
+        `SELECT professional_id FROM appointment_proposals
+         WHERE tenant_id = ? AND conversation_id = ?
+         ORDER BY version DESC LIMIT 1`,
+        s.tenantId,
+        s.conversationId,
+      )
+      if (!pro?.professional_id) throw new Error('expected proposal with professional')
+      if (pro.professional_id !== want) {
+        throw new Error(`expected professional ${c.expect.professionalKey} (${want}), got ${pro.professional_id}`)
+      }
     }
     if (c.expect?.noAppointment !== false) {
       // default: no appointment unless case is a confirm-click case
