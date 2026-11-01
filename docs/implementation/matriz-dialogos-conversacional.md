@@ -293,7 +293,7 @@ L1 depois das correções: 70 casos · **56 verificados passam** · **3 falhas c
 
 O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do plano](plano-testes-conversacional.md#7-registo-de-iterações).
 
-## Iteração 2 (em curso, [#433](https://github.com/intentzero/tredane/issues/433))
+## Iteração 2 ([#433](https://github.com/intentzero/tredane/issues/433))
 
 | Caso | Antes (It. 1.1) | Agora | Por |
 | --- | --- | --- | --- |
@@ -308,12 +308,19 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | E-01 | `it.fails` CA-03 | ✅ preço+duração determinísticos | #413 |
 | F-08 | ❔ L2 | ✅ horários de hoje | #413 |
 | C-07 | `it.fails` CF-23 | ✅ cita massagem (invalidação formal da proposta → [#440](https://github.com/intentzero/tredane/pull/440)) | #413 parcial + #440 |
+| A-04 | ❌ CF-24 | ✅ | [#440](https://github.com/intentzero/tredane/pull/440) |
+| D-04 | ❌ CF-25 | ✅ | #440 |
 
-### Resumo L1 após M3 (#413), sobre `main` pós-#438
+### Resumo após It. 2 (01/11/2026)
 
-| Estado | Contagem |
+| Estado | Contagem / notas |
 | --- | --- |
-| L1 harness | 75 casos · **62 passam** · **2 falhas conhecidas** (A-04 CF-24, D-04 CF-25 → [#440](https://github.com/intentzero/tredane/pull/440)) · 2 pendentes L2 · 9 coverageOnly · 0 inesperadas |
-| CA-03 | `tryAiAutoBook` antes do modelo; `modelCalled=false` nos caminhos determinísticos medidos |
+| L1 em `main` pós-#442 (`5f84e2a`) | 75 casos · **64** passam · **0** `it.fails` · 2 pendentes L2 · 9 coverageOnly · 0 inesperadas |
+| Freeze | prompt `sha256:c6a4f56660bb86d3f61a957f9fd9577de39b9d6e4dea8a3c7eeffaaed680059f`; catálogo `scenario.ts` `sha256:547cd19c30e3015fdd73389980e201664f04b2610f6eb8b28433167a15d8711d` |
+| Verdes M3 + B1–B3 | A-02, A-04, A-06, A-12, B-09, B-10, B-11, C-07, D-01, D-02, D-04, E-01, F-08 |
+| CA-03 / DEC-118 | `tryAiAutoBook` antes do modelo; gateway sem `freeSlots`/`upcoming`; `agendaFacts` só locais |
 | Debounce | DEC-111: 0 / 2,5 / 7 s |
-| Copy nova | ver PR #413 — **aguarda ok Paulo** |
+| PRs | [#440](https://github.com/intentzero/tredane/pull/440) B1–B3 **merged** · [#442](https://github.com/intentzero/tredane/pull/442) M3+DEC-118 **merged** · [#443](https://github.com/intentzero/tredane/pull/443) M4 · [#445](https://github.com/intentzero/tredane/pull/445) fecho |
+| Copy | **ok Paulo** (01/11) |
+| Fora | M2 [#412](https://github.com/intentzero/tredane/issues/412) (ADR); L2/L3 [#417](https://github.com/intentzero/tredane/issues/417) |
+| Próxima | [#444](https://github.com/intentzero/tredane/issues/444) Iteração 3 |
