@@ -233,7 +233,7 @@ Um diálogo L3 que falha é triado (plano §6). Se revela um caso novo, ganha um
 
 Total: 105 casos.
 
-## Iteração 1 (em curso, [#419](https://github.com/intentzero/tredane/issues/419))
+## Iteração 1 (fechada, [#419](https://github.com/intentzero/tredane/issues/419))
 
 | Caso | Antes (It. 0) | Agora | Por |
 | --- | --- | --- | --- |
@@ -251,11 +251,29 @@ Total: 105 casos.
 | C-03 | ❌ CF-10 | ✅ idem | #408 |
 | C-12 | ❌ CF-10 | ✅ idem | #408 |
 | G-02 | ❌ CF-02 | ✅ `sensitive.test` / harness L1 (sem pausa) | [#409](https://github.com/intentzero/tredane/issues/409) |
-| G-03 | ❌ CF-02 | ◐ classificação sem pausa; frase DEC-115 → #420 | #409 |
+| G-03 | ❌ CF-02 | ✅ frase DEC-115 + botão; sem pausa (`dialogs` G-03) | [#409](https://github.com/intentzero/tredane/issues/409) → [#420](https://github.com/intentzero/tredane/issues/420) |
 | G-05 | ❌ CF-03 | ✅ idem | #409 |
 | G-11 | ⚠ CF-13 | ✅ turno inteiro no autodraft | #409 |
 | E-06 | ❌ CF-04 | ✅ política cadastrada sem pausa | #409 |
 | H-02 | ⚠ CF-18 | ✅ lista saúde única | #409 |
 | H-03 | ⚠ CF-18 | ✅ idem | #409 |
+| C-01 | ❌ CF-05 | ✅ hesitação por expressão (`dialogs` C-01) | [#410](https://github.com/intentzero/tredane/issues/410) |
+| C-02 | ❌ CF-05 | ✅ idem | #410 |
+| C-08 | ⚠ CF-05 | ✅ «não, \<hora\>» = correção | #410 |
+| C-11 | ❌ CF-05 | ✅ idem | #410 |
+| D-06 | ⚠ CF-20 | ✅ `preferredProfessionalId` | #410 |
+| F-07 | ⚠ DEC-114 | ✅ pausa silenciosa + alerta (`dialogs` F-07) | [#420](https://github.com/intentzero/tredane/issues/420) |
+| G-10 | ⚠ CF-17 | ✅ DEC-113 + `nextClinicOpening` (`dialogs` G-10) | #420 |
 
-O resumo da linha de base acima fica como histórico. No fecho da iteração, o resumo novo vai para o §7 do plano.
+Infraestrutura sem caso de matriz dedicado: [#411](https://github.com/intentzero/tredane/issues/411) (`TurnContext` + catálogo compilado; L1 regressão verde).
+
+### Resumo após It. 1 (L1, `main` `0501e30`)
+
+| Estado | Contagem / notas |
+| --- | --- |
+| L1 harness | 69 casos · 54 passam · 15 `it.fails` conhecidos · 0 falhas inesperadas (`npm run test:dialogs`) |
+| Casos It. 0 ❌/⚠ fechados nesta iteração | I-07/08, J-08, A-10, B-01–B-04, B-06–B-08, C-01–C-03, C-08, C-11–C-12, D-06, E-06, F-07, G-02/03/05/10/11, H-02/03 |
+| Continuam vermelhos / `it.fails` (amostra) | A-02/03/09, B-09/10/13, C-06/07, D-01/08, E-01, H-04, I-03, J-01/08 (vários «inesperadamente verdes» no L1 — triagem na It. 2) |
+| L2/L3 | Ainda não existem ([#417](https://github.com/intentzero/tredane/issues/417)) |
+
+O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do plano](plano-testes-conversacional.md#7-registo-de-iterações).
