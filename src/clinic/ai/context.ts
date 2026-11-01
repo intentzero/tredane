@@ -80,6 +80,8 @@ export async function buildAiContextPayload(
     clock?: Clock
     clinicName?: string | null
     forecast?: ForecastAdapter
+    /** #411 TurnContext — evita releituras no mesmo job. */
+    turn?: import('./turn-context').TurnContext
   } = {},
 ): Promise<{
   payload: AiContextPayload
@@ -107,18 +109,23 @@ export async function buildAiContextPayload(
     Math.max(opts.messageLimit ?? AI_CONTEXT_MESSAGE_LIMIT_PROPOSED, 1),
     AI_CONTEXT_MESSAGE_LIMIT_PROPOSED,
   )
-  const { messages } = listMessages(db, tenantId, {
-    conversationId,
-    limit,
-  })
+  const messages =
+    opts.turn && opts.turn.conversationId === conversationId
+      ? opts.turn.messages.slice(-limit)
+      : listMessages(db, tenantId, { conversationId, limit }).messages
 
-  const turnText = currentClientTurnText(
-    messages.map((m) => ({ direction: m.direction, body: m.body })),
-  )
+  const turnText =
+    opts.turn?.turnText ??
+    currentClientTurnText(messages.map((m) => ({ direction: m.direction, body: m.body })))
   const turnLine = explicitAudienceLine(turnText)
+  // Sessão: relê sempre — o funil pode ter gravado depois do TurnContext.
   const scheduleSession = getScheduleSession(db, tenantId, conversationId)
-  const catalogResources = opts.clock ? listResources(db, tenantId, opts.clock) : []
-  const activeServices = listServices(db, tenantId).filter((s) => s.active)
+  const catalogResources = opts.turn
+    ? opts.turn.catalog.resources
+    : opts.clock
+      ? listResources(db, tenantId, opts.clock)
+      : []
+  const activeServices = opts.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
   const services = filterServicesForLine(activeServices, turnLine).map(
     (s): AiCatalogService => {
       const professionalNames = s.professionalIds
@@ -186,6 +193,15 @@ export async function buildAiContextPayload(
       contactId: contact.id,
       recentTexts: messages.map((m) => m.body),
       forecast: opts.forecast,
+      ...(opts.turn
+        ? {
+            turn: {
+              settings: opts.turn.settings,
+              catalog: opts.turn.catalog,
+              serviceIdInPlay: opts.turn.serviceIdInPlay,
+            },
+          }
+        : {}),
     })
   }
 

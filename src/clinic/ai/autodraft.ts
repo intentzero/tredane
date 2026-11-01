@@ -13,10 +13,8 @@ import { AI_AUTODRAFT_DEBOUNCE_MS, AI_TIMEOUT_MS, detectStrongInjectionSignals }
 import type { Clock } from '../../db/clock'
 import type { ClinicCaller } from '../envelopes'
 import { ClinicError } from '../errors'
-import { currentClientTurnText } from '../catalog/audience'
-import { ensureClinicSettings, isClinicAiAssistEnabled } from '../config/settings'
+import { isClinicAiAssistEnabled } from '../config/settings'
 import { getConversation } from '../inbox/conversations'
-import { listMessages } from '../inbox/messages'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
@@ -31,13 +29,14 @@ import {
 } from './human-handoff'
 import { notifyModelFallback } from './model-fallback'
 import { classifySensitive, hasPolicyQuestion } from './nlu/sensitive'
-import { isCancelIntent, isRescheduleIntent, loadUpcomingAppointment, tryAiReschedule } from './reschedule'
+import { isCancelIntent, isRescheduleIntent, tryAiReschedule } from './reschedule'
 import { runGenerateInternal } from './operations'
 import { isConversationPaused } from './protection'
 import { getScheduleSession } from './schedule-session'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
 import { emitTurnDecided, routeFromAutodraftOutcome } from './turn-decided'
+import { loadTurnContext } from './turn-context'
 import { getAiDailyUsage } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
 
@@ -279,19 +278,21 @@ export async function runDueAutoDrafts(
         tenantId,
         job.messageId,
       )?.body ?? ''
-    // CF-13 (#409): roteamento (remarcação, handoff, catálogo) sobre o turno inteiro.
-    const { messages: recentMsgs } = listMessages(db, tenantId, {
-      conversationId: job.conversationId,
-      limit: 40,
-    })
-    const turnText =
-      currentClientTurnText(
-        recentMsgs.map((m) => ({ direction: m.direction, body: m.body })),
-      ).trim() || inboundBody
+    // #411: uma leitura por job — catálogo, mensagens, sessão, turno, compromisso futuro.
+    const turn = loadTurnContext(
+      db,
+      tenantId,
+      {
+        conversationId: job.conversationId,
+        contactId: conv.contactId,
+        messageId: job.messageId,
+        inboundBody,
+      },
+      clock,
+    )
+    const turnText = turn.turnText
     // DEC-091: remarcação com compromisso futuro — antes do handoff e do funil de zonas.
-    const upcoming = conv.contactId
-      ? loadUpcomingAppointment(db, tenantId, conv.contactId, clock.nowMs())
-      : null
+    const upcoming = turn.upcoming
     if (
       !isCancelIntent(turnText) &&
       isRescheduleIntent(turnText, { hasUpcoming: Boolean(upcoming), priorOffer: false })
@@ -398,7 +399,7 @@ export async function runDueAutoDrafts(
     }
     // CF-04 / E-06: pergunta condicional → política cadastrada, sem pausa.
     if (hasPolicyQuestion(classifySensitive(turnText))) {
-      const settings = ensureClinicSettings(db, tenantId, clock)
+      const settings = turn.settings
       const policy =
         settings.signalCancellationPolicy.trim() ||
         settings.reschedulePolicy.trim() ||
@@ -436,7 +437,7 @@ export async function runDueAutoDrafts(
         continue
       }
     }
-    const reason = handoffReason(db, tenantId, turnText, clock)
+    const reason = handoffReason(db, tenantId, turnText, clock, turn)
     if (reason) {
       const handoff = notifyHumanHandoff(
         db,
@@ -460,6 +461,7 @@ export async function runDueAutoDrafts(
     }
     const catalogText = catalogReply(db, tenantId, turnText, clock, {
       conversationId: job.conversationId,
+      turn,
     })
     if (catalogText) {
       let replyOutbox: OutboxRow[] = []
@@ -522,6 +524,7 @@ export async function runDueAutoDrafts(
         actorClerkUserId: AUTODRAFT_ACTOR_ID,
         actorDisplayName: 'Rascunho automático',
         origin: 'auto',
+        turn,
       })
       suggestion = res.suggestion
     } catch (err) {
@@ -593,6 +596,7 @@ export async function runDueAutoDrafts(
         // Revalidado aqui, na execução do job (inclusive jobs já enfileirados).
         capability,
         abuseLimits: deps.abuseLimits,
+        turn,
       })
       if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }
       if (generateError) {

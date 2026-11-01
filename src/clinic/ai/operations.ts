@@ -129,6 +129,8 @@ async function runGenerate(
     parentSuggestionId?: string | null
     /** auto = rascunho em segundo plano (sem comando idempotente). */
     origin?: 'auto' | 'manual'
+    /** #411 TurnContext do job autodraft. */
+    turn?: import('./turn-context').TurnContext
   },
 ): Promise<SuggestResult> {
   const origin = input.origin ?? 'manual'
@@ -186,7 +188,12 @@ async function runGenerate(
     meta.tenantId,
     input.conversationId,
     input.kind === 'reply'
-      ? { clock, clinicName: deps.clinicName ?? null, forecast: deps.forecast }
+      ? {
+          clock,
+          clinicName: deps.clinicName ?? null,
+          forecast: deps.forecast,
+          ...(input.turn ? { turn: input.turn } : {}),
+        }
       : {},
   )
   assertContextMinimized(contextInspection.payload)
