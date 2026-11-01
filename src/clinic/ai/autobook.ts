@@ -28,7 +28,7 @@ import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
 import { getConversation } from '../inbox/conversations'
 import type { OutboxRow } from '../outbox'
-import { createProposal } from '../proposals/proposals'
+import { createProposal, getActiveProposalForConversation, retireActiveProposal } from '../proposals/proposals'
 import { sendProposalToWhatsAppOp } from '../proposals/send'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { openPendingCommunication } from '../proposals/pending-communication'
@@ -501,6 +501,34 @@ export async function tryAiAutoBook(
 
   const services = input.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
   const turnText = clientTurn.map((m) => m.body).join('\n')
+
+  // CF-23 (#436): a cliente muda de serviço com uma proposta aberta («na verdade prefiro
+  // massagem»). A proposta antiga deixa de valer já (DEC-061); sem dia nem hora novos, o
+  // dia e a hora que ela tinha escolhido passam para o serviço novo e o backend monta a
+  // proposta nova (ou as alternativas, ou a pergunta das zonas) pelo caminho de sempre.
+  let swap: { service: ServiceRow; date: string; time: string } | null = null
+  const openProposal = getActiveProposalForConversation(db, tenantId, input.conversationId, clock)
+  if (openProposal && !RESCHEDULE.test(norm(turnText))) {
+    const named = extractServices(turnText, services)
+    if (named.length === 1 && named[0]!.id !== openProposal.serviceId) {
+      retireActiveProposal(db, tenantId, input.conversationId, clock)
+      const turnDay = clinicCivilDateFromUtc(tz, confirmation.created_at)
+      if (extractDates(turnText, turnDay).size === 0 && extractTimes(turnText).size === 0) {
+        swap = {
+          service: named[0]!,
+          date: clinicCivilDateFromUtc(tz, openProposal.startsAt),
+          time: localHHMM(tz, openProposal.startsAt),
+        }
+        saveScheduleSession(
+          db,
+          tenantId,
+          input.conversationId,
+          { serviceId: swap.service.id, clockTime: swap.time },
+          clock,
+        )
+      }
+    }
+  }
   let det = detectExplicitConfirmation({
     clientTexts: clientTurn.map((m) => m.body),
     previousClinicText: prevClinic?.body ?? null,
@@ -513,6 +541,11 @@ export async function tryAiAutoBook(
   const session = getScheduleSession(db, tenantId, input.conversationId)
   let date = det.date
   let missing = [...det.missing]
+  if (swap) {
+    det = { ok: true, status: 'requires_button', missing: [], date: swap.date, time: swap.time, service: swap.service }
+    date = swap.date
+    missing = []
+  }
   // O período (tarde) não vira horário. O dia já dito na sessão preenche só o dia.
   if (!date && session?.dayLabel && (!det.service || session.serviceId === det.service.id)) {
     const resolved = [...extractDates(session.dayLabel, clinicCivilDateFromUtc(tz, confirmation.created_at))]

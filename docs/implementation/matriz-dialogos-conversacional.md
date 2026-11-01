@@ -49,7 +49,7 @@
 | A-01 | P0 | Pedido completo, serviço simples | C: «Quero limpeza de pele amanhã às 15h» | Proposta Limpeza sex 06/11 15:00 com botão. Nenhum texto do modelo junto e nenhum «Confirma?». | INV-01, EF-02 | 1 | ✅ `autobook.test` «capacidade ligada + confirmação clara» |
 | A-02 | P0 | Pedido incremental | C: «Oi, quero fazer limpeza de pele» ⟶ C: «amanhã» ⟶ C: «14h» | 1) Cumprimento + pergunta de dia, ou oferta já de 2–3 horários reais. 2) Oferta de 2–3 horários de amanhã, sem perguntar «qual horário?» vazio. 3) Proposta 14:00. | EE-01, EE-07, INV-03 | 3 | ❌ CF-19 (L1 confirma: 1.ª resposta «Qual horário fica melhor…?» sem dia nem opções) |
 | A-03 | P0 | Variantes com linha, passo a passo | C: «Quero depilação» ⟶ «feminina» ⟶ «axila e pernas» ⟶ «sexta de manhã» ⟶ «10h» | Pergunta a linha → lista Axila, Pernas e Buço da linha → oferta de horários da manhã para 45 min → proposta 45 min, R$ 160,00 só no cartão. Nenhum preço antes e nenhuma pergunta repetida. | INV-02, INV-08, EE-02 | 5 | ◐ partes em `catalog-reply.test`; ponta a ponta ❔ |
-| A-04 | P0 | Tudo num turno com variante | C: «Quero depilação feminina de axila sexta às 10h» | Proposta direta, 15 min. | EF-02 | 1 | ❌ CF-24 (L1: «Quero a axila feminina na sexta às 10h» volta a perguntar as zonas) |
+| A-04 | P0 | Tudo num turno com variante | C: «Quero depilação feminina de axila sexta às 10h» | Proposta direta, 15 min. | EF-02 | 1 | ✅ L1 `dialogs` A-04 + `zone-with-clock.test` (CF-24 corrigido, #435) |
 | A-05 | P0 | Serviço com sinal | C: «Quero peeling químico sexta às 10h» ⟶ clique Confirmar | Proposta; o clique gera Pix de R$ 90,00. Nenhum compromisso antes do pagamento. | INV-01 | 1 | ✅ `autobook.test` «serviço com sinal» |
 | A-06 | P1 | «O mais cedo possível» | C: «Qual o primeiro horário para massagem?» | Oferece os 2–3 horários reais mais próximos (hoje ou amanhã). | INV-03, EE-07 | 1 | ❔ L2 |
 | A-07 | P1 | Escolha por «o das N» | A: [oferta 13:00, 14:00, 15:30 amanhã, massagem] ⟶ C: «o das 14» | Proposta 14:00. | EF-02 | 1 | ⚠ «das 14» não casa `extractTimes` (só «às»/«h»/«:») |
@@ -88,7 +88,7 @@
 | C-04 | P1 | Erro de digitação | C: «limpesa de pele amanha 15h» | Proposta Limpeza 15:00. | EF-02 | 1 | ❔ L1 |
 | C-05 | P1 | Emoji como aceite | A: [oferta única 14:00 amanhã, massagem] ⟶ C: «👍» | Proposta 14:00. O emoji só prepara a proposta, não marca (DEC-061). | INV-01, EF-01 | 1 | ⚠ «👍» não está em `AFFIRMATIVE` |
 | C-06 | P0 | «Sim» a uma pergunta lateral | A: «Você já fez limpeza antes?» ⟶ C: «sim» | Nenhuma proposta; o funil continua. | INV-01 | 1 | ❔ L1 (modelo híbrido §4) |
-| C-07 | P0 | Muda de serviço depois da proposta | [proposta Limpeza amanhã 15h] ⟶ C: «na verdade prefiro massagem» | A proposta anterior não vale; nova proposta Massagem amanhã 15:00 ou oferta. | INV-01, EF-02 | 1 | ❌ CF-23 (L1: resposta genérica; a proposta da limpeza fica vigente) |
+| C-07 | P0 | Muda de serviço depois da proposta | [proposta Limpeza amanhã 15h] ⟶ C: «na verdade prefiro massagem» | A proposta anterior não vale; nova proposta Massagem amanhã 15:00 ou oferta. | INV-01, EF-02 | 1 | ✅ L1 `dialogs` C-07 + `service-change.test` (CF-23 corrigido, #436) |
 | C-08 | P0 | Corrige a hora com «não» | [proposta 15h] ⟶ C: «não, 16h» | Nova versão 16:00, se livre. | EF-02 | 1 | ⚠ CF-05 («não» → ambíguo) |
 | C-09 | P1 | Dois serviços | C: «quero limpeza e massagem sexta» | «Marcamos um serviço de cada vez. Qual você quer primeiro?» | EF-01 | 1 | ✅ `booking-object.eval` (múltiplos serviços) |
 | C-10 | P1 | Áudio ou imagem | C: [áudio] | Comportamento **Em aberto**: a imagem não vai à IA (DEC-067). Pedir texto ou passar à equipe; nunca silêncio. | INV-09 | 1 | ❔ Em aberto |
@@ -103,7 +103,7 @@
 | D-01 | P0 | Horário ocupado | C: «Limpeza sexta 16h» | «Nesse horário já não tenho vaga» + alternativas **próximas** e na tarde (15:00, 14:00). | INV-03, EE-01 | 1 | ❌ CF-15 (L1 confirma: oferece 09:00/09:15/09:30 em vez de 14:00/15:00) |
 | D-02 | P1 | Dia sem vagas | [sexta lotada] ⟶ C: «Limpeza sexta» | Diz que está lotado e oferece o próximo dia com vaga. | EE-07 | 1 | ⚠ CF-15 |
 | D-03 | P0 | Serviço inexistente | C: «Vocês fazem botox?» | Diz que não está no catálogo e mostra opções ou oferece listar. Nunca inventa. | INV-02, EF-01 | 1 | ✅ `catalog-reply.test` «handoff determinístico… inexistente» |
-| D-04 | P0 | Mistura masculino e feminino | C: «Depilação axila masculina e pernas femininas sexta 10h» | Recusa clara, sem jargão («ambos», «linha»). Nenhum preço nem proposta. | INV-05, EF-01 | 1 | ❌ CF-25 (L1: responde «Depilação feminina ou masculina?» em vez de explicar que não se mistura) |
+| D-04 | P0 | Mistura masculino e feminino | C: «Depilação axila masculina e pernas femininas sexta 10h» | Recusa clara, sem jargão («ambos», «linha»). Nenhum preço nem proposta. | INV-05, EF-01 | 1 | ✅ L1 `dialogs` D-04 (CF-25 corrigido com o CF-24, #437) |
 | D-05 | P1 | Profissional que não faz o serviço | C: «Quero massagem com a Ana» | Frase de handoff (pedido de profissional específica). | INV-06 | 1 | ◐ `professionalOutsideService` |
 | D-06 | P1 | Profissional que faz | C: «Limpeza com a Bia sexta 10h» | Proposta com Bia, ou aviso se Bia não está livre. | EF-02 | 1 | ⚠ CF-20 (preferência ignorada) |
 | D-07 | P1 | Tempo não serve | C: «Bronzeamento sábado 10h» [chuva] | Frase fixa do Tempo (DEC-077), alerta à equipe e nenhuma proposta. | INV-01, INV-05 | 1 | ✅ `tempo-context.test` |
@@ -274,11 +274,21 @@ A primeira versão deste resumo dizia «54 passam · 15 `it.fails`». Estava err
 
 | Estado | Contagem / notas |
 | --- | --- |
-| L1 harness | 70 casos · **53 executados e verificados passam** · **6 falhas conhecidas confirmadas** (`it.fails` a sério: A-02, A-04, C-07, D-01, D-04, E-01) · 2 pendentes de harness (H-04, I-03) · 9 cobertos por outro teste, **não executados aqui** · 0 inesperadas |
+| L1 harness | 70 casos · **53 executados e verificados passam** · **6 falhas conhecidas confirmadas** (`it.fails` a sério: A-02, A-04, C-07, D-01, D-04, E-01) — *situação da It. 1.1; ver «Correções B1–B3» abaixo* · 2 pendentes de harness (H-04, I-03) · 9 cobertos por outro teste, **não executados aqui** · 0 inesperadas |
 | Achados novos | CF-23 (C-07), CF-24 (A-04), CF-25 (D-04); CF-21 reclassificado como latente (B-13 e B-14 passam) |
 | Invariantes no L1 | INV-01 a INV-11 (INV-03, 07, 08 e 10 acrescentadas; INV-02 passou a aceitar somas de variantes por linha) |
 | Casos It. 0 ❌/⚠ fechados na It. 1 | I-07/08, J-08 (resultado; o validador tem teste próprio), A-10, B-01–B-04, B-06–B-08, B-13, C-01–C-03, C-08, C-11–C-12, D-06, E-06, F-07, G-02/03/05/10/11, H-02/03 |
 | Continuam vermelhos | A-02 (CF-19), A-04 (CF-24), C-07 (CF-23), D-01 (CF-15), D-04 (CF-25), E-01 (CA-03) |
 | L2/L3 | Ainda não existem ([#417](https://github.com/intentzero/tredane/issues/417)) |
+
+### Correções B1–B3 (It. 1.2, 01/11/2026)
+
+| Caso | Antes | Agora | Por |
+| --- | --- | --- | --- |
+| A-04 | ❌ CF-24 | ✅ `dialogs` A-04, `zone-with-clock.test` (6 formulações), `duration.test` | [#435](https://github.com/intentzero/tredane/issues/435) |
+| D-04 | ❌ CF-25 | ✅ `dialogs` D-04 (mesma causa que o CF-24) | [#437](https://github.com/intentzero/tredane/issues/437) |
+| C-07 | ❌ CF-23 | ✅ `dialogs` C-07, `service-change.test` (5 cenários) | [#436](https://github.com/intentzero/tredane/issues/436) |
+
+L1 depois das correções: 70 casos · **56 verificados passam** · **3 falhas conhecidas** (A-02 CF-19, D-01 CF-15, E-01 CA-03, todas do M3 [#413](https://github.com/intentzero/tredane/issues/413)) · 2 pendentes (H-04, I-03) · 9 cobertos por outro teste · 0 inesperadas.
 
 O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do plano](plano-testes-conversacional.md#7-registo-de-iterações).
