@@ -240,5 +240,15 @@ Total: 105 casos.
 | I-07 | ❌ CF-01 | ✅ `reply-facts.test`, `reply-facts.integration.test` | [#403](https://github.com/intentzero/tredane/issues/403) |
 | I-08 | ❌ CF-01 | ✅ idem | #403 |
 | J-08 | ❌ CF-01 | ✅ `reply-facts.test` (fora do período com manhã livre) | #403 |
+| A-10 | ❌ CF-09 | ✅ `temporal.test` / harness L1 | [#408](https://github.com/intentzero/tredane/issues/408) |
+| B-01 | ❌ CF-06 | ✅ `temporal.test` / harness L1 | #408 |
+| B-02 | ❌ CF-07 | ✅ idem | #408 |
+| B-03 | ❌ CF-08 | ✅ idem | #408 |
+| B-04 | ⚠ CF-09 | ✅ `temporal.test` / harness L1 (oferta manhã a partir de seg 09/11) | #408 |
+| B-06 | ❌ CF-09 | ✅ idem | #408 |
+| B-07 | ❌ CF-09 | ✅ idem | #408 |
+| B-08 | ❌ CF-11 | ✅ idem | #408 |
+| C-03 | ❌ CF-10 | ✅ idem | #408 |
+| C-12 | ❌ CF-10 | ✅ idem | #408 |
 
 O resumo da linha de base acima fica como histórico. No fecho da iteração, o resumo novo vai para o §7 do plano.

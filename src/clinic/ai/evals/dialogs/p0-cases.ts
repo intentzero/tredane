@@ -30,7 +30,7 @@ class FixedJsonAdapter extends SimulatedAiAdapter {
   }
 }
 
-/** Todos os P0 — 53 IDs. */
+/** P0 da matriz (53) + casos P1 do aceite #408 registados no harness (61 no total). */
 export const P0_DIALOG_CASES: DialogCase[] = [
   {
     id: 'A-01',
@@ -96,9 +96,62 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'B-01',
     title: 'Dia da semana + data',
     turnosIdeais: 1,
-    knownFailure: 'CF-06',
     turns: [{ role: 'client', text: 'Limpeza de pele sábado dia 7 às 10h' }],
     expect: { proposal: true },
+  },
+  {
+    id: 'B-02',
+    title: 'Mês por extenso',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Limpeza de pele dia 5 de dezembro às 10h' }],
+    expect: { proposal: true, noAppointment: true },
+  },
+  {
+    id: 'B-03',
+    title: 'Próxima com o mesmo dia da semana',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Limpeza de pele próxima quinta às 15h' }],
+    expect: { proposal: true, noAppointment: true },
+  },
+  {
+    id: 'B-04',
+    title: 'Semana que vem sem dia',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem semana que vem de manhã' }],
+    expect: {
+      proposal: false,
+      outboundIncludes: ['segunda 09/11', 'manhã'],
+      outboundExcludes: [/\bhoje\b/i],
+    },
+  },
+  {
+    id: 'B-06',
+    title: '3 da tarde sem às',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Massagem amanhã 3 da tarde' }],
+    expect: { proposal: true, noAppointment: true },
+  },
+  {
+    id: 'B-07',
+    title: '15 e 30',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Limpeza de pele amanhã 15 e 30' }],
+    expect: { proposal: true, noAppointment: true },
+  },
+  {
+    id: 'B-08',
+    title: 'Data impossível',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Limpeza de pele 31/11 às 10h' }],
+    expect: { proposal: false, noAppointment: true },
+  },
+  {
+    id: 'A-10',
+    title: 'meio-dia',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Limpeza de pele sexta ao meio-dia' }],
+    // 12:00 no vão do almoço → sem proposta; reconhece 12:00 (não inventa outro).
+    expect: { proposal: false, noAppointment: true },
   },
   {
     id: 'B-05',
@@ -150,10 +203,19 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'C-03',
     title: 'Valor lido como hora',
     turnosIdeais: 1,
-    knownFailure: 'CF-10',
     turns: [
       { role: 'client', text: 'Quero limpeza de pele amanhã' },
       { role: 'client', text: 'custa 1500?' },
+    ],
+    expect: { proposal: false },
+  },
+  {
+    id: 'C-12',
+    title: 'Duração lida como hora',
+    turnosIdeais: 1,
+    turns: [
+      { role: 'client', text: 'Quero limpeza de pele sexta' },
+      { role: 'client', text: 'a sessão dura 1h?' },
     ],
     expect: { proposal: false },
   },

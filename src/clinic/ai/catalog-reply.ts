@@ -32,6 +32,7 @@ import {
   variantListQuestion,
   zonesForAudienceLine,
 } from './variant-line'
+import { parseTemporal } from './nlu/temporal'
 
 const HOURS = /\b(hor[aá]rio de funcionamento|que horas (voc[eê]s )?(abrem|funcionam|atendem)|at[eé] que horas)\b/i
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
@@ -92,11 +93,8 @@ function mixedAudienceRefusal(services: ServiceRow[], source: string): string | 
 
 /** «às 3» sem manhã/tarde/noite não é 03:00. 8–23 e HH:MM ficam como estão. */
 function ambiguousAfternoonHour(text: string): string | null {
-  const folded = text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
-  if (/\b(manha|tarde|noite)\b/.test(folded)) return null
-  const match = folded.match(/\bas\s+([1-7])(?!\d)(?![:h]\d)/)
-  if (!match?.[1]) return null
-  const hour = Number(match[1])
+  const hour = parseTemporal(text, { civilDate: '1970-01-01' }).ambiguousAfternoonHour
+  if (hour == null) return null
   return `Às ${hour} da tarde seria ${hour + 12}:00. É esse horário?`
 }
 
