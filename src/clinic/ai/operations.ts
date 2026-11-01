@@ -11,6 +11,7 @@ import {
   type AiProviderAdapter,
 } from '../../ai'
 import { applyDraftContinuity } from '../../ai/continuity'
+import { validateReplyFacts } from '../../ai/reply-facts'
 import type { Clock } from '../../db/clock'
 import { assertValidCaller, type ClinicCaller } from '../envelopes'
 import { ClinicError, NotFoundError, ValidationError } from '../errors'
@@ -224,6 +225,16 @@ async function runGenerate(
   ) {
     guarded = { ok: false, reason: 'tempo_leak', notes: '' }
   }
+  // #403 / DEC-104: o texto sai sozinho, por isso preço, horário e reserva têm de bater
+  // com o contexto que o modelo recebeu. Falha → descartado (fallback ou equipe).
+  let factsViolation: string | null = null
+  if (guarded?.ok) {
+    const facts = validateReplyFacts(guarded.message, contextInspection.payload)
+    if (!facts.ok) {
+      factsViolation = facts.violation
+      guarded = { ok: false, reason: 'factual_mismatch', notes: '' }
+    }
+  }
   // Continuidade (Paulo 29/10/2026): se a clínica já falou, corta re-cumprimento residual.
   const parsedReply = guarded?.ok
     ? {
@@ -244,6 +255,7 @@ async function runGenerate(
     warningCodes.push('output_rejected')
     aiLog('warn', 'ai.output_rejected', {
       tenantId: meta.tenantId,
+      ...(factsViolation ? { violation: factsViolation } : {}),
       reason:
         guarded && !guarded.ok
           ? guarded.reason

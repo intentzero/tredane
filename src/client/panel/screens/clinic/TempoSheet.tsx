@@ -14,7 +14,7 @@ type Props = {
   onOpenChange: (open: boolean) => void
 }
 
-/** Folha Tempo do serviço (M-53 / DEC-084; regras DEC-077). */
+/** Folha Tempo do serviço (M-53 / DEC-106; regras DEC-077). */
 export function TempoSheet({ open, value, onChange, onOpenChange }: Props) {
   return (
     <ClinicSheet isOpen={open} onOpenChange={onOpenChange} title="Tempo">

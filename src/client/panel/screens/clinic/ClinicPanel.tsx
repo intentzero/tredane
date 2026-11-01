@@ -27,7 +27,7 @@ type GuardApi = {
 
 const ClinicPanelGuardContext = createContext<GuardApi | null>(null)
 
-/** A ficha regista rascunho + gravar para × / Esc do painel (DEC-083). */
+/** A ficha regista rascunho + gravar para × / Esc do painel (DEC-105). */
 export function useClinicPanelCloseGuard(guard: CloseGuard | null) {
   const api = useContext(ClinicPanelGuardContext)
   useEffect(() => {
@@ -46,7 +46,7 @@ type Props = {
 /**
  * Painel de edição da Clínica por cima do conteúdo (desktop ≥ 1280 px, DEC-069): 380 px à direita,
  * sem véu. Fecha com ×, Esc ou «Cancelar» do formulário; foco vai ao painel e volta ao item.
- * Com rascunho: diálogo gravar / descartar / continuar (DEC-083).
+ * Com rascunho: diálogo gravar / descartar / continuar (DEC-105).
  */
 export function ClinicPanel({ title, onClose, children }: Props) {
   const ref = useRef<HTMLElement | null>(null)

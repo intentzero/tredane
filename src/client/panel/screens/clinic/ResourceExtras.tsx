@@ -170,7 +170,7 @@ function BlocksSection({
 
 type ProDraftProps = Common & {
   resource: ClinicResource
-  /** IDs dos serviços no rascunho (DEC-083). */
+  /** IDs dos serviços no rascunho (DEC-105). */
   draftServiceIds: string[]
   onToggleService: (serviceId: string) => void
   hoursMode: 'clinic' | 'own'
@@ -179,7 +179,7 @@ type ProDraftProps = Common & {
   onOwnDraft: (draft: WeekDraft) => void
 }
 
-/** Ficha da profissional em rascunho: chips e horário só gravam com Salvar (DEC-083). */
+/** Ficha da profissional em rascunho: chips e horário só gravam com Salvar (DEC-105). */
 export function ProfessionalExtras({
   resource,
   draftServiceIds,
@@ -300,14 +300,14 @@ type RoomDraftProps = Common & {
   resource: ClinicResource
   draftServiceIds: string[]
   onToggleService: (serviceId: string) => void
-  /** Frase WhatsApp e manutenção ficam em «Mais» (DEC-084 / #336). */
+  /** Frase WhatsApp e manutenção ficam em «Mais» (DEC-106 / #336). */
   moreOpen: boolean
   onMoreOpen: (open: boolean) => void
   sharedNotice: string
   onSharedNotice: (value: string) => void
 }
 
-/** Ficha da sala em rascunho: serviços feitos aqui só gravam com Salvar (DEC-083). */
+/** Ficha da sala em rascunho: serviços feitos aqui só gravam com Salvar (DEC-105). */
 export function RoomExtras({
   resource,
   draftServiceIds,

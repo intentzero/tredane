@@ -275,7 +275,7 @@ export function ResourceForm({
     })
   }, [existing, kind, snap])
 
-  // Contagem simples de campos que divergem (DEC-083).
+  // Contagem simples de campos que divergem (DEC-105).
   const changeCount = (() => {
     if (!existing && !name.trim() && draftServiceIds.length === 0) return 0
     let n = 0

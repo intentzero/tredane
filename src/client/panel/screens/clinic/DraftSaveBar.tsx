@@ -2,7 +2,7 @@ import { Button } from 'react-aria-components'
 
 type Props = {
   count: number
-  /** Frase curta do efeito noutras fichas (DEC-083). */
+  /** Frase curta do efeito noutras fichas (DEC-105). */
   effect?: string | null
   saving?: boolean
   onDiscard: () => void
@@ -10,7 +10,7 @@ type Props = {
   saveLabel?: string
 }
 
-/** Barra fixa «N alterações · Descartar · Salvar» (DEC-083; padrão do horário da clínica). */
+/** Barra fixa «N alterações · Descartar · Salvar» (DEC-105; padrão do horário da clínica). */
 export function DraftSaveBar({
   count,
   effect,

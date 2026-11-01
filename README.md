@@ -29,6 +29,9 @@ O [escopo inicial do MVP](docs/MVP.md) registra o fluxo, os critérios de aceite
 - [Arquitetura e fluxos técnicos](docs/architecture/overview.md)
 - [Modelo lógico D1 central/SQLite por clínica](docs/architecture/data-model.md)
 - [Modelo conversacional híbrido (IA interpreta, backend valida)](docs/architecture/conversational-hybrid-model.md)
+- [Plano de testes do atendimento conversacional](docs/implementation/plano-testes-conversacional.md) e [matriz de diálogos](docs/implementation/matriz-dialogos-conversacional.md): critérios objetivos, achados e registo de iterações (Proposto).
+- [Épico do núcleo conversacional (#401)](docs/implementation/epic-nucleo-conversacional.md): ordem, dependências e regras de continuidade das issues #402–#421.
+- [Núcleo determinístico do atendimento conversacional](docs/architecture/nucleo-deterministico-conversacional.md): estado, política e frases guiados pelo grafo da clínica; LLM como extrator restrito (Proposto).
 - [ADRs — decisões arquiteturais](docs/adr/0001-cloudflare-native.md) (ver também [topologia D1](docs/adr/0002-d1-topology.md), [tempo real](docs/adr/0003-durable-objects-realtime.md), [IA assistiva](docs/adr/0004-ai-human-in-loop.md) e [concorrência da agenda](docs/adr/0005-d1-booking-consistency.md))
 - [Mocks e guia de implementação da interface](docs/design/README.md)
 - [Landing page do piloto](docs/product/landing.md): site Astro separado em `site/` (`cd site && npm install && npm run dev`). Staging: `cd site && npm run deploy:staging` → `https://staging.tredane.com` (requer auth Wrangler na conta da zona `tredane.com`; ver checklist no projeto Campo Próximo).
