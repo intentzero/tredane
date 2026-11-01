@@ -294,7 +294,7 @@ Cada passo corre primeiro em sombra e só depois troca o caminho (avaliação co
 
 | Pergunta | Opções | Responsável | Bloqueia |
 | --- | --- | --- | --- |
-| Modelos de frase determinísticos passam a ser o caminho normal, com o LLM só em 2b/5b? Fecha a NC-01 na direção do texto do DEC-061 («envio livre de texto pelo LLM continua fora do recorte»). | Sim; manter o LLM como redator principal. | Paulo | M3, M4, M6 |
+| ~~Modelos de frase determinísticos passam a ser o caminho normal, com o LLM só em 2b/5b?~~ | **Decidido: DEC-104 (Paulo, 01/11/2026), opção A.** | Paulo | Desbloqueia M3 e M4; M6 depende ainda da NC-02 |
 | Listas e botões de escolha (linha, variantes, horários) antes da proposta | Sim, como atalho; não. A proposta e o Confirmar ficam iguais (DEC-061). | Paulo | M5 |
 | Sinónimos por serviço e variante editáveis pela owner (DEC-042) | Campo novo na ficha; só léxico interno. | Paulo | Léxico (M1/M6) |
 | Lint de configuração na M-52 | Aviso informativo; bloqueia a IA para o serviço. | Paulo | M7 |

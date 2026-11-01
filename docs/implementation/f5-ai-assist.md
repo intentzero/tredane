@@ -1,5 +1,7 @@
 # F5 — IA assistiva via AI Gateway (revisão humana)
 
+> **DEC-104 (Paulo, 01/11/2026):** a revisão humana descrita aqui vale para as sugestões pedidas pela equipe no painel. O atendimento automático segue a DEC-061 e a DEC-104: frases determinísticas no caminho normal, e o LLM só nas exceções, com validador.
+
 **Estado:** implementação da issue [#41](https://github.com/intentzero/tredane/issues/41) (épico [#14](https://github.com/intentzero/tredane/issues/14)), com endurecimento S8 [#179](https://github.com/intentzero/tredane/issues/179). DEC-011/040/046; REQ-022/072–075; AC-06/37/41–43. **Não** absorve PWA (#42). Dados sintéticos / `AI_MODE=synthetic` até GATE-06 + revisão jurídica.
 
 ## Decisões aplicadas (Confirmado)
