@@ -91,6 +91,10 @@ function seed(opts: { signal?: boolean } = {}) {
   const contact = upsertContact(db, { tenantId, waId: '5511900000009', displayName: 'Paulo Teste' }, clock)
   const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
   const say = (direction: 'inbound' | 'outbound', body: string) => {
+    // A resposta anterior (catálogo, proposta) grava no instante atual.
+    // Sem este avanço, o próximo texto empata no created_at e o id desempata
+    // ao contrário: o autobook acha que a clínica falou por último.
+    clock.advance(60_000)
     const m = insertMessage(
       db,
       {
@@ -103,7 +107,6 @@ function seed(opts: { signal?: boolean } = {}) {
       },
       clock,
     )
-    clock.advance(60_000)
     return m
   }
   /** Abre o funil de agendamento (DEC-090 / DEC-086): histórico de zonas/linha só conta depois. */
