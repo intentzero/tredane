@@ -506,4 +506,22 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       boot.close()
     }
   })
+
+  it('handoff determinístico: terceiro, inexistente e histórico indisponível', () => {
+    const boot = seedMixed()
+    try {
+      const opts = { conversationId: boot.conversation.id }
+      expect(
+        catalogReply(boot.db, boot.tenantId, 'Quero marcar depilação pra minha mãe', boot.clock, opts),
+      ).toMatch(/outra pessoa/)
+      expect(
+        catalogReply(boot.db, boot.tenantId, 'Quero bronzeamento artificial amanhã', boot.clock, opts),
+      ).toMatch(/não encontrei esse procedimento/i)
+      expect(
+        catalogReply(boot.db, boot.tenantId, 'Quero igual à última vez', boot.clock, opts),
+      ).toMatch(/visita anterior/i)
+    } finally {
+      boot.close()
+    }
+  })
 })

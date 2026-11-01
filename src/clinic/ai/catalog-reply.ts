@@ -12,6 +12,7 @@ import type { ServiceRow } from '../config/types'
 import { variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { listMessages } from '../inbox/messages'
 import type { ClinicDb } from '../store'
+import { resolveBookingObject } from './booking-object'
 import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
 import { formatOpeningHours } from './schedule-context'
 import {
@@ -31,7 +32,11 @@ const HOURS = /\b(hor[aá]rio de funcionamento|que horas (voc[eê]s )?(abrem|fun
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
 const PRICE = /\b(pre[cç]o|custa|valor|quanto)\b/i
 const PERIOD = /\b(amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|manh[aã]|tarde|noite)\b/i
-const CLOCK = /\b(\d{1,2}[:h]\d{2}|\d{3,4}|[aà]s\s+\d{1,2})\b/i
+/** `\b` antes de «às» falha no JS (à não é word-char); usar fronteira ASCII. */
+const CLOCK =
+  /(?:^|[^a-z0-9])(?:[aà]s\s+\d{1,2}(?:h(?:rs|s)?(?:\d{2})?)?|\d{1,2}[:h]\d{2}|\d{3,4})\b/i
+const SHORT_CONFIRM =
+  /^(sim|pode ser|pode marcar|pode agendar|pode|confirmo|ok|okay|beleza|blz|👍|bora)([,\s]+(pode\s+marcar|confirmo|sim))?[\s!.?]*$/i
 
 function proNames(db: ClinicDb, tenantId: string, service: ServiceRow, clock: Clock): string[] {
   const resources = listResources(db, tenantId, clock)
@@ -215,6 +220,66 @@ export function catalogReply(
 
   const mixedVisit = mixedAudienceRefusal(services, source)
   if (mixedVisit) return mixedVisit
+
+  // Handoffs e ambiguidade de serviço — sem roubar o funil de linha/zonas/dia.
+  const bookingMatch = resolveBookingObject({
+    text: source,
+    services,
+    session: session
+      ? {
+          serviceId: session.serviceId,
+          audienceLine: session.audienceLine,
+          variantIds: session.variantIds,
+        }
+      : null,
+  })
+  if (bookingMatch.kind === 'handoff') {
+    if (bookingMatch.handoffReason === 'terceiro') {
+      return 'Para agendar para outra pessoa, a equipe precisa continuar este atendimento.'
+    }
+    if (bookingMatch.handoffReason === 'multiplos_servicos') {
+      return 'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?'
+    }
+    // Hora / «sim» / período: deixa o autobook seguir; não declarar «inexistente».
+    if (
+      bookingMatch.handoffReason === 'inexistente' &&
+      !CLOCK.test(body) &&
+      !PERIOD.test(source) &&
+      !SHORT_CONFIRM.test(body.trim())
+    ) {
+      return 'Não encontrei esse procedimento no nosso catálogo. Quer ver as opções que temos?'
+    }
+    if (bookingMatch.handoffReason === 'historico_indisponivel') {
+      return 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
+    }
+    if (bookingMatch.handoffReason === 'catalogo_vazio') {
+      return 'O catálogo mudou. Pode dizer de novo qual serviço e opção você quer?'
+    }
+  }
+  // Não interceptar confirmação de horário / «sim» — isso é do autobook.
+  if (
+    bookingMatch.kind === 'clarify' &&
+    bookingMatch.question &&
+    bookingMatch.missing.includes('servico') &&
+    !inPlay &&
+    !asksPrice &&
+    !openPeriod &&
+    !CLOCK.test(body) &&
+    !CLOCK.test(source) &&
+    !SHORT_CONFIRM.test(body.trim())
+  ) {
+    if (opts.conversationId && bookingMatch.serviceId) {
+      saveScheduleSession(
+        db,
+        tenantId,
+        opts.conversationId,
+        { serviceId: bookingMatch.serviceId },
+        clock,
+      )
+    }
+    return bookingMatch.question
+  }
+
   if (!asksPrice && !openPeriod && !lineOnly) return null
   if (!svc) return null
 
