@@ -68,11 +68,17 @@ export function stableVariantLabelList(zones: readonly ListedZone[]): string[] {
   return unique.map((zone, index) => variantChoiceLabel(peers[index]!, peers))
 }
 
+/** «zona» → qual zona; «zonas» → quais zonas. ponytail: plural pelo «s» final; «lápis» cai em quais. */
+function whichKind(kind: string): string {
+  const word = kind.trim().toLocaleLowerCase('pt-BR') || 'zona'
+  const plural = word.length > 3 && word.endsWith('s')
+  return `${plural ? 'quais' : 'qual'} ${word}`
+}
+
 export function variantListQuestion(
   serviceName: string,
   variantKind: string | null | undefined,
   zones: readonly ListedZone[],
 ): string {
-  const kind = (variantKind?.trim() || 'zona').toLocaleLowerCase('pt-BR')
-  return `Para ${serviceName.trim()}, qual ${kind} você quer? Temos ${stableVariantLabelList(zones).join(', ')}.`
+  return `Para ${serviceName.trim()}, ${whichKind(variantKind ?? '')} você quer? Temos ${stableVariantLabelList(zones).join(', ')}.`
 }

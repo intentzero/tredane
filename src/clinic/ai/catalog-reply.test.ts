@@ -76,7 +76,7 @@ describe('catalogReply', () => {
     expect(who).toContain('Gi')
     expect(who).not.toContain('Sala Depilação')
     expect(who).not.toMatch(/\bsala\b/i)
-    expect(catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)).toMatch(/qual/i)
+    expect(catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)).toMatch(/quais zonas/i)
     expect(catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)).not.toMatch(/13:00/)
     const both = catalogReply(
       boot.db,
@@ -95,7 +95,7 @@ describe('catalogReply', () => {
 
 describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
   const LINE = 'Depilação feminina ou masculina?'
-  const ZONES = 'Para Depilação, qual zona você quer? Temos Axila, Pernas.'
+  const ZONES = 'Para Depilação, quais zonas você quer? Temos Axila, Pernas.'
 
   function seedMixed() {
     const clock = createControllableClock(NOW)
@@ -198,7 +198,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       )
       const reply = catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)
       expect(reply).toBe(
-        'Para Depilação, qual zona você quer? Temos Axila, Pernas (feminino, 30 min), Pernas (feminino, 45 min).',
+        'Para Depilação, quais zonas você quer? Temos Axila, Pernas (feminino, 30 min), Pernas (feminino, 45 min).',
       )
       expect(reply).not.toMatch(/feminina ou masculina/i)
       expect(reply).not.toMatch(/^oi|^ol[aá]/i)
@@ -374,15 +374,42 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
-  it('não pede a linha outra vez depois de a cliente ter dito axila masculina', () => {
+  it('não pede a zona outra vez depois de a cliente ter dito axila masculina', () => {
     const boot = seedMixed()
     try {
       const opts = { conversationId: boot.conversation.id }
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quanto custa a axila masculina?', boot.clock, opts),
       ).toMatch(/R\$/)
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.variantIds?.length).toBe(1)
       const next = catalogReply(boot.db, boot.tenantId, 'Quero depilação na segunda à tarde.', boot.clock, opts)
-      expect(next).not.toMatch(/feminina ou masculina/)
+      expect(next).toBeNull()
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('«quais zonas» quando o tipo cadastrado já está no plural', () => {
+    const boot = seedMixed()
+    try {
+      upsertServiceOp(
+        boot.db,
+        boot.caller,
+        {
+          id: boot.svc.id,
+          name: 'Depilação',
+          durationMinutes: 15,
+          bufferMinutes: 15,
+          priceCents: 5000,
+          variantKind: 'Zonas',
+          variantKindPlural: 'Zonas',
+          professionalIds: [],
+        },
+        boot.clock,
+      )
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação feminina amanhã à tarde.', boot.clock, {
+        conversationId: boot.conversation.id,
+      })).toMatch(/^Para Depilação, quais zonas você quer\?/)
     } finally {
       boot.close()
     }
