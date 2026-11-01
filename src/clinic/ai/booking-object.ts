@@ -308,7 +308,12 @@ export function resolveBookingObject(input: {
   const text = input.text.trim()
   if (!text) return noneResult()
   const services = input.services.filter((s) => s.active)
-  if (services.length === 0) return handoff('catalogo_vazio')
+  // Catálogo vazio: não inventar handoff — deixa o rascunho/modelo seguir (ex.: «oi»).
+  // «catalogo_vazio» só quando houve deriva material a meio da conversa.
+  if (services.length === 0) {
+    if (input.catalogDrift) return handoff('catalogo_vazio')
+    return noneResult()
+  }
 
   if (THIRD_PARTY.test(fold(text))) return handoff('terceiro')
   if (LAST_TIME.test(fold(text))) return handoff('historico_indisponivel')

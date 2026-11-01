@@ -256,11 +256,14 @@ export function catalogReply(
       return 'O catálogo mudou. Pode dizer de novo qual serviço e opção você quer?'
     }
   }
-  // Não interceptar confirmação de horário / «sim» — isso é do autobook.
+  // Clarify de serviço só com intenção de marcar/agendar — «oi» / «mensagem» ficam no modelo.
+  const bookingIntent =
+    /\b(quero|gostaria|marcar|agendar|horario|horário|disponi|vaga|fazer|preciso)\b/i.test(source)
   if (
     bookingMatch.kind === 'clarify' &&
     bookingMatch.question &&
     bookingMatch.missing.includes('servico') &&
+    bookingIntent &&
     !inPlay &&
     !asksPrice &&
     !openPeriod &&

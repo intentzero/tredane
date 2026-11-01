@@ -54,6 +54,13 @@ describe('booking-object', () => {
     ).toBe('historico_indisponivel')
   })
 
+  it('catálogo vazio não handoff; deriva material sim', () => {
+    expect(resolveBookingObject({ text: 'oi', services: [] }).kind).toBe('none')
+    expect(
+      resolveBookingObject({ text: 'Pode ser axila', services: [], catalogDrift: true }).handoffReason,
+    ).toBe('catalogo_vazio')
+  })
+
   it('retoma variantes da sessão após pergunta lateral', () => {
     const result = resolveBookingObject({
       text: 'Pode ser amanhã de manhã',
