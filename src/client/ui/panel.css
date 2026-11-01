@@ -827,6 +827,18 @@
   }
 }
 
+/*
+ * Conversa aberta: o compositor já reserva a safe-area. Estas regras do shell
+ * ganhavam em especificidade (o menu continua no DOM mesmo oculto no celular)
+ * e deixavam a faixa do fundo da app por baixo da conversa — no celular e na coluna
+ * ao lado da lista. Confirmado (Paulo, 01/11/2026): a conversa chega ao fundo.
+ */
+.panel-app:has(> .panel-nav) .panel-shell-main:has(> .inbox-thread),
+.panel-app--immersive:has(> .panel-nav) .panel-shell-main:has(> .inbox-thread),
+.panel-app:has(> .panel-nav) .panel-shell-main:has(> .conversas-3col) {
+  padding: 0;
+}
+
 .panel-status {
   flex: 1;
   min-height: 50dvh;
