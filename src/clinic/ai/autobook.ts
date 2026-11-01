@@ -63,6 +63,12 @@ import {
   zonesForAudienceLine,
 } from './variant-line'
 import { extractDates, extractTimes, norm } from './nlu/temporal'
+import { logPolicyShadow } from './policy-shadow'
+import {
+  occupiedSlotAlternativesReply,
+  offerNearestSlots,
+  type DayPeriod,
+} from './slot-offer'
 
 export { extractDates, extractTimes, norm }
 
@@ -99,11 +105,6 @@ export type AutoBookOutcome = {
 }
 
 const WEEKDAY_LABEL = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
-
-function addDays(date: string, n: number): string {
-  const [y, m, d] = date.split('-').map(Number) as [number, number, number]
-  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10)
-}
 
 function weekdayOf(date: string): number {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number]
@@ -306,117 +307,6 @@ function brl(cents: number): string {
   return `R$ ${v[0]!.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${v[1]}`
 }
 
-function periodWord(period: 'manha' | 'tarde' | 'noite'): string {
-  if (period === 'manha') return 'de manhã'
-  if (period === 'tarde') return 'à tarde'
-  return 'à noite'
-}
-
-function inPeriod(period: 'manha' | 'tarde' | 'noite', hhmm: string): boolean {
-  const hour = Number(hhmm.slice(0, 2))
-  if (period === 'manha') return hour < 12
-  if (period === 'tarde') return hour >= 12 && hour < 18
-  return hour >= 18
-}
-
-function clockLabel(tz: string, ms: number): string {
-  const raw = localHHMM(tz, ms)
-  const match = raw.match(/(\d{1,2})\D(\d{2})/)
-  if (!match) return raw
-  return `${match[1]!.padStart(2, '0')}:${match[2]}`
-}
-
-function joinNames(names: string[]): string {
-  if (names.length <= 1) return names[0] ?? ''
-  if (names.length === 2) return `${names[0]} e ${names[1]}`
-  return `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`
-}
-
-/**
- * Zonas e linha já escolhidas, período sem hora de relógio (DEC-090).
- * Oferece horários reais desse período. Não volta a perguntar a linha nem as zonas.
- */
-async function offerZonesInPeriod(
-  db: ClinicDb,
-  tenantId: string,
-  service: ServiceRow,
-  zones: ServiceRow['zones'],
-  period: 'manha' | 'tarde' | 'noite',
-  date: string | null,
-  tz: string,
-  clock: Clock,
-  forecast: ForecastAdapter | undefined,
-  professionalId?: string,
-): Promise<string> {
-  const names: string[] = []
-  for (const zone of zones) {
-    if (!names.includes(zone.name)) names.push(zone.name)
-  }
-  const label = joinNames(names)
-  const when = periodWord(period)
-  let duration = service.durationMinutes
-  try {
-    duration = quoteVisit(
-      db,
-      tenantId,
-      service,
-      zones.map((zone) => zone.id),
-    ).durationMinutes
-  } catch {
-    duration = service.durationMinutes
-  }
-  const today = clinicCivilDateFromUtc(tz, clock.nowMs())
-  const dates = date ? [date] : [0, 1, 2, 3, 4, 5, 6].map((offset) => addDays(today, offset))
-  const picked: { date: string; time: string }[] = []
-  const lastMinute = new Map<string, number>()
-  for (const day of dates) {
-    if (picked.length >= 3) break
-    let slots: { startsAt: number }[] = []
-    try {
-      const avail = await queryAutomaticAvailability(
-        db,
-        tenantId,
-        {
-          serviceId: service.id,
-          date: day,
-          durationMinutesOverride: duration,
-          ...(professionalId ? { professionalId } : {}),
-        },
-        clock,
-        forecast ?? { read: readOpenMeteo },
-      )
-      if (!avail.schedulingAllowed) continue
-      slots = avail.slots
-    } catch {
-      continue
-    }
-    for (const slot of slots) {
-      if (slot.startsAt <= clock.nowMs()) continue
-      const time = clockLabel(tz, slot.startsAt)
-      if (!inPeriod(period, time)) continue
-      const minute = Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
-      const prev = lastMinute.get(day)
-      if (prev != null && minute - prev < 30) continue
-      lastMinute.set(day, minute)
-      picked.push({ date: day, time })
-      if (picked.length >= 3) break
-    }
-  }
-  const subject = label || service.name
-  if (picked.length === 0) {
-    return `Para ${subject}, ${when} não tenho horário livre. Quer ver outro período?`
-  }
-  const byDay = new Map<string, string[]>()
-  for (const slot of picked) {
-    const list = byDay.get(slot.date) ?? []
-    list.push(slot.time)
-    byDay.set(slot.date, list)
-  }
-  const bits = [...byDay.entries()].map(([day, times]) => `${dayText(day)} às ${times.join(', ')}`)
-  const listed = bits.length === 1 ? bits[0]! : `${bits.slice(0, -1).join(', ')} e ${bits[bits.length - 1]}`
-  return `Para ${subject}, ${when} tenho ${listed}. Qual fica melhor?`
-}
-
 /**
  * Tenta marcar pela IA para a conversa. Não lança: devolve o resultado.
  * Idempotente por mensagem de confirmação (clientRequestId = ai-autobook:<messageId>).
@@ -579,16 +469,32 @@ export async function tryAiAutoBook(
   })()
   if (!det.service && session?.serviceId) {
     const stored = services.find((item) => item.id === session.serviceId)
-    // «Na parte da manhã» não repete o serviço nem a zona. A sessão já os tem.
+    // «amanhã» / «na parte da manhã» não repetem o serviço. A sessão já o tem (CF-19 / A-02).
+    const dayContinues = Boolean(turnFacts.dayLabel) && !clockFromTurn
     const periodContinues =
-      Boolean(turnFacts.period) && !clockFromTurn && Boolean(session.variantIds?.length)
+      Boolean(turnFacts.period) &&
+      !clockFromTurn &&
+      Boolean(session.variantIds?.length || !stored?.zones.some((z) => z.active))
     if (
       stored &&
       (clockFromTurn ||
         zonesNamedInText(turnText, stored.zones.filter((zone) => zone.active)).length > 0 ||
+        dayContinues ||
         periodContinues)
     ) {
-      det = { ...det, service: stored }
+      det = {
+        ...det,
+        service: stored,
+        status: det.status === 'not_confirmed' ? 'needs_info' : det.status,
+      }
+      if (!date) {
+        const fromTurn = [...extractDates(turnText, clinicCivilDateFromUtc(tz, confirmation.created_at))]
+        if (fromTurn.length === 1) {
+          date = fromTurn[0]
+          missing = missing.filter((item) => item !== 'dia')
+        }
+      }
+      if (!missing.includes('horario') && !det.time) missing = [...missing, 'horario']
     }
   }
   let time = det.time
@@ -658,11 +564,11 @@ export async function tryAiAutoBook(
           const period =
             turnFacts.period ?? (session?.serviceId === det.service.id ? session?.period : null)
           // Serviço sem variantes (ex. massagem): oferta de período com a data absoluta (#408 B-04).
-          const canOfferPeriod =
-            Boolean(period) &&
-            !chosen.ambiguous &&
-            (kept.length > 0 || active.length === 0)
-          if (canOfferPeriod && period) {
+          // CF-19 (#413): com serviço (e variantes) conhecidos, oferecer 2–3 horários reais
+          // mesmo sem período — não perguntar «qual horário?» vazio.
+          const canOffer =
+            !chosen.ambiguous && (kept.length > 0 || active.length === 0)
+          if (canOffer) {
             const preferred = preferredProfessionalId(
               db,
               tenantId,
@@ -671,18 +577,29 @@ export async function tryAiAutoBook(
               clock,
               input.turn?.catalog.resources,
             )
-            replyText = await offerZonesInPeriod(
+            const offered = await offerNearestSlots({
               db,
               tenantId,
-              det.service,
-              kept,
-              period,
-              date ?? null,
+              service: det.service,
+              zones: kept,
               tz,
               clock,
-              input.forecast,
-              preferred,
-            )
+              forecast: input.forecast,
+              professionalId: preferred,
+              date: date ?? null,
+              period: (period as DayPeriod | null) ?? null,
+              limit: 3,
+            })
+            logPolicyShadow({
+              tenantId,
+              conversationId: input.conversationId,
+              phase: 'cf19',
+              current: period
+                ? { action: 'offer_slots', detail: 'period' }
+                : { action: 'ask_empty_time' },
+              proposed: { action: 'offer_slots', detail: period ? 'period' : date ? 'date' : 'soonest' },
+            })
+            replyText = offered.replyText
           } else {
             replyText = `Qual horário fica melhor para ${det.service.name}?`
           }
@@ -722,6 +639,70 @@ export async function tryAiAutoBook(
           replyText = SERVICE_NOT_FOUND_REPLY
         } else if (booking.handoffReason === 'historico_indisponivel') {
           replyText = 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
+        }
+      } else if (booking.kind === 'clarify' && booking.question && !booking.serviceId) {
+        replyText = booking.question
+      } else if (
+        (booking.kind === 'selected' || booking.kind === 'clarify') &&
+        booking.serviceId
+      ) {
+        // A-06 / F-08: serviço resolvido sem confirmação «clássica» → oferta proativa (#413).
+        const svc = services.find((s) => s.id === booking.serviceId)
+        if (svc) {
+          const active = svc.zones.filter((z) => z.active)
+          const kept =
+            booking.variantIds.length > 0
+              ? active.filter((z) => booking.variantIds.includes(z.id))
+              : []
+          saveScheduleSession(
+            db,
+            tenantId,
+            input.conversationId,
+            {
+              serviceId: svc.id,
+              ...(kept.length > 0 ? { variantIds: kept.map((z) => z.id) } : {}),
+              ...(turnFacts.dayLabel ? { dayLabel: turnFacts.dayLabel } : {}),
+              ...(turnFacts.period ? { period: turnFacts.period } : {}),
+            },
+            clock,
+          )
+          if (active.length > 0 && kept.length === 0) {
+            replyText = booking.question ?? variantListQuestion(
+              svc.name,
+              svc.variantKindPlural || svc.variantKind,
+              active,
+            )
+          } else {
+            const preferred = preferredProfessionalId(
+              db,
+              tenantId,
+              [turnText, ...older.map((m) => m.body)].join('\n'),
+              svc,
+              clock,
+              input.turn?.catalog.resources,
+            )
+            const offered = await offerNearestSlots({
+              db,
+              tenantId,
+              service: svc,
+              zones: kept,
+              tz,
+              clock,
+              forecast: input.forecast,
+              professionalId: preferred,
+              date: date ?? null,
+              period: (turnFacts.period as DayPeriod | null) ?? null,
+              limit: 3,
+            })
+            logPolicyShadow({
+              tenantId,
+              conversationId: input.conversationId,
+              phase: 'cf19',
+              current: { action: 'ask_empty_time' },
+              proposed: { action: 'offer_slots', detail: date ? 'date' : 'soonest' },
+            })
+            replyText = offered.replyText
+          }
         }
       } else if (booking.kind === 'clarify' && booking.question) {
         replyText = booking.question
@@ -946,17 +927,39 @@ export async function tryAiAutoBook(
         }
       }
     }
-    const alts = avail.slots
+    // CF-15 (#413): alternativas por proximidade no mesmo período; sem vaga → próximo dia.
+    const legacyAlts = avail.slots
       .slice(0, 3)
       .map((s) => localHHMM(tz, s.startsAt))
       .filter((t) => t !== time)
-    const altText =
-      alts.length > 0
-        ? ` Tenho ${alts.join(', ')}. Qual fica melhor?`
-        : ' Quer que eu veja outro horário?'
+    const replyText = await occupiedSlotAlternativesReply({
+      db,
+      tenantId,
+      service: svc,
+      zones: namedZones,
+      tz,
+      clock,
+      forecast: input.forecast,
+      professionalId: preferredProId,
+      date,
+      time,
+      sameDaySlots: avail.slots,
+    })
+    logPolicyShadow({
+      tenantId,
+      conversationId: input.conversationId,
+      phase: 'cf15',
+      current: {
+        action: legacyAlts.length > 0 ? 'first_slots' : 'ask_other_day',
+        detail: legacyAlts.join(',') || undefined,
+      },
+      proposed: {
+        action: replyText.includes('próximo com vaga') ? 'next_day_alts' : 'nearby_alts',
+      },
+    })
     return {
       ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
-      replyText: `Nesse horário das ${time} já não tenho vaga.${altText}`,
+      replyText,
       notes:
         `A cliente parece confirmar ${label} (horário não livre na agenda). ` +
         'Aviso automático enviado. Texto livre não marca — confirme pelo Agendar se precisar.',

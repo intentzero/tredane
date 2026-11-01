@@ -181,6 +181,34 @@ function uniqueServices(options: readonly BookableOption[]): string[] {
   return [...new Set(options.map((o) => o.serviceId))]
 }
 
+/**
+ * Quando o nome de A é prefixo do de B e o texto não cita as palavras extra de B,
+ * descarta B (F-08 / «tem limpeza hoje?» vs «Limpeza de pele profunda»).
+ */
+function preferBaseServiceName(options: BookableOption[], text: string): BookableOption[] {
+  const tokens = new Set(fold(text).split(/[^a-z0-9]+/).filter(Boolean))
+  const byService = new Map<string, BookableOption>()
+  for (const option of options) {
+    if (!byService.has(option.serviceId)) byService.set(option.serviceId, option)
+  }
+  const reps = [...byService.values()]
+  const drop = new Set<string>()
+  for (const a of reps) {
+    for (const b of reps) {
+      if (a.serviceId === b.serviceId) continue
+      const aw = significantWords(a.serviceName)
+      const bw = significantWords(b.serviceName)
+      if (aw.length >= bw.length) continue
+      if (!aw.every((w) => bw.includes(w))) continue
+      const extra = bw.filter((w) => !aw.includes(w))
+      if (!extra.some((w) => tokens.has(w))) drop.add(b.serviceId)
+    }
+  }
+  if (drop.size === 0) return options
+  const filtered = options.filter((o) => !drop.has(o.serviceId))
+  return filtered.length > 0 ? filtered : options
+}
+
 function clarifyingQuestion(
   services: readonly ServiceRow[],
   candidates: BookableOption[],
@@ -368,6 +396,8 @@ export function resolveBookingObject(input: {
   scored.sort((a, b) => b.score - a.score)
   const topScore = scored[0]?.score ?? 0
   let pool = scored.filter((s) => s.score >= Math.max(15, topScore - 10)).map((s) => s.option)
+  // «limpeza» não empatar «Limpeza de pele» com «…profunda» se o texto omite as palavras a mais.
+  pool = preferBaseServiceName(pool, text)
 
   // Sessão: se o texto não nomeia outro serviço e há sessão válida, restringe.
   if (input.session?.serviceId && exactServiceHits.length === 0) {

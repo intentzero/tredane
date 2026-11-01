@@ -91,6 +91,31 @@ describe('catalogReply', () => {
     void sandra
     boot.close()
   })
+
+  it('E-01: preço de serviço sem variantes inclui duração (#413)', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-a'
+    const caller = workerCaller(tenantId)
+    upsertServiceOp(
+      boot.db,
+      caller,
+      {
+        name: 'Limpeza de pele',
+        durationMinutes: 60,
+        bufferMinutes: 0,
+        priceCents: 18000,
+        professionalIds: [],
+        roomRequirement: { mode: 'none' },
+      },
+      clock,
+    )
+    const reply = catalogReply(boot.db, tenantId, 'Quanto custa a limpeza de pele?', clock)
+    expect(reply).toMatch(/R\$\s*180,00/)
+    expect(reply).toMatch(/60 min/)
+    expect(reply).toMatch(/horários/i)
+    boot.close()
+  })
 })
 
 describe('linha antes das zonas (DEC-078 / DEC-075)', () => {

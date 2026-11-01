@@ -255,7 +255,7 @@ describe('regressão «Amanhã na parte da tarde» (staging 27/10/2026)', () => 
     }
   })
 
-  it('auto-rascunho: espera o debounce (7 s), gera 1 rascunho e respeita o limite diário', async () => {
+  it('auto-rascunho: espera o debounce adaptativo, gera 1 rascunho e respeita o limite diário', async () => {
     const { db, clock, close, caller, cnv } = seed()
     try {
       const last = db.get<{ id: string }>(
@@ -263,18 +263,26 @@ describe('regressão «Amanhã na parte da tarde» (staging 27/10/2026)', () => 
         cnv.id,
       )!
       const deps = { mode: 'synthetic' as const, adapter: new SimulatedAiAdapter() }
-      expect(enqueueAutoDraft(db, caller.tenantId, { conversationId: cnv.id, messageId: last.id }, clock)).not.toBeNull()
+      const job = enqueueAutoDraft(db, caller.tenantId, { conversationId: cnv.id, messageId: last.id }, clock)
+      expect(job).not.toBeNull()
+      // Pedido com dia+período → DEC-111 usa 2,5 s (não 7 s).
+      expect(job!.dueAt - job!.createdAt).toBe(2_500)
       expect(await runDueAutoDrafts(db, caller, clock, deps)).toHaveLength(0)
-      clock.advance(7_000)
+      clock.advance(2_500)
       const out = await runDueAutoDrafts(db, caller, clock, deps)
       expect(out.map((o) => o.status)).toEqual(['ready'])
       expect(out[0]!.suggestion!.origin).toBe('auto')
       expect(out[0]!.suggestion!.suggestedText).not.toMatch(/\*\*/)
 
       // Limite: 300/dia por clínica → não gera mais.
-      db.run(`UPDATE ai_daily_usage SET drafts = 300 WHERE tenant_id = ?`, caller.tenantId)
+      // Com CA-03 o 1.º turno pode ser só determinístico (sem linha em ai_daily_usage).
+      db.run(
+        `INSERT INTO ai_daily_usage (tenant_id, day, drafts) VALUES (?, '2026-10-27', 300)
+         ON CONFLICT (tenant_id, day) DO UPDATE SET drafts = 300`,
+        caller.tenantId,
+      )
       enqueueAutoDraft(db, caller.tenantId, { conversationId: cnv.id, messageId: last.id }, clock)
-      clock.advance(7_000)
+      clock.advance(2_500)
       const capped = await runDueAutoDrafts(db, caller, clock, deps)
       expect(capped.map((o) => o.status)).toEqual(['cap_reached'])
     } finally {

@@ -44,8 +44,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'A-02',
     title: 'Pedido incremental',
     turnosIdeais: 3,
-    // CF-19: a 1.ª resposta pergunta «qual horário?» sem dia nem opções.
-    knownFailure: 'CF-19',
+    // CF-19 (#413): 1.ª resposta oferece 2–3 horários reais (ou pergunta o dia).
     turns: [
       { role: 'client', text: 'Oi, quero fazer limpeza de pele' },
       { role: 'client', text: 'amanhã' },
@@ -54,6 +53,26 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     expect: {
       proposal: true,
       turns: [{ turn: 0, matches: [/\d{2}:\d{2}|qual dia|que dia|dia fica/i] }],
+    },
+  },
+  {
+    id: 'A-06',
+    title: 'O mais cedo possível',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Qual o primeiro horário para massagem?' }],
+    expect: {
+      proposal: false,
+      turns: [{ turn: 0, matches: [/\d{2}:\d{2}/] }],
+    },
+  },
+  {
+    id: 'A-12',
+    title: 'Sem preferência de dia',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quero massagem, qualquer dia de tarde' }],
+    expect: {
+      proposal: false,
+      turns: [{ turn: 0, matches: [/\d{2}:\d{2}/, /tarde/i] }],
     },
   },
   {
@@ -189,6 +208,17 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     expect: { proposal: false, turns: [{ turn: 0, matches: [/\d{2}:\d{2}/] }] },
   },
   {
+    id: 'B-11',
+    title: 'Termina depois do expediente',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Limpeza de pele sexta às 17h30' }],
+    // A frase pode ecoar «17:30» («já não tenho vaga»); o aceite é alternativas ≤ 16h.
+    expect: {
+      proposal: false,
+      turns: [{ turn: 0, matches: [/\b(15|16|14):\d{2}/] }],
+    },
+  },
+  {
     id: 'B-13',
     title: 'Conversa atravessa a meia-noite',
     turnosIdeais: 2,
@@ -267,7 +297,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'C-07',
     title: 'Muda de serviço depois da proposta',
     turnosIdeais: 1,
-    // CF-23 (#436, corrigido): a proposta da limpeza deixa de valer e sai a da massagem, no mesmo dia e hora.
+    // CF-23 (#436 / #440): a proposta da limpeza deixa de valer e sai a da massagem, no mesmo dia e hora.
     turns: [
       { role: 'client', text: 'Quero limpeza de pele amanhã às 15h' },
       { role: 'client', text: 'na verdade prefiro massagem' },
@@ -311,12 +341,37 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         )
       }
     },
-    // CF-15: as alternativas são os primeiros slots do dia, não os mais próximos da hora pedida.
-    knownFailure: 'CF-15',
+    // CF-15 (#413): alternativas por proximidade no período da tarde.
     turns: [{ role: 'client', text: 'limpeza de pele sexta 16h' }],
     expect: {
       proposal: false,
       turns: [{ turn: 0, matches: [/\b(14|15):00/], excludes: [/\b(09|10|11):\d{2}/] }],
+    },
+  },
+  {
+    id: 'D-02',
+    title: 'Dia sem vagas',
+    turnosIdeais: 1,
+    // Sexta 06/11 lotada 09:00–18:00 para Ana e Bia.
+    prepare: (s) => {
+      for (const id of [s.ids.ana, s.ids.bia]) {
+        createBlockOp(
+          s.db,
+          s.caller,
+          { resourceId: id, startsAt: Date.UTC(2026, 10, 6, 12, 0), endsAt: Date.UTC(2026, 10, 6, 21, 0), reason: 'outro' },
+          s.clock,
+        )
+      }
+    },
+    turns: [{ role: 'client', text: 'Limpeza de pele sexta' }],
+    expect: {
+      proposal: false,
+      turns: [
+        {
+          turn: 0,
+          matches: [/\d{2}:\d{2}/, /sábado|segunda|07\/11|09\/11/i],
+        },
+      ],
     },
   },
   {
@@ -361,10 +416,19 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'E-01',
     title: 'Preço de serviço simples',
     turnosIdeais: 1,
-    // CA-03: o preço de serviço simples ainda passa pelo modelo e sai sem a duração (M3, #413).
-    knownFailure: 'CA-03',
+    // CA-03 / #413: preço + duração determinísticos (sem modelo).
     turns: [{ role: 'client', text: 'Quanto custa a limpeza de pele?' }],
     expect: { turns: [{ turn: 0, matches: [/R\$\s*180,00/, /60 min/] }] },
+  },
+  {
+    id: 'F-08',
+    title: 'Cliente com pressa',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'rápido, tem limpeza hoje?' }],
+    expect: {
+      proposal: false,
+      turns: [{ turn: 0, matches: [/\d{2}:\d{2}/, /hoje|05\/11/i] }],
+    },
   },
   {
     id: 'E-02',

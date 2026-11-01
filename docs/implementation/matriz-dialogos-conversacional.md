@@ -292,3 +292,28 @@ A primeira versão deste resumo dizia «54 passam · 15 `it.fails`». Estava err
 L1 depois das correções: 70 casos · **56 verificados passam** · **3 falhas conhecidas** (A-02 CF-19, D-01 CF-15, E-01 CA-03, todas do M3 [#413](https://github.com/intentzero/tredane/issues/413)) · 2 pendentes (H-04, I-03) · 9 cobertos por outro teste · 0 inesperadas.
 
 O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do plano](plano-testes-conversacional.md#7-registo-de-iterações).
+
+## Iteração 2 (em curso, [#433](https://github.com/intentzero/tredane/issues/433))
+
+| Caso | Antes (It. 1.1) | Agora | Por |
+| --- | --- | --- | --- |
+| A-02 | `it.fails` CF-19 | ✅ oferta de 2–3 horários reais | [#413](https://github.com/intentzero/tredane/issues/413) |
+| A-06 | ❔ L2 | ✅ oferta «mais cedo» | #413 |
+| A-12 | ❔ L2 | ✅ oferta tarde em dias próximos | #413 |
+| B-09 | ✅ (já) | ✅ | #413 (regressão) |
+| B-10 | ✅ (já) | ✅ | #413 (regressão) |
+| B-11 | ❔ | ✅ alternativas ≤ 16h | #413 |
+| D-01 | `it.fails` CF-15 | ✅ alternativas por proximidade | #413 |
+| D-02 | ⚠ CF-15 | ✅ próximo dia com vaga | #413 |
+| E-01 | `it.fails` CA-03 | ✅ preço+duração determinísticos | #413 |
+| F-08 | ❔ L2 | ✅ horários de hoje | #413 |
+| C-07 | `it.fails` CF-23 | ✅ cita massagem (invalidação formal da proposta → [#440](https://github.com/intentzero/tredane/pull/440)) | #413 parcial + #440 |
+
+### Resumo L1 após M3 (#413), sobre `main` pós-#438
+
+| Estado | Contagem |
+| --- | --- |
+| L1 harness | 75 casos · **62 passam** · **2 falhas conhecidas** (A-04 CF-24, D-04 CF-25 → [#440](https://github.com/intentzero/tredane/pull/440)) · 2 pendentes L2 · 9 coverageOnly · 0 inesperadas |
+| CA-03 | `tryAiAutoBook` antes do modelo; `modelCalled=false` nos caminhos determinísticos medidos |
+| Debounce | DEC-111: 0 / 2,5 / 7 s |
+| Copy nova | ver PR #413 — **aguarda ok Paulo** |
