@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 01/11/2026 — Conversa ao estilo WhatsApp Web e compositor em barra (**Confirmado**)
+
+- Novos mocks `desktop/ConversaWhatsappWeb`, `ConversaCompositor` e `ConversaBolhas`, com previews PNG. Substituem o thread de `ConversasDesktopPropostaThread` como referência da conversa aberta; a lista não muda.
+- **Confirmado e implementado (Paulo, 01/11/2026, «Sim, implementa»):** fundo com textura própria (claro e escuro), bolhas sem borda com sombra e cauda na primeira do grupo, hora em linha, remetente no início do grupo, chips centrais para data e eventos, margem de 7 % e bolhas até 65 % no desktop; compositor em barra flutuante com Sugerir resposta e Horários livres como ícones e avisos em pílulas. `InboxThread.tsx`, `FreeSlotsStrip.tsx` (abertura controlada pelo ícone) e `panel.css`.
+- Cores fora de `tokens.json`, locais à conversa em `panel.css` (`--chat-*`): fundo `#EFEAE2` / `#0B1413`, enviada `#D9F2EE` / `#163A38`, lida `#2A7FBF` / `#6CC4F0`. Fora: botão «+» do compositor.
+
 ## 31/10/2026 — Clínica: menos carga cognitiva (**Proposto**)
 
 - Novos mocks `mobile/ClinicaPassoAgora` (M-60), `ClinicaPronta` (M-61), `ClinicaAssistente` (M-62) e `desktop/ClinicaVisaoGeral`. Não substituem M-15 até a confirmação; sem token novo.

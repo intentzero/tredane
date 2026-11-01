@@ -58,6 +58,9 @@ type Props = {
   pinned?: boolean
   /** Procedimento, dia e período que a conversa já definiu: a faixa abre neles. */
   hint?: ScheduleHint | null
+  /** Aberta por fora (ícone do compositor): fechada, a faixa não desenha o próprio botão. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 /** Sinal do serviço em centavos; mesma regra do Agendar. */
@@ -108,9 +111,13 @@ export function FreeSlotsStrip({
   onCharged,
   pinned = false,
   hint = null,
+  open: openProp,
+  onOpenChange,
 }: Props) {
-  const [openState, setOpen] = useState(false)
-  const open = pinned || openState
+  const [openState, setOpenState] = useState(false)
+  const controlled = onOpenChange != null
+  const open = pinned || (controlled ? !!openProp : openState)
+  const setOpen = controlled ? onOpenChange : setOpenState
   const [services, setServices] = useState<ClinicService[] | null>(null)
   const [timezone, setTimezone] = useState('America/Sao_Paulo')
   const [serviceId, setServiceId] = useState('')
@@ -273,6 +280,7 @@ export function FreeSlotsStrip({
   }
 
   if (!open) {
+    if (controlled) return null
     return (
       <div className="free-slots free-slots--closed">
         <Button className="free-slots-toggle" onPress={() => setOpen(true)}>

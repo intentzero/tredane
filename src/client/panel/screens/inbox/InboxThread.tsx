@@ -1,5 +1,6 @@
 import {
   Ban,
+  CalendarClock,
   CalendarPlus,
   Check,
   CheckCheck,
@@ -13,6 +14,7 @@ import {
   PanelRight,
   RefreshCw,
   Send,
+  SendHorizontal,
   Sparkles,
   UserCheck,
   X,
@@ -97,6 +99,20 @@ type Props = {
   incomingDraft?: { id: number; conversationId: string; text: string } | null;
 };
 
+/** Remetente na primeira bolha enviada de um grupo; a IA aparece como «Assistente IA». */
+function senderLabel(author: string | null): string | null {
+  if (!author) return null;
+  return author === "IA" ? "Assistente IA" : author;
+}
+
+/** Mesma sequência: mesmo lado, mesmo autor e mesmo dia, sem aviso de sistema no meio. */
+function continuesGroup(prev: InboxMessage | undefined, m: InboxMessage): boolean {
+  if (!prev || prev.direction === "system" || m.direction === "system") return false;
+  if (prev.direction !== m.direction) return false;
+  if (!sameDay(prev.createdAt, m.createdAt)) return false;
+  return m.direction === "inbound" || prev.authorDisplayName === m.authorDisplayName;
+}
+
 /** Texto sempre como nó React — nunca HTML (XSS / conteúdo externo). */
 function PlainText({ text }: { text: string }) {
   return <>{text}</>;
@@ -130,11 +146,14 @@ function MessageBubble({
   onRetry,
   busy,
   showReadBy = false,
+  first = true,
 }: {
   m: InboxMessage;
   onRetry?: (m: InboxMessage) => void;
   busy: boolean;
   showReadBy?: boolean;
+  /** Primeira bolha de uma sequência do mesmo lado e autor: leva a cauda e o remetente. */
+  first?: boolean;
 }) {
   if (m.direction === "system") {
     return (
@@ -154,30 +173,36 @@ function MessageBubble({
       : m.deliveryState === "read"
         ? " inbox-delivery-read"
         : "";
+  const sender = outbound && first ? senderLabel(m.authorDisplayName) : null;
   return (
     <div
-      className={
-        outbound ? "inbox-msg inbox-msg-out" : "inbox-msg inbox-msg-in"
-      }
+      className={`inbox-msg ${outbound ? "inbox-msg-out" : "inbox-msg-in"}${first ? " inbox-msg--first" : ""}`}
     >
       <div
         className={`inbox-msg-bubble${failed ? " inbox-msg-bubble--failed" : ""}`}
       >
+        {sender ? (
+          <span
+            className={`inbox-msg-sender${m.authorDisplayName === "IA" ? " inbox-msg-sender--ai" : ""}`}
+          >
+            {sender}
+          </span>
+        ) : null}
         <p className="inbox-msg-body">
           <PlainText text={m.body} />
+          <span className="inbox-msg-meta">
+            {new Date(m.createdAt).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+            {delivery ? (
+              <span className={`inbox-delivery${stateClass}`}>
+                <DeliveryIcon state={m.deliveryState} />
+                <span className="inbox-delivery-text">{delivery}</span>
+              </span>
+            ) : null}
+          </span>
         </p>
-        <span className="inbox-msg-meta">
-          {new Date(m.createdAt).toLocaleTimeString("pt-BR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-          {delivery ? (
-            <span className={`inbox-delivery${stateClass}`}>
-              <DeliveryIcon state={m.deliveryState} />
-              {delivery}
-            </span>
-          ) : null}
-        </span>
       </div>
       {failed && onRetry ? (
         <Button
@@ -317,6 +342,8 @@ export function InboxThread({
   );
   const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
+  // «Horários livres» abre pelo ícone do compositor; a faixa só aparece aberta.
+  const [slotsOpen, setSlotsOpen] = useState(false);
   const [aiUnavailable, setAiUnavailable] = useState(false);
   const [aiNotEnabled, setAiNotEnabled] = useState(false);
   const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(
@@ -1179,6 +1206,10 @@ export function InboxThread({
   const windowOpen = detail.messagingWindow?.open !== false && !blocked;
   // Última mensagem relevante nossa (ignora sistema/notas): sem «Sugerir resposta» nem sugestão automática.
   const canSuggest = awaitingClinicReply(detail.messages);
+  const closesAt = detail.messagingWindow?.closesAt ?? null;
+  const hint = windowHint(closesAt);
+  // Menos de 1 h para fechar a janela: a pílula passa a aviso.
+  const windowSoon = closesAt != null && closesAt - Date.now() < 60 * 60 * 1000;
   const cardMode =
     windowOpen && aiDraftTagged && !!draft.trim() && !pendingAutoDraft;
 
@@ -1602,15 +1633,24 @@ export function InboxThread({
               <MessageBubble
                 m={m}
                 busy={busy}
+                first={
+                  unreadAnchor?.id === m.id ||
+                  !continuesGroup(detail.messages[i - 1], m)
+                }
                 showReadBy={m.id === lastReadInboundId}
                 onRetry={m.deliveryState === "failed" ? retryFailed : undefined}
               />
             </Fragment>
           ))}
-          {outbox.map((o) => (
+          {outbox.map((o, i) => (
             <MessageBubble
               key={o.localId}
               m={localToMessage(o, detail)}
+              first={
+                i === 0 &&
+                detail.messages[detail.messages.length - 1]?.direction !==
+                  "outbound"
+              }
               busy={busy}
               onRetry={
                 o.status === "failed" ? () => void retryLocal(o) : undefined
@@ -1732,19 +1772,6 @@ export function InboxThread({
                 </div>
               </div>
             ) : null}
-            {!windowOpen ? (
-              <p className="inbox-window-banner" role="status">
-                <Clock aria-hidden size={14} strokeWidth={2} />
-                Passaram 24 horas: use um modelo de mensagem
-              </p>
-            ) : null}
-            {windowOpen &&
-            windowHint(detail.messagingWindow?.closesAt ?? null) ? (
-              <p className="inbox-window-banner" role="status">
-                <Clock aria-hidden size={14} strokeWidth={2} />
-                {windowHint(detail.messagingWindow?.closesAt ?? null)}
-              </p>
-            ) : null}
             {aiFallback ? (
               <p className="ai-banner" role="status">
                 IA em modo de teste: a chave do provedor não está configurada,
@@ -1757,48 +1784,47 @@ export function InboxThread({
                 sugestões voltam amanhã; você pode responder normalmente.
               </p>
             ) : null}
-            {windowOpen &&
-            canSuggest &&
-            (autoDraftState === "generating" || pendingAutoDraft) ? (
-              <div className="inbox-ai-status">
-                {autoDraftState === "generating" &&
-                !pendingAutoDraft &&
-                !aiDraftTagged ? (
-                  <AiWorking label="IA escrevendo um rascunho…" />
-                ) : null}
-                {pendingAutoDraft ? (
-                  <Button
-                    className="inbox-ai-chip"
-                    aria-label="Sugestão pronta, inserir no lugar do texto atual"
-                    onPress={() => insertDraft(pendingAutoDraft)}
-                  >
-                    <Sparkles aria-hidden size={14} strokeWidth={2} />
-                    Sugestão pronta · inserir
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
-            {windowOpen &&
-            canSuggest &&
-            !aiSuggestion &&
-            !aiDraftTagged &&
-            autoDraftState !== "generating" ? (
-              <div className="inbox-composer-tools">
-                <Button
-                  className="inbox-ai-trigger"
-                  aria-label="Sugerir resposta com IA"
-                  onPress={() => void requestAiSuggestion(null)}
-                  isDisabled={aiBusy || busy}
+            <div className="inbox-dock-pills">
+              {!windowOpen ? (
+                <p
+                  className="inbox-window-banner inbox-window-banner--soon"
+                  role="status"
                 >
-                  <Sparkles aria-hidden size={16} strokeWidth={2} />
-                  {aiBusy ? (
-                    <AiWorking compact label="Gerando sugestão…" />
-                  ) : (
-                    "Sugerir resposta"
-                  )}
-                </Button>
-              </div>
-            ) : null}
+                  <Clock aria-hidden size={14} strokeWidth={2} />
+                  Passaram 24 horas: use um modelo de mensagem
+                </p>
+              ) : null}
+              {windowOpen && hint ? (
+                <p
+                  className={`inbox-window-banner${windowSoon ? " inbox-window-banner--soon" : ""}`}
+                  role="status"
+                >
+                  <Clock aria-hidden size={14} strokeWidth={2} />
+                  {hint}
+                </p>
+              ) : null}
+              {windowOpen &&
+              canSuggest &&
+              (autoDraftState === "generating" || pendingAutoDraft) ? (
+                <div className="inbox-ai-status">
+                  {autoDraftState === "generating" &&
+                  !pendingAutoDraft &&
+                  !aiDraftTagged ? (
+                    <AiWorking label="IA escrevendo um rascunho…" />
+                  ) : null}
+                  {pendingAutoDraft ? (
+                    <Button
+                      className="inbox-ai-chip"
+                      aria-label="Sugestão pronta, inserir no lugar do texto atual"
+                      onPress={() => insertDraft(pendingAutoDraft)}
+                    >
+                      <Sparkles aria-hidden size={14} strokeWidth={2} />
+                      Sugestão pronta · inserir
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
             {windowOpen && !contactPanel?.open ? (
               <FreeSlotsStrip
                 tenantId={tenantId}
@@ -1809,6 +1835,8 @@ export function InboxThread({
                 contactId={detail.contactId}
                 opportunityId={detail.opportunity?.id ?? null}
                 authorDisplayName={authorDisplayName}
+                open={slotsOpen}
+                onOpenChange={setSlotsOpen}
                 onPropose={(text) =>
                   setDraft((prev) =>
                     prev.trim() ? `${prev.trimEnd()}\n${text}` : text,
@@ -1882,7 +1910,7 @@ export function InboxThread({
                   <TextArea
                     id={composerId}
                     className={`inbox-composer-input${cardMode ? " inbox-composer-input--card" : ""}`}
-                    placeholder="Escreva uma resposta…"
+                    placeholder="Escreva uma mensagem"
                     rows={1}
                     // WebKit trata autocomplete="off" como tipo vazio e o iOS mostra a cápsula
                     // de senhas, cartão e morada. organization-title é um tipo concreto fora
@@ -1940,14 +1968,42 @@ export function InboxThread({
                     </Button>
                   </div>
                 ) : (
-                  <Button
-                    className="inbox-send"
-                    type="submit"
-                    aria-label="Enviar"
-                    isDisabled={busy || !draft.trim()}
-                  >
-                    <Send aria-hidden size={20} strokeWidth={2} />
-                  </Button>
+                  <>
+                    {canSuggest &&
+                    !aiSuggestion &&
+                    autoDraftState !== "generating" ? (
+                      <Button
+                        className="inbox-composer-icon inbox-composer-icon--ai"
+                        aria-label="Sugerir resposta com IA"
+                        onPress={() => void requestAiSuggestion(null)}
+                        isDisabled={aiBusy || busy}
+                      >
+                        {aiBusy ? (
+                          <AiWorking compact label="Gerando sugestão…" />
+                        ) : (
+                          <Sparkles aria-hidden size={22} strokeWidth={1.8} />
+                        )}
+                      </Button>
+                    ) : null}
+                    {!contactPanel?.open ? (
+                      <Button
+                        className="inbox-composer-icon"
+                        aria-label="Horários livres"
+                        aria-expanded={slotsOpen}
+                        onPress={() => setSlotsOpen((o) => !o)}
+                      >
+                        <CalendarClock aria-hidden size={22} strokeWidth={1.8} />
+                      </Button>
+                    ) : null}
+                    <Button
+                      className="inbox-send"
+                      type="submit"
+                      aria-label="Enviar"
+                      isDisabled={busy || !draft.trim()}
+                    >
+                      <SendHorizontal aria-hidden size={20} strokeWidth={2} />
+                    </Button>
+                  </>
                 )}
               </form>
             ) : (
