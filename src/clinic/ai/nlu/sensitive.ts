@@ -10,6 +10,8 @@ import { HEALTH_RE, OFFENSE_RE } from '../../../ai/sensitive-lexicon'
 
 export type SensitiveLabel =
   | 'pedir_pessoa'
+  | 'pedir_parar'
+  | 'pergunta_ia'
   | 'saude'
   | 'terceiro'
   | 'cancelar'
@@ -29,6 +31,17 @@ export type SensitiveHit = {
 /** Pedido explícito de pessoa/equipe (DEC-083). */
 export const WANTS_HUMAN_RE =
   /\b(falar com (a )?(equipe|equipa|algu[eé]m|uma pessoa|atendente)|quero (uma )?pessoa|atendimento humano)\b/i
+
+/** Pedido para parar mensagens (DEC-114). */
+export const STOP_MESSAGES_RE =
+  /\b(pare\s+de\s+me\s+mandar\s+mensagem|n[aã]o\s+quero\s+mais\s+mensagens|para\s+de\s+mandar)\b/i
+
+/**
+ * Transparência sobre IA (DEC-115). Antes da injeção fraca «você é atendente».
+ * Não cobre elogio («ótima atendente»).
+ */
+export const AI_TRANSPARENCY_RE =
+  /\b([eé]\s+rob[oô]\b|estou\s+falando\s+com\s+(uma\s+)?pessoa|voc[eê]\s+[eé]\s+(a\s+)?atendente|(atendente|pessoa).{0,20}rob[oô]|rob[oô].{0,20}(atendente|pessoa))\b/i
 
 export { HEALTH_RE, OFFENSE_RE }
 
@@ -61,11 +74,13 @@ export function classifySensitive(text: string): SensitiveHit[] {
   const body = String(text)
   const hits: SensitiveHit[] = []
 
+  if (STOP_MESSAGES_RE.test(body)) hits.push({ label: 'pedir_parar', matchedBy: 'stop_messages' })
   if (WANTS_HUMAN_RE.test(body)) hits.push({ label: 'pedir_pessoa', matchedBy: 'wants_human' })
+  if (AI_TRANSPARENCY_RE.test(body)) hits.push({ label: 'pergunta_ia', matchedBy: 'ai_transparency' })
 
   if (detectStrongInjectionSignals(body)) {
     hits.push({ label: 'injecao', injectionStrength: 'forte', matchedBy: 'strong' })
-  } else if (detectWeakInjectionSignals(body)) {
+  } else if (detectWeakInjectionSignals(body) && !hits.some((h) => h.label === 'pergunta_ia')) {
     hits.push({ label: 'injecao', injectionStrength: 'fraca', matchedBy: 'role_talk' })
   }
 
@@ -105,6 +120,7 @@ export function wantsHumanPause(hits: SensitiveHit[]): boolean {
   return hits.some(
     (h) =>
       h.label === 'pedir_pessoa' ||
+      h.label === 'pedir_parar' ||
       h.label === 'saude' ||
       h.label === 'terceiro' ||
       h.label === 'cancelar' ||
@@ -115,6 +131,14 @@ export function wantsHumanPause(hits: SensitiveHit[]): boolean {
 
 export function hasPolicyQuestion(hits: SensitiveHit[]): boolean {
   return hits.some((h) => h.label === 'pergunta_politica')
+}
+
+export function hasStopRequest(hits: SensitiveHit[]): boolean {
+  return hits.some((h) => h.label === 'pedir_parar')
+}
+
+export function hasAiTransparencyQuestion(hits: SensitiveHit[]): boolean {
+  return hits.some((h) => h.label === 'pergunta_ia')
 }
 
 export function hasHealth(hits: SensitiveHit[]): boolean {

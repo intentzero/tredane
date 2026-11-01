@@ -22,13 +22,19 @@ import type { ClinicDb } from '../store'
 import { tryAiAutoBook, type AutoBookOutcome } from './autobook'
 import { catalogReply } from './catalog-reply'
 import {
+  AI_TRANSPARENCY_TEXT,
   HUMAN_HANDOFF_BUTTON_ID,
   HUMAN_HANDOFF_BUTTON_TITLE,
   handoffReason,
   notifyHumanHandoff,
 } from './human-handoff'
 import { notifyModelFallback } from './model-fallback'
-import { classifySensitive, hasPolicyQuestion } from './nlu/sensitive'
+import {
+  classifySensitive,
+  hasAiTransparencyQuestion,
+  hasPolicyQuestion,
+  hasStopRequest,
+} from './nlu/sensitive'
 import { isCancelIntent, isRescheduleIntent, tryAiReschedule } from './reschedule'
 import { runGenerateInternal } from './operations'
 import { isConversationPaused } from './protection'
@@ -398,7 +404,8 @@ export async function runDueAutoDrafts(
       }
     }
     // CF-04 / E-06: pergunta condicional → política cadastrada, sem pausa.
-    if (hasPolicyQuestion(classifySensitive(turnText))) {
+    const sensitiveHits = classifySensitive(turnText)
+    if (hasPolicyQuestion(sensitiveHits)) {
       const settings = turn.settings
       const policy =
         settings.signalCancellationPolicy.trim() ||
@@ -436,6 +443,62 @@ export async function runDueAutoDrafts(
         })
         continue
       }
+    }
+    // DEC-114: pedido para parar — pausa + alerta, sem mensagem automática.
+    if (hasStopRequest(sensitiveHits)) {
+      const handoff = notifyHumanHandoff(
+        db,
+        tenantId,
+        {
+          conversationId: job.conversationId,
+          reason: 'customer_requested',
+          clientRequestId: `ai-stop:${job.messageId}`,
+          silent: true,
+        },
+        clock,
+      )
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'human_handoff',
+        replyOutbox: handoff.outbox,
+      })
+      continue
+    }
+    // DEC-115: transparência sobre IA — frase fixa + botão, sem pausar.
+    if (hasAiTransparencyQuestion(sensitiveHits)) {
+      let replyOutbox: OutboxRow[] = []
+      try {
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body: AI_TRANSPARENCY_TEXT,
+            interactive: {
+              buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }],
+            },
+            clientRequestId: `ai-transparency:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox = sent.outbox
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'catalog_reply',
+        replyOutbox,
+      })
+      continue
     }
     const reason = handoffReason(db, tenantId, turnText, clock, turn)
     if (reason) {

@@ -62,8 +62,11 @@ export type DialogScenario = {
 
 export function bootDialogScenario(opts: {
   adapter?: AiProviderAdapter
+  /** Relógio do cenário (default: qui 05/11/2026 10:00 SP). */
+  nowMs?: number
 } = {}): DialogScenario {
-  const clock = createControllableClock(DIALOG_NOW_MS - 5 * 60_000)
+  const nowMs = opts.nowMs ?? DIALOG_NOW_MS
+  const clock = createControllableClock(nowMs - 5 * 60_000)
   const boot = bootClinicDb({ clock })
   const { db } = boot
   const tenantId = 'clinic-demo-dialogs'
@@ -248,7 +251,7 @@ export function bootDialogScenario(opts: {
   )
   const contact = upsertContact(db, { tenantId, waId: '5511900000406', displayName: 'Carla Teste' }, clock)
   const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
-  clock.set(DIALOG_NOW_MS)
+  clock.set(nowMs)
 
   const adapter = opts.adapter ?? new SimulatedAiAdapter()
 
