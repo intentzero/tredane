@@ -173,6 +173,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
       case 'servico': {
         const form = (
           <ServiceForm
+            key={entityId ?? 'novo'}
             tenantId={tenantId}
             entityId={entityId ?? 'novo'}
             snap={snap}

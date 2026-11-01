@@ -1,7 +1,9 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ClinicConfigSnapshot, ClinicService, PanelApi } from '../../api'
 import { PanelApiError } from '../../api'
+import { navigatePanel } from '../../routes'
+import { ClinicPanel } from './ClinicPanel'
 import { ServiceForm, ServicesList } from './ServicesScreen'
 
 afterEach(cleanup)
@@ -350,6 +352,200 @@ describe('ServiceForm — catálogo de variantes', () => {
     renderForm(svc({}), {})
     expect(screen.queryByLabelText('Nome no singular')).toBeNull()
     expect(screen.getByText('Preço (opcional)')).toBeTruthy()
+  })
+})
+
+describe('ServiceForm — alterações não salvas', () => {
+  const here = '/c/t/clinica/servicos/svc_1'
+
+  function atService() {
+    window.history.replaceState(null, '', here)
+  }
+
+  function addZone(name: string) {
+    fireEvent.click(screen.getByRole('radio', { name: 'Com variantes' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), {
+      target: { value: 'Zona' },
+    })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Adicionar zona' }), {
+      target: { value: name },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
+  }
+
+  it('variante nova bloqueia a saída; continuar fica; sair sem salvar deixa', () => {
+    atService()
+    renderForm(svc({}), {})
+    addZone('Axila')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar' }))
+    const dialog = screen.getByRole('dialog', { name: 'Alterações não salvas' })
+    expect(within(dialog).getByRole('button', { name: 'Continuar editando' })).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: 'Sair sem salvar' })).toBeTruthy()
+    expect(within(dialog).queryByRole('button', { name: 'Gravar' })).toBeNull()
+    expect(window.location.pathname).toBe(here)
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Continuar editando' }))
+    expect(screen.queryByRole('dialog', { name: 'Alterações não salvas' })).toBeNull()
+    expect(screen.getByDisplayValue('Axila')).toBeTruthy()
+    expect(window.location.pathname).toBe(here)
+
+    act(() => {
+      navigatePanel({ kind: 'area', area: 'agenda', tenantId: 't', section: 'dia' })
+    })
+    expect(screen.getByRole('dialog', { name: 'Alterações não salvas' })).toBeTruthy()
+    expect(window.location.pathname).toBe(here)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sair sem salvar' }))
+    expect(screen.queryByRole('dialog', { name: 'Alterações não salvas' })).toBeNull()
+    expect(window.location.pathname).toBe('/c/t/agenda')
+  })
+
+  it('variante removida e ainda não salva também bloqueia', () => {
+    atService()
+    renderForm(
+      svc({
+        variantKind: 'Zona',
+        variantKindPlural: 'Zonas',
+        zones: [
+          {
+            id: 'z1',
+            name: 'Axila',
+            durationMinutes: 15,
+            priceCents: 5000,
+            audience: 'ambos',
+            active: true,
+            sortOrder: 0,
+          },
+        ],
+      }),
+      {},
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Axila/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remover' }))
+    act(() => {
+      navigatePanel({
+        kind: 'area',
+        area: 'clinica',
+        tenantId: 't',
+        section: 'servico',
+        entityId: 'outro',
+      })
+    })
+    expect(screen.getByRole('dialog', { name: 'Alterações não salvas' })).toBeTruthy()
+    expect(window.location.pathname).toBe(here)
+    expect(screen.queryByRole('button', { name: /Axila/ })).toBeNull()
+  })
+
+  it('formulário limpo sai sem diálogo', () => {
+    atService()
+    renderForm(svc({}), {})
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar' }))
+    expect(screen.queryByRole('dialog', { name: 'Alterações não salvas' })).toBeNull()
+    expect(window.location.pathname).toBe('/c/t/clinica/servicos')
+
+    cleanup()
+    atService()
+    renderForm(svc({}), {})
+    act(() => {
+      navigatePanel({ kind: 'area', area: 'agenda', tenantId: 't', section: 'dia' })
+    })
+    expect(screen.queryByRole('dialog', { name: 'Alterações não salvas' })).toBeNull()
+    expect(window.location.pathname).toBe('/c/t/agenda')
+  })
+
+  it('fechar o painel com alterações pergunta e continuar mantém a ficha', () => {
+    atService()
+    render(
+      <ClinicPanel
+        title="Serviço"
+        onClose={() =>
+          navigatePanel({ kind: 'area', area: 'clinica', tenantId: 't', section: 'servicos' })
+        }
+      >
+        <ServiceForm
+          tenantId="t"
+          entityId="svc_1"
+          snap={
+            {
+              settings: { tenantId: 't', timezone: 'America/Sao_Paulo', updatedAt: 0 },
+              resources: [],
+              services: [svc({})],
+              weeklyWindows: [],
+              blocks: [],
+            } as unknown as ClinicConfigSnapshot
+          }
+          api={{} as PanelApi}
+          generation={1}
+          onSaved={async () => {}}
+        />
+      </ClinicPanel>,
+    )
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), { target: { value: 'Com rascunho' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar serviço' }))
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    const dialog = screen.getByRole('dialog', { name: 'Alterações não salvas' })
+    expect(window.location.pathname).toBe(here)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Continuar editando' }))
+    expect((screen.getByRole('textbox', { name: 'Nome' }) as HTMLInputElement).value).toBe('Com rascunho')
+    expect(window.location.pathname).toBe(here)
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar serviço' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sair sem salvar' }))
+    expect(window.location.pathname).toBe('/c/t/clinica/servicos')
+  })
+
+  it('salvar com sucesso sai sem o diálogo', async () => {
+    atService()
+    const upsertService = vi.fn(async () => svc({ name: 'Novo nome' }))
+    renderForm(svc({}), { upsertService, replaceServiceZones: vi.fn() } as Partial<PanelApi>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), { target: { value: 'Novo nome' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(upsertService).toHaveBeenCalled())
+    expect(screen.queryByRole('dialog', { name: 'Alterações não salvas' })).toBeNull()
+    expect(window.location.pathname).toBe('/c/t/clinica/servicos')
+  })
+
+  it('o voltar do navegador com a ficha suja pergunta e continuar fica', () => {
+    atService()
+    renderForm(svc({}), {})
+    act(() => {
+      navigatePanel({
+        kind: 'area',
+        area: 'clinica',
+        tenantId: 't',
+        section: 'servico',
+        entityId: 'svc_1',
+      })
+    })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), { target: { value: 'Rascunho' } })
+    act(() => {
+      window.history.pushState(null, '', '/c/t/agenda')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    expect(screen.getByRole('dialog', { name: 'Alterações não salvas' })).toBeTruthy()
+    expect(window.location.pathname).toBe(here)
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar editando' }))
+    expect(window.location.pathname).toBe(here)
+    expect((screen.getByRole('textbox', { name: 'Nome' }) as HTMLInputElement).value).toBe('Rascunho')
+    act(() => {
+      window.history.pushState(null, '', '/c/t/agenda')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Sair sem salvar' }))
+    expect(window.location.pathname).toBe('/c/t/agenda')
+  })
+
+  it('pede confirmação do navegador só com a ficha suja', () => {
+    atService()
+    renderForm(svc({}), {})
+    const clean = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(clean)
+    expect(clean.defaultPrevented).toBe(false)
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome' }), { target: { value: 'Rascunho' } })
+    const dirty = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(dirty)
+    expect(dirty.defaultPrevented).toBe(true)
   })
 })
 
