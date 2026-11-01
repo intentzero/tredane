@@ -13,7 +13,7 @@ import {
 import { CLINIC_SCOPE_ID } from '../../../config/types'
 
 type ControllableClock = Clock & { set(ms: number): void; advance(ms: number): void }
-import { setClinicAiAssistEnabled } from '../../../config/settings'
+import { setClinicAiAssistEnabled, setClinicAiProfile } from '../../../config/settings'
 import { upsertContact } from '../../../contacts'
 import { workerCaller } from '../../../index'
 import { createConversation } from '../../../inbox/conversations'
@@ -237,6 +237,15 @@ export function bootDialogScenario(opts: {
   )
 
   setClinicAiAssistEnabled(db, tenantId, true, clock)
+  setClinicAiProfile(
+    db,
+    tenantId,
+    {
+      reschedulePolicy:
+        'Pode desmarcar ou remarcar até 24h antes sem multa. Depois disso o sinal é retido.',
+    },
+    clock,
+  )
   const contact = upsertContact(db, { tenantId, waId: '5511900000406', displayName: 'Carla Teste' }, clock)
   const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
   clock.set(DIALOG_NOW_MS)

@@ -19,15 +19,20 @@ import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import { extractDates, extractTimes } from './autobook'
+import {
+  CANCEL_RE,
+  RESCHEDULE_RE,
+  classifySensitive,
+  hasPolicyQuestion,
+} from './nlu/sensitive'
 import { checkConversationProtection } from './protection'
 import { getScheduleSession, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
 
 /** Frase estável para continuar a escolha de horário sem reiniciar o funil. */
 export const RESCHEDULE_OFFER_MARKER = 'Para remarcar o mesmo atendimento'
 
-const EXPLICIT =
-  /\b(reagendar|remarca|remarcar|remarque|adiar|mudar(\s+o)?\s+hor[aá]rio|trocar(\s+o)?\s+hor[aá]rio)\b/i
-const CANCEL = /\b(cancela|cancelar|desmarca|desmarcar)\b/i
+const EXPLICIT = RESCHEDULE_RE
+const CANCEL = CANCEL_RE
 const DAY_OR_PERIOD =
   /\b(amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|manh[aã]|tarde|noite)\b/i
 const SOFT_DAY =
@@ -78,6 +83,8 @@ function localHHMM(tz: string, ms: number): string {
 }
 
 export function isCancelIntent(text: string): boolean {
+  // CF-04: pergunta condicional sobre multa/política não é cancelamento.
+  if (hasPolicyQuestion(classifySensitive(text))) return false
   return CANCEL.test(text) && !EXPLICIT.test(text)
 }
 

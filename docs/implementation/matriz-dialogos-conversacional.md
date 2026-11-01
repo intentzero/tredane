@@ -250,5 +250,12 @@ Total: 105 casos.
 | B-08 | ❌ CF-11 | ✅ idem | #408 |
 | C-03 | ❌ CF-10 | ✅ idem | #408 |
 | C-12 | ❌ CF-10 | ✅ idem | #408 |
+| G-02 | ❌ CF-02 | ✅ `sensitive.test` / harness L1 (sem pausa) | [#409](https://github.com/intentzero/tredane/issues/409) |
+| G-03 | ❌ CF-02 | ◐ classificação sem pausa; frase DEC-115 → #420 | #409 |
+| G-05 | ❌ CF-03 | ✅ idem | #409 |
+| G-11 | ⚠ CF-13 | ✅ turno inteiro no autodraft | #409 |
+| E-06 | ❌ CF-04 | ✅ política cadastrada sem pausa | #409 |
+| H-02 | ⚠ CF-18 | ✅ lista saúde única | #409 |
+| H-03 | ⚠ CF-18 | ✅ idem | #409 |
 
 O resumo da linha de base acima fica como histórico. No fecho da iteração, o resumo novo vai para o §7 do plano.

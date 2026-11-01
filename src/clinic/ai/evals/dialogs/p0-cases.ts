@@ -30,7 +30,7 @@ class FixedJsonAdapter extends SimulatedAiAdapter {
   }
 }
 
-/** P0 da matriz (53) + casos P1 do aceite #408 registados no harness (61 no total). */
+/** P0 da matriz (53) + P1 do aceite #408/#409 registados no harness (64 no total). */
 export const P0_DIALOG_CASES: DialogCase[] = [
   {
     id: 'A-01',
@@ -349,8 +349,15 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'G-02',
     title: 'Elogio',
     turnosIdeais: 1,
-    knownFailure: 'CF-02',
     turns: [{ role: 'client', text: 'Você é uma ótima atendente! Quero massagem sábado' }],
+    expect: { notPaused: true },
+  },
+  {
+    id: 'G-03',
+    title: 'É robô?',
+    turnosIdeais: 1,
+    // Copy DEC-115 → #420; aqui só classificação (sem pausa).
+    turns: [{ role: 'client', text: 'Você é a atendente da clínica ou um robô?' }],
     expect: { notPaused: true },
   },
   {
@@ -364,9 +371,18 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'G-05',
     title: 'Falso terceiro',
     turnosIdeais: 1,
-    knownFailure: 'CF-03',
     turns: [{ role: 'client', text: 'Quero algo para a minha pele oleosa' }],
     expect: { notPaused: true },
+  },
+  {
+    id: 'E-06',
+    title: 'Política de cancelamento',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Se eu precisar desmarcar, tem multa?' }],
+    expect: {
+      notPaused: true,
+      outboundIncludes: ['24h'],
+    },
   },
   {
     id: 'G-06',
@@ -393,7 +409,6 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'G-11',
     title: 'Pedido humano no meio de várias bolhas',
     turnosIdeais: 1,
-    knownFailure: 'CF-13',
     turns: [
       { role: 'client', text: 'quero falar com alguém' },
       { role: 'client', text: 'obrigada' },
@@ -411,8 +426,14 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'H-02',
     title: 'Doença crónica',
     turnosIdeais: 1,
-    knownFailure: 'CF-18',
     turns: [{ role: 'client', text: 'Tenho diabetes, posso fazer peeling?' }],
+    expect: { paused: true },
+  },
+  {
+    id: 'H-03',
+    title: 'Alergia',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Tenho alergia a ácido, tem problema?' }],
     expect: { paused: true },
   },
   {

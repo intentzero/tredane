@@ -2,7 +2,6 @@
  * Pausa da IA e frase fixa quando a cliente pede uma pessoa ou sai do agendamento (DEC-083).
  * Não chama o modelo. Não marca horário. Uma mensagem já pausada não gera outra frase.
  */
-import { detectInjectionSignals } from '../../ai'
 import type { Clock } from '../../db/clock'
 import { workerCaller } from '../envelopes'
 import { ClinicError } from '../errors'
@@ -14,6 +13,14 @@ import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { syncOpenOpportunityAssignee } from '../pipeline/appointment-stage'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import type { ClinicDb } from '../store'
+import {
+  OFF_TOPIC_RE,
+  PIX_OFF_PURPOSE_RE,
+  RESCHEDULE_RE,
+  classifySensitive,
+  hasPolicyQuestion,
+  wantsHumanPause,
+} from './nlu/sensitive'
 
 const AI_ASSIGNEE = 'system:ai-autodraft'
 
@@ -22,18 +29,6 @@ export const HUMAN_HANDOFF_BUTTON_ID = 'handoff:human'
 export const HUMAN_HANDOFF_BUTTON_TITLE = 'Falar com a equipe'
 
 export type AiReplyPauseReason = 'customer_requested' | 'off_purpose' | 'human_only'
-
-const WANTS_HUMAN =
-  /\b(falar com (a )?(equipe|equipa|algu[eé]m|uma pessoa|atendente)|quero (uma )?pessoa|atendimento humano)\b/i
-const HEALTH = /\b(gr[aá]vid|\bd[oó]i\b|\bmedicamento|\bcontraindica)/i
-const OFFENSE = /\b(idiota|porra|merda|vsf|fdp)\b/i
-const OFF_TOPIC = /\b(piada|esquece a cl[ií]nica)\b/i
-const PIX = /\b(chave\s+pix|j[aá] paguei|pix copia)\b/i
-/** Cancelar/desmarcar: humano. Remarcar com compromisso existente = DEC-091 (fora daqui). */
-const CANCEL = /\b(cancela|cancelar|desmarca|desmarcar)\b/i
-/** Remarcar sem compromisso futuro (tratado no autodraft) ou legado. */
-const RESCHEDULE_ONLY = /\b(reagendar|remarca|remarcar|remarque|adiar|mudar(\s+o)?\s+hor[aá]rio|trocar(\s+o)?\s+hor[aá]rio)\b/i
-const THIRD_PARTY = /\b(minha m[aã]e|meu pai|minha filha|meu filho|n[aã]o [eé] para mim|para a minha)\b/i
 
 export function readAiReplyPause(
   db: ClinicDb,
@@ -162,21 +157,31 @@ export function handoffReason(
 ): AiReplyPauseReason | null {
   const body = text.trim()
   if (!body) return null
-  if (WANTS_HUMAN.test(body)) return 'customer_requested'
+  const hits = classifySensitive(body)
+  // CF-04: pergunta condicional sobre política não pausa (responde a política no autodraft).
+  if (hasPolicyQuestion(hits)) return null
+  if (!wantsHumanPause(hits) && !OFF_TOPIC_RE.test(body) && !PIX_OFF_PURPOSE_RE.test(body)) {
+    if (professionalOutsideService(db, tenantId, body, clock)) return 'human_only'
+    // Remarcação: o autodraft tenta DEC-091 antes; sem compromisso futuro → human_only lá.
+    if (RESCHEDULE_RE.test(body) && !hits.some((h) => h.label === 'pedir_pessoa')) return 'human_only'
+    return null
+  }
+  if (hits.some((h) => h.label === 'pedir_pessoa')) return 'customer_requested'
   if (
-    detectInjectionSignals(body) ||
-    HEALTH.test(body) ||
-    OFFENSE.test(body) ||
-    OFF_TOPIC.test(body) ||
-    PIX.test(body)
+    hits.some((h) => h.label === 'injecao' && h.injectionStrength === 'forte') ||
+    hits.some((h) => h.label === 'saude' || h.label === 'ofensa') ||
+    OFF_TOPIC_RE.test(body) ||
+    PIX_OFF_PURPOSE_RE.test(body)
   ) {
     return 'off_purpose'
   }
-  if (CANCEL.test(body) || THIRD_PARTY.test(body) || professionalOutsideService(db, tenantId, body, clock)) {
+  if (
+    hits.some((h) => h.label === 'cancelar' || h.label === 'terceiro') ||
+    professionalOutsideService(db, tenantId, body, clock)
+  ) {
     return 'human_only'
   }
-  // Remarcação: o autodraft tenta DEC-091 antes; sem compromisso futuro → human_only lá.
-  if (RESCHEDULE_ONLY.test(body)) return 'human_only'
+  if (RESCHEDULE_RE.test(body)) return 'human_only'
   return null
 }
 

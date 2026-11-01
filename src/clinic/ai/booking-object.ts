@@ -6,6 +6,7 @@
 import type { ServiceAudience } from '../catalog/audience'
 import type { ServiceRow, ServiceZoneRow, VariantAudience } from '../config/types'
 import { variantChoiceLabel } from '../config/zones'
+import { THIRD_PARTY_RE } from './nlu/sensitive'
 import { citesServiceName } from './schedule-choice'
 import {
   audienceLineQuestion,
@@ -69,8 +70,7 @@ export type BookingSessionHint = {
   variantIds: string[] | null
 }
 
-const THIRD_PARTY =
-  /\b(pra|para)\s+(minha|meu|o|a)\s+(mae|pai|irma|irmao|esposa|esposo|marido|filho|filha|amiga|amigo|ela|ele)\b|\be\s+pra\s+(ela|ele|outra|outro)\b|\b(agendar|marcar)\s+pra\s+(ela|ele)\b/i
+const THIRD_PARTY = THIRD_PARTY_RE
 
 const LAST_TIME = /\b(igual\s+(a|à)\s+ultima\s+vez|como\s+da\s+outra\s+vez|o\s+mesmo\s+de\s+sempre)\b/i
 

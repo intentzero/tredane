@@ -78,12 +78,14 @@ export function checkInvariants(
   }
 
   // INV-09: nenhum silêncio — pelo menos uma saída outbound ou proposta por turno elegível.
+  // Com pausa DEC-083, a frase sai uma vez; bolhas seguintes no alerta não geram saída.
   const eligible = opts.eligibleTurns ?? 1
   const outputs = bodies.length + (s.proposalCount() > 0 ? 1 : 0)
+  const inv09Ok = opts.requirePause ? outputs >= 1 : outputs >= eligible
   out.push({
     id: 'INV-09',
-    ok: outputs >= eligible,
-    detail: `outputs=${outputs} eligible=${eligible}`,
+    ok: inv09Ok,
+    detail: `outputs=${outputs} eligible=${eligible}${opts.requirePause ? ' paused' : ''}`,
   })
 
   // INV-11: sem markdown / JSON cru nas saídas.
