@@ -22,6 +22,11 @@ import {
   type ScheduleSessionPatch,
 } from './schedule-session'
 import {
+  MIXED_AUDIENCE_REPLY,
+  SERVICE_CHANGED_REPLY,
+  SERVICE_NOT_FOUND_REPLY,
+} from './client-copy'
+import {
   audienceLineQuestion,
   needsAudienceLine,
   variantListQuestion,
@@ -79,7 +84,7 @@ function mixedAudienceRefusal(services: ServiceRow[], source: string): string | 
       service.zones.filter((zone) => zone.active),
     )
     if (variantAudiencesConflict(named)) {
-      return 'Masculino e feminino não entram na mesma visita. Escolha um conjunto compatível.'
+      return MIXED_AUDIENCE_REPLY
     }
   }
   return null
@@ -247,13 +252,13 @@ export function catalogReply(
       !PERIOD.test(source) &&
       !SHORT_CONFIRM.test(body.trim())
     ) {
-      return 'Não encontrei esse procedimento no nosso catálogo. Quer ver as opções que temos?'
+      return SERVICE_NOT_FOUND_REPLY
     }
     if (bookingMatch.handoffReason === 'historico_indisponivel') {
       return 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
     }
     if (bookingMatch.handoffReason === 'catalogo_vazio') {
-      return 'O catálogo mudou. Pode dizer de novo qual serviço e opção você quer?'
+      return SERVICE_CHANGED_REPLY
     }
   }
   // Clarify de serviço só com intenção de marcar/agendar — «oi» / «mensagem» ficam no modelo.
@@ -379,7 +384,7 @@ export function catalogReply(
   if (asksPrice && named.length >= 2) {
     const genders = new Set(named.map((z) => z.audience))
     if (genders.has('feminino') && genders.has('masculino')) {
-      return 'Masculino e feminino não entram na mesma visita. Escolha um conjunto compatível.'
+      return MIXED_AUDIENCE_REPLY
     }
     const minutes = named.reduce((n, z) => n + z.durationMinutes, 0)
     const missing = named.some((z) => z.priceCents == null)

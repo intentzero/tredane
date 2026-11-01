@@ -376,8 +376,8 @@ export function countPendingProposalsForContact(
 
 const MESSAGES: Record<string, string> = {
   autoDraftsPerContact: 'Limite de rascunhos automáticos para este contato atingido. Responda manualmente.',
-  aiBookingsPerContact: 'Limite de marcações automáticas para este contato atingido. Marque pelo Agendar, se fizer sentido.',
-  aiBookingsPerClinic: 'Limite diário de marcações automáticas da clínica atingido. Marque pelo Agendar.',
+  aiBookingsPerContact: 'Limite de marcações automáticas para este contato atingido. A equipe pode marcar pelo painel, se fizer sentido.',
+  aiBookingsPerClinic: 'Limite diário de marcações automáticas da clínica atingido. A equipe pode marcar pelo painel.',
   futureAppointmentsPerContact: 'Este contato já tem vários compromissos futuros. Confirme com a cliente antes de marcar outro.',
   pendingPixPerContact: 'Este contato já tem cobranças Pix pendentes. Verifique antes de gerar outra.',
   pendingProposalsPerContact:

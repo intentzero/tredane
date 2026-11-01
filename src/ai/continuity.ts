@@ -22,8 +22,9 @@ export function hasClinicOutbound(messages: AiContextMessage[]): boolean {
  * Cobre «Oi», «Olá», «Oi, Paulo!», «Bom dia, Ana 😊», etc.
  * Nome opcional: após vírgula, ou token capitalizado («Oi Paulo»).
  */
+// Nome opcional; vírgula/pontuação depois do nome (CF-12: «Oi Carla, tenho…»).
 const LEADING_GREETING_RE =
-  /^\s*(?:oi|ol[aá]|opa|e\s*a[ií]|ei|bom\s+dia|boa\s+tarde|boa\s+noite)(?:\s*,\s*[A-Za-zÀ-ú][\wÀ-ú'-]*|\s+[A-ZÀ-Ú][\wÀ-ú'-]*)?(?:\s*[!.…])?(?:\s*\p{Extended_Pictographic}+)?\s*/iu
+  /^\s*(?:oi|ol[aá]|opa|e\s*a[ií]|ei|bom\s+dia|boa\s+tarde|boa\s+noite)(?:\s*,\s*[A-Za-zÀ-ú][\wÀ-ú'-]*|\s+[A-ZÀ-Ú][\wÀ-ú'-]*)?(?:\s*[,!.…])?(?:\s*\p{Extended_Pictographic}+)?\s*/iu
 
 /** True se o texto começa com cumprimento de abertura. */
 export function startsWithGreeting(text: string): boolean {
@@ -34,6 +35,7 @@ export function startsWithGreeting(text: string): boolean {
  * Remove cumprimento(s) de abertura no início do rascunho.
  * Só usar quando `hasClinicOutbound` — no primeiro contacto da clínica o cumprimento fica.
  * Não inventa texto; se sobrar vazio, devolve o original.
+ * Consome vírgula/pontuação residual após o nome e capitaliza o resto (#405, CF-12).
  */
 export function stripLeadingGreeting(text: string): string {
   let out = text.replace(/^\uFEFF/, '')
@@ -41,7 +43,7 @@ export function stripLeadingGreeting(text: string): string {
   // Uma passagem basta: o regex já engole nome, pontuação e emoji de abertura.
   const m = LEADING_GREETING_RE.exec(out)
   if (m) {
-    const next = out.slice(m[0].length).replace(/^\s*\n+/, '')
+    const next = out.slice(m[0].length).replace(/^[\s,;:]+/, '').replace(/^\n+/, '')
     if (next.trim()) {
       out = next
       changed = true

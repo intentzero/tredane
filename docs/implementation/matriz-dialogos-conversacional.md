@@ -102,7 +102,7 @@
 | D-01 | P0 | Horário ocupado | C: «Limpeza sexta 16h» | «Nesse horário já não tenho vaga» + alternativas **próximas** e na tarde (15:00, 14:00). | INV-03, EE-01 | 1 | ⚠ CF-15 (oferece 09:00/10:00/11:00) |
 | D-02 | P1 | Dia sem vagas | [sexta lotada] ⟶ C: «Limpeza sexta» | Diz que está lotado e oferece o próximo dia com vaga. | EE-07 | 1 | ⚠ CF-15 |
 | D-03 | P0 | Serviço inexistente | C: «Vocês fazem botox?» | Diz que não está no catálogo e mostra opções ou oferece listar. Nunca inventa. | INV-02, EF-01 | 1 | ✅ `catalog-reply.test` «handoff determinístico… inexistente» |
-| D-04 | P0 | Mistura masculino e feminino | C: «Depilação axila masculina e pernas femininas sexta 10h» | Recusa clara, sem jargão («ambos», «linha»). Nenhum preço nem proposta. | INV-05, EF-01 | 1 | ⚠ CF-16 (`autobook.ts:627`) |
+| D-04 | P0 | Mistura masculino e feminino | C: «Depilação axila masculina e pernas femininas sexta 10h» | Recusa clara, sem jargão («ambos», «linha»). Nenhum preço nem proposta. | INV-05, EF-01 | 1 | ✅ `client-copy.test` / MIXED_AUDIENCE_REPLY (#405, CF-16) |
 | D-05 | P1 | Profissional que não faz o serviço | C: «Quero massagem com a Ana» | Frase de handoff (pedido de profissional específica). | INV-06 | 1 | ◐ `professionalOutsideService` |
 | D-06 | P1 | Profissional que faz | C: «Limpeza com a Bia sexta 10h» | Proposta com Bia, ou aviso se Bia não está livre. | EF-02 | 1 | ⚠ CF-20 (preferência ignorada) |
 | D-07 | P1 | Tempo não serve | C: «Bronzeamento sábado 10h» [chuva] | Frase fixa do Tempo (DEC-077), alerta à equipe e nenhuma proposta. | INV-01, INV-05 | 1 | ✅ `tempo-context.test` |
@@ -183,12 +183,12 @@
 | J-01 | P0 | Sem novo cumprimento | [a clínica já falou] ⟶ C: «e sexta?» | A resposta não começa por «Oi/Olá». | INV-11, Q4 | 1 | ✅ `continuity.integration.test` |
 | J-02 | P1 | Persona com nome | [persona «Lia», feminino] ⟶ C: «Oi» | Apresenta-se como Lia, com concordância no feminino, uma vez. | Q3, Q4 | 1 | ❔ L2 |
 | J-03 | P0 | Não perguntar de novo a zona | C: «depilação masculina de axila segunda à tarde» ⟶ A: [oferta] ⟶ C: «14:00» | Proposta direta; não pergunta «as zonas». | INV-08, EE-02 | 2 | ✅ `autobook.test` «as 13 com a zona já dita»; confirmar em L4 (divergente na sonda de 31/10) |
-| J-04 | P0 | Corte de cumprimento | [o modelo devolve «Oi Carla, tenho 15:00 amanhã» a meio da conversa] | «Tenho 15:00 amanhã…», sem vírgula solta. | INV-11 | 1 | ❌ CF-12 |
+| J-04 | P0 | Corte de cumprimento | [o modelo devolve «Oi Carla, tenho 15:00 amanhã» a meio da conversa] | «Tenho 15:00 amanhã…», sem vírgula solta. | INV-11 | 1 | ✅ `client-copy.test` / `stripLeadingGreeting` (#405, CF-12) |
 | J-05 | P0 | O nome não escolhe a linha | [contato «Paulo»] ⟶ C: «Quero depilação» | Pergunta a linha. | INV-08 | 1 | ✅ `catalog-reply.test` |
 | J-06 | P1 | Conversa longa | [mais de 20 mensagens; serviço dito na 2.ª] ⟶ C: «pode ser sexta 10h» | Usa o serviço da sessão → proposta. | EE-02 | 1 | ❔ L1 |
 | J-07 | P1 | Forma da mensagem | Qualquer resposta livre do modelo | Uma pergunta, ≤ 300 caracteres, ≤ 3 parágrafos, sem markdown. | EE-03, EE-05 | — | ❔ L2 |
 | J-08 | P0 | Oferta fora do período | C: «massagem amanhã de manhã» [adaptador oferece 14:00] | Texto descartado ou corrigido; só horários da manhã. | INV-03 | 1 | ❌ CF-01 |
-| J-09 | P1 | Frases fixas sem jargão | Varrimento de todas as frases determinísticas | Nenhum termo da lista INV-05. | INV-05 | — | ⚠ CF-16 |
+| J-09 | P1 | Frases fixas sem jargão | Varrimento de todas as frases determinísticas | Nenhum termo da lista INV-05. | INV-05 | — | ✅ `client-copy.test` (#405, CF-16) |
 
 ## K. Canal e falhas
 
@@ -225,9 +225,9 @@ Um diálogo L3 que falha é triado (plano §6). Se revela um caso novo, ganha um
 
 | Estado | Casos |
 | --- | --- |
-| ❌ Falha verificada | A-10, B-01, B-02, B-03, B-06, B-07, B-08, C-01, C-02, C-03, C-11, C-12, E-06, G-02, G-03, G-05, I-07, I-08, J-04, J-08 (20) |
-| ⚠ Falha provável | A-02, A-07, A-08, B-04, B-13, C-05, C-08, D-01, D-02, D-04, D-06, F-07, G-10, G-11, H-02, H-03, J-09 (17) |
-| ✅ Coberto por teste | A-01, A-04, A-05, A-11, B-05, C-09, D-03, D-07, E-02, E-03, E-05, E-08, F-03, F-05, F-06, G-01, G-04, G-06, G-07, G-08, G-09, G-12, I-01, I-02, I-05, J-01, J-03, J-05, K-01, K-02, K-04, K-05, K-06 (33) |
+| ❌ Falha verificada | A-10, B-01, B-02, B-03, B-06, B-07, B-08, C-01, C-02, C-03, C-11, C-12, E-06, G-02, G-03, G-05, I-07, I-08, J-08 (19) |
+| ⚠ Falha provável | A-02, A-07, A-08, B-04, B-13, C-05, C-08, D-01, D-02, D-06, F-07, G-10, G-11, H-02, H-03 (15) |
+| ✅ Coberto por teste | A-01, A-04, A-05, A-11, B-05, C-09, D-03, D-04, D-07, E-02, E-03, E-05, E-08, F-03, F-05, F-06, G-01, G-04, G-06, G-07, G-08, G-09, G-12, I-01, I-02, I-05, J-01, J-03, J-04, J-05, J-09, K-01, K-02, K-04, K-05, K-06 (36) |
 | ◐ Passa por código | A-03, D-05, H-01, K-03, K-07 (5) |
 | ❔ Por medir | A-06, A-09, A-12, B-09, B-10, B-11, B-12, C-04, C-06, C-07, C-10, C-13, D-08, D-09, D-10, D-11, E-01, E-04, E-07, F-01, F-02, F-04, F-08, H-04, I-03, I-04, I-06, J-02, J-06, J-07 (30) |
 
