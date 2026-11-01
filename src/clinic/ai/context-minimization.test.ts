@@ -441,4 +441,46 @@ describe('S8 minimização de contexto IA (#179)', () => {
       } as Parameters<typeof assertContextMinimized>[0] & { phone: string }),
     ).toThrow(/ai_context_contains_prohibited_keys/)
   })
+
+  it('DEC-118: freeSlots/upcoming ausentes do payload e do lastInspection do gateway', async () => {
+    const { db, clock, close } = bootClinicDb()
+    const tenantId = 'clinic-demo-a'
+    try {
+      const seeded = seedClinic(db, clock, tenantId, {
+        displayName: 'Carla Demo',
+        waId: '5511988887777',
+        inboundBodies: ['Tem limpeza amanhã?'],
+        services: [{ name: 'Limpeza de pele', priceCents: 18000, clientExplanation: null }],
+        clinicAddress: 'Rua Fictícia, 10',
+      })
+      const built = await buildAiContextPayload(db, tenantId, seeded.conversationId, { clock })
+      assertContextMinimized(built.payload)
+      const payloadJson = JSON.stringify(built.payload)
+      expect(payloadJson).not.toMatch(/"freeSlots"/)
+      expect(payloadJson).not.toMatch(/"upcomingAppointments"/)
+      expect(built.agendaFacts).not.toBeNull()
+      expect(built.agendaFacts!.freeSlots.length).toBeGreaterThanOrEqual(0)
+
+      const adapter = new SimulatedAiAdapter()
+      await suggestReplyOp(
+        db,
+        seeded.caller,
+        {
+          conversationId: seeded.conversationId,
+          clientRequestId: 'req-dec118',
+          actorClerkUserId: seeded.caller.actorId!,
+          actorDisplayName: 'Atendente',
+        },
+        clock,
+        { mode: 'synthetic', adapter },
+      )
+      const insp = adapter.lastInspection()
+      const blob = JSON.stringify(insp)
+      expect(blob).not.toMatch(/"freeSlots"/)
+      expect(blob).not.toMatch(/"upcomingAppointments"/)
+      expect(blob).not.toMatch(/Horários livres/)
+    } finally {
+      close()
+    }
+  })
 })

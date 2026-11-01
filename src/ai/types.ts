@@ -104,7 +104,10 @@ export type AiUpcomingAppointment = {
   when: string
 }
 
-/** Dados da clínica e da agenda real (leitura pura; a IA nunca agenda). */
+/**
+ * Dados da clínica enviados ao modelo (DEC-118 / M3).
+ * Sem freeSlots nem upcomingAppointments — horários são ditos pelo código.
+ */
 export type AiClinicContext = {
   name: string | null
   address: string | null
@@ -116,19 +119,26 @@ export type AiClinicContext = {
   /** YYYY-MM-DD de hoje no fuso da clínica. */
   today: string
   openingHours: string[]
-  freeSlots: AiFreeSlotDay[]
   /**
    * Frase fixa do WhatsApp quando a cliente pediu uma hora que o tempo recusou (DEC-077).
    * Não traz payload, percentagem nem a hora recusada.
    */
   tempoNote?: string | null
-  upcomingAppointments: AiUpcomingAppointment[]
   reschedulePolicy: string | null
   cancellationPolicy: string | null
   /** DEC-089 — nome opcional do atendente virtual (persona). */
   virtualAttendantName?: string | null
   /** DEC-089 — género para concordância; ausente = copy neutra. */
   virtualAttendantGender?: 'masculino' | 'feminino' | null
+}
+
+/**
+ * Factos de agenda **só** para o validador factual (#403) e o código determinístico.
+ * Nunca entram no pedido ao gateway (DEC-118).
+ */
+export type AiAgendaFacts = {
+  freeSlots: AiFreeSlotDay[]
+  upcomingAppointments: AiUpcomingAppointment[]
 }
 
 export type AiContextPayload = {

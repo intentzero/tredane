@@ -110,8 +110,6 @@ describe('DEC-089 virtual attendant', () => {
           nowLabel: 'sábado',
           today: '2026-10-31',
           openingHours: [],
-          freeSlots: [],
-          upcomingAppointments: [],
           reschedulePolicy: null,
           cancellationPolicy: null,
           virtualAttendantName: 'Luna',

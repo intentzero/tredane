@@ -19,8 +19,6 @@ function input(clinic: Partial<AiClinicContext>, inbound: string): AiGenerateInp
         nowLabel: 'quarta, 28/10 às 10:00',
         today: '2026-10-28',
         openingHours: [],
-        freeSlots: [],
-        upcomingAppointments: [],
         reschedulePolicy: null,
         cancellationPolicy: null,
         ...clinic,

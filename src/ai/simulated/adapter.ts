@@ -229,37 +229,8 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
     return `Olá${input.context.contactFirstName ? ` ${input.context.contactFirstName}` : ''}! Posso ajudar com informações dos nossos serviços ou a encontrar um horário. O que prefere?`
   }
 
-  #buildSlotReply(input: AiGenerateInput, last: string): string | null {
-    const c = input.context.clinic
-    if (!c || c.freeSlots.length === 0) return null
-    const n = last.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    if (!/(horario|vaga|disponib|agenda|tem .*(hora|dia)|amanha|hoje|manha|tarde|noite)/.test(n)) return null
-    const wantTomorrow = /amanha/.test(n)
-    const wantToday = /\bhoje\b/.test(n)
-    const period = /tarde/.test(n) ? 'tarde' : /manha/.test(n) ? 'manha' : /noite/.test(n) ? 'noite' : null
-    const inPeriod = (t: string) => {
-      const h = Number(t.slice(0, 2))
-      if (period === 'manha') return h < 12
-      if (period === 'tarde') return h >= 12 && h < 18
-      if (period === 'noite') return h >= 18
-      return true
-    }
-    const days = c.freeSlots.filter((d) =>
-      wantTomorrow ? d.dayLabel.startsWith('amanhã') : wantToday ? d.dayLabel.startsWith('hoje') : true,
-    )
-    for (const d of days) {
-      const times = d.times.filter(inPeriod)
-      if (times.length === 0) continue
-      const pick = times.length <= 3 ? times : [times[0]!, times[Math.floor(times.length / 2)]!, times[times.length - 1]!]
-      const when = d.dayLabel.startsWith('amanhã')
-        ? `Amanhã (${d.dayLabel.split(' ').pop()})`
-        : d.dayLabel.startsWith('hoje')
-          ? 'Hoje'
-          : `Na ${d.dayLabel}`
-      const list = pick.length === 1 ? pick[0]! : `${pick.slice(0, -1).join(', ')} e ${pick[pick.length - 1]}`
-      const name = input.context.contactFirstName ? `, ${input.context.contactFirstName}` : ''
-      return `Tenho sim${name}! ${when} tenho ${list} para ${d.serviceName.toLowerCase()}. Qual fica melhor pra você?`
-    }
+  /** DEC-118: o adaptador sintético também não inventa HH:MM — o código determinístico oferece horários. */
+  #buildSlotReply(_input: AiGenerateInput, _last: string): string | null {
     return null
   }
 }

@@ -1,10 +1,11 @@
 /**
  * #403 (CF-01, DEC-104) — validador factual do texto do modelo. Dados fictícios.
  * Casos da matriz: I-07 (reserva afirmada), I-08 (preço/hora inventados), J-08 (fora do período).
+ * DEC-118: freeSlots/upcoming passam como agendaFacts locais, não no payload ao gateway.
  */
 import { describe, expect, it } from 'vitest'
 import { allowedPricesCents, claimsBooking, pricesInText, timesInText, validateReplyFacts } from './reply-facts'
-import type { AiContextPayload } from './types'
+import type { AiAgendaFacts, AiContextPayload } from './types'
 
 /** Quinta 05/11/2026 (cenário de referência da matriz). */
 function ctx(over: Partial<AiContextPayload> = {}, lastInbound = 'Tem limpeza amanhã?'): AiContextPayload {
@@ -37,17 +38,24 @@ function ctx(over: Partial<AiContextPayload> = {}, lastInbound = 'Tem limpeza am
       nowLabel: 'quinta-feira, 05/11/2026 10:00',
       today: '2026-11-05',
       openingHours: ['segunda a sexta: 09:00–12:00 e 13:00–18:00'],
-      freeSlots: [
-        { serviceName: 'Limpeza de pele', date: '2026-11-06', dayLabel: 'amanhã, sexta-feira 06/11', times: ['09:00', '10:00', '14:00', '15:00'] },
-        { serviceName: 'Limpeza de pele', date: '2026-11-09', dayLabel: 'segunda-feira 09/11', times: ['13:00'] },
-        { serviceName: 'Depilação', date: '2026-11-06', dayLabel: 'amanhã, sexta-feira 06/11', times: ['11:00'] },
-      ],
-      upcomingAppointments: [],
       reschedulePolicy: null,
       cancellationPolicy: null,
     },
     ...over,
   }
+}
+
+const AGENDA: AiAgendaFacts = {
+  freeSlots: [
+    { serviceName: 'Limpeza de pele', date: '2026-11-06', dayLabel: 'amanhã, sexta-feira 06/11', times: ['09:00', '10:00', '14:00', '15:00'] },
+    { serviceName: 'Limpeza de pele', date: '2026-11-09', dayLabel: 'segunda-feira 09/11', times: ['13:00'] },
+    { serviceName: 'Depilação', date: '2026-11-06', dayLabel: 'amanhã, sexta-feira 06/11', times: ['11:00'] },
+  ],
+  upcomingAppointments: [],
+}
+
+function check(m: string, payload = ctx(), facts: AiAgendaFacts | null = AGENDA) {
+  return validateReplyFacts(m, payload, facts)
 }
 
 describe('afirmações de reserva (I-07)', () => {
@@ -93,7 +101,7 @@ describe('preços (I-08)', () => {
     ['A limpeza custa R$ 50,00.', false],
     ['O microagulhamento custa R$ 300,00.', false],
   ] as const)('«%s» → ok=%s', (m, ok) => {
-    expect(validateReplyFacts(m, ctx()).ok).toBe(ok)
+    expect(check(m).ok).toBe(ok)
   })
 })
 
@@ -112,37 +120,42 @@ describe('horários (I-08, J-08)', () => {
     ['Dia 20/11 tenho 10:00.', false],
     ['Funcionamos das 09:00 às 18:00.', true],
   ] as const)('«%s» → ok=%s', (m, ok) => {
-    expect(validateReplyFacts(m, ctx()).ok).toBe(ok)
+    expect(check(m).ok).toBe(ok)
   })
 
   it('restringe ao serviço citado: 11:00 é da depilação, não da limpeza', () => {
-    expect(validateReplyFacts('Para limpeza de pele, amanhã tenho 11:00.', ctx()).ok).toBe(false)
-    expect(validateReplyFacts('Para depilação, amanhã tenho 11:00.', ctx()).ok).toBe(true)
+    expect(check('Para limpeza de pele, amanhã tenho 11:00.').ok).toBe(false)
+    expect(check('Para depilação, amanhã tenho 11:00.').ok).toBe(true)
   })
 
   it('pode repetir a hora que a cliente pediu, mesmo ocupada', () => {
     const c = ctx({}, 'Limpeza amanhã às 16h?')
-    expect(validateReplyFacts('Às 16:00 já não tenho. Tenho 15:00, serve?', c).ok).toBe(true)
+    expect(check('Às 16:00 já não tenho. Tenho 15:00, serve?', c).ok).toBe(true)
   })
 
   it('«às 3 da tarde» e «meio-dia» da cliente contam como repetíveis', () => {
-    expect(validateReplyFacts('Às 15:00 não tenho.', ctx({}, 'pode ser às 3 da tarde?')).ok).toBe(true)
-    expect(validateReplyFacts('Ao meio-dia, 12:00, estamos fechados.', ctx({}, 'tem ao meio-dia?')).ok).toBe(true)
+    expect(check('Às 15:00 não tenho.', ctx({}, 'pode ser às 3 da tarde?')).ok).toBe(true)
+    expect(check('Ao meio-dia, 12:00, estamos fechados.', ctx({}, 'tem ao meio-dia?')).ok).toBe(true)
   })
 
   it('J-08: pediu manhã e o modelo oferece a tarde com manhã livre nesse dia', () => {
     const c = ctx({}, 'Limpeza amanhã de manhã')
-    const r = validateReplyFacts('Amanhã tenho 14:00 ou 15:00.', c)
+    const r = check('Amanhã tenho 14:00 ou 15:00.', c)
     expect(r).toEqual({ ok: false, violation: 'time_outside_period' })
-    expect(validateReplyFacts('Amanhã de manhã tenho 09:00 ou 10:00.', c).ok).toBe(true)
+    expect(check('Amanhã de manhã tenho 09:00 ou 10:00.', c).ok).toBe(true)
   })
 
   it('sem manhã livre no dia, a hora mais próxima de outro período é aceite', () => {
     const c = ctx({}, 'Limpeza segunda de manhã')
-    expect(validateReplyFacts('Segunda de manhã não tenho; tenho 13:00.', c).ok).toBe(true)
+    expect(check('Segunda de manhã não tenho; tenho 13:00.', c).ok).toBe(true)
   })
 
   it('sem contexto da clínica (resumo/teste), só reserva e preço são verificados', () => {
-    expect(validateReplyFacts('Tenho 23:00.', ctx({ clinic: undefined })).ok).toBe(true)
+    expect(check('Tenho 23:00.', ctx({ clinic: undefined })).ok).toBe(true)
+  })
+
+  it('DEC-118: sem agendaFacts locais, HH:MM inventada é recusada', () => {
+    expect(validateReplyFacts('Amanhã tenho 10:00.', ctx(), null).ok).toBe(false)
+    expect(validateReplyFacts('Amanhã tenho 10:00.', ctx(), AGENDA).ok).toBe(true)
   })
 })

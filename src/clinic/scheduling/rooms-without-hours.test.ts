@@ -430,15 +430,15 @@ describe('caso real: Gi seg–sex 09–17, sáb 09–12, sala sem horário', () 
         },
         s.clock,
       )
-      const ctx = await buildClinicAiContext(s.db, 'clinic-demo-a', s.clock, {
+      const { clinic } = await buildClinicAiContext(s.db, 'clinic-demo-a', s.clock, {
         contactId: 'c-none',
         recentTexts: [],
       })
-      const joined = ctx.openingHours.join(' | ')
+      const joined = clinic.openingHours.join(' | ')
       expect(joined).toMatch(/09:00–17:00/)
       expect(joined).toMatch(/09:00–12:00/)
       expect(joined).not.toMatch(/06:00|22:00/)
-      expect(ctx.openingHours.filter((l) => /fechado/.test(l))).toHaveLength(1)
+      expect(clinic.openingHours.filter((l) => /fechado/.test(l))).toHaveLength(1)
     } finally {
       s.close()
     }

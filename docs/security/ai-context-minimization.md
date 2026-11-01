@@ -11,12 +11,12 @@ Este documento inventaria, campo a campo, o que vai ao LLM versus o que fica só
 | --- | --- |
 | Conjunto mínimo DEC-011: mensagens recentes (proposta ≤20), primeiro nome, catálogo (nome, duração, preço e audiência do serviço — feminino, masculino ou qualquer, DEC-075; descreve o serviço, não a pessoa; DEC-046 acrescenta explicação; DEC-078 acrescenta, quando o serviço tem zonas, o nome, a duração e o preço ou «sem preço» de cada zona ativa — a duração e o preço da linha deixam de valer para marcação nova; DEC-079 acrescenta o singular e o plural do tipo, uma vez, e o género de cada variante (masculino, feminino ou ambos)), etapa; nunca telefone, anexos, outras conversas, outra clínica. A IA não anuncia vagas nem abre a mistura de sexos no bloco. Desde a DEC-077, os horários já vêm filtrados pelo tempo do serviço e a frase fixa do motivo pode entrar; ficam de fora o payload do provedor, a percentagem de precipitação e a escolha de céu ou temperatura | **Confirmado** (parcialmente — DEC-011; audiência Confirmada em DEC-075; bloco Tempo Confirmado em DEC-077, 29/10/2026) |
 | DEC-011 listou «horários livres» / conversa inteira como opções **descartadas** | **Confirmado** no texto de 23/10/2026 |
-| H2 (#159) pede compromissos futuros, data/hora por mensagem, vagas do período, sem dados proibidos | **Proposto** (arquitetura híbrida / épico) |
-| Código de rascunho (`buildClinicAiContext`) já envia nome/endereço/URL Google/políticas, `nowLabel`/`today`/`openingHours`, `freeSlots` (7 dias) e `upcomingAppointments` quando há `clock` | **Código à frente da DEC** — **não** Confirmado como política até Paulo fechar |
+| H2 (#159) pede compromissos futuros, data/hora por mensagem, vagas do período, sem dados proibidos | **Proposto** (arquitetura híbrida / épico) — horários livres / compromissos **não** vão ao LLM após DEC-118 / M3 |
+| Código de rascunho (`buildClinicAiContext`) envia ao modelo só nome/endereço/URL Google/políticas, `nowLabel`/`today`/`openingHours` e persona; `freeSlots` e `upcomingAppointments` ficam em `agendaFacts` locais (validador #403), nunca no pedido ao gateway | **Confirmado** (DEC-118, M3 / #413) |
 | Timestamp por mensagem no payload LLM | **Em aberto** (pedido H2; `AiContextMessage` só tem `direction`+`body`) |
 | Propostas versionadas no contexto LLM | **Confirmado engenharia:** objecto S3 existe em `main` (`appointment_proposals`) mas **não** entra no payload LLM neste PR; inclusão no prompt continua **Em aberto** (H2/arch) |
 
-**DEC-077 não fecha o bloco `clinic`.** Confirma só isto: se a IA receber horários, são os já filtrados pelo tempo do serviço; a frase fixa do motivo pode entrar; o payload da previsão, a percentagem e a escolha de céu ou temperatura não entram. Endereço, políticas e o restante do H2 continuam na linha «Código à frente da DEC».
+**DEC-118 fecha a exceção transitória** ao texto da DEC-011 sobre horários livres: com M3, o modelo **não** recebe `freeSlots` nem `upcomingAppointments`; o código calcula e diz os horários. O validador factual (#403) continua a usar factos locais (`agendaFacts`) para recusar HH:MM inventada.
 
 **Não confundir:** confirmação de marcação (DEC-061 / botão) **não** é consentimento LGPD para tratamento de dados.
 
@@ -30,9 +30,9 @@ Este documento inventaria, campo a campo, o que vai ao LLM versus o que fica só
 | Primeiro nome (`contactFirstName`) | Sim | **Confirmado** | Nunca telefone/`wa_id` |
 | Etapa da oportunidade (`stage`) | Sim | **Confirmado** | |
 | Catálogo: `name`, `durationMinutes`, `priceCents`, `clientExplanation` | Sim | **Confirmado** (+ DEC-046) | Nome/explicação também redigidos se contiverem telefone/token; sem IDs internos, salas ou profissionais |
-| `clinic.name`, `address`, `googleBusinessUrl`, políticas, `nowLabel`/`today`/`timezone`, `openingHours` | Sim (rascunho com `clock`) | **Em aberto** vs DEC-011 literal | Presente no código; aguarda aprovação Paulo |
-| `clinic.freeSlots` | Sim (idem) | **Em aberto** (DEC-011 descartou; H2 pede) | |
-| `clinic.upcomingAppointments` (mesmo contacto) | Sim (idem) | **Em aberto** / H2 **Proposto** | Só do `contactId` da conversa |
+| `clinic.name`, `address`, `googleBusinessUrl`, políticas, `nowLabel`/`today`/`timezone`, `openingHours`, persona | Sim (rascunho com `clock`) | **Confirmado** (DEC-118 — factos que pergunta aberta exige) | |
+| `clinic.freeSlots` | **Não** (DEC-118) | **Confirmado** — só em `agendaFacts` locais para o validador | Nunca no `lastInspection` / prompt |
+| `clinic.upcomingAppointments` (mesmo contacto) | **Não** (DEC-118) | **Confirmado** — só em `agendaFacts` locais | Idem |
 | Timestamp por mensagem | Não (ainda) | **Em aberto** (H2) | Backend usa `created_at` (ex.: autobook relativo) |
 | Proposta / versão / clique | Não (S8) | Objecto S3 em backend; inclusão no LLM **Em aberto**; clique = S4/S5 | |
 
@@ -50,7 +50,8 @@ Este documento inventaria, campo a campo, o que vai ao LLM versus o que fica só
 | Jobs `ai_autodraft_jobs`, uso diário | SQLite | Backend; apagados no delete/purge (S8) |
 | `appointment_proposals` | SQLite (S3) | Backend-only no S8; apagadas no delete/wipe; não vão ao LLM |
 | Auditoria `operational_audit` | SQLite | IDs/ações; sem corpos; retenção de logs **Em aberto** (REQ-070) |
-| Disponibilidade completa / holds / Pix | Agenda / Pix | LLM só vê fatia `freeSlots` se bloco clinic ativo |
+| Disponibilidade completa / holds / Pix | Agenda / Pix | `agendaFacts.freeSlots` só no validador local (DEC-118); LLM não vê |
+| `agendaFacts` (freeSlots + upcoming) | Retorno de `buildAiContextPayload` | **Nunca** no pedido ao gateway; `assertContextMinimized` falha se `freeSlots`/`upcomingAppointments` aparecerem no payload |
 | Confirmação de marcação / consentimento | Fluxos distintos | Marcação ≠ consentimento LGPD |
 
 ## 3. Proibições no payload (enforcement)
@@ -99,8 +100,8 @@ Ver também [environments.md](../implementation/environments.md) § AI Gateway e
 
 ## 7. Em aberto para Paulo (produto / jurídico)
 
-1. Aprovar ou rejeitar o conjunto ampliado H2 no LLM (slots, upcoming, meta da clínica, timestamps por mensagem).  
-2. Actualizar DEC-011 / REQ-072 / AC-37 após (1) — bloqueia uso real.  
+1. ~~Aprovar ou rejeitar slots/upcoming no LLM~~ — **DEC-118 Confirmado:** sem slots/upcoming no LLM após M3. Timestamps por mensagem e restantes H2 continuam **Em aberto**.  
+2. Actualizar DEC-011 / REQ-072 / AC-37 após DEC-118 no texto canónico — NC-02 fecha no AIMS na próxima revisão (não neste PR).  
 3. GATE-04 parecer LGPD (retenção IA, exclusão, transferência).  
 4. GATE-06 evidência de logging/cache no dashboard + contrato Anthropic.  
 5. Política LGPD fina de cliques/auditoria de proposta (objecto S3 já se apaga no delete/wipe; S4/S5 ainda sem clique) — sem confundir com consentimento.  

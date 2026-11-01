@@ -107,8 +107,11 @@ describe('horários que já passaram', () => {
   it('a IA não recebe horários que já começaram', async () => {
     const s = seed(mon(11, 50), WEEK)
     try {
-      const ctx = await buildClinicAiContext(s.db, 'clinic-demo-a', s.clock, { contactId: 'c-none', recentTexts: [] })
-      const today = ctx.freeSlots.find((d) => d.date === '2026-11-09')
+      const { agendaFacts } = await buildClinicAiContext(s.db, 'clinic-demo-a', s.clock, {
+        contactId: 'c-none',
+        recentTexts: [],
+      })
+      const today = agendaFacts.freeSlots.find((d) => d.date === '2026-11-09')
       expect(today).toBeTruthy()
       expect(today!.times.length).toBeGreaterThan(0)
       for (const t of today!.times) expect(t >= '12:00').toBe(true)

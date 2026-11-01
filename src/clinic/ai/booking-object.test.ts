@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { extractServices } from './autobook'
 import {
   durationMinutesFromText,
   listBookableOptions,
@@ -73,5 +74,25 @@ describe('booking-object', () => {
     })
     expect(result.kind).toBe('selected')
     expect(result.variantIds.sort()).toEqual(['z-axila-f', 'z-intima-f'].sort())
+  })
+
+  it.each([
+    ['tem limpeza hoje?', 'svc-limpeza'],
+    ['quero limpeza de pele', 'svc-limpeza'],
+    ['limpeza de pele profunda amanhã', 'svc-limpeza-profunda'],
+    ['profunda de limpeza de pele', 'svc-limpeza-profunda'],
+  ] as const)('prefixo de nome «%s» → serviço %s (F-08)', (text, serviceId) => {
+    const resolved = resolveBookingObject({ text, services: EVAL_BOOKING_CATALOG })
+    const extracted = extractServices(text, EVAL_BOOKING_CATALOG)
+    expect(extracted.map((s) => s.id).sort()).toEqual(
+      resolved.serviceId ? [resolved.serviceId].sort() : extracted.map((s) => s.id).sort(),
+    )
+    // Ambos concordam no serviço escolhido quando há um único candidato claro.
+    if (resolved.serviceId) expect(resolved.serviceId).toBe(serviceId)
+    expect(extracted.some((s) => s.id === serviceId)).toBe(true)
+    // «limpeza» sozinha não deve empatar com a profunda.
+    if (!/profunda/.test(text)) {
+      expect(extracted.every((s) => s.id !== 'svc-limpeza-profunda')).toBe(true)
+    }
   })
 })
