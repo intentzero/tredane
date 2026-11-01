@@ -75,6 +75,7 @@
 | B-10 | P0 | Hora já passada hoje | C (10:00): «Limpeza hoje às 9h» | Nenhuma proposta; oferece os próximos horários de hoje. | INV-03 | 1 | ❔ L1 |
 | B-11 | P1 | Termina depois do expediente | C: «Limpeza sexta às 17h30» (60 min) | Nenhuma proposta; oferece 15:00 ou anterior. | INV-03 | 1 | ❔ L1 |
 | B-12 | P2 | Período sem expediente | C: «Tem massagem hoje à noite?» | Diz que não atende à noite e oferece a tarde. | INV-03 | 1 | ❔ L2 |
+| B-13 | P0 | Conversa atravessa a meia-noite | (qui 23:50) C: «Limpeza amanhã à tarde» ⟶ A: [oferta sexta] ⟶ (sex 00:05) C: «14h» | Proposta **sexta** 06/11 14:00, e não sábado. | EF-02 | 2 | ⚠ CF-21 |
 
 ## C. Interpretação e robustez
 
@@ -225,9 +226,9 @@ Um diálogo L3 que falha é triado (plano §6). Se revela um caso novo, ganha um
 | Estado | Casos |
 | --- | --- |
 | ❌ Falha verificada | A-10, B-01, B-02, B-03, B-06, B-07, B-08, C-01, C-02, C-03, C-11, C-12, E-06, G-02, G-03, G-05, I-07, I-08, J-04, J-08 (20) |
-| ⚠ Falha provável | A-02, A-07, A-08, B-04, C-05, C-08, D-01, D-02, D-04, D-06, F-07, G-10, G-11, H-02, H-03, J-09, K-01 (17) |
+| ⚠ Falha provável | A-02, A-07, A-08, B-04, B-13, C-05, C-08, D-01, D-02, D-04, D-06, F-07, G-10, G-11, H-02, H-03, J-09, K-01 (18) |
 | ✅ Coberto por teste | A-01, A-04, A-05, A-11, B-05, C-09, D-03, D-07, E-02, E-03, E-05, E-08, F-03, F-05, F-06, G-01, G-04, G-06, G-07, G-08, G-09, G-12, I-01, I-02, I-05, J-01, J-03, J-05, K-02, K-04, K-05, K-06 (32) |
 | ◐ Passa por código | A-03, D-05, H-01, K-03, K-07 (5) |
 | ❔ Por medir | A-06, A-09, A-12, B-09, B-10, B-11, B-12, C-04, C-06, C-07, C-10, C-13, D-08, D-09, D-10, D-11, E-01, E-04, E-07, F-01, F-02, F-04, F-08, H-04, I-03, I-04, I-06, J-02, J-06, J-07 (30) |
 
-Total: 104 casos.
+Total: 105 casos.
