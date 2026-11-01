@@ -1675,20 +1675,57 @@ export function createPanelApi(getToken: TokenGetter) {
     async inviteAttendant(
       tenantId: string,
       email: string,
-      opts?: FetchOpts,
+      opts?: FetchOpts & { role?: 'attendant' | 'owner' },
     ): Promise<{ invitation: TeamInvitation; emailSent: boolean }> {
+      const role = opts?.role === 'owner' ? 'owner' : 'attendant'
       const res = await authFetch(
         `/api/tenants/${encodeURIComponent(tenantId)}/invitations`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, role }),
         },
         opts,
       )
       assertGeneration(opts)
       if (!res.ok) throw await parseError(res)
       return (await res.json()) as { invitation: TeamInvitation; emailSent: boolean }
+    },
+
+    /** DEC-103: promove attendant ativo → owner. */
+    async promoteMember(
+      tenantId: string,
+      clerkUserId: string,
+      opts?: FetchOpts,
+    ): Promise<{ membership: { tenantId: string; clerkUserId: string; role: string; status: string } }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/members/${encodeURIComponent(clerkUserId)}/promote`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        membership: { tenantId: string; clerkUserId: string; role: string; status: string }
+      }
+    },
+
+    /** DEC-103: despromove owner → attendant (`last_owner_protected`). */
+    async demoteMember(
+      tenantId: string,
+      clerkUserId: string,
+      opts?: FetchOpts,
+    ): Promise<{ membership: { tenantId: string; clerkUserId: string; role: string; status: string } }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/members/${encodeURIComponent(clerkUserId)}/demote`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        membership: { tenantId: string; clerkUserId: string; role: string; status: string }
+      }
     },
 
     async resendInvitation(
@@ -1721,7 +1758,7 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as { invitation: TeamInvitation }
     },
 
-    /** Owner remove attendant (DEC-026 / ADR-0009). Owners são recusados pela API. */
+    /** Owner remove attendant ou outro owner (DEC-026 / DEC-103; `last_owner_protected`). */
     async revokeMember(
       tenantId: string,
       clerkUserId: string,
@@ -2054,14 +2091,19 @@ export type TeamMemberLite = {
   email?: string | null
   role: 'owner' | 'attendant' | string
   status: string
-  manageActions?: { canRevoke: boolean; canInvite: boolean }
+  manageActions?: {
+    canRevoke: boolean
+    canInvite: boolean
+    canPromote?: boolean
+    canDemote?: boolean
+  }
 }
 
 export type TeamInvitation = {
   id: string
   tenantId: string
   email: string
-  role: 'attendant' | string
+  role: 'owner' | 'attendant' | string
   status: string
   issuedAt: number
   expiresAt: number
@@ -2088,7 +2130,7 @@ export type AcceptInvitationResult = {
   membership: {
     tenantId: string
     clerkUserId: string
-    role: 'attendant' | string
+    role: 'owner' | 'attendant' | string
     status: string
   }
 }

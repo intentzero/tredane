@@ -80,10 +80,19 @@ const BY_CODE: Record<string, string> = {
   invitation_resend_quota: 'Limite de 5 reenvios em 24 horas atingido. Tente amanhã.',
   invitation_cancel_conflict: 'Outra pessoa acabou de mudar este convite. Atualize a tela.',
   cannot_revoke_owner:
-    'Responsáveis não podem ser removidos por aqui. Fale com a equipe do Tredane.',
+    'Não foi possível remover este responsável. Confira se não é o único da clínica.',
   cannot_revoke_self: 'Você não pode remover o próprio acesso.',
+  last_owner_protected:
+    'A clínica precisa de pelo menos um responsável. Indique outra pessoa antes de remover ou despromover.',
+  not_an_attendant: 'Só atendentes podem ser promovidos a responsável.',
+  not_an_owner: 'Só responsáveis podem ser despromovidos a atendente.',
+  owner_promote_conflict: 'Outra pessoa acabou de mudar este membro. Atualize a tela.',
+  owner_demote_conflict: 'Outra pessoa acabou de mudar este membro. Atualize a tela.',
+  invalid_invitation_role: 'Escolha Atendente ou Responsável para o convite.',
   membership_not_found: 'Essa pessoa já não faz parte desta clínica.',
   membership_revoke_conflict: 'Outra pessoa acabou de mudar este membro. Atualize a tela.',
+  membership_role_conflict:
+    'Essa pessoa já tem outro papel nesta clínica. Use promover ou despromover na lista.',
 }
 
 function byStatus(status: number): string | null {

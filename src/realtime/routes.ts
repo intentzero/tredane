@@ -346,11 +346,6 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
       const ctx = c.get('tenantContext')
       const principal = c.get('principal')
       if (!ctx) return c.json({ error: 'tenant_access_denied' }, 403)
-      try {
-        requireClinicPermission(ctx, 'clinic.members.revoke_attendant')
-      } catch (err) {
-        return authErrorResponse(c, err)
-      }
 
       const targetUserId = c.req.param('clerkUserId')
       if (!targetUserId) return c.json({ error: 'member_required' }, 400)
@@ -363,6 +358,39 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
       const syncDb = opts.syncAdminDbFactory?.(c.env) ?? null
 
       try {
+        // DEC-103: attendants e owners (com last_owner_protected). Permissão conforme o alvo.
+        let targetRole: string | null = null
+        if (syncDb) {
+          const target = syncDb.get<{ role: string; status: string }>(
+            `SELECT role, status FROM tenant_memberships
+             WHERE tenant_id = ? AND clerk_user_id = ?`,
+            ctx.tenantId,
+            targetUserId,
+          )
+          if (!target) return c.json({ error: 'membership_not_found' }, 404)
+          targetRole = target.role
+        } else {
+          const target = await c.env.DB.prepare(
+            `SELECT role, status FROM tenant_memberships
+             WHERE tenant_id = ? AND clerk_user_id = ?`,
+          )
+            .bind(ctx.tenantId, targetUserId)
+            .first<{ role: string; status: string }>()
+          if (!target) return c.json({ error: 'membership_not_found' }, 404)
+          targetRole = target.role
+        }
+
+        try {
+          requireClinicPermission(
+            ctx,
+            targetRole === 'owner'
+              ? 'clinic.members.revoke_owner'
+              : 'clinic.members.revoke_attendant',
+          )
+        } catch (err) {
+          return authErrorResponse(c, err)
+        }
+
         if (syncDb) {
           const result = await revokeMembershipAndPropagate(
             syncDb,
@@ -372,6 +400,7 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
               tenantId: ctx.tenantId,
               clerkUserId: targetUserId,
               actorClerkUserId: principal.clerkUserId,
+              allowOwnerTarget: targetRole === 'owner',
               source: 'membership_revoke' satisfies FenceSource,
             },
           )
@@ -393,6 +422,7 @@ export function createRealtimeRoutes(opts: RealtimeRouteOptions = {}): Hono<Real
             tenantId: ctx.tenantId,
             targetUserId,
             actorClerkUserId: principal.clerkUserId,
+            allowOwnerTarget: targetRole === 'owner',
           },
           (body, status) => c.json(body, status),
         )
@@ -425,6 +455,7 @@ async function revokeMembershipViaD1(
     tenantId: string
     targetUserId: string
     actorClerkUserId: string
+    allowOwnerTarget?: boolean
   },
   json: (body: unknown, status?: 200 | 400 | 403 | 404) => Response,
 ): Promise<Response> {
@@ -451,7 +482,19 @@ async function revokeMembershipViaD1(
 
   if (!target) return json({ error: 'membership_not_found' }, 404)
   if (target.role === 'owner' && target.status === 'active') {
-    return json({ error: 'cannot_revoke_owner' }, 403)
+    if (!input.allowOwnerTarget) {
+      return json({ error: 'cannot_revoke_owner' }, 403)
+    }
+    const owners = await db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM tenant_memberships
+         WHERE tenant_id = ? AND role = 'owner' AND status = 'active'`,
+      )
+      .bind(input.tenantId)
+      .first<{ n: number }>()
+    if (Number(owners?.n ?? 0) <= 1) {
+      return json({ error: 'last_owner_protected' }, 403)
+    }
   }
 
   if (target.status === 'active') {

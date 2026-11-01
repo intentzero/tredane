@@ -6,7 +6,7 @@
 
 ## Decisão
 
-Um **owner** pode convidar um **attendant** exclusivamente para tenant no qual possui membership owner ativo. O Tredane gera convite escopado ao tenant, endereço de e-mail e role fixa `attendant`, persiste-o no D1 e envia **link de uso único por e-mail**. Após seguir o link, a pessoa autentica-se no Clerk (com conta existente ou nova). O backend verifica se o **e-mail convidado está verificado na conta Clerk autenticada**. Só então o convite pode ser consumido atomicamente, criando ou confirmando membership attendant nesse tenant sem afetar memberships noutros tenants.
+Um **owner** pode convidar uma pessoa exclusivamente para tenant no qual possui membership owner ativo. O Tredane gera convite escopado ao tenant, endereço de e-mail e role `attendant` ou `owner` (DEC-103), persiste-o no D1 e envia **link de uso único por e-mail**. Após seguir o link, a pessoa autentica-se no Clerk (com conta existente ou nova). O backend verifica se o **e-mail convidado está verificado na conta Clerk autenticada**. Só então o convite pode ser consumido atomicamente, criando ou confirmando membership com a role persistida nesse tenant sem afetar memberships noutros tenants. Role no body do cliente é ignorada.
 
 **Não usar Clerk Organizations**, e **não permitir que um owner crie convites para owner**. A gestão de owners é exclusiva do superadmin.
 

@@ -72,6 +72,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0014_webhook_receipt_button_reply.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0015_invitation_owner_role.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

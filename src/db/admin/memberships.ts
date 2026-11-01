@@ -191,7 +191,123 @@ export function upsertMembership(
   return db.immediate(() => upsertMembershipInTx(db, clock, input))
 }
 
-/** DEC-026: revoga membership no tenant sem afetar outros. */
+/** Contagem de owners ativos — proteção do último (DEC-103). */
+export function countActiveOwnersInTenant(db: AdminDb, tenantId: string): number {
+  assertAdminSchemaReady(db)
+  const row = db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM tenant_memberships
+     WHERE tenant_id = ? AND role = 'owner' AND status = 'active'`,
+    tenantId,
+  )
+  return Number(row?.n ?? 0)
+}
+
+/**
+ * DEC-103: despromove owner ativo → attendant.
+ * Recusa o último owner (`last_owner_protected`).
+ */
+export function demoteOwnerToAttendant(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    tenantId: string
+    clerkUserId: string
+    actorClerkUserId: string
+  },
+): MembershipRow {
+  assertAdminSchemaReady(db)
+  return db.immediate(() => {
+    const current = getMembership(db, input.tenantId, input.clerkUserId)
+    if (!current || current.status !== 'active') {
+      throw new NotFoundError('membership_not_found', 'Membership inexistente')
+    }
+    if (current.role !== 'owner') {
+      throw new ConflictError('not_an_owner', 'Só responsáveis podem ser despromovidos')
+    }
+    if (countActiveOwnersInTenant(db, input.tenantId) <= 1) {
+      throw new ForbiddenError(
+        'last_owner_protected',
+        'Não é permitido despromover o último owner ativo',
+      )
+    }
+    const result = db.run(
+      `UPDATE tenant_memberships
+       SET role = 'attendant'
+       WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active' AND role = 'owner'`,
+      input.tenantId,
+      input.clerkUserId,
+    )
+    if (result.changes !== 1) {
+      throw new ConflictError('owner_demote_conflict', 'Despromoção não aplicada')
+    }
+    writeAudit(db, clock, {
+      actorClerkUserId: input.actorClerkUserId,
+      subjectClerkUserId: input.clerkUserId,
+      tenantId: input.tenantId,
+      action: 'owner.demote',
+      objectType: 'tenant_membership',
+      objectId: `${input.tenantId}:${input.clerkUserId}`,
+      outcome: 'success',
+      metadata: { from: 'owner', to: 'attendant' },
+    })
+    return getMembership(db, input.tenantId, input.clerkUserId)!
+  })
+}
+
+/**
+ * DEC-103: promove attendant ativo → owner no tenant.
+ * Idempotente se já for owner ativo.
+ */
+export function promoteAttendantToOwner(
+  db: AdminDb,
+  clock: Clock,
+  input: {
+    tenantId: string
+    clerkUserId: string
+    actorClerkUserId: string
+  },
+): MembershipRow {
+  assertAdminSchemaReady(db)
+  const tenant = getTenant(db, input.tenantId)
+  if (!tenant) throw new NotFoundError('tenant_not_found', 'Tenant inexistente')
+  if (tenant.status === 'pending_deletion') {
+    throw new ConflictError('tenant_pending_deletion', 'Tenant em exclusão lógica')
+  }
+
+  return db.immediate(() => {
+    const existing = getMembership(db, input.tenantId, input.clerkUserId)
+    if (!existing || existing.status !== 'active') {
+      throw new NotFoundError('membership_not_found', 'Membership ativo inexistente')
+    }
+    if (existing.role === 'owner') return existing
+    if (existing.role !== 'attendant') {
+      throw new ConflictError('not_an_attendant', 'Só atendentes podem ser promovidos a responsável')
+    }
+    const result = db.run(
+      `UPDATE tenant_memberships
+       SET role = 'owner'
+       WHERE tenant_id = ? AND clerk_user_id = ? AND status = 'active' AND role = 'attendant'`,
+      input.tenantId,
+      input.clerkUserId,
+    )
+    if (result.changes !== 1) {
+      throw new ConflictError('owner_promote_conflict', 'Promoção não aplicada')
+    }
+    writeAudit(db, clock, {
+      actorClerkUserId: input.actorClerkUserId,
+      subjectClerkUserId: input.clerkUserId,
+      tenantId: input.tenantId,
+      action: 'owner.promote',
+      objectType: 'tenant_membership',
+      objectId: `${input.tenantId}:${input.clerkUserId}`,
+      outcome: 'success',
+      metadata: { from: 'attendant', to: 'owner', via: 'clinic_equipe' },
+    })
+    return getMembership(db, input.tenantId, input.clerkUserId)!
+  })
+}
+
+/** DEC-026 / DEC-103: revoga membership no tenant sem afetar outros. */
 export function revokeMembership(
   db: AdminDb,
   clock: Clock,
@@ -199,7 +315,10 @@ export function revokeMembership(
     tenantId: string
     clerkUserId: string
     actorClerkUserId: string
-    /** Owner só remove attendants; superadmin pode remover owners (validado pelo caller). */
+    /**
+     * Permite alvo owner (clinic Equipe DEC-103 ou Platform Admin).
+     * Sempre aplica `last_owner_protected` quando o alvo é owner ativo.
+     */
     allowOwnerTarget?: boolean
   },
 ): MembershipRow {
@@ -210,7 +329,13 @@ export function revokeMembership(
     if (!current) throw new NotFoundError('membership_not_found', 'Membership inexistente')
     if (current.status === 'revoked') return current
     if (current.role === 'owner' && !input.allowOwnerTarget) {
-      throw new ForbiddenError('cannot_revoke_owner', 'Owner só é gerido por superadmin')
+      throw new ForbiddenError('cannot_revoke_owner', 'Remoção de responsável não autorizada')
+    }
+    if (current.role === 'owner' && countActiveOwnersInTenant(db, input.tenantId) <= 1) {
+      throw new ForbiddenError(
+        'last_owner_protected',
+        'Não é permitido remover o último owner ativo',
+      )
     }
     const result = db.run(
       `UPDATE tenant_memberships

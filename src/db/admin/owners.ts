@@ -1,14 +1,15 @@
 /**
- * Gestão exclusiva de owners por superadmin (DEC-020 / REQ-004 / #24).
+ * Gestão de owners na Platform Admin (DEC-020 / DEC-103 / REQ-004 / #24).
  *
  * Regras explícitas (antes de transições irreversíveis):
  * 1. Criar tenant exige primeiro owner na mesma operação.
- * 2. Somente superadmin (caller HTTP) atribui, promove, substitui ou remove owners.
+ * 2. Superadmin (caller HTTP) atribui, promove, substitui ou remove owners.
  * 3. Remover ou despromover o **último** owner ativo é recusado (`last_owner_protected`).
  * 4. Substituição exige promover/ativar o novo owner antes de remover o antigo,
  *    na mesma transação, mantendo ≥1 owner ativo.
  * 5. Memberships do mesmo utilizador noutros tenants não são alterados.
- * 6. Owner da clínica não pode promover/criar owners (negado na API clínica).
+ * 6. DEC-103: owner da clínica também convida/promove/despromove/remove owners
+ *    na Equipe (API clínica), com a mesma proteção do último owner.
  */
 import type { Clock } from '../clock'
 import { writeAudit } from './audit'

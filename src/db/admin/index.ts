@@ -49,6 +49,9 @@ export {
   upsertMembership,
   upsertMembershipInTx,
   revokeMembership,
+  promoteAttendantToOwner,
+  demoteOwnerToAttendant,
+  countActiveOwnersInTenant,
   type MembershipRow,
 } from './memberships'
 export {

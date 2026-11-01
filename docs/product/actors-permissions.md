@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | ACT-01 | Contato da clínica | Confirmado | Conversar pelo WhatsApp e solicitar ou alterar um horário. Não acessa o painel do Tredane. “Contato” não implica paciente com prontuário. |
 | ACT-02 | Atendente | Confirmado | Vê todas as conversas da própria clínica, conduz atendimentos, acompanha oportunidades e opera agendamentos. Não acessa dados de outras clínicas. |
-| ACT-03 | Responsável pela clínica | Confirmado | Pode fazer tudo que o atendente faz, inclusive responder no WhatsApp e operar agendamentos da própria clínica. Pode convidar e remover attendants do próprio tenant. Não pode criar, promover ou remover owners. Conecta ou troca o número de WhatsApp pelo Embedded Signup (DEC-009/042). Detalhes externos da ativação Meta continuam como gate. |
+| ACT-03 | Responsável pela clínica | Confirmado (DEC-103, 01/11/2026) | Pode fazer tudo que o atendente faz, inclusive responder no WhatsApp e operar agendamentos da própria clínica. Pode convidar attendants e owners, promover attendant→owner, despromover owner→attendant e remover attendants e outros owners do próprio tenant (DEC-103), com proteção do último owner. Superadmin/Platform Admin continua a gerir owners. Conecta ou troca o número de WhatsApp pelo Embedded Signup (DEC-009/042). Detalhes externos da ativação Meta continuam como gate. |
 | ACT-04 | Profissional que presta o serviço | Confirmado fora do painel do MVP | É recurso de agenda; não recebe perfil de acesso ao painel nesta primeira entrega. |
 | ACT-05 | Superadmin Tredane | Confirmado na Platform Admin App | Administrador com `privateMetadata.superadmin === true` validada no backend; cria/edita/suspende/inicia exclusão de tenants, e pode iniciar impersonação temporária de membro de tenant para manutenção, com auditoria. Não recebe acesso implícito irrestrito ao conteúdo da clínica. |
 | ACT-06 | Serviços externos e automações | Proposto | WhatsApp, filas e workflows agem em nome da clínica após verificação da origem e associação ao tenant. Não são usuários humanos nem recebem acesso genérico a outros tenants. |
@@ -31,7 +31,8 @@
 | Sinalizar, ocultar e pausar automações (DEC-067, P-1) | — | ✓ | ✓ | — | — |
 | Retomar automações, desbloquear e marcar falso positivo (DEC-067, P-1) | — | — | ✓ | — | — |
 | Convidar e remover attendants do próprio tenant | — | — | ✓ | — | ✓ |
-| Atribuir, promover, substituir ou remover owners | — | — | — | — | ✓ |
+| Convidar owner, promover, despromover e remover outros owners no próprio tenant (DEC-103; último owner protegido) | — | — | ✓ | — | ✓ |
+| Substituir owners / gerir owners na Platform Admin | — | — | — | — | ✓ |
 | Conectar ou trocar o número de WhatsApp (Embedded Signup, DEC-009, DEC-042) | — | — | ✓ | — | acompanhar o estado |
 | Ver conteúdo de todos os tenants sem contexto autorizado | — | — | — | — | — |
 | Administrar cadastro e ciclo de vida de tenants | — | — | — | — | ✓ |
@@ -56,7 +57,7 @@ Operação e suporte devem partir de metadados e registros técnicos. Qualquer a
 1. O servidor resolve a clínica a partir de identidade autenticada e associação vigente; um ID de clínica enviado pelo navegador não concede acesso.
 2. Um usuário pode pertencer a **vários** tenants com papéis distintos; cada aba/requisição opera num tenant explicitamente selecionado e revalidado contra memberships ativos no D1. Não existe tenant global no Clerk.
 3. Webhook verificado é associado à clínica pelo número/conta conectada, nunca por um campo de tenant livre no payload.
-4. Superadmin provisiona o primeiro owner e gere owners; owner gere apenas attendants de seu tenant, sem alterar membros de outra clínica. Remover um membership em A preserva B. A criação, alteração e exclusão de membro registram quem fez a ação. Ao revogar acesso, novas requisições são negadas e conexões WebSocket existentes deixam de receber eventos e são encerradas ou reautorizadas antes de continuar.
+4. Superadmin provisiona o primeiro owner e pode atribuir/promover/substituir/remover owners (com `last_owner_protected`). Owner do tenant convida attendants e owners, promove/despromove e remove membros no próprio tenant (DEC-103), sem deixar o tenant sem owner ativo e sem alterar membros de outra clínica. Remover um membership em A preserva B. A criação, alteração e exclusão de membro registram quem fez a ação. Ao revogar acesso, novas requisições são negadas e conexões WebSocket existentes deixam de receber eventos e são encerradas ou reautorizadas antes de continuar.
 5. Arquivos, mensagens em fila e workflows carregam contexto de tenant verificável e só operam sobre dados desse tenant.
 6. Nenhum ator humano tem acesso implícito aos dados de todas as clínicas. A impersonação do superadmin opera segundo a role efetiva do usuário alvo, com ator, alvo, tenant, motivo, prazo e ações auditadas. A sessão de suporte não deve conferir privilégios superiores à role do alvo.
 
@@ -72,6 +73,6 @@ Operação e suporte devem partir de metadados e registros técnicos. Qualquer a
 
 **Nova decisão de 23/10/2026:** Clerk sem Organizations; `privateMetadata.superadmin`; memberships multi-tenant no D1; Platform Admin separada e impersonação de suporte auditável. Conferir [ADR-0006](../adr/0006-clerk-platform-admin.md) e [ADR-0007](../adr/0007-support-impersonation.md).
 
-**Decisão B confirmada:** gestão delegada de attendants pelo owner e gestão de owners exclusiva do superadmin. Fluxo do convite permanece em aberto.
+**Decisão B confirmada (revista por DEC-103, 01/11/2026):** gestão delegada de attendants e de outros owners pelo owner na Equipe (convidar, promover, despromover, remover), com proteção do último owner; Platform Admin / superadmin continua a gerir owners.
 
 **Próximo passo:** implementar/validar o mecanismo **próprio** de impersonação do Tredane (handoff, revogação e auditoria), o onboarding de membros e a política de dados de suporte antes de usar dados reais.
