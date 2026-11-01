@@ -38,6 +38,12 @@ import { evaluateServiceTempo, type ForecastAdapter } from '../tempo/evaluate'
 import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
+import {
+  DEFAULT_OPTION_KIND_PLURAL,
+  MIXED_AUDIENCE_REPLY,
+  SERVICE_NOT_FOUND_REPLY,
+  teamConfirmsSoonReply,
+} from './client-copy'
 import { checkConversationProtection } from './protection'
 import { resolveBookingObject, servicesFromBookingMatch } from './booking-object'
 import {
@@ -618,13 +624,11 @@ export async function tryAiAutoBook(
       if (!(date && time && kept.length > 0 && !chosen.ambiguous && contributed)) {
         const plural = det.service.variantKindPlural?.trim() || ''
         const singular = det.service.variantKind?.trim() || ''
-        const kindLabel = (plural || singular || 'variantes').toLocaleLowerCase('pt-BR')
+        const kindLabel = (plural || singular || DEFAULT_OPTION_KIND_PLURAL).toLocaleLowerCase('pt-BR')
         const earlyPhrase = plural || !singular ? `as ${kindLabel}` : `a ${kindLabel}`
         const cited = zonesNamedInText(turnText, active)
         if (variantAudiencesConflict(cited)) {
-          replyText =
-            `As ${kindLabel} que misturam masculino e feminino não entram na mesma visita. ` +
-            `Escolha um conjunto compatível (ambos combina com os dois).`
+          replyText = MIXED_AUDIENCE_REPLY
         } else if (needsAudienceLine(active) && !line) {
           replyText = audienceLineQuestion(det.service.name)
         } else if (active.length > 0 && (kept.length === 0 || chosen.ambiguous)) {
@@ -687,8 +691,7 @@ export async function tryAiAutoBook(
         } else if (booking.handoffReason === 'multiplos_servicos') {
           replyText = 'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?'
         } else if (booking.handoffReason === 'inexistente') {
-          replyText =
-            'Não encontrei esse procedimento no nosso catálogo. Quer ver as opções que temos?'
+          replyText = SERVICE_NOT_FOUND_REPLY
         } else if (booking.handoffReason === 'historico_indisponivel') {
           replyText = 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
         }
@@ -800,7 +803,7 @@ export async function tryAiAutoBook(
   }
   const plural = svc.variantKindPlural?.trim() || ''
   const singular = svc.variantKind?.trim() || ''
-  const kind = (plural || singular || 'variantes').toLocaleLowerCase('pt-BR')
+  const kind = (plural || singular || DEFAULT_OPTION_KIND_PLURAL).toLocaleLowerCase('pt-BR')
   const phrase = plural || !singular ? `as ${kind}` : `a ${kind}`
   if (activeZones.length > 0 && (namedZones.length === 0 || ambiguous)) {
     const names = stableVariantLabelList(scoped.length > 0 ? scoped : activeZones)
@@ -817,11 +820,9 @@ export async function tryAiAutoBook(
   if (variantAudiencesConflict(namedZones)) {
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
-      replyText:
-        `As ${kind} que misturam masculino e feminino não entram na mesma visita. ` +
-        `Escolha um conjunto compatível (ambos combina com os dois).`,
+      replyText: MIXED_AUDIENCE_REPLY,
       notes:
-        `As ${kind} escolhidas misturam masculino e feminino. Peça um conjunto compatível. Ambos combina com os dois. Não informe valor nem envie proposta.`,
+        `As ${kind} escolhidas misturam masculino e feminino. Peça um conjunto compatível. Não informe valor nem envie proposta.`,
     }
   }
   let quote
@@ -840,7 +841,7 @@ export async function tryAiAutoBook(
       replyText:
         activeZones.length > 0
           ? askZonesReply(phrase, stableVariantLabelList(scoped.length > 0 ? scoped : activeZones), time)
-          : `Não consegui fechar ${svc.name} às ${time} agora. A equipe confirma pelo Agendar.`,
+          : teamConfirmsSoonReply(svc.name, time),
       notes:
         `Não deu para calcular ${svc.name}: ${message}. Pergunta/aviso automático enviado. Texto livre não marca.`,
     }
