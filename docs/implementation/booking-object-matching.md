@@ -3,7 +3,7 @@
 **Estado:** plano de engenharia **Proposto** (1/11/2026), com diagnóstico **observado no código** e hipóteses ainda **Em aberto**. Não inventa decisão Confirmada. Não amplia autonomia da IA (DEC-061, DEC-060 revista). Sem RAG vetorial e sem troca de modelo neste trabalho.
 
 **Issue:** [#397](https://github.com/intentzero/tredane/issues/397).  
-**PR:** a preencher após abertura.  
+**PR:** [#398](https://github.com/intentzero/tredane/pull/398).  
 **Espelho curto (store do projeto):** `/cursor/stores/bc-01a16ae7-fbb2-7a30-9ba5-224a15570315/docs/booking-object-matching.md`
 
 **Coordenação:** o [PR #394](https://github.com/intentzero/tredane/pull/394) trata zonas já escolhidas na proposta (DEC-090). Este trabalho foca a identificação do **serviço + variante** antes/durante a conversa; rebase em `main` se #394 aterrar.
