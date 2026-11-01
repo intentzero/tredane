@@ -105,19 +105,24 @@ describe('CF-23: mudança de serviço depois da proposta', () => {
     }
   })
 
-  it('o mesmo serviço, um agradecimento ou uma pergunta não retiram a proposta', async () => {
-    const s = bootDialogScenario()
-    try {
-      await say(s, 'Quero limpeza de pele amanhã às 15h')
-      await say(s, 'obrigada!')
-      await say(s, 'é limpeza de pele mesmo')
-      const rows = states(s)
-      expect(rows).toHaveLength(1)
-      expect(OPEN).toContain(rows[0]!.state)
-    } finally {
-      s.close()
-    }
-  })
+  // Três turnos com autodraft — o default 5s do Vitest é curto para o cenário.
+  it(
+    'o mesmo serviço, um agradecimento ou uma pergunta não retiram a proposta',
+    { timeout: 30_000 },
+    async () => {
+      const s = bootDialogScenario()
+      try {
+        await say(s, 'Quero limpeza de pele amanhã às 15h')
+        await say(s, 'obrigada!')
+        await say(s, 'é limpeza de pele mesmo')
+        const rows = states(s)
+        expect(rows).toHaveLength(1)
+        expect(OPEN).toContain(rows[0]!.state)
+      } finally {
+        s.close()
+      }
+    },
+  )
 
   it('sem vaga no horário da proposta antiga, oferece alternativas do serviço novo', async () => {
     const s = bootDialogScenario()
