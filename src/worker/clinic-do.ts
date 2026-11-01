@@ -1006,6 +1006,20 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
     const outbox = resumeAiReply(this.#db, caller.tenantId, conversationId, this.#clock)
+    try {
+      const job = clinicAi.enqueueLatestUnansweredInbound(
+        this.#db,
+        caller.tenantId,
+        conversationId,
+        this.#clock,
+      )
+      if (job) {
+        await this.#scheduleAlarmNoLaterThan(job.dueAt)
+        await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'queued' })
+      }
+    } catch {
+      /* a retomada não falha se o rascunho não enfileirar */
+    }
     if (outbox.length > 0) {
       await this.#fanoutOutboxes(caller, outbox, true)
       await this.#drain(caller)

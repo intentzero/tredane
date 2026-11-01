@@ -373,4 +373,65 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       boot.close()
     }
   })
+
+  it('não pede a linha outra vez depois de a cliente ter dito axila masculina', () => {
+    const boot = seedMixed()
+    try {
+      const opts = { conversationId: boot.conversation.id }
+      expect(
+        catalogReply(boot.db, boot.tenantId, 'Quanto custa a axila masculina?', boot.clock, opts),
+      ).toMatch(/R\$/)
+      const next = catalogReply(boot.db, boot.tenantId, 'Quero depilação na segunda à tarde.', boot.clock, opts)
+      expect(next).not.toMatch(/feminina ou masculina/)
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('recusa masculino e feminino juntos e não trata «às 3» como 03:00', () => {
+    const boot = seedMixed()
+    try {
+      const opts = { conversationId: boot.conversation.id }
+      expect(
+        catalogReply(boot.db, boot.tenantId, 'Quero axila masculina e axila feminina juntas.', boot.clock, opts),
+      ).toMatch(/não entram na mesma visita/)
+      expect(catalogReply(boot.db, boot.tenantId, 'Pode ser às 3.', boot.clock, opts)).toBe(
+        'Às 3 da tarde seria 15:00. É esse horário?',
+      )
+      expect(catalogReply(boot.db, boot.tenantId, 'Pode ser às 15.', boot.clock, opts)).toBeNull()
+      expect(catalogReply(boot.db, boot.tenantId, 'Pode ser às 3 da tarde.', boot.clock, opts)).toBeNull()
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('reconhece Brinzeamento escrito com uma letra a menos', () => {
+    const boot = seedMixed()
+    try {
+      const bronze = upsertServiceOp(
+        boot.db,
+        boot.caller,
+        {
+          name: 'Brinzeamento',
+          durationMinutes: 60,
+          bufferMinutes: 15,
+          priceCents: 15_000,
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+        },
+        boot.clock,
+      )
+      const reply = catalogReply(
+        boot.db,
+        boot.tenantId,
+        'Quero brinzeamento na quinta-feira de manhã.',
+        boot.clock,
+        { conversationId: boot.conversation.id },
+      )
+      expect(reply).toBeNull()
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.serviceId).toBe(bronze.id)
+    } finally {
+      boot.close()
+    }
+  })
 })

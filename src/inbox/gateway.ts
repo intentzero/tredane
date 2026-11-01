@@ -6,6 +6,7 @@ import {
   type ClinicDb,
   workerCaller,
 } from '../clinic'
+import { enqueueLatestUnansweredInbound } from '../clinic/ai/autodraft'
 import { resumeAiReply } from '../clinic/ai/human-handoff'
 import type {
   AssignConversationInput,
@@ -194,6 +195,7 @@ export function createMemoryInboxGateway(db: ClinicDb, clock: Clock): InboxGatew
     },
     async resumeAiReply(caller, conversationId) {
       resumeAiReply(db, caller.tenantId, conversationId, clock)
+      enqueueLatestUnansweredInbound(db, caller.tenantId, conversationId, clock)
       return { aiReplyPause: null }
     },
     async markRead(caller, input) {

@@ -656,6 +656,8 @@ describe('detectExplicitConfirmation', () => {
   it('«1530» é 15:30 e não lê o ano de uma data', () => {
     expect(extractTimes('1530')).toEqual(new Set(['15:30']))
     expect(extractTimes('Hoje as 13')).toEqual(new Set(['13:00']))
+    expect(extractTimes('Pode ser às 3')).toEqual(new Set())
+    expect(extractTimes('Pode ser às 3 da tarde')).toEqual(new Set(['15:00']))
     expect(extractTimes('sexta 30/10/2026')).not.toContain('20:26')
   })
   it('«1 hora» de duração não é horário', () => {

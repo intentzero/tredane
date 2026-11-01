@@ -15,6 +15,45 @@ function fold(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 
+function editDistanceAtMostOne(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false
+  let i = 0
+  let j = 0
+  let edits = 0
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i += 1
+      j += 1
+      continue
+    }
+    edits += 1
+    if (edits > 1) return false
+    if (a.length === b.length) {
+      i += 1
+      j += 1
+    } else if (a.length > b.length) i += 1
+    else j += 1
+  }
+  if (i < a.length || j < b.length) edits += 1
+  return edits <= 1
+}
+
+/**
+ * Uma palavra longa do texto está a uma letra do nome do serviço.
+ * «bronzeamento» casa «Brinzeamento». Nomes curtos ou de várias palavras não entram.
+ */
+export function citesServiceName(text: string, name: string): boolean {
+  const words = fold(name)
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 3)
+  if (words.length !== 1 || words[0]!.length < 8) return false
+  const target = words[0]!
+  const tokens = fold(text)
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 8)
+  return tokens.some((token) => token !== target && editDistanceAtMostOne(token, target))
+}
+
 /** Linha explícita mais recente (textos do mais novo para o mais antigo). */
 export function audienceLineFromClientTexts(texts: readonly string[]): AudienceLine | null {
   for (const text of texts) {

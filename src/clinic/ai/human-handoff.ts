@@ -73,7 +73,27 @@ export function resumeAiReply(
     tenantId,
     conversationId,
   )
-  return [pauseEvent(db, tenantId, conversationId, false, clock)]
+  // Devolver à IA: a pessoa largou o cartão. A IA volta a ser a responsável (DEC-093).
+  setConversationAssignee(db, {
+    tenantId,
+    conversationId,
+    assigneeClerkUserId: AI_ASSIGNEE,
+    assigneeDisplayName: 'IA',
+    updatedAt: now,
+  })
+  syncOpenOpportunityAssignee(db, {
+    tenantId,
+    conversationId,
+    assigneeClerkUserId: AI_ASSIGNEE,
+    assigneeDisplayName: 'IA',
+    updatedAt: now,
+  })
+  return [
+    pauseEvent(db, tenantId, conversationId, false, clock, {
+      assigneeClerkUserId: AI_ASSIGNEE,
+      assigneeDisplayName: 'IA',
+    }),
+  ]
 }
 
 function pauseEvent(
@@ -82,6 +102,7 @@ function pauseEvent(
   conversationId: string,
   paused: boolean,
   clock: Clock,
+  assignee?: { assigneeClerkUserId: string | null; assigneeDisplayName: string | null },
 ): OutboxRow {
   return insertOutboxEvent(
     db,
@@ -91,7 +112,7 @@ function pauseEvent(
       aggregateType: 'conversation',
       aggregateId: conversationId,
       idempotencyKey: `conversation.ai_pause:${conversationId}:${clock.nowMs()}:${paused ? 'on' : 'off'}`,
-      payload: { conversationId, aiReplyPaused: paused },
+      payload: { conversationId, aiReplyPaused: paused, ...assignee },
     },
     clock,
   )
@@ -216,7 +237,7 @@ export function notifyHumanHandoff(
       input.reason === 'customer_requested'
         ? 'A cliente pediu atendimento humano.'
         : input.reason === 'human_only'
-          ? 'Pedido que a IA não cumpre (remarcar, cancelar, terceiro ou profissional fora do serviço). A equipe continua.'
+          ? 'Pedido que a IA não cumpre (cancelar, terceiro ou profissional fora do serviço). A equipe continua.'
           : 'A mensagem saiu do agendamento. A IA ficou pausada.'
     openPendingCommunication(
       db,

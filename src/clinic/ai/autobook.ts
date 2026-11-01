@@ -39,7 +39,7 @@ import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import { checkConversationProtection } from './protection'
-import { audienceLineFromClientTexts, zonesChosenInClientTexts } from './schedule-choice'
+import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
 import { getScheduleSession, saveScheduleLine, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
 import {
   audienceLineQuestion,
@@ -159,7 +159,14 @@ export function extractTimes(text: string): Set<string> {
   )) {
     add(Number(m[1]), Number(m[2] ?? m[3] ?? 0))
   }
-  for (const m of t.matchAll(/\bas\s+([01]?\d|2[0-3])\b(?![:h\d/])/g)) add(Number(m[1]), 0)
+  const period = /\b(manha|tarde|noite)\b/.test(t)
+  for (const m of t.matchAll(/\bas\s+([01]?\d|2[0-3])\b(?![:h\d/])/g)) {
+    const hour = Number(m[1])
+    // «às 3» sem período não é 03:00. Com tarde, 1–7 vira 13–19.
+    if (!period && hour >= 1 && hour <= 7) continue
+    if (period && /\btarde\b/.test(t) && hour >= 1 && hour <= 7) add(hour + 12, 0)
+    else add(hour, 0)
+  }
   // «1530» = 15:30. Não casa o ano em «30/10/2026» nem um valor depois de «r$».
   for (const m of t.matchAll(/(?<![\d/])(?<!r\$\s*)\b([01]\d|2[0-3])([0-5]\d)\b(?![\d/,])/g)) {
     add(Number(m[1]), Number(m[2]))
@@ -185,6 +192,7 @@ export function extractServices(text: string, services: ServiceRow[]): ServiceRo
     const sw = significantWords(s.name)
     return sw.length > 0 && sw.every((w) => words.has(w))
   })
+  if (hits.length === 0) return services.filter((s) => citesServiceName(text, s.name))
   // «depilação masculina» citado ⇒ «depilação» (subconjunto) não conta como alternativa.
   return hits.filter(
     (s) =>
@@ -491,7 +499,12 @@ export async function tryAiAutoBook(
         const singular = det.service.variantKind?.trim() || ''
         const kindLabel = (plural || singular || 'variantes').toLocaleLowerCase('pt-BR')
         const earlyPhrase = plural || !singular ? `as ${kindLabel}` : `a ${kindLabel}`
-        if (needsAudienceLine(active) && !line) {
+        const cited = zonesNamedInText(turnText, active)
+        if (variantAudiencesConflict(cited)) {
+          replyText =
+            `As ${kindLabel} que misturam masculino e feminino não entram na mesma visita. ` +
+            `Escolha um conjunto compatível (ambos combina com os dois).`
+        } else if (needsAudienceLine(active) && !line) {
           replyText = audienceLineQuestion(det.service.name)
         } else if (active.length > 0 && (kept.length === 0 || chosen.ambiguous)) {
           const names = stableVariantLabelList(pool.length > 0 ? pool : active)

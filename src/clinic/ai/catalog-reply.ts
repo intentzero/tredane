@@ -9,10 +9,10 @@ import { listEffectiveWeeklyWindows } from '../config/availability'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import type { ServiceRow } from '../config/types'
-import { zonesNamedInText } from '../config/zones'
+import { variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { listMessages } from '../inbox/messages'
 import type { ClinicDb } from '../store'
-import { audienceLineFromClientTexts, zonesChosenInClientTexts } from './schedule-choice'
+import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
 import { formatOpeningHours } from './schedule-context'
 import {
   getScheduleSession,
@@ -46,12 +46,48 @@ function poolFor(services: ServiceRow[], text: string): ServiceRow[] {
   return services.length === 1 ? services : services
 }
 
+function serviceFromNamedZones(services: ServiceRow[], source: string): ServiceRow | undefined {
+  const hits = services.filter((service) => {
+    const named = zonesNamedInText(
+      source,
+      service.zones.filter((zone) => zone.active),
+    )
+    return named.length > 0
+  })
+  return hits.length === 1 ? hits[0] : undefined
+}
+
 function namedServices(services: ServiceRow[], text: string): ServiceRow[] {
   const folded = text.toLowerCase()
-  return services.filter((service) => {
+  const exact = services.filter((service) => {
     const name = service.name.trim().toLowerCase()
     return name.length > 0 && folded.includes(name)
   })
+  if (exact.length > 0) return exact
+  return services.filter((service) => citesServiceName(text, service.name))
+}
+
+function mixedAudienceRefusal(services: ServiceRow[], source: string): string | null {
+  for (const service of services) {
+    const named = zonesNamedInText(
+      source,
+      service.zones.filter((zone) => zone.active),
+    )
+    if (variantAudiencesConflict(named)) {
+      return 'Masculino e feminino não entram na mesma visita. Escolha um conjunto compatível.'
+    }
+  }
+  return null
+}
+
+/** «às 3» sem manhã/tarde/noite não é 03:00. 8–23 e HH:MM ficam como estão. */
+function ambiguousAfternoonHour(text: string): string | null {
+  const folded = text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+  if (/\b(manha|tarde|noite)\b/.test(folded)) return null
+  const match = folded.match(/\bas\s+([1-7])(?!\d)(?![:h]\d)/)
+  if (!match?.[1]) return null
+  const hour = Number(match[1])
+  return `Às ${hour} da tarde seria ${hour + 12}:00. É esse horário?`
 }
 
 function clientSource(db: ClinicDb, tenantId: string, body: string, conversationId?: string): string {
@@ -105,9 +141,14 @@ export function catalogReply(
   const namedPick =
     namedService.find((service) => service.zones.some((zone) => zone.active)) ?? namedService[0]
   const held = session ? services.find((service) => service.id === session.serviceId) : undefined
-  const inPlay = namedPick ?? held
+  const inPlay = namedPick ?? held ?? serviceFromNamedZones(services, source)
   const fallback = targets.find((service) => service.zones.some((zone) => zone.active)) ?? targets[0]
   const svc = inPlay ?? fallback
+
+  const mixedVisit = mixedAudienceRefusal(services, source)
+  if (mixedVisit) return mixedVisit
+  const afternoon = ambiguousAfternoonHour(body)
+  if (afternoon) return afternoon
 
   const asksPrice = PRICE.test(source)
   const openPeriod = PERIOD.test(source) && !CLOCK.test(source)

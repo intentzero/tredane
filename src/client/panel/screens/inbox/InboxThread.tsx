@@ -693,7 +693,16 @@ export function InboxThread({
         generation,
         expectGeneration: () => generation,
       });
-      setDetail((prev) => (prev ? { ...prev, aiReplyPause: null } : prev));
+      setDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              aiReplyPause: null,
+              assigneeClerkUserId: "system:ai-autodraft",
+              assigneeDisplayName: "IA",
+            }
+          : prev,
+      );
     } catch (err) {
       setNotice(
         friendlyError(err, "Não foi possível devolver a conversa à IA."),

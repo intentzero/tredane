@@ -1055,7 +1055,10 @@ export function sendOutboundMessageOp(
       /* schema/idle best-effort */
     }
     const afterTouch = requireConversation(db, meta.tenantId, input.conversationId)
-    if (!afterTouch.assigneeClerkUserId) {
+    // Aviso de sistema (cancelar, reagendar, follow-up) não toma o cartão. A IA e a equipe tomam.
+    const claimsAssignee =
+      !input.authorClerkUserId.startsWith('system:') || input.authorClerkUserId === 'system:ai-autodraft'
+    if (!afterTouch.assigneeClerkUserId && claimsAssignee) {
       setConversationAssignee(db, {
         tenantId: meta.tenantId,
         conversationId: input.conversationId,

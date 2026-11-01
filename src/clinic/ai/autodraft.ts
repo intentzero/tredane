@@ -92,6 +92,25 @@ export function enqueueAutoDraft(
   return getAutoDraftJob(db, tenantId, input.conversationId)
 }
 
+/** Depois de devolver à IA: a mensagem que chegou durante a pausa ainda não tem resposta. */
+export function enqueueLatestUnansweredInbound(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  clock: Clock,
+): AutoDraftJob | null {
+  const row = db.get<{ id: string; direction: string }>(
+    `SELECT id, direction FROM messages
+     WHERE tenant_id = ? AND conversation_id = ?
+     ORDER BY created_at DESC, id DESC
+     LIMIT 1`,
+    tenantId,
+    conversationId,
+  )
+  if (!row || row.direction !== 'inbound') return null
+  return enqueueAutoDraft(db, tenantId, { conversationId, messageId: row.id }, clock)
+}
+
 export function cancelAutoDraft(db: ClinicDb, tenantId: string, conversationId: string): void {
   db.run(`DELETE FROM ai_autodraft_jobs WHERE tenant_id = ? AND conversation_id = ?`, tenantId, conversationId)
 }

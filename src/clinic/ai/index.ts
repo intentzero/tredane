@@ -40,6 +40,7 @@ export {
 export type * from './types'
 export {
   enqueueAutoDraft,
+  enqueueLatestUnansweredInbound,
   runDueAutoDrafts,
   nextAutoDraftDueAt,
   getConversationDraftState,

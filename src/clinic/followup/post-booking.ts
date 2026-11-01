@@ -35,7 +35,7 @@ export const POST_BOOKING_BUTTONS = {
 } as const
 
 export const THANKS_REPLY_BODY =
-  'Obrigada pelo contacto. Estamos à disposição quando precisar.'
+  'Agradecemos o contato. Estamos à disposição quando precisar.'
 
 export const ANOTHER_REPLY_BODY =
   'Claro! Qual serviço gostaria de agendar?'
