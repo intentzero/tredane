@@ -91,25 +91,9 @@ function significantWords(name: string): string[] {
     .filter((w) => w.length >= 3)
 }
 
-/** «uma hora», «1h», «60 min», «meia hora», «30 minutos». */
-export function durationMinutesFromText(text: string): number | null {
-  const t = fold(text)
-  if (/\bmeia\s+hora\b/.test(t) || /\b30\s*min(utos?)?\b/.test(t)) return 30
-  if (/\b(uma|1)\s*h(ora)?\b/.test(t) || /\b60\s*min(utos?)?\b/.test(t)) return 60
-  if (/\b(duas|2)\s*h(oras?)?\b/.test(t) || /\b120\s*min(utos?)?\b/.test(t)) return 120
-  if (/\b(uma|1)\s+hora\s+e\s+meia\b/.test(t) || /\b90\s*min(utos?)?\b/.test(t)) return 90
-  const min = t.match(/\b(\d{1,3})\s*min(utos?)?\b/)
-  if (min) {
-    const n = Number(min[1])
-    return Number.isInteger(n) && n > 0 ? n : null
-  }
-  const hours = t.match(/\b(\d{1,2})\s*h(?:oras?)?\b/)
-  if (hours) {
-    const n = Number(hours[1])
-    return Number.isInteger(n) && n > 0 && n <= 24 ? n * 60 : null
-  }
-  return null
-}
+import { durationMinutesFromText } from '../catalog/duration'
+
+export { durationMinutesFromText }
 
 export function listBookableOptions(services: readonly ServiceRow[]): BookableOption[] {
   const out: BookableOption[] = []
