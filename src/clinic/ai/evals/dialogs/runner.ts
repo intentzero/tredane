@@ -53,6 +53,9 @@ export type DialogCase = {
     noAppointment?: boolean
     /** Número exato de mensagens da clínica (inclui cartão da proposta). */
     outboundCount?: number
+    /** Propostas abertas / substituídas no fim do diálogo (a antiga não pode ficar vigente). */
+    openProposals?: number
+    supersededProposals?: number
     /** Proposta mais recente no dia/hora civis da clínica. */
     proposalAt?: { date: string; time: string }
     /** Resposta do agente a um turno específico. */
@@ -129,6 +132,20 @@ export async function runDialogCase(c: DialogCase): Promise<DialogRunResult> {
     }
     if (e?.outboundCount != null && outbound.length !== e.outboundCount) {
       errors.push(`esperava ${e.outboundCount} mensagem(ns), saíram ${outbound.length}`)
+    }
+    const countState = (states: string) =>
+      s.db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM appointment_proposals WHERE tenant_id = ? AND conversation_id = ? AND state IN (${states})`,
+        s.tenantId,
+        s.conversationId,
+      )!.n
+    if (e?.openProposals != null) {
+      const n = countState(`'preparada','envio_pendente','envio_incerto','enviada'`)
+      if (n !== e.openProposals) errors.push(`esperava ${e.openProposals} proposta(s) aberta(s), há ${n}`)
+    }
+    if (e?.supersededProposals != null) {
+      const n = countState(`'substituida'`)
+      if (n !== e.supersededProposals) errors.push(`esperava ${e.supersededProposals} substituída(s), há ${n}`)
     }
     if (e?.proposal === true && s.proposalCount() < 1) errors.push('esperava proposta')
     if (e?.proposal === false && s.proposalCount() > 0) errors.push('proposta inesperada')
