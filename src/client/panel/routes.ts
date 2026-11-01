@@ -1,4 +1,5 @@
 /** Rotas produtivas do painel (#22/#28/#29/#30). Sem React Router — pathname + history. */
+import { commitPanelHref } from './leaveGuard'
 
 function isCivilDateParam(value: string | null | undefined): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -407,13 +408,7 @@ export function areaNavLabel(area: PanelArea): string {
 }
 
 export function navigatePanel(route: PanelRoute, replace = false): void {
-  const href = panelHref(route)
-  if (replace) {
-    window.history.replaceState(null, '', href)
-  } else {
-    window.history.pushState(null, '', href)
-  }
-  window.dispatchEvent(new PopStateEvent('popstate'))
+  commitPanelHref(panelHref(route), replace)
 }
 
 /** Rota de área do shell — Clínica hub (#28); Conversas (#29); Acompanhamento (#30). */

@@ -14,6 +14,11 @@ import { useOutsideClose } from '../../ui/useOutsideClose'
 type CloseGuard = {
   isDirty: () => boolean
   save: () => Promise<void>
+  /**
+   * `delegate`: a ficha mostra o próprio diálogo e o painel só chama onClose
+   * (a navegação é que pergunta). Usado na ficha do serviço.
+   */
+  prompt?: 'delegate'
 }
 
 type GuardApi = {
@@ -61,6 +66,10 @@ export function ClinicPanel({ title, onClose, children }: Props) {
   }
 
   function requestClose() {
+    if (guardRef.current?.prompt === 'delegate') {
+      onClose()
+      return
+    }
     if (isDirty() && !confirming) setConfirming(true)
     else onClose()
   }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Input, Label, NumberField, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components'
 import { ChevronRight, TriangleAlert } from 'lucide-react'
 import { suggestVariantKindPlural } from '../../../../clinic/catalog/variant-kind'
@@ -17,6 +17,7 @@ import type {
   ServiceZoneInput,
 } from '../../api'
 import { PanelApiError } from '../../api'
+import { setLeaveGuard } from '../../leaveGuard'
 import { navigatePanel } from '../../routes'
 import {
   bufferOptions,
@@ -24,7 +25,9 @@ import {
   parsePriceToCents,
 } from './format'
 import { friendlyError } from '../../copy/errors'
+import { useClinicPanelCloseGuard } from './ClinicPanel'
 import { DeleteServiceDialog } from './ResourceLifecycleDialogs'
+import { UnsavedChangesDialog } from './UnsavedChangesDialog'
 import { fromWeekDraft, toWeekDraft, type WeekDraft } from './clinicHours'
 import { WeekEditor } from './WeekEditor'
 import { RuleRow } from './RuleRow'
@@ -45,6 +48,76 @@ function signalBaseCents(withVariants: boolean, price: string, zones: ZoneDraft[
     sum += cents
   }
   return sum > 0 ? sum : null
+}
+
+type ServiceDraftKeyInput = {
+  name: string
+  duration: number
+  buffer: number
+  audiencia: string
+  tempoCeu: string
+  tempoTemperatura: string
+  tempoCelsius: number | null
+  price: string
+  variantKind: string
+  variantKindPlural: string
+  withVariants: boolean
+  zones: ZoneDraft[]
+  combos: ComboDraft[]
+  explanation: string
+  active: boolean
+  requiresSignal: boolean
+  signalKind: string
+  signalFixed: string
+  signalPercent: string
+  proIds: string[]
+  space: string
+  roomIds: string[]
+  equipmentId: string | null
+  hoursDraft: WeekDraft
+}
+
+/** Compara o rascunho da ficha com o que estava gravado ao abrir. */
+function serviceDraftKey(input: ServiceDraftKeyInput): string {
+  return JSON.stringify({
+    name: input.name,
+    duration: input.duration,
+    buffer: input.buffer,
+    audiencia: input.audiencia,
+    tempoCeu: input.tempoCeu,
+    tempoTemperatura: input.tempoTemperatura,
+    tempoCelsius: input.tempoCelsius,
+    price: input.price,
+    variantKind: input.variantKind,
+    variantKindPlural: input.variantKindPlural,
+    withVariants: input.withVariants,
+    zones: input.zones.map((z) => ({
+      id: z.id ?? null,
+      name: z.name,
+      durationMinutes: z.durationMinutes,
+      price: z.price,
+      audience: z.audience,
+      active: z.active,
+    })),
+    combos: input.combos.map((c) => ({
+      id: c.id ?? null,
+      name: c.name,
+      price: c.price,
+      zoneKeys: c.zoneKeys,
+      active: c.active,
+    })),
+    explanation: input.explanation,
+    active: input.active,
+    requiresSignal: input.requiresSignal,
+    signalKind: input.signalKind,
+    signalFixed: input.signalFixed,
+    signalPercent: input.signalPercent,
+    proIds: [...input.proIds].sort(),
+    space: input.space,
+    roomIds: [...input.roomIds].sort(),
+    equipmentId: input.equipmentId,
+    hoursDraft: input.hoursDraft,
+  })
 }
 
 type ListProps = {
@@ -238,6 +311,85 @@ export function ServiceForm({
       })),
     ),
   )
+  const draftKey = serviceDraftKey({
+    name,
+    duration,
+    buffer,
+    audiencia,
+    tempoCeu,
+    tempoTemperatura,
+    tempoCelsius,
+    price,
+    variantKind,
+    variantKindPlural,
+    withVariants,
+    zones,
+    combos,
+    explanation,
+    active,
+    requiresSignal,
+    signalKind,
+    signalFixed,
+    signalPercent,
+    proIds,
+    space,
+    roomIds,
+    equipmentId,
+    hoursDraft,
+  })
+  const baselineKey = useRef(draftKey)
+  const dirty = draftKey !== baselineKey.current
+  const dirtyRef = useRef(dirty)
+  dirtyRef.current = dirty
+  const pendingLeave = useRef<(() => void) | null>(null)
+  const [unsavedOpen, setUnsavedOpen] = useState(false)
+
+  useEffect(() => {
+    setLeaveGuard({
+      isDirty: () => dirtyRef.current,
+      ask: (proceed) => {
+        pendingLeave.current = proceed
+        setUnsavedOpen(true)
+      },
+    })
+    return () => {
+      pendingLeave.current = null
+      setLeaveGuard(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!dirty) return
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [dirty])
+
+  const panelCloseGuard = useMemo(
+    () => ({
+      isDirty: () => false,
+      save: async () => {},
+      prompt: 'delegate' as const,
+    }),
+    [],
+  )
+  useClinicPanelCloseGuard(panelCloseGuard)
+
+  function stayOnForm() {
+    pendingLeave.current = null
+    setUnsavedOpen(false)
+  }
+
+  function leaveWithoutSaving() {
+    const proceed = pendingLeave.current
+    pendingLeave.current = null
+    setUnsavedOpen(false)
+    dirtyRef.current = false
+    proceed?.()
+  }
 
   async function confirmDelete() {
     if (!existing) return
@@ -250,6 +402,7 @@ export function ServiceForm({
       })
       setDeleteOpen(false)
       await onSaved()
+      dirtyRef.current = false
       navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'servicos' })
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
@@ -450,6 +603,7 @@ export function ServiceForm({
         )
       }
       await onSaved()
+      dirtyRef.current = false
       navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'servicos' })
     } catch (err) {
       if (err instanceof PanelApiError && err.message === 'stale_tenant_response') return
@@ -923,6 +1077,14 @@ export function ServiceForm({
           onConfirm={() => void confirmDelete()}
         />
       ) : null}
+      <UnsavedChangesDialog
+        open={unsavedOpen}
+        onContinue={stayOnForm}
+        onDiscard={leaveWithoutSaving}
+        continueLabel="Continuar editando"
+        discardLabel="Sair sem salvar"
+        message="Se sair agora, as alterações deste serviço não ficam salvas."
+      />
       <TempoSheet
         open={tempoOpen}
         onOpenChange={setTempoOpen}
