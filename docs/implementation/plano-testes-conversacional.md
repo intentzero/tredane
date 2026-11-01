@@ -211,6 +211,7 @@ Uma mudança que altere copy fixa, política de handoff ou âmbito da IA exige D
 | --- | --- | --- | --- | --- | --- |
 | 0 (linha de base) | 01/11/2026 | `main` `04a6f5e` | Leitura do código, sonda local das funções determinísticas e mapeamento dos testes existentes | 20 achados de comportamento (CF-01–20) e 10 de arquitetura (CA-01–10). Matriz com 104 casos: 20 ❌ falha verificada, 17 ⚠ falha provável, 32 ✅ cobertos por teste, 5 ◐ passam por código e 30 ❔ por medir. | Sem L1/L2 automatizados ainda. A próxima iteração cria o harness L1 com os casos P0. |
 | 0.1 | 01/11/2026 | `main` `04a6f5e` | Análise do grafo de dados da clínica e proposta do [núcleo determinístico](../architecture/nucleo-deterministico-conversacional.md) | +2 achados (CF-21, CF-22) e +1 caso na matriz (B-13 ⚠). Total: 105 casos, 18 ⚠. | Sem mudança de código. |
+| 1 (em curso) | 01/11/2026 | branch épico #401 | L1 `npm run test:dialogs` (53 P0); evento `ai.turn_decided` (#407) | Linha de base de latência/custo: **ainda sem staging** (só local/sintético). p50/p95 e tokens por rota a preencher após o primeiro dia com o evento em staging. | R1–R3 e harness abertos em PRs; copy #404/#405 aguarda Paulo. |
 
 ## 8. Plano de execução proposto
 

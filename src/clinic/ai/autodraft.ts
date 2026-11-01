@@ -34,6 +34,7 @@ import { isConversationPaused } from './protection'
 import { getScheduleSession } from './schedule-session'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
+import { emitTurnDecided, routeFromAutodraftOutcome } from './turn-decided'
 import { getAiDailyUsage } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
 
@@ -206,9 +207,61 @@ export async function runDueAutoDrafts(
 
   const out: AutoDraftOutcome[] = []
   for (const job of due) {
+    const jobStarted = clock.nowMs()
+    const debounceMs = Math.max(0, jobStarted - (job.dueAt - AI_AUTODRAFT_DEBOUNCE_MS))
+    const record = (
+      outcome: AutoDraftOutcome,
+      extra: {
+        modelCalled?: boolean
+        textDiscarded?: boolean
+        fallbackSent?: boolean
+        decisionMs?: number
+        sendMs?: number
+      } = {},
+    ): void => {
+      const route = routeFromAutodraftOutcome({
+        status: outcome.status,
+        reason: outcome.reason,
+        proposalId: outcome.autoBook?.proposalId ?? null,
+        deterministicReply: Boolean(outcome.autoBook?.replyText?.trim()),
+        fallbackSent: extra.fallbackSent,
+        modelCalled: extra.modelCalled,
+        textDiscarded: extra.textDiscarded,
+      })
+      emitTurnDecided(
+        db,
+        {
+          tenantId,
+          conversationId: outcome.conversationId,
+          messageIds: [outcome.messageId],
+          route,
+          slotsFilled: [],
+          slotsMissing: [],
+          modelCalled: Boolean(extra.modelCalled ?? outcome.suggestion),
+          textDiscarded: Boolean(
+            extra.textDiscarded ??
+              (outcome.suggestion?.status === 'failed' &&
+                outcome.suggestion.warningCodes.includes('output_rejected')),
+          ),
+          model: outcome.suggestion?.model ?? null,
+          latencyMs: {
+            debounce: debounceMs,
+            model: outcome.suggestion?.requestMeta.latencyMs ?? null,
+            decision: extra.decisionMs ?? null,
+            send: extra.sendMs ?? null,
+          },
+          tokens: {
+            input: outcome.suggestion?.requestMeta.inputTokens ?? null,
+            output: outcome.suggestion?.requestMeta.outputTokens ?? null,
+          },
+        },
+        clock,
+      )
+      out.push(outcome)
+    }
     const skip = (reason: string): void => {
       cancelAutoDraft(db, tenantId, job.conversationId)
-      out.push({ ...job, status: 'skipped', suggestion: null, reason })
+      record({ ...job, status: 'skipped', suggestion: null, reason })
     }
     const conv = getConversation(db, tenantId, job.conversationId)
     if (!conv || conv.status === 'closed') { skip('conversation_closed'); continue }
@@ -260,7 +313,7 @@ export async function runDueAutoDrafts(
           }
         }
         cancelAutoDraft(db, tenantId, job.conversationId)
-        out.push({
+        record({
           ...job,
           status: 'skipped',
           suggestion: null,
@@ -281,7 +334,7 @@ export async function runDueAutoDrafts(
         clock,
       )
       cancelAutoDraft(db, tenantId, job.conversationId)
-      out.push({
+      record({
         ...job,
         status: 'skipped',
         suggestion: null,
@@ -321,7 +374,7 @@ export async function runDueAutoDrafts(
           }
         }
         cancelAutoDraft(db, tenantId, job.conversationId)
-        out.push({
+        record({
           ...job,
           status: 'skipped',
           suggestion: null,
@@ -344,7 +397,7 @@ export async function runDueAutoDrafts(
         clock,
       )
       cancelAutoDraft(db, tenantId, job.conversationId)
-      out.push({
+      record({
         ...job,
         status: 'skipped',
         suggestion: null,
@@ -377,12 +430,12 @@ export async function runDueAutoDrafts(
         if (!(err instanceof ClinicError)) throw err
       }
       cancelAutoDraft(db, tenantId, job.conversationId)
-      out.push({ ...job, status: 'skipped', suggestion: null, reason: 'catalog_reply', replyOutbox })
+      record({ ...job, status: 'skipped', suggestion: null, reason: 'catalog_reply', replyOutbox })
       continue
     }
     if (getAiDailyUsage(db, tenantId, clock).capReached) {
       cancelAutoDraft(db, tenantId, job.conversationId)
-      out.push({ ...job, status: 'cap_reached', suggestion: null })
+      record({ ...job, status: 'cap_reached', suggestion: null })
       continue
     }
     // S7 (#178): quota por contato (só automações; a equipe continua a poder pedir sugestão).
@@ -424,7 +477,7 @@ export async function runDueAutoDrafts(
       // Cap / IA desligada: não há o que enviar. Outros erros → ainda tenta autobook.
       if (code === 'ai_daily_cap_reached' || code === 'ai_not_enabled') {
         cancelAutoDraft(db, tenantId, job.conversationId)
-        out.push({ ...job, status: code === 'ai_daily_cap_reached' ? 'cap_reached' : 'failed', suggestion: null, reason: code })
+        record({ ...job, status: code === 'ai_daily_cap_reached' ? 'cap_reached' : 'failed', suggestion: null, reason: code })
         continue
       }
       generateError = code
@@ -461,7 +514,7 @@ export async function runDueAutoDrafts(
     const current = getAutoDraftJob(db, tenantId, job.conversationId)
     if (current && current.messageId !== job.messageId) {
       markSuggestionSuperseded(db, tenantId, suggestion.id, clock.nowMs())
-      out.push({ ...job, status: 'superseded', suggestion: getSuggestion(db, tenantId, suggestion.id) })
+      record({ ...job, status: 'superseded', suggestion: getSuggestion(db, tenantId, suggestion.id) })
       continue
     }
     cancelAutoDraft(db, tenantId, job.conversationId)
@@ -602,6 +655,7 @@ export async function runDueAutoDrafts(
     // Injeção mantém o caminho DEC-083 (mesmo sem outbox se já estava pausada).
     const tookInjectionPath = injectionSuspected && !deterministicReply && !proposalDelivered
     const hasOutbound = Boolean(replyOutbox && replyOutbox.length > 0)
+    let fallbackSent = false
     if (!tookInjectionPath && !hasOutbound && !proposalDelivered && !deterministicReply) {
       const fallback = notifyModelFallback(
         db,
@@ -610,14 +664,23 @@ export async function runDueAutoDrafts(
         clock,
       )
       replyOutbox = fallback.outbox
+      fallbackSent = fallback.sent || fallback.already
     }
-    out.push({
-      ...job,
-      status: suggestion.status === 'failed' ? 'failed' : 'ready',
-      suggestion,
-      autoBook,
-      replyOutbox,
-    })
+    record(
+      {
+        ...job,
+        status: suggestion.status === 'failed' ? 'failed' : 'ready',
+        suggestion,
+        autoBook,
+        replyOutbox,
+      },
+      {
+        modelCalled: true,
+        textDiscarded: suggestion.status === 'failed',
+        fallbackSent,
+        decisionMs: Math.max(0, clock.nowMs() - jobStarted),
+      },
+    )
   }
   return out
 }
