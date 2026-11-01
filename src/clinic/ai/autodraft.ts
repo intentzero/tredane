@@ -9,12 +9,14 @@
  *   (DEC-083). Modelo falhou / saída rejeitada sem injeção → frase DEC-107 (#404)
  *   sem pausar a IA.
  */
-import { AI_AUTODRAFT_DEBOUNCE_MS, AI_TIMEOUT_MS } from '../../ai'
+import { AI_AUTODRAFT_DEBOUNCE_MS, AI_TIMEOUT_MS, detectStrongInjectionSignals } from '../../ai'
 import type { Clock } from '../../db/clock'
 import type { ClinicCaller } from '../envelopes'
 import { ClinicError } from '../errors'
-import { isClinicAiAssistEnabled } from '../config/settings'
+import { currentClientTurnText } from '../catalog/audience'
+import { ensureClinicSettings, isClinicAiAssistEnabled } from '../config/settings'
 import { getConversation } from '../inbox/conversations'
+import { listMessages } from '../inbox/messages'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
@@ -28,6 +30,7 @@ import {
   notifyHumanHandoff,
 } from './human-handoff'
 import { notifyModelFallback } from './model-fallback'
+import { classifySensitive, hasPolicyQuestion } from './nlu/sensitive'
 import { isCancelIntent, isRescheduleIntent, loadUpcomingAppointment, tryAiReschedule } from './reschedule'
 import { runGenerateInternal } from './operations'
 import { isConversationPaused } from './protection'
@@ -276,17 +279,26 @@ export async function runDueAutoDrafts(
         tenantId,
         job.messageId,
       )?.body ?? ''
+    // CF-13 (#409): roteamento (remarcação, handoff, catálogo) sobre o turno inteiro.
+    const { messages: recentMsgs } = listMessages(db, tenantId, {
+      conversationId: job.conversationId,
+      limit: 40,
+    })
+    const turnText =
+      currentClientTurnText(
+        recentMsgs.map((m) => ({ direction: m.direction, body: m.body })),
+      ).trim() || inboundBody
     // DEC-091: remarcação com compromisso futuro — antes do handoff e do funil de zonas.
     const upcoming = conv.contactId
       ? loadUpcomingAppointment(db, tenantId, conv.contactId, clock.nowMs())
       : null
     if (
-      !isCancelIntent(inboundBody) &&
-      isRescheduleIntent(inboundBody, { hasUpcoming: Boolean(upcoming), priorOffer: false })
+      !isCancelIntent(turnText) &&
+      isRescheduleIntent(turnText, { hasUpcoming: Boolean(upcoming), priorOffer: false })
     ) {
       const reschedule = await tryAiReschedule(db, caller, clock, {
         conversationId: job.conversationId,
-        inboundText: inboundBody,
+        inboundText: turnText,
         capability: deps.autoBookPaused !== true,
         abuseLimits: deps.abuseLimits,
       })
@@ -347,7 +359,7 @@ export async function runDueAutoDrafts(
     if (upcoming) {
       const cont = await tryAiReschedule(db, caller, clock, {
         conversationId: job.conversationId,
-        inboundText: inboundBody,
+        inboundText: turnText,
         capability: deps.autoBookPaused !== true,
         abuseLimits: deps.abuseLimits,
       })
@@ -384,7 +396,47 @@ export async function runDueAutoDrafts(
         continue
       }
     }
-    const reason = handoffReason(db, tenantId, inboundBody, clock)
+    // CF-04 / E-06: pergunta condicional → política cadastrada, sem pausa.
+    if (hasPolicyQuestion(classifySensitive(turnText))) {
+      const settings = ensureClinicSettings(db, tenantId, clock)
+      const policy =
+        settings.signalCancellationPolicy.trim() ||
+        settings.reschedulePolicy.trim() ||
+        ''
+      if (policy) {
+        let replyOutbox: OutboxRow[] = []
+        try {
+          const sent = sendOutboundMessageOp(
+            db,
+            caller,
+            {
+              conversationId: job.conversationId,
+              body: policy,
+              interactive: {
+                buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }],
+              },
+              clientRequestId: `ai-policy:${job.messageId}`,
+              authorClerkUserId: AUTODRAFT_ACTOR_ID,
+              authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            },
+            clock,
+          )
+          replyOutbox = sent.outbox
+        } catch (err) {
+          if (!(err instanceof ClinicError)) throw err
+        }
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        record({
+          ...job,
+          status: 'skipped',
+          suggestion: null,
+          reason: 'catalog_reply',
+          replyOutbox,
+        })
+        continue
+      }
+    }
+    const reason = handoffReason(db, tenantId, turnText, clock)
     if (reason) {
       const handoff = notifyHumanHandoff(
         db,
@@ -406,7 +458,7 @@ export async function runDueAutoDrafts(
       })
       continue
     }
-    const catalogText = catalogReply(db, tenantId, inboundBody, clock, {
+    const catalogText = catalogReply(db, tenantId, turnText, clock, {
       conversationId: job.conversationId,
     })
     if (catalogText) {
@@ -600,8 +652,10 @@ export async function runDueAutoDrafts(
     }
     let replyOutbox: OutboxRow[] | undefined
     const draftText = suggestion.suggestedText.trim()
-    // Só injeção pausa (DEC-083). Saída rejeitada sem injeção → fallback DEC-107 (#404).
-    const injectionSuspected = suggestion.warningCodes.includes('injection_suspected')
+    // Só injeção **forte** pausa (DEC-083 / #409). Fraca só avisa. Sem injeção → DEC-107.
+    const injectionSuspected =
+      suggestion.warningCodes.includes('injection_suspected') &&
+      detectStrongInjectionSignals(turnText)
     // Resposta determinística do autobook (ex.: pedir variantes) ignora rejeição do modelo.
     const deterministicReply = Boolean(autoBook?.replyText && autoBook.replyText.trim())
     const proposalDelivered =

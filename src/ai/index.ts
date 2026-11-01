@@ -98,5 +98,10 @@ export {
   type ParsedReply,
   type ReplyOutputRejection,
 } from './reply-output'
-export { detectInjectionSignals, sanitizeUntrusted } from './untrusted'
+export {
+  detectInjectionSignals,
+  detectStrongInjectionSignals,
+  detectWeakInjectionSignals,
+  sanitizeUntrusted,
+} from './untrusted'
 export { validateReplyFacts, type ReplyFactsResult, type ReplyFactsViolation } from './reply-facts'

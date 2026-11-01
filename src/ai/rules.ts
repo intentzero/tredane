@@ -1,19 +1,18 @@
 import { variantAudiencesConflict, type AiCatalogService, type AiContextMessage, type AiWarningCode } from './types'
+import { HEALTH_RE, OFFENSE_RE } from './sensitive-lexicon'
 import { detectInjectionSignals } from './untrusted'
 
 /**
  * Detecção local de casos DEC-046 — **Proposto / Em aberto** (critérios a medir).
  * Não autoriza ações; só alimenta avisos e o prompt.
+ * Saúde/ofensa: listas únicas (#409 / CF-18).
  */
 
 const PRICE_RE =
   /\b(quanto\s+custa|pre[cç]o|valor\s+d[oea]|custa\s+quanto|r\$\s*\d)/i
 
-const CLINICAL_RE =
-  /\b(gr[aá]vid|gestante|contraindica|medicamento|rem[eé]dio|diagn[oó]stico|doen[cç]a|alergia|press[aã]o\s+alta|diabetes|posso\s+fazer\s+.*gr[aá]vid)/i
-
-const OFFENSIVE_RE =
-  /\b(idiota|estupíd|merda|porra|filho\s+da\s+puta|vai\s+se\s+foder|ot[aá]ri[oa]|vagabund)/i
+const CLINICAL_RE = HEALTH_RE
+const OFFENSIVE_RE = OFFENSE_RE
 
 const OFF_TOPIC_RE =
   /\b(bitcoin|criptomoeda|elei[cç][aã]o|candidato|apostas?\s+esport|pornograf|drogas?\s+il[ií]c)/i
