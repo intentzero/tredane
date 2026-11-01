@@ -6,7 +6,7 @@ import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from 
 import type { DialogCase } from './runner'
 
 class TimeoutAdapter extends SimulatedAiAdapter {
-  override async generate(input: AiGenerateInput): Promise<AiGenerateResult> {
+  override async generate(): Promise<AiGenerateResult> {
     return {
       ok: false,
       code: 'timeout',

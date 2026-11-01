@@ -4,7 +4,7 @@
 import type { AiProviderAdapter } from '../../../../ai'
 import { enqueueAutoDraft, runDueAutoDrafts } from '../../index'
 import { assertInvariants, checkInvariants, type InvResult } from './invariants'
-import { bootDialogScenario, type DialogScenario } from './scenario'
+import { bootDialogScenario } from './scenario'
 
 export type DialogTurn =
   | { role: 'client'; text: string }

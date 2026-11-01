@@ -52,7 +52,6 @@ describe('harness L1 diálogos P0 (#406)', () => {
 
   it('relatório L1 (colar no §7)', () => {
     expect(results.length).toBeGreaterThan(0)
-    // eslint-disable-next-line no-console
-    console.log('\n' + formatDialogReport(results) + '\n')
+    process.stdout.write(`\n${formatDialogReport(results)}\n`)
   })
 })
