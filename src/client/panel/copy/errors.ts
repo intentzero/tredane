@@ -70,6 +70,11 @@ const BY_CODE: Record<string, string> = {
   invitation_resend_cooldown: 'Aguarde alguns minutos antes de reenviar.',
   invitation_resend_quota: 'Limite de 5 reenvios em 24 horas atingido. Tente amanhã.',
   invitation_cancel_conflict: 'Outra pessoa acabou de mudar este convite. Atualize a tela.',
+  cannot_revoke_owner:
+    'Responsáveis não podem ser removidos por aqui. Fale com a equipe do Tredane.',
+  cannot_revoke_self: 'Você não pode remover o próprio acesso.',
+  membership_not_found: 'Essa pessoa já não faz parte desta clínica.',
+  membership_revoke_conflict: 'Outra pessoa acabou de mudar este membro. Atualize a tela.',
 }
 
 function byStatus(status: number): string | null {

@@ -1,9 +1,19 @@
 /**
- * Equipe (M-18 / S1): membros + convites pendentes; convidar / reenviar / cancelar.
- * Remoção de membership e aceite do link ficam para S2/S3. Sem faixa TEL-10 neste recorte.
+ * Equipe (M-18 / S1+S2): membros + convites; convidar / reenviar / cancelar; remover attendant.
+ * Aceite do link fica para S3. Sem faixa TEL-10 neste recorte.
  */
+import { MoreVertical } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Input, Label, TextField } from 'react-aria-components'
+import {
+  Button,
+  Dialog,
+  Heading,
+  Input,
+  Label,
+  Modal,
+  ModalOverlay,
+  TextField,
+} from 'react-aria-components'
 import type { PanelApi, TeamInvitation, TeamMemberLite, TeamSnapshot } from '../../api'
 import { PanelApiError } from '../../api'
 import { friendlyError } from '../../copy/errors'
@@ -75,6 +85,13 @@ function canResendNow(inv: TeamInvitation, nowMs: number): boolean {
   return cooldownLeftMs(inv, nowMs) === 0
 }
 
+function canShowRevoke(m: TeamMemberLite, viewerId: string | null): boolean {
+  if (!m.manageActions?.canRevoke) return false
+  if (m.role === 'owner') return false
+  if (viewerId && m.clerkUserId === viewerId) return false
+  return m.status === 'active'
+}
+
 export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: Props) {
   const [snap, setSnap] = useState<TeamSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
@@ -85,6 +102,7 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionOk, setActionOk] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
+  const [revoking, setRevoking] = useState<TeamMemberLite | null>(null)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -190,6 +208,33 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
     }
   }
 
+  async function onRevoke() {
+    if (!revoking) return
+    const target = revoking
+    const label = target.displayName?.trim() || target.email?.trim() || 'a pessoa'
+    setBusyId(`revoke:${target.clerkUserId}`)
+    setActionError(null)
+    setActionOk(null)
+    try {
+      await api.revokeMember(tenantId, target.clerkUserId, {
+        generation,
+        expectGeneration: () => generation,
+      })
+      setRevoking(null)
+      setActionOk(
+        `Acesso removido. ${label} não entra mais nesta clínica. Outras clínicas dela não mudam.`,
+      )
+      await reload()
+    } catch (err) {
+      setActionError(friendlyError(err, 'Não foi possível remover o acesso.'))
+      // Mantém o diálogo aberto só se ainda fizer sentido; erros claros ficam no banner.
+      setRevoking(null)
+      await reload()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   if (loading && !snap) {
     return <LoadingState label="Carregando equipe…" />
   }
@@ -204,6 +249,11 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
     )
   }
   if (!snap) return <LoadingState label="Carregando equipe…" />
+
+  const revokingBusy = revoking != null && busyId === `revoke:${revoking.clerkUserId}`
+  const revokingName = revoking
+    ? revoking.displayName?.trim() || revoking.email?.trim() || 'esta pessoa'
+    : ''
 
   return (
     <div className="clinic-stack equipe-screen">
@@ -241,8 +291,12 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
           <ul className="equipe-list">
             {members.map((m) => {
               const name = memberDisplayName(m, viewerClerkUserId)
+              const showRevoke = canShowRevoke(m, viewerClerkUserId)
               return (
-                <li key={m.clerkUserId} className="equipe-row">
+                <li
+                  key={m.clerkUserId}
+                  className={`equipe-row${showRevoke ? ' equipe-row--actions' : ''}`}
+                >
                   <span
                     className={`equipe-avatar${m.role === 'owner' ? ' equipe-avatar--owner' : ''}`}
                     aria-hidden
@@ -254,6 +308,20 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
                     <span>{memberEmail(m)}</span>
                     <Badge tone={m.role === 'owner' ? 'ai' : 'closed'}>{roleLabel(m.role)}</Badge>
                   </span>
+                  {showRevoke ? (
+                    <Button
+                      className="equipe-row-menu"
+                      aria-label={`Ações para ${m.displayName?.trim() || memberEmail(m)}: remover acesso`}
+                      isDisabled={busyId !== null}
+                      onPress={() => {
+                        setActionError(null)
+                        setActionOk(null)
+                        setRevoking(m)
+                      }}
+                    >
+                      <MoreVertical aria-hidden size={20} strokeWidth={2} />
+                    </Button>
+                  ) : null}
                 </li>
               )
             })}
@@ -363,6 +431,54 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
           </Button>
         </div>
       </ClinicSheet>
+
+      <ModalOverlay
+        isOpen={revoking !== null}
+        onOpenChange={(open) => {
+          if (!open && !revokingBusy) setRevoking(null)
+        }}
+        isDismissable={!revokingBusy}
+        className="panel-overlay panel-choice-overlay"
+      >
+        <Modal className="panel-choice-modal">
+          <Dialog
+            className="panel-sheet panel-choice-sheet"
+            aria-labelledby="equipe-revoke-title"
+            aria-describedby="equipe-revoke-desc"
+            role="alertdialog"
+          >
+            <span className="panel-sheet-handle" aria-hidden="true" />
+            <Heading
+              slot="title"
+              id="equipe-revoke-title"
+              className="panel-title panel-choice-title"
+            >
+              Remover acesso de {revokingName}?
+            </Heading>
+            <p id="equipe-revoke-desc" className="clinic-footnote">
+              A pessoa perde o acesso a esta clínica na hora — inclusive conversas e agenda em tempo
+              real. A conta dela no Tredane e o acesso a outras clínicas não mudam. Você pode
+              convidar de novo depois.
+            </p>
+            <div className="clinic-footer-actions">
+              <Button
+                className="panel-btn panel-btn-ghost"
+                isDisabled={revokingBusy}
+                onPress={() => setRevoking(null)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="panel-btn panel-btn-danger"
+                isDisabled={revokingBusy}
+                onPress={() => void onRevoke()}
+              >
+                {revokingBusy ? 'Removendo…' : 'Remover acesso'}
+              </Button>
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </div>
   )
 }

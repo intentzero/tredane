@@ -1721,6 +1721,36 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as { invitation: TeamInvitation }
     },
 
+    /** Owner remove attendant (DEC-026 / ADR-0009). Owners são recusados pela API. */
+    async revokeMember(
+      tenantId: string,
+      clerkUserId: string,
+      opts?: FetchOpts,
+    ): Promise<{
+      tenantId: string
+      clerkUserId: string
+      status: string
+      doNotified: boolean
+      doError: string | null
+      closedConnections: string[]
+    }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/members/${encodeURIComponent(clerkUserId)}/revoke`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as {
+        tenantId: string
+        clerkUserId: string
+        status: string
+        doNotified: boolean
+        doError: string | null
+        closedConnections: string[]
+      }
+    },
+
     async blockInboxContact(
       tenantId: string,
       contactId: string,
