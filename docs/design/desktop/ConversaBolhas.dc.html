@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Bolhas — especificação</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&amp;family=Roboto+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.s{--tx:#111B21;--tx2:#3B4A54;--mu:#667781;--out:#D9F2EE;--ai:#4B2A9E;--prInk:#0A4547}
+.b{position:relative;max-width:65%;box-sizing:border-box;padding:6px 7px 8px 9px;border-radius:7.5px;font-size:14.2px;line-height:19px;color:var(--tx);box-shadow:0 1px .5px rgba(11,20,26,.13);margin-top:2px}
+.b.in{align-self:flex-start;background:#FFFFFF}
+.b.out{align-self:flex-end;background:var(--out)}
+.b.in.tl{border-top-left-radius:0}
+.b.out.tl{border-top-right-radius:0}
+.g{margin-top:12px}
+.tail{position:absolute;top:0;width:8px;height:13px}
+.b.in .tail{left:-8px}
+.b.out .tail{right:-8px}
+.sp{display:inline-block;width:62px;height:1px}
+.sp.i{width:40px}
+.mt{position:absolute;right:7px;bottom:4px;font-size:11px;line-height:15px;color:var(--mu);display:flex;gap:3px;align-items:center}
+.who{display:block;font-size:12.8px;line-height:20px;font-weight:500}
+.ann{position:absolute;font-family:&quot;Roboto Mono&quot;,monospace;font-size:11px;color:#B42318;background:#FFFFFF;border:1px solid #F1B8B2;border-radius:4px;padding:1px 6px;white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-weight:500;color:var(--mu);font-size:12px;padding:0 0 8px;border-bottom:1px solid #E9EDEF}
+td{padding:9px 12px 9px 0;border-bottom:1px solid #F0F2F5;vertical-align:top;color:var(--tx2)}
+td:first-child{color:var(--tx);font-weight:500;white-space:nowrap}
+code{font-family:&quot;Roboto Mono&quot;,monospace;font-size:12px;color:var(--tx)}
+</style>
+</helmet>
+<div class="s" style="width:1440px;height:640px;box-sizing:border-box;padding:40px;display:grid;grid-template-columns:minmax(0,1fr) 560px;gap:40px;background:#FFFFFF;color:var(--tx);font-family:Roboto,&quot;Helvetica Neue&quot;,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.35">
+
+  <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+    <h1 style="margin:0;font-size:24px;font-weight:600;letter-spacing:-.01em">Bolhas — especificação</h1>
+    <div style="position:relative;flex:1;border-radius:12px;overflow:hidden;background:#EFEAE2;padding:32px 56px;display:flex;flex-direction:column;justify-content:center">
+      <svg aria-hidden="true" width="100%" height="100%" style="position:absolute;inset:0;pointer-events:none">
+        <defs>
+          <pattern id="wps" width="168" height="168" patternUnits="userSpaceOnUse">
+            <g fill="none" stroke="#4A4130" stroke-opacity=".085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M26 10c1.2 7.5 5 11.3 12.5 12.5C31 23.7 27.2 27.5 26 35c-1.2-7.5-5-11.3-12.5-12.5C21 21.3 24.8 17.5 26 10z"></path>
+              <path d="M84 46c0-15 10-24 27-24 0 17-9 27-24 27zM84 46l15-13"></path>
+              <path d="M144 102c-8-6-14-10.5-14-16.5a6.5 6.5 0 0 1 14-3 6.5 6.5 0 0 1 14 3c0 6-6 10.5-14 16.5z"></path>
+              <rect x="14" y="80" width="28" height="25" rx="4"></rect><path d="M14 89h28M21 76v7M35 76v7M22 97h4"></path>
+              <path d="M78 104c6.5 8.5 9.5 13.5 9.5 18a9.5 9.5 0 0 1-19 0c0-4.5 3-9.5 9.5-18z"></path>
+              <circle cx="124" cy="146" r="3.5"></circle><circle cx="124" cy="137" r="5"></circle><circle cx="132.5" cy="146" r="5"></circle><circle cx="124" cy="155" r="5"></circle><circle cx="115.5" cy="146" r="5"></circle>
+              <circle cx="62" cy="70" r="3"></circle><circle cx="150" cy="30" r="2"></circle><circle cx="34" cy="140" r="2"></circle>
+              <path d="M126 50l6 6M132 50l-6 6"></path><path d="M40 150c4-6 10-6 14 0s10 6 14 0"></path>
+              <path d="M100 74h18v10a9 9 0 0 1-18 0zM118 77h3a3 3 0 0 1 0 6h-3"></path>
+            </g>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#wps)"></rect>
+      </svg>
+      <div style="position:relative;display:flex;flex-direction:column">
+        <div class="b in tl"><svg class="tail" viewBox="0 0 8 13" aria-hidden="true"><path d="M8 0H1.5C.3 0-.2 1.4.6 2.3L8 11.5z" fill="#FFFFFF"></path></svg>Bom dia! Ainda tem aquele horário de quinta?<span class="sp i"></span><span class="mt">09:28</span>
+          <span class="ann" style="left:-6px;top:-24px">cauda 8×13 · canto 0</span>
+        </div>
+        <div class="b in">Se der, prefiro às 16h.<span class="sp i"></span><span class="mt">09:29</span>
+          <span class="ann" style="left:calc(100% + 10px);top:6px">mesmo grupo: 2 px · sem cauda</span>
+        </div>
+        <div class="b out tl g"><svg class="tail" viewBox="0 0 8 13" aria-hidden="true"><path d="M0 0h6.5c1.2 0 1.7 1.4.9 2.3L0 11.5z" fill="#D9F2EE"></path></svg><span class="who" style="color:var(--prInk)">Você</span>Bom dia, Juliana! Vou verificar a agenda e já te retorno.<span class="sp"></span><span class="mt">09:31 <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="#2A7FBF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Lida" role="img"><path d="M1 5.8l3.2 3.2L11 1.6M6.6 8.6l.9.9L14.5 1.6"></path></svg></span>
+          <span class="ann" style="right:calc(100% + 10px);top:4px">novo grupo: 12 px</span>
+          <span class="ann" style="right:calc(100% + 10px);bottom:2px">raio 7.5 · sombra 0 1 .5</span>
+        </div>
+        <div class="b out">A Ana tem às 16:00. Quer que eu reserve?<span class="sp"></span><span class="mt">09:33 <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Entregue" role="img"><path d="M1 5.8l3.2 3.2L11 1.6M6.6 8.6l.9.9L14.5 1.6"></path></svg></span>
+          <span class="ann" style="right:calc(100% + 10px);top:6px">hora em linha, flutua no fim</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:14px;min-width:0;padding-top:46px">
+    <table>
+      <thead><tr><th scope="col">Propriedade</th><th scope="col">Valor</th></tr></thead>
+      <tbody>
+        <tr><td>Fundo da conversa</td><td><code>#EFEAE2</code> + padrão de traço próprio a 8,5 % (folha, gota, flor, calendário, brilho) em tile de 168 px</td></tr>
+        <tr><td>Largura</td><td>Coluna sem limite central; margem lateral <code>7%</code>; bolha <code>max-width: 65%</code></td></tr>
+        <tr><td>Raio</td><td><code>7.5px</code>; a 1.ª bolha do grupo perde o canto do lado da cauda</td></tr>
+        <tr><td>Sombra</td><td><code>0 1px .5px rgba(11,20,26,.13)</code>, sem borda</td></tr>
+        <tr><td>Padding</td><td><code>6px 7px 8px 9px</code>; texto <code>14.2/19</code></td></tr>
+        <tr><td>Hora e envio</td><td>Absoluta no canto (<code>11px</code>); espaçador em linha de 40 px (recebida) ou 62 px (enviada)</td></tr>
+        <tr><td>Cores</td><td>Recebida <code>#FFFFFF</code>; enviada <code>#D9F2EE</code> (teal claro, não o verde do WhatsApp); lida <code>#2A7FBF</code></td></tr>
+        <tr><td>Remetente</td><td>Só na 1.ª bolha do grupo e só quando muda: «Assistente IA» roxo, «Você» ou nome da colega teal</td></tr>
+        <tr><td>Avisos</td><td>Data e eventos em chip central (raio 7.5, sombra igual); eventos de IA em amarelo claro</td></tr>
+        <tr><td>Botões da proposta</td><td>Blocos de 40 px sob a bolha, mesma cor, 2 px de intervalo</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -5062,16 +5062,6 @@
   display: none;
 }
 
-/* Desktop de 3 colunas: coluna de leitura de até 700 px e balões até 520 px (sem linhas de 1000 px). */
-.conversas-3col .inbox-timeline,
-.conversas-3col .inbox-composer-wrap {
-  padding-inline: max(var(--space-4), calc((100% - 700px) / 2));
-}
-
-.conversas-3col .inbox-msg {
-  max-width: min(520px, 82%);
-}
-
 /* Painel do contato: os botões de ação ocupam a largura útil (margem do conteúdo, sem rolagem lateral)
  * e o texto quebra em vez de sair da coluna; o padding do conteúdo vem dos filhos, não da coluna. */
 .inbox-contact .panel-btn-secondary:not(.ai-btn),
@@ -7020,46 +7010,14 @@
   .conversas-3col .panel-header-action {
     height: var(--size-control-default);
     min-height: var(--size-control-default);
-    border-radius: var(--radius-md);
-    border-color: var(--color-primary-border);
-    background: var(--color-primary-tint);
-    color: var(--color-primary-ink);
+    border-radius: var(--radius-pill);
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-text-secondary);
   }
 
-  .conversas-3col .inbox-timeline {
-    gap: 6px;
-    padding-block: var(--space-4);
-  }
-
-  .conversas-3col .inbox-msg-bubble {
-    border-radius: var(--radius-lg);
-    padding: var(--space-2) var(--space-3) 6px;
-  }
-
-  .conversas-3col .inbox-msg-in .inbox-msg-bubble {
-    border-bottom-left-radius: 4px;
-  }
-
-  .conversas-3col .inbox-msg-out .inbox-msg-bubble {
-    border-bottom-right-radius: 4px;
-  }
-
-  .conversas-3col .inbox-composer {
-    padding: var(--space-3) var(--space-4) var(--space-4);
-    border-top: 0;
-  }
-
-  .conversas-3col .inbox-composer-input {
-    min-height: var(--size-control-default);
-    border-radius: 18px;
-    border-color: var(--color-line-control);
-    background: var(--color-surface-card);
-    padding: 8px 14px;
-  }
-
-  .conversas-3col .inbox-send {
-    width: var(--size-control-default);
-    height: var(--size-control-default);
+  .conversas-3col .panel-header-action[data-hovered] {
+    background: var(--color-surface-sunken);
   }
 }
 
@@ -9151,12 +9109,197 @@
   }
 }
 
-/* Compositor em cartão único (Proposto): janela, IA, texto e ações num só bloco. */
+/* ───────────── Conversa ao estilo WhatsApp Web (Confirmado, Paulo 01/11/2026) ─────────────
+   Fundo com textura própria, bolhas sem borda com sombra fina e cauda na primeira de cada
+   grupo, hora em linha no fim do texto, compositor em barra flutuante sobre o fundo. */
+.inbox-thread {
+  --chat-wall: #efeae2;
+  --chat-doodles: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='none' stroke='%234A4130' stroke-opacity='.085' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M26 10c1.2 7.5 5 11.3 12.5 12.5C31 23.7 27.2 27.5 26 35c-1.2-7.5-5-11.3-12.5-12.5C21 21.3 24.8 17.5 26 10z'/%3E%3Cpath d='M84 46c0-15 10-24 27-24 0 17-9 27-24 27zM84 46l15-13'/%3E%3Cpath d='M144 102c-8-6-14-10.5-14-16.5a6.5 6.5 0 0 1 14-3 6.5 6.5 0 0 1 14 3c0 6-6 10.5-14 16.5z'/%3E%3Crect x='14' y='80' width='28' height='25' rx='4'/%3E%3Cpath d='M14 89h28M21 76v7M35 76v7M22 97h4'/%3E%3Cpath d='M78 104c6.5 8.5 9.5 13.5 9.5 18a9.5 9.5 0 0 1-19 0c0-4.5 3-9.5 9.5-18z'/%3E%3Ccircle cx='124' cy='146' r='3.5'/%3E%3Ccircle cx='124' cy='137' r='5'/%3E%3Ccircle cx='132.5' cy='146' r='5'/%3E%3Ccircle cx='124' cy='155' r='5'/%3E%3Ccircle cx='115.5' cy='146' r='5'/%3E%3Ccircle cx='62' cy='70' r='3'/%3E%3Ccircle cx='150' cy='30' r='2'/%3E%3Ccircle cx='34' cy='140' r='2'/%3E%3Cpath d='M126 50l6 6M132 50l-6 6M40 150c4-6 10-6 14 0s10 6 14 0M100 74h18v10a9 9 0 0 1-18 0zM118 77h3a3 3 0 0 1 0 6h-3'/%3E%3C/g%3E%3C/svg%3E");
+  --chat-in: var(--color-surface-card);
+  --chat-out: #d9f2ee;
+  --chat-tick: #2a7fbf;
+  --chat-shadow: rgba(11, 20, 26, 0.13);
+  background: var(--chat-wall) var(--chat-doodles) repeat;
+}
+
+:root[data-theme='dark'] .inbox-thread {
+  --chat-wall: #0b1413;
+  --chat-doodles: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-opacity='.05' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M26 10c1.2 7.5 5 11.3 12.5 12.5C31 23.7 27.2 27.5 26 35c-1.2-7.5-5-11.3-12.5-12.5C21 21.3 24.8 17.5 26 10z'/%3E%3Cpath d='M84 46c0-15 10-24 27-24 0 17-9 27-24 27zM84 46l15-13'/%3E%3Cpath d='M144 102c-8-6-14-10.5-14-16.5a6.5 6.5 0 0 1 14-3 6.5 6.5 0 0 1 14 3c0 6-6 10.5-14 16.5z'/%3E%3Crect x='14' y='80' width='28' height='25' rx='4'/%3E%3Cpath d='M14 89h28M21 76v7M35 76v7M22 97h4'/%3E%3Cpath d='M78 104c6.5 8.5 9.5 13.5 9.5 18a9.5 9.5 0 0 1-19 0c0-4.5 3-9.5 9.5-18z'/%3E%3Ccircle cx='124' cy='146' r='3.5'/%3E%3Ccircle cx='124' cy='137' r='5'/%3E%3Ccircle cx='132.5' cy='146' r='5'/%3E%3Ccircle cx='124' cy='155' r='5'/%3E%3Ccircle cx='115.5' cy='146' r='5'/%3E%3Ccircle cx='62' cy='70' r='3'/%3E%3Ccircle cx='150' cy='30' r='2'/%3E%3Ccircle cx='34' cy='140' r='2'/%3E%3Cpath d='M126 50l6 6M132 50l-6 6M40 150c4-6 10-6 14 0s10 6 14 0M100 74h18v10a9 9 0 0 1-18 0zM118 77h3a3 3 0 0 1 0 6h-3'/%3E%3C/g%3E%3C/svg%3E");
+  --chat-out: #163a38;
+  --chat-tick: #6cc4f0;
+  --chat-shadow: rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .inbox-thread {
+    --chat-wall: #0b1413;
+    --chat-doodles: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='168' viewBox='0 0 168 168'%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-opacity='.05' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M26 10c1.2 7.5 5 11.3 12.5 12.5C31 23.7 27.2 27.5 26 35c-1.2-7.5-5-11.3-12.5-12.5C21 21.3 24.8 17.5 26 10z'/%3E%3Cpath d='M84 46c0-15 10-24 27-24 0 17-9 27-24 27zM84 46l15-13'/%3E%3Cpath d='M144 102c-8-6-14-10.5-14-16.5a6.5 6.5 0 0 1 14-3 6.5 6.5 0 0 1 14 3c0 6-6 10.5-14 16.5z'/%3E%3Crect x='14' y='80' width='28' height='25' rx='4'/%3E%3Cpath d='M14 89h28M21 76v7M35 76v7M22 97h4'/%3E%3Cpath d='M78 104c6.5 8.5 9.5 13.5 9.5 18a9.5 9.5 0 0 1-19 0c0-4.5 3-9.5 9.5-18z'/%3E%3Ccircle cx='124' cy='146' r='3.5'/%3E%3Ccircle cx='124' cy='137' r='5'/%3E%3Ccircle cx='132.5' cy='146' r='5'/%3E%3Ccircle cx='124' cy='155' r='5'/%3E%3Ccircle cx='115.5' cy='146' r='5'/%3E%3Ccircle cx='62' cy='70' r='3'/%3E%3Ccircle cx='150' cy='30' r='2'/%3E%3Ccircle cx='34' cy='140' r='2'/%3E%3Cpath d='M126 50l6 6M132 50l-6 6M40 150c4-6 10-6 14 0s10 6 14 0M100 74h18v10a9 9 0 0 1-18 0zM118 77h3a3 3 0 0 1 0 6h-3'/%3E%3C/g%3E%3C/svg%3E");
+    --chat-out: #163a38;
+    --chat-tick: #6cc4f0;
+    --chat-shadow: rgba(0, 0, 0, 0.4);
+  }
+}
+
+.inbox-thread > .inbox-thread-header {
+  position: relative;
+  z-index: 1;
+  border-bottom: 0;
+  box-shadow: 0 1px 3px rgba(11, 20, 26, 0.08);
+}
+
+.inbox-timeline {
+  gap: 2px;
+  padding-block: var(--space-3) var(--space-2);
+  background: transparent;
+}
+
+.inbox-msg {
+  gap: 2px;
+}
+
+.inbox-msg--first {
+  margin-top: 10px;
+}
+
+.inbox-msg-bubble {
+  position: relative;
+  display: flow-root;
+  padding: 6px 7px 8px 9px;
+  border: 0;
+  border-radius: 7.5px;
+  background: var(--chat-in);
+  filter: drop-shadow(0 1px 0.5px var(--chat-shadow));
+  line-height: 1.35;
+}
+
+.inbox-msg-in .inbox-msg-bubble,
+.inbox-msg-out .inbox-msg-bubble {
+  border: 0;
+  border-radius: 7.5px;
+}
+
+.inbox-msg-out .inbox-msg-bubble {
+  background: var(--chat-out);
+}
+
+.inbox-msg-bubble--failed,
+.inbox-msg-out .inbox-msg-bubble--failed {
+  background: var(--color-danger-tint);
+}
+
+/* Cauda: só na primeira bolha do grupo, do lado de quem fala; o canto desse lado fica reto. */
+.inbox-msg-in.inbox-msg--first .inbox-msg-bubble {
+  border-top-left-radius: 0;
+}
+
+.inbox-msg-out.inbox-msg--first .inbox-msg-bubble {
+  border-top-right-radius: 0;
+}
+
+.inbox-msg--first .inbox-msg-bubble::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 13px;
+  background: inherit;
+}
+
+.inbox-msg-in.inbox-msg--first .inbox-msg-bubble::before {
+  left: -8px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.inbox-msg-out.inbox-msg--first .inbox-msg-bubble::before {
+  right: -8px;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.inbox-msg-sender {
+  display: block;
+  font-size: 0.8rem;
+  line-height: 20px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary-ink);
+}
+
+.inbox-msg-sender--ai {
+  color: var(--color-ai-ink);
+}
+
+/* Hora e envio flutuam no fim da última linha (cabe ao lado do texto ou desce sozinha). */
+.inbox-msg-meta {
+  float: right;
+  position: relative;
+  top: 5px;
+  margin: 0 0 0 12px;
+  gap: 3px;
+  font-size: 0.6875rem;
+  line-height: 15px;
+  color: var(--color-text-muted);
+}
+
+.inbox-delivery {
+  gap: 3px;
+}
+
+.inbox-delivery:not(.inbox-delivery-failed):not(.inbox-delivery-unknown) .inbox-delivery-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.inbox-delivery-read .inbox-delivery-icon {
+  color: var(--chat-tick);
+}
+
+.inbox-day,
+.inbox-unread-divider,
+.inbox-msg-system {
+  align-self: center;
+  margin: 10px 0 2px;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 7.5px;
+  background: var(--color-surface-card);
+  box-shadow: 0 1px 0.5px var(--chat-shadow);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: var(--font-weight-regular, 400);
+}
+
+.inbox-unread-divider {
+  color: var(--color-success-ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.inbox-msg-system {
+  max-width: 80%;
+  background: var(--color-warning-tint);
+  color: var(--color-text-primary);
+}
+
+.inbox-msg-readby,
+.inbox-msg-unknown-hint {
+  padding: 0 4px;
+  color: var(--color-text-secondary);
+}
+
+.inbox-timeline-more {
+  align-self: center;
+}
+
+/* Compositor: avisos em pílulas e uma barra flutuante sobre o fundo da conversa. */
 .inbox-composer-wrap {
-  padding-top: var(--space-2);
-  padding-left: calc(var(--space-3) + env(safe-area-inset-left, 0px));
-  padding-right: calc(var(--space-3) + env(safe-area-inset-right, 0px));
-  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  padding-top: var(--space-1);
+  padding-left: calc(var(--space-2) + env(safe-area-inset-left, 0px));
+  padding-right: calc(var(--space-2) + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+  border-top: 0;
+  background: transparent;
 }
 
 :root[data-keyboard='open'] .inbox-composer-wrap {
@@ -9166,45 +9309,100 @@
 .inbox-dock {
   display: flex;
   flex-direction: column;
+  gap: var(--space-2);
   width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
-  border: var(--size-border-width) solid var(--color-line-border);
-  border-radius: var(--radius-xl);
+}
+
+.inbox-dock-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.inbox-dock-pills:empty {
+  display: none;
+}
+
+.inbox-dock-pills > .inbox-window-banner,
+.inbox-dock-pills > .inbox-ai-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-pill);
   background: var(--color-surface-card);
-  overflow: hidden;
+  box-shadow: 0 1px 0.5px var(--chat-shadow);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
 }
 
-.inbox-dock > .inbox-window-banner {
-  order: -2;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-small);
-  background: transparent;
-  border-bottom: var(--size-border-width) solid var(--color-line-divider);
+.inbox-dock-pills > .inbox-window-banner--soon {
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
 }
 
-.inbox-dock > .inbox-ai-status {
-  order: -1;
-  margin: var(--space-3) var(--space-3) 0;
-  padding: var(--space-2) var(--space-3);
-  border: var(--size-border-width) solid var(--color-ai-border);
-  border-radius: var(--radius-md);
+.inbox-dock-pills > .inbox-ai-status {
   background: var(--color-ai-tint);
   color: var(--color-ai-ink);
 }
 
+.inbox-dock-pills .inbox-ai-chip {
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: inherit;
+}
+
+/* Cartões acima da barra (sugestão, avisos da IA, horários livres): brancos, raio 16, sombra. */
+.inbox-dock > .ai-block,
+.inbox-dock > .ai-banner,
+.inbox-dock > .free-slots,
+.inbox-dock > .inbox-ai-card {
+  margin: 0;
+  border: 0;
+  border-radius: var(--radius-xl);
+  box-shadow:
+    0 1px 2px rgba(11, 20, 26, 0.12),
+    0 2px 8px rgba(11, 20, 26, 0.06);
+}
+
+.inbox-dock > .ai-block:not(.ai-block-unavailable) {
+  background: var(--color-surface-card);
+}
+
 .inbox-dock > .inbox-composer:not(.inbox-ai-card) {
-  border-top: 0;
-  background: transparent;
-  padding: var(--space-3) var(--space-3) var(--space-2);
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  min-height: 56px;
+  padding: 6px;
+  border: 0;
+  border-radius: 28px;
+  background: var(--color-surface-card);
+  box-shadow:
+    0 1px 2px rgba(11, 20, 26, 0.12),
+    0 2px 8px rgba(11, 20, 26, 0.06);
+}
+
+.inbox-dock > .inbox-composer:not(.inbox-ai-card) .inbox-composer-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
 }
 
 .inbox-dock > .inbox-composer:not(.inbox-ai-card) .inbox-composer-input {
   min-height: var(--size-touch);
-  padding: var(--space-1) var(--space-2);
+  max-height: 140px;
+  padding: 11px var(--space-3);
   border: 0;
   border-radius: 0;
   background: transparent;
+  line-height: 22px;
 }
 
 .inbox-dock > .inbox-composer:not(.inbox-ai-card) .inbox-composer-input:focus {
@@ -9212,29 +9410,94 @@
 }
 
 .inbox-dock > .inbox-composer:focus-within:not(.inbox-ai-card) {
-  box-shadow: inset 0 0 0 var(--size-focus-ring-width) var(--color-primary-border);
+  box-shadow:
+    0 0 0 var(--size-focus-ring-width) var(--color-primary-border),
+    0 2px 8px rgba(11, 20, 26, 0.06);
 }
 
-/* «Horários livres» e «Sugerir resposta» passam para uma barra de ações abaixo do texto. */
-.inbox-dock > .free-slots,
-.inbox-dock > .inbox-composer-tools {
-  order: 2;
-}
-
-.inbox-dock > .free-slots--closed {
-  padding: 0 var(--space-3) var(--space-3);
-}
-
-.inbox-dock > .free-slots:not(.free-slots--closed) {
+.inbox-composer-icon {
+  flex: none;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  display: inline-grid;
+  place-items: center;
   border: 0;
-  border-top: var(--size-border-width) solid var(--color-line-divider);
-  border-radius: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
 }
 
-.inbox-dock > .inbox-composer-tools {
-  padding: 0 var(--space-3) var(--space-3);
+.inbox-composer-icon--ai {
+  color: var(--color-ai-ink);
 }
 
-.inbox-dock > .inbox-composer-tools + .inbox-composer {
-  padding-top: var(--space-3);
+.inbox-composer-icon[data-hovered],
+.inbox-composer-icon[aria-expanded='true'] {
+  background: var(--color-surface-sunken);
+}
+
+.inbox-composer-icon[aria-expanded='true'] {
+  color: var(--color-primary-ink);
+}
+
+.inbox-composer-icon[data-focus-visible],
+.inbox-send[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: 2px;
+}
+
+.inbox-composer-icon[data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.inbox-dock > .inbox-composer:not(.inbox-ai-card) .inbox-send {
+  width: var(--size-touch);
+  height: var(--size-touch);
+}
+
+.inbox-dock > .inbox-composer:not(.inbox-ai-card) .inbox-send[data-disabled] {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
+.inbox-dock > .inbox-composer-template {
+  justify-content: center;
+  align-items: center;
+}
+
+/* Desktop: margem lateral de 7 % e bolhas até 65 %, como no WhatsApp Web (sem coluna estreita). */
+@media (min-width: 768px) {
+  .inbox-timeline,
+  .inbox-composer-wrap {
+    padding-inline: max(var(--space-4), 7%);
+  }
+
+  .inbox-composer-wrap {
+    padding-bottom: var(--space-4);
+  }
+
+  .inbox-msg {
+    max-width: 65%;
+  }
+
+  .inbox-msg-bubble {
+    font-size: 0.89rem;
+  }
+
+  .inbox-dock > .inbox-composer:not(.inbox-ai-card) {
+    min-height: 52px;
+  }
+
+  .inbox-composer-icon,
+  .inbox-dock > .inbox-composer:not(.inbox-ai-card) .inbox-send {
+    width: 40px;
+    height: 40px;
+  }
+
+  .inbox-dock > .inbox-composer:not(.inbox-ai-card) .inbox-composer-input {
+    min-height: 40px;
+    padding-block: 9px;
+  }
 }

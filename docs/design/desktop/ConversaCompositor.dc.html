@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Compositor — estados</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button,input,textarea{font:inherit}
+button:focus-visible,input:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+.c{--tx:#111B21;--tx2:#3B4A54;--mu:#667781;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--ai:#4B2A9E;--aiT:#F3EFFC;--wa:#6E4200;--waT:#FFF3D6}
+.c button{cursor:pointer}
+.lbl{margin:0;font-size:13px;font-weight:600;color:var(--tx2);display:flex;gap:8px;align-items:baseline}
+.lbl span{font-weight:400;color:var(--mu)}
+.st{display:flex;flex-direction:column;gap:10px}
+.wp{position:relative;border-radius:12px;overflow:hidden;background:#EFEAE2;padding:18px 28px 16px;display:flex;flex-direction:column;gap:8px;justify-content:flex-end}
+.wp > svg.bg{position:absolute;inset:0;pointer-events:none}
+.wp > *:not(.bg){position:relative}
+.pills{display:flex;gap:8px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;font-size:12.5px;box-shadow:0 1px .5px rgba(11,20,26,.13);background:#FFFFFF;color:#54656F}
+.bar{display:flex;align-items:flex-end;gap:4px;min-height:52px;padding:6px;box-sizing:border-box;background:#FFFFFF;border-radius:26px;box-shadow:0 1px 2px rgba(11,20,26,.12),0 2px 8px rgba(11,20,26,.06)}
+.ib{width:40px;height:40px;flex:none;border:0;background:none;border-radius:999px;display:grid;place-items:center;color:#54656F}
+.ib.on{background:#F0F2F5}
+.snd{width:40px;height:40px;flex:none;border:0;border-radius:999px;display:grid;place-items:center;background:#E9EDEF;color:#8696A0}
+.snd.go{background:var(--pr);color:#FFFFFF}
+.ph{flex:1;min-width:0;min-height:40px;display:flex;align-items:center;padding:0 6px;font-size:15px;color:#667781}
+.tx{flex:1;min-width:0;padding:10px 6px;font-size:15px;line-height:20px;color:var(--tx)}
+.pb{height:40px;border:0;border-radius:999px;padding:0 18px;font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:8px}
+.pb.pr{background:var(--pr);color:#FFFFFF}
+.pb.gh{background:none;color:var(--tx2)}
+.pb.gh:hover{background:#F0F2F5}
+.menu{position:absolute;left:28px;bottom:76px;width:260px;background:#FFFFFF;border-radius:16px;box-shadow:0 2px 5px rgba(11,20,26,.1),0 8px 24px rgba(11,20,26,.12);padding:8px;display:flex;flex-direction:column}
+.menu button{height:44px;border:0;background:none;border-radius:10px;display:flex;align-items:center;gap:14px;padding:0 12px;font-size:15px;color:var(--tx);text-align:left}
+.menu button:hover{background:#F5F6F6}
+.mi{width:24px;height:24px;display:grid;place-items:center}
+</style>
+</helmet>
+<div class="c" style="width:1040px;height:1300px;box-sizing:border-box;padding:40px;display:flex;flex-direction:column;gap:28px;background:#FFFFFF;color:var(--tx);font-family:Roboto,&quot;Helvetica Neue&quot;,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.35">
+  <svg aria-hidden="true" width="0" height="0" style="position:absolute">
+    <defs>
+      <pattern id="wpc" width="168" height="168" patternUnits="userSpaceOnUse">
+        <g fill="none" stroke="#4A4130" stroke-opacity=".085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M26 10c1.2 7.5 5 11.3 12.5 12.5C31 23.7 27.2 27.5 26 35c-1.2-7.5-5-11.3-12.5-12.5C21 21.3 24.8 17.5 26 10z"></path>
+          <path d="M84 46c0-15 10-24 27-24 0 17-9 27-24 27zM84 46l15-13"></path>
+          <path d="M144 102c-8-6-14-10.5-14-16.5a6.5 6.5 0 0 1 14-3 6.5 6.5 0 0 1 14 3c0 6-6 10.5-14 16.5z"></path>
+          <rect x="14" y="80" width="28" height="25" rx="4"></rect><path d="M14 89h28M21 76v7M35 76v7M22 97h4"></path>
+          <path d="M78 104c6.5 8.5 9.5 13.5 9.5 18a9.5 9.5 0 0 1-19 0c0-4.5 3-9.5 9.5-18z"></path>
+          <circle cx="124" cy="146" r="3.5"></circle><circle cx="124" cy="137" r="5"></circle><circle cx="132.5" cy="146" r="5"></circle><circle cx="124" cy="155" r="5"></circle><circle cx="115.5" cy="146" r="5"></circle>
+          <circle cx="62" cy="70" r="3"></circle><circle cx="150" cy="30" r="2"></circle><circle cx="34" cy="140" r="2"></circle>
+          <path d="M126 50l6 6M132 50l-6 6"></path><path d="M40 150c4-6 10-6 14 0s10 6 14 0"></path>
+          <path d="M100 74h18v10a9 9 0 0 1-18 0zM118 77h3a3 3 0 0 1 0 6h-3"></path>
+        </g>
+      </pattern>
+    </defs>
+  </svg>
+
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <h1 style="margin:0;font-size:24px;font-weight:600;letter-spacing:-.01em">Compositor — estados</h1>
+    <p style="margin:0;font-size:14px;color:var(--mu)">Uma barra flutuante sobre o fundo da conversa. Os avisos viram pílulas acima dela; Sugerir resposta, Horários livres e Enviar vivem dentro dela.</p>
+  </header>
+
+  <section class="st" aria-label="Vazio">
+    <h2 class="lbl">1 · Vazio, janela aberta <span>Enviar desativado; horários livres e IA à mão</span></h2>
+    <div class="wp">
+      <svg class="bg" aria-hidden="true" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#wpc)"></rect></svg>
+      <div class="pills">
+        <span class="pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Você pode responder livremente até amanhã às 09:29.</span>
+      </div>
+      <div class="bar">
+        <span class="ph">Escreva uma mensagem</span>
+        <button type="button" class="ib" aria-label="Sugerir resposta com IA" style="color:var(--ai)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"></path><path d="M18.5 14.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"></path></svg></button>
+        <button type="button" class="ib" aria-label="Enviar horários livres"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5M16 2v4M8 2v4M3 10h5"></path><circle cx="16" cy="16" r="6"></circle><path d="M16 14v2.2l1.6 1"></path></svg></button>
+        <button type="button" class="snd" aria-label="Enviar" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l-.01 6.53L15 12 3.39 13.87z"></path></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="st" aria-label="Escrevendo">
+    <h2 class="lbl">2 · Escrevendo, janela a fechar <span>Texto cresce até 6 linhas; Enviar fica teal; pílula passa a aviso com menos de 1 h</span></h2>
+    <div class="wp">
+      <svg class="bg" aria-hidden="true" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#wpc)"></rect></svg>
+      <div class="pills">
+        <span class="pill" style="background:var(--waT);color:var(--wa)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Você pode responder livremente até hoje às 09:29.</span>
+      </div>
+      <div class="bar">
+        <div class="tx">Juliana, consegui às 16h na quinta, 6/11, com a Ana.<br>Quer que eu deixe reservado? O sinal é de R$ 50 por Pix.</div>
+        <button type="button" class="ib" aria-label="Sugerir resposta com IA" style="color:var(--ai)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"></path><path d="M18.5 14.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"></path></svg></button>
+        <button type="button" class="ib" aria-label="Enviar horários livres"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5M16 2v4M8 2v4M3 10h5"></path><circle cx="16" cy="16" r="6"></circle><path d="M16 14v2.2l1.6 1"></path></svg></button>
+        <button type="submit" class="snd go" aria-label="Enviar"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l-.01 6.53L15 12 3.39 13.87z"></path></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="st" aria-label="Sugestão da IA">
+    <h2 class="lbl">3 · Sugestão da IA <span>Cartão acima da barra; nada sai sem Enviar</span></h2>
+    <div class="wp">
+      <svg class="bg" aria-hidden="true" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#wpc)"></rect></svg>
+      <article aria-label="Sugestão da IA" style="background:#FFFFFF;border-radius:16px;box-shadow:0 1px 2px rgba(11,20,26,.12),0 2px 8px rgba(11,20,26,.06);padding:14px 16px 10px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ai);font-weight:500">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"></path></svg>
+          Sugestão da IA <span style="color:var(--mu);font-weight:400">· revise antes de enviar</span>
+          <span style="flex:1"></span>
+          <button type="button" class="ib" aria-label="Descartar sugestão" style="width:32px;height:32px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+        </div>
+        <p style="margin:0;font-size:15px;line-height:21px;color:var(--tx)">Bom dia, Juliana! Tenho quinta, 6/11, às 16:00 com a Ana para a limpeza de pele profunda (1h15). Quer que eu envie a proposta para confirmar?</p>
+        <div style="display:flex;justify-content:flex-end;gap:4px">
+          <button type="button" class="pb gh">Gerar outra</button>
+          <button type="button" class="pb gh">Editar</button>
+          <button type="button" class="pb pr"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l-.01 6.53L15 12 3.39 13.87z"></path></svg>Enviar</button>
+        </div>
+      </article>
+      <div class="bar">
+        <span class="ph">Escreva uma mensagem</span>
+        <button type="button" class="ib on" aria-label="Sugestão da IA aberta" aria-pressed="true" style="color:var(--ai)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"></path><path d="M18.5 14.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"></path></svg></button>
+        <button type="button" class="ib" aria-label="Enviar horários livres"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5M16 2v4M8 2v4M3 10h5"></path><circle cx="16" cy="16" r="6"></circle><path d="M16 14v2.2l1.6 1"></path></svg></button>
+        <button type="button" class="snd" aria-label="Enviar" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l-.01 6.53L15 12 3.39 13.87z"></path></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="st" aria-label="Janela fechada">
+    <h2 class="lbl">4 · Janela de 24 h fechada <span>Só modelo aprovado; o campo livre some</span></h2>
+    <div class="wp">
+      <svg class="bg" aria-hidden="true" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#wpc)"></rect></svg>
+      <div class="bar" style="align-items:center;padding:6px 6px 6px 18px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6E4200" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="flex:none"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+        <span style="flex:1;min-width:0;padding:0 8px;font-size:14px;color:var(--tx2)">Juliana não escreve há mais de 24 h. Para retomar, envie um modelo aprovado.</span>
+        <button type="button" class="pb pr">Escolher modelo</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="st" aria-label="Sem responsável">
+    <h2 class="lbl">5 · Sem responsável <span>Assumir antes de escrever (M-45)</span></h2>
+    <div class="wp">
+      <svg class="bg" aria-hidden="true" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#wpc)"></rect></svg>
+      <div class="bar" style="align-items:center;padding:6px 6px 6px 18px">
+        <span style="flex:1;min-width:0;padding:0 8px;font-size:14px;color:var(--tx2)">Ninguém está a responder esta conversa.</span>
+        <button type="button" class="pb pr">Assumir e responder</button>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

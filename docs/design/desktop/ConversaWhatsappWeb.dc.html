@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Conversa desktop estilo WhatsApp Web</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button,input,textarea{font:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+.d{--card:#FFFFFF;--sunk:#F0F2F5;--tx:#111B21;--tx2:#3B4A54;--mu:#667781;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--ok:#1F7A4D;--okT:#EAF5EF;--wa:#6E4200;--waT:#FFF3D6;--ai:#4B2A9E;--aiT:#F3EFFC;--aiAv:#E7E0F8;--bd:#E9EDEF;--tick:#2A7FBF}
+.d button,.d a{color:inherit;cursor:pointer}
+.rl a{width:64px;height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;font-size:11px;color:var(--mu);text-decoration:none}
+.rl a.on{background:var(--prT);color:var(--prInk);font-weight:600}
+.chip{flex:none;height:32px;padding:0 12px;border-radius:999px;border:0;background:var(--sunk);font-size:14px;color:var(--tx2);display:inline-flex;align-items:center;gap:6px}
+.chip.on{background:var(--prT);color:var(--prInk);font-weight:500}
+.chip .n{font-size:12px;color:inherit;opacity:.8;font-variant-numeric:tabular-nums}
+.row{display:flex;gap:14px;align-items:center;width:100%;text-align:left;border:0;background:transparent;padding:0 12px;height:72px;box-sizing:border-box;border-radius:10px;cursor:pointer}
+.row.on{background:#F0F2F5}
+.av{flex:none;width:48px;height:48px;border-radius:999px;display:grid;place-items:center;font-size:15px;font-weight:500}
+.meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;border-bottom:1px solid var(--bd);height:100%;justify-content:center}
+.row.on .meta,.row.nb .meta{border-bottom-color:transparent}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.nm{font-size:16px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm{font-size:12px;color:var(--mu);flex:none}
+.sn{font-size:14px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;gap:6px;align-items:center}
+.tag{padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;flex:none}
+.tag.ok{background:var(--okT);color:var(--ok)}
+.tag.wa{background:var(--waT);color:var(--wa)}
+.unr{flex:none;min-width:20px;height:20px;border-radius:999px;background:var(--pr);color:#fff;font-size:12px;font-weight:600;display:grid;place-items:center;padding:0 5px;box-sizing:border-box}
+.msgs{position:relative;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:12px 7% 8px}
+.b{position:relative;max-width:65%;box-sizing:border-box;padding:6px 7px 8px 9px;border-radius:7.5px;font-size:14.2px;line-height:19px;color:var(--tx);box-shadow:0 1px .5px rgba(11,20,26,.13);margin-top:2px}
+.b.in{align-self:flex-start;background:#FFFFFF}
+.b.out{align-self:flex-end;background:var(--out)}
+.b.in.tl{border-top-left-radius:0}
+.b.out.tl{border-top-right-radius:0}
+.g{margin-top:12px}
+.tail{position:absolute;top:0;width:8px;height:13px}
+.b.in .tail{left:-8px}
+.b.out .tail{right:-8px}
+.sp{display:inline-block;width:62px;height:1px}
+.sp.i{width:40px}
+.mt{position:absolute;right:7px;bottom:4px;font-size:11px;line-height:15px;color:var(--mu);display:flex;gap:3px;align-items:center}
+.who{display:block;font-size:12.8px;line-height:20px;font-weight:500}
+.chipc{align-self:center;background:#FFFFFF;color:#54656F;font-size:12.5px;line-height:21px;padding:5px 12px 6px;border-radius:7.5px;box-shadow:0 1px .5px rgba(11,20,26,.13);margin:12px 0 4px}
+.evt{align-self:center;background:#FFF5D9;color:#54471F;font-size:12.5px;line-height:18px;padding:6px 12px;border-radius:7.5px;box-shadow:0 1px .5px rgba(11,20,26,.13);margin:12px 0 4px;display:flex;gap:6px;align-items:center}
+.btns{align-self:flex-end;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;margin-top:2px}
+.btns button{height:40px;border:0;border-radius:7.5px;background:var(--out);color:#027EB5;font-size:14px;box-shadow:0 1px .5px rgba(11,20,26,.13)}
+.ib{width:40px;height:40px;flex:none;border:0;background:none;border-radius:999px;display:grid;place-items:center;color:#54656F}
+.hb{height:40px;border:0;background:none;border-radius:999px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;color:#3B4A54;font-size:14px}
+.pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;font-size:12.5px;box-shadow:0 1px .5px rgba(11,20,26,.13)}
+</style>
+</helmet>
+<!--
+  TEL-01 conversa no desktop ao estilo WhatsApp Web (Confirmado, Paulo 01/11/2026, «Sim, implementa»).
+  Fundo com textura própria, bolhas sem borda com sombra e cauda, compositor em barra flutuante.
+  O botão «+» do canvas ficou fora: Agendar está no cabeçalho e Reservar bloco no ⋮.
+-->
+<div class="d" style="--out:#D9F2EE;width:1440px;height:900px;box-sizing:border-box;display:grid;grid-template-columns:76px 420px minmax(0,1fr);background:#FFFFFF;color:var(--tx);font-family:Roboto,&quot;Helvetica Neue&quot;,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.35;overflow:hidden">
+
+  <nav class="rl" aria-label="Áreas" style="background:#F7F8F9;border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0">
+    <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true" style="margin-bottom:10px"><rect width="36" height="36" rx="10" fill="#0E5A5C"></rect><path d="M11 12h14M18 12v14" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"></path></svg>
+    <a class="on" href="#" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2-5.4A8.4 8.4 0 1 1 21 11.5z"></path></svg>Conversas</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 4v16M10 4v6M16 4v16"></path></svg>Acompanhar</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M8 2v4M16 2v4M3 10h18"></path></svg>Agenda</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"></path></svg>Clientes</a>
+    <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg>Clínica</a>
+    <span style="flex:1"></span>
+    <button type="button" aria-label="Notificações" class="ib"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></svg></button>
+    <button type="button" aria-label="Conta de Paulo" style="width:36px;height:36px;border-radius:999px;border:0;background:var(--prT);color:var(--prInk);font-weight:600;font-size:13px">P</button>
+  </nav>
+
+  <section aria-label="Lista de conversas" style="background:#FFFFFF;border-right:1px solid var(--bd);display:flex;flex-direction:column;min-height:0">
+    <div style="padding:14px 16px 8px;display:flex;flex-direction:column;gap:12px;flex:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:36px">
+        <h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em">Conversas</h1>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ok)"><span style="width:8px;height:8px;border-radius:999px;background:var(--ok)"></span>Ao vivo</span>
+      </div>
+      <label style="display:flex;align-items:center;gap:12px;height:40px;padding:0 14px;border-radius:999px;background:var(--sunk)">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#54656F" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Buscar nesta clínica</span>
+        <input type="search" placeholder="Buscar nome ou telefone" style="flex:1;min-width:0;border:0;background:transparent;font-size:15px;color:var(--tx);outline:none">
+      </label>
+      <div role="group" aria-label="Filtros" style="display:flex;gap:8px;overflow-x:auto">
+        <button type="button" class="chip on" aria-pressed="true">Todas <span class="n">5</span></button>
+        <button type="button" class="chip" aria-pressed="false">Novas <span class="n">1</span></button>
+        <button type="button" class="chip" aria-pressed="false">Minhas <span class="n">2</span></button>
+        <button type="button" class="chip" aria-pressed="false">Sem responsável <span class="n">1</span></button>
+      </div>
+    </div>
+    <ul style="list-style:none;margin:0;padding:0 8px;overflow-y:auto;flex:1">
+      <li><button type="button" class="row">
+        <span class="av" style="background:var(--prT);color:var(--prInk)">MA</span>
+        <span class="meta"><span class="top"><span class="nm">Marina Alves</span><span class="tm" style="color:var(--pr);font-weight:500">09:41</span></span>
+        <span class="sn"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">Oi! Quanto custa a limpeza de pele?</span><span class="unr">1</span></span></span>
+      </button></li>
+      <li><button type="button" class="row on" aria-current="true">
+        <span class="av" style="background:var(--aiAv);color:var(--ai)">JP</span>
+        <span class="meta"><span class="top"><span class="nm">Juliana Prado</span><span class="tm">09:31</span></span>
+        <span class="sn"><span class="tag ok">Em atendimento</span><span style="overflow:hidden;text-overflow:ellipsis">Você: Vou verificar a agenda e já…</span></span></span>
+      </button></li>
+      <li><button type="button" class="row">
+        <span class="av" style="background:#E7E0F8;color:var(--ai)">PA</span>
+        <span class="meta"><span class="top"><span class="nm">Paulo</span><span class="tm">08:55</span></span>
+        <span class="sn"><span class="tag wa">Precisa de alguém</span><span style="overflow:hidden;text-overflow:ellipsis">Obrigado</span></span></span>
+      </button></li>
+      <li><button type="button" class="row">
+        <span class="av" style="background:var(--okT);color:var(--ok)">CM</span>
+        <span class="meta"><span class="top"><span class="nm">Carla Mendes</span><span class="tm">ontem</span></span>
+        <span class="sn"><span style="overflow:hidden;text-overflow:ellipsis">Combinado, até sexta!</span></span></span>
+      </button></li>
+      <li><button type="button" class="row">
+        <span class="av" style="background:var(--sunk);color:var(--tx2)">RL</span>
+        <span class="meta"><span class="top"><span class="nm">Renata Lima</span><span class="tm">20/10</span></span>
+        <span class="sn"><span style="overflow:hidden;text-overflow:ellipsis">Obrigada pelo atendimento.</span></span></span>
+      </button></li>
+      <li><button type="button" class="row nb">
+        <span class="av" style="background:var(--prT);color:var(--prInk)">BS</span>
+        <span class="meta"><span class="top"><span class="nm">Beatriz Santos</span><span class="tm">19/10</span></span>
+        <span class="sn"><span style="overflow:hidden;text-overflow:ellipsis">Vocês fazem peeling de diamante?</span></span></span>
+      </button></li>
+    </ul>
+  </section>
+
+  <section aria-label="Conversa com Juliana Prado" style="min-width:0;min-height:0;display:flex;flex-direction:column">
+    <header style="flex:none;position:relative;z-index:2;display:flex;align-items:center;gap:8px;padding:0 16px;height:64px;background:#FFFFFF;box-shadow:0 1px 3px rgba(11,20,26,.08)">
+      <button type="button" aria-label="Informações de Juliana Prado" style="flex:1;min-width:0;border:0;background:none;padding:0;display:flex;align-items:center;gap:14px;text-align:left;height:56px">
+        <span class="av" style="width:40px;height:40px;font-size:14px;background:var(--aiAv);color:var(--ai)">JP</span>
+        <span style="min-width:0;display:flex;flex-direction:column;gap:2px">
+          <span style="font-size:16px;color:var(--tx)">Juliana Prado</span>
+          <span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:6px;white-space:nowrap"><span class="tag ok">Em atendimento</span>Você · Horário proposto</span>
+        </span>
+      </button>
+      <button type="button" class="hb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M8 2v4M16 2v4M3 10h18M12 14v4M10 16h4"></path></svg>Agendar</button>
+      <button type="button" class="hb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M15 3v18"></path></svg>Contato</button>
+    </header>
+
+    <div style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;background:#EFEAE2">
+      
+        <svg aria-hidden="true" width="100%" height="100%" style="position:absolute;inset:0;pointer-events:none">
+          <defs>
+            <pattern id="wp" width="168" height="168" patternUnits="userSpaceOnUse">
+              <g fill="none" stroke="#4A4130" stroke-opacity=".085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M26 10c1.2 7.5 5 11.3 12.5 12.5C31 23.7 27.2 27.5 26 35c-1.2-7.5-5-11.3-12.5-12.5C21 21.3 24.8 17.5 26 10z"></path>
+                <path d="M84 46c0-15 10-24 27-24 0 17-9 27-24 27zM84 46l15-13"></path>
+                <path d="M144 102c-8-6-14-10.5-14-16.5a6.5 6.5 0 0 1 14-3 6.5 6.5 0 0 1 14 3c0 6-6 10.5-14 16.5z"></path>
+                <rect x="14" y="80" width="28" height="25" rx="4"></rect><path d="M14 89h28M21 76v7M35 76v7M22 97h4"></path>
+                <path d="M78 104c6.5 8.5 9.5 13.5 9.5 18a9.5 9.5 0 0 1-19 0c0-4.5 3-9.5 9.5-18z"></path>
+                <circle cx="124" cy="146" r="3.5"></circle><circle cx="124" cy="137" r="5"></circle><circle cx="132.5" cy="146" r="5"></circle><circle cx="124" cy="155" r="5"></circle><circle cx="115.5" cy="146" r="5"></circle>
+                <circle cx="62" cy="70" r="3"></circle><circle cx="150" cy="30" r="2"></circle><circle cx="34" cy="140" r="2"></circle>
+                <path d="M126 50l6 6M132 50l-6 6"></path>
+                <path d="M40 150c4-6 10-6 14 0s10 6 14 0"></path>
+                <path d="M100 74h18v10a9 9 0 0 1-18 0zM118 77h3a3 3 0 0 1 0 6h-3"></path>
+              </g>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#wp)"></rect>
+        </svg>
+      
+
+      <div class="msgs" role="log" aria-label="Mensagens">
+        <div class="chipc">ONTEM</div>
+
+        <div class="b in tl g"><svg class="tail" viewBox="0 0 8 13" aria-hidden="true"><path d="M8 0H1.5C.3 0-.2 1.4.6 2.3L8 11.5z" fill="#FFFFFF"></path></svg>Oi! Vi o anúncio da limpeza de pele. Quanto custa?<span class="sp i"></span><span class="mt">18:02</span></div>
+
+        <div class="b out tl g"><svg class="tail" viewBox="0 0 8 13" aria-hidden="true"><path d="M0 0h6.5c1.2 0 1.7 1.4.9 2.3L0 11.5z" fill="#D9F2EE"></path></svg><span class="who" style="color:var(--ai)">Assistente IA</span>Olá, Juliana! A limpeza de pele profunda custa R$ 180 e leva 1h15.<span class="sp"></span><span class="mt">18:02 <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="#2A7FBF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Lida" role="img"><path d="M1 5.8l3.2 3.2L11 1.6M6.6 8.6l.9.9L14.5 1.6"></path></svg></span></div>
+        <div class="b out">Quer que eu veja horários livres para esta semana?<span class="sp"></span><span class="mt">18:02 <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="#2A7FBF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Lida" role="img"><path d="M1 5.8l3.2 3.2L11 1.6M6.6 8.6l.9.9L14.5 1.6"></path></svg></span></div>
+
+        <div class="b in tl g"><svg class="tail" viewBox="0 0 8 13" aria-hidden="true"><path d="M8 0H1.5C.3 0-.2 1.4.6 2.3L8 11.5z" fill="#FFFFFF"></path></svg>Quero sim, de preferência à tarde.<span class="sp i"></span><span class="mt">18:04</span></div>
+
+        <div style="align-self:flex-end;max-width:65%;display:flex;flex-direction:column;margin-top:12px">
+          <div class="b out tl" style="max-width:none;align-self:stretch;margin-top:0"><svg class="tail" viewBox="0 0 8 13" aria-hidden="true"><path d="M0 0h6.5c1.2 0 1.7 1.4.9 2.3L0 11.5z" fill="#D9F2EE"></path></svg><span class="who" style="color:var(--ai)">Assistente IA</span>Tenho este horário para você: <strong style="font-weight:500">quinta, 6/11, às 15:00</strong> com a Ana — limpeza de pele profunda (1h15), R$ 180. Posso confirmar?<span class="sp"></span><span class="mt">18:05 <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="#2A7FBF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Lida" role="img"><path d="M1 5.8l3.2 3.2L11 1.6M6.6 8.6l.9.9L14.5 1.6"></path></svg></span></div>
+          <div class="btns" style="align-self:stretch"><button type="button" disabled>Confirmar</button><button type="button" disabled>Alterar detalhes</button></div>
+        </div>
+
+        <div class="b in tl g"><svg class="tail" viewBox="0 0 8 13" aria-hidden="true"><path d="M8 0H1.5C.3 0-.2 1.4.6 2.3L8 11.5z" fill="#FFFFFF"></path></svg>Antes de confirmar, posso falar com alguém da clínica?<span class="sp i"></span><span class="mt">18:07</span></div>
+
+        <div class="b out tl g"><svg class="tail" viewBox="0 0 8 13" aria-hidden="true"><path d="M0 0h6.5c1.2 0 1.7 1.4.9 2.3L0 11.5z" fill="#D9F2EE"></path></svg><span class="who" style="color:var(--ai)">Assistente IA</span>Vou pedir para a equipe continuar daqui.<span class="sp"></span><span class="mt">18:07 <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="#2A7FBF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Lida" role="img"><path d="M1 5.8l3.2 3.2L11 1.6M6.6 8.6l.9.9L14.5 1.6"></path></svg></span></div>
+
+        <div class="evt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>IA pausada · Juliana pediu para falar com a equipe</div>
+
+        <div class="chipc">HOJE</div>
+
+        <div class="b in tl g"><svg class="tail" viewBox="0 0 8 13" aria-hidden="true"><path d="M8 0H1.5C.3 0-.2 1.4.6 2.3L8 11.5z" fill="#FFFFFF"></path></svg>Bom dia! Ainda tem aquele horário de quinta?<span class="sp i"></span><span class="mt">09:28</span></div>
+        <div class="b in">Se der, prefiro às 16h.<span class="sp i"></span><span class="mt">09:29</span></div>
+
+        <div class="b out tl g"><svg class="tail" viewBox="0 0 8 13" aria-hidden="true"><path d="M0 0h6.5c1.2 0 1.7 1.4.9 2.3L0 11.5z" fill="#D9F2EE"></path></svg><span class="who" style="color:var(--prInk)">Você</span>Bom dia, Juliana! Vou verificar a agenda e já te retorno.<span class="sp"></span><span class="mt">09:31 <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Entregue" role="img"><path d="M1 5.8l3.2 3.2L11 1.6M6.6 8.6l.9.9L14.5 1.6"></path></svg></span></div>
+      </div>
+
+      <div style="position:relative;flex:none;padding:6px 7% 14px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="pill" style="background:#FFFFFF;color:#54656F"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Você pode responder livremente até amanhã às 09:29.</span>
+        </div>
+        <form style="display:flex;align-items:flex-end;gap:4px;min-height:52px;padding:6px;box-sizing:border-box;background:#FFFFFF;border-radius:26px;box-shadow:0 1px 2px rgba(11,20,26,.12),0 2px 8px rgba(11,20,26,.06)">
+          <label style="flex:1;min-width:0;display:flex;align-items:center;min-height:40px">
+            <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Mensagem para Juliana Prado</span>
+            <input type="text" placeholder="Escreva uma mensagem" style="flex:1;min-width:0;border:0;background:transparent;font-size:15px;color:var(--tx);outline:none;padding:0 6px">
+          </label>
+          <button type="button" class="ib" aria-label="Sugerir resposta com IA" style="color:var(--ai)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"></path><path d="M18.5 14.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"></path></svg></button>
+          <button type="button" class="ib" aria-label="Enviar horários livres"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5M16 2v4M8 2v4M3 10h5"></path><circle cx="16" cy="16" r="6"></circle><path d="M16 14v2.2l1.6 1"></path></svg></button>
+          <button type="submit" aria-label="Enviar" disabled style="width:40px;height:40px;flex:none;border:0;border-radius:999px;display:grid;place-items:center;background:#E9EDEF;color:#8696A0"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l-.01 6.53L15 12 3.39 13.87z"></path></svg></button>
+        </form>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
