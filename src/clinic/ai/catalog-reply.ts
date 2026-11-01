@@ -97,6 +97,61 @@ function clientSource(db: ClinicDb, tenantId: string, body: string, conversation
   return turn.trim() || body
 }
 
+/**
+ * A cliente já nomeou zonas (e a linha, se o serviço a exige) e ainda não disse
+ * dia nem horário. Pergunta o horário e grava a escolha — sem modelo.
+ */
+function zoneNameRepeated(zones: readonly { name: string }[]): boolean {
+  const seen = new Set<string>()
+  for (const zone of zones) {
+    const key = zone.name.trim().toLocaleLowerCase('pt-BR')
+    if (seen.has(key)) return true
+    seen.add(key)
+  }
+  return false
+}
+
+function askSlotWhenZonesKnown(
+  db: ClinicDb,
+  tenantId: string,
+  services: ServiceRow[],
+  source: string,
+  session: ReturnType<typeof getScheduleSession>,
+  clock: Clock,
+  conversationId: string | undefined,
+): string | null {
+  if (PRICE.test(source) || PERIOD.test(source) || CLOCK.test(source)) return null
+  const held = session ? services.find((service) => service.id === session.serviceId) : undefined
+  const svc = held ?? serviceFromNamedZones(services, source)
+  if (!svc) return null
+  const active = svc.zones.filter((zone) => zone.active)
+  if (active.length === 0) return null
+  const mixed = needsAudienceLine(active)
+  const prior = conversationId
+    ? listMessages(db, tenantId, { conversationId, limit: 40 })
+        .messages.filter((message) => message.direction === 'inbound')
+        .map((message) => message.body)
+        .reverse()
+    : []
+  const carried = session && session.serviceId === svc.id ? session.audienceLine : null
+  const line = mixed ? (explicitAudienceLine(source) ?? carried ?? audienceLineFromClientTexts(prior)) : null
+  if (mixed && !line) return null
+  // Horário já guardado: o autobook fecha a proposta. Não roubar esse caminho.
+  if (session?.clockTime) return null
+  const scoped = mixed ? zonesForAudienceLine(active, line) : active
+  const named = zonesNamedInText(source, scoped)
+  if (named.length === 0 || variantAudiencesConflict(named) || zoneNameRepeated(named)) return null
+  if (conversationId) {
+    const patch: ScheduleSessionPatch = {
+      serviceId: svc.id,
+      variantIds: named.map((zone) => zone.id),
+    }
+    if (line) patch.audienceLine = line
+    saveScheduleSession(db, tenantId, conversationId, patch, clock)
+  }
+  return `Qual horário fica melhor para ${svc.name}?`
+}
+
 /** Texto determinístico, ou null para seguir o modelo / a proposta. */
 export function catalogReply(
   db: ClinicDb,
@@ -145,14 +200,21 @@ export function catalogReply(
   const fallback = targets.find((service) => service.zones.some((zone) => zone.active)) ?? targets[0]
   const svc = inPlay ?? fallback
 
-  const mixedVisit = mixedAudienceRefusal(services, source)
-  if (mixedVisit) return mixedVisit
   const afternoon = ambiguousAfternoonHour(body)
   if (afternoon) return afternoon
 
   const asksPrice = PRICE.test(source)
   const openPeriod = PERIOD.test(source) && !CLOCK.test(source)
   const lineOnly = explicit != null && !asksPrice && !PERIOD.test(source) && !CLOCK.test(source)
+  // Zonas já ditas, sem dia nem preço: a próxima pergunta é o horário.
+  // Antes da recusa de géneros, para a linha já conhecida filtrar o catálogo.
+  // Sem isto o rascunho cai no modelo (contexto de 7 dias + Claude) e, se o
+  // fetch não voltar, o job fica em `generating` com o spinner preso.
+  const zonesThenSlot = askSlotWhenZonesKnown(db, tenantId, services, source, session, clock, opts.conversationId)
+  if (zonesThenSlot) return zonesThenSlot
+
+  const mixedVisit = mixedAudienceRefusal(services, source)
+  if (mixedVisit) return mixedVisit
   if (!asksPrice && !openPeriod && !lineOnly) return null
   if (!svc) return null
 

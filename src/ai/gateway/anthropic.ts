@@ -86,24 +86,30 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
     const started = Date.now()
     const timeoutMs = Math.min(input.timeoutMs, AI_TIMEOUT_MS)
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), timeoutMs)
 
     try {
       const fetchImpl = this.#cfg.fetchImpl ?? fetch
-      const res = await fetchImpl(url, {
-        method: 'POST',
-        headers,
-        signal: controller.signal,
-        body: JSON.stringify({
-          model,
-          max_tokens: input.maxOutputTokens,
-          // Sem `temperature`: claude-haiku-5-5 / claude-sonnet-5-5 respondem 400
-          // «`temperature` is deprecated for this model» → toda sugestão falhava
-          // (provider_unavailable) em staging.
-          system: systemPrompt,
-          messages: [{ role: 'user', content: userContent }],
+      // O abort do fetch nem sempre rejeita a promise (subrequest do DO que fica
+      // preso depois de o gateway já ter respondido). O race larga o rascunho
+      // na mesma, senão o job fica em `generating` e o spinner não sai.
+      const res = await raceFetch(
+        fetchImpl(url, {
+          method: 'POST',
+          headers,
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            max_tokens: input.maxOutputTokens,
+            // Sem `temperature`: claude-haiku-5-5 / claude-sonnet-5-5 respondem 400
+            // «`temperature` is deprecated for this model» → toda sugestão falhava
+            // (provider_unavailable) em staging.
+            system: systemPrompt,
+            messages: [{ role: 'user', content: userContent }],
+          }),
         }),
-      })
+        timeoutMs,
+        controller,
+      )
       const latencyMs = Date.now() - started
 
       if (res.status === 429) {
@@ -165,10 +171,44 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
         provider: this.providerId,
         model,
       }
-    } finally {
-      clearTimeout(timer)
     }
   }
+}
+
+/**
+ * Resolve com a resposta ou rejeita `AbortError` ao fim de `timeoutMs`,
+ * mesmo que o `fetch` ignore o abort.
+ */
+function raceFetch(
+  pending: Promise<Response>,
+  timeoutMs: number,
+  controller: AbortController,
+): Promise<Response> {
+  let settled = false
+  return new Promise<Response>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      controller.abort()
+      const err = new Error('AI Gateway timeout')
+      err.name = 'AbortError'
+      reject(err)
+    }, timeoutMs)
+    pending.then(
+      (value) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (err: unknown) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        reject(err)
+      },
+    )
+  })
 }
 
 function extractAnthropicText(data: unknown): string | null {

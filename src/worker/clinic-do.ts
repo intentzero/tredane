@@ -2912,7 +2912,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     try {
       const deps = clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId))
       outcomes = await clinicAi.runDueAutoDrafts(this.#db, caller, this.#clock, deps, {
-        onStart: (job) => this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' }),
+        onStart: async (job) => {
+          await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' })
+          // Se este alarme morrer no fetch, o próximo acorda e reabre o job órfão.
+          await this.#scheduleAlarmNoLaterThan(this.#clock.nowMs() + clinicAi.AUTODRAFT_STALE_MS)
+        },
       })
       for (const o of outcomes) {
         // Agendamento pela IA (confirmação explícita da cliente): mesmo fanout do Agendar.

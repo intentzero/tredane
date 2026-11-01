@@ -8,7 +8,7 @@
  *   de falar com a equipe. Injeção, assunto fora do agendamento ou saída rejeitada
  *   pausam a IA e enviam uma frase fixa, sem nova chamada ao modelo (DEC-083).
  */
-import { AI_AUTODRAFT_DEBOUNCE_MS } from '../../ai'
+import { AI_AUTODRAFT_DEBOUNCE_MS, AI_TIMEOUT_MS } from '../../ai'
 import type { Clock } from '../../db/clock'
 import type { ClinicCaller } from '../envelopes'
 import { ClinicError } from '../errors'
@@ -37,6 +37,13 @@ import { checkAutomationQuota, contactIdForConversation, recordLimitReached } fr
 
 export const AUTODRAFT_ACTOR_ID = 'system:ai-autodraft'
 const AUTODRAFT_ACTOR_NAME = 'IA'
+
+/**
+ * Depois deste prazo um job deixado em `generating` é órfão: o alarme anterior
+ * não chegou a apagar a linha (fetch do gateway que não rejeita no abort, ou
+ * isolate morto). O painel trata qualquer linha como spinner.
+ */
+export const AUTODRAFT_STALE_MS = AI_TIMEOUT_MS + 15_000
 
 export type AutoDraftJob = {
   conversationId: string
@@ -145,6 +152,35 @@ function lastMessageDirection(db: ClinicDb, tenantId: string, conversationId: st
   return r?.direction ?? null
 }
 
+/**
+ * Um job `generating` no início do alarme é sempre órfão: este DO não corre
+ * dois alarmes ao mesmo tempo, e o envio só acontece depois de apagar a linha.
+ * Reabre para a mesma passagem. Sem isto o spinner fica preso para sempre.
+ */
+function reclaimOrphanGenerating(db: ClinicDb, tenantId: string, now: number): void {
+  const row = db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM ai_autodraft_jobs WHERE tenant_id = ? AND state = 'generating'`,
+    tenantId,
+  )
+  const count = Number(row?.n ?? 0)
+  if (count <= 0) return
+  db.run(
+    `UPDATE ai_autodraft_jobs SET state = 'queued', due_at = ?, updated_at = ?
+     WHERE tenant_id = ? AND state = 'generating'`,
+    now,
+    now,
+    tenantId,
+  )
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event: 'ai.autodraft_stale',
+      tenantId,
+      count,
+    }),
+  )
+}
+
 /** Processa os jobs vencidos. Chamado pelo alarme do DO. */
 export async function runDueAutoDrafts(
   db: ClinicDb,
@@ -155,6 +191,7 @@ export async function runDueAutoDrafts(
 ): Promise<AutoDraftOutcome[]> {
   const tenantId = caller.tenantId
   const now = clock.nowMs()
+  reclaimOrphanGenerating(db, tenantId, now)
   const due = db
     .all<JobSql>(
       `SELECT conversation_id, message_id, due_at, state FROM ai_autodraft_jobs
