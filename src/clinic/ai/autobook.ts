@@ -19,6 +19,7 @@
 import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { getContact } from '../contacts'
+import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { explicitAudienceLine } from '../catalog/audience'
 import { quoteVisit, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
@@ -149,10 +150,31 @@ export function extractServices(text: string, services: ServiceRow[]): ServiceRo
 
 const AFFIRMATIVE =
   /\b(sim|pode ser|pode marcar|pode agendar|pode|confirmo|confirmado|confirma|fechado|combinado|quero|isso|ok|okay|perfeito|beleza|blz|otimo|bora|marca|marcar|agenda|agendar|serve|fica bom|esta otimo|ta bom|ta otimo|certo)\b/
-/** Hesitação/negativa. «?» sozinho não conta: «pode ser às 14?» é escolha, não dúvida. */
-const NEGATIVE_OR_HESITANT =
-  /\b(nao|talvez|acho|sera|depois|ver|vou ver|pensar|outro|outra|mais tarde|ou)\b/
+/**
+ * Hesitação por expressão (#410 / CF-05). Palavras soltas («ver», «acho», «não», «outra»)
+ * não bloqueiam aceite nem pedido completo; «não, 16h» é correção de horário.
+ */
+const HESITATION_PHRASE =
+  /\b(vou ver|vou pensar|talvez|nao sei|depois eu vejo|mais tarde)\b/
 const RESCHEDULE = /\b(reagend\w*|remarc\w*|desmarc\w*|cancel\w*|mudar|trocar|adiar)\b/
+
+/** Preferência «com a Bia» quando a profissional faz o serviço (#410 / CF-20). */
+function preferredProfessionalId(
+  db: ClinicDb,
+  tenantId: string,
+  text: string,
+  service: ServiceRow,
+  clock: Clock,
+): string | undefined {
+  const pros = listResources(db, tenantId, clock).filter(
+    (r) => r.kind === 'professional' && r.active && r.name.trim().length >= 2,
+  )
+  const mentioned = pros.filter((p) =>
+    new RegExp(`\\b${p.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text),
+  )
+  const inService = mentioned.filter((p) => service.professionalIds.includes(p.id))
+  return inService.length === 1 ? inService[0]!.id : undefined
+}
 
 type Msg = { id: string; direction: string; body: string; created_at: number }
 
@@ -176,7 +198,9 @@ export function detectExplicitConfirmation(input: {
   const c = norm(client)
   const prev = input.previousClinicText ?? ''
   if (RESCHEDULE.test(c)) return { ok: false, status: 'not_confirmed', missing: [] }
-  if (NEGATIVE_OR_HESITANT.test(c.replace(/\bdepois de amanha\b/g, 'amanha'))) return { ok: false, status: 'ambiguous', missing: [] }
+  if (HESITATION_PHRASE.test(c.replace(/\bdepois de amanha\b/g, 'amanha'))) {
+    return { ok: false, status: 'ambiguous', missing: [] }
+  }
 
   const cDates = extractDates(client, input.clientToday)
   const cTimes = extractTimes(client)
@@ -321,6 +345,7 @@ async function offerZonesInPeriod(
   tz: string,
   clock: Clock,
   forecast: ForecastAdapter | undefined,
+  professionalId?: string,
 ): Promise<string> {
   const names: string[] = []
   for (const zone of zones) {
@@ -350,7 +375,12 @@ async function offerZonesInPeriod(
       const avail = await queryAutomaticAvailability(
         db,
         tenantId,
-        { serviceId: service.id, date: day, durationMinutesOverride: duration },
+        {
+          serviceId: service.id,
+          date: day,
+          durationMinutesOverride: duration,
+          ...(professionalId ? { professionalId } : {}),
+        },
         clock,
         forecast ?? { read: readOpenMeteo },
       )
@@ -584,6 +614,13 @@ export async function tryAiAutoBook(
             !chosen.ambiguous &&
             (kept.length > 0 || active.length === 0)
           if (canOfferPeriod && period) {
+            const preferred = preferredProfessionalId(
+              db,
+              tenantId,
+              [turnText, ...older.map((m) => m.body)].join('\n'),
+              det.service,
+              clock,
+            )
             replyText = await offerZonesInPeriod(
               db,
               tenantId,
@@ -594,6 +631,7 @@ export async function tryAiAutoBook(
               tz,
               clock,
               input.forecast,
+              preferred,
             )
           } else {
             replyText = `Qual horário fica melhor para ${det.service.name}?`
@@ -663,6 +701,13 @@ export async function tryAiAutoBook(
   }
   const svc = det.service
   rememberDayPeriod(svc.id)
+  const preferredProId = preferredProfessionalId(
+    db,
+    tenantId,
+    [turnText, ...older.map((m) => m.body)].join('\n'),
+    svc,
+    clock,
+  )
   const activeZones = svc.zones.filter((z) => z.active)
   // DEC-090: linha já dita neste funil não se reperguntar.
   // Só a sessão activa do mesmo serviço + mensagens desde o início do funil contam.
@@ -798,6 +843,7 @@ export async function tryAiAutoBook(
       serviceId: svc.id,
       date,
       ...(quote.zones.length > 0 ? { durationMinutesOverride: quote.durationMinutes } : {}),
+      ...(preferredProId ? { professionalId: preferredProId } : {}),
     },
     clock,
     input.forecast ?? { read: readOpenMeteo },
@@ -812,6 +858,7 @@ export async function tryAiAutoBook(
         serviceId: svc.id,
         date,
         ...(quote.zones.length > 0 ? { durationMinutesOverride: quote.durationMinutes } : {}),
+        ...(preferredProId ? { professionalId: preferredProId } : {}),
       },
       clock,
     )

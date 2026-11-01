@@ -676,6 +676,70 @@ describe('detectExplicitConfirmation', () => {
     const r = detectExplicitConfirmation({ ...base, clientTexts: ['Sim, amanhã às 15h'], previousClinicText: 'Tenho depilação masculina e depilação feminina.' })
     expect(r.ok).toBe(false)
   })
+
+  // CF-05 (#410): hesitação por expressão, não por palavra solta.
+  const limpeza = [{ id: 's3', name: 'Limpeza de pele', active: true, zones: [] }] as never
+  it('«acho que 15h tá ótimo» não é hesitação (C-01)', () => {
+    const r = detectExplicitConfirmation({
+      ...base,
+      services: limpeza,
+      clientTexts: ['acho que 15h tá ótimo'],
+      previousClinicText: 'Limpeza de pele amanhã tenho 14:00 e 15:00.',
+      historyTexts: ['Quero limpeza de pele amanhã'],
+    })
+    expect(r).toMatchObject({ ok: true, time: '15:00', date: '2026-10-29' })
+  })
+  it('«quero ver amanhã às 15h a limpeza de pele» não é hesitação (C-02)', () => {
+    const r = detectExplicitConfirmation({
+      ...base,
+      services: limpeza,
+      clientTexts: ['quero ver amanhã às 15h a limpeza de pele'],
+      previousClinicText: null,
+    })
+    expect(r).toMatchObject({ ok: true, time: '15:00', date: '2026-10-29' })
+  })
+  it('«não, 16h» é correção de horário, não recusa (C-08)', () => {
+    const r = detectExplicitConfirmation({
+      ...base,
+      clientTexts: ['não, 16h'],
+      previousClinicText: 'Depilação masculina amanhã às 15:00.',
+      historyTexts: ['Quero depilação masculina amanhã às 15h'],
+    })
+    expect(r).toMatchObject({ ok: true, time: '16:00' })
+  })
+  it('«outra sessão» no pedido completo não é hesitação (C-11)', () => {
+    const r = detectExplicitConfirmation({
+      ...base,
+      services: limpeza,
+      clientTexts: ['quero marcar outra sessão de limpeza de pele amanhã 15h'],
+      previousClinicText: null,
+    })
+    expect(r).toMatchObject({ ok: true, time: '15:00', date: '2026-10-29' })
+  })
+  it('«vou pensar e te falo» continua hesitação (F-01)', () => {
+    const r = detectExplicitConfirmation({
+      ...base,
+      clientTexts: ['Vou pensar e te falo'],
+      previousClinicText: 'Tenho limpeza amanhã às 15:00.',
+    })
+    expect(r).toMatchObject({ ok: false, status: 'ambiguous' })
+  })
+  it('«talvez» e «não sei» continuam hesitação', () => {
+    expect(
+      detectExplicitConfirmation({
+        ...base,
+        clientTexts: ['talvez amanhã 15h depilação masculina'],
+        previousClinicText: null,
+      }).status,
+    ).toBe('ambiguous')
+    expect(
+      detectExplicitConfirmation({
+        ...base,
+        clientTexts: ['não sei, me fala de novo'],
+        previousClinicText: 'Tenho 15:00 amanhã.',
+      }).status,
+    ).toBe('ambiguous')
+  })
 })
 
 describe('pergunta das variantes usa o plural do tipo', () => {
