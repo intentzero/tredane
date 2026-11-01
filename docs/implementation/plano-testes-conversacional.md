@@ -214,9 +214,11 @@ Uma mudança que altere copy fixa, política de handoff ou âmbito da IA exige D
 
 ## 8. Plano de execução proposto
 
+O plano é acompanhado no [épico #401](epic-nucleo-conversacional.md), com sub-issues de #402 a #419. A tabela abaixo é o resumo de origem; a ordem e as dependências vigentes estão no documento do épico.
+
 | Passo | Entrega | Fecha |
 | --- | --- | --- |
-| 1 | Harness L1 (`src/clinic/ai/evals/dialogs/`) com o catálogo de referência da matriz e os casos P0. As invariantes INV-01–11 ficam como asserts reutilizáveis. | CA-08 (parcial) |
+| 1 | [#406](https://github.com/intentzero/tredane/issues/406) Harness L1 (`src/clinic/ai/evals/dialogs/`) com o catálogo de referência da matriz e os casos P0. As invariantes INV-01–11 ficam como asserts reutilizáveis. | CA-08 (parcial) |
 | 2 | Correções de baixo risco com teste: CF-02 a CF-13, CF-16 e CF-20. | Iteração 1 |
 | 3 | Validador factual da saída (CF-01) e fallback contra silêncio (CF-14). | Gate S1 |
 | 4 | Evento `ai.turn_decided` (CA-09) e medição da linha de base de latência e custo. | EE-04, EE-06 |
