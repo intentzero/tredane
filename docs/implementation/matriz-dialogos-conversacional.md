@@ -88,7 +88,7 @@
 | C-04 | P1 | Erro de digitação | C: «limpesa de pele amanha 15h» | Proposta Limpeza 15:00. | EF-02 | 1 | ❔ L1 |
 | C-05 | P1 | Emoji como aceite | A: [oferta única 14:00 amanhã, massagem] ⟶ C: «👍» | Proposta 14:00. O emoji só prepara a proposta, não marca (DEC-061). | INV-01, EF-01 | 1 | ⚠ «👍» não está em `AFFIRMATIVE` |
 | C-06 | P0 | «Sim» a uma pergunta lateral | A: «Você já fez limpeza antes?» ⟶ C: «sim» | Nenhuma proposta; o funil continua. | INV-01 | 1 | ❔ L1 (modelo híbrido §4) |
-| C-07 | P0 | Muda de serviço depois da proposta | [proposta Limpeza amanhã 15h] ⟶ C: «na verdade prefiro massagem» | A proposta anterior não vale; nova proposta Massagem amanhã 15:00 ou oferta. | INV-01, EF-02 | 1 | ✅ L1 `dialogs` C-07 + `service-change.test` (CF-23 corrigido, #436) |
+| C-07 | P0 | Muda de serviço depois da proposta | [proposta Limpeza amanhã 15h] ⟶ C: «na verdade prefiro massagem» | A proposta anterior não vale; nova proposta Massagem amanhã 15:00 ou oferta. Sem frase de aviso (DEC-116). | INV-01, EF-02 | 1 | ✅ L1 `dialogs` C-07 + `service-change.test` (CF-23 corrigido, #436) |
 | C-08 | P0 | Corrige a hora com «não» | [proposta 15h] ⟶ C: «não, 16h» | Nova versão 16:00, se livre. | EF-02 | 1 | ⚠ CF-05 («não» → ambíguo) |
 | C-09 | P1 | Dois serviços | C: «quero limpeza e massagem sexta» | «Marcamos um serviço de cada vez. Qual você quer primeiro?» | EF-01 | 1 | ✅ `booking-object.eval` (múltiplos serviços) |
 | C-10 | P1 | Áudio ou imagem | C: [áudio] | Comportamento **Em aberto**: a imagem não vai à IA (DEC-067). Pedir texto ou passar à equipe; nunca silêncio. | INV-09 | 1 | ❔ Em aberto |
