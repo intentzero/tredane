@@ -435,6 +435,8 @@ describe('DEC-083', () => {
       expect(JSON.parse(outbox[0]!.payloadJson)).toMatchObject({
         conversationId: s.cnv.id,
         aiReplyPaused: false,
+        assigneeClerkUserId: 'system:ai-autodraft',
+        assigneeDisplayName: 'IA',
       })
       expect(
         listOpenPendingCommunicationsForConversation(s.db, s.tenantId, s.cnv.id).some(

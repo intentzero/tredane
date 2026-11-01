@@ -88,7 +88,12 @@ export function resumeAiReply(
     assigneeDisplayName: 'IA',
     updatedAt: now,
   })
-  return [pauseEvent(db, tenantId, conversationId, false, clock)]
+  return [
+    pauseEvent(db, tenantId, conversationId, false, clock, {
+      assigneeClerkUserId: AI_ASSIGNEE,
+      assigneeDisplayName: 'IA',
+    }),
+  ]
 }
 
 function pauseEvent(
@@ -97,6 +102,7 @@ function pauseEvent(
   conversationId: string,
   paused: boolean,
   clock: Clock,
+  assignee?: { assigneeClerkUserId: string | null; assigneeDisplayName: string | null },
 ): OutboxRow {
   return insertOutboxEvent(
     db,
@@ -106,7 +112,7 @@ function pauseEvent(
       aggregateType: 'conversation',
       aggregateId: conversationId,
       idempotencyKey: `conversation.ai_pause:${conversationId}:${clock.nowMs()}:${paused ? 'on' : 'off'}`,
-      payload: { conversationId, aiReplyPaused: paused },
+      payload: { conversationId, aiReplyPaused: paused, ...assignee },
     },
     clock,
   )
