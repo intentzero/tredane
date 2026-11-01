@@ -16,7 +16,6 @@ import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import { pickServicesForSlots } from './schedule-context'
 import {
-  clearCompiledCatalogCache,
   getOrCompileCatalog,
   loadTurnContext,
   peekCompiledCatalogCache,
@@ -25,7 +24,6 @@ import {
 } from './turn-context'
 import { SimulatedAiAdapter } from '../../ai'
 
-const TZ = 'America/Sao_Paulo'
 const NOW = Date.UTC(2026, 10, 5, 13, 0)
 
 function seed() {
