@@ -187,9 +187,9 @@
 | J-04 | P0 | Corte de cumprimento | [o modelo devolve «Oi Carla, tenho 15:00 amanhã» a meio da conversa] | «Tenho 15:00 amanhã…», sem vírgula solta. | INV-11 | 1 | ✅ `client-copy.test` / `stripLeadingGreeting` (#405, CF-12) |
 | J-05 | P0 | O nome não escolhe a linha | [contato «Paulo»] ⟶ C: «Quero depilação» | Pergunta a linha. | INV-08 | 1 | ✅ `catalog-reply.test` |
 | J-06 | P1 | Conversa longa | [mais de 20 mensagens; serviço dito na 2.ª] ⟶ C: «pode ser sexta 10h» | Usa o serviço da sessão → proposta. | EE-02 | 1 | ❔ L1 |
-| J-07 | P1 | Forma da mensagem | Qualquer resposta livre do modelo | Uma pergunta, ≤ 300 caracteres, ≤ 3 parágrafos, sem markdown. | EE-03, EE-05 | — | ❔ L2 |
+| J-07 | P1 | Forma da mensagem | Qualquer resposta livre do modelo | Uma pergunta, ≤ 300 caracteres, ≤ 3 parágrafos, sem markdown. | EE-03, EE-05 | — | ❔ L2 (`outbound-validate.test` #414 cobre a regra; gate estrito no LLM após ok Paulo) |
 | J-08 | P0 | Oferta fora do período | C: «massagem amanhã de manhã» [adaptador oferece 14:00] | Texto descartado ou corrigido; só horários da manhã. | INV-03 | 1 | ❌ CF-01 |
-| J-09 | P1 | Frases fixas sem jargão | Varrimento de todas as frases determinísticas | Nenhum termo da lista INV-05. | INV-05 | — | ✅ `client-copy.test` (#405, CF-16) |
+| J-09 | P1 | Frases fixas sem jargão | Varrimento de todas as frases determinísticas | Nenhum termo da lista INV-05. | INV-05 | — | ✅ `client-copy.test` (#405) + `dialogue-acts.test` (#414, catálogo Proposto) |
 
 ## K. Canal e falhas
 
