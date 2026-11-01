@@ -8,7 +8,7 @@ import {
   TextField,
 } from 'react-aria-components'
 import { navigatePanel } from '../routes'
-import { SYNTH_PERSONAS } from './session'
+import { readPendingInviteToken, SYNTH_PERSONAS } from './session'
 import { useAuthSession } from './AuthContext'
 import { BrandHorizontal } from '../ui/Brand'
 
@@ -38,7 +38,10 @@ export function SyntheticLogin() {
   function choosePersona(clerkUserId: string) {
     setBusy(true)
     signInSynthetic(clerkUserId)
-    navigatePanel({ kind: 'clinicas' }, true)
+    navigatePanel(
+      readPendingInviteToken() ? { kind: 'invite-accept' } : { kind: 'clinicas' },
+      true,
+    )
   }
 
   return (

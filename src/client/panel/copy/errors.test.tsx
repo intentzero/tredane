@@ -12,6 +12,21 @@ describe('friendlyError', () => {
     )
   })
 
+  it('traduz erros de aceite de convite (S3)', () => {
+    expect(friendlyError(new PanelApiError(409, 'unknown', 'invitation_expired'))).toMatch(
+      /expirou/i,
+    )
+    expect(
+      friendlyError(new PanelApiError(409, 'unknown', 'invitation_token_invalid')),
+    ).toMatch(/cancelado|usado|substituído/i)
+    expect(
+      friendlyError(new PanelApiError(409, 'unknown', 'invitation_email_mismatch')),
+    ).toMatch(/outro e-mail/i)
+    expect(
+      friendlyError(new PanelApiError(403, 'unknown', 'invitation_email_unverified')),
+    ).toMatch(/Confirme o e-mail/i)
+  })
+
   it('traduz o código tipado da API quando a mensagem é o próprio código', () => {
     expect(friendlyError(new PanelApiError(403, 'permission_denied'))).toBe(
       'Só o responsável pela clínica pode fazer isso.',

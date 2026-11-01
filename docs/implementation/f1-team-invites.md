@@ -1,6 +1,6 @@
 # F1 — Equipe, convites por e-mail e remoção de attendants
 
-**Estado:** implementação da issue [#25](https://github.com/intentzero/tredane/issues/25) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Equipe + convites + e-mail simulado + remoção com barreira D1→DO (#23). UI login/nav = [#22](f1-login-nav.md). **S1 UI Equipe (lista + convite + pendentes)** na Clinic App: `EquipeScreen`, hub sem «Em breve», copy **Atendente**, enriquecimento nome+e-mail no GET `/team` (DEC-102). **S2 UI remoção:** owner confirma e chama `POST …/members/:clerkUserId/revoke`; lista atualiza; owners sem ação (DEC-020). Aceite do link = S3. Dados sintéticos apenas.
+**Estado:** implementação da issue [#25](https://github.com/intentzero/tredane/issues/25) (épico [#14](https://github.com/intentzero/tredane/issues/14)). API Equipe + convites + e-mail simulado + remoção com barreira D1→DO (#23). UI login/nav = [#22](f1-login-nav.md). **S1 UI Equipe (lista + convite + pendentes)** na Clinic App: `EquipeScreen`, hub sem «Em breve», copy **Atendente**, enriquecimento nome+e-mail no GET `/team` (DEC-102). **S2 UI remoção:** owner confirma e chama `POST …/members/:clerkUserId/revoke`; lista atualiza; owners sem ação (DEC-020). **S3 aceite do link:** rota `/invite/accept` → login se preciso → `POST /api/invitations/accept` → entrada na clínica (`AcceptInviteScreen`). Dados sintéticos apenas.
 
 ## Decisões aplicadas (Confirmado)
 
@@ -45,10 +45,19 @@ Código: `src/team/`, `src/email/`, e-mail verificado em `src/auth/verified-emai
 - HTTP: `src/team/http.test.ts` (AC-21–23, limites, e-mail errado/não verificado, corridas)
 - Harness: aceite D1 + revoke; tenant B preservado
 
+## Aceite no painel (S3)
+
+| Peça | Comportamento |
+| --- | --- |
+| Link | `APP_BASE_URL/invite/accept?token=…` (e-mail simulado) |
+| Sessão | Sem login → guarda token em `sessionStorage` (nunca logado) → `/entrar` → retoma aceite |
+| API | `acceptInvitation(token)` no cliente; Worker ignora tenant/role do body |
+| Erros | Expirado / inválido-cancelado / e-mail diferente / e-mail não confirmado em PT-BR |
+| Sucesso | Membership attendant → abre Conversas da clínica (ou seletor se a abertura falhar) |
+
 ## Fora da API #25 / ainda em fatias
 
-- Aceite do link no painel (S3)
 - Provedor de e-mail real e secrets de produção
 - Controles antiabuso globais (IP/owner) além de DEC-024
-- Notificação ao destinatário quando o convite é cancelado
+- Notificação ao destinatário quando o convite é cancelado (**Em aberto** ADR-0008)
 - Faixa TEL-10 (suporte) dentro de Equipe

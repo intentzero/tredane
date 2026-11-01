@@ -8,10 +8,17 @@ import {
 } from './routes'
 
 describe('panel routes (#22)', () => {
-  it('resolve painel entrar / clinicas / áreas', () => {
+  it('resolve painel entrar / clinicas / aceite de convite / áreas', () => {
     expect(resolvePanelRoute('/entrar')).toEqual({ kind: 'entrar' })
     expect(resolvePanelRoute('/entrar/factor-one')).toEqual({ kind: 'entrar' })
     expect(resolvePanelRoute('/clinicas')).toEqual({ kind: 'clinicas' })
+    expect(resolvePanelRoute('/invite/accept')).toEqual({ kind: 'invite-accept' })
+    expect(resolvePanelRoute('/invite/accept', '?token=secret')).toEqual({
+      kind: 'invite-accept',
+    })
+    expect(panelHref({ kind: 'invite-accept' })).toBe('/invite/accept')
+    // Token nunca entra no href tipado da rota.
+    expect(panelHref({ kind: 'invite-accept' })).not.toMatch(/token/i)
     expect(resolvePanelRoute('/c/clinic-demo-a/conversas')).toEqual({
       kind: 'area',
       area: 'conversas',

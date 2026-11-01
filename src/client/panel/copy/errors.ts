@@ -66,7 +66,16 @@ const BY_CODE: Record<string, string> = {
   invitation_already_pending: 'Já existe um convite pendente para este e-mail.',
   invitation_not_found: 'Não encontramos este convite. Pode ter sido cancelado.',
   invitation_not_pending: 'Este convite já não está pendente.',
-  invitation_expired: 'Este convite expirou. Envie um novo.',
+  invitation_expired: 'Este convite expirou. Peça um novo ao responsável da clínica.',
+  invitation_token_invalid:
+    'Este convite não é mais válido. Pode ter sido cancelado, usado ou substituído por um reenvio.',
+  invitation_email_mismatch:
+    'Este convite é para outro e-mail. Entre com o e-mail que recebeu o convite.',
+  invitation_email_unverified:
+    'Confirme o e-mail da sua conta antes de aceitar o convite.',
+  invitation_email_missing: 'Sua conta não tem e-mail. Use a conta do convite.',
+  invitation_accept_conflict: 'Outra pessoa acabou de usar este convite. Atualize e tente de novo.',
+  token_required: 'Abra o convite pelo link do e-mail.',
   invitation_resend_cooldown: 'Aguarde alguns minutos antes de reenviar.',
   invitation_resend_quota: 'Limite de 5 reenvios em 24 horas atingido. Tente amanhã.',
   invitation_cancel_conflict: 'Outra pessoa acabou de mudar este convite. Atualize a tela.',
@@ -107,10 +116,18 @@ export function friendlyError(err: unknown, fallback: string = GENERIC): string 
   return fallback
 }
 
+/** Código técnico da API (sem status). Para ramificar UI — nunca mostrar cru. */
+export function errorCode(err: unknown): string {
+  if (err instanceof PanelApiError) {
+    return /^[a-z0-9_]+$/.test(err.message) ? err.message : err.code
+  }
+  return 'unknown'
+}
+
 /** Código técnico para «Detalhes para o suporte». Nunca vai no texto principal. */
 export function errorDetail(err: unknown): string | null {
   if (err instanceof PanelApiError) {
-    const code = /^[a-z0-9_]+$/.test(err.message) ? err.message : err.code
+    const code = errorCode(err)
     return err.status > 0 ? `${code} · HTTP ${err.status}` : code
   }
   if (err instanceof Error && err.message) return err.message

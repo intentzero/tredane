@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { AuthProvider, useAuthSession } from './auth/AuthContext'
 import { AuthModeGate, LoginScreen } from './auth/ClerkBridge'
+import {
+  captureInviteTokenFromLocation,
+  readPendingInviteToken,
+} from './auth/session'
+import { AcceptInviteScreen } from './screens/AcceptInviteScreen'
 import { ClinicSelector } from './screens/ClinicSelector'
 import { ClinicArea } from './screens/clinic/ClinicArea'
 import { ConversasArea } from './screens/inbox/ConversasArea'
@@ -51,12 +56,29 @@ function PanelRouter() {
     if (!authResolved) return
     if (!route) return
 
+    // Link do e-mail: guarda o token antes de mandar para o login.
+    if (route.kind === 'invite-accept') {
+      captureInviteTokenFromLocation()
+      if (!signedIn) {
+        navigatePanel({ kind: 'entrar' }, true)
+        return
+      }
+    }
+
     if (!signedIn && route.kind !== 'entrar') {
       navigatePanel({ kind: 'entrar' }, true)
       return
     }
-    if (signedIn && route.kind === 'entrar') {
-      navigatePanel({ kind: 'clinicas' }, true)
+
+    // Após login (Clerk forceRedirect / synthetic), retoma o aceite se houver token.
+    if (signedIn && (route.kind === 'entrar' || route.kind === 'clinicas')) {
+      if (readPendingInviteToken()) {
+        navigatePanel({ kind: 'invite-accept' }, true)
+        return
+      }
+      if (route.kind === 'entrar') {
+        navigatePanel({ kind: 'clinicas' }, true)
+      }
     }
   }, [signedIn, route, status.phase, authResolved])
 
@@ -94,7 +116,11 @@ function PanelRouter() {
   }
 
   if (!signedIn) {
-    return <LoadingState label="A redirecionar para entrar…" />
+    return <LoadingState label="Abrindo a entrada…" />
+  }
+
+  if (route.kind === 'invite-accept') {
+    return <AcceptInviteScreen />
   }
 
   if (route.kind === 'clinicas') {
