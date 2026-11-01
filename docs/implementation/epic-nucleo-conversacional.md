@@ -51,6 +51,7 @@ O caminho normal passa a ser determinístico e guiado pelo grafo de dados da cl�
 | 4 | [#435](https://github.com/intentzero/tredane/issues/435) | B1: zona dita na mesma mensagem é ignorada (CF-24) — **corrigida** | A-04 | |
 | 4 | [#436](https://github.com/intentzero/tredane/issues/436) | B2: mudança de serviço depois da proposta (CF-23) — **corrigida** | C-07 | |
 | 4 | [#437](https://github.com/intentzero/tredane/issues/437) | B3: recusa da mistura de linhas explicada (CF-25) — **corrigida** | D-04 | |
+| 4 | [#446](https://github.com/intentzero/tredane/issues/446) | P3: áudio e imagem pedem texto; comprovativo à equipe (CF-26, DEC-119) | C-10, C-14, C-15, C-16 | #409 |
 | contínuo | [#417](https://github.com/intentzero/tredane/issues/417) | L2/L3: LLM no circuito, juiz calibrado, cliente simulada | rubrica Q, EE-04/06 | #402 (8: valor do orçamento) |
 | contínuo | [#419](https://github.com/intentzero/tredane/issues/419) | Iteração 1 da matriz (modelo das iterações seguintes) | §7 do plano | |
 
