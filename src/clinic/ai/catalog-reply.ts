@@ -328,6 +328,16 @@ export function catalogReply(
 
   const scoped = mixed ? zonesForAudienceLine(active, line) : active
   const named = scoped.length > 0 ? zonesNamedInText(source, scoped) : []
+  const namedOk = named.length > 0 && !variantAudiencesConflict(named)
+  if (opts.conversationId && inPlay && namedOk) {
+    saveScheduleSession(
+      db,
+      tenantId,
+      opts.conversationId,
+      { serviceId: inPlay.id, variantIds: named.map((zone) => zone.id) },
+      clock,
+    )
+  }
   const chosenEarlier =
     sameFunnel && scoped.length > 0
       ? zonesChosenInClientTexts(inboundNewestFirst, scoped)

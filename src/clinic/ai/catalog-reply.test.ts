@@ -374,15 +374,42 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
-  it('não pede a linha outra vez depois de a cliente ter dito axila masculina', () => {
+  it('não pede a zona outra vez depois de a cliente ter dito axila masculina', () => {
     const boot = seedMixed()
     try {
       const opts = { conversationId: boot.conversation.id }
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quanto custa a axila masculina?', boot.clock, opts),
       ).toMatch(/R\$/)
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.variantIds?.length).toBe(1)
       const next = catalogReply(boot.db, boot.tenantId, 'Quero depilação na segunda à tarde.', boot.clock, opts)
-      expect(next).not.toMatch(/feminina ou masculina/)
+      expect(next).toBeNull()
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('«quais zonas» quando o tipo cadastrado já está no plural', () => {
+    const boot = seedMixed()
+    try {
+      upsertServiceOp(
+        boot.db,
+        boot.caller,
+        {
+          id: boot.svc.id,
+          name: 'Depilação',
+          durationMinutes: 15,
+          bufferMinutes: 15,
+          priceCents: 5000,
+          variantKind: 'Zonas',
+          variantKindPlural: 'Zonas',
+          professionalIds: [],
+        },
+        boot.clock,
+      )
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação feminina amanhã à tarde.', boot.clock, {
+        conversationId: boot.conversation.id,
+      })).toMatch(/^Para Depilação, quais zonas você quer\?/)
     } finally {
       boot.close()
     }
