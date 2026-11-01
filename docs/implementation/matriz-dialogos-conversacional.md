@@ -232,3 +232,13 @@ Um diálogo L3 que falha é triado (plano §6). Se revela um caso novo, ganha um
 | ❔ Por medir | A-06, A-09, A-12, B-09, B-10, B-11, B-12, C-04, C-06, C-07, C-10, C-13, D-08, D-09, D-10, D-11, E-01, E-04, E-07, F-01, F-02, F-04, F-08, H-04, I-03, I-04, I-06, J-02, J-06, J-07 (30) |
 
 Total: 105 casos.
+
+## Iteração 1 (em curso, [#419](https://github.com/intentzero/tredane/issues/419))
+
+| Caso | Antes (It. 0) | Agora | Por |
+| --- | --- | --- | --- |
+| I-07 | ❌ CF-01 | ✅ `reply-facts.test`, `reply-facts.integration.test` | [#403](https://github.com/intentzero/tredane/issues/403) |
+| I-08 | ❌ CF-01 | ✅ idem | #403 |
+| J-08 | ❌ CF-01 | ✅ `reply-facts.test` (fora do período com manhã livre) | #403 |
+
+O resumo da linha de base acima fica como histórico. No fecho da iteração, o resumo novo vai para o §7 do plano.
