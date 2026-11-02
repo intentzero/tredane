@@ -31,6 +31,7 @@ function service(partial: Partial<ServiceRow> & { id: string; name: string }): S
     deletable: true,
     variantKind: 'Zona',
     variantKindPlural: 'Zonas',
+    synonyms: [],
     zones: [
       {
         id: 'zone_ax',
@@ -42,6 +43,7 @@ function service(partial: Partial<ServiceRow> & { id: string; name: string }): S
         audience: 'feminino',
         active: true,
         sortOrder: 0,
+        synonyms: [],
       },
     ],
     combos: [],
