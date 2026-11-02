@@ -295,7 +295,7 @@ Cada passo corre primeiro em sombra e só depois troca o caminho (avaliação co
 | Pergunta | Opções | Responsável | Bloqueia |
 | --- | --- | --- | --- |
 | ~~Modelos de frase determinísticos passam a ser o caminho normal, com o LLM só em 2b/5b?~~ | **Decidido: DEC-104 (Paulo, 01/11/2026), opção A.** | Paulo | Desbloqueia M3 e M4; M6 depende ainda da NC-02 |
-| Listas e botões de escolha (linha, variantes, horários) antes da proposta | **Adiado:** decidir depois da linha de base e da iteração 1. | Paulo | M5 |
+| ~~Listas e botões de escolha (linha, variantes, horários) antes da proposta~~ | **Decidido: DEC-128 (Paulo, 02/11/2026), opção A:** entram no recorte do MVP; implementação só depois do primeiro teste real com a Meta. Texto livre sempre aceite. | Paulo | M5 (planejamento desbloqueado; código depois do gate Meta) |
 | ~~Sinónimos editáveis pela owner~~ | **Decidido: DEC-110.** | Paulo | — |
 | ~~Lint de configuração na M-52~~ | **Decidido: DEC-112** (informativo). | Paulo | — |
 | ~~Debounce adaptativo~~ | **Decidido: DEC-111.** | Paulo | — |
