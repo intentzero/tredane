@@ -665,6 +665,7 @@ export async function tryAiAutoBook(
               variantIds: session.variantIds,
             }
           : null,
+        conversationId: input.conversationId,
       })
       let replyText: string | undefined
       if (booking.kind === 'handoff') {

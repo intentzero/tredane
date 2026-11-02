@@ -2,10 +2,12 @@
  * Identificação conversacional do objecto de marcação (serviço + variante).
  * Interpretação determinística: candidatos, informação em falta, pergunta mínima.
  * Não marca, não envia e não autoriza proposta — DEC-061.
+ * Copy via catálogo M4 (#448): perguntar_servico / confirmar_servico.
  */
 import type { ServiceAudience } from '../catalog/audience'
 import type { ServiceRow, ServiceZoneRow, VariantAudience } from '../config/types'
 import { variantChoiceLabel } from '../config/zones'
+import { sayAct } from './dialogue-acts'
 import { THIRD_PARTY_RE } from './nlu/sensitive'
 import { citesServiceName } from './schedule-choice'
 import {
@@ -209,10 +211,26 @@ function preferBaseServiceName(options: BookableOption[], text: string): Bookabl
   return filtered.length > 0 ? filtered : options
 }
 
+function askServiceQuestion(conversationId: string, names: string[]): string {
+  if (names.length >= 2) {
+    const lista = names.join(', ')
+    const fb = `Qual serviço você quer? Temos ${lista}.`
+    return sayAct('perguntar_servico', conversationId, { lista }, fb)
+  }
+  if (names.length === 1) {
+    const serviço = names[0]!
+    const fb = `É ${serviço} que você quer agendar?`
+    return sayAct('confirmar_servico', conversationId, { serviço }, fb)
+  }
+  const fb = 'Qual serviço você gostaria de agendar?'
+  return sayAct('perguntar_servico', conversationId, {}, fb)
+}
+
 function clarifyingQuestion(
   services: readonly ServiceRow[],
   candidates: BookableOption[],
   missing: BookingMissing[],
+  conversationId: string,
 ): string {
   const serviceIds = uniqueServices(candidates)
   if (missing.includes('servico') || serviceIds.length > 1) {
@@ -221,19 +239,13 @@ function clarifyingQuestion(
         candidates.map((c) => c.serviceName).filter((n) => n.trim().length > 0),
       ),
     ]
-    if (names.length >= 2) {
-      return `Qual serviço você quer? Temos ${names.join(', ')}.`
-    }
-    if (names.length === 1) {
-      return `É ${names[0]} que você quer agendar?`
-    }
-    return 'Qual serviço você gostaria de agendar?'
+    return askServiceQuestion(conversationId, names)
   }
   const service = services.find((s) => s.id === serviceIds[0])
-  if (!service) return 'Qual serviço você gostaria de agendar?'
+  if (!service) return askServiceQuestion(conversationId, [])
   const active = service.zones.filter((z) => z.active)
   if (missing.includes('linha') && needsAudienceLine(active)) {
-    return audienceLineQuestion(service.name)
+    return audienceLineQuestion(service.name, conversationId)
   }
   if (missing.includes('variante') || missing.includes('duracao') || missing.includes('audiencia_variante')) {
     const lineHint = candidates.find((c) => c.audience === 'feminino' || c.audience === 'masculino')
@@ -270,7 +282,7 @@ function clarifyingQuestion(
         .map((d) => (d % 60 === 0 ? `${d / 60} h` : `${d} min`))
       return `Para ${service.name}, prefere ${labels.join(' ou ')}?`
     }
-    return variantListQuestion(service.name, service.variantKind, pool)
+    return variantListQuestion(service.name, service.variantKind, pool, conversationId)
   }
   return `Para ${service.name}, pode confirmar a opção?`
 }
@@ -316,8 +328,11 @@ export function resolveBookingObject(input: {
   offeredKeys?: readonly string[] | null
   /** Catálogo mudou de forma material desde a sessão (ids inválidos). */
   catalogDrift?: boolean
+  /** Id da conversa — escolhe a redação do catálogo (#448). */
+  conversationId?: string
 }): BookingMatchResult {
   const text = input.text.trim()
+  const cnv = input.conversationId ?? ''
   if (!text) return noneResult()
   const services = input.services.filter((s) => s.active)
   // Catálogo vazio: não inventar handoff — deixa o rascunho/modelo seguir (ex.: «oi»).
@@ -467,7 +482,7 @@ export function resolveBookingObject(input: {
           (o, i, arr) => arr.findIndex((x) => x.serviceId === o.serviceId) === i,
         ),
         missing: ['servico'],
-        question: clarifyingQuestion(services, listBookableOptions(services), ['servico']),
+        question: clarifyingQuestion(services, listBookableOptions(services), ['servico'], cnv),
         handoffReason: null,
         source: 'none',
         correction: detectCorrection(text, input.session ?? null, null),
@@ -509,7 +524,7 @@ export function resolveBookingObject(input: {
 
   if (svcIds.length !== 1 || weakOnly) {
     missing.push('servico')
-    const question = clarifyingQuestion(services, pool, missing)
+    const question = clarifyingQuestion(services, pool, missing, cnv)
     return {
       kind: 'clarify',
       candidates: pool,
@@ -535,7 +550,7 @@ export function resolveBookingObject(input: {
         kind: 'clarify',
         candidates: servicePool,
         missing: ['servico'],
-        question: clarifyingQuestion(services, servicePool, ['servico']),
+        question: clarifyingQuestion(services, servicePool, ['servico'], cnv),
         handoffReason: null,
         source: best.source,
         correction,
@@ -566,7 +581,7 @@ export function resolveBookingObject(input: {
       kind: 'clarify',
       candidates: servicePool,
       missing: ['linha'],
-      question: audienceLineQuestion(service.name),
+      question: audienceLineQuestion(service.name, cnv),
       handoffReason: null,
       source: best?.source ?? 'explicit',
       correction,
@@ -622,7 +637,7 @@ export function resolveBookingObject(input: {
       kind: 'clarify',
       candidates: candidateOpts.length > 0 ? candidateOpts : servicePool,
       missing: missingFields,
-      question: clarifyingQuestion(services, candidateOpts, missingFields),
+      question: clarifyingQuestion(services, candidateOpts, missingFields, cnv),
       handoffReason: null,
       source: best?.source ?? 'explicit',
       correction,

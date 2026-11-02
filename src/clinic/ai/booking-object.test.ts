@@ -1,13 +1,37 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { extractServices } from './autobook'
 import {
   durationMinutesFromText,
   listBookableOptions,
   resolveBookingObject,
 } from './booking-object'
+import { renderEveryVariant, setDialogueVariantForTests } from './dialogue-acts'
 import { EVAL_BOOKING_CATALOG } from './evals/booking-object-catalog'
 
 describe('booking-object', () => {
+  afterEach(() => setDialogueVariantForTests(null))
+
+  it('#448 perguntar_servico / confirmar_servico via catálogo', () => {
+    for (const text of renderEveryVariant('perguntar_servico', {
+      lista: 'Massagem, Limpeza de pele',
+    })) {
+      expect(text).toMatch(/serviço|Massagem/i)
+    }
+    for (const text of renderEveryVariant('confirmar_servico', { serviço: 'Massagem' })) {
+      expect(text).toMatch(/Massagem/)
+    }
+    setDialogueVariantForTests(0)
+    const confirm = resolveBookingObject({
+      text: 'Quero marcar uma limpeza',
+      services: EVAL_BOOKING_CATALOG,
+      conversationId: 'cnv_s4',
+    })
+    expect(confirm.question).toMatch(/Limpeza de pele/)
+    expect(renderEveryVariant('confirmar_servico', { serviço: 'Limpeza de pele' })).toContain(
+      confirm.question,
+    )
+  })
+
   it('normaliza opções com e sem variantes', () => {
     const options = listBookableOptions(EVAL_BOOKING_CATALOG)
     expect(options.some((o) => o.key === 'svc-limpeza' && !o.hasVariants)).toBe(true)
