@@ -1,9 +1,21 @@
 /**
- * Atos de diálogo M4 (#414): 3–5 redações por ato, escolha por hash estável.
- * Frases **Propostas** até ok Paulo (DEC-104). DEC-107 e handoffs DEC ficam nos módulos próprios.
+ * Atos de diálogo M4 (#414 / #448): 3–5 redações por ato, escolha por hash estável.
+ * Levas 1–2 Confirmadas (DEC-122, DEC-123). DEC-107 e handoffs DEC ficam nos módulos próprios.
  */
 import { createHash } from 'node:crypto'
+import { MODEL_FALLBACK_TEXT } from './model-fallback'
 import { validateClientOutbound } from './outbound-validate'
+
+/** Índice forçado em testes (null = hash da conversa). Só para vitest. */
+let forcedVariantForTests: number | null = null
+
+/**
+ * Força a n-ésima redação utilizável (módulo n). `null` restaura o hash.
+ * O harness L1 e os testes de call-site usam isto para cobrir cada variante.
+ */
+export function setDialogueVariantForTests(n: number | null): void {
+  forcedVariantForTests = n
+}
 
 export type DialogueActId =
   | 'abrir'
@@ -185,11 +197,15 @@ function fill(template: string, vars: DialogueVars): string {
   })
 }
 
-/** Variáveis que a redação exige (`{nome}` é opcional: vira vazio sem 1.º contacto). */
+/**
+ * Variáveis que a redação exige.
+ * `{nome}` e `{quando}` são opcionais: nome só no 1.º contacto; quando = período com
+ * espaço final ou vazio («de manhã » / «»).
+ */
 function requiredVars(template: string): string[] {
   const out = new Set<string>()
   for (const m of template.matchAll(/\{([a-zçãáéíóúâêôõü_0-9]+)\}/gi)) {
-    if (m[1] !== 'nome') out.add(m[1]!)
+    if (m[1] !== 'nome' && m[1] !== 'quando') out.add(m[1]!)
   }
   return [...out]
 }
@@ -197,9 +213,16 @@ function requiredVars(template: string): string[] {
 /**
  * Redações que se podem usar com estas variáveis. Uma redação cujo dado falta (por
  * exemplo, o eco `{assunto}` ou o `{link}`) fica de fora: nunca sai uma frase com buraco.
+ * Se `{quando}` veio preenchido (período pedido), preferimos as redações que o ecoam.
  */
 function usableTemplates(act: DialogueActId, vars: DialogueVars): string[] {
-  return DIALOGUE_ACTS[act].filter((t) => requiredVars(t).every((k) => (vars[k] ?? '').trim() !== ''))
+  const base = DIALOGUE_ACTS[act].filter((t) =>
+    requiredVars(t).every((k) => (vars[k] ?? '').trim() !== ''),
+  )
+  const quando = (vars.quando ?? '').trim()
+  if (!quando) return base
+  const withQuando = base.filter((t) => t.includes('{quando}'))
+  return withQuando.length > 0 ? withQuando : base
 }
 
 function finish(template: string, vars: DialogueVars): string {
@@ -218,7 +241,7 @@ export function renderEveryVariant(act: DialogueActId, vars: DialogueVars = {}):
 
 /**
  * Escolhe e preenche uma redação. Corre o validador único (INV-04/05/11, forma J-07).
- * Enquanto as frases forem Propostas, o call-site decide se as usa (ok Paulo).
+ * Lança se faltarem variáveis ou se o validador recusar — nos fluxos use `sayAct`.
  */
 export function renderDialogueAct(
   act: DialogueActId,
@@ -227,11 +250,47 @@ export function renderDialogueAct(
 ): string {
   const templates = usableTemplates(act, vars)
   if (templates.length === 0) throw new Error(`dialogue-act ${act}: faltam variáveis para qualquer redação`)
-  const idx = dialogueActIndex(conversationId, act, templates.length)
+  const n = templates.length
+  const idx =
+    forcedVariantForTests != null
+      ? ((forcedVariantForTests % n) + n) % n
+      : dialogueActIndex(conversationId, act, n)
   const text = finish(templates[idx]!, vars)
   const check = validateClientOutbound(text, { source: 'phrase', requireSingleQuestion: false })
   if (!check.ok) {
     throw new Error(`dialogue-act ${act}: ${check.reason}${check.detail ? ` (${check.detail})` : ''}: ${text}`)
   }
   return text
+}
+
+/**
+ * Call-site seguro (#448): captura erro do catálogo, regista sem texto da conversa,
+ * e devolve o literal anterior (ou a frase DEC-107). O erro nunca propaga à cliente.
+ */
+export function sayAct(
+  act: DialogueActId,
+  conversationId: string,
+  vars: DialogueVars,
+  fallbackLiteral: string,
+): string {
+  try {
+    return renderDialogueAct(act, conversationId, vars)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : ''
+    const reason = msg.includes('faltam variáveis')
+      ? 'missing_vars'
+      : msg.includes('dialogue-act')
+        ? 'validate_or_render'
+        : 'error'
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'ai.dialogue_act_fallback',
+        act,
+        reason,
+      }),
+    )
+    const fb = fallbackLiteral.trim()
+    return fb.length > 0 ? fb : MODEL_FALLBACK_TEXT
+  }
 }

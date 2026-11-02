@@ -7,12 +7,20 @@
  * - `pendingHarness`: só as invariantes de segurança; fora da contagem de passes.
  * - `coverageOnly`: aponta para outro teste; não conta como executado.
  */
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { setDialogueVariantForTests } from '../../dialogue-acts'
 import { P0_DIALOG_CASES, P0_IDS } from './p0-cases'
 import { formatDialogReport, runDialogCase, type DialogRunResult } from './runner'
 
 /** Mesmo em pendentes ou falhas conhecidas, estas nunca podem falhar. */
 const ALWAYS_BLOCKING = ['INV-01', 'INV-02', 'INV-04', 'INV-05', 'INV-11']
+
+/** #448: `FORCE_DIALOGUE_VARIANT=n npm run test:dialogs` cobre cada redação. */
+const FORCED_VARIANT = process.env.FORCE_DIALOGUE_VARIANT
+if (FORCED_VARIANT != null && FORCED_VARIANT !== '') {
+  beforeAll(() => setDialogueVariantForTests(Number(FORCED_VARIANT)))
+  afterAll(() => setDialogueVariantForTests(null))
+}
 
 describe('harness L1 diálogos P0 (#406)', () => {
   const CASE_TIMEOUT_MS = 30_000

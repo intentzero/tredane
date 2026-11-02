@@ -1,11 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
+  DIALOGUE_ACTS,
+  renderEveryVariant,
+  setDialogueVariantForTests,
+} from './dialogue-acts'
+import {
+  dayWithPrepPt,
   periodFromHHMM,
   pickNearbySameDay,
   minutesOfHHMM,
+  periodWordPt,
 } from './slot-offer'
+import { sayAct } from './dialogue-acts'
 
-describe('slot-offer (#413 CF-15 / CF-19)', () => {
+afterEach(() => {
+  setDialogueVariantForTests(null)
+})
+
+describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
   it('periodFromHHMM classifica manhã/tarde/noite', () => {
     expect(periodFromHHMM('09:00')).toBe('manha')
     expect(periodFromHHMM('16:00')).toBe('tarde')
@@ -40,5 +52,34 @@ describe('slot-offer (#413 CF-15 / CF-19)', () => {
       { startsAt: day + 19 * 3600_000 }, // 16:00 SP
     ]
     expect(pickNearbySameDay(slots, '16:00', tz)).not.toContain('16:00')
+  })
+
+  it('dayWithPrepPt leva a preposição e hoje/amanhã', () => {
+    expect(dayWithPrepPt('2026-11-06')).toBe('na sexta (06/11)')
+    expect(dayWithPrepPt('2026-11-07')).toBe('no sábado (07/11)')
+    expect(dayWithPrepPt('2026-11-06', '2026-11-06')).toBe('hoje')
+    expect(dayWithPrepPt('2026-11-07', '2026-11-06')).toBe('amanhã')
+  })
+
+  it('cada variante forçada dos atos do slot-offer passa o validador', () => {
+    const cases: Array<[keyof typeof DIALOGUE_ACTS, Record<string, string>]> = [
+      ['oferecer_horarios', { assunto: 'Massagem', quando: 'de manhã ', lista: 'sexta 06/11 às 09:00, 10:00' }],
+      ['oferecer_horarios', { assunto: 'Massagem', quando: '', lista: 'sexta 06/11 às 09:00' }],
+      ['sem_horario_periodo', { assunto: 'Massagem', período: periodWordPt('manha') }],
+      ['sem_horario_dia', { assunto: 'Massagem', dia: dayWithPrepPt('2026-11-06') }],
+      ['sem_horario_semana', { assunto: 'Massagem' }],
+      ['sem_vaga_alternativas', { hora: '16:00', lista: '15:00, 14:30' }],
+      ['sem_vaga_sem_alternativa', { hora: '16:00' }],
+    ]
+    for (const [act, vars] of cases) {
+      const all = renderEveryVariant(act, vars)
+      expect(all.length, act).toBeGreaterThan(0)
+      for (let i = 0; i < all.length; i++) {
+        setDialogueVariantForTests(i)
+        const text = sayAct(act, 'cnv_slot_offer', vars, 'FALLBACK')
+        expect(text, `${act}#${i}`).toBe(all[i])
+        expect(text).not.toBe('FALLBACK')
+      }
+    }
   })
 })

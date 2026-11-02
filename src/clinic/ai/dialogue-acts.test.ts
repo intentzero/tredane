@@ -9,6 +9,8 @@ import {
   dialogueActIndex,
   renderDialogueAct,
   renderEveryVariant,
+  sayAct,
+  setDialogueVariantForTests,
   type DialogueActId,
 } from './dialogue-acts'
 import { forbiddenClientTermsIn } from './client-copy'
@@ -183,5 +185,56 @@ describe('#414 dialogue acts', () => {
     expect(MODEL_FALLBACK_TEXT).toBe(
       'Não consegui entender bem. Pode me dizer de outro jeito, ou prefere falar com a equipe?',
     )
+  })
+
+  it('sayAct captura erro e não propaga (#448)', () => {
+    const warn = console.warn
+    const seen: string[] = []
+    console.warn = (line: unknown) => {
+      seen.push(String(line))
+    }
+    try {
+      const out = sayAct('informar_local_link', 'cnv_x', { endereço: 'Rua Fictícia, 1' }, 'Literal anterior.')
+      expect(out).toBe('Literal anterior.')
+      expect(seen.length).toBe(1)
+      const payload = JSON.parse(seen[0]!) as { event: string; act: string; reason: string }
+      expect(payload.event).toBe('ai.dialogue_act_fallback')
+      expect(payload.act).toBe('informar_local_link')
+      expect(payload.reason).toBe('missing_vars')
+      // Sem texto da conversa / endereço no log.
+      expect(seen[0]).not.toMatch(/Rua Fictícia|Literal/)
+      const toFallback = sayAct('informar_local_link', 'cnv_x', { endereço: 'Rua' }, '   ')
+      expect(toFallback).toBe(MODEL_FALLBACK_TEXT)
+    } finally {
+      console.warn = warn
+    }
+  })
+
+  it('setDialogueVariantForTests força a redação (#448)', () => {
+    setDialogueVariantForTests(0)
+    try {
+      expect(renderDialogueAct('oferecer_horarios', 'cnv_force', {
+        assunto: 'Massagem',
+        quando: '',
+        lista: '09:00, 10:00',
+      })).toBe('Para Massagem, tenho 09:00, 10:00. Qual fica melhor?')
+      setDialogueVariantForTests(1)
+      expect(renderDialogueAct('oferecer_horarios', 'cnv_force', {
+        assunto: 'Massagem',
+        lista: '09:00, 10:00',
+      })).toBe('Os próximos horários para Massagem são 09:00, 10:00. Algum serve?')
+    } finally {
+      setDialogueVariantForTests(null)
+    }
+  })
+
+  it('{quando} vazio mantém a 1.ª redação de oferecer_horarios', () => {
+    const all = renderEveryVariant('oferecer_horarios', {
+      assunto: 'Massagem',
+      quando: '',
+      lista: 'sexta 06/11 às 09:00',
+    })
+    expect(all).toContain('Para Massagem, tenho sexta 06/11 às 09:00. Qual fica melhor?')
+    expect(all.length).toBe(DIALOGUE_ACTS.oferecer_horarios.length)
   })
 })
