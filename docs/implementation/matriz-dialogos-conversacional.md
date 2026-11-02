@@ -327,3 +327,16 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | Copy | **ok Paulo** (01/11) para as 5 frases do #442 (DEC-121); catálogo M4 **Confirmado** a 02/11: leva 1 (15 atos, DEC-122) e leva 2 (17 atos, DEC-123); leva 3 (remarcação, pausa da owner, terceiro) ainda **Proposta** |
 | Fora | M2 [#412](https://github.com/intentzero/tredane/issues/412) (ADR); L2/L3 [#417](https://github.com/intentzero/tredane/issues/417) |
 | Próxima | [#444](https://github.com/intentzero/tredane/issues/444) Iteração 3 |
+
+## M4b — call-sites do catálogo ([#448](https://github.com/intentzero/tredane/issues/448))
+
+| Estado | Contagem / notas |
+| --- | --- |
+| L1 pós-#456 | 75 casos · **64** passam · **0** `it.fails` · 2 pendentes L2 · 9 coverageOnly · 0 inesperadas |
+| Freeze | prompt `sha256:c6a4f56660bb86d3f61a957f9fd9577de39b9d6e4dea8a3c7eeffaaed680059f` (inalterado; #449 fora); catálogo `scenario.ts` `sha256:547cd19c30e3015fdd73389980e201664f04b2610f6eb8b28433167a15d8711d` (inalterado) |
+| Atos ligados (26) | `perguntar_*`, `oferecer_horarios`, `sem_vaga_*`, `sem_horario_*`, `informar_preco*`, `informar_duracao`, `informar_expediente`, `informar_quem_faz`, `confirmar_*`, `recusar_mistura`, `servico_inexistente`, `varios_servicos`, `historico_indisponivel`, `catalogo_mudou`, `nao_consegui_fechar` via `sayAct` |
+| Sem call-site (6) | `abrir`, `informar_local`, `informar_local_link`, `informar_explicacao`, `acolher_adiamento`, `esclarecer` — sem rota inventada |
+| Varredura | `dialogue-acts-call-sites.test.ts`: sayAct obrigatório nos 26; allowlist DEC/leva 3 / opções sem acto; fragmentos Substitui não regressam |
+| PRs | [#453](https://github.com/intentzero/tredane/pull/453) S1 · [#454](https://github.com/intentzero/tredane/pull/454) S2 · [#455](https://github.com/intentzero/tredane/pull/455) S3 · [#456](https://github.com/intentzero/tredane/pull/456) S4 · fecho S5 |
+| Copy | DEC-122 / DEC-123; leva 3 ainda **Proposta**; sem frase nova |
+| Próxima | It. 3 [#444](https://github.com/intentzero/tredane/issues/444) (M2, L2, restante) |
