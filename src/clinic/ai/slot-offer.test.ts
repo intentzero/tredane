@@ -68,7 +68,6 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
       ['sem_horario_periodo', { assunto: 'Massagem', período: periodWordPt('manha') }],
       ['sem_horario_dia', { assunto: 'Massagem', dia: dayWithPrepPt('2026-11-06') }],
       ['sem_horario_semana', { assunto: 'Massagem' }],
-      ['sem_vaga_alternativas', { hora: '16:00', lista: '15:00, 14:30' }],
       ['sem_vaga_sem_alternativa', { hora: '16:00' }],
     ]
     for (const [act, vars] of cases) {
@@ -81,5 +80,17 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
         expect(text).not.toBe('FALLBACK')
       }
     }
+    // Mesmo dia: sem «próximo com vaga». Rollover: só essa redação.
+    const nearbyPick = { avoidInTemplate: ['próximo com vaga'] as const }
+    const rollPick = { requireInTemplate: ['próximo com vaga'] as const }
+    const nearbyVars = { hora: '16:00', lista: '15:00, 14:30' }
+    const rollVars = { hora: '16:00', lista: 'sábado 07/11 às 10:00' }
+    for (const t of renderEveryVariant('sem_vaga_alternativas', nearbyVars, nearbyPick)) {
+      expect(t).not.toMatch(/próximo com vaga/)
+      expect(t).toMatch(/Tenho 15:00, 14:30/)
+    }
+    expect(renderEveryVariant('sem_vaga_alternativas', rollVars, rollPick)).toEqual([
+      'Nesse horário das 16:00 já não tenho vaga e o dia está cheio nesse período. No próximo com vaga tenho sábado 07/11 às 10:00. Qual fica melhor?',
+    ])
   })
 })

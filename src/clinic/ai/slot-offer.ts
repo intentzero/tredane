@@ -339,11 +339,13 @@ export async function occupiedSlotAlternativesReply(input: {
   if (nearby.length > 0) {
     const lista = nearby.join(', ')
     const fallback = `Nesse horário das ${input.time} já não tenho vaga. Tenho ${lista}. Qual fica melhor?`
+    // Sem «próximo com vaga»: esse texto é só do rollover para o dia seguinte.
     return sayAct(
       'sem_vaga_alternativas',
       conversationId,
       { hora: input.time, lista },
       fallback,
+      { avoidInTemplate: ['próximo com vaga'] },
     )
   }
 
@@ -378,6 +380,7 @@ export async function occupiedSlotAlternativesReply(input: {
       conversationId,
       { hora: input.time, lista: listed },
       fallback,
+      { requireInTemplate: ['próximo com vaga'] },
     )
   }
 

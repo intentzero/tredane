@@ -231,12 +231,37 @@ function finish(template: string, vars: DialogueVars): string {
   return text.replace(/^(\P{L}*)(\p{L})/u, (_m, lead: string, c: string) => lead + c.toLocaleUpperCase('pt-BR'))
 }
 
+/** Filtra redações por substring do template (ex.: «próximo com vaga» só no rollover). */
+export type DialogueActPick = {
+  /** Só templates que contenham todos estes trechos. */
+  requireInTemplate?: readonly string[]
+  /** Exclui templates que contenham algum destes trechos (se sobrar pelo menos um). */
+  avoidInTemplate?: readonly string[]
+}
+
+function pickTemplates(act: DialogueActId, vars: DialogueVars, pick?: DialogueActPick): string[] {
+  let templates = usableTemplates(act, vars)
+  if (pick?.requireInTemplate?.length) {
+    const req = templates.filter((t) => pick.requireInTemplate!.every((s) => t.includes(s)))
+    if (req.length > 0) templates = req
+  }
+  if (pick?.avoidInTemplate?.length) {
+    const avoid = templates.filter((t) => pick.avoidInTemplate!.every((s) => !t.includes(s)))
+    if (avoid.length > 0) templates = avoid
+  }
+  return templates
+}
+
 /**
  * Todas as redações utilizáveis, preenchidas. Para testes: cada uma tem de passar o
  * validador, e não só a que o hash da conversa escolhe.
  */
-export function renderEveryVariant(act: DialogueActId, vars: DialogueVars = {}): string[] {
-  return usableTemplates(act, vars).map((t) => finish(t, vars))
+export function renderEveryVariant(
+  act: DialogueActId,
+  vars: DialogueVars = {},
+  pick?: DialogueActPick,
+): string[] {
+  return pickTemplates(act, vars, pick).map((t) => finish(t, vars))
 }
 
 /**
@@ -247,8 +272,9 @@ export function renderDialogueAct(
   act: DialogueActId,
   conversationId: string,
   vars: DialogueVars = {},
+  pick?: DialogueActPick,
 ): string {
-  const templates = usableTemplates(act, vars)
+  const templates = pickTemplates(act, vars, pick)
   if (templates.length === 0) throw new Error(`dialogue-act ${act}: faltam variáveis para qualquer redação`)
   const n = templates.length
   const idx =
@@ -272,9 +298,10 @@ export function sayAct(
   conversationId: string,
   vars: DialogueVars,
   fallbackLiteral: string,
+  pick?: DialogueActPick,
 ): string {
   try {
-    return renderDialogueAct(act, conversationId, vars)
+    return renderDialogueAct(act, conversationId, vars, pick)
   } catch (err) {
     const msg = err instanceof Error ? err.message : ''
     const reason = msg.includes('faltam variáveis')
