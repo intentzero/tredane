@@ -238,10 +238,11 @@ describe('DEC-129 frases fixas (validador + claimsBooking)', () => {
     assertSafeClientCopy(t)
   })
 
-  it('(6b) nome de serviço com termo proibido → DEC-107, sem throw', async () => {
-    const { MODEL_FALLBACK_TEXT } = await import('./model-fallback')
+  it('(6b) nome de serviço com termo proibido → variante sem nome (DEC-131), sem throw', () => {
+    const nameless =
+      'Recebi seu pedido de remarcar. Ainda não está remarcado: a equipe confirma e já te retorna.'
     expect(() => phraseOwnerPaused('Limpeza com buffer', '2026-11-04', '10:00')).not.toThrow()
-    expect(phraseOwnerPaused('Limpeza com buffer', '2026-11-04', '10:00')).toBe(MODEL_FALLBACK_TEXT)
+    expect(phraseOwnerPaused('Limpeza com buffer', '2026-11-04', '10:00')).toBe(nameless)
     assertSafeClientCopy(phraseOwnerPaused('Limpeza com buffer', '2026-11-04', '10:00'))
   })
 })
