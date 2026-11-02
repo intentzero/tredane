@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | Interpretar a mensagem | Regex em 7 módulos, com definições divergentes (CA-01) | Cada correção diverge das outras; maior parte dos CF-02 a CF-13 |
 | Saber o que já foi dito | Releitura de 20–40 mensagens a cada turno + `schedule_sessions` parcial (CA-02) | Perguntas repetidas; sessão com **dia relativo** (CF-21) |
-| Saber o que **o sistema** ofereceu | Regex sobre o **texto da própria mensagem enviada** (`zonesOfferedToClient`, marcador `RESCHEDULE_OFFER_MARKER`) | Uma mudança de redação quebra a lógica (CF-22) |
+| Saber o que **o sistema** ofereceu | Regex sobre o **texto da própria mensagem enviada** (`zonesOfferedToClient`; historicamente o marcador de remarcação) | Uma mudança de redação quebra a lógica (CF-22). **Mitigado (M2 + DEC-129):** oferta no frame; marcador de remarcação removido. |
 | Preço de serviço simples, «como funciona», oferta de horários de serviço sem variantes | LLM (`catalogReply` devolve `null` para serviços sem variantes) | Custo, latência e risco factual (CF-01) num caso trivial |
 | Decidir a proposta | Depois da chamada ao LLM; o texto gerado é descartado (CA-03) | Até 25 s e tokens desperdiçados |
 | Escolher entre opções fechadas (linha, zona, horário) | Texto livre da cliente + regex | «o das 14», «a segunda», «👍» falham (A-07, A-08, C-05) |

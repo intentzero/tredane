@@ -18,7 +18,7 @@ Isto produz três classes de falha:
 | Achado | Sintoma | Evidência no código (`main` @ tip com DEC-127) |
 | --- | --- | --- |
 | **CF-21** | `day_label` guarda «amanhã» / «quinta» e só é resolvido no turno seguinte. Se a conversa atravessa a meia-noite, a proposta pode sair no dia errado. | [`autobook.ts:463–464`](../../src/clinic/ai/autobook.ts) resolve `session.dayLabel` com `clinicCivilDateFromUtc` da mensagem actual; [`reschedule.ts:204–205`](../../src/clinic/ai/reschedule.ts) resolve `session.dayLabel` com `today` quando há oferta prévia. Coluna e CHECK em `0044_schedule_session.ts`. |
-| **CF-22** | A oferta é inferida do texto outbound. Mudar a redação quebra a lógica. | [`zonesOfferedToClient`](../../src/clinic/ai/schedule-choice.ts) (`schedule-choice.ts:105`) lido em [`autobook.ts:836`](../../src/clinic/ai/autobook.ts); marcador `RESCHEDULE_OFFER_MARKER` em [`reschedule.ts:32`](../../src/clinic/ai/reschedule.ts) e deteção em `reschedule.ts:143`. |
+| **CF-22** | A oferta é inferida do texto outbound. Mudar a redação quebra a lógica. | [`zonesOfferedToClient`](../../src/clinic/ai/schedule-choice.ts) (órfã pós-cutover); remarcação: continuidade só via `phase = remarcando` / `lastOffer` / `pending` em [`reschedule.ts`](../../src/clinic/ai/reschedule.ts) — marcador removido (DEC-129). |
 | Perguntas fechadas | «o das 14», «a segunda», «👍», «sim» não têm `pending.options` estruturado; o interpretador não tem âncora estável. | Núcleo §3.2; matriz C-05/C-06; DEC-127 (3). |
 
 **Confirmado (produto):** as regras de validade, ambiguidade e migração de dados abertos estão na DEC-127. **Confirmado (este ADR, Paulo, chat Project 02/11/2026):** o desenho de engenharia abaixo (escolha de tabela, contrato, limpeza, isolamento, migração e rollout). A implementação M2 está no código (migração 0049 / cutover L1).
@@ -149,7 +149,7 @@ Segue [AGENTS.md](../../AGENTS.md) e o ADR-0012: um DO por clínica **não** iso
 | 4 | Copy pós-migração (DEC-127.4) | Reusar acto `perguntar_dia` (DEC-122/123). Sem frase nova. | **Confirmado** |
 | 5 | Estado do ADR | Opção A — promover o ADR inteiro a **Confirmado**. | **Confirmado** |
 
-Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migração 49, sombra, cutover) está entregue no PR de #412; com cutover activo, `zonesOfferedToClient` e `RESCHEDULE_OFFER_MARKER` **deixam de autorizar** (só o frame: `lastOffer` / `pending` / `date`); o marker pode permanecer na copy outbound e na sombra. **Same-TX implementada:** o frame (e `booking_frame.updated`) grava-se na mesma `transactionSync` que a mensagem de saída e o outbox (`SendOutboundInput.afterPersist` / `DeferredBookingFrame`); `pending.messageId` / `lastOffer.messageId` são o id da mensagem outbound desse turno.
+Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migração 49, sombra, cutover) está entregue no PR de #412; com cutover activo, `zonesOfferedToClient` **deixa de autorizar** (só o frame: `lastOffer` / `pending` / `date`). **DEC-129 (02/11/2026):** o marcador `RESCHEDULE_OFFER_MARKER` foi **removido** da copy e do código; a continuidade da remarcação lê só `phase = remarcando` / `lastOffer` / `pending`. **Same-TX implementada:** o frame (e `booking_frame.updated`) grava-se na mesma `transactionSync` que a mensagem de saída e o outbox (`SendOutboundInput.afterPersist` / `DeferredBookingFrame`); `pending.messageId` / `lastOffer.messageId` são o id da mensagem outbound desse turno.
 
 ## Consequências e riscos
 
@@ -157,7 +157,7 @@ Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migra�
 | --- | --- | --- |
 | Desbloqueia implementação M2 (#412) | **Confirmado** | Desenho aprovado; código/migração/cutover/same-TX entregues. |
 | Elimina `day_label` relativo como SoT | **Confirmado** | Corrige CF-21; data absoluta no frame. |
-| Elimina regex sobre texto outbound como SoT da oferta | **Confirmado** | Corrige CF-22; `zonesOfferedToClient` / `RESCHEDULE_OFFER_MARKER` deixam de autorizar escolha após cutover. |
+| Elimina regex sobre texto outbound como SoT da oferta | **Confirmado** | Corrige CF-22; `zonesOfferedToClient` deixa de autorizar após cutover; DEC-129 remove o marcador de remarcação. |
 | Migração por DO (risco médio) | **Confirmado** | Upgrade schema 48→49 testado; tabela continua `schedule_sessions`. |
 | Same-TX frame + mensagem + outbox | **Confirmado** (implementado) | `afterPersist` em `sendOutboundMessageOp`; testes de commit e rollback. |
 | Sessões abertas perdem o dia relativo | **Confirmado** (DEC-127) | Uma pergunta de dia via `perguntar_dia`; resto preservado. |

@@ -40,6 +40,8 @@ export function logBookingFrameShadow(input: {
 
 /**
  * Cutover M2: quando true, pending/lastOffer/date do frame autorizam;
- * day_label / zonesOfferedToClient / RESCHEDULE_OFFER_MARKER deixam de autorizar.
+ * day_label / zonesOfferedToClient deixam de autorizar.
+ * DEC-129: o marcador `RESCHEDULE_OFFER_MARKER` foi removido — continuidade da
+ * remarcação lê só `phase === 'remarcando'` / lastOffer / pending (CF-22 fechado).
  */
 export const BOOKING_FRAME_CUTOVER = true

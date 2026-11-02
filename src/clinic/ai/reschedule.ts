@@ -1,9 +1,9 @@
 /**
  * Reagendamento conversacional (DEC-091 / REQ-101).
  * Mantém serviço e variantes do compromisso; confirma só pelo botão (DEC-061).
+ * Frases fixas DEC-129 (Confirmada): sem marcador interno e sem nome da cliente.
  */
 import type { Clock } from '../../db/clock'
-import { getContact } from '../contacts'
 import { getService } from '../config/services'
 import { readZoneSnapshots, snapshotDuration } from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
@@ -25,6 +25,7 @@ import {
   classifySensitive,
   hasPolicyQuestion,
 } from './nlu/sensitive'
+import { validateClientOutbound } from './outbound-validate'
 import { checkConversationProtection } from './protection'
 import { getBookingFrame, getScheduleSession, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
 import { BOOKING_FRAME_CUTOVER, logBookingFrameShadow } from './booking-frame-shadow'
@@ -33,9 +34,6 @@ import {
   offerFramePatch,
   type DeferredBookingFrame,
 } from './deferred-booking-frame'
-
-/** Frase estável para continuar a escolha de horário sem reiniciar o funil. */
-export const RESCHEDULE_OFFER_MARKER = 'Para remarcar o mesmo atendimento'
 
 const EXPLICIT = RESCHEDULE_RE
 const CANCEL = CANCEL_RE
@@ -76,6 +74,7 @@ function weekdayOf(date: string): number {
     : new Date(Date.UTC(y, m - 1, d, 12)).getUTCDay()
 }
 
+/** `{dia}` sem preposição («sexta 06/11»); a preposição vai na frase fixa. */
 function dayText(date: string): string {
   const [, m, d] = date.split('-')
   return `${WEEKDAY_LABEL[weekdayOf(date)]} ${d}/${m}`
@@ -88,6 +87,59 @@ function localHHMM(tz: string, ms: number): string {
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(new Date(ms))
+}
+
+/**
+ * DEC-129: frases fixas no código (como DEC-125), não no catálogo de atos.
+ * Uma redação por situação — o catálogo M4 exige 3–5 variantes e variáveis não vazias;
+ * aqui a DEC fixa o texto literal. Validador único + INV-05 antes de sair.
+ */
+function reschedulePhrase(text: string): string {
+  const check = validateClientOutbound(text, { source: 'phrase', requireSingleQuestion: false })
+  if (!check.ok) {
+    throw new Error(
+      `reschedule phrase: ${check.reason}${check.detail ? ` (${check.detail})` : ''}: ${text}`,
+    )
+  }
+  return text
+}
+
+/** (1) Sem dia pedido. */
+export function phraseAskDay(): string {
+  return reschedulePhrase('Claro, vamos remarcar. Para qual dia você prefere?')
+}
+
+/** (2) Oferece horários no dia. */
+export function phraseOfferSlots(date: string, hours: string): string {
+  return reschedulePhrase(`Na ${dayText(date)} tenho ${hours}. Algum serve para remarcar?`)
+}
+
+/** (3) Dia sem vaga. */
+export function phraseDayFull(date: string): string {
+  return reschedulePhrase(`Na ${dayText(date)} não tenho horário livre. Quer ver outro dia?`)
+}
+
+/** (4) Hora pedida sem vaga, com alternativas. */
+export function phraseTimeTaken(date: string, time: string, alternatives: string): string {
+  return reschedulePhrase(
+    `Às ${time} na ${dayText(date)} já não tenho vaga. Tenho ${alternatives}. Qual fica melhor?`,
+  )
+}
+
+/** (5) Envio da proposta falhou. */
+export function phraseSendFailed(date: string, time: string): string {
+  return reschedulePhrase(
+    `Não consegui enviar a confirmação da remarcação para ${dayText(date)} às ${time}. ` +
+      `Ainda não está remarcado: a equipe vai te responder em seguida.`,
+  )
+}
+
+/** (6) Pausa da owner / capacidade desligada. */
+export function phraseOwnerPaused(serviceName: string, date: string, time: string): string {
+  return reschedulePhrase(
+    `Recebi seu pedido de remarcar ${serviceName} para ${dayText(date)} às ${time}. ` +
+      `Ainda não está remarcado: a equipe confirma e já te retorna.`,
+  )
 }
 
 export function isCancelIntent(text: string): boolean {
@@ -140,19 +192,10 @@ export function loadUpcomingAppointment(
   }
 }
 
-/** Pré-cutover / sombra: detecção por marker no texto outbound (CF-22). */
-function priorRescheduleOfferMarker(db: ClinicDb, tenantId: string, conversationId: string): boolean {
-  const row = db.get<{ body: string }>(
-    `SELECT body FROM messages
-     WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
-     ORDER BY created_at DESC, id DESC LIMIT 8`,
-    tenantId,
-    conversationId,
-  )
-  return Boolean(row?.body && row.body.includes(RESCHEDULE_OFFER_MARKER))
-}
-
-/** Pós-cutover: só o frame autoriza continuidade da remarcação. */
+/**
+ * Continuidade da remarcação: só o BookingFrame (ADR-0015 / DEC-129).
+ * CF-22: não lê texto outbound.
+ */
 function priorRescheduleOfferFromFrame(
   frame: ReturnType<typeof getBookingFrame>,
 ): boolean {
@@ -228,24 +271,8 @@ export async function tryAiReschedule(
   const apt = loadUpcomingAppointment(db, tenantId, conv.contactId, now)
   const sessionEarly = getScheduleSession(db, tenantId, input.conversationId)
   const frameEarly = getBookingFrame(db, tenantId, input.conversationId)
-  const markerPrior = priorRescheduleOfferMarker(db, tenantId, input.conversationId)
-  const framePrior = priorRescheduleOfferFromFrame(frameEarly)
-  // Cutover: marker/regex deixam de autorizar; só lastOffer/pending/phase do frame.
-  const priorOffer = BOOKING_FRAME_CUTOVER ? framePrior : markerPrior
-  if (BOOKING_FRAME_CUTOVER && markerPrior !== framePrior) {
-    logBookingFrameShadow({
-      tenantId,
-      conversationId: input.conversationId,
-      current: {
-        action: 'other',
-        detail: markerPrior ? 'RESCHEDULE_OFFER_MARKER' : 'no_marker',
-      },
-      proposed: {
-        action: framePrior ? 'offer_with_last_offer' : 'other',
-        detail: frameEarly?.lastOffer?.messageId ?? frameEarly?.phase ?? undefined,
-      },
-    })
-  }
+  // DEC-129 / ADR-0015: continuidade só pelo frame (phase remarcando / lastOffer / pending).
+  const priorOffer = priorRescheduleOfferFromFrame(frameEarly)
   if (!isRescheduleIntent(input.inboundText, { hasUpcoming: Boolean(apt), priorOffer })) {
     return null
   }
@@ -304,17 +331,13 @@ export async function tryAiReschedule(
     })
   }
 
-  const contact = getContact(db, tenantId, conv.contactId)
-  const name = contact?.displayName?.trim().split(/\s+/)[0]
-  const hi = name ? `, ${name}` : ''
-
   if (!date) {
-    // Continuidade no cutover: phase remarcando autoriza o próximo turno (não o marker).
+    // Continuidade: phase remarcando autoriza o próximo turno (não texto outbound).
     saveSession({ serviceId: apt.serviceId, phase: 'remarcando' })
     return finish({
       handled: true,
       appointmentId: apt.id,
-      replyText: `${RESCHEDULE_OFFER_MARKER}${hi}: para qual dia você prefere?`,
+      replyText: phraseAskDay(),
       notes: `Remarcação do compromisso ${apt.id} sem dia. Pedido o dia.`,
       outbox: [],
     })
@@ -347,9 +370,7 @@ export async function tryAiReschedule(
         handled: true,
         appointmentId: apt.id,
         date,
-        replyText:
-          `${RESCHEDULE_OFFER_MARKER}: na ${dayText(date)} não tenho horário livre. ` +
-          `Quer ver outro dia?`,
+        replyText: phraseDayFull(date),
         notes: `Sem vagas para remarcar ${apt.id} em ${date}.`,
         outbox: [],
       })
@@ -367,9 +388,7 @@ export async function tryAiReschedule(
       handled: true,
       appointmentId: apt.id,
       date,
-      replyText:
-        `${RESCHEDULE_OFFER_MARKER} na ${dayText(date)}, tenho ${listed.join(', ')}. ` +
-        `Qual fica melhor?`,
+      replyText: phraseOfferSlots(date, listed.join(', ')),
       notes: `Oferta de remarcação ${apt.id} em ${date}: ${listed.join(', ')}.`,
       outbox: [],
     })
@@ -402,9 +421,7 @@ export async function tryAiReschedule(
       date,
       time,
       replyText:
-        alts.length > 0
-          ? `${RESCHEDULE_OFFER_MARKER}: às ${time} na ${dayText(date)} já não tenho vaga. Tenho ${alts.join(', ')}. Qual fica melhor?`
-          : `${RESCHEDULE_OFFER_MARKER}: na ${dayText(date)} não tenho horário livre. Quer ver outro dia?`,
+        alts.length > 0 ? phraseTimeTaken(date, time, alts.join(', ')) : phraseDayFull(date),
       notes: `Horário ${time} indisponível para remarcar ${apt.id}.`,
       outbox: [],
     })
@@ -416,9 +433,7 @@ export async function tryAiReschedule(
       appointmentId: apt.id,
       date,
       time,
-      replyText:
-        `Anotei o pedido de remarcar ${apt.serviceName} para ${dayText(date)} às ${time}. ` +
-        `A equipe confirma em seguida.`,
+      replyText: phraseOwnerPaused(apt.serviceName, date, time),
       notes: `Capacidade pausada: remarcação ${apt.id} não enviou proposta.`,
       outbox: [],
     })
@@ -458,9 +473,7 @@ export async function tryAiReschedule(
       time,
       proposalId: proposal.id,
       proposalVersion: proposal.version,
-      replyText: delivered
-        ? ''
-        : `${RESCHEDULE_OFFER_MARKER}${hi}: vou confirmar ${dayText(date)} às ${time} com a equipe.`,
+      replyText: delivered ? '' : phraseSendFailed(date, time),
       notes: `Proposta de remarcação ${proposal.id} v${proposal.version} para ${apt.id}.`,
       outbox: sent.outbox,
     })
@@ -471,7 +484,7 @@ export async function tryAiReschedule(
       appointmentId: apt.id,
       date,
       time,
-      replyText: `${RESCHEDULE_OFFER_MARKER}${hi}: a equipe confirma ${dayText(date)} às ${time}.`,
+      replyText: phraseSendFailed(date, time),
       notes: `Falha ao montar proposta de remarcação: ${message}`,
       outbox: [],
     })
