@@ -275,6 +275,106 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
     }
   })
 
+  it('#475 S4 opção B: texto de verdade limpa «já pedi»; mídia seguinte volta a pedir', async () => {
+    const s = seed()
+    try {
+      const first = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: '[Áudio]',
+          deliveryState: 'received',
+        },
+        s.clock,
+      )
+      attach(s, first.id, 'audio/ogg')
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: first.id },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+      expect(
+        s.db.get<{ at: number | null }>(
+          `SELECT media_ask_text_at AS at FROM conversations WHERE id = ?`,
+          s.conversationId,
+        )?.at,
+      ).toBeTruthy()
+
+      const text = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: 'quero limpeza de pele amanhã',
+          deliveryState: 'received',
+        },
+        s.clock,
+      )
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: text.id },
+        s.clock,
+      )
+      expect(
+        s.db.get<{ at: number | null }>(
+          `SELECT media_ask_text_at AS at FROM conversations WHERE id = ?`,
+          s.conversationId,
+        )?.at,
+      ).toBeNull()
+      s.clock.advance(7_000)
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+
+      const third = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: '[Imagem]',
+          deliveryState: 'received',
+        },
+        s.clock,
+      )
+      attach(s, third.id, 'image/jpeg')
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: third.id },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+      const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+      expect(out[0]?.reason).toBe('media_ask_text')
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)).toBeNull()
+      const asks = s.db
+        .all<{ body: string }>(
+          `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' AND body = ?`,
+          s.conversationId,
+          MEDIA_ASK_TEXT,
+        )
+        .length
+      expect(asks).toBe(2)
+    } finally {
+      s.close()
+    }
+  })
+
   it('#475 S3: troca a redação da frase e a 2.ª mídia ainda vai à equipe', async () => {
     const s = seed()
     try {

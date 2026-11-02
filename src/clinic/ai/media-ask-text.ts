@@ -84,7 +84,8 @@ export function isMediaOnlyMessage(
 /**
  * Facto «já pedi texto por mídia» — coluna `conversations.media_ask_text_at` (#475 S3).
  * Não lê o corpo outbound (CF-22 / ADR-0015).
- * Expiração: Em aberto — aguarda Paulo (opções A/B/C na #475; recomendação provisória B).
+ * Expiração Confirmada (#475 S4, Paulo, opção B): limpa quando a cliente envia texto de
+ * verdade (corpo inbound que não é placeholder de mídia); a mídia seguinte volta a pedir.
  */
 export function conversationAlreadyAskedMediaText(
   db: ClinicDb,
@@ -115,6 +116,32 @@ export function markMediaAskTextAsked(
     tenantId,
     conversationId,
   )
+}
+
+/** Corpo inbound conta como «texto de verdade» (não é marcador de áudio/imagem/documento). */
+export function isRealClientTextBody(body: string): boolean {
+  const trimmed = body.trim()
+  return Boolean(trimmed) && !isMediaPlaceholderBody(trimmed)
+}
+
+/** #475 S4 opção B — limpa o facto se a cliente escreveu texto de verdade. */
+export function clearMediaAskTextOnRealInbound(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  body: string,
+  atMs: number,
+): boolean {
+  if (!isRealClientTextBody(body)) return false
+  if (!conversationAlreadyAskedMediaText(db, tenantId, conversationId)) return false
+  db.run(
+    `UPDATE conversations SET media_ask_text_at = NULL, updated_at = ?
+     WHERE tenant_id = ? AND id = ? AND media_ask_text_at IS NOT NULL`,
+    atMs,
+    tenantId,
+    conversationId,
+  )
+  return true
 }
 
 export function contactHasRecentPix(

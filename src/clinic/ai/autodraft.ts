@@ -39,6 +39,7 @@ import {
   notifyHumanHandoff,
 } from './human-handoff'
 import {
+  clearMediaAskTextOnRealInbound,
   decideMediaOnlyTurn,
   markMediaAskTextAsked,
   MEDIA_ASK_TEXT,
@@ -126,7 +127,6 @@ export function enqueueAutoDraft(
   clock: Clock,
 ): AutoDraftJob | null {
   if (!isClinicAiAssistEnabled(db, tenantId)) return null
-  if (isConversationPaused(db, tenantId, input.conversationId)) return null
   const now = clock.nowMs()
   const body =
     db.get<{ body: string }>(
@@ -134,6 +134,9 @@ export function enqueueAutoDraft(
       tenantId,
       input.messageId,
     )?.body ?? ''
+  // #475 S4 opção B: texto de verdade limpa «já pedi» mesmo com IA pausada (antes do return).
+  clearMediaAskTextOnRealInbound(db, tenantId, input.conversationId, body, now)
+  if (isConversationPaused(db, tenantId, input.conversationId)) return null
   const waitMs = autodraftDebounceMs({ text: body, fromInteractive: input.fromInteractive })
   db.run(
     `INSERT INTO ai_autodraft_jobs (tenant_id, conversation_id, message_id, due_at, state, created_at, updated_at)
