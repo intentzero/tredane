@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
+import { claimsBooking } from '../../ai/reply-facts'
 import { createControllableClock } from '../../db/clock'
 import { replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { replaceCombos } from '../config/combos'
@@ -565,9 +566,28 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       expect(o.autoBook?.status).toBe('requires_button')
       expect(o.autoBook?.proposalId).toBeUndefined()
       expect(o.autoBook?.outbox ?? []).toHaveLength(0)
-      expect(o.autoBook?.replyText).toMatch(/equipe confirma/i)
+      expect(o.autoBook?.replyText).toMatch(/^Recebi seu pedido de .+ Ainda não está marcado: a equipe confirma o horário e já te retorna\.$/)
+      expect(claimsBooking(o.autoBook!.replyText!)).toBe(false)
+      expect(o.autoBook?.replyText).not.toMatch(/Anotei|Perfeito|Quase lá/)
       expect(o.replyOutbox?.length).toBeGreaterThan(0)
       expect(o.suggestion!.internalNotes).toMatch(/Capacidade pausada|Agendar/)
+      noBooking(s)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('DEC-125: pausa da owner com serviço de sinal → frase do Pix, só reserva depois do pagamento', async () => {
+    const s = seed({ signal: true })
+    try {
+      s.say('outbound', 'Confirma depilação masculina na quinta 29/10 às 15:00?')
+      s.say('inbound', 'Sim, pode marcar')
+      const o = await s.run(true)
+      expect(o.autoBook?.status).toBe('needs_signal')
+      const t = o.autoBook!.replyText!
+      expect(t).toMatch(/^Para garantir .+ a clínica pede um sinal.* por Pix\. O horário só fica reservado depois do pagamento, e o Pix chega aqui na conversa\.$/)
+      expect(t).not.toMatch(/Perfeito|Anotei|Quase lá/)
+      expect(claimsBooking(t)).toBe(false)
       noBooking(s)
     } finally {
       s.close()
