@@ -4,38 +4,62 @@
 
 **Técnicas (núcleo §3.5):** eco do entendido; 3–5 redações por ato, escolhidas por hash estável da conversa; primeiro nome só no 1.º contacto; uma pergunta por mensagem; plural do tipo em minúsculas; sem jargão INV-05.
 
+## Alterações de 02/11/2026 (pedido do Paulo: «A, aplica as correções»)
+
+Defeitos corrigidos (impediam a aprovação):
+
+| Ato | Antes | Depois |
+| --- | --- | --- |
+| `sem_vaga_alternativas` n.º 2 | `As {hora} já estão ocupadas. Posso {lista}.` (sem crase, «Posso» errado) | `Às {hora} já está ocupado. Tenho {lista}. Qual fica melhor?` |
+| `informar_quem_faz` n.º 2 | `{pessoas} fazem esse atendimento.` («Ana fazem») | `Esse atendimento é feito por {pessoas}.` |
+| `abrir` n.º 1 | `Sou a assistente da clínica.` (género fixo; a persona pode ser masculina, DEC-089) | `Aqui é o atendimento virtual da clínica.` |
+| `informar_local` | nenhuma redação levava o link do Google Business (DEC-120) | novo ato `informar_local_link` (endereço + `Para chegar: {link}`), usado quando há link |
+
+Melhorias aplicadas:
+
+- `perguntar_linha` n.º 1: sem o formato de formulário («{serviço}: …»).
+- `perguntar_variantes` n.º 2: sem o imperativo seco («Me diga as {tipo}…»).
+- `acolher_adiamento` n.º 3: «Combinado.» saiu (lê-se como confirmação de horário).
+- **Eco**: nova redação em `perguntar_variantes` e em `oferecer_horarios` («Perfeito, {assunto}. …»), que a técnica prometia e nenhum ato fazia.
+
+Ficam por escrever (segunda leva, a aprovar depois): perguntar o dia, perguntar o horário, perguntar o serviço, recusar a mistura masculino/feminino, serviço inexistente e vários serviços. Sem estes atos a [#448](https://github.com/intentzero/tredane/issues/448) não consegue retirar todas as frases literais do código.
+
 ## Atos e redações propostas
 
-Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista}`, `{hora}`, `{preço}`, `{duração}`, `{endereço}`, `{abertura}`, `{pessoas}`, `{explicação}`.
+Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista}`, `{hora}`, `{preço}`, `{duração}`, `{endereço}`, `{link}`, `{abertura}`, `{pessoas}`, `{explicação}`.
+
+**Regra de seleção:** uma redação só é usada se todas as suas variáveis estiverem preenchidas (o eco `{assunto}` e o `{link}` ficam de fora quando faltam). Nunca sai uma frase com buraco.
 
 ### abrir
 
-1. `Oi{, nome}! Sou a assistente da clínica. Quer agendar algum serviço?`
+1. `Oi{, nome}! Aqui é o atendimento virtual da clínica. Quer agendar algum serviço?`
 2. `Oi{, nome}! Em que posso ajudar — marcar um horário ou tirar uma dúvida?`
 3. `Oi{, nome}! Posso te ajudar a marcar ou a ver preços e horários.`
 
 ### perguntar_linha
 
-1. `{serviço}: prefere a opção feminina ou masculina?`
+1. `Para {serviço}, prefere a opção feminina ou masculina?`
 2. `Para {serviço}, é na versão feminina ou masculina?`
 3. `Claro. {serviço} feminina ou masculina?`
 
 ### perguntar_variantes
 
 1. `Quais {tipo}? Temos {lista}. Pode ser mais de uma.`
-2. `Me diga as {tipo} que você quer: {lista}.`
+2. `Quais {tipo} você quer? {lista}. Pode ser mais de uma.`
 3. `Para {serviço}, quais {tipo}? {lista}.`
+4. `Perfeito, {assunto}. Quais {tipo}? Temos {lista}. Pode ser mais de uma.`
 
 ### oferecer_horarios
 
 1. `Para {assunto}, {quando}tenho {lista}. Qual fica melhor?`
 2. `Os próximos horários para {assunto} são {lista}. Algum serve?`
 3. `Tenho {lista} para {assunto}. Qual prefere?`
+4. `Perfeito, {assunto}. Os próximos horários são {lista}. Algum serve?`
 
 ### sem_vaga_alternativas
 
 1. `Nesse horário das {hora} já não tenho vaga. Tenho {lista}. Qual fica melhor?`
-2. `As {hora} já estão ocupadas. Posso {lista}. Qual fica melhor?`
+2. `Às {hora} já está ocupado. Tenho {lista}. Qual fica melhor?`
 3. `Nesse horário das {hora} já não tenho vaga e o dia está cheio nesse período. No próximo com vaga tenho {lista}. Qual fica melhor?`
 
 ### informar_preco
@@ -65,10 +89,15 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 2. `O endereço é {endereço}.`
 3. `Estamos em {endereço}.`
 
+### informar_local_link
+
+1. `Ficamos em {endereço}. Para chegar: {link}`
+2. `O endereço é {endereço}. Para chegar: {link}`
+
 ### informar_quem_faz
 
 1. `Quem atende: {pessoas}.`
-2. `{pessoas} fazem esse atendimento.`
+2. `Esse atendimento é feito por {pessoas}.`
 3. `Nesse serviço, quem atende é {pessoas}.`
 
 ### informar_explicacao
@@ -80,7 +109,7 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 1. `Sem problema. Quando quiser, é só chamar.`
 2. `Tudo bem! Fico por aqui quando você decidir.`
-3. `Combinado. Qualquer coisa, me chama.`
+3. `Fica à vontade. Qualquer coisa, me chama.`
 
 ### esclarecer
 
@@ -99,4 +128,4 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 ## Como aprovar
 
-Comentar no PR da #414 (ou no Project) «ok copy» / pedidos de alteração por ato. Após ok, a engenharia liga as redações no código e remove o envio livre do LLM no funil.
+O Paulo lê este documento e responde «ok» (ou pede alterações por ato). A aprovação fica registada numa DEC nova e o cabeçalho passa a **Confirmado**. Só depois a engenharia liga as redações aos fluxos (#448). Até lá, o catálogo está **Proposto** (DEC-121).
