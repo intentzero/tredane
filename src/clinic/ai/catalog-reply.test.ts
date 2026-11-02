@@ -84,8 +84,10 @@ describe('catalogReply', () => {
       'Se eu fizer axila masculina e pernas masculinas juntas, qual o preço e a duração?',
       clock,
     )
-    expect(both).toBe('Juntas, ficam R$ 190,00 e 45 min de atendimento.')
-    expect(both).not.toMatch(/intervalo|ocupa a agenda|buffer/i)
+    expect(both).toMatch(/R\$\s*190,00/)
+    expect(both).toMatch(/45 min/)
+    expect(both).toMatch(/No total|Somando tudo/)
+    expect(both).not.toMatch(/intervalo|ocupa a agenda|buffer|Juntas/i)
     expect(handoffReason(boot.db, tenantId, 'Quero marcar com a Sandra.', clock)).toBe('human_only')
     expect(handoffReason(boot.db, tenantId, 'Quero com a Gi.', clock)).toBeNull()
     void sandra
@@ -177,10 +179,10 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       expect(catalogReply(boot.db, boot.tenantId, 'Masculina', boot.clock, opts)).toBe(ZONES)
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quanto custa a axila da depilação feminina?', boot.clock, opts),
-      ).toBe('Axila custa R$ 50,00 e dura 15 min.')
+      ).toMatch(/Axila.*R\$\s*50,00.*15 min/)
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quanto custa a axila da depilação masculina?', boot.clock, opts),
-      ).toBe('Axila custa R$ 80,00 e dura 20 min.')
+      ).toMatch(/Axila.*R\$\s*80,00.*20 min/)
       expect(
         boot.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ?`, boot.tenantId)?.n,
       ).toBe(0)
@@ -446,9 +448,9 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       const opts = { conversationId: boot.conversation.id }
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quero axila masculina e axila feminina juntas.', boot.clock, opts),
-      ).toMatch(/não entram na mesma visita/)
-      expect(catalogReply(boot.db, boot.tenantId, 'Pode ser às 3.', boot.clock, opts)).toBe(
-        'Às 3 da tarde seria 15:00. É esse horário?',
+      ).toMatch(/juntar masculino e feminino|não entram na mesma visita/i)
+      expect(catalogReply(boot.db, boot.tenantId, 'Pode ser às 3.', boot.clock, opts)).toMatch(
+        /Você quis dizer 15:00, à tarde\?/,
       )
       expect(catalogReply(boot.db, boot.tenantId, 'Pode ser às 15.', boot.clock, opts)).toBeNull()
       expect(catalogReply(boot.db, boot.tenantId, 'Pode ser às 3 da tarde.', boot.clock, opts)).toBeNull()
@@ -510,8 +512,8 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       say('outbound', 'Qual zona e qual dia?')
       say('inbound', 'Parte intima e axila')
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toBeNull()
-      expect(catalogReply(boot.db, boot.tenantId, 'Parte intima e axila', boot.clock, opts)).toBe(
-        'Qual horário fica melhor para Depilação?',
+      expect(catalogReply(boot.db, boot.tenantId, 'Parte intima e axila', boot.clock, opts)).toMatch(
+        /Qual horário fica melhor para Depilação\?|Para Depilação, qual horário você prefere\?/,
       )
       const fem = zones
         .filter((zone) => zone.audience === 'feminino' && (zone.name === 'Axila' || zone.name === 'Parte íntima'))
@@ -568,7 +570,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       ).toMatch(/outra pessoa/)
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quero bronzeamento artificial amanhã', boot.clock, opts),
-      ).toMatch(/não encontrei esse procedimento/i)
+      ).toMatch(/não encontrei esse procedimento|não encontrei por aqui/i)
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quero igual à última vez', boot.clock, opts),
       ).toMatch(/visita anterior/i)

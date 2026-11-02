@@ -67,13 +67,15 @@ export function checkInvariants(
   const paused = readAiReplyPause(s.db, s.tenantId, s.conversationId)
 
   // INV-03: nenhuma hora oferecida fora da agenda. Cartões de proposta e o horário de
-  // funcionamento ficam de fora; a hora que a cliente disse pode ser repetida.
-  // Superconjunto (qualquer serviço, 7 dias): apanha hora inventada, não troca de dia.
+  // funcionamento (ato informar_expediente / #448) ficam de fora; a hora que a cliente
+  // disse pode ser repetida. Superconjunto (qualquer serviço, 7 dias): apanha hora inventada.
   const inbound = s.inboundBodies()
   const repeatable = new Set<string>()
   for (const body of inbound) for (const t of clientTimes(body)) repeatable.add(t)
   const free = s.freeTimesUnion()
-  const offeredBodies = bodies.filter((b) => !/^Proposta de horário/.test(b) && !/^Funcionamos assim/.test(b))
+  const openingHoursBody =
+    /^(Proposta de horário|Funcionamos assim|Nosso horário|Abrimos assim)\b/
+  const offeredBodies = bodies.filter((b) => !openingHoursBody.test(b))
   const badTime = offeredBodies
     .flatMap((b) => timesInText(b).map((h) => h.time))
     .find((t) => !free.has(t) && !repeatable.has(t))

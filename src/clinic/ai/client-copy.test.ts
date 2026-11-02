@@ -2,7 +2,7 @@
  * #405 / CF-16 / INV-05 / CF-12: copy sem jargão e corte de cumprimento.
  * Dados fictícios.
  */
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { stripLeadingGreeting } from '../../ai/continuity'
 import {
   TEMPO_REFUSED_PHRASE,
@@ -19,8 +19,12 @@ import {
   SERVICE_CHANGED_REPLY,
   SERVICE_NOT_FOUND_REPLY,
   forbiddenClientTermsIn,
+  mixedAudienceReply,
+  serviceChangedReply,
+  serviceNotFoundReply,
   teamConfirmsSoonReply,
 } from './client-copy'
+import { renderEveryVariant, setDialogueVariantForTests } from './dialogue-acts'
 import { AI_TRANSPARENCY_TEXT, HUMAN_HANDOFF_TEXT } from './human-handoff'
 import { MODEL_FALLBACK_TEXT } from './model-fallback'
 import { audienceLineQuestion, variantListQuestion } from './variant-line'
@@ -61,6 +65,8 @@ function scan(label: string, text: string) {
 }
 
 describe('#405 copy sem jargão (J-09, INV-05)', () => {
+  afterEach(() => setDialogueVariantForTests(null))
+
   it('lista de termos proibidos detecta os exemplos CF-16', () => {
     expect(forbiddenClientTermsIn('A equipe confirma pelo Agendar.')).toContain('Agendar')
     expect(forbiddenClientTermsIn('O catálogo mudou.')).toContain('catálogo')
@@ -77,9 +83,12 @@ describe('#405 copy sem jargão (J-09, INV-05)', () => {
     const interactive = renderProposalInteractive(proposal)
     const phrases: Array<[string, string]> = [
       ['MIXED_AUDIENCE_REPLY', MIXED_AUDIENCE_REPLY],
+      ['mixedAudienceReply', mixedAudienceReply('cnv_copy')],
       ['SERVICE_NOT_FOUND_REPLY', SERVICE_NOT_FOUND_REPLY],
+      ['serviceNotFoundReply', serviceNotFoundReply('cnv_copy')],
       ['SERVICE_CHANGED_REPLY', SERVICE_CHANGED_REPLY],
-      ['teamConfirmsSoonReply', teamConfirmsSoonReply('Massagem', '15:00')],
+      ['serviceChangedReply', serviceChangedReply('cnv_copy')],
+      ['teamConfirmsSoonReply', teamConfirmsSoonReply('Massagem', '15:00', 'cnv_copy')],
       ['HUMAN_HANDOFF_TEXT', HUMAN_HANDOFF_TEXT],
       [
         'HUMAN_HANDOFF_TEXT DEC-113',
@@ -104,6 +113,24 @@ describe('#405 copy sem jargão (J-09, INV-05)', () => {
       ['proposal slot_refused', renderProposalResultBody(proposal, 'slot_refused')],
     ]
     for (const [label, text] of phrases) scan(label, text)
+  })
+
+  it('#448 cada variante dos atos de client-copy passa INV-05', () => {
+    const acts = [
+      ...renderEveryVariant('recusar_mistura'),
+      ...renderEveryVariant('servico_inexistente'),
+      ...renderEveryVariant('catalogo_mudou'),
+      ...renderEveryVariant('nao_consegui_fechar', { serviço: 'Massagem', hora: '15:00' }),
+      ...renderEveryVariant('varios_servicos'),
+      ...renderEveryVariant('historico_indisponivel'),
+    ]
+    for (const text of acts) scan('act', text)
+    for (let i = 0; i < 2; i++) {
+      setDialogueVariantForTests(i)
+      scan('forced', mixedAudienceReply('cnv_force'))
+      scan('forced', serviceNotFoundReply('cnv_force'))
+      scan('forced', teamConfirmsSoonReply('Massagem', '10:00', 'cnv_force'))
+    }
   })
 
   it('DEFAULT_OPTION_KIND_PLURAL não é jargão', () => {

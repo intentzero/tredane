@@ -960,7 +960,9 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
         `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
         s.cnv.id,
       )
-      expect(question?.body).toBe('Qual horário fica melhor para Depilação?')
+      expect(question?.body).toMatch(
+        /Qual horário fica melhor para Depilação\?|Para Depilação, qual horário você prefere\?/,
+      )
       const fem = zones
         .filter((zone) => zone.audience === 'feminino' && (zone.name === 'Axila' || zone.name === 'Parte íntima'))
         .map((zone) => zone.id)
