@@ -1,6 +1,6 @@
 # Copy: atos de diálogo determinísticos (M4 / #414)
 
-**Estado:** **Confirmado** (Paulo, 02/11/2026). **Leva 1** (DEC-122): 15 atos e 41 redações, na versão corrigida. **Leva 2** (DEC-123): 17 atos e 32 redações, mais 1 redação num ato da leva 1, na versão revista de 02/11/2026. A **leva 3** (remarcação, pausa da owner e pedido para outra pessoa) continua por escrever e **Proposta**. As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115) **não** mudam aqui. Qualquer frase nova ou alterada exige aprovação no PR (DEC-104).
+**Estado:** **Confirmado** (Paulo, 02/11/2026). **Leva 1** (DEC-122): 15 atos e 41 redações, na versão corrigida. **Leva 2** (DEC-123): 17 atos e 32 redações, mais 1 redação num ato da leva 1, na versão revista de 02/11/2026. A **leva 3** (só a remarcação) continua por escrever e **Proposta**; o pedido para outra pessoa (DEC-124) e a pausa da owner/envio falhado/sinal Pix (DEC-125) estão decididos. As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115) **não** mudam aqui. Qualquer frase nova ou alterada exige aprovação no PR (DEC-104).
 
 **Técnicas (núcleo §3.5):** eco do entendido; 3–5 redações por ato, escolhidas por hash estável da conversa; primeiro nome só no 1.º contacto; uma pergunta por mensagem; plural do tipo em minúsculas; sem jargão INV-05.
 
@@ -236,8 +236,8 @@ Estas frases literais continuam no código e **não** estão nesta leva:
 | Fluxo | Frase atual | Porque fica de fora |
 | --- | --- | --- |
 | Remarcação (DEC-091) | `Para remarcar o mesmo atendimento…`, `Quer ver outro dia?`, `Anotei o pedido de remarcar {serviço} para {dia} às {hora}. A equipe confirma em seguida.` | O texto «Para remarcar o mesmo atendimento» é um **marcador interno** que a lógica lê (CF-22). Mexer na frase exige antes um estado estruturado (M2, #412) |
-| Pausa da owner / envio da proposta falhou | `Perfeito, {nome}! Para garantir {serviço} … a clínica pede um sinal por Pix …`, `Perfeito, {nome}! Anotei {serviço} … A equipe confirma o horário em seguida.`, `Quase lá, {nome}! Vou confirmar {serviço} … com a equipe e já te retorno.` | Estados raros; pedem decisão sobre «Anotei» e «Quase lá», que se podem ler como reserva |
-| Pedido para outra pessoa | `Para agendar para outra pessoa, a equipe precisa continuar este atendimento.` | Provável duplicado da frase de handoff da DEC-083 («Vou pedir para a equipe continuar daqui.»). Convém usar uma só; decisão a tomar com a #448 |
+| Pausa da owner / envio da proposta falhou | **Decidido (DEC-125, Paulo, 02/11/2026)**, três frases fixas, sem nome e sem «Anotei»/«Quase lá»: (1) sinal Pix: `Para garantir {serviço} {dia} às {hora}, a clínica pede um sinal de {valor} por Pix. O horário só fica reservado depois do pagamento, e o Pix chega aqui na conversa.` (sem valor, omite «de {valor}»); (2) pausa da owner: `Recebi seu pedido de {serviço} {dia} às {hora}. Ainda não está marcado: a equipe confirma o horário e já te retorna.`; (3) envio falhado: `Não consegui enviar a confirmação de {serviço} {dia} às {hora}. Ainda não está marcado: a equipe vai te responder em seguida.` | `{dia}` leva a preposição («na sexta (06/11)»). Implementação em `autobook.ts` (3 pontos) com teste de que nenhuma afirma reserva (DEC-061) |
+| Pedido para outra pessoa | **Decidido (DEC-124, Paulo, 02/11/2026):** usa só a frase da DEC-083, «Vou pedir para a equipe continuar daqui.», com as regras dela (uma vez enquanto o alerta seguir aberto, sem modelo; DEC-113 fora do expediente). A frase própria `Para agendar para outra pessoa, a equipe precisa continuar este atendimento.` **não** entra no catálogo | Duplicava a frase de handoff da DEC-083. Sem ato novo |
 
 ## Fora deste pedido
 
