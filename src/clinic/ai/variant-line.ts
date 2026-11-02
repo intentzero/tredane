@@ -1,9 +1,11 @@
 /**
  * Pergunta de linha antes das zonas (detalhe de DEC-078 / DEC-075, Paulo, 31/10/2026).
  * A linha só entra por texto explícito (feminina/masculina/feminino/masculino) ou pela sessão da conversa.
+ * Copy via catálogo M4 (#448): perguntar_linha / perguntar_variantes.
  */
 import { variantChoiceLabel } from '../config/zones'
 import type { VariantAudience } from '../config/types'
+import { sayAct } from './dialogue-acts'
 
 export type AudienceLine = 'feminino' | 'masculino'
 
@@ -39,8 +41,10 @@ export function zonesForAudienceLine<T extends { audience?: string | null }>(
   return zones.filter((zone) => zone.audience === line || zone.audience === 'ambos')
 }
 
-export function audienceLineQuestion(serviceName: string): string {
-  return `${serviceName.trim()} feminina ou masculina?`
+export function audienceLineQuestion(serviceName: string, conversationId = ''): string {
+  const serviço = serviceName.trim()
+  const fallback = `${serviço} feminina ou masculina?`
+  return sayAct('perguntar_linha', conversationId, { serviço }, fallback)
 }
 
 function zoneKey(zone: ListedZone): string {
@@ -75,10 +79,26 @@ function whichKind(kind: string): string {
   return `${plural ? 'quais' : 'qual'} ${word}`
 }
 
+/** Tipo no singular/plural do cadastro, em minúsculas (placeholder `{tipo}`). */
+export function variantTipoWord(variantKind: string | null | undefined): string {
+  return (variantKind ?? 'zona').trim().toLocaleLowerCase('pt-BR') || 'zona'
+}
+
 export function variantListQuestion(
   serviceName: string,
   variantKind: string | null | undefined,
   zones: readonly ListedZone[],
+  conversationId = '',
+  opts: { assunto?: string } = {},
 ): string {
-  return `Para ${serviceName.trim()}, ${whichKind(variantKind ?? '')} você quer? Temos ${stableVariantLabelList(zones).join(', ')}.`
+  const serviço = serviceName.trim()
+  const tipo = variantTipoWord(variantKind)
+  const lista = stableVariantLabelList(zones).join(', ')
+  const fallback = `Para ${serviço}, ${whichKind(variantKind ?? '')} você quer? Temos ${lista}.`
+  const vars: Record<string, string | undefined> = { serviço, tipo, lista }
+  if (opts.assunto?.trim()) vars.assunto = opts.assunto.trim()
+  // Sem hora: não usar a redação «Para fechar às {hora}».
+  return sayAct('perguntar_variantes', conversationId, vars, fallback, {
+    avoidInTemplate: ['{hora}'],
+  })
 }

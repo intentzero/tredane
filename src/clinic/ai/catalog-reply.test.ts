@@ -121,8 +121,11 @@ describe('catalogReply', () => {
 })
 
 describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
+  // Fixtures de histórico (outbound simulado) — não têm de igualar a redação do catálogo.
   const LINE = 'Depilação feminina ou masculina?'
   const ZONES = 'Para Depilação, quais zonas você quer? Temos Axila, Pernas.'
+  const LINE_RE = /feminina ou masculina/i
+  const ZONES_RE = /quais zonas|Axila.*Pernas|Pernas.*Axila/i
 
   function seedMixed() {
     const clock = createControllableClock(NOW)
@@ -169,14 +172,14 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     const boot = seedMixed()
     try {
       const opts = { conversationId: boot.conversation.id }
-      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toBe(LINE)
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toMatch(LINE_RE)
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toMatchObject({
         serviceId: boot.svc.id,
         audienceLine: null,
       })
-      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toBe(ZONES)
+      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toMatch(ZONES_RE)
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.audienceLine).toBe('feminino')
-      expect(catalogReply(boot.db, boot.tenantId, 'Masculina', boot.clock, opts)).toBe(ZONES)
+      expect(catalogReply(boot.db, boot.tenantId, 'Masculina', boot.clock, opts)).toMatch(ZONES_RE)
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quanto custa a axila da depilação feminina?', boot.clock, opts),
       ).toMatch(/Axila.*R\$\s*50,00.*15 min/)
@@ -224,9 +227,9 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
         clock,
       )
       const reply = catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)
-      expect(reply).toBe(
-        'Para Depilação, quais zonas você quer? Temos Axila, Pernas (feminino, 30 min), Pernas (feminino, 45 min).',
-      )
+      expect(reply).toMatch(/quais zonas|Axila/i)
+      expect(reply).toMatch(/Pernas \(feminino, 30 min\)/)
+      expect(reply).toMatch(/Pernas \(feminino, 45 min\)/)
       expect(reply).not.toMatch(/feminina ou masculina/i)
       expect(reply).not.toMatch(/^oi|^ol[aá]/i)
     } finally {
@@ -263,7 +266,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
         boot.clock,
         { conversationId: boot.conversation.id },
       )
-      expect(reply).toBe(LINE)
+      expect(reply).toMatch(LINE_RE)
       expect(reply).not.toMatch(/^oi|^ol[aá]/i)
       expect(reply).not.toContain('Temos Axila')
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.audienceLine).toBeNull()
@@ -284,23 +287,23 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     const boot = seedMixed()
     try {
       const opts = { conversationId: boot.conversation.id }
-      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação na segunda à tarde.', boot.clock, opts)).toBe(LINE)
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação na segunda à tarde.', boot.clock, opts)).toMatch(LINE_RE)
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toMatchObject({
         serviceId: boot.svc.id,
         audienceLine: null,
         dayLabel: 'segunda',
         period: 'tarde',
       })
-      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toBe(ZONES)
+      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toMatch(ZONES_RE)
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toMatchObject({
         serviceId: boot.svc.id,
         audienceLine: 'feminino',
         dayLabel: 'segunda',
         period: 'tarde',
       })
-      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação feminina na segunda à tarde.', boot.clock, opts)).toBe(
-        ZONES,
-      )
+      expect(
+        catalogReply(boot.db, boot.tenantId, 'Quero depilação feminina na segunda à tarde.', boot.clock, opts),
+      ).toMatch(ZONES_RE)
       const columns = boot.db.all<{ name: string }>(`PRAGMA table_info(contacts)`).map((column) => column.name)
       expect(columns).not.toContain('sexo')
       expect(columns).not.toContain('sex')
@@ -334,7 +337,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     try {
       const opts = { conversationId: boot.conversation.id }
       // Abre a sessão com o serviço (como a pergunta de linha).
-      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toBe(LINE)
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toMatch(LINE_RE)
       const say = (direction: 'inbound' | 'outbound', body: string) => {
         boot.clock.advance(1_000)
         insertMessage(
@@ -368,7 +371,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     const boot = seedMixed()
     try {
       const opts = { conversationId: boot.conversation.id }
-      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toBe(LINE)
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toMatch(LINE_RE)
       const say = (direction: 'inbound' | 'outbound', body: string) => {
         boot.clock.advance(1_000)
         insertMessage(
@@ -392,9 +395,9 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toBeNull()
       boot.clock.advance(1_000)
       // Novo funil: sem sessão, «Todas» antiga não suprime a lista de zonas.
-      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toBe(LINE)
+      expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toMatch(LINE_RE)
       boot.clock.advance(1_000)
-      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toBe(ZONES)
+      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toMatch(ZONES_RE)
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.audienceLine).toBe('feminino')
     } finally {
       boot.close()
@@ -436,7 +439,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       )
       expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação feminina amanhã à tarde.', boot.clock, {
         conversationId: boot.conversation.id,
-      })).toMatch(/^Para Depilação, quais zonas você quer\?/)
+      })).toMatch(/quais zonas/i)
     } finally {
       boot.close()
     }

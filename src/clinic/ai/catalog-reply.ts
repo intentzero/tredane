@@ -418,7 +418,7 @@ export function catalogReply(
     }
   }
 
-  if (active.length > 0 && mixed && !line) return audienceLineQuestion(svc.name)
+  if (active.length > 0 && mixed && !line) return audienceLineQuestion(svc.name, cnv)
 
   const scoped = mixed ? zonesForAudienceLine(active, line) : active
   const named = scoped.length > 0 ? zonesNamedInText(source, scoped) : []
@@ -461,7 +461,7 @@ export function catalogReply(
 
   if (active.length > 0 && named.length === 0 && (asksPrice || openPeriod || lineOnly)) {
     const pool = scoped.length > 0 ? scoped : active
-    return variantListQuestion(svc.name, svc.variantKindPlural || svc.variantKind, pool)
+    return variantListQuestion(svc.name, svc.variantKindPlural || svc.variantKind, pool, cnv)
   }
 
   if (asksPrice && named.length === 1) {
