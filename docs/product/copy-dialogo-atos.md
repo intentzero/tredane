@@ -1,6 +1,6 @@
 # Copy: atos de diálogo determinísticos (M4 / #414)
 
-**Estado:** **Proposto** — frases para aprovação do Paulo (DEC-104). Não entram em produção sem ok explícito. As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115) **não** mudam aqui.
+**Estado:** **Proposto** — frases para aprovação do Paulo (DEC-104). Não entram em produção sem ok explícito. **O «ok» de copy de 01/11/2026 não cobriu este catálogo** (DEC-121): cobriu só as 5 frases do #442. Este catálogo espera a leitura e a aprovação do Paulo, que bloqueiam a [#448](https://github.com/intentzero/tredane/issues/448). As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115) **não** mudam aqui.
 
 **Técnicas (núcleo §3.5):** eco do entendido; 3–5 redações por ato, escolhidas por hash estável da conversa; primeiro nome só no 1.º contacto; uma pergunta por mensagem; plural do tipo em minúsculas; sem jargão INV-05.
 
