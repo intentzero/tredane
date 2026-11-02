@@ -387,6 +387,8 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 
 | Estado | Contagem / notas |
 | --- | --- |
+| L1 | 83 casos · **72** passam · **0** `it.fails` · 2 pendentes L2 · 9 coverageOnly · 0 inesperadas (inalterado face ao pós-#470) |
+| Freeze | prompt `sha256:a35e30d45c7cd609e21df678051ca3e18538801a2c585b72a9dbffae4cc3b804` e catálogo `scenario.ts` **inalterados** |
 | Entrega | DEC-129: seis frases fixas de remarcação; `RESCHEDULE_OFFER_MARKER` removido; CF-22 observável sem marcador (`phase = remarcando`) |
 | Copy | Frases **Confirmadas** (DEC-129); vivem no código (`reschedule.ts`), padrão DEC-125 — não no catálogo M4 de variantes |
 | Gate | G-07 + `reschedule.test` (6 frases + claimsBooking); L1 harness sem regressão face ao pós-#470 |
