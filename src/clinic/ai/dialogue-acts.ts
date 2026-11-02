@@ -39,36 +39,6 @@ export type DialogueActId =
   | 'catalogo_mudou'
   | 'nao_consegui_fechar'
 
-/**
- * Leva 2 (funil de marcação): **Proposta**, ainda não aprovada pelo Paulo (DEC-104, DEC-122).
- * `renderDialogueAct` recusa estes atos e redações em produção. Quando o Paulo aprovar a leva,
- * a DEC regista-o e este bloco apaga-se na mesma alteração.
- */
-export const PROPOSED_ACTS: ReadonlySet<DialogueActId> = new Set<DialogueActId>([
-  'perguntar_dia',
-  'perguntar_horario',
-  'perguntar_servico',
-  'confirmar_servico',
-  'confirmar_hora_ambigua',
-  'sem_horario_periodo',
-  'sem_horario_dia',
-  'sem_horario_semana',
-  'sem_vaga_sem_alternativa',
-  'informar_preco_variante',
-  'informar_preco_soma',
-  'recusar_mistura',
-  'servico_inexistente',
-  'varios_servicos',
-  'historico_indisponivel',
-  'catalogo_mudou',
-  'nao_consegui_fechar',
-]);
-
-/** Redações propostas dentro de atos já aprovados. */
-export const PROPOSED_TEMPLATES: ReadonlySet<string> = new Set([
-  'Para fechar às {hora}, quais {tipo}? Temos {lista}. Pode ser mais de uma.',
-])
-
 /** Redações propostas — docs/product/copy-dialogo-atos.md. */
 export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
   abrir: [
@@ -135,8 +105,8 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Pode me dizer de outro jeito, ou prefere falar com a equipe?',
     'Não peguei bem — prefere reformular ou chamar a equipe?',
   ],
-  // — Leva 2 (Proposta): funil de marcação. A 1.ª redação de cada ato é, quando existe, o texto
-  //   que o código já envia hoje; as restantes são novas. Ver docs/product/copy-dialogo-atos.md.
+  // — Leva 2 (Confirmada, DEC-123): funil de marcação. A 1.ª redação de cada ato é, quando existe,
+  //   o texto que o código já envia hoje; as restantes são novas. Ver docs/product/copy-dialogo-atos.md.
   perguntar_dia: [
     'Para {serviço}, qual dia fica melhor?',
     'Qual dia você prefere para {serviço}?',
@@ -228,12 +198,8 @@ function requiredVars(template: string): string[] {
  * Redações que se podem usar com estas variáveis. Uma redação cujo dado falta (por
  * exemplo, o eco `{assunto}` ou o `{link}`) fica de fora: nunca sai uma frase com buraco.
  */
-function usableTemplates(act: DialogueActId, vars: DialogueVars, includeProposed = false): string[] {
-  return DIALOGUE_ACTS[act].filter(
-    (t) =>
-      requiredVars(t).every((k) => (vars[k] ?? '').trim() !== '') &&
-      (includeProposed || (!PROPOSED_ACTS.has(act) && !PROPOSED_TEMPLATES.has(t))),
-  )
+function usableTemplates(act: DialogueActId, vars: DialogueVars): string[] {
+  return DIALOGUE_ACTS[act].filter((t) => requiredVars(t).every((k) => (vars[k] ?? '').trim() !== ''))
 }
 
 function finish(template: string, vars: DialogueVars): string {
@@ -246,12 +212,8 @@ function finish(template: string, vars: DialogueVars): string {
  * Todas as redações utilizáveis, preenchidas. Para testes: cada uma tem de passar o
  * validador, e não só a que o hash da conversa escolhe.
  */
-export function renderEveryVariant(
-  act: DialogueActId,
-  vars: DialogueVars = {},
-  opts: { includeProposed?: boolean } = {},
-): string[] {
-  return usableTemplates(act, vars, opts.includeProposed ?? true).map((t) => finish(t, vars))
+export function renderEveryVariant(act: DialogueActId, vars: DialogueVars = {}): string[] {
+  return usableTemplates(act, vars).map((t) => finish(t, vars))
 }
 
 /**
@@ -264,12 +226,7 @@ export function renderDialogueAct(
   vars: DialogueVars = {},
 ): string {
   const templates = usableTemplates(act, vars)
-  if (templates.length === 0) {
-    const why = PROPOSED_ACTS.has(act)
-      ? 'ato ainda Proposto (não aprovado pelo Paulo)'
-      : 'faltam variáveis para qualquer redação aprovada'
-    throw new Error(`dialogue-act ${act}: ${why}`)
-  }
+  if (templates.length === 0) throw new Error(`dialogue-act ${act}: faltam variáveis para qualquer redação`)
   const idx = dialogueActIndex(conversationId, act, templates.length)
   const text = finish(templates[idx]!, vars)
   const check = validateClientOutbound(text, { source: 'phrase', requireSingleQuestion: false })

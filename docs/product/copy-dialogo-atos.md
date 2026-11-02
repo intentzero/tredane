@@ -1,6 +1,6 @@
 # Copy: atos de diálogo determinísticos (M4 / #414)
 
-**Estado:** **Leva 1 Confirmada** (Paulo, 02/11/2026, DEC-122): 15 atos e 41 redações, na versão corrigida de 02/11/2026. **Leva 2 Proposta** (secção «Leva 2», funil de marcação): a aguardar aprovação do Paulo. As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115) **não** mudam aqui. Qualquer frase nova ou alterada exige aprovação no PR (DEC-104).
+**Estado:** **Confirmado** (Paulo, 02/11/2026). **Leva 1** (DEC-122): 15 atos e 41 redações, na versão corrigida. **Leva 2** (DEC-123): 17 atos e 32 redações, mais 1 redação num ato da leva 1, na versão revista de 02/11/2026. A **leva 3** (remarcação, pausa da owner e pedido para outra pessoa) continua por escrever e **Proposta**. As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115) **não** mudam aqui. Qualquer frase nova ou alterada exige aprovação no PR (DEC-104).
 
 **Técnicas (núcleo §3.5):** eco do entendido; 3–5 redações por ato, escolhidas por hash estável da conversa; primeiro nome só no 1.º contacto; uma pergunta por mensagem; plural do tipo em minúsculas; sem jargão INV-05.
 
@@ -120,9 +120,9 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 1. `Não consegui entender bem. Pode me dizer de outro jeito, ou prefere falar com a equipe?`
 
-## Leva 2: funil de marcação (**Proposta**, a aprovar pelo Paulo)
+## Leva 2: funil de marcação (**Confirmada**, DEC-123)
 
-**Estado:** **Proposto**. Não está aprovada nem ligada a nenhum fluxo. Cobre as frases do funil de marcação que o código ainda escreve à mão (inventário abaixo), para a [#448](https://github.com/intentzero/tredane/issues/448) as poder retirar.
+**Estado:** **Confirmado** (Paulo, 02/11/2026, DEC-123), depois de ler a leva e de ver a revisão dos cinco defeitos abaixo. Ainda **não está ligada a nenhum fluxo**: isso é a [#448](https://github.com/intentzero/tredane/issues/448). Cobre as frases do funil de marcação que o código escrevia à mão (inventário abaixo).
 
 **Como ler:** *(atual)* = o texto que o código já envia hoje, sem alterações; só precisa de um olhar rápido. *(novo)* = redação nova; é nestas que deves parar. Onde o texto atual tinha defeito, aparece em «Substitui».
 
@@ -247,4 +247,4 @@ Estas frases literais continuam no código e **não** estão nesta leva:
 
 ## Como aprovar
 
-O Paulo aprovou o catálogo em 02/11/2026 (DEC-122), depois de ler e de ver as correções. Para os atos em falta, o processo é o mesmo: o PR traz a secção «Copy para aprovação do Paulo»; a aprovação fica registada numa DEC nova; só depois a engenharia liga as redações aos fluxos (#448).
+O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a leva 3, o processo é o mesmo: o PR traz a secção «Copy para aprovação do Paulo»; a aprovação fica registada numa DEC nova; só depois a engenharia liga as redações aos fluxos (#448).

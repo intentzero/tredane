@@ -6,8 +6,6 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   DIALOGUE_ACTS,
-  PROPOSED_ACTS,
-  PROPOSED_TEMPLATES,
   dialogueActIndex,
   renderDialogueAct,
   renderEveryVariant,
@@ -108,21 +106,25 @@ describe('#414 dialogue acts', () => {
     for (const act of ALL_ACTS) expect(src, `ato ${act} sem amostra`).toContain(`['${act}',`)
   })
 
-  it('a leva 2 (Proposta) não sai em produção até ser aprovada', () => {
-    expect(PROPOSED_ACTS.size).toBe(17)
-    for (const act of PROPOSED_ACTS) {
-      expect(() => renderDialogueAct(act, 'cnv_1', { serviço: 'Massagem', lista: 'A, B', hora: '10:00' }), act).toThrow(/Proposto/)
+  it('a leva 2 (DEC-123) está aprovada: todos os atos se podem usar em produção', () => {
+    const leva2: DialogueActId[] = ['perguntar_dia', 'perguntar_horario', 'perguntar_servico', 'confirmar_servico',
+      'confirmar_hora_ambigua', 'sem_horario_periodo', 'sem_horario_dia', 'sem_horario_semana', 'sem_vaga_sem_alternativa',
+      'informar_preco_variante', 'informar_preco_soma', 'recusar_mistura', 'servico_inexistente', 'varios_servicos',
+      'historico_indisponivel', 'catalogo_mudou', 'nao_consegui_fechar']
+    expect(leva2).toHaveLength(17)
+    const vars = {
+      serviço: 'Massagem', lista: 'Massagem, Limpeza de pele', assunto: 'Massagem', hora: '10:00', hora24: '15:00',
+      período: 'de manhã', dia: 'na sexta (06/11)', variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15',
     }
-    // Num ato aprovado, a redação proposta nunca é escolhida pelo hash.
-    const vars = { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas', hora: '10:00' }
-    for (let i = 0; i < 60; i++) {
-      const text = renderDialogueAct('perguntar_variantes', `cnv_${i}`, vars)
-      expect(text.startsWith('Para fechar às')).toBe(false)
+    for (const act of leva2) {
+      expect(() => renderDialogueAct(act, 'cnv_1', vars), act).not.toThrow()
     }
-    for (const tpl of PROPOSED_TEMPLATES) expect(DIALOGUE_ACTS.perguntar_variantes).toContain(tpl)
-    // Os testes de forma veem as propostas (para as validar antes da aprovação).
-    expect(renderEveryVariant('perguntar_variantes', vars).some((x) => x.startsWith('Para fechar às 10:00'))).toBe(true)
-    expect(renderEveryVariant('perguntar_variantes', vars, { includeProposed: false }).some((x) => x.startsWith('Para fechar às'))).toBe(false)
+    // A redação «Para fechar às {hora}» (num ato da leva 1) pode agora ser escolhida.
+    const seen = new Set<string>()
+    for (let i = 0; i < 80; i++) {
+      seen.add(renderDialogueAct('perguntar_variantes', `cnv_${i}`, { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas', hora: '10:00', assunto: 'depilação' }).slice(0, 14))
+    }
+    expect([...seen].some((x) => x.startsWith('Para fechar às'))).toBe(true)
   })
 
   it('correções da revisão da leva 2: preposição, crase, género e voz', () => {
