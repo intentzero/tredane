@@ -55,6 +55,11 @@ export type ServiceRow = {
   zones: ServiceZoneRow[]
   /** DEC-080 — vazio = sem combos. */
   combos: ServiceComboRow[]
+  /**
+   * DEC-110 — nomes populares só para interpretação (nunca à cliente).
+   * Lista curta; só a owner grava.
+   */
+  synonyms: string[]
 }
 
 /** Género da variante (DEC-079). Distinto da audiência do serviço. */
@@ -77,6 +82,8 @@ export type ServiceZoneRow = {
   audience: VariantAudience
   active: boolean
   sortOrder: number
+  /** DEC-110 — sinónimos da variante (interpretação). */
+  synonyms: string[]
 }
 
 export type ServiceZoneInput = {
@@ -89,6 +96,8 @@ export type ServiceZoneInput = {
   /** DEC-079 — obrigatório na gravação. A migração é que preenche `ambos`. */
   audience: VariantAudience
   active?: boolean
+  /** DEC-110 — omitido na edição mantém; array (mesmo vazio) substitui. */
+  synonyms?: string[]
 }
 
 /** Combo de variantes de um serviço (DEC-080). */
@@ -360,6 +369,11 @@ export type UpsertServiceInput = {
    */
   variantKind?: string | null
   variantKindPlural?: string | null
+  /**
+   * DEC-110 — omitido na edição mantém; array (mesmo vazio) substitui.
+   * Só a owner grava (clinic.config.write).
+   */
+  synonyms?: string[]
 }
 
 export type UpsertResourceInput = {

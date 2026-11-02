@@ -30,8 +30,21 @@ export type CompiledCatalog = {
   version: string
   services: ServiceRow[]
   resources: ResourceRow[]
-  /** Nome normalizado → ids de serviço. */
+  /**
+   * Nome canónico normalizado → ids de serviço.
+   * Só nomes do catálogo (enums #416); sinónimos ficam em `serviceIdsByNormAlias`.
+   */
   serviceIdsByNormName: Map<string, string[]>
+  /**
+   * DEC-110 — sinónimo/nome popular normalizado → ids de serviço.
+   * Só para interpretação; respostas usam o nome canónico.
+   */
+  serviceIdsByNormAlias: Map<string, string[]>
+  /**
+   * DEC-110 — sinónimo de variante → `{ serviceId, zoneId }`.
+   * Nomes canónicos de variante não entram aqui (continuam em zonesByServiceLine).
+   */
+  zoneIdsByNormAlias: Map<string, Array<{ serviceId: string; zoneId: string }>>
   /** serviceId → profissionais activos. */
   professionalsByService: Map<string, Array<{ id: string; name: string }>>
   /** `${serviceId}:${audienceLine|any}` → variantes activas. */
@@ -91,11 +104,29 @@ export function compileCatalog(
   version: string,
 ): CompiledCatalog {
   const serviceIdsByNormName = new Map<string, string[]>()
+  const serviceIdsByNormAlias = new Map<string, string[]>()
+  const zoneIdsByNormAlias = new Map<string, Array<{ serviceId: string; zoneId: string }>>()
   for (const s of services) {
     const key = normName(s.name)
     const list = serviceIdsByNormName.get(key) ?? []
     list.push(s.id)
     serviceIdsByNormName.set(key, list)
+    for (const syn of s.synonyms ?? []) {
+      const alias = normName(syn)
+      if (!alias || alias === key) continue
+      const aliases = serviceIdsByNormAlias.get(alias) ?? []
+      aliases.push(s.id)
+      serviceIdsByNormAlias.set(alias, aliases)
+    }
+    for (const z of s.zones) {
+      for (const syn of z.synonyms ?? []) {
+        const alias = normName(syn)
+        if (!alias || alias === normName(z.name)) continue
+        const entries = zoneIdsByNormAlias.get(alias) ?? []
+        entries.push({ serviceId: s.id, zoneId: z.id })
+        zoneIdsByNormAlias.set(alias, entries)
+      }
+    }
   }
   const professionalsByService = new Map<string, Array<{ id: string; name: string }>>()
   const zonesByServiceLine = new Map<string, ServiceZoneRow[]>()
@@ -119,6 +150,8 @@ export function compileCatalog(
     services,
     resources,
     serviceIdsByNormName,
+    serviceIdsByNormAlias,
+    zoneIdsByNormAlias,
     professionalsByService,
     zonesByServiceLine,
   }

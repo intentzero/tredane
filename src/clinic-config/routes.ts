@@ -379,6 +379,9 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
             z.priceCents === null ? null : typeof z.priceCents === 'number' ? z.priceCents : undefined,
           active: typeof z.active === 'boolean' ? z.active : undefined,
           audience: z.audience,
+          ...(z.synonyms === undefined
+            ? {}
+            : { synonyms: Array.isArray(z.synonyms) ? z.synonyms : [] }),
         }
       })
       const gw = await resolveGateway(c.env, ctx.tenantId, opts)
@@ -893,6 +896,9 @@ function parseServiceBody(body: Record<string, unknown>) {
           variantKindPlural:
             body.variantKindPlural === null ? null : String(body.variantKindPlural),
         }),
+    ...(body.synonyms === undefined
+      ? {}
+      : { synonyms: Array.isArray(body.synonyms) ? body.synonyms : [] }),
   }
 }
 

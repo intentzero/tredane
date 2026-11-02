@@ -20,6 +20,13 @@ import type {
 import { listServiceWeeklyWindows, setServiceWeeklyWindows } from './service-windows'
 import { listCombos } from './combos'
 import { listZones } from './zones'
+import {
+  assertSynonymsNoCollision,
+  listCatalogNameClaims,
+  normalizeSynonymList,
+  parseSynonymsJson,
+  serializeSynonyms,
+} from './synonyms'
 import { VARIANT_KIND_MAX } from '../catalog/variant-kind'
 import {
   assertBufferMinutes,
@@ -50,6 +57,7 @@ type ServiceSql = {
   duration_max_minutes?: number | null
   variant_kind?: string | null
   variant_kind_plural?: string | null
+  synonyms_json?: string | null
   created_at: number
   updated_at: number
 }
@@ -141,6 +149,7 @@ function toServiceRow(
     variantKindPlural: row.variant_kind_plural?.trim() || null,
     zones: listZones(db, row.tenant_id, row.id),
     combos: listCombos(db, row.tenant_id, row.id),
+    synonyms: parseSynonymsJson(row.synonyms_json),
   }
 }
 
@@ -554,6 +563,14 @@ export function upsertService(
   }
 
   if (input.id) {
+    const synonymsJson = resolveServiceSynonyms(
+      db,
+      tenantId,
+      name,
+      input.id,
+      input.synonyms,
+      existing?.synonyms,
+    )
     db.run(
       `UPDATE services SET
         name = ?, duration_minutes = ?, buffer_minutes = ?, audiencia = ?,
@@ -561,7 +578,7 @@ export function upsertService(
         price_cents = ?, client_explanation = ?, active = ?,
         requires_signal = ?, signal_kind = ?, signal_fixed_cents = ?, signal_percent = ?,
         duration_adjustable = ?, duration_min_minutes = ?, duration_max_minutes = ?,
-        variant_kind = ?, variant_kind_plural = ?, updated_at = ?
+        variant_kind = ?, variant_kind_plural = ?, synonyms_json = ?, updated_at = ?
        WHERE tenant_id = ? AND id = ?`,
       name,
       input.durationMinutes,
@@ -582,6 +599,7 @@ export function upsertService(
       dur.max,
       variantKind,
       variantKindPlural,
+      synonymsJson,
       now,
       tenantId,
       input.id,
@@ -595,6 +613,14 @@ export function upsertService(
   }
 
   const id = newId('svc')
+  const synonymsJson = resolveServiceSynonyms(
+    db,
+    tenantId,
+    name,
+    id,
+    input.synonyms,
+    undefined,
+  )
   db.run(
     `INSERT INTO services (
       id, tenant_id, name, duration_minutes, buffer_minutes, audiencia,
@@ -602,8 +628,8 @@ export function upsertService(
       price_cents, client_explanation, active,
       requires_signal, signal_kind, signal_fixed_cents, signal_percent,
       duration_adjustable, duration_min_minutes, duration_max_minutes,
-      variant_kind, variant_kind_plural, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      variant_kind, variant_kind_plural, synonyms_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     name,
@@ -625,6 +651,7 @@ export function upsertService(
     dur.max,
     variantKind,
     variantKindPlural,
+    synonymsJson,
     now,
     now,
   )
@@ -634,6 +661,28 @@ export function upsertService(
     setServiceWeeklyWindows(db, tenantId, id, input.weeklyWindows)
   }
   return getService(db, tenantId, id)!
+}
+
+function resolveServiceSynonyms(
+  db: ClinicDb,
+  tenantId: string,
+  selfName: string,
+  selfServiceId: string,
+  input: string[] | undefined,
+  existing: string[] | undefined,
+): string {
+  if (input === undefined) {
+    return serializeSynonyms(existing ?? [])
+  }
+  const normalized = normalizeSynonymList(input)
+  const kept = assertSynonymsNoCollision({
+    synonyms: normalized,
+    selfName,
+    selfServiceId,
+    selfZoneId: null,
+    claims: listCatalogNameClaims(db, tenantId),
+  })
+  return serializeSynonyms(kept)
 }
 
 export function setServiceActive(

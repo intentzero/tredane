@@ -47,7 +47,7 @@ O caminho normal passa a ser determinístico e guiado pelo grafo de dados da cl�
 | 6 | [#416](https://github.com/intentzero/tredane/issues/416) | M6: LLM extrator restrito e redator de exceção; fim do prompt monolítico | L3 coloquial · CA-04, CA-05, CA-07 | #412, #413 (DEC-104, DEC-109) |
 | 6 | [#418](https://github.com/intentzero/tredane/issues/418) | M7: diálogos gerados pelo grafo; lint de configuração | cobertura de catálogo | DEC-112 (informativo) |
 | 4 | [#420](https://github.com/intentzero/tredane/issues/420) | P1: handoff fora do expediente, pedido para parar, transparência sobre IA (DEC-113–115) | G-10, F-07, G-03 | #409 |
-| 4 | [#421](https://github.com/intentzero/tredane/issues/421) | P2: sinónimos na ficha, só pela owner (DEC-110) | léxico | #411 |
+| 4 | [#421](https://github.com/intentzero/tredane/issues/421) | P2: sinónimos na ficha, só pela owner (DEC-110) — implementação neste PR; sugestões LLM ficam após #416 | léxico | #411 |
 | 4 | [#435](https://github.com/intentzero/tredane/issues/435) | B1: zona dita na mesma mensagem é ignorada (CF-24) — **corrigida** | A-04 | |
 | 4 | [#436](https://github.com/intentzero/tredane/issues/436) | B2: mudança de serviço depois da proposta (CF-23) — **corrigida** | C-07 | |
 | 4 | [#437](https://github.com/intentzero/tredane/issues/437) | B3: recusa da mistura de linhas explicada (CF-25) — **corrigida** | D-04 | |

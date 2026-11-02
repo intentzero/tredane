@@ -8519,6 +8519,75 @@
   align-items: center;
 }
 
+/* Sinónimos DEC-110 / M-16 — chips + input na ficha. */
+.synonyms-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.synonyms-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-control-lg, 36px);
+  padding: var(--space-1) var(--space-2);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-card);
+}
+
+.synonyms-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 28px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink, var(--color-text-primary));
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+}
+
+.synonyms-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.synonyms-chip-remove[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: 1px;
+}
+
+.synonyms-input {
+  flex: 1;
+  min-width: 6rem;
+  height: 28px;
+  margin: 0;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-body);
+}
+
+.synonyms-input:focus {
+  outline: none;
+}
+
 .clinic-warn {
   display: flex;
   align-items: flex-start;

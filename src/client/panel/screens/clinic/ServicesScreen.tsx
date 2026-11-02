@@ -31,6 +31,7 @@ import { UnsavedChangesDialog } from './UnsavedChangesDialog'
 import { fromWeekDraft, toWeekDraft, type WeekDraft } from './clinicHours'
 import { WeekEditor } from './WeekEditor'
 import { RuleRow } from './RuleRow'
+import { SynonymsField } from './SynonymsField'
 import { TempoSheet, tempoSummary } from './TempoSheet'
 
 /** Preço que o sinal percentual enxerga: a linha, ou a soma das variantes em uso. */
@@ -64,6 +65,7 @@ type ServiceDraftKeyInput = {
   withVariants: boolean
   zones: ZoneDraft[]
   combos: ComboDraft[]
+  synonyms: string[]
   explanation: string
   active: boolean
   requiresSignal: boolean
@@ -98,6 +100,7 @@ function serviceDraftKey(input: ServiceDraftKeyInput): string {
       price: z.price,
       audience: z.audience,
       active: z.active,
+      synonyms: z.synonyms,
     })),
     combos: input.combos.map((c) => ({
       id: c.id ?? null,
@@ -106,6 +109,7 @@ function serviceDraftKey(input: ServiceDraftKeyInput): string {
       zoneKeys: c.zoneKeys,
       active: c.active,
     })),
+    synonyms: input.synonyms,
     explanation: input.explanation,
     active: input.active,
     requiresSignal: input.requiresSignal,
@@ -255,8 +259,10 @@ export function ServiceForm({
       price: z.priceCents != null ? formatPriceCents(z.priceCents) : '',
       audience: z.audience === 'feminino' || z.audience === 'masculino' ? z.audience : 'ambos',
       active: z.active,
+      synonyms: z.synonyms ?? [],
     })),
   )
+  const [synonyms, setSynonyms] = useState<string[]>(() => existing?.synonyms ?? [])
   const [combos, setCombos] = useState<ComboDraft[]>(() =>
     (existing?.combos ?? []).map((c) => ({
       key: c.id,
@@ -325,6 +331,7 @@ export function ServiceForm({
     withVariants,
     zones,
     combos,
+    synonyms,
     explanation,
     active,
     requiresSignal,
@@ -489,6 +496,7 @@ export function ServiceForm({
       tempoCelsius: tempoTemperatura === 'tanto_faz' ? null : tempoCelsius,
       variantKind: (withVariants ? zones : []).length > 0 ? variantKind.trim() || null : null,
       variantKindPlural: (withVariants ? zones : []).length > 0 ? variantKindPlural.trim() || null : null,
+      synonyms,
     }
     const draftZones = withVariants ? zones : []
     if (withVariants && draftZones.length === 0) {
@@ -519,6 +527,7 @@ export function ServiceForm({
       priceCents: z.price.trim() ? parsePriceToCents(z.price) : null,
       audience: z.audience,
       active: z.active,
+      synonyms: z.synonyms,
     }))
     const zoneKeys = new Set(draftZones.map((z) => z.key))
     const draftCombos = withVariants
@@ -641,6 +650,12 @@ export function ServiceForm({
         <Label>Nome</Label>
         <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
       </TextField>
+      <SynonymsField
+        label="Sinónimos"
+        value={synonyms}
+        onChange={setSynonyms}
+        hint="Nomes populares do serviço. Só ajudam a entender o pedido; as respostas usam o nome do catálogo."
+      />
       <section className="clinic-stack" aria-labelledby="svc-price">
         <div className="vc-head">
           <h2 id="svc-price" className="clinic-section-title">

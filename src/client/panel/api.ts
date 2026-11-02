@@ -2505,6 +2505,8 @@ export type ClinicService = {
   variantKind?: string | null
   /** DEC-079 — plural do tipo. Nulo sem variantes. */
   variantKindPlural?: string | null
+  /** DEC-110 — nomes populares (interpretação). */
+  synonyms?: string[]
   /** DEC-078. Vazio: a linha do serviço vale. */
   zones?: ClinicServiceZone[]
   /** DEC-080. */
@@ -2522,6 +2524,8 @@ export type ClinicServiceZone = {
   audience: 'feminino' | 'masculino' | 'ambos'
   active: boolean
   sortOrder: number
+  /** DEC-110 — sinónimos da variante. */
+  synonyms?: string[]
 }
 
 export type ClinicServiceCombo = {
@@ -2548,6 +2552,8 @@ export type ServiceZoneInput = {
   priceCents?: number | null
   audience: 'feminino' | 'masculino' | 'ambos'
   active?: boolean
+  /** DEC-110 — omitido mantém; array substitui. */
+  synonyms?: string[]
 }
 
 export type ClinicResource = {
@@ -2740,6 +2746,8 @@ export type ServiceUpsertBody = {
   /** DEC-079 — omitido na edição mantém. Vazio limpa. Singular e plural juntos. */
   variantKind?: string | null
   variantKindPlural?: string | null
+  /** DEC-110 — omitido na edição mantém; array (mesmo vazio) substitui. */
+  synonyms?: string[]
 }
 
 export type PixAccountPublic = {

@@ -114,7 +114,7 @@ type TurnInterpretation = {
 
 Componentes:
 
-- **Léxico da clínica, compilado do grafo** e guardado em cache pela versão do catálogo: nomes de serviço, variantes, combos e profissionais, com tolerância a 1 erro de digitação por palavra (já existe `citesServiceName`). **Proposto:** sinónimos e nomes populares por serviço e variante, editáveis só pela owner (DEC-042). O LLM pode **sugerir** sinónimos offline a partir dos casos não reconhecidos; a owner aprova.
+- **Léxico da clínica, compilado do grafo** e guardado em cache pela versão do catálogo: nomes de serviço, variantes, combos e profissionais, com tolerância a 1 erro de digitação por palavra (já existe `citesServiceName`). **Confirmado (DEC-110 / [#421](https://github.com/intentzero/tredane/issues/421)):** sinónimos e nomes populares por serviço e variante, editáveis só pela owner (DEC-042); entram no léxico compilado (`serviceIdsByNormAlias` / `zoneIdsByNormAlias`) e no resolvedor; nunca aparecem à cliente. **Em aberto (após #416):** o LLM pode **sugerir** sinónimos offline a partir dos casos não reconhecidos; a owner aprova — fora deste PR.
 - **Parser temporal único**, que substitui `extractDates` e `extractTimes` nos 4 módulos. Datas absolutas resolvidas **no instante da mensagem**:
   - «próxima/que vem»;
   - mês por extenso;

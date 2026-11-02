@@ -48,8 +48,8 @@ function seedConversation(db: ReturnType<typeof fromNodeSqlite>) {
 }
 
 describe('migração 0049 BookingFrame', () => {
-  it('CLINIC_SCHEMA_VERSION sobe para 49', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(49)
+  it('CLINIC_SCHEMA_VERSION inclui 0049 e alvo actual', () => {
+    expect(CLINIC_SCHEMA_VERSION).toBeGreaterThanOrEqual(49)
     expect(CLINIC_MIGRATIONS.some((m) => m.id === 49 && m.name === '0049_booking_frame')).toBe(
       true,
     )
@@ -169,12 +169,12 @@ describe('migração 0049 BookingFrame', () => {
     }
   })
 
-  it('runClinicMigrations sobe 0→49 e é no-op na segunda vez', () => {
+  it('runClinicMigrations sobe 0→alvo e é no-op na segunda vez', () => {
     const raw = openClinicMemoryDb()
     const db = fromNodeSqlite(raw)
     try {
       const r1 = runClinicMigrations(db, systemClock)
-      expect(r1.toVersion).toBe(49)
+      expect(r1.toVersion).toBe(CLINIC_SCHEMA_VERSION)
       expect(r1.applied).toContain('0049_booking_frame')
       const r2 = runClinicMigrations(db, systemClock)
       expect(r2.status).toBe('already_ready')

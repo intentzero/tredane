@@ -79,6 +79,15 @@ export {
   zonesNamedInText,
   zoneSnapshotsDrifted,
 } from './zones'
+export {
+  SYNONYM_MAX_COUNT,
+  SYNONYM_MAX_LENGTH,
+  SYNONYM_MIN_LENGTH,
+  foldSynonym,
+  normalizeSynonymList,
+  parseSynonymsJson,
+  textCitesNameOrSynonym,
+} from './synonyms'
 export { listCombos, replaceCombos, readComboSnapshot, writeComboSnapshot } from './combos'
 export { computeConfigReadiness } from './readiness'
 export { loadConfigSnapshot } from './snapshot'
