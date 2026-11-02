@@ -133,7 +133,7 @@ Componentes:
 
 ### 3.3 Estado do diálogo (frame persistente)
 
-O frame substitui o *modelo* parcial de `schedule_sessions` e a releitura do histórico; a tabela SQL **mantém** o nome `schedule_sessions` com tipo/acessores `BookingFrame` / `getBookingFrame` (**Confirmado**, Paulo, chat Project 02/11/2026). É uma linha por conversa, gravada na mesma transação que a mensagem de saída. Quando o frame muda, o painel recebe o evento WebSocket `booking_frame.updated` (só membros do tenant/clínica). Desenho de engenharia e migração: [ADR-0015](../adr/0015-estado-persistente-da-conversa.md) (**Proposto**; regras de produto na DEC-127; Em aberto do ADR fechados a 02/11/2026):
+O frame substitui o *modelo* parcial de `schedule_sessions` e a releitura do histórico; a tabela SQL **mantém** o nome `schedule_sessions` com tipo/acessores `BookingFrame` / `getBookingFrame`. É uma linha por conversa, gravada na mesma transação que a mensagem de saída. Quando o frame muda, o painel recebe o evento WebSocket `booking_frame.updated` (só membros do tenant/clínica). Desenho de engenharia e migração: [ADR-0015](../adr/0015-estado-persistente-da-conversa.md) (**Confirmado**, Paulo, chat Project 02/11/2026; regras de produto na DEC-127). A **implementação** M2 ainda não está feita:
 
 ```ts
 type BookingFrame = {
@@ -271,7 +271,7 @@ Estimativa qualitativa. A medição faz-se com o evento `ai.turn_decided` (CA-09
 | Passo | Mudança | Casos que passam a verde | Risco |
 | --- | --- | --- | --- |
 | M1 | `TurnContext` + normalização + parser temporal único + classificador único de handoff | B-01–B-08, C-01–C-03, C-11, C-12, E-06, G-02, G-03, G-05, G-11, H-02, H-03 | Baixo (substitui funções equivalentes) |
-| M2 | Frame com datas absolutas, `pending` e `lastOffer` estruturados (estender `schedule_sessions` → `BookingFrame`; sem rename SQL) — desenho em [ADR-0015](../adr/0015-estado-persistente-da-conversa.md) (**Proposto**; gate Confirmado Paulo 02/11/2026) | B-13, A-07, A-08, C-05, C-06, C-07, C-08, J-06, CF-21, CF-22 | Médio (migração de esquema por DO) |
+| M2 | Frame com datas absolutas, `pending` e `lastOffer` estruturados (estender `schedule_sessions` → `BookingFrame`; sem rename SQL) — desenho em [ADR-0015](../adr/0015-estado-persistente-da-conversa.md) (**Confirmado**, Paulo 02/11/2026; implementação pendente) | B-13, A-07, A-08, C-05, C-06, C-07, C-08, J-06, CF-21, CF-22 | Médio (migração de esquema por DO) |
 | M3 | Ordem decidir → gerar; política 3.4 com oferta proativa e alternativas próximas | A-02, A-06, A-12, D-01, D-02, F-08 | Médio |
 | M4 | Modelos de frase com eco e variação; validador de saída; fallback anti-silêncio | I-07, I-08, J-04, J-08, J-09, K-01, D-04 | Baixo |
 | M5 | Mensagens de lista e botões para linha, variantes e horários | Menos turnos (EE-01) | Médio (contrato Meta; exige decisão) |
@@ -300,4 +300,4 @@ Cada passo corre primeiro em sombra e só depois troca o caminho (avaliação co
 | ~~Lint de configuração na M-52~~ | **Decidido: DEC-112** (informativo). | Paulo | — |
 | ~~Debounce adaptativo~~ | **Decidido: DEC-111.** | Paulo | — |
 | ~~Contexto do extrator LLM~~ | **Decidido: DEC-109** (NC-02 só em parte). | Paulo | — |
-| Estado persistente da conversa (M2 / `#412`) | **Em aberto do ADR fechados** (Paulo, chat Project 02/11/2026: tabela `schedule_sessions`, C-08 no gate, WS `booking_frame.updated`, copy `perguntar_dia`). ADR permanece **Proposto** até ok explícito Confirmado/merge: [ADR-0015](../adr/0015-estado-persistente-da-conversa.md); regras de produto na DEC-127. | Paulo | Ok explícito do ADR → implementação da M2 |
+| ~~Estado persistente da conversa (M2 / `#412`)~~ | **Decidido: ADR-0015 Confirmado** (Paulo, chat Project 02/11/2026, opção A). Tabela `schedule_sessions`, C-08 no gate, WS `booking_frame.updated`, copy `perguntar_dia`; regras de produto na DEC-127. Implementação M2 ainda pendente. | Paulo | — (desbloqueia implementação da M2) |
