@@ -353,8 +353,9 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       const o = await s.run()
       expect(o.autoBook?.status).toBe('needs_info')
       expect(o.autoBook?.proposalId).toBeUndefined()
-      expect(o.autoBook?.replyText).toMatch(/as regioes/i)
-      expect(o.autoBook?.replyText).not.toMatch(/\ba regioes\b/i)
+      expect(o.autoBook?.replyText).toMatch(/quais regi[oõ]es/i)
+      expect(o.autoBook?.replyText).not.toMatch(/\ba regi[oõ]es\b/i)
+      expect(o.autoBook?.replyText).not.toMatch(/Regiões/)
       expect(o.replyOutbox?.length).toBeGreaterThan(0)
       const sent = s.db.get<{ body: string }>(
         `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
@@ -746,7 +747,10 @@ describe('detectExplicitConfirmation', () => {
 describe('pergunta das variantes usa o plural do tipo', () => {
   it('«as zonas», não «a Zona»', () => {
     const reply = askZonesReply('as zonas', ['Axila', 'Buço'], '14:00')
-    expect(reply).toBe('Para fechar às 14:00, me diga as zonas: Axila, Buço. Pode ser mais de uma.')
+    expect(reply).toMatch(/Para fechar às 14:00/)
+    expect(reply).toMatch(/Axila, Buço/)
+    expect(reply).toMatch(/Pode ser mais de uma/)
+    expect(reply).not.toMatch(/me diga/i)
   })
 
   it('lembra a variante e o horário e escreve o plural em minúsculas', async () => {
@@ -780,8 +784,8 @@ describe('pergunta das variantes usa o plural do tipo', () => {
       s.say('inbound', 'Quero bronzeamento amanhã às 14:00')
       const asked = await s.run()
       const question = asked.suggestion?.suggestedText ?? ''
-      expect(question.toLocaleLowerCase('pt-BR')).toContain('as regiões')
-      expect(question).not.toContain('as Regiões')
+      expect(question.toLocaleLowerCase('pt-BR')).toMatch(/quais regi[oõ]es/)
+      expect(question).not.toMatch(/Regiões/)
 
       insertMessage(
         s.db,

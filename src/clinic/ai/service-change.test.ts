@@ -142,7 +142,9 @@ describe('CF-23: mudança de serviço depois da proposta', () => {
       const open = rows.filter((r) => OPEN.includes(r.state))
       // Só a Bia faz massagem e está bloqueada: nenhuma proposta nova, avisa e oferece horas.
       expect(open).toHaveLength(0)
-      expect(out.join('\n')).toMatch(/das 15:00 já não tenho vaga\. Tenho \d{2}:\d{2}/)
+      expect(out.join('\n')).toMatch(
+        /(?:das 15:00 já não tenho vaga|Às 15:00 já está ocupado).*Tenho \d{2}:\d{2}/,
+      )
     } finally {
       s.close()
     }

@@ -41,10 +41,11 @@ import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import {
   DEFAULT_OPTION_KIND_PLURAL,
-  MIXED_AUDIENCE_REPLY,
-  SERVICE_NOT_FOUND_REPLY,
+  mixedAudienceReply,
+  serviceNotFoundReply,
   teamConfirmsSoonReply,
 } from './client-copy'
+import { sayAct } from './dialogue-acts'
 import { checkConversationProtection } from './protection'
 import { resolveBookingObject, servicesFromBookingMatch } from './booking-object'
 import {
@@ -60,6 +61,7 @@ import {
   needsAudienceLine,
   stableVariantLabelList,
   variantListQuestion,
+  variantTipoWord,
   zonesForAudienceLine,
 } from './variant-line'
 import { extractDates, extractTimes, norm } from './nlu/temporal'
@@ -269,9 +271,30 @@ function zonesChosenByClient(
   return zonesChosenInClientTexts(texts, zones)
 }
 
-export function askZonesReply(phrase: string, zoneNames: string[], time: string): string {
+/**
+ * Pergunta as variantes com hora já conhecida (`perguntar_variantes` + `{hora}`).
+ * `phrase` legado («as zonas» / «a zona») só entra no fallback; `{tipo}` vem do kind.
+ */
+export function askZonesReply(
+  phrase: string,
+  zoneNames: string[],
+  time: string,
+  conversationId = '',
+  variantKind?: string | null,
+): string {
   const list = zoneNames.join(', ')
-  return `Para fechar às ${time}, me diga ${phrase}: ${list}. Pode ser mais de uma.`
+  const tipo =
+    variantKind != null
+      ? variantTipoWord(variantKind)
+      : phrase.replace(/^(as|a)\s+/i, '').trim().toLocaleLowerCase('pt-BR') || 'opções'
+  const fallback = `Para fechar às ${time}, me diga ${phrase}: ${list}. Pode ser mais de uma.`
+  return sayAct(
+    'perguntar_variantes',
+    conversationId,
+    { hora: time, tipo, lista: list },
+    fallback,
+    { requireInTemplate: ['{hora}'] },
+  )
 }
 
 function firstName(label: string | null | undefined): string | null {
@@ -548,17 +571,19 @@ export async function tryAiAutoBook(
         const earlyPhrase = plural || !singular ? `as ${kindLabel}` : `a ${kindLabel}`
         const cited = zonesNamedInText(turnText, active)
         if (variantAudiencesConflict(cited)) {
-          replyText = MIXED_AUDIENCE_REPLY
+          replyText = mixedAudienceReply(input.conversationId)
         } else if (needsAudienceLine(active) && !line) {
-          replyText = audienceLineQuestion(det.service.name)
+          replyText = audienceLineQuestion(det.service.name, input.conversationId)
         } else if (active.length > 0 && (kept.length === 0 || chosen.ambiguous)) {
           const names = stableVariantLabelList(pool.length > 0 ? pool : active)
+          const kind = det.service.variantKindPlural || det.service.variantKind
           replyText = time
-            ? askZonesReply(earlyPhrase, names, time)
+            ? askZonesReply(earlyPhrase, names, time, input.conversationId, kind)
             : variantListQuestion(
                 det.service.name,
-                det.service.variantKindPlural || det.service.variantKind,
+                kind,
                 pool.length > 0 ? pool : active,
+                input.conversationId,
               )
         } else if (!time) {
           const period =
@@ -602,10 +627,22 @@ export async function tryAiAutoBook(
             })
             replyText = offered.replyText
           } else {
-            replyText = `Qual horário fica melhor para ${det.service.name}?`
+            const fb = `Qual horário fica melhor para ${det.service.name}?`
+            replyText = sayAct(
+              'perguntar_horario',
+              input.conversationId,
+              { serviço: det.service.name },
+              fb,
+            )
           }
         } else if (!date) {
-          replyText = `Me diga o dia para ${det.service.name}.`
+          const fb = `Me diga o dia para ${det.service.name}.`
+          replyText = sayAct(
+            'perguntar_dia',
+            input.conversationId,
+            { serviço: det.service.name },
+            fb,
+          )
         }
         const faltam = missing.length ? missing.join(', ') : 'confirmação clara'
         return {
@@ -632,14 +669,17 @@ export async function tryAiAutoBook(
       let replyText: string | undefined
       if (booking.kind === 'handoff') {
         if (booking.handoffReason === 'terceiro') {
+          // Allowlist (#448 / leva 3): fora do catálogo até decisão DEC-083 / #402.
           replyText =
             'Para agendar para outra pessoa, a equipe precisa continuar este atendimento.'
         } else if (booking.handoffReason === 'multiplos_servicos') {
-          replyText = 'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?'
+          const fb = 'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?'
+          replyText = sayAct('varios_servicos', input.conversationId, {}, fb)
         } else if (booking.handoffReason === 'inexistente') {
-          replyText = SERVICE_NOT_FOUND_REPLY
+          replyText = serviceNotFoundReply(input.conversationId)
         } else if (booking.handoffReason === 'historico_indisponivel') {
-          replyText = 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
+          const fb = 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
+          replyText = sayAct('historico_indisponivel', input.conversationId, {}, fb)
         }
       } else if (booking.kind === 'clarify' && booking.question && !booking.serviceId) {
         replyText = booking.question
@@ -668,11 +708,14 @@ export async function tryAiAutoBook(
             clock,
           )
           if (active.length > 0 && kept.length === 0) {
-            replyText = booking.question ?? variantListQuestion(
-              svc.name,
-              svc.variantKindPlural || svc.variantKind,
-              active,
-            )
+            replyText =
+              booking.question ??
+              variantListQuestion(
+                svc.name,
+                svc.variantKindPlural || svc.variantKind,
+                active,
+                input.conversationId,
+              )
           } else {
             const preferred = preferredProfessionalId(
               db,
@@ -763,7 +806,7 @@ export async function tryAiAutoBook(
     saveScheduleLine(db, tenantId, input.conversationId, svc.id, null, clock)
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
-      replyText: audienceLineQuestion(svc.name),
+      replyText: audienceLineQuestion(svc.name, input.conversationId),
       notes:
         `A cliente falou em ${svc.name} sem escolher a linha. Pergunta automática enviada. ` +
         'Não se infere pelo nome, pelo histórico nem por marcações. Texto livre não marca.',
@@ -824,12 +867,13 @@ export async function tryAiAutoBook(
   const singular = svc.variantKind?.trim() || ''
   const kind = (plural || singular || DEFAULT_OPTION_KIND_PLURAL).toLocaleLowerCase('pt-BR')
   const phrase = plural || !singular ? `as ${kind}` : `a ${kind}`
+  const kindForAct = svc.variantKindPlural || svc.variantKind
   if (activeZones.length > 0 && (namedZones.length === 0 || ambiguous)) {
     const names = stableVariantLabelList(scoped.length > 0 ? scoped : activeZones)
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
-      replyText: askZonesReply(phrase, names, time),
+      replyText: askZonesReply(phrase, names, time, input.conversationId, kindForAct),
       notes: ambiguous
         ? `O nome citado casa com mais de uma ${kind}. Pergunta automática enviada. Não informe valor nem envie proposta.`
         : `A cliente falou em ${svc.name} sem escolher ${kind} (${names.join(', ')}). ` +
@@ -839,7 +883,7 @@ export async function tryAiAutoBook(
   if (variantAudiencesConflict(namedZones)) {
     return {
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
-      replyText: MIXED_AUDIENCE_REPLY,
+      replyText: mixedAudienceReply(input.conversationId),
       notes:
         `As ${kind} escolhidas misturam masculino e feminino. Peça um conjunto compatível. Não informe valor nem envie proposta.`,
     }
@@ -859,8 +903,14 @@ export async function tryAiAutoBook(
       // Não silenciar: o modelo pode ter deixado a mensagem vazia à espera da proposta.
       replyText:
         activeZones.length > 0
-          ? askZonesReply(phrase, stableVariantLabelList(scoped.length > 0 ? scoped : activeZones), time)
-          : teamConfirmsSoonReply(svc.name, time),
+          ? askZonesReply(
+              phrase,
+              stableVariantLabelList(scoped.length > 0 ? scoped : activeZones),
+              time,
+              input.conversationId,
+              kindForAct,
+            )
+          : teamConfirmsSoonReply(svc.name, time, input.conversationId),
       notes:
         `Não deu para calcular ${svc.name}: ${message}. Pergunta/aviso automático enviado. Texto livre não marca.`,
     }
