@@ -4,10 +4,12 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
+  AiGatewayAnthropicAdapter,
   SimulatedAiAdapter,
   redactProhibitedFromText,
 } from '../../ai'
-import { systemClock } from '../../db/clock'
+import { createControllableClock, systemClock } from '../../db/clock'
+import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { workerCaller } from '../envelopes'
 import { upsertService } from '../config/services'
 import { setClinicAiAssistEnabled, ensureClinicSettings } from '../config/settings'
@@ -15,6 +17,7 @@ import { upsertContact, getContact, listContacts } from '../contacts'
 import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
 import { ensureOpenOpportunity } from '../pipeline/operations'
+import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bindOrAssertTenant } from '../tenant'
 import { bootClinicDb } from '../test-db'
 import { deleteContactOp } from '../retention/contact-delete'
@@ -442,43 +445,151 @@ describe('S8 minimização de contexto IA (#179)', () => {
     ).toThrow(/ai_context_contains_prohibited_keys/)
   })
 
-  it('DEC-118: freeSlots/upcoming ausentes do payload e do lastInspection do gateway', async () => {
-    const { db, clock, close } = bootClinicDb()
+  it('DEC-118 (CF-27): freeSlots/upcoming semeados existem em agendaFacts e não vão ao gateway', async () => {
+    // Terça 27/10/2026 10:00 SP — janelas 09–18 geram >10 livres nos próximos 7 dias.
+    const TZ = 'America/Sao_Paulo'
+    const NOW = Date.UTC(2026, 9, 27, 13, 0)
+    const clock = createControllableClock(NOW)
+    const { db, close } = bootClinicDb({ clock })
     const tenantId = 'clinic-demo-a'
+    const caller = workerCaller(tenantId, 'user_s8_dec118')
     try {
-      const seeded = seedClinic(db, clock, tenantId, {
-        displayName: 'Carla Demo',
-        waId: '5511988887777',
-        inboundBodies: ['Tem limpeza amanhã?'],
-        services: [{ name: 'Limpeza de pele', priceCents: 18000, clientExplanation: null }],
-        clinicAddress: 'Rua Fictícia, 10',
-      })
-      const built = await buildAiContextPayload(db, tenantId, seeded.conversationId, { clock })
+      const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala 1', category: 'Sala' }, clock)
+      const pro = upsertResourceOp(
+        db,
+        caller,
+        { kind: 'professional', name: 'Ana Demo', homeRoomId: room.id },
+        clock,
+      )
+      const svc = upsertServiceOp(
+        db,
+        caller,
+        {
+          name: 'Limpeza de pele',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          priceCents: 18000,
+          professionalIds: [pro.id],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      const week = [1, 2, 3, 4, 5, 6].map((d) => ({
+        dayOfWeek: d,
+        startMinute: 9 * 60,
+        endMinute: 18 * 60,
+      }))
+      setWeeklyWindowsOp(db, caller, { resourceId: pro.id, windows: week }, clock)
+      setWeeklyWindowsOp(db, caller, { resourceId: room.id, windows: week }, clock)
+      setClinicAiAssistEnabled(db, tenantId, true, clock)
+      ensureClinicSettings(db, tenantId, clock)
+      db.run(
+        `UPDATE clinic_settings SET clinic_address = ?, updated_at = ? WHERE id = 1 AND tenant_id = ?`,
+        'Rua Fictícia, 10',
+        clock.nowMs(),
+        tenantId,
+      )
+
+      const contact = upsertContact(
+        db,
+        { tenantId, waId: '5511988887777', displayName: 'Carla Demo' },
+        clock,
+      )
+      const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
+      ensureOpenOpportunity(
+        db,
+        { tenantId, contactId: contact.id, conversationId: cnv.id },
+        clock,
+      )
+      // Compromisso futuro desta cliente (upcoming) — data/hora não podem ir ao gateway.
+      const upcomingStarts = zonedCivilToUtc(TZ, 2026, 10, 30, 15, 0)
+      confirmAppointmentOp(
+        db,
+        caller,
+        {
+          clientRequestId: 'dec118-upcoming',
+          serviceId: svc.id,
+          professionalId: pro.id,
+          roomResourceId: null,
+          startsAt: upcomingStarts,
+          contactId: contact.id,
+          conversationId: cnv.id,
+          actorClerkUserId: caller.actorId!,
+        },
+        clock,
+      )
+      insertMessage(
+        db,
+        {
+          tenantId,
+          conversationId: cnv.id,
+          direction: 'inbound',
+          body: 'Tem limpeza amanhã?',
+          deliveryState: 'received',
+          createdAt: NOW - 60_000,
+        },
+        clock,
+      )
+
+      const built = await buildAiContextPayload(db, tenantId, cnv.id, { clock })
       assertContextMinimized(built.payload)
       const payloadJson = JSON.stringify(built.payload)
       expect(payloadJson).not.toMatch(/"freeSlots"/)
       expect(payloadJson).not.toMatch(/"upcomingAppointments"/)
       expect(built.agendaFacts).not.toBeNull()
-      expect(built.agendaFacts!.freeSlots.length).toBeGreaterThanOrEqual(0)
+      const freeCount = built.agendaFacts!.freeSlots.reduce((n, d) => n + d.times.length, 0)
+      expect(freeCount).toBeGreaterThan(10)
+      expect(built.agendaFacts!.upcomingAppointments).toHaveLength(1)
+      const upcomingWhen = built.agendaFacts!.upcomingAppointments[0]!.when
+      expect(upcomingWhen).toMatch(/\d{1,2}:\d{2}/)
+      expect(upcomingWhen).toMatch(/\d{2}\/\d{2}/)
+      const leakedSlotTimes = built.agendaFacts!.freeSlots.flatMap((d) => d.times)
+      expect(leakedSlotTimes.length).toBeGreaterThan(10)
 
-      const adapter = new SimulatedAiAdapter()
+      const bodies: Array<{ system: string; messages: Array<{ content: string }> }> = []
+      const adapter = new AiGatewayAnthropicAdapter({
+        accountId: 'acc',
+        gatewayId: 'gw',
+        gatewayToken: 'test-token',
+        fetchImpl: (async (_url: string, init: RequestInit) => {
+          bodies.push(JSON.parse(String(init.body)))
+          return new Response(
+            JSON.stringify({
+              content: [{ type: 'text', text: '{"mensagem":"ok","notas":""}' }],
+              usage: { input_tokens: 100, output_tokens: 20 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          )
+        }) as unknown as typeof fetch,
+      })
       await suggestReplyOp(
         db,
-        seeded.caller,
+        caller,
         {
-          conversationId: seeded.conversationId,
-          clientRequestId: 'req-dec118',
-          actorClerkUserId: seeded.caller.actorId!,
+          conversationId: cnv.id,
+          clientRequestId: 'req-dec118-cf27',
+          actorClerkUserId: caller.actorId!,
           actorDisplayName: 'Atendente',
         },
         clock,
-        { mode: 'synthetic', adapter },
+        { mode: 'gateway', adapter },
       )
-      const insp = adapter.lastInspection()
-      const blob = JSON.stringify(insp)
-      expect(blob).not.toMatch(/"freeSlots"/)
-      expect(blob).not.toMatch(/"upcomingAppointments"/)
-      expect(blob).not.toMatch(/Horários livres/)
+      expect(bodies).toHaveLength(1)
+      const raw = `${bodies[0]!.system}\n${bodies[0]!.messages[0]!.content}`
+      // Excluir só «Agora: …» e expediente — resto do corpo não pode ter HH:MM da agenda.
+      const scrubbed = raw
+        .split('\n')
+        .filter((line) => !line.includes('Agora:') && !line.includes('Horário de funcionamento:'))
+        .join('\n')
+      expect(scrubbed).not.toMatch(/\b\d{1,2}:\d{2}\b/)
+      expect(scrubbed).not.toContain(upcomingWhen)
+      // Data do compromisso (ex.: 30/10) não pode aparecer fora das linhas excluídas.
+      expect(scrubbed).not.toMatch(/\b30\/10\b/)
+      expect(JSON.stringify(bodies[0])).not.toMatch(/"freeSlots"/)
+      expect(JSON.stringify(bodies[0])).not.toMatch(/"upcomingAppointments"/)
+      for (const t of leakedSlotTimes) {
+        expect(scrubbed).not.toContain(t)
+      }
     } finally {
       close()
     }
