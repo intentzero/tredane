@@ -60,4 +60,48 @@ describe('AiGatewayAnthropicAdapter', () => {
       expect(result.outputTokens).toBe(4)
     }
   })
+
+  it('extrai tool_use e envia cache_control no bloco estável (#416)', async () => {
+    let captured: { system?: unknown; tools?: Array<{ cache_control?: { type: string } }> } = {}
+    const pending = adapter(async (_url, init) => {
+      captured = JSON.parse(String(init?.body ?? '{}')) as typeof captured
+      return new Response(
+        JSON.stringify({
+          content: [
+            {
+              type: 'tool_use',
+              name: 'extract_turn_slots',
+              input: { acts: ['marcar'], serviceId: 'svc_a' },
+            },
+          ],
+          usage: { input_tokens: 10, output_tokens: 5 },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )
+    })
+    const result = await pending.generate({
+      ...input(1_000),
+      profile: 'extract',
+      systemPromptOverride: 'stable',
+      userContentOverride: 'turno',
+      promptCache: true,
+      tools: [
+        {
+          name: 'extract_turn_slots',
+          description: 'x',
+          input_schema: { type: 'object', properties: {} },
+        },
+      ],
+      toolChoice: { type: 'tool', name: 'extract_turn_slots' },
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.toolName).toBe('extract_turn_slots')
+      expect(JSON.parse(result.text)).toEqual({ acts: ['marcar'], serviceId: 'svc_a' })
+    }
+    expect(captured.system).toEqual([
+      { type: 'text', text: 'stable', cache_control: { type: 'ephemeral' } },
+    ])
+    expect(captured.tools?.[0]?.cache_control).toEqual({ type: 'ephemeral' })
+  })
 })

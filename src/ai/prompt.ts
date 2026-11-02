@@ -1,3 +1,8 @@
+/**
+ * Prompt monolítico de resposta — **só** sugestões pedidas no painel (DEC-063 / DEC-104)
+ * e o resumo para a equipe. O atendimento automático (#416 / M6) usa o extrator
+ * (`extractor-prompt.ts`) e o redator de exceção (`exception-prompt.ts`).
+ */
 import type { AiContextPayload, AiGenerateInput } from './types'
 import { sanitizeUntrusted, UNTRUSTED_MAX_MESSAGE_CHARS } from './untrusted'
 
