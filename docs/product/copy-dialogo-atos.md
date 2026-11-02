@@ -248,3 +248,20 @@ Estas frases literais continuam no código e **não** estão nesta leva:
 ## Como aprovar
 
 O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a leva 3, o processo é o mesmo: o PR traz a secção «Copy para aprovação do Paulo»; a aprovação fica registada numa DEC nova; só depois a engenharia liga as redações aos fluxos (#448).
+
+## Rótulos fixos do M5 (listas e botões) — Proposto
+
+**Estado:** **Proposto** (DEC-133). Entraram no código com o #479 (M5) sem aprovação do Paulo (DEC-104). Com a flag `AI_INTERACTIVE_CHOICES` desligada por defeito, **nenhum chega à cliente**. Antes de ligar a flag, o Paulo aprova ou ajusta cada um. O texto da pergunta que acompanha a lista ou os botões é o das levas 1 e 2 (já aprovado); só mudam os rótulos abaixo.
+
+| Onde | Rótulo proposto | Limite Meta (a confirmar na documentação vigente) | Observação |
+| --- | --- | --- | --- |
+| Botão da pergunta da linha | `Feminina` | título ≤ 20 | usa a palavra do cadastro das variantes |
+| Botão da pergunta da linha | `Masculina` | título ≤ 20 | idem |
+| Lista de variantes: botão que abre a lista | `Opções` | ≤ 20 | o tipo da variante (zona, área…) é texto livre da owner; `Opções` é neutro |
+| Lista de variantes: linha que escolhe tudo | `Todas` | linha ≤ 24 | |
+| Lista de horários: botão que abre a lista | `Horários` | ≤ 20 | |
+| Lista de horários: título de cada linha | dinâmico, `06/11 09:00` | linha ≤ 24 | vem dos horários reais do grafo |
+| Lista de variantes: título de cada linha | dinâmico, o nome da variante | linha ≤ 24 | cortado em 24 caracteres; um nome longo pode perder o fim |
+
+**Em aberto:** o corte em 24 caracteres pode truncar nomes longos de variante («Axila e pernas (feminina)» tem 25). Opções: aceitar o corte, ou mostrar o nome inteiro na descrição da linha. Responsável: Paulo. Bloqueia a ativação da flag.
+
