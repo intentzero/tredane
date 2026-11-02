@@ -38,7 +38,11 @@ import {
   handoffReason,
   notifyHumanHandoff,
 } from './human-handoff'
-import { decideMediaOnlyTurn, MEDIA_ASK_TEXT } from './media-ask-text'
+import {
+  decideMediaOnlyTurn,
+  markMediaAskTextAsked,
+  MEDIA_ASK_TEXT,
+} from './media-ask-text'
 import { notifyModelFallback } from './model-fallback'
 import {
   classifySensitive,
@@ -353,7 +357,7 @@ export async function runDueAutoDrafts(
         tenantId,
         {
           conversationId: job.conversationId,
-          reason: 'off_purpose',
+          reason: mediaDecision.reason,
           clientRequestId: `ai-media-handoff:${job.messageId}`,
         },
         clock,
@@ -383,6 +387,10 @@ export async function runDueAutoDrafts(
             clientRequestId: `ai-media-ask:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            afterPersist: (ctx) => {
+              markMediaAskTextAsked(ctx.db, ctx.tenantId, ctx.conversationId, ctx.now)
+              return []
+            },
           },
           clock,
         )
@@ -395,7 +403,7 @@ export async function runDueAutoDrafts(
         ...job,
         status: 'skipped',
         suggestion: null,
-        reason: 'catalog_reply',
+        reason: 'media_ask_text',
         replyOutbox,
       })
       continue

@@ -41,7 +41,14 @@ export const HUMAN_HANDOFF_BUTTON_TITLE = 'Falar com a equipe'
 export const AI_TRANSPARENCY_TEXT =
   'Sou a assistente virtual da clínica. Se preferir, chamo a equipe.'
 
-export type AiReplyPauseReason = 'customer_requested' | 'off_purpose' | 'human_only'
+export type AiReplyPauseReason =
+  | 'customer_requested'
+  | 'off_purpose'
+  | 'human_only'
+  /** Comprovativo de pagamento (DEC-119 / #475). */
+  | 'payment_proof'
+  /** Segunda mídia após pedido de texto (DEC-119 / #475). */
+  | 'media_after_ask'
 
 const WEEKDAYS = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
 
@@ -354,7 +361,11 @@ export function notifyHumanHandoff(
         ? 'A cliente pediu atendimento humano.'
         : input.reason === 'human_only'
           ? 'Pedido que a IA não cumpre (cancelar, terceiro ou profissional fora do serviço). A equipe continua.'
-          : 'A mensagem saiu do agendamento. A IA ficou pausada.'
+          : input.reason === 'payment_proof'
+            ? 'Possível comprovativo de pagamento (imagem ou documento). A equipe confirma.'
+            : input.reason === 'media_after_ask'
+              ? 'A cliente enviou outra mídia depois do pedido para escrever. A equipe continua.'
+              : 'A mensagem saiu do agendamento. A IA ficou pausada.'
     openPendingCommunication(
       db,
       {

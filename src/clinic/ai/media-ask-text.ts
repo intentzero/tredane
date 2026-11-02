@@ -81,20 +81,40 @@ export function isMediaOnlyMessage(
   return false
 }
 
+/**
+ * Facto «já pedi texto por mídia» — coluna `conversations.media_ask_text_at` (#475 S3).
+ * Não lê o corpo outbound (CF-22 / ADR-0015).
+ * Expiração: Em aberto — aguarda Paulo (opções A/B/C na #475; recomendação provisória B).
+ */
 export function conversationAlreadyAskedMediaText(
   db: ClinicDb,
   tenantId: string,
   conversationId: string,
 ): boolean {
-  const row = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM messages
-     WHERE tenant_id = ? AND conversation_id = ?
-       AND direction = 'outbound' AND body = ?`,
+  const row = db.get<{ at: number | null }>(
+    `SELECT media_ask_text_at AS at FROM conversations
+     WHERE tenant_id = ? AND id = ?`,
     tenantId,
     conversationId,
-    MEDIA_ASK_TEXT,
   )
-  return (row?.n ?? 0) > 0
+  return row?.at != null
+}
+
+/** Grava o facto na mesma TX do envio (após persistir a mensagem). */
+export function markMediaAskTextAsked(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  atMs: number,
+): void {
+  db.run(
+    `UPDATE conversations SET media_ask_text_at = ?, updated_at = ?
+     WHERE tenant_id = ? AND id = ? AND media_ask_text_at IS NULL`,
+    atMs,
+    atMs,
+    tenantId,
+    conversationId,
+  )
 }
 
 export function contactHasRecentPix(
