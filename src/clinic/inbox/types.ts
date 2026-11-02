@@ -215,6 +215,16 @@ export type SendOutboundInteractiveInput = {
   buttons: SendOutboundInteractiveButton[]
 }
 
+export type SendOutboundAfterPersistCtx = {
+  /** ClinicDb já dentro de transactionSync — não abrir outra TX. */
+  db: import('../store').ClinicDb
+  tenantId: string
+  conversationId: string
+  messageId: string
+  outboundId: string
+  now: number
+}
+
 export type SendOutboundInput = {
   conversationId: string
   /** Texto livre — só permitido com janela 24 h aberta. */
@@ -234,6 +244,12 @@ export type SendOutboundInput = {
    * Origem da sugestão. O rascunho automático envia sozinho; o clique em Enviar continua válido.
    */
   aiSuggestionId?: string | null
+  /**
+   * ADR-0015 / #412: corre dentro do mesmo `transactionSync` após inserir
+   * mensagem + outbound. Sem HTTP/Queues/R2 nem novo `transactionSync`.
+   * Usado para gravar BookingFrame + `booking_frame.updated` na mesma TX.
+   */
+  afterPersist?: (ctx: SendOutboundAfterPersistCtx) => import('../outbox').OutboxRow[]
 }
 
 export type InboxCounts = {

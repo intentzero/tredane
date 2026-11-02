@@ -21,6 +21,11 @@ import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import { tryAiAutoBook, type AutoBookOutcome } from './autobook'
 import { catalogReply } from './catalog-reply'
+import {
+  createDeferredBookingFrame,
+  type DeferredBookingFrame,
+} from './deferred-booking-frame'
+import type { SendOutboundInput } from '../inbox/types'
 import { autodraftDebounceMs } from './debounce'
 import { logPolicyShadow } from './policy-shadow'
 import {
@@ -47,6 +52,16 @@ import { emitTurnDecided, routeFromAutodraftOutcome } from './turn-decided'
 import { loadTurnContext } from './turn-context'
 import { getAiDailyUsage } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
+
+/** ADR-0015: anexa afterPersist do frame diferido ao envio outbound. */
+function withDeferredFrame(
+  input: SendOutboundInput,
+  deferred: DeferredBookingFrame | undefined,
+  clock: Clock,
+): SendOutboundInput {
+  if (!deferred?.hasWork) return input
+  return { ...input, afterPersist: deferred.toAfterPersist(clock) }
+}
 
 export const AUTODRAFT_ACTOR_ID = 'system:ai-autodraft'
 const AUTODRAFT_ACTOR_NAME = 'IA'
@@ -333,14 +348,18 @@ export async function runDueAutoDrafts(
             const sent = sendOutboundMessageOp(
               db,
               caller,
-              {
-                conversationId: job.conversationId,
-                body: reschedule.replyText,
-                interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
-                clientRequestId: `ai-reschedule:${job.messageId}`,
-                authorClerkUserId: AUTODRAFT_ACTOR_ID,
-                authorDisplayName: AUTODRAFT_ACTOR_NAME,
-              },
+              withDeferredFrame(
+                {
+                  conversationId: job.conversationId,
+                  body: reschedule.replyText,
+                  interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+                  clientRequestId: `ai-reschedule:${job.messageId}`,
+                  authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                  authorDisplayName: AUTODRAFT_ACTOR_NAME,
+                },
+                reschedule.deferredFrame,
+                clock,
+              ),
               clock,
             )
             replyOutbox = [...replyOutbox, ...sent.outbox]
@@ -394,14 +413,18 @@ export async function runDueAutoDrafts(
             const sent = sendOutboundMessageOp(
               db,
               caller,
-              {
-                conversationId: job.conversationId,
-                body: cont.replyText,
-                interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
-                clientRequestId: `ai-reschedule:${job.messageId}`,
-                authorClerkUserId: AUTODRAFT_ACTOR_ID,
-                authorDisplayName: AUTODRAFT_ACTOR_NAME,
-              },
+              withDeferredFrame(
+                {
+                  conversationId: job.conversationId,
+                  body: cont.replyText,
+                  interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+                  clientRequestId: `ai-reschedule:${job.messageId}`,
+                  authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                  authorDisplayName: AUTODRAFT_ACTOR_NAME,
+                },
+                cont.deferredFrame,
+                clock,
+              ),
               clock,
             )
             replyOutbox = [...replyOutbox, ...sent.outbox]
@@ -539,9 +562,11 @@ export async function runDueAutoDrafts(
       })
       continue
     }
+    const catalogDeferred = createDeferredBookingFrame()
     const catalogText = catalogReply(db, tenantId, turnText, clock, {
       conversationId: job.conversationId,
       turn,
+      deferredFrame: catalogDeferred,
     })
     if (catalogText) {
       let replyOutbox: OutboxRow[] = []
@@ -549,14 +574,18 @@ export async function runDueAutoDrafts(
         const sent = sendOutboundMessageOp(
           db,
           caller,
-          {
-            conversationId: job.conversationId,
-            body: catalogText,
-            interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
-            clientRequestId: `ai-catalog:${job.messageId}`,
-            authorClerkUserId: AUTODRAFT_ACTOR_ID,
-            authorDisplayName: AUTODRAFT_ACTOR_NAME,
-          },
+          withDeferredFrame(
+            {
+              conversationId: job.conversationId,
+              body: catalogText,
+              interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+              clientRequestId: `ai-catalog:${job.messageId}`,
+              authorClerkUserId: AUTODRAFT_ACTOR_ID,
+              authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            },
+            catalogDeferred,
+            clock,
+          ),
           clock,
         )
         replyOutbox = sent.outbox
@@ -826,17 +855,21 @@ export async function runDueAutoDrafts(
         const sent = sendOutboundMessageOp(
           db,
           caller,
-          {
-            conversationId: job.conversationId,
-            body: draftText,
-            interactive: deterministicReply
-              ? null
-              : { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
-            clientRequestId: `ai-reply:${suggestion.id}`,
-            authorClerkUserId: AUTODRAFT_ACTOR_ID,
-            authorDisplayName: AUTODRAFT_ACTOR_NAME,
-            aiSuggestionId: suggestion.id,
-          },
+          withDeferredFrame(
+            {
+              conversationId: job.conversationId,
+              body: draftText,
+              interactive: deterministicReply
+                ? null
+                : { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+              clientRequestId: `ai-reply:${suggestion.id}`,
+              authorClerkUserId: AUTODRAFT_ACTOR_ID,
+              authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              aiSuggestionId: suggestion.id,
+            },
+            autoBook?.deferredFrame,
+            clock,
+          ),
           clock,
         )
         replyOutbox = sent.outbox

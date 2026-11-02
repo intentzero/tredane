@@ -133,7 +133,7 @@ Componentes:
 
 ### 3.3 Estado do diálogo (frame persistente)
 
-O frame substitui o *modelo* parcial de `schedule_sessions` e a releitura do histórico; a tabela SQL **mantém** o nome `schedule_sessions` com tipo/acessores `BookingFrame` / `getBookingFrame`. É uma linha por conversa, gravada na mesma transação que a mensagem de saída. Quando o frame muda, o painel recebe o evento WebSocket `booking_frame.updated` (só membros do tenant/clínica). Desenho de engenharia e migração: [ADR-0015](../adr/0015-estado-persistente-da-conversa.md) (**Confirmado**, Paulo, chat Project 02/11/2026; regras de produto na DEC-127). A **implementação** M2 está no código (`0049_booking_frame`, `getBookingFrame`); contrato:
+O frame substitui o *modelo* parcial de `schedule_sessions` e a releitura do histórico; a tabela SQL **mantém** o nome `schedule_sessions` com tipo/acessores `BookingFrame` / `getBookingFrame`. É uma linha por conversa, gravada na mesma transação que a mensagem de saída. Quando o frame muda, o painel recebe o evento WebSocket `booking_frame.updated` (só membros do tenant/clínica). Desenho de engenharia e migração: [ADR-0015](../adr/0015-estado-persistente-da-conversa.md) (**Confirmado**, Paulo, chat Project 02/11/2026; regras de produto na DEC-127). A **implementação** M2 está no código (`0049_booking_frame`, `getBookingFrame`, same-TX via `afterPersist`); contrato:
 
 ```ts
 type BookingFrame = {

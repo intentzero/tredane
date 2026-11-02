@@ -74,7 +74,11 @@ function systemCaller(tenantId: string): ClinicCaller {
 export function sendProposalToWhatsAppOp(
   db: ClinicDb,
   caller: ClinicCaller,
-  input: { proposalId: string },
+  input: {
+    proposalId: string
+    /** ADR-0015: BookingFrame na mesma TX do envio da proposta. */
+    afterPersist?: import('../inbox/types').SendOutboundInput['afterPersist']
+  },
   clock: Clock,
 ): SendProposalResult {
   assertClinicSchemaReady(db)
@@ -198,6 +202,7 @@ export function sendProposalToWhatsAppOp(
         clientRequestId,
         authorClerkUserId: PROPOSAL_SEND_ACTOR,
         authorDisplayName: PROPOSAL_SEND_ACTOR_DISPLAY,
+        ...(input.afterPersist ? { afterPersist: input.afterPersist } : {}),
       },
       clock,
     )

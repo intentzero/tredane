@@ -149,16 +149,17 @@ Segue [AGENTS.md](../../AGENTS.md) e o ADR-0012: um DO por clínica **não** iso
 | 4 | Copy pós-migração (DEC-127.4) | Reusar acto `perguntar_dia` (DEC-122/123). Sem frase nova. | **Confirmado** |
 | 5 | Estado do ADR | Opção A — promover o ADR inteiro a **Confirmado**. | **Confirmado** |
 
-Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migração 49, sombra, cutover) está entregue no PR de #412; com cutover activo, `zonesOfferedToClient` e `RESCHEDULE_OFFER_MARKER` **deixam de autorizar** (só o frame: `lastOffer` / `pending` / `date`); o marker pode permanecer na copy outbound e na sombra.
+Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migração 49, sombra, cutover) está entregue no PR de #412; com cutover activo, `zonesOfferedToClient` e `RESCHEDULE_OFFER_MARKER` **deixam de autorizar** (só o frame: `lastOffer` / `pending` / `date`); o marker pode permanecer na copy outbound e na sombra. **Same-TX implementada:** o frame (e `booking_frame.updated`) grava-se na mesma `transactionSync` que a mensagem de saída e o outbox (`SendOutboundInput.afterPersist` / `DeferredBookingFrame`); `pending.messageId` / `lastOffer.messageId` são o id da mensagem outbound desse turno.
 
 ## Consequências e riscos
 
 | Item | Estado | Nota |
 | --- | --- | --- |
-| Desbloqueia implementação M2 (#412) | **Confirmado** | Desenho aprovado; código/migração ainda por fazer. |
-| Elimina `day_label` relativo como SoT | **Confirmado** (desenho) | Corrige CF-21 na raiz quando a M2 implementar. |
-| Elimina regex sobre texto outbound como SoT da oferta | **Confirmado** (desenho) | Corrige CF-22; `zonesOfferedToClient` / `RESCHEDULE_OFFER_MARKER` deixam de autorizar escolha após cutover. |
-| Migração por DO (risco médio) | **Confirmado** (plano) | Teste de upgrade desde schema 48 (ou o último no PR); tabela continua `schedule_sessions`; execução pendente. |
+| Desbloqueia implementação M2 (#412) | **Confirmado** | Desenho aprovado; código/migração/cutover/same-TX entregues. |
+| Elimina `day_label` relativo como SoT | **Confirmado** | Corrige CF-21; data absoluta no frame. |
+| Elimina regex sobre texto outbound como SoT da oferta | **Confirmado** | Corrige CF-22; `zonesOfferedToClient` / `RESCHEDULE_OFFER_MARKER` deixam de autorizar escolha após cutover. |
+| Migração por DO (risco médio) | **Confirmado** | Upgrade schema 48→49 testado; tabela continua `schedule_sessions`. |
+| Same-TX frame + mensagem + outbox | **Confirmado** (implementado) | `afterPersist` em `sendOutboundMessageOp`; testes de commit e rollback. |
 | Sessões abertas perdem o dia relativo | **Confirmado** (DEC-127) | Uma pergunta de dia via `perguntar_dia`; resto preservado. |
 | Dual-path durante sombra | **Confirmado** (plano de rollout) | Custo de manutenção temporário; cortar o path antigo no cutover. |
 | Evento WS `booking_frame.updated` | **Confirmado** | MVP; isolamento por tenant/clínica. |

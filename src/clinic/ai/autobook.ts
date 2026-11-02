@@ -56,7 +56,6 @@ import {
 } from './schedule-choice'
 import {
   getBookingFrame,
-  getScheduleSession,
   saveScheduleLine,
   saveScheduleSession,
   scheduleFactsFromText,
@@ -82,43 +81,31 @@ import {
   matchPendingChoice,
 } from './booking-frame-choice'
 import { BOOKING_FRAME_CUTOVER, logBookingFrameShadow } from './booking-frame-shadow'
+import {
+  createDeferredBookingFrame,
+  offerFramePatch,
+  type DeferredBookingFrame,
+} from './deferred-booking-frame'
 
-/** Persiste pending + lastOffer após oferta de horários (CF-22 / ADR-0015). */
+/** Acumula pending + lastOffer da oferta (CF-22); commit na TX do outbound (ADR-0015). */
 function rememberOfferFrame(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
+  deferred: DeferredBookingFrame,
   serviceId: string,
   slots: OfferedSlot[],
   professionalId: string | undefined,
-  clock: Clock,
-  /** messageId ainda não existe no envio — usa placeholder estável do turno; autodraft pode refrescar. */
-  offerMessageId: string,
 ): void {
   if (slots.length === 0) return
-  const options = slots.map((s) => ({
-    key: s.time,
-    label: `${s.date} às ${s.time}`,
-  }))
-  saveScheduleSession(
-    db,
-    tenantId,
-    conversationId,
-    {
+  deferred.save(
+    offerFramePatch({
       serviceId,
-      // Não gravar date a partir da oferta: só a cliente (ou resolução absoluta) fixa o dia.
-      clockTime: null,
       phase: 'ofertado',
-      pending: { slot: 'horario', options, messageId: offerMessageId },
-      lastOffer: {
-        slots: slots.map((s) => ({
-          startsAt: s.startsAt,
-          professionalId: professionalId ?? '',
-        })),
-        messageId: offerMessageId,
-      },
-    },
-    clock,
+      slots: slots.map((s) => ({
+        startsAt: s.startsAt,
+        professionalId: professionalId ?? '',
+        time: s.time,
+        date: s.date,
+      })),
+    }),
   )
 }
 
@@ -154,6 +141,8 @@ export type AutoBookOutcome = {
   replyText?: string
   notes?: string
   outbox: OutboxRow[]
+  /** Frame a gravar na mesma TX do outbound (ADR-0015). */
+  deferredFrame?: DeferredBookingFrame
 }
 
 const WEEKDAY_LABEL = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
@@ -406,6 +395,20 @@ export async function tryAiAutoBook(
   },
 ): Promise<AutoBookOutcome> {
   const tenantId = caller.tenantId
+  const deferred = createDeferredBookingFrame()
+  const saveSession = (patch: Parameters<typeof saveScheduleSession>[3]) => {
+    deferred.save(patch)
+  }
+  const finish = (outcome: AutoBookOutcome): AutoBookOutcome => {
+    if (!deferred.hasWork) return outcome
+    const willSend =
+      Boolean(outcome.replyText?.trim()) || Boolean(outcome.proposalId)
+    if (willSend) {
+      return { ...outcome, deferredFrame: deferred }
+    }
+    deferred.flushNow(db, tenantId, input.conversationId, clock)
+    return outcome
+  }
   const none = (status: AutoBookStatus, extra: Partial<AutoBookOutcome> = {}): AutoBookOutcome => ({
     status,
     missing: [],
@@ -413,12 +416,12 @@ export async function tryAiAutoBook(
     outbox: [],
     ...extra,
   })
-  if (input.enabled === false) return none('disabled')
+  if (input.enabled === false) return finish(none('disabled'))
   // Proteção (#182): contato bloqueado ou conversa em pausa → nenhuma ação nova.
   const guard = checkConversationProtection(db, tenantId, input.conversationId)
-  if (!guard.allowed) return none('blocked', { notes: `Ação automática negada (${guard.reason}).` })
+  if (!guard.allowed) return finish(none('blocked', { notes: `Ação automática negada (${guard.reason}).` }))
   const conv = getConversation(db, tenantId, input.conversationId)
-  if (!conv) return none('not_confirmed')
+  if (!conv) return finish(none('not_confirmed'))
   const settings = input.turn?.settings ?? ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
 
@@ -452,13 +455,13 @@ export async function tryAiAutoBook(
       } else if (clientTurn.length > 0) {
         prevClinic = m
       } else {
-        return none('not_confirmed') // a clínica falou por último
+        return finish(none('not_confirmed')) // a clínica falou por último
       }
     } else {
       older.push(m)
     }
   }
-  if (clientTurn.length === 0) return none('not_confirmed')
+  if (clientTurn.length === 0) return finish(none('not_confirmed'))
   clientTurn.reverse()
   const confirmation = clientTurn[clientTurn.length - 1]!
 
@@ -484,18 +487,12 @@ export async function tryAiAutoBook(
         proposed: { action: 'ask_again_expired' },
       })
       if (frameEarly.serviceId) {
-        saveScheduleSession(
-          db,
-          tenantId,
-          input.conversationId,
-          {
+        saveSession({
             serviceId: frameEarly.serviceId,
             pending: null,
             lastOffer: null,
             phase: 'coletando',
-          },
-          clock,
-        )
+          })
       }
     } else {
       const choice = matchPendingChoice(turnText, frameEarly.pending)
@@ -513,7 +510,7 @@ export async function tryAiAutoBook(
         // Catálogo perguntar_horario (#448): fallback alinhado à allowlist; sem frase nova.
         const svc =
           services.find((s) => s.id === frameEarly.serviceId) ?? { name: 'o horário' }
-        return {
+        return finish({
           ...none('needs_info', {
             confirmationMessageId: confirmation.id,
             serviceId: frameEarly.serviceId ?? undefined,
@@ -525,7 +522,7 @@ export async function tryAiAutoBook(
             `Qual horário fica melhor para ${svc.name}?`,
           ),
           notes: 'DEC-127: resposta ambígua/👍 com várias opções — pergunta de volta sem escolher.',
-        }
+        })
       }
     }
   }
@@ -547,13 +544,7 @@ export async function tryAiAutoBook(
           date: clinicCivilDateFromUtc(tz, openProposal.startsAt),
           time: localHHMM(tz, openProposal.startsAt),
         }
-        saveScheduleSession(
-          db,
-          tenantId,
-          input.conversationId,
-          { serviceId: swap.service.id, clockTime: swap.time, date: swap.date },
-          clock,
-        )
+        saveSession({ serviceId: swap.service.id, clockTime: swap.time, date: swap.date })
       }
     }
   }
@@ -565,9 +556,9 @@ export async function tryAiAutoBook(
     clinicToday: clinicCivilDateFromUtc(tz, prevClinic?.created_at ?? confirmation.created_at),
     services,
   })
-  // Sessão: sempre relê (catalogReply / funil podem ter gravado depois do TurnContext).
-  const session = getScheduleSession(db, tenantId, input.conversationId)
-  const frame = getBookingFrame(db, tenantId, input.conversationId)
+  // Sessão: overlay do turno (ADR-0015) ou DB se ainda não houve patch.
+  const session = deferred.peekSession(db, tenantId, input.conversationId)
+  const frame = deferred.peekFrame(db, tenantId, input.conversationId)
   let date = det.date
   let missing = [...det.missing]
   if (swap) {
@@ -602,20 +593,14 @@ export async function tryAiAutoBook(
         ? [...extractDates(turnFacts.dayLabel, today)][0] ?? null
         : undefined
     // Novo dia/período invalida pending/lastOffer anteriores (nova oferta a seguir).
-    saveScheduleSession(
-      db,
-      tenantId,
-      input.conversationId,
-      {
+    saveSession({
         serviceId,
         ...(turnFacts.dayLabel ? { dayLabel: turnFacts.dayLabel } : {}),
         ...(turnFacts.period ? { period: turnFacts.period } : {}),
         ...(absolute !== undefined ? { date: absolute } : {}),
         pending: null,
         lastOffer: null,
-      },
-      clock,
-    )
+      })
   }
   if (pendingTimeOverride) {
     const pendingSvc =
@@ -698,20 +683,14 @@ export async function tryAiAutoBook(
         const fromSession = (pool.length > 0 ? pool : active).filter((z) => session.variantIds!.includes(z.id))
         if (fromSession.length === session.variantIds.length) kept = fromSession
       }
-      saveScheduleSession(
-        db,
-        tenantId,
-        input.conversationId,
-        {
+      saveSession({
           serviceId: det.service.id,
           ...(turnExplicit ? { audienceLine: turnExplicit } : {}),
           ...(turnFacts.dayLabel ? { dayLabel: turnFacts.dayLabel } : {}),
           ...(turnFacts.period ? { period: turnFacts.period } : {}),
           ...(clockFromTurn ? { clockTime: clockFromTurn } : {}),
           ...(kept.length > 0 && !chosen.ambiguous ? { variantIds: kept.map((z) => z.id) } : {}),
-        },
-        clock,
-      )
+        })
       const contributed =
         Boolean(clockFromTurn) ||
         zonesNamedInText(turnText, pool.length > 0 ? pool : active).length > 0
@@ -777,14 +756,10 @@ export async function tryAiAutoBook(
               proposed: { action: 'offer_slots', detail: period ? 'period' : date ? 'date' : 'soonest' },
             })
             rememberOfferFrame(
-              db,
-              tenantId,
-              input.conversationId,
+              deferred,
               det.service.id,
               offered.slots,
               preferred,
-              clock,
-              confirmation.id,
             )
             replyText = offered.replyText
           } else {
@@ -808,14 +783,14 @@ export async function tryAiAutoBook(
           )
         }
         const faltam = missing.length ? missing.join(', ') : 'confirmação clara'
-        return {
+        return finish({
           ...none(det.status, base),
           ...(replyText ? { replyText } : {}),
           notes:
             det.status === 'needs_info' || det.status === 'ambiguous'
               ? `Agendamento pela IA não feito: falta/ambíguo (${faltam}). Confirme com a cliente dia, horário e procedimento.`
               : undefined,
-        }
+        })
       }
     } else {
       const booking = resolveBookingObject({
@@ -859,18 +834,12 @@ export async function tryAiAutoBook(
             booking.variantIds.length > 0
               ? active.filter((z) => booking.variantIds.includes(z.id))
               : []
-          saveScheduleSession(
-            db,
-            tenantId,
-            input.conversationId,
-            {
+          saveSession({
               serviceId: svc.id,
               ...(kept.length > 0 ? { variantIds: kept.map((z) => z.id) } : {}),
               ...(turnFacts.dayLabel ? { dayLabel: turnFacts.dayLabel } : {}),
               ...(turnFacts.period ? { period: turnFacts.period } : {}),
-            },
-            clock,
-          )
+            })
           if (active.length > 0 && kept.length === 0) {
             replyText =
               booking.question ??
@@ -911,14 +880,10 @@ export async function tryAiAutoBook(
               proposed: { action: 'offer_slots', detail: date ? 'date' : 'soonest' },
             })
             rememberOfferFrame(
-              db,
-              tenantId,
-              input.conversationId,
+              deferred,
               svc.id,
               offered.slots,
               preferred,
-              clock,
-              confirmation.id,
             )
             replyText = offered.replyText
           }
@@ -926,27 +891,21 @@ export async function tryAiAutoBook(
       } else if (booking.kind === 'clarify' && booking.question) {
         replyText = booking.question
         if (booking.serviceId) {
-          saveScheduleSession(
-            db,
-            tenantId,
-            input.conversationId,
-            {
+          saveSession({
               serviceId: booking.serviceId,
               ...(booking.variantIds.length > 0 ? { variantIds: booking.variantIds } : {}),
-            },
-            clock,
-          )
+            })
         }
       }
       const faltam = missing.length ? missing.join(', ') : 'confirmação clara'
-      return {
+      return finish({
         ...none(det.status, base),
         ...(replyText ? { replyText } : {}),
         notes:
           det.status === 'needs_info' || det.status === 'ambiguous'
             ? `Agendamento pela IA não feito: falta/ambíguo (${faltam}). Confirme com a cliente dia, horário e procedimento.`
             : undefined,
-      }
+      })
     }
   }
   const svc = det.service
@@ -978,13 +937,13 @@ export async function tryAiAutoBook(
   const line = needsAudienceLine(activeZones) ? (turnExplicit ?? carried ?? historyLine) : null
   if (needsAudienceLine(activeZones) && !line) {
     saveScheduleLine(db, tenantId, input.conversationId, svc.id, null, clock)
-    return {
+    return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       replyText: audienceLineQuestion(svc.name, input.conversationId),
       notes:
         `A cliente falou em ${svc.name} sem escolher a linha. Pergunta automática enviada. ` +
         'Não se infere pelo nome, pelo histórico nem por marcações. Texto livre não marca.',
-    }
+    })
   }
   if (line && (turnExplicit || historyLine || carried)) {
     saveScheduleLine(db, tenantId, input.conversationId, svc.id, line, clock)
@@ -1031,25 +990,13 @@ export async function tryAiAutoBook(
     }
   }
   if (namedZones.length > 0 && !ambiguous) {
-    saveScheduleSession(
-      db,
-      tenantId,
-      input.conversationId,
-      {
+    saveSession({
         serviceId: svc.id,
         variantIds: namedZones.map((z) => z.id),
         ...(clockFromTurn ? { clockTime: clockFromTurn } : { clockTime: time }),
-      },
-      clock,
-    )
+      })
   } else if (clockFromTurn || time) {
-    saveScheduleSession(
-      db,
-      tenantId,
-      input.conversationId,
-      { serviceId: svc.id, clockTime: clockFromTurn ?? time },
-      clock,
-    )
+    saveSession({ serviceId: svc.id, clockTime: clockFromTurn ?? time })
   }
   const plural = svc.variantKindPlural?.trim() || ''
   const singular = svc.variantKind?.trim() || ''
@@ -1058,7 +1005,7 @@ export async function tryAiAutoBook(
   const kindForAct = svc.variantKindPlural || svc.variantKind
   if (activeZones.length > 0 && (namedZones.length === 0 || ambiguous)) {
     const names = stableVariantLabelList(scoped.length > 0 ? scoped : activeZones)
-    return {
+    return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
       replyText: askZonesReply(phrase, names, time, input.conversationId, kindForAct),
@@ -1066,15 +1013,15 @@ export async function tryAiAutoBook(
         ? `O nome citado casa com mais de uma ${kind}. Pergunta automática enviada. Não informe valor nem envie proposta.`
         : `A cliente falou em ${svc.name} sem escolher ${kind} (${names.join(', ')}). ` +
           `Pergunta automática enviada. Não informe valor nem «a partir de».`,
-    }
+    })
   }
   if (variantAudiencesConflict(namedZones)) {
-    return {
+    return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       replyText: mixedAudienceReply(input.conversationId),
       notes:
         `As ${kind} escolhidas misturam masculino e feminino. Peça um conjunto compatível. Não informe valor nem envie proposta.`,
-    }
+    })
   }
   let quote
   try {
@@ -1086,7 +1033,7 @@ export async function tryAiAutoBook(
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'erro'
-    return {
+    return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // Não silenciar: o modelo pode ter deixado a mensagem vazia à espera da proposta.
       replyText:
@@ -1101,7 +1048,7 @@ export async function tryAiAutoBook(
           : teamConfirmsSoonReply(svc.name, time, input.conversationId),
       notes:
         `Não deu para calcular ${svc.name}: ${message}. Pergunta/aviso automático enviado. Texto livre não marca.`,
-    }
+    })
   }
   const label = `${svc.name} · ${dayText(date)} às ${time}`
   const found = { ...base, serviceId: svc.id, date, time }
@@ -1158,13 +1105,13 @@ export async function tryAiAutoBook(
           },
           clock,
         )
-        return {
+        return finish({
           ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
           replyText: phraseTempo,
           notes:
             `O horário das ${time} não passa no tempo de ${svc.name}. Frase fixa enviada. ` +
             'A equipe vê o alerta. Texto livre não marca.',
-        }
+        })
       }
     }
     // CF-15 (#413): alternativas por proximidade no mesmo período; sem vaga → próximo dia.
@@ -1198,19 +1145,19 @@ export async function tryAiAutoBook(
         action: replyText.includes('próximo com vaga') ? 'next_day_alts' : 'nearby_alts',
       },
     })
-    return {
+    return finish({
       ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
       replyText,
       notes:
         `A cliente parece confirmar ${label} (horário não livre na agenda). ` +
         'Aviso automático enviado. Texto livre não marca — confirme pelo Agendar se precisar.',
-    }
+    })
   }
 
   if (!input.capability) {
     if (svc.requiresSignal) {
       const amount = signalAmountCents(svc, quote.priceCents)
-      return {
+      return finish({
         ...none('needs_signal', found),
         replyText:
           `Para garantir ${svc.name} na ${dayText(date)} às ${time}, a clínica pede um sinal` +
@@ -1218,16 +1165,16 @@ export async function tryAiAutoBook(
         notes:
           `A cliente confirmou ${label}. Serviço exige sinal: a IA NÃO marcou. ` +
           'Envie a cobrança Pix pelo Agendar (fluxo normal); o compromisso é criado após o pagamento.',
-      }
+      })
     }
-    return {
+    return finish({
       ...none('requires_button', found),
       replyText:
         `Recebi seu pedido de ${svc.name} na ${dayText(date)} às ${time}. Ainda não está marcado: a equipe confirma o horário e já te retorna.`,
       notes:
         `A cliente parece confirmar ${label}. ` +
         'Capacidade pausada: aviso automático enviado; confirme pelo Agendar (fluxo normal).',
-    }
+    })
   }
 
   try {
@@ -1247,15 +1194,22 @@ export async function tryAiAutoBook(
       clock,
       input.abuseLimits ? { abuseLimits: input.abuseLimits } : {},
     )
-    const sent = sendProposalToWhatsAppOp(db, caller, { proposalId: proposal.id }, clock)
+    const afterPersist = deferred.hasWork ? deferred.toAfterPersist(clock) : undefined
+    const sent = sendProposalToWhatsAppOp(
+      db,
+      caller,
+      { proposalId: proposal.id, ...(afterPersist ? { afterPersist } : {}) },
+      clock,
+    )
     const status: AutoBookStatus = svc.requiresSignal ? 'needs_signal' : 'requires_button'
     const delivered = sent.status === 'queued' || sent.status === 'already_sent'
+    if (delivered) deferred.discard()
     const sendNote = delivered
       ? `Proposta ${proposal.id} v${proposal.version} enfileirada/enviada com botão Confirmar. ` +
         'Aguarda o clique da cliente; texto livre («sim») não marca.'
       : `Proposta ${proposal.id} v${proposal.version} preparada, mas envio entregue à equipe ` +
         `(${sent.status}). Texto livre não marca.`
-    return {
+    return finish({
       ...none(status, found),
       proposalId: proposal.id,
       proposalVersion: proposal.version,
@@ -1265,9 +1219,9 @@ export async function tryAiAutoBook(
         : sendFailedText(svc.name, date, time),
       notes: `A cliente parece confirmar ${label}. ${sendNote}`,
       outbox: sent.outbox,
-    }
+    })
   } catch (err) {
-    return {
+    return finish({
       ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
       replyText:
         sendFailedText(svc.name, date, time),
@@ -1275,6 +1229,6 @@ export async function tryAiAutoBook(
         `A cliente parece confirmar ${label}. Falha ao montar/enviar a proposta: ` +
         `${err instanceof Error ? err.message.slice(0, 180) : 'erro'}. ` +
         'Aviso automático enviado — confirme pelo Agendar.',
-    }
+    })
   }
 }
