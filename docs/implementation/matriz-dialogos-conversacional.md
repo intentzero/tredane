@@ -413,3 +413,13 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | L3 | Harness `src/clinic/ai/evals/l3/` — personas P-01–P-10, teto DEC-126 US$ 10. Dry-run amostra P-01/P-06/P-10 verde. |
 | Freeze | prompt `sha256:a35e30d45c7cd609…` **inalterado**; catálogo `scenario.ts` `sha256:db47706b7292b488…` (hash do ficheiro na `main` `b2f1a2d`) |
 | Em aberto | Corrida live L2 completa + κ juiz↔humano (#402); re-correr L2 após #416 |
+
+### Resumo após M6 #416 (02/11/2026) — rebase sobre main pós-#476/#477/#478/#479
+
+| Estado | Contagem / notas |
+| --- | --- |
+| L1 | `npm run test:dialogs` **85** passam · **0** `it.fails`; `npm test` 1648+ |
+| Freeze | prompt `sha256:93cba847b39a23eed6aac5fc88e6a6016dd6f1a9016fcb4f408ddee2f27205ca` (**novo** face à It. 4.4 / #417; comentário M6 no cabeçalho — autodraft já não usa o monolítico); catálogo `scenario.ts` `sha256:db47706b7292b488…` (**inalterado**) |
+| Entrega | [#416](https://github.com/intentzero/tredane/issues/416): extrator tool-use (DEC-109) + redator de exceção (DEC-104/118/120); `cache_control` (CA-05); removido `AI_REPLY_TEMPERATURE` (CA-07) — L2/L3 deixam de passar `temperature` |
+| Aviso #417 | **Re-baseline** do freeze do prompt (a35e30… → 93cba847…); re-correr L2 live após merge |
+| Em aberto | Medição EE-06 do caching; live L2 + κ (#402) |

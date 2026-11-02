@@ -27,6 +27,7 @@ export type AiGatewayConfig = {
 /**
  * Claude via Cloudflare AI Gateway (DEC-011 / S8 #179).
  * `cf-aig-collect-log-payload: false` + `cf-aig-skip-cache: true`.
+ * #416: tool use (extrator) + cache_control no bloco estável (CA-05).
  * Evidência dashboard / contrato = GATE-06 Em aberto.
  */
 export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
@@ -50,8 +51,8 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
       (input.kind === 'summary'
         ? (this.#cfg.summaryModel ?? AI_MODEL_SUMMARY_PROPOSED)
         : (this.#cfg.replyModel ?? AI_MODEL_REPLY_PROPOSED))
-    const systemPrompt = buildSystemPrompt(input)
-    const userContent = buildUserContent(input)
+    const systemPrompt = input.systemPromptOverride ?? buildSystemPrompt(input)
+    const userContent = input.userContentOverride ?? buildUserContent(input)
     const urlPath = `/v1/${this.#cfg.accountId}/${this.#cfg.gatewayId}/anthropic/v1/messages`
     const url = `https://gateway.ai.cloudflare.com${urlPath}`
 
@@ -61,6 +62,7 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
       // Confirmado como intenção de produto (DEC-011); evidência GATE-06 Em aberto.
       'cf-aig-collect-log-payload': 'false',
       // S8 (#179): respostas personalizadas não devem ser reutilizadas entre pedidos.
+      // Prompt caching Anthropic (cache_control) é independente deste header.
       'cf-aig-skip-cache': 'true',
       'anthropic-version': '2023-06-01',
     }
@@ -74,6 +76,9 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
       systemPrompt,
       userContent,
       maxTokens: input.maxOutputTokens,
+      profile: input.profile,
+      tools: input.tools,
+      promptCache: input.promptCache,
       headers: {
         'cf-aig-collect-log-payload': 'false',
         'cf-aig-skip-cache': 'true',
@@ -81,6 +86,36 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
         'x-tredane-ai-mode': 'gateway',
       },
       context: input.context,
+    }
+
+    const systemPayload = input.promptCache
+      ? [
+          {
+            type: 'text',
+            text: systemPrompt,
+            cache_control: { type: 'ephemeral' },
+          },
+        ]
+      : systemPrompt
+
+    const body: Record<string, unknown> = {
+      model,
+      max_tokens: input.maxOutputTokens,
+      system: systemPayload,
+      messages: [{ role: 'user', content: userContent }],
+    }
+    if (input.tools && input.tools.length > 0) {
+      const tools: Array<Record<string, unknown>> = input.tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.input_schema,
+      }))
+      if (input.promptCache) {
+        const last = tools[tools.length - 1]!
+        last.cache_control = { type: 'ephemeral' }
+      }
+      body.tools = tools
+      if (input.toolChoice) body.tool_choice = input.toolChoice
     }
 
     const started = Date.now()
@@ -97,15 +132,7 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
           method: 'POST',
           headers,
           signal: controller.signal,
-          body: JSON.stringify({
-            model,
-            max_tokens: input.maxOutputTokens,
-            // Sem `temperature`: claude-haiku-5-5 / claude-sonnet-5-5 respondem 400
-            // «`temperature` is deprecated for this model» → toda sugestão falhava
-            // (provider_unavailable) em staging.
-            system: systemPrompt,
-            messages: [{ role: 'user', content: userContent }],
-          }),
+          body: JSON.stringify(body),
         }),
         timeoutMs,
         controller,
@@ -136,7 +163,8 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
       }
 
       const data: unknown = await res.json()
-      const text = extractAnthropicText(data)
+      const tool = extractAnthropicToolUse(data)
+      const text = tool?.inputJson ?? extractAnthropicText(data)
       if (!text) {
         return {
           ok: false,
@@ -158,6 +186,7 @@ export class AiGatewayAnthropicAdapter implements AiProviderAdapter {
         latencyMs,
         inputTokens: usage.input,
         outputTokens: usage.output,
+        toolName: tool?.name ?? null,
       }
     } catch (err) {
       const latencyMs = Date.now() - started
@@ -228,6 +257,33 @@ function extractAnthropicText(data: unknown): string | null {
   }
   const joined = parts.join('\n').trim()
   return joined.length > 0 ? joined : null
+}
+
+function extractAnthropicToolUse(
+  data: unknown,
+): { name: string; inputJson: string } | null {
+  if (!data || typeof data !== 'object') return null
+  const content = (data as { content?: unknown }).content
+  if (!Array.isArray(content)) return null
+  for (const block of content) {
+    if (
+      block &&
+      typeof block === 'object' &&
+      (block as { type?: string }).type === 'tool_use' &&
+      typeof (block as { name?: unknown }).name === 'string'
+    ) {
+      const input = (block as { input?: unknown }).input
+      try {
+        return {
+          name: (block as { name: string }).name,
+          inputJson: JSON.stringify(input ?? {}),
+        }
+      } catch {
+        return null
+      }
+    }
+  }
+  return null
 }
 
 function extractUsage(data: unknown): { input: number | null; output: number | null } {

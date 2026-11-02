@@ -56,15 +56,17 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
   async generate(input: AiGenerateInput): Promise<AiGenerateResult> {
     const model =
       input.model ?? (input.kind === 'summary' ? AI_MODEL_SUMMARY_PROPOSED : AI_MODEL_REPLY_PROPOSED)
-    const systemPrompt = buildSystemPrompt(input)
-    const userContent = buildUserContent(input)
+    const systemPrompt = input.systemPromptOverride ?? buildSystemPrompt(input)
+    const userContent = input.userContentOverride ?? buildUserContent(input)
     this.#last = {
       urlPath: '/synthetic/ai/v1/messages',
       model: `${AI_PROVIDER_SYNTHETIC}/${model}`,
       systemPrompt,
       userContent,
       maxTokens: input.maxOutputTokens,
-      ...(input.temperature != null ? { temperature: input.temperature } : {}),
+      profile: input.profile,
+      tools: input.tools,
+      promptCache: input.promptCache,
       headers: {
         'cf-aig-collect-log-payload': 'false',
         'cf-aig-skip-cache': 'true',
@@ -108,20 +110,79 @@ export class SimulatedAiAdapter implements AiProviderAdapter {
       }
     }
 
+    if (input.profile === 'extract' || (input.tools && input.tools.length > 0)) {
+      const text = this.#buildExtract(input, userContent)
+      return {
+        ok: true,
+        text,
+        provider: this.providerId,
+        model,
+        latencyMs: latency,
+        inputTokens: Math.ceil((systemPrompt.length + userContent.length) / 4),
+        outputTokens: Math.ceil(text.length / 4),
+        toolName: input.tools?.[0]?.name ?? 'extract_turn_slots',
+      }
+    }
+
     const text =
       input.kind === 'summary'
         ? this.#buildSummary(input)
         : this.#buildReply(input)
 
+    // Exception / reply: formato JSON esperado pelo guard.
+    const wrapped =
+      input.profile === 'exception' || input.kind === 'reply'
+        ? JSON.stringify({ mensagem: text, notas: '' })
+        : text
+
     return {
       ok: true,
-      text,
+      text: input.kind === 'summary' ? text : wrapped,
       provider: this.providerId,
       model,
       latencyMs: latency,
       inputTokens: Math.ceil((systemPrompt.length + userContent.length) / 4),
-      outputTokens: Math.ceil(text.length / 4),
+      outputTokens: Math.ceil((input.kind === 'summary' ? text : wrapped).length / 4),
     }
+  }
+
+  #buildExtract(input: AiGenerateInput, userContent: string): string {
+    const acts: string[] = ['desconhecido']
+    const out: Record<string, unknown> = { acts, confidence: 0 }
+    // Só o turno da cliente — não o bloco de catálogo (evita falso positivo «depil» no nome).
+    const turnBlock =
+      userContent.match(/<<<DADOS turno[\s\S]*?DADOS>>>/i)?.[0] ??
+      userContent.split('Extraia os campos')[0] ??
+      ''
+    const turn = turnBlock.toLowerCase()
+    for (const s of input.context.services) {
+      const name = s.name.trim().toLowerCase()
+      if (name.length >= 2 && turn.includes(name)) acts[0] = 'marcar'
+    }
+    const catalogBlock = userContent.match(/<<<DADOS catálogo[\s\S]*?DADOS>>>/i)?.[0] ?? ''
+    if (/quero|fazer|marcar|agendar/i.test(turn)) {
+      for (const line of catalogBlock.split('\n')) {
+        const m = line.match(/^- (svc_[a-z0-9]+):\s*(.+)$/i)
+        if (!m) continue
+        const name = (m[2] ?? '').trim().toLowerCase()
+        if (name.length >= 3 && turn.includes(name)) {
+          out.serviceId = m[1]
+          acts[0] = 'marcar'
+          break
+        }
+      }
+    }
+    if (/\bfeminina\b|\bfeminino\b/i.test(turn)) out.line = 'feminino'
+    if (/\bmasculina\b|\bmasculino\b/i.test(turn)) out.line = 'masculino'
+    const dateLit = turn.match(/\b(amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|\d{1,2}\/\d{1,2})\b/i)
+    if (dateLit?.[1]) out.dateLiteral = dateLit[1]
+    const timeLit = turn.match(/\b(\d{1,2}h\d{0,2}|\d{1,2}:\d{2})\b/i)
+    if (timeLit?.[1]) out.timeLiteral = timeLit[1]
+    if (/\bmanh[aã]\b/i.test(turn)) out.period = 'manha'
+    else if (/\btarde\b/i.test(turn)) out.period = 'tarde'
+    else if (/\bnoite\b/i.test(turn)) out.period = 'noite'
+    out.acts = acts
+    return JSON.stringify(out)
   }
 
   #buildSummary(input: AiGenerateInput): string {

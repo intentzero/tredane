@@ -3,7 +3,7 @@
  * Pode abster-se. Nunca decide preço, agenda nem autorização.
  */
 import type { AiProviderAdapter } from '../../../../ai'
-import { AI_MAX_OUTPUT_TOKENS_REPLY, AI_MODEL_AUTODRAFT, AI_REPLY_TEMPERATURE } from '../../../../ai'
+import { AI_MAX_OUTPUT_TOKENS_REPLY, AI_MODEL_AUTODRAFT } from '../../../../ai'
 import type { CostLedger } from './cost'
 import { TrackingAiAdapter } from './tracking-adapter'
 
@@ -143,7 +143,7 @@ export async function runJudge(opts: {
   const gen = await tracker.generate({
     kind: 'reply',
     model: opts.model ?? AI_MODEL_AUTODRAFT,
-    temperature: AI_REPLY_TEMPERATURE,
+    // CA-07 / #416: sem temperature — modelos 5-5 rejeitam o campo no gateway.
     maxOutputTokens: AI_MAX_OUTPUT_TOKENS_REPLY,
     timeoutMs: 25_000,
     warnings: [],

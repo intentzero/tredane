@@ -20,8 +20,10 @@ export const AI_MODEL_REPLY_PROPOSED = 'claude-sonnet-5-5'
 export const AI_MODEL_AUTODRAFT = 'claude-haiku-5-5'
 /** «Gerar outra» — modelo mais capaz. */
 export const AI_MODEL_REGENERATE = 'claude-sonnet-5-5'
-/** Temperatura das respostas (0.3–0.5 aprovado). */
-export const AI_REPLY_TEMPERATURE = 0.4
+/** Extrator restrito (M6 / CA-07 — matriz L2 decide Haiku vs Sonnet; default Haiku). */
+export const AI_MODEL_EXTRACT = 'claude-haiku-5-5'
+/** Redator de exceção (perguntas abertas). */
+export const AI_MODEL_EXCEPTION = 'claude-haiku-5-5'
 /** Espera para juntar mensagens seguidas antes do rascunho automático (5–10 s aprovado). */
 export const AI_AUTODRAFT_DEBOUNCE_MS = 7_000
 /** Limite diário de rascunhos por clínica (aprovado). */

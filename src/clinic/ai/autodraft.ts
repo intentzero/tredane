@@ -1,13 +1,15 @@
 /**
  * Rascunho automático da IA a cada mensagem da cliente (aprovado por Paulo, 27/10/2026).
  * - Debounce adaptativo DEC-111: 0 s botão/lista, 2–3 s pedido completo, 7 s texto aberto.
- * - Ordem CA-03 (#413): interpretar → decidir (autobook) → só então gerar se resposta aberta.
+ * - Ordem CA-03 (#413) + M6 (#416): interpretar → extrator se cobertura baixa →
+ *   decidir (autobook) → redator de exceção só para pergunta aberta (DEC-104).
+ * - O caminho automático não usa o prompt monolítico de `src/ai/prompt.ts`.
  * - Quando dia, horário e serviço ficam claros, o backend envia a proposta e não manda
  *   a pergunta «Confirma…?» (autobook.ts), salvo pausa da owner.
  * - Nos outros casos, o texto da IA sai sozinho, sem clique em Enviar, com o botão
  *   de falar com a equipe. Injeção e assunto fora do agendamento pausam a IA
- *   (DEC-083). Modelo falhou / saída rejeitada sem injeção → frase DEC-107 (#404)
- *   sem pausar a IA.
+ *   (DEC-083). Modelo falhou / saída rejeitada → frase DEC-107 (#404); falha do
+ *   redator de exceção passa à equipe (DEC-104).
  */
 import { AI_TIMEOUT_MS, detectStrongInjectionSignals } from '../../ai'
 import type { Clock } from '../../db/clock'
@@ -45,7 +47,6 @@ import {
   hasStopRequest,
 } from './nlu/sensitive'
 import { isCancelIntent, isRescheduleIntent, tryAiReschedule } from './reschedule'
-import { runGenerateInternal } from './operations'
 import { isConversationPaused } from './protection'
 import { getScheduleSession } from './schedule-session'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
@@ -54,6 +55,8 @@ import { emitTurnDecided, routeFromAutodraftOutcome } from './turn-decided'
 import { loadTurnContext } from './turn-context'
 import { getAiDailyUsage } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
+import { runRestrictedExtractor } from './llm-extractor'
+import { generateExceptionReply } from './exception-reply'
 
 /** ADR-0015: anexa afterPersist do frame diferido ao envio outbound. */
 function withDeferredFrame(
@@ -692,11 +695,41 @@ export async function runDueAutoDrafts(
     )
     await opts.onStart?.(job)
 
-    // CA-03 (#413): decidir antes de gerar — sem placeholder (não inflar quota S7).
+    // CA-03 (#413) + M6 (#416): extrator restrito → decidir → redator de exceção.
     let suggestion: AiSuggestionRow | null = null
     let autoBook: AutoBookOutcome | undefined
     let modelCalled = false
     let generateError: string | null = null
+    let exceptionHandoff = false
+    let liveTurn = turn
+
+    try {
+      const extracted = await runRestrictedExtractor(db, tenantId, liveTurn, clock, deps)
+      if (extracted.modelCalled) modelCalled = true
+      if (extracted.applied) {
+        liveTurn = loadTurnContext(
+          db,
+          tenantId,
+          {
+            conversationId: job.conversationId,
+            contactId: conv.contactId,
+            messageId: job.messageId,
+            inboundBody,
+          },
+          clock,
+        )
+      }
+    } catch (err) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'ai.extractor_error',
+          tenantId,
+          error: err instanceof Error ? err.message : 'unknown',
+        }),
+      )
+    }
+
     try {
       let capability = deps.autoBookPaused !== true
       let limitNote: string | null = null
@@ -714,7 +747,7 @@ export async function runDueAutoDrafts(
         capability,
         abuseLimits: deps.abuseLimits,
         forecast: deps.forecast,
-        turn,
+        turn: liveTurn,
       })
       if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }
     } catch (err) {
@@ -738,23 +771,84 @@ export async function runDueAutoDrafts(
       conversationId: job.conversationId,
       phase: 'ca03',
       current: { action: 'model' },
-      proposed: { action: needsOpenReply ? 'model' : 'skip_model' },
+      proposed: { action: needsOpenReply ? 'model' : 'skip_model', detail: needsOpenReply ? 'exception' : undefined },
     })
 
     if (needsOpenReply) {
       try {
-        const res = await runGenerateInternal(db, caller, clock, deps, {
+        if (getAiDailyUsage(db, tenantId, clock).capReached) {
+          cancelAutoDraft(db, tenantId, job.conversationId)
+          record({ ...job, status: 'cap_reached', suggestion: null })
+          continue
+        }
+        const exception = await generateExceptionReply(db, caller, clock, deps, {
           conversationId: job.conversationId,
-          clientRequestId: '',
-          kind: 'reply',
-          command: 'suggest_reply',
-          actorClerkUserId: AUTODRAFT_ACTOR_ID,
-          actorDisplayName: 'Rascunho automático',
-          origin: 'auto',
-          turn,
+          question: liveTurn.turnText,
+          turn: liveTurn,
         })
         modelCalled = true
-        suggestion = res.suggestion
+        if (exception.ok && exception.text.trim()) {
+          suggestion = insertSuggestion(db, {
+            tenantId,
+            conversationId: job.conversationId,
+            kind: 'reply',
+            status: 'pending',
+            provider: deps.mode,
+            model: exception.model ?? 'none',
+            suggestedText: exception.text,
+            internalNotes: exception.notes,
+            warningCodes: [],
+            warningLabels: [],
+            sourceRefs: [],
+            requestMeta: {
+              latencyMs: exception.latencyMs ?? 0,
+              inputTokens: exception.inputTokens,
+              outputTokens: exception.outputTokens,
+              messageCount: liveTurn.messages.length,
+              mode: deps.mode,
+            },
+            errorCode: null,
+            requestedByClerkUserId: AUTODRAFT_ACTOR_ID,
+            requestedByDisplayName: 'Rascunho automático',
+            parentSuggestionId: null,
+            replyToMessageId: job.messageId,
+            origin: 'auto',
+            createdAt: clock.nowMs(),
+          })
+        } else {
+          // DEC-104 «passa à equipe»: alerta alter_awaiting_team via DEC-107
+          // (notifyModelFallback), sem pausar a IA — alinhado a CF-14 / K-01.
+          // Pausa completa fica para DEC-083 (pedido de pessoa / fora do assunto).
+          exceptionHandoff = false
+          generateError = exception.rejection ?? 'exception_rejected'
+          suggestion = insertSuggestion(db, {
+            tenantId,
+            conversationId: job.conversationId,
+            kind: 'reply',
+            status: 'failed',
+            provider: deps.mode,
+            model: exception.model ?? 'none',
+            suggestedText: '',
+            internalNotes: exception.rejection ?? '',
+            warningCodes: ['output_rejected'],
+            warningLabels: ['Saída rejeitada'],
+            sourceRefs: [],
+            requestMeta: {
+              latencyMs: exception.latencyMs ?? 0,
+              inputTokens: exception.inputTokens,
+              outputTokens: exception.outputTokens,
+              messageCount: liveTurn.messages.length,
+              mode: deps.mode,
+            },
+            errorCode: 'invalid_response',
+            requestedByClerkUserId: AUTODRAFT_ACTOR_ID,
+            requestedByDisplayName: 'Rascunho automático',
+            parentSuggestionId: null,
+            replyToMessageId: job.messageId,
+            origin: 'auto',
+            createdAt: clock.nowMs(),
+          })
+        }
       } catch (err) {
         const code = err instanceof ClinicError ? err.code : 'autodraft_error'
         if (code === 'ai_daily_cap_reached' || code === 'ai_not_enabled') {
@@ -769,6 +863,7 @@ export async function runDueAutoDrafts(
         }
         generateError = code
         modelCalled = true
+        exceptionHandoff = false
         suggestion = insertSuggestion(db, {
           tenantId,
           conversationId: job.conversationId,
@@ -954,14 +1049,30 @@ export async function runDueAutoDrafts(
     const hasOutbound = Boolean(replyOutbox && replyOutbox.length > 0)
     let fallbackSent = false
     if (!tookInjectionPath && !hasOutbound && !proposalDelivered && !deterministicReply) {
-      const fallback = notifyModelFallback(
-        db,
-        tenantId,
-        { conversationId: job.conversationId, messageId: job.messageId },
-        clock,
-      )
-      replyOutbox = fallback.outbox
-      fallbackSent = fallback.sent || fallback.already
+      // DEC-104: falha do redator de exceção → frase fixa + passa à equipe.
+      if (exceptionHandoff) {
+        const handoff = notifyHumanHandoff(
+          db,
+          tenantId,
+          {
+            conversationId: job.conversationId,
+            reason: 'human_only',
+            clientRequestId: `ai-exception-handoff:${job.messageId}`,
+          },
+          clock,
+        )
+        replyOutbox = handoff.outbox
+        fallbackSent = handoff.outbox.length > 0
+      } else {
+        const fallback = notifyModelFallback(
+          db,
+          tenantId,
+          { conversationId: job.conversationId, messageId: job.messageId },
+          clock,
+        )
+        replyOutbox = fallback.outbox
+        fallbackSent = fallback.sent || fallback.already
+      }
     }
     const textDiscarded =
       modelCalled &&

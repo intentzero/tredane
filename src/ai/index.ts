@@ -8,13 +8,25 @@ export {
   AI_MODEL_SUMMARY_PROPOSED,
   AI_MODEL_AUTODRAFT,
   AI_MODEL_REGENERATE,
-  AI_REPLY_TEMPERATURE,
+  AI_MODEL_EXTRACT,
+  AI_MODEL_EXCEPTION,
   AI_AUTODRAFT_DEBOUNCE_MS,
   AI_DAILY_DRAFT_CAP,
   AI_PROVIDER_ANTHROPIC,
   AI_PROVIDER_SYNTHETIC,
 } from './budgets'
 export { buildSystemPrompt, buildUserContent, formatBRL } from './prompt'
+export {
+  EXTRACTOR_STABLE_SYSTEM,
+  EXTRACT_TOOL_NAME,
+  buildExtractTool,
+  buildExtractorUserContent,
+} from './extractor-prompt'
+export {
+  EXCEPTION_STABLE_SYSTEM,
+  buildExceptionClinicFacts,
+  buildExceptionUserContent,
+} from './exception-prompt'
 export {
   applyDraftContinuity,
   countClinicOutbound,

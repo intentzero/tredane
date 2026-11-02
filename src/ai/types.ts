@@ -168,6 +168,15 @@ export type AiContextPayload = {
   }
 }
 
+/** Perfil de geração (#416): reply monolítico (painel), extrator tool-use, redator de exceção. */
+export type AiGenerationProfile = 'reply' | 'summary' | 'extract' | 'exception'
+
+export type AiToolDefinition = {
+  name: string
+  description: string
+  input_schema: Record<string, unknown>
+}
+
 export type AiGenerateInput = {
   kind: AiSuggestionKind
   context: AiContextPayload
@@ -183,8 +192,19 @@ export type AiGenerateInput = {
   timeoutMs: number
   /** Modelo explícito (rascunho automático = Haiku; «Gerar outra» = Sonnet). */
   model?: string
-  /** 0.3–0.5 para respostas estáveis. */
-  temperature?: number
+  /**
+   * #416 — extract = tool use; exception = redator DEC-120; omitido = reply/summary clássico.
+   * O caminho automático do autodraft não usa o perfil reply monolítico.
+   */
+  profile?: AiGenerationProfile
+  /** Tool use (CA-04 / extrator). */
+  tools?: AiToolDefinition[]
+  toolChoice?: { type: 'tool'; name: string } | { type: 'any' } | { type: 'auto' }
+  /** System/user override (extrator / redator). */
+  systemPromptOverride?: string
+  userContentOverride?: string
+  /** Anthropic prompt caching no bloco estável (CA-05). */
+  promptCache?: boolean
 }
 
 export type AiGenerateSuccess = {
@@ -196,6 +216,8 @@ export type AiGenerateSuccess = {
   /** Métricas sem conteúdo pessoal. */
   inputTokens: number | null
   outputTokens: number | null
+  /** Nome da ferramenta quando a saída veio de tool_use (extrator). */
+  toolName?: string | null
 }
 
 export type AiGenerateFailure = {
@@ -223,6 +245,9 @@ export type AiGatewayRequestInspection = {
   userContent: string
   maxTokens: number
   temperature?: number
+  profile?: AiGenerationProfile
+  tools?: AiToolDefinition[]
+  promptCache?: boolean
   /** Headers não secretos (ex.: cf-aig-collect-log-payload). */
   headers: Record<string, string>
   context: AiContextPayload
