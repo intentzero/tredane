@@ -1,6 +1,6 @@
 # Copy: atos de diálogo determinísticos (M4 / #414)
 
-**Estado:** **Confirmado** (Paulo, 02/11/2026, DEC-122) para os 15 atos e 41 redações deste documento, na versão corrigida de 02/11/2026. Os atos em falta (ver «Alterações de 02/11/2026») continuam **Propostos**. As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115) **não** mudam aqui. Qualquer frase nova ou alterada exige aprovação no PR (DEC-104).
+**Estado:** **Confirmado** (Paulo, 02/11/2026). **Leva 1** (DEC-122): 15 atos e 41 redações, na versão corrigida. **Leva 2** (DEC-123): 17 atos e 32 redações, mais 1 redação num ato da leva 1, na versão revista de 02/11/2026. A **leva 3** (remarcação, pausa da owner e pedido para outra pessoa) continua por escrever e **Proposta**. As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115) **não** mudam aqui. Qualquer frase nova ou alterada exige aprovação no PR (DEC-104).
 
 **Técnicas (núcleo §3.5):** eco do entendido; 3–5 redações por ato, escolhidas por hash estável da conversa; primeiro nome só no 1.º contacto; uma pergunta por mensagem; plural do tipo em minúsculas; sem jargão INV-05.
 
@@ -120,6 +120,125 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 1. `Não consegui entender bem. Pode me dizer de outro jeito, ou prefere falar com a equipe?`
 
+## Leva 2: funil de marcação (**Confirmada**, DEC-123)
+
+**Estado:** **Confirmado** (Paulo, 02/11/2026, DEC-123), depois de ler a leva e de ver a revisão dos cinco defeitos abaixo. Ainda **não está ligada a nenhum fluxo**: isso é a [#448](https://github.com/intentzero/tredane/issues/448). Cobre as frases do funil de marcação que o código escrevia à mão (inventário abaixo).
+
+**Como ler:** *(atual)* = o texto que o código já envia hoje, sem alterações; só precisa de um olhar rápido. *(novo)* = redação nova; é nestas que deves parar. Onde o texto atual tinha defeito, aparece em «Substitui».
+
+**Variáveis novas:** `{variante}`, `{período}` («de manhã», «à tarde», «à noite»), `{hora24}` e `{dia}`. O fluxo passa `{dia}` **já com a preposição** («na sexta (06/11)», «no sábado (07/11)», «hoje», «amanhã»), para a frase nunca dizer «em sexta».
+
+**Revisão antes da tua decisão (02/11/2026).** Ao reler a leva encontrei cinco defeitos meus e corrigi-os: (1) uma frase começava em minúscula quando abria por uma variável («de manhã não tenho…»), e agora **toda** a frase começa em maiúscula; (2) «em sexta 06/11» → a preposição vem no `{dia}`; (3) «Às 1 da tarde» sem crase → `Você quis dizer {hora24}, à tarde?`; (4) «Juntas» fixava o género → «No total»; (5) «o que a clínica oferece» → «o que oferecemos».
+
+### Redação nova num ato já aprovado
+
+- `perguntar_variantes` *(novo)*: `Para fechar às {hora}, quais {tipo}? Temos {lista}. Pode ser mais de uma.` — substitui o texto atual `Para fechar às {hora}, me diga as {tipo}: {lista}. Pode ser mais de uma.` (imperativo seco).
+
+### perguntar_dia
+
+1. *(novo)* `Para {serviço}, qual dia fica melhor?`
+2. *(novo)* `Qual dia você prefere para {serviço}?`
+
+Substitui: `Me diga o dia para {serviço}.`.
+
+### perguntar_horario
+
+1. *(atual)* `Qual horário fica melhor para {serviço}?`
+2. *(novo)* `Para {serviço}, qual horário você prefere?`
+
+### perguntar_servico
+
+1. *(atual)* `Qual serviço você quer? Temos {lista}.`
+2. *(novo)* `Claro! Qual serviço? Temos {lista}.`
+3. *(atual)* `Qual serviço você gostaria de agendar?`
+
+### confirmar_servico
+
+1. *(atual)* `É {serviço} que você quer agendar?`
+2. *(novo)* `Seria {serviço}?`
+
+### confirmar_hora_ambigua
+
+1. *(novo)* `Você quis dizer {hora24}, à tarde?`
+
+Substitui: `Às {hora} da tarde seria {hora24}. É esse horário?` (dava «Às 1 da tarde», sem a crase).
+
+### sem_horario_periodo
+
+1. *(atual)* `Para {assunto}, {período} não tenho horário livre. Quer ver outro período?`
+2. *(novo)* `{período} não tenho nada livre para {assunto}. Prefere outro período?`
+
+### sem_horario_dia
+
+1. *(novo)* `Para {assunto}, {dia} não tenho horário livre. Quer ver outro dia?`
+2. *(novo)* `Não tenho horário livre para {assunto} {dia}. Prefere outro dia?`
+
+Substitui: `Para {assunto}, em {dia} não tenho horário livre…` (dava «em sexta 06/11»); agora o fluxo passa `{dia}` já com a preposição («na sexta (06/11)», «amanhã»).
+
+### sem_horario_semana
+
+1. *(atual)* `Para {assunto}, no momento não tenho horário livre. Quer que eu veja outra data?`
+2. *(novo)* `No momento não tenho horário livre para {assunto}. Quer que eu veja outra data?`
+
+### sem_vaga_sem_alternativa
+
+1. *(atual)* `Nesse horário das {hora} já não tenho vaga. Quer que eu veja outro horário?`
+2. *(novo)* `Às {hora} já está ocupado e não tenho outra opção nesse dia. Quer que eu veja outro dia?`
+
+### informar_preco_variante
+
+1. *(atual)* `{variante} custa {preço} e dura {duração} min.`
+2. *(novo)* `Para {variante}, o valor é {preço} e a duração, {duração} min.`
+
+### informar_preco_soma
+
+1. *(novo)* `No total, ficam {preço} e {duração} min de atendimento.`
+2. *(novo)* `Somando tudo, ficam {preço} e {duração} min de atendimento.`
+
+Substitui: `Juntas, ficam {preço} e {duração} min de atendimento.` («Juntas» fixa o feminino, mas o tipo da variante é texto livre, DEC-079).
+
+### recusar_mistura
+
+1. *(novo)* `Não dá para juntar masculino e feminino na mesma visita. Quer escolher só um dos dois?`
+2. *(novo)* `Masculino e feminino não entram na mesma visita. Qual dos dois prefere?`
+
+Substitui: `Masculino e feminino não entram na mesma visita. Escolha um conjunto compatível — opções que sirvam para os dois também valem.` e a variante com «ambos» do funil de zonas.
+
+### servico_inexistente
+
+1. *(atual)* `Não encontrei esse procedimento por aqui. Quer ver as opções que temos?`
+2. *(novo)* `Esse serviço eu não encontrei por aqui. Quer ver o que oferecemos?`
+
+Substitui: a 2.ª redação sai de «o que a clínica oferece» (voz em 3.ª pessoa) para «o que oferecemos».
+
+### varios_servicos
+
+1. *(atual)* `Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?`
+2. *(novo)* `Marcamos um serviço de cada vez. Por qual quer começar?`
+
+### historico_indisponivel
+
+1. *(atual)* `Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?`
+2. *(novo)* `Não consegui ver a sua visita anterior por aqui. Qual serviço você quer agora?`
+
+### catalogo_mudou
+
+1. *(atual)* `Nossas opções mudaram. Pode dizer de novo qual serviço e opção você quer?`
+
+### nao_consegui_fechar
+
+1. *(atual)* `Não consegui fechar {serviço} às {hora} agora. A equipe confirma em seguida.`
+
+### Ainda fora (leva 3, a escrever e a aprovar)
+
+Estas frases literais continuam no código e **não** estão nesta leva:
+
+| Fluxo | Frase atual | Porque fica de fora |
+| --- | --- | --- |
+| Remarcação (DEC-091) | `Para remarcar o mesmo atendimento…`, `Quer ver outro dia?`, `Anotei o pedido de remarcar {serviço} para {dia} às {hora}. A equipe confirma em seguida.` | O texto «Para remarcar o mesmo atendimento» é um **marcador interno** que a lógica lê (CF-22). Mexer na frase exige antes um estado estruturado (M2, #412) |
+| Pausa da owner / envio da proposta falhou | `Perfeito, {nome}! Para garantir {serviço} … a clínica pede um sinal por Pix …`, `Perfeito, {nome}! Anotei {serviço} … A equipe confirma o horário em seguida.`, `Quase lá, {nome}! Vou confirmar {serviço} … com a equipe e já te retorno.` | Estados raros; pedem decisão sobre «Anotei» e «Quase lá», que se podem ler como reserva |
+| Pedido para outra pessoa | `Para agendar para outra pessoa, a equipe precisa continuar este atendimento.` | Provável duplicado da frase de handoff da DEC-083 («Vou pedir para a equipe continuar daqui.»). Convém usar uma só; decisão a tomar com a #448 |
+
 ## Fora deste pedido
 
 - Persona com nome próprio (DEC-089) — Paulo **não** pediu na It. 1.
@@ -128,4 +247,4 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 ## Como aprovar
 
-O Paulo aprovou o catálogo em 02/11/2026 (DEC-122), depois de ler e de ver as correções. Para os atos em falta, o processo é o mesmo: o PR traz a secção «Copy para aprovação do Paulo»; a aprovação fica registada numa DEC nova; só depois a engenharia liga as redações aos fluxos (#448).
+O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a leva 3, o processo é o mesmo: o PR traz a secção «Copy para aprovação do Paulo»; a aprovação fica registada numa DEC nova; só depois a engenharia liga as redações aos fluxos (#448).

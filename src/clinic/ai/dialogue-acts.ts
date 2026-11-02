@@ -21,6 +21,23 @@ export type DialogueActId =
   | 'informar_explicacao'
   | 'acolher_adiamento'
   | 'esclarecer'
+  | 'perguntar_dia'
+  | 'perguntar_horario'
+  | 'perguntar_servico'
+  | 'confirmar_servico'
+  | 'confirmar_hora_ambigua'
+  | 'sem_horario_periodo'
+  | 'sem_horario_dia'
+  | 'sem_horario_semana'
+  | 'sem_vaga_sem_alternativa'
+  | 'informar_preco_variante'
+  | 'informar_preco_soma'
+  | 'recusar_mistura'
+  | 'servico_inexistente'
+  | 'varios_servicos'
+  | 'historico_indisponivel'
+  | 'catalogo_mudou'
+  | 'nao_consegui_fechar'
 
 /** Redações propostas — docs/product/copy-dialogo-atos.md. */
 export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
@@ -39,6 +56,7 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Quais {tipo} você quer? {lista}. Pode ser mais de uma.',
     'Para {serviço}, quais {tipo}? {lista}.',
     'Perfeito, {assunto}. Quais {tipo}? Temos {lista}. Pode ser mais de uma.',
+    'Para fechar às {hora}, quais {tipo}? Temos {lista}. Pode ser mais de uma.',
   ],
   oferecer_horarios: [
     'Para {assunto}, {quando}tenho {lista}. Qual fica melhor?',
@@ -87,6 +105,65 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Pode me dizer de outro jeito, ou prefere falar com a equipe?',
     'Não peguei bem — prefere reformular ou chamar a equipe?',
   ],
+  // — Leva 2 (Confirmada, DEC-123): funil de marcação. A 1.ª redação de cada ato é, quando existe,
+  //   o texto que o código já envia hoje; as restantes são novas. Ver docs/product/copy-dialogo-atos.md.
+  perguntar_dia: [
+    'Para {serviço}, qual dia fica melhor?',
+    'Qual dia você prefere para {serviço}?',
+  ],
+  perguntar_horario: [
+    'Qual horário fica melhor para {serviço}?',
+    'Para {serviço}, qual horário você prefere?',
+  ],
+  perguntar_servico: [
+    'Qual serviço você quer? Temos {lista}.',
+    'Claro! Qual serviço? Temos {lista}.',
+    'Qual serviço você gostaria de agendar?',
+  ],
+  confirmar_servico: ['É {serviço} que você quer agendar?', 'Seria {serviço}?'],
+  confirmar_hora_ambigua: ['Você quis dizer {hora24}, à tarde?'],
+  sem_horario_periodo: [
+    'Para {assunto}, {período} não tenho horário livre. Quer ver outro período?',
+    '{período} não tenho nada livre para {assunto}. Prefere outro período?',
+  ],
+  sem_horario_dia: [
+    'Para {assunto}, {dia} não tenho horário livre. Quer ver outro dia?',
+    'Não tenho horário livre para {assunto} {dia}. Prefere outro dia?',
+  ],
+  sem_horario_semana: [
+    'Para {assunto}, no momento não tenho horário livre. Quer que eu veja outra data?',
+    'No momento não tenho horário livre para {assunto}. Quer que eu veja outra data?',
+  ],
+  sem_vaga_sem_alternativa: [
+    'Nesse horário das {hora} já não tenho vaga. Quer que eu veja outro horário?',
+    'Às {hora} já está ocupado e não tenho outra opção nesse dia. Quer que eu veja outro dia?',
+  ],
+  informar_preco_variante: [
+    '{variante} custa {preço} e dura {duração} min.',
+    'Para {variante}, o valor é {preço} e a duração, {duração} min.',
+  ],
+  informar_preco_soma: [
+    'No total, ficam {preço} e {duração} min de atendimento.',
+    'Somando tudo, ficam {preço} e {duração} min de atendimento.',
+  ],
+  recusar_mistura: [
+    'Não dá para juntar masculino e feminino na mesma visita. Quer escolher só um dos dois?',
+    'Masculino e feminino não entram na mesma visita. Qual dos dois prefere?',
+  ],
+  servico_inexistente: [
+    'Não encontrei esse procedimento por aqui. Quer ver as opções que temos?',
+    'Esse serviço eu não encontrei por aqui. Quer ver o que oferecemos?',
+  ],
+  varios_servicos: [
+    'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?',
+    'Marcamos um serviço de cada vez. Por qual quer começar?',
+  ],
+  historico_indisponivel: [
+    'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?',
+    'Não consegui ver a sua visita anterior por aqui. Qual serviço você quer agora?',
+  ],
+  catalogo_mudou: ['Nossas opções mudaram. Pode dizer de novo qual serviço e opção você quer?'],
+  nao_consegui_fechar: ['Não consegui fechar {serviço} às {hora} agora. A equipe confirma em seguida.'],
 }
 
 export type DialogueVars = Record<string, string | undefined>
@@ -99,7 +176,7 @@ export function dialogueActIndex(conversationId: string, act: DialogueActId, n: 
 }
 
 function fill(template: string, vars: DialogueVars): string {
-  return template.replace(/\{([a-zçãáéíóúâêôõü_]+)\}/gi, (_, key: string) => {
+  return template.replace(/\{([a-zçãáéíóúâêôõü_0-9]+)\}/gi, (_, key: string) => {
     if (key === 'nome') {
       const n = vars.nome?.trim()
       return n ? `, ${n}` : ''
@@ -111,7 +188,7 @@ function fill(template: string, vars: DialogueVars): string {
 /** Variáveis que a redação exige (`{nome}` é opcional: vira vazio sem 1.º contacto). */
 function requiredVars(template: string): string[] {
   const out = new Set<string>()
-  for (const m of template.matchAll(/\{([a-zçãáéíóúâêôõü_]+)\}/gi)) {
+  for (const m of template.matchAll(/\{([a-zçãáéíóúâêôõü_0-9]+)\}/gi)) {
     if (m[1] !== 'nome') out.add(m[1]!)
   }
   return [...out]
@@ -126,7 +203,9 @@ function usableTemplates(act: DialogueActId, vars: DialogueVars): string[] {
 }
 
 function finish(template: string, vars: DialogueVars): string {
-  return fill(template, vars).replace(/[^\S\n]+/g, ' ').replace(/ *\n */g, '\n').trim()
+  const text = fill(template, vars).replace(/[^\S\n]+/g, ' ').replace(/ *\n */g, '\n').trim()
+  // Início de frase em maiúscula, mesmo quando abre por uma variável («de manhã não tenho…»).
+  return text.replace(/^(\P{L}*)(\p{L})/u, (_m, lead: string, c: string) => lead + c.toLocaleUpperCase('pt-BR'))
 }
 
 /**

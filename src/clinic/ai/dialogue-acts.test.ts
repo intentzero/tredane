@@ -64,6 +64,26 @@ describe('#414 dialogue acts', () => {
       ['informar_explicacao', { explicação: 'A limpeza remove impurezas da pele.' }],
       ['acolher_adiamento', {}],
       ['esclarecer', {}],
+      // Leva 2 (Proposta): funil de marcação.
+      ['perguntar_variantes', { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas', hora: '10:00' }],
+      ['perguntar_dia', { serviço: 'Massagem' }],
+      ['perguntar_horario', { serviço: 'Massagem' }],
+      ['perguntar_servico', { lista: 'Massagem, Limpeza de pele' }],
+      ['confirmar_servico', { serviço: 'Massagem' }],
+      ['confirmar_hora_ambigua', { hora24: '15:00' }],
+      ['sem_horario_periodo', { assunto: 'Massagem', período: 'de manhã' }],
+      ['sem_horario_dia', { assunto: 'Massagem', dia: 'na sexta (06/11)' }],
+      ['sem_horario_dia', { assunto: 'Massagem', dia: 'amanhã' }],
+      ['sem_horario_semana', { assunto: 'Massagem' }],
+      ['sem_vaga_sem_alternativa', { hora: '16:00' }],
+      ['informar_preco_variante', { variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15' }],
+      ['informar_preco_soma', { preço: 'R$ 160,00', duração: '45' }],
+      ['recusar_mistura', {}],
+      ['servico_inexistente', {}],
+      ['varios_servicos', {}],
+      ['historico_indisponivel', {}],
+      ['catalogo_mudou', {}],
+      ['nao_consegui_fechar', { serviço: 'Massagem', hora: '10:00' }],
     ]
     for (const [act, vars] of samples) {
       const all = renderEveryVariant(act, vars)
@@ -72,16 +92,58 @@ describe('#414 dialogue acts', () => {
         expect(forbiddenClientTermsIn(text), `${act}: ${text}`).toEqual([])
         expect(text.length).toBeGreaterThan(0)
         expect(text.length).toBeLessThanOrEqual(1000)
+        // Começa em maiúscula (ou número): uma variável no início não pode deixá-la em minúscula.
+        expect(text, `${act}: ${text}`).toMatch(/^[\p{Lu}\d]/u)
         // Sem buracos nem pontuação partida por variável em falta.
         expect(text, `${act}: ${text}`).not.toMatch(/[{}]|,\s*[.!?]|\s[,.!?]|\.\.|:\s*$/)
       }
     }
   })
 
+  it('todo o ato do catálogo é exercitado pelo teste de forma', () => {
+    // Impede um ato novo de ficar sem verificação (cada ato tem de aparecer nas amostras acima).
+    const src = readFileSync(new URL('./dialogue-acts.test.ts', import.meta.url), 'utf8')
+    for (const act of ALL_ACTS) expect(src, `ato ${act} sem amostra`).toContain(`['${act}',`)
+  })
+
+  it('a leva 2 (DEC-123) está aprovada: todos os atos se podem usar em produção', () => {
+    const leva2: DialogueActId[] = ['perguntar_dia', 'perguntar_horario', 'perguntar_servico', 'confirmar_servico',
+      'confirmar_hora_ambigua', 'sem_horario_periodo', 'sem_horario_dia', 'sem_horario_semana', 'sem_vaga_sem_alternativa',
+      'informar_preco_variante', 'informar_preco_soma', 'recusar_mistura', 'servico_inexistente', 'varios_servicos',
+      'historico_indisponivel', 'catalogo_mudou', 'nao_consegui_fechar']
+    expect(leva2).toHaveLength(17)
+    const vars = {
+      serviço: 'Massagem', lista: 'Massagem, Limpeza de pele', assunto: 'Massagem', hora: '10:00', hora24: '15:00',
+      período: 'de manhã', dia: 'na sexta (06/11)', variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15',
+    }
+    for (const act of leva2) {
+      expect(() => renderDialogueAct(act, 'cnv_1', vars), act).not.toThrow()
+    }
+    // A redação «Para fechar às {hora}» (num ato da leva 1) pode agora ser escolhida.
+    const seen = new Set<string>()
+    for (let i = 0; i < 80; i++) {
+      seen.add(renderDialogueAct('perguntar_variantes', `cnv_${i}`, { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas', hora: '10:00', assunto: 'depilação' }).slice(0, 14))
+    }
+    expect([...seen].some((x) => x.startsWith('Para fechar às'))).toBe(true)
+  })
+
+  it('correções da revisão da leva 2: preposição, crase, género e voz', () => {
+    const dia = renderEveryVariant('sem_horario_dia', { assunto: 'Massagem', dia: 'na sexta (06/11)' })
+    expect(dia).toContain('Para Massagem, na sexta (06/11) não tenho horário livre. Quer ver outro dia?')
+    expect(dia.every((x) => !/\bem (na|no|sexta|sábado)\b/i.test(x))).toBe(true)
+    expect(renderEveryVariant('confirmar_hora_ambigua', { hora24: '13:00' })).toEqual(['Você quis dizer 13:00, à tarde?'])
+    const periodo = renderEveryVariant('sem_horario_periodo', { assunto: 'Massagem', período: 'de manhã' })
+    expect(periodo.every((x) => /^[\p{Lu}]/u.test(x))).toBe(true)
+    // «Juntas» fixa o feminino, mas o tipo da variante é texto livre (DEC-079).
+    for (const x of DIALOGUE_ACTS.informar_preco_soma) expect(x).not.toMatch(/^Juntas/)
+    for (const x of DIALOGUE_ACTS.servico_inexistente) expect(x).not.toMatch(/a clínica oferece/)
+  })
+
   it('o eco só sai quando há {assunto}; o link só no ato com {link}', () => {
     const semAssunto = renderEveryVariant('perguntar_variantes', { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas' })
-    expect(semAssunto.length).toBe(DIALOGUE_ACTS.perguntar_variantes.length - 1)
-    expect(semAssunto.every((t) => !t.startsWith('Perfeito'))).toBe(true)
+    // Sem {assunto} e sem {hora} ficam de fora o eco e a variante «Para fechar às {hora}».
+    expect(semAssunto.length).toBe(DIALOGUE_ACTS.perguntar_variantes.length - 2)
+    expect(semAssunto.every((t) => !t.startsWith('Perfeito') && !t.includes('Para fechar às'))).toBe(true)
     const comAssunto = renderEveryVariant('perguntar_variantes', { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas', assunto: 'depilação feminina' })
     expect(comAssunto.some((t) => t.startsWith('Perfeito, depilação feminina.'))).toBe(true)
     // Sem link, o ato com link não tem nenhuma redação utilizável.
