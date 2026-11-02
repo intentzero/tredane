@@ -87,7 +87,7 @@
 | C-03 | P0 | Valor lido como hora | [sessão: limpeza, amanhã] ⟶ C: «custa 1500?» | Responde «R$ 180,00 e dura 60 min». Não guarda nem propõe 15:00. | INV-02, EF-02 | 1 | ❌ CF-10 |
 | C-04 | P1 | Erro de digitação | C: «limpesa de pele amanha 15h» | Proposta Limpeza 15:00. | EF-02 | 1 | ❔ L1 |
 | C-05 | P1 | Emoji como aceite | A: [oferta única 14:00 amanhã, massagem] ⟶ C: «👍» | Proposta 14:00. O emoji só prepara a proposta, não marca (DEC-061). | INV-01, EF-01 | 1 | ✅ L1 `dialogs` C-05 (M2 / DEC-127.3, #412) |
-| C-06 | P0 | «Sim» a uma pergunta lateral | A: «Você já fez limpeza antes?» ⟶ C: «sim» | Nenhuma proposta; o funil continua. | INV-01 | 1 | ❔ L1 (modelo híbrido §4) |
+| C-06 | P0 | «Sim» a uma pergunta lateral | A: «Você já fez limpeza antes?» ⟶ C: «sim» | Nenhuma proposta; o funil continua. | INV-01 | 1 | ✅ L1 `dialogs` C-06 (M2 / DEC-127.3, #412) |
 | C-07 | P0 | Muda de serviço depois da proposta | [proposta Limpeza amanhã 15h] ⟶ C: «na verdade prefiro massagem» | A proposta anterior não vale; nova proposta Massagem amanhã 15:00 ou oferta. Sem frase de aviso (DEC-116). | INV-01, EF-02 | 1 | ✅ L1 `dialogs` C-07 + `service-change.test` (CF-23 corrigido, #436) |
 | C-08 | P0 | Corrige a hora com «não» | [proposta 15h] ⟶ C: «não, 16h» | Nova versão 16:00, se livre. | EF-02 | 1 | ✅ L1 `dialogs` C-08 (gate M2 / #412) |
 | C-09 | P1 | Dois serviços | C: «quero limpeza e massagem sexta» | «Marcamos um serviço de cada vez. Qual você quer primeiro?» | EF-01 | 1 | ✅ `booking-object.eval` (múltiplos serviços) |
@@ -361,3 +361,16 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | §4.4 | Invariantes P0 a verde; regressão zero vs It. 2.1; EF/EE e métricas L2 **Em aberto** / sem harness (#417) |
 | Fora | M2 [#412](https://github.com/intentzero/tredane/issues/412) (ADR); L2/L3 [#417](https://github.com/intentzero/tredane/issues/417); leva 3 do catálogo ainda **Proposta**; 6 atos sem call-site |
 | Próxima | [#459](https://github.com/intentzero/tredane/issues/459) Iteração 4 |
+
+### Resumo após It. 4 (02/11/2026)
+
+| Estado | Contagem / notas |
+| --- | --- |
+| L1 em `main` `41515f8` (pós-#466 / Closes #412) | 79 casos · **68** passam · **0** `it.fails` · 2 pendentes L2 (H-04, I-03 → #417) · 9 coverageOnly · 0 inesperadas |
+| Freeze | prompt `sha256:a35e30d45c7cd609e21df678051ca3e18538801a2c585b72a9dbffae4cc3b804` (**inalterado** face à It. 3 / CF-27); catálogo `scenario.ts` `sha256:547cd19c30e3015fdd73389980e201664f04b2610f6eb8b28433167a15d8711d` (inalterado); modelo autodraft `claude-haiku-5-5` |
+| Entregas | M2 [#412](https://github.com/intentzero/tredane/issues/412) (**CLOSED**): ADR-0015 + DEC-127 + BookingFrame (migração 0049, cutover) + same-TX (#464/#465/#466) |
+| Gate M2 no L1 | B-13, A-07, A-08, C-05, C-06, C-07, C-08, J-06 a verde; CF-21/22 **Fechados** |
+| Triagem | **Nenhuma falha nova** (L0/L1); sem CF/CA novo; nenhum caso apagado; +4 casos L1 face à It. 3 (gate M2) |
+| §4.4 | Invariantes P0 a verde; regressão zero vs It. 3; EF/EE e métricas L2 **Em aberto** / sem harness (#417) |
+| Fora | L2/L3 [#417](https://github.com/intentzero/tredane/issues/417); [#446](https://github.com/intentzero/tredane/issues/446) áudio/imagem; leva 3 do catálogo ainda **Proposta**; 6 atos sem call-site |
+| Próxima | [#467](https://github.com/intentzero/tredane/issues/467) Iteração 5 |
