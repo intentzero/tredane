@@ -340,3 +340,12 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | PRs | [#453](https://github.com/intentzero/tredane/pull/453) S1 · [#454](https://github.com/intentzero/tredane/pull/454) S2 · [#455](https://github.com/intentzero/tredane/pull/455) S3 · [#456](https://github.com/intentzero/tredane/pull/456) S4 · fecho S5 |
 | Copy | DEC-122 / DEC-123; leva 3 ainda **Proposta**; sem frase nova |
 | Próxima | It. 3 [#444](https://github.com/intentzero/tredane/issues/444) (M2, L2, restante) |
+
+## It. 3 (parcial) — CF-27 exemplos do prompt ([#449](https://github.com/intentzero/tredane/issues/449))
+
+| Estado | Contagem / notas |
+| --- | --- |
+| Freeze | prompt `sha256:a35e30d45c7cd609e21df678051ca3e18538801a2c585b72a9dbffae4cc3b804` (**novo**; `REPLY_EXAMPLES` sem HH:MM); catálogo `scenario.ts` `sha256:547cd19c30e3015fdd73389980e201664f04b2610f6eb8b28433167a15d8711d` (inalterado); modelo autodraft `claude-haiku-5-5` |
+| CF-27 | Exemplos remete ao sistema («Já verifico os horários…»); teste DEC-118 permanente com `freeSlots` (>10) + 1 `upcoming` semeados; body ao gateway sem HH:MM fora de «Agora»/expediente |
+| Copy | Frase canónica DEC-118 já no prompt; sem acto novo do catálogo; leva 3 ainda **Proposta** |
+| Próxima | Restante It. 3 [#444](https://github.com/intentzero/tredane/issues/444) (M2 #412, L2 #417) |

@@ -13,13 +13,13 @@ export function formatBRL(cents: number): string {
   return `${neg ? '-' : ''}R$ ${digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${dec}`
 }
 
-/** Exemplos de boas mensagens (estilo WhatsApp, pt-BR). Fictícios. */
+/** Exemplos de boas mensagens (estilo WhatsApp, pt-BR). Fictícios. Sem HH:MM (DEC-118 / CF-27). */
 const REPLY_EXAMPLES = [
   // Primeiro contacto da clínica → cumprimento com primeiro nome ok
   '[cliente] Oi, quanto custa a limpeza de pele?\n{"mensagem": "Oi, Carla!\\n\\nA limpeza de pele profunda custa R$ 180,00 e dura 1 hora.\\n\\nQuer que eu veja um horário pra você? 😊", "notas": ""}',
-  // Já houve outbound da clínica → continua no assunto, SEM re-cumprimentar
-  '[cliente] Quero fazer massagem\n[clínica] Oi, Ana! Claro 😊 Qual dia fica melhor?\n[cliente] Tem sexta de manhã?\n{"mensagem": "Tem sim!\\n\\nNa sexta (31/10) tenho 9:00, 10:30 e 11:00 para a massagem. Algum desses fica bom pra você?", "notas": ""}',
-  '[cliente] Preciso desmarcar amanhã, tive um imprevisto\n[clínica] Sem problema!\\n\\nQuer remarcar?\n[cliente] Quinta de tarde, tem?\n{"mensagem": "Tenho quinta às 15:00 ou sexta às 10:00. Qual fica melhor pra você?", "notas": "Cancelar o horário de amanhã no sistema depois de ela confirmar."}',
+  // Já houve outbound → continua no assunto; disponibilidade remete ao sistema (sem listar HH:MM)
+  '[cliente] Quero fazer massagem\n[clínica] Oi, Ana! Claro 😊 Qual dia fica melhor?\n[cliente] Tem sexta de manhã?\n{"mensagem": "Tem sim!\\n\\nJá verifico os horários de sexta de manhã pra você.", "notas": ""}',
+  '[cliente] Preciso desmarcar amanhã, tive um imprevisto\n[clínica] Sem problema!\\n\\nQuer remarcar?\n[cliente] Quinta de tarde, tem?\n{"mensagem": "Claro! Já verifico os horários de quinta à tarde pra você.", "notas": "Cancelar o horário de amanhã no sistema depois de ela confirmar."}',
 ]
 
 /**

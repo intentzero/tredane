@@ -47,6 +47,14 @@ function baseInput(): AiGenerateInput {
 }
 
 describe('DEC-090 regras de copy no prompt', () => {
+  it('CF-27 / DEC-118: exemplos fixos não ensinam HH:MM à cliente', () => {
+    const system = buildSystemPrompt(baseInput())
+    const afterExemplos = system.split('\nExemplos:\n')[1] ?? ''
+    expect(afterExemplos.length).toBeGreaterThan(0)
+    expect(afterExemplos).not.toMatch(/\b\d{1,2}:\d{2}\b/)
+    expect(afterExemplos).toMatch(/Já verifico os horários/)
+  })
+
   it('sistema: preço só se perguntar/final; sem buffer; sem sala; não reperguntar linha', () => {
     const system = buildSystemPrompt(baseInput())
     expect(system).toMatch(/só se a cliente perguntar|resumo final da proposta/i)
