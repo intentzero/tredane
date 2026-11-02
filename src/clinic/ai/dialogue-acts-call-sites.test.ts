@@ -13,7 +13,7 @@ import { DIALOGUE_ACTS, type DialogueActId } from './dialogue-acts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
-/** Módulos do funil listados na #448 (+ S1–S4). */
+/** Módulos do funil listados na #448 (+ S1–S4) e remarcação DEC-129. */
 const CALL_SITE_FILES = [
   'slot-offer.ts',
   'catalog-reply.ts',
@@ -21,6 +21,7 @@ const CALL_SITE_FILES = [
   'variant-line.ts',
   'autobook.ts',
   'booking-object.ts',
+  'reschedule.ts',
 ] as const
 
 /** Atos com call-site ligado (S1–S4). */
@@ -125,6 +126,15 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /por Pix\. O horário só fica reservado depois do pagamento, e o Pix chega aqui na conversa\./,
   /^Recebi seu pedido de \$\{svc\.name\} na \$\{dayText\(date\)\} às \$\{time\}\. Ainda não está marcado: a equipe confirma o horário e já te retorna\.$/,
   /^Não consegui enviar a confirmação de \$\{serviceName\} na \$\{dayText\(date\)\} às \$\{time\}\. Ainda não está marcado: a equipe vai te responder em seguida\.$/,
+  // DEC-129: remarcação (fixas no código, como DEC-125; sem marcador CF-22)
+  /^Claro, vamos remarcar\. Para qual dia você prefere\?$/,
+  /^Na \$\{dayText\(date\)\} tenho \$\{hours\}\. Algum serve para remarcar\?$/,
+  /^Na \$\{dayText\(date\)\} não tenho horário livre\. Quer ver outro dia\?$/,
+  /^Às \$\{time\} na \$\{dayText\(date\)\} já não tenho vaga\. Tenho \$\{alternatives\}\. Qual fica melhor\?$/,
+  /^Não consegui enviar a confirmação da remarcação para \$\{dayText\(date\)\} às \$\{time\}\. $/,
+  /^Ainda não está remarcado: a equipe vai te responder em seguida\.$/,
+  /^Recebi seu pedido de remarcar \$\{serviceName\} para \$\{dayText\(date\)\} às \$\{time\}\. $/,
+  /^Ainda não está remarcado: a equipe confirma e já te retorna\.$/,
   // — Notas internas à equipe (não WhatsApp cliente) —
   /Texto livre não marca/,
   /Confirme com a cliente/,
@@ -143,12 +153,19 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /Envie a cobrança Pix/,
   /Serviço exige sinal/,
   /Falha ao montar\/enviar a proposta/,
+  /Falha ao montar proposta de remarcação/,
   /Agendamento pela IA não feito/,
   /As \$\{kind\} escolhidas misturam/,
   /O nome citado casa com mais de uma/,
   /A cliente falou em \$\{svc\.name\} sem escolher/,
   /Aviso automático enviado — confirme pelo Agendar/,
   /termos proibidos à cliente/,
+  /Remarcação do compromisso/,
+  /Sem vagas para remarcar/,
+  /Oferta de remarcação/,
+  /Horário \$\{time\} indisponível para remarcar/,
+  /Proposta de remarcação/,
+  /reschedule phrase:/,
 ]
 
 function readCallSite(file: string): string {
@@ -174,7 +191,7 @@ function looksLikeClientOrOpsCopy(s: string): boolean {
   if (/^[a-z0-9_]+$/.test(s)) return false
   if (/^(src\/|\.\/|\.\.\/|node:|vitest|clinic\/)/.test(s)) return false
   if (!/\s/.test(s)) return false
-  return /(Qual |Para |Não |Me |Neste|Nossas|Quase|Anotei|Perfeito|equipe|serviço|horário|vaga|opção|prefere|gostaria|agendar|confirmar|Temos|Pix|proposta|cliente|Texto livre|Agendar|termos proibidos)/i.test(
+  return /(Qual |Para |Não |Me |Neste|Nossas|Quase|Anotei|Perfeito|Claro|Recebi|equipe|serviço|horário|vaga|opção|prefere|gostaria|agendar|remarcar|confirmar|Temos|Pix|proposta|cliente|Texto livre|Agendar|termos proibidos)/i.test(
     s,
   )
 }

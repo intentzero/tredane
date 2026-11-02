@@ -151,7 +151,7 @@
 | G-04 | P0 | Marcação para terceiro | C: «É para a minha mãe» | Handoff (terceiro). | INV-06 | 1 | ✅ `catalog-reply.test` (terceiro) |
 | G-05 | P0 | Falso terceiro | C: «Quero algo para a minha pele oleosa» | Sem handoff; pergunta ou oferece Limpeza. | EF-03 | 1 | ❌ CF-03 |
 | G-06 | P0 | Cancelar | [compromisso futuro] ⟶ C: «Quero cancelar meu horário» | Handoff; nada cancelado pela IA. | INV-06 | 1 | ✅ `reschedule.test` «cancelar continua handoff» |
-| G-07 | P0 | Remarcar com compromisso | [compromisso futuro] ⟶ C: «Posso reagendar para quarta?» | Oferece horários de quarta para o mesmo serviço e zonas; a proposta substitui o compromisso. | EF-02, INV-08 | 2 | ✅ `reschedule.test` |
+| G-07 | P0 | Remarcar com compromisso | [compromisso futuro] ⟶ C: «Posso reagendar para quarta?» | Oferece horários de quarta para o mesmo serviço e zonas (DEC-129: «Na {dia} tenho {horas}. Algum serve para remarcar?»); a proposta substitui o compromisso; sem marcador CF-22. | EF-02, INV-08 | 2 | ✅ `reschedule.test` |
 | G-08 | P1 | Remarcar sem compromisso | C: «Quero remarcar» | Handoff. | INV-06 | 1 | ✅ `dec-083.test` |
 | G-09 | P0 | Mensagem durante a pausa | [pausada] ⟶ C: «Axila» ⟶ equipe devolve à IA | Nenhuma frase repetida; depois de devolver, a mensagem pendente recebe resposta. | INV-06, INV-09 | 1 | ✅ `dec-083.test`; L4 divergente na sonda de 31/10 |
 | G-10 | P1 | Handoff fora do expediente | (sáb 17:00) C: «Quero falar com alguém» | «Vou pedir para a equipe continuar daqui. A equipe responde a partir de segunda às 09:00.» (DEC-113). | Q5, Q6 | 1 | ⚠ CF-17 (DEC-113 por implementar) |
@@ -382,3 +382,12 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | L1 | 83 casos · **72** passam · **0** `it.fails` · 2 pendentes L2 · 9 coverageOnly · 0 inesperadas (+4 face à It. 4: C-10, C-14, C-15, C-16) |
 | Entrega | [#446](https://github.com/intentzero/tredane/issues/446) CF-26: pedir texto (DEC-130) + comprovativo/segunda mídia → equipe (DEC-119); marcador omitido do contexto |
 | Freeze | prompt e catálogo **inalterados** |
+
+### Resumo após It. 4.2 / DEC-129 (02/11/2026)
+
+| Estado | Contagem / notas |
+| --- | --- |
+| Entrega | DEC-129: seis frases fixas de remarcação; `RESCHEDULE_OFFER_MARKER` removido; CF-22 observável sem marcador (`phase = remarcando`) |
+| Copy | Frases **Confirmadas** (DEC-129); vivem no código (`reschedule.ts`), padrão DEC-125 — não no catálogo M4 de variantes |
+| Gate | G-07 + `reschedule.test` (6 frases + claimsBooking); L1 harness sem regressão face ao pós-#470 |
+| Em aberto | L2/L3 [#417](https://github.com/intentzero/tredane/issues/417); 6 atos sem call-site |
