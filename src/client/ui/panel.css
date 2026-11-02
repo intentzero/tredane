@@ -1666,23 +1666,33 @@
   border-top: var(--size-border-width) solid var(--color-line-border);
 }
 
+/*
+ * Thread scroll (mobile Safari / nested flex): o wrap e a timeline precisam
+ * de min-height: 0 para o flex poder encolher abaixo do conteúdo e criar
+ * um scrollport real. min-height: 120px deixava a lista crescer com as bolhas
+ * e o toque não rolava (o shell também tinha overflow-y: auto — scroll aninhado
+ * sem altura limitada). overflow: hidden no wrap força o limite do flex.
+ */
 .inbox-timeline-wrap {
   position: relative;
   flex: 1;
-  min-height: 120px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .inbox-timeline {
   position: relative;
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  min-height: 120px;
 }
 
 .inbox-unread-divider {
@@ -1825,10 +1835,14 @@
 }
 
 .inbox-composer-closed {
-  padding: var(--space-3) var(--space-4);
+  flex: none;
+  margin: 0;
+  padding: var(--space-3) var(--space-4)
+    calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
   color: var(--color-text-secondary);
   font-size: var(--font-size-caption, 0.875rem);
   border-top: var(--size-border-width) solid var(--color-line-border);
+  background: var(--color-surface-card);
 }
 
 .inbox-composer-wrap {
@@ -3288,6 +3302,8 @@
   flex-direction: column;
   min-height: 0;
   padding: 0;
+  /* Só a .inbox-timeline rola; evita scroll aninhado com o shell. */
+  overflow: hidden;
 }
 
 .inbox-thread > .inbox-thread-header {
@@ -3406,12 +3422,14 @@
 
 .inbox-timeline {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  min-height: 120px;
   background: var(--color-surface-app);
 }
 
@@ -4901,6 +4919,7 @@
   flex-direction: column;
   min-height: 0;
   padding: 0;
+  overflow: hidden;
 }
 
 /* O shell limita .panel-app a 960px (width) / 1200px (max-width). Com 3
