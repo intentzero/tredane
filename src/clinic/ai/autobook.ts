@@ -56,7 +56,6 @@ import {
 } from './schedule-choice'
 import {
   getBookingFrame,
-  getScheduleSession,
   saveScheduleLine,
   saveScheduleSession,
   scheduleFactsFromText,
