@@ -26,7 +26,8 @@ import {
   hasPolicyQuestion,
 } from './nlu/sensitive'
 import { checkConversationProtection } from './protection'
-import { getScheduleSession, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
+import { getBookingFrame, getScheduleSession, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
+import { BOOKING_FRAME_CUTOVER, logBookingFrameShadow } from './booking-frame-shadow'
 
 /** Frase estável para continuar a escolha de horário sem reiniciar o funil. */
 export const RESCHEDULE_OFFER_MARKER = 'Para remarcar o mesmo atendimento'
@@ -194,6 +195,7 @@ export async function tryAiReschedule(
     snapshotDuration(zoneSnaps) ?? Math.round((apt.endsAt - apt.startsAt) / 60_000)
 
   const session = getScheduleSession(db, tenantId, input.conversationId)
+  const frame = getBookingFrame(db, tenantId, input.conversationId)
   const facts = scheduleFactsFromText(input.inboundText)
   const dates = [...extractDates(input.inboundText, today)]
   let date = dates.length === 1 ? dates[0] : undefined
@@ -201,15 +203,46 @@ export async function tryAiReschedule(
     const resolved = [...extractDates(facts.dayLabel, today)]
     if (resolved.length === 1) date = resolved[0]
   }
+  // ADR-0015: data absoluta do frame; day_label só se cutover desligado.
+  if (!date && frame?.date && (priorOffer || frame.phase === 'remarcando')) {
+    date = frame.date
+    logBookingFrameShadow({
+      tenantId,
+      conversationId: input.conversationId,
+      current: { action: 'use_day_label', detail: session?.dayLabel ?? undefined },
+      proposed: { action: 'use_absolute_date', detail: frame.date },
+    })
+  }
+  // Fallback: sessões com day_label órfã (pré-cutover / ainda sem date).
   if (!date && session?.dayLabel && priorOffer) {
     const resolved = [...extractDates(session.dayLabel, today)]
-    if (resolved.length === 1) date = resolved[0]
+    if (resolved.length === 1) {
+      date = resolved[0]
+      if (BOOKING_FRAME_CUTOVER) {
+        logBookingFrameShadow({
+          tenantId,
+          conversationId: input.conversationId,
+          current: { action: 'use_day_label', detail: session.dayLabel },
+          proposed: { action: 'use_absolute_date', detail: date },
+        })
+      }
+    }
+  }
+  if (BOOKING_FRAME_CUTOVER && priorOffer && frame?.lastOffer) {
+    logBookingFrameShadow({
+      tenantId,
+      conversationId: input.conversationId,
+      current: { action: 'other', detail: 'RESCHEDULE_OFFER_MARKER' },
+      proposed: { action: 'offer_with_last_offer', detail: frame.lastOffer.messageId },
+    })
   }
   const times = [...extractTimes(input.inboundText)]
   const time = times.length === 1 ? times[0] : undefined
   const period = facts.period ?? (priorOffer ? session?.period : undefined) ?? null
 
   if (facts.dayLabel || facts.period) {
+    const absolute =
+      facts.dayLabel != null ? [...extractDates(facts.dayLabel, today)][0] ?? null : undefined
     saveScheduleSession(
       db,
       tenantId,
@@ -218,6 +251,8 @@ export async function tryAiReschedule(
         serviceId: apt.serviceId,
         ...(facts.dayLabel ? { dayLabel: facts.dayLabel } : {}),
         ...(facts.period ? { period: facts.period } : {}),
+        ...(absolute !== undefined ? { date: absolute } : {}),
+        phase: 'remarcando',
       },
       clock,
     )

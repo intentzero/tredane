@@ -54,7 +54,13 @@ import {
   zonesChosenInClientTexts,
   zonesOfferedToClient,
 } from './schedule-choice'
-import { getScheduleSession, saveScheduleLine, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
+import {
+  getBookingFrame,
+  getScheduleSession,
+  saveScheduleLine,
+  saveScheduleSession,
+  scheduleFactsFromText,
+} from './schedule-session'
 import {
   audienceLineQuestion,
   needsAudienceLine,
@@ -69,7 +75,52 @@ import {
   occupiedSlotAlternativesReply,
   offerNearestSlots,
   type DayPeriod,
+  type OfferedSlot,
 } from './slot-offer'
+import {
+  isPendingOfferFresh,
+  matchPendingChoice,
+} from './booking-frame-choice'
+import { BOOKING_FRAME_CUTOVER, logBookingFrameShadow } from './booking-frame-shadow'
+
+/** Persiste pending + lastOffer após oferta de horários (CF-22 / ADR-0015). */
+function rememberOfferFrame(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  serviceId: string,
+  slots: OfferedSlot[],
+  professionalId: string | undefined,
+  clock: Clock,
+  /** messageId ainda não existe no envio — usa placeholder estável do turno; autodraft pode refrescar. */
+  offerMessageId: string,
+): void {
+  if (slots.length === 0) return
+  const options = slots.map((s) => ({
+    key: s.time,
+    label: `${s.date} às ${s.time}`,
+  }))
+  saveScheduleSession(
+    db,
+    tenantId,
+    conversationId,
+    {
+      serviceId,
+      // Não gravar date a partir da oferta: só a cliente (ou resolução absoluta) fixa o dia.
+      clockTime: null,
+      phase: 'ofertado',
+      pending: { slot: 'horario', options, messageId: offerMessageId },
+      lastOffer: {
+        slots: slots.map((s) => ({
+          startsAt: s.startsAt,
+          professionalId: professionalId ?? '',
+        })),
+        messageId: offerMessageId,
+      },
+    },
+    clock,
+  )
+}
 
 export { extractDates, extractTimes, norm }
 
@@ -414,6 +465,71 @@ export async function tryAiAutoBook(
   const services = input.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
   const turnText = clientTurn.map((m) => m.body).join('\n')
 
+  // ADR-0015 / DEC-127: ler primeiro contra pending.options (cutover).
+  const frameEarly = getBookingFrame(db, tenantId, input.conversationId)
+  let pendingTimeOverride: string | null = null
+  let pendingDateOverride: string | null = null
+  if (BOOKING_FRAME_CUTOVER && frameEarly?.pending) {
+    const pendingMsg = db.get<{ created_at: number }>(
+      `SELECT created_at FROM messages WHERE tenant_id = ? AND id = ?`,
+      tenantId,
+      frameEarly.pending.messageId,
+    )
+    const fresh = isPendingOfferFresh(pendingMsg?.created_at ?? null, clock.nowMs())
+    if (!fresh) {
+      logBookingFrameShadow({
+        tenantId,
+        conversationId: input.conversationId,
+        current: { action: 'use_pending' },
+        proposed: { action: 'ask_again_expired' },
+      })
+      if (frameEarly.serviceId) {
+        saveScheduleSession(
+          db,
+          tenantId,
+          input.conversationId,
+          {
+            serviceId: frameEarly.serviceId,
+            pending: null,
+            lastOffer: null,
+            phase: 'coletando',
+          },
+          clock,
+        )
+      }
+    } else {
+      const choice = matchPendingChoice(turnText, frameEarly.pending)
+      if (choice.kind === 'match') {
+        pendingTimeOverride = choice.key.match(/\d{2}:\d{2}/)?.[0] ?? null
+        const dateFromLabel = choice.label.match(/\d{4}-\d{2}-\d{2}/)?.[0]
+        pendingDateOverride = dateFromLabel ?? frameEarly.date
+        logBookingFrameShadow({
+          tenantId,
+          conversationId: input.conversationId,
+          current: { action: 'other', detail: 'legacy_parse' },
+          proposed: { action: 'use_pending', detail: choice.key },
+        })
+      } else if (choice.kind === 'ask_which' || choice.kind === 'ambiguous') {
+        const labels = frameEarly.pending.options.map((o) => o.label).join(', ')
+        const svcName =
+          services.find((s) => s.id === frameEarly.serviceId)?.name ?? 'o horário'
+        return {
+          ...none('needs_info', {
+            confirmationMessageId: confirmation.id,
+            serviceId: frameEarly.serviceId ?? undefined,
+          }),
+          replyText: sayAct(
+            'perguntar_horario',
+            input.conversationId,
+            { serviço: svcName },
+            `Qual fica melhor: ${labels}?`,
+          ),
+          notes: 'DEC-127: resposta ambígua/👍 com várias opções — pergunta de volta sem escolher.',
+        }
+      }
+    }
+  }
+
   // CF-23 (#436): a cliente muda de serviço com uma proposta aberta («na verdade prefiro
   // massagem»). A proposta antiga deixa de valer já (DEC-061); sem dia nem hora novos, o
   // dia e a hora que ela tinha escolhido passam para o serviço novo e o backend monta a
@@ -435,7 +551,7 @@ export async function tryAiAutoBook(
           db,
           tenantId,
           input.conversationId,
-          { serviceId: swap.service.id, clockTime: swap.time },
+          { serviceId: swap.service.id, clockTime: swap.time, date: swap.date },
           clock,
         )
       }
@@ -451,6 +567,7 @@ export async function tryAiAutoBook(
   })
   // Sessão: sempre relê (catalogReply / funil podem ter gravado depois do TurnContext).
   const session = getScheduleSession(db, tenantId, input.conversationId)
+  const frame = getBookingFrame(db, tenantId, input.conversationId)
   let date = det.date
   let missing = [...det.missing]
   if (swap) {
@@ -458,8 +575,18 @@ export async function tryAiAutoBook(
     date = swap.date
     missing = []
   }
-  // O período (tarde) não vira horário. O dia já dito na sessão preenche só o dia.
-  if (!date && session?.dayLabel && (!det.service || session.serviceId === det.service.id)) {
+  // CF-21 / ADR-0015: preferir data absoluta do frame; day_label só em sombra / pré-cutover.
+  if (!date && frame?.date && (!det.service || frame.serviceId === det.service.id)) {
+    date = frame.date
+    missing = missing.filter((item) => item !== 'dia')
+    logBookingFrameShadow({
+      tenantId,
+      conversationId: input.conversationId,
+      current: { action: 'use_day_label', detail: session?.dayLabel ?? undefined },
+      proposed: { action: 'use_absolute_date', detail: frame.date },
+    })
+  }
+  if (!date && !BOOKING_FRAME_CUTOVER && session?.dayLabel && (!det.service || session.serviceId === det.service.id)) {
     const resolved = [...extractDates(session.dayLabel, clinicCivilDateFromUtc(tz, confirmation.created_at))]
     if (resolved.length === 1) {
       date = resolved[0]
@@ -469,6 +596,12 @@ export async function tryAiAutoBook(
   const turnFacts = scheduleFactsFromText(turnText)
   const rememberDayPeriod = (serviceId: string) => {
     if (!turnFacts.dayLabel && !turnFacts.period) return
+    const today = clinicCivilDateFromUtc(tz, confirmation.created_at)
+    const absolute =
+      turnFacts.dayLabel != null
+        ? [...extractDates(turnFacts.dayLabel, today)][0] ?? null
+        : undefined
+    // Novo dia/período invalida pending/lastOffer anteriores (nova oferta a seguir).
     saveScheduleSession(
       db,
       tenantId,
@@ -477,9 +610,30 @@ export async function tryAiAutoBook(
         serviceId,
         ...(turnFacts.dayLabel ? { dayLabel: turnFacts.dayLabel } : {}),
         ...(turnFacts.period ? { period: turnFacts.period } : {}),
+        ...(absolute !== undefined ? { date: absolute } : {}),
+        pending: null,
+        lastOffer: null,
       },
       clock,
     )
+  }
+  if (pendingTimeOverride) {
+    const pendingSvc =
+      det.service ??
+      (frame?.serviceId ? services.find((s) => s.id === frame.serviceId) : undefined)
+    if (pendingSvc) {
+      det = {
+        ...det,
+        ok: true,
+        status: 'requires_button',
+        time: pendingTimeOverride,
+        date: pendingDateOverride ?? det.date ?? frame?.date ?? undefined,
+        missing: [],
+        service: pendingSvc,
+      }
+      date = det.date
+      missing = []
+    }
   }
   const base = { confirmationMessageId: confirmation.id, missing }
   const clockFromTurn = (() => {
@@ -506,6 +660,7 @@ export async function tryAiAutoBook(
         service: stored,
         status: det.status === 'not_confirmed' ? 'needs_info' : det.status,
       }
+      missing = missing.filter((item) => item !== 'procedimento')
       if (!date) {
         const fromTurn = [...extractDates(turnText, clinicCivilDateFromUtc(tz, confirmation.created_at))]
         if (fromTurn.length === 1) {
@@ -621,6 +776,16 @@ export async function tryAiAutoBook(
                 : { action: 'ask_empty_time' },
               proposed: { action: 'offer_slots', detail: period ? 'period' : date ? 'date' : 'soonest' },
             })
+            rememberOfferFrame(
+              db,
+              tenantId,
+              input.conversationId,
+              det.service.id,
+              offered.slots,
+              preferred,
+              clock,
+              confirmation.id,
+            )
             replyText = offered.replyText
           } else {
             const fb = `Qual horário fica melhor para ${det.service.name}?`
@@ -632,7 +797,8 @@ export async function tryAiAutoBook(
             )
           }
         } else if (!date) {
-          const fb = `Me diga o dia para ${det.service.name}.`
+          // DEC-127.4 / DEC-122: reusa perguntar_dia (também pós-migração sem date).
+          const fb = `Para ${det.service.name}, qual dia fica melhor?`
           replyText = sayAct(
             'perguntar_dia',
             input.conversationId,
@@ -743,6 +909,16 @@ export async function tryAiAutoBook(
               current: { action: 'ask_empty_time' },
               proposed: { action: 'offer_slots', detail: date ? 'date' : 'soonest' },
             })
+            rememberOfferFrame(
+              db,
+              tenantId,
+              input.conversationId,
+              svc.id,
+              offered.slots,
+              preferred,
+              clock,
+              confirmation.id,
+            )
             replyText = offered.replyText
           }
         }
@@ -828,6 +1004,8 @@ export async function tryAiAutoBook(
   }
   // A cliente aceitou a hora. O conjunto é o da oferta («para axila e íntima»),
   // não o resto do catálogo que a sessão ou «as duas» tenham arrastado.
+  // Cutover M2: oferta fechada da clínica materializa no frame (DEC-090);
+  // zonesOfferedToClient deixa de ser SoT no turno seguinte.
   let ambiguous = chosen.ambiguous
   const offered = zonesOfferedToClient(prevClinic?.body ?? null, scoped)
   if (
@@ -838,6 +1016,17 @@ export async function tryAiAutoBook(
   ) {
     namedZones = offered
     ambiguous = false
+    if (BOOKING_FRAME_CUTOVER) {
+      logBookingFrameShadow({
+        tenantId,
+        conversationId: input.conversationId,
+        current: { action: 'other', detail: 'zonesOfferedToClient' },
+        proposed: {
+          action: 'offer_with_last_offer',
+          detail: offered.map((z) => z.id).join(','),
+        },
+      })
+    }
   }
   if (namedZones.length > 0 && !ambiguous) {
     saveScheduleSession(

@@ -52,8 +52,8 @@
 | A-04 | P0 | Tudo num turno com variante | C: «Quero depilação feminina de axila sexta às 10h» | Proposta direta, 15 min. | EF-02 | 1 | ✅ L1 `dialogs` A-04 + `zone-with-clock.test` (CF-24 corrigido, #435) |
 | A-05 | P0 | Serviço com sinal | C: «Quero peeling químico sexta às 10h» ⟶ clique Confirmar | Proposta; o clique gera Pix de R$ 90,00. Nenhum compromisso antes do pagamento. | INV-01 | 1 | ✅ `autobook.test` «serviço com sinal» |
 | A-06 | P1 | «O mais cedo possível» | C: «Qual o primeiro horário para massagem?» | Oferece os 2–3 horários reais mais próximos (hoje ou amanhã). | INV-03, EE-07 | 1 | ❔ L2 |
-| A-07 | P1 | Escolha por «o das N» | A: [oferta 13:00, 14:00, 15:30 amanhã, massagem] ⟶ C: «o das 14» | Proposta 14:00. | EF-02 | 1 | ⚠ «das 14» não casa `extractTimes` (só «às»/«h»/«:») |
-| A-08 | P1 | Escolha por ordinal | A: [oferta 13:00, 14:00, 15:30] ⟶ C: «a segunda opção» | Proposta 14:00. | EF-02 | 1 | ⚠ sem suporte a ordinal |
+| A-07 | P1 | Escolha por «o das N» | A: [oferta 13:00, 14:00, 15:30 amanhã, massagem] ⟶ C: «o das 14» | Proposta 14:00. | EF-02 | 1 | ✅ L1 `dialogs` A-07 (M2 / pending.options, #412) |
+| A-08 | P1 | Escolha por ordinal | A: [oferta 13:00, 14:00, 15:30] ⟶ C: «a segunda opção» | Proposta 14:00. | EF-02 | 1 | ✅ L1 `dialogs` A-08 (M2 / pending.options, #412) |
 | A-09 | P0 | Várias bolhas em menos de 7 s | C: «Oi» · «queria limpeza de pele» · «amanhã às 15h» | Uma única saída: a proposta 15:00. | INV-09, EE-01 | 1 | ❔ L1 (o autobook lê o turno inteiro) |
 | A-10 | P1 | «meio-dia» no vão do almoço | C: «Limpeza de pele sexta ao meio-dia» | Reconhece 12:00, diz que não há vaga e oferece 11:00 e 13:00. | INV-03 | 1 | ❌ CF-09 |
 | A-11 | P1 | Outro serviço depois de Agendado | [A-01 confirmado] ⟶ clique «Quero outro serviço» ⟶ C: «massagem sábado 10h» | Funil novo, sem herdar o anterior → proposta Massagem sáb 10:00. | INV-08 | 1 | ✅ `autobook.test` «após limpar a sessão (DEC-086)» |
@@ -86,10 +86,10 @@
 | C-02 | P1 | «ver» no pedido completo | C: «quero ver amanhã às 15h a limpeza» | Proposta 15:00. | EF-01 | 1 | ❌ CF-05 |
 | C-03 | P0 | Valor lido como hora | [sessão: limpeza, amanhã] ⟶ C: «custa 1500?» | Responde «R$ 180,00 e dura 60 min». Não guarda nem propõe 15:00. | INV-02, EF-02 | 1 | ❌ CF-10 |
 | C-04 | P1 | Erro de digitação | C: «limpesa de pele amanha 15h» | Proposta Limpeza 15:00. | EF-02 | 1 | ❔ L1 |
-| C-05 | P1 | Emoji como aceite | A: [oferta única 14:00 amanhã, massagem] ⟶ C: «👍» | Proposta 14:00. O emoji só prepara a proposta, não marca (DEC-061). | INV-01, EF-01 | 1 | ⚠ «👍» não está em `AFFIRMATIVE` |
+| C-05 | P1 | Emoji como aceite | A: [oferta única 14:00 amanhã, massagem] ⟶ C: «👍» | Proposta 14:00. O emoji só prepara a proposta, não marca (DEC-061). | INV-01, EF-01 | 1 | ✅ L1 `dialogs` C-05 (M2 / DEC-127.3, #412) |
 | C-06 | P0 | «Sim» a uma pergunta lateral | A: «Você já fez limpeza antes?» ⟶ C: «sim» | Nenhuma proposta; o funil continua. | INV-01 | 1 | ❔ L1 (modelo híbrido §4) |
 | C-07 | P0 | Muda de serviço depois da proposta | [proposta Limpeza amanhã 15h] ⟶ C: «na verdade prefiro massagem» | A proposta anterior não vale; nova proposta Massagem amanhã 15:00 ou oferta. Sem frase de aviso (DEC-116). | INV-01, EF-02 | 1 | ✅ L1 `dialogs` C-07 + `service-change.test` (CF-23 corrigido, #436) |
-| C-08 | P0 | Corrige a hora com «não» | [proposta 15h] ⟶ C: «não, 16h» | Nova versão 16:00, se livre. | EF-02 | 1 | ⚠ CF-05 («não» → ambíguo) |
+| C-08 | P0 | Corrige a hora com «não» | [proposta 15h] ⟶ C: «não, 16h» | Nova versão 16:00, se livre. | EF-02 | 1 | ✅ L1 `dialogs` C-08 (gate M2 / #412) |
 | C-09 | P1 | Dois serviços | C: «quero limpeza e massagem sexta» | «Marcamos um serviço de cada vez. Qual você quer primeiro?» | EF-01 | 1 | ✅ `booking-object.eval` (múltiplos serviços) |
 | C-10 | P1 | Áudio ou imagem sem texto | C: [áudio] | «Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?» + botão «Falar com a equipe»; IA ativa; sem resposta genérica nem improvisada (DEC-119). Comprovativo de pagamento (cobrança Pix pendente) vai à equipe com a frase da DEC-083. | INV-09, INV-10 | 1 | ❌ CF-26 (hoje: resposta genérica «Olá Carla! Posso ajudar…») |
 | C-11 | P1 | «Outra sessão» | C: «quero marcar outra sessão de limpeza amanhã 15h» | Proposta 15:00. | EF-01 | 1 | ❌ CF-05 |
@@ -189,7 +189,7 @@
 | J-03 | P0 | Não perguntar de novo a zona | C: «depilação masculina de axila segunda à tarde» ⟶ A: [oferta] ⟶ C: «14:00» | Proposta direta; não pergunta «as zonas». | INV-08, EE-02 | 2 | ✅ `autobook.test` «as 13 com a zona já dita»; confirmar em L4 (divergente na sonda de 31/10) |
 | J-04 | P0 | Corte de cumprimento | [o modelo devolve «Oi Carla, tenho 15:00 amanhã» a meio da conversa] | «Tenho 15:00 amanhã…», sem vírgula solta. | INV-11 | 1 | ✅ `client-copy.test` / `stripLeadingGreeting` (#405, CF-12) |
 | J-05 | P0 | O nome não escolhe a linha | [contato «Paulo»] ⟶ C: «Quero depilação» | Pergunta a linha. | INV-08 | 1 | ✅ `catalog-reply.test` |
-| J-06 | P1 | Conversa longa | [mais de 20 mensagens; serviço dito na 2.ª] ⟶ C: «pode ser sexta 10h» | Usa o serviço da sessão → proposta. | EE-02 | 1 | ❔ L1 |
+| J-06 | P1 | Conversa longa | [mais de 20 mensagens; serviço dito na 2.ª] ⟶ C: «pode ser sexta 10h» | Usa o serviço da sessão → proposta. | EE-02 | 1 | ✅ L1 `dialogs` J-06 (M2 / BookingFrame, #412) |
 | J-07 | P1 | Forma da mensagem | Qualquer resposta livre do modelo | Uma pergunta, ≤ 300 caracteres, ≤ 3 parágrafos, sem markdown. | EE-03, EE-05 | — | ❔ L2 (`outbound-validate.test` #414 cobre a regra; gate estrito no LLM após ok Paulo) |
 | J-08 | P0 | Oferta fora do período | C: «massagem amanhã de manhã» [adaptador oferece 14:00] | Texto descartado ou corrigido; só horários da manhã. | INV-03 | 1 | ❌ CF-01 |
 | J-09 | P1 | Frases fixas sem jargão | Varrimento de todas as frases determinísticas | Nenhum termo da lista INV-05. | INV-05 | — | ✅ `client-copy.test` (#405) + `dialogue-acts.test` (#414, catálogo Proposto) |
