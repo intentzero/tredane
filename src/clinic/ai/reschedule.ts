@@ -28,6 +28,11 @@ import {
 import { checkConversationProtection } from './protection'
 import { getBookingFrame, getScheduleSession, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
 import { BOOKING_FRAME_CUTOVER, logBookingFrameShadow } from './booking-frame-shadow'
+import {
+  createDeferredBookingFrame,
+  offerFramePatch,
+  type DeferredBookingFrame,
+} from './deferred-booking-frame'
 
 /** Frase estável para continuar a escolha de horário sem reiniciar o funil. */
 export const RESCHEDULE_OFFER_MARKER = 'Para remarcar o mesmo atendimento'
@@ -51,6 +56,8 @@ export type RescheduleOutcome = {
   time?: string
   outbox: OutboxRow[]
   notes?: string
+  /** Frame a gravar na mesma TX do outbound (ADR-0015). */
+  deferredFrame?: DeferredBookingFrame
 }
 
 type UpcomingApt = {
@@ -153,52 +160,27 @@ function priorRescheduleOfferFromFrame(
   return Boolean(frame.lastOffer || frame.pending || frame.phase === 'remarcando')
 }
 
-function lastInboundMessageId(db: ClinicDb, tenantId: string, conversationId: string): string {
-  const row = db.get<{ id: string }>(
-    `SELECT id FROM messages
-     WHERE tenant_id = ? AND conversation_id = ? AND direction = 'inbound'
-     ORDER BY created_at DESC, id DESC LIMIT 1`,
-    tenantId,
-    conversationId,
-  )
-  return row?.id ?? `reschedule:${conversationId}`
-}
-
-/** Grava lastOffer/pending da oferta de remarcação (cutover: SoT do frame). */
+/** Acumula lastOffer/pending da oferta de remarcação (commit na TX do outbound). */
 function rememberRescheduleOffer(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
+  deferred: DeferredBookingFrame,
   serviceId: string,
   date: string,
   slots: Array<{ startsAt: number; professionalId: string }>,
   tz: string,
-  clock: Clock,
-  offerMessageId: string,
 ): void {
   if (slots.length === 0) return
-  const options = slots.map((s) => {
-    const time = localHHMM(tz, s.startsAt)
-    return { key: time, label: `${date} às ${time}` }
-  })
-  saveScheduleSession(
-    db,
-    tenantId,
-    conversationId,
-    {
+  deferred.save(
+    offerFramePatch({
       serviceId,
       date,
       phase: 'remarcando',
-      pending: { slot: 'horario', options, messageId: offerMessageId },
-      lastOffer: {
-        slots: slots.map((s) => ({
-          startsAt: s.startsAt,
-          professionalId: s.professionalId,
-        })),
-        messageId: offerMessageId,
-      },
-    },
-    clock,
+      slots: slots.map((s) => ({
+        startsAt: s.startsAt,
+        professionalId: s.professionalId,
+        time: localHHMM(tz, s.startsAt),
+        date,
+      })),
+    }),
   )
 }
 
@@ -227,6 +209,17 @@ export async function tryAiReschedule(
   },
 ): Promise<RescheduleOutcome | null> {
   const tenantId = caller.tenantId
+  const deferred = createDeferredBookingFrame()
+  const saveSession = (patch: Parameters<typeof saveScheduleSession>[3]) => {
+    deferred.save(patch)
+  }
+  const finish = (outcome: RescheduleOutcome): RescheduleOutcome => {
+    if (!deferred.hasWork) return outcome
+    const willSend = Boolean(outcome.replyText.trim()) || Boolean(outcome.proposalId)
+    if (willSend) return { ...outcome, deferredFrame: deferred }
+    deferred.flushNow(db, tenantId, input.conversationId, clock)
+    return outcome
+  }
   const guard = checkConversationProtection(db, tenantId, input.conversationId)
   if (!guard.allowed) return null
   const conv = getConversation(db, tenantId, input.conversationId)
@@ -298,24 +291,17 @@ export async function tryAiReschedule(
   const times = [...extractTimes(input.inboundText)]
   const time = times.length === 1 ? times[0] : undefined
   const period = facts.period ?? (priorOffer ? session?.period : undefined) ?? null
-  const offerMessageId = lastInboundMessageId(db, tenantId, input.conversationId)
 
   if (facts.dayLabel || facts.period) {
     const absolute =
       facts.dayLabel != null ? [...extractDates(facts.dayLabel, today)][0] ?? null : undefined
-    saveScheduleSession(
-      db,
-      tenantId,
-      input.conversationId,
-      {
-        serviceId: apt.serviceId,
-        ...(facts.dayLabel ? { dayLabel: facts.dayLabel } : {}),
-        ...(facts.period ? { period: facts.period } : {}),
-        ...(absolute !== undefined ? { date: absolute } : {}),
-        phase: 'remarcando',
-      },
-      clock,
-    )
+    saveSession({
+      serviceId: apt.serviceId,
+      ...(facts.dayLabel ? { dayLabel: facts.dayLabel } : {}),
+      ...(facts.period ? { period: facts.period } : {}),
+      ...(absolute !== undefined ? { date: absolute } : {}),
+      phase: 'remarcando',
+    })
   }
 
   const contact = getContact(db, tenantId, conv.contactId)
@@ -324,20 +310,14 @@ export async function tryAiReschedule(
 
   if (!date) {
     // Continuidade no cutover: phase remarcando autoriza o próximo turno (não o marker).
-    saveScheduleSession(
-      db,
-      tenantId,
-      input.conversationId,
-      { serviceId: apt.serviceId, phase: 'remarcando' },
-      clock,
-    )
-    return {
+    saveSession({ serviceId: apt.serviceId, phase: 'remarcando' })
+    return finish({
       handled: true,
       appointmentId: apt.id,
       replyText: `${RESCHEDULE_OFFER_MARKER}${hi}: para qual dia você prefere?`,
       notes: `Remarcação do compromisso ${apt.id} sem dia. Pedido o dia.`,
       outbox: [],
-    }
+    })
   }
 
   const avail = await queryAutomaticAvailability(
@@ -356,20 +336,14 @@ export async function tryAiReschedule(
 
   if (!time) {
     if (slots.length === 0) {
-      saveScheduleSession(
-        db,
-        tenantId,
-        input.conversationId,
-        {
-          serviceId: apt.serviceId,
-          date,
-          phase: 'remarcando',
-          pending: null,
-          lastOffer: null,
-        },
-        clock,
-      )
-      return {
+      saveSession({
+        serviceId: apt.serviceId,
+        date,
+        phase: 'remarcando',
+        pending: null,
+        lastOffer: null,
+      })
+      return finish({
         handled: true,
         appointmentId: apt.id,
         date,
@@ -378,22 +352,18 @@ export async function tryAiReschedule(
           `Quer ver outro dia?`,
         notes: `Sem vagas para remarcar ${apt.id} em ${date}.`,
         outbox: [],
-      }
+      })
     }
     const offered = slots.slice(0, 5)
     rememberRescheduleOffer(
-      db,
-      tenantId,
-      input.conversationId,
+      deferred,
       apt.serviceId,
       date,
       offered.map((s) => ({ startsAt: s.startsAt, professionalId: s.professionalId })),
       tz,
-      clock,
-      offerMessageId,
     )
     const listed = offered.map((s) => localHHMM(tz, s.startsAt))
-    return {
+    return finish({
       handled: true,
       appointmentId: apt.id,
       date,
@@ -402,7 +372,7 @@ export async function tryAiReschedule(
         `Qual fica melhor?`,
       notes: `Oferta de remarcação ${apt.id} em ${date}: ${listed.join(', ')}.`,
       outbox: [],
-    }
+    })
   }
 
   const slot = slots.find((s) => localHHMM(tz, s.startsAt) === time)
@@ -410,33 +380,23 @@ export async function tryAiReschedule(
     const altSlots = slots.slice(0, 3)
     if (altSlots.length > 0) {
       rememberRescheduleOffer(
-        db,
-        tenantId,
-        input.conversationId,
+        deferred,
         apt.serviceId,
         date,
         altSlots.map((s) => ({ startsAt: s.startsAt, professionalId: s.professionalId })),
         tz,
-        clock,
-        offerMessageId,
       )
     } else {
-      saveScheduleSession(
-        db,
-        tenantId,
-        input.conversationId,
-        {
-          serviceId: apt.serviceId,
-          date,
-          phase: 'remarcando',
-          pending: null,
-          lastOffer: null,
-        },
-        clock,
-      )
+      saveSession({
+        serviceId: apt.serviceId,
+        date,
+        phase: 'remarcando',
+        pending: null,
+        lastOffer: null,
+      })
     }
     const alts = altSlots.map((s) => localHHMM(tz, s.startsAt))
-    return {
+    return finish({
       handled: true,
       appointmentId: apt.id,
       date,
@@ -447,11 +407,11 @@ export async function tryAiReschedule(
           : `${RESCHEDULE_OFFER_MARKER}: na ${dayText(date)} não tenho horário livre. Quer ver outro dia?`,
       notes: `Horário ${time} indisponível para remarcar ${apt.id}.`,
       outbox: [],
-    }
+    })
   }
 
   if (input.capability === false) {
-    return {
+    return finish({
       handled: true,
       appointmentId: apt.id,
       date,
@@ -461,7 +421,7 @@ export async function tryAiReschedule(
         `A equipe confirma em seguida.`,
       notes: `Capacidade pausada: remarcação ${apt.id} não enviou proposta.`,
       outbox: [],
-    }
+    })
   }
 
   try {
@@ -482,9 +442,16 @@ export async function tryAiReschedule(
       clock,
       input.abuseLimits ? { abuseLimits: input.abuseLimits } : {},
     )
-    const sent = sendProposalToWhatsAppOp(db, caller, { proposalId: proposal.id }, clock)
+    const afterPersist = deferred.hasWork ? deferred.toAfterPersist(clock) : undefined
+    const sent = sendProposalToWhatsAppOp(
+      db,
+      caller,
+      { proposalId: proposal.id, ...(afterPersist ? { afterPersist } : {}) },
+      clock,
+    )
     const delivered = sent.status === 'queued' || sent.status === 'already_sent'
-    return {
+    if (delivered) deferred.discard()
+    return finish({
       handled: true,
       appointmentId: apt.id,
       date,
@@ -496,10 +463,10 @@ export async function tryAiReschedule(
         : `${RESCHEDULE_OFFER_MARKER}${hi}: vou confirmar ${dayText(date)} às ${time} com a equipe.`,
       notes: `Proposta de remarcação ${proposal.id} v${proposal.version} para ${apt.id}.`,
       outbox: sent.outbox,
-    }
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'erro'
-    return {
+    return finish({
       handled: true,
       appointmentId: apt.id,
       date,
@@ -507,6 +474,6 @@ export async function tryAiReschedule(
       replyText: `${RESCHEDULE_OFFER_MARKER}${hi}: a equipe confirma ${dayText(date)} às ${time}.`,
       notes: `Falha ao montar proposta de remarcação: ${message}`,
       outbox: [],
-    }
+    })
   }
 }

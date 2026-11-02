@@ -4,7 +4,7 @@
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'
-import { clearScheduleSession } from '../ai/schedule-session'
+import { clearBookingFrame } from '../ai/schedule-session'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller, workerCaller } from '../envelopes'
 import { sendOutboundMessageOp } from '../inbox/operations'
@@ -241,8 +241,7 @@ export function handlePostBookingButtonClick(
     return { handled: true, action: 'thanks', closedOpportunityId: null, outbox }
   }
 
-  // another — limpa sessão de agendamento e pergunta o próximo serviço
-  clearScheduleSession(db, input.tenantId, input.conversationId)
+  // another — limpa frame na mesma TX da pergunta (ADR-0015 / DEC-086)
   const ask = sendOutboundMessageOp(
     db,
     caller,
@@ -252,6 +251,10 @@ export function handlePostBookingButtonClick(
       clientRequestId: `followup.postbook.another:${parsed.appointmentId}:${input.providerEventKey ?? 'x'}`,
       authorClerkUserId: FOLLOWUP_ACTOR,
       authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
+      afterPersist: ({ db: txDb, tenantId, conversationId }) => {
+        const ob = clearBookingFrame(txDb, tenantId, conversationId, clock)
+        return ob ? [ob] : []
+      },
     },
     clock,
   )

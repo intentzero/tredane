@@ -142,6 +142,7 @@ function askSlotWhenZonesKnown(
   clock: Clock,
   conversationId: string | undefined,
   turn?: { messages: Array<{ direction: string; body: string }> },
+  deferredFrame?: import('./deferred-booking-frame').DeferredBookingFrame,
 ): string | null {
   if (PRICE.test(source) || PERIOD.test(source) || CLOCK.test(source)) return null
   const held = session ? services.find((service) => service.id === session.serviceId) : undefined
@@ -175,7 +176,8 @@ function askSlotWhenZonesKnown(
       variantIds: named.map((zone) => zone.id),
     }
     if (line) patch.audienceLine = line
-    saveScheduleSession(db, tenantId, conversationId, patch, clock)
+    if (deferredFrame) deferredFrame.save(patch)
+    else saveScheduleSession(db, tenantId, conversationId, patch, clock)
   }
   const cnv = conversationId ?? ''
   const fallback = `Qual horário fica melhor para ${svc.name}?`
@@ -196,10 +198,17 @@ export function catalogReply(
       turnText: string
       session: ReturnType<typeof getScheduleSession>
     }
+    /** ADR-0015: acumula frame para a mesma TX do outbound. */
+    deferredFrame?: import('./deferred-booking-frame').DeferredBookingFrame
   } = {},
 ): string | null {
   const body = text.trim()
   if (!body) return null
+  const deferred = opts.deferredFrame
+  const saveSession = (conversationId: string, patch: ScheduleSessionPatch) => {
+    if (deferred) deferred.save(patch)
+    else saveScheduleSession(db, tenantId, conversationId, patch, clock)
+  }
   const cnv = opts.conversationId ?? ''
   const services = opts.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
   if (HOURS.test(body) && !PRICE.test(body)) {
@@ -279,6 +288,7 @@ export function catalogReply(
     clock,
     opts.conversationId,
     opts.turn,
+    deferred,
   )
   if (zonesThenSlot) return zonesThenSlot
 
@@ -340,13 +350,7 @@ export function catalogReply(
     !SHORT_CONFIRM.test(body.trim())
   ) {
     if (opts.conversationId && bookingMatch.serviceId) {
-      saveScheduleSession(
-        db,
-        tenantId,
-        opts.conversationId,
-        { serviceId: bookingMatch.serviceId },
-        clock,
-      )
+      saveSession(opts.conversationId, { serviceId: bookingMatch.serviceId })
     }
     return bookingMatch.question
   }
@@ -415,7 +419,7 @@ export function catalogReply(
     const dayChanging = patch.dayLabel !== undefined && patch.dayLabel !== session?.dayLabel
     const periodChanging = patch.period !== undefined && patch.period !== session?.period
     if (lineChanging || dayChanging || periodChanging || !sameService) {
-      saveScheduleSession(db, tenantId, opts.conversationId, patch, clock)
+      saveSession(opts.conversationId, patch)
     }
   }
 
@@ -425,13 +429,10 @@ export function catalogReply(
   const named = scoped.length > 0 ? zonesNamedInText(source, scoped) : []
   const namedOk = named.length > 0 && !variantAudiencesConflict(named)
   if (opts.conversationId && inPlay && namedOk) {
-    saveScheduleSession(
-      db,
-      tenantId,
-      opts.conversationId,
-      { serviceId: inPlay.id, variantIds: named.map((zone) => zone.id) },
-      clock,
-    )
+    saveSession(opts.conversationId, {
+      serviceId: inPlay.id,
+      variantIds: named.map((zone) => zone.id),
+    })
   }
   const chosenEarlier =
     sameFunnel && scoped.length > 0

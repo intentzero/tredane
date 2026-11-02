@@ -1037,6 +1037,18 @@ export function sendOutboundMessageOp(
       clock,
     )
 
+    // ADR-0015: frame (+ booking_frame.updated) na mesma TX que mensagem/outbox.
+    const frameOutbox = input.afterPersist
+      ? input.afterPersist({
+          db,
+          tenantId: meta.tenantId,
+          conversationId: input.conversationId,
+          messageId: message.id,
+          outboundId: outbound.id,
+          now,
+        })
+      : []
+
     touchConversationMessage(db, {
       tenantId: meta.tenantId,
       conversationId: input.conversationId,
@@ -1163,6 +1175,9 @@ export function sendOutboundMessageOp(
       meta.tenantId,
       input.clientRequestId,
     )!
+    const baseOutbox = stageOutbox
+      ? [createdOutbox, sendOutbox, stageOutbox]
+      : [createdOutbox, sendOutbox]
     return {
       value: {
         conversation: item,
@@ -1170,7 +1185,7 @@ export function sendOutboundMessageOp(
         outbound: outboundFresh,
         duplicate: false,
       },
-      outbox: stageOutbox ? [createdOutbox, sendOutbox, stageOutbox] : [createdOutbox, sendOutbox],
+      outbox: [...baseOutbox, ...frameOutbox],
     }
   })
 }
