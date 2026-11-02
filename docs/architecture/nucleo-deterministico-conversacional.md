@@ -274,7 +274,7 @@ Estimativa qualitativa. A medição faz-se com o evento `ai.turn_decided` (CA-09
 | M2 | Frame com datas absolutas, `pending` e `lastOffer` estruturados (estender `schedule_sessions` → `BookingFrame`; sem rename SQL) — [ADR-0015](../adr/0015-estado-persistente-da-conversa.md) (**Confirmado**); implementação em código (migração 0049 / cutover L1) | B-13, A-07, A-08, C-05, C-06, C-07, C-08, J-06, CF-21, CF-22 | Médio (migração de esquema por DO) |
 | M3 | Ordem decidir → gerar; política 3.4 com oferta proativa e alternativas próximas | A-02, A-06, A-12, D-01, D-02, F-08 | Médio |
 | M4 | Modelos de frase com eco e variação; validador de saída; fallback anti-silêncio | I-07, I-08, J-04, J-08, J-09, K-01, D-04 | Baixo |
-| M5 | Mensagens de lista e botões para linha, variantes e horários | Menos turnos (EE-01) | Médio (contrato Meta; exige decisão) |
+| M5 | Mensagens de lista e botões para linha, variantes e horários — código em [#415](https://github.com/intentzero/tredane/issues/415) (DEC-128); **Em aberto:** prova real Meta/staging (gate DEC-128) | Menos turnos (EE-01); A-03 ≤ 4 com toques | Médio (contrato Meta; CTAs de lista **Propostos**) |
 | M6 | Extrator LLM restrito (2b) e LLM de resposta (5b); retirar o prompt monolítico | Texto coloquial (L3) | Médio |
 | M7 | Testes gerados pelo grafo + lint de configuração | Cobertura de catálogo | Baixo |
 
@@ -295,7 +295,7 @@ Cada passo corre primeiro em sombra e só depois troca o caminho (avaliação co
 | Pergunta | Opções | Responsável | Bloqueia |
 | --- | --- | --- | --- |
 | ~~Modelos de frase determinísticos passam a ser o caminho normal, com o LLM só em 2b/5b?~~ | **Decidido: DEC-104 (Paulo, 01/11/2026), opção A.** | Paulo | Desbloqueia M3 e M4; M6 depende ainda da NC-02 |
-| ~~Listas e botões de escolha (linha, variantes, horários) antes da proposta~~ | **Decidido: DEC-128 (Paulo, 02/11/2026), opção A:** entram no recorte do MVP; implementação só depois do primeiro teste real com a Meta. Texto livre sempre aceite. | Paulo | M5 (planejamento desbloqueado; código depois do gate Meta) |
+| ~~Listas e botões de escolha (linha, variantes, horários) antes da proposta~~ | **Decidido: DEC-128 (Paulo, 02/11/2026), opção A:** entram no recorte do MVP; implementação só depois do primeiro teste real com a Meta. Texto livre sempre aceite. Código M5 na [#415](https://github.com/intentzero/tredane/issues/415); **Em aberto:** primeiro teste real Meta/staging + ok Paulo aos CTAs «Opções»/«Horários». | Paulo | Gate Meta/staging antes de declarar o CF fechado |
 | ~~Sinónimos editáveis pela owner~~ | **Decidido: DEC-110.** | Paulo | — |
 | ~~Lint de configuração na M-52~~ | **Decidido: DEC-112** (informativo). | Paulo | — |
 | ~~Debounce adaptativo~~ | **Decidido: DEC-111.** | Paulo | — |

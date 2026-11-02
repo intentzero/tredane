@@ -117,6 +117,10 @@ import type {
 } from '../clinic/ai'
 import { HUMAN_HANDOFF_BUTTON_ID, notifyHumanHandoff, resumeAiReply } from '../clinic/ai/human-handoff'
 import {
+  handleChoiceOfferClick,
+  isChoiceOfferId,
+} from '../clinic/ai/choice-offer'
+import {
   clearBookingFrame,
   saveBookingFrame,
 } from '../clinic/ai/schedule-session'
@@ -737,6 +741,41 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         await this.#drain(caller)
       }
       return { handled: true, action: 'human' as const }
+    }
+    // M5 (#415) / DEC-128 — toque em linha/variantes/horários (não marca; DEC-061).
+    if (input.conversationId && isChoiceOfferId(input.buttonId)) {
+      const autoBookPaused = clinicConfig.isClinicAutoBookPaused(
+        this.#db,
+        caller.tenantId,
+        this.#clock,
+      )
+      const capability = clinicAi.autoBookCapability() && !autoBookPaused
+      const choice = await handleChoiceOfferClick(
+        this.#db,
+        caller,
+        {
+          tenantId: caller.tenantId,
+          conversationId: input.conversationId,
+          buttonId: input.buttonId,
+          buttonTitle: input.buttonTitle,
+          contextMessageId: input.contextMessageId,
+          providerEventKey: input.providerEventKey,
+          capability,
+        },
+        this.#clock,
+      )
+      if (choice.handled) {
+        if (choice.outbox.length > 0) {
+          await this.#fanoutOutboxes(caller, choice.outbox, true)
+          await this.#drain(caller)
+        }
+        return {
+          handled: true,
+          action: 'choice' as const,
+          outcome: choice.outcome,
+          reason: choice.reason,
+        }
+      }
     }
     // DEC-087 — idle («Prosseguir» / «Terminar»).
     if (input.conversationId) {

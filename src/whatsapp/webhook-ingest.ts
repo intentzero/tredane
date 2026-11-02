@@ -145,6 +145,17 @@ function itemToQueueMessage(
         contextMessageId: item.contextMessageId,
         providerTimestamp: item.providerTimestamp,
       }
+    case 'list_reply':
+      return {
+        ...base,
+        kind: 'list_reply',
+        waId: item.waId,
+        displayName: item.displayName,
+        buttonId: item.buttonId,
+        buttonTitle: item.buttonTitle,
+        contextMessageId: item.contextMessageId,
+        providerTimestamp: item.providerTimestamp,
+      }
     case 'unsupported':
       return {
         ...base,

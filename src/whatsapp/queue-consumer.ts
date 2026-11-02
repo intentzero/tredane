@@ -165,13 +165,16 @@ export async function processWhatsappMessage(
         reason: msg.interruptReason ?? 'webhook_account_update',
         phoneNumberId: msg.phoneNumberId,
       })
-    } else if (msg.kind === 'button_reply') {
-      // S4→S5: clique autenticado — regista mensagem e executa book/Pix (idempotente).
+    } else if (msg.kind === 'button_reply' || msg.kind === 'list_reply') {
+      // S4→S5 + M5 (#415): clique autenticado (botão ou lista).
       // Reentrega após commit-antes-do-ack: ainda chama o handler (duplicate ingest).
       if (!msg.waId || !msg.buttonId) {
         log({
           level: 'warn',
-          event: 'queue.invalid_button_reply_shape',
+          event:
+            msg.kind === 'list_reply'
+              ? 'queue.invalid_list_reply_shape'
+              : 'queue.invalid_button_reply_shape',
           detail: { receiptId: msg.receiptId, tenantId: msg.tenantId },
         })
         if (deps.syncAdminDb) {
@@ -184,14 +187,17 @@ export async function processWhatsappMessage(
         }
         return 'ack'
       }
-      const buttonTitle = msg.buttonTitle?.trim() || 'Botão'
+      const buttonTitle = msg.buttonTitle?.trim() || (msg.kind === 'list_reply' ? 'Lista' : 'Botão')
       const ingested = (await stub.ingestMessage(
         caller,
         {
           providerEventKey: msg.providerEventKey,
           waId: msg.waId,
           displayName: msg.displayName,
-          body: `[Botão] ${buttonTitle}`,
+          body:
+            msg.kind === 'list_reply'
+              ? `[Lista] ${buttonTitle}`
+              : `[Botão] ${buttonTitle}`,
           occurredAtMs: msg.providerTimestamp ?? undefined,
         },
         { drain: true, fanout: true },
@@ -204,6 +210,7 @@ export async function processWhatsappMessage(
       ) {
         // contactId: o DO resolve a partir da conversa se vazio.
         // duplicate=true (crash após commit / reentrega) → executor devolve resultado existente.
+        // M5: choice ids (ch1~…) entram no mesmo handler antes da proposta.
         await stub.handleProposalButtonClick(caller, {
           tenantId: msg.tenantId,
           contactId: ingested.contactId ?? '',

@@ -15,7 +15,14 @@ export type WhatsappWebhookQueueMessage = {
   tenantId: string
   bindingId: string
   phoneNumberId: string
-  kind: 'message' | 'media' | 'unsupported' | 'status' | 'account_interrupt' | 'button_reply'
+  kind:
+    | 'message'
+    | 'media'
+    | 'unsupported'
+    | 'status'
+    | 'account_interrupt'
+    | 'button_reply'
+    | 'list_reply'
   /** Só kinds message/unsupported/media — conteúdo interno da fila, não em logs. */
   waId?: string
   displayName?: string
@@ -26,7 +33,7 @@ export type WhatsappWebhookQueueMessage = {
   mediaId?: string
   mediaMimeType?: string | null
   mediaFilename?: string | null
-  /** button_reply (S4/S5) — ids opacos da proposta. */
+  /** button_reply (S4/S5) / list_reply (M5) — ids opacos. */
   buttonId?: string
   buttonTitle?: string
   contextMessageId?: string | null

@@ -21,7 +21,12 @@ import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { explicitAudienceLine } from '../catalog/audience'
-import { quoteVisit, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
+import {
+  quoteVisit,
+  variantAudiencesConflict,
+  variantChoiceLabel,
+  zonesNamedInText,
+} from '../config/zones'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
@@ -83,8 +88,16 @@ import {
 import {
   createDeferredBookingFrame,
   offerFramePatch,
+  OUTBOUND_MESSAGE_ID_PLACEHOLDER,
   type DeferredBookingFrame,
 } from './deferred-booking-frame'
+import {
+  attachChoiceOfferToDeferred,
+  buildLineChoiceInteractive,
+  buildSlotChoiceInteractive,
+  buildVariantChoiceInteractive,
+  type ChoiceInteractive,
+} from './choice-offer'
 
 /** Acumula pending + lastOffer da oferta (CF-22); commit na TX do outbound (ADR-0015). */
 function rememberOfferFrame(
@@ -92,20 +105,73 @@ function rememberOfferFrame(
   serviceId: string,
   slots: OfferedSlot[],
   professionalId: string | undefined,
-): void {
-  if (slots.length === 0) return
-  deferred.save(
-    offerFramePatch({
-      serviceId,
-      phase: 'ofertado',
-      slots: slots.map((s) => ({
-        startsAt: s.startsAt,
-        professionalId: professionalId ?? '',
-        time: s.time,
-        date: s.date,
-      })),
-    }),
-  )
+  catalogVersion: string,
+): ChoiceInteractive | null {
+  if (slots.length === 0) return null
+  const patch = offerFramePatch({
+    serviceId,
+    phase: 'ofertado',
+    slots: slots.map((s) => ({
+      startsAt: s.startsAt,
+      professionalId: professionalId ?? '',
+      time: s.time,
+      date: s.date,
+    })),
+  })
+  // M5: ids opacos na lista; options.key permanece HH:MM para matchPendingChoice.
+  const built = buildSlotChoiceInteractive({
+    catalogVersion,
+    slots: (patch.pending?.options ?? []).map((o) => ({
+      key: o.key,
+      // Título curto na lista (≤24): «06/11 09:00» ou só a hora.
+      label: o.label.replace(/^(\d{4}-)/, '').replace(' às ', ' '),
+    })),
+  })
+  // Preserva keys semânticas (HH:MM) no pending; ids opacos só no interactive.
+  deferred.save({
+    ...patch,
+    catalogVersion,
+    pending: {
+      slot: 'horario',
+      options: patch.pending?.options ?? built.pending.options,
+      messageId: OUTBOUND_MESSAGE_ID_PLACEHOLDER,
+    },
+  })
+  return built.interactive
+}
+
+function lineChoiceFor(
+  deferred: DeferredBookingFrame,
+  serviceId: string,
+  catalogVersion: string,
+): ChoiceInteractive {
+  const built = buildLineChoiceInteractive(catalogVersion)
+  return attachChoiceOfferToDeferred(deferred, serviceId, catalogVersion, built)
+}
+
+function variantChoiceFor(
+  deferred: DeferredBookingFrame,
+  serviceId: string,
+  catalogVersion: string,
+  zones: Array<{ id: string; name: string; audience?: string | null; durationMinutes: number; priceCents?: number | null }>,
+): ChoiceInteractive {
+  const peers = zones.map((z) => ({
+    name: z.name,
+    audience: (z.audience === 'feminino' || z.audience === 'masculino' || z.audience === 'ambos'
+      ? z.audience
+      : 'ambos') as 'feminino' | 'masculino' | 'ambos',
+    durationMinutes: z.durationMinutes,
+    priceCents: z.priceCents ?? null,
+  }))
+  const built = buildVariantChoiceInteractive({
+    catalogVersion,
+    zones: zones.map((z, i) => ({
+      id: z.id,
+      name: z.name,
+      label: variantChoiceLabel(peers[i]!, peers),
+    })),
+  })
+  return attachChoiceOfferToDeferred(deferred, serviceId, catalogVersion, built)
 }
 
 export { extractDates, extractTimes, norm }
@@ -138,6 +204,11 @@ export type AutoBookOutcome = {
   proposalVersion?: number
   /** Texto determinístico para o rascunho (substitui o do modelo), quando aplicável. */
   replyText?: string
+  /**
+   * M5 (#415) / DEC-128: botões (linha) ou lista (variantes/horários) a enviar
+   * com `replyText`. Toque autentica a escolha; não marca (DEC-061).
+   */
+  interactive?: ChoiceInteractive | null
   notes?: string
   outbox: OutboxRow[]
   /** Frame a gravar na mesma TX do outbound (ADR-0015). */
@@ -391,6 +462,13 @@ export async function tryAiAutoBook(
     forecast?: ForecastAdapter
     /** #411 TurnContext — settings, catálogo e preferência sem releitura. */
     turn?: import('./turn-context').TurnContext
+    /**
+     * M5 (#415): texto semântico de um toque autenticado (button/list_reply).
+     * Substitui o corpo das mensagens inbound do turno para o interpretador.
+     */
+    turnTextOverride?: string
+    /** Id da mensagem inbound do toque (confirmação / idempotência). */
+    confirmationMessageIdOverride?: string
   },
 ): Promise<AutoBookOutcome> {
   const tenantId = caller.tenantId
@@ -469,12 +547,21 @@ export async function tryAiAutoBook(
       older.push(m)
     }
   }
-  if (clientTurn.length === 0) return finish(none('not_confirmed'))
+  if (clientTurn.length === 0 && !input.turnTextOverride?.trim()) {
+    return finish(none('not_confirmed'))
+  }
   clientTurn.reverse()
-  const confirmation = clientTurn[clientTurn.length - 1]!
+  const confirmation = clientTurn[clientTurn.length - 1] ?? {
+    id: input.confirmationMessageIdOverride ?? `override:${clock.nowMs()}`,
+    direction: 'inbound' as const,
+    body: input.turnTextOverride ?? '',
+    created_at: clock.nowMs(),
+  }
 
   const services = input.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
-  const turnText = clientTurn.map((m) => m.body).join('\n')
+  const turnText = input.turnTextOverride?.trim()
+    ? input.turnTextOverride.trim()
+    : clientTurn.map((m) => m.body).join('\n')
 
   // ADR-0015 / #472: revalidar ids se catalogVersion divergir (também sem TurnContext).
   syncBookingFrameWithCatalog(
@@ -514,9 +601,40 @@ export async function tryAiAutoBook(
     } else {
       const choice = matchPendingChoice(turnText, frameEarly.pending)
       if (choice.kind === 'match') {
-        pendingTimeOverride = choice.key.match(/\d{2}:\d{2}/)?.[0] ?? null
-        const dateFromLabel = choice.label.match(/\d{4}-\d{2}-\d{2}/)?.[0]
-        pendingDateOverride = dateFromLabel ?? frameEarly.date
+        if (frameEarly.pending.slot === 'horario') {
+          pendingTimeOverride = choice.key.match(/\d{2}:\d{2}/)?.[0] ?? null
+          const dateFromLabel = choice.label.match(/\d{4}-\d{2}-\d{2}/)?.[0]
+          pendingDateOverride = dateFromLabel ?? frameEarly.date
+        } else if (frameEarly.pending.slot === 'linha' && frameEarly.serviceId) {
+          // Texto livre contra pending de linha (DEC-128: atalho, não obrigação).
+          saveSession({
+            serviceId: frameEarly.serviceId,
+            audienceLine: choice.key === 'masculino' ? 'masculino' : 'feminino',
+            pending: null,
+            phase: 'coletando',
+          })
+        } else if (frameEarly.pending.slot === 'variantes' && frameEarly.serviceId) {
+          const svcPending = services.find((s) => s.id === frameEarly.serviceId)
+          const active = svcPending?.zones.filter((z) => z.active) ?? []
+          const scoped = zonesForAudienceLine(
+            active,
+            frameEarly.line,
+          )
+          const ids =
+            choice.key === 'todas'
+              ? scoped.map((z) => z.id)
+              : [choice.key]
+          saveSession({
+            serviceId: frameEarly.serviceId,
+            variantIds: ids,
+            pending: null,
+            phase: 'coletando',
+          })
+        } else {
+          pendingTimeOverride = choice.key.match(/\d{2}:\d{2}/)?.[0] ?? null
+          const dateFromLabel = choice.label.match(/\d{4}-\d{2}-\d{2}/)?.[0]
+          pendingDateOverride = dateFromLabel ?? frameEarly.date
+        }
       } else if (choice.kind === 'ask_which' || choice.kind === 'ambiguous') {
         // Catálogo perguntar_horario (#448): fallback alinhado à allowlist; sem frase nova.
         const svc =
@@ -697,21 +815,36 @@ export async function tryAiAutoBook(
         const kindLabel = (plural || singular || DEFAULT_OPTION_KIND_PLURAL).toLocaleLowerCase('pt-BR')
         const earlyPhrase = plural || !singular ? `as ${kindLabel}` : `a ${kindLabel}`
         const cited = zonesNamedInText(turnText, active)
+        let interactive: ChoiceInteractive | null = null
         if (variantAudiencesConflict(cited)) {
           replyText = mixedAudienceReply(input.conversationId)
         } else if (needsAudienceLine(active) && !line) {
           replyText = audienceLineQuestion(det.service.name, input.conversationId)
+          interactive = lineChoiceFor(deferred, det.service.id, catalog.version)
         } else if (active.length > 0 && (kept.length === 0 || chosen.ambiguous)) {
-          const names = stableVariantLabelList(pool.length > 0 ? pool : active)
+          const zonePool = pool.length > 0 ? pool : active
+          const names = stableVariantLabelList(zonePool)
           const kind = det.service.variantKindPlural || det.service.variantKind
           replyText = time
             ? askZonesReply(earlyPhrase, names, time, input.conversationId, kind)
             : variantListQuestion(
                 det.service.name,
                 kind,
-                pool.length > 0 ? pool : active,
+                zonePool,
                 input.conversationId,
               )
+          interactive = variantChoiceFor(
+            deferred,
+            det.service.id,
+            catalog.version,
+            zonePool.map((z) => ({
+              id: z.id,
+              name: z.name,
+              audience: z.audience,
+              durationMinutes: z.durationMinutes,
+              priceCents: z.priceCents,
+            })),
+          )
         } else if (!time) {
           const period =
             turnFacts.period ?? (session?.serviceId === det.service.id ? session?.period : null)
@@ -752,11 +885,12 @@ export async function tryAiAutoBook(
                 : { action: 'ask_empty_time' },
               proposed: { action: 'offer_slots', detail: period ? 'period' : date ? 'date' : 'soonest' },
             })
-            rememberOfferFrame(
+            interactive = rememberOfferFrame(
               deferred,
               det.service.id,
               offered.slots,
               preferred,
+              catalog.version,
             )
             replyText = offered.replyText
           } else {
@@ -783,6 +917,7 @@ export async function tryAiAutoBook(
         return finish({
           ...none(det.status, base),
           ...(replyText ? { replyText } : {}),
+          ...(interactive ? { interactive } : {}),
           notes:
             det.status === 'needs_info' || det.status === 'ambiguous'
               ? `Agendamento pela IA não feito: falta/ambíguo (${faltam}). Confirme com a cliente dia, horário e procedimento.`
@@ -803,6 +938,7 @@ export async function tryAiAutoBook(
         conversationId: input.conversationId,
       })
       let replyText: string | undefined
+      let interactive: ChoiceInteractive | null = null
       if (booking.kind === 'handoff') {
         if (booking.handoffReason === 'terceiro') {
           // Allowlist (#448 / leva 3): fora do catálogo até decisão DEC-083 / #402.
@@ -845,6 +981,18 @@ export async function tryAiAutoBook(
                 active,
                 input.conversationId,
               )
+            interactive = variantChoiceFor(
+              deferred,
+              svc.id,
+              catalog.version,
+              active.map((z) => ({
+                id: z.id,
+                name: z.name,
+                audience: z.audience,
+                durationMinutes: z.durationMinutes,
+                priceCents: z.priceCents,
+              })),
+            )
           } else {
             const preferred = preferredProfessionalId(
               db,
@@ -875,11 +1023,12 @@ export async function tryAiAutoBook(
               current: { action: 'ask_empty_time' },
               proposed: { action: 'offer_slots', detail: date ? 'date' : 'soonest' },
             })
-            rememberOfferFrame(
+            interactive = rememberOfferFrame(
               deferred,
               svc.id,
               offered.slots,
               preferred,
+              catalog.version,
             )
             replyText = offered.replyText
           }
@@ -897,6 +1046,7 @@ export async function tryAiAutoBook(
       return finish({
         ...none(det.status, base),
         ...(replyText ? { replyText } : {}),
+        ...(interactive ? { interactive } : {}),
         notes:
           det.status === 'needs_info' || det.status === 'ambiguous'
             ? `Agendamento pela IA não feito: falta/ambíguo (${faltam}). Confirme com a cliente dia, horário e procedimento.`
@@ -933,9 +1083,11 @@ export async function tryAiAutoBook(
   const line = needsAudienceLine(activeZones) ? (turnExplicit ?? carried ?? historyLine) : null
   if (needsAudienceLine(activeZones) && !line) {
     saveScheduleLine(db, tenantId, input.conversationId, svc.id, null, clock)
+    const interactive = lineChoiceFor(deferred, svc.id, catalog.version)
     return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       replyText: audienceLineQuestion(svc.name, input.conversationId),
+      interactive,
       notes:
         `A cliente falou em ${svc.name} sem escolher a linha. Pergunta automática enviada. ` +
         'Não se infere pelo nome, pelo histórico nem por marcações. Texto livre não marca.',
@@ -977,11 +1129,25 @@ export async function tryAiAutoBook(
   const phrase = plural || !singular ? `as ${kind}` : `a ${kind}`
   const kindForAct = svc.variantKindPlural || svc.variantKind
   if (activeZones.length > 0 && (namedZones.length === 0 || ambiguous)) {
-    const names = stableVariantLabelList(scoped.length > 0 ? scoped : activeZones)
+    const zonePool = scoped.length > 0 ? scoped : activeZones
+    const names = stableVariantLabelList(zonePool)
+    const interactive = variantChoiceFor(
+      deferred,
+      svc.id,
+      catalog.version,
+      zonePool.map((z) => ({
+        id: z.id,
+        name: z.name,
+        audience: z.audience,
+        durationMinutes: z.durationMinutes,
+        priceCents: z.priceCents,
+      })),
+    )
     return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
       replyText: askZonesReply(phrase, names, time, input.conversationId, kindForAct),
+      interactive,
       notes: ambiguous
         ? `O nome citado casa com mais de uma ${kind}. Pergunta automática enviada. Não informe valor nem envie proposta.`
         : `A cliente falou em ${svc.name} sem escolher ${kind} (${names.join(', ')}). ` +

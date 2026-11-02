@@ -16,6 +16,7 @@ import { ClinicError } from '../errors'
 import { isClinicAiAssistEnabled } from '../config/settings'
 import { getConversation } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
+import { toSendInteractive } from './choice-offer'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
@@ -922,6 +923,7 @@ export async function runDueAutoDrafts(
       }
     } else if (suggestion?.status === 'pending' && draftText && !proposalDelivered) {
       try {
+        const choiceInteractive = toSendInteractive(autoBook?.interactive ?? null)
         const sent = sendOutboundMessageOp(
           db,
           caller,
@@ -930,7 +932,7 @@ export async function runDueAutoDrafts(
               conversationId: job.conversationId,
               body: draftText,
               interactive: deterministicReply
-                ? null
+                ? choiceInteractive
                 : { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
               clientRequestId: `ai-reply:${suggestion.id}`,
               authorClerkUserId: AUTODRAFT_ACTOR_ID,

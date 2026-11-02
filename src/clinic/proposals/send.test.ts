@@ -617,3 +617,48 @@ describe('S4: webhook button_reply', () => {
     expect(item.contextMessageId).toBe('wamid.proposal')
   })
 })
+
+describe('M5: webhook list_reply (#415)', () => {
+  it('parseia interactive.list_reply da Cloud API', () => {
+    const parsed = parseWhatsappWebhookPayload({
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: 'WABA',
+          changes: [
+            {
+              field: 'messages',
+              value: {
+                metadata: { phone_number_id: 'pn_m5' },
+                contacts: [{ wa_id: '5511999000415', profile: { name: 'Carla' } }],
+                messages: [
+                  {
+                    id: 'wamid.list1',
+                    from: '5511999000415',
+                    timestamp: '1730000000',
+                    type: 'interactive',
+                    interactive: {
+                      type: 'list_reply',
+                      list_reply: {
+                        id: 'ch1~horario~1%3A2~10%3A00',
+                        title: '06/11 10:00',
+                      },
+                    },
+                    context: { id: 'wamid.offer' },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    })
+    expect(parsed.items).toHaveLength(1)
+    const item = parsed.items[0]!
+    expect(item.kind).toBe('list_reply')
+    if (item.kind !== 'list_reply') return
+    expect(item.buttonId).toBe('ch1~horario~1%3A2~10%3A00')
+    expect(item.buttonTitle).toBe('06/11 10:00')
+    expect(item.contextMessageId).toBe('wamid.offer')
+  })
+})

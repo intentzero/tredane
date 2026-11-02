@@ -216,8 +216,31 @@ export type SendOutboundInteractiveButton = {
   title: string
 }
 
+/** Linha de lista Cloud API (interactive type=list) — M5 / #415 / DEC-128. */
+export type SendOutboundInteractiveListRow = {
+  id: string
+  title: string
+  description?: string
+}
+
+export type SendOutboundInteractiveListSection = {
+  title?: string
+  rows: SendOutboundInteractiveListRow[]
+}
+
+export type SendOutboundInteractiveList = {
+  /** Rótulo do botão que abre a lista (≤20). */
+  button: string
+  sections: SendOutboundInteractiveListSection[]
+}
+
+/**
+ * Interactive WhatsApp: botões (≤3) **ou** lista (≤10 linhas).
+ * Mutuamente exclusivos. Exige janela 24 h.
+ */
 export type SendOutboundInteractiveInput = {
-  buttons: SendOutboundInteractiveButton[]
+  buttons?: SendOutboundInteractiveButton[]
+  list?: SendOutboundInteractiveList | null
 }
 
 export type SendOutboundAfterPersistCtx = {
@@ -237,7 +260,7 @@ export type SendOutboundInput = {
   /** Modelo aprovado — obrigatório fora da janela. */
   template?: SendOutboundTemplateInput | null
   /**
-   * Mensagem interactive com botões (Cloud API). Exige janela 24 h aberta;
+   * Mensagem interactive com botões ou lista (Cloud API). Exige janela 24 h;
    * fora da janela não há envio irregular — a chamada deve escalar à equipe.
    */
   interactive?: SendOutboundInteractiveInput | null

@@ -14,6 +14,22 @@ import type { MessageRow } from './types'
 
 export type OutboundInteractiveButton = { id: string; title: string }
 
+export type OutboundInteractiveListRow = {
+  id: string
+  title: string
+  description?: string
+}
+
+export type OutboundInteractiveListSection = {
+  title?: string
+  rows: OutboundInteractiveListRow[]
+}
+
+export type OutboundInteractiveList = {
+  button: string
+  sections: OutboundInteractiveListSection[]
+}
+
 export type OutboundMessageRow = {
   id: string
   tenantId: string
@@ -25,8 +41,10 @@ export type OutboundMessageRow = {
   templateName: string | null
   templateLanguage: string | null
   templateParams: Record<string, string> | null
-  /** Botões Cloud API quando kind=interactive (S4). */
+  /** Botões Cloud API quando kind=interactive type=button (S4). */
   interactiveButtons: OutboundInteractiveButton[] | null
+  /** Lista Cloud API quando kind=interactive type=list (M5 / #415). */
+  interactiveList: OutboundInteractiveList | null
   deliveryState: OutboundDeliveryState
   failureReason: string | null
   outboxEventId: string | null
@@ -72,6 +90,43 @@ function parseInteractiveButtons(raw: string | null): OutboundInteractiveButton[
   }
 }
 
+function parseInteractiveList(raw: string | null): OutboundInteractiveList | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as { list?: unknown }
+    if (!parsed || !parsed.list || typeof parsed.list !== 'object') return null
+    const list = parsed.list as { button?: unknown; sections?: unknown }
+    const button = typeof list.button === 'string' ? list.button.trim() : ''
+    if (!button || !Array.isArray(list.sections)) return null
+    const sections: OutboundInteractiveListSection[] = []
+    for (const sec of list.sections) {
+      if (!sec || typeof sec !== 'object') continue
+      const s = sec as { title?: unknown; rows?: unknown }
+      if (!Array.isArray(s.rows)) continue
+      const rows: OutboundInteractiveListRow[] = []
+      for (const r of s.rows) {
+        if (!r || typeof r !== 'object') continue
+        const row = r as { id?: unknown; title?: unknown; description?: unknown }
+        const id = typeof row.id === 'string' ? row.id : ''
+        const title = typeof row.title === 'string' ? row.title : ''
+        if (!id || !title) continue
+        const description =
+          typeof row.description === 'string' && row.description.trim()
+            ? row.description.trim()
+            : undefined
+        rows.push(description ? { id, title, description } : { id, title })
+      }
+      if (rows.length === 0) continue
+      const title =
+        typeof s.title === 'string' && s.title.trim() ? s.title.trim() : undefined
+      sections.push(title ? { title, rows } : { rows })
+    }
+    return sections.length > 0 ? { button, sections } : null
+  } catch {
+    return null
+  }
+}
+
 function mapOutbound(row: ObSql): OutboundMessageRow {
   let templateParams: Record<string, string> | null = null
   if (row.template_params_json) {
@@ -97,6 +152,7 @@ function mapOutbound(row: ObSql): OutboundMessageRow {
     templateLanguage: row.template_language,
     templateParams,
     interactiveButtons: parseInteractiveButtons(row.interactive_json ?? null),
+    interactiveList: parseInteractiveList(row.interactive_json ?? null),
     deliveryState: row.delivery_state as OutboundDeliveryState,
     failureReason: row.failure_reason,
     outboxEventId: row.outbox_event_id,
@@ -162,6 +218,7 @@ export function insertOutboundMessage(
     templateLanguage?: string | null
     templateParams?: Record<string, string> | null
     interactiveButtons?: OutboundInteractiveButton[] | null
+    interactiveList?: OutboundInteractiveList | null
     deliveryState?: OutboundDeliveryState
     failureReason?: string | null
     outboxEventId?: string | null
@@ -174,9 +231,13 @@ export function insertOutboundMessage(
   const now = clock.nowMs()
   const state = input.deliveryState ?? 'pending'
   const interactiveJson =
-    input.kind === 'interactive' && input.interactiveButtons && input.interactiveButtons.length > 0
-      ? JSON.stringify({ buttons: input.interactiveButtons })
-      : null
+    input.kind === 'interactive' && input.interactiveList
+      ? JSON.stringify({ list: input.interactiveList })
+      : input.kind === 'interactive' &&
+          input.interactiveButtons &&
+          input.interactiveButtons.length > 0
+        ? JSON.stringify({ buttons: input.interactiveButtons })
+        : null
   db.run(
     `INSERT INTO outbound_messages (
       id, tenant_id, conversation_id, message_id, client_request_id,

@@ -54,6 +54,19 @@ export type ParsedWebhookItem =
       providerTimestamp: number | null
     }
   | {
+      /** Clique em linha de lista (M5 / #415) — Cloud API interactive.list_reply. */
+      kind: 'list_reply'
+      providerEventKey: string
+      phoneNumberId: string
+      waId: string
+      displayName?: string
+      /** Mesmo contrato que buttonId: id opaco da opção. */
+      buttonId: string
+      buttonTitle: string
+      contextMessageId: string | null
+      providerTimestamp: number | null
+    }
+  | {
       kind: 'unsupported'
       providerEventKey: string
       phoneNumberId: string
@@ -254,8 +267,11 @@ export function parseWhatsappWebhookPayload(rawJson: unknown): ParseWebhookResul
           const interactive = asRecord(m.interactive)
           const interactiveType = interactive ? asString(interactive.type) : null
           const buttonReply = interactive ? asRecord(interactive.button_reply) : null
+          const listReply = interactive ? asRecord(interactive.list_reply) : null
           const buttonId = buttonReply ? asString(buttonReply.id) : null
           const buttonTitle = buttonReply ? asString(buttonReply.title) : null
+          const listId = listReply ? asString(listReply.id) : null
+          const listTitle = listReply ? asString(listReply.title) : null
           const context = asRecord(m.context)
           const contextMessageId = context ? asString(context.id) : null
           if (interactiveType === 'button_reply' && buttonId && buttonTitle) {
@@ -267,6 +283,18 @@ export function parseWhatsappWebhookPayload(rawJson: unknown): ParseWebhookResul
               displayName,
               buttonId,
               buttonTitle,
+              contextMessageId,
+              providerTimestamp,
+            })
+          } else if (interactiveType === 'list_reply' && listId && listTitle) {
+            items.push({
+              kind: 'list_reply',
+              providerEventKey: `wa:msg:${id}`,
+              phoneNumberId,
+              waId: from,
+              displayName,
+              buttonId: listId,
+              buttonTitle: listTitle,
               contextMessageId,
               providerTimestamp,
             })
