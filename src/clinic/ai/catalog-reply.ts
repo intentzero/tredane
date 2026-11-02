@@ -296,6 +296,7 @@ export function catalogReply(
           variantIds: session.variantIds,
         }
       : null,
+    conversationId: cnv,
   })
   if (bookingMatch.kind === 'handoff') {
     if (bookingMatch.handoffReason === 'terceiro') {
