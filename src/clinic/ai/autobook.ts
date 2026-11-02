@@ -18,7 +18,6 @@
  */
 import type { Clock } from '../../db/clock'
 import { AI_AUTOBOOK_ACTOR } from '../constants'
-import { getContact } from '../contacts'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { explicitAudienceLine } from '../catalog/audience'
@@ -297,14 +296,14 @@ export function askZonesReply(
   )
 }
 
-function firstName(label: string | null | undefined): string | null {
-  const f = label?.trim().split(/\s+/)[0]
-  return f ? f : null
-}
-
 function dayText(date: string): string {
   const [, m, d] = date.split('-')
   return `${WEEKDAY_LABEL[weekdayOf(date)]} ${d}/${m}`
+}
+
+/** DEC-125: envio da proposta falhou. Diz que ainda não está marcado (DEC-061). */
+function sendFailedText(serviceName: string, date: string, time: string): string {
+  return `Não consegui enviar a confirmação de ${serviceName} na ${dayText(date)} às ${time}. Ainda não está marcado: a equipe vai te responder em seguida.`
 }
 
 function localHHMM(tz: string, ms: number): string {
@@ -483,9 +482,6 @@ export async function tryAiAutoBook(
     )
   }
   const base = { confirmationMessageId: confirmation.id, missing }
-  const contact = getContact(db, tenantId, conv.contactId)
-  const name = firstName(contact?.displayName)
-  const hi = name ? `, ${name}` : ''
   const clockFromTurn = (() => {
     const times = [...extractTimes(turnText)]
     return times.length === 1 ? times[0]! : null
@@ -1026,8 +1022,8 @@ export async function tryAiAutoBook(
       return {
         ...none('needs_signal', found),
         replyText:
-          `Perfeito${hi}! Para garantir ${svc.name} na ${dayText(date)} às ${time}, a clínica pede um sinal` +
-          `${amount != null ? ` de ${brl(amount)}` : ''} por Pix. O horário fica reservado depois do pagamento; o Pix chega aqui na conversa.`,
+          `Para garantir ${svc.name} na ${dayText(date)} às ${time}, a clínica pede um sinal` +
+          `${amount != null ? ` de ${brl(amount)}` : ''} por Pix. O horário só fica reservado depois do pagamento, e o Pix chega aqui na conversa.`,
         notes:
           `A cliente confirmou ${label}. Serviço exige sinal: a IA NÃO marcou. ` +
           'Envie a cobrança Pix pelo Agendar (fluxo normal); o compromisso é criado após o pagamento.',
@@ -1036,7 +1032,7 @@ export async function tryAiAutoBook(
     return {
       ...none('requires_button', found),
       replyText:
-        `Perfeito${hi}! Anotei ${svc.name} na ${dayText(date)} às ${time}. A equipe confirma o horário em seguida.`,
+        `Recebi seu pedido de ${svc.name} na ${dayText(date)} às ${time}. Ainda não está marcado: a equipe confirma o horário e já te retorna.`,
       notes:
         `A cliente parece confirmar ${label}. ` +
         'Capacidade pausada: aviso automático enviado; confirme pelo Agendar (fluxo normal).',
@@ -1075,7 +1071,7 @@ export async function tryAiAutoBook(
       // Proposta no WhatsApp → sem texto. Falha de envio → aviso, para não silenciar.
       replyText: delivered
         ? ''
-        : `Quase lá${hi}! Vou confirmar ${svc.name} na ${dayText(date)} às ${time} com a equipe e já te retorno.`,
+        : sendFailedText(svc.name, date, time),
       notes: `A cliente parece confirmar ${label}. ${sendNote}`,
       outbox: sent.outbox,
     }
@@ -1083,7 +1079,7 @@ export async function tryAiAutoBook(
     return {
       ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
       replyText:
-        `Quase lá${hi}! Vou confirmar ${svc.name} na ${dayText(date)} às ${time} com a equipe e já te retorno.`,
+        sendFailedText(svc.name, date, time),
       notes:
         `A cliente parece confirmar ${label}. Falha ao montar/enviar a proposta: ` +
         `${err instanceof Error ? err.message.slice(0, 180) : 'erro'}. ` +

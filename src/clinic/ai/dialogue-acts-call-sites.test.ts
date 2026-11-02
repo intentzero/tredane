@@ -120,10 +120,11 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Qual opção: \$\{labels\.join\(', '\)\}\?$/,
   // — Leva 3 / DEC (allowlist briefing) —
   /^Para agendar para outra pessoa, a equipe precisa continuar este atendimento\.$/,
-  /^Perfeito\$\{hi\}! Para garantir \$\{svc\.name\} na \$\{dayText\(date\)\} às \$\{time\}, a clínica pede um sinal$/,
-  /por Pix\. O horário fica reservado depois do pagamento/,
-  /^Perfeito\$\{hi\}! Anotei \$\{svc\.name\} na \$\{dayText\(date\)\} às \$\{time\}\. A equipe confirma o horário em seguida\.$/,
-  /^Quase lá\$\{hi\}! Vou confirmar \$\{svc\.name\} na \$\{dayText\(date\)\} às \$\{time\} com a equipe e já te retorno\.$/,
+  // DEC-125: sinal Pix, pausa da owner, envio falhado (sem «Perfeito»/«Anotei»/«Quase lá»)
+  /^Para garantir \$\{svc\.name\} na \$\{dayText\(date\)\} às \$\{time\}, a clínica pede um sinal$/,
+  /por Pix\. O horário só fica reservado depois do pagamento, e o Pix chega aqui na conversa\./,
+  /^Recebi seu pedido de \$\{svc\.name\} na \$\{dayText\(date\)\} às \$\{time\}\. Ainda não está marcado: a equipe confirma o horário e já te retorna\.$/,
+  /^Não consegui enviar a confirmação de \$\{serviceName\} na \$\{dayText\(date\)\} às \$\{time\}\. Ainda não está marcado: a equipe vai te responder em seguida\.$/,
   // — Notas internas à equipe (não WhatsApp cliente) —
   /Texto livre não marca/,
   /Confirme com a cliente/,
