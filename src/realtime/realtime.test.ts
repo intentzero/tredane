@@ -225,6 +225,131 @@ describe('Realtime — fence e fan-out fail-closed (#23)', () => {
     }
   })
 
+  it('booking_frame.updated: A recebe; B não; revoke corta; clear chega (#472)', async () => {
+    const clinic = bootClinicDb()
+    const clock = clinic.clock
+    try {
+      ensureRealtimeFence(clinic.db, clock)
+      const { saveBookingFrame, clearBookingFrame } = await import('../clinic/ai/schedule-session')
+      const { createConversation } = await import('../clinic/inbox/conversations')
+      const { upsertContact } = await import('../clinic/contacts')
+      const { bindOrAssertTenant } = await import('../clinic/tenant')
+      const { workerCaller } = await import('../clinic')
+      const tenantId = 'clinic-demo-a'
+      bindOrAssertTenant(clinic.db, workerCaller(tenantId), clock)
+      const contact = upsertContact(
+        clinic.db,
+        { tenantId, waId: '5511999000472', displayName: 'BF' },
+        clock,
+      )
+      const cnv = createConversation(
+        clinic.db,
+        { tenantId, contactId: contact.id, status: 'open' },
+        clock,
+      )
+      const { outbox: saveOb } = saveBookingFrame(
+        clinic.db,
+        tenantId,
+        cnv.id,
+        { serviceId: 'svc1', phase: 'coletando', catalogVersion: '1:1' },
+        clock,
+      )
+      expect(saveOb?.type).toBe('booking_frame.updated')
+      const evt = appendRealtimeEvent(
+        clinic.db,
+        {
+          tenantId,
+          type: 'booking_frame.updated',
+          entityType: 'conversation',
+          entityId: cnv.id,
+          eventId: `rt:${saveOb!.idempotencyKey}`,
+          payload: JSON.parse(saveOb!.payloadJson) as Record<string, unknown>,
+        },
+        clock,
+      )
+      const socketA = fakeSocket({
+        connectionId: 'ws_bf_a',
+        clerkUserId: 'user_synth_owner_a',
+        sessionId: 'sess_bf_a',
+        role: 'owner',
+        tenantId,
+        authEpoch: 0,
+        connectedAt: 1,
+      })
+      const socketRevoked = fakeSocket({
+        connectionId: 'ws_bf_rev',
+        clerkUserId: 'user_synth_attendant_a',
+        sessionId: 'sess_bf_rev',
+        role: 'attendant',
+        tenantId,
+        authEpoch: 0,
+        connectedAt: 1,
+      })
+      const socketB = fakeSocket({
+        connectionId: 'ws_bf_b',
+        clerkUserId: 'user_synth_multi',
+        sessionId: 'sess_bf_b',
+        role: 'attendant',
+        tenantId: 'clinic-demo-b',
+        authEpoch: 0,
+        connectedAt: 1,
+      })
+      const grants = new Map<string, 'owner' | 'attendant' | 'deny' | 'unavailable'>([
+        ['clinic-demo-a:user_synth_owner_a', 'owner'],
+        ['clinic-demo-a:user_synth_attendant_a', 'attendant'],
+        ['clinic-demo-b:user_synth_multi', 'attendant'],
+      ])
+      const authority = createMapAccessAuthority(grants)
+      const first = await deliverEventToSockets(
+        clinic.db,
+        [socketA, socketRevoked, socketB],
+        evt,
+        authority,
+        clock,
+      )
+      expect(first.delivered.sort()).toEqual(['ws_bf_a', 'ws_bf_rev'])
+      expect(socketB.sent).toEqual([])
+
+      denyUserAccess(clinic.db, clock, {
+        clerkUserId: 'user_synth_attendant_a',
+        reason: 'membership_revoked',
+        source: 'membership_revoke',
+      })
+      grants.set('clinic-demo-a:user_synth_attendant_a', 'deny')
+
+      const clearOb = clearBookingFrame(clinic.db, tenantId, cnv.id, clock)
+      expect(clearOb?.type).toBe('booking_frame.updated')
+      const clearEvt = appendRealtimeEvent(
+        clinic.db,
+        {
+          tenantId,
+          type: 'booking_frame.updated',
+          entityType: 'conversation',
+          entityId: cnv.id,
+          eventId: `rt:${clearOb!.idempotencyKey}`,
+          payload: JSON.parse(clearOb!.payloadJson) as Record<string, unknown>,
+        },
+        clock,
+      )
+      const second = await deliverEventToSockets(
+        clinic.db,
+        [socketA, socketRevoked, socketB],
+        clearEvt,
+        authority,
+        clock,
+      )
+      expect(second.delivered).toEqual(['ws_bf_a'])
+      expect(second.revoked).toContain('ws_bf_rev')
+      expect(socketB.sent).toEqual([])
+      expect(JSON.parse(socketA.sent.at(-1)!)).toMatchObject({
+        type: 'event',
+        eventType: 'booking_frame.updated',
+      })
+    } finally {
+      clinic.close()
+    }
+  })
+
   it('authority unavailable → fail closed (não entrega payload clínico)', async () => {
     const { db, clock, close } = bootClinicDb()
     try {

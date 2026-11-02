@@ -8,9 +8,11 @@ import { currentClientTurnText, explicitAudienceLine } from '../catalog/audience
 import { listEffectiveWeeklyWindows } from '../config/availability'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
+import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import { variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { listMessages } from '../inbox/messages'
+import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
 import { resolveBookingObject } from './booking-object'
 import {
@@ -33,7 +35,7 @@ import {
   variantListQuestion,
   zonesForAudienceLine,
 } from './variant-line'
-import { parseTemporal } from './nlu/temporal'
+import { extractDates, parseTemporal } from './nlu/temporal'
 
 const HOURS = /\b(hor[aá]rio de funcionamento|que horas (voc[eê]s )?(abrem|funcionam|atendem)|at[eé] que horas)\b/i
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
@@ -193,7 +195,11 @@ export function catalogReply(
   opts: {
     conversationId?: string
     turn?: {
-      catalog: { services: ServiceRow[]; resources: import('../config/types').ResourceRow[] }
+      catalog: {
+        version?: string
+        services: ServiceRow[]
+        resources: import('../config/types').ResourceRow[]
+      }
       messages: Array<{ direction: string; body: string; createdAt?: number }>
       turnText: string
       session: ReturnType<typeof getScheduleSession>
@@ -205,9 +211,14 @@ export function catalogReply(
   const body = text.trim()
   if (!body) return null
   const deferred = opts.deferredFrame
+  const catalogVersion = opts.turn?.catalog.version
   const saveSession = (conversationId: string, patch: ScheduleSessionPatch) => {
-    if (deferred) deferred.save(patch)
-    else saveScheduleSession(db, tenantId, conversationId, patch, clock)
+    const stamped =
+      catalogVersion != null && catalogVersion !== ''
+        ? { ...patch, catalogVersion: patch.catalogVersion ?? catalogVersion }
+        : patch
+    if (deferred) deferred.save(stamped)
+    else saveScheduleSession(db, tenantId, conversationId, stamped, clock)
   }
   const cnv = opts.conversationId ?? ''
   const services = opts.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
@@ -412,11 +423,27 @@ export function catalogReply(
     const patch: ScheduleSessionPatch = { serviceId: inPlay.id }
     if (explicit || (mixed && line)) patch.audienceLine = line
     else if (mixed && !line) patch.audienceLine = null
-    if (facts.dayLabel) patch.dayLabel = facts.dayLabel
+    // #472: day_label deixa de ser gravado — resolver data absoluta (CF-21).
+    if (facts.dayLabel) {
+      const settings = ensureClinicSettings(db, tenantId, clock)
+      const tz = settings.timezone || 'America/Sao_Paulo'
+      const today = clinicCivilDateFromUtc(tz, clock.nowMs())
+      const absolute = [...extractDates(facts.dayLabel, today)][0] ?? null
+      if (absolute) patch.date = absolute
+    }
     if (facts.period) patch.period = facts.period
     const sameService = session?.serviceId === inPlay.id
-    const lineChanging = patch.audienceLine !== undefined && patch.audienceLine !== (sameService ? session?.audienceLine : null)
-    const dayChanging = patch.dayLabel !== undefined && patch.dayLabel !== session?.dayLabel
+    const lineChanging =
+      patch.audienceLine !== undefined &&
+      patch.audienceLine !== (sameService ? session?.audienceLine : null)
+    const existingDate = sameService
+      ? (db.get<{ date: string | null }>(
+          `SELECT date FROM schedule_sessions WHERE tenant_id = ? AND conversation_id = ?`,
+          tenantId,
+          opts.conversationId,
+        )?.date ?? null)
+      : null
+    const dayChanging = patch.date !== undefined && patch.date !== existingDate
     const periodChanging = patch.period !== undefined && patch.period !== session?.period
     if (lineChanging || dayChanging || periodChanging || !sameService) {
       saveSession(opts.conversationId, patch)

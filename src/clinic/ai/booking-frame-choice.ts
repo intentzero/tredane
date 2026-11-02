@@ -36,20 +36,22 @@ function fold(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 
+/** Dias da semana que também são ordinais em PT — só contam como N-ésima com «opção/hora/horário». */
+const AMBIGUOUS_ORDINAL_WEEKDAYS: ReadonlySet<number> = new Set([2, 4, 5]) // segunda, quarta, quinta
+
 function ordinalIndex(text: string): number | null {
   const folded = fold(text)
-  // «a segunda opção» / «a 2ª» / «a segunda»
+  const hasOrdinalQualifier = /\b(op[cç][aã]o|hora|horario)\b/.test(folded)
+  // «a 2ª» / «a 4ª opção» / «primeira» — dígitos e primeira/terceiro não colidem com DOW.
   for (const [re, n] of ORDINAL_WORDS) {
-    if (re.test(folded) && /\b(op[cç][aã]o|hora|horario)?/.test(folded)) {
-      // Evita «segunda» como dia da semana sem «opção/hora» quando há weekday context puro.
-      if (n === 2 && /\bsegunda\b/.test(folded) && !/\b(op[cç][aã]o|hora|horario)\b/.test(folded)) {
-        // Pode ser dia da semana — tratado em weekdayVsOrdinal.
-        continue
-      }
-      return n
+    if (!re.test(folded)) continue
+    if (AMBIGUOUS_ORDINAL_WEEKDAYS.has(n) && !hasOrdinalQualifier) {
+      // Pode ser dia da semana — tratado em weekdayMention / matchPendingChoice.
+      continue
     }
+    return n
   }
-  // «a segunda opção» explícito
+  // «a segunda opção» explícito (redundante com hasOrdinalQualifier, mantém o contrato).
   if (/\b(a|o)\s+(primeira|segunda|terceira|quarta|quinta)\s+op/i.test(text)) {
     const m = fold(text).match(/\b(primeira|segunda|terceira|quarta|quinta)\b/)
     if (!m) return null

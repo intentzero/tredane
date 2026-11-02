@@ -53,7 +53,7 @@
 | A-05 | P0 | Serviço com sinal | C: «Quero peeling químico sexta às 10h» ⟶ clique Confirmar | Proposta; o clique gera Pix de R$ 90,00. Nenhum compromisso antes do pagamento. | INV-01 | 1 | ✅ `autobook.test` «serviço com sinal» |
 | A-06 | P1 | «O mais cedo possível» | C: «Qual o primeiro horário para massagem?» | Oferece os 2–3 horários reais mais próximos (hoje ou amanhã). | INV-03, EE-07 | 1 | ❔ L2 |
 | A-07 | P1 | Escolha por «o das N» | A: [oferta 13:00, 14:00, 15:30 amanhã, massagem] ⟶ C: «o das 14» | Proposta 14:00. | EF-02 | 1 | ✅ L1 `dialogs` A-07 (M2 / pending.options, #412) |
-| A-08 | P1 | Escolha por ordinal | A: [oferta 13:00, 14:00, 15:30] ⟶ C: «a segunda opção» | Proposta 14:00. | EF-02 | 1 | ✅ L1 `dialogs` A-08 (M2 / pending.options, #412) |
+| A-08 | P1 | Escolha por ordinal | A: [oferta 13:00, 14:00, 15:30] ⟶ C: «a segunda opção» | Proposta 14:00. | EF-02 | 1 | ✅ L1 `dialogs` A-08 (M2 / pending.options, #412); #472: «quarta»/«quinta» sem «opção» = dia (unit `booking-frame.test`) |
 | A-09 | P0 | Várias bolhas em menos de 7 s | C: «Oi» · «queria limpeza de pele» · «amanhã às 15h» | Uma única saída: a proposta 15:00. | INV-09, EE-01 | 1 | ❔ L1 (o autobook lê o turno inteiro) |
 | A-10 | P1 | «meio-dia» no vão do almoço | C: «Limpeza de pele sexta ao meio-dia» | Reconhece 12:00, diz que não há vaga e oferece 11:00 e 13:00. | INV-03 | 1 | ❌ CF-09 |
 | A-11 | P1 | Outro serviço depois de Agendado | [A-01 confirmado] ⟶ clique «Quero outro serviço» ⟶ C: «massagem sábado 10h» | Funil novo, sem herdar o anterior → proposta Massagem sáb 10:00. | INV-08 | 1 | ✅ `autobook.test` «após limpar a sessão (DEC-086)» |
@@ -393,3 +393,13 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | Copy | Frases **Confirmadas** (DEC-129); vivem no código (`reschedule.ts`), padrão DEC-125 — não no catálogo M4 de variantes |
 | Gate | G-07 + `reschedule.test` (6 frases + claimsBooking); L1 harness sem regressão face ao pós-#470 |
 | Em aberto | L2/L3 [#417](https://github.com/intentzero/tredane/issues/417); 6 atos sem call-site |
+
+### Resumo após It. 4.3 / M2b #472 (02/11/2026)
+
+| Estado | Contagem / notas |
+| --- | --- |
+| L1 | `npm run test:dialogs` **85** passam · **0** `it.fails` · INV-01..11 verdes; `npm test` 1639 |
+| Freeze | prompt `sha256:a35e30d45c7cd609…b804` e catálogo `scenario.ts` `547cd19c…` **inalterados** |
+| Entrega | [#472](https://github.com/intentzero/tredane/issues/472): ordinal «quarta»/«quinta»; `catalogVersion` revalida; WS `booking_frame.updated`; cutover (remove flag/sombra; `day_label` órfã) |
+| Gate | A-07, A-08, C-05 (+ unit quarta/quinta); G-07 / remarcação; harness DO entrega do evento |
+| Em aberto | L2/L3 [#417](https://github.com/intentzero/tredane/issues/417) |

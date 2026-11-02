@@ -25,10 +25,10 @@ import {
   classifySensitive,
   hasPolicyQuestion,
 } from './nlu/sensitive'
+import { MODEL_FALLBACK_TEXT } from './model-fallback'
 import { validateClientOutbound } from './outbound-validate'
 import { checkConversationProtection } from './protection'
 import { getBookingFrame, getScheduleSession, saveScheduleSession, scheduleFactsFromText } from './schedule-session'
-import { BOOKING_FRAME_CUTOVER, logBookingFrameShadow } from './booking-frame-shadow'
 import {
   createDeferredBookingFrame,
   offerFramePatch,
@@ -93,14 +93,12 @@ function localHHMM(tz: string, ms: number): string {
  * DEC-129: frases fixas no código (como DEC-125), não no catálogo de atos.
  * Uma redação por situação — o catálogo M4 exige 3–5 variantes e variáveis não vazias;
  * aqui a DEC fixa o texto literal. Validador único + INV-05 antes de sair.
+ * Hotfix: nunca lança — se o texto interpolado (ex.: nome do serviço) falhar o
+ * validador, devolve a frase DEC-107 (sem frase nova).
  */
 function reschedulePhrase(text: string): string {
   const check = validateClientOutbound(text, { source: 'phrase', requireSingleQuestion: false })
-  if (!check.ok) {
-    throw new Error(
-      `reschedule phrase: ${check.reason}${check.detail ? ` (${check.detail})` : ''}: ${text}`,
-    )
-  }
+  if (!check.ok) return MODEL_FALLBACK_TEXT
   return text
 }
 
@@ -260,8 +258,8 @@ export async function tryAiReschedule(
     if (!deferred.hasWork) return outcome
     const willSend = Boolean(outcome.replyText.trim()) || Boolean(outcome.proposalId)
     if (willSend) return { ...outcome, deferredFrame: deferred }
-    deferred.flushNow(db, tenantId, input.conversationId, clock)
-    return outcome
+    const flushed = deferred.flushNow(db, tenantId, input.conversationId, clock)
+    return { ...outcome, outbox: [...outcome.outbox, ...flushed] }
   }
   const guard = checkConversationProtection(db, tenantId, input.conversationId)
   if (!guard.allowed) return null
@@ -300,20 +298,9 @@ export async function tryAiReschedule(
     const resolved = [...extractDates(facts.dayLabel, today)]
     if (resolved.length === 1) date = resolved[0]
   }
-  // ADR-0015: data absoluta do frame (autoriza sob cutover via framePrior).
+  // ADR-0015: data absoluta do frame (day_label órfã — não autoriza, #472).
   if (!date && frame?.date && (priorOffer || frame.phase === 'remarcando')) {
     date = frame.date
-    logBookingFrameShadow({
-      tenantId,
-      conversationId: input.conversationId,
-      current: { action: 'use_day_label', detail: session?.dayLabel ?? undefined },
-      proposed: { action: 'use_absolute_date', detail: frame.date },
-    })
-  }
-  // Fallback day_label: só pré-cutover (órfã). Com cutover activo não autoriza.
-  if (!BOOKING_FRAME_CUTOVER && !date && session?.dayLabel && priorOffer) {
-    const resolved = [...extractDates(session.dayLabel, today)]
-    if (resolved.length === 1) date = resolved[0]
   }
   const times = [...extractTimes(input.inboundText)]
   const time = times.length === 1 ? times[0] : undefined
@@ -324,7 +311,6 @@ export async function tryAiReschedule(
       facts.dayLabel != null ? [...extractDates(facts.dayLabel, today)][0] ?? null : undefined
     saveSession({
       serviceId: apt.serviceId,
-      ...(facts.dayLabel ? { dayLabel: facts.dayLabel } : {}),
       ...(facts.period ? { period: facts.period } : {}),
       ...(absolute !== undefined ? { date: absolute } : {}),
       phase: 'remarcando',

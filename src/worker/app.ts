@@ -501,6 +501,35 @@ export function createApp(opts: CreateAppOptions = {}) {
     return c.json(result)
   })
 
+  /** Harness #472: emite `booking_frame.updated` (save/clear) e faz fan-out WS. */
+  app.post('/api/f1/clinic/:tenantId/booking-frame', async (c) => {
+    const tenantId = c.req.param('tenantId')
+    if (!tenantId.startsWith('clinic-demo-')) {
+      return c.json({ error: 'synthetic_tenants_only' }, 400)
+    }
+    const body = await c.req.json<{
+      conversationId?: string
+      action?: 'save' | 'clear'
+      serviceId?: string
+    }>()
+    if (!body?.conversationId || (body.action !== 'save' && body.action !== 'clear')) {
+      return c.json({ error: 'invalid_body' }, 400)
+    }
+    try {
+      const result = await clinicStub(c.env, tenantId).harnessBookingFrameUpdated(
+        workerCaller(tenantId, 'harness'),
+        {
+          conversationId: body.conversationId,
+          action: body.action,
+          serviceId: body.serviceId,
+        },
+      )
+      return c.json(result)
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'booking_frame_failed' }, 400)
+    }
+  })
+
   app.notFound((c) => c.json({ error: 'not_found' }, 404))
   return app
 }

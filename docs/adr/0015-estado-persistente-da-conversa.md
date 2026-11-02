@@ -149,7 +149,7 @@ Segue [AGENTS.md](../../AGENTS.md) e o ADR-0012: um DO por clínica **não** iso
 | 4 | Copy pós-migração (DEC-127.4) | Reusar acto `perguntar_dia` (DEC-122/123). Sem frase nova. | **Confirmado** |
 | 5 | Estado do ADR | Opção A — promover o ADR inteiro a **Confirmado**. | **Confirmado** |
 
-Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migração 49, sombra, cutover) está entregue no PR de #412; com cutover activo, `zonesOfferedToClient` **deixa de autorizar** (só o frame: `lastOffer` / `pending` / `date`). **DEC-129 (02/11/2026):** o marcador `RESCHEDULE_OFFER_MARKER` foi **removido** da copy e do código; a continuidade da remarcação lê só `phase = remarcando` / `lastOffer` / `pending`. **Same-TX implementada:** o frame (e `booking_frame.updated`) grava-se na mesma `transactionSync` que a mensagem de saída e o outbox (`SendOutboundInput.afterPersist` / `DeferredBookingFrame`); `pending.messageId` / `lastOffer.messageId` são o id da mensagem outbound desse turno.
+Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migração 49, sombra, cutover) está entregue no PR de #412; com cutover activo, `zonesOfferedToClient` **deixa de autorizar** (só o frame: `lastOffer` / `pending` / `date`). **DEC-129 (02/11/2026):** o marcador `RESCHEDULE_OFFER_MARKER` foi **removido** da copy e do código; a continuidade da remarcação lê só `phase = remarcando` / `lastOffer` / `pending`. **Same-TX implementada:** o frame (e `booking_frame.updated`) grava-se na mesma `transactionSync` que a mensagem de saída e o outbox (`SendOutboundInput.afterPersist` / `DeferredBookingFrame`); `pending.messageId` / `lastOffer.messageId` são o id da mensagem outbound desse turno. **M2b (#472, 02/11/2026):** cutover fechado — `BOOKING_FRAME_CUTOVER` e a comparação em sombra removidos; `day_label` deixa de ser gravada (coluna órfã, sem `DROP COLUMN`); `catalogVersion` é comparado e revalida ids; entrega WS de `booking_frame.updated` coberta por teste.
 
 ## Consequências e riscos
 
@@ -161,7 +161,7 @@ Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migra�
 | Migração por DO (risco médio) | **Confirmado** | Upgrade schema 48→49 testado; tabela continua `schedule_sessions`. |
 | Same-TX frame + mensagem + outbox | **Confirmado** (implementado) | `afterPersist` em `sendOutboundMessageOp`; testes de commit e rollback. |
 | Sessões abertas perdem o dia relativo | **Confirmado** (DEC-127) | Uma pergunta de dia via `perguntar_dia`; resto preservado. |
-| Dual-path durante sombra | **Confirmado** (plano de rollout) | Custo de manutenção temporário; cortar o path antigo no cutover. |
+| Dual-path durante sombra | **Confirmado** (cortado em #472) | Path antigo / flag / sombra removidos; só o frame autoriza. |
 | Evento WS `booking_frame.updated` | **Confirmado** | MVP; isolamento por tenant/clínica. |
 | Copy «pedir o dia» pós-migração | **Confirmado** | Acto `perguntar_dia` (DEC-122/123); sem DEC-104 nova. |
 

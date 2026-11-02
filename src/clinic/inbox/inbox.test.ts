@@ -190,12 +190,13 @@ describe('Clinic inbox — conversas e histórico (#29)', () => {
         db,
         'clinic-demo-a',
         id,
-        { serviceId: 'svc_laser', dayLabel: 'sexta', period: 'tarde' },
+        { serviceId: 'svc_laser', date: '2026-11-06', period: 'tarde' },
         clock,
       )
       expect(getConversationDetailOp(db, caller, { conversationId: id }, clock).scheduleHint).toEqual({
         serviceId: 'svc_laser',
-        dayLabel: 'sexta',
+        dayLabel: null,
+        date: '2026-11-06',
         period: 'tarde',
       })
     } finally {

@@ -71,7 +71,10 @@ export type BookingFrame = {
   updatedAt: number
 }
 
-/** Vista legada — dayLabel lê a coluna órfã até o cutover. */
+/**
+ * Vista legada. `dayLabel` lê a coluna órfã (não é gravada após #472 cutover;
+ * sem DROP COLUMN — ADR-0015).
+ */
 export type ScheduleSession = {
   serviceId: string
   audienceLine: ScheduleAudienceLine | null
@@ -98,7 +101,10 @@ export type BookingFramePatch = {
   rescheduleAppointmentId?: string | null
   catalogVersion?: string
   provenance?: BookingFrameProvenance
-  /** Compat: ainda grava day_label órfã para sombra / caminho antigo. */
+  /**
+   * Ignorado na gravação (#472): a coluna `day_label` fica órfã (NULL).
+   * Mantido no tipo para não quebrar callers que ainda passam o campo.
+   */
   dayLabel?: ScheduleDayLabel | null
   /** Origem da mutação (proveniência por campo). */
   sourceMessageId?: string
@@ -374,11 +380,6 @@ export function saveBookingFrame(
   opts?: { emitOutbox?: boolean },
 ): { frame: BookingFrame; outbox: OutboxRow | null } {
   const existing = getBookingFrame(db, tenantId, conversationId)
-  const existingDay = db.get<{ day_label: string | null }>(
-    `SELECT day_label FROM schedule_sessions WHERE tenant_id = ? AND conversation_id = ?`,
-    tenantId,
-    conversationId,
-  )?.day_label
 
   const nextServiceId =
     patch.serviceId !== undefined ? patch.serviceId : (existing?.serviceId ?? null)
@@ -424,8 +425,8 @@ export function saveBookingFrame(
       : (existing?.time ?? null)
   const date = patch.date !== undefined ? patch.date : (existing?.date ?? null)
   const period = patch.period !== undefined ? patch.period : (existing?.period ?? null)
-  const dayLabel =
-    patch.dayLabel !== undefined ? patch.dayLabel : asDay(existingDay ?? null)
+  // #472 cutover: deixa de gravar day_label (coluna órfã → sempre NULL).
+  const dayLabel = null
   const professionalPref = serviceChanged
     ? (patch.professionalPref !== undefined ? patch.professionalPref : null)
     : patch.professionalPref !== undefined
@@ -653,12 +654,18 @@ export function saveScheduleLine(
 /**
  * Revalida ids contra o catálogo actual (ADR-0015). Sem inventar substituto:
  * ids inválidos são limpos; o funil pergunta de novo o que faltar.
+ * `nextCatalogVersion` é a versão a gravar após a revalidação (DEC-127.4 / #472).
  */
 export function revalidateFrameCatalogIds(
   frame: BookingFrame,
-  valid: { serviceIds: ReadonlySet<string>; variantIds: ReadonlySet<string> },
+  valid: {
+    serviceIds: ReadonlySet<string>
+    variantIds: ReadonlySet<string>
+    professionalIds?: ReadonlySet<string>
+  },
+  nextCatalogVersion: string,
 ): BookingFramePatch {
-  const patch: BookingFramePatch = { catalogVersion: frame.catalogVersion }
+  const patch: BookingFramePatch = { catalogVersion: nextCatalogVersion }
   if (frame.serviceId && !valid.serviceIds.has(frame.serviceId)) {
     patch.serviceId = null
     return patch
@@ -669,9 +676,58 @@ export function revalidateFrameCatalogIds(
       patch.variantIds = ok.length > 0 ? ok : null
     }
   }
-  if (frame.professionalPref && !valid.serviceIds.has(frame.professionalPref)) {
-    // professionalPref é id de profissional — limpar se o caller passar só serviceIds;
-    // callers com set de profissionais devem filtrar antes.
+  if (
+    frame.professionalPref &&
+    valid.professionalIds &&
+    !valid.professionalIds.has(frame.professionalPref)
+  ) {
+    patch.professionalPref = null
   }
   return patch
+}
+
+/**
+ * Se `catalogVersion` diverge do catálogo compilado (inclui `''` pós-0049),
+ * revalida ids e grava a versão actual. Dados ainda válidos permanecem (DEC-127.4).
+ */
+export function syncBookingFrameWithCatalog(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  catalog: {
+    version: string
+    serviceIds: ReadonlySet<string>
+    variantIds: ReadonlySet<string>
+    professionalIds: ReadonlySet<string>
+  },
+  clock: Clock,
+  opts?: { emitOutbox?: boolean },
+): { frame: BookingFrame | null; outbox: OutboxRow | null; revalidated: boolean } {
+  const existing = getBookingFrame(db, tenantId, conversationId)
+  if (!existing) return { frame: null, outbox: null, revalidated: false }
+  if (existing.catalogVersion === catalog.version) {
+    return { frame: existing, outbox: null, revalidated: false }
+  }
+  const patch = revalidateFrameCatalogIds(
+    existing,
+    {
+      serviceIds: catalog.serviceIds,
+      variantIds: catalog.variantIds,
+      professionalIds: catalog.professionalIds,
+    },
+    catalog.version,
+  )
+  const { frame, outbox } = saveBookingFrame(
+    db,
+    tenantId,
+    conversationId,
+    patch,
+    clock,
+    opts,
+  )
+  return {
+    frame: frame.serviceId ? frame : getBookingFrame(db, tenantId, conversationId),
+    outbox,
+    revalidated: true,
+  }
 }

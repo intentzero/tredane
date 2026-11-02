@@ -131,10 +131,15 @@ export type ConversationDetail = ConversationListItem & {
   pendingCommunications: ConversationPendingCommunicationPanel[]
   /** DEC-083: IA pausada até a equipe devolver. */
   aiReplyPause: { at: number; reason: string } | null
-  /** Procedimento, dia e período que a conversa já definiu (sessão de agendamento); `null` sem sessão. */
+  /**
+   * Procedimento, dia e período que a conversa já definiu (BookingFrame); `null` sem sessão.
+   * `dayLabel` fica sempre `null` após o cutover #472 (coluna órfã); use `date` (YYYY-MM-DD).
+   */
   scheduleHint: {
     serviceId: string
     dayLabel: string | null
+    /** Data civil absoluta no fuso da clínica (ADR-0015 / #472). */
+    date: string | null
     period: 'manha' | 'tarde' | 'noite' | null
   } | null
 }

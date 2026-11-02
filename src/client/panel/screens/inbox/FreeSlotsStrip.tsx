@@ -17,6 +17,8 @@ const PERIOD_LABEL = { manha: 'manhã', tarde: 'tarde', noite: 'noite' } as cons
 export type ScheduleHint = {
   serviceId: string
   dayLabel: string | null
+  /** Data civil absoluta (YYYY-MM-DD); preferir a `dayLabel` órfã (#472). */
+  date?: string | null
   period: 'manha' | 'tarde' | 'noite' | null
 }
 
@@ -154,6 +156,7 @@ export function FreeSlotsStrip({
         setDate(
           (prev) =>
             prev ||
+            (hint?.date && /^\d{4}-\d{2}-\d{2}$/.test(hint.date) ? hint.date : null) ||
             dateForDayLabel(hint?.dayLabel ?? null, snap.settings.timezone, Date.now()) ||
             upcomingCivilDates(snap.settings.timezone, Date.now(), 1)[0]!,
         )

@@ -9,9 +9,16 @@ import { workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import { bindOrAssertTenant } from '../tenant'
 import {
+  replaceServiceZonesOp,
+  setServiceActiveOp,
+  upsertResourceOp,
+  upsertServiceOp,
+} from '../config'
+import {
   clearBookingFrame,
   getBookingFrame,
   saveBookingFrame,
+  syncBookingFrameWithCatalog,
   wouldAskFilledSlot,
   type BookingFrame,
 } from './schedule-session'
@@ -20,6 +27,12 @@ import {
   matchPendingChoice,
   PENDING_OFFER_TTL_MS,
 } from './booking-frame-choice'
+import {
+  clearCompiledCatalogCache,
+  getOrCompileCatalog,
+  loadTurnContext,
+  readCatalogVersion,
+} from './turn-context'
 
 function boot() {
   const clock = createControllableClock(Date.UTC(2026, 10, 5, 15, 0))
@@ -236,6 +249,98 @@ describe('DEC-127 matchPendingChoice', () => {
     expect(matchPendingChoice('a primeira, sexta', opts)).toMatchObject({ kind: 'match', key: 'a' })
     expect(matchPendingChoice('a segunda opção, sexta', opts).kind).toBe('ambiguous')
   })
+
+  /**
+   * #472 M2b / DEC-127.2 — «quarta» e «quinta» sem «opção/hora» são dia da semana
+   * (mesmo tratamento que «segunda»), nunca a N-ésima opção.
+   */
+  describe('quarta/quinta: dia vs ordinal (#472)', () => {
+    const fourDays = {
+      slot: 'horario',
+      messageId: 'm',
+      options: [
+        { key: 'seg-09', label: 'segunda 09:00' },
+        { key: 'ter-10', label: 'terça 10:00' },
+        { key: 'sex-11', label: 'sexta 11:00' },
+        { key: 'sex-14', label: 'sexta 14:00' },
+      ],
+    }
+    const withQuarta = {
+      slot: 'horario',
+      messageId: 'm',
+      options: [
+        { key: 'seg-09', label: 'segunda 09:00' },
+        { key: 'qua-10', label: 'quarta 10:00' },
+        { key: 'sex-11', label: 'sexta 11:00' },
+        { key: 'sex-14', label: 'sexta 14:00' },
+      ],
+    }
+    const fiveOpts = {
+      slot: 'horario',
+      messageId: 'm',
+      options: [
+        { key: '1', label: 'segunda 09:00' },
+        { key: '2', label: 'terça 10:00' },
+        { key: '3', label: 'quarta 11:00' },
+        { key: '4', label: 'quinta 12:00' },
+        { key: '5', label: 'sexta 14:00' },
+      ],
+    }
+    const twoOpts = {
+      slot: 'horario',
+      messageId: 'm',
+      options: [
+        { key: 'a', label: 'sexta 11:00' },
+        { key: 'b', label: 'sexta 14:00' },
+      ],
+    }
+
+    it('«a quarta» sem quarta nas opções → none (não a 4.ª)', () => {
+      expect(matchPendingChoice('a quarta', fourDays)).toEqual({ kind: 'none' })
+      expect(matchPendingChoice('a quarta', twoOpts)).toEqual({ kind: 'none' })
+    })
+
+    it('«a quinta» sem quinta nas opções → none (não a 5.ª)', () => {
+      expect(matchPendingChoice('a quinta', fourDays)).toEqual({ kind: 'none' })
+      expect(matchPendingChoice('a quinta', fiveOpts)).toMatchObject({
+        kind: 'match',
+        key: '4',
+        label: 'quinta 12:00',
+      })
+    })
+
+    it('«a quarta» com opção nesse dia → match no dia', () => {
+      expect(matchPendingChoice('a quarta', withQuarta)).toMatchObject({
+        kind: 'match',
+        key: 'qua-10',
+      })
+      expect(matchPendingChoice('a quarta', fiveOpts)).toMatchObject({
+        kind: 'match',
+        key: '3',
+      })
+    })
+
+    it('«a quarta opção» / «a quinta opção» usam ordinal', () => {
+      expect(matchPendingChoice('a quarta opção', fourDays)).toMatchObject({
+        kind: 'match',
+        key: 'sex-14',
+      })
+      expect(matchPendingChoice('a quinta opção', fiveOpts)).toMatchObject({
+        kind: 'match',
+        key: '5',
+      })
+      expect(matchPendingChoice('a quarta opção', twoOpts)).toEqual({ kind: 'none' })
+      expect(matchPendingChoice('a quinta opção', fourDays)).toEqual({ kind: 'none' })
+    })
+
+    it('«a segunda» sem opção nesse dia → none; com «opção» → ordinal', () => {
+      expect(matchPendingChoice('a segunda', twoOpts)).toEqual({ kind: 'none' })
+      expect(matchPendingChoice('a segunda opção', twoOpts)).toMatchObject({
+        kind: 'match',
+        key: 'b',
+      })
+    })
+  })
 })
 
 describe('propriedades BookingFrame', () => {
@@ -274,5 +379,208 @@ describe('propriedades BookingFrame', () => {
     expect(matchPendingChoice('o das 14', pending)).toEqual(
       matchPendingChoice('o das 14', pending),
     )
+  })
+})
+
+describe('catalogVersion revalidação (#472)', () => {
+  function seedCatalog() {
+    const { db, clock, tenantId, conversationId, close, caller } = boot()
+    const room = upsertResourceOp(
+      db,
+      caller,
+      { kind: 'room', name: 'Sala BF', category: 'Sala' },
+      clock,
+    )
+    const pro = upsertResourceOp(
+      db,
+      caller,
+      { kind: 'professional', name: 'Ana BF', homeRoomId: room.id },
+      clock,
+    )
+    const svc = upsertServiceOp(
+      db,
+      caller,
+      {
+        name: 'Limpeza BF',
+        durationMinutes: 60,
+        bufferMinutes: 0,
+        priceCents: 10000,
+        professionalIds: [pro.id],
+        roomRequirement: { mode: 'none' },
+        variantKind: 'zona',
+        variantKindPlural: 'zonas',
+      },
+      clock,
+    )
+    const zones = replaceServiceZonesOp(
+      db,
+      caller,
+      svc.id,
+      [
+        {
+          name: 'Rosto',
+          audience: 'feminino',
+          durationMinutes: 60,
+          priceCents: 10000,
+        },
+      ],
+      clock,
+    )
+    clearCompiledCatalogCache(db)
+    const catalog = getOrCompileCatalog(db, tenantId, clock)
+    const zoneId = zones[0]!.id
+    return { db, clock, tenantId, conversationId, close, caller, svc, pro, zoneId, catalog }
+  }
+
+  it('owner desactiva o serviço a meio → limpa serviceId; sem substituto', () => {
+    const s = seedCatalog()
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.svc.id,
+          line: 'feminino',
+          variantIds: [s.zoneId],
+          period: 'tarde',
+          time: '14:00',
+          date: '2026-11-06',
+          catalogVersion: s.catalog.version,
+        },
+        s.clock,
+      )
+      s.clock.set(s.clock.nowMs() + 60_000)
+      setServiceActiveOp(s.db, s.caller, s.svc.id, false, s.clock)
+      clearCompiledCatalogCache(s.db)
+      const next = getOrCompileCatalog(s.db, s.tenantId, s.clock)
+      expect(next.version).not.toBe(s.catalog.version)
+      const synced = syncBookingFrameWithCatalog(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          version: next.version,
+          serviceIds: new Set(next.services.map((x) => x.id)),
+          variantIds: new Set(next.services.flatMap((x) => x.zones.map((z) => z.id))),
+          professionalIds: new Set(
+            next.resources.filter((r) => r.kind === 'professional').map((r) => r.id),
+          ),
+        },
+        s.clock,
+      )
+      expect(synced.revalidated).toBe(true)
+      expect(synced.frame).toBeNull()
+      expect(getBookingFrame(s.db, s.tenantId, s.conversationId)).toBeNull()
+    } finally {
+      s.close()
+    }
+  })
+
+  it('sessão migrada (catalog_version="") com dados válidos → mantém slots e grava versão', () => {
+    const s = seedCatalog()
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.svc.id,
+          line: 'feminino',
+          variantIds: [s.zoneId],
+          period: 'tarde',
+          time: '14:00',
+          date: '2026-11-06',
+          catalogVersion: '',
+        },
+        s.clock,
+      )
+      expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.catalogVersion).toBe('')
+      const catalog = getOrCompileCatalog(s.db, s.tenantId, s.clock)
+      const synced = syncBookingFrameWithCatalog(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          version: catalog.version,
+          serviceIds: new Set(catalog.services.map((x) => x.id)),
+          variantIds: new Set(catalog.services.flatMap((x) => x.zones.map((z) => z.id))),
+          professionalIds: new Set(
+            catalog.resources.filter((r) => r.kind === 'professional').map((r) => r.id),
+          ),
+        },
+        s.clock,
+      )
+      expect(synced.revalidated).toBe(true)
+      const frame = synced.frame!
+      expect(frame.serviceId).toBe(s.svc.id)
+      expect(frame.line).toBe('feminino')
+      expect(frame.variantIds).toEqual([s.zoneId])
+      expect(frame.period).toBe('tarde')
+      expect(frame.time).toBe('14:00')
+      expect(frame.date).toBe('2026-11-06')
+      expect(frame.catalogVersion).toBe(catalog.version)
+      expect(wouldAskFilledSlot(frame, 'serviceId')).toBe(true)
+      expect(wouldAskFilledSlot(frame, 'period')).toBe(true)
+      expect(wouldAskFilledSlot(frame, 'time')).toBe(true)
+      // Segunda passagem: versão igual → sem pergunta repetida / sem revalidação.
+      const again = syncBookingFrameWithCatalog(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          version: catalog.version,
+          serviceIds: new Set(catalog.services.map((x) => x.id)),
+          variantIds: new Set(catalog.services.flatMap((x) => x.zones.map((z) => z.id))),
+          professionalIds: new Set(
+            catalog.resources.filter((r) => r.kind === 'professional').map((r) => r.id),
+          ),
+        },
+        s.clock,
+      )
+      expect(again.revalidated).toBe(false)
+      expect(again.frame?.time).toBe('14:00')
+    } finally {
+      s.close()
+    }
+  })
+
+  it('loadTurnContext sincroniza versão vazia sem perder serviço válido', () => {
+    const s = seedCatalog()
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.svc.id,
+          line: 'feminino',
+          period: 'manha',
+          catalogVersion: '',
+        },
+        s.clock,
+      )
+      const contact = s.db.get<{ id: string }>(
+        `SELECT contact_id AS id FROM conversations WHERE id = ?`,
+        s.conversationId,
+      )!
+      const turn = loadTurnContext(
+        s.db,
+        s.tenantId,
+        {
+          conversationId: s.conversationId,
+          contactId: contact.id,
+          messageId: 'msg-sync',
+        },
+        s.clock,
+      )
+      expect(turn.session?.serviceId).toBe(s.svc.id)
+      expect(turn.session?.audienceLine).toBe('feminino')
+      const frame = getBookingFrame(s.db, s.tenantId, s.conversationId)!
+      expect(frame.catalogVersion).toBe(readCatalogVersion(s.db, s.tenantId))
+      expect(frame.period).toBe('manha')
+    } finally {
+      s.close()
+    }
   })
 })

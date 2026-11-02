@@ -948,4 +948,155 @@ describe('Cloudflare runtime harness — F0', () => {
     wsA.close(1000, 'done')
     wsB.close(1000, 'done')
   })
+
+  it('booking_frame.updated: membro recebe; outra clínica não; revoke corta; clear sem resposta chega (#472)', async () => {
+    async function openWs(tenantId: string, userId: string) {
+      const response = await worker.fetch(`http://localhost/api/tenants/${tenantId}/ws`, {
+        headers: {
+          Authorization: `Bearer synth:${userId}`,
+          Upgrade: 'websocket',
+        },
+      })
+      expect(response.status).toBe(101)
+      const socket = response.webSocket!
+      socket.accept()
+      const messages: Array<Record<string, unknown>> = []
+      socket.addEventListener('message', (event) => {
+        try {
+          messages.push(JSON.parse(String(event.data)) as Record<string, unknown>)
+        } catch {
+          /* ignore */
+        }
+      })
+      const waitFor = async (
+        pred: (m: Record<string, unknown>) => boolean,
+        timeoutMs = 8_000,
+      ) => {
+        const start = Date.now()
+        while (Date.now() - start < timeoutMs) {
+          const hit = messages.find(pred)
+          if (hit) return hit
+          await new Promise((r) => setTimeout(r, 40))
+        }
+        throw new Error(
+          `ws timeout; got ${JSON.stringify(messages.map((m) => m.eventType ?? m.type))}`,
+        )
+      }
+      await waitFor((m) => m.type === 'hello')
+      return { socket, messages, waitFor }
+    }
+
+    const wsA = await openWs('clinic-demo-a', 'user_synth_owner_a')
+    const wsAtt = await openWs('clinic-demo-a', 'user_synth_attendant_a')
+    const wsB = await openWs('clinic-demo-b', 'user_synth_multi')
+
+    const ingest = await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/ingest', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        providerEventKey: `wa:bf:${Date.now()}`,
+        waId: '5511999000472',
+        body: 'olá booking frame',
+        drain: false,
+      }),
+    })
+    expect(ingest.status).toBe(200)
+    const ingested = (await ingest.json()) as { conversationId: string }
+    expect(ingested.conversationId).toBeTruthy()
+    await wsA.waitFor((m) => m.type === 'event')
+
+    // (a) membro do tenant recebe booking_frame.updated
+    const saveRes = await worker.fetch('http://localhost/api/f1/clinic/clinic-demo-a/booking-frame', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        conversationId: ingested.conversationId,
+        action: 'save',
+        serviceId: 'svc_bf_harness',
+      }),
+    })
+    expect(saveRes.status).toBe(200)
+    const saved = (await saveRes.json()) as {
+      outboxType: string
+      fanout: { delivered: string[] } | null
+    }
+    expect(saved.outboxType).toBe('booking_frame.updated')
+    expect(saved.fanout?.delivered.length).toBeGreaterThan(0)
+
+    const evtA = await wsA.waitFor(
+      (m) => m.type === 'event' && m.eventType === 'booking_frame.updated',
+    )
+    expect(evtA.payload).toMatchObject({
+      conversationId: ingested.conversationId,
+      serviceId: 'svc_bf_harness',
+    })
+    await wsAtt.waitFor(
+      (m) => m.type === 'event' && m.eventType === 'booking_frame.updated',
+    )
+
+    // (b) membro de outra clínica não recebe
+    expect(
+      wsB.messages.filter((m) => m.type === 'event' && m.eventType === 'booking_frame.updated'),
+    ).toEqual([])
+
+    // (c) permissão revogada deixa de receber (DEC-017)
+    const revoke = await worker.fetch(
+      'http://localhost/api/tenants/clinic-demo-a/members/user_synth_attendant_a/revoke',
+      {
+        method: 'POST',
+        headers: { Authorization: 'Bearer synth:user_synth_owner_a' },
+      },
+    )
+    expect(revoke.status).toBe(200)
+    await wsAtt.waitFor((m) => m.type === 'access_revoked')
+
+    const beforeClear = wsAtt.messages.filter(
+      (m) => m.type === 'event' && m.eventType === 'booking_frame.updated',
+    ).length
+
+    // (d) clear sem resposta à cliente também chega aos sockets
+    const clearRes = await worker.fetch(
+      'http://localhost/api/f1/clinic/clinic-demo-a/booking-frame',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: ingested.conversationId,
+          action: 'clear',
+        }),
+      },
+    )
+    expect(clearRes.status).toBe(200)
+    const cleared = (await clearRes.json()) as {
+      outboxType: string
+      fanout: { delivered: string[]; revoked: string[] } | null
+    }
+    expect(cleared.outboxType).toBe('booking_frame.updated')
+
+    const clearEvt = await wsA.waitFor(
+      (m) =>
+        m.type === 'event' &&
+        m.eventType === 'booking_frame.updated' &&
+        (m.payload as { phase?: string }).phase === 'idle',
+    )
+    expect(clearEvt.payload).toMatchObject({
+      conversationId: ingested.conversationId,
+      phase: 'idle',
+      serviceId: null,
+    })
+
+    // Atendente revogado: não recebe o clear
+    expect(
+      wsAtt.messages.filter(
+        (m) => m.type === 'event' && m.eventType === 'booking_frame.updated',
+      ),
+    ).toHaveLength(beforeClear)
+    expect(
+      wsB.messages.filter((m) => m.type === 'event' && m.eventType === 'booking_frame.updated'),
+    ).toEqual([])
+
+    wsA.socket.close(1000, 'done')
+    wsAtt.socket.close(1000, 'done')
+    wsB.socket.close(1000, 'done')
+  })
 })
