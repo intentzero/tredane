@@ -72,9 +72,10 @@ describe('#414 dialogue acts', () => {
       ['perguntar_horario', { serviço: 'Massagem' }],
       ['perguntar_servico', { lista: 'Massagem, Limpeza de pele' }],
       ['confirmar_servico', { serviço: 'Massagem' }],
-      ['confirmar_hora_ambigua', { hora: '3', hora24: '15:00' }],
+      ['confirmar_hora_ambigua', { hora24: '15:00' }],
       ['sem_horario_periodo', { assunto: 'Massagem', período: 'de manhã' }],
-      ['sem_horario_dia', { assunto: 'Massagem', dia: 'sexta 06/11' }],
+      ['sem_horario_dia', { assunto: 'Massagem', dia: 'na sexta (06/11)' }],
+      ['sem_horario_dia', { assunto: 'Massagem', dia: 'amanhã' }],
       ['sem_horario_semana', { assunto: 'Massagem' }],
       ['sem_vaga_sem_alternativa', { hora: '16:00' }],
       ['informar_preco_variante', { variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15' }],
@@ -93,6 +94,8 @@ describe('#414 dialogue acts', () => {
         expect(forbiddenClientTermsIn(text), `${act}: ${text}`).toEqual([])
         expect(text.length).toBeGreaterThan(0)
         expect(text.length).toBeLessThanOrEqual(1000)
+        // Começa em maiúscula (ou número): uma variável no início não pode deixá-la em minúscula.
+        expect(text, `${act}: ${text}`).toMatch(/^[\p{Lu}\d]/u)
         // Sem buracos nem pontuação partida por variável em falta.
         expect(text, `${act}: ${text}`).not.toMatch(/[{}]|,\s*[.!?]|\s[,.!?]|\.\.|:\s*$/)
       }
@@ -120,6 +123,18 @@ describe('#414 dialogue acts', () => {
     // Os testes de forma veem as propostas (para as validar antes da aprovação).
     expect(renderEveryVariant('perguntar_variantes', vars).some((x) => x.startsWith('Para fechar às 10:00'))).toBe(true)
     expect(renderEveryVariant('perguntar_variantes', vars, { includeProposed: false }).some((x) => x.startsWith('Para fechar às'))).toBe(false)
+  })
+
+  it('correções da revisão da leva 2: preposição, crase, género e voz', () => {
+    const dia = renderEveryVariant('sem_horario_dia', { assunto: 'Massagem', dia: 'na sexta (06/11)' })
+    expect(dia).toContain('Para Massagem, na sexta (06/11) não tenho horário livre. Quer ver outro dia?')
+    expect(dia.every((x) => !/\bem (na|no|sexta|sábado)\b/i.test(x))).toBe(true)
+    expect(renderEveryVariant('confirmar_hora_ambigua', { hora24: '13:00' })).toEqual(['Você quis dizer 13:00, à tarde?'])
+    const periodo = renderEveryVariant('sem_horario_periodo', { assunto: 'Massagem', período: 'de manhã' })
+    expect(periodo.every((x) => /^[\p{Lu}]/u.test(x))).toBe(true)
+    // «Juntas» fixa o feminino, mas o tipo da variante é texto livre (DEC-079).
+    for (const x of DIALOGUE_ACTS.informar_preco_soma) expect(x).not.toMatch(/^Juntas/)
+    for (const x of DIALOGUE_ACTS.servico_inexistente) expect(x).not.toMatch(/a clínica oferece/)
   })
 
   it('o eco só sai quando há {assunto}; o link só no ato com {link}', () => {

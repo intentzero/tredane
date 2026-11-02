@@ -151,14 +151,14 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Qual serviço você gostaria de agendar?',
   ],
   confirmar_servico: ['É {serviço} que você quer agendar?', 'Seria {serviço}?'],
-  confirmar_hora_ambigua: ['Às {hora} da tarde seria {hora24}. É esse horário?'],
+  confirmar_hora_ambigua: ['Você quis dizer {hora24}, à tarde?'],
   sem_horario_periodo: [
     'Para {assunto}, {período} não tenho horário livre. Quer ver outro período?',
     '{período} não tenho nada livre para {assunto}. Prefere outro período?',
   ],
   sem_horario_dia: [
-    'Para {assunto}, em {dia} não tenho horário livre. Quer ver outro dia?',
-    'Em {dia} não tenho horário livre para {assunto}. Prefere outro dia?',
+    'Para {assunto}, {dia} não tenho horário livre. Quer ver outro dia?',
+    'Não tenho horário livre para {assunto} {dia}. Prefere outro dia?',
   ],
   sem_horario_semana: [
     'Para {assunto}, no momento não tenho horário livre. Quer que eu veja outra data?',
@@ -173,7 +173,7 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Para {variante}, o valor é {preço} e a duração, {duração} min.',
   ],
   informar_preco_soma: [
-    'Juntas, ficam {preço} e {duração} min de atendimento.',
+    'No total, ficam {preço} e {duração} min de atendimento.',
     'Somando tudo, ficam {preço} e {duração} min de atendimento.',
   ],
   recusar_mistura: [
@@ -182,7 +182,7 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
   ],
   servico_inexistente: [
     'Não encontrei esse procedimento por aqui. Quer ver as opções que temos?',
-    'Esse serviço eu não encontrei por aqui. Quer ver o que a clínica oferece?',
+    'Esse serviço eu não encontrei por aqui. Quer ver o que oferecemos?',
   ],
   varios_servicos: [
     'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?',
@@ -237,7 +237,9 @@ function usableTemplates(act: DialogueActId, vars: DialogueVars, includeProposed
 }
 
 function finish(template: string, vars: DialogueVars): string {
-  return fill(template, vars).replace(/[^\S\n]+/g, ' ').replace(/ *\n */g, '\n').trim()
+  const text = fill(template, vars).replace(/[^\S\n]+/g, ' ').replace(/ *\n */g, '\n').trim()
+  // Início de frase em maiúscula, mesmo quando abre por uma variável («de manhã não tenho…»).
+  return text.replace(/^(\P{L}*)(\p{L})/u, (_m, lead: string, c: string) => lead + c.toLocaleUpperCase('pt-BR'))
 }
 
 /**
