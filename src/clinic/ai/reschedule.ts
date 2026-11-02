@@ -98,8 +98,9 @@ function localHHMM(tz: string, ms: number): string {
  */
 function reschedulePhrase(text: string): string {
   const check = validateClientOutbound(text, { source: 'phrase', requireSingleQuestion: false })
-  if (!check.ok) return MODEL_FALLBACK_TEXT
-  return text
+  // Nunca lança: um erro aqui abortaria o lote do autodraft e deixaria a cliente sem
+  // resposta (INV-09). Se o validador recusar, sai o fallback da DEC-107 (DEC-131).
+  return check.ok ? text : MODEL_FALLBACK_TEXT
 }
 
 /** (1) Sem dia pedido. */
@@ -132,11 +133,19 @@ export function phraseSendFailed(date: string, time: string): string {
   )
 }
 
-/** (6) Pausa da owner / capacidade desligada. */
+/**
+ * (6) Pausa da owner / capacidade desligada.
+ * O nome do serviço vem do cadastro e pode conter um termo proibido («Sala VIP», «Linha
+ * Premium»). Nesse caso sai a variante sem nome (DEC-131), nunca um erro.
+ */
 export function phraseOwnerPaused(serviceName: string, date: string, time: string): string {
-  return reschedulePhrase(
+  const withName =
     `Recebi seu pedido de remarcar ${serviceName} para ${dayText(date)} às ${time}. ` +
-      `Ainda não está remarcado: a equipe confirma e já te retorna.`,
+    `Ainda não está remarcado: a equipe confirma e já te retorna.`
+  const check = validateClientOutbound(withName, { source: 'phrase', requireSingleQuestion: false })
+  if (check.ok) return withName
+  return reschedulePhrase(
+    'Recebi seu pedido de remarcar. Ainda não está remarcado: a equipe confirma e já te retorna.',
   )
 }
 
