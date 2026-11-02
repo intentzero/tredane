@@ -435,3 +435,15 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | §4.4 | Invariantes P0 a verde; regressão zero vs pós-#446 (83/72); EF/EE e Q L2 **Em aberto** — dry-run verde, **live** bloqueada sem gateway (fica em #417); κ juiz↔humano Em aberto (#402) |
 | Fora | Live L2/L3 [#417](https://github.com/intentzero/tredane/issues/417); L4 Meta/staging M5 [#415](https://github.com/intentzero/tredane/issues/415); P3b [#475](https://github.com/intentzero/tredane/issues/475); leva 3 / 6 atos sem call-site |
 | Próxima | [#481](https://github.com/intentzero/tredane/issues/481) Iteração 6 |
+
+### Resumo após It. 6 (02/11/2026)
+
+| Estado | Contagem / notas |
+| --- | --- |
+| L1 em `main` `b6f05cf` (pós-#483 / Closes #475) | 83 casos · **72** passam · **0** `it.fails` · 2 pendentes L2 (H-04, I-03 → #417) · 9 coverageOnly · 0 inesperadas; `graph-dialogs` M7: 8 verdes no mesmo `npm run test:dialogs` (vitest: 93 passed = 83 + 2 meta + 8 grafo) |
+| Freeze | prompt painel `sha256:93cba847b39a23eed6aac5fc88e6a6016dd6f1a9016fcb4f408ddee2f27205ca` (**inalterado** face à It. 5 / M6); catálogo `scenario.ts` `sha256:db47706b7292b4889409c794ecd9ed26b8f2c71ae1210f303a1e078ad3d6ec03`; extrator `sha256:cfb36b8afe79a410e9742974e8d82cd9a716d8c988ba123e8b728b3deac6584b`; redator `sha256:b6353351ac744652bf1b60925ff53d336cdec0f57648b1a6405c6ddaea1e3a0f`; modelo autodraft/extrator/exceção `claude-haiku-5-5` |
+| Entregas | Fecho checklist It. 6 (#481) sobre `main` pós-#482/#483; P3b [#475](https://github.com/intentzero/tredane/issues/475) **CLOSED**; L2/L3 dry-run reconfirmado (`test:l2l3` 15 verdes; amostra L2 5/5) |
+| Triagem | **Nenhuma falha nova** (L0/L1); sem CF/CA novo; nenhum caso apagado; coluna P0 inalterada face à It. 5 / 5.1 |
+| §4.4 | Invariantes P0 a verde; regressão zero vs It. 5 / 5.1 (83/72); EF/EE e Q L2 **Em aberto** — dry-run verde, **live** bloqueada sem gateway (fica em #417); κ juiz↔humano Em aberto (#402); L4 Meta/staging M5 Em aberto (#415) |
+| Fora / gates | Live L2/L3 [#417](https://github.com/intentzero/tredane/issues/417); L4 Meta/staging M5 [#415](https://github.com/intentzero/tredane/issues/415); leva 3 / 6 atos sem call-site |
+| Próxima | [#484](https://github.com/intentzero/tredane/issues/484) Iteração 7 |
