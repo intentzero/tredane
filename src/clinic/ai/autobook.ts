@@ -510,9 +510,9 @@ export async function tryAiAutoBook(
           proposed: { action: 'use_pending', detail: choice.key },
         })
       } else if (choice.kind === 'ask_which' || choice.kind === 'ambiguous') {
-        const labels = frameEarly.pending.options.map((o) => o.label).join(', ')
-        const svcName =
-          services.find((s) => s.id === frameEarly.serviceId)?.name ?? 'o horário'
+        // Catálogo perguntar_horario (#448): fallback alinhado à allowlist; sem frase nova.
+        const svc =
+          services.find((s) => s.id === frameEarly.serviceId) ?? { name: 'o horário' }
         return {
           ...none('needs_info', {
             confirmationMessageId: confirmation.id,
@@ -521,8 +521,8 @@ export async function tryAiAutoBook(
           replyText: sayAct(
             'perguntar_horario',
             input.conversationId,
-            { serviço: svcName },
-            `Qual fica melhor: ${labels}?`,
+            { serviço: svc.name },
+            `Qual horário fica melhor para ${svc.name}?`,
           ),
           notes: 'DEC-127: resposta ambígua/👍 com várias opções — pergunta de volta sem escolher.',
         }
@@ -798,7 +798,8 @@ export async function tryAiAutoBook(
           }
         } else if (!date) {
           // DEC-127.4 / DEC-122: reusa perguntar_dia (também pós-migração sem date).
-          const fb = `Para ${det.service.name}, qual dia fica melhor?`
+          // Fallback allowlist (#448): catálogo emite «Para {serviço}, qual dia fica melhor?».
+          const fb = `Me diga o dia para ${det.service.name}.`
           replyText = sayAct(
             'perguntar_dia',
             input.conversationId,
