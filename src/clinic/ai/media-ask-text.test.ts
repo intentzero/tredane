@@ -171,7 +171,7 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
         adapter: new SimulatedAiAdapter(),
       })
       expect(out).toHaveLength(1)
-      expect(out[0]!.reason).toBe('catalog_reply')
+      expect(out[0]!.reason).toBe('media_ask_text')
       const bodies = s.db
         .all<{ body: string }>(
           `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound'`,
@@ -180,6 +180,11 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
         .map((r) => r.body)
       expect(bodies).toEqual([MEDIA_ASK_TEXT])
       expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)).toBeNull()
+      const flagged = s.db.get<{ at: number | null }>(
+        `SELECT media_ask_text_at AS at FROM conversations WHERE id = ?`,
+        s.conversationId,
+      )
+      expect(flagged?.at).toBeTruthy()
       const outbound = s.db.get<{ interactive_json: string | null }>(
         `SELECT o.interactive_json AS interactive_json
          FROM outbound_messages o
@@ -190,6 +195,13 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
       )
       expect(outbound?.interactive_json).toContain('Falar com a equipe')
       expect(outbound?.interactive_json).toContain('handoff:human')
+      const decided = s.db.get<{ payload_json: string }>(
+        `SELECT payload_json FROM outbox_events
+         WHERE tenant_id = ? AND type = 'ai.turn_decided'
+         ORDER BY occurred_at DESC, rowid DESC LIMIT 1`,
+        s.tenantId,
+      )
+      expect(decided?.payload_json).toContain('"route":"media_ask_text"')
     } finally {
       s.close()
     }
@@ -255,7 +267,183 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
       expect(bodies[0]).toBe(MEDIA_ASK_TEXT)
       expect(bodies.some((b) => b.startsWith(HUMAN_HANDOFF_TEXT))).toBe(true)
       expect(bodies.filter((b) => b === MEDIA_ASK_TEXT)).toHaveLength(1)
-      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)).not.toBeNull()
+      const pause = readAiReplyPause(s.db, s.tenantId, s.conversationId)
+      expect(pause).not.toBeNull()
+      expect(pause?.reason).toBe('media_after_ask')
+    } finally {
+      s.close()
+    }
+  })
+
+  it('#475 S4 opção B: texto de verdade limpa «já pedi»; mídia seguinte volta a pedir', async () => {
+    const s = seed()
+    try {
+      const first = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: '[Áudio]',
+          deliveryState: 'received',
+        },
+        s.clock,
+      )
+      attach(s, first.id, 'audio/ogg')
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: first.id },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+      expect(
+        s.db.get<{ at: number | null }>(
+          `SELECT media_ask_text_at AS at FROM conversations WHERE id = ?`,
+          s.conversationId,
+        )?.at,
+      ).toBeTruthy()
+
+      const text = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: 'quero limpeza de pele amanhã',
+          deliveryState: 'received',
+        },
+        s.clock,
+      )
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: text.id },
+        s.clock,
+      )
+      expect(
+        s.db.get<{ at: number | null }>(
+          `SELECT media_ask_text_at AS at FROM conversations WHERE id = ?`,
+          s.conversationId,
+        )?.at,
+      ).toBeNull()
+      s.clock.advance(7_000)
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+
+      const third = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: '[Imagem]',
+          deliveryState: 'received',
+        },
+        s.clock,
+      )
+      attach(s, third.id, 'image/jpeg')
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: third.id },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+      const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+      expect(out[0]?.reason).toBe('media_ask_text')
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)).toBeNull()
+      const asks = s.db
+        .all<{ body: string }>(
+          `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' AND body = ?`,
+          s.conversationId,
+          MEDIA_ASK_TEXT,
+        )
+        .length
+      expect(asks).toBe(2)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('#475 S3: troca a redação da frase e a 2.ª mídia ainda vai à equipe', async () => {
+    const s = seed()
+    try {
+      const first = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: '[Áudio]',
+          deliveryState: 'received',
+        },
+        s.clock,
+      )
+      attach(s, first.id, 'audio/ogg')
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: first.id },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+
+      // Simula DEC futura: o corpo outbound deixa de coincidir com MEDIA_ASK_TEXT.
+      s.db.run(
+        `UPDATE messages SET body = ?
+         WHERE conversation_id = ? AND direction = 'outbound' AND body = ?`,
+        'Frase antiga que já não é a constante',
+        s.conversationId,
+        MEDIA_ASK_TEXT,
+      )
+
+      const second = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: '[Imagem]',
+          deliveryState: 'received',
+        },
+        s.clock,
+      )
+      attach(s, second.id, 'image/jpeg')
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: second.id },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+
+      const bodies = s.db
+        .all<{ body: string }>(
+          `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' ORDER BY created_at`,
+          s.conversationId,
+        )
+        .map((r) => r.body)
+      expect(bodies.some((b) => b === MEDIA_ASK_TEXT)).toBe(false)
+      expect(bodies.some((b) => b.startsWith(HUMAN_HANDOFF_TEXT))).toBe(true)
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)?.reason).toBe('media_after_ask')
     } finally {
       s.close()
     }
@@ -299,6 +487,57 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
         s.clock,
       )
       expect(d).toEqual({ action: 'handoff', reason: 'payment_proof' })
+    } finally {
+      s.close()
+    }
+  })
+
+  it('Pix pendente + imagem no autodraft → alerta payment_proof (não off_purpose)', async () => {
+    const s = seed()
+    try {
+      const now = s.clock.nowMs()
+      s.db.run(
+        `INSERT INTO pix_charges (id, tenant_id, account_id, provider, external_reference, amount_cents,
+           status, expires_at, contact_id, created_at, updated_at)
+         VALUES ('chg_m2', ?, 'acc_m2', 'fake', 'ext_m2', 5000, 'awaiting_payment', ?, ?, ?, ?)`,
+        s.tenantId,
+        now + 3_600_000,
+        s.contactId,
+        now,
+        now,
+      )
+      const msg = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: '[Imagem]',
+          deliveryState: 'received',
+        },
+        s.clock,
+      )
+      attach(s, msg.id, 'image/jpeg')
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: msg.id },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)?.reason).toBe('payment_proof')
+      const pending = s.db.get<{ detail_text: string }>(
+        `SELECT detail_text FROM pending_communications
+         WHERE tenant_id = ? AND conversation_id = ? AND kind = 'alter_awaiting_team'`,
+        s.tenantId,
+        s.conversationId,
+      )
+      expect(pending?.detail_text).toMatch(/comprovativo de pagamento/i)
+      expect(pending?.detail_text).not.toMatch(/agendamento/i)
     } finally {
       s.close()
     }

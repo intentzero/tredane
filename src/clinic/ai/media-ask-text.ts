@@ -81,20 +81,67 @@ export function isMediaOnlyMessage(
   return false
 }
 
+/**
+ * Facto «já pedi texto por mídia» — coluna `conversations.media_ask_text_at` (#475 S3).
+ * Não lê o corpo outbound (CF-22 / ADR-0015).
+ * Expiração Confirmada (#475 S4, Paulo, opção B): limpa quando a cliente envia texto de
+ * verdade (corpo inbound que não é placeholder de mídia); a mídia seguinte volta a pedir.
+ */
 export function conversationAlreadyAskedMediaText(
   db: ClinicDb,
   tenantId: string,
   conversationId: string,
 ): boolean {
-  const row = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM messages
-     WHERE tenant_id = ? AND conversation_id = ?
-       AND direction = 'outbound' AND body = ?`,
+  const row = db.get<{ at: number | null }>(
+    `SELECT media_ask_text_at AS at FROM conversations
+     WHERE tenant_id = ? AND id = ?`,
     tenantId,
     conversationId,
-    MEDIA_ASK_TEXT,
   )
-  return (row?.n ?? 0) > 0
+  return row?.at != null
+}
+
+/** Grava o facto na mesma TX do envio (após persistir a mensagem). */
+export function markMediaAskTextAsked(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  atMs: number,
+): void {
+  db.run(
+    `UPDATE conversations SET media_ask_text_at = ?, updated_at = ?
+     WHERE tenant_id = ? AND id = ? AND media_ask_text_at IS NULL`,
+    atMs,
+    atMs,
+    tenantId,
+    conversationId,
+  )
+}
+
+/** Corpo inbound conta como «texto de verdade» (não é marcador de áudio/imagem/documento). */
+export function isRealClientTextBody(body: string): boolean {
+  const trimmed = body.trim()
+  return Boolean(trimmed) && !isMediaPlaceholderBody(trimmed)
+}
+
+/** #475 S4 opção B — limpa o facto se a cliente escreveu texto de verdade. */
+export function clearMediaAskTextOnRealInbound(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  body: string,
+  atMs: number,
+): boolean {
+  if (!isRealClientTextBody(body)) return false
+  if (!conversationAlreadyAskedMediaText(db, tenantId, conversationId)) return false
+  db.run(
+    `UPDATE conversations SET media_ask_text_at = NULL, updated_at = ?
+     WHERE tenant_id = ? AND id = ? AND media_ask_text_at IS NOT NULL`,
+    atMs,
+    tenantId,
+    conversationId,
+  )
+  return true
 }
 
 export function contactHasRecentPix(

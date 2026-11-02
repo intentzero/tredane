@@ -15,7 +15,7 @@ describe('DEC-089 virtual attendant', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31))
     const { db, close } = bootClinicDb({ clock })
     try {
-      expect(CLINIC_SCHEMA_VERSION).toBe(50)
+      expect(CLINIC_SCHEMA_VERSION).toBe(51)
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )

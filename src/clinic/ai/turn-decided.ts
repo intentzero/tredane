@@ -10,6 +10,7 @@ export type TurnRoute =
   | 'reschedule'
   | `handoff:${string}`
   | 'catalog'
+  | 'media_ask_text'
   | 'model'
   | 'proposal'
   | 'deterministic_question'
@@ -99,6 +100,7 @@ export function routeFromAutodraftOutcome(input: {
 }): TurnRoute | string {
   if (input.reason === 'reschedule_flow') return 'reschedule'
   if (input.reason === 'human_handoff') return 'handoff:pause'
+  if (input.reason === 'media_ask_text') return 'media_ask_text'
   if (input.reason === 'catalog_reply') return 'catalog'
   if (input.reason?.startsWith('abuse_limit')) return `skip:${input.reason}`
   if (input.status === 'skipped' && input.reason) return `skip:${input.reason}`
