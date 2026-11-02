@@ -302,6 +302,37 @@ export async function processClinicOutboxMessage(
         }))
         .filter((b) => b.id && b.title)
     : []
+  const interactiveListRaw =
+    payload.interactiveList && typeof payload.interactiveList === 'object'
+      ? (payload.interactiveList as {
+          button?: unknown
+          sections?: Array<{
+            title?: unknown
+            rows?: Array<{ id?: unknown; title?: unknown; description?: unknown }>
+          }>
+        })
+      : null
+  const interactiveList = interactiveListRaw
+    ? {
+        button:
+          typeof interactiveListRaw.button === 'string' ? interactiveListRaw.button.trim() : '',
+        sections: (interactiveListRaw.sections ?? [])
+          .map((sec) => ({
+            title: typeof sec.title === 'string' ? sec.title : undefined,
+            rows: (sec.rows ?? [])
+              .map((r) => ({
+                id: typeof r?.id === 'string' ? r.id : '',
+                title: typeof r?.title === 'string' ? r.title : '',
+                description:
+                  typeof r?.description === 'string' ? r.description : undefined,
+              }))
+              .filter((r) => r.id && r.title),
+          }))
+          .filter((sec) => sec.rows.length > 0),
+      }
+    : null
+  const hasInteractiveList =
+    Boolean(interactiveList?.button) && (interactiveList?.sections.length ?? 0) > 0
 
   if (isDemoTenantId(msg.tenantId)) {
     // Clínica demo (contatos fictícios): nunca chamar a Meta.
@@ -377,14 +408,26 @@ export async function processClinicOutboxMessage(
           clientRequestId,
         })
       } else if (kind === 'interactive') {
-        sendResult = await meta.sendInteractiveButtonsMessage({
-          phoneNumberId: creds.phoneNumberId,
-          accessToken: creds.accessToken,
-          toWaId: waId,
-          body,
-          buttons: interactiveButtons,
-          clientRequestId,
-        })
+        if (hasInteractiveList && interactiveList) {
+          sendResult = await meta.sendInteractiveListMessage({
+            phoneNumberId: creds.phoneNumberId,
+            accessToken: creds.accessToken,
+            toWaId: waId,
+            body,
+            button: interactiveList.button,
+            sections: interactiveList.sections,
+            clientRequestId,
+          })
+        } else {
+          sendResult = await meta.sendInteractiveButtonsMessage({
+            phoneNumberId: creds.phoneNumberId,
+            accessToken: creds.accessToken,
+            toWaId: waId,
+            body,
+            buttons: interactiveButtons,
+            clientRequestId,
+          })
+        }
       } else {
         sendResult = await meta.sendTextMessage({
           phoneNumberId: creds.phoneNumberId,

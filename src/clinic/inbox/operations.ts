@@ -831,11 +831,19 @@ export function sendOutboundMessageOp(
   }
 
   const hasTemplate = Boolean(input.template?.name?.trim())
-  const hasInteractive = Boolean(input.interactive?.buttons?.length)
+  const hasButtons = Boolean(input.interactive?.buttons?.length)
+  const hasList = Boolean(input.interactive?.list?.sections?.length)
+  if (hasButtons && hasList) {
+    throw new ValidationError(
+      'send_buttons_and_list',
+      'Envie botões ou lista interativa, não ambos',
+    )
+  }
+  const hasInteractive = hasButtons || hasList
   const rawBody = (input.body ?? '').trim()
   const modes = [hasTemplate, hasInteractive, Boolean(rawBody && !hasInteractive)].filter(Boolean)
     .length
-  // interactive exige body + botões; text e template são exclusivos entre si.
+  // interactive exige body + botões/lista; text e template são exclusivos entre si.
   if (hasTemplate && hasInteractive) {
     throw new ValidationError(
       'send_template_and_interactive',
@@ -936,6 +944,14 @@ export function sendOutboundMessageOp(
     let templateLanguage: string | null = null
     let templateParams: Record<string, string> | null = null
     let interactiveButtons: Array<{ id: string; title: string }> | null = null
+    type InteractiveListPayload = {
+      button: string
+      sections: Array<{
+        title?: string
+        rows: Array<{ id: string; title: string; description?: string }>
+      }>
+    }
+    let interactiveList: InteractiveListPayload | null = null
 
     if (hasTemplate) {
       const tpl = input.template!
@@ -956,29 +972,6 @@ export function sendOutboundMessageOp(
           'Fora da janela de 24 h do WhatsApp — mensagem com botões exige janela aberta; use a equipe (sem envio irregular)',
         )
       }
-      const buttons = (input.interactive!.buttons ?? [])
-        .map((b) => ({ id: b.id.trim(), title: b.title.trim() }))
-        .filter((b) => b.id && b.title)
-      if (buttons.length < 1 || buttons.length > 3) {
-        throw new ValidationError(
-          'interactive_buttons_invalid',
-          'Mensagem interativa exige 1 a 3 botões',
-        )
-      }
-      for (const b of buttons) {
-        if (b.title.length > 20) {
-          throw new ValidationError(
-            'interactive_button_title_too_long',
-            'Título de botão WhatsApp limitado a 20 caracteres',
-          )
-        }
-        if (b.id.length > 256) {
-          throw new ValidationError(
-            'interactive_button_id_too_long',
-            'Id de botão WhatsApp limitado a 256 caracteres',
-          )
-        }
-      }
       if (rawBody.length > 1024) {
         throw new ValidationError(
           'interactive_body_too_long',
@@ -987,7 +980,88 @@ export function sendOutboundMessageOp(
       }
       body = rawBody
       kind = 'interactive'
-      interactiveButtons = buttons
+      if (hasList) {
+        const listIn = input.interactive!.list!
+        const button = listIn.button.trim()
+        if (!button || button.length > 20) {
+          throw new ValidationError(
+            'interactive_list_button_invalid',
+            'Lista interativa exige botão de abertura com até 20 caracteres',
+          )
+        }
+        const sections: InteractiveListPayload['sections'] = []
+        let rowCount = 0
+        for (const sec of listIn.sections) {
+          const rows: InteractiveListPayload['sections'][number]['rows'] = []
+          for (const r of sec.rows ?? []) {
+            const id = r.id.trim()
+            const title = r.title.trim()
+            if (!id || !title) continue
+            if (title.length > 24) {
+              throw new ValidationError(
+                'interactive_list_row_title_too_long',
+                'Título de linha da lista limitado a 24 caracteres',
+              )
+            }
+            if (id.length > 200) {
+              throw new ValidationError(
+                'interactive_list_row_id_too_long',
+                'Id de linha da lista limitado a 200 caracteres',
+              )
+            }
+            const description = r.description?.trim()
+            if (description && description.length > 72) {
+              throw new ValidationError(
+                'interactive_list_row_description_too_long',
+                'Descrição de linha da lista limitada a 72 caracteres',
+              )
+            }
+            rows.push(description ? { id, title, description } : { id, title })
+            rowCount += 1
+          }
+          if (rows.length === 0) continue
+          const title = sec.title?.trim()
+          if (title && title.length > 24) {
+            throw new ValidationError(
+              'interactive_list_section_title_too_long',
+              'Título de secção da lista limitado a 24 caracteres',
+            )
+          }
+          sections.push(title ? { title, rows } : { rows })
+        }
+        if (sections.length < 1 || sections.length > 10 || rowCount < 1 || rowCount > 10) {
+          throw new ValidationError(
+            'interactive_list_invalid',
+            'Lista interativa exige 1 a 10 linhas no total (até 10 secções)',
+          )
+        }
+        interactiveList = { button, sections }
+      } else {
+        const buttons = (input.interactive!.buttons ?? [])
+          .map((b) => ({ id: b.id.trim(), title: b.title.trim() }))
+          .filter((b) => b.id && b.title)
+        if (buttons.length < 1 || buttons.length > 3) {
+          throw new ValidationError(
+            'interactive_buttons_invalid',
+            'Mensagem interativa exige 1 a 3 botões',
+          )
+        }
+        for (const b of buttons) {
+          if (b.title.length > 20) {
+            throw new ValidationError(
+              'interactive_button_title_too_long',
+              'Título de botão WhatsApp limitado a 20 caracteres',
+            )
+          }
+          if (b.id.length > 256) {
+            throw new ValidationError(
+              'interactive_button_id_too_long',
+              'Id de botão WhatsApp limitado a 256 caracteres',
+            )
+          }
+        }
+        interactiveButtons = buttons
+      }
     } else {
       if (!window.open) {
         throw new ValidationError(
@@ -1039,6 +1113,7 @@ export function sendOutboundMessageOp(
         templateLanguage,
         templateParams,
         interactiveButtons,
+        interactiveList,
         deliveryState: 'pending',
       },
       clock,
@@ -1139,6 +1214,7 @@ export function sendOutboundMessageOp(
           body: whatsappBody,
           templateParams,
           interactiveButtons,
+          interactiveList,
         },
       },
       clock,

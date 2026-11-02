@@ -38,6 +38,20 @@ export type MetaSendInteractiveButtonsInput = {
   clientRequestId?: string
 }
 
+/** Cloud API interactive type=list (até 10 rows). M5 / #415. */
+export type MetaSendInteractiveListInput = {
+  phoneNumberId: string
+  accessToken: string
+  toWaId: string
+  body: string
+  button: string
+  sections: Array<{
+    title?: string
+    rows: Array<{ id: string; title: string; description?: string }>
+  }>
+  clientRequestId?: string
+}
+
 export type MetaSendSuccess = {
   outcome: 'succeeded'
   providerMessageId: string
@@ -69,6 +83,7 @@ export type MetaAdapter = {
   sendInteractiveButtonsMessage(
     input: MetaSendInteractiveButtonsInput,
   ): Promise<MetaSendResult>
+  sendInteractiveListMessage(input: MetaSendInteractiveListInput): Promise<MetaSendResult>
   /** Recibo de leitura (tiques azuis no celular da cliente). Opcional em fakes. */
   markMessageRead?(input: {
     phoneNumberId: string
@@ -201,6 +216,22 @@ export function createSyntheticMetaAdapter(): MetaAdapter {
         return { outcome: 'failed', errorCode: 'meta_interactive_invalid' }
       }
       const marker = `${input.clientRequestId ?? ''}|${input.body}|${input.accessToken}`
+      return syntheticSendResult(marker, input.phoneNumberId)
+    },
+    async sendInteractiveListMessage(input) {
+      if (!input.accessToken || !input.phoneNumberId || !input.toWaId) {
+        return { outcome: 'failed', errorCode: 'meta_send_invalid' }
+      }
+      const rows = (input.sections ?? []).flatMap((s) => s.rows ?? [])
+      if (
+        !input.body.trim() ||
+        !input.button?.trim() ||
+        rows.length < 1 ||
+        rows.length > 10
+      ) {
+        return { outcome: 'failed', errorCode: 'meta_interactive_list_invalid' }
+      }
+      const marker = `${input.clientRequestId ?? ''}|${input.body}|list|${input.accessToken}`
       return syntheticSendResult(marker, input.phoneNumberId)
     },
   }
@@ -410,6 +441,28 @@ export function createLiveMetaAdapter(env: MetaEnv): MetaAdapter {
             buttons: input.buttons.map((b) => ({
               type: 'reply',
               reply: { id: b.id, title: b.title },
+            })),
+          },
+        },
+      })
+    },
+    async sendInteractiveListMessage(input) {
+      return liveGraphSend(version, input.phoneNumberId, input.accessToken, {
+        messaging_product: 'whatsapp',
+        to: input.toWaId,
+        type: 'interactive',
+        interactive: {
+          type: 'list',
+          body: { text: input.body },
+          action: {
+            button: input.button,
+            sections: input.sections.map((sec) => ({
+              ...(sec.title ? { title: sec.title } : {}),
+              rows: sec.rows.map((r) => ({
+                id: r.id,
+                title: r.title,
+                ...(r.description ? { description: r.description } : {}),
+              })),
             })),
           },
         },
