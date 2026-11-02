@@ -17,6 +17,8 @@ import { CLINIC_SCOPE_ID } from '../../../config/types'
 
 type ControllableClock = Clock & { set(ms: number): void; advance(ms: number): void }
 import { setClinicAiAssistEnabled, setClinicAiProfile } from '../../../config/settings'
+import { defaultMimeForWhatsappType } from '../../../../attachments/policy'
+import { createPendingAttachmentOp, linkAttachmentToMessageOp, markAttachmentReadyOp } from '../../../attachments'
 import { upsertContact } from '../../../contacts'
 import { workerCaller } from '../../../index'
 import { createConversation } from '../../../inbox/conversations'
@@ -25,6 +27,7 @@ import { bootClinicDb } from '../../../test-db'
 import { syncWhatsappChannel } from '../../../whatsapp/channel'
 import type { ClinicCaller } from '../../../envelopes'
 import type { ClinicDb } from '../../../store'
+import { previewBodyForMediaKind, type MediaAttachmentKind } from '../../media-ask-text'
 
 export const DIALOG_TZ = 'America/Sao_Paulo'
 /** qui 05/11/2026 10:00 America/Sao_Paulo (= 13:00 UTC). */
@@ -46,6 +49,8 @@ export type DialogScenario = {
   adapter: AiProviderAdapter
   close: () => void
   sayInbound: (body: string) => string
+  /** Inbound com anexo (CF-26). Sem caption → marcador; com caption → legenda. */
+  sayInboundMedia: (input: { kind: MediaAttachmentKind; caption?: string }) => string
   /** Mensagem da clínica (já enviada) antes do turno da cliente. */
   sayOutbound: (body: string) => string
   inboundBodies: () => string[]
@@ -282,6 +287,55 @@ export function bootDialogScenario(opts: {
     return m.id
   }
 
+  const sayInboundMedia = (input: { kind: MediaAttachmentKind; caption?: string }) => {
+    clock.advance(1_000)
+    const caption = input.caption?.trim()
+    const body = caption && caption.length > 0 ? caption : previewBodyForMediaKind(input.kind)
+    const m = insertMessage(
+      db,
+      {
+        tenantId,
+        conversationId: cnv.id,
+        direction: 'inbound',
+        body,
+        deliveryState: 'received',
+        createdAt: clock.nowMs(),
+      },
+      clock,
+    )
+    const contentType = defaultMimeForWhatsappType(input.kind)
+    const pending = createPendingAttachmentOp(
+      db,
+      caller,
+      {
+        contentType,
+        source: 'synthetic',
+        conversationId: cnv.id,
+        messageId: m.id,
+        filename: input.kind === 'document' ? 'ficheiro.pdf' : null,
+      },
+      clock,
+    )
+    markAttachmentReadyOp(
+      db,
+      caller,
+      {
+        attachmentId: pending.id,
+        byteSize: 128,
+        contentType,
+        filename: pending.filename,
+      },
+      clock,
+    )
+    linkAttachmentToMessageOp(
+      db,
+      caller,
+      { attachmentId: pending.id, conversationId: cnv.id, messageId: m.id },
+      clock,
+    )
+    return m.id
+  }
+
   const sayOutbound = (body: string) => {
     clock.advance(1_000)
     const m = insertMessage(
@@ -373,6 +427,7 @@ export function bootDialogScenario(opts: {
     adapter,
     close: boot.close,
     sayInbound,
+    sayInboundMedia,
     sayOutbound,
     allowedPricesCents,
     freeTimesUnion,

@@ -1,6 +1,6 @@
 # Copy: atos de diálogo determinísticos (M4 / #414)
 
-**Estado:** **Confirmado** (Paulo, 02/11/2026). **Leva 1** (DEC-122): 15 atos e 41 redações, na versão corrigida. **Leva 2** (DEC-123): 17 atos e 32 redações, mais 1 redação num ato da leva 1, na versão revista de 02/11/2026. A **leva 3** está decidida: pedido para outra pessoa (DEC-124), pausa da owner/envio falhado/sinal Pix (DEC-125) e remarcação (DEC-129). As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115) **não** mudam aqui. Qualquer frase nova ou alterada exige aprovação no PR (DEC-104).
+**Estado:** **Confirmado** (Paulo, 02/11/2026). **Leva 1** (DEC-122): 15 atos e 41 redações, na versão corrigida. **Leva 2** (DEC-123): 17 atos e 32 redações, mais 1 redação num ato da leva 1, na versão revista de 02/11/2026. A **leva 3** está decidida: pedido para outra pessoa (DEC-124), pausa da owner/envio falhado/sinal Pix (DEC-125) e remarcação (DEC-129). As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115, DEC-130) **não** mudam aqui. Qualquer frase nova ou alterada exige aprovação no PR (DEC-104).
 
 **Técnicas (núcleo §3.5):** eco do entendido; 3–5 redações por ato, escolhidas por hash estável da conversa; primeiro nome só no 1.º contacto; uma pergunta por mensagem; plural do tipo em minúsculas; sem jargão INV-05.
 
