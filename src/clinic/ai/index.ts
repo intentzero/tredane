@@ -72,6 +72,8 @@ export {
 } from './turn-context'
 export {
   DIALOGUE_ACTS,
+  PROPOSED_ACTS,
+  PROPOSED_TEMPLATES,
   dialogueActIndex,
   renderDialogueAct,
   renderEveryVariant,

@@ -6,6 +6,8 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   DIALOGUE_ACTS,
+  PROPOSED_ACTS,
+  PROPOSED_TEMPLATES,
   dialogueActIndex,
   renderDialogueAct,
   renderEveryVariant,
@@ -64,6 +66,25 @@ describe('#414 dialogue acts', () => {
       ['informar_explicacao', { explicação: 'A limpeza remove impurezas da pele.' }],
       ['acolher_adiamento', {}],
       ['esclarecer', {}],
+      // Leva 2 (Proposta): funil de marcação.
+      ['perguntar_variantes', { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas', hora: '10:00' }],
+      ['perguntar_dia', { serviço: 'Massagem' }],
+      ['perguntar_horario', { serviço: 'Massagem' }],
+      ['perguntar_servico', { lista: 'Massagem, Limpeza de pele' }],
+      ['confirmar_servico', { serviço: 'Massagem' }],
+      ['confirmar_hora_ambigua', { hora: '3', hora24: '15:00' }],
+      ['sem_horario_periodo', { assunto: 'Massagem', período: 'de manhã' }],
+      ['sem_horario_dia', { assunto: 'Massagem', dia: 'sexta 06/11' }],
+      ['sem_horario_semana', { assunto: 'Massagem' }],
+      ['sem_vaga_sem_alternativa', { hora: '16:00' }],
+      ['informar_preco_variante', { variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15' }],
+      ['informar_preco_soma', { preço: 'R$ 160,00', duração: '45' }],
+      ['recusar_mistura', {}],
+      ['servico_inexistente', {}],
+      ['varios_servicos', {}],
+      ['historico_indisponivel', {}],
+      ['catalogo_mudou', {}],
+      ['nao_consegui_fechar', { serviço: 'Massagem', hora: '10:00' }],
     ]
     for (const [act, vars] of samples) {
       const all = renderEveryVariant(act, vars)
@@ -78,10 +99,34 @@ describe('#414 dialogue acts', () => {
     }
   })
 
+  it('todo o ato do catálogo é exercitado pelo teste de forma', () => {
+    // Impede um ato novo de ficar sem verificação (cada ato tem de aparecer nas amostras acima).
+    const src = readFileSync(new URL('./dialogue-acts.test.ts', import.meta.url), 'utf8')
+    for (const act of ALL_ACTS) expect(src, `ato ${act} sem amostra`).toContain(`['${act}',`)
+  })
+
+  it('a leva 2 (Proposta) não sai em produção até ser aprovada', () => {
+    expect(PROPOSED_ACTS.size).toBe(17)
+    for (const act of PROPOSED_ACTS) {
+      expect(() => renderDialogueAct(act, 'cnv_1', { serviço: 'Massagem', lista: 'A, B', hora: '10:00' }), act).toThrow(/Proposto/)
+    }
+    // Num ato aprovado, a redação proposta nunca é escolhida pelo hash.
+    const vars = { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas', hora: '10:00' }
+    for (let i = 0; i < 60; i++) {
+      const text = renderDialogueAct('perguntar_variantes', `cnv_${i}`, vars)
+      expect(text.startsWith('Para fechar às')).toBe(false)
+    }
+    for (const tpl of PROPOSED_TEMPLATES) expect(DIALOGUE_ACTS.perguntar_variantes).toContain(tpl)
+    // Os testes de forma veem as propostas (para as validar antes da aprovação).
+    expect(renderEveryVariant('perguntar_variantes', vars).some((x) => x.startsWith('Para fechar às 10:00'))).toBe(true)
+    expect(renderEveryVariant('perguntar_variantes', vars, { includeProposed: false }).some((x) => x.startsWith('Para fechar às'))).toBe(false)
+  })
+
   it('o eco só sai quando há {assunto}; o link só no ato com {link}', () => {
     const semAssunto = renderEveryVariant('perguntar_variantes', { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas' })
-    expect(semAssunto.length).toBe(DIALOGUE_ACTS.perguntar_variantes.length - 1)
-    expect(semAssunto.every((t) => !t.startsWith('Perfeito'))).toBe(true)
+    // Sem {assunto} e sem {hora} ficam de fora o eco e a variante «Para fechar às {hora}».
+    expect(semAssunto.length).toBe(DIALOGUE_ACTS.perguntar_variantes.length - 2)
+    expect(semAssunto.every((t) => !t.startsWith('Perfeito') && !t.includes('Para fechar às'))).toBe(true)
     const comAssunto = renderEveryVariant('perguntar_variantes', { serviço: 'Depilação', tipo: 'zonas', lista: 'Axila, Pernas', assunto: 'depilação feminina' })
     expect(comAssunto.some((t) => t.startsWith('Perfeito, depilação feminina.'))).toBe(true)
     // Sem link, o ato com link não tem nenhuma redação utilizável.
