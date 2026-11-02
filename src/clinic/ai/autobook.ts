@@ -589,6 +589,7 @@ export async function tryAiAutoBook(
               date: date ?? null,
               period: (period as DayPeriod | null) ?? null,
               limit: 3,
+              conversationId: input.conversationId,
             })
             logPolicyShadow({
               tenantId,
@@ -693,6 +694,7 @@ export async function tryAiAutoBook(
               date: date ?? null,
               period: (turnFacts.period as DayPeriod | null) ?? null,
               limit: 3,
+              conversationId: input.conversationId,
             })
             logPolicyShadow({
               tenantId,
@@ -944,6 +946,7 @@ export async function tryAiAutoBook(
       date,
       time,
       sameDaySlots: avail.slots,
+      conversationId: input.conversationId,
     })
     logPolicyShadow({
       tenantId,

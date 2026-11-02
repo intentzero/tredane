@@ -1,6 +1,7 @@
 /**
  * Oferta proativa e alternativas próximas (#413 / CF-15 / CF-19).
  * Ordena por proximidade da hora pedida e rola para o próximo dia com vaga.
+ * Copy via catálogo M4 (#448): oferecer_horarios / sem_horario_* / sem_vaga_*.
  */
 import type { Clock } from '../../db/clock'
 import { quoteVisit } from '../config/zones'
@@ -10,8 +11,10 @@ import { queryAutomaticAvailability } from '../tempo/automatic'
 import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ForecastAdapter } from '../tempo/evaluate'
 import type { ClinicDb } from '../store'
+import { sayAct } from './dialogue-acts'
 
 const WEEKDAY_LABEL = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
+const FEMININE_WEEKDAYS = new Set(['segunda', 'terça', 'quarta', 'quinta', 'sexta'])
 
 export type DayPeriod = 'manha' | 'tarde' | 'noite'
 
@@ -29,6 +32,21 @@ export function weekdayOfCivil(date: string): number {
 export function dayTextPt(date: string): string {
   const [, m, d] = date.split('-')
   return `${WEEKDAY_LABEL[weekdayOfCivil(date)]} ${d}/${m}`
+}
+
+/**
+ * `{dia}` com preposição (DEC-123): «na sexta (06/11)», «no sábado (07/11)»,
+ * ou «hoje» / «amanhã» quando `today` é o dia civil da clínica.
+ */
+export function dayWithPrepPt(date: string, today?: string | null): string {
+  if (today) {
+    if (date === today) return 'hoje'
+    if (date === addCivilDays(today, 1)) return 'amanhã'
+  }
+  const wd = WEEKDAY_LABEL[weekdayOfCivil(date)]!
+  const [, m, d] = date.split('-')
+  const prep = FEMININE_WEEKDAYS.has(wd) ? 'na' : 'no'
+  return `${prep} ${wd} (${d}/${m})`
 }
 
 export function periodWordPt(period: DayPeriod): string {
@@ -175,6 +193,8 @@ export async function offerNearestSlots(input: {
   limit?: number
   /** Espaçamento mínimo entre ofertas no mesmo dia (minutos). */
   minGapMinutes?: number
+  /** Id da conversa — escolhe a redação (hash estável / #448). */
+  conversationId?: string
 }): Promise<{ slots: OfferedSlot[]; replyText: string }> {
   const {
     db,
@@ -189,6 +209,7 @@ export async function offerNearestSlots(input: {
     period = null,
     limit = 3,
     minGapMinutes = 30,
+    conversationId = '',
   } = input
   const today = clinicCivilDateFromUtc(tz, clock.nowMs())
   const dates = date
@@ -232,20 +253,40 @@ export async function offerNearestSlots(input: {
   const subject = joinNames(names) || service.name
   if (picked.length === 0) {
     if (period) {
+      const período = periodWordPt(period)
+      const fallback = `Para ${subject}, ${período} não tenho horário livre. Quer ver outro período?`
       return {
         slots: [],
-        replyText: `Para ${subject}, ${periodWordPt(period)} não tenho horário livre. Quer ver outro período?`,
+        replyText: sayAct(
+          'sem_horario_periodo',
+          conversationId,
+          { assunto: subject, período },
+          fallback,
+        ),
       }
     }
     if (date) {
+      const dia = dayWithPrepPt(date, today)
+      const fallback = `Para ${subject}, ${dia} não tenho horário livre. Quer ver outro dia?`
       return {
         slots: [],
-        replyText: `Para ${subject}, em ${dayTextPt(date)} não tenho horário livre. Quer ver outro dia?`,
+        replyText: sayAct(
+          'sem_horario_dia',
+          conversationId,
+          { assunto: subject, dia },
+          fallback,
+        ),
       }
     }
+    const fallback = `Para ${subject}, no momento não tenho horário livre. Quer que eu veja outra data?`
     return {
       slots: [],
-      replyText: `Para ${subject}, no momento não tenho horário livre. Quer que eu veja outra data?`,
+      replyText: sayAct(
+        'sem_horario_semana',
+        conversationId,
+        { assunto: subject },
+        fallback,
+      ),
     }
   }
 
@@ -257,10 +298,17 @@ export async function offerNearestSlots(input: {
   }
   const bits = [...byDay.entries()].map(([day, times]) => `${dayTextPt(day)} às ${times.join(', ')}`)
   const listed = bits.length === 1 ? bits[0]! : `${bits.slice(0, -1).join(', ')} e ${bits[bits.length - 1]}`
-  const when = period ? `${periodWordPt(period)} ` : ''
+  // `{quando}`: período com espaço final, ou vazio (opcional no motor do catálogo).
+  const quando = period ? `${periodWordPt(period)} ` : ''
+  const fallback = `Para ${subject}, ${quando}tenho ${listed}. Qual fica melhor?`
   return {
     slots: picked,
-    replyText: `Para ${subject}, ${when}tenho ${listed}. Qual fica melhor?`,
+    replyText: sayAct(
+      'oferecer_horarios',
+      conversationId,
+      { assunto: subject, quando, lista: listed },
+      fallback,
+    ),
   }
 }
 
@@ -279,7 +327,9 @@ export async function occupiedSlotAlternativesReply(input: {
   date: string
   time: string
   sameDaySlots: Array<{ startsAt: number }>
+  conversationId?: string
 }): Promise<string> {
+  const conversationId = input.conversationId ?? ''
   const period = periodFromHHMM(input.time)
   const nearby = pickNearbySameDay(input.sameDaySlots, input.time, input.tz, {
     period,
@@ -287,7 +337,16 @@ export async function occupiedSlotAlternativesReply(input: {
     nowMs: input.clock.nowMs(),
   })
   if (nearby.length > 0) {
-    return `Nesse horário das ${input.time} já não tenho vaga. Tenho ${nearby.join(', ')}. Qual fica melhor?`
+    const lista = nearby.join(', ')
+    const fallback = `Nesse horário das ${input.time} já não tenho vaga. Tenho ${lista}. Qual fica melhor?`
+    // Sem «próximo com vaga»: esse texto é só do rollover para o dia seguinte.
+    return sayAct(
+      'sem_vaga_alternativas',
+      conversationId,
+      { hora: input.time, lista },
+      fallback,
+      { avoidInTemplate: ['próximo com vaga'] },
+    )
   }
 
   // Sem vaga no período do dia → próximo dia com vaga (D-02).
@@ -303,6 +362,7 @@ export async function occupiedSlotAlternativesReply(input: {
     date: addCivilDays(input.date, 1),
     period,
     limit: 3,
+    conversationId,
   })
   if (next.slots.length > 0) {
     const byDay = new Map<string, string[]>()
@@ -313,8 +373,22 @@ export async function occupiedSlotAlternativesReply(input: {
     }
     const bits = [...byDay.entries()].map(([day, times]) => `${dayTextPt(day)} às ${times.join(', ')}`)
     const listed = bits.length === 1 ? bits[0]! : `${bits.slice(0, -1).join(', ')} e ${bits[bits.length - 1]}`
-    return `Nesse horário das ${input.time} já não tenho vaga e o dia está cheio nesse período. No próximo com vaga tenho ${listed}. Qual fica melhor?`
+    const fallback =
+      `Nesse horário das ${input.time} já não tenho vaga e o dia está cheio nesse período. No próximo com vaga tenho ${listed}. Qual fica melhor?`
+    return sayAct(
+      'sem_vaga_alternativas',
+      conversationId,
+      { hora: input.time, lista: listed },
+      fallback,
+      { requireInTemplate: ['próximo com vaga'] },
+    )
   }
 
-  return `Nesse horário das ${input.time} já não tenho vaga. Quer que eu veja outro horário?`
+  const fallback = `Nesse horário das ${input.time} já não tenho vaga. Quer que eu veja outro horário?`
+  return sayAct(
+    'sem_vaga_sem_alternativa',
+    conversationId,
+    { hora: input.time },
+    fallback,
+  )
 }

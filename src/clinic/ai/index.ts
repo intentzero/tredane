@@ -75,7 +75,10 @@ export {
   dialogueActIndex,
   renderDialogueAct,
   renderEveryVariant,
+  sayAct,
+  setDialogueVariantForTests,
   type DialogueActId,
+  type DialogueActPick,
   type DialogueVars,
 } from './dialogue-acts'
 export {
