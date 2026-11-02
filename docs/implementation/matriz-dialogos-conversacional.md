@@ -348,4 +348,16 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | Freeze | prompt `sha256:a35e30d45c7cd609e21df678051ca3e18538801a2c585b72a9dbffae4cc3b804` (**novo**; `REPLY_EXAMPLES` sem HH:MM); catálogo `scenario.ts` `sha256:547cd19c30e3015fdd73389980e201664f04b2610f6eb8b28433167a15d8711d` (inalterado); modelo autodraft `claude-haiku-5-5` |
 | CF-27 | Exemplos remete ao sistema («Já verifico os horários…»); teste DEC-118 permanente com `freeSlots` (>10) + 1 `upcoming` semeados; body ao gateway sem HH:MM fora de «Agora»/expediente |
 | Copy | Frase canónica DEC-118 já no prompt; sem acto novo do catálogo; leva 3 ainda **Proposta** |
-| Próxima | Restante It. 3 [#444](https://github.com/intentzero/tredane/issues/444) (M2 #412, L2 #417) |
+| Próxima | Ver resumo pós-It. 3 abaixo |
+
+### Resumo após It. 3 (02/11/2026)
+
+| Estado | Contagem / notas |
+| --- | --- |
+| L1 em `main` `788eaad` (pós-#458) | 75 casos · **64** passam · **0** `it.fails` · 2 pendentes L2 (H-04, I-03 → #417) · 9 coverageOnly · 0 inesperadas |
+| Freeze | prompt `sha256:a35e30d45c7cd609e21df678051ca3e18538801a2c585b72a9dbffae4cc3b804`; catálogo `scenario.ts` `sha256:547cd19c30e3015fdd73389980e201664f04b2610f6eb8b28433167a15d8711d` (inalterado face à It. 2); modelo autodraft `claude-haiku-5-5` |
+| Entregas | M4b call-sites ([#448](https://github.com/intentzero/tredane/issues/448) / #453–#457); CF-27 ([#449](https://github.com/intentzero/tredane/issues/449) / [#458](https://github.com/intentzero/tredane/pull/458)) |
+| Triagem | **Nenhuma falha nova** (L0/L1); sem CF/CA novo; sem caso de matriz novo; coluna de estados dos P0 inalterada face à It. 2.1 |
+| §4.4 | Invariantes P0 a verde; regressão zero vs It. 2.1; EF/EE e métricas L2 **Em aberto** / sem harness (#417) |
+| Fora | M2 [#412](https://github.com/intentzero/tredane/issues/412) (ADR); L2/L3 [#417](https://github.com/intentzero/tredane/issues/417); leva 3 do catálogo ainda **Proposta**; 6 atos sem call-site |
+| Próxima | [#459](https://github.com/intentzero/tredane/issues/459) Iteração 4 |
