@@ -13,7 +13,11 @@ import { listMessages } from '../inbox/messages'
 import type { MessageRow } from '../inbox/types'
 import type { ClinicDb } from '../store'
 import { loadUpcomingAppointment } from './reschedule'
-import { getScheduleSession, type ScheduleSession } from './schedule-session'
+import {
+  getScheduleSession,
+  syncBookingFrameWithCatalog,
+  type ScheduleSession,
+} from './schedule-session'
 
 export type CatalogReadStats = {
   services: number
@@ -163,6 +167,20 @@ export function loadTurnContext(
   const turnText =
     currentClientTurnText(messages.map((m) => ({ direction: m.direction, body: m.body }))).trim() ||
     (input.inboundBody ?? '')
+  // ADR-0015 / #472: catalogVersion diverge → revalidar ids (sem inventar substituto).
+  // Sessões migradas com '' revalidam uma vez e mantêm o que continuar válido (DEC-127.4).
+  const serviceIds = new Set(catalog.services.map((s) => s.id))
+  const variantIds = new Set(catalog.services.flatMap((s) => s.zones.map((z) => z.id)))
+  const professionalIds = new Set(
+    catalog.resources.filter((r) => r.kind === 'professional').map((r) => r.id),
+  )
+  syncBookingFrameWithCatalog(
+    db,
+    tenantId,
+    input.conversationId,
+    { version: catalog.version, serviceIds, variantIds, professionalIds },
+    clock,
+  )
   const session = getScheduleSession(db, tenantId, input.conversationId)
   const upcoming = input.contactId
     ? loadUpcomingAppointment(db, tenantId, input.contactId, clock.nowMs())

@@ -117,6 +117,10 @@ import type {
 } from '../clinic/ai'
 import { HUMAN_HANDOFF_BUTTON_ID, notifyHumanHandoff, resumeAiReply } from '../clinic/ai/human-handoff'
 import {
+  clearBookingFrame,
+  saveBookingFrame,
+} from '../clinic/ai/schedule-session'
+import {
   handleIdleButtonClick,
   nextIdleDueAt,
   sweepDueIdleConversations,
@@ -1543,6 +1547,67 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async clearAuthorityOverrideForTests(): Promise<{ ok: true }> {
     this.#authorityOverride = null
     return { ok: true }
+  }
+
+  /**
+   * Harness #472: grava ou limpa BookingFrame e faz fan-out de `booking_frame.updated`
+   * (inclui clear sem resposta à cliente). Só development + clinic-demo-*.
+   */
+  async harnessBookingFrameUpdated(
+    caller: ClinicCaller,
+    input: {
+      conversationId: string
+      action: 'save' | 'clear'
+      serviceId?: string
+    },
+  ): Promise<{
+    ok: true
+    action: 'save' | 'clear'
+    outboxType: string | null
+    fanout: { delivered: string[]; revoked: string[]; skippedUnavailable: string[] } | null
+  }> {
+    if (!isDevelopmentEnv(this.env)) {
+      throw new TenantMismatchError('harness indisponível fora de development')
+    }
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    bindOrAssertTenant(this.#db, caller, this.#clock)
+    const outboxes: OutboxRow[] = []
+    if (input.action === 'clear') {
+      const ob = clearBookingFrame(
+        this.#db,
+        caller.tenantId,
+        input.conversationId,
+        this.#clock,
+      )
+      if (ob) outboxes.push(ob)
+    } else {
+      const serviceId = input.serviceId?.trim() || 'svc_harness_bf'
+      const { outbox } = saveBookingFrame(
+        this.#db,
+        caller.tenantId,
+        input.conversationId,
+        {
+          serviceId,
+          phase: 'coletando',
+          date: '2026-11-06',
+          time: '14:00',
+          catalogVersion: 'harness:1',
+        },
+        this.#clock,
+      )
+      if (outbox) outboxes.push(outbox)
+    }
+    const fanout =
+      outboxes.length > 0
+        ? (await this.#fanoutOutboxes(caller, outboxes, true)).fanout
+        : null
+    return {
+      ok: true,
+      action: input.action,
+      outboxType: outboxes[0]?.type ?? null,
+      fanout,
+    }
   }
 
   /** Revalida sockets hibernados/ativos sem fan-out de domínio. */

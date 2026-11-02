@@ -283,22 +283,29 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
-  it('«Quero depilação na segunda à tarde.» pergunta a linha e guarda segunda e tarde', () => {
+  it('«Quero depilação na segunda à tarde.» pergunta a linha e guarda data absoluta + tarde (#472)', () => {
     const boot = seedMixed()
     try {
       const opts = { conversationId: boot.conversation.id }
       expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação na segunda à tarde.', boot.clock, opts)).toMatch(LINE_RE)
-      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toMatchObject({
+      const session1 = getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)
+      expect(session1).toMatchObject({
         serviceId: boot.svc.id,
         audienceLine: null,
-        dayLabel: 'segunda',
+        dayLabel: null,
         period: 'tarde',
       })
+      const date1 = boot.db.get<{ date: string | null }>(
+        `SELECT date FROM schedule_sessions WHERE tenant_id = ? AND conversation_id = ?`,
+        boot.tenantId,
+        boot.conversation.id,
+      )?.date
+      expect(date1).toMatch(/^\d{4}-\d{2}-\d{2}$/)
       expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toMatch(ZONES_RE)
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toMatchObject({
         serviceId: boot.svc.id,
         audienceLine: 'feminino',
-        dayLabel: 'segunda',
+        dayLabel: null,
         period: 'tarde',
       })
       expect(

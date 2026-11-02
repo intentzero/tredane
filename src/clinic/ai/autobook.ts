@@ -50,16 +50,16 @@ import { resolveBookingObject, servicesFromBookingMatch } from './booking-object
 import {
   audienceLineFromClientTexts,
   citesServiceName,
-  claimsWholeCatalog,
   zonesChosenInClientTexts,
-  zonesOfferedToClient,
 } from './schedule-choice'
 import {
   getBookingFrame,
   saveScheduleLine,
   saveScheduleSession,
   scheduleFactsFromText,
+  syncBookingFrameWithCatalog,
 } from './schedule-session'
+import { getOrCompileCatalog } from './turn-context'
 import {
   audienceLineQuestion,
   needsAudienceLine,
@@ -80,7 +80,6 @@ import {
   isPendingOfferFresh,
   matchPendingChoice,
 } from './booking-frame-choice'
-import { BOOKING_FRAME_CUTOVER, logBookingFrameShadow } from './booking-frame-shadow'
 import {
   createDeferredBookingFrame,
   offerFramePatch,
@@ -396,8 +395,13 @@ export async function tryAiAutoBook(
 ): Promise<AutoBookOutcome> {
   const tenantId = caller.tenantId
   const deferred = createDeferredBookingFrame()
+  const catalog =
+    input.turn?.catalog ?? getOrCompileCatalog(db, tenantId, clock)
   const saveSession = (patch: Parameters<typeof saveScheduleSession>[3]) => {
-    deferred.save(patch)
+    deferred.save({
+      ...patch,
+      catalogVersion: patch.catalogVersion ?? catalog.version,
+    })
   }
   const finish = (outcome: AutoBookOutcome): AutoBookOutcome => {
     if (!deferred.hasWork) return outcome
@@ -406,8 +410,12 @@ export async function tryAiAutoBook(
     if (willSend) {
       return { ...outcome, deferredFrame: deferred }
     }
-    deferred.flushNow(db, tenantId, input.conversationId, clock)
-    return outcome
+    // Sem resposta à cliente: persiste o frame e devolve o outbox para fanout WS (#472).
+    const flushed = deferred.flushNow(db, tenantId, input.conversationId, clock)
+    return {
+      ...outcome,
+      outbox: [...outcome.outbox, ...flushed],
+    }
   }
   const none = (status: AutoBookStatus, extra: Partial<AutoBookOutcome> = {}): AutoBookOutcome => ({
     status,
@@ -468,11 +476,26 @@ export async function tryAiAutoBook(
   const services = input.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
   const turnText = clientTurn.map((m) => m.body).join('\n')
 
-  // ADR-0015 / DEC-127: ler primeiro contra pending.options (cutover).
+  // ADR-0015 / #472: revalidar ids se catalogVersion divergir (também sem TurnContext).
+  syncBookingFrameWithCatalog(
+    db,
+    tenantId,
+    input.conversationId,
+    {
+      version: catalog.version,
+      serviceIds: new Set(catalog.services.map((s) => s.id)),
+      variantIds: new Set(catalog.services.flatMap((s) => s.zones.map((z) => z.id))),
+      professionalIds: new Set(
+        catalog.resources.filter((r) => r.kind === 'professional').map((r) => r.id),
+      ),
+    },
+    clock,
+  )
+  // ADR-0015 / DEC-127: ler primeiro contra pending.options (cutover fechado — #472).
   const frameEarly = getBookingFrame(db, tenantId, input.conversationId)
   let pendingTimeOverride: string | null = null
   let pendingDateOverride: string | null = null
-  if (BOOKING_FRAME_CUTOVER && frameEarly?.pending) {
+  if (frameEarly?.pending) {
     const pendingMsg = db.get<{ created_at: number }>(
       `SELECT created_at FROM messages WHERE tenant_id = ? AND id = ?`,
       tenantId,
@@ -480,19 +503,13 @@ export async function tryAiAutoBook(
     )
     const fresh = isPendingOfferFresh(pendingMsg?.created_at ?? null, clock.nowMs())
     if (!fresh) {
-      logBookingFrameShadow({
-        tenantId,
-        conversationId: input.conversationId,
-        current: { action: 'use_pending' },
-        proposed: { action: 'ask_again_expired' },
-      })
       if (frameEarly.serviceId) {
         saveSession({
-            serviceId: frameEarly.serviceId,
-            pending: null,
-            lastOffer: null,
-            phase: 'coletando',
-          })
+          serviceId: frameEarly.serviceId,
+          pending: null,
+          lastOffer: null,
+          phase: 'coletando',
+        })
       }
     } else {
       const choice = matchPendingChoice(turnText, frameEarly.pending)
@@ -500,12 +517,6 @@ export async function tryAiAutoBook(
         pendingTimeOverride = choice.key.match(/\d{2}:\d{2}/)?.[0] ?? null
         const dateFromLabel = choice.label.match(/\d{4}-\d{2}-\d{2}/)?.[0]
         pendingDateOverride = dateFromLabel ?? frameEarly.date
-        logBookingFrameShadow({
-          tenantId,
-          conversationId: input.conversationId,
-          current: { action: 'other', detail: 'legacy_parse' },
-          proposed: { action: 'use_pending', detail: choice.key },
-        })
       } else if (choice.kind === 'ask_which' || choice.kind === 'ambiguous') {
         // Catálogo perguntar_horario (#448): fallback alinhado à allowlist; sem frase nova.
         const svc =
@@ -566,23 +577,10 @@ export async function tryAiAutoBook(
     date = swap.date
     missing = []
   }
-  // CF-21 / ADR-0015: preferir data absoluta do frame; day_label só em sombra / pré-cutover.
+  // CF-21 / ADR-0015: data absoluta do frame (day_label órfã — não autoriza, #472).
   if (!date && frame?.date && (!det.service || frame.serviceId === det.service.id)) {
     date = frame.date
     missing = missing.filter((item) => item !== 'dia')
-    logBookingFrameShadow({
-      tenantId,
-      conversationId: input.conversationId,
-      current: { action: 'use_day_label', detail: session?.dayLabel ?? undefined },
-      proposed: { action: 'use_absolute_date', detail: frame.date },
-    })
-  }
-  if (!date && !BOOKING_FRAME_CUTOVER && session?.dayLabel && (!det.service || session.serviceId === det.service.id)) {
-    const resolved = [...extractDates(session.dayLabel, clinicCivilDateFromUtc(tz, confirmation.created_at))]
-    if (resolved.length === 1) {
-      date = resolved[0]
-      missing = missing.filter((item) => item !== 'dia')
-    }
   }
   const turnFacts = scheduleFactsFromText(turnText)
   const rememberDayPeriod = (serviceId: string) => {
@@ -593,14 +591,14 @@ export async function tryAiAutoBook(
         ? [...extractDates(turnFacts.dayLabel, today)][0] ?? null
         : undefined
     // Novo dia/período invalida pending/lastOffer anteriores (nova oferta a seguir).
+    // day_label deixa de ser gravado (#472 cutover); só date/period absolutos.
     saveSession({
-        serviceId,
-        ...(turnFacts.dayLabel ? { dayLabel: turnFacts.dayLabel } : {}),
-        ...(turnFacts.period ? { period: turnFacts.period } : {}),
-        ...(absolute !== undefined ? { date: absolute } : {}),
-        pending: null,
-        lastOffer: null,
-      })
+      serviceId,
+      ...(turnFacts.period ? { period: turnFacts.period } : {}),
+      ...(absolute !== undefined ? { date: absolute } : {}),
+      pending: null,
+      lastOffer: null,
+    })
   }
   if (pendingTimeOverride) {
     const pendingSvc =
@@ -684,13 +682,12 @@ export async function tryAiAutoBook(
         if (fromSession.length === session.variantIds.length) kept = fromSession
       }
       saveSession({
-          serviceId: det.service.id,
-          ...(turnExplicit ? { audienceLine: turnExplicit } : {}),
-          ...(turnFacts.dayLabel ? { dayLabel: turnFacts.dayLabel } : {}),
-          ...(turnFacts.period ? { period: turnFacts.period } : {}),
-          ...(clockFromTurn ? { clockTime: clockFromTurn } : {}),
-          ...(kept.length > 0 && !chosen.ambiguous ? { variantIds: kept.map((z) => z.id) } : {}),
-        })
+        serviceId: det.service.id,
+        ...(turnExplicit ? { audienceLine: turnExplicit } : {}),
+        ...(turnFacts.period ? { period: turnFacts.period } : {}),
+        ...(clockFromTurn ? { clockTime: clockFromTurn } : {}),
+        ...(kept.length > 0 && !chosen.ambiguous ? { variantIds: kept.map((z) => z.id) } : {}),
+      })
       const contributed =
         Boolean(clockFromTurn) ||
         zonesNamedInText(turnText, pool.length > 0 ? pool : active).length > 0
@@ -835,11 +832,10 @@ export async function tryAiAutoBook(
               ? active.filter((z) => booking.variantIds.includes(z.id))
               : []
           saveSession({
-              serviceId: svc.id,
-              ...(kept.length > 0 ? { variantIds: kept.map((z) => z.id) } : {}),
-              ...(turnFacts.dayLabel ? { dayLabel: turnFacts.dayLabel } : {}),
-              ...(turnFacts.period ? { period: turnFacts.period } : {}),
-            })
+            serviceId: svc.id,
+            ...(kept.length > 0 ? { variantIds: kept.map((z) => z.id) } : {}),
+            ...(turnFacts.period ? { period: turnFacts.period } : {}),
+          })
           if (active.length > 0 && kept.length === 0) {
             replyText =
               booking.question ??
@@ -964,31 +960,8 @@ export async function tryAiAutoBook(
   }
   // A cliente aceitou a hora. O conjunto é o da oferta («para axila e íntima»),
   // não o resto do catálogo que a sessão ou «as duas» tenham arrastado.
-  // Cutover M2: só o frame (variantIds / lastOffer) autoriza — CF-22 / ADR-0015.
-  // Sem cutover, zonesOfferedToClient ainda autoriza; sob cutover só compara na sombra.
-  let ambiguous = chosen.ambiguous
-  const offered = zonesOfferedToClient(prevClinic?.body ?? null, scoped)
-  if (
-    offered.length > 0 &&
-    clockFromTurn &&
-    zonesNamedInText(turnText, scoped).length === 0 &&
-    !claimsWholeCatalog(turnText)
-  ) {
-    if (BOOKING_FRAME_CUTOVER) {
-      logBookingFrameShadow({
-        tenantId,
-        conversationId: input.conversationId,
-        current: { action: 'other', detail: 'zonesOfferedToClient' },
-        proposed: {
-          action: 'offer_with_last_offer',
-          detail: (session?.variantIds ?? []).join(',') || 'frame',
-        },
-      })
-    } else {
-      namedZones = offered
-      ambiguous = false
-    }
-  }
+  // Cutover fechado (#472): só o frame (variantIds / lastOffer) autoriza — CF-22.
+  const ambiguous = chosen.ambiguous
   if (namedZones.length > 0 && !ambiguous) {
     saveSession({
         serviceId: svc.id,

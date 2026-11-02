@@ -2296,10 +2296,12 @@ export type InboxConversationDetail = InboxConversation & {
   activeProposal?: InboxActiveProposal | null
   /** DEC-083 — IA pausada até Devolver à IA. */
   aiReplyPause?: { at: number; reason: string } | null
-  /** Procedimento, dia e período já definidos na conversa (sessão de agendamento). */
+  /** Procedimento, dia e período já definidos na conversa (BookingFrame). */
   scheduleHint?: {
     serviceId: string
     dayLabel: string | null
+    /** Data civil absoluta (YYYY-MM-DD); preferir a `dayLabel` órfã (#472). */
+    date?: string | null
     period: 'manha' | 'tarde' | 'noite' | null
   } | null
   /** S4 / H7 — comunicação pendente visível na conversa. */

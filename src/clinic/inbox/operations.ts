@@ -1,6 +1,6 @@
 import type { Clock } from '../../db/clock'
 import { attachSuggestionToOutboundOp } from '../ai/operations'
-import { getScheduleSession } from '../ai/schedule-session'
+import { getBookingFrame, getScheduleSession } from '../ai/schedule-session'
 import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller } from '../envelopes'
@@ -203,7 +203,14 @@ export function getConversationDetailOp(
     scheduleHint: (() => {
       const session = getScheduleSession(db, meta.tenantId, input.conversationId)
       if (!session) return null
-      return { serviceId: session.serviceId, dayLabel: session.dayLabel, period: session.period }
+      const frame = getBookingFrame(db, meta.tenantId, input.conversationId)
+      return {
+        serviceId: session.serviceId,
+        // #472: day_label órfã — não expor valor relativo; painel usa `date`.
+        dayLabel: null,
+        date: frame?.date ?? null,
+        period: session.period,
+      }
     })(),
   }
 }
