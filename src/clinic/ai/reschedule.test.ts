@@ -246,6 +246,18 @@ describe('DEC-129 frases fixas (validador + claimsBooking)', () => {
   })
 })
 
+describe('DEC-131: as frases da remarcação nunca lançam', () => {
+  it('nome proibido → variante sem nome; nome normal → frase da DEC-129', () => {
+    for (const name of ['Sala VIP relax', 'Pacote catálogo', 'Massagem Linha Premium', 'Sessão de intervalo']) {
+      expect(() => phraseOwnerPaused(name, '2026-11-04', '10:00')).not.toThrow()
+      expect(phraseOwnerPaused(name, '2026-11-04', '10:00')).toBe(
+        'Recebi seu pedido de remarcar. Ainda não está remarcado: a equipe confirma e já te retorna.',
+      )
+    }
+    expect(phraseOwnerPaused('Depilação', '2026-11-04', '10:00')).toContain('remarcar Depilação para quarta 04/11')
+  })
+})
+
 describe('DEC-091/129 reagendamento conversacional', () => {
   it('frase (1): «Quero remarcar» sem dia pede o dia', async () => {
     const s = seed()
@@ -390,6 +402,30 @@ describe('DEC-091/129 reagendamento conversacional', () => {
       s.close()
     }
   })
+
+  it.each(['Sala VIP relax', 'Pacote catálogo', 'Massagem Linha Premium', 'Sessão de intervalo'])(
+    'DEC-131: serviço «%s» (termo proibido) → pausa da owner sem nome, sem lançar',
+    async (serviceName) => {
+      const s = seed()
+      try {
+        s.say('inbound', 'Posso reagendar para quarta?')
+        await s.run()
+        const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+        const pick = frame!.pending!.options[0]!.key
+        s.db.run(`UPDATE services SET name = ? WHERE tenant_id = ? AND id = ?`, serviceName, s.tenantId, s.svc.id)
+        s.say('inbound', pick)
+        const second = await s.run({ autoBookPaused: true })
+        expect(second.reason).toBe('reschedule_flow')
+        const body = s.lastOutbound()
+        expect(body).toBe(
+          'Recebi seu pedido de remarcar. Ainda não está remarcado: a equipe confirma e já te retorna.',
+        )
+        assertSafeClientCopy(body)
+      } finally {
+        s.close()
+      }
+    },
+  )
 
   it('escolhe horário → proposta replace → Confirmar actualiza o mesmo compromisso', async () => {
     const s = seed()
