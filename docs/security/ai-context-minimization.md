@@ -5,7 +5,9 @@
 
 Este documento inventaria, campo a campo, o que vai ao LLM versus o que fica só no backend, e regista retenção, logs do AI Gateway e itens **Em aberto** para Paulo. Não implementa S3/S4/S5 (propostas/botão/clique).
 
-## 1. Divergência DEC-011 × H2 (Em aberto — Paulo)
+## 1. Divergência DEC-011 × H2 (Decidida — DEC-118, 01/11/2026)
+
+> **DEC-118 (Paulo, 01/11/2026):** o contexto atual da resposta é aprovado como **exceção transitória** à DEC-011. Quando o M3 ([#413](https://github.com/intentzero/tredane/issues/413)) estiver em produção, reduz-se a nome da clínica, endereço, políticas e persona, sem horários livres nem compromissos. DEC-109 fixa o contexto do extrator. O parecer jurídico (NC-03) continua pendente. O texto abaixo descreve a divergência original.
 
 | Afirmação | Estado |
 | --- | --- |
