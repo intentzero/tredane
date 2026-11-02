@@ -24,6 +24,7 @@ import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import { HUMAN_HANDOFF_TEXT } from './human-handoff'
+import { getBookingFrame } from './schedule-session'
 import { RESCHEDULE_OFFER_MARKER, isRescheduleIntent } from './reschedule'
 
 const TZ = 'America/Sao_Paulo'
@@ -279,6 +280,46 @@ describe('DEC-091 reagendamento conversacional', () => {
       const out = await s.run()
       expect(out.reason).toBe('human_handoff')
       expect(s.lastOutbound()).toBe(HUMAN_HANDOFF_TEXT)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('cutover: marker outbound sem frame não autoriza escolha de horário', async () => {
+    const s = seed()
+    try {
+      // Texto com marker (caminho antigo) mas sem lastOffer/pending/phase no frame.
+      s.say(
+        'outbound',
+        `${RESCHEDULE_OFFER_MARKER} na quarta 04/11, tenho 10:00, 11:00. Qual fica melhor?`,
+      )
+      s.say('inbound', '10:00')
+      const out = await s.run()
+      expect(out.reason).not.toBe('reschedule_flow')
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.lastOffer).toBeFalsy()
+    } finally {
+      s.close()
+    }
+  })
+
+  it('cutover: oferta grava lastOffer e o 2.º turno escolhe pelo frame', async () => {
+    const s = seed()
+    try {
+      s.say('inbound', 'Posso reagendar para quarta?')
+      await s.run()
+      const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      expect(frame?.phase).toBe('remarcando')
+      expect(frame?.lastOffer?.slots.length).toBeGreaterThan(0)
+      expect(frame?.pending?.options.length).toBeGreaterThan(0)
+      const pick = frame!.pending!.options[0]!.key
+      s.say('inbound', pick)
+      const second = await s.run()
+      expect(second.reason).toBe('reschedule_flow')
+      const proposalRow = s.db.get<{ id: string }>(
+        `SELECT id FROM appointment_proposals WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 1`,
+        s.tenantId,
+      )
+      expect(proposalRow).toBeTruthy()
     } finally {
       s.close()
     }

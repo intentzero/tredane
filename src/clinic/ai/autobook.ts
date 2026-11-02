@@ -1005,8 +1005,8 @@ export async function tryAiAutoBook(
   }
   // A cliente aceitou a hora. O conjunto é o da oferta («para axila e íntima»),
   // não o resto do catálogo que a sessão ou «as duas» tenham arrastado.
-  // Cutover M2: oferta fechada da clínica materializa no frame (DEC-090);
-  // zonesOfferedToClient deixa de ser SoT no turno seguinte.
+  // Cutover M2: só o frame (variantIds / lastOffer) autoriza — CF-22 / ADR-0015.
+  // Sem cutover, zonesOfferedToClient ainda autoriza; sob cutover só compara na sombra.
   let ambiguous = chosen.ambiguous
   const offered = zonesOfferedToClient(prevClinic?.body ?? null, scoped)
   if (
@@ -1015,8 +1015,6 @@ export async function tryAiAutoBook(
     zonesNamedInText(turnText, scoped).length === 0 &&
     !claimsWholeCatalog(turnText)
   ) {
-    namedZones = offered
-    ambiguous = false
     if (BOOKING_FRAME_CUTOVER) {
       logBookingFrameShadow({
         tenantId,
@@ -1024,9 +1022,12 @@ export async function tryAiAutoBook(
         current: { action: 'other', detail: 'zonesOfferedToClient' },
         proposed: {
           action: 'offer_with_last_offer',
-          detail: offered.map((z) => z.id).join(','),
+          detail: (session?.variantIds ?? []).join(',') || 'frame',
         },
       })
+    } else {
+      namedZones = offered
+      ambiguous = false
     }
   }
   if (namedZones.length > 0 && !ambiguous) {

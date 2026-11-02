@@ -149,7 +149,7 @@ Segue [AGENTS.md](../../AGENTS.md) e o ADR-0012: um DO por clínica **não** iso
 | 4 | Copy pós-migração (DEC-127.4) | Reusar acto `perguntar_dia` (DEC-122/123). Sem frase nova. | **Confirmado** |
 | 5 | Estado do ADR | Opção A — promover o ADR inteiro a **Confirmado**. | **Confirmado** |
 
-Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migração 49, sombra, cutover) está entregue no PR de #412; **Em aberto:** remoção total do `RESCHEDULE_OFFER_MARKER` como SoT.
+Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migração 49, sombra, cutover) está entregue no PR de #412; com cutover activo, `zonesOfferedToClient` e `RESCHEDULE_OFFER_MARKER` **deixam de autorizar** (só o frame: `lastOffer` / `pending` / `date`); o marker pode permanecer na copy outbound e na sombra.
 
 ## Consequências e riscos
 

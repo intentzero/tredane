@@ -133,7 +133,8 @@ export function loadUpcomingAppointment(
   }
 }
 
-function priorRescheduleOffer(db: ClinicDb, tenantId: string, conversationId: string): boolean {
+/** Pré-cutover / sombra: detecção por marker no texto outbound (CF-22). */
+function priorRescheduleOfferMarker(db: ClinicDb, tenantId: string, conversationId: string): boolean {
   const row = db.get<{ body: string }>(
     `SELECT body FROM messages
      WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
@@ -142,6 +143,63 @@ function priorRescheduleOffer(db: ClinicDb, tenantId: string, conversationId: st
     conversationId,
   )
   return Boolean(row?.body && row.body.includes(RESCHEDULE_OFFER_MARKER))
+}
+
+/** Pós-cutover: só o frame autoriza continuidade da remarcação. */
+function priorRescheduleOfferFromFrame(
+  frame: ReturnType<typeof getBookingFrame>,
+): boolean {
+  if (!frame) return false
+  return Boolean(frame.lastOffer || frame.pending || frame.phase === 'remarcando')
+}
+
+function lastInboundMessageId(db: ClinicDb, tenantId: string, conversationId: string): string {
+  const row = db.get<{ id: string }>(
+    `SELECT id FROM messages
+     WHERE tenant_id = ? AND conversation_id = ? AND direction = 'inbound'
+     ORDER BY created_at DESC, id DESC LIMIT 1`,
+    tenantId,
+    conversationId,
+  )
+  return row?.id ?? `reschedule:${conversationId}`
+}
+
+/** Grava lastOffer/pending da oferta de remarcação (cutover: SoT do frame). */
+function rememberRescheduleOffer(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  serviceId: string,
+  date: string,
+  slots: Array<{ startsAt: number; professionalId: string }>,
+  tz: string,
+  clock: Clock,
+  offerMessageId: string,
+): void {
+  if (slots.length === 0) return
+  const options = slots.map((s) => {
+    const time = localHHMM(tz, s.startsAt)
+    return { key: time, label: `${date} às ${time}` }
+  })
+  saveScheduleSession(
+    db,
+    tenantId,
+    conversationId,
+    {
+      serviceId,
+      date,
+      phase: 'remarcando',
+      pending: { slot: 'horario', options, messageId: offerMessageId },
+      lastOffer: {
+        slots: slots.map((s) => ({
+          startsAt: s.startsAt,
+          professionalId: s.professionalId,
+        })),
+        messageId: offerMessageId,
+      },
+    },
+    clock,
+  )
 }
 
 function periodFilter(period: string | null | undefined, hhmm: string): boolean {
@@ -175,7 +233,26 @@ export async function tryAiReschedule(
   if (!conv) return null
   const now = clock.nowMs()
   const apt = loadUpcomingAppointment(db, tenantId, conv.contactId, now)
-  const priorOffer = priorRescheduleOffer(db, tenantId, input.conversationId)
+  const sessionEarly = getScheduleSession(db, tenantId, input.conversationId)
+  const frameEarly = getBookingFrame(db, tenantId, input.conversationId)
+  const markerPrior = priorRescheduleOfferMarker(db, tenantId, input.conversationId)
+  const framePrior = priorRescheduleOfferFromFrame(frameEarly)
+  // Cutover: marker/regex deixam de autorizar; só lastOffer/pending/phase do frame.
+  const priorOffer = BOOKING_FRAME_CUTOVER ? framePrior : markerPrior
+  if (BOOKING_FRAME_CUTOVER && markerPrior !== framePrior) {
+    logBookingFrameShadow({
+      tenantId,
+      conversationId: input.conversationId,
+      current: {
+        action: 'other',
+        detail: markerPrior ? 'RESCHEDULE_OFFER_MARKER' : 'no_marker',
+      },
+      proposed: {
+        action: framePrior ? 'offer_with_last_offer' : 'other',
+        detail: frameEarly?.lastOffer?.messageId ?? frameEarly?.phase ?? undefined,
+      },
+    })
+  }
   if (!isRescheduleIntent(input.inboundText, { hasUpcoming: Boolean(apt), priorOffer })) {
     return null
   }
@@ -194,8 +271,8 @@ export async function tryAiReschedule(
   const durationOverride =
     snapshotDuration(zoneSnaps) ?? Math.round((apt.endsAt - apt.startsAt) / 60_000)
 
-  const session = getScheduleSession(db, tenantId, input.conversationId)
-  const frame = getBookingFrame(db, tenantId, input.conversationId)
+  const session = sessionEarly
+  const frame = frameEarly
   const facts = scheduleFactsFromText(input.inboundText)
   const dates = [...extractDates(input.inboundText, today)]
   let date = dates.length === 1 ? dates[0] : undefined
@@ -203,7 +280,7 @@ export async function tryAiReschedule(
     const resolved = [...extractDates(facts.dayLabel, today)]
     if (resolved.length === 1) date = resolved[0]
   }
-  // ADR-0015: data absoluta do frame; day_label só se cutover desligado.
+  // ADR-0015: data absoluta do frame (autoriza sob cutover via framePrior).
   if (!date && frame?.date && (priorOffer || frame.phase === 'remarcando')) {
     date = frame.date
     logBookingFrameShadow({
@@ -213,32 +290,15 @@ export async function tryAiReschedule(
       proposed: { action: 'use_absolute_date', detail: frame.date },
     })
   }
-  // Fallback: sessões com day_label órfã (pré-cutover / ainda sem date).
-  if (!date && session?.dayLabel && priorOffer) {
+  // Fallback day_label: só pré-cutover (órfã). Com cutover activo não autoriza.
+  if (!BOOKING_FRAME_CUTOVER && !date && session?.dayLabel && priorOffer) {
     const resolved = [...extractDates(session.dayLabel, today)]
-    if (resolved.length === 1) {
-      date = resolved[0]
-      if (BOOKING_FRAME_CUTOVER) {
-        logBookingFrameShadow({
-          tenantId,
-          conversationId: input.conversationId,
-          current: { action: 'use_day_label', detail: session.dayLabel },
-          proposed: { action: 'use_absolute_date', detail: date },
-        })
-      }
-    }
-  }
-  if (BOOKING_FRAME_CUTOVER && priorOffer && frame?.lastOffer) {
-    logBookingFrameShadow({
-      tenantId,
-      conversationId: input.conversationId,
-      current: { action: 'other', detail: 'RESCHEDULE_OFFER_MARKER' },
-      proposed: { action: 'offer_with_last_offer', detail: frame.lastOffer.messageId },
-    })
+    if (resolved.length === 1) date = resolved[0]
   }
   const times = [...extractTimes(input.inboundText)]
   const time = times.length === 1 ? times[0] : undefined
   const period = facts.period ?? (priorOffer ? session?.period : undefined) ?? null
+  const offerMessageId = lastInboundMessageId(db, tenantId, input.conversationId)
 
   if (facts.dayLabel || facts.period) {
     const absolute =
@@ -263,6 +323,14 @@ export async function tryAiReschedule(
   const hi = name ? `, ${name}` : ''
 
   if (!date) {
+    // Continuidade no cutover: phase remarcando autoriza o próximo turno (não o marker).
+    saveScheduleSession(
+      db,
+      tenantId,
+      input.conversationId,
+      { serviceId: apt.serviceId, phase: 'remarcando' },
+      clock,
+    )
     return {
       handled: true,
       appointmentId: apt.id,
@@ -288,6 +356,19 @@ export async function tryAiReschedule(
 
   if (!time) {
     if (slots.length === 0) {
+      saveScheduleSession(
+        db,
+        tenantId,
+        input.conversationId,
+        {
+          serviceId: apt.serviceId,
+          date,
+          phase: 'remarcando',
+          pending: null,
+          lastOffer: null,
+        },
+        clock,
+      )
       return {
         handled: true,
         appointmentId: apt.id,
@@ -299,7 +380,19 @@ export async function tryAiReschedule(
         outbox: [],
       }
     }
-    const listed = slots.slice(0, 5).map((s) => localHHMM(tz, s.startsAt))
+    const offered = slots.slice(0, 5)
+    rememberRescheduleOffer(
+      db,
+      tenantId,
+      input.conversationId,
+      apt.serviceId,
+      date,
+      offered.map((s) => ({ startsAt: s.startsAt, professionalId: s.professionalId })),
+      tz,
+      clock,
+      offerMessageId,
+    )
+    const listed = offered.map((s) => localHHMM(tz, s.startsAt))
     return {
       handled: true,
       appointmentId: apt.id,
@@ -314,7 +407,35 @@ export async function tryAiReschedule(
 
   const slot = slots.find((s) => localHHMM(tz, s.startsAt) === time)
   if (!slot) {
-    const alts = slots.slice(0, 3).map((s) => localHHMM(tz, s.startsAt))
+    const altSlots = slots.slice(0, 3)
+    if (altSlots.length > 0) {
+      rememberRescheduleOffer(
+        db,
+        tenantId,
+        input.conversationId,
+        apt.serviceId,
+        date,
+        altSlots.map((s) => ({ startsAt: s.startsAt, professionalId: s.professionalId })),
+        tz,
+        clock,
+        offerMessageId,
+      )
+    } else {
+      saveScheduleSession(
+        db,
+        tenantId,
+        input.conversationId,
+        {
+          serviceId: apt.serviceId,
+          date,
+          phase: 'remarcando',
+          pending: null,
+          lastOffer: null,
+        },
+        clock,
+      )
+    }
+    const alts = altSlots.map((s) => localHHMM(tz, s.startsAt))
     return {
       handled: true,
       appointmentId: apt.id,
