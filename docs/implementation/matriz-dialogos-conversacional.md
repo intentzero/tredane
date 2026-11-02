@@ -423,3 +423,15 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | Entrega | [#416](https://github.com/intentzero/tredane/issues/416): extrator tool-use (DEC-109) + redator de exceção (DEC-104/118/120); `cache_control` (CA-05); removido `AI_REPLY_TEMPERATURE` (CA-07) — L2/L3 deixam de passar `temperature` |
 | Aviso #417 | **Re-baseline** do freeze do prompt (a35e30… → 93cba847…); re-correr L2 live após merge |
 | Em aberto | Medição EE-06 do caching; live L2 + κ (#402) |
+
+### Resumo após It. 5 (02/11/2026)
+
+| Estado | Contagem / notas |
+| --- | --- |
+| L1 em `main` `6651b68` (pós-#480 / Closes #416) | 83 casos · **72** passam · **0** `it.fails` · 2 pendentes L2 (H-04, I-03 → #417) · 9 coverageOnly · 0 inesperadas; `graph-dialogs` M7: 8 verdes no mesmo `npm run test:dialogs` (vitest: 93 passed = 83 + 2 meta + 8 grafo) |
+| Freeze | prompt painel `sha256:93cba847b39a23eed6aac5fc88e6a6016dd6f1a9016fcb4f408ddee2f27205ca` (**M6** — autodraft já não usa o monolítico); catálogo `scenario.ts` `sha256:db47706b7292b4889409c794ecd9ed26b8f2c71ae1210f303a1e078ad3d6ec03`; extrator `sha256:cfb36b8afe79a410…`; redator `sha256:b6353351ac744652…`; modelo autodraft/extrator/exceção `claude-haiku-5-5` |
+| Entregas (slices 4.1–5.0 → fecho It. 5) | CF-26 [#446](https://github.com/intentzero/tredane/issues/446); DEC-129 (#471); M2b [#472](https://github.com/intentzero/tredane/issues/472); harness L2/L3 [#417](https://github.com/intentzero/tredane/issues/417) dry-run (#477); sinónimos [#421](https://github.com/intentzero/tredane/issues/421); M7 [#418](https://github.com/intentzero/tredane/issues/418); M5 código [#415](https://github.com/intentzero/tredane/issues/415)/#479 (L4 Em aberto); M6 [#416](https://github.com/intentzero/tredane/issues/416)/#480 |
+| Triagem | **Nenhuma falha nova** (L0/L1); sem CF/CA novo; nenhum caso apagado; coluna P0 inalterada face ao pós-#446 salvo gates M5 (A-03 unit + L1 texto) e M7 (grafo) |
+| §4.4 | Invariantes P0 a verde; regressão zero vs pós-#446 (83/72); EF/EE e Q L2 **Em aberto** — dry-run verde, **live** bloqueada sem gateway (fica em #417); κ juiz↔humano Em aberto (#402) |
+| Fora | Live L2/L3 [#417](https://github.com/intentzero/tredane/issues/417); L4 Meta/staging M5 [#415](https://github.com/intentzero/tredane/issues/415); P3b [#475](https://github.com/intentzero/tredane/issues/475); leva 3 / 6 atos sem call-site |
+| Próxima | [#481](https://github.com/intentzero/tredane/issues/481) Iteração 6 |
