@@ -324,6 +324,6 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | CA-03 / DEC-118 | `tryAiAutoBook` antes do modelo; gateway sem `freeSlots`/`upcoming`; `agendaFacts` só locais |
 | Debounce | DEC-111: 0 / 2,5 / 7 s |
 | PRs | [#440](https://github.com/intentzero/tredane/pull/440) B1–B3 **merged** · [#442](https://github.com/intentzero/tredane/pull/442) M3+DEC-118 **merged** · [#443](https://github.com/intentzero/tredane/pull/443) M4 (catálogo + validador; **merged**, catálogo ainda Proposto, DEC-121) · [#445](https://github.com/intentzero/tredane/pull/445) fecho **merged** |
-| Copy | **ok Paulo** (01/11) só para as 5 frases do #442 (DEC-121); o catálogo M4 do #443 continua **Proposto** |
+| Copy | **ok Paulo** (01/11) para as 5 frases do #442 (DEC-121); catálogo M4 (15 atos, 41 redações) **Confirmado** a 02/11 (DEC-122); atos em falta ainda **Propostos** |
 | Fora | M2 [#412](https://github.com/intentzero/tredane/issues/412) (ADR); L2/L3 [#417](https://github.com/intentzero/tredane/issues/417) |
 | Próxima | [#444](https://github.com/intentzero/tredane/issues/444) Iteração 3 |

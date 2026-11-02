@@ -1,6 +1,6 @@
 # Copy: atos de diálogo determinísticos (M4 / #414)
 
-**Estado:** **Proposto** — frases para aprovação do Paulo (DEC-104). Não entram em produção sem ok explícito. **O «ok» de copy de 01/11/2026 não cobriu este catálogo** (DEC-121): cobriu só as 5 frases do #442. Este catálogo espera a leitura e a aprovação do Paulo, que bloqueiam a [#448](https://github.com/intentzero/tredane/issues/448). As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115) **não** mudam aqui.
+**Estado:** **Confirmado** (Paulo, 02/11/2026, DEC-122) para os 15 atos e 41 redações deste documento, na versão corrigida de 02/11/2026. Os atos em falta (ver «Alterações de 02/11/2026») continuam **Propostos**. As frases já fixadas por DEC (DEC-083, DEC-077, DEC-086, DEC-107, DEC-113–115) **não** mudam aqui. Qualquer frase nova ou alterada exige aprovação no PR (DEC-104).
 
 **Técnicas (núcleo §3.5):** eco do entendido; 3–5 redações por ato, escolhidas por hash estável da conversa; primeiro nome só no 1.º contacto; uma pergunta por mensagem; plural do tipo em minúsculas; sem jargão INV-05.
 
@@ -128,4 +128,4 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 ## Como aprovar
 
-O Paulo lê este documento e responde «ok» (ou pede alterações por ato). A aprovação fica registada numa DEC nova e o cabeçalho passa a **Confirmado**. Só depois a engenharia liga as redações aos fluxos (#448). Até lá, o catálogo está **Proposto** (DEC-121).
+O Paulo aprovou o catálogo em 02/11/2026 (DEC-122), depois de ler e de ver as correções. Para os atos em falta, o processo é o mesmo: o PR traz a secção «Copy para aprovação do Paulo»; a aprovação fica registada numa DEC nova; só depois a engenharia liga as redações aos fluxos (#448).
