@@ -51,6 +51,12 @@ export type ApiErrorCode =
   | 'tenant_not_active'
   | 'network'
   | 'unknown'
+  /** DEC-110 / #421 — validação de sinónimos (alinhado a BY_CODE). */
+  | 'synonym_collision'
+  | 'duplicate_synonym'
+  | 'invalid_synonym_length'
+  | 'synonym_list_too_long'
+  | 'invalid_synonyms'
 
 export class PanelApiError extends Error {
   readonly status: number
