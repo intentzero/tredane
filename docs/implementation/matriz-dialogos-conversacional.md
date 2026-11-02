@@ -282,7 +282,7 @@ A primeira versão deste resumo dizia «54 passam · 15 `it.fails`». Estava err
 | Invariantes no L1 | INV-01 a INV-11 (INV-03, 07, 08 e 10 acrescentadas; INV-02 passou a aceitar somas de variantes por linha) |
 | Casos It. 0 ❌/⚠ fechados na It. 1 | I-07/08, J-08 (resultado; o validador tem teste próprio), A-10, B-01–B-04, B-06–B-08, B-13, C-01–C-03, C-08, C-11–C-12, D-06, E-06, F-07, G-02/03/05/10/11, H-02/03 |
 | Continuam vermelhos | A-02 (CF-19), A-04 (CF-24), C-07 (CF-23), D-01 (CF-15), D-04 (CF-25), E-01 (CA-03) |
-| L2/L3 | Ainda não existem ([#417](https://github.com/intentzero/tredane/issues/417)) |
+| L2/L3 | Harness em `src/clinic/ai/evals/l2/` e `l3/` ([#417](https://github.com/intentzero/tredane/issues/417)); dry-run no CI; live pendente de gateway |
 
 ### Correções B1–B3 (It. 1.2, 01/11/2026)
 
@@ -403,3 +403,13 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | Entrega | [#472](https://github.com/intentzero/tredane/issues/472): ordinal «quarta»/«quinta»; `catalogVersion` revalida; WS `booking_frame.updated`; cutover (remove flag/sombra; `day_label` órfã) |
 | Gate | A-07, A-08, C-05 (+ unit quarta/quinta); G-07 / remarcação; harness DO entrega do evento |
 | Em aberto | L2/L3 [#417](https://github.com/intentzero/tredane/issues/417) |
+
+### Resumo após It. 4.4 / L2·L3 harness #417 (02/11/2026)
+
+| Estado | Contagem / notas |
+| --- | --- |
+| L1 | **85** passam · **0** `it.fails` (inalterado; harness L2/L3 não enfraquece L1) |
+| L2 | Harness `src/clinic/ai/evals/l2/` — N=3, INV, EE-04/05/06, juiz Q1–Q6, held-out ≈20 %, teto DEC-117 US$ 10 + truncamento. Dry-run CI verde. **Live** bloqueada sem gateway neste ambiente. |
+| L3 | Harness `src/clinic/ai/evals/l3/` — personas P-01–P-10, teto DEC-126 US$ 10. Dry-run amostra P-01/P-06/P-10 verde. |
+| Freeze | prompt `sha256:a35e30d45c7cd609…` **inalterado**; catálogo `scenario.ts` `sha256:db47706b7292b488…` (hash do ficheiro na `main` `b2f1a2d`) |
+| Em aberto | Corrida live L2 completa + κ juiz↔humano (#402); re-correr L2 após #416 |
