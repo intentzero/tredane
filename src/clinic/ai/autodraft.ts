@@ -35,6 +35,7 @@ import {
   handoffReason,
   notifyHumanHandoff,
 } from './human-handoff'
+import { decideMediaOnlyTurn, MEDIA_ASK_TEXT } from './media-ask-text'
 import { notifyModelFallback } from './model-fallback'
 import {
   classifySensitive,
@@ -329,6 +330,72 @@ export async function runDueAutoDrafts(
       clock,
     )
     const turnText = turn.turnText
+    // CF-26 / DEC-119 / DEC-130: áudio/imagem sem texto → pedir texto; comprovativo ou
+    // segunda mídia após o pedido → equipe (DEC-083). Antes do funil e do modelo.
+    const mediaDecision = decideMediaOnlyTurn(
+      db,
+      tenantId,
+      {
+        conversationId: job.conversationId,
+        contactId: conv.contactId,
+        messageId: job.messageId,
+        body: inboundBody,
+      },
+      clock,
+    )
+    if (mediaDecision.action === 'handoff') {
+      const handoff = notifyHumanHandoff(
+        db,
+        tenantId,
+        {
+          conversationId: job.conversationId,
+          reason: 'off_purpose',
+          clientRequestId: `ai-media-handoff:${job.messageId}`,
+        },
+        clock,
+      )
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'human_handoff',
+        replyOutbox: handoff.outbox,
+      })
+      continue
+    }
+    if (mediaDecision.action === 'ask_text') {
+      let replyOutbox: OutboxRow[] = []
+      try {
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body: MEDIA_ASK_TEXT,
+            interactive: {
+              buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }],
+            },
+            clientRequestId: `ai-media-ask:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox = sent.outbox
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'catalog_reply',
+        replyOutbox,
+      })
+      continue
+    }
     // DEC-091: remarcação com compromisso futuro — antes do handoff e do funil de zonas.
     const upcoming = turn.upcoming
     if (

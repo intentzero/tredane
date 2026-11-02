@@ -440,6 +440,82 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     expect: { proposal: true },
   },
   {
+    id: 'C-10',
+    title: 'Áudio ou imagem sem texto',
+    turnosIdeais: 1,
+    turns: [{ role: 'client_media', kind: 'audio' }],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      outboundIncludes: ['Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?'],
+      outboundExcludes: [/Posso ajudar/i, /Olá Carla/i],
+      outboundCount: 1,
+    },
+  },
+  {
+    id: 'C-14',
+    title: 'Imagem com legenda',
+    turnosIdeais: 1,
+    turns: [
+      {
+        role: 'client_media',
+        kind: 'image',
+        caption: 'quero assim, tem horário amanhã para limpeza de pele?',
+      },
+    ],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      outboundExcludes: [/Ainda não consigo ouvir áudios/i],
+      turns: [{ turn: 0, matches: [/\d{2}:\d{2}|qual dia|que dia|amanh/i] }],
+    },
+  },
+  {
+    id: 'C-15',
+    title: 'Segundo áudio depois do pedido de texto',
+    turnosIdeais: 2,
+    turns: [
+      { role: 'client_media', kind: 'audio' },
+      { role: 'client_media', kind: 'audio' },
+    ],
+    expect: {
+      proposal: false,
+      paused: true,
+      outboundIncludes: [
+        'Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?',
+        'Vou pedir para a equipe continuar daqui.',
+      ],
+      outboundCount: 2,
+    },
+  },
+  {
+    id: 'C-16',
+    title: 'Comprovativo de Pix em imagem',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      const now = s.clock.nowMs()
+      s.db.run(
+        `INSERT INTO pix_charges (id, tenant_id, account_id, provider, external_reference, amount_cents,
+           status, expires_at, contact_id, created_at, updated_at)
+         VALUES (?, ?, 'acc_dialog_pix', 'fake', 'ext_dialog_pix', 5000, 'awaiting_payment', ?, ?, ?, ?)`,
+        'chg_dialog_pix',
+        s.tenantId,
+        now + 3_600_000,
+        s.contactId,
+        now,
+        now,
+      )
+    },
+    turns: [{ role: 'client_media', kind: 'image' }],
+    expect: {
+      proposal: false,
+      paused: true,
+      outboundIncludes: ['Vou pedir para a equipe continuar daqui.'],
+      outboundExcludes: [/Ainda não consigo ouvir áudios/i],
+      outboundCount: 1,
+    },
+  },
+  {
     id: 'D-01',
     title: 'Horário ocupado',
     turnosIdeais: 1,

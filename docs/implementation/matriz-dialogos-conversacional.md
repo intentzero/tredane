@@ -91,13 +91,13 @@
 | C-07 | P0 | Muda de serviço depois da proposta | [proposta Limpeza amanhã 15h] ⟶ C: «na verdade prefiro massagem» | A proposta anterior não vale; nova proposta Massagem amanhã 15:00 ou oferta. Sem frase de aviso (DEC-116). | INV-01, EF-02 | 1 | ✅ L1 `dialogs` C-07 + `service-change.test` (CF-23 corrigido, #436) |
 | C-08 | P0 | Corrige a hora com «não» | [proposta 15h] ⟶ C: «não, 16h» | Nova versão 16:00, se livre. | EF-02 | 1 | ✅ L1 `dialogs` C-08 (gate M2 / #412) |
 | C-09 | P1 | Dois serviços | C: «quero limpeza e massagem sexta» | «Marcamos um serviço de cada vez. Qual você quer primeiro?» | EF-01 | 1 | ✅ `booking-object.eval` (múltiplos serviços) |
-| C-10 | P1 | Áudio ou imagem sem texto | C: [áudio] | «Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?» + botão «Falar com a equipe»; IA ativa; sem resposta genérica nem improvisada (DEC-119). Comprovativo de pagamento (cobrança Pix pendente) vai à equipe com a frase da DEC-083. | INV-09, INV-10 | 1 | ❌ CF-26 (hoje: resposta genérica «Olá Carla! Posso ajudar…») |
+| C-10 | P1 | Áudio ou imagem sem texto | C: [áudio] | «Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?» + botão «Falar com a equipe»; IA ativa; sem resposta genérica nem improvisada (DEC-119, DEC-130). Comprovativo de pagamento (cobrança Pix pendente) vai à equipe com a frase da DEC-083. | INV-09, INV-10 | 1 | ✅ L1 `dialogs` C-10 (CF-26 / #446) |
 | C-11 | P1 | «Outra sessão» | C: «quero marcar outra sessão de limpeza amanhã 15h» | Proposta 15:00. | EF-01 | 1 | ❌ CF-05 |
 | C-12 | P1 | Duração lida como hora | [sessão: limpeza, sexta] ⟶ C: «a sessão dura 1h?» | «60 min.» Nenhum 01:00 na sessão nem aviso de vaga. | EF-02 | 1 | ❌ CF-10 |
 | C-13 | P2 | Informal e abreviado | [sessão: limpeza] ⟶ C: «blz, pode ser amanha as 15 entao» | Proposta 15:00. | EF-01 | 1 | ❔ L1 |
-| C-14 | P1 | Imagem com legenda | C: [imagem] «quero assim, tem horário amanhã?» | Segue como texto pela legenda (oferta de horários); não pede texto (DEC-119, ponto 3 Proposto). | EF-01 | 1 | ❔ L1 |
-| C-15 | P1 | Segundo áudio depois do pedido de texto | C: [áudio] ⟶ A: pede texto ⟶ C: [áudio] | Passa à equipe (pausa e frase da DEC-083); sem laço (DEC-119, ponto 4 Proposto). | INV-06, INV-09 | 2 | ❔ L1 |
-| C-16 | P1 | Comprovativo de Pix em imagem | [cobrança Pix pendente] ⟶ C: [imagem] | Passa à equipe (DEC-119, exceção). | INV-06 | 1 | ❔ L1 |
+| C-14 | P1 | Imagem com legenda | C: [imagem] «quero assim, tem horário amanhã?» | Segue como texto pela legenda (oferta de horários); não pede texto (DEC-119). | EF-01 | 1 | ✅ L1 `dialogs` C-14 (CF-26 / #446) |
+| C-15 | P1 | Segundo áudio depois do pedido de texto | C: [áudio] ⟶ A: pede texto ⟶ C: [áudio] | Passa à equipe (pausa e frase da DEC-083); sem laço (DEC-119). | INV-06, INV-09 | 2 | ✅ L1 `dialogs` C-15 (CF-26 / #446) |
+| C-16 | P1 | Comprovativo de Pix em imagem | [cobrança Pix pendente] ⟶ C: [imagem] | Passa à equipe (DEC-119, exceção). | INV-06 | 1 | ✅ L1 `dialogs` C-16 (CF-26 / #446) |
 
 ## D. Limites da clínica
 
@@ -372,5 +372,13 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | Gate M2 no L1 | B-13, A-07, A-08, C-05, C-06, C-07, C-08, J-06 a verde; CF-21/22 **Fechados** |
 | Triagem | **Nenhuma falha nova** (L0/L1); sem CF/CA novo; nenhum caso apagado; +4 casos L1 face à It. 3 (gate M2) |
 | §4.4 | Invariantes P0 a verde; regressão zero vs It. 3; EF/EE e métricas L2 **Em aberto** / sem harness (#417) |
-| Fora | L2/L3 [#417](https://github.com/intentzero/tredane/issues/417); [#446](https://github.com/intentzero/tredane/issues/446) áudio/imagem; leva 3 do catálogo ainda **Proposta**; 6 atos sem call-site |
+| Fora | L2/L3 [#417](https://github.com/intentzero/tredane/issues/417); leva 3 do catálogo (DEC-124/125/129 — copy Confirmada, ligação de código parcial); 6 atos sem call-site |
 | Próxima | [#467](https://github.com/intentzero/tredane/issues/467) Iteração 5 |
+
+### Resumo após #446 / CF-26 (02/11/2026)
+
+| Estado | Contagem / notas |
+| --- | --- |
+| L1 | 83 casos · **72** passam · **0** `it.fails` · 2 pendentes L2 · 9 coverageOnly · 0 inesperadas (+4 face à It. 4: C-10, C-14, C-15, C-16) |
+| Entrega | [#446](https://github.com/intentzero/tredane/issues/446) CF-26: pedir texto (DEC-130) + comprovativo/segunda mídia → equipe (DEC-119); marcador omitido do contexto |
+| Freeze | prompt e catálogo **inalterados** |

@@ -16,11 +16,13 @@ import type { ServiceRow } from '../config/types'
 import { getContact } from '../contacts'
 import { getConversation } from '../inbox/conversations'
 import { listMessages } from '../inbox/messages'
+import type { MessageRow } from '../inbox/types'
 import { findOpenOpportunityForConversation } from '../pipeline/opportunities'
 import type { ClinicDb } from '../store'
 import { NotFoundError } from '../errors'
 import type { Clock } from '../../db/clock'
 import type { ForecastAdapter } from '../tempo/evaluate'
+import { redactMediaPlaceholderForAiContext } from './media-ask-text'
 import { buildClinicAiContext } from './schedule-context'
 import { getScheduleSession, type ScheduleSession } from './schedule-session'
 import { needsAudienceLine, zonesForAudienceLine, type AudienceLine } from './variant-line'
@@ -167,11 +169,21 @@ export async function buildAiContextPayload(
   const opportunity = findOpenOpportunityForConversation(db, tenantId, conversationId)
   const lastInbound = [...messages].reverse().find((m) => m.direction === 'inbound')
 
-  const contextMessages = messages.map((m) => ({
-    direction: m.direction,
-    body: redactProhibitedFromText(m.body),
-    // anexos nunca entram — MessageRow.attachments omitidos de propósito
-  }))
+  // CF-26 / DEC-119 §6: marcadores «[Áudio]»/«[Imagem]» não entram como fala da cliente.
+  const contextMessages = messages
+    .map((m) => {
+      const raw =
+        m.direction === 'inbound'
+          ? redactMediaPlaceholderForAiContext(m.body)
+          : m.body
+      if (raw == null) return null
+      return {
+        direction: m.direction,
+        body: redactProhibitedFromText(raw),
+        // anexos nunca entram — MessageRow.attachments omitidos de propósito
+      }
+    })
+    .filter((m): m is { direction: MessageRow['direction']; body: string } => m != null)
 
   const payload: AiContextPayload = {
     contactFirstName: firstNameFromDisplayName(contact.displayName),

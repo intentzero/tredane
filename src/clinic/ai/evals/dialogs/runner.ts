@@ -6,8 +6,15 @@ import { enqueueAutoDraft, runDueAutoDrafts } from '../../index'
 import { checkInvariants, type InvResult } from './invariants'
 import { bootDialogScenario, DIALOG_TZ, type DialogScenario } from './scenario'
 
+export type DialogMediaKind = 'audio' | 'image' | 'document'
+
 export type DialogTurn =
   | { role: 'client'; text: string }
+  /**
+   * Mensagem com anexo (CF-26 / DEC-119). Sem `caption` → só mídia (marcador + attachment).
+   * Com `caption` → corpo = legenda e o anexo continua ligado (não pede texto).
+   */
+  | { role: 'client_media'; kind: DialogMediaKind; caption?: string }
   /** Várias bolhas seguidas antes do debounce: um único job com a última (CF-13). */
   | { role: 'burst'; texts: string[] }
   /** A clínica já tinha dito isto (conta como turno anterior, sem resposta do agente). */
@@ -105,7 +112,9 @@ export async function runDialogCase(c: DialogCase): Promise<DialogRunResult> {
   try {
     for (const turn of c.turns) {
       if (turn.role === 'client') await runJob(s.sayInbound(turn.text))
-      else if (turn.role === 'burst') {
+      else if (turn.role === 'client_media') {
+        await runJob(s.sayInboundMedia({ kind: turn.kind, caption: turn.caption }))
+      } else if (turn.role === 'burst') {
         let last = ''
         for (const t of turn.texts) last = s.sayInbound(t)
         await runJob(last)
@@ -113,9 +122,13 @@ export async function runDialogCase(c: DialogCase): Promise<DialogRunResult> {
       else if (turn.role === 'clock') s.clock.set(turn.setMs)
     }
 
-    const clientTurns = c.turns.filter((t) => t.role === 'client' || t.role === 'burst').length
+    const clientTurns = c.turns.filter(
+      (t) => t.role === 'client' || t.role === 'client_media' || t.role === 'burst',
+    ).length
     const invariants = checkInvariants(s, {
-      eligibleTurns: c.turns.filter((t) => t.role === 'client').length + c.turns.filter((t) => t.role === 'burst').length,
+      eligibleTurns:
+        c.turns.filter((t) => t.role === 'client' || t.role === 'client_media').length +
+        c.turns.filter((t) => t.role === 'burst').length,
       requirePause: c.expect?.paused,
       requireNoPause: c.expect?.notPaused ?? c.expect?.paused === false,
       allowSilentPause: c.expect?.silentPause,
