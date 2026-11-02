@@ -33,6 +33,8 @@ describe('reviewClinicServices (DEC-085)', () => {
       expect(row?.ready).toBe(false)
       expect(row?.blockReason).toMatch(/Nenhuma profissional/)
       expect(row?.fix.section).toBe('servico')
+      // DEC-112: aviso informativo à parte do bloqueio operacional.
+      expect(row?.conversationPathFindings.some((f) => f.code === 'no_professional')).toBe(true)
     } finally {
       close()
     }

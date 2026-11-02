@@ -248,7 +248,7 @@ Estimativa qualitativa. A medição faz-se com o evento `ai.turn_decided` (CA-09
   - serviço cuja janela não cruza o expediente de nenhuma profissional;
   - sala sem horário.
 
-  Antes de a IA atender, a owner vê «este serviço não consegue ser marcado pela conversa». **Proposto**, exige DEC de UX.
+  A owner vê o aviso informativo «este serviço não consegue ser marcado pela conversa» na M-52 (**Confirmado, DEC-112**): não bloqueia a IA.
 - **Propriedades** (testes de propriedade sobre o frame):
   - nenhuma pergunta sobre um slot já preenchido;
   - todo o horário ofertado pertence à disponibilidade;

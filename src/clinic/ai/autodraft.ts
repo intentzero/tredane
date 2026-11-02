@@ -407,6 +407,7 @@ export async function runDueAutoDrafts(
         inboundText: turnText,
         capability: deps.autoBookPaused !== true,
         abuseLimits: deps.abuseLimits,
+        forecast: deps.forecast,
       })
       if (reschedule) {
         let replyOutbox: OutboxRow[] = [...reschedule.outbox]
@@ -472,6 +473,7 @@ export async function runDueAutoDrafts(
         inboundText: turnText,
         capability: deps.autoBookPaused !== true,
         abuseLimits: deps.abuseLimits,
+        forecast: deps.forecast,
       })
       if (cont) {
         let replyOutbox: OutboxRow[] = [...cont.outbox]
@@ -710,6 +712,7 @@ export async function runDueAutoDrafts(
         enabled: true,
         capability,
         abuseLimits: deps.abuseLimits,
+        forecast: deps.forecast,
         turn,
       })
       if (limitNote) autoBook = { ...autoBook, notes: [autoBook.notes, limitNote].filter(Boolean).join('\n') }

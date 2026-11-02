@@ -48,6 +48,8 @@ export type DialogCase = {
   coverageOnly?: string
   /** Adaptador opcional (timeout, texto fixo…). */
   adapter?: AiProviderAdapter
+  /** Previsão fictícia (Tempo / DEC-077) — evita Open-Meteo no CI. */
+  forecast?: import('../../../tempo/evaluate').ForecastAdapter
   /** Relógio do cenário (ex. G-10 sábado 17:00). */
   nowMs?: number
   /** Asserções extra além das INV. */
@@ -93,8 +95,20 @@ export type DialogRunResult = {
   error?: string
 }
 
-export async function runDialogCase(c: DialogCase): Promise<DialogRunResult> {
-  const s = bootDialogScenario({ adapter: c.adapter, nowMs: c.nowMs })
+export type DialogScenarioFactory = (opts: {
+  adapter?: AiProviderAdapter
+  nowMs?: number
+}) => DialogScenario
+
+/**
+ * Corre um caso L1. Por omissão usa o cenário de referência da matriz;
+ * o gerador M7 (#418) pode passar outro boot (segunda clínica).
+ */
+export async function runDialogCase(
+  c: DialogCase,
+  boot: DialogScenarioFactory = bootDialogScenario,
+): Promise<DialogRunResult> {
+  const s = boot({ adapter: c.adapter, nowMs: c.nowMs })
   c.prepare?.(s)
   let agentTurns = 0
   const perTurn: string[][] = []
@@ -105,6 +119,7 @@ export async function runDialogCase(c: DialogCase): Promise<DialogRunResult> {
     const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
       mode: 'synthetic',
       adapter: s.adapter,
+      forecast: c.forecast,
     })
     if (out.length > 0) agentTurns += 1
     perTurn.push(s.outboundBodies().slice(before))

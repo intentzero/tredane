@@ -97,6 +97,13 @@ export {
   type ServiceReviewResult,
 } from './service-review'
 export {
+  lintConversationPaths,
+  lintServiceConversationPath,
+  type ConversationLintCode,
+  type ConversationLintFinding,
+  type ServiceConversationLint,
+} from './conversation-lint'
+export {
   getConfigSnapshotOp,
   getReadinessOp,
   reviewClinicServicesOp,

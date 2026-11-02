@@ -26,6 +26,7 @@ function formatNext(ms: number, timeZone: string): string {
 /**
  * Conferir configuração (M-52 / DEC-085): só leitura, serviço a serviço.
  * Motivo e próximo horário vêm do servidor.
+ * DEC-112: aviso informativo de percurso sem saída na conversa (não bloqueia a IA).
  */
 export function ConferirScreen({ tenantId, api, generation }: Props) {
   const [review, setReview] = useState<ClinicConfigReview | null>(null)
@@ -124,6 +125,20 @@ export function ConferirScreen({ tenantId, api, generation }: Props) {
                 Motivo: {s.blockReason ?? 'Incompleto'}
               </span>
             )}
+            {(s.conversationPathFindings?.length ?? 0) > 0 ? (
+              <div
+                className="conferir-conversation-lint"
+                data-conversation-lint="true"
+                role="status"
+              >
+                <strong>Este serviço não consegue ser marcado pela conversa</strong>
+                <ul>
+                  {(s.conversationPathFindings ?? []).map((f) => (
+                    <li key={f.code}>{f.message}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <Button
               className="panel-link conferir-open"
               onPress={() =>

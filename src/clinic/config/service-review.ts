@@ -1,6 +1,10 @@
 import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
 import { listEffectiveWeeklyWindows } from './availability'
+import {
+  lintServiceConversationPath,
+  type ConversationLintFinding,
+} from './conversation-lint'
 import { listResources } from './resources'
 import { listServices } from './services'
 import { ensureClinicSettings } from './settings'
@@ -18,6 +22,11 @@ export type ServiceReviewItem = {
   /** Motivo de bloqueio em português, gerado no servidor (DEC-085). */
   blockReason: string | null
   nextSlotStartsAt: number | null
+  /**
+   * Avisos informativos de percurso sem saída na conversa (DEC-112 / M7).
+   * Não alteram `ready` nem bloqueiam a IA.
+   */
+  conversationPathFindings: ConversationLintFinding[]
   /** Atalho: secção da Clínica. */
   fix: {
     section: 'servico' | 'profissional' | 'sala' | 'horarios'
@@ -145,6 +154,7 @@ export function reviewClinicServices(
       ready: ready && nextSlotStartsAt != null,
       blockReason: ready && nextSlotStartsAt != null ? null : blockReason,
       nextSlotStartsAt,
+      conversationPathFindings: lintServiceConversationPath(db, tenantId, service.id, clock),
       fix,
     })
   }
