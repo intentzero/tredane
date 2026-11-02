@@ -1,6 +1,6 @@
 /**
  * Respostas de catálogo sem modelo: preço com duração, expediente com o vão,
- * quem faz e a sala, zona antes do horário. Sem mencionar intervalo/buffer ao cliente (DEC-090).
+ * quem faz, zona antes do horário. Copy via catálogo M4 (#448). Sem sala/buffer (DEC-090).
  */
 import { formatBRL } from '../../ai/prompt'
 import type { Clock } from '../../db/clock'
@@ -13,6 +13,12 @@ import { variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { listMessages } from '../inbox/messages'
 import type { ClinicDb } from '../store'
 import { resolveBookingObject } from './booking-object'
+import {
+  mixedAudienceReply,
+  serviceChangedReply,
+  serviceNotFoundReply,
+} from './client-copy'
+import { sayAct } from './dialogue-acts'
 import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
 import { formatOpeningHours } from './schedule-context'
 import {
@@ -21,11 +27,6 @@ import {
   scheduleFactsFromText,
   type ScheduleSessionPatch,
 } from './schedule-session'
-import {
-  MIXED_AUDIENCE_REPLY,
-  SERVICE_CHANGED_REPLY,
-  SERVICE_NOT_FOUND_REPLY,
-} from './client-copy'
 import {
   audienceLineQuestion,
   needsAudienceLine,
@@ -78,24 +79,30 @@ function namedServices(services: ServiceRow[], text: string): ServiceRow[] {
   return services.filter((service) => citesServiceName(text, service.name))
 }
 
-function mixedAudienceRefusal(services: ServiceRow[], source: string): string | null {
+function mixedAudienceRefusal(
+  services: ServiceRow[],
+  source: string,
+  conversationId: string,
+): string | null {
   for (const service of services) {
     const named = zonesNamedInText(
       source,
       service.zones.filter((zone) => zone.active),
     )
     if (variantAudiencesConflict(named)) {
-      return MIXED_AUDIENCE_REPLY
+      return mixedAudienceReply(conversationId)
     }
   }
   return null
 }
 
 /** «às 3» sem manhã/tarde/noite não é 03:00. 8–23 e HH:MM ficam como estão. */
-function ambiguousAfternoonHour(text: string): string | null {
+function ambiguousAfternoonHour(text: string, conversationId: string): string | null {
   const hour = parseTemporal(text, { civilDate: '1970-01-01' }).ambiguousAfternoonHour
   if (hour == null) return null
-  return `Às ${hour} da tarde seria ${hour + 12}:00. É esse horário?`
+  const hora24 = `${String(hour + 12).padStart(2, '0')}:00`
+  const fallback = `Às ${hour} da tarde seria ${hora24}. É esse horário?`
+  return sayAct('confirmar_hora_ambigua', conversationId, { hora24 }, fallback)
 }
 
 function clientSource(
@@ -170,7 +177,9 @@ function askSlotWhenZonesKnown(
     if (line) patch.audienceLine = line
     saveScheduleSession(db, tenantId, conversationId, patch, clock)
   }
-  return `Qual horário fica melhor para ${svc.name}?`
+  const cnv = conversationId ?? ''
+  const fallback = `Qual horário fica melhor para ${svc.name}?`
+  return sayAct('perguntar_horario', cnv, { serviço: svc.name }, fallback)
 }
 
 /** Texto determinístico, ou null para seguir o modelo / a proposta. */
@@ -191,6 +200,7 @@ export function catalogReply(
 ): string | null {
   const body = text.trim()
   if (!body) return null
+  const cnv = opts.conversationId ?? ''
   const services = opts.turn?.catalog.services ?? listServices(db, tenantId).filter((s) => s.active)
   if (HOURS.test(body) && !PRICE.test(body)) {
     const resources = opts.turn?.catalog.resources ?? listResources(db, tenantId, clock)
@@ -202,7 +212,9 @@ export function catalogReply(
         .filter((w) => pros.has(w.resourceId))
         .map((w) => ({ dayOfWeek: w.dayOfWeek, startMinute: w.startMinute, endMinute: w.endMinute })),
     )
-    return `Funcionamos assim:\n${lines.join('\n')}`
+    const lista = lines.join('\n')
+    const fallback = `Funcionamos assim:\n${lista}`
+    return sayAct('informar_expediente', cnv, { lista }, fallback)
   }
 
   const source = clientSource(db, tenantId, body, opts.conversationId, opts.turn)
@@ -213,16 +225,31 @@ export function catalogReply(
   const who = WHO.test(body)
   if (who) {
     // DEC-090: a sala é organização interna — nunca nomear sala ao cliente.
-    const lines = targets.map((s) => {
-      const people = opts.turn
-        ? (opts.turn.catalog.resources
-            .filter((r) => r.kind === 'professional' && s.professionalIds.includes(r.id))
-            .map((r) => r.name) )
-        : proNames(db, tenantId, s, clock)
-      const whoText = people.length > 0 ? people.join(', ') : 'a equipe confirma quem atende'
-      return `${s.name}: ${whoText}.`
-    })
-    return lines.join('\n')
+    const people = [
+      ...new Set(
+        targets.flatMap((s) => {
+          const names = opts.turn
+            ? opts.turn.catalog.resources
+                .filter((r) => r.kind === 'professional' && s.professionalIds.includes(r.id))
+                .map((r) => r.name)
+            : proNames(db, tenantId, s, clock)
+          return names
+        }),
+      ),
+    ]
+    const pessoas = people.length > 0 ? people.join(', ') : 'a equipe'
+    const fallback =
+      people.length > 0
+        ? targets.map((s) => {
+            const names = opts.turn
+              ? opts.turn.catalog.resources
+                  .filter((r) => r.kind === 'professional' && s.professionalIds.includes(r.id))
+                  .map((r) => r.name)
+              : proNames(db, tenantId, s, clock)
+            return `${s.name}: ${names.length > 0 ? names.join(', ') : 'a equipe confirma quem atende'}.`
+          }).join('\n')
+        : 'A equipe confirma quem atende.'
+    return sayAct('informar_quem_faz', cnv, { pessoas }, fallback)
   }
 
   const namedService = namedServices(services, source)
@@ -233,7 +260,7 @@ export function catalogReply(
   const fallback = targets.find((service) => service.zones.some((zone) => zone.active)) ?? targets[0]
   const svc = inPlay ?? fallback
 
-  const afternoon = ambiguousAfternoonHour(body)
+  const afternoon = ambiguousAfternoonHour(body, cnv)
   if (afternoon) return afternoon
 
   const asksPrice = PRICE.test(source)
@@ -255,7 +282,7 @@ export function catalogReply(
   )
   if (zonesThenSlot) return zonesThenSlot
 
-  const mixedVisit = mixedAudienceRefusal(services, source)
+  const mixedVisit = mixedAudienceRefusal(services, source, cnv)
   if (mixedVisit) return mixedVisit
 
   // Handoffs e ambiguidade de serviço — sem roubar o funil de linha/zonas/dia.
@@ -272,10 +299,12 @@ export function catalogReply(
   })
   if (bookingMatch.kind === 'handoff') {
     if (bookingMatch.handoffReason === 'terceiro') {
+      // Allowlist (#448 / leva 3): decisão DEC-083 vs frase própria — fora do catálogo.
       return 'Para agendar para outra pessoa, a equipe precisa continuar este atendimento.'
     }
     if (bookingMatch.handoffReason === 'multiplos_servicos') {
-      return 'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?'
+      const fb = 'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?'
+      return sayAct('varios_servicos', cnv, {}, fb)
     }
     // Hora / «sim» / período: deixa o autobook seguir; não declarar «inexistente».
     if (
@@ -284,13 +313,14 @@ export function catalogReply(
       !PERIOD.test(source) &&
       !SHORT_CONFIRM.test(body.trim())
     ) {
-      return SERVICE_NOT_FOUND_REPLY
+      return serviceNotFoundReply(cnv)
     }
     if (bookingMatch.handoffReason === 'historico_indisponivel') {
-      return 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
+      const fb = 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
+      return sayAct('historico_indisponivel', cnv, {}, fb)
     }
     if (bookingMatch.handoffReason === 'catalogo_vazio') {
-      return SERVICE_CHANGED_REPLY
+      return serviceChangedReply(cnv)
     }
   }
   // Clarify de serviço só com intenção de marcar/agendar — «oi» / «mensagem» ficam no modelo.
@@ -326,10 +356,21 @@ export function catalogReply(
     const activeZones = svc.zones.filter((zone) => zone.active)
     if (activeZones.length === 0) {
       if (asksPrice) {
-        if (svc.priceCents == null) return 'A equipe confirma o valor.'
-        return `${formatBRL(svc.priceCents)}, ${svc.durationMinutes} min. Quer que eu veja horários?`
+        if (svc.priceCents == null) {
+          return sayAct(
+            'informar_preco_sem_cadastro',
+            cnv,
+            {},
+            'A equipe confirma o valor.',
+          )
+        }
+        const preço = formatBRL(svc.priceCents)
+        const duração = String(svc.durationMinutes)
+        const fb = `${preço}, ${duração} min. Quer que eu veja horários?`
+        return sayAct('informar_preco', cnv, { preço, duração }, fb)
       }
-      return `${svc.durationMinutes} min.`
+      const duração = String(svc.durationMinutes)
+      return sayAct('informar_duracao', cnv, { duração }, `${duração} min.`)
     }
   }
 
@@ -425,21 +466,30 @@ export function catalogReply(
 
   if (asksPrice && named.length === 1) {
     const z = named[0]!
-    const price = z.priceCents == null ? 'a equipe confirma o valor' : formatBRL(z.priceCents)
-    return `${z.name} custa ${price} e dura ${z.durationMinutes} min.`
+    const preço = z.priceCents == null ? 'a equipe confirma o valor' : formatBRL(z.priceCents)
+    const duração = String(z.durationMinutes)
+    const fb = `${z.name} custa ${preço} e dura ${duração} min.`
+    return sayAct(
+      'informar_preco_variante',
+      cnv,
+      { variante: z.name, preço, duração },
+      fb,
+    )
   }
 
   if (asksPrice && named.length >= 2) {
     const genders = new Set(named.map((z) => z.audience))
     if (genders.has('feminino') && genders.has('masculino')) {
-      return MIXED_AUDIENCE_REPLY
+      return mixedAudienceReply(cnv)
     }
     const minutes = named.reduce((n, z) => n + z.durationMinutes, 0)
     const missing = named.some((z) => z.priceCents == null)
     const cents = named.reduce((n, z) => n + (z.priceCents ?? 0), 0)
-    const price = missing ? 'a equipe confirma o valor' : formatBRL(cents)
+    const preço = missing ? 'a equipe confirma o valor' : formatBRL(cents)
+    const duração = String(minutes)
     // DEC-090: duração de atendimento ok; nunca citar intervalo/buffer da agenda ao cliente.
-    return `Juntas, ficam ${price} e ${minutes} min de atendimento.`
+    const fb = `No total, ficam ${preço} e ${duração} min de atendimento.`
+    return sayAct('informar_preco_soma', cnv, { preço, duração }, fb)
   }
 
   if (!asksPrice && active.length === 0 && openPeriod) return null
