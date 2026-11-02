@@ -310,7 +310,7 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | D-02 | ⚠ CF-15 | ✅ próximo dia com vaga | #413 |
 | E-01 | `it.fails` CA-03 | ✅ preço+duração determinísticos | #413 |
 | F-08 | ❔ L2 | ✅ horários de hoje | #413 |
-| C-07 | `it.fails` CF-23 | ✅ cita massagem (invalidação formal da proposta → [#440](https://github.com/intentzero/tredane/pull/440)) | #413 parcial + #440 |
+| C-07 | `it.fails` CF-23 | ✅ cita massagem e retira a proposta antiga (`retireActiveProposal`, #440 **merged**) | #413 + #440 |
 | A-04 | ❌ CF-24 | ✅ | [#440](https://github.com/intentzero/tredane/pull/440) |
 | D-04 | ❌ CF-25 | ✅ | #440 |
 
@@ -323,7 +323,7 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | Verdes M3 + B1–B3 | A-02, A-04, A-06, A-12, B-09, B-10, B-11, C-07, D-01, D-02, D-04, E-01, F-08 |
 | CA-03 / DEC-118 | `tryAiAutoBook` antes do modelo; gateway sem `freeSlots`/`upcoming`; `agendaFacts` só locais |
 | Debounce | DEC-111: 0 / 2,5 / 7 s |
-| PRs | [#440](https://github.com/intentzero/tredane/pull/440) B1–B3 **merged** · [#442](https://github.com/intentzero/tredane/pull/442) M3+DEC-118 **merged** · [#443](https://github.com/intentzero/tredane/pull/443) M4 · [#445](https://github.com/intentzero/tredane/pull/445) fecho |
-| Copy | **ok Paulo** (01/11) |
+| PRs | [#440](https://github.com/intentzero/tredane/pull/440) B1–B3 **merged** · [#442](https://github.com/intentzero/tredane/pull/442) M3+DEC-118 **merged** · [#443](https://github.com/intentzero/tredane/pull/443) M4 (catálogo + validador; **merged**, catálogo ainda Proposto, DEC-121) · [#445](https://github.com/intentzero/tredane/pull/445) fecho **merged** |
+| Copy | **ok Paulo** (01/11) só para as 5 frases do #442 (DEC-121); o catálogo M4 do #443 continua **Proposto** |
 | Fora | M2 [#412](https://github.com/intentzero/tredane/issues/412) (ADR); L2/L3 [#417](https://github.com/intentzero/tredane/issues/417) |
 | Próxima | [#444](https://github.com/intentzero/tredane/issues/444) Iteração 3 |
