@@ -99,7 +99,9 @@ export function buildProposalText(picks: Pick[], timeZone: string): string {
 /**
  * Atalho de horários livres sobre o compositor. Só lê a disponibilidade e monta um
  * rascunho: quem revisa e envia é a pessoa. Horário com aviso do bloco Tempo
- * (DEC-077) não é proposto aqui; fica para o Agendar.
+ * (DEC-077) não é proposto aqui; fica para o Agendar. Serviço com variantes
+ * (DEC-078/079) também bloqueia a grade: a duração real só fecha depois das
+ * zonas — o caminho é o Agendar do cabeçalho (Paulo, 02/11/2026).
  */
 export function FreeSlotsStrip({
   tenantId,
@@ -177,8 +179,19 @@ export function FreeSlotsStrip({
     }
   }, [open, services, api, tenantId, fo])
 
+  const service = (services ?? []).find((s) => s.id === serviceId)
+  // Zonas mudam preço e duração: grade e sinal desta faixa passam pelo Agendar.
+  const zoned = (service?.zones?.length ?? 0) > 0
+
   useEffect(() => {
-    if (!open || !serviceId || !date) return
+    if (!open || !serviceId || !date || zoned) {
+      if (zoned) {
+        setSlots(null)
+        setLoading(false)
+        setPicks([])
+      }
+      return
+    }
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -199,7 +212,7 @@ export function FreeSlotsStrip({
     return () => {
       cancelled = true
     }
-  }, [open, tenantId, serviceId, date, professionalId, api, fo])
+  }, [open, tenantId, serviceId, date, professionalId, api, fo, zoned])
 
   const period = hint?.period ?? null
   const visibleSlots = useMemo(
@@ -218,6 +231,7 @@ export function FreeSlotsStrip({
     picks.some((p) => p.date === date && p.slot.startsAt === slot.startsAt)
 
   function toggle(slot: AvailabilitySlot) {
+    if (zoned) return
     setPicks((prev) => {
       if (prev.some((p) => p.date === date && p.slot.startsAt === slot.startsAt)) {
         return prev.filter((p) => !(p.date === date && p.slot.startsAt === slot.startsAt))
@@ -227,11 +241,8 @@ export function FreeSlotsStrip({
     })
   }
 
-  const service = (services ?? []).find((s) => s.id === serviceId)
   const amount = service ? signalCents(service) : null
   const single = picks.length === 1 ? picks[0]! : null
-  // Zonas mudam preço e duração: o sinal dessas passa pelo Agendar.
-  const zoned = (service?.zones?.length ?? 0) > 0
   const canCharge =
     Boolean(conversationId) &&
     pix?.account.canCreateCharge === true &&
@@ -276,6 +287,7 @@ export function FreeSlotsStrip({
   }
 
   function propose() {
+    if (zoned || picks.length === 0) return
     const ordered = [...picks].sort((a, b) => a.slot.startsAt - b.slot.startsAt)
     onPropose(buildProposalText(ordered, timezone))
     setPicks([])
@@ -322,122 +334,151 @@ export function FreeSlotsStrip({
         )}
       </div>
 
-      <div className="free-slots-days" role="group" aria-label="Dia">
-        {days.map((d) => {
-          const l = formatDayLabel(d, timezone)
-          return (
-            <Button
-              key={d}
-              className="free-slots-day"
-              aria-pressed={d === date}
-              onPress={() => setDate(d)}
-            >
-              <small>{l.weekday}</small>
-              <b>{l.day}</b>
-            </Button>
-          )
-        })}
-      </div>
-
-      {professionals.length > 1 ? (
-        <div className="free-slots-pros" role="group" aria-label="Profissional">
-          <Button
-            className="panel-chip"
-            aria-pressed={professionalId === 'any'}
-            onPress={() => setProfessionalId('any')}
-          >
-            Qualquer
-          </Button>
-          {professionals.map(([id, name]) => (
-            <Button
-              key={id}
-              className="panel-chip"
-              aria-pressed={professionalId === id}
-              onPress={() => setProfessionalId(id)}
-            >
-              {name}
-            </Button>
-          ))}
-        </div>
-      ) : null}
-
-      {period ? (
-        <div className="free-slots-pros">
-          <Button className="panel-chip" aria-pressed={onlyPeriod} onPress={() => setOnlyPeriod((v) => !v)}>
-            Pedido: {PERIOD_LABEL[period]}
-          </Button>
-        </div>
-      ) : null}
-
-      {error ? (
-        <p className="free-slots-note" role="alert">
-          {error}
-        </p>
-      ) : loading && !slots ? (
+      {zoned ? (
         <p className="free-slots-note" role="status">
-          Buscando horários…
-        </p>
-      ) : visibleSlots && visibleSlots.length === 0 ? (
-        <p className="free-slots-note" role="status">
-          {period && onlyPeriod && (slots?.length ?? 0) > 0
-            ? `Nada livre de ${PERIOD_LABEL[period]} neste dia.`
-            : 'Nada livre neste dia. Tente outro dia.'}
+          Este serviço tem variantes: a duração só fecha depois da escolha. Use{' '}
+          <strong>Agendar</strong> no cabeçalho — variantes, duração certa e proposta.
         </p>
       ) : (
-        <ul className="free-slots-list">
-          {(visibleSlots ?? []).map((s) => {
-            const blocked = (s.tempoWarnings?.length ?? 0) > 0
-            const time = formatSlotTime(s.startsAt, timezone)
-            return (
-              <li key={`${s.startsAt}-${s.professionalId}`}>
+        <>
+          <div className="free-slots-days" role="group" aria-label="Dia">
+            {days.map((d) => {
+              const l = formatDayLabel(d, timezone)
+              return (
                 <Button
-                  className="free-slots-slot"
-                  aria-pressed={isPicked(s)}
-                  isDisabled={blocked || (!isPicked(s) && picks.length >= MAX_PICKS)}
-                  onPress={() => toggle(s)}
+                  key={d}
+                  className="free-slots-day"
+                  aria-pressed={d === date}
+                  onPress={() => setDate(d)}
                 >
-                  {time}
-                  <small>{blocked ? 'Use Agendar' : s.professionalName}</small>
+                  <small>{l.weekday}</small>
+                  <b>{l.day}</b>
                 </Button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-
-      {confirmPix && canCharge && amount != null ? (
-        <div className="free-slots-confirm" role="alertdialog" aria-label="Confirmar cobrança do sinal">
-          <p className="free-slots-note">
-            Vai enviar agora, pelo WhatsApp, a cobrança Pix de {formatBrl(amount)}. O horário só
-            fica reservado depois do pagamento.
-          </p>
-          <div className="free-slots-foot">
-            <Button className="panel-btn-secondary" isDisabled={charging} onPress={() => setConfirmPix(false)}>
-              Voltar
-            </Button>
-            <Button className="panel-btn-primary" isDisabled={charging} onPress={() => void sendCharge()}>
-              {charging ? 'Enviando…' : `Enviar sinal de ${formatBrl(amount)}`}
-            </Button>
+              )
+            })}
           </div>
-        </div>
-      ) : (
-        <div className="free-slots-foot">
-          <span className="free-slots-hint">
-            {single && conversationId && !canCharge
-              ? 'Para cobrar o sinal: serviço com sinal, sem zonas, e Pix conectado.'
-              : `Nada é enviado até você apertar Enviar. Até ${MAX_PICKS} horários.`}
-          </span>
-          <span className="free-slots-actions">
-            {canCharge && amount != null ? (
-              <Button className="panel-btn-secondary" onPress={() => setConfirmPix(true)}>
-                Cobrar sinal · {formatBrl(amount)}
+
+          {professionals.length > 1 ? (
+            <div className="free-slots-pros" role="group" aria-label="Profissional">
+              <Button
+                className="panel-chip"
+                aria-pressed={professionalId === 'any'}
+                onPress={() => setProfessionalId('any')}
+              >
+                Qualquer
               </Button>
-            ) : null}
-            <Button className="panel-btn-primary" isDisabled={picks.length === 0} onPress={propose}>
-              Colocar no campo{picks.length > 0 ? ` · ${picks.length}` : ''}
-            </Button>
-          </span>
-        </div>
+              {professionals.map(([id, name]) => (
+                <Button
+                  key={id}
+                  className="panel-chip"
+                  aria-pressed={professionalId === id}
+                  onPress={() => setProfessionalId(id)}
+                >
+                  {name}
+                </Button>
+              ))}
+            </div>
+          ) : null}
+
+          {period ? (
+            <div className="free-slots-pros">
+              <Button
+                className="panel-chip"
+                aria-pressed={onlyPeriod}
+                onPress={() => setOnlyPeriod((v) => !v)}
+              >
+                Pedido: {PERIOD_LABEL[period]}
+              </Button>
+            </div>
+          ) : null}
+
+          {error ? (
+            <p className="free-slots-note" role="alert">
+              {error}
+            </p>
+          ) : loading && !slots ? (
+            <p className="free-slots-note" role="status">
+              Buscando horários…
+            </p>
+          ) : visibleSlots && visibleSlots.length === 0 ? (
+            <p className="free-slots-note" role="status">
+              {period && onlyPeriod && (slots?.length ?? 0) > 0
+                ? `Nada livre de ${PERIOD_LABEL[period]} neste dia.`
+                : 'Nada livre neste dia. Tente outro dia.'}
+            </p>
+          ) : (
+            <ul className="free-slots-list">
+              {(visibleSlots ?? []).map((s) => {
+                const blocked = (s.tempoWarnings?.length ?? 0) > 0
+                const time = formatSlotTime(s.startsAt, timezone)
+                return (
+                  <li key={`${s.startsAt}-${s.professionalId}`}>
+                    <Button
+                      className="free-slots-slot"
+                      aria-pressed={isPicked(s)}
+                      isDisabled={blocked || (!isPicked(s) && picks.length >= MAX_PICKS)}
+                      onPress={() => toggle(s)}
+                    >
+                      {time}
+                      <small>{blocked ? 'Use Agendar' : s.professionalName}</small>
+                    </Button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+
+          {confirmPix && canCharge && amount != null ? (
+            <div
+              className="free-slots-confirm"
+              role="alertdialog"
+              aria-label="Confirmar cobrança do sinal"
+            >
+              <p className="free-slots-note">
+                Vai enviar agora, pelo WhatsApp, a cobrança Pix de {formatBrl(amount)}. O horário só
+                fica reservado depois do pagamento.
+              </p>
+              <div className="free-slots-foot">
+                <Button
+                  className="panel-btn-secondary"
+                  isDisabled={charging}
+                  onPress={() => setConfirmPix(false)}
+                >
+                  Voltar
+                </Button>
+                <Button
+                  className="panel-btn-primary"
+                  isDisabled={charging}
+                  onPress={() => void sendCharge()}
+                >
+                  {charging ? 'Enviando…' : `Enviar sinal de ${formatBrl(amount)}`}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="free-slots-foot">
+              <span className="free-slots-hint">
+                {single && conversationId && !canCharge
+                  ? 'Para cobrar o sinal: serviço com sinal, sem zonas, e Pix conectado.'
+                  : `Nada é enviado até você apertar Enviar. Até ${MAX_PICKS} horários.`}
+              </span>
+              <span className="free-slots-actions">
+                {canCharge && amount != null ? (
+                  <Button className="panel-btn-secondary" onPress={() => setConfirmPix(true)}>
+                    Cobrar sinal · {formatBrl(amount)}
+                  </Button>
+                ) : null}
+                <Button
+                  className="panel-btn-primary"
+                  isDisabled={picks.length === 0}
+                  onPress={propose}
+                >
+                  Colocar no campo{picks.length > 0 ? ` · ${picks.length}` : ''}
+                </Button>
+              </span>
+            </div>
+          )}
+        </>
       )}
     </section>
   )

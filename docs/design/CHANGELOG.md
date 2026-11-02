@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 02/11/2026 — Horários livres bloqueia serviço com variantes (**Confirmado**)
+
+- **Confirmado (Paulo, 02/11/2026):** na faixa **Horários livres** do compositor, serviço com variantes (ex. Depilação) não mostra grade nem «Colocar no campo»; hint para usar **Agendar** no cabeçalho. Espelha o bloqueio já feito no atalho de Pix de sinal. Sem picker de variantes na faixa; TEL-05 sem mudança. `FreeSlotsStrip.tsx`.
+
 ## 01/11/2026 — Conversa ao estilo WhatsApp Web e compositor em barra (**Confirmado**)
 
 - Novos mocks `desktop/ConversaWhatsappWeb`, `ConversaCompositor` e `ConversaBolhas`, com previews PNG. Substituem o thread de `ConversasDesktopPropostaThread` como referência da conversa aberta; a lista não muda.
