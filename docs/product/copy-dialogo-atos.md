@@ -126,6 +126,10 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 **Como ler:** *(atual)* = o texto que o código já envia hoje, sem alterações; só precisa de um olhar rápido. *(novo)* = redação nova; é nestas que deves parar. Onde o texto atual tinha defeito, aparece em «Substitui».
 
+**Variáveis novas:** `{variante}`, `{período}` («de manhã», «à tarde», «à noite»), `{hora24}` e `{dia}`. O fluxo passa `{dia}` **já com a preposição** («na sexta (06/11)», «no sábado (07/11)», «hoje», «amanhã»), para a frase nunca dizer «em sexta».
+
+**Revisão antes da tua decisão (02/11/2026).** Ao reler a leva encontrei cinco defeitos meus e corrigi-os: (1) uma frase começava em minúscula quando abria por uma variável («de manhã não tenho…»), e agora **toda** a frase começa em maiúscula; (2) «em sexta 06/11» → a preposição vem no `{dia}`; (3) «Às 1 da tarde» sem crase → `Você quis dizer {hora24}, à tarde?`; (4) «Juntas» fixava o género → «No total»; (5) «o que a clínica oferece» → «o que oferecemos».
+
 ### Redação nova num ato já aprovado
 
 - `perguntar_variantes` *(novo)*: `Para fechar às {hora}, quais {tipo}? Temos {lista}. Pode ser mais de uma.` — substitui o texto atual `Para fechar às {hora}, me diga as {tipo}: {lista}. Pode ser mais de uma.` (imperativo seco).
@@ -155,7 +159,9 @@ Substitui: `Me diga o dia para {serviço}.`.
 
 ### confirmar_hora_ambigua
 
-1. *(atual)* `Às {hora} da tarde seria {hora24}. É esse horário?`
+1. *(novo)* `Você quis dizer {hora24}, à tarde?`
+
+Substitui: `Às {hora} da tarde seria {hora24}. É esse horário?` (dava «Às 1 da tarde», sem a crase).
 
 ### sem_horario_periodo
 
@@ -164,8 +170,10 @@ Substitui: `Me diga o dia para {serviço}.`.
 
 ### sem_horario_dia
 
-1. *(atual)* `Para {assunto}, em {dia} não tenho horário livre. Quer ver outro dia?`
-2. *(novo)* `Em {dia} não tenho horário livre para {assunto}. Prefere outro dia?`
+1. *(novo)* `Para {assunto}, {dia} não tenho horário livre. Quer ver outro dia?`
+2. *(novo)* `Não tenho horário livre para {assunto} {dia}. Prefere outro dia?`
+
+Substitui: `Para {assunto}, em {dia} não tenho horário livre…` (dava «em sexta 06/11»); agora o fluxo passa `{dia}` já com a preposição («na sexta (06/11)», «amanhã»).
 
 ### sem_horario_semana
 
@@ -184,8 +192,10 @@ Substitui: `Me diga o dia para {serviço}.`.
 
 ### informar_preco_soma
 
-1. *(atual)* `Juntas, ficam {preço} e {duração} min de atendimento.`
+1. *(novo)* `No total, ficam {preço} e {duração} min de atendimento.`
 2. *(novo)* `Somando tudo, ficam {preço} e {duração} min de atendimento.`
+
+Substitui: `Juntas, ficam {preço} e {duração} min de atendimento.` («Juntas» fixa o feminino, mas o tipo da variante é texto livre, DEC-079).
 
 ### recusar_mistura
 
@@ -197,7 +207,9 @@ Substitui: `Masculino e feminino não entram na mesma visita. Escolha um conjunt
 ### servico_inexistente
 
 1. *(atual)* `Não encontrei esse procedimento por aqui. Quer ver as opções que temos?`
-2. *(novo)* `Esse serviço eu não encontrei por aqui. Quer ver o que a clínica oferece?`
+2. *(novo)* `Esse serviço eu não encontrei por aqui. Quer ver o que oferecemos?`
+
+Substitui: a 2.ª redação sai de «o que a clínica oferece» (voz em 3.ª pessoa) para «o que oferecemos».
 
 ### varios_servicos
 
