@@ -2662,7 +2662,7 @@ export type ClinicConfigSnapshot = {
   readiness: ClinicConfigReadiness
 }
 
-/** Resposta de GET /config/review (DEC-085). */
+/** Resposta de GET /config/review (DEC-085; DEC-112 avisos de conversa). */
 export type ClinicConfigReview = {
   tenantId: string
   timezone: string
@@ -2676,6 +2676,16 @@ export type ClinicConfigReview = {
     ready: boolean
     blockReason: string | null
     nextSlotStartsAt: number | null
+    /** DEC-112: aviso informativo; não bloqueia a IA. */
+    conversationPathFindings: Array<{
+      code:
+        | 'no_professional'
+        | 'line_without_variants'
+        | 'percent_signal_without_price'
+        | 'window_outside_hours'
+        | 'room_without_hours'
+      message: string
+    }>
     fix: {
       section: 'servico' | 'profissional' | 'sala' | 'horarios'
       entityId?: string
