@@ -1,6 +1,6 @@
 # ADR-0015 — Estado persistente da conversa (BookingFrame)
 
-- **Estado:** **Proposto** — até revisão do Paulo. A [DEC-127](../product/decisions.md) (Confirmada, 02/11/2026, PR [#463](https://github.com/intentzero/tredane/pull/463)) desbloqueia a escrita deste ADR e a M2; **não** promove este desenho a Confirmado.
+- **Estado:** **Proposto** — desenho geral ainda aguarda ok explícito do Paulo para promover o ADR inteiro a Confirmado / merge. As quatro perguntas que bloqueavam o desenho estão **Confirmadas** (Paulo, chat Project 02/11/2026; ver «Decisões desta revisão»). A [DEC-127](../product/decisions.md) (Confirmada, 02/11/2026, PR [#463](https://github.com/intentzero/tredane/pull/463)) desbloqueia a M2.
 - **Origem:** [núcleo determinístico §3.3](../architecture/nucleo-deterministico-conversacional.md); [plano de testes](../implementation/plano-testes-conversacional.md) CA-02, CF-21, CF-22; épico [#401](https://github.com/intentzero/tredane/issues/401) / issue [#412](https://github.com/intentzero/tredane/issues/412); DEC-127.
 - **Complementa:** [ADR-0012](0012-clinic-durable-object-sqlite.md) (SQLite nativo no Durable Object da clínica). Não altera DEC-061 (só o botão marca), DEC-079 (nada sobre a pessoa), DEC-083, DEC-086 nem DEC-104.
 - **Escopo:** decisão de arquitetura e plano de migração. **Não** é implementação, migração executada, deploy nem frase nova à cliente.
@@ -21,7 +21,7 @@ Isto produz três classes de falha:
 | **CF-22** | A oferta é inferida do texto outbound. Mudar a redação quebra a lógica. | [`zonesOfferedToClient`](../../src/clinic/ai/schedule-choice.ts) (`schedule-choice.ts:105`) lido em [`autobook.ts:836`](../../src/clinic/ai/autobook.ts); marcador `RESCHEDULE_OFFER_MARKER` em [`reschedule.ts:32`](../../src/clinic/ai/reschedule.ts) e deteção em `reschedule.ts:143`. |
 | Perguntas fechadas | «o das 14», «a segunda», «👍», «sim» não têm `pending.options` estruturado; o interpretador não tem âncora estável. | Núcleo §3.2; matriz C-05/C-06; DEC-127 (3). |
 
-**Confirmado (produto):** as regras de validade, ambiguidade e migração de dados abertos estão na DEC-127. **Proposto (este ADR):** o formato de engenharia, a tabela, a transação e o plano de migração por DO.
+**Confirmado (produto):** as regras de validade, ambiguidade e migração de dados abertos estão na DEC-127; as quatro perguntas de engenharia deste ADR (nome SQL, C-08 no gate, WS, copy) estão Confirmadas (Paulo, 02/11/2026). **Proposto (este ADR):** o formato de engenharia restante, a transação e o plano de migração por DO, até ok explícito para Confirmado/merge.
 
 ## Opções consideradas
 
@@ -35,9 +35,9 @@ Isto produz três classes de falha:
 
 **Opção (a) — estender `schedule_sessions` até ao contrato `BookingFrame` do §3.3.**
 
-Motivo: a cardinalidade e a chave já estão correctas; a DEC-127 descreve o destino das sessões abertas campo a campo (descartar só o dia relativo); as migrações do DO já evoluem esta tabela por ALTER (0048); o risco médio da M2 fica no *shape* dos dados e no cutover do interpretador, não numa segunda topologia de persistência. No código, o tipo e os acessores passam a chamar-se `BookingFrame` / `getBookingFrame` (nome de tabela pode permanecer `schedule_sessions` até haver motivo operacional para renomear — ver Em aberto).
+Motivo: a cardinalidade e a chave já estão correctas; a DEC-127 descreve o destino das sessões abertas campo a campo (descartar só o dia relativo); as migrações do DO já evoluem esta tabela por ALTER (0048); o risco médio da M2 fica no *shape* dos dados e no cutover do interpretador, não numa segunda topologia de persistência. No código, o tipo e os acessores passam a chamar-se `BookingFrame` / `getBookingFrame`. **Confirmado** (Paulo, chat Project 02/11/2026): a tabela SQL **mantém** o nome `schedule_sessions`; **não** renomear na migração 49 nem depois como requisito da M2. A opção (b) fica descartada para este recorte.
 
-A opção (c) fica **fora**. A opção (b) fica documentada como alternativa se a revisão preferir corte limpo de nome.
+A opção (c) fica **fora**.
 
 ## Decisão proposta — formato `BookingFrame`
 
@@ -97,7 +97,7 @@ Opções de produto já descartadas na DEC-127: validade de 4 h ou sem prazo; o 
 | Nova versão de proposta (DEC-061 / DEC-116) | `proposal` aponta para a versão nova; a anterior deixa de autorizar; `pending`/`lastOffer` reconciliados com a oferta que sustentou a versão nova. |
 | `catalogVersion` diverge do catálogo compilado do DO | Revalidar `serviceId` / `variantIds` / preferência; ids inválidos são limpos e o funil pergunta de novo o que faltar — **sem** inventar substituto. |
 
-Nenhuma frase nova à cliente é introduzida por este ADR. Se a implementação precisar de copy além do já aprovado no catálogo / DEC-104, regista-se como **Em aberto** e bloqueia o envio até aprovação do Paulo.
+Nenhuma frase nova à cliente é introduzida por este ADR. **Confirmado** (Paulo, chat Project 02/11/2026): a pergunta única de dia pós-migração (DEC-127.4) **reusa** o acto `perguntar_dia` já aprovado (DEC-122/123 / [copy-dialogo-atos.md](../product/copy-dialogo-atos.md)). Sem frase nova e sem DEC-104 adicional.
 
 ## Isolamento, retenção e exclusão
 
@@ -107,7 +107,7 @@ Segue [AGENTS.md](../../AGENTS.md) e o ADR-0012: um DO por clínica **não** iso
 | --- | --- |
 | API | Autorização com membership do tenant activo; o Worker só encaminha ao DO cujo id interno coincide com o tenant (ADR-0012). |
 | SQLite do DO | `BookingFrame` leva `tenant_id` + `conversation_id`; consultas e gravações só dentro da instância da clínica. |
-| WebSockets | Eventos de frame (se expostos ao painel) seguem o canal do tenant; troca de clínica activa não reutiliza socket nem cache (DEC-017). |
+| WebSockets | **Confirmado** (Paulo, chat Project 02/11/2026): no MVP há evento dedicado `booking_frame.updated` quando o frame muda (padrão `entity.action` do outbox/realtime, cf. `conversation.updated`, `message.created`). Só membros do tenant/clínica da conversa; troca de clínica activa não reutiliza socket nem cache (DEC-017). |
 | Queues / Workflows | Mensagens e jobs carregam tenant + ids estáveis; sem fan-out cross-tenant. |
 | R2 | O frame **não** guarda anexos; R2 continua privado e autorizado à parte. |
 | D1 central | Sem cópia canónica do frame; D1 mantém tenants/memberships/suporte. |
@@ -131,45 +131,47 @@ Segue [AGENTS.md](../../AGENTS.md) e o ADR-0012: um DO por clínica **não** iso
 
 ## Rollout
 
-**Proposto** (épico #401 + núcleo §8):
+**Proposto** (épico #401 + núcleo §8), com gate de cutover **Confirmado** (Paulo, chat Project 02/11/2026):
 
 1. **Sombra:** o pipeline novo calcula o frame e a próxima acção **sem** enviar à cliente pelo caminho novo; compara com o caminho actual; regista divergências.
-2. **Troca** quando passarem os casos de aceite da [#412](https://github.com/intentzero/tredane/issues/412): **B-13, A-07, A-08, C-05, C-06, C-07, J-06**, mais o fecho observável de **CF-21** e **CF-22**.
+2. **Troca** quando passarem: **B-13, A-07, A-08, C-05, C-06, C-07, C-08, J-06**, mais o fecho observável de **CF-21** e **CF-22**. **Confirmado:** **C-08** entra no aceite de cutover da M2 junto com a lista da [#412](https://github.com/intentzero/tredane/issues/412) (não fica só na fatia M1c / #410).
 3. **Propriedades** (núcleo §6 / aceite #412):
    - nenhuma pergunta sobre um slot já preenchido no frame;
    - replay do mesmo turno (mesmo input + mesmo frame + mesmo catálogo) produz a mesma saída.
-4. Nota de alinhamento: a tabela do núcleo §8 lista também **C-08** e omite B-13 / C-07 / J-06. O aceite vinculativo da M2 neste ADR é o da **issue #412** e da linha do [épico](../implementation/epic-nucleo-conversacional.md). **Em aberto:** se C-08 deve entrar no gate de cutover da M2 ou permanece na fatia M1c (#410).
+
+## Decisões desta revisão (Paulo, chat Project 02/11/2026)
+
+| # | Pergunta | Decisão | Estado |
+| --- | --- | --- | --- |
+| 1 | Nome da tabela SQL | Manter `schedule_sessions`; tipo/acessores TS `BookingFrame` / `getBookingFrame`. Não renomear na migração 49 nem como requisito da M2. | **Confirmado** |
+| 2 | C-08 no gate M2 | **Sim** — C-08 no aceite de cutover com B-13, A-07, A-08, C-05, C-06, C-07, J-06 (+ CF-21/CF-22). | **Confirmado** |
+| 3 | Evento WebSocket do frame | **Sim** no MVP: `booking_frame.updated` quando o frame muda; só membros do tenant/clínica da conversa. | **Confirmado** |
+| 4 | Copy pós-migração (DEC-127.4) | Reusar acto `perguntar_dia` (DEC-122/123). Sem frase nova. | **Confirmado** |
+
+Não restam perguntas Em aberto deste ADR a bloquear o desenho. O ADR permanece **Proposto** no conjunto até ok explícito para Confirmado / merge.
 
 ## Consequências e riscos
 
 | Item | Estado | Nota |
 | --- | --- | --- |
-| Desbloqueia implementação M2 (#412) após aprovação do ADR | **Proposto** | Sem código neste PR. |
+| Desbloqueia implementação M2 (#412) após aprovação do ADR | **Proposto** | Sem código neste PR; Em aberto do desenho fechados. |
 | Elimina `day_label` relativo como SoT | **Proposto** | Corrige CF-21 na raiz. |
 | Elimina regex sobre texto outbound como SoT da oferta | **Proposto** | Corrige CF-22; `zonesOfferedToClient` / `RESCHEDULE_OFFER_MARKER` deixam de autorizar escolha. |
-| Migração por DO (risco médio) | **Proposto** | Teste de upgrade desde schema 48 (ou o último no PR). |
-| Sessões abertas perdem o dia relativo | **Confirmado** (DEC-127) | Uma pergunta de dia; resto preservado. |
+| Migração por DO (risco médio) | **Proposto** | Teste de upgrade desde schema 48 (ou o último no PR); tabela continua `schedule_sessions`. |
+| Sessões abertas perdem o dia relativo | **Confirmado** (DEC-127) | Uma pergunta de dia via `perguntar_dia`; resto preservado. |
 | Dual-path durante sombra | **Proposto** | Custo de manutenção temporário; cortar o path antigo no cutover. |
-| Exposição do frame no painel / eventos WS | **Em aberto** | Ver perguntas abaixo. |
-| Frase exacta do «pedir o dia» pós-migração | **Em aberto** | Se não couber num acto já aprovado (DEC-122/123), exige aprovação DEC-104. |
-
-## Em aberto (Paulo)
-
-| Pergunta | Opções | Responsável | Quando bloqueia |
-| --- | --- | --- | --- |
-| Renomear a tabela SQL para `booking_frames` ou manter `schedule_sessions`? | (1) manter nome + tipo TS `BookingFrame`; (2) renomear na mesma migração 49; (3) renomear numa migração posterior | Paulo | PR de implementação da M2 (nome estável nos testes). |
-| C-08 entra no gate de cutover da M2? | (1) sim, unir ao aceite #412; (2) não — fica no #410 / M1c | Paulo | Antes de declarar M2 verde no §8 do núcleo. |
-| O painel precisa de evento WS dedicado quando o frame muda? | (1) não no MVP — só efeitos já existentes (mensagem, proposta); (2) sim — evento `booking_frame.updated` | Paulo | Antes de expor estado de funil na UI. |
-| Copy da pergunta única de dia após migração (DEC-127.4) | Reusar acto já aprovado vs. frase nova (DEC-104) | Paulo | Antes do primeiro envio pós-migração a conversas com `date` nulo herdado. |
+| Evento WS `booking_frame.updated` | **Confirmado** | MVP; isolamento por tenant/clínica. |
+| Copy «pedir o dia» pós-migração | **Confirmado** | Acto `perguntar_dia` (DEC-122/123); sem DEC-104 nova. |
 
 ## Critérios de aceite deste ADR (documentação)
 
-- Estado **Proposto** explícito; DEC-127 citada sem reabrir as quatro respostas.
-- Opções (a)(b)(c) registadas; escolha (a) justificada.
+- Estado **Proposto** explícito no desenho geral; DEC-127 citada sem reabrir as quatro respostas de produto.
+- Quatro perguntas da revisão Paulo fechadas como **Confirmado** (tabela, C-08, WS, copy).
+- Opções (a)(b)(c) registadas; escolha (a) justificada e nome SQL estabilizado.
 - Contrato `BookingFrame` alinhado ao §3.3; evidências CF-21/CF-22 com ficheiro+linha actuais.
 - Plano de migração a partir do schema **48**, com idempotência, rollback e teste de upgrade.
-- Rollout sombra → troca com a lista da #412 e propriedades de slot/replay.
-- Isolamento por superfície; DEC-079 respeitada.
+- Rollout sombra → troca com B-13, A-07, A-08, C-05–C-08, J-06 e propriedades de slot/replay.
+- Isolamento por superfície; DEC-079 respeitada; evento WS nomeado.
 - Implementação e merge de código **fora** deste PR.
 
 ## Referências
@@ -177,6 +179,6 @@ Segue [AGENTS.md](../../AGENTS.md) e o ADR-0012: um DO por clínica **não** iso
 - Issue [#412](https://github.com/intentzero/tredane/issues/412); épico [#401](../implementation/epic-nucleo-conversacional.md)
 - [Núcleo determinístico](../architecture/nucleo-deterministico-conversacional.md) §3.3, §3.4, §8 (M2), §10
 - [Plano de testes](../implementation/plano-testes-conversacional.md) — CA-02, CF-21, CF-22
-- [DEC-061](../product/decisions.md), [DEC-079](../product/decisions.md), [DEC-083](../product/decisions.md), [DEC-086](../product/decisions.md), [DEC-104](../product/decisions.md), [DEC-127](../product/decisions.md)
+- [DEC-061](../product/decisions.md), [DEC-079](../product/decisions.md), [DEC-083](../product/decisions.md), [DEC-086](../product/decisions.md), [DEC-104](../product/decisions.md), [DEC-122](../product/decisions.md), [DEC-123](../product/decisions.md), [DEC-127](../product/decisions.md); acto [`perguntar_dia`](../product/copy-dialogo-atos.md)
 - [ADR-0012](0012-clinic-durable-object-sqlite.md)
 - Código: [`schedule-session.ts`](../../src/clinic/ai/schedule-session.ts), [`autobook.ts`](../../src/clinic/ai/autobook.ts), [`reschedule.ts`](../../src/clinic/ai/reschedule.ts), [`schedule-choice.ts`](../../src/clinic/ai/schedule-choice.ts), migrações 0044 e 0048
