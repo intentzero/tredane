@@ -1220,7 +1220,7 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
     }
   })
 
-  it('oferta «para axila e íntima» vence a sessão com o catálogo inteiro', async () => {
+  it('cutover: oferta materializada no frame vence catálogo sujo (não o regex do outbound)', async () => {
     const s = seed()
     try {
       s.clock.set(Date.UTC(2026, 10, 1, 13, 40))
@@ -1252,6 +1252,8 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
         ],
         s.clock,
       )
+      // CF-22 cutover: o par fechado vive no frame; texto outbound deixa de autorizar.
+      const pair = zones.filter((z) => z.name === 'Axila' || z.name === 'Intima').map((z) => z.id)
       saveScheduleSession(
         s.db,
         s.tenantId,
@@ -1259,7 +1261,8 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
         {
           serviceId: dep.id,
           audienceLine: 'feminino',
-          variantIds: zones.map((z) => z.id),
+          variantIds: pair,
+          phase: 'ofertado',
         },
         s.clock,
       )

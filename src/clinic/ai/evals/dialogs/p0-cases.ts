@@ -4,6 +4,7 @@
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import { createBlockOp } from '../../../config'
+import { saveScheduleSession } from '../../schedule-session'
 import type { DialogCase } from './runner'
 
 class TimeoutAdapter extends SimulatedAiAdapter {
@@ -64,6 +65,87 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       proposal: false,
       turns: [{ turn: 0, matches: [/\d{2}:\d{2}/] }],
     },
+  },
+  {
+    id: 'A-07',
+    title: 'Escolha por «o das N»',
+    turnosIdeais: 1,
+    // M2 / CF-22: pending.options no frame; «o das 14» não depende do extractTimes.
+    prepare: (s) => {
+      const offerId = s.sayOutbound(
+        'Para Massagem, amanhã tenho sexta 06/11 às 13:00, 14:00 e 15:30. Qual fica melhor?',
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.massagem,
+          date: '2026-11-06',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '13:00', label: '2026-11-06 às 13:00' },
+              { key: '14:00', label: '2026-11-06 às 14:00' },
+              { key: '15:30', label: '2026-11-06 às 15:30' },
+            ],
+            messageId: offerId,
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: Date.UTC(2026, 10, 6, 16, 0), professionalId: s.ids.ana },
+              { startsAt: Date.UTC(2026, 10, 6, 17, 0), professionalId: s.ids.ana },
+              { startsAt: Date.UTC(2026, 10, 6, 18, 30), professionalId: s.ids.ana },
+            ],
+            messageId: offerId,
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'o das 14' }],
+    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' } },
+  },
+  {
+    id: 'A-08',
+    title: 'Escolha por ordinal',
+    turnosIdeais: 1,
+    prepare: (s) => {
+      const offerId = s.sayOutbound(
+        'Para Massagem, amanhã tenho sexta 06/11 às 13:00, 14:00 e 15:30. Qual fica melhor?',
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.massagem,
+          date: '2026-11-06',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '13:00', label: '2026-11-06 às 13:00' },
+              { key: '14:00', label: '2026-11-06 às 14:00' },
+              { key: '15:30', label: '2026-11-06 às 15:30' },
+            ],
+            messageId: offerId,
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: Date.UTC(2026, 10, 6, 16, 0), professionalId: s.ids.ana },
+              { startsAt: Date.UTC(2026, 10, 6, 17, 0), professionalId: s.ids.ana },
+              { startsAt: Date.UTC(2026, 10, 6, 18, 30), professionalId: s.ids.ana },
+            ],
+            messageId: offerId,
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'a segunda opção' }],
+    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' } },
   },
   {
     id: 'A-12',
@@ -282,6 +364,37 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       { role: 'client', text: 'a sessão dura 1h?' },
     ],
     expect: { proposal: false },
+  },
+  {
+    id: 'C-05',
+    title: 'Emoji como aceite',
+    turnosIdeais: 1,
+    // DEC-127.3: 👍 com uma opção pendente escolhe; não marca (DEC-061).
+    prepare: (s) => {
+      const offerId = s.sayOutbound('Para Massagem, amanhã tenho sexta 06/11 às 14:00. Qual fica melhor?')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.massagem,
+          date: '2026-11-06',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [{ key: '14:00', label: '2026-11-06 às 14:00' }],
+            messageId: offerId,
+          },
+          lastOffer: {
+            slots: [{ startsAt: Date.UTC(2026, 10, 6, 17, 0), professionalId: s.ids.ana }],
+            messageId: offerId,
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: '👍' }],
+    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' }, noAppointment: true },
   },
   {
     id: 'C-06',
@@ -695,6 +808,32 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     title: 'O nome não escolhe a linha',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Quero depilação' }],
+  },
+  {
+    id: 'J-06',
+    title: 'Conversa longa',
+    turnosIdeais: 1,
+    // Serviço na sessão (2.ª mensagem histórica); >20 mensagens; «pode ser sexta 10h».
+    prepare: (s) => {
+      s.sayInbound('oi')
+      s.sayOutbound('Olá! Em que posso ajudar?')
+      s.sayInbound('quero limpeza de pele')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: s.ids.limpeza },
+        s.clock,
+      )
+      s.sayOutbound('Claro! Qual dia fica melhor?')
+      for (let i = 0; i < 10; i++) {
+        s.sayInbound(`só uma dúvida rápida ${i}`)
+        s.sayOutbound(`pode perguntar ${i}`)
+      }
+    },
+    // Matriz: serviço só na sessão/frame (histórico truncado); «pode ser sexta 10h».
+    turns: [{ role: 'client', text: 'pode ser sexta 10h' }],
+    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '10:00' } },
   },
   {
     id: 'J-08',

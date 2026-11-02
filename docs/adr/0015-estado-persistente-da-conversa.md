@@ -1,6 +1,6 @@
 # ADR-0015 — Estado persistente da conversa (BookingFrame)
 
-- **Estado:** **Confirmado** (Paulo, chat Project 02/11/2026, opção A — promover o ADR). A [DEC-127](../product/decisions.md) (Confirmada, 02/11/2026, PR [#463](https://github.com/intentzero/tredane/pull/463)) fixa as regras de produto; este ADR fixa o desenho de engenharia. A **implementação** da M2 ([#412](https://github.com/intentzero/tredane/issues/412)) ainda **não** está feita.
+- **Estado:** **Confirmado** (Paulo, chat Project 02/11/2026, opção A — promover o ADR). A [DEC-127](../product/decisions.md) (Confirmada, 02/11/2026, PR [#463](https://github.com/intentzero/tredane/pull/463)) fixa as regras de produto; este ADR fixa o desenho de engenharia. A **implementação** da M2 ([#412](https://github.com/intentzero/tredane/issues/412)) está no código (migração `0049_booking_frame`, `BookingFrame` / `getBookingFrame`, cutover L1).
 - **Origem:** [núcleo determinístico §3.3](../architecture/nucleo-deterministico-conversacional.md); [plano de testes](../implementation/plano-testes-conversacional.md) CA-02, CF-21, CF-22; épico [#401](https://github.com/intentzero/tredane/issues/401) / issue [#412](https://github.com/intentzero/tredane/issues/412); DEC-127.
 - **Complementa:** [ADR-0012](0012-clinic-durable-object-sqlite.md) (SQLite nativo no Durable Object da clínica). Não altera DEC-061 (só o botão marca), DEC-079 (nada sobre a pessoa), DEC-083, DEC-086 nem DEC-104.
 - **Escopo:** decisão de arquitetura e plano de migração. **Não** é implementação, migração executada, deploy nem frase nova à cliente.
@@ -21,7 +21,7 @@ Isto produz três classes de falha:
 | **CF-22** | A oferta é inferida do texto outbound. Mudar a redação quebra a lógica. | [`zonesOfferedToClient`](../../src/clinic/ai/schedule-choice.ts) (`schedule-choice.ts:105`) lido em [`autobook.ts:836`](../../src/clinic/ai/autobook.ts); marcador `RESCHEDULE_OFFER_MARKER` em [`reschedule.ts:32`](../../src/clinic/ai/reschedule.ts) e deteção em `reschedule.ts:143`. |
 | Perguntas fechadas | «o das 14», «a segunda», «👍», «sim» não têm `pending.options` estruturado; o interpretador não tem âncora estável. | Núcleo §3.2; matriz C-05/C-06; DEC-127 (3). |
 
-**Confirmado (produto):** as regras de validade, ambiguidade e migração de dados abertos estão na DEC-127. **Confirmado (este ADR, Paulo, chat Project 02/11/2026):** o desenho de engenharia abaixo (escolha de tabela, contrato, limpeza, isolamento, migração e rollout). A implementação M2 continua pendente.
+**Confirmado (produto):** as regras de validade, ambiguidade e migração de dados abertos estão na DEC-127. **Confirmado (este ADR, Paulo, chat Project 02/11/2026):** o desenho de engenharia abaixo (escolha de tabela, contrato, limpeza, isolamento, migração e rollout). A implementação M2 está no código (migração 0049 / cutover L1).
 
 ## Opções consideradas
 
@@ -116,11 +116,11 @@ Segue [AGENTS.md](../../AGENTS.md) e o ADR-0012: um DO por clínica **não** iso
 
 ## Migração por Durable Object
 
-**Baseline Confirmada no código:** `CLINIC_SCHEMA_VERSION = 48` ([`src/clinic/constants.ts`](../../src/clinic/constants.ts)), com `schedule_sessions` criada em 0044 e colunas `variant_ids` / `clock_time` em 0048.
+**Baseline Confirmada no código:** `CLINIC_SCHEMA_VERSION = 49` ([`src/clinic/constants.ts`](../../src/clinic/constants.ts)), com `schedule_sessions` criada em 0044, memória em 0048 e BookingFrame em [`0049_booking_frame.ts`](../../src/clinic/migrations/0049_booking_frame.ts).
 
-**Confirmado** (plano de desenho; a migração **ainda não** foi executada — implementação na M2 / [#412](https://github.com/intentzero/tredane/issues/412)):
+**Confirmado** (implementado na M2 / [#412](https://github.com/intentzero/tredane/issues/412)):
 
-1. **Plano:** migração `0049_*` (número exacto = `CLINIC_SCHEMA_VERSION + 1` no momento do PR de código) que:
+1. **Plano:** migração `0049_booking_frame` que:
    - adiciona colunas do `BookingFrame` (data absoluta, phase, pending JSON, lastOffer JSON, proposal JSON, professional_pref, catalog_version, provenance JSON, reschedule_appointment_id, etc.);
    - para cada linha existente: copia `service_id`, `audience_line` → `line`, `variant_ids`, `period`, `clock_time` → `time`; **não** copia `day_label` (DEC-127); `date` fica `NULL` até a cliente responder ao pedido de dia (uma vez);
    - remove ou deixa de usar `day_label` (DROP COLUMN se o SQLite do DO permitir no caminho de migração adoptado; senão coluna órfã ignorada pelo código novo);
@@ -149,7 +149,7 @@ Segue [AGENTS.md](../../AGENTS.md) e o ADR-0012: um DO por clínica **não** iso
 | 4 | Copy pós-migração (DEC-127.4) | Reusar acto `perguntar_dia` (DEC-122/123). Sem frase nova. | **Confirmado** |
 | 5 | Estado do ADR | Opção A — promover o ADR inteiro a **Confirmado**. | **Confirmado** |
 
-Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migração 49, sombra, cutover) ainda **não** está feita.
+Não restam perguntas Em aberto deste ADR. A implementação M2 (código, migração 49, sombra, cutover) está entregue no PR de #412; com cutover activo, `zonesOfferedToClient` e `RESCHEDULE_OFFER_MARKER` **deixam de autorizar** (só o frame: `lastOffer` / `pending` / `date`); o marker pode permanecer na copy outbound e na sombra.
 
 ## Consequências e riscos
 
