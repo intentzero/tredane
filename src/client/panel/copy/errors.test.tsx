@@ -56,6 +56,18 @@ describe('friendlyError', () => {
     expect(friendlyError(new PanelApiError(501, 'unknown', msg))).toBe(msg)
   })
 
+  it('DEC-110: colisão de sinónimo mostra frase (API ou BY_CODE)', () => {
+    const fromApi =
+      '«massagem» já identifica o serviço «Massagem». Escolha outro sinónimo.'
+    expect(friendlyError(new PanelApiError(400, 'synonym_collision', fromApi))).toBe(fromApi)
+    expect(friendlyError(new PanelApiError(400, 'synonym_collision'))).toMatch(
+      /outro serviço ou variante/i,
+    )
+    expect(friendlyError(new PanelApiError(400, 'duplicate_synonym'))).toMatch(/já está na lista/i)
+    expect(friendlyError(new PanelApiError(400, 'invalid_synonym_length'))).toMatch(/2 e 40/)
+    expect(friendlyError(new PanelApiError(400, 'synonym_list_too_long'))).toMatch(/8 sinónimos/i)
+  })
+
   it('nunca devolve o código cru', () => {
     for (const code of ['meta_live_missing_credentials', 'zzz_inventado', 'invalid_state']) {
       expect(friendlyError(new PanelApiError(0, 'unknown', code))).not.toContain('_')

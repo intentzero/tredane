@@ -302,6 +302,13 @@ export function replaceZones(
     }
     db.run(`DELETE FROM service_zones WHERE tenant_id = ? AND id = ?`, tenantId, zone.id)
   }
+  // Invalida o catálogo compilado (#411 / DEC-110): readCatalogVersion olha services.updated_at.
+  db.run(
+    `UPDATE services SET updated_at = ? WHERE tenant_id = ? AND id = ?`,
+    now,
+    tenantId,
+    service.id,
+  )
   pruneCombos(db, tenantId, service.id, now)
   return rows
 }

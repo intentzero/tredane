@@ -75,17 +75,24 @@ type FetchOpts = {
 
 async function parseError(res: Response): Promise<PanelApiError> {
   let code: ApiErrorCode = 'unknown'
+  let message: string | undefined
   try {
     const body: unknown = await res.json()
-    if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
-      code = body.error as ApiErrorCode
+    if (body && typeof body === 'object') {
+      if ('error' in body && typeof body.error === 'string') {
+        code = body.error as ApiErrorCode
+      }
+      // Frase da API (ex. synonym_collision) — friendlyError usa se for sentença.
+      if ('message' in body && typeof body.message === 'string' && body.message.trim()) {
+        message = body.message.trim()
+      }
     }
   } catch {
     /* ignore */
   }
   if (res.status === 401 && code === 'unknown') code = 'unauthenticated'
   if (res.status === 403 && code === 'unknown') code = 'permission_denied'
-  return new PanelApiError(res.status, code)
+  return new PanelApiError(res.status, code, message)
 }
 
 function assertGeneration(opts?: FetchOpts): void {

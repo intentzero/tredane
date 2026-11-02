@@ -35,6 +35,13 @@ const BY_CODE: Record<string, string> = {
   conflict: CONFLICT,
   invalid_state: 'Isso não pode ser feito agora. Atualize a tela e tente de novo.',
   zone_name_taken: 'Já existe uma variante com o mesmo nome, gênero, duração e preço.',
+  // DEC-110 / #421 — sinónimos (fallback se a API não mandar a frase)
+  synonym_collision:
+    'Esse sinónimo já identifica outro serviço ou variante. Escolha outro nome.',
+  duplicate_synonym: 'Esse sinónimo já está na lista.',
+  invalid_synonym_length: 'Cada sinónimo tem entre 2 e 40 caracteres.',
+  synonym_list_too_long: 'No máximo 8 sinónimos.',
+  invalid_synonyms: 'Os sinónimos devem ser uma lista de textos.',
 
   // agenda e sinal
   slot_occupied: 'Esse horário acabou de ser ocupado. Escolha outro.',

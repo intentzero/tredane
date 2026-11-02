@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { systemClock } from '../../db/clock'
+import { createControllableClock, systemClock } from '../../db/clock'
 import { CLINIC_SCHEMA_VERSION, ValidationError, workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import { upsertServiceOp, replaceServiceZonesOp } from './operations'
@@ -195,5 +195,65 @@ describe('sinónimos DEC-110 (#421)', () => {
   it('textCitesNameOrSynonym reconhece sinónimo sem ecoar o nome', () => {
     expect(textCitesNameOrSynonym('quero buço amanhã', 'Lábio superior', ['buço'])).toBe(true)
     expect(textCitesNameOrSynonym('quero axila', 'Lábio superior', ['buço'])).toBe(false)
+  })
+
+  it('replaceZones bumpa services.updated_at (cache do catálogo)', () => {
+    const clock = createControllableClock(1_700_000_000_000)
+    const { db, close } = bootClinicDb({ clock })
+    const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
+    try {
+      const svc = upsertServiceOp(
+        db,
+        caller,
+        {
+          name: 'Depilação',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+        },
+        clock,
+      )
+      replaceServiceZonesOp(
+        db,
+        caller,
+        svc.id,
+        [
+          {
+            name: 'Axila',
+            durationMinutes: 15,
+            priceCents: 4000,
+            audience: 'ambos',
+          },
+        ],
+        clock,
+      )
+      const before = getService(db, 'clinic-demo-a', svc.id)!.updatedAt
+      clock.advance(5_000)
+      // Só sinónimos — sem upsertService. Tem de invalidar o cache (#421 M2).
+      replaceServiceZonesOp(
+        db,
+        caller,
+        svc.id,
+        [
+          {
+            id: getService(db, 'clinic-demo-a', svc.id)!.zones[0]!.id,
+            name: 'Axila',
+            durationMinutes: 15,
+            priceCents: 4000,
+            audience: 'ambos',
+            synonyms: ['axilas'],
+          },
+        ],
+        clock,
+      )
+      const after = getService(db, 'clinic-demo-a', svc.id)!
+      expect(after.updatedAt).toBeGreaterThan(before)
+      expect(after.zones[0]!.synonyms).toEqual(['axilas'])
+    } finally {
+      close()
+    }
   })
 })
