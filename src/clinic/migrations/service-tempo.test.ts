@@ -24,11 +24,11 @@ describe('bloco Tempo (S1)', () => {
     const clock = createControllableClock(Date.UTC(2024, 0, 1))
     const { db, close } = bootClinicDb({ clock })
     try {
-      expect(CLINIC_SCHEMA_VERSION).toBe(49)
+      expect(CLINIC_SCHEMA_VERSION).toBe(50)
       const state = db.get<{ version: number; status: string }>(
         'SELECT version, status FROM clinic_schema_state WHERE id = 1',
       )
-      expect(state).toEqual({ version: 49, status: 'ready' })
+      expect(state).toEqual({ version: CLINIC_SCHEMA_VERSION, status: 'ready' })
 
       const caller = workerCaller('clinic-demo-a', 'user_synth_owner_a')
       const room = upsertResourceOp(db, caller, { kind: 'room', name: 'Sala 1' }, clock)

@@ -5,15 +5,17 @@
 import type { ServiceRow, ServiceZoneRow } from '../../config/types'
 
 function zone(
-  partial: Omit<ServiceZoneRow, 'tenantId' | 'active' | 'sortOrder'> & {
+  partial: Omit<ServiceZoneRow, 'tenantId' | 'active' | 'sortOrder' | 'synonyms'> & {
     active?: boolean
     sortOrder?: number
+    synonyms?: string[]
   },
 ): ServiceZoneRow {
   return {
     tenantId: 'eval-clinic',
     active: partial.active ?? true,
     sortOrder: partial.sortOrder ?? 0,
+    synonyms: partial.synonyms ?? [],
     ...partial,
   }
 }
@@ -23,7 +25,12 @@ function service(
     ServiceRow,
     'id' | 'name' | 'durationMinutes' | 'priceCents' | 'audiencia' | 'zones'
   > &
-    Partial<Pick<ServiceRow, 'variantKind' | 'variantKindPlural' | 'active' | 'bufferMinutes'>>,
+    Partial<
+      Pick<
+        ServiceRow,
+        'variantKind' | 'variantKindPlural' | 'active' | 'bufferMinutes' | 'synonyms'
+      >
+    >,
 ): ServiceRow {
   return {
     tenantId: 'eval-clinic',
@@ -50,6 +57,7 @@ function service(
     variantKind: partial.variantKind ?? null,
     variantKindPlural: partial.variantKindPlural ?? null,
     combos: [],
+    synonyms: partial.synonyms ?? [],
     ...partial,
   }
 }

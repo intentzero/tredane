@@ -184,7 +184,7 @@ describe('ServiceForm — duração e variantes', () => {
     await waitFor(() => expect(upsertService).toHaveBeenCalledTimes(2))
     const second = (upsertService.mock.calls as unknown[][])[1]
     expect(second?.[1]).toMatchObject({ variantKind: null, variantKindPlural: null })
-    expect(screen.getByText(/nome/)).toBeTruthy()
+    expect(screen.getByRole('alert')).toBeTruthy()
   })
 })
 

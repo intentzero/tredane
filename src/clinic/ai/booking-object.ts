@@ -9,6 +9,7 @@ import type { ServiceRow, ServiceZoneRow, VariantAudience } from '../config/type
 import { variantChoiceLabel } from '../config/zones'
 import { sayAct } from './dialogue-acts'
 import { THIRD_PARTY_RE } from './nlu/sensitive'
+import { textCitesSynonym } from '../config/synonyms'
 import { citesServiceName } from './schedule-choice'
 import {
   audienceLineQuestion,
@@ -139,12 +140,22 @@ export function listBookableOptions(services: readonly ServiceRow[]): BookableOp
   return out
 }
 
-function serviceNameHit(text: string, name: string): 'exact' | 'fuzzy' | 'partial' | null {
+function serviceNameHit(
+  text: string,
+  name: string,
+  synonyms?: readonly string[] | null,
+): 'exact' | 'fuzzy' | 'partial' | null {
   const words = significantWords(name)
-  if (words.length === 0) return null
+  if (words.length === 0) {
+    // Só sinónimos (nome curto demais): trata como exact se citar.
+    if ((synonyms ?? []).some((syn) => textCitesSynonym(text, syn))) return 'exact'
+    return null
+  }
   const folded = fold(text)
   const tokens = new Set(folded.split(/[^a-z0-9]+/).filter(Boolean))
   if (words.every((w) => tokens.has(w))) return 'exact'
+  // DEC-110: sinónimo popular conta como exact (interpretação; resposta usa o nome).
+  if ((synonyms ?? []).some((syn) => textCitesSynonym(text, syn))) return 'exact'
   if (citesServiceName(text, name)) return 'fuzzy'
   // Uma palavra longa do nome (≥5) aparece sozinha — hit fraco.
   const long = words.filter((w) => w.length >= 5)
@@ -152,11 +163,17 @@ function serviceNameHit(text: string, name: string): 'exact' | 'fuzzy' | 'partia
   return null
 }
 
-function variantNameHit(text: string, name: string): boolean {
+function variantNameHit(
+  text: string,
+  name: string,
+  synonyms?: readonly string[] | null,
+): boolean {
   const n = fold(name.trim())
-  if (n.length < 2) return false
-  const re = new RegExp(`(?<![a-z0-9])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-z0-9])`)
-  return re.test(fold(text))
+  if (n.length >= 2) {
+    const re = new RegExp(`(?<![a-z0-9])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-z0-9])`)
+    if (re.test(fold(text))) return true
+  }
+  return (synonyms ?? []).some((syn) => textCitesSynonym(text, syn))
 }
 
 function audienceFromText(text: string): AudienceLine | null {
@@ -352,16 +369,26 @@ export function resolveBookingObject(input: {
   const wantsPrice = PRICE.test(text)
 
   // Vários serviços nomeados de forma exacta → handoff (sem booking composto).
-  const exactServiceHits = services.filter((s) => serviceNameHit(text, s.name) === 'exact')
+  const exactServiceHits = services.filter(
+    (s) => serviceNameHit(text, s.name, s.synonyms) === 'exact',
+  )
   if (exactServiceHits.length >= 2) return handoff('multiplos_servicos')
 
   type Scored = { option: BookableOption; score: number; source: BookingMatchResult['source'] }
   const scored: Scored[] = []
+  const synonymsByService = new Map(services.map((s) => [s.id, s.synonyms ?? []]))
+  const synonymsByVariant = new Map(
+    services.flatMap((s) => s.zones.map((z) => [z.id, z.synonyms ?? []] as const)),
+  )
 
   for (const option of options) {
     let score = 0
     let source: BookingMatchResult['source'] = 'none'
-    const svcHit = serviceNameHit(text, option.serviceName)
+    const svcHit = serviceNameHit(
+      text,
+      option.serviceName,
+      synonymsByService.get(option.serviceId),
+    )
     if (svcHit === 'exact') {
       score += 50
       source = 'explicit'
@@ -372,7 +399,14 @@ export function resolveBookingObject(input: {
       score += 15
       source = 'partial'
     }
-    if (option.variantName && variantNameHit(text, option.variantName)) {
+    if (
+      option.variantName &&
+      variantNameHit(
+        text,
+        option.variantName,
+        option.variantId ? synonymsByVariant.get(option.variantId) : undefined,
+      )
+    ) {
       score += 40
       if (source === 'none') source = 'explicit'
     }
@@ -599,7 +633,7 @@ export function resolveBookingObject(input: {
     if (chunk) excludedNames.add(chunk)
   }
   const named = scoped.filter((z) => {
-    if (!variantNameHit(text, z.name)) return false
+    if (!variantNameHit(text, z.name, z.synonyms)) return false
     const n = fold(z.name)
     for (const ex of excludedNames) {
       if (ex.includes(n) || n.includes(ex)) return false

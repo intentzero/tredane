@@ -18,6 +18,16 @@ import {
   type VariantAudience,
   type ZoneSnapshot,
 } from './types'
+import {
+  assertSynonymsNoCollision,
+  foldSynonym,
+  listCatalogNameClaims,
+  normalizeSynonymList,
+  parseSynonymsJson,
+  serializeSynonyms,
+  textCitesNameOrSynonym,
+  type CatalogNameClaim,
+} from './synonyms'
 
 export type ZoneOwnerKind = 'appointment' | 'proposal' | 'pix_charge' | 'scheduling_intent'
 
@@ -31,6 +41,7 @@ type ZoneSql = {
   audience?: string | null
   active: number
   sort_order: number
+  synonyms_json?: string | null
 }
 
 type SnapSql = {
@@ -53,6 +64,7 @@ function mapZone(row: ZoneSql): ServiceZoneRow {
     audience: readAudience(row.audience),
     active: row.active === 1,
     sortOrder: row.sort_order,
+    synonyms: parseSynonymsJson(row.synonyms_json),
   }
 }
 
@@ -156,6 +168,13 @@ export function replaceZones(
     )
   }
 
+  // Colisões de sinónimos: ignora variantes antigas deste serviço (vamos substituí-las)
+  // e acrescenta os nomes/sinónimos do lote novo.
+  const baseClaims = listCatalogNameClaims(db, tenantId).filter(
+    (c) => !(c.serviceId === service.id && c.zoneId != null),
+  )
+  const pendingClaims: CatalogNameClaim[] = [...baseClaims]
+
   const rows: ServiceZoneRow[] = []
   input.forEach((item, index) => {
     const name = item.name.trim()
@@ -196,10 +215,36 @@ export function replaceZones(
     const id = prior?.id ?? newId('zone')
     kept.add(id)
     const active = item.active === false ? 0 : 1
+    const synonyms =
+      item.synonyms === undefined
+        ? (prior?.synonyms ?? [])
+        : normalizeSynonymList(item.synonyms)
+    const keptSynonyms = assertSynonymsNoCollision({
+      synonyms,
+      selfName: name,
+      selfServiceId: service.id,
+      selfZoneId: id,
+      claims: pendingClaims,
+    })
+    pendingClaims.push({
+      folded: foldSynonym(name),
+      label: name,
+      serviceId: service.id,
+      zoneId: id,
+    })
+    for (const syn of keptSynonyms) {
+      pendingClaims.push({
+        folded: foldSynonym(syn),
+        label: syn,
+        serviceId: service.id,
+        zoneId: id,
+      })
+    }
     if (prior) {
       db.run(
         `UPDATE service_zones
-         SET name = ?, duration_minutes = ?, price_cents = ?, audience = ?, active = ?, sort_order = ?, updated_at = ?
+         SET name = ?, duration_minutes = ?, price_cents = ?, audience = ?, active = ?,
+             sort_order = ?, synonyms_json = ?, updated_at = ?
          WHERE tenant_id = ? AND id = ?`,
         name,
         durationMinutes,
@@ -207,6 +252,7 @@ export function replaceZones(
         audience,
         active,
         index,
+        serializeSynonyms(keptSynonyms),
         now,
         tenantId,
         id,
@@ -214,8 +260,9 @@ export function replaceZones(
     } else {
       db.run(
         `INSERT INTO service_zones (
-          id, tenant_id, service_id, name, duration_minutes, price_cents, audience, active, sort_order, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          id, tenant_id, service_id, name, duration_minutes, price_cents, audience, active,
+          sort_order, synonyms_json, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         id,
         tenantId,
         service.id,
@@ -225,6 +272,7 @@ export function replaceZones(
         audience,
         active,
         index,
+        serializeSynonyms(keptSynonyms),
         now,
         now,
       )
@@ -239,6 +287,7 @@ export function replaceZones(
       audience,
       active: active === 1,
       sortOrder: index,
+      synonyms: keptSynonyms,
     })
   })
 
@@ -253,6 +302,13 @@ export function replaceZones(
     }
     db.run(`DELETE FROM service_zones WHERE tenant_id = ? AND id = ?`, tenantId, zone.id)
   }
+  // Invalida o catálogo compilado (#411 / DEC-110): readCatalogVersion olha services.updated_at.
+  db.run(
+    `UPDATE services SET updated_at = ? WHERE tenant_id = ? AND id = ?`,
+    now,
+    tenantId,
+    service.id,
+  )
   pruneCombos(db, tenantId, service.id, now)
   return rows
 }
@@ -553,6 +609,25 @@ export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[])
       re.lastIndex = 0
       matched.add(name)
       rest = rest.replace(re, ' ')
+    }
+    accept(zone)
+  }
+  // DEC-110: sinónimos (ex. «buço» → «Lábio superior») — só interpretação.
+  const bySynonymLength = [...candidates].sort((a, b) => {
+    const aMax = Math.max(0, ...(a.synonyms ?? []).map((s) => foldZoneName(s).length))
+    const bMax = Math.max(0, ...(b.synonyms ?? []).map((s) => foldZoneName(s).length))
+    return bMax - aMax
+  })
+  for (const zone of bySynonymLength) {
+    const name = foldZoneName(zone.name.trim())
+    if (matched.has(name)) continue
+    const hitSyn = (zone.synonyms ?? []).some((syn) => textCitesNameOrSynonym(rest, syn, []))
+    if (!hitSyn) continue
+    matched.add(name)
+    for (const syn of zone.synonyms ?? []) {
+      const s = foldZoneName(syn.trim())
+      if (s.length < 2) continue
+      rest = rest.replace(new RegExp(`(?<![a-z0-9])${escapeRegExp(s)}(?![a-z0-9])`, 'g'), ' ')
     }
     accept(zone)
   }

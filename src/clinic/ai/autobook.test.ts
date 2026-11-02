@@ -404,6 +404,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
         durationMaxMinutes: null,
         weeklyWindows: [],
         deletable: true,
+        synonyms: [],
       },
     ]
     const det = detectExplicitConfirmation({

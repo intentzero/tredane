@@ -51,6 +51,12 @@ export type ApiErrorCode =
   | 'tenant_not_active'
   | 'network'
   | 'unknown'
+  /** DEC-110 / #421 — validação de sinónimos (alinhado a BY_CODE). */
+  | 'synonym_collision'
+  | 'duplicate_synonym'
+  | 'invalid_synonym_length'
+  | 'synonym_list_too_long'
+  | 'invalid_synonyms'
 
 export class PanelApiError extends Error {
   readonly status: number
@@ -75,17 +81,24 @@ type FetchOpts = {
 
 async function parseError(res: Response): Promise<PanelApiError> {
   let code: ApiErrorCode = 'unknown'
+  let message: string | undefined
   try {
     const body: unknown = await res.json()
-    if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
-      code = body.error as ApiErrorCode
+    if (body && typeof body === 'object') {
+      if ('error' in body && typeof body.error === 'string') {
+        code = body.error as ApiErrorCode
+      }
+      // Frase da API (ex. synonym_collision) — friendlyError usa se for sentença.
+      if ('message' in body && typeof body.message === 'string' && body.message.trim()) {
+        message = body.message.trim()
+      }
     }
   } catch {
     /* ignore */
   }
   if (res.status === 401 && code === 'unknown') code = 'unauthenticated'
   if (res.status === 403 && code === 'unknown') code = 'permission_denied'
-  return new PanelApiError(res.status, code)
+  return new PanelApiError(res.status, code, message)
 }
 
 function assertGeneration(opts?: FetchOpts): void {
@@ -2505,6 +2518,8 @@ export type ClinicService = {
   variantKind?: string | null
   /** DEC-079 — plural do tipo. Nulo sem variantes. */
   variantKindPlural?: string | null
+  /** DEC-110 — nomes populares (interpretação). */
+  synonyms?: string[]
   /** DEC-078. Vazio: a linha do serviço vale. */
   zones?: ClinicServiceZone[]
   /** DEC-080. */
@@ -2522,6 +2537,8 @@ export type ClinicServiceZone = {
   audience: 'feminino' | 'masculino' | 'ambos'
   active: boolean
   sortOrder: number
+  /** DEC-110 — sinónimos da variante. */
+  synonyms?: string[]
 }
 
 export type ClinicServiceCombo = {
@@ -2548,6 +2565,8 @@ export type ServiceZoneInput = {
   priceCents?: number | null
   audience: 'feminino' | 'masculino' | 'ambos'
   active?: boolean
+  /** DEC-110 — omitido mantém; array substitui. */
+  synonyms?: string[]
 }
 
 export type ClinicResource = {
@@ -2740,6 +2759,8 @@ export type ServiceUpsertBody = {
   /** DEC-079 — omitido na edição mantém. Vazio limpa. Singular e plural juntos. */
   variantKind?: string | null
   variantKindPlural?: string | null
+  /** DEC-110 — omitido na edição mantém; array (mesmo vazio) substitui. */
+  synonyms?: string[]
 }
 
 export type PixAccountPublic = {

@@ -83,6 +83,7 @@ export function serializeService(row: ServiceRow) {
     deletable: row.deletable,
     variantKind: row.variantKind,
     variantKindPlural: row.variantKindPlural,
+    synonyms: row.synonyms,
     zones: row.zones.map((z) => ({
       id: z.id,
       name: z.name,
@@ -91,6 +92,7 @@ export function serializeService(row: ServiceRow) {
       audience: z.audience,
       active: z.active,
       sortOrder: z.sortOrder,
+      synonyms: z.synonyms,
     })),
     combos: row.combos.map((k) => ({
       id: k.id,

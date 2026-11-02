@@ -3,6 +3,7 @@ import { Button, Input, Label, NumberField, Radio, RadioGroup, TextField } from 
 import { ArrowDown, ArrowUp, ChevronRight } from 'lucide-react'
 import { variantKindLabels } from '../../../../clinic/catalog/variant-kind'
 import { ClinicCheck } from './ClinicCheck'
+import { SynonymsField } from './SynonymsField'
 import { formatPriceCents, parsePriceToCents } from './format'
 
 export type VariantAudience = 'feminino' | 'masculino' | 'ambos'
@@ -15,6 +16,8 @@ export type ZoneDraft = {
   price: string
   audience: VariantAudience
   active: boolean
+  /** DEC-110 — nomes populares da variante. */
+  synonyms: string[]
 }
 
 const AUDIENCE_LABEL: Record<VariantAudience, string> = {
@@ -80,6 +83,7 @@ export function VariantCatalog({
         price: prev.length === 0 ? seed.price : '',
         audience: 'ambos',
         active: true,
+        synonyms: [],
       },
     ])
     setNewName('')
@@ -182,6 +186,12 @@ export function VariantCatalog({
                   >
                     Em uso
                   </ClinicCheck>
+                  <SynonymsField
+                    label="Sinónimos"
+                    value={z.synonyms}
+                    onChange={(synonyms) => patch(z.key, { synonyms })}
+                    hint="Ex.: buço para «Lábio superior». Só interpretação; a cliente vê o nome do catálogo."
+                  />
                   <div className="vc-actions">
                     <Button
                       className="panel-btn panel-btn-ghost"
