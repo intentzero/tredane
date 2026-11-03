@@ -79,6 +79,10 @@ function formatBrl(cents: number): string {
   return `R$ ${reais},${rest}`
 }
 
+/**
+ * Intervalo no relógio local da clínica (IANA só calcula; nunca aparece no texto).
+ * Preferência de produto: ofertas, propostas e Agendado sem rótulo IANA.
+ */
 function formatSlotRange(proposal: AppointmentProposalRow): string {
   try {
     const start = new Intl.DateTimeFormat('pt-BR', {
@@ -95,7 +99,7 @@ function formatSlotRange(proposal: AppointmentProposalRow): string {
       hour: '2-digit',
       minute: '2-digit',
     }).format(new Date(proposal.endsAt))
-    return `${start} – ${end} (${proposal.timezone})`
+    return `${start} – ${end}`
   } catch {
     return `${new Date(proposal.startsAt).toISOString()} – ${new Date(proposal.endsAt).toISOString()}`
   }
