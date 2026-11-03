@@ -123,7 +123,10 @@ function clientSource(
 
 /**
  * A cliente já nomeou zonas (e a linha, se o serviço a exige) e ainda não disse
- * dia nem horário. Pergunta o horário e grava a escolha — sem modelo.
+ * dia nem horário. Grava a escolha na sessão e devolve null para o autodraft
+ * seguir ao `tryAiAutoBook`, que oferece slots reais com a lista interativa
+ * **Horários** (DEC-135) — igual ao caminho do toque em Opções/Todas.
+ * Antes devolvia só `perguntar_horario` em prosa + «Falar com a equipe».
  */
 function zoneNameRepeated(zones: readonly { name: string }[]): boolean {
   const seen = new Set<string>()
@@ -135,7 +138,8 @@ function zoneNameRepeated(zones: readonly { name: string }[]): boolean {
   return false
 }
 
-function askSlotWhenZonesKnown(
+/** @returns true se gravou variantes e o catálogo deve ceder o turno ao autobook. */
+function rememberZonesWhenKnown(
   db: ClinicDb,
   tenantId: string,
   services: ServiceRow[],
@@ -145,13 +149,13 @@ function askSlotWhenZonesKnown(
   conversationId: string | undefined,
   turn?: { messages: Array<{ direction: string; body: string }> },
   deferredFrame?: import('./deferred-booking-frame').DeferredBookingFrame,
-): string | null {
-  if (PRICE.test(source) || PERIOD.test(source) || CLOCK.test(source)) return null
+): boolean {
+  if (PRICE.test(source) || PERIOD.test(source) || CLOCK.test(source)) return false
   const held = session ? services.find((service) => service.id === session.serviceId) : undefined
   const svc = held ?? serviceFromNamedZones(services, source)
-  if (!svc) return null
+  if (!svc) return false
   const active = svc.zones.filter((zone) => zone.active)
-  if (active.length === 0) return null
+  if (active.length === 0) return false
   const mixed = needsAudienceLine(active)
   const prior = turn
     ? turn.messages
@@ -166,12 +170,12 @@ function askSlotWhenZonesKnown(
       : []
   const carried = session && session.serviceId === svc.id ? session.audienceLine : null
   const line = mixed ? (explicitAudienceLine(source) ?? carried ?? audienceLineFromClientTexts(prior)) : null
-  if (mixed && !line) return null
-  // Horário já guardado: o autobook fecha a proposta. Não roubar esse caminho.
-  if (session?.clockTime) return null
+  if (mixed && !line) return false
+  // Horário já guardado: o autobook fecha a proposta. Não alterar a sessão aqui.
+  if (session?.clockTime) return false
   const scoped = mixed ? zonesForAudienceLine(active, line) : active
   const named = zonesNamedInText(source, scoped)
-  if (named.length === 0 || variantAudiencesConflict(named) || zoneNameRepeated(named)) return null
+  if (named.length === 0 || variantAudiencesConflict(named) || zoneNameRepeated(named)) return false
   if (conversationId) {
     const patch: ScheduleSessionPatch = {
       serviceId: svc.id,
@@ -181,9 +185,9 @@ function askSlotWhenZonesKnown(
     if (deferredFrame) deferredFrame.save(patch)
     else saveScheduleSession(db, tenantId, conversationId, patch, clock)
   }
-  const cnv = conversationId ?? ''
-  const fallback = `Qual horário fica melhor para ${svc.name}?`
-  return sayAct('perguntar_horario', cnv, { serviço: svc.name }, fallback)
+  // Cede ao tryAiAutoBook (DEC-135): evita mixedAudienceRefusal sem linha e o
+  // perguntar_horario em prosa que só levava «Falar com a equipe».
+  return true
 }
 
 /** Texto determinístico, ou null para seguir o modelo / a proposta. */
@@ -286,22 +290,24 @@ export function catalogReply(
   const asksPrice = PRICE.test(source)
   const openPeriod = PERIOD.test(source) && !CLOCK.test(source)
   const lineOnly = explicit != null && !asksPrice && !PERIOD.test(source) && !CLOCK.test(source)
-  // Zonas já ditas, sem dia nem preço: a próxima pergunta é o horário.
-  // Antes da recusa de géneros, para a linha já conhecida filtrar o catálogo.
-  // Sem isto o rascunho cai no modelo (contexto de 7 dias + Claude) e, se o
-  // fetch não voltar, o job fica em `generating` com o spinner preso.
-  const zonesThenSlot = askSlotWhenZonesKnown(
-    db,
-    tenantId,
-    services,
-    source,
-    session,
-    clock,
-    opts.conversationId,
-    opts.turn,
-    deferred,
-  )
-  if (zonesThenSlot) return zonesThenSlot
+  // Zonas já ditas, sem dia nem preço: grava a escolha e cede ao autodraft /
+  // tryAiAutoBook (oferta de slots + lista Horários, DEC-135). Sai antes da
+  // recusa de géneros sem linha (nomes homónimos F/M no catálogo completo).
+  if (
+    rememberZonesWhenKnown(
+      db,
+      tenantId,
+      services,
+      source,
+      session,
+      clock,
+      opts.conversationId,
+      opts.turn,
+      deferred,
+    )
+  ) {
+    return null
+  }
 
   const mixedVisit = mixedAudienceRefusal(services, source, cnv)
   if (mixedVisit) return mixedVisit

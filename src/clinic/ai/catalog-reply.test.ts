@@ -469,7 +469,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
-  it('com a linha já dita, zonas sem dia nem preço perguntam o horário', () => {
+  it('com a linha já dita, zonas sem dia nem preço gravam a sessão e cedem ao autobook (DEC-135)', () => {
     const boot = seedMixed()
     try {
       const existing = boot.db.all<{
@@ -522,9 +522,8 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       say('outbound', 'Qual zona e qual dia?')
       say('inbound', 'Parte intima e axila')
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toBeNull()
-      expect(catalogReply(boot.db, boot.tenantId, 'Parte intima e axila', boot.clock, opts)).toMatch(
-        /Qual horário fica melhor para Depilação\?|Para Depilação, qual horário você prefere\?/,
-      )
+      // DEC-135: catálogo não rouba o turno com perguntar_horario — null → tryAiAutoBook + Horários.
+      expect(catalogReply(boot.db, boot.tenantId, 'Parte intima e axila', boot.clock, opts)).toBeNull()
       const fem = zones
         .filter((zone) => zone.audience === 'feminino' && (zone.name === 'Axila' || zone.name === 'Parte íntima'))
         .map((zone) => zone.id)
