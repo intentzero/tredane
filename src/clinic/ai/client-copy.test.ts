@@ -23,6 +23,7 @@ import {
   serviceChangedReply,
   serviceNotFoundReply,
   teamConfirmsSoonReply,
+  zoneNotFoundAskReply,
 } from './client-copy'
 import { renderEveryVariant, setDialogueVariantForTests } from './dialogue-acts'
 import { AI_TRANSPARENCY_TEXT, HUMAN_HANDOFF_TEXT } from './human-handoff'
@@ -113,6 +114,7 @@ describe('#405 copy sem jargão (J-09, INV-05)', () => {
       ],
       ['askZonesReply', askZonesReply(`as ${DEFAULT_OPTION_KIND_PLURAL}`, ['Axila', 'Buço'], '14:00')],
       ['askZonesReply zonas', askZonesReply('as zonas', ['Axila'], '10:00')],
+      ['zoneNotFoundAskReply', zoneNotFoundAskReply('cotovelo', ['Axila', 'Pernas'])],
       ['proposal body', interactive.body],
       ['proposal booked', renderProposalResultBody(proposal, 'booked')],
       ['proposal expired', renderProposalResultBody(proposal, 'expired')],

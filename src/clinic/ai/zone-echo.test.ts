@@ -229,6 +229,8 @@ describe('DEC-137: eco e plural das zonas', () => {
       const reply = result.autoBook?.replyText ?? result.suggestion?.suggestedText ?? ''
       expect(reply).not.toMatch(/Entendi:/)
       expect(reply).not.toMatch(/Horários livres|próximos horários/i)
+      expect(reply).toMatch(/Não encontrei cotovelo nas opções/i)
+      expect(reply).toMatch(/Quer .+ ou outra\?/)
       const after = outbound(s).slice(before)
       const json = after.map((row) => row.interactive_json ?? '').join('\n')
       expect(json).toContain(VARIANT_LIST_BUTTON_LABEL)

@@ -765,6 +765,9 @@ const ZONE_MENTION_STOP = new Set([
   'proxima',
   'proximo',
   'parte',
+  // Prefixo de toque Meta («[Lista] Axila», «[Botão] Feminina»)
+  'lista',
+  'botao',
 ])
 
 /** «10h» / «15h30» são hora, não zona que sobrou. */
@@ -803,24 +806,46 @@ export type ZoneMentionResolution = {
   approx: boolean
   /**
    * Um item da lista (ex. «e» / vírgula) não mapeou para uma zona única.
-   * Não devolver o conjunto parcial.
+   * Não devolver o conjunto parcial (#509 / prática 1).
    */
   unrecognized: boolean
+  /**
+   * Primeira palavra citada que não mapeou (para a pergunta «Não encontrei…»).
+   * Null quando não há sobra identificável.
+   */
+  leftover: string | null
 }
 
 /**
- * DEC-137. Nomes exactos (`zonesNamedInText`) e, no que sobra, plural leve
- * único no âmbito passado — a linha já travada (`zonesForAudienceLine`).
- * O mesmo radical em masculino e feminino não casa. Sem fuzzy de outro nome.
- * Se um item citado não resolve, `unrecognized` e `zones` vazio (sem descarte silencioso).
+ * DEC-137 / #509. Nomes exactos (`zonesNamedInText`, sinónimos DEC-110) e, no
+ * que sobra, plural leve único no âmbito passado — a linha já travada
+ * (`zonesForAudienceLine`). O mesmo radical em masculino e feminino não casa.
+ * Sem fuzzy de outro nome. Se um item citado não resolve, `unrecognized` e
+ * `zones` vazio (sem descarte silencioso; nunca Horários com N−1).
+ *
+ * `ignoreWords`: palavras do nome do serviço (e sinónimos) que não contam
+ * como zona citada — «Quero bronzeamento…» não dispara «Não encontrei bronzeamento».
  */
 export function resolveZoneMention(
   text: string,
   zones: readonly ServiceZoneRow[],
+  opts?: { ignoreWords?: readonly string[] },
 ): ZoneMentionResolution {
   const active = zones.filter((z) => z.active && z.name.trim().length >= 2)
-  const empty = { zones: [] as ServiceZoneRow[], approx: false, unrecognized: false }
+  const empty = {
+    zones: [] as ServiceZoneRow[],
+    approx: false,
+    unrecognized: false,
+    leftover: null as string | null,
+  }
   if (active.length === 0 || !text.trim()) return empty
+  const ignore = new Set(
+    (opts?.ignoreWords ?? [])
+      .flatMap((w) => foldZoneName(w).split(/[^a-z0-9]+/))
+      .filter((w) => w.length >= 3),
+  )
+  const contentTokens = (folded: string): string[] =>
+    mentionContentTokens(folded).filter((w) => !ignore.has(w))
   const byPlural = new Map<string, Map<string, ServiceZoneRow[]>>()
   for (const zone of active) {
     const name = foldZoneName(zone.name.trim())
@@ -851,8 +876,9 @@ export function resolveZoneMention(
   let approx = false
   let matchedSegment = false
   let failedSegment = false
+  let leftoverWord: string | null = null
   for (const part of parts.length > 0 ? parts : [folded]) {
-    if (mentionContentTokens(part).length === 0) continue
+    if (contentTokens(part).length === 0) continue
     const exact = zonesNamedInText(part, active)
     let rest = part
     for (const zone of exact) rest = stripZoneWords(rest, zone)
@@ -870,9 +896,17 @@ export function resolveZoneMention(
       }
     }
     const matched = exact.length + pluralHits.length > 0
-    const leftover = mentionContentTokens(rest).length > 0
-    if (!matched || leftover) {
+    const leftoverTokens = contentTokens(rest)
+    if (matched && leftoverTokens.length > 0) {
+      // Parcial no mesmo segmento («Axila cotovelo»): não guardar o que casou.
       failedSegment = true
+      matchedSegment = true
+      if (leftoverWord == null) leftoverWord = leftoverTokens[0]!
+      continue
+    }
+    if (!matched) {
+      failedSegment = true
+      if (leftoverWord == null) leftoverWord = contentTokens(part)[0] ?? null
       continue
     }
     matchedSegment = true
@@ -882,16 +916,33 @@ export function resolveZoneMention(
       approx = true
     }
   }
-  // Sobra só conta quando outra parte da lista já casou — não é descarte do parcial,
-  // e uma frase de horário («às 10:00 horas») não apaga zonas já confirmadas.
+  // Sobra após match (lista «e»/vírgula ou parcial no segmento) → pergunta.
+  // Só tokens de pedido/serviço/hora não contam (ignoreWords + ZONE_MENTION_STOP).
   if (failedSegment && matchedSegment) {
-    return { zones: [], approx: false, unrecognized: true }
+    return {
+      zones: [],
+      approx: false,
+      unrecognized: true,
+      leftover: leftoverWord,
+    }
   }
-  if (failedSegment) return { zones: [], approx: false, unrecognized: false }
+  // Palavra isolada sem match (ex. «cotovelo» a responder zonas) → pergunta com a palavra.
+  if (failedSegment && leftoverWord) {
+    return {
+      zones: [],
+      approx: false,
+      unrecognized: true,
+      leftover: leftoverWord,
+    }
+  }
+  if (failedSegment) {
+    return { zones: [], approx: false, unrecognized: false, leftover: null }
+  }
   return {
     zones: active.filter((z) => hit.has(z.id)),
     approx,
     unrecognized: false,
+    leftover: null,
   }
 }
 

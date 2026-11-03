@@ -49,6 +49,7 @@ import {
   mixedAudienceReply,
   serviceNotFoundReply,
   teamConfirmsSoonReply,
+  zoneNotFoundAskReply,
 } from './client-copy'
 import { sayAct } from './dialogue-acts'
 import { checkConversationProtection } from './protection'
@@ -58,6 +59,7 @@ import {
   resolveBookingObject,
   servicesFromBookingMatch,
 } from './booking-object'
+import { textCitesSynonym } from '../config/synonyms'
 import {
   audienceLineFromClientTexts,
   citesServiceName,
@@ -269,9 +271,38 @@ export function extractServices(text: string, services: ServiceRow[]): ServiceRo
   }
   const fuzzy = services.filter((s) => citesServiceName(text, s.name))
   if (fuzzy.length > 0) return fuzzy
+  // #509 / DEC-110: sinónimo da ficha («depilar» → Depilação) conta como exacto.
+  const bySynonym = services.filter((s) =>
+    (s.synonyms ?? []).some((syn) => textCitesSynonym(text, syn)),
+  )
+  if (bySynonym.length > 0) return bySynonym
   // Só usa o resolver quando o catálogo traz zonas (fixtures parciais ficam no legado).
   if (!services.every((s) => Array.isArray(s.zones))) return []
   return servicesFromBookingMatch(resolveBookingObject({ text, services }), services)
+}
+
+/** Pergunta Opções quando uma zona citada não resolve (#509). */
+function askUnrecognizedZone(
+  mention: { leftover: string | null },
+  zonePool: ServiceRow['zones'],
+  fallback: string,
+): string {
+  const names = stableVariantLabelList(zonePool)
+  if (mention.leftover) return zoneNotFoundAskReply(mention.leftover, names)
+  return fallback
+}
+
+/** Nome e sinónimos do serviço não contam como sobra de zona (#509). */
+function zoneMentionIgnore(service: Pick<ServiceRow, 'name' | 'synonyms'>): string[] {
+  return [service.name, ...(service.synonyms ?? [])]
+}
+
+function mentionZones(
+  text: string,
+  zones: ServiceRow['zones'],
+  service: Pick<ServiceRow, 'name' | 'synonyms'>,
+) {
+  return resolveZoneMention(text, zones, { ignoreWords: zoneMentionIgnore(service) })
 }
 
 const AFFIRMATIVE =
@@ -806,7 +837,7 @@ export async function tryAiAutoBook(
         : storedActive
     const namedNow =
       zonesNamedInText(turnText, storedActive).length > 0 ||
-      resolveZoneMention(turnText, storedPool).zones.length > 0
+      (stored != null && mentionZones(turnText, storedPool, stored).zones.length > 0)
     // Sim/Corrigir do eco não repetem o serviço. A sessão já o tem.
     const echoContinues = zoneEcho === 'confirm' || zoneEcho === 'correct'
     if (
@@ -875,7 +906,7 @@ export async function tryAiAutoBook(
         session?.serviceId === det.service.id && session.variantIds?.length ? session.variantIds : []
       const sessionZones = mentionPool.filter((z) => sessionIds.includes(z.id))
       const sessionIntact = sessionIds.length > 0 && sessionZones.length === sessionIds.length
-      const turnMention = resolveZoneMention(turnText, mentionPool)
+      const turnMention = mentionZones(turnText, mentionPool, det.service)
       // #510: Sim do eco ou quadro intacto sem menção nova → sem segundo parser.
       // Toque Opções (skip) com nomes no turnText continua a parsear.
       const frameOwnsVariants =
@@ -885,21 +916,29 @@ export async function tryAiAutoBook(
           turnMention.zones.length === 0 &&
           !turnMention.unrecognized)
       const mention = frameOwnsVariants
-        ? { zones: [] as typeof sessionZones, unrecognized: false, approx: false }
+        ? {
+            zones: [] as typeof sessionZones,
+            unrecognized: false,
+            approx: false,
+            leftover: null as string | null,
+          }
         : turnMention
       let chosen = frameOwnsVariants
         ? { zones: sessionIntact ? sessionZones : [], ambiguous: false }
         : zonesChosenByClient(clientTurn, older, mentionPool)
       let kept = chosen.zones
-      if (zoneEcho === 'correct' || mention.unrecognized) {
+      if (zoneEcho === 'correct' || (mention.unrecognized && zoneEcho !== 'skip')) {
         // Corrigir (e sobra não mapeada) não reaproveita o conjunto anterior.
+        // Toque em Opções (skip) ignora sobra no histórico «[Lista] …».
         kept = []
         chosen = { zones: [], ambiguous: false }
       } else if (zoneEcho === 'confirm' || (frameOwnsVariants && sessionIntact)) {
         // DEC-137 / #510: o eco ou o quadro já resolveram. Sem segundo parser.
         kept = sessionIntact ? sessionZones : []
         chosen = { zones: kept, ambiguous: false }
-      } else if (mention.zones.length > 0 && zoneEcho !== 'skip') {
+      } else if (mention.zones.length > 0) {
+        // Inclui skip: o label do toque (ou o texto) fecha o conjunto; o eco
+        // continua desligado por zoneEcho !== 'skip' mais abaixo.
         const seen = new Set<string>()
         const ambiguous = mention.zones.some((zone) => {
           const key = zone.name.trim().toLocaleLowerCase('pt-BR')
@@ -913,7 +952,8 @@ export async function tryAiAutoBook(
         kept = sessionZones
         chosen = { zones: sessionZones, ambiguous: false }
       }
-      const clearVariants = zoneEcho === 'correct' || mention.unrecognized
+      const clearVariants =
+        zoneEcho === 'correct' || (mention.unrecognized && zoneEcho !== 'skip')
       saveSession({
         serviceId: det.service.id,
         ...(turnExplicit || frameLine ? { audienceLine: turnExplicit ?? frameLine } : {}),
@@ -955,7 +995,7 @@ export async function tryAiAutoBook(
           const zonePool = pool.length > 0 ? pool : active
           const names = stableVariantLabelList(zonePool)
           const kind = det.service.variantKindPlural || det.service.variantKind
-          replyText = time
+          const genericAsk = time
             ? askZonesReply(earlyPhrase, names, time, input.conversationId, kind)
             : variantListQuestion(
                 det.service.name,
@@ -963,6 +1003,9 @@ export async function tryAiAutoBook(
                 zonePool,
                 input.conversationId,
               )
+          replyText = mention.unrecognized
+            ? askUnrecognizedZone(mention, zonePool, genericAsk)
+            : genericAsk
           interactive = variantChoiceFor(
             deferred,
             det.service.id,
@@ -1193,17 +1236,21 @@ export async function tryAiAutoBook(
               })),
             )
           } else {
-            const mention = resolveZoneMention(turnText, zonePool)
+            const mention = mentionZones(turnText, zonePool, svc)
             const turnPicked =
               mention.zones.length > 0 ||
               zonesChosenInClientTexts([turnText], zonePool).zones.length > 0
             if (mention.unrecognized && zoneEcho !== 'skip' && zoneEcho !== 'confirm') {
               saveSession({ serviceId: svc.id, variantIds: null })
-              replyText = variantListQuestion(
-                svc.name,
-                svc.variantKindPlural || svc.variantKind,
+              replyText = askUnrecognizedZone(
+                mention,
                 zonePool,
-                input.conversationId,
+                variantListQuestion(
+                  svc.name,
+                  svc.variantKindPlural || svc.variantKind,
+                  zonePool,
+                  input.conversationId,
+                ),
               )
               interactive = variantChoiceFor(
                 deferred,
@@ -1357,14 +1404,14 @@ export async function tryAiAutoBook(
     ? mentionPool.filter((z) => sessionIds.includes(z.id))
     : []
   const sessionIntact = sessionIds.length > 0 && fromSession.length === sessionIds.length
-  const proposalMention = resolveZoneMention(turnText, mentionPool)
+  const proposalMention = mentionZones(turnText, mentionPool, svc)
   // #510: eco Sim / toque Horários / Opções → quadro. Texto e histórico só
   // preenchem o que ainda falta; sessão suja («as duas» + catálogo inteiro)
   // não vence menções explícitas (axila e íntima).
   let namedZones: typeof fromSession = []
   let echoLocked = false
   let ambiguous = false
-  if (zoneEcho === 'correct' || proposalMention.unrecognized) {
+  if (zoneEcho === 'correct' || (proposalMention.unrecognized && zoneEcho !== 'skip')) {
     namedZones = []
     saveSession({ serviceId: svc.id, variantIds: null })
   } else if (zoneEcho === 'confirm' || input.boundSlot) {
@@ -1426,15 +1473,22 @@ export async function tryAiAutoBook(
         priceCents: z.priceCents,
       })),
     )
+    const genericAsk = askZonesReply(phrase, names, time, input.conversationId, kindForAct)
     return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
-      replyText: askZonesReply(phrase, names, time, input.conversationId, kindForAct),
+      // #509: sobra sem match único → «Não encontrei {palavra}…» (copy proposta).
+      replyText:
+        proposalMention.unrecognized && !ambiguous
+          ? askUnrecognizedZone(proposalMention, zonePool, genericAsk)
+          : genericAsk,
       interactive,
       notes: ambiguous
         ? `O nome citado casa com mais de uma ${kind}. Pergunta automática enviada. Não informe valor nem envie proposta.`
-        : `A cliente falou em ${svc.name} sem escolher ${kind} (${names.join(', ')}). ` +
-          `Pergunta automática enviada. Não informe valor nem «a partir de».`,
+        : proposalMention.unrecognized
+          ? `Zona citada sem correspondência única (${proposalMention.leftover ?? '?'}). Pergunta automática enviada.`
+          : `A cliente falou em ${svc.name} sem escolher ${kind} (${names.join(', ')}). ` +
+            `Pergunta automática enviada. Não informe valor nem «a partir de».`,
     })
   }
   if (variantAudiencesConflict(namedZones)) {
