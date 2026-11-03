@@ -19,6 +19,8 @@ export type SensitiveLabel =
   | 'ofensa'
   | 'injecao'
   | 'pergunta_politica'
+  /** Recomeçar o funil / limpar BookingFrame (CF-28 / #508). Não pausa a IA. */
+  | 'recomecar'
 
 export type InjectionStrength = 'fraca' | 'forte'
 
@@ -47,6 +49,14 @@ export { HEALTH_RE, OFFENSE_RE }
 
 export const OFF_TOPIC_RE = /\b(piada|esquece a cl[ií]nica)\b/i
 export const PIX_OFF_PURPOSE_RE = /\b(chave\s+pix|j[aá] paguei|pix copia)\b/i
+
+/**
+ * Pedido de recomeçar o agendamento (CF-28 / #508 / DEC-138 prática 5).
+ * Lista fechada — sem LLM. «outra sessão» / «outra hora» não casam;
+ * «esquece a clínica» fica no OFF_TOPIC (exclusão explícita).
+ */
+export const RESTART_BOOKING_RE =
+  /\b(come[cç]ar\s+de\s+novo|recome[cç]ar|quero\s+outra\s+coisa|outra\s+coisa|esquece)\b(?!\s+a\s+cl)/i
 
 /** Cancelar/desmarcar (acção). */
 export const CANCEL_RE = /\b(cancela|cancelar|desmarca|desmarcar)\b/i
@@ -77,6 +87,10 @@ export function classifySensitive(text: string): SensitiveHit[] {
   if (STOP_MESSAGES_RE.test(body)) hits.push({ label: 'pedir_parar', matchedBy: 'stop_messages' })
   if (WANTS_HUMAN_RE.test(body)) hits.push({ label: 'pedir_pessoa', matchedBy: 'wants_human' })
   if (AI_TRANSPARENCY_RE.test(body)) hits.push({ label: 'pergunta_ia', matchedBy: 'ai_transparency' })
+  // Recomeçar antes de ofensa/saúde: limpa o frame sem pausar (não entra em wantsHumanPause).
+  if (RESTART_BOOKING_RE.test(body) && !OFF_TOPIC_RE.test(body)) {
+    hits.push({ label: 'recomecar', matchedBy: 'restart_booking' })
+  }
 
   if (detectStrongInjectionSignals(body)) {
     hits.push({ label: 'injecao', injectionStrength: 'forte', matchedBy: 'strong' })
@@ -135,6 +149,11 @@ export function hasPolicyQuestion(hits: SensitiveHit[]): boolean {
 
 export function hasStopRequest(hits: SensitiveHit[]): boolean {
   return hits.some((h) => h.label === 'pedir_parar')
+}
+
+/** Pedido de recomeçar / limpar BookingFrame (CF-28 / #508). */
+export function hasRestartRequest(hits: SensitiveHit[]): boolean {
+  return hits.some((h) => h.label === 'recomecar')
 }
 
 export function hasAiTransparencyQuestion(hits: SensitiveHit[]): boolean {

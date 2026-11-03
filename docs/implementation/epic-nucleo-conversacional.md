@@ -78,7 +78,7 @@ As issues da mesma ordem podem avançar em paralelo. M2 em diante corre primeiro
 
 | Issue | Fatia | Práticas |
 | --- | --- | --- |
-| [#508](https://github.com/intentzero/tredane/issues/508) | F1-2: recomeçar limpa o frame | 5 |
+| [#508](https://github.com/intentzero/tredane/issues/508) | F1-2: recomeçar limpa o frame (`recomecar` M1b; painel/idle) | 5 |
 | [#509](https://github.com/intentzero/tredane/issues/509) | F1-3: nenhuma zona cai em silêncio; sinónimos e plural só na linha | 1, 11 |
 | [#511](https://github.com/intentzero/tredane/issues/511) | F1-5: validade visível; Confirmar expirado explica e oferece outras horas | 8 |
 | [#512](https://github.com/intentzero/tredane/issues/512) | F1-6: sem match, dizer o que faltou; handoff com o quadro | 10 |

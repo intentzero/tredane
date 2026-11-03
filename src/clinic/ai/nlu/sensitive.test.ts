@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   classifySensitive,
   hasPolicyQuestion,
+  hasRestartRequest,
   isStrongInjection,
   isWeakInjection,
   wantsHumanPause,
@@ -129,6 +130,25 @@ describe('classifySensitive (#409)', () => {
       labels: [],
       pause: false,
     },
+    // CF-28 / #508 — recomeçar (não pausa)
+    {
+      id: 'R-01',
+      text: 'começar de novo',
+      labels: ['recomecar'],
+      pause: false,
+    },
+    {
+      id: 'R-02',
+      text: 'outra coisa',
+      labels: ['recomecar'],
+      pause: false,
+    },
+    {
+      id: 'R-03',
+      text: 'outra sessão',
+      labels: [],
+      pause: false,
+    },
   ]
 
   for (const row of rows) {
@@ -143,6 +163,8 @@ describe('classifySensitive (#409)', () => {
         expect(isWeakInjection(hits)).toBe(false)
       }
       if (row.id === 'E-06') expect(hasPolicyQuestion(hits)).toBe(true)
+      if (row.labels.includes('recomecar')) expect(hasRestartRequest(hits)).toBe(true)
+      if (row.id === 'R-03') expect(hasRestartRequest(hits)).toBe(false)
     })
   }
 })
