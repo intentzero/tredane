@@ -251,6 +251,21 @@ Estas frases literais continuam no código e **não** estão nesta leva:
 
 O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a leva 3, o processo é o mesmo: o PR traz a secção «Copy para aprovação do Paulo»; a aprovação fica registada numa DEC nova; só depois a engenharia liga as redações aos fluxos (#448).
 
+## Copy #511 (validade visível / Confirmar expirado) — Confirmado
+
+**Estado:** **Confirmado** (Paulo, DEC-104, 03/11/2026, ok no [#523](https://github.com/intentzero/tredane/pull/523)). Relógio da clínica; sem fuso IANA.
+
+| Onde | Texto confirmado |
+| --- | --- |
+| Rodapé da lista Horários (DEC-127.1 = 24 h) | `Esta lista vale por 24 horas.` (sem HH:MM — evita INV-03 / B-13) |
+| Cartão da proposta (30 min após o envio) | `Válida até {hora}.` |
+| Confirmar depois da validade, com alternativas | `Essa proposta já não está válida. Para {serviço}, tenho {lista}. Qual fica melhor?` |
+| Confirmar depois da validade, sem alternativas | `Essa proposta de {serviço} em {quando} já não está válida. Quer que eu veja outros horários?` |
+| Horário já ocupado no Confirmar, com alternativas | `Horário já não está livre para {serviço} em {quando}. Tenho {lista}. Qual fica melhor?` |
+| Horário já ocupado no Confirmar, sem alternativas | `Horário já não está livre para {serviço} em {quando}. Quer que eu veja outro horário?` |
+
+`{lista}` no formato da oferta (`sexta 06/11 às 14:00, 16:00`). `{hora}` = `HH:MM` no relógio da clínica.
+
 ## Rótulos fixos do M5 (listas e botões) — Confirmado
 
 **Estado:** os cinco rótulos fixos estão **Confirmados** (Paulo, 03/11/2026, DEC-134). Entraram no código com o #479 (M5). A DEC-133 (revisão 03/11/2026) liga as escolhas interativas de forma permanente — sem flag de ambiente — por isso Feminina, Masculina, Opções, Todas e Horários chegam à cliente no funil. O corte em 24 caracteres no título da linha está **Confirmado** (opção A: truncar; nome completo na descrição quando disponível). O texto da pergunta que acompanha a lista ou os botões é o das levas 1 e 2 (já aprovado); só mudam os rótulos abaixo.

@@ -63,7 +63,7 @@
 | A-15 | P0 | Homónimo Axila com Feminina | [Feminina] ⟶ C: «Axila e pernas» | Sem recusa de mistura; eco ou zonas da linha feminina. | INV-08, DEC-079 | 1 | ✅ CF-30 fechado (#502) · L1 `dialogs` A-15 |
 | A-16 | P0 | Nenhuma zona cai em silêncio | [Feminina] ⟶ C: «Axilas e pernas» | Eco «Entendi: Axila e Pernas. Certo?»; as duas zonas. | EF-02, DEC-137 | 1 | ✅ L1 `dialogs` A-16 (eco); propriedade N→N−1 fica em [#509](https://github.com/intentzero/tredane/issues/509) |
 | A-17 | P0 | Toque no horário com título mês-dia | A: [lista Horários; título «11-03 17:00»; id civil] ⟶ toque | Proposta ter 03/11 17:00; sem «qual dia?». Toque não marca. | INV-01, EF-02 | 1 | ✅ CF-32 mitigado (#505) · L1 `dialogs` A-17 · título longo em [#507](https://github.com/intentzero/tredane/issues/507) |
-| A-18 | P0 | Confirmar depois da validade | [proposta enviada] ⟶ relógio +30 min ⟶ Confirmar | Sem marcação; explica expiração; oferece ≥2 horários livres do mesmo pedido. | INV-01 | 2 | ❌ CF-33 · L1 `it.fails` · [#511](https://github.com/intentzero/tredane/issues/511) |
+| A-18 | P0 | Confirmar depois da validade | [proposta enviada] ⟶ relógio +30 min ⟶ Confirmar | Sem marcação; explica expiração; oferece ≥2 horários livres do mesmo pedido. | INV-01 | 2 | ✅ CF-33 · L1 `dialogs` A-18 · [#511](https://github.com/intentzero/tredane/issues/511) |
 | A-19 | P0 | Catálogo sem match | C: «Vocês fazem botox?» (com link Google cadastrado) | Diz o que faltou / opções; **sem** link Google; sem despejar só «equipe». | INV-02, INV-05 | 1 | ✅ CF-34 fechado (#512 / #520) · L1 `dialogs` A-19 |
 
 ## B. Linguagem temporal
@@ -448,8 +448,8 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | Estado | Contagem / notas |
 | --- | --- |
 | Casos novos | **A-13..A-19** (7) — CF-28..CF-34 |
-| L1 | **90** casos · **78** passam · **1** `it.fails` (A-18 CF-33) · 2 pendentes · 9 coverageOnly · 0 inesperadas; A-13/A-14/A-15/A-16/A-17/A-19 **verdes** (#508 / #509 / #502 / DEC-137 / #505 / #512) |
-| Correções | [#508](https://github.com/intentzero/tredane/issues/508) A-13 **fechado** · [#509](https://github.com/intentzero/tredane/issues/509) A-14 **fechado** / A-16 · [#512](https://github.com/intentzero/tredane/issues/512) A-19 **fechado** · [#507](https://github.com/intentzero/tredane/issues/507) A-17 · [#511](https://github.com/intentzero/tredane/issues/511) A-18 · quadro único [#510](https://github.com/intentzero/tredane/issues/510) (sem caso novo dedicado) |
+| L1 | **90** casos · A-13..A-19 **verdes** (#508 / #509 / #502 / DEC-137 / #505 / #512 / [#511](https://github.com/intentzero/tredane/issues/511) CF-33) · 2 pendentes · 9 coverageOnly · 0 `it.fails` |
+| Correções | [#508](https://github.com/intentzero/tredane/issues/508) A-13 **fechado** · [#509](https://github.com/intentzero/tredane/issues/509) A-14 **fechado** / A-16 · [#512](https://github.com/intentzero/tredane/issues/512) A-19 **fechado** · [#507](https://github.com/intentzero/tredane/issues/507) A-17 · [#511](https://github.com/intentzero/tredane/issues/511) A-18 ✅ CF-33 · quadro único [#510](https://github.com/intentzero/tredane/issues/510) |
 | Estrago | ES-01..04 no relatório `test:dialogs` (`damage.ts`); contrato partilhável com L2/L3 (#417) |
 
 ### Resumo após It. 6 (02/11/2026)

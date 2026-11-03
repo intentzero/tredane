@@ -5,6 +5,7 @@
  */
 import type { Clock } from '../../db/clock'
 import {
+  APPOINTMENT_PROPOSAL_VALIDITY_MS,
   PROPOSAL_SEND_ACTOR,
   PROPOSAL_SEND_ACTOR_DISPLAY,
   PROPOSAL_SEND_CLIENT_REQUEST_PREFIX,
@@ -183,7 +184,9 @@ export function sendProposalToWhatsAppOp(
     }
   }
 
-  const interactive = renderProposalInteractive(proposal, db)
+  // #511: validade absoluta no relógio da clínica (30 min a partir do envio).
+  const validUntilMs = clock.nowMs() + APPOINTMENT_PROPOSAL_VALIDITY_MS
+  const interactive = renderProposalInteractive(proposal, db, { validUntilMs })
   const clientRequestId = proposalSendClientRequestId(proposal.id, proposal.version)
   markProposalSendPending(db, meta.tenantId, proposal.id, clock)
 

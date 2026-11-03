@@ -6,6 +6,7 @@ import {
 } from './dialogue-acts'
 import {
   dayWithPrepPt,
+  offerValidityFooter,
   periodFromHHMM,
   pickNearbySameDay,
   minutesOfHHMM,
@@ -19,6 +20,14 @@ afterEach(() => {
 })
 
 describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
+  it('#511 validade da lista: 24 h sem HH:MM (INV-03 / B-13)', () => {
+    const footer = offerValidityFooter()
+    expect(footer).toBe('Esta lista vale por 24 horas.')
+    // Não pode parecer horário oferecido (B-13 começa às 23:50 SP).
+    expect(footer).not.toMatch(/\b\d{2}:\d{2}\b/)
+    expect(footer).not.toContain('America/')
+  })
+
   it('título da lista é dia da semana + DD/MM + hora, sem fuso nem mês-dia (#507)', () => {
     expect(slotListRowCopy('2026-11-03', '17:00')).toEqual({
       title: 'terça 03/11 17:00',

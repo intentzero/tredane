@@ -110,6 +110,15 @@ function joinNames(names: string[]): string {
 
 export type OfferedSlot = { date: string; time: string; startsAt: number }
 
+/**
+ * #511 / DEC-127.1 — validade da lista (24 h), sem HH:MM absoluto.
+ * Um «às 23:50» no rodapé era lido pelo INV-03 como horário oferecido (B-13/B-14).
+ * Sem fuso IANA.
+ */
+export function offerValidityFooter(): string {
+  return 'Esta lista vale por 24 horas.'
+}
+
 function visitDuration(
   db: ClinicDb,
   tenantId: string,
@@ -317,14 +326,16 @@ export async function offerNearestSlots(input: {
   // `{quando}`: período com espaço final, ou vazio (opcional no motor do catálogo).
   const quando = period ? `${periodWordPt(period)} ` : ''
   const fallback = `Para ${subject}, ${quando}tenho ${listed}. Qual fica melhor?`
+  const body = sayAct(
+    'oferecer_horarios',
+    conversationId,
+    { assunto: subject, quando, lista: listed },
+    fallback,
+  )
+  // #511: prazo visível (DEC-127.1 = 24 h), relógio da clínica.
   return {
     slots: picked,
-    replyText: sayAct(
-      'oferecer_horarios',
-      conversationId,
-      { assunto: subject, quando, lista: listed },
-      fallback,
-    ),
+    replyText: `${body} ${offerValidityFooter()}`,
   }
 }
 

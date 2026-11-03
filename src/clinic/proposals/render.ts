@@ -120,12 +120,36 @@ function formatSignal(proposal: AppointmentProposalRow): string | null {
 }
 
 /**
+ * Validade da proposta no relógio da clínica (#511 / DEC-061).
+ * `validUntilMs` = instante de expiração; sem rótulo IANA.
+ */
+export function proposalValidityLine(timezone: string, validUntilMs: number): string {
+  try {
+    const hhmm = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date(validUntilMs))
+    const match = hhmm.match(/(\d{1,2})\D(\d{2})/)
+    const time = match
+      ? `${match[1]!.padStart(2, '0')}:${match[2]}`
+      : hhmm
+    return `Válida até ${time}.`
+  } catch {
+    return 'Válida por 30 minutos após o envio.'
+  }
+}
+
+/**
  * Monta o texto e os dois botões a partir da proposta persistida.
  * Qualquer mudança material exige nova versão (S3); este render só lê o snapshot.
+ * `validUntilMs` (#511): se omitido, usa o `expiresAt` da proposta ou a frase relativa.
  */
 export function renderProposalInteractive(
   proposal: AppointmentProposalRow,
   db?: ClinicDb,
+  opts?: { validUntilMs?: number | null },
 ): ProposalInteractivePayload {
   const zones = db ? readZoneSnapshots(db, proposal.tenantId, 'proposal', proposal.id) : []
   const combo = db ? readComboSnapshot(db, proposal.tenantId, 'proposal', proposal.id) : null
@@ -154,7 +178,15 @@ export function renderProposalInteractive(
   const signal = formatSignal(proposal)
   if (signal) lines.push(signal)
   lines.push('')
-  lines.push('Esta proposta vale 30 minutos após o envio.')
+  const validUntil =
+    opts?.validUntilMs ??
+    proposal.expiresAt ??
+    null
+  lines.push(
+    validUntil != null
+      ? proposalValidityLine(proposal.timezone, validUntil)
+      : 'Válida por 30 minutos após o envio.',
+  )
   lines.push('Toque em Confirmar para seguir, em Alterar detalhes para mudar ou em Falar com a equipe.')
 
   let body = lines.join('\n')
@@ -205,12 +237,22 @@ export const TEMPO_REFUSED_PHRASE =
 export const TEMPO_UNCONFIRMED_PHRASE =
   'Não deu para confirmar o tempo nesse horário. A equipe envia outra opção em breve.'
 
+export type ProposalResultBodyOpts = {
+  /**
+   * Lista de horários livres do mesmo pedido (#511).
+   * Ex.: «sexta 06/11 às 14:00, 16:00». Sem IANA.
+   */
+  alternativesListing?: string | null
+}
+
 /** Textos fixos de resultado — só após commit / decisão (DEC-061). */
 export function renderProposalResultBody(
   proposal: AppointmentProposalRow,
   kind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired' | 'tempo_refused' | 'tempo_unconfirmed',
+  opts: ProposalResultBodyOpts = {},
 ): string {
   const when = formatSlotRange(proposal)
+  const lista = opts.alternativesListing?.trim() || ''
   switch (kind) {
     case 'booked': {
       const location = proposal.clinicLocationText.trim()
@@ -223,9 +265,16 @@ export function renderProposalResultBody(
       )
     }
     case 'slot_refused':
+      // #511: sem «equipe envia»; com alternativas do mesmo pedido quando houver.
+      if (lista) {
+        return (
+          `Horário já não está livre para ${proposal.serviceName} em ${when}. ` +
+          `Tenho ${lista}. Qual fica melhor?`
+        )
+      }
       return (
         `Horário já não está livre para ${proposal.serviceName} em ${when}. ` +
-        `A equipe envia outra opção em breve.`
+        `Quer que eu veja outro horário?`
       )
     case 'pix_signal':
       return (
@@ -233,9 +282,16 @@ export function renderProposalResultBody(
         `Nada fica reservado antes do pagamento. A equipe envia o pedido de sinal.`
       )
     case 'expired':
+      // #511 / CF-33 / A-18: explica validade e oferece horários novos (DEC-061: não marca).
+      if (lista) {
+        return (
+          `Essa proposta já não está válida. ` +
+          `Para ${proposal.serviceName}, tenho ${lista}. Qual fica melhor?`
+        )
+      }
       return (
-        `A proposta de ${proposal.serviceName} em ${when} expirou. ` +
-        `A equipe pode enviar uma nova proposta.`
+        `Essa proposta de ${proposal.serviceName} em ${when} já não está válida. ` +
+        `Quer que eu veja outros horários?`
       )
     case 'tempo_refused':
       return TEMPO_REFUSED_PHRASE
