@@ -771,17 +771,20 @@ export async function tryAiAutoBook(
   if (!det.service && session?.serviceId) {
     const stored = services.find((item) => item.id === session.serviceId)
     // «amanhã» / «na parte da manhã» não repetem o serviço. A sessão já o tem (CF-19 / A-02).
+    // M5 / A-03: toque «Feminina»/«Masculina» (ou texto equivalente) continua o mesmo serviço.
     const dayContinues = Boolean(turnFacts.dayLabel) && !clockFromTurn
     const periodContinues =
       Boolean(turnFacts.period) &&
       !clockFromTurn &&
       Boolean(session.variantIds?.length || !stored?.zones.some((z) => z.active))
+    const lineContinues = Boolean(explicitAudienceLine(turnText))
     if (
       stored &&
       (clockFromTurn ||
         zonesNamedInText(turnText, stored.zones.filter((zone) => zone.active)).length > 0 ||
         dayContinues ||
-        periodContinues)
+        periodContinues ||
+        lineContinues)
     ) {
       det = {
         ...det,
@@ -994,25 +997,35 @@ export async function tryAiAutoBook(
             booking.variantIds.length > 0
               ? active.filter((z) => booking.variantIds.includes(z.id))
               : []
+          // DEC-128 / A-03: lista Opções só com variantes da linha (não misturar F/M).
+          const turnExplicit = explicitAudienceLine(turnText)
+          const carried = session?.serviceId === svc.id ? session.audienceLine : null
+          const line = needsAudienceLine(active) ? (turnExplicit ?? carried) : null
+          const zonePool =
+            needsAudienceLine(active) && line ? zonesForAudienceLine(active, line) : active
           saveSession({
             serviceId: svc.id,
+            ...(line ? { audienceLine: line } : {}),
             ...(kept.length > 0 ? { variantIds: kept.map((z) => z.id) } : {}),
             ...(turnFacts.period ? { period: turnFacts.period } : {}),
           })
-          if (active.length > 0 && kept.length === 0) {
+          if (booking.missing.includes('linha') && needsAudienceLine(active) && !line) {
+            replyText = booking.question ?? audienceLineQuestion(svc.name, input.conversationId)
+            interactive = lineChoiceFor(deferred, svc.id, catalog.version)
+          } else if (zonePool.length > 0 && kept.length === 0) {
             replyText =
               booking.question ??
               variantListQuestion(
                 svc.name,
                 svc.variantKindPlural || svc.variantKind,
-                active,
+                zonePool,
                 input.conversationId,
               )
             interactive = variantChoiceFor(
               deferred,
               svc.id,
               catalog.version,
-              active.map((z) => ({
+              zonePool.map((z) => ({
                 id: z.id,
                 name: z.name,
                 audience: z.audience,
