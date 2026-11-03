@@ -750,7 +750,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         this.#clock,
       )
       const capability = clinicAi.autoBookCapability() && !autoBookPaused
-      const aiDeps = await this.#aiRpcDeps(caller.tenantId)
       const choice = await handleChoiceOfferClick(
         this.#db,
         caller,
@@ -762,7 +761,6 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           contextMessageId: input.contextMessageId,
           providerEventKey: input.providerEventKey,
           capability,
-          interactiveChoices: aiDeps.interactiveChoices === true,
         },
         this.#clock,
       )

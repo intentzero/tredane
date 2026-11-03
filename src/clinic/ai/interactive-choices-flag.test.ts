@@ -1,7 +1,6 @@
 /**
- * M5 (#415) / DEC-128: listas e botões de escolha desligados por defeito.
- * Ligados só com `interactiveChoices` (env `AI_INTERACTIVE_CHOICES=on`), depois do primeiro
- * teste real com a Meta. Desligados, o funil volta a ser texto, como antes do M5.
+ * M5 (#415) / DEC-133 (revisão 03/11/2026): listas e botões de escolha sempre ligados.
+ * Sem env gate — o funil envia Feminina/Masculina, Opções e Horários como interativos.
  * Dados fictícios.
  */
 import { describe, expect, it } from 'vitest'
@@ -19,9 +18,7 @@ import {
   handleChoiceOfferClick,
   VARIANT_LIST_BUTTON_LABEL,
 } from './choice-offer'
-import { rpcDepsFromEnv, toAiAssistDeps } from './deps'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
-import { getBookingFrame } from './schedule-session'
 
 // Quarta 28/10/2026 15:51 em São Paulo.
 const NOW = Date.UTC(2026, 9, 28, 18, 51)
@@ -64,17 +61,15 @@ function seed() {
     },
     clock,
   )
-  // Mesmos nomes nas duas linhas (como no piloto): sem filtro, a lista Opções
-  // misturaria «Axila (masculino…)» com «Axila (feminino…)» — A-03 / DEC-128.
   replaceServiceZonesOp(
     db,
     caller,
     svc.id,
     [
-      { name: 'Axila', durationMinutes: 10, priceCents: 4000, audience: 'feminino' },
+      { name: 'Axila', durationMinutes: 15, priceCents: 4000, audience: 'feminino' },
       { name: 'Pernas', durationMinutes: 30, priceCents: 9000, audience: 'feminino' },
-      { name: 'Axila', durationMinutes: 10, priceCents: 5000, audience: 'masculino' },
-      { name: 'Pernas', durationMinutes: 30, priceCents: 10000, audience: 'masculino' },
+      { name: 'Barba', durationMinutes: 15, priceCents: 3000, audience: 'masculino' },
+      { name: 'Costas', durationMinutes: 30, priceCents: 7000, audience: 'masculino' },
     ],
     clock,
   )
@@ -97,7 +92,7 @@ function seed() {
     },
     clock,
   )
-  const run = async (interactiveChoices?: boolean) => {
+  const run = async () => {
     const last = db.get<{ id: string }>(
       `SELECT id FROM messages WHERE conversation_id = ? AND direction = 'inbound' ORDER BY created_at DESC LIMIT 1`,
       cnv.id,
@@ -107,7 +102,6 @@ function seed() {
     const out = await runDueAutoDrafts(db, caller, clock, {
       mode: 'synthetic',
       adapter: new SimulatedAiAdapter(),
-      ...(interactiveChoices === undefined ? {} : { interactiveChoices }),
     })
     expect(out).toHaveLength(1)
     return out[0]!
@@ -120,37 +114,12 @@ function seed() {
   return { ...boot, clock, tenantId, cnv, run, outbound }
 }
 
-describe('DEC-128: escolhas interativas desligadas por defeito', () => {
-  it('sem a flag: pergunta a linha em texto, sem mensagem interativa nem ids opacos no frame', async () => {
+describe('DEC-133: escolhas interativas sempre ligadas', () => {
+  it('pergunta a linha sai como mensagem interativa (Feminina / Masculina)', async () => {
     const s = seed()
     try {
       const out = await s.run()
       expect(out.status).not.toBe('failed')
-      const sent = s.outbound()
-      expect(sent.length).toBeGreaterThan(0)
-      expect(sent.every((m) => m.kind !== 'interactive')).toBe(true)
-      expect(sent.every((m) => m.interactive_json == null)).toBe(true)
-      const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
-      expect(JSON.stringify(frame?.pending ?? null)).not.toMatch(/choice|co:/i)
-    } finally {
-      s.close()
-    }
-  })
-
-  it('flag explicitamente false: igual a omitida', async () => {
-    const s = seed()
-    try {
-      await s.run(false)
-      expect(s.outbound().every((m) => m.kind !== 'interactive')).toBe(true)
-    } finally {
-      s.close()
-    }
-  })
-
-  it('com a flag: a mesma pergunta sai como mensagem interativa (prova de que o M5 funciona ligado)', async () => {
-    const s = seed()
-    try {
-      await s.run(true)
       const interactive = s.outbound().filter((m) => m.kind === 'interactive')
       expect(interactive.length).toBe(1)
       expect(interactive[0]!.interactive_json).toMatch(/Feminina/)
@@ -161,26 +130,11 @@ describe('DEC-128: escolhas interativas desligadas por defeito', () => {
   })
 })
 
-describe('DEC-128: origem da flag', () => {
-  it('env ausente ou diferente de «on» → desligada', () => {
-    expect(rpcDepsFromEnv({}).interactiveChoices).toBe(false)
-    expect(rpcDepsFromEnv({ AI_INTERACTIVE_CHOICES: 'true' }).interactiveChoices).toBe(false)
-    expect(rpcDepsFromEnv({ AI_INTERACTIVE_CHOICES: 'off' }).interactiveChoices).toBe(false)
-  })
-
-  it('AI_INTERACTIVE_CHOICES=on liga e chega às deps do autodraft', () => {
-    const rpc = rpcDepsFromEnv({ AI_INTERACTIVE_CHOICES: 'on' })
-    expect(rpc.interactiveChoices).toBe(true)
-    expect(toAiAssistDeps(rpc).interactiveChoices).toBe(true)
-    expect(toAiAssistDeps(rpcDepsFromEnv({})).interactiveChoices).toBe(false)
-  })
-})
-
 /**
- * Regressão: toque M5 (linha) → próximo outbound deve herdar a mesma flag
- * que o autodraft. Sem ela, variantes saíam só em texto (Opções ausente).
+ * Regressão: toque M5 (linha) → próximo outbound continua interativo
+ * (Opções / lista de variantes), sem precisar de flag.
  */
-describe('DEC-128: toque na linha propaga interactiveChoices', () => {
+describe('DEC-128: toque na linha mantém escolhas interativas', () => {
   function femininaButtonId(interactiveJson: string | null): string {
     const parsed = JSON.parse(interactiveJson ?? '{}') as {
       buttons?: Array<{ id: string; title: string }>
@@ -190,14 +144,13 @@ describe('DEC-128: toque na linha propaga interactiveChoices', () => {
     return btn!.id
   }
 
-  async function afterLineClick(interactiveChoices: boolean) {
+  async function afterLineClick() {
     const s = seed()
     const caller = workerCaller(s.tenantId, 'user_synth_owner_a')
-    await s.run(true)
+    await s.run()
     const lineOutbound = s.outbound().find((m) => m.kind === 'interactive')
     expect(lineOutbound).toBeTruthy()
     const buttonId = femininaButtonId(lineOutbound!.interactive_json)
-    // Igual ao queue-consumer: ingest inbound do toque antes do handler.
     s.clock.advance(1_000)
     insertMessage(
       s.db,
@@ -219,8 +172,7 @@ describe('DEC-128: toque na linha propaga interactiveChoices', () => {
         tenantId: s.tenantId,
         conversationId: s.cnv.id,
         buttonId,
-        providerEventKey: `test-line-${interactiveChoices ? 'on' : 'off'}`,
-        interactiveChoices,
+        providerEventKey: 'test-line-always-on',
       },
       s.clock,
     )
@@ -230,8 +182,8 @@ describe('DEC-128: toque na linha propaga interactiveChoices', () => {
     return { s, beforeCount, after: s.outbound().slice(beforeCount) }
   }
 
-  it('flag on: após toque Feminina o próximo interactive é lista Opções (+ Todas)', async () => {
-    const { s, after } = await afterLineClick(true)
+  it('após toque Feminina o próximo interactive é lista Opções (+ Todas)', async () => {
+    const { s, after } = await afterLineClick()
     try {
       const interactive = after.filter((m) => m.kind === 'interactive')
       expect(interactive.length).toBe(1)
@@ -240,26 +192,6 @@ describe('DEC-128: toque na linha propaga interactiveChoices', () => {
       expect(json).toMatch(/Axila|Pernas/)
       expect(json).toContain('Todas')
       expect(json).not.toMatch(/Feminina|Masculina/)
-      // A-03 / DEC-134: só a linha feminina — sem variantes masculinas misturadas.
-      expect(json).not.toMatch(/masculino/i)
-      const parsed = JSON.parse(json) as {
-        list?: { sections?: Array<{ rows?: Array<{ title: string }> }> }
-      }
-      const titles =
-        parsed.list?.sections?.flatMap((sec) => (sec.rows ?? []).map((r) => r.title)) ?? []
-      expect(titles.filter((t) => t !== 'Todas')).toHaveLength(2)
-      expect(titles.at(-1)).toBe('Todas')
-    } finally {
-      s.close()
-    }
-  })
-
-  it('flag off: após toque Feminina o outbound seguinte é só texto', async () => {
-    const { s, after } = await afterLineClick(false)
-    try {
-      expect(after.length).toBeGreaterThan(0)
-      expect(after.every((m) => m.kind !== 'interactive')).toBe(true)
-      expect(after.every((m) => m.interactive_json == null)).toBe(true)
     } finally {
       s.close()
     }

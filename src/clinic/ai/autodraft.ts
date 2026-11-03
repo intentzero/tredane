@@ -771,7 +771,6 @@ export async function runDueAutoDrafts(
         enabled: true,
         capability,
         abuseLimits: deps.abuseLimits,
-        interactiveChoices: deps.interactiveChoices === true,
         forecast: deps.forecast,
         turn: liveTurn,
       })

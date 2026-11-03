@@ -219,8 +219,6 @@ export type ChoiceOfferClickInput = {
   contextMessageId?: string | null
   providerEventKey?: string | null
   capability?: boolean
-  /** DEC-133 / M5 — mesma flag do autodraft (`AI_INTERACTIVE_CHOICES=on`). */
-  interactiveChoices?: boolean
 }
 
 export type ChoiceOfferClickResult =
@@ -425,7 +423,6 @@ export async function handleChoiceOfferClick(
       capability: input.capability !== false,
       turnTextOverride: reofferText,
       confirmationMessageIdOverride: confirmationMessageId,
-      interactiveChoices: input.interactiveChoices === true,
     })
     const outbox = [
       ...cleared,
@@ -465,7 +462,6 @@ export async function handleChoiceOfferClick(
     capability: input.capability !== false,
     turnTextOverride: turnText,
     confirmationMessageIdOverride: confirmationMessageId,
-    interactiveChoices: input.interactiveChoices === true,
   })
 
   const outbox = [

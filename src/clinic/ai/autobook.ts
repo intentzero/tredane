@@ -458,8 +458,6 @@ export async function tryAiAutoBook(
     capability?: boolean
     /** Limites S7 ao criar proposta (opcional). */
     abuseLimits?: AbuseLimits
-    /** M5 (DEC-128): listas e botões. Omisso/false = texto, como antes do M5. */
-    interactiveChoices?: boolean
     /** Previsão fictícia nos testes. Omisso = Open-Meteo. */
     forecast?: ForecastAdapter
     /** #411 TurnContext — settings, catálogo e preferência sem releitura. */
@@ -473,31 +471,10 @@ export async function tryAiAutoBook(
     confirmationMessageIdOverride?: string
   },
 ): Promise<AutoBookOutcome> {
-  // M5 (DEC-128): desligado, as escolhas voltam a ser só texto e o frame não ganha ids opacos.
-  const choicesOn = input.interactiveChoices === true
-  const lineChoiceFor = (...a: Parameters<typeof lineChoiceForImpl>): ChoiceInteractive | null =>
-    choicesOn ? lineChoiceForImpl(...a) : null
-  const variantChoiceFor = (...a: Parameters<typeof variantChoiceForImpl>): ChoiceInteractive | null =>
-    choicesOn ? variantChoiceForImpl(...a) : null
-  const rememberOfferFrame = (...a: Parameters<typeof rememberOfferFrameImpl>): ChoiceInteractive | null => {
-    if (choicesOn) return rememberOfferFrameImpl(...a)
-    const [deferred, serviceId, slots, professionalId] = a
-    if (slots.length > 0) {
-      deferred.save(
-        offerFramePatch({
-          serviceId,
-          phase: 'ofertado',
-          slots: slots.map((sl) => ({
-            startsAt: sl.startsAt,
-            professionalId: professionalId ?? '',
-            time: sl.time,
-            date: sl.date,
-          })),
-        }),
-      )
-    }
-    return null
-  }
+  // M5 / DEC-133 (revisão 03/11/2026): listas e botões sempre ligados; sem env gate.
+  const lineChoiceFor = lineChoiceForImpl
+  const variantChoiceFor = variantChoiceForImpl
+  const rememberOfferFrame = rememberOfferFrameImpl
   const tenantId = caller.tenantId
   const deferred = createDeferredBookingFrame()
   const catalog =
