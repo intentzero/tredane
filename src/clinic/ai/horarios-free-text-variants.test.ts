@@ -56,6 +56,7 @@ function seed() {
     },
     clock,
   )
+  // Homónimos F/M (piloto): sem filtro de linha, «Axila e pernas» casava os dois géneros.
   replaceServiceZonesOp(
     db,
     caller,
@@ -63,7 +64,8 @@ function seed() {
     [
       { name: 'Axila', durationMinutes: 15, priceCents: 4000, audience: 'feminino' },
       { name: 'Pernas', durationMinutes: 30, priceCents: 9000, audience: 'feminino' },
-      { name: 'Barba', durationMinutes: 15, priceCents: 3000, audience: 'masculino' },
+      { name: 'Axila', durationMinutes: 15, priceCents: 5000, audience: 'masculino' },
+      { name: 'Pernas', durationMinutes: 30, priceCents: 11000, audience: 'masculino' },
     ],
     clock,
   )
@@ -111,13 +113,18 @@ function outbound(s: ReturnType<typeof seed>) {
 }
 
 describe('DEC-135: Horários após texto livre de variantes', () => {
-  it('«Axila e pernas» via texto → lista interativa Horários (não só Falar com a equipe)', async () => {
+  it('Feminina + «Axila e pernas» → Horários femininas, sem recusar_mistura (DEC-079/135)', async () => {
     const s = seed()
     try {
       await say(s, 'Quero depilação')
       await say(s, 'feminina')
       const before = outbound(s).length
       const result = await say(s, 'Axila e pernas')
+      const reply =
+        result.autoBook?.replyText ??
+        result.suggestion?.suggestedText ??
+        ''
+      expect(reply).not.toMatch(/masculino e feminino|juntar masculino/i)
       expect(result.reason).not.toBe('catalog_reply')
       expect(result.autoBook?.interactive?.mode).toBe('list')
       if (result.autoBook?.interactive?.mode === 'list') {

@@ -821,7 +821,10 @@ export async function tryAiAutoBook(
         const singular = det.service.variantKind?.trim() || ''
         const kindLabel = (plural || singular || DEFAULT_OPTION_KIND_PLURAL).toLocaleLowerCase('pt-BR')
         const earlyPhrase = plural || !singular ? `as ${kindLabel}` : `a ${kindLabel}`
-        const cited = zonesNamedInText(turnText, active)
+        // Mesmo filtro da Opções (#497 / DEC-079): com linha travada, não casar
+        // homónimos F+M no catálogo completo — senão «Axila e pernas» após Feminina
+        // dispara recusar_mistura em falso.
+        const cited = zonesNamedInText(turnText, pool)
         let interactive: ChoiceInteractive | null = null
         if (variantAudiencesConflict(cited)) {
           replyText = mixedAudienceReply(input.conversationId)

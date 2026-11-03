@@ -85,12 +85,16 @@ function mixedAudienceRefusal(
   services: ServiceRow[],
   source: string,
   conversationId: string,
+  session: ReturnType<typeof getScheduleSession> | null,
 ): string | null {
   for (const service of services) {
-    const named = zonesNamedInText(
-      source,
-      service.zones.filter((zone) => zone.active),
-    )
+    const active = service.zones.filter((zone) => zone.active)
+    const mixed = needsAudienceLine(active)
+    const carried = session?.serviceId === service.id ? session.audienceLine : null
+    const line = mixed ? (explicitAudienceLine(source) ?? carried) : null
+    // Linha travada → só variantes dessa linha (e ambos), como Opções / DEC-079.
+    const scoped = mixed && line ? zonesForAudienceLine(active, line) : active
+    const named = zonesNamedInText(source, scoped)
     if (variantAudiencesConflict(named)) {
       return mixedAudienceReply(conversationId)
     }
@@ -309,7 +313,7 @@ export function catalogReply(
     return null
   }
 
-  const mixedVisit = mixedAudienceRefusal(services, source, cnv)
+  const mixedVisit = mixedAudienceRefusal(services, source, cnv, session)
   if (mixedVisit) return mixedVisit
 
   // Handoffs e ambiguidade de serviço — sem roubar o funil de linha/zonas/dia.
