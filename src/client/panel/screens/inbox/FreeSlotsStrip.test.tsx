@@ -159,6 +159,67 @@ describe('FreeSlotsStrip', () => {
     fireEvent.click(screen.getByRole('button', { name: /Pedido: tarde/ }))
     expect(await screen.findAllByRole('button', { name: /Bruna/ })).toHaveLength(2)
   })
+
+  it('serviço com variantes: bloqueia a grade e aponta para o Agendar', async () => {
+    const queryAvailability = vi.fn().mockResolvedValue({ slots: [slot(t1530)] })
+    const api = {
+      getClinicConfig: vi.fn().mockResolvedValue({
+        services: [
+          {
+            id: 's1',
+            name: 'Depilação a laser',
+            active: true,
+            zones: [
+              {
+                id: 'z1',
+                name: 'Axila',
+                durationMinutes: 15,
+                priceCents: 8000,
+                audience: 'feminino',
+                active: true,
+                sortOrder: 0,
+              },
+            ],
+          },
+        ],
+        settings: { timezone: TZ },
+      }),
+      queryAvailability,
+      getPix: vi.fn().mockRejectedValue(new Error('sem pix')),
+    } as unknown as PanelApi
+    const onPropose = vi.fn()
+    render(<FreeSlotsStrip pinned tenantId="t" api={api} generation={1} onPropose={onPropose} />)
+
+    expect(
+      await screen.findByText(/Este serviço tem variantes: a duração só fecha depois da escolha/),
+    ).toBeTruthy()
+    expect(screen.getByText(/Agendar/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Colocar no campo/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Bruna/ })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Dia' })).toBeNull()
+    expect(queryAvailability).not.toHaveBeenCalled()
+    expect(onPropose).not.toHaveBeenCalled()
+  })
+
+  it('serviço sem variantes: a faixa continua a montar o rascunho', async () => {
+    const queryAvailability = vi.fn().mockResolvedValue({ slots: [slot(t1530)] })
+    const api = {
+      getClinicConfig: vi.fn().mockResolvedValue({
+        services: [{ id: 's1', name: 'Limpeza de pele', active: true, zones: [] }],
+        settings: { timezone: TZ },
+      }),
+      queryAvailability,
+      getPix: vi.fn().mockRejectedValue(new Error('sem pix')),
+    } as unknown as PanelApi
+    const onPropose = vi.fn()
+    render(<FreeSlotsStrip pinned tenantId="t" api={api} generation={1} onPropose={onPropose} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Bruna/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Colocar no campo/ }))
+    await waitFor(() => expect(onPropose).toHaveBeenCalledTimes(1))
+    expect(queryAvailability).toHaveBeenCalled()
+    expect(screen.queryByText(/Este serviço tem variantes/)).toBeNull()
+  })
 })
 
 describe('dateForDayLabel', () => {
