@@ -1164,8 +1164,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'A-18',
     title: 'Confirmar depois da validade não marca e oferece outras horas',
     turnosIdeais: 2,
-    // CF-33 (#511): hoje explica a expiração mas não oferece horários novos do mesmo pedido.
-    knownFailure: 'CF-33',
+    // CF-33 (#511): Confirmar expirado explica e oferece ≥2 horários do mesmo pedido.
     damage: { serviceKey: 'limpeza', date: '2026-11-06', time: '15:00' },
     turns: [
       { role: 'client', text: 'Quero limpeza de pele amanhã às 15h' },
@@ -1175,8 +1174,6 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     ],
     expect: {
       noAppointment: true,
-      // #511: além de explicar a expiração, oferece ≥2 horários livres do mesmo pedido.
-      // A frase actual cita a hora expirada e manda a equipe — isso não basta.
       turns: [
         {
           turn: 1,

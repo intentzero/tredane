@@ -11,6 +11,7 @@ import { queryAutomaticAvailability } from '../tempo/automatic'
 import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ForecastAdapter } from '../tempo/evaluate'
 import type { ClinicDb } from '../store'
+import { PENDING_OFFER_TTL_MS } from './booking-frame-choice'
 import { sayAct } from './dialogue-acts'
 
 const WEEKDAY_LABEL = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
@@ -109,6 +110,17 @@ function joinNames(names: string[]): string {
 }
 
 export type OfferedSlot = { date: string; time: string; startsAt: number }
+
+/**
+ * #511 / DEC-127.1 — validade da lista de horários no relógio da clínica (24 h).
+ * Sem fuso IANA na copy.
+ */
+export function offerValidityFooter(tz: string, offeredAtMs: number): string {
+  const untilMs = offeredAtMs + PENDING_OFFER_TTL_MS
+  const date = clinicCivilDateFromUtc(tz, untilMs)
+  const time = localHHMM(tz, untilMs)
+  return `Esta lista vale até ${dayTextPt(date)} às ${time}.`
+}
 
 function visitDuration(
   db: ClinicDb,
@@ -317,14 +329,16 @@ export async function offerNearestSlots(input: {
   // `{quando}`: período com espaço final, ou vazio (opcional no motor do catálogo).
   const quando = period ? `${periodWordPt(period)} ` : ''
   const fallback = `Para ${subject}, ${quando}tenho ${listed}. Qual fica melhor?`
+  const body = sayAct(
+    'oferecer_horarios',
+    conversationId,
+    { assunto: subject, quando, lista: listed },
+    fallback,
+  )
+  // #511: prazo visível (DEC-127.1 = 24 h), relógio da clínica.
   return {
     slots: picked,
-    replyText: sayAct(
-      'oferecer_horarios',
-      conversationId,
-      { assunto: subject, quando, lista: listed },
-      fallback,
-    ),
+    replyText: `${body} ${offerValidityFooter(tz, clock.nowMs())}`,
   }
 }
 

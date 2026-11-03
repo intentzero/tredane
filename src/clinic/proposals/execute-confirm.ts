@@ -42,6 +42,7 @@ import {
 import { evaluateServiceTempo, type ForecastAdapter } from '../tempo/evaluate'
 import { readOpenMeteo } from '../tempo/open-meteo'
 import { appendPostBookingFollowup } from '../followup/post-booking'
+import { offerAlternativesForProposal } from './alternatives'
 import { sendProposalResultMessageOp, type SendProposalResultOutcome } from './results'
 import type { AppointmentProposalRow } from './types'
 
@@ -318,13 +319,39 @@ async function ensureResult(
   proposalId: string,
   resultKind: 'booked' | 'slot_refused' | 'pix_signal' | 'expired' | 'tempo_refused' | 'tempo_unconfirmed',
   clock: Clock,
+  opts: { alternativesListing?: string | null } = {},
 ): Promise<SendProposalResultOutcome> {
   return sendProposalResultMessageOp(
     db,
     caller,
-    { proposalId, resultKind },
+    {
+      proposalId,
+      resultKind,
+      ...(opts.alternativesListing != null
+        ? { alternativesListing: opts.alternativesListing }
+        : {}),
+    },
     clock,
   )
+}
+
+/** #511 — alternativas do mesmo pedido para expirada / vaga perdida. */
+async function alternativesListingFor(
+  db: ClinicDb,
+  tenantId: string,
+  proposal: AppointmentProposalRow,
+  clock: Clock,
+  forecast: ForecastAdapter | undefined,
+): Promise<string> {
+  const { listing } = await offerAlternativesForProposal({
+    db,
+    tenantId,
+    proposal,
+    clock,
+    forecast,
+    limit: 3,
+  })
+  return listing
 }
 
 /**
@@ -530,7 +557,13 @@ export async function executeProposalConfirmOp(
       )
     }
     if (proposal && (denialReason === 'expired' || denialReason === 'not_enviada')) {
-      result = await ensureResult(db, caller, proposal.id, 'expired', clock)
+      const listing =
+        denialReason === 'expired'
+          ? await alternativesListingFor(db, meta.tenantId, proposal, clock, deps.forecast)
+          : ''
+      result = await ensureResult(db, caller, proposal.id, 'expired', clock, {
+        alternativesListing: listing || null,
+      })
       if ('outbox' in result) outbox.push(...result.outbox)
     }
     return {
@@ -559,7 +592,16 @@ export async function executeProposalConfirmOp(
 
   if (materialDrift(proposal, db, meta.tenantId, clock)) {
     const forwarded = markProposalForwarded(db, meta.tenantId, proposal.id, clock)
-    const result = await ensureResult(db, caller, proposal.id, 'expired', clock)
+    const listing = await alternativesListingFor(
+      db,
+      meta.tenantId,
+      forwarded,
+      clock,
+      deps.forecast,
+    )
+    const result = await ensureResult(db, caller, proposal.id, 'expired', clock, {
+      alternativesListing: listing || null,
+    })
     return {
       status: 'denied',
       reason: 'material_changed',
@@ -630,7 +672,16 @@ export async function executeProposalConfirmOp(
       },
       clock,
     )
-    const result = await ensureResult(db, caller, refused.id, 'slot_refused', clock)
+    const listing = await alternativesListingFor(
+      db,
+      meta.tenantId,
+      refused,
+      clock,
+      deps.forecast,
+    )
+    const result = await ensureResult(db, caller, refused.id, 'slot_refused', clock, {
+      alternativesListing: listing || null,
+    })
     return {
       status: 'slot_refused',
       proposal: refused,
@@ -801,7 +852,16 @@ export async function executeProposalConfirmOp(
         },
         clock,
       )
-      const result = await ensureResult(db, caller, refused.id, 'slot_refused', clock)
+      const listing = await alternativesListingFor(
+        db,
+        meta.tenantId,
+        refused,
+        clock,
+        deps.forecast,
+      )
+      const result = await ensureResult(db, caller, refused.id, 'slot_refused', clock, {
+        alternativesListing: listing || null,
+      })
       return {
         status: 'slot_refused',
         proposal: refused,

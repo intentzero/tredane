@@ -7,6 +7,7 @@ import { createControllableClock } from '../../db/clock'
 import { SimulatedPixAdapter } from '../../pix'
 import {
   AI_AUTOBOOK_ACTOR,
+  APPOINTMENT_PROPOSAL_VALIDITY_MS,
   CLINIC_SCHEMA_VERSION,
   PROPOSAL_BOOK_CLIENT_REQUEST_PREFIX,
   PROPOSAL_PIX_CLIENT_REQUEST_PREFIX,
@@ -534,6 +535,11 @@ describe('S5: book sem sinal', () => {
       )
       expect(bodies.some((row) => row.body.includes('Horário já não está livre'))).toBe(true)
       expect(bodies.some((row) => row.body.includes('tempo não serve'))).toBe(false)
+      // #511: alternativas do mesmo pedido (não «equipe envia»).
+      const refusedBody = bodies.find((row) => row.body.includes('Horário já não está livre'))?.body
+      expect(refusedBody).toBeTruthy()
+      expect(refusedBody!).not.toMatch(/A equipe envia outra opção/i)
+      expect(refusedBody!).toMatch(/\b\d{2}:\d{2}\b/)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(1)
       const replay = await confirmClick(s, proposal.id, proposal.version, {
         providerEventKey: 'evt_s5_slot_replay',
@@ -548,6 +554,32 @@ describe('S5: book sem sinal', () => {
       expect(JSON.parse(refused[0]!.detail_json).reason).toBe('slot_refused')
       expect(refused[0]!.detail_json).not.toContain('Ana')
       expect(refused[0]!.detail_json).not.toContain('Horário')
+    } finally {
+      s.close()
+    }
+  })
+
+  it('#511 Confirmar depois da validade: sem marcação; explica e oferece ≥2 horas', async () => {
+    const s = await seedBookable()
+    try {
+      const proposal = makeSent(s)
+      s.clock.advance(APPOINTMENT_PROPOSAL_VALIDITY_MS + 60_000)
+      const result = await confirmClick(s, proposal.id, proposal.version, {
+        providerEventKey: 'evt_s5_expired_511',
+      })
+      expect(result.status).toBe('denied')
+      if (result.status !== 'denied') return
+      expect(result.authorizationReason).toBe('expired')
+      expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)?.n).toBe(0)
+      const bodies = s.db.all<{ body: string }>(
+        `SELECT body FROM messages WHERE tenant_id = ? AND direction = 'outbound'`,
+        s.tenantId,
+      )
+      const expiredMsg = bodies.find((row) => /já não está válida|expirou/i.test(row.body))
+      expect(expiredMsg).toBeTruthy()
+      expect(expiredMsg!.body).toMatch(/\b\d{2}:\d{2}\b.*\b\d{2}:\d{2}\b/)
+      expect(expiredMsg!.body).not.toMatch(/A equipe pode enviar uma nova proposta/i)
+      expect(expiredMsg!.body).not.toContain('America/')
     } finally {
       s.close()
     }

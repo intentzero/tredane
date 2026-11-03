@@ -67,6 +67,8 @@ export function sendProposalResultMessageOp(
   input: {
     proposalId: string
     resultKind: ProposalResultKind
+    /** #511 — horários livres do mesmo pedido no corpo (expirada / vaga perdida). */
+    alternativesListing?: string | null
   },
   clock: Clock,
 ): SendProposalResultOutcome {
@@ -80,7 +82,9 @@ export function sendProposalResultMessageOp(
     return { status: 'already_queued', proposal, outbox: [] }
   }
 
-  const body = renderProposalResultBody(proposal, input.resultKind)
+  const body = renderProposalResultBody(proposal, input.resultKind, {
+    alternativesListing: input.alternativesListing,
+  })
   const clientRequestId = proposalResultClientRequestId(
     proposal.id,
     proposal.version,
