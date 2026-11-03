@@ -58,21 +58,39 @@ Código: `src/ops/secrets.ts` · `npm run ops:secrets` · API superadmin `/api/f
 3. Revisar migrações D1 novas (`db/migrations/`) e clinic (`src/clinic/migrations/`) em PR.
 4. Confirmar inventário de secrets no ambiente alvo (`npm run ops:secrets`).
 
-### Deploy (quando IDs reais existirem)
+### Deploy staging (pipeline GitHub Actions — Confirmado 03/11/2026)
+
+Já **não** é «só manual» no staging: o workflow [Deploy](../../DEPLOY.md) corre, **antes** do `wrangler deploy`:
+
+1. `npm run db:migrate:remote -- staging` → `wrangler d1 migrations apply tredane-staging --env staging --remote`
+2. `npm run db:smoke:admin-schema -- staging` → exige `admin_schema_state.version == ADMIN_SCHEMA_VERSION`; falha bloqueia o deploy
+3. `npm run deploy -- staging` (build → `check:env` → `wrangler deploy`)
+
+Token: `CLOUDFLARE_API_TOKEN_D1` (opcional) ou `CLOUDFLARE_API_TOKEN` com Account · **D1: Edit**. Sem essa permissão o step de migrate/smoke falha com mensagem explícita.
+
+Equivalente local (com credenciais da conta):
 
 ```bash
 npm run check:env -- staging
-npx wrangler d1 migrations apply tredane-staging --env staging   # após review
-npx wrangler deploy --env staging
-# smoke autenticado: GET /api/health + /api/f6/ops/smoke
+npm run db:migrate:remote -- staging
+npm run db:smoke:admin-schema -- staging
+npm run deploy -- staging
+# smoke autenticado opcional: GET /api/health + /api/f6/ops/smoke
 ```
 
-**Em aberto:** execução destes comandos contra conta Cloudflare do projecto (não corridos neste PR).
+### Deploy production
+
+- Migrações D1 **não** auto-aplicam por defeito.
+- Path com approval: workflow_dispatch `apply_d1_migrations=true` no job `environment: production` (required reviewers) → mesma ordem migrate → smoke → deploy.
+- Sem o flag: deploy do Worker apenas; apply D1 continua manual após revisão (`npx wrangler d1 migrations apply tredane-production --env production --remote`).
+
+**Fora deste recorte:** fan-out de migrações do SQLite por Durable Object (clinic).
 
 ### Smoke
 
 | Check | Como |
 | --- | --- |
+| Admin schema (CI staging) | `npm run db:smoke:admin-schema -- staging` — bloqueia promoção |
 | Health | `GET /api/health` → `observability: true` |
 | Checklist local | `npm run ops:smoke` |
 | Schema A/B | `GET /api/f6/ops/smoke` (auth) |

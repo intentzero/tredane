@@ -170,7 +170,7 @@ Fonte: `src/ops/secrets.ts` (inventário em código, `npm run ops:secrets`), `wr
 | `tredane-dev` (development local) | conforme modo: `CLERK_SECRET_KEY`, `META_*`, `VAPID_*` | `.dev.vars` (fora do git) |
 | `tredane-dev-staging` | Obrigatórios: `CLERK_SECRET_KEY`, `ATTACHMENT_TOKEN_SECRET`, `TOKEN_ENCRYPTION_KEY`; com Meta live: `META_APP_SECRET`, `META_VERIFY_TOKEN`, `META_TOKEN_SECRET`; Pix: `PIX_TOKEN_SECRET`; IA: `CF_ACCOUNT_ID`, `AI_GATEWAY_ID`, `AI_GATEWAY_TOKEN` (+ `ANTHROPIC_API_KEY` se BYOK); push: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`; `DEMO_SEED_TOKEN` (staging-only). Opcional: `CLERK_JWT_KEY` | `wrangler secret put --env staging` (secrets do Worker) |
 | `tredane-dev-production` | Obrigatórios `CLERK_SECRET_KEY`, `ATTACHMENT_TOKEN_SECRET`, `TOKEN_ENCRYPTION_KEY` (+ Meta/Pix se live). IA/push/demo **não** autorizados sem novo OK | Ainda não provisionados (DEPLOY.md §5) |
-| GitHub environments `staging`/`production` | `CLOUDFLARE_API_TOKEN` (secret), `CLOUDFLARE_ACCOUNT_ID` (variable) | Secrets/variables por environment (não ao nível do repo) |
+| GitHub environments `staging`/`production` | `CLOUDFLARE_API_TOKEN` (secret), `CLOUDFLARE_API_TOKEN_D1` (secret opcional, D1:Edit), `CLOUDFLARE_ACCOUNT_ID` (variable) | Secrets/variables por environment (não ao nível do repo); staging apply D1 no Deploy |
 
 Proteções relacionadas: tokens WhatsApp/Pix cifrados com `TOKEN_ENCRYPTION_KEY` (`src/security/sealed-secret.ts`, teste `sealed-secret.test.ts`); `scripts/check-env-placeholders.mjs` bloqueia deploy com placeholders; o deploy não cria secrets.
 

@@ -20,9 +20,9 @@ Ver [environments.md](environments.md) (inventário de secrets, smoke, rollback)
 
 1. `npm run check:env -- staging|production` — recusa D1/UUID placeholder.
 2. `npm run ops:secrets` — imprime inventário (nomes, sem valores).
-3. Migrations D1: revisar SQL → `wrangler d1 migrations apply <db> --env <env>` só após IDs reais.
+3. Migrations D1: staging no pipeline Deploy (migrate → smoke admin_schema → deploy); production opt-in `apply_d1_migrations` ou manual — ver [DEPLOY.md](../DEPLOY.md) / [environments.md](environments.md).
 4. Clinic DO: migrações por instância no boot (`CLINIC_SCHEMA_VERSION`).
-5. Smoke: `npm run ops:smoke` (checklist) + `GET /api/f6/ops/smoke` com auth.
+5. Smoke: `npm run db:smoke:admin-schema` (CI) + `npm run ops:smoke` (checklist) + `GET /api/f6/ops/smoke` com auth.
 6. Rollback: redeploy do Worker na versão anterior; **não** reverter migração D1 destrutiva sem plano; ver runbook [recovery](runbooks/recovery.md).
 
 ## Correlação e alertas
