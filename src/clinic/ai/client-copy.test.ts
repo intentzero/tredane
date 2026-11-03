@@ -87,6 +87,10 @@ describe('#405 copy sem jargão (J-09, INV-05)', () => {
       ['mixedAudienceReply', mixedAudienceReply('cnv_copy')],
       ['SERVICE_NOT_FOUND_REPLY', SERVICE_NOT_FOUND_REPLY],
       ['serviceNotFoundReply', serviceNotFoundReply('cnv_copy')],
+      [
+        'serviceNotFoundReply #512',
+        serviceNotFoundReply('cnv_copy', { pedido: 'botox', lista: 'Depilação, Limpeza de pele' }),
+      ],
       ['SERVICE_CHANGED_REPLY', SERVICE_CHANGED_REPLY],
       ['serviceChangedReply', serviceChangedReply('cnv_copy')],
       ['teamConfirmsSoonReply', teamConfirmsSoonReply('Massagem', '15:00', 'cnv_copy')],

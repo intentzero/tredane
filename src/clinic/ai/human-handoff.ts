@@ -28,6 +28,54 @@ import {
   hasStopRequest,
   wantsHumanPause,
 } from './nlu/sensitive'
+import { getBookingFrame } from './schedule-session'
+
+const PERIOD_LABEL: Record<string, string> = {
+  manha: 'manhã',
+  tarde: 'tarde',
+  noite: 'noite',
+}
+
+/**
+ * Resumo do quadro entendido para o alerta da equipe (prática 10 / #512).
+ * Só campos já gravados; não vai ao modelo. Texto interno (não é copy à cliente).
+ */
+export function understoodBookingFrameDetail(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): string | null {
+  const frame = getBookingFrame(db, tenantId, conversationId)
+  if (!frame?.serviceId) return null
+  const services = listServices(db, tenantId)
+  const svc = services.find((s) => s.id === frame.serviceId)
+  if (!svc) return null
+  const parts: string[] = [`serviço ${svc.name}`]
+  const line = frame.line ?? null
+  if (line === 'feminino') parts.push('feminina')
+  else if (line === 'masculino') parts.push('masculina')
+  if (frame.variantIds?.length) {
+    const names = svc.zones
+      .filter((z) => frame.variantIds!.includes(z.id))
+      .map((z) => z.name.trim())
+      .filter(Boolean)
+    if (names.length > 0) parts.push(`zonas ${names.join(', ')}`)
+  }
+  if (frame.date) parts.push(`dia ${frame.date}`)
+  if (frame.time) parts.push(`hora ${frame.time}`)
+  else if (frame.period) parts.push(`período ${PERIOD_LABEL[frame.period] ?? frame.period}`)
+  return `Quadro entendido: ${parts.join('; ')}.`
+}
+
+function withUnderstoodFrame(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  detail: string,
+): string {
+  const frame = understoodBookingFrameDetail(db, tenantId, conversationId)
+  return frame ? `${detail} ${frame}` : detail
+}
 
 const AI_ASSIGNEE = 'system:ai-autodraft'
 
@@ -355,7 +403,7 @@ export function notifyHumanHandoff(
     input.conversationId,
   )
   if (!open) {
-    const detail = input.silent
+    const baseDetail = input.silent
       ? 'A cliente pediu para parar as mensagens automáticas. Sem resposta automática.'
       : input.reason === 'customer_requested'
         ? 'A cliente pediu atendimento humano.'
@@ -366,6 +414,8 @@ export function notifyHumanHandoff(
             : input.reason === 'media_after_ask'
               ? 'A cliente enviou outra mídia depois do pedido para escrever. A equipe continua.'
               : 'A mensagem saiu do agendamento. A IA ficou pausada.'
+    // Prática 10 / #512: o alerta leva o quadro (serviço, zonas, hora) já entendido.
+    const detail = withUnderstoodFrame(db, tenantId, input.conversationId, baseDetail)
     openPendingCommunication(
       db,
       {

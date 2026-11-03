@@ -52,7 +52,12 @@ import {
 } from './client-copy'
 import { sayAct } from './dialogue-acts'
 import { checkConversationProtection } from './protection'
-import { resolveBookingObject, servicesFromBookingMatch } from './booking-object'
+import {
+  catalogMissHint,
+  catalogServiceList,
+  resolveBookingObject,
+  servicesFromBookingMatch,
+} from './booking-object'
 import {
   audienceLineFromClientTexts,
   citesServiceName,
@@ -1091,7 +1096,10 @@ export async function tryAiAutoBook(
           const fb = 'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?'
           replyText = sayAct('varios_servicos', input.conversationId, {}, fb)
         } else if (booking.handoffReason === 'inexistente') {
-          replyText = serviceNotFoundReply(input.conversationId)
+          replyText = serviceNotFoundReply(input.conversationId, {
+            pedido: catalogMissHint(turnText, services),
+            lista: catalogServiceList(services),
+          })
         } else if (booking.handoffReason === 'historico_indisponivel') {
           const fb = 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
           replyText = sayAct('historico_indisponivel', input.conversationId, {}, fb)

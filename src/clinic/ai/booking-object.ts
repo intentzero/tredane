@@ -84,6 +84,13 @@ const PRICE = /\b(pre[cç]o|custa|valor|quanto)\b/i
 const BOOKING_INTENT =
   /\b(quero|gostaria|marcar|agendar|horario|horário|disponi|vaga|fazer|preciso|pode\s+ser)\b/i
 
+/**
+ * «Vocês fazem botox?» / «Tem peeling?» — pergunta curta de oferta.
+ * Não basta o verbo: perguntas abertas («fazem pacote pra noivas…») seguem ao
+ * extrator/redator (#491); só um termo desconhecido fecha em inexistente (#512).
+ */
+const SERVICE_INQUIRY = /\b(fazem|faz|tem|têm|oferecem|oferece)\b/i
+
 function fold(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
@@ -92,6 +99,82 @@ function significantWords(name: string): string[] {
   return fold(name)
     .split(/[^a-z0-9]+/)
     .filter((w) => w.length >= 3)
+}
+
+/** Palavras de pedido que não casam com nomes do catálogo (prática 10 / #512). */
+const CATALOG_MISS_STOP = new Set([
+  'quero',
+  'gostaria',
+  'fazer',
+  'fazem',
+  'faz',
+  'marcar',
+  'agendar',
+  'horario',
+  'horário',
+  'horarios',
+  'pode',
+  'ser',
+  'algo',
+  'uma',
+  'um',
+  'pra',
+  'para',
+  'esse',
+  'essa',
+  'disponivel',
+  'disponível',
+  'vaga',
+  'preciso',
+  'tarde',
+  'manha',
+  'noite',
+  'hoje',
+  'amanha',
+  'segunda',
+  'terca',
+  'quarta',
+  'quinta',
+  'sexta',
+  'sabado',
+  'domingo',
+  'sim',
+  'confirma',
+  'confirmo',
+  'voces',
+  'voce',
+  'tem',
+  'têm',
+  'oferecem',
+  'oferece',
+  'procedimento',
+  'servico',
+  'serviço',
+])
+
+/**
+ * Eco factual do que a cliente pediu e não está no catálogo.
+ * Null se não há termo útil (não inventa copy).
+ */
+export function catalogMissHint(text: string, services: readonly ServiceRow[]): string | null {
+  const catalogWords = new Set(
+    services.flatMap((s) => [
+      ...significantWords(s.name),
+      ...s.zones.filter((z) => z.active).flatMap((z) => significantWords(z.name)),
+    ]),
+  )
+  const unknown = significantWords(text).filter(
+    (w) => !CATALOG_MISS_STOP.has(w) && w.length >= 5 && !catalogWords.has(w),
+  )
+  if (unknown.length === 0) return null
+  return unknown.join(' ')
+}
+
+/** Nomes de serviço activos para `perguntar_servico` / lista real. */
+export function catalogServiceList(services: readonly ServiceRow[]): string {
+  return [
+    ...new Set(services.filter((s) => s.active !== false).map((s) => s.name.trim()).filter(Boolean)),
+  ].join(', ')
 }
 
 import { durationMinutesFromText } from '../catalog/duration'
@@ -457,71 +540,34 @@ export function resolveBookingObject(input: {
     }
   }
 
-  // Pedido inexistente: intenção de marcar + substantivo que não casa com o catálogo.
+  // Pedido inexistente / esclarecimento: substantivo que não casa com o catálogo.
   if (pool.length === 0) {
-    if (BOOKING_INTENT.test(text) && !wantsPrice) {
-      const stop = new Set([
-        'quero',
-        'gostaria',
-        'fazer',
-        'marcar',
-        'agendar',
-        'horario',
-        'horário',
-        'pode',
-        'ser',
-        'algo',
-        'uma',
-        'um',
-        'pra',
-        'para',
-        'esse',
-        'essa',
-        'disponivel',
-        'disponível',
-        'vaga',
-        'preciso',
-        'tarde',
-        'manha',
-        'noite',
-        'hoje',
-        'amanha',
-        'segunda',
-        'terca',
-        'quarta',
-        'quinta',
-        'sexta',
-        'sabado',
-        'domingo',
-        'sim',
-        'confirma',
-        'confirmo',
-        'horario',
-        'horarios',
-      ])
-      const contentWords = significantWords(text).filter((w) => !stop.has(w) && w.length >= 5)
-      const catalogWords = new Set(
-        services.flatMap((s) => [
-          ...significantWords(s.name),
-          ...s.zones.filter((z) => z.active).flatMap((z) => significantWords(z.name)),
-        ]),
-      )
-      const unknown = contentWords.filter((w) => !catalogWords.has(w))
-      if (unknown.length > 0 && exactServiceHits.length === 0 && scored.length === 0) {
-        return handoff('inexistente')
+    if (!wantsPrice) {
+      const unknown = catalogMissHint(text, services)
+      const booking = BOOKING_INTENT.test(text)
+      const inquiry = SERVICE_INQUIRY.test(text)
+      if (unknown && exactServiceHits.length === 0 && scored.length === 0) {
+        const unknownTokens = unknown.split(/\s+/).filter(Boolean)
+        // Marcar X desconhecido, ou pergunta curta «fazem X?» (um só termo).
+        if (booking || (inquiry && unknownTokens.length === 1)) {
+          return handoff('inexistente')
+        }
       }
-      return {
-        kind: 'clarify',
-        candidates: listBookableOptions(services).filter(
-          (o, i, arr) => arr.findIndex((x) => x.serviceId === o.serviceId) === i,
-        ),
-        missing: ['servico'],
-        question: clarifyingQuestion(services, listBookableOptions(services), ['servico'], cnv),
-        handoffReason: null,
-        source: 'none',
-        correction: detectCorrection(text, input.session ?? null, null),
-        serviceId: input.session?.serviceId ?? null,
-        variantIds: [],
+      // Clarify só com intenção de marcar — inquiry aberta fica para o extrator (#491).
+      if (booking) {
+        return {
+          kind: 'clarify',
+          candidates: listBookableOptions(services).filter(
+            (o, i, arr) => arr.findIndex((x) => x.serviceId === o.serviceId) === i,
+          ),
+          missing: ['servico'],
+          question: clarifyingQuestion(services, listBookableOptions(services), ['servico'], cnv),
+          handoffReason: null,
+          source: 'none',
+          correction: detectCorrection(text, input.session ?? null, null),
+          serviceId: input.session?.serviceId ?? null,
+          variantIds: [],
+        }
       }
     }
     return noneResult()

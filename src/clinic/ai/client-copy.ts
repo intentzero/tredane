@@ -46,8 +46,37 @@ export function mixedAudienceReply(conversationId = ''): string {
 export const SERVICE_NOT_FOUND_REPLY =
   'Não encontrei esse procedimento por aqui. Quer ver as opções que temos?'
 
-export function serviceNotFoundReply(conversationId = ''): string {
-  return sayAct('servico_inexistente', conversationId, {}, SERVICE_NOT_FOUND_REPLY)
+/**
+ * Sem match no catálogo (prática 10 / #512).
+ * Usa actos aprovados `servico_inexistente` + `perguntar_servico`.
+ * O `{pedido}` não é copy nova: só substitui o dêitico («esse procedimento» /
+ * «Esse serviço») pelo termo que a cliente escreveu, entre aspas.
+ */
+export function serviceNotFoundReply(
+  conversationId = '',
+  opts?: { pedido?: string | null; lista?: string | null },
+): string {
+  let text = sayAct('servico_inexistente', conversationId, {}, SERVICE_NOT_FOUND_REPLY)
+  const pedido = opts?.pedido?.trim()
+  if (pedido) {
+    // Eco factual do pedido — clarifica o dêitico; sem frase de marketing nova (DEC-104).
+    text = text
+      .replace(/\besse procedimento\b/gi, `«${pedido}»`)
+      .replace(/\bEsse serviço\b/, `«${pedido}»`)
+  }
+  const lista = opts?.lista?.trim()
+  if (lista) {
+    // Exige redação com `{lista}` — a 3.ª variante não lista as opções reais.
+    const ask = sayAct(
+      'perguntar_servico',
+      conversationId,
+      { lista },
+      `Qual serviço você quer? Temos ${lista}.`,
+      { requireInTemplate: ['{lista}'] },
+    )
+    text = `${text}\n${ask}`
+  }
+  return text
 }
 
 /** Fallback / 1.ª redação — `catalogo_mudou`. */

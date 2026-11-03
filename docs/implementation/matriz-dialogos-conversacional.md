@@ -112,7 +112,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | D-01 | P0 | Horário ocupado | C: «Limpeza sexta 16h» | «Nesse horário já não tenho vaga» + alternativas **próximas** e na tarde (15:00, 14:00). | INV-03, EE-01 | 1 | ❌ CF-15 (L1 confirma: oferece 09:00/09:15/09:30 em vez de 14:00/15:00) |
 | D-02 | P1 | Dia sem vagas | [sexta lotada] ⟶ C: «Limpeza sexta» | Diz que está lotado e oferece o próximo dia com vaga. | EE-07 | 1 | ⚠ CF-15 |
-| D-03 | P0 | Serviço inexistente | C: «Vocês fazem botox?» | Diz que não está no catálogo e mostra opções ou oferece listar. Nunca inventa. | INV-02, EF-01 | 1 | ✅ `catalog-reply.test` «handoff determinístico… inexistente» |
+| D-03 | P0 | Serviço inexistente | C: «Vocês fazem botox?» | Diz o que faltou e mostra as opções reais; sem link Google. Nunca inventa. | INV-02, EF-01 | 1 | ✅ L1 `dialogs` D-03 + `catalog-reply.test` (#512, prática 10) |
 | D-04 | P0 | Mistura masculino e feminino | C: «Depilação axila masculina e pernas femininas sexta 10h» | Recusa clara, sem jargão («ambos», «linha»). Nenhum preço nem proposta. | INV-05, EF-01 | 1 | ✅ L1 `dialogs` D-04 (CF-25 corrigido com o CF-24, #437) |
 | D-05 | P1 | Profissional que não faz o serviço | C: «Quero massagem com a Ana» | Frase de handoff (pedido de profissional específica). | INV-06 | 1 | ◐ `professionalOutsideService` |
 | D-06 | P1 | Profissional que faz | C: «Limpeza com a Bia sexta 10h» | Proposta com Bia, ou aviso se Bia não está livre. | EF-02 | 1 | ⚠ CF-20 (preferência ignorada) |
