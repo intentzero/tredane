@@ -1,6 +1,6 @@
 import type { Clock } from '../../db/clock'
 import { attachSuggestionToOutboundOp } from '../ai/operations'
-import { getBookingFrame, getScheduleSession } from '../ai/schedule-session'
+import { clearBookingFrame, getBookingFrame, getScheduleSession } from '../ai/schedule-session'
 import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller } from '../envelopes'
@@ -786,23 +786,29 @@ export function closeConversationOp(
       },
       clock,
     )
-    const outbox = insertOutboxEvent(
-      db,
-      {
-        tenantId: meta.tenantId,
-        type: 'conversation.closed',
-        aggregateType: 'conversation',
-        aggregateId: input.conversationId,
-        idempotencyKey: `conversation.closed:${input.conversationId}:${now}`,
-        payload: {
-          conversationId: input.conversationId,
-          systemMessageId: systemMessage.id,
+    const outbox: OutboxRow[] = []
+    // CF-28 / #508: encerrar no painel limpa o BookingFrame (não salta passos ao reabrir).
+    const frameOb = clearBookingFrame(db, meta.tenantId, input.conversationId, clock)
+    if (frameOb) outbox.push(frameOb)
+    outbox.push(
+      insertOutboxEvent(
+        db,
+        {
+          tenantId: meta.tenantId,
+          type: 'conversation.closed',
+          aggregateType: 'conversation',
+          aggregateId: input.conversationId,
+          idempotencyKey: `conversation.closed:${input.conversationId}:${now}`,
+          payload: {
+            conversationId: input.conversationId,
+            systemMessageId: systemMessage.id,
+          },
         },
-      },
-      clock,
+        clock,
+      ),
     )
     const item = getConversationWithContact(db, meta.tenantId, input.conversationId)!
-    return { value: { conversation: item, systemMessage }, outbox: [outbox] }
+    return { value: { conversation: item, systemMessage }, outbox }
   })
 }
 

@@ -58,7 +58,7 @@
 | A-10 | P1 | «meio-dia» no vão do almoço | C: «Limpeza de pele sexta ao meio-dia» | Reconhece 12:00, diz que não há vaga e oferece 11:00 e 13:00. | INV-03 | 1 | ❌ CF-09 |
 | A-11 | P1 | Outro serviço depois de Agendado | [A-01 confirmado] ⟶ clique «Quero outro serviço» ⟶ C: «massagem sábado 10h» | Funil novo, sem herdar o anterior → proposta Massagem sáb 10:00. | INV-08 | 1 | ✅ `autobook.test` «após limpar a sessão (DEC-086)» |
 | A-12 | P1 | Sem preferência de dia | C: «Quero massagem, qualquer dia de tarde» | Oferta de 2–3 horários da tarde em dias próximos. | INV-03, EE-07 | 1 | ❔ L2 |
-| A-13 | P0 | Sessão antiga / recomeçar | [frame com Depilação + Feminina + zonas] ⟶ C: «começar de novo» | Frame limpo; pergunta o serviço; sem saltar para horários. | INV-08, EE-02 | 1 | ◐ L1 verde por efeito de [#509](https://github.com/intentzero/tredane/issues/509) (sobra «comecar» → pergunta opções; sem HH:MM); limpeza real do frame fica em [#508](https://github.com/intentzero/tredane/issues/508) / [#524](https://github.com/intentzero/tredane/pull/524) |
+| A-13 | P0 | Sessão antiga / recomeçar | [frame com Depilação + Feminina + zonas] ⟶ C: «começar de novo» | Frame limpo; pergunta o serviço; sem saltar para horários. | INV-08, EE-02 | 1 | ✅ CF-28 fechado (#508) · L1 `dialogs` A-13 |
 | A-14 | P0 | Sinónimo «depilar» | C: «Quero depilar» | Trata como Depilação (pergunta a linha); sem «não encontrei». | EF-01 | 1 | ✅ CF-29 fechado (#509) · L1 `dialogs` A-14 |
 | A-15 | P0 | Homónimo Axila com Feminina | [Feminina] ⟶ C: «Axila e pernas» | Sem recusa de mistura; eco ou zonas da linha feminina. | INV-08, DEC-079 | 1 | ✅ CF-30 fechado (#502) · L1 `dialogs` A-15 |
 | A-16 | P0 | Nenhuma zona cai em silêncio | [Feminina] ⟶ C: «Axilas e pernas» | Eco «Entendi: Axila e Pernas. Certo?»; as duas zonas. | EF-02, DEC-137 | 1 | ✅ L1 `dialogs` A-16 (eco); propriedade N→N−1 fica em [#509](https://github.com/intentzero/tredane/issues/509) |
@@ -448,8 +448,8 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | Estado | Contagem / notas |
 | --- | --- |
 | Casos novos | **A-13..A-19** (7) — CF-28..CF-34 |
-| L1 | **90** casos · **78** passam · **1** `it.fails` (A-18 CF-33) · 2 pendentes · 9 coverageOnly · 0 inesperadas; A-14/A-15/A-16/A-17/A-19 **verdes** (#509 / #502 / DEC-137 / #505 / #512); A-13 L1 verde por efeito de #509 (limpeza real do frame → #508/#524) |
-| Correções | [#509](https://github.com/intentzero/tredane/issues/509) A-14 (+ efeito L1 A-13) / A-16 · [#512](https://github.com/intentzero/tredane/issues/512) A-19 · [#507](https://github.com/intentzero/tredane/issues/507) A-17 · [#511](https://github.com/intentzero/tredane/issues/511) A-18 · limpeza de frame [#508](https://github.com/intentzero/tredane/issues/508) · quadro único [#510](https://github.com/intentzero/tredane/issues/510) (sem caso novo dedicado) |
+| L1 | **90** casos · **78** passam · **1** `it.fails` (A-18 CF-33) · 2 pendentes · 9 coverageOnly · 0 inesperadas; A-13/A-14/A-15/A-16/A-17/A-19 **verdes** (#508 / #509 / #502 / DEC-137 / #505 / #512) |
+| Correções | [#508](https://github.com/intentzero/tredane/issues/508) A-13 **fechado** · [#509](https://github.com/intentzero/tredane/issues/509) A-14 **fechado** / A-16 · [#512](https://github.com/intentzero/tredane/issues/512) A-19 **fechado** · [#507](https://github.com/intentzero/tredane/issues/507) A-17 · [#511](https://github.com/intentzero/tredane/issues/511) A-18 · quadro único [#510](https://github.com/intentzero/tredane/issues/510) (sem caso novo dedicado) |
 | Estrago | ES-01..04 no relatório `test:dialogs` (`damage.ts`); contrato partilhável com L2/L3 (#417) |
 
 ### Resumo após It. 6 (02/11/2026)

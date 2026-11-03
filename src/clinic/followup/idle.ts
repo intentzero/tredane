@@ -3,6 +3,7 @@
  * Mensagens system não reiniciam o relógio; humano activo (Assumir) isenta o prompt.
  */
 import type { Clock } from '../../db/clock'
+import { clearBookingFrame } from '../ai/schedule-session'
 import { writeOperationalAudit } from '../audit'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller, workerCaller } from '../envelopes'
@@ -314,6 +315,9 @@ function settleIdle(
     )
     outbox.push(...thanks.outbox)
   }
+  // CF-28 / #508: fim por inatividade (DEC-087) limpa o BookingFrame.
+  const frameOb = clearBookingFrame(db, tenantId, conversationId, clock)
+  if (frameOb) outbox.push(frameOb)
   clearConversationIdle(db, tenantId, conversationId, clock.nowMs())
   return { closedOpportunityId, outbox }
 }

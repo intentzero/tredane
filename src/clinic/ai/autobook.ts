@@ -83,6 +83,7 @@ import {
   zonesForAudienceLine,
 } from './variant-line'
 import { extractDates, extractTimes, norm } from './nlu/temporal'
+import { classifySensitive, hasRestartRequest } from './nlu/sensitive'
 import { logPolicyShadow } from './policy-shadow'
 import {
   occupiedSlotAlternativesReply,
@@ -639,6 +640,35 @@ export async function tryAiAutoBook(
     },
     clock,
   )
+
+  // CF-28 / #508 / DEC-138 prática 5: «começar de novo» / «outra coisa» limpa o quadro
+  // e retira a proposta ativa sem confirmar (DEC-061). Resposta = perguntar_servico (leva 2).
+  if (hasRestartRequest(classifySensitive(turnText))) {
+    deferred.clearSession()
+    retireActiveProposal(db, tenantId, input.conversationId, clock)
+    const names = services.map((s) => s.name.trim()).filter((n) => n.length > 0)
+    const lista = names.join(', ')
+    const replyText =
+      names.length >= 2
+        ? sayAct(
+            'perguntar_servico',
+            input.conversationId,
+            { lista },
+            `Qual serviço você quer? Temos ${lista}.`,
+          )
+        : sayAct(
+            'perguntar_servico',
+            input.conversationId,
+            {},
+            'Qual serviço você gostaria de agendar?',
+          )
+    return finish({
+      ...none('needs_info', { confirmationMessageId: confirmation.id }),
+      replyText,
+      notes: 'CF-28 / #508: recomeçar limpa BookingFrame e retira proposta activa.',
+    })
+  }
+
   // ADR-0015 / DEC-127: ler primeiro contra pending.options (cutover fechado — #472).
   const frameEarly = getBookingFrame(db, tenantId, input.conversationId)
   let zoneEcho = input.zoneEcho

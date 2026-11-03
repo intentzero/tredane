@@ -31,6 +31,7 @@ export type TurnAct =
   | 'ofensa'
   | 'injecao'
   | 'cumprimento'
+  | 'recomecar'
   | 'desconhecido'
 
 export type FieldSource = 'regra' | 'botao' | 'llm'
@@ -183,6 +184,7 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
     else if (hit.label === 'injecao') acts.push('injecao')
     else if (hit.label === 'cancelar') acts.push('cancelar')
     else if (hit.label === 'remarcar') acts.push('remarcar')
+    else if (hit.label === 'recomecar') acts.push('recomecar')
     markTokens(text)
   }
 
