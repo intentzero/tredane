@@ -213,4 +213,43 @@ describe('#404 fallback DEC-107 (K-01, CF-14)', () => {
       s.close()
     }
   })
+
+  it('#489 falha só do redator de exceção → uma mensagem DEC-107 + alerta, IA activa', async () => {
+    class ExceptionOnlyFail extends SimulatedAiAdapter {
+      override async generate(input: AiGenerateInput): Promise<AiGenerateResult> {
+        if (input.profile === 'exception') {
+          return {
+            ok: false,
+            code: 'provider_error',
+            message: 'synthetic exception redactor fail',
+            retryable: true,
+            latencyMs: 5,
+            provider: this.providerId,
+            model: 'test',
+          }
+        }
+        return super.generate(input)
+      }
+    }
+    const { s } = await runWith(
+      new ExceptionOnlyFail(),
+      'Oi, tudo bem? Queria saber mais sobre a clínica e a política de cancelamento',
+    )
+    try {
+      const outbound = s.db.all<{ body: string }>(
+        `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' ORDER BY created_at`,
+        s.cnv.id,
+      )
+      expect(outbound).toHaveLength(1)
+      expect(outbound[0]?.body).toBe(MODEL_FALLBACK_TEXT)
+      expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      const pending = listOpenPendingCommunicationsForConversation(s.db, s.tenantId, s.cnv.id)
+      expect(pending.some((p) => p.kind === 'alter_awaiting_team')).toBe(true)
+      const list = listConversations(s.db, s.tenantId, { limit: 10 })
+      const row = list.items.find((c) => c.id === s.cnv.id)
+      expect(row?.needsPerson).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
 })
