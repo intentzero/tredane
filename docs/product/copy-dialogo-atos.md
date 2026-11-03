@@ -249,9 +249,9 @@ Estas frases literais continuam no código e **não** estão nesta leva:
 
 O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a leva 3, o processo é o mesmo: o PR traz a secção «Copy para aprovação do Paulo»; a aprovação fica registada numa DEC nova; só depois a engenharia liga as redações aos fluxos (#448).
 
-## Rótulos fixos do M5 (listas e botões) — Confirmado (rótulos) · Em aberto (corte)
+## Rótulos fixos do M5 (listas e botões) — Confirmado
 
-**Estado:** os cinco rótulos fixos estão **Confirmados** (Paulo, 03/11/2026, DEC-134). Entraram no código com o #479 (M5) e a flag `AI_INTERACTIVE_CHOICES` continua desligada por defeito (DEC-133), por isso **nenhum chega à cliente** ainda. O corte em 24 caracteres continua **Em aberto**. O texto da pergunta que acompanha a lista ou os botões é o das levas 1 e 2 (já aprovado); só mudam os rótulos abaixo.
+**Estado:** os cinco rótulos fixos estão **Confirmados** (Paulo, 03/11/2026, DEC-134). Entraram no código com o #479 (M5). A DEC-133 (revisão 03/11/2026) liga as escolhas interativas de forma permanente — sem flag de ambiente — por isso Feminina, Masculina, Opções, Todas e Horários chegam à cliente no funil. O corte em 24 caracteres no título da linha está **Confirmado** (opção A: truncar; nome completo na descrição quando disponível). O texto da pergunta que acompanha a lista ou os botões é o das levas 1 e 2 (já aprovado); só mudam os rótulos abaixo.
 
 | Onde | Rótulo proposto | Limite Meta (a confirmar na documentação vigente) | Observação |
 | --- | --- | --- | --- |
@@ -263,5 +263,5 @@ O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a lev
 | Lista de horários: título de cada linha | dinâmico, `06/11 09:00` | linha ≤ 24 | vem dos horários reais do grafo |
 | Lista de variantes: título de cada linha | dinâmico, o nome da variante | linha ≤ 24 | cortado em 24 caracteres; um nome longo pode perder o fim |
 
-**Em aberto:** o corte em 24 caracteres pode truncar nomes longos de variante («Axila e pernas (feminina)» tem 25). Opções: aceitar o corte, ou mostrar o nome inteiro na descrição da linha. Responsável: Paulo. Bloqueia a ativação da flag.
+**Confirmado (corte, Paulo 03/11/2026, opção A / DEC-134):** aceitar o truncamento Meta em 24 caracteres no título da linha; nome completo na descrição quando disponível.
 
