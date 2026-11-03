@@ -251,11 +251,11 @@ Estas frases literais continuam no código e **não** estão nesta leva:
 
 O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a leva 3, o processo é o mesmo: o PR traz a secção «Copy para aprovação do Paulo»; a aprovação fica registada numa DEC nova; só depois a engenharia liga as redações aos fluxos (#448).
 
-## Copy #511 (validade visível / Confirmar expirado) — Proposto
+## Copy #511 (validade visível / Confirmar expirado) — Confirmado
 
-**Estado:** **Proposto** (DEC-104). Frases novas à cliente no PR da [#511](https://github.com/intentzero/tredane/issues/511); aguardam ok do Paulo. Relógio da clínica; sem fuso IANA.
+**Estado:** **Confirmado** (Paulo, DEC-104, 03/11/2026, ok no [#523](https://github.com/intentzero/tredane/pull/523)). Relógio da clínica; sem fuso IANA.
 
-| Onde | Texto proposto |
+| Onde | Texto confirmado |
 | --- | --- |
 | Rodapé da lista Horários (DEC-127.1 = 24 h) | `Esta lista vale por 24 horas.` (sem HH:MM — evita INV-03 / B-13) |
 | Cartão da proposta (30 min após o envio) | `Válida até {hora}.` |
@@ -264,7 +264,7 @@ O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a lev
 | Horário já ocupado no Confirmar, com alternativas | `Horário já não está livre para {serviço} em {quando}. Tenho {lista}. Qual fica melhor?` |
 | Horário já ocupado no Confirmar, sem alternativas | `Horário já não está livre para {serviço} em {quando}. Quer que eu veja outro horário?` |
 
-`{lista}` no formato da oferta (`sexta 06/11 às 14:00, 16:00`). `{dia}` = `sexta 06/11`. `{hora}` = `HH:MM` no relógio da clínica.
+`{lista}` no formato da oferta (`sexta 06/11 às 14:00, 16:00`). `{hora}` = `HH:MM` no relógio da clínica.
 
 ## Rótulos fixos do M5 (listas e botões) — Confirmado
 
