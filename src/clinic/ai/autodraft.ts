@@ -58,7 +58,7 @@ import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './sug
 import type { AiAssistDeps, AiSuggestionRow } from './types'
 import { emitTurnDecided, routeFromAutodraftOutcome } from './turn-decided'
 import { loadTurnContext } from './turn-context'
-import { getAiDailyUsage } from './usage'
+import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
 import { runRestrictedExtractor } from './llm-extractor'
 import { generateExceptionReply } from './exception-reply'
@@ -265,19 +265,23 @@ export async function runDueAutoDrafts(
       outcome: AutoDraftOutcome,
       extra: {
         modelCalled?: boolean
+        modelCalls?: number
         textDiscarded?: boolean
         fallbackSent?: boolean
         decisionMs?: number
         sendMs?: number
       } = {},
     ): void => {
+      const modelCalls =
+        extra.modelCalls ??
+        (extra.modelCalled || outcome.suggestion ? 1 : 0)
       const route = routeFromAutodraftOutcome({
         status: outcome.status,
         reason: outcome.reason,
         proposalId: outcome.autoBook?.proposalId ?? null,
         deterministicReply: Boolean(outcome.autoBook?.replyText?.trim()),
         fallbackSent: extra.fallbackSent,
-        modelCalled: extra.modelCalled,
+        modelCalled: modelCalls > 0 || extra.modelCalled,
         textDiscarded: extra.textDiscarded,
       })
       emitTurnDecided(
@@ -289,7 +293,8 @@ export async function runDueAutoDrafts(
           route,
           slotsFilled: [],
           slotsMissing: [],
-          modelCalled: Boolean(extra.modelCalled ?? outcome.suggestion),
+          modelCalled: modelCalls > 0 || Boolean(extra.modelCalled ?? outcome.suggestion),
+          modelCalls,
           textDiscarded: Boolean(
             extra.textDiscarded ??
               (outcome.suggestion?.status === 'failed' &&
@@ -686,6 +691,10 @@ export async function runDueAutoDrafts(
       continue
     }
     // S7 (#178): quota por contato (só automações; a equipe continua a poder pedir sugestão).
+    // #491: o extrator NÃO entra em autoDraftsPerContact — essa quota conta rascunhos
+    // (`ai_suggestions` origin=auto), não chamadas internas de NLU. O custo do extrator
+    // entra no teto diário da clínica (`ai_daily_usage`). Quando o turno gera sugestão
+    // (determinística ou redator), a quota S7 continua a aplicar-se via a sugestão.
     const contactId = contactIdForConversation(db, tenantId, job.conversationId)
     if (deps.abuseLimits?.enabled && contactId) {
       const decision = checkAutomationQuota(db, deps.abuseLimits, { tenantId, contactId, effect: 'auto_draft' }, clock)
@@ -710,12 +719,18 @@ export async function runDueAutoDrafts(
     let suggestion: AiSuggestionRow | null = null
     let autoBook: AutoBookOutcome | undefined
     let modelCalled = false
+    let modelCalls = 0
     let generateError: string | null = null
     let liveTurn = turn
 
     try {
       const extracted = await runRestrictedExtractor(db, tenantId, liveTurn, clock, deps)
-      if (extracted.modelCalled) modelCalled = true
+      if (extracted.modelCalled) {
+        modelCalled = true
+        modelCalls += 1
+        // #491: extrator consome o teto diário (sem corpo de mensagem no registo).
+        recordModelCallTowardDailyCap(db, tenantId, clock)
+      }
       if (extracted.applied) {
         liveTurn = loadTurnContext(
           db,
@@ -798,6 +813,11 @@ export async function runDueAutoDrafts(
           turn: liveTurn,
         })
         modelCalled = true
+        if (exception.modelCalled) {
+          modelCalls += 1
+          // #491: redator de exceção também conta no teto (extrator + redator).
+          recordModelCallTowardDailyCap(db, tenantId, clock)
+        }
         if (exception.ok && exception.text.trim()) {
           suggestion = insertSuggestion(db, {
             tenantId,
@@ -1080,6 +1100,7 @@ export async function runDueAutoDrafts(
       },
       {
         modelCalled,
+        modelCalls,
         textDiscarded,
         fallbackSent,
         decisionMs: Math.max(0, clock.nowMs() - jobStarted),

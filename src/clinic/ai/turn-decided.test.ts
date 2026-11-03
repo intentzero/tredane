@@ -29,6 +29,7 @@ function samplePayload(over: Partial<TurnDecidedPayload> = {}): TurnDecidedPaylo
     slotsFilled: ['service'],
     slotsMissing: ['time'],
     modelCalled: true,
+    modelCalls: 1,
     textDiscarded: true,
     model: 'claude-haiku-5-5',
     latencyMs: { debounce: 7000, model: 12, decision: 20, send: 5 },

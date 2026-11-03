@@ -1,6 +1,14 @@
-/** Limite diário de rascunhos por clínica (aprovado: 300/dia, aviso ao responsável). */
+/**
+ * Limite diário de chamadas ao modelo por clínica (aprovado: 300/dia, aviso ao responsável).
+ *
+ * A coluna `drafts` conta **unidades de chamada ao modelo** que consomem o teto do produto:
+ * rascunho do painel (`suggestReplyOp`), extrator restrito e redator de exceção no autodraft.
+ * Não conta tokens; não inclui turnos só determinísticos (sem LLM).
+ * #491 / EE-06: extrator e redator no mesmo turno incrementam uma vez cada.
+ */
 import { AI_DAILY_DRAFT_CAP } from '../../ai'
 import type { Clock } from '../../db/clock'
+import { writeOperationalAudit } from '../audit'
 import { ensureClinicSettings } from '../config/settings'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
@@ -35,7 +43,7 @@ export function getAiDailyUsage(db: ClinicDb, tenantId: string, clock: Clock): A
   }
 }
 
-/** Conta um rascunho. `justReached` na primeira vez que bate o limite no dia. */
+/** Conta uma chamada ao modelo. `justReached` na primeira vez que bate o limite no dia. */
 export function incrementAiDailyUsage(
   db: ClinicDb,
   tenantId: string,
@@ -60,4 +68,39 @@ export function incrementAiDailyUsage(
     justReached = true
   }
   return { drafts: u.drafts, justReached }
+}
+
+/**
+ * Regista uma chamada ao modelo no teto diário (sem corpo de mensagem).
+ * Emite auditoria operacional na primeira vez que o dia atinge o teto.
+ */
+export function recordModelCallTowardDailyCap(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+): { drafts: number; justReached: boolean } {
+  const usage = incrementAiDailyUsage(db, tenantId, clock)
+  if (usage.justReached) {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'ai.daily_cap_reached',
+        tenantId,
+        drafts: usage.drafts,
+      }),
+    )
+    writeOperationalAudit(
+      db,
+      {
+        tenantId,
+        actor: 'system',
+        action: 'ai.daily_cap_reached',
+        objectType: 'clinic_settings',
+        objectId: '1',
+        detail: { drafts: usage.drafts },
+      },
+      clock,
+    )
+  }
+  return usage
 }

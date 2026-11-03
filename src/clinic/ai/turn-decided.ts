@@ -25,6 +25,11 @@ export type TurnDecidedPayload = {
   slotsFilled: string[]
   slotsMissing: string[]
   modelCalled: boolean
+  /**
+   * EE-06 / #491: número de chamadas ao LLM neste turno (extrator + redator).
+   * `modelCalled` continua true quando `modelCalls > 0`.
+   */
+  modelCalls: number
   textDiscarded: boolean
   model: string | null
   latencyMs: {
