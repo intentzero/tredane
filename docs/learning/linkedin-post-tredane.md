@@ -1,69 +1,41 @@
-# Rascunho LinkedIn — lições Tredane (conversa → domínio)
+# LinkedIn — Construir um chatbot: o trabalho que começa depois da integração
 
-**Estado:** rascunho (**Proposto** para publicação). Conteúdo alinhado a decisões **Confirmadas** do produto onde indicado nas notas.  
-**Não inventa** métricas nem usa dados reais de clínicas ou clientes.  
-**Tom:** português do produto (claro, directo; misturar PT-BR/PT-PT como no copy já aprovado à cliente).  
-**Foco:** lições transferíveis — canal → domínio, id vs rótulo, fronteira de confirmação, IA assistiva.  
-**Material-fonte:** não é especificação; ver [README.md](README.md) e [`docs/MVP.md`](../MVP.md).
+Construir chatbots não é tarefa fácil. Não basta ligar um LLM à API do WhatsApp e a uma agenda.
 
----
+Estamos a desenvolver a [Tredane](https://tredane.com), uma plataforma que reúne atendimento pelo WhatsApp, gestão de agendamentos e apoio de IA para clínicas de estética.
 
-## Versão completa (~1650 caracteres úteis)
+Num dos testes, uma pessoa fez um pedido com várias opções. O sistema avançou para horários considerando apenas parte da escolha.
 
-Construir atendimento no WhatsApp ensinou-nos uma coisa incómoda: o canal dita o modelo de domínio.
+A conversa continuava. Parte do pedido tinha desaparecido.
 
-No WhatsApp, uma lista costuma ser um toque só. Uma combinação («duas zonas no mesmo horário») não cabe nesse gesto. Se o bot avançar com metade do que a pessoa pediu, ela acredita no pedido completo — e o sistema marca uma parte. O defeito não é «falta de empatia». É um quadro incompleto a passar por completo.
+Para quem está do outro lado, receber horários sugere que o pedido foi considerado na íntegra. Essa diferença entre a intenção da pessoa e o estado do sistema pode transformar-se numa marcação errada.
 
-Trabalhámos nisto num SaaS multi-tenant para clínicas de estética: mensagem → proposta → confirmação na agenda própria, com núcleo determinístico e IA só onde o código não chega.
+A experiência tem reforçado algumas práticas:
 
-Quatro lições transferíveis:
+- **Arquitetura híbrida:** interpretação da linguagem com apoio de LLM, estado estruturado para preservar o pedido e regras de negócio para validar as ações.
+- **Modelação do domínio:** representar as relações entre serviços, opções, recursos e horários para apresentar escolhas válidas.
+- **Confirmação explícita:** compreender uma mensagem e autorizar uma marcação são passos distintos.
+- **Segurança:** proteger os dados e respeitar as permissões em todas as partes do sistema.
+- **Testes automatizados:** transformar falhas observadas em cenários de regressão que verifiquem o pedido, o estado e o resultado.
 
-1. **O canal molda o domínio.** Single-select exige um «quadro» partilhado (serviço, opções, horário) e um caminho estruturado para o preencher. Não se remenda só com mais frases.
+Grafos de domínio são uma forma possível de representar essas relações. O princípio é dar ao sistema uma estrutura verificável sobre o que pode acontecer.
 
-2. **Id, nunca o rótulo.** O que a pessoa vê («terça 03/11 17:00») é copy. O sistema grava um identificador estável. Relêr o título como verdade perde o dia e parte a confirmação.
+Também precisamos de evitar **labirintos de IA**: perguntas repetidas, ciclos sem saída e conversas em que o utilizador tem de descobrir como fazer o sistema compreendê-lo.
 
-3. **Fronteira explícita de efeito.** Interpretar não é marcar. Só um botão numa proposta versionada pelo backend cria o compromisso. «Sim» escrito prepara; não grava.
+A pessoa precisa de conseguir corrigir uma escolha, recomeçar e chegar a alguém com o contexto já recolhido.
 
-4. **IA assistiva, núcleo determinístico.** A linguagem ajuda a ler o pedido. Regra, catálogo e agenda decidem o que sai e o que marca. Medimos se o resultado bateu no pedido — não se a frase «soou bem».
+Nos testes, interessa verificar se todas as escolhas foram preservadas, se uma correção funciona e se uma confirmação expirada é recusada. A linguagem pode variar; as regras que protegem o utilizador precisam de se manter.
 
-Vamos reforçar o caminho estruturado (formulário no WhatsApp, alimentado pela agenda). O chat fica como atalho e rede de segurança. A regra do quadro e da confirmação permanece.
+Construir um chatbot envolve decidir como interpretar, quando perguntar e em que condições agir. A experiência precisa de dar à pessoa clareza e controlo durante todo esse percurso.
 
-Se ligas mensagens a efeitos reais (marcar, cobrar, reservar): desenha primeiro o quadro e a fronteira. O tom vem depois.
-
----
-
-## Versão curta (~520 caracteres)
-
-No WhatsApp, o canal dita o domínio: lista = um toque; combinações pedem um quadro partilhado. Se o bot avançar com metade do pedido, a pessoa acredita no completo — e o estrago é de dados, não de tom.
-
-Lições: (1) estrutura para colher, chat para confirmar; (2) gravar id, não o rótulo do ecrã; (3) só um gesto explícito cria o efeito (marcar); (4) IA a ajudar a ler, regras a decidir.
-
-Estamos a aplicar isto no Tredane (clínicas, WhatsApp, agenda). Vale para qualquer produto em que uma mensagem dispare um compromisso real.
+Que situações vos fizeram repensar a experiência de um chatbot?
 
 ---
 
-## Títulos alternativos
+## Notas editoriais — não incluir na publicação
 
-1. O canal de mensagens dita o teu modelo de domínio  
-2. «Sim» não deve marcar: fronteiras numa conversa com efeitos reais  
-3. Id ≠ rótulo — a lição mais cara de uma lista no WhatsApp  
-
----
-
-## Hashtags sugeridas (usar com parcimónia; 3–5 no fim do post)
-
-`#ProductArchitecture` `#ConversationalAI` `#WhatsAppBusiness` `#SaaS` `#HumanInTheLoop`
-
-Opcionais (PT): `#ArquiteturaDeSoftware` `#ProdutoDigital`
-
-Evitar hashtags vazias (#Inovação, #FuturoDoTrabalho) e qualquer menção a clínicas, pacientes ou volumes reais.
-
----
-
-## Notas de publicação (para o Paulo)
-
-- **Confirmado no produto, seguro de dizer em público:** fronteira botão vs texto (DEC-061); núcleo + IA assistiva (DEC-104); quadro único (ADR-0015); caminho Flow como intenção de produto (DEC-138) — sem prometer data de lançamento.
-- **Não publicar:** nomes de clínicas, WABA, métricas de conversão, detalhes de cifra Meta, estado de deploy.
-- **Em aberto:** se quiseres citar «Flow» pelo nome Meta no post, ou ficar só em «formulário no WhatsApp».
-
-Base detalhada: [licoes-arquitectura-tredane.md](licoes-arquitectura-tredane.md).
+- **Confirmado (editorial):** texto aprovado pelo Paulo nesta conversa em 03/11/2026 para atualização do PR #525. Esta atualização não constitui publicação.
+- **Confirmado (fontes de produto):** apresentação conforme [MVP](../MVP.md); confirmação conforme DEC-061; núcleo determinístico e LLM assistivo conforme DEC-104; estado partilhado conforme [ADR-0015](../adr/0015-estado-persistente-da-conversa.md); segurança em camadas conforme [ADR-0012](../adr/0012-clinic-durable-object-sqlite.md).
+- **Confirmado (material-fonte):** exemplos generalizados da sonda em ambiente de teste e práticas de regressão descritos em [lições de arquitetura](licoes-arquitectura-tredane.md), incluindo #506–#512. Sem detalhes de procedimentos, dados pessoais ou métricas comerciais.
+- **Proposto / Em aberto:** Flow é caminho previsto; o desenho detalhado e a implementação seguem [ADR-0016](../adr/0016-whatsapp-flow-agendamento.md) e #514. Grafos de domínio são apresentados como abordagem possível, sem afirmar implementação explícita na Tredane.
+- **Proposto (prática geral):** extensão das verificações a ciclos de conversa e handoff; o artigo não declara cobertura completa nem certificação de segurança. Decisões e propostas continuam subordinadas ao MVP, às DECs e aos ADRs.
