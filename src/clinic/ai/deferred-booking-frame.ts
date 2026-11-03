@@ -20,6 +20,7 @@ import {
   type ScheduleSession,
   type ScheduleSessionPatch,
 } from './schedule-session'
+import { slotListRowCopy } from './slot-offer'
 
 /** Placeholder substituído pelo id real da mensagem outbound no afterPersist. */
 export const OUTBOUND_MESSAGE_ID_PLACEHOLDER = '__outbound__'
@@ -260,9 +261,9 @@ export function offerFramePatch(input: {
   date?: string
 }): ScheduleSessionPatch {
   const options = input.slots.map((s) => ({
-    // A chave vai no id da lista: o toque liga o slot sem reler o título.
+    // Chave civil no id; rótulo = forma única à cliente (DEC-138 / #507).
     key: `${s.date}T${s.time}`,
-    label: `${s.date} às ${s.time}`,
+    label: slotListRowCopy(s.date, s.time).title,
   }))
   const pending: BookingFramePending = {
     slot: 'horario',

@@ -209,6 +209,45 @@ describe('DEC-127 matchPendingChoice', () => {
     })
   })
 
+  it('#507: «o das 14» e «a terça» funcionam com chave civil YYYY-MM-DDTHH:MM', () => {
+    const civil = {
+      slot: 'horario',
+      messageId: 'm1',
+      options: [
+        { key: '2026-11-03T14:00', label: 'terça 03/11 14:00' },
+        { key: '2026-11-03T15:30', label: 'terça 03/11 15:30' },
+        { key: '2026-11-04T14:00', label: 'quarta 04/11 14:00' },
+      ],
+    }
+    expect(matchPendingChoice('15:30', civil)).toEqual({
+      kind: 'match',
+      key: '2026-11-03T15:30',
+      label: 'terça 03/11 15:30',
+    })
+    expect(matchPendingChoice('o das 14', civil)).toEqual({ kind: 'ambiguous' })
+    expect(matchPendingChoice('a terça', {
+      slot: 'horario',
+      messageId: 'm1',
+      options: [
+        { key: '2026-11-03T14:00', label: 'terça 03/11 14:00' },
+        { key: '2026-11-04T14:00', label: 'quarta 04/11 14:00' },
+      ],
+    })).toEqual({
+      kind: 'match',
+      key: '2026-11-03T14:00',
+      label: 'terça 03/11 14:00',
+    })
+    expect(matchPendingChoice('👍', {
+      slot: 'horario',
+      messageId: 'm',
+      options: [{ key: '2026-11-03T17:00', label: 'terça 03/11 17:00' }],
+    })).toEqual({
+      kind: 'match',
+      key: '2026-11-03T17:00',
+      label: 'terça 03/11 17:00',
+    })
+  })
+
   it('«a segunda opção» casa ordinal 2 (A-08)', () => {
     expect(matchPendingChoice('a segunda opção', pending)).toEqual({
       kind: 'match',

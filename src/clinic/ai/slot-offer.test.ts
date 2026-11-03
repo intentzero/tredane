@@ -19,16 +19,21 @@ afterEach(() => {
 })
 
 describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
-  it('título da lista é dia curto + data civil, sem fuso', () => {
+  it('título da lista é dia da semana + DD/MM + hora, sem fuso nem mês-dia (#507)', () => {
     expect(slotListRowCopy('2026-11-03', '17:00')).toEqual({
-      title: 'ter 03/11 17:00',
-      description: 'terça 03/11 às 17:00',
+      title: 'terça 03/11 17:00',
+      description: 'terça 03/11 17:00',
     })
     const sat = slotListRowCopy('2026-11-07', '09:30')
-    expect(sat.title).toBe('sáb 07/11 09:30')
+    expect(sat.title).toBe('sábado 07/11 09:30')
     expect(sat.title.length).toBeLessThanOrEqual(24)
-    expect(sat.description).toBe('sábado 07/11 às 09:30')
+    expect(sat.description).toBe('sábado 07/11 09:30')
     expect(sat.title + sat.description).not.toMatch(/America\//)
+    expect(sat.title + sat.description).not.toMatch(/\b\d{2}-\d{2}\b/)
+    // Segunda (mais longa) ainda cabe em 24.
+    const mon = slotListRowCopy('2026-11-02', '17:00')
+    expect(mon.title).toBe('segunda 02/11 17:00')
+    expect(mon.title.length).toBeLessThanOrEqual(24)
   })
 
   it('periodFromHHMM classifica manhã/tarde/noite', () => {

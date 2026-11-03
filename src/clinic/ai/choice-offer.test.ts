@@ -115,6 +115,43 @@ describe('choice-offer ids', () => {
     const id = encodeChoiceId('horario', '9', '2026-11-03T17:00')
     expect(parseChoiceId(id)?.key).toBe('2026-11-03T17:00')
   })
+
+  it('#507: dois horários à mesma hora em dias diferentes — o id escolhe o dia', () => {
+    const built = buildSlotChoiceInteractive({
+      catalogVersion: '9',
+      slots: [
+        {
+          key: '2026-11-03T17:00',
+          label: 'terça 03/11 17:00',
+          description: 'terça 03/11 17:00',
+        },
+        {
+          key: '2026-11-04T17:00',
+          label: 'quarta 04/11 17:00',
+          description: 'quarta 04/11 17:00',
+        },
+      ],
+    })
+    const rows = built.interactive.sections.flatMap((s) => s.rows)
+    expect(rows.map((r) => r.title)).toEqual(['terça 03/11 17:00', 'quarta 04/11 17:00'])
+    expect(JSON.stringify(rows)).not.toMatch(/\b\d{2}-\d{2} \d{2}:\d{2}\b/)
+    expect(parseChoiceId(rows[0]!.id)?.key).toBe('2026-11-03T17:00')
+    expect(parseChoiceId(rows[1]!.id)?.key).toBe('2026-11-04T17:00')
+    expect(slotBindingFromChoice('2026-11-03T17:00', rows[0]!.title)).toEqual({
+      date: '2026-11-03',
+      time: '17:00',
+    })
+    expect(slotBindingFromChoice('2026-11-04T17:00', rows[1]!.title)).toEqual({
+      date: '2026-11-04',
+      time: '17:00',
+    })
+    // Título sozinho (mês-dia ou DD/MM) não autoriza o slot.
+    expect(slotBindingFromChoice('17:00', 'terça 03/11 17:00')).toBeNull()
+    expect(built.pending.options.map((o) => o.key)).toEqual([
+      '2026-11-03T17:00',
+      '2026-11-04T17:00',
+    ])
+  })
 })
 
 describe('validateChoiceAgainstFrame', () => {

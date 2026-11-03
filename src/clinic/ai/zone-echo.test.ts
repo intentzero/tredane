@@ -496,9 +496,11 @@ describe('DEC-137: eco e plural das zonas', () => {
         list?: { sections?: Array<{ rows?: Array<{ id: string; title: string; description?: string }> }> }
       }
       const rows = parsed.list?.sections?.flatMap((section) => section.rows ?? []) ?? []
-      const slot = rows.find((row) => row.title === 'ter 03/11 17:00')
-      expect(slot?.description).toBe('terça 03/11 às 17:00')
+      const slot = rows.find((row) => row.title === 'terça 03/11 17:00')
+      expect(slot?.description).toBe('terça 03/11 17:00')
       expect(slot?.title).not.toBe('11-03 17:00')
+      expect(slot?.title).not.toMatch(/\b\d{2}-\d{2}\b/)
+      expect(JSON.stringify(rows)).not.toMatch(/\b\d{2}-\d{2} \d{2}:\d{2}\b/)
       expect(JSON.stringify(slot)).not.toMatch(/America\//)
       expect(parseChoiceId(slot?.id ?? '')?.key).toBe('2026-11-03T17:00')
       s.clock.advance(1_000)
