@@ -17,8 +17,8 @@ Código: `src/clinic/ai/abuse-limits.ts` (`DEFAULT_ABUSE_LIMITS`, `resolveAbuseL
 | Limite | Valor | Estado | Porquê |
 |---|---|---|---|
 | Janela das quotas | 24 h rolantes | **Confirmado (Paulo, 29/10/2026)** | Simples de explicar e alinhada com o limite diário de rascunhos já aprovado. |
-| Rascunhos automáticos por contato | 20 / 24 h | **Confirmado (Paulo, 29/10/2026)** | Uma conversa normal raramente passa de 10 mensagens/dia; 20 só corta inundações. |
-| Rascunhos por clínica | 300 / dia | **Já aprovado** (`AI_DAILY_DRAFT_CAP`) | Mantido; não duplicado na UI. |
+| Rascunhos automáticos por contato | 20 / 24 h | **Confirmado (Paulo, 29/10/2026)** | Uma conversa normal raramente passa de 10 mensagens/dia; 20 só corta inundações. Conta `ai_suggestions` com `origin=auto` (e jobs em geração) — **não** a chamada isolada do extrator LLM (#491): essa é NLU interna; o custo entra no teto diário da clínica. |
+| Rascunhos por clínica | 300 / dia | **Já aprovado** (`AI_DAILY_DRAFT_CAP`) | Mantido; não duplicado na UI. Após #491 conta **chamadas ao modelo** (painel + extrator + redator de exceção), não só rascunhos do painel. |
 | Marcações pela IA por contato | 1 / 24 h | **Confirmado (Paulo, 29/10/2026)** | Uma cliente raramente precisa de mais de uma marcação nova por dia; o resto vai à equipe. |
 | Marcações pela IA por clínica | 20 / 24 h | **Confirmado (Paulo, 29/10/2026)** | Limite de segurança contra muitos números a encher a agenda; uma clínica piloto pequena fica abaixo disso. |
 | Compromissos futuros por contato | 3 | **Confirmado (Paulo, 29/10/2026)** | Evita que um contato prenda vários horários; com 3 já marcados, a equipe confirma. |

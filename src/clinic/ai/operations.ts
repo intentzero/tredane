@@ -38,8 +38,7 @@ import {
   updateSuggestionDecision,
 } from './suggestions'
 import { tempoDraftRejected } from './tempo-draft'
-import { getAiDailyUsage, incrementAiDailyUsage } from './usage'
-import { writeOperationalAudit } from '../audit'
+import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
 import type {
   AiAssistDeps,
   AiSuggestionRow,
@@ -307,21 +306,9 @@ async function runGenerate(
       // Um só rascunho automático pendente por conversa.
       supersedePendingAutoDrafts(db, meta.tenantId, input.conversationId, now)
       if (gen.ok) {
-        const usage = incrementAiDailyUsage(db, meta.tenantId, clock)
+        const usage = recordModelCallTowardDailyCap(db, meta.tenantId, clock)
         if (usage.justReached) {
           aiLog('warn', 'ai.daily_cap_reached', { tenantId: meta.tenantId, drafts: usage.drafts })
-          writeOperationalAudit(
-            db,
-            {
-              tenantId: meta.tenantId,
-              actor: 'system',
-              action: 'ai.daily_cap_reached',
-              objectType: 'clinic_settings',
-              objectId: '1',
-              detail: { drafts: usage.drafts },
-            },
-            clock,
-          )
         }
       }
     }

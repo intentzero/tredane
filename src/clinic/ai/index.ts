@@ -59,7 +59,12 @@ export {
   type AutoBookOutcome,
   type AutoBookStatus,
 } from './autobook'
-export { getAiDailyUsage, type AiDailyUsage } from './usage'
+export {
+  getAiDailyUsage,
+  incrementAiDailyUsage,
+  recordModelCallTowardDailyCap,
+  type AiDailyUsage,
+} from './usage'
 export { buildClinicAiContext } from './schedule-context'
 export {
   loadTurnContext,
