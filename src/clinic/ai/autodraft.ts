@@ -58,6 +58,7 @@ import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './sug
 import type { AiAssistDeps, AiSuggestionRow } from './types'
 import { emitTurnDecided, routeFromAutodraftOutcome } from './turn-decided'
 import { loadTurnContext } from './turn-context'
+import { enqueueTypingIndicator } from './typing-indicator'
 import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
 import { runRestrictedExtractor } from './llm-extractor'
@@ -242,7 +243,15 @@ export async function runDueAutoDrafts(
   caller: ClinicCaller,
   clock: Clock,
   deps: AiAssistDeps,
-  opts: { limit?: number; onStart?: (job: AutoDraftJob) => Promise<void> | void } = {},
+  opts: {
+    limit?: number
+    onStart?: (job: AutoDraftJob) => Promise<void> | void
+    /**
+     * DEC-136: despacha o outbox `whatsapp.typing_indicator` cedo (antes do LLM
+     * ou do envio determinístico). Fail-soft no caller — não deve lançar.
+     */
+    onTyping?: (outbox: OutboxRow) => Promise<void> | void
+  } = {},
 ): Promise<AutoDraftOutcome[]> {
   const tenantId = caller.tenantId
   const now = clock.nowMs()
@@ -261,6 +270,23 @@ export async function runDueAutoDrafts(
   for (const job of due) {
     const jobStarted = clock.nowMs()
     const debounceMs = Math.max(0, job.dueAt - job.createdAt)
+    /** Uma vez por job: marca lida + typing nativo só quando vamos responder. */
+    let typingSignaled = false
+    const signalTyping = async (): Promise<void> => {
+      if (typingSignaled) return
+      typingSignaled = true
+      try {
+        const typingOb = enqueueTypingIndicator(
+          db,
+          tenantId,
+          { conversationId: job.conversationId, messageId: job.messageId },
+          clock,
+        )
+        if (typingOb && opts.onTyping) await opts.onTyping(typingOb)
+      } catch {
+        // Fail-soft: indicador nunca aborta a resposta (DEC-136).
+      }
+    }
     const record = (
       outcome: AutoDraftOutcome,
       extra: {
@@ -360,6 +386,7 @@ export async function runDueAutoDrafts(
       clock,
     )
     if (mediaDecision.action === 'handoff') {
+      await signalTyping()
       const handoff = notifyHumanHandoff(
         db,
         tenantId,
@@ -381,6 +408,7 @@ export async function runDueAutoDrafts(
       continue
     }
     if (mediaDecision.action === 'ask_text') {
+      await signalTyping()
       let replyOutbox: OutboxRow[] = []
       try {
         const sent = sendOutboundMessageOp(
@@ -432,6 +460,7 @@ export async function runDueAutoDrafts(
       if (reschedule) {
         let replyOutbox: OutboxRow[] = [...reschedule.outbox]
         if (reschedule.replyText.trim()) {
+          await signalTyping()
           try {
             const sent = sendOutboundMessageOp(
               db,
@@ -466,6 +495,7 @@ export async function runDueAutoDrafts(
         continue
       }
       // Pedido de remarcar sem compromisso futuro → equipe.
+      await signalTyping()
       const handoff = notifyHumanHandoff(
         db,
         tenantId,
@@ -498,6 +528,7 @@ export async function runDueAutoDrafts(
       if (cont) {
         let replyOutbox: OutboxRow[] = [...cont.outbox]
         if (cont.replyText.trim()) {
+          await signalTyping()
           try {
             const sent = sendOutboundMessageOp(
               db,
@@ -541,6 +572,7 @@ export async function runDueAutoDrafts(
         settings.reschedulePolicy.trim() ||
         ''
       if (policy) {
+        await signalTyping()
         let replyOutbox: OutboxRow[] = []
         try {
           const sent = sendOutboundMessageOp(
@@ -598,6 +630,7 @@ export async function runDueAutoDrafts(
     }
     // DEC-115: transparência sobre IA — frase fixa + botão, sem pausar.
     if (hasAiTransparencyQuestion(sensitiveHits)) {
+      await signalTyping()
       let replyOutbox: OutboxRow[] = []
       try {
         const sent = sendOutboundMessageOp(
@@ -631,6 +664,7 @@ export async function runDueAutoDrafts(
     }
     const reason = handoffReason(db, tenantId, turnText, clock, turn)
     if (reason) {
+      await signalTyping()
       const handoff = notifyHumanHandoff(
         db,
         tenantId,
@@ -658,6 +692,7 @@ export async function runDueAutoDrafts(
       deferredFrame: catalogDeferred,
     })
     if (catalogText) {
+      await signalTyping()
       let replyOutbox: OutboxRow[] = []
       try {
         const sent = sendOutboundMessageOp(
@@ -713,6 +748,8 @@ export async function runDueAutoDrafts(
       job.conversationId,
       job.messageId,
     )
+    // DEC-136: typing cedo — o LLM/extrator pode demorar; a resposta (ou DEC-107) sai depois.
+    await signalTyping()
     await opts.onStart?.(job)
 
     // CA-03 (#413) + M6 (#416): extrator restrito → decidir → redator de exceção.

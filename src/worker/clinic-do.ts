@@ -120,6 +120,7 @@ import {
   handleChoiceOfferClick,
   isChoiceOfferId,
 } from '../clinic/ai/choice-offer'
+import { enqueueTypingIndicatorForLatestInbound } from '../clinic/ai/typing-indicator'
 import {
   clearBookingFrame,
   saveBookingFrame,
@@ -744,6 +745,28 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     // M5 (#415) / DEC-128 — toque em linha/variantes/horários (não marca; DEC-061).
     if (input.conversationId && isChoiceOfferId(input.buttonId)) {
+      // DEC-136: typing enquanto montamos a resposta do toque (fail-soft).
+      try {
+        const typingOb = enqueueTypingIndicatorForLatestInbound(
+          this.#db,
+          caller.tenantId,
+          input.conversationId,
+          this.#clock,
+        )
+        if (typingOb) {
+          await this.#fanoutOutboxes(caller, [typingOb], true)
+          await this.#drain(caller)
+        }
+      } catch (err) {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'whatsapp_typing.flush_failed',
+            tenantId: caller.tenantId,
+            error: err instanceof Error ? err.message : 'unknown',
+          }),
+        )
+      }
       const autoBookPaused = clinicConfig.isClinicAutoBookPaused(
         this.#db,
         caller.tenantId,
@@ -3020,6 +3043,22 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' })
           // Se este alarme morrer no fetch, o próximo acorda e reabre o job órfão.
           await this.#scheduleAlarmNoLaterThan(this.#clock.nowMs() + clinicAi.AUTODRAFT_STALE_MS)
+        },
+        // DEC-136: despacha typing já, antes do LLM / envio; falha não aborta.
+        onTyping: async (typingOb) => {
+          try {
+            await this.#fanoutOutboxes(caller, [typingOb], true)
+            await this.#drain(caller)
+          } catch (err) {
+            console.warn(
+              JSON.stringify({
+                level: 'warn',
+                event: 'whatsapp_typing.flush_failed',
+                tenantId: caller.tenantId,
+                error: err instanceof Error ? err.message : 'unknown',
+              }),
+            )
+          }
         },
       })
       for (const o of outcomes) {

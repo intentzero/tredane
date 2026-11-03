@@ -206,18 +206,26 @@ async function processSendResultMessage(
 }
 
 /**
- * Recibo de leitura para a Meta — só quando a atendente abre a conversa.
- * Best-effort: falha não volta a tentar (não afeta o atendimento).
+ * Recibo de leitura / typing indicator para a Meta.
+ * - `whatsapp.mark_read`: só quando a atendente abre a conversa (sem typing).
+ * - `whatsapp.typing_indicator`: bot vai responder (DEC-136) — read + typing nativo.
+ * Best-effort: falha não volta a tentar (não afeta o atendimento nem o envio).
  */
 async function processMarkReadMessage(
   msg: ClinicOutboxQueueMessage,
   deps: ProcessOutboundSendDeps,
+  opts: { typingIndicator: boolean } = { typingIndicator: false },
 ): Promise<OutboxProcessOutcome> {
   const log = deps.log ?? (() => undefined)
   const messageId =
     typeof msg.payload?.providerMessageId === 'string' ? msg.payload.providerMessageId : ''
+  const eventPrefix = opts.typingIndicator ? 'whatsapp_typing' : 'whatsapp_read'
   if (isDemoTenantId(msg.tenantId)) {
-    log({ level: 'info', event: 'whatsapp_read.demo_tenant_skip', detail: { tenantId: msg.tenantId } })
+    log({
+      level: 'info',
+      event: `${eventPrefix}.demo_tenant_skip`,
+      detail: { tenantId: msg.tenantId },
+    })
     return 'ack'
   }
   if (!messageId) return 'ack'
@@ -228,21 +236,39 @@ async function processMarkReadMessage(
     return 'ack'
   }
   if ('errorCode' in creds) {
-    log({ level: 'warn', event: 'whatsapp_read.no_credentials', detail: { tenantId: msg.tenantId, errorCode: creds.errorCode } })
+    log({
+      level: 'warn',
+      event: `${eventPrefix}.no_credentials`,
+      detail: { tenantId: msg.tenantId, errorCode: creds.errorCode },
+    })
     return 'ack'
   }
   const meta = deps.metaAdapter ?? createMetaSendAdapter(deps.env)
   if (typeof meta.markMessageRead !== 'function') return 'ack'
-  const r = await meta.markMessageRead({
-    phoneNumberId: creds.phoneNumberId,
-    accessToken: creds.accessToken,
-    messageId,
-  })
-  log({
-    level: r.ok ? 'info' : 'warn',
-    event: r.ok ? 'whatsapp_read.sent' : 'whatsapp_read.failed',
-    detail: { tenantId: msg.tenantId, eventId: msg.eventId, errorCode: r.errorCode ?? null },
-  })
+  try {
+    const r = await meta.markMessageRead({
+      phoneNumberId: creds.phoneNumberId,
+      accessToken: creds.accessToken,
+      messageId,
+      typingIndicator: opts.typingIndicator || undefined,
+    })
+    log({
+      level: r.ok ? 'info' : 'warn',
+      event: r.ok ? `${eventPrefix}.sent` : `${eventPrefix}.failed`,
+      detail: { tenantId: msg.tenantId, eventId: msg.eventId, errorCode: r.errorCode ?? null },
+    })
+  } catch (err) {
+    // Fail-soft DEC-136: erro no typing nunca bloqueia a resposta.
+    log({
+      level: 'warn',
+      event: `${eventPrefix}.failed`,
+      detail: {
+        tenantId: msg.tenantId,
+        eventId: msg.eventId,
+        errorCode: err instanceof Error ? err.message.slice(0, 80) : 'meta_read_error',
+      },
+    })
+  }
   return 'ack'
 }
 
@@ -262,7 +288,11 @@ export async function processClinicOutboxMessage(
   }
 
   if (msg.type === 'whatsapp.mark_read') {
-    return processMarkReadMessage(msg, deps)
+    return processMarkReadMessage(msg, deps, { typingIndicator: false })
+  }
+
+  if (msg.type === 'whatsapp.typing_indicator') {
+    return processMarkReadMessage(msg, deps, { typingIndicator: true })
   }
 
   if (msg.type !== 'whatsapp.send') {
