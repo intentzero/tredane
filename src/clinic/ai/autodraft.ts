@@ -8,8 +8,8 @@
  *   a pergunta «Confirma…?» (autobook.ts), salvo pausa da owner.
  * - Nos outros casos, o texto da IA sai sozinho, sem clique em Enviar, com o botão
  *   de falar com a equipe. Injeção e assunto fora do agendamento pausam a IA
- *   (DEC-083). Modelo falhou / saída rejeitada → frase DEC-107 (#404); falha do
- *   redator de exceção passa à equipe (DEC-104).
+ *   (DEC-083). Modelo falhou / saída rejeitada / falha do redator de exceção →
+ *   frase DEC-107 + alerta à equipe, sem pausar a IA (#404 / #489).
  */
 import { AI_TIMEOUT_MS, detectStrongInjectionSignals } from '../../ai'
 import type { Clock } from '../../db/clock'
@@ -711,7 +711,6 @@ export async function runDueAutoDrafts(
     let autoBook: AutoBookOutcome | undefined
     let modelCalled = false
     let generateError: string | null = null
-    let exceptionHandoff = false
     let liveTurn = turn
 
     try {
@@ -828,10 +827,8 @@ export async function runDueAutoDrafts(
             createdAt: clock.nowMs(),
           })
         } else {
-          // DEC-104 «passa à equipe»: alerta alter_awaiting_team via DEC-107
-          // (notifyModelFallback), sem pausar a IA — alinhado a CF-14 / K-01.
-          // Pausa completa fica para DEC-083 (pedido de pessoa / fora do assunto).
-          exceptionHandoff = false
+          // DEC-104 + DEC-107 (#489): frase de fallback e alerta alter_awaiting_team,
+          // sem pausar a IA. Pausa completa fica para DEC-083.
           generateError = exception.rejection ?? 'exception_rejected'
           suggestion = insertSuggestion(db, {
             tenantId,
@@ -875,7 +872,6 @@ export async function runDueAutoDrafts(
         }
         generateError = code
         modelCalled = true
-        exceptionHandoff = false
         suggestion = insertSuggestion(db, {
           tenantId,
           conversationId: job.conversationId,
@@ -1061,30 +1057,15 @@ export async function runDueAutoDrafts(
     const hasOutbound = Boolean(replyOutbox && replyOutbox.length > 0)
     let fallbackSent = false
     if (!tookInjectionPath && !hasOutbound && !proposalDelivered && !deterministicReply) {
-      // DEC-104: falha do redator de exceção → frase fixa + passa à equipe.
-      if (exceptionHandoff) {
-        const handoff = notifyHumanHandoff(
-          db,
-          tenantId,
-          {
-            conversationId: job.conversationId,
-            reason: 'human_only',
-            clientRequestId: `ai-exception-handoff:${job.messageId}`,
-          },
-          clock,
-        )
-        replyOutbox = handoff.outbox
-        fallbackSent = handoff.outbox.length > 0
-      } else {
-        const fallback = notifyModelFallback(
-          db,
-          tenantId,
-          { conversationId: job.conversationId, messageId: job.messageId },
-          clock,
-        )
-        replyOutbox = fallback.outbox
-        fallbackSent = fallback.sent || fallback.already
-      }
+      // DEC-107 (#489): falha do redator / modelo → frase fixa + alerta, IA activa.
+      const fallback = notifyModelFallback(
+        db,
+        tenantId,
+        { conversationId: job.conversationId, messageId: job.messageId },
+        clock,
+      )
+      replyOutbox = fallback.outbox
+      fallbackSent = fallback.sent || fallback.already
     }
     const textDiscarded =
       modelCalled &&

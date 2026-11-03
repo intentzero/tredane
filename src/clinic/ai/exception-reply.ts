@@ -1,7 +1,7 @@
 /**
  * Redator de exceção (#416 / DEC-104 · 5b).
  * Perguntas abertas fora do catálogo; factos DEC-120; validador #403.
- * Falha → frase fixa + passagem à equipe.
+ * Falha → frase DEC-107 + alerta à equipe (IA continua activa; #489).
  */
 import {
   AI_MODEL_EXCEPTION,
@@ -30,8 +30,7 @@ export type ExceptionReplyResult = {
   inputTokens: number | null
   outputTokens: number | null
   latencyMs: number | null
-  /** Validador falhou ou provedor falhou → handoff à equipe (DEC-104). */
-  handoffToTeam: boolean
+  /** Validador ou provedor falhou → autodraft usa DEC-107 (sem pausa). */
   rejection?: string
 }
 
@@ -90,7 +89,6 @@ export async function generateExceptionReply(
       inputTokens: null,
       outputTokens: null,
       latencyMs: gen.latencyMs,
-      handoffToTeam: true,
       rejection: gen.code,
     }
   }
@@ -106,7 +104,6 @@ export async function generateExceptionReply(
       inputTokens: gen.inputTokens,
       outputTokens: gen.outputTokens,
       latencyMs: gen.latencyMs,
-      handoffToTeam: true,
       rejection: guarded.reason,
     }
   }
@@ -128,7 +125,6 @@ export async function generateExceptionReply(
       inputTokens: gen.inputTokens,
       outputTokens: gen.outputTokens,
       latencyMs: gen.latencyMs,
-      handoffToTeam: true,
       rejection: out.detail ?? out.reason,
     }
   }
@@ -143,6 +139,5 @@ export async function generateExceptionReply(
     inputTokens: gen.inputTokens,
     outputTokens: gen.outputTokens,
     latencyMs: gen.latencyMs,
-    handoffToTeam: false,
   }
 }
