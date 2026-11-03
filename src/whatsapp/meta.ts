@@ -84,11 +84,17 @@ export type MetaAdapter = {
     input: MetaSendInteractiveButtonsInput,
   ): Promise<MetaSendResult>
   sendInteractiveListMessage(input: MetaSendInteractiveListInput): Promise<MetaSendResult>
-  /** Recibo de leitura (tiques azuis no celular da cliente). Opcional em fakes. */
+  /**
+   * Recibo de leitura (tiques azuis). Com `typingIndicator: true`, a Cloud API
+   * também mostra o indicador nativo «a escrever…» até a resposta ou ~25 s (DEC-136).
+   * Opcional em fakes.
+   */
   markMessageRead?(input: {
     phoneNumberId: string
     accessToken: string
     messageId: string
+    /** Inclui `typing_indicator: { type: "text" }` no mesmo pedido de leitura. */
+    typingIndicator?: boolean
   }): Promise<{ ok: boolean; errorCode?: string }>
 }
 
@@ -187,7 +193,7 @@ export function createSyntheticMetaAdapter(): MetaAdapter {
       }
     },
     async markMessageRead(input) {
-      // Sintético: nunca chama a Meta.
+      // Sintético: nunca chama a Meta (inclui DEC-136 typing).
       return input.messageId ? { ok: true } : { ok: false, errorCode: 'meta_read_invalid' }
     },
     async sendTextMessage(input) {
@@ -377,6 +383,15 @@ export function createLiveMetaAdapter(env: MetaEnv): MetaAdapter {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 10_000)
       try {
+        const body: Record<string, unknown> = {
+          messaging_product: 'whatsapp',
+          status: 'read',
+          message_id: input.messageId,
+        }
+        // DEC-136: mesmo endpoint; indicador nativo até resposta ou ~25 s.
+        if (input.typingIndicator) {
+          body.typing_indicator = { type: 'text' }
+        }
         const res = await fetch(
           `https://graph.facebook.com/${version}/${encodeURIComponent(input.phoneNumberId)}/messages`,
           {
@@ -385,11 +400,7 @@ export function createLiveMetaAdapter(env: MetaEnv): MetaAdapter {
               Authorization: `Bearer ${input.accessToken}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              messaging_product: 'whatsapp',
-              status: 'read',
-              message_id: input.messageId,
-            }),
+            body: JSON.stringify(body),
             signal: controller.signal,
           },
         )

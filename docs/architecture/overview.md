@@ -54,6 +54,8 @@ Ver [ADR-0006](../adr/0006-clerk-platform-admin.md), [ADR-0007](../adr/0007-supp
 
 **Saída humana:** utilizador autenticado confirma texto → autorização por tenant → registar intenção de envio/outbox no SQLite do DO da clínica → despachar via Queue → solicitar envio à Meta → armazenar resultado (pendente, aceite, entregue, lido, falhou ou desconhecido). Resultado incerto exige reconciliação antes de novo envio. Estado aceite pela Meta não equivale a entregue.
 
+**Typing do bot (DEC-136):** quando o atendimento automático vai responder (autodraft, frase determinística ou toque interativo com outbound), o DO emite outbox `whatsapp.typing_indicator` cedo — o consumer chama a Cloud API com `status: read` + `typing_indicator: { type: "text" }` no `wamid` inbound. Fail-soft: erro no typing não bloqueia o envio. O recibo de leitura da atendente (`whatsapp.mark_read`) continua sem typing.
+
 **Agenda:** validar serviço, regras e todos os recursos requeridos → transação SQLite local no DO verifica e ocupa intervalos de profissional e sala/equipamento → persistir agendamento + auditoria/outbox → publicar evento. Consulta de horários é apenas uma prévia; a gravação faz a verificação definitiva. Ver [modelo de dados](data-model.md).
 
 **Tempo real:** após commit SQLite, o DO distribui evento com tenant e ID de entidade apenas às sessões autorizadas; outbox operacional garante intenções reprocessáveis. Eventos administrativos/de suporte partem do D1 e precisam de entrega idempotente ao DO. O painel relê API quando conecta/reconecta, e nunca considera o WebSocket fonte de verdade. A revogação de uma sessão deve impedir novas entregas, incluindo conexões hibernadas.

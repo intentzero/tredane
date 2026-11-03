@@ -52,6 +52,12 @@ export {
   type AutoDraftOutcome,
 } from './autodraft'
 export {
+  enqueueTypingIndicator,
+  enqueueTypingIndicatorForLatestInbound,
+  wamidFromExternalMessageId,
+  WHATSAPP_TYPING_INDICATOR_TYPE,
+} from './typing-indicator'
+export {
   tryAiAutoBook,
   detectExplicitConfirmation,
   AI_AUTOBOOK_ACTOR_ID,
