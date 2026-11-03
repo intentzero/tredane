@@ -84,12 +84,12 @@ const PRICE = /\b(pre[cç]o|custa|valor|quanto)\b/i
 const BOOKING_INTENT =
   /\b(quero|gostaria|marcar|agendar|horario|horário|disponi|vaga|fazer|preciso|pode\s+ser)\b/i
 
-/** «Vocês fazem botox?» / «Tem peeling?» — pergunta de catálogo sem verbo de marcar. */
+/**
+ * «Vocês fazem botox?» / «Tem peeling?» — pergunta curta de oferta.
+ * Não basta o verbo: perguntas abertas («fazem pacote pra noivas…») seguem ao
+ * extrator/redator (#491); só um termo desconhecido fecha em inexistente (#512).
+ */
 const SERVICE_INQUIRY = /\b(fazem|faz|tem|têm|oferecem|oferece)\b/i
-
-function wantsCatalogLookup(text: string): boolean {
-  return BOOKING_INTENT.test(text) || SERVICE_INQUIRY.test(text)
-}
 
 function fold(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -540,25 +540,34 @@ export function resolveBookingObject(input: {
     }
   }
 
-  // Pedido inexistente: intenção de marcar/perguntar + substantivo que não casa com o catálogo.
+  // Pedido inexistente / esclarecimento: substantivo que não casa com o catálogo.
   if (pool.length === 0) {
-    if (wantsCatalogLookup(text) && !wantsPrice) {
+    if (!wantsPrice) {
       const unknown = catalogMissHint(text, services)
+      const booking = BOOKING_INTENT.test(text)
+      const inquiry = SERVICE_INQUIRY.test(text)
       if (unknown && exactServiceHits.length === 0 && scored.length === 0) {
-        return handoff('inexistente')
+        const unknownTokens = unknown.split(/\s+/).filter(Boolean)
+        // Marcar X desconhecido, ou pergunta curta «fazem X?» (um só termo).
+        if (booking || (inquiry && unknownTokens.length === 1)) {
+          return handoff('inexistente')
+        }
       }
-      return {
-        kind: 'clarify',
-        candidates: listBookableOptions(services).filter(
-          (o, i, arr) => arr.findIndex((x) => x.serviceId === o.serviceId) === i,
-        ),
-        missing: ['servico'],
-        question: clarifyingQuestion(services, listBookableOptions(services), ['servico'], cnv),
-        handoffReason: null,
-        source: 'none',
-        correction: detectCorrection(text, input.session ?? null, null),
-        serviceId: input.session?.serviceId ?? null,
-        variantIds: [],
+      // Clarify só com intenção de marcar — inquiry aberta fica para o extrator (#491).
+      if (booking) {
+        return {
+          kind: 'clarify',
+          candidates: listBookableOptions(services).filter(
+            (o, i, arr) => arr.findIndex((x) => x.serviceId === o.serviceId) === i,
+          ),
+          missing: ['servico'],
+          question: clarifyingQuestion(services, listBookableOptions(services), ['servico'], cnv),
+          handoffReason: null,
+          source: 'none',
+          correction: detectCorrection(text, input.session ?? null, null),
+          serviceId: input.session?.serviceId ?? null,
+          variantIds: [],
+        }
       }
     }
     return noneResult()

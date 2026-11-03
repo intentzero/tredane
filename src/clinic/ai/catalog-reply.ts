@@ -366,11 +366,10 @@ export function catalogReply(
       return serviceChangedReply(cnv)
     }
   }
-  // Clarify de serviço só com intenção de marcar/perguntar catálogo — «oi» / «mensagem» ficam no modelo.
+  // Clarify de serviço só com intenção de marcar/agendar — «oi» / «fazem pacote…» ficam no extrator.
+  // Pergunta curta «Vocês fazem botox?» fecha antes via handoff `inexistente` (#512).
   const bookingIntent =
-    /\b(quero|gostaria|marcar|agendar|horario|horário|disponi|vaga|fazer|preciso|fazem|faz|tem|têm|oferecem|oferece)\b/i.test(
-      source,
-    )
+    /\b(quero|gostaria|marcar|agendar|horario|horário|disponi|vaga|fazer|preciso)\b/i.test(source)
   if (
     bookingMatch.kind === 'clarify' &&
     bookingMatch.question &&
