@@ -655,6 +655,246 @@ export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[])
   return zones.filter((z) => hit.has(z.id))
 }
 
+/**
+ * DEC-137 — plural leve do nome («Axila» → «axilas»).
+ * Não é distância de edição: nomes diferentes não casam.
+ */
+function lightPluralPhrase(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      if (word.length < 3 || word.endsWith('s')) return word
+      if (word.endsWith('m')) return `${word.slice(0, -1)}ns`
+      if (word.endsWith('ao')) return `${word.slice(0, -2)}oes`
+      if (word.endsWith('r') || word.endsWith('z')) return `${word}es`
+      if (word.endsWith('l')) return `${word.slice(0, -1)}is`
+      return `${word}s`
+    })
+    .join(' ')
+}
+
+/** Palavras de cumprimento, pedido ou linha. Não são zona citada. */
+const ZONE_MENTION_STOP = new Set([
+  'bom',
+  'boa',
+  'dia',
+  'tarde',
+  'noite',
+  'manha',
+  'ola',
+  'oi',
+  'tudo',
+  'bem',
+  'quero',
+  'queria',
+  'gostaria',
+  'preciso',
+  'teria',
+  'agendar',
+  'agenda',
+  'marcar',
+  'marca',
+  'fazer',
+  'horario',
+  'horarios',
+  'hora',
+  'horas',
+  'minuto',
+  'minutos',
+  'para',
+  'pra',
+  'favor',
+  'por',
+  'com',
+  'sem',
+  'pode',
+  'ser',
+  'mais',
+  'so',
+  'apenas',
+  'tambem',
+  'sim',
+  'nao',
+  'certo',
+  'corrigir',
+  'entendi',
+  'isso',
+  'essa',
+  'esse',
+  'meu',
+  'minha',
+  'seu',
+  'sua',
+  'voce',
+  'voces',
+  'obrigada',
+  'obrigado',
+  'porfavor',
+  'depilacao',
+  'limpeza',
+  'massagem',
+  'pele',
+  'zona',
+  'zonas',
+  'linha',
+  'feminina',
+  'feminino',
+  'masculina',
+  'masculino',
+  'opcao',
+  'opcoes',
+  'todas',
+  'todos',
+  'completo',
+  'completa',
+  'amanha',
+  'hoje',
+  'depois',
+  'segunda',
+  'terca',
+  'quarta',
+  'quinta',
+  'sexta',
+  'sabado',
+  'domingo',
+  'cedo',
+  'logo',
+  'agora',
+  'semana',
+  'proxima',
+  'proximo',
+  'parte',
+])
+
+/** «10h» / «15h30» são hora, não zona que sobrou. */
+function isClockToken(word: string): boolean {
+  return /^\d{1,2}h\d{0,2}$/.test(word)
+}
+
+function mentionContentTokens(folded: string): string[] {
+  return folded
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 3 && !ZONE_MENTION_STOP.has(word) && !isClockToken(word))
+}
+
+function stripPhrase(text: string, phrase: string): string {
+  const p = phrase.trim()
+  if (p.length < 2) return text
+  return text.replace(new RegExp(`(?<![a-z0-9])${escapeRegExp(p)}(?![a-z0-9])`, 'g'), ' ')
+}
+
+function stripZoneWords(text: string, zone: ServiceZoneRow): string {
+  let rest = stripPhrase(text, foldZoneName(zone.name.trim()))
+  for (const word of foldZoneName(zone.name).split(/[^a-z0-9]+/)) {
+    if (word.length >= 3) rest = stripPhrase(rest, word)
+  }
+  for (const syn of zone.synonyms ?? []) {
+    const folded = foldZoneName(syn.trim())
+    if (folded.length >= 2) rest = stripPhrase(rest, folded)
+  }
+  return rest
+}
+
+export type ZoneMentionResolution = {
+  /** Zonas aceites, na ordem do âmbito. Vazio quando `unrecognized`. */
+  zones: ServiceZoneRow[]
+  /** Algum aceite veio do plural leve, não do nome exacto. */
+  approx: boolean
+  /**
+   * Um item da lista (ex. «e» / vírgula) não mapeou para uma zona única.
+   * Não devolver o conjunto parcial.
+   */
+  unrecognized: boolean
+}
+
+/**
+ * DEC-137. Nomes exactos (`zonesNamedInText`) e, no que sobra, plural leve
+ * único no âmbito passado — a linha já travada (`zonesForAudienceLine`).
+ * O mesmo radical em masculino e feminino não casa. Sem fuzzy de outro nome.
+ * Se um item citado não resolve, `unrecognized` e `zones` vazio (sem descarte silencioso).
+ */
+export function resolveZoneMention(
+  text: string,
+  zones: readonly ServiceZoneRow[],
+): ZoneMentionResolution {
+  const active = zones.filter((z) => z.active && z.name.trim().length >= 2)
+  const empty = { zones: [] as ServiceZoneRow[], approx: false, unrecognized: false }
+  if (active.length === 0 || !text.trim()) return empty
+  const byPlural = new Map<string, Map<string, ServiceZoneRow[]>>()
+  for (const zone of active) {
+    const name = foldZoneName(zone.name.trim())
+    const plural = lightPluralPhrase(name)
+    if (plural === name) continue
+    let names = byPlural.get(plural)
+    if (!names) {
+      names = new Map()
+      byPlural.set(plural, names)
+    }
+    const group = names.get(name) ?? []
+    group.push(zone)
+    names.set(name, group)
+  }
+  const pluralIndex = new Map<string, ServiceZoneRow[]>()
+  for (const [plural, names] of byPlural) {
+    if (names.size !== 1) continue
+    const group = [...names.values()][0]!
+    if (variantAudiencesConflict(group)) continue
+    pluralIndex.set(plural, group)
+  }
+  const folded = foldZoneName(text)
+  const parts = folded
+    .split(/\s*(?:,|;|\/|\+|\be\b|\bou\b)\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+  const hit = new Set<string>()
+  let approx = false
+  let matchedSegment = false
+  let failedSegment = false
+  for (const part of parts.length > 0 ? parts : [folded]) {
+    if (mentionContentTokens(part).length === 0) continue
+    const exact = zonesNamedInText(part, active)
+    let rest = part
+    for (const zone of exact) rest = stripZoneWords(rest, zone)
+    const pluralHits: ServiceZoneRow[] = []
+    const plurals = [...pluralIndex.keys()].sort((a, b) => b.length - a.length)
+    for (const plural of plurals) {
+      if (!new RegExp(`(?<![a-z0-9])${escapeRegExp(plural)}(?![a-z0-9])`).test(rest)) continue
+      const group = pluralIndex.get(plural)!
+      for (const zone of group) {
+        if (!exact.some((item) => item.id === zone.id)) pluralHits.push(zone)
+      }
+      rest = stripPhrase(rest, plural)
+      for (const word of plural.split(/[^a-z0-9]+/)) {
+        if (word.length >= 3) rest = stripPhrase(rest, word)
+      }
+    }
+    const matched = exact.length + pluralHits.length > 0
+    const leftover = mentionContentTokens(rest).length > 0
+    if (!matched || leftover) {
+      failedSegment = true
+      continue
+    }
+    matchedSegment = true
+    for (const zone of exact) hit.add(zone.id)
+    for (const zone of pluralHits) {
+      hit.add(zone.id)
+      approx = true
+    }
+  }
+  // Sobra só conta quando outra parte da lista já casou — não é descarte do parcial,
+  // e uma frase de horário («às 10:00 horas») não apaga zonas já confirmadas.
+  if (failedSegment && matchedSegment) {
+    return { zones: [], approx: false, unrecognized: true }
+  }
+  if (failedSegment) return { zones: [], approx: false, unrecognized: false }
+  return {
+    zones: active.filter((z) => hit.has(z.id)),
+    approx,
+    unrecognized: false,
+  }
+}
+
 /** A cópia deixou de bater com o catálogo (duração, preço, nome ou zona inativa). */
 export function zoneSnapshotsDrifted(
   db: ClinicDb,

@@ -23,6 +23,7 @@ import { listServices } from '../config/services'
 import { explicitAudienceLine } from '../catalog/audience'
 import {
   quoteVisit,
+  resolveZoneMention,
   variantAudiencesConflict,
   variantChoiceLabel,
   zonesNamedInText,
@@ -96,6 +97,8 @@ import {
   buildLineChoiceInteractive,
   buildSlotChoiceInteractive,
   buildVariantChoiceInteractive,
+  buildZoneEchoInteractive,
+  zoneEchoReply,
   type ChoiceInteractive,
 } from './choice-offer'
 
@@ -469,6 +472,12 @@ export async function tryAiAutoBook(
     turnTextOverride?: string
     /** Id da mensagem inbound do toque (confirmação / idempotência). */
     confirmationMessageIdOverride?: string
+    /**
+     * DEC-137. Omisso = texto livre (eco antes de Horários).
+     * `skip` = toque em Opções. `confirm` = Sim do eco (abre Horários, não marca).
+     * `correct` = Corrigir (volta à pergunta das zonas).
+     */
+    zoneEcho?: 'skip' | 'confirm' | 'correct'
   },
 ): Promise<AutoBookOutcome> {
   // M5 / DEC-133 (revisão 03/11/2026): listas e botões sempre ligados; sem env gate.
@@ -584,6 +593,24 @@ export async function tryAiAutoBook(
   )
   // ADR-0015 / DEC-127: ler primeiro contra pending.options (cutover fechado — #472).
   const frameEarly = getBookingFrame(db, tenantId, input.conversationId)
+  let zoneEcho = input.zoneEcho
+  if (frameEarly?.pending?.slot === 'eco' && !zoneEcho) {
+    const echoed = norm(turnText).replace(/[^a-z0-9]+/g, ' ').trim()
+    if (echoed === 'sim' || echoed === 'certo') zoneEcho = 'confirm'
+    else if (echoed === 'corrigir') zoneEcho = 'correct'
+  }
+  const presentZoneEcho = (
+    serviceId: string,
+    zones: ServiceRow['zones'],
+  ): { replyText: string; interactive: ChoiceInteractive } | null => {
+    if (zoneEcho === 'skip' || zoneEcho === 'confirm' || zoneEcho === 'correct') return null
+    if (zones.length === 0) return null
+    const built = buildZoneEchoInteractive(catalog.version)
+    return {
+      replyText: zoneEchoReply(zones),
+      interactive: attachChoiceOfferToDeferred(deferred, serviceId, catalog.version, built),
+    }
+  }
   let pendingTimeOverride: string | null = null
   let pendingDateOverride: string | null = null
   if (frameEarly?.pending) {
@@ -602,7 +629,8 @@ export async function tryAiAutoBook(
           phase: 'coletando',
         })
       }
-    } else {
+    } else if (frameEarly.pending.slot !== 'eco') {
+      // DEC-137: Sim/Corrigir do eco não são escolha de horário (DEC-127).
       const choice = matchPendingChoice(turnText, frameEarly.pending)
       if (choice.kind === 'match') {
         if (frameEarly.pending.slot === 'horario') {
@@ -755,13 +783,19 @@ export async function tryAiAutoBook(
       !clockFromTurn &&
       Boolean(session.variantIds?.length || !stored?.zones.some((z) => z.active))
     const lineContinues = Boolean(explicitAudienceLine(turnText))
+    const storedActive = stored?.zones.filter((zone) => zone.active) ?? []
+    const storedPool =
+      stored && needsAudienceLine(storedActive) && session.audienceLine
+        ? zonesForAudienceLine(storedActive, session.audienceLine)
+        : storedActive
+    const namedNow =
+      zonesNamedInText(turnText, storedActive).length > 0 ||
+      resolveZoneMention(turnText, storedPool).zones.length > 0
+    // Sim/Corrigir do eco não repetem o serviço. A sessão já o tem.
+    const echoContinues = zoneEcho === 'confirm' || zoneEcho === 'correct'
     if (
       stored &&
-      (clockFromTurn ||
-        zonesNamedInText(turnText, stored.zones.filter((zone) => zone.active)).length > 0 ||
-        dayContinues ||
-        periodContinues ||
-        lineContinues)
+      (clockFromTurn || namedNow || dayContinues || periodContinues || lineContinues || echoContinues)
     ) {
       det = {
         ...det,
@@ -795,23 +829,47 @@ export async function tryAiAutoBook(
       const carried = session?.serviceId === det.service.id ? session.audienceLine : null
       const line = needsAudienceLine(active) ? (turnExplicit ?? carried) : null
       const pool = needsAudienceLine(active) && line ? zonesForAudienceLine(active, line) : active
-      const chosen = zonesChosenByClient(clientTurn, older, pool.length > 0 ? pool : active)
+      const mentionPool = pool.length > 0 ? pool : active
+      const mention = resolveZoneMention(turnText, mentionPool)
+      let chosen = zonesChosenByClient(clientTurn, older, mentionPool)
       let kept = chosen.zones
-      if (
-        kept.length === 0 &&
-        !chosen.ambiguous &&
-        session?.serviceId === det.service.id &&
-        session.variantIds?.length
-      ) {
-        const fromSession = (pool.length > 0 ? pool : active).filter((z) => session.variantIds!.includes(z.id))
-        if (fromSession.length === session.variantIds.length) kept = fromSession
+      const sessionIds =
+        session?.serviceId === det.service.id && session.variantIds?.length ? session.variantIds : []
+      const sessionZones = mentionPool.filter((z) => sessionIds.includes(z.id))
+      const sessionIntact = sessionIds.length > 0 && sessionZones.length === sessionIds.length
+      if (zoneEcho === 'correct' || mention.unrecognized) {
+        // Corrigir (e sobra não mapeada) não reaproveita o conjunto anterior.
+        kept = []
+        chosen = { zones: [], ambiguous: false }
+      } else if (zoneEcho === 'confirm') {
+        // DEC-137: o eco já resolveu o plural. Não reler o histórico com o matcher exacto.
+        kept = sessionIntact ? sessionZones : []
+        chosen = { zones: kept, ambiguous: false }
+      } else if (mention.zones.length > 0 && zoneEcho !== 'skip') {
+        const seen = new Set<string>()
+        const ambiguous = mention.zones.some((zone) => {
+          const key = zone.name.trim().toLocaleLowerCase('pt-BR')
+          if (seen.has(key)) return true
+          seen.add(key)
+          return false
+        })
+        chosen = { zones: mention.zones, ambiguous }
+        kept = ambiguous ? [] : mention.zones
+      } else if (kept.length === 0 && !chosen.ambiguous && sessionIntact) {
+        kept = sessionZones
+        chosen = { zones: sessionZones, ambiguous: false }
       }
+      const clearVariants = zoneEcho === 'correct' || mention.unrecognized
       saveSession({
         serviceId: det.service.id,
         ...(turnExplicit ? { audienceLine: turnExplicit } : {}),
         ...(turnFacts.period ? { period: turnFacts.period } : {}),
         ...(clockFromTurn ? { clockTime: clockFromTurn } : {}),
-        ...(kept.length > 0 && !chosen.ambiguous ? { variantIds: kept.map((z) => z.id) } : {}),
+        ...(clearVariants
+          ? { variantIds: null }
+          : kept.length > 0 && !chosen.ambiguous
+            ? { variantIds: kept.map((z) => z.id) }
+            : {}),
       })
       const contributed =
         Boolean(clockFromTurn) ||
@@ -863,7 +921,22 @@ export async function tryAiAutoBook(
           // mesmo sem período — não perguntar «qual horário?» vazio.
           const canOffer =
             !chosen.ambiguous && (kept.length > 0 || active.length === 0)
-          if (canOffer) {
+          const turnNamed =
+            mention.zones.length > 0 ||
+            zonesChosenInClientTexts([turnText], mentionPool).zones.length > 0
+          const wantEcho =
+            canOffer &&
+            zoneEcho !== 'skip' &&
+            zoneEcho !== 'confirm' &&
+            turnNamed
+          if (wantEcho) {
+            // DEC-137: texto livre ecoa o conjunto. Sim é que abre Horários.
+            const echoed = presentZoneEcho(det.service.id, kept)
+            if (echoed) {
+              replyText = echoed.replyText
+              interactive = echoed.interactive
+            }
+          } else if (canOffer) {
             const preferred = preferredProfessionalId(
               db,
               tenantId,
@@ -973,16 +1046,44 @@ export async function tryAiAutoBook(
         const svc = services.find((s) => s.id === booking.serviceId)
         if (svc) {
           const active = svc.zones.filter((z) => z.active)
-          const kept =
-            booking.variantIds.length > 0
-              ? active.filter((z) => booking.variantIds.includes(z.id))
-              : []
           // DEC-128 / A-03: lista Opções só com variantes da linha (não misturar F/M).
           const turnExplicit = explicitAudienceLine(turnText)
           const carried = session?.serviceId === svc.id ? session.audienceLine : null
           const line = needsAudienceLine(active) ? (turnExplicit ?? carried) : null
           const zonePool =
             needsAudienceLine(active) && line ? zonesForAudienceLine(active, line) : active
+          if (zoneEcho === 'correct') {
+            saveSession({ serviceId: svc.id, variantIds: null, ...(line ? { audienceLine: line } : {}) })
+            const zoneNames = zonePool.length > 0 ? zonePool : active
+            replyText = variantListQuestion(
+              svc.name,
+              svc.variantKindPlural || svc.variantKind,
+              zoneNames,
+              input.conversationId,
+            )
+            interactive = variantChoiceFor(
+              deferred,
+              svc.id,
+              catalog.version,
+              zoneNames.map((z) => ({
+                id: z.id,
+                name: z.name,
+                audience: z.audience,
+                durationMinutes: z.durationMinutes,
+                priceCents: z.priceCents,
+              })),
+            )
+          } else {
+          const echoedIds =
+            zoneEcho === 'confirm' && session?.serviceId === svc.id && session.variantIds?.length
+              ? session.variantIds
+              : null
+          const kept =
+            echoedIds && zonePool.filter((z) => echoedIds.includes(z.id)).length === echoedIds.length
+              ? zonePool.filter((z) => echoedIds.includes(z.id))
+              : booking.variantIds.length > 0
+                ? active.filter((z) => booking.variantIds.includes(z.id))
+                : []
           saveSession({
             serviceId: svc.id,
             ...(line ? { audienceLine: line } : {}),
@@ -1014,6 +1115,49 @@ export async function tryAiAutoBook(
               })),
             )
           } else {
+            const mention = resolveZoneMention(turnText, zonePool)
+            const turnPicked =
+              mention.zones.length > 0 ||
+              zonesChosenInClientTexts([turnText], zonePool).zones.length > 0
+            if (mention.unrecognized && zoneEcho !== 'skip' && zoneEcho !== 'confirm') {
+              saveSession({ serviceId: svc.id, variantIds: null })
+              replyText = variantListQuestion(
+                svc.name,
+                svc.variantKindPlural || svc.variantKind,
+                zonePool,
+                input.conversationId,
+              )
+              interactive = variantChoiceFor(
+                deferred,
+                svc.id,
+                catalog.version,
+                zonePool.map((z) => ({
+                  id: z.id,
+                  name: z.name,
+                  audience: z.audience,
+                  durationMinutes: z.durationMinutes,
+                  priceCents: z.priceCents,
+                })),
+              )
+            } else {
+            const resolved = mention.zones.length > 0 ? mention.zones : kept
+            const echoed =
+              zoneEcho !== 'skip' &&
+              zoneEcho !== 'confirm' &&
+              zoneEcho !== 'correct' &&
+              turnPicked &&
+              resolved.length > 0
+                ? presentZoneEcho(svc.id, resolved)
+                : null
+            if (echoed) {
+              saveSession({
+                serviceId: svc.id,
+                variantIds: resolved.map((z) => z.id),
+                ...(line ? { audienceLine: line } : {}),
+              })
+              replyText = echoed.replyText
+              interactive = echoed.interactive
+            } else {
             const preferred = preferredProfessionalId(
               db,
               tenantId,
@@ -1051,6 +1195,9 @@ export async function tryAiAutoBook(
               catalog.version,
             )
             replyText = offered.replyText
+            }
+            }
+          }
           }
         }
       } else if (booking.kind === 'clarify' && booking.question) {
@@ -1117,13 +1264,32 @@ export async function tryAiAutoBook(
     saveScheduleLine(db, tenantId, input.conversationId, svc.id, line, clock)
   }
   const scoped = needsAudienceLine(activeZones) ? zonesForAudienceLine(activeZones, line) : activeZones
+  const proposalMention = resolveZoneMention(turnText, scoped.length > 0 ? scoped : activeZones)
   const chosen = sameFunnel
     ? zonesChosenByClient(clientTurn, funnelOlder, scoped)
     : zonesChosenByClient(clientTurn, [], scoped)
   let namedZones = chosen.zones
+  let echoLocked = false
+  if (zoneEcho === 'confirm') {
+    const ids = sameFunnel && session?.variantIds?.length ? session.variantIds : []
+    const fromSession = scoped.filter((z) => ids.includes(z.id))
+    echoLocked = ids.length > 0 && fromSession.length === ids.length
+    namedZones = echoLocked ? fromSession : []
+  } else if (zoneEcho !== 'skip') {
+    if (zoneEcho === 'correct' || proposalMention.unrecognized) {
+      namedZones = []
+      saveSession({ serviceId: svc.id, variantIds: null })
+    } else if (proposalMention.zones.length > 0) {
+      namedZones = proposalMention.zones
+    }
+  }
   if (
     namedZones.length === 0 &&
     !chosen.ambiguous &&
+    !echoLocked &&
+    zoneEcho !== 'confirm' &&
+    zoneEcho !== 'correct' &&
+    !proposalMention.unrecognized &&
     sameFunnel &&
     session?.variantIds?.length
   ) {
@@ -1133,7 +1299,7 @@ export async function tryAiAutoBook(
   // A cliente aceitou a hora. O conjunto é o da oferta («para axila e íntima»),
   // não o resto do catálogo que a sessão ou «as duas» tenham arrastado.
   // Cutover fechado (#472): só o frame (variantIds / lastOffer) autoriza — CF-22.
-  const ambiguous = chosen.ambiguous
+  const ambiguous = echoLocked ? false : chosen.ambiguous
   if (namedZones.length > 0 && !ambiguous) {
     saveSession({
         serviceId: svc.id,
@@ -1181,6 +1347,29 @@ export async function tryAiAutoBook(
       notes:
         `As ${kind} escolhidas misturam masculino e feminino. Peça um conjunto compatível. Não informe valor nem envie proposta.`,
     })
+  }
+  // Hora já dita neste turno → proposta (CF-24). O eco é antes de Horários,
+  // ou quando o plural leve entrou (confirma o mapeamento antes da proposta).
+  const echoBeforeProposal = !clockFromTurn || proposalMention.approx
+  if (
+    echoBeforeProposal &&
+    zoneEcho !== 'skip' &&
+    zoneEcho !== 'confirm' &&
+    zoneEcho !== 'correct' &&
+    namedZones.length > 0 &&
+    !ambiguous &&
+    proposalMention.zones.length > 0
+  ) {
+    const echoed = presentZoneEcho(svc.id, namedZones)
+    if (echoed) {
+      saveSession({ serviceId: svc.id, variantIds: namedZones.map((z) => z.id) })
+      return finish({
+        ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
+        replyText: echoed.replyText,
+        interactive: echoed.interactive,
+        notes: 'DEC-137: eco das zonas antes da lista. Sim nao marca.',
+      })
+    }
   }
   let quote
   try {

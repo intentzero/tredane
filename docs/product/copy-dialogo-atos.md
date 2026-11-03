@@ -260,7 +260,10 @@ O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a lev
 | Lista de variantes: botão que abre a lista | `Opções` | ≤ 20 | o tipo da variante (zona, área…) é texto livre da owner; `Opções` é neutro |
 | Lista de variantes: linha que escolhe tudo | `Todas` | linha ≤ 24 | |
 | Lista de horários: botão que abre a lista | `Horários` | ≤ 20 | |
-| Lista de horários: título de cada linha | dinâmico, `06/11 09:00` | linha ≤ 24 | vem dos horários reais do grafo |
+| Eco das zonas no texto livre (DEC-137) | `Entendi: Axila e Pernas. Certo?` | — | nomes do catálogo; duas zonas «A e B»; três ou mais «A, B e C» |
+| Botão do eco | `Sim` | título ≤ 20 | confirma o conjunto e só então abre Horários; não marca (DEC-061) |
+| Botão do eco | `Corrigir` | título ≤ 20 | volta à pergunta das zonas (Opções + texto livre) |
+| Lista de horários: título de cada linha | dinâmico, `06/11 09:00` | linha ≤ 24 | vem dos horários reais do grafo; relógio da clínica, sem fuso IANA |
 | Lista de variantes: título de cada linha | dinâmico, o nome da variante | linha ≤ 24 | cortado em 24 caracteres; um nome longo pode perder o fim |
 
 **Confirmado (corte, Paulo 03/11/2026, opção A / DEC-134):** aceitar o truncamento Meta em 24 caracteres no título da linha; nome completo na descrição quando disponível.

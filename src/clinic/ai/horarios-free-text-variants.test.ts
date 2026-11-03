@@ -126,15 +126,15 @@ describe('DEC-135: Horários após texto livre de variantes', () => {
         ''
       expect(reply).not.toMatch(/masculino e feminino|juntar masculino/i)
       expect(result.reason).not.toBe('catalog_reply')
-      expect(result.autoBook?.interactive?.mode).toBe('list')
-      if (result.autoBook?.interactive?.mode === 'list') {
-        expect(result.autoBook.interactive.button).toBe(SLOT_LIST_BUTTON_LABEL)
-      }
+      // DEC-137: texto livre ecoa antes de Horários (Sim é que abre a lista).
+      expect(reply).toMatch(/Entendi: Axila e Pernas\. Certo\?/)
+      expect(result.autoBook?.interactive?.mode).toBe('buttons')
       const after = outbound(s).slice(before)
       const interactive = after.filter((m) => m.kind === 'interactive')
       expect(interactive.some((m) => (m.interactive_json ?? '').includes(SLOT_LIST_BUTTON_LABEL))).toBe(
-        true,
+        false,
       )
+      expect(interactive.some((m) => (m.interactive_json ?? '').includes('"Sim"'))).toBe(true)
       expect(interactive.some((m) => (m.interactive_json ?? '').includes('Falar com a equipe'))).toBe(
         false,
       )
@@ -150,14 +150,13 @@ describe('DEC-135: Horários após texto livre de variantes', () => {
       await say(s, 'feminina')
       const before = outbound(s).length
       const result = await say(s, 'Axila')
-      expect(result.autoBook?.interactive?.mode).toBe('list')
-      if (result.autoBook?.interactive?.mode === 'list') {
-        expect(result.autoBook.interactive.button).toBe(SLOT_LIST_BUTTON_LABEL)
-      }
+      const reply = result.autoBook?.replyText ?? ''
+      expect(reply).toMatch(/Entendi: Axila\. Certo\?/)
+      expect(result.autoBook?.interactive?.mode).toBe('buttons')
       const after = outbound(s).slice(before)
       expect(
         after.some((m) => m.kind === 'interactive' && (m.interactive_json ?? '').includes(SLOT_LIST_BUTTON_LABEL)),
-      ).toBe(true)
+      ).toBe(false)
     } finally {
       s.close()
     }

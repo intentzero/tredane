@@ -19,6 +19,7 @@ import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { askZonesReply, detectExplicitConfirmation, extractTimes } from './autobook'
+import { handleChoiceOfferClick } from './choice-offer'
 import { getScheduleSession } from './schedule-session'
 import { checkConversationProtection, isConversationPaused } from './protection'
 import { autoBookCapability, toAiAssistDeps } from './deps'
@@ -821,11 +822,36 @@ describe('pergunta das variantes usa o plural do tipo', () => {
         s.clock,
       )
       const booked = await s.run()
-      expect(booked.autoBook?.status).toBe('requires_button')
+      // DEC-137: texto livre ecoa a zona; o horário já dito fica na sessão. Sim é que propõe.
+      expect(booked.autoBook?.replyText ?? '').toBe('Entendi: Axila. Certo?')
       expect(booked.autoBook?.replyText ?? '').not.toMatch(/regiões/i)
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       expect(session?.clockTime).toBe('14:00')
       expect(session?.variantIds?.length).toBe(1)
+      const sim = (
+        JSON.parse(
+          s.db.get<{ interactive_json: string | null }>(
+            `SELECT interactive_json FROM outbound_messages WHERE tenant_id = ? AND kind = 'interactive' ORDER BY created_at DESC LIMIT 1`,
+            s.tenantId,
+          )?.interactive_json ?? '{}',
+        ) as { buttons?: Array<{ id: string; title: string }> }
+      ).buttons?.find((button) => button.title === 'Sim')
+      expect(sim?.id).toBeTruthy()
+      s.clock.advance(1_000)
+      s.say('inbound', '[Botão] Sim')
+      const confirmed = await handleChoiceOfferClick(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          buttonId: sim!.id,
+          providerEventKey: 'echo-sim-axila',
+        },
+        s.clock,
+      )
+      expect(confirmed.handled).toBe(true)
+      if (confirmed.handled) expect(confirmed.autoBook?.status).toBe('requires_button')
     } finally {
       s.close()
     }
@@ -980,21 +1006,42 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       )
       s.say('inbound', 'Bom dia. Gostaria agendar um horário para fazer axila e íntima feminina')
       const asked = await s.run()
-      // DEC-135: texto multi-variante já oferece slots (não para em catalog_reply / perguntar_horario).
+      // DEC-137: texto livre ecoa antes dos Horários.
       expect(asked.reason).not.toBe('catalog_reply')
       const offerText = asked.autoBook?.replyText ?? ''
-      expect(offerText).toMatch(/09:00|10:00|14:00|15:|16:/)
-      expect(offerText).toMatch(/Axila/)
-      expect(offerText).toMatch(/Parte íntima|íntima/i)
-      expect(asked.autoBook?.interactive?.mode).toBe('list')
-      if (asked.autoBook?.interactive?.mode === 'list') {
-        expect(asked.autoBook.interactive.button).toBe('Horários')
-      }
+      expect(offerText).toBe('Entendi: Axila e Parte íntima. Certo?')
+      expect(asked.autoBook?.interactive?.mode).toBe('buttons')
       const fem = zones
         .filter((zone) => zone.audience === 'feminino' && (zone.name === 'Axila' || zone.name === 'Parte íntima'))
         .map((zone) => zone.id)
         .sort()
       expect([...(getScheduleSession(s.db, s.tenantId, s.cnv.id)?.variantIds ?? [])].sort()).toEqual(fem)
+      const sim = (
+        JSON.parse(
+          s.db.get<{ interactive_json: string | null }>(
+            `SELECT interactive_json FROM outbound_messages WHERE tenant_id = ? AND kind = 'interactive' ORDER BY created_at DESC LIMIT 1`,
+            s.tenantId,
+          )?.interactive_json ?? '{}',
+        ) as { buttons?: Array<{ id: string; title: string }> }
+      ).buttons?.find((button) => button.title === 'Sim')
+      expect(sim?.id).toBeTruthy()
+      s.clock.advance(1_000)
+      s.say('inbound', '[Botão] Sim')
+      const confirmed = await handleChoiceOfferClick(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          buttonId: sim!.id,
+          providerEventKey: 'echo-sim-intima',
+        },
+        s.clock,
+      )
+      expect(confirmed.handled).toBe(true)
+      if (confirmed.handled && confirmed.autoBook?.interactive?.mode === 'list') {
+        expect(confirmed.autoBook.interactive.button).toBe('Horários')
+      }
 
       s.say('inbound', 'Na parte da manhã')
       const next = await s.run()
@@ -1046,25 +1093,18 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       )
       s.say('inbound', 'Bom dia. Gostaria agendar um horário para fazer axila e íntima feminina')
       const asked = await s.run()
-      // DEC-135: sem «íntima» no catálogo, só Axila — autobook oferece slots (não catalog_reply).
+      // DEC-137: «íntima» não está no catálogo — não oferece Horários só de Axila.
       expect(asked.reason).not.toBe('catalog_reply')
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       expect(session?.audienceLine).toBe('feminino')
-      expect(session?.variantIds?.length).toBe(1)
+      expect(session?.variantIds ?? null).toBeNull()
       const firstOffer = asked.autoBook?.replyText ?? ''
-      expect(firstOffer).toMatch(/Axila/)
-      expect(firstOffer).not.toMatch(/pernas/i)
-      expect(firstOffer).not.toMatch(/íntima/i)
-
-      s.say('inbound', 'Na parte da manhã')
-      const next = await s.run()
-      const text = next.autoBook?.replyText ?? next.suggestion?.suggestedText ?? ''
-      expect(text).toMatch(/Para Axila, de manhã tenho/)
-      expect(text).toMatch(/09:00/)
-      expect(text).not.toMatch(/pernas/i)
-      expect(text).not.toMatch(/íntima/i)
-      expect(text).not.toMatch(/equipe confirma/i)
-      expect(text).not.toMatch(/qual zona/i)
+      expect(firstOffer).not.toMatch(/Entendi:/)
+      expect(firstOffer).not.toMatch(/equipe confirma/i)
+      expect(asked.autoBook?.interactive?.mode).toBe('list')
+      if (asked.autoBook?.interactive?.mode === 'list') {
+        expect(asked.autoBook.interactive.button).toBe('Opções')
+      }
       noBooking(s)
     } finally {
       s.close()
@@ -1131,9 +1171,39 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       s.say('outbound', 'Agradecemos o contato. Estamos à disposição quando precisar.')
       s.say('inbound', 'Bom dia. Gostaria agendar um horário para fazer axila e íntima feminina')
       const asked = await s.run()
-      // DEC-135: texto multi-variante já oferta Horários via autobook (não catalog_reply).
+      // DEC-137: texto livre ecoa o conjunto; Sim (não este turno) é que abre Horários.
       expect(asked.reason).not.toBe('catalog_reply')
-      expect(asked.autoBook?.interactive?.mode).toBe('list')
+      expect(asked.autoBook?.replyText ?? '').toMatch(/Entendi: Axila e Intima\. Certo\?/)
+      expect(asked.autoBook?.interactive?.mode).toBe('buttons')
+      const echoJson = s.db.get<{ interactive_json: string | null }>(
+        `SELECT interactive_json FROM outbound_messages
+         WHERE tenant_id = ? AND kind = 'interactive'
+         ORDER BY created_at DESC LIMIT 1`,
+        s.tenantId,
+      )
+      const sim = (
+        JSON.parse(echoJson?.interactive_json ?? '{}') as {
+          buttons?: Array<{ id: string; title: string }>
+        }
+      ).buttons?.find((button) => button.title === 'Sim')
+      expect(sim?.id).toBeTruthy()
+      s.clock.advance(1_000)
+      s.say('inbound', '[Botão] Sim')
+      const confirmed = await handleChoiceOfferClick(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          buttonId: sim!.id,
+          providerEventKey: 'echo-sim-axila-intima',
+        },
+        s.clock,
+      )
+      expect(confirmed.handled).toBe(true)
+      if (confirmed.handled) {
+        expect(confirmed.autoBook?.interactive?.mode).toBe('list')
+      }
 
       // A manhã fica no histórico. Não se corre o rascunho: essa oferta varre
       // vários dias e, no CI, estoura os 5 s. O caso é o aceite das 10:00.
