@@ -113,6 +113,17 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
     expect(got.zones).toEqual([])
   })
 
+  it('«as duas» / «as três» não são sobra (atalho do catálogo)', () => {
+    expect(resolveZoneMention('as duas', feminine)).toEqual({
+      zones: [],
+      approx: false,
+      unrecognized: false,
+      leftover: null,
+    })
+    expect(resolveZoneMention('as três', feminine).unrecognized).toBe(false)
+    expect(resolveZoneMention('as tres', feminine).leftover).toBeNull()
+  })
+
   it('propriedade: N zonas reconhecíveis → N ids ou unrecognized; nunca N−1', () => {
     const phrases: Array<{ text: string; expectIds: string[] | 'ask' }> = [
       { text: 'Axila', expectIds: ['ax-f'] },

@@ -99,6 +99,14 @@ export function claimsWholeCatalog(text: string): boolean {
 }
 
 /**
+ * Atalho de catálogo no turno («tudo», «as duas», «as três»).
+ * Não é sobra de zona — o autobook deve continuar o serviço da sessão (#509).
+ */
+export function claimsCatalogShortcut(text: string): boolean {
+  return claimsWholeCatalog(text) || countedCatalogSize(text) != null
+}
+
+/**
  * Zonas já fechadas na última fala da clínica («para axila e íntima»),
  * quando a cliente só aceita o horário. Uma lista («temos…», «qual zona») não escolhe.
  */

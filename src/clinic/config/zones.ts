@@ -748,6 +748,11 @@ const ZONE_MENTION_STOP = new Set([
   'todos',
   'completo',
   'completa',
+  // «as duas» / «as três» (COUNTED_CATALOG_CHOICE) — não são sobra de zona (#509)
+  'duas',
+  'tres',
+  'ambos',
+  'ambas',
   'amanha',
   'hoje',
   'depois',

@@ -63,6 +63,7 @@ import { textCitesSynonym } from '../config/synonyms'
 import {
   audienceLineFromClientTexts,
   citesServiceName,
+  claimsCatalogShortcut,
   zonesChosenInClientTexts,
 } from './schedule-choice'
 import {
@@ -838,11 +839,19 @@ export async function tryAiAutoBook(
     const namedNow =
       zonesNamedInText(turnText, storedActive).length > 0 ||
       (stored != null && mentionZones(turnText, storedPool, stored).zones.length > 0)
+    // «as duas» / «tudo»: atalho do âmbito — continua o serviço (#509 review).
+    const catalogShortcutNow = claimsCatalogShortcut(turnText)
     // Sim/Corrigir do eco não repetem o serviço. A sessão já o tem.
     const echoContinues = zoneEcho === 'confirm' || zoneEcho === 'correct'
     if (
       stored &&
-      (clockFromTurn || namedNow || dayContinues || periodContinues || lineContinues || echoContinues)
+      (clockFromTurn ||
+        namedNow ||
+        catalogShortcutNow ||
+        dayContinues ||
+        periodContinues ||
+        lineContinues ||
+        echoContinues)
     ) {
       det = {
         ...det,
