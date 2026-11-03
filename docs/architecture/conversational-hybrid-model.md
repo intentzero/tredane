@@ -8,6 +8,10 @@ Fontes:
 - [Contra-análise da arquitetura conversacional e dos modelos](https://tredane-contra-analise-da-arquitetura-xu22.pages.grok.bot/) (revista em 28/10/2026, base main `40af67e` e head do #155 `1a7711a`).
 - DEC-006 (IA revista por pessoa; alterada por DEC-060), DEC-011 (dados e IA), [ADR-0004](../adr/0004-ai-human-in-loop.md), [sinal Pix](../product/sinal.md).
 
+### Contexto externo — anti-padrão a evitar (evidência, não decisão)
+
+A reportagem do Correio Braziliense «[Atendimento por IA vira labirinto para o consumidor](https://www.correiobraziliense.com.br/cidades-df/2026/11/7529590-atendimento-por-ia-vira-labirinto-para-o-consumidor.html)» (Brunna Ramos, 02/11/2026) descreve canais em que o robô não entende o pedido, repete menus e impede o acesso a um atendente humano, transformando o suporte em labirinto. **Estado: contexto/evidência externa** — não cria requisito nem DEC novos; reforça o alinhamento do Tredane com IA assistiva, handoff humano fácil ([DEC-083](../product/decisions.md), [DEC-107](../product/decisions.md), [DEC-113](../product/decisions.md)–[114](../product/decisions.md)) e caminho de marcação claro ([DEC-061](../product/decisions.md), [DEC-104](../product/decisions.md); ver também o [núcleo determinístico](nucleo-deterministico-conversacional.md) §3.4).
+
 ## 0. Reconciliação SEG-IA (28/10/2026)
 
 **Direção:** [épico #171](https://github.com/intentzero/tredane/issues/171) (SEG-IA), formalizada em [DEC-061](../product/decisions.md) — **Decidido em 28/10/2026 (Paulo, registo D-20261028-200500-CUR)**. A DEC-060 fica revista: o software não deve marcar por texto livre (S2, #173). A proposta está sempre ligada (Paulo, 29/10/2026); a owner pausa na clínica.
