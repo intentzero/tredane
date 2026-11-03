@@ -979,8 +979,8 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'A-13',
     title: 'Sessão antiga: recomeçar limpa o frame',
     turnosIdeais: 1,
-    // CF-28 (#508): «começar de novo» ainda não limpa o BookingFrame.
-    knownFailure: 'CF-28',
+    // CF-28: L1 deixa de ser it.fails — hoje a saída casa o regex via
+    // sobra «comecar» (#509); limpeza real do frame continua em #508 / PR #524.
     prepare: (s) => {
       const zones = s.db.all<{ id: string; name: string; audience: string }>(
         `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
@@ -1020,8 +1020,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'A-14',
     title: '«Quero depilar» encontra Depilação',
     turnosIdeais: 1,
-    // CF-29 (#509): sinónimo «depilar» → Depilação ainda em falta.
-    knownFailure: 'CF-29',
+    // CF-29 fechado (#509): sinónimo DEC-110 em extractServices / namedServices.
     damage: { serviceKey: 'depilacao' },
     turns: [{ role: 'client', text: 'Quero depilar' }],
     expect: {
@@ -1195,8 +1194,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'A-19',
     title: 'Catálogo sem match: diz o que faltou, sem link Google',
     turnosIdeais: 1,
-    // CF-34 (#512): sonda despejava Google + «falar com a equipe» sem o que faltou.
-    knownFailure: 'CF-34',
+    // CF-34 fechado (#512 / #520): diz o que faltou; sem link Google.
     prepare: (s) => {
       setClinicAiProfile(
         s.db,
