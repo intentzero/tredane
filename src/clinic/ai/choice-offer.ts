@@ -32,7 +32,7 @@ import { zonesForAudienceLine, type AudienceLine } from './variant-line'
 /** Prefixo estável dos ids opacos (Cloud API button/list row id, ≤200). */
 export const CHOICE_ID_PREFIX = 'ch1~'
 
-export type ChoiceSlot = 'linha' | 'variantes' | 'horario'
+export type ChoiceSlot = 'linha' | 'variantes' | 'horario' | 'eco'
 
 export type ChoiceInteractiveButtons = {
   mode: 'buttons'
@@ -54,6 +54,12 @@ export type ChoiceInteractive = ChoiceInteractiveButtons | ChoiceInteractiveList
 export const VARIANT_LIST_BUTTON_LABEL = 'Opções'
 /** CTA da lista de horários — Confirmado (DEC-134). */
 export const SLOT_LIST_BUTTON_LABEL = 'Horários'
+
+/** Eco das zonas em texto livre — Confirmado (DEC-137). Sim não marca (DEC-061). */
+export const ZONE_ECHO_SIM_KEY = 'sim'
+export const ZONE_ECHO_CORRIGIR_KEY = 'corrigir'
+export const ZONE_ECHO_SIM_LABEL = 'Sim'
+export const ZONE_ECHO_CORRIGIR_LABEL = 'Corrigir'
 
 export const LINE_BUTTON_TITLES = {
   feminino: 'Feminina',
@@ -107,7 +113,7 @@ export function parseChoiceId(
   } catch {
     return null
   }
-  if (slot !== 'linha' && slot !== 'variantes' && slot !== 'horario') return null
+  if (slot !== 'linha' && slot !== 'variantes' && slot !== 'horario' && slot !== 'eco') return null
   if (!catalogVersion || !key) return null
   return { slot, catalogVersion, key }
 }
@@ -144,6 +150,48 @@ export function buildLineChoiceInteractive(catalogVersion: string): {
       })),
     },
     pending: pendingForChoiceOffer({ slot: 'linha', options }),
+  }
+}
+
+/** «Axila e Pernas» — nomes do catálogo, sem fuso. */
+export function joinZoneNamesPt(names: readonly string[]): string {
+  const unique: string[] = []
+  const seen = new Set<string>()
+  for (const raw of names) {
+    const name = raw.trim()
+    if (!name) continue
+    const key = name.toLocaleLowerCase('pt-BR')
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push(name)
+  }
+  if (unique.length <= 1) return unique[0] ?? ''
+  if (unique.length === 2) return `${unique[0]} e ${unique[1]}`
+  return `${unique.slice(0, -1).join(', ')} e ${unique[unique.length - 1]}`
+}
+
+/** DEC-137. Frase fixa antes da lista Horários. */
+export function zoneEchoReply(zones: readonly { name: string }[]): string {
+  return `Entendi: ${joinZoneNamesPt(zones.map((zone) => zone.name))}. Certo?`
+}
+
+export function buildZoneEchoInteractive(catalogVersion: string): {
+  interactive: ChoiceInteractiveButtons
+  pending: BookingFramePending
+} {
+  const options = [
+    { key: ZONE_ECHO_SIM_KEY, label: ZONE_ECHO_SIM_LABEL },
+    { key: ZONE_ECHO_CORRIGIR_KEY, label: ZONE_ECHO_CORRIGIR_LABEL },
+  ]
+  return {
+    interactive: {
+      mode: 'buttons',
+      buttons: options.map((o) => ({
+        id: encodeChoiceId('eco', catalogVersion, o.key),
+        title: clip(o.label, META_BUTTON_TITLE_MAX),
+      })),
+    },
+    pending: pendingForChoiceOffer({ slot: 'eco', options }),
   }
 }
 
@@ -297,6 +345,17 @@ function semanticTextForChoice(
   if (slot === 'linha') {
     return key === 'masculino' ? 'masculina' : 'feminina'
   }
+  if (slot === 'eco') {
+    if (key !== 'sim') return label
+    const frame = getBookingFrame(db, tenantId, conversationId)
+    const services = listServices(db, tenantId).filter((s) => s.active)
+    const svc = services.find((s) => s.id === frame?.serviceId)
+    const ids = new Set(frame?.variantIds ?? [])
+    const names = (svc?.zones ?? [])
+      .filter((z) => z.active && ids.has(z.id))
+      .map((z) => z.name)
+    return joinZoneNamesPt(names) || label
+  }
   if (slot === 'variantes') {
     if (key !== TODAS_OPTION_KEY) return label
     const frame = getBookingFrame(db, tenantId, conversationId)
@@ -445,7 +504,18 @@ export async function handleChoiceOfferClick(
     }
   }
 
-  const turnText = semanticTextForChoice(
+  // DEC-137: toque em Opções já é explícito (sem eco). Sim confirma o conjunto
+  // e só então pede Horários — não marca (DEC-061). Corrigir volta às zonas.
+  const zoneEcho =
+    validated.slot === 'variantes'
+      ? ('skip' as const)
+      : validated.slot === 'eco' && validated.key === 'sim'
+        ? ('confirm' as const)
+        : validated.slot === 'eco' && validated.key === 'corrigir'
+          ? ('correct' as const)
+          : undefined
+
+  let turnText = semanticTextForChoice(
     db,
     input.tenantId,
     input.conversationId,
@@ -453,6 +523,12 @@ export async function handleChoiceOfferClick(
     validated.key,
     validated.label,
   )
+  if (zoneEcho === 'correct') {
+    const frame = getBookingFrame(db, input.tenantId, input.conversationId)
+    const services = listServices(db, input.tenantId).filter((s) => s.active)
+    const svc = services.find((s) => s.id === frame?.serviceId)
+    turnText = svc?.name?.trim() || 'quero agendar'
+  }
 
   // Limpa pending da oferta tocada antes do autobook (nova oferta virá no reply).
   clearPendingFrame(db, input.tenantId, input.conversationId, clock)
@@ -462,6 +538,7 @@ export async function handleChoiceOfferClick(
     capability: input.capability !== false,
     turnTextOverride: turnText,
     confirmationMessageIdOverride: confirmationMessageId,
+    zoneEcho,
   })
 
   const outbox = [

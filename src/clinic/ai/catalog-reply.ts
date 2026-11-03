@@ -10,7 +10,7 @@ import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
-import { variantAudiencesConflict, zonesNamedInText } from '../config/zones'
+import { resolveZoneMention, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { listMessages } from '../inbox/messages'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
@@ -178,7 +178,10 @@ function rememberZonesWhenKnown(
   // Horário já guardado: o autobook fecha a proposta. Não alterar a sessão aqui.
   if (session?.clockTime) return false
   const scoped = mixed ? zonesForAudienceLine(active, line) : active
-  const named = zonesNamedInText(source, scoped)
+  const mention = resolveZoneMention(source, scoped)
+  // DEC-137: sobra não resolvida — cede ao autobook sem gravar o conjunto parcial.
+  if (mention.unrecognized) return true
+  const named = mention.zones
   if (named.length === 0 || variantAudiencesConflict(named) || zoneNameRepeated(named)) return false
   if (conversationId) {
     const patch: ScheduleSessionPatch = {
