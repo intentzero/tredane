@@ -58,6 +58,13 @@
 | A-10 | P1 | «meio-dia» no vão do almoço | C: «Limpeza de pele sexta ao meio-dia» | Reconhece 12:00, diz que não há vaga e oferece 11:00 e 13:00. | INV-03 | 1 | ❌ CF-09 |
 | A-11 | P1 | Outro serviço depois de Agendado | [A-01 confirmado] ⟶ clique «Quero outro serviço» ⟶ C: «massagem sábado 10h» | Funil novo, sem herdar o anterior → proposta Massagem sáb 10:00. | INV-08 | 1 | ✅ `autobook.test` «após limpar a sessão (DEC-086)» |
 | A-12 | P1 | Sem preferência de dia | C: «Quero massagem, qualquer dia de tarde» | Oferta de 2–3 horários da tarde em dias próximos. | INV-03, EE-07 | 1 | ❔ L2 |
+| A-13 | P0 | Sessão antiga / recomeçar | [frame com Depilação + Feminina + zonas] ⟶ C: «começar de novo» | Frame limpo; pergunta o serviço; sem saltar para horários. | INV-08, EE-02 | 1 | ❌ CF-28 · L1 `it.fails` · [#508](https://github.com/intentzero/tredane/issues/508) |
+| A-14 | P0 | Sinónimo «depilar» | C: «Quero depilar» | Trata como Depilação (pergunta a linha); sem «não encontrei». | EF-01 | 1 | ❌ CF-29 · L1 `it.fails` · [#509](https://github.com/intentzero/tredane/issues/509) |
+| A-15 | P0 | Homónimo Axila com Feminina | [Feminina] ⟶ C: «Axila e pernas» | Sem recusa de mistura; eco ou zonas da linha feminina. | INV-08, DEC-079 | 1 | ✅ CF-30 fechado (#502) · L1 `dialogs` A-15 |
+| A-16 | P0 | Nenhuma zona cai em silêncio | [Feminina] ⟶ C: «Axilas e pernas» | Eco «Entendi: Axila e Pernas. Certo?»; as duas zonas. | EF-02, DEC-137 | 1 | ✅ L1 `dialogs` A-16 (eco); propriedade N→N−1 fica em [#509](https://github.com/intentzero/tredane/issues/509) |
+| A-17 | P0 | Toque no horário com título mês-dia | A: [lista Horários; título «11-03 17:00»; id civil] ⟶ toque | Proposta ter 03/11 17:00; sem «qual dia?». Toque não marca. | INV-01, EF-02 | 1 | ✅ CF-32 mitigado (#505) · L1 `dialogs` A-17 · título longo em [#507](https://github.com/intentzero/tredane/issues/507) |
+| A-18 | P0 | Confirmar depois da validade | [proposta enviada] ⟶ relógio +30 min ⟶ Confirmar | Sem marcação; explica expiração; oferece ≥2 horários livres do mesmo pedido. | INV-01 | 2 | ❌ CF-33 · L1 `it.fails` · [#511](https://github.com/intentzero/tredane/issues/511) |
+| A-19 | P0 | Catálogo sem match | C: «Vocês fazem botox?» (com link Google cadastrado) | Diz o que faltou / opções; **sem** link Google; sem despejar só «equipe». | INV-02, INV-05 | 1 | ❌ CF-34 · L1 `it.fails` · [#512](https://github.com/intentzero/tredane/issues/512) |
 
 ## B. Linguagem temporal
 
@@ -435,6 +442,15 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | §4.4 | Invariantes P0 a verde; regressão zero vs pós-#446 (83/72); EF/EE e Q L2 **Em aberto** — dry-run verde, **live** bloqueada sem gateway (fica em #417); κ juiz↔humano Em aberto (#402) |
 | Fora | Live L2/L3 [#417](https://github.com/intentzero/tredane/issues/417); L4 Meta/staging M5 [#415](https://github.com/intentzero/tredane/issues/415); P3b [#475](https://github.com/intentzero/tredane/issues/475); leva 3 / 6 atos sem call-site |
 | Próxima | [#481](https://github.com/intentzero/tredane/issues/481) Iteração 6 |
+
+### Resumo F1-0 / sonda de novembro (#506, 03/11/2026)
+
+| Estado | Contagem / notas |
+| --- | --- |
+| Casos novos | **A-13..A-19** (7) — CF-28..CF-34 |
+| L1 | **90** casos · **75** passam · **4** `it.fails` (A-13 CF-28, A-14 CF-29, A-18 CF-33, A-19 CF-34) · 2 pendentes · 9 coverageOnly · 0 inesperadas; A-15/A-16/A-17 **verdes** (#502 / DEC-137 / #505) |
+| Correções | [#508](https://github.com/intentzero/tredane/issues/508) A-13 · [#509](https://github.com/intentzero/tredane/issues/509) A-14/A-16 · [#507](https://github.com/intentzero/tredane/issues/507) A-17 · [#511](https://github.com/intentzero/tredane/issues/511) A-18 · [#512](https://github.com/intentzero/tredane/issues/512) A-19 · quadro único [#510](https://github.com/intentzero/tredane/issues/510) (sem caso novo dedicado) |
+| Estrago | ES-01..04 no relatório `test:dialogs` (`damage.ts`); contrato partilhável com L2/L3 (#417) |
 
 ### Resumo após It. 6 (02/11/2026)
 

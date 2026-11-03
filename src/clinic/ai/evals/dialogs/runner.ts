@@ -2,8 +2,23 @@
  * Runner L1: aplica turnos inbound via enqueueAutoDraft + runDueAutoDrafts (#406).
  */
 import type { AiProviderAdapter } from '../../../../ai'
+import { readZoneSnapshots } from '../../../config/zones'
+import { APPOINTMENT_PROPOSAL_VALIDITY_MS } from '../../../constants'
+import { insertMessage } from '../../../inbox/messages'
+import { executeProposalConfirmOp } from '../../../proposals/execute-confirm'
+import { handleProposalButtonClick } from '../../../proposals/buttons'
+import { proposalButtonId } from '../../../proposals/render'
+import { markProposalSendPending, markProposalSent } from '../../../proposals/proposals'
+import { handleChoiceOfferClick } from '../../choice-offer'
 import { enqueueAutoDraft, runDueAutoDrafts } from '../../index'
 import { checkInvariants, type InvResult } from './invariants'
+import {
+  computeDamageMetrics,
+  countClientCorrections,
+  formatDamageReport,
+  type DamageMetrics,
+  type DamageRequest,
+} from './damage'
 import { bootDialogScenario, DIALOG_TZ, type DialogScenario } from './scenario'
 
 export type DialogMediaKind = 'audio' | 'image' | 'document'
@@ -22,6 +37,18 @@ export type DialogTurn =
   /** Salta o relógio (ex.: meia-noite entre dois turnos, CF-21). */
   | { role: 'clock'; setMs: number }
   | { role: 'setup'; note: string }
+  /**
+   * Toque autenticado em lista/botão M5 (#415 / #506). Corre `handleChoiceOfferClick`
+   * (não o autodraft de texto). O corpo inbound é só telemetria.
+   */
+  | { role: 'choice'; buttonId: string; buttonTitle?: string; body?: string }
+  /** Marca a proposta aberta mais recente como `enviada` (vigência 30 min). */
+  | { role: 'proposal_sent' }
+  /** Clique Confirmar na proposta aberta mais recente (DEC-061). */
+  | { role: 'confirm_proposal' }
+
+export type { DamageMetrics, DamageRequest }
+export { APPOINTMENT_PROPOSAL_VALIDITY_MS }
 
 /** Verificações da resposta do agente a um turno (0 = primeiro turno da cliente). */
 export type TurnExpect = { turn: number; matches?: RegExp[]; excludes?: RegExp[] }
@@ -52,6 +79,11 @@ export type DialogCase = {
   forecast?: import('../../../tempo/evaluate').ForecastAdapter
   /** Relógio do cenário (ex. G-10 sábado 17:00). */
   nowMs?: number
+  /**
+   * Pedido declarado para métricas de estrago F1-0 (#506).
+   * Sem isto, o relatório omite o caso (métricas null).
+   */
+  damage?: DamageRequest
   /** Asserções extra além das INV. */
   expect?: {
     outboundIncludes?: string[]
@@ -73,6 +105,11 @@ export type DialogCase = {
     notPaused?: boolean
     /** DEC-114: pausa sem mensagem automática (excepção INV-09). */
     silentPause?: boolean
+    /**
+     * Zonas (nomes) que a proposta deve incluir — usado nos casos da sonda
+     * (nenhuma zona cai em silêncio).
+     */
+    proposalZones?: string[]
   }
 }
 
@@ -92,6 +129,8 @@ export type DialogRunResult = {
   proposals: number
   appointments: number
   agentTurns: number
+  /** Métricas de estrago quando o caso declara `damage`. */
+  damage?: DamageMetrics
   error?: string
 }
 
@@ -111,9 +150,13 @@ export async function runDialogCase(
   const s = boot({ adapter: c.adapter, nowMs: c.nowMs })
   c.prepare?.(s)
   let agentTurns = 0
+  let turnsToConfirm: number | null = null
   const perTurn: string[][] = []
+  /** Turnos da cliente (texto/mídia/burst/choice) — índice das expectativas `turns`. */
+  let clientTurnIdx = 0
   const runJob = async (messageId: string) => {
     const before = s.outboundBodies().length
+    const proposalsBefore = s.proposalCount()
     enqueueAutoDraft(s.db, s.tenantId, { conversationId: s.conversationId, messageId }, s.clock)
     s.clock.advance(7_000)
     const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
@@ -122,8 +165,20 @@ export async function runDialogCase(
       forecast: c.forecast,
     })
     if (out.length > 0) agentTurns += 1
-    perTurn.push(s.outboundBodies().slice(before))
+    perTurn[clientTurnIdx] = s.outboundBodies().slice(before)
+    clientTurnIdx += 1
+    if (turnsToConfirm == null && s.proposalCount() > proposalsBefore) {
+      turnsToConfirm = agentTurns
+    }
   }
+  const latestProposal = () =>
+    s.db.get<{ id: string; version: number }>(
+      `SELECT id, version FROM appointment_proposals
+       WHERE tenant_id = ? AND conversation_id = ?
+       ORDER BY created_at DESC, version DESC LIMIT 1`,
+      s.tenantId,
+      s.conversationId,
+    )
   try {
     for (const turn of c.turns) {
       if (turn.role === 'client') await runJob(s.sayInbound(turn.text))
@@ -135,15 +190,94 @@ export async function runDialogCase(
         await runJob(last)
       } else if (turn.role === 'clinic') s.sayOutbound(turn.text)
       else if (turn.role === 'clock') s.clock.set(turn.setMs)
+      else if (turn.role === 'choice') {
+        const before = s.outboundBodies().length
+        const proposalsBefore = s.proposalCount()
+        s.clock.advance(1_000)
+        insertMessage(
+          s.db,
+          {
+            tenantId: s.tenantId,
+            conversationId: s.conversationId,
+            direction: 'inbound',
+            body: turn.body ?? `[Lista] ${turn.buttonTitle ?? 'opção'}`,
+            deliveryState: 'received',
+            createdAt: s.clock.nowMs(),
+          },
+          s.clock,
+        )
+        const clicked = await handleChoiceOfferClick(
+          s.db,
+          s.caller,
+          {
+            tenantId: s.tenantId,
+            conversationId: s.conversationId,
+            buttonId: turn.buttonId,
+            buttonTitle: turn.buttonTitle,
+            providerEventKey: `dialog-choice:${c.id}:${clientTurnIdx}`,
+          },
+          s.clock,
+        )
+        if (clicked.handled) agentTurns += 1
+        perTurn[clientTurnIdx] = s.outboundBodies().slice(before)
+        clientTurnIdx += 1
+        if (turnsToConfirm == null && s.proposalCount() > proposalsBefore) {
+          turnsToConfirm = agentTurns
+        }
+      } else if (turn.role === 'proposal_sent') {
+        const p = latestProposal()
+        if (p) {
+          markProposalSendPending(s.db, s.tenantId, p.id, s.clock)
+          markProposalSent(s.db, s.tenantId, p.id, s.clock)
+          s.db.run(
+            `UPDATE appointment_proposals SET send_provider_message_id = ? WHERE tenant_id = ? AND id = ?`,
+            `wamid.dialog.${p.id}`,
+            s.tenantId,
+            p.id,
+          )
+        }
+      } else if (turn.role === 'confirm_proposal') {
+        const p = latestProposal()
+        const before = s.outboundBodies().length
+        if (p) {
+          const click = handleProposalButtonClick(
+            s.db,
+            {
+              tenantId: s.tenantId,
+              contactId: s.contactId,
+              conversationId: s.conversationId,
+              buttonId: proposalButtonId(p.id, p.version, 'confirm'),
+              contextMessageId: `wamid.dialog.${p.id}`,
+              providerEventKey: `dialog-confirm:${c.id}`,
+            },
+            s.clock,
+          )
+          if (click.handled && 'handoff' in click && click.handoff) {
+            await executeProposalConfirmOp(
+              s.db,
+              s.caller,
+              {
+                handoff: click.handoff,
+                capability: true,
+                providerEventKey: `dialog-confirm:${c.id}`,
+                contextMessageId: `wamid.dialog.${p.id}`,
+              },
+              s.clock,
+            )
+          }
+          agentTurns += 1
+        }
+        perTurn[clientTurnIdx] = s.outboundBodies().slice(before)
+        clientTurnIdx += 1
+      }
     }
 
-    const clientTurns = c.turns.filter(
-      (t) => t.role === 'client' || t.role === 'client_media' || t.role === 'burst',
-    ).length
+    const clientTurns = clientTurnIdx
     const invariants = checkInvariants(s, {
       eligibleTurns:
         c.turns.filter((t) => t.role === 'client' || t.role === 'client_media').length +
-        c.turns.filter((t) => t.role === 'burst').length,
+        c.turns.filter((t) => t.role === 'burst').length +
+        c.turns.filter((t) => t.role === 'choice').length,
       requirePause: c.expect?.paused,
       requireNoPause: c.expect?.notPaused ?? c.expect?.paused === false,
       allowSilentPause: c.expect?.silentPause,
@@ -177,6 +311,9 @@ export async function runDialogCase(
     }
     if (e?.proposal === true && s.proposalCount() < 1) errors.push('esperava proposta')
     if (e?.proposal === false && s.proposalCount() > 0) errors.push('proposta inesperada')
+    if (e?.noAppointment === true && s.appointmentCount() > 0) {
+      errors.push('compromisso inesperado')
+    }
     if (e?.professionalKey) {
       const want = s.ids[e.professionalKey]
       const pro = s.db.get<{ professional_id: string | null }>(
@@ -205,6 +342,24 @@ export async function runDialogCase(
         }
       }
     }
+    if (e?.proposalZones && e.proposalZones.length > 0) {
+      const row = s.db.get<{ id: string }>(
+        `SELECT id FROM appointment_proposals
+         WHERE tenant_id = ? AND conversation_id = ? ORDER BY created_at DESC, version DESC LIMIT 1`,
+        s.tenantId,
+        s.conversationId,
+      )
+      if (!row) errors.push('esperava proposta com zonas')
+      else {
+        const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', row.id)
+        const got = new Set(snaps.map((z) => z.name.trim().toLocaleLowerCase('pt-BR')))
+        for (const name of e.proposalZones) {
+          if (!got.has(name.trim().toLocaleLowerCase('pt-BR'))) {
+            errors.push(`proposta sem zona «${name}» (tem: ${[...got].join(', ') || 'nenhuma'})`)
+          }
+        }
+      }
+    }
     for (const t of e?.turns ?? []) {
       if (t.turn >= clientTurns) {
         errors.push(`turno ${t.turn} não existe`)
@@ -220,6 +375,16 @@ export async function runDialogCase(
     const failedInv = checked.filter((i) => !i.ok)
     for (const f of failedInv) errors.push(`${f.id}${f.detail ? ` (${f.detail})` : ''}`)
 
+    const damage =
+      c.damage != null
+        ? computeDamageMetrics({
+            s,
+            request: c.damage,
+            clientCorrections: countClientCorrections(c.turns),
+            turnsToConfirm,
+          })
+        : undefined
+
     return {
       id: c.id,
       ok: errors.length === 0,
@@ -231,6 +396,7 @@ export async function runDialogCase(
       proposals: s.proposalCount(),
       appointments: s.appointmentCount(),
       agentTurns,
+      damage,
       error: errors.length ? errors.join('; ') : undefined,
     }
   } catch (err) {
@@ -269,5 +435,7 @@ export function formatDialogReport(results: DialogRunResult[]): string {
   for (const r of bad) lines.push(`  !! ${r.id}: ${r.error}`)
   for (const r of known) lines.push(`  · ${r.id} → ${r.knownFailure}: ${(r.error ?? '').slice(0, 110)}`)
   for (const r of pending) lines.push(`  ? ${r.id} → ${r.pendingHarness}`)
+  const damageBlock = formatDamageReport(results)
+  if (damageBlock) lines.push(damageBlock)
   return lines.join('\n')
 }
