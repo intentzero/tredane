@@ -2,18 +2,35 @@
 
 Workflow: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — **Actions → Deploy → Run workflow**.
 
-- **Inputs:** `target` (`staging` | `production`, default `staging`) e `ref` (branch/tag/SHA, default `main`).
+- **Inputs:** `target` (`staging` | `production`, default `staging`), `ref` (branch/tag/SHA, default `main`), e `apply_d1_migrations` (boolean, default `false` — só afecta **production**).
 - **Job `resolve`:** resolve `ref` para um SHA. Para `production` recusa se (a) o workflow não foi disparado a partir de `main`, ou (b) o SHA não está contido em `origin/main`.
-- **Job `deploy-staging`** (environment `staging`) / **`deploy-production`** (environment `production`, gate de aprovação pelo required reviewer): checkout do SHA resolvido → Node 22 → `npm ci` → `typecheck` → `lint` → `npm test` → `test:runtime` → `npm run deploy -- <target>`.
+- **Job `deploy-staging`** (environment `staging`): checkout do SHA → Node 22 → `npm ci` → `typecheck` → `lint` → `npm test` → `test:runtime` → **`db:migrate:remote` (D1)** → **`db:smoke:admin-schema`** → `npm run deploy -- staging`.
+- **Job `deploy-production`** (environment `production`, gate de aprovação pelo required reviewer): igual aos testes, depois `npm run deploy -- production`. Migrate + smoke D1 **só** se `apply_d1_migrations=true` (opt-in + approval do environment); default = skip com aviso no log.
 - `npm run deploy -- <target>` é o caminho existente ([`scripts/deploy.mjs`](../scripts/deploy.mjs)): `npm run build` com `CLOUDFLARE_ENV=<target>` → confirma que o Worker gerado é `tredane-dev-<target>` → `check-env-placeholders.mjs <target>` → `npx wrangler deploy --env <target>`.
 - O **Version ID** publicado vai para o job summary (via `WRANGLER_OUTPUT_FILE_PATH`, com fallback para a linha `Current Version ID` do log).
 - `permissions: contents: read`; `concurrency` por target (`deploy-staging` / `deploy-production`), sem cancelar deploys em curso.
+
+### Ordem staging (Confirmado — Paulo, 03/11/2026)
+
+Evita Worker novo com D1 atrasado (incidente `GET /api/me/tenants` → 500 / `SchemaNotReady`):
+
+1. `npm run db:migrate:remote -- staging` → `wrangler d1 migrations apply tredane-staging --env staging --remote`
+2. `npm run db:smoke:admin-schema -- staging` → `admin_schema_state.version == ADMIN_SCHEMA_VERSION` (hoje `16`); falha → job falha, **sem** deploy
+3. `npm run deploy -- staging`
+
+Scripts: [`scripts/d1-migrate-remote.mjs`](../scripts/d1-migrate-remote.mjs), [`scripts/d1-admin-schema-smoke.mjs`](../scripts/d1-admin-schema-smoke.mjs).
+
+### Production — path de approval (não auto-apply por defeito)
+
+- Default: **não** aplica migrações D1 no pipeline (continua manual após revisão, ou opt-in).
+- Opt-in: `apply_d1_migrations=true` no Run workflow → steps migrate → smoke correm **dentro** do job com `environment: production` (required reviewers). Sem esse flag, o job regista skip e segue para o deploy do Worker.
+- Não misturar apply cego sem smoke: quando o flag está ligado, a ordem é a mesma do staging.
 
 ### Âmbito / o que este workflow NÃO faz
 
 - Publica **só o Worker principal** (painel/API): `tredane-dev-staging` / `tredane-dev-production` (`wrangler.jsonc` → `env.<target>.name`; `scripts/deploy.mjs` → `WORKER_BASE = 'tredane-dev'`).
 - **Não** publica a landing page `site/` (Workers `tredane-site-staging` / `tredane-site-production`, `site/wrangler.jsonc`). `site/package.json` só tem `deploy:staging`; **não existe script de deploy de produção da landing**.
-- **Não** aplica migrações D1 (`wrangler d1 migrations apply`) — continua manual, após revisão (ver [environments.md](implementation/environments.md)).
+- **Não** faz fan-out de migrações do SQLite dos Durable Objects (clinic).
 - **Não** cria/atualiza secrets do Worker (`wrangler secret put`).
 
 ## O que ainda falta (A3 — requer OK separado)
@@ -32,9 +49,12 @@ Workflow: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — 
 | Nome | Tipo | `staging` | `production` |
 | --- | --- | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | environment **secret** | token staging (abaixo) | token production (abaixo) |
+| `CLOUDFLARE_API_TOKEN_D1` | environment **secret** (opcional) | token com **D1: Edit** se o de deploy não tiver; senão o workflow usa `CLOUDFLARE_API_TOKEN` | idem (só usado se `apply_d1_migrations`) |
 | `CLOUDFLARE_ACCOUNT_ID` | environment **variable** (ou secret; o workflow aceita os dois) | `fc4be5a9597f5f05126209205ee98339` | **UNKNOWN** |
 
 Não usar secrets ao nível do repositório para isto — só ao nível do environment.
+
+Se o token usado no migrate/smoke **não** tiver Account · **D1: Edit**, o step falha com mensagem a apontar para este documento (alargar o token existente ou criar `CLOUDFLARE_API_TOKEN_D1`).
 
 ### 3. Tokens Cloudflare (mínimo, um por environment, account-owned, limitado à conta respetiva)
 
@@ -46,7 +66,7 @@ Derivado dos bindings de `wrangler.jsonc` (`env.staging` / `env.production`): D1
 | Account · **Queues: Edit** | `wrangler deploy` regista o consumer de `tredane-inbound-<env>` (com DLQ) | ✅ | ✅ |
 | Account · **Account Settings: Read** | wrangler lê a conta | ✅ | ✅ |
 | Zone `tredane.com` · **Workers Routes: Edit** | custom domain `staging.app.tredane.com` (necessário enquanto o deploy adiciona/altera a ligação) | ✅ | ❌ (sem `routes` em `env.production` hoje) |
-| Account · **D1: Edit** | só se o workflow passar a aplicar `wrangler d1 migrations apply` (hoje **não** aplica; o binding não precisa) | ❌ hoje | ❌ hoje |
+| Account · **D1: Edit** | `wrangler d1 migrations apply` + smoke `d1 execute` no pipeline staging (sempre); production só com `apply_d1_migrations` | ✅ **obrigatório** no token de migrate/smoke | ✅ quando o opt-in for usado |
 | Account · **Workers R2 Storage** | não necessário: deploy só referencia o bucket já existente | ❌ | ❌ |
 
 Primeiro deploy de um Worker que ainda não existe requer Workers Scripts Edit ao nível da conta (não por-Worker). Se o primeiro deploy falhar por permissão, ajustar e anotar aqui.

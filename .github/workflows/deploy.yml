@@ -1,7 +1,8 @@
 # Deploy manual do Worker principal (painel/API) via `npm run deploy -- <target>`
 # (scripts/deploy.mjs → build → check:env → `wrangler deploy --env <target>`).
 # Workers publicados: tredane-dev-staging / tredane-dev-production (wrangler.jsonc).
-# Não faz deploy da landing page (site/) nem aplica migrações D1. Ver docs/DEPLOY.md.
+# Staging: D1 migrate remoto → smoke admin_schema → deploy. Production: migrate/smoke
+# só com input apply_d1_migrations (environment approval). Ver docs/DEPLOY.md.
 name: Deploy
 
 on:
@@ -18,6 +19,10 @@ on:
         description: Git ref ou SHA a publicar (production só aceita commits contidos em main)
         type: string
         default: main
+      apply_d1_migrations:
+        description: "Production only — aplicar migrações D1 remotas + smoke admin_schema antes do deploy (staging aplica sempre). Requer Account D1 Edit no token."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -89,6 +94,29 @@ jobs:
         run: npm test
       - name: Cloudflare runtime harness
         run: npm run test:runtime
+      - name: D1 migrations apply (staging)
+        env:
+          # Preferir token com D1:Edit; senão o de deploy (tem de incluir D1:Edit).
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_D1 || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::Token Cloudflare / CLOUDFLARE_ACCOUNT_ID ausentes no environment 'staging'. Migrate exige Account · D1: Edit (secret CLOUDFLARE_API_TOKEN_D1 ou CLOUDFLARE_API_TOKEN alargado). Ver docs/DEPLOY.md."
+            exit 1
+          fi
+          npm run db:migrate:remote -- staging
+      - name: D1 admin schema smoke (staging)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_D1 || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::Token Cloudflare / CLOUDFLARE_ACCOUNT_ID ausentes para smoke D1 no environment 'staging' (ver docs/DEPLOY.md)."
+            exit 1
+          fi
+          npm run db:smoke:admin-schema -- staging
       - name: Deploy (npm run deploy -- staging)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -131,6 +159,7 @@ jobs:
             echo "| Worker | \`tredane-dev-$TARGET\` |"
             echo "| Ref pedido | \`$INPUT_REF\` |"
             echo "| Commit | \`$SHA\` |"
+            echo "| Ordem | migrate → smoke admin_schema → deploy |"
             echo "| Version ID | \`${version_id:-n/a (deploy não concluído)}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -160,6 +189,36 @@ jobs:
         run: npm test
       - name: Cloudflare runtime harness
         run: npm run test:runtime
+      - name: D1 migrations apply (production — opt-in)
+        if: inputs.apply_d1_migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_D1 || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::Token Cloudflare / CLOUDFLARE_ACCOUNT_ID ausentes no environment 'production'. Migrate exige Account · D1: Edit (secret CLOUDFLARE_API_TOKEN_D1 ou CLOUDFLARE_API_TOKEN alargado). Ver docs/DEPLOY.md."
+            exit 1
+          fi
+          npm run db:migrate:remote -- production
+      - name: D1 admin schema smoke (production — opt-in com migrate)
+        if: inputs.apply_d1_migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_D1 || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::Token Cloudflare / CLOUDFLARE_ACCOUNT_ID ausentes para smoke D1 no environment 'production' (ver docs/DEPLOY.md)."
+            exit 1
+          fi
+          npm run db:smoke:admin-schema -- production
+      - name: Skip D1 auto-apply (production default)
+        if: ${{ !inputs.apply_d1_migrations }}
+        run: |
+          echo "Production: migrate/smoke D1 **não** corridos (apply_d1_migrations=false)."
+          echo "Para apply com approval do environment: Run workflow → apply_d1_migrations=true."
+          echo "Até lá, migrações D1 de produção continuam manuais após revisão (docs/DEPLOY.md)."
       - name: Deploy (npm run deploy -- production)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -178,6 +237,7 @@ jobs:
           TARGET: production
           SHA: ${{ needs.resolve.outputs.sha }}
           INPUT_REF: ${{ inputs.ref }}
+          APPLY_D1: ${{ inputs.apply_d1_migrations }}
         run: |
           set -uo pipefail
           out="$RUNNER_TEMP/wrangler-output.ndjson"
@@ -202,5 +262,6 @@ jobs:
             echo "| Worker | \`tredane-dev-$TARGET\` |"
             echo "| Ref pedido | \`$INPUT_REF\` |"
             echo "| Commit | \`$SHA\` |"
+            echo "| apply_d1_migrations | \`$APPLY_D1\` |"
             echo "| Version ID | \`${version_id:-n/a (deploy não concluído)}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
