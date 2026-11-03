@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
 import { createControllableClock } from '../../db/clock'
 import { replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { readZoneSnapshots } from '../config/zones'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
@@ -305,6 +306,136 @@ describe('DEC-137: eco e plural das zonas', () => {
       if (clicked.autoBook?.interactive?.mode === 'list') {
         expect(clicked.autoBook.interactive.button).toBe(SLOT_LIST_BUTTON_LABEL)
       }
+      expect(appointments(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('Corrigir volta à pergunta das zonas e não abre Horários', async () => {
+    const s = seed()
+    try {
+      await lockFeminine(s)
+      await say(s, 'Axilas e pernas')
+      const echo = outbound(s).filter((row) => (row.interactive_json ?? '').includes('Corrigir')).at(-1)
+      const id = buttonId(echo?.interactive_json ?? null, 'Corrigir')
+      s.clock.advance(1_000)
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: '[Botão] Corrigir',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      const clicked = await handleChoiceOfferClick(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          buttonId: id,
+          providerEventKey: 'echo-corrigir',
+        },
+        s.clock,
+      )
+      expect(clicked.handled).toBe(true)
+      if (!clicked.handled) return
+      expect(clicked.autoBook?.replyText ?? '').not.toMatch(/Entendi:/)
+      expect(clicked.autoBook?.replyText ?? '').not.toMatch(/tenho .+\d{2}:\d{2}/)
+      expect(clicked.autoBook?.interactive?.mode).toBe('list')
+      if (clicked.autoBook?.interactive?.mode === 'list') {
+        expect(clicked.autoBook.interactive.button).toBe(VARIANT_LIST_BUTTON_LABEL)
+      }
+      expect(clicked.autoBook?.proposalId).toBeFalsy()
+      const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
+      expect(session?.variantIds ?? null).toBeNull()
+      expect(appointments(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('«sim» escrito no eco mantém Axila e Pernas', async () => {
+    const s = seed()
+    try {
+      await lockFeminine(s)
+      await say(s, 'Axilas e pernas')
+      const result = await say(s, 'sim')
+      const reply = result.autoBook?.replyText ?? ''
+      expect(reply).toMatch(/Axila/)
+      expect(reply).toMatch(/Pernas/)
+      expect(reply).not.toMatch(/para Pernas são/i)
+      expect(result.autoBook?.interactive?.mode).toBe('list')
+      if (result.autoBook?.interactive?.mode === 'list') {
+        expect(result.autoBook.interactive.button).toBe(SLOT_LIST_BUTTON_LABEL)
+      }
+      expect(result.autoBook?.proposalId).toBeFalsy()
+      const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
+      const rows = s.db.all<{ id: string; name: string; audience: string }>(
+        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ?`,
+        s.tenantId,
+      )
+      const chosen = rows.filter((row) => session?.variantIds?.includes(row.id))
+      expect(chosen.map((row) => row.name).sort()).toEqual(['Axila', 'Pernas'])
+      expect(chosen.every((row) => row.audience === 'feminino')).toBe(true)
+      expect(appointments(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('Sim depois de «Axilas e pernas sexta às 10h» propõe as duas zonas e não marca', async () => {
+    const s = seed()
+    try {
+      await lockFeminine(s)
+      const echoed = await say(s, 'Axilas e pernas sexta às 10h')
+      expect(echoed.autoBook?.replyText ?? '').toBe('Entendi: Axila e Pernas. Certo?')
+      expect(echoed.autoBook?.proposalId).toBeFalsy()
+      const echo = outbound(s).filter((row) => (row.interactive_json ?? '').includes('Corrigir')).at(-1)
+      const id = buttonId(echo?.interactive_json ?? null, 'Sim')
+      s.clock.advance(1_000)
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: '[Botão] Sim',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      const clicked = await handleChoiceOfferClick(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          buttonId: id,
+          providerEventKey: 'echo-sim-sexta',
+        },
+        s.clock,
+      )
+      expect(clicked.handled).toBe(true)
+      if (!clicked.handled) return
+      expect(clicked.autoBook?.status).toBe('requires_button')
+      expect(clicked.autoBook?.proposalId).toBeTruthy()
+      const proposal = s.db.get<{ duration_minutes: number; price_cents: number }>(
+        `SELECT duration_minutes, price_cents FROM appointment_proposals WHERE tenant_id = ? AND id = ?`,
+        s.tenantId,
+        clicked.autoBook?.proposalId ?? '',
+      )
+      expect(proposal?.duration_minutes).toBe(45)
+      expect(proposal?.price_cents).toBe(13_000)
+      const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', clicked.autoBook?.proposalId ?? '')
+      expect(snaps.map((zone) => zone.name).sort()).toEqual(['Axila', 'Pernas'])
+      expect(snaps.every((zone) => zone.audience === 'feminino')).toBe(true)
       expect(appointments(s)).toBe(0)
     } finally {
       s.close()

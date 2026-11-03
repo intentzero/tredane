@@ -791,9 +791,11 @@ export async function tryAiAutoBook(
     const namedNow =
       zonesNamedInText(turnText, storedActive).length > 0 ||
       resolveZoneMention(turnText, storedPool).zones.length > 0
+    // Sim/Corrigir do eco não repetem o serviço. A sessão já o tem.
+    const echoContinues = zoneEcho === 'confirm' || zoneEcho === 'correct'
     if (
       stored &&
-      (clockFromTurn || namedNow || dayContinues || periodContinues || lineContinues)
+      (clockFromTurn || namedNow || dayContinues || periodContinues || lineContinues || echoContinues)
     ) {
       det = {
         ...det,
@@ -831,20 +833,18 @@ export async function tryAiAutoBook(
       const mention = resolveZoneMention(turnText, mentionPool)
       let chosen = zonesChosenByClient(clientTurn, older, mentionPool)
       let kept = chosen.zones
-      if (
-        kept.length === 0 &&
-        !chosen.ambiguous &&
-        zoneEcho !== 'correct' &&
-        !mention.unrecognized &&
-        session?.serviceId === det.service.id &&
-        session.variantIds?.length
-      ) {
-        const fromSession = mentionPool.filter((z) => session.variantIds!.includes(z.id))
-        if (fromSession.length === session.variantIds.length) kept = fromSession
-      }
+      const sessionIds =
+        session?.serviceId === det.service.id && session.variantIds?.length ? session.variantIds : []
+      const sessionZones = mentionPool.filter((z) => sessionIds.includes(z.id))
+      const sessionIntact = sessionIds.length > 0 && sessionZones.length === sessionIds.length
       if (zoneEcho === 'correct' || mention.unrecognized) {
+        // Corrigir (e sobra não mapeada) não reaproveita o conjunto anterior.
         kept = []
         chosen = { zones: [], ambiguous: false }
+      } else if (zoneEcho === 'confirm') {
+        // DEC-137: o eco já resolveu o plural. Não reler o histórico com o matcher exacto.
+        kept = sessionIntact ? sessionZones : []
+        chosen = { zones: kept, ambiguous: false }
       } else if (mention.zones.length > 0 && zoneEcho !== 'skip') {
         const seen = new Set<string>()
         const ambiguous = mention.zones.some((zone) => {
@@ -855,6 +855,9 @@ export async function tryAiAutoBook(
         })
         chosen = { zones: mention.zones, ambiguous }
         kept = ambiguous ? [] : mention.zones
+      } else if (kept.length === 0 && !chosen.ambiguous && sessionIntact) {
+        kept = sessionZones
+        chosen = { zones: sessionZones, ambiguous: false }
       }
       const clearVariants = zoneEcho === 'correct' || mention.unrecognized
       saveSession({
@@ -1043,16 +1046,44 @@ export async function tryAiAutoBook(
         const svc = services.find((s) => s.id === booking.serviceId)
         if (svc) {
           const active = svc.zones.filter((z) => z.active)
-          const kept =
-            booking.variantIds.length > 0
-              ? active.filter((z) => booking.variantIds.includes(z.id))
-              : []
           // DEC-128 / A-03: lista Opções só com variantes da linha (não misturar F/M).
           const turnExplicit = explicitAudienceLine(turnText)
           const carried = session?.serviceId === svc.id ? session.audienceLine : null
           const line = needsAudienceLine(active) ? (turnExplicit ?? carried) : null
           const zonePool =
             needsAudienceLine(active) && line ? zonesForAudienceLine(active, line) : active
+          if (zoneEcho === 'correct') {
+            saveSession({ serviceId: svc.id, variantIds: null, ...(line ? { audienceLine: line } : {}) })
+            const zoneNames = zonePool.length > 0 ? zonePool : active
+            replyText = variantListQuestion(
+              svc.name,
+              svc.variantKindPlural || svc.variantKind,
+              zoneNames,
+              input.conversationId,
+            )
+            interactive = variantChoiceFor(
+              deferred,
+              svc.id,
+              catalog.version,
+              zoneNames.map((z) => ({
+                id: z.id,
+                name: z.name,
+                audience: z.audience,
+                durationMinutes: z.durationMinutes,
+                priceCents: z.priceCents,
+              })),
+            )
+          } else {
+          const echoedIds =
+            zoneEcho === 'confirm' && session?.serviceId === svc.id && session.variantIds?.length
+              ? session.variantIds
+              : null
+          const kept =
+            echoedIds && zonePool.filter((z) => echoedIds.includes(z.id)).length === echoedIds.length
+              ? zonePool.filter((z) => echoedIds.includes(z.id))
+              : booking.variantIds.length > 0
+                ? active.filter((z) => booking.variantIds.includes(z.id))
+                : []
           saveSession({
             serviceId: svc.id,
             ...(line ? { audienceLine: line } : {}),
@@ -1167,6 +1198,7 @@ export async function tryAiAutoBook(
             }
             }
           }
+          }
         }
       } else if (booking.kind === 'clarify' && booking.question) {
         replyText = booking.question
@@ -1237,7 +1269,13 @@ export async function tryAiAutoBook(
     ? zonesChosenByClient(clientTurn, funnelOlder, scoped)
     : zonesChosenByClient(clientTurn, [], scoped)
   let namedZones = chosen.zones
-  if (zoneEcho !== 'skip' && zoneEcho !== 'confirm') {
+  let echoLocked = false
+  if (zoneEcho === 'confirm') {
+    const ids = sameFunnel && session?.variantIds?.length ? session.variantIds : []
+    const fromSession = scoped.filter((z) => ids.includes(z.id))
+    echoLocked = ids.length > 0 && fromSession.length === ids.length
+    namedZones = echoLocked ? fromSession : []
+  } else if (zoneEcho !== 'skip') {
     if (zoneEcho === 'correct' || proposalMention.unrecognized) {
       namedZones = []
       saveSession({ serviceId: svc.id, variantIds: null })
@@ -1248,6 +1286,8 @@ export async function tryAiAutoBook(
   if (
     namedZones.length === 0 &&
     !chosen.ambiguous &&
+    !echoLocked &&
+    zoneEcho !== 'confirm' &&
     zoneEcho !== 'correct' &&
     !proposalMention.unrecognized &&
     sameFunnel &&
@@ -1259,7 +1299,7 @@ export async function tryAiAutoBook(
   // A cliente aceitou a hora. O conjunto é o da oferta («para axila e íntima»),
   // não o resto do catálogo que a sessão ou «as duas» tenham arrastado.
   // Cutover fechado (#472): só o frame (variantIds / lastOffer) autoriza — CF-22.
-  const ambiguous = chosen.ambiguous
+  const ambiguous = echoLocked ? false : chosen.ambiguous
   if (namedZones.length > 0 && !ambiguous) {
     saveSession({
         serviceId: svc.id,
