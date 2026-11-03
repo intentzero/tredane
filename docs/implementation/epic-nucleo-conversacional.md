@@ -57,6 +57,34 @@ O caminho normal passa a ser determinístico e guiado pelo grafo de dados da cl�
 
 As issues da mesma ordem podem avançar em paralelo. M2 em diante corre primeiro em **sombra** (calcula sem enviar) e só troca o caminho quando os casos da matriz que lhe correspondem passam ([avaliação contínua §5](../architecture/avaliacao-continua-conversacional.md)).
 
+## Agendar sem perder o pedido (DEC-138, 03/11/2026)
+
+**Origem:** sonda real de novembro de 2026 na clínica de teste. O bot avançava com um pedido incompleto: zona que caía em silêncio, dia perdido no toque do horário (o id guardava só `HH:MM` e o título saía em mês-dia), sessão antiga que saltava para horários, Confirmar depois de expirar, catálogo sem match a despejar um link. **Decisão:** DEC-138 (Confirmado). Fase 1 já; Flow depois do teste real com a Meta, sem flag; as listas e botões de escolha saem quando o Flow entrar.
+
+### Fase 1 — núcleo e texto livre (sem a Meta)
+
+| Ordem | Issue | Fatia | Práticas |
+| --- | --- | --- | --- |
+| 1 | [#506](https://github.com/intentzero/tredane/issues/506) | F1-0: casos L1 da sonda de novembro e métricas de estrago (primeiro: dá os vermelhos) | 12 |
+| 2 | [#507](https://github.com/intentzero/tredane/issues/507) | F1-1: o id do horário leva data e hora; título `terça 03/11 17:00` | 2, 3 |
+| 2 | [#508](https://github.com/intentzero/tredane/issues/508) | F1-2: recomeçar limpa o frame | 5 |
+| 2 | [#509](https://github.com/intentzero/tredane/issues/509) | F1-3: nenhuma zona cai em silêncio; sinónimos e plural só na linha | 1, 11 |
+| 3 | [#510](https://github.com/intentzero/tredane/issues/510) | F1-4: um só quadro para toque, texto e correção; uma pergunta pelo campo que falta | 4, 6, 7, 9 |
+| 3 | [#511](https://github.com/intentzero/tredane/issues/511) | F1-5: validade visível; Confirmar expirado explica e oferece outras horas | 8 |
+| 3 | [#512](https://github.com/intentzero/tredane/issues/512) | F1-6: sem match, dizer o que faltou; handoff com o quadro | 10 |
+
+### Fase 2 — WhatsApp Flow (depois do primeiro teste real com a Meta)
+
+| Ordem | Issue | Fatia | Depende |
+| --- | --- | --- | --- |
+| 4 | [#513](https://github.com/intentzero/tredane/issues/513) | F2-1: ADR-0016 do Flow (ecrãs, `data_exchange`, cifra, `nfm_reply`); pode ser escrito antes do teste | #507, #510 |
+| 5 | [#514](https://github.com/intentzero/tredane/issues/514) | F2-2: implementar o Flow, sem flag | #513, teste real Meta, copy aprovada |
+| 5 | [#515](https://github.com/intentzero/tredane/issues/515) | F2-3: retirar as listas e botões de escolha do M5 | #514 |
+
+**Fora (DEC-138):** o Flow não marca, não escolhe sala nem profissional, não cobra Pix, não tem preço editável, não duplica a agenda. O LLM não escolhe zona nem hora. Um «sim» escrito nunca confirma horário (DEC-061).
+
+**Como medir:** as quatro métricas do F1-0 (marcação igual ao pedido, zonas pedidas que entraram, correções, voltas até ao Confirmar) no L1, no L2/L3 (#417) e na sonda manual.
+
 ## Regras de controlo e continuidade
 
 1. **Matriz como fonte:**
