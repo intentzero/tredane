@@ -363,8 +363,38 @@ describe('propriedades BookingFrame', () => {
       updatedAt: 1,
     }
     expect(wouldAskFilledSlot(frame, 'serviceId')).toBe(true)
+    expect(wouldAskFilledSlot(frame, 'line')).toBe(true)
+    expect(wouldAskFilledSlot(frame, 'variantIds')).toBe(true)
     expect(wouldAskFilledSlot(frame, 'date')).toBe(true)
     expect(wouldAskFilledSlot(frame, 'time')).toBe(false)
+  })
+
+  it('#510: a mesma propriedade vale para toque, texto e correção (slots do quadro)', () => {
+    // Os três caminhos escrevem o mesmo contrato; o gate de pergunta lê só o quadro.
+    const filled: BookingFrame = {
+      phase: 'coletando',
+      serviceId: 's',
+      line: 'feminino',
+      variantIds: ['z1', 'z2'],
+      professionalPref: null,
+      date: '2026-11-07',
+      period: null,
+      time: '10:00',
+      pending: null,
+      lastOffer: null,
+      proposal: null,
+      rescheduleAppointmentId: null,
+      catalogVersion: '1',
+      provenance: {
+        line: { messageId: 'm', source: 'botao' },
+        variantIds: { messageId: 'm', source: 'regra' },
+        time: { messageId: 'm', source: 'botao' },
+      },
+      updatedAt: 1,
+    }
+    for (const slot of ['serviceId', 'line', 'variantIds', 'date', 'time'] as const) {
+      expect(wouldAskFilledSlot(filled, slot)).toBe(true)
+    }
   })
 
   it('replay idêntico → mesma saída do matchPendingChoice', () => {

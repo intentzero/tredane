@@ -60,10 +60,10 @@ import {
 } from './schedule-choice'
 import {
   getBookingFrame,
-  saveScheduleLine,
   saveScheduleSession,
   scheduleFactsFromText,
   syncBookingFrameWithCatalog,
+  wouldAskFilledSlot,
 } from './schedule-session'
 import { getOrCompileCatalog } from './turn-context'
 import {
@@ -856,23 +856,42 @@ export async function tryAiAutoBook(
     if (det.service) {
       const active = det.service.zones.filter((z) => z.active)
       const turnExplicit = explicitAudienceLine(turnText)
-      const carried = session?.serviceId === det.service.id ? session.audienceLine : null
-      const line = needsAudienceLine(active) ? (turnExplicit ?? carried) : null
+      // #510: linha do quadro primeiro — não repergunta género se já está preenchida.
+      const frameLine =
+        frame?.serviceId === det.service.id
+          ? (frame.line ?? null)
+          : session?.serviceId === det.service.id
+            ? session.audienceLine
+            : null
+      const line = needsAudienceLine(active) ? (turnExplicit ?? frameLine) : null
       const pool = needsAudienceLine(active) && line ? zonesForAudienceLine(active, line) : active
       const mentionPool = pool.length > 0 ? pool : active
-      const mention = resolveZoneMention(turnText, mentionPool)
-      let chosen = zonesChosenByClient(clientTurn, older, mentionPool)
-      let kept = chosen.zones
       const sessionIds =
         session?.serviceId === det.service.id && session.variantIds?.length ? session.variantIds : []
       const sessionZones = mentionPool.filter((z) => sessionIds.includes(z.id))
       const sessionIntact = sessionIds.length > 0 && sessionZones.length === sessionIds.length
+      const turnMention = resolveZoneMention(turnText, mentionPool)
+      // #510: Sim do eco ou quadro intacto sem menção nova → sem segundo parser.
+      // Toque Opções (skip) com nomes no turnText continua a parsear.
+      const frameOwnsVariants =
+        zoneEcho === 'confirm' ||
+        (sessionIntact &&
+          zoneEcho !== 'correct' &&
+          turnMention.zones.length === 0 &&
+          !turnMention.unrecognized)
+      const mention = frameOwnsVariants
+        ? { zones: [] as typeof sessionZones, unrecognized: false, approx: false }
+        : turnMention
+      let chosen = frameOwnsVariants
+        ? { zones: sessionIntact ? sessionZones : [], ambiguous: false }
+        : zonesChosenByClient(clientTurn, older, mentionPool)
+      let kept = chosen.zones
       if (zoneEcho === 'correct' || mention.unrecognized) {
         // Corrigir (e sobra não mapeada) não reaproveita o conjunto anterior.
         kept = []
         chosen = { zones: [], ambiguous: false }
-      } else if (zoneEcho === 'confirm') {
-        // DEC-137: o eco já resolveu o plural. Não reler o histórico com o matcher exacto.
+      } else if (zoneEcho === 'confirm' || (frameOwnsVariants && sessionIntact)) {
+        // DEC-137 / #510: o eco ou o quadro já resolveram. Sem segundo parser.
         kept = sessionIntact ? sessionZones : []
         chosen = { zones: kept, ambiguous: false }
       } else if (mention.zones.length > 0 && zoneEcho !== 'skip') {
@@ -892,7 +911,7 @@ export async function tryAiAutoBook(
       const clearVariants = zoneEcho === 'correct' || mention.unrecognized
       saveSession({
         serviceId: det.service.id,
-        ...(turnExplicit ? { audienceLine: turnExplicit } : {}),
+        ...(turnExplicit || frameLine ? { audienceLine: turnExplicit ?? frameLine } : {}),
         ...(turnFacts.period ? { period: turnFacts.period } : {}),
         ...(clockFromTurn ? { clockTime: clockFromTurn } : {}),
         ...(clearVariants
@@ -903,7 +922,9 @@ export async function tryAiAutoBook(
       })
       const contributed =
         Boolean(clockFromTurn) ||
-        zonesNamedInText(turnText, pool.length > 0 ? pool : active).length > 0
+        zonesNamedInText(turnText, pool.length > 0 ? pool : active).length > 0 ||
+        zoneEcho === 'confirm' ||
+        Boolean(input.boundSlot)
       if (!(date && time && kept.length > 0 && !chosen.ambiguous && contributed)) {
         const plural = det.service.variantKindPlural?.trim() || ''
         const singular = det.service.variantKind?.trim() || ''
@@ -914,9 +935,15 @@ export async function tryAiAutoBook(
         // dispara recusar_mistura em falso.
         const cited = zonesNamedInText(turnText, pool)
         let interactive: ChoiceInteractive | null = null
+        const frameForAsk = deferred.peekFrame(db, tenantId, input.conversationId)
         if (variantAudiencesConflict(cited)) {
           replyText = mixedAudienceReply(input.conversationId)
-        } else if (needsAudienceLine(active) && !line) {
+        } else if (
+          needsAudienceLine(active) &&
+          !line &&
+          !(frameForAsk && wouldAskFilledSlot(frameForAsk, 'line'))
+        ) {
+          // #510 prática 6: uma pergunta só pelo campo que falta.
           replyText = audienceLineQuestion(det.service.name, input.conversationId)
           interactive = lineChoiceFor(deferred, det.service.id, catalog.version)
         } else if (active.length > 0 && (kept.length === 0 || chosen.ambiguous)) {
@@ -1015,8 +1042,11 @@ export async function tryAiAutoBook(
               fb,
             )
           }
-        } else if (!date) {
-          // DEC-127.4 / DEC-122: reusa perguntar_dia (também pós-migração sem date).
+        } else if (
+          !date &&
+          !(frameForAsk && wouldAskFilledSlot(frameForAsk, 'date'))
+        ) {
+          // DEC-127.4 / DEC-122 / #510: só pergunta o dia se o quadro ainda não o tem.
           // Fallback allowlist (#448): catálogo emite «Para {serviço}, qual dia fica melhor?».
           const fb = `Me diga o dia para ${det.service.name}.`
           replyText = sayAct(
@@ -1076,10 +1106,15 @@ export async function tryAiAutoBook(
         const svc = services.find((s) => s.id === booking.serviceId)
         if (svc) {
           const active = svc.zones.filter((z) => z.active)
-          // DEC-128 / A-03: lista Opções só com variantes da linha (não misturar F/M).
+          // DEC-128 / A-03 / #510: linha do quadro primeiro (não misturar F/M).
           const turnExplicit = explicitAudienceLine(turnText)
-          const carried = session?.serviceId === svc.id ? session.audienceLine : null
-          const line = needsAudienceLine(active) ? (turnExplicit ?? carried) : null
+          const frameLine =
+            frame?.serviceId === svc.id
+              ? (frame.line ?? null)
+              : session?.serviceId === svc.id
+                ? session.audienceLine
+                : null
+          const line = needsAudienceLine(active) ? (turnExplicit ?? frameLine) : null
           const zonePool =
             needsAudienceLine(active) && line ? zonesForAudienceLine(active, line) : active
           if (zoneEcho === 'correct') {
@@ -1120,7 +1155,12 @@ export async function tryAiAutoBook(
             ...(kept.length > 0 ? { variantIds: kept.map((z) => z.id) } : {}),
             ...(turnFacts.period ? { period: turnFacts.period } : {}),
           })
-          if (booking.missing.includes('linha') && needsAudienceLine(active) && !line) {
+          if (
+            booking.missing.includes('linha') &&
+            needsAudienceLine(active) &&
+            !line &&
+            !(frame && wouldAskFilledSlot(frame, 'line'))
+          ) {
             replyText = booking.question ?? audienceLineQuestion(svc.name, input.conversationId)
             interactive = lineChoiceFor(deferred, svc.id, catalog.version)
           } else if (zonePool.length > 0 && kept.length === 0) {
@@ -1262,8 +1302,7 @@ export async function tryAiAutoBook(
     input.turn?.catalog.resources,
   )
   const activeZones = svc.zones.filter((z) => z.active)
-  // DEC-090: linha já dita neste funil não se reperguntar.
-  // Só a sessão activa do mesmo serviço + mensagens desde o início do funil contam.
+  // DEC-090 / #510: linha do quadro primeiro. Só a sessão do mesmo serviço conta.
   // Após DEC-086 (sessão limpa) ou serviço diferente, «Masculina»/«Todas» antigas não valem.
   const sameFunnel = Boolean(session && session.serviceId === svc.id)
   const funnelStartedAt = sameFunnel && session ? session.updatedAt : Number.POSITIVE_INFINITY
@@ -1275,11 +1314,21 @@ export async function tryAiAutoBook(
     ...funnelOlder.filter((m) => m.direction === 'inbound').map((m) => m.body),
   ]
   const turnExplicit = explicitAudienceLine(turnText)
-  const historyLine = sameFunnel ? audienceLineFromClientTexts(funnelInboundNewestFirst) : null
-  const carried = sameFunnel && session ? session.audienceLine : null
-  const line = needsAudienceLine(activeZones) ? (turnExplicit ?? carried ?? historyLine) : null
-  if (needsAudienceLine(activeZones) && !line) {
-    saveScheduleLine(db, tenantId, input.conversationId, svc.id, null, clock)
+  const frameLine = sameFunnel ? (frame?.line ?? session?.audienceLine ?? null) : null
+  // Parser de histórico só se o quadro ainda não tem linha (#510 — sem segundo parser).
+  const historyLine =
+    !turnExplicit && !frameLine && sameFunnel
+      ? audienceLineFromClientTexts(funnelInboundNewestFirst)
+      : null
+  const line = needsAudienceLine(activeZones)
+    ? (turnExplicit ?? frameLine ?? historyLine)
+    : null
+  if (
+    needsAudienceLine(activeZones) &&
+    !line &&
+    !(frame && wouldAskFilledSlot(frame, 'line'))
+  ) {
+    saveSession({ serviceId: svc.id, audienceLine: null })
     const interactive = lineChoiceFor(deferred, svc.id, catalog.version)
     return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
@@ -1290,55 +1339,56 @@ export async function tryAiAutoBook(
         'Não se infere pelo nome, pelo histórico nem por marcações. Texto livre não marca.',
     })
   }
-  if (line && (turnExplicit || historyLine || carried)) {
-    saveScheduleLine(db, tenantId, input.conversationId, svc.id, line, clock)
+  if (line) {
+    saveSession({ serviceId: svc.id, audienceLine: line })
   }
   const scoped = needsAudienceLine(activeZones) ? zonesForAudienceLine(activeZones, line) : activeZones
-  const proposalMention = resolveZoneMention(turnText, scoped.length > 0 ? scoped : activeZones)
-  const chosen = sameFunnel
-    ? zonesChosenByClient(clientTurn, funnelOlder, scoped)
-    : zonesChosenByClient(clientTurn, [], scoped)
-  let namedZones = chosen.zones
+  const mentionPool = scoped.length > 0 ? scoped : activeZones
+  const sessionIds = sameFunnel && session?.variantIds?.length ? session.variantIds : []
+  const fromSession = sessionIds.length
+    ? mentionPool.filter((z) => sessionIds.includes(z.id))
+    : []
+  const sessionIntact = sessionIds.length > 0 && fromSession.length === sessionIds.length
+  const proposalMention = resolveZoneMention(turnText, mentionPool)
+  // #510: eco Sim / toque Horários / Opções → quadro. Texto e histórico só
+  // preenchem o que ainda falta; sessão suja («as duas» + catálogo inteiro)
+  // não vence menções explícitas (axila e íntima).
+  let namedZones: typeof fromSession = []
   let echoLocked = false
-  if (zoneEcho === 'confirm') {
-    const ids = sameFunnel && session?.variantIds?.length ? session.variantIds : []
-    const fromSession = scoped.filter((z) => ids.includes(z.id))
-    echoLocked = ids.length > 0 && fromSession.length === ids.length
+  let ambiguous = false
+  if (zoneEcho === 'correct' || proposalMention.unrecognized) {
+    namedZones = []
+    saveSession({ serviceId: svc.id, variantIds: null })
+  } else if (zoneEcho === 'confirm' || input.boundSlot) {
+    echoLocked = sessionIntact
     namedZones = echoLocked ? fromSession : []
-  } else if (zoneEcho !== 'skip') {
-    if (zoneEcho === 'correct' || proposalMention.unrecognized) {
-      namedZones = []
-      saveSession({ serviceId: svc.id, variantIds: null })
-    } else if (proposalMention.zones.length > 0) {
-      namedZones = proposalMention.zones
-    }
-  }
-  // Toque em Horários: o conjunto já foi confirmado (eco/Opções). Não reler o histórico.
-  if (input.boundSlot && sameFunnel && session?.variantIds?.length) {
-    const ids = session.variantIds
-    const fromSession = scoped.filter((z) => ids.includes(z.id))
-    if (fromSession.length === ids.length) {
+  } else if (proposalMention.zones.length > 0) {
+    const seen = new Set<string>()
+    ambiguous = proposalMention.zones.some((zone) => {
+      const key = zone.name.trim().toLocaleLowerCase('pt-BR')
+      if (seen.has(key)) return true
+      seen.add(key)
+      return false
+    })
+    namedZones = ambiguous ? [] : proposalMention.zones
+  } else {
+    const chosen = sameFunnel
+      ? zonesChosenByClient(clientTurn, funnelOlder, scoped)
+      : zonesChosenByClient(clientTurn, [], scoped)
+    if (chosen.zones.length > 0 || chosen.ambiguous) {
+      // Menção explícita no funil (ex. «axila e íntima») vence sessão suja.
+      namedZones = chosen.zones
+      ambiguous = chosen.ambiguous
+    } else if (sessionIntact) {
       namedZones = fromSession
       echoLocked = true
+    } else {
+      namedZones = chosen.zones
+      ambiguous = chosen.ambiguous
     }
   }
-  if (
-    namedZones.length === 0 &&
-    !chosen.ambiguous &&
-    !echoLocked &&
-    zoneEcho !== 'confirm' &&
-    zoneEcho !== 'correct' &&
-    !proposalMention.unrecognized &&
-    sameFunnel &&
-    session?.variantIds?.length
-  ) {
-    const fromSession = scoped.filter((z) => session.variantIds!.includes(z.id))
-    if (fromSession.length === session.variantIds.length) namedZones = fromSession
-  }
-  // A cliente aceitou a hora. O conjunto é o da oferta («para axila e íntima»),
-  // não o resto do catálogo que a sessão ou «as duas» tenham arrastado.
   // Cutover fechado (#472): só o frame (variantIds / lastOffer) autoriza — CF-22.
-  const ambiguous = echoLocked ? false : chosen.ambiguous
+  if (echoLocked) ambiguous = false
   if (namedZones.length > 0 && !ambiguous) {
     saveSession({
         serviceId: svc.id,
