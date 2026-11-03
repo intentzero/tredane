@@ -265,6 +265,7 @@ O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a lev
 | Eco das zonas no texto livre (DEC-137) | `Entendi: Axila e Pernas. Certo?` | — | nomes do catálogo; duas zonas «A e B»; três ou mais «A, B e C» |
 | Botão do eco | `Sim` | título ≤ 20 | confirma o conjunto e só então abre Horários; não marca (DEC-061) |
 | Botão do eco | `Corrigir` | título ≤ 20 | volta à pergunta das zonas (Opções + texto livre) |
+| Zona citada sem match (#509 / prática 1) — **Proposto** | `Não encontrei {palavra} nas opções. Quer {lista} ou outra?` | — | `{palavra}` = token que sobrou; `{lista}` = nomes do âmbito (linha travada). Copy para aprovação do Paulo (DEC-104). Sem acto no catálogo até aprovação. |
 | Lista de horários: título de cada linha | dinâmico, `terça 03/11 17:00` | linha ≤ 24 | dia da semana + `DD/MM` + hora (DEC-138 / #507), relógio da clínica, sem fuso IANA e sem mês-dia. Se o título cortar, a descrição leva o texto completo (DEC-134 opção A). O toque usa o id `YYYY-MM-DDTHH:MM`, não o título |
 | Lista de variantes: título de cada linha | dinâmico, o nome da variante | linha ≤ 24 | cortado em 24 caracteres; um nome longo pode perder o fim |
 

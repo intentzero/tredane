@@ -5,7 +5,7 @@
  */
 import { explicitAudienceLine } from '../catalog/audience'
 import type { ServiceZoneRow } from '../config/types'
-import { zonesNamedInText } from '../config/zones'
+import { resolveZoneMention, zonesNamedInText } from '../config/zones'
 import type { AudienceLine } from './variant-line'
 
 /**
@@ -99,6 +99,14 @@ export function claimsWholeCatalog(text: string): boolean {
 }
 
 /**
+ * Atalho de catálogo no turno («tudo», «as duas», «as três»).
+ * Não é sobra de zona — o autobook deve continuar o serviço da sessão (#509).
+ */
+export function claimsCatalogShortcut(text: string): boolean {
+  return claimsWholeCatalog(text) || countedCatalogSize(text) != null
+}
+
+/**
  * Zonas já fechadas na última fala da clínica («para axila e íntima»),
  * quando a cliente só aceita o horário. Uma lista («temos…», «qual zona») não escolhe.
  */
@@ -115,9 +123,10 @@ export function zonesOfferedToClient(
 
 /**
  * Zonas escolhidas pela cliente nos textos (mais novos primeiro).
- * Nome explícito ganha de «tudo». «Tudo» devolve o âmbito inteiro.
- * «As duas» / «as três» só devolvem o âmbito quando ele tem esse tamanho.
- * Nome ambíguo → ambiguous.
+ * Nome explícito, sinónimo (DEC-110) e plural leve (#509) no âmbito passado.
+ * Sobra sem match único → vazio (pergunta; sem descarte silencioso).
+ * «Tudo» devolve o âmbito inteiro. «As duas» / «as três» só quando o âmbito
+ * tem esse tamanho. Nome ambíguo → ambiguous.
  */
 export function zonesChosenInClientTexts(
   texts: readonly string[],
@@ -125,13 +134,18 @@ export function zonesChosenInClientTexts(
 ): { zones: ServiceZoneRow[]; ambiguous: boolean } {
   if (zones.length === 0) return { zones: [], ambiguous: false }
   for (const text of texts) {
-    const found = zonesNamedInText(text, zones)
-    if (found.length > 0) return { zones: found, ambiguous: nameCitedTwice(found) }
     const folded = fold(text)
+    // «Tudo» / «as duas» antes do matcher de nomes — «duas» não é sobra de zona.
     if (WHOLE_CATALOG_CHOICE.test(folded)) return { zones: [...zones], ambiguous: false }
     const counted = countedCatalogSize(text)
     if (counted != null && distinctZoneNames(zones) === counted) {
       return { zones: [...zones], ambiguous: false }
+    }
+    const mention = resolveZoneMention(text, zones)
+    // Sobra nesta bolha: tentar a mensagem mais antiga (não abortar o histórico).
+    if (mention.unrecognized) continue
+    if (mention.zones.length > 0) {
+      return { zones: mention.zones, ambiguous: nameCitedTwice(mention.zones) }
     }
   }
   return { zones: [], ambiguous: false }

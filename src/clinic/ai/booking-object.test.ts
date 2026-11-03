@@ -119,4 +119,20 @@ describe('booking-object', () => {
       expect(extracted.every((s) => s.id !== 'svc-limpeza-profunda')).toBe(true)
     }
   })
+
+  it('#509 «Quero depilar» casa Depilação quando o sinónimo está na ficha', () => {
+    const base = EVAL_BOOKING_CATALOG.find((s) => s.name === 'Depilação')
+    expect(base).toBeTruthy()
+    const withSyn = [
+      ...EVAL_BOOKING_CATALOG.filter((s) => s.id !== base!.id),
+      { ...base!, synonyms: ['depilar'] },
+    ]
+    expect(extractServices('Quero depilar', withSyn).map((s) => s.id)).toEqual([base!.id])
+    const resolved = resolveBookingObject({ text: 'Quero depilar', services: withSyn })
+    expect(resolved.serviceId).toBe(base!.id)
+    // Sem o sinónimo na ficha, não inventa o match.
+    expect(extractServices('Quero depilar', EVAL_BOOKING_CATALOG).map((s) => s.id)).not.toContain(
+      base!.id,
+    )
+  })
 })

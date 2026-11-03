@@ -79,6 +79,17 @@ export function serviceNotFoundReply(
   return text
 }
 
+/**
+ * #509 / prática 1 — zona citada sem correspondência única no âmbito.
+ * **Proposto** (copy para aprovação do Paulo; DEC-104). Enquanto não houver
+ * acto no catálogo, a frase fixa sai literal.
+ */
+export function zoneNotFoundAskReply(word: string, zoneNames: readonly string[]): string {
+  const palavra = word.trim() || 'isso'
+  const lista = zoneNames.join(', ')
+  return `Não encontrei ${palavra} nas opções. Quer ${lista} ou outra?`
+}
+
 /** Fallback / 1.ª redação — `catalogo_mudou`. */
 export const SERVICE_CHANGED_REPLY =
   'Nossas opções mudaram. Pode dizer de novo qual serviço e opção você quer?'

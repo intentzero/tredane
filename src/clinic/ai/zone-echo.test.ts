@@ -229,12 +229,36 @@ describe('DEC-137: eco e plural das zonas', () => {
       const reply = result.autoBook?.replyText ?? result.suggestion?.suggestedText ?? ''
       expect(reply).not.toMatch(/Entendi:/)
       expect(reply).not.toMatch(/Horários livres|próximos horários/i)
+      expect(reply).toMatch(/Não encontrei cotovelo nas opções/i)
+      expect(reply).toMatch(/Quer .+ ou outra\?/)
       const after = outbound(s).slice(before)
       const json = after.map((row) => row.interactive_json ?? '').join('\n')
       expect(json).toContain(VARIANT_LIST_BUTTON_LABEL)
       expect(json).not.toContain(SLOT_LIST_BUTTON_LABEL)
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       expect(session?.variantIds ?? null).toBeNull()
+      expect(appointments(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('turno actual «as duas» no âmbito de 2 nomes fecha o par (não «Não encontrei duas»)', async () => {
+    const s = seed()
+    try {
+      await lockFeminine(s)
+      const result = await say(s, 'as duas')
+      const reply = result.autoBook?.replyText ?? result.suggestion?.suggestedText ?? ''
+      expect(reply).not.toMatch(/Não encontrei duas/i)
+      expect(reply).toBe('Entendi: Axila e Pernas. Certo?')
+      const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
+      const rows = s.db.all<{ id: string; name: string; audience: string }>(
+        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ?`,
+        s.tenantId,
+      )
+      const chosen = rows.filter((row) => session?.variantIds?.includes(row.id))
+      expect(chosen.map((row) => row.name).sort()).toEqual(['Axila', 'Pernas'])
+      expect(chosen.every((row) => row.audience === 'feminino')).toBe(true)
       expect(appointments(s)).toBe(0)
     } finally {
       s.close()

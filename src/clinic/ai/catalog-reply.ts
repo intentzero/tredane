@@ -10,6 +10,7 @@ import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
+import { textCitesSynonym } from '../config/synonyms'
 import { resolveZoneMention, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { listMessages } from '../inbox/messages'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
@@ -82,6 +83,11 @@ function namedServices(services: ServiceRow[], text: string): ServiceRow[] {
     return name.length > 0 && folded.includes(name)
   })
   if (exact.length > 0) return exact
+  // #509 / DEC-110: sinónimo da ficha («depilar» → Depilação).
+  const bySynonym = services.filter((service) =>
+    (service.synonyms ?? []).some((syn) => textCitesSynonym(text, syn)),
+  )
+  if (bySynonym.length > 0) return bySynonym
   return services.filter((service) => citesServiceName(text, service.name))
 }
 
@@ -182,8 +188,10 @@ function rememberZonesWhenKnown(
   // Horário já guardado: o autobook fecha a proposta. Não alterar a sessão aqui.
   if (session?.clockTime) return false
   const scoped = mixed ? zonesForAudienceLine(active, line) : active
-  const mention = resolveZoneMention(source, scoped)
-  // DEC-137: sobra não resolvida — cede ao autobook sem gravar o conjunto parcial.
+  const mention = resolveZoneMention(source, scoped, {
+    ignoreWords: [svc.name, ...(svc.synonyms ?? [])],
+  })
+  // DEC-137 / #509: sobra não resolvida — cede ao autobook sem gravar o conjunto parcial.
   if (mention.unrecognized) return true
   const named = mention.zones
   if (named.length === 0 || variantAudiencesConflict(named) || zoneNameRepeated(named)) return false
