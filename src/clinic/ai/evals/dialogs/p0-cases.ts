@@ -1,11 +1,18 @@
 /**
  * Casos P0 da matriz para o harness L1 (#406).
  * knownFailure → corre como it.fails com o ID do achado (DEC-108).
+ * A-13..A-19: sonda de novembro / F1-0 (#506).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import { createBlockOp } from '../../../config'
+import { setClinicAiProfile } from '../../../config/settings'
+import { encodeChoiceId } from '../../choice-offer'
 import { saveScheduleSession } from '../../schedule-session'
-import type { DialogCase } from './runner'
+import {
+  APPOINTMENT_PROPOSAL_VALIDITY_MS,
+  type DialogCase,
+} from './runner'
+import { DIALOG_NOW_MS } from './scenario'
 
 class TimeoutAdapter extends SimulatedAiAdapter {
   override async generate(): Promise<AiGenerateResult> {
@@ -961,6 +968,251 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     turnosIdeais: 1,
     coverageOnly: 'execute-confirm.test',
     turns: [],
+  },
+  // —— Sonda de novembro / F1-0 (#506, DEC-138 prática 12) ——
+  {
+    id: 'A-13',
+    title: 'Sessão antiga: recomeçar limpa o frame',
+    turnosIdeais: 1,
+    // CF-28 (#508): «começar de novo» ainda não limpa o BookingFrame.
+    knownFailure: 'CF-28',
+    prepare: (s) => {
+      const zones = s.db.all<{ id: string; name: string; audience: string }>(
+        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
+        s.tenantId,
+        s.ids.depilacao,
+      )
+      const variantIds = zones
+        .filter((z) => z.audience === 'feminino' && (z.name === 'Axila' || z.name === 'Pernas'))
+        .map((z) => z.id)
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.depilacao,
+          audienceLine: 'feminino',
+          variantIds,
+          date: '2026-11-06',
+          phase: 'ofertado',
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'começar de novo' }],
+    expect: {
+      proposal: false,
+      turns: [
+        {
+          turn: 0,
+          matches: [/servi[cç]o|procedimento|opç/i],
+          excludes: [/\b\d{2}:\d{2}\b/],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-14',
+    title: '«Quero depilar» encontra Depilação',
+    turnosIdeais: 1,
+    // CF-29 (#509): sinónimo «depilar» → Depilação ainda em falta.
+    knownFailure: 'CF-29',
+    damage: { serviceKey: 'depilacao' },
+    turns: [{ role: 'client', text: 'Quero depilar' }],
+    expect: {
+      proposal: false,
+      turns: [
+        {
+          turn: 0,
+          matches: [/feminina|masculina|Depila/i],
+          excludes: [/não encontrei esse procedimento/i, /maps\.|goo\.gl/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-15',
+    title: 'Homónimo Axila com Feminina não acusa mistura',
+    turnosIdeais: 1,
+    // CF-30 (#502): filtro pela linha travada — verde após o merge.
+    damage: { serviceKey: 'depilacao', zoneNames: ['Axila', 'Pernas'] },
+    prepare: (s) => {
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: s.ids.depilacao, audienceLine: 'feminino', phase: 'coletando' },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Axila e pernas' }],
+    expect: {
+      proposal: false,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Axila/i, /Pernas/i],
+          excludes: [/masculino e feminino|juntar masculino|mesma visita/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-16',
+    title: '«Axilas e pernas» não deixa zona cair em silêncio',
+    turnosIdeais: 1,
+    // CF-31 (#509): eco DEC-137 já nomeia as duas; nenhuma cai sem dizer.
+    damage: { serviceKey: 'depilacao', zoneNames: ['Axila', 'Pernas'] },
+    prepare: (s) => {
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: s.ids.depilacao, audienceLine: 'feminino', phase: 'coletando' },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Axilas e pernas' }],
+    expect: {
+      proposal: false,
+      outboundIncludes: ['Entendi: Axila e Pernas. Certo?'],
+      turns: [
+        {
+          turn: 0,
+          matches: [/Axila/i, /Pernas/i],
+          excludes: [/só.*Pernas|apenas.*Pernas/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-17',
+    title: 'Toque «11-03 17:00» abre a proposta do dia certo',
+    turnosIdeais: 1,
+    // CF-32 (#507 / #505): id civil no toque; título mês-dia não autoriza.
+    nowMs: Date.UTC(2026, 10, 3, 13, 0), // ter 03/11/2026 10:00 SP
+    damage: {
+      serviceKey: 'depilacao',
+      zoneNames: ['Axila', 'Pernas'],
+      date: '2026-11-03',
+      time: '17:00',
+    },
+    prepare: (s) => {
+      const zones = s.db.all<{ id: string; name: string; audience: string }>(
+        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
+        s.tenantId,
+        s.ids.depilacao,
+      )
+      const variantIds = zones
+        .filter((z) => z.audience === 'feminino' && (z.name === 'Axila' || z.name === 'Pernas'))
+        .map((z) => z.id)
+      const catalogVersion = 'cv-dialog-506'
+      const key = '2026-11-03T17:00'
+      const offerId = s.sayOutbound(
+        'Para Depilação, terça 03/11 tenho 17:00. Qual fica melhor?',
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.depilacao,
+          audienceLine: 'feminino',
+          variantIds,
+          date: '2026-11-03',
+          catalogVersion,
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [{ key, label: 'terça 03/11 às 17:00' }],
+            messageId: offerId,
+          },
+          lastOffer: {
+            slots: [
+              {
+                // 17:00 America/Sao_Paulo = 20:00 UTC
+                startsAt: Date.UTC(2026, 10, 3, 20, 0),
+                professionalId: s.ids.gi,
+              },
+            ],
+            messageId: offerId,
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [
+      {
+        role: 'choice',
+        buttonId: encodeChoiceId('horario', 'cv-dialog-506', '2026-11-03T17:00'),
+        buttonTitle: '11-03 17:00',
+        body: '[Lista] 11-03 17:00',
+      },
+    ],
+    expect: {
+      proposal: true,
+      noAppointment: true,
+      proposalAt: { date: '2026-11-03', time: '17:00' },
+      proposalZones: ['Axila', 'Pernas'],
+      turns: [{ turn: 0, excludes: [/qual dia/i] }],
+    },
+  },
+  {
+    id: 'A-18',
+    title: 'Confirmar depois da validade não marca e oferece outras horas',
+    turnosIdeais: 2,
+    // CF-33 (#511): hoje explica a expiração mas não oferece horários novos do mesmo pedido.
+    knownFailure: 'CF-33',
+    damage: { serviceKey: 'limpeza', date: '2026-11-06', time: '15:00' },
+    turns: [
+      { role: 'client', text: 'Quero limpeza de pele amanhã às 15h' },
+      { role: 'proposal_sent' },
+      { role: 'clock', setMs: DIALOG_NOW_MS + APPOINTMENT_PROPOSAL_VALIDITY_MS + 60_000 },
+      { role: 'confirm_proposal' },
+    ],
+    expect: {
+      noAppointment: true,
+      // #511: além de explicar a expiração, oferece ≥2 horários livres do mesmo pedido.
+      // A frase actual cita a hora expirada e manda a equipe — isso não basta.
+      turns: [
+        {
+          turn: 1,
+          matches: [
+            /expirou|já não (está|fica) válida|passou da validade/i,
+            /\b\d{2}:\d{2}\b.*\b\d{2}:\d{2}\b/,
+          ],
+          excludes: [/A equipe pode enviar uma nova proposta/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-19',
+    title: 'Catálogo sem match: diz o que faltou, sem link Google',
+    turnosIdeais: 1,
+    // CF-34 (#512): sonda despejava Google + «falar com a equipe» sem o que faltou.
+    knownFailure: 'CF-34',
+    prepare: (s) => {
+      setClinicAiProfile(
+        s.db,
+        s.tenantId,
+        { googleBusinessUrl: 'https://maps.app.goo.gl/ficticio506' },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Vocês fazem botox?' }],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      outboundExcludes: [/maps\.app\.goo\.gl|maps\.google|goo\.gl\/ficticio/i],
+      turns: [
+        {
+          turn: 0,
+          matches: [/não encontrei|não.*encontrei|opç/i],
+          excludes: [/maps\.app\.goo\.gl/i],
+        },
+      ],
+    },
   },
 ]
 
