@@ -15,6 +15,10 @@ import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
+import {
+  handleChoiceOfferClick,
+  VARIANT_LIST_BUTTON_LABEL,
+} from './choice-offer'
 import { rpcDepsFromEnv, toAiAssistDeps } from './deps'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import { getBookingFrame } from './schedule-session'
@@ -111,7 +115,7 @@ function seed() {
       `SELECT kind, interactive_json FROM outbound_messages WHERE tenant_id = ? ORDER BY created_at`,
       tenantId,
     )
-  return { ...boot, tenantId, cnv, run, outbound }
+  return { ...boot, clock, tenantId, cnv, run, outbound }
 }
 
 describe('DEC-128: escolhas interativas desligadas por defeito', () => {
@@ -167,5 +171,86 @@ describe('DEC-128: origem da flag', () => {
     expect(rpc.interactiveChoices).toBe(true)
     expect(toAiAssistDeps(rpc).interactiveChoices).toBe(true)
     expect(toAiAssistDeps(rpcDepsFromEnv({})).interactiveChoices).toBe(false)
+  })
+})
+
+/**
+ * Regressão: toque M5 (linha) → próximo outbound deve herdar a mesma flag
+ * que o autodraft. Sem ela, variantes saíam só em texto (Opções ausente).
+ */
+describe('DEC-128: toque na linha propaga interactiveChoices', () => {
+  function femininaButtonId(interactiveJson: string | null): string {
+    const parsed = JSON.parse(interactiveJson ?? '{}') as {
+      buttons?: Array<{ id: string; title: string }>
+    }
+    const btn = parsed.buttons?.find((b) => b.title === 'Feminina')
+    expect(btn?.id).toBeTruthy()
+    return btn!.id
+  }
+
+  async function afterLineClick(interactiveChoices: boolean) {
+    const s = seed()
+    const caller = workerCaller(s.tenantId, 'user_synth_owner_a')
+    await s.run(true)
+    const lineOutbound = s.outbound().find((m) => m.kind === 'interactive')
+    expect(lineOutbound).toBeTruthy()
+    const buttonId = femininaButtonId(lineOutbound!.interactive_json)
+    // Igual ao queue-consumer: ingest inbound do toque antes do handler.
+    s.clock.advance(1_000)
+    insertMessage(
+      s.db,
+      {
+        tenantId: s.tenantId,
+        conversationId: s.cnv.id,
+        direction: 'inbound',
+        body: '[Botão] Feminina',
+        deliveryState: 'received',
+        createdAt: s.clock.nowMs(),
+      },
+      s.clock,
+    )
+    const beforeCount = s.outbound().length
+    const result = await handleChoiceOfferClick(
+      s.db,
+      caller,
+      {
+        tenantId: s.tenantId,
+        conversationId: s.cnv.id,
+        buttonId,
+        providerEventKey: `test-line-${interactiveChoices ? 'on' : 'off'}`,
+        interactiveChoices,
+      },
+      s.clock,
+    )
+    expect(result.handled).toBe(true)
+    if (!result.handled) throw new Error('expected choice click handled')
+    expect(result.outcome).toBe('applied')
+    return { s, beforeCount, after: s.outbound().slice(beforeCount) }
+  }
+
+  it('flag on: após toque Feminina o próximo interactive é lista Opções (+ Todas)', async () => {
+    const { s, after } = await afterLineClick(true)
+    try {
+      const interactive = after.filter((m) => m.kind === 'interactive')
+      expect(interactive.length).toBe(1)
+      const json = interactive[0]!.interactive_json ?? ''
+      expect(json).toContain(VARIANT_LIST_BUTTON_LABEL)
+      expect(json).toMatch(/Axila|Pernas/)
+      expect(json).toContain('Todas')
+      expect(json).not.toMatch(/Feminina|Masculina/)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('flag off: após toque Feminina o outbound seguinte é só texto', async () => {
+    const { s, after } = await afterLineClick(false)
+    try {
+      expect(after.length).toBeGreaterThan(0)
+      expect(after.every((m) => m.kind !== 'interactive')).toBe(true)
+      expect(after.every((m) => m.interactive_json == null)).toBe(true)
+    } finally {
+      s.close()
+    }
   })
 })
