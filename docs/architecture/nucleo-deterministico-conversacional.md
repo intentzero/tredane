@@ -162,7 +162,7 @@ Regras do frame:
 
 Ordem de decisão (determinística, testável por tabela):
 
-1. **Handoff** (DEC-083): pedido de pessoa, saúde, terceiro, cancelamento, profissional fora do serviço. Frase fixa e pausa, sem modelo.
+1. **Handoff** (DEC-083): pedido de pessoa, saúde, terceiro, cancelamento, profissional fora do serviço. Frase fixa e pausa, sem modelo. **Contexto externo (anti-padrão, não decisão):** reportagem do Correio Braziliense sobre atendimento por IA sem saída humana — ver [modelo híbrido](conversational-hybrid-model.md#contexto-externo--anti-padrão-a-evitar-evidência-não-decisão).
 2. **Perguntas informativas** (preço, duração, expediente, local, quem faz, explicação cadastrada, política): resposta tirada do grafo. Se há funil aberto, a mesma mensagem termina com **a** pergunta seguinte do funil (uma só).
 3. **Funil de marcação.** Pergunta-se apenas o que muda a disponibilidade ou o preço e que o grafo não determina sozinho:
    1. serviço, se for ambíguo (opções fechadas);
