@@ -18,11 +18,13 @@ import {
   encodeChoiceId,
   isChoiceOfferId,
   parseChoiceId,
+  slotBindingFromChoice,
   toSendInteractive,
   validateChoiceAgainstFrame,
   SLOT_LIST_BUTTON_LABEL,
   VARIANT_LIST_BUTTON_LABEL,
 } from './choice-offer'
+import { extractDates } from './nlu/temporal'
 import { createDeferredBookingFrame, OUTBOUND_MESSAGE_ID_PLACEHOLDER } from './deferred-booking-frame'
 import { getBookingFrame } from './schedule-session'
 
@@ -97,6 +99,21 @@ describe('choice-offer ids', () => {
     expect(built.interactive.mode).toBe('list')
     expect(built.interactive.button).toBe(SLOT_LIST_BUTTON_LABEL)
     expect(toSendInteractive(built.interactive)?.list?.sections[0]?.rows).toHaveLength(2)
+  })
+
+  it('o id do horário liga a data; o título 11-03 17:00 não é data', () => {
+    expect(slotBindingFromChoice('2026-11-03T17:00', '11-03 17:00')).toEqual({
+      date: '2026-11-03',
+      time: '17:00',
+    })
+    expect(slotBindingFromChoice('17:00', '2026-11-03 às 17:00')).toEqual({
+      date: '2026-11-03',
+      time: '17:00',
+    })
+    expect(slotBindingFromChoice('17:00', '11-03 17:00')).toBeNull()
+    expect(extractDates('11-03 17:00', '2026-11-03').size).toBe(0)
+    const id = encodeChoiceId('horario', '9', '2026-11-03T17:00')
+    expect(parseChoiceId(id)?.key).toBe('2026-11-03T17:00')
   })
 })
 

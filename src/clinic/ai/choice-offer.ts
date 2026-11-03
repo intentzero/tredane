@@ -72,9 +72,31 @@ export const TODAS_OPTION_LABEL = 'Todas'
 /** Limites Cloud API (list message) — doc Meta vigente. */
 export const META_LIST_MAX_ROWS = 10
 export const META_LIST_ROW_TITLE_MAX = 24
+export const META_LIST_ROW_DESCRIPTION_MAX = 72
 export const META_LIST_BUTTON_MAX = 20
 export const META_BUTTON_TITLE_MAX = 20
 export const META_ROW_ID_MAX = 200
+
+const SLOT_CHOICE_KEY = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)$/
+const CLOCK_CHOICE_KEY = /^([01]\d|2[0-3]):([0-5]\d)$/
+
+/**
+ * Slot oferecido ligado ao id da lista (ou à opção já gravada).
+ * Não lê `11-03` nem `03/11` do título: isso não é data civil.
+ */
+export function slotBindingFromChoice(
+  key: string,
+  label: string,
+): { date: string; time: string } | null {
+  const keyed = key.trim().match(SLOT_CHOICE_KEY)
+  if (keyed) return { date: keyed[1]!, time: `${keyed[2]}:${keyed[3]}` }
+  const clock = key.trim().match(CLOCK_CHOICE_KEY)
+  const iso = label.match(/\b(\d{4}-\d{2}-\d{2})\b/)
+  const labelClock = label.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/)
+  const time = clock ? `${clock[1]}:${clock[2]}` : labelClock ? `${labelClock[1]}:${labelClock[2]}` : null
+  if (iso && time) return { date: iso[1]!, time }
+  return null
+}
 
 const AUTODRAFT_ACTOR_ID = 'system:ai-autodraft'
 
@@ -230,7 +252,7 @@ export function buildVariantChoiceInteractive(input: {
 
 export function buildSlotChoiceInteractive(input: {
   catalogVersion: string
-  slots: Array<{ key: string; label: string }>
+  slots: Array<{ key: string; label: string; description?: string }>
 }): { interactive: ChoiceInteractiveList; pending: BookingFramePending } {
   const options = input.slots.slice(0, META_LIST_MAX_ROWS)
   return {
@@ -239,14 +261,23 @@ export function buildSlotChoiceInteractive(input: {
       button: clip(SLOT_LIST_BUTTON_LABEL, META_LIST_BUTTON_MAX),
       sections: [
         {
-          rows: options.map((o) => ({
-            id: encodeChoiceId('horario', input.catalogVersion, o.key),
-            title: clip(o.label, META_LIST_ROW_TITLE_MAX),
-          })),
+          rows: options.map((o) => {
+            const description = o.description?.trim()
+            return {
+              id: encodeChoiceId('horario', input.catalogVersion, o.key),
+              title: clip(o.label, META_LIST_ROW_TITLE_MAX),
+              ...(description
+                ? { description: clip(description, META_LIST_ROW_DESCRIPTION_MAX) }
+                : {}),
+            }
+          }),
         },
       ],
     },
-    pending: pendingForChoiceOffer({ slot: 'horario', options }),
+    pending: pendingForChoiceOffer({
+      slot: 'horario',
+      options: options.map((o) => ({ key: o.key, label: o.label })),
+    }),
   }
 }
 
@@ -367,8 +398,10 @@ function semanticTextForChoice(
     const names = scoped.map((z) => z.name)
     return names.length > 0 ? names.join(' e ') : TODAS_OPTION_LABEL
   }
-  // horario: label com data absoluta quando disponível
-  return label.includes('-') ? label : (key.match(/\d{2}:\d{2}/)?.[0] ?? label)
+  // Horário: a data vem do id (slotBinding), não do título «11-03 17:00».
+  const bound = slotBindingFromChoice(key, label)
+  if (bound) return `às ${bound.time}`
+  return key.match(/\d{2}:\d{2}/)?.[0] ?? label
 }
 
 function clearPendingFrame(
@@ -515,6 +548,11 @@ export async function handleChoiceOfferClick(
           ? ('correct' as const)
           : undefined
 
+  const boundSlot =
+    validated.slot === 'horario'
+      ? slotBindingFromChoice(validated.key, validated.label)
+      : null
+
   let turnText = semanticTextForChoice(
     db,
     input.tenantId,
@@ -538,6 +576,7 @@ export async function handleChoiceOfferClick(
     capability: input.capability !== false,
     turnTextOverride: turnText,
     confirmationMessageIdOverride: confirmationMessageId,
+    ...(boundSlot ? { boundSlot } : {}),
     zoneEcho,
   })
 

@@ -14,6 +14,7 @@ import type { ClinicDb } from '../store'
 import { sayAct } from './dialogue-acts'
 
 const WEEKDAY_LABEL = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
+const WEEKDAY_SHORT = ['', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom']
 const FEMININE_WEEKDAYS = new Set(['segunda', 'terça', 'quarta', 'quinta', 'sexta'])
 
 export type DayPeriod = 'manha' | 'tarde' | 'noite'
@@ -32,6 +33,21 @@ export function weekdayOfCivil(date: string): number {
 export function dayTextPt(date: string): string {
   const [, m, d] = date.split('-')
   return `${WEEKDAY_LABEL[weekdayOfCivil(date)]} ${d}/${m}`
+}
+
+/**
+ * Linha da lista Horários. Título curto (`ter 03/11 17:00`, ≤24) e descrição
+ * com o dia por extenso. Data civil da clínica, sem nome de fuso (DEC-134 A).
+ */
+export function slotListRowCopy(date: string, time: string): { title: string; description: string } {
+  const wd = weekdayOfCivil(date)
+  const [, month, day] = date.split('-')
+  const short = WEEKDAY_SHORT[wd] ?? ''
+  const long = WEEKDAY_LABEL[wd] ?? ''
+  return {
+    title: `${short} ${day}/${month} ${time}`.trim(),
+    description: `${long} ${day}/${month} às ${time}`.trim(),
+  }
 }
 
 /**

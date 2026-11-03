@@ -79,6 +79,7 @@ import { logPolicyShadow } from './policy-shadow'
 import {
   occupiedSlotAlternativesReply,
   offerNearestSlots,
+  slotListRowCopy,
   type DayPeriod,
   type OfferedSlot,
 } from './slot-offer'
@@ -98,6 +99,7 @@ import {
   buildSlotChoiceInteractive,
   buildVariantChoiceInteractive,
   buildZoneEchoInteractive,
+  slotBindingFromChoice,
   zoneEchoReply,
   type ChoiceInteractive,
 } from './choice-offer'
@@ -121,16 +123,20 @@ function rememberOfferFrameImpl(
       date: s.date,
     })),
   })
-  // M5: ids opacos na lista; options.key permanece HH:MM para matchPendingChoice.
+  // M5: id opaco leva a chave civil (YYYY-MM-DDTHH:MM). O título não autoriza o slot.
   const built = buildSlotChoiceInteractive({
     catalogVersion,
-    slots: (patch.pending?.options ?? []).map((o) => ({
-      key: o.key,
-      // Título curto na lista (≤24): «06/11 09:00» ou só a hora.
-      label: o.label.replace(/^(\d{4}-)/, '').replace(' às ', ' '),
-    })),
+    slots: (patch.pending?.options ?? []).map((o) => {
+      const bound = slotBindingFromChoice(o.key, o.label)
+      const copy = bound ? slotListRowCopy(bound.date, bound.time) : null
+      return {
+        key: o.key,
+        label: copy?.title ?? o.label,
+        ...(copy ? { description: copy.description } : {}),
+      }
+    }),
   })
-  // Preserva keys semânticas (HH:MM) no pending; ids opacos só no interactive.
+  // Pending guarda a chave civil; o título curto fica só na lista.
   deferred.save({
     ...patch,
     catalogVersion,
@@ -478,6 +484,11 @@ export async function tryAiAutoBook(
      * `correct` = Corrigir (volta à pergunta das zonas).
      */
     zoneEcho?: 'skip' | 'confirm' | 'correct'
+    /**
+     * Toque na lista Horários. Data e hora vêm do id da linha, não do título.
+     * Não marca (DEC-061): só monta a proposta.
+     */
+    boundSlot?: { date: string; time: string }
   },
 ): Promise<AutoBookOutcome> {
   // M5 / DEC-133 (revisão 03/11/2026): listas e botões sempre ligados; sem env gate.
@@ -634,9 +645,9 @@ export async function tryAiAutoBook(
       const choice = matchPendingChoice(turnText, frameEarly.pending)
       if (choice.kind === 'match') {
         if (frameEarly.pending.slot === 'horario') {
-          pendingTimeOverride = choice.key.match(/\d{2}:\d{2}/)?.[0] ?? null
-          const dateFromLabel = choice.label.match(/\d{4}-\d{2}-\d{2}/)?.[0]
-          pendingDateOverride = dateFromLabel ?? frameEarly.date
+          const bound = slotBindingFromChoice(choice.key, choice.label)
+          pendingTimeOverride = bound?.time ?? choice.key.match(/\d{2}:\d{2}/)?.[0] ?? null
+          pendingDateOverride = bound?.date ?? frameEarly.date
         } else if (frameEarly.pending.slot === 'linha' && frameEarly.serviceId) {
           // Texto livre contra pending de linha (DEC-128: atalho, não obrigação).
           saveSession({
@@ -811,6 +822,25 @@ export async function tryAiAutoBook(
         }
       }
       if (!missing.includes('horario') && !det.time) missing = [...missing, 'horario']
+    }
+  }
+  if (input.boundSlot) {
+    const pendingSvc =
+      det.service ??
+      (session?.serviceId ? services.find((s) => s.id === session.serviceId) : undefined) ??
+      (frame?.serviceId ? services.find((s) => s.id === frame.serviceId) : undefined)
+    if (pendingSvc) {
+      det = {
+        ...det,
+        ok: true,
+        status: 'requires_button',
+        time: input.boundSlot.time,
+        date: input.boundSlot.date,
+        missing: [],
+        service: pendingSvc,
+      }
+      date = input.boundSlot.date
+      missing = []
     }
   }
   let time = det.time
@@ -1281,6 +1311,15 @@ export async function tryAiAutoBook(
       saveSession({ serviceId: svc.id, variantIds: null })
     } else if (proposalMention.zones.length > 0) {
       namedZones = proposalMention.zones
+    }
+  }
+  // Toque em Horários: o conjunto já foi confirmado (eco/Opções). Não reler o histórico.
+  if (input.boundSlot && sameFunnel && session?.variantIds?.length) {
+    const ids = session.variantIds
+    const fromSession = scoped.filter((z) => ids.includes(z.id))
+    if (fromSession.length === ids.length) {
+      namedZones = fromSession
+      echoLocked = true
     }
   }
   if (

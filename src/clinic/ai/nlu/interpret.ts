@@ -109,10 +109,12 @@ function matchPendingOption(
     if (label.length >= 2 && (folded.includes(label) || label.includes(folded))) {
       return { index: i, key: opt.key, label: opt.label }
     }
-    if (key.length >= 2 && (folded.includes(key) || key.includes(folded))) {
+    // Chave `YYYY-MM-DDTHH:MM`: só a hora conta. O mês no id não casa com «11».
+    const clockKey = key.match(/t(\d{2}:\d{2})$/)?.[1] ?? key
+    if (clockKey.length >= 2 && (folded.includes(clockKey) || clockKey.includes(folded))) {
       return { index: i, key: opt.key, label: opt.label }
     }
-    const hhmm = key.match(/^(\d{1,2}):(\d{2})$/)
+    const hhmm = clockKey.match(/^(\d{1,2}):(\d{2})$/)
     if (hhmm) {
       const h = Number(hhmm[1])
       const m = hhmm[2]
