@@ -577,12 +577,40 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quero marcar depilação pra minha mãe', boot.clock, opts),
       ).toMatch(/outra pessoa/)
-      expect(
-        catalogReply(boot.db, boot.tenantId, 'Quero bronzeamento artificial amanhã', boot.clock, opts),
-      ).toMatch(/não encontrei esse procedimento|não encontrei por aqui/i)
+      const miss = catalogReply(
+        boot.db,
+        boot.tenantId,
+        'Quero bronzeamento artificial amanhã',
+        boot.clock,
+        opts,
+      )
+      expect(miss).toMatch(/bronzeamento/i)
+      expect(miss).toMatch(/não encontrei|não encontrei por aqui/i)
+      expect(miss).toMatch(/Temos /)
+      expect(miss).not.toMatch(/maps\.|goo\.gl|google/i)
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quero igual à última vez', boot.clock, opts),
       ).toMatch(/visita anterior/i)
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('#512 prática 10: «Vocês fazem botox?» diz o que faltou e lista opções (sem Google)', () => {
+    const boot = seedMixed()
+    try {
+      const reply = catalogReply(
+        boot.db,
+        boot.tenantId,
+        'Vocês fazem botox?',
+        boot.clock,
+        { conversationId: boot.conversation.id },
+      )
+      expect(reply).toMatch(/botox/i)
+      expect(reply).toMatch(/Temos /)
+      expect(reply).toMatch(/Depilação|Limpeza|Massagem/i)
+      expect(reply).not.toMatch(/maps\.|goo\.gl|google/i)
+      expect(reply).not.toMatch(/\bcatálogo\b/i)
     } finally {
       boot.close()
     }

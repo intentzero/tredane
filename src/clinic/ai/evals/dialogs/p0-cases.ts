@@ -568,7 +568,12 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     title: 'Serviço inexistente',
     turnosIdeais: 1,
     turns: [{ role: 'client', text: 'Vocês fazem botox?' }],
-    expect: { proposal: false, notPaused: true },
+    expect: {
+      proposal: false,
+      notPaused: true,
+      outboundExcludes: [/maps\.|goo\.gl|google/i],
+      turns: [{ turn: 0, matches: [/botox/i, /Temos /] }],
+    },
   },
   {
     id: 'D-04',

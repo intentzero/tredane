@@ -211,6 +211,8 @@ Substitui: `Masculino e feminino não entram na mesma visita. Escolha um conjunt
 
 Substitui: a 2.ª redação sai de «o que a clínica oferece» (voz em 3.ª pessoa) para «o que oferecemos».
 
+**#512 / prática 10 (Confirmado no código; copy base inalterada):** quando o catálogo não casa, o backend (1) substitui o dêitico «esse procedimento» / «Esse serviço» pelo termo pedido entre aspas (eco factual, sem frase de marketing nova — DEC-104) e (2) acrescenta `perguntar_servico` com `{lista}` real da clínica. O link Google só sai em `informar_local*`.
+
 ### varios_servicos
 
 1. *(atual)* `Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?`

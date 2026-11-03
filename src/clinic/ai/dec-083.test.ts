@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AiGenerateResult } from '../../ai'
 import { createControllableClock } from '../../db/clock'
-import { setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
+import { replaceServiceZonesOp, setWeeklyWindowsOp, upsertResourceOp, upsertServiceOp } from '../config'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { workerCaller } from '../index'
@@ -24,6 +24,7 @@ import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, enqueueLatestUnansweredInbound, runDueAutoDrafts } from './index'
 import { HUMAN_HANDOFF_TEXT, notifyHumanHandoff, readAiReplyPause, resumeAiReply } from './human-handoff'
+import { saveScheduleSession } from './schedule-session'
 import {
   listOpenPendingCommunicationsForConversation,
   resolvePendingCommunication,
@@ -149,6 +150,69 @@ describe('DEC-083', () => {
       )
       expect(sent?.body).toBe(HUMAN_HANDOFF_TEXT)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)!.n).toBe(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('#512 handoff após serviço e zonas: o alerta da equipe mostra o quadro', () => {
+    const s = seed()
+    try {
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: s.svc.id,
+          name: 'Depilação',
+          durationMinutes: 15,
+          bufferMinutes: 15,
+          priceCents: 5000,
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      const zones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        s.svc.id,
+        [
+          { name: 'Axila', durationMinutes: 15, priceCents: 5_000, audience: 'feminino' },
+          { name: 'Pernas', durationMinutes: 30, priceCents: 14_000, audience: 'feminino' },
+        ],
+        s.clock,
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.svc.id,
+          audienceLine: 'feminino',
+          variantIds: zones.map((z) => z.id),
+          date: '2026-11-06',
+          clockTime: '10:00',
+        },
+        s.clock,
+      )
+      s.say('Oi')
+      notifyHumanHandoff(
+        s.db,
+        s.tenantId,
+        { conversationId: s.cnv.id, reason: 'customer_requested', clientRequestId: 'handoff-frame' },
+        s.clock,
+      )
+      const pending = listOpenPendingCommunicationsForConversation(s.db, s.tenantId, s.cnv.id)
+      const alert = pending.find((row) => row.kind === 'alter_awaiting_team')
+      expect(alert?.detailText).toMatch(/Quadro entendido/)
+      expect(alert?.detailText).toMatch(/Depilação/)
+      expect(alert?.detailText).toMatch(/feminina/)
+      expect(alert?.detailText).toMatch(/Axila/)
+      expect(alert?.detailText).toMatch(/Pernas/)
+      expect(alert?.detailText).toMatch(/10:00/)
+      expect(alert?.detailText).toMatch(/2026-11-06/)
     } finally {
       s.close()
     }

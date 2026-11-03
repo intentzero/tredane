@@ -14,7 +14,11 @@ import { resolveZoneMention, variantAudiencesConflict, zonesNamedInText } from '
 import { listMessages } from '../inbox/messages'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
-import { resolveBookingObject } from './booking-object'
+import {
+  catalogMissHint,
+  catalogServiceList,
+  resolveBookingObject,
+} from './booking-object'
 import {
   mixedAudienceReply,
   serviceChangedReply,
@@ -348,7 +352,11 @@ export function catalogReply(
       !PERIOD.test(source) &&
       !SHORT_CONFIRM.test(body.trim())
     ) {
-      return serviceNotFoundReply(cnv)
+      // Prática 10 / #512: dizer o que faltou + opções reais; sem link Google.
+      return serviceNotFoundReply(cnv, {
+        pedido: catalogMissHint(source, services),
+        lista: catalogServiceList(services),
+      })
     }
     if (bookingMatch.handoffReason === 'historico_indisponivel') {
       const fb = 'Não tenho o detalhe da sua visita anterior aqui. Qual serviço você quer agora?'
@@ -358,9 +366,11 @@ export function catalogReply(
       return serviceChangedReply(cnv)
     }
   }
-  // Clarify de serviço só com intenção de marcar/agendar — «oi» / «mensagem» ficam no modelo.
+  // Clarify de serviço só com intenção de marcar/perguntar catálogo — «oi» / «mensagem» ficam no modelo.
   const bookingIntent =
-    /\b(quero|gostaria|marcar|agendar|horario|horário|disponi|vaga|fazer|preciso)\b/i.test(source)
+    /\b(quero|gostaria|marcar|agendar|horario|horário|disponi|vaga|fazer|preciso|fazem|faz|tem|têm|oferecem|oferece)\b/i.test(
+      source,
+    )
   if (
     bookingMatch.kind === 'clarify' &&
     bookingMatch.question &&
