@@ -980,14 +980,16 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       )
       s.say('inbound', 'Bom dia. Gostaria agendar um horário para fazer axila e íntima feminina')
       const asked = await s.run()
-      expect(asked.reason).toBe('catalog_reply')
-      const question = s.db.get<{ body: string }>(
-        `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
-        s.cnv.id,
-      )
-      expect(question?.body).toMatch(
-        /Qual horário fica melhor para Depilação\?|Para Depilação, qual horário você prefere\?/,
-      )
+      // DEC-135: texto multi-variante já oferece slots (não para em catalog_reply / perguntar_horario).
+      expect(asked.reason).not.toBe('catalog_reply')
+      const offerText = asked.autoBook?.replyText ?? ''
+      expect(offerText).toMatch(/09:00|10:00|14:00|15:|16:/)
+      expect(offerText).toMatch(/Axila/)
+      expect(offerText).toMatch(/Parte íntima|íntima/i)
+      expect(asked.autoBook?.interactive?.mode).toBe('list')
+      if (asked.autoBook?.interactive?.mode === 'list') {
+        expect(asked.autoBook.interactive.button).toBe('Horários')
+      }
       const fem = zones
         .filter((zone) => zone.audience === 'feminino' && (zone.name === 'Axila' || zone.name === 'Parte íntima'))
         .map((zone) => zone.id)
@@ -1044,10 +1046,15 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       )
       s.say('inbound', 'Bom dia. Gostaria agendar um horário para fazer axila e íntima feminina')
       const asked = await s.run()
-      expect(asked.reason).toBe('catalog_reply')
+      // DEC-135: sem «íntima» no catálogo, só Axila — autobook oferece slots (não catalog_reply).
+      expect(asked.reason).not.toBe('catalog_reply')
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       expect(session?.audienceLine).toBe('feminino')
       expect(session?.variantIds?.length).toBe(1)
+      const firstOffer = asked.autoBook?.replyText ?? ''
+      expect(firstOffer).toMatch(/Axila/)
+      expect(firstOffer).not.toMatch(/pernas/i)
+      expect(firstOffer).not.toMatch(/íntima/i)
 
       s.say('inbound', 'Na parte da manhã')
       const next = await s.run()
@@ -1124,7 +1131,9 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       s.say('outbound', 'Agradecemos o contato. Estamos à disposição quando precisar.')
       s.say('inbound', 'Bom dia. Gostaria agendar um horário para fazer axila e íntima feminina')
       const asked = await s.run()
-      expect(asked.reason).toBe('catalog_reply')
+      // DEC-135: texto multi-variante já oferta Horários via autobook (não catalog_reply).
+      expect(asked.reason).not.toBe('catalog_reply')
+      expect(asked.autoBook?.interactive?.mode).toBe('list')
 
       // A manhã fica no histórico. Não se corre o rascunho: essa oferta varre
       // vários dias e, no CI, estoura os 5 s. O caso é o aceite das 10:00.
