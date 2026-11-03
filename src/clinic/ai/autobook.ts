@@ -123,7 +123,7 @@ function rememberOfferFrameImpl(
       date: s.date,
     })),
   })
-  // M5: id opaco leva a chave civil (YYYY-MM-DDTHH:MM). O título não autoriza o slot.
+  // M5 / #507: id opaco leva a chave civil (YYYY-MM-DDTHH:MM). O título não autoriza o slot.
   const built = buildSlotChoiceInteractive({
     catalogVersion,
     slots: (patch.pending?.options ?? []).map((o) => {
@@ -136,7 +136,7 @@ function rememberOfferFrameImpl(
       }
     }),
   })
-  // Pending guarda a chave civil; o título curto fica só na lista.
+  // Pending: chave civil + rótulo na forma única à cliente (terça 03/11 17:00).
   deferred.save({
     ...patch,
     catalogVersion,
