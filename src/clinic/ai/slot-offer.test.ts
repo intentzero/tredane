@@ -10,6 +10,7 @@ import {
   pickNearbySameDay,
   minutesOfHHMM,
   periodWordPt,
+  slotListRowCopy,
 } from './slot-offer'
 import { sayAct } from './dialogue-acts'
 
@@ -18,6 +19,18 @@ afterEach(() => {
 })
 
 describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
+  it('título da lista é dia curto + data civil, sem fuso', () => {
+    expect(slotListRowCopy('2026-11-03', '17:00')).toEqual({
+      title: 'ter 03/11 17:00',
+      description: 'terça 03/11 às 17:00',
+    })
+    const sat = slotListRowCopy('2026-11-07', '09:30')
+    expect(sat.title).toBe('sáb 07/11 09:30')
+    expect(sat.title.length).toBeLessThanOrEqual(24)
+    expect(sat.description).toBe('sábado 07/11 às 09:30')
+    expect(sat.title + sat.description).not.toMatch(/America\//)
+  })
+
   it('periodFromHHMM classifica manhã/tarde/noite', () => {
     expect(periodFromHHMM('09:00')).toBe('manha')
     expect(periodFromHHMM('16:00')).toBe('tarde')

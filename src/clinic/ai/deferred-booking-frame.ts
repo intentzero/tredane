@@ -260,7 +260,8 @@ export function offerFramePatch(input: {
   date?: string
 }): ScheduleSessionPatch {
   const options = input.slots.map((s) => ({
-    key: s.time,
+    // A chave vai no id da lista: o toque liga o slot sem reler o título.
+    key: `${s.date}T${s.time}`,
     label: `${s.date} às ${s.time}`,
   }))
   const pending: BookingFramePending = {

@@ -15,7 +15,9 @@ import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
-import { handleChoiceOfferClick, SLOT_LIST_BUTTON_LABEL, VARIANT_LIST_BUTTON_LABEL } from './choice-offer'
+import { handleChoiceOfferClick, parseChoiceId, SLOT_LIST_BUTTON_LABEL, VARIANT_LIST_BUTTON_LABEL } from './choice-offer'
+import { localHHMM } from './slot-offer'
+import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import { getScheduleSession } from './schedule-session'
 
@@ -436,6 +438,117 @@ describe('DEC-137: eco e plural das zonas', () => {
       const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', clicked.autoBook?.proposalId ?? '')
       expect(snaps.map((zone) => zone.name).sort()).toEqual(['Axila', 'Pernas'])
       expect(snaps.every((zone) => zone.audience === 'feminino')).toBe(true)
+      expect(appointments(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('toque em Horários 17:00 propõe Axila+Pernas nesse início e não marca', async () => {
+    const s = seed()
+    try {
+      // 16:50 em America/Sao_Paulo, terça 03/11/2026. Janela até 19:00 para 17:00 caber.
+      s.clock.set(Date.UTC(2026, 10, 3, 19, 50))
+      const resources = s.db.all<{ id: string }>(
+        `SELECT id FROM resources WHERE tenant_id = ?`,
+        s.tenantId,
+      )
+      const week = [1, 2, 3, 4, 5].map((dayOfWeek) => ({
+        dayOfWeek,
+        startMinute: 9 * 60,
+        endMinute: 19 * 60,
+      }))
+      for (const resource of resources) {
+        setWeeklyWindowsOp(s.db, s.caller, { resourceId: resource.id, windows: week }, s.clock)
+      }
+      await lockFeminine(s)
+      await say(s, 'Axilas e pernas')
+      const echo = outbound(s).filter((row) => (row.interactive_json ?? '').includes('Corrigir')).at(-1)
+      const sim = buttonId(echo?.interactive_json ?? null, 'Sim')
+      s.clock.advance(1_000)
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: '[Botão] Sim',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      const confirmed = await handleChoiceOfferClick(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          buttonId: sim,
+          providerEventKey: 'echo-sim-antes-horario',
+        },
+        s.clock,
+      )
+      expect(confirmed.handled).toBe(true)
+      expect(appointments(s)).toBe(0)
+      const list = outbound(s).filter((row) => (row.interactive_json ?? '').includes(SLOT_LIST_BUTTON_LABEL)).at(-1)
+      const parsed = JSON.parse(list?.interactive_json ?? '{}') as {
+        list?: { sections?: Array<{ rows?: Array<{ id: string; title: string; description?: string }> }> }
+      }
+      const rows = parsed.list?.sections?.flatMap((section) => section.rows ?? []) ?? []
+      const slot = rows.find((row) => row.title === 'ter 03/11 17:00')
+      expect(slot?.description).toBe('terça 03/11 às 17:00')
+      expect(slot?.title).not.toBe('11-03 17:00')
+      expect(JSON.stringify(slot)).not.toMatch(/America\//)
+      expect(parseChoiceId(slot?.id ?? '')?.key).toBe('2026-11-03T17:00')
+      s.clock.advance(1_000)
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: '[Lista] 11-03 17:00',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      const clicked = await handleChoiceOfferClick(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          buttonId: slot!.id,
+          buttonTitle: '11-03 17:00',
+          providerEventKey: 'tap-horario-1700',
+        },
+        s.clock,
+      )
+      expect(clicked.handled).toBe(true)
+      if (!clicked.handled) return
+      expect(clicked.autoBook?.replyText ?? '').not.toMatch(/qual dia/i)
+      expect(clicked.autoBook?.status).toBe('requires_button')
+      expect(clicked.autoBook?.proposalId).toBeTruthy()
+      const proposal = s.db.get<{ starts_at: number; duration_minutes: number; price_cents: number }>(
+        `SELECT starts_at, duration_minutes, price_cents FROM appointment_proposals WHERE tenant_id = ? AND id = ?`,
+        s.tenantId,
+        clicked.autoBook?.proposalId ?? '',
+      )
+      expect(clinicCivilDateFromUtc('America/Sao_Paulo', proposal!.starts_at)).toBe('2026-11-03')
+      expect(localHHMM('America/Sao_Paulo', proposal!.starts_at)).toBe('17:00')
+      expect(proposal?.duration_minutes).toBe(45)
+      expect(proposal?.price_cents).toBe(13_000)
+      const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', clicked.autoBook?.proposalId ?? '')
+      expect(snaps.map((zone) => zone.name).sort()).toEqual(['Axila', 'Pernas'])
+      expect(snaps.every((zone) => zone.audience === 'feminino')).toBe(true)
+      const sent = outbound(s).at(-1)
+      expect(sent?.body ?? '').not.toMatch(/qual dia/i)
+      expect(sent?.interactive_json ?? '').toContain('Confirmar')
+      expect(sent?.interactive_json ?? '').toContain('Alterar detalhes')
+      expect(sent?.interactive_json ?? '').toContain('Falar com a equipe')
+      expect(sent?.body ?? '').not.toMatch(/America\//)
       expect(appointments(s)).toBe(0)
     } finally {
       s.close()

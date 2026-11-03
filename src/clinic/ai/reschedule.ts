@@ -19,6 +19,7 @@ import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ClinicDb } from '../store'
 import type { AbuseLimits } from './abuse-limits'
 import { extractDates, extractTimes } from './autobook'
+import { slotBindingFromChoice } from './choice-offer'
 import {
   CANCEL_RE,
   RESCHEDULE_RE,
@@ -301,7 +302,9 @@ export async function tryAiReschedule(
   const session = sessionEarly
   const frame = frameEarly
   const facts = scheduleFactsFromText(input.inboundText)
-  const dates = [...extractDates(input.inboundText, today)]
+  // Chave civil da oferta (`2026-11-04T10:00`). «2026» não é 20:26.
+  const spokenSlot = slotBindingFromChoice(input.inboundText.trim(), '')
+  const dates = spokenSlot ? [spokenSlot.date] : [...extractDates(input.inboundText, today)]
   let date = dates.length === 1 ? dates[0] : undefined
   if (!date && facts.dayLabel) {
     const resolved = [...extractDates(facts.dayLabel, today)]
@@ -311,7 +314,7 @@ export async function tryAiReschedule(
   if (!date && frame?.date && (priorOffer || frame.phase === 'remarcando')) {
     date = frame.date
   }
-  const times = [...extractTimes(input.inboundText)]
+  const times = spokenSlot ? [spokenSlot.time] : [...extractTimes(input.inboundText)]
   const time = times.length === 1 ? times[0] : undefined
   const period = facts.period ?? (priorOffer ? session?.period : undefined) ?? null
 
