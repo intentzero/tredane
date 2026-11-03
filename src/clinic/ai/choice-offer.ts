@@ -50,9 +50,9 @@ export type ChoiceInteractiveList = {
 
 export type ChoiceInteractive = ChoiceInteractiveButtons | ChoiceInteractiveList
 
-/** CTA da lista de variantes — Proposto (DEC-104). */
+/** CTA da lista de variantes — Confirmado (DEC-134). */
 export const VARIANT_LIST_BUTTON_LABEL = 'Opções'
-/** CTA da lista de horários — Proposto (DEC-104). */
+/** CTA da lista de horários — Confirmado (DEC-134). */
 export const SLOT_LIST_BUTTON_LABEL = 'Horários'
 
 export const LINE_BUTTON_TITLES = {

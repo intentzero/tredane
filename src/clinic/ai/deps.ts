@@ -32,6 +32,8 @@ export type AiAssistRpcDeps = {
    * env `ABUSE_LIMIT_*` = tetos/bootstrap. `ABUSE_LIMITS=on` só marca platform.enabled legado.
    */
   abuseLimits?: AbuseLimits
+  /** M5 (DEC-128): listas e botões. Desligado por defeito (env `AI_INTERACTIVE_CHOICES=on`). */
+  interactiveChoices?: boolean
 }
 
 /** Capacidade de proposta e clique. Sempre ligada; a pausa da owner é o desligamento. */
@@ -58,6 +60,7 @@ export function toAiAssistDeps(rpc: AiAssistRpcDeps): AiAssistDeps {
     clinicName: rpc.clinicName ?? null,
     autoBookPaused: rpc.autoBookPaused === true,
     ...(rpc.abuseLimits ? { abuseLimits: rpc.abuseLimits } : {}),
+    interactiveChoices: rpc.interactiveChoices === true,
   }
 }
 
@@ -68,12 +71,14 @@ export function rpcDepsFromEnv(env: {
   AI_GATEWAY_TOKEN?: string
   ANTHROPIC_API_KEY?: string
   ABUSE_LIMITS?: string
+  AI_INTERACTIVE_CHOICES?: string
   [key: `ABUSE_LIMIT_${string}`]: string | undefined
 }): AiAssistRpcDeps {
   const mode = resolveAiMode(env.AI_MODE)
   return {
     mode,
     abuseLimits: abuseLimitsFromEnv(env as Record<string, string | undefined>),
+    interactiveChoices: env.AI_INTERACTIVE_CHOICES === 'on',
     gateway: {
       accountId: env.CF_ACCOUNT_ID ?? '',
       gatewayId: env.AI_GATEWAY_ID ?? 'default',
