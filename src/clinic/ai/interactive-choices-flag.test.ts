@@ -64,15 +64,17 @@ function seed() {
     },
     clock,
   )
+  // Mesmos nomes nas duas linhas (como no piloto): sem filtro, a lista Opções
+  // misturaria «Axila (masculino…)» com «Axila (feminino…)» — A-03 / DEC-128.
   replaceServiceZonesOp(
     db,
     caller,
     svc.id,
     [
-      { name: 'Axila', durationMinutes: 15, priceCents: 4000, audience: 'feminino' },
+      { name: 'Axila', durationMinutes: 10, priceCents: 4000, audience: 'feminino' },
       { name: 'Pernas', durationMinutes: 30, priceCents: 9000, audience: 'feminino' },
-      { name: 'Barba', durationMinutes: 15, priceCents: 3000, audience: 'masculino' },
-      { name: 'Costas', durationMinutes: 30, priceCents: 7000, audience: 'masculino' },
+      { name: 'Axila', durationMinutes: 10, priceCents: 5000, audience: 'masculino' },
+      { name: 'Pernas', durationMinutes: 30, priceCents: 10000, audience: 'masculino' },
     ],
     clock,
   )
@@ -238,6 +240,15 @@ describe('DEC-128: toque na linha propaga interactiveChoices', () => {
       expect(json).toMatch(/Axila|Pernas/)
       expect(json).toContain('Todas')
       expect(json).not.toMatch(/Feminina|Masculina/)
+      // A-03 / DEC-134: só a linha feminina — sem variantes masculinas misturadas.
+      expect(json).not.toMatch(/masculino/i)
+      const parsed = JSON.parse(json) as {
+        list?: { sections?: Array<{ rows?: Array<{ title: string }> }> }
+      }
+      const titles =
+        parsed.list?.sections?.flatMap((sec) => (sec.rows ?? []).map((r) => r.title)) ?? []
+      expect(titles.filter((t) => t !== 'Todas')).toHaveLength(2)
+      expect(titles.at(-1)).toBe('Todas')
     } finally {
       s.close()
     }
