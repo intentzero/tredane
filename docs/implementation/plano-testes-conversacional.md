@@ -96,7 +96,7 @@ Cada achado tem um ou mais diálogos na [matriz](matriz-dialogos-conversacional.
 | CF-31 | S1 | «Axilas e pernas» avançava com horário só de uma zona, sem dizer que a outra caiu. | **Mitigado (DEC-137 / eco):** L1 A-16 verde no eco das duas; propriedade N→N−1 e limiar de confiança ficam em [#509](https://github.com/intentzero/tredane/issues/509). | A-16 | [#509](https://github.com/intentzero/tredane/issues/509) |
 | CF-32 | S1 | Toque na linha de horário com título mês-dia («11-03 17:00») perdia o dia (id só `HH:MM`) e perguntava «qual dia?». | **Mitigado (#505):** id civil `YYYY-MM-DDTHH:MM`; L1 A-17 verde. Título `terça 03/11 17:00` completo em [#507](https://github.com/intentzero/tredane/issues/507). | A-17 | [#507](https://github.com/intentzero/tredane/issues/507) (F1-1) |
 | CF-33 | S2 | Confirmar depois da validade da proposta: cliente não via o prazo; falta oferecer horários novos do mesmo pedido. | **Verificado** no L1 (A-18): não marca (INV-01), mas ainda não oferece ≥2 horários novos. | A-18 | [#511](https://github.com/intentzero/tredane/issues/511) (F1-5). |
-| CF-34 | S2 | Sem match no catálogo: resposta despejava link Google e/ou improviso, sem dizer o que faltou. | **Fechado (#512 / #520):** diz o que faltou + opções; sem link Google; L1 A-19 verde. | A-19 | [#512](https://github.com/intentzero/tredane/issues/512) (F1-6). |
+| CF-34 | S2 | Sem match no catálogo: resposta despejava link Google e/ou improviso, sem dizer o que faltou. | **Fechado (#512 / #520):** diz o que faltou + opções; sem link Google; L1 A-19 verde. | A-19 | — |
 
 ### 3.2 Arquitetura, comparada com o estado da arte de agentes orientados a tarefa
 

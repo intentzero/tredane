@@ -641,8 +641,8 @@ export async function tryAiAutoBook(
     clock,
   )
 
-  // CF-28 / #508 / DEC-138 prática 5: «começar de novo» / «outra coisa» limpa o quadro
-  // e retira a proposta ativa sem confirmar (DEC-061). Resposta = perguntar_servico (leva 2).
+  // CF-28 / #508 / DEC-138 practice 5: restart phrases clear the booking frame
+  // and retire any open proposal without confirming (DEC-061). Reply = perguntar_servico.
   if (hasRestartRequest(classifySensitive(turnText))) {
     deferred.clearSession()
     retireActiveProposal(db, tenantId, input.conversationId, clock)
@@ -665,7 +665,7 @@ export async function tryAiAutoBook(
     return finish({
       ...none('needs_info', { confirmationMessageId: confirmation.id }),
       replyText,
-      notes: 'CF-28 / #508: recomeçar limpa BookingFrame e retira proposta activa.',
+      notes: 'CF-28/#508: restart clears schedule_sessions; open proposal retired.',
     })
   }
 
