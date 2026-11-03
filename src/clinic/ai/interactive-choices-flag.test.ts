@@ -115,7 +115,7 @@ function seed() {
       `SELECT kind, interactive_json FROM outbound_messages WHERE tenant_id = ? ORDER BY created_at`,
       tenantId,
     )
-  return { ...boot, tenantId, cnv, run, outbound }
+  return { ...boot, clock, tenantId, cnv, run, outbound }
 }
 
 describe('DEC-128: escolhas interativas desligadas por defeito', () => {
@@ -223,6 +223,7 @@ describe('DEC-128: toque na linha propaga interactiveChoices', () => {
       s.clock,
     )
     expect(result.handled).toBe(true)
+    if (!result.handled) throw new Error('expected choice click handled')
     expect(result.outcome).toBe('applied')
     return { s, beforeCount, after: s.outbound().slice(beforeCount) }
   }
