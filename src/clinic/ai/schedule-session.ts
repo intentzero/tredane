@@ -45,9 +45,16 @@ export type BookingFrameLastOffer = {
 
 export type BookingFrameProposal = { id: string; version: number }
 
+/**
+ * Origem do campo no quadro.
+ * `'flow'` fica tipado para o nfm_reply da #514 (ADR-0016) — ainda sem handler.
+ * Não mapear Flow para `'botao'` (toque M5).
+ */
+export type BookingFrameProvenanceSource = 'regra' | 'botao' | 'llm' | 'flow'
+
 export type BookingFrameProvenance = Record<
   string,
-  { messageId: string; source: 'regra' | 'botao' | 'llm' }
+  { messageId: string; source: BookingFrameProvenanceSource }
 >
 
 /** Contrato ADR-0015 / núcleo §3.3. */
@@ -108,7 +115,7 @@ export type BookingFramePatch = {
   dayLabel?: ScheduleDayLabel | null
   /** Origem da mutação (proveniência por campo). */
   sourceMessageId?: string
-  source?: 'regra' | 'botao' | 'llm'
+  source?: BookingFrameProvenanceSource
 }
 
 /** Compat com callers antigos. */

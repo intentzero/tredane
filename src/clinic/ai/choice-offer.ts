@@ -377,15 +377,11 @@ function semanticTextForChoice(
     return key === 'masculino' ? 'masculina' : 'feminina'
   }
   if (slot === 'eco') {
-    if (key !== 'sim') return label
-    const frame = getBookingFrame(db, tenantId, conversationId)
-    const services = listServices(db, tenantId).filter((s) => s.active)
-    const svc = services.find((s) => s.id === frame?.serviceId)
-    const ids = new Set(frame?.variantIds ?? [])
-    const names = (svc?.zones ?? [])
-      .filter((z) => z.active && ids.has(z.id))
-      .map((z) => z.name)
-    return joinZoneNamesPt(names) || label
+    // #510 / DEC-137: Sim confirma o conjunto já no quadro — não reinjectar
+    // nomes de zonas (evita segundo parser na confirmação).
+    if (key === 'sim') return 'sim'
+    if (key === 'corrigir') return 'corrigir'
+    return label
   }
   if (slot === 'variantes') {
     if (key !== TODAS_OPTION_KEY) return label
