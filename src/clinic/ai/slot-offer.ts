@@ -11,7 +11,6 @@ import { queryAutomaticAvailability } from '../tempo/automatic'
 import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ForecastAdapter } from '../tempo/evaluate'
 import type { ClinicDb } from '../store'
-import { PENDING_OFFER_TTL_MS } from './booking-frame-choice'
 import { sayAct } from './dialogue-acts'
 
 const WEEKDAY_LABEL = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
@@ -112,14 +111,12 @@ function joinNames(names: string[]): string {
 export type OfferedSlot = { date: string; time: string; startsAt: number }
 
 /**
- * #511 / DEC-127.1 — validade da lista de horários no relógio da clínica (24 h).
- * Sem fuso IANA na copy.
+ * #511 / DEC-127.1 — validade da lista (24 h), sem HH:MM absoluto.
+ * Um «às 23:50» no rodapé era lido pelo INV-03 como horário oferecido (B-13/B-14).
+ * Sem fuso IANA. Args opcionais mantêm o call-site (`tz`, instante da oferta).
  */
-export function offerValidityFooter(tz: string, offeredAtMs: number): string {
-  const untilMs = offeredAtMs + PENDING_OFFER_TTL_MS
-  const date = clinicCivilDateFromUtc(tz, untilMs)
-  const time = localHHMM(tz, untilMs)
-  return `Esta lista vale até ${dayTextPt(date)} às ${time}.`
+export function offerValidityFooter(_tz?: string, _offeredAtMs?: number): string {
+  return 'Esta lista vale por 24 horas.'
 }
 
 function visitDuration(

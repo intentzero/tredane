@@ -257,7 +257,7 @@ O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a lev
 
 | Onde | Texto proposto |
 | --- | --- |
-| Rodapé da lista Horários (DEC-127.1 = 24 h) | `Esta lista vale até {dia} às {hora}.` |
+| Rodapé da lista Horários (DEC-127.1 = 24 h) | `Esta lista vale por 24 horas.` (sem HH:MM — evita INV-03 / B-13) |
 | Cartão da proposta (30 min após o envio) | `Válida até {hora}.` |
 | Confirmar depois da validade, com alternativas | `Essa proposta já não está válida. Para {serviço}, tenho {lista}. Qual fica melhor?` |
 | Confirmar depois da validade, sem alternativas | `Essa proposta de {serviço} em {quando} já não está válida. Quer que eu veja outros horários?` |

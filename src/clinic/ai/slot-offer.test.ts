@@ -20,11 +20,11 @@ afterEach(() => {
 })
 
 describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
-  it('#511 validade da lista: 24 h no relógio da clínica, sem IANA', () => {
-    const offeredAt = Date.UTC(2026, 10, 5, 13, 0) // 10:00 SP
-    const footer = offerValidityFooter('America/Sao_Paulo', offeredAt)
-    // +24 h → sexta 06/11 às 10:00 SP
-    expect(footer).toMatch(/Esta lista vale até sexta 06\/11 às 10:00\./)
+  it('#511 validade da lista: 24 h sem HH:MM (INV-03 / B-13)', () => {
+    const footer = offerValidityFooter('America/Sao_Paulo', Date.UTC(2026, 10, 6, 2, 50))
+    expect(footer).toBe('Esta lista vale por 24 horas.')
+    // Não pode parecer horário oferecido (B-13 começa às 23:50 SP).
+    expect(footer).not.toMatch(/\b\d{2}:\d{2}\b/)
     expect(footer).not.toContain('America/')
   })
 

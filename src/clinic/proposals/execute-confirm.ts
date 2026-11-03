@@ -591,17 +591,9 @@ export async function executeProposalConfirmOp(
   }
 
   if (materialDrift(proposal, db, meta.tenantId, clock)) {
+    // Mudança material → encaminha; sem reoferta (não é Confirmar expirado / vaga, #511).
     const forwarded = markProposalForwarded(db, meta.tenantId, proposal.id, clock)
-    const listing = await alternativesListingFor(
-      db,
-      meta.tenantId,
-      forwarded,
-      clock,
-      deps.forecast,
-    )
-    const result = await ensureResult(db, caller, proposal.id, 'expired', clock, {
-      alternativesListing: listing || null,
-    })
+    const result = await ensureResult(db, caller, proposal.id, 'expired', clock)
     return {
       status: 'denied',
       reason: 'material_changed',
