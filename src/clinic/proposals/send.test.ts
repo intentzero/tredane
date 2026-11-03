@@ -193,6 +193,11 @@ describe('S4: render determinístico', () => {
       expect(rendered.body).toContain('Rua das Flores')
       expect(rendered.body).not.toMatch(/Beneficiár/)
       expect(rendered.body).not.toMatch(/LLM|sugestão livre/i)
+      // Relógio local da clínica; IANA fica só no snapshot interno.
+      expect(rendered.body).toMatch(/Quando:.*\d{2}:\d{2}\s–\s\d{2}:\d{2}$/m)
+      expect(rendered.body).not.toContain('America/Sao_Paulo')
+      expect(rendered.body).not.toMatch(/\([A-Za-z]+\/[A-Za-z_]+\)/)
+      expect(renderProposalResultBody(proposal, 'booked')).not.toContain('America/Sao_Paulo')
       expect(rendered.buttons).toHaveLength(3)
       expect(rendered.buttons[2]!.title).toBe('Falar com a equipe')
       expect(rendered.buttons[0]!.title).toBe('Confirmar')
@@ -250,6 +255,9 @@ describe('S4: render determinístico', () => {
       expect(booked).toContain('Local: Rua das Flores, 100 — São Paulo')
       expect(booked).not.toContain('Sala Depilação')
       expect(booked).not.toMatch(/intervalo|buffer/i)
+      expect(booked).not.toContain('America/Sao_Paulo')
+      expect(booked).not.toMatch(/\([A-Za-z]+\/[A-Za-z_]+\)/)
+      expect(rendered.body).not.toContain('America/Sao_Paulo')
 
       setAiProfileOp(s.db, s.caller, { clinicAddress: '' }, s.clock)
       const bare = createProposal(

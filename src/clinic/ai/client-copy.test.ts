@@ -114,7 +114,11 @@ describe('#405 copy sem jargão (J-09, INV-05)', () => {
       ['proposal expired', renderProposalResultBody(proposal, 'expired')],
       ['proposal slot_refused', renderProposalResultBody(proposal, 'slot_refused')],
     ]
-    for (const [label, text] of phrases) scan(label, text)
+    for (const [label, text] of phrases) {
+      scan(label, text)
+      expect(text, `${label}: sem IANA`).not.toMatch(/\([A-Za-z]+\/[A-Za-z_]+\)/)
+      expect(text, `${label}: sem America/`).not.toContain('America/')
+    }
   })
 
   it('#448 cada variante dos atos de client-copy passa INV-05', () => {
