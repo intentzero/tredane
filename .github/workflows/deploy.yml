@@ -20,7 +20,7 @@ on:
         type: string
         default: main
       apply_d1_migrations:
-        description: Production only — aplicar migrações D1 remotas + smoke admin_schema antes do deploy (staging aplica sempre). Requer Account · D1: Edit no token.
+        description: "Production only — aplicar migrações D1 remotas + smoke admin_schema antes do deploy (staging aplica sempre). Requer Account D1 Edit no token."
         type: boolean
         default: false
 
