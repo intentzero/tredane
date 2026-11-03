@@ -21,7 +21,7 @@ afterEach(() => {
 
 describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
   it('#511 validade da lista: 24 h sem HH:MM (INV-03 / B-13)', () => {
-    const footer = offerValidityFooter('America/Sao_Paulo', Date.UTC(2026, 10, 6, 2, 50))
+    const footer = offerValidityFooter()
     expect(footer).toBe('Esta lista vale por 24 horas.')
     // Não pode parecer horário oferecido (B-13 começa às 23:50 SP).
     expect(footer).not.toMatch(/\b\d{2}:\d{2}\b/)

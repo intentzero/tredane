@@ -113,9 +113,9 @@ export type OfferedSlot = { date: string; time: string; startsAt: number }
 /**
  * #511 / DEC-127.1 — validade da lista (24 h), sem HH:MM absoluto.
  * Um «às 23:50» no rodapé era lido pelo INV-03 como horário oferecido (B-13/B-14).
- * Sem fuso IANA. Args opcionais mantêm o call-site (`tz`, instante da oferta).
+ * Sem fuso IANA.
  */
-export function offerValidityFooter(_tz?: string, _offeredAtMs?: number): string {
+export function offerValidityFooter(): string {
   return 'Esta lista vale por 24 horas.'
 }
 
@@ -335,7 +335,7 @@ export async function offerNearestSlots(input: {
   // #511: prazo visível (DEC-127.1 = 24 h), relógio da clínica.
   return {
     slots: picked,
-    replyText: `${body} ${offerValidityFooter(tz, clock.nowMs())}`,
+    replyText: `${body} ${offerValidityFooter()}`,
   }
 }
 
