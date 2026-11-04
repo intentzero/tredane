@@ -84,9 +84,6 @@ function InboxAiDraftingIndicator() {
       aria-busy="true"
     >
       <span className="inbox-row-ai-spinner" aria-hidden />
-      <span className="inbox-row-ai-label" aria-hidden>
-        IA
-      </span>
       <span className="panel-sr-only">{AI_DRAFTING_SR_LABEL}</span>
     </span>
   )

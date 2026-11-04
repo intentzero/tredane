@@ -3286,10 +3286,6 @@
   flex-shrink: 0;
 }
 
-.inbox-row-ai-label {
-  letter-spacing: 0.02em;
-}
-
 @keyframes inbox-ai-spin {
   to {
     transform: rotate(360deg);

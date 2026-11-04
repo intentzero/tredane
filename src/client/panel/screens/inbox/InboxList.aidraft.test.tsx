@@ -130,11 +130,38 @@ describe('InboxList — spinner IA a preparar sugestão', () => {
     const paulo = await waitFor(() => screen.getByRole('button', { name: /Paulo/ }))
     expect(paulo.querySelector('.inbox-row-ai-spinner')).toBeTruthy()
     expect(paulo.querySelector('[aria-busy="true"]')).toBeTruthy()
-    expect(paulo.textContent).toContain('IA')
+    expect(paulo.querySelector('.inbox-row-ai-label')).toBeNull()
     expect(paulo.textContent).toContain(AI_DRAFTING_SR_LABEL)
+    // Sem assignee «IA»: o indicador de drafting não mostra «IA» visível (só spinner + sr-only).
+    expect(paulo.querySelector('.inbox-row-assignee')?.textContent).not.toContain('IA')
 
     const bruno = screen.getByRole('button', { name: /Bruno Lima/ })
     expect(bruno.querySelector('.inbox-row-ai')).toBeNull()
+  })
+
+  it('não duplica «IA» quando assignee é IA e há rascunho em curso', async () => {
+    const api = {
+      listInboxConversations: async () => ({
+        conversations: [
+          conv('cnv_paulo', 'Paulo', {
+            aiDrafting: true,
+            status: 'open',
+            assigneeClerkUserId: 'ai',
+            assigneeDisplayName: 'IA',
+          }),
+        ],
+        counts: { all: 1, new: 0, mine: 0, unassigned: 0, closed: 0, unread: 0 },
+      }),
+    } as unknown as PanelApi
+
+    render(<InboxList tenantId="t" api={api} generation={1} viewerClerkUserId="u" />)
+
+    const paulo = await waitFor(() => screen.getByRole('button', { name: /Paulo/ }))
+    expect(paulo.querySelector('.inbox-row-ai-spinner')).toBeTruthy()
+    expect(paulo.querySelector('[aria-busy="true"]')).toBeTruthy()
+    expect(paulo.querySelector('.inbox-row-ai-label')).toBeNull()
+    expect(paulo.querySelector('.inbox-row-assignee')?.textContent).toBe('IA')
+    expect(paulo.textContent).toContain(AI_DRAFTING_SR_LABEL)
   })
 
   it('não mostra indicador IA sem rascunho em curso', async () => {
