@@ -34,6 +34,15 @@ export type WorkerBindings = {
   TOKEN_ENCRYPTION_KEY?: string
   /** Token do challenge GET webhook (#32). Synthetic default se ausente. */
   META_VERIFY_TOKEN?: string
+  /**
+   * WhatsApp Flow de agendamento (#514 / ADR-0016).
+   * Sem os dois, o endpoint responde 503 e o funil M5 continua (não é flag de produto).
+   * Privada: wrangler secret; nunca versionar.
+   */
+  WHATSAPP_FLOW_ID?: string
+  WHATSAPP_FLOW_PRIVATE_KEY?: string
+  /** `published` (default) | `draft` — draft só em teste pré-publicação Meta. */
+  WHATSAPP_FLOW_MODE?: string
   /** STAGING-ONLY: `true` habilita POST .../whatsapp/dev/sync-existing-binding (exige ENVIRONMENT=staging). */
   WHATSAPP_DEV_SYNC_ENABLED?: string
   /** STAGING-ONLY: `true` habilita POST /api/ops/demo-clinic/seed (exige ENVIRONMENT=staging + DEMO_SEED_TOKEN). */

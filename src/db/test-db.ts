@@ -80,6 +80,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0016_webhook_receipt_list_reply.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0017_whatsapp_flow_tokens.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

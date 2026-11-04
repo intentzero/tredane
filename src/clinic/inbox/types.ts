@@ -234,13 +234,24 @@ export type SendOutboundInteractiveList = {
   sections: SendOutboundInteractiveListSection[]
 }
 
+/** Flow Cloud API (interactive type=flow) — #514 / ADR-0016. */
+export type SendOutboundInteractiveFlow = {
+  flowId: string
+  flowCta: string
+  flowToken: string
+  flowAction?: 'data_exchange'
+  flowMessageVersion?: string
+  mode?: 'published' | 'draft'
+}
+
 /**
- * Interactive WhatsApp: botões (≤3) **ou** lista (≤10 linhas).
+ * Interactive WhatsApp: botões (≤3) **ou** lista (≤10 linhas) **ou** Flow.
  * Mutuamente exclusivos. Exige janela 24 h.
  */
 export type SendOutboundInteractiveInput = {
   buttons?: SendOutboundInteractiveButton[]
   list?: SendOutboundInteractiveList | null
+  flow?: SendOutboundInteractiveFlow | null
 }
 
 export type SendOutboundAfterPersistCtx = {

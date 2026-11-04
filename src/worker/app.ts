@@ -54,6 +54,10 @@ import {
   type WhatsappWebhookRouteOptions,
 } from '../whatsapp'
 import {
+  createWhatsappFlowRoutes,
+  type WhatsappFlowRouteOptions,
+} from '../whatsapp/flow'
+import {
   createAttachmentRoutes,
   type AttachmentRouteOptions,
 } from '../attachments'
@@ -260,6 +264,15 @@ export function createApp(opts: CreateAppOptions = {}) {
     logFactory: opts.whatsappWebhook?.logFactory,
   }
   app.route('/', createWhatsappWebhookRoutes(webhookOpts))
+
+  // Endpoint de dados do WhatsApp Flow (#514 / ADR-0016) — sem Clerk.
+  const flowOpts: WhatsappFlowRouteOptions = {
+    syncAdminDbFactory: opts.syncAdminDbFactory
+      ? (env) => opts.syncAdminDbFactory!(env as WorkerBindings)
+      : undefined,
+    clockFactory: opts.clockFactory,
+  }
+  app.route('/', createWhatsappFlowRoutes(flowOpts))
 
   // Webhooks Pix (#39) — sem middleware Clerk.
   const pixWebhookOpts: PixWebhookRouteOptions = {

@@ -120,9 +120,19 @@ import {
   handleChoiceOfferClick,
   isChoiceOfferId,
 } from '../clinic/ai/choice-offer'
+import { handleFlowNfmReply } from '../whatsapp/flow/nfm-reply'
+import { listFlowFreeSlots } from '../whatsapp/flow/slots'
+import type {
+  FlowBookingSnapshot,
+  FlowCatalogService,
+  FlowSlotOption,
+} from '../whatsapp/flow/screens'
+import { listServices } from '../clinic/config/services'
+import { readCatalogVersion } from '../clinic/ai/turn-context'
 import { enqueueTypingIndicatorForLatestInbound } from '../clinic/ai/typing-indicator'
 import {
   clearBookingFrame,
+  getBookingFrame,
   saveBookingFrame,
 } from '../clinic/ai/schedule-session'
 import {
@@ -707,6 +717,122 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       appointmentCreated: false as const,
       sendStatus: result.sendStatus,
       proposal: result.proposal,
+    }
+  }
+
+  /**
+   * #514 / ADR-0016: leitura de catálogo + horas para o endpoint Flow.
+   * Não grava BookingFrame nem marca.
+   */
+  async flowDataExchange(input: {
+    tenantId: string
+    conversationId: string
+    catalogVersion: string
+    frame: FlowBookingSnapshot
+  }): Promise<{
+    catalog: FlowCatalogService[]
+    slots: FlowSlotOption[]
+    frame: FlowBookingSnapshot
+  }> {
+    this.#ensureReady()
+    const caller = workerCaller(input.tenantId)
+    this.#assertInstanceTenant(caller)
+    const services = listServices(this.#db, input.tenantId)
+    const catalog: FlowCatalogService[] = services.map((s) => ({
+      id: s.id,
+      name: s.name,
+      active: s.active,
+      zones: s.zones.map((z) => ({
+        id: z.id,
+        name: z.name,
+        audience: z.audience,
+        active: z.active,
+        durationMinutes: z.durationMinutes,
+        priceCents: z.priceCents,
+      })),
+    }))
+    const stored = getBookingFrame(this.#db, input.tenantId, input.conversationId)
+    const frame: FlowBookingSnapshot = {
+      serviceId: input.frame.serviceId ?? stored?.serviceId ?? null,
+      line: input.frame.line ?? stored?.line ?? null,
+      variantIds: input.frame.variantIds ?? stored?.variantIds ?? null,
+      slotKey:
+        input.frame.slotKey ??
+        (stored?.date && stored.time ? `${stored.date}T${stored.time}` : null),
+    }
+    let slots: FlowSlotOption[] = []
+    if (frame.serviceId) {
+      const service = services.find((s) => s.id === frame.serviceId && s.active)
+      if (service) {
+        const needVariants = service.zones.some((z) => z.active)
+        const variantsReady = !needVariants || (frame.variantIds && frame.variantIds.length > 0)
+        const needLine =
+          service.zones.some((z) => z.active && z.audience === 'feminino') &&
+          service.zones.some((z) => z.active && z.audience === 'masculino')
+        const lineReady = !needLine || frame.line != null
+        if (variantsReady && lineReady) {
+          slots = await listFlowFreeSlots({
+            db: this.#db,
+            tenantId: input.tenantId,
+            service,
+            variantIds: frame.variantIds,
+            clock: this.#clock,
+          })
+        }
+      }
+    }
+    void input.catalogVersion
+    void readCatalogVersion(this.#db, input.tenantId)
+    return { catalog, slots, frame }
+  }
+
+  /**
+   * #514: nfm_reply → quadro com provenance `flow` + proposta versionada.
+   * Não marca (DEC-061).
+   */
+  async handleFlowNfmReply(
+    caller: ClinicCaller,
+    input: {
+      tenantId: string
+      conversationId: string
+      providerEventKey: string
+      responseJson: string
+      contextMessageId?: string | null
+      catalogVersion?: string
+    },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    bindOrAssertTenant(this.#db, caller, this.#clock)
+    const autoBookPaused = clinicConfig.isClinicAutoBookPaused(
+      this.#db,
+      caller.tenantId,
+      this.#clock,
+    )
+    const capability = clinicAi.autoBookCapability() && !autoBookPaused
+    const catalogVersion =
+      input.catalogVersion ?? readCatalogVersion(this.#db, caller.tenantId)
+    const result = await handleFlowNfmReply(
+      this.#db,
+      caller,
+      {
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        providerEventKey: input.providerEventKey,
+        responseJson: input.responseJson,
+        catalogVersion,
+        capability,
+      },
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return {
+      handled: result.handled,
+      outcome: result.outcome,
+      reason: result.reason,
     }
   }
 

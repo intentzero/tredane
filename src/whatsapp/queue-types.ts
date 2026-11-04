@@ -23,6 +23,7 @@ export type WhatsappWebhookQueueMessage = {
     | 'account_interrupt'
     | 'button_reply'
     | 'list_reply'
+    | 'nfm_reply'
   /** Só kinds message/unsupported/media — conteúdo interno da fila, não em logs. */
   waId?: string
   displayName?: string
@@ -37,6 +38,8 @@ export type WhatsappWebhookQueueMessage = {
   buttonId?: string
   buttonTitle?: string
   contextMessageId?: string | null
+  /** nfm_reply (#514) — response_json do Flow (só fila interna). */
+  responseJson?: string
   status?: string
   statusMessageId?: string
   interruptReason?: string

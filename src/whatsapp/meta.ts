@@ -52,6 +52,21 @@ export type MetaSendInteractiveListInput = {
   clientRequestId?: string
 }
 
+/** Cloud API interactive type=flow (#514 / ADR-0016). */
+export type MetaSendInteractiveFlowInput = {
+  phoneNumberId: string
+  accessToken: string
+  toWaId: string
+  body: string
+  flowId: string
+  flowCta: string
+  flowToken: string
+  flowAction?: 'data_exchange'
+  flowMessageVersion?: string
+  mode?: 'published' | 'draft'
+  clientRequestId?: string
+}
+
 export type MetaSendSuccess = {
   outcome: 'succeeded'
   providerMessageId: string
@@ -84,6 +99,7 @@ export type MetaAdapter = {
     input: MetaSendInteractiveButtonsInput,
   ): Promise<MetaSendResult>
   sendInteractiveListMessage(input: MetaSendInteractiveListInput): Promise<MetaSendResult>
+  sendInteractiveFlowMessage(input: MetaSendInteractiveFlowInput): Promise<MetaSendResult>
   /**
    * Recibo de leitura (tiques azuis). Com `typingIndicator: true`, a Cloud API
    * também mostra o indicador nativo «a escrever…» até a resposta ou ~25 s (DEC-136).
@@ -238,6 +254,22 @@ export function createSyntheticMetaAdapter(): MetaAdapter {
         return { outcome: 'failed', errorCode: 'meta_interactive_list_invalid' }
       }
       const marker = `${input.clientRequestId ?? ''}|${input.body}|list|${input.accessToken}`
+      return syntheticSendResult(marker, input.phoneNumberId)
+    },
+    async sendInteractiveFlowMessage(input) {
+      if (!input.accessToken || !input.phoneNumberId || !input.toWaId) {
+        return { outcome: 'failed', errorCode: 'meta_send_invalid' }
+      }
+      if (
+        !input.body.trim() ||
+        !input.flowId?.trim() ||
+        !input.flowCta?.trim() ||
+        !input.flowToken?.trim() ||
+        input.flowCta.trim().length > 30
+      ) {
+        return { outcome: 'failed', errorCode: 'meta_interactive_flow_invalid' }
+      }
+      const marker = `${input.clientRequestId ?? ''}|${input.body}|flow|${input.accessToken}`
       return syntheticSendResult(marker, input.phoneNumberId)
     },
   }
@@ -475,6 +507,28 @@ export function createLiveMetaAdapter(env: MetaEnv): MetaAdapter {
                 ...(r.description ? { description: r.description } : {}),
               })),
             })),
+          },
+        },
+      })
+    },
+    async sendInteractiveFlowMessage(input) {
+      return liveGraphSend(version, input.phoneNumberId, input.accessToken, {
+        messaging_product: 'whatsapp',
+        to: input.toWaId,
+        type: 'interactive',
+        interactive: {
+          type: 'flow',
+          body: { text: input.body },
+          action: {
+            name: 'flow',
+            parameters: {
+              flow_message_version: input.flowMessageVersion ?? '3',
+              flow_id: input.flowId,
+              flow_cta: input.flowCta,
+              flow_token: input.flowToken,
+              flow_action: input.flowAction ?? 'data_exchange',
+              mode: input.mode ?? 'published',
+            },
           },
         },
       })

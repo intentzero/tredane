@@ -67,6 +67,18 @@ export type ParsedWebhookItem =
       providerTimestamp: number | null
     }
   | {
+      /** Fecho do WhatsApp Flow (#514 / ADR-0016) — interactive.nfm_reply. */
+      kind: 'nfm_reply'
+      providerEventKey: string
+      phoneNumberId: string
+      waId: string
+      displayName?: string
+      /** String JSON com flow_token + params do SUCCESS. */
+      responseJson: string
+      contextMessageId: string | null
+      providerTimestamp: number | null
+    }
+  | {
       kind: 'unsupported'
       providerEventKey: string
       phoneNumberId: string
@@ -268,10 +280,12 @@ export function parseWhatsappWebhookPayload(rawJson: unknown): ParseWebhookResul
           const interactiveType = interactive ? asString(interactive.type) : null
           const buttonReply = interactive ? asRecord(interactive.button_reply) : null
           const listReply = interactive ? asRecord(interactive.list_reply) : null
+          const nfmReply = interactive ? asRecord(interactive.nfm_reply) : null
           const buttonId = buttonReply ? asString(buttonReply.id) : null
           const buttonTitle = buttonReply ? asString(buttonReply.title) : null
           const listId = listReply ? asString(listReply.id) : null
           const listTitle = listReply ? asString(listReply.title) : null
+          const responseJson = nfmReply ? asString(nfmReply.response_json) : null
           const context = asRecord(m.context)
           const contextMessageId = context ? asString(context.id) : null
           if (interactiveType === 'button_reply' && buttonId && buttonTitle) {
@@ -295,6 +309,17 @@ export function parseWhatsappWebhookPayload(rawJson: unknown): ParseWebhookResul
               displayName,
               buttonId: listId,
               buttonTitle: listTitle,
+              contextMessageId,
+              providerTimestamp,
+            })
+          } else if (interactiveType === 'nfm_reply' && responseJson) {
+            items.push({
+              kind: 'nfm_reply',
+              providerEventKey: `wa:msg:${id}`,
+              phoneNumberId,
+              waId: from,
+              displayName,
+              responseJson,
               contextMessageId,
               providerTimestamp,
             })

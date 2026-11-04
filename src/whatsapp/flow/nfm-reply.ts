@@ -1,0 +1,233 @@
+/**
+ * Fecho do Flow → BookingFrame + proposta versionada (ADR-0016 §6).
+ * Não marca compromisso: só o Confirmar (DEC-061).
+ */
+import type { Clock } from '../../db/clock'
+import type { ClinicCaller } from '../../clinic/envelopes'
+import { listServices } from '../../clinic/config/services'
+import { sendOutboundMessageOp } from '../../clinic/inbox/operations'
+import type { OutboxRow } from '../../clinic/outbox'
+import type { ClinicDb } from '../../clinic/store'
+import { tryAiAutoBook, type AutoBookOutcome } from '../../clinic/ai/autobook'
+import { AUTODRAFT_ACTOR_ID, cancelAutoDraft } from '../../clinic/ai/autodraft'
+import { createDeferredBookingFrame } from '../../clinic/ai/deferred-booking-frame'
+import { getBookingFrame, saveBookingFrame } from '../../clinic/ai/schedule-session'
+import { slotBindingFromChoice } from '../../clinic/ai/choice-offer'
+import { readCatalogVersion } from '../../clinic/ai/turn-context'
+
+export type NfmReplyParams = {
+  flowToken: string
+  serviceId: string | null
+  line: 'feminino' | 'masculino' | null
+  variantIds: string[]
+  slotId: string | null
+}
+
+/** Extrai params do response_json do nfm_reply (string JSON da Meta). */
+export function parseNfmResponseJson(raw: string): NfmReplyParams | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object') return null
+  const obj = parsed as Record<string, unknown>
+  const token =
+    typeof obj.flow_token === 'string'
+      ? obj.flow_token
+      : typeof obj.flowToken === 'string'
+        ? obj.flowToken
+        : null
+  if (!token) return null
+
+  const serviceId =
+    typeof obj.service_id === 'string'
+      ? obj.service_id
+      : typeof obj.serviceId === 'string'
+        ? obj.serviceId
+        : null
+  const lineRaw = obj.line
+  const line = lineRaw === 'feminino' || lineRaw === 'masculino' ? lineRaw : null
+  const variantsRaw = obj.variant_ids ?? obj.variantIds
+  const variantIds = Array.isArray(variantsRaw)
+    ? variantsRaw.filter((x): x is string => typeof x === 'string')
+    : []
+  const slotId =
+    typeof obj.slot_id === 'string'
+      ? obj.slot_id
+      : typeof obj.slotId === 'string'
+        ? obj.slotId
+        : null
+
+  return { flowToken: token, serviceId, line, variantIds, slotId }
+}
+
+export type HandleFlowNfmReplyInput = {
+  tenantId: string
+  conversationId: string
+  providerEventKey: string
+  responseJson: string
+  /** catalogVersion do token no envio — revalidação ADR-0015. */
+  catalogVersion: string
+  capability?: boolean
+}
+
+export type HandleFlowNfmReplyResult = {
+  handled: boolean
+  outcome:
+    | 'proposal_sent'
+    | 'stale_no_proposal'
+    | 'invalid_payload'
+    | 'missing_fields'
+    | 'idempotent_skip'
+  autoBook?: AutoBookOutcome
+  outbox: OutboxRow[]
+  reason?: string
+}
+
+/**
+ * Grava o quadro com provenance `flow` e monta a proposta (não marca).
+ */
+export async function handleFlowNfmReply(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: HandleFlowNfmReplyInput,
+  clock: Clock,
+): Promise<HandleFlowNfmReplyResult> {
+  const params = parseNfmResponseJson(input.responseJson)
+  if (!params) {
+    return { handled: true, outcome: 'invalid_payload', outbox: [], reason: 'bad_json' }
+  }
+  if (!params.serviceId || !params.slotId) {
+    return { handled: true, outcome: 'missing_fields', outbox: [], reason: 'incomplete' }
+  }
+
+  const bound = slotBindingFromChoice(params.slotId, params.slotId)
+  if (!bound) {
+    return { handled: true, outcome: 'invalid_payload', outbox: [], reason: 'bad_slot_id' }
+  }
+
+  const services = listServices(db, input.tenantId).filter((s) => s.active)
+  const service = services.find((s) => s.id === params.serviceId)
+  if (!service) {
+    return { handled: true, outcome: 'stale_no_proposal', outbox: [], reason: 'service_gone' }
+  }
+
+  const activeZones = service.zones.filter((z) => z.active)
+  const zoneIds = new Set(activeZones.map((z) => z.id))
+  let variantIds: string[] | null = null
+  if (activeZones.length > 0) {
+    const filtered = params.variantIds.filter((id) => zoneIds.has(id))
+    if (filtered.length === 0) {
+      return { handled: true, outcome: 'missing_fields', outbox: [], reason: 'variants_required' }
+    }
+    variantIds = filtered
+  }
+
+  cancelAutoDraft(db, input.tenantId, input.conversationId)
+
+  const existing = getBookingFrame(db, input.tenantId, input.conversationId)
+  // Mesmas escolhas Flow + quadro já preenchido (com ou sem proposta ainda no frame).
+  if (
+    existing?.serviceId === params.serviceId &&
+    existing.time === bound.time &&
+    existing.date === bound.date &&
+    existing.provenance?.serviceId?.source === 'flow' &&
+    (existing.proposal != null ||
+      existing.phase === 'proposto' ||
+      existing.phase === 'ofertado')
+  ) {
+    return { handled: true, outcome: 'idempotent_skip', outbox: [] }
+  }
+
+  const catalogVersion = input.catalogVersion || readCatalogVersion(db, input.tenantId)
+  const sourceMessageId = `flow:${input.providerEventKey}`
+  const saved = saveBookingFrame(
+    db,
+    input.tenantId,
+    input.conversationId,
+    {
+      serviceId: params.serviceId,
+      line: params.line,
+      variantIds,
+      date: bound.date,
+      time: bound.time,
+      period: null,
+      pending: null,
+      lastOffer: null,
+      phase: 'ofertado',
+      catalogVersion,
+      source: 'flow',
+      sourceMessageId,
+    },
+    clock,
+  )
+
+  const outbox: OutboxRow[] = saved.outbox ? [saved.outbox] : []
+
+  const lastInbound = db.get<{ id: string }>(
+    `SELECT id FROM messages
+     WHERE tenant_id = ? AND conversation_id = ? AND direction = 'inbound'
+     ORDER BY created_at DESC LIMIT 1`,
+    input.tenantId,
+    input.conversationId,
+  )
+  const confirmationMessageId = lastInbound?.id ?? sourceMessageId
+
+  const autoBook = await tryAiAutoBook(db, caller, clock, {
+    conversationId: input.conversationId,
+    capability: input.capability !== false,
+    turnTextOverride: service.name.trim() || 'quero agendar',
+    confirmationMessageIdOverride: confirmationMessageId,
+    boundSlot: { date: bound.date, time: bound.time },
+  })
+
+  outbox.push(...autoBook.outbox)
+  if (autoBook.proposalId && !autoBook.replyText?.trim()) {
+    autoBook.deferredFrame?.discard()
+    return {
+      handled: true,
+      outcome: 'proposal_sent',
+      autoBook,
+      outbox,
+    }
+  }
+  const body = autoBook.replyText?.trim()
+  if (body) {
+    const deferred = autoBook.deferredFrame ?? createDeferredBookingFrame()
+    try {
+      const sent = sendOutboundMessageOp(
+        db,
+        caller,
+        {
+          conversationId: input.conversationId,
+          body,
+          clientRequestId: `flow-nfm:${input.providerEventKey}`,
+          authorClerkUserId: AUTODRAFT_ACTOR_ID,
+          authorDisplayName: 'IA',
+          ...(deferred.hasWork ? { afterPersist: deferred.toAfterPersist(clock) } : {}),
+        },
+        clock,
+      )
+      deferred.discard()
+      outbox.push(...sent.outbox)
+    } catch {
+      if (deferred.hasWork) {
+        outbox.push(...deferred.flushNow(db, caller.tenantId, input.conversationId, clock))
+      }
+    }
+  } else if (autoBook.deferredFrame?.hasWork) {
+    outbox.push(
+      ...autoBook.deferredFrame.flushNow(db, caller.tenantId, input.conversationId, clock),
+    )
+  }
+
+  return {
+    handled: true,
+    outcome: autoBook.proposalId ? 'proposal_sent' : 'stale_no_proposal',
+    autoBook,
+    outbox,
+    reason: autoBook.proposalId ? undefined : 'no_proposal',
+  }
+}
