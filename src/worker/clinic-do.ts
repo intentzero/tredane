@@ -138,7 +138,6 @@ import { readCatalogVersion } from '../clinic/ai/turn-context'
 import { enqueueTypingIndicatorForLatestInbound } from '../clinic/ai/typing-indicator'
 import {
   clearBookingFrame,
-  getBookingFrame,
   saveBookingFrame,
 } from '../clinic/ai/schedule-session'
 import {
