@@ -3,7 +3,7 @@
 - **Estado:** **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A — promover o ADR). A [DEC-138](../product/decisions.md) fixa o caminho de produto; este ADR fixa o desenho de engenharia. A **implementação** e os pré-requisitos Meta continuam na [#514](https://github.com/intentzero/tredane/issues/514). Os itens da secção 13 permanecem **Em aberto**.
 - **Origem:** issue [#513](https://github.com/intentzero/tredane/issues/513); [DEC-138](../product/decisions.md) (Confirmado, Paulo, 03/11/2026, com a revisão «Eu queria avançar desde já para flow»); secção «Agendar sem perder o pedido» do [épico](../implementation/epic-nucleo-conversacional.md).
 - **Complementa:** [ADR-0012](0012-clinic-durable-object-sqlite.md) (um Durable Object por clínica) e [ADR-0015](0015-estado-persistente-da-conversa.md) (um `BookingFrame` por conversa). Não altera DEC-061, DEC-079, DEC-083, DEC-104 nem DEC-127.
-- **Escopo:** desenho do Flow (ecrãs, `data_exchange`, cifra, `nfm_reply`, versões, pré-requisitos Meta, copy por aprovar, testes). **Não** é implementação.
+- **Escopo:** desenho do Flow (ecrãs, `data_exchange`, cifra, `nfm_reply`, versões, pré-requisitos Meta, copy C1–C15 Confirmada, testes). **Não** é implementação.
 
 Documentação Meta consultada em 03/11/2026. Cada passo abaixo cita o URL. O que a página não fecha fica **Em aberto**.
 
@@ -240,9 +240,9 @@ A [#515](https://github.com/intentzero/tredane/issues/515) apaga esse envio. A [
 
 ## 10. Copy para aprovação do Paulo
 
-**Confirmado (DEC-104):** frase nova à cliente só entra com aprovação do Paulo. Nenhuma frase desta secção está aprovada. Rótulos já Confirmados e que se reutilizam, sem serem frase nova: **Feminina**, **Masculina**, **Todas** (DEC-134). O plural do tipo («Zonas», etc.) vem do cadastro (DEC-079). Os títulos das horas (`terça 03/11 17:00`) são o formato da DEC-138, não uma frase. Frases de vaga ocupada, semana vazia e tempo (DEC-077) reutilizam o catálogo determinístico já existente; não estão nesta lista.
+**Confirmado (DEC-104; Paulo, 04/11/2026 America/Sao_Paulo, opção A):** as frases C1–C15 desta secção ficam **aprovadas** exactamente como estão em `FLOW_COPY` / nesta tabela. Qualquer alteração futura continua a exigir aprovação no PR (DEC-104). Rótulos já Confirmados e que se reutilizam, sem serem frase nova: **Feminina**, **Masculina**, **Todas** (DEC-134). O plural do tipo («Zonas», etc.) vem do cadastro (DEC-079). Os títulos das horas (`terça 03/11 17:00`) são o formato da DEC-138, não uma frase. Frases de vaga ocupada, semana vazia e tempo (DEC-077) reutilizam o catálogo determinístico já existente; não estão nesta lista.
 
-| Id | Onde | Texto proposto |
+| Id | Onde | Texto Confirmado |
 | --- | --- | --- |
 | C1 | Corpo da mensagem que abre o Flow | Para marcar, toque em Escolher horário. Você escolhe o serviço, as opções e um horário livre. Depois eu envio a proposta para você confirmar. |
 | C2 | Botão `flow_cta` (16 caracteres, sem emoji) | Escolher horário |
@@ -275,7 +275,7 @@ Exemplos fictícios. `{serviço}` é o nome do cadastro, não texto fixo.
 
 **Confirmado:** DEC-061 (só o botão marca), DEC-079 (género da variante, nada sobre a pessoa), DEC-083 (equipe e pausa), DEC-104 (frase nova só com o Paulo), DEC-127 (validade da oferta, um quadro, `catalogVersion`). Pix, sala, profissional e preço editável continuam fora do Flow (DEC-138).
 
-**Confirmado** (Paulo, 04/11/2026, opção A): o desenho das secções 2 a 7, 9 (Alterar detalhes) e 11. A copy da secção 10 e os itens da secção 13 continuam **Em aberto**.
+**Confirmado** (Paulo, 04/11/2026, opção A): o desenho das secções 2 a 7, 9 (Alterar detalhes) e 11. **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A): a copy C1–C15 da secção 10. Os itens da secção 13 continuam **Em aberto**.
 
 ## 13. Em aberto
 
@@ -287,7 +287,6 @@ Exemplos fictícios. `{serviço}` é o nome do cadastro, não texto fixo.
 6. Botões Sim / Corrigir do eco (DEC-137). Recomendação: manter.
 7. Mais de 200 serviços agendáveis, ou mais de 19 variantes numa linha. Recomendação: o chat assume.
 8. Orçamento de tempo da previsão (DEC-077) dentro dos 10 s do endpoint.
-9. Aprovação da copy da secção 10 (DEC-104).
-10. Nome do Worker secret da chave privada. Recomendação: `WHATSAPP_FLOW_PRIVATE_KEY`.
+9. Nome do Worker secret da chave privada. Recomendação: `WHATSAPP_FLOW_PRIVATE_KEY`.
 
-A implementação ([#514](https://github.com/intentzero/tredane/issues/514)) depende também da [#507](https://github.com/intentzero/tredane/issues/507), da [#510](https://github.com/intentzero/tredane/issues/510), da copy aprovada e dos pré-requisitos Meta que estiverem fechados. A revisão do ADR (#513) ficou fechada com este Confirmado.
+A implementação ([#514](https://github.com/intentzero/tredane/issues/514)) depende também da [#507](https://github.com/intentzero/tredane/issues/507), da [#510](https://github.com/intentzero/tredane/issues/510) e dos pré-requisitos Meta que estiverem fechados. A revisão do ADR (#513) e a copy C1–C15 da secção 10 ficaram fechadas com este Confirmado.
