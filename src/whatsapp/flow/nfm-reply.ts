@@ -3,6 +3,11 @@
  * Não marca compromisso: só o Confirmar (DEC-061).
  * `fallback_reason` (Finding 3): chat envia frase determinística (ex. sem_horario_semana).
  * Hub TR-306: `hub_action` remarcar/cancelar/meus — stubs sem proposta de marcação nova.
+ *
+ * Fase `ack` vs `proposal` (fumo staging 04/11/2026): o Durable Object é
+ * single-thread; se `tryAiAutoBook` correr antes do claim Meta do C16, o ack
+ * fica na fila até a proposta acabar e a cliente sente vácuo. O consumer
+ * envia o ack (e typing) em linha *fora* do DO entre as duas fases.
  */
 import type { Clock } from '../../db/clock'
 import type { ClinicCaller } from '../../clinic/envelopes'
@@ -23,6 +28,7 @@ import { getBookingFrame, saveBookingFrame } from '../../clinic/ai/schedule-sess
 import { slotBindingFromChoice } from '../../clinic/ai/choice-offer'
 import { readCatalogVersion } from '../../clinic/ai/turn-context'
 import { sayAct } from '../../clinic/ai/dialogue-acts'
+import { enqueueTypingIndicatorForLatestInbound } from '../../clinic/ai/typing-indicator'
 import { FLOW_COPY, type FlowHubStubAction } from './copy'
 import { hubInformacoesBody, hubMeusBody } from './hub-opening'
 import type { FlowChatFallbackReason } from './screens'
@@ -110,6 +116,13 @@ export function parseNfmResponseJson(raw: string): NfmReplyParams | null {
   }
 }
 
+/**
+ * `ack` — typing + C16 + quadro; devolve cedo para o consumer enviar à Meta.
+ * `proposal` — monta/envia proposta (ou recuperação); assume ack já feito.
+ * `all` — as duas (testes / caminhos sem consumer biphasic).
+ */
+export type FlowNfmPhase = 'ack' | 'proposal' | 'all'
+
 export type HandleFlowNfmReplyInput = {
   tenantId: string
   conversationId: string
@@ -118,6 +131,7 @@ export type HandleFlowNfmReplyInput = {
   /** catalogVersion do token no envio — revalidação ADR-0015. */
   catalogVersion: string
   capability?: boolean
+  phase?: FlowNfmPhase
   /**
    * Envia o aviso de espera antes de montar a proposta (o cálculo pode demorar).
    * Se falhar, as linhas voltam no `outbox` final.
@@ -138,9 +152,12 @@ export type HandleFlowNfmReplyResult = {
     | 'hub_handoff'
     | 'hub_meus_sent'
     | 'hub_info_sent'
+    | 'ack_sent'
   autoBook?: AutoBookOutcome
   outbox: OutboxRow[]
   reason?: string
+  /** Consumer: ainda falta a fase proposal (após Meta inline do ack). */
+  needsProposal?: boolean
 }
 
 /**
@@ -326,128 +343,114 @@ function sendDeterministicOutbound(
   }
 }
 
-/**
- * Grava o quadro com provenance `flow` e monta a proposta (não marca).
- * Com `fallback_reason`, envia copy determinística e não propõe marcação.
- */
-export async function handleFlowNfmReply(
+function alreadySentFlowAck(
   db: ClinicDb,
-  caller: ClinicCaller,
-  input: HandleFlowNfmReplyInput,
-  clock: Clock,
-): Promise<HandleFlowNfmReplyResult> {
-  const params = parseNfmResponseJson(input.responseJson)
-  if (!params) {
-    return { handled: true, outcome: 'invalid_payload', outbox: [], reason: 'bad_json' }
-  }
+  tenantId: string,
+  conversationId: string,
+): boolean {
+  const row = db.get<{ id: string }>(
+    `SELECT m.id FROM messages m
+     JOIN outbound_messages o ON o.message_id = m.id AND o.tenant_id = m.tenant_id
+     WHERE m.tenant_id = ? AND m.conversation_id = ? AND m.direction = 'outbound'
+       AND o.client_request_id LIKE 'flow-ack:%'
+     LIMIT 1`,
+    tenantId,
+    conversationId,
+  )
+  return Boolean(row)
+}
 
-  if (params.hubAction) {
-    return handleHubStub(db, caller, input, params, clock)
-  }
+type PreparedAgendar = {
+  params: NfmReplyParams
+  bound: { date: string; time: string }
+  serviceName: string
+  variantIds: string[] | null
+}
 
-  if (params.fallbackReason) {
-    cancelAutoDraft(db, input.tenantId, input.conversationId)
-    const body = fallbackBody(db, input.tenantId, input.conversationId, params)
-    const outbox = sendDeterministicOutbound(
-      db,
-      caller,
-      input.conversationId,
-      `flow-fallback:${input.providerEventKey}`,
-      body,
-      clock,
-    )
+function prepareAgendarFields(
+  db: ClinicDb,
+  tenantId: string,
+  params: NfmReplyParams,
+):
+  | { ok: true; prepared: PreparedAgendar }
+  | { ok: false; result: HandleFlowNfmReplyResult } {
+  if (!params.serviceId || !params.slotId) {
     return {
-      handled: true,
-      outcome: 'chat_fallback_sent',
-      outbox,
-      reason: params.fallbackReason,
+      ok: false,
+      result: { handled: true, outcome: 'missing_fields', outbox: [], reason: 'incomplete' },
     }
   }
-
-  if (!params.serviceId || !params.slotId) {
-    return { handled: true, outcome: 'missing_fields', outbox: [], reason: 'incomplete' }
-  }
-
   const bound = slotBindingFromChoice(params.slotId, params.slotId)
   if (!bound) {
-    return { handled: true, outcome: 'invalid_payload', outbox: [], reason: 'bad_slot_id' }
+    return {
+      ok: false,
+      result: { handled: true, outcome: 'invalid_payload', outbox: [], reason: 'bad_slot_id' },
+    }
   }
-
-  const services = listServices(db, input.tenantId).filter((s) => s.active)
+  const services = listServices(db, tenantId).filter((s) => s.active)
   const service = services.find((s) => s.id === params.serviceId)
   if (!service) {
-    return { handled: true, outcome: 'stale_no_proposal', outbox: [], reason: 'service_gone' }
+    return {
+      ok: false,
+      result: {
+        handled: true,
+        outcome: 'stale_no_proposal',
+        outbox: [],
+        reason: 'service_gone',
+      },
+    }
   }
-
   const activeZones = service.zones.filter((z) => z.active)
   const zoneIds = new Set(activeZones.map((z) => z.id))
   let variantIds: string[] | null = null
   if (activeZones.length > 0) {
     const filtered = params.variantIds.filter((id) => zoneIds.has(id))
     if (filtered.length === 0) {
-      return { handled: true, outcome: 'missing_fields', outbox: [], reason: 'variants_required' }
+      return {
+        ok: false,
+        result: {
+          handled: true,
+          outcome: 'missing_fields',
+          outbox: [],
+          reason: 'variants_required',
+        },
+      }
     }
     variantIds = filtered
   }
-
-  cancelAutoDraft(db, input.tenantId, input.conversationId)
-
-  const existing = getBookingFrame(db, input.tenantId, input.conversationId)
-  if (
-    existing?.serviceId === params.serviceId &&
-    existing.time === bound.time &&
-    existing.date === bound.date &&
-    existing.provenance?.serviceId?.source === 'flow' &&
-    (existing.proposal != null ||
-      existing.phase === 'proposto' ||
-      existing.phase === 'ofertado')
-  ) {
-    return { handled: true, outcome: 'idempotent_skip', outbox: [] }
-  }
-
-  const ackRows = sendDeterministicOutbound(
-    db,
-    caller,
-    input.conversationId,
-    `flow-ack:${input.providerEventKey}`,
-    FLOW_COPY.preparingProposal,
-    clock,
-  )
-  let ackPending = ackRows
-  if (input.flushOutbound && ackRows.length > 0) {
-    try {
-      await input.flushOutbound(ackRows)
-      ackPending = []
-    } catch {
-      ackPending = ackRows
-    }
-  }
-
-  const catalogVersion = input.catalogVersion || readCatalogVersion(db, input.tenantId)
-  const sourceMessageId = `flow:${input.providerEventKey}`
-  const saved = saveBookingFrame(
-    db,
-    input.tenantId,
-    input.conversationId,
-    {
-      serviceId: params.serviceId,
-      line: params.line,
+  return {
+    ok: true,
+    prepared: {
+      params,
+      bound,
+      serviceName: service.name.trim() || 'quero agendar',
       variantIds,
-      date: bound.date,
-      time: bound.time,
-      period: null,
-      pending: null,
-      lastOffer: null,
-      phase: 'ofertado',
-      catalogVersion,
-      source: 'flow',
-      sourceMessageId,
     },
-    clock,
-  )
+  }
+}
 
-  const outbox: OutboxRow[] = [...ackPending, ...(saved.outbox ? [saved.outbox] : [])]
+async function flushRows(
+  input: HandleFlowNfmReplyInput,
+  rows: OutboxRow[],
+): Promise<OutboxRow[]> {
+  if (!input.flushOutbound || rows.length === 0) return rows
+  try {
+    await input.flushOutbound(rows)
+    return []
+  } catch {
+    return rows
+  }
+}
 
+async function buildAndSendProposal(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: HandleFlowNfmReplyInput,
+  prepared: PreparedAgendar,
+  clock: Clock,
+  priorOutbox: OutboxRow[],
+): Promise<HandleFlowNfmReplyResult> {
+  const outbox: OutboxRow[] = [...priorOutbox]
   const lastInbound = db.get<{ id: string }>(
     `SELECT id FROM messages
      WHERE tenant_id = ? AND conversation_id = ? AND direction = 'inbound'
@@ -455,15 +458,36 @@ export async function handleFlowNfmReply(
     input.tenantId,
     input.conversationId,
   )
+  const sourceMessageId = `flow:${input.providerEventKey}`
   const confirmationMessageId = lastInbound?.id ?? sourceMessageId
 
-  const autoBook = await tryAiAutoBook(db, caller, clock, {
-    conversationId: input.conversationId,
-    capability: input.capability !== false,
-    turnTextOverride: service.name.trim() || 'quero agendar',
-    confirmationMessageIdOverride: confirmationMessageId,
-    boundSlot: { date: bound.date, time: bound.time },
-  })
+  let autoBook: AutoBookOutcome
+  try {
+    autoBook = await tryAiAutoBook(db, caller, clock, {
+      conversationId: input.conversationId,
+      capability: input.capability !== false,
+      turnTextOverride: prepared.serviceName,
+      confirmationMessageIdOverride: confirmationMessageId,
+      boundSlot: { date: prepared.bound.date, time: prepared.bound.time },
+    })
+  } catch (err) {
+    const recovery = sendDeterministicOutbound(
+      db,
+      caller,
+      input.conversationId,
+      `flow-proposal-fail:${input.providerEventKey}`,
+      FLOW_COPY.proposalBuildFailed,
+      clock,
+    )
+    outbox.push(...recovery)
+    return {
+      handled: true,
+      outcome: 'stale_no_proposal',
+      outbox,
+      reason: err instanceof Error ? err.message.slice(0, 120) : 'autobook_throw',
+      needsProposal: false,
+    }
+  }
 
   outbox.push(...autoBook.outbox)
   if (autoBook.proposalId && !autoBook.replyText?.trim()) {
@@ -473,6 +497,7 @@ export async function handleFlowNfmReply(
       outcome: 'proposal_sent',
       autoBook,
       outbox,
+      needsProposal: false,
     }
   }
   const body = autoBook.replyText?.trim()
@@ -498,10 +523,42 @@ export async function handleFlowNfmReply(
       if (deferred.hasWork) {
         outbox.push(...deferred.flushNow(db, caller.tenantId, input.conversationId, clock))
       }
+      outbox.push(
+        ...sendDeterministicOutbound(
+          db,
+          caller,
+          input.conversationId,
+          `flow-proposal-fail:${input.providerEventKey}`,
+          FLOW_COPY.proposalBuildFailed,
+          clock,
+        ),
+      )
+      return {
+        handled: true,
+        outcome: 'stale_no_proposal',
+        autoBook,
+        outbox,
+        reason: 'send_failed',
+        needsProposal: false,
+      }
     }
   } else if (autoBook.deferredFrame?.hasWork) {
     outbox.push(
       ...autoBook.deferredFrame.flushNow(db, caller.tenantId, input.conversationId, clock),
+    )
+  }
+
+  if (!autoBook.proposalId && !body) {
+    // Ack já prometeu proposta — nunca silêncio (fumo staging 04/11/2026).
+    outbox.push(
+      ...sendDeterministicOutbound(
+        db,
+        caller,
+        input.conversationId,
+        `flow-proposal-fail:${input.providerEventKey}`,
+        FLOW_COPY.proposalBuildFailed,
+        clock,
+      ),
     )
   }
 
@@ -511,5 +568,159 @@ export async function handleFlowNfmReply(
     autoBook,
     outbox,
     reason: autoBook.proposalId ? undefined : 'no_proposal',
+    needsProposal: false,
   }
+}
+
+/**
+ * Grava o quadro com provenance `flow` e monta a proposta (não marca).
+ * Com `fallback_reason`, envia copy determinística e não propõe marcação.
+ * Fase `ack` devolve cedo após C16 para o Meta send não esperar o autobook.
+ */
+export async function handleFlowNfmReply(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: HandleFlowNfmReplyInput,
+  clock: Clock,
+): Promise<HandleFlowNfmReplyResult> {
+  const phase: FlowNfmPhase = input.phase ?? 'all'
+  const params = parseNfmResponseJson(input.responseJson)
+  if (!params) {
+    return { handled: true, outcome: 'invalid_payload', outbox: [], reason: 'bad_json' }
+  }
+
+  if (params.hubAction) {
+    if (phase === 'proposal') {
+      return { handled: true, outcome: 'idempotent_skip', outbox: [], reason: 'hub_done' }
+    }
+    return handleHubStub(db, caller, input, params, clock)
+  }
+
+  if (params.fallbackReason) {
+    if (phase === 'proposal') {
+      return { handled: true, outcome: 'idempotent_skip', outbox: [], reason: 'fallback_done' }
+    }
+    cancelAutoDraft(db, input.tenantId, input.conversationId)
+    const body = fallbackBody(db, input.tenantId, input.conversationId, params)
+    const outbox = sendDeterministicOutbound(
+      db,
+      caller,
+      input.conversationId,
+      `flow-fallback:${input.providerEventKey}`,
+      body,
+      clock,
+    )
+    return {
+      handled: true,
+      outcome: 'chat_fallback_sent',
+      outbox,
+      reason: params.fallbackReason,
+    }
+  }
+
+  const preparedResult = prepareAgendarFields(db, input.tenantId, params)
+  if (!preparedResult.ok) {
+    if (phase === 'proposal') {
+      // Ack já saiu noutro turno? Recupera em vez de silêncio.
+      const recovery = sendDeterministicOutbound(
+        db,
+        caller,
+        input.conversationId,
+        `flow-proposal-fail:${input.providerEventKey}`,
+        FLOW_COPY.proposalBuildFailed,
+        clock,
+      )
+      return {
+        handled: true,
+        outcome: preparedResult.result.outcome,
+        outbox: recovery,
+        reason: preparedResult.result.reason ?? 'incomplete_after_ack',
+        needsProposal: false,
+      }
+    }
+    return preparedResult.result
+  }
+  const { prepared } = preparedResult
+
+  const existing = getBookingFrame(db, input.tenantId, input.conversationId)
+  // Só skip total quando a proposta versionada já existe (DEC-061).
+  // `phase === ofertado` sem proposal = ack a meio / falha — não engolir o 2.º nfm.
+  if (
+    existing?.serviceId === prepared.params.serviceId &&
+    existing.time === prepared.bound.time &&
+    existing.date === prepared.bound.date &&
+    existing.provenance?.serviceId?.source === 'flow' &&
+    existing.proposal != null
+  ) {
+    return { handled: true, outcome: 'idempotent_skip', outbox: [], needsProposal: false }
+  }
+
+  if (phase === 'proposal') {
+    cancelAutoDraft(db, input.tenantId, input.conversationId)
+    return buildAndSendProposal(db, caller, input, prepared, clock, [])
+  }
+
+  // ——— fase ack (ou all) ———
+  cancelAutoDraft(db, input.tenantId, input.conversationId)
+
+  const earlyRows: OutboxRow[] = []
+  const typing = enqueueTypingIndicatorForLatestInbound(
+    db,
+    input.tenantId,
+    input.conversationId,
+    clock,
+  )
+  if (typing) earlyRows.push(typing)
+
+  const skipDuplicateAck = alreadySentFlowAck(db, input.tenantId, input.conversationId)
+  if (!skipDuplicateAck) {
+    earlyRows.push(
+      ...sendDeterministicOutbound(
+        db,
+        caller,
+        input.conversationId,
+        `flow-ack:${input.providerEventKey}`,
+        FLOW_COPY.preparingProposal,
+        clock,
+      ),
+    )
+  }
+
+  let ackPending = await flushRows(input, earlyRows)
+
+  const catalogVersion = input.catalogVersion || readCatalogVersion(db, input.tenantId)
+  const sourceMessageId = `flow:${input.providerEventKey}`
+  const saved = saveBookingFrame(
+    db,
+    input.tenantId,
+    input.conversationId,
+    {
+      serviceId: prepared.params.serviceId!,
+      line: prepared.params.line,
+      variantIds: prepared.variantIds,
+      date: prepared.bound.date,
+      time: prepared.bound.time,
+      period: null,
+      pending: null,
+      lastOffer: null,
+      phase: 'ofertado',
+      catalogVersion,
+      source: 'flow',
+      sourceMessageId,
+    },
+    clock,
+  )
+  if (saved.outbox) ackPending = [...ackPending, saved.outbox]
+
+  if (phase === 'ack') {
+    return {
+      handled: true,
+      outcome: 'ack_sent',
+      outbox: ackPending,
+      needsProposal: true,
+      reason: skipDuplicateAck ? 'ack_already_sent' : undefined,
+    }
+  }
+
+  return buildAndSendProposal(db, caller, input, prepared, clock, ackPending)
 }

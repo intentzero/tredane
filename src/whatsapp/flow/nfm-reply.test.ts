@@ -318,4 +318,133 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       s.close()
     }
   })
+
+  it('fase ack devolve cedo com C16; proposal depois (sem vácuo no DO)', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const zones = s.db.all<{ id: string }>(
+        `SELECT id FROM service_zones
+         WHERE service_id = ? AND audience = 'feminino' AND active = 1`,
+        s.ids.depilacao,
+      )
+      const responseJson = JSON.stringify({
+        flow_token: 'fl1_phase',
+        service_id: s.ids.depilacao,
+        line: 'feminino',
+        variant_ids: zones.map((z) => z.id),
+        slot_id: '2026-11-06T10:00',
+      })
+      const flushed: string[] = []
+      const ack = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-phase',
+          responseJson,
+          catalogVersion: '1',
+          capability: true,
+          phase: 'ack',
+          flushOutbound: async (rows) => {
+            for (const r of rows) flushed.push(r.type)
+          },
+        },
+        s.clock,
+      )
+      expect(ack.outcome).toBe('ack_sent')
+      expect(ack.needsProposal).toBe(true)
+      expect(s.outboundBodies().some((b) => b === FLOW_COPY.preparingProposal)).toBe(true)
+      // Ainda sem cartão Confirmar — a fase proposal é que monta.
+      expect(s.outboundBodies().some((b) => /Proposta de horário/i.test(b))).toBe(false)
+      expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.phase).toBe('ofertado')
+
+      const prop = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-phase',
+          responseJson,
+          catalogVersion: '1',
+          capability: true,
+          phase: 'proposal',
+        },
+        s.clock,
+      )
+      expect(prop.needsProposal).toBe(false)
+      expect(s.appointmentCount()).toBe(0)
+      const after = s.outboundBodies()
+      const hasProposal = after.some((b) => /Proposta de horário/i.test(b))
+      const hasRecovery = after.some((b) => b === FLOW_COPY.proposalBuildFailed)
+      const hasAlt = after.some(
+        (b) => b !== FLOW_COPY.preparingProposal && b.trim().length > 0,
+      )
+      // Depois do C16: proposta, alternativa determinística, ou recuperação — nunca só o ack.
+      expect(hasProposal || hasRecovery || hasAlt).toBe(true)
+      expect(flushed.length).toBeGreaterThan(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('ofertado sem proposal não engole 2.º nfm (idempotent só com proposal)', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const zones = s.db.all<{ id: string }>(
+        `SELECT id FROM service_zones
+         WHERE service_id = ? AND audience = 'feminino' AND active = 1`,
+        s.ids.depilacao,
+      )
+      const responseJson = JSON.stringify({
+        flow_token: 'fl1_ofertado',
+        service_id: s.ids.depilacao,
+        line: 'feminino',
+        variant_ids: zones.map((z) => z.id),
+        slot_id: '2026-11-06T10:00',
+      })
+      const ackOnly = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-ofertado-a',
+          responseJson,
+          catalogVersion: '1',
+          phase: 'ack',
+        },
+        s.clock,
+      )
+      expect(ackOnly.outcome).toBe('ack_sent')
+      expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.proposal).toBeNull()
+
+      const retry = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-ofertado-b',
+          responseJson,
+          catalogVersion: '1',
+          capability: true,
+          phase: 'all',
+        },
+        s.clock,
+      )
+      // Não idempotent_skip: ainda não há proposal versionada.
+      expect(retry.outcome).not.toBe('idempotent_skip')
+      const ackCount = s
+        .outboundBodies()
+        .filter((b) => b === FLOW_COPY.preparingProposal).length
+      // Segundo ack não duplica a frase C16.
+      expect(ackCount).toBe(1)
+    } finally {
+      s.close()
+    }
+  })
 })

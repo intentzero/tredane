@@ -260,14 +260,74 @@ export async function processWhatsappMessage(
         ingested.conversationId &&
         typeof stub.handleFlowNfmReply === 'function'
       ) {
-        await stub.handleFlowNfmReply(caller, {
+        // Fumo staging 04/11/2026: ack (C16) + typing *antes* do tryAiAutoBook.
+        // O DO é single-thread — se o claim Meta do ack esperar o autobook, a
+        // cliente fica em vácuo e reabre o Flow. Envio inline fora do DO.
+        const nfmInput = {
           tenantId: msg.tenantId,
           conversationId: ingested.conversationId,
           providerEventKey: msg.providerEventKey,
           responseJson: msg.responseJson,
           contextMessageId: msg.contextMessageId ?? null,
           catalogVersion: tokenCatalogVersion,
-        })
+        }
+        const ackPhase = (await stub.handleFlowNfmReply(caller, {
+          ...nfmInput,
+          phase: 'ack',
+        })) as Awaited<ReturnType<ClinicDurableObject['handleFlowNfmReply']>>
+        for (const dispatch of ackPhase.inlineDispatches ?? []) {
+          try {
+            await processClinicOutboxMessage(dispatch, {
+              env: deps.env,
+              mode: 'inline',
+              clinicStub: () => stub as OutboundSendClinicStub,
+              metaAdapter: deps.metaAdapter,
+              clock,
+              log,
+            })
+          } catch (err) {
+            log({
+              level: 'warn',
+              event: 'queue.flow_ack_inline_failed',
+              detail: {
+                receiptId: msg.receiptId,
+                tenantId: msg.tenantId,
+                eventId: dispatch.eventId,
+                error: err instanceof Error ? err.message.slice(0, 120) : 'inline_failed',
+              },
+            })
+          }
+        }
+        if (ackPhase.needsProposal) {
+          const propPhase = (await stub.handleFlowNfmReply(caller, {
+            ...nfmInput,
+            phase: 'proposal',
+          })) as Awaited<ReturnType<ClinicDurableObject['handleFlowNfmReply']>>
+          for (const dispatch of propPhase.inlineDispatches ?? []) {
+            try {
+              await processClinicOutboxMessage(dispatch, {
+                env: deps.env,
+                mode: 'inline',
+                clinicStub: () => stub as OutboundSendClinicStub,
+                metaAdapter: deps.metaAdapter,
+                clock,
+                log,
+              })
+            } catch (err) {
+              log({
+                level: 'warn',
+                event: 'queue.flow_proposal_inline_failed',
+                detail: {
+                  receiptId: msg.receiptId,
+                  tenantId: msg.tenantId,
+                  eventId: dispatch.eventId,
+                  error:
+                    err instanceof Error ? err.message.slice(0, 120) : 'inline_failed',
+                },
+              })
+            }
+          }
+        }
       }
 
       const isNewMessage = Boolean(
