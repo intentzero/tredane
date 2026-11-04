@@ -1,8 +1,9 @@
 /**
  * Prontidão operacional do Flow (ADR-0016).
- * Não é feature flag de produto: sem `WHATSAPP_FLOW_ID` + chave privada
- * o funil M5 (listas/botões) continua; o Flow não é oferecido.
- * Ligar o caminho principal e retirar o M5 é a #515, após Meta + copy.
+ * Não é feature flag de produto: com `WHATSAPP_FLOW_ID` + chave privada
+ * o autodraft oferece o CTA `type: flow` no lugar de Feminina/Masculina,
+ * Opções e Horários. Sem esses secrets o funil M5 continua.
+ * Retirar o código M5 de envio é a #515.
  */
 
 export type WhatsappFlowEnv = {

@@ -92,4 +92,9 @@ export type AiAssistDeps = {
   abuseLimits?: AbuseLimits
   /** Previsão fictícia nos testes do bloco Tempo (DEC-077). Sem isto, o adaptador real. */
   forecast?: import('../tempo/evaluate').ForecastAdapter
+  /**
+   * ADR-0016 / #514: quando secrets Flow estão no Worker, o DO injecta isto
+   * para trocar M5 (linha/Opções/Horários) pelo CTA `type: flow`.
+   */
+  prepareBookingFlowOffer?: import('../../whatsapp/flow/offer-live').PrepareBookingFlowOffer
 }
