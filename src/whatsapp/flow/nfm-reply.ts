@@ -23,7 +23,8 @@ import { getBookingFrame, saveBookingFrame } from '../../clinic/ai/schedule-sess
 import { slotBindingFromChoice } from '../../clinic/ai/choice-offer'
 import { readCatalogVersion } from '../../clinic/ai/turn-context'
 import { sayAct } from '../../clinic/ai/dialogue-acts'
-import { FLOW_COPY, type FlowHubAction } from './copy'
+import { FLOW_COPY, type FlowHubStubAction } from './copy'
+import { hubInformacoesBody, hubMeusBody } from './hub-opening'
 import type { FlowChatFallbackReason } from './screens'
 
 export type NfmReplyParams = {
@@ -34,7 +35,7 @@ export type NfmReplyParams = {
   slotId: string | null
   fallbackReason: FlowChatFallbackReason | null
   /** Stub hub — ausente no caminho Agendar. */
-  hubAction: Exclude<FlowHubAction, 'agendar'> | null
+  hubAction: FlowHubStubAction | null
 }
 
 function asFallbackReason(raw: unknown): FlowChatFallbackReason | null {
@@ -90,7 +91,13 @@ export function parseNfmResponseJson(raw: string): NfmReplyParams | null {
   )
   const hubRaw = obj.hub_action ?? obj.hubAction
   const hubAction =
-    hubRaw === 'remarcar' || hubRaw === 'cancelar' || hubRaw === 'meus' ? hubRaw : null
+    hubRaw === 'remarcar' ||
+    hubRaw === 'cancelar' ||
+    hubRaw === 'meus' ||
+    hubRaw === 'informacoes' ||
+    hubRaw === 'equipe'
+      ? hubRaw
+      : null
 
   return {
     flowToken: token,
@@ -129,16 +136,17 @@ export type HandleFlowNfmReplyResult = {
     | 'chat_fallback_sent'
     | 'hub_reschedule_started'
     | 'hub_handoff'
+    | 'hub_meus_sent'
+    | 'hub_info_sent'
   autoBook?: AutoBookOutcome
   outbox: OutboxRow[]
   reason?: string
 }
 
 /**
- * Stubs do hub TR-306 (DEC-091 / DEC-083 / DEC-129).
- * Remarcar com compromisso → frase DEC-129 (1) + phase remarcando.
- * Remarcar sem compromisso / Cancelar / Meus → handoff humano (sem copy nova).
- * Meus: listagem própria Em aberto (DEC-104); handoff até decisão do Paulo.
+ * Stubs do hub TR-306 (Confirmado Paulo 04/11/2026).
+ * Remarcar: DEC-129 (1) ou handoff DEC-083. Cancelar / Equipe: DEC-083.
+ * Meus: frases Confirmadas (read-only). Informações: expediente + link config.
  */
 function handleHubStub(
   db: ClinicDb,
@@ -153,9 +161,9 @@ function handleHubStub(
   }
 
   cancelAutoDraft(db, input.tenantId, input.conversationId)
+  const conv = getConversation(db, input.tenantId, input.conversationId)
 
   if (hubAction === 'remarcar') {
-    const conv = getConversation(db, input.tenantId, input.conversationId)
     const apt = conv
       ? loadUpcomingAppointment(db, input.tenantId, conv.contactId, clock.nowMs())
       : null
@@ -200,15 +208,60 @@ function handleHubStub(
         reason: 'remarcar',
       }
     }
+    const handoff = notifyHumanHandoff(
+      db,
+      input.tenantId,
+      {
+        conversationId: input.conversationId,
+        reason: 'human_only',
+        clientRequestId: `flow-hub-remarcar:${input.providerEventKey}`,
+      },
+      clock,
+    )
+    return {
+      handled: true,
+      outcome: 'hub_handoff',
+      outbox: handoff.outbox,
+      reason: 'remarcar',
+    }
   }
 
-  // cancelar | meus | remarcar sem compromisso futuro → DEC-083 / DEC-091.
+  if (hubAction === 'meus') {
+    const contactId = conv?.contactId
+    const body = contactId
+      ? hubMeusBody(db, input.tenantId, contactId, clock)
+      : FLOW_COPY.hubMeusNone
+    const outbox = sendDeterministicOutbound(
+      db,
+      caller,
+      input.conversationId,
+      `flow-hub-meus:${input.providerEventKey}`,
+      body,
+      clock,
+    )
+    return { handled: true, outcome: 'hub_meus_sent', outbox, reason: 'meus' }
+  }
+
+  if (hubAction === 'informacoes') {
+    const body = hubInformacoesBody(db, input.tenantId, clock)
+    const outbox = sendDeterministicOutbound(
+      db,
+      caller,
+      input.conversationId,
+      `flow-hub-info:${input.providerEventKey}`,
+      body,
+      clock,
+    )
+    return { handled: true, outcome: 'hub_info_sent', outbox, reason: 'informacoes' }
+  }
+
+  // cancelar | equipe → DEC-083 / DEC-091 (cancelar humano).
   const handoff = notifyHumanHandoff(
     db,
     input.tenantId,
     {
       conversationId: input.conversationId,
-      reason: 'human_only',
+      reason: hubAction === 'equipe' ? 'customer_requested' : 'human_only',
       clientRequestId: `flow-hub-${hubAction}:${input.providerEventKey}`,
     },
     clock,

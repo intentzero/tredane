@@ -27,10 +27,12 @@
             }
           },
           "__example__": [
-            { "id": "agendar", "title": "Marcar horário" },
+            { "id": "agendar", "title": "Agendar" },
             { "id": "remarcar", "title": "Remarcar" },
             { "id": "cancelar", "title": "Cancelar" },
-            { "id": "meus", "title": "Meus agendamentos" }
+            { "id": "meus", "title": "Meus agendamentos" },
+            { "id": "informacoes", "title": "Informações" },
+            { "id": "equipe", "title": "Falar com a equipe" }
           ]
         },
         "error_message": {

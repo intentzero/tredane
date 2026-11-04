@@ -13,6 +13,7 @@ import {
   importFlowPrivateKey,
   type FlowEncryptedRequest,
 } from './crypto'
+import { isFlowHubStubAction, type FlowHubAction } from './copy'
 import {
   applyScreenSubmission,
   entryFlowScreen,
@@ -23,7 +24,6 @@ import {
   type FlowCatalogService,
   type FlowChatFallbackReason,
   type FlowClearedField,
-  type FlowHubAction,
   type FlowScreenId,
   type FlowSlotOption,
 } from './screens'
@@ -407,12 +407,8 @@ export async function handleFlowDataRequest(input: {
     hubActionFromSubmit = applied.hubAction ?? null
     await input.sessions.set(parsed.flowToken, frame)
 
-    // Remarcar / Cancelar / Meus: fecho imediato (stub TR-306). Sem proposta.
-    if (
-      hubActionFromSubmit === 'remarcar' ||
-      hubActionFromSubmit === 'cancelar' ||
-      hubActionFromSubmit === 'meus'
-    ) {
+    // Remarcar / Cancelar / Meus / Informações / Equipe: fecho imediato (stub).
+    if (hubActionFromSubmit && isFlowHubStubAction(hubActionFromSubmit)) {
       const body = await encryptFlowResponse(
         decrypted.aesKey,
         decrypted.iv,

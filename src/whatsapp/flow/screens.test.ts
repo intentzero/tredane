@@ -365,6 +365,16 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
       'remarcar',
       'cancelar',
       'meus',
+      'informacoes',
+      'equipe',
+    ])
+    expect(actions.map((a) => a.title)).toEqual([
+      'Agendar',
+      'Remarcar',
+      'Cancelar',
+      'Meus agendamentos',
+      'Informações',
+      'Falar com a equipe',
     ])
     expect(entry.data.body).toBe(FLOW_COPY.hubBody)
   })
@@ -391,8 +401,14 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
     expect(next).toMatchObject({ screen: 'GENERO' })
   })
 
-  it('HUB Remarcar/Cancelar/Meus → hubAction stub (SUCCESS no endpoint)', () => {
-    for (const action of ['remarcar', 'cancelar', 'meus'] as const) {
+  it('HUB stubs → hubAction (SUCCESS no endpoint)', () => {
+    for (const action of [
+      'remarcar',
+      'cancelar',
+      'meus',
+      'informacoes',
+      'equipe',
+    ] as const) {
       const applied = applyScreenSubmission(
         [depilacao],
         { serviceId: null, line: null, variantIds: null, slotKey: null },
@@ -471,14 +487,18 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
   })
 
   it('copy nova não leva jargão INV-05 nem IANA', () => {
+    // «Agendar» no HUB é Confirmado (Paulo 04/11/2026) — excepção explícita ao INV-05 do painel.
     const samples = [
       FLOW_COPY.openBody,
       FLOW_COPY.flowCta,
       FLOW_COPY.hubBody,
-      FLOW_COPY.hubAgendar,
       FLOW_COPY.hubRemarcar,
       FLOW_COPY.hubCancelar,
       FLOW_COPY.hubMeus,
+      FLOW_COPY.hubInformacoes,
+      FLOW_COPY.hubEquipe,
+      FLOW_COPY.hubMeusNone,
+      FLOW_COPY.hubMeusList(1, 'Depilação terça 05/11 às 10:00'),
       FLOW_COPY.serviceBody,
       FLOW_COPY.serviceBodyReady('Depilação', true),
       FLOW_COPY.serviceBodyReady('Depilação', false),
@@ -491,6 +511,7 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
       expect(text).not.toMatch(/America\//)
       expect(text).not.toMatch(/\bTodas\b/)
     }
+    expect(FLOW_COPY.hubAgendar).toBe('Agendar')
   })
 
   // T14 / #540 — zonas todas inactivas → não bookable.

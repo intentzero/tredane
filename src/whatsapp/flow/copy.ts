@@ -5,34 +5,36 @@
  * Rótulos Confirmados reutilizados no Flow: Feminina / Masculina (DEC-134).
  * «Todas» do M5 não entra no CheckboxGroup (Paulo, 04/11/2026, «Podemos retirar o Todas»).
  *
- * Hub (C1h / C2h / HUB-*): **Proposto** (TR-306, 04/11/2026) — DEC-104: aguarda
- * aprovação do Paulo antes de tratar como Confirmado. Ver PR / design doc.
+ * Hub (C1h / C2h / HUB-* / Meus / Informações): **Confirmado**
+ * (Paulo, 04/11/2026, DEC-104 — aceite do pacote hub).
+ * Título «Agendar» Confirmado pelo Paulo para o HUB (excepção explícita ao jargão INV-05 do painel).
  */
 export const FLOW_COPY = {
   /**
-   * C1h — corpo da mensagem que abre o Flow com hub (Proposto, DEC-104).
-   * Substitui C1 enquanto o entry for HUB; C1 Confirmado fica no ADR até Paulo ok.
-   * Evita o jargão de painel «Agendar» (INV-05); id interno da acção continua `agendar`.
+   * C1h — corpo por omissão quando o preparador não interpola clínica/hora.
+   * Preferir `hubOpeningBody` em `hub-opening.ts`.
    */
-  openBody:
-    'Toque em Abrir opções para marcar, remarcar, cancelar ou ver seus horários.',
+  openBody: 'Olá! O que você precisa?',
   /**
-   * C2h — botão flow_cta (≤30, sem emoji). Proposto (DEC-104).
-   * Antes: «Escolher horário» (C2 Confirmado ADR-0016).
+   * C2h — botão flow_cta (≤30, sem emoji). Confirmado (Paulo, 04/11/2026).
    */
   flowCta: 'Abrir opções',
-  /**
-   * HUB-body — Proposto (DEC-104).
-   */
+  /** HUB-body — Confirmado. */
   hubBody: 'O que você quer fazer?',
   /**
-   * HUB opções — títulos Propostos (DEC-104), ≤30.
-   * «Marcar horário» em vez de «Agendar» (INV-05). Ids: agendar|remarcar|cancelar|meus.
+   * HUB opções — Confirmadas (Paulo, 04/11/2026), ≤30.
+   * Ids estáveis: agendar|remarcar|cancelar|meus|informacoes|equipe.
    */
-  hubAgendar: 'Marcar horário',
+  hubAgendar: 'Agendar',
   hubRemarcar: 'Remarcar',
   hubCancelar: 'Cancelar',
   hubMeus: 'Meus agendamentos',
+  hubInformacoes: 'Informações',
+  hubEquipe: 'Falar com a equipe',
+  /** Meus — Confirmado. */
+  hubMeusNone: 'Você não tem horário marcado. Quer agendar?',
+  hubMeusList: (n: number, lista: string) =>
+    `Você tem ${n}: ${lista}. Quer remarcar algum?`,
   /** C3 */
   serviceTitle: 'Serviço',
   /** C4 — vários serviços e nenhum ainda escolhido. */
@@ -81,7 +83,14 @@ export const FLOW_COPY = {
 } as const
 
 /** Ids estáveis das acções do HUB (payload / SUCCESS params). */
-export const FLOW_HUB_ACTIONS = ['agendar', 'remarcar', 'cancelar', 'meus'] as const
+export const FLOW_HUB_ACTIONS = [
+  'agendar',
+  'remarcar',
+  'cancelar',
+  'meus',
+  'informacoes',
+  'equipe',
+] as const
 export type FlowHubAction = (typeof FLOW_HUB_ACTIONS)[number]
 
 export function isFlowHubAction(raw: unknown): raw is FlowHubAction {
@@ -89,8 +98,17 @@ export function isFlowHubAction(raw: unknown): raw is FlowHubAction {
     raw === 'agendar' ||
     raw === 'remarcar' ||
     raw === 'cancelar' ||
-    raw === 'meus'
+    raw === 'meus' ||
+    raw === 'informacoes' ||
+    raw === 'equipe'
   )
+}
+
+/** Acções que fecham o Flow sem funil Agendar. */
+export type FlowHubStubAction = Exclude<FlowHubAction, 'agendar'>
+
+export function isFlowHubStubAction(raw: unknown): raw is FlowHubStubAction {
+  return isFlowHubAction(raw) && raw !== 'agendar'
 }
 
 /** Feminina / Masculina — Confirmado (DEC-134). */

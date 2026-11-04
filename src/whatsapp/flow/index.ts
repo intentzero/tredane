@@ -3,8 +3,19 @@ export {
   FLOW_GENDER_LABELS,
   FLOW_HUB_ACTIONS,
   isFlowHubAction,
+  isFlowHubStubAction,
   type FlowHubAction,
+  type FlowHubStubAction,
 } from './copy'
+export {
+  shouldOfferHubOpening,
+  hubOpeningBody,
+  todayClosingHourLabel,
+  hubMeusBody,
+  hubInformacoesBody,
+  listUpcomingForHub,
+  activeServicesForHub,
+} from './hub-opening'
 export {
   isWhatsappFlowConfigured,
   resolveFlowId,

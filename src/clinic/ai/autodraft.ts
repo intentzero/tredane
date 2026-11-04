@@ -23,6 +23,12 @@ import {
   maybeReplaceM5WithFlow,
   sessionFromBookingFrame,
 } from '../../whatsapp/flow/offer-live'
+import {
+  activeServicesForHub,
+  hubOpeningBody,
+  shouldOfferHubOpening,
+  todayClosingHourLabel,
+} from '../../whatsapp/flow/hub-opening'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
@@ -723,6 +729,59 @@ export async function runDueAutoDrafts(
       cancelAutoDraft(db, tenantId, job.conversationId)
       record({ ...job, status: 'skipped', suggestion: null, reason: 'catalog_reply', replyOutbox })
       continue
+    }
+    // TR-306 hub: primeiro contacto (cumprimento / pedido vago) → CTA Abrir opções.
+    // Remarcar / cancelar / serviço nomeado já foram tratados acima ou caem no funil.
+    if (deps.prepareBookingFlowOffer) {
+      const hasClinicOutbound = turn.messages.some((m) => m.direction === 'outbound')
+      if (
+        shouldOfferHubOpening({
+          turnText,
+          services: activeServicesForHub(db, tenantId),
+          hasClinicOutbound,
+        })
+      ) {
+        await signalTyping()
+        let replyOutbox: OutboxRow[] = []
+        try {
+          const closesAt = todayClosingHourLabel(db, tenantId, clock)
+          const body = hubOpeningBody(deps.clinicName, closesAt)
+          const offered = await deps.prepareBookingFlowOffer({
+            tenantId,
+            conversationId: job.conversationId,
+            catalogVersion: readCatalogVersion(db, tenantId),
+            body,
+          })
+          if (offered) {
+            const sent = sendOutboundMessageOp(
+              db,
+              caller,
+              {
+                conversationId: job.conversationId,
+                body: offered.body,
+                interactive: offered.interactive,
+                clientRequestId: `ai-hub-open:${job.messageId}`,
+                authorClerkUserId: AUTODRAFT_ACTOR_ID,
+                authorDisplayName: AUTODRAFT_ACTOR_NAME,
+              },
+              clock,
+            )
+            replyOutbox = sent.outbox
+            cancelAutoDraft(db, tenantId, job.conversationId)
+            record({
+              ...job,
+              status: 'skipped',
+              suggestion: null,
+              reason: 'hub_opening',
+              replyOutbox,
+            })
+            continue
+          }
+        } catch (err) {
+          if (!(err instanceof ClinicError)) throw err
+        }
+        // Sem Flow / falha → segue o caminho de modelo (chat recurso).
+      }
     }
     if (getAiDailyUsage(db, tenantId, clock).capReached) {
       cancelAutoDraft(db, tenantId, job.conversationId)

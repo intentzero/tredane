@@ -9,7 +9,9 @@ import {
   FLOW_COPY,
   FLOW_GENDER_LABELS,
   isFlowHubAction,
+  isFlowHubStubAction,
   type FlowHubAction,
+  type FlowHubStubAction,
 } from './copy'
 
 export type FlowScreenId =
@@ -325,6 +327,8 @@ export function hubActionOptions(): FlowDataOption[] {
     { id: 'remarcar', title: FLOW_COPY.hubRemarcar },
     { id: 'cancelar', title: FLOW_COPY.hubCancelar },
     { id: 'meus', title: FLOW_COPY.hubMeus },
+    { id: 'informacoes', title: FLOW_COPY.hubInformacoes },
+    { id: 'equipe', title: FLOW_COPY.hubEquipe },
   ]
 }
 
@@ -574,11 +578,11 @@ export function successPayload(
   opts?: {
     fallbackReason?: FlowChatFallbackReason
     /** Stub hub TR-306 — sem proposta de marcação nova. */
-    hubAction?: Exclude<FlowHubAction, 'agendar'>
+    hubAction?: FlowHubStubAction
   },
 ): FlowScreenPayload {
   // Params sem `null` — o cliente Meta rejeita tipos inesperados em fechos.
-  if (opts?.hubAction) {
+  if (opts?.hubAction && isFlowHubStubAction(opts.hubAction)) {
     return {
       screen: 'SUCCESS',
       data: {
