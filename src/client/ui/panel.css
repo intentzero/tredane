@@ -2,6 +2,15 @@
 @import './tokens.css';
 @import './fonts.css';
 
+/*
+ * Raio de bolha / botão (Confirmado Paulo 04/11/2026): igual à bolha WhatsApp Web
+ * (ux-ui · .inbox-msg-bubble). Chips de filtro/etapa ficam --radius-pill.
+ */
+:root {
+  --radius-bubble: 7.5px;
+  --radius-button: var(--radius-bubble);
+}
+
 .panel-root,
 .panel-root * {
   box-sizing: border-box;
@@ -391,7 +400,7 @@
   min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   border: var(--size-border-width) solid var(--color-line-control);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-button);
   background: var(--color-surface-card);
   font-size: var(--font-size-small);
   cursor: pointer;
@@ -837,6 +846,17 @@
 .panel-app--immersive:has(> .panel-nav) .panel-shell-main:has(> .inbox-thread),
 .panel-app:has(> .panel-nav) .panel-shell-main:has(> .conversas-3col) {
   padding: 0;
+}
+
+/*
+ * Conversas lista mobile (M-54 / TR-311): full-bleed — sem gutters do
+ * .panel-shell-main; padding interno fica na busca / linha (16 px).
+ */
+@media (max-width: 767.98px) {
+  .panel-app:has(> .panel-nav) .panel-shell-main:has(> .inbox-root),
+  .panel-app--immersive:has(> .panel-nav) .panel-shell-main:has(> .inbox-root) {
+    padding: 0;
+  }
 }
 
 .panel-status {
@@ -1606,6 +1626,32 @@
   display: none;
 }
 
+/*
+ * Acompanhar mobile (TR-310): padding-inline-end generoso para pin de qualquer
+ * etapa (incl. finais) ao início; fade esquerdo quando scrollLeft > 0.
+ */
+.acomp-tabs.panel-tabs {
+  scroll-padding-inline: var(--space-4);
+  padding-inline-end: calc(100% - 48px);
+}
+
+.acomp-tabs.panel-tabs.is-scrolled {
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 var(--space-6),
+    #000 calc(100% - var(--space-6)),
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 var(--space-6),
+    #000 calc(100% - var(--space-6)),
+    transparent
+  );
+}
+
 .inbox-thread,
 .inbox-contact {
   display: flex;
@@ -1967,15 +2013,16 @@
 }
 
 .acomp-header {
-  gap: var(--space-2);
+  gap: var(--space-3);
+  padding-block: var(--space-4) var(--space-3);
 }
 
 .acomp-list {
   flex: 1;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .acomp-card-name {
@@ -2670,7 +2717,7 @@
   min-height: var(--size-control-default);
   padding: 0 var(--space-4);
   border: var(--size-border-width) solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-button);
   font: inherit;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-semibold);
@@ -3463,7 +3510,7 @@
 
 .inbox-msg-bubble {
   padding: var(--space-2) var(--space-3);
-  border-radius: 18px;
+  border-radius: var(--radius-bubble);
   background: var(--color-surface-card);
   border: var(--size-border-width) solid var(--color-line-border);
 }
@@ -9289,7 +9336,7 @@
   display: flow-root;
   padding: 6px 7px 8px 9px;
   border: 0;
-  border-radius: 7.5px;
+  border-radius: var(--radius-bubble);
   background: var(--chat-in);
   filter: drop-shadow(0 1px 0.5px var(--chat-shadow));
   line-height: 1.35;
@@ -9298,7 +9345,7 @@
 .inbox-msg-in .inbox-msg-bubble,
 .inbox-msg-out .inbox-msg-bubble {
   border: 0;
-  border-radius: 7.5px;
+  border-radius: var(--radius-bubble);
 }
 
 .inbox-msg-out .inbox-msg-bubble {
@@ -9386,7 +9433,7 @@
   margin: 10px 0 2px;
   padding: 5px 12px;
   border: 0;
-  border-radius: 7.5px;
+  border-radius: var(--radius-bubble);
   background: var(--color-surface-card);
   box-shadow: 0 1px 0.5px var(--chat-shadow);
   color: var(--color-text-secondary);

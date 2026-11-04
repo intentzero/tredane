@@ -120,6 +120,14 @@ describe('DEC-086 post-booking follow-up', () => {
       expect(again.status).toBe('queued')
       if (again.status === 'queued') expect(again.duplicate).toBe(true)
 
+      // Simula badge a chamar a atendente (mensagem inbound / clique WA).
+      db.run(
+        `UPDATE conversations SET unread_count = 3, updated_at = ? WHERE tenant_id = ? AND id = ?`,
+        clock.nowMs(),
+        'clinic-demo-a',
+        conversationId,
+      )
+
       const click = handlePostBookingButtonClick(
         db,
         {
@@ -133,6 +141,15 @@ describe('DEC-086 post-booking follow-up', () => {
       expect(click.handled).toBe(true)
       if (!click.handled || click.action !== 'thanks') return
       expect(click.closedOpportunityId).toBeNull()
+      expect(click.outbox.some((row) => row.type === 'conversation.read')).toBe(true)
+
+      const unread = db.get<{ unread_count: number; status: string }>(
+        `SELECT unread_count, status FROM conversations WHERE id = ?`,
+        conversationId,
+      )
+      expect(unread?.unread_count).toBe(0)
+      // Encerrar (status closed) fica fora deste recorte — só o badge some.
+      expect(unread?.status).not.toBe('closed')
 
       const closed = db.get<{ stage: string; status: string }>(
         `SELECT stage, status FROM opportunities WHERE id = ?`,
@@ -367,6 +384,12 @@ describe('DEC-086 post-booking follow-up', () => {
         { conversationId, appointmentId: booked.value.id },
         clock,
       )
+      db.run(
+        `UPDATE conversations SET unread_count = 2, updated_at = ? WHERE tenant_id = ? AND id = ?`,
+        clock.nowMs(),
+        'clinic-demo-a',
+        conversationId,
+      )
       const click = handlePostBookingButtonClick(
         db,
         {
@@ -381,7 +404,13 @@ describe('DEC-086 post-booking follow-up', () => {
       if (!click.handled || click.action !== 'thanks') return
       expect(click.closedOpportunityId).toBeNull()
       expect(click.outbox.some((row) => row.type === 'booking_frame.updated')).toBe(true)
+      expect(click.outbox.some((row) => row.type === 'conversation.read')).toBe(true)
       expect(getBookingFrame(db, 'clinic-demo-a', conversationId)).toBeNull()
+      const unreadAfter = db.get<{ unread_count: number }>(
+        `SELECT unread_count FROM conversations WHERE id = ?`,
+        conversationId,
+      )
+      expect(unreadAfter?.unread_count).toBe(0)
 
       const stage = findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)
       expect(stage?.id).toBe(opp.id)

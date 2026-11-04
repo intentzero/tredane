@@ -2,6 +2,7 @@
  * DEC-086 — follow-up pós-agendamento com botões.
  * «Não, obrigado» agradece, não muda a etapa e fecha a sessão conversacional
  * (BookingFrame, pergunta pendente e última oferta — o mesmo clear do recomeço/idle).
+ * Também zera o badge de não lidas da conversa (atenção do painel).
  * O compromisso confirmado fica. «Quero agendar outro serviço» abre nova intenção.
  */
 import type { Clock } from '../../db/clock'
@@ -9,10 +10,11 @@ import { writeOperationalAudit } from '../audit'
 import { clearBookingFrame } from '../ai/schedule-session'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller, workerCaller } from '../envelopes'
+import { clearConversationUnread } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { messagingWindowForConversation } from '../inbox/window'
 import { assertClinicSchemaReady } from '../migrations'
-import type { OutboxRow } from '../outbox'
+import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { PROPOSAL_BUTTON_TITLE_MAX } from '../proposals/render'
 import { clearConversationIdle } from './idle-state'
 import type { ClinicDb } from '../store'
@@ -190,6 +192,7 @@ export type PostBookingButtonResult =
 /**
  * Processa clique nos botões de follow-up. Não marca horário (DEC-061 intacto).
  * Os dois botões limpam o BookingFrame na mesma TX da saída (ADR-0015).
+ * «Não, obrigado» também zera `unread_count` e emite `conversation.read`.
  */
 export function handlePostBookingButtonClick(
   db: ClinicDb,
@@ -211,7 +214,8 @@ export function handlePostBookingButtonClick(
 
   if (parsed.action === 'thanks') {
     // Fim do pós-agendamento (ADR-0015): agradece e apaga o funil. Não cancela
-    // o compromisso nem move a etapa (DEC-086).
+    // o compromisso nem move a etapa (DEC-086). Zera unread para o badge da
+    // lista deixar de chamar a atendente (Paulo, 2026-11-04).
     const thanks = sendOutboundMessageOp(
       db,
       caller,
@@ -221,9 +225,30 @@ export function handlePostBookingButtonClick(
         clientRequestId: `followup.postbook.thanks:${parsed.appointmentId}:${input.providerEventKey ?? 'x'}`,
         authorClerkUserId: FOLLOWUP_ACTOR,
         authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-        afterPersist: ({ db: txDb, tenantId, conversationId }) => {
-          const ob = clearBookingFrame(txDb, tenantId, conversationId, clock)
-          return ob ? [ob] : []
+        afterPersist: ({ db: txDb, tenantId, conversationId, now }) => {
+          const out: OutboxRow[] = []
+          const frameOb = clearBookingFrame(txDb, tenantId, conversationId, clock)
+          if (frameOb) out.push(frameOb)
+          clearConversationUnread(txDb, tenantId, conversationId, now)
+          out.push(
+            insertOutboxEvent(
+              txDb,
+              {
+                tenantId,
+                type: 'conversation.read',
+                aggregateType: 'conversation',
+                aggregateId: conversationId,
+                idempotencyKey: `conversation.read:${conversationId}:${now}:post_booking_thanks`,
+                payload: {
+                  conversationId,
+                  unreadCount: 0,
+                  reason: 'post_booking_thanks',
+                },
+              },
+              clock,
+            ),
+          )
+          return out
         },
       },
       clock,

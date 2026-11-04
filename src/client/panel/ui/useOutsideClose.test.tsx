@@ -107,4 +107,30 @@ describe('painéis laterais (CSS)', () => {
     expect(css).toMatch(/\.inbox-row-name\s*\{[^}]*font-size:\s*var\(--font-size-title\)/s)
     expect(css).toMatch(/\.inbox-row-preview\s*\{[^}]*font-size:\s*var\(--font-size-body\)/s)
   })
+
+  it('Conversas mobile TR-311: shell flush quando filho directo é .inbox-root (<768)', () => {
+    expect(css).toMatch(
+      /@media\s*\(max-width:\s*767\.98px\)\s*\{[^}]*\.panel-shell-main:has\(\s*>\s*\.inbox-root\s*\)/s,
+    )
+  })
+
+  it('Acompanhar TR-310: acomp-tabs com padding-end generoso e fade esquerdo em is-scrolled', () => {
+    expect(css).toMatch(
+      /\.acomp-tabs\.panel-tabs\s*\{[^}]*padding-inline-end:\s*calc\(100%\s*-\s*48px\)/s,
+    )
+    expect(css).toMatch(/\.acomp-tabs\.panel-tabs\.is-scrolled\s*\{/)
+  })
+
+  it('Botões TR-315: --radius-button = bolha 7.5px; chips ficam pill', () => {
+    expect(css).toMatch(/--radius-bubble:\s*7\.5px/)
+    expect(css).toMatch(/--radius-button:\s*var\(--radius-bubble\)/)
+    const btn = css.match(
+      /\.panel-btn,\s*\.panel-btn-primary,\s*\.panel-btn-secondary,\s*\.panel-btn-ghost,\s*\.panel-btn-danger\s*\{([^}]*)\}/,
+    )?.[1]
+    expect(btn).toMatch(/border-radius:\s*var\(--radius-button\)/)
+    const chip = css.match(/\.panel-chip\s*\{([^}]*)\}/)?.[1]
+    expect(chip).toMatch(/border-radius:\s*var\(--radius-pill\)/)
+    const move = css.match(/\.panel-move\s*\{([^}]*)\}/)?.[1]
+    expect(move).toMatch(/border-radius:\s*var\(--radius-button\)/)
+  })
 })
