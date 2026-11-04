@@ -22,6 +22,8 @@ Atrair clínicas de estética para o piloto. Leitora principal: dona ou respons�
 
 ## Revisão visual e de copy (04/11/2026)
 
+- **Implementação responsiva para revisão em staging (04/11/2026):** a nova conversa aprovou o hero escuro e a jornada simplificada em desktop e celular. A página em `site/src/pages/index.astro` apresenta conversa → proposta → confirmação, três passos e três garantias de controle humano. Ela identifica a demonstração como ilustrativa. O e-mail comercial e o endereço do painel só aparecem quando configurados com valores que não sejam `.example`; enquanto isso, o bloco do piloto informa que o canal de contato será divulgado. Os mocks antigos em `docs/design/landing` continuam desatualizados; esta implementação ainda exige revisão visual no staging e não autoriza publicação em produção.
+
 - **Direção «Luz»** (fundo quase branco, texto Tinta, Petróleo só na ação, Damasco em um único detalhe, cantos arredondados): escolhida entre três aberturas apresentadas em conversa com o responsável pelo produto ("Opção 1 · Luz", 04/11/2026). **Confirmado** como direção visual; o mock aprovado está no canvas de design e **ainda não** foi exportado para `docs/design/landing` (os `.dc.html` e previews de lá seguem na v7 e ficam **desatualizados** até essa exportação).
 - **Fonte:** Geist (Google Fonts, licença SIL OFL) hospedada no próprio site, no lugar da Inter, só no site; o painel segue em Roboto (DEC-073). **Proposto**; conferir a licença antes de publicar.
 - **Cores:** só a paleta da marca (DEC-050) e neutros próprios do site (`#FAFAF8`, `#E4E6E3`, `#5A6463`); Damasco nunca como texto sobre claro (contraste 2,31 : 1). **Proposto**; rodar a verificação de contraste antes de publicar.
