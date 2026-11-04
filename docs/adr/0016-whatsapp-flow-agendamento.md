@@ -1,6 +1,6 @@
 # ADR-0016 — WhatsApp Flow de agendamento
 
-- **Estado:** **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A — promover o ADR). A [DEC-138](../product/decisions.md) fixa o caminho de produto; este ADR fixa o desenho de engenharia. A **implementação** e os pré-requisitos Meta continuam na [#514](https://github.com/intentzero/tredane/issues/514). Os itens da secção 13 permanecem **Em aberto**.
+- **Estado:** **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A — promover o ADR). A [DEC-138](../product/decisions.md) fixa o caminho de produto; este ADR fixa o desenho de engenharia. A **implementação** e os pré-requisitos Meta continuam na [#514](https://github.com/intentzero/tredane/issues/514). Na secção 13, o item 6 (Sim/Corrigir) ficou **Confirmado**; os restantes permanecem **Em aberto**.
 - **Origem:** issue [#513](https://github.com/intentzero/tredane/issues/513); [DEC-138](../product/decisions.md) (Confirmado, Paulo, 03/11/2026, com a revisão «Eu queria avançar desde já para flow»); secção «Agendar sem perder o pedido» do [épico](../implementation/epic-nucleo-conversacional.md).
 - **Complementa:** [ADR-0012](0012-clinic-durable-object-sqlite.md) (um Durable Object por clínica) e [ADR-0015](0015-estado-persistente-da-conversa.md) (um `BookingFrame` por conversa). Não altera DEC-061, DEC-079, DEC-083, DEC-104 nem DEC-127.
 - **Escopo:** desenho do Flow (ecrãs, `data_exchange`, cifra, `nfm_reply`, versões, pré-requisitos Meta, copy C1–C15 Confirmada, testes). **Não** é implementação.
@@ -233,10 +233,9 @@ A [#515](https://github.com/intentzero/tredane/issues/515) apaga esse envio. A [
 - Confirmar da proposta versionada (DEC-061)
 - Falar com a equipe, nas respostas automáticas e como botão da proposta (DEC-083)
 - Follow-ups já decididos: «Não, obrigado» / «Quero outro serviço» (DEC-086) e prosseguir / terminar no idle (DEC-087)
+- Botões **Sim / Corrigir** do eco da DEC-137 no caminho de texto livre (**Confirmado**, Paulo, 04/11/2026 America/Sao_Paulo, opção A; fecha o Em aberto da [#515](https://github.com/intentzero/tredane/issues/515)). O texto livre continua; o eco continua a ser obrigatório nesse caminho; Sim não marca (DEC-061); Corrigir volta a perguntar as zonas. Não são o M5 de serviço/hora; são a confirmação do que o texto livre percebeu.
 
 **Proposto (fica também):** Alterar detalhes da proposta. É acção da DEC-061, não é lista de escolha do M5. A DEC-138 não o lista na frase «ficam», mas também não o manda retirar.
-
-**Em aberto (DEC-138):** os botões Sim e Corrigir do eco da DEC-137. Recomendação: **manter**. O texto livre continua, o eco continua a ser obrigatório antes de Horários nesse caminho, e Sim não marca. Corrigir volta a perguntar as zonas. Não são o M5 de serviço/hora; são a confirmação do que o texto livre percebeu. Se o Paulo os retirar, o eco fica só em texto e este ADR revê-se.
 
 ## 10. Copy para aprovação do Paulo
 
@@ -275,7 +274,7 @@ Exemplos fictícios. `{serviço}` é o nome do cadastro, não texto fixo.
 
 **Confirmado:** DEC-061 (só o botão marca), DEC-079 (género da variante, nada sobre a pessoa), DEC-083 (equipe e pausa), DEC-104 (frase nova só com o Paulo), DEC-127 (validade da oferta, um quadro, `catalogVersion`). Pix, sala, profissional e preço editável continuam fora do Flow (DEC-138).
 
-**Confirmado** (Paulo, 04/11/2026, opção A): o desenho das secções 2 a 7, 9 (Alterar detalhes) e 11. **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A): a copy C1–C15 da secção 10. Os itens da secção 13 continuam **Em aberto**.
+**Confirmado** (Paulo, 04/11/2026, opção A): o desenho das secções 2 a 7, 9 (Alterar detalhes) e 11. **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A): a copy C1–C15 da secção 10. Na secção 13, o item 6 (Sim/Corrigir) ficou **Confirmado**; os restantes permanecem **Em aberto**.
 
 ## 13. Em aberto
 
@@ -284,7 +283,7 @@ Exemplos fictícios. `{serviço}` é o nome do cadastro, não texto fixo.
 3. Cifra da data API 4.0, se o guia deixar de ser o algoritmo da 3.0.
 4. Hostname do endpoint de teste, se o token actual tem os scopes, se o negócio está verificado, se a chave pública já está no número, se o WABA subscreve o campo `flows`, e se o App Review pede mais alguma permissão para este WABA.
 5. Remarcação (DEC-091) dentro deste Flow. Recomendação: fora deste recorte.
-6. Botões Sim / Corrigir do eco (DEC-137). Recomendação: manter.
+6. ~~Botões Sim / Corrigir do eco (DEC-137).~~ **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A): **mantêm-se**. Ver secção 9 e [#515](https://github.com/intentzero/tredane/issues/515).
 7. Mais de 200 serviços agendáveis, ou mais de 19 variantes numa linha. Recomendação: o chat assume.
 8. Orçamento de tempo da previsão (DEC-077) dentro dos 10 s do endpoint.
 9. Nome do Worker secret da chave privada. Recomendação: `WHATSAPP_FLOW_PRIVATE_KEY`.

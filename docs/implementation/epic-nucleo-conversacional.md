@@ -70,7 +70,7 @@ As issues da mesma ordem podem avançar em paralelo. M2 em diante corre primeiro
 | 2 | [#507](https://github.com/intentzero/tredane/issues/507) | F1-1: o id do horário leva data e hora; título `terça 03/11 17:00` (o Flow usa o mesmo id) | — |
 | 2 | [#510](https://github.com/intentzero/tredane/issues/510) | F1-4: um só quadro para toque, texto, correção e Flow (práticas 4, 6, 7, 9); proposta lê o `BookingFrame`; provenance tipa `'flow'` para #514 | — |
 | 3 | [#514](https://github.com/intentzero/tredane/issues/514) | F2-2: implementar o Flow, sem flag; teste no WABA da clínica de teste antes do merge | #513, #507, #510, copy aprovada, pré-requisitos Meta |
-| 4 | [#515](https://github.com/intentzero/tredane/issues/515) | F2-3: retirar as listas e botões de escolha do M5 | #514 |
+| 4 | [#515](https://github.com/intentzero/tredane/issues/515) | F2-3: retirar as listas e botões de escolha do M5; **Sim/Corrigir do eco (DEC-137) mantêm-se** (Paulo, 04/11/2026, opção A) | #514 |
 
 **Pré-requisitos na Meta (Paulo, fora do código):** app Meta com acesso a WhatsApp Flows no WABA da clínica de teste; permissão para publicar Flows e registar a chave pública de cifra; URL pública do endpoint de dados no ambiente de teste. Os nomes exactos das permissões e passos ficam **a confirmar na documentação vigente da Meta** no ADR-0016.
 
