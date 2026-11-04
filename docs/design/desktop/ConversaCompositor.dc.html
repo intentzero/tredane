@@ -62,11 +62,11 @@ button:focus-visible,input:focus-visible{outline:2px solid #0E5A5C;outline-offse
 
   <header style="display:flex;flex-direction:column;gap:6px">
     <h1 style="margin:0;font-size:24px;font-weight:600;letter-spacing:-.01em">Compositor — estados</h1>
-    <p style="margin:0;font-size:14px;color:var(--mu)">Uma barra flutuante sobre o fundo da conversa. Os avisos viram pílulas acima dela; Sugerir resposta, Horários livres e Enviar vivem dentro dela.</p>
+    <p style="margin:0;font-size:14px;color:var(--mu)">Uma barra flutuante sobre o fundo da conversa. Os avisos viram pílulas acima dela; Sugerir resposta e Enviar vivem dentro dela. Agendar fica só no cabeçalho.</p>
   </header>
 
   <section class="st" aria-label="Vazio">
-    <h2 class="lbl">1 · Vazio, janela aberta <span>Enviar desativado; horários livres e IA à mão</span></h2>
+    <h2 class="lbl">1 · Vazio, janela aberta <span>Enviar desativado; IA à mão</span></h2>
     <div class="wp">
       <svg class="bg" aria-hidden="true" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#wpc)"></rect></svg>
       <div class="pills">
@@ -75,7 +75,6 @@ button:focus-visible,input:focus-visible{outline:2px solid #0E5A5C;outline-offse
       <div class="bar">
         <span class="ph">Escreva uma mensagem</span>
         <button type="button" class="ib" aria-label="Sugerir resposta com IA" style="color:var(--ai)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"></path><path d="M18.5 14.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"></path></svg></button>
-        <button type="button" class="ib" aria-label="Enviar horários livres"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5M16 2v4M8 2v4M3 10h5"></path><circle cx="16" cy="16" r="6"></circle><path d="M16 14v2.2l1.6 1"></path></svg></button>
         <button type="button" class="snd" aria-label="Enviar" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l-.01 6.53L15 12 3.39 13.87z"></path></svg></button>
       </div>
     </div>
@@ -91,7 +90,6 @@ button:focus-visible,input:focus-visible{outline:2px solid #0E5A5C;outline-offse
       <div class="bar">
         <div class="tx">Juliana, consegui às 16h na quinta, 6/11, com a Ana.<br>Quer que eu deixe reservado? O sinal é de R$ 50 por Pix.</div>
         <button type="button" class="ib" aria-label="Sugerir resposta com IA" style="color:var(--ai)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"></path><path d="M18.5 14.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"></path></svg></button>
-        <button type="button" class="ib" aria-label="Enviar horários livres"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5M16 2v4M8 2v4M3 10h5"></path><circle cx="16" cy="16" r="6"></circle><path d="M16 14v2.2l1.6 1"></path></svg></button>
         <button type="submit" class="snd go" aria-label="Enviar"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l-.01 6.53L15 12 3.39 13.87z"></path></svg></button>
       </div>
     </div>
@@ -118,7 +116,6 @@ button:focus-visible,input:focus-visible{outline:2px solid #0E5A5C;outline-offse
       <div class="bar">
         <span class="ph">Escreva uma mensagem</span>
         <button type="button" class="ib on" aria-label="Sugestão da IA aberta" aria-pressed="true" style="color:var(--ai)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"></path><path d="M18.5 14.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"></path></svg></button>
-        <button type="button" class="ib" aria-label="Enviar horários livres"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5M16 2v4M8 2v4M3 10h5"></path><circle cx="16" cy="16" r="6"></circle><path d="M16 14v2.2l1.6 1"></path></svg></button>
         <button type="button" class="snd" aria-label="Enviar" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l-.01 6.53L15 12 3.39 13.87z"></path></svg></button>
       </div>
     </div>

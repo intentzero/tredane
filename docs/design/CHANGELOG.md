@@ -1,17 +1,21 @@
 # Histórico do design
 
+## 04/11/2026 — Faixa Horários livres sai da conversa (**Confirmado**)
+
+- **Confirmado (Paulo, 04/11/2026, «Não quero isto»):** remove a faixa **Horários livres** e o ícone do compositor (carga cognitiva; redundante com **Agendar** no cabeçalho). Agendar / TEL-05 é o único caminho de marcação da atendente na thread. Mocks `ConversaCompositor` e `ConversaWhatsappWeb` sem o ícone; `FreeSlotsStrip.tsx` removido. Spec em `ux-ui.md`.
+
 ## 04/11/2026 — «Reservar bloco» sai do ⋮ da conversa (**Confirmado**)
 
 - **Confirmado (Paulo, 04/11/2026, Opção A):** M-55 e `ConversasControlesMenu` sem «Reservar bloco»; agendamento a partir da conversa é só **Agendar** no cabeçalho. Modo Horário exato | Por período fora do chrome da conversa (Opção B adiada). M-39 permanece alcançável pelo Agendar da Agenda. Spec em `ux-ui.md`.
 
-## 02/11/2026 — Horários livres bloqueia serviço com variantes (**Confirmado**)
+## 02/11/2026 — Horários livres bloqueia serviço com variantes (**Confirmado**; supersedido 04/11)
 
-- **Confirmado (Paulo, 02/11/2026):** na faixa **Horários livres** do compositor, serviço com variantes (ex. Depilação) não mostra grade nem «Colocar no campo»; hint para usar **Agendar** no cabeçalho. Espelha o bloqueio já feito no atalho de Pix de sinal. Sem picker de variantes na faixa; TEL-05 sem mudança. `FreeSlotsStrip.tsx`.
+- **Confirmado (Paulo, 02/11/2026):** na faixa **Horários livres** do compositor, serviço com variantes (ex. Depilação) não mostra grade nem «Colocar no campo»; hint para usar **Agendar** no cabeçalho. **Supersedido em 04/11/2026:** a faixa foi removida por completo.
 
 ## 01/11/2026 — Conversa ao estilo WhatsApp Web e compositor em barra (**Confirmado**)
 
 - Novos mocks `desktop/ConversaWhatsappWeb`, `ConversaCompositor` e `ConversaBolhas`, com previews PNG. Substituem o thread de `ConversasDesktopPropostaThread` como referência da conversa aberta; a lista não muda.
-- **Confirmado e implementado (Paulo, 01/11/2026, «Sim, implementa»):** fundo com textura própria (claro e escuro), bolhas sem borda com sombra e cauda na primeira do grupo, hora em linha, remetente no início do grupo, chips centrais para data e eventos, margem de 7 % e bolhas até 65 % no desktop; compositor em barra flutuante com Sugerir resposta e Horários livres como ícones e avisos em pílulas. `InboxThread.tsx`, `FreeSlotsStrip.tsx` (abertura controlada pelo ícone) e `panel.css`.
+- **Confirmado e implementado (Paulo, 01/11/2026, «Sim, implementa»):** fundo com textura própria (claro e escuro), bolhas sem borda com sombra e cauda na primeira do grupo, hora em linha, remetente no início do grupo, chips centrais para data e eventos, margem de 7 % e bolhas até 65 % no desktop; compositor em barra flutuante com Sugerir resposta (e, até 04/11/2026, Horários livres) como ícones e avisos em pílulas. `InboxThread.tsx` e `panel.css`.
 - Cores fora de `tokens.json`, locais à conversa em `panel.css` (`--chat-*`): fundo `#EFEAE2` / `#0B1413`, enviada `#D9F2EE` / `#163A38`, lida `#2A7FBF` / `#6CC4F0`. Fora: botão «+» do compositor.
 
 ## 31/10/2026 — Clínica: menos carga cognitiva (**Proposto**)
