@@ -49,14 +49,16 @@
           {
             "type": "Form",
             "name": "servico_form",
+            "init-values": {
+              "service_id": "${data.service_init}"
+            },
             "children": [
               {
                 "type": "Dropdown",
                 "label": "Serviço",
                 "name": "service_id",
                 "required": true,
-                "data-source": "${data.services}",
-                "init-value": "${data.service_init}"
+                "data-source": "${data.services}"
               },
               {
                 "type": "Footer",

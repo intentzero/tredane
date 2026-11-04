@@ -8,6 +8,8 @@
  * `docs/flow-json-tredane-booking-staging.json`). Não publica sozinho.
  * `service_init` e `description` nas variantes exigem republicar antes do
  * Worker que os envia — senão a Meta responde `payload-schema-error`.
+ * Pré-seleção do serviço: `Form.init-values.service_id` = `${data.service_init}`.
+ * `init-value` no Dropdown é ilegal dentro de Form (Flow JSON 7.3).
  */
 export const FLOW_JSON_VERSION = '7.3'
 export const FLOW_DATA_API_VERSION = '4.0'

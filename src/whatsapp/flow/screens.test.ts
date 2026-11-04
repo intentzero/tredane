@@ -520,7 +520,11 @@ describe('booking-flow.json (contrato a republicar na Meta)', () => {
   })
 
   it('SERVICO pré-seleciona por service_init; variantes têm description e sem Todas', () => {
-    expect(component('SERVICO', 'Dropdown')['init-value']).toBe('${data.service_init}')
+    const dropdown = component('SERVICO', 'Dropdown')
+    expect(dropdown['init-value']).toBeUndefined()
+    expect(component('SERVICO', 'Form')['init-values']).toEqual({
+      service_id: '${data.service_init}',
+    })
     expect(Object.keys(screen('SERVICO').data).sort()).toEqual([
       'body',
       'error_message',

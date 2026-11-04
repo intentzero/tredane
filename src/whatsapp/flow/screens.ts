@@ -176,7 +176,8 @@ export function flowVisitTotalLine(input: {
 /**
  * Serviço a pré-selecionar no dropdown de entrada.
  * Um só agendável, ou o id que o turno já gravou e que continua na lista.
- * String vazia = a cliente ainda escolhe. Não grava id falso.
+ * O JSON liga isto em `Form.init-values.service_id` (não em `Dropdown.init-value`,
+ * ilegal dentro de Form). String vazia = a cliente ainda escolhe. Não grava id falso.
  */
 export function prefillServiceId(
   services: readonly FlowCatalogService[],
@@ -361,7 +362,8 @@ export function nextFlowScreen(input: {
       serviceId = service.id
     } else {
       // JSON publicado: Dropdown em SERVICO (body, services, service_init,
-      // error_message). `service_init` alimenta init-value. Sem chaves a mais.
+      // error_message). `service_init` alimenta Form.init-values.service_id.
+      // Dropdown dentro de Form não aceita init-value (validador Meta).
       return {
         screen: 'SERVICO',
         data: screenData(serviceScreenFields(services, input.frame), input.errorMessage),
