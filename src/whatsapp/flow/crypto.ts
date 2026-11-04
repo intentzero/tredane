@@ -3,12 +3,18 @@
  * Algoritmo documentado para data API 3.0 (também usado com 4.0 até a Meta
  * documentar outro): RSA-OAEP SHA-256 + AES-128-GCM; resposta com IV invertido.
  *
+ * A Meta envia `initial_vector` de **16 bytes** (128 bits) — ver tabela do
+ * guia «Implement endpoints for Flows» e o exemplo `G/1rq1naEOMR4TJHFvIs/Q==`.
+ * AES-GCM clássico usa 12 bytes; aceitamos 12 (testes L1) e 16 (Meta).
+ *
  * A chave privada vive só em `WHATSAPP_FLOW_PRIVATE_KEY` (Worker secret).
  * Nunca logar corpo decifrado, response_json ou a chave.
  */
 
 const AES_TAG_BITS = 128
 const AES_KEY_BITS = 128
+/** Meta: 16; testes L1 legados: 12. */
+const FLOW_IV_LENGTHS = new Set([12, 16])
 
 function b64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
   const bin = atob(b64)
@@ -120,7 +126,7 @@ export async function decryptFlowRequest(
   const iv = b64ToBytes(body.initial_vector)
   const cipherWithTag = b64ToBytes(body.encrypted_flow_data)
 
-  if (iv.length !== 12) throw new Error('flow_iv_invalid')
+  if (!FLOW_IV_LENGTHS.has(iv.length)) throw new Error('flow_iv_invalid')
   if (cipherWithTag.length <= 16) throw new Error('flow_cipher_invalid')
 
   let rawAes: ArrayBuffer
@@ -206,7 +212,8 @@ export async function encryptFlowRequestForTest(
   payload: unknown,
 ): Promise<FlowEncryptedRequest> {
   const rawAes = crypto.getRandomValues(new Uint8Array(AES_KEY_BITS / 8))
-  const iv = crypto.getRandomValues(new Uint8Array(12))
+  // 16 bytes = IV que a Meta usa no health check / data_exchange.
+  const iv = crypto.getRandomValues(new Uint8Array(16))
   const aesKey = await crypto.subtle.importKey(
     'raw',
     rawAes,

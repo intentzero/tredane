@@ -128,7 +128,12 @@ export function createTokenBackedSessionStore(ops: {
 export type HandleFlowDataRequestResult =
   | { status: 200; body: string; contentType: 'text/plain' }
   | { status: 200; body: Record<string, unknown>; contentType: 'application/json' }
-  | { status: 421 | 427 | 432 | 503; body: Record<string, unknown> }
+  | {
+      status: 421 | 427 | 432 | 503
+      body: Record<string, unknown>
+      /** Códigos estáveis (sem PEM/payload) para o log do Worker. */
+      logDetail?: Record<string, string>
+    }
 
 function asFallbackReason(reason: string): FlowChatFallbackReason {
   if (
@@ -197,8 +202,15 @@ export async function handleFlowDataRequest(input: {
   let decrypted: Awaited<ReturnType<typeof decryptFlowRequest>>
   try {
     decrypted = await decryptFlowRequest(privateKey, encrypted)
-  } catch {
-    return { status: 421, body: { error: 'decrypt_failed' } }
+  } catch (err) {
+    // Razão estável (flow_iv_invalid, flow_aes_key_decrypt_failed, …) só para
+    // log do Worker — Meta só vê decrypt_failed / 421.
+    const reason = err instanceof Error ? err.message : 'decrypt_failed'
+    return {
+      status: 421,
+      body: { error: 'decrypt_failed' },
+      logDetail: { reason },
+    }
   }
 
   const parsed = parseActionPayload(decrypted.payload)
