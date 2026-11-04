@@ -159,7 +159,10 @@ export function createWhatsappFlowRoutes(opts: WhatsappFlowRouteOptions = {}) {
     defaultLog({
       level: result.status >= 400 ? 'warn' : 'info',
       event: 'whatsapp_flow.endpoint',
-      detail: { status: result.status },
+      detail: {
+        status: result.status,
+        ...('logDetail' in result && result.logDetail ? result.logDetail : {}),
+      },
     })
 
     if (result.status === 200 && 'contentType' in result && result.contentType === 'text/plain') {
