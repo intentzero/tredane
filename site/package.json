@@ -9,7 +9,9 @@
     "preview": "astro preview",
     "check": "astro check",
     "build:staging": "SITE_URL=https://staging.tredane.com PUBLIC_NOINDEX=1 astro build",
-    "deploy:staging": "npm run build:staging && wrangler deploy --env staging"
+    "build:production": "SITE_URL=https://tredane.com astro build",
+    "deploy:staging": "npm run build:staging && wrangler deploy --env staging",
+    "deploy:production": "npm run build:production && wrangler deploy --env production"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.12",

@@ -1,7 +1,8 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   // Landing page pública, separada do painel (DEC-044). Só arquivos estáticos, sem Worker nem dados.
-  // Deploy: npm run deploy:staging (em site/). Conta Cloudflare deve ser a que possui a zona tredane.com.
+  // Deploy: npm run deploy:staging | deploy:production (em site/), ou Actions → Deploy landing.
+  // Conta Cloudflare deve ser a que possui a zona tredane.com.
   "name": "tredane-site",
   "compatibility_date": "2026-10-23",
   "assets": {
