@@ -18,7 +18,16 @@ Atrair clínicas de estética para o piloto. Leitora principal: dona ou respons�
 | **Versões v3 a v7 (24/10/2026):** o mock em `design/landing` é a v7 do canvas; o site acrescenta os conceitos de DEC-045 e DEC-046 e, onde divergirem, vale o site e seus previews. Mensagem orientada a valor (“Cada mensagem no WhatsApp vira um horário na agenda”), seção “Por que o Tredane” (Hoje × Com o Tredane), faixa escura da IA, seção da agenda, sem a palavra “pipeline” (DEC-045) e com as respostas da IA de DEC-046 | **Confirmado** (pedido do responsável) |
 | Extensões visuais só do site: sombras, fundo de pontos, faixa escura com `text.primary` de fundo e `line.disabled` como texto secundário | **Confirmado** (24/10/2026) |
 | Tecnologia: **Astro**, gerando HTML estático (24/10/2026, escolha do responsável), em `site/`, com pacote próprio e independente do painel; servido por Cloudflare Workers com arquivos estáticos (`site/wrangler.jsonc`, pasta `dist`) | **Confirmado** |
-| Sem JavaScript no navegador, sem fontes ou scripts de terceiros; Inter hospedada no próprio site (`@fontsource/inter`, licença SIL OFL, a conferir antes de publicar, [ADR-0013](../adr/0013-design-system-components.md)) | **Proposto** |
+| Sem JavaScript no navegador, sem fontes ou scripts de terceiros; Geist hospedada no próprio site (`@fontsource/geist`, licença SIL OFL, a conferir antes de publicar, [ADR-0013](../adr/0013-design-system-components.md)) | **Proposto** |
+
+## Revisão visual e de copy (04/11/2026)
+
+- **Direção «Luz»** (fundo quase branco, texto Tinta, Petróleo só na ação, Damasco em um único detalhe, cantos arredondados): escolhida entre três aberturas apresentadas em conversa com o responsável pelo produto ("Opção 1 · Luz", 04/11/2026). **Confirmado** como direção visual; o mock aprovado está no canvas de design e **ainda não** foi exportado para `docs/design/landing` (os `.dc.html` e previews de lá seguem na v7 e ficam **desatualizados** até essa exportação).
+- **Fonte:** Geist (Google Fonts, licença SIL OFL) hospedada no próprio site, no lugar da Inter, só no site; o painel segue em Roboto (DEC-073). **Proposto**; conferir a licença antes de publicar.
+- **Cores:** só a paleta da marca (DEC-050) e neutros próprios do site (`#FAFAF8`, `#E4E6E3`, `#5A6463`); Damasco nunca como texto sobre claro (contraste 2,31 : 1). **Proposto**; rodar a verificação de contraste antes de publicar.
+- **Copy:** nova mensagem «A cliente marca pelo WhatsApp. A recepção respira.», seção de atendimento automático, seção «Para a recepção» (Assumir/Devolver, «Precisa de alguém», prefixo `[Nome]` da DEC-088) e perguntas frequentes revistas. **Proposto**.
+- **Sem alteração:** o resto das decisões da DEC-044 (sem formulário, e-mail como contato, sem «em desenvolvimento», nota «Telas ilustrativas, com nomes e valores fictícios»).
+- **Em aberto (bloqueia a publicação):** os mesmos itens da tabela final, mais a regeneração de `og-image.png` (ainda mostra a identidade antiga) e a nova medição de LP-AC-06.
 
 ## Seções e regras de conteúdo (v7, aprovada em 24/10/2026)
 
@@ -26,7 +35,7 @@ Atrair clínicas de estética para o piloto. Leitora principal: dona ou respons�
 2. **Abertura:** “Menos peso na recepção. Do primeiro ‘oi’ ao horário marcado.”, selo “Para clínicas de estética e depilação · Piloto aberto”, três garantias, nota “Telas ilustrativas, com nomes e valores fictícios” e composição do produto (`role="img"`, sem controles reais).
 3. **O que pesa hoje:** “Atender no WhatsApp cansa. Não precisa ser assim.” Quatro pares “O que fica na sua cabeça × O que o Tredane carrega”. A coluna da esquerda é **hipótese** (VAL-01), a validar antes de publicar; a da direita usa só decisões confirmadas.
 4. **Como funciona:** quatro passos, do WhatsApp ao horário confirmado.
-5. **IA (faixa escura):** garantias: só sugere e nunca envia; preço só do cadastro; explica com o texto da clínica; saúde vai para a profissional; o mínimo de dados; “Firme e gentil quando preciso” (DEC-046). Mensagens ofensivas têm **só esta menção leve**, por decisão do responsável.
+5. **Atendimento automático (painel escuro):** garantias alinhadas às decisões de atendimento (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115): só marca quando a cliente toca em Confirmar; preço só do cadastro; «Falar com a equipe» em toda resposta; saúde, remarcação e cancelamento vão para a equipe; honesta sobre ser assistente e para quando a cliente pede; a responsável pausa as marcações. **Substitui** a versão v7 («só sugere e nunca envia»), que já não descreve o produto confirmado. Estado: **Proposto** até revisão do texto pelo responsável.
 6. **Agenda:** salas, intervalo, bloqueio e próximo horário possível (DEC-008).
 7. **Sinal por Pix:** direto na conta da clínica, valor por serviço, confirma ao pagar, política clara (DEC-047).
 8. **Rotina da recepção**, **piloto** (“Sua equipe merece terminar o dia mais leve.”), **perguntas frequentes** e **rodapé**.
