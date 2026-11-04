@@ -50,7 +50,6 @@ import type {
 } from "../../api";
 import { PanelApiError } from "../../api";
 import { useClinicTimezone } from "../../clinicTimezone";
-import { ReservarBlocoSheet } from "../holds/ReservarBlocoSheet";
 import { awaitingClinicReply } from "./lastRelevant";
 import { ThreadActionsSheet, type ThreadAction } from "./ThreadActionsSheet";
 import { TransferSheet } from "./TransferSheet";
@@ -323,7 +322,6 @@ export function InboxThread({
   }, [incomingDraft, conversationId]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [reserveOpen, setReserveOpen] = useState(false);
   const [templates, setTemplates] = useState<WhatsappTemplateItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -1158,13 +1156,12 @@ export function InboxThread({
     detail.assigneeClerkUserId === viewerClerkUserId;
   const blocked = detail.contact?.blockedAt != null;
   // Confirmado (Paulo, 31/10/2026, Opção A): ⋮ / folha = só conversa/pipeline.
+  // Confirmado (Paulo, 04/11/2026, Opção A): sem «Reservar bloco» no ⋮ —
+  // agendamento a partir da conversa é só «Agendar» no cabeçalho.
   // Resumo da IA e Bloquear ficam só no Contato / Detalhes.
   const threadActions: ThreadAction[] = [
     // Folha mobile: atalho à ficha (no desktop o header já tem Contato).
     { id: "contact", label: "Ver contato" },
-    ...(detail.status !== "closed" && !blocked
-      ? [{ id: "hold", label: "Reservar bloco" }]
-      : []),
     // DEC-062: a etapa muda sozinha; aqui só as duas correções manuais.
     ...(detail.opportunity && detail.status !== "closed" && !blocked
       ? [
@@ -1206,7 +1203,6 @@ export function InboxThread({
     }
     if (id === "stage-proposed") void correctStage("horario_proposto");
     if (id === "stage-lost") void correctStage("perdido");
-    if (id === "hold") setReserveOpen(true);
     if (id === "transfer") setTransferOpen(true);
     if (id === "close") setConfirmClose(true);
   }
@@ -1446,25 +1442,6 @@ export function InboxThread({
         busy={busy}
         onClose={() => setTransferOpen(false)}
         onPick={(m) => void transferTo(m)}
-      />
-      <ReservarBlocoSheet
-        open={reserveOpen}
-        tenantId={tenantId}
-        api={api}
-        generation={generation}
-        conversationId={conversationId}
-        contactName={detail.contact?.displayName ?? null}
-        windowOpen={windowOpen}
-        onClose={() => setReserveOpen(false)}
-        onReserved={async (message) => {
-          void load({ quiet: true });
-          if (message) await sendPayload({ body: message });
-          else if (!windowOpen) {
-            setNotice(
-              "Horário reservado na agenda. A mensagem não foi enviada porque passaram 24 h desde a última mensagem da paciente.",
-            );
-          }
-        }}
       />
       {notice ? (
         <div className="inbox-notice" role="status">

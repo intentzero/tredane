@@ -106,19 +106,15 @@ describe('InboxThread — bloquear contato (Opção A: fora do ⋮)', () => {
     expect(await screen.findByRole('textbox', { name: 'Mensagem' })).toBeTruthy()
   })
 
-  it('menu ⋮ mantém «Reservar bloco» (M-39) e Encerrar; sem Bloquear; abre a reserva por bloco', async () => {
+  it('menu ⋮ mantém Encerrar; sem Reservar bloco nem Bloquear (Paulo 04/11/2026 Opção A)', async () => {
     const api = mockApi({ blocked: false })
-    Object.assign(api, {
-      getClinicConfig: vi.fn(() => new Promise(() => {})),
-      queryAvailability: vi.fn(() => new Promise(() => {})),
-    })
     renderThread(api)
     expect(await screen.findByRole('textbox', { name: 'Mensagem' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Agendar horário' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
     expect(await screen.findByRole('menuitem', { name: 'Encerrar conversa' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Reservar bloco' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Bloquear contato' })).toBeNull()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Reservar bloco' }))
-    await waitFor(() => expect(api.getClinicConfig).toHaveBeenCalled())
   })
 
   it('contato bloqueado (encerrada): sem ⋮ no desktop (sem acções de pipeline); Desbloquear no aviso', async () => {
@@ -148,7 +144,7 @@ describe('InboxThread — bloquear contato (Opção A: fora do ⋮)', () => {
     )
   })
 
-  it('celular: folha ⋮ com Ver contato, Reservar bloco, Transferir e Encerrar — sem Bloquear nem Resumo', async () => {
+  it('celular: folha ⋮ com Ver contato, Transferir e Encerrar — sem Reservar bloco, Bloquear nem Resumo', async () => {
     const mm = vi.fn((q: string) => ({
       matches: q.includes('max-width: 767'),
       media: q,
@@ -159,12 +155,13 @@ describe('InboxThread — bloquear contato (Opção A: fora do ⋮)', () => {
     try {
       renderThread(mockApi({ blocked: false }))
       await screen.findByRole('textbox', { name: 'Mensagem' })
+      expect(screen.getByRole('button', { name: 'Agendar horário' })).toBeTruthy()
       fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
       const sheet = await screen.findByRole('dialog', { name: /Conversa com/ })
-      for (const name of ['Ver contato', 'Reservar bloco', 'Transferir para outra pessoa', 'Encerrar conversa']) {
+      for (const name of ['Ver contato', 'Transferir para outra pessoa', 'Encerrar conversa']) {
         expect(Array.from(sheet.querySelectorAll('button')).some((b) => b.textContent === name)).toBe(true)
       }
-      for (const name of ['Bloquear contato', 'Resumo da IA', 'Ver detalhes do contato']) {
+      for (const name of ['Reservar bloco', 'Bloquear contato', 'Resumo da IA', 'Ver detalhes do contato']) {
         expect(Array.from(sheet.querySelectorAll('button')).some((b) => b.textContent === name)).toBe(false)
       }
     } finally {

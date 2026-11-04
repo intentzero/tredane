@@ -1,5 +1,9 @@
 # Histórico do design
 
+## 04/11/2026 — «Reservar bloco» sai do ⋮ da conversa (**Confirmado**)
+
+- **Confirmado (Paulo, 04/11/2026, Opção A):** M-55 e `ConversasControlesMenu` sem «Reservar bloco»; agendamento a partir da conversa é só **Agendar** no cabeçalho. Modo Horário exato | Por período fora do chrome da conversa (Opção B adiada). M-39 permanece alcançável pelo Agendar da Agenda. Spec em `ux-ui.md`.
+
 ## 02/11/2026 — Horários livres bloqueia serviço com variantes (**Confirmado**)
 
 - **Confirmado (Paulo, 02/11/2026):** na faixa **Horários livres** do compositor, serviço com variantes (ex. Depilação) não mostra grade nem «Colocar no campo»; hint para usar **Agendar** no cabeçalho. Espelha o bloqueio já feito no atalho de Pix de sinal. Sem picker de variantes na faixa; TEL-05 sem mudança. `FreeSlotsStrip.tsx`.
