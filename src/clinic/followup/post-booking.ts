@@ -1,6 +1,8 @@
 /**
  * DEC-086 — follow-up pós-agendamento com botões.
- * «Não, obrigado» agradece e não muda a etapa. «Quero agendar outro serviço» abre nova intenção.
+ * «Não, obrigado» agradece, não muda a etapa e fecha a sessão conversacional
+ * (BookingFrame, pergunta pendente e última oferta — o mesmo clear do recomeço/idle).
+ * O compromisso confirmado fica. «Quero agendar outro serviço» abre nova intenção.
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'
@@ -187,6 +189,7 @@ export type PostBookingButtonResult =
 
 /**
  * Processa clique nos botões de follow-up. Não marca horário (DEC-061 intacto).
+ * Os dois botões limpam o BookingFrame na mesma TX da saída (ADR-0015).
  */
 export function handlePostBookingButtonClick(
   db: ClinicDb,
@@ -207,6 +210,8 @@ export function handlePostBookingButtonClick(
   const outbox: OutboxRow[] = []
 
   if (parsed.action === 'thanks') {
+    // Fim do pós-agendamento (ADR-0015): agradece e apaga o funil. Não cancela
+    // o compromisso nem move a etapa (DEC-086).
     const thanks = sendOutboundMessageOp(
       db,
       caller,
@@ -216,6 +221,10 @@ export function handlePostBookingButtonClick(
         clientRequestId: `followup.postbook.thanks:${parsed.appointmentId}:${input.providerEventKey ?? 'x'}`,
         authorClerkUserId: FOLLOWUP_ACTOR,
         authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
+        afterPersist: ({ db: txDb, tenantId, conversationId }) => {
+          const ob = clearBookingFrame(txDb, tenantId, conversationId, clock)
+          return ob ? [ob] : []
+        },
       },
       clock,
     )
