@@ -17,6 +17,7 @@ export const FLOW_SCREEN_IDS = ['SERVICO', 'GENERO', 'VARIANTES', 'HORARIO'] as 
 /**
  * Esqueleto do routing model (data_exchange em cada Continuar / Ver proposta).
  * Os componentes concretos (Radio/Dropdown/Checkbox) seguem ADR-0016 §3.
+ * Entry Meta (sem inbound): só SERVICO — INIT tem de o devolver (`entryFlowScreen`).
  */
 export const BOOKING_FLOW_ROUTING = {
   SERVICO: { next: 'data_exchange', fields: ['service_id'] },

@@ -271,7 +271,116 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
     expect(after.line).toBe('feminino')
   })
 
-  it('Finding 3: chat_fallback inclui fallback_reason no SUCCESS (não vazio)', async () => {
+  it('INIT com serviço na sessão pousa em SERVICO (entry), não GENERO/HORARIO', async () => {
+    const pair = await generateFlowKeyPair()
+    const store = createMemoryFlowTokenStore()
+    const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
+    const token = generateFlowToken()
+    store.insert(
+      null as never,
+      {
+        token,
+        tenantId: 't1',
+        bindingId: 'b1',
+        phoneNumberId: 'pn1',
+        wabaId: 'w1',
+        conversationId: 'c1',
+        catalogVersion: '1',
+        // Path Paulo 16:12Z: serviço seed, line null → nextFlowScreen seria GENERO.
+        session: {
+          serviceId: 'svc_dep',
+          line: null,
+          variantIds: null,
+          slotKey: null,
+        },
+      },
+      clock,
+    )
+
+    const encrypted = await encryptFlowRequestForTest(pair.publicKey, {
+      version: '3.0',
+      action: 'INIT',
+      flow_token: token,
+    })
+    const rawBody = JSON.stringify(encrypted)
+    const signature = await computeHubSignature256(rawBody, APP_SECRET)
+    const sessions = createTokenBackedSessionStore({
+      getToken: async (t) => store.get(null as never, t),
+      saveSession: async (t, session) => store.saveSession(null as never, t, session),
+    })
+
+    const result = await handleFlowDataRequest({
+      rawBody,
+      signatureHeader: signature,
+      env: {
+        WHATSAPP_FLOW_PRIVATE_KEY: pair.privatePem,
+        META_APP_SECRET: APP_SECRET,
+      },
+      clock,
+      sessions,
+      tokenLookup: async (t) => store.get(null as never, t),
+      dataLookup: async ({ frame }) => ({
+        catalog: [
+          {
+            id: 'svc_dep',
+            name: 'Depilação',
+            active: true,
+            zones: [
+              {
+                id: 'z_f',
+                name: 'Axila',
+                audience: 'feminino',
+                active: true,
+                durationMinutes: 15,
+              },
+              {
+                id: 'z_m',
+                name: 'Axila',
+                audience: 'masculino',
+                active: true,
+                durationMinutes: 20,
+              },
+            ],
+          },
+        ],
+        slots: [],
+        frame,
+      }),
+    })
+
+    expect(result.status).toBe(200)
+    if (result.status !== 200 || result.contentType !== 'text/plain') return
+    expect(result.logDetail).toMatchObject({
+      action: 'INIT',
+      screen: 'SERVICO',
+      outcome: 'entry_screen',
+      skipped_screen: 'GENERO',
+    })
+
+    const decReq = await decryptFlowRequest(
+      await importFlowPrivateKey(pair.privatePem),
+      encrypted,
+    )
+    const response = (await decryptFlowResponseForTest(
+      decReq.aesKey,
+      decReq.iv,
+      result.body,
+    )) as {
+      version?: string
+      screen: string
+      data: { services: unknown[]; error_message?: string }
+    }
+    expect(response.version).toBe('3.0')
+    expect(response.screen).toBe('SERVICO')
+    expect(Object.keys(response.data).sort()).toEqual([
+      'body',
+      'error_message',
+      'services',
+    ])
+    expect(response.data.error_message).toBe('')
+  })
+
+  it('Finding 3: chat_fallback no data_exchange inclui fallback_reason no SUCCESS', async () => {
     const pair = await generateFlowKeyPair()
     const store = createMemoryFlowTokenStore()
     const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
@@ -287,7 +396,7 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
         conversationId: 'c1',
         catalogVersion: '1',
         session: {
-          serviceId: 'svc_limp',
+          serviceId: null,
           line: null,
           variantIds: null,
           slotKey: null,
@@ -298,8 +407,10 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
 
     const encrypted = await encryptFlowRequestForTest(pair.publicKey, {
       version: '3.0',
-      action: 'INIT',
+      action: 'data_exchange',
+      screen: 'SERVICO',
       flow_token: token,
+      data: { service_id: 'svc_limp' },
     })
     const rawBody = JSON.stringify(encrypted)
     const signature = await computeHubSignature256(rawBody, APP_SECRET)
@@ -586,7 +697,8 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
       decReq.iv,
       result.body,
     )) as { screen: string; data: { error_message?: string } }
-    expect(response.screen).toBe('HORARIO')
+    // INIT → sempre entry SERVICO; C15 vai no snackbar do entry.
+    expect(response.screen).toBe('SERVICO')
     expect(response.data.error_message).toMatch(/já não está livre|Escolha outro/i)
     const after = await sessions.get(token)
     expect(after.slotKey).toBeNull()

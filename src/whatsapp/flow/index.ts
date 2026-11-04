@@ -23,12 +23,14 @@ export {
 } from './crypto'
 export {
   nextFlowScreen,
+  entryFlowScreen,
   applyScreenSubmission,
   successPayload,
   resolveVariantIds,
   bookableServices,
   isServiceBookable,
   revalidateFlowFrameAgainstCatalog,
+  FLOW_ENTRY_SCREEN,
   FLOW_MAX_VARIANTS_IN_CHECKBOX,
   FLOW_MAX_SLOTS,
   type FlowScreenId,
