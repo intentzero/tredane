@@ -19,6 +19,10 @@ import { isClinicAiAssistEnabled } from '../config/settings'
 import { getConversation } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { toSendInteractive } from './choice-offer'
+import {
+  maybeReplaceM5WithFlow,
+  sessionFromBookingFrame,
+} from '../../whatsapp/flow/offer-live'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
@@ -53,11 +57,11 @@ import {
 } from './nlu/sensitive'
 import { isCancelIntent, isRescheduleIntent, tryAiReschedule } from './reschedule'
 import { isConversationPaused } from './protection'
-import { getScheduleSession } from './schedule-session'
+import { getBookingFrame, getScheduleSession } from './schedule-session'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
 import { emitTurnDecided, routeFromAutodraftOutcome } from './turn-decided'
-import { loadTurnContext } from './turn-context'
+import { loadTurnContext, readCatalogVersion } from './turn-context'
 import { enqueueTypingIndicator } from './typing-indicator'
 import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
@@ -1082,17 +1086,35 @@ export async function runDueAutoDrafts(
       }
     } else if (suggestion?.status === 'pending' && draftText && !proposalDelivered) {
       try {
-        const choiceInteractive = toSendInteractive(autoBook?.interactive ?? null)
+        let body = draftText
+        let interactive = deterministicReply
+          ? toSendInteractive(autoBook?.interactive ?? null)
+          : { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] }
+        if (deterministicReply) {
+          const frameNow =
+            autoBook?.deferredFrame?.peekFrame(db, tenantId, job.conversationId) ??
+            getBookingFrame(db, tenantId, job.conversationId)
+          const replaced = await maybeReplaceM5WithFlow({
+            choice: autoBook?.interactive ?? null,
+            replyBody: draftText,
+            prepare: deps.prepareBookingFlowOffer,
+            tenantId,
+            conversationId: job.conversationId,
+            catalogVersion: frameNow?.catalogVersion || readCatalogVersion(db, tenantId),
+            session: sessionFromBookingFrame(frameNow),
+            deferred: autoBook?.deferredFrame,
+          })
+          interactive = replaced.interactive
+          body = replaced.body
+        }
         const sent = sendOutboundMessageOp(
           db,
           caller,
           withDeferredFrame(
             {
               conversationId: job.conversationId,
-              body: draftText,
-              interactive: deterministicReply
-                ? choiceInteractive
-                : { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+              body,
+              interactive,
               clientRequestId: `ai-reply:${suggestion.id}`,
               authorClerkUserId: AUTODRAFT_ACTOR_ID,
               authorDisplayName: AUTODRAFT_ACTOR_NAME,

@@ -14,9 +14,15 @@ import { sendOutboundMessageOp } from '../inbox/operations'
 import type { SendOutboundInteractiveInput } from '../inbox/types'
 import type { OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
+import {
+  maybeReplaceM5WithFlow,
+  sessionFromBookingFrame,
+  type PrepareBookingFlowOffer,
+} from '../../whatsapp/flow/offer-live'
 import { tryAiAutoBook, type AutoBookOutcome } from './autobook'
 import { cancelAutoDraft } from './autodraft'
 import { isPendingOfferFresh } from './booking-frame-choice'
+import { readCatalogVersion } from './turn-context'
 import {
   createDeferredBookingFrame,
   OUTBOUND_MESSAGE_ID_PLACEHOLDER,
@@ -298,6 +304,8 @@ export type ChoiceOfferClickInput = {
   contextMessageId?: string | null
   providerEventKey?: string | null
   capability?: boolean
+  /** Secrets Flow presentes → reoferta M5 vira CTA Flow. */
+  prepareBookingFlowOffer?: PrepareBookingFlowOffer
 }
 
 export type ChoiceOfferClickResult =
@@ -418,34 +426,47 @@ function clearPendingFrame(
   return deferred.flushNow(db, tenantId, conversationId, clock)
 }
 
-function sendChoiceOutbound(
+async function sendChoiceOutbound(
   db: ClinicDb,
   caller: ClinicCaller,
   clock: Clock,
   conversationId: string,
   autoBook: AutoBookOutcome,
   clientRequestId: string,
-): OutboxRow[] {
+  prepareBookingFlowOffer?: PrepareBookingFlowOffer,
+): Promise<OutboxRow[]> {
   if (autoBook.proposalId && !autoBook.replyText?.trim()) {
     autoBook.deferredFrame?.discard()
     return []
   }
-  const body = autoBook.replyText?.trim()
-  if (!body) {
+  const replyBody = autoBook.replyText?.trim()
+  if (!replyBody) {
     if (autoBook.deferredFrame?.hasWork) {
       return autoBook.deferredFrame.flushNow(db, caller.tenantId, conversationId, clock)
     }
     return []
   }
-  const interactive = toSendInteractive(autoBook.interactive ?? null)
+  const frameNow =
+    autoBook.deferredFrame?.peekFrame(db, caller.tenantId, conversationId) ??
+    getBookingFrame(db, caller.tenantId, conversationId)
+  const replaced = await maybeReplaceM5WithFlow({
+    choice: autoBook.interactive ?? null,
+    replyBody,
+    prepare: prepareBookingFlowOffer,
+    tenantId: caller.tenantId,
+    conversationId,
+    catalogVersion: frameNow?.catalogVersion || readCatalogVersion(db, caller.tenantId),
+    session: sessionFromBookingFrame(frameNow),
+    deferred: autoBook.deferredFrame,
+  })
   try {
     const sent = sendOutboundMessageOp(
       db,
       caller,
       {
         conversationId,
-        body,
-        interactive,
+        body: replaced.body,
+        interactive: replaced.interactive,
         clientRequestId,
         authorClerkUserId: AUTODRAFT_ACTOR_ID,
         authorDisplayName: 'IA',
@@ -512,18 +533,16 @@ export async function handleChoiceOfferClick(
       turnTextOverride: reofferText,
       confirmationMessageIdOverride: confirmationMessageId,
     })
-    const outbox = [
-      ...cleared,
-      ...autoBook.outbox,
-      ...sendChoiceOutbound(
-        db,
-        caller,
-        clock,
-        input.conversationId,
-        autoBook,
-        `choice-stale:${input.providerEventKey ?? clock.nowMs()}`,
-      ),
-    ]
+    const choiceOut = await sendChoiceOutbound(
+      db,
+      caller,
+      clock,
+      input.conversationId,
+      autoBook,
+      `choice-stale:${input.providerEventKey ?? clock.nowMs()}`,
+      input.prepareBookingFlowOffer,
+    )
+    const outbox = [...cleared, ...autoBook.outbox, ...choiceOut]
     return {
       handled: true,
       outcome: autoBook.replyText?.trim() || autoBook.proposalId ? 'stale_reoffered' : 'stale_cleared',
@@ -576,17 +595,16 @@ export async function handleChoiceOfferClick(
     zoneEcho,
   })
 
-  const outbox = [
-    ...autoBook.outbox,
-    ...sendChoiceOutbound(
-      db,
-      caller,
-      clock,
-      input.conversationId,
-      autoBook,
-      `choice:${input.providerEventKey ?? clock.nowMs()}`,
-    ),
-  ]
+  const choiceOut = await sendChoiceOutbound(
+    db,
+    caller,
+    clock,
+    input.conversationId,
+    autoBook,
+    `choice:${input.providerEventKey ?? clock.nowMs()}`,
+    input.prepareBookingFlowOffer,
+  )
+  const outbox = [...autoBook.outbox, ...choiceOut]
   return { handled: true, outcome: 'applied', autoBook, outbox }
 }
 

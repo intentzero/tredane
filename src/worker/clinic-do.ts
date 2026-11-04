@@ -122,6 +122,11 @@ import {
 } from '../clinic/ai/choice-offer'
 import { handleFlowNfmReply } from '../whatsapp/flow/nfm-reply'
 import { listFlowFreeSlots } from '../whatsapp/flow/slots'
+import {
+  isWhatsappFlowConfigured,
+  prepareBookingFlowOfferFromEnv,
+  type PrepareBookingFlowOffer,
+} from '../whatsapp/flow'
 import type {
   FlowBookingSnapshot,
   FlowCatalogService,
@@ -910,6 +915,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           contextMessageId: input.contextMessageId,
           providerEventKey: input.providerEventKey,
           capability,
+          prepareBookingFlowOffer: this.#prepareBookingFlowOffer(),
         },
         this.#clock,
       )
@@ -3159,11 +3165,36 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   }
 
   /** Processa rascunhos automáticos vencidos (alarme). Público para testes. */
+  /** ADR-0016: oferta Flow quando secrets presentes; senão null → M5. */
+  #prepareBookingFlowOffer(): PrepareBookingFlowOffer | undefined {
+    const env = this.env as WorkerBindings
+    if (!isWhatsappFlowConfigured(env) || !env.DB) return undefined
+    return (input) =>
+      prepareBookingFlowOfferFromEnv({
+        env: env as WorkerBindings & { DB: D1Database },
+        clock: this.#clock,
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        catalogVersion: input.catalogVersion,
+        session: input.session,
+      })
+  }
+
+  #aiAssistDepsWithFlow(
+    base: ReturnType<typeof clinicAi.toAiAssistDeps>,
+  ): ReturnType<typeof clinicAi.toAiAssistDeps> {
+    const prepare = this.#prepareBookingFlowOffer()
+    if (!prepare) return base
+    return { ...base, prepareBookingFlowOffer: prepare }
+  }
+
   async runAutoDrafts(caller: ClinicCaller): Promise<clinicAi.AutoDraftOutcome[]> {
     this.#ensureReady()
     let outcomes: clinicAi.AutoDraftOutcome[] = []
     try {
-      const deps = clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId))
+      const deps = this.#aiAssistDepsWithFlow(
+        clinicAi.toAiAssistDeps(await this.#aiRpcDeps(caller.tenantId)),
+      )
       outcomes = await clinicAi.runDueAutoDrafts(this.#db, caller, this.#clock, deps, {
         onStart: async (job) => {
           await this.#emitAiDraftEvent(caller, job.conversationId, { state: 'generating' })

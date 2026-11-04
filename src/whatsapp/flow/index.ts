@@ -65,5 +65,15 @@ export {
   type HandleFlowNfmReplyResult,
 } from './nfm-reply'
 export { buildBookingFlowInteractive, type BookingFlowInteractive } from './offer'
+export {
+  isM5FunnelChoiceInteractive,
+  sessionFromBookingFrame,
+  clearM5PendingOnDeferred,
+  prepareBookingFlowOfferFromEnv,
+  maybeReplaceM5WithFlow,
+  type PrepareBookingFlowOffer,
+  type PrepareBookingFlowOfferInput,
+  type PreparedBookingFlowOffer,
+} from './offer-live'
 export { createWhatsappFlowRoutes, type WhatsappFlowRouteOptions } from './routes'
 export { listFlowFreeSlots } from './slots'
