@@ -3,6 +3,8 @@ import { TODAS_OPTION_KEY } from '../../clinic/ai/choice-offer'
 import {
   applyScreenSubmission,
   bookableServices,
+  entryFlowScreen,
+  FLOW_ENTRY_SCREEN,
   nextFlowScreen,
   resolveVariantIds,
   revalidateFlowFrameAgainstCatalog,
@@ -257,6 +259,20 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
       'error_message',
       'variants',
     ])
+  })
+
+  it('entryFlowScreen: INIT pousa só em SERVICO (mesmo com serviço na sessão)', () => {
+    expect(FLOW_ENTRY_SCREEN).toBe('SERVICO')
+    const entry = entryFlowScreen({ catalog: [depilacao, limpeza] })
+    expect(entry).toMatchObject({ screen: 'SERVICO' })
+    if (!('screen' in entry)) return
+    expect(Object.keys(entry.data).sort()).toEqual([
+      'body',
+      'error_message',
+      'services',
+    ])
+    const services = entry.data.services as Array<{ id: string }>
+    expect(services.map((s) => s.id)).toEqual(['svc_dep', 'svc_limp'])
   })
 
   // T14 / #540 — zonas todas inactivas → não bookable.

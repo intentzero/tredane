@@ -15,6 +15,8 @@ import {
 } from './crypto'
 import {
   applyScreenSubmission,
+  entryFlowScreen,
+  FLOW_ENTRY_SCREEN,
   nextFlowScreen,
   successPayload,
   type FlowBookingSnapshot,
@@ -384,6 +386,68 @@ export async function handleFlowDataRequest(input: {
     frame = takeLookedFrame(looked.frame)
   }
   await input.sessions.set(parsed.flowToken, frame)
+
+  // INIT: Meta exige ecrã de entrada (sem inbound no routing_model).
+  // JSON publicado: só SERVICO. Saltar para GENERO/VARIANTES/HORARIO no open
+  // (sessão já com serviço/linha) → invalid-screen-transition → «Something went wrong».
+  // O salto ADR §3 continua no data_exchange, onde as arestas existem.
+  if (parsed.action === 'INIT') {
+    const entry = entryFlowScreen({
+      catalog: looked.catalog,
+      errorMessage: mismatchMessage(looked),
+    })
+    if ('kind' in entry) {
+      const body = await encryptFlowResponse(
+        decrypted.aesKey,
+        decrypted.iv,
+        withVersion(
+          responseVersion,
+          successPayload(parsed.flowToken, frame, {
+            fallbackReason: asFallbackReason(entry.reason),
+          }),
+        ),
+      )
+      return {
+        status: 200,
+        body,
+        contentType: 'text/plain',
+        logDetail: {
+          action: 'INIT',
+          screen: 'SUCCESS',
+          outcome: 'chat_fallback',
+          reason: entry.reason,
+        },
+      }
+    }
+    const wouldSkip = nextFlowScreen({
+      catalog: looked.catalog,
+      frame,
+      slots: looked.slots,
+      errorMessage: mismatchMessage(looked),
+    })
+    const skipped =
+      'screen' in wouldSkip && wouldSkip.screen !== FLOW_ENTRY_SCREEN
+        ? wouldSkip.screen
+        : 'kind' in wouldSkip
+          ? wouldSkip.kind
+          : undefined
+    const body = await encryptFlowResponse(
+      decrypted.aesKey,
+      decrypted.iv,
+      withVersion(responseVersion, entry),
+    )
+    return {
+      status: 200,
+      body,
+      contentType: 'text/plain',
+      logDetail: {
+        action: 'INIT',
+        screen: entry.screen,
+        outcome: 'entry_screen',
+        ...(skipped ? { skipped_screen: String(skipped) } : {}),
+      },
+    }
+  }
 
   const next = nextFlowScreen({
     catalog: looked.catalog,

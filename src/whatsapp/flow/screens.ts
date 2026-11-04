@@ -212,7 +212,42 @@ export function resolveVariantIds(
 }
 
 /**
- * Decide o primeiro ecrã ainda em falta (INIT / data_exchange).
+ * Ecrã de entrada do `routing_model` publicado: sem aresta a entrar.
+ * Só `SERVICO` — GENERO/VARIANTES/HORARIO têm inbound a partir dele.
+ * Meta: INIT tem de pousar num entry screen; senão `invalid-screen-transition`
+ * e a UI mostra «Something went wrong».
+ */
+export const FLOW_ENTRY_SCREEN: FlowScreenId = 'SERVICO'
+
+/**
+ * Payload do ecrã de entrada para `action: INIT`.
+ * Não salta SERVICO mesmo com `serviceId` na sessão ou um único agendável —
+ * o salto continua em `data_exchange` (SERVICO → GENERO|VARIANTES|HORARIO
+ * está no routing_model).
+ */
+export function entryFlowScreen(input: {
+  catalog: FlowCatalogService[]
+  errorMessage?: string
+}): FlowScreenPayload | { kind: 'chat_fallback'; reason: string } {
+  const services = bookableServices(input.catalog)
+  if (services.length === 0) {
+    return { kind: 'chat_fallback', reason: 'no_bookable_services' }
+  }
+  if (services.length > 200) {
+    return { kind: 'chat_fallback', reason: 'too_many_services' }
+  }
+  return {
+    screen: FLOW_ENTRY_SCREEN,
+    data: screenData(
+      { body: FLOW_COPY.serviceBody, services: serviceOptions(services) },
+      input.errorMessage,
+    ),
+  }
+}
+
+/**
+ * Decide o primeiro ecrã ainda em falta (data_exchange / BACK).
+ * Não usar no INIT — ver `entryFlowScreen` / `FLOW_ENTRY_SCREEN`.
  * `slots` só é necessário quando o destino é HORARIO.
  */
 export function nextFlowScreen(input: {
