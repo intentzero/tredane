@@ -1,16 +1,38 @@
 /**
- * Copy do Flow de agendamento (ADR-0016 §10).
- * C1–C15: **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A, DEC-104).
+ * Copy do Flow de agendamento (ADR-0016 §10) + hub TR-306.
+ * C1–C15 / C16: **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A, DEC-104).
  * Revisão no mesmo dia, após o open em staging (~14:34): C4b, C8 e C16.
  * Rótulos Confirmados reutilizados no Flow: Feminina / Masculina (DEC-134).
  * «Todas» do M5 não entra no CheckboxGroup (Paulo, 04/11/2026, «Podemos retirar o Todas»).
+ *
+ * Hub (C1h / C2h / HUB-*): **Proposto** (TR-306, 04/11/2026) — DEC-104: aguarda
+ * aprovação do Paulo antes de tratar como Confirmado. Ver PR / design doc.
  */
 export const FLOW_COPY = {
-  /** C1 — corpo da mensagem que abre o Flow. */
+  /**
+   * C1h — corpo da mensagem que abre o Flow com hub (Proposto, DEC-104).
+   * Substitui C1 enquanto o entry for HUB; C1 Confirmado fica no ADR até Paulo ok.
+   * Evita o jargão de painel «Agendar» (INV-05); id interno da acção continua `agendar`.
+   */
   openBody:
-    'Para marcar, toque em Escolher horário. Você escolhe o serviço, as opções e um horário livre. Depois eu envio a proposta para você confirmar.',
-  /** C2 — botão flow_cta (≤30, sem emoji). */
-  flowCta: 'Escolher horário',
+    'Toque em Abrir opções para marcar, remarcar, cancelar ou ver seus horários.',
+  /**
+   * C2h — botão flow_cta (≤30, sem emoji). Proposto (DEC-104).
+   * Antes: «Escolher horário» (C2 Confirmado ADR-0016).
+   */
+  flowCta: 'Abrir opções',
+  /**
+   * HUB-body — Proposto (DEC-104).
+   */
+  hubBody: 'O que você quer fazer?',
+  /**
+   * HUB opções — títulos Propostos (DEC-104), ≤30.
+   * «Marcar horário» em vez de «Agendar» (INV-05). Ids: agendar|remarcar|cancelar|meus.
+   */
+  hubAgendar: 'Marcar horário',
+  hubRemarcar: 'Remarcar',
+  hubCancelar: 'Cancelar',
+  hubMeus: 'Meus agendamentos',
   /** C3 */
   serviceTitle: 'Serviço',
   /** C4 — vários serviços e nenhum ainda escolhido. */
@@ -57,6 +79,19 @@ export const FLOW_COPY = {
   preparingProposal:
     'Recebi suas escolhas. Já preparo a proposta para você confirmar.',
 } as const
+
+/** Ids estáveis das acções do HUB (payload / SUCCESS params). */
+export const FLOW_HUB_ACTIONS = ['agendar', 'remarcar', 'cancelar', 'meus'] as const
+export type FlowHubAction = (typeof FLOW_HUB_ACTIONS)[number]
+
+export function isFlowHubAction(raw: unknown): raw is FlowHubAction {
+  return (
+    raw === 'agendar' ||
+    raw === 'remarcar' ||
+    raw === 'cancelar' ||
+    raw === 'meus'
+  )
+}
 
 /** Feminina / Masculina — Confirmado (DEC-134). */
 export const FLOW_GENDER_LABELS = {

@@ -22,7 +22,77 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       variantIds: ['z1', 'z2'],
       slotId: '2026-11-05T17:00',
       fallbackReason: null,
+      hubAction: null,
     })
+  })
+
+  it('parseNfmResponseJson lê hub_action dos stubs TR-306', () => {
+    const parsed = parseNfmResponseJson(
+      JSON.stringify({ flow_token: 'fl1_hub', hub_action: 'cancelar' }),
+    )
+    expect(parsed).toEqual({
+      flowToken: 'fl1_hub',
+      serviceId: null,
+      line: null,
+      variantIds: [],
+      slotId: null,
+      fallbackReason: null,
+      hubAction: 'cancelar',
+    })
+  })
+
+  it('hub cancelar → handoff humano sem marcar (DEC-083 / DEC-091)', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const result = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-hub-cancel',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_hub_c',
+            hub_action: 'cancelar',
+          }),
+          catalogVersion: '1',
+        },
+        s.clock,
+      )
+      expect(result.outcome).toBe('hub_handoff')
+      expect(s.appointmentCount()).toBe(0)
+      const outbound = s.outboundBodies()
+      expect(outbound.some((b) => /equipe continuar/i.test(b))).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('hub remarcar sem compromisso → handoff (DEC-091)', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const result = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-hub-rem',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_hub_r',
+            hub_action: 'remarcar',
+          }),
+          catalogVersion: '1',
+        },
+        s.clock,
+      )
+      expect(result.outcome).toBe('hub_handoff')
+      expect(result.reason).toBe('remarcar')
+    } finally {
+      s.close()
+    }
   })
 
   it('Finding 3: fallback_reason no_slots envia sem_horario_semana e não marca', async () => {

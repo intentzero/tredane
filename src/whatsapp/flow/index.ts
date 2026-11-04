@@ -1,4 +1,10 @@
-export { FLOW_COPY, FLOW_GENDER_LABELS } from './copy'
+export {
+  FLOW_COPY,
+  FLOW_GENDER_LABELS,
+  FLOW_HUB_ACTIONS,
+  isFlowHubAction,
+  type FlowHubAction,
+} from './copy'
 export {
   isWhatsappFlowConfigured,
   resolveFlowId,
@@ -30,6 +36,8 @@ export {
   bookableServices,
   isServiceBookable,
   revalidateFlowFrameAgainstCatalog,
+  parseHubAction,
+  hubActionOptions,
   FLOW_ENTRY_SCREEN,
   FLOW_MAX_VARIANTS_IN_CHECKBOX,
   FLOW_MAX_SLOTS,

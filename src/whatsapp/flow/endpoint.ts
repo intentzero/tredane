@@ -23,6 +23,7 @@ import {
   type FlowCatalogService,
   type FlowChatFallbackReason,
   type FlowClearedField,
+  type FlowHubAction,
   type FlowScreenId,
   type FlowSlotOption,
 } from './screens'
@@ -72,6 +73,7 @@ function parseActionPayload(payload: unknown): {
   const action = typeof root.action === 'string' ? root.action : ''
   const version = typeof root.version === 'string' ? root.version : null
   const screen =
+    root.screen === 'HUB' ||
     root.screen === 'SERVICO' ||
     root.screen === 'GENERO' ||
     root.screen === 'VARIANTES' ||
@@ -320,6 +322,8 @@ export async function handleFlowDataRequest(input: {
     return undefined
   }
 
+  let hubActionFromSubmit: FlowHubAction | null = null
+
   if (parsed.action === 'data_exchange' && parsed.screen) {
     const applied = applyScreenSubmission(
       looked.catalog,
@@ -329,6 +333,31 @@ export async function handleFlowDataRequest(input: {
       { offeredSlots: looked.slots },
     )
     if (!applied.ok) {
+      // HUB inválido: re-mostrar o entry, não o funil Agendar.
+      if (parsed.screen === 'HUB') {
+        const hubAgain = entryFlowScreen({
+          catalog: looked.catalog,
+          frame: applied.frame,
+          errorMessage: applied.errorMessage,
+        })
+        if ('screen' in hubAgain) {
+          const body = await encryptFlowResponse(
+            decrypted.aesKey,
+            decrypted.iv,
+            withVersion(responseVersion, hubAgain),
+          )
+          return {
+            status: 200,
+            body,
+            contentType: 'text/plain',
+            logDetail: {
+              action: 'data_exchange',
+              screen: 'HUB',
+              outcome: 'validation_error',
+            },
+          }
+        }
+      }
       const again = nextFlowScreen({
         catalog: looked.catalog,
         frame: applied.frame,
@@ -375,7 +404,38 @@ export async function handleFlowDataRequest(input: {
       }
     }
     frame = applied.frame
+    hubActionFromSubmit = applied.hubAction ?? null
     await input.sessions.set(parsed.flowToken, frame)
+
+    // Remarcar / Cancelar / Meus: fecho imediato (stub TR-306). Sem proposta.
+    if (
+      hubActionFromSubmit === 'remarcar' ||
+      hubActionFromSubmit === 'cancelar' ||
+      hubActionFromSubmit === 'meus'
+    ) {
+      const body = await encryptFlowResponse(
+        decrypted.aesKey,
+        decrypted.iv,
+        withVersion(
+          responseVersion,
+          successPayload(parsed.flowToken, frame, {
+            hubAction: hubActionFromSubmit,
+          }),
+        ),
+      )
+      return {
+        status: 200,
+        body,
+        contentType: 'text/plain',
+        logDetail: {
+          action: 'data_exchange',
+          screen: 'SUCCESS',
+          outcome: 'hub_stub',
+          hub_action: hubActionFromSubmit,
+        },
+      }
+    }
+
     try {
       looked = await input.dataLookup({ token: tokenRow, frame })
     } catch (err) {
@@ -391,9 +451,9 @@ export async function handleFlowDataRequest(input: {
   await input.sessions.set(parsed.flowToken, frame)
 
   // INIT: Meta exige ecrã de entrada (sem inbound no routing_model).
-  // JSON publicado: só SERVICO. Saltar para GENERO/VARIANTES/HORARIO no open
-  // (sessão já com serviço/linha) → invalid-screen-transition → «Something went wrong».
-  // O salto ADR §3 continua no data_exchange, onde as arestas existem.
+  // JSON publicado: só HUB (TR-306). Saltar para SERVICO/GENERO/… no open
+  // → invalid-screen-transition → «Something went wrong».
+  // Agendar (SERVICO→…) continua no data_exchange depois do hub.
   if (parsed.action === 'INIT') {
     const entry = entryFlowScreen({
       catalog: looked.catalog,

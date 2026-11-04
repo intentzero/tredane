@@ -276,10 +276,19 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
   // não tem `service_init` nem `description`.
   it('data de cada ecrã só tem chaves do schema publicado + error_message', () => {
     const schema: Record<string, string[]> = {
+      HUB: ['body', 'actions', 'error_message'],
       SERVICO: ['body', 'services', 'service_init', 'error_message'],
       GENERO: ['body', 'genders', 'error_message'],
       VARIANTES: ['body', 'variants', 'error_message'],
       HORARIO: ['body', 'slots', 'error_message'],
+    }
+    const hubEntry = entryFlowScreen({
+      catalog: [depilacao],
+      frame: { serviceId: null, line: null, variantIds: null, slotKey: null },
+    })
+    expect(hubEntry).toMatchObject({ screen: 'HUB' })
+    if ('screen' in hubEntry) {
+      expect(Object.keys(hubEntry.data).sort()).toEqual([...schema.HUB!].sort())
     }
     const cases = [
       nextFlowScreen({
@@ -334,8 +343,8 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
     ])
   })
 
-  it('entryFlowScreen: INIT pousa só em SERVICO (mesmo com serviço na sessão)', () => {
-    expect(FLOW_ENTRY_SCREEN).toBe('SERVICO')
+  it('entryFlowScreen: INIT pousa só em HUB (mesmo com serviço na sessão)', () => {
+    expect(FLOW_ENTRY_SCREEN).toBe('HUB')
     const known = {
       serviceId: 'svc_dep',
       line: 'feminino' as const,
@@ -343,30 +352,57 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
       slotKey: null,
     }
     const entry = entryFlowScreen({ catalog: [depilacao, limpeza], frame: known })
-    expect(entry).toMatchObject({ screen: 'SERVICO' })
+    expect(entry).toMatchObject({ screen: 'HUB' })
     if (!('screen' in entry)) return
     expect(Object.keys(entry.data).sort()).toEqual([
+      'actions',
       'body',
       'error_message',
-      'service_init',
-      'services',
     ])
-    const services = entry.data.services as Array<{ id: string }>
-    expect(services.map((s) => s.id)).toEqual(['svc_dep', 'svc_limp'])
-    expect(entry.data.service_init).toBe('svc_dep')
-    expect(entry.data.body).toMatch(/Depilação/)
-    expect(entry.data.body).not.toBe(FLOW_COPY.serviceBody)
+    const actions = entry.data.actions as Array<{ id: string; title: string }>
+    expect(actions.map((a) => a.id)).toEqual([
+      'agendar',
+      'remarcar',
+      'cancelar',
+      'meus',
+    ])
+    expect(entry.data.body).toBe(FLOW_COPY.hubBody)
   })
 
-  it('um só serviço: INIT continua em SERVICO, com o dropdown preenchido', () => {
+  it('INIT HUB abre mesmo sem serviços agendáveis (Remarcar/Cancelar/Meus)', () => {
     const entry = entryFlowScreen({
-      catalog: [depilacao],
+      catalog: [],
       frame: { serviceId: null, line: null, variantIds: null, slotKey: null },
     })
-    expect(entry).toMatchObject({ screen: 'SERVICO' })
-    if (!('screen' in entry)) return
-    expect(entry.data.service_init).toBe('svc_dep')
-    expect(entry.data.body).toMatch(/único serviço/)
+    expect(entry).toMatchObject({ screen: 'HUB' })
+  })
+
+  it('HUB Agendar → applyScreenSubmission devolve hubAction; nextFlowScreen segue ADR', () => {
+    const applied = applyScreenSubmission(
+      [depilacao],
+      { serviceId: null, line: null, variantIds: null, slotKey: null },
+      'HUB',
+      { hub_action: 'agendar' },
+    )
+    expect(applied.ok).toBe(true)
+    if (!applied.ok) return
+    expect(applied.hubAction).toBe('agendar')
+    const next = nextFlowScreen({ catalog: [depilacao], frame: applied.frame })
+    expect(next).toMatchObject({ screen: 'GENERO' })
+  })
+
+  it('HUB Remarcar/Cancelar/Meus → hubAction stub (SUCCESS no endpoint)', () => {
+    for (const action of ['remarcar', 'cancelar', 'meus'] as const) {
+      const applied = applyScreenSubmission(
+        [depilacao],
+        { serviceId: null, line: null, variantIds: null, slotKey: null },
+        'HUB',
+        { hub_action: action },
+      )
+      expect(applied.ok).toBe(true)
+      if (!applied.ok) return
+      expect(applied.hubAction).toBe(action)
+    }
   })
 
   it('SERVICO vazio com serviço inequívoco avança; o mesmo id mantém a linha', () => {
@@ -436,6 +472,13 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
 
   it('copy nova não leva jargão INV-05 nem IANA', () => {
     const samples = [
+      FLOW_COPY.openBody,
+      FLOW_COPY.flowCta,
+      FLOW_COPY.hubBody,
+      FLOW_COPY.hubAgendar,
+      FLOW_COPY.hubRemarcar,
+      FLOW_COPY.hubCancelar,
+      FLOW_COPY.hubMeus,
       FLOW_COPY.serviceBody,
       FLOW_COPY.serviceBodyReady('Depilação', true),
       FLOW_COPY.serviceBodyReady('Depilação', false),
@@ -511,15 +554,24 @@ describe('booking-flow.json (contrato a republicar na Meta)', () => {
     return hit
   }
 
-  it('só SERVICO é entry; VARIANTES não volta a si', () => {
+  it('só HUB é entry; SERVICO vem do hub; VARIANTES não volta a si', () => {
     const inbound = new Set(Object.values(flowJson.routing_model).flat())
     const entries = Object.keys(flowJson.routing_model).filter((id) => !inbound.has(id))
-    expect(entries).toEqual(['SERVICO'])
+    expect(entries).toEqual(['HUB'])
+    expect(flowJson.routing_model.HUB).toEqual(['SERVICO'])
     expect(flowJson.routing_model.VARIANTES).toEqual(['HORARIO'])
     expect(flowJson.version).toBe('7.3')
   })
 
-  it('SERVICO pré-seleciona por service_init; variantes têm description e sem Todas', () => {
+  it('HUB tem RadioButtonsGroup hub_action; SERVICO pré-seleciona por service_init', () => {
+    expect(Object.keys(screen('HUB').data).sort()).toEqual([
+      'actions',
+      'body',
+      'error_message',
+    ])
+    const hubRadio = component('HUB', 'RadioButtonsGroup')
+    expect(hubRadio.name).toBe('hub_action')
+    expect(hubRadio['data-source']).toBe('${data.actions}')
     const dropdown = component('SERVICO', 'Dropdown')
     expect(dropdown['init-value']).toBeUndefined()
     expect(component('SERVICO', 'Form')['init-values']).toEqual({

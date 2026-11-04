@@ -1,13 +1,26 @@
 /**
- * Routing dos ecrãs do Flow de agendamento (ADR-0016 §3).
+ * Routing dos ecrãs do Flow de agendamento (ADR-0016 §3 + hub TR-306).
  * Puro: recebe catálogo/quadro/horas e devolve o ecrã seguinte.
  * Não marca, não escolhe sala/profissional, não chama o modelo.
  */
 import { needsAudienceLine, zonesForAudienceLine } from '../../clinic/ai/variant-line'
 import { slotListRowCopy } from '../../clinic/ai/slot-offer'
-import { FLOW_COPY, FLOW_GENDER_LABELS } from './copy'
+import {
+  FLOW_COPY,
+  FLOW_GENDER_LABELS,
+  isFlowHubAction,
+  type FlowHubAction,
+} from './copy'
 
-export type FlowScreenId = 'SERVICO' | 'GENERO' | 'VARIANTES' | 'HORARIO' | 'SUCCESS'
+export type FlowScreenId =
+  | 'HUB'
+  | 'SERVICO'
+  | 'GENERO'
+  | 'VARIANTES'
+  | 'HORARIO'
+  | 'SUCCESS'
+
+export type { FlowHubAction }
 
 export type FlowCatalogService = {
   id: string
@@ -299,34 +312,55 @@ export function resolveVariantIds(
 
 /**
  * Ecrã de entrada do `routing_model` publicado: sem aresta a entrar.
- * Só `SERVICO` — GENERO/VARIANTES/HORARIO têm inbound a partir dele.
- * Meta: INIT tem de pousar num entry screen; senão `invalid-screen-transition`
- * e a UI mostra «Something went wrong».
+ * TR-306: só `HUB` — SERVICO/GENERO/VARIANTES/HORARIO têm inbound a partir
+ * do hub (Agendar) ou entre si. Meta: INIT tem de pousar num entry screen;
+ * senão `invalid-screen-transition` e a UI mostra «Something went wrong».
  */
-export const FLOW_ENTRY_SCREEN: FlowScreenId = 'SERVICO'
+export const FLOW_ENTRY_SCREEN: FlowScreenId = 'HUB'
+
+/** Opções do RadioButtonsGroup do HUB (ids estáveis no SUCCESS / nfm). */
+export function hubActionOptions(): FlowDataOption[] {
+  return [
+    { id: 'agendar', title: FLOW_COPY.hubAgendar },
+    { id: 'remarcar', title: FLOW_COPY.hubRemarcar },
+    { id: 'cancelar', title: FLOW_COPY.hubCancelar },
+    { id: 'meus', title: FLOW_COPY.hubMeus },
+  ]
+}
+
+function hubScreenFields(): Record<string, unknown> {
+  return {
+    body: FLOW_COPY.hubBody,
+    actions: hubActionOptions(),
+  }
+}
 
 /**
- * Payload do ecrã de entrada para `action: INIT`.
- * Não salta SERVICO mesmo com `serviceId` na sessão ou um único agendável —
- * o salto continua em `data_exchange` (SERVICO → GENERO|VARIANTES|HORARIO
- * está no routing_model).
+ * Payload do ecrã de entrada para `action: INIT` (HUB).
+ * Abre mesmo sem serviços agendáveis — Remarcar/Cancelar/Meus não dependem
+ * do catálogo. O caminho Agendar é que falha depois (chat_fallback).
+ * Não salta para SERVICO/GENERO no INIT (#545).
  */
 export function entryFlowScreen(input: {
   catalog: FlowCatalogService[]
   frame?: FlowBookingSnapshot | null
   errorMessage?: string
 }): FlowScreenPayload | { kind: 'chat_fallback'; reason: string } {
-  const services = bookableServices(input.catalog)
-  if (services.length === 0) {
-    return { kind: 'chat_fallback', reason: 'no_bookable_services' }
-  }
-  if (services.length > 200) {
-    return { kind: 'chat_fallback', reason: 'too_many_services' }
-  }
+  void input.catalog
+  void input.frame
   return {
     screen: FLOW_ENTRY_SCREEN,
-    data: screenData(serviceScreenFields(services, input.frame), input.errorMessage),
+    data: screenData(hubScreenFields(), input.errorMessage),
   }
+}
+
+/**
+ * Lê a acção do HUB a partir do payload do data_exchange.
+ * Ids fora da lista → null (caller devolve o mesmo HUB com error_message).
+ */
+export function parseHubAction(data: Record<string, unknown>): FlowHubAction | null {
+  const raw = data.hub_action ?? data.hubAction
+  return isFlowHubAction(raw) ? raw : null
 }
 
 /**
@@ -438,8 +472,18 @@ export function applyScreenSubmission(
   data: Record<string, unknown>,
   opts?: { offeredSlots?: readonly FlowSlotOption[] },
 ):
-  | { ok: true; frame: FlowBookingSnapshot }
+  | { ok: true; frame: FlowBookingSnapshot; hubAction?: FlowHubAction }
   | { ok: false; errorMessage: string; frame: FlowBookingSnapshot } {
+  if (screen === 'HUB') {
+    const hubAction = parseHubAction(data)
+    if (!hubAction) {
+      return { ok: false, errorMessage: FLOW_COPY.catalogChanged, frame }
+    }
+    // Agendar: o frame mantém-se; o endpoint chama nextFlowScreen.
+    // Remarcar/Cancelar/Meus: o endpoint devolve SUCCESS com hub_action.
+    return { ok: true, frame, hubAction }
+  }
+
   const services = bookableServices(catalog)
   if (screen === 'SERVICO') {
     const raw = typeof data.service_id === 'string' ? data.service_id.trim() : ''
@@ -527,9 +571,26 @@ export type FlowChatFallbackReason =
 export function successPayload(
   flowToken: string,
   frame: FlowBookingSnapshot,
-  opts?: { fallbackReason?: FlowChatFallbackReason },
+  opts?: {
+    fallbackReason?: FlowChatFallbackReason
+    /** Stub hub TR-306 — sem proposta de marcação nova. */
+    hubAction?: Exclude<FlowHubAction, 'agendar'>
+  },
 ): FlowScreenPayload {
   // Params sem `null` — o cliente Meta rejeita tipos inesperados em fechos.
+  if (opts?.hubAction) {
+    return {
+      screen: 'SUCCESS',
+      data: {
+        extension_message_response: {
+          params: {
+            flow_token: flowToken,
+            hub_action: opts.hubAction,
+          },
+        },
+      },
+    }
+  }
   const params: Record<string, unknown> = {
     flow_token: flowToken,
     variant_ids: frame.variantIds ?? [],
