@@ -91,6 +91,11 @@ export type HandleFlowNfmReplyInput = {
   /** catalogVersion do token no envio — revalidação ADR-0015. */
   catalogVersion: string
   capability?: boolean
+  /**
+   * Envia o aviso de espera antes de montar a proposta (o cálculo pode demorar).
+   * Se falhar, as linhas voltam no `outbox` final.
+   */
+  flushOutbound?: (rows: OutboxRow[]) => Promise<void>
 }
 
 export type HandleFlowNfmReplyResult = {
@@ -132,11 +137,11 @@ function fallbackBody(
   return FLOW_COPY.openFailed
 }
 
-function sendFallbackOutbound(
+function sendDeterministicOutbound(
   db: ClinicDb,
   caller: ClinicCaller,
   conversationId: string,
-  providerEventKey: string,
+  clientRequestId: string,
   body: string,
   clock: Clock,
 ): OutboxRow[] {
@@ -147,7 +152,7 @@ function sendFallbackOutbound(
       {
         conversationId,
         body,
-        clientRequestId: `flow-fallback:${providerEventKey}`,
+        clientRequestId,
         authorClerkUserId: AUTODRAFT_ACTOR_ID,
         authorDisplayName: 'IA',
       },
@@ -177,11 +182,11 @@ export async function handleFlowNfmReply(
   if (params.fallbackReason) {
     cancelAutoDraft(db, input.tenantId, input.conversationId)
     const body = fallbackBody(db, input.tenantId, input.conversationId, params)
-    const outbox = sendFallbackOutbound(
+    const outbox = sendDeterministicOutbound(
       db,
       caller,
       input.conversationId,
-      input.providerEventKey,
+      `flow-fallback:${input.providerEventKey}`,
       body,
       clock,
     )
@@ -234,6 +239,24 @@ export async function handleFlowNfmReply(
     return { handled: true, outcome: 'idempotent_skip', outbox: [] }
   }
 
+  const ackRows = sendDeterministicOutbound(
+    db,
+    caller,
+    input.conversationId,
+    `flow-ack:${input.providerEventKey}`,
+    FLOW_COPY.preparingProposal,
+    clock,
+  )
+  let ackPending = ackRows
+  if (input.flushOutbound && ackRows.length > 0) {
+    try {
+      await input.flushOutbound(ackRows)
+      ackPending = []
+    } catch {
+      ackPending = ackRows
+    }
+  }
+
   const catalogVersion = input.catalogVersion || readCatalogVersion(db, input.tenantId)
   const sourceMessageId = `flow:${input.providerEventKey}`
   const saved = saveBookingFrame(
@@ -257,7 +280,7 @@ export async function handleFlowNfmReply(
     clock,
   )
 
-  const outbox: OutboxRow[] = saved.outbox ? [saved.outbox] : []
+  const outbox: OutboxRow[] = [...ackPending, ...(saved.outbox ? [saved.outbox] : [])]
 
   const lastInbound = db.get<{ id: string }>(
     `SELECT id FROM messages

@@ -3,10 +3,9 @@
  * Puro: recebe catálogo/quadro/horas e devolve o ecrã seguinte.
  * Não marca, não escolhe sala/profissional, não chama o modelo.
  */
-import { TODAS_OPTION_KEY } from '../../clinic/ai/choice-offer'
 import { needsAudienceLine, zonesForAudienceLine } from '../../clinic/ai/variant-line'
 import { slotListRowCopy } from '../../clinic/ai/slot-offer'
-import { FLOW_COPY, FLOW_GENDER_LABELS, FLOW_TODAS_LABEL } from './copy'
+import { FLOW_COPY, FLOW_GENDER_LABELS } from './copy'
 
 export type FlowScreenId = 'SERVICO' | 'GENERO' | 'VARIANTES' | 'HORARIO' | 'SUCCESS'
 
@@ -32,7 +31,7 @@ export type FlowBookingSnapshot = {
   slotKey: string | null
 }
 
-export type FlowDataOption = { id: string; title: string }
+export type FlowDataOption = { id: string; title: string; description?: string }
 
 export type FlowScreenPayload = {
   screen: FlowScreenId
@@ -46,8 +45,12 @@ export type FlowSlotOption = {
   time: string
 }
 
-/** CheckboxGroup: Todas ocupa 1 vaga → no máximo 19 variantes. */
-export const FLOW_MAX_VARIANTS_IN_CHECKBOX = 19
+/** CheckboxGroup Meta: 20 opções. Sem sentinela «Todas». */
+export const FLOW_MAX_VARIANTS_IN_CHECKBOX = 20
+/** Título de opção no Flow (Dropdown / Checkbox / Radio). */
+export const FLOW_OPTION_TITLE_MAX = 30
+/** Descrição de opção no CheckboxGroup. */
+export const FLOW_OPTION_DESCRIPTION_MAX = 300
 /** Dropdown sem imagem: teto Meta. */
 export const FLOW_MAX_SLOTS = 200
 /** RadioButtonsGroup: teto Meta. */
@@ -143,11 +146,69 @@ export function revalidateFlowFrameAgainstCatalog(
   }
 }
 
+/**
+ * Igual a `formatBrl` da proposta (`render.ts`): `R$ 800,00`, sem ponto de milhar.
+ * O fuso da clínica não entra no texto.
+ */
+export function formatFlowBrl(cents: number): string {
+  const neg = cents < 0
+  const abs = Math.abs(Math.trunc(cents))
+  const reais = Math.trunc(abs / 100)
+  const rest = (abs % 100).toString().padStart(2, '0')
+  return `${neg ? '-' : ''}R$ ${reais},${rest}`
+}
+
+/**
+ * Linha de total no corpo do horário. `priceCents` já é o de `quoteVisit`
+ * (DEC-080, combo aplicado). Nulo se faltar preço — não se inventa valor.
+ */
+export function flowVisitTotalLine(input: {
+  priceCents: number | null
+  comboName?: string | null
+}): string | null {
+  if (input.priceCents == null) return null
+  const price = formatFlowBrl(input.priceCents)
+  const combo = input.comboName?.trim()
+  if (!combo) return `Total: ${price}`
+  return `Total: ${price} (combo ${combo})`
+}
+
+/**
+ * Serviço a pré-selecionar no dropdown de entrada.
+ * Um só agendável, ou o id que o turno já gravou e que continua na lista.
+ * String vazia = a cliente ainda escolhe. Não grava id falso.
+ */
+export function prefillServiceId(
+  services: readonly FlowCatalogService[],
+  frame?: FlowBookingSnapshot | null,
+): string {
+  const known = frame?.serviceId
+  if (known && services.some((s) => s.id === known)) return known
+  if (services.length === 1) return services[0]!.id
+  return ''
+}
+
 function serviceOptions(services: FlowCatalogService[]): FlowDataOption[] {
   return services.map((s) => ({
     id: s.id,
-    title: s.name.trim().slice(0, 30) || s.id,
+    title: s.name.trim().slice(0, FLOW_OPTION_TITLE_MAX) || s.id,
   }))
+}
+
+function serviceScreenFields(
+  services: FlowCatalogService[],
+  frame?: FlowBookingSnapshot | null,
+): Record<string, unknown> {
+  const serviceInit = prefillServiceId(services, frame)
+  const picked = serviceInit ? services.find((s) => s.id === serviceInit) : undefined
+  const body = picked
+    ? FLOW_COPY.serviceBodyReady(picked.name, services.length === 1)
+    : FLOW_COPY.serviceBody
+  return {
+    body,
+    services: serviceOptions(services),
+    service_init: serviceInit,
+  }
 }
 
 function genderOptions(): FlowDataOption[] {
@@ -155,6 +216,31 @@ function genderOptions(): FlowDataOption[] {
     { id: 'feminino', title: FLOW_GENDER_LABELS.feminino },
     { id: 'masculino', title: FLOW_GENDER_LABELS.masculino },
   ]
+}
+
+/**
+ * Preço no título quando cabe em 30 caracteres.
+ * Se o nome + preço não cabem, o título fica o nome (cortado) e a descrição
+ * leva o nome completo e o preço — o schema publicado tem de declarar
+ * `description` (republicar o Flow JSON).
+ */
+export function variantOptionRow(zone: {
+  id: string
+  name: string
+  priceCents?: number | null
+}): FlowDataOption {
+  const name = zone.name.trim() || zone.id
+  const price = zone.priceCents == null ? null : formatFlowBrl(zone.priceCents)
+  const titled = price ? `${name} · ${price}` : name
+  if (titled.length <= FLOW_OPTION_TITLE_MAX) {
+    return { id: zone.id, title: titled, description: '' }
+  }
+  const description = (price ? `${name} · ${price}` : name).slice(0, FLOW_OPTION_DESCRIPTION_MAX)
+  return {
+    id: zone.id,
+    title: name.slice(0, FLOW_OPTION_TITLE_MAX),
+    description,
+  }
 }
 
 function variantOptions(
@@ -166,18 +252,13 @@ function variantOptions(
     line && needsAudienceLine(active) ? zonesForAudienceLine(active, line) : active
   if (scoped.length === 0) return []
   if (scoped.length > FLOW_MAX_VARIANTS_IN_CHECKBOX) return 'too_many'
-  const rows: FlowDataOption[] = scoped.map((z) => ({
-    id: z.id,
-    title: z.name.trim().slice(0, 30) || z.id,
-  }))
-  rows.push({ id: TODAS_OPTION_KEY, title: FLOW_TODAS_LABEL })
-  return rows
+  return scoped.map((z) => variantOptionRow(z))
 }
 
 function slotOptions(slots: FlowSlotOption[]): FlowDataOption[] {
   return slots.slice(0, FLOW_MAX_SLOTS).map((s) => {
     const copy = slotListRowCopy(s.date, s.time)
-    return { id: s.id, title: copy.title.slice(0, 30) }
+    return { id: s.id, title: copy.title.slice(0, FLOW_OPTION_TITLE_MAX) }
   })
 }
 
@@ -207,8 +288,12 @@ export function resolveVariantIds(
   const scoped =
     line && needsAudienceLine(active) ? zonesForAudienceLine(active, line) : active
   const ids = new Set(scoped.map((z) => z.id))
-  if (selected.includes(TODAS_OPTION_KEY)) return scoped.map((z) => z.id)
-  return selected.filter((id) => ids.has(id))
+  const out: string[] = []
+  for (const id of selected) {
+    if (!ids.has(id) || out.includes(id)) continue
+    out.push(id)
+  }
+  return out
 }
 
 /**
@@ -227,6 +312,7 @@ export const FLOW_ENTRY_SCREEN: FlowScreenId = 'SERVICO'
  */
 export function entryFlowScreen(input: {
   catalog: FlowCatalogService[]
+  frame?: FlowBookingSnapshot | null
   errorMessage?: string
 }): FlowScreenPayload | { kind: 'chat_fallback'; reason: string } {
   const services = bookableServices(input.catalog)
@@ -238,10 +324,7 @@ export function entryFlowScreen(input: {
   }
   return {
     screen: FLOW_ENTRY_SCREEN,
-    data: screenData(
-      { body: FLOW_COPY.serviceBody, services: serviceOptions(services) },
-      input.errorMessage,
-    ),
+    data: screenData(serviceScreenFields(services, input.frame), input.errorMessage),
   }
 }
 
@@ -255,6 +338,8 @@ export function nextFlowScreen(input: {
   frame: FlowBookingSnapshot
   /** Horas livres já filtradas (queryAutomaticAvailability). */
   slots?: FlowSlotOption[]
+  /** Total já cotado (`quoteVisit`). Entra no corpo do HORARIO. */
+  visitTotalLine?: string | null
   errorMessage?: string
 }): FlowScreenPayload | { kind: 'chat_fallback'; reason: string } | { kind: 'ready' } {
   const services = bookableServices(input.catalog)
@@ -275,14 +360,11 @@ export function nextFlowScreen(input: {
       service = services[0]!
       serviceId = service.id
     } else {
-      // JSON publicado: só Dropdown em SERVICO (schema: body, services,
-      // error_message). Sem `title`/`layout` — Meta payload-schema-error.
+      // JSON publicado: Dropdown em SERVICO (body, services, service_init,
+      // error_message). `service_init` alimenta init-value. Sem chaves a mais.
       return {
         screen: 'SERVICO',
-        data: screenData(
-          { body: FLOW_COPY.serviceBody, services: serviceOptions(services) },
-          input.errorMessage,
-        ),
+        data: screenData(serviceScreenFields(services, input.frame), input.errorMessage),
       }
     }
   }
@@ -333,10 +415,14 @@ export function nextFlowScreen(input: {
   if (slots.length === 0) {
     return { kind: 'chat_fallback', reason: 'no_slots' }
   }
+  const total = input.visitTotalLine?.trim()
   return {
     screen: 'HORARIO',
     data: screenData(
-      { body: FLOW_COPY.slotBody, slots: slotOptions(slots) },
+      {
+        body: total ? `${FLOW_COPY.slotBody}\n${total}` : FLOW_COPY.slotBody,
+        slots: slotOptions(slots),
+      },
       input.errorMessage,
     ),
   }
@@ -354,18 +440,24 @@ export function applyScreenSubmission(
   | { ok: false; errorMessage: string; frame: FlowBookingSnapshot } {
   const services = bookableServices(catalog)
   if (screen === 'SERVICO') {
-    const id = typeof data.service_id === 'string' ? data.service_id : null
-    const svc = id ? services.find((s) => s.id === id) : null
+    const raw = typeof data.service_id === 'string' ? data.service_id.trim() : ''
+    let svc = raw ? services.find((s) => s.id === raw) ?? null : null
+    // data_exchange sem id: se o serviço é inequívoco, avança com ele.
+    if (!svc && !raw) {
+      const prefill = prefillServiceId(services, frame)
+      svc = prefill ? services.find((s) => s.id === prefill) ?? null : null
+    }
     if (!svc) {
       return { ok: false, errorMessage: FLOW_COPY.catalogChanged, frame }
     }
+    const same = frame.serviceId === svc.id
     return {
       ok: true,
       frame: {
         serviceId: svc.id,
-        line: null,
-        variantIds: null,
-        slotKey: null,
+        line: same ? frame.line : null,
+        variantIds: same ? frame.variantIds : null,
+        slotKey: same ? frame.slotKey : null,
       },
     }
   }

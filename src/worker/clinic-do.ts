@@ -128,11 +128,13 @@ import {
   type PrepareBookingFlowOffer,
 } from '../whatsapp/flow'
 import {
+  flowVisitTotalLine,
   revalidateFlowFrameAgainstCatalog,
   type FlowBookingSnapshot,
   type FlowCatalogService,
   type FlowSlotOption,
 } from '../whatsapp/flow/screens'
+import { quoteVisit } from '../clinic/config/zones'
 import { listServices } from '../clinic/config/services'
 import { readCatalogVersion } from '../clinic/ai/turn-context'
 import { enqueueTypingIndicatorForLatestInbound } from '../clinic/ai/typing-indicator'
@@ -742,6 +744,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     frame: FlowBookingSnapshot
     catalogMismatch: boolean
     clearedFields: Array<'serviceId' | 'line' | 'variantIds' | 'slotKey'>
+    visitTotalLine: string | null
   }> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
@@ -777,6 +780,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       clearedFields = [...revalidated.cleared]
     }
     let slots: FlowSlotOption[] = []
+    let visitTotalLine: string | null = null
     if (frame.serviceId) {
       const service = services.find((s) => s.id === frame.serviceId && s.active)
       if (service) {
@@ -800,6 +804,21 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
             variantIds: frame.variantIds,
             clock: this.#clock,
           })
+          try {
+            const activeZoneIds = service.zones.filter((z) => z.active).map((z) => z.id)
+            const quote = quoteVisit(
+              this.#db,
+              input.tenantId,
+              service,
+              activeZoneIds.length > 0 ? frame.variantIds : null,
+            )
+            visitTotalLine = flowVisitTotalLine({
+              priceCents: quote.priceCents,
+              comboName: quote.combo?.name ?? null,
+            })
+          } catch {
+            visitTotalLine = null
+          }
         }
       }
     }
@@ -811,7 +830,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         if (!clearedFields.includes('slotKey')) clearedFields.push('slotKey')
       }
     }
-    return { catalog, slots, frame, catalogMismatch, clearedFields }
+    return { catalog, slots, frame, catalogMismatch, clearedFields, visitTotalLine }
   }
 
   /**
@@ -850,6 +869,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         responseJson: input.responseJson,
         catalogVersion,
         capability,
+        flushOutbound: async (rows) => {
+          if (rows.length === 0) return
+          await this.#fanoutOutboxes(caller, rows, true)
+          await this.#drain(caller)
+        },
       },
       this.#clock,
     )
