@@ -244,11 +244,14 @@ export async function handleFlowDataRequest(input: {
     catalogMismatch?: boolean
     clearedFields?: FlowClearedField[]
   }): string | undefined => {
-    if (!info.catalogMismatch || !info.clearedFields?.length) return undefined
-    if (info.clearedFields.length === 1 && info.clearedFields[0] === 'slotKey') {
+    if (!info.clearedFields?.length) return undefined
+    // Slot deixou de estar livre (com ou sem mudança de catálogo) → C15.
+    if (info.clearedFields.every((f) => f === 'slotKey')) {
       return FLOW_COPY.slotGone
     }
-    return FLOW_COPY.catalogChanged
+    if (info.catalogMismatch) return FLOW_COPY.catalogChanged
+    if (info.clearedFields.includes('slotKey')) return FLOW_COPY.slotGone
+    return undefined
   }
 
   if (parsed.action === 'data_exchange' && parsed.screen) {

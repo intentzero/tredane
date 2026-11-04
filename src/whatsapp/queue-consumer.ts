@@ -198,17 +198,30 @@ export async function processWhatsappMessage(
       const nfmParams = parseNfmResponseJson(msg.responseJson)
       let tokenCatalogVersion: string | undefined
       if (nfmParams?.flowToken) {
+        const rejectToken = async (reason: string) => {
+          log({
+            level: 'info',
+            event: 'queue.flow_token_unusable',
+            detail: { receiptId: msg.receiptId, tenantId: msg.tenantId, reason },
+          })
+          if (deps.syncAdminDb) {
+            markWebhookReceiptProcessed(deps.syncAdminDb, msg.receiptId, clock, {
+              skipped: reason,
+            })
+          } else {
+            const ops = deps.webhookOps ?? createD1WebhookOps(deps.env.DB, clock)
+            await ops.markProcessed(msg.receiptId, { skipped: reason })
+          }
+        }
         if (deps.syncAdminDb) {
           const row = getFlowToken(deps.syncAdminDb, nfmParams.flowToken)
           if (!row || !isFlowTokenUsable(row, clock.nowMs())) {
-            log({
-              level: 'info',
-              event: 'queue.flow_token_unusable',
-              detail: { receiptId: msg.receiptId, tenantId: msg.tenantId },
-            })
-            markWebhookReceiptProcessed(deps.syncAdminDb, msg.receiptId, clock, {
-              skipped: 'flow_token_consumed',
-            })
+            await rejectToken('flow_token_consumed')
+            return 'ack'
+          }
+          // Isolamento: token de outra clínica não entra neste DO.
+          if (row.tenantId !== msg.tenantId || row.bindingId !== msg.bindingId) {
+            await rejectToken('flow_token_tenant_mismatch')
             return 'ack'
           }
           tokenCatalogVersion = row.catalogVersion
@@ -218,13 +231,11 @@ export async function processWhatsappMessage(
           const flowOps = createD1FlowOps(deps.env.DB, clock)
           const row = await flowOps.getToken(nfmParams.flowToken)
           if (!row || !isFlowTokenUsable(row, clock.nowMs())) {
-            log({
-              level: 'info',
-              event: 'queue.flow_token_unusable',
-              detail: { receiptId: msg.receiptId, tenantId: msg.tenantId },
-            })
-            const ops = deps.webhookOps ?? createD1WebhookOps(deps.env.DB, clock)
-            await ops.markProcessed(msg.receiptId, { skipped: 'flow_token_consumed' })
+            await rejectToken('flow_token_consumed')
+            return 'ack'
+          }
+          if (row.tenantId !== msg.tenantId || row.bindingId !== msg.bindingId) {
+            await rejectToken('flow_token_tenant_mismatch')
             return 'ack'
           }
           tokenCatalogVersion = row.catalogVersion
