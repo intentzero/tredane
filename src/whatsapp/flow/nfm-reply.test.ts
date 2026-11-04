@@ -390,7 +390,7 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
     }
   })
 
-  it('ofertado sem proposal não engole 2.º nfm (idempotent só com proposal)', async () => {
+  it('ofertado sem proposal: mid-flight não duplica C16; ainda monta proposta/recovery', async () => {
     const s = bootDialogScenario()
     try {
       s.sayInbound('oi')
@@ -438,11 +438,83 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       )
       // Não idempotent_skip: ainda não há proposal versionada.
       expect(retry.outcome).not.toBe('idempotent_skip')
-      const ackCount = s
-        .outboundBodies()
-        .filter((b) => b === FLOW_COPY.preparingProposal).length
-      // Segundo ack não duplica a frase C16.
+      expect(['proposal_sent', 'stale_no_proposal']).toContain(retry.outcome)
+      const bodies = s.outboundBodies()
+      const ackCount = bodies.filter((b) => b === FLOW_COPY.preparingProposal).length
+      // Mid-flight (mesmo serviço/slot): segundo nfm não reenvia C16.
       expect(ackCount).toBe(1)
+      const hasProposal = bodies.some((b) => /Proposta de horário/i.test(b))
+      const hasRecovery = bodies.some((b) => b === FLOW_COPY.proposalBuildFailed)
+      const hasFollowUp = bodies.some(
+        (b) => b !== FLOW_COPY.preparingProposal && b.trim().length > 0,
+      )
+      expect(hasProposal || hasRecovery || hasFollowUp).toBe(true)
+      expect(s.appointmentCount()).toBe(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('Flow novo noutro horário volta a enviar C16 (skip não é lifetime)', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const zones = s.db.all<{ id: string }>(
+        `SELECT id FROM service_zones
+         WHERE service_id = ? AND audience = 'feminino' AND active = 1`,
+        s.ids.depilacao,
+      )
+      const firstJson = JSON.stringify({
+        flow_token: 'fl1_day1',
+        service_id: s.ids.depilacao,
+        line: 'feminino',
+        variant_ids: zones.map((z) => z.id),
+        slot_id: '2026-11-06T10:00',
+      })
+      await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-day1',
+          responseJson: firstJson,
+          catalogVersion: '1',
+          capability: true,
+          phase: 'all',
+        },
+        s.clock,
+      )
+      expect(
+        s.outboundBodies().filter((b) => b === FLOW_COPY.preparingProposal),
+      ).toHaveLength(1)
+
+      // Novo ciclo: outro slot (não mid-flight do mesmo horário).
+      const secondJson = JSON.stringify({
+        flow_token: 'fl1_day2',
+        service_id: s.ids.depilacao,
+        line: 'feminino',
+        variant_ids: zones.map((z) => z.id),
+        slot_id: '2026-11-06T15:00',
+      })
+      const second = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-day2',
+          responseJson: secondJson,
+          catalogVersion: '1',
+          capability: true,
+          phase: 'ack',
+        },
+        s.clock,
+      )
+      expect(second.outcome).toBe('ack_sent')
+      expect(
+        s.outboundBodies().filter((b) => b === FLOW_COPY.preparingProposal),
+      ).toHaveLength(2)
     } finally {
       s.close()
     }

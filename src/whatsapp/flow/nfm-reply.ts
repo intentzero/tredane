@@ -343,28 +343,46 @@ function sendDeterministicOutbound(
   }
 }
 
-function alreadySentFlowAck(
-  db: ClinicDb,
-  tenantId: string,
-  conversationId: string,
-): boolean {
-  const row = db.get<{ id: string }>(
-    `SELECT m.id FROM messages m
-     JOIN outbound_messages o ON o.message_id = m.id AND o.tenant_id = m.tenant_id
-     WHERE m.tenant_id = ? AND m.conversation_id = ? AND m.direction = 'outbound'
-       AND o.client_request_id LIKE 'flow-ack:%'
-     LIMIT 1`,
-    tenantId,
-    conversationId,
-  )
-  return Boolean(row)
-}
-
 type PreparedAgendar = {
   params: NfmReplyParams
   bound: { date: string; time: string }
   serviceName: string
   variantIds: string[] | null
+}
+
+/**
+ * Skip C16 só mid-flight / redelivery — nunca «para sempre» na conversa (F1 #556).
+ * - Mesmo `providerEventKey` já tem `flow-ack:…` (reentrega do webhook).
+ * - Quadro in-flight: ofertado flow, mesmo serviço/data/hora, ainda sem proposal.
+ * Um Flow novo (outro horário / ciclo) volta a enviar C16.
+ */
+function shouldSkipFlowAck(
+  db: ClinicDb,
+  tenantId: string,
+  providerEventKey: string,
+  existing: ReturnType<typeof getBookingFrame>,
+  prepared: PreparedAgendar,
+): boolean {
+  const sameEvent = db.get<{ id: string }>(
+    `SELECT id FROM outbound_messages
+     WHERE tenant_id = ? AND client_request_id = ?
+     LIMIT 1`,
+    tenantId,
+    `flow-ack:${providerEventKey}`,
+  )
+  if (sameEvent) return true
+
+  if (
+    existing?.serviceId === prepared.params.serviceId &&
+    existing.date === prepared.bound.date &&
+    existing.time === prepared.bound.time &&
+    existing.provenance?.serviceId?.source === 'flow' &&
+    existing.proposal == null &&
+    existing.phase === 'ofertado'
+  ) {
+    return true
+  }
+  return false
 }
 
 function prepareAgendarFields(
@@ -672,7 +690,13 @@ export async function handleFlowNfmReply(
   )
   if (typing) earlyRows.push(typing)
 
-  const skipDuplicateAck = alreadySentFlowAck(db, input.tenantId, input.conversationId)
+  const skipDuplicateAck = shouldSkipFlowAck(
+    db,
+    input.tenantId,
+    input.providerEventKey,
+    existing,
+    prepared,
+  )
   if (!skipDuplicateAck) {
     earlyRows.push(
       ...sendDeterministicOutbound(
