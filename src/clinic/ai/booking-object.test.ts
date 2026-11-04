@@ -38,6 +38,19 @@ describe('booking-object', () => {
     expect(options.filter((o) => o.serviceId === 'svc-depilacao').length).toBe(6)
   })
 
+  it('T14: zonas todas inactivas → sem opção bookable (não cai na linha)', () => {
+    const base = EVAL_BOOKING_CATALOG.find((s) => s.id === 'svc-depilacao')!
+    const deadZonesOnly = {
+      ...base,
+      id: 'svc-laser-off',
+      name: 'Laser',
+      zones: base.zones.map((z, i) =>
+        i === 0 ? { ...z, id: 'z-off', active: false } : { ...z, active: false },
+      ),
+    }
+    expect(listBookableOptions([deadZonesOnly])).toEqual([])
+  })
+
   it('lê duração em linguagem natural', () => {
     expect(durationMinutesFromText('o de uma hora')).toBe(60)
     expect(durationMinutesFromText('meia hora')).toBe(30)

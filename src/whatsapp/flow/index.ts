@@ -27,6 +27,8 @@ export {
   successPayload,
   resolveVariantIds,
   bookableServices,
+  isServiceBookable,
+  revalidateFlowFrameAgainstCatalog,
   FLOW_MAX_VARIANTS_IN_CHECKBOX,
   FLOW_MAX_SLOTS,
   type FlowScreenId,
@@ -35,6 +37,7 @@ export {
   type FlowSlotOption,
   type FlowScreenPayload,
   type FlowChatFallbackReason,
+  type FlowClearedField,
 } from './screens'
 export {
   generateFlowToken,

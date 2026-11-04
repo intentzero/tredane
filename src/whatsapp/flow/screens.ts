@@ -53,12 +53,94 @@ export const FLOW_MAX_SLOTS = 200
 /** RadioButtonsGroup: teto Meta. */
 export const FLOW_MAX_RADIO = 20
 
+/**
+ * Agendável: activo e, se tem zonas no cadastro, pelo menos uma activa.
+ * Confirmado (`variantes-de-servico.md` / H1→A): todas inactivas → sem marcação nova.
+ */
+export function isServiceBookable(service: FlowCatalogService): boolean {
+  if (!service.active) return false
+  if (service.zones.length > 0 && !service.zones.some((z) => z.active)) return false
+  return true
+}
+
 export function bookableServices(catalog: FlowCatalogService[]): FlowCatalogService[] {
-  return catalog.filter((s) => s.active)
+  return catalog.filter(isServiceBookable)
 }
 
 export function activeZones(service: FlowCatalogService) {
   return service.zones.filter((z) => z.active)
+}
+
+export type FlowClearedField = 'serviceId' | 'line' | 'variantIds' | 'slotKey'
+
+/**
+ * Revalida o snapshot do token contra o catálogo actual (ADR-0016 §7).
+ * Ids mortos são limpos sem substituto inventado; slot fica para o caller
+ * confrontar com a lista livre.
+ */
+export function revalidateFlowFrameAgainstCatalog(
+  frame: FlowBookingSnapshot,
+  catalog: FlowCatalogService[],
+): { frame: FlowBookingSnapshot; cleared: FlowClearedField[] } {
+  const cleared: FlowClearedField[] = []
+  const services = bookableServices(catalog)
+  if (!frame.serviceId) {
+    return { frame: { ...frame }, cleared }
+  }
+  const service = services.find((s) => s.id === frame.serviceId) ?? null
+  if (!service) {
+    if (frame.serviceId) cleared.push('serviceId')
+    if (frame.line) cleared.push('line')
+    if (frame.variantIds?.length) cleared.push('variantIds')
+    if (frame.slotKey) cleared.push('slotKey')
+    return {
+      frame: { serviceId: null, line: null, variantIds: null, slotKey: null },
+      cleared,
+    }
+  }
+
+  let line = frame.line
+  const zones = activeZones(service)
+  // Linha sobrando (já não precisa de GENERO) limpa-se em silêncio — não é id morto.
+  if (line && !needsAudienceLine(zones)) {
+    line = null
+  }
+
+  let variantIds = frame.variantIds
+  if (zones.length > 0 && variantIds && variantIds.length > 0) {
+    const scoped =
+      line && needsAudienceLine(zones) ? zonesForAudienceLine(zones, line) : zones
+    const ids = new Set(scoped.map((z) => z.id))
+    const ok = variantIds.filter((id) => ids.has(id))
+    if (ok.length !== variantIds.length) {
+      cleared.push('variantIds')
+      variantIds = ok.length > 0 ? ok : null
+    }
+  } else if (zones.length === 0) {
+    variantIds = null
+  }
+
+  let slotKey = frame.slotKey
+  if (
+    (cleared.includes('serviceId') ||
+      cleared.includes('variantIds') ||
+      cleared.includes('line')) &&
+    slotKey
+  ) {
+    // Duração / âmbito mudou → hora tem de ser recalculada.
+    slotKey = null
+    if (!cleared.includes('slotKey')) cleared.push('slotKey')
+  }
+
+  return {
+    frame: {
+      serviceId: service.id,
+      line,
+      variantIds,
+      slotKey,
+    },
+    cleared,
+  }
 }
 
 function serviceOptions(services: FlowCatalogService[]): FlowDataOption[] {
@@ -220,6 +302,7 @@ export function applyScreenSubmission(
   frame: FlowBookingSnapshot,
   screen: FlowScreenId,
   data: Record<string, unknown>,
+  opts?: { offeredSlots?: readonly FlowSlotOption[] },
 ):
   | { ok: true; frame: FlowBookingSnapshot }
   | { ok: false; errorMessage: string; frame: FlowBookingSnapshot } {
@@ -281,6 +364,11 @@ export function applyScreenSubmission(
   if (screen === 'HORARIO') {
     const key = typeof data.slot_id === 'string' ? data.slot_id : null
     if (!key || !/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/.test(key)) {
+      return { ok: false, errorMessage: FLOW_COPY.slotGone, frame }
+    }
+    // #536 / contra-análise P1: id civil não basta — tem de ∈ lista oferecida.
+    const offered = opts?.offeredSlots
+    if (offered && !offered.some((s) => s.id === key)) {
       return { ok: false, errorMessage: FLOW_COPY.slotGone, frame }
     }
     return { ok: true, frame: { ...frame, slotKey: key } }

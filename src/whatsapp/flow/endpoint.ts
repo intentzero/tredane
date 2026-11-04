@@ -20,6 +20,7 @@ import {
   type FlowBookingSnapshot,
   type FlowCatalogService,
   type FlowChatFallbackReason,
+  type FlowClearedField,
   type FlowScreenId,
   type FlowSlotOption,
 } from './screens'
@@ -37,6 +38,8 @@ export type FlowDataLookup = (input: {
   catalog: FlowCatalogService[]
   slots: FlowSlotOption[]
   frame: FlowBookingSnapshot
+  catalogMismatch?: boolean
+  clearedFields?: FlowClearedField[]
 }>
 
 /** Lookup async (D1 em produção). */
@@ -81,15 +84,17 @@ function parseActionPayload(payload: unknown): {
   return { version, action, screen, data, flowToken }
 }
 
-function mergeFrames(
-  preferred: FlowBookingSnapshot,
-  fallback: FlowBookingSnapshot,
-): FlowBookingSnapshot {
+/**
+ * Após dataLookup, o frame do DO/revalidação é autoritativo — inclusive `null`
+ * explícito (ex.: slot stale limpo). Não usar `??` com a sessão: restauraria
+ * o valor stale e saltaria para SUCCESS sem C15 (finding S1 review #542).
+ */
+function takeLookedFrame(looked: FlowBookingSnapshot): FlowBookingSnapshot {
   return {
-    serviceId: preferred.serviceId ?? fallback.serviceId,
-    line: preferred.line ?? fallback.line,
-    variantIds: preferred.variantIds ?? fallback.variantIds,
-    slotKey: preferred.slotKey ?? fallback.slotKey,
+    serviceId: looked.serviceId,
+    line: looked.line,
+    variantIds: looked.variantIds,
+    slotKey: looked.slotKey,
   }
 }
 
@@ -230,11 +235,26 @@ export async function handleFlowDataRequest(input: {
     return { status: 427, body: { error_msg: FLOW_COPY.tokenExpired } }
   }
 
-  // Fonte de verdade: sessão persistida no token (+ overlay do BookingFrame do DO).
+  // Fonte de verdade: sessão do token (sem overlay contínuo do BookingFrame — #537).
+  // BACK: re-renderiza a partir da sessão sem aplicar submissão (T15).
   let frame = await input.sessions.get(parsed.flowToken)
 
   let looked = await input.dataLookup({ token: tokenRow, frame })
-  frame = mergeFrames(looked.frame, frame)
+  frame = takeLookedFrame(looked.frame)
+
+  const mismatchMessage = (info: {
+    catalogMismatch?: boolean
+    clearedFields?: FlowClearedField[]
+  }): string | undefined => {
+    if (!info.clearedFields?.length) return undefined
+    // Slot deixou de estar livre (com ou sem mudança de catálogo) → C15.
+    if (info.clearedFields.every((f) => f === 'slotKey')) {
+      return FLOW_COPY.slotGone
+    }
+    if (info.catalogMismatch) return FLOW_COPY.catalogChanged
+    if (info.clearedFields.includes('slotKey')) return FLOW_COPY.slotGone
+    return undefined
+  }
 
   if (parsed.action === 'data_exchange' && parsed.screen) {
     const applied = applyScreenSubmission(
@@ -242,6 +262,7 @@ export async function handleFlowDataRequest(input: {
       frame,
       parsed.screen,
       parsed.data,
+      { offeredSlots: looked.slots },
     )
     if (!applied.ok) {
       const again = nextFlowScreen({
@@ -263,6 +284,7 @@ export async function handleFlowDataRequest(input: {
     frame = applied.frame
     await input.sessions.set(parsed.flowToken, frame)
     looked = await input.dataLookup({ token: tokenRow, frame })
+    frame = takeLookedFrame(looked.frame)
   }
   await input.sessions.set(parsed.flowToken, frame)
 
@@ -270,6 +292,7 @@ export async function handleFlowDataRequest(input: {
     catalog: looked.catalog,
     frame,
     slots: looked.slots,
+    errorMessage: mismatchMessage(looked),
   })
 
   if ('kind' in next && next.kind === 'ready') {

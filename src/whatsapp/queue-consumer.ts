@@ -40,6 +40,13 @@ import {
 } from './media-ingest'
 import type { MetaMediaAdapter } from './media'
 import { assertTenantAcceptsClinicalIngest } from '../retention/guards'
+import { createD1FlowOps } from './flow/flow-d1'
+import {
+  consumeFlowToken,
+  getFlowToken,
+  isFlowTokenUsable,
+} from './flow/tokens'
+import { parseNfmResponseJson } from './flow/nfm-reply'
 
 export type QueueConsumerDeps = {
   env: WorkerBindings
@@ -170,6 +177,7 @@ export async function processWhatsappMessage(
       })
     } else if (msg.kind === 'nfm_reply') {
       // #514 / ADR-0016: fecho do Flow → quadro + proposta (não marca).
+      // #538: consumir token no 1.º fecho aceite; passar catalogVersion do token.
       if (!msg.waId || !msg.responseJson) {
         log({
           level: 'warn',
@@ -186,6 +194,55 @@ export async function processWhatsappMessage(
         }
         return 'ack'
       }
+
+      const nfmParams = parseNfmResponseJson(msg.responseJson)
+      let tokenCatalogVersion: string | undefined
+      if (nfmParams?.flowToken) {
+        const rejectToken = async (reason: string) => {
+          log({
+            level: 'info',
+            event: 'queue.flow_token_unusable',
+            detail: { receiptId: msg.receiptId, tenantId: msg.tenantId, reason },
+          })
+          if (deps.syncAdminDb) {
+            markWebhookReceiptProcessed(deps.syncAdminDb, msg.receiptId, clock, {
+              skipped: reason,
+            })
+          } else {
+            const ops = deps.webhookOps ?? createD1WebhookOps(deps.env.DB, clock)
+            await ops.markProcessed(msg.receiptId, { skipped: reason })
+          }
+        }
+        if (deps.syncAdminDb) {
+          const row = getFlowToken(deps.syncAdminDb, nfmParams.flowToken)
+          if (!row || !isFlowTokenUsable(row, clock.nowMs())) {
+            await rejectToken('flow_token_consumed')
+            return 'ack'
+          }
+          // Isolamento: token de outra clínica não entra neste DO.
+          if (row.tenantId !== msg.tenantId || row.bindingId !== msg.bindingId) {
+            await rejectToken('flow_token_tenant_mismatch')
+            return 'ack'
+          }
+          tokenCatalogVersion = row.catalogVersion
+          // Claim antes de processar — 2.º nfm não repropõe (T08 / #538).
+          consumeFlowToken(deps.syncAdminDb, nfmParams.flowToken, clock)
+        } else {
+          const flowOps = createD1FlowOps(deps.env.DB, clock)
+          const row = await flowOps.getToken(nfmParams.flowToken)
+          if (!row || !isFlowTokenUsable(row, clock.nowMs())) {
+            await rejectToken('flow_token_consumed')
+            return 'ack'
+          }
+          if (row.tenantId !== msg.tenantId || row.bindingId !== msg.bindingId) {
+            await rejectToken('flow_token_tenant_mismatch')
+            return 'ack'
+          }
+          tokenCatalogVersion = row.catalogVersion
+          await flowOps.consumeToken(nfmParams.flowToken)
+        }
+      }
+
       const ingested = (await stub.ingestMessage(
         caller,
         {
@@ -209,6 +266,7 @@ export async function processWhatsappMessage(
           providerEventKey: msg.providerEventKey,
           responseJson: msg.responseJson,
           contextMessageId: msg.contextMessageId ?? null,
+          catalogVersion: tokenCatalogVersion,
         })
       }
 
