@@ -17,7 +17,7 @@ describe('scripts/d1-migrate-remote.mjs + d1-admin-schema-smoke.mjs', () => {
   it('constants.ts expõe ADMIN_SCHEMA_VERSION numérico', () => {
     const text = readFileSync(resolve(root, 'src/db/admin/constants.ts'), 'utf8')
     const m = text.match(/export const ADMIN_SCHEMA_VERSION\s*=\s*(\d+)/)
-    expect(m?.[1]).toBe('16')
+    expect(m?.[1]).toBe('18')
   })
 
   it('dry-run migrate recusa ambiente inválido', () => {
@@ -49,7 +49,7 @@ describe('scripts/d1-migrate-remote.mjs + d1-admin-schema-smoke.mjs', () => {
     const r = run('scripts/d1-admin-schema-smoke.mjs', ['staging'])
     expect(r.status).toBe(0)
     const lines = r.stdout.trim().split('\n')
-    expect(lines[0]).toBe('expect ADMIN_SCHEMA_VERSION=16')
+    expect(lines[0]).toBe('expect ADMIN_SCHEMA_VERSION=18')
     expect(lines[1]).toContain('npx wrangler d1 execute tredane-staging')
     expect(lines[1]).toContain('--env staging')
     expect(lines[1]).toContain('--remote')

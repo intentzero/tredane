@@ -16,6 +16,7 @@ export const WEBHOOK_RECEIPT_KINDS = [
   'account_interrupt',
   'button_reply',
   'list_reply',
+  'nfm_reply',
   'discarded',
 ] as const
 export type WebhookReceiptKind = (typeof WEBHOOK_RECEIPT_KINDS)[number]

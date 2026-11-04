@@ -156,6 +156,16 @@ function itemToQueueMessage(
         contextMessageId: item.contextMessageId,
         providerTimestamp: item.providerTimestamp,
       }
+    case 'nfm_reply':
+      return {
+        ...base,
+        kind: 'nfm_reply',
+        waId: item.waId,
+        displayName: item.displayName,
+        responseJson: item.responseJson,
+        contextMessageId: item.contextMessageId,
+        providerTimestamp: item.providerTimestamp,
+      }
     case 'unsupported':
       return {
         ...base,

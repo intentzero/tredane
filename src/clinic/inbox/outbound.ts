@@ -30,6 +30,15 @@ export type OutboundInteractiveList = {
   sections: OutboundInteractiveListSection[]
 }
 
+export type OutboundInteractiveFlow = {
+  flowId: string
+  flowCta: string
+  flowToken: string
+  flowAction: 'data_exchange'
+  flowMessageVersion: string
+  mode: 'published' | 'draft'
+}
+
 export type OutboundMessageRow = {
   id: string
   tenantId: string
@@ -45,6 +54,8 @@ export type OutboundMessageRow = {
   interactiveButtons: OutboundInteractiveButton[] | null
   /** Lista Cloud API quando kind=interactive type=list (M5 / #415). */
   interactiveList: OutboundInteractiveList | null
+  /** Flow Cloud API quando kind=interactive type=flow (#514). */
+  interactiveFlow: OutboundInteractiveFlow | null
   deliveryState: OutboundDeliveryState
   failureReason: string | null
   outboxEventId: string | null
@@ -127,6 +138,30 @@ function parseInteractiveList(raw: string | null): OutboundInteractiveList | nul
   }
 }
 
+function parseInteractiveFlow(raw: string | null): OutboundInteractiveFlow | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as { flow?: unknown }
+    if (!parsed || !parsed.flow || typeof parsed.flow !== 'object') return null
+    const flow = parsed.flow as Record<string, unknown>
+    const flowId = typeof flow.flowId === 'string' ? flow.flowId.trim() : ''
+    const flowCta = typeof flow.flowCta === 'string' ? flow.flowCta.trim() : ''
+    const flowToken = typeof flow.flowToken === 'string' ? flow.flowToken.trim() : ''
+    if (!flowId || !flowCta || !flowToken) return null
+    return {
+      flowId,
+      flowCta,
+      flowToken,
+      flowAction: 'data_exchange',
+      flowMessageVersion:
+        typeof flow.flowMessageVersion === 'string' ? flow.flowMessageVersion : '3',
+      mode: flow.mode === 'draft' ? 'draft' : 'published',
+    }
+  } catch {
+    return null
+  }
+}
+
 function mapOutbound(row: ObSql): OutboundMessageRow {
   let templateParams: Record<string, string> | null = null
   if (row.template_params_json) {
@@ -153,6 +188,7 @@ function mapOutbound(row: ObSql): OutboundMessageRow {
     templateParams,
     interactiveButtons: parseInteractiveButtons(row.interactive_json ?? null),
     interactiveList: parseInteractiveList(row.interactive_json ?? null),
+    interactiveFlow: parseInteractiveFlow(row.interactive_json ?? null),
     deliveryState: row.delivery_state as OutboundDeliveryState,
     failureReason: row.failure_reason,
     outboxEventId: row.outbox_event_id,
@@ -219,6 +255,7 @@ export function insertOutboundMessage(
     templateParams?: Record<string, string> | null
     interactiveButtons?: OutboundInteractiveButton[] | null
     interactiveList?: OutboundInteractiveList | null
+    interactiveFlow?: OutboundInteractiveFlow | null
     deliveryState?: OutboundDeliveryState
     failureReason?: string | null
     outboxEventId?: string | null
@@ -231,13 +268,15 @@ export function insertOutboundMessage(
   const now = clock.nowMs()
   const state = input.deliveryState ?? 'pending'
   const interactiveJson =
-    input.kind === 'interactive' && input.interactiveList
-      ? JSON.stringify({ list: input.interactiveList })
-      : input.kind === 'interactive' &&
-          input.interactiveButtons &&
-          input.interactiveButtons.length > 0
-        ? JSON.stringify({ buttons: input.interactiveButtons })
-        : null
+    input.kind === 'interactive' && input.interactiveFlow
+      ? JSON.stringify({ flow: input.interactiveFlow })
+      : input.kind === 'interactive' && input.interactiveList
+        ? JSON.stringify({ list: input.interactiveList })
+        : input.kind === 'interactive' &&
+            input.interactiveButtons &&
+            input.interactiveButtons.length > 0
+          ? JSON.stringify({ buttons: input.interactiveButtons })
+          : null
   db.run(
     `INSERT INTO outbound_messages (
       id, tenant_id, conversation_id, message_id, client_request_id,

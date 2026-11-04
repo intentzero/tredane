@@ -1,5 +1,5 @@
-/** Versão gravada por `0016_webhook_receipt_list_reply.sql` em `admin_schema_state`. */
-export const ADMIN_SCHEMA_VERSION = 16
+/** Versão gravada por `0018_whatsapp_flow_session.sql` em `admin_schema_state`. */
+export const ADMIN_SCHEMA_VERSION = 18
 
 /** DEC-022: convite vale 7 dias (168 h) desde a emissão. */
 export const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000

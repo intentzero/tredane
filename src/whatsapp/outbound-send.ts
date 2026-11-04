@@ -363,6 +363,38 @@ export async function processClinicOutboxMessage(
     : null
   const hasInteractiveList =
     Boolean(interactiveList?.button) && (interactiveList?.sections.length ?? 0) > 0
+  const interactiveFlowRaw =
+    payload.interactiveFlow && typeof payload.interactiveFlow === 'object'
+      ? (payload.interactiveFlow as {
+          flowId?: unknown
+          flowCta?: unknown
+          flowToken?: unknown
+          flowAction?: unknown
+          flowMessageVersion?: unknown
+          mode?: unknown
+        })
+      : null
+  const interactiveFlow = interactiveFlowRaw
+    ? {
+        flowId:
+          typeof interactiveFlowRaw.flowId === 'string' ? interactiveFlowRaw.flowId.trim() : '',
+        flowCta:
+          typeof interactiveFlowRaw.flowCta === 'string' ? interactiveFlowRaw.flowCta.trim() : '',
+        flowToken:
+          typeof interactiveFlowRaw.flowToken === 'string'
+            ? interactiveFlowRaw.flowToken.trim()
+            : '',
+        flowAction: 'data_exchange' as const,
+        flowMessageVersion:
+          typeof interactiveFlowRaw.flowMessageVersion === 'string'
+            ? interactiveFlowRaw.flowMessageVersion
+            : '3',
+        mode: interactiveFlowRaw.mode === 'draft' ? ('draft' as const) : ('published' as const),
+      }
+    : null
+  const hasInteractiveFlow = Boolean(
+    interactiveFlow?.flowId && interactiveFlow.flowCta && interactiveFlow.flowToken,
+  )
 
   if (isDemoTenantId(msg.tenantId)) {
     // Clínica demo (contatos fictícios): nunca chamar a Meta.
@@ -438,7 +470,21 @@ export async function processClinicOutboxMessage(
           clientRequestId,
         })
       } else if (kind === 'interactive') {
-        if (hasInteractiveList && interactiveList) {
+        if (hasInteractiveFlow && interactiveFlow) {
+          sendResult = await meta.sendInteractiveFlowMessage({
+            phoneNumberId: creds.phoneNumberId,
+            accessToken: creds.accessToken,
+            toWaId: waId,
+            body,
+            flowId: interactiveFlow.flowId,
+            flowCta: interactiveFlow.flowCta,
+            flowToken: interactiveFlow.flowToken,
+            flowAction: interactiveFlow.flowAction,
+            flowMessageVersion: interactiveFlow.flowMessageVersion,
+            mode: interactiveFlow.mode,
+            clientRequestId,
+          })
+        } else if (hasInteractiveList && interactiveList) {
           sendResult = await meta.sendInteractiveListMessage({
             phoneNumberId: creds.phoneNumberId,
             accessToken: creds.accessToken,

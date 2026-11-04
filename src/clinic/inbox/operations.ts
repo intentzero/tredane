@@ -839,17 +839,19 @@ export function sendOutboundMessageOp(
   const hasTemplate = Boolean(input.template?.name?.trim())
   const hasButtons = Boolean(input.interactive?.buttons?.length)
   const hasList = Boolean(input.interactive?.list?.sections?.length)
-  if (hasButtons && hasList) {
+  const hasFlow = Boolean(input.interactive?.flow?.flowId?.trim())
+  const interactiveModes = [hasButtons, hasList, hasFlow].filter(Boolean).length
+  if (interactiveModes > 1) {
     throw new ValidationError(
-      'send_buttons_and_list',
-      'Envie botões ou lista interativa, não ambos',
+      'send_interactive_modes_conflict',
+      'Envie botões, lista ou Flow, não mais do que um',
     )
   }
-  const hasInteractive = hasButtons || hasList
+  const hasInteractive = hasButtons || hasList || hasFlow
   const rawBody = (input.body ?? '').trim()
   const modes = [hasTemplate, hasInteractive, Boolean(rawBody && !hasInteractive)].filter(Boolean)
     .length
-  // interactive exige body + botões/lista; text e template são exclusivos entre si.
+  // interactive exige body + botões/lista/Flow; text e template são exclusivos entre si.
   if (hasTemplate && hasInteractive) {
     throw new ValidationError(
       'send_template_and_interactive',
@@ -958,6 +960,15 @@ export function sendOutboundMessageOp(
       }>
     }
     let interactiveList: InteractiveListPayload | null = null
+    type InteractiveFlowPayload = {
+      flowId: string
+      flowCta: string
+      flowToken: string
+      flowAction: 'data_exchange'
+      flowMessageVersion: string
+      mode: 'published' | 'draft'
+    }
+    let interactiveFlow: InteractiveFlowPayload | null = null
 
     if (hasTemplate) {
       const tpl = input.template!
@@ -986,7 +997,32 @@ export function sendOutboundMessageOp(
       }
       body = rawBody
       kind = 'interactive'
-      if (hasList) {
+      if (hasFlow) {
+        const flowIn = input.interactive!.flow!
+        const flowId = flowIn.flowId.trim()
+        const flowCta = flowIn.flowCta.trim()
+        const flowToken = flowIn.flowToken.trim()
+        if (!flowId || !flowCta || !flowToken) {
+          throw new ValidationError(
+            'interactive_flow_invalid',
+            'Flow exige flowId, flowCta e flowToken',
+          )
+        }
+        if (flowCta.length > 30) {
+          throw new ValidationError(
+            'interactive_flow_cta_too_long',
+            'flow_cta limitado a 30 caracteres',
+          )
+        }
+        interactiveFlow = {
+          flowId,
+          flowCta,
+          flowToken,
+          flowAction: 'data_exchange',
+          flowMessageVersion: (flowIn.flowMessageVersion ?? '3').trim() || '3',
+          mode: flowIn.mode === 'draft' ? 'draft' : 'published',
+        }
+      } else if (hasList) {
         const listIn = input.interactive!.list!
         const button = listIn.button.trim()
         if (!button || button.length > 20) {
@@ -1120,6 +1156,7 @@ export function sendOutboundMessageOp(
         templateParams,
         interactiveButtons,
         interactiveList,
+        interactiveFlow,
         deliveryState: 'pending',
       },
       clock,
@@ -1221,6 +1258,7 @@ export function sendOutboundMessageOp(
           templateParams,
           interactiveButtons,
           interactiveList,
+          interactiveFlow,
         },
       },
       clock,

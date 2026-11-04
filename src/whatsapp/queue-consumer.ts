@@ -71,6 +71,9 @@ export type QueueConsumerDeps = {
     handleProposalButtonClick?: (
       ...args: Parameters<ClinicDurableObject['handleProposalButtonClick']>
     ) => ReturnType<ClinicDurableObject['handleProposalButtonClick']> | Promise<unknown>
+    handleFlowNfmReply?: (
+      ...args: Parameters<ClinicDurableObject['handleFlowNfmReply']>
+    ) => ReturnType<ClinicDurableObject['handleFlowNfmReply']> | Promise<unknown>
   } & Partial<OutboundSendClinicStub>
   metaAdapter?: MetaAdapter
   mediaAdapter?: MetaMediaAdapter
@@ -165,6 +168,76 @@ export async function processWhatsappMessage(
         reason: msg.interruptReason ?? 'webhook_account_update',
         phoneNumberId: msg.phoneNumberId,
       })
+    } else if (msg.kind === 'nfm_reply') {
+      // #514 / ADR-0016: fecho do Flow → quadro + proposta (não marca).
+      if (!msg.waId || !msg.responseJson) {
+        log({
+          level: 'warn',
+          event: 'queue.invalid_nfm_reply_shape',
+          detail: { receiptId: msg.receiptId, tenantId: msg.tenantId },
+        })
+        if (deps.syncAdminDb) {
+          markWebhookReceiptProcessed(deps.syncAdminDb, msg.receiptId, clock, {
+            skipped: 'invalid_shape',
+          })
+        } else {
+          const ops = deps.webhookOps ?? createD1WebhookOps(deps.env.DB, clock)
+          await ops.markProcessed(msg.receiptId, { skipped: 'invalid_shape' })
+        }
+        return 'ack'
+      }
+      const ingested = (await stub.ingestMessage(
+        caller,
+        {
+          providerEventKey: msg.providerEventKey,
+          waId: msg.waId,
+          displayName: msg.displayName,
+          body: '[Flow]',
+          occurredAtMs: msg.providerTimestamp ?? undefined,
+        },
+        { drain: true, fanout: true },
+      )) as Awaited<ReturnType<ClinicDurableObject['ingestMessage']>>
+
+      if (
+        ingested &&
+        ingested.conversationId &&
+        typeof stub.handleFlowNfmReply === 'function'
+      ) {
+        await stub.handleFlowNfmReply(caller, {
+          tenantId: msg.tenantId,
+          conversationId: ingested.conversationId,
+          providerEventKey: msg.providerEventKey,
+          responseJson: msg.responseJson,
+          contextMessageId: msg.contextMessageId ?? null,
+        })
+      }
+
+      const isNewMessage = Boolean(
+        ingested &&
+          !ingested.suppressedTombstone &&
+          !ingested.duplicate &&
+          ingested.messageId,
+      )
+      if (
+        !ingested?.suppressedTombstone &&
+        (ingested?.createdConversation || isNewMessage) &&
+        ingested?.conversationId
+      ) {
+        const { maybeNotifyNewConversationPush } = await import('../push/queue-hook')
+        await maybeNotifyNewConversationPush({
+          env: deps.env,
+          clock,
+          syncAdminDb: deps.syncAdminDb,
+          tenantId: msg.tenantId,
+          conversationId: ingested.conversationId,
+          createdConversation: Boolean(ingested.createdConversation),
+          newMessage: isNewMessage,
+          badgeCount: ingested.unreadConversations,
+          suppressUserIds: ingested.activeViewerUserIds,
+          log,
+          receiptId: msg.receiptId,
+        })
+      }
     } else if (msg.kind === 'button_reply' || msg.kind === 'list_reply') {
       // S4→S5 + M5 (#415): clique autenticado (botão ou lista).
       // Reentrega após commit-antes-do-ack: ainda chama o handler (duplicate ingest).

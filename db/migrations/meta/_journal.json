@@ -113,6 +113,20 @@
       "when": 1793550000000,
       "tag": "0016_webhook_receipt_list_reply",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1793750000000,
+      "tag": "0017_whatsapp_flow_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1793755000000,
+      "tag": "0018_whatsapp_flow_session",
+      "breakpoints": true
     }
   ]
 }
