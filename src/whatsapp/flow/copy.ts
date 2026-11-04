@@ -1,7 +1,9 @@
 /**
  * Copy do Flow de agendamento (ADR-0016 §10).
- * Estado: **Proposto** — nenhuma frase nova à cliente está aprovada (DEC-104).
- * Rótulos Confirmados reutilizados: Feminina / Masculina / Todas (DEC-134).
+ * Estado: **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A) —
+ * C1–C15 aprovadas exactamente como estão (DEC-104). Alteração futura exige
+ * nova aprovação no PR. Rótulos Confirmados reutilizados: Feminina / Masculina /
+ * Todas (DEC-134).
  */
 export const FLOW_COPY = {
   /** C1 — corpo da mensagem que abre o Flow. */
