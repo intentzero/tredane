@@ -1,13 +1,21 @@
 ---
 import Base from '../layouts/Base.astro'
 import Icon from '../components/Icon.astro'
-// Antes de publicar, preencher os itens [A DEFINIR] e os endereços .example (DEC-044, LP-AC-05).
+// Antes de publicar, preencher os itens [A DEFINIR] (DEC-044, LP-AC-05).
 // Toda afirmação desta página precisa de uma decisão confirmada (docs/product/landing.md).
-const appUrl = import.meta.env.PUBLIC_APP_URL ?? 'https://app.tredane.example'
-const contactEmail = import.meta.env.PUBLIC_CONTACT_EMAIL ?? 'contato@tredane.example'
+// Endereços só aparecem quando configurados com valor real, sem .example (padrão do PR #547).
+const isReal = (v?: string) => Boolean(v && !v.includes('.example'))
+const appUrl = import.meta.env.PUBLIC_APP_URL
+const contactEmail = import.meta.env.PUBLIC_CONTACT_EMAIL
 // Link wa.me do WhatsApp do próprio Tredane, já com a mensagem pronta (revisão de 04/11/2026).
 // Exemplo: https://wa.me/55DDDNUMERO?text=Quero%20conhecer%20o%20Tredane
-const whatsappUrl = import.meta.env.PUBLIC_WHATSAPP_URL ?? 'https://wa.tredane.example/piloto'
+const whatsappUrl = import.meta.env.PUBLIC_WHATSAPP_URL
+const hasAppUrl = isReal(appUrl)
+const hasContact = isReal(contactEmail)
+const hasWhatsapp = isReal(whatsappUrl)
+// Sem WhatsApp configurado, os botões levam ao bloco do piloto.
+const ctaHref = hasWhatsapp ? whatsappUrl : '#piloto'
+const ctaLabel = hasWhatsapp ? 'Conversar no WhatsApp' : 'Conhecer o piloto'
 // Bloco «Você continua no controle»: o único lugar das garantias de atendimento (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115).
 const controls = [
  { title: 'Só marca com o toque dela', text: 'Um «pode ser» escrito não marca. O horário entra quando a cliente toca em Confirmar, e a vaga é conferida de novo nesse instante.' },
@@ -40,8 +48,8 @@ const faq = [
 <a href="#pix">Sinal Pix</a>
 </nav>
 <div class="top-actions">
-<a class="top-link" href={appUrl}>Entrar</a>
-<a class="btn btn-outline btn-sm" href={whatsappUrl}><span class="cta-long">Conversar no WhatsApp</span><span class="cta-short">WhatsApp</span></a>
+{hasAppUrl && <a class="top-link" href={appUrl}>Entrar</a>}
+<a class="btn btn-outline btn-sm" href={ctaHref}>{hasWhatsapp ? <><span class="cta-long">Conversar no WhatsApp</span><span class="cta-short">WhatsApp</span></> : 'Conhecer o piloto'}</a>
 </div>
 </div>
 </header>
@@ -54,10 +62,10 @@ const faq = [
 <h1 class="h1">A cliente marca pelo WhatsApp. <em>A recepção respira.</em></h1>
 <p class="lead">Preço, explicação e horários livres respondidos na hora, com os dados da sua clínica. A cliente confirma com um toque. Quando ela pede alguém, ou o assunto é saúde, a sua equipe assume.</p>
 <div class="cta-row">
-<a class="btn btn-apricot" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Conversar no WhatsApp</a>
+<a class="btn btn-apricot" href={ctaHref}>{hasWhatsapp && <Icon name="message" size={20} stroke={2.2} />}{ctaLabel}</a>
 <a class="hero-link" href="#conversa">Ver uma conversa inteira</a>
 </div>
-<p class="hero-note">Você fala com o atendimento do Tredane como uma cliente falaria. Quem constrói o produto responde quando você pedir.</p>
+{hasWhatsapp && <p class="hero-note">Você fala com o atendimento do Tredane como uma cliente falaria. Quem constrói o produto responde quando você pedir.</p>}
 </div>
 
 <div class="scene" role="img" aria-label="Ilustração: às 21:47, com a clínica fechada, a cliente Lívia pergunta o preço de axila e meia perna; a resposta traz o valor e a duração do cadastro; ela pede sexta de manhã, recebe uma proposta com dia, sala e valor e toca em Confirmar; o horário aparece na agenda.">
@@ -211,10 +219,12 @@ const faq = [
 <p class="eyebrow">Piloto aberto</p>
 <h2 class="h2">Sua equipe merece terminar o dia mais leve.</h2>
 <p class="lead">Estamos escolhendo clínicas de estética e depilação para o piloto, com a nossa equipe ao lado desde o primeiro dia.</p>
+{(hasWhatsapp || hasContact) ? (
 <div class="cta-row center">
-<a class="btn btn-white" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Conversar no WhatsApp</a>
-<a class="pilot-mail" href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>Prefiro e-mail</a>
+{hasWhatsapp && <a class="btn btn-white" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Conversar no WhatsApp</a>}
+{hasContact && <a class={hasWhatsapp ? 'pilot-mail' : 'btn btn-white'} href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>{hasWhatsapp ? 'Prefiro e-mail' : 'Falar com o Tredane'}</a>}
 </div>
+) : <p class="pilot-pending">O canal de contato do piloto será informado aqui quando estiver disponível.</p>}
 <span class="fine" style="color: #DCE9E8;">Condições do piloto: [A DEFINIR]</span>
 </div>
 <div class="pilot-person panel-inner">
@@ -234,7 +244,9 @@ const faq = [
 <div class="stack" style="gap: 16px;">
 <p class="eyebrow">Perguntas frequentes</p>
 <h2 class="h3s">Perguntas que a gente ouve.</h2>
-<p class="lead">Outra dúvida? <a href={whatsappUrl}>Pergunte no WhatsApp</a> ou <a href={`mailto:${contactEmail}`}>por e-mail</a>.</p>
+{hasWhatsapp && hasContact && <p class="lead">Outra dúvida? <a href={whatsappUrl}>Pergunte no WhatsApp</a> ou <a href={`mailto:${contactEmail}`}>por e-mail</a>.</p>}
+{hasWhatsapp && !hasContact && <p class="lead">Outra dúvida? <a href={whatsappUrl}>Pergunte no WhatsApp</a>.</p>}
+{!hasWhatsapp && hasContact && <p class="lead">Outra dúvida? <a href={`mailto:${contactEmail}`}>Escreva para a gente</a>.</p>}
 </div>
 <div class="faq">
 {faq.map((item) => (
@@ -253,10 +265,10 @@ const faq = [
 <div class="footer-top">
 <img src="/tredane-horizontal-cor.svg" alt="Tredane" width="105" height="24" />
 <nav class="footer-links" aria-label="Rodapé">
-<a href={appUrl}>Entrar</a>
+{hasAppUrl && <a href={appUrl}>Entrar</a>}
 <a href="/privacidade">Política de privacidade</a>
 <a href="/eliminacao-de-dados">Exclusão de dados</a>
-<a href={`mailto:${contactEmail}`}>Contato</a>
+{hasContact && <a href={`mailto:${contactEmail}`}>Contato</a>}
 </nav>
 </div>
 <div class="footer-legal" aria-label="Informações legais">

@@ -22,6 +22,8 @@ Atrair clínicas de estética para o piloto. Leitora principal: dona ou respons�
 
 ## Revisão visual e de copy (04/11/2026)
 
+- **Implementação responsiva para revisão em staging (04/11/2026):** a nova conversa aprovou o hero escuro e a jornada simplificada em desktop e celular. A página em `site/src/pages/index.astro` apresenta conversa → proposta → confirmação, três passos e três garantias de controle humano. Ela identifica a demonstração como ilustrativa. O e-mail comercial e o endereço do painel só aparecem quando configurados com valores que não sejam `.example`; enquanto isso, o bloco do piloto informa que o canal de contato será divulgado. Os mocks antigos em `docs/design/landing` continuam desatualizados; esta implementação ainda exige revisão visual no staging e não autoriza publicação em produção.
+
 - **Direção «Luz»** (fundo quase branco, texto Tinta, Petróleo só na ação, Damasco em um único detalhe, cantos arredondados): escolhida entre três aberturas apresentadas em conversa com o responsável pelo produto ("Opção 1 · Luz", 04/11/2026). **Confirmado** como direção visual; o mock aprovado está no canvas de design e **ainda não** foi exportado para `docs/design/landing` (os `.dc.html` e previews de lá seguem na v7 e ficam **desatualizados** até essa exportação).
 - **Fonte:** Geist (Google Fonts, licença SIL OFL) hospedada no próprio site, no lugar da Inter, só no site; o painel segue em Roboto (DEC-073). **Proposto**; conferir a licença antes de publicar.
 - **Cores:** só a paleta da marca (DEC-050) e neutros próprios do site (`#FAFAF8`, `#E4E6E3`, `#5A6463`); Damasco nunca como texto sobre claro (contraste 2,31 : 1). **Proposto**; rodar a verificação de contraste antes de publicar.
@@ -32,15 +34,16 @@ Atrair clínicas de estética para o piloto. Leitora principal: dona ou respons�
 
 ## Revisão de comunicação (04/11/2026, segunda rodada)
 
-Origem: review da landing pedido pelo responsável pelo produto ([canvas do review](https://claude.ai/artifact/UhYFee8eHZFztYAb2UAPGy), privado) e «Sim, implementa» em 04/11/2026. **Confirmado** como estrutura e copy do site; os itens abaixo marcados **Em aberto** continuam bloqueando a publicação.
+Origem: review da landing pedido pelo responsável pelo produto ([canvas do review](https://claude.ai/artifact/UhYFee8eHZFztYAb2UAPGy), privado) e «Sim, implementa» em 04/11/2026. **Substitui** a jornada simplificada de três passos do PR #547 (mesmo dia), por escolha do responsável («Nossa + ideias do #547»), mantendo dela a regra de só mostrar endereços configurados. **Confirmado** como estrutura e copy do site; os itens abaixo marcados **Em aberto** continuam bloqueando a publicação.
 
 - **Estrutura em 7 blocos** (eram 13): 1. Abertura; 2. «Uma conversa inteira» (história de uma cliente fictícia, Lívia, das 21:47 às 08:00) com «O que muda para a clínica»; 3. «Você continua no controle» (único lugar das garantias de atendimento); 4. «A equipe e a agenda» (caixa de conversas e agenda lado a lado, mais quatro fatos curtos); 5. Sinal por Pix; 6. Piloto; 7. Perguntas frequentes. Saíram «O que pesa hoje» (hipótese VAL-01 não validada), «Como funciona» (absorvido pela história) e a grade de rotina.
 - **Motivo:** a garantia «só marca com o toque da cliente» aparecia cinco vezes e soava defensiva; a página falava com a recepção, mas quem decide o piloto é a dona; cada ilustração tinha outra cliente; todos os H2 tinham o mesmo peso.
 - **Leitora:** a dona continua sendo a leitora principal; a recepção aparece como cenário.
 - **CTA:** **«Conversar no WhatsApp»** (link `wa.me` do próprio Tredane, `PUBLIC_WHATSAPP_URL`) no topo, na abertura, no piloto e nas perguntas; o e-mail passa a ser alternativa («Prefiro e-mail»). Continua **sem formulário** (DEC-044). **Substitui** o CTA «Quero participar do piloto» e o botão «Falar com o Tredane».
+- **Endereços só quando reais (do PR #547):** WhatsApp, e-mail e **Entrar** só aparecem quando a variável está configurada com valor sem `.example`. Sem WhatsApp, os botões viram «Conhecer o piloto» e levam ao bloco do piloto; sem WhatsApp nem e-mail, o piloto informa que o canal de contato será divulgado.
 - **Títulos:** 56px só na abertura, na história e no piloto; os demais blocos usam um segundo nível (até 40px).
 - **«Entrar»** sai do topo abaixo de 480px e fica também no rodapé.
-- **Em aberto (bloqueia a publicação):** número de WhatsApp do Tredane e mensagem pronta do `wa.me` (o valor padrão `.example` cai em LP-AC-05); como a política de privacidade trata o contato por WhatsApp; nome e foto de quem acompanha o piloto (hoje `[A DEFINIR]`); confirmar com o backend que a marcação pelo botão Confirmar funciona fora do expediente, como a história mostra (21:47, clínica fechada; a DEC-110 cobre só a passagem para a equipe). Responsável: responsável pelo produto.
+- **Em aberto (bloqueia a publicação):** número de WhatsApp do Tredane e mensagem pronta do `wa.me` (sem ele, a página não mostra o CTA de WhatsApp); como a política de privacidade trata o contato por WhatsApp; nome e foto de quem acompanha o piloto (hoje `[A DEFINIR]`); confirmar com o backend que a marcação pelo botão Confirmar funciona fora do expediente, como a história mostra (21:47, clínica fechada; a DEC-110 cobre só a passagem para a equipe). Responsável: responsável pelo produto.
 - **Mocks:** os `.dc.html` de `docs/design/landing` continuam na v7 e **desatualizados**; a referência visual desta rodada é o canvas do review e o próprio site.
 
 ## Seções e regras de conteúdo (v7, aprovada em 24/10/2026)
@@ -75,7 +78,7 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: aten
 | Domínio de **staging** da landing: `https://staging.tredane.com` (Worker `tredane-site-staging`, `site/wrangler.jsonc` env `staging`) | **Confirmado** (pedido do responsável, 24/10/2026); DNS/custom domain ainda dependem do deploy na conta Cloudflare da zona `tredane.com` |
 | Domínio de **produção** do site e endereço do painel para **Entrar** (hoje `app.tredane.example`) | Responsável pelo produto |
 | E-mail de contato (hoje `contato@tredane.example`) | Responsável pelo produto |
-| WhatsApp do Tredane para o CTA (`PUBLIC_WHATSAPP_URL`, hoje `wa.tredane.example`) e nome/foto de quem acompanha o piloto | Responsável pelo produto |
+| WhatsApp do Tredane para o CTA (`PUBLIC_WHATSAPP_URL`, hoje sem valor) e nome/foto de quem acompanha o piloto | Responsável pelo produto |
 | Política de privacidade publicada em `/privacidade`; depende do parecer jurídico ([dossiê](legal-review-brief.md)) e do CNPJ (VAL-13); rastreio GATE-03 em [pilot-gates.md](pilot-gates.md) | Responsável pelo produto + advogado |
 | Condições e preço do piloto (não inventar valores neste repositório) | Responsável pelo produto |
 | Logo e marca definitivos (hoje provisórios) | Responsável pelo produto |

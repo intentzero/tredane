@@ -295,3 +295,4 @@ svg { flex: none; }
 .pilot-photo { width: 64px; height: 64px; flex: none; border-radius: 50%; background: #DCE9E8; color: var(--petrol-dark); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
 .pilot-person p { display: flex; flex-direction: column; gap: 2px; font-size: 15px; color: #DCE9E8; }
 .pilot-person strong { color: #FFFFFF; font-weight: 600; }
+.pilot-pending { color: #E7EFEE; font-size: 15px; }
