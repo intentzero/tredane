@@ -131,14 +131,32 @@ export function createTokenBackedSessionStore(ops: {
 }
 
 export type HandleFlowDataRequestResult =
-  | { status: 200; body: string; contentType: 'text/plain' }
-  | { status: 200; body: Record<string, unknown>; contentType: 'application/json' }
+  | {
+      status: 200
+      body: string
+      contentType: 'text/plain'
+      /** Códigos estáveis (sem PEM/payload) para o log do Worker. */
+      logDetail?: Record<string, string>
+    }
+  | {
+      status: 200
+      body: Record<string, unknown>
+      contentType: 'application/json'
+      logDetail?: Record<string, string>
+    }
   | {
       status: 421 | 427 | 432 | 503
       body: Record<string, unknown>
       /** Códigos estáveis (sem PEM/payload) para o log do Worker. */
       logDetail?: Record<string, string>
     }
+
+function withVersion(
+  version: string,
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  return { version, ...payload }
+}
 
 function asFallbackReason(reason: string): FlowChatFallbackReason {
   if (
@@ -219,12 +237,44 @@ export async function handleFlowDataRequest(input: {
   }
 
   const parsed = parseActionPayload(decrypted.payload)
+  // Protocolo data API: pedido traz version (Meta: "3.0" mesmo com
+  // data_api_version 4.0 no Flow JSON). Ecoamos na resposta cifrada.
+  const responseVersion = parsed.version ?? '3.0'
 
   if (parsed.action === 'ping') {
-    const body = await encryptFlowResponse(decrypted.aesKey, decrypted.iv, {
-      data: { status: 'active' },
-    })
-    return { status: 200, body, contentType: 'text/plain' }
+    const body = await encryptFlowResponse(
+      decrypted.aesKey,
+      decrypted.iv,
+      withVersion(responseVersion, { data: { status: 'active' } }),
+    )
+    return {
+      status: 200,
+      body,
+      contentType: 'text/plain',
+      logDetail: { action: 'ping' },
+    }
+  }
+
+  // Meta: pedido assíncrono quando a resposta anterior violou o schema
+  // (ex.: payload-schema-error). Só acusar; não tentar montar ecrã.
+  if (typeof parsed.data.error === 'string') {
+    const body = await encryptFlowResponse(
+      decrypted.aesKey,
+      decrypted.iv,
+      withVersion(responseVersion, { data: { acknowledged: true } }),
+    )
+    return {
+      status: 200,
+      body,
+      contentType: 'text/plain',
+      logDetail: {
+        action: parsed.action || 'error_notification',
+        client_error: parsed.data.error,
+        ...(typeof parsed.data.error_message === 'string'
+          ? { client_error_message: parsed.data.error_message.slice(0, 200) }
+          : {}),
+      },
+    }
   }
 
   if (!parsed.flowToken) {
@@ -239,7 +289,17 @@ export async function handleFlowDataRequest(input: {
   // BACK: re-renderiza a partir da sessão sem aplicar submissão (T15).
   let frame = await input.sessions.get(parsed.flowToken)
 
-  let looked = await input.dataLookup({ token: tokenRow, frame })
+  let looked: Awaited<ReturnType<FlowDataLookup>>
+  try {
+    looked = await input.dataLookup({ token: tokenRow, frame })
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : 'data_lookup_failed'
+    return {
+      status: 503,
+      body: { error: 'flow_unexpected' },
+      logDetail: { reason, action: parsed.action || 'unknown' },
+    }
+  }
   frame = takeLookedFrame(looked.frame)
 
   const mismatchMessage = (info: {
@@ -272,18 +332,55 @@ export async function handleFlowDataRequest(input: {
         errorMessage: applied.errorMessage,
       })
       if ('screen' in again) {
-        const body = await encryptFlowResponse(decrypted.aesKey, decrypted.iv, again)
-        return { status: 200, body, contentType: 'text/plain' }
+        const body = await encryptFlowResponse(
+          decrypted.aesKey,
+          decrypted.iv,
+          withVersion(responseVersion, again),
+        )
+        return {
+          status: 200,
+          body,
+          contentType: 'text/plain',
+          logDetail: {
+            action: 'data_exchange',
+            screen: again.screen,
+            outcome: 'validation_error',
+          },
+        }
       }
-      const body = await encryptFlowResponse(decrypted.aesKey, decrypted.iv, {
-        screen: parsed.screen,
-        data: { error_message: applied.errorMessage },
-      })
-      return { status: 200, body, contentType: 'text/plain' }
+      // Sem ecrã reconstruível: ainda assim devolver o ecrã pedido com
+      // error_message (Meta snackbar) — sem chaves a mais.
+      const body = await encryptFlowResponse(
+        decrypted.aesKey,
+        decrypted.iv,
+        withVersion(responseVersion, {
+          screen: parsed.screen,
+          data: { error_message: applied.errorMessage },
+        }),
+      )
+      return {
+        status: 200,
+        body,
+        contentType: 'text/plain',
+        logDetail: {
+          action: 'data_exchange',
+          screen: parsed.screen,
+          outcome: 'validation_error_bare',
+        },
+      }
     }
     frame = applied.frame
     await input.sessions.set(parsed.flowToken, frame)
-    looked = await input.dataLookup({ token: tokenRow, frame })
+    try {
+      looked = await input.dataLookup({ token: tokenRow, frame })
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'data_lookup_failed'
+      return {
+        status: 503,
+        body: { error: 'flow_unexpected' },
+        logDetail: { reason, action: 'data_exchange' },
+      }
+    }
     frame = takeLookedFrame(looked.frame)
   }
   await input.sessions.set(parsed.flowToken, frame)
@@ -299,9 +396,14 @@ export async function handleFlowDataRequest(input: {
     const body = await encryptFlowResponse(
       decrypted.aesKey,
       decrypted.iv,
-      successPayload(parsed.flowToken, frame),
+      withVersion(responseVersion, successPayload(parsed.flowToken, frame)),
     )
-    return { status: 200, body, contentType: 'text/plain' }
+    return {
+      status: 200,
+      body,
+      contentType: 'text/plain',
+      logDetail: { action: parsed.action || 'unknown', screen: 'SUCCESS', outcome: 'ready' },
+    }
   }
 
   if ('kind' in next && next.kind === 'chat_fallback') {
@@ -310,16 +412,42 @@ export async function handleFlowDataRequest(input: {
     const body = await encryptFlowResponse(
       decrypted.aesKey,
       decrypted.iv,
-      successPayload(parsed.flowToken, frame, {
-        fallbackReason: asFallbackReason(next.reason),
-      }),
+      withVersion(
+        responseVersion,
+        successPayload(parsed.flowToken, frame, {
+          fallbackReason: asFallbackReason(next.reason),
+        }),
+      ),
     )
-    return { status: 200, body, contentType: 'text/plain' }
+    return {
+      status: 200,
+      body,
+      contentType: 'text/plain',
+      logDetail: {
+        action: parsed.action || 'unknown',
+        screen: 'SUCCESS',
+        outcome: 'chat_fallback',
+        reason: next.reason,
+      },
+    }
   }
 
   if ('screen' in next) {
-    const body = await encryptFlowResponse(decrypted.aesKey, decrypted.iv, next)
-    return { status: 200, body, contentType: 'text/plain' }
+    const body = await encryptFlowResponse(
+      decrypted.aesKey,
+      decrypted.iv,
+      withVersion(responseVersion, next),
+    )
+    return {
+      status: 200,
+      body,
+      contentType: 'text/plain',
+      logDetail: {
+        action: parsed.action || 'unknown',
+        screen: next.screen,
+        outcome: 'screen',
+      },
+    }
   }
 
   return { status: 503, body: { error: 'flow_unexpected' } }
