@@ -88,6 +88,7 @@ export {
   type NfmReplyParams,
   type HandleFlowNfmReplyInput,
   type HandleFlowNfmReplyResult,
+  type FlowNfmPhase,
 } from './nfm-reply'
 export { buildBookingFlowInteractive, type BookingFlowInteractive } from './offer'
 export {

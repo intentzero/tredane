@@ -77,9 +77,18 @@ export const FLOW_COPY = {
    * C16 — DEC-104. Paulo, 04/11/2026 ~14:34 America/Sao_Paulo: depois do
    * fecho do Flow a cliente ficava em silêncio até ao cartão da proposta.
    * Frase determinística, sem fuso IANA. Não marca (DEC-061).
+   * Staging 04/11 ~19:31 America/Sao_Paulo: tem de sair **antes** do cálculo
+   * da proposta (DO single-thread + claim Meta); senão a cliente fica no vácuo
+   * e reabre o Flow.
    */
   preparingProposal:
     'Recebi suas escolhas. Já preparo a proposta para você confirmar.',
+  /**
+   * C16b — **Proposto** (fumo staging 04/11/2026): se a proposta falhar depois
+   * do C16, nunca silêncio. Não marca (DEC-061). Sem fuso IANA.
+   */
+  proposalBuildFailed:
+    'Não consegui montar a proposta agora. Toque de novo em Abrir opções, ou diga aqui o que quer marcar.',
 } as const
 
 /** Ids estáveis das acções do HUB (payload / SUCCESS params). */

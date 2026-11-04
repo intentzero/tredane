@@ -836,6 +836,11 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   /**
    * #514: nfm_reply → quadro com provenance `flow` + proposta versionada.
    * Não marca (DEC-061).
+   *
+   * Fases (fumo staging 04/11/2026): `ack` grava C16 + typing e devolve
+   * `inlineDispatches` para o consumer chamar a Meta *fora* do DO — senão o
+   * claim de `whatsapp.send` espera o `tryAiAutoBook` (DO single-thread) e a
+   * cliente fica em vácuo. `proposal` monta o cartão Confirmar depois.
    */
   async handleFlowNfmReply(
     caller: ClinicCaller,
@@ -846,6 +851,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       responseJson: string
       contextMessageId?: string | null
       catalogVersion?: string
+      phase?: 'ack' | 'proposal' | 'all'
     },
   ) {
     this.#ensureReady()
@@ -859,6 +865,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     const capability = clinicAi.autoBookCapability() && !autoBookPaused
     const catalogVersion =
       input.catalogVersion ?? readCatalogVersion(this.#db, caller.tenantId)
+    const collectedSendRows: OutboxRow[] = []
     const result = await handleFlowNfmReply(
       this.#db,
       caller,
@@ -869,22 +876,74 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         responseJson: input.responseJson,
         catalogVersion,
         capability,
+        phase: input.phase ?? 'all',
         flushOutbound: async (rows) => {
           if (rows.length === 0) return
+          const sendIds = new Set(
+            rows
+              .filter(
+                (r) =>
+                  r.type === 'whatsapp.send' ||
+                  r.type === 'whatsapp.typing_indicator',
+              )
+              .map((r) => r.id),
+          )
+          for (const r of rows) {
+            if (sendIds.has(r.id)) collectedSendRows.push(r)
+          }
           await this.#fanoutOutboxes(caller, rows, true)
-          await this.#drain(caller)
+          // Atraso no fallback da fila: o consumer envia em linha já (como painel).
+          await this.#drain(
+            caller,
+            sendIds.size > 0
+              ? {
+                  delayed: sendIds,
+                  delaySeconds: OUTBOUND_INLINE_FALLBACK_DELAY_S,
+                }
+              : undefined,
+          )
         },
       },
       this.#clock,
     )
     if (result.outbox.length > 0) {
+      const sendIds = new Set(
+        result.outbox
+          .filter(
+            (r) =>
+              r.type === 'whatsapp.send' || r.type === 'whatsapp.typing_indicator',
+          )
+          .map((r) => r.id),
+      )
+      for (const r of result.outbox) {
+        if (sendIds.has(r.id) && !collectedSendRows.some((x) => x.id === r.id)) {
+          collectedSendRows.push(r)
+        }
+      }
       await this.#fanoutOutboxes(caller, result.outbox, true)
-      await this.#drain(caller)
+      await this.#drain(
+        caller,
+        sendIds.size > 0
+          ? { delayed: sendIds, delaySeconds: OUTBOUND_INLINE_FALLBACK_DELAY_S }
+          : undefined,
+      )
     }
+    const inlineDispatches: ClinicOutboxQueueMessage[] = collectedSendRows.map((row) => ({
+      source: 'clinic_outbox',
+      tenantId: caller.tenantId,
+      eventId: row.id,
+      type: row.type,
+      idempotencyKey: row.idempotencyKey,
+      entity: { type: row.aggregateType, id: row.aggregateId },
+      occurredAt: row.occurredAt,
+      payload: JSON.parse(row.payloadJson) as Record<string, unknown>,
+    }))
     return {
       handled: result.handled,
       outcome: result.outcome,
       reason: result.reason,
+      needsProposal: Boolean(result.needsProposal),
+      inlineDispatches,
     }
   }
 
