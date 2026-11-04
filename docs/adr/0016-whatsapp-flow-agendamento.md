@@ -1,6 +1,6 @@
 # ADR-0016 — WhatsApp Flow de agendamento
 
-- **Estado:** **Proposto** até revisão do Paulo. Este ADR não autoriza código, deploy nem publicação na Meta. A implementação é a [#514](https://github.com/intentzero/tredane/issues/514), depois deste texto.
+- **Estado:** **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A — promover o ADR). A [DEC-138](../product/decisions.md) fixa o caminho de produto; este ADR fixa o desenho de engenharia. A **implementação** e os pré-requisitos Meta continuam na [#514](https://github.com/intentzero/tredane/issues/514). Os itens da secção 13 permanecem **Em aberto**.
 - **Origem:** issue [#513](https://github.com/intentzero/tredane/issues/513); [DEC-138](../product/decisions.md) (Confirmado, Paulo, 03/11/2026, com a revisão «Eu queria avançar desde já para flow»); secção «Agendar sem perder o pedido» do [épico](../implementation/epic-nucleo-conversacional.md).
 - **Complementa:** [ADR-0012](0012-clinic-durable-object-sqlite.md) (um Durable Object por clínica) e [ADR-0015](0015-estado-persistente-da-conversa.md) (um `BookingFrame` por conversa). Não altera DEC-061, DEC-079, DEC-083, DEC-104 nem DEC-127.
 - **Escopo:** desenho do Flow (ecrãs, `data_exchange`, cifra, `nfm_reply`, versões, pré-requisitos Meta, copy por aprovar, testes). **Não** é implementação.
@@ -29,13 +29,13 @@ Documentação Meta consultada em 03/11/2026. Cada passo abaixo cita o URL. O qu
 
 | Opção | Resumo | Por que não chega | Estado |
 | --- | --- | --- | --- |
-| **(a) Flow com `data_exchange`** | Quatro ecrãs. O endpoint devolve o ecrã seguinte com dados lidos na hora (serviços, variantes da linha, horas livres). | É a escolha. | **Proposto** (este ADR); o caminho em si é **Confirmado** (DEC-138) |
+| **(a) Flow com `data_exchange`** | Quatro ecrãs. O endpoint devolve o ecrã seguinte com dados lidos na hora (serviços, variantes da linha, horas livres). | É a escolha. | **Confirmado** (Paulo, 04/11/2026, opção A); o caminho em si já era **Confirmado** (DEC-138) |
 | **(b) Catálogo estático no JSON do Flow** | Serviços, variantes e horas gravados no Flow JSON. | A hora depende das zonas escolhidas, da duração, da sala, da profissional, do intervalo e da grade. Um JSON publicado não acompanha a agenda. | **Confirmado** descartado (issue #513) |
 | **(c) Flow só para as zonas** | O chat continua a perguntar serviço, género e hora; o Flow só lista variantes. | A DEC-138 descartou esta opção. Os quatro passos é que fecham o pedido incompleto da sonda. | **Confirmado** descartado (DEC-138) |
 
 ### Escolha
 
-**Proposto:** opção (a). O JSON do Flow declara ecrãs, componentes e o routing model. Os `data-source` de serviço, variante e horário são dinâmicos (`${data.…}`), preenchidos pelo endpoint. Horas não vão no JSON.
+**Confirmado** (Paulo, 04/11/2026, opção A): opção (a). O JSON do Flow declara ecrãs, componentes e o routing model. Os `data-source` de serviço, variante e horário são dinâmicos (`${data.…}`), preenchidos pelo endpoint. Horas não vão no JSON.
 
 Motivo: a DEC-138 já escolheu `data_exchange` em quatro passos; a agenda que o código consulta ([`queryAvailability`](../../src/clinic/scheduling/query.ts)) só existe depois de saber serviço, linha e variantes (a duração da visita é a soma das variantes, DEC-078).
 
@@ -275,7 +275,7 @@ Exemplos fictícios. `{serviço}` é o nome do cadastro, não texto fixo.
 
 **Confirmado:** DEC-061 (só o botão marca), DEC-079 (género da variante, nada sobre a pessoa), DEC-083 (equipe e pausa), DEC-104 (frase nova só com o Paulo), DEC-127 (validade da oferta, um quadro, `catalogVersion`). Pix, sala, profissional e preço editável continuam fora do Flow (DEC-138).
 
-**Proposto e ainda não revisto pelo Paulo:** o desenho das secções 2 a 7, 9 (Alterar detalhes), 10 e 11.
+**Confirmado** (Paulo, 04/11/2026, opção A): o desenho das secções 2 a 7, 9 (Alterar detalhes) e 11. A copy da secção 10 e os itens da secção 13 continuam **Em aberto**.
 
 ## 13. Em aberto
 
@@ -290,4 +290,4 @@ Exemplos fictícios. `{serviço}` é o nome do cadastro, não texto fixo.
 9. Aprovação da copy da secção 10 (DEC-104).
 10. Nome do Worker secret da chave privada. Recomendação: `WHATSAPP_FLOW_PRIVATE_KEY`.
 
-A implementação ([#514](https://github.com/intentzero/tredane/issues/514)) depende também da [#507](https://github.com/intentzero/tredane/issues/507), da [#510](https://github.com/intentzero/tredane/issues/510), desta revisão, da copy aprovada e dos pré-requisitos Meta que estiverem fechados.
+A implementação ([#514](https://github.com/intentzero/tredane/issues/514)) depende também da [#507](https://github.com/intentzero/tredane/issues/507), da [#510](https://github.com/intentzero/tredane/issues/510), da copy aprovada e dos pré-requisitos Meta que estiverem fechados. A revisão do ADR (#513) ficou fechada com este Confirmado.

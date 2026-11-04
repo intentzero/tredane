@@ -65,7 +65,7 @@ As issues da mesma ordem podem avançar em paralelo. M2 em diante corre primeiro
 
 | Ordem | Issue | Fatia | Depende |
 | --- | --- | --- | --- |
-| 1 | [#513](https://github.com/intentzero/tredane/issues/513) | F2-1: ADR-0016 do Flow (ecrãs, `data_exchange`, cifra, `nfm_reply`); revisão do Paulo antes de código | — |
+| 1 | [#513](https://github.com/intentzero/tredane/issues/513) | F2-1: ADR-0016 do Flow (ecrãs, `data_exchange`, cifra, `nfm_reply`) — **Confirmado** (Paulo, 04/11/2026, opção A); aceite só o ADR escrito | — |
 | 1 | [#506](https://github.com/intentzero/tredane/issues/506) | F1-0: casos L1 da sonda de novembro e métricas de estrago (também medem o Flow) | — |
 | 2 | [#507](https://github.com/intentzero/tredane/issues/507) | F1-1: o id do horário leva data e hora; título `terça 03/11 17:00` (o Flow usa o mesmo id) | — |
 | 2 | [#510](https://github.com/intentzero/tredane/issues/510) | F1-4: um só quadro para toque, texto, correção e Flow (práticas 4, 6, 7, 9); proposta lê o `BookingFrame`; provenance tipa `'flow'` para #514 | — |
