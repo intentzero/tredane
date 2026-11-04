@@ -1,71 +1,282 @@
 ---
 import Base from '../layouts/Base.astro'
-
+import Icon from '../components/Icon.astro'
+// Antes de publicar, preencher os itens [A DEFINIR] (DEC-044, LP-AC-05).
+// Toda afirmação desta página precisa de uma decisão confirmada (docs/product/landing.md).
+// Endereços só aparecem quando configurados com valor real, sem .example (padrão do PR #547).
+const isReal = (v?: string) => Boolean(v && !v.includes('.example'))
 const appUrl = import.meta.env.PUBLIC_APP_URL
 const contactEmail = import.meta.env.PUBLIC_CONTACT_EMAIL
-const hasAppUrl = Boolean(appUrl && !appUrl.includes('.example'))
-const hasContact = Boolean(contactEmail && !contactEmail.includes('.example'))
-const contactHref = hasContact ? `mailto:${contactEmail}?subject=Piloto%20Tredane` : undefined
-const steps = [
-  { number: '01', title: 'A cliente chama', text: 'Ela escreve para o WhatsApp da clínica e pergunta pelo serviço ou por um horário.' },
-  { number: '02', title: 'Recebe uma proposta', text: 'O atendimento usa o cadastro da clínica e apresenta uma opção de horário para ela avaliar.' },
-  { number: '03', title: 'Confirma com um toque', text: 'A marcação depende do botão Confirmar. Nesse momento, a disponibilidade é conferida novamente.' },
-]
-const assurances = [
-  { title: 'A equipe pode assumir', text: 'Se a cliente pedir uma pessoa, a conversa passa para a equipe e a automação é pausada naquele atendimento.' },
-  { title: 'Preço vem do cadastro', text: 'Serviços, duração e valores partem das informações configuradas pela clínica. Sem valor cadastrado, não se inventa um.' },
-  { title: 'A clínica mantém o controle', text: 'A responsável define os serviços e a agenda. A proposta só vira marcação após a confirmação da cliente e uma nova checagem.' },
+// Link wa.me do WhatsApp do próprio Tredane, já com a mensagem pronta (revisão de 04/11/2026).
+// Exemplo: https://wa.me/55DDDNUMERO?text=Quero%20conhecer%20o%20Tredane
+const whatsappUrl = import.meta.env.PUBLIC_WHATSAPP_URL
+const hasAppUrl = isReal(appUrl)
+const hasContact = isReal(contactEmail)
+const hasWhatsapp = isReal(whatsappUrl)
+// Sem WhatsApp configurado, os botões levam ao bloco do piloto.
+const ctaHref = hasWhatsapp ? whatsappUrl : '#piloto'
+const ctaLabel = hasWhatsapp ? 'Conversar no WhatsApp' : 'Conhecer o piloto'
+// Bloco «Você continua no controle»: o único lugar das garantias de atendimento (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115).
+const controls = [
+ { title: 'Só marca com o toque dela', text: 'Um «pode ser» escrito não marca. O horário entra quando a cliente toca em Confirmar, e a vaga é conferida de novo nesse instante.' },
+ { title: 'Preço do jeito que está cadastrado', text: 'Valores, durações e explicações vêm da ficha do serviço. Sem preço, não inventa: a pergunta vai para a equipe.' },
+ { title: 'A equipe a um toque', text: 'Toda resposta tem o botão Falar com a equipe. A conversa sobe para o topo da lista de vocês e a automação para ali.' },
+ { title: 'Saúde é com a profissional', text: 'Gravidez, contraindicação, medicamento: a conversa passa para a equipe. Remarcar e cancelar também.' },
+ { title: 'Honesta sobre ser assistente', text: 'Se a cliente pergunta se fala com um robô, ouve a verdade. Se pede para parar, as automações param.' },
+ { title: 'Pausa com um botão', text: 'A responsável pausa as marcações automáticas da clínica. Cada conversa pode ser assumida pela equipe e devolvida depois.' },
 ]
 const faq = [
-  { q: 'A cliente consegue falar com uma pessoa?', a: 'Sim. O fluxo prevê a opção Falar com a equipe. Quando a cliente a escolhe, a equipe assume a conversa.' },
-  { q: 'Uma mensagem escrita confirma o horário?', a: 'Não. A proposta apresenta serviço, dia, hora e valor. A cliente precisa tocar no botão Confirmar, e a disponibilidade é conferida de novo.' },
-  { q: 'Como funciona o piloto?', a: 'A seleção, as condições e os valores do piloto ainda serão informados. A demonstração desta página ilustra o fluxo proposto; não representa uma clínica em operação.' },
+ { q: 'Preciso trocar o número da clínica?', a: 'O Tredane usa a API oficial do WhatsApp Business. Conversamos sobre o número antes de conectar, e a conexão é feita pela própria clínica, no fluxo oficial da Meta, com a nossa ajuda.' },
+ { q: 'O que a IA responde sozinha?', a: 'O que é rotina: preço, duração, explicação do serviço e horários livres, com as frases e o cadastro da clínica. Saúde, remarcação, cancelamento e qualquer pedido para falar com alguém vão para a equipe.' },
+ { q: 'Funciona no computador?', a: 'Sim, no navegador. O desenho foi pensado primeiro para o celular, onde a recepção mais atende.' },
+ { q: 'Quanto custa?', a: '[PREÇO E CONDIÇÕES A DEFINIR]' },
 ]
 ---
-<Base title="Tredane — atendimento e agenda para clínicas de estética e depilação" description="A cliente marca pelo WhatsApp. A recepção respira. Conheça o fluxo de atendimento, proposta e confirmação do Tredane para clínicas de estética e depilação.">
-  <a class="skip" href="#conteudo">Ir para o conteúdo</a>
-  <header class="topbar"><div class="wrap">
-    <a class="brand" href="#topo" aria-label="Tredane, início"><img src="/tredane-horizontal-escuro.svg" alt="Tredane" width="120" height="26" /></a>
-    <nav class="nav" aria-label="Seções"><a href="#como">Como funciona</a><a href="#controle">Controle da clínica</a><a href="#perguntas">Perguntas</a></nav>
-    <div class="top-actions">{hasAppUrl && <a class="top-link" href={appUrl}>Entrar</a>}<a class="btn btn-outline btn-sm" href="#piloto">Conhecer o piloto</a></div>
-  </div></header>
-  <main id="conteudo">
-    <section id="topo" class="hero"><div class="wrap hero-grid">
-      <div class="hero-copy">
-        <p class="chip"><span class="dot" aria-hidden="true"></span>Para clínicas de estética e depilação</p>
-        <h1 class="h1">A cliente marca pelo WhatsApp. <em>A recepção respira.</em></h1>
-        <p class="lead">Do primeiro contato à proposta de horário, o Tredane organiza a conversa. A cliente confirma com um toque; a equipe continua por perto quando é preciso.</p>
-        <div class="cta-row"><a class="btn btn-apricot" href="#piloto">Conhecer o piloto <span aria-hidden="true">→</span></a><a class="hero-link" href="#como">Ver como funciona</a></div>
-      </div>
-      <div class="demo" aria-label="Exemplo ilustrativo do fluxo de conversa, proposta e confirmação">
-        <div class="demo-head"><span class="demo-head-icon" aria-hidden="true">T</span><span><strong>Conversa no WhatsApp</strong><small>Exemplo ilustrativo</small></span></div>
-        <div class="demo-body">
-          <p class="demo-bubble">Oi! Tem horário para depilação na sexta?</p>
-          <div class="demo-proposal"><span class="demo-label">Proposta de horário</span><strong>Sexta-feira · 10h</strong><span>Depilação · axila</span><span>Valor conforme o cadastro da clínica</span><span class="demo-confirm">Confirmar</span><span class="demo-secondary">Outro horário · Falar com a equipe</span></div>
-        </div>
-        <div class="demo-result"><span class="demo-check" aria-hidden="true">✓</span><span><strong>Horário na agenda</strong><small>Após o toque em Confirmar e nova checagem</small></span></div>
-      </div>
-    </div><div class="wrap"><p class="hero-note">Fluxo ilustrativo. Nomes, horários e telas não representam uma clínica real.</p></div></section>
-    <section id="como" class="section journey"><div class="wrap">
-      <div class="head"><p class="eyebrow">Como funciona</p><h2 class="h2">Uma conversa, três momentos claros.</h2><p class="lead">A cliente segue pelo WhatsApp; a clínica acompanha o atendimento e a agenda.</p></div>
-      <ol class="journey-grid plain">{steps.map((step) => <li class="journey-step"><span class="journey-number">{step.number}</span><h3>{step.title}</h3><p>{step.text}</p></li>)}</ol>
-    </div></section>
-    <section id="controle" class="section band"><div class="wrap trust-grid">
-      <div class="head"><p class="eyebrow">Confiança no atendimento</p><h2 class="h2">Automação com espaço para a equipe.</h2><p class="lead">O fluxo foi desenhado para deixar explícito quando a cliente confirma e quando uma pessoa precisa continuar a conversa.</p></div>
-      <ul class="trust-list plain">{assurances.map((item) => <li><span class="trust-mark" aria-hidden="true">✓</span><span><strong>{item.title}</strong><span>{item.text}</span></span></li>)}</ul>
-    </div></section>
-    <section id="piloto" class="panel-wrap pilot-section"><div class="wrap"><div class="panel petrol pilot-panel">
-      <div class="head"><p class="eyebrow">Piloto Tredane</p><h2 class="h2">Vamos conversar sobre a rotina da sua clínica?</h2><p class="lead">O piloto é voltado a clínicas de estética e depilação. As condições de participação ainda serão definidas.</p>
-        {hasContact ? <a class="btn btn-white" href={contactHref}>Falar com o Tredane</a> : <p class="pilot-pending">O canal de contato do piloto será informado aqui quando estiver disponível.</p>}
-      </div>
-    </div></div></section>
-    <section id="perguntas" class="section faq-section"><div class="wrap faq-layout">
-      <div class="head"><p class="eyebrow">Perguntas frequentes</p><h2 class="h2">Antes de começar.</h2></div>
-      <div class="faq">{faq.map((item) => <details class="card"><summary>{item.q}<span aria-hidden="true" class="pm">+</span></summary><p>{item.a}</p></details>)}</div>
-    </div></section>
-  </main>
-  <footer class="footer"><div class="wrap">
-    <div class="footer-top"><img src="/tredane-horizontal-cor.svg" alt="Tredane" width="105" height="24" /><nav class="footer-links" aria-label="Rodapé"><a href="/privacidade">Política de privacidade</a><a href="/eliminacao-de-dados">Exclusão de dados</a>{hasContact && <a href={`mailto:${contactEmail}`}>Contato</a>}</nav></div>
-    <div class="footer-legal"><span>© 2026 Tredane. Tredane é um serviço da Lucimark.</span><span>Razão social: LUCIMARK INOVA SIMPLES (I.S.) · CNPJ: 66.552.736/0001-80</span><span>Endereço: Condomínio Ouro Vermelho II, Setor Habitacional Jardim Botânico, Brasília - DF, CEP 71680-385</span><span>Telefone: <a href="tel:+556181882769">(61) 8188-2769</a> · <a href="https://lucimark.com" rel="noopener noreferrer">lucimark.com</a></span></div>
-  </div></footer>
+<Base
+ title="Tredane — atendimento e agenda para clínicas de estética e depilação"
+ description="A cliente marca pelo WhatsApp e a recepção respira. O Tredane responde preço e horários livres com os dados da clínica, a cliente confirma com um toque e a equipe assume quando ela pede."
+>
+<a class="skip" href="#conteudo">Ir para o conteúdo</a>
+
+<header class="topbar">
+<div class="wrap">
+<a class="brand" href="#topo" aria-label="Tredane, início"><img src="/tredane-horizontal-escuro.svg" alt="Tredane" width="120" height="26" /></a>
+<nav class="nav" aria-label="Seções">
+<a href="#conversa">Ver uma conversa</a>
+<a href="#controle">Controle</a>
+<a href="#equipe">Equipe e agenda</a>
+<a href="#pix">Sinal Pix</a>
+</nav>
+<div class="top-actions">
+{hasAppUrl && <a class="top-link" href={appUrl}>Entrar</a>}
+<a class="btn btn-outline btn-sm" href={ctaHref}>{hasWhatsapp ? <><span class="cta-long">Conversar no WhatsApp</span><span class="cta-short">WhatsApp</span></> : 'Conhecer o piloto'}</a>
+</div>
+</div>
+</header>
+
+<main id="conteudo">
+<section id="topo" class="hero">
+<div class="wrap hero-grid">
+<div class="hero-copy">
+<p class="chip"><span class="dot"></span><span class="chip-long">Piloto aberto · clínicas de estética e depilação</span><span class="chip-short">Piloto aberto · estética e depilação</span></p>
+<h1 class="h1">A cliente marca pelo WhatsApp. <em>A recepção respira.</em></h1>
+<p class="lead">Preço, explicação e horários livres respondidos na hora, com os dados da sua clínica. A cliente confirma com um toque. Quando ela pede alguém, ou o assunto é saúde, a sua equipe assume.</p>
+<div class="cta-row">
+<a class="btn btn-apricot" href={ctaHref}>{hasWhatsapp && <Icon name="message" size={20} stroke={2.2} />}{ctaLabel}</a>
+<a class="hero-link" href="#conversa">Ver uma conversa inteira</a>
+</div>
+{hasWhatsapp && <p class="hero-note">Você fala com o atendimento do Tredane como uma cliente falaria. Quem constrói o produto responde quando você pedir.</p>}
+</div>
+
+<div class="scene" role="img" aria-label="Ilustração: às 21:47, com a clínica fechada, a cliente Lívia pergunta o preço de axila e meia perna; a resposta traz o valor e a duração do cadastro; ela pede sexta de manhã, recebe uma proposta com dia, sala e valor e toca em Confirmar; o horário aparece na agenda.">
+<span class="scene-time">terça, 21:47 · clínica fechada</span>
+<span class="scene-msg scene-early">Oi! Quanto fica axila e meia perna?</span>
+<span class="scene-reply">Axila e meia perna na mesma visita: <b>R$ [valor]</b>, cerca de 40 min. Quer ver os horários livres?</span>
+<span class="scene-msg">Tem sexta de manhã?</span>
+<span class="scene-card">
+<span class="proposal-body"><span class="k">Proposta de horário</span><span class="t">sexta 06/11 · 10:00</span><span class="s">Depilação · Axila, Meia perna</span><span class="s">Sala 1 · R$ [valor]</span></span>
+<span class="proposal-ok">Confirmar</span>
+<span class="proposal-alt"><span>Outro horário</span><span>Falar com a equipe</span></span>
+</span>
+<span class="scene-done"><span class="scene-tick"><Icon name="check" size={18} stroke={2.4} /></span><span><b>Na agenda · sex 10:00</b><span>A recepção vê de manhã, às 08:00</span></span></span>
+</div>
+</div>
+<div class="wrap">
+<ul class="proof plain">
+<li>API oficial do WhatsApp Business</li>
+<li>Preços e horários só do seu cadastro</li>
+<li>Sinal por Pix direto na conta da clínica</li>
+</ul>
+<p class="fine">Telas ilustrativas, com nomes e valores fictícios.</p>
+</div>
+</section>
+
+<section id="conversa" class="section">
+<div class="wrap" style="display: flex; flex-direction: column; gap: 56px;">
+<div class="story-head">
+<div class="stack" style="gap: 16px;">
+<p class="eyebrow">Uma conversa inteira</p>
+<h2 class="h2">Ela perguntou às 21:47. Às 08:00, estava na agenda.</h2>
+</div>
+<p class="lead">Ninguém da equipe precisou responder. Quando alguém chegou, o horário já estava lá, com sala e intervalo conferidos.</p>
+</div>
+<ol class="grid4 plain">
+<li class="card story"><span class="story-t">21:47</span><h3>Lívia pergunta o preço</h3><p>No WhatsApp da clínica, do jeito dela. A clínica está fechada.</p><span class="bubble-in">Quanto fica axila e meia perna?</span></li>
+<li class="card story"><span class="story-t">21:47</span><h3>Recebe a resposta na hora</h3><p>Preço e duração vêm do seu cadastro. Sem preço cadastrado, a pergunta vai para a equipe.</p><span class="bubble-out">Na mesma visita: R$ [valor], cerca de 40 min.</span></li>
+<li class="card story"><span class="story-t">21:49</span><h3>Escolhe e confirma</h3><p>Vê só horários que cabem. O horário entra quando ela toca em Confirmar.</p><span class="mini-proposal"><span><small>Proposta de horário</small><b>sexta 06/11 · 10:00</b></span><span class="mini-ok">Confirmar</span></span></li>
+<li class="card story story-dark"><span class="story-t">08:00</span><h3>A recepção chega</h3><p>E encontra o horário na agenda, com a origem: foi a cliente que confirmou.</p><span class="mini-slot"><b>sex 10:00 · Sala 1</b><span>Lívia · Axila, Meia perna</span><span>Marcado pela IA</span></span></li>
+</ol>
+<div class="outcomes">
+<h2 class="h3s">O que muda para a clínica</h2>
+<ul class="grid3 plain outcome-list">
+<li><span class="oi"><Icon name="message" size={22} /></span><h3>Nenhum «quanto custa?» esperando</h3><p>A cliente que pergunta à noite recebe a resposta antes de ir perguntar em outra clínica.</p></li>
+<li><span class="oi"><Icon name="calendar" size={22} /></span><h3>Só oferece o que cabe</h3><p>Profissional, sala e intervalo conferidos antes de a cliente ver o horário. Nada de encaixe que estoura na sexta.</p></li>
+<li><span class="oi warm"><Icon name="shieldCheck" size={22} /></span><h3>Menos falta</h3><p>Nos serviços que você escolher, o sinal por Pix cai na conta da clínica e confirma o horário.</p></li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="controle" class="panel-wrap">
+<div class="wrap">
+<div class="panel dark">
+<div class="panel-top">
+<div class="stack" style="gap: 16px;"><p class="eyebrow">Você continua no controle</p><h2 class="h3s">Automático na rotina. Humano no que importa.</h2></div>
+<p class="lead">O Tredane fala com as frases da clínica e nunca decide pela cliente. Ele sabe a hora de chamar a sua equipe, e a cliente também pode chamar.</p>
+</div>
+<ul class="feats plain">
+{controls.map((f) => (
+<li><h3>{f.title}</h3><p>{f.text}</p></li>
+))}
+</ul>
+<div class="grid2">
+<p class="quote">«Sou a assistente virtual da clínica. Se preferir, chamo a equipe.»<small>Quando a cliente pergunta se fala com uma pessoa.</small></p>
+<p class="quote">«Vou pedir para a equipe continuar daqui. A equipe responde a partir de segunda às 9:00.»<small>Fora do expediente, ela sabe quando a equipe volta.</small></p>
+</div>
+</div>
+</div>
+</section>
+
+<section id="equipe" class="section" style="padding-top: 40px;">
+<div class="wrap" style="display: flex; flex-direction: column; gap: 48px;">
+<div class="head">
+<p class="eyebrow">A equipe e a agenda</p>
+<h2 class="h3s">Quando é com vocês, está tudo ali.</h2>
+<p class="lead">A conversa chega com o histórico e com o que a cliente já escolheu. A agenda só mostra o que cabe de verdade.</p>
+</div>
+<div class="grid2 duo">
+<figure class="duo-item">
+<div class="card inbox" role="img" aria-label="Ilustração da caixa de conversas: Júlia Santos perguntou se pode fazer grávida e precisa de alguém da equipe; Lívia Moraes está agendada, marcada pela IA; Carla Dias está com a IA; Bianca Lima está com a atendente Ana.">
+<div class="inbox-head"><span>Conversas</span><span class="live"><i></i>Ao vivo</span></div>
+<div class="row"><span class="avatar apricot">JS</span><span class="row-body"><span class="row-top"><b>Júlia Santos</b><span>agora</span></span><span class="row-text">Posso fazer grávida?</span><span class="row-tags"><span class="tag dark">Precisa de alguém</span><span class="tag solid" style="font-size: 12px; padding: 3px 12px; margin: 0;">Assumir</span></span></span></div>
+<div class="row"><span class="avatar petrol">LM</span><span class="row-body"><span class="row-top"><b>Lívia Moraes</b><span>21:49</span></span><span class="row-text">Agendado: sex 06/11 às 10:00</span><span class="row-tags"><span class="tag petrol sm">Marcado pela IA</span></span></span></div>
+<div class="row"><span class="avatar">CD</span><span class="row-body"><span class="row-top"><b>Carla Dias</b><span>09:51</span></span><span class="row-text">Quanto custa a limpeza de pele?</span><span class="row-tags"><span class="tag sm">IA atendendo</span></span></span></div>
+<div class="row"><span class="avatar">BL</span><span class="row-body"><span class="row-top"><b>Bianca Lima</b><span>09:30</span></span><span class="row-text">[Ana] Combinado, te espero amanhã!</span><span class="row-tags"><span class="tag sunken">Com Ana</span></span></span></div>
+</div>
+<figcaption>
+<ul class="checks plain">
+<li><Icon name="check" size={20} /><span><strong>Quem precisa de alguém aparece primeiro.</strong> <span>Uma caixa para toda a equipe.</span></span></li>
+<li><Icon name="check" size={20} /><span><strong>Assumir e devolver.</strong> <span>Um toque e a conversa é sua. Resolveu? A automação volta a atender.</span></span></li>
+<li><Icon name="check" size={20} /><span><strong>A cliente sabe quem fala.</strong> <span>Depois de assumir, as suas mensagens saem com o seu nome: [Ana].</span></span></li>
+</ul>
+</figcaption>
+</figure>
+<figure class="duo-item">
+<div class="sched" role="img" aria-label="Ilustração da agenda de sexta com Sala 1 e Sala 2: depilação de Lívia às 10:00 na Sala 1, marcada pela IA; limpeza de pele às 09:30 na Sala 2; manutenção do aparelho bloqueia a Sala 2 às 10:40; horário livre às 11:00 na Sala 1.">
+<div class="sched-head"><b>sexta, 06/11</b><span>Dra. Paula · Lia</span></div>
+<div class="sched-grid">
+<span></span><span class="ch">Sala 1</span><span class="ch">Sala 2</span>
+<span class="hh">09:30</span><span class="cell free">Livre</span><span class="cell"><b>Limpeza de pele</b><span style="color: var(--ink-2);">Lia</span></span>
+<span class="hh">10:00</span><span class="cell booked"><b>Depilação · Axila, Meia perna</b><small>Lívia · Dra. Paula</small><b style="margin-top: 4px;">Marcado pela IA</b></span><span class="cell gap">Intervalo · 15 min</span>
+<span class="hh">10:40</span><span class="cell gap">Intervalo · 15 min</span><span class="cell blocked"><b>Bloqueado</b>Manutenção do aparelho</span>
+<span class="hh">11:00</span><span class="cell offer">Livre para oferecer</span><span class="cell free">Livre</span>
+</div>
+</div>
+<figcaption>
+<ul class="checks plain">
+<li><Icon name="check" size={20} /><span><strong>Várias áreas, um horário.</strong> <span>Axila e meia perna na mesma visita, com a soma das durações e dos preços.</span></span></li>
+<li><Icon name="check" size={20} /><span><strong>Salas, intervalo e bloqueios.</strong> <span>Cada serviço usa uma sala livre da lista dele, com preparo depois.</span></span></li>
+<li><Icon name="check" size={20} /><span><strong>Remarcar fica com vocês.</strong> <span>Remarcações e cancelamentos passam pela equipe, registrados.</span></span></li>
+</ul>
+</figcaption>
+</figure>
+</div>
+<ul class="facts plain">
+<li><strong>Atualiza na hora.</strong> Toda a equipe vê sem recarregar.</li>
+<li><strong>No navegador do celular.</strong> Sem app de loja; avisa conversa nova.</li>
+<li><strong>Papéis claros.</strong> A responsável configura; as atendentes atendem.</li>
+<li><strong>Dados separados.</strong> Nosso suporte só entra com a sua aprovação, por 30 minutos.</li>
+</ul>
+</div>
+</section>
+
+<section id="pix" class="section band">
+<div class="wrap split">
+<div class="stack">
+<p class="eyebrow">Sinal por Pix</p>
+<h2 class="h3s">Menos falta. O dinheiro cai na sua conta.</h2>
+<p class="lead">Nos serviços que você escolher, a cliente paga um sinal por Pix pela própria conversa. Pagou, o horário é confirmado.</p>
+<div class="mini-grid">
+<div><h3>Direto na conta da clínica</h3><p>O Tredane não recebe nem repassa.</p></div>
+<div><h3>Valor por serviço</h3><p>Fixo ou percentual, só onde você quiser.</p></div>
+<div><h3>Confirma ao pagar</h3><p>Pagou no prazo, confirmado, e a equipe é avisada.</p></div>
+<div><h3>Regras à vista</h3><p>A cliente lê a política de cancelamento antes de pagar.</p></div>
+</div>
+</div>
+<div class="pix" role="img" aria-label="Ilustração: mensagem pedindo sinal de R$ [valor] por Pix para limpeza de pele na quinta às 14:00, com prazo de 2 horas; aguardando sinal e, depois, sinal pago com horário confirmado.">
+<p class="card pix-msg">Para garantir sua limpeza de pele na <strong>quinta 12/11 às 14:00</strong>, o sinal é de R$ [valor] por Pix. Pague em até 2 horas. Cancelamento com devolução até 24 h antes.</p>
+<p class="card pix-status"><span><span class="dot"></span>Aguardando sinal · 1 h 52 min</span><span>conta da clínica</span></p>
+<p class="pix-paid"><Icon name="check" size={18} />Sinal pago · qui 12/11 14:00 confirmado</p>
+</div>
+</div>
+</section>
+
+<section id="piloto" class="section">
+<div class="wrap">
+<div class="panel petrol">
+<span class="orb" aria-hidden="true"></span>
+<div class="head center panel-inner" style="gap: 20px;">
+<p class="eyebrow">Piloto aberto</p>
+<h2 class="h2">Sua equipe merece terminar o dia mais leve.</h2>
+<p class="lead">Estamos escolhendo clínicas de estética e depilação para o piloto, com a nossa equipe ao lado desde o primeiro dia.</p>
+{(hasWhatsapp || hasContact) ? (
+<div class="cta-row center">
+{hasWhatsapp && <a class="btn btn-white" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Conversar no WhatsApp</a>}
+{hasContact && <a class={hasWhatsapp ? 'pilot-mail' : 'btn btn-white'} href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>{hasWhatsapp ? 'Prefiro e-mail' : 'Falar com o Tredane'}</a>}
+</div>
+) : <p class="pilot-pending">O canal de contato do piloto será informado aqui quando estiver disponível.</p>}
+<span class="fine" style="color: #DCE9E8;">Condições do piloto: [A DEFINIR]</span>
+</div>
+<div class="pilot-person panel-inner">
+<span class="pilot-photo" aria-hidden="true">[foto]</span>
+<p><strong>[A DEFINIR: nome de quem acompanha o piloto]</strong><span>Acompanha a sua clínica do primeiro dia em diante, no mesmo WhatsApp.</span></p>
+</div>
+<div class="grid2 pilot-lists">
+<div class="pilot-box"><h3>A clínica recebe</h3><ul><li>Ajuda para conectar o WhatsApp</li><li>Serviços, preços e agenda configurados junto com você</li><li>Contato direto com quem constrói o produto</li></ul></div>
+<div class="pilot-box"><h3>O que pedimos</h3><ul><li>Um número de WhatsApp Business da clínica</li><li>Sua lista de serviços, profissionais e salas</li><li>Uma conta Pix da clínica, se quiser usar o sinal</li><li>Conversas rápidas sobre o que funcionou</li></ul></div>
+</div>
+</div>
+</div>
+</section>
+
+<section id="perguntas" class="section" style="padding-top: 0;">
+<div class="wrap split" style="align-items: start;">
+<div class="stack" style="gap: 16px;">
+<p class="eyebrow">Perguntas frequentes</p>
+<h2 class="h3s">Perguntas que a gente ouve.</h2>
+{hasWhatsapp && hasContact && <p class="lead">Outra dúvida? <a href={whatsappUrl}>Pergunte no WhatsApp</a> ou <a href={`mailto:${contactEmail}`}>por e-mail</a>.</p>}
+{hasWhatsapp && !hasContact && <p class="lead">Outra dúvida? <a href={whatsappUrl}>Pergunte no WhatsApp</a>.</p>}
+{!hasWhatsapp && hasContact && <p class="lead">Outra dúvida? <a href={`mailto:${contactEmail}`}>Escreva para a gente</a>.</p>}
+</div>
+<div class="faq">
+{faq.map((item) => (
+<details class="card">
+<summary>{item.q}<svg class="pm" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary>
+<p>{item.a}</p>
+</details>
+))}
+</div>
+</div>
+</section>
+</main>
+
+<footer class="footer">
+<div class="wrap">
+<div class="footer-top">
+<img src="/tredane-horizontal-cor.svg" alt="Tredane" width="105" height="24" />
+<nav class="footer-links" aria-label="Rodapé">
+{hasAppUrl && <a href={appUrl}>Entrar</a>}
+<a href="/privacidade">Política de privacidade</a>
+<a href="/eliminacao-de-dados">Exclusão de dados</a>
+{hasContact && <a href={`mailto:${contactEmail}`}>Contato</a>}
+</nav>
+</div>
+<div class="footer-legal" aria-label="Informações legais">
+<span>© 2026 Tredane. Tredane é um serviço da Lucimark.</span>
+<span>Razão social: LUCIMARK INOVA SIMPLES (I.S.) · CNPJ: 66.552.736/0001-80</span>
+<span>Endereço: Condomínio Ouro Vermelho II, Setor Habitacional Jardim Botânico, Brasília - DF, CEP 71680-385</span>
+<span>Telefone: <a href="tel:+556181882769">(61) 8188-2769</a> · <a href="https://lucimark.com" rel="noopener noreferrer">lucimark.com</a></span>
+</div>
+</div>
+</footer>
 </Base>

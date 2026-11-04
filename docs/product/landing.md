@@ -4,7 +4,7 @@
 
 ## Objetivo e público
 
-Atrair clínicas de estética para o piloto. Leitora principal: dona ou responsável pela recepção da clínica, lendo no celular. Ação esperada: entrar em contato com o Tredane pelo botão **Falar com o Tredane**.
+Atrair clínicas de estética para o piloto. Leitora principal: dona ou responsável pela recepção da clínica, lendo no celular. Ação esperada: abrir uma conversa com o Tredane pelo botão **Conversar no WhatsApp** (revisão de 04/11/2026; antes, **Falar com o Tredane** por e-mail).
 
 ## Decisões (DEC-044, 24/10/2026)
 
@@ -32,6 +32,20 @@ Atrair clínicas de estética para o piloto. Leitora principal: dona ou respons�
 - **Sem alteração:** o resto das decisões da DEC-044 (sem formulário, e-mail como contato, sem «em desenvolvimento», nota «Telas ilustrativas, com nomes e valores fictícios»).
 - **Em aberto (bloqueia a publicação):** os mesmos itens da tabela final, mais a regeneração de `og-image.png` (ainda mostra a identidade antiga) e a nova medição de LP-AC-06.
 
+## Revisão de comunicação (04/11/2026, segunda rodada)
+
+Origem: review da landing pedido pelo responsável pelo produto ([canvas do review](https://claude.ai/artifact/UhYFee8eHZFztYAb2UAPGy), privado) e «Sim, implementa» em 04/11/2026. **Substitui** a jornada simplificada de três passos do PR #547 (mesmo dia), por escolha do responsável («Nossa + ideias do #547»), mantendo dela a regra de só mostrar endereços configurados. **Confirmado** como estrutura e copy do site; os itens abaixo marcados **Em aberto** continuam bloqueando a publicação.
+
+- **Estrutura em 7 blocos** (eram 13): 1. Abertura; 2. «Uma conversa inteira» (história de uma cliente fictícia, Lívia, das 21:47 às 08:00) com «O que muda para a clínica»; 3. «Você continua no controle» (único lugar das garantias de atendimento); 4. «A equipe e a agenda» (caixa de conversas e agenda lado a lado, mais quatro fatos curtos); 5. Sinal por Pix; 6. Piloto; 7. Perguntas frequentes. Saíram «O que pesa hoje» (hipótese VAL-01 não validada), «Como funciona» (absorvido pela história) e a grade de rotina.
+- **Motivo:** a garantia «só marca com o toque da cliente» aparecia cinco vezes e soava defensiva; a página falava com a recepção, mas quem decide o piloto é a dona; cada ilustração tinha outra cliente; todos os H2 tinham o mesmo peso.
+- **Leitora:** a dona continua sendo a leitora principal; a recepção aparece como cenário.
+- **CTA:** **«Conversar no WhatsApp»** (link `wa.me` do próprio Tredane, `PUBLIC_WHATSAPP_URL`) no topo, na abertura, no piloto e nas perguntas; o e-mail passa a ser alternativa («Prefiro e-mail»). Continua **sem formulário** (DEC-044). **Substitui** o CTA «Quero participar do piloto» e o botão «Falar com o Tredane».
+- **Endereços só quando reais (do PR #547):** WhatsApp, e-mail e **Entrar** só aparecem quando a variável está configurada com valor sem `.example`. Sem WhatsApp, os botões viram «Conhecer o piloto» e levam ao bloco do piloto; sem WhatsApp nem e-mail, o piloto informa que o canal de contato será divulgado.
+- **Títulos:** 56px só na abertura, na história e no piloto; os demais blocos usam um segundo nível (até 40px).
+- **«Entrar»** sai do topo abaixo de 480px e fica também no rodapé.
+- **Em aberto (bloqueia a publicação):** número de WhatsApp do Tredane e mensagem pronta do `wa.me` (sem ele, a página não mostra o CTA de WhatsApp); como a política de privacidade trata o contato por WhatsApp; nome e foto de quem acompanha o piloto (hoje `[A DEFINIR]`); confirmar com o backend que a marcação pelo botão Confirmar funciona fora do expediente, como a história mostra (21:47, clínica fechada; a DEC-110 cobre só a passagem para a equipe). Responsável: responsável pelo produto.
+- **Mocks:** os `.dc.html` de `docs/design/landing` continuam na v7 e **desatualizados**; a referência visual desta rodada é o canvas do review e o próprio site.
+
 ## Seções e regras de conteúdo (v7, aprovada em 24/10/2026)
 
 1. **Topo:** marca provisória, atalhos (Como funciona, IA, Agenda, Sinal; escondidos abaixo de 720px), **Entrar** e **Quero participar**.
@@ -45,7 +59,7 @@ Atrair clínicas de estética para o piloto. Leitora principal: dona ou respons�
 
 **Confirmado (24/10/2026):** a página **não** diz que o produto está em desenvolvimento; o público inclui clínicas de depilação; as ilustrações levam a nota “Telas ilustrativas, com nomes e valores fictícios”; mensagens ofensivas aparecem só como uma garantia da IA, sem seção própria.
 
-Toda afirmação da página precisa corresponder a uma decisão confirmada: IA só sugere e uma pessoa envia ([MVP](../MVP.md), DEC-011, ADR-0004); WhatsApp oficial com Embedded Signup (DEC-009); agenda com profissional, sala e intervalo (DEC-008); nome “Acompanhamento” (DEC-045); preço, explicação de procedimentos, assunto clínico e mensagem ofensiva (DEC-046); sinal por Pix na conta da clínica, confirmação ao pagar e prazo de 2 h (DEC-047); PWA (DEC-039, DEC-040); papéis (DEC-020, DEC-042); dados separados por clínica (DEC-038) e suporte por 30 minutos com aprovação (DEC-029, DEC-032). **Não** prometer conformidade com a LGPD, números de clientes, resultados ou funcionalidades fora do MVP (respostas ou agendamentos automáticos, lembretes).
+Toda afirmação da página precisa corresponder a uma decisão confirmada: atendimento automático com frases determinísticas do backend e marcação só pelo toque da cliente em Confirmar (DEC-061, DEC-083, DEC-104, DEC-107 a DEC-115; a regra antiga «IA só sugere e uma pessoa envia» foi substituída por essas decisões); WhatsApp oficial com Embedded Signup (DEC-009); agenda com profissional, sala e intervalo (DEC-008); nome “Acompanhamento” (DEC-045); preço, explicação de procedimentos, assunto clínico e mensagem ofensiva (DEC-046); sinal por Pix na conta da clínica, confirmação ao pagar e prazo de 2 h (DEC-047); PWA (DEC-039, DEC-040); papéis (DEC-020, DEC-042); dados separados por clínica (DEC-038) e suporte por 30 minutos com aprovação (DEC-029, DEC-032). **Não** prometer conformidade com a LGPD, números de clientes, resultados ou funcionalidades fora do MVP (lembretes; agendamento sem o toque da cliente em Confirmar; respostas livres do modelo fora do que a DEC-104 permite).
 
 ## Critérios de aceite
 
@@ -64,6 +78,7 @@ Toda afirmação da página precisa corresponder a uma decisão confirmada: IA s
 | Domínio de **staging** da landing: `https://staging.tredane.com` (Worker `tredane-site-staging`, `site/wrangler.jsonc` env `staging`) | **Confirmado** (pedido do responsável, 24/10/2026); DNS/custom domain ainda dependem do deploy na conta Cloudflare da zona `tredane.com` |
 | Domínio de **produção** do site e endereço do painel para **Entrar** (hoje `app.tredane.example`) | Responsável pelo produto |
 | E-mail de contato (hoje `contato@tredane.example`) | Responsável pelo produto |
+| WhatsApp do Tredane para o CTA (`PUBLIC_WHATSAPP_URL`, hoje sem valor) e nome/foto de quem acompanha o piloto | Responsável pelo produto |
 | Política de privacidade publicada em `/privacidade`; depende do parecer jurídico ([dossiê](legal-review-brief.md)) e do CNPJ (VAL-13); rastreio GATE-03 em [pilot-gates.md](pilot-gates.md) | Responsável pelo produto + advogado |
 | Condições e preço do piloto (não inventar valores neste repositório) | Responsável pelo produto |
 | Logo e marca definitivos (hoje provisórios) | Responsável pelo produto |
