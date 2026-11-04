@@ -196,6 +196,69 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
     expect(next).toMatchObject({ screen: 'SERVICO' })
   })
 
+  // Schema do Flow JSON publicado (staging): só estas chaves por ecrã.
+  // Extra (title/layout/footer) ou omissão de error_message → Meta
+  // payload-schema-error / «Something went wrong».
+  it('data de cada ecrã só tem chaves do schema publicado + error_message', () => {
+    const schema: Record<string, string[]> = {
+      SERVICO: ['body', 'services', 'error_message'],
+      GENERO: ['body', 'genders', 'error_message'],
+      VARIANTES: ['body', 'variants', 'error_message'],
+      HORARIO: ['body', 'slots', 'error_message'],
+    }
+    const cases = [
+      nextFlowScreen({
+        catalog: [depilacao, limpeza],
+        frame: { serviceId: null, line: null, variantIds: null, slotKey: null },
+      }),
+      nextFlowScreen({
+        catalog: [depilacao],
+        frame: { serviceId: 'svc_dep', line: null, variantIds: null, slotKey: null },
+      }),
+      nextFlowScreen({
+        catalog: [depilacao],
+        frame: {
+          serviceId: 'svc_dep',
+          line: 'feminino',
+          variantIds: null,
+          slotKey: null,
+        },
+      }),
+      nextFlowScreen({
+        catalog: [limpeza],
+        frame: { serviceId: 'svc_limp', line: null, variantIds: null, slotKey: null },
+        slots: [{ id: '2026-11-05T10:00', date: '2026-11-05', time: '10:00' }],
+      }),
+    ]
+    for (const next of cases) {
+      expect(next).toHaveProperty('screen')
+      if (!('screen' in next)) return
+      const allowed = schema[next.screen]
+      expect(allowed).toBeDefined()
+      expect(Object.keys(next.data).sort()).toEqual([...(allowed ?? [])].sort())
+      expect(next.data.error_message).toBe('')
+    }
+  })
+
+  it('Paulo path: serviço+linha sem variantes → VARIANTES (schema limpo)', () => {
+    const next = nextFlowScreen({
+      catalog: [depilacao],
+      frame: {
+        serviceId: 'svc_dep',
+        line: 'feminino',
+        variantIds: null,
+        slotKey: null,
+      },
+    })
+    expect(next).toMatchObject({ screen: 'VARIANTES' })
+    if (!('screen' in next)) return
+    expect(Object.keys(next.data).sort()).toEqual([
+      'body',
+      'error_message',
+      'variants',
+    ])
+  })
+
   // T14 / #540 — zonas todas inactivas → não bookable.
   it('T14: serviço com zonas todas inactivas não é bookable', () => {
     const dead: FlowCatalogService = {

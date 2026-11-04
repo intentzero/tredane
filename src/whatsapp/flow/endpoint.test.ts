@@ -337,14 +337,19 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
       decReq.iv,
       result.body,
     )) as {
+      version?: string
       screen: string
       data: { extension_message_response: { params: Record<string, unknown> } }
     }
+    expect(response.version).toBe('3.0')
     expect(response.screen).toBe('SUCCESS')
     expect(response.data.extension_message_response.params.fallback_reason).toBe(
       'no_slots',
     )
-    expect(response.data.extension_message_response.params.slot_id).toBeNull()
+    // Sem null no params — Meta payload-schema / tipos inesperados.
+    expect(response.data.extension_message_response.params).not.toHaveProperty(
+      'slot_id',
+    )
   })
 
   // T07 / #539 — catalogMismatch mid-flow devolve C14 e re-pede campo.

@@ -181,6 +181,23 @@ function slotOptions(slots: FlowSlotOption[]): FlowDataOption[] {
   })
 }
 
+/**
+ * Campos dinâmicos alinhados ao Flow JSON publicado (data schema por ecrã).
+ * Meta: `payload-schema-error` se o data não conformar ao schema do layout —
+ * chaves a mais / a menos / tipo errado. Sempre enviar `error_message` ("" se
+ * não houver snackbar). Não enviar `title`/`layout`/`footer`: o JSON usa
+ * `screen.title` estático e componentes fixos (Dropdown/Radio/Checkbox).
+ */
+function screenData(
+  fields: Record<string, unknown>,
+  errorMessage?: string,
+): Record<string, unknown> {
+  return {
+    ...fields,
+    error_message: errorMessage ?? '',
+  }
+}
+
 export function resolveVariantIds(
   service: FlowCatalogService,
   line: 'feminino' | 'masculino' | null,
@@ -223,17 +240,14 @@ export function nextFlowScreen(input: {
       service = services[0]!
       serviceId = service.id
     } else {
-      const opts = serviceOptions(services)
-      const useDropdown = opts.length > FLOW_MAX_RADIO
+      // JSON publicado: só Dropdown em SERVICO (schema: body, services,
+      // error_message). Sem `title`/`layout` — Meta payload-schema-error.
       return {
         screen: 'SERVICO',
-        data: {
-          title: FLOW_COPY.serviceTitle,
-          body: FLOW_COPY.serviceBody,
-          services: opts,
-          layout: useDropdown ? 'dropdown' : 'radio',
-          ...(input.errorMessage ? { error_message: input.errorMessage } : {}),
-        },
+        data: screenData(
+          { body: FLOW_COPY.serviceBody, services: serviceOptions(services) },
+          input.errorMessage,
+        ),
       }
     }
   }
@@ -243,12 +257,13 @@ export function nextFlowScreen(input: {
   if (needsAudienceLine(zones) && !line) {
     return {
       screen: 'GENERO',
-      data: {
-        title: FLOW_COPY.genderTitle,
-        body: FLOW_COPY.genderBody(service!.name),
-        genders: genderOptions(),
-        ...(input.errorMessage ? { error_message: input.errorMessage } : {}),
-      },
+      data: screenData(
+        {
+          body: FLOW_COPY.genderBody(service!.name),
+          genders: genderOptions(),
+        },
+        input.errorMessage,
+      ),
     }
   }
   if (line && !needsAudienceLine(zones)) {
@@ -266,11 +281,10 @@ export function nextFlowScreen(input: {
       if (opts.length > 0) {
         return {
           screen: 'VARIANTES',
-          data: {
-            body: FLOW_COPY.variantsBody,
-            variants: opts,
-            ...(input.errorMessage ? { error_message: input.errorMessage } : {}),
-          },
+          data: screenData(
+            { body: FLOW_COPY.variantsBody, variants: opts },
+            input.errorMessage,
+          ),
         }
       }
     }
@@ -286,13 +300,10 @@ export function nextFlowScreen(input: {
   }
   return {
     screen: 'HORARIO',
-    data: {
-      title: FLOW_COPY.slotTitle,
-      body: FLOW_COPY.slotBody,
-      slots: slotOptions(slots),
-      footer: FLOW_COPY.slotFooter,
-      ...(input.errorMessage ? { error_message: input.errorMessage } : {}),
-    },
+    data: screenData(
+      { body: FLOW_COPY.slotBody, slots: slotOptions(slots) },
+      input.errorMessage,
+    ),
   }
 }
 
@@ -389,21 +400,19 @@ export function successPayload(
   frame: FlowBookingSnapshot,
   opts?: { fallbackReason?: FlowChatFallbackReason },
 ): FlowScreenPayload {
+  // Params sem `null` — o cliente Meta rejeita tipos inesperados em fechos.
+  const params: Record<string, unknown> = {
+    flow_token: flowToken,
+    variant_ids: frame.variantIds ?? [],
+  }
+  if (frame.serviceId) params.service_id = frame.serviceId
+  if (frame.line) params.line = frame.line
+  if (frame.slotKey) params.slot_id = frame.slotKey
+  if (opts?.fallbackReason) params.fallback_reason = opts.fallbackReason
   return {
     screen: 'SUCCESS',
     data: {
-      extension_message_response: {
-        params: {
-          flow_token: flowToken,
-          service_id: frame.serviceId,
-          line: frame.line,
-          variant_ids: frame.variantIds ?? [],
-          slot_id: frame.slotKey,
-          ...(opts?.fallbackReason
-            ? { fallback_reason: opts.fallbackReason }
-            : {}),
-        },
-      },
+      extension_message_response: { params },
     },
   }
 }
