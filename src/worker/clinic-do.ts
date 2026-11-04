@@ -127,10 +127,11 @@ import {
   prepareBookingFlowOfferFromEnv,
   type PrepareBookingFlowOffer,
 } from '../whatsapp/flow'
-import type {
-  FlowBookingSnapshot,
-  FlowCatalogService,
-  FlowSlotOption,
+import {
+  revalidateFlowFrameAgainstCatalog,
+  type FlowBookingSnapshot,
+  type FlowCatalogService,
+  type FlowSlotOption,
 } from '../whatsapp/flow/screens'
 import { listServices } from '../clinic/config/services'
 import { readCatalogVersion } from '../clinic/ai/turn-context'
@@ -728,6 +729,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   /**
    * #514 / ADR-0016: leitura de catálogo + horas para o endpoint Flow.
    * Não grava BookingFrame nem marca.
+   * Sessão = snapshot do token (sem overlay do BookingFrame do DO — #537).
+   * catalogVersion mid-flow: ADR §7 / #539.
    */
   async flowDataExchange(input: {
     tenantId: string
@@ -738,6 +741,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     catalog: FlowCatalogService[]
     slots: FlowSlotOption[]
     frame: FlowBookingSnapshot
+    catalogMismatch: boolean
+    clearedFields: Array<'serviceId' | 'line' | 'variantIds' | 'slotKey'>
   }> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
@@ -756,21 +761,34 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         priceCents: z.priceCents,
       })),
     }))
-    const stored = getBookingFrame(this.#db, input.tenantId, input.conversationId)
-    const frame: FlowBookingSnapshot = {
-      serviceId: input.frame.serviceId ?? stored?.serviceId ?? null,
-      line: input.frame.line ?? stored?.line ?? null,
-      variantIds: input.frame.variantIds ?? stored?.variantIds ?? null,
-      slotKey:
-        input.frame.slotKey ??
-        (stored?.date && stored.time ? `${stored.date}T${stored.time}` : null),
+    // #537: não fazer merge com BookingFrame persistido — só o snapshot do token.
+    let frame: FlowBookingSnapshot = {
+      serviceId: input.frame.serviceId,
+      line: input.frame.line,
+      variantIds: input.frame.variantIds,
+      slotKey: input.frame.slotKey,
+    }
+    const currentVersion = readCatalogVersion(this.#db, input.tenantId)
+    const catalogMismatch =
+      Boolean(input.catalogVersion) && input.catalogVersion !== currentVersion
+    let clearedFields: Array<'serviceId' | 'line' | 'variantIds' | 'slotKey'> = []
+    if (catalogMismatch) {
+      const revalidated = revalidateFlowFrameAgainstCatalog(frame, catalog)
+      frame = revalidated.frame
+      clearedFields = [...revalidated.cleared]
     }
     let slots: FlowSlotOption[] = []
     if (frame.serviceId) {
       const service = services.find((s) => s.id === frame.serviceId && s.active)
       if (service) {
         const needVariants = service.zones.some((z) => z.active)
-        const variantsReady = !needVariants || (frame.variantIds && frame.variantIds.length > 0)
+        // #540: zonas no cadastro todas inactivas → não bookable (não lista horas).
+        const hasInactiveOnlyZones =
+          service.zones.length > 0 && !service.zones.some((z) => z.active)
+        const variantsReady =
+          hasInactiveOnlyZones
+            ? false
+            : !needVariants || (frame.variantIds && frame.variantIds.length > 0)
         const needLine =
           service.zones.some((z) => z.active && z.audience === 'feminino') &&
           service.zones.some((z) => z.active && z.audience === 'masculino')
@@ -786,9 +804,15 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         }
       }
     }
-    void input.catalogVersion
-    void readCatalogVersion(this.#db, input.tenantId)
-    return { catalog, slots, frame }
+    // ADR §7: hora já escolhida volta a ser calculada; se deixou de estar livre, limpa.
+    if (frame.slotKey) {
+      const stillOffered = slots.some((s) => s.id === frame.slotKey)
+      if (!stillOffered) {
+        frame = { ...frame, slotKey: null }
+        if (!clearedFields.includes('slotKey')) clearedFields.push('slotKey')
+      }
+    }
+    return { catalog, slots, frame, catalogMismatch, clearedFields }
   }
 
   /**

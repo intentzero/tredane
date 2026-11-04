@@ -185,7 +185,11 @@ export function listBookableOptions(services: readonly ServiceRow[]): BookableOp
   const out: BookableOption[] = []
   for (const service of services) {
     if (!service.active) continue
-    const activeZones = (service.zones ?? []).filter((z) => z.active)
+    const zones = service.zones ?? []
+    const activeZones = zones.filter((z) => z.active)
+    // Confirmado (variantes-de-servico / H1→A / #540): zonas no cadastro
+    // todas inactivas → sem marcação nova (não cai na linha).
+    if (zones.length > 0 && activeZones.length === 0) continue
     if (activeZones.length === 0) {
       out.push({
         key: service.id,

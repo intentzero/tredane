@@ -44,6 +44,8 @@ export type WhatsappFlowRouteOptions = {
     catalog: FlowCatalogService[]
     slots: FlowSlotOption[]
     frame: FlowBookingSnapshot
+    catalogMismatch?: boolean
+    clearedFields?: Array<'serviceId' | 'line' | 'variantIds' | 'slotKey'>
   }>
   /** Override de tokenLookup (testes). */
   tokenLookupFactory?: (env: WorkerBindings, clock: Clock) => FlowTokenLookup
@@ -63,10 +65,12 @@ async function defaultDataLookup(
   catalog: FlowCatalogService[]
   slots: FlowSlotOption[]
   frame: FlowBookingSnapshot
+  catalogMismatch?: boolean
+  clearedFields?: Array<'serviceId' | 'line' | 'variantIds' | 'slotKey'>
 }> {
   const stub = env.CLINIC.get(env.CLINIC.idFromName(input.token.tenantId))
   if (typeof stub.flowDataExchange !== 'function') {
-    return { catalog: [], slots: [], frame: input.frame }
+    return { catalog: [], slots: [], frame: input.frame, catalogMismatch: false, clearedFields: [] }
   }
   const result = (await stub.flowDataExchange({
     tenantId: input.token.tenantId,
@@ -77,6 +81,8 @@ async function defaultDataLookup(
     catalog: FlowCatalogService[]
     slots: FlowSlotOption[]
     frame: FlowBookingSnapshot
+    catalogMismatch?: boolean
+    clearedFields?: Array<'serviceId' | 'line' | 'variantIds' | 'slotKey'>
   }
   return result
 }

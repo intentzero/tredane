@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { TODAS_OPTION_KEY } from '../../clinic/ai/choice-offer'
 import {
   applyScreenSubmission,
+  bookableServices,
   nextFlowScreen,
   resolveVariantIds,
+  revalidateFlowFrameAgainstCatalog,
   type FlowCatalogService,
 } from './screens'
 
@@ -117,5 +119,104 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
       },
     })
     expect(next).toEqual({ kind: 'ready' })
+  })
+
+  // T05 / #536 — membership de slot na lista oferecida.
+  it('T05: slot_id ∈ lista oferecida → ok', () => {
+    const offered = [
+      { id: '2026-11-05T10:00', date: '2026-11-05', time: '10:00' },
+      { id: '2026-11-05T11:00', date: '2026-11-05', time: '11:00' },
+    ]
+    const applied = applyScreenSubmission(
+      [limpeza],
+      { serviceId: 'svc_limp', line: null, variantIds: null, slotKey: null },
+      'HORARIO',
+      { slot_id: '2026-11-05T10:00' },
+      { offeredSlots: offered },
+    )
+    expect(applied.ok).toBe(true)
+    if (!applied.ok) return
+    expect(applied.frame.slotKey).toBe('2026-11-05T10:00')
+  })
+
+  // T06 / #536 — regex válida mas id não oferecido.
+  it('T06: slot civil válido mas fora da lista → error_message', () => {
+    const offered = [{ id: '2026-11-05T10:00', date: '2026-11-05', time: '10:00' }]
+    const applied = applyScreenSubmission(
+      [limpeza],
+      { serviceId: 'svc_limp', line: null, variantIds: null, slotKey: null },
+      'HORARIO',
+      { slot_id: '2026-11-05T17:00' },
+      { offeredSlots: offered },
+    )
+    expect(applied.ok).toBe(false)
+    if (applied.ok) return
+    expect(applied.errorMessage).toMatch(/já não está livre|Escolha outro/i)
+    expect(applied.frame.slotKey).toBeNull()
+  })
+
+  // T07 / #539 — catalogVersion diverge → limpa ids mortos.
+  it('T07: revalidateFlowFrameAgainstCatalog limpa serviço morto', () => {
+    const result = revalidateFlowFrameAgainstCatalog(
+      {
+        serviceId: 'svc_gone',
+        line: 'feminino',
+        variantIds: ['z1'],
+        slotKey: '2026-11-05T10:00',
+      },
+      [depilacao],
+    )
+    expect(result.frame.serviceId).toBeNull()
+    expect(result.cleared).toContain('serviceId')
+    expect(result.cleared).toContain('slotKey')
+  })
+
+  it('T07b: variante morta é limpa sem inventar substituto', () => {
+    const result = revalidateFlowFrameAgainstCatalog(
+      {
+        serviceId: 'svc_dep',
+        line: 'feminino',
+        variantIds: ['z_ax_f', 'z_dead'],
+        slotKey: '2026-11-05T10:00',
+      },
+      [depilacao],
+    )
+    expect(result.frame.variantIds).toEqual(['z_ax_f'])
+    expect(result.cleared).toContain('variantIds')
+    expect(result.frame.slotKey).toBeNull()
+  })
+
+  // T13 / #537 — sessão do token vazia não salta para HORARIO.
+  it('T13: snapshot vazio do token → SERVICO (não herda frame stale)', () => {
+    const next = nextFlowScreen({
+      catalog: [depilacao, limpeza],
+      frame: { serviceId: null, line: null, variantIds: null, slotKey: null },
+      slots: [{ id: '2026-11-05T10:00', date: '2026-11-05', time: '10:00' }],
+    })
+    expect(next).toMatchObject({ screen: 'SERVICO' })
+  })
+
+  // T14 / #540 — zonas todas inactivas → não bookable.
+  it('T14: serviço com zonas todas inactivas não é bookable', () => {
+    const dead: FlowCatalogService = {
+      id: 'svc_dead',
+      name: 'Laser',
+      active: true,
+      zones: [
+        {
+          id: 'z1',
+          name: 'Rosto',
+          audience: 'ambos',
+          active: false,
+          durationMinutes: 30,
+        },
+      ],
+    }
+    expect(bookableServices([dead, limpeza]).map((s) => s.id)).toEqual(['svc_limp'])
+    const next = nextFlowScreen({
+      catalog: [dead],
+      frame: { serviceId: null, line: null, variantIds: null, slotKey: null },
+    })
+    expect(next).toEqual({ kind: 'chat_fallback', reason: 'no_bookable_services' })
   })
 })

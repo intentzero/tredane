@@ -17,6 +17,7 @@ import {
   createMemoryFlowTokenStore,
   EMPTY_FLOW_SESSION,
   generateFlowToken,
+  isFlowTokenUsable,
 } from './tokens'
 import { applyScreenSubmission } from './screens'
 
@@ -344,6 +345,240 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
       'no_slots',
     )
     expect(response.data.extension_message_response.params.slot_id).toBeNull()
+  })
+
+  // T07 / #539 — catalogMismatch mid-flow devolve C14 e re-pede campo.
+  it('T07: catalogMismatch limpa serviço e pede SERVICO com C14', async () => {
+    const pair = await generateFlowKeyPair()
+    const store = createMemoryFlowTokenStore()
+    const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
+    const token = generateFlowToken()
+    store.insert(
+      null as never,
+      {
+        token,
+        tenantId: 't1',
+        bindingId: 'b1',
+        phoneNumberId: 'pn1',
+        wabaId: 'w1',
+        conversationId: 'c1',
+        catalogVersion: '1',
+        session: {
+          serviceId: 'svc_gone',
+          line: null,
+          variantIds: null,
+          slotKey: null,
+        },
+      },
+      clock,
+    )
+    const sessions = createTokenBackedSessionStore({
+      getToken: async (t) => store.get(null as never, t),
+      saveSession: async (t, session) => store.saveSession(null as never, t, session),
+    })
+    const encrypted = await encryptFlowRequestForTest(pair.publicKey, {
+      version: '3.0',
+      action: 'INIT',
+      flow_token: token,
+    })
+    const rawBody = JSON.stringify(encrypted)
+    const signature = await computeHubSignature256(rawBody, APP_SECRET)
+    const result = await handleFlowDataRequest({
+      rawBody,
+      signatureHeader: signature,
+      env: {
+        WHATSAPP_FLOW_PRIVATE_KEY: pair.privatePem,
+        META_APP_SECRET: APP_SECRET,
+      },
+      clock,
+      sessions,
+      tokenLookup: async (t) => store.get(null as never, t),
+      dataLookup: async () => ({
+        catalog: [
+          { id: 's1', name: 'Depilação', active: true, zones: [] },
+          { id: 's2', name: 'Limpeza', active: true, zones: [] },
+        ],
+        slots: [],
+        frame: { serviceId: null, line: null, variantIds: null, slotKey: null },
+        catalogMismatch: true,
+        clearedFields: ['serviceId' as const],
+      }),
+    })
+    expect(result.status).toBe(200)
+    if (result.status !== 200 || result.contentType !== 'text/plain') return
+    const decReq = await decryptFlowRequest(
+      await importFlowPrivateKey(pair.privatePem),
+      encrypted,
+    )
+    const response = (await decryptFlowResponseForTest(
+      decReq.aesKey,
+      decReq.iv,
+      result.body,
+    )) as { screen: string; data: { error_message?: string } }
+    expect(response.screen).toBe('SERVICO')
+    expect(response.data.error_message).toMatch(/cadastro mudou/i)
+  })
+
+  // T08 / #538 — token consumido não é usável.
+  it('T08: consumeFlowToken → isFlowTokenUsable falso (2º nfm não repropõe)', () => {
+    const store = createMemoryFlowTokenStore()
+    const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
+    const token = generateFlowToken()
+    store.insert(
+      null as never,
+      {
+        token,
+        tenantId: 't1',
+        bindingId: 'b1',
+        phoneNumberId: 'pn1',
+        wabaId: 'w1',
+        conversationId: 'c1',
+        catalogVersion: '42',
+      },
+      clock,
+    )
+    const row = store.get(null as never, token)!
+    expect(isFlowTokenUsable(row, clock.nowMs())).toBe(true)
+    expect(row.catalogVersion).toBe('42')
+    store.consume(null as never, token, clock)
+    const after = store.get(null as never, token)!
+    expect(isFlowTokenUsable(after, clock.nowMs())).toBe(false)
+    expect(after.consumedAt).not.toBeNull()
+  })
+
+  // T13 / #537 — dataLookup devolve só o frame do token (sem overlay DO).
+  it('T13: INIT com sessão vazia não salta para HORARIO (sem overlay stale)', async () => {
+    const pair = await generateFlowKeyPair()
+    const store = createMemoryFlowTokenStore()
+    const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
+    const token = generateFlowToken()
+    store.insert(
+      null as never,
+      {
+        token,
+        tenantId: 't1',
+        bindingId: 'b1',
+        phoneNumberId: 'pn1',
+        wabaId: 'w1',
+        conversationId: 'c1',
+        catalogVersion: '1',
+      },
+      clock,
+    )
+    const sessions = createTokenBackedSessionStore({
+      getToken: async (t) => store.get(null as never, t),
+      saveSession: async (t, session) => store.saveSession(null as never, t, session),
+    })
+    const encrypted = await encryptFlowRequestForTest(pair.publicKey, {
+      version: '3.0',
+      action: 'INIT',
+      flow_token: token,
+    })
+    const rawBody = JSON.stringify(encrypted)
+    const signature = await computeHubSignature256(rawBody, APP_SECRET)
+    // Contrato #537: dataLookup ecoa o frame do token — NÃO injeta BookingFrame stale.
+    const result = await handleFlowDataRequest({
+      rawBody,
+      signatureHeader: signature,
+      env: {
+        WHATSAPP_FLOW_PRIVATE_KEY: pair.privatePem,
+        META_APP_SECRET: APP_SECRET,
+      },
+      clock,
+      sessions,
+      tokenLookup: async (t) => store.get(null as never, t),
+      dataLookup: async ({ frame }) => ({
+        catalog: [
+          { id: 's1', name: 'Depilação', active: true, zones: [] },
+          { id: 's2', name: 'Limpeza', active: true, zones: [] },
+        ],
+        slots: [{ id: '2026-11-05T10:00', date: '2026-11-05', time: '10:00' }],
+        frame, // sem merge de DO
+      }),
+    })
+    expect(result.status).toBe(200)
+    if (result.status !== 200 || result.contentType !== 'text/plain') return
+    const decReq = await decryptFlowRequest(
+      await importFlowPrivateKey(pair.privatePem),
+      encrypted,
+    )
+    const response = (await decryptFlowResponseForTest(
+      decReq.aesKey,
+      decReq.iv,
+      result.body,
+    )) as { screen: string }
+    expect(response.screen).toBe('SERVICO')
+  })
+
+  // T15 — BACK re-renderiza sem corromper a sessão.
+  it('T15: BACK mantém sessão e re-apresenta o ecrã seguinte', async () => {
+    const pair = await generateFlowKeyPair()
+    const store = createMemoryFlowTokenStore()
+    const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
+    const token = generateFlowToken()
+    store.insert(
+      null as never,
+      {
+        token,
+        tenantId: 't1',
+        bindingId: 'b1',
+        phoneNumberId: 'pn1',
+        wabaId: 'w1',
+        conversationId: 'c1',
+        catalogVersion: '1',
+        session: {
+          serviceId: 'svc_limp',
+          line: null,
+          variantIds: null,
+          slotKey: null,
+        },
+      },
+      clock,
+    )
+    const sessions = createTokenBackedSessionStore({
+      getToken: async (t) => store.get(null as never, t),
+      saveSession: async (t, session) => store.saveSession(null as never, t, session),
+    })
+    const encrypted = await encryptFlowRequestForTest(pair.publicKey, {
+      version: '3.0',
+      action: 'BACK',
+      screen: 'HORARIO',
+      flow_token: token,
+      data: {},
+    })
+    const rawBody = JSON.stringify(encrypted)
+    const signature = await computeHubSignature256(rawBody, APP_SECRET)
+    const result = await handleFlowDataRequest({
+      rawBody,
+      signatureHeader: signature,
+      env: {
+        WHATSAPP_FLOW_PRIVATE_KEY: pair.privatePem,
+        META_APP_SECRET: APP_SECRET,
+      },
+      clock,
+      sessions,
+      tokenLookup: async (t) => store.get(null as never, t),
+      dataLookup: async ({ frame }) => ({
+        catalog: [{ id: 'svc_limp', name: 'Limpeza', active: true, zones: [] }],
+        slots: [{ id: '2026-11-05T10:00', date: '2026-11-05', time: '10:00' }],
+        frame,
+      }),
+    })
+    expect(result.status).toBe(200)
+    const after = await sessions.get(token)
+    expect(after.serviceId).toBe('svc_limp')
+    expect(after.slotKey).toBeNull()
+    if (result.status !== 200 || result.contentType !== 'text/plain') return
+    const decReq = await decryptFlowRequest(
+      await importFlowPrivateKey(pair.privatePem),
+      encrypted,
+    )
+    const response = (await decryptFlowResponseForTest(
+      decReq.aesKey,
+      decReq.iv,
+      result.body,
+    )) as { screen: string }
+    expect(response.screen).toBe('HORARIO')
   })
 })
 

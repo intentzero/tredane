@@ -20,6 +20,7 @@ import {
   type FlowBookingSnapshot,
   type FlowCatalogService,
   type FlowChatFallbackReason,
+  type FlowClearedField,
   type FlowScreenId,
   type FlowSlotOption,
 } from './screens'
@@ -37,6 +38,8 @@ export type FlowDataLookup = (input: {
   catalog: FlowCatalogService[]
   slots: FlowSlotOption[]
   frame: FlowBookingSnapshot
+  catalogMismatch?: boolean
+  clearedFields?: FlowClearedField[]
 }>
 
 /** Lookup async (D1 em produção). */
@@ -230,11 +233,23 @@ export async function handleFlowDataRequest(input: {
     return { status: 427, body: { error_msg: FLOW_COPY.tokenExpired } }
   }
 
-  // Fonte de verdade: sessão persistida no token (+ overlay do BookingFrame do DO).
+  // Fonte de verdade: sessão do token (sem overlay contínuo do BookingFrame — #537).
+  // BACK: re-renderiza a partir da sessão sem aplicar submissão (T15).
   let frame = await input.sessions.get(parsed.flowToken)
 
   let looked = await input.dataLookup({ token: tokenRow, frame })
   frame = mergeFrames(looked.frame, frame)
+
+  const mismatchMessage = (info: {
+    catalogMismatch?: boolean
+    clearedFields?: FlowClearedField[]
+  }): string | undefined => {
+    if (!info.catalogMismatch || !info.clearedFields?.length) return undefined
+    if (info.clearedFields.length === 1 && info.clearedFields[0] === 'slotKey') {
+      return FLOW_COPY.slotGone
+    }
+    return FLOW_COPY.catalogChanged
+  }
 
   if (parsed.action === 'data_exchange' && parsed.screen) {
     const applied = applyScreenSubmission(
@@ -242,6 +257,7 @@ export async function handleFlowDataRequest(input: {
       frame,
       parsed.screen,
       parsed.data,
+      { offeredSlots: looked.slots },
     )
     if (!applied.ok) {
       const again = nextFlowScreen({
@@ -263,6 +279,7 @@ export async function handleFlowDataRequest(input: {
     frame = applied.frame
     await input.sessions.set(parsed.flowToken, frame)
     looked = await input.dataLookup({ token: tokenRow, frame })
+    frame = mergeFrames(looked.frame, frame)
   }
   await input.sessions.set(parsed.flowToken, frame)
 
@@ -270,6 +287,7 @@ export async function handleFlowDataRequest(input: {
     catalog: looked.catalog,
     frame,
     slots: looked.slots,
+    errorMessage: mismatchMessage(looked),
   })
 
   if ('kind' in next && next.kind === 'ready') {
