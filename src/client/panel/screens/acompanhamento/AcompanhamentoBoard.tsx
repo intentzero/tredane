@@ -1,5 +1,5 @@
 import { CircleAlert } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Tab, TabList, Tabs } from 'react-aria-components'
 import type {
   OpportunityStage,
@@ -40,8 +40,35 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
   const [movingCard, setMovingCard] = useState<PipelineOpportunity | null>(null)
   const [moveBusy, setMoveBusy] = useState(false)
   const [moveError, setMoveError] = useState<string | null>(null)
+  const [tabsScrolled, setTabsScrolled] = useState(false)
+  const tabListRef = useRef<HTMLDivElement | null>(null)
   // Datas no fuso da clínica (Agenda → Horários).
   useClinicTimezone(api, tenantId, generation)
+
+  // Pin da etapa activa ao início da faixa (TR-310 / mock Acompanhar mobile).
+  useEffect(() => {
+    const list = tabListRef.current
+    if (!list) return
+    const active = list.querySelector<HTMLElement>(
+      '[data-selected="true"], [aria-selected="true"]',
+    )
+    if (!active) return
+    const listPad = parseFloat(getComputedStyle(list).paddingInlineStart) || 0
+    const nextLeft = active.offsetLeft - listPad
+    if (Math.abs(list.scrollLeft - nextLeft) > 1) {
+      list.scrollLeft = Math.max(0, nextLeft)
+    }
+    setTabsScrolled(list.scrollLeft > 0)
+  }, [stage, counts])
+
+  useEffect(() => {
+    const list = tabListRef.current
+    if (!list) return
+    const onScroll = () => setTabsScrolled(list.scrollLeft > 0)
+    onScroll()
+    list.addEventListener('scroll', onScroll, { passive: true })
+    return () => list.removeEventListener('scroll', onScroll)
+  }, [counts])
 
   async function load(opts?: { keep?: boolean }) {
     if (!opts?.keep) setLoading(true)
@@ -159,7 +186,11 @@ export function AcompanhamentoBoard({ tenantId, api, generation }: Props) {
             if (typeof key === 'string') setStage(key as OpportunityStage)
           }}
         >
-          <TabList className="panel-tabs" aria-label="Etapas">
+          <TabList
+            ref={tabListRef}
+            className={`panel-tabs acomp-tabs${tabsScrolled ? ' is-scrolled' : ''}`}
+            aria-label="Etapas"
+          >
             {STAGE_ORDER.map((id) => (
               <Tab key={id} id={id} className="panel-chip">
                 {STAGE_TAB_LABELS[id]}

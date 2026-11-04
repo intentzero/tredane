@@ -28,4 +28,15 @@ describe('AcompanhamentoBoard (celular) — etapas finais', () => {
       ),
     )
   })
+
+  it('faixa de etapas usa acomp-tabs (pin / fade esquerdo)', async () => {
+    const list = vi.fn(async () => ({ opportunities: [], counts: [] }))
+    const api = { listPipelineOpportunities: list } as unknown as PanelApi
+    const { container } = render(
+      <AcompanhamentoBoard tenantId="t" api={api} generation={1} />,
+    )
+    await waitFor(() => expect(list).toHaveBeenCalled())
+    const tabs = container.querySelector('.panel-tabs.acomp-tabs')
+    expect(tabs).toBeTruthy()
+  })
 })
