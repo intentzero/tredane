@@ -15,6 +15,7 @@ export {
   hubInformacoesBody,
   listUpcomingForHub,
   activeServicesForHub,
+  type HubServiceHint,
 } from './hub-opening'
 export {
   isWhatsappFlowConfigured,

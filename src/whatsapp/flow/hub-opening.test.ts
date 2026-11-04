@@ -17,9 +17,8 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
         name: 'Depilação',
         active: true,
         synonyms: ['depilar'],
-        zones: [],
       },
-    ] as Parameters<typeof shouldOfferHubOpening>[0]['services']
+    ]
 
     expect(
       shouldOfferHubOpening({

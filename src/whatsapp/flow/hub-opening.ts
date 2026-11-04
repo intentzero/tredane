@@ -27,6 +27,14 @@ const VAGUE_ASK =
 const VAGUE_BOOK =
   /\b(quero|gostaria|marcar|agendar|hor[aá]rio|disponi|vaga|atendimento)\b/i
 
+/** Campos mínimos para detectar serviço nomeado no gatilho do hub. */
+export type HubServiceHint = {
+  id: string
+  name: string
+  active: boolean
+  synonyms?: string[] | null
+}
+
 function weekdayOf(civilDate: string): number {
   const [y, m, d] = civilDate.split('-').map(Number) as [number, number, number]
   // UTC noon evita DST edge; civilDate já é do fuso da clínica.
@@ -34,7 +42,7 @@ function weekdayOf(civilDate: string): number {
   return dow === 0 ? 7 : dow
 }
 
-function namedBookableServices(services: ServiceRow[], text: string): ServiceRow[] {
+function namedBookableServices(services: HubServiceHint[], text: string): HubServiceHint[] {
   const active = services.filter((s) => s.active)
   const folded = text.toLowerCase()
   const exact = active.filter((s) => {
@@ -55,7 +63,7 @@ function namedBookableServices(services: ServiceRow[], text: string): ServiceRow
  */
 export function shouldOfferHubOpening(input: {
   turnText: string
-  services: ServiceRow[]
+  services: HubServiceHint[]
   /** Já houve mensagem outbound da clínica nesta conversa. */
   hasClinicOutbound: boolean
 }): boolean {

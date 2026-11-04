@@ -3224,6 +3224,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         conversationId: input.conversationId,
         catalogVersion: input.catalogVersion,
         session: input.session,
+        body: input.body,
       })
   }
 

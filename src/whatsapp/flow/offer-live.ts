@@ -110,6 +110,8 @@ export async function prepareBookingFlowOfferFromEnv(input: {
   conversationId: string
   catalogVersion: string
   session?: FlowBookingSnapshot
+  /** Corpo C1h interpolado (clínica + hora). Sem isto usa FLOW_COPY.openBody. */
+  body?: string
 }): Promise<PreparedBookingFlowOffer | null> {
   if (!isWhatsappFlowConfigured(input.env)) return null
 
