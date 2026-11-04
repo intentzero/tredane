@@ -91,7 +91,7 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
     expect(result.status).toBe(427)
   })
 
-  it('INIT com token válido devolve ecrã SERVICO', async () => {
+  it('INIT com token válido devolve ecrã HUB', async () => {
     const pair = await generateFlowKeyPair()
     const store = createMemoryFlowTokenStore()
     const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
@@ -271,7 +271,7 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
     expect(after.line).toBe('feminino')
   })
 
-  it('INIT com serviço na sessão pousa em SERVICO (entry), não GENERO/HORARIO', async () => {
+  it('INIT com serviço na sessão pousa em HUB (entry), não SERVICO/GENERO/HORARIO', async () => {
     const pair = await generateFlowKeyPair()
     const store = createMemoryFlowTokenStore()
     const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
@@ -286,7 +286,7 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
         wabaId: 'w1',
         conversationId: 'c1',
         catalogVersion: '1',
-        // Path Paulo 16:12Z: serviço seed, line null → nextFlowScreen seria GENERO.
+        // Serviço seed: nextFlowScreen seria GENERO — INIT não salta (#545 / TR-306).
         session: {
           serviceId: 'svc_dep',
           line: null,
@@ -309,6 +309,30 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
       saveSession: async (t, session) => store.saveSession(null as never, t, session),
     })
 
+    const catalog = [
+      {
+        id: 'svc_dep',
+        name: 'Depilação',
+        active: true,
+        zones: [
+          {
+            id: 'z_f',
+            name: 'Axila',
+            audience: 'feminino',
+            active: true,
+            durationMinutes: 15,
+          },
+          {
+            id: 'z_m',
+            name: 'Axila',
+            audience: 'masculino',
+            active: true,
+            durationMinutes: 20,
+          },
+        ],
+      },
+    ]
+
     const result = await handleFlowDataRequest({
       rawBody,
       signatureHeader: signature,
@@ -320,29 +344,7 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
       sessions,
       tokenLookup: async (t) => store.get(null as never, t),
       dataLookup: async ({ frame }) => ({
-        catalog: [
-          {
-            id: 'svc_dep',
-            name: 'Depilação',
-            active: true,
-            zones: [
-              {
-                id: 'z_f',
-                name: 'Axila',
-                audience: 'feminino',
-                active: true,
-                durationMinutes: 15,
-              },
-              {
-                id: 'z_m',
-                name: 'Axila',
-                audience: 'masculino',
-                active: true,
-                durationMinutes: 20,
-              },
-            ],
-          },
-        ],
+        catalog,
         slots: [],
         frame,
       }),
@@ -352,7 +354,7 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
     if (result.status !== 200 || result.contentType !== 'text/plain') return
     expect(result.logDetail).toMatchObject({
       action: 'INIT',
-      screen: 'SERVICO',
+      screen: 'HUB',
       outcome: 'entry_screen',
       skipped_screen: 'GENERO',
     })
@@ -368,18 +370,120 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
     )) as {
       version?: string
       screen: string
-      data: { services: unknown[]; error_message?: string }
+      data: { actions: unknown[]; error_message?: string }
     }
     expect(response.version).toBe('3.0')
-    expect(response.screen).toBe('SERVICO')
+    expect(response.screen).toBe('HUB')
     expect(Object.keys(response.data).sort()).toEqual([
+      'actions',
       'body',
       'error_message',
-      'service_init',
-      'services',
     ])
     expect(response.data.error_message).toBe('')
-    expect((response.data as { service_init?: string }).service_init).toBe('svc_dep')
+
+    // Agendar a partir do HUB → GENERO (serviço já na sessão).
+    const exchange = await encryptFlowRequestForTest(pair.publicKey, {
+      version: '3.0',
+      action: 'data_exchange',
+      screen: 'HUB',
+      flow_token: token,
+      data: { hub_action: 'agendar' },
+    })
+    const exBody = JSON.stringify(exchange)
+    const exSig = await computeHubSignature256(exBody, APP_SECRET)
+    const exResult = await handleFlowDataRequest({
+      rawBody: exBody,
+      signatureHeader: exSig,
+      env: {
+        WHATSAPP_FLOW_PRIVATE_KEY: pair.privatePem,
+        META_APP_SECRET: APP_SECRET,
+      },
+      clock,
+      sessions,
+      tokenLookup: async (t) => store.get(null as never, t),
+      dataLookup: async ({ frame }) => ({ catalog, slots: [], frame }),
+    })
+    expect(exResult.status).toBe(200)
+    if (exResult.status !== 200 || exResult.contentType !== 'text/plain') return
+    const exDec = await decryptFlowRequest(
+      await importFlowPrivateKey(pair.privatePem),
+      exchange,
+    )
+    const exResp = (await decryptFlowResponseForTest(
+      exDec.aesKey,
+      exDec.iv,
+      exResult.body,
+    )) as { screen: string }
+    expect(exResp.screen).toBe('GENERO')
+  })
+
+  it('HUB Remarcar → SUCCESS com hub_action (stub DEC-091)', async () => {
+    const pair = await generateFlowKeyPair()
+    const store = createMemoryFlowTokenStore()
+    const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
+    const token = generateFlowToken()
+    store.insert(
+      null as never,
+      {
+        token,
+        tenantId: 't1',
+        bindingId: 'b1',
+        phoneNumberId: 'pn1',
+        wabaId: 'w1',
+        conversationId: 'c1',
+        catalogVersion: '1',
+      },
+      clock,
+    )
+    const sessions = createTokenBackedSessionStore({
+      getToken: async (t) => store.get(null as never, t),
+      saveSession: async (t, session) => store.saveSession(null as never, t, session),
+    })
+    const encrypted = await encryptFlowRequestForTest(pair.publicKey, {
+      version: '3.0',
+      action: 'data_exchange',
+      screen: 'HUB',
+      flow_token: token,
+      data: { hub_action: 'remarcar' },
+    })
+    const rawBody = JSON.stringify(encrypted)
+    const signature = await computeHubSignature256(rawBody, APP_SECRET)
+    const result = await handleFlowDataRequest({
+      rawBody,
+      signatureHeader: signature,
+      env: {
+        WHATSAPP_FLOW_PRIVATE_KEY: pair.privatePem,
+        META_APP_SECRET: APP_SECRET,
+      },
+      clock,
+      sessions,
+      tokenLookup: async (t) => store.get(null as never, t),
+      dataLookup: async ({ frame }) => ({
+        catalog: [{ id: 's1', name: 'Depilação', active: true, zones: [] }],
+        slots: [],
+        frame,
+      }),
+    })
+    expect(result.status).toBe(200)
+    if (result.status !== 200 || result.contentType !== 'text/plain') return
+    expect(result.logDetail).toMatchObject({
+      outcome: 'hub_stub',
+      hub_action: 'remarcar',
+    })
+    const decReq = await decryptFlowRequest(
+      await importFlowPrivateKey(pair.privatePem),
+      encrypted,
+    )
+    const response = (await decryptFlowResponseForTest(
+      decReq.aesKey,
+      decReq.iv,
+      result.body,
+    )) as {
+      screen: string
+      data: { extension_message_response: { params: Record<string, unknown> } }
+    }
+    expect(response.screen).toBe('SUCCESS')
+    expect(response.data.extension_message_response.params.hub_action).toBe('remarcar')
   })
 
   it('Finding 3: chat_fallback no data_exchange inclui fallback_reason no SUCCESS', async () => {
@@ -465,8 +569,8 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
     )
   })
 
-  // T07 / #539 — catalogMismatch mid-flow devolve C14 e re-pede campo.
-  it('T07: catalogMismatch limpa serviço e pede SERVICO com C14', async () => {
+  // T07 / #539 — catalogMismatch no INIT devolve C14 no entry (HUB).
+  it('T07: catalogMismatch limpa serviço e INIT mostra HUB com C14', async () => {
     const pair = await generateFlowKeyPair()
     const store = createMemoryFlowTokenStore()
     const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
@@ -533,7 +637,7 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
       decReq.iv,
       result.body,
     )) as { screen: string; data: { error_message?: string } }
-    expect(response.screen).toBe('SERVICO')
+    expect(response.screen).toBe('HUB')
     expect(response.data.error_message).toMatch(/cadastro mudou/i)
   })
 
@@ -625,7 +729,7 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
       decReq.iv,
       result.body,
     )) as { screen: string }
-    expect(response.screen).toBe('SERVICO')
+    expect(response.screen).toBe('HUB')
   })
 
   // S1 review #542 — null explícito do dataLookup não é restaurado pela sessão.
@@ -699,8 +803,8 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
       decReq.iv,
       result.body,
     )) as { screen: string; data: { error_message?: string } }
-    // INIT → sempre entry SERVICO; C15 vai no snackbar do entry.
-    expect(response.screen).toBe('SERVICO')
+    // INIT → sempre entry HUB; C15 vai no snackbar do entry.
+    expect(response.screen).toBe('HUB')
     expect(response.data.error_message).toMatch(/já não está livre|Escolha outro/i)
     const after = await sessions.get(token)
     expect(after.slotKey).toBeNull()

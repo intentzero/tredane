@@ -1,4 +1,22 @@
-export { FLOW_COPY, FLOW_GENDER_LABELS } from './copy'
+export {
+  FLOW_COPY,
+  FLOW_GENDER_LABELS,
+  FLOW_HUB_ACTIONS,
+  isFlowHubAction,
+  isFlowHubStubAction,
+  type FlowHubAction,
+  type FlowHubStubAction,
+} from './copy'
+export {
+  shouldOfferHubOpening,
+  hubOpeningBody,
+  todayClosingHourLabel,
+  hubMeusBody,
+  hubInformacoesBody,
+  listUpcomingForHub,
+  activeServicesForHub,
+  type HubServiceHint,
+} from './hub-opening'
 export {
   isWhatsappFlowConfigured,
   resolveFlowId,
@@ -30,6 +48,8 @@ export {
   bookableServices,
   isServiceBookable,
   revalidateFlowFrameAgainstCatalog,
+  parseHubAction,
+  hubActionOptions,
   FLOW_ENTRY_SCREEN,
   FLOW_MAX_VARIANTS_IN_CHECKBOX,
   FLOW_MAX_SLOTS,

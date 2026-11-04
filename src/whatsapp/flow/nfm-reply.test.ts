@@ -22,7 +22,164 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       variantIds: ['z1', 'z2'],
       slotId: '2026-11-05T17:00',
       fallbackReason: null,
+      hubAction: null,
     })
+  })
+
+  it('parseNfmResponseJson lê hub_action dos stubs TR-306', () => {
+    const parsed = parseNfmResponseJson(
+      JSON.stringify({ flow_token: 'fl1_hub', hub_action: 'cancelar' }),
+    )
+    expect(parsed).toEqual({
+      flowToken: 'fl1_hub',
+      serviceId: null,
+      line: null,
+      variantIds: [],
+      slotId: null,
+      fallbackReason: null,
+      hubAction: 'cancelar',
+    })
+  })
+
+  it('hub cancelar → handoff humano sem marcar (DEC-083 / DEC-091)', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const result = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-hub-cancel',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_hub_c',
+            hub_action: 'cancelar',
+          }),
+          catalogVersion: '1',
+        },
+        s.clock,
+      )
+      expect(result.outcome).toBe('hub_handoff')
+      expect(s.appointmentCount()).toBe(0)
+      const outbound = s.outboundBodies()
+      expect(outbound.some((b) => /equipe continuar/i.test(b))).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('hub remarcar sem compromisso → handoff (DEC-091)', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const result = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-hub-rem',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_hub_r',
+            hub_action: 'remarcar',
+          }),
+          catalogVersion: '1',
+        },
+        s.clock,
+      )
+      expect(result.outcome).toBe('hub_handoff')
+      expect(result.reason).toBe('remarcar')
+    } finally {
+      s.close()
+    }
+  })
+
+  it('hub meus sem compromisso → frase Confirmada (não handoff)', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const result = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-hub-meus',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_hub_m',
+            hub_action: 'meus',
+          }),
+          catalogVersion: '1',
+        },
+        s.clock,
+      )
+      expect(result.outcome).toBe('hub_meus_sent')
+      expect(s.outboundBodies().some((b) => /não tem horário marcado/i.test(b))).toBe(true)
+      expect(s.outboundBodies().some((b) => /equipe continuar/i.test(b))).toBe(false)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('hub informacoes → expediente + link config', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.db.run(
+        `UPDATE clinic_settings SET google_business_url = ? WHERE tenant_id = ?`,
+        'https://maps.app.goo.gl/ficticio-nfm',
+        s.tenantId,
+      )
+      s.sayInbound('oi')
+      const result = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-hub-info',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_hub_i',
+            hub_action: 'informacoes',
+          }),
+          catalogVersion: '1',
+        },
+        s.clock,
+      )
+      expect(result.outcome).toBe('hub_info_sent')
+      const body = s.outboundBodies().at(-1) ?? ''
+      expect(body).toContain('https://maps.app.goo.gl/ficticio-nfm')
+      expect(body).toMatch(/segunda:/)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('hub equipe → handoff DEC-083', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const result = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-hub-eq',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_hub_e',
+            hub_action: 'equipe',
+          }),
+          catalogVersion: '1',
+        },
+        s.clock,
+      )
+      expect(result.outcome).toBe('hub_handoff')
+      expect(result.reason).toBe('equipe')
+      expect(s.outboundBodies().some((b) => /equipe continuar/i.test(b))).toBe(true)
+    } finally {
+      s.close()
+    }
   })
 
   it('Finding 3: fallback_reason no_slots envia sem_horario_semana e não marca', async () => {

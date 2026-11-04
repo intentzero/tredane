@@ -25,7 +25,10 @@ export type BookingFlowInteractive = {
 export function buildBookingFlowInteractive(input: {
   env: WhatsappFlowEnv
   flowToken: string
+  /** Corpo Confirmado do hub (C1h interpolado) ou fallback FLOW_COPY.openBody. */
   body?: string
+  /** Override do CTA (default C2h «Abrir opções»). */
+  flowCta?: string
 }): BookingFlowInteractive | null {
   if (!isWhatsappFlowConfigured(input.env)) return null
   const flowId = resolveFlowId(input.env)
@@ -33,7 +36,7 @@ export function buildBookingFlowInteractive(input: {
   return {
     mode: 'flow',
     flowId,
-    flowCta: FLOW_COPY.flowCta,
+    flowCta: (input.flowCta ?? FLOW_COPY.flowCta).trim() || FLOW_COPY.flowCta,
     flowToken: input.flowToken,
     flowAction: 'data_exchange',
     flowMessageVersion: FLOW_MESSAGE_VERSION,

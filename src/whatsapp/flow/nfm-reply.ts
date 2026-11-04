@@ -2,21 +2,29 @@
  * Fecho do Flow → BookingFrame + proposta versionada (ADR-0016 §6).
  * Não marca compromisso: só o Confirmar (DEC-061).
  * `fallback_reason` (Finding 3): chat envia frase determinística (ex. sem_horario_semana).
+ * Hub TR-306: `hub_action` remarcar/cancelar/meus — stubs sem proposta de marcação nova.
  */
 import type { Clock } from '../../db/clock'
 import type { ClinicCaller } from '../../clinic/envelopes'
 import { listServices } from '../../clinic/config/services'
+import { getConversation } from '../../clinic/inbox/conversations'
 import { sendOutboundMessageOp } from '../../clinic/inbox/operations'
 import type { OutboxRow } from '../../clinic/outbox'
 import type { ClinicDb } from '../../clinic/store'
 import { tryAiAutoBook, type AutoBookOutcome } from '../../clinic/ai/autobook'
 import { AUTODRAFT_ACTOR_ID, cancelAutoDraft } from '../../clinic/ai/autodraft'
 import { createDeferredBookingFrame } from '../../clinic/ai/deferred-booking-frame'
+import { notifyHumanHandoff } from '../../clinic/ai/human-handoff'
+import {
+  loadUpcomingAppointment,
+  phraseAskDay,
+} from '../../clinic/ai/reschedule'
 import { getBookingFrame, saveBookingFrame } from '../../clinic/ai/schedule-session'
 import { slotBindingFromChoice } from '../../clinic/ai/choice-offer'
 import { readCatalogVersion } from '../../clinic/ai/turn-context'
 import { sayAct } from '../../clinic/ai/dialogue-acts'
-import { FLOW_COPY } from './copy'
+import { FLOW_COPY, type FlowHubStubAction } from './copy'
+import { hubInformacoesBody, hubMeusBody } from './hub-opening'
 import type { FlowChatFallbackReason } from './screens'
 
 export type NfmReplyParams = {
@@ -26,6 +34,8 @@ export type NfmReplyParams = {
   variantIds: string[]
   slotId: string | null
   fallbackReason: FlowChatFallbackReason | null
+  /** Stub hub — ausente no caminho Agendar. */
+  hubAction: FlowHubStubAction | null
 }
 
 function asFallbackReason(raw: unknown): FlowChatFallbackReason | null {
@@ -79,8 +89,25 @@ export function parseNfmResponseJson(raw: string): NfmReplyParams | null {
   const fallbackReason = asFallbackReason(
     obj.fallback_reason ?? obj.fallbackReason,
   )
+  const hubRaw = obj.hub_action ?? obj.hubAction
+  const hubAction =
+    hubRaw === 'remarcar' ||
+    hubRaw === 'cancelar' ||
+    hubRaw === 'meus' ||
+    hubRaw === 'informacoes' ||
+    hubRaw === 'equipe'
+      ? hubRaw
+      : null
 
-  return { flowToken: token, serviceId, line, variantIds, slotId, fallbackReason }
+  return {
+    flowToken: token,
+    serviceId,
+    line,
+    variantIds,
+    slotId,
+    fallbackReason,
+    hubAction,
+  }
 }
 
 export type HandleFlowNfmReplyInput = {
@@ -107,9 +134,144 @@ export type HandleFlowNfmReplyResult = {
     | 'missing_fields'
     | 'idempotent_skip'
     | 'chat_fallback_sent'
+    | 'hub_reschedule_started'
+    | 'hub_handoff'
+    | 'hub_meus_sent'
+    | 'hub_info_sent'
   autoBook?: AutoBookOutcome
   outbox: OutboxRow[]
   reason?: string
+}
+
+/**
+ * Stubs do hub TR-306 (Confirmado Paulo 04/11/2026).
+ * Remarcar: DEC-129 (1) ou handoff DEC-083. Cancelar / Equipe: DEC-083.
+ * Meus: frases Confirmadas (read-only). Informações: expediente + link config.
+ */
+function handleHubStub(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: HandleFlowNfmReplyInput,
+  params: NfmReplyParams,
+  clock: Clock,
+): HandleFlowNfmReplyResult {
+  const hubAction = params.hubAction
+  if (!hubAction) {
+    return { handled: true, outcome: 'invalid_payload', outbox: [], reason: 'no_hub_action' }
+  }
+
+  cancelAutoDraft(db, input.tenantId, input.conversationId)
+  const conv = getConversation(db, input.tenantId, input.conversationId)
+
+  if (hubAction === 'remarcar') {
+    const apt = conv
+      ? loadUpcomingAppointment(db, input.tenantId, conv.contactId, clock.nowMs())
+      : null
+    if (apt) {
+      const catalogVersion =
+        input.catalogVersion || readCatalogVersion(db, input.tenantId)
+      const saved = saveBookingFrame(
+        db,
+        input.tenantId,
+        input.conversationId,
+        {
+          serviceId: apt.serviceId,
+          phase: 'remarcando',
+          rescheduleAppointmentId: apt.id,
+          date: null,
+          time: null,
+          period: null,
+          pending: null,
+          lastOffer: null,
+          proposal: null,
+          catalogVersion,
+          source: 'flow',
+          sourceMessageId: `flow-hub:${input.providerEventKey}`,
+        },
+        clock,
+      )
+      const outbox: OutboxRow[] = [...(saved.outbox ? [saved.outbox] : [])]
+      outbox.push(
+        ...sendDeterministicOutbound(
+          db,
+          caller,
+          input.conversationId,
+          `flow-hub-remarcar:${input.providerEventKey}`,
+          phraseAskDay(),
+          clock,
+        ),
+      )
+      return {
+        handled: true,
+        outcome: 'hub_reschedule_started',
+        outbox,
+        reason: 'remarcar',
+      }
+    }
+    const handoff = notifyHumanHandoff(
+      db,
+      input.tenantId,
+      {
+        conversationId: input.conversationId,
+        reason: 'human_only',
+        clientRequestId: `flow-hub-remarcar:${input.providerEventKey}`,
+      },
+      clock,
+    )
+    return {
+      handled: true,
+      outcome: 'hub_handoff',
+      outbox: handoff.outbox,
+      reason: 'remarcar',
+    }
+  }
+
+  if (hubAction === 'meus') {
+    const contactId = conv?.contactId
+    const body = contactId
+      ? hubMeusBody(db, input.tenantId, contactId, clock)
+      : FLOW_COPY.hubMeusNone
+    const outbox = sendDeterministicOutbound(
+      db,
+      caller,
+      input.conversationId,
+      `flow-hub-meus:${input.providerEventKey}`,
+      body,
+      clock,
+    )
+    return { handled: true, outcome: 'hub_meus_sent', outbox, reason: 'meus' }
+  }
+
+  if (hubAction === 'informacoes') {
+    const body = hubInformacoesBody(db, input.tenantId, clock)
+    const outbox = sendDeterministicOutbound(
+      db,
+      caller,
+      input.conversationId,
+      `flow-hub-info:${input.providerEventKey}`,
+      body,
+      clock,
+    )
+    return { handled: true, outcome: 'hub_info_sent', outbox, reason: 'informacoes' }
+  }
+
+  // cancelar | equipe → DEC-083 / DEC-091 (cancelar humano).
+  const handoff = notifyHumanHandoff(
+    db,
+    input.tenantId,
+    {
+      conversationId: input.conversationId,
+      reason: hubAction === 'equipe' ? 'customer_requested' : 'human_only',
+      clientRequestId: `flow-hub-${hubAction}:${input.providerEventKey}`,
+    },
+    clock,
+  )
+  return {
+    handled: true,
+    outcome: 'hub_handoff',
+    outbox: handoff.outbox,
+    reason: hubAction,
+  }
 }
 
 function fallbackBody(
@@ -177,6 +339,10 @@ export async function handleFlowNfmReply(
   const params = parseNfmResponseJson(input.responseJson)
   if (!params) {
     return { handled: true, outcome: 'invalid_payload', outbox: [], reason: 'bad_json' }
+  }
+
+  if (params.hubAction) {
+    return handleHubStub(db, caller, input, params, clock)
   }
 
   if (params.fallbackReason) {

@@ -1,16 +1,40 @@
 /**
- * Copy do Flow de agendamento (ADR-0016 §10).
- * C1–C15: **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A, DEC-104).
+ * Copy do Flow de agendamento (ADR-0016 §10) + hub TR-306.
+ * C1–C15 / C16: **Confirmado** (Paulo, 04/11/2026 America/Sao_Paulo, opção A, DEC-104).
  * Revisão no mesmo dia, após o open em staging (~14:34): C4b, C8 e C16.
  * Rótulos Confirmados reutilizados no Flow: Feminina / Masculina (DEC-134).
  * «Todas» do M5 não entra no CheckboxGroup (Paulo, 04/11/2026, «Podemos retirar o Todas»).
+ *
+ * Hub (C1h / C2h / HUB-* / Meus / Informações): **Confirmado**
+ * (Paulo, 04/11/2026, DEC-104 — aceite do pacote hub).
+ * Título «Agendar» Confirmado pelo Paulo para o HUB (excepção explícita ao jargão INV-05 do painel).
  */
 export const FLOW_COPY = {
-  /** C1 — corpo da mensagem que abre o Flow. */
-  openBody:
-    'Para marcar, toque em Escolher horário. Você escolhe o serviço, as opções e um horário livre. Depois eu envio a proposta para você confirmar.',
-  /** C2 — botão flow_cta (≤30, sem emoji). */
-  flowCta: 'Escolher horário',
+  /**
+   * C1h — corpo por omissão quando o preparador não interpola clínica/hora.
+   * Preferir `hubOpeningBody` em `hub-opening.ts`.
+   */
+  openBody: 'Olá! O que você precisa?',
+  /**
+   * C2h — botão flow_cta (≤30, sem emoji). Confirmado (Paulo, 04/11/2026).
+   */
+  flowCta: 'Abrir opções',
+  /** HUB-body — Confirmado. */
+  hubBody: 'O que você quer fazer?',
+  /**
+   * HUB opções — Confirmadas (Paulo, 04/11/2026), ≤30.
+   * Ids estáveis: agendar|remarcar|cancelar|meus|informacoes|equipe.
+   */
+  hubAgendar: 'Agendar',
+  hubRemarcar: 'Remarcar',
+  hubCancelar: 'Cancelar',
+  hubMeus: 'Meus agendamentos',
+  hubInformacoes: 'Informações',
+  hubEquipe: 'Falar com a equipe',
+  /** Meus — Confirmado. */
+  hubMeusNone: 'Você não tem horário marcado. Quer agendar?',
+  hubMeusList: (n: number, lista: string) =>
+    `Você tem ${n}: ${lista}. Quer remarcar algum?`,
   /** C3 */
   serviceTitle: 'Serviço',
   /** C4 — vários serviços e nenhum ainda escolhido. */
@@ -57,6 +81,35 @@ export const FLOW_COPY = {
   preparingProposal:
     'Recebi suas escolhas. Já preparo a proposta para você confirmar.',
 } as const
+
+/** Ids estáveis das acções do HUB (payload / SUCCESS params). */
+export const FLOW_HUB_ACTIONS = [
+  'agendar',
+  'remarcar',
+  'cancelar',
+  'meus',
+  'informacoes',
+  'equipe',
+] as const
+export type FlowHubAction = (typeof FLOW_HUB_ACTIONS)[number]
+
+export function isFlowHubAction(raw: unknown): raw is FlowHubAction {
+  return (
+    raw === 'agendar' ||
+    raw === 'remarcar' ||
+    raw === 'cancelar' ||
+    raw === 'meus' ||
+    raw === 'informacoes' ||
+    raw === 'equipe'
+  )
+}
+
+/** Acções que fecham o Flow sem funil Agendar. */
+export type FlowHubStubAction = Exclude<FlowHubAction, 'agendar'>
+
+export function isFlowHubStubAction(raw: unknown): raw is FlowHubStubAction {
+  return isFlowHubAction(raw) && raw !== 'agendar'
+}
 
 /** Feminina / Masculina — Confirmado (DEC-134). */
 export const FLOW_GENDER_LABELS = {
