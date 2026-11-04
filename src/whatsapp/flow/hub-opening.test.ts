@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { enqueueAutoDraft, runDueAutoDrafts } from '../../clinic/ai'
 import { bootDialogScenario } from '../../clinic/ai/evals/dialogs/scenario'
+import type { PrepareBookingFlowOffer } from './offer-live'
 import {
   hubInformacoesBody,
   hubMeusBody,
@@ -24,42 +26,37 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
       shouldOfferHubOpening({
         turnText: 'Oi',
         services,
-        hasClinicOutbound: false,
       }),
     ).toBe(true)
     expect(
       shouldOfferHubOpening({
         turnText: 'quero marcar',
         services,
-        hasClinicOutbound: false,
       }),
     ).toBe(true)
+    // Histórico com outbound da clínica NÃO bloqueia — mesmo gate que a oferta Flow.
     expect(
       shouldOfferHubOpening({
         turnText: 'Oi',
         services,
-        hasClinicOutbound: true,
       }),
-    ).toBe(false)
+    ).toBe(true)
     expect(
       shouldOfferHubOpening({
         turnText: 'quero depilar',
         services,
-        hasClinicOutbound: false,
       }),
     ).toBe(false)
     expect(
       shouldOfferHubOpening({
         turnText: 'Posso remarcar para quarta?',
         services,
-        hasClinicOutbound: false,
       }),
     ).toBe(false)
     expect(
       shouldOfferHubOpening({
         turnText: 'Quero cancelar o horário',
         services,
-        hasClinicOutbound: false,
       }),
     ).toBe(false)
   })
@@ -127,6 +124,62 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
       const withAddr = hubInformacoesBody(s.db, s.tenantId, s.clock)
       expect(withAddr).toContain('Rua Sem Mapa, 1')
       expect(withAddr).toMatch(/segunda:/)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('autodraft: «Oi» com outbound anterior → hub_opening + Abrir opções (não LLM)', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayOutbound('Já falámos antes nesta conversa.')
+      const msgId = s.sayInbound('Oi')
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: msgId },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+
+      const prepare: PrepareBookingFlowOffer = async (input) => ({
+        body: input.body ?? FLOW_COPY.openBody,
+        flowToken: 'fl1_hub_open_test',
+        interactive: {
+          flow: {
+            flowId: '1858344942174587',
+            flowCta: FLOW_COPY.flowCta,
+            flowToken: 'fl1_hub_open_test',
+            flowAction: 'data_exchange',
+            flowMessageVersion: '3',
+            mode: 'published',
+          },
+        },
+      })
+
+      const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: s.adapter,
+        clinicName: 'Clínica Teste Paulo',
+        prepareBookingFlowOffer: prepare,
+      })
+      expect(out).toHaveLength(1)
+      expect(out[0]!.reason).toBe('hub_opening')
+      expect(out[0]!.suggestion).toBeNull()
+
+      const last = s.db.get<{ body: string; interactive_json: string | null }>(
+        `SELECT m.body AS body, o.interactive_json AS interactive_json
+         FROM messages m
+         LEFT JOIN outbound_messages o ON o.message_id = m.id
+         WHERE m.conversation_id = ? AND m.direction = 'outbound'
+         ORDER BY m.created_at DESC LIMIT 1`,
+        s.conversationId,
+      )
+      expect(last?.body).toMatch(/^Olá! Aqui é a Clínica Teste Paulo\./)
+      expect(last?.body).toMatch(/O que você precisa\?/)
+      expect(last?.body).not.toMatch(/maps|google|Falar com a equipe/i)
+      expect(last?.interactive_json ?? '').toContain('Abrir opções')
+      expect(last?.interactive_json ?? '').toContain('1858344942174587')
     } finally {
       s.close()
     }

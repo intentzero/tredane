@@ -695,50 +695,15 @@ export async function runDueAutoDrafts(
       })
       continue
     }
-    const catalogDeferred = createDeferredBookingFrame()
-    const catalogText = catalogReply(db, tenantId, turnText, clock, {
-      conversationId: job.conversationId,
-      turn,
-      deferredFrame: catalogDeferred,
-    })
-    if (catalogText) {
-      await signalTyping()
-      let replyOutbox: OutboxRow[] = []
-      try {
-        const sent = sendOutboundMessageOp(
-          db,
-          caller,
-          withDeferredFrame(
-            {
-              conversationId: job.conversationId,
-              body: catalogText,
-              interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
-              clientRequestId: `ai-catalog:${job.messageId}`,
-              authorClerkUserId: AUTODRAFT_ACTOR_ID,
-              authorDisplayName: AUTODRAFT_ACTOR_NAME,
-            },
-            catalogDeferred,
-            clock,
-          ),
-          clock,
-        )
-        replyOutbox = sent.outbox
-      } catch (err) {
-        if (!(err instanceof ClinicError)) throw err
-      }
-      cancelAutoDraft(db, tenantId, job.conversationId)
-      record({ ...job, status: 'skipped', suggestion: null, reason: 'catalog_reply', replyOutbox })
-      continue
-    }
-    // TR-306 hub: primeiro contacto (cumprimento / pedido vago) → CTA Abrir opções.
+    // TR-306 hub: cumprimento / pedido vago → CTA Abrir opções (antes do catálogo,
+    // para «quero marcar» não cair no clarify com «Falar com a equipe»).
+    // Gate ops = `prepareBookingFlowOffer` (mesmo que a oferta Flow no funil).
     // Remarcar / cancelar / serviço nomeado já foram tratados acima ou caem no funil.
     if (deps.prepareBookingFlowOffer) {
-      const hasClinicOutbound = turn.messages.some((m) => m.direction === 'outbound')
       if (
         shouldOfferHubOpening({
           turnText,
           services: activeServicesForHub(db, tenantId),
-          hasClinicOutbound,
         })
       ) {
         await signalTyping()
@@ -780,8 +745,43 @@ export async function runDueAutoDrafts(
         } catch (err) {
           if (!(err instanceof ClinicError)) throw err
         }
-        // Sem Flow / falha → segue o caminho de modelo (chat recurso).
+        // Sem Flow / falha → segue catálogo / modelo (chat recurso).
       }
+    }
+    const catalogDeferred = createDeferredBookingFrame()
+    const catalogText = catalogReply(db, tenantId, turnText, clock, {
+      conversationId: job.conversationId,
+      turn,
+      deferredFrame: catalogDeferred,
+    })
+    if (catalogText) {
+      await signalTyping()
+      let replyOutbox: OutboxRow[] = []
+      try {
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          withDeferredFrame(
+            {
+              conversationId: job.conversationId,
+              body: catalogText,
+              interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+              clientRequestId: `ai-catalog:${job.messageId}`,
+              authorClerkUserId: AUTODRAFT_ACTOR_ID,
+              authorDisplayName: AUTODRAFT_ACTOR_NAME,
+            },
+            catalogDeferred,
+            clock,
+          ),
+          clock,
+        )
+        replyOutbox = sent.outbox
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({ ...job, status: 'skipped', suggestion: null, reason: 'catalog_reply', replyOutbox })
+      continue
     }
     if (getAiDailyUsage(db, tenantId, clock).capReached) {
       cancelAutoDraft(db, tenantId, job.conversationId)

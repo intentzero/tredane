@@ -58,16 +58,17 @@ function namedBookableServices(services: HubServiceHint[], text: string): HubSer
 }
 
 /**
- * Primeiro contacto: cumprimento ou pedido vago → CTA do hub.
+ * Cumprimento ou pedido vago → CTA do hub (mesmo gate ops que a oferta Flow:
+ * o autodraft só chama isto quando `prepareBookingFlowOffer` existe).
  * Remarcar / cancelar / serviço nomeado (ex. depilar) → caminho directo.
+ *
+ * Não exige «sem outbound»: após funil fechado / recomeço, «Oi» também abre o hub
+ * (staging 04/11/2026: com histórico a abertura caía no LLM com link Google).
  */
 export function shouldOfferHubOpening(input: {
   turnText: string
   services: HubServiceHint[]
-  /** Já houve mensagem outbound da clínica nesta conversa. */
-  hasClinicOutbound: boolean
 }): boolean {
-  if (input.hasClinicOutbound) return false
   const text = input.turnText.trim()
   if (!text) return false
   if (isCancelIntent(text)) return false
