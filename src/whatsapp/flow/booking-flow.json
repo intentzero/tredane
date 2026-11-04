@@ -1,0 +1,262 @@
+{
+  "version": "7.3",
+  "data_api_version": "4.0",
+  "routing_model": {
+    "SERVICO": ["GENERO", "VARIANTES", "HORARIO"],
+    "GENERO": ["VARIANTES", "HORARIO"],
+    "VARIANTES": ["HORARIO"],
+    "HORARIO": []
+  },
+  "screens": [
+    {
+      "id": "SERVICO",
+      "title": "Serviço",
+      "data": {
+        "body": {
+          "type": "string",
+          "__example__": "Qual serviço você quer marcar?"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "svc_depilacao", "title": "Depilação" },
+            { "id": "svc_massagem", "title": "Massagem" }
+          ]
+        },
+        "service_init": {
+          "type": "string",
+          "__example__": "svc_depilacao"
+        },
+        "error_message": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "${data.body}"
+          },
+          {
+            "type": "Form",
+            "name": "servico_form",
+            "init-values": {
+              "service_id": "${data.service_init}"
+            },
+            "children": [
+              {
+                "type": "Dropdown",
+                "label": "Serviço",
+                "name": "service_id",
+                "required": true,
+                "data-source": "${data.services}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continuar",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "service_id": "${form.service_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "GENERO",
+      "title": "Versão",
+      "data": {
+        "body": {
+          "type": "string",
+          "__example__": "Para Depilação, qual versão?"
+        },
+        "genders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "feminino", "title": "Feminina" },
+            { "id": "masculino", "title": "Masculina" }
+          ]
+        },
+        "error_message": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "${data.body}"
+          },
+          {
+            "type": "Form",
+            "name": "genero_form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "label": "Versão",
+                "name": "gender_id",
+                "required": true,
+                "data-source": "${data.genders}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continuar",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "gender_id": "${form.gender_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "VARIANTES",
+      "title": "Opções",
+      "data": {
+        "body": {
+          "type": "string",
+          "__example__": "Pode marcar mais de uma. O preço está em cada opção; o total aparece no horário."
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "z_axila", "title": "Axila · R$ 80,00", "description": "" },
+            { "id": "z_pernas", "title": "Pernas · R$ 120,00", "description": "" }
+          ]
+        },
+        "error_message": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "${data.body}"
+          },
+          {
+            "type": "Form",
+            "name": "variantes_form",
+            "children": [
+              {
+                "type": "CheckboxGroup",
+                "label": "Opções",
+                "name": "variant_ids",
+                "required": true,
+                "min-selected-items": 1,
+                "data-source": "${data.variants}"
+              },
+              {
+                "type": "Footer",
+                "label": "Continuar",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "variant_ids": "${form.variant_ids}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "HORARIO",
+      "title": "Horário",
+      "terminal": true,
+      "data": {
+        "body": {
+          "type": "string",
+          "__example__": "Estes horários estão livres no relógio da clínica."
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "2026-11-05T09:00", "title": "qua 05/11 09:00" },
+            { "id": "2026-11-05T10:00", "title": "qua 05/11 10:00" }
+          ]
+        },
+        "error_message": {
+          "type": "string",
+          "__example__": ""
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextBody",
+            "text": "${data.body}"
+          },
+          {
+            "type": "Form",
+            "name": "horario_form",
+            "children": [
+              {
+                "type": "Dropdown",
+                "label": "Horário",
+                "name": "slot_id",
+                "required": true,
+                "data-source": "${data.slots}"
+              },
+              {
+                "type": "Footer",
+                "label": "Ver proposta",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "slot_id": "${form.slot_id}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

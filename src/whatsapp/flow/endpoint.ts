@@ -42,6 +42,8 @@ export type FlowDataLookup = (input: {
   frame: FlowBookingSnapshot
   catalogMismatch?: boolean
   clearedFields?: FlowClearedField[]
+  /** Total cotado para o corpo do HORARIO. Ausente = não acrescentar linha. */
+  visitTotalLine?: string | null
 }>
 
 /** Lookup async (D1 em produção). */
@@ -331,6 +333,7 @@ export async function handleFlowDataRequest(input: {
         catalog: looked.catalog,
         frame: applied.frame,
         slots: looked.slots,
+        visitTotalLine: looked.visitTotalLine,
         errorMessage: applied.errorMessage,
       })
       if ('screen' in again) {
@@ -394,6 +397,7 @@ export async function handleFlowDataRequest(input: {
   if (parsed.action === 'INIT') {
     const entry = entryFlowScreen({
       catalog: looked.catalog,
+      frame,
       errorMessage: mismatchMessage(looked),
     })
     if ('kind' in entry) {
@@ -423,6 +427,7 @@ export async function handleFlowDataRequest(input: {
       catalog: looked.catalog,
       frame,
       slots: looked.slots,
+      visitTotalLine: looked.visitTotalLine,
       errorMessage: mismatchMessage(looked),
     })
     const skipped =
@@ -453,6 +458,7 @@ export async function handleFlowDataRequest(input: {
     catalog: looked.catalog,
     frame,
     slots: looked.slots,
+    visitTotalLine: looked.visitTotalLine,
     errorMessage: mismatchMessage(looked),
   })
 

@@ -3,8 +3,13 @@
  * Versões: Flow JSON 7.3, data_api_version 4.0, flow_message_version 3.
  * Os data-source são dinâmicos (`${data.…}`); horas nunca vão no JSON publicado.
  *
- * Publicação na Meta é gate externo (#514); este objecto documenta o contrato
- * e serve de base ao JSON a publicar — não publica sozinho.
+ * Publicação na Meta é gate externo (#514); este objecto documenta o contrato.
+ * O JSON a publicar está em `booking-flow.json` (e na cópia da store
+ * `docs/flow-json-tredane-booking-staging.json`). Não publica sozinho.
+ * `service_init` e `description` nas variantes exigem republicar antes do
+ * Worker que os envia — senão a Meta responde `payload-schema-error`.
+ * Pré-seleção do serviço: `Form.init-values.service_id` = `${data.service_init}`.
+ * `init-value` no Dropdown é ilegal dentro de Form (Flow JSON 7.3).
  */
 export const FLOW_JSON_VERSION = '7.3'
 export const FLOW_DATA_API_VERSION = '4.0'

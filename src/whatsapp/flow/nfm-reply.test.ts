@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { getBookingFrame } from '../../clinic/ai/schedule-session'
 import { bootDialogScenario } from '../../clinic/ai/evals/dialogs/scenario'
+import { FLOW_COPY } from './copy'
 import { handleFlowNfmReply, parseNfmResponseJson } from './nfm-reply'
 
 describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
@@ -48,6 +49,7 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       expect(s.appointmentCount()).toBe(0)
       const outbound = s.outboundBodies()
       expect(outbound.some((b) => /horário livre/i.test(b))).toBe(true)
+      expect(outbound.some((b) => b.includes(FLOW_COPY.preparingProposal))).toBe(false)
     } finally {
       s.close()
     }
@@ -98,6 +100,11 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       expect(frame?.variantIds?.sort()).toEqual([axila, pernas].sort())
       // Fecho do Flow / nfm_reply não marca (DEC-061 / INV-01).
       expect(s.appointmentCount()).toBe(0)
+      const bodies = s.outboundBodies()
+      expect(bodies.some((b) => b === FLOW_COPY.preparingProposal)).toBe(true)
+      expect(bodies.join('\n')).not.toMatch(/America\//)
+      const proposal = bodies.find((b) => b.includes('Proposta de horário'))
+      if (proposal) expect(proposal).toMatch(/Confirmar/)
     } finally {
       s.close()
     }

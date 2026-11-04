@@ -41,30 +41,34 @@ Motivo: a DEC-138 já escolheu `data_exchange` em quatro passos; a agenda que o 
 
 ## 3. Ecrãs e saltos
 
-**Proposto.** Quatro ecrãs, nesta ordem. O endpoint, na acção `INIT` ou `data_exchange`, devolve o primeiro que ainda falta. Não há calendário genérico da Meta: o horário é a nossa lista.
+**Proposto**, com a revisão de 04/11/2026 abaixo. Quatro ecrãs, nesta ordem. No `data_exchange`, o endpoint devolve o primeiro que ainda falta. O `INIT` devolve sempre `SERVICO` (único entry do routing model publicado). Não há calendário genérico da Meta: o horário é a nossa lista.
 
 Componentes confirmados na [referência de componentes](https://developers.facebook.com/documentation/business-messaging/whatsapp/flows/guides/components) (consultada 03/11/2026): `RadioButtonsGroup` e `CheckboxGroup` até 20 opções, título até 30 caracteres; `Dropdown` até 200 opções sem imagem, título até 30 caracteres. `DatePicker` existe e a mesma página avisa que o comportamento não é garantido se a clínica e a cliente estiverem em fusos diferentes. Por isso o horário **não** usa `DatePicker`.
 
 | Ordem | Id do ecrã | Componente | Quando aparece | Salto |
 | --- | --- | --- | --- | --- |
-| 1 | `SERVICO` | `RadioButtonsGroup` se houver até 20 serviços agendáveis; `Dropdown` se houver 21 a 200 | A clínica tem mais do que um serviço agendável activo e o quadro ainda não tem `serviceId` válido | Um único agendável: o endpoint fixa esse id e não mostra o ecrã. Zero agendáveis: o Flow não abre; o chat segue o handoff já existente. Mais de 200: **Em aberto** (o componente não chega); até lá o chat assume. |
+| 1 | `SERVICO` | `Dropdown` dentro de `Form` (JSON publicado) | O `INIT` mostra sempre este ecrã (entry). Um só agendável ou serviço já no quadro: `Form.init-values.service_id` = `${data.service_init}` pré-seleciona o dropdown para o Continuar poder seguir | O salto para o ecrã seguinte é no `data_exchange`, não no `INIT`. Zero agendáveis: o Flow fecha e o chat assume. Mais de 200: o chat assume. |
 | 2 | `GENERO` | `RadioButtonsGroup` com `feminino` / `masculino` | O serviço tem variantes activas femininas **e** masculinas ao mesmo tempo — o mesmo critério de [`needsAudienceLine`](../../src/clinic/ai/variant-line.ts) | Um só sexo, só «ambos», ou a linha já está no quadro: salta. «Ambos» não é terceira opção; combina com a linha escolhida (DEC-079). |
-| 3 | `VARIANTES` | `CheckboxGroup`, seleção múltipla, mais a opção `todas` | Há variantes activas na linha (ou na lista inteira, se não houve ecrã de género) | Sem variantes: salta e a visita usa a linha do serviço (DEC-078). |
+| 3 | `VARIANTES` | `CheckboxGroup`, seleção múltipla das variantes reais, com preço | Há variantes activas na linha (ou na lista inteira, se não houve ecrã de género) | Sem variantes: salta e a visita usa a linha do serviço (DEC-078). Sem opção `todas`. |
 | 4 | `HORARIO` | `Dropdown` com as horas livres | Sempre que o Flow chegou aqui com serviço (e variantes, se existirem) e ainda não há hora válida | Zero horas: não se mostra um dropdown vazio (o mínimo do componente é 1). O Flow termina e o chat envia a frase já existente de semana sem vaga. |
 
 **Confirmado (DEC-079, não reaberto):** na mesma visita, «ambos» combina com masculino ou com feminino; masculino e feminino juntos são recusados e nada é gravado. O ecrã de género mais `zonesForAudienceLine` deixa só uma linha e as variantes «ambos», por isso a mistura nem entra na lista. A audiência do serviço (DEC-075) não filtra variantes e o contacto não ganha sexo.
 
-**Proposto (Todas):** a opção `todas` significa todas as variantes activas da linha já escolhida, o mesmo papel de `TODAS_OPTION_KEY` em `choice-offer.ts`. Se a cliente marcar `todas` e mais alguma, o servidor trata como todas dessa linha. `min-selected-items` = 1.
+**Confirmado (Paulo, 04/11/2026, ~14:34 America/Sao_Paulo, «Podemos retirar o Todas»):** a opção `todas` sai do `CheckboxGroup` do Flow. A cliente marca as variantes reais (DEC-078, `min-selected-items` = 1). Um id `todas` que ainda chegue é ignorado e não se grava. O rótulo Todas do M5 (DEC-134) e o «todas» do texto livre não mudam. Cabem 20 variantes (teto do componente). Acima disso o chat assume.
 
-**Proposto (limite de 20 no `CheckboxGroup`):** a opção `todas` ocupa uma vaga, logo cabem 19 variantes. Se a linha tiver mais de 19 variantes activas, esse ecrã não abre e o chat pergunta por texto. **Em aberto** se alguma clínica do piloto passar deste número; a recomendação é o chat, não um segundo ecrã paginado.
+**Confirmado (mesmo momento):** o `INIT` continua em `SERVICO`. Se houver um só serviço agendável ou o turno já souber o serviço, `service_init` pré-seleciona o dropdown pela propriedade do `Form`, `init-values.service_id` (o `Dropdown` está dentro do `Form`; `init-value` no componente é recusado pelo validador, Flow JSON 7.3). O primeiro `data_exchange` sem id usa esse serviço, sem apagar linha nem variantes já gravadas desse mesmo serviço. Trocar o serviço limpa o resto. Isto exige republicar o Flow JSON (`booking-flow.json`): o schema publicado antes desta revisão não tem `service_init` nem `description`.
 
-**Proposto (horário):** a lista é a da agenda no relógio da clínica (`clinic_settings.timezone`; omissão `America/Sao_Paulo`), com dia da semana. Título visível no formato da DEC-138, por exemplo `terça 03/11 17:00`, sem nome de fuso IANA (DEC-137). O id da opção é `YYYY-MM-DDTHH:MM`, o mesmo de `offerFramePatch` e o que a [#507](https://github.com/intentzero/tredane/issues/507) torna obrigatório. A grade de início é `SCHEDULE_GRID_MINUTES = 15` ([`constants.ts`](../../src/clinic/constants.ts)). A vaga exige profissional que faz o serviço e está livre, e uma sala livre da lista do serviço (DEC-082), com o intervalo do cadastro. O Flow não mostra nem deixa escolher profissional, sala ou preço.
+**Confirmado (preço, mesmo momento):** cada variante mostra o preço do cadastro no título quando cabe em 30 caracteres (`R$ 800,00`, o mesmo formato da proposta); se não cabe, o título fica o nome e a descrição leva o nome e o preço. O total da visita é o de `quoteVisit` (DEC-080, combo já aplicado) e aparece no corpo do `HORARIO`, depois da escolha. Não há total ao vivo no toque: o JSON não tem `on-select-action` no checkbox, e ficar no mesmo ecrã exigiria a aresta `VARIANTES → VARIANTES`. Sem preço cadastrado, a opção não inventa valor.
+
+**Confirmado (DEC-104, mesmo momento):** depois do `nfm_reply` e antes da proposta, o chat envia «Recebi suas escolhas. Já preparo a proposta para você confirmar.» O Confirmar da proposta no chat mantém-se (DEC-061). Sem rótulo de fuso IANA.
+
+**Proposto (horário):** a lista é a da agenda no relógio da clínica (`clinic_settings.timezone`; omissão `America/Sao_Paulo`), com dia da semana. Título visível no formato da DEC-138, por exemplo `terça 03/11 17:00`, sem nome de fuso IANA (DEC-137). O id da opção é `YYYY-MM-DDTHH:MM`, o mesmo de `offerFramePatch` e o que a [#507](https://github.com/intentzero/tredane/issues/507) torna obrigatório. A grade de início é `SCHEDULE_GRID_MINUTES = 15` ([`constants.ts`](../../src/clinic/constants.ts)). A vaga exige profissional que faz o serviço e está livre, e uma sala livre da lista do serviço (DEC-082), com o intervalo do cadastro. O Flow não mostra nem deixa escolher profissional ou sala. O preço da variante e o total da visita são a revisão de 04/11/2026 acima.
 
 **Proposto (quantas horas):** os próximos 7 dias civis da clínica (o horizonte já usado em `AI_FREE_SLOT_DAYS`), todos os inícios livres da grade, do mais cedo ao mais tarde, no máximo 200 (teto do `Dropdown` sem imagem). O espaçamento de 30 min de `schedule-context.ts` é só para o contexto do modelo; não se aplica aqui. Se a lista for cortada nos 200, a copy do ecrã não promete que são todos; o texto livre continua a poder pedir outro dia.
 
 **Proposto (Tempo, DEC-077):** o endpoint usa o mesmo filtro de horário automático que o chat (`queryAutomaticAvailability`), não a previsão crua. Se a previsão não responder a tempo do prazo da Meta (secção 5), o endpoint não oferece horas por filtrar. Devolve `error_message` e não lista slots «às escuras». O desenho do orçamento dentro dos 10 s fica **Em aberto** para a #514.
 
-**Proposto (quadro já preenchido):** se o texto livre já gravou serviço, linha ou variantes no `BookingFrame`, o `INIT` salta esses ecrãs. Se o turno já tem serviço, variantes (quando existem) e hora válidos, a proposta sai na hora (DEC-061) e o Flow não abre.
+**Revisto (quadro já preenchido, 04/11/2026):** o `INIT` não salta ecrãs — isso partia o open (`invalid-screen-transition`, #545). O que o turno já gravou pré-seleciona o serviço e, no `data_exchange`, salta género, variantes ou horário que já estejam preenchidos. Se o turno já tem serviço, variantes (quando existem) e hora válidos, a proposta sai na hora (DEC-061) e o Flow não abre.
 
 ## 4. Como o Flow é aberto
 
@@ -239,20 +243,23 @@ A [#515](https://github.com/intentzero/tredane/issues/515) apaga esse envio. A [
 
 ## 10. Copy para aprovação do Paulo
 
-**Confirmado (DEC-104; Paulo, 04/11/2026 America/Sao_Paulo, opção A):** as frases C1–C15 desta secção ficam **aprovadas** exactamente como estão em `FLOW_COPY` / nesta tabela. Qualquer alteração futura continua a exigir aprovação no PR (DEC-104). Rótulos já Confirmados e que se reutilizam, sem serem frase nova: **Feminina**, **Masculina**, **Todas** (DEC-134). O plural do tipo («Zonas», etc.) vem do cadastro (DEC-079). Os títulos das horas (`terça 03/11 17:00`) são o formato da DEC-138, não uma frase. Frases de vaga ocupada, semana vazia e tempo (DEC-077) reutilizam o catálogo determinístico já existente; não estão nesta lista.
+**Confirmado (DEC-104; Paulo, 04/11/2026 America/Sao_Paulo, opção A), com revisão no mesmo dia (~14:34) depois do open em staging:** C1–C3, C5–C7 e C9–C15 ficam como na aprovação da opção A. C4 ganha a variante C4b, C8 deixa de citar Todas, C10 pode levar o total na linha seguinte, e entra C16. Rótulos reutilizados no Flow: **Feminina**, **Masculina** (DEC-134). **Todas** fica só no M5 / texto livre, não neste Flow. O plural do tipo («Zonas», etc.) vem do cadastro (DEC-079). Os títulos das horas (`terça 03/11 17:00`) são o formato da DEC-138, não uma frase. Frases de vaga ocupada, semana vazia e tempo (DEC-077) reutilizam o catálogo determinístico já existente; não estão nesta lista.
 
 | Id | Onde | Texto Confirmado |
 | --- | --- | --- |
 | C1 | Corpo da mensagem que abre o Flow | Para marcar, toque em Escolher horário. Você escolhe o serviço, as opções e um horário livre. Depois eu envio a proposta para você confirmar. |
 | C2 | Botão `flow_cta` (16 caracteres, sem emoji) | Escolher horário |
 | C3 | Ecrã `SERVICO`, título | Serviço |
-| C4 | Ecrã `SERVICO`, texto | Qual serviço você quer marcar? |
+| C4 | Ecrã `SERVICO`, texto, quando ainda não há serviço | Qual serviço você quer marcar? |
+| C4b | Ecrã `SERVICO`, texto, serviço único ou já escolhido | Depilação é o único serviço para marcar. Toque em Continuar. / O serviço já escolhido é Depilação. Toque em Continuar, ou troque se for outro. |
 | C5 | Botão de continuar dos ecrãs 1 a 3 | Continuar |
 | C6 | Ecrã `GENERO`, título | Versão |
 | C7 | Ecrã `GENERO`, texto | Para {serviço}, qual versão? |
-| C8 | Ecrã `VARIANTES`, texto | Pode marcar mais de uma. Todas escolhe o conjunto desta versão. |
+| C8 | Ecrã `VARIANTES`, texto | Pode marcar mais de uma. O preço está em cada opção; o total aparece no horário. |
 | C9 | Ecrã `HORARIO`, título | Horário |
 | C10 | Ecrã `HORARIO`, texto | Estes horários estão livres no relógio da clínica. |
+| C10b | Mesmo ecrã, linha seguinte quando há preço | Total: R$ 160,00 (combo Axila e pernas) — só se `quoteVisit` tiver preço; o nome do combo só entra quando um combo vale |
+| C16 | Chat, depois do fecho do Flow e antes da proposta (DEC-104) | Recebi suas escolhas. Já preparo a proposta para você confirmar. |
 | C11 | Botão do ecrã `HORARIO` | Ver proposta |
 | C12 | O Flow não chegou a abrir | Não consegui abrir a escolha. Pode me dizer por aqui o que quer marcar. |
 | C13 | HTTP 427, `error_msg` que a cliente vê | Esta escolha expirou. Peça de novo no chat. |
@@ -265,7 +272,7 @@ Exemplos fictícios. `{serviço}` é o nome do cadastro, não texto fixo.
 
 **Proposto.** Nada disto corre neste ADR.
 
-1. **Flow simulado de ponta a ponta (L1, sem Graph e sem WABA).** Chave RSA gerada no teste, nunca a do ambiente. Cifrar um `INIT`, percorrer os saltos (um serviço; dois sexos; sem variantes; `todas`; mais de 19 variantes → chat), receber horas com dia da semana no fuso da clínica, concluir com SUCCESS, entregar um `nfm_reply` sintético, gravar um único `BookingFrame` com o id `YYYY-MM-DDTHH:MM`, enviar proposta versionada. Confirmar marca. O texto «sim» não marca. O mesmo `wamid` não grava duas vezes. Token de outra clínica não lê este DO.
+1. **Flow simulado de ponta a ponta (L1, sem Graph e sem WABA).** Chave RSA gerada no teste, nunca a do ambiente. Cifrar um `INIT` que pousa em `SERVICO` (mesmo com serviço já na sessão), percorrer os saltos (um serviço pré-selecionado; dois sexos; sem variantes; sem `todas`; preço na opção; total no horário; mais de 20 variantes → chat), receber horas com dia da semana no fuso da clínica, concluir com SUCCESS, entregar um `nfm_reply` sintético, gravar um único `BookingFrame` com o id `YYYY-MM-DDTHH:MM`, enviar a frase de espera e a proposta versionada. Confirmar marca. O texto «sim» não marca. O mesmo `wamid` não grava duas vezes. Token de outra clínica não lê este DO.
 2. **Casos da sonda ([#506](https://github.com/intentzero/tredane/issues/506)).** Zona que não pode cair em silêncio; dia presente no id e no título `terça 03/11 17:00`; sessão antiga que não salta para horas; Confirmar expirado que não marca; catálogo sem match que não despeja um link. As quatro métricas do F1-0 medem também o Flow: marcação igual ao pedido, zonas pedidas que entraram, correções, voltas até ao Confirmar. No L1, no L2/L3 ([#417](https://github.com/intentzero/tredane/issues/417)) e na sonda manual, como o épico já fixa.
 3. **Teste real no WABA da clínica de teste, antes do merge da #514** (DEC-138). Publicar ou usar `mode: draft` nesse WABA, com a chave e o endpoint desse ambiente. Sem este teste, a #514 não faz merge. Este ADR não marca esse teste como feito.
 4. **Estrago.** As mesmas quatro métricas, com exemplos fictícios. Queda (Flow que não abre, 421/432/427, timeout > 10 s, `BLOCKED` / `THROTTLED`) conta como volta extra e cai no chat, sem marcação.

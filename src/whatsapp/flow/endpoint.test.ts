@@ -375,9 +375,11 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
     expect(Object.keys(response.data).sort()).toEqual([
       'body',
       'error_message',
+      'service_init',
       'services',
     ])
     expect(response.data.error_message).toBe('')
+    expect((response.data as { service_init?: string }).service_init).toBe('svc_dep')
   })
 
   it('Finding 3: chat_fallback no data_exchange inclui fallback_reason no SUCCESS', async () => {

@@ -1,4 +1,4 @@
-export { FLOW_COPY, FLOW_GENDER_LABELS, FLOW_TODAS_LABEL } from './copy'
+export { FLOW_COPY, FLOW_GENDER_LABELS } from './copy'
 export {
   isWhatsappFlowConfigured,
   resolveFlowId,
