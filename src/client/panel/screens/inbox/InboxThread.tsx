@@ -1,6 +1,5 @@
 import {
   Ban,
-  CalendarClock,
   CalendarPlus,
   Check,
   CheckCheck,
@@ -54,7 +53,6 @@ import { awaitingClinicReply } from "./lastRelevant";
 import { ThreadActionsSheet, type ThreadAction } from "./ThreadActionsSheet";
 import { TransferSheet } from "./TransferSheet";
 import { PixPendingBar, PixPendingSheet } from "./PixPendingSheet";
-import { FreeSlotsStrip } from "./FreeSlotsStrip";
 import { useMediaQuery } from "../../ui/useMediaQuery";
 import { AiWorking } from "../../ui/AiWorking";
 import { navigatePanel } from "../../routes";
@@ -94,8 +92,6 @@ type Props = {
   contactPanel?: { open: boolean; controlsId: string; onToggle: () => void };
   /** Desktop (DEC-074): «Agendar» abre um painel ao lado da conversa em vez de trocar de área. */
   agendarPanel?: { open: boolean; controlsId: string; onToggle: () => void };
-  /** Texto vindo da coluna de contexto (horários livres): entra no campo de mensagem. */
-  incomingDraft?: { id: number; conversationId: string; text: string } | null;
 };
 
 /** Remetente na primeira bolha enviada de um grupo; a IA aparece como «Assistente IA». */
@@ -299,7 +295,6 @@ export function InboxThread({
   staffDisplayName = null,
   contactPanel,
   agendarPanel,
-  incomingDraft = null,
 }: Props) {
   const authorDisplayName =
     staffFirstNameFromDisplay(staffDisplayName) ??
@@ -308,18 +303,6 @@ export function InboxThread({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
-  const lastIncoming = useRef<number | null>(null);
-  useEffect(() => {
-    if (!incomingDraft || incomingDraft.conversationId !== conversationId)
-      return;
-    if (lastIncoming.current === incomingDraft.id) return;
-    lastIncoming.current = incomingDraft.id;
-    setDraft((prev) =>
-      prev.trim()
-        ? `${prev.trimEnd()}\n${incomingDraft.text}`
-        : incomingDraft.text,
-    );
-  }, [incomingDraft, conversationId]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [templates, setTemplates] = useState<WhatsappTemplateItem[]>([]);
@@ -340,8 +323,6 @@ export function InboxThread({
   );
   const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
-  // «Horários livres» abre pelo ícone do compositor; a faixa só aparece aberta.
-  const [slotsOpen, setSlotsOpen] = useState(false);
   const [aiUnavailable, setAiUnavailable] = useState(false);
   const [aiNotEnabled, setAiNotEnabled] = useState(false);
   const [activeSuggestionId, setActiveSuggestionId] = useState<string | null>(
@@ -1811,25 +1792,6 @@ export function InboxThread({
                 </div>
               ) : null}
             </div>
-            {windowOpen && !contactPanel?.open ? (
-              <FreeSlotsStrip
-                tenantId={tenantId}
-                api={api}
-                generation={generation}
-                conversationId={detail.id}
-                hint={detail.scheduleHint ?? null}
-                contactId={detail.contactId}
-                opportunityId={detail.opportunity?.id ?? null}
-                authorDisplayName={authorDisplayName}
-                open={slotsOpen}
-                onOpenChange={setSlotsOpen}
-                onPropose={(text) =>
-                  setDraft((prev) =>
-                    prev.trim() ? `${prev.trimEnd()}\n${text}` : text,
-                  )
-                }
-              />
-            ) : null}
             {windowOpen ? (
               <form
                 className={`inbox-composer${cardMode ? " inbox-ai-card" : ""}`}
@@ -1969,16 +1931,6 @@ export function InboxThread({
                         ) : (
                           <Sparkles aria-hidden size={22} strokeWidth={1.8} />
                         )}
-                      </Button>
-                    ) : null}
-                    {!contactPanel?.open ? (
-                      <Button
-                        className="inbox-composer-icon"
-                        aria-label="Horários livres"
-                        aria-expanded={slotsOpen}
-                        onPress={() => setSlotsOpen((o) => !o)}
-                      >
-                        <CalendarClock aria-hidden size={22} strokeWidth={1.8} />
                       </Button>
                     ) : null}
                     <Button

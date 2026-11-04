@@ -238,14 +238,13 @@ describe('InboxThread — estado de envio', () => {
     expect(screen.getAllByText('Temos horário amanhã às 10h')).toHaveLength(1)
   })
 
-  it('«Sugerir resposta» e «Horários livres» são ícones dentro da barra do compositor', async () => {
+  it('«Sugerir resposta» é ícone dentro da barra do compositor; sem Horários livres', async () => {
     renderThread(mockApi(detail()))
     const btn = await screen.findByRole('button', { name: 'Sugerir resposta com IA' })
     const bar = btn.closest('form')
     expect(bar?.querySelector('textarea')).toBeTruthy()
-    const slots = screen.getByRole('button', { name: 'Horários livres' })
-    expect(slots.closest('form')).toBe(bar)
-    expect(slots.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('button', { name: 'Horários livres' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Horários livres' })).toBeNull()
   })
 
   it('DEC-063: «Enviar» manda a sugestão da IA inteira em 1 toque, com a origem registrada', async () => {
