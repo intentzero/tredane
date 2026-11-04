@@ -184,6 +184,22 @@ export async function encryptFlowResponse(
   return bytesToB64(sealed)
 }
 
+/** Decifra a resposta HTTP do endpoint (IV invertido) — só testes L1. */
+export async function decryptFlowResponseForTest(
+  aesKey: CryptoKey,
+  requestIv: Uint8Array<ArrayBuffer>,
+  responseB64: string,
+): Promise<unknown> {
+  const iv = flipIv(requestIv)
+  const sealed = b64ToBytes(responseB64)
+  const plain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv, tagLength: AES_TAG_BITS },
+    aesKey,
+    sealed,
+  )
+  return JSON.parse(new TextDecoder().decode(plain))
+}
+
 /** Cifra um pedido (só testes L1 / stubs). */
 export async function encryptFlowRequestForTest(
   publicKey: CryptoKey,

@@ -1,14 +1,26 @@
 /**
  * Rota pública do endpoint de dados do Flow — sem Clerk.
  * POST /api/webhooks/whatsapp/flows
+ *
+ * Produção: tokens + sessão via `env.DB` (createD1FlowOps), como o webhook.
+ * Testes: syncAdminDbFactory / dataLookupFactory injectáveis.
  */
 import { Hono } from 'hono'
 import { systemClock, type Clock } from '../../db/clock'
 import type { AdminDb } from '../../db/admin/store'
 import type { WorkerBindings } from '../../worker/bindings'
 import { createChannelLogger } from '../../ops/log'
-import { handleFlowDataRequest, createFlowSessionStore } from './endpoint'
-import { getFlowToken } from './tokens'
+import {
+  handleFlowDataRequest,
+  createTokenBackedSessionStore,
+  type FlowSessionStore,
+  type FlowTokenLookup,
+} from './endpoint'
+import { createD1FlowOps } from './flow-d1'
+import {
+  getFlowToken,
+  saveFlowTokenSession,
+} from './tokens'
 import { isWhatsappFlowConfigured } from './config'
 import type { FlowCatalogService, FlowSlotOption, FlowBookingSnapshot } from './screens'
 
@@ -19,7 +31,7 @@ export type WhatsappFlowRouteOptions = {
   clockFactory?: () => Clock
   /**
    * Lookup de catálogo/agenda no DO da clínica do token.
-   * Em testes: stub. Em produção: stub CLINIC → harness/método Flow.
+   * Em testes: stub. Em produção: stub CLINIC → flowDataExchange.
    */
   dataLookupFactory?: (env: WorkerBindings) => (input: {
     token: {
@@ -33,10 +45,13 @@ export type WhatsappFlowRouteOptions = {
     slots: FlowSlotOption[]
     frame: FlowBookingSnapshot
   }>
+  /** Override de tokenLookup (testes). */
+  tokenLookupFactory?: (env: WorkerBindings, clock: Clock) => FlowTokenLookup
+  /** Override de session store (testes — ex. perda do Map). */
+  sessionStoreFactory?: (env: WorkerBindings, clock: Clock) => FlowSessionStore
 }
 
 const defaultLog = createChannelLogger('whatsapp_flow')
-const sessions = createFlowSessionStore()
 
 async function defaultDataLookup(
   env: WorkerBindings,
@@ -66,6 +81,45 @@ async function defaultDataLookup(
   return result
 }
 
+function defaultTokenAndSession(
+  env: WorkerBindings,
+  clock: Clock,
+  syncAdminDb: AdminDb | null,
+): { tokenLookup: FlowTokenLookup; sessions: FlowSessionStore } {
+  if (syncAdminDb) {
+    return {
+      tokenLookup: async (token) => {
+        try {
+          return getFlowToken(syncAdminDb, token)
+        } catch {
+          return null
+        }
+      },
+      sessions: createTokenBackedSessionStore({
+        getToken: async (token) => {
+          try {
+            return getFlowToken(syncAdminDb, token)
+          } catch {
+            return null
+          }
+        },
+        saveSession: async (token, session) => {
+          saveFlowTokenSession(syncAdminDb, token, session)
+        },
+      }),
+    }
+  }
+  // Produção / Worker: D1 async (Finding 2).
+  const ops = createD1FlowOps(env.DB, clock)
+  return {
+    tokenLookup: (token) => ops.getToken(token),
+    sessions: createTokenBackedSessionStore({
+      getToken: (token) => ops.getToken(token),
+      saveSession: (token, session) => ops.saveSession(token, session),
+    }),
+  }
+}
+
 export function createWhatsappFlowRoutes(opts: WhatsappFlowRouteOptions = {}) {
   const app = new Hono<AppEnv>()
 
@@ -78,6 +132,12 @@ export function createWhatsappFlowRoutes(opts: WhatsappFlowRouteOptions = {}) {
     const signatureHeader = c.req.header('X-Hub-Signature-256')
     const clock = opts.clockFactory?.() ?? systemClock
     const adminDb = opts.syncAdminDbFactory?.(env) ?? null
+
+    const defaults = defaultTokenAndSession(env, clock, adminDb)
+    const tokenLookup =
+      opts.tokenLookupFactory?.(env, clock) ?? defaults.tokenLookup
+    const sessions =
+      opts.sessionStoreFactory?.(env, clock) ?? defaults.sessions
 
     const dataLookup =
       opts.dataLookupFactory?.(env) ??
@@ -92,14 +152,7 @@ export function createWhatsappFlowRoutes(opts: WhatsappFlowRouteOptions = {}) {
       },
       clock,
       sessions,
-      tokenLookup: (token) => {
-        if (!adminDb) return null
-        try {
-          return getFlowToken(adminDb, token)
-        } catch {
-          return null
-        }
-      },
+      tokenLookup,
       dataLookup,
     })
 

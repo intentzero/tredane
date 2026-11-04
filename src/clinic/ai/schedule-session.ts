@@ -47,7 +47,7 @@ export type BookingFrameProposal = { id: string; version: number }
 
 /**
  * Origem do campo no quadro.
- * `'flow'` fica tipado para o nfm_reply da #514 (ADR-0016) — ainda sem handler.
+ * `'flow'` = fecho nfm_reply do WhatsApp Flow (#514 / ADR-0016).
  * Não mapear Flow para `'botao'` (toque M5).
  */
 export type BookingFrameProvenanceSource = 'regra' | 'botao' | 'llm' | 'flow'

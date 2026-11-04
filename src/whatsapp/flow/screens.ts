@@ -289,9 +289,17 @@ export function applyScreenSubmission(
   return { ok: false, errorMessage: FLOW_COPY.catalogChanged, frame }
 }
 
+/** Motivo para o chat assumir após fecho do Flow (ADR §3 — não SUCCESS «vazio»). */
+export type FlowChatFallbackReason =
+  | 'no_slots'
+  | 'too_many_variants'
+  | 'no_bookable_services'
+  | 'too_many_services'
+
 export function successPayload(
   flowToken: string,
   frame: FlowBookingSnapshot,
+  opts?: { fallbackReason?: FlowChatFallbackReason },
 ): FlowScreenPayload {
   return {
     screen: 'SUCCESS',
@@ -303,6 +311,9 @@ export function successPayload(
           line: frame.line,
           variant_ids: frame.variantIds ?? [],
           slot_id: frame.slotKey,
+          ...(opts?.fallbackReason
+            ? { fallback_reason: opts.fallbackReason }
+            : {}),
         },
       },
     },

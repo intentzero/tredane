@@ -2,6 +2,7 @@
  * Lógica do endpoint de dados do Flow (ADR-0016 §5).
  * HTTP: assinatura → decifra → ping/INIT/data_exchange → resposta cifrada.
  * Não escreve BookingFrame; não chama o modelo; não envia WhatsApp.
+ * Sessão multi-ecrã: persistida por `flow_token` (D1), não só Map de isolate.
  */
 import type { Clock } from '../../db/clock'
 import { verifyHubSignature256 } from '../webhook-verify'
@@ -18,21 +19,16 @@ import {
   successPayload,
   type FlowBookingSnapshot,
   type FlowCatalogService,
+  type FlowChatFallbackReason,
   type FlowScreenId,
   type FlowSlotOption,
 } from './screens'
-import {
-  getFlowToken,
-  isFlowTokenUsable,
-  type FlowTokenRow,
-} from './tokens'
+import { EMPTY_FLOW_SESSION, isFlowTokenUsable, type FlowTokenRow } from './tokens'
 
 export type FlowEndpointEnv = {
   WHATSAPP_FLOW_PRIVATE_KEY?: string
   META_APP_SECRET?: string
 }
-
-export type FlowSessionState = FlowBookingSnapshot
 
 export type FlowDataLookup = (input: {
   token: FlowTokenRow
@@ -43,7 +39,14 @@ export type FlowDataLookup = (input: {
   frame: FlowBookingSnapshot
 }>
 
-export type FlowTokenLookup = (token: string) => FlowTokenRow | null
+/** Lookup async (D1 em produção). */
+export type FlowTokenLookup = (token: string) => Promise<FlowTokenRow | null>
+
+/** Persistência da sessão por token (D1 / memória de teste). */
+export type FlowSessionStore = {
+  get(token: string): Promise<FlowBookingSnapshot>
+  set(token: string, frame: FlowBookingSnapshot): Promise<void>
+}
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v && typeof v === 'object' && !Array.isArray(v)
@@ -78,25 +81,46 @@ function parseActionPayload(payload: unknown): {
   return { version, action, screen, data, flowToken }
 }
 
-/** Estado em memória por token durante a sessão do endpoint (tests / single-worker). */
-export function createFlowSessionStore(): {
-  get(token: string): FlowBookingSnapshot
-  set(token: string, frame: FlowBookingSnapshot): void
-} {
-  const map = new Map<string, FlowBookingSnapshot>()
+function mergeFrames(
+  preferred: FlowBookingSnapshot,
+  fallback: FlowBookingSnapshot,
+): FlowBookingSnapshot {
   return {
-    get(token) {
-      return (
-        map.get(token) ?? {
-          serviceId: null,
-          line: null,
-          variantIds: null,
-          slotKey: null,
-        }
-      )
+    serviceId: preferred.serviceId ?? fallback.serviceId,
+    line: preferred.line ?? fallback.line,
+    variantIds: preferred.variantIds ?? fallback.variantIds,
+    slotKey: preferred.slotKey ?? fallback.slotKey,
+  }
+}
+
+/**
+ * Store em memória — só cache/teste. Em produção usa D1 (`createD1SessionStore`).
+ * O teste de «perda do Map» passa um store que ignora writes locais.
+ */
+export function createFlowSessionStore(seed?: Map<string, FlowBookingSnapshot>): FlowSessionStore {
+  const map = seed ?? new Map<string, FlowBookingSnapshot>()
+  return {
+    async get(token) {
+      return map.get(token) ? { ...map.get(token)! } : { ...EMPTY_FLOW_SESSION }
     },
-    set(token, frame) {
-      map.set(token, frame)
+    async set(token, frame) {
+      map.set(token, { ...frame })
+    },
+  }
+}
+
+/** Sessão lida/escrita na linha do token (D1 ou memory store de tokens). */
+export function createTokenBackedSessionStore(ops: {
+  getToken: (token: string) => Promise<FlowTokenRow | null>
+  saveSession: (token: string, session: FlowBookingSnapshot) => Promise<void>
+}): FlowSessionStore {
+  return {
+    async get(token) {
+      const row = await ops.getToken(token)
+      return row ? { ...row.session } : { ...EMPTY_FLOW_SESSION }
+    },
+    async set(token, frame) {
+      await ops.saveSession(token, frame)
     },
   }
 }
@@ -106,9 +130,21 @@ export type HandleFlowDataRequestResult =
   | { status: 200; body: Record<string, unknown>; contentType: 'application/json' }
   | { status: 421 | 427 | 432 | 503; body: Record<string, unknown> }
 
+function asFallbackReason(reason: string): FlowChatFallbackReason {
+  if (
+    reason === 'no_slots' ||
+    reason === 'too_many_variants' ||
+    reason === 'no_bookable_services' ||
+    reason === 'too_many_services'
+  ) {
+    return reason
+  }
+  return 'no_slots'
+}
+
 /**
  * Processa um POST do endpoint Flow.
- * `lookup` é injectável: em produção consulta o DO da clínica do token.
+ * `sessions` deve ser durável por token (D1); Map de isolate não basta entre ecrãs.
  */
 export async function handleFlowDataRequest(input: {
   rawBody: string
@@ -117,7 +153,7 @@ export async function handleFlowDataRequest(input: {
   clock: Clock
   tokenLookup: FlowTokenLookup
   dataLookup: FlowDataLookup
-  sessions?: ReturnType<typeof createFlowSessionStore>
+  sessions: FlowSessionStore
 }): Promise<HandleFlowDataRequestResult> {
   const appSecret = (input.env.META_APP_SECRET ?? '').trim()
   if (!appSecret) {
@@ -177,22 +213,16 @@ export async function handleFlowDataRequest(input: {
   if (!parsed.flowToken) {
     return { status: 427, body: { error_msg: FLOW_COPY.tokenExpired } }
   }
-  const tokenRow = input.tokenLookup(parsed.flowToken)
+  const tokenRow = await input.tokenLookup(parsed.flowToken)
   if (!tokenRow || !isFlowTokenUsable(tokenRow, input.clock.nowMs())) {
     return { status: 427, body: { error_msg: FLOW_COPY.tokenExpired } }
   }
 
-  const sessions = input.sessions ?? createFlowSessionStore()
-  let frame = sessions.get(parsed.flowToken)
+  // Fonte de verdade: sessão persistida no token (+ overlay do BookingFrame do DO).
+  let frame = await input.sessions.get(parsed.flowToken)
 
   let looked = await input.dataLookup({ token: tokenRow, frame })
-  // Preferir o frame do DO (texto livre pode ter preenchido campos).
-  frame = {
-    serviceId: looked.frame.serviceId ?? frame.serviceId,
-    line: looked.frame.line ?? frame.line,
-    variantIds: looked.frame.variantIds ?? frame.variantIds,
-    slotKey: looked.frame.slotKey ?? frame.slotKey,
-  }
+  frame = mergeFrames(looked.frame, frame)
 
   if (parsed.action === 'data_exchange' && parsed.screen) {
     const applied = applyScreenSubmission(
@@ -219,10 +249,10 @@ export async function handleFlowDataRequest(input: {
       return { status: 200, body, contentType: 'text/plain' }
     }
     frame = applied.frame
-    sessions.set(parsed.flowToken, frame)
+    await input.sessions.set(parsed.flowToken, frame)
     looked = await input.dataLookup({ token: tokenRow, frame })
   }
-  sessions.set(parsed.flowToken, frame)
+  await input.sessions.set(parsed.flowToken, frame)
 
   const next = nextFlowScreen({
     catalog: looked.catalog,
@@ -240,11 +270,14 @@ export async function handleFlowDataRequest(input: {
   }
 
   if ('kind' in next && next.kind === 'chat_fallback') {
-    // Sem ecrã útil: termina o Flow; o chat assume (ADR).
+    // ADR §3: Flow termina; o chat envia a frase (via nfm_reply + fallback_reason).
+    // Não SUCCESS «vazio» sem marcador — Finding 3.
     const body = await encryptFlowResponse(
       decrypted.aesKey,
       decrypted.iv,
-      successPayload(parsed.flowToken, frame),
+      successPayload(parsed.flowToken, frame, {
+        fallbackReason: asFallbackReason(next.reason),
+      }),
     )
     return { status: 200, body, contentType: 'text/plain' }
   }
@@ -255,12 +288,4 @@ export async function handleFlowDataRequest(input: {
   }
 
   return { status: 503, body: { error: 'flow_unexpected' } }
-}
-
-/** Atalho de testes: lookup síncrono de token via getFlowToken + AdminDb fake. */
-export function tokenLookupFromDb(
-  get: typeof getFlowToken,
-  db: Parameters<typeof getFlowToken>[0],
-): FlowTokenLookup {
-  return (token) => get(db, token)
 }

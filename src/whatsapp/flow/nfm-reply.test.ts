@@ -20,7 +20,37 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       line: 'feminino',
       variantIds: ['z1', 'z2'],
       slotId: '2026-11-05T17:00',
+      fallbackReason: null,
     })
+  })
+
+  it('Finding 3: fallback_reason no_slots envia sem_horario_semana e não marca', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const result = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-fb',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_fb',
+            service_id: s.ids.depilacao,
+            fallback_reason: 'no_slots',
+          }),
+          catalogVersion: '1',
+        },
+        s.clock,
+      )
+      expect(result.outcome).toBe('chat_fallback_sent')
+      expect(s.appointmentCount()).toBe(0)
+      const outbound = s.outboundBodies()
+      expect(outbound.some((b) => /horário livre/i.test(b))).toBe(true)
+    } finally {
+      s.close()
+    }
   })
 
   it('grava quadro com provenance flow; sem Confirmar não marca (DEC-061)', async () => {

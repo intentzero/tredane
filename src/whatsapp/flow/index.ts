@@ -34,22 +34,28 @@ export {
   type FlowBookingSnapshot,
   type FlowSlotOption,
   type FlowScreenPayload,
+  type FlowChatFallbackReason,
 } from './screens'
 export {
   generateFlowToken,
   insertFlowToken,
   getFlowToken,
+  saveFlowTokenSession,
   isFlowTokenUsable,
   consumeFlowToken,
   createMemoryFlowTokenStore,
+  EMPTY_FLOW_SESSION,
   FLOW_TOKEN_TTL_MS,
   type FlowTokenRow,
 } from './tokens'
+export { createD1FlowOps, type D1FlowOps } from './flow-d1'
 export {
   handleFlowDataRequest,
   createFlowSessionStore,
+  createTokenBackedSessionStore,
   type FlowDataLookup,
   type FlowTokenLookup,
+  type FlowSessionStore,
 } from './endpoint'
 export {
   parseNfmResponseJson,
