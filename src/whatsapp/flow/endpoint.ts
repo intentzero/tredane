@@ -84,15 +84,17 @@ function parseActionPayload(payload: unknown): {
   return { version, action, screen, data, flowToken }
 }
 
-function mergeFrames(
-  preferred: FlowBookingSnapshot,
-  fallback: FlowBookingSnapshot,
-): FlowBookingSnapshot {
+/**
+ * Após dataLookup, o frame do DO/revalidação é autoritativo — inclusive `null`
+ * explícito (ex.: slot stale limpo). Não usar `??` com a sessão: restauraria
+ * o valor stale e saltaria para SUCCESS sem C15 (finding S1 review #542).
+ */
+function takeLookedFrame(looked: FlowBookingSnapshot): FlowBookingSnapshot {
   return {
-    serviceId: preferred.serviceId ?? fallback.serviceId,
-    line: preferred.line ?? fallback.line,
-    variantIds: preferred.variantIds ?? fallback.variantIds,
-    slotKey: preferred.slotKey ?? fallback.slotKey,
+    serviceId: looked.serviceId,
+    line: looked.line,
+    variantIds: looked.variantIds,
+    slotKey: looked.slotKey,
   }
 }
 
@@ -238,7 +240,7 @@ export async function handleFlowDataRequest(input: {
   let frame = await input.sessions.get(parsed.flowToken)
 
   let looked = await input.dataLookup({ token: tokenRow, frame })
-  frame = mergeFrames(looked.frame, frame)
+  frame = takeLookedFrame(looked.frame)
 
   const mismatchMessage = (info: {
     catalogMismatch?: boolean
@@ -282,7 +284,7 @@ export async function handleFlowDataRequest(input: {
     frame = applied.frame
     await input.sessions.set(parsed.flowToken, frame)
     looked = await input.dataLookup({ token: tokenRow, frame })
-    frame = mergeFrames(looked.frame, frame)
+    frame = takeLookedFrame(looked.frame)
   }
   await input.sessions.set(parsed.flowToken, frame)
 

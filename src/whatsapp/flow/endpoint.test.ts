@@ -510,6 +510,83 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
     expect(response.screen).toBe('SERVICO')
   })
 
+  // S1 review #542 — null explícito do dataLookup não é restaurado pela sessão.
+  it('S1: slotKey null do lookup prevalece (não SUCCESS com slot stale)', async () => {
+    const pair = await generateFlowKeyPair()
+    const store = createMemoryFlowTokenStore()
+    const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
+    const token = generateFlowToken()
+    store.insert(
+      null as never,
+      {
+        token,
+        tenantId: 't1',
+        bindingId: 'b1',
+        phoneNumberId: 'pn1',
+        wabaId: 'w1',
+        conversationId: 'c1',
+        catalogVersion: '1',
+        session: {
+          serviceId: 'svc_limp',
+          line: null,
+          variantIds: null,
+          slotKey: '2026-11-05T10:00', // stale na sessão
+        },
+      },
+      clock,
+    )
+    const sessions = createTokenBackedSessionStore({
+      getToken: async (t) => store.get(null as never, t),
+      saveSession: async (t, session) => store.saveSession(null as never, t, session),
+    })
+    const encrypted = await encryptFlowRequestForTest(pair.publicKey, {
+      version: '3.0',
+      action: 'INIT',
+      flow_token: token,
+    })
+    const rawBody = JSON.stringify(encrypted)
+    const signature = await computeHubSignature256(rawBody, APP_SECRET)
+    const result = await handleFlowDataRequest({
+      rawBody,
+      signatureHeader: signature,
+      env: {
+        WHATSAPP_FLOW_PRIVATE_KEY: pair.privatePem,
+        META_APP_SECRET: APP_SECRET,
+      },
+      clock,
+      sessions,
+      tokenLookup: async (t) => store.get(null as never, t),
+      dataLookup: async () => ({
+        catalog: [{ id: 'svc_limp', name: 'Limpeza', active: true, zones: [] }],
+        slots: [{ id: '2026-11-05T11:00', date: '2026-11-05', time: '11:00' }],
+        // DO limpou o slot stale — null tem de prevalecer sobre a sessão.
+        frame: {
+          serviceId: 'svc_limp',
+          line: null,
+          variantIds: null,
+          slotKey: null,
+        },
+        catalogMismatch: false,
+        clearedFields: ['slotKey' as const],
+      }),
+    })
+    expect(result.status).toBe(200)
+    if (result.status !== 200 || result.contentType !== 'text/plain') return
+    const decReq = await decryptFlowRequest(
+      await importFlowPrivateKey(pair.privatePem),
+      encrypted,
+    )
+    const response = (await decryptFlowResponseForTest(
+      decReq.aesKey,
+      decReq.iv,
+      result.body,
+    )) as { screen: string; data: { error_message?: string } }
+    expect(response.screen).toBe('HORARIO')
+    expect(response.data.error_message).toMatch(/já não está livre|Escolha outro/i)
+    const after = await sessions.get(token)
+    expect(after.slotKey).toBeNull()
+  })
+
   // T15 — BACK re-renderiza sem corromper a sessão.
   it('T15: BACK mantém sessão e re-apresenta o ecrã seguinte', async () => {
     const pair = await generateFlowKeyPair()
