@@ -66,6 +66,7 @@ const faq = [
 
 <main id="conteudo">
 <section id="topo" class="hero">
+<span class="aurora" aria-hidden="true"><i></i><i></i><i></i></span>
 <div class="wrap hero-grid">
 <div class="hero-copy">
 <p class="chip"><span class="dot"></span><span class="chip-long">Piloto aberto · clínicas de estética e depilação</span><span class="chip-short">Piloto aberto · estética e depilação</span></p>
@@ -94,7 +95,7 @@ const faq = [
 </div>
 </section>
 
-<section id="ajuda" class="section">
+<section id="ajuda" class="section bg-cream glow-corner">
 <div class="wrap" style="display: flex; flex-direction: column; gap: 48px;">
 <div class="head">
 <p class="eyebrow">Como o Tredane ajuda</p>
@@ -108,7 +109,7 @@ const faq = [
 </div>
 </section>
 
-<section id="conversa" class="section band">
+<section id="conversa" class="section bg-dots">
 <div class="wrap" style="display: flex; flex-direction: column; gap: 48px;">
 <div class="story-head">
 <div class="stack" style="gap: 16px;">
@@ -126,7 +127,7 @@ const faq = [
 </div>
 </section>
 
-<section id="pix" class="section">
+<section id="pix" class="section bg-white">
 <div class="wrap split">
 <div class="stack">
 <p class="eyebrow">Sinal por Pix</p>
@@ -145,9 +146,10 @@ const faq = [
 </div>
 </section>
 
-<section id="confianca" class="panel-wrap">
+<section id="confianca" class="panel-wrap bg-white">
 <div class="wrap">
-<div class="panel dark">
+<div class="panel aurora-panel">
+<span class="aurora" aria-hidden="true"><i></i><i></i></span>
 <div class="panel-top">
 <div class="stack" style="gap: 16px;"><p class="eyebrow">Pode confiar</p><h2 class="h3s">Uma parceira que joga do seu lado.</h2></div>
 <p class="lead">Fala com as frases da clínica e nunca decide pela cliente. Se ela pergunta se fala com um robô, ouve a verdade. E a responsável pausa as marcações automáticas com um botão.</p>
@@ -161,7 +163,7 @@ const faq = [
 </div>
 </section>
 
-<section id="equipe" class="section" style="padding-top: 0;">
+<section id="equipe" class="section bg-cream">
 <div class="wrap" style="display: flex; flex-direction: column; gap: 40px;">
 <div class="head">
 <p class="eyebrow">Feito para equipe</p>
@@ -177,9 +179,9 @@ const faq = [
 </div>
 </section>
 
-<section id="piloto" class="section" style="padding-top: 0;">
+<section id="piloto" class="section bg-cream" style="padding-top: 0;">
 <div class="wrap">
-<div class="panel petrol">
+<div class="panel apricot">
 <span class="orb" aria-hidden="true"></span>
 <div class="head center panel-inner" style="gap: 20px;">
 <p class="eyebrow">Piloto aberto</p>
@@ -187,11 +189,11 @@ const faq = [
 <p class="lead">A gente conecta o WhatsApp, cadastra seus serviços com você e fica por perto nos primeiros passos.</p>
 {(hasWhatsapp || hasContact) ? (
 <div class="cta-row center">
-{hasWhatsapp && <a class="btn btn-white" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Chamar no WhatsApp</a>}
-{hasContact && <a class={hasWhatsapp ? 'pilot-mail' : 'btn btn-white'} href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>{hasWhatsapp ? 'Prefiro e-mail' : 'Falar com o Tredane'}</a>}
+{hasWhatsapp && <a class="btn btn-dark" href={whatsappUrl}><Icon name="message" size={20} stroke={2.2} />Chamar no WhatsApp</a>}
+{hasContact && <a class={hasWhatsapp ? 'pilot-mail' : 'btn btn-dark'} href={`mailto:${contactEmail}?subject=Piloto%20Tredane`}>{hasWhatsapp ? 'Prefiro e-mail' : 'Falar com o Tredane'}</a>}
 </div>
 ) : <p class="pilot-pending">O canal de contato do piloto será informado aqui quando estiver disponível.</p>}
-<span class="fine" style="color: #DCE9E8;">Condições do piloto: [A DEFINIR]</span>
+<span class="fine">Condições do piloto: [A DEFINIR]</span>
 </div>
 <div class="pilot-person panel-inner">
 <span class="pilot-photo" aria-hidden="true">[foto]</span>

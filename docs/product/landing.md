@@ -69,6 +69,16 @@ Origem: três rodadas de `/design` com o responsável pelo produto em 05/11/2026
 - **Em aberto (bloqueia a publicação):** os itens das seções acima continuam (número de WhatsApp, nome e foto de quem acompanha o piloto, capturas do aplicativo real, `og-image.png`); faixa de porte («pequeno e médio») sem definição de quantas profissionais e salas o piloto aceita. Responsável: responsável pelo produto.
 - **Medido em 05/11/2026:** `astro check` sem erros; sem rolagem horizontal em 360px; revisão visual em 1440px e 360px. axe e Lighthouse **não** foram rodados nesta rodada.
 
+## Logo maior e fundos com ritmo (05/11/2026)
+
+Origem: pedido do responsável pelo produto («podemos aumentar o logo?», «o background do hero está muito escuro») e duas rodadas de `/design` ([canvas do hero](https://claude.ai/artifact/7EsuiPZFNkY2dJLovsS3nz) e [canvas dos fundos](https://claude.ai/artifact/T6iFVqimrVDiaKBUyUMct8), privados), com a escolha da opção A e «Sim, implementa». **Confirmado** como visual do site; **substitui** a abertura Tinta de 04/11/2026, mantendo a mensagem e a estrutura da seção anterior.
+
+- **Logo:** 36 px de altura no computador e 30 px no celular (era 26 px); topo de 92 px (72 px no celular).
+- **Abertura «Aurora Petróleo»:** degradê de Petróleo (`#0E5A5C` → `#0A3A3C`) no topo e na abertura, com três manchas de luz (verde-azulado e Damasco) que se movem devagar (18 a 26 s); os celulares flutuam de leve. Destaque do título em Damasco claro `#F2B596` e texto secundário `#D5E6E4`, para manter o contraste sobre o Petróleo.
+- **Ritmo das seções:** Como ajuda em creme `#FBF1E9` com brilho Damasco no canto; Na prática em menta `#EAF3F2` com trama de pontos; Sinal Pix em branco com halo Damasco que «respira»; Pode confiar em painel Petróleo com eco da aurora; Feito para equipe em creme, com os fatos em cartões; Piloto em painel Damasco com texto Tinta e botão escuro; Perguntas em fundo neutro.
+- **Limite do movimento:** só na abertura, no Pix, em Pode confiar e no piloto; ciclos de 8 s ou mais, nunca atrás do texto; tudo para com `prefers-reduced-motion`. Só CSS, sem JavaScript nem vídeo.
+- **Medido em 05/11/2026:** `astro check` sem erros; sem rolagem horizontal em 360px; revisão visual em 1440px e 360px. axe e Lighthouse **não** foram rodados; o contraste dos textos novos foi escolhido para passar 4,5 : 1, mas não foi medido com ferramenta.
+
 ## Seções e regras de conteúdo (v7, aprovada em 24/10/2026)
 
 1. **Topo:** marca provisória, atalhos (Como funciona, IA, Agenda, Sinal; escondidos abaixo de 720px), **Entrar** e **Quero participar**.
