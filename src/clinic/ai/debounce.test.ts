@@ -38,8 +38,19 @@ describe('debounce DEC-111', () => {
     expect(autodraftDebounceMs({ text: 'Boa noite', hubOpening: true })).toBe(
       AI_AUTODRAFT_DEBOUNCE_HUB_MS,
     )
+    // Pedido vago sem dia/hora («quero marcar») → hub 300 ms.
+    expect(autodraftDebounceMs({ text: 'quero marcar', hubOpening: true })).toBe(
+      AI_AUTODRAFT_DEBOUNCE_HUB_MS,
+    )
     // Sem flag hub → continua texto aberto (7 s).
     expect(autodraftDebounceMs({ text: 'Oi' })).toBe(AI_AUTODRAFT_DEBOUNCE_MS)
+  })
+
+  it('dia+período com «horário» (VAGUE_BOOK) → 2,5 s, não 300 ms (F1 #560)', () => {
+    const text = 'Amanhã na parte da tarde, tem algum horário?'
+    expect(looksLikeCompleteBookingRequest(text)).toBe(true)
+    // Mesmo com hubOpening (detector casa «horário»), o tier complete vence.
+    expect(autodraftDebounceMs({ text, hubOpening: true })).toBe(AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS)
   })
 })
 

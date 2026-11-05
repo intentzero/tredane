@@ -27,6 +27,12 @@ const VAGUE_ASK =
 const VAGUE_BOOK =
   /\b(quero|gostaria|marcar|agendar|hor[aá]rio|disponi|vaga|atendimento)\b/i
 
+/** Cumprimento / «tudo bem» puro — sem dia/período de marcação. */
+export function isHubGreetingText(text: string): boolean {
+  const trimmed = text.trim()
+  return GREET_ONLY.test(trimmed) || VAGUE_ASK.test(trimmed)
+}
+
 /** Campos mínimos para detectar serviço nomeado no gatilho do hub. */
 export type HubServiceHint = {
   id: string

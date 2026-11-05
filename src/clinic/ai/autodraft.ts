@@ -40,7 +40,7 @@ import {
   type DeferredBookingFrame,
 } from './deferred-booking-frame'
 import type { SendOutboundInput } from '../inbox/types'
-import { autodraftDebounceMs } from './debounce'
+import { AI_AUTODRAFT_DEBOUNCE_HUB_MS, autodraftDebounceMs } from './debounce'
 import { logPolicyShadow } from './policy-shadow'
 import {
   AI_TRANSPARENCY_TEXT,
@@ -150,6 +150,7 @@ export function enqueueAutoDraft(
   clearMediaAskTextOnRealInbound(db, tenantId, input.conversationId, body, now)
   if (isConversationPaused(db, tenantId, input.conversationId)) return null
   // Mesmo detector do caminho do hub em runDueAutoDrafts (TR-306).
+  // Pedido completo (dia+período) sobrescreve o 300 ms mesmo se VAGUE_BOOK casar.
   const hubOpening = shouldOfferHubOpening({
     turnText: body,
     services: activeServicesForHub(db, tenantId),
@@ -172,8 +173,8 @@ export function enqueueAutoDraft(
     now,
     now,
   )
-  // Opção C: typing já na ingestão do cumprimento, antes da espera curta (DEC-136).
-  if (hubOpening) {
+  // Opção C: typing cedo só no debounce curto do cumprimento (não em dia+período).
+  if (waitMs === AI_AUTODRAFT_DEBOUNCE_HUB_MS) {
     try {
       enqueueTypingIndicator(
         db,
