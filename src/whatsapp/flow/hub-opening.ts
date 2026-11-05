@@ -12,6 +12,7 @@ import { ensureClinicSettings } from '../../clinic/config/settings'
 import { textCitesSynonym } from '../../clinic/config/synonyms'
 import type { ServiceRow } from '../../clinic/config/types'
 import { citesServiceName } from '../../clinic/ai/schedule-choice'
+import { extractServices } from '../../clinic/ai/autobook'
 import {
   formatClinicTime,
   formatOpeningHours,
@@ -41,6 +42,8 @@ export type HubServiceHint = {
   name: string
   active: boolean
   synonyms?: string[] | null
+  /** Com zonas (ServiceRow do catálogo), o gate usa também o resolvedor do funil. */
+  zones?: ServiceRow['zones']
 }
 
 function weekdayOf(civilDate: string): number {
@@ -62,7 +65,15 @@ function namedBookableServices(services: HubServiceHint[], text: string): HubSer
     (s.synonyms ?? []).some((syn) => textCitesSynonym(text, syn)),
   )
   if (bySynonym.length > 0) return bySynonym
-  return active.filter((s) => citesServiceName(text, s.name))
+  const fuzzy = active.filter((s) => citesServiceName(text, s.name))
+  if (fuzzy.length > 0) return fuzzy
+  // CF-35: o mesmo resolvedor do funil (autobook `extractServices`), que também
+  // reconhece o verbo («depilar» → Depilação) sem sinónimo na ficha. Só com o
+  // catálogo completo (zonas presentes), como em produção.
+  if (active.length > 0 && active.every((s) => Array.isArray(s.zones))) {
+    return extractServices(text, active as ServiceRow[])
+  }
+  return []
 }
 
 /**

@@ -24,6 +24,7 @@ import { explicitAudienceLine } from '../catalog/audience'
 import {
   quoteVisit,
   resolveZoneMention,
+  textNamesMixAudiences,
   variantAudiencesConflict,
   variantChoiceLabel,
   zonesNamedInText,
@@ -1026,7 +1027,7 @@ export async function tryAiAutoBook(
         const cited = zonesNamedInText(turnText, pool)
         let interactive: ChoiceInteractive | null = null
         const frameForAsk = deferred.peekFrame(db, tenantId, input.conversationId)
-        if (variantAudiencesConflict(cited)) {
+        if (textNamesMixAudiences(turnText, cited)) {
           replyText = mixedAudienceReply(input.conversationId)
         } else if (
           needsAudienceLine(active) &&

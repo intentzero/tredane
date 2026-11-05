@@ -105,6 +105,34 @@ export function variantAudiencesConflict(
   return feminino && masculino
 }
 
+/**
+ * Zonas citadas em **texto livre** misturam as linhas? (CF-36)
+ * Um nome que existe nas duas linhas (homónimo DEC-079, ex. «Axila») sem palavra
+ * de linha no texto é ambíguo: pergunta-se a linha (DEC-090), não se recusa mistura.
+ * Mistura explícita («axila masculina e pernas femininas», D-04) continua recusada.
+ * Para escolhas por id (toque, proposta) use `variantAudiencesConflict`.
+ */
+export function textNamesMixAudiences(
+  text: string,
+  named: readonly { name: string; audience: VariantAudience }[],
+): boolean {
+  if (!variantAudiencesConflict(named)) return false
+  const folded = foldZoneName(text)
+  if (/\bfeminin[oa]s?\b/.test(folded) && /\bmasculin[oa]s?\b/.test(folded)) return true
+  const byName = new Map<string, Set<VariantAudience>>()
+  for (const zone of named) {
+    const key = foldZoneName(zone.name.trim())
+    const set = byName.get(key) ?? new Set<VariantAudience>()
+    set.add(zone.audience)
+    byName.set(key, set)
+  }
+  const unambiguous = named.filter((zone) => {
+    const audiences = byName.get(foldZoneName(zone.name.trim()))!
+    return !(audiences.has('feminino') && audiences.has('masculino'))
+  })
+  return variantAudiencesConflict(unambiguous)
+}
+
 function assertDuration(minutes: number): void {
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 24 * 60) {
     throw new ValidationError(

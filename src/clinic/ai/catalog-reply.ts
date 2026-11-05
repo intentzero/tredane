@@ -11,7 +11,7 @@ import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import { textCitesSynonym } from '../config/synonyms'
-import { resolveZoneMention, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
+import { resolveZoneMention, textNamesMixAudiences, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { listMessages } from '../inbox/messages'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
@@ -105,7 +105,7 @@ function mixedAudienceRefusal(
     // Linha travada → só variantes dessa linha (e ambos), como Opções / DEC-079.
     const scoped = mixed && line ? zonesForAudienceLine(active, line) : active
     const named = zonesNamedInText(source, scoped)
-    if (variantAudiencesConflict(named)) {
+    if (textNamesMixAudiences(source, named)) {
       return mixedAudienceReply(conversationId)
     }
   }
@@ -537,8 +537,7 @@ export function catalogReply(
   }
 
   if (asksPrice && named.length >= 2) {
-    const genders = new Set(named.map((z) => z.audience))
-    if (genders.has('feminino') && genders.has('masculino')) {
+    if (textNamesMixAudiences(source, named)) {
       return mixedAudienceReply(cnv)
     }
     const minutes = named.reduce((n, z) => n + z.durationMinutes, 0)

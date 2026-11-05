@@ -2,6 +2,7 @@
  * Casos P0 da matriz para o harness L1 (#406).
  * knownFailure → corre como it.fails com o ID do achado (DEC-108).
  * A-13..A-19: sonda de novembro / F1-0 (#506).
+ * FL-*: hub + WhatsApp Flow (`fl-cases.ts`).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import { createBlockOp } from '../../../config'
@@ -13,6 +14,7 @@ import {
   type DialogCase,
 } from './runner'
 import { DIALOG_NOW_MS } from './scenario'
+import { FL_DIALOG_CASES } from './fl-cases'
 
 class TimeoutAdapter extends SimulatedAiAdapter {
   override async generate(): Promise<AiGenerateResult> {
@@ -600,6 +602,18 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    id: 'D-10',
+    title: 'Zona homónima sem linha pergunta a linha, não recusa mistura (CF-36)',
+    turnosIdeais: 1,
+    // CF-36: «Axila» existe na Feminina e na Masculina (DEC-079). Sem palavra de
+    // linha é ambíguo → pergunta (DEC-090). Mistura explícita continua em D-04.
+    turns: [{ role: 'client', text: 'quero depilar a axila' }],
+    expect: {
+      proposal: false,
+      turns: [{ turn: 0, matches: [/feminina ou masculina/i], excludes: [/juntar masculino e feminino/i] }],
+    },
+  },
+  {
     id: 'D-06',
     title: 'Profissional que faz',
     turnosIdeais: 1,
@@ -1017,9 +1031,14 @@ export const P0_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'A-14',
-    title: '«Quero depilar» encontra Depilação',
+    title: '«Quero depilar» encontra Depilação (sinónimo na ficha, DEC-110)',
     turnosIdeais: 1,
     // CF-29 fechado (#509): sinónimo DEC-110 em extractServices / namedServices.
+    // 05/11/2026: o caso passava em falso — o cenário não tinha o sinónimo e a
+    // resposta era «não encontrei», que casava /Depila/ na lista do catálogo.
+    prepare: (s) => {
+      s.db.run(`UPDATE services SET synonyms_json = ? WHERE id = ?`, JSON.stringify(['depilar']), s.ids.depilacao)
+    },
     damage: { serviceKey: 'depilacao' },
     turns: [{ role: 'client', text: 'Quero depilar' }],
     expect: {
@@ -1027,10 +1046,23 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       turns: [
         {
           turn: 0,
-          matches: [/feminina|masculina|Depila/i],
-          excludes: [/não encontrei esse procedimento/i, /maps\.|goo\.gl/i],
+          matches: [/feminina|masculina/i],
+          excludes: [/não encontrei/i, /maps\.|goo\.gl/i],
         },
       ],
+    },
+  },
+  {
+    id: 'A-20',
+    title: '«Quero depilar» sem sinónimo na ficha: diz o que não encontrou e lista o catálogo',
+    turnosIdeais: 1,
+    // Comportamento vigente por desenho (DEC-110: nomes populares vêm da ficha).
+    // Reconhecer o verbo sem sinónimo seria decisão nova (Em aberto, metodologia §10).
+    turns: [{ role: 'client', text: 'Quero depilar' }],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      turns: [{ turn: 0, matches: [/não encontrei/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] }],
     },
   },
   {
@@ -1214,5 +1246,8 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     },
   },
 ]
+
+// Família FL- (Flow + hub, DEC-138): caminho principal vigente.
+P0_DIALOG_CASES.push(...FL_DIALOG_CASES)
 
 export const P0_IDS = P0_DIALOG_CASES.map((c) => c.id)

@@ -26,6 +26,20 @@ export type InvResult = { id: InvId; ok: boolean; detail?: string }
 const BOOKING_CLAIM =
   /\b(garanti|te espero|vaga garantida|reservad[oa] pra|já (está|ta) na agenda|marquei|agendei)\b/i
 
+/** Abertura do hub (hubOpeningBody, TR-306). */
+const HUB_OPENING_BODY = /^Olá! Aqui é a .+\. (Hoje funcionamos|O que você precisa\?)/
+
+/**
+ * Remove o expediente dito no meio de uma frase (abertura do hub, «Informações»):
+ * «funcionamos das 09:00 às 18:00», «a partir das 09:00», «até às 18:00»,
+ * linhas «segunda: 09:00–18:00». Não é oferta de horário (INV-03).
+ */
+export function scrubOpeningHours(body: string): string {
+  return body
+    .replace(/funcionamos (das \d{1,2}:\d{2} às \d{1,2}:\d{2}|a partir das \d{1,2}:\d{2}|até às \d{1,2}:\d{2})/gi, 'funcionamos')
+    .replace(/^\s*[-•·]?\s*(segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)\b[^\n]*$/gim, '')
+}
+
 export function checkInvariants(
   s: DialogScenario,
   opts: {
@@ -35,17 +49,21 @@ export function checkInvariants(
     requireNoPause?: boolean
     /** DEC-114: pausa sem outbound automático. */
     allowSilentPause?: boolean
+    /** Cliques válidos no Confirmar executados no diálogo (cada um pode criar um compromisso). */
+    confirmClicks?: number
   } = {},
 ): InvResult[] {
   const out: InvResult[] = []
   const bodies = s.outboundBodies()
   const joined = bodies.join('\n')
 
-  // INV-01: sem compromisso sem clique (neste harness L1 não clicamos Confirmar salvo casos dedicados).
+  // INV-01: nenhum compromisso sem clique válido no Confirmar (DEC-061). Cada clique
+  // executado pode criar no máximo um compromisso.
+  const clicks = opts.confirmClicks ?? 0
   out.push({
     id: 'INV-01',
-    ok: s.appointmentCount() === 0,
-    detail: s.appointmentCount() > 0 ? `${s.appointmentCount()} appointments` : undefined,
+    ok: s.appointmentCount() <= clicks,
+    detail: s.appointmentCount() > clicks ? `${s.appointmentCount()} appointments / ${clicks} clique(s)` : undefined,
   })
 
   // INV-02: todo preço dito está no catálogo (linha, variante, soma na mesma linha, combo, sinal).
@@ -75,7 +93,7 @@ export function checkInvariants(
   const free = s.freeTimesUnion()
   const openingHoursBody =
     /^(Proposta de horário|Funcionamos assim|Nosso horário|Abrimos assim)\b/
-  const offeredBodies = bodies.filter((b) => !openingHoursBody.test(b))
+  const offeredBodies = bodies.filter((b) => !openingHoursBody.test(b)).map(scrubOpeningHours)
   const badTime = offeredBodies
     .flatMap((b) => timesInText(b).map((h) => h.time))
     .find((t) => !free.has(t) && !repeatable.has(t))
@@ -113,6 +131,8 @@ export function checkInvariants(
       continue
     }
     if (/^Proposta de horário/.test(m.body)) continue
+    // Abertura do hub: reenviada por desenho a cada cumprimento novo (#554).
+    if (HUB_OPENING_BODY.test(m.body)) continue
     if (seen.has(m.body)) repeatedDetail = 'mensagem repetida'
     seen.add(m.body)
     if (linesSaid.size === 1 && /feminina ou masculina/i.test(m.body)) repeatedDetail = 'repergunta a linha'
