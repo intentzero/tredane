@@ -6,10 +6,11 @@
  * Publicação na Meta é gate externo (#514); este objecto documenta o contrato.
  * O JSON a publicar está em `booking-flow.json` (e na cópia da store
  * `docs/flow-json-tredane-booking-staging.json`). Não publica sozinho.
- * `service_init` e `description` nas variantes exigem republicar antes do
- * Worker que os envia — senão a Meta responde `payload-schema-error`.
- * Pré-seleção do serviço: `Form.init-values.service_id` = `${data.service_init}`.
- * `init-value` no Dropdown é ilegal dentro de Form (Flow JSON 7.3).
+ * SERVICO usa `RadioButtonsGroup` (mesmo padrão do HUB) — evita o microcopy
+ * Meta «Enter {label}» do Dropdown vazio. `service_init` pré-seleciona quando
+ * há id conhecido; string vazia = rádios sem selecção + `required: true`.
+ * `init-value` no componente é ilegal dentro de Form (Flow JSON 7.3).
+ * Catálogo > 20 agendáveis → `too_many_services` (teto do RadioButtonsGroup).
  *
  * TR-306: entry passa a `HUB` (Agendar / Remarcar / Cancelar / Meus).
  * Republicar o Flow JSON **antes** do Worker que devolve HUB — senão

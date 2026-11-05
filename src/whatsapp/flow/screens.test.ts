@@ -269,6 +269,25 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
       slots: [{ id: '2026-11-05T10:00', date: '2026-11-05', time: '10:00' }],
     })
     expect(next).toMatchObject({ screen: 'SERVICO' })
+    if (!('screen' in next)) return
+    // Vários serviços: rádios sem pré-selecção; corpo PT (sem «Enter …»).
+    expect(next.data.service_init).toBe('')
+    expect(next.data.body).toBe(FLOW_COPY.serviceBody)
+  })
+
+  it('mais de 20 serviços agendáveis → chat (teto RadioButtonsGroup)', () => {
+    const many: FlowCatalogService[] = Array.from({ length: 21 }, (_, i) => ({
+      id: `svc_${i}`,
+      name: `Serviço ${i}`,
+      active: true,
+      zones: [],
+    }))
+    expect(
+      nextFlowScreen({
+        catalog: many,
+        frame: { serviceId: null, line: null, variantIds: null, slotKey: null },
+      }),
+    ).toEqual({ kind: 'chat_fallback', reason: 'too_many_services' })
   })
 
   // Chaves de `booking-flow.json` (a republicar). Extra ou omissão →
@@ -584,7 +603,7 @@ describe('booking-flow.json (contrato a republicar na Meta)', () => {
     expect(flowJson.version).toBe('7.3')
   })
 
-  it('HUB tem RadioButtonsGroup hub_action; SERVICO pré-seleciona por service_init', () => {
+  it('HUB e SERVICO usam RadioButtonsGroup; service_init pré-seleciona no Form', () => {
     expect(Object.keys(screen('HUB').data).sort()).toEqual([
       'actions',
       'body',
@@ -593,8 +612,13 @@ describe('booking-flow.json (contrato a republicar na Meta)', () => {
     const hubRadio = component('HUB', 'RadioButtonsGroup')
     expect(hubRadio.name).toBe('hub_action')
     expect(hubRadio['data-source']).toBe('${data.actions}')
-    const dropdown = component('SERVICO', 'Dropdown')
-    expect(dropdown['init-value']).toBeUndefined()
+    const servicoRadio = component('SERVICO', 'RadioButtonsGroup')
+    expect(servicoRadio.name).toBe('service_id')
+    expect(servicoRadio.label).toBe('Serviço')
+    expect(servicoRadio.required).toBe(true)
+    expect(servicoRadio['data-source']).toBe('${data.services}')
+    expect(servicoRadio['init-value']).toBeUndefined()
+    expect(() => component('SERVICO', 'Dropdown')).toThrow(/SERVICO Dropdown/)
     expect(component('SERVICO', 'Form')['init-values']).toEqual({
       service_id: '${data.service_init}',
     })
