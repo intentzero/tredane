@@ -13,7 +13,6 @@ import { textCitesSynonym } from '../../clinic/config/synonyms'
 import type { ServiceRow } from '../../clinic/config/types'
 import { extractServices } from '../../clinic/ai/autobook'
 import { citesServiceName } from '../../clinic/ai/schedule-choice'
-import { extractServices } from '../../clinic/ai/autobook'
 import {
   formatClinicTime,
   formatOpeningHours,
