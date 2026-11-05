@@ -85,6 +85,7 @@ export {
 export {
   parseNfmResponseJson,
   handleFlowNfmReply,
+  isBookableAgendarNfm,
   type NfmReplyParams,
   type HandleFlowNfmReplyInput,
   type HandleFlowNfmReplyResult,

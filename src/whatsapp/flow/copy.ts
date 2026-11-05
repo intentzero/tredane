@@ -80,15 +80,25 @@ export const FLOW_COPY = {
    * Staging 04/11 ~19:31 America/Sao_Paulo: tem de sair **antes** do cálculo
    * da proposta (DO single-thread + claim Meta); senão a cliente fica no vácuo
    * e reabre o Flow.
+   * Staging 04/11 ~21:11 America/Sao_Paulo: **só** depois de fecho Agendar
+   * com payload de horário bookable (HORARIO / slot_id). Nunca após Abrir
+   * opções, stubs do hub, SERVICO incompleto, dismiss ou nfm vazio.
    */
   preparingProposal:
     'Recebi suas escolhas. Já preparo a proposta para você confirmar.',
   /**
    * C16b — **Proposto** (fumo staging 04/11/2026): se a proposta falhar depois
    * do C16, nunca silêncio. Não marca (DEC-061). Sem fuso IANA.
+   * Só depois de C16 ter sido prometido neste `providerEventKey`.
    */
   proposalBuildFailed:
     'Não consegui montar a proposta agora. Toque de novo em Abrir opções, ou diga aqui o que quer marcar.',
+  /**
+   * Fecho sem payload bookable (hub incompleto / dismiss / nfm vazio) —
+   * **Proposto** (fumo staging 04/11 ~21:11 America/Sao_Paulo, Paulo:
+   * «Porque falou a proposta?»). Sem C16/C16b. Sem fuso IANA.
+   */
+  flowClosedContinue: 'Pode continuar no menu quando quiser.',
 } as const
 
 /** Ids estáveis das acções do HUB (payload / SUCCESS params). */

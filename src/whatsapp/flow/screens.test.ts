@@ -420,6 +420,34 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
     expect(next).toMatchObject({ screen: 'GENERO' })
   })
 
+  it('HUB Agendar limpa slotKey stale — não SUCCESS sem HORARIO (C16 gating)', () => {
+    const applied = applyScreenSubmission(
+      [depilacao],
+      {
+        serviceId: 'svc_dep',
+        line: 'feminino',
+        variantIds: ['z1'],
+        slotKey: '2026-11-05T17:00',
+      },
+      'HUB',
+      { hub_action: 'agendar' },
+    )
+    expect(applied.ok).toBe(true)
+    if (!applied.ok) return
+    expect(applied.hubAction).toBe('agendar')
+    expect(applied.frame.slotKey).toBeNull()
+    expect(applied.frame.serviceId).toBe('svc_dep')
+    expect(applied.frame.line).toBe('feminino')
+    // Sem slot: next pede VARIANTES/HORARIO — nunca ready imediato.
+    const next = nextFlowScreen({
+      catalog: [depilacao],
+      frame: applied.frame,
+      slots: [{ id: '2026-11-05T17:00', date: '2026-11-05', time: '17:00' }],
+    })
+    expect(next).not.toEqual({ kind: 'ready' })
+    expect('screen' in next ? next.screen : null).not.toBe('SUCCESS')
+  })
+
   it('HUB stubs → hubAction (SUCCESS no endpoint)', () => {
     for (const action of [
       'remarcar',
@@ -523,6 +551,8 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
       FLOW_COPY.serviceBodyReady('Depilação', false),
       FLOW_COPY.variantsBody,
       FLOW_COPY.preparingProposal,
+      FLOW_COPY.proposalBuildFailed,
+      FLOW_COPY.flowClosedContinue,
       flowVisitTotalLine({ priceCents: 16_000, comboName: null })!,
     ]
     for (const text of samples) {

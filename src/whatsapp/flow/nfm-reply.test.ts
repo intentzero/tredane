@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { getBookingFrame } from '../../clinic/ai/schedule-session'
 import { bootDialogScenario } from '../../clinic/ai/evals/dialogs/scenario'
 import { FLOW_COPY } from './copy'
-import { handleFlowNfmReply, parseNfmResponseJson } from './nfm-reply'
+import {
+  handleFlowNfmReply,
+  isBookableAgendarNfm,
+  parseNfmResponseJson,
+} from './nfm-reply'
 
 describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
   it('parseNfmResponseJson lê flow_token e escolhas', () => {
@@ -267,7 +271,7 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
     }
   })
 
-  it('segundo nfm_reply igual com proposta → idempotent_skip', async () => {
+  it('segundo nfm_reply igual com proposta versionada → idempotent_skip (#556)', async () => {
     const s = bootDialogScenario()
     try {
       s.sayInbound('oi')
@@ -283,7 +287,7 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
         variant_ids: zones.map((z) => z.id),
         slot_id: '2026-11-06T10:00',
       })
-      const first = await handleFlowNfmReply(
+      await handleFlowNfmReply(
         s.db,
         s.caller,
         {
@@ -295,11 +299,15 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
         },
         s.clock,
       )
-      // Só testa idempotência se a 1.ª passagem criou proposta.
-      if (!first.autoBook?.proposalId) {
-        expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.time).toBe('10:00')
-        return
-      }
+      const frameAfterFirst = getBookingFrame(s.db, s.tenantId, s.conversationId)
+      expect(frameAfterFirst?.time).toBe('10:00')
+      expect(s.appointmentCount()).toBe(0)
+      // #556: skip só com proposal versionada no quadro — não com proposalId solto
+      // nem phase ofertado. Deploy main 341334d (#557) falhou quando a 1.ª
+      // devolvia proposalId sem proposal_json → 2.ª stale_no_proposal
+      // (actions/runs/41938600215). Sem proposal no quadro, não assertamos skip.
+      if (!frameAfterFirst?.proposal) return
+
       const second = await handleFlowNfmReply(
         s.db,
         s.caller,
@@ -453,6 +461,162 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
     } finally {
       s.close()
     }
+  })
+
+  it('nfm vazio / incompleto: sem C16 nem C16b; frase curta (fumo Abrir opções)', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const empty = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-empty',
+          responseJson: JSON.stringify({ flow_token: 'fl1_empty' }),
+          catalogVersion: '1',
+          phase: 'ack',
+        },
+        s.clock,
+      )
+      expect(empty.outcome).toBe('closed_without_booking')
+      expect(empty.needsProposal).toBe(false)
+      expect(empty.reason).toBe('empty_nfm')
+      const afterEmpty = s.outboundBodies()
+      expect(afterEmpty.some((b) => b === FLOW_COPY.preparingProposal)).toBe(false)
+      expect(afterEmpty.some((b) => b === FLOW_COPY.proposalBuildFailed)).toBe(false)
+      expect(afterEmpty.some((b) => b === FLOW_COPY.flowClosedContinue)).toBe(true)
+
+      const incomplete = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-svc-only',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_svc',
+            service_id: s.ids.depilacao,
+          }),
+          catalogVersion: '1',
+          phase: 'ack',
+        },
+        s.clock,
+      )
+      expect(incomplete.outcome).toBe('closed_without_booking')
+      expect(incomplete.needsProposal).toBe(false)
+      expect(s.outboundBodies().some((b) => b === FLOW_COPY.preparingProposal)).toBe(false)
+      expect(s.outboundBodies().some((b) => b === FLOW_COPY.proposalBuildFailed)).toBe(false)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('hub stub fase ack: sem C16; proposal phase não dispara needsProposal', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const ack = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-hub-no-c16',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_hub_noc16',
+            hub_action: 'meus',
+          }),
+          catalogVersion: '1',
+          phase: 'ack',
+        },
+        s.clock,
+      )
+      expect(ack.outcome).toBe('hub_meus_sent')
+      expect(ack.needsProposal).toBeFalsy()
+      expect(s.outboundBodies().some((b) => b === FLOW_COPY.preparingProposal)).toBe(false)
+      expect(s.outboundBodies().some((b) => b === FLOW_COPY.proposalBuildFailed)).toBe(false)
+      expect(isBookableAgendarNfm(parseNfmResponseJson(JSON.stringify({
+        flow_token: 'fl1_hub_noc16',
+        hub_action: 'meus',
+      }))!)).toBe(false)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('fase proposal sem C16 prévio: incompleto não envia C16b', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const prop = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-prop-no-ack',
+          responseJson: JSON.stringify({ flow_token: 'fl1_no_ack' }),
+          catalogVersion: '1',
+          phase: 'proposal',
+        },
+        s.clock,
+      )
+      expect(prop.outcome).toBe('closed_without_booking')
+      expect(prop.needsProposal).toBe(false)
+      expect(s.outboundBodies().some((b) => b === FLOW_COPY.proposalBuildFailed)).toBe(false)
+      expect(s.outboundBodies().some((b) => b === FLOW_COPY.preparingProposal)).toBe(false)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('isBookableAgendarNfm exige service+slot civil; rejeita hub/fallback', () => {
+    expect(
+      isBookableAgendarNfm({
+        flowToken: 't',
+        serviceId: 'svc',
+        line: null,
+        variantIds: [],
+        slotId: '2026-11-05T17:00',
+        fallbackReason: null,
+        hubAction: null,
+      }),
+    ).toBe(true)
+    expect(
+      isBookableAgendarNfm({
+        flowToken: 't',
+        serviceId: 'svc',
+        line: null,
+        variantIds: [],
+        slotId: null,
+        fallbackReason: null,
+        hubAction: null,
+      }),
+    ).toBe(false)
+    expect(
+      isBookableAgendarNfm({
+        flowToken: 't',
+        serviceId: 'svc',
+        line: null,
+        variantIds: [],
+        slotId: '2026-11-05T17:00',
+        fallbackReason: null,
+        hubAction: 'cancelar',
+      }),
+    ).toBe(false)
+    expect(
+      isBookableAgendarNfm({
+        flowToken: 't',
+        serviceId: 'svc',
+        line: null,
+        variantIds: [],
+        slotId: '2026-11-05T17:00',
+        fallbackReason: 'no_slots',
+        hubAction: null,
+      }),
+    ).toBe(false)
   })
 
   it('Flow novo noutro horário volta a enviar C16 (skip não é lifetime)', async () => {
