@@ -63,18 +63,28 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
     ).toBe(false)
   })
 
-  it('hubOpeningBody: aberto / fechado / sem fecho (Paulo A)', () => {
-    expect(hubOpeningBody('Clínica Aurora', '18:00', true)).toBe(
-      'Olá! Aqui é a Clínica Aurora. Hoje atendemos até às 18:00. O que você precisa?',
+  const HOURS_BODY =
+    'Olá! Aqui é a Clínica Aurora. Hoje funcionamos das 09:00 às 18:00. O que você precisa?'
+  const CLOSED_FRAMING = /Já estamos fechados|Ainda não abrimos|Posso ajudar a agendar mesmo assim/
+
+  it('hubOpeningBody: os dois limites, um só, ou nenhum (mesma frase dentro ou fora)', () => {
+    expect(hubOpeningBody('Clínica Aurora', { opensAt: '09:00', closesAt: '18:00' })).toBe(
+      'Olá! Aqui é a Clínica Aurora. Hoje funcionamos das 09:00 às 18:00. O que você precisa?',
     )
-    expect(hubOpeningBody('Clínica Aurora', '18:00', false)).toBe(
-      'Olá! Aqui é a Clínica Aurora. Já estamos fechados (hoje até às 18:00). Posso ajudar a agendar mesmo assim?',
+    expect(hubOpeningBody('Clínica Aurora', { opensAt: '09:00', closesAt: null })).toBe(
+      'Olá! Aqui é a Clínica Aurora. Hoje funcionamos a partir das 09:00. O que você precisa?',
     )
-    expect(hubOpeningBody('Clínica Aurora', null, false)).toBe(
+    expect(hubOpeningBody('Clínica Aurora', { opensAt: null, closesAt: '18:00' })).toBe(
+      'Olá! Aqui é a Clínica Aurora. Hoje funcionamos até às 18:00. O que você precisa?',
+    )
+    expect(hubOpeningBody('Clínica Aurora', { opensAt: '  ', closesAt: '' })).toBe(
       'Olá! Aqui é a Clínica Aurora. O que você precisa?',
     )
     expect(hubOpeningBody('Clínica Aurora', null)).toBe(
       'Olá! Aqui é a Clínica Aurora. O que você precisa?',
+    )
+    expect(hubOpeningBody('Clínica Aurora', { opensAt: '09:00', closesAt: '18:00' })).not.toMatch(
+      CLOSED_FRAMING,
     )
     expect(FLOW_COPY.flowCta).toBe('Abrir opções')
   })
@@ -82,33 +92,42 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
   it('todayClosingHourLabel / openNow usam o expediente de hoje (sem IANA)', () => {
     const s = bootDialogScenario()
     try {
-      // Cenário: qui 05/11/2026 10:00 SP — janela 09–12 e 13–18.
+      // Cenário: qui 05/11/2026 10:00 SP — janelas 09–12 e 13–18.
+      // A frase usa a primeira abertura e o último fecho, não o fim da janela actual.
       const open = clinicTodayOpenState(s.db, s.tenantId, s.clock)
-      expect(open.closesAt).toBe('12:00')
+      expect(open.opensAt).toBe('09:00')
+      expect(open.closesAt).toBe('18:00')
       expect(open.openNow).toBe(true)
-      expect(todayClosingHourLabel(s.db, s.tenantId, s.clock)).toBe('12:00')
-      expect(open.closesAt).not.toMatch(/America\//)
+      expect(todayClosingHourLabel(s.db, s.tenantId, s.clock)).toBe('18:00')
+      expect(hubOpeningBody('Clínica Aurora', open)).toBe(HOURS_BODY)
+      expect(`${open.opensAt} ${open.closesAt}`).not.toMatch(/America\/|São Paulo|Sao_Paulo/)
     } finally {
       s.close()
     }
   })
 
-  it('clinicTodayOpenState: após o fecho → closed + última hora do dia', () => {
+  it('clinicTodayOpenState: 21:09 e 07:21 dizem o mesmo horário, sem frase de fechado', () => {
     // qui 05/11/2026 21:09 America/Sao_Paulo (= 00:09 UTC 06/11).
-    const afterHours = Date.UTC(2026, 10, 6, 0, 9)
-    const s = bootDialogScenario({ nowMs: afterHours })
-    try {
-      const state = clinicTodayOpenState(s.db, s.tenantId, s.clock)
-      expect(state.openNow).toBe(false)
-      expect(state.closesAt).toBe('18:00')
-      expect(hubOpeningBody('Clínica Aurora', state.closesAt, state.openNow)).toBe(
-        'Olá! Aqui é a Clínica Aurora. Já estamos fechados (hoje até às 18:00). Posso ajudar a agendar mesmo assim?',
-      )
-      // Sanity: o default do cenário permanece aberto.
-      expect(afterHours).not.toBe(DIALOG_NOW_MS)
-    } finally {
-      s.close()
+    const afterClose = Date.UTC(2026, 10, 6, 0, 9)
+    // qui 05/11/2026 07:21 America/Sao_Paulo (= 10:21 UTC 05/11) — antes de abrir.
+    const beforeOpen = Date.UTC(2026, 10, 5, 10, 21)
+    for (const nowMs of [afterClose, beforeOpen]) {
+      const s = bootDialogScenario({ nowMs })
+      try {
+        const state = clinicTodayOpenState(s.db, s.tenantId, s.clock)
+        expect(state.openNow).toBe(false)
+        expect(state.opensAt).toBe('09:00')
+        expect(state.closesAt).toBe('18:00')
+        const body = hubOpeningBody('Clínica Aurora', state)
+        expect(body).toBe(HOURS_BODY)
+        expect(body).not.toMatch(CLOSED_FRAMING)
+        expect(body).not.toMatch(/America\/|São Paulo|Sao_Paulo/)
+      } finally {
+        s.close()
+      }
     }
+    expect(afterClose).not.toBe(DIALOG_NOW_MS)
+    expect(beforeOpen).not.toBe(DIALOG_NOW_MS)
   })
 
   it('hubMeusBody: sem compromisso / com lista (relógio clínica)', () => {
@@ -157,8 +176,8 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
     }
   })
 
-  it('autodraft: «Oi» com outbound anterior → hub_opening + Abrir opções (não LLM)', async () => {
-    const s = bootDialogScenario()
+  async function draftHubOpening(nowMs?: number) {
+    const s = bootDialogScenario(nowMs == null ? {} : { nowMs })
     try {
       s.sayOutbound('Já falámos antes nesta conversa.')
       const msgId = s.sayInbound('Oi')
@@ -192,10 +211,6 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
         clinicName: 'Clínica Teste Paulo',
         prepareBookingFlowOffer: prepare,
       })
-      expect(out).toHaveLength(1)
-      expect(out[0]!.reason).toBe('hub_opening')
-      expect(out[0]!.suggestion).toBeNull()
-
       const last = s.db.get<{ body: string; interactive_json: string | null }>(
         `SELECT m.body AS body, o.interactive_json AS interactive_json
          FROM messages m
@@ -204,15 +219,38 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
          ORDER BY m.created_at DESC LIMIT 1`,
         s.conversationId,
       )
-      expect(last?.body).toMatch(/^Olá! Aqui é a Clínica Teste Paulo\./)
-      expect(last?.body).toMatch(/Hoje atendemos até às/)
-      expect(last?.body).toMatch(/O que você precisa\?/)
-      expect(last?.body).not.toMatch(/Já estamos fechados/)
-      expect(last?.body).not.toMatch(/maps|google|Falar com a equipe/i)
-      expect(last?.interactive_json ?? '').toContain('Abrir opções')
-      expect(last?.interactive_json ?? '').toContain('1858344942174587')
+      return { out, last }
     } finally {
       s.close()
     }
+  }
+
+  function expectHoursGreeting(
+    last: { body: string; interactive_json: string | null } | null | undefined,
+  ) {
+    expect(last?.body).toBe(
+      'Olá! Aqui é a Clínica Teste Paulo. Hoje funcionamos das 09:00 às 18:00. O que você precisa?',
+    )
+    expect(last?.body).not.toMatch(CLOSED_FRAMING)
+    expect(last?.body).not.toMatch(/America\/|São Paulo|Sao_Paulo/)
+    expect(last?.body).not.toMatch(/maps|google|Falar com a equipe/i)
+    expect(last?.interactive_json ?? '').toContain('Abrir opções')
+    expect(last?.interactive_json ?? '').toContain('1858344942174587')
+  }
+
+  it('autodraft: «Oi» com outbound anterior → hub_opening + Abrir opções (não LLM)', async () => {
+    const { out, last } = await draftHubOpening()
+    expect(out).toHaveLength(1)
+    expect(out[0]!.reason).toBe('hub_opening')
+    expect(out[0]!.suggestion).toBeNull()
+    expectHoursGreeting(last)
+  })
+
+  it('autodraft: 21:09 usa o mesmo horário, sem a frase de fechado da #559', async () => {
+    const afterClose = Date.UTC(2026, 10, 6, 0, 9)
+    const { out, last } = await draftHubOpening(afterClose)
+    expect(out).toHaveLength(1)
+    expect(out[0]!.reason).toBe('hub_opening')
+    expectHoursGreeting(last)
   })
 })
