@@ -171,7 +171,7 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 | Passo | Fecha | Entrega | Dependência |
 | --- | --- | --- | --- |
 | 1 | G-01, G-04 | Scorecard L1, linha de base, histórico, pass^N e IC95 no L2 | **Feito nesta proposta** |
-| 2 | G-02, G-08 | Família `FL-` (15 casos), `flow-driver.ts` sobre o endpoint real, `flowDataExchangeLocal` partilhado com o Clinic DO, invariantes corrigidas. Achado CF-35. Falta: catálogo ou hora a mudar a meio do Flow, `fallback_reason`, token de outra clínica (precisam de um turno de mutação). | **Feito** (05/11/2026), salvo o que falta |
+| 2 | G-02, G-08 | Família `FL-` (15 casos), `flow-driver.ts` sobre o endpoint real, `flowDataExchangeLocal` partilhado com o Clinic DO, invariantes corrigidas. Cobre no L1 o CF-36 da sonda L4 (#565) e encontrou o CF-43. Falta: catálogo ou hora a mudar a meio do Flow, `fallback_reason`, token de outra clínica (precisam de um turno de mutação). | **Feito** (05/11/2026), salvo o que falta |
 | 3 | G-05 | Linha «Apanhado em» no modelo de PR e contagem P-ESC por iteração | Aprovar a convenção |
 | 4 | G-01 | `eval:scorecard` no CI para PRs conversacionais, com o veredicto como comentário | Aprovar o uso no CI |
 | 5 | G-03 | Corrida L2/L3 live no staging (chaves `AI_GATEWAY_*`); primeira linha de base real de K-CONS, K-LAT, K-COST | Acesso ao gateway |
@@ -187,7 +187,7 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 | Cadência da iteração no piloto | Semanal **e** antes de cada liberação, o que vier primeiro. | **Confirmado** (DEC-139) |
 | Quem faz a análise de erros | O agente prepara (traços, agrupamento, casos novos); o Paulo valida. | **Confirmado** (DEC-139) |
 | Corpo da oferta do Flow a meio do funil | A pergunta do funil com o CTA do Flow; o C1h só como recurso. | **Confirmado** (DEC-140) |
-| Reconhecer verbos sem sinónimo | Mantém-se a DEC-110; o painel sugere à owner gravar o sinónimo. | **Confirmado** (DEC-141); sugestão por implementar |
+| Reconhecer verbos sem sinónimo | Mantém-se a DEC-110; o painel sugere à owner gravar o sinónimo. | **Confirmado** (DEC-141); sugestão implementada (#569: cartão M-63, L1 A-21) |
 | Tolerâncias de `KPI_RULES` | As atuais até haver duas linhas de base. | **Em aberto** |
 
 ## Histórico de versões da metodologia
@@ -195,6 +195,6 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 | Versão | Data | Mudança |
 | --- | --- | --- |
 | 0.4 | 05/11/2026 | Decisões do §10 registadas: DEC-139 (metodologia, regressão justificada no PR, cadência semanal + liberação, análise de erros preparada pelo agente), DEC-140 (corpo do Flow a meio do funil) e DEC-141 (verbos: DEC-110 + sugestão à owner). |
-| 0.3 | 05/11/2026 | CF-35 e CF-36 fechados; A-14 deixa de ser falso verde (lição: expectativas por regex devem excluir o texto de falha, não só incluir uma palavra); duas decisões novas Em aberto. |
-| 0.2 | 05/11/2026 | Família FL- (G-02) e correção das invariantes (G-08); gatilho 1 passa a exigir revisão das invariantes; achado CF-35. |
+| 0.3 | 05/11/2026 | CF-43 fechado e CF-36 da sonda L4 (#565) coberto no L1; A-14 deixa de ser falso verde (lição: expectativas por regex devem excluir o texto de falha, não só incluir uma palavra); duas decisões novas Em aberto. |
+| 0.2 | 05/11/2026 | Família FL- (G-02) e correção das invariantes (G-08); gatilho 1 passa a exigir revisão das invariantes. |
 | 0.1 | 05/11/2026 | Primeira versão: diagnóstico G-01..06, KPIs em quatro camadas, scorecard L1 com linha de base e histórico, pass^N e IC de Wilson no L2, correção de Rogan-Gladen disponível, cadência e gatilhos de revisão. |

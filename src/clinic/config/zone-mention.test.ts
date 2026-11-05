@@ -149,7 +149,7 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
   })
 })
 
-describe('textNamesMixAudiences (CF-36)', () => {
+describe('textNamesMixAudiences (CF-43)', () => {
   const axF = { name: 'Axila', audience: 'feminino' as const }
   const axM = { name: 'Axila', audience: 'masculino' as const }
   const pernasF = { name: 'Pernas', audience: 'feminino' as const }

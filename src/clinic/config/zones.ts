@@ -106,7 +106,7 @@ export function variantAudiencesConflict(
 }
 
 /**
- * Zonas citadas em **texto livre** misturam as linhas? (CF-36)
+ * Zonas citadas em **texto livre** misturam as linhas? (CF-43)
  * Um nome que existe nas duas linhas (homónimo DEC-079, ex. «Axila») sem palavra
  * de linha no texto é ambíguo: pergunta-se a linha (DEC-090), não se recusa mistura.
  * Mistura explícita («axila masculina e pernas femininas», D-04) continua recusada.
