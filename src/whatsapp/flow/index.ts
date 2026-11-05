@@ -11,12 +11,15 @@ export {
   shouldOfferHubOpening,
   isHubGreetingText,
   hubOpeningBody,
+  clinicTodayOpenState,
   todayClosingHourLabel,
+  isClinicOpenNow,
   hubMeusBody,
   hubInformacoesBody,
   listUpcomingForHub,
   activeServicesForHub,
   type HubServiceHint,
+  type ClinicTodayOpenState,
 } from './hub-opening'
 export {
   isWhatsappFlowConfigured,

@@ -26,9 +26,9 @@ import {
 } from '../../whatsapp/flow/offer-live'
 import {
   activeServicesForHub,
+  clinicTodayOpenState,
   hubOpeningBody,
   shouldOfferHubOpening,
-  todayClosingHourLabel,
 } from '../../whatsapp/flow/hub-opening'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
@@ -733,8 +733,8 @@ export async function runDueAutoDrafts(
         await signalTyping()
         let replyOutbox: OutboxRow[] = []
         try {
-          const closesAt = todayClosingHourLabel(db, tenantId, clock)
-          const body = hubOpeningBody(deps.clinicName, closesAt)
+          const hours = clinicTodayOpenState(db, tenantId, clock)
+          const body = hubOpeningBody(deps.clinicName, hours.closesAt, hours.openNow)
           const offered = await deps.prepareBookingFlowOffer({
             tenantId,
             conversationId: job.conversationId,

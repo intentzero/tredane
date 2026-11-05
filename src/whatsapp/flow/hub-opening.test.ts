@@ -3,6 +3,7 @@ import { enqueueAutoDraft, runDueAutoDrafts } from '../../clinic/ai'
 import { bootDialogScenario } from '../../clinic/ai/evals/dialogs/scenario'
 import type { PrepareBookingFlowOffer } from './offer-live'
 import {
+  clinicTodayOpenState,
   hubInformacoesBody,
   hubMeusBody,
   hubOpeningBody,
@@ -10,6 +11,7 @@ import {
   todayClosingHourLabel,
 } from './hub-opening'
 import { FLOW_COPY } from './copy'
+import { DIALOG_NOW_MS } from '../../clinic/ai/evals/dialogs/scenario'
 
 describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
   it('shouldOfferHubOpening: cumprimento e pedido vago sim; serviço/remarcar/cancelar não', () => {
@@ -61,9 +63,15 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
     ).toBe(false)
   })
 
-  it('hubOpeningBody omite a frase de horas quando não há fecho', () => {
-    expect(hubOpeningBody('Clínica Aurora', '18:00')).toBe(
+  it('hubOpeningBody: aberto / fechado / sem fecho (Paulo A)', () => {
+    expect(hubOpeningBody('Clínica Aurora', '18:00', true)).toBe(
       'Olá! Aqui é a Clínica Aurora. Hoje atendemos até às 18:00. O que você precisa?',
+    )
+    expect(hubOpeningBody('Clínica Aurora', '18:00', false)).toBe(
+      'Olá! Aqui é a Clínica Aurora. Já estamos fechados (hoje até às 18:00). Posso ajudar a agendar mesmo assim?',
+    )
+    expect(hubOpeningBody('Clínica Aurora', null, false)).toBe(
+      'Olá! Aqui é a Clínica Aurora. O que você precisa?',
     )
     expect(hubOpeningBody('Clínica Aurora', null)).toBe(
       'Olá! Aqui é a Clínica Aurora. O que você precisa?',
@@ -71,13 +79,33 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
     expect(FLOW_COPY.flowCta).toBe('Abrir opções')
   })
 
-  it('todayClosingHourLabel usa o expediente de hoje (sem IANA)', () => {
+  it('todayClosingHourLabel / openNow usam o expediente de hoje (sem IANA)', () => {
     const s = bootDialogScenario()
     try {
       // Cenário: qui 05/11/2026 10:00 SP — janela 09–12 e 13–18.
-      const label = todayClosingHourLabel(s.db, s.tenantId, s.clock)
-      expect(label).toBe('12:00')
-      expect(label).not.toMatch(/America\//)
+      const open = clinicTodayOpenState(s.db, s.tenantId, s.clock)
+      expect(open.closesAt).toBe('12:00')
+      expect(open.openNow).toBe(true)
+      expect(todayClosingHourLabel(s.db, s.tenantId, s.clock)).toBe('12:00')
+      expect(open.closesAt).not.toMatch(/America\//)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('clinicTodayOpenState: após o fecho → closed + última hora do dia', () => {
+    // qui 05/11/2026 21:09 America/Sao_Paulo (= 00:09 UTC 06/11).
+    const afterHours = Date.UTC(2026, 10, 6, 0, 9)
+    const s = bootDialogScenario({ nowMs: afterHours })
+    try {
+      const state = clinicTodayOpenState(s.db, s.tenantId, s.clock)
+      expect(state.openNow).toBe(false)
+      expect(state.closesAt).toBe('18:00')
+      expect(hubOpeningBody('Clínica Aurora', state.closesAt, state.openNow)).toBe(
+        'Olá! Aqui é a Clínica Aurora. Já estamos fechados (hoje até às 18:00). Posso ajudar a agendar mesmo assim?',
+      )
+      // Sanity: o default do cenário permanece aberto.
+      expect(afterHours).not.toBe(DIALOG_NOW_MS)
     } finally {
       s.close()
     }
@@ -177,7 +205,9 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
         s.conversationId,
       )
       expect(last?.body).toMatch(/^Olá! Aqui é a Clínica Teste Paulo\./)
+      expect(last?.body).toMatch(/Hoje atendemos até às/)
       expect(last?.body).toMatch(/O que você precisa\?/)
+      expect(last?.body).not.toMatch(/Já estamos fechados/)
       expect(last?.body).not.toMatch(/maps|google|Falar com a equipe/i)
       expect(last?.interactive_json ?? '').toContain('Abrir opções')
       expect(last?.interactive_json ?? '').toContain('1858344942174587')
