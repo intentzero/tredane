@@ -385,14 +385,84 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       expect(prop.needsProposal).toBe(false)
       expect(s.appointmentCount()).toBe(0)
       const after = s.outboundBodies()
-      const hasProposal = after.some((b) => /Proposta de horário/i.test(b))
-      const hasRecovery = after.some((b) => b === FLOW_COPY.proposalBuildFailed)
-      const hasAlt = after.some(
-        (b) => b !== FLOW_COPY.preparingProposal && b.trim().length > 0,
-      )
-      // Depois do C16: proposta, alternativa determinística, ou recuperação — nunca só o ack.
-      expect(hasProposal || hasRecovery || hasAlt).toBe(true)
+      // Fumo 04/11 ~22:00 (#556 biphasic): C16 outbound não pode abortar
+      // tryAiAutoBook com not_confirmed → C16b sem Confirmar.
+      expect(prop.outcome).toBe('proposal_sent')
+      expect(prop.autoBook?.proposalId).toBeTruthy()
+      expect(prop.autoBook?.status).not.toBe('not_confirmed')
+      expect(after.some((b) => b === FLOW_COPY.proposalBuildFailed)).toBe(false)
+      expect(after.some((b) => /Proposta de horário/i.test(b))).toBe(true)
+      expect(after.some((b) => /Confirmar/i.test(b))).toBe(true)
       expect(flushed.length).toBeGreaterThan(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('C16 mais recente + Buço/slot: monta Confirmar (fumo C16b staging)', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('[Flow] Sent')
+      // Cenário de diálogos: Buço é audience «ambos» (staging piloto pode ser feminino).
+      const buco = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones
+         WHERE service_id = ? AND name = 'Buço' AND active = 1`,
+        s.ids.depilacao,
+      )
+      expect(buco?.id).toBeTruthy()
+      const responseJson = JSON.stringify({
+        flow_token: 'fl1_buco',
+        service_id: s.ids.depilacao,
+        line: 'feminino',
+        variant_ids: [buco!.id],
+        slot_id: '2026-11-06T09:00',
+      })
+      // Produção: C16 sai depois do nfm inbound (ack inline fora do DO).
+      s.clock.advance(1_500)
+      await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-buco',
+          responseJson,
+          catalogVersion: '1',
+          capability: true,
+          phase: 'ack',
+        },
+        s.clock,
+      )
+      const newest = s.db.get<{ direction: string; body: string }>(
+        `SELECT direction, body FROM messages
+         WHERE tenant_id = ? AND conversation_id = ?
+         ORDER BY created_at DESC, id DESC LIMIT 1`,
+        s.tenantId,
+        s.conversationId,
+      )
+      expect(newest?.direction).toBe('outbound')
+      expect(newest?.body).toBe(FLOW_COPY.preparingProposal)
+
+      s.clock.advance(500)
+      const prop = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-buco',
+          responseJson,
+          catalogVersion: '1',
+          capability: true,
+          phase: 'proposal',
+        },
+        s.clock,
+      )
+      expect(prop.outcome).toBe('proposal_sent')
+      expect(prop.autoBook?.status).not.toBe('not_confirmed')
+      expect(s.outboundBodies().some((b) => b === FLOW_COPY.proposalBuildFailed)).toBe(false)
+      expect(s.outboundBodies().some((b) => /Proposta de horário/i.test(b))).toBe(true)
+      expect(s.appointmentCount()).toBe(0)
     } finally {
       s.close()
     }
