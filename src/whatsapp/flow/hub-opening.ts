@@ -11,6 +11,7 @@ import { listServices } from '../../clinic/config/services'
 import { ensureClinicSettings } from '../../clinic/config/settings'
 import { textCitesSynonym } from '../../clinic/config/synonyms'
 import type { ServiceRow } from '../../clinic/config/types'
+import { extractServices } from '../../clinic/ai/autobook'
 import { citesServiceName } from '../../clinic/ai/schedule-choice'
 import { extractServices } from '../../clinic/ai/autobook'
 import {
@@ -42,7 +43,7 @@ export type HubServiceHint = {
   name: string
   active: boolean
   synonyms?: string[] | null
-  /** Com zonas (ServiceRow do catálogo), o gate usa também o resolvedor do funil. */
+  /** Variantes (DEC-078/079). Presentes em `ServiceRow`: o gate usa o matcher do funil. */
   zones?: ServiceRow['zones']
 }
 
@@ -67,11 +68,11 @@ function namedBookableServices(services: HubServiceHint[], text: string): HubSer
   if (bySynonym.length > 0) return bySynonym
   const fuzzy = active.filter((s) => citesServiceName(text, s.name))
   if (fuzzy.length > 0) return fuzzy
-  // CF-35: o mesmo resolvedor do funil (autobook `extractServices`), que também
-  // reconhece o verbo («depilar» → Depilação) sem sinónimo na ficha. Só com o
-  // catálogo completo (zonas presentes), como em produção.
+  // CF-36 (sonda L4 05/11/2026): variante citada sem o nome do serviço
+  // («drenagem linfática», «ventosaterapia») — mesmo resolver do funil.
   if (active.length > 0 && active.every((s) => Array.isArray(s.zones))) {
-    return extractServices(text, active as ServiceRow[])
+    const ids = new Set(extractServices(text, active as ServiceRow[]).map((s) => s.id))
+    return active.filter((s) => ids.has(s.id))
   }
   return []
 }

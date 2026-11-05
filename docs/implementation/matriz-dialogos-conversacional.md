@@ -47,25 +47,25 @@
 
 | ID | P | Cenário | Diálogo | Esperado | Verifica | T\* | It. 0 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| A-01 | P0 | Pedido completo, serviço simples | C: «Quero limpeza de pele amanhã às 15h» | Proposta Limpeza sex 06/11 15:00 com botão. Nenhum texto do modelo junto e nenhum «Confirma?». | INV-01, EF-02 | 1 | ✅ `autobook.test` «capacidade ligada + confirmação clara» |
-| A-02 | P0 | Pedido incremental | C: «Oi, quero fazer limpeza de pele» ⟶ C: «amanhã» ⟶ C: «14h» | 1) Cumprimento + pergunta de dia, ou oferta já de 2–3 horários reais. 2) Oferta de 2–3 horários de amanhã, sem perguntar «qual horário?» vazio. 3) Proposta 14:00. | EE-01, EE-07, INV-03 | 3 | ❌ CF-19 (L1 confirma: 1.ª resposta «Qual horário fica melhor…?» sem dia nem opções) |
+| A-01 | P0 | Pedido completo, serviço simples | C: «Quero limpeza de pele amanhã às 15h» | Proposta Limpeza sex 06/11 15:00 com botão. Nenhum texto do modelo junto e nenhum «Confirma?». | INV-01, EF-02 | 1 | ✅ `autobook.test` «capacidade ligada + confirmação clara» · ✅ L4 05/11 — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
+| A-02 | P0 | Pedido incremental | C: «Oi, quero fazer limpeza de pele» ⟶ C: «amanhã» ⟶ C: «14h» | 1) Cumprimento + pergunta de dia, ou oferta já de 2–3 horários reais. 2) Oferta de 2–3 horários de amanhã, sem perguntar «qual horário?» vazio. 3) Proposta 14:00. | EE-01, EE-07, INV-03 | 3 | ❌ CF-19 (L1 confirma: 1.ª resposta «Qual horário fica melhor…?» sem dia nem opções) · ❌ L4 05/11 CF-36/CF-39/CF-35 — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | A-03 | P0 | Variantes com linha, passo a passo | C: «Quero depilação» ⟶ «feminina» ⟶ «axila e pernas» ⟶ «sexta de manhã» ⟶ «10h» (texto livre) **ou** toques M5: linha [Feminina]/[Masculina] → lista de variantes+Todas → lista de horários → proposta | Pergunta a linha → lista Axila, Pernas e Buço da linha → oferta de horários da manhã para 45 min → proposta 45 min, R$ 160,00 só no cartão. Nenhum preço antes e nenhuma pergunta repetida. Com toques (DEC-128 / [#415](https://github.com/intentzero/tredane/issues/415)): ≤ 4 turnos; texto livre continua aceite. Toque **não** marca (DEC-061). | INV-02, INV-08, EE-02 | 4–5 | ✅ L1 texto livre (`dialogs` A-03); unit `choice-offer.test` (ids/expirado/catálogo); ✅ L4 03/11/2026 (Paulo): A-03 tocável (Feminina → Opções → Pernas → Horários → proposta) + `list_reply` Horários → proposta → Confirmar (DEC-061; toque≠marca) — [sonda](../security/staging-conversational-probe-2026-11-03-m5.md); residual stale/catálogo L4 proxy **não bloqueante** |
 | A-04 | P0 | Tudo num turno com variante | C: «Quero depilação feminina de axila sexta às 10h» | Proposta direta, 15 min. | EF-02 | 1 | ✅ L1 `dialogs` A-04 + `zone-with-clock.test` (CF-24 corrigido, #435) |
 | A-05 | P0 | Serviço com sinal | C: «Quero peeling químico sexta às 10h» ⟶ clique Confirmar | Proposta; o clique gera Pix de R$ 90,00. Nenhum compromisso antes do pagamento. | INV-01 | 1 | ✅ `autobook.test` «serviço com sinal» |
 | A-06 | P1 | «O mais cedo possível» | C: «Qual o primeiro horário para massagem?» | Oferece os 2–3 horários reais mais próximos (hoje ou amanhã). | INV-03, EE-07 | 1 | ❔ L2 |
 | A-07 | P1 | Escolha por «o das N» | A: [oferta 13:00, 14:00, 15:30 amanhã, massagem] ⟶ C: «o das 14» | Proposta 14:00. | EF-02 | 1 | ✅ L1 `dialogs` A-07 (M2 / pending.options, #412) |
 | A-08 | P1 | Escolha por ordinal | A: [oferta 13:00, 14:00, 15:30] ⟶ C: «a segunda opção» | Proposta 14:00. | EF-02 | 1 | ✅ L1 `dialogs` A-08 (M2 / pending.options, #412); #472: «quarta»/«quinta» sem «opção» = dia (unit `booking-frame.test`) |
-| A-09 | P0 | Várias bolhas em menos de 7 s | C: «Oi» · «queria limpeza de pele» · «amanhã às 15h» | Uma única saída: a proposta 15:00. | INV-09, EE-01 | 1 | ❔ L1 (o autobook lê o turno inteiro) |
+| A-09 | P0 | Várias bolhas em menos de 7 s | C: «Oi» · «queria limpeza de pele» · «amanhã às 15h» | Uma única saída: a proposta 15:00. | INV-09, EE-01 | 1 | ❔ L1 (o autobook lê o turno inteiro) · ◐ L4 05/11 (uma saída; conteúdo ✗ CF-36/CF-35) — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | A-10 | P1 | «meio-dia» no vão do almoço | C: «Limpeza de pele sexta ao meio-dia» | Reconhece 12:00, diz que não há vaga e oferece 11:00 e 13:00. | INV-03 | 1 | ❌ CF-09 |
 | A-11 | P1 | Outro serviço depois de Agendado | [A-01 confirmado] ⟶ clique «Quero outro serviço» ⟶ C: «massagem sábado 10h» | Funil novo, sem herdar o anterior → proposta Massagem sáb 10:00. | INV-08 | 1 | ✅ `autobook.test` «após limpar a sessão (DEC-086)» |
 | A-12 | P1 | Sem preferência de dia | C: «Quero massagem, qualquer dia de tarde» | Oferta de 2–3 horários da tarde em dias próximos. | INV-03, EE-07 | 1 | ❔ L2 |
 | A-13 | P0 | Sessão antiga / recomeçar | [frame com Depilação + Feminina + zonas] ⟶ C: «começar de novo» | Frame limpo; pergunta o serviço; sem saltar para horários. | INV-08, EE-02 | 1 | ✅ CF-28 fechado (#508) · L1 `dialogs` A-13 |
-| A-14 | P0 | Sinónimo «depilar» | C: «Quero depilar» | Trata como Depilação (pergunta a linha); sem «não encontrei». | EF-01 | 1 | ✅ CF-29 fechado (#509) · L1 `dialogs` A-14 |
+| A-14 | P0 | Sinónimo «depilar» | C: «Quero depilar» | Trata como Depilação (pergunta a linha); sem «não encontrei». | EF-01 | 1 | ✅ CF-29 fechado (#509) · L1 `dialogs` A-14 · ❌ L4 05/11 por configuração (sem sinónimo «depilar» na ficha da clínica de teste; DEC-110) — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | A-15 | P0 | Homónimo Axila com Feminina | [Feminina] ⟶ C: «Axila e pernas» | Sem recusa de mistura; eco ou zonas da linha feminina. | INV-08, DEC-079 | 1 | ✅ CF-30 fechado (#502) · L1 `dialogs` A-15 |
-| A-16 | P0 | Nenhuma zona cai em silêncio | [Feminina] ⟶ C: «Axilas e pernas» | Eco «Entendi: Axila e Pernas. Certo?»; as duas zonas. | EF-02, DEC-137 | 1 | ✅ L1 `dialogs` A-16 (eco); propriedade N→N−1 fica em [#509](https://github.com/intentzero/tredane/issues/509) |
+| A-16 | P0 | Nenhuma zona cai em silêncio | [Feminina] ⟶ C: «Axilas e pernas» | Eco «Entendi: Axila e Pernas. Certo?»; as duas zonas. | EF-02, DEC-137 | 1 | ✅ L1 `dialogs` A-16 (eco); propriedade N→N−1 fica em [#509](https://github.com/intentzero/tredane/issues/509) · ✅ L4 05/11 eco; Sim → proposta sem Horários (CF-39) — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | A-17 | P0 | Toque no horário com título mês-dia | A: [lista Horários; título «11-03 17:00»; id civil] ⟶ toque | Proposta ter 03/11 17:00; sem «qual dia?». Toque não marca. | INV-01, EF-02 | 1 | ✅ CF-32 mitigado (#505) · L1 `dialogs` A-17 · título longo em [#507](https://github.com/intentzero/tredane/issues/507) |
 | A-18 | P0 | Confirmar depois da validade | [proposta enviada] ⟶ relógio +30 min ⟶ Confirmar | Sem marcação; explica expiração; oferece ≥2 horários livres do mesmo pedido. | INV-01 | 2 | ✅ CF-33 · L1 `dialogs` A-18 · [#511](https://github.com/intentzero/tredane/issues/511) |
-| A-19 | P0 | Catálogo sem match | C: «Vocês fazem botox?» (com link Google cadastrado) | Diz o que faltou / opções; **sem** link Google; sem despejar só «equipe». | INV-02, INV-05 | 1 | ✅ CF-34 fechado (#512 / #520) · L1 `dialogs` A-19 |
+| A-19 | P0 | Catálogo sem match | C: «Vocês fazem botox?» (com link Google cadastrado) | Diz o que faltou / opções; **sem** link Google; sem despejar só «equipe». | INV-02, INV-05 | 1 | ✅ CF-34 fechado (#512 / #520) · L1 `dialogs` A-19 · ❌ L4 05/11 CF-35 (via D-03) — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | A-20 | P0 | Verbo sem sinónimo na ficha | C: «Quero depilar» [sem sinónimo cadastrado] | Diz o que não encontrou e lista o catálogo, sem link nem serviço inventado. Comportamento vigente por DEC-110; reconhecer o verbo sem sinónimo fica **Em aberto**. | INV-05 | 1 | ✅ L1 (05/11/2026) |
 
 ## B. Linguagem temporal
@@ -76,12 +76,12 @@
 | B-02 | P1 | Mês por extenso | C: «Limpeza dia 5 de dezembro às 10h» | Proposta 05/12 10:00, e não 05/11. | EF-02 | 1 | ❌ CF-07 |
 | B-03 | P1 | «Próxima» com o mesmo dia da semana | C (quinta): «Limpeza próxima quinta às 15h» | Proposta qui 12/11 15:00. | EF-02 | 1 | ❌ CF-08 (resolve para hoje) |
 | B-04 | P1 | «Semana que vem» sem dia | C: «Quero massagem semana que vem de manhã» | Oferta de horários da manhã a partir de segunda 09/11, ou pergunta do dia com sugestão. | EE-07 | 1 | ⚠ CF-09 |
-| B-05 | P0 | «às 3» sem período | C: «Massagem amanhã às 3» | «Às 3 da tarde seria 15:00. É esse horário?» Nunca 03:00. | INV-03 | 1 | ✅ `catalog-reply.test` «não trata às 3 como 03:00» |
+| B-05 | P0 | «às 3» sem período | C: «Massagem amanhã às 3» | «Às 3 da tarde seria 15:00. É esse horário?» Nunca 03:00. | INV-03 | 1 | ✅ `catalog-reply.test` «não trata às 3 como 03:00» · ✅ L4 05/11 (continuação ✗ CF-35) — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | B-06 | P1 | «3 da tarde» sem «às» | C: «Massagem amanhã 3 da tarde» | Proposta 15:00. | EF-02 | 1 | ❌ CF-09 |
 | B-07 | P2 | «15 e 30» | C: «Limpeza amanhã 15 e 30» | Proposta 15:30. | EF-02 | 1 | ❌ CF-09 |
 | B-08 | P1 | Data impossível | C: «Limpeza 31/11 às 10h» | Pergunta a data; nenhuma proposta. | INV-03 | 1 | ❌ CF-11 |
-| B-09 | P0 | Dia fechado | C: «Limpeza domingo às 10h» | Diz que domingo não abre e oferece segunda ou sábado. | INV-03, EE-07 | 1 | ❔ L1 |
-| B-10 | P0 | Hora já passada hoje | C (10:00): «Limpeza hoje às 9h» | Nenhuma proposta; oferece os próximos horários de hoje. | INV-03 | 1 | ❔ L1 |
+| B-09 | P0 | Dia fechado | C: «Limpeza domingo às 10h» | Diz que domingo não abre e oferece segunda ou sábado. | INV-03, EE-07 | 1 | ❔ L1 · ◐ L4 05/11 CF-40 — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
+| B-10 | P0 | Hora já passada hoje | C (10:00): «Limpeza hoje às 9h» | Nenhuma proposta; oferece os próximos horários de hoje. | INV-03 | 1 | ❔ L1 · ◐ L4 05/11 CF-40 — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | B-11 | P1 | Termina depois do expediente | C: «Limpeza sexta às 17h30» (60 min) | Nenhuma proposta; oferece 15:00 ou anterior. | INV-03 | 1 | ❔ L1 |
 | B-12 | P2 | Período sem expediente | C: «Tem massagem hoje à noite?» | Diz que não atende à noite e oferece a tarde. | INV-03 | 1 | ❔ L2 |
 | B-13 | P0 | Conversa atravessa a meia-noite | (qui 23:50) C: «Limpeza amanhã à tarde» ⟶ A: [oferta sexta] ⟶ (sex 00:05) C: «14h» | Proposta **sexta** 06/11 14:00, e não sábado. | EF-02 | 2 | ✅ L1 `dialogs` B-13 (a oferta ecoa «sexta 06/11»; CF-21 não se reproduz) |
@@ -91,14 +91,14 @@
 
 | ID | P | Cenário | Diálogo | Esperado | Verifica | T\* | It. 0 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| C-01 | P0 | Aceite com «acho» | A: [oferta 14:00, 15:00 amanhã, limpeza] ⟶ C: «acho que 15h tá ótimo» | Proposta 15:00. | EF-01 | 1 | ❌ CF-05 |
+| C-01 | P0 | Aceite com «acho» | A: [oferta 14:00, 15:00 amanhã, limpeza] ⟶ C: «acho que 15h tá ótimo» | Proposta 15:00. | EF-01 | 1 | ❌ CF-05 · ❌ L4 05/11 CF-35 — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | C-02 | P1 | «ver» no pedido completo | C: «quero ver amanhã às 15h a limpeza» | Proposta 15:00. | EF-01 | 1 | ❌ CF-05 |
-| C-03 | P0 | Valor lido como hora | [sessão: limpeza, amanhã] ⟶ C: «custa 1500?» | Responde «R$ 180,00 e dura 60 min». Não guarda nem propõe 15:00. | INV-02, EF-02 | 1 | ❌ CF-10 |
+| C-03 | P0 | Valor lido como hora | [sessão: limpeza, amanhã] ⟶ C: «custa 1500?» | Responde «R$ 180,00 e dura 60 min». Não guarda nem propõe 15:00. | INV-02, EF-02 | 1 | ❌ CF-10 · ◐ L4 05/11 (sem hora ✓; não responde preço) — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | C-04 | P1 | Erro de digitação | C: «limpesa de pele amanha 15h» | Proposta Limpeza 15:00. | EF-02 | 1 | ❔ L1 |
 | C-05 | P1 | Emoji como aceite | A: [oferta única 14:00 amanhã, massagem] ⟶ C: «👍» | Proposta 14:00. O emoji só prepara a proposta, não marca (DEC-061). | INV-01, EF-01 | 1 | ✅ L1 `dialogs` C-05 (M2 / DEC-127.3, #412) |
 | C-06 | P0 | «Sim» a uma pergunta lateral | A: «Você já fez limpeza antes?» ⟶ C: «sim» | Nenhuma proposta; o funil continua. | INV-01 | 1 | ✅ L1 `dialogs` C-06 (M2 / DEC-127.3, #412) |
 | C-07 | P0 | Muda de serviço depois da proposta | [proposta Limpeza amanhã 15h] ⟶ C: «na verdade prefiro massagem» | A proposta anterior não vale; nova proposta Massagem amanhã 15:00 ou oferta. Sem frase de aviso (DEC-116). | INV-01, EF-02 | 1 | ✅ L1 `dialogs` C-07 + `service-change.test` (CF-23 corrigido, #436) |
-| C-08 | P0 | Corrige a hora com «não» | [proposta 15h] ⟶ C: «não, 16h» | Nova versão 16:00, se livre. | EF-02 | 1 | ✅ L1 `dialogs` C-08 (gate M2 / #412) |
+| C-08 | P0 | Corrige a hora com «não» | [proposta 15h] ⟶ C: «não, 16h» | Nova versão 16:00, se livre. | EF-02 | 1 | ✅ L1 `dialogs` C-08 (gate M2 / #412) · ✅ L4 05/11 — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | C-09 | P1 | Dois serviços | C: «quero limpeza e massagem sexta» | «Marcamos um serviço de cada vez. Qual você quer primeiro?» | EF-01 | 1 | ✅ `booking-object.eval` (múltiplos serviços) |
 | C-10 | P1 | Áudio ou imagem sem texto | C: [áudio] | «Ainda não consigo ouvir áudios nem ver imagens. Pode escrever o que precisa?» + botão «Falar com a equipe»; IA ativa; sem resposta genérica nem improvisada (DEC-119, DEC-130). Comprovativo de pagamento (cobrança Pix pendente) vai à equipe com a frase da DEC-083. | INV-09, INV-10 | 1 | ✅ L1 `dialogs` C-10 (CF-26 / #446) |
 | C-11 | P1 | «Outra sessão» | C: «quero marcar outra sessão de limpeza amanhã 15h» | Proposta 15:00. | EF-01 | 1 | ❌ CF-05 |
@@ -112,16 +112,16 @@
 
 | ID | P | Cenário | Diálogo | Esperado | Verifica | T\* | It. 0 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| D-01 | P0 | Horário ocupado | C: «Limpeza sexta 16h» | «Nesse horário já não tenho vaga» + alternativas **próximas** e na tarde (15:00, 14:00). | INV-03, EE-01 | 1 | ❌ CF-15 (L1 confirma: oferece 09:00/09:15/09:30 em vez de 14:00/15:00) |
+| D-01 | P0 | Horário ocupado | C: «Limpeza sexta 16h» | «Nesse horário já não tenho vaga» + alternativas **próximas** e na tarde (15:00, 14:00). | INV-03, EE-01 | 1 | ❌ CF-15 (L1 confirma: oferece 09:00/09:15/09:30 em vez de 14:00/15:00) · ❌ L4 05/11 CF-35 — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | D-02 | P1 | Dia sem vagas | [sexta lotada] ⟶ C: «Limpeza sexta» | Diz que está lotado e oferece o próximo dia com vaga. | EE-07 | 1 | ⚠ CF-15 |
-| D-03 | P0 | Serviço inexistente | C: «Vocês fazem botox?» | Diz o que faltou e mostra as opções reais; sem link Google. Nunca inventa. | INV-02, EF-01 | 1 | ✅ L1 `dialogs` D-03 + `catalog-reply.test` (#512, prática 10) |
+| D-03 | P0 | Serviço inexistente | C: «Vocês fazem botox?» | Diz o que faltou e mostra as opções reais; sem link Google. Nunca inventa. | INV-02, EF-01 | 1 | ✅ L1 `dialogs` D-03 + `catalog-reply.test` (#512, prática 10) · ❌ L4 05/11 CF-35 — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | D-04 | P0 | Mistura masculino e feminino | C: «Depilação axila masculina e pernas femininas sexta 10h» | Recusa clara, sem jargão («ambos», «linha»). Nenhum preço nem proposta. | INV-05, EF-01 | 1 | ✅ L1 `dialogs` D-04 (CF-25 corrigido com o CF-24, #437) |
 | D-05 | P1 | Profissional que não faz o serviço | C: «Quero massagem com a Ana» | Frase de handoff (pedido de profissional específica). | INV-06 | 1 | ◐ `professionalOutsideService` |
 | D-06 | P1 | Profissional que faz | C: «Limpeza com a Bia sexta 10h» | Proposta com Bia, ou aviso se Bia não está livre. | EF-02 | 1 | ⚠ CF-20 (preferência ignorada) |
 | D-07 | P1 | Tempo não serve | C: «Bronzeamento sábado 10h» [chuva] | Frase fixa do Tempo (DEC-077), alerta à equipe e nenhuma proposta. | INV-01, INV-05 | 1 | ✅ `tempo-context.test` |
 | D-08 | P0 | Serviço sem preço | C: «Quanto custa microagulhamento?» | «A equipe confirma o valor.» Nenhum valor inventado. | INV-02 | 1 | ❔ L2 |
 | D-09 | P1 | Serviço sem explicação | C: «Como funciona a massagem?» | Não descreve; oferece horário ou a equipe. | INV-07 | 1 | ❔ L2 |
-| D-10 | P0 | Zona homónima sem linha | C: «quero depilar a axila» | «… feminina ou masculina?» (DEC-090). **Não** a recusa de mistura. | INV-08 | 1 | ✅ L1 (CF-36 fechado a 05/11) |
+| D-10 | P0 | Zona homónima sem linha | C: «quero depilar a axila» | «… feminina ou masculina?» (DEC-090). **Não** a recusa de mistura. | INV-08 | 1 | ✅ L1 (CF-43 fechado a 05/11) |
 | D-10 | P1 | Limite de abuso atingido | [limite de marcação atingido] ⟶ C: «Limpeza amanhã 15h» | Frase neutra à cliente, sem «Agendar» e sem números internos; alerta à equipe. | INV-05 | 1 | ❔ L1 |
 | D-11 | P1 | Variante «ambos» na linha masculina | C: «Depilação masculina de axila e buço sexta 10h» | Proposta 25 min, R$ 75,00 no cartão. | INV-02, EF-02 | 1 | ❔ L1 |
 
@@ -129,7 +129,7 @@
 
 | ID | P | Cenário | Diálogo | Esperado | Verifica | T\* | It. 0 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| E-01 | P0 | Preço de serviço simples | C: «Quanto custa a limpeza de pele?» | «R$ 180,00, 60 min» + convite curto para ver horário. | INV-02, Q5 | 1 | ❌ CA-03 (L1: «R$ 180,00» sem a duração; o preço ainda passa pelo modelo, #413) |
+| E-01 | P0 | Preço de serviço simples | C: «Quanto custa a limpeza de pele?» | «R$ 180,00, 60 min» + convite curto para ver horário. | INV-02, Q5 | 1 | ❌ CA-03 (L1: «R$ 180,00» sem a duração; o preço ainda passa pelo modelo, #413) · ✅ L4 05/11 (preço + duração) — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | E-02 | P0 | Preço sem variante escolhida | C: «Quanto custa depilação?» | Pergunta a linha ou as zonas. Nenhum preço nem «a partir de» (DEC-090). | INV-02 | 1 | ✅ `catalog-reply.test` |
 | E-03 | P0 | Horário de funcionamento | C: «Até que horas vocês atendem?» | Expediente com o vão do almoço, sem modelo. | INV-03 | 1 | ✅ `dec-083.test` |
 | E-04 | P1 | Localização | C: «Onde fica?» | Endereço + o link cadastrado, exatamente igual. | INV-10 | 1 | ❔ L2 |
@@ -146,18 +146,18 @@
 | F-02 | P1 | Só queria o preço | C: «Só queria saber o preço da massagem mesmo» | Informa o preço e deixa a porta aberta, sem insistir. | EF-04, Q6 | 1 | ❔ L2 |
 | F-03 | P0 | Cliente some | [oferta enviada; 30 min sem resposta] | Pergunta «prosseguir/terminar» com botões; mais 30 min sem resposta → Perdido (DEC-087). | EF-04 | 0 | ✅ `followup/idle.test` |
 | F-04 | P1 | Adiar | C: «Agora não posso, amanhã falo» | Acolhe e não volta a escrever antes do idle. | EF-04 | 1 | ❔ L2 |
-| F-05 | P0 | «Alterar detalhes» | [proposta] ⟶ clique «Alterar detalhes» | Frase + equipe; nada marcado. | INV-01, INV-06 | 1 | ✅ `dec-083.test` |
+| F-05 | P0 | «Alterar detalhes» | [proposta] ⟶ clique «Alterar detalhes» | Frase + equipe; nada marcado. | INV-01, INV-06 | 1 | ✅ `dec-083.test` · ✅ L4 05/11 (cópia CF-40) — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | F-06 | P0 | Proposta expirada | [proposta enviada há 31 min] ⟶ clique Confirmar | Recusa; nenhum compromisso; aviso/nova proposta. | INV-01 | 1 | ✅ `proposals.test` «envio inicia 30 min…» |
-| F-07 | P1 | Pedido para parar | C: «Pare de me mandar mensagem» | Todas as automações param nessa conversa (IA, idle, follow-up); equipe avisada; nenhuma mensagem automática (DEC-114). | EF-04 | 1 | ⚠ sem regra; vai ao modelo (DEC-114 por implementar) |
+| F-07 | P1 | Pedido para parar | C: «Pare de me mandar mensagem» | Todas as automações param nessa conversa (IA, idle, follow-up); equipe avisada; nenhuma mensagem automática (DEC-114). | EF-04 | 1 | ⚠ sem regra; vai ao modelo (DEC-114 por implementar) · ❌ L4 05/11 CF-37 — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | F-08 | P1 | Cliente com pressa | C: «rápido, tem limpeza hoje?» | Oferece logo os horários de hoje, sem perguntas intermédias. | EE-01, EE-07 | 1 | ❔ L2 |
 
 ## G. Acesso humano e handoff (DEC-083, DEC-091)
 
 | ID | P | Cenário | Diálogo | Esperado | Verifica | T\* | It. 0 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| G-01 | P0 | Pede uma pessoa | C: «Quero falar com uma pessoa» | Pausa, frase fixa, alerta; nenhuma chamada ao modelo. | INV-06 | 1 | ✅ `dec-083.test` |
+| G-01 | P0 | Pede uma pessoa | C: «Quero falar com uma pessoa» | Pausa, frase fixa, alerta; nenhuma chamada ao modelo. | INV-06 | 1 | ✅ `dec-083.test` · ✅ L4 05/11 — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | G-02 | P0 | Elogio | C: «Você é uma ótima atendente! Quero massagem sábado» | Sem pausa; segue o funil (oferta para sábado). | EF-03 | 1 | ❌ CF-02 |
-| G-03 | P1 | «É robô?» | C: «Você é a atendente da clínica ou um robô?» | «Sou a assistente virtual da clínica. Se preferir, chamo a equipe.» + botão da equipe; sem pausa automática (DEC-115). | EF-03, Q2 | 1 | ❌ CF-02 |
+| G-03 | P1 | «É robô?» | C: «Você é a atendente da clínica ou um robô?» | «Sou a assistente virtual da clínica. Se preferir, chamo a equipe.» + botão da equipe; sem pausa automática (DEC-115). | EF-03, Q2 | 1 | ❌ CF-02 · ❌ L4 05/11 CF-35 — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | G-04 | P0 | Marcação para terceiro | C: «É para a minha mãe» | Handoff (terceiro). | INV-06 | 1 | ✅ `catalog-reply.test` (terceiro) |
 | G-05 | P0 | Falso terceiro | C: «Quero algo para a minha pele oleosa» | Sem handoff; pergunta ou oferece Limpeza. | EF-03 | 1 | ❌ CF-03 |
 | G-06 | P0 | Cancelar | [compromisso futuro] ⟶ C: «Quero cancelar meu horário» | Handoff; nada cancelado pela IA. | INV-06 | 1 | ✅ `reschedule.test` «cancelar continua handoff» |
@@ -233,7 +233,7 @@ Criada em 05/11/2026 pela [metodologia de avaliação](metodologia-avaliacao-con
 | FL-09 | P0 | Hub «Cancelar» sem compromisso | C: «Oi» ⟶ [Flow: Cancelar] | Handoff (DEC-091); nada marcado nem cancelado. | INV-06, INV-01 | 2 | ✅ L1 |
 | FL-10 | P0 | Hub «Informações» | C: «Oi» ⟶ [Flow: Informações] | Expediente da ficha, sem fuso IANA nem link inventado. | INV-03, INV-05 | 2 | ✅ L1 |
 | FL-11 | P0 | Hub fora do expediente | C: «Oi» às 21:09 | O mesmo horário de hoje, sem «já estamos fechados» (#559 revogada a 05/11, #564). | INV-05 | 1 | ✅ L1 |
-| FL-12 | P0 | Serviço pela zona | C: «quero depilar a axila» ⟶ [Flow: Feminina → Axila → 1.ª hora] | Sem o cumprimento genérico do hub nem «não dá para juntar…». A pergunta da linha acompanha o CTA do Flow (DEC-140). A proposta sai com Axila. | EE-01 | 2 | ✅ L1 (CF-35 e CF-36 fechados a 05/11) |
+| FL-12 | P0 | Serviço pela zona | C: «quero depilar a axila» ⟶ [Flow: Feminina → Axila → 1.ª hora] | Sem o cumprimento genérico do hub nem «não dá para juntar…». A pergunta da linha acompanha o CTA do Flow (DEC-140). A proposta sai com Axila. | EE-01 | 2 | ✅ L1 (CF-36 da sonda L4, #565, e CF-43 fechados a 05/11) |
 | FL-13 | P0 | Remarcar pelo hub | [FL-02 para sex 06/11 10:00] ⟶ C: «Oi» ⟶ [Flow: Remarcar] | `hub_reschedule_started`: quadro em `remarcando` e pergunta do dia. O compromisso original continua até um novo Confirmar. | INV-01 | 4 | ✅ L1 |
 | FL-14 | P0 | Token expirado | C: «Oi» ⟶ [Flow aberto 3 dias depois] | O endpoint devolve 427. Nada é gravado nem enviado. | INV-01 | 1 | ✅ L1 |
 | FL-15 | P0 | Serviço pelo nome exacto (controlo do FL-12) | C: «Quero depilação» ⟶ [Flow: Feminina → Axila + Pernas → 1.ª hora] | Sem o cumprimento do hub; o funil passa ao Flow; proposta com as duas zonas. | ES-02 | 2 | ✅ L1 |

@@ -206,9 +206,9 @@ export const FL_DIALOG_CASES: DialogCase[] = [
     title: 'Pedido com zona («quero depilar a axila») vai ao funil, sem cumprimento do hub',
     turnosIdeais: 2,
     flow: true,
-    // CF-35 (corrigido 05/11/2026): o gate do hub não reconhecia o serviço pela
+    // CF-36 (#565, corrigido 05/11/2026): o gate do hub não reconhecia o serviço pela
     // zona e mandava o cumprimento genérico; agora usa o mesmo resolvedor do funil.
-    // Depende também do CF-36 (antes a resposta era «não dá para juntar…»).
+    // Depende também do CF-43 (antes a resposta era «não dá para juntar…»).
     turns: [
       { role: 'client', text: 'quero depilar a axila' },
       { role: 'flow', path: { serviceKey: 'depilacao', line: 'feminino', zones: ['Axila'], slot: 'first' } },

@@ -162,7 +162,10 @@ export async function prepareBookingFlowOfferFromEnv(input: {
 }
 
 /**
- * Se o turno ia enviar M5 de funil e o preparador devolve Flow, substitui.
+ * Se o turno ia enviar M5 de funil e o preparador devolve Flow, substitui **só o interativo**.
+ * O corpo continua a ser a resposta determinística do turno (CF-35, sonda L4 05/11/2026):
+ * antes caía em `FLOW_COPY.openBody` («Olá! O que você precisa?») e a cliente perdia
+ * vaga ocupada + alternativas, catálogo sem match, etc.
  * Eco Sim/Corrigir e falha do preparador → mantém M5 / texto.
  */
 export async function maybeReplaceM5WithFlow(input: {
@@ -184,7 +187,7 @@ export async function maybeReplaceM5WithFlow(input: {
     return { interactive: m5, body: input.replyBody, usedFlow: false }
   }
   try {
-    // DEC-140: o corpo é a pergunta que o funil já calculou (a cliente já disse o que
+    // CF-35 (#565) e DEC-140: o corpo é a pergunta que o funil já calculou (a cliente já disse o que
     // quer); o C1h do preparador só entra quando não há texto do funil.
     const funnelBody = input.replyBody.trim()
     const offered = await input.prepare({
