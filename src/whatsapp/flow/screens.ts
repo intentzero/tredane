@@ -483,8 +483,12 @@ export function applyScreenSubmission(
     if (!hubAction) {
       return { ok: false, errorMessage: FLOW_COPY.catalogChanged, frame }
     }
-    // Agendar: o frame mantém-se; o endpoint chama nextFlowScreen.
-    // Remarcar/Cancelar/Meus: o endpoint devolve SUCCESS com hub_action.
+    // Agendar: novo ciclo — limpa slot stale da sessão para não SUCCESS
+    // imediato sem HORARIO (fumo staging 04/11 ~21:11: C16 após Abrir opções).
+    // Remarcar/Cancelar/Meus/…: o endpoint devolve SUCCESS com hub_action.
+    if (hubAction === 'agendar') {
+      return { ok: true, frame: { ...frame, slotKey: null }, hubAction }
+    }
     return { ok: true, frame, hubAction }
   }
 
