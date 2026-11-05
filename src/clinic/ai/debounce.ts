@@ -1,6 +1,7 @@
 /**
  * Debounce adaptativo DEC-111 (#413 / item 5 da #402).
- * 0 s botão/lista · 2–3 s pedido completo · 7 s texto aberto.
+ * 0 s botão/lista · 2–3 s pedido completo · 300 ms abertura do hub · 7 s texto aberto.
+ * Revisão Paulo 04/11/2026 (opção C): cumprimento/pedido vago do hub não espera 7 s.
  */
 import { AI_AUTODRAFT_DEBOUNCE_MS } from '../../ai/budgets'
 import { parseTemporal } from './nlu/temporal'
@@ -8,11 +9,22 @@ import { parseTemporal } from './nlu/temporal'
 /** 2,5 s no meio da faixa 2–3 s da DEC-111. */
 export const AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS = 2_500
 export const AI_AUTODRAFT_DEBOUNCE_INTERACTIVE_MS = 0
+/**
+ * Cumprimento / pedido vago que dispara o hub (`shouldOfferHubOpening`).
+ * 300 ms: dentro da faixa 0–500 ms da opção C — cobre uma segunda bolha quase
+ * simultânea sem o vácuo de 7 s do texto aberto.
+ */
+export const AI_AUTODRAFT_DEBOUNCE_HUB_MS = 300
 
 export type AutodraftDebounceInput = {
   text: string
   /** Toque em botão ou lista WhatsApp (resposta completa). */
   fromInteractive?: boolean
+  /**
+   * Mesmo detector do caminho do hub (`shouldOfferHubOpening`).
+   * Quando true, usa `AI_AUTODRAFT_DEBOUNCE_HUB_MS` em vez dos 7 s de texto aberto.
+   */
+  hubOpening?: boolean
 }
 
 /**
@@ -46,6 +58,9 @@ export function looksLikeCompleteBookingRequest(text: string): boolean {
 
 export function autodraftDebounceMs(input: AutodraftDebounceInput): number {
   if (input.fromInteractive) return AI_AUTODRAFT_DEBOUNCE_INTERACTIVE_MS
+  // Hub (cumprimento / pedido vago) antes da heurística «pedido completo»:
+  // «Boa noite» casaria em período e cairia nos 2,5 s sem esta ordem.
+  if (input.hubOpening) return AI_AUTODRAFT_DEBOUNCE_HUB_MS
   if (looksLikeCompleteBookingRequest(input.text)) return AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS
   return AI_AUTODRAFT_DEBOUNCE_MS
 }

@@ -330,7 +330,7 @@ O resumo da linha de base (It. 0) acima fica como histórico. Fecho no [§7 do p
 | Freeze | prompt `sha256:c6a4f56660bb86d3f61a957f9fd9577de39b9d6e4dea8a3c7eeffaaed680059f`; catálogo `scenario.ts` `sha256:547cd19c30e3015fdd73389980e201664f04b2610f6eb8b28433167a15d8711d` |
 | Verdes M3 + B1–B3 | A-02, A-04, A-06, A-12, B-09, B-10, B-11, C-07, D-01, D-02, D-04, E-01, F-08 |
 | CA-03 / DEC-118 | `tryAiAutoBook` antes do modelo; gateway sem `freeSlots`/`upcoming`; `agendaFacts` só locais |
-| Debounce | DEC-111: 0 / 2,5 / 7 s |
+| Debounce | DEC-111: 0 / 2,5 / **0,3 s hub** / 7 s (revisão opção C 04/11/2026) |
 | PRs | [#440](https://github.com/intentzero/tredane/pull/440) B1–B3 **merged** · [#442](https://github.com/intentzero/tredane/pull/442) M3+DEC-118 **merged** · [#443](https://github.com/intentzero/tredane/pull/443) M4 (catálogo + validador; **merged**, catálogo ainda Proposto, DEC-121) · [#445](https://github.com/intentzero/tredane/pull/445) fecho **merged** |
 | Copy | **ok Paulo** (01/11) para as 5 frases do #442 (DEC-121); catálogo M4 **Confirmado** a 02/11: leva 1 (15 atos, DEC-122) e leva 2 (17 atos, DEC-123); leva 3 (remarcação, pausa da owner, terceiro) ainda **Proposta** |
 | Fora | M2 [#412](https://github.com/intentzero/tredane/issues/412) (ADR); L2/L3 [#417](https://github.com/intentzero/tredane/issues/417) |

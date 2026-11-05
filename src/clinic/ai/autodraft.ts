@@ -1,6 +1,7 @@
 /**
  * Rascunho automático da IA a cada mensagem da cliente (aprovado por Paulo, 27/10/2026).
- * - Debounce adaptativo DEC-111: 0 s botão/lista, 2–3 s pedido completo, 7 s texto aberto.
+ * - Debounce adaptativo DEC-111: 0 s botão/lista, 2–3 s pedido completo,
+ *   300 ms abertura do hub (opção C, 04/11/2026), 7 s texto aberto.
  * - Ordem CA-03 (#413) + M6 (#416): interpretar → extrator se cobertura baixa →
  *   decidir (autobook) → redator de exceção só para pergunta aberta (DEC-104).
  * - O caminho automático não usa o prompt monolítico de `src/ai/prompt.ts`.
@@ -148,7 +149,16 @@ export function enqueueAutoDraft(
   // #475 S4 opção B: texto de verdade limpa «já pedi» mesmo com IA pausada (antes do return).
   clearMediaAskTextOnRealInbound(db, tenantId, input.conversationId, body, now)
   if (isConversationPaused(db, tenantId, input.conversationId)) return null
-  const waitMs = autodraftDebounceMs({ text: body, fromInteractive: input.fromInteractive })
+  // Mesmo detector do caminho do hub em runDueAutoDrafts (TR-306).
+  const hubOpening = shouldOfferHubOpening({
+    turnText: body,
+    services: activeServicesForHub(db, tenantId),
+  })
+  const waitMs = autodraftDebounceMs({
+    text: body,
+    fromInteractive: input.fromInteractive,
+    hubOpening,
+  })
   db.run(
     `INSERT INTO ai_autodraft_jobs (tenant_id, conversation_id, message_id, due_at, state, created_at, updated_at)
      VALUES (?, ?, ?, ?, 'queued', ?, ?)
@@ -162,6 +172,19 @@ export function enqueueAutoDraft(
     now,
     now,
   )
+  // Opção C: typing já na ingestão do cumprimento, antes da espera curta (DEC-136).
+  if (hubOpening) {
+    try {
+      enqueueTypingIndicator(
+        db,
+        tenantId,
+        { conversationId: input.conversationId, messageId: input.messageId },
+        clock,
+      )
+    } catch {
+      /* fail-soft: indicador nunca aborta o rascunho */
+    }
+  }
   return getAutoDraftJob(db, tenantId, input.conversationId)
 }
 
