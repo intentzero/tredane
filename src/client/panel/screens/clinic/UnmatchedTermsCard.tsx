@@ -14,9 +14,10 @@ type Props = {
 }
 
 /**
- * Palavras que a assistente não reconheceu (DEC-141, M-16 lista de Serviços).
+ * Palavras que a assistente não reconheceu (DEC-141, M-63 lista de Serviços).
  * Só a responsável vê (DEC-042). O serviço provável vem pré-escolhido, então
- * gravar é um toque; o sistema nunca grava sozinho. Copy **Proposta** (DEC-104).
+ * gravar é um toque; o sistema nunca grava sozinho. Copy **Confirmada** (Paulo,
+ * 05/11/2026, sob DEC-104).
  */
 export function UnmatchedTermsCard({ tenantId, api, generation, services, onSaved }: Props) {
   const [items, setItems] = useState<UnmatchedTermSuggestion[] | null>(null)
@@ -96,8 +97,8 @@ export function UnmatchedTermsCard({ tenantId, api, generation, services, onSave
         Palavras que a assistente não reconheceu
       </h2>
       <p className="panel-muted-sm">
-        Clientes escreveram estas palavras e a assistente não achou o serviço. Grave como nome
-        popular para ela entender da próxima vez. As clientes continuam vendo o nome do serviço.
+        Grave como nome popular de um serviço e a assistente passa a entender. As clientes
+        continuam vendo o nome do serviço.
       </p>
       <ul className="unmatched-terms-list">
         {items.map((item) => {

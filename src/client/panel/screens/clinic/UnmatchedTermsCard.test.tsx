@@ -39,6 +39,12 @@ describe('UnmatchedTermsCard (DEC-141)', () => {
     )
     expect(await screen.findByText('«depilar»')).toBeTruthy()
     expect(screen.getByText('3 vezes')).toBeTruthy()
+    // Copy Confirmada (Paulo, 05/11/2026, DEC-104): versão curta.
+    expect(
+      screen.getByText(
+        'Grave como nome popular de um serviço e a assistente passa a entender. As clientes continuam vendo o nome do serviço.',
+      ),
+    ).toBeTruthy()
     // Sem serviço provável, gravar espera a escolha.
     const buttons = screen.getAllByRole('button', { name: 'Gravar' })
     expect(buttons).toHaveLength(1)
