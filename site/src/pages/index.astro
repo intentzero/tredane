@@ -59,7 +59,7 @@ const faq = [
 </nav>
 <div class="top-actions">
 {hasAppUrl && <a class="top-link" href={appUrl}>Entrar</a>}
-<a class="btn btn-outline btn-sm" href={ctaHref}>{hasWhatsapp ? <><span class="cta-long">Conversar no WhatsApp</span><span class="cta-short">WhatsApp</span></> : 'Conhecer o piloto'}</a>
+<a class="btn btn-apricot btn-sm" href={ctaHref}>{hasWhatsapp ? <><span class="cta-long">Conversar no WhatsApp</span><span class="cta-short">WhatsApp</span></> : 'Conhecer o piloto'}</a>
 </div>
 </div>
 </header>
@@ -97,39 +97,39 @@ const faq = [
 
 <section id="ajuda" class="section bg-cream glow-corner">
 <div class="wrap" style="display: flex; flex-direction: column; gap: 48px;">
-<div class="head">
+<div class="head reveal">
 <p class="eyebrow">Como o Tredane ajuda</p>
 <h2 class="h3s">Você cuida da clínica. A gente cuida da conversa.</h2>
 </div>
 <ul class="grid3 plain help-list">
-<li class="card help"><span class="oi"><Icon name="message" size={22} /></span><h3>Cliente perguntou, cliente marcou.</h3><p>Ela pergunta o preço e já recebe a resposta, com os horários livres. Escolhe, confirma, pronto.</p></li>
-<li class="card help"><span class="oi"><Icon name="calendar" size={22} /></span><h3>Cresce sem virar bagunça.</h3><p>Mais profissionais, mais salas, mais serviços. A agenda confere tudo antes de marcar.</p></li>
-<li class="card help"><span class="oi warm"><Icon name="users" size={22} /></span><h3>Sua equipe cuidando de gente.</h3><p>A pergunta repetida fica com a parceira. A equipe fica com quem está na cadeira.</p></li>
+<li class="card help reveal"><span class="oi"><Icon name="message" size={22} /></span><h3>Cliente perguntou, cliente marcou.</h3><p>Ela pergunta o preço e já recebe a resposta, com os horários livres. Escolhe, confirma, pronto.</p></li>
+<li class="card help reveal"><span class="oi"><Icon name="calendar" size={22} /></span><h3>Cresce sem virar bagunça.</h3><p>Mais profissionais, mais salas, mais serviços. A agenda confere tudo antes de marcar.</p></li>
+<li class="card help reveal"><span class="oi warm"><Icon name="users" size={22} /></span><h3>Sua equipe cuidando de gente.</h3><p>A pergunta repetida fica com a parceira. A equipe fica com quem está na cadeira.</p></li>
 </ul>
 </div>
 </section>
 
 <section id="conversa" class="section bg-dots">
 <div class="wrap" style="display: flex; flex-direction: column; gap: 48px;">
-<div class="story-head">
+<div class="story-head reveal">
 <div class="stack" style="gap: 16px;">
 <p class="eyebrow">Na prática</p>
 <h2 class="h2">Do «oi» ao horário marcado em poucos toques.</h2>
 </div>
 <p class="lead">Uma cliente, do primeiro contato ao horário na sua agenda. Ninguém da equipe precisou digitar nada.</p>
 </div>
-<ol class="grid4 plain">
-<li class="card story"><span class="story-t">1</span><h3>A Lívia chama no WhatsApp</h3><p>Quer saber o preço de axila e meia perna.</p><span class="bubble-in">Quanto fica axila e meia perna?</span></li>
-<li class="card story"><span class="story-t">2</span><h3>Recebe o seu preço na hora</h3><p>Do jeitinho que você cadastrou. Sem preço cadastrado, a pergunta vai para a equipe.</p><span class="bubble-out">Na mesma visita: R$ [valor], cerca de 40 min.</span></li>
-<li class="card story"><span class="story-t">3</span><h3>Escolhe e toca em Confirmar</h3><p>Só aparece horário que cabe de verdade: profissional, sala e intervalo.</p><span class="mini-proposal"><span><small>Proposta de horário</small><b>sexta 06/11 · 10:00</b></span><span class="mini-ok">Confirmar</span></span></li>
-<li class="card story story-dark"><span class="story-t">4</span><h3>Sexta, 10h, na sua agenda</h3><p>Com a origem: foi a cliente que confirmou.</p><span class="mini-slot"><b>sex 10:00 · Sala 1</b><span>Lívia · Axila, Meia perna</span><span>Marcado pela IA</span></span></li>
+<ol class="grid4 plain scene-pratica">
+<li class="reveal card story"><span class="story-t">1</span><h3>A Lívia chama no WhatsApp</h3><p>Quer saber o preço de axila e meia perna.</p><span class="bubble-in">Quanto fica axila e meia perna?</span></li>
+<li class="reveal card story"><span class="story-t">2</span><h3>Recebe o seu preço na hora</h3><p>Do jeitinho que você cadastrou. Sem preço cadastrado, a pergunta vai para a equipe.</p><span class="bubble-out">Na mesma visita: R$ [valor], cerca de 40 min.</span></li>
+<li class="reveal card story"><span class="story-t">3</span><h3>Escolhe e toca em Confirmar</h3><p>Só aparece horário que cabe de verdade: profissional, sala e intervalo.</p><span class="mini-proposal"><span><small>Proposta de horário</small><b>sexta 06/11 · 10:00</b></span><span class="mini-ok">Confirmar</span></span></li>
+<li class="reveal card story story-dark"><span class="story-t">4</span><h3>Sexta, 10h, na sua agenda</h3><p>Com a origem: foi a cliente que confirmou.</p><span class="mini-slot"><b>sex 10:00 · Sala 1</b><span>Lívia · Axila, Meia perna</span><span>Marcado pela IA</span></span></li>
 </ol>
 </div>
 </section>
 
 <section id="pix" class="section bg-white">
 <div class="wrap split">
-<div class="stack">
+<div class="stack reveal">
 <p class="eyebrow">Sinal por Pix</p>
 <h2 class="h3s">Marcou, pagou o sinal, garantiu.</h2>
 <p class="lead">Nos serviços que você escolher, a cliente paga o sinal ali mesmo na conversa. O dinheiro cai direto na sua conta. O Tredane não toca nele.</p>
@@ -138,7 +138,7 @@ const faq = [
 <div><h3>Regras à vista</h3><p>A cliente lê a política de cancelamento antes de pagar.</p></div>
 </div>
 </div>
-<div class="pix" role="img" aria-label="Ilustração: mensagem pedindo sinal de R$ [valor] por Pix para limpeza de pele na quinta às 14:00, com prazo de 2 horas; aguardando sinal e, depois, sinal pago com horário garantido.">
+<div class="pix scene-pix" role="img" aria-label="Ilustração: mensagem pedindo sinal de R$ [valor] por Pix para limpeza de pele na quinta às 14:00, com prazo de 2 horas; aguardando sinal e, depois, sinal pago com horário garantido.">
 <p class="card pix-msg">Para garantir sua limpeza de pele na <strong>quinta 12/11 às 14:00</strong>, o sinal é de R$ [valor] por Pix. Pague em até 2 horas. Cancelamento com devolução até 24 h antes.</p>
 <p class="card pix-status"><span><span class="dot"></span>Aguardando sinal · 1 h 52 min</span><span>conta da clínica</span></p>
 <p class="pix-paid"><Icon name="check" size={18} />Sinal pago · quinta 14:00 garantida</p>
@@ -150,13 +150,13 @@ const faq = [
 <div class="wrap">
 <div class="panel aurora-panel">
 <span class="aurora" aria-hidden="true"><i></i><i></i></span>
-<div class="panel-top">
+<div class="panel-top reveal">
 <div class="stack" style="gap: 16px;"><p class="eyebrow">Pode confiar</p><h2 class="h3s">Uma parceira que joga do seu lado.</h2></div>
 <p class="lead">Fala com as frases da clínica e nunca decide pela cliente. Se ela pergunta se fala com um robô, ouve a verdade. E a responsável pausa as marcações automáticas com um botão.</p>
 </div>
 <ul class="feats plain">
 {trust.map((f) => (
-<li><h3>{f.title}</h3><p>{f.text}</p></li>
+<li class="reveal"><h3>{f.title}</h3><p>{f.text}</p></li>
 ))}
 </ul>
 </div>
@@ -165,16 +165,16 @@ const faq = [
 
 <section id="equipe" class="section bg-cream">
 <div class="wrap" style="display: flex; flex-direction: column; gap: 40px;">
-<div class="head">
+<div class="head reveal">
 <p class="eyebrow">Feito para equipe</p>
 <h2 class="h3s">Toda a equipe na mesma conversa e na mesma agenda.</h2>
 <p class="lead">Quem precisa de alguém aparece primeiro. Quem assume, as outras veem. E cada horário entra na sala certa.</p>
 </div>
 <ul class="facts plain">
-<li><strong>Atualiza na hora.</strong> Toda a equipe vê sem recarregar.</li>
-<li><strong>No navegador do celular.</strong> Sem app de loja; avisa conversa nova.</li>
-<li><strong>Papéis claros.</strong> A responsável configura; as atendentes atendem.</li>
-<li><strong>Dados separados.</strong> Nosso suporte só entra com a sua aprovação, por 30 minutos.</li>
+<li class="reveal"><strong>Atualiza na hora.</strong> Toda a equipe vê sem recarregar.</li>
+<li class="reveal"><strong>No navegador do celular.</strong> Sem app de loja; avisa conversa nova.</li>
+<li class="reveal"><strong>Papéis claros.</strong> A responsável configura; as atendentes atendem.</li>
+<li class="reveal"><strong>Dados separados.</strong> Nosso suporte só entra com a sua aprovação, por 30 minutos.</li>
 </ul>
 </div>
 </section>
@@ -183,7 +183,7 @@ const faq = [
 <div class="wrap">
 <div class="panel apricot">
 <span class="orb" aria-hidden="true"></span>
-<div class="head center panel-inner" style="gap: 20px;">
+<div class="head center panel-inner reveal" style="gap: 20px;">
 <p class="eyebrow">Piloto aberto</p>
 <h2 class="h2">Sua clínica merece crescer. Vamos começar?</h2>
 <p class="lead">A gente conecta o WhatsApp, cadastra seus serviços com você e fica por perto nos primeiros passos.</p>
@@ -195,13 +195,13 @@ const faq = [
 ) : <p class="pilot-pending">O canal de contato do piloto será informado aqui quando estiver disponível.</p>}
 <span class="fine">Condições do piloto: [A DEFINIR]</span>
 </div>
-<div class="pilot-person panel-inner">
+<div class="pilot-person panel-inner reveal">
 <span class="pilot-photo" aria-hidden="true">[foto]</span>
 <p><strong>[A DEFINIR: nome de quem acompanha o piloto]</strong><span>Fica com a sua clínica do primeiro dia em diante, no mesmo WhatsApp.</span></p>
 </div>
 <div class="grid2 pilot-lists">
-<div class="pilot-box"><h3>A clínica recebe</h3><ul><li>Ajuda para conectar o WhatsApp</li><li>Serviços, preços e agenda configurados junto com você</li><li>Contato direto com quem constrói o produto</li></ul></div>
-<div class="pilot-box"><h3>O que pedimos</h3><ul><li>Um número de WhatsApp Business da clínica</li><li>Sua lista de serviços, profissionais e salas</li><li>Uma conta Pix da clínica, se quiser usar o sinal</li><li>Conversas rápidas sobre o que funcionou</li></ul></div>
+<div class="pilot-box reveal"><h3>A clínica recebe</h3><ul><li>Ajuda para conectar o WhatsApp</li><li>Serviços, preços e agenda configurados junto com você</li><li>Contato direto com quem constrói o produto</li></ul></div>
+<div class="pilot-box reveal"><h3>O que pedimos</h3><ul><li>Um número de WhatsApp Business da clínica</li><li>Sua lista de serviços, profissionais e salas</li><li>Uma conta Pix da clínica, se quiser usar o sinal</li><li>Conversas rápidas sobre o que funcionou</li></ul></div>
 </div>
 </div>
 </div>
@@ -218,7 +218,7 @@ const faq = [
 </div>
 <div class="faq">
 {faq.map((item) => (
-<details class="card">
+<details class="card reveal">
 <summary>{item.q}<svg class="pm" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary>
 <p>{item.a}</p>
 </details>
@@ -247,4 +247,59 @@ const faq = [
 </div>
 </div>
 </footer>
+
+<script>
+// Header fixo e animações (05/11/2026, ver docs/product/landing.md). Sem script, ou com menos
+// movimento pedido pelo aparelho, nada fica escondido: o CSS só esconde sob html.js-ready.
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const bar = document.querySelector('.topbar')
+const hero = document.getElementById('topo')
+if (bar && hero && 'IntersectionObserver' in window) {
+  new IntersectionObserver(([e]) => bar.classList.toggle('is-stuck', !e.isIntersecting), { rootMargin: '-80px 0px 0px 0px' }).observe(hero)
+  const links = new Map(
+    [...document.querySelectorAll<HTMLAnchorElement>('.nav a[href^="#"]')].map((a) => [a.hash.slice(1), a]),
+  )
+  const spy = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue
+        links.forEach((a) => a.classList.remove('is-active'))
+        links.get(e.target.id)?.classList.add('is-active')
+      }
+    },
+    { rootMargin: '-45% 0px -50% 0px' },
+  )
+  document.querySelectorAll('main > section[id]').forEach((s) => spy.observe(s))
+}
+if (!reduce && 'IntersectionObserver' in window) {
+  document.documentElement.classList.add('js-ready')
+  const reveal = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue
+        e.target.classList.add('is-in')
+        reveal.unobserve(e.target)
+      }
+    },
+    { threshold: 0.15 },
+  )
+  document.querySelectorAll<HTMLElement>('.reveal').forEach((el) => {
+    const siblings = [...(el.parentElement?.children ?? [])].filter((c) => c.classList.contains('reveal'))
+    el.style.transitionDelay = `${Math.max(0, siblings.indexOf(el)) * 80}ms`
+    el.addEventListener('transitionend', () => (el.style.transitionDelay = ''), { once: true })
+    reveal.observe(el)
+  })
+  const scenes = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue
+        e.target.classList.add('play')
+        scenes.unobserve(e.target)
+      }
+    },
+    { threshold: 0.4 },
+  )
+  document.querySelectorAll('.scene-pratica, .scene-pix').forEach((el) => scenes.observe(el))
+}
+</script>
 </Base>
