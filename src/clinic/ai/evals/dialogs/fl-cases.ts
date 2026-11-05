@@ -218,7 +218,8 @@ export const FL_DIALOG_CASES: DialogCase[] = [
       flowRuns: [{ outcome: 'nfm_delivered', nfmOutcome: 'proposal_sent' }],
       proposal: true,
       proposalZones: ['Axila'],
-      turns: [{ turn: 0, excludes: [HUB_OPENING, /juntar masculino e feminino/i] }],
+      // DEC-140: a pergunta do funil acompanha o CTA do Flow (não o C1h genérico).
+      turns: [{ turn: 0, matches: [/feminina ou masculina/i], excludes: [HUB_OPENING, /O que você precisa\?/, /juntar masculino e feminino/i] }],
     },
   },
   {

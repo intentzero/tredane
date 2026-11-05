@@ -233,7 +233,7 @@ Criada em 05/11/2026 pela [metodologia de avaliação](metodologia-avaliacao-con
 | FL-09 | P0 | Hub «Cancelar» sem compromisso | C: «Oi» ⟶ [Flow: Cancelar] | Handoff (DEC-091); nada marcado nem cancelado. | INV-06, INV-01 | 2 | ✅ L1 |
 | FL-10 | P0 | Hub «Informações» | C: «Oi» ⟶ [Flow: Informações] | Expediente da ficha, sem fuso IANA nem link inventado. | INV-03, INV-05 | 2 | ✅ L1 |
 | FL-11 | P0 | Hub fora do expediente | C: «Oi» às 21:09 | O mesmo horário de hoje, sem «já estamos fechados» (#559 revogada a 05/11, #564). | INV-05 | 1 | ✅ L1 |
-| FL-12 | P0 | Serviço pela zona | C: «quero depilar a axila» ⟶ [Flow: Feminina → Axila → 1.ª hora] | Sem o cumprimento genérico do hub nem «não dá para juntar…». O funil passa ao Flow e a proposta sai com Axila. | EE-01 | 2 | ✅ L1 (CF-35 e CF-36 fechados a 05/11) |
+| FL-12 | P0 | Serviço pela zona | C: «quero depilar a axila» ⟶ [Flow: Feminina → Axila → 1.ª hora] | Sem o cumprimento genérico do hub nem «não dá para juntar…». A pergunta da linha acompanha o CTA do Flow (DEC-140). A proposta sai com Axila. | EE-01 | 2 | ✅ L1 (CF-35 e CF-36 fechados a 05/11) |
 | FL-13 | P0 | Remarcar pelo hub | [FL-02 para sex 06/11 10:00] ⟶ C: «Oi» ⟶ [Flow: Remarcar] | `hub_reschedule_started`: quadro em `remarcando` e pergunta do dia. O compromisso original continua até um novo Confirmar. | INV-01 | 4 | ✅ L1 |
 | FL-14 | P0 | Token expirado | C: «Oi» ⟶ [Flow aberto 3 dias depois] | O endpoint devolve 427. Nada é gravado nem enviado. | INV-01 | 1 | ✅ L1 |
 | FL-15 | P0 | Serviço pelo nome exacto (controlo do FL-12) | C: «Quero depilação» ⟶ [Flow: Feminina → Axila + Pernas → 1.ª hora] | Sem o cumprimento do hub; o funil passa ao Flow; proposta com as duas zonas. | ES-02 | 2 | ✅ L1 |

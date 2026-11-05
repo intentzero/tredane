@@ -218,7 +218,8 @@ describe('maybeReplaceM5WithFlow', () => {
     })
     expect(replaced.usedFlow).toBe(true)
     expect(replaced.interactive?.flow?.flowId).toBe('1858344942174587')
-    expect(replaced.body).toContain('Abrir opções')
+    // DEC-140: mantém a pergunta do funil como corpo, com o CTA do Flow.
+    expect(replaced.body).toBe('Para Depilação, Feminina ou Masculina?')
     expect(deferred.peekFrame).toBeTypeOf('function')
   })
 

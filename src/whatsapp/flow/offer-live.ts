@@ -184,17 +184,21 @@ export async function maybeReplaceM5WithFlow(input: {
     return { interactive: m5, body: input.replyBody, usedFlow: false }
   }
   try {
+    // DEC-140: o corpo é a pergunta que o funil já calculou (a cliente já disse o que
+    // quer); o C1h do preparador só entra quando não há texto do funil.
+    const funnelBody = input.replyBody.trim()
     const offered = await input.prepare({
       tenantId: input.tenantId,
       conversationId: input.conversationId,
       catalogVersion: input.catalogVersion,
       session: input.session,
+      ...(funnelBody ? { body: funnelBody } : {}),
     })
     if (!offered) return { interactive: m5, body: input.replyBody, usedFlow: false }
     clearM5PendingOnDeferred(input.deferred)
     return {
       interactive: offered.interactive,
-      body: offered.body,
+      body: funnelBody || offered.body,
       usedFlow: true,
     }
   } catch (err) {

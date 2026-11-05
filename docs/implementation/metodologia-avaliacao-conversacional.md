@@ -1,6 +1,6 @@
 # Metodologia de teste e avaliação da interface conversacional
 
-**Estado:** **Proposto** (pedido do Paulo em 05/11/2026: metodologia eficiente e eficaz, com KPIs que acompanhem e assinalem progressões e regressões, mantida durante todo o ciclo de vida do projeto). Este documento é o **guarda-chuva** e não substitui os que já existem. Ele diz *como* medir, *quando*, *o que conta como regressão* e *como a própria metodologia evolui*. O detalhe continua nos documentos de origem:
+**Estado:** **Confirmado** como referência do projeto pela **DEC-139** (Paulo, 05/11/2026). Os limiares numéricos continuam **Em aberto** até haver duas linhas de base. Pedido do Paulo em 05/11/2026: metodologia eficiente e eficaz, com KPIs que acompanhem e assinalem progressões e regressões, mantida durante todo o ciclo de vida do projeto. Este documento é o **guarda-chuva** e não substitui os que já existem. Ele diz *como* medir, *quando*, *o que conta como regressão* e *como a própria metodologia evolui*. O detalhe continua nos documentos de origem:
 
 | Documento | Papel | Estado |
 | --- | --- | --- |
@@ -9,7 +9,7 @@
 | [Avaliação contínua](../architecture/avaliacao-continua-conversacional.md) | KPIs de produção (L5), episódio, eventos e ciclo autónomo | Direção **Confirmada** (DEC-084); KPIs Propostos |
 | [README L2/L3](../../src/clinic/ai/evals/l2/README.md) | Harness com LLM, juiz, tetos de custo | Tetos **Confirmados** (DEC-117, DEC-126) |
 
-As decisões **Confirmadas** citadas valem como estão. Tudo o que é novo aqui (catálogo de KPIs em camadas, regras de comparação com a linha de base, cadência, KPIs do próprio processo, gatilhos de revisão) é **Proposto** até o Paulo aprovar.
+As decisões **Confirmadas** citadas valem como estão. O catálogo de KPIs em camadas, as regras de comparação, a cadência, a análise de erros e os gatilhos de revisão estão **Confirmados** (DEC-139). Os valores numéricos de tolerância e os limiares de latência e custo continuam **Em aberto**.
 
 ## 1. Diagnóstico em 05/11/2026
 
@@ -178,22 +178,23 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 | 6 | G-03 | Calibração do juiz: amostra humana, κ, TPR/TNR por eixo (#402) | Tempo do Paulo para rotular |
 | 7 | G-06 | L5: painel por versão sobre `ai.turn_decided`; amostra humana de conversas reais | GATE-04/06 |
 
-## 10. Decisões em aberto
+## 10. Decisões
 
-| Pergunta | Opções | Responsável | Bloqueia |
-| --- | --- | --- | --- |
-| Aprovar esta metodologia como referência? | Sim / com ajustes | Paulo | Passos 2–4 |
-| Regressão informativa do scorecard passa a bloquear? | (A) Manter informativa e pedir justificação no PR (**recomendado** até 2 linhas de base estáveis); (B) `EVAL_STRICT=1` no CI já | Paulo (DEC nova, revê DEC-108) | Passo 4 |
-| Cadência da iteração durante o piloto | Por liberação / semanal | Paulo | Rituais do §7 |
-| Quem faz a análise de erros semanal | Paulo / delegado com conhecimento do domínio | Paulo | Rituais do §7 |
-| Corpo da oferta do Flow a meio do funil | Quando o Flow substitui os botões de linha depois de um pedido («quero depilar a axila»), sai o C1h «Olá! O que você precisa?», que ignora o que a cliente acabou de dizer. Opções: (A) manter o C1h Confirmado; (B) usar a pergunta do funil como corpo («Para Depilação, é na versão feminina ou masculina?») com o CTA do Flow; (C) frase nova. Copy nova exige DEC-104. | Paulo | Nenhum (UX) |
-| Reconhecer verbos sem sinónimo («depilar» → Depilação) | (A) manter DEC-110: nomes populares só pela ficha (A-20 fixa isto); (B) derivar formas verbais do nome do serviço. | Paulo | Nenhum |
-| Tolerâncias de `KPI_RULES` | As propostas acima / outras após 2 iterações | Paulo + engenharia | Nenhum (informativo) |
+| Pergunta | Decisão | Estado |
+| --- | --- | --- |
+| Aprovar esta metodologia como referência? | Sim; limiares numéricos Em aberto até duas linhas de base. | **Confirmado** (DEC-139) |
+| Regressão informativa do scorecard bloqueia? | Não bloqueia; o PR justifica ou corrige. Reavaliar após duas linhas de base estáveis. | **Confirmado** (DEC-139) |
+| Cadência da iteração no piloto | Semanal **e** antes de cada liberação, o que vier primeiro. | **Confirmado** (DEC-139) |
+| Quem faz a análise de erros | O agente prepara (traços, agrupamento, casos novos); o Paulo valida. | **Confirmado** (DEC-139) |
+| Corpo da oferta do Flow a meio do funil | A pergunta do funil com o CTA do Flow; o C1h só como recurso. | **Confirmado** (DEC-140) |
+| Reconhecer verbos sem sinónimo | Mantém-se a DEC-110; o painel sugere à owner gravar o sinónimo. | **Confirmado** (DEC-141); sugestão por implementar |
+| Tolerâncias de `KPI_RULES` | As atuais até haver duas linhas de base. | **Em aberto** |
 
 ## Histórico de versões da metodologia
 
 | Versão | Data | Mudança |
 | --- | --- | --- |
+| 0.4 | 05/11/2026 | Decisões do §10 registadas: DEC-139 (metodologia, regressão justificada no PR, cadência semanal + liberação, análise de erros preparada pelo agente), DEC-140 (corpo do Flow a meio do funil) e DEC-141 (verbos: DEC-110 + sugestão à owner). |
 | 0.3 | 05/11/2026 | CF-35 e CF-36 fechados; A-14 deixa de ser falso verde (lição: expectativas por regex devem excluir o texto de falha, não só incluir uma palavra); duas decisões novas Em aberto. |
 | 0.2 | 05/11/2026 | Família FL- (G-02) e correção das invariantes (G-08); gatilho 1 passa a exigir revisão das invariantes; achado CF-35. |
 | 0.1 | 05/11/2026 | Primeira versão: diagnóstico G-01..06, KPIs em quatro camadas, scorecard L1 com linha de base e histórico, pass^N e IC de Wilson no L2, correção de Rogan-Gladen disponível, cadência e gatilhos de revisão. |
