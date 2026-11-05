@@ -34,6 +34,57 @@ describe('classifySensitive (#409)', () => {
       labels: ['pergunta_ia'],
       pause: false,
     },
+    // G-03 L4 05/11 — «é um robô» (sem «atendente»)
+    {
+      id: 'G-03-um-robo',
+      text: 'Você é um robô?',
+      labels: ['pergunta_ia'],
+      pause: false,
+    },
+    {
+      id: 'G-03-e-robo',
+      text: 'é robô?',
+      labels: ['pergunta_ia'],
+      pause: false,
+    },
+    // F-07 / CF-37 — pedido para parar no plural (L4 05/11)
+    {
+      id: 'F-07-parem',
+      text: 'Parem de me mandar mensagens',
+      labels: ['pedir_parar'],
+      pause: true,
+    },
+    {
+      id: 'F-07-automaticas',
+      text: 'Por favor, parem de mandar mensagens automáticas',
+      labels: ['pedir_parar'],
+      pause: true,
+    },
+    {
+      id: 'F-07-singular',
+      text: 'Pare de me mandar mensagem',
+      labels: ['pedir_parar'],
+      pause: true,
+    },
+    {
+      id: 'F-07-nao-quero-receber',
+      text: 'Não quero receber mensagens',
+      labels: ['pedir_parar'],
+      pause: true,
+    },
+    {
+      id: 'F-07-nao-mandem',
+      text: 'não me mandem mais nada',
+      labels: ['pedir_parar'],
+      pause: true,
+    },
+    // Falsos positivos que não podem parar a IA
+    {
+      id: 'F-07-fp-mandar-foto',
+      text: 'Posso mandar uma foto da região?',
+      labels: [],
+      pause: false,
+    },
     // CF-03 / G-05
     {
       id: 'G-05',

@@ -162,7 +162,10 @@ export async function prepareBookingFlowOfferFromEnv(input: {
 }
 
 /**
- * Se o turno ia enviar M5 de funil e o preparador devolve Flow, substitui.
+ * Se o turno ia enviar M5 de funil e o preparador devolve Flow, substitui **só o interativo**.
+ * O corpo continua a ser a resposta determinística do turno (CF-35, sonda L4 05/11/2026):
+ * antes caía em `FLOW_COPY.openBody` («Olá! O que você precisa?») e a cliente perdia
+ * vaga ocupada + alternativas, catálogo sem match, etc.
  * Eco Sim/Corrigir e falha do preparador → mantém M5 / texto.
  */
 export async function maybeReplaceM5WithFlow(input: {
@@ -189,12 +192,13 @@ export async function maybeReplaceM5WithFlow(input: {
       conversationId: input.conversationId,
       catalogVersion: input.catalogVersion,
       session: input.session,
+      body: input.replyBody,
     })
     if (!offered) return { interactive: m5, body: input.replyBody, usedFlow: false }
     clearM5PendingOnDeferred(input.deferred)
     return {
       interactive: offered.interactive,
-      body: offered.body,
+      body: input.replyBody.trim() || offered.body,
       usedFlow: true,
     }
   } catch (err) {

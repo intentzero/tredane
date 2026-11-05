@@ -716,6 +716,29 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    // CF-37 — sonda L4 05/11/2026: plural não pausava e recebia resposta.
+    id: 'F-07b',
+    title: 'Parem de me mandar mensagens (plural)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Por favor, parem de mandar mensagens automáticas' }],
+    expect: {
+      paused: true,
+      silentPause: true,
+      outboundExcludes: [/Vou pedir para a equipe continuar daqui/i, /O que você precisa/i],
+    },
+  },
+  {
+    // Sonda L4 05/11/2026: «é um robô» sem «atendente» não casava (\b sem flag u).
+    id: 'G-03b',
+    title: 'Você é um robô?',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Você é um robô?' }],
+    expect: {
+      notPaused: true,
+      outboundIncludes: ['Sou a assistente virtual da clínica. Se preferir, chamo a equipe.'],
+    },
+  },
+  {
     id: 'G-10',
     title: 'Handoff fora do expediente',
     turnosIdeais: 1,

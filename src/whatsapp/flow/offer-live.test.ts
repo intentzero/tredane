@@ -194,12 +194,13 @@ describe('maybeReplaceM5WithFlow', () => {
       catalogVersion: '1',
     })
     const line = buildLineChoiceInteractive('1')
+    const preparedWith: Array<string | undefined> = []
     const replaced = await maybeReplaceM5WithFlow({
       choice: line.interactive,
       replyBody: 'Para Depilação, Feminina ou Masculina?',
-      prepare: async () => ({
+      prepare: async (input) => ({
         flowToken: 'fl1_test',
-        body: 'Toque em Abrir opções para marcar, remarcar, cancelar ou ver seus horários.',
+        body: (preparedWith.push(input.body), input.body ?? 'Olá! O que você precisa?'),
         interactive: {
           flow: {
             flowId: '1858344942174587',
@@ -218,8 +219,40 @@ describe('maybeReplaceM5WithFlow', () => {
     })
     expect(replaced.usedFlow).toBe(true)
     expect(replaced.interactive?.flow?.flowId).toBe('1858344942174587')
-    expect(replaced.body).toContain('Abrir opções')
+    // CF-35: o corpo é a resposta do turno, não o genérico do Flow.
+    expect(replaced.body).toBe('Para Depilação, Feminina ou Masculina?')
+    expect(preparedWith).toEqual(['Para Depilação, Feminina ou Masculina?'])
     expect(deferred.peekFrame).toBeTypeOf('function')
+  })
+
+  it('CF-35: vaga ocupada + alternativas não vira «Olá! O que você precisa?» (sonda L4 05/11)', async () => {
+    const line = buildLineChoiceInteractive('1')
+    const replyBody = 'Nesse horário das 14:00 já não tenho vaga. Tenho 15:15, 15:30, 15:45. Qual fica melhor?'
+    const replaced = await maybeReplaceM5WithFlow({
+      choice: line.interactive,
+      replyBody,
+      // Preparador real ignora o corpo quando não o recebe → FLOW_COPY.openBody.
+      prepare: async (input) => ({
+        flowToken: 'fl1_cf35',
+        body: input.body ?? 'Olá! O que você precisa?',
+        interactive: {
+          flow: {
+            flowId: '1',
+            flowCta: 'Abrir opções',
+            flowToken: 'fl1_cf35',
+            flowAction: 'data_exchange',
+            flowMessageVersion: '3',
+            mode: 'published',
+          },
+        },
+      }),
+      tenantId: 't',
+      conversationId: 'c',
+      catalogVersion: '1',
+    })
+    expect(replaced.usedFlow).toBe(true)
+    expect(replaced.body).toBe(replyBody)
+    expect(replaced.body).not.toContain('O que você precisa')
   })
 
   it('mantém eco Sim/Corrigir', async () => {
