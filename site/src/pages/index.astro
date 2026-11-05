@@ -1,6 +1,11 @@
 ---
 import Base from '../layouts/Base.astro'
 import Icon from '../components/Icon.astro'
+import { Image } from 'astro:assets'
+// Capturas PROVISÓRIAS (site/capturas/gerar.sh): trocar pelas do aplicativo real com o seed da landing.
+import shotConversas from '../assets/app/conversas.png'
+import shotConversa from '../assets/app/conversa.png'
+import shotAgenda from '../assets/app/agenda.png'
 // Antes de publicar, preencher os itens [A DEFINIR] (DEC-044, LP-AC-05).
 // Toda afirmação desta página precisa de uma decisão confirmada (docs/product/landing.md).
 // Endereços só aparecem quando configurados com valor real, sem .example (padrão do PR #547).
@@ -24,6 +29,11 @@ const controls = [
  { title: 'Saúde é com a profissional', text: 'Gravidez, contraindicação, medicamento: a conversa passa para a equipe. Remarcar e cancelar também.' },
  { title: 'Honesta sobre ser assistente', text: 'Se a cliente pergunta se fala com um robô, ouve a verdade. Se pede para parar, as automações param.' },
  { title: 'Pausa com um botão', text: 'A responsável pausa as marcações automáticas da clínica. Cada conversa pode ser assumida pela equipe e devolvida depois.' },
+]
+const shots = [
+ { src: shotConversas, title: 'Quem precisa de alguém aparece primeiro', text: 'Uma caixa para toda a equipe. A Júlia perguntou sobre gravidez e subiu para o topo; a Lívia já está agendada.', alt: 'Tela Conversas do aplicativo: Júlia Santos no topo com «Precisa de alguém», Lívia Moraes agendada para sexta às 10:00 e marcada pela IA, Carla Dias com a IA e Bianca Lima com a atendente Ana.' },
+ { src: shotConversa, title: 'A conversa inteira, com a origem', text: 'Quem assume vê a pergunta, a resposta automática, a proposta e o toque da cliente em Confirmar.', alt: 'Tela da conversa com Lívia Moraes: pergunta de preço às 21:47, resposta automática com valor e duração, pedido de sexta de manhã, proposta de sexta 06/11 às 10:00 confirmada pela cliente e o botão Assumir conversa.' },
+ { src: shotAgenda, title: 'Na agenda, com sala e intervalo', text: 'O horário entra na sala certa, respeita o bloqueio do aparelho e mostra o que ainda está livre.', alt: 'Tela da agenda de sexta, 6 de novembro: Lívia Moraes às 10:00 na Sala 1, marcada pela IA; intervalo de preparo; Sala 2 bloqueada para manutenção do aparelho; horário livre às 11:00.' },
 ]
 const faq = [
  { q: 'Preciso trocar o número da clínica?', a: 'O Tredane usa a API oficial do WhatsApp Business. Conversamos sobre o número antes de conectar, e a conexão é feita pela própria clínica, no fluxo oficial da Meta, com a nossa ajuda.' },
@@ -139,48 +149,23 @@ const faq = [
 
 <section id="equipe" class="section" style="padding-top: 40px;">
 <div class="wrap" style="display: flex; flex-direction: column; gap: 48px;">
+<div class="team-head">
 <div class="head">
-<p class="eyebrow">A equipe e a agenda</p>
+<p class="eyebrow">Do lado da equipe</p>
 <h2 class="h3s">Quando é com vocês, está tudo ali.</h2>
-<p class="lead">A conversa chega com o histórico e com o que a cliente já escolheu. A agenda só mostra o que cabe de verdade.</p>
+<p class="lead">O mesmo atendimento da Lívia, no celular da recepção: quem precisa de alguém, o que a cliente confirmou e onde o horário entrou.</p>
 </div>
-<div class="grid2 duo">
-<figure class="duo-item">
-<div class="card inbox" role="img" aria-label="Ilustração da caixa de conversas: Júlia Santos perguntou se pode fazer grávida e precisa de alguém da equipe; Lívia Moraes está agendada, marcada pela IA; Carla Dias está com a IA; Bianca Lima está com a atendente Ana.">
-<div class="inbox-head"><span>Conversas</span><span class="live"><i></i>Ao vivo</span></div>
-<div class="row"><span class="avatar apricot">JS</span><span class="row-body"><span class="row-top"><b>Júlia Santos</b><span>agora</span></span><span class="row-text">Posso fazer grávida?</span><span class="row-tags"><span class="tag dark">Precisa de alguém</span><span class="tag solid" style="font-size: 12px; padding: 3px 12px; margin: 0;">Assumir</span></span></span></div>
-<div class="row"><span class="avatar petrol">LM</span><span class="row-body"><span class="row-top"><b>Lívia Moraes</b><span>21:49</span></span><span class="row-text">Agendado: sex 06/11 às 10:00</span><span class="row-tags"><span class="tag petrol sm">Marcado pela IA</span></span></span></div>
-<div class="row"><span class="avatar">CD</span><span class="row-body"><span class="row-top"><b>Carla Dias</b><span>09:51</span></span><span class="row-text">Quanto custa a limpeza de pele?</span><span class="row-tags"><span class="tag sm">IA atendendo</span></span></span></div>
-<div class="row"><span class="avatar">BL</span><span class="row-body"><span class="row-top"><b>Bianca Lima</b><span>09:30</span></span><span class="row-text">[Ana] Combinado, te espero amanhã!</span><span class="row-tags"><span class="tag sunken">Com Ana</span></span></span></div>
+<p class="fine">Telas do aplicativo, com dados fictícios.</p>
 </div>
-<figcaption>
-<ul class="checks plain">
-<li><Icon name="check" size={20} /><span><strong>Quem precisa de alguém aparece primeiro.</strong> <span>Uma caixa para toda a equipe.</span></span></li>
-<li><Icon name="check" size={20} /><span><strong>Assumir e devolver.</strong> <span>Um toque e a conversa é sua. Resolveu? A automação volta a atender.</span></span></li>
-<li><Icon name="check" size={20} /><span><strong>A cliente sabe quem fala.</strong> <span>Depois de assumir, as suas mensagens saem com o seu nome: [Ana].</span></span></li>
-</ul>
-</figcaption>
-</figure>
-<figure class="duo-item">
-<div class="sched" role="img" aria-label="Ilustração da agenda de sexta com Sala 1 e Sala 2: depilação de Lívia às 10:00 na Sala 1, marcada pela IA; limpeza de pele às 09:30 na Sala 2; manutenção do aparelho bloqueia a Sala 2 às 10:40; horário livre às 11:00 na Sala 1.">
-<div class="sched-head"><b>sexta, 06/11</b><span>Dra. Paula · Lia</span></div>
-<div class="sched-grid">
-<span></span><span class="ch">Sala 1</span><span class="ch">Sala 2</span>
-<span class="hh">09:30</span><span class="cell free">Livre</span><span class="cell"><b>Limpeza de pele</b><span style="color: var(--ink-2);">Lia</span></span>
-<span class="hh">10:00</span><span class="cell booked"><b>Depilação · Axila, Meia perna</b><small>Lívia · Dra. Paula</small><b style="margin-top: 4px;">Marcado pela IA</b></span><span class="cell gap">Intervalo · 15 min</span>
-<span class="hh">10:40</span><span class="cell gap">Intervalo · 15 min</span><span class="cell blocked"><b>Bloqueado</b>Manutenção do aparelho</span>
-<span class="hh">11:00</span><span class="cell offer">Livre para oferecer</span><span class="cell free">Livre</span>
-</div>
-</div>
-<figcaption>
-<ul class="checks plain">
-<li><Icon name="check" size={20} /><span><strong>Várias áreas, um horário.</strong> <span>Axila e meia perna na mesma visita, com a soma das durações e dos preços.</span></span></li>
-<li><Icon name="check" size={20} /><span><strong>Salas, intervalo e bloqueios.</strong> <span>Cada serviço usa uma sala livre da lista dele, com preparo depois.</span></span></li>
-<li><Icon name="check" size={20} /><span><strong>Remarcar fica com vocês.</strong> <span>Remarcações e cancelamentos passam pela equipe, registrados.</span></span></li>
-</ul>
-</figcaption>
-</figure>
-</div>
+<ol class="shots plain" aria-label="Telas do aplicativo" tabindex="0">
+{shots.map((s) => (
+<li class="shot">
+<div class="phone"><Image src={s.src} alt={s.alt} widths={[280, 560]} sizes="280px" width={280} height={580} format="webp" quality={80} loading="lazy" decoding="async" /></div>
+<div class="shot-text"><h3>{s.title}</h3><p>{s.text}</p></div>
+</li>
+))}
+</ol>
+<p class="shots-hint" aria-hidden="true">Deslize para ver a conversa e a agenda.</p>
 <ul class="facts plain">
 <li><strong>Atualiza na hora.</strong> Toda a equipe vê sem recarregar.</li>
 <li><strong>No navegador do celular.</strong> Sem app de loja; avisa conversa nova.</li>

@@ -46,6 +46,15 @@ Origem: review da landing pedido pelo responsável pelo produto ([canvas do revi
 - **Em aberto (bloqueia a publicação):** número de WhatsApp do Tredane e mensagem pronta do `wa.me` (sem ele, a página não mostra o CTA de WhatsApp); como a política de privacidade trata o contato por WhatsApp; nome e foto de quem acompanha o piloto (hoje `[A DEFINIR]`); confirmar com o backend que a marcação pelo botão Confirmar funciona fora do expediente, como a história mostra (21:47, clínica fechada; a DEC-110 cobre só a passagem para a equipe). Responsável: responsável pelo produto.
 - **Mocks:** os `.dc.html` de `docs/design/landing` continuam na v7 e **desatualizados**; a referência visual desta rodada é o canvas do review e o próprio site.
 
+## Telas do aplicativo na landing (04/11/2026)
+
+Origem: pergunta do responsável pelo produto («podemos adicionar alguns screenshots do aplicativo em mobile?»), proposta no [canvas das capturas](https://claude.ai/artifact/RpZJmgb6QhNcHDFuBoDLWH) (privado) e «Sim, implementa». **Confirmado** como seção; as imagens atuais são **provisórias**.
+
+- **Onde:** o bloco «A equipe e a agenda» passa a se chamar «Do lado da equipe» e troca as ilustrações em CSS (caixa de conversas e grade da agenda) por três telas do celular em moldura: Conversas (Júlia em «Precisa de alguém», Lívia agendada), a conversa da Lívia (pergunta das 21:47, resposta automática, proposta confirmada pela cliente, Assumir conversa) e a agenda de sexta (Lívia às 10:00 na Sala 1, intervalo, bloqueio do aparelho, horário livre). No computador ficam lado a lado; no celular, em faixa horizontal com rolagem por encaixe, sem JavaScript.
+- **Imagens:** `site/src/assets/app/*.png` (560×1160), convertidas pelo Astro em WebP de cerca de 15 KB (1×) e 35 KB (2×), carregadas só ao aparecer na tela, com texto alternativo que descreve cada tela e a nota «Telas do aplicativo, com dados fictícios».
+- **Provisório:** as três imagens são desenhos das telas do painel feitos para a landing (`site/capturas/*.html`, geradas por `site/capturas/gerar.sh`), não capturas do aplicativo. Os mocks de `docs/design/mobile` **não** servem: mostram o modelo antigo de sugestão da IA (anterior à DEC-104) e usam «Lívia» como nome de profissional.
+- **Em aberto (bloqueia a publicação):** substituir pelas capturas do aplicativo real com um seed fictício próprio da landing (Clínica Aurora, Lívia Moraes, Júlia Santos, sexta 06/11), mantendo os nomes e o conteúdo descritos no texto alternativo; depois, apagar `site/capturas/`. Responsável: responsável pelo produto.
+
 ## Seções e regras de conteúdo (v7, aprovada em 24/10/2026)
 
 1. **Topo:** marca provisória, atalhos (Como funciona, IA, Agenda, Sinal; escondidos abaixo de 720px), **Entrar** e **Quero participar**.
