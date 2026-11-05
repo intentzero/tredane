@@ -79,6 +79,18 @@ Origem: pedido do responsável pelo produto («podemos aumentar o logo?», «o b
 - **Limite do movimento:** só na abertura, no Pix, em Pode confiar e no piloto; ciclos de 8 s ou mais, nunca atrás do texto; tudo para com `prefers-reduced-motion`. Só CSS, sem JavaScript nem vídeo.
 - **Medido em 05/11/2026:** `astro check` sem erros; sem rolagem horizontal em 360px; revisão visual em 1440px e 360px. axe e Lighthouse **não** foram rodados; o contraste dos textos novos foi escolhido para passar 4,5 : 1, mas não foi medido com ferramenta.
 
+## Header fixo e animações (05/11/2026)
+
+Origem: perguntas do responsável pelo produto («header sticky?», «podemos adicionar animações?») e duas rodadas de `/design` ([canvas do header](https://claude.ai/artifact/3SSipXrjat9s5opGx2mvNS) e [canvas das animações](https://claude.ai/artifact/JxopLe1MdZ637ieyhi8XTj), privados), com a escolha da opção A e «Sim, implementa tudo». **Confirmado** como comportamento do site; **substitui** o logo de 36 px da seção anterior por 32 px (28 px no celular), tamanho único para o topo e a barra fixa.
+
+- **Header fixo «Petróleo translúcido»:** fica no topo ao rolar; Petróleo sólido sobre a abertura e translúcido, com desfoque e sombra, depois dela. O botão do topo passa a Damasco. O item do menu da seção em que a pessoa está ganha um sublinhado Damasco claro. Sem encolher nem esconder ao rolar.
+- **Abertura:** título, texto, botão e celulares deslizam 18 px na carga, em sequência. Sem opacidade, para que o título nunca fique invisível.
+- **Entrada ao rolar:** títulos e cartões sobem 16 px e aparecem uma vez, ao entrar na tela, com 80 ms entre cartões.
+- **Cenas:** Na prática mostra a conversa em sequência (pergunta, resposta, toque em Confirmar, horário na agenda), com o cartão ativo contornado; Sinal Pix passa de «Aguardando sinal» a «Sinal pago · quinta 14:00 garantida». Cada cena roda uma vez.
+- **Ao toque:** botões sobem 2 px; cartões ganham sombra; o «+» das perguntas gira.
+- **Limites:** CSS mais um script de poucas linhas (`IntersectionObserver`), sem biblioteca. O CSS só esconde conteúdo depois que o script marca a página; sem script, ou com `prefers-reduced-motion`, tudo aparece pronto e parado.
+- **Medido em 05/11/2026:** `astro check` sem erros; sem rolagem horizontal em 360px; header, destaque do menu e as duas cenas conferidos em 1440px. axe e Lighthouse **não** foram rodados.
+
 ## Seções e regras de conteúdo (v7, aprovada em 24/10/2026)
 
 1. **Topo:** marca provisória, atalhos (Como funciona, IA, Agenda, Sinal; escondidos abaixo de 720px), **Entrar** e **Quero participar**.

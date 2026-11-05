@@ -319,3 +319,68 @@ svg { flex: none; }
 @media (prefers-reduced-motion: reduce) {
   .aurora i, .hero-phone, .pix::before, .panel.apricot .orb { animation: none; }
 }
+
+/* Revisão de 05/11/2026 (noite): header fixo «Petróleo translúcido» e animações com propósito.
+   O script em index.astro adiciona html.js-ready; só então o CSS esconde o que vai entrar.
+   Com prefers-reduced-motion, o script não adiciona a classe e nada se move. */
+html { scroll-padding-top: 88px; }
+.topbar { position: sticky; top: 0; z-index: 20; border-bottom: 1px solid transparent; transition: background-color .25s ease, box-shadow .25s ease, border-color .25s ease; }
+.topbar .wrap { min-height: 76px; }
+.brand img { height: 32px; }
+@media (max-width: 640px) { .topbar .wrap { min-height: 60px; } .brand img { height: 28px; } }
+.topbar.is-stuck { background: rgba(14, 90, 92, .88); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom-color: rgba(255, 255, 255, .12); box-shadow: 0 12px 30px -18px rgba(10, 58, 60, .6); }
+.topbar .btn-apricot { min-height: 44px; padding: 0 18px; font-size: 15px; }
+.topbar .nav a.is-active { color: #FFFFFF; box-shadow: inset 0 -2px 0 var(--apricot-soft); }
+
+/* Abertura: entra na carga da página */
+/* Só desliza, sem opacidade: o título é o maior elemento da primeira tela e nunca fica invisível. */
+@keyframes rise { from { transform: translateY(18px); } }
+@keyframes pop { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.hero-copy > * { animation: rise .6s cubic-bezier(.2, .7, .2, 1) both; }
+.hero-copy > :nth-child(2) { animation-delay: .08s; }
+.hero-copy > :nth-child(3) { animation-delay: .16s; }
+.hero-copy > :nth-child(4) { animation-delay: .24s; }
+.hero-copy > :nth-child(5) { animation-delay: .32s; }
+.hero-shots { animation: rise .8s .25s cubic-bezier(.2, .7, .2, 1) both; }
+
+/* Entrada ao rolar */
+.js-ready .reveal { opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .6s cubic-bezier(.2, .7, .2, 1), box-shadow .2s ease; }
+.js-ready .reveal.is-in { opacity: 1; transform: none; }
+
+/* Cena «Na prática»: a conversa acontece */
+@keyframes ring { 0%, 100% { box-shadow: 0 0 0 0 rgba(14, 90, 92, 0); } 30%, 70% { box-shadow: 0 0 0 2px var(--petrol); } }
+@keyframes ring-warm { 0%, 100% { box-shadow: 0 0 0 0 rgba(242, 181, 150, 0); } 30%, 70% { box-shadow: 0 0 0 2px var(--apricot-soft); } }
+@keyframes press { 50% { transform: scale(.94); background-color: var(--petrol-dark); } 100% { background-color: var(--petrol-dark); } }
+.js-ready .scene-pratica :is(.bubble-in, .bubble-out, .mini-proposal, .mini-slot) { opacity: 0; transform: translateY(12px); }
+.scene-pratica.play .bubble-in { animation: pop .5s .4s both; }
+.scene-pratica.play .bubble-out { animation: pop .5s 1.4s both; }
+.scene-pratica.play .mini-proposal { animation: pop .5s 2.4s both; }
+.scene-pratica.play .mini-ok { animation: press .4s 3.2s both; }
+.scene-pratica.play .mini-slot { animation: pop .5s 4s both; }
+.scene-pratica.play .story:nth-child(1) { animation: ring 1.2s .3s both; }
+.scene-pratica.play .story:nth-child(2) { animation: ring 1.2s 1.3s both; }
+.scene-pratica.play .story:nth-child(3) { animation: ring 1.4s 2.3s both; }
+.scene-pratica.play .story:nth-child(4) { animation: ring-warm 1.2s 3.9s both; }
+
+/* Cena «Sinal Pix»: do aguardando ao pago */
+@keyframes dim { to { opacity: .55; } }
+@keyframes tick { 0% { transform: scale(0); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes pulse { 50% { opacity: .35; } }
+.js-ready .scene-pix .pix-paid { opacity: 0; transform: translateY(10px); }
+.js-ready .scene-pix .pix-status .dot { animation: pulse 1.2s ease-in-out infinite; }
+.scene-pix.play .pix-status { animation: dim .6s 2s both; }
+.scene-pix.play .pix-status .dot { animation: pulse 1.2s ease-in-out 2, none; }
+.scene-pix.play .pix-paid { animation: pop .5s 2.2s both; }
+.scene-pix.play .pix-paid svg { animation: tick .5s 2.5s both; }
+
+/* Respostas ao toque */
+.btn { transition: transform .15s ease, background-color .15s ease, border-color .15s ease; }
+.btn:hover { transform: translateY(-2px); }
+.help:hover, .story:hover { box-shadow: 0 24px 48px -28px rgba(16, 24, 23, .45); }
+.faq .pm { transition: transform .2s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-copy > *, .hero-shots { animation: none; }
+  .btn:hover { transform: none; }
+  .topbar { transition: none; }
+}
