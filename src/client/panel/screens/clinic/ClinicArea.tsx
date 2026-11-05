@@ -17,6 +17,7 @@ import { useMediaQuery } from '../../ui/useMediaQuery'
 import { ResourceForm, ResourcesList } from './ResourcesScreen'
 import { ClinicHoursScreen } from './ClinicHoursScreen'
 import { ServiceForm, ServicesList } from './ServicesScreen'
+import { UnmatchedTermsCard } from './UnmatchedTermsCard'
 import { useClinicConfig } from './useClinicConfig'
 import { WhatsappScreen } from './whatsapp/WhatsappScreen'
 import { RecebimentoScreen } from './pix/RecebimentoScreen'
@@ -142,6 +143,17 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     )
   }
 
+  // DEC-141 / DEC-042: só a responsável vê e grava as sugestões de sinónimo.
+  const termsCard = isOwner ? (
+    <UnmatchedTermsCard
+      tenantId={tenantId}
+      api={api}
+      generation={generation}
+      services={snap.services}
+      onSaved={() => void reload()}
+    />
+  ) : null
+
   const body = (() => {
     switch (section) {
       case 'conferir':
@@ -199,7 +211,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
           </div>
         )
       case 'servicos':
-        return <ServicesList tenantId={tenantId} snap={snap} />
+        return <ServicesList tenantId={tenantId} snap={snap} suggestions={termsCard} />
       case 'servico': {
         const form = (
           <ServiceForm
@@ -214,7 +226,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         )
         if (!wide) return form
         overList('Serviço', 'servicos', form)
-        return <ServicesList tenantId={tenantId} snap={snap} />
+        return <ServicesList tenantId={tenantId} snap={snap} suggestions={termsCard} />
       }
       case 'recursos':
         return (

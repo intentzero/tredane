@@ -66,7 +66,8 @@
 | A-17 | P0 | Toque no horário com título mês-dia | A: [lista Horários; título «11-03 17:00»; id civil] ⟶ toque | Proposta ter 03/11 17:00; sem «qual dia?». Toque não marca. | INV-01, EF-02 | 1 | ✅ CF-32 mitigado (#505) · L1 `dialogs` A-17 · título longo em [#507](https://github.com/intentzero/tredane/issues/507) |
 | A-18 | P0 | Confirmar depois da validade | [proposta enviada] ⟶ relógio +30 min ⟶ Confirmar | Sem marcação; explica expiração; oferece ≥2 horários livres do mesmo pedido. | INV-01 | 2 | ✅ CF-33 · L1 `dialogs` A-18 · [#511](https://github.com/intentzero/tredane/issues/511) |
 | A-19 | P0 | Catálogo sem match | C: «Vocês fazem botox?» (com link Google cadastrado) | Diz o que faltou / opções; **sem** link Google; sem despejar só «equipe». | INV-02, INV-05 | 1 | ✅ CF-34 fechado (#512 / #520) · L1 `dialogs` A-19 |
-| A-20 | P0 | Verbo sem sinónimo na ficha | C: «Quero depilar» [sem sinónimo cadastrado] | Diz o que não encontrou e lista o catálogo, sem link nem serviço inventado. Comportamento vigente por DEC-110; reconhecer o verbo sem sinónimo fica **Em aberto**. | INV-05 | 1 | ✅ L1 (05/11/2026) |
+| A-20 | P0 | Verbo sem sinónimo na ficha | C: «Quero depilar» [sem sinónimo cadastrado] | Diz o que não encontrou e lista o catálogo, sem link nem serviço inventado. Comportamento vigente por DEC-110; sem derivar verbos (DEC-141); o termo vira sugestão à owner (A-21). | INV-05 | 1 | ✅ L1 (05/11/2026) |
+| A-21 | P0 | Owner grava a sugestão | C: «Quero depilar» [sem sinónimo] → owner grava «depilar» em Depilação pela sugestão do painel → C: «Quero depilar» | 1.º turno igual ao A-20 e regista o termo; a sugestão aponta Depilação; depois de gravada, pergunta a linha (feminina/masculina) sem «não encontrei». | INV-05 | 2 | ✅ L1 (05/11/2026, DEC-141) |
 
 ## B. Linguagem temporal
 

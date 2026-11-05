@@ -256,6 +256,11 @@ import {
   MIGRATION_NAME as M51_NAME,
   STATEMENTS as M51_STATEMENTS,
 } from './migrations/0051_media_ask_text'
+import {
+  MIGRATION_ID as M52_ID,
+  MIGRATION_NAME as M52_NAME,
+  STATEMENTS as M52_STATEMENTS,
+} from './migrations/0052_unmatched_terms'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -317,6 +322,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M49_ID, name: M49_NAME, statements: M49_STATEMENTS },
   { id: M50_ID, name: M50_NAME, statements: M50_STATEMENTS },
   { id: M51_ID, name: M51_NAME, statements: M51_STATEMENTS },
+  { id: M52_ID, name: M52_NAME, statements: M52_STATEMENTS },
 ]
 
 export type MigrationResult = {

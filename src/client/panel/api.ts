@@ -774,6 +774,55 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as { ok: true; id: string }
     },
 
+    /** DEC-141: termos que a assistente não reconheceu (só a responsável). */
+    async listUnmatchedTerms(tenantId: string, opts?: FetchOpts): Promise<UnmatchedTermSuggestion[]> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/unmatched-terms`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      const body = (await res.json()) as { items: UnmatchedTermSuggestion[] }
+      assertGeneration(opts)
+      return body.items
+    },
+
+    async acceptUnmatchedTerm(
+      tenantId: string,
+      termId: string,
+      serviceId: string,
+      opts?: FetchOpts,
+    ): Promise<ClinicService> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/unmatched-terms/${encodeURIComponent(termId)}/accept`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serviceId }),
+        },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as ClinicService
+    },
+
+    async dismissUnmatchedTerm(
+      tenantId: string,
+      termId: string,
+      opts?: FetchOpts,
+    ): Promise<{ ok: true; id: string }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/config/unmatched-terms/${encodeURIComponent(termId)}/dismiss`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { ok: true; id: string }
+    },
+
     async deleteResource(
       tenantId: string,
       resourceId: string,
@@ -2679,6 +2728,16 @@ export type ClinicConfigSnapshot = {
   weeklyWindows: ClinicWeeklyWindow[]
   blocks: ClinicBlock[]
   readiness: ClinicConfigReadiness
+}
+
+/** Sugestão de sinónimo a partir de um termo não reconhecido (DEC-141). */
+export type UnmatchedTermSuggestion = {
+  id: string
+  term: string
+  hits: number
+  firstSeenAt: number
+  lastSeenAt: number
+  suggestedServiceId: string | null
 }
 
 /** Resposta de GET /config/review (DEC-085; DEC-112 avisos de conversa). */

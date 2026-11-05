@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Serviços · palavras não reconhecidas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.card{background:#FFFFFF;border:1px solid #E1E3E0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.h{margin:0;font-size:16px;font-weight:600}
+.mut{margin:0;font-size:13px;color:#566160}
+.term{display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid #EEEDE7}
+.term:first-of-type{padding-top:0;border-top:0}
+.th{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.th b{font-size:15px;font-weight:600}
+.sel{display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 12px;border:1px solid #7A8584;border-radius:8px;background:#FFFFFF;font-size:16px;color:#142625;box-sizing:border-box}
+.sel.ph{color:#566160}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.btn{min-height:44px;padding:0 16px;border-radius:8px;font:inherit;font-size:14px;font-weight:500;border:1px solid #0E5A5C;background:#FFFFFF;color:#0E5A5C}
+.btn.gh{border-color:transparent;color:#424B4A}
+.btn[disabled]{border-color:#E1E3E0;color:#7A8584}
+.row{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 16px;background:#FFFFFF;border-bottom:1px solid #EEEDE7}
+.row span{flex:1;display:flex;flex-direction:column;gap:2px}
+.row b{font-size:15px;font-weight:500}
+.row small{font-size:13px;color:#566160}
+</style>
+</helmet>
+<div style="width:390px;height:844px;background:#F5F4EF;font-family:Roboto, 'Helvetica Neue', Arial, sans-serif;color:#142625;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden">
+
+  <header style="display:flex;align-items:center;gap:4px;padding:8px 8px 8px 4px;background:#F5F4EF;flex:none">
+    <a href="ClinicaPronta.dc.html" aria-label="Voltar à Clínica" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:#142625"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></a>
+    <h1 style="margin:0;font-size:18px;font-weight:600">Serviços</h1>
+  </header>
+
+  <main style="flex:1;overflow:hidden;padding:4px 0 16px;display:flex;flex-direction:column;gap:12px">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+      <span style="font-size:13px;color:#566160">3 serviços ativos</span>
+      <button class="btn" type="button" style="background:#0E5A5C;color:#FFFFFF">Adicionar serviço</button>
+    </div>
+
+    <section class="card" aria-labelledby="umt" style="margin:0 16px">
+      <h2 class="h" id="umt">Palavras que a assistente não reconheceu</h2>
+      <p class="mut">Clientes escreveram estas palavras e a assistente não achou o serviço. Grave como nome popular para ela entender da próxima vez. As clientes continuam vendo o nome do serviço.</p>
+
+      <div class="term">
+        <div class="th"><b>«depilar»</b><span class="mut">3 vezes</span></div>
+        <div class="sel" role="button" aria-label="Serviço para «depilar»: Depilação">Depilação<svg class="ic" style="width:18px;height:18px;color:#566160" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div>
+        <div class="acts">
+          <button class="btn" type="button">Gravar em Depilação</button>
+          <button class="btn gh" type="button">Descartar</button>
+        </div>
+      </div>
+
+      <div class="term">
+        <div class="th"><b>«sobrancelha»</b><span class="mut">1 vez</span></div>
+        <div class="sel ph" role="button" aria-label="Serviço para «sobrancelha»">Escolha o serviço<svg class="ic" style="width:18px;height:18px;color:#566160" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div>
+        <div class="acts">
+          <button class="btn" type="button" disabled>Gravar</button>
+          <button class="btn gh" type="button">Descartar</button>
+        </div>
+      </div>
+    </section>
+
+    <div>
+      <a class="row" href="Servico.dc.html" style="color:inherit;text-decoration:none"><span><b>Depilação</b><small>30 min · Sala Depilação</small><small>8 zonas · R$ 35 a R$ 120</small></span><svg class="ic" style="color:#7A8584" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a>
+      <a class="row" href="Servico.dc.html" style="color:inherit;text-decoration:none"><span><b>Limpeza de pele</b><small>60 min · Sala 2</small><small>R$ 150</small></span><svg class="ic" style="color:#7A8584" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a>
+      <a class="row" href="Servico.dc.html" style="color:inherit;text-decoration:none"><span><b>Massagem relaxante</b><small>50 min · Sala 1</small><small>R$ 180</small></span><svg class="ic" style="color:#7A8584" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

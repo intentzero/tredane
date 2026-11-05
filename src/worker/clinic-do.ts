@@ -2190,6 +2190,31 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return out
   }
 
+  /** DEC-141: sugestões de sinónimo (termos não reconhecidos). */
+  async listClinicUnmatchedTerms(caller: ClinicCaller) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicConfig.listUnmatchedTermsOp(this.#db, caller, this.#clock)
+  }
+
+  async acceptClinicUnmatchedTerm(caller: ClinicCaller, input: { id: string; serviceId: string }) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const row = clinicConfig.acceptUnmatchedTermOp(this.#db, caller, input, this.#clock)
+    // Sem o termo no payload: o evento vai a toda a equipe; o painel relê a config.
+    await this.#fanoutConfigEvent(caller, 'config.service_updated', 'service', row.id, {
+      name: row.name,
+      active: row.active,
+    })
+    return row
+  }
+
+  async dismissClinicUnmatchedTerm(caller: ClinicCaller, id: string) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicConfig.dismissUnmatchedTermOp(this.#db, caller, id, this.#clock)
+  }
+
   async upsertClinicResource(caller: ClinicCaller, input: UpsertResourceInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)

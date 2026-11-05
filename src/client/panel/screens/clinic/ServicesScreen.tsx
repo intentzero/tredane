@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button, Input, Label, NumberField, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components'
 import { ChevronRight, TriangleAlert } from 'lucide-react'
 import { suggestVariantKindPlural } from '../../../../clinic/catalog/variant-kind'
@@ -127,9 +127,11 @@ function serviceDraftKey(input: ServiceDraftKeyInput): string {
 type ListProps = {
   tenantId: string
   snap: ClinicConfigSnapshot
+  /** Só a responsável: palavras não reconhecidas → sinónimo (DEC-141). */
+  suggestions?: ReactNode
 }
 
-export function ServicesList({ tenantId, snap }: ListProps) {
+export function ServicesList({ tenantId, snap, suggestions }: ListProps) {
   const [showInactive, setShowInactive] = useState(false)
   const inactiveCount = snap.services.filter((s) => !s.active).length
   const activeCount = snap.services.length - inactiveCount
@@ -162,6 +164,7 @@ export function ServicesList({ tenantId, snap }: ListProps) {
           })
         }
       />
+      {suggestions ?? null}
       <ul className="clinic-nav-list">
         {items.map((svc) => {
           const row = serviceRow(snap, svc)

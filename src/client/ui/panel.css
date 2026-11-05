@@ -9643,3 +9643,39 @@
 .equipe-cta .panel-btn-primary {
   width: 100%;
 }
+
+/* DEC-141 — palavras não reconhecidas → sinónimo (lista de Serviços, só owner). */
+.unmatched-terms-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.unmatched-term {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--size-border-width) solid var(--color-line-border);
+}
+
+.unmatched-term:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.unmatched-term-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.unmatched-term-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
