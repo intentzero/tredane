@@ -1,6 +1,6 @@
 /**
  * TEL-09 WhatsApp — M-19 / M-23 / M-24 / M-25 / M-26 (#31 / DEC-009 / REQ-051).
- * Embedded Signup: modo synthetic (fixtures) até gates Meta (#18).
+ * Embedded Signup: synthetic (fixtures) em META_MODE≠live; live = FB SDK v4.
  */
 import { ChevronLeft, History, Repeat, Unplug } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -19,6 +19,10 @@ import {
   templateStatus,
   templateTitle,
 } from './format'
+import {
+  EmbeddedSignupError,
+  launchWhatsAppEmbeddedSignup,
+} from './embeddedSignup'
 import { useWhatsapp } from './useWhatsapp'
 import { isStagingHostname, WhatsappDevSyncAction } from './WhatsappDevSyncAction'
 import { friendlyError, friendlyReason } from '../../../copy/errors'
@@ -54,11 +58,37 @@ async function runEmbeddedSignup(
   })
 
   if (session.metaMode === 'live') {
-    // Live: o cliente deve carregar FB SDK + config_id; até App Review usamos synthetic.
-    throw new PanelApiError(
-      501,
-      'unknown',
-      'A conexão com o WhatsApp ainda não está liberada para esta clínica. Fale com o suporte do Tredane.',
+    if (!session.metaAppId || !session.metaConfigId) {
+      throw new PanelApiError(
+        501,
+        'unknown',
+        'A conexão com o WhatsApp ainda não está configurada. Fale com o suporte do Tredane.',
+      )
+    }
+    let launched
+    try {
+      launched = await launchWhatsAppEmbeddedSignup({
+        appId: session.metaAppId,
+        configId: session.metaConfigId,
+        graphApiVersion: session.graphApiVersion,
+      })
+    } catch (err) {
+      if (err instanceof EmbeddedSignupError) {
+        throw new PanelApiError(400, 'unknown', err.message)
+      }
+      throw err
+    }
+    return api.completeWhatsappSignup(
+      tenantId,
+      {
+        state: session.state,
+        code: launched.code,
+        phoneNumberId: launched.phoneNumberId,
+        wabaId: launched.wabaId,
+        displayPhone: launched.displayPhone,
+        displayName: launched.displayName,
+      },
+      { generation, expectGeneration: () => generation },
     )
   }
 
