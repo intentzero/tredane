@@ -439,13 +439,6 @@ function sendDeterministicOutbound(
   }
 }
 
-type PreparedAgendar = {
-  params: NfmReplyParams
-  bound: { date: string; time: string }
-  serviceName: string
-  variantIds: string[] | null
-}
-
 /**
  * Skip C16 só mid-flight / redelivery — nunca «para sempre» na conversa (F1 #556).
  * - Mesmo `providerEventKey` já tem `flow-ack:…` (reentrega do webhook).
