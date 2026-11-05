@@ -34,16 +34,22 @@ export type SensitiveHit = {
 export const WANTS_HUMAN_RE =
   /\b(falar com (a )?(equipe|equipa|algu[eé]m|uma pessoa|atendente)|quero (uma )?pessoa|atendimento humano)\b/i
 
-/** Pedido para parar mensagens (DEC-114). */
+/**
+ * Pedido para parar mensagens (DEC-114). Singular e plural (CF-37, sonda L4 05/11/2026):
+ * «parem de me mandar mensagens», «parem de mandar mensagens automáticas»,
+ * «não quero receber mensagens», «não me mandem mais», «chega de mensagens».
+ */
 export const STOP_MESSAGES_RE =
-  /\b(pare\s+de\s+me\s+mandar\s+mensagem|n[aã]o\s+quero\s+mais\s+mensagens|para\s+de\s+mandar)\b/i
+  /\b(par(?:e|em|a|ar)\s+de\s+(?:me\s+)?(?:mandar|enviar)\b|n[aã]o\s+(?:quero|queria)\s+(?:mais\s+)?(?:receber\s+)?(?:mais\s+)?mensage(?:m|ns)\b|n[aã]o\s+me\s+(?:mande|mandem|envie|enviem)\s+mais\b|chega\s+de\s+mensage(?:m|ns)\b)/i
 
 /**
  * Transparência sobre IA (DEC-115). Antes da injeção fraca «você é atendente».
  * Não cobre elogio («ótima atendente»).
  */
 export const AI_TRANSPARENCY_RE =
-  /\b([eé]\s+rob[oô]\b|estou\s+falando\s+com\s+(uma\s+)?pessoa|voc[eê]\s+[eé]\s+(a\s+)?atendente|(atendente|pessoa).{0,20}rob[oô]|rob[oô].{0,20}(atendente|pessoa))\b/i
+  // Fronteiras Unicode explícitas: sem `u`, `\b` trata «é»/«ô» como não-letra e
+  // «é robô?» nunca casava (sonda L4 05/11/2026).
+  /(?<![\p{L}\p{N}])(?:[eé]\s+(?:um\s+)?(?:rob[oô]|bot)|estou\s+falando\s+com\s+(?:uma\s+)?pessoa|voc[eê]\s+[eé]\s+(?:a\s+)?atendente|(?:atendente|pessoa).{0,20}rob[oô]|rob[oô].{0,20}(?:atendente|pessoa))(?![\p{L}\p{N}])/iu
 
 export { HEALTH_RE, OFFENSE_RE }
 

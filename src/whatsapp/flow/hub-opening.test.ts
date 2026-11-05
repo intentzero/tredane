@@ -63,6 +63,54 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
     ).toBe(false)
   })
 
+  it('CF-36: variante citada não abre o hub (sonda L4 05/11)', () => {
+    const zone = (id: string, name: string, audience: 'feminino' | 'ambos' = 'ambos') => ({
+      id,
+      tenantId: 't',
+      serviceId: 's',
+      name,
+      durationMinutes: 60,
+      priceCents: 20000,
+      audience,
+      active: true,
+      sortOrder: 0,
+      synonyms: [] as string[],
+    })
+    // Como na clínica de teste do staging: sem sinónimos na ficha.
+    const services = [
+      {
+        id: 'svc_dep',
+        name: 'Depilação',
+        active: true,
+        synonyms: [] as string[],
+        zones: [zone('z_ax', 'Axila', 'feminino'), zone('z_pe', 'Pernas', 'feminino')],
+      },
+      {
+        id: 'svc_mas',
+        name: 'Massagem',
+        active: true,
+        synonyms: [] as string[],
+        zones: [
+          zone('z_ve', 'Ventosaterapia'),
+          zone('z_dr', 'Drenagem linfática'),
+          zone('z_re', 'Massagem relaxante'),
+        ],
+      },
+    ]
+    for (const turnText of [
+      'Oi, quero fazer uma drenagem linfática',
+      'queria uma ventosaterapia',
+      'Quero uma drenagem linfática amanhã às 3',
+    ]) {
+      expect(shouldOfferHubOpening({ turnText, services }), turnText).toBe(false)
+    }
+    // Continuam a abrir o hub. «Quero depilar» sem sinónimo na ficha também (DEC-110 / #509:
+    // não inventa o match); com o sinónimo, o teste acima já cobre o caminho directo.
+    for (const turnText of ['Oi', 'quero marcar', 'Quero agendar um horário', 'Quero depilar']) {
+      expect(shouldOfferHubOpening({ turnText, services }), turnText).toBe(true)
+    }
+  })
+
   const HOURS_BODY =
     'Olá! Aqui é a Clínica Aurora. Hoje funcionamos das 09:00 às 18:00. O que você precisa?'
   const CLOSED_FRAMING = /Já estamos fechados|Ainda não abrimos|Posso ajudar a agendar mesmo assim/

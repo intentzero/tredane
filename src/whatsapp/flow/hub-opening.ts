@@ -11,6 +11,7 @@ import { listServices } from '../../clinic/config/services'
 import { ensureClinicSettings } from '../../clinic/config/settings'
 import { textCitesSynonym } from '../../clinic/config/synonyms'
 import type { ServiceRow } from '../../clinic/config/types'
+import { extractServices } from '../../clinic/ai/autobook'
 import { citesServiceName } from '../../clinic/ai/schedule-choice'
 import {
   formatClinicTime,
@@ -41,6 +42,8 @@ export type HubServiceHint = {
   name: string
   active: boolean
   synonyms?: string[] | null
+  /** Variantes (DEC-078/079). Presentes em `ServiceRow`: o gate usa o matcher do funil. */
+  zones?: ServiceRow['zones']
 }
 
 function weekdayOf(civilDate: string): number {
@@ -62,7 +65,15 @@ function namedBookableServices(services: HubServiceHint[], text: string): HubSer
     (s.synonyms ?? []).some((syn) => textCitesSynonym(text, syn)),
   )
   if (bySynonym.length > 0) return bySynonym
-  return active.filter((s) => citesServiceName(text, s.name))
+  const fuzzy = active.filter((s) => citesServiceName(text, s.name))
+  if (fuzzy.length > 0) return fuzzy
+  // CF-36 (sonda L4 05/11/2026): variante citada sem o nome do serviço
+  // («drenagem linfática», «ventosaterapia») — mesmo resolver do funil.
+  if (active.length > 0 && active.every((s) => Array.isArray(s.zones))) {
+    const ids = new Set(extractServices(text, active as ServiceRow[]).map((s) => s.id))
+    return active.filter((s) => ids.has(s.id))
+  }
+  return []
 }
 
 /**

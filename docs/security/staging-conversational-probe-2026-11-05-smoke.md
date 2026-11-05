@@ -32,7 +32,7 @@
 | A-02 | «Oi, quero fazer uma drenagem linfática» · «amanhã» · «acho que 15h15 tá ótimo» | (1) Abertura do hub, sem o serviço → **CF-36**. (2) «Nesse horário das 14:00 já não tenho vaga. Tenho 15:15, 15:30, 15:45.»: herdou as 14:00 de um turno anterior, sem dia nem serviço → **CF-39**. (3) «Olá! O que você precisa?» → **CF-35** | 6,9 / 11,0 / 11,3 s | **Desalinhado** | A-02, C-01 |
 | S1c | Flow aberto a partir do «Olá!» do CF-35 | O Flow recomeça no hub (o contexto da massagem perde-se) e aparece o aviso «Esse horário já não está livre. Escolha outro.» | — | **Desalinhado — CF-41** | EE-02 |
 | A-09 | «Oi» · «queria uma ventosaterapia» · «sábado às 10h» em menos de 7 s | Uma só saída ✓, mas é «Olá! O que você precisa?» | 14,3 s | **Parcial:** INV-09 ok, EF-01 ✗ (CF-36/CF-35) | A-09 |
-| A-14 | «Quero depilar» | Abertura do hub, sem perguntar a linha | 10,4 s | **Desalinhado — CF-36** | A-14 |
+| A-14 | «Quero depilar» | Abertura do hub, sem perguntar a linha | 10,4 s | **Desalinhado por configuração:** a ficha da Depilação na clínica de teste não tem o sinónimo «depilar»; sem ele o sistema não infere o match, por desenho (DEC-110 / #509) | A-14 |
 | A-03/A-16 | «depilação feminina» → «axilas e pernas» → **Sim** | Zonas só da linha feminina, sem preço ✓ → eco «Entendi: Axila e Pernas. Certo?» [Sim][Corrigir] ✓ → o Sim salta Horários e propõe **hoje 15:00**, que a cliente não pediu (30 min, Gi, R$ 170 ✓) | 16,9 / 17,3 / 11,0 s | **Parcial — CF-39** (proposta num horário não pedido); a pergunta das zonas vem em texto com o botão «Falar com a equipe», não na lista «Opções» | A-03, A-16, DEC-137 |
 | F-05 | «Alterar detalhes» na proposta | «Vou pedir para a equipe continuar daqui. A equipe responde a partir de quinta às 09:00.» IA pausada; painel «Precisa de alguém» ao vivo | 13,3 s | **Alinhado com a especificação**; a cópia diz «quinta» quando hoje é quinta → **CF-40** | F-05, DEC-113 |
 | B-05 | «Quero uma drenagem linfática amanhã às 3» → «Massagem drenagem amanhã às 3» → «sim» | (1) Abertura do hub → CF-36. (2) «Você quis dizer 15:00, à tarde?» ✓, mas sem botão Sim. (3) «Olá! O que você precisa?» → CF-35 | 12,3 / 12,8 / 16,4 s | **Parcial:** nunca 03:00 ✓; continuação ✗ | B-05 |
@@ -58,7 +58,7 @@
 | ID | Prioridade | Achado | Evidência / hipótese |
 | --- | --- | --- | --- |
 | CF-35 | **P0** | A troca da lista M5 pelo Flow descarta o corpo determinístico. Quando a resposta traz uma lista do funil, `maybeReplaceM5WithFlow` (`src/clinic/ai/choice-offer.ts`) devolve `body: offered.body`, que é o genérico `FLOW_COPY.openBody` «Olá! O que você precisa?». A mensagem útil (vaga ocupada + alternativas, catálogo sem match, eco, etc.) perde-se, e o painel grava o mesmo «Olá!». | Observado em D-01 (2×), C-01, D-03, B-05 (continuação), DEC-107, DEC-115 e F-07. A ligação ao código é **hipótese forte**: só as respostas em texto sem lista (B-09, B-10, «amanhã») chegaram inteiras. Correção provável: manter `input.replyBody` e só trocar o interativo. Para DEC-107/115 é preciso confirmar se essas frases levavam lista. |
-| CF-36 | **P0** | O gate do hub (`shouldOfferHubOpening`, `src/whatsapp/flow/hub-opening.ts`) só reconhece o **nome** do serviço, não as variantes («drenagem linfática», «ventosaterapia») nem o verbo «depilar». Com «quero» e até 80 caracteres o pedido é tratado como vago, e um pedido completo recebe só a abertura do hub. | A-02, A-09, A-14 e B-05 (1.ª mensagem). Regride A-14 (CF-29) no caminho do hub. |
+| CF-36 | **P0** | O gate do hub (`shouldOfferHubOpening`, `src/whatsapp/flow/hub-opening.ts`) só reconhece o **nome** do serviço (e sinónimos), não as variantes («drenagem linfática», «ventosaterapia»). Com «quero» e até 80 caracteres o pedido é tratado como vago, e um pedido completo recebe só a abertura do hub. | A-02, A-09 e B-05 (1.ª mensagem). O A-14 é configuração (ver acima). |
 | CF-37 | **P0** | `STOP_MESSAGES_RE` (`src/clinic/ai/nlu/sensitive.ts`) não apanha «**parem** de … mensagens» nem «parem de mandar mensagens automáticas». A IA continua ativa e responde (viola DEC-114). | F-07, duas vezes. A L1 só cobre «Pare de me mandar mensagem». |
 | CF-38 | P1 | **Latência:** p50 12,6 s e p95 17,6 s percebidos (n = 30, mínimo 6,9 s; nenhum turno ≤ 5 s). No S1 o painel tinha a resposta aos 2,7 s, mas o WhatsApp só a recebeu aos 8 s, e «a escrever» saiu aos 6,5 s (DEC-111 pede logo). Turnos com modelo (preço, fallback, zonas) ficam em 16–19 s. | Tail + observadores. Componentes `latencyMs` **não medidos** (o `ai.turn_decided` não chega ao tail). |
 | CF-39 | P1 | Contexto/horário não pedido. «amanhã» herda a hora de um pedido anterior e responde sem dia nem serviço; o **Sim** do eco (DEC-137) salta Horários e propõe um horário que a cliente não deu. | A-02 (2.º turno), A-03/A-16. |
@@ -90,9 +90,17 @@
 - O handoff explícito (G-01) é rápido, não se repete e o painel marca «Precisa de alguém» em tempo real.
 - O cancelamento feito pelo painel avisa a cliente e reverte a etapa.
 
+## Correções (branch `claude/trendane-smoke-test-709b97`, aguardam nova sonda L4)
+
+- **CF-35:** `maybeReplaceM5WithFlow` (`src/whatsapp/flow/offer-live.ts`) mantém a resposta do turno como corpo e passa-a ao preparador do Flow; troca só o interativo.
+- **CF-36:** o gate do hub usa o `extractServices` do funil, que resolve as variantes.
+- **CF-37:** `STOP_MESSAGES_RE` cobre o plural e variantes («parem de…», «não quero receber mensagens», «não me mandem mais», «chega de mensagens»).
+- **G-03 (achado na correção):** `AI_TRANSPARENCY_RE` não casava «Você é um robô?» porque `\b` sem flag `u` trata «é»/«ô» como não-letra; reescrito com fronteiras Unicode.
+- Testes: unitários + L1 F-07b e G-03b; `npm test` 1888 verdes, `test:dialogs` 102 verdes, `tsc` e `eslint` limpos.
+
 ## Residual e recomendação
 
-1. **Corrigir CF-35, CF-36 e CF-37 antes de outra sonda L4.** São três correções pequenas e isoladas, com casos L1 novos: frases variantes do pedido, «parem» no plural, e a troca M5→Flow a preservar o corpo.
+1. Fazer deploy da branch com CF-35/36/37 e repetir esta sonda (D-01, A-02, A-09, D-03, F-07, G-03, DEC-107). Na clínica de teste, acrescentar o sinónimo «depilar» à Depilação para o A-14.
 2. Instrumentar o `ai.turn_decided` num log consultável (ou no tail) para separar debounce, modelo e envio, e investigar os ~5 s entre a decisão e a entrega (CF-38).
 3. Rever o CF-39 com a DEC-137: o **Sim** deve abrir Horários, não propor.
 4. Confirmar com o Paulo se Cancelar pelo hub deve ser self-service ou handoff (**Em aberto**).
