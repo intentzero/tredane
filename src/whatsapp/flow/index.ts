@@ -9,6 +9,7 @@ export {
 } from './copy'
 export {
   shouldOfferHubOpening,
+  isHubGreetingText,
   hubOpeningBody,
   todayClosingHourLabel,
   hubMeusBody,

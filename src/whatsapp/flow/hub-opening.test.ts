@@ -140,7 +140,8 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
         { conversationId: s.conversationId, messageId: msgId },
         s.clock,
       )
-      s.clock.advance(7_000)
+      // Opção C: cumprimento do hub usa debounce curto (300 ms), não 7 s.
+      s.clock.advance(300)
 
       const prepare: PrepareBookingFlowOffer = async (input) => ({
         body: input.body ?? FLOW_COPY.openBody,
