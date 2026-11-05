@@ -596,12 +596,18 @@ export async function tryAiAutoBook(
   const clientTurn: Msg[] = []
   let prevClinic: Msg | null = null
   const older: Msg[] = []
+  // Flow nfm two-phase (#556): C16 ack is outbound *before* tryAiAutoBook.
+  // Without this, "clinic spoke last" → not_confirmed → C16b (fumo 04/11/2026).
+  const syntheticTurn = Boolean(input.turnTextOverride?.trim() || input.boundSlot)
   for (const m of recent) {
     if (!prevClinic) {
       if (m.direction === 'inbound') {
         clientTurn.push(m)
       } else if (clientTurn.length > 0) {
         prevClinic = m
+      } else if (syntheticTurn) {
+        // Skip leading outbound (C16 / typing residue) until the client action.
+        continue
       } else {
         return finish(none('not_confirmed')) // a clínica falou por último
       }
