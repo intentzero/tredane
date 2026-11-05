@@ -189,10 +189,12 @@ export function flowVisitTotalLine(input: {
 }
 
 /**
- * Serviço a pré-selecionar no dropdown de entrada.
+ * Serviço a pré-selecionar no RadioButtonsGroup de SERVICO.
  * Um só agendável, ou o id que o turno já gravou e que continua na lista.
- * O JSON liga isto em `Form.init-values.service_id` (não em `Dropdown.init-value`,
- * ilegal dentro de Form). String vazia = a cliente ainda escolhe. Não grava id falso.
+ * O JSON liga isto em `Form.init-values.service_id` (não em `init-value` no
+ * componente, ilegal dentro de Form). String vazia = rádios sem selecção
+ * (`required: true` + corpo PT); não inventa o primeiro da lista.
+ * RadioButtonsGroup não tem o microcopy Meta «Enter {label}» do Dropdown.
  */
 export function prefillServiceId(
   services: readonly FlowCatalogService[],
@@ -385,7 +387,9 @@ export function nextFlowScreen(input: {
   if (services.length === 0) {
     return { kind: 'chat_fallback', reason: 'no_bookable_services' }
   }
-  if (services.length > 200) {
+  // RadioButtonsGroup em SERVICO: teto Meta = FLOW_MAX_RADIO (20).
+  // Catálogos maiores → chat; Dropdown com «Enter {label}» ficou de fora de propósito.
+  if (services.length > FLOW_MAX_RADIO) {
     return { kind: 'chat_fallback', reason: 'too_many_services' }
   }
 
@@ -399,9 +403,9 @@ export function nextFlowScreen(input: {
       service = services[0]!
       serviceId = service.id
     } else {
-      // JSON publicado: Dropdown em SERVICO (body, services, service_init,
-      // error_message). `service_init` alimenta Form.init-values.service_id.
-      // Dropdown dentro de Form não aceita init-value (validador Meta).
+      // JSON publicado: RadioButtonsGroup em SERVICO (body, services,
+      // service_init, error_message). `service_init` alimenta
+      // Form.init-values.service_id; vazio = sem pré-selecção.
       return {
         screen: 'SERVICO',
         data: screenData(serviceScreenFields(services, input.frame), input.errorMessage),

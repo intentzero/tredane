@@ -119,7 +119,7 @@
             },
             "children": [
               {
-                "type": "Dropdown",
+                "type": "RadioButtonsGroup",
                 "label": "Serviço",
                 "name": "service_id",
                 "required": true,
