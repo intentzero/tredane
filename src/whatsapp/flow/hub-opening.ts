@@ -1,7 +1,8 @@
 /**
  * Abertura do hub Flow + frases Meus / Informações (TR-306).
  * Copy **Confirmada** (Paulo, 04/11/2026, DEC-104).
- * Fora do expediente: opção A (Paulo, 04/11/2026) — «Já estamos fechados…».
+ * Horário na abertura (Paulo, 05/11/2026): uma frase com o expediente de hoje,
+ * dentro ou fora da janela. A frase «Já estamos fechados…» (opção A, 04/11) fica revogada.
  * Relógio da clínica; sem rótulo IANA. Confirmar continua no chat (DEC-061).
  */
 import type { Clock } from '../../db/clock'
@@ -93,15 +94,25 @@ export function shouldOfferHubOpening(input: {
 }
 
 export type ClinicTodayOpenState = {
-  /** HH:MM de fecho da janela actual (ou da última do dia se fechado); null sem janela. */
+  /** HH:MM da primeira abertura de hoje; null sem início válido. */
+  opensAt: string | null
+  /** HH:MM do último fecho de hoje; null sem fim válido. */
   closesAt: string | null
-  /** Relógio local da clínica: dentro de alguma janela de hoje. */
+  /** Relógio local da clínica: dentro de alguma janela de hoje. Não escolhe a frase. */
   openNow: boolean
+}
+
+/** HH:MM no relógio da clínica. Sem rótulo de fuso. */
+function formatClinicHm(minute: number): string {
+  const hh = String(Math.floor(minute / 60)).padStart(2, '0')
+  const mm = String(minute % 60).padStart(2, '0')
+  return `${hh}:${mm}`
 }
 
 /**
  * Expediente de hoje no relógio da clínica (sem rótulo IANA).
- * Preferir a janela que contém «agora»; senão a última do dia (fechado / ainda por abrir).
+ * `{abre}` é a primeira abertura e `{fecho}` o último fecho do dia
+ * (união das janelas efectivas). O mesmo par dentro ou fora da janela.
  */
 export function clinicTodayOpenState(
   db: ClinicDb,
@@ -114,7 +125,7 @@ export function clinicTodayOpenState(
   const today = clinicCivilDateFromUtc(tz, now)
   const dow = weekdayOf(today)
   const windows = listEffectiveWeeklyWindows(db, tenantId).filter((w) => w.dayOfWeek === dow)
-  if (windows.length === 0) return { closesAt: null, openNow: false }
+  if (windows.length === 0) return { opensAt: null, closesAt: null, openNow: false }
   const minute = (() => {
     const label = new Intl.DateTimeFormat('en-GB', {
       timeZone: tz,
@@ -125,12 +136,18 @@ export function clinicTodayOpenState(
     const [hh, mm] = label.split(':').map(Number) as [number, number]
     return hh * 60 + mm
   })()
-  const covering = windows.find((w) => w.startMinute <= minute && minute < w.endMinute)
-  const end = covering?.endMinute ?? Math.max(...windows.map((w) => w.endMinute))
-  if (!Number.isFinite(end) || end <= 0) return { closesAt: null, openNow: false }
-  const hh = String(Math.floor(end / 60)).padStart(2, '0')
-  const mm = String(end % 60).padStart(2, '0')
-  return { closesAt: `${hh}:${mm}`, openNow: covering != null }
+  const openNow = windows.some((w) => w.startMinute <= minute && minute < w.endMinute)
+  const starts = windows
+    .map((w) => w.startMinute)
+    .filter((m) => Number.isFinite(m) && m >= 0 && m < 24 * 60)
+  const ends = windows
+    .map((w) => w.endMinute)
+    .filter((m) => Number.isFinite(m) && m > 0 && m <= 24 * 60)
+  return {
+    opensAt: starts.length > 0 ? formatClinicHm(Math.min(...starts)) : null,
+    closesAt: ends.length > 0 ? formatClinicHm(Math.max(...ends)) : null,
+    openNow,
+  }
 }
 
 /** Hora de fecho de hoje no relógio da clínica, ou null se sem janela. */
@@ -147,22 +164,32 @@ export function isClinicOpenNow(db: ClinicDb, tenantId: string, clock: Clock): b
   return clinicTodayOpenState(db, tenantId, clock).openNow
 }
 
+function knownBound(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
 /**
- * C1h Confirmado — corpo da mensagem com CTA Abrir opções.
- * Fora do expediente (Paulo A, 04/11/2026): «Já estamos fechados…»; sem próxima abertura.
- * Sem `closesAt`: só o nome (como hoje).
+ * C1h — corpo da mensagem com CTA Abrir opções.
+ * Paulo, 05/11/2026: uma frase, dentro ou fora da janela. Sem «fechados»,
+ * «ainda não abrimos» ou «agendar mesmo assim». Sem horas: nome e a pergunta.
+ * Um só limite conhecido entra na frase; o outro não é inventado.
  */
 export function hubOpeningBody(
   clinicName: string | null | undefined,
-  closesAt: string | null,
-  openNow = true,
+  hours: { opensAt: string | null; closesAt: string | null } | null | undefined,
 ): string {
   const name = clinicName?.trim() || 'clínica'
+  const opensAt = knownBound(hours?.opensAt)
+  const closesAt = knownBound(hours?.closesAt)
+  if (opensAt && closesAt) {
+    return `Olá! Aqui é a ${name}. Hoje funcionamos das ${opensAt} às ${closesAt}. O que você precisa?`
+  }
+  if (opensAt) {
+    return `Olá! Aqui é a ${name}. Hoje funcionamos a partir das ${opensAt}. O que você precisa?`
+  }
   if (closesAt) {
-    if (openNow) {
-      return `Olá! Aqui é a ${name}. Hoje atendemos até às ${closesAt}. O que você precisa?`
-    }
-    return `Olá! Aqui é a ${name}. Já estamos fechados (hoje até às ${closesAt}). Posso ajudar a agendar mesmo assim?`
+    return `Olá! Aqui é a ${name}. Hoje funcionamos até às ${closesAt}. O que você precisa?`
   }
   return `Olá! Aqui é a ${name}. O que você precisa?`
 }

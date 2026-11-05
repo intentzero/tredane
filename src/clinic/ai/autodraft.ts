@@ -734,7 +734,7 @@ export async function runDueAutoDrafts(
         let replyOutbox: OutboxRow[] = []
         try {
           const hours = clinicTodayOpenState(db, tenantId, clock)
-          const body = hubOpeningBody(deps.clinicName, hours.closesAt, hours.openNow)
+          const body = hubOpeningBody(deps.clinicName, hours)
           const offered = await deps.prepareBookingFlowOffer({
             tenantId,
             conversationId: job.conversationId,
