@@ -7,6 +7,8 @@
  *
  * Hub (C1h / C2h / HUB-* / Meus / Informações): **Confirmado**
  * (Paulo, 04/11/2026, DEC-104 — aceite do pacote hub).
+ * C1h fora do expediente (Paulo A, 04/11/2026): «Já estamos fechados (hoje até às {fecho})…»;
+ * próxima abertura (opção B) adiada. CTA Abrir opções inalterado.
  * Título «Agendar» Confirmado pelo Paulo para o HUB (excepção explícita ao jargão INV-05 do painel).
  */
 export const FLOW_COPY = {
