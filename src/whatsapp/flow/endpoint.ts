@@ -516,6 +516,8 @@ export async function handleFlowDataRequest(input: {
     slots: looked.slots,
     visitTotalLine: looked.visitTotalLine,
     errorMessage: mismatchMessage(looked),
+    // O salto tem de existir no routing_model a partir do ecrã submetido.
+    ...(parsed.action === 'data_exchange' && parsed.screen ? { from: parsed.screen } : {}),
   })
 
   if ('kind' in next && next.kind === 'ready') {

@@ -381,7 +381,8 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
     ])
     expect(response.data.error_message).toBe('')
 
-    // Agendar a partir do HUB → GENERO (serviço já na sessão).
+    // Agendar a partir do HUB → SERVICO pré-marcado (o routing_model só permite HUB→SERVICO),
+    // mesmo com o serviço já na sessão.
     const exchange = await encryptFlowRequestForTest(pair.publicKey, {
       version: '3.0',
       action: 'data_exchange',
@@ -413,8 +414,9 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
       exDec.aesKey,
       exDec.iv,
       exResult.body,
-    )) as { screen: string }
-    expect(exResp.screen).toBe('GENERO')
+    )) as { screen: string; data: { service_init?: string } }
+    expect(exResp.screen).toBe('SERVICO')
+    expect(exResp.data.service_init).toBeTruthy()
   })
 
   it('HUB Remarcar → SUCCESS com hub_action (stub DEC-091)', async () => {

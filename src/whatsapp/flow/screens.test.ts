@@ -667,3 +667,71 @@ describe('booking-flow.json (contrato a republicar na Meta)', () => {
     expect(example).not.toMatch(/Todas escolhe/)
   })
 })
+
+describe('saltos dentro do routing_model publicado (sonda staging 06/11/2026)', () => {
+  const routing = (
+    JSON.parse(readFileSync(new URL('./booking-flow.json', import.meta.url), 'utf8')) as {
+      routing_model: Record<string, string[]>
+    }
+  ).routing_model
+  const slots = [{ id: '2026-11-07T09:00', date: '2026-11-07', time: '09:00' }]
+  const frames = [
+    { serviceId: null, line: null, variantIds: null, slotKey: null },
+    { serviceId: 'svc_dep', line: null, variantIds: null, slotKey: null },
+    { serviceId: 'svc_dep', line: 'feminino' as const, variantIds: null, slotKey: null },
+    { serviceId: 'svc_dep', line: 'feminino' as const, variantIds: ['z_ax_f', 'z_pe_f'], slotKey: null },
+    { serviceId: 'svc_limp', line: null, variantIds: null, slotKey: null },
+  ]
+  const catalogs = [[depilacao, limpeza], [depilacao]]
+
+  it('HUB → Agendar com serviço, linha e zonas no quadro devolve SERVICO pré-marcado', () => {
+    const next = nextFlowScreen({
+      catalog: [depilacao, limpeza],
+      frame: frames[3]!,
+      slots,
+      from: 'HUB',
+    })
+    expect('screen' in next && next.screen).toBe('SERVICO')
+    expect('screen' in next && next.data.service_init).toBe('svc_dep')
+  })
+
+  // Quadro coerente com uma submissão válida do ecrã: SERVICO grava o serviço, GENERO a linha,
+  // VARIANTES as zonas. Quadros que perderam campos a meio (catálogo mudou) ficam fora daqui.
+  const consistentWith = (
+    from: string,
+    frame: (typeof frames)[number],
+    catalog: FlowCatalogService[],
+  ): boolean => {
+    if (from === 'HUB') return true
+    if (!frame.serviceId || !catalog.some((c) => c.id === frame.serviceId)) return false
+    if (from === 'GENERO') return frame.line != null
+    if (from === 'VARIANTES') return (frame.variantIds?.length ?? 0) > 0
+    if (from === 'HORARIO') {
+      return (frame.variantIds?.length ?? 0) > 0 || frame.serviceId === limpeza.id
+    }
+    return true
+  }
+
+  it('o ecrã devolvido existe nas arestas do ecrã submetido', () => {
+    for (const from of Object.keys(routing)) {
+      for (const catalog of catalogs) {
+        for (const frame of frames.filter((f) => consistentWith(from, f, catalog))) {
+          const next = nextFlowScreen({
+            catalog,
+            frame,
+            slots,
+            from: from as Parameters<typeof nextFlowScreen>[0]['from'],
+          })
+          if (!('screen' in next)) continue
+          // Repetir o mesmo ecrã (com erro) também é aceite.
+          const allowed = [...routing[from]!, from]
+          expect({ from, to: next.screen, ok: allowed.includes(next.screen) }).toEqual({
+            from,
+            to: next.screen,
+            ok: true,
+          })
+        }
+      }
+    }
+  })
+})
