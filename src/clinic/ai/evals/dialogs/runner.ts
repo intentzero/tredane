@@ -20,6 +20,7 @@ import {
   type DamageRequest,
 } from './damage'
 import { bootDialogScenario, DIALOG_TZ, type DialogScenario } from './scenario'
+import { createFlowHarness, type FlowPath, type FlowRunTrace } from './flow-driver'
 
 export type DialogMediaKind = 'audio' | 'image' | 'document'
 
@@ -46,6 +47,13 @@ export type DialogTurn =
   | { role: 'proposal_sent' }
   /** Clique Confirmar na proposta aberta mais recente (DEC-061). */
   | { role: 'confirm_proposal' }
+  /**
+   * Família FL- (ADR-0016 §11.1): a cliente toca «Abrir opções» no último CTA de Flow,
+   * percorre os ecrãs pelo endpoint real e fecha (nfm_reply). Exige `flow: true` no caso.
+   */
+  | { role: 'flow'; path: FlowPath }
+  /** Segundo fecho com o mesmo token (reabrir/fechar de novo, ou webhook a outro receipt). */
+  | { role: 'flow_again' }
 
 export type { DamageMetrics, DamageRequest }
 export { APPOINTMENT_PROPOSAL_VALIDITY_MS }
@@ -80,6 +88,11 @@ export type DialogCase = {
   /** Relógio do cenário (ex. G-10 sábado 17:00). */
   nowMs?: number
   /**
+   * Liga o WhatsApp Flow + hub (DEC-138 / ADR-0016): o autodraft e o toque recebem
+   * `prepareBookingFlowOffer` como em produção com o Flow configurado.
+   */
+  flow?: boolean
+  /**
    * Pedido declarado para métricas de estrago F1-0 (#506).
    * Sem isto, o relatório omite o caso (métricas null).
    */
@@ -92,6 +105,8 @@ export type DialogCase = {
     /** Chave em `scenario.ids` da profissional da proposta (CF-20 / D-06). */
     professionalKey?: 'ana' | 'bia' | 'gi' | 'sandra'
     noAppointment?: boolean
+    /** Nº exacto de compromissos no fim (ex. 1 depois de um Confirmar válido). */
+    appointments?: number
     /** Número exato de mensagens da clínica (inclui cartão da proposta). */
     outboundCount?: number
     /** Propostas abertas / substituídas no fim do diálogo (a antiga não pode ficar vigente). */
@@ -105,6 +120,10 @@ export type DialogCase = {
     notPaused?: boolean
     /** DEC-114: pausa sem mensagem automática (excepção INV-09). */
     silentPause?: boolean
+    /** Família FL-: ecrãs mostrados e resultado de cada turno `flow` (pela ordem). */
+    flowRuns?: Array<{ screens?: string[]; outcome?: FlowRunTrace['outcome']; nfmOutcome?: string }>
+    /** Família FL-: quantos CTAs de Flow saíram no diálogo. */
+    flowOffers?: number
     /**
      * Zonas (nomes) que a proposta deve incluir — usado nos casos da sonda
      * (nenhuma zona cai em silêncio).
@@ -149,6 +168,13 @@ export async function runDialogCase(
 ): Promise<DialogRunResult> {
   const s = boot({ adapter: c.adapter, nowMs: c.nowMs })
   c.prepare?.(s)
+  const flow = c.flow ? createFlowHarness({ forecast: c.forecast }) : null
+  flow?.bind(s)
+  const flowDeps = flow
+    ? { prepareBookingFlowOffer: flow.prepare, clinicName: 'Clínica Teste Paulo' }
+    : {}
+  const flowRuns: FlowRunTrace[] = []
+  let confirmClicks = 0
   let agentTurns = 0
   let turnsToConfirm: number | null = null
   const perTurn: string[][] = []
@@ -163,6 +189,7 @@ export async function runDialogCase(
       mode: 'synthetic',
       adapter: s.adapter,
       forecast: c.forecast,
+      ...flowDeps,
     })
     if (out.length > 0) agentTurns += 1
     perTurn[clientTurnIdx] = s.outboundBodies().slice(before)
@@ -215,6 +242,7 @@ export async function runDialogCase(
             buttonId: turn.buttonId,
             buttonTitle: turn.buttonTitle,
             providerEventKey: `dialog-choice:${c.id}:${clientTurnIdx}`,
+            ...(flow ? { prepareBookingFlowOffer: flow.prepare } : {}),
           },
           s.clock,
         )
@@ -253,6 +281,7 @@ export async function runDialogCase(
             s.clock,
           )
           if (click.handled && 'handoff' in click && click.handoff) {
+            confirmClicks += 1
             await executeProposalConfirmOp(
               s.db,
               s.caller,
@@ -269,6 +298,29 @@ export async function runDialogCase(
         }
         perTurn[clientTurnIdx] = s.outboundBodies().slice(before)
         clientTurnIdx += 1
+      } else if (turn.role === 'flow' || turn.role === 'flow_again') {
+        if (!flow) throw new Error(`${c.id}: turno ${turn.role} exige flow: true no caso`)
+        const before = s.outboundBodies().length
+        const proposalsBefore = s.proposalCount()
+        s.clock.advance(2_000)
+        const trace = turn.role === 'flow' ? await flow.run(s, turn.path) : await flow.redeliver(s)
+        flowRuns.push(trace)
+        // Produção: o «[Flow]» ingerido enfileira o autodraft; corre no fim do debounce.
+        if (trace.outcome === 'nfm_delivered') {
+          s.clock.advance(7_000)
+          await runDueAutoDrafts(s.db, s.caller, s.clock, {
+            mode: 'synthetic',
+            adapter: s.adapter,
+            forecast: c.forecast,
+            ...flowDeps,
+          })
+        }
+        if (s.outboundBodies().length > before) agentTurns += 1
+        perTurn[clientTurnIdx] = s.outboundBodies().slice(before)
+        clientTurnIdx += 1
+        if (turnsToConfirm == null && s.proposalCount() > proposalsBefore) {
+          turnsToConfirm = agentTurns
+        }
       }
     }
 
@@ -277,10 +329,13 @@ export async function runDialogCase(
       eligibleTurns:
         c.turns.filter((t) => t.role === 'client' || t.role === 'client_media').length +
         c.turns.filter((t) => t.role === 'burst').length +
-        c.turns.filter((t) => t.role === 'choice').length,
+        c.turns.filter((t) => t.role === 'choice').length +
+        // Um fecho do Flow (não abandonado) tem de ter resposta: C16 e proposta, ou frase.
+        c.turns.filter((t) => t.role === 'flow' && !t.path.abandonAt).length,
       requirePause: c.expect?.paused,
       requireNoPause: c.expect?.notPaused ?? c.expect?.paused === false,
       allowSilentPause: c.expect?.silentPause,
+      confirmClicks,
     })
     const outbound = s.outboundBodies()
     const errors: string[] = []
@@ -311,6 +366,9 @@ export async function runDialogCase(
     }
     if (e?.proposal === true && s.proposalCount() < 1) errors.push('esperava proposta')
     if (e?.proposal === false && s.proposalCount() > 0) errors.push('proposta inesperada')
+    if (e?.appointments != null && s.appointmentCount() !== e.appointments) {
+      errors.push(`esperava ${e.appointments} compromisso(s), há ${s.appointmentCount()}`)
+    }
     if (e?.noAppointment === true && s.appointmentCount() > 0) {
       errors.push('compromisso inesperado')
     }
@@ -358,6 +416,25 @@ export async function runDialogCase(
             errors.push(`proposta sem zona «${name}» (tem: ${[...got].join(', ') || 'nenhuma'})`)
           }
         }
+      }
+    }
+    if (e?.flowOffers != null && flow && flow.offers() !== e.flowOffers) {
+      errors.push(`esperava ${e.flowOffers} CTA(s) de Flow, saíram ${flow.offers()}`)
+    }
+    for (const [i, want] of (e?.flowRuns ?? []).entries()) {
+      const got = flowRuns[i]
+      if (!got) {
+        errors.push(`flow #${i}: não correu`)
+        continue
+      }
+      if (want.outcome && got.outcome !== want.outcome) {
+        errors.push(`flow #${i}: ${got.outcome}${got.detail ? ` (${got.detail})` : ''}, esperado ${want.outcome}`)
+      }
+      if (want.nfmOutcome && got.nfmOutcome !== want.nfmOutcome) {
+        errors.push(`flow #${i}: nfm ${got.nfmOutcome ?? '—'}, esperado ${want.nfmOutcome}`)
+      }
+      if (want.screens && want.screens.join('>') !== got.screens.join('>')) {
+        errors.push(`flow #${i}: ecrãs ${got.screens.join('>')}, esperado ${want.screens.join('>')}`)
       }
     }
     for (const t of e?.turns ?? []) {

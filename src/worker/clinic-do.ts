@@ -121,21 +121,17 @@ import {
   isChoiceOfferId,
 } from '../clinic/ai/choice-offer'
 import { handleFlowNfmReply } from '../whatsapp/flow/nfm-reply'
-import { listFlowFreeSlots } from '../whatsapp/flow/slots'
+import { flowDataExchangeLocal } from '../whatsapp/flow/data-exchange'
 import {
   isWhatsappFlowConfigured,
   prepareBookingFlowOfferFromEnv,
   type PrepareBookingFlowOffer,
 } from '../whatsapp/flow'
 import {
-  flowVisitTotalLine,
-  revalidateFlowFrameAgainstCatalog,
   type FlowBookingSnapshot,
   type FlowCatalogService,
   type FlowSlotOption,
 } from '../whatsapp/flow/screens'
-import { quoteVisit } from '../clinic/config/zones'
-import { listServices } from '../clinic/config/services'
 import { readCatalogVersion } from '../clinic/ai/turn-context'
 import { enqueueTypingIndicatorForLatestInbound } from '../clinic/ai/typing-indicator'
 import {
@@ -749,88 +745,13 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#ensureReady()
     const caller = workerCaller(input.tenantId)
     this.#assertInstanceTenant(caller)
-    const services = listServices(this.#db, input.tenantId)
-    const catalog: FlowCatalogService[] = services.map((s) => ({
-      id: s.id,
-      name: s.name,
-      active: s.active,
-      zones: s.zones.map((z) => ({
-        id: z.id,
-        name: z.name,
-        audience: z.audience,
-        active: z.active,
-        durationMinutes: z.durationMinutes,
-        priceCents: z.priceCents,
-      })),
-    }))
-    // #537: não fazer merge com BookingFrame persistido — só o snapshot do token.
-    let frame: FlowBookingSnapshot = {
-      serviceId: input.frame.serviceId,
-      line: input.frame.line,
-      variantIds: input.frame.variantIds,
-      slotKey: input.frame.slotKey,
-    }
-    const currentVersion = readCatalogVersion(this.#db, input.tenantId)
-    const catalogMismatch =
-      Boolean(input.catalogVersion) && input.catalogVersion !== currentVersion
-    let clearedFields: Array<'serviceId' | 'line' | 'variantIds' | 'slotKey'> = []
-    if (catalogMismatch) {
-      const revalidated = revalidateFlowFrameAgainstCatalog(frame, catalog)
-      frame = revalidated.frame
-      clearedFields = [...revalidated.cleared]
-    }
-    let slots: FlowSlotOption[] = []
-    let visitTotalLine: string | null = null
-    if (frame.serviceId) {
-      const service = services.find((s) => s.id === frame.serviceId && s.active)
-      if (service) {
-        const needVariants = service.zones.some((z) => z.active)
-        // #540: zonas no cadastro todas inactivas → não bookable (não lista horas).
-        const hasInactiveOnlyZones =
-          service.zones.length > 0 && !service.zones.some((z) => z.active)
-        const variantsReady =
-          hasInactiveOnlyZones
-            ? false
-            : !needVariants || (frame.variantIds && frame.variantIds.length > 0)
-        const needLine =
-          service.zones.some((z) => z.active && z.audience === 'feminino') &&
-          service.zones.some((z) => z.active && z.audience === 'masculino')
-        const lineReady = !needLine || frame.line != null
-        if (variantsReady && lineReady) {
-          slots = await listFlowFreeSlots({
-            db: this.#db,
-            tenantId: input.tenantId,
-            service,
-            variantIds: frame.variantIds,
-            clock: this.#clock,
-          })
-          try {
-            const activeZoneIds = service.zones.filter((z) => z.active).map((z) => z.id)
-            const quote = quoteVisit(
-              this.#db,
-              input.tenantId,
-              service,
-              activeZoneIds.length > 0 ? frame.variantIds : null,
-            )
-            visitTotalLine = flowVisitTotalLine({
-              priceCents: quote.priceCents,
-              comboName: quote.combo?.name ?? null,
-            })
-          } catch {
-            visitTotalLine = null
-          }
-        }
-      }
-    }
-    // ADR §7: hora já escolhida volta a ser calculada; se deixou de estar livre, limpa.
-    if (frame.slotKey) {
-      const stillOffered = slots.some((s) => s.id === frame.slotKey)
-      if (!stillOffered) {
-        frame = { ...frame, slotKey: null }
-        if (!clearedFields.includes('slotKey')) clearedFields.push('slotKey')
-      }
-    }
-    return { catalog, slots, frame, catalogMismatch, clearedFields, visitTotalLine }
+    return flowDataExchangeLocal({
+      db: this.#db,
+      tenantId: input.tenantId,
+      clock: this.#clock,
+      catalogVersion: input.catalogVersion,
+      frame: input.frame,
+    })
   }
 
   /**

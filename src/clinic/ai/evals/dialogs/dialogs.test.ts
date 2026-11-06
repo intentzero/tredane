@@ -10,7 +10,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { setDialogueVariantForTests } from '../../dialogue-acts'
 import { P0_DIALOG_CASES, P0_IDS } from './p0-cases'
-import { formatDialogReport, runDialogCase, type DialogRunResult } from './runner'
+import { formatDialogReport, runDialogCase, type DialogCase, type DialogRunResult } from './runner'
+import { emitL1Scorecard, scorecardFailure } from '../scorecard/l1'
 
 /** Mesmo em pendentes ou falhas conhecidas, estas nunca podem falhar. */
 const ALWAYS_BLOCKING = ['INV-01', 'INV-02', 'INV-04', 'INV-05', 'INV-11']
@@ -78,5 +79,17 @@ describe('harness L1 diálogos P0 (#406)', () => {
   it('relatório L1 (colar no §7)', () => {
     expect(results.length).toBeGreaterThan(0)
     process.stdout.write(`\n${formatDialogReport(results)}\n`)
+    // Metodologia de avaliação §6: scorecard comparável com a linha de base.
+    const byId = new Map<string, DialogCase>(P0_DIALOG_CASES.map((c) => [c.id, c]))
+    const out = emitL1Scorecard(
+      results.map((r) => ({ c: byId.get(r.id)!, r })),
+      process.env,
+      P0_DIALOG_CASES.length,
+    )
+    if (out) {
+      process.stdout.write(`${out.report}\n`)
+      const failure = scorecardFailure(out)
+      if (failure) throw new Error(failure)
+    }
   })
 })

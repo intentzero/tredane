@@ -13,6 +13,7 @@ import { partitionL2Cases } from './held-out'
 import { runJudge, type JudgeResult } from './judge'
 import { buildEeMetrics, type EeMetrics } from './metrics'
 import { TrackingAiAdapter } from './tracking-adapter'
+import { passHatK, wilsonByCase } from '../scorecard/stats'
 
 export type L2Mode = 'dry-run' | 'live'
 
@@ -58,6 +59,10 @@ export type L2RunReport = {
     ee04p50: number | null
     ee04p95: number | null
     ee05pctWithin: number | null
+    /** τ-bench: todas as N repetições do caso passam (consistência). */
+    passHatN: number | null
+    /** IC Wilson 95 % do passRate por repetição. */
+    passRateCi95: { low: number; high: number } | null
   }
   note: string
 }
@@ -278,6 +283,20 @@ export async function runL2Suite(opts: L2RunOptions = {}): Promise<L2RunReport> 
       ee04p50: latAll.length ? latAll[Math.ceil(0.5 * latAll.length) - 1]! : null,
       ee04p95: latAll.length ? latAll[Math.ceil(0.95 * latAll.length) - 1]! : null,
       ee05pctWithin: ee05vals.length ? ee05vals.reduce((a, b) => a + b, 0) / ee05vals.length : null,
+      passHatN: passHatK(
+        results.map((r) => {
+          const reps = r.repetitions.filter((x) => !x.skippedReason)
+          return { n: reps.length, c: reps.filter((x) => x.dialog.ok).length }
+        }),
+        n,
+      ),
+      // IC por caso (repetições do mesmo caso são correlacionadas).
+      passRateCi95: wilsonByCase(
+        results.map((r) => {
+          const reps = r.repetitions.filter((x) => !x.skippedReason)
+          return { n: reps.length, c: reps.filter((x) => x.dialog.ok).length }
+        }),
+      ),
     },
     note: complete
       ? 'Corrida L2 completa abaixo do teto DEC-117.'
@@ -296,7 +315,7 @@ export function formatL2Report(report: L2RunReport): string {
     `  catálogo sha256:${report.version.catalogSha256?.slice(0, 16) ?? '?'}…`,
     `  orçamento US$ ${report.budget.spentUsd.toFixed(4)} / ${report.budget.ceilingUsd.toFixed(2)} (${report.budget.calls} chamadas, in=${report.budget.inputTokens} out=${report.budget.outputTokens})`,
     `  casos ${report.casesRun.length}/${report.casesPlanned.length} · skipped ${report.casesSkipped.length} · held-out ${report.heldOutIds.length}`,
-    `  passRate ${(report.aggregate.passRate * 100).toFixed(1)}% · meanQ ${report.aggregate.meanQ?.toFixed(2) ?? '—'}`,
+    `  passRate ${(report.aggregate.passRate * 100).toFixed(1)}%${report.aggregate.passRateCi95 ? ` [IC95 ${(report.aggregate.passRateCi95.low * 100).toFixed(1)}–${(report.aggregate.passRateCi95.high * 100).toFixed(1)}%]` : ''} · pass^${report.version.n} ${report.aggregate.passHatN == null ? '—' : `${(report.aggregate.passHatN * 100).toFixed(1)}%`} · meanQ ${report.aggregate.meanQ?.toFixed(2) ?? '—'}`,
     `  EE-04 p50=${report.aggregate.ee04p50 ?? '—'}ms p95=${report.aggregate.ee04p95 ?? '—'}ms · EE-05 within ${report.aggregate.ee05pctWithin?.toFixed(1) ?? '—'}%`,
     `  ${report.note}`,
   ]

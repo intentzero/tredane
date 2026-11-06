@@ -3,6 +3,7 @@ import { enqueueAutoDraft, runDueAutoDrafts } from '../../clinic/ai'
 import { bootDialogScenario } from '../../clinic/ai/evals/dialogs/scenario'
 import type { PrepareBookingFlowOffer } from './offer-live'
 import {
+  activeServicesForHub,
   clinicTodayOpenState,
   hubInformacoesBody,
   hubMeusBody,
@@ -300,5 +301,20 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
     expect(out).toHaveLength(1)
     expect(out[0]!.reason).toBe('hub_opening')
     expectHoursGreeting(last)
+  })
+})
+
+describe('gate do hub usa o resolvedor do funil (CF-36, pela zona)', () => {
+  it('pedido com zona do catálogo não recebe o cumprimento; cumprimento e vago continuam', () => {
+    const s = bootDialogScenario()
+    try {
+      const services = activeServicesForHub(s.db, s.tenantId)
+      expect(shouldOfferHubOpening({ turnText: 'quero depilar a axila', services })).toBe(false)
+      expect(shouldOfferHubOpening({ turnText: 'Oi', services })).toBe(true)
+      expect(shouldOfferHubOpening({ turnText: 'quero marcar', services })).toBe(true)
+      expect(shouldOfferHubOpening({ turnText: 'quero fazer as unhas', services })).toBe(true)
+    } finally {
+      s.close()
+    }
   })
 })

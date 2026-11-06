@@ -81,7 +81,8 @@ export function computeDamageMetrics(input: {
       bookingMatchesRequest: null,
       zonesRequested,
       zonesInProposal: 0,
-      zonesKeptRatio: zonesRequested > 0 ? 0 : null,
+      // Sem proposta não há zonas a julgar (ex.: diálogo termina no eco DEC-137).
+      zonesKeptRatio: null,
       clientCorrections: input.clientCorrections,
       turnsToConfirm: input.turnsToConfirm,
     }

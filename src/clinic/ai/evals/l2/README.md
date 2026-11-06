@@ -31,6 +31,10 @@ AI_MODE=gateway … EVAL_L3_MODE=live EVAL_L3_FULL=1 npm run eval:l3
 
 O L1 (`npm run test:dialogs`) **não** é alterado por este harness.
 
+## Consistência e incerteza
+
+O relatório mostra `pass^N` (todas as N repetições do caso passam; τ-bench) e o IC de Wilson a 95 % do `passRate`. Ver a [metodologia](../../../../../docs/implementation/metodologia-avaliacao-conversacional.md) §5–§6.
+
 ## Calibração do juiz
 
 κ de Cohen juiz↔humano (≥ 0,6 **Proposto**) fica para a amostra da [#402](https://github.com/intentzero/tredane/issues/402). Até lá o juiz é informativo, não gate de merge.

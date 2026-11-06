@@ -19,6 +19,7 @@
   - ◐ **Passa por código:** sem teste dedicado.
   - ❔ **Por medir:** depende do modelo (L2) ou ainda não tem harness.
 - A cada iteração, acrescentar uma coluna `It. N` ou registar o resultado no harness. O resumo vai para o [registo de iterações](plano-testes-conversacional.md#7-registo-de-iterações).
+- O estado por caso do L1 fica também na linha de base do scorecard ([`avaliacao/l1-baseline.json`](avaliacao/l1-baseline.json)); um ID que desaparece de lá é assinalado como regressão de cobertura ([metodologia §6](metodologia-avaliacao-conversacional.md)). Uma família nova (ex. `FL-` para Flow + hub, DEC-138) entra com a letra própria.
 
 ## Cenário de referência (fictício)
 
@@ -65,6 +66,7 @@
 | A-17 | P0 | Toque no horário com título mês-dia | A: [lista Horários; título «11-03 17:00»; id civil] ⟶ toque | Proposta ter 03/11 17:00; sem «qual dia?». Toque não marca. | INV-01, EF-02 | 1 | ✅ CF-32 mitigado (#505) · L1 `dialogs` A-17 · título longo em [#507](https://github.com/intentzero/tredane/issues/507) |
 | A-18 | P0 | Confirmar depois da validade | [proposta enviada] ⟶ relógio +30 min ⟶ Confirmar | Sem marcação; explica expiração; oferece ≥2 horários livres do mesmo pedido. | INV-01 | 2 | ✅ CF-33 · L1 `dialogs` A-18 · [#511](https://github.com/intentzero/tredane/issues/511) |
 | A-19 | P0 | Catálogo sem match | C: «Vocês fazem botox?» (com link Google cadastrado) | Diz o que faltou / opções; **sem** link Google; sem despejar só «equipe». | INV-02, INV-05 | 1 | ✅ CF-34 fechado (#512 / #520) · L1 `dialogs` A-19 · ❌ L4 05/11 CF-35 (via D-03) — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
+| A-20 | P0 | Verbo sem sinónimo na ficha | C: «Quero depilar» [sem sinónimo cadastrado] | Diz o que não encontrou e lista o catálogo, sem link nem serviço inventado. Comportamento vigente por DEC-110; reconhecer o verbo sem sinónimo fica **Em aberto**. | INV-05 | 1 | ✅ L1 (05/11/2026) |
 
 ## B. Linguagem temporal
 
@@ -119,6 +121,7 @@
 | D-07 | P1 | Tempo não serve | C: «Bronzeamento sábado 10h» [chuva] | Frase fixa do Tempo (DEC-077), alerta à equipe e nenhuma proposta. | INV-01, INV-05 | 1 | ✅ `tempo-context.test` |
 | D-08 | P0 | Serviço sem preço | C: «Quanto custa microagulhamento?» | «A equipe confirma o valor.» Nenhum valor inventado. | INV-02 | 1 | ❔ L2 |
 | D-09 | P1 | Serviço sem explicação | C: «Como funciona a massagem?» | Não descreve; oferece horário ou a equipe. | INV-07 | 1 | ❔ L2 |
+| D-10 | P0 | Zona homónima sem linha | C: «quero depilar a axila» | «… feminina ou masculina?» (DEC-090). **Não** a recusa de mistura. | INV-08 | 1 | ✅ L1 (CF-43 fechado a 05/11) |
 | D-10 | P1 | Limite de abuso atingido | [limite de marcação atingido] ⟶ C: «Limpeza amanhã 15h» | Frase neutra à cliente, sem «Agendar» e sem números internos; alerta à equipe. | INV-05 | 1 | ❔ L1 |
 | D-11 | P1 | Variante «ambos» na linha masculina | C: «Depilação masculina de axila e buço sexta 10h» | Proposta 25 min, R$ 75,00 no cartão. | INV-02, EF-02 | 1 | ❔ L1 |
 
@@ -212,6 +215,31 @@
 | K-05 | P0 | Botão de versão antiga | [v1 substituída por v2] ⟶ clique em v1 | Recusado; só a v2 marca. | INV-01 | 1 | ✅ `execute-confirm.test` «versão substituída» |
 | K-06 | P1 | Pix pago sem vaga | [Pix pago depois de a vaga ser ocupada] | Fluxo «pago sem vaga» (#39); nenhuma dupla marcação. | INV-01 | — | ✅ `pix/exceptions.test` |
 | K-07 | P1 | Proposta não entregue | [falha Meta no envio] | Pendência; alerta aos 5 min; aviso sem promessa vaga. | INV-09 | 1 | ◐ `pending_communications` |
+
+## FL. Hub e WhatsApp Flow: caminho principal vigente (DEC-138, ADR-0016)
+
+Criada em 05/11/2026 pela [metodologia de avaliação](metodologia-avaliacao-conversacional.md) (lacuna G-02). Os casos ligam o Flow no autodraft (`flow: true`) e usam `flow-driver.ts`, que faz o papel do cliente Meta. Cifra com uma chave gerada no teste e chama o **endpoint real** (`handleFlowDataRequest`) com a mesma leitura de dados do Clinic DO (`flowDataExchangeLocal`). Escolhe só o que cada ecrã oferece e entrega o `nfm_reply` pela sequência do queue-consumer: token válido → consumir → inbound «[Flow]» (que enfileira o autodraft) → fase `ack` → fase `proposal`. Na coluna Diálogo, `⟶ [Flow: …]` é o percurso dentro do Flow. Relógio: qui 05/11/2026 10:00, clínica aberta das 09:00 às 18:00.
+
+| ID | P | Cenário | Diálogo | Esperado | Verifica | T\* | 05/11 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| FL-01 | P0 | Abertura do hub | C: «Oi» | Uma mensagem: «Olá! Aqui é a … Hoje funcionamos das 09:00 às 18:00. O que você precisa?» com o CTA «Abrir opções». Sem modelo, sem «Falar com a equipe», sem fuso. | INV-03, INV-05, INV-09 | 1 | ✅ L1 |
+| FL-02 | P0 | Ponta a ponta com zonas | C: «Oi» ⟶ [Flow: Agendar → Depilação → Feminina → Axila + Pernas → 1.ª hora] ⟶ Confirmar | Ecrãs HUB > SERVICO > GENERO > VARIANTES > HORARIO > SUCCESS. C16 + proposta com Axila e Pernas. Só o Confirmar cria **um** compromisso. | INV-01, ES-01, ES-02 | 3 | ✅ L1 |
+| FL-03 | P0 | Serviço sem zonas | C: «Oi» ⟶ [Flow: Massagem → sex 06/11 10:00] | Salta GENERO e VARIANTES. Proposta na hora escolhida; nada marcado. | ES-01, INV-01 | 2 | ✅ L1 |
+| FL-04 | P0 | Fechar o Flow não marca | C: «Oi» ⟶ [Flow completo] ⟶ C: «sim» | Proposta aberta; o texto «sim» **não** marca (DEC-061). | INV-01 | 3 | ✅ L1 |
+| FL-05 | P0 | Segundo fecho, mesmo token | C: «Oi» ⟶ [Flow completo] ⟶ [o mesmo token fecha de novo] | O 2.º fecho é recusado (token consumido, #538). Uma só proposta aberta; nenhuma mensagem nova. | INV-01, INV-08 | 2 | ✅ L1 |
+| FL-06 | P0 | Abandonar o Flow | C: «Oi» ⟶ [Flow fechado em HORARIO] ⟶ C: «oi» (1 h depois) | Nada é enviado ao abandonar. O novo «oi» volta a abrir o hub (#554). | INV-09, INV-01 | 2 | ✅ L1 |
+| FL-07 | P0 | Hub «Meus agendamentos» sem compromisso | C: «Oi» ⟶ [Flow: Meus] | «Você não tem horário marcado. Quer agendar?», sem handoff. | INV-06 | 2 | ✅ L1 |
+| FL-08 | P0 | Hub «Falar com a equipe» | C: «Oi» ⟶ [Flow: Equipe] | Pausa com frase fixa (DEC-083). | INV-06 | 2 | ✅ L1 |
+| FL-09 | P0 | Hub «Cancelar» sem compromisso | C: «Oi» ⟶ [Flow: Cancelar] | Handoff (DEC-091); nada marcado nem cancelado. | INV-06, INV-01 | 2 | ✅ L1 |
+| FL-10 | P0 | Hub «Informações» | C: «Oi» ⟶ [Flow: Informações] | Expediente da ficha, sem fuso IANA nem link inventado. | INV-03, INV-05 | 2 | ✅ L1 |
+| FL-11 | P0 | Hub fora do expediente | C: «Oi» às 21:09 | O mesmo horário de hoje, sem «já estamos fechados» (#559 revogada a 05/11, #564). | INV-05 | 1 | ✅ L1 |
+| FL-12 | P0 | Serviço pela zona | C: «quero depilar a axila» ⟶ [Flow: Feminina → Axila → 1.ª hora] | Sem o cumprimento genérico do hub nem «não dá para juntar…». A pergunta da linha acompanha o CTA do Flow (DEC-140). A proposta sai com Axila. | EE-01 | 2 | ✅ L1 (CF-36 da sonda L4, #565, e CF-43 fechados a 05/11) |
+| FL-13 | P0 | Remarcar pelo hub | [FL-02 para sex 06/11 10:00] ⟶ C: «Oi» ⟶ [Flow: Remarcar] | `hub_reschedule_started`: quadro em `remarcando` e pergunta do dia. O compromisso original continua até um novo Confirmar. | INV-01 | 4 | ✅ L1 |
+| FL-14 | P0 | Token expirado | C: «Oi» ⟶ [Flow aberto 3 dias depois] | O endpoint devolve 427. Nada é gravado nem enviado. | INV-01 | 1 | ✅ L1 |
+| FL-15 | P0 | Serviço pelo nome exacto (controlo do FL-12) | C: «Quero depilação» ⟶ [Flow: Feminina → Axila + Pernas → 1.ª hora] | Sem o cumprimento do hub; o funil passa ao Flow; proposta com as duas zonas. | ES-02 | 2 | ✅ L1 |
+| FL-16 | P0 | Verbo com sinónimo na ficha | [sinónimo «depilar» em Depilação] C: «Quero depilar» ⟶ [Flow: …] | Sem o cumprimento do hub; proposta (DEC-110). | EE-01 | 2 | ✅ L1 |
+
+**Por cobrir na família FL- (Proposto):** catálogo alterado a meio do Flow (ADR-0016 §7; hoje só em teste unitário), hora que deixa de estar livre entre HORARIO e o fecho, `fallback_reason` (sem horas na semana, demasiadas variantes), token de outra clínica (isolamento; hoje coberto no `queue-consumer`) e o Flow que não abre (o chat assume). Precisam de um turno de mutação do cenário a meio do diálogo.
 
 ## P. Personas para cliente simulada (L3)
 

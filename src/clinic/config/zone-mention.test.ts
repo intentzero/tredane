@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import type { ServiceZoneRow } from './types'
-import { resolveZoneMention } from './zones'
+import { resolveZoneMention, textNamesMixAudiences } from './zones'
 
 function zone(
   id: string,
@@ -146,5 +146,24 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
         ).toEqual(expectIds)
       }
     }
+  })
+})
+
+describe('textNamesMixAudiences (CF-43)', () => {
+  const axF = { name: 'Axila', audience: 'feminino' as const }
+  const axM = { name: 'Axila', audience: 'masculino' as const }
+  const pernasF = { name: 'Pernas', audience: 'feminino' as const }
+  const barbaM = { name: 'Barba', audience: 'masculino' as const }
+  it('homónimo F+M sem palavra de linha é ambíguo, não mistura', () => {
+    expect(textNamesMixAudiences('quero depilar a axila', [axF, axM])).toBe(false)
+  })
+  it('mistura explícita de linhas continua a ser mistura (D-04)', () => {
+    expect(textNamesMixAudiences('axila masculina e pernas femininas', [axM, pernasF])).toBe(true)
+  })
+  it('nomes únicos de linhas diferentes são mistura', () => {
+    expect(textNamesMixAudiences('barba e pernas', [barbaM, pernasF])).toBe(true)
+  })
+  it('homónimo com nome único de uma linha não é mistura', () => {
+    expect(textNamesMixAudiences('axila e barba', [axF, axM, barbaM])).toBe(false)
   })
 })

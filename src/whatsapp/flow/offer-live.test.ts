@@ -219,7 +219,7 @@ describe('maybeReplaceM5WithFlow', () => {
     })
     expect(replaced.usedFlow).toBe(true)
     expect(replaced.interactive?.flow?.flowId).toBe('1858344942174587')
-    // CF-35: o corpo é a resposta do turno, não o genérico do Flow.
+    // CF-35 (#565) / DEC-140: o corpo é a resposta do turno, não o genérico do Flow.
     expect(replaced.body).toBe('Para Depilação, Feminina ou Masculina?')
     expect(preparedWith).toEqual(['Para Depilação, Feminina ou Masculina?'])
     expect(deferred.peekFrame).toBeTypeOf('function')

@@ -11,9 +11,11 @@ import { P0_DIALOG_CASES } from '../dialogs/p0-cases'
  * Fora do L2 por omissão:
  * - `coverageOnly` (outro teste)
  * - adaptador injectado (timeout / JSON fixo) — fixture L1, não modelo real
+ * - `flow` (família FL-): hub e Flow são determinísticos, sem chamada ao modelo;
+ *   entrariam no passRate/pass^N e no conjunto reservado sem medir o LLM
  */
 const SKIP_L2 = new Set(
-  P0_DIALOG_CASES.filter((c) => c.coverageOnly || c.adapter != null).map((c) => c.id),
+  P0_DIALOG_CASES.filter((c) => c.coverageOnly || c.adapter != null || c.flow).map((c) => c.id),
 )
 
 function stableHash(id: string): number {

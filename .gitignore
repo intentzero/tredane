@@ -20,3 +20,6 @@ site/.astro/
 # Medição local da prova de componentes (#16)
 .prova-bundle/
 scripts/prova-entries/
+
+# Scorecard local da avaliação conversacional (a linha de base vive em docs/implementation/avaliacao/)
+.eval/
