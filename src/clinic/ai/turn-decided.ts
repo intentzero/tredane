@@ -42,6 +42,13 @@ export type TurnDecidedPayload = {
    * ou null. Separa «zonas escritas sem pergunta» de «resposta à pergunta das zonas» e do Sim do eco.
    */
   pendingSlotBefore: string | null
+  /**
+   * DEC-143: antes do turno o bot já só precisava das zonas (serviço com zonas, linha escolhida
+   * ou sem mistura de linhas, e ainda sem variantes). `variantsChanged && !zonesAskedBefore`
+   * = a cliente escreveu zonas sem lhas terem pedido; `true` = respondeu à pergunta das zonas.
+   * Não depende de `pendingSlotBefore`: a pergunta em texto simples não deixa pendente.
+   */
+  zonesAskedBefore: boolean
   model: string | null
   latencyMs: {
     debounce: number | null
@@ -121,6 +128,19 @@ export function variantsChangedInTurn(
   if (!after?.serviceId || !after.variantIds?.length) return false
   if (before?.serviceId && before.serviceId !== after.serviceId) return false
   return variantKey(before?.variantIds) !== variantKey(after.variantIds)
+}
+
+/**
+ * DEC-143: o quadro anterior só esperava as zonas. `activeZones` = zonas activas do serviço do
+ * quadro; `needsLine` = o serviço mistura linhas (feminino/masculino).
+ */
+export function zonesAskedBeforeTurn(
+  before: { serviceId: string | null; line: string | null; variantIds: string[] | null } | null,
+  service: { activeZones: number; needsLine: boolean } | null,
+): boolean {
+  if (!before?.serviceId || !service || service.activeZones === 0) return false
+  if (before.variantIds?.length) return false
+  return !service.needsLine || before.line != null
 }
 
 /** Deriva a rota a partir do outcome do autodraft. */

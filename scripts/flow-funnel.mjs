@@ -17,7 +17,8 @@
  *
  * As medidas a e c vêm dos Workers Logs do worker (filtros sugeridos no fim da saída):
  *   a) `ai.turn_decided` com `variantsChanged = true` (mesmo serviço; troca de serviço não conta);
- *      `pendingSlotBefore` separa zonas sem pergunta (null / outro) de resposta (`variantes`) e do Sim (`eco`);
+ *      `zonesAskedBefore` separa zonas escritas sem pergunta (false) de resposta à pergunta das zonas (true);
+ *      `pendingSlotBefore` (`eco`) identifica o Sim do eco;
  *   c) `whatsapp_flow.offer_skipped` (`reason`) e `whatsapp_flow.offer_failed`.
  */
 import { spawnSync } from 'node:child_process'
@@ -73,7 +74,7 @@ const LOG_HINTS = [
   '',
   'Workers Logs do worker (painel Cloudflare → Workers → Observability), mesmo período:',
   '  a) event = ai.turn_decided AND tenantId = <tenant>: contar variantsChanged = true',
-  '     (já ignora troca de serviço); agrupar por pendingSlotBefore (null/outro = sem pergunta).',
+  '     (já ignora troca de serviço); agrupar por zonesAskedBefore (false = zonas escritas sem pergunta).',
   '  c) event = whatsapp_flow.offer_skipped (agrupar por reason) e event = whatsapp_flow.offer_failed.',
 ]
 
