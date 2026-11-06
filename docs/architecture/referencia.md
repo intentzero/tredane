@@ -78,6 +78,8 @@
 
 **Confirmado** (DEC-104): o modelo não escolhe zona, hora nem marcação. A frase automática sai do backend.
 
+**Confirmado** (DEC-142): pedido de listar o catálogo («quais serviços você tem?», «quero outro serviço» e equivalentes) é frase do backend. Sem audiência nesta conversa, lista interativa com as linhas Feminino e Masculino — não é o CTA do Flow nem botão de resposta. Com audiência, texto com os nomes ativos dessa audiência ou qualquer. Não marca.
+
 **Confirmado** (DEC-061): o único commit do horário é o botão Confirmar de uma proposta versionada e ainda válida. Qualquer mudança material pede nova versão; a anterior deixa de valer.
 
 ## Quatro leituras de 06/11/2026

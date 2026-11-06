@@ -32,8 +32,10 @@ import {
 } from '../../whatsapp/flow/hub-opening'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
+import { getActiveProposalForConversation } from '../proposals/proposals'
 import type { ClinicDb } from '../store'
 import { tryAiAutoBook, type AutoBookOutcome } from './autobook'
+import { deliverCatalogConsult, planCatalogConsult } from './catalog-consult'
 import { catalogReply } from './catalog-reply'
 import {
   createDeferredBookingFrame,
@@ -716,6 +718,41 @@ export async function runDueAutoDrafts(
         suggestion: null,
         reason: 'human_handoff',
         replyOutbox: handoff.outbox,
+      })
+      continue
+    }
+    // DEC-142: consulta de catálogo antes do hub e do modelo. «quero outro serviço»
+    // também casaria a abertura do Flow; a lista Feminino/Masculino não é esse CTA.
+    const catalogConsult = planCatalogConsult({
+      text: turnText,
+      frame: getBookingFrame(db, tenantId, job.conversationId),
+      services: turn.catalog.services,
+      catalogVersion: turn.catalog.version || readCatalogVersion(db, tenantId),
+      hasActiveProposal:
+        getActiveProposalForConversation(db, tenantId, job.conversationId, clock) != null,
+    })
+    if (catalogConsult) {
+      await signalTyping()
+      let replyOutbox: OutboxRow[] = []
+      try {
+        const sent = deliverCatalogConsult(db, caller, clock, {
+          conversationId: job.conversationId,
+          clientRequestId: `ai-catalog-consult:${job.messageId}`,
+          authorClerkUserId: AUTODRAFT_ACTOR_ID,
+          authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          action: catalogConsult,
+        })
+        replyOutbox = sent.outbox
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'catalog_consult',
+        replyOutbox,
       })
       continue
     }

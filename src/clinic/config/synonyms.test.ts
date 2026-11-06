@@ -23,7 +23,7 @@ describe('sinónimos DEC-110 (#421)', () => {
   it('migração 50 sobe CLINIC_SCHEMA_VERSION e cria colunas', () => {
     const s = boot()
     try {
-      expect(CLINIC_SCHEMA_VERSION).toBe(53)
+      expect(CLINIC_SCHEMA_VERSION).toBe(54)
       const cols = s.db
         .all<{ name: string }>(`PRAGMA table_info(services)`)
         .map((c) => c.name)
