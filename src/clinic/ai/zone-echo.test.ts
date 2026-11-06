@@ -581,3 +581,40 @@ describe('DEC-137: eco e plural das zonas', () => {
     }
   })
 })
+
+describe('DEC-143: ai.turn_decided mede zonas vindas do texto', () => {
+  function lastTurnDecided(s: ReturnType<typeof seed>) {
+    const row = s.db.get<{ payload: string }>(
+      `SELECT payload_json AS payload FROM outbox_events
+       WHERE tenant_id = ? AND type = 'ai.turn_decided'
+       ORDER BY rowid DESC LIMIT 1`,
+      s.tenantId,
+    )
+    return JSON.parse(row!.payload) as {
+      variantsChanged: boolean
+      pendingSlotBefore: string | null
+      slotsFilled: string[]
+    }
+  }
+
+  it('zonas escritas num turno marcam variantsChanged; o Sim do eco não', async () => {
+    const s = seed()
+    try {
+      await say(s, 'Quero depilação')
+      expect(lastTurnDecided(s).variantsChanged).toBe(false)
+      await say(s, 'feminina')
+      expect(lastTurnDecided(s).variantsChanged).toBe(false)
+      await say(s, 'Axilas e pernas')
+      const named = lastTurnDecided(s)
+      expect(named.variantsChanged).toBe(true)
+      expect(named.slotsFilled).toEqual(expect.arrayContaining(['serviceId', 'line', 'variantIds']))
+      await say(s, 'sim')
+      const confirmed = lastTurnDecided(s)
+      expect(confirmed.pendingSlotBefore).toBe('eco')
+      expect(confirmed.variantsChanged).toBe(false)
+    } finally {
+      s.close()
+    }
+  })
+})
+

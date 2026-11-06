@@ -88,6 +88,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0018_whatsapp_flow_session.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0019_whatsapp_flow_opened_at.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

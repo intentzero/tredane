@@ -25,6 +25,7 @@ type SqlRow = {
   expires_at: number
   replaced_by: string | null
   consumed_at: number | null
+  opened_at?: number | null
   session_json: string | null
 }
 
@@ -41,6 +42,7 @@ function mapRow(row: SqlRow): FlowTokenRow {
     expiresAt: row.expires_at,
     replacedBy: row.replaced_by,
     consumedAt: row.consumed_at,
+    openedAt: row.opened_at ?? null,
     session: parseFlowSessionJson(row.session_json),
   }
 }
@@ -86,8 +88,13 @@ export function createD1FlowOps(db: D1Database, clock: Clock): D1FlowOps {
     async saveSession(token, session) {
       await assertSchema(db)
       await db
-        .prepare(`UPDATE whatsapp_flow_tokens SET session_json = ? WHERE token = ?`)
-        .bind(serializeFlowSession(session), token)
+        .prepare(
+          // DEC-143: a primeira chamada do endpoint marca a abertura do Flow.
+          `UPDATE whatsapp_flow_tokens
+           SET session_json = ?, opened_at = COALESCE(opened_at, ?)
+           WHERE token = ?`,
+        )
+        .bind(serializeFlowSession(session), clock.nowMs(), token)
         .run()
     },
 
@@ -137,6 +144,7 @@ export function createD1FlowOps(db: D1Database, clock: Clock): D1FlowOps {
         expiresAt,
         replacedBy: null,
         consumedAt: null,
+        openedAt: null,
         session,
       }
     },

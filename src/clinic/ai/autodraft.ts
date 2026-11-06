@@ -66,10 +66,10 @@ import {
 } from './nlu/sensitive'
 import { isCancelIntent, isRescheduleIntent, tryAiReschedule } from './reschedule'
 import { isConversationPaused } from './protection'
-import { getBookingFrame, getScheduleSession } from './schedule-session'
+import { filledSlots, getBookingFrame, getScheduleSession } from './schedule-session'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
-import { emitTurnDecided, routeFromAutodraftOutcome } from './turn-decided'
+import { emitTurnDecided, routeFromAutodraftOutcome, variantsChangedInTurn } from './turn-decided'
 import { loadTurnContext, readCatalogVersion } from './turn-context'
 import { enqueueTypingIndicator } from './typing-indicator'
 import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
@@ -306,6 +306,8 @@ export async function runDueAutoDrafts(
   for (const job of due) {
     const jobStarted = clock.nowMs()
     const debounceMs = Math.max(0, job.dueAt - job.createdAt)
+    // DEC-143: quadro antes do turno, para medir se as variantes vieram deste texto.
+    const frameBefore = getBookingFrame(db, tenantId, job.conversationId)
     /** Uma vez por job: marca lida + typing nativo só quando vamos responder. */
     let typingSignaled = false
     const signalTyping = async (): Promise<void> => {
@@ -346,6 +348,8 @@ export async function runDueAutoDrafts(
         modelCalled: modelCalls > 0 || extra.modelCalled,
         textDiscarded: extra.textDiscarded,
       })
+      // O quadro do turno é gravado na mesma TX do envio (ADR-0015), antes deste ponto.
+      const frameAfter = getBookingFrame(db, tenantId, outcome.conversationId)
       emitTurnDecided(
         db,
         {
@@ -353,8 +357,11 @@ export async function runDueAutoDrafts(
           conversationId: outcome.conversationId,
           messageIds: [outcome.messageId],
           route,
-          slotsFilled: [],
+          // DEC-142: audiência pode existir sem serviço — não filtrar por serviceId.
+          slotsFilled: frameAfter ? filledSlots(frameAfter) : [],
           slotsMissing: [],
+          variantsChanged: variantsChangedInTurn(frameBefore, frameAfter),
+          pendingSlotBefore: frameBefore?.pending?.slot ?? null,
           modelCalled: modelCalls > 0 || Boolean(extra.modelCalled ?? outcome.suggestion),
           modelCalls,
           textDiscarded: Boolean(

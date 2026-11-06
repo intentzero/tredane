@@ -357,7 +357,8 @@ export function getScheduleSession(
   return frameToSession(rowToFrame(row), asDay(row.day_label))
 }
 
-function filledSlots(frame: BookingFrame): string[] {
+/** Campos preenchidos do quadro (nomes, sem valores). Usado também no `ai.turn_decided`. */
+export function filledSlots(frame: BookingFrame): string[] {
   const out: string[] = []
   if (frame.serviceId) out.push('serviceId')
   if (frame.line) out.push('line')

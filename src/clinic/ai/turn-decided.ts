@@ -31,6 +31,17 @@ export type TurnDecidedPayload = {
    */
   modelCalls: number
   textDiscarded: boolean
+  /**
+   * DEC-143 (medida a): o conjunto de variantes do mesmo serviço mudou neste turno.
+   * Só ids comparados; nunca o texto. `false` quando o quadro não tem serviço/variantes no fim,
+   * ou quando o serviço mudou no mesmo turno (catálogo/resolução, não «zonas no texto»).
+   */
+  variantsChanged: boolean
+  /**
+   * DEC-143: `pending.slot` do quadro antes do turno (ex.: `variantes`, `eco`, `horario`),
+   * ou null. Separa «zonas escritas sem pergunta» de «resposta à pergunta das zonas» e do Sim do eco.
+   */
+  pendingSlotBefore: string | null
   model: string | null
   latencyMs: {
     debounce: number | null
@@ -91,6 +102,25 @@ export function emitTurnDecided(
     },
     clock,
   )
+}
+
+/** Conjunto de variantes como chave estável (ordem não conta). */
+function variantKey(ids: string[] | null | undefined): string {
+  return [...(ids ?? [])].sort().join('\0')
+}
+
+/**
+ * DEC-143: variantes do mesmo serviço mudaram entre o quadro antes e depois do turno.
+ * Primeiro preenchimento (sem serviço antes) conta; troca de serviço no mesmo turno não
+ * (costuma ser catálogo/resolução, não zonas escritas). Ficar sem variantes não conta.
+ */
+export function variantsChangedInTurn(
+  before: { serviceId: string | null; variantIds: string[] | null } | null,
+  after: { serviceId: string | null; variantIds: string[] | null } | null,
+): boolean {
+  if (!after?.serviceId || !after.variantIds?.length) return false
+  if (before?.serviceId && before.serviceId !== after.serviceId) return false
+  return variantKey(before?.variantIds) !== variantKey(after.variantIds)
 }
 
 /** Deriva a rota a partir do outcome do autodraft. */

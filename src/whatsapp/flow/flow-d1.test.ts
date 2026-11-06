@@ -9,7 +9,7 @@ import { computeHubSignature256 } from '../webhook-verify'
 import { encryptFlowRequestForTest, generateFlowKeyPair } from './crypto'
 import { createD1FlowOps } from './flow-d1'
 import { createWhatsappFlowRoutes } from './routes'
-import { generateFlowToken } from './tokens'
+import { createMemoryFlowTokenStore, generateFlowToken } from './tokens'
 import { EMPTY_FLOW_SESSION } from './tokens'
 
 /** Adaptador mínimo AdminDb → interface D1 prepare/bind/first/run. */
@@ -60,6 +60,17 @@ describe('createD1FlowOps + rota sem syncAdminDbFactory (Finding 2)', () => {
       const row = await ops.getToken(token)
       expect(row?.tenantId).toBe('clinic-demo-a')
       expect(row?.session.serviceId).toBeNull()
+      const openedAt = () =>
+        db.get<{ opened_at: number | null }>(
+          `SELECT opened_at FROM whatsapp_flow_tokens WHERE token = ?`,
+          token,
+        )?.opened_at ?? null
+      // DEC-143: enviado ainda não é aberto.
+      expect(openedAt()).toBeNull()
+      const firstCall = clock.nowMs()
+      await ops.saveSession(token, { ...EMPTY_FLOW_SESSION })
+      expect(openedAt()).toBe(firstCall)
+      clock.advance(60_000)
       await ops.saveSession(token, {
         serviceId: 'svc1',
         line: 'feminino',
@@ -73,6 +84,8 @@ describe('createD1FlowOps + rota sem syncAdminDbFactory (Finding 2)', () => {
         variantIds: ['z1'],
         slotKey: null,
       })
+      // A primeira abertura não é reescrita pelos ecrãs seguintes.
+      expect(openedAt()).toBe(firstCall)
     } finally {
       close()
     }
@@ -156,5 +169,34 @@ describe('createD1FlowOps + rota sem syncAdminDbFactory (Finding 2)', () => {
     } finally {
       close()
     }
+  })
+})
+
+describe('createMemoryFlowTokenStore opened_at (DEC-143)', () => {
+  it('saveSession carimba openedAt na primeira chamada e não reescreve', () => {
+    const clock = createControllableClock(1_700_000_000_000)
+    const store = createMemoryFlowTokenStore()
+    const token = generateFlowToken()
+    store.insert(null as never, {
+      token,
+      tenantId: 'clinic-demo-a',
+      bindingId: 'b',
+      phoneNumberId: 'p',
+      wabaId: 'w',
+      conversationId: 'c',
+      catalogVersion: '1',
+    }, clock)
+    expect(store.get(null as never, token)?.openedAt).toBeNull()
+    const first = clock.nowMs()
+    store.saveSession(null as never, token, { ...EMPTY_FLOW_SESSION }, first)
+    expect(store.get(null as never, token)?.openedAt).toBe(first)
+    clock.advance(60_000)
+    store.saveSession(null as never, token, {
+      serviceId: 's1',
+      line: 'feminino',
+      variantIds: ['z1'],
+      slotKey: null,
+    }, clock.nowMs())
+    expect(store.get(null as never, token)?.openedAt).toBe(first)
   })
 })
