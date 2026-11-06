@@ -6,6 +6,7 @@ Estas instruções se aplicam a qualquer agente que crie ou altere documentaçã
 
 - `README.md`: apresentação curta e navegação do projeto.
 - `docs/MVP.md`: fonte concisa de verdade para objetivo, recorte, decisões e limites do MVP. Mantenha este documento curto e aponte para especificações detalhadas quando elas existirem.
+- `docs/architecture/referencia.md`: linha guia antes de alterar código. Resume o que não se pode partir e aponta a DEC ou o ADR; não substitui o MVP nem as decisões.
 - [Épico de definição do MVP, issue #1](https://github.com/intentzero/tredane/issues/1): trabalho pendente e critérios para encerrar a definição. Checkboxes de uma issue não substituem especificação aprovada.
 - [Épico de implementação do MVP, issue #14](https://github.com/intentzero/tredane/issues/14): execução do sistema (F0–F6, issues #15–#45). O [plano](docs/implementation/plan.md) liga-se a este épico sem renumerar DEC/REQ; hipóteses antigas em plan/states/validation-register cedem às decisões confirmadas.
 - `docs/design/`: mocks de UI/UX do painel (fontes `.dc.html`, previews PNG), índice de telas, componentes, tokens e catálogo. Quem implementa ou altera interface deve começar por `docs/design/README.md`; a especificação em `docs/product/ux-ui.md` prevalece sobre os mocks. Biblioteca-base do painel: **React Aria Components** (DEC-048 / [ADR-0013](docs/adr/0013-design-system-components.md)); tokens e Lucide conforme DEC-041, fonte Roboto conforme DEC-073.
