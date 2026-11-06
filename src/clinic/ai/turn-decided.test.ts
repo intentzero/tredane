@@ -163,13 +163,14 @@ describe('#407 ai.turn_decided', () => {
     boot.close()
   })
 
-  it('DEC-143: variantsChanged compara só o conjunto de ids do quadro', () => {
+  it('DEC-143: variantsChanged compara ids no mesmo serviço; troca de serviço não conta', () => {
     const f = (serviceId: string | null, variantIds: string[] | null) => ({ serviceId, variantIds })
     expect(variantsChangedInTurn(null, f('svc', ['a']))).toBe(true)
     expect(variantsChangedInTurn(f('svc', null), f('svc', ['a', 'b']))).toBe(true)
     expect(variantsChangedInTurn(f('svc', ['b', 'a']), f('svc', ['a', 'b']))).toBe(false)
     expect(variantsChangedInTurn(f('svc', ['a']), f('svc', ['a', 'b']))).toBe(true)
-    expect(variantsChangedInTurn(f('old', ['a']), f('svc', ['a']))).toBe(true)
+    expect(variantsChangedInTurn(f('old', ['a']), f('svc', ['a']))).toBe(false)
+    expect(variantsChangedInTurn(f('old', null), f('svc', ['a']))).toBe(false)
     expect(variantsChangedInTurn(f('svc', ['a']), f('svc', null))).toBe(false)
     expect(variantsChangedInTurn(f('svc', ['a']), null)).toBe(false)
   })

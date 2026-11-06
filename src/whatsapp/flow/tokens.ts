@@ -29,6 +29,8 @@ export type FlowTokenRow = {
   expiresAt: number
   replacedBy: string | null
   consumedAt: number | null
+  /** DEC-143: primeira chamada Meta ao endpoint (INIT/data_exchange); null = ainda não aberto. */
+  openedAt: number | null
   /** Snapshot SERVICO/GENERO/VARIANTES/HORARIO persistido no D1. */
   session: FlowBookingSnapshot
 }
@@ -45,6 +47,7 @@ type SqlRow = {
   expires_at: number
   replaced_by: string | null
   consumed_at: number | null
+  opened_at?: number | null
   session_json?: string | null
 }
 
@@ -90,6 +93,7 @@ function mapRow(row: SqlRow): FlowTokenRow {
     expiresAt: row.expires_at,
     replacedBy: row.replaced_by,
     consumedAt: row.consumed_at,
+    openedAt: row.opened_at ?? null,
     session: parseFlowSessionJson(row.session_json),
   }
 }
@@ -157,6 +161,7 @@ export function insertFlowToken(
     expiresAt,
     replacedBy: null,
     consumedAt: null,
+    openedAt: null,
     session,
   }
 }
@@ -237,6 +242,7 @@ export function createMemoryFlowTokenStore(): {
         expiresAt: now + FLOW_TOKEN_TTL_MS,
         replacedBy: null,
         consumedAt: null,
+        openedAt: null,
         session: { ...session },
       }
       rows.set(input.token, row)
@@ -246,9 +252,16 @@ export function createMemoryFlowTokenStore(): {
       const row = rows.get(token)
       return row ? { ...row, session: { ...row.session } } : null
     },
-    saveSession(_db, token, session) {
+    saveSession(_db, token, session, nowMs = Date.now()) {
       const row = rows.get(token)
-      if (row) rows.set(token, { ...row, session: { ...session } })
+      // DEC-143: espelha COALESCE(opened_at, ?) do D1 / saveFlowTokenSession.
+      if (row) {
+        rows.set(token, {
+          ...row,
+          session: { ...session },
+          openedAt: row.openedAt ?? nowMs,
+        })
+      }
     },
     consume(_db, token, clock) {
       const row = rows.get(token)

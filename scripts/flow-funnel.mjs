@@ -16,8 +16,8 @@
  * `opened_at` só existe a partir da migração 0019: tokens anteriores contam como não abertos.
  *
  * As medidas a e c vêm dos Workers Logs do worker (filtros sugeridos no fim da saída):
- *   a) `ai.turn_decided` com `variantsChanged = true`; `pendingSlotBefore` separa
- *      zonas escritas sem pergunta (null / outro) de resposta à pergunta (`variantes`) e do Sim (`eco`);
+ *   a) `ai.turn_decided` com `variantsChanged = true` (mesmo serviço; troca de serviço não conta);
+ *      `pendingSlotBefore` separa zonas sem pergunta (null / outro) de resposta (`variantes`) e do Sim (`eco`);
  *   c) `whatsapp_flow.offer_skipped` (`reason`) e `whatsapp_flow.offer_failed`.
  */
 import { spawnSync } from 'node:child_process'
@@ -72,8 +72,8 @@ export function flowFunnelPlan(argv, nowMs = Date.now()) {
 const LOG_HINTS = [
   '',
   'Workers Logs do worker (painel Cloudflare → Workers → Observability), mesmo período:',
-  '  a) event = ai.turn_decided AND tenantId = <tenant>: contar variantsChanged = true,',
-  '     agrupado por pendingSlotBefore (null/outro = zonas escritas sem pergunta).',
+  '  a) event = ai.turn_decided AND tenantId = <tenant>: contar variantsChanged = true',
+  '     (já ignora troca de serviço); agrupar por pendingSlotBefore (null/outro = sem pergunta).',
   '  c) event = whatsapp_flow.offer_skipped (agrupar por reason) e event = whatsapp_flow.offer_failed.',
 ]
 
