@@ -72,6 +72,7 @@ describe('validateExtractorOutput (#416 / DEC-109)', () => {
       },
       {
         messageId: 'msg_1',
+        turnText: 'quero axila amanhã de manhã',
         today: '2026-11-02',
         services: [svc],
         professionals: [{ id: 'pro_1', name: 'Bia' }],
@@ -98,6 +99,7 @@ describe('validateExtractorOutput (#416 / DEC-109)', () => {
       },
       {
         messageId: 'msg_1',
+        turnText: 'quero axila amanhã de manhã',
         today: '2026-11-02',
         services: [svc],
         professionals: [{ id: 'pro_1', name: 'Bia' }],
@@ -106,5 +108,118 @@ describe('validateExtractorOutput (#416 / DEC-109)', () => {
       },
     )
     expect(v.discarded).toEqual(expect.arrayContaining(['serviceId', 'variantIds', 'professionalId']))
+  })
+
+  it('id de catálogo sem a palavra na frase não preenche o campo (DEC-104, 06/11/2026)', () => {
+    const quiet = interpretTurn({
+      turnText: 'pode ser então',
+      messageId: 'msg_2',
+      today: '2026-11-02',
+      services: [svc],
+    })
+    const v = validateExtractorOutput(
+      {
+        acts: ['marcar'],
+        serviceId: 'svc_dep',
+        variantIds: ['zone_ax'],
+        professionalId: 'pro_1',
+        line: 'feminino',
+        period: 'manha',
+        dateLiteral: 'amanhã',
+        timeLiteral: '18:00',
+        optionIndex: 0,
+      },
+      {
+        messageId: 'msg_2',
+        turnText: 'pode ser então',
+        today: '2026-11-02',
+        services: [svc],
+        professionals: [{ id: 'pro_1', name: 'Bia' }],
+        pending: {
+          slot: 'horario',
+          messageId: 'm',
+          options: [{ key: '2026-11-06T18:00', label: 'sexta 06/11 18:00' }],
+        },
+        base: quiet,
+      },
+    )
+    expect(v.slots.serviceId?.fonte).not.toBe('llm')
+    expect(v.slots.variantIds).toBeUndefined()
+    expect(v.slots.professionalId).toBeUndefined()
+    expect(v.slots.line?.fonte).not.toBe('llm')
+    expect(v.slots.period?.fonte).not.toBe('llm')
+    expect(v.slots.date?.fonte).not.toBe('llm')
+    expect(v.slots.time).toBeUndefined()
+    expect(v.slots.optionIndex).toBeUndefined()
+    expect(v.discarded).toEqual(
+      expect.arrayContaining([
+        'serviceId',
+        'variantIds',
+        'professionalId',
+        'line',
+        'period',
+        'dateUnresolved',
+        'timeUnresolved',
+        'optionIndex',
+      ]),
+    )
+  })
+
+  it('hora só entra se parseTimes a confirma na frase da cliente', () => {
+    const quiet = interpretTurn({
+      turnText: 'pode ser às 18',
+      messageId: 'msg_3',
+      today: '2026-11-02',
+      services: [svc],
+    })
+    const opts = {
+      messageId: 'msg_3',
+      turnText: 'pode ser às 18',
+      today: '2026-11-02',
+      services: [svc],
+      professionals: [{ id: 'pro_1', name: 'Bia' }],
+      pending: null,
+      base: quiet,
+    }
+    const accepted = validateExtractorOutput({ acts: ['marcar'], timeLiteral: '18:00' }, opts)
+    expect(accepted.slots.time?.value).toBe('18:00')
+    expect(accepted.slots.time?.fonte).toBe('llm')
+    const bare = interpretTurn({
+      turnText: 'pode ser',
+      messageId: 'msg_3',
+      today: '2026-11-02',
+      services: [svc],
+    })
+    const invented = validateExtractorOutput(
+      { acts: ['marcar'], timeLiteral: '18:00' },
+      { ...opts, turnText: 'pode ser', base: bare },
+    )
+    expect(invented.slots.time).toBeUndefined()
+    expect(invented.discarded).toContain('timeUnresolved')
+  })
+
+  it('sinónimo na frase sustenta o serviço; o nome do catálogo como trecho, não', () => {
+    const withSyn = service({ id: 'svc_dep', name: 'Depilação', synonyms: ['depilar'] })
+    const baseSyn = interpretTurn({
+      turnText: 'quero depilar',
+      messageId: 'msg_4',
+      today: '2026-11-02',
+      services: [withSyn],
+    })
+    const v = validateExtractorOutput(
+      { acts: ['marcar'], serviceId: 'svc_dep', variantIds: ['zone_ax'] },
+      {
+        messageId: 'msg_4',
+        turnText: 'quero depilar',
+        today: '2026-11-02',
+        services: [withSyn],
+        professionals: [],
+        pending: null,
+        base: baseSyn,
+      },
+    )
+    expect(v.slots.serviceId?.value).toBe('svc_dep')
+    expect(v.slots.variantIds).toBeUndefined()
+    expect(v.discarded).toContain('variantIds')
   })
 })

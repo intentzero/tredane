@@ -231,25 +231,44 @@ function parsePeriods(folded: string): Period[] {
   return out
 }
 
-function parseTimes(
+/** Trecho do texto dobrado que o relógio único consumiu. */
+export type ClockSpan = { start: number; end: number }
+
+/**
+ * Relógio único (#408). `spans` são os trechos consumidos — `isClockToken` e
+ * «o das N» consultam este resultado (DEC-137, leitura 06/11/2026).
+ * Hora 1–7 sem manhã/tarde/noite fica ambígua e mesmo assim o trecho é relógio.
+ */
+export function parseTimes(
   foldedRaw: string,
-  periods: Period[],
-): { times: string[]; ambiguousAfternoonHour: number | null } {
+  periods: Period[] = [],
+): { times: string[]; ambiguousAfternoonHour: number | null; spans: ClockSpan[] } {
   const folded = maskNonClockSpans(foldedRaw)
   const out = new Set<string>()
+  const spans: ClockSpan[] = []
   const add = (h: number, m: number) => {
     if (h > 23 || m > 59) return
     out.add(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
   }
+  const note = (m: RegExpMatchArray) => {
+    if (m.index == null) return
+    spans.push({ start: m.index, end: m.index + m[0].length })
+  }
 
-  if (/\bmeio[\s-]?dia\b/.test(folded)) add(12, 0)
+  const meio = /\bmeio[\s-]?dia\b/.exec(folded)
+  if (meio) {
+    note(meio)
+    add(12, 0)
+  }
 
   for (const m of folded.matchAll(/\b([01]?\d|2[0-3])\s+e\s+(?:([0-5]\d)|meia)\b/g)) {
+    note(m)
     const min = m[0].includes('meia') ? 30 : Number(m[2])
     add(Number(m[1]), min)
   }
 
   for (const m of folded.matchAll(/\b(?:as\s+)?([1-9]|1[0-2])\s+da\s+(manha|tarde|noite)\b/g)) {
+    note(m)
     let h = Number(m[1])
     const per = m[2]!
     if (per === 'tarde' && h >= 1 && h <= 7) h += 12
@@ -259,34 +278,55 @@ function parseTimes(
   }
 
   for (const m of folded.matchAll(/\b(?:la\s+pelas|por\s+volta\s+das)\s+([01]?\d|2[0-3])\b/g)) {
+    note(m)
     add(Number(m[1]), 0)
   }
 
   for (const m of folded.matchAll(
     /\b([01]?\d|2[0-3])(?::([0-5]\d)|\s?h(?:rs|s)?(?:\s?([0-5]\d))?)(?![\d/a-z])/g,
   )) {
+    note(m)
     add(Number(m[1]), Number(m[2] ?? m[3] ?? 0))
   }
 
   let ambiguousAfternoonHour: number | null = null
   const hasPeriodWord = periods.length > 0
-  for (const m of folded.matchAll(/\bas\s+([01]?\d|2[0-3])\b(?![:h\d/])/g)) {
-    const hour = Number(m[1])
+  const bareHour = (hour: number, m: RegExpMatchArray) => {
+    note(m)
     const after = folded.slice(m.index! + m[0].length, m.index! + m[0].length + 16)
-    if (/^\s+da\s+(manha|tarde|noite)\b/.test(after)) continue
+    if (/^\s+da\s+(manha|tarde|noite)\b/.test(after)) return
     if (!hasPeriodWord && hour >= 1 && hour <= 7) {
       ambiguousAfternoonHour = hour
-      continue
+      return
     }
     if (hasPeriodWord && periods.includes('tarde') && hour >= 1 && hour <= 7) add(hour + 12, 0)
     else add(hour, 0)
   }
 
+  for (const m of folded.matchAll(/\bas\s+([01]?\d|2[0-3])\b(?![:h\d/])/g)) {
+    bareHour(Number(m[1]), m)
+  }
+
+  // «o das 10» / «das 14» / «das 14:30» — a mesma regra de «às N».
+  for (const m of folded.matchAll(
+    /\b(?:o\s+)?das?\s+([01]?\d|2[0-3])(?:(?::([0-5]\d))|h(?:rs|s)?([0-5]\d)?)?(?![\d/a-z])/g,
+  )) {
+    const hour = Number(m[1])
+    const minutes = m[2] != null ? Number(m[2]) : m[3] != null ? Number(m[3]) : null
+    if (minutes != null) {
+      note(m)
+      add(hour, minutes)
+      continue
+    }
+    bareHour(hour, m)
+  }
+
   for (const m of folded.matchAll(/(?<![\d/])(?<!r\$\s*)\b([01]\d|2[0-3])([0-5]\d)\b(?![\d/,])/g)) {
+    note(m)
     add(Number(m[1]), Number(m[2]))
   }
 
-  return { times: [...out].sort(), ambiguousAfternoonHour }
+  return { times: [...out].sort(), ambiguousAfternoonHour, spans }
 }
 
 export function parseTemporal(text: string, now: ClinicNow | string): TemporalParse {

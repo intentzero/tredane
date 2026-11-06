@@ -95,21 +95,24 @@ export function matchPendingChoice(
   if (!pending || pending.options.length === 0) return { kind: 'none' }
   const opts = pending.options
   const trimmed = text.trim()
+  // Rajada sem fala da clínica no meio («Às 10» + proposta muda + «Sexta às 09:00
+  // e cotovelo»): a hora da última frase é a escolha. Duas horas na mesma frase
+  // continuam fora deste atalho.
+  const lines = trimmed.split('\n').map((line) => line.trim()).filter(Boolean)
+  const lastLine = lines[lines.length - 1] ?? trimmed
+  const lastTimes = [...new Set(extractTimes(lastLine))]
+  const choiceText =
+    lines.length > 1 && lastTimes.length === 1 ? lastLine : trimmed
 
   // DEC-127 (3): 👍 / sim / pode ser / fechado
-  if (AFFIRM_ONLY.test(trimmed)) {
+  if (AFFIRM_ONLY.test(choiceText)) {
     if (opts.length === 1) return { kind: 'match', key: opts[0]!.key, label: opts[0]!.label }
     return { kind: 'ask_which' }
   }
 
-  // Hora citada («o das 14», «14h», «às 14:00») contra opções
-  const times = [...extractTimes(trimmed)]
-  // «o das 14» / «das 14» — extractTimes não apanha; regex dedicada.
-  const das = fold(trimmed).match(/\b(?:o\s+)?das?\s+([01]?\d|2[0-3])(?:h(?:rs|s)?|:\d{2})?\b/)
-  if (das) {
-    const h = Number(das[1])
-    times.push(`${String(h).padStart(2, '0')}:00`)
-  }
+  // Hora citada («o das 14», «14h», «às 14:00») contra opções.
+  // O relógio é o de parseTimes (DEC-137, leitura 06/11/2026): «o das N» já entra em extractTimes.
+  const times = [...extractTimes(choiceText)]
   const uniqueTimes = [...new Set(times)]
   if (uniqueTimes.length === 1) {
     const want = uniqueTimes[0]!
@@ -124,13 +127,16 @@ export function matchPendingChoice(
     })
     if (hits.length === 1) return { kind: 'match', key: hits[0]!.key, label: hits[0]!.label }
     if (hits.length > 1) return { kind: 'ambiguous' }
+    // Hora explícita fora da lista não é escolha ambígua do dia («sexta às 17:00»
+    // com 09:00 e 10:00 na sexta). O resto do funil trata a hora citada.
+    return { kind: 'none' }
   }
 
   // DEC-127 (2): ordinal vs dia da semana
   const ord = (() => {
     // Forçar deteção de «a segunda opção»
-    if (/\b(primeira|segunda|terceira|quarta|quinta)\s+op/i.test(fold(trimmed))) {
-      const m = fold(trimmed).match(/\b(primeira|segunda|terceira|quarta|quinta)\b/)
+    if (/\b(primeira|segunda|terceira|quarta|quinta)\s+op/i.test(fold(choiceText))) {
+      const m = fold(choiceText).match(/\b(primeira|segunda|terceira|quarta|quinta)\b/)
       const map: Record<string, number> = {
         primeira: 1,
         segunda: 2,
@@ -140,9 +146,9 @@ export function matchPendingChoice(
       }
       return m ? (map[m[1]!] ?? null) : null
     }
-    return ordinalIndex(trimmed)
+    return ordinalIndex(choiceText)
   })()
-  const wd = weekdayMention(trimmed)
+  const wd = weekdayMention(choiceText)
 
   let byOrdinal: (typeof opts)[0] | null = null
   if (ord != null && ord >= 1 && ord <= opts.length) {
@@ -167,7 +173,7 @@ export function matchPendingChoice(
   if (byWeekday) return { kind: 'match', key: byWeekday.key, label: byWeekday.label }
 
   // Match exact key/label
-  const folded = fold(trimmed)
+  const folded = fold(choiceText)
   const exact = opts.filter((o) => fold(o.label) === folded || fold(o.key) === folded)
   if (exact.length === 1) return { kind: 'match', key: exact[0]!.key, label: exact[0]!.label }
 

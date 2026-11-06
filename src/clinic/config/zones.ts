@@ -3,6 +3,7 @@
  * A visita é um bloco: soma das durações + o intervalo do serviço uma vez.
  */
 import { durationMinutesFromText } from '../catalog/duration'
+import { parseTimes } from '../ai/nlu/temporal'
 import type { Clock } from '../../db/clock'
 import { priceVisit } from '../catalog/combo'
 import { ValidationError } from '../errors'
@@ -801,20 +802,39 @@ const ZONE_MENTION_STOP = new Set([
   // Prefixo de toque Meta («[Lista] Axila», «[Botão] Feminina»)
   'lista',
   'botao',
+  // DEC-137, leitura 06/11/2026: partícula que não nomeia zona não é sobra.
+  'entao',
+  'valeu',
+  'prefiro',
+  'verdade',
 ])
 
 /**
- * Hora, não zona que sobrou.
- * «10h» / «15h30» e o compacto «0900» (sem dois-pontos). «09:00» já se parte
- * em «09» e «00», ambos curtos demais para contar como palavra.
+ * Hora, não zona que sobrou. Consulta `parseTimes`: o token inteiro é relógio
+ * quando o relógio único o consome («10h», «10hrs», «10hs», «0900»).
+ * Frases («lá pelas 10», «9 e meia», «meio-dia», «o das 10») saem antes,
+ * pelo mascaramento dos trechos, não por esta função isolada.
  */
 function isClockToken(word: string): boolean {
-  if (/^\d{1,2}h\d{0,2}$/.test(word)) return true
-  return /^(?:[01]\d|2[0-3])[0-5]\d$/.test(word)
+  if (!word) return false
+  const parsed = parseTimes(word)
+  if (parsed.times.length === 0 && parsed.spans.length === 0) return false
+  return parsed.spans.some((span) => span.start === 0 && span.end === word.length)
+}
+
+/** Apaga os trechos que `parseTimes` consumiu, para não virarem sobra de zona. */
+function maskClockSpans(folded: string): string {
+  const { spans } = parseTimes(folded)
+  if (spans.length === 0) return folded
+  const chars = folded.split('')
+  for (const span of spans) {
+    for (let i = span.start; i < span.end && i < chars.length; i++) chars[i] = ' '
+  }
+  return chars.join('')
 }
 
 function mentionContentTokens(folded: string): string[] {
-  return folded
+  return maskClockSpans(folded)
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length >= 3 && !ZONE_MENTION_STOP.has(word) && !isClockToken(word))
 }
@@ -950,7 +970,8 @@ export function resolveZoneMention(
     if (variantAudiencesConflict(group)) continue
     pluralIndex.set(plural, group)
   }
-  const folded = foldZoneName(text)
+  // Relógio único antes do split no «e»: «9 e meia» não vira sobra «meia».
+  const folded = maskClockSpans(foldZoneName(text))
   const excised = exciseCompoundZonePhrases(
     folded,
     active,

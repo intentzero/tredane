@@ -23,6 +23,7 @@ import { listServices } from '../config/services'
 import { explicitAudienceLine } from '../catalog/audience'
 import {
   quoteVisit,
+  readZoneSnapshots,
   resolveZoneMention,
   textNamesMixAudiences,
   variantAudiencesConflict,
@@ -34,7 +35,13 @@ import type { ServiceRow } from '../config/types'
 import type { ClinicCaller } from '../envelopes'
 import { getConversation } from '../inbox/conversations'
 import type { OutboxRow } from '../outbox'
-import { createProposal, getActiveProposalForConversation, retireActiveProposal } from '../proposals/proposals'
+import {
+  createProposal,
+  getActiveProposalForConversation,
+  resumeOpenProposalConfirm,
+  retireActiveProposal,
+  suspendOpenProposalConfirm,
+} from '../proposals/proposals'
 import { sendProposalToWhatsAppOp } from '../proposals/send'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { openPendingCommunication } from '../proposals/pending-communication'
@@ -685,12 +692,26 @@ export async function tryAiAutoBook(
     if (echoed === 'sim' || echoed === 'certo') zoneEcho = 'confirm'
     else if (echoed === 'corrigir') zoneEcho = 'correct'
   }
+  if (zoneEcho === 'correct') {
+    resumeOpenProposalConfirm(db, tenantId, input.conversationId, clock)
+  }
   const presentZoneEcho = (
     serviceId: string,
     zones: ServiceRow['zones'],
   ): { replyText: string; interactive: ChoiceInteractive } | null => {
     if (zoneEcho === 'skip' || zoneEcho === 'confirm' || zoneEcho === 'correct') return null
     if (zones.length === 0) return null
+    const open = getActiveProposalForConversation(db, tenantId, input.conversationId, clock)
+    if (open) {
+      const prevIds = readZoneSnapshots(db, tenantId, 'proposal', open.id)
+        .map((zone) => zone.zoneId)
+        .filter((id): id is string => Boolean(id))
+        .sort()
+      const nextIds = zones.map((zone) => zone.id).sort()
+      if (prevIds.join('\0') !== nextIds.join('\0')) {
+        suspendOpenProposalConfirm(db, tenantId, input.conversationId, clock)
+      }
+    }
     const built = buildZoneEchoInteractive(catalog.version)
     return {
       replyText: zoneEchoReply(zones),
@@ -931,6 +952,29 @@ export async function tryAiAutoBook(
     time = session.clockTime
     missing = missing.filter((item) => item !== 'horario')
   }
+  if (!time && clockFromTurn) time = clockFromTurn
+  // Hora pedida sem dia no quadro: o dia é o da proposta aberta, para a vaga
+  // ser conferida sem gravar a hora nova (#577).
+  if (!date && clockFromTurn && openProposal && det.service?.id === openProposal.serviceId) {
+    date = clinicCivilDateFromUtc(tz, openProposal.startsAt)
+    missing = missing.filter((item) => item !== 'dia')
+  }
+  // Sim do eco de substituição: fecha o conjunto e segue para proposta nova
+  // no dia e na hora da proposta suspensa (#576). Sim não marca.
+  if (zoneEcho === 'confirm' && openProposal && det.service?.id === openProposal.serviceId) {
+    if (!date) date = clinicCivilDateFromUtc(tz, openProposal.startsAt)
+    if (!time) time = localHHMM(tz, openProposal.startsAt)
+    missing = missing.filter((item) => item !== 'dia' && item !== 'horario')
+    det = {
+      ...det,
+      ok: true,
+      status: 'requires_button',
+      date,
+      time,
+      missing: [],
+      service: det.service,
+    }
+  }
   const ready =
     Boolean(det.service && date && time) &&
     (det.ok || (det.status === 'needs_info' && missing.length === 0))
@@ -974,9 +1018,10 @@ export async function tryAiAutoBook(
         ? { zones: sessionIntact ? sessionZones : [], ambiguous: false }
         : zonesChosenByClient(clientTurn, older, mentionPool)
       let kept = chosen.zones
-      if (zoneEcho === 'correct' || (mention.unrecognized && zoneEcho !== 'skip')) {
-        // Corrigir (e sobra não mapeada) não reaproveita o conjunto anterior.
-        // Toque em Opções (skip) ignora sobra no histórico «[Lista] …».
+      const leftoverAsk =
+        mention.unrecognized && zoneEcho !== 'skip' && zoneEcho !== 'confirm' && zoneEcho !== 'correct'
+      if (zoneEcho === 'correct') {
+        // Corrigir não reaproveita o conjunto anterior.
         kept = []
         chosen = { zones: [], ambiguous: false }
       } else if (zoneEcho === 'confirm' || (frameOwnsVariants && sessionIntact)) {
@@ -999,8 +1044,7 @@ export async function tryAiAutoBook(
         kept = sessionZones
         chosen = { zones: sessionZones, ambiguous: false }
       }
-      const clearVariants =
-        zoneEcho === 'correct' || (mention.unrecognized && zoneEcho !== 'skip')
+      const clearVariants = zoneEcho === 'correct'
       saveSession({
         serviceId: det.service.id,
         ...(turnExplicit || frameLine ? { audienceLine: turnExplicit ?? frameLine } : {}),
@@ -1038,7 +1082,7 @@ export async function tryAiAutoBook(
           // #510 prática 6: uma pergunta só pelo campo que falta.
           replyText = audienceLineQuestion(det.service.name, input.conversationId)
           interactive = lineChoiceFor(deferred, det.service.id, catalog.version)
-        } else if (active.length > 0 && (kept.length === 0 || chosen.ambiguous)) {
+        } else if (active.length > 0 && (leftoverAsk || kept.length === 0 || chosen.ambiguous)) {
           const zonePool = pool.length > 0 ? pool : active
           const names = stableVariantLabelList(zonePool)
           const kind = det.service.variantKindPlural || det.service.variantKind
@@ -1141,15 +1185,41 @@ export async function tryAiAutoBook(
           !date &&
           !(frameForAsk && wouldAskFilledSlot(frameForAsk, 'date'))
         ) {
-          // DEC-127.4 / DEC-122 / #510: só pergunta o dia se o quadro ainda não o tem.
-          // Fallback allowlist (#448): catálogo emite «Para {serviço}, qual dia fica melhor?».
-          const fb = `Me diga o dia para ${det.service.name}.`
-          replyText = sayAct(
-            'perguntar_dia',
-            input.conversationId,
-            { serviço: det.service.name },
-            fb,
-          )
+          const previousIds = sessionZones.map((zone) => zone.id).sort().join('\0')
+          const nextIds = kept.map((zone) => zone.id).sort().join('\0')
+          const substitution =
+            !clockFromTurn &&
+            kept.length > 0 &&
+            !chosen.ambiguous &&
+            !mention.unrecognized &&
+            previousIds !== nextIds &&
+            (mention.zones.length > 0 ||
+              zonesChosenInClientTexts([turnText], mentionPool).zones.length > 0)
+          if (
+            substitution &&
+            zoneEcho !== 'skip' &&
+            zoneEcho !== 'confirm' &&
+            zoneEcho !== 'correct'
+          ) {
+            // Hora já escolhida e data ainda fora do quadro: o eco da troca
+            // vem antes da pergunta do dia (#576).
+            const echoed = presentZoneEcho(det.service.id, kept)
+            if (echoed) {
+              replyText = echoed.replyText
+              interactive = echoed.interactive
+            }
+          }
+          if (!replyText) {
+            // DEC-127.4 / DEC-122 / #510: só pergunta o dia se o quadro ainda não o tem.
+            // Fallback allowlist (#448): catálogo emite «Para {serviço}, qual dia fica melhor?».
+            const fb = `Me diga o dia para ${det.service.name}.`
+            replyText = sayAct(
+              'perguntar_dia',
+              input.conversationId,
+              { serviço: det.service.name },
+              fb,
+            )
+          }
         }
         const faltam = missing.length ? missing.join(', ') : 'confirmação clara'
         return finish({
@@ -1291,7 +1361,6 @@ export async function tryAiAutoBook(
               mention.zones.length > 0 ||
               zonesChosenInClientTexts([turnText], zonePool).zones.length > 0
             if (mention.unrecognized && zoneEcho !== 'skip' && zoneEcho !== 'confirm') {
-              saveSession({ serviceId: svc.id, variantIds: null })
               replyText = askUnrecognizedZone(
                 mention,
                 zonePool,
@@ -1463,9 +1532,12 @@ export async function tryAiAutoBook(
   let namedZones: typeof fromSession = []
   let echoLocked = false
   let ambiguous = false
-  if (zoneEcho === 'correct' || (proposalMention.unrecognized && zoneEcho !== 'skip')) {
+  if (zoneEcho === 'correct') {
     namedZones = []
     saveSession({ serviceId: svc.id, variantIds: null })
+  } else if (proposalMention.unrecognized && zoneEcho !== 'skip') {
+    // Sobra por resolver bloqueia a proposta e não apaga o conjunto já resolvido.
+    namedZones = []
   } else if (zoneEcho === 'confirm' || input.boundSlot) {
     echoLocked = sessionIntact
     namedZones = echoLocked ? fromSession : []
@@ -1670,6 +1742,14 @@ export async function tryAiAutoBook(
       .slice(0, 3)
       .map((s) => localHHMM(tz, s.startsAt))
       .filter((t) => t !== time)
+    const openOffer = getActiveProposalForConversation(db, tenantId, input.conversationId, clock)
+    if (openOffer) {
+      saveSession({
+        serviceId: openOffer.serviceId,
+        clockTime: localHHMM(tz, openOffer.startsAt),
+        date: clinicCivilDateFromUtc(tz, openOffer.startsAt),
+      })
+    }
     const replyText = await occupiedSlotAlternativesReply({
       db,
       tenantId,

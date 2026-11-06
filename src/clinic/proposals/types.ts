@@ -49,6 +49,12 @@ export type AppointmentProposalRow = {
   tempoCeu: 'tanto_faz' | 'sol' | 'chuva'
   tempoTemperatura: 'tanto_faz' | 'acima' | 'abaixo'
   tempoCelsius: number | null
+  /**
+   * Confirmar suspenso: o eco de uma substituição resolvida já tirou a validade
+   * deste botão (DEC-061 / DEC-137, 06/11/2026). A linha permanece.
+   * Corrigir limpa a marca dentro do prazo; a proposta nova é que substitui.
+   */
+  confirmSuspended: boolean
   createdAt: number
   updatedAt: number
 }
@@ -81,6 +87,7 @@ export type ProposalAuthorizationDenial =
   | 'not_enviada'
   | 'expired'
   | 'fabricated_id'
+  | 'confirm_suspended'
 
 export type ProposalAuthorizationResult =
   | { allowed: true; proposal: AppointmentProposalRow }

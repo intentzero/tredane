@@ -88,7 +88,7 @@ class ExtractThenExceptionAdapter extends SimulatedAiAdapter {
   }
 }
 
-function seed() {
+function seed(opts?: { synonyms?: string[] }) {
   const clock = createControllableClock(NOW)
   const boot = bootClinicDb({ clock })
   const { db } = boot
@@ -119,6 +119,7 @@ function seed() {
       priceCents: 15000,
       professionalIds: [gi.id],
       roomRequirement: { mode: 'none' },
+      ...(opts?.synonyms ? { synonyms: opts.synonyms } : {}),
     },
     clock,
   )
@@ -181,7 +182,9 @@ describe('#491 getAiDailyUsage / extrator no teto diário', () => {
   })
 
   it('N turnos só com extrator (sem redator) → teto e turn_decided com N chamadas', async () => {
-    const s = seed()
+    // #578: «noivas» sustenta Massagem. O léxico de regra não lê sinónimo,
+    // o extrator continua necessário e o id entra sem cair no redator.
+    const s = seed({ synonyms: ['noivas'] })
     const adapter = new ExtractFillsServiceAdapter()
     const N = 3
     try {

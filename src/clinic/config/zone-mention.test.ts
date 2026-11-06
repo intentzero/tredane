@@ -146,6 +146,32 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
     expect(got.leftover).toBe('cotovelo')
   })
 
+  it('forma de hora consumida pelo relógio único não é sobra (DEC-137, 06/11/2026)', () => {
+    for (const text of [
+      '10hrs',
+      '10hs',
+      'lá pelas 10',
+      'por volta das 10',
+      '9 e meia',
+      'meio-dia',
+      'o das 10',
+      'Pode ser às 10 então',
+      'Sexta às 10, valeu',
+      'Prefiro às 10',
+    ]) {
+      const got = resolveZoneMention(text, feminine)
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.leftover, text).toBeNull()
+    }
+  })
+
+  it('«Na verdade, só pernas» resolve Pernas e não trata «verdade» como zona', () => {
+    const got = resolveZoneMention('Na verdade, só pernas', feminine)
+    expect(got.unrecognized).toBe(false)
+    expect(got.leftover).toBeNull()
+    expect(got.zones.map((z) => z.name)).toEqual(['Pernas'])
+  })
+
   it('«0900» no texto de horário não é sobra de zona', () => {
     for (const text of ['Sexta às 0900', '0900', 'sexta as 09:00']) {
       const got = resolveZoneMention(text, feminine)
