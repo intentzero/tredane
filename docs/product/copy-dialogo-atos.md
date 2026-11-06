@@ -255,9 +255,11 @@ O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a lev
 
 **Estado:** **Confirmado** (Paulo, DEC-104, 03/11/2026, ok no [#523](https://github.com/intentzero/tredane/pull/523)). Relógio da clínica; sem fuso IANA.
 
+**Nota (06/11/2026, Paulo — Confirmado):** tirou o rodapé `Esta lista vale por 24 horas.` da oferta de horários; a lista fica só com as horas. A validade de 24 h do `pending` / `lastOffer` no backend (DEC-127) mantém-se; não se reabre a DEC-127. A validade da proposta (`Válida até {hora}.`) e o Confirmar não mudam.
+
 | Onde | Texto confirmado |
 | --- | --- |
-| Rodapé da lista Horários (DEC-127.1 = 24 h) | `Esta lista vale por 24 horas.` (sem HH:MM — evita INV-03 / B-13) |
+| Rodapé da lista Horários | *(removido 06/11/2026 — ver nota acima; antes: `Esta lista vale por 24 horas.`)* |
 | Cartão da proposta (30 min após o envio) | `Válida até {hora}.` |
 | Confirmar depois da validade, com alternativas | `Essa proposta já não está válida. Para {serviço}, tenho {lista}. Qual fica melhor?` |
 | Confirmar depois da validade, sem alternativas | `Essa proposta de {serviço} em {quando} já não está válida. Quer que eu veja outros horários?` |

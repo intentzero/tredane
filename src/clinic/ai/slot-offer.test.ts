@@ -6,7 +6,6 @@ import {
 } from './dialogue-acts'
 import {
   dayWithPrepPt,
-  offerValidityFooter,
   periodFromHHMM,
   pickNearbySameDay,
   minutesOfHHMM,
@@ -20,12 +19,17 @@ afterEach(() => {
 })
 
 describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
-  it('#511 validade da lista: 24 h sem HH:MM (INV-03 / B-13)', () => {
-    const footer = offerValidityFooter()
-    expect(footer).toBe('Esta lista vale por 24 horas.')
-    // Não pode parecer horário oferecido (B-13 começa às 23:50 SP).
-    expect(footer).not.toMatch(/\b\d{2}:\d{2}\b/)
-    expect(footer).not.toContain('America/')
+  it('oferta de horários não leva rodapé «vale por 24 horas» (Paulo 06/11/2026)', () => {
+    // O ato oferecer_horarios + lista: só as horas; sem frase de validade no corpo.
+    const body = sayAct(
+      'oferecer_horarios',
+      'cnv_no_footer',
+      { assunto: 'Massagem', quando: '', lista: 'sexta 06/11 às 09:00, 10:00' },
+      'FALLBACK',
+    )
+    expect(body).not.toMatch(/vale por 24 horas/i)
+    expect(body).not.toMatch(/Esta lista vale/i)
+    expect(body).toMatch(/09:00/)
   })
 
   it('título da lista é dia da semana + DD/MM + hora, sem fuso nem mês-dia (#507)', () => {
