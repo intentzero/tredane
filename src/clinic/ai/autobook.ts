@@ -1455,18 +1455,15 @@ export async function tryAiAutoBook(
     : []
   const sessionIntact = sessionIds.length > 0 && fromSession.length === sessionIds.length
   const proposalMention = mentionZones(turnText, mentionPool, svc)
-  // Horário já casado na lista (pending/toque). «0900» não pode reabrir zonas.
-  const slotBound = Boolean(pendingTimeOverride || input.boundSlot)
   // #510: eco Sim / toque Horários / Opções → quadro. Texto e histórico só
   // preenchem o que ainda falta; sessão suja («as duas» + catálogo inteiro)
   // não vence menções explícitas (axila e íntima).
+  // Hora já casada na lista não descarta sobra de zona (DEC-137 / #509):
+  // «Sexta às 09:00 e cotovelo» pergunta a zona e não emite proposta.
   let namedZones: typeof fromSession = []
   let echoLocked = false
   let ambiguous = false
-  if (
-    zoneEcho === 'correct' ||
-    (proposalMention.unrecognized && zoneEcho !== 'skip' && !slotBound)
-  ) {
+  if (zoneEcho === 'correct' || (proposalMention.unrecognized && zoneEcho !== 'skip')) {
     namedZones = []
     saveSession({ serviceId: svc.id, variantIds: null })
   } else if (zoneEcho === 'confirm' || input.boundSlot) {
@@ -1534,7 +1531,7 @@ export async function tryAiAutoBook(
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
       // #509: sobra sem match único → «Não encontrei {palavra}…» (copy proposta).
       replyText:
-        proposalMention.unrecognized && !ambiguous && !slotBound
+        proposalMention.unrecognized && !ambiguous
           ? askUnrecognizedZone(proposalMention, zonePool, genericAsk)
           : genericAsk,
       interactive,

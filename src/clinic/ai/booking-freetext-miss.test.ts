@@ -113,25 +113,39 @@ async function say(s: ReturnType<typeof seed>, body: string) {
   return out[0]!
 }
 
+/** Linha, masculina, zonas compostas e Sim — lista com 09:00 e 10:00. */
+async function openFridaySlots(s: ReturnType<typeof seed>) {
+  const line = await say(s, 'Quero agendar uma depilação')
+  const lineText = line.autoBook?.replyText ?? ''
+  expect(lineText).toMatch(/feminina ou masculina/i)
+  expect(lineText).not.toMatch(/Para Depilação/)
+
+  await say(s, 'Masculina')
+  const zones = await say(s, 'Axilas pernas e tórax e abdômen')
+  const echo = zones.autoBook?.replyText ?? ''
+  expect(echo).toBe('Entendi: Axila, Pernas e Tórax e Abdômen. Certo?')
+  expect(echo).not.toMatch(/Não encontrei/i)
+
+  const offered = await say(s, 'Sim')
+  const offer = offered.autoBook?.replyText ?? ''
+  expect(offer).toMatch(/09:00/)
+  expect(offer).toMatch(/10:00/)
+  expect(offer).not.toMatch(/Não encontrei/i)
+  return offered
+}
+
+function proposalCount(s: ReturnType<typeof seed>): number {
+  return s.db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM appointment_proposals WHERE tenant_id = ?`,
+    s.tenantId,
+  )!.n
+}
+
 describe('texto livre: zona composta, 0900 e serviço em prosa', () => {
   it('«tórax e abdômen» fecha com Axila e Pernas; «Sexta às 0900» marca 09:00', async () => {
     const s = seed()
     try {
-      const line = await say(s, 'Quero agendar uma depilação')
-      const lineText = line.autoBook?.replyText ?? ''
-      expect(lineText).toMatch(/feminina ou masculina/i)
-      expect(lineText).not.toMatch(/Para Depilação/)
-
-      await say(s, 'Masculina')
-      const zones = await say(s, 'Axilas pernas e tórax e abdômen')
-      const echo = zones.autoBook?.replyText ?? ''
-      expect(echo).toBe('Entendi: Axila, Pernas e Tórax e Abdômen. Certo?')
-      expect(echo).not.toMatch(/Não encontrei/i)
-
-      const offered = await say(s, 'Sim')
-      const offer = offered.autoBook?.replyText ?? ''
-      expect(offer).toMatch(/09:00/)
-      expect(offer).not.toMatch(/Não encontrei/i)
+      await openFridaySlots(s)
 
       const picked = await say(s, 'Sexta às 0900')
       const reply = picked.autoBook?.replyText ?? ''
@@ -152,4 +166,22 @@ describe('texto livre: zona composta, 0900 e serviço em prosa', () => {
       s.close()
     }
   }, 30_000)
+
+  it.each(['Sexta às 09:00 e cotovelo', 'Sexta às 10h e cotovelo'])(
+    '«%s» com horário casado não propõe e pergunta a zona',
+    async (text) => {
+      const s = seed()
+      try {
+        await openFridaySlots(s)
+        const picked = await say(s, text)
+        const reply = picked.autoBook?.replyText ?? ''
+        expect(reply).toMatch(/Não encontrei cotovelo nas opções/)
+        expect(picked.autoBook?.proposalId).toBeFalsy()
+        expect(proposalCount(s)).toBe(0)
+      } finally {
+        s.close()
+      }
+    },
+    30_000,
+  )
 })
