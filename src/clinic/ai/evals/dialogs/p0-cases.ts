@@ -3,6 +3,7 @@
  * knownFailure → corre como it.fails com o ID do achado (DEC-108).
  * A-13..A-19: sonda de novembro / F1-0 (#506).
  * FL-*: hub + WhatsApp Flow (`fl-cases.ts`).
+ * CC-*, A-22, A-23: consulta de catálogo e Confirmar suspenso (`cc-cases.ts`).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import { acceptUnmatchedTermOp, createBlockOp, listUnmatchedTermsOp } from '../../../config'
@@ -14,6 +15,7 @@ import {
   type DialogCase,
 } from './runner'
 import { DIALOG_NOW_MS } from './scenario'
+import { CC_DIALOG_CASES } from './cc-cases'
 import { FL_DIALOG_CASES } from './fl-cases'
 
 class TimeoutAdapter extends SimulatedAiAdapter {
@@ -1308,5 +1310,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
 
 // Família FL- (Flow + hub, DEC-138): caminho principal vigente.
 P0_DIALOG_CASES.push(...FL_DIALOG_CASES)
+// Família CC- (consulta de catálogo, DEC-142) e Confirmar suspenso (A-22/A-23).
+P0_DIALOG_CASES.push(...CC_DIALOG_CASES)
 
 export const P0_IDS = P0_DIALOG_CASES.map((c) => c.id)

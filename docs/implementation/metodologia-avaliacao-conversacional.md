@@ -1,6 +1,6 @@
 # Metodologia de teste e avaliação da interface conversacional
 
-**Estado:** **Confirmado** como referência do projeto pela **DEC-139** (Paulo, 05/11/2026). Os limiares numéricos continuam **Em aberto** até haver duas linhas de base. Pedido do Paulo em 05/11/2026: metodologia eficiente e eficaz, com KPIs que acompanhem e assinalem progressões e regressões, mantida durante todo o ciclo de vida do projeto. Este documento é o **guarda-chuva** e não substitui os que já existem. Ele diz *como* medir, *quando*, *o que conta como regressão* e *como a própria metodologia evolui*. O detalhe continua nos documentos de origem:
+**Revisão 0.6 (06/11/2026):** confrontada com 10 commits conversacionais de outras pessoas depois da linha de base; ver G-09 a G-11. **Estado:** **Confirmado** como referência do projeto pela **DEC-139** (Paulo, 05/11/2026). Os limiares numéricos continuam **Em aberto** até haver duas linhas de base. Pedido do Paulo em 05/11/2026: metodologia eficiente e eficaz, com KPIs que acompanhem e assinalem progressões e regressões, mantida durante todo o ciclo de vida do projeto. Este documento é o **guarda-chuva** e não substitui os que já existem. Ele diz *como* medir, *quando*, *o que conta como regressão* e *como a própria metodologia evolui*. O detalhe continua nos documentos de origem:
 
 | Documento | Papel | Estado |
 | --- | --- | --- |
@@ -27,6 +27,9 @@ O que falta é sobretudo **medir ao longo do tempo** e **cobrir o caminho que mu
 | G-06 | **Sem amostras de conversa real em revisão.** | GATE-04/06 (dados reais) ainda abertos; correto que assim seja. | O corpus reflete o que a equipa imagina, não o que as clientes escrevem. Depende de decisão jurídica, não de engenharia. |
 | G-07 | **Métrica de estrago com leituras enganadoras.** | Na primeira corrida do scorecard, A-15/A-16 apareciam com «zonas 0/2» quando o diálogo termina no eco, antes de haver proposta (corrigido: sem proposta, a razão é nula). A-18 declara o pedido 15:00 e a última proposta **não** bate, mas o caso passa. | Por triar: ou a declaração `damage` do A-18 está desatualizada, ou é estrago real que as expectativas não apanham. |
 | G-08 | **As invariantes nunca tinham visto um Confirmar válido.** | A INV-01 era «zero compromissos». Nenhum caso L1 fazia uma marcação completa, por isso uma marcação dupla não seria apanhada. A INV-03 e a INV-08 davam falso positivo no hub. | **Corrigido** com a família FL- (plano de testes §5). Lição: um caminho novo exige rever as invariantes, não só acrescentar casos. |
+| G-09 | **Mudanças de comportamento entram só com testes unitários.** | Entre a linha de base e 06/11 entraram 10 commits em `src/clinic/ai`, `src/whatsapp/flow` e `src/clinic/proposals` (DEC-142 consulta de catálogo, `confirm_suspended`, zona composta, hora 0900, leituras de 06/11). **Nenhum dos 8 de terceiros** acrescentou um caso L1. O scorecard dá «SEM MUDANÇA»: o gate funciona, mas só vê o que já está coberto. | **Fechado em parte** (06/11/2026): CC-01..05, A-22 e A-23. Dois defeitos reais saíram: CF-44 (Confirmar suspenso sem resposta) e CF-45 (a audiência da consulta não passa ao funil). |
+| G-10 | **A metodologia é invisível para quem altera o código.** | O `AGENTS.md` e o `referencia.md` (guia de invariantes de 06/11) não a mencionavam; o CI não corre o scorecard; o modelo de PR não pede «Apanhado em». | **Fechado em parte:** `AGENTS.md` e `referencia.md` passam a apontar para ela e a pedir o scorecard e um caso L1 por comportamento. **Por decidir:** o scorecard no CI e a linha «Apanhado em» (§10). |
+| G-11 | **A telemetria nova do funil não está nos KPIs.** | A DEC-143 acrescentou `variantsChanged`, `pendingSlotBefore`, `opened_at`, `scripts/flow-funnel.mjs` e o log `whatsapp_flow.offer_skipped`. A sonda de 05/11 não viu o `ai.turn_decided` no `wrangler tail`. | **Fechado** no §5.3. A verificação do `tail` fica por fazer (passo 9). |
 
 ## 2. Base no estado da arte
 
@@ -114,6 +117,18 @@ Os KPIs organizam-se em quatro camadas. Só a camada **Gate** bloqueia (DEC-108)
 
 Métrica orientadora: conversão confirmada sem erro, com acesso humano preservado. Guardrails: segurança da marcação, qualidade factual, acesso humano, confiabilidade do canal e eficiência de IA e WhatsApp. Os sinais operacionais já disponíveis no `ai.turn_decided` (rota, chamadas ao modelo, texto descartado, latências, tokens) permitem, **antes** dos dados reais, um painel de distribuição de rotas, de taxa de `fallback` e de `handoff:*` por versão. Ativação real depende de GATE-04/06.
 
+
+**Funil do Flow (06/11/2026, medidas da DEC-143)** — **Proposto**. Medem o **mecanismo** no staging, não o comportamento de clientes (a DEC-143 diz-o): para isso é preciso teste com pessoas de fora da equipa ou a contagem da clínica piloto.
+
+| KPI | Definição | Fonte | Leitura |
+| --- | --- | --- | --- |
+| K-FLW-OPEN | Flows abertos ÷ enviados | `scripts/flow-funnel.mjs` (`opened_at` na primeira chamada da Meta) | Queda = o CTA não convence, ou a Meta não chega ao endpoint |
+| K-FLW-DONE | Flows concluídos (`nfm_reply`) ÷ abertos | idem | Queda = ecrã que perde a cliente |
+| K-FLW-SKIP | Turnos em que o Flow não saiu ÷ turnos que o pediam, por motivo | log `whatsapp_flow.offer_skipped` | O M5 volta a ser o recurso; o motivo diz se é configuração, catálogo (>20 variantes) ou Meta |
+| K-FLW-REPL | Flows substituídos ou expirados ÷ enviados | `flow-funnel.mjs` | Cliente que volta a escrever em vez de usar o Flow |
+| K-TXT-ZONE | Turnos em que `variantsChanged` é verdadeiro sem pergunta de zonas pendente (`pendingSlotBefore` ≠ `variantes`) ÷ turnos de marcação | `ai.turn_decided` | A fração dos pedidos que trazem zonas no texto (a medida (a) da DEC-143) |
+
+Antes de qualquer destes valores contar, **verificar que o `ai.turn_decided` chega ao `wrangler tail` do staging** (passo 9). O L1 já cobre o contrato do evento sem texto da conversa (`turn-decided.test`).
 ### 5.4 KPIs do próprio processo — **Proposto**
 
 Medem se a metodologia está a funcionar e disparam a sua revisão (§8).
@@ -164,6 +179,8 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 5. Entrada de dados reais (GATE-04/06): ativar L5 e amostragem humana de conversas reais minimizadas.
 6. Um caso de capacidade passa estável em 3 iterações: **graduar** para regressão P0.
 7. Uma família de casos fica saturada (100 % durante muito tempo e sem fugas): manter, mas investir em L3 e L4 nessa área.
+8. Uma **proposta** que redefine papéis do caminho (hoje a DEC-143: texto livre só pré-preenche e o Flow escolhe) passa a **decisão**: no mesmo PR, rever ou retirar os casos de eco e de zona em texto livre (A-15..A-18, a família do eco) e criar os do papel novo, antes de apagar a maquinaria antiga. Até lá valem a DEC-137 e a DEC-138, e os casos atuais não se tocam.
+9. Um commit de terceiros muda comportamento conversacional sem caso L1 (lição G-09): o próximo scorecard ou revisão acrescenta-o. Um **achado** novo (CF) fica como `knownFailure` até haver correção.
 
 **Como mudar.** Mudar um limiar, uma tolerância ou a camada de um KPI exige: (a) editar a tabela deste documento e `KPI_RULES` no mesmo PR; (b) registar a mudança no histórico de versões abaixo; (c) promover um KPI de «assinala» para «bloqueia» só com DEC do Paulo (como a DEC-108 fez para as INV).
 
@@ -175,10 +192,13 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 | 2 | G-02, G-08 | Família `FL-` (16 casos), `flow-driver.ts` sobre o endpoint real, `flowDataExchangeLocal` partilhado com o Clinic DO, invariantes corrigidas. Cobre no L1 o CF-36 da sonda L4 (#565) e encontrou o CF-43. Falta: catálogo ou hora a mudar a meio do Flow, `fallback_reason`, token de outra clínica (precisam de um turno de mutação). | **Feito** (05/11/2026), salvo o que falta |
 | 2b | G-02 | Extrair do `queue-consumer.ts` uma função partilhada para o processamento do `nfm_reply` (token, consumo, ack, proposal) e usá-la no `flow-driver.ts`. Hoje o harness tem uma cópia que já difere (sem `bindingId`, `capability` fixa). Achado da revisão do #567. | **Por fazer** |
 | 3 | G-05 | Linha «Apanhado em» no modelo de PR e contagem P-ESC por iteração | Aprovar a convenção |
-| 4 | G-01 | `eval:scorecard` no CI para PRs conversacionais, com o veredicto como comentário | Aprovar o uso no CI |
+| 4 | G-01, G-10 | `eval:scorecard` no CI para PRs que tocam nas pastas conversacionais. **Recomendado:** só comenta o veredicto, coerente com a DEC-139 | Paulo (§10) |
 | 5 | G-03 | Corrida L2/L3 live no staging (chaves `AI_GATEWAY_*`); primeira linha de base real de K-CONS, K-LAT, K-COST | Acesso ao gateway |
 | 6 | G-03 | Calibração do juiz: amostra humana, κ, TPR/TNR por eixo (#402) | Tempo do Paulo para rotular |
 | 7 | G-06 | L5: painel por versão sobre `ai.turn_decided`; amostra humana de conversas reais | GATE-04/06 |
+| 8 | G-09 | Famílias seguintes: Flow a meio do diálogo (catálogo ou hora a mudar, `fallback_reason`, token de outra clínica); leituras de 06/11 em texto livre; `confirm_suspended` com Corrigir e Sim | Turno de mutação no runner |
+| 9 | G-11 | Verificar que o `ai.turn_decided` chega ao `wrangler tail`; correr `scripts/flow-funnel.mjs staging` e registar a primeira linha de K-FLW-* | Acesso ao staging |
+| 10 | G-09 | Corrigir CF-44 e CF-45 e retirar os `knownFailure` de A-23 e CC-05 | CF-44 precisa de copy (DEC-104); CF-45 de decidir a casa do dado (ADR-0015) |
 
 ## 10. Decisões
 
@@ -190,12 +210,17 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 | Quem faz a análise de erros | O agente prepara (traços, agrupamento, casos novos); o Paulo valida. | **Confirmado** (DEC-139) |
 | Corpo da oferta do Flow a meio do funil | A pergunta do funil com o CTA do Flow; o C1h só como recurso. | **Confirmado** (DEC-140) |
 | Reconhecer verbos sem sinónimo | Mantém-se a DEC-110; o painel sugere à owner gravar o sinónimo. | **Confirmado** (DEC-141); sugestão implementada (#569: cartão M-63, L1 A-21) |
+| `eval:scorecard` no CI para PRs conversacionais | (A) só comenta o veredicto (**recomendado**, coerente com a DEC-139); (B) bloqueia em gate, como as INV; (C) fica como está, manual | Paulo | Passo 4 |
+| Linha «Apanhado em: L0..L5» no modelo de PR | Sim, para medir o P-ESC; ou não medir | Paulo | KPI P-ESC |
+| Texto do toque no Confirmar suspenso (CF-44) | Frase que aponte para o eco («Primeiro confirme as zonas que você escreveu»); copy nova exige a tua aprovação (DEC-104) | Paulo | A-23 |
+| Papéis do texto livre e do Flow (DEC-143) | **Em aberto** na própria DEC. Medir (a) a (c) no staging antes de decidir | Paulo | Gatilho 8; não bloqueia o L1 atual |
 | Tolerâncias de `KPI_RULES` | As atuais até haver duas linhas de base. | **Em aberto** |
 
 ## Histórico de versões da metodologia
 
 | Versão | Data | Mudança |
 | --- | --- | --- |
+| 0.6 | 06/11/2026 | Confronto com a `main` de 06/11: G-09 (mudanças sem caso L1), G-10 (invisível a quem altera código), G-11 (telemetria do funil); família CC- e casos A-22/A-23; KPIs do funil do Flow (§5.3); gatilhos 8 e 9; passos 8 a 10; fingerprints dos casos FL-/CC- e da consulta de catálogo; AGENTS.md e `referencia.md` apontam para a metodologia. Achados CF-44 e CF-45. |
 | 0.5 | 06/11/2026 | Correções da revisão do #567: linha de base protegida, KPI que perde a medição é regressão, fingerprints no relatório, IC do L2 por caso, FL- fora do L2, INV-03 sem apagar linhas de oferta. Passo 2b por fazer. |
 | 0.4 | 05/11/2026 | Decisões do §10 registadas: DEC-139 (metodologia, regressão justificada no PR, cadência semanal + liberação, análise de erros preparada pelo agente), DEC-140 (corpo do Flow a meio do funil) e DEC-141 (verbos: DEC-110 + sugestão à owner). |
 | 0.3 | 05/11/2026 | CF-43 fechado e CF-36 da sonda L4 (#565) coberto no L1; A-14 deixa de ser falso verde (lição: expectativas por regex devem excluir o texto de falha, não só incluir uma palavra); duas decisões novas Em aberto. |

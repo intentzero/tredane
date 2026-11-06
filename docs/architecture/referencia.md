@@ -93,6 +93,16 @@ Em `main` @ `0e75888`, `docs/product/decisions.md` ainda não traz estas notas. 
 3. **Confirmado** (opção B; [#577](https://github.com/intentzero/tredane/issues/577)). Hora pedida sem vaga não substitui a oferta aberta nem grava essa hora no quadro. A proposta da hora anterior continua confirmável. A frase diz que essa hora não há.
 4. **Confirmado** (opção A; [#578](https://github.com/intentzero/tredane/issues/578)). O extractor só preenche campo vazio com evidência na frase da cliente: a palavra, um sinónimo, ou uma hora que o parser confirma nessa frase. Id de catálogo sozinho não chega. O campo vazio fica vazio. A DEC-104 mantém-se.
 
+## Como medir uma alteração conversacional
+
+**Confirmado** (DEC-139; [metodologia](../implementation/metodologia-avaliacao-conversacional.md)): o atendimento tem testes de diálogo (L1) e um scorecard com linha de base. Quem muda `src/clinic/ai/`, `src/whatsapp/flow/` ou `src/clinic/proposals/`:
+
+1. Corre `npm run eval:scorecard`. Só as invariantes INV-01..11 bloqueiam (DEC-108). Qualquer outra regressão assinalada tem de ser explicada ou corrigida no PR (DEC-139).
+2. Acrescenta um diálogo L1 por comportamento novo ou corrigido, com o ID da família (`A-`, `FL-`, `CC-`…) e sem renumerar os existentes. Testes unitários não substituem o diálogo: a interação entre rotas só se vê no L1.
+3. Não relaxa uma invariante para um caso passar. Uma invariante que o caminho novo desmente corrige-se à parte e com razão escrita (lição G-08 da metodologia).
+4. Um defeito conhecido que ainda não se corrige entra como `knownFailure` (o caso tem de falhar até haver correção) e como achado CF no [plano de testes](../implementation/plano-testes-conversacional.md). Copy nova à cliente exige aprovação (DEC-104).
+5. `npm run eval:baseline` só depois do merge e com a árvore limpa; recusa corridas parciais ou com falhas.
+
 ## O que continua proposto
 
 - **Proposto** ([`nucleo-deterministico-conversacional.md`](nucleo-deterministico-conversacional.md)): o grafo determinístico e o pipeline único por turno. Complementa o [modelo híbrido](conversational-hybrid-model.md). Não é o comportamento do código. Pontos que ainda pedem decisão estão na secção 10 desse documento.
