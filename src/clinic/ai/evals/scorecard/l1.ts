@@ -37,10 +37,13 @@ export const LATEST_PATH = resolve(REPO_ROOT, '.eval/l1-latest.json')
 const FINGERPRINT_FILES: Record<string, string> = {
   catalogoRef: 'src/clinic/ai/evals/dialogs/scenario.ts',
   casos: 'src/clinic/ai/evals/dialogs/p0-cases.ts',
+  casosFlow: 'src/clinic/ai/evals/dialogs/fl-cases.ts',
+  casosConsulta: 'src/clinic/ai/evals/dialogs/cc-cases.ts',
   promptPainel: 'src/ai/prompt.ts',
   promptExtrator: 'src/ai/extractor-prompt.ts',
   promptExcecao: 'src/ai/exception-prompt.ts',
   atosDialogo: 'src/clinic/ai/dialogue-acts.ts',
+  consultaCatalogo: 'src/clinic/ai/catalog-consult.ts',
 }
 
 export function caseScoreFromL1(c: DialogCase, r: DialogRunResult): CaseScore {

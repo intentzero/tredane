@@ -68,6 +68,8 @@
 | A-19 | P0 | Catálogo sem match | C: «Vocês fazem botox?» (com link Google cadastrado) | Diz o que faltou / opções; **sem** link Google; sem despejar só «equipe». | INV-02, INV-05 | 1 | ✅ CF-34 fechado (#512 / #520) · L1 `dialogs` A-19 · ❌ L4 05/11 CF-35 (via D-03) — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | A-20 | P0 | Verbo sem sinónimo na ficha | C: «Quero depilar» [sem sinónimo cadastrado] | Diz o que não encontrou e lista o catálogo, sem link nem serviço inventado. Comportamento vigente por DEC-110; sem derivar verbos (DEC-141); o termo vira sugestão à owner (A-21). | INV-05 | 1 | ✅ L1 (05/11/2026) |
 | A-21 | P0 | Owner grava a sugestão | C: «Quero depilar» [sem sinónimo] → owner grava «depilar» em Depilação pela sugestão do painel → C: «Quero depilar» | 1.º turno igual ao A-20 e regista o termo; a sugestão aponta Depilação; depois de gravada, pergunta a linha (feminina/masculina) sem «não encontrei». | INV-05 | 2 | ✅ L1 (05/11/2026, DEC-141) |
+| A-22 | P0 | Confirmar suspenso não marca | [proposta Axila + Pernas enviada] ⟶ C: «quero só pernas» ⟶ eco «Entendi: Pernas. Certo?» ⟶ toque no Confirmar do cartão antigo | Nenhum compromisso (INV-01); a proposta antiga fica suspensa até Corrigir ou Sim. | INV-01 | 2 | ✅ L1 (06/11/2026, migração 0053) |
+| A-23 | P0 | Confirmar suspenso recebe resposta | [o mesmo que A-22] | O toque no cartão antigo tem uma resposta que aponta para o eco. | INV-09 | 3 | ❌ **CF-44** (`it.fails`; hoje silêncio; texto Em aberto, DEC-104) |
 
 ## B. Linguagem temporal
 
@@ -241,6 +243,19 @@ Criada em 05/11/2026 pela [metodologia de avaliação](metodologia-avaliacao-con
 | FL-16 | P0 | Verbo com sinónimo na ficha | [sinónimo «depilar» em Depilação] C: «Quero depilar» ⟶ [Flow: …] | Sem o cumprimento do hub; proposta (DEC-110). | EE-01 | 2 | ✅ L1 |
 
 **Por cobrir na família FL- (Proposto):** catálogo alterado a meio do Flow (ADR-0016 §7; hoje só em teste unitário), hora que deixa de estar livre entre HORARIO e o fecho, `fallback_reason` (sem horas na semana, demasiadas variantes), token de outra clínica (isolamento; hoje coberto no `queue-consumer`) e o Flow que não abre (o chat assume). Precisam de um turno de mutação do cenário a meio do diálogo.
+
+
+## CC. Consulta de catálogo (DEC-142)
+
+Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-conversacional.md) (lacuna G-09): a DEC-142 entrou com testes unitários e sem diálogo L1. Catálogo de referência com todos os serviços «qualquer», salvo o que o caso mudar.
+
+| ID | P | Cenário | Diálogo | Esperado | Verifica | T\* | 06/11 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| CC-01 | P0 | Sem audiência, com o Flow ligado | C: «quais serviços você tem?» | Lista interativa «Feminino ou masculino?» (botão «Escolher»). **Não** é substituída pelo CTA do Flow (DEC-138/140). Sem modelo, sem proposta. | INV-09 | 1 | ✅ L1 |
+| CC-02 | P0 | Audiência pedida por texto | [Depilação feminino, Massagem masculino] C: «serviços masculinos» | «Temos:» com os serviços masculinos ou qualquer, como estão no cadastro; sem Depilação. | INV-05 | 1 | ✅ L1 |
+| CC-03 | P0 | Audiência sem serviços | [todos femininos] C: «serviços masculinos» | «Não tenho serviços no masculino.» Sem inventar serviço nem cair no modelo com link. | INV-05 | 1 | ✅ L1 |
+| CC-04 | P0 | Outro serviço com proposta aberta | C: «Limpeza amanhã 15h» ⟶ proposta enviada ⟶ C: «quero outro serviço» ⟶ Confirmar no cartão antigo | Lista Feminino/Masculino; a proposta fica retirada; o Confirmar antigo diz que já não está válida e **não marca**. | INV-01 | 2 | ✅ L1 |
+| CC-05 | P0 | Audiência já conhecida | [masculino, fixado] C: «serviços masculinos» ⟶ C: «Limpeza amanhã 15h» ⟶ C: «quero outro serviço» | «Continuo no masculino…» + lista; **não** repergunta a audiência (DEC-142, DEC-090). | INV-08 | 3 | ❌ **CF-45** (`it.fails`: repergunta depois de uma marcação) |
 
 ## P. Personas para cliente simulada (L3)
 
