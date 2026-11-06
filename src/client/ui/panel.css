@@ -1253,6 +1253,11 @@
 
 @media (min-width: 768px) {
   .panel-app {
+    /* Menu lateral: largura total. O cap de 960 px do telemóvel deixava
+     * faixa escura (fundo do :root / .panel-root) à esquerda em Acompanhar,
+     * Agenda, Clientes e Clínica; Conversas já escapava via :has(.conversas-3col). */
+    width: 100%;
+    max-width: none;
     display: grid;
     grid-template-columns: 200px minmax(0, 1fr);
     grid-template-rows: auto 1fr;
@@ -1288,13 +1293,6 @@
 
   .panel-nav a[aria-current='page'] {
     background: var(--color-primary-tint);
-  }
-}
-
-@media (min-width: 1280px) {
-  .panel-app {
-    grid-template-columns: 220px minmax(0, 1fr);
-    max-width: 1200px;
   }
 }
 
@@ -4965,9 +4963,9 @@
   overflow: hidden;
 }
 
-/* O shell limita .panel-app a 960px (width) / 1200px (max-width). Com 3
- * colunas isso deixava ~80px para a conversa: as laterais ficavam no máximo
- * e o 1fr com mínimo 0 encolhia até sobrar uma letra por linha. */
+/* Conversas em 3 colunas precisa de largura total (o cap de 960 px do
+ * telemóvel encolhia a coluna da conversa). Em ≥ 768 px o .panel-app já é
+ * 100%; esta regra cobre o caso em que a grelha 3col exista abaixo disso. */
 .panel-app:has(.conversas-3col) {
   width: 100%;
   max-width: none;
