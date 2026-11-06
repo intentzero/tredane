@@ -1,6 +1,6 @@
 # DEC-143 — teste curto com 8 a 10 pessoas de fora da equipa
 
-**Estado:** **Proposto** (agente, 06/11/2026; o Paulo escolheu fazer este teste na sessão de 06/11/2026). Não é decisão de produto: serve para alimentar a [DEC-143](../product/decisions.md), que continua **Em aberto**. Os limiares da secção 6 são **Propostos**.
+**Estado:** **Proposto** (agente, 06/11/2026; o Paulo escolheu fazer este teste na sessão de 06/11/2026). Não é decisão de produto: serve para alimentar a [DEC-143](../product/decisions.md), que continua **Em aberto**. Revisto na sessão de 06/11/2026: **Confirmado** que as pessoas podem confirmar a marcação (secção 4); os limiares da secção 6 ficam **Propostos** (Paulo aceitou-os como ponto de partida); o limite do número de teste está **a verificar** (secção 2).
 
 ## 1. Objetivo
 
@@ -17,7 +17,7 @@ Oito a dez pessoas não dão significância estatística. Servem para ver se o p
 - **Cumprido (06/11/2026):** no staging estão publicados o Flow depois do HUB (#587), as zonas escritas antes da linha (#589) e o campo `zonesAskedBefore` (#588), commit `9b456b8`. Antes de cada ronda, confirmar que o staging corre um commit que os contém.
 - `wrangler tail` do staging a gravar para ficheiro durante todas as sessões; `node scripts/flow-funnel.mjs staging <tenantId> <data do teste>` antes e depois.
 - Clínica de teste do staging, com Depilação (zonas por género) e **um serviço sem variantes**. A Massagem do staging tem 4 tipos (sonda de 05/11), por isso **não** serve para a tarefa C: criar ou confirmar no painel um serviço sem variantes antes do teste. Nenhum dado real de clínica.
-- **A verificar (pode bloquear):** o Flow mostra «Gerenciada por Test Number», ou seja, o staging usa um número de teste da Meta. Esses números podem limitar quantos telefones conseguem conversar com ele. Confirmar na documentação da Meta e com um segundo telefone antes de convidar 8 a 10 pessoas; se o limite for menor, fazer rondas pequenas ou usar um número com a clínica de teste ligada de forma normal.
+- **A verificar (pode bloquear):** o Flow mostra «Gerenciada por Test Number», ou seja, o staging usa um número de teste da Meta. Esses números podem limitar quantos telefones conseguem conversar com ele. Uma pesquisa à documentação pública da Meta (06/11/2026) **não confirmou** um limite de destinatários para números de teste, e também não o excluiu; a restrição, se existir, aparece na lista de destinatários da página API Setup do painel da Meta. **Verificar primeiro (Paulo, 06/11/2026):** ler essa lista no painel e testar com um segundo telefone antes de convidar 8 a 10 pessoas. Só depois fechar a dimensão do teste (uma ronda, rondas pequenas ou outro número).
 
 ## 3. Quem e como
 
@@ -42,7 +42,7 @@ Por pessoa, numa folha simples (sem nome, só P1 a P10):
 - Primeira mensagem: escreveu a zona ou só o serviço?
 - Quando o bot enviou o Flow: abriu? concluiu? voltou ao texto? Quanto tempo demorou?
 - Pontos em que parou, hesitou ou perguntou ao observador.
-- Chegou a uma proposta? Carregou em Confirmar? **Em aberto (Paulo):** deixar confirmar (mede o fim do funil; cancelar a marcação de teste no painel no fim de cada sessão) ou pedir para parar na proposta (menos ruído na agenda, mas corta a medida de conclusão).
+- Chegou a uma proposta? Carregou em Confirmar? **Confirmado (Paulo, 06/11/2026):** as pessoas podem confirmar, o que mede o funil até ao fim. No fim de cada sessão, cancelar a marcação de teste no painel.
 - Frase livre no fim: «O que achou mais fácil?» e «O que atrapalhou?».
 
 ## 5. Como se leem os números
