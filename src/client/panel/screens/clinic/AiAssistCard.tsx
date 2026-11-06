@@ -174,7 +174,7 @@ export function AiAssistCard({
             </Text>
           </TextField>
           <RadioGroup
-            className="clinic-field"
+            className="tempo-fieldset clinic-field"
             value={virtualGender || 'nenhum'}
             onChange={(v) =>
               setVirtualGender(v === 'masculino' || v === 'feminino' ? v : '')
@@ -182,17 +182,20 @@ export function AiAssistCard({
             aria-label="Género do atendente virtual"
           >
             <Label>Género do atendente virtual</Label>
-            <Radio value="nenhum" className="panel-radio">
+            <Radio value="nenhum" className="tempo-radio">
+              <span className="tempo-radio-dot" aria-hidden="true" />
               Neutro
             </Radio>
-            <Radio value="feminino" className="panel-radio">
+            <Radio value="feminino" className="tempo-radio">
+              <span className="tempo-radio-dot" aria-hidden="true" />
               Feminino
             </Radio>
-            <Radio value="masculino" className="panel-radio">
+            <Radio value="masculino" className="tempo-radio">
+              <span className="tempo-radio-dot" aria-hidden="true" />
               Masculino
             </Radio>
             <Text slot="description" className="panel-muted-sm">
-              Só a responsável altera.
+              Escolha e depois toque em «Salvar dados para a IA».
             </Text>
           </RadioGroup>
           <Button
