@@ -5,7 +5,7 @@
  * FL-*: hub + WhatsApp Flow (`fl-cases.ts`).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
-import { createBlockOp } from '../../../config'
+import { acceptUnmatchedTermOp, createBlockOp, listUnmatchedTermsOp } from '../../../config'
 import { setClinicAiProfile } from '../../../config/settings'
 import { encodeChoiceId } from '../../choice-offer'
 import { saveScheduleSession } from '../../schedule-session'
@@ -1086,6 +1086,42 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       proposal: false,
       notPaused: true,
       turns: [{ turn: 0, matches: [/não encontrei/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] }],
+    },
+  },
+  {
+    id: 'A-21',
+    title: '«Quero depilar» sem sinónimo → owner grava a sugestão → passa a reconhecer Depilação (DEC-141)',
+    turnosIdeais: 2,
+    // DEC-141: o «não encontrei» regista o termo; a owner vê Depilação como
+    // provável e grava com um toque. O sistema não grava sozinho.
+    damage: { serviceKey: 'depilacao' },
+    turns: [
+      { role: 'client', text: 'Quero depilar' },
+      {
+        role: 'owner',
+        note: 'grava «depilar» como sinónimo de Depilação pela sugestão do painel',
+        act: (s) => {
+          const items = listUnmatchedTermsOp(s.db, s.caller, s.clock)
+          const hit = items.find((item) => item.term === 'depilar')
+          if (!hit) throw new Error(`A-21: sugestão «depilar» ausente (${JSON.stringify(items)})`)
+          if (hit.suggestedServiceId !== s.ids.depilacao) {
+            throw new Error(`A-21: serviço provável ${hit.suggestedServiceId}, esperado Depilação`)
+          }
+          acceptUnmatchedTermOp(s.db, s.caller, { id: hit.id, serviceId: hit.suggestedServiceId }, s.clock)
+          if (listUnmatchedTermsOp(s.db, s.caller, s.clock).some((item) => item.term === 'depilar')) {
+            throw new Error('A-21: sugestão continua aberta depois de gravada')
+          }
+        },
+      },
+      { role: 'client', text: 'Quero depilar' },
+    ],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      turns: [
+        { turn: 0, matches: [/não encontrei/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] },
+        { turn: 1, matches: [/feminina|masculina/i], excludes: [/não encontrei/i, /maps\.|goo\.gl/i] },
+      ],
     },
   },
   {

@@ -39,6 +39,11 @@ export type DialogTurn =
   | { role: 'clock'; setMs: number }
   | { role: 'setup'; note: string }
   /**
+   * Ação da owner no painel entre turnos (ex.: gravar sinónimo sugerido, DEC-141).
+   * Corre as mesmas operações que as rotas; falha o caso se lançar.
+   */
+  | { role: 'owner'; note: string; act: (s: DialogScenario) => void }
+  /**
    * Toque autenticado em lista/botão M5 (#415 / #506). Corre `handleChoiceOfferClick`
    * (não o autodraft de texto). O corpo inbound é só telemetria.
    */
@@ -217,6 +222,7 @@ export async function runDialogCase(
         await runJob(last)
       } else if (turn.role === 'clinic') s.sayOutbound(turn.text)
       else if (turn.role === 'clock') s.clock.set(turn.setMs)
+      else if (turn.role === 'owner') turn.act(s)
       else if (turn.role === 'choice') {
         const before = s.outboundBodies().length
         const proposalsBefore = s.proposalCount()

@@ -61,6 +61,7 @@ import {
   servicesFromBookingMatch,
 } from './booking-object'
 import { textCitesSynonym } from '../config/synonyms'
+import { recordUnmatchedTerm } from '../config/unmatched-terms'
 import {
   audienceLineFromClientTexts,
   citesServiceName,
@@ -1185,8 +1186,11 @@ export async function tryAiAutoBook(
           const fb = 'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?'
           replyText = sayAct('varios_servicos', input.conversationId, {}, fb)
         } else if (booking.handoffReason === 'inexistente') {
+          const pedido = catalogMissHint(turnText, services)
+          // DEC-141: o termo (só ele) vira sugestão de sinónimo para a owner.
+          recordUnmatchedTerm(db, tenantId, pedido, clock)
           replyText = serviceNotFoundReply(input.conversationId, {
-            pedido: catalogMissHint(turnText, services),
+            pedido,
             lista: catalogServiceList(services),
           })
         } else if (booking.handoffReason === 'historico_indisponivel') {

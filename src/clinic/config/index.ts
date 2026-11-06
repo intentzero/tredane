@@ -123,7 +123,16 @@ export {
   setWeeklyWindowsOp,
   createBlockOp,
   deleteBlockOp,
+  listUnmatchedTermsOp,
+  acceptUnmatchedTermOp,
+  dismissUnmatchedTermOp,
 } from './operations'
+export {
+  recordUnmatchedTerm,
+  probableServiceFor,
+  listUnmatchedTermSuggestions,
+  type UnmatchedTermSuggestion,
+} from './unmatched-terms'
 export {
   listResourceFutureAppointmentsOp,
   deactivateResourceOp,

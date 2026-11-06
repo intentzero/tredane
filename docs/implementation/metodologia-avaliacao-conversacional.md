@@ -189,7 +189,7 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 | Cadência da iteração no piloto | Semanal **e** antes de cada liberação, o que vier primeiro. | **Confirmado** (DEC-139) |
 | Quem faz a análise de erros | O agente prepara (traços, agrupamento, casos novos); o Paulo valida. | **Confirmado** (DEC-139) |
 | Corpo da oferta do Flow a meio do funil | A pergunta do funil com o CTA do Flow; o C1h só como recurso. | **Confirmado** (DEC-140) |
-| Reconhecer verbos sem sinónimo | Mantém-se a DEC-110; o painel sugere à owner gravar o sinónimo. | **Confirmado** (DEC-141); sugestão por implementar |
+| Reconhecer verbos sem sinónimo | Mantém-se a DEC-110; o painel sugere à owner gravar o sinónimo. | **Confirmado** (DEC-141); sugestão implementada (#569: cartão M-63, L1 A-21) |
 | Tolerâncias de `KPI_RULES` | As atuais até haver duas linhas de base. | **Em aberto** |
 
 ## Histórico de versões da metodologia

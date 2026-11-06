@@ -101,6 +101,9 @@ function createDoGateway(env: WorkerBindings, tenantId: string): ClinicConfigGat
     setServiceActive: (caller, serviceId, active) =>
       stub.setClinicServiceActive(caller, serviceId, active),
     deleteService: (caller, serviceId) => stub.deleteClinicService(caller, serviceId),
+    listUnmatchedTerms: (caller) => stub.listClinicUnmatchedTerms(caller),
+    acceptUnmatchedTerm: (caller, input) => stub.acceptClinicUnmatchedTerm(caller, input),
+    dismissUnmatchedTerm: (caller, id) => stub.dismissClinicUnmatchedTerm(caller, id),
     upsertResource: (caller, input) => stub.upsertClinicResource(caller, input),
     setResourceActive: (caller, resourceId, active) =>
       stub.setClinicResourceActive(caller, resourceId, active),
@@ -473,6 +476,64 @@ export function createClinicConfigRoutes(opts: ClinicConfigRouteOptions = {}) {
         const out = await gw.deleteService(
           callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
           c.req.param('serviceId'),
+        )
+        return c.json(out)
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  // DEC-141: termos que a cliente usou e não casaram nenhum serviço. Só a
+  // responsável vê e grava (DEC-042): o termo vem de mensagens de clientes.
+  app.get('/api/tenants/:tenantId/config/unmatched-terms', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      requireClinicPermission(ctx, 'clinic.config.write')
+      const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+      const items = await gw.listUnmatchedTerms(
+        callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+      )
+      return c.json({ items })
+    } catch (err) {
+      return configErrorResponse(c, err)
+    }
+  })
+
+  app.post(
+    '/api/tenants/:tenantId/config/unmatched-terms/:termId/accept',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const body = await c.req.json<{ serviceId?: unknown }>().catch(() => null)
+        if (typeof body?.serviceId !== 'string' || !body.serviceId) {
+          return c.json({ error: 'invalid_body' }, 400)
+        }
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const row = await gw.acceptUnmatchedTerm(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          { id: c.req.param('termId'), serviceId: body.serviceId },
+        )
+        return c.json(serializeService(row))
+      } catch (err) {
+        return configErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.post(
+    '/api/tenants/:tenantId/config/unmatched-terms/:termId/dismiss',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        requireClinicPermission(ctx, 'clinic.config.write')
+        const gw = await resolveGateway(c.env, ctx.tenantId, opts)
+        const out = await gw.dismissUnmatchedTerm(
+          callerFromContext(ctx.tenantId, c.get('principal').clerkUserId),
+          c.req.param('termId'),
         )
         return c.json(out)
       } catch (err) {

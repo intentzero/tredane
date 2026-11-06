@@ -528,6 +528,15 @@
       "title": "M-62 Assistente e automações (Proposto)",
       "is_interactive": false,
       "radius": 32
+    },
+    "ServicosSugestoes.dc.html": {
+      "x": 1410,
+      "y": 15768,
+      "w": 390,
+      "h": 844,
+      "title": "M-63 Serviços: palavras não reconhecidas (DEC-141)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -587,7 +596,8 @@
     "AgendaDiaVazio.dc.html",
     "ClinicaPassoAgora.dc.html",
     "ClinicaPronta.dc.html",
-    "ClinicaAssistente.dc.html"
+    "ClinicaAssistente.dc.html",
+    "ServicosSugestoes.dc.html"
   ],
   "notes": {
     "row1": {

@@ -11,6 +11,7 @@ import { listServices } from '../config/services'
 import { ensureClinicSettings } from '../config/settings'
 import type { ServiceRow } from '../config/types'
 import { textCitesSynonym } from '../config/synonyms'
+import { recordUnmatchedTerm } from '../config/unmatched-terms'
 import { resolveZoneMention, textNamesMixAudiences, variantAudiencesConflict, zonesNamedInText } from '../config/zones'
 import { listMessages } from '../inbox/messages'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
@@ -361,8 +362,11 @@ export function catalogReply(
       !SHORT_CONFIRM.test(body.trim())
     ) {
       // Prática 10 / #512: dizer o que faltou + opções reais; sem link Google.
+      const pedido = catalogMissHint(source, services)
+      // DEC-141: o termo (só ele) vira sugestão de sinónimo para a owner.
+      recordUnmatchedTerm(db, tenantId, pedido, clock)
       return serviceNotFoundReply(cnv, {
-        pedido: catalogMissHint(source, services),
+        pedido,
         lista: catalogServiceList(services),
       })
     }

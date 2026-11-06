@@ -16,6 +16,12 @@ import {
 import { deleteService, setServiceActive, upsertService, getService } from './services'
 import { replaceCombos } from './combos'
 import { replaceZones } from './zones'
+import {
+  acceptUnmatchedTerm,
+  dismissUnmatchedTerm,
+  listUnmatchedTermSuggestions,
+  type UnmatchedTermSuggestion,
+} from './unmatched-terms'
 import { NotFoundError } from '../errors'
 import { listOverCapacitySlots } from '../scheduling/occupancy'
 import {
@@ -550,4 +556,68 @@ function clinicAbuseSnapshot(settings: ReturnType<typeof ensureClinicSettings>) 
     proposalsPerContact: settings.abuseProposalsPerContact,
     proposalsPerClinic: settings.abuseProposalsPerClinic,
   }
+}
+
+/** DEC-141: sugestões de sinónimo a partir de termos não reconhecidos (só leitura). */
+export function listUnmatchedTermsOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  clock: Clock,
+): UnmatchedTermSuggestion[] {
+  const meta = prepare(db, caller, clock)
+  return listUnmatchedTermSuggestions(db, meta.tenantId)
+}
+
+/** DEC-141 / DEC-042: a owner grava o termo como sinónimo do serviço escolhido. */
+export function acceptUnmatchedTermOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: { id: string; serviceId: string },
+  clock: Clock,
+): ServiceRow {
+  const meta = prepare(db, caller, clock)
+  const actor = caller.actorId ?? caller.kind
+  return db.transactionSync(() => {
+    const out = acceptUnmatchedTerm(db, meta.tenantId, { ...input, actor }, clock)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor,
+        action: 'config.synonym_suggestion_accepted',
+        objectType: 'service',
+        objectId: out.service.id,
+        detail: { termId: input.id, synonym: out.term },
+      },
+      clock,
+    )
+    return out.service
+  })
+}
+
+/** DEC-141: a owner descarta a sugestão. */
+export function dismissUnmatchedTermOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  id: string,
+  clock: Clock,
+): { ok: true; id: string } {
+  const meta = prepare(db, caller, clock)
+  const actor = caller.actorId ?? caller.kind
+  return db.transactionSync(() => {
+    dismissUnmatchedTerm(db, meta.tenantId, { id, actor }, clock)
+    writeOperationalAudit(
+      db,
+      {
+        tenantId: meta.tenantId,
+        actor,
+        action: 'config.synonym_suggestion_dismissed',
+        objectType: 'unmatched_term',
+        objectId: id,
+        detail: {},
+      },
+      clock,
+    )
+    return { ok: true as const, id }
+  })
 }

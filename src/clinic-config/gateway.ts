@@ -77,6 +77,13 @@ export type ClinicConfigGateway = {
     active: boolean,
   ): Promise<ServiceRow>
   deleteService(caller: ClinicCaller, serviceId: string): Promise<{ ok: true; id: string }>
+  /** DEC-141: termos não reconhecidos → sugestão de sinónimo (owner). */
+  listUnmatchedTerms(caller: ClinicCaller): Promise<clinicConfig.UnmatchedTermSuggestion[]>
+  acceptUnmatchedTerm(
+    caller: ClinicCaller,
+    input: { id: string; serviceId: string },
+  ): Promise<ServiceRow>
+  dismissUnmatchedTerm(caller: ClinicCaller, id: string): Promise<{ ok: true; id: string }>
   upsertResource(
     caller: ClinicCaller,
     input: UpsertResourceInput,
@@ -172,6 +179,15 @@ export function createMemoryClinicConfigGateway(
     },
     async deleteService(caller, serviceId) {
       return clinicConfig.deleteServiceOp(db, caller, serviceId, clock)
+    },
+    async listUnmatchedTerms(caller) {
+      return clinicConfig.listUnmatchedTermsOp(db, caller, clock)
+    },
+    async acceptUnmatchedTerm(caller, input) {
+      return clinicConfig.acceptUnmatchedTermOp(db, caller, input, clock)
+    },
+    async dismissUnmatchedTerm(caller, id) {
+      return clinicConfig.dismissUnmatchedTermOp(db, caller, id, clock)
     },
     async upsertResource(caller, input) {
       return clinicConfig.upsertResourceOp(db, caller, input, clock)
