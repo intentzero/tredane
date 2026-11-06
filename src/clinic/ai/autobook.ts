@@ -77,6 +77,7 @@ import {
 } from './schedule-choice'
 import {
   getBookingFrame,
+  heldAudienceLine,
   saveScheduleSession,
   scheduleFactsFromText,
   syncBookingFrameWithCatalog,
@@ -989,7 +990,7 @@ export async function tryAiAutoBook(
           ? (frame.line ?? null)
           : session?.serviceId === det.service.id
             ? session.audienceLine
-            : null
+            : heldAudienceLine(frame)
       const line = needsAudienceLine(active) ? (turnExplicit ?? frameLine) : null
       const pool = needsAudienceLine(active) && line ? zonesForAudienceLine(active, line) : active
       const mentionPool = pool.length > 0 ? pool : active
@@ -1284,7 +1285,7 @@ export async function tryAiAutoBook(
               ? (frame.line ?? null)
               : session?.serviceId === svc.id
                 ? session.audienceLine
-                : null
+                : heldAudienceLine(frame)
           const line = needsAudienceLine(active) ? (turnExplicit ?? frameLine) : null
           const zonePool =
             needsAudienceLine(active) && line ? zonesForAudienceLine(active, line) : active
@@ -1488,7 +1489,7 @@ export async function tryAiAutoBook(
     ...funnelOlder.filter((m) => m.direction === 'inbound').map((m) => m.body),
   ]
   const turnExplicit = explicitAudienceLine(turnText)
-  const frameLine = sameFunnel ? (frame?.line ?? session?.audienceLine ?? null) : null
+  const frameLine = sameFunnel ? (frame?.line ?? session?.audienceLine ?? null) : heldAudienceLine(frame)
   // Parser de histórico só se o quadro ainda não tem linha (#510 — sem segundo parser).
   const historyLine =
     !turnExplicit && !frameLine && sameFunnel
