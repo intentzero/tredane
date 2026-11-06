@@ -216,6 +216,36 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
     }
   })
 
+  it('fallback_reason catalog_changed pede à cliente por texto (C12) e não marca', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const result = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-cc',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_cc',
+            service_id: s.ids.depilacao,
+            fallback_reason: 'catalog_changed',
+          }),
+          catalogVersion: '1',
+        },
+        s.clock,
+      )
+      expect(result.outcome).toBe('chat_fallback_sent')
+      expect(s.appointmentCount()).toBe(0)
+      const outbound = s.outboundBodies()
+      expect(outbound).toContain(FLOW_COPY.openFailed)
+      expect(outbound.some((b) => b.includes(FLOW_COPY.preparingProposal))).toBe(false)
+    } finally {
+      s.close()
+    }
+  })
+
   it('grava quadro com provenance flow; sem Confirmar não marca (DEC-061)', async () => {
     const s = bootDialogScenario()
     try {

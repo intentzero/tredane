@@ -593,6 +593,8 @@ export type FlowChatFallbackReason =
   | 'too_many_variants'
   | 'no_bookable_services'
   | 'too_many_services'
+  /** O salto pedido não existe no routing_model (catálogo mudou a meio). Chat assume com C12. */
+  | 'catalog_changed'
 
 export function successPayload(
   flowToken: string,

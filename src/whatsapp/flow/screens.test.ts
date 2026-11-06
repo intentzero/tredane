@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { forbiddenClientTermsIn } from '../../clinic/ai/client-copy'
 import { FLOW_COPY } from './copy'
+import { BOOKING_FLOW_EDGES, isFlowTransitionAllowed } from './definition'
 import {
   applyScreenSubmission,
   bookableServices,
@@ -734,4 +735,13 @@ describe('saltos dentro do routing_model publicado (sonda staging 06/11/2026)', 
       }
     }
   })
+
+  it('BOOKING_FLOW_EDGES coincide com o routing_model publicado', () => {
+    expect(BOOKING_FLOW_EDGES).toEqual(routing)
+    expect(isFlowTransitionAllowed('HUB', 'HORARIO')).toBe(false)
+    expect(isFlowTransitionAllowed('GENERO', 'SERVICO')).toBe(false)
+    expect(isFlowTransitionAllowed('GENERO', 'GENERO')).toBe(true)
+    expect(isFlowTransitionAllowed('HUB', 'SERVICO')).toBe(true)
+  })
 })
+

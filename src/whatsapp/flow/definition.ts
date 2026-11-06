@@ -31,6 +31,25 @@ export const FLOW_SCREEN_IDS = [
 ] as const
 
 /**
+ * Arestas do `routing_model` publicado (`booking-flow.json`). Um teste garante que coincidem.
+ * A Meta recusa («Ocorreu um erro») qualquer salto fora daqui; repetir o mesmo ecrã com
+ * `error_message` é aceite.
+ */
+export const BOOKING_FLOW_EDGES: Readonly<Record<(typeof FLOW_SCREEN_IDS)[number], readonly string[]>> = {
+  HUB: ['SERVICO'],
+  SERVICO: ['GENERO', 'VARIANTES', 'HORARIO'],
+  GENERO: ['VARIANTES', 'HORARIO'],
+  VARIANTES: ['HORARIO'],
+  HORARIO: [],
+}
+
+export function isFlowTransitionAllowed(from: string, to: string): boolean {
+  if (from === to) return true
+  const edges = BOOKING_FLOW_EDGES[from as keyof typeof BOOKING_FLOW_EDGES]
+  return edges ? edges.includes(to) : false
+}
+
+/**
  * Esqueleto do routing model (data_exchange em cada Continuar / Ver proposta).
  * Os componentes concretos (Radio/Dropdown/Checkbox) seguem ADR-0016 §3.
  * Entry Meta (sem inbound): só HUB — INIT tem de o devolver (`entryFlowScreen`).

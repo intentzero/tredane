@@ -49,7 +49,8 @@ function asFallbackReason(raw: unknown): FlowChatFallbackReason | null {
     raw === 'no_slots' ||
     raw === 'too_many_variants' ||
     raw === 'no_bookable_services' ||
-    raw === 'too_many_services'
+    raw === 'too_many_services' ||
+    raw === 'catalog_changed'
   ) {
     return raw
   }
