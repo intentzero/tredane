@@ -382,6 +382,13 @@ export function nextFlowScreen(input: {
   /** Total já cotado (`quoteVisit`). Entra no corpo do HORARIO. */
   visitTotalLine?: string | null
   errorMessage?: string
+  /**
+   * Ecrã que a cliente acabou de submeter. O `routing_model` publicado só deixa o HUB
+   * ir para SERVICO: depois do HUB devolve-se sempre SERVICO (pré-marcado), mesmo com
+   * serviço, linha ou variantes já no quadro. Saltar para GENERO/VARIANTES/HORARIO dá
+   * «Ocorreu um erro» no cliente (sonda staging 06/11/2026 17:20).
+   */
+  from?: FlowScreenId
 }): FlowScreenPayload | { kind: 'chat_fallback'; reason: string } | { kind: 'ready' } {
   const services = bookableServices(input.catalog)
   if (services.length === 0) {
@@ -391,6 +398,13 @@ export function nextFlowScreen(input: {
   // Catálogos maiores → chat; Dropdown com «Enter {label}» ficou de fora de propósito.
   if (services.length > FLOW_MAX_RADIO) {
     return { kind: 'chat_fallback', reason: 'too_many_services' }
+  }
+
+  if (input.from === 'HUB') {
+    return {
+      screen: 'SERVICO',
+      data: screenData(serviceScreenFields(services, input.frame), input.errorMessage),
+    }
   }
 
   let serviceId = input.frame.serviceId
@@ -579,6 +593,8 @@ export type FlowChatFallbackReason =
   | 'too_many_variants'
   | 'no_bookable_services'
   | 'too_many_services'
+  /** O salto pedido não existe no routing_model (catálogo mudou a meio). Chat assume com C12. */
+  | 'catalog_changed'
 
 export function successPayload(
   flowToken: string,

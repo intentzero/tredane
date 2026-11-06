@@ -381,7 +381,8 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
     ])
     expect(response.data.error_message).toBe('')
 
-    // Agendar a partir do HUB → GENERO (serviço já na sessão).
+    // Agendar a partir do HUB → SERVICO pré-marcado (o routing_model só permite HUB→SERVICO),
+    // mesmo com o serviço já na sessão.
     const exchange = await encryptFlowRequestForTest(pair.publicKey, {
       version: '3.0',
       action: 'data_exchange',
@@ -413,8 +414,9 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
       exDec.aesKey,
       exDec.iv,
       exResult.body,
-    )) as { screen: string }
-    expect(exResp.screen).toBe('GENERO')
+    )) as { screen: string; data: { service_init?: string } }
+    expect(exResp.screen).toBe('SERVICO')
+    expect(exResp.data.service_init).toBeTruthy()
   })
 
   it('HUB Remarcar → SUCCESS com hub_action (stub DEC-091)', async () => {
@@ -484,6 +486,68 @@ describe('whatsapp flow endpoint (ADR-0016 §5)', () => {
     }
     expect(response.screen).toBe('SUCCESS')
     expect(response.data.extension_message_response.params.hub_action).toBe('remarcar')
+  })
+
+  it('catálogo mudou a meio: salto fora do routing_model fecha para o chat (sonda 06/11)', async () => {
+    const pair = await generateFlowKeyPair()
+    const store = createMemoryFlowTokenStore()
+    const clock = createControllableClock(Date.UTC(2026, 10, 5, 13, 0))
+    const token = generateFlowToken()
+    store.insert(
+      null as never,
+      {
+        token,
+        tenantId: 't1',
+        bindingId: 'b1',
+        phoneNumberId: 'pn1',
+        wabaId: 'w1',
+        conversationId: 'c1',
+        catalogVersion: '1',
+        // O serviço da sessão já não existe no catálogo.
+        session: { serviceId: 'svc_gone', line: null, variantIds: null, slotKey: null },
+      },
+      clock,
+    )
+    // GENERO só tem arestas para VARIANTES/HORARIO; reconstruir SERVICO seria «Ocorreu um erro».
+    const encrypted = await encryptFlowRequestForTest(pair.publicKey, {
+      version: '3.0',
+      action: 'data_exchange',
+      screen: 'GENERO',
+      flow_token: token,
+      data: { gender_id: 'feminino' },
+    })
+    const rawBody = JSON.stringify(encrypted)
+    const signature = await computeHubSignature256(rawBody, APP_SECRET)
+    const sessions = createTokenBackedSessionStore({
+      getToken: async (t) => store.get(null as never, t),
+      saveSession: async (t, session) => store.saveSession(null as never, t, session),
+    })
+    const result = await handleFlowDataRequest({
+      rawBody,
+      signatureHeader: signature,
+      env: { WHATSAPP_FLOW_PRIVATE_KEY: pair.privatePem, META_APP_SECRET: APP_SECRET },
+      clock,
+      sessions,
+      tokenLookup: async (t) => store.get(null as never, t),
+      dataLookup: async ({ frame }) => ({
+        catalog: [
+          { id: 'svc_a', name: 'Limpeza', active: true, zones: [] },
+          { id: 'svc_b', name: 'Massagem', active: true, zones: [] },
+        ],
+        slots: [],
+        frame,
+      }),
+    })
+    expect(result.status).toBe(200)
+    if (result.status !== 200 || result.contentType !== 'text/plain') return
+    expect(result.logDetail).toMatchObject({ outcome: 'chat_fallback', reason: 'catalog_changed' })
+    const decReq = await decryptFlowRequest(await importFlowPrivateKey(pair.privatePem), encrypted)
+    const response = (await decryptFlowResponseForTest(decReq.aesKey, decReq.iv, result.body)) as {
+      screen: string
+      data: { extension_message_response: { params: Record<string, unknown> } }
+    }
+    expect(response.screen).toBe('SUCCESS')
+    expect(response.data.extension_message_response.params.fallback_reason).toBe('catalog_changed')
   })
 
   it('Finding 3: chat_fallback no data_exchange inclui fallback_reason no SUCCESS', async () => {
