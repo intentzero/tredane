@@ -803,9 +803,14 @@ const ZONE_MENTION_STOP = new Set([
   'botao',
 ])
 
-/** «10h» / «15h30» são hora, não zona que sobrou. */
+/**
+ * Hora, não zona que sobrou.
+ * «10h» / «15h30» e o compacto «0900» (sem dois-pontos). «09:00» já se parte
+ * em «09» e «00», ambos curtos demais para contar como palavra.
+ */
 function isClockToken(word: string): boolean {
-  return /^\d{1,2}h\d{0,2}$/.test(word)
+  if (/^\d{1,2}h\d{0,2}$/.test(word)) return true
+  return /^(?:[01]\d|2[0-3])[0-5]\d$/.test(word)
 }
 
 function mentionContentTokens(folded: string): string[] {
@@ -850,11 +855,56 @@ export type ZoneMentionResolution = {
 }
 
 /**
+ * Nomes cujo texto tem «e» ou «ou» («Tórax e Abdômen»).
+ * Saem do texto antes do split em itens: senão o «e» interno parte a zona
+ * e «torax» fica sobra («Não encontrei torax»), mesmo com Axila e Pernas certas.
+ * Só retira a frase quando alguma zona do âmbito a aceita.
+ */
+function exciseCompoundZonePhrases(
+  folded: string,
+  zones: readonly ServiceZoneRow[],
+  hint: VariantAudience | null,
+  minutes: number | null,
+): { rest: string; ids: Set<string> } {
+  const byPhrase = new Map<string, ServiceZoneRow[]>()
+  const addPhrase = (phrase: string, zone: ServiceZoneRow) => {
+    if (phrase.length < 2 || !/\b(?:e|ou)\b/.test(phrase)) return
+    const list = byPhrase.get(phrase) ?? []
+    if (!list.some((item) => item.id === zone.id)) list.push(zone)
+    byPhrase.set(phrase, list)
+  }
+  for (const zone of zones) {
+    if (!zone.active || zone.name.trim().length < 2) continue
+    addPhrase(foldZoneName(zone.name.trim()), zone)
+    for (const syn of zone.synonyms ?? []) addPhrase(foldZoneName(syn.trim()), zone)
+  }
+  const ordered = [...byPhrase.entries()].sort((a, b) => b[0].length - a[0].length)
+  let rest = folded
+  const ids = new Set<string>()
+  for (const [phrase, group] of ordered) {
+    const accepted = group.filter((zone) => {
+      if (hint != null && zone.audience !== hint) return false
+      if (minutes != null && zone.durationMinutes !== minutes) return false
+      return true
+    })
+    if (accepted.length === 0) continue
+    const re = new RegExp(`(?<![a-z0-9])${escapeRegExp(phrase)}(?![a-z0-9])`, 'g')
+    const next = rest.replace(re, ' ')
+    if (next === rest) continue
+    rest = next
+    for (const zone of accepted) ids.add(zone.id)
+  }
+  return { rest, ids }
+}
+
+/**
  * DEC-137 / #509. Nomes exactos (`zonesNamedInText`, sinónimos DEC-110) e, no
  * que sobra, plural leve único no âmbito passado — a linha já travada
  * (`zonesForAudienceLine`). O mesmo radical em masculino e feminino não casa.
  * Sem fuzzy de outro nome. Se um item citado não resolve, `unrecognized` e
  * `zones` vazio (sem descarte silencioso; nunca Horários com N−1).
+ * Zona composta («Tórax e Abdômen») casa inteira, com ou sem acento, antes
+ * de partir a lista no «e».
  *
  * `ignoreWords`: palavras do nome do serviço (e sinónimos) que não contam
  * como zona citada — «Quero bronzeamento…» não dispara «Não encontrei bronzeamento».
@@ -901,16 +951,24 @@ export function resolveZoneMention(
     pluralIndex.set(plural, group)
   }
   const folded = foldZoneName(text)
-  const parts = folded
+  const excised = exciseCompoundZonePhrases(
+    folded,
+    active,
+    audienceHint(folded),
+    durationMinutesFromText(text),
+  )
+  const parts = excised.rest
     .split(/\s*(?:,|;|\/|\+|\be\b|\bou\b)\s*/)
     .map((part) => part.trim())
     .filter(Boolean)
+  // Frase inteira era a zona composta: não voltar a partir o texto original.
+  const segments = parts.length > 0 ? parts : excised.ids.size > 0 ? [] : [folded]
   const hit = new Set<string>()
   let approx = false
   let matchedSegment = false
   let failedSegment = false
   let leftoverWord: string | null = null
-  for (const part of parts.length > 0 ? parts : [folded]) {
+  for (const part of segments) {
     if (contentTokens(part).length === 0) continue
     const exact = zonesNamedInText(part, active)
     let rest = part
@@ -972,7 +1030,7 @@ export function resolveZoneMention(
     return { zones: [], approx: false, unrecognized: false, leftover: null }
   }
   return {
-    zones: active.filter((z) => hit.has(z.id)),
+    zones: active.filter((z) => hit.has(z.id) || excised.ids.has(z.id)),
     approx,
     unrecognized: false,
     leftover: null,

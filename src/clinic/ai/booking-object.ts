@@ -7,7 +7,7 @@
 import type { ServiceAudience } from '../catalog/audience'
 import type { ServiceRow, ServiceZoneRow, VariantAudience } from '../config/types'
 import { variantChoiceLabel } from '../config/zones'
-import { sayAct } from './dialogue-acts'
+import { sayAct, serviceNameInProse } from './dialogue-acts'
 import { THIRD_PARTY_RE } from './nlu/sensitive'
 import { textCitesSynonym } from '../config/synonyms'
 import { citesServiceName } from './schedule-choice'
@@ -347,6 +347,7 @@ function clarifyingQuestion(
   }
   const service = services.find((s) => s.id === serviceIds[0])
   if (!service) return askServiceQuestion(conversationId, [])
+  const serviço = serviceNameInProse(service.name)
   const active = service.zones.filter((z) => z.active)
   if (missing.includes('linha') && needsAudienceLine(active)) {
     return audienceLineQuestion(service.name, conversationId)
@@ -358,7 +359,7 @@ function clarifyingQuestion(
       needsAudienceLine(active) && lineHint ? zonesForAudienceLine(active, lineHint) : active
     const pool = scoped.length > 0 ? scoped : active
     if (pool.length === 0) {
-      return `Para ${service.name}, qual opção você quer?`
+      return `Para ${serviço}, qual opção você quer?`
     }
     // Duração só quando as variantes não se distinguem por nome (ex.: sessão 30/60).
     const names = new Set(candidates.map((c) => fold(c.variantName ?? '')))
@@ -372,7 +373,7 @@ function clarifyingQuestion(
       const labels = [...durations]
         .sort((a, b) => a - b)
         .map((d) => (d % 60 === 0 ? `${d / 60} h` : `${d} min`))
-      return `Para ${service.name}, prefere ${labels.join(' ou ')}?`
+      return `Para ${serviço}, prefere ${labels.join(' ou ')}?`
     }
     // Laser / sessões: duração é o critério quando os nomes não são zonas concretas.
     if (
@@ -384,11 +385,11 @@ function clarifyingQuestion(
       const labels = [...durations]
         .sort((a, b) => a - b)
         .map((d) => (d % 60 === 0 ? `${d / 60} h` : `${d} min`))
-      return `Para ${service.name}, prefere ${labels.join(' ou ')}?`
+      return `Para ${serviço}, prefere ${labels.join(' ou ')}?`
     }
     return variantListQuestion(service.name, service.variantKind, pool, conversationId)
   }
-  return `Para ${service.name}, pode confirmar a opção?`
+  return `Para ${serviço}, pode confirmar a opção?`
 }
 
 function handoff(reason: BookingHandoffReason): BookingMatchResult {

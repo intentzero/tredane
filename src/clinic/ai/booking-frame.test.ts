@@ -201,6 +201,24 @@ describe('DEC-127 matchPendingChoice', () => {
     ],
   }
 
+  it('«Sexta às 0900» casa 09:00 da lista (sem dois-pontos)', () => {
+    const friday = {
+      slot: 'horario' as const,
+      messageId: 'm1',
+      options: [
+        { key: '2026-11-06T09:00', label: 'sexta 06/11 09:00' },
+        { key: '2026-11-06T09:30', label: 'sexta 06/11 09:30' },
+        { key: '2026-11-06T10:00', label: 'sexta 06/11 10:00' },
+      ],
+    }
+    expect(matchPendingChoice('Sexta às 0900', friday)).toEqual({
+      kind: 'match',
+      key: '2026-11-06T09:00',
+      label: 'sexta 06/11 09:00',
+    })
+    expect(matchPendingChoice('09:00', friday).kind).toBe('match')
+  })
+
   it('«o das 14» casa a opção 14:00 (A-07)', () => {
     expect(matchPendingChoice('o das 14', pending)).toEqual({
       kind: 'match',

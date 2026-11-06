@@ -118,9 +118,9 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^\$\{s\.name\}: \$\{names\.length > 0 \? names\.join\(', '\) : 'a equipe confirma quem atende'\}\.$/,
   /^A equipe confirma quem atende\.$/,
   // — booking-object: perguntas sem acto de catálogo —
-  /^Para \$\{service\.name\}, qual opção você quer\?$/,
-  /^Para \$\{service\.name\}, prefere \$\{labels\.join\(' ou '\)\}\?$/,
-  /^Para \$\{service\.name\}, pode confirmar a opção\?$/,
+  /^Para \$\{serviço\}, qual opção você quer\?$/,
+  /^Para \$\{serviço\}, prefere \$\{labels\.join\(' ou '\)\}\?$/,
+  /^Para \$\{serviço\}, pode confirmar a opção\?$/,
   /^Qual opção: \$\{labels\.join\(', '\)\}\?$/,
   // — Leva 3 / DEC (allowlist briefing) —
   /^Para agendar para outra pessoa, a equipe precisa continuar este atendimento\.$/,

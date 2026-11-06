@@ -11,7 +11,7 @@ import { queryAutomaticAvailability } from '../tempo/automatic'
 import { readOpenMeteo } from '../tempo/open-meteo'
 import type { ForecastAdapter } from '../tempo/evaluate'
 import type { ClinicDb } from '../store'
-import { sayAct } from './dialogue-acts'
+import { sayAct, serviceNameInProse } from './dialogue-acts'
 
 const WEEKDAY_LABEL = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
 const FEMININE_WEEKDAYS = new Set(['segunda', 'terça', 'quarta', 'quinta', 'sexta'])
@@ -275,7 +275,7 @@ export async function offerNearestSlots(input: {
   for (const zone of zones) {
     if (!names.includes(zone.name)) names.push(zone.name)
   }
-  const subject = joinNames(names) || service.name
+  const subject = joinNames(names) || serviceNameInProse(service.name)
   if (picked.length === 0) {
     if (period) {
       const período = periodWordPt(period)
