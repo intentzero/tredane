@@ -18,7 +18,8 @@ describe('booking-object', () => {
       expect(text).toMatch(/serviço|Massagem/i)
     }
     for (const text of renderEveryVariant('confirmar_servico', { serviço: 'Massagem' })) {
-      expect(text).toMatch(/Massagem/)
+      expect(text).toMatch(/massagem/)
+      expect(text).not.toMatch(/\bMassagem\b/)
     }
     setDialogueVariantForTests(0)
     const confirm = resolveBookingObject({
@@ -26,7 +27,8 @@ describe('booking-object', () => {
       services: EVAL_BOOKING_CATALOG,
       conversationId: 'cnv_s4',
     })
-    expect(confirm.question).toMatch(/Limpeza de pele/)
+    expect(confirm.question).toMatch(/limpeza de pele/)
+    expect(confirm.question).not.toMatch(/\bLimpeza de pele\b/)
     expect(renderEveryVariant('confirmar_servico', { serviço: 'Limpeza de pele' })).toContain(
       confirm.question,
     )

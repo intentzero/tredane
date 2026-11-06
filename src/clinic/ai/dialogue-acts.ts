@@ -187,14 +187,36 @@ export function dialogueActIndex(conversationId: string, act: DialogueActId, n: 
   return dig[0]! % n
 }
 
+/**
+ * Nome de serviço em prosa corrida: minúsculas (pt-BR).
+ * No início da frase, só a primeira letra volta a maiúscula.
+ * Rótulos de lista e o cadastro não passam por aqui.
+ */
+export function serviceNameInProse(name: string, sentenceStart = false): string {
+  const lower = name.trim().toLocaleLowerCase('pt-BR')
+  if (!sentenceStart || lower.length === 0) return lower
+  return lower.replace(/^(\P{L}*)(\p{L})/u, (_m, lead: string, c: string) => lead + c.toLocaleUpperCase('pt-BR'))
+}
+
+function placeholderStartsSentence(template: string, offset: number): boolean {
+  const before = template.slice(0, offset)
+  if (before.trim() === '') return true
+  return /[.!?…]\s*$/.test(before) || /\n\s*$/.test(before)
+}
+
 function fill(template: string, vars: DialogueVars): string {
-  return template.replace(/\{([a-zçãáéíóúâêôõü_0-9]+)\}/gi, (_, key: string) => {
-    if (key === 'nome') {
-      const n = vars.nome?.trim()
-      return n ? `, ${n}` : ''
-    }
-    return vars[key] ?? ''
-  })
+  return template.replace(
+    /\{([a-zçãáéíóúâêôõü_0-9]+)\}/gi,
+    (_match: string, key: string, offset: number) => {
+      if (key === 'nome') {
+        const n = vars.nome?.trim()
+        return n ? `, ${n}` : ''
+      }
+      const raw = vars[key] ?? ''
+      if (key === 'serviço') return serviceNameInProse(raw, placeholderStartsSentence(template, offset))
+      return raw
+    },
+  )
 }
 
 /**

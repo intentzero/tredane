@@ -228,6 +228,33 @@ describe('#414 dialogue acts', () => {
     }
   })
 
+  it('nome de serviço no meio da frase fica em minúsculas; lista de zonas não', () => {
+    setDialogueVariantForTests(1)
+    try {
+      expect(renderDialogueAct('perguntar_linha', 'cnv_case', { serviço: 'Depilação' })).toBe(
+        'Para depilação, é na versão feminina ou masculina?',
+      )
+      setDialogueVariantForTests(0)
+      expect(renderDialogueAct('perguntar_linha', 'cnv_case', { serviço: 'Depilação' })).toBe(
+        'Para depilação, prefere a opção feminina ou masculina?',
+      )
+      // Depois de ponto, o nome abre a frase.
+      setDialogueVariantForTests(2)
+      expect(renderDialogueAct('perguntar_linha', 'cnv_case', { serviço: 'Depilação' })).toBe(
+        'Claro. Depilação feminina ou masculina?',
+      )
+      setDialogueVariantForTests(2)
+      const zones = renderDialogueAct('perguntar_variantes', 'cnv_case', {
+        serviço: 'Depilação',
+        tipo: 'zonas',
+        lista: 'Axila, Pernas, Tórax e Abdômen',
+      })
+      expect(zones).toBe('Para depilação, quais zonas? Axila, Pernas, Tórax e Abdômen.')
+    } finally {
+      setDialogueVariantForTests(null)
+    }
+  })
+
   it('{quando} vazio mantém a 1.ª redação de oferecer_horarios', () => {
     const all = renderEveryVariant('oferecer_horarios', {
       assunto: 'Massagem',

@@ -113,6 +113,48 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
     expect(got.zones).toEqual([])
   })
 
+  it('zona composta não parte no «e» («tórax e abdômen» / sem acento)', () => {
+    const masculine = [
+      zone('ax', 'Axila', 'masculino'),
+      zone('pe', 'Pernas', 'masculino'),
+      zone('tx', 'Tórax e Abdômen', 'masculino'),
+      zone('co', 'Costas', 'masculino'),
+      zone('br', 'Braços', 'masculino'),
+      zone('in', 'Intima', 'masculino'),
+      zone('or', 'Orelha', 'masculino'),
+    ]
+    for (const text of ['Axilas pernas e tórax e abdômen', 'Axilas pernas e torax e abdomen']) {
+      const got = resolveZoneMention(text, masculine)
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.leftover, text).toBeNull()
+      expect(got.zones.map((z) => z.name), text).toEqual(['Axila', 'Pernas', 'Tórax e Abdômen'])
+    }
+    const alone = resolveZoneMention('torax e abdomen', masculine)
+    expect(alone.unrecognized).toBe(false)
+    expect(alone.approx).toBe(false)
+    expect(alone.zones.map((z) => z.name)).toEqual(['Tórax e Abdômen'])
+  })
+
+  it('zona composta mais uma sobra não devolve o parcial', () => {
+    const masculine = [
+      zone('tx', 'Tórax e Abdômen', 'masculino'),
+      zone('ax', 'Axila', 'masculino'),
+    ]
+    const got = resolveZoneMention('tórax e abdômen e cotovelo', masculine)
+    expect(got.unrecognized).toBe(true)
+    expect(got.zones).toEqual([])
+    expect(got.leftover).toBe('cotovelo')
+  })
+
+  it('«0900» no texto de horário não é sobra de zona', () => {
+    for (const text of ['Sexta às 0900', '0900', 'sexta as 09:00']) {
+      const got = resolveZoneMention(text, feminine)
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.leftover, text).toBeNull()
+      expect(got.zones, text).toEqual([])
+    }
+  })
+
   it('«as duas» / «as três» não são sobra (atalho do catálogo)', () => {
     expect(resolveZoneMention('as duas', feminine)).toEqual({
       zones: [],

@@ -1458,6 +1458,8 @@ export async function tryAiAutoBook(
   // #510: eco Sim / toque Horários / Opções → quadro. Texto e histórico só
   // preenchem o que ainda falta; sessão suja («as duas» + catálogo inteiro)
   // não vence menções explícitas (axila e íntima).
+  // Hora já casada na lista não descarta sobra de zona (DEC-137 / #509):
+  // «Sexta às 09:00 e cotovelo» pergunta a zona e não emite proposta.
   let namedZones: typeof fromSession = []
   let echoLocked = false
   let ambiguous = false
