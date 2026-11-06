@@ -618,3 +618,48 @@ describe('DEC-143: ai.turn_decided mede zonas vindas do texto', () => {
   })
 })
 
+describe('DEC-143: zonas escritas antes da linha não se perdem (sonda staging 06/11/2026)', () => {
+  it('«Quero depilação de axila e pernas» + «feminina» → eco com Axila e Pernas; Sim abre Horários; não marca', async () => {
+    const s = seed()
+    try {
+      await say(s, 'Quero depilação de axila e pernas')
+      const before = outbound(s).length
+      const result = await say(s, 'feminina')
+      expect(result.autoBook?.replyText).toBe('Entendi: Axila e Pernas. Certo?')
+      expect(result.reason).not.toBe('catalog_reply')
+      const json = outbound(s).slice(before).map((row) => row.interactive_json ?? '').join('\n')
+      expect(json).toContain('Sim')
+      expect(json).toContain('Corrigir')
+      const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
+      const names = s.db
+        .all<{ id: string; name: string }>(`SELECT id, name FROM service_zones WHERE tenant_id = ?`, s.tenantId)
+        .filter((row) => session?.variantIds?.includes(row.id))
+        .map((row) => row.name)
+        .sort()
+      expect(names).toEqual(['Axila', 'Pernas'])
+      expect(session?.audienceLine).toBe('feminino')
+
+      await say(s, 'sim')
+      const offered = outbound(s)
+        .slice(before)
+        .map((row) => row.interactive_json ?? '')
+        .join('\n')
+      expect(offered).toContain(SLOT_LIST_BUTTON_LABEL)
+      expect(appointments(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('sem zonas na primeira mensagem, «feminina» continua a perguntar as zonas', async () => {
+    const s = seed()
+    try {
+      await lockFeminine(s)
+      const last = outbound(s).at(-1)
+      expect(last?.body).toMatch(/Axila/)
+      expect(last?.body).not.toMatch(/Entendi/)
+    } finally {
+      s.close()
+    }
+  })
+})
