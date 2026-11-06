@@ -25,7 +25,8 @@ import {
   type Field,
   type TurnAct,
 } from './nlu/interpret'
-import { parseTemporal } from './nlu/temporal'
+import { norm, parseTemporal, parseTimes } from './nlu/temporal'
+import { textCitesNameOrSynonym } from '../config/synonyms'
 import {
   getBookingFrame,
   saveBookingFrame,
@@ -107,6 +108,8 @@ export function validateExtractorOutput(
   raw: ExtractorRaw,
   opts: {
     messageId: string
+    /** Frase da cliente. Catálogo ou trecho com o nome do catálogo não bastam. */
+    turnText: string
     today: string
     services: ServiceRow[]
     professionals: Array<{ id: string; name: string }>
@@ -116,12 +119,17 @@ export function validateExtractorOutput(
 ): { slots: TurnSlots; acts: TurnAct[]; discarded: string[] } {
   const discarded: string[] = []
   const slots: TurnSlots = { ...opts.base.slots }
-  const serviceIds = new Set(opts.services.map((s) => s.id))
-  const variantById = new Map<string, { serviceId: string; name: string }>()
+  const variantById = new Map<string, { serviceId: string; name: string; synonyms: string[] }>()
   for (const s of opts.services) {
-    for (const z of s.zones) variantById.set(z.id, { serviceId: s.id, name: z.name })
+    for (const z of s.zones) {
+      variantById.set(z.id, { serviceId: s.id, name: z.name, synonyms: z.synonyms ?? [] })
+    }
   }
-  const proIds = new Set(opts.professionals.map((p) => p.id))
+  const cites = (name: string, synonyms?: readonly string[] | null) =>
+    textCitesNameOrSynonym(opts.turnText, name, synonyms)
+  const clientTimes = new Set(parseTimes(norm(opts.turnText)).times)
+  const clientDates = parseTemporal(opts.turnText, opts.today)
+  const folded = norm(opts.turnText)
 
   // Confiança nunca autoriza — só telemetria local descartada.
   void raw.confidence
@@ -149,44 +157,58 @@ export function validateExtractorOutput(
     else discarded.push(`act:${a}`)
   }
 
+  let variantServiceId: string | null = null
+  if (Array.isArray(raw.variantIds) && raw.variantIds.length > 0) {
+    const requested = raw.variantIds.filter((id) => id !== '_none')
+    const ok = requested.filter((id) => {
+      const meta = variantById.get(id)
+      return Boolean(meta && cites(meta.name, meta.synonyms))
+    })
+    if (requested.length === 0 || ok.length !== requested.length) discarded.push('variantIds')
+    else {
+      const names = ok.map((id) => variantById.get(id)!.name).join(', ')
+      slots.variantIds = fieldLlm(ok, opts.messageId, names)
+      variantServiceId = variantById.get(ok[0]!)!.serviceId
+    }
+  }
+
   if (raw.serviceId) {
-    if (serviceIds.has(raw.serviceId) && raw.serviceId !== '_none') {
-      const name = opts.services.find((s) => s.id === raw.serviceId)?.name ?? raw.serviceId
-      slots.serviceId = fieldLlm(raw.serviceId, opts.messageId, name)
+    const svc = opts.services.find((s) => s.id === raw.serviceId)
+    const viaZone = Boolean(svc && variantServiceId === svc.id)
+    if (svc && raw.serviceId !== '_none' && (cites(svc.name, svc.synonyms) || viaZone)) {
+      slots.serviceId = fieldLlm(raw.serviceId, opts.messageId, svc.name)
     } else discarded.push('serviceId')
+  } else if (variantServiceId && !slots.serviceId) {
+    const name = opts.services.find((s) => s.id === variantServiceId)?.name ?? variantServiceId
+    slots.serviceId = fieldLlm(variantServiceId, opts.messageId, name)
   }
 
   if (raw.line === 'feminino' || raw.line === 'masculino') {
-    slots.line = fieldLlm(raw.line, opts.messageId, raw.line)
+    const word = raw.line === 'feminino' ? /\bfemin(?:ina|ino)\b/ : /\bmasculin(?:a|o)\b/
+    if (word.test(folded)) slots.line = fieldLlm(raw.line, opts.messageId, raw.line)
+    else discarded.push('line')
   } else if (raw.line != null) {
     discarded.push('line')
   }
 
-  if (Array.isArray(raw.variantIds) && raw.variantIds.length > 0) {
-    const ok = raw.variantIds.filter((id) => id !== '_none' && variantById.has(id))
-    if (ok.length === 0) discarded.push('variantIds')
-    else {
-      const names = ok.map((id) => variantById.get(id)!.name).join(', ')
-      slots.variantIds = fieldLlm(ok, opts.messageId, names)
-      const serviceId = variantById.get(ok[0]!)!.serviceId
-      if (!slots.serviceId) {
-        const name = opts.services.find((s) => s.id === serviceId)?.name ?? serviceId
-        slots.serviceId = fieldLlm(serviceId, opts.messageId, name)
-      }
-    }
-  }
-
   if (raw.professionalId) {
-    if (proIds.has(raw.professionalId) && raw.professionalId !== '_none') {
-      const name = opts.professionals.find((p) => p.id === raw.professionalId)?.name ?? raw.professionalId
-      slots.professionalId = fieldLlm(raw.professionalId, opts.messageId, name)
+    const pro = opts.professionals.find((p) => p.id === raw.professionalId)
+    if (pro && raw.professionalId !== '_none' && cites(pro.name, [])) {
+      slots.professionalId = fieldLlm(raw.professionalId, opts.messageId, pro.name)
     } else discarded.push('professionalId')
   }
 
   if (typeof raw.dateLiteral === 'string' && raw.dateLiteral.trim()) {
     const lit = raw.dateLiteral.trim().slice(0, 80)
     const parsed = parseTemporal(lit, opts.today)
-    if (parsed.dates.length === 1 && !parsed.dateConflict && !parsed.invalidDateMention) {
+    const supported =
+      parsed.dates.length === 1 &&
+      !parsed.dateConflict &&
+      !parsed.invalidDateMention &&
+      !clientDates.dateConflict &&
+      !clientDates.invalidDateMention &&
+      clientDates.dates.includes(parsed.dates[0]!)
+    if (supported) {
       slots.date = fieldLlm(parsed.dates[0]!, opts.messageId, lit)
     } else {
       slots.dateLiteral = fieldLlm(lit, opts.messageId, lit)
@@ -195,15 +217,17 @@ export function validateExtractorOutput(
   }
 
   if (raw.period === 'manha' || raw.period === 'tarde' || raw.period === 'noite') {
-    slots.period = fieldLlm(raw.period, opts.messageId, raw.period)
+    if (new RegExp(`\\b${raw.period}\\b`).test(folded)) {
+      slots.period = fieldLlm(raw.period, opts.messageId, raw.period)
+    } else discarded.push('period')
   } else if (raw.period != null) {
     discarded.push('period')
   }
 
   if (typeof raw.timeLiteral === 'string' && raw.timeLiteral.trim()) {
     const lit = raw.timeLiteral.trim().slice(0, 40)
-    const parsed = parseTemporal(lit, opts.today)
-    if (parsed.times.length === 1) {
+    const parsed = parseTimes(norm(lit))
+    if (parsed.times.length === 1 && clientTimes.has(parsed.times[0]!)) {
       slots.time = fieldLlm(parsed.times[0]!, opts.messageId, lit)
     } else {
       discarded.push('timeUnresolved')
@@ -212,13 +236,17 @@ export function validateExtractorOutput(
 
   if (typeof raw.optionIndex === 'number') {
     const pending = opts.pending
-    if (
+    const inRange =
       pending &&
       Number.isInteger(raw.optionIndex) &&
       raw.optionIndex >= 0 &&
       raw.optionIndex < pending.options.length
-    ) {
-      const opt = pending.options[raw.optionIndex]!
+    const opt = inRange ? pending.options[raw.optionIndex]! : null
+    const optTimes = opt ? parseTimes(norm(`${opt.label} ${opt.key}`)).times : []
+    const evidenced = Boolean(
+      opt && (optTimes.some((time) => clientTimes.has(time)) || cites(opt.label, [])),
+    )
+    if (opt && evidenced) {
       slots.optionIndex = fieldLlm(raw.optionIndex, opts.messageId, opt.label)
     } else {
       discarded.push('optionIndex')
@@ -338,6 +366,7 @@ export async function runRestrictedExtractor(
 
   const validated = validateExtractorOutput(raw, {
     messageId: turn.messageId,
+    turnText: turn.turnText,
     today,
     services: turn.catalog.services,
     professionals: proList,

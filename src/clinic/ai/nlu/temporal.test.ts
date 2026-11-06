@@ -109,6 +109,26 @@ describe('parseTemporal (#408)', () => {
       times: ['13:00'],
     },
     {
+      id: 'dec137-das',
+      text: 'o das 10',
+      times: ['10:00'],
+    },
+    {
+      id: 'dec137-hrs',
+      text: 'Sexta 10hrs',
+      times: ['10:00'],
+    },
+    {
+      id: 'dec137-hs',
+      text: '10hs',
+      times: ['10:00'],
+    },
+    {
+      id: 'dec137-meia',
+      text: '9 e meia',
+      times: ['09:30'],
+    },
+    {
       id: 'legacy-as-3-tarde',
       text: 'Pode ser às 3 da tarde',
       times: ['15:00'],

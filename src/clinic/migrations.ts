@@ -261,6 +261,11 @@ import {
   MIGRATION_NAME as M52_NAME,
   STATEMENTS as M52_STATEMENTS,
 } from './migrations/0052_unmatched_terms'
+import {
+  MIGRATION_ID as M53_ID,
+  MIGRATION_NAME as M53_NAME,
+  STATEMENTS as M53_STATEMENTS,
+} from './migrations/0053_proposal_confirm_suspended'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -323,6 +328,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M50_ID, name: M50_NAME, statements: M50_STATEMENTS },
   { id: M51_ID, name: M51_NAME, statements: M51_STATEMENTS },
   { id: M52_ID, name: M52_NAME, statements: M52_STATEMENTS },
+  { id: M53_ID, name: M53_NAME, statements: M53_STATEMENTS },
 ]
 
 export type MigrationResult = {

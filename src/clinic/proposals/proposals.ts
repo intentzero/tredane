@@ -79,6 +79,7 @@ type ProposalSql = {
   tempo_ceu?: string | null
   tempo_temperatura?: string | null
   tempo_celsius?: number | null
+  confirm_suspended?: number | null
   created_at: number
   updated_at: number
 }
@@ -125,6 +126,7 @@ function mapRow(row: ProposalSql): AppointmentProposalRow {
         ? row.tempo_temperatura
         : 'tanto_faz',
     tempoCelsius: row.tempo_celsius ?? null,
+    confirmSuspended: row.confirm_suspended === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -435,6 +437,7 @@ function resolveFacts(
   | 'sentAt'
   | 'supersededById'
   | 'appointmentId'
+  | 'confirmSuspended'
   | 'createdAt'
   | 'updatedAt'
 > & { zoneKey: string; zones: ZoneSnapshot[]; combo: ComboSnapshot | null } {
@@ -825,6 +828,55 @@ export function createOrSupersedeProposal(
  * versão anterior). O clique no botão antigo passa a ser recusado como proposta substituída.
  * CF-23 (#436).
  */
+/**
+ * Eco de substituição resolvida: o Confirmar desta proposta deixa de valer.
+ * A linha fica no estado aberto. Corrigir reactiva, dentro do prazo.
+ */
+export function suspendOpenProposalConfirm(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  clock: Clock,
+): AppointmentProposalRow | null {
+  const active = getActiveProposalForConversation(db, tenantId, conversationId, clock)
+  if (!active || active.confirmSuspended) return active
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE appointment_proposals SET confirm_suspended = 1, updated_at = ?
+     WHERE tenant_id = ? AND id = ? AND state = ?`,
+    now,
+    tenantId,
+    active.id,
+    active.state,
+  )
+  return getProposal(db, tenantId, active.id)
+}
+
+/**
+ * Corrigir do eco: devolve o Confirmar da mesma proposta, se ainda estiver no prazo.
+ * Prazo nulo (ainda não enviada) conta como dentro do prazo.
+ */
+export function resumeOpenProposalConfirm(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  clock: Clock,
+): AppointmentProposalRow | null {
+  const active = getActiveProposalForConversation(db, tenantId, conversationId, clock)
+  if (!active?.confirmSuspended) return active
+  if (active.expiresAt != null && clock.nowMs() >= active.expiresAt) return active
+  const now = clock.nowMs()
+  db.run(
+    `UPDATE appointment_proposals SET confirm_suspended = 0, updated_at = ?
+     WHERE tenant_id = ? AND id = ? AND state = ? AND confirm_suspended = 1`,
+    now,
+    tenantId,
+    active.id,
+    active.state,
+  )
+  return getProposal(db, tenantId, active.id)
+}
+
 export function retireActiveProposal(
   db: ClinicDb,
   tenantId: string,
@@ -1031,6 +1083,9 @@ export function evaluateProposalAuthorization(
   }
   if (proposal.state !== 'enviada') {
     return { allowed: false, reason: 'not_enviada', proposal }
+  }
+  if (proposal.confirmSuspended) {
+    return { allowed: false, reason: 'confirm_suspended', proposal }
   }
   if (proposal.expiresAt != null && clock.nowMs() >= proposal.expiresAt) {
     const expired = expireProposalIfNeeded(db, input.tenantId, proposal.id, clock)

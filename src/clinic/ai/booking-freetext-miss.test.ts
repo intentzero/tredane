@@ -19,6 +19,12 @@ import { syncWhatsappChannel } from '../whatsapp/channel'
 import { localHHMM } from './slot-offer'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
+import { getBookingFrame } from './schedule-session'
+import {
+  evaluateProposalAuthorization,
+  getProposal,
+  markProposalSent,
+} from '../proposals/proposals'
 
 /** 06/11/2026 07:30 America/Sao_Paulo — sexta, antes das 09:00. */
 const NOW = Date.UTC(2026, 10, 6, 10, 30)
@@ -178,10 +184,197 @@ describe('texto livre: zona composta, 0900 e serviço em prosa', () => {
         expect(reply).toMatch(/Não encontrei cotovelo nas opções/)
         expect(picked.autoBook?.proposalId).toBeFalsy()
         expect(proposalCount(s)).toBe(0)
+        const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+        expect(frame?.variantIds?.length).toBe(3)
       } finally {
         s.close()
       }
     },
     30_000,
   )
+
+  it.each([
+    'Pode ser às 10 então',
+    'Sexta às 10, valeu',
+    'Prefiro às 10',
+    'Sexta 10hrs',
+    'Lá pelas 10',
+    'Por volta das 10',
+    'O das 10',
+  ])('«%s» mantém Axila, Pernas e Tórax e Abdômen e propõe 10:00', async (text) => {
+    const s = seed()
+    try {
+      await openFridaySlots(s)
+      const picked = await say(s, text)
+      const reply = picked.autoBook?.replyText ?? ''
+      expect(reply).not.toMatch(/Não encontrei/i)
+      expect(picked.autoBook?.proposalId).toBeTruthy()
+      expect(picked.autoBook?.time).toBe('10:00')
+      const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', picked.autoBook?.proposalId ?? '')
+      expect(snaps.map((zone) => zone.name)).toEqual(['Axila', 'Pernas', 'Tórax e Abdômen'])
+    } finally {
+      s.close()
+    }
+  }, 30_000)
+
+  it('«Na verdade, só pernas» entra no eco e não pergunta «verdade»', async () => {
+    const s = seed()
+    try {
+      await openFridaySlots(s)
+      const turned = await say(s, 'Na verdade, só pernas')
+      const reply = turned.autoBook?.replyText ?? ''
+      expect(reply).toBe('Entendi: Pernas. Certo?')
+      expect(reply).not.toMatch(/Não encontrei/i)
+      expect(turned.autoBook?.proposalId).toBeFalsy()
+      expect(proposalCount(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  }, 30_000)
+
+  it('eco de substituição suspende o Confirmar; Corrigir devolve a mesma proposta', async () => {
+    const s = seed()
+    try {
+      await openFridaySlots(s)
+      const picked = await say(s, 'Às 10')
+      const proposalId = picked.autoBook?.proposalId ?? ''
+      expect(proposalId).toBeTruthy()
+      markProposalSent(s.db, s.tenantId, proposalId, s.clock)
+      const echoed = await say(s, 'Na verdade, só pernas')
+      expect(echoed.autoBook?.replyText).toBe('Entendi: Pernas. Certo?')
+      const suspended = getProposal(s.db, s.tenantId, proposalId)
+      expect(suspended?.state).not.toBe('substituida')
+      expect(suspended?.confirmSuspended).toBe(true)
+      const denied = evaluateProposalAuthorization(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          proposalId,
+          contactId: suspended!.contactId,
+          conversationId: s.cnv.id,
+        },
+        s.clock,
+      )
+      expect(denied.allowed).toBe(false)
+      if (!denied.allowed) expect(denied.reason).toBe('confirm_suspended')
+
+      const corrected = await say(s, 'Corrigir')
+      expect(corrected.autoBook?.replyText ?? '').not.toMatch(/Entendi:/)
+      const resumed = getProposal(s.db, s.tenantId, proposalId)
+      expect(resumed?.id).toBe(proposalId)
+      expect(resumed?.state).toBe('enviada')
+      expect(resumed?.confirmSuspended).toBe(false)
+      const allowed = evaluateProposalAuthorization(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          proposalId,
+          contactId: resumed!.contactId,
+          conversationId: s.cnv.id,
+        },
+        s.clock,
+      )
+      expect(allowed.allowed).toBe(true)
+      expect(appointmentCount(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  }, 30_000)
+
+  it('Sim do eco não marca e a proposta nova substitui a suspensa', async () => {
+    const s = seed()
+    try {
+      await openFridaySlots(s)
+      const picked = await say(s, 'Às 10')
+      const previousId = picked.autoBook?.proposalId ?? ''
+      expect(previousId).toBeTruthy()
+      const echoed = await say(s, 'só pernas')
+      expect(echoed.autoBook?.replyText).toBe('Entendi: Pernas. Certo?')
+      expect(getProposal(s.db, s.tenantId, previousId)?.confirmSuspended).toBe(true)
+      const sim = await say(s, 'Sim')
+      expect(sim.autoBook?.proposalId).toBeTruthy()
+      expect(sim.autoBook?.proposalId).not.toBe(previousId)
+      expect(getProposal(s.db, s.tenantId, previousId)?.state).toBe('substituida')
+      const snaps = readZoneSnapshots(s.db, s.tenantId, 'proposal', sim.autoBook?.proposalId ?? '')
+      expect(snaps.map((zone) => zone.name)).toEqual(['Pernas'])
+      expect(appointmentCount(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  }, 30_000)
+
+  it('partícula, hora e zona desconhecida não suspendem a proposta aberta', async () => {
+    const s = seed()
+    try {
+      await openFridaySlots(s)
+      const picked = await say(s, 'Às 10')
+      const proposalId = picked.autoBook?.proposalId ?? ''
+      const particle = await say(s, 'Pode ser às 10 então')
+      expect(particle.autoBook?.replyText ?? '').not.toMatch(/Não encontrei/i)
+      expect(getProposal(s.db, s.tenantId, proposalId)?.confirmSuspended).toBe(false)
+      expect(getProposal(s.db, s.tenantId, proposalId)?.state).not.toBe('substituida')
+
+      const unknown = await say(s, 'Sexta às 09:00 e cotovelo')
+      expect(unknown.autoBook?.replyText ?? '').toMatch(/Não encontrei cotovelo/)
+      expect(unknown.autoBook?.proposalId).toBeFalsy()
+      const still = getProposal(s.db, s.tenantId, proposalId)
+      expect(still?.confirmSuspended).toBe(false)
+      expect(still?.state).not.toBe('substituida')
+      const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      expect(frame?.variantIds?.length).toBe(3)
+    } finally {
+      s.close()
+    }
+  }, 30_000)
+
+  it('«Pode ser às 18?» sem vaga deixa a proposta das 17:00 confirmável', async () => {
+    const s = seed()
+    try {
+      const line = await say(s, 'Quero agendar uma depilação')
+      expect(line.autoBook?.replyText ?? '').toMatch(/feminina ou masculina/i)
+      await say(s, 'Feminina')
+      const zones = await say(s, 'Axila e pernas')
+      expect(zones.autoBook?.replyText).toBe('Entendi: Axila e Pernas. Certo?')
+      await say(s, 'Sim')
+      const picked = await say(s, 'sexta às 17:00')
+      const proposalId = picked.autoBook?.proposalId ?? ''
+      expect(proposalId).toBeTruthy()
+      expect(picked.autoBook?.time).toBe('17:00')
+      markProposalSent(s.db, s.tenantId, proposalId, s.clock)
+
+      const asked = await say(s, 'Pode ser às 18?')
+      const reply = asked.autoBook?.replyText ?? ''
+      expect(reply).toMatch(/18:00/)
+      expect(reply).toMatch(/vaga|ocupad/i)
+      expect(asked.autoBook?.proposalId).toBeFalsy()
+      expect(proposalCount(s)).toBe(1)
+      const proposal = getProposal(s.db, s.tenantId, proposalId)
+      expect(proposal?.state).toBe('enviada')
+      expect(proposal?.confirmSuspended).toBe(false)
+      expect(localHHMM('America/Sao_Paulo', proposal!.startsAt)).toBe('17:00')
+      const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      expect(frame?.time).toBe('17:00')
+      const auth = evaluateProposalAuthorization(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          proposalId,
+          contactId: proposal!.contactId,
+          conversationId: s.cnv.id,
+        },
+        s.clock,
+      )
+      expect(auth.allowed).toBe(true)
+      expect(appointmentCount(s)).toBe(0)
+    } finally {
+      s.close()
+    }
+  }, 30_000)
 })
+
+function appointmentCount(s: ReturnType<typeof seed>): number {
+  return s.db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM appointments WHERE tenant_id = ?`,
+    s.tenantId,
+  )!.n
+}
