@@ -13,7 +13,7 @@ import { partitionL2Cases } from './held-out'
 import { runJudge, type JudgeResult } from './judge'
 import { buildEeMetrics, type EeMetrics } from './metrics'
 import { TrackingAiAdapter } from './tracking-adapter'
-import { passHatK, wilson } from '../scorecard/stats'
+import { passHatK, wilsonByCase } from '../scorecard/stats'
 
 export type L2Mode = 'dry-run' | 'live'
 
@@ -290,7 +290,13 @@ export async function runL2Suite(opts: L2RunOptions = {}): Promise<L2RunReport> 
         }),
         n,
       ),
-      passRateCi95: wilson(allReps.filter((r) => r.dialog.ok).length, allReps.length),
+      // IC por caso (repetições do mesmo caso são correlacionadas).
+      passRateCi95: wilsonByCase(
+        results.map((r) => {
+          const reps = r.repetitions.filter((x) => !x.skippedReason)
+          return { n: reps.length, c: reps.filter((x) => x.dialog.ok).length }
+        }),
+      ),
     },
     note: complete
       ? 'Corrida L2 completa abaixo do teto DEC-117.'

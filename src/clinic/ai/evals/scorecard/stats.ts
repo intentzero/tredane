@@ -40,6 +40,19 @@ export function wilson(successes: number, total: number, z = 1.96): { low: numbe
 }
 
 /**
+ * IC de Wilson por caso: cada caso conta como **um** ensaio (a sua taxa de passagem),
+ * porque as repetições do mesmo caso são correlacionadas (Miller 2024: agrupar por
+ * caso). Mais conservador do que `wilson` sobre todas as repetições.
+ */
+export function wilsonByCase(
+  cases: Array<{ n: number; c: number }>,
+): { low: number; high: number } | null {
+  const usable = cases.filter((x) => x.n > 0)
+  if (usable.length === 0) return null
+  return wilson(usable.reduce((s, x) => s + x.c / x.n, 0), usable.length)
+}
+
+/**
  * Rogan-Gladen: θ = (p_obs + TNR − 1) / (TPR + TNR − 1), limitado a [0,1].
  * Só é válido com TPR + TNR > 1; caso contrário devolve null (juiz inútil).
  */

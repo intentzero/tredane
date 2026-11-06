@@ -50,6 +50,8 @@ export const FL_DIALOG_CASES: DialogCase[] = [
       ],
       proposal: true,
       proposalZones: ['Axila', 'Pernas'],
+      // Só o Confirmar cria o compromisso, e cria exactamente um.
+      appointments: 1,
       outboundExcludes: NO_LEAK,
       turns: [{ turn: 1, matches: [/Confirmar|Proposta/i] }],
     },

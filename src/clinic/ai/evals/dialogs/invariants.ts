@@ -34,10 +34,15 @@ const HUB_OPENING_BODY = /^Olá! Aqui é a .+\. (Hoje funcionamos|O que você pr
  * «funcionamos das 09:00 às 18:00», «a partir das 09:00», «até às 18:00»,
  * linhas «segunda: 09:00–18:00». Não é oferta de horário (INV-03).
  */
+const OPENING_HOURS_LINE =
+  /^\s*[-•·]?\s*(?:segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)\s*:\s*(?:fechado|\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}(?:\s+e\s+\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2})*)\s*$/gim
+
 export function scrubOpeningHours(body: string): string {
   return body
     .replace(/funcionamos (das \d{1,2}:\d{2} às \d{1,2}:\d{2}|a partir das \d{1,2}:\d{2}|até às \d{1,2}:\d{2})/gi, 'funcionamos')
-    .replace(/^\s*[-•·]?\s*(segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)\b[^\n]*$/gim, '')
+    // Só o formato exacto de `formatOpeningHours`: «segunda: 09:00–18:00 e 14:00–18:00».
+    // Uma linha de oferta que comece pelo dia («sexta 06/11 às 23:00») NÃO é apagada.
+    .replace(OPENING_HOURS_LINE, '')
 }
 
 export function checkInvariants(

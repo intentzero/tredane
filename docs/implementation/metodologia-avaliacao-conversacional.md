@@ -20,7 +20,7 @@ O que falta é sobretudo **medir ao longo do tempo** e **cobrir o caminho que mu
 | ID | Lacuna | Evidência | Efeito |
 | --- | --- | --- | --- |
 | G-01 | **Nenhum registo de KPIs por corrida, nem comparação automática com uma linha de base.** O §7 do plano é escrito à mão. | O último registo do §7 é a It. 4.5c, de 03/11. Desde então entraram **82 commits na `main`, 34 com «fix» no título**, sem iteração registada. | Uma regressão de eficiência (mais turnos, mais perguntas por mensagem, proposta diferente do pedido) passa despercebida enquanto as invariantes continuarem verdes. |
-| G-02 | **O caminho principal atual não tinha diálogo L1.** **Coberto a 05/11/2026** pela família FL- (15 casos; ver a [matriz](matriz-dialogos-conversacional.md)). A DEC-138 tornou o WhatsApp Flow e o hub o caminho principal. | `p0-cases.ts` não tem nenhum caso Flow/hub/nfm. **43 dos 82 commits** desde 03/11 mexem em Flow, hub ou C16. O Flow tem 8 ficheiros de teste unitário, mas nenhum diálogo ponta a ponta. | Os defeitos do caminho principal são encontrados por sonda manual (L4) em vez do CI. |
+| G-02 | **O caminho principal atual não tinha diálogo L1.** **Coberto a 05/11/2026** pela família FL- (16 casos; ver a [matriz](matriz-dialogos-conversacional.md)). A DEC-138 tornou o WhatsApp Flow e o hub o caminho principal. | `p0-cases.ts` não tem nenhum caso Flow/hub/nfm. **43 dos 82 commits** desde 03/11 mexem em Flow, hub ou C16. O Flow tem 8 ficheiros de teste unitário, mas nenhum diálogo ponta a ponta. | Os defeitos do caminho principal são encontrados por sonda manual (L4) em vez do CI. |
 | G-03 | **O L2/L3 com o modelo real nunca correu.** | Live bloqueado sem `AI_GATEWAY_*` desde 02/11 (It. 4.4). O dry-run usa o `SimulatedAiAdapter`. | Não há medida da variância do LLM, de latência ou de custo reais. O juiz continua sem calibração (κ **Em aberto**, #402). |
 | G-04 | **Nenhuma medida de consistência.** O L2 reporta `passRate` por repetição, mas não se *todas* as repetições passam. | `runner.ts` antes desta proposta. | Um caso que passa 2 em 3 vezes parece «67 % bom», quando para a cliente é imprevisível. |
 | G-05 | **Fugas não contadas.** Não há registo de qual defeito foi apanhado em L4/L5 sem ter sido apanhado em L0–L3. | As sondas de 30/10, 31/10 e 03/11 originaram CF-23..34, mas a origem de cada correção desde 03/11 não está registada. | Não se sabe se a metodologia está a ficar mais eficaz. |
@@ -135,8 +135,9 @@ Medem se a metodologia está a funcionar e disparam a sua revisão (§8).
    - **⚠ Regressão:** informativa. O PR tem de a **explicar** (decisão nova, troca consciente) ou corrigir.
    - **✅ Melhoria:** progressão sem regressão. Gravar a linha de base no merge da iteração.
    - **＝ Igual.**
+4. **Linha de base protegida.** `eval:baseline` recusa gravar uma corrida parcial, com casos a falhar, com violação de invariante ou com regressão em gate: a linha de base é a última versão **aceite**. A mesma regra trata um KPI que deixa de ser medido (valor → nulo) como regressão de cobertura. O relatório lista também os **fingerprints** que mudaram (prompt, catálogo de referência, casos, atos de diálogo) para atribuir a mudança a uma versão.
 4. **Casos novos e removidos.** Um caso novo é progressão de cobertura. Um ID que desaparece é regressão (os casos marcam-se **Retirado**, não se apagam; plano §6.6).
-5. **Estocástico (L2/L3).** Reporta-se sempre a proporção **com IC de Wilson a 95 %** e o pass^N. Duas versões só se dizem diferentes quando a diferença emparelhada por caso é consistente nas N repetições ou os IC não se sobrepõem. Com poucos casos a decisão é qualitativa, nunca «ganho estatístico» (alinhado com a avaliação contínua, secção «Como demonstrar melhoria»).
+5. **Estocástico (L2/L3).** Reporta-se sempre a proporção **com IC de Wilson a 95 %** e o pass^N. O IC do L2 é calculado **por caso** (cada caso conta como um ensaio, porque as repetições são correlacionadas), por isso é conservador. Duas versões só se dizem diferentes quando a diferença emparelhada por caso é consistente nas N repetições ou os IC não se sobrepõem. Com poucos casos a decisão é qualitativa, nunca «ganho estatístico» (alinhado com a avaliação contínua, secção «Como demonstrar melhoria»).
 6. **Juiz.** Até à calibração da #402, a nota Q é sinal. Depois, a taxa reporta-se também corrigida por Rogan-Gladen (`correctJudgeRate`) com o TPR/TNR medido.
 
 ## 7. Cadência e rituais (Proposto)
@@ -171,7 +172,8 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 | Passo | Fecha | Entrega | Dependência |
 | --- | --- | --- | --- |
 | 1 | G-01, G-04 | Scorecard L1, linha de base, histórico, pass^N e IC95 no L2 | **Feito nesta proposta** |
-| 2 | G-02, G-08 | Família `FL-` (15 casos), `flow-driver.ts` sobre o endpoint real, `flowDataExchangeLocal` partilhado com o Clinic DO, invariantes corrigidas. Cobre no L1 o CF-36 da sonda L4 (#565) e encontrou o CF-43. Falta: catálogo ou hora a mudar a meio do Flow, `fallback_reason`, token de outra clínica (precisam de um turno de mutação). | **Feito** (05/11/2026), salvo o que falta |
+| 2 | G-02, G-08 | Família `FL-` (16 casos), `flow-driver.ts` sobre o endpoint real, `flowDataExchangeLocal` partilhado com o Clinic DO, invariantes corrigidas. Cobre no L1 o CF-36 da sonda L4 (#565) e encontrou o CF-43. Falta: catálogo ou hora a mudar a meio do Flow, `fallback_reason`, token de outra clínica (precisam de um turno de mutação). | **Feito** (05/11/2026), salvo o que falta |
+| 2b | G-02 | Extrair do `queue-consumer.ts` uma função partilhada para o processamento do `nfm_reply` (token, consumo, ack, proposal) e usá-la no `flow-driver.ts`. Hoje o harness tem uma cópia que já difere (sem `bindingId`, `capability` fixa). Achado da revisão do #567. | **Por fazer** |
 | 3 | G-05 | Linha «Apanhado em» no modelo de PR e contagem P-ESC por iteração | Aprovar a convenção |
 | 4 | G-01 | `eval:scorecard` no CI para PRs conversacionais, com o veredicto como comentário | Aprovar o uso no CI |
 | 5 | G-03 | Corrida L2/L3 live no staging (chaves `AI_GATEWAY_*`); primeira linha de base real de K-CONS, K-LAT, K-COST | Acesso ao gateway |
@@ -194,6 +196,7 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 
 | Versão | Data | Mudança |
 | --- | --- | --- |
+| 0.5 | 06/11/2026 | Correções da revisão do #567: linha de base protegida, KPI que perde a medição é regressão, fingerprints no relatório, IC do L2 por caso, FL- fora do L2, INV-03 sem apagar linhas de oferta. Passo 2b por fazer. |
 | 0.4 | 05/11/2026 | Decisões do §10 registadas: DEC-139 (metodologia, regressão justificada no PR, cadência semanal + liberação, análise de erros preparada pelo agente), DEC-140 (corpo do Flow a meio do funil) e DEC-141 (verbos: DEC-110 + sugestão à owner). |
 | 0.3 | 05/11/2026 | CF-43 fechado e CF-36 da sonda L4 (#565) coberto no L1; A-14 deixa de ser falso verde (lição: expectativas por regex devem excluir o texto de falha, não só incluir uma palavra); duas decisões novas Em aberto. |
 | 0.2 | 05/11/2026 | Família FL- (G-02) e correção das invariantes (G-08); gatilho 1 passa a exigir revisão das invariantes. |

@@ -97,8 +97,9 @@ export function shouldOfferHubOpening(input: {
   ) {
     return false
   }
-  if (namedBookableServices(input.services, text).length > 0) return false
+  // Cumprimento puro não nomeia serviço: evita correr o resolvedor do funil no caso mais frequente.
   if (GREET_ONLY.test(text) || VAGUE_ASK.test(text)) return true
+  if (namedBookableServices(input.services, text).length > 0) return false
   // Pedido vago de marcar sem nomear serviço.
   if (VAGUE_BOOK.test(text) && text.length <= 80) return true
   return false

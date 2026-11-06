@@ -105,6 +105,8 @@ export type DialogCase = {
     /** Chave em `scenario.ids` da profissional da proposta (CF-20 / D-06). */
     professionalKey?: 'ana' | 'bia' | 'gi' | 'sandra'
     noAppointment?: boolean
+    /** Nº exacto de compromissos no fim (ex. 1 depois de um Confirmar válido). */
+    appointments?: number
     /** Número exato de mensagens da clínica (inclui cartão da proposta). */
     outboundCount?: number
     /** Propostas abertas / substituídas no fim do diálogo (a antiga não pode ficar vigente). */
@@ -364,6 +366,9 @@ export async function runDialogCase(
     }
     if (e?.proposal === true && s.proposalCount() < 1) errors.push('esperava proposta')
     if (e?.proposal === false && s.proposalCount() > 0) errors.push('proposta inesperada')
+    if (e?.appointments != null && s.appointmentCount() !== e.appointments) {
+      errors.push(`esperava ${e.appointments} compromisso(s), há ${s.appointmentCount()}`)
+    }
     if (e?.noAppointment === true && s.appointmentCount() > 0) {
       errors.push('compromisso inesperado')
     }

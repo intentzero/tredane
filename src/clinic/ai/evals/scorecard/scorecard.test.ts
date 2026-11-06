@@ -7,7 +7,8 @@ import {
   isConcise,
   type CaseScore,
 } from './scorecard'
-import { correctJudgeRate, passHatK, passHatKCase, wilson } from './stats'
+import { correctJudgeRate, passHatK, passHatKCase, wilson, wilsonByCase } from './stats'
+import { scrubOpeningHours } from '../dialogs/invariants'
 
 const base = (over: Partial<CaseScore> = {}): CaseScore => ({
   id: 'A-01',
@@ -90,7 +91,46 @@ describe('scorecard — comparação com a linha de base', () => {
   })
 })
 
+describe('scorecard — regressões de cobertura e versão', () => {
+  const d = { bookingMatchesRequest: true, zonesKeptRatio: 1, clientCorrections: 0, turnsToConfirm: 2 }
+  it('KPI que perde a medição (valor → nulo) é regressão, não «mudança»', () => {
+    const cmp = compareScorecards(card([base({ damage: d })]), card([base({ damage: null })], 'bbb'))
+    expect(cmp.regressions.map((c) => c.key)).toContain('bookingMatchRate')
+    expect(cmp.verdict).toBe('regressao')
+  })
+  it('KPI que passa a ser medido é progressão', () => {
+    const cmp = compareScorecards(card([base({ damage: null })]), card([base({ damage: d })], 'bbb'))
+    expect(cmp.progressions.map((c) => c.key)).toContain('bookingMatchRate')
+  })
+  it('lista os fingerprints que mudaram entre as corridas', () => {
+    const mk = (fp: Record<string, string | null>) =>
+      buildScorecard({ cases: [base()], version: { commit: 'x', fingerprints: fp }, recordedAt: 't' })
+    const cmp = compareScorecards(mk({ promptPainel: 'a', catalogoRef: 'c' }), mk({ promptPainel: 'b', catalogoRef: 'c' }))
+    expect(cmp.fingerprintChanges).toEqual(['promptPainel'])
+    expect(compareScorecards(mk({ a: '1' }), mk({ a: '1' })).fingerprintChanges).toEqual([])
+  })
+})
+
+describe('INV-03 — scrub do expediente', () => {
+  it('apaga só as linhas de expediente exactas', () => {
+    const body = 'Funcionamos assim:\nsegunda: 09:00–18:00\nterça: 09:00–12:00 e 14:00–18:00\ndomingo: fechado'
+    expect(scrubOpeningHours(body)).not.toMatch(/\d{2}:\d{2}/)
+  })
+  it('NÃO apaga linhas de oferta que começam pelo dia', () => {
+    expect(scrubOpeningHours('sexta 06/11 às 23:00')).toContain('23:00')
+    expect(scrubOpeningHours('Tenho:\nquinta 05/11: 22:30, 23:00')).toContain('22:30')
+    expect(scrubOpeningHours('sexta: 23:00')).toContain('23:00')
+  })
+})
+
 describe('estatística', () => {
+  it('IC por caso é mais largo do que Wilson sobre repetições correlacionadas', () => {
+    const cases = Array.from({ length: 10 }, () => ({ n: 3, c: 3 }))
+    const naive = wilson(30, 30)!
+    const byCase = wilsonByCase(cases)!
+    expect(byCase.low).toBeLessThan(naive.low + 1e-9)
+    expect(wilsonByCase([])).toBeNull()
+  })
   it('pass^k: estimador C(c,k)/C(n,k)', () => {
     expect(passHatKCase(3, 3, 3)).toBe(1)
     expect(passHatKCase(3, 2, 3)).toBe(0)

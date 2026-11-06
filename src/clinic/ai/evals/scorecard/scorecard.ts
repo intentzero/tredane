@@ -203,6 +203,8 @@ export type Change = {
 export type Comparison = {
   baselineCommit: string
   currentCommit: string
+  /** Fingerprints (prompt, catálogo de referência, casos, atos) que mudaram entre as duas corridas. */
+  fingerprintChanges: string[]
   changes: Change[]
   regressions: Change[]
   progressions: Change[]
@@ -225,7 +227,9 @@ function compareNumber(
   tolerance: number,
 ): Change['kind'] | null {
   if (before == null && after == null) return null
-  if (before == null || after == null) return 'changed'
+  // Perder a medição (valor → nulo) é regressão de cobertura; passar a medir é progressão.
+  if (after == null) return 'regression'
+  if (before == null) return 'progression'
   const delta = after - before
   if (Math.abs(delta) <= tolerance) return null
   const better = dir === 'higher_better' ? delta > 0 : delta < 0
@@ -294,9 +298,17 @@ export function compareScorecards(baseline: Scorecard, current: Scorecard): Comp
       : progressions.length
         ? 'melhoria'
         : 'igual'
+  const fpKeys = new Set([
+    ...Object.keys(baseline.version.fingerprints ?? {}),
+    ...Object.keys(current.version.fingerprints ?? {}),
+  ])
+  const fingerprintChanges = [...fpKeys]
+    .filter((k) => (baseline.version.fingerprints ?? {})[k] !== (current.version.fingerprints ?? {})[k])
+    .sort()
   return {
     baselineCommit: baseline.version.commit,
     currentCommit: current.version.commit,
+    fingerprintChanges,
     changes,
     regressions,
     progressions,
@@ -341,6 +353,9 @@ export function formatComparison(cmp: Comparison): string {
     `Comparação L1: linha de base ${cmp.baselineCommit.slice(0, 10)} → atual ${cmp.currentCommit.slice(0, 10)}`,
     `Veredicto: ${VERDICT_LABEL[cmp.verdict]}`,
   ]
+  if (cmp.fingerprintChanges.length) {
+    lines.push(`Versão alterada (atribuir mudanças a): ${cmp.fingerprintChanges.join(', ')}`)
+  }
   const section = (title: string, list: Change[]) => {
     if (!list.length) return
     lines.push('', `${title} (${list.length}):`)

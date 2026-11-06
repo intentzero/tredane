@@ -81,7 +81,11 @@ describe('harness L1 diálogos P0 (#406)', () => {
     process.stdout.write(`\n${formatDialogReport(results)}\n`)
     // Metodologia de avaliação §6: scorecard comparável com a linha de base.
     const byId = new Map<string, DialogCase>(P0_DIALOG_CASES.map((c) => [c.id, c]))
-    const out = emitL1Scorecard(results.map((r) => ({ c: byId.get(r.id)!, r })))
+    const out = emitL1Scorecard(
+      results.map((r) => ({ c: byId.get(r.id)!, r })),
+      process.env,
+      P0_DIALOG_CASES.length,
+    )
     if (out) {
       process.stdout.write(`${out.report}\n`)
       const failure = scorecardFailure(out)

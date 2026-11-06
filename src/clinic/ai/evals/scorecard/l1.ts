@@ -92,6 +92,8 @@ export type ScorecardOutcome = { scorecard: Scorecard; comparison: Comparison | 
 export function emitL1Scorecard(
   pairs: Array<{ c: DialogCase; r: DialogRunResult }>,
   env: NodeJS.ProcessEnv = process.env,
+  /** Nº de casos registados: gravar a linha de base exige a corrida completa. */
+  expectedTotal?: number,
 ): ScorecardOutcome | null {
   const record = env.EVAL_SCORECARD_RECORD === '1'
   if (env.EVAL_SCORECARD !== '1' && !record) return null
@@ -118,7 +120,12 @@ export function emitL1Scorecard(
     parts.push('', 'Sem linha de base: corra `npm run eval:baseline` para a criar.')
   }
 
-  if (record) {
+  // A linha de base é «a última versão aceite»: nunca grava uma corrida parcial,
+  // com casos a falhar ou com regressão em gate (senão aprovava a própria regressão).
+  const refusal = record ? recordRefusal(scorecard, comparison, expectedTotal) : null
+  if (record && refusal) {
+    parts.push('', `Linha de base NÃO atualizada: ${refusal}.`)
+  } else if (record) {
     mkdirSync(dirname(BASELINE_PATH), { recursive: true })
     writeFileSync(BASELINE_PATH, `${JSON.stringify(scorecard, null, 2)}\n`)
     appendFileSync(
@@ -136,6 +143,20 @@ export function emitL1Scorecard(
   }
 
   return { scorecard, comparison, report: parts.join('\n') }
+}
+
+function recordRefusal(
+  scorecard: Scorecard,
+  comparison: Comparison | null,
+  expectedTotal?: number,
+): string | null {
+  if (expectedTotal != null && scorecard.cases.length < expectedTotal) {
+    return `corrida parcial (${scorecard.cases.length} de ${expectedTotal} casos)`
+  }
+  if (scorecard.kpis.casesFailed > 0) return `${scorecard.kpis.casesFailed} caso(s) a falhar`
+  if (scorecard.kpis.invViolations > 0) return `${scorecard.kpis.invViolations} violação(ões) de invariante`
+  if (comparison?.verdict === 'bloqueia') return 'regressão em gate'
+  return null
 }
 
 /** Erro a lançar no teste, ou null. Gate sempre; regressão informativa só em EVAL_STRICT. */
