@@ -17,6 +17,8 @@ import type { Clock } from '../../db/clock'
 import type { ClinicCaller } from '../envelopes'
 import { ClinicError } from '../errors'
 import { isClinicAiAssistEnabled } from '../config/settings'
+import { listServices } from '../config/services'
+import { needsAudienceLine } from './variant-line'
 import { getConversation } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { toSendInteractive } from './choice-offer'
@@ -69,7 +71,12 @@ import { isConversationPaused } from './protection'
 import { filledSlots, getBookingFrame, getScheduleSession } from './schedule-session'
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
-import { emitTurnDecided, routeFromAutodraftOutcome, variantsChangedInTurn } from './turn-decided'
+import {
+  emitTurnDecided,
+  routeFromAutodraftOutcome,
+  variantsChangedInTurn,
+  zonesAskedBeforeTurn,
+} from './turn-decided'
 import { loadTurnContext, readCatalogVersion } from './turn-context'
 import { enqueueTypingIndicator } from './typing-indicator'
 import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
@@ -308,6 +315,15 @@ export async function runDueAutoDrafts(
     const debounceMs = Math.max(0, job.dueAt - job.createdAt)
     // DEC-143: quadro antes do turno, para medir se as variantes vieram deste texto.
     const frameBefore = getBookingFrame(db, tenantId, job.conversationId)
+    const zonesAskedBefore = (): boolean => {
+      if (!frameBefore?.serviceId) return false
+      const svc = listServices(db, tenantId).find((s) => s.id === frameBefore.serviceId)
+      const active = svc?.zones.filter((z) => z.active) ?? []
+      return zonesAskedBeforeTurn(frameBefore, {
+        activeZones: active.length,
+        needsLine: needsAudienceLine(active),
+      })
+    }
     /** Uma vez por job: marca lida + typing nativo só quando vamos responder. */
     let typingSignaled = false
     const signalTyping = async (): Promise<void> => {
@@ -362,6 +378,7 @@ export async function runDueAutoDrafts(
           slotsMissing: [],
           variantsChanged: variantsChangedInTurn(frameBefore, frameAfter),
           pendingSlotBefore: frameBefore?.pending?.slot ?? null,
+          zonesAskedBefore: zonesAskedBefore(),
           modelCalled: modelCalls > 0 || Boolean(extra.modelCalled ?? outcome.suggestion),
           modelCalls,
           textDiscarded: Boolean(

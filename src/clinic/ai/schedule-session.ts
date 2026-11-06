@@ -367,6 +367,44 @@ export function getScheduleSession(
   return frameToSession(rowToFrame(row), asDay(row.day_label))
 }
 
+/**
+ * O funil começa quando o autodraft cria a sessão (`session.updatedAt`), depois do debounce.
+ * A mensagem da cliente que o abriu é anterior a esse instante; sem a incluir, as zonas escritas
+ * na própria mensagem de abertura («axila e pernas» antes da linha) ficavam de fora e eram
+ * perguntadas outra vez (sonda staging 06/11/2026, DEC-143).
+ */
+export const FUNNEL_OPENING_GRACE_MS = 30_000
+
+/**
+ * Uma resposta da clínica anterior ao início do funil por mais do que isto fecha o funil
+ * anterior. A resposta ao próprio turno de abertura sai na mesma transacção da sessão (ms).
+ */
+export const FUNNEL_OWN_REPLY_GAP_MS = 1_000
+
+/**
+ * Filtro das mensagens que pertencem ao funil activo.
+ * - de `updatedAt` em diante: sempre;
+ * - até `FUNNEL_OPENING_GRACE_MS` antes: só se nenhuma resposta da clínica as separar do início
+ *   (a mensagem de abertura), para não recuperar o que a cliente disse num funil já fechado
+ *   (DEC-086: «Todas» antiga após «Agendado»).
+ */
+export function funnelMessageFilter<T>(
+  messages: readonly T[],
+  read: (m: T) => { direction: string; at: number },
+  sessionUpdatedAt: number,
+): (m: T) => boolean {
+  const outboundAt = messages
+    .map(read)
+    .filter((m) => m.direction === 'outbound')
+    .map((m) => m.at)
+  return (m) => {
+    const { at } = read(m)
+    if (at >= sessionUpdatedAt) return true
+    if (at < sessionUpdatedAt - FUNNEL_OPENING_GRACE_MS) return false
+    return !outboundAt.some((o) => o > at && o <= sessionUpdatedAt - FUNNEL_OWN_REPLY_GAP_MS)
+  }
+}
+
 /** Campos preenchidos do quadro (nomes, sem valores). Usado também no `ai.turn_decided`. */
 export function filledSlots(frame: BookingFrame): string[] {
   const out: string[] = []

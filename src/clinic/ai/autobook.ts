@@ -76,6 +76,7 @@ import {
   zonesChosenInClientTexts,
 } from './schedule-choice'
 import {
+  funnelMessageFilter,
   getBookingFrame,
   heldAudienceLine,
   saveScheduleSession,
@@ -1118,9 +1119,12 @@ export async function tryAiAutoBook(
           // mesmo sem período — não perguntar «qual horário?» vazio.
           const canOffer =
             !chosen.ambiguous && (kept.length > 0 || active.length === 0)
+          // DEC-137: zonas escritas num texto ainda não ecoado também pedem eco, mesmo quando o
+          // texto é anterior a este turno (zonas ditas antes da linha, DEC-143).
           const turnNamed =
             mention.zones.length > 0 ||
-            zonesChosenInClientTexts([turnText], mentionPool).zones.length > 0
+            zonesChosenInClientTexts([turnText], mentionPool).zones.length > 0 ||
+            (kept.length > 0 && !sessionIntact)
           const wantEcho =
             canOffer &&
             zoneEcho !== 'skip' &&
@@ -1480,10 +1484,15 @@ export async function tryAiAutoBook(
   // DEC-090 / #510: linha do quadro primeiro. Só a sessão do mesmo serviço conta.
   // Após DEC-086 (sessão limpa) ou serviço diferente, «Masculina»/«Todas» antigas não valem.
   const sameFunnel = Boolean(session && session.serviceId === svc.id)
-  const funnelStartedAt = sameFunnel && session ? session.updatedAt : Number.POSITIVE_INFINITY
-  const funnelOlder = sameFunnel
-    ? older.filter((m) => m.direction !== 'inbound' || m.created_at >= funnelStartedAt)
-    : []
+  const inFunnel =
+    sameFunnel && session
+      ? funnelMessageFilter(
+          older,
+          (m) => ({ direction: m.direction, at: m.created_at }),
+          session.updatedAt,
+        )
+      : null
+  const funnelOlder = inFunnel ? older.filter((m) => m.direction !== 'inbound' || inFunnel(m)) : []
   const funnelInboundNewestFirst = [
     ...[...clientTurn].reverse().map((m) => m.body),
     ...funnelOlder.filter((m) => m.direction === 'inbound').map((m) => m.body),

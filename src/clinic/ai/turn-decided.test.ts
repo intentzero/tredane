@@ -16,6 +16,7 @@ import {
   assertTurnDecidedMinimized,
   emitTurnDecided,
   variantsChangedInTurn,
+  zonesAskedBeforeTurn,
   type TurnDecidedPayload,
 } from './turn-decided'
 
@@ -34,6 +35,7 @@ function samplePayload(over: Partial<TurnDecidedPayload> = {}): TurnDecidedPaylo
     textDiscarded: true,
     variantsChanged: false,
     pendingSlotBefore: null,
+    zonesAskedBefore: false,
     model: 'claude-haiku-5-5',
     latencyMs: { debounce: 7000, model: 12, decision: 20, send: 5 },
     tokens: { input: 100, output: 20 },
@@ -174,4 +176,21 @@ describe('#407 ai.turn_decided', () => {
     expect(variantsChangedInTurn(f('svc', ['a']), f('svc', null))).toBe(false)
     expect(variantsChangedInTurn(f('svc', ['a']), null)).toBe(false)
   })
+
+  it('DEC-143: zonesAskedBefore só quando o quadro já só esperava as zonas', () => {
+    const mix = { activeZones: 4, needsLine: true }
+    const plain = { activeZones: 3, needsLine: false }
+    const f = (serviceId: string | null, line: string | null, variantIds: string[] | null) => ({
+      serviceId,
+      line,
+      variantIds,
+    })
+    expect(zonesAskedBeforeTurn(null, mix)).toBe(false)
+    expect(zonesAskedBeforeTurn(f('s', null, null), mix)).toBe(false) // falta a linha
+    expect(zonesAskedBeforeTurn(f('s', 'feminino', null), mix)).toBe(true)
+    expect(zonesAskedBeforeTurn(f('s', null, null), plain)).toBe(true)
+    expect(zonesAskedBeforeTurn(f('s', 'feminino', ['z']), mix)).toBe(false)
+    expect(zonesAskedBeforeTurn(f('s', null, null), { activeZones: 0, needsLine: false })).toBe(false)
+  })
 })
+

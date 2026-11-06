@@ -30,6 +30,7 @@ import { sayAct } from './dialogue-acts'
 import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
 import { formatOpeningHours } from './schedule-context'
 import {
+  funnelMessageFilter,
   getBookingFrame,
   getScheduleSession,
   heldAudienceLine,
@@ -450,12 +451,16 @@ export function catalogReply(
     (opts.conversationId
       ? listMessages(db, tenantId, { conversationId: opts.conversationId, limit: 40 }).messages
       : [])
+  const inFunnel =
+    sameFunnel && session
+      ? funnelMessageFilter(
+          historyMsgs,
+          (message) => ({ direction: message.direction, at: message.createdAt ?? 0 }),
+          session.updatedAt,
+        )
+      : null
   const funnelInboundNewestFirst = historyMsgs
-    .filter(
-      (message) =>
-        message.direction === 'inbound' &&
-        (!sameFunnel || !session || (message.createdAt ?? 0) >= session.updatedAt),
-    )
+    .filter((message) => message.direction === 'inbound' && (!inFunnel || inFunnel(message)))
     .map((message) => message.body)
     .reverse()
   const inboundNewestFirst = [source, ...funnelInboundNewestFirst.filter((body) => body !== source)]

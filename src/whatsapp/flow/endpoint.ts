@@ -14,6 +14,7 @@ import {
   type FlowEncryptedRequest,
 } from './crypto'
 import { isFlowHubStubAction, type FlowHubAction } from './copy'
+import { isFlowTransitionAllowed } from './definition'
 import {
   applyScreenSubmission,
   entryFlowScreen,
@@ -169,7 +170,8 @@ function asFallbackReason(reason: string): FlowChatFallbackReason {
     reason === 'no_slots' ||
     reason === 'too_many_variants' ||
     reason === 'no_bookable_services' ||
-    reason === 'too_many_services'
+    reason === 'too_many_services' ||
+    reason === 'catalog_changed'
   ) {
     return reason
   }
@@ -322,6 +324,29 @@ export async function handleFlowDataRequest(input: {
     return undefined
   }
 
+  /**
+   * Fecha o Flow e passa ao chat (SUCCESS com `fallback_reason`).
+   * Usado quando o próximo ecrã não existe no routing_model a partir do ecrã submetido
+   * (catálogo mudou a meio): devolver esse ecrã dá «Ocorreu um erro» no cliente.
+   */
+  const closeToChat = async (action: string, reason: string) => {
+    const body = await encryptFlowResponse(
+      decrypted.aesKey,
+      decrypted.iv,
+      withVersion(
+        responseVersion,
+        successPayload(tokenRow.token, frame, { fallbackReason: asFallbackReason(reason) }),
+      ),
+    )
+    return {
+      status: 200 as const,
+      body,
+      contentType: 'text/plain' as const,
+      logDetail: { action, screen: 'SUCCESS', outcome: 'chat_fallback', reason },
+    }
+  }
+  const submittedScreen = parsed.action === 'data_exchange' ? parsed.screen : undefined
+
   let hubActionFromSubmit: FlowHubAction | null = null
 
   if (parsed.action === 'data_exchange' && parsed.screen) {
@@ -365,6 +390,9 @@ export async function handleFlowDataRequest(input: {
         visitTotalLine: looked.visitTotalLine,
         errorMessage: applied.errorMessage,
       })
+      if ('screen' in again && !isFlowTransitionAllowed(parsed.screen, again.screen)) {
+        return closeToChat('data_exchange', 'catalog_changed')
+      }
       if ('screen' in again) {
         const body = await encryptFlowResponse(
           decrypted.aesKey,
@@ -516,7 +544,13 @@ export async function handleFlowDataRequest(input: {
     slots: looked.slots,
     visitTotalLine: looked.visitTotalLine,
     errorMessage: mismatchMessage(looked),
+    // O salto tem de existir no routing_model a partir do ecrã submetido.
+    ...(parsed.action === 'data_exchange' && parsed.screen ? { from: parsed.screen } : {}),
   })
+
+  if (submittedScreen && 'screen' in next && !isFlowTransitionAllowed(submittedScreen, next.screen)) {
+    return closeToChat(parsed.action || 'data_exchange', 'catalog_changed')
+  }
 
   if ('kind' in next && next.kind === 'ready') {
     const body = await encryptFlowResponse(
