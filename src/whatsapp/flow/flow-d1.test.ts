@@ -60,6 +60,17 @@ describe('createD1FlowOps + rota sem syncAdminDbFactory (Finding 2)', () => {
       const row = await ops.getToken(token)
       expect(row?.tenantId).toBe('clinic-demo-a')
       expect(row?.session.serviceId).toBeNull()
+      const openedAt = () =>
+        db.get<{ opened_at: number | null }>(
+          `SELECT opened_at FROM whatsapp_flow_tokens WHERE token = ?`,
+          token,
+        )?.opened_at ?? null
+      // DEC-143: enviado ainda não é aberto.
+      expect(openedAt()).toBeNull()
+      const firstCall = clock.nowMs()
+      await ops.saveSession(token, { ...EMPTY_FLOW_SESSION })
+      expect(openedAt()).toBe(firstCall)
+      clock.advance(60_000)
       await ops.saveSession(token, {
         serviceId: 'svc1',
         line: 'feminino',
@@ -73,6 +84,8 @@ describe('createD1FlowOps + rota sem syncAdminDbFactory (Finding 2)', () => {
         variantIds: ['z1'],
         slotKey: null,
       })
+      // A primeira abertura não é reescrita pelos ecrãs seguintes.
+      expect(openedAt()).toBe(firstCall)
     } finally {
       close()
     }

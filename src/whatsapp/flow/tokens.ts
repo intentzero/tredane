@@ -174,11 +174,16 @@ export function saveFlowTokenSession(
   db: AdminDb,
   token: string,
   session: FlowBookingSnapshot,
+  nowMs: number = Date.now(),
 ): void {
   assertAdminSchemaReady(db)
   db.run(
-    `UPDATE whatsapp_flow_tokens SET session_json = ? WHERE token = ?`,
+    // DEC-143: a primeira chamada do endpoint marca a abertura do Flow.
+    `UPDATE whatsapp_flow_tokens
+     SET session_json = ?, opened_at = COALESCE(opened_at, ?)
+     WHERE token = ?`,
     serializeFlowSession(session),
+    nowMs,
     token,
   )
 }

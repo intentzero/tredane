@@ -15,6 +15,7 @@ import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import {
   assertTurnDecidedMinimized,
   emitTurnDecided,
+  variantsChangedInTurn,
   type TurnDecidedPayload,
 } from './turn-decided'
 
@@ -31,6 +32,8 @@ function samplePayload(over: Partial<TurnDecidedPayload> = {}): TurnDecidedPaylo
     modelCalled: true,
     modelCalls: 1,
     textDiscarded: true,
+    variantsChanged: false,
+    pendingSlotBefore: null,
     model: 'claude-haiku-5-5',
     latencyMs: { debounce: 7000, model: 12, decision: 20, send: 5 },
     tokens: { input: 100, output: 20 },
@@ -158,5 +161,16 @@ describe('#407 ai.turn_decided', () => {
     const b = emitTurnDecided(db, samplePayload({ conversationId: 'cnv_x', messageIds: ['m1'] }), clock)
     expect(a.id).toBe(b.id)
     boot.close()
+  })
+
+  it('DEC-143: variantsChanged compara só o conjunto de ids do quadro', () => {
+    const f = (serviceId: string | null, variantIds: string[] | null) => ({ serviceId, variantIds })
+    expect(variantsChangedInTurn(null, f('svc', ['a']))).toBe(true)
+    expect(variantsChangedInTurn(f('svc', null), f('svc', ['a', 'b']))).toBe(true)
+    expect(variantsChangedInTurn(f('svc', ['b', 'a']), f('svc', ['a', 'b']))).toBe(false)
+    expect(variantsChangedInTurn(f('svc', ['a']), f('svc', ['a', 'b']))).toBe(true)
+    expect(variantsChangedInTurn(f('old', ['a']), f('svc', ['a']))).toBe(true)
+    expect(variantsChangedInTurn(f('svc', ['a']), f('svc', null))).toBe(false)
+    expect(variantsChangedInTurn(f('svc', ['a']), null)).toBe(false)
   })
 })

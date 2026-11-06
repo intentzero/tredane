@@ -99,6 +99,21 @@ type BindingRow = {
   status: string
 }
 
+/** Motivo de o Flow não ser enviado e o turno voltar ao M5 (DEC-143, medida c). */
+export type FlowOfferSkipReason = 'not_configured' | 'no_active_binding' | 'build_failed'
+
+/** Log sem texto da conversa: só tenant e motivo. */
+function logFlowOfferSkipped(tenantId: string, reason: FlowOfferSkipReason): void {
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event: 'whatsapp_flow.offer_skipped',
+      tenantId,
+      reason,
+    }),
+  )
+}
+
 /**
  * Cria `flow_token` no D1, devolve interactive Cloud API `type: flow`.
  * Sem secrets / sem binding activo → null (M5 continua).
@@ -113,7 +128,10 @@ export async function prepareBookingFlowOfferFromEnv(input: {
   /** Corpo C1h interpolado (clínica + hora). Sem isto usa FLOW_COPY.openBody. */
   body?: string
 }): Promise<PreparedBookingFlowOffer | null> {
-  if (!isWhatsappFlowConfigured(input.env)) return null
+  if (!isWhatsappFlowConfigured(input.env)) {
+    logFlowOfferSkipped(input.tenantId, 'not_configured')
+    return null
+  }
 
   const row = await input.env.DB.prepare(
     `SELECT id, phone_number_id, waba_id, status
@@ -123,7 +141,10 @@ export async function prepareBookingFlowOfferFromEnv(input: {
   )
     .bind(input.tenantId)
     .first<BindingRow>()
-  if (!row) return null
+  if (!row) {
+    logFlowOfferSkipped(input.tenantId, 'no_active_binding')
+    return null
+  }
 
   const flowToken = generateFlowToken()
   const ops = createD1FlowOps(input.env.DB, input.clock)
@@ -143,7 +164,10 @@ export async function prepareBookingFlowOfferFromEnv(input: {
     flowToken,
     body: input.body,
   })
-  if (!built) return null
+  if (!built) {
+    logFlowOfferSkipped(input.tenantId, 'build_failed')
+    return null
+  }
 
   return {
     flowToken,

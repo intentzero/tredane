@@ -1,7 +1,7 @@
 /**
  * Oferta live do Flow no lugar do M5 (#514 / ADR-0016 §4).
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createControllableClock } from '../../db/clock'
 import { bootAdminDb } from '../../db/test-db'
 import {
@@ -104,8 +104,9 @@ describe('sessionFromBookingFrame', () => {
 })
 
 describe('prepareBookingFlowOfferFromEnv', () => {
-  it('sem secrets devolve null', async () => {
+  it('sem secrets devolve null e regista o motivo (DEC-143)', async () => {
     const { db, close } = bootAdminDb()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
       const clock = createControllableClock(1_700_000_000_000)
       const offered = await prepareBookingFlowOfferFromEnv({
@@ -116,7 +117,15 @@ describe('prepareBookingFlowOfferFromEnv', () => {
         catalogVersion: '1',
       })
       expect(offered).toBeNull()
+      const logged = warn.mock.calls.map((c) => JSON.parse(String(c[0])) as Record<string, unknown>)
+      expect(logged).toContainEqual({
+        level: 'warn',
+        event: 'whatsapp_flow.offer_skipped',
+        tenantId: 'clinic-demo-a',
+        reason: 'not_configured',
+      })
     } finally {
+      warn.mockRestore()
       close()
     }
   })

@@ -21,6 +21,8 @@ Documentação Meta consultada em 03/11/2026. Cada passo abaixo cita o URL. O qu
 
 **Confirmado:** o texto livre continua e preenche o mesmo quadro, com o eco da DEC-137. Se o Flow não abrir, o chat assume. O LLM não escolhe zona nem hora (DEC-104, DEC-138).
 
+**Proposto ([DEC-143](../product/decisions.md), 06/11/2026, não decidido):** o texto livre deixaria de gravar a escolha final de zonas e hora e passaria a pré-preencher o Flow (zonas marcadas, hora pedida primeiro); o eco Sim/Corrigir sairia. Até decisão do Paulo, vale o parágrafo acima.
+
 **Confirmado (fora do Flow, DEC-138):** não marca, não escolhe sala nem profissional, não cobra Pix, não tem preço editável, não duplica a agenda. Um «sim» escrito nunca confirma horário (DEC-061).
 
 **Confirmado (código de hoje, só leitura):** o envio interactivo é botão ou lista ([`meta.ts`](../../src/whatsapp/meta.ts), `sendInteractiveButtonsMessage` / `sendInteractiveListMessage`). O webhook distingue `button_reply` e `list_reply` ([`webhook-parse.ts`](../../src/whatsapp/webhook-parse.ts)); um `interactive` que não seja esses dois cai em `unsupported`. Não há `nfm_reply` nem mensagem `type: flow`. As ofertas M5 estão em [`choice-offer.ts`](../../src/clinic/ai/choice-offer.ts): ids `ch1~`, `catalogVersion`, toque que não marca.

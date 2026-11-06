@@ -113,7 +113,7 @@ function defaultTokenAndSession(
           }
         },
         saveSession: async (token, session) => {
-          saveFlowTokenSession(syncAdminDb, token, session)
+          saveFlowTokenSession(syncAdminDb, token, session, clock.nowMs())
         },
       }),
     }
