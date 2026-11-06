@@ -288,3 +288,27 @@ O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a lev
 
 **Confirmado (corte, Paulo 03/11/2026, opção A / DEC-134):** aceitar o truncamento Meta em 24 caracteres no título da linha; nome completo na descrição quando disponível.
 
+## Consulta de catálogo (DEC-142) — Confirmado (Paulo, 06/11/2026)
+
+**Estado:** **Confirmado** (Paulo, chat de 06/11/2026, America/Sao_Paulo). Wording fechado neste chat. Uma redação por frase (DEC-104): o modelo não escreve esta lista nem escolhe o serviço. Exemplos de nomes abaixo são fictícios.
+
+À cliente, só «feminino» e «masculino». Este fluxo não diz «linha», «versão» nem «para mulher/homem». No código e na DEC o campo continua audience / audiência.
+
+Não marca. Não mexe no Confirmar da proposta (DEC-061).
+
+| Onde | Texto confirmado |
+| --- | --- |
+| Corpo da lista, quando a audiência ainda não está nesta conversa | `Feminino ou masculino?` |
+| Botão que abre essa lista (Cloud API, não é reply button nem título de linha) | `Escolher` |
+| Linha da lista | `Feminino` |
+| Linha da lista | `Masculino` |
+| Audiência já conhecida e marcação a meio, feminino | `Continuo no feminino. Para ver o masculino, diga “serviços masculinos”.` |
+| Audiência já conhecida e marcação a meio, masculino | `Continuo no masculino. Para ver o feminino, diga “serviços femininos”.` |
+| Nomes, com audiência conhecida (um nome por linha, como no cadastro) | `Temos:\nDepilação\nLimpeza de pele profunda\nQual você quer?` |
+| Filtro sem serviço ativo | `Não tenho serviços no feminino.` |
+| Filtro sem serviço ativo | `Não tenho serviços no masculino.` |
+
+A frase «Continuo…» sai só quando a audiência já está na conversa e havia marcação a meio (serviço, variantes, oferta ou proposta). O toque na lista, a primeira lista de nomes e a troca («serviços masculinos» / «serviços femininos») não a repetem: mandam os nomes, ou a frase vazia, do lado escolhido.
+
+`Depilação` e `Limpeza de pele profunda` no exemplo são nomes gravados, não minúsculas de frase corrida. Noutro catálogo, cada linha é o nome ativo cuja audiência é a da conversa ou qualquer. Sem nenhum, sai só a frase vazia — sem inventar serviço e sem link.
+

@@ -736,7 +736,7 @@ export async function tryAiAutoBook(
           phase: 'coletando',
         })
       }
-    } else if (frameEarly.pending.slot !== 'eco') {
+    } else if (frameEarly.pending.slot !== 'eco' && frameEarly.pending.slot !== 'audiencia') {
       // DEC-137: Sim/Corrigir do eco não são escolha de horário (DEC-127).
       const choice = matchPendingChoice(turnText, frameEarly.pending)
       if (choice.kind === 'match') {

@@ -38,7 +38,7 @@ import { zonesForAudienceLine, type AudienceLine } from './variant-line'
 /** Prefixo estável dos ids opacos (Cloud API button/list row id, ≤200). */
 export const CHOICE_ID_PREFIX = 'ch1~'
 
-export type ChoiceSlot = 'linha' | 'variantes' | 'horario' | 'eco'
+export type ChoiceSlot = 'linha' | 'variantes' | 'horario' | 'eco' | 'audiencia'
 
 export type ChoiceInteractiveButtons = {
   mode: 'buttons'
@@ -141,7 +141,15 @@ export function parseChoiceId(
   } catch {
     return null
   }
-  if (slot !== 'linha' && slot !== 'variantes' && slot !== 'horario' && slot !== 'eco') return null
+  if (
+    slot !== 'linha' &&
+    slot !== 'variantes' &&
+    slot !== 'horario' &&
+    slot !== 'eco' &&
+    slot !== 'audiencia'
+  ) {
+    return null
+  }
   if (!catalogVersion || !key) return null
   return { slot, catalogVersion, key }
 }
@@ -496,8 +504,33 @@ export async function handleChoiceOfferClick(
   input: ChoiceOfferClickInput,
   clock: Clock,
 ): Promise<ChoiceOfferClickResult> {
-  if (!parseChoiceId(input.buttonId)) {
+  const parsedChoice = parseChoiceId(input.buttonId)
+  if (!parsedChoice) {
     return { handled: false, reason: 'not_choice_id' }
+  }
+
+  // DEC-142: lista Feminino/Masculino do catálogo. Não entra no autobook nem no Flow.
+  if (parsedChoice.slot === 'audiencia') {
+    cancelAutoDraft(db, input.tenantId, input.conversationId)
+    const { handleCatalogAudienceClick } = await import('./catalog-consult')
+    const click = handleCatalogAudienceClick(
+      db,
+      caller,
+      {
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        buttonId: input.buttonId,
+        providerEventKey: input.providerEventKey,
+        authorClerkUserId: AUTODRAFT_ACTOR_ID,
+        authorDisplayName: 'IA',
+      },
+      clock,
+    )
+    return {
+      handled: true,
+      outcome: click.outcome === 'applied' ? 'applied' : 'stale_reoffered',
+      outbox: click.outbox,
+    }
   }
 
   cancelAutoDraft(db, input.tenantId, input.conversationId)

@@ -138,6 +138,27 @@ export class DeferredBookingFrame {
       this.patch.serviceId !== undefined ? this.patch.serviceId : (base?.serviceId ?? null)
     if (!serviceId && !base) return null
     if (!serviceId) {
+      const line = this.patch.line !== undefined ? this.patch.line : null
+      const pending = this.patch.pending !== undefined ? this.patch.pending : null
+      if (line || pending) {
+        return {
+          phase: this.patch.phase ?? (pending ? 'coletando' : 'idle'),
+          serviceId: null,
+          line,
+          variantIds: null,
+          professionalPref: null,
+          date: null,
+          period: null,
+          time: null,
+          pending,
+          lastOffer: null,
+          proposal: null,
+          rescheduleAppointmentId: null,
+          catalogVersion: this.patch.catalogVersion ?? base?.catalogVersion ?? '',
+          provenance: {},
+          updatedAt: base?.updatedAt ?? 0,
+        }
+      }
       return {
         phase: 'idle',
         serviceId: null,

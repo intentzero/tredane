@@ -375,8 +375,103 @@ export function wouldAskFilledSlot(frame: BookingFrame, askSlot: string): boolea
 }
 
 /**
+ * Linha sem serviço (DEC-142): a consulta de catálogo limpa a marcação e
+ * mantém a audiência, ou guarda a lista Feminino/Masculino ainda por tocar.
+ * `service_id` nulo só é válido depois da migração 54.
+ */
+function writeAudienceHold(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  hold: {
+    line: ScheduleAudienceLine | null
+    pending: BookingFramePending | null
+    catalogVersion: string
+    phase: BookingFramePhase
+  },
+  clock: Clock,
+  opts?: { emitOutbox?: boolean },
+): { frame: BookingFrame; outbox: OutboxRow | null } {
+  const existing = getBookingFrame(db, tenantId, conversationId)
+  const now = clock.nowMs()
+  db.run(
+    `INSERT INTO schedule_sessions (
+       tenant_id, conversation_id, service_id, audience_line, day_label, period,
+       variant_ids, clock_time, updated_at,
+       phase, line, professional_pref, date, time,
+       pending_json, last_offer_json, proposal_json,
+       reschedule_appointment_id, catalog_version, provenance_json
+     ) VALUES (?, ?, NULL, ?, NULL, NULL, NULL, NULL, ?, ?, ?, NULL, NULL, NULL, ?, NULL, NULL, NULL, ?, ?)
+     ON CONFLICT (tenant_id, conversation_id) DO UPDATE SET
+       service_id = NULL,
+       audience_line = excluded.audience_line,
+       day_label = NULL,
+       period = NULL,
+       variant_ids = NULL,
+       clock_time = NULL,
+       phase = excluded.phase,
+       line = excluded.line,
+       professional_pref = NULL,
+       date = NULL,
+       time = NULL,
+       pending_json = excluded.pending_json,
+       last_offer_json = NULL,
+       proposal_json = NULL,
+       reschedule_appointment_id = NULL,
+       catalog_version = excluded.catalog_version,
+       provenance_json = excluded.provenance_json,
+       updated_at = excluded.updated_at`,
+    tenantId,
+    conversationId,
+    hold.line,
+    now,
+    hold.phase,
+    hold.line,
+    hold.pending ? JSON.stringify(hold.pending) : null,
+    hold.catalogVersion,
+    '{}',
+  )
+  const frame = getBookingFrame(db, tenantId, conversationId)!
+  let outbox: OutboxRow | null = null
+  if (opts?.emitOutbox !== false) {
+    const changed =
+      !existing ||
+      existing.serviceId !== frame.serviceId ||
+      existing.line !== frame.line ||
+      existing.phase !== frame.phase ||
+      JSON.stringify(existing.pending) !== JSON.stringify(frame.pending) ||
+      existing.variantIds != null ||
+      existing.lastOffer != null ||
+      existing.proposal != null ||
+      existing.date != null ||
+      existing.time != null
+    if (changed) {
+      outbox = insertOutboxEvent(
+        db,
+        {
+          tenantId,
+          type: 'booking_frame.updated',
+          aggregateType: 'conversation',
+          aggregateId: conversationId,
+          payload: {
+            conversationId,
+            phase: frame.phase,
+            serviceId: null,
+            line: frame.line,
+          },
+          idempotencyKey: `booking_frame.updated:${conversationId}:${now}:audience`,
+        },
+        clock,
+      )
+    }
+  }
+  return { frame, outbox }
+}
+
+/**
  * Grava o frame. Troca de serviço limpa linha, variantes, hora, pending, lastOffer,
  * proposal e professionalPref (ADR-0015). Emite `booking_frame.updated` se mudou.
+ * Sem serviço: apaga o quadro, salvo audiência ou lista de catálogo por tocar (DEC-142).
  */
 export function saveBookingFrame(
   db: ClinicDb,
@@ -391,27 +486,44 @@ export function saveBookingFrame(
   const nextServiceId =
     patch.serviceId !== undefined ? patch.serviceId : (existing?.serviceId ?? null)
   if (!nextServiceId) {
-    clearBookingFrame(db, tenantId, conversationId, clock, opts)
-    return {
-      frame: {
-        phase: 'idle',
-        serviceId: null,
-        line: null,
-        variantIds: null,
-        professionalPref: null,
-        date: null,
-        period: null,
-        time: null,
-        pending: null,
-        lastOffer: null,
-        proposal: null,
-        rescheduleAppointmentId: null,
-        catalogVersion: '',
-        provenance: {},
-        updatedAt: clock.nowMs(),
-      },
-      outbox: null,
+    const line = patch.line !== undefined ? patch.line : null
+    const pending = patch.pending !== undefined ? patch.pending : null
+    if (!line && !pending) {
+      clearBookingFrame(db, tenantId, conversationId, clock, opts)
+      return {
+        frame: {
+          phase: 'idle',
+          serviceId: null,
+          line: null,
+          variantIds: null,
+          professionalPref: null,
+          date: null,
+          period: null,
+          time: null,
+          pending: null,
+          lastOffer: null,
+          proposal: null,
+          rescheduleAppointmentId: null,
+          catalogVersion: '',
+          provenance: {},
+          updatedAt: clock.nowMs(),
+        },
+        outbox: null,
+      }
     }
+    return writeAudienceHold(
+      db,
+      tenantId,
+      conversationId,
+      {
+        line,
+        pending,
+        catalogVersion: patch.catalogVersion ?? existing?.catalogVersion ?? '',
+        phase: patch.phase ?? (pending ? 'coletando' : 'idle'),
+      },
+      clock,
+      opts,
+    )
   }
 
   const serviceChanged = existing != null && existing.serviceId !== nextServiceId

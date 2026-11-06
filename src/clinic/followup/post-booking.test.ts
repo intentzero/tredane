@@ -13,8 +13,8 @@ import { findOpenOpportunityForConversation } from '../pipeline'
 import { ensureOpenOpportunity } from '../pipeline/operations'
 import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { tryAiAutoBook } from '../ai/autobook'
+import { CATALOG_AUDIENCE_LIST_BODY } from '../ai/catalog-consult'
 import {
-  ANOTHER_REPLY_BODY,
   handlePostBookingButtonClick,
   parsePostBookingButtonId,
   postBookingButtonId,
@@ -245,18 +245,26 @@ describe('DEC-086 post-booking follow-up', () => {
       if (!click.handled || click.action !== 'another') return
 
       expect(getScheduleSession(db, 'clinic-demo-a', conversationId)).toBeNull()
-      expect(getBookingFrame(db, 'clinic-demo-a', conversationId)).toBeNull()
+      const held = getBookingFrame(db, 'clinic-demo-a', conversationId)
+      expect(held?.serviceId).toBeNull()
+      expect(held?.pending?.slot).toBe('audiencia')
       const stillOpen = findOpenOpportunityForConversation(db, 'clinic-demo-a', conversationId)
       expect(stillOpen?.id).toBe(opp.id)
       expect(stillOpen?.stage).toBe('agendado')
 
-      const ask = db.get<{ body: string }>(
-        `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
-         ORDER BY created_at DESC LIMIT 1`,
+      const ask = db.get<{ body: string; interactive_json: string | null }>(
+        `SELECT m.body AS body, o.interactive_json AS interactive_json
+         FROM messages m
+         LEFT JOIN outbound_messages o ON o.message_id = m.id
+         WHERE m.tenant_id = ? AND m.conversation_id = ? AND m.direction = 'outbound'
+         ORDER BY m.created_at DESC LIMIT 1`,
         'clinic-demo-a',
         conversationId,
       )
-      expect(ask?.body).toBe(ANOTHER_REPLY_BODY)
+      expect(ask?.body).toBe(CATALOG_AUDIENCE_LIST_BODY)
+      expect(ask?.interactive_json ?? '').toContain('Feminino')
+      expect(ask?.interactive_json ?? '').toContain('Masculino')
+      expect(ask?.interactive_json ?? '').not.toContain('Abrir opções')
     } finally {
       close()
     }

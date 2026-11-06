@@ -3,11 +3,16 @@
  * «Não, obrigado» agradece, não muda a etapa e fecha a sessão conversacional
  * (BookingFrame, pergunta pendente e última oferta — o mesmo clear do recomeço/idle).
  * Também zera o badge de não lidas da conversa (atenção do painel).
- * O compromisso confirmado fica. «Quero agendar outro serviço» abre nova intenção.
+ * O compromisso confirmado fica. «Quero outro serviço» segue a consulta de
+ * catálogo (DEC-142): não marca, e mantém a audiência se a conversa já a tiver.
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'
-import { clearBookingFrame } from '../ai/schedule-session'
+import { deliverCatalogConsult, planCatalogConsult } from '../ai/catalog-consult'
+import { clearBookingFrame, getBookingFrame } from '../ai/schedule-session'
+import { readCatalogVersion } from '../ai/turn-context'
+import { listServices } from '../config/services'
+import { getActiveProposalForConversation } from '../proposals/proposals'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller, workerCaller } from '../envelopes'
 import { clearConversationUnread } from '../inbox/conversations'
@@ -40,9 +45,6 @@ export const POST_BOOKING_BUTTONS = {
 
 export const THANKS_REPLY_BODY =
   'Agradecemos o contato. Estamos à disposição quando precisar.'
-
-export const ANOTHER_REPLY_BODY =
-  'Claro! Qual serviço gostaria de agendar?'
 
 /** Id opaco: fu:post:{appointmentId}:{thanks|another} */
 export function postBookingButtonId(
@@ -191,7 +193,7 @@ export type PostBookingButtonResult =
 
 /**
  * Processa clique nos botões de follow-up. Não marca horário (DEC-061 intacto).
- * Os dois botões limpam o BookingFrame na mesma TX da saída (ADR-0015).
+ * «Não, obrigado» limpa o BookingFrame (ADR-0015). «Quero outro serviço» segue a DEC-142.
  * «Não, obrigado» também zera `unread_count` e emite `conversation.read`.
  */
 export function handlePostBookingButtonClick(
@@ -275,24 +277,26 @@ export function handlePostBookingButtonClick(
     return { handled: true, action: 'thanks', closedOpportunityId: null, outbox }
   }
 
-  // another — limpa frame na mesma TX da pergunta (ADR-0015 / DEC-086)
-  const ask = sendOutboundMessageOp(
-    db,
-    caller,
-    {
+  // DEC-086 + DEC-142: o botão não marca. Limpa o serviço e lista o catálogo.
+  const frame = getBookingFrame(db, input.tenantId, input.conversationId)
+  const action = planCatalogConsult({
+    text: 'quero outro serviço',
+    frame,
+    services: listServices(db, input.tenantId),
+    catalogVersion: readCatalogVersion(db, input.tenantId),
+    hasActiveProposal:
+      getActiveProposalForConversation(db, input.tenantId, input.conversationId, clock) != null,
+  })
+  if (action) {
+    const ask = deliverCatalogConsult(db, caller, clock, {
       conversationId: input.conversationId,
-      body: ANOTHER_REPLY_BODY,
       clientRequestId: `followup.postbook.another:${parsed.appointmentId}:${input.providerEventKey ?? 'x'}`,
       authorClerkUserId: FOLLOWUP_ACTOR,
       authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
-      afterPersist: ({ db: txDb, tenantId, conversationId }) => {
-        const ob = clearBookingFrame(txDb, tenantId, conversationId, clock)
-        return ob ? [ob] : []
-      },
-    },
-    clock,
-  )
-  outbox.push(...ask.outbox)
+      action,
+    })
+    outbox.push(...ask.outbox)
+  }
 
   writeOperationalAudit(
     db,
