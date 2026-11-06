@@ -594,6 +594,7 @@ describe('DEC-143: ai.turn_decided mede zonas vindas do texto', () => {
       variantsChanged: boolean
       pendingSlotBefore: string | null
       slotsFilled: string[]
+      zonesAskedBefore: boolean
     }
   }
 
@@ -602,16 +603,31 @@ describe('DEC-143: ai.turn_decided mede zonas vindas do texto', () => {
     try {
       await say(s, 'Quero depilação')
       expect(lastTurnDecided(s).variantsChanged).toBe(false)
+      expect(lastTurnDecided(s).zonesAskedBefore).toBe(false) // falta a linha
       await say(s, 'feminina')
       expect(lastTurnDecided(s).variantsChanged).toBe(false)
       await say(s, 'Axilas e pernas')
       const named = lastTurnDecided(s)
       expect(named.variantsChanged).toBe(true)
+      // «feminina» deixou o quadro à espera das zonas: a resposta conta como pedida.
+      expect(named.zonesAskedBefore).toBe(true)
       expect(named.slotsFilled).toEqual(expect.arrayContaining(['serviceId', 'line', 'variantIds']))
       await say(s, 'sim')
       const confirmed = lastTurnDecided(s)
       expect(confirmed.pendingSlotBefore).toBe('eco')
       expect(confirmed.variantsChanged).toBe(false)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('zonas escritas sem lhas pedirem: variantsChanged e zonesAskedBefore=false', async () => {
+    const s = seed()
+    try {
+      await say(s, 'Quero depilação feminina de axila e pernas')
+      const turn = lastTurnDecided(s)
+      expect(turn.variantsChanged).toBe(true)
+      expect(turn.zonesAskedBefore).toBe(false)
     } finally {
       s.close()
     }
