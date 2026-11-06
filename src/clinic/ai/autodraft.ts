@@ -357,7 +357,8 @@ export async function runDueAutoDrafts(
           conversationId: outcome.conversationId,
           messageIds: [outcome.messageId],
           route,
-          slotsFilled: frameAfter?.serviceId ? filledSlots(frameAfter) : [],
+          // DEC-142: audiência pode existir sem serviço — não filtrar por serviceId.
+          slotsFilled: frameAfter ? filledSlots(frameAfter) : [],
           slotsMissing: [],
           variantsChanged: variantsChangedInTurn(frameBefore, frameAfter),
           pendingSlotBefore: frameBefore?.pending?.slot ?? null,
