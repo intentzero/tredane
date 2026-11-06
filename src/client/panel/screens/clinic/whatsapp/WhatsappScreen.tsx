@@ -21,8 +21,27 @@ import {
 } from './format'
 import {
   EmbeddedSignupError,
+  type EmbeddedSignupErrorKind,
   launchWhatsAppEmbeddedSignup,
 } from './embeddedSignup'
+
+/** Frases fixas por kind — copy.guard proíbe passar err.message cru à UI. */
+function embeddedSignupUserMessage(kind: EmbeddedSignupErrorKind): string {
+  switch (kind) {
+    case 'cancelled':
+      return 'Você cancelou a conexão com o WhatsApp. Pode tentar de novo quando quiser.'
+    case 'missing_phone':
+      return 'Essa conta do Facebook não tem número de WhatsApp. Escolha ou crie um número e tente de novo.'
+    case 'missing_code':
+      return 'Para concluir, finalize no Facebook com o botão de concluir (não feche só a janela).'
+    case 'config':
+      return 'A conexão com o WhatsApp ainda não está configurada. Fale com o suporte do Tredane.'
+    case 'sdk':
+      return 'Não foi possível conectar pelo Facebook. Atualize a página e tente de novo.'
+    case 'reported':
+      return 'A Meta reportou um erro na conexão. Tente de novo ou fale com o suporte.'
+  }
+}
 import { useWhatsapp } from './useWhatsapp'
 import { isStagingHostname, WhatsappDevSyncAction } from './WhatsappDevSyncAction'
 import { friendlyError, friendlyReason } from '../../../copy/errors'
@@ -74,7 +93,7 @@ async function runEmbeddedSignup(
       })
     } catch (err) {
       if (err instanceof EmbeddedSignupError) {
-        throw new PanelApiError(400, 'unknown', err.message)
+        throw new PanelApiError(400, 'unknown', embeddedSignupUserMessage(err.kind))
       }
       throw err
     }

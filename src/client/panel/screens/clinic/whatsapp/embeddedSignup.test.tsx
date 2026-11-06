@@ -50,6 +50,12 @@ describe('parseWaEmbeddedSignupMessage', () => {
     ).toBeNull()
     expect(
       parseWaEmbeddedSignupMessage({
+        origin: 'https://evilfacebook.com',
+        data: { type: 'WA_EMBEDDED_SIGNUP', event: 'FINISH' },
+      }),
+    ).toBeNull()
+    expect(
+      parseWaEmbeddedSignupMessage({
         origin: 'https://www.facebook.com',
         data: { type: 'OTHER', event: 'FINISH' },
       }),

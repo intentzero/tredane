@@ -142,11 +142,21 @@ export type WaEmbeddedSignupMessage = {
   }
 }
 
+/** Origem Meta segura: facebook.com ou *.facebook.com (não «evilfacebook.com»). */
+export function isFacebookMessageOrigin(origin: string): boolean {
+  try {
+    const host = new URL(origin).hostname.toLowerCase()
+    return host === 'facebook.com' || host.endsWith('.facebook.com')
+  } catch {
+    return false
+  }
+}
+
 /** Extrai payload WA_EMBEDDED_SIGNUP de um MessageEvent (origem facebook.com). */
 export function parseWaEmbeddedSignupMessage(
   event: Pick<MessageEvent, 'origin' | 'data'>,
 ): WaEmbeddedSignupMessage | null {
-  if (typeof event.origin !== 'string' || !event.origin.endsWith('facebook.com')) {
+  if (typeof event.origin !== 'string' || !isFacebookMessageOrigin(event.origin)) {
     return null
   }
   let raw: unknown = event.data
