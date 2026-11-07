@@ -97,7 +97,12 @@ import {
   zonesForAudienceLine,
 } from './variant-line'
 import { extractDates, extractTimes, norm } from './nlu/temporal'
-import { classifySensitive, hasRestartRequest } from './nlu/sensitive'
+import {
+  classifySensitive,
+  hasRestartRequest,
+  hasSlotRejectRequest,
+  hasSoftDeclineRequest,
+} from './nlu/sensitive'
 import { logPolicyShadow } from './policy-shadow'
 import {
   occupiedSlotAlternativesReply,
@@ -682,7 +687,8 @@ export async function tryAiAutoBook(
 
   // CF-28 / #508 / DEC-138 practice 5: restart phrases clear the booking frame
   // and retire any open proposal without confirming (DEC-061). Reply = perguntar_servico.
-  if (hasRestartRequest(classifySensitive(turnText))) {
+  const sensitiveHits = classifySensitive(turnText)
+  if (hasRestartRequest(sensitiveHits)) {
     deferred.clearSession()
     retireActiveProposal(db, tenantId, input.conversationId, clock)
     const names = services.map((s) => s.name.trim()).filter((n) => n.length > 0)
@@ -706,6 +712,110 @@ export async function tryAiAutoBook(
       replyText,
       notes: 'CF-28/#508: restart clears schedule_sessions; open proposal retired.',
     })
+  }
+
+  // DEC-147 A/B: abandono explícito ou despedida após oferta.
+  // Limpa o frame de marcação (não o fio WhatsApp), retira proposta, agradece.
+  if (hasSoftDeclineRequest(sensitiveHits)) {
+    const frameSoft = getBookingFrame(db, tenantId, input.conversationId)
+    const openProposal = getActiveProposalForConversation(
+      db,
+      tenantId,
+      input.conversationId,
+      clock,
+    )
+    const inFunnel = Boolean(
+      openProposal ||
+        frameSoft?.serviceId ||
+        (frameSoft?.variantIds && frameSoft.variantIds.length > 0) ||
+        frameSoft?.pending ||
+        frameSoft?.lastOffer,
+    )
+    if (inFunnel) {
+      deferred.clearSession()
+      retireActiveProposal(db, tenantId, input.conversationId, clock)
+      const replyText = sayAct(
+        'acolher_adiamento',
+        input.conversationId,
+        {},
+        'Sem problema. Quando quiser, é só chamar.',
+      )
+      return finish({
+        ...none('needs_info', { confirmationMessageId: confirmation.id }),
+        replyText,
+        notes: 'DEC-147 A/B: soft decline clears booking frame; farewell without zone miss.',
+      })
+    }
+  }
+
+  // DEC-147 C: «não» / «não serve» sobre slots — rejeita a oferta, mantém serviço/variante.
+  if (hasSlotRejectRequest(sensitiveHits)) {
+    const frameReject = getBookingFrame(db, tenantId, input.conversationId)
+    const hasOpenSlots = Boolean(
+      (frameReject?.pending && frameReject.pending.slot === 'horario') ||
+        frameReject?.lastOffer,
+    )
+    if (hasOpenSlots && frameReject?.serviceId) {
+      const svcReject = services.find((s) => s.id === frameReject.serviceId)
+      if (svcReject) {
+        const activeZones = svcReject.zones.filter((z) => z.active)
+        const keptFromIds =
+          frameReject.variantIds && frameReject.variantIds.length > 0
+            ? activeZones.filter((z) => frameReject.variantIds!.includes(z.id))
+            : activeZones
+        // Ids ainda no quadro mas fora do catálogo activo: preservar (não abandonar).
+        const variantIdsToKeep =
+          keptFromIds.length > 0
+            ? keptFromIds.map((z) => z.id)
+            : (frameReject.variantIds ?? [])
+        const zonesForOffer = keptFromIds.length > 0 ? keptFromIds : activeZones
+        const preferred = preferredProfessionalId(
+          db,
+          tenantId,
+          turnText,
+          svcReject,
+          clock,
+          input.turn?.catalog.resources,
+        )
+        saveSession({
+          serviceId: svcReject.id,
+          variantIds: variantIdsToKeep.length > 0 ? variantIdsToKeep : null,
+          pending: null,
+          lastOffer: null,
+          phase: 'coletando',
+        })
+        const offered = await offerNearestSlots({
+          db,
+          tenantId,
+          service: svcReject,
+          zones: zonesForOffer,
+          tz,
+          clock,
+          forecast: input.forecast,
+          professionalId: preferred,
+          date: frameReject.date ?? null,
+          period: (frameReject.period as DayPeriod | null) ?? null,
+          limit: 3,
+          conversationId: input.conversationId,
+        })
+        const interactive = rememberOfferFrame(
+          deferred,
+          svcReject.id,
+          offered.slots,
+          preferred,
+          catalog.version,
+        )
+        return finish({
+          ...none('needs_info', {
+            confirmationMessageId: confirmation.id,
+            serviceId: svcReject.id,
+          }),
+          replyText: offered.replyText,
+          interactive,
+          notes: 'DEC-147 C: slot reject keeps variants; re-offers times without abandon.',
+        })
+      }
+    }
   }
 
   // ADR-0015 / DEC-127: ler primeiro contra pending.options (cutover fechado — #472).

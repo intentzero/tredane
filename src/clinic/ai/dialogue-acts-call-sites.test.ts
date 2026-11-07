@@ -52,6 +52,7 @@ const WIRED_ACTS: readonly DialogueActId[] = [
   'historico_indisponivel',
   'catalogo_mudou',
   'nao_consegui_fechar',
+  'acolher_adiamento',
 ]
 
 /** Sem rota natural neste recorte — não inventar call-site. */
@@ -60,7 +61,6 @@ const UNWIRED_ACTS: readonly DialogueActId[] = [
   'informar_local',
   'informar_local_link',
   'informar_explicacao',
-  'acolher_adiamento',
   'esclarecer',
 ]
 
@@ -214,8 +214,8 @@ describe('#448 S5 varredura call-sites', () => {
   it('cobre todos os atos do catálogo (ligados ∪ sem call-site)', () => {
     const all = new Set<DialogueActId>([...WIRED_ACTS, ...UNWIRED_ACTS])
     expect([...all].sort()).toEqual((Object.keys(DIALOGUE_ACTS) as DialogueActId[]).sort())
-    expect(WIRED_ACTS).toHaveLength(26)
-    expect(UNWIRED_ACTS).toHaveLength(6)
+    expect(WIRED_ACTS).toHaveLength(27)
+    expect(UNWIRED_ACTS).toHaveLength(5)
   })
 
   it('cada ato ligado aparece em sayAct nos módulos do funil', () => {

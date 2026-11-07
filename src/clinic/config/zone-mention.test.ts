@@ -322,6 +322,25 @@ describe('nome do serviço ≠ variante (Paulo 07/11/2026)', () => {
       expect(got.zones, text).toEqual([])
     }
   })
+
+  it('DEC-147: abandono educado e «tem/feira» não são sobra unrecognized', () => {
+    for (const text of [
+      'Deixa estar, obrigado',
+      'deixa',
+      'Podes encerrar a sessao',
+      'encerrar a sessão',
+      'desisto',
+      'tem horário na próxima quarta?',
+      'Quarta feira tem horário?',
+      'não serve',
+      'nao',
+    ]) {
+      const got = resolveZoneMention(text, massagemZones, ignore)
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.leftover, text).toBeNull()
+      expect(got.zones, text).toEqual([])
+    }
+  })
 })
 
 describe('textNamesMixAudiences (CF-43)', () => {
