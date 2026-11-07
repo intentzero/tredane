@@ -70,8 +70,13 @@ describe('DEC-127: hora solta responde à oferta de horários (sonda segundo tel
     try {
       await say(s, 'Quero depilação feminina de axila e pernas sexta à tarde')
       await say(s, 'sim')
+      const before = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      expect(before?.pending?.slot).toBe('horario')
+      expect(before?.time).toBeNull()
       await say(s, '17')
-      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.time).not.toBe('13:00')
+      const after = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      expect(after?.time).toBeNull()
+      expect(after?.pending?.slot).toBe('horario')
     } finally {
       s.close()
     }
