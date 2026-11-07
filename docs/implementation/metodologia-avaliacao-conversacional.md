@@ -208,7 +208,7 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 | Regressão informativa do scorecard bloqueia? | Não bloqueia; o PR justifica ou corrige. Reavaliar após duas linhas de base estáveis. | **Confirmado** (DEC-139) |
 | Cadência da iteração no piloto | Semanal **e** antes de cada liberação, o que vier primeiro. | **Confirmado** (DEC-139) |
 | Quem faz a análise de erros | O agente prepara (traços, agrupamento, casos novos); o Paulo valida. | **Confirmado** (DEC-139) |
-| Corpo da oferta do Flow a meio do funil | A pergunta do funil com o CTA do Flow; o C1h só como recurso. | **Confirmado** (DEC-140) |
+| Corpo da oferta do Flow a meio do funil | A pergunta do funil, sem o CTA «Abrir opções». O CTA fica na abertura vaga; serviço em coleta, ou um passo que já é pedido, não leva o botão. | **Confirmado** (DEC-140, revisto pela DEC-144 em 07/11/2026) |
 | Reconhecer verbos sem sinónimo | Mantém-se a DEC-110; o painel sugere à owner gravar o sinónimo. | **Confirmado** (DEC-141); sugestão implementada (#569: cartão M-63, L1 A-21) |
 | `eval:scorecard` no CI para PRs conversacionais | (A) só comenta o veredicto (**recomendado**, coerente com a DEC-139); (B) bloqueia em gate, como as INV; (C) fica como está, manual | Paulo | Passo 4 |
 | Linha «Apanhado em: L0..L5» no modelo de PR | Sim, para medir o P-ESC; ou não medir | Paulo | KPI P-ESC |

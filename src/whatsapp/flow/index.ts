@@ -9,6 +9,8 @@ export {
 } from './copy'
 export {
   shouldOfferHubOpening,
+  shouldAttachHubOpeningCta,
+  bookingFrameHasIntent,
   isHubGreetingText,
   hubOpeningBody,
   clinicTodayOpenState,
