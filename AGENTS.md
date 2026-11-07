@@ -6,7 +6,7 @@ Estas instruções se aplicam a qualquer agente que crie ou altere documentaçã
 
 - `README.md`: apresentação curta e navegação do projeto.
 - `docs/MVP.md`: fonte concisa de verdade para objetivo, recorte, decisões e limites do MVP. Mantenha este documento curto e aponte para especificações detalhadas quando elas existirem.
-- `docs/implementation/metodologia-avaliacao-conversacional.md`: como se testa e se mede o atendimento conversacional (DEC-139). Quem altera `src/clinic/ai/`, `src/whatsapp/flow/` ou `src/clinic/proposals/` corre `npm run eval:scorecard`, acrescenta um caso L1 por comportamento novo ou corrigido e justifica no PR qualquer regressão que o scorecard assinale.
+- `docs/implementation/metodologia-avaliacao-conversacional.md`: como se testa e se mede o atendimento conversacional (DEC-139). Quem altera `src/clinic/ai/`, `src/whatsapp/flow/` ou `src/clinic/proposals/` corre `npm run eval:scorecard` (o CI comenta o veredicto no PR, DEC-146), acrescenta um caso L1 por comportamento novo ou corrigido e justifica no PR qualquer regressão que o scorecard assinale.
 - `docs/architecture/referencia.md`: linha guia antes de alterar código. Resume o que não se pode partir e aponta a DEC ou o ADR; não substitui o MVP nem as decisões.
 - [Épico de definição do MVP, issue #1](https://github.com/intentzero/tredane/issues/1): trabalho pendente e critérios para encerrar a definição. Checkboxes de uma issue não substituem especificação aprovada.
 - [Épico de implementação do MVP, issue #14](https://github.com/intentzero/tredane/issues/14): execução do sistema (F0–F6, issues #15–#45). O [plano](docs/implementation/plan.md) liga-se a este épico sem renumerar DEC/REQ; hipóteses antigas em plan/states/validation-register cedem às decisões confirmadas.

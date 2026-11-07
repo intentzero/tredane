@@ -32,6 +32,8 @@ export const REPO_ROOT = resolve(here, '../../../../..')
 export const BASELINE_PATH = resolve(REPO_ROOT, 'docs/implementation/avaliacao/l1-baseline.json')
 export const HISTORY_PATH = resolve(REPO_ROOT, 'docs/implementation/avaliacao/l1-history.jsonl')
 export const LATEST_PATH = resolve(REPO_ROOT, '.eval/l1-latest.json')
+/** Comparação com a linha de base (JSON), lida por `scripts/scorecard-comment.mjs` no CI. */
+export const COMPARISON_PATH = resolve(REPO_ROOT, '.eval/l1-comparison.json')
 
 /** Ficheiros cujo hash identifica a versão do comportamento além do commit. */
 const FINGERPRINT_FILES: Record<string, string> = {
@@ -119,6 +121,7 @@ export function emitL1Scorecard(
   if (existsSync(BASELINE_PATH)) {
     const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8')) as Scorecard
     comparison = compareScorecards(baseline, scorecard)
+    writeFileSync(COMPARISON_PATH, `${JSON.stringify(comparison, null, 2)}\n`)
     parts.push('', formatComparison(comparison))
   } else {
     parts.push('', 'Sem linha de base: corra `npm run eval:baseline` para a criar.')
