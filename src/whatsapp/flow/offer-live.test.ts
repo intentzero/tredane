@@ -188,7 +188,7 @@ describe('prepareBookingFlowOfferFromEnv', () => {
 })
 
 describe('maybeReplaceM5WithFlow', () => {
-  it('substitui Feminina/Masculina e limpa pending M5', async () => {
+  it('pergunta de linha fica no passo: sem CTA Abrir opções (Paulo, 07/11/2026)', async () => {
     const deferred = createDeferredBookingFrame()
     deferred.save({
       serviceId: 'svc_dep',
@@ -203,13 +203,13 @@ describe('maybeReplaceM5WithFlow', () => {
       catalogVersion: '1',
     })
     const line = buildLineChoiceInteractive('1')
-    const preparedWith: Array<string | undefined> = []
+    let prepared = 0
     const replaced = await maybeReplaceM5WithFlow({
       choice: line.interactive,
       replyBody: 'Para Depilação, Feminina ou Masculina?',
       prepare: async (input) => ({
         flowToken: 'fl1_test',
-        body: (preparedWith.push(input.body), input.body ?? 'Olá! O que você precisa?'),
+        body: (prepared += 1, input.body ?? 'Olá! O que você precisa?'),
         interactive: {
           flow: {
             flowId: '1858344942174587',
@@ -224,23 +224,40 @@ describe('maybeReplaceM5WithFlow', () => {
       tenantId: 'clinic-demo-a',
       conversationId: 'cnv1',
       catalogVersion: '1',
+      session: sessionFromBookingFrame({
+        serviceId: 'svc_dep',
+        line: null,
+        variantIds: null,
+        date: null,
+        time: null,
+        period: null,
+        pending: null,
+        lastOffer: null,
+        phase: 'coletando',
+        proposal: null,
+        professionalPref: null,
+        rescheduleAppointmentId: null,
+        catalogVersion: '1',
+        provenance: {},
+        updatedAt: 1,
+      }),
       deferred,
     })
-    expect(replaced.usedFlow).toBe(true)
-    expect(replaced.interactive?.flow?.flowId).toBe('1858344942174587')
-    // CF-35 (#565) / DEC-140: o corpo é a resposta do turno, não o genérico do Flow.
+    expect(prepared).toBe(0)
+    expect(replaced.usedFlow).toBe(false)
+    expect(replaced.interactive?.flow).toBeUndefined()
+    expect(replaced.interactive?.buttons?.map((b) => b.title)).toEqual(['Feminina', 'Masculina'])
+    // O corpo continua a ser a pergunta do turno, não o C1h (CF-35).
     expect(replaced.body).toBe('Para Depilação, Feminina ou Masculina?')
-    expect(preparedWith).toEqual(['Para Depilação, Feminina ou Masculina?'])
     expect(deferred.peekFrame).toBeTypeOf('function')
   })
 
-  it('CF-35: vaga ocupada + alternativas não vira «Olá! O que você precisa?» (sonda L4 05/11)', async () => {
+  it('CF-35: vaga ocupada + alternativas não vira «Olá! O que você precisa?» nem ganha Abrir opções', async () => {
     const line = buildLineChoiceInteractive('1')
     const replyBody = 'Nesse horário das 14:00 já não tenho vaga. Tenho 15:15, 15:30, 15:45. Qual fica melhor?'
     const replaced = await maybeReplaceM5WithFlow({
       choice: line.interactive,
       replyBody,
-      // Preparador real ignora o corpo quando não o recebe → FLOW_COPY.openBody.
       prepare: async (input) => ({
         flowToken: 'fl1_cf35',
         body: input.body ?? 'Olá! O que você precisa?',
@@ -259,9 +276,10 @@ describe('maybeReplaceM5WithFlow', () => {
       conversationId: 'c',
       catalogVersion: '1',
     })
-    expect(replaced.usedFlow).toBe(true)
+    expect(replaced.usedFlow).toBe(false)
     expect(replaced.body).toBe(replyBody)
     expect(replaced.body).not.toContain('O que você precisa')
+    expect(replaced.interactive?.flow).toBeUndefined()
   })
 
   it('mantém eco Sim/Corrigir', async () => {

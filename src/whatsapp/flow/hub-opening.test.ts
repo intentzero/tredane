@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { enqueueAutoDraft, runDueAutoDrafts } from '../../clinic/ai'
-import { bootDialogScenario } from '../../clinic/ai/evals/dialogs/scenario'
+import { listServices, replaceServiceZonesOp, upsertServiceOp } from '../../clinic/config'
+import { bootDialogScenario, type DialogScenario } from '../../clinic/ai/evals/dialogs/scenario'
+import { saveScheduleSession } from '../../clinic/ai/schedule-session'
 import type { PrepareBookingFlowOffer } from './offer-live'
 import {
   activeServicesForHub,
+  bookingFrameHasIntent,
   clinicTodayOpenState,
   hubInformacoesBody,
   hubMeusBody,
   hubOpeningBody,
+  shouldAttachHubOpeningCta,
   shouldOfferHubOpening,
   todayClosingHourLabel,
 } from './hub-opening'
@@ -313,6 +317,167 @@ describe('gate do hub usa o resolvedor do funil (CF-36, pela zona)', () => {
       expect(shouldOfferHubOpening({ turnText: 'Oi', services })).toBe(true)
       expect(shouldOfferHubOpening({ turnText: 'quero marcar', services })).toBe(true)
       expect(shouldOfferHubOpening({ turnText: 'quero fazer as unhas', services })).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+})
+
+describe('CTA Abrir opções só na abertura vaga (Paulo, 07/11/2026)', () => {
+  it('«Oi» com quadro vazio cola o CTA; com serviço no quadro, não', () => {
+    const services = [{ id: 'svc', name: 'Massagem', active: true }]
+    expect(shouldAttachHubOpeningCta({ turnText: 'Oi', services, frame: null })).toBe(true)
+    expect(bookingFrameHasIntent(null)).toBe(false)
+    expect(
+      shouldAttachHubOpeningCta({
+        turnText: 'Oi',
+        services,
+        frame: { serviceId: 'svc', phase: 'coletando' },
+      }),
+    ).toBe(false)
+    // Oferta já fechada: «Oi» volta a abrir o hub (FL-13, Remarcar).
+    expect(
+      shouldAttachHubOpeningCta({
+        turnText: 'Oi',
+        services,
+        frame: { serviceId: 'svc', phase: 'ofertado' },
+      }),
+    ).toBe(true)
+    expect(bookingFrameHasIntent({ pending: { slot: 'variantes' } })).toBe(true)
+    expect(bookingFrameHasIntent({ serviceId: 'svc', phase: 'proposto' })).toBe(false)
+  })
+
+  function openMassagemTypes(s: DialogScenario) {
+    const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+    if (!massagem) throw new Error('Massagem ausente')
+    upsertServiceOp(
+      s.db,
+      s.caller,
+      {
+        id: massagem.id,
+        name: massagem.name,
+        durationMinutes: massagem.durationMinutes,
+        bufferMinutes: massagem.bufferMinutes,
+        priceCents: massagem.priceCents,
+        professionalIds: massagem.professionalIds,
+        roomRequirement: massagem.roomRequirement,
+        variantKind: 'tipo',
+        variantKindPlural: 'tipos',
+      },
+      s.clock,
+    )
+    replaceServiceZonesOp(
+      s.db,
+      s.caller,
+      massagem.id,
+      [
+        { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+        { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+        { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+      ],
+      s.clock,
+    )
+    saveScheduleSession(
+      s.db,
+      s.tenantId,
+      s.conversationId,
+      { serviceId: massagem.id, phase: 'coletando' },
+      s.clock,
+    )
+  }
+
+  async function draft(s: DialogScenario, text: string, prepare: PrepareBookingFlowOffer) {
+    const msgId = s.sayInbound(text)
+    enqueueAutoDraft(s.db, s.tenantId, { conversationId: s.conversationId, messageId: msgId }, s.clock)
+    s.clock.advance(8_000)
+    const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
+      mode: 'synthetic',
+      adapter: s.adapter,
+      clinicName: 'Clínica Teste Paulo',
+      prepareBookingFlowOffer: prepare,
+    })
+    const last = s.db.get<{ body: string; interactive_json: string | null }>(
+      `SELECT m.body AS body, o.interactive_json AS interactive_json
+       FROM messages m
+       LEFT JOIN outbound_messages o ON o.message_id = m.id
+       WHERE m.conversation_id = ? AND m.direction = 'outbound'
+       ORDER BY m.created_at DESC LIMIT 1`,
+      s.conversationId,
+    )
+    return { out, last }
+  }
+
+  function countingPrepare() {
+    let calls = 0
+    const prepare: PrepareBookingFlowOffer = async (input) => {
+      calls += 1
+      return {
+        body: input.body ?? FLOW_COPY.openBody,
+        flowToken: 'fl1_gate',
+        interactive: {
+          flow: {
+            flowId: '1858344942174587',
+            flowCta: FLOW_COPY.flowCta,
+            flowToken: 'fl1_gate',
+            flowAction: 'data_exchange',
+            flowMessageVersion: '3',
+            mode: 'published',
+          },
+        },
+      }
+    }
+    return { prepare, calls: () => calls }
+  }
+
+  it('«queria agendar uma massagem» com Massagem aberta pergunta o tipo, sem Abrir opções', async () => {
+    const s = bootDialogScenario()
+    const flow = countingPrepare()
+    try {
+      openMassagemTypes(s)
+      const { out, last } = await draft(s, 'queria agendar uma massagem', flow.prepare)
+      expect(out[0]!.reason).not.toBe('hub_opening')
+      expect(flow.calls()).toBe(0)
+      expect(last?.body ?? '').toMatch(/tipos?/i)
+      expect(last?.body ?? '').toMatch(/Liberação miofascial/)
+      expect(last?.body ?? '').not.toMatch(/Não encontrei/i)
+      expect(last?.interactive_json ?? '').not.toContain('Abrir opções')
+    } finally {
+      s.close()
+    }
+  })
+
+  it('zona desconhecida pergunta a zona, sem Abrir opções', async () => {
+    const s = bootDialogScenario()
+    const flow = countingPrepare()
+    try {
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: s.ids.depilacao, audienceLine: 'feminino', phase: 'coletando' },
+        s.clock,
+      )
+      const { last } = await draft(s, 'Sexta às 10h e cotovelo', flow.prepare)
+      expect(flow.calls()).toBe(0)
+      expect(last?.body ?? '').toMatch(/Não encontrei cotovelo nas opções/)
+      expect(last?.interactive_json ?? '').not.toContain('Abrir opções')
+    } finally {
+      s.close()
+    }
+  })
+
+  it('despedida com serviço no quadro não leva Abrir opções', async () => {
+    const s = bootDialogScenario()
+    const flow = countingPrepare()
+    try {
+      openMassagemTypes(s)
+      const { out, last } = await draft(s, 'tchau', flow.prepare)
+      expect(out[0]!.reason).not.toBe('hub_opening')
+      expect(flow.calls()).toBe(0)
+      expect(last?.body ?? '').toMatch(/tipos|Liberação miofascial/i)
+      expect(last?.body ?? '').not.toMatch(/O que você precisa\?/)
+      expect(last?.interactive_json ?? '').not.toContain('Abrir opções')
     } finally {
       s.close()
     }

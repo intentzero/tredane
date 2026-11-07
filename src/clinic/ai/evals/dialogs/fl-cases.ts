@@ -5,7 +5,7 @@
  *
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo (clínica aberta 09:00–18:00).
  */
-import { setServiceActiveOp } from '../../../config'
+import { listServices, replaceServiceZonesOp, setServiceActiveOp, upsertServiceOp } from '../../../config'
 import type { DialogCase } from './runner'
 
 const ZONAS_FEM = { serviceKey: 'depilacao' as const, line: 'feminino' as const, zones: ['Axila', 'Pernas'] }
@@ -206,22 +206,17 @@ export const FL_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'FL-12',
-    title: 'Pedido com zona («quero depilar a axila») vai ao funil, sem cumprimento do hub',
-    turnosIdeais: 2,
+    title: 'Pedido com zona («quero depilar a axila») pergunta a linha, sem o CTA do hub',
+    turnosIdeais: 1,
     flow: true,
-    // CF-36 (#565, corrigido 05/11/2026): o gate do hub não reconhecia o serviço pela
-    // zona e mandava o cumprimento genérico; agora usa o mesmo resolvedor do funil.
-    // Depende também do CF-43 (antes a resposta era «não dá para juntar…»).
-    turns: [
-      { role: 'client', text: 'quero depilar a axila' },
-      { role: 'flow', path: { serviceKey: 'depilacao', line: 'feminino', zones: ['Axila'], slot: 'first' } },
-    ],
+    // CF-36 (#565): o gate do hub reconhece o serviço pela zona.
+    // Paulo, 07/11/2026: a pergunta do funil sai sem o botão «Abrir opções».
+    // O Flow continua a abrir no «Oi» (FL-01); daqui a cliente responde no chat.
+    turns: [{ role: 'client', text: 'quero depilar a axila' }],
     expect: {
-      flowOffers: 1,
-      flowRuns: [{ outcome: 'nfm_delivered', nfmOutcome: 'proposal_sent' }],
-      proposal: true,
-      proposalZones: ['Axila'],
-      // DEC-140: a pergunta do funil acompanha o CTA do Flow (não o C1h genérico).
+      flowOffers: 0,
+      proposal: false,
+      notPaused: true,
       turns: [{ turn: 0, matches: [/feminina ou masculina/i], excludes: [HUB_OPENING, /O que você precisa\?/, /juntar masculino e feminino/i] }],
     },
   },
@@ -268,65 +263,54 @@ export const FL_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'FL-15',
-    title: '«Quero depilação» (nome exacto) vai direto ao funil, sem cumprimento do hub',
-    turnosIdeais: 2,
+    title: '«Quero depilação» (nome exacto) pergunta a linha, sem o CTA do hub',
+    turnosIdeais: 1,
     flow: true,
-    turns: [
-      { role: 'client', text: 'Quero depilação' },
-      { role: 'flow', path: { ...ZONAS_FEM, slot: 'first' } },
-    ],
+    turns: [{ role: 'client', text: 'Quero depilação' }],
     expect: {
-      flowOffers: 1,
-      flowRuns: [{ outcome: 'nfm_delivered', nfmOutcome: 'proposal_sent' }],
-      proposal: true,
-      proposalZones: ['Axila', 'Pernas'],
-      turns: [{ turn: 0, excludes: [HUB_OPENING] }],
+      flowOffers: 0,
+      proposal: false,
+      notPaused: true,
+      turns: [{ turn: 0, matches: [/feminina ou masculina/i], excludes: [HUB_OPENING] }],
     },
   },
   {
     id: 'FL-16',
-    title: '«Quero depilar» com sinónimo na ficha: sem cumprimento do hub',
-    turnosIdeais: 2,
+    title: '«Quero depilar» com sinónimo na ficha: pergunta a linha, sem o CTA do hub',
+    turnosIdeais: 1,
     flow: true,
     prepare: (s) => {
       s.db.run(`UPDATE services SET synonyms_json = ? WHERE id = ?`, JSON.stringify(['depilar']), s.ids.depilacao)
     },
-    turns: [
-      { role: 'client', text: 'Quero depilar' },
-      { role: 'flow', path: { ...ZONAS_FEM, slot: 'first' } },
-    ],
+    turns: [{ role: 'client', text: 'Quero depilar' }],
     expect: {
-      flowOffers: 1,
-      flowRuns: [{ outcome: 'nfm_delivered', nfmOutcome: 'proposal_sent' }],
-      proposal: true,
-      turns: [{ turn: 0, excludes: [HUB_OPENING] }],
+      flowOffers: 0,
+      proposal: false,
+      notPaused: true,
+      turns: [{ turn: 0, matches: [/feminina ou masculina/i], excludes: [HUB_OPENING] }],
     },
   },
   {
     id: 'FL-17',
-    title: 'Flow aberto com o quadro preenchido: o HUB vai sempre para SERVICO, depois salta o que já se sabe',
-    turnosIdeais: 3,
+    title: 'Quadro já preenchido: o eco e o Sim ficam no chat, sem o CTA do hub',
+    turnosIdeais: 2,
     flow: true,
-    // #587: o routing_model publicado só tem a aresta HUB → SERVICO. Com serviço, linha e zonas
-    // já no quadro, o endpoint saltava do HUB para HORARIO e a Meta mostrava «Ocorreu um erro».
-    damage: { serviceKey: 'depilacao', zoneNames: ['Axila', 'Pernas'] },
+    // O salto HUB → SERVICO do routing_model (#587) continua nos testes do endpoint.
+    // Aqui o pedido já está no quadro: Sim não marca (DEC-061) e não abre o Flow.
     turns: [
       { role: 'client', text: 'Quero depilação feminina axila e pernas' },
       { role: 'client', text: 'sim' },
-      { role: 'flow', path: { serviceKey: 'depilacao', line: 'feminino', zones: ['Axila', 'Pernas'], slot: 'first' } },
     ],
     expect: {
-      flowRuns: [
-        {
-          screens: ['HUB', 'SERVICO', 'HORARIO', 'SUCCESS'],
-          outcome: 'nfm_delivered',
-          nfmOutcome: 'proposal_sent',
-        },
-      ],
-      proposal: true,
-      proposalZones: ['Axila', 'Pernas'],
+      flowOffers: 0,
+      proposal: false,
       noAppointment: true,
+      notPaused: true,
       outboundExcludes: NO_LEAK,
+      turns: [
+        { turn: 0, matches: [/Entendi:/i, /Axila/i, /Pernas/i], excludes: [HUB_OPENING] },
+        { turn: 1, excludes: [HUB_OPENING, /O que você precisa\?/] },
+      ],
     },
   },
   {
@@ -365,6 +349,59 @@ export const FL_DIALOG_CASES: DialogCase[] = [
       noAppointment: true,
       outboundExcludes: NO_LEAK,
       turns: [{ turn: 1, matches: [/Não consegui abrir a escolha/] }],
+    },
+  },
+  {
+    id: 'FL-19',
+    title: 'Massagem aberta: a pergunta dos tipos sai sem o CTA «Abrir opções»',
+    turnosIdeais: 1,
+    flow: true,
+    // Paulo, 07/11/2026. O hub permanece (FL-01). Com o serviço no quadro, a
+    // frase do passo não leva o botão. Nome do serviço ≠ variante (#597).
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('FL-19: serviço Massagem ausente')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'queria agendar uma massagem' }],
+    expect: {
+      flowOffers: 0,
+      proposal: false,
+      notPaused: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/tipos?/i, /Liberação miofascial/i],
+          excludes: [HUB_OPENING, /Não encontrei/i, /O que você precisa\?/],
+        },
+      ],
     },
   },
 ]

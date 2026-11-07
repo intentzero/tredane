@@ -30,7 +30,7 @@ import {
   activeServicesForHub,
   clinicTodayOpenState,
   hubOpeningBody,
-  shouldOfferHubOpening,
+  shouldAttachHubOpeningCta,
 } from '../../whatsapp/flow/hub-opening'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
@@ -160,9 +160,11 @@ export function enqueueAutoDraft(
   if (isConversationPaused(db, tenantId, input.conversationId)) return null
   // Mesmo detector do caminho do hub em runDueAutoDrafts (TR-306).
   // Pedido completo (dia+período) sobrescreve o 300 ms mesmo se VAGUE_BOOK casar.
-  const hubOpening = shouldOfferHubOpening({
+  // Quadro com serviço ou pedido não é abertura: o debounce curto do hub não aplica.
+  const hubOpening = shouldAttachHubOpeningCta({
     turnText: body,
     services: activeServicesForHub(db, tenantId),
+    frame: getBookingFrame(db, tenantId, input.conversationId),
   })
   const waitMs = autodraftDebounceMs({
     text: body,
@@ -780,15 +782,18 @@ export async function runDueAutoDrafts(
       })
       continue
     }
-    // TR-306 hub: cumprimento / pedido vago → CTA Abrir opções (antes do catálogo,
-    // para «quero marcar» não cair no clarify com «Falar com a equipe»).
-    // Gate ops = `prepareBookingFlowOffer` (mesmo que a oferta Flow no funil).
+    // TR-306 hub: cumprimento / pedido vago, e só com o quadro vazio → CTA
+    // «Abrir opções» (antes do catálogo, para «quero marcar» não cair no
+    // clarify com «Falar com a equipe»). Com serviço ou pedido já no quadro,
+    // a frase desse passo sai sem o CTA (Paulo, 07/11/2026).
+    // Gate ops = `prepareBookingFlowOffer`.
     // Remarcar / cancelar / serviço nomeado já foram tratados acima ou caem no funil.
     if (deps.prepareBookingFlowOffer) {
       if (
-        shouldOfferHubOpening({
+        shouldAttachHubOpeningCta({
           turnText,
           services: activeServicesForHub(db, tenantId),
+          frame: getBookingFrame(db, tenantId, job.conversationId),
         })
       ) {
         await signalTyping()

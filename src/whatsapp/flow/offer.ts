@@ -27,7 +27,11 @@ export function buildBookingFlowInteractive(input: {
   flowToken: string
   /** Corpo Confirmado do hub (C1h interpolado) ou fallback FLOW_COPY.openBody. */
   body?: string
-  /** Override do CTA (default C2h «Abrir opções»). */
+  /**
+   * Override do CTA (default C2h «Abrir opções»).
+   * Paulo, 07/11/2026: este botão só na abertura vaga, com o quadro sem pedido.
+   * Um passo que já tem serviço ou pergunta não chama este builder.
+   */
   flowCta?: string
 }): BookingFlowInteractive | null {
   if (!isWhatsappFlowConfigured(input.env)) return null

@@ -77,12 +77,13 @@ function namedBookableServices(services: HubServiceHint[], text: string): HubSer
 }
 
 /**
- * Cumprimento ou pedido vago → CTA do hub (mesmo gate ops que a oferta Flow:
- * o autodraft só chama isto quando `prepareBookingFlowOffer` existe).
+ * Cumprimento ou pedido vago → candidato ao CTA do hub (mesmo gate ops que a
+ * oferta Flow: o autodraft só chama isto quando `prepareBookingFlowOffer` existe).
  * Remarcar / cancelar / serviço nomeado (ex. depilar) → caminho directo.
  *
  * Não exige «sem outbound»: após funil fechado / recomeço, «Oi» também abre o hub
  * (staging 04/11/2026: com histórico a abertura caía no LLM com link Google).
+ * O CTA em si ainda exige quadro sem pedido (`shouldAttachHubOpeningCta`).
  */
 export function shouldOfferHubOpening(input: {
   turnText: string
@@ -103,6 +104,43 @@ export function shouldOfferHubOpening(input: {
   // Pedido vago de marcar sem nomear serviço.
   if (VAGUE_BOOK.test(text) && text.length <= 80) return true
   return false
+}
+
+/**
+ * Quadro no meio de um pedido. Paulo, 07/11/2026: enquanto a cliente ainda
+ * responde a uma pergunta (coleta, pendente, oferta, Pix, remarcação),
+ * «Oi» não abre o hub. Depois da oferta fechada (`ofertado` / `proposto`),
+ * um «Oi» novo volta a abrir o hub — é o caminho do Remarcar (FL-13).
+ */
+export function bookingFrameHasIntent(
+  frame: {
+    serviceId?: string | null
+    phase?: string | null
+    pending?: unknown
+    lastOffer?: unknown
+  } | null | undefined,
+): boolean {
+  if (!frame) return false
+  if (frame.pending) return true
+  if (frame.lastOffer) return true
+  if (frame.phase === 'remarcando' || frame.phase === 'pix_pendente') return true
+  // Serviço ainda por fechar. Sem fase explícita, o serviço sozinho conta
+  // como coleta (o quadro acabou de abrir o pedido).
+  if (frame.serviceId && (frame.phase == null || frame.phase === 'coletando')) return true
+  return false
+}
+
+/**
+ * CTA «Abrir opções» só na abertura vaga com o quadro vazio.
+ * O hub (títulos e roteamento) não muda; o que muda é quando o botão sai.
+ */
+export function shouldAttachHubOpeningCta(input: {
+  turnText: string
+  services: HubServiceHint[]
+  frame?: Parameters<typeof bookingFrameHasIntent>[0]
+}): boolean {
+  if (bookingFrameHasIntent(input.frame)) return false
+  return shouldOfferHubOpening({ turnText: input.turnText, services: input.services })
 }
 
 export type ClinicTodayOpenState = {

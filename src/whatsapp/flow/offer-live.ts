@@ -186,11 +186,13 @@ export async function prepareBookingFlowOfferFromEnv(input: {
 }
 
 /**
- * Se o turno ia enviar M5 de funil e o preparador devolve Flow, substitui **só o interativo**.
- * O corpo continua a ser a resposta determinística do turno (CF-35, sonda L4 05/11/2026):
- * antes caía em `FLOW_COPY.openBody` («Olá! O que você precisa?») e a cliente perdia
- * vaga ocupada + alternativas, catálogo sem match, etc.
- * Eco Sim/Corrigir e falha do preparador → mantém M5 / texto.
+ * O passo do funil fica com o texto e o interativo que já calculou.
+ *
+ * Paulo, 07/11/2026: o CTA «Abrir opções» só sai na abertura vaga, com o
+ * quadro sem pedido (`shouldAttachHubOpeningCta`). Colá-lo numa pergunta de
+ * linha, variantes, zona desconhecida ou horários punha duas perguntas na
+ * mesma mensagem. O corpo determinístico não volta ao C1h (CF-35).
+ * Eco Sim/Corrigir continua a ser o eco.
  */
 export async function maybeReplaceM5WithFlow(input: {
   choice: ChoiceInteractive | null | undefined
@@ -207,36 +209,9 @@ export async function maybeReplaceM5WithFlow(input: {
   usedFlow: boolean
 }> {
   const m5 = toSendInteractive(input.choice ?? null)
-  if (!input.prepare || !isM5FunnelChoiceInteractive(input.choice)) {
-    return { interactive: m5, body: input.replyBody, usedFlow: false }
-  }
-  try {
-    // CF-35 (#565) e DEC-140: o corpo é a pergunta que o funil já calculou (a cliente já disse o que
-    // quer); o C1h do preparador só entra quando não há texto do funil.
-    const funnelBody = input.replyBody.trim()
-    const offered = await input.prepare({
-      tenantId: input.tenantId,
-      conversationId: input.conversationId,
-      catalogVersion: input.catalogVersion,
-      session: input.session,
-      ...(funnelBody ? { body: funnelBody } : {}),
-    })
-    if (!offered) return { interactive: m5, body: input.replyBody, usedFlow: false }
-    clearM5PendingOnDeferred(input.deferred)
-    return {
-      interactive: offered.interactive,
-      body: funnelBody || offered.body,
-      usedFlow: true,
-    }
-  } catch (err) {
-    console.warn(
-      JSON.stringify({
-        level: 'warn',
-        event: 'whatsapp_flow.offer_failed',
-        tenantId: input.tenantId,
-        error: err instanceof Error ? err.message : 'unknown',
-      }),
-    )
-    return { interactive: m5, body: input.replyBody, usedFlow: false }
-  }
+  // O preparador existe para a abertura do hub. Aqui o passo já é um pedido
+  // (escolha M5) ou o quadro já tem serviço: não se abre token nem se troca
+  // o interativo. `prepare` fica na assinatura para os callers não mudarem.
+  void input.prepare
+  return { interactive: m5, body: input.replyBody, usedFlow: false }
 }

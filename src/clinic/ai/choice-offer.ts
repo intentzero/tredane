@@ -312,7 +312,7 @@ export type ChoiceOfferClickInput = {
   contextMessageId?: string | null
   providerEventKey?: string | null
   capability?: boolean
-  /** Secrets Flow presentes → reoferta M5 vira CTA Flow. */
+  /** Mantido na assinatura. O CTA do hub já não substitui a reoferta M5 (DEC-144). */
   prepareBookingFlowOffer?: PrepareBookingFlowOffer
 }
 
