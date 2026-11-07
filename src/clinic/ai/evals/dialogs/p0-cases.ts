@@ -3,7 +3,7 @@
  * knownFailure → corre como it.fails com o ID do achado (DEC-108).
  * A-13..A-19: sonda de novembro / F1-0 (#506).
  * FL-*: hub + WhatsApp Flow (`fl-cases.ts`).
- * CC-*, A-22, A-23: consulta de catálogo e Confirmar suspenso (`cc-cases.ts`).
+ * CC-*, A-22, A-23, A-32, CC-07: consulta de catálogo, Confirmar suspenso, D3/D4 (`cc-cases.ts`).
  * A-24: nome do serviço ≠ variante (Massagem com tipos; Paulo 07/11/2026).
  * A-25..A-27: zonas em texto livre e telemetria do funil (`zonas-cases.ts`; A-27 = zonas antes da linha).
  * A-29, A-30: desistência educada após oferta de horários (DEC-147).

@@ -121,6 +121,10 @@ import {
   type BookingUpdateIntent,
 } from './apply-booking-update'
 import {
+  classifyVariantPolarity,
+  resolvePolarityVariantIds,
+} from './booking-intent-text'
+import {
   createDeferredBookingFrame,
   offerFramePatch,
   OUTBOUND_MESSAGE_ID_PLACEHOLDER,
@@ -923,13 +927,15 @@ export async function tryAiAutoBook(
           pendingTimeOverride = bound?.time ?? choice.key.match(/\d{2}:\d{2}/)?.[0] ?? null
           pendingDateOverride = bound?.date ?? frameEarly.date
         } else if (frameEarly.pending.slot === 'linha' && frameEarly.serviceId) {
-          // Texto livre contra pending de linha (DEC-128: atalho, não obrigação).
-          saveSession({
-            serviceId: frameEarly.serviceId,
-            audienceLine: choice.key === 'masculino' ? 'masculino' : 'feminino',
-            pending: null,
-            phase: 'coletando',
-          })
+          // Texto livre contra pending de linha (DEC-128) → intent choose_offered.
+          runBookingUpdate(
+            {
+              type: 'choose_offered',
+              slot: 'linha',
+              line: choice.key === 'masculino' ? 'masculino' : 'feminino',
+            },
+            frameEarly.serviceId,
+          )
         } else if (frameEarly.pending.slot === 'variantes' && frameEarly.serviceId) {
           const svcPending = services.find((s) => s.id === frameEarly.serviceId)
           const active = svcPending?.zones.filter((z) => z.active) ?? []
@@ -941,12 +947,15 @@ export async function tryAiAutoBook(
             choice.key === 'todas'
               ? scoped.map((z) => z.id)
               : [choice.key]
-          saveSession({
-            serviceId: frameEarly.serviceId,
-            variantIds: ids,
-            pending: null,
-            phase: 'coletando',
-          })
+          runBookingUpdate(
+            {
+              type: 'choose_offered',
+              slot: 'variantes',
+              variantIds: ids,
+              selectionMode: svcPending?.variantSelection,
+            },
+            frameEarly.serviceId,
+          )
         } else {
           pendingTimeOverride = choice.key.match(/\d{2}:\d{2}/)?.[0] ?? null
           const dateFromLabel = choice.label.match(/\d{4}-\d{2}-\d{2}/)?.[0]
@@ -1178,6 +1187,12 @@ export async function tryAiAutoBook(
         session?.serviceId === det.service.id && session.variantIds?.length ? session.variantIds : []
       const sessionZones = mentionPool.filter((z) => sessionIds.includes(z.id))
       const sessionIntact = sessionIds.length > 0 && sessionZones.length === sessionIds.length
+      // D3: polaridade («não quero X, só Y») antes do parser — a negação não reentra.
+      const earlyPolarity = classifyVariantPolarity(turnText, mentionPool)
+      const earlyPolarIds = resolvePolarityVariantIds(
+        earlyPolarity,
+        sessionIntact ? sessionIds : null,
+      )
       const turnMention = mentionZones(turnText, mentionPool, det.service)
       // #510: Sim do eco ou quadro intacto sem menção nova → sem segundo parser.
       // Toque Opções (skip) com nomes no turnText continua a parsear.
@@ -1186,7 +1201,8 @@ export async function tryAiAutoBook(
         (sessionIntact &&
           zoneEcho !== 'correct' &&
           turnMention.zones.length === 0 &&
-          !turnMention.unrecognized)
+          !turnMention.unrecognized &&
+          earlyPolarIds == null)
       const mention = frameOwnsVariants
         ? {
             zones: [] as typeof sessionZones,
@@ -1203,7 +1219,11 @@ export async function tryAiAutoBook(
       // DEC-145 / staging: «tem»/«feira» na stop-list — pergunta de dia não dispara
       // «Não encontrei …» nem reaponta tipos com a variante já travada.
       const leftoverAsk =
-        mention.unrecognized && zoneEcho !== 'skip' && zoneEcho !== 'confirm' && zoneEcho !== 'correct'
+        mention.unrecognized &&
+        zoneEcho !== 'skip' &&
+        zoneEcho !== 'confirm' &&
+        zoneEcho !== 'correct' &&
+        earlyPolarIds == null
       let mentionedForEarly = mention.zones
       if (zoneEcho === 'correct' || zoneEcho === 'confirm' || (frameOwnsVariants && sessionIntact)) {
         mentionedForEarly = []
@@ -1220,20 +1240,32 @@ export async function tryAiAutoBook(
       } else {
         mentionedForEarly = kept
       }
-      const earlyUpdate = runBookingUpdate(
-        {
-          type: 'admit_variants',
-          mentionedIds: earlyAmbiguous ? [] : mentionedForEarly.map((z) => z.id),
-          unrecognized: leftoverAsk,
-          leftover: mention.leftover,
-          ambiguous: earlyAmbiguous,
-          zoneEcho: zoneEcho ?? null,
-          timeAlreadyBound: Boolean(input.boundSlot || pendingTimeOverride || clockFromTurn),
-          selectionMode: det.service.variantSelection,
-          priorVariantIds: sessionIntact ? sessionIds : null,
-        },
-        det.service.id,
-      )
+      const earlyUpdate =
+        earlyPolarIds != null && zoneEcho !== 'correct' && zoneEcho !== 'confirm'
+          ? runBookingUpdate(
+              {
+                type: 'select_variants',
+                variantIds: earlyPolarIds,
+                mode: 'replace',
+                selectionMode: det.service.variantSelection,
+                priorVariantIds: sessionIntact ? sessionIds : null,
+              },
+              det.service.id,
+            )
+          : runBookingUpdate(
+              {
+                type: 'admit_variants',
+                mentionedIds: earlyAmbiguous ? [] : mentionedForEarly.map((z) => z.id),
+                unrecognized: leftoverAsk,
+                leftover: mention.leftover,
+                ambiguous: earlyAmbiguous,
+                zoneEcho: zoneEcho ?? null,
+                timeAlreadyBound: Boolean(input.boundSlot || pendingTimeOverride || clockFromTurn),
+                selectionMode: det.service.variantSelection,
+                priorVariantIds: sessionIntact ? sessionIds : null,
+              },
+              det.service.id,
+            )
       if (
         earlyUpdate.resolvedVariantIds?.length &&
         earlyUpdate.reason !== 'unresolved_variant'
@@ -1748,7 +1780,7 @@ export async function tryAiAutoBook(
     !line &&
     !(frame && wouldAskFilledSlot(frame, 'line'))
   ) {
-    saveSession({ serviceId: svc.id, audienceLine: null })
+    runBookingUpdate({ type: 'set_audience_line', line: null }, svc.id)
     const interactive = lineChoiceFor(deferred, svc.id, catalog.version)
     return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
@@ -1760,7 +1792,7 @@ export async function tryAiAutoBook(
     })
   }
   if (line) {
-    saveSession({ serviceId: svc.id, audienceLine: line })
+    runBookingUpdate({ type: 'set_audience_line', line }, svc.id)
   }
   const scoped = needsAudienceLine(activeZones) ? zonesForAudienceLine(activeZones, line) : activeZones
   const mentionPool = scoped.length > 0 ? scoped : activeZones
@@ -1769,6 +1801,12 @@ export async function tryAiAutoBook(
     ? mentionPool.filter((z) => sessionIds.includes(z.id))
     : []
   const sessionIntact = sessionIds.length > 0 && fromSession.length === sessionIds.length
+  // D3: polaridade antes do admit — «não quero pernas» não reentra no conjunto.
+  const readyPolarity = classifyVariantPolarity(turnText, mentionPool)
+  const readyPolarIds = resolvePolarityVariantIds(
+    readyPolarity,
+    sessionIntact ? sessionIds : null,
+  )
   const proposalMention = mentionZones(turnText, mentionPool, svc)
   // #510: eco Sim / toque Horários / Opções → quadro. Texto e histórico só
   // preenchem o que ainda falta; sessão suja («as duas» + catálogo inteiro)
@@ -1778,7 +1816,7 @@ export async function tryAiAutoBook(
   let ambiguous = false
   if (zoneEcho === 'confirm' || input.boundSlot) {
     mentionedForUpdate = []
-  } else if (proposalMention.unrecognized && zoneEcho !== 'skip') {
+  } else if (proposalMention.unrecognized && zoneEcho !== 'skip' && readyPolarIds == null) {
     mentionedForUpdate = []
   } else if (proposalMention.zones.length > 0) {
     const seen = new Set<string>()
@@ -1802,21 +1840,35 @@ export async function tryAiAutoBook(
       ambiguous = chosen.ambiguous
     }
   }
-  const variantUpdate = runBookingUpdate(
-    {
-      type: 'admit_variants',
-      mentionedIds: ambiguous ? [] : mentionedForUpdate.map((z) => z.id),
-      unrecognized: Boolean(proposalMention.unrecognized && zoneEcho !== 'skip'),
-      leftover: proposalMention.leftover,
-      ambiguous,
-      zoneEcho: zoneEcho ?? null,
-      // Declarado de propósito: o actualizador IGNORA isto na sobra (#579).
-      timeAlreadyBound: Boolean(input.boundSlot || pendingTimeOverride),
-      selectionMode: svc.variantSelection,
-      priorVariantIds: sessionIntact ? sessionIds : null,
-    },
-    svc.id,
-  )
+  const variantUpdate =
+    readyPolarIds != null && zoneEcho !== 'correct' && zoneEcho !== 'confirm' && !input.boundSlot
+      ? runBookingUpdate(
+          {
+            type: 'select_variants',
+            variantIds: readyPolarIds,
+            mode: 'replace',
+            selectionMode: svc.variantSelection,
+            priorVariantIds: sessionIntact ? sessionIds : null,
+          },
+          svc.id,
+        )
+      : runBookingUpdate(
+          {
+            type: 'admit_variants',
+            mentionedIds: ambiguous ? [] : mentionedForUpdate.map((z) => z.id),
+            unrecognized: Boolean(
+              proposalMention.unrecognized && zoneEcho !== 'skip' && readyPolarIds == null,
+            ),
+            leftover: readyPolarIds == null ? proposalMention.leftover : null,
+            ambiguous,
+            zoneEcho: zoneEcho ?? null,
+            // Declarado de propósito: o actualizador IGNORA isto na sobra (#579).
+            timeAlreadyBound: Boolean(input.boundSlot || pendingTimeOverride),
+            selectionMode: svc.variantSelection,
+            priorVariantIds: sessionIntact ? sessionIds : null,
+          },
+          svc.id,
+        )
   // Sobra (#575): o quadro preserva o prior; o funil vê conjunto vazio para perguntar.
   const namedZones: typeof fromSession =
     variantUpdate.resolvedVariantIds?.length &&

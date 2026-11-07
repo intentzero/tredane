@@ -10,7 +10,12 @@ import { bootClinicDb } from '../test-db'
 import { catalogReply } from './catalog-reply'
 import { formatOpeningHours } from './schedule-context'
 import { handoffReason } from './human-handoff'
-import { clearScheduleSession, getScheduleSession, scheduleFactsFromText } from './schedule-session'
+import {
+  clearScheduleSession,
+  getScheduleSession,
+  saveScheduleSession,
+  scheduleFactsFromText,
+} from './schedule-session'
 
 const NOW = Date.UTC(2026, 9, 30, 21, 0)
 
@@ -411,14 +416,40 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
-  it('não pede a zona outra vez depois de a cliente ter dito axila masculina', () => {
+  it('D4: pergunta de preço não grava variante no quadro', () => {
     const boot = seedMixed()
     try {
       const opts = { conversationId: boot.conversation.id }
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quanto custa a axila masculina?', boot.clock, opts),
       ).toMatch(/R\$/)
-      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.variantIds?.length).toBe(1)
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.variantIds).toBeFalsy()
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('não pede a zona outra vez depois de a cliente ter escolhido axila masculina (sem preço)', () => {
+    const boot = seedMixed()
+    try {
+      const opts = { conversationId: boot.conversation.id }
+      // Grava linha+variante pelo caminho de marcação (não consulta de preço).
+      saveScheduleSession(
+        boot.db,
+        boot.tenantId,
+        boot.conversation.id,
+        {
+          serviceId: boot.svc.id,
+          audienceLine: 'masculino',
+          variantIds: [
+            boot.db.get<{ id: string }>(
+              `SELECT id FROM service_zones WHERE service_id = ? AND name = 'Axila' AND audience = 'masculino'`,
+              boot.svc.id,
+            )!.id,
+          ],
+        },
+        boot.clock,
+      )
       const next = catalogReply(boot.db, boot.tenantId, 'Quero depilação na segunda à tarde.', boot.clock, opts)
       expect(next).toBeNull()
     } finally {

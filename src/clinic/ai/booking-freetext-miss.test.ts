@@ -232,6 +232,21 @@ describe('texto livre: zona composta, 0900 e serviço em prosa', () => {
     }
   }, 30_000)
 
+  it('D3: «não quero pernas, só axila» — pernas na negação não reentra', async () => {
+    const s = seed()
+    try {
+      await openFridaySlots(s)
+      const turned = await say(s, 'Na verdade não quero pernas, só axila')
+      const reply = turned.autoBook?.replyText ?? ''
+      expect(reply).toBe('Entendi: Axila. Certo?')
+      expect(reply).not.toMatch(/Pernas/i)
+      expect(reply).not.toMatch(/Não encontrei/i)
+      expect(turned.autoBook?.proposalId).toBeFalsy()
+    } finally {
+      s.close()
+    }
+  }, 30_000)
+
   it('eco de substituição suspende o Confirmar; Corrigir devolve a mesma proposta', async () => {
     const s = seed()
     try {

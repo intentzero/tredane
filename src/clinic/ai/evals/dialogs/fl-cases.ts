@@ -108,6 +108,17 @@ export const FL_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    // D6 (chat corrige → nfm antigo): o token consumido cai em token_rejected (FL-05).
+    // O gate `chat_corrected` / stale_no_proposal está no unitário nfm-reply.test.ts.
+    id: 'FL-21',
+    title: 'D6: cobertura — Flow stale vs chat (ver nfm-reply unitário chat_corrected)',
+    turnosIdeais: 1,
+    coverageOnly: 'nfm-reply.test.ts D6 chat_corrected',
+    flow: true,
+    turns: [{ role: 'client', text: 'Oi' }],
+    expect: { flowOffers: 1 },
+  },
+  {
     id: 'FL-06',
     title: 'Abandonar o Flow não gera mensagem; novo «Oi» volta a abrir o hub',
     turnosIdeais: 2,

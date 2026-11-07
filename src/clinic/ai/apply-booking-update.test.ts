@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyBookingUpdate,
+  isStaleFlowVersusChat,
   type BookingUpdateIntent,
 } from './apply-booking-update'
 import type { BookingFrame } from './schedule-session'
@@ -271,5 +272,126 @@ describe('applyBookingUpdate — DEC-145 uma', () => {
     expect(r.reason).toBe('uma_multi')
     expect(r.blockProposal).toBe(true)
     expect(r.resolvedVariantIds).toBeNull()
+  })
+})
+
+describe('applyBookingUpdate — PR-D ask_info / select / choose / flow', () => {
+  it('ask_info não altera variantes (D4)', () => {
+    const r = applyBookingUpdate({
+      frame: frame(),
+      evidence,
+      intent: { type: 'ask_info', topic: 'preco' },
+    })
+    expect(r.reason).toBe('ask_info_no_select')
+    expect(r.patch).toEqual({})
+    expect(r.resolvedVariantIds).toEqual(['z_ax', 'z_pe', 'z_to'])
+  })
+
+  it('select_variants remove tira a zona negada (D3)', () => {
+    const r = applyBookingUpdate({
+      frame: frame({ variantIds: ['z_ax', 'z_pe'] }),
+      evidence,
+      intent: {
+        type: 'select_variants',
+        variantIds: ['z_pe'],
+        mode: 'remove',
+        selectionMode: 'varias',
+        priorVariantIds: ['z_ax', 'z_pe'],
+      },
+    })
+    expect(r.reason).toBe('variants_selected')
+    expect(r.resolvedVariantIds).toEqual(['z_ax'])
+    expect(r.patch.variantIds).toEqual(['z_ax'])
+    expect(r.patch.source).toBe('regra')
+  })
+
+  it('select_variants replace com só positivos', () => {
+    const r = applyBookingUpdate({
+      frame: frame({ variantIds: ['z_ax', 'z_pe'] }),
+      evidence,
+      intent: {
+        type: 'select_variants',
+        variantIds: ['z_ax'],
+        mode: 'replace',
+        selectionMode: 'varias',
+        priorVariantIds: ['z_ax', 'z_pe'],
+      },
+    })
+    expect(r.resolvedVariantIds).toEqual(['z_ax'])
+  })
+
+  it('choose_offered linha grava audience', () => {
+    const r = applyBookingUpdate({
+      frame: frame({ line: null }),
+      evidence: { source: 'button', sourceMessageId: 'btn_1' },
+      intent: { type: 'choose_offered', slot: 'linha', line: 'feminino' },
+    })
+    expect(r.reason).toBe('choice_applied')
+    expect(r.patch.line).toBe('feminino')
+    expect(r.patch.source).toBe('botao')
+  })
+
+  it('commit_flow carimba provenance flow', () => {
+    const r = applyBookingUpdate({
+      frame: null,
+      evidence: { source: 'flow', sourceMessageId: 'flow:evt' },
+      catalogVersion: 'v1',
+      intent: {
+        type: 'commit_flow',
+        serviceId: 'svc_dep',
+        line: 'feminino',
+        variantIds: ['z_ax', 'z_pe'],
+        date: '2026-11-05',
+        time: '17:00',
+      },
+    })
+    expect(r.reason).toBe('flow_committed')
+    expect(r.patch.phase).toBe('ofertado')
+    expect(r.patch.source).toBe('flow')
+    expect(r.patch.time).toBe('17:00')
+  })
+})
+
+describe('isStaleFlowVersusChat — D6', () => {
+  it('recusa Flow antigo quando chat já corrigiu variantes', () => {
+    const current = frame({
+      variantIds: ['z_ax'],
+      date: '2026-11-05',
+      time: '17:00',
+      provenance: {
+        variantIds: { messageId: 'msg_chat', source: 'regra' },
+        serviceId: { messageId: 'flow:old', source: 'flow' },
+        date: { messageId: 'flow:old', source: 'flow' },
+        time: { messageId: 'flow:old', source: 'flow' },
+      },
+    })
+    expect(
+      isStaleFlowVersusChat(current, {
+        serviceId: 'svc_dep',
+        variantIds: ['z_ax', 'z_pe'],
+        date: '2026-11-05',
+        time: '17:00',
+      }),
+    ).toBe(true)
+  })
+
+  it('aceita o mesmo snapshot Flow (não é stale)', () => {
+    const current = frame({
+      variantIds: ['z_ax', 'z_pe'],
+      date: '2026-11-05',
+      time: '17:00',
+      provenance: {
+        variantIds: { messageId: 'flow:1', source: 'flow' },
+        serviceId: { messageId: 'flow:1', source: 'flow' },
+      },
+    })
+    expect(
+      isStaleFlowVersusChat(current, {
+        serviceId: 'svc_dep',
+        variantIds: ['z_ax', 'z_pe'],
+        date: '2026-11-05',
+        time: '17:00',
+      }),
+    ).toBe(false)
   })
 })

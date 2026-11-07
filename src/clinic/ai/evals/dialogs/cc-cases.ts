@@ -185,4 +185,55 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       turns: [{ turn: 2, matches: [/\S/] }],
     },
   },
+  {
+    id: 'A-32',
+    title: 'D3: «não quero pernas, só axila» — a negação não reentra; eco só Axila',
+    turnosIdeais: 2,
+    prepare: (s) =>
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: s.ids.depilacao, audienceLine: 'feminino', phase: 'coletando' },
+        s.clock,
+      ),
+    turns: [
+      { role: 'client', text: 'Axila e pernas sexta às 10h' },
+      { role: 'proposal_sent' },
+      { role: 'client', text: 'Na verdade não quero pernas, só axila' },
+    ],
+    expect: {
+      noAppointment: true,
+      turns: [
+        { turn: 1, matches: [/Entendi: Axila\. Certo\?/] },
+        { turn: 1, excludes: [/Pernas/i] },
+      ],
+    },
+  },
+  {
+    id: 'CC-07',
+    title: 'D4: «Quanto custa pernas?» responde preço e não selecciona no funil seguinte',
+    turnosIdeais: 2,
+    prepare: (s) =>
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: s.ids.depilacao, audienceLine: 'feminino', phase: 'coletando' },
+        s.clock,
+      ),
+    turns: [
+      { role: 'client', text: 'Quanto custa pernas?' },
+      { role: 'client', text: 'Quero marcar axila sexta às 10h' },
+    ],
+    expect: {
+      noAppointment: true,
+      outboundIncludes: ['R$'],
+      // Segundo turno marca só Axila (eco ou Horários) — Pernas da consulta não ficou no quadro.
+      turns: [
+        { turn: 0, matches: [/R\$|custa/i] },
+        { turn: 1, excludes: [/Entendi:.*Pernas/i] },
+      ],
+    },
+  },
 ]
