@@ -27,11 +27,11 @@ import {
 } from './nlu/interpret'
 import { norm, parseTemporal, parseTimes } from './nlu/temporal'
 import { textCitesNameOrSynonym } from '../config/synonyms'
+import { applyBookingUpdate } from './apply-booking-update'
 import {
   getBookingFrame,
   saveBookingFrame,
   type BookingFramePending,
-  type BookingFramePatch,
   type ScheduleAudienceLine,
   type SchedulePeriod,
 } from './schedule-session'
@@ -382,48 +382,41 @@ export async function runRestrictedExtractor(
     needsExtractor: coverage < COVERAGE_THRESHOLD || validated.acts.includes('desconhecido'),
   }
 
-  // Só preenche campos vazios do frame (confiança nunca autoriza nem sobrescreve).
+  // #578 / #579: só preenche campos vazios — política no actualizador.
   let applied = false
   const s = validated.slots
   const serviceId = frame?.serviceId ?? turn.session?.serviceId ?? s.serviceId?.value ?? null
-  if (!serviceId) {
-    // Sem serviço no frame nem no extrato válido — não grava.
-  } else {
-    const patch: BookingFramePatch = {
+  if (serviceId) {
+    const update = applyBookingUpdate({
+      frame,
       serviceId,
-      sourceMessageId: turn.messageId,
-      source: 'llm',
       catalogVersion: turn.catalog.version,
-    }
-    let dirty = false
-    if (!frame?.serviceId && s.serviceId) dirty = true
-    if (!frame?.line && s.line) {
-      patch.line = s.line.value as ScheduleAudienceLine
-      dirty = true
-    }
-    if ((!frame?.variantIds || frame.variantIds.length === 0) && s.variantIds) {
-      patch.variantIds = s.variantIds.value
-      dirty = true
-    }
-    if (!frame?.date && s.date) {
-      patch.date = s.date.value
-      dirty = true
-    }
-    if (!frame?.period && s.period) {
-      patch.period = s.period.value as SchedulePeriod
-      dirty = true
-    }
-    if (!frame?.time && s.time) {
-      patch.time = s.time.value
-      dirty = true
-    }
-    if (!frame?.professionalPref && s.professionalId) {
-      patch.professionalPref = s.professionalId.value
-      dirty = true
-    }
-    if (dirty) {
-      if (frame?.phase === 'idle' || !frame) patch.phase = 'coletando'
-      saveBookingFrame(db, tenantId, turn.conversationId, patch, clock)
+      evidence: { source: 'extractor', sourceMessageId: turn.messageId },
+      intent: {
+        type: 'extractor_fill',
+        candidates: {
+          ...(s.serviceId ? { serviceId: s.serviceId.value } : {}),
+          ...(s.line ? { line: s.line.value as ScheduleAudienceLine } : {}),
+          ...(s.variantIds ? { variantIds: s.variantIds.value } : {}),
+          ...(s.date ? { date: s.date.value } : {}),
+          ...(s.period ? { period: s.period.value as SchedulePeriod } : {}),
+          ...(s.time ? { time: s.time.value } : {}),
+          ...(s.professionalId ? { professionalPref: s.professionalId.value } : {}),
+        },
+      },
+    })
+    const wroteSlot = [
+      'line',
+      'variantIds',
+      'date',
+      'period',
+      'time',
+      'professionalPref',
+      'phase',
+    ].some((key) => (update.patch as Record<string, unknown>)[key] !== undefined)
+    const wroteService = Boolean(update.patch.serviceId && !frame?.serviceId)
+    if (wroteSlot || wroteService) {
+      saveBookingFrame(db, tenantId, turn.conversationId, update.patch, clock)
       applied = true
     }
   }

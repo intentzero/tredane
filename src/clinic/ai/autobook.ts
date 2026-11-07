@@ -117,6 +117,10 @@ import {
   matchPendingChoice,
 } from './booking-frame-choice'
 import {
+  applyBookingUpdate,
+  type BookingUpdateIntent,
+} from './apply-booking-update'
+import {
   createDeferredBookingFrame,
   offerFramePatch,
   OUTBOUND_MESSAGE_ID_PLACEHOLDER,
@@ -582,6 +586,31 @@ export async function tryAiAutoBook(
       catalogVersion: patch.catalogVersion ?? catalog.version,
     })
   }
+  /** #579: política do quadro passa pelo actualizador; o adaptador só emite intent. */
+  const runBookingUpdate = (intent: BookingUpdateIntent, serviceId?: string | null) => {
+    const frameNow =
+      deferred.peekFrame(db, tenantId, input.conversationId) ??
+      getBookingFrame(db, tenantId, input.conversationId)
+    const result = applyBookingUpdate({
+      frame: frameNow,
+      intent,
+      evidence: {
+        source: input.boundSlot ? 'button' : 'text',
+        sourceMessageId: input.confirmationMessageIdOverride,
+      },
+      serviceId: serviceId ?? frameNow?.serviceId ?? undefined,
+      catalogVersion: catalog.version,
+    })
+    if (Object.keys(result.patch).length > 0) {
+      deferred.saveFrame(result.patch)
+    }
+    if (result.proposalConfirm === 'suspend') {
+      suspendOpenProposalConfirm(db, tenantId, input.conversationId, clock)
+    } else if (result.proposalConfirm === 'resume') {
+      resumeOpenProposalConfirm(db, tenantId, input.conversationId, clock)
+    }
+    return result
+  }
   const finish = (outcome: AutoBookOutcome): AutoBookOutcome => {
     if (!deferred.hasWork) return outcome
     const willSend =
@@ -834,7 +863,8 @@ export async function tryAiAutoBook(
     else if (echoed === 'corrigir') zoneEcho = 'correct'
   }
   if (zoneEcho === 'correct') {
-    resumeOpenProposalConfirm(db, tenantId, input.conversationId, clock)
+    // #576 / #579: Corrigir devolve o Confirmar via actualizador.
+    runBookingUpdate({ type: 'correct_echo' })
   }
   const presentZoneEcho = (
     serviceId: string,
@@ -846,16 +876,20 @@ export async function tryAiAutoBook(
     if (zoneEcho === 'skip' || zoneEcho === 'confirm' || zoneEcho === 'correct') return null
     if (zones.length === 0) return null
     const open = getActiveProposalForConversation(db, tenantId, input.conversationId, clock)
-    if (open) {
-      const prevIds = readZoneSnapshots(db, tenantId, 'proposal', open.id)
-        .map((zone) => zone.zoneId)
-        .filter((id): id is string => Boolean(id))
-        .sort()
-      const nextIds = zones.map((zone) => zone.id).sort()
-      if (prevIds.join('\0') !== nextIds.join('\0')) {
-        suspendOpenProposalConfirm(db, tenantId, input.conversationId, clock)
-      }
-    }
+    const openIds = open
+      ? readZoneSnapshots(db, tenantId, 'proposal', open.id)
+          .map((zone) => zone.zoneId)
+          .filter((id): id is string => Boolean(id))
+      : null
+    // #576 / #579: suspender Confirmar é política do actualizador, não do ramo local.
+    runBookingUpdate(
+      {
+        type: 'resolved_substitution_echo',
+        nextVariantIds: zones.map((zone) => zone.id),
+        openProposalVariantIds: openIds,
+      },
+      serviceId,
+    )
     const built = buildZoneEchoInteractive(catalog.version)
     return {
       replyText: zoneEchoReply(zones),
@@ -1165,54 +1199,56 @@ export async function tryAiAutoBook(
         ? { zones: sessionIntact ? sessionZones : [], ambiguous: false }
         : zonesChosenByClient(clientTurn, older, mentionPool, det.service)
       let kept = chosen.zones
+      let earlyAmbiguous = chosen.ambiguous
       // DEC-145 / staging: «tem»/«feira» na stop-list — pergunta de dia não dispara
       // «Não encontrei …» nem reaponta tipos com a variante já travada.
       const leftoverAsk =
         mention.unrecognized && zoneEcho !== 'skip' && zoneEcho !== 'confirm' && zoneEcho !== 'correct'
-      if (zoneEcho === 'correct') {
-        // Corrigir não reaproveita o conjunto anterior.
-        kept = []
-        chosen = { zones: [], ambiguous: false }
-      } else if (zoneEcho === 'confirm' || (frameOwnsVariants && sessionIntact)) {
-        // DEC-137 / #510: o eco ou o quadro já resolveram. Sem segundo parser.
-        kept = sessionIntact ? sessionZones : []
-        chosen = { zones: kept, ambiguous: false }
+      let mentionedForEarly = mention.zones
+      if (zoneEcho === 'correct' || zoneEcho === 'confirm' || (frameOwnsVariants && sessionIntact)) {
+        mentionedForEarly = []
       } else if (mention.zones.length > 0) {
-        // Inclui skip: o label do toque (ou o texto) fecha o conjunto; o eco
-        // continua desligado por zoneEcho !== 'skip' mais abaixo.
-        // DEC-145: modo `uma` não fecha combinação de vários nomes.
-        if (
-          !allowsMultipleVariants(det.service.variantSelection) &&
-          mention.zones.length > 1
-        ) {
-          chosen = { zones: [], ambiguous: false }
-          kept = []
-        } else {
-          const seen = new Set<string>()
-          const ambiguous = mention.zones.some((zone) => {
-            const key = zone.name.trim().toLocaleLowerCase('pt-BR')
-            if (seen.has(key)) return true
-            seen.add(key)
-            return false
-          })
-          chosen = { zones: mention.zones, ambiguous }
-          kept = ambiguous ? [] : mention.zones
-        }
+        const seen = new Set<string>()
+        earlyAmbiguous = mention.zones.some((zone) => {
+          const key = zone.name.trim().toLocaleLowerCase('pt-BR')
+          if (seen.has(key)) return true
+          seen.add(key)
+          return false
+        })
       } else if (kept.length === 0 && !chosen.ambiguous && sessionIntact) {
-        kept = sessionZones
-        chosen = { zones: sessionZones, ambiguous: false }
+        mentionedForEarly = []
+      } else {
+        mentionedForEarly = kept
       }
-      const clearVariants = zoneEcho === 'correct'
+      const earlyUpdate = runBookingUpdate(
+        {
+          type: 'admit_variants',
+          mentionedIds: earlyAmbiguous ? [] : mentionedForEarly.map((z) => z.id),
+          unrecognized: leftoverAsk,
+          leftover: mention.leftover,
+          ambiguous: earlyAmbiguous,
+          zoneEcho: zoneEcho ?? null,
+          timeAlreadyBound: Boolean(input.boundSlot || pendingTimeOverride || clockFromTurn),
+          selectionMode: det.service.variantSelection,
+          priorVariantIds: sessionIntact ? sessionIds : null,
+        },
+        det.service.id,
+      )
+      if (
+        earlyUpdate.resolvedVariantIds?.length &&
+        earlyUpdate.reason !== 'unresolved_variant'
+      ) {
+        kept = mentionPool.filter((z) => earlyUpdate.resolvedVariantIds!.includes(z.id))
+        chosen = { zones: kept, ambiguous: false }
+      } else {
+        kept = []
+        chosen = { zones: [], ambiguous: earlyUpdate.reason === 'ambiguous_variants' }
+      }
       saveSession({
         serviceId: det.service.id,
         ...(turnExplicit || frameLine ? { audienceLine: turnExplicit ?? frameLine } : {}),
         ...(turnFacts.period ? { period: turnFacts.period } : {}),
         ...(clockFromTurn ? { clockTime: clockFromTurn } : {}),
-        ...(clearVariants
-          ? { variantIds: null }
-          : kept.length > 0 && !chosen.ambiguous
-            ? { variantIds: kept.map((z) => z.id) }
-            : {}),
       })
       const serviceIgnore = {
         ignoreWords: zoneMentionIgnore(det.service),
@@ -1737,58 +1773,65 @@ export async function tryAiAutoBook(
   // #510: eco Sim / toque Horários / Opções → quadro. Texto e histórico só
   // preenchem o que ainda falta; sessão suja («as duas» + catálogo inteiro)
   // não vence menções explícitas (axila e íntima).
-  // Hora já casada na lista não descarta sobra de zona (DEC-137 / #509):
-  // «Sexta às 09:00 e cotovelo» pergunta a zona e não emite proposta.
-  let namedZones: typeof fromSession = []
-  let echoLocked = false
+  // #579: admissão de variantes é política do actualizador (inclui anti-`slotBound`).
+  let mentionedForUpdate = proposalMention.zones
   let ambiguous = false
-  if (zoneEcho === 'correct') {
-    namedZones = []
-    saveSession({ serviceId: svc.id, variantIds: null })
+  if (zoneEcho === 'confirm' || input.boundSlot) {
+    mentionedForUpdate = []
   } else if (proposalMention.unrecognized && zoneEcho !== 'skip') {
-    // Sobra por resolver bloqueia a proposta e não apaga o conjunto já resolvido.
-    namedZones = []
-  } else if (zoneEcho === 'confirm' || input.boundSlot) {
-    echoLocked = sessionIntact
-    namedZones = echoLocked ? fromSession : []
+    mentionedForUpdate = []
   } else if (proposalMention.zones.length > 0) {
-    // DEC-145: combinação noutra linha do serviço em modo `uma` → pede uma.
-    if (!allowsMultipleVariants(svc.variantSelection) && proposalMention.zones.length > 1) {
-      namedZones = []
-    } else {
-      const seen = new Set<string>()
-      ambiguous = proposalMention.zones.some((zone) => {
-        const key = zone.name.trim().toLocaleLowerCase('pt-BR')
-        if (seen.has(key)) return true
-        seen.add(key)
-        return false
-      })
-      namedZones = ambiguous ? [] : proposalMention.zones
-    }
+    const seen = new Set<string>()
+    ambiguous = proposalMention.zones.some((zone) => {
+      const key = zone.name.trim().toLocaleLowerCase('pt-BR')
+      if (seen.has(key)) return true
+      seen.add(key)
+      return false
+    })
   } else {
     const chosen = sameFunnel
       ? zonesChosenByClient(clientTurn, funnelOlder, scoped, svc)
       : zonesChosenByClient(clientTurn, [], scoped, svc)
     if (chosen.zones.length > 0 || chosen.ambiguous) {
-      // Menção explícita no funil (ex. «axila e íntima») vence sessão suja.
-      namedZones = chosen.zones
+      mentionedForUpdate = chosen.zones
       ambiguous = chosen.ambiguous
     } else if (sessionIntact) {
-      namedZones = fromSession
-      echoLocked = true
+      mentionedForUpdate = []
     } else {
-      namedZones = chosen.zones
+      mentionedForUpdate = chosen.zones
       ambiguous = chosen.ambiguous
     }
   }
-  // Cutover fechado (#472): só o frame (variantIds / lastOffer) autoriza — CF-22.
+  const variantUpdate = runBookingUpdate(
+    {
+      type: 'admit_variants',
+      mentionedIds: ambiguous ? [] : mentionedForUpdate.map((z) => z.id),
+      unrecognized: Boolean(proposalMention.unrecognized && zoneEcho !== 'skip'),
+      leftover: proposalMention.leftover,
+      ambiguous,
+      zoneEcho: zoneEcho ?? null,
+      // Declarado de propósito: o actualizador IGNORA isto na sobra (#579).
+      timeAlreadyBound: Boolean(input.boundSlot || pendingTimeOverride),
+      selectionMode: svc.variantSelection,
+      priorVariantIds: sessionIntact ? sessionIds : null,
+    },
+    svc.id,
+  )
+  // Sobra (#575): o quadro preserva o prior; o funil vê conjunto vazio para perguntar.
+  const namedZones: typeof fromSession =
+    variantUpdate.resolvedVariantIds?.length &&
+    variantUpdate.reason !== 'unresolved_variant'
+      ? mentionPool.filter((z) => variantUpdate.resolvedVariantIds!.includes(z.id))
+      : []
+  const echoLocked =
+    variantUpdate.reason === 'echo_locked' || variantUpdate.reason === 'variants_preserved'
   if (echoLocked) ambiguous = false
   if (namedZones.length > 0 && !ambiguous) {
+    // Relógio do turno: o actualizador não mistura temporal aqui (#577 à parte).
     saveSession({
-        serviceId: svc.id,
-        variantIds: namedZones.map((z) => z.id),
-        ...(clockFromTurn ? { clockTime: clockFromTurn } : { clockTime: time }),
-      })
+      serviceId: svc.id,
+      ...(clockFromTurn ? { clockTime: clockFromTurn } : { clockTime: time }),
+    })
   } else if (clockFromTurn || time) {
     saveSession({ serviceId: svc.id, clockTime: clockFromTurn ?? time })
   }
@@ -1980,13 +2023,22 @@ export async function tryAiAutoBook(
       .map((s) => localHHMM(tz, s.startsAt))
       .filter((t) => t !== time)
     const openOffer = getActiveProposalForConversation(db, tenantId, input.conversationId, clock)
-    if (openOffer) {
-      saveSession({
-        serviceId: openOffer.serviceId,
-        clockTime: localHHMM(tz, openOffer.startsAt),
-        date: clinicCivilDateFromUtc(tz, openOffer.startsAt),
-      })
-    }
+    // #577 / #579: hora sem vaga não substitui a oferta — política no actualizador.
+    runBookingUpdate(
+      {
+        type: 'admit_temporal',
+        time: time,
+        date,
+        vacancy: 'unavailable',
+        openProposalClock: openOffer
+          ? {
+              date: clinicCivilDateFromUtc(tz, openOffer.startsAt),
+              time: localHHMM(tz, openOffer.startsAt),
+            }
+          : null,
+      },
+      openOffer?.serviceId ?? svc.id,
+    )
     const replyText = await occupiedSlotAlternativesReply({
       db,
       tenantId,
