@@ -46,6 +46,7 @@ const WIPE_TABLES: readonly string[] = [
   'room_sex_block_exceptions',
   'appointments',
   'schedule_sessions',
+  'booking_sessions',
   'unmatched_terms',
   'conversations',
   'contact_deletion_tombstones',

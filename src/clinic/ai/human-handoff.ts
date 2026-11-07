@@ -28,6 +28,7 @@ import {
   hasStopRequest,
   wantsHumanPause,
 } from './nlu/sensitive'
+import { endBookingSession } from './booking-session'
 import { getBookingFrame } from './schedule-session'
 
 const PERIOD_LABEL: Record<string, string> = {
@@ -372,6 +373,15 @@ export function notifyHumanHandoff(
     tenantId,
     input.conversationId,
   )
+  // DEC-148 / T1: handoff (DEC-083) fecha a sessão de marcação com outcome handoff.
+  const frame = getBookingFrame(db, tenantId, input.conversationId)
+  const sessionEnd = endBookingSession(
+    db,
+    tenantId,
+    input.conversationId,
+    { outcome: 'handoff', frame },
+    clock,
+  )
   // Pausa: cancela rascunho em curso para o spinner da lista sumir no refetch.
   // SQL directo (evita import circular com autodraft.ts).
   db.run(
@@ -393,7 +403,10 @@ export function notifyHumanHandoff(
     input.conversationId,
   )
   if (!conv) {
-    return { already: false, sent: false, outbox: [pauseEvent(db, tenantId, input.conversationId, true, clock)] }
+    const early: OutboxRow[] = []
+    if (sessionEnd.outbox) early.push(sessionEnd.outbox)
+    early.push(pauseEvent(db, tenantId, input.conversationId, true, clock))
+    return { already: false, sent: false, outbox: early }
   }
   const open = db.get<{ id: string; started_at: number }>(
     `SELECT id, started_at FROM pending_communications
@@ -440,6 +453,7 @@ export function notifyHumanHandoff(
     )
   }
   const outbox: OutboxRow[] = []
+  if (sessionEnd.outbox) outbox.push(sessionEnd.outbox)
   if (input.silent) {
     clearAiAssignee(db, tenantId, input.conversationId, clock)
     outbox.push(pauseEvent(db, tenantId, input.conversationId, true, clock))

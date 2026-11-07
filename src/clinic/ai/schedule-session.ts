@@ -6,6 +6,11 @@
 import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
+import {
+  endBookingSession,
+  openBookingSessionIfNeeded,
+  type BookingSessionOpenReason,
+} from './booking-session'
 
 export type ScheduleAudienceLine = 'feminino' | 'masculino'
 
@@ -439,7 +444,7 @@ function writeAudienceHold(
     phase: BookingFramePhase
   },
   clock: Clock,
-  opts?: { emitOutbox?: boolean },
+  opts?: { emitOutbox?: boolean; sessionOpenReason?: BookingSessionOpenReason },
 ): { frame: BookingFrame; outbox: OutboxRow | null } {
   const existing = getBookingFrame(db, tenantId, conversationId)
   const now = clock.nowMs()
@@ -481,6 +486,9 @@ function writeAudienceHold(
     '{}',
   )
   const frame = getBookingFrame(db, tenantId, conversationId)!
+  openBookingSessionIfNeeded(db, tenantId, conversationId, frame, clock, {
+    openReason: opts?.sessionOpenReason ?? 'catalog_mid_booking',
+  })
   let outbox: OutboxRow | null = null
   if (opts?.emitOutbox !== false) {
     const changed =
@@ -528,7 +536,7 @@ export function saveBookingFrame(
   conversationId: string,
   patch: BookingFramePatch,
   clock: Clock,
-  opts?: { emitOutbox?: boolean },
+  opts?: { emitOutbox?: boolean; sessionOpenReason?: BookingSessionOpenReason },
 ): { frame: BookingFrame; outbox: OutboxRow | null } {
   const existing = getBookingFrame(db, tenantId, conversationId)
 
@@ -704,6 +712,16 @@ export function saveBookingFrame(
   )
 
   const frame = getBookingFrame(db, tenantId, conversationId)!
+  const openReason =
+    opts?.sessionOpenReason ??
+    (patch.source === 'flow'
+      ? 'flow_agendar'
+      : !existing?.serviceId && frame.serviceId
+        ? 'service_named'
+        : 'intent')
+  openBookingSessionIfNeeded(db, tenantId, conversationId, frame, clock, {
+    openReason,
+  })
   let outbox: OutboxRow | null = null
   if (opts?.emitOutbox !== false) {
     const changed =
@@ -782,6 +800,17 @@ export function clearBookingFrame(
   opts?: { emitOutbox?: boolean },
 ): OutboxRow | null {
   const existing = getBookingFrame(db, tenantId, conversationId)
+  // DEC-148 / T1: limpar o quadro (recomeçar, soft-decline A/B, idle, painel)
+  // fecha a sessão analítica com abandon — idempotente se já fechada (ex. pós-Agendado).
+  if (existing && clock) {
+    endBookingSession(
+      db,
+      tenantId,
+      conversationId,
+      { outcome: 'abandon', frame: existing },
+      clock,
+    )
+  }
   db.run(
     `DELETE FROM schedule_sessions WHERE tenant_id = ? AND conversation_id = ?`,
     tenantId,

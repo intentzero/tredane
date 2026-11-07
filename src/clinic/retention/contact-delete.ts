@@ -221,6 +221,11 @@ export function deleteContactOp(
     // sem isto a TX falha com FOREIGN KEY e nada é apagado (inbox/pipeline/agenda intactos).
     for (const conversationId of conversationIds) {
       db.run(
+        `DELETE FROM booking_sessions WHERE tenant_id = ? AND conversation_id = ?`,
+        meta.tenantId,
+        conversationId,
+      )
+      db.run(
         `DELETE FROM schedule_sessions WHERE tenant_id = ? AND conversation_id = ?`,
         meta.tenantId,
         conversationId,
