@@ -11,7 +11,7 @@ const NO_LEAK = [/maps\.google|goo\.gl/i, /\{|\}/]
 
 export const ZONAS_DIALOG_CASES: DialogCase[] = [
   {
-    id: 'A-24',
+    id: 'A-27',
     title: 'Zonas escritas antes da linha não se perdem: a linha vem depois e o eco nomeia as duas',
     turnosIdeais: 3,
     // #589 / DEC-143: a janela do funil começava depois da mensagem de abertura, por isso

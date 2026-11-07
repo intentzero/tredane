@@ -5,6 +5,7 @@
  * FL-*: hub + WhatsApp Flow (`fl-cases.ts`).
  * CC-*, A-22, A-23: consulta de catálogo e Confirmar suspenso (`cc-cases.ts`).
  * A-24: nome do serviço ≠ variante (Massagem com tipos; Paulo 07/11/2026).
+ * A-25..A-27: zonas em texto livre e telemetria do funil (`zonas-cases.ts`; A-27 = zonas antes da linha).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import {
@@ -1392,7 +1393,8 @@ export const P0_DIALOG_CASES: DialogCase[] = [
 P0_DIALOG_CASES.push(...FL_DIALOG_CASES)
 // Família CC- (consulta de catálogo, DEC-142) e Confirmar suspenso (A-22/A-23).
 P0_DIALOG_CASES.push(...CC_DIALOG_CASES)
-// A-24..26: zonas em texto livre e telemetria do funil (DEC-143, #588/#589).
+// A-25..A-27: zonas em texto livre e telemetria do funil (DEC-143, #588/#589).
+// A-27 (antes A-24 neste PR): renumerado após #597 ocupar A-24 (Massagem ≠ variante).
 P0_DIALOG_CASES.push(...ZONAS_DIALOG_CASES)
 
 export const P0_IDS = P0_DIALOG_CASES.map((c) => c.id)
