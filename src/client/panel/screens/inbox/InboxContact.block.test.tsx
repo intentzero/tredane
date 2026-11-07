@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PanelApi } from '../../api'
@@ -53,12 +54,18 @@ function renderContact(opts: { hasPendingPix?: boolean; blocked?: boolean } = {}
   return { api, state }
 }
 
+async function openBlock() {
+  const user = userEvent.setup()
+  await user.click(await screen.findByRole('button', { name: 'Mais ações' }))
+  await user.click(await screen.findByRole('menuitem', { name: 'Bloquear contato' }))
+}
+
 describe('InboxContact — Bloquear (única entrada, Opção A)', () => {
   const PIX = 'Este contato tem um Pix pendente. O Pix continua válido e não será cancelado.'
 
   it('bloqueia pelo Contato com confirmação', async () => {
     const { api } = renderContact()
-    fireEvent.click(await screen.findByRole('button', { name: 'Bloquear contato' }))
+    await openBlock()
     expect(await screen.findByRole('alertdialog')).toBeTruthy()
     fireEvent.click(screen.getByRole('radio', { name: 'Spam ou propaganda' }))
     fireEvent.click(screen.getByRole('button', { name: 'Bloquear contato' }))
@@ -74,11 +81,11 @@ describe('InboxContact — Bloquear (única entrada, Opção A)', () => {
 
   it('com Pix pendente o diálogo avisa antes; sem Pix não', async () => {
     renderContact({ hasPendingPix: true })
-    fireEvent.click(await screen.findByRole('button', { name: 'Bloquear contato' }))
+    await openBlock()
     expect(await screen.findByText(PIX)).toBeTruthy()
     cleanup()
     renderContact({ hasPendingPix: false })
-    fireEvent.click(await screen.findByRole('button', { name: 'Bloquear contato' }))
+    await openBlock()
     expect(await screen.findByRole('alertdialog')).toBeTruthy()
     expect(screen.queryByText(PIX)).toBeNull()
   })
