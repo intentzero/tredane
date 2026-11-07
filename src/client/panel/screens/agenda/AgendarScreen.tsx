@@ -590,28 +590,6 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
     <div className="agd" data-screen="m04-agendar">
       {header}
       <div className="panel-scroll agd-scroll">
-        {ctx.conversationId ? (
-          <div className="agd-mode" role="radiogroup" aria-label="Como escolher o horário">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={!periodOpen}
-              className="agd-mode-btn"
-              onClick={() => setPeriodOpen(false)}
-            >
-              Horário exato
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={periodOpen}
-              className="agd-mode-btn"
-              onClick={() => setPeriodOpen(true)}
-            >
-              Por período
-            </button>
-          </div>
-        ) : null}
         {conflict ? (
           <div className="agd-banner" role="alert" tabIndex={-1} ref={conflictRef}>
             <TriangleAlert aria-hidden size={20} strokeWidth={2} />
@@ -852,6 +830,14 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           ) : null}
           {renderTimes(periods.manha, 'Manhã')}
           {renderTimes(periods.tarde, 'Tarde')}
+          {ctx.conversationId && service && !visit.zoned ? (
+            <p className="agd-note">
+              Precisa de outra duração?{' '}
+              <button type="button" className="agd-link" onClick={() => setPeriodOpen(true)}>
+                Reservar bloco
+              </button>
+            </p>
+          ) : null}
           <TempoNotice phrases={selected?.tempoWarnings} />
           {lostLabel && !times.some((t) => t.startsAt === conflict?.lostStartsAt) ? (
             <p className="agd-lost">
@@ -877,7 +863,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           isDisabled={!selected || percentBlocked || (visit.zoned && visit.zones.length === 0)}
           onPress={() => setReviewOpen(true)}
         >
-          {ctx.conversationId && ctx.contactId ? 'Revisar proposta' : 'Revisar e confirmar'}
+          {ctx.conversationId && ctx.contactId ? 'Revisar' : 'Revisar e confirmar'}
         </Button>
       </footer>
 
@@ -1057,8 +1043,11 @@ function ReviewSheet(p: ReviewProps) {
   const canNotify = Boolean(ctx.conversationId) && p.window24?.open === true
   // DEC-053 (Confirmado, card t1868s7504): com conversa, ligado dentro da janela
   // de 24 h; fora dela desligado com explicação.
-  const proposalPath =
+  const proposalAvailable =
     !p.reschedule && Boolean(ctx.conversationId && ctx.contactId) && !p.paidSignalMode
+  /** «Enviar proposta» (a cliente confirma, DEC-061) ou «Marcar já» (a equipe marca agora). */
+  const [way, setWay] = useState<'proposal' | 'now'>('proposal')
+  const proposalPath = proposalAvailable && way === 'proposal'
   const [notify, setNotify] = useState(() => defaultNotify(Boolean(ctx.conversationId), p.window24))
   const notifyTouched = useRef(false)
   useEffect(() => {
@@ -1341,8 +1330,8 @@ function ReviewSheet(p: ReviewProps) {
         <Dialog className="panel-sheet agd-sheet" aria-labelledby="agd-review-title">
           <span className="panel-sheet-handle" aria-hidden="true" />
           <Heading slot="title" id="agd-review-title" className="panel-title">
-            {proposalPath
-              ? 'Enviar proposta'
+            {proposalAvailable
+              ? 'Revisar'
               : p.reschedule
                 ? 'Reagendar'
                 : p.requiresSignal
@@ -1355,6 +1344,36 @@ function ReviewSheet(p: ReviewProps) {
               <div className="agd-banner" role="alert">
                 <TriangleAlert aria-hidden size={20} strokeWidth={2} />
                 <span>{err}</span>
+              </div>
+            ) : null}
+
+            {proposalAvailable ? (
+              <div className="agd-ways" role="radiogroup" aria-label="Como concluir">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={way === 'proposal'}
+                  className="agd-way"
+                  disabled={busy}
+                  onClick={() => setWay('proposal')}
+                >
+                  <strong>Enviar proposta</strong>
+                  <span>A cliente confirma pelo botão no WhatsApp. Nada fica marcado antes.</span>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={way === 'now'}
+                  className="agd-way"
+                  disabled={busy}
+                  onClick={() => {
+                    setWay('now')
+                    setClientRequestId(crypto.randomUUID())
+                  }}
+                >
+                  <strong>Marcar já</strong>
+                  <span>A equipe marca agora e o horário fica ocupado na agenda.</span>
+                </button>
               </div>
             ) : null}
 
