@@ -320,11 +320,9 @@ function extractorFill(
   if (!frame?.serviceId && c.serviceId) {
     patch.serviceId = c.serviceId
     dirty = true
-  } else if (c.serviceId && input.serviceId == null && !frame?.serviceId) {
-    patch.serviceId = c.serviceId
-    dirty = true
-  } else if (!patch.serviceId && (frame?.serviceId || c.serviceId)) {
-    patch.serviceId = frame?.serviceId ?? c.serviceId!
+  } else if (frame?.serviceId || input.serviceId) {
+    // Mantém o serviço já no quadro / passado pelo caller; não marca dirty.
+    patch.serviceId = frame?.serviceId ?? input.serviceId!
   }
 
   if (!frame?.line && c.line) {
