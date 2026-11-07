@@ -102,6 +102,25 @@ describe('comentário do scorecard no PR', () => {
     expect(m.coverageNote(['src/whatsapp/flow/screens.ts']).behaviour).toEqual(['src/whatsapp/flow/screens.ts'])
   })
 
+  it('diz com o que comparou: corrida da base ou linha de base gravada (que pode estar atrasada)', async () => {
+    const m = await load()
+    const fromBase = m.buildComment({
+      latest,
+      comparison: cmp({ baselineSource: 'base', baselineCommit: '99e698c1234+dirty' }),
+      changed: [],
+    })
+    expect(fromBase).toContain('corrida da branch base')
+    expect(fromBase).toContain('`99e698c`')
+    expect(fromBase).not.toContain('+dirty')
+    const recorded = m.buildComment({
+      latest,
+      comparison: cmp({ baselineSource: 'gravada', baselineCommit: '509afc8aaaa' }),
+      changed: [],
+    })
+    expect(recorded).toContain('linha de base gravada')
+    expect(recorded).toContain('pode estar atrás')
+  })
+
   it('sem resultado do scorecard, diz-o em vez de inventar números', async () => {
     const m = await load()
     const body = m.buildComment({ latest: null, comparison: null, changed: [], runFailed: true })

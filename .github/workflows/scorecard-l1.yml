@@ -37,13 +37,43 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      - name: L1 on the base branch (what the PR is compared with)
+        # A linha de base gravada fica atrás da main sempre que outros PRs acrescentam casos
+        # sem a regravar; comparar com ela atribuía ao PR mudanças que não são dele.
+        # Se esta corrida falhar, o scorecard volta a comparar com a linha de base gravada.
+        # BASE_SHA (não o nome da branch) evita injecção no shell e fixa o tip da base do evento.
+        id: base
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          git worktree add ../base-tree "$BASE_SHA"
+          # Deps do PR na base enviesam a comparação se o lockfile mudou.
+          if cmp -s package-lock.json ../base-tree/package-lock.json; then
+            ln -s "$GITHUB_WORKSPACE/node_modules" ../base-tree/node_modules
+          else
+            (cd ../base-tree && npm ci --no-audit --no-fund)
+          fi
+          (cd ../base-tree && EVAL_SCORECARD=1 npx vitest run src/clinic/ai/evals/dialogs/dialogs.test.ts) || true
+          if [ -f ../base-tree/.eval/l1-latest.json ]; then
+            cp ../base-tree/.eval/l1-latest.json base-latest.json
+            echo "has_baseline=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_baseline=0" >> "$GITHUB_OUTPUT"
+          fi
       - name: Run L1 scorecard
         id: run
+        env:
+          # Só compara com a corrida da base quando o artefacto existe; senão cai na linha gravada.
+          EVAL_BASELINE_PATH: ${{ steps.base.outputs.has_baseline == '1' && 'base-latest.json' || '' }}
         # O resultado vai para o comentário; um gate falhado também chega aqui (e ao job verify).
         continue-on-error: true
         run: npm run eval:scorecard
       - name: Changed files
-        run: git diff --name-only "origin/${{ github.base_ref }}...HEAD" > changed-files.txt
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git diff --name-only "${BASE_SHA}...HEAD" > changed-files.txt
       - name: Build comment
         env:
           SCORECARD_RUN_FAILED: ${{ steps.run.outcome == 'failure' && '1' || '0' }}
