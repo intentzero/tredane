@@ -29,6 +29,12 @@ import {
 } from './synonyms'
 import { VARIANT_KIND_MAX } from '../catalog/variant-kind'
 import {
+  DEFAULT_VARIANT_SELECTION,
+  isVariantSelection,
+  normalizeVariantSelection,
+  type VariantSelection,
+} from '../catalog/variant-selection'
+import {
   assertBufferMinutes,
   assertNonEmptyName,
   assertPositiveDuration,
@@ -57,6 +63,7 @@ type ServiceSql = {
   duration_max_minutes?: number | null
   variant_kind?: string | null
   variant_kind_plural?: string | null
+  variant_selection?: string | null
   synonyms_json?: string | null
   created_at: number
   updated_at: number
@@ -147,6 +154,7 @@ function toServiceRow(
     deletable: serviceDeleteBlocker(db, row.tenant_id, row.id) === null,
     variantKind: row.variant_kind?.trim() || null,
     variantKindPlural: row.variant_kind_plural?.trim() || null,
+    variantSelection: normalizeVariantSelection(row.variant_selection),
     zones: listZones(db, row.tenant_id, row.id),
     combos: listCombos(db, row.tenant_id, row.id),
     synonyms: parseSynonymsJson(row.synonyms_json),
@@ -505,6 +513,20 @@ function resolveKindText(
   return text
 }
 
+function resolveVariantSelection(
+  value: VariantSelection | undefined,
+  existing: VariantSelection | undefined,
+): VariantSelection {
+  if (value === undefined) return existing ?? DEFAULT_VARIANT_SELECTION
+  if (!isVariantSelection(value)) {
+    throw new ValidationError(
+      'invalid_variant_selection',
+      'escolha uma opção por atendimento ou várias',
+    )
+  }
+  return value
+}
+
 export function upsertService(
   db: ClinicDb,
   tenantId: string,
@@ -561,6 +583,7 @@ export function upsertService(
       'dê o singular e o plural do tipo das variantes',
     )
   }
+  const variantSelection = resolveVariantSelection(input.variantSelection, existing?.variantSelection)
 
   if (input.id) {
     const synonymsJson = resolveServiceSynonyms(
@@ -578,7 +601,7 @@ export function upsertService(
         price_cents = ?, client_explanation = ?, active = ?,
         requires_signal = ?, signal_kind = ?, signal_fixed_cents = ?, signal_percent = ?,
         duration_adjustable = ?, duration_min_minutes = ?, duration_max_minutes = ?,
-        variant_kind = ?, variant_kind_plural = ?, synonyms_json = ?, updated_at = ?
+        variant_kind = ?, variant_kind_plural = ?, variant_selection = ?, synonyms_json = ?, updated_at = ?
        WHERE tenant_id = ? AND id = ?`,
       name,
       input.durationMinutes,
@@ -599,6 +622,7 @@ export function upsertService(
       dur.max,
       variantKind,
       variantKindPlural,
+      variantSelection,
       synonymsJson,
       now,
       tenantId,
@@ -628,8 +652,8 @@ export function upsertService(
       price_cents, client_explanation, active,
       requires_signal, signal_kind, signal_fixed_cents, signal_percent,
       duration_adjustable, duration_min_minutes, duration_max_minutes,
-      variant_kind, variant_kind_plural, synonyms_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      variant_kind, variant_kind_plural, variant_selection, synonyms_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     tenantId,
     name,
@@ -651,6 +675,7 @@ export function upsertService(
     dur.max,
     variantKind,
     variantKindPlural,
+    variantSelection,
     synonymsJson,
     now,
     now,

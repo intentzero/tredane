@@ -86,6 +86,24 @@ describe('atalho de catálogo sem cumprimento', () => {
     }
   })
 
+  it('modo uma: «tudo» e dois nomes não fecham combinação', () => {
+    const tudo = zonesChosenInClientTexts(['quero tudo'], MASSAGEM, {
+      ...MASSAGEM_IGNORE,
+      selectionMode: 'uma',
+    })
+    expect(tudo.zones).toEqual([])
+    const dois = zonesChosenInClientTexts(['Liberação miofascial e Ventosaterapia'], MASSAGEM, {
+      ...MASSAGEM_IGNORE,
+      selectionMode: 'uma',
+    })
+    expect(dois.zones).toEqual([])
+    const um = zonesChosenInClientTexts(['Ventosaterapia'], MASSAGEM, {
+      ...MASSAGEM_IGNORE,
+      selectionMode: 'uma',
+    })
+    expect(um.zones.map((z) => z.name)).toEqual(['Ventosaterapia'])
+  })
+
   it('cumprimento e «quero tudo» na mesma frase: o atalho real fica', () => {
     const chosen = zonesChosenInClientTexts(['Oi, tudo bem? Quero tudo'], MASSAGEM, MASSAGEM_IGNORE)
     expect(chosen.zones.map((item) => item.name)).toEqual(MASSAGEM_NAMES)

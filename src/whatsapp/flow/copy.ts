@@ -59,9 +59,13 @@ export const FLOW_COPY = {
   genderTitle: 'Versão',
   /** C7 — `{serviço}` = nome do cadastro. */
   genderBody: (serviceName: string) => `Para ${serviceName.trim()}, qual versão?`,
-  /** C8 — sem «Todas». O total da visita vai no corpo do horário. */
+  /** C8 — sem «Todas». O total da visita vai no corpo do horário. Modo `varias`. */
   variantsBody:
     'Pode marcar mais de uma. O preço está em cada opção; o total aparece no horário.',
+  /** C8b — DEC-145 modo `uma`: exactamente uma opção. */
+  variantsBodyUma: 'Escolha uma opção. O preço está em cada linha.',
+  /** Snackbar quando o modo `uma` recebe mais de uma no CheckboxGroup. */
+  variantsPickOne: 'Escolha só uma opção para continuar.',
   /** C9 */
   slotTitle: 'Horário',
   /** C10 — o total cotado (DEC-080) é acrescentado numa linha, quando existe. */

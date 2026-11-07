@@ -88,6 +88,22 @@ describe('choice-offer ids', () => {
     expect(built.pending.options.at(-1)?.key).toBe('todas')
   })
 
+  it('modo uma: lista sem Todas', () => {
+    const zones = [
+      { id: 'a', name: 'Relaxante' },
+      { id: 'b', name: 'Modeladora' },
+    ]
+    const built = buildVariantChoiceInteractive({
+      catalogVersion: '1',
+      zones,
+      includeTodas: false,
+    })
+    const rows = built.interactive.sections.flatMap((s) => s.rows)
+    expect(rows).toHaveLength(2)
+    expect(rows.every((r) => r.title !== 'Todas')).toBe(true)
+    expect(built.pending.options.every((o) => o.key !== 'todas')).toBe(true)
+  })
+
   it('horários → lista com CTA Horários', () => {
     const built = buildSlotChoiceInteractive({
       catalogVersion: '9',

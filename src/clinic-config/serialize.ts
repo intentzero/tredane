@@ -83,6 +83,7 @@ export function serializeService(row: ServiceRow) {
     deletable: row.deletable,
     variantKind: row.variantKind,
     variantKindPlural: row.variantKindPlural,
+    variantSelection: row.variantSelection,
     synonyms: row.synonyms,
     zones: row.zones.map((z) => ({
       id: z.id,

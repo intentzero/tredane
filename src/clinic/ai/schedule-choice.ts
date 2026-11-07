@@ -4,6 +4,10 @@
  * A oferta já fechada («para axila e íntima») conta quando a cliente só aceita a hora.
  */
 import { explicitAudienceLine } from '../catalog/audience'
+import {
+  allowsMultipleVariants,
+  type VariantSelection,
+} from '../catalog/variant-selection'
 import type { ServiceZoneRow } from '../config/types'
 import { resolveZoneMention, zonesNamedInText } from '../config/zones'
 import type { AudienceLine } from './variant-line'
@@ -140,28 +144,36 @@ export function zonesOfferedToClient(
  * Zonas escolhidas pela cliente nos textos (mais novos primeiro).
  * Nome explícito, sinónimo (DEC-110) e plural leve (#509) no âmbito passado.
  * Sobra sem match único → vazio (pergunta; sem descarte silencioso).
- * «Tudo» / «todas» / «completo» devolve o âmbito inteiro. Cumprimento
- * («tudo bem» e equivalentes) não — nem nesta bolha, nem numa anterior.
- * «As duas» / «as três» só quando o âmbito tem esse tamanho. Nome ambíguo → ambiguous.
+ * Em modo `varias` (DEC-145): «Tudo» / «todas» / «completo» devolve o âmbito
+ * inteiro. Cumprimento («tudo bem» e equivalentes) não — nem nesta bolha, nem
+ * numa anterior. «As duas» / «as três» só quando o âmbito tem esse tamanho.
+ * Em modo `uma`: atalhos de conjunto e combinações de vários nomes não fecham
+ * — devolve vazio para o funil pedir exactamente uma. Nome ambíguo → ambiguous.
  */
 export function zonesChosenInClientTexts(
   texts: readonly string[],
   zones: readonly ServiceZoneRow[],
-  opts?: { ignoreWords?: readonly string[] },
+  opts?: { ignoreWords?: readonly string[]; selectionMode?: VariantSelection },
 ): { zones: ServiceZoneRow[]; ambiguous: boolean } {
   if (zones.length === 0) return { zones: [], ambiguous: false }
+  const multi = allowsMultipleVariants(opts?.selectionMode)
   for (const text of texts) {
     // «Tudo» / «as duas» antes do matcher de nomes — «duas» não é sobra de zona.
-    // Cumprimento em claimsWholeCatalog: não depende de o serviço aceitar uma ou várias.
-    if (claimsWholeCatalog(text)) return { zones: [...zones], ambiguous: false }
+    // Cumprimento em claimsWholeCatalog: exclusão vale também em modo varias.
+    // Modo uma: ignora o atalho mesmo se o cumprimento escapar.
+    if (multi && claimsWholeCatalog(text)) return { zones: [...zones], ambiguous: false }
     const counted = countedCatalogSize(text)
-    if (counted != null && distinctZoneNames(zones) === counted) {
+    if (multi && counted != null && distinctZoneNames(zones) === counted) {
       return { zones: [...zones], ambiguous: false }
     }
     const mention = resolveZoneMention(text, zones, opts)
     // Sobra nesta bolha: tentar a mensagem mais antiga (não abortar o histórico).
     if (mention.unrecognized) continue
     if (mention.zones.length > 0) {
+      if (!multi && mention.zones.length > 1) {
+        // Combinação pedida num serviço de escolha única — não fecha.
+        return { zones: [], ambiguous: false }
+      }
       return { zones: mention.zones, ambiguous: nameCitedTwice(mention.zones) }
     }
   }

@@ -101,6 +101,57 @@ describe('whatsapp flow screens (ADR-0016 §3)', () => {
     expect(applied.frame.variantIds).toBeNull()
   })
 
+  it('DEC-145 modo uma: corpo pede uma e multi é recusado', () => {
+    const massagem: FlowCatalogService = {
+      id: 'svc_mas',
+      name: 'Massagem',
+      active: true,
+      variantSelection: 'uma',
+      zones: [
+        {
+          id: 'z_re',
+          name: 'Relaxante',
+          audience: 'ambos',
+          active: true,
+          durationMinutes: 50,
+          priceCents: 15_000,
+        },
+        {
+          id: 'z_mo',
+          name: 'Modeladora',
+          audience: 'ambos',
+          active: true,
+          durationMinutes: 50,
+          priceCents: 16_000,
+        },
+      ],
+    }
+    const next = nextFlowScreen({
+      catalog: [massagem],
+      frame: { serviceId: 'svc_mas', line: null, variantIds: null, slotKey: null },
+    })
+    expect(next).toMatchObject({ screen: 'VARIANTES' })
+    if (!('data' in next)) throw new Error('esperado ecrã')
+    expect(String(next.data.body)).toMatch(/Escolha uma opção/)
+    expect(String(next.data.body)).not.toMatch(/mais de uma/)
+    const multi = applyScreenSubmission(
+      [massagem],
+      { serviceId: 'svc_mas', line: null, variantIds: null, slotKey: null },
+      'VARIANTES',
+      { variant_ids: ['z_re', 'z_mo'] },
+    )
+    expect(multi.ok).toBe(false)
+    if (multi.ok) return
+    expect(multi.errorMessage).toMatch(/só uma/i)
+    const one = applyScreenSubmission(
+      [massagem],
+      { serviceId: 'svc_mas', line: null, variantIds: null, slotKey: null },
+      'VARIANTES',
+      { variant_ids: ['z_re'] },
+    )
+    expect(one).toMatchObject({ ok: true, frame: { variantIds: ['z_re'] } })
+  })
+
   it('nome longo: preço vai na descrição, título fica em 30', () => {
     const long: FlowCatalogService = {
       id: 'svc_long',

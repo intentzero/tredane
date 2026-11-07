@@ -5,6 +5,7 @@
 import { formatBRL } from '../../ai/prompt'
 import type { Clock } from '../../db/clock'
 import { currentClientTurnText, explicitAudienceLine } from '../catalog/audience'
+import { allowsMultipleVariants } from '../catalog/variant-selection'
 import { listEffectiveWeeklyWindows } from '../config/availability'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
@@ -505,8 +506,14 @@ export function catalogReply(
   if (active.length > 0 && mixed && !line) return audienceLineQuestion(svc.name, cnv)
 
   const scoped = mixed ? zonesForAudienceLine(active, line) : active
-  const serviceIgnore = { ignoreWords: [svc.name, ...(svc.synonyms ?? [])] }
-  const named = scoped.length > 0 ? zonesNamedInText(source, scoped, serviceIgnore) : []
+  const serviceIgnore = {
+    ignoreWords: [svc.name, ...(svc.synonyms ?? [])],
+    selectionMode: svc.variantSelection,
+  }
+  const namedRaw = scoped.length > 0 ? zonesNamedInText(source, scoped, serviceIgnore) : []
+  // DEC-145: modo `uma` não fecha combinação de vários nomes.
+  const named =
+    allowsMultipleVariants(svc.variantSelection) || namedRaw.length <= 1 ? namedRaw : []
   const namedOk = named.length > 0 && !variantAudiencesConflict(named)
   if (opts.conversationId && inPlay && namedOk) {
     saveSession(opts.conversationId, {

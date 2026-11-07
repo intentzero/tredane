@@ -45,6 +45,7 @@ export async function flowDataExchangeLocal(input: {
     id: s.id,
     name: s.name,
     active: s.active,
+    variantSelection: s.variantSelection,
     zones: s.zones.map((z) => ({
       id: z.id,
       name: z.name,

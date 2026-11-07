@@ -2567,6 +2567,8 @@ export type ClinicService = {
   variantKind?: string | null
   /** DEC-079 — plural do tipo. Nulo sem variantes. */
   variantKindPlural?: string | null
+  /** DEC-145 — uma | varias por atendimento. Default varias. */
+  variantSelection?: 'uma' | 'varias'
   /** DEC-110 — nomes populares (interpretação). */
   synonyms?: string[]
   /** DEC-078. Vazio: a linha do serviço vale. */
@@ -2828,6 +2830,8 @@ export type ServiceUpsertBody = {
   /** DEC-079 — omitido na edição mantém. Vazio limpa. Singular e plural juntos. */
   variantKind?: string | null
   variantKindPlural?: string | null
+  /** DEC-145 — omitido na edição mantém. */
+  variantSelection?: 'uma' | 'varias'
   /** DEC-110 — omitido na edição mantém; array (mesmo vazio) substitui. */
   synonyms?: string[]
 }

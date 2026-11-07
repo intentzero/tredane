@@ -1157,6 +1157,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
           roomRequirement: massagem.roomRequirement,
           variantKind: 'tipo',
           variantKindPlural: 'tipos',
+          variantSelection: 'uma',
         },
         s.clock,
       )
@@ -1203,6 +1204,75 @@ export const P0_DIALOG_CASES: DialogCase[] = [
           turn: 0,
           matches: [/tipos?|opç/i, /Liberação miofascial/i, /Massagem relaxante/i],
           excludes: [/Não encontrei/i, /Entendi:\s*Massagem relaxante/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-28',
+    title: 'Massagem modo uma: «tudo» e dois tipos não fecham; um tipo segue sem eco',
+    turnosIdeais: 2,
+    // DEC-145: serviço em `uma` — sem eco DEC-137 de conjunto, sem atalho «tudo».
+    // Dois nomes no unitário (`schedule-choice` selectionMode=uma); aqui o 2.º turno
+    // fecha um só tipo e avança a horários sem «Entendi:» (evita INV-08 da pergunta repetida).
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-28: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: massagem.id, phase: 'coletando' },
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'quero tudo' },
+      { role: 'client', text: 'Liberação miofascial' },
+    ],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/tipos?|opç/i, /Liberação miofascial/i],
+          excludes: [/Entendi:/i],
+        },
+        {
+          turn: 1,
+          matches: [/\d{1,2}:\d{2}/],
+          excludes: [/Entendi:/i],
         },
       ],
     },

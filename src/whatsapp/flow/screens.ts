@@ -6,6 +6,10 @@
 import { needsAudienceLine, zonesForAudienceLine } from '../../clinic/ai/variant-line'
 import { slotListRowCopy } from '../../clinic/ai/slot-offer'
 import {
+  allowsMultipleVariants,
+  type VariantSelection,
+} from '../../clinic/catalog/variant-selection'
+import {
   FLOW_COPY,
   FLOW_GENDER_LABELS,
   isFlowHubAction,
@@ -28,6 +32,8 @@ export type FlowCatalogService = {
   id: string
   name: string
   active: boolean
+  /** DEC-145 — default `varias` quando omitido (catálogos de teste antigos). */
+  variantSelection?: VariantSelection
   zones: Array<{
     id: string
     name: string
@@ -454,10 +460,14 @@ export function nextFlowScreen(input: {
         return { kind: 'chat_fallback', reason: 'too_many_variants' }
       }
       if (opts.length > 0) {
+        const multi = allowsMultipleVariants(service!.variantSelection)
         return {
           screen: 'VARIANTES',
           data: screenData(
-            { body: FLOW_COPY.variantsBody, variants: opts },
+            {
+              body: multi ? FLOW_COPY.variantsBody : FLOW_COPY.variantsBodyUma,
+              variants: opts,
+            },
             input.errorMessage,
           ),
         }
@@ -564,6 +574,11 @@ export function applyScreenSubmission(
     const ids = resolveVariantIds(service, frame.line, selected)
     if (ids.length === 0) {
       return { ok: false, errorMessage: FLOW_COPY.catalogChanged, frame }
+    }
+    // DEC-145: modo `uma` — exactamente uma; o JSON publicado ainda é CheckboxGroup
+    // (republish com rádio fica para o deploy do Flow).
+    if (!allowsMultipleVariants(service.variantSelection) && ids.length > 1) {
+      return { ok: false, errorMessage: FLOW_COPY.variantsPickOne, frame }
     }
     return {
       ok: true,

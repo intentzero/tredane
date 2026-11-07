@@ -375,6 +375,7 @@ export const FL_DIALOG_CASES: DialogCase[] = [
           roomRequirement: massagem.roomRequirement,
           variantKind: 'tipo',
           variantKindPlural: 'tipos',
+          variantSelection: 'uma',
         },
         s.clock,
       )
@@ -428,6 +429,7 @@ export const FL_DIALOG_CASES: DialogCase[] = [
           roomRequirement: massagem.roomRequirement,
           variantKind: 'tipo',
           variantKindPlural: 'tipos',
+          variantSelection: 'uma',
         },
         s.clock,
       )

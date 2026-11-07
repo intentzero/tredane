@@ -5,12 +5,13 @@
  * Copy via catálogo M4 (#448): perguntar_servico / confirmar_servico.
  */
 import type { ServiceAudience } from '../catalog/audience'
+import { allowsMultipleVariants } from '../catalog/variant-selection'
 import type { ServiceRow, ServiceZoneRow, VariantAudience } from '../config/types'
 import { variantChoiceLabel } from '../config/zones'
 import { sayAct, serviceNameInProse } from './dialogue-acts'
 import { THIRD_PARTY_RE } from './nlu/sensitive'
 import { textCitesSynonym } from '../config/synonyms'
-import { citesServiceName } from './schedule-choice'
+import { citesServiceName, claimsWholeCatalog } from './schedule-choice'
 import {
   audienceLineQuestion,
   needsAudienceLine,
@@ -705,9 +706,12 @@ export function resolveBookingObject(input: {
     if (byDur.length === 1) chosenZones = byDur
   }
 
-  // «Tudo» na linha.
-  if (/\b(tudo|todas|todos|completo|completa)\b/i.test(fold(text))) {
+  // «Tudo» na linha — só modo `varias` (DEC-145). Cumprimento fica fora em claimsWholeCatalog.
+  if (allowsMultipleVariants(service.variantSelection) && claimsWholeCatalog(text)) {
     chosenZones = [...scoped]
+  } else if (!allowsMultipleVariants(service.variantSelection) && chosenZones.length > 1) {
+    // Combinação pedida num serviço de escolha única — não fecha.
+    chosenZones = []
   }
 
   if (chosenZones.length === 0) {
