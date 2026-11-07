@@ -246,6 +246,18 @@ describe('classifySensitive (#409)', () => {
       labels: [],
       pause: false,
     },
+    {
+      id: 'D-08',
+      text: 'não quero agendar',
+      labels: ['desistir'],
+      pause: false,
+    },
+    {
+      id: 'D-09',
+      text: 'não quero, obrigada',
+      labels: ['desistir'],
+      pause: false,
+    },
   ]
 
   for (const row of rows) {

@@ -3,12 +3,13 @@
  * Não grava o quadro: só classifica menções para o actualizador.
  *
  * D3: «não quero pernas, só axila» — a zona na negação não reentra.
- * Gramática completa (compare / mention_only sem preço) fica diferida.
+ * Gramática completa (compare / mention_only / tirar / sem) fica diferida.
  */
 import type { ServiceZoneRow } from '../config/types'
 
+/** Só polaridade de pedido («não quero X»). «sem»/«tirar» ficam fora — FP altos. */
 const NEGATION_CUE =
-  /\bn[aã]o\s+(?:quero|preciso|gostaria|aceito|quero\s+mais)|(?:^|[^\p{L}])sem\s+|\btirar\b|\btirando\b|\bexceto\b|\bexcepto\b/iu
+  /\bn[aã]o\s+(?:quero|preciso|gostaria|aceito)(?:\s+mais)?\b/iu
 
 const SOLO_CUE = /\b(?:s[oó]|apenas)\b/iu
 
@@ -47,12 +48,14 @@ function findZoneSpans(
 }
 
 /**
- * Classifica por segmento (vírgula / ponto-e-vírgula): a negação de um
- * segmento não contamina o «só axila» do segmento seguinte.
+ * Classifica por segmento (vírgula / ponto-e-vírgula).
+ * «não quero só X» (só sob a negação) → negated, não solo.
  */
 function segmentPolarity(segment: string): 'negated' | 'solo' | 'plain' {
-  if (SOLO_CUE.test(segment)) return 'solo'
-  if (NEGATION_CUE.test(segment)) return 'negated'
+  const soloIdx = segment.search(SOLO_CUE)
+  const negIdx = segment.search(NEGATION_CUE)
+  if (negIdx >= 0 && (soloIdx < 0 || soloIdx > negIdx)) return 'negated'
+  if (soloIdx >= 0) return 'solo'
   return 'plain'
 }
 
@@ -92,16 +95,18 @@ export function classifyVariantPolarity(
         if (overlap) continue
         for (let i = span.start; i < span.end; i++) claimed[i] = true
         if (pol === 'negated') negated.add(zone.id)
-        else positive.add(zone.id)
+        else if (pol === 'solo' || pol === 'plain') positive.add(zone.id)
       }
     }
   }
 
-  // Sem vírgula: «não quero pernas só axila» — janela local com «só» a ganhar.
+  // Sem vírgula: «não quero pernas só axila» — «só» após negação e após a
+  // zona negada marca o positivo; «não quero só X» mantém X negado.
   if (segments.length <= 1 && (hasNegation || solo)) {
     negated.clear()
     positive.clear()
     const claimed = new Array<boolean>(folded.length).fill(false)
+    const negAt = folded.search(NEGATION_CUE)
     for (const zone of ordered) {
       for (const span of findZoneSpans(folded, zone)) {
         let overlap = false
@@ -114,11 +119,23 @@ export function classifyVariantPolarity(
         if (overlap) continue
         for (let i = span.start; i < span.end; i++) claimed[i] = true
         const before = folded.slice(Math.max(0, span.start - 48), span.start)
-        const soloAfterNeg =
-          SOLO_CUE.test(before) &&
-          before.search(SOLO_CUE) > (before.search(NEGATION_CUE) ?? -1)
-        if (NEGATION_CUE.test(before) && !soloAfterNeg) negated.add(zone.id)
-        else positive.add(zone.id)
+        const soloAt = before.search(SOLO_CUE)
+        const negInBefore = before.search(NEGATION_CUE)
+        // «só Y» depois da negação e sem a própria negação colada a Y → positivo.
+        if (soloAt >= 0 && (negInBefore < 0 || soloAt > negInBefore) && negAt >= 0 && span.start > negAt) {
+          // Se o «só» está imediatamente sob «não quero só» (sem zona entre neg e só),
+          // a zona continua negada.
+          const between = folded.slice(negAt, span.start)
+          if (/n[aã]o\s+(?:quero|preciso|gostaria|aceito)(?:\s+mais)?\s+(?:so|apenas)\s*$/i.test(between.trimEnd())) {
+            negated.add(zone.id)
+          } else {
+            positive.add(zone.id)
+          }
+        } else if (NEGATION_CUE.test(before)) {
+          negated.add(zone.id)
+        } else {
+          positive.add(zone.id)
+        }
       }
     }
   }
@@ -135,14 +152,22 @@ export function classifyVariantPolarity(
  * Conjunto efectivo após polaridade (D3).
  * - Com «só»/«apenas» e positivos → só os positivos.
  * - Com negação → prior − negados, depois une positivos (se houver).
- * - Sem polaridade → null (caller usa o parser habitual).
+ * - Sem polaridade **ou sem zona casada** → null (parser habitual / leftover).
  */
 export function resolvePolarityVariantIds(
   polarity: VariantPolarity,
   priorIds: readonly string[] | null,
 ): string[] | null {
   if (!polarity.hasNegation && !polarity.solo) return null
-  if (polarity.solo && polarity.positiveIds.length > 0) {
+  // Cue sem zona («só amanhã», «quero tirar uma dúvida») → não engolir o turno.
+  if (polarity.negatedIds.length === 0 && polarity.positiveIds.length === 0) {
+    return null
+  }
+  if (polarity.solo && polarity.positiveIds.length > 0 && !polarity.hasNegation) {
+    return [...polarity.positiveIds]
+  }
+  if (polarity.solo && polarity.positiveIds.length > 0 && polarity.hasNegation) {
+    // «não quero X, só Y» — o solo dos positivos vence o conjunto.
     return [...polarity.positiveIds]
   }
   const prior = priorIds?.length ? [...priorIds] : []

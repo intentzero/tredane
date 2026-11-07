@@ -82,9 +82,9 @@ export const EXPLICIT_ABANDON_RE = new RegExp(
     String.raw`\bdeixa\s+(?:estar|pra\s+l[aá]|para\s+l[aá]|assim)\b`,
     String.raw`^(?:ok[,.\s!]*)?deixa[.!?\s]*$`,
     String.raw`\bpor\s+agora\s+n[aã]o\b`,
-    // Bare «não quero» / «não quero mais|agora» no fim. «não quero pernas, só
-    // axila» é correção de variante (D3 / PR-D), não abandono A.
-    String.raw`\bn[aã]o\s+quero(?:\s+(?:mais|agora))?[\s.!?…]*$`,
+    // Bare «não quero» / mais|agora|agendar|marcar; ou «não quero, obrigada».
+    // «não quero pernas, só axila» é correção de variante (D3), não abandono A.
+    String.raw`\bn[aã]o\s+quero(?:\s+(?:mais|agora|agendar|marcar))?(?:[\s.!?…]*$|\s*[,!]+\s*(?:obrigad[oa]|valeu|tchau)[\s.!?…]*$)`,
     String.raw`\b(?:desisto|desistir)\b`,
     String.raw`\bvou\s+pensar\b`,
     String.raw`\b(?:podes?\s+)?encerrar(?:\s+a\s+sess[aã]o)?\b`,

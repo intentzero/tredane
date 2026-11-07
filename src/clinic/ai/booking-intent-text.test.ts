@@ -38,6 +38,21 @@ describe('classifyVariantPolarity — D3', () => {
     expect(p.solo).toBe(false)
     expect(resolvePolarityVariantIds(p, ['z_ax'])).toBeNull()
   })
+
+  it('cue sem zona («só amanhã») não engole o turno', () => {
+    const p = classifyVariantPolarity('só amanhã', zones)
+    expect(p.solo).toBe(true)
+    expect(p.positiveIds).toEqual([])
+    expect(resolvePolarityVariantIds(p, ['z_ax', 'z_pe'])).toBeNull()
+  })
+
+  it('«não quero só pernas» nega pernas (só sob a negação)', () => {
+    const p = classifyVariantPolarity('não quero só pernas', zones)
+    expect(p.hasNegation).toBe(true)
+    expect(p.negatedIds).toEqual(['z_pe'])
+    expect(p.positiveIds).toEqual([])
+    expect(resolvePolarityVariantIds(p, ['z_ax', 'z_pe'])).toEqual(['z_ax'])
+  })
 })
 
 describe('isCatalogInfoAsk — D4', () => {

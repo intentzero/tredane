@@ -265,6 +265,8 @@ describe('classifySensitive — desistência educada (DEC-147)', () => {
     'obrigado',
     'tchau',
     'não quero',
+    'não quero agendar',
+    'não quero, obrigada',
     'desisto',
     'por agora não',
     'vou pensar',
