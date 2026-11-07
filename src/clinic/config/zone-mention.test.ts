@@ -279,6 +279,15 @@ describe('nome do serviço ≠ variante (Paulo 07/11/2026)', () => {
       expect(got.zones, text).toEqual([])
     }
   })
+
+  it('«outra» / «outro» e despedida não são sobra unrecognized', () => {
+    for (const text of ['Outra', 'outro', 'Ok tchau', 'tchau', 'obrigado', 'vlw']) {
+      const got = resolveZoneMention(text, massagemZones, ignore)
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.leftover, text).toBeNull()
+      expect(got.zones, text).toEqual([])
+    }
+  })
 })
 
 describe('textNamesMixAudiences (CF-43)', () => {

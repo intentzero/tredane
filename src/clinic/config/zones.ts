@@ -833,6 +833,15 @@ const ZONE_MENTION_STOP = new Set([
   'uns',
   'umas',
   'servico',
+  // «outra»/«outro» não é variante nem troca de serviço (Paulo 07/11/2026).
+  'outra',
+  'outro',
+  // Despedida / fecho — não disparam «Não encontrei tchau…».
+  'tchau',
+  'adeus',
+  'flw',
+  'vlw',
+  'bye',
 ])
 
 /**

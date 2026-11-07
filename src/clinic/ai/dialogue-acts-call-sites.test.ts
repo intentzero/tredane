@@ -103,9 +103,9 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^A equipe confirma o valor\.$/,
   /^Não dá para juntar masculino e feminino na mesma visita\. Quer escolher só um dos dois\?$/,
   /^Não encontrei esse procedimento por aqui\. Quer ver as opções que temos\?$/,
-  // #509 / prática 1 — zona citada sem match único (copy proposta)
-  /^Não encontrei \$\{palavra\} nas opções\. Quer \$\{lista\} ou outra\?$/,
-  /^Não encontrei cotovelo nas opções\. Quer Axila, Pernas ou outra\?$/,
+  // #509 / prática 1 — zona citada sem match único (Paulo 07/11/2026: sem «ou outra?»)
+  /^Não encontrei \$\{palavra\} nas opções\. Quer \$\{lista\}\?$/,
+  /^Não encontrei cotovelo nas opções\. Quer Axila, Pernas\?$/,
   /^Nossas opções mudaram\. Pode dizer de novo qual serviço e opção você quer\?$/,
   /^Não consegui fechar \$\{serviceName\} às \$\{time\} agora\. A equipe confirma em seguida\.$/,
   /^\$\{serviço\} feminina ou masculina\?$/,
