@@ -9,18 +9,29 @@ import { resolveZoneMention, zonesNamedInText } from '../config/zones'
 import type { AudienceLine } from './variant-line'
 
 /**
- * «Tudo» / «todas» / «completo» = todas as variantes activas do âmbito.
- * «As duas» / «as três» só quando o âmbito tem mesmo esse número de nomes.
+ * «Tudo» / «todas» / «todos» / «completo» = todas as variantes activas do âmbito,
+ * no turno que o diz. «As duas» / «as três» só quando o âmbito tem mesmo esse número.
  * Com mais variantes, não puxa o resto do catálogo (DEC-078 / DEC-090).
  */
 const WHOLE_CATALOG_CHOICE = /\b(tudo|todas|todos|completo|completa)\b/i
 const COUNTED_CATALOG_CHOICE = /\bas\s+(duas|tres|tr[eê]s)\b/i
+/**
+ * Cumprimento. O «tudo» destas colocações não é «todas as variantes».
+ * O texto já vem dobrado (sem acento, minúsculas): «jóia» → joia, «ótimo» → otimo.
+ */
+const GREETING_TUDO = /\btudo\s+(?:bem|bom|certo|joia|otimo)\b/gi
 /** Lista para a cliente escolher. Não é o conjunto da visita. */
 const ZONE_MENU =
   /\b(temos|opcoes|opcao)\b|\bqual\b[^?.!]{0,40}\b(zona|regiao|regioes)\b/i
 
 function fold(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
+/** Tira «tudo bem / tudo bom / tudo certo / tudo jóia / tudo ótimo». O resto do texto fica. */
+function withoutGreetingTudo(folded: string): string {
+  // Regex nova: a global partilhada guardaria lastIndex entre chamadas.
+  return folded.replace(new RegExp(GREETING_TUDO.source, 'gi'), ' ')
 }
 
 function editDistanceAtMostOne(a: string, b: string): boolean {
@@ -93,9 +104,13 @@ function countedCatalogSize(text: string): number | null {
   return match[1] === 'duas' ? 2 : 3
 }
 
-/** «Tudo» / «todas» / «completo» no texto da cliente. «As duas» não entra. */
+/**
+ * «Tudo» / «todas» / «completo» no texto da cliente. «As duas» não entra.
+ * Cumprimento («tudo bem», «tudo bom», «tudo certo», «tudo jóia», «tudo ótimo»)
+ * também não — com o serviço a aceitar uma variante ou várias.
+ */
 export function claimsWholeCatalog(text: string): boolean {
-  return WHOLE_CATALOG_CHOICE.test(fold(text))
+  return WHOLE_CATALOG_CHOICE.test(withoutGreetingTudo(fold(text)))
 }
 
 /**
@@ -125,8 +140,9 @@ export function zonesOfferedToClient(
  * Zonas escolhidas pela cliente nos textos (mais novos primeiro).
  * Nome explícito, sinónimo (DEC-110) e plural leve (#509) no âmbito passado.
  * Sobra sem match único → vazio (pergunta; sem descarte silencioso).
- * «Tudo» devolve o âmbito inteiro. «As duas» / «as três» só quando o âmbito
- * tem esse tamanho. Nome ambíguo → ambiguous.
+ * «Tudo» / «todas» / «completo» devolve o âmbito inteiro. Cumprimento
+ * («tudo bem» e equivalentes) não — nem nesta bolha, nem numa anterior.
+ * «As duas» / «as três» só quando o âmbito tem esse tamanho. Nome ambíguo → ambiguous.
  */
 export function zonesChosenInClientTexts(
   texts: readonly string[],
@@ -135,9 +151,9 @@ export function zonesChosenInClientTexts(
 ): { zones: ServiceZoneRow[]; ambiguous: boolean } {
   if (zones.length === 0) return { zones: [], ambiguous: false }
   for (const text of texts) {
-    const folded = fold(text)
     // «Tudo» / «as duas» antes do matcher de nomes — «duas» não é sobra de zona.
-    if (WHOLE_CATALOG_CHOICE.test(folded)) return { zones: [...zones], ambiguous: false }
+    // Cumprimento em claimsWholeCatalog: não depende de o serviço aceitar uma ou várias.
+    if (claimsWholeCatalog(text)) return { zones: [...zones], ambiguous: false }
     const counted = countedCatalogSize(text)
     if (counted != null && distinctZoneNames(zones) === counted) {
       return { zones: [...zones], ambiguous: false }

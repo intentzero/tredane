@@ -6,6 +6,7 @@
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo (clínica aberta 09:00–18:00).
  */
 import { listServices, replaceServiceZonesOp, setServiceActiveOp, upsertServiceOp } from '../../../config'
+import { getScheduleSession } from '../../schedule-session'
 import type { DialogCase } from './runner'
 
 const ZONAS_FEM = { serviceKey: 'depilacao' as const, line: 'feminino' as const, zones: ['Axila', 'Pernas'] }
@@ -400,6 +401,76 @@ export const FL_DIALOG_CASES: DialogCase[] = [
           turn: 0,
           matches: [/tipos?/i, /Liberação miofascial/i],
           excludes: [HUB_OPENING, /Não encontrei/i, /O que você precisa\?/],
+        },
+      ],
+    },
+  },
+  {
+    id: 'FL-20',
+    title: '«Oi tudo bem?» não escolhe todas as variantes da Massagem',
+    turnosIdeais: 2,
+    flow: true,
+    // Cumprimento («tudo bem») não é o atalho do catálogo. O pedido seguinte
+    // pergunta o tipo. Sem eco «Entendi:» do conjunto e sem «Abrir opções» (DEC-144).
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('FL-20: serviço Massagem ausente')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Oi tudo bem?' },
+      { role: 'client', text: 'Quero agendar uma massagem' },
+      {
+        role: 'owner',
+        note: 'sessão sem variante fechada (o cumprimento não escolheu o catálogo)',
+        act: (s) => {
+          const session = getScheduleSession(s.db, s.tenantId, s.conversationId)
+          if (session?.variantIds && session.variantIds.length > 0) {
+            throw new Error(
+              `FL-20: variantIds inesperados ${JSON.stringify(session.variantIds)} — cumprimento não escolhe variantes`,
+            )
+          }
+        },
+      },
+    ],
+    expect: {
+      flowOffers: 1,
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [HUB_OPENING, /O que você precisa\?/] },
+        {
+          turn: 1,
+          matches: [/tipos?/i, /Liberação miofascial/i, /Ventosaterapia/i, /Drenagem linfática/i, /Massagem relaxante/i],
+          excludes: [/Entendi:/i, HUB_OPENING, /O que você precisa\?/, /Não encontrei/i, /Abrir opções/],
         },
       ],
     },
