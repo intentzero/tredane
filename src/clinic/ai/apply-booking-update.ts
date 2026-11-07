@@ -120,21 +120,39 @@ function sortedKey(ids: readonly string[] | null | undefined): string {
   return [...(ids ?? [])].sort().join('\0')
 }
 
+/**
+ * Monta o patch de slots. Por omissão **não** carimba `source`/`sourceMessageId`:
+ * o `saveSession` legado também não o fazia, e um carimbo «regra/botao» aqui
+ * apagava a proveniência `flow` gravada pelo nfm_reply (ADR-0016 / #613 CI).
+ * Só o extrator (`stamp: true`) carimba `llm`.
+ */
 function basePatch(
   input: ApplyBookingUpdateInput,
   extra: BookingFramePatch = {},
+  opts?: { stamp?: boolean; includeServiceId?: boolean },
 ): BookingFramePatch {
   const patch: BookingFramePatch = { ...extra }
-  if (input.serviceId !== undefined && input.serviceId !== null) {
-    patch.serviceId = input.serviceId
+  const writing = Object.keys(extra).length > 0 || opts?.includeServiceId === true
+  if (!writing && !opts?.stamp) return patch
+
+  if (
+    opts?.includeServiceId === true ||
+    (writing && input.serviceId != null && input.frame?.serviceId !== input.serviceId)
+  ) {
+    if (input.serviceId != null) patch.serviceId = input.serviceId
   }
-  if (input.catalogVersion) patch.catalogVersion = input.catalogVersion
-  if (input.evidence.sourceMessageId) patch.sourceMessageId = input.evidence.sourceMessageId
-  if (input.evidence.source === 'extractor') patch.source = 'llm'
-  else if (input.evidence.source === 'button') patch.source = 'botao'
-  else if (input.evidence.source === 'flow') patch.source = 'flow'
-  else if (input.evidence.source === 'text' || input.evidence.source === 'regra') {
-    patch.source = 'regra'
+  if (writing && input.catalogVersion) patch.catalogVersion = input.catalogVersion
+
+  if (opts?.stamp) {
+    if (input.serviceId != null) patch.serviceId = input.serviceId
+    if (input.catalogVersion) patch.catalogVersion = input.catalogVersion
+    if (input.evidence.sourceMessageId) patch.sourceMessageId = input.evidence.sourceMessageId
+    if (input.evidence.source === 'extractor') patch.source = 'llm'
+    else if (input.evidence.source === 'button') patch.source = 'botao'
+    else if (input.evidence.source === 'flow') patch.source = 'flow'
+    else if (input.evidence.source === 'text' || input.evidence.source === 'regra') {
+      patch.source = 'regra'
+    }
   }
   return patch
 }
@@ -161,10 +179,10 @@ function admitVariants(
   }
 
   // #575: sobra por resolver bloqueia proposta e NÃO limpa o conjunto já
-  // resolvido — mesmo com hora casada na lista.
+  // resolvido — mesmo com hora casada na lista. Patch vazio = preservar.
   if (intent.unrecognized && intent.zoneEcho !== 'skip') {
     return {
-      patch: basePatch(input),
+      patch: {},
       proposalConfirm: 'none',
       blockProposal: true,
       resolvedVariantIds: prior,
@@ -176,7 +194,8 @@ function admitVariants(
   if (intent.zoneEcho === 'confirm') {
     const locked = Boolean(prior?.length)
     return {
-      patch: locked ? basePatch(input, { variantIds: prior }) : basePatch(input),
+      // Quadro já tem o conjunto; não reescrever (preserva provenance flow).
+      patch: {},
       proposalConfirm: 'none',
       blockProposal: !locked,
       resolvedVariantIds: locked ? prior : null,
@@ -188,7 +207,7 @@ function admitVariants(
   if (intent.mentionedIds.length > 0) {
     if (!allowsMultipleVariants(intent.selectionMode) && intent.mentionedIds.length > 1) {
       return {
-        patch: basePatch(input),
+        patch: {},
         proposalConfirm: 'none',
         blockProposal: true,
         resolvedVariantIds: null,
@@ -198,7 +217,7 @@ function admitVariants(
     }
     if (intent.ambiguous) {
       return {
-        patch: basePatch(input),
+        patch: {},
         proposalConfirm: 'none',
         blockProposal: true,
         resolvedVariantIds: null,
@@ -219,7 +238,8 @@ function admitVariants(
 
   if (prior?.length) {
     return {
-      patch: basePatch(input, { variantIds: prior }),
+      // Preservar = não gravar de novo (evita carimbar source sobre o Flow).
+      patch: {},
       proposalConfirm: 'none',
       blockProposal: false,
       resolvedVariantIds: prior,
@@ -229,7 +249,7 @@ function admitVariants(
   }
 
   return {
-    patch: basePatch(input),
+    patch: {},
     proposalConfirm: 'none',
     blockProposal: true,
     resolvedVariantIds: null,
@@ -246,15 +266,10 @@ function admitTemporal(
   // aberta; Confirmar dessa proposta continua válido.
   if (intent.vacancy === 'unavailable') {
     const restore = intent.openProposalClock
-    const patch = basePatch(input)
-    if (restore) {
-      patch.date = restore.date
-      patch.time = restore.time
-    }
-    // Sem restore: omitir date/time = preservar o quadro actual (não gravar a
-    // hora pedida sem vaga).
     return {
-      patch,
+      patch: restore
+        ? basePatch(input, { date: restore.date, time: restore.time })
+        : {},
       proposalConfirm: 'none',
       blockProposal: true,
       resolvedVariantIds: input.frame?.variantIds ?? null,
@@ -263,22 +278,13 @@ function admitTemporal(
     }
   }
 
-  const patch = basePatch(input)
-  let wrote = false
-  if (intent.date !== undefined) {
-    patch.date = intent.date
-    wrote = true
-  }
-  if (intent.period !== undefined) {
-    patch.period = intent.period
-    wrote = true
-  }
-  if (intent.time !== undefined) {
-    patch.time = intent.time
-    wrote = true
-  }
+  const extra: BookingFramePatch = {}
+  if (intent.date !== undefined) extra.date = intent.date
+  if (intent.period !== undefined) extra.period = intent.period
+  if (intent.time !== undefined) extra.time = intent.time
+  const wrote = Object.keys(extra).length > 0
   return {
-    patch,
+    patch: wrote ? basePatch(input, extra) : {},
     proposalConfirm: 'none',
     blockProposal: false,
     resolvedVariantIds: input.frame?.variantIds ?? null,
@@ -312,53 +318,51 @@ function extractorFill(
 ): ApplyBookingUpdateResult {
   const frame = input.frame
   const c = intent.candidates
-  const patch = basePatch(input)
+  const extra: BookingFramePatch = {}
   let dirty = false
 
   // #578: só preenche campo vazio. Evidência na frase já foi gate no validador;
   // aqui o actualizador recusa sobrescrever.
   if (!frame?.serviceId && c.serviceId) {
-    patch.serviceId = c.serviceId
+    extra.serviceId = c.serviceId
     dirty = true
-  } else if (frame?.serviceId || input.serviceId) {
-    // Mantém o serviço já no quadro / passado pelo caller; não marca dirty.
-    patch.serviceId = frame?.serviceId ?? input.serviceId!
   }
-
   if (!frame?.line && c.line) {
-    patch.line = c.line
+    extra.line = c.line
     dirty = true
   }
   if ((!frame?.variantIds || frame.variantIds.length === 0) && c.variantIds?.length) {
-    patch.variantIds = c.variantIds
+    extra.variantIds = c.variantIds
     dirty = true
   }
   if (!frame?.date && c.date) {
-    patch.date = c.date
+    extra.date = c.date
     dirty = true
   }
   if (!frame?.period && c.period) {
-    patch.period = c.period
+    extra.period = c.period
     dirty = true
   }
   if (!frame?.time && c.time) {
-    patch.time = c.time
+    extra.time = c.time
     dirty = true
   }
   if (!frame?.professionalPref && c.professionalPref) {
-    patch.professionalPref = c.professionalPref
+    extra.professionalPref = c.professionalPref
     dirty = true
   }
   if (dirty && (frame?.phase === 'idle' || !frame)) {
-    patch.phase = 'coletando'
+    extra.phase = 'coletando'
   }
 
   return {
-    patch: dirty ? patch : basePatch(input),
+    patch: dirty
+      ? basePatch(input, extra, { stamp: true, includeServiceId: true })
+      : {},
     proposalConfirm: 'none',
     blockProposal: false,
     resolvedVariantIds:
-      (dirty && patch.variantIds) || frame?.variantIds || null,
+      (dirty && extra.variantIds) || frame?.variantIds || null,
     reason: 'extractor_empty_only',
     leftover: null,
   }
@@ -390,7 +394,7 @@ export function applyBookingUpdate(input: ApplyBookingUpdateInput): ApplyBooking
       return extractorFill(input, intent)
     case 'set_service':
       return {
-        patch: basePatch(input, { serviceId: intent.serviceId }),
+        patch: basePatch(input, { serviceId: intent.serviceId }, { includeServiceId: true }),
         proposalConfirm: 'none',
         blockProposal: false,
         resolvedVariantIds: null,
@@ -410,7 +414,7 @@ export function applyBookingUpdate(input: ApplyBookingUpdateInput): ApplyBooking
       const _exhaustive: never = intent
       void _exhaustive
       return {
-        patch: basePatch(input),
+        patch: {},
         proposalConfirm: 'none',
         blockProposal: false,
         resolvedVariantIds: input.frame?.variantIds ?? null,

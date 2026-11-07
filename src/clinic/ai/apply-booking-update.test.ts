@@ -59,7 +59,8 @@ describe('applyBookingUpdate — #575 partícula/hora ≠ zona; sobra não apaga
     })
     expect(r.reason).toBe('variants_preserved')
     expect(r.blockProposal).toBe(false)
-    expect(r.patch.variantIds).toEqual(['z_ax', 'z_pe', 'z_to'])
+    // Patch vazio: não reescreve nem carimba source (preserva provenance flow).
+    expect(r.patch).toEqual({})
     expect(r.resolvedVariantIds).toEqual(['z_ax', 'z_pe', 'z_to'])
   })
 
@@ -117,6 +118,7 @@ describe('applyBookingUpdate — #579 excepção «hora já casada»', () => {
     })
     expect(r.reason).toBe('echo_locked')
     expect(r.blockProposal).toBe(false)
+    expect(r.patch).toEqual({})
     expect(r.resolvedVariantIds).toEqual(['z_ax', 'z_pe', 'z_to'])
   })
 })
