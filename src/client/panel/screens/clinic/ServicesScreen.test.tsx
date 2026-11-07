@@ -350,7 +350,7 @@ describe('ServiceForm — catálogo de variantes', () => {
       { upsertService } as unknown as Partial<PanelApi>,
     )
     fireEvent.click(screen.getByRole('radio', { name: /Escolhe uma opção/ }))
-    expect(screen.getByText(/ainda tem combo activo/)).toBeTruthy()
+    expect(screen.getByText(/ainda tem combo ativo/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() =>
       expect(screen.getByText(/Desactive o combo «Buço \+ axila»/)).toBeTruthy(),
