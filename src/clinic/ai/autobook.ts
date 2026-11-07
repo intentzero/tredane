@@ -90,8 +90,10 @@ import {
   audienceLineQuestion,
   needsAudienceLine,
   stableVariantLabelList,
+  variantKindForAsk,
   variantListQuestion,
   variantTipoWord,
+  whichKind,
   zonesForAudienceLine,
 } from './variant-line'
 import { extractDates, extractTimes, norm } from './nlu/temporal'
@@ -454,6 +456,7 @@ function zonesChosenByClient(
 /**
  * Pergunta as variantes com hora já conhecida (`perguntar_variantes` + `{hora}`).
  * `phrase` legado («as zonas» / «a zona») só entra no fallback; `{tipo}` vem do kind.
+ * DEC-145: `selectionMode=uma` escolhe redação singular (sem «Pode ser mais de uma»).
  */
 export function askZonesReply(
   phrase: string,
@@ -461,12 +464,18 @@ export function askZonesReply(
   time: string,
   conversationId = '',
   variantKind?: string | null,
+  selectionMode?: ServiceRow['variantSelection'],
 ): string {
   const list = zoneNames.join(', ')
+  const single = selectionMode === 'uma'
   const tipo =
     variantKind != null
       ? variantTipoWord(variantKind)
-      : phrase.replace(/^(as|a)\s+/i, '').trim().toLocaleLowerCase('pt-BR') || 'opções'
+      : phrase.replace(/^(as|a|o)\s+/i, '').trim().toLocaleLowerCase('pt-BR') || (single ? 'opção' : 'opções')
+  // DEC-145: catálogo M4 é plural; modo `uma` usa singular directo (máx. 5 redações/ato).
+  if (single) {
+    return `Para fechar às ${time}, ${whichKind(variantKind ?? '')} você quer? Temos ${list}.`
+  }
   const fallback = `Para fechar às ${time}, me diga ${phrase}: ${list}. Pode ser mais de uma.`
   return sayAct(
     'perguntar_variantes',
@@ -1039,6 +1048,8 @@ export async function tryAiAutoBook(
         ? { zones: sessionIntact ? sessionZones : [], ambiguous: false }
         : zonesChosenByClient(clientTurn, older, mentionPool, det.service)
       let kept = chosen.zones
+      // DEC-145 / staging: «tem»/«feira» na stop-list — pergunta de dia não dispara
+      // «Não encontrei …» nem reaponta tipos com a variante já travada.
       const leftoverAsk =
         mention.unrecognized && zoneEcho !== 'skip' && zoneEcho !== 'confirm' && zoneEcho !== 'correct'
       if (zoneEcho === 'correct') {
@@ -1099,8 +1110,18 @@ export async function tryAiAutoBook(
       if (!(date && time && kept.length > 0 && !chosen.ambiguous && contributed)) {
         const plural = det.service.variantKindPlural?.trim() || ''
         const singular = det.service.variantKind?.trim() || ''
-        const kindLabel = (plural || singular || DEFAULT_OPTION_KIND_PLURAL).toLocaleLowerCase('pt-BR')
-        const earlyPhrase = plural || !singular ? `as ${kindLabel}` : `a ${kindLabel}`
+        const kindLabel = (
+          multiVariants
+            ? plural || singular || DEFAULT_OPTION_KIND_PLURAL
+            : singular || plural || 'opção'
+        ).toLocaleLowerCase('pt-BR')
+        const earlyPhrase = multiVariants
+          ? plural || !singular
+            ? `as ${kindLabel}`
+            : `a ${kindLabel}`
+          : /^[aeiouáéíóúàâêôãõ]/i.test(kindLabel)
+            ? `a ${kindLabel}`
+            : `o ${kindLabel}`
         // Mesmo filtro da Opções (#497 / DEC-079): com linha travada, não casar
         // homónimos F+M no catálogo completo — senão «Axila e pernas» após Feminina
         // dispara recusar_mistura em falso.
@@ -1120,14 +1141,22 @@ export async function tryAiAutoBook(
         } else if (active.length > 0 && (leftoverAsk || kept.length === 0 || chosen.ambiguous)) {
           const zonePool = pool.length > 0 ? pool : active
           const names = stableVariantLabelList(zonePool)
-          const kind = det.service.variantKindPlural || det.service.variantKind
+          const kind = variantKindForAsk(det.service)
           const genericAsk = time
-            ? askZonesReply(earlyPhrase, names, time, input.conversationId, kind)
+            ? askZonesReply(
+                earlyPhrase,
+                names,
+                time,
+                input.conversationId,
+                kind,
+                det.service.variantSelection,
+              )
             : variantListQuestion(
                 det.service.name,
                 kind,
                 zonePool,
                 input.conversationId,
+                { selectionMode: det.service.variantSelection },
               )
           replyText = mention.unrecognized
             ? askUnrecognizedZone(mention, zonePool, genericAsk)
@@ -1335,9 +1364,10 @@ export async function tryAiAutoBook(
             const zoneNames = zonePool.length > 0 ? zonePool : active
             replyText = variantListQuestion(
               svc.name,
-              svc.variantKindPlural || svc.variantKind,
+              variantKindForAsk(svc),
               zoneNames,
               input.conversationId,
+              { selectionMode: svc.variantSelection },
             )
             interactive = variantChoiceFor(
               deferred,
@@ -1385,9 +1415,10 @@ export async function tryAiAutoBook(
               booking.question ??
               variantListQuestion(
                 svc.name,
-                svc.variantKindPlural || svc.variantKind,
+                variantKindForAsk(svc),
                 zonePool,
                 input.conversationId,
+                { selectionMode: svc.variantSelection },
               )
             interactive = variantChoiceFor(
               deferred,
@@ -1416,9 +1447,10 @@ export async function tryAiAutoBook(
                 zonePool,
                 variantListQuestion(
                   svc.name,
-                  svc.variantKindPlural || svc.variantKind,
+                  variantKindForAsk(svc),
                   zonePool,
                   input.conversationId,
+                  { selectionMode: svc.variantSelection },
                 ),
               )
               interactive = variantChoiceFor(
@@ -1645,9 +1677,20 @@ export async function tryAiAutoBook(
   }
   const plural = svc.variantKindPlural?.trim() || ''
   const singular = svc.variantKind?.trim() || ''
-  const kind = (plural || singular || DEFAULT_OPTION_KIND_PLURAL).toLocaleLowerCase('pt-BR')
-  const phrase = plural || !singular ? `as ${kind}` : `a ${kind}`
-  const kindForAct = svc.variantKindPlural || svc.variantKind
+  const multiSvc = allowsMultipleVariants(svc.variantSelection)
+  const kind = (
+    multiSvc
+      ? plural || singular || DEFAULT_OPTION_KIND_PLURAL
+      : singular || plural || 'opção'
+  ).toLocaleLowerCase('pt-BR')
+  const phrase = multiSvc
+    ? plural || !singular
+      ? `as ${kind}`
+      : `a ${kind}`
+    : /^[aeiouáéíóúàâêôãõ]/i.test(kind)
+      ? `a ${kind}`
+      : `o ${kind}`
+  const kindForAct = variantKindForAsk(svc)
   if (activeZones.length > 0 && (namedZones.length === 0 || ambiguous)) {
     const zonePool = scoped.length > 0 ? scoped : activeZones
     const names = stableVariantLabelList(zonePool)
@@ -1662,9 +1705,16 @@ export async function tryAiAutoBook(
         durationMinutes: z.durationMinutes,
         priceCents: z.priceCents,
       })),
-      { includeTodas: allowsMultipleVariants(svc.variantSelection) },
+      { includeTodas: multiSvc },
     )
-    const genericAsk = askZonesReply(phrase, names, time, input.conversationId, kindForAct)
+    const genericAsk = askZonesReply(
+      phrase,
+      names,
+      time,
+      input.conversationId,
+      kindForAct,
+      svc.variantSelection,
+    )
     return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
@@ -1736,6 +1786,7 @@ export async function tryAiAutoBook(
               time,
               input.conversationId,
               kindForAct,
+              svc.variantSelection,
             )
           : teamConfirmsSoonReply(svc.name, time, input.conversationId),
       notes:

@@ -43,6 +43,7 @@ import {
 import {
   audienceLineQuestion,
   needsAudienceLine,
+  variantKindForAsk,
   variantListQuestion,
   zonesForAudienceLine,
 } from './variant-line'
@@ -550,7 +551,9 @@ export function catalogReply(
 
   if (active.length > 0 && named.length === 0 && (asksPrice || openPeriod || lineOnly)) {
     const pool = scoped.length > 0 ? scoped : active
-    return variantListQuestion(svc.name, svc.variantKindPlural || svc.variantKind, pool, cnv)
+    return variantListQuestion(svc.name, variantKindForAsk(svc), pool, cnv, {
+      selectionMode: svc.variantSelection,
+    })
   }
 
   if (asksPrice && named.length === 1) {
