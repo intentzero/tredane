@@ -50,6 +50,15 @@ export function buildComment({ latest, comparison, changed, runFailed }) {
   const verdict = comparison?.verdict ?? (runFailed ? 'bloqueia' : 'igual')
   const [icon, label] = VERDICT[verdict] ?? ['', verdict]
   out.push(`**${icon} ${label}**`, '')
+  if (comparison) {
+    const sha = String(comparison.baselineCommit ?? '').replace('+dirty', '').slice(0, 7)
+    out.push(
+      comparison.baselineSource === 'base'
+        ? `_Comparado com uma corrida da branch base${sha ? ` (\`${sha}\`)` : ''}: só aparece o que este PR muda._`
+        : `_Comparado com a linha de base gravada${sha ? ` (\`${sha}\`)` : ''}: pode estar atrás da \`main\` e mostrar mudanças de outros PRs._`,
+      '',
+    )
+  }
   out.push(
     `Casos: **${k.casesPassed}/${k.casesExecuted}** passam · ${k.casesKnownFailure} falha(s) conhecida(s) · ` +
       `${k.casesPending} pendente(s) · ${k.casesCovered} coberto(s) fora · invariantes violadas: **${k.invViolations}**`,

@@ -5,6 +5,9 @@
  *   EVAL_SCORECARD=1          grava `.eval/l1-latest.json` e compara com a linha de base
  *   EVAL_SCORECARD_RECORD=1   além disso, substitui a linha de base e acrescenta ao histórico
  *   EVAL_STRICT=1             falha também em regressão informativa (não só em gate)
+ *   EVAL_BASELINE_PATH=ficheiro   compara com outro scorecard (o CI usa uma corrida da `main`,
+ *                             para a comparação não atribuir ao PR os casos que outros
+ *                             acrescentaram depois da linha de base gravada). Só compara.
  *
  * Sem variáveis, nada é escrito (CI normal intacto).
  */
@@ -118,10 +121,16 @@ export function emitL1Scorecard(
 
   let comparison: Comparison | null = null
   const parts = ['', '══ Scorecard L1 ══', formatKpis(scorecard.kpis)]
-  if (existsSync(BASELINE_PATH)) {
-    const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8')) as Scorecard
+  const override = env.EVAL_BASELINE_PATH ? resolve(process.cwd(), env.EVAL_BASELINE_PATH) : null
+  const useOverride = override != null && existsSync(override)
+  const comparePath = useOverride ? override : BASELINE_PATH
+  if (existsSync(comparePath)) {
+    const baseline = JSON.parse(readFileSync(comparePath, 'utf8')) as Scorecard
     comparison = compareScorecards(baseline, scorecard)
-    writeFileSync(COMPARISON_PATH, `${JSON.stringify(comparison, null, 2)}\n`)
+    writeFileSync(
+      COMPARISON_PATH,
+      `${JSON.stringify({ ...comparison, baselineSource: useOverride ? 'base' : 'gravada' }, null, 2)}\n`,
+    )
     parts.push('', formatComparison(comparison))
   } else {
     parts.push('', 'Sem linha de base: corra `npm run eval:baseline` para a criar.')
@@ -129,7 +138,11 @@ export function emitL1Scorecard(
 
   // A linha de base é «a última versão aceite»: nunca grava uma corrida parcial,
   // com casos a falhar ou com regressão em gate (senão aprovava a própria regressão).
-  const refusal = record ? recordRefusal(scorecard, comparison, expectedTotal) : null
+  const refusal = record
+    ? useOverride
+      ? 'EVAL_BASELINE_PATH está definido (serve só para comparar)'
+      : recordRefusal(scorecard, comparison, expectedTotal)
+    : null
   if (record && refusal) {
     parts.push('', `Linha de base NÃO atualizada: ${refusal}.`)
   } else if (record) {
