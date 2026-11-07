@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button, Input, Label, NumberField, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components'
-import { ChevronRight, TriangleAlert } from 'lucide-react'
+import { Check, ChevronRight, Minus, TriangleAlert } from 'lucide-react'
 import { suggestVariantKindPlural } from '../../../../clinic/catalog/variant-kind'
 import { ComboCatalog, type ComboDraft } from './ComboCatalog'
 import { VariantCatalog, type ZoneDraft } from './VariantCatalog'
@@ -428,6 +428,39 @@ export function ServiceForm({
     }
   }
 
+  const missingPrice = withVariants
+    ? zones.filter((z) => z.active && parsePriceToCents(z.price) == null).length
+    : 0
+  const readiness: {
+    text: string
+    state: 'ok' | 'warn' | 'opt'
+    fix?: { label: string; run: () => void }
+  }[] = [
+    proIds.length > 0
+      ? { state: 'ok', text: `${proIds.length} ${proIds.length === 1 ? 'profissional' : 'profissionais'}` }
+      : { state: 'warn', text: 'Nenhuma profissional escolhida: ninguém recebe este serviço.' },
+    space === 'unset' || (space === 'rooms' && roomIds.length === 0)
+      ? { state: 'warn', text: 'Falta dizer onde acontece.' }
+      : space === 'none'
+        ? { state: 'ok', text: 'Não ocupa sala.' }
+        : { state: 'ok', text: `${roomIds.length} ${roomIds.length === 1 ? 'sala' : 'salas'}` },
+    withVariants && zones.filter((z) => z.active).length === 0
+      ? { state: 'warn', text: 'Nenhuma opção em uso: não há marcação nova.' }
+      : missingPrice > 0
+        ? {
+            state: 'warn',
+            text: `${missingPrice} ${missingPrice === 1 ? 'opção sem preço' : 'opções sem preço'}: visitas com elas não têm total.`,
+          }
+        : { state: 'ok', text: 'Preço e duração definidos.' },
+    explanation.trim()
+      ? { state: 'ok', text: 'Explicação para a IA escrita.' }
+      : {
+          state: 'opt',
+          text: 'Explicação para a IA (opcional).',
+          fix: { label: 'Escrever', run: () => setOpenRule('explicacao') },
+        },
+  ]
+
   const occupied = duration + buffer
   const signalBase = signalBaseCents(withVariants, price, zones)
   const hasFemale = zones.some((z) => z.active && z.audience === 'feminino')
@@ -661,52 +694,47 @@ export function ServiceForm({
         <Input autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
       </TextField>
       <SynonymsField
-        label="Sinónimos"
+        label="Sinônimos"
         value={synonyms}
         onChange={setSynonyms}
+        placeholder="Adicionar…"
         hint="Nomes populares do serviço. Só ajudam a entender o pedido; as respostas usam o nome do catálogo."
       />
+      <ClinicCheck className="clinic-check clinic-check-card" isSelected={active} onChange={setActive}>
+        Serviço ativo
+      </ClinicCheck>
       <section className="clinic-stack" aria-labelledby="svc-price">
-        <div className="vc-head">
-          <h2 id="svc-price" className="clinic-section-title">
-            Preço e duração
-          </h2>
-          <RadioGroup
-            className="vc-seg"
-            aria-label="Formato do serviço"
-            orientation="horizontal"
-            value={withVariants ? 'variantes' : 'unica'}
-            onChange={(v) => setWithVariants(v === 'variantes')}
-          >
-            <Radio value="unica" className="vc-seg-item">
-              Opção única
-            </Radio>
-            <Radio value="variantes" className="vc-seg-item">
-              Com variantes
-            </Radio>
-          </RadioGroup>
-        </div>
+        <h2 id="svc-price" className="clinic-section-title">
+          Como a cliente escolhe
+        </h2>
+        <RadioGroup
+          className="svc-format"
+          aria-label="Como a cliente escolhe"
+          value={withVariants ? variantSelection : 'unica'}
+          onChange={(v) => {
+            if (v === 'unica') {
+              setWithVariants(false)
+            } else {
+              setWithVariants(true)
+              setVariantSelection(v === 'uma' ? 'uma' : 'varias')
+            }
+          }}
+        >
+          <Radio value="unica" className="svc-format-item">
+            <strong>Um só serviço</strong>
+            <span>Sempre o mesmo preço e a mesma duração.</span>
+          </Radio>
+          <Radio value="uma" className="svc-format-item">
+            <strong>Escolhe uma opção</strong>
+            <span>Ex.: tipo de massagem. Exatamente uma por visita.</span>
+          </Radio>
+          <Radio value="varias" className="svc-format-item">
+            <strong>Pode juntar opções</strong>
+            <span>Ex.: zonas de depilação. Preço e tempo somam.</span>
+          </Radio>
+        </RadioGroup>
         {withVariants ? (
           <>
-          <RadioGroup
-            className="vc-seg"
-            aria-label="Quantas opções por atendimento"
-            orientation="horizontal"
-            value={variantSelection}
-            onChange={(v) => setVariantSelection(v === 'uma' ? 'uma' : 'varias')}
-          >
-            <Radio value="uma" className="vc-seg-item">
-              Uma opção por atendimento
-            </Radio>
-            <Radio value="varias" className="vc-seg-item">
-              Várias opções por atendimento
-            </Radio>
-          </RadioGroup>
-          <p className="panel-subtitle">
-            {variantSelection === 'uma'
-              ? `Exactamente um${variantKind.trim() ? ` ${variantKind.trim().toLocaleLowerCase('pt-BR')}` : 'a opção'} por visita. Sem combinação nem atalho «tudo».`
-              : `Uma ou mais ${variantKindPlural.trim() ? variantKindPlural.trim().toLocaleLowerCase('pt-BR') : 'opções'} na mesma visita. A cliente pode combinar e dizer «tudo».`}
-          </p>
           <VariantCatalog
             singular={variantKind}
             plural={variantKindPlural}
@@ -877,6 +905,33 @@ export function ServiceForm({
             ? ` e uma sala livre de: ${roomNames.join(', ')}.`
             : '.'}
       </p>
+
+      <section aria-labelledby="svc-ready-t" className="clinic-stack">
+        <h2 id="svc-ready-t" className="clinic-section-title">
+          Pronto para atender
+        </h2>
+        <ul className="svc-ready">
+          {readiness.map((item) => (
+            <li key={item.text} data-state={item.state}>
+              {item.state === 'ok' ? (
+                <Check aria-hidden size={16} />
+              ) : item.state === 'warn' ? (
+                <TriangleAlert aria-hidden size={16} />
+              ) : (
+                <Minus aria-hidden size={16} />
+              )}
+              <span>
+                {item.text}
+                {item.fix ? (
+                  <button type="button" className="svc-ready-fix" onClick={item.fix.run}>
+                    {item.fix.label}
+                  </button>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <div className="rule-list" role="list">
         <RuleRow
@@ -1065,16 +1120,12 @@ export function ServiceForm({
         ) : null}
       </div>
 
-      <ClinicCheck className="clinic-check clinic-check-card" isSelected={active} onChange={setActive}>
-        Serviço ativo
-      </ClinicCheck>
-      <p className="clinic-footnote">Desativar não apaga compromissos já marcados.</p>
       {formError ? (
         <p className="clinic-form-error" role="alert">
           {formError}
         </p>
       ) : null}
-      <div className="clinic-footer-actions">
+      <div className="clinic-footer-actions clinic-footer-sticky">
         <Button
           className="panel-btn panel-btn-ghost clinic-desktop-hide"
           isDisabled={saving}

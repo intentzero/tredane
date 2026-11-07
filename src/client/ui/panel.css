@@ -1470,6 +1470,63 @@
   font-size: var(--font-size-small);
 }
 
+.clinic-footer-sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 0 calc(var(--space-4) * -1);
+  padding: var(--space-3) var(--space-4);
+  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  border-top: var(--size-border-width) solid var(--color-line-border);
+  background: var(--color-surface-card);
+}
+
+.svc-format {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.svc-format-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: var(--size-touch);
+  padding: var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  cursor: pointer;
+}
+
+.svc-format-item[data-selected] {
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-tint);
+  box-shadow: inset 0 0 0 1px var(--color-primary-base);
+}
+
+.svc-format-item[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.svc-format-item strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.svc-format-item span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.vc-summary {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-app);
+  font-size: var(--font-size-body);
+}
+
 .clinic-footer-actions {
   display: flex;
   flex-wrap: wrap;
@@ -8667,8 +8724,17 @@
   font-size: var(--font-size-body);
 }
 
-.synonyms-input:focus {
+.synonyms-chips .synonyms-input,
+.synonyms-chips .synonyms-input:focus {
+  border: 0;
+  box-shadow: none;
   outline: none;
+  background: transparent;
+  min-height: 0;
+}
+
+.synonyms-chips:focus-within {
+  border-color: var(--color-primary-base);
 }
 
 .clinic-warn {
@@ -9676,4 +9742,93 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* Folha de edição de variante, duração rápida e edição em lote. */
+.vc-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.vc-pill-btn {
+  min-height: var(--size-touch);
+  padding: 0 var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.vc-pill-btn[data-selected] {
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+}
+
+.vc-pill-btn[data-focus-visible] {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.vc-bulk,
+.vc-bulk-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.vc-bulk-form {
+  padding: var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+}
+
+.svc-ready {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  list-style: none;
+}
+
+.svc-ready li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--font-size-body);
+}
+
+.svc-ready li[data-state='warn'] {
+  color: var(--color-warning-ink);
+}
+
+.svc-ready li[data-state='ok'] svg {
+  color: var(--color-success-ink);
+}
+
+.svc-ready li svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.svc-ready-fix {
+  margin-left: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-ink);
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+  cursor: pointer;
 }

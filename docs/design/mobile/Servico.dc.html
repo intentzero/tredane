@@ -29,16 +29,20 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{ou
 <label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Nome
 <input type="text" value="Depilação a laser — pernas" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #7A8584; border-radius: 6px; font-size: 14px; color: #142625"></label>
 
-<div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Sinónimos
+<button type="button" role="switch" aria-checked="true" style="min-height: 44px; padding: 0 16px; border: 1px solid #E1E3E0; border-radius: 12px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-between; font-weight: 500">Serviço ativo <span aria-hidden="true" style="position: relative; width: 40px; height: 24px; border-radius: 999px; background: #0E5A5C"><span style="position: absolute; top: 2px; left: 18px; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF"></span></span></button>
+
+<div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Sinônimos
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px; border: 1px solid #7A8584; border-radius: 6px; background: #FFFFFF">
 <span style="display: inline-flex; align-items: center; gap: 2px; min-height: 28px; padding: 0 8px 0 12px; border-radius: 999px; background: #E7F1F1; color: #0A4547; font-size: 13px; font-weight: 500">perna inteira <button type="button" aria-label="Remover perna inteira" style="width: 28px; height: 28px; border: 0; border-radius: 999px; background: transparent; color: inherit; cursor: pointer">×</button></span>
-<input type="text" placeholder="Adicionar…" aria-label="Adicionar sinónimos" style="flex: 1; min-width: 6rem; height: 28px; border: 0; font-size: 14px; color: #142625"></div>
-<span style="font-size: 11px; color: #566160">Nomes que a cliente usa. Só ajudam a entender o pedido; as respostas usam o nome do catálogo.</span></div>
+<input type="text" placeholder="Adicionar…" aria-label="Adicionar sinônimos" style="flex: 1; min-width: 6rem; height: 28px; border: 0; box-shadow: none; outline: none; background: transparent; font-size: 14px; color: #142625"></div>
+<span style="font-size: 11px; color: #566160">Nomes populares do serviço. Só ajudam a entender o pedido; as respostas usam o nome do catálogo.</span></div>
 
-<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #7A8584; border-radius: 6px; overflow: hidden">
-<button type="button" aria-pressed="true" style="height: 36px; border: 0; background: #142625; color: #FFFFFF; font-size: 13px; font-weight: 600">Opção única</button>
-<button type="button" aria-pressed="false" style="height: 36px; border: 0; background: #FFFFFF; color: #142625; font-size: 13px">Com variantes</button>
-</div>
+<section aria-labelledby="como" style="display: flex; flex-direction: column; gap: 8px"><h2 id="como" style="margin: 0; font-size: 16px; font-weight: 600">Como a cliente escolhe</h2>
+<div role="radiogroup" aria-labelledby="como" style="display: flex; flex-direction: column; gap: 8px">
+<button type="button" role="radio" aria-checked="true" style="min-height: 44px; padding: 12px; border-radius: 12px; text-align: left; display: flex; flex-direction: column; gap: 2px; border: 1px solid #0E5A5C; background: #E7F1F1; box-shadow: inset 0 0 0 1px #0E5A5C"><strong style="font-weight: 600">Um só serviço</strong><span style="font-size: 13px; color: #424B4A">Sempre o mesmo preço e a mesma duração.</span></button>
+<button type="button" role="radio" aria-checked="false" style="min-height: 44px; padding: 12px; border-radius: 12px; text-align: left; display: flex; flex-direction: column; gap: 2px; border: 1px solid #E1E3E0; background: #FFFFFF"><strong style="font-weight: 600">Escolhe uma opção</strong><span style="font-size: 13px; color: #424B4A">Ex.: tipo de massagem. Exatamente uma por visita.</span></button>
+<button type="button" role="radio" aria-checked="false" style="min-height: 44px; padding: 12px; border-radius: 12px; text-align: left; display: flex; flex-direction: column; gap: 2px; border: 1px solid #E1E3E0; background: #FFFFFF"><strong style="font-weight: 600">Pode juntar opções</strong><span style="font-size: 13px; color: #424B4A">Ex.: zonas de depilação. Preço e tempo somam.</span></button>
+</div></section>
 
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
 <label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Duração (min)
