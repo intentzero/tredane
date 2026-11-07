@@ -62,6 +62,7 @@ type ServiceDraftKeyInput = {
   price: string
   variantKind: string
   variantKindPlural: string
+  variantSelection: 'uma' | 'varias'
   withVariants: boolean
   zones: ZoneDraft[]
   combos: ComboDraft[]
@@ -92,6 +93,7 @@ function serviceDraftKey(input: ServiceDraftKeyInput): string {
     price: input.price,
     variantKind: input.variantKind,
     variantKindPlural: input.variantKindPlural,
+    variantSelection: input.variantSelection,
     withVariants: input.withVariants,
     zones: input.zones.map((z) => ({
       id: z.id ?? null,
@@ -252,6 +254,9 @@ export function ServiceForm({
   const [variantKindPlural, setVariantKindPlural] = useState(
     existing?.variantKindPlural ?? (existing?.variantKind ? suggestVariantKindPlural(existing.variantKind) : ''),
   )
+  const [variantSelection, setVariantSelection] = useState<'uma' | 'varias'>(
+    existing?.variantSelection === 'uma' ? 'uma' : 'varias',
+  )
   const [pluralTouched, setPluralTouched] = useState(Boolean(existing?.variantKindPlural))
   const [zones, setZones] = useState<ZoneDraft[]>(() =>
     (existing?.zones ?? []).map((z) => ({
@@ -331,6 +336,7 @@ export function ServiceForm({
     price,
     variantKind,
     variantKindPlural,
+    variantSelection,
     withVariants,
     zones,
     combos,
@@ -499,6 +505,7 @@ export function ServiceForm({
       tempoCelsius: tempoTemperatura === 'tanto_faz' ? null : tempoCelsius,
       variantKind: (withVariants ? zones : []).length > 0 ? variantKind.trim() || null : null,
       variantKindPlural: (withVariants ? zones : []).length > 0 ? variantKindPlural.trim() || null : null,
+      variantSelection: withVariants ? variantSelection : 'varias',
       synonyms,
     }
     const draftZones = withVariants ? zones : []
@@ -681,6 +688,25 @@ export function ServiceForm({
         </div>
         {withVariants ? (
           <>
+          <RadioGroup
+            className="vc-seg"
+            aria-label="Quantas opções por atendimento"
+            orientation="horizontal"
+            value={variantSelection}
+            onChange={(v) => setVariantSelection(v === 'uma' ? 'uma' : 'varias')}
+          >
+            <Radio value="uma" className="vc-seg-item">
+              Uma opção por atendimento
+            </Radio>
+            <Radio value="varias" className="vc-seg-item">
+              Várias opções por atendimento
+            </Radio>
+          </RadioGroup>
+          <p className="panel-subtitle">
+            {variantSelection === 'uma'
+              ? `Exactamente um${variantKind.trim() ? ` ${variantKind.trim().toLocaleLowerCase('pt-BR')}` : 'a opção'} por visita. Sem combinação nem atalho «tudo».`
+              : `Uma ou mais ${variantKindPlural.trim() ? variantKindPlural.trim().toLocaleLowerCase('pt-BR') : 'opções'} na mesma visita. A cliente pode combinar e dizer «tudo».`}
+          </p>
           <VariantCatalog
             singular={variantKind}
             plural={variantKindPlural}
@@ -697,13 +723,15 @@ export function ServiceForm({
             onZones={(update) => setZones(update)}
             seed={{ durationMinutes: duration, price }}
           />
-          <ComboCatalog
-            singular={variantKind}
-            plural={variantKindPlural}
-            zones={zones}
-            combos={combos}
-            onCombos={(update) => setCombos(update)}
-          />
+          {variantSelection === 'varias' ? (
+            <ComboCatalog
+              singular={variantKind}
+              plural={variantKindPlural}
+              zones={zones}
+              combos={combos}
+              onCombos={(update) => setCombos(update)}
+            />
+          ) : null}
           </>
         ) : (
           <>

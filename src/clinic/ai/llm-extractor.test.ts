@@ -31,6 +31,7 @@ function service(partial: Partial<ServiceRow> & { id: string; name: string }): S
     deletable: true,
     variantKind: 'Zona',
     variantKindPlural: 'Zonas',
+    variantSelection: 'varias',
     synonyms: [],
     zones: [
       {

@@ -1,5 +1,8 @@
 import type { ServiceAudience } from '../catalog/audience'
+import type { VariantSelection } from '../catalog/variant-selection'
 import type { BlockReason, ResourceKind } from '../constants'
+
+export type { VariantSelection }
 
 export type ServiceSignalKind = 'fixed' | 'percent'
 
@@ -51,6 +54,11 @@ export type ServiceRow = {
   variantKind: string | null
   /** DEC-079 — plural do tipo (ex.: Zonas, Técnicas). Nulo junto com o singular. */
   variantKindPlural: string | null
+  /**
+   * DEC-145 — `uma` = exactamente uma variante por visita; `varias` = uma ou mais.
+   * Default `varias`. Irrelevante sem variantes no cadastro.
+   */
+  variantSelection: VariantSelection
   /** DEC-078 — vazio = o serviço continua uma linha só. */
   zones: ServiceZoneRow[]
   /** DEC-080 — vazio = sem combos. */
@@ -369,6 +377,11 @@ export type UpsertServiceInput = {
    */
   variantKind?: string | null
   variantKindPlural?: string | null
+  /**
+   * DEC-145 — omitido na edição mantém. `uma` | `varias`.
+   * Sem variantes no cadastro, o valor fica `varias` (default) sem efeito.
+   */
+  variantSelection?: VariantSelection
   /**
    * DEC-110 — omitido na edição mantém; array (mesmo vazio) substitui.
    * Só a owner grava (clinic.config.write).

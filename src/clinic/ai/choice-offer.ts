@@ -234,19 +234,21 @@ export function buildZoneEchoInteractive(catalogVersion: string): {
 export function buildVariantChoiceInteractive(input: {
   catalogVersion: string
   zones: Array<{ id: string; name: string; label?: string }>
+  /** DEC-145 — modo `uma` omite a linha «Todas». Default: incluir (varias). */
+  includeTodas?: boolean
 }): { interactive: ChoiceInteractiveList; pending: BookingFramePending } {
   const zoneOpts = input.zones.map((z) => ({
     key: z.id,
     label: (z.label ?? z.name).trim() || z.name,
   }))
+  const includeTodas = input.includeTodas !== false
   const capped =
-    zoneOpts.length >= META_LIST_MAX_ROWS
+    includeTodas && zoneOpts.length >= META_LIST_MAX_ROWS
       ? zoneOpts.slice(0, META_LIST_MAX_ROWS - 1)
-      : zoneOpts
-  const options = [...capped, { key: TODAS_OPTION_KEY, label: TODAS_OPTION_LABEL }].slice(
-    0,
-    META_LIST_MAX_ROWS,
-  )
+      : zoneOpts.slice(0, META_LIST_MAX_ROWS)
+  const options = (
+    includeTodas ? [...capped, { key: TODAS_OPTION_KEY, label: TODAS_OPTION_LABEL }] : capped
+  ).slice(0, META_LIST_MAX_ROWS)
   return {
     interactive: {
       mode: 'list',

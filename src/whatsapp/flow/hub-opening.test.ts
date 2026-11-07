@@ -363,6 +363,7 @@ describe('CTA Abrir opções só na abertura vaga (Paulo, 07/11/2026)', () => {
         roomRequirement: massagem.roomRequirement,
         variantKind: 'tipo',
         variantKindPlural: 'tipos',
+        variantSelection: 'uma',
       },
       s.clock,
     )

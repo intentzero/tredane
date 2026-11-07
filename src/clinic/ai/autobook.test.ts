@@ -385,6 +385,7 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
         zones: [],
         variantKind: 'regiao',
         variantKindPlural: 'regioes',
+        variantSelection: 'varias' as const,
         combos: [],
         requiresSignal: false,
         signalKind: null,

@@ -30,6 +30,7 @@ function service(partial: Partial<ServiceRow> & { id: string; name: string }): S
     deletable: true,
     variantKind: null,
     variantKindPlural: null,
+    variantSelection: 'varias',
     synonyms: [],
     zones: [],
     combos: [],

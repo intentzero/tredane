@@ -21,6 +21,7 @@ import { AI_AUTOBOOK_ACTOR } from '../constants'
 import { listResources } from '../config/resources'
 import { listServices } from '../config/services'
 import { explicitAudienceLine } from '../catalog/audience'
+import { allowsMultipleVariants } from '../catalog/variant-selection'
 import {
   quoteVisit,
   readZoneSnapshots,
@@ -183,6 +184,7 @@ function variantChoiceForImpl(
   serviceId: string,
   catalogVersion: string,
   zones: Array<{ id: string; name: string; audience?: string | null; durationMinutes: number; priceCents?: number | null }>,
+  opts?: { includeTodas?: boolean },
 ): ChoiceInteractive {
   const peers = zones.map((z) => ({
     name: z.name,
@@ -199,6 +201,7 @@ function variantChoiceForImpl(
       name: z.name,
       label: variantChoiceLabel(peers[i]!, peers),
     })),
+    includeTodas: opts?.includeTodas,
   })
   return attachChoiceOfferToDeferred(deferred, serviceId, catalogVersion, built)
 }
@@ -430,7 +433,7 @@ function zonesChosenByClient(
   clientTurn: Msg[],
   older: Msg[],
   zones: ServiceRow['zones'],
-  service?: Pick<ServiceRow, 'name' | 'synonyms'>,
+  service?: Pick<ServiceRow, 'name' | 'synonyms' | 'variantSelection'>,
 ): { zones: ServiceRow['zones']; ambiguous: boolean } {
   const texts = [
     clientTurn.map((m) => m.body).join('\n'),
@@ -439,7 +442,12 @@ function zonesChosenByClient(
   return zonesChosenInClientTexts(
     texts,
     zones,
-    service ? { ignoreWords: zoneMentionIgnore(service) } : undefined,
+    service
+      ? {
+          ignoreWords: zoneMentionIgnore(service),
+          selectionMode: service.variantSelection,
+        }
+      : undefined,
   )
 }
 
@@ -705,7 +713,10 @@ export async function tryAiAutoBook(
   const presentZoneEcho = (
     serviceId: string,
     zones: ServiceRow['zones'],
+    selectionMode?: ServiceRow['variantSelection'],
   ): { replyText: string; interactive: ChoiceInteractive } | null => {
+    // DEC-145: modo `uma` não ecoa conjunto (DEC-137 fica para `varias`).
+    if (!allowsMultipleVariants(selectionMode)) return null
     if (zoneEcho === 'skip' || zoneEcho === 'confirm' || zoneEcho === 'correct') return null
     if (zones.length === 0) return null
     const open = getActiveProposalForConversation(db, tenantId, input.conversationId, clock)
@@ -1041,15 +1052,24 @@ export async function tryAiAutoBook(
       } else if (mention.zones.length > 0) {
         // Inclui skip: o label do toque (ou o texto) fecha o conjunto; o eco
         // continua desligado por zoneEcho !== 'skip' mais abaixo.
-        const seen = new Set<string>()
-        const ambiguous = mention.zones.some((zone) => {
-          const key = zone.name.trim().toLocaleLowerCase('pt-BR')
-          if (seen.has(key)) return true
-          seen.add(key)
-          return false
-        })
-        chosen = { zones: mention.zones, ambiguous }
-        kept = ambiguous ? [] : mention.zones
+        // DEC-145: modo `uma` não fecha combinação de vários nomes.
+        if (
+          !allowsMultipleVariants(det.service.variantSelection) &&
+          mention.zones.length > 1
+        ) {
+          chosen = { zones: [], ambiguous: false }
+          kept = []
+        } else {
+          const seen = new Set<string>()
+          const ambiguous = mention.zones.some((zone) => {
+            const key = zone.name.trim().toLocaleLowerCase('pt-BR')
+            if (seen.has(key)) return true
+            seen.add(key)
+            return false
+          })
+          chosen = { zones: mention.zones, ambiguous }
+          kept = ambiguous ? [] : mention.zones
+        }
       } else if (kept.length === 0 && !chosen.ambiguous && sessionIntact) {
         kept = sessionZones
         chosen = { zones: sessionZones, ambiguous: false }
@@ -1066,7 +1086,11 @@ export async function tryAiAutoBook(
             ? { variantIds: kept.map((z) => z.id) }
             : {}),
       })
-      const serviceIgnore = { ignoreWords: zoneMentionIgnore(det.service) }
+      const serviceIgnore = {
+        ignoreWords: zoneMentionIgnore(det.service),
+        selectionMode: det.service.variantSelection,
+      }
+      const multiVariants = allowsMultipleVariants(det.service.variantSelection)
       const contributed =
         Boolean(clockFromTurn) ||
         zonesNamedInText(turnText, pool.length > 0 ? pool : active, serviceIgnore).length > 0 ||
@@ -1119,6 +1143,7 @@ export async function tryAiAutoBook(
               durationMinutes: z.durationMinutes,
               priceCents: z.priceCents,
             })),
+            { includeTodas: multiVariants },
           )
         } else if (!time) {
           const period =
@@ -1130,18 +1155,20 @@ export async function tryAiAutoBook(
             !chosen.ambiguous && (kept.length > 0 || active.length === 0)
           // DEC-137: zonas escritas num texto ainda não ecoado também pedem eco, mesmo quando o
           // texto é anterior a este turno (zonas ditas antes da linha, DEC-143).
+          // DEC-145: só em modo `varias`.
           const turnNamed =
             mention.zones.length > 0 ||
             zonesChosenInClientTexts([turnText], mentionPool, serviceIgnore).zones.length > 0 ||
             (kept.length > 0 && !sessionIntact)
           const wantEcho =
+            multiVariants &&
             canOffer &&
             zoneEcho !== 'skip' &&
             zoneEcho !== 'confirm' &&
             turnNamed
           if (wantEcho) {
             // DEC-137: texto livre ecoa o conjunto. Sim é que abre Horários.
-            const echoed = presentZoneEcho(det.service.id, kept)
+            const echoed = presentZoneEcho(det.service.id, kept, det.service.variantSelection)
             if (echoed) {
               replyText = echoed.replyText
               interactive = echoed.interactive
@@ -1210,6 +1237,7 @@ export async function tryAiAutoBook(
             (mention.zones.length > 0 ||
               zonesChosenInClientTexts([turnText], mentionPool, serviceIgnore).zones.length > 0)
           if (
+            multiVariants &&
             substitution &&
             zoneEcho !== 'skip' &&
             zoneEcho !== 'confirm' &&
@@ -1217,7 +1245,7 @@ export async function tryAiAutoBook(
           ) {
             // Hora já escolhida e data ainda fora do quadro: o eco da troca
             // vem antes da pergunta do dia (#576).
-            const echoed = presentZoneEcho(det.service.id, kept)
+            const echoed = presentZoneEcho(det.service.id, kept, det.service.variantSelection)
             if (echoed) {
               replyText = echoed.replyText
               interactive = echoed.interactive
@@ -1322,6 +1350,7 @@ export async function tryAiAutoBook(
                 durationMinutes: z.durationMinutes,
                 priceCents: z.priceCents,
               })),
+              { includeTodas: allowsMultipleVariants(svc.variantSelection) },
             )
           } else {
           const echoedIds =
@@ -1334,10 +1363,13 @@ export async function tryAiAutoBook(
               : booking.variantIds.length > 0
                 ? active.filter((z) => booking.variantIds.includes(z.id))
                 : []
+          // DEC-145: modo `uma` não fecha combinação vinda do extractor.
+          const keptForMode =
+            allowsMultipleVariants(svc.variantSelection) || kept.length <= 1 ? kept : []
           saveSession({
             serviceId: svc.id,
             ...(line ? { audienceLine: line } : {}),
-            ...(kept.length > 0 ? { variantIds: kept.map((z) => z.id) } : {}),
+            ...(keptForMode.length > 0 ? { variantIds: keptForMode.map((z) => z.id) } : {}),
             ...(turnFacts.period ? { period: turnFacts.period } : {}),
           })
           if (
@@ -1348,7 +1380,7 @@ export async function tryAiAutoBook(
           ) {
             replyText = booking.question ?? audienceLineQuestion(svc.name, input.conversationId)
             interactive = lineChoiceFor(deferred, svc.id, catalog.version)
-          } else if (zonePool.length > 0 && kept.length === 0) {
+          } else if (zonePool.length > 0 && keptForMode.length === 0) {
             replyText =
               booking.question ??
               variantListQuestion(
@@ -1368,6 +1400,7 @@ export async function tryAiAutoBook(
                 durationMinutes: z.durationMinutes,
                 priceCents: z.priceCents,
               })),
+              { includeTodas: allowsMultipleVariants(svc.variantSelection) },
             )
           } else {
             const mention = mentionZones(turnText, zonePool, svc)
@@ -1375,6 +1408,7 @@ export async function tryAiAutoBook(
               mention.zones.length > 0 ||
               zonesChosenInClientTexts([turnText], zonePool, {
                 ignoreWords: zoneMentionIgnore(svc),
+                selectionMode: svc.variantSelection,
               }).zones.length > 0
             if (mention.unrecognized && zoneEcho !== 'skip' && zoneEcho !== 'confirm') {
               replyText = askUnrecognizedZone(
@@ -1398,16 +1432,22 @@ export async function tryAiAutoBook(
                   durationMinutes: z.durationMinutes,
                   priceCents: z.priceCents,
                 })),
+                { includeTodas: allowsMultipleVariants(svc.variantSelection) },
               )
             } else {
-            const resolved = mention.zones.length > 0 ? mention.zones : kept
+            const resolvedRaw = mention.zones.length > 0 ? mention.zones : keptForMode
+            const resolved =
+              allowsMultipleVariants(svc.variantSelection) || resolvedRaw.length <= 1
+                ? resolvedRaw
+                : []
             const echoed =
+              allowsMultipleVariants(svc.variantSelection) &&
               zoneEcho !== 'skip' &&
               zoneEcho !== 'confirm' &&
               zoneEcho !== 'correct' &&
               turnPicked &&
               resolved.length > 0
-                ? presentZoneEcho(svc.id, resolved)
+                ? presentZoneEcho(svc.id, resolved, svc.variantSelection)
                 : null
             if (echoed) {
               saveSession({
@@ -1430,7 +1470,7 @@ export async function tryAiAutoBook(
               db,
               tenantId,
               service: svc,
-              zones: kept,
+              zones: resolved.length > 0 ? resolved : keptForMode,
               tz,
               clock,
               forecast: input.forecast,
@@ -1563,14 +1603,19 @@ export async function tryAiAutoBook(
     echoLocked = sessionIntact
     namedZones = echoLocked ? fromSession : []
   } else if (proposalMention.zones.length > 0) {
-    const seen = new Set<string>()
-    ambiguous = proposalMention.zones.some((zone) => {
-      const key = zone.name.trim().toLocaleLowerCase('pt-BR')
-      if (seen.has(key)) return true
-      seen.add(key)
-      return false
-    })
-    namedZones = ambiguous ? [] : proposalMention.zones
+    // DEC-145: combinação noutra linha do serviço em modo `uma` → pede uma.
+    if (!allowsMultipleVariants(svc.variantSelection) && proposalMention.zones.length > 1) {
+      namedZones = []
+    } else {
+      const seen = new Set<string>()
+      ambiguous = proposalMention.zones.some((zone) => {
+        const key = zone.name.trim().toLocaleLowerCase('pt-BR')
+        if (seen.has(key)) return true
+        seen.add(key)
+        return false
+      })
+      namedZones = ambiguous ? [] : proposalMention.zones
+    }
   } else {
     const chosen = sameFunnel
       ? zonesChosenByClient(clientTurn, funnelOlder, scoped, svc)
@@ -1617,6 +1662,7 @@ export async function tryAiAutoBook(
         durationMinutes: z.durationMinutes,
         priceCents: z.priceCents,
       })),
+      { includeTodas: allowsMultipleVariants(svc.variantSelection) },
     )
     const genericAsk = askZonesReply(phrase, names, time, input.conversationId, kindForAct)
     return finish({
@@ -1646,8 +1692,10 @@ export async function tryAiAutoBook(
   }
   // Hora já dita neste turno → proposta (CF-24). O eco é antes de Horários,
   // ou quando o plural leve entrou (confirma o mapeamento antes da proposta).
+  // DEC-145: eco só em modo `varias`.
   const echoBeforeProposal = !clockFromTurn || proposalMention.approx
   if (
+    allowsMultipleVariants(svc.variantSelection) &&
     echoBeforeProposal &&
     zoneEcho !== 'skip' &&
     zoneEcho !== 'confirm' &&
@@ -1656,7 +1704,7 @@ export async function tryAiAutoBook(
     !ambiguous &&
     proposalMention.zones.length > 0
   ) {
-    const echoed = presentZoneEcho(svc.id, namedZones)
+    const echoed = presentZoneEcho(svc.id, namedZones, svc.variantSelection)
     if (echoed) {
       saveSession({ serviceId: svc.id, variantIds: namedZones.map((z) => z.id) })
       return finish({

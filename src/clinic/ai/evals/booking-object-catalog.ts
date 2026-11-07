@@ -56,6 +56,7 @@ function service(
     deletable: true,
     variantKind: partial.variantKind ?? null,
     variantKindPlural: partial.variantKindPlural ?? null,
+    variantSelection: 'varias',
     combos: [],
     synonyms: partial.synonyms ?? [],
     ...partial,
