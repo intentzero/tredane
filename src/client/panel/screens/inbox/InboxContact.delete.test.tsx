@@ -52,8 +52,7 @@ describe('InboxContactScreen — exclusão', () => {
       />,
     )
     await screen.findByText('Informações do contato')
-    await user.click(screen.getByRole('button', { name: 'Mais ações' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Excluir contato' }))
+    await user.click(screen.getByRole('button', { name: 'Excluir contato' }))
     const dialog = screen.getByRole('alertdialog', { name: 'Excluir contato?' })
     expect(dialog).toBeTruthy()
     expect(document.activeElement).toBe(
@@ -84,8 +83,7 @@ describe('InboxContactScreen — exclusão', () => {
       />,
     )
     await screen.findByText('Informações do contato')
-    await user.click(screen.getByRole('button', { name: 'Mais ações' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Excluir contato' }))
+    await user.click(screen.getByRole('button', { name: 'Excluir contato' }))
     await screen.findByRole('alertdialog', { name: 'Excluir contato?' })
     await user.keyboard('{Escape}')
     await waitFor(() => {
@@ -106,8 +104,8 @@ describe('InboxContactScreen — exclusão', () => {
       />,
     )
     await screen.findByText('Informações do contato')
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Mais ações' }))
-    expect(screen.queryByRole('menuitem', { name: 'Excluir contato' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Zona de risco' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Excluir contato' })).toBeNull()
   })
 
   it('erro de permissão é genérico (sem PII)', async () => {
@@ -127,8 +125,7 @@ describe('InboxContactScreen — exclusão', () => {
       />,
     )
     await screen.findByText('Informações do contato')
-    await user.click(screen.getByRole('button', { name: 'Mais ações' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Excluir contato' }))
+    await user.click(screen.getByRole('button', { name: 'Excluir contato' }))
     await user.click(screen.getByRole('button', { name: 'Excluir permanentemente' }))
     const msg = await screen.findByRole('alert')
     expect(msg.textContent).toContain('Só o responsável pode excluir contatos.')

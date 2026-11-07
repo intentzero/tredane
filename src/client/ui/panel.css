@@ -1714,6 +1714,8 @@
   min-height: 0;
   flex: 1;
   gap: var(--space-2);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .inbox-thread-header {
@@ -10011,4 +10013,26 @@
 .ic-blocked .panel-btn-secondary {
   margin: 0;
   width: 100%;
+}
+
+/* Zona de risco / Bloquear: sempre no documento (sidepane esconde o header ⋮). */
+.ic-danger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-bottom: var(--space-4);
+  border-top: var(--size-border-width) solid var(--color-line-border);
+}
+
+.ic-danger .ic-h {
+  margin-top: var(--space-3);
+}
+
+.ic-danger .inbox-contact-note {
+  margin: 0 var(--space-4);
+}
+
+.ic-danger .inbox-notice {
+  margin: 0 var(--space-4);
 }

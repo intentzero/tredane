@@ -97,6 +97,36 @@ describe('InboxContact — painel simplificado', () => {
     expect(screen.getByRole('heading', { name: 'Anteriores' })).toBeTruthy()
   })
 
+  it('mostra Bloquear no documento; Excluir só para owner', async () => {
+    renderPanel({ conversations: [conv('c1', 'open', 'Ana')], appointments: { upcoming: [], past: [] } })
+    expect(await screen.findByRole('button', { name: 'Bloquear contato' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Bloquear contato' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Excluir contato' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Zona de risco' })).toBeNull()
+
+    cleanup()
+    const api = {
+      getInboxContact: vi.fn(async () => ({
+        contact,
+        conversations: [conv('c1', 'open', 'Ana')],
+        appointments: { upcoming: [], past: [] },
+      })),
+    } as unknown as PanelApi
+    render(
+      <InboxContactScreen
+        tenantId="t"
+        contactId={contact.id}
+        conversationId="c1"
+        api={api}
+        generation={1}
+        isOwner
+      />,
+    )
+    expect(await screen.findByRole('button', { name: 'Bloquear contato' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Excluir contato' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Zona de risco' })).toBeTruthy()
+  })
+
   it('volta a mascarar o telefone ao trocar de contato (mesma instância)', async () => {
     const other = {
       ...contact,
