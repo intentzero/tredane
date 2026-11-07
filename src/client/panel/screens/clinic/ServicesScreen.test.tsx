@@ -148,7 +148,7 @@ describe('ServiceForm — duração e variantes', () => {
       }),
       { upsertService, replaceServiceZones } as Partial<PanelApi>,
     )
-    fireEvent.click(screen.getByRole('radio', { name: 'Opção única' }))
+    fireEvent.click(screen.getByRole('radio', { name: /Um só serviço/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() => expect(order).toEqual(['zones', 'service']))
     expect(replaceServiceZones).toHaveBeenCalledWith('t', 'svc_1', [], expect.anything())
@@ -158,12 +158,14 @@ describe('ServiceForm — duração e variantes', () => {
     const upsertService = vi.fn()
     const replaceServiceZones = vi.fn()
     renderForm(svc({}), { upsertService, replaceServiceZones } as Partial<PanelApi>)
-    fireEvent.click(screen.getByRole('radio', { name: 'Com variantes' }))
+    fireEvent.click(screen.getByRole('radio', { name: /Pode juntar opções/ }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), { target: { value: 'Zona' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'Adicionar zona' }), { target: { value: 'Axila' } })
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
+    fireEvent.click(screen.getByRole('button', { name: /Axila/ }))
     const names = screen.getAllByRole('textbox', { name: /^Nome$/ })
     fireEvent.change(names[names.length - 1]!, { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Pronto' }))
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     expect(upsertService).not.toHaveBeenCalled()
     expect(replaceServiceZones).not.toHaveBeenCalled()
@@ -176,7 +178,7 @@ describe('ServiceForm — duração e variantes', () => {
       throw new Error('nome')
     })
     renderForm(svc({}), { upsertService, replaceServiceZones } as Partial<PanelApi>)
-    fireEvent.click(screen.getByRole('radio', { name: 'Com variantes' }))
+    fireEvent.click(screen.getByRole('radio', { name: /Pode juntar opções/ }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), { target: { value: 'Zona' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'Adicionar zona' }), { target: { value: 'Axila' } })
     fireEvent.click(screen.getByRole('button', { name: 'Adicionar' }))
@@ -302,7 +304,7 @@ describe('ServiceForm — catálogo de variantes', () => {
   it('não grava opção única quando o formato é com variantes e não há linha', () => {
     const upsertService = vi.fn()
     renderForm(svc({}), { upsertService } as Partial<PanelApi>)
-    fireEvent.click(screen.getByRole('radio', { name: 'Com variantes' }))
+    fireEvent.click(screen.getByRole('radio', { name: /Pode juntar opções/ }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), {
       target: { value: 'Zona' },
     })
@@ -363,7 +365,7 @@ describe('ServiceForm — alterações não salvas', () => {
   }
 
   function addZone(name: string) {
-    fireEvent.click(screen.getByRole('radio', { name: 'Com variantes' }))
+    fireEvent.click(screen.getByRole('radio', { name: /Pode juntar opções/ }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Nome no singular' }), {
       target: { value: 'Zona' },
     })
@@ -387,7 +389,7 @@ describe('ServiceForm — alterações não salvas', () => {
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Continuar editando' }))
     expect(screen.queryByRole('dialog', { name: 'Alterações não salvas' })).toBeNull()
-    expect(screen.getByDisplayValue('Axila')).toBeTruthy()
+    expect(screen.getByText('Axila')).toBeTruthy()
     expect(window.location.pathname).toBe(here)
 
     act(() => {
@@ -611,5 +613,71 @@ describe('ServiceForm — combos de variantes (DEC-080)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     expect(upsertService).not.toHaveBeenCalled()
     expect(screen.getByText(/Dê nome e preço a cada combo/)).toBeTruthy()
+  })
+})
+
+describe('ServiceForm — variantes: folha, lote e prontidão', () => {
+  function withTwoZones() {
+    return svc({
+      variantKind: 'Zona',
+      variantKindPlural: 'Zonas',
+      zones: [
+        { id: 'z1', name: 'Axila', durationMinutes: 15, priceCents: 5_000, audience: 'ambos', active: true, sortOrder: 0 },
+        { id: 'z2', name: 'Buço', durationMinutes: 15, priceCents: 5_000, audience: 'ambos', active: true, sortOrder: 1 },
+      ],
+    })
+  }
+
+  it('resume durações e preços iguais e aplica «Alterar todos»', () => {
+    renderForm(withTwoZones(), {})
+    expect(screen.getByText(/Todos com/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Alterar todos' }))
+    const all = screen.getByRole('textbox', { name: 'Duração de todos (min)' })
+    fireEvent.change(all, { target: { value: '30' } })
+    fireEvent.blur(all)
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar a todos' }))
+    expect(screen.getAllByText('30 min').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('duração rápida na folha da opção', () => {
+    renderForm(withTwoZones(), {})
+    fireEvent.click(screen.getByRole('button', { name: /Axila/ }))
+    fireEvent.click(screen.getByRole('button', { name: '45 min' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pronto' }))
+    expect(screen.getByText('45 min')).toBeTruthy()
+  })
+
+  it('«Pronto para atender» avisa opção sem preço', () => {
+    const f = withTwoZones()
+    f.zones![0]!.priceCents = null
+    renderForm(f, {})
+    expect(screen.getByText(/1 opção sem preço/)).toBeTruthy()
+  })
+
+  it('«Pronto para atender» marca preço opcional na linha sem inventar sucesso', () => {
+    renderForm(svc({ priceCents: null, roomRequirement: { mode: 'none' } }), {})
+    expect(screen.getByText('Preço em aberto (opcional).')).toBeTruthy()
+    expect(screen.queryByText('Preço e duração definidos.')).toBeNull()
+  })
+
+  it('«Pronto para atender» avisa preço em falta com sinal percentual', () => {
+    renderForm(
+      svc({
+        priceCents: null,
+        requiresSignal: true,
+        signalKind: 'percent',
+        signalPercent: 30,
+        roomRequirement: { mode: 'none' },
+      }),
+      {},
+    )
+    expect(screen.getByText('Falta o preço para o sinal percentual.')).toBeTruthy()
+    expect(screen.queryByText('Preço e duração definidos.')).toBeNull()
+    expect(screen.queryByText('Preço em aberto (opcional).')).toBeNull()
+  })
+
+  it('«Pronto para atender» confirma preço e duração quando a linha tem preço', () => {
+    renderForm(svc({ priceCents: 12_000, roomRequirement: { mode: 'none' } }), {})
+    expect(screen.getByText('Preço e duração definidos.')).toBeTruthy()
   })
 })

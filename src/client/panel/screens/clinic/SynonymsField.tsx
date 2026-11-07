@@ -1,5 +1,5 @@
 /**
- * Campo opcional de sinónimos / nomes populares (DEC-110 / M-16).
+ * Campo opcional de sinônimos / nomes populares (DEC-110 / M-16).
  * Só interpretação; a cliente nunca vê estes textos.
  */
 import { useState } from 'react'
@@ -14,17 +14,20 @@ type Props = {
   hint?: string
   /** Limite alinhado ao backend (SYNONYM_MAX_COUNT). */
   maxCount?: number
+  /** Exemplo mostrado quando a lista está vazia. */
+  placeholder?: string
 }
 
 const DEFAULT_MAX = 8
 
 /** Chip + input para nomes populares na ficha do serviço/variante. */
 export function SynonymsField({
-  label = 'Sinónimos',
+  label = 'Sinônimos',
   value,
   onChange,
   hint = 'Nomes que a cliente usa. Só ajudam a entender o pedido; as respostas usam o nome do catálogo.',
   maxCount = DEFAULT_MAX,
+  placeholder = 'Adicionar…',
 }: Props) {
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -33,16 +36,16 @@ export function SynonymsField({
     const text = raw.trim()
     if (!text) return
     if (text.length < 2 || text.length > 40) {
-      setError('Cada sinónimo tem entre 2 e 40 caracteres.')
+      setError('Cada sinônimo tem entre 2 e 40 caracteres.')
       return
     }
     const key = text.toLocaleLowerCase('pt-BR')
     if (value.some((v) => v.toLocaleLowerCase('pt-BR') === key)) {
-      setError('Este sinónimo já está na lista.')
+      setError('Este sinônimo já está na lista.')
       return
     }
     if (value.length >= maxCount) {
-      setError(`No máximo ${maxCount} sinónimos.`)
+      setError(`No máximo ${maxCount} sinônimos.`)
       return
     }
     setError(null)
@@ -75,7 +78,7 @@ export function SynonymsField({
             className="synonyms-input"
             value={draft}
             autoComplete="off"
-            placeholder={value.length === 0 ? 'Ex.: buço' : 'Adicionar…'}
+            placeholder={value.length === 0 ? placeholder : 'Adicionar…'}
             aria-label={`Adicionar ${label.toLocaleLowerCase('pt-BR')}`}
             onChange={(e) => {
               setDraft(e.target.value)
