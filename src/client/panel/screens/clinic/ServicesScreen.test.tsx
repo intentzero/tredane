@@ -1,4 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ClinicConfigSnapshot, ClinicService, PanelApi } from '../../api'
 import { PanelApiError } from '../../api'
@@ -679,5 +681,57 @@ describe('ServiceForm — variantes: folha, lote e prontidão', () => {
   it('«Pronto para atender» confirma preço e duração quando a linha tem preço', () => {
     renderForm(svc({ priceCents: 12_000, roomRequirement: { mode: 'none' } }), {})
     expect(screen.getByText('Preço e duração definidos.')).toBeTruthy()
+  })
+})
+
+describe('ServiceForm — layout do painel (overflow horizontal)', () => {
+  it('CSS do corpo do painel/folha e dos cartões de formato evita rolagem horizontal', () => {
+    const css = readFileSync(join(__dirname, '../../../ui/panel.css'), 'utf8')
+    expect(css).toMatch(
+      /\.clinic-panel-body\s*\{[^}]*overflow-x:\s*clip[^}]*overflow-y:\s*auto/s,
+    )
+    expect(css).toMatch(
+      /\.clinic-sheet-body\s*\{[^}]*overflow-x:\s*clip[^}]*overflow-y:\s*auto/s,
+    )
+    expect(css).toMatch(/\.clinic-footer-sticky\s*\{[^}]*margin:\s*0;/s)
+    expect(css).not.toMatch(
+      /\.clinic-footer-sticky\s*\{[^}]*margin:\s*0\s+calc\(var\(--space-4\)\s*\*\s*-1\)/s,
+    )
+    expect(css).toMatch(/\.svc-format-item\s*\{[^}]*position:\s*relative/s)
+    expect(css).toMatch(/\.svc-format-item\s*\{[^}]*min-width:\s*0/s)
+  })
+
+  it('mostra o título e os três cartões de formato sem cortar o texto', () => {
+    renderForm(
+      svc({
+        name: 'Massagem',
+        variantKind: 'Tipo',
+        variantKindPlural: 'Tipos',
+        variantSelection: 'uma',
+        zones: [
+          {
+            id: 'z1',
+            name: 'Relaxante',
+            durationMinutes: 60,
+            priceCents: 18_000,
+            audience: 'ambos',
+            active: true,
+            sortOrder: 0,
+          },
+        ],
+      }),
+      {},
+    )
+    expect(screen.getByRole('heading', { name: 'Como a cliente escolhe' }).textContent).toBe(
+      'Como a cliente escolhe',
+    )
+    const group = screen.getByRole('radiogroup', { name: 'Como a cliente escolhe' })
+    const copy = group.textContent ?? ''
+    expect(copy).toContain('Um só serviço')
+    expect(copy).toContain('Escolhe uma opção')
+    expect(copy).toContain('Pode juntar opções')
+    expect(copy).not.toMatch(/\bno a cliente escolhe\b/)
+    const uma = within(group).getByRole('radio', { name: /Escolhe uma opção/ }) as HTMLInputElement
+    expect(uma.checked).toBe(true)
   })
 })
