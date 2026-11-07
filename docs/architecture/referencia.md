@@ -97,7 +97,7 @@ Em `main` @ `0e75888`, `docs/product/decisions.md` ainda não traz estas notas. 
 
 **Confirmado** (DEC-139; [metodologia](../implementation/metodologia-avaliacao-conversacional.md)): o atendimento tem testes de diálogo (L1) e um scorecard com linha de base. Quem muda `src/clinic/ai/`, `src/whatsapp/flow/` ou `src/clinic/proposals/`:
 
-1. Corre `npm run eval:scorecard`. Só as invariantes INV-01..11 bloqueiam (DEC-108). Qualquer outra regressão assinalada tem de ser explicada ou corrigida no PR (DEC-139).
+1. Corre `npm run eval:scorecard` (o CI também o corre e comenta o veredicto no PR, DEC-146). Só as invariantes INV-01..11 bloqueiam (DEC-108). Qualquer outra regressão assinalada tem de ser explicada ou corrigida no PR (DEC-139).
 2. Acrescenta um diálogo L1 por comportamento novo ou corrigido, com o ID da família (`A-`, `FL-`, `CC-`…) e sem renumerar os existentes. Testes unitários não substituem o diálogo: a interação entre rotas só se vê no L1.
 3. Não relaxa uma invariante para um caso passar. Uma invariante que o caminho novo desmente corrige-se à parte e com razão escrita (lição G-08 da metodologia).
 4. Um defeito conhecido que ainda não se corrige entra como `knownFailure` (o caso tem de falhar até haver correção) e como achado CF no [plano de testes](../implementation/plano-testes-conversacional.md). Copy nova à cliente exige aprovação (DEC-104).
