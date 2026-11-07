@@ -211,6 +211,41 @@ export function consumeFlowToken(db: AdminDb, token: string, clock: Clock): void
   )
 }
 
+/**
+ * DEC-149: ao mudar serviço para `uma`, invalida tokens Flow em voo desse serviço
+ * (session_json.serviceId). O próximo data_exchange / nfm não reutiliza o multi.
+ */
+export function expireOpenFlowTokensForService(
+  db: AdminDb,
+  tenantId: string,
+  serviceId: string,
+  clock: Clock,
+): number {
+  assertAdminSchemaReady(db)
+  const now = clock.nowMs()
+  const rows = db.all<SqlRow>(
+    `SELECT * FROM whatsapp_flow_tokens
+     WHERE tenant_id = ? AND replaced_by IS NULL AND consumed_at IS NULL AND expires_at > ?`,
+    tenantId,
+    now,
+  )
+  let n = 0
+  for (const row of rows) {
+    const session = parseFlowSessionJson(row.session_json)
+    if (session.serviceId !== serviceId) continue
+    db.run(
+      `UPDATE whatsapp_flow_tokens
+       SET consumed_at = ?, expires_at = ?
+       WHERE token = ? AND consumed_at IS NULL`,
+      now,
+      now,
+      row.token,
+    )
+    n += 1
+  }
+  return n
+}
+
 /** Store em memória para testes L1 (sem D1). Inclui session por token. */
 export function createMemoryFlowTokenStore(): {
   insert: typeof insertFlowToken

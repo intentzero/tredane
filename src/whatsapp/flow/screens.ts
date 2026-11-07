@@ -135,9 +135,14 @@ export function revalidateFlowFrameAgainstCatalog(
     const scoped =
       line && needsAudienceLine(zones) ? zonesForAudienceLine(zones, line) : zones
     const ids = new Set(scoped.map((z) => z.id))
-    const ok = variantIds.filter((id) => ids.has(id))
-    if (ok.length !== variantIds.length) {
+    let ok = variantIds.filter((id) => ids.has(id))
+    // DEC-149: serviço passou a `uma` — não manter conjunto multi no snapshot do token.
+    if (!allowsMultipleVariants(service.variantSelection) && ok.length > 1) {
       cleared.push('variantIds')
+      ok = []
+    }
+    if (ok.length !== variantIds.length) {
+      if (!cleared.includes('variantIds')) cleared.push('variantIds')
       variantIds = ok.length > 0 ? ok : null
     }
   } else if (zones.length === 0) {

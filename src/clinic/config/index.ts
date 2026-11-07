@@ -89,6 +89,10 @@ export {
   textCitesNameOrSynonym,
 } from './synonyms'
 export { listCombos, replaceCombos, readComboSnapshot, writeComboSnapshot } from './combos'
+export {
+  assertNoActiveCombosForUma,
+  clearOpenMultiVariantStateForService,
+} from './variant-selection-mode-change'
 export { computeConfigReadiness } from './readiness'
 export { loadConfigSnapshot } from './snapshot'
 export {

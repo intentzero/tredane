@@ -35,6 +35,10 @@ import {
   type VariantSelection,
 } from '../catalog/variant-selection'
 import {
+  assertNoActiveCombosForUma,
+  clearOpenMultiVariantStateForService,
+} from './variant-selection-mode-change'
+import {
   assertBufferMinutes,
   assertNonEmptyName,
   assertPositiveDuration,
@@ -584,6 +588,12 @@ export function upsertService(
     )
   }
   const variantSelection = resolveVariantSelection(input.variantSelection, existing?.variantSelection)
+  const previousSelection = existing?.variantSelection ?? DEFAULT_VARIANT_SELECTION
+  const becameUma = previousSelection === 'varias' && variantSelection === 'uma'
+  // DEC-149 / P1: recusar `varias` → `uma` com combos activos (não desactivar sozinho).
+  if (becameUma && existing) {
+    assertNoActiveCombosForUma(db, tenantId, existing.id)
+  }
 
   if (input.id) {
     const synonymsJson = resolveServiceSynonyms(
@@ -632,6 +642,9 @@ export function upsertService(
     writeSpace(db, tenantId, input.id, roomRequirement, equipmentId)
     if (input.weeklyWindows !== undefined) {
       setServiceWeeklyWindows(db, tenantId, input.id, input.weeklyWindows)
+    }
+    if (becameUma) {
+      clearOpenMultiVariantStateForService(db, tenantId, input.id, clock)
     }
     return getService(db, tenantId, input.id)!
   }

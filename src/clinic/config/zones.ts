@@ -3,6 +3,7 @@
  * A visita é um bloco: soma das durações + o intervalo do serviço uma vez.
  */
 import { durationMinutesFromText } from '../catalog/duration'
+import { allowsMultipleVariants } from '../catalog/variant-selection'
 import { parseTimes } from '../ai/nlu/temporal'
 import type { Clock } from '../../db/clock'
 import { priceVisit } from '../catalog/combo'
@@ -355,7 +356,7 @@ export type VisitQuote = {
 export function quoteVisit(
   db: ClinicDb,
   tenantId: string,
-  service: Pick<ServiceRow, 'id' | 'durationMinutes' | 'priceCents'>,
+  service: Pick<ServiceRow, 'id' | 'durationMinutes' | 'priceCents' | 'variantSelection'>,
   zoneIds: readonly string[] | null | undefined,
 ): VisitQuote {
   const catalog = listZones(db, tenantId, service.id)
@@ -383,11 +384,19 @@ export function quoteVisit(
       { serviceId: service.id },
     )
   }
-  if (ids.length === 0) {
-    throw new ValidationError('zones_required', 'escolha ao menos uma zona', { serviceId: service.id })
-  }
   if (new Set(ids).size !== ids.length) {
     throw new ValidationError('zone_repeated', 'cada zona só pode entrar uma vez')
+  }
+  // DEC-145 / DEC-149: modo `uma` exige exactamente uma variante activa no orçamento canónico.
+  if (!allowsMultipleVariants(service.variantSelection) && ids.length !== 1) {
+    throw new ValidationError(
+      'variant_selection_uma',
+      'este procedimento aceita só uma variante por visita',
+      { serviceId: service.id, variantCount: ids.length },
+    )
+  }
+  if (ids.length === 0) {
+    throw new ValidationError('zones_required', 'escolha ao menos uma zona', { serviceId: service.id })
   }
   const byId = new Map(catalog.map((z) => [z.id, z]))
   const chosen: ServiceZoneRow[] = []

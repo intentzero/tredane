@@ -122,6 +122,7 @@ import {
 } from '../clinic/ai/choice-offer'
 import { handleFlowNfmReply } from '../whatsapp/flow/nfm-reply'
 import { flowDataExchangeLocal } from '../whatsapp/flow/data-exchange'
+import { parseFlowSessionJson } from '../whatsapp/flow/tokens'
 import {
   isWhatsappFlowConfigured,
   prepareBookingFlowOfferFromEnv,
@@ -2107,7 +2108,21 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
   async upsertClinicService(caller: ClinicCaller, input: UpsertServiceInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)
+    const before =
+      input.id != null ? clinicConfig.getService(this.#db, caller.tenantId, input.id) : null
     const row = clinicConfig.upsertServiceOp(this.#db, caller, input, this.#clock)
+    // DEC-149: best-effort — tokens Flow vivem no D1; frames/propostas já limpos no SQLite.
+    if (before?.variantSelection === 'varias' && row.variantSelection === 'uma') {
+      try {
+        await this.#expireFlowTokensForServiceUma(caller.tenantId, row.id)
+      } catch (err) {
+        console.warn('flow_token_expire_uma_failed', {
+          tenantId: caller.tenantId,
+          serviceId: row.id,
+          err: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
     await this.#fanoutConfigEvent(
       caller,
       input.id ? 'config.service_updated' : 'config.service_created',
@@ -3180,6 +3195,29 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       return null
     }
     return this.#clinicNameCache
+  }
+
+  /** DEC-149 — invalida tokens Flow em voo do serviço após `varias` → `uma`. */
+  async #expireFlowTokensForServiceUma(tenantId: string, serviceId: string): Promise<void> {
+    const now = this.#clock.nowMs()
+    const result = await this.env.DB.prepare(
+      `SELECT token, session_json FROM whatsapp_flow_tokens
+       WHERE tenant_id = ? AND replaced_by IS NULL AND consumed_at IS NULL AND expires_at > ?`,
+    )
+      .bind(tenantId, now)
+      .all<{ token: string; session_json: string | null }>()
+    const rows = result.results ?? []
+    for (const row of rows) {
+      const session = parseFlowSessionJson(row.session_json)
+      if (session.serviceId !== serviceId) continue
+      await this.env.DB.prepare(
+        `UPDATE whatsapp_flow_tokens
+         SET consumed_at = ?, expires_at = ?
+         WHERE token = ? AND consumed_at IS NULL`,
+      )
+        .bind(now, now, row.token)
+        .run()
+    }
   }
 
   async #aiRpcDeps(tenantId: string, rpcDeps?: AiAssistRpcDeps): Promise<AiAssistRpcDeps> {
