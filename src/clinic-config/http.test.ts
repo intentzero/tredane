@@ -587,3 +587,209 @@ describe('HTTP — bloco Tempo no serviço (DEC-077 S3)', () => {
     }
   })
 })
+
+describe('DEC-145 variantSelection round-trip', () => {
+  it('grava e relê variantSelection=uma no PUT do serviço', async () => {
+    const { app, close, auth } = testConfigApp()
+    try {
+      const pro = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/resources',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'professional', name: 'Ana' }),
+        }),
+      )
+      const proId = ((await pro.json()) as { id: string }).id
+
+      const created = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/services',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Massagem',
+            durationMinutes: 60,
+            bufferMinutes: 0,
+            professionalIds: [proId],
+            roomRequirement: { mode: 'none' },
+            variantKind: 'Tipo',
+            variantKindPlural: 'Tipos',
+            variantSelection: 'varias',
+          }),
+        }),
+      )
+      expect(created.status).toBe(201)
+      const svc = (await created.json()) as { id: string; variantSelection: string }
+      expect(svc.variantSelection).toBe('varias')
+
+      const zones = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/config/services/${svc.id}/zones`,
+        auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            zones: [
+              {
+                name: 'Relaxante',
+                durationMinutes: 60,
+                priceCents: 12000,
+                audience: 'ambos',
+                active: true,
+              },
+              {
+                name: 'Liberação miofascial',
+                durationMinutes: 60,
+                priceCents: 15000,
+                audience: 'ambos',
+                active: true,
+              },
+            ],
+          }),
+        }),
+      )
+      expect(zones.status).toBe(200)
+
+      const putUma = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/config/services/${svc.id}`,
+        auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Massagem',
+            durationMinutes: 60,
+            bufferMinutes: 0,
+            professionalIds: [proId],
+            roomRequirement: { mode: 'none' },
+            priceCents: null,
+            variantKind: 'Tipo',
+            variantKindPlural: 'Tipos',
+            variantSelection: 'uma',
+          }),
+        }),
+      )
+      expect(putUma.status).toBe(200)
+      const afterPut = (await putUma.json()) as { variantSelection: string }
+      expect(afterPut.variantSelection).toBe('uma')
+
+      const snap = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config',
+        auth('user_synth_owner_a'),
+      )
+      expect(snap.status).toBe(200)
+      const body = (await snap.json()) as {
+        services: Array<{ id: string; variantSelection: string }>
+      }
+      const reloaded = body.services.find((s) => s.id === svc.id)
+      expect(reloaded?.variantSelection).toBe('uma')
+    } finally {
+      close()
+    }
+  })
+
+  it('recusa varias→uma com combo activo e mantém varias (DEC-149)', async () => {
+    const { app, close, auth } = testConfigApp()
+    try {
+      const pro = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/resources',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'professional', name: 'Bia' }),
+        }),
+      )
+      const proId = ((await pro.json()) as { id: string }).id
+
+      const created = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/services',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Depilação',
+            durationMinutes: 30,
+            bufferMinutes: 0,
+            professionalIds: [proId],
+            roomRequirement: { mode: 'none' },
+            variantKind: 'Zona',
+            variantKindPlural: 'Zonas',
+            variantSelection: 'varias',
+          }),
+        }),
+      )
+      const svc = (await created.json()) as { id: string }
+
+      const zonesRes = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/config/services/${svc.id}/zones`,
+        auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            zones: [
+              { name: 'Axila', durationMinutes: 15, priceCents: 5000, audience: 'ambos', active: true },
+              { name: 'Buço', durationMinutes: 15, priceCents: 3500, audience: 'feminino', active: true },
+            ],
+          }),
+        }),
+      )
+      const withZones = (await zonesRes.json()) as {
+        zones: Array<{ id: string; name: string }>
+      }
+      const z1 = withZones.zones.find((z) => z.name === 'Axila')!.id
+      const z2 = withZones.zones.find((z) => z.name === 'Buço')!.id
+
+      const combos = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/config/services/${svc.id}/combos`,
+        auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            combos: [
+              {
+                name: 'Buço + axila',
+                priceCents: 7000,
+                zoneIds: [z1, z2],
+                active: true,
+              },
+            ],
+          }),
+        }),
+      )
+      expect(combos.status).toBe(200)
+
+      const refused = await app.request(
+        `http://localhost/api/tenants/clinic-demo-a/config/services/${svc.id}`,
+        auth('user_synth_owner_a', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Depilação',
+            durationMinutes: 30,
+            bufferMinutes: 0,
+            professionalIds: [proId],
+            roomRequirement: { mode: 'none' },
+            priceCents: null,
+            variantKind: 'Zona',
+            variantKindPlural: 'Zonas',
+            variantSelection: 'uma',
+          }),
+        }),
+      )
+      expect(refused.status).toBe(400)
+      const err = (await refused.json()) as { error: string; message: string }
+      expect(err.error).toBe('variant_selection_combos_active')
+      expect(err.message).toMatch(/Buço \+ axila/)
+
+      const snap = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config',
+        auth('user_synth_owner_a'),
+      )
+      const body = (await snap.json()) as {
+        services: Array<{ id: string; variantSelection: string }>
+      }
+      expect(body.services.find((s) => s.id === svc.id)?.variantSelection).toBe('varias')
+    } finally {
+      close()
+    }
+  })
+})

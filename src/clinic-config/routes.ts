@@ -957,6 +957,8 @@ function parseServiceBody(body: Record<string, unknown>) {
           variantKindPlural:
             body.variantKindPlural === null ? null : String(body.variantKindPlural),
         }),
+    // DEC-145 — omitido mantém o modo gravado; `resolveVariantSelection` valida o valor.
+    ...(body.variantSelection === undefined ? {} : { variantSelection: body.variantSelection }),
     ...(body.synonyms === undefined
       ? {}
       : { synonyms: Array.isArray(body.synonyms) ? body.synonyms : [] }),
