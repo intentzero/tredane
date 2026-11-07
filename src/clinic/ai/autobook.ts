@@ -430,12 +430,17 @@ function zonesChosenByClient(
   clientTurn: Msg[],
   older: Msg[],
   zones: ServiceRow['zones'],
+  service?: Pick<ServiceRow, 'name' | 'synonyms'>,
 ): { zones: ServiceRow['zones']; ambiguous: boolean } {
   const texts = [
     clientTurn.map((m) => m.body).join('\n'),
     ...older.filter((m) => m.direction === 'inbound').map((m) => m.body),
   ]
-  return zonesChosenInClientTexts(texts, zones)
+  return zonesChosenInClientTexts(
+    texts,
+    zones,
+    service ? { ignoreWords: zoneMentionIgnore(service) } : undefined,
+  )
 }
 
 /**
@@ -898,7 +903,10 @@ export async function tryAiAutoBook(
         ? zonesForAudienceLine(storedActive, session.audienceLine)
         : storedActive
     const namedNow =
-      zonesNamedInText(turnText, storedActive).length > 0 ||
+      (stored != null &&
+        zonesNamedInText(turnText, storedActive, {
+          ignoreWords: zoneMentionIgnore(stored),
+        }).length > 0) ||
       (stored != null && mentionZones(turnText, storedPool, stored).zones.length > 0)
     // «as duas» / «tudo»: atalho do âmbito — continua o serviço (#509 review).
     const catalogShortcutNow = claimsCatalogShortcut(turnText)
@@ -1018,7 +1026,7 @@ export async function tryAiAutoBook(
         : turnMention
       let chosen = frameOwnsVariants
         ? { zones: sessionIntact ? sessionZones : [], ambiguous: false }
-        : zonesChosenByClient(clientTurn, older, mentionPool)
+        : zonesChosenByClient(clientTurn, older, mentionPool, det.service)
       let kept = chosen.zones
       const leftoverAsk =
         mention.unrecognized && zoneEcho !== 'skip' && zoneEcho !== 'confirm' && zoneEcho !== 'correct'
@@ -1058,9 +1066,10 @@ export async function tryAiAutoBook(
             ? { variantIds: kept.map((z) => z.id) }
             : {}),
       })
+      const serviceIgnore = { ignoreWords: zoneMentionIgnore(det.service) }
       const contributed =
         Boolean(clockFromTurn) ||
-        zonesNamedInText(turnText, pool.length > 0 ? pool : active).length > 0 ||
+        zonesNamedInText(turnText, pool.length > 0 ? pool : active, serviceIgnore).length > 0 ||
         zoneEcho === 'confirm' ||
         Boolean(input.boundSlot)
       if (!(date && time && kept.length > 0 && !chosen.ambiguous && contributed)) {
@@ -1071,7 +1080,7 @@ export async function tryAiAutoBook(
         // Mesmo filtro da Opções (#497 / DEC-079): com linha travada, não casar
         // homónimos F+M no catálogo completo — senão «Axila e pernas» após Feminina
         // dispara recusar_mistura em falso.
-        const cited = zonesNamedInText(turnText, pool)
+        const cited = zonesNamedInText(turnText, pool, serviceIgnore)
         let interactive: ChoiceInteractive | null = null
         const frameForAsk = deferred.peekFrame(db, tenantId, input.conversationId)
         if (textNamesMixAudiences(turnText, cited)) {
@@ -1123,7 +1132,7 @@ export async function tryAiAutoBook(
           // texto é anterior a este turno (zonas ditas antes da linha, DEC-143).
           const turnNamed =
             mention.zones.length > 0 ||
-            zonesChosenInClientTexts([turnText], mentionPool).zones.length > 0 ||
+            zonesChosenInClientTexts([turnText], mentionPool, serviceIgnore).zones.length > 0 ||
             (kept.length > 0 && !sessionIntact)
           const wantEcho =
             canOffer &&
@@ -1199,7 +1208,7 @@ export async function tryAiAutoBook(
             !mention.unrecognized &&
             previousIds !== nextIds &&
             (mention.zones.length > 0 ||
-              zonesChosenInClientTexts([turnText], mentionPool).zones.length > 0)
+              zonesChosenInClientTexts([turnText], mentionPool, serviceIgnore).zones.length > 0)
           if (
             substitution &&
             zoneEcho !== 'skip' &&
@@ -1364,7 +1373,9 @@ export async function tryAiAutoBook(
             const mention = mentionZones(turnText, zonePool, svc)
             const turnPicked =
               mention.zones.length > 0 ||
-              zonesChosenInClientTexts([turnText], zonePool).zones.length > 0
+              zonesChosenInClientTexts([turnText], zonePool, {
+                ignoreWords: zoneMentionIgnore(svc),
+              }).zones.length > 0
             if (mention.unrecognized && zoneEcho !== 'skip' && zoneEcho !== 'confirm') {
               replyText = askUnrecognizedZone(
                 mention,
@@ -1562,8 +1573,8 @@ export async function tryAiAutoBook(
     namedZones = ambiguous ? [] : proposalMention.zones
   } else {
     const chosen = sameFunnel
-      ? zonesChosenByClient(clientTurn, funnelOlder, scoped)
-      : zonesChosenByClient(clientTurn, [], scoped)
+      ? zonesChosenByClient(clientTurn, funnelOlder, scoped, svc)
+      : zonesChosenByClient(clientTurn, [], scoped, svc)
     if (chosen.zones.length > 0 || chosen.ambiguous) {
       // Menção explícita no funil (ex. «axila e íntima») vence sessão suja.
       namedZones = chosen.zones

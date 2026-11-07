@@ -131,6 +131,7 @@ export function zonesOfferedToClient(
 export function zonesChosenInClientTexts(
   texts: readonly string[],
   zones: readonly ServiceZoneRow[],
+  opts?: { ignoreWords?: readonly string[] },
 ): { zones: ServiceZoneRow[]; ambiguous: boolean } {
   if (zones.length === 0) return { zones: [], ambiguous: false }
   for (const text of texts) {
@@ -141,7 +142,7 @@ export function zonesChosenInClientTexts(
     if (counted != null && distinctZoneNames(zones) === counted) {
       return { zones: [...zones], ambiguous: false }
     }
-    const mention = resolveZoneMention(text, zones)
+    const mention = resolveZoneMention(text, zones, opts)
     // Sobra nesta bolha: tentar a mensagem mais antiga (não abortar o histórico).
     if (mention.unrecognized) continue
     if (mention.zones.length > 0) {
