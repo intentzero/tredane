@@ -74,12 +74,12 @@ describe('ReservarBlocoSheet', () => {
     setup()
     expect(await screen.findByText('Procedimento 1 · Dra. Ana')).toBeTruthy()
     await userEvent.click(screen.getByRole('button', { name: 'Alterar' }))
-    expect(screen.getByText('Procedimento')).toBeTruthy()
+    expect(screen.getByText('Serviço')).toBeTruthy()
   })
 
   it('com vários procedimentos não escolhe nenhum sozinho', async () => {
     setup({ services: 2 })
-    expect(await screen.findByText('Escolher procedimento')).toBeTruthy()
+    expect(await screen.findByText('Escolher serviço')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Alterar' })).toBeNull()
   })
 

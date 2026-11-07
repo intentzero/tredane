@@ -22,6 +22,7 @@ import {
   type PixSnapshot,
 } from '../../api'
 import { navigatePanel } from '../../routes'
+import { maskPhone } from '../inbox/format'
 import { priceVisit } from '../../../../clinic/catalog/combo'
 import { ReservarBlocoSheet } from '../holds/ReservarBlocoSheet'
 import { InboxRealtimeProvider, isScheduleEvent, useInboxRealtime } from '../../realtime/InboxRealtime'
@@ -38,7 +39,6 @@ import {
   defaultNotify,
   formatBrl,
   formatDeadline,
-  formatWaId,
   initials,
   nearestAlternatives,
   seatsLabel,
@@ -96,10 +96,26 @@ function variantTitle(svc: Service | undefined, count = 2) {
   return variantKindWord(svc?.variantKind, svc?.variantKindPlural, count)
 }
 
-function genderLabel(audience: string | undefined) {
+/** Gênero só quando a variante é de uma linha; unissex não tem rótulo. */
+function genderLabel(audience: string | undefined): string | null {
   if (audience === 'feminino') return 'Feminino'
   if (audience === 'masculino') return 'Masculino'
-  return 'Ambos'
+  return null
+}
+
+type Line = 'feminino' | 'masculino'
+
+/** «Para quem» só existe quando o serviço tem variantes femininas e masculinas em uso (DEC-079). */
+function needsLine(svc: Service | undefined): boolean {
+  const zones = activeZonesOf(svc)
+  return zones.some((z) => z.audience === 'feminino') && zones.some((z) => z.audience === 'masculino')
+}
+
+/** Linha implícita nas variantes escolhidas (para a revisão e o reagendamento). */
+function lineOf(zones: Array<{ audience?: string }>): Line | null {
+  if (zones.some((z) => z.audience === 'feminino')) return 'feminino'
+  if (zones.some((z) => z.audience === 'masculino')) return 'masculino'
+  return null
 }
 
 function activeZonesOf(svc: Service | undefined) {
@@ -207,6 +223,8 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
   const [periodOpen, setPeriodOpen] = useState(false)
   const [serviceId, setServiceId] = useState('')
   const [zoneIds, setZoneIds] = useState<string[]>([])
+  const [line, setLine] = useState<Line | null>(null)
+  const [lineUndo, setLineUndo] = useState<{ line: Line; zoneIds: string[]; dropped: string[] } | null>(null)
   const [professionalId, setProfessionalId] = useState<string>(ctx.professionalId ?? ANY)
   const [date, setDate] = useState('')
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null)
@@ -272,6 +290,8 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
         setProfessionalId(apt.professionalId)
         const ids = (apt.zones ?? []).map((z) => z.zoneId).filter((z): z is string => Boolean(z))
         if (ids.length > 0) setZoneIds(ids)
+        const svcAtLoad = config.services.find((sv) => sv.id === apt.serviceId)
+        setLine(lineOf(activeZonesOf(svcAtLoad).filter((z) => ids.includes(z.id))))
         setDate(civilDateInZone(apt.startsAt, config.settings.timezone))
       })
       .catch(() => {
@@ -290,12 +310,12 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
         if (ctx.conversationId) {
           const conv = await api.getInboxConversation(tenantId, ctx.conversationId, { messageLimit: 1 }, fo)
           if (cancelled) return
-          setContact({ name: conv.contact.displayName, phone: formatWaId(conv.contact.waId) })
+          setContact({ name: conv.contact.displayName, phone: maskPhone(conv.contact.waId) })
           setWindow24(conv.messagingWindow)
         } else if (ctx.contactId) {
           const det = await api.getInboxContact(tenantId, ctx.contactId, fo)
           if (cancelled) return
-          setContact({ name: det.contact.displayName, phone: formatWaId(det.contact.waId) })
+          setContact({ name: det.contact.displayName, phone: maskPhone(det.contact.waId) })
         }
       } catch {
         // Sem contato legível: o cabeçalho mostra só «Agendar horário».
@@ -625,6 +645,8 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
                   onClick={() => {
                     setServiceId(s.id)
                     setZoneIds([])
+                    setLine(null)
+                    setLineUndo(null)
                     setSelected(null)
                     setConflict(null)
                   }}
@@ -632,7 +654,8 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
                   <span className="agd-service-name">{s.name}</span>
                   {activeZonesOf(s).length > 0 ? (
                     <span className="agd-service-meta">
-                      {activeZonesOf(s).length} {variantTitle(s, activeZonesOf(s).length)}
+                      {activeZonesOf(s).length}{' '}
+                      {variantTitle(s, activeZonesOf(s).length).toLocaleLowerCase('pt-BR')}
                     </span>
                   ) : (
                     <>
@@ -647,11 +670,66 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           </div>
         </section>
 
-        {visit.zoned ? (
+        {needsLine(service) ? (
+          <section aria-labelledby="agd-line">
+            <h2 id="agd-line" className="agd-label">Para quem</h2>
+            <div className="agd-mode agd-line" role="radiogroup" aria-labelledby="agd-line">
+              {(['feminino', 'masculino'] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  role="radio"
+                  aria-checked={line === l}
+                  className="agd-mode-btn"
+                  onClick={() => {
+                    if (line === l) return
+                    const active = activeZonesOf(service)
+                    const dropped = active.filter((z) => zoneIds.includes(z.id) && z.audience !== 'ambos' && z.audience !== l)
+                    if (line && dropped.length > 0) {
+                      setLineUndo({ line, zoneIds, dropped: dropped.map((z) => z.name) })
+                    } else {
+                      setLineUndo(null)
+                    }
+                    setZoneIds((prev) => prev.filter((id) => !dropped.some((z) => z.id === id)))
+                    setLine(l)
+                    setSelected(null)
+                    setConflict(null)
+                  }}
+                >
+                  {l === 'feminino' ? 'Feminino' : 'Masculino'}
+                </button>
+              ))}
+            </div>
+            {lineUndo ? (
+              <p className="agd-note agd-line-undo" role="status">
+                <span>
+                  Tiramos {lineUndo.dropped.join(', ')} ({lineUndo.line}).
+                </span>
+                <button
+                  type="button"
+                  className="agd-link"
+                  onClick={() => {
+                    setLine(lineUndo.line)
+                    setZoneIds(lineUndo.zoneIds)
+                    setLineUndo(null)
+                    setSelected(null)
+                  }}
+                >
+                  Desfazer
+                </button>
+              </p>
+            ) : null}
+            {!line ? <p className="agd-note">Escolha para quem para ver as opções.</p> : null}
+          </section>
+        ) : null}
+
+        {visit.zoned && (!needsLine(service) || line) ? (
           <section aria-labelledby="agd-zones">
             <h2 id="agd-zones" className="agd-label">{variantTitle(service)}</h2>
             <div className="agd-pills" role="group" aria-labelledby="agd-zones">
-              {activeZonesOf(service).map((z) => {
+              {activeZonesOf(service)
+                .filter((z) => !needsLine(service) || z.audience === 'ambos' || z.audience === line)
+                .map((z) => {
                 const on = zoneIds.includes(z.id)
                 const chosen = chosenZones(service, zoneIds)
                 const opposite = z.audience === 'feminino' ? 'masculino' : z.audience === 'masculino' ? 'feminino' : null
@@ -676,7 +754,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
                       setConflict(null)
                     }}
                   >
-                    {z.name} · {genderLabel(z.audience)} · {z.durationMinutes} min
+                    {z.name} · {z.durationMinutes} min
                     {z.priceCents != null ? ` · ${formatBrl(z.priceCents)}` : ' · sem preço'}
                   </button>
                 )
@@ -853,6 +931,9 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           conversationId={ctx.conversationId}
           contactName={contact?.name ?? null}
           windowOpen={window24?.open === true}
+          initialServiceId={serviceId}
+          initialProfessionalId={professionalId === ANY ? undefined : professionalId}
+          initialDate={date}
           onClose={() => setPeriodOpen(false)}
           onReserved={async (message) => {
             if (message && ctx.conversationId) {
@@ -1230,9 +1311,13 @@ function ReviewSheet(p: ReviewProps) {
       ? 'Conta Pix desconectada. A responsável liga o recebimento em Clínica → Recebimento.'
       : null
 
+  const reviewLine = lineOf(visitQuote(service, p.zoneIds).zones)
+  const reviewServiceLabel = reviewLine
+    ? `${service.name} · ${genderLabel(reviewLine)} · ${Math.round((slot.endsAt - slot.startsAt) / 60000)} min`
+    : base.serviceLabel
   const rows: Array<[string, string]> = [
     ['Paciente', p.contact?.name || p.contact?.phone || 'Sem contato vinculado'],
-    ['Serviço', base.serviceLabel],
+    ['Serviço', reviewServiceLabel],
     ['Profissional', slot.professionalName],
     ['Quando', whenLong],
   ]
@@ -1241,7 +1326,7 @@ function ReviewSheet(p: ReviewProps) {
   const kindLabel = variantTitle(service, 1)
   if (quote.zoned && quote.zones.length > 0) {
     for (const zone of quote.zones) {
-      const bits = [zone.name, genderLabel(zone.audience)]
+      const bits: string[] = [zone.name]
       if (zone.priceCents != null) bits.push(formatBrl(zone.priceCents))
       rows.push([kindLabel, bits.join(' · ')])
     }

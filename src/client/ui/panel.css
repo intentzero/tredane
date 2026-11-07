@@ -9835,6 +9835,7 @@
   cursor: pointer;
 }
 
+<<<<<<< HEAD
 /* Painel do contato: identidade, situação, resumo da IA e histórico. */
 .ic-id {
   display: flex;
@@ -10035,4 +10036,11 @@
 
 .ic-danger .inbox-notice {
   margin: 0 var(--space-4);
+}
+
+/* Reservar bloco: aviso de serviços com variantes fora do bloco (DEC-150). */
+.hold-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
 }

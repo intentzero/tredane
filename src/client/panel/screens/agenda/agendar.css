@@ -315,3 +315,22 @@
 .agd-time[aria-pressed='true'] .agd-time-seats {
   color: inherit;
 }
+
+/* «Para quem» (linha feminina/masculina) antes das variantes. */
+.agd-line {
+  margin-bottom: var(--space-2);
+}
+
+.agd-line-undo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+}
+
+.agd-line-undo span {
+  flex: 1;
+}
