@@ -296,6 +296,16 @@ export function scheduleFactsFromText(text: string): {
   return out
 }
 
+/**
+ * Audiência fixada na conversa sem serviço em jogo (consulta de catálogo, DEC-142).
+ * `getScheduleSession` devolve null nesse caso; só o quadro a guarda.
+ */
+export function heldAudienceLine(
+  frame: Pick<BookingFrame, 'serviceId' | 'line'> | null | undefined,
+): ScheduleAudienceLine | null {
+  return frame && !frame.serviceId ? (frame.line ?? null) : null
+}
+
 function rowToFrame(row: FrameSql): BookingFrame {
   const line = asLine(row.line) ?? asLine(row.audience_line)
   const time = asClock(row.time) ?? asClock(row.clock_time)
@@ -566,11 +576,15 @@ export function saveBookingFrame(
   }
 
   const serviceChanged = existing != null && existing.serviceId !== nextServiceId
-  const line = serviceChanged
-    ? (patch.line !== undefined ? patch.line : null)
-    : patch.line !== undefined
-      ? patch.line
-      : (existing?.line ?? null)
+  // CF-45 / DEC-142: a audiência «solta» (conversa só com a linha, sem serviço) não é de um
+  // serviço anterior. Ao escolher o serviço ela segue; só uma troca de serviço a descarta.
+  const fromAudienceHold = existing != null && existing.serviceId == null
+  const line =
+    serviceChanged && !fromAudienceHold
+      ? (patch.line !== undefined ? patch.line : null)
+      : patch.line !== undefined
+        ? patch.line
+        : (existing?.line ?? null)
   const variantIds = serviceChanged
     ? (patch.variantIds !== undefined ? patch.variantIds : null)
     : patch.variantIds !== undefined

@@ -31,8 +31,11 @@ import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts
 import { formatOpeningHours } from './schedule-context'
 import {
   funnelMessageFilter,
+  getBookingFrame,
   getScheduleSession,
+  heldAudienceLine,
   saveScheduleSession,
+  type ScheduleAudienceLine,
   scheduleFactsFromText,
   type ScheduleSessionPatch,
 } from './schedule-session'
@@ -98,11 +101,12 @@ function mixedAudienceRefusal(
   source: string,
   conversationId: string,
   session: ReturnType<typeof getScheduleSession> | null,
+  heldLine: ScheduleAudienceLine | null = null,
 ): string | null {
   for (const service of services) {
     const active = service.zones.filter((zone) => zone.active)
     const mixed = needsAudienceLine(active)
-    const carried = session?.serviceId === service.id ? session.audienceLine : null
+    const carried = session?.serviceId === service.id ? session.audienceLine : heldLine
     const line = mixed ? (explicitAudienceLine(source) ?? carried) : null
     // Linha travada → só variantes dessa linha (e ambos), como Opções / DEC-079.
     const scoped = mixed && line ? zonesForAudienceLine(active, line) : active
@@ -161,6 +165,7 @@ function rememberZonesWhenKnown(
   services: ServiceRow[],
   source: string,
   session: ReturnType<typeof getScheduleSession>,
+  heldLine: ScheduleAudienceLine | null,
   clock: Clock,
   conversationId: string | undefined,
   turn?: { messages: Array<{ direction: string; body: string }> },
@@ -184,7 +189,7 @@ function rememberZonesWhenKnown(
           .map((message) => message.body)
           .reverse()
       : []
-  const carried = session && session.serviceId === svc.id ? session.audienceLine : null
+  const carried = session && session.serviceId === svc.id ? session.audienceLine : heldLine
   const line = mixed ? (explicitAudienceLine(source) ?? carried ?? audienceLineFromClientTexts(prior)) : null
   if (mixed && !line) return false
   // Horário já guardado: o autobook fecha a proposta. Não alterar a sessão aqui.
@@ -265,6 +270,10 @@ export function catalogReply(
   const source = clientSource(db, tenantId, body, opts.conversationId, opts.turn)
   // Sessão: relê sempre (gravações no mesmo turno invalidam o snapshot do TurnContext).
   const session = opts.conversationId ? getScheduleSession(db, tenantId, opts.conversationId) : null
+  // CF-45 / DEC-142: audiência fixada pela consulta de catálogo, sem serviço em jogo.
+  const heldLineNow = opts.conversationId
+    ? heldAudienceLine(getBookingFrame(db, tenantId, opts.conversationId))
+    : null
   const explicit = explicitAudienceLine(source)
   const targets = poolFor(services, body)
   const who = WHO.test(body)
@@ -321,6 +330,7 @@ export function catalogReply(
       services,
       source,
       session,
+      heldLineNow,
       clock,
       opts.conversationId,
       opts.turn,
@@ -330,7 +340,7 @@ export function catalogReply(
     return null
   }
 
-  const mixedVisit = mixedAudienceRefusal(services, source, cnv, session)
+  const mixedVisit = mixedAudienceRefusal(services, source, cnv, session, heldLineNow)
   if (mixedVisit) return mixedVisit
 
   // Handoffs e ambiguidade de serviço — sem roubar o funil de linha/zonas/dia.
@@ -454,7 +464,7 @@ export function catalogReply(
     .map((message) => message.body)
     .reverse()
   const inboundNewestFirst = [source, ...funnelInboundNewestFirst.filter((body) => body !== source)]
-  const carried = sameFunnel && session ? session.audienceLine : null
+  const carried = sameFunnel && session ? session.audienceLine : heldLineNow
   // Histórico só no funil activo (sessão do serviço). Após DEC-086 a sessão foi limpa.
   const historyLine = sameFunnel ? audienceLineFromClientTexts(inboundNewestFirst) : null
   const line = mixed ? (explicit ?? carried ?? historyLine) : null

@@ -95,11 +95,9 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     id: 'CC-05',
     title: 'Audiência já conhecida não se repergunta: a meio da marcação diz que continua nela',
     turnosIdeais: 3,
-    // CF-45 (Proposto): a audiência fixada pela consulta («serviços masculinos») não passa
-    // ao funil. Depois de uma marcação, «quero outro serviço» volta a perguntar «Feminino ou
-    // masculino?» (DEC-142: «audiência já conhecida não se reperguntar»; DEC-090). Sem
-    // marcação pelo meio a audiência mantém-se. Retira-se o `knownFailure` ao corrigir.
-    knownFailure: 'CF-45',
+    // CF-45 (corrigido 06/11/2026): a audiência fixada pela consulta («serviços masculinos»)
+    // não passava ao funil. `saveBookingFrame` descartava a linha ao escolher o serviço e os
+    // leitores só a levavam quando o serviço da sessão coincidia com o do pedido.
     prepare: setAudience({ depilacao: 'feminino', massagem: 'masculino' }),
     turns: [
       { role: 'client', text: 'serviços masculinos' },
@@ -113,6 +111,26 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       turns: [
         { turn: 2, matches: [/Continuo no masculino/, /Temos:/], excludes: [ASK_LIST] },
       ],
+    },
+  },
+  {
+    id: 'CC-06',
+    title: 'Audiência da consulta segue ao funil: «axila» sai na linha escolhida, sem reperguntar',
+    turnosIdeais: 2,
+    // CF-45: «Axila» existe nas duas linhas (DEC-079). Com «serviços femininos» já dito,
+    // o funil usa a feminina (R$ 40,00, não os R$ 50,00 da masculina) e não repergunta a linha.
+    damage: { serviceKey: 'depilacao', zoneNames: ['Axila'] },
+    turns: [
+      { role: 'client', text: 'serviços femininos' },
+      { role: 'client', text: 'Quero depilação axila sexta às 10h' },
+    ],
+    expect: {
+      proposal: true,
+      proposalZones: ['Axila'],
+      noAppointment: true,
+      outboundIncludes: ['R$ 40,00'],
+      outboundExcludes: [/R\$ 50,00/, ...NO_LEAK],
+      turns: [{ turn: 1, excludes: [/feminina ou masculina|feminino ou masculino/i] }],
     },
   },
   {

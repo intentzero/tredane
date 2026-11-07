@@ -17,6 +17,7 @@ import {
 import {
   clearBookingFrame,
   getBookingFrame,
+  heldAudienceLine,
   saveBookingFrame,
   syncBookingFrameWithCatalog,
   wouldAskFilledSlot,
@@ -669,5 +670,32 @@ describe('catalogVersion revalidação (#472)', () => {
     } finally {
       s.close()
     }
+  })
+
+  it('CF-45: a audiência solta (DEC-142) segue ao escolher o serviço; só uma troca de serviço a descarta', () => {
+    const { db, clock, tenantId, conversationId, close } = boot()
+    try {
+      // Consulta de catálogo: só a linha, sem serviço.
+      saveBookingFrame(db, tenantId, conversationId, { serviceId: null, line: 'masculino', catalogVersion: '1' }, clock)
+      expect(heldAudienceLine(getBookingFrame(db, tenantId, conversationId))).toBe('masculino')
+      // Escolhe o serviço sem repetir a linha: a audiência fica.
+      const chosen = saveBookingFrame(db, tenantId, conversationId, { serviceId: 'svc1', catalogVersion: '1' }, clock)
+      expect(chosen.frame.serviceId).toBe('svc1')
+      expect(chosen.frame.line).toBe('masculino')
+      // Já não é «solta»: com serviço, o helper não a devolve.
+      expect(heldAudienceLine(getBookingFrame(db, tenantId, conversationId))).toBeNull()
+      // Trocar para outro serviço continua a descartar a linha do primeiro.
+      const other = saveBookingFrame(db, tenantId, conversationId, { serviceId: 'svc2', catalogVersion: '1' }, clock)
+      expect(other.frame.line).toBeNull()
+    } finally {
+      close()
+    }
+  })
+
+  it('heldAudienceLine: nulo sem quadro, com serviço ou sem linha', () => {
+    expect(heldAudienceLine(null)).toBeNull()
+    expect(heldAudienceLine({ serviceId: 'svc1', line: 'feminino' })).toBeNull()
+    expect(heldAudienceLine({ serviceId: null, line: null })).toBeNull()
+    expect(heldAudienceLine({ serviceId: null, line: 'feminino' })).toBe('feminino')
   })
 })

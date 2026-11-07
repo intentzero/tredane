@@ -255,7 +255,8 @@ Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-co
 | CC-02 | P0 | Audiência pedida por texto | [Depilação feminino, Massagem masculino] C: «serviços masculinos» | «Temos:» com os serviços masculinos ou qualquer, como estão no cadastro; sem Depilação. | INV-05 | 1 | ✅ L1 |
 | CC-03 | P0 | Audiência sem serviços | [todos femininos] C: «serviços masculinos» | «Não tenho serviços no masculino.» Sem inventar serviço nem cair no modelo com link. | INV-05 | 1 | ✅ L1 |
 | CC-04 | P0 | Outro serviço com proposta aberta | C: «Limpeza amanhã 15h» ⟶ proposta enviada ⟶ C: «quero outro serviço» ⟶ Confirmar no cartão antigo | Lista Feminino/Masculino; a proposta fica retirada; o Confirmar antigo diz que já não está válida e **não marca**. | INV-01 | 2 | ✅ L1 |
-| CC-05 | P0 | Audiência já conhecida | [masculino, fixado] C: «serviços masculinos» ⟶ C: «Limpeza amanhã 15h» ⟶ C: «quero outro serviço» | «Continuo no masculino…» + lista; **não** repergunta a audiência (DEC-142, DEC-090). | INV-08 | 3 | ❌ **CF-45** (`it.fails`: repergunta depois de uma marcação) |
+| CC-05 | P0 | Audiência já conhecida | [masculino, fixado] C: «serviços masculinos» ⟶ C: «Limpeza amanhã 15h» ⟶ C: «quero outro serviço» | «Continuo no masculino…» + lista; **não** repergunta a audiência (DEC-142, DEC-090). | INV-08 | 3 | ✅ L1 (CF-45 fechado a 06/11) |
+| CC-06 | P0 | Audiência segue ao funil | C: «serviços femininos» ⟶ C: «Quero depilação axila sexta 10h» | Proposta com a Axila **feminina** (R$ 40,00, não R$ 50,00), sem reperguntar a linha. | INV-02, INV-08 | 2 | ✅ L1 |
 
 ## P. Personas para cliente simulada (L3)
 
