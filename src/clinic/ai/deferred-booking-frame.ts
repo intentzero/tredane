@@ -91,6 +91,11 @@ export class DeferredBookingFrame {
     return this.cleared || this.patch != null
   }
 
+  /** Slot da pergunta pendente acumulada neste turno (`horario`, `linha`, …), ou null. */
+  get pendingSlot(): string | null {
+    return this.patch?.pending?.slot ?? null
+  }
+
   /** Acumula mutação via patch de sessão (não grava SQLite). */
   save(patch: ScheduleSessionPatch): void {
     this.cleared = false

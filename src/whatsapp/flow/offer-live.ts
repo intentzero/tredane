@@ -86,9 +86,15 @@ export function sessionFromBookingFrame(
 /**
  * Remove pending/lastOffer M5 do frame diferido — a sessão passa a ser o flow_token.
  * Mantém serviço/linha/variantes já no quadro.
+ *
+ * Exceção: a oferta de horários. O corpo da mensagem continua a listar as horas e a perguntar
+ * «Qual fica melhor?», por isso a cliente responde por texto («14»). Sem o pending e o lastOffer,
+ * a resposta não tinha a que se ligar e o bot voltava a oferecer outras horas (sonda com o segundo
+ * telefone, 07/11/2026). O fecho do Flow (nfm_reply) limpa os dois ao gravar o quadro.
  */
 export function clearM5PendingOnDeferred(deferred: DeferredBookingFrame | undefined): void {
   if (!deferred) return
+  if (deferred.pendingSlot === 'horario') return
   deferred.saveFrame({ pending: null, lastOffer: null })
 }
 

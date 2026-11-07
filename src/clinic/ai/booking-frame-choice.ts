@@ -113,6 +113,20 @@ export function matchPendingChoice(
   // Hora citada («o das 14», «14h», «às 14:00») contra opções.
   // O relógio é o de parseTimes (DEC-137, leitura 06/11/2026): «o das N» já entra em extractTimes.
   const times = [...extractTimes(choiceText)]
+  // Hora solta em resposta à oferta de horários: «14» = 14:00 quando há uma opção às 14:00.
+  // Só com pending de horário e só se alguma opção tiver essa hora; senão «1»…«5» seguem como
+  // ordinais mais abaixo.
+  if (times.length === 0 && pending.slot === 'horario') {
+    const bare = choiceText.match(/^(\d{1,2})\s*[.!]?$/)
+    const hour = bare ? Number(bare[1]) : -1
+    if (hour >= 0 && hour <= 23) {
+      const want = `${String(hour).padStart(2, '0')}:00`
+      const offered = opts.some(
+        (o) => o.key.match(/\d{2}:\d{2}/)?.[0] === want || [...extractTimes(o.label)].includes(want),
+      )
+      if (offered) times.push(want)
+    }
+  }
   const uniqueTimes = [...new Set(times)]
   if (uniqueTimes.length === 1) {
     const want = uniqueTimes[0]!
