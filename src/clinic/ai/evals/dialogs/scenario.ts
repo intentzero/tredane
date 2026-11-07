@@ -69,6 +69,11 @@ export type DialogScenario = {
     limpeza: string
     depilacao: string
     massagem: string
+    /**
+     * Serviço «Massagem» (sem «relaxante» no nome) — A-24 / nome ≠ variante.
+     * `massagem` continua a ser «Massagem relaxante» (legado da matriz).
+     */
+    massagemTipos: string
     bronzeamento: string
     peeling: string
     micro: string
@@ -194,7 +199,9 @@ export function bootDialogScenario(opts: {
     },
     clock,
   )
-  upsertServiceOp(
+  // Catálogo paralelo: «Massagem» com tipos (A-24). Não altera `ids.massagem`
+  // (Massagem relaxante sem zonas) usado pelos casos A-06/A-07/A-08/…
+  const massagemTipos = upsertServiceOp(
     db,
     caller,
     {
@@ -461,6 +468,7 @@ export function bootDialogScenario(opts: {
       limpeza: limpeza.id,
       depilacao: depilacao.id,
       massagem: massagem.id,
+      massagemTipos: massagemTipos.id,
       bronzeamento: bronzeamento.id,
       peeling: peeling.id,
       micro: micro.id,

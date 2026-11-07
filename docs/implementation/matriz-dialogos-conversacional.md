@@ -70,6 +70,7 @@
 | A-21 | P0 | Owner grava a sugestão | C: «Quero depilar» [sem sinónimo] → owner grava «depilar» em Depilação pela sugestão do painel → C: «Quero depilar» | 1.º turno igual ao A-20 e regista o termo; a sugestão aponta Depilação; depois de gravada, pergunta a linha (feminina/masculina) sem «não encontrei». | INV-05 | 2 | ✅ L1 (05/11/2026, DEC-141) |
 | A-22 | P0 | Confirmar suspenso não marca | [proposta Axila + Pernas enviada] ⟶ C: «quero só pernas» ⟶ eco «Entendi: Pernas. Certo?» ⟶ toque no Confirmar do cartão antigo | Nenhum compromisso (INV-01); a proposta antiga fica suspensa até Corrigir ou Sim. | INV-01 | 2 | ✅ L1 (06/11/2026, migração 0053) |
 | A-23 | P0 | Confirmar suspenso recebe resposta | [o mesmo que A-22] | O toque no cartão antigo tem uma resposta que aponta para o eco. | INV-09 | 3 | ❌ **CF-44** (`it.fails`; hoje silêncio; texto Em aberto, DEC-104) |
+| A-24 | P0 | Nome do serviço ≠ variante | [Massagem aberta com tipos] ⟶ C: «Bom dia, queria agendar uma massagem» | Pergunta os tipos (Opções); **sem** «Não encontrei…»; **não** fecha «Massagem relaxante». | EF-02, DEC-137 | 1 | ✅ L1 `dialogs` A-24 (#597 review) |
 
 ## B. Linguagem temporal
 

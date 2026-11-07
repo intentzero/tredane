@@ -6,6 +6,7 @@
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * todos os serviços com audiência «qualquer», salvo o que o caso mudar em `prepare`.
  */
+import { replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { saveScheduleSession } from '../../schedule-session'
 import type { DialogCase } from './runner'
 import type { DialogScenario } from './scenario'
@@ -183,6 +184,63 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     expect: {
       appointments: 0,
       turns: [{ turn: 2, matches: [/\S/] }],
+    },
+  },
+  {
+    id: 'A-24',
+    title: 'Nome do serviço aberto não escolhe variante («massagem» ≠ «Massagem relaxante»)',
+    turnosIdeais: 1,
+    // Paulo 07/11/2026 / #597: com Massagem aberta e tipos, a frase só nomeia o serviço.
+    // Pergunta as variantes (Opções); não «Não encontrei…» e não fecha «Massagem relaxante».
+    prepare: (s) => {
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: s.ids.massagemTipos,
+          name: 'Massagem',
+          durationMinutes: 50,
+          bufferMinutes: 0,
+          priceCents: 15000,
+          professionalIds: [s.ids.bia],
+          roomRequirement: { mode: 'none' },
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        s.ids.massagemTipos,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 50, priceCents: 15000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 15000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15000 },
+        ],
+        s.clock,
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: s.ids.massagemTipos, phase: 'coletando' },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Bom dia, queria agendar uma massagem' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      outboundExcludes: [/Não encontrei/i, ...NO_LEAK],
+      turns: [
+        {
+          turn: 0,
+          matches: [/Massagem relaxante/i, /Liberação miofascial|Ventosaterapia|Drenagem/i],
+          excludes: [/Não encontrei/i],
+        },
+      ],
     },
   },
 ]

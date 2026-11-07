@@ -827,15 +827,26 @@ const ZONE_MENTION_STOP = new Set([
   'valeu',
   'prefiro',
   'verdade',
-  // Artigos / «serviço» — não são zona citada (Paulo 07/11/2026; DEC-137).
+  // Artigos / determinantes / «serviço» — não são zona citada (Paulo 07/11/2026; DEC-137).
+  // «esta»/«alguma» etc. cobrem a mesma classe que «uma» (review #597).
   'uma',
   'um',
   'uns',
   'umas',
+  'esta',
+  'este',
+  'estes',
+  'estas',
+  'alguma',
+  'algum',
+  'alguns',
+  'algumas',
   'servico',
-  // «outra»/«outro» não é variante nem troca de serviço (Paulo 07/11/2026).
+  // «outra»/«outro» (e plural) não é variante nem troca de serviço (Paulo 07/11/2026).
   'outra',
   'outro',
+  'outras',
+  'outros',
   // Despedida / fecho — não disparam «Não encontrei tchau…».
   'tchau',
   'adeus',

@@ -3,7 +3,7 @@
  * knownFailure → corre como it.fails com o ID do achado (DEC-108).
  * A-13..A-19: sonda de novembro / F1-0 (#506).
  * FL-*: hub + WhatsApp Flow (`fl-cases.ts`).
- * CC-*, A-22, A-23: consulta de catálogo e Confirmar suspenso (`cc-cases.ts`).
+ * CC-*, A-22, A-23, A-24: consulta de catálogo, Confirmar suspenso e nome≠variante (`cc-cases.ts`).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import { acceptUnmatchedTermOp, createBlockOp, listUnmatchedTermsOp } from '../../../config'

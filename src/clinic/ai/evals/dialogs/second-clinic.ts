@@ -276,6 +276,7 @@ export function bootSecondClinicScenario(opts: {
       limpeza: massagem.id,
       depilacao: depilacao.id,
       massagem: massagem.id,
+      massagemTipos: massagem.id,
       bronzeamento: peeling.id,
       peeling: peeling.id,
       micro: massagem.id,
