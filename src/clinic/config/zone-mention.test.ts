@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import type { ServiceZoneRow } from './types'
-import { resolveZoneMention, textNamesMixAudiences } from './zones'
+import { resolveZoneMention, textNamesMixAudiences, zonesNamedInText } from './zones'
 
 function zone(
   id: string,
@@ -213,6 +213,97 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
           text,
         ).toEqual(expectIds)
       }
+    }
+  })
+})
+
+/** Serviço Massagem aberto: o nome do serviço não escolhe variante (Paulo 07/11/2026). */
+const massagemZones = [
+  zone('lib', 'Liberação miofascial', 'ambos'),
+  zone('ven', 'Ventosaterapia', 'ambos'),
+  zone('dre', 'Drenagem linfática', 'ambos'),
+  zone('rel', 'Massagem relaxante', 'ambos'),
+]
+
+describe('nome do serviço ≠ variante (Paulo 07/11/2026)', () => {
+  const ignore = { ignoreWords: ['Massagem'] }
+
+  it('«Bom dia, queria agendar uma massagem» não escolhe Massagem relaxante nem sobra', () => {
+    const got = resolveZoneMention('Bom dia, queria agendar uma massagem', massagemZones, ignore)
+    expect(got.unrecognized).toBe(false)
+    expect(got.leftover).toBeNull()
+    expect(got.zones).toEqual([])
+    expect(zonesNamedInText('Bom dia, queria agendar uma massagem', massagemZones, ignore)).toEqual([])
+  })
+
+  it('«massagem relaxante» / «Massagem relaxante» escolhe essa zona', () => {
+    for (const text of ['massagem relaxante', 'Massagem relaxante']) {
+      const got = resolveZoneMention(text, massagemZones, ignore)
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.zones.map((z) => z.id), text).toEqual(['rel'])
+    }
+  })
+
+  it('palavra distintiva «relaxante» (única) escolhe Massagem relaxante', () => {
+    const got = resolveZoneMention('quero a relaxante', massagemZones, ignore)
+    expect(got.unrecognized).toBe(false)
+    expect(got.zones.map((z) => z.id)).toEqual(['rel'])
+  })
+
+  it('zona desconhecida «cotovelo» continua unrecognized com leftover', () => {
+    const got = resolveZoneMention('quero cotovelo', massagemZones, ignore)
+    expect(got.unrecognized).toBe(true)
+    expect(got.zones).toEqual([])
+    expect(got.leftover).toBe('cotovelo')
+  })
+
+  it('regressão: «íntima» continua a casar Parte íntima (depilação)', () => {
+    const depil = [
+      zone('ax-f', 'Axila', 'feminino'),
+      zone('pe-f', 'Pernas', 'feminino'),
+      zone('in-f', 'Parte íntima', 'feminino'),
+    ]
+    const got = resolveZoneMention('axila e íntima', depil, { ignoreWords: ['Depilação'] })
+    expect(got.unrecognized).toBe(false)
+    expect(got.zones.map((z) => z.name)).toEqual(['Axila', 'Parte íntima'])
+    expect(zonesNamedInText('só a íntima', depil, { ignoreWords: ['Depilação'] }).map((z) => z.id)).toEqual([
+      'in-f',
+    ])
+  })
+
+  it('artigo «uma» e «serviço» não são sobra unrecognized', () => {
+    for (const text of ['uma massagem', 'quero o serviço', 'uns horários']) {
+      const got = resolveZoneMention(text, massagemZones, ignore)
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.leftover, text).toBeNull()
+      expect(got.zones, text).toEqual([])
+    }
+  })
+
+  it('determinantes esta/alguma (e pares) não são sobra unrecognized (#597 M1)', () => {
+    for (const text of [
+      'quero esta massagem',
+      'este serviço',
+      'estas opções',
+      'estes horários',
+      'alguma massagem',
+      'algum horário',
+      'algumas zonas',
+      'alguns horários',
+    ]) {
+      const got = resolveZoneMention(text, massagemZones, ignore)
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.leftover, text).toBeNull()
+      expect(got.zones, text).toEqual([])
+    }
+  })
+
+  it('«outra» / «outro» e despedida não são sobra unrecognized', () => {
+    for (const text of ['Outra', 'outro', 'Ok tchau', 'tchau', 'obrigado', 'vlw']) {
+      const got = resolveZoneMention(text, massagemZones, ignore)
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.leftover, text).toBeNull()
+      expect(got.zones, text).toEqual([])
     }
   })
 })

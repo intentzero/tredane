@@ -75,6 +75,7 @@ function serviceFromNamedZones(services: ServiceRow[], source: string): ServiceR
     const named = zonesNamedInText(
       source,
       service.zones.filter((zone) => zone.active),
+      { ignoreWords: [service.name, ...(service.synonyms ?? [])] },
     )
     return named.length > 0
   })
@@ -110,7 +111,9 @@ function mixedAudienceRefusal(
     const line = mixed ? (explicitAudienceLine(source) ?? carried) : null
     // Linha travada → só variantes dessa linha (e ambos), como Opções / DEC-079.
     const scoped = mixed && line ? zonesForAudienceLine(active, line) : active
-    const named = zonesNamedInText(source, scoped)
+    const named = zonesNamedInText(source, scoped, {
+      ignoreWords: [service.name, ...(service.synonyms ?? [])],
+    })
     if (textNamesMixAudiences(source, named)) {
       return mixedAudienceReply(conversationId)
     }
@@ -502,7 +505,8 @@ export function catalogReply(
   if (active.length > 0 && mixed && !line) return audienceLineQuestion(svc.name, cnv)
 
   const scoped = mixed ? zonesForAudienceLine(active, line) : active
-  const named = scoped.length > 0 ? zonesNamedInText(source, scoped) : []
+  const serviceIgnore = { ignoreWords: [svc.name, ...(svc.synonyms ?? [])] }
+  const named = scoped.length > 0 ? zonesNamedInText(source, scoped, serviceIgnore) : []
   const namedOk = named.length > 0 && !variantAudiencesConflict(named)
   if (opts.conversationId && inPlay && namedOk) {
     saveSession(opts.conversationId, {
@@ -512,7 +516,7 @@ export function catalogReply(
   }
   const chosenEarlier =
     sameFunnel && scoped.length > 0
-      ? zonesChosenInClientTexts(inboundNewestFirst, scoped)
+      ? zonesChosenInClientTexts(inboundNewestFirst, scoped, serviceIgnore)
       : { zones: [] as typeof scoped, ambiguous: false }
   // A gravação da sessão não avança updated_at no mesmo serviço, então a mensagem
   // que escolheu as zonas pode ficar de fora da janela. Os ids da sessão contam.

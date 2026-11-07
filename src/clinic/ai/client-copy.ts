@@ -81,13 +81,13 @@ export function serviceNotFoundReply(
 
 /**
  * #509 / prática 1 — zona citada sem correspondência única no âmbito.
- * **Proposto** (copy para aprovação do Paulo; DEC-104). Enquanto não houver
- * acto no catálogo, a frase fixa sai literal.
+ * Confirmado (Paulo 07/11/2026): a lista já tem todas as variantes; sem «ou outra?».
+ * Enquanto não houver acto no catálogo, a frase fixa sai literal (DEC-104).
  */
 export function zoneNotFoundAskReply(word: string, zoneNames: readonly string[]): string {
   const palavra = word.trim() || 'isso'
   const lista = zoneNames.join(', ')
-  return `Não encontrei ${palavra} nas opções. Quer ${lista} ou outra?`
+  return `Não encontrei ${palavra} nas opções. Quer ${lista}?`
 }
 
 /** Fallback / 1.ª redação — `catalogo_mudou`. */

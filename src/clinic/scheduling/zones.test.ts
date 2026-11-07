@@ -641,6 +641,21 @@ describe('zonesNamedInText', () => {
     ])
   })
 
+  it('ignoreWords bloqueia alias do serviço; nome completo e palavra distintiva casam', () => {
+    const zones = [
+      zone('lib', 'Liberação miofascial'),
+      zone('ven', 'Ventosaterapia'),
+      zone('dre', 'Drenagem linfática'),
+      zone('rel', 'Massagem relaxante'),
+    ]
+    const ignore = { ignoreWords: ['Massagem'] }
+    expect(zonesNamedInText('queria agendar uma massagem', zones, ignore)).toEqual([])
+    expect(zonesNamedInText('Massagem relaxante', zones, ignore).map((z) => z.id)).toEqual(['rel'])
+    expect(zonesNamedInText('relaxante', zones, ignore).map((z) => z.id)).toEqual(['rel'])
+    // Sem ignoreWords, «massagem» ainda casa a variante (comportamento legado do alias).
+    expect(zonesNamedInText('massagem', zones).map((z) => z.id)).toEqual(['rel'])
+  })
+
   it('o mesmo nome devolve as duas variantes, ou só o género e a duração ditos', () => {
     const zones = [zone('m', 'Axila', 'masculino'), zone('f', 'Axila', 'feminino')]
     expect(zonesNamedInText('quero axila', zones).map((z) => z.id)).toEqual(['m', 'f'])

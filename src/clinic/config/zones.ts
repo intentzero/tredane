@@ -606,17 +606,35 @@ function zoneAliasWords(name: string): string[] {
     .filter((word) => word.length >= 6 && !ZONE_ALIAS_STOP.has(word))
 }
 
+/** Palavras do serviço (nome / sinónimos) a ignorar no alias de variante. */
+function foldIgnoreWords(words: readonly string[] | undefined): Set<string> {
+  return new Set(
+    (words ?? [])
+      .flatMap((w) => foldZoneName(w).split(/[^a-z0-9]+/))
+      .filter((w) => w.length >= 3),
+  )
+}
+
 /**
  * Nomes de zona que aparecem no texto, como palavras. O nome mais longo ganha.
  * A ordem é a do catálogo. O mesmo nome inclui cada variante; «feminina» ou
  * «masculino» no texto fica só com esse género.
  * Uma palavra longa e única do nome também conta («íntima» = «Parte íntima»)
  * quando nenhuma outra zona do âmbito usa essa palavra.
+ *
+ * `ignoreWords`: palavras só do serviço aberto (e sinónimos). Não disparam
+ * o alias de variante — «massagem» ≠ «Massagem relaxante». O nome completo
+ * da variante e uma palavra distintiva («relaxante») continuam a casar.
  */
-export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[]): ServiceZoneRow[] {
+export function zonesNamedInText(
+  text: string,
+  zones: readonly ServiceZoneRow[],
+  opts?: { ignoreWords?: readonly string[] },
+): ServiceZoneRow[] {
   const folded = foldZoneName(text)
   const hint = audienceHint(folded)
   const minutes = durationMinutesFromText(text)
+  const ignoreAlias = foldIgnoreWords(opts?.ignoreWords)
   const candidates = zones.filter((z) => z.active && z.name.trim().length >= 2)
   const byLength = [...candidates].sort(
     (a, b) => foldZoneName(b.name).length - foldZoneName(a.name).length,
@@ -664,6 +682,8 @@ export function zonesNamedInText(text: string, zones: readonly ServiceZoneRow[])
   for (const zone of candidates) {
     const name = foldZoneName(zone.name.trim())
     for (const word of zoneAliasWords(zone.name)) {
+      // Nome do serviço aberto não escolhe variante por alias (Paulo 07/11/2026).
+      if (ignoreAlias.has(word)) continue
       const set = namesByWord.get(word) ?? new Set<string>()
       set.add(name)
       namesByWord.set(word, set)
@@ -807,6 +827,30 @@ const ZONE_MENTION_STOP = new Set([
   'valeu',
   'prefiro',
   'verdade',
+  // Artigos / «serviço» — não são zona citada (Paulo 07/11/2026; DEC-137).
+  'uma',
+  'um',
+  'uns',
+  'umas',
+  'servico',
+  // Determinantes da mesma classe que «uma» (review #597 M1).
+  'esta',
+  'este',
+  'estes',
+  'estas',
+  'alguma',
+  'algum',
+  'alguns',
+  'algumas',
+  // «outra»/«outro» não é variante nem troca de serviço (Paulo 07/11/2026).
+  'outra',
+  'outro',
+  // Despedida / fecho — não disparam «Não encontrei tchau…».
+  'tchau',
+  'adeus',
+  'flw',
+  'vlw',
+  'bye',
 ])
 
 /**
@@ -928,6 +972,8 @@ function exciseCompoundZonePhrases(
  *
  * `ignoreWords`: palavras do nome do serviço (e sinónimos) que não contam
  * como zona citada — «Quero bronzeamento…» não dispara «Não encontrei bronzeamento».
+ * Também bloqueiam o alias de variante: «massagem» com serviço Massagem aberto
+ * não escolhe «Massagem relaxante».
  */
 export function resolveZoneMention(
   text: string,
@@ -942,11 +988,7 @@ export function resolveZoneMention(
     leftover: null as string | null,
   }
   if (active.length === 0 || !text.trim()) return empty
-  const ignore = new Set(
-    (opts?.ignoreWords ?? [])
-      .flatMap((w) => foldZoneName(w).split(/[^a-z0-9]+/))
-      .filter((w) => w.length >= 3),
-  )
+  const ignore = foldIgnoreWords(opts?.ignoreWords)
   const contentTokens = (folded: string): string[] =>
     mentionContentTokens(folded).filter((w) => !ignore.has(w))
   const byPlural = new Map<string, Map<string, ServiceZoneRow[]>>()
@@ -991,7 +1033,7 @@ export function resolveZoneMention(
   let leftoverWord: string | null = null
   for (const part of segments) {
     if (contentTokens(part).length === 0) continue
-    const exact = zonesNamedInText(part, active)
+    const exact = zonesNamedInText(part, active, opts)
     let rest = part
     for (const zone of exact) rest = stripZoneWords(rest, zone)
     const pluralHits: ServiceZoneRow[] = []

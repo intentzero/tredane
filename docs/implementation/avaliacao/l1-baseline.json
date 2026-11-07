@@ -1,12 +1,12 @@
 {
   "schema": 1,
   "level": "L1",
-  "recordedAt": "2026-11-06T23:45:27.275Z",
+  "recordedAt": "2026-11-07T12:53:37.571Z",
   "version": {
-    "commit": "58b8b49b48dd410ba981533f530336408cb1ecc4",
+    "commit": "5171b950961fe81566b09b9286c507fa1ca12915+dirty",
     "fingerprints": {
       "catalogoRef": "db47706b7292b4889409c794ecd9ed26b8f2c71ae1210f303a1e078ad3d6ec03",
-      "casos": "25767d33b3ba472bf74949378d7975aa907c7b2f08f362ab2cee23d07d54a9a7",
+      "casos": "e67d272c6ddff5aaf6615d28b92b1e0fdc7ac3e4b753d6cd0731e1164b76dd7f",
       "casosFlow": "723f3d3f2c82b9a6d639ea9ecd3258f28599b4e9995b2bfcfc0b1d4e7a0153a3",
       "casosConsulta": "a238deac7ddc350432f9330ca8c5d94e1f1aeb8d59d8994b3c83a754065973b1",
       "promptPainel": "93cba847b39a23eed6aac5fc88e6a6016dd6f1a9016fcb4f408ddee2f27205ca",
@@ -17,25 +17,25 @@
     }
   },
   "kpis": {
-    "casesTotal": 119,
-    "casesExecuted": 107,
-    "casesPassed": 107,
+    "casesTotal": 120,
+    "casesExecuted": 108,
+    "casesPassed": 108,
     "casesFailed": 0,
     "casesKnownFailure": 1,
     "casesPending": 2,
     "casesCovered": 9,
     "invViolations": 0,
     "successRate": 1,
-    "executedRatio": 0.8992,
+    "executedRatio": 0.9,
     "excessTurnsP50": 0,
     "excessTurnsP90": 0,
-    "multiQuestionPct": 0.0284,
+    "multiQuestionPct": 0.0282,
     "concisePct": 1,
     "bookingMatchRate": 0.8,
     "zonesKeptMean": 1,
     "turnsToConfirmP50": 2,
     "executedByFamily": {
-      "A": 21,
+      "A": 22,
       "B": 13,
       "C": 13,
       "CC": 6,
@@ -365,6 +365,19 @@
       "outboundCount": 2,
       "multiQuestionMessages": 0,
       "conciseMessages": 2,
+      "damage": null
+    },
+    {
+      "id": "A-24",
+      "family": "A",
+      "status": "pass",
+      "invFailed": [],
+      "turnosIdeais": 1,
+      "agentTurns": 1,
+      "excessTurns": 0,
+      "outboundCount": 1,
+      "multiQuestionMessages": 0,
+      "conciseMessages": 1,
       "damage": null
     },
     {

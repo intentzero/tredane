@@ -166,6 +166,12 @@ describe('#405 copy sem jargão (J-09, INV-05)', () => {
       expect(ids).toContain(need)
     }
   })
+
+  it('zoneNotFoundAskReply lista as opções sem «ou outra?» (Paulo 07/11/2026)', () => {
+    const text = zoneNotFoundAskReply('cotovelo', ['Axila', 'Pernas'])
+    expect(text).toBe('Não encontrei cotovelo nas opções. Quer Axila, Pernas?')
+    expect(text).not.toMatch(/ou outra/i)
+  })
 })
 
 describe('#405 corte de cumprimento (J-04, CF-12)', () => {

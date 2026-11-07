@@ -258,6 +258,7 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
     const named = zonesNamedInText(
       text,
       s.zones.filter((z) => z.active),
+      { ignoreWords: [s.name, ...(s.synonyms ?? [])] },
     )
     if (named.length === 0) continue
     slots.serviceId ??= field(s.id, messageId, s.name)
