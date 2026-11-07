@@ -28,6 +28,7 @@ import { newId } from '../ids'
 import { sendOutboundMessageOp } from '../inbox/operations'
 import { messagingWindowForConversation } from '../inbox/window'
 import { assertClinicSchemaReady } from '../migrations'
+import { endBookingSession } from '../ai/booking-session'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import { alignOpportunityToAppointments } from '../pipeline/appointment-stage'
 import { ensureClinicSettings } from '../config/settings'
@@ -532,6 +533,19 @@ export function confirmAppointmentInTransaction(
     clock,
   )
   outbox.push(confirmedOutbox)
+
+  // DEC-148 / T1: Confirmar → Agendado fecha a sessão analítica (DEC-061).
+  const conversationIdForSession = input.conversationId ?? apt.conversationId
+  if (conversationIdForSession) {
+    const ended = endBookingSession(
+      db,
+      meta.tenantId,
+      conversationIdForSession,
+      { outcome: 'agendado' },
+      clock,
+    )
+    if (ended.outbox) outbox.push(ended.outbox)
+  }
 
   writeOperationalAudit(
     db,
