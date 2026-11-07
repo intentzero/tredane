@@ -653,4 +653,31 @@ describe('ServiceForm — variantes: folha, lote e prontidão', () => {
     renderForm(f, {})
     expect(screen.getByText(/1 opção sem preço/)).toBeTruthy()
   })
+
+  it('«Pronto para atender» marca preço opcional na linha sem inventar sucesso', () => {
+    renderForm(svc({ priceCents: null, roomRequirement: { mode: 'none' } }), {})
+    expect(screen.getByText('Preço em aberto (opcional).')).toBeTruthy()
+    expect(screen.queryByText('Preço e duração definidos.')).toBeNull()
+  })
+
+  it('«Pronto para atender» avisa preço em falta com sinal percentual', () => {
+    renderForm(
+      svc({
+        priceCents: null,
+        requiresSignal: true,
+        signalKind: 'percent',
+        signalPercent: 30,
+        roomRequirement: { mode: 'none' },
+      }),
+      {},
+    )
+    expect(screen.getByText('Falta o preço para o sinal percentual.')).toBeTruthy()
+    expect(screen.queryByText('Preço e duração definidos.')).toBeNull()
+    expect(screen.queryByText('Preço em aberto (opcional).')).toBeNull()
+  })
+
+  it('«Pronto para atender» confirma preço e duração quando a linha tem preço', () => {
+    renderForm(svc({ priceCents: 12_000, roomRequirement: { mode: 'none' } }), {})
+    expect(screen.getByText('Preço e duração definidos.')).toBeTruthy()
+  })
 })

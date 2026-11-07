@@ -428,9 +428,16 @@ export function ServiceForm({
     }
   }
 
+  // Alinha o checklist com o que o save aceita: preço opcional na linha, mas
+  // obrigatório quando o sinal percentual precisa de base (DEC-047).
+  const signalBase = signalBaseCents(withVariants, price, zones)
   const missingPrice = withVariants
     ? zones.filter((z) => z.active && parsePriceToCents(z.price) == null).length
     : 0
+  const linePriceMissing = !withVariants && parsePriceToCents(price) == null
+  const durationMissing = !withVariants && (!Number.isInteger(duration) || duration < 1)
+  const priceRequiredForPercent =
+    requiresSignal && signalKind === 'percent' && signalBase == null
   const readiness: {
     text: string
     state: 'ok' | 'warn' | 'opt'
@@ -451,7 +458,13 @@ export function ServiceForm({
             state: 'warn',
             text: `${missingPrice} ${missingPrice === 1 ? 'opção sem preço' : 'opções sem preço'}: visitas com elas não têm total.`,
           }
-        : { state: 'ok', text: 'Preço e duração definidos.' },
+        : durationMissing
+          ? { state: 'warn', text: 'Falta a duração.' }
+          : priceRequiredForPercent
+            ? { state: 'warn', text: 'Falta o preço para o sinal percentual.' }
+            : linePriceMissing
+              ? { state: 'opt', text: 'Preço em aberto (opcional).' }
+              : { state: 'ok', text: 'Preço e duração definidos.' },
     explanation.trim()
       ? { state: 'ok', text: 'Explicação para a IA escrita.' }
       : {
@@ -462,7 +475,6 @@ export function ServiceForm({
   ]
 
   const occupied = duration + buffer
-  const signalBase = signalBaseCents(withVariants, price, zones)
   const hasFemale = zones.some((z) => z.active && z.audience === 'feminino')
   const hasMale = zones.some((z) => z.active && z.audience === 'masculino')
   const audienceConflict =
