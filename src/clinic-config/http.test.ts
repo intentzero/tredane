@@ -687,6 +687,41 @@ describe('DEC-145 variantSelection round-trip', () => {
     }
   })
 
+  it('recusa variantSelection inválido com 400', async () => {
+    const { app, close, auth } = testConfigApp()
+    try {
+      const pro = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/resources',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'professional', name: 'Cia' }),
+        }),
+      )
+      const proId = ((await pro.json()) as { id: string }).id
+      const bad = await app.request(
+        'http://localhost/api/tenants/clinic-demo-a/config/services',
+        auth('user_synth_owner_a', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Massagem',
+            durationMinutes: 60,
+            bufferMinutes: 0,
+            professionalIds: [proId],
+            roomRequirement: { mode: 'none' },
+            variantSelection: null,
+          }),
+        }),
+      )
+      expect(bad.status).toBe(400)
+      const err = (await bad.json()) as { error: string }
+      expect(err.error).toBe('invalid_variant_selection')
+    } finally {
+      close()
+    }
+  })
+
   it('recusa varias→uma com combo activo e mantém varias (DEC-149)', async () => {
     const { app, close, auth } = testConfigApp()
     try {
