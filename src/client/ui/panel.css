@@ -1398,7 +1398,10 @@
   color: var(--color-text-secondary);
 }
 
-.clinic-field input,
+/* Radio/checkbox do React Aria ficam num VisuallyHidden: min-height/borda aqui
+ * inchava o input escondido e, ao focar (troca de género no Assistente), o
+ * clinic-work rolava e cortava o topo do panel-card. */
+.clinic-field input:not([type='checkbox']):not([type='radio']),
 .clinic-field select,
 .clinic-field textarea {
   min-height: 48px;
@@ -6672,6 +6675,7 @@
 }
 
 .tempo-radio {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -8399,7 +8403,11 @@
     border-right: var(--size-border-width) solid var(--color-line-border);
   }
 
+  /* position: relative — contêiner dos inputs absolutos do React Aria (mesmo
+   * padrão do clinic-panel-body), para o foco nos radios não posicionar contra
+   * o clinic-wide e empurrar o scroll cortando o cartão. */
   .clinic-work {
+    position: relative;
     min-width: 0;
     min-height: 0;
     overflow-y: auto;

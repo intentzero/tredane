@@ -179,7 +179,6 @@ export function AiAssistCard({
             onChange={(v) =>
               setVirtualGender(v === 'masculino' || v === 'feminino' ? v : '')
             }
-            aria-label="Género do atendente virtual"
           >
             <Label>Género do atendente virtual</Label>
             <Radio value="nenhum" className="tempo-radio">
