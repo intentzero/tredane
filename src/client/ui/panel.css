@@ -9832,3 +9832,10 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Reservar bloco: aviso de serviços com variantes fora do bloco (DEC-149). */
+.hold-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}

@@ -27,6 +27,10 @@ type Props = {
   conversationId: string
   contactName: string | null
   windowOpen: boolean
+  /** Escolhas já feitas no Agendar (só valem se o serviço não tiver variantes, DEC-149). */
+  initialServiceId?: string
+  initialProfessionalId?: string
+  initialDate?: string
   onClose: () => void
   /** Reservado com hora; `message` é o texto a enviar (ou null se não for enviar). */
   onReserved: (message: string | null) => Promise<void> | void
@@ -39,6 +43,10 @@ const HALF_HOURS = Array.from({ length: 33 }, (_, i) => 6 * 60 + i * 30) // 6h�
  * duração e, obrigatoriamente, um horário livre dentro do período. O
  * compromisso ocupa a duração do bloco (decisão de 27/10/2026).
  */
+function hasActiveVariants(s: { zones?: Array<{ active: boolean }> }): boolean {
+  return (s.zones ?? []).some((z) => z.active)
+}
+
 function slotTime(ms: number, timeZone: string): string {
   return new Intl.DateTimeFormat('pt-BR', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(
     new Date(ms),
@@ -46,7 +54,7 @@ function slotTime(ms: number, timeZone: string): string {
 }
 
 export function ReservarBlocoSheet(props: Props) {
-  const { open, tenantId, api, generation, conversationId, contactName, windowOpen, onClose, onReserved } = props
+  const { open, tenantId, api, generation, conversationId, contactName, windowOpen, onClose, onReserved, initialServiceId, initialProfessionalId, initialDate } = props
   const [config, setConfig] = useState<ClinicConfigSnapshot | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [date, setDate] = useState('')
@@ -86,9 +94,13 @@ export function ReservarBlocoSheet(props: Props) {
         setClinicTimezone(tenantId, snap.settings.timezone)
         // Só pré-escolhe se houver um único procedimento ativo; com vários, a atendente escolhe
         // (um padrão arbitrário escondido no resumo levaria a reservar o procedimento errado).
-        const activeServices = snap.services.filter((s) => s.active)
-        setServiceId((prev) => prev || (activeServices.length === 1 ? activeServices[0]!.id : ''))
-        if (activeServices.length !== 1) setEditDetails(true)
+        // DEC-149: o bloco com duração ajustável só vale para serviço sem variantes.
+        const activeServices = snap.services.filter((s) => s.active && !hasActiveVariants(s))
+        const carried = activeServices.find((s) => s.id === initialServiceId)?.id
+        const picked = carried ?? (activeServices.length === 1 ? activeServices[0]!.id : '')
+        setServiceId((prev) => prev || picked)
+        if (initialProfessionalId) setProfessionalId((prev) => prev || initialProfessionalId)
+        if (!picked) setEditDetails(true)
         // Mesmo começo do Agendar: hoje; depois das 18h já não há o que reservar, vai para amanhã.
         const hour = Number(
           new Intl.DateTimeFormat('en-US', {
@@ -98,7 +110,7 @@ export function ReservarBlocoSheet(props: Props) {
           }).format(new Date()),
         )
         const dayIdx = hour >= 18 ? 1 : 0
-        setDate((prev) => prev || upcomingCivilDates(snap.settings.timezone, Date.now(), 2)[dayIdx]!)
+        setDate((prev) => prev || initialDate || upcomingCivilDates(snap.settings.timezone, Date.now(), 2)[dayIdx]!)
         if (hour >= 12 && hour < 18) setPeriod('tarde')
       })
       .catch((err) => {
@@ -107,10 +119,11 @@ export function ReservarBlocoSheet(props: Props) {
     return () => {
       cancelled = true
     }
-  }, [open, api, tenantId, generation])
+  }, [open, api, tenantId, generation, initialServiceId, initialProfessionalId, initialDate])
 
   const tz = config?.settings.timezone ?? 'America/Sao_Paulo'
-  const services = config?.services.filter((s) => s.active) ?? []
+  const services = config?.services.filter((s) => s.active && !hasActiveVariants(s)) ?? []
+  const variantServices = config?.services.filter((s) => s.active && hasActiveVariants(s)) ?? []
   const service = services.find((s) => s.id === serviceId)
   const professionals = (config?.resources ?? []).filter(
     (r) =>
@@ -345,15 +358,21 @@ export function ReservarBlocoSheet(props: Props) {
               ) : (
                 <>
                   <HoldSelect
-                    label="Procedimento"
-                    placeholder="Escolher procedimento"
+                    label="Serviço"
+                    placeholder="Escolher serviço"
                     value={serviceId}
                     onChange={setServiceId}
                     options={services.map((sv) => ({ id: sv.id, label: sv.name }))}
                   />
+                  {variantServices.length > 0 ? (
+                    <p className="hold-hint">
+                      {variantServices.map((sv) => sv.name).join(', ')}{' '}
+                      {variantServices.length === 1 ? 'tem' : 'têm'} opções com duração própria: marque pelo Horário exato.
+                    </p>
+                  ) : null}
                   <HoldSelect
                     label="Profissional"
-                    placeholder={professionals.length === 0 ? 'Nenhuma profissional para este procedimento' : 'Escolher profissional'}
+                    placeholder={professionals.length === 0 ? 'Nenhuma profissional para este serviço' : 'Escolher profissional'}
                     value={professionalId}
                     onChange={setProfessionalId}
                     isDisabled={professionals.length === 0}

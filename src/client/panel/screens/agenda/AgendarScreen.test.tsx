@@ -159,7 +159,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const api = makeApi()
     renderScreen(api)
     expect(await screen.findByRole('heading', { name: 'Agendar · Marina Souza' })).toBeTruthy()
-    expect(screen.getByText(/\+55 11 98765-4321 · da conversa/)).toBeTruthy()
+    expect(screen.getByText(/\+55 11 9••••-4321 · da conversa/)).toBeTruthy()
     expect(screen.queryByText(/Contato sintético/)).toBeNull()
     const svc = screen.getByRole('button', { name: /Limpeza/ })
     expect(svc.getAttribute('aria-pressed')).toBe('true')
@@ -352,3 +352,51 @@ describe('AgendarScreen embutido nas Conversas (DEC-074)', () => {
   })
 })
 
+
+describe('AgendarScreen — «Para quem» e variantes sem «Ambos»', () => {
+  const z = (id: string, name: string, audience: string, sortOrder: number) => ({
+    id, name, audience, sortOrder, active: true, durationMinutes: 10, priceCents: 5000,
+  })
+  const depil = {
+    variantKind: 'Zona',
+    variantKindPlural: 'Zonas',
+    variantSelection: 'varias',
+    zones: [
+      z('axm', 'Axila', 'masculino', 0),
+      z('axf', 'Axila', 'feminino', 1),
+      z('buc', 'Buço', 'feminino', 2),
+      z('sob', 'Sobrancelha', 'ambos', 3),
+    ],
+  }
+
+  it('pede a linha antes das zonas e filtra sem rótulo de gênero', async () => {
+    renderScreen(makeApi({ service: depil }))
+    expect(await screen.findByRole('radiogroup', { name: 'Para quem' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Buço/ })).toBeNull()
+    fireEvent.click(screen.getByRole('radio', { name: 'Feminino' }))
+    expect(screen.getByRole('button', { name: /Buço/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Sobrancelha/ })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /Axila/ })).toHaveLength(1)
+    expect(screen.queryByText(/Ambos/)).toBeNull()
+    expect(screen.queryByText(/· Feminino ·/)).toBeNull()
+  })
+
+  it('trocar a linha tira só as da outra linha e permite desfazer', async () => {
+    renderScreen(makeApi({ service: depil }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Feminino' }))
+    fireEvent.click(screen.getByRole('button', { name: /Buço/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Sobrancelha/ }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Masculino' }))
+    expect(screen.getByText(/Tiramos Buço \(feminino\)/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Sobrancelha/ }).getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }))
+    expect(screen.getByRole('button', { name: /Buço/ }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('serviço só unissex não mostra «Para quem»', async () => {
+    renderScreen(makeApi({ service: { ...depil, zones: [z('a', 'Ventosaterapia', 'ambos', 0)] } }))
+    expect(await screen.findByRole('button', { name: /Ventosaterapia/ })).toBeTruthy()
+    expect(screen.queryByRole('radiogroup', { name: 'Para quem' })).toBeNull()
+    expect(screen.queryByText(/Ambos/)).toBeNull()
+  })
+})
