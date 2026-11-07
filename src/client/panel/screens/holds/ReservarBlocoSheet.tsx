@@ -27,7 +27,7 @@ type Props = {
   conversationId: string
   contactName: string | null
   windowOpen: boolean
-  /** Escolhas já feitas no Agendar (só valem se o serviço não tiver variantes, DEC-149). */
+  /** Escolhas já feitas no Agendar (só valem se o serviço não tiver variantes, DEC-150). */
   initialServiceId?: string
   initialProfessionalId?: string
   initialDate?: string
@@ -92,15 +92,21 @@ export function ReservarBlocoSheet(props: Props) {
         if (cancelled) return
         setConfig(snap)
         setClinicTimezone(tenantId, snap.settings.timezone)
-        // Só pré-escolhe se houver um único procedimento ativo; com vários, a atendente escolhe
-        // (um padrão arbitrário escondido no resumo levaria a reservar o procedimento errado).
-        // DEC-149: o bloco com duração ajustável só vale para serviço sem variantes.
+        // DEC-150: o bloco com duração ajustável só vale para serviço sem variantes.
+        // Em cada abertura aplica a herança do Agendar (sem `prev ||`, que ignorava a troca).
         const activeServices = snap.services.filter((s) => s.active && !hasActiveVariants(s))
-        const carried = activeServices.find((s) => s.id === initialServiceId)?.id
-        const picked = carried ?? (activeServices.length === 1 ? activeServices[0]!.id : '')
-        setServiceId((prev) => prev || picked)
-        if (initialProfessionalId) setProfessionalId((prev) => prev || initialProfessionalId)
-        if (!picked) setEditDetails(true)
+        const carried = activeServices.find((s) => s.id === initialServiceId)
+        const picked = carried ?? (activeServices.length === 1 ? activeServices[0]! : undefined)
+        setServiceId(picked?.id ?? '')
+        setProfessionalId(initialProfessionalId ?? '')
+        if (picked) {
+          setDuration(picked.durationMinutes)
+          setCustomDuration(!(DURATION_PRESETS as readonly number[]).includes(picked.durationMinutes))
+        } else {
+          setDuration(60)
+          setCustomDuration(false)
+          setEditDetails(true)
+        }
         // Mesmo começo do Agendar: hoje; depois das 18h já não há o que reservar, vai para amanhã.
         const hour = Number(
           new Intl.DateTimeFormat('en-US', {
@@ -110,7 +116,7 @@ export function ReservarBlocoSheet(props: Props) {
           }).format(new Date()),
         )
         const dayIdx = hour >= 18 ? 1 : 0
-        setDate((prev) => prev || initialDate || upcomingCivilDates(snap.settings.timezone, Date.now(), 2)[dayIdx]!)
+        setDate(initialDate || upcomingCivilDates(snap.settings.timezone, Date.now(), 2)[dayIdx]!)
         if (hour >= 12 && hour < 18) setPeriod('tarde')
       })
       .catch((err) => {
@@ -361,13 +367,21 @@ export function ReservarBlocoSheet(props: Props) {
                     label="Serviço"
                     placeholder="Escolher serviço"
                     value={serviceId}
-                    onChange={setServiceId}
+                    onChange={(id) => {
+                      setServiceId(id)
+                      const next = services.find((sv) => sv.id === id)
+                      if (next) {
+                        setDuration(next.durationMinutes)
+                        setCustomDuration(!(DURATION_PRESETS as readonly number[]).includes(next.durationMinutes))
+                      }
+                    }}
                     options={services.map((sv) => ({ id: sv.id, label: sv.name }))}
                   />
                   {variantServices.length > 0 ? (
                     <p className="hold-hint">
                       {variantServices.map((sv) => sv.name).join(', ')}{' '}
-                      {variantServices.length === 1 ? 'tem' : 'têm'} opções com duração própria: marque pelo Horário exato.
+                      {variantServices.length === 1 ? 'tem' : 'têm'} opções com duração própria: marque um horário no
+                      Agendar.
                     </p>
                   ) : null}
                   <HoldSelect

@@ -1045,14 +1045,20 @@ function ReviewSheet(p: ReviewProps) {
   // de 24 h; fora dela desligado com explicação.
   const proposalAvailable =
     !p.reschedule && Boolean(ctx.conversationId && ctx.contactId) && !p.paidSignalMode
+  /** «Marcar já» só sem sinal: com Pix a marcação imediata contradiz DEC-047. */
+  const canMarkNow = proposalAvailable && !p.requiresSignal
   /** «Enviar proposta» (a cliente confirma, DEC-061) ou «Marcar já» (a equipe marca agora). */
   const [way, setWay] = useState<'proposal' | 'now'>('proposal')
-  const proposalPath = proposalAvailable && way === 'proposal'
+  const proposalPath = proposalAvailable && (!canMarkNow || way === 'proposal')
   const [notify, setNotify] = useState(() => defaultNotify(Boolean(ctx.conversationId), p.window24))
   const notifyTouched = useRef(false)
   useEffect(() => {
     if (!notifyTouched.current) setNotify(defaultNotify(Boolean(ctx.conversationId), p.window24))
   }, [ctx.conversationId, p.window24])
+  // Cada abertura da revisão volta ao padrão «Enviar proposta».
+  useEffect(() => {
+    if (p.isOpen) setWay('proposal')
+  }, [p.isOpen])
   const setNotifyByUser = (v: boolean) => {
     notifyTouched.current = true
     setNotify(v)
@@ -1347,7 +1353,7 @@ function ReviewSheet(p: ReviewProps) {
               </div>
             ) : null}
 
-            {proposalAvailable ? (
+            {canMarkNow ? (
               <div className="agd-ways" role="radiogroup" aria-label="Como concluir">
                 <button
                   type="button"

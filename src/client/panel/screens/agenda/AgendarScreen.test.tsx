@@ -419,10 +419,23 @@ describe('AgendarScreen — painel único', () => {
     fireEvent.click(within(dialog).getByRole('radio', { name: /Marcar já/ }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar e enviar' }))
     await waitFor(() => expect(api.confirmAppointment).toHaveBeenCalled())
+    await waitFor(() => expect(api.sendInboxMessage).toHaveBeenCalled())
     expect(api.createAndSendProposal).not.toHaveBeenCalled()
   })
 
-  it('serviço com variantes não oferece o bloco (DEC-149)', async () => {
+  it('serviço com sinal Pix não oferece «Marcar já» (só proposta)', async () => {
+    const api = makeApi({ service: { requiresSignal: true, signalKind: 'fixed', signalFixedCents: 9000 } })
+    renderScreen(api)
+    await screen.findByRole('heading', { name: /Marina/ })
+    await pickTime()
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByRole('radio', { name: /Marcar já/ })).toBeNull()
+    expect(within(dialog).queryByRole('radiogroup', { name: 'Como concluir' })).toBeNull()
+    expect(within(dialog).getByRole('button', { name: 'Enviar proposta' })).toBeTruthy()
+  })
+
+  it('serviço com variantes não oferece o bloco (DEC-150)', async () => {
     renderScreen(
       makeApi({
         service: {
