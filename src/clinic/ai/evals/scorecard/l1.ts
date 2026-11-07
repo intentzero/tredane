@@ -39,6 +39,7 @@ const FINGERPRINT_FILES: Record<string, string> = {
   casos: 'src/clinic/ai/evals/dialogs/p0-cases.ts',
   casosFlow: 'src/clinic/ai/evals/dialogs/fl-cases.ts',
   casosConsulta: 'src/clinic/ai/evals/dialogs/cc-cases.ts',
+  casosZonas: 'src/clinic/ai/evals/dialogs/zonas-cases.ts',
   promptPainel: 'src/ai/prompt.ts',
   promptExtrator: 'src/ai/extractor-prompt.ts',
   promptExcecao: 'src/ai/exception-prompt.ts',

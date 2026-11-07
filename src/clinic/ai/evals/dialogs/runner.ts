@@ -127,6 +127,18 @@ export type DialogCase = {
     silentPause?: boolean
     /** Família FL-: ecrãs mostrados e resultado de cada turno `flow` (pela ordem). */
     flowRuns?: Array<{ screens?: string[]; outcome?: FlowRunTrace['outcome']; nfmOutcome?: string }>
+    /**
+     * `ai.turn_decided` (CA-09, DEC-143): campos esperados por evento, pela ordem dos turnos da
+     * cliente que o autodraft decidiu. Só os campos nomeados são comparados (sem texto da conversa).
+     */
+    turnDecided?: Array<
+      Partial<
+        Pick<
+          import('../../turn-decided').TurnDecidedPayload,
+          'route' | 'variantsChanged' | 'zonesAskedBefore' | 'pendingSlotBefore' | 'modelCalled'
+        >
+      >
+    >
     /** Família FL-: quantos CTAs de Flow saíram no diálogo. */
     flowOffers?: number
     /**
@@ -423,6 +435,29 @@ export async function runDialogCase(
           }
         }
       }
+    }
+    if (e?.turnDecided) {
+      const events = s.db
+        .all<{ payload_json: string }>(
+          `SELECT payload_json FROM outbox_events
+           WHERE tenant_id = ? AND type = 'ai.turn_decided' AND aggregate_id = ?
+           ORDER BY occurred_at, rowid`,
+          s.tenantId,
+          s.conversationId,
+        )
+        .map((r) => JSON.parse(r.payload_json) as Record<string, unknown>)
+      e.turnDecided.forEach((want, i) => {
+        const got = events[i]
+        if (!got) {
+          errors.push(`turn_decided #${i}: não houve evento (${events.length} no total)`)
+          return
+        }
+        for (const [k, v] of Object.entries(want)) {
+          if (JSON.stringify(got[k]) !== JSON.stringify(v)) {
+            errors.push(`turn_decided #${i}.${k}: ${JSON.stringify(got[k])}, esperado ${JSON.stringify(v)}`)
+          }
+        }
+      })
     }
     if (e?.flowOffers != null && flow && flow.offers() !== e.flowOffers) {
       errors.push(`esperava ${e.flowOffers} CTA(s) de Flow, saíram ${flow.offers()}`)

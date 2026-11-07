@@ -196,7 +196,7 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 | 5 | G-03 | Corrida L2/L3 live no staging (chaves `AI_GATEWAY_*`); primeira linha de base real de K-CONS, K-LAT, K-COST | Acesso ao gateway |
 | 6 | G-03 | Calibração do juiz: amostra humana, κ, TPR/TNR por eixo (#402) | Tempo do Paulo para rotular |
 | 7 | G-06 | L5: painel por versão sobre `ai.turn_decided`; amostra humana de conversas reais | GATE-04/06 |
-| 8 | G-09 | Famílias seguintes: Flow a meio do diálogo (catálogo ou hora a mudar, `fallback_reason`, token de outra clínica); leituras de 06/11 em texto livre; `confirm_suspended` com Corrigir e Sim | Turno de mutação no runner |
+| 8 | G-09 | Famílias seguintes. **Feito** a 06/11: Flow a meio do diálogo com o catálogo a mudar (FL-18, gancho `mutateBefore`), Flow com o quadro preenchido (FL-17), zonas antes da linha (A-24) e a telemetria da DEC-143 (A-25, A-26, expectativa `turnDecided`). **Falta:** hora a deixar de estar livre, `fallback_reason` `no_slots`/`too_many_variants`, token de outra clínica; `confirm_suspended` com Corrigir e Sim | Nada que dependa de decisão |
 | 9 | G-11 | Verificar que o `ai.turn_decided` chega ao `wrangler tail`; correr `scripts/flow-funnel.mjs staging` e registar a primeira linha de K-FLW-* | Acesso ao staging |
 | 10 | G-09 | Corrigir o CF-44 e retirar o `knownFailure` do A-23 (**CF-45 feito** a 06/11) | CF-44 precisa de copy (DEC-104) |
 
@@ -220,6 +220,7 @@ A metodologia é um artefacto versionado. A versão está no fim deste documento
 
 | Versão | Data | Mudança |
 | --- | --- | --- |
+| 0.7 | 06/11/2026 | L1 cobre os #587, #588 e #589 (A-24..26, FL-17, FL-18). Novo: expectativa `turnDecided` (o L1 passa a verificar o `ai.turn_decided`, base do K-TXT-ZONE) e gancho `mutateBefore` no cliente Flow. Lição: um caso que passa não prova nada até se ver falhar sem a correção; o A-26 inicial passava com a função partida e foi reescrito. |
 | 0.6 | 06/11/2026 | Confronto com a `main` de 06/11: G-09 (mudanças sem caso L1), G-10 (invisível a quem altera código), G-11 (telemetria do funil); família CC- e casos A-22/A-23; KPIs do funil do Flow (§5.3); gatilhos 8 e 9; passos 8 a 10; fingerprints dos casos FL-/CC- e da consulta de catálogo; AGENTS.md e `referencia.md` apontam para a metodologia. Achados CF-44 e CF-45. |
 | 0.5 | 06/11/2026 | Correções da revisão do #567: linha de base protegida, KPI que perde a medição é regressão, fingerprints no relatório, IC do L2 por caso, FL- fora do L2, INV-03 sem apagar linhas de oferta. Passo 2b por fazer. |
 | 0.4 | 05/11/2026 | Decisões do §10 registadas: DEC-139 (metodologia, regressão justificada no PR, cadência semanal + liberação, análise de erros preparada pelo agente), DEC-140 (corpo do Flow a meio do funil) e DEC-141 (verbos: DEC-110 + sugestão à owner). |

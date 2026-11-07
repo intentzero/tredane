@@ -25,6 +25,7 @@ import {
 import { DIALOG_NOW_MS } from './scenario'
 import { CC_DIALOG_CASES } from './cc-cases'
 import { FL_DIALOG_CASES } from './fl-cases'
+import { ZONAS_DIALOG_CASES } from './zonas-cases'
 
 class TimeoutAdapter extends SimulatedAiAdapter {
   override async generate(): Promise<AiGenerateResult> {
@@ -1391,5 +1392,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
 P0_DIALOG_CASES.push(...FL_DIALOG_CASES)
 // Família CC- (consulta de catálogo, DEC-142) e Confirmar suspenso (A-22/A-23).
 P0_DIALOG_CASES.push(...CC_DIALOG_CASES)
+// A-24..26: zonas em texto livre e telemetria do funil (DEC-143, #588/#589).
+P0_DIALOG_CASES.push(...ZONAS_DIALOG_CASES)
 
 export const P0_IDS = P0_DIALOG_CASES.map((c) => c.id)

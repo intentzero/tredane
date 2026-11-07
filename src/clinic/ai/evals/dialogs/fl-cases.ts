@@ -5,6 +5,7 @@
  *
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo (clínica aberta 09:00–18:00).
  */
+import { setServiceActiveOp } from '../../../config'
 import type { DialogCase } from './runner'
 
 const ZONAS_FEM = { serviceKey: 'depilacao' as const, line: 'feminino' as const, zones: ['Axila', 'Pernas'] }
@@ -299,6 +300,71 @@ export const FL_DIALOG_CASES: DialogCase[] = [
       flowRuns: [{ outcome: 'nfm_delivered', nfmOutcome: 'proposal_sent' }],
       proposal: true,
       turns: [{ turn: 0, excludes: [HUB_OPENING] }],
+    },
+  },
+  {
+    id: 'FL-17',
+    title: 'Flow aberto com o quadro preenchido: o HUB vai sempre para SERVICO, depois salta o que já se sabe',
+    turnosIdeais: 3,
+    flow: true,
+    // #587: o routing_model publicado só tem a aresta HUB → SERVICO. Com serviço, linha e zonas
+    // já no quadro, o endpoint saltava do HUB para HORARIO e a Meta mostrava «Ocorreu um erro».
+    damage: { serviceKey: 'depilacao', zoneNames: ['Axila', 'Pernas'] },
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina axila e pernas' },
+      { role: 'client', text: 'sim' },
+      { role: 'flow', path: { serviceKey: 'depilacao', line: 'feminino', zones: ['Axila', 'Pernas'], slot: 'first' } },
+    ],
+    expect: {
+      flowRuns: [
+        {
+          screens: ['HUB', 'SERVICO', 'HORARIO', 'SUCCESS'],
+          outcome: 'nfm_delivered',
+          nfmOutcome: 'proposal_sent',
+        },
+      ],
+      proposal: true,
+      proposalZones: ['Axila', 'Pernas'],
+      noAppointment: true,
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'FL-18',
+    title: 'Catálogo muda com o Flow aberto: fecha para o chat com a frase de recurso, sem proposta',
+    turnosIdeais: 2,
+    flow: true,
+    // ADR-0016 §7 / #587: com o catálogo alterado a meio, o Flow fecha com
+    // fallback_reason=catalog_changed e o chat pede o pedido por texto (C12), sem «Ocorreu um erro».
+    // Cobre o resultado, não o mecanismo: a verificação da aresta do routing_model (#587) é uma
+    // segunda rede que este cenário não alcança (o catálogo mudado já fecha antes) e continua
+    // só nos testes unitários do endpoint.
+    turns: [
+      { role: 'client', text: 'Oi' },
+      {
+        role: 'flow',
+        path: {
+          ...ZONAS_FEM,
+          slot: 'first',
+          mutateBefore: {
+            screen: 'VARIANTES',
+            run: (s) => setServiceActiveOp(s.db, s.caller, s.ids.depilacao, false, s.clock),
+          },
+        },
+      },
+    ],
+    expect: {
+      flowRuns: [
+        {
+          screens: ['HUB', 'SERVICO', 'GENERO', 'VARIANTES', 'SUCCESS'],
+          outcome: 'nfm_delivered',
+          nfmOutcome: 'chat_fallback_sent',
+        },
+      ],
+      proposal: false,
+      noAppointment: true,
+      outboundExcludes: NO_LEAK,
+      turns: [{ turn: 1, matches: [/Não consegui abrir a escolha/] }],
     },
   },
 ]
