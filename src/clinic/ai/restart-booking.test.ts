@@ -351,6 +351,64 @@ describe('tryAiAutoBook — rejeição de slots classe C (DEC-147)', () => {
   })
 })
 
+describe('tryAiAutoBook — CF-23: agradecimento com proposta não abandona (DEC-147 B)', () => {
+  it('«obrigada!» com proposta aberta mantém a proposta', async () => {
+    const s = seed()
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.svc.id,
+          line: 'feminino',
+          date: '2026-11-06',
+          time: '14:00',
+          phase: 'proposto',
+        },
+        s.clock,
+      )
+      const startsAt = zonedCivilToUtc(TZ, 2026, 10, 29, 14, 0)
+      const proposal = createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          serviceId: s.svc.id,
+          professionalId: s.pro.id,
+          startsAt,
+        },
+        s.clock,
+      )
+      markProposalSent(s.db, s.tenantId, proposal.id, s.clock)
+      s.clock.advance(60_000)
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: 'obrigada!',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      await tryAiAutoBook(s.db, s.caller, s.clock, {
+        conversationId: s.cnv.id,
+        capability: true,
+      })
+      expect(getActiveProposalForConversation(s.db, s.tenantId, s.cnv.id, s.clock)?.id).toBe(
+        proposal.id,
+      )
+      expect(getProposal(s.db, s.tenantId, proposal.id)?.state).not.toBe('substituida')
+    } finally {
+      s.close()
+    }
+  })
+})
+
 describe('tryAiAutoBook — desistência após slots A/B (DEC-147)', () => {
   it.each([
     'Deixa estar, obrigado',

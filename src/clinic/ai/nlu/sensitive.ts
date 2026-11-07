@@ -74,13 +74,11 @@ export const RESTART_BOOKING_RE =
   /\b(come[cç]ar\s+de\s+novo|recome[cç]ar|quero\s+outra\s+coisa|outra\s+coisa|esquece)\b(?!\s+a\s+cl)/i
 
 /**
- * Classes A/B DEC-147 — abandono explícito (A) e despedida após oferta (B).
- * Lista fechada — sem LLM. Não cobre «cancela» (handoff DEC-083) nem classe C.
- * Pedido com relógio («obrigado, às 10») fica de fora no classificador.
+ * Classe A DEC-147 — abandono explícito. Lista fechada — sem LLM.
+ * Com proposta aberta também limpa (diferente da despedida B / CF-23).
  */
-export const SOFT_DECLINE_RE = new RegExp(
+export const EXPLICIT_ABANDON_RE = new RegExp(
   [
-    // A — abandono
     String.raw`\bdeixa\s+(?:estar|pra\s+l[aá]|para\s+l[aá]|assim)\b`,
     String.raw`^(?:ok[,.\s!]*)?deixa[.!?\s]*$`,
     String.raw`\bpor\s+agora\s+n[aã]o\b`,
@@ -88,10 +86,26 @@ export const SOFT_DECLINE_RE = new RegExp(
     String.raw`\b(?:desisto|desistir)\b`,
     String.raw`\bvou\s+pensar\b`,
     String.raw`\b(?:podes?\s+)?encerrar(?:\s+a\s+sess[aã]o)?\b`,
-    // B — despedida / agradecimento curto
+  ].join('|'),
+  'i',
+)
+
+/**
+ * Classe B DEC-147 — despedida / agradecimento curto.
+ * Com proposta aberta **não** retira o Confirmar (CF-23); só abandona
+ * com slots/pending abertos ou serviço em coleta sem proposta.
+ */
+export const FAREWELL_RE = new RegExp(
+  [
     String.raw`^(?:(?:ok|beleza|muito|n[aã]o)[,.\s!]*)*(?:tchau|adeus|flw|vlw|bye|obrigad[oa]|valeu)[.!?\s]*$`,
     String.raw`\b(?:tchau|adeus)\b`,
   ].join('|'),
+  'i',
+)
+
+/** A ∪ B — classificador; o autobook distingue A vs B. */
+export const SOFT_DECLINE_RE = new RegExp(
+  `(?:${EXPLICIT_ABANDON_RE.source})|(?:${FAREWELL_RE.source})`,
   'i',
 )
 
@@ -217,6 +231,11 @@ export function hasRestartRequest(hits: SensitiveHit[]): boolean {
 /** Classes A/B DEC-147 — abandono / despedida. Não pausa a IA. */
 export function hasSoftDeclineRequest(hits: SensitiveHit[]): boolean {
   return hits.some((h) => h.label === 'desistir')
+}
+
+/** Classe A (abandono explícito), não só agradecimento. */
+export function isExplicitAbandonText(text: string): boolean {
+  return EXPLICIT_ABANDON_RE.test(text) && !SOFT_DECLINE_CLOCK_RE.test(text)
 }
 
 /** Classe C DEC-147 — rejeita oferta de slots. Não pausa a IA. */

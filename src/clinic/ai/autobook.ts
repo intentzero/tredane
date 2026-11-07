@@ -102,6 +102,7 @@ import {
   hasRestartRequest,
   hasSlotRejectRequest,
   hasSoftDeclineRequest,
+  isExplicitAbandonText,
 } from './nlu/sensitive'
 import { logPolicyShadow } from './policy-shadow'
 import {
@@ -714,8 +715,9 @@ export async function tryAiAutoBook(
     })
   }
 
-  // DEC-147 A/B: abandono explícito ou despedida após oferta.
-  // Limpa o frame de marcação (não o fio WhatsApp), retira proposta, agradece.
+  // DEC-147 A/B: abandono explícito (A) ou despedida após oferta (B).
+  // B com proposta aberta NÃO retira o Confirmar (CF-23: «obrigada!» ≠ abandonar).
+  // A limpa sempre; B limpa só com slots/pending/coleta sem proposta.
   if (hasSoftDeclineRequest(sensitiveHits)) {
     const frameSoft = getBookingFrame(db, tenantId, input.conversationId)
     const openProposal = getActiveProposalForConversation(
@@ -724,14 +726,17 @@ export async function tryAiAutoBook(
       input.conversationId,
       clock,
     )
-    const inFunnel = Boolean(
-      openProposal ||
-        frameSoft?.serviceId ||
+    const explicit = isExplicitAbandonText(turnText)
+    const inFunnelSlots = Boolean(
+      frameSoft?.serviceId ||
         (frameSoft?.variantIds && frameSoft.variantIds.length > 0) ||
         frameSoft?.pending ||
         frameSoft?.lastOffer,
     )
-    if (inFunnel) {
+    const shouldAbandon = explicit
+      ? Boolean(openProposal || inFunnelSlots)
+      : inFunnelSlots && !openProposal
+    if (shouldAbandon) {
       deferred.clearSession()
       retireActiveProposal(db, tenantId, input.conversationId, clock)
       const replyText = sayAct(
@@ -743,7 +748,9 @@ export async function tryAiAutoBook(
       return finish({
         ...none('needs_info', { confirmationMessageId: confirmation.id }),
         replyText,
-        notes: 'DEC-147 A/B: soft decline clears booking frame; farewell without zone miss.',
+        notes: explicit
+          ? 'DEC-147 A: explicit abandon clears booking frame.'
+          : 'DEC-147 B: farewell after slots clears frame (no open proposal).',
       })
     }
   }
