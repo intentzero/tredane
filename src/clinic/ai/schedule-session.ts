@@ -639,10 +639,31 @@ export function saveBookingFrame(
   if (patch.sourceMessageId && patch.source) {
     const fields = ['serviceId', 'line', 'variantIds', 'date', 'period', 'time', 'pending', 'lastOffer'] as const
     const nextProv = { ...provenance }
+    const sameJson = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+    const existingValue = (f: (typeof fields)[number]): unknown => {
+      if (!existing) return undefined
+      if (f === 'serviceId') return existing.serviceId
+      if (f === 'line') return existing.line
+      if (f === 'variantIds') return existing.variantIds
+      if (f === 'date') return existing.date
+      if (f === 'period') return existing.period
+      if (f === 'time') return existing.time
+      if (f === 'pending') return existing.pending
+      return existing.lastOffer
+    }
     for (const f of fields) {
-      if (patch[f] !== undefined) {
-        nextProv[f] = { messageId: patch.sourceMessageId, source: patch.source }
+      if (patch[f] === undefined) continue
+      const prev = provenance[f]?.source
+      // ADR-0016 / PR-D: saveSession «regra» no mesmo valor não apaga provenance flow
+      // (senão nfm seguinte com outro horário caía em stale_no_proposal).
+      if (
+        prev === 'flow' &&
+        patch.source !== 'flow' &&
+        sameJson(existingValue(f), patch[f])
+      ) {
+        continue
       }
+      nextProv[f] = { messageId: patch.sourceMessageId, source: patch.source }
     }
     provenance = nextProv
   }

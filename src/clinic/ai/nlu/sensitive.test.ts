@@ -239,6 +239,13 @@ describe('classifySensitive (#409)', () => {
       labels: ['rejeitar_oferta'],
       pause: false,
     },
+    {
+      // D3 / PR-D: negação de zona + substituição não é abandono A.
+      id: 'D-07',
+      text: 'Na verdade não quero pernas, só axila',
+      labels: [],
+      pause: false,
+    },
   ]
 
   for (const row of rows) {

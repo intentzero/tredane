@@ -24,6 +24,10 @@ import {
   loadUpcomingAppointment,
   phraseAskDay,
 } from '../../clinic/ai/reschedule'
+import {
+  applyBookingUpdate,
+  isStaleFlowVersusChat,
+} from '../../clinic/ai/apply-booking-update'
 import { getBookingFrame, saveBookingFrame } from '../../clinic/ai/schedule-session'
 import { slotBindingFromChoice } from '../../clinic/ai/choice-offer'
 import { readCatalogVersion } from '../../clinic/ai/turn-context'
@@ -801,16 +805,39 @@ export async function handleFlowNfmReply(
   const { prepared } = preparedResult
 
   const existing = getBookingFrame(db, input.tenantId, input.conversationId)
-  // Só skip total quando a proposta versionada já existe (DEC-061).
+  const preparedVariantKey = [...(prepared.variantIds ?? [])].sort().join('\0')
+  const existingVariantKey = [...(existing?.variantIds ?? [])].sort().join('\0')
+  // Só skip total quando a proposta versionada já existe (DEC-061) e o
+  // snapshot Flow (serviço/data/hora/variantes) coincide — ADR-0016 §6.
   // `phase === ofertado` sem proposal = ack a meio / falha — não engolir o 2.º nfm.
   if (
     existing?.serviceId === prepared.params.serviceId &&
     existing.time === prepared.bound.time &&
     existing.date === prepared.bound.date &&
+    existingVariantKey === preparedVariantKey &&
     existing.provenance?.serviceId?.source === 'flow' &&
     existing.proposal != null
   ) {
     return { handled: true, outcome: 'idempotent_skip', outbox: [], needsProposal: false }
+  }
+
+  // D6: Flow stale vs correção recente no chat — não sobrescrever o quadro.
+  if (
+    isStaleFlowVersusChat(existing, {
+      serviceId: prepared.params.serviceId!,
+      variantIds: prepared.variantIds,
+      date: prepared.bound.date,
+      time: prepared.bound.time,
+    })
+  ) {
+    cancelAutoDraft(db, input.tenantId, input.conversationId)
+    return {
+      handled: true,
+      outcome: 'stale_no_proposal',
+      outbox: [],
+      reason: 'chat_corrected',
+      needsProposal: false,
+    }
   }
 
   if (phase === 'proposal') {
@@ -854,20 +881,27 @@ export async function handleFlowNfmReply(
 
   const catalogVersion = input.catalogVersion || readCatalogVersion(db, input.tenantId)
   const sourceMessageId = `flow:${input.providerEventKey}`
-  const saved = saveBookingFrame(
-    db,
-    input.tenantId,
-    input.conversationId,
-    {
+  // PR-D: commit via actualizador (intent commit_flow); provenance `flow`.
+  const flowUpdate = applyBookingUpdate({
+    frame: existing,
+    intent: {
+      type: 'commit_flow',
       serviceId: prepared.params.serviceId!,
       line: prepared.params.line,
       variantIds: prepared.variantIds,
       date: prepared.bound.date,
       time: prepared.bound.time,
-      period: null,
-      pending: null,
-      lastOffer: null,
-      phase: 'ofertado',
+    },
+    evidence: { source: 'flow', sourceMessageId },
+    serviceId: prepared.params.serviceId,
+    catalogVersion,
+  })
+  const saved = saveBookingFrame(
+    db,
+    input.tenantId,
+    input.conversationId,
+    {
+      ...flowUpdate.patch,
       catalogVersion,
       source: 'flow',
       sourceMessageId,

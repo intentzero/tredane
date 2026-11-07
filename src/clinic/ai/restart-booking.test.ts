@@ -274,6 +274,8 @@ describe('classifySensitive — desistência educada (DEC-147)', () => {
     'quero massagem',
     'obrigado, às 10',
     'tem horário amanhã?',
+    // D3: correção de variante, não abandono A.
+    'Na verdade não quero pernas, só axila',
   ]
 
   it.each(positives)('TP: %s', (text) => {

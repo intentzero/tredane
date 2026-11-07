@@ -516,7 +516,9 @@ export function catalogReply(
   const named =
     allowsMultipleVariants(svc.variantSelection) || namedRaw.length <= 1 ? namedRaw : []
   const namedOk = named.length > 0 && !variantAudiencesConflict(named)
-  if (opts.conversationId && inPlay && namedOk) {
+  // D4 / PR-D: pergunta de preço ou duração NÃO grava variante no quadro de marcação.
+  // O adaptador responde o catálogo; ask_info fica implícito (sem write).
+  if (opts.conversationId && inPlay && namedOk && !asksPrice && !asksDuration) {
     saveSession(opts.conversationId, {
       serviceId: inPlay.id,
       variantIds: named.map((zone) => zone.id),

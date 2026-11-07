@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getBookingFrame } from '../../clinic/ai/schedule-session'
+import { getBookingFrame, saveBookingFrame } from '../../clinic/ai/schedule-session'
 import { bootDialogScenario } from '../../clinic/ai/evals/dialogs/scenario'
 import { FLOW_COPY } from './copy'
 import {
@@ -779,6 +779,87 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       expect(
         s.outboundBodies().filter((b) => b === FLOW_COPY.preparingProposal),
       ).toHaveLength(2)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('D6: nfm_reply stale não sobrescreve correção «só axila» no chat', async () => {
+    const s = bootDialogScenario()
+    try {
+      s.sayInbound('oi')
+      const axila = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones
+         WHERE service_id = ? AND name = 'Axila' AND audience = 'feminino'`,
+        s.ids.depilacao,
+      )!.id
+      const pernas = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones
+         WHERE service_id = ? AND name = 'Pernas' AND audience = 'feminino'`,
+        s.ids.depilacao,
+      )!.id
+
+      const flowJson = JSON.stringify({
+        flow_token: 'fl1_stale',
+        service_id: s.ids.depilacao,
+        line: 'feminino',
+        variant_ids: [axila, pernas],
+        slot_id: '2026-11-05T17:00',
+      })
+      const first = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-stale-a',
+          responseJson: flowJson,
+          catalogVersion: '1',
+          capability: true,
+        },
+        s.clock,
+      )
+      expect(['proposal_sent', 'ack_sent', 'stale_no_proposal']).toContain(first.outcome)
+      const afterFlow = getBookingFrame(s.db, s.tenantId, s.conversationId)
+      expect(afterFlow?.variantIds?.sort()).toEqual([axila, pernas].sort())
+
+      // Chat corrige: só axila (proveniência regra — como o actualizador carimba).
+      s.clock.advance(1_000)
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.depilacao,
+          line: 'feminino',
+          variantIds: [axila],
+          date: '2026-11-05',
+          time: '17:00',
+          source: 'regra',
+          sourceMessageId: 'msg-chat-so-axila',
+        },
+        s.clock,
+      )
+      expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.variantIds).toEqual([axila])
+
+      // nfm antigo com Axila+Pernas — não pode voltar a gravar as duas.
+      const stale = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-stale-b',
+          responseJson: flowJson,
+          catalogVersion: '1',
+          capability: true,
+        },
+        s.clock,
+      )
+      expect(stale.outcome).toBe('stale_no_proposal')
+      expect(stale.reason).toBe('chat_corrected')
+      expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.variantIds).toEqual([axila])
+      expect(s.appointmentCount()).toBe(0)
     } finally {
       s.close()
     }
