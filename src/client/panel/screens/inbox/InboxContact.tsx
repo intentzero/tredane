@@ -1,8 +1,8 @@
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Ellipsis, Eye, EyeOff, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { consumeSummaryFocus } from './summaryFocus'
 import { AiWorking } from '../../ui/AiWorking'
-import { Button } from 'react-aria-components'
+import { Button, Menu, MenuItem, MenuTrigger, Popover, Separator } from 'react-aria-components'
 import {
   PanelApiError,
   type AiSuggestion,
@@ -14,7 +14,7 @@ import { navigatePanel } from '../../routes'
 import { ErrorState, LoadingState } from '../../states/StatusScreens'
 import { BlockContactDialog } from './BlockContactDialog'
 import { DeleteContactDialog } from './DeleteContactDialog'
-import { contactLabel, maskPhone, relativeTime, statusTone, statusLabel } from './format'
+import { contactLabel, initials, maskPhone, relativeTime, statusTone, statusLabel } from './format'
 import { friendlyError } from '../../copy/errors'
 import { Badge } from '../../states/Badge'
 
@@ -31,6 +31,13 @@ type Props = {
    * Mesmo conteúdo canónico (Opção C Confirmada).
    */
   origin?: 'conversas' | 'clientes'
+}
+
+function formatPhone(waId: string): string {
+  const d = waId.replace(/\D/g, '')
+  if (d.length === 13 && d.startsWith('55')) return `+55 ${d.slice(2, 4)} ${d.slice(4, 9)}-${d.slice(9)}`
+  if (d.length === 12 && d.startsWith('55')) return `+55 ${d.slice(2, 4)} ${d.slice(4, 8)}-${d.slice(8)}`
+  return `+${d}`
 }
 
 function formatAppointmentWhen(startsAt: number, endsAt: number): string {
@@ -54,7 +61,7 @@ function AppointmentBlock({
   if (items.length === 0) return null
   return (
     <div className="inbox-contact-appts">
-      <h3 className="inbox-contact-h3">{title}</h3>
+      {title ? <h3 className="inbox-contact-h3">{title}</h3> : null}
       <ul className="inbox-contact-appt-list">
         {items.map((a) => (
           <li key={a.id}>
@@ -126,6 +133,22 @@ export function InboxContactScreen({
   const [blockOpen, setBlockOpen] = useState(false)
   const [blockBusy, setBlockBusy] = useState(false)
   const [blockError, setBlockError] = useState<string | null>(null)
+  const [showPhone, setShowPhone] = useState(false)
+  const [showPast, setShowPast] = useState(false)
+
+  // A ficha reusa a mesma instância ao trocar de cliente (Clientes 2 colunas /
+  // sidepane). Sem reset, «Mostrar telefone» e o resumo da IA vazavam.
+  useEffect(() => {
+    setShowPhone(false)
+    setShowPast(false)
+    setSummary(null)
+    setSummaryBusy(false)
+    setSummaryError(null)
+    setConfirmOpen(false)
+    setDeleteError(null)
+    setBlockOpen(false)
+    setBlockError(null)
+  }, [contactId])
 
   useEffect(() => {
     let cancelled = false
@@ -197,6 +220,9 @@ export function InboxContactScreen({
     data.conversations[0]?.id
   const upcoming = data.appointments?.upcoming ?? []
   const past = data.appointments?.past ?? []
+  const focusConversation = data.conversations.find((c) => c.id === summaryConversationId) ?? null
+  const otherConversations = data.conversations.filter((c) => c.id !== focusConversation?.id)
+  const nextAppointment = upcoming[0] ?? null
 
   async function handleBlock(reason: string | null) {
     setBlockBusy(true)
@@ -294,181 +320,91 @@ export function InboxContactScreen({
           <span className="inbox-thread-name">{label}</span>
           <span className="inbox-thread-sub">Informações do contato</span>
         </div>
+        <MenuTrigger>
+          <Button className="panel-icon-btn" aria-label="Mais ações">
+            <Ellipsis aria-hidden size={22} strokeWidth={2} />
+          </Button>
+          <Popover className="panel-popover" placement="bottom end">
+            <Menu
+              className="panel-menu"
+              aria-label="Mais ações do contato"
+              onAction={(key) => {
+                if (key === 'acomp') {
+                  navigatePanel({
+                    kind: 'area',
+                    area: 'acompanhamento',
+                    tenantId,
+                    section: 'quadro',
+                  })
+                } else if (key === 'block') {
+                  setBlockError(null)
+                  setBlockOpen(true)
+                } else if (key === 'delete') {
+                  setDeleteError(null)
+                  setConfirmOpen(true)
+                }
+              }}
+            >
+              <MenuItem id="acomp" className="panel-menu-item">
+                Ver no Acompanhamento
+                <ChevronRight aria-hidden size={16} />
+              </MenuItem>
+              {data.contact.blockedAt == null || isOwner ? (
+                <Separator className="panel-menu-separator" />
+              ) : null}
+              {data.contact.blockedAt == null ? (
+                <MenuItem id="block" className="panel-menu-item panel-menu-item--danger">
+                  Bloquear contato
+                </MenuItem>
+              ) : null}
+              {isOwner ? (
+                <MenuItem id="delete" className="panel-menu-item panel-menu-item--danger">
+                  Excluir contato
+                </MenuItem>
+              ) : null}
+            </Menu>
+          </Popover>
+        </MenuTrigger>
       </header>
 
-      <dl className="inbox-contact-dl">
-        <div>
-          <dt>Nome</dt>
-          <dd>{data.contact.displayName?.trim() || '—'}</dd>
-        </div>
-        <div>
-          <dt>Telefone</dt>
-          <dd>{maskPhone(data.contact.waId)}</dd>
-        </div>
-        <div>
-          <dt>Criado em</dt>
-          <dd>
-            {new Date(data.contact.createdAt).toLocaleString('pt-BR', {
-              dateStyle: 'short',
-              timeStyle: 'short',
-            })}
-          </dd>
-        </div>
-      </dl>
-
-      {summaryConversationId ? (
-        <>
-          <h2
-            className="inbox-contact-h"
-            id="resumo-ia"
-            tabIndex={-1}
-            ref={(el) => {
-              if (el && focusSummary && !el.dataset.focused) {
-                el.dataset.focused = '1'
-                el.scrollIntoView?.({ block: 'start' })
-                el.focus({ preventScroll: true })
-              }
-            }}
+      <div className="ic-id">
+        <span className="ic-avatar" aria-hidden="true">
+          {initials(label)}
+        </span>
+        <h2 className="ic-name">{label}</h2>
+        <span className="ic-phone">
+          <span aria-live="polite">
+            {showPhone ? formatPhone(data.contact.waId) : maskPhone(data.contact.waId)}
+          </span>
+          <Button
+            className="panel-icon-btn ic-eye"
+            aria-label={showPhone ? 'Ocultar telefone' : 'Mostrar telefone'}
+            onPress={() => setShowPhone((v) => !v)}
           >
-            Resumo da IA
-          </h2>
-          <div className="ai-block" style={{ marginBottom: 12 }}>
-            {summary ? (
-              <>
-                <p className="ai-block-label">
-                  Resumo da IA ·{' '}
-                  {new Date(summary.createdAt).toLocaleString('pt-BR', {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
-                  })}
-                </p>
-                <p className="ai-block-text">{summary.suggestedText}</p>
-                <p className="ai-block-source">Pode conter erros. Confira na conversa.</p>
-              </>
-            ) : (
-              <p className="ai-block-source">
-                Gerado sob demanda. As respostas de agendamento podem sair sozinhas no WhatsApp.
-              </p>
-            )}
-            {summaryError ? (
-              <p className="ai-block-warn" role="status">
-                {summaryError}
-              </p>
-            ) : null}
-            <div className="ai-block-actions">
-              <Button
-                className="panel-btn-secondary ai-btn"
-                isDisabled={summaryBusy}
-                onPress={() => {
-                  setSummaryBusy(true)
-                  setSummaryError(null)
-                  void api
-                    .summarizeAiConversation(
-                      tenantId,
-                      summaryConversationId,
-                      {
-                        clientRequestId: crypto.randomUUID(),
-                        actorDisplayName: 'Atendente',
-                      },
-                      { generation, expectGeneration: () => generation },
-                    )
-                    .then((r) => {
-                      if (r.suggestion.status === 'failed') {
-                        setSummaryError(
-                          'O resumo não está disponível agora. Tente de novo em instantes.',
-                        )
-                        setSummary(null)
-                      } else {
-                        setSummary(r.suggestion)
-                      }
-                    })
-                    .catch(() => {
-                      setSummaryError(
-                        'O resumo não está disponível agora. Tente de novo em instantes.',
-                      )
-                    })
-                    .finally(() => setSummaryBusy(false))
-                }}
-              >
-                {summaryBusy ? <AiWorking compact label="Gerando resumo…" /> : summary ? 'Gerar outro resumo' : 'Gerar resumo'}
-              </Button>
-            </div>
-          </div>
-        </>
-      ) : null}
+            {showPhone ? <EyeOff aria-hidden size={16} /> : <Eye aria-hidden size={16} />}
+          </Button>
+        </span>
+        <span className="ic-since">
+          Primeiro contato{' '}
+          {new Date(data.contact.createdAt).toLocaleString('pt-BR', {
+            dateStyle: 'short',
+            timeStyle: 'short',
+          })}
+        </span>
+      </div>
 
-      <h2 className="inbox-contact-h">Acompanhamento</h2>
-      <p className="inbox-contact-note">
-        O quadro de contatos em andamento está em Acompanhamento.
-      </p>
-      <Button
-        className="panel-btn-secondary"
-        onPress={() =>
-          navigatePanel({
-            kind: 'area',
-            area: 'acompanhamento',
-            tenantId,
-            section: 'quadro',
-          })
-        }
-      >
-        Abrir Acompanhamento
-      </Button>
-
-      <h2 className="inbox-contact-h">Horários</h2>
-      {upcoming.length === 0 && past.length === 0 ? (
-        <p className="inbox-contact-note">Nenhum horário marcado para este contato.</p>
-      ) : (
-        <>
-          <AppointmentBlock title="Próximos" items={upcoming} tenantId={tenantId} />
-          <AppointmentBlock title="Anteriores" items={past} tenantId={tenantId} />
-        </>
-      )}
-
-      <h2 className="inbox-contact-h">Conversas</h2>
-      <ul className="inbox-list">
-        {data.conversations.map((c) => (
-          <li key={c.id}>
-            <button
-              type="button"
-              className="inbox-row"
-              onClick={() =>
-                navigatePanel({
-                  kind: 'area',
-                  area: 'conversas',
-                  tenantId,
-                  section: 'thread',
-                  conversationId: c.id,
-                })
-              }
-            >
-              <span className="inbox-row-main">
-                <span className="inbox-row-top">
-                  <Badge tone={statusTone(c.status)}>{statusLabel(c.status)}</Badge>
-                  <span className="inbox-row-time">{relativeTime(c.lastMessageAt)}</span>
-                </span>
-                <span className="inbox-row-preview">{c.lastMessagePreview ?? '—'}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      <section className="inbox-contact-danger" aria-labelledby="block-contact-h">
-        <h2 id="block-contact-h" className="inbox-contact-h">
-          {data.contact.blockedAt != null ? 'Contato bloqueado' : 'Bloquear contato'}
-        </h2>
-        <p className="inbox-contact-note">
-          {data.contact.blockedAt != null
-            ? `Bloqueado por ${data.contact.blockedByDisplayName ?? 'uma pessoa da equipe'}. Mensagens novas não aparecem no painel e ninguém consegue responder.`
-            : 'Mensagens novas deste número deixam de aparecer e a conversa é encerrada. O histórico e os horários marcados continuam.'}
-        </p>
-        {blockError ? (
-          <p className="inbox-notice" role="alert" style={{ marginBottom: 12 }}>
-            {blockError}
+      {data.contact.blockedAt != null ? (
+        <div className="ic-blocked" role="status">
+          <p className="ic-blocked-text">
+            <strong>Contato bloqueado.</strong> Bloqueado por{' '}
+            {data.contact.blockedByDisplayName ?? 'uma pessoa da equipe'}. Mensagens novas não
+            aparecem e ninguém consegue responder.
           </p>
-        ) : null}
-        {data.contact.blockedAt != null ? (
+          {blockError ? (
+            <p className="inbox-notice" role="alert">
+              {blockError}
+            </p>
+          ) : null}
           <Button
             className="panel-btn-secondary"
             isDisabled={blockBusy}
@@ -476,43 +412,198 @@ export function InboxContactScreen({
           >
             {blockBusy ? 'Desbloqueando…' : 'Desbloquear contato'}
           </Button>
-        ) : (
-          <Button
-            className="panel-btn-danger"
-            onPress={() => {
-              setBlockError(null)
-              setBlockOpen(true)
-            }}
-          >
-            Bloquear contato
-          </Button>
-        )}
-      </section>
+        </div>
+      ) : null}
 
-      {isOwner ? (
-        <section className="inbox-contact-danger" aria-labelledby="delete-contact-h">
-          <h2 id="delete-contact-h" className="inbox-contact-h">
-            Zona de risco
-          </h2>
-          <p className="inbox-contact-note">
-            Exclui mensagens, anexos e dados pessoais deste contato. Compromissos
-            na agenda ficam como «Contato removido».
-          </p>
-          {deleteError ? (
-            <p className="inbox-notice" role="alert" style={{ marginBottom: 12 }}>
-              {deleteError}
+      <dl className="ic-now" aria-label="Situação">
+        {focusConversation ? (
+          <>
+            <div>
+              <dt>Conversa</dt>
+              <dd>
+                <Badge tone={statusTone(focusConversation.status)}>
+                  {statusLabel(focusConversation.status)}
+                </Badge>
+              </dd>
+            </div>
+            {focusConversation.status !== 'closed' ? (
+              <div>
+                <dt>Atendendo</dt>
+                <dd>{focusConversation.assigneeDisplayName ?? 'Ninguém assumiu'}</dd>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+        <div>
+          <dt>Próximo horário</dt>
+          <dd>
+            {nextAppointment ? (
+              <button
+                type="button"
+                className="ic-link"
+                onClick={() =>
+                  navigatePanel({
+                    kind: 'area',
+                    area: 'agenda',
+                    tenantId,
+                    section: 'compromisso',
+                    appointmentId: nextAppointment.id,
+                  })
+                }
+              >
+                {formatAppointmentWhen(nextAppointment.startsAt, nextAppointment.endsAt)}
+              </button>
+            ) : (
+              <span className="ic-muted">Nenhum marcado</span>
+            )}
+          </dd>
+        </div>
+      </dl>
+
+      {summaryConversationId ? (
+        <section className="ic-ai" aria-labelledby="resumo-ia">
+          <div className="ic-ai-head">
+            <Sparkles aria-hidden size={16} />
+            <h2
+              className="ic-ai-title"
+              id="resumo-ia"
+              tabIndex={-1}
+              ref={(el) => {
+                if (el && focusSummary && !el.dataset.focused) {
+                  el.dataset.focused = '1'
+                  el.scrollIntoView?.({ block: 'start' })
+                  el.focus({ preventScroll: true })
+                }
+              }}
+            >
+              Resumo da IA
+            </h2>
+            {summary ? (
+              <span className="ic-ai-time">
+                {new Date(summary.createdAt).toLocaleString('pt-BR', { timeStyle: 'short' })}
+              </span>
+            ) : null}
+          </div>
+          {summary ? (
+            <>
+              <p className="ai-block-text">{summary.suggestedText}</p>
+              <p className="ai-block-source">Pode conter erros. Confira na conversa.</p>
+            </>
+          ) : (
+            <p className="ai-block-source">A IA lê a conversa e resume em poucas linhas.</p>
+          )}
+          {summaryError ? (
+            <p className="ai-block-warn" role="status">
+              {summaryError}
             </p>
           ) : null}
           <Button
-            className="panel-btn-danger"
+            className="panel-btn-secondary ai-btn"
+            isDisabled={summaryBusy}
             onPress={() => {
-              setDeleteError(null)
-              setConfirmOpen(true)
+              setSummaryBusy(true)
+              setSummaryError(null)
+              void api
+                .summarizeAiConversation(
+                  tenantId,
+                  summaryConversationId,
+                  {
+                    clientRequestId: crypto.randomUUID(),
+                    actorDisplayName: 'Atendente',
+                  },
+                  { generation, expectGeneration: () => generation },
+                )
+                .then((r) => {
+                  if (r.suggestion.status === 'failed') {
+                    setSummaryError('O resumo não está disponível agora. Tente de novo em instantes.')
+                    setSummary(null)
+                  } else {
+                    setSummary(r.suggestion)
+                  }
+                })
+                .catch(() => {
+                  setSummaryError('O resumo não está disponível agora. Tente de novo em instantes.')
+                })
+                .finally(() => setSummaryBusy(false))
             }}
           >
-            Excluir contato
+            {summaryBusy ? (
+              <AiWorking compact label="Gerando resumo…" />
+            ) : summary ? (
+              'Gerar outro resumo'
+            ) : (
+              'Gerar resumo'
+            )}
           </Button>
         </section>
+      ) : null}
+
+      {upcoming.length > 1 || past.length > 0 ? (
+        <section className="ic-sec" aria-labelledby="ic-hor">
+          <h2 id="ic-hor" className="ic-h">
+            Horários
+          </h2>
+          <AppointmentBlock title="" items={upcoming.slice(1)} tenantId={tenantId} />
+          {past.length > 0 ? (
+            showPast ? (
+              <AppointmentBlock title="Anteriores" items={past} tenantId={tenantId} />
+            ) : (
+              <Button className="ic-more" onPress={() => setShowPast(true)}>
+                Ver {past.length} {past.length === 1 ? 'anterior' : 'anteriores'}
+              </Button>
+            )
+          ) : null}
+        </section>
+      ) : null}
+
+      {otherConversations.length > 0 ? (
+        <section className="ic-sec" aria-labelledby="ic-conv">
+          <h2 id="ic-conv" className="ic-h">
+            Outras conversas
+          </h2>
+          <ul className="inbox-list">
+            {otherConversations.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  className="inbox-row"
+                  onClick={() =>
+                    navigatePanel({
+                      kind: 'area',
+                      area: 'conversas',
+                      tenantId,
+                      section: 'thread',
+                      conversationId: c.id,
+                    })
+                  }
+                >
+                  <span className="inbox-row-main">
+                    <span className="inbox-row-top">
+                      <Badge tone={statusTone(c.status)}>{statusLabel(c.status)}</Badge>
+                      <span className="inbox-row-time">{relativeTime(c.lastMessageAt)}</span>
+                    </span>
+                    <span className="inbox-row-preview">{c.lastMessagePreview ?? '—'}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {upcoming.length === 0 && past.length === 0 && otherConversations.length === 0 ? (
+        <p className="inbox-contact-note">Primeira conversa com a clínica. Sem horários anteriores.</p>
+      ) : null}
+
+      {deleteError ? (
+        <p className="inbox-notice" role="alert">
+          {deleteError}
+        </p>
+      ) : null}
+      {blockError && data.contact.blockedAt == null ? (
+        <p className="inbox-notice" role="alert">
+          {blockError}
+        </p>
       ) : null}
 
       <BlockContactDialog
