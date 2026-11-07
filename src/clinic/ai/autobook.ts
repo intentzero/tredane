@@ -749,8 +749,8 @@ export async function tryAiAutoBook(
         ...none('needs_info', { confirmationMessageId: confirmation.id }),
         replyText,
         notes: explicit
-          ? 'DEC-147 A: explicit abandon clears booking frame.'
-          : 'DEC-147 B: farewell after slots clears frame (no open proposal).',
+          ? 'DEC-147 A: explicit abandon clears BookingFrame.'
+          : 'DEC-147 B: farewell after slots (no open proposal).',
       })
     }
   }
