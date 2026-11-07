@@ -6,6 +6,7 @@
  * CC-*, A-22, A-23: consulta de catálogo e Confirmar suspenso (`cc-cases.ts`).
  * A-24: nome do serviço ≠ variante (Massagem com tipos; Paulo 07/11/2026).
  * A-25..A-27: zonas em texto livre e telemetria do funil (`zonas-cases.ts`; A-27 = zonas antes da linha).
+ * A-29, A-30: desistência educada após oferta de horários (DEC-147).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import {
@@ -1273,6 +1274,162 @@ export const P0_DIALOG_CASES: DialogCase[] = [
           turn: 1,
           matches: [/\d{1,2}:\d{2}/],
           excludes: [/Entendi:/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-29',
+    title: 'Após slots: «Deixa estar, obrigado» encerra sem Não encontrei',
+    turnosIdeais: 1,
+    // DEC-147 / staging Paulo 07/11/2026: soft decline não vira sobra de zona.
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-29: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const relaxante = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
+        s.tenantId,
+        massagem.id,
+        'Massagem relaxante',
+      )
+      if (!relaxante) throw new Error('A-29: variante Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-07T14:00', label: '14:00' },
+              { key: '2026-11-07T15:00', label: '15:00' },
+            ],
+            messageId: 'm_a29_slots',
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Deixa estar, obrigado' }],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/quando quiser|fico por aqui|qualquer coisa/i],
+          excludes: [/Não encontrei/i, /Liberação miofascial/i, /Massagem relaxante/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-30',
+    title: 'Após slots: «Podes encerrar a sessão» encerra sem Não encontrei',
+    turnosIdeais: 1,
+    // DEC-147: «podes»/«encerrar» não são tokens de zona.
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-30: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const relaxante = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
+        s.tenantId,
+        massagem.id,
+        'Massagem relaxante',
+      )
+      if (!relaxante) throw new Error('A-30: variante Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-07T14:00', label: '14:00' },
+              { key: '2026-11-07T15:00', label: '15:00' },
+            ],
+            messageId: 'm_a30_slots',
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Podes encerrar a sessao' }],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/quando quiser|fico por aqui|qualquer coisa/i],
+          excludes: [/Não encontrei/i, /Liberação miofascial/i, /podes/i],
         },
       ],
     },

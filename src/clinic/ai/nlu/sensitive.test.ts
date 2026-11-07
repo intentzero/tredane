@@ -6,6 +6,8 @@ import {
   classifySensitive,
   hasPolicyQuestion,
   hasRestartRequest,
+  hasSoftDeclineRequest,
+  hasSlotRejectRequest,
   isStrongInjection,
   isWeakInjection,
   wantsHumanPause,
@@ -200,6 +202,43 @@ describe('classifySensitive (#409)', () => {
       labels: [],
       pause: false,
     },
+    // DEC-147 — desistência educada (não pausa)
+    {
+      id: 'D-01',
+      text: 'Deixa estar, obrigado',
+      labels: ['desistir'],
+      pause: false,
+    },
+    {
+      id: 'D-02',
+      text: 'Podes encerrar a sessao',
+      labels: ['desistir'],
+      pause: false,
+    },
+    {
+      id: 'D-03',
+      text: 'obrigado',
+      labels: ['desistir'],
+      pause: false,
+    },
+    {
+      id: 'D-04',
+      text: 'obrigado, às 10',
+      labels: [],
+      pause: false,
+    },
+    {
+      id: 'D-05',
+      text: 'não serve',
+      labels: ['rejeitar_oferta'],
+      pause: false,
+    },
+    {
+      id: 'D-06',
+      text: 'não',
+      labels: ['rejeitar_oferta'],
+      pause: false,
+    },
   ]
 
   for (const row of rows) {
@@ -216,6 +255,9 @@ describe('classifySensitive (#409)', () => {
       if (row.id === 'E-06') expect(hasPolicyQuestion(hits)).toBe(true)
       if (row.labels.includes('recomecar')) expect(hasRestartRequest(hits)).toBe(true)
       if (row.id === 'R-03') expect(hasRestartRequest(hits)).toBe(false)
+      if (row.labels.includes('desistir')) expect(hasSoftDeclineRequest(hits)).toBe(true)
+      if (row.id === 'D-04') expect(hasSoftDeclineRequest(hits)).toBe(false)
+      if (row.labels.includes('rejeitar_oferta')) expect(hasSlotRejectRequest(hits)).toBe(true)
     })
   }
 })

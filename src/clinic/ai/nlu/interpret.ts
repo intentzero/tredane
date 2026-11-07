@@ -32,6 +32,8 @@ export type TurnAct =
   | 'injecao'
   | 'cumprimento'
   | 'recomecar'
+  | 'desistir'
+  | 'rejeitar_oferta'
   | 'desconhecido'
 
 export type FieldSource = 'regra' | 'botao' | 'llm'
@@ -185,6 +187,8 @@ export function interpretTurn(input: InterpretInput): TurnInterpretation {
     else if (hit.label === 'cancelar') acts.push('cancelar')
     else if (hit.label === 'remarcar') acts.push('remarcar')
     else if (hit.label === 'recomecar') acts.push('recomecar')
+    else if (hit.label === 'desistir') acts.push('desistir')
+    else if (hit.label === 'rejeitar_oferta') acts.push('rejeitar_oferta')
     markTokens(text)
   }
 

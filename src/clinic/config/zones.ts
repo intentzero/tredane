@@ -859,6 +859,20 @@ const ZONE_MENTION_STOP = new Set([
   'flw',
   'vlw',
   'bye',
+  // DEC-147: abandono educado («Deixa estar», «Podes encerrar a sessão»).
+  'deixa',
+  'estar',
+  'podes',
+  'encerrar',
+  'sessao',
+  'desisto',
+  'desistir',
+  // Modo uma / pergunta de dia: «tem horário na próxima quarta-feira?»
+  // (Paulo 07/11/2026; alinhado ao stop-list de despedida).
+  'tem',
+  'feira',
+  // DEC-147 C: «não serve» não é sobra de zona.
+  'serve',
 ])
 
 /**

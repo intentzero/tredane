@@ -33,6 +33,8 @@ import { tryAiAutoBook } from './autobook'
 import {
   classifySensitive,
   hasRestartRequest,
+  hasSlotRejectRequest,
+  hasSoftDeclineRequest,
   wantsHumanPause,
 } from './nlu/sensitive'
 import {
@@ -248,6 +250,222 @@ describe('tryAiAutoBook — recomeçar limpa frame e proposta (#508)', () => {
         capability: true,
       })
       expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.serviceId).toBe(s.svc.id)
+    } finally {
+      s.close()
+    }
+  })
+})
+
+describe('classifySensitive — desistência educada (DEC-147)', () => {
+  const positives = [
+    'Deixa estar, obrigado',
+    'deixa',
+    'Podes encerrar a sessao',
+    'encerrar a sessão',
+    'obrigado',
+    'tchau',
+    'não quero',
+    'desisto',
+    'por agora não',
+    'vou pensar',
+  ]
+  const negatives = [
+    'outra sessão',
+    'quero massagem',
+    'obrigado, às 10',
+    'tem horário amanhã?',
+  ]
+
+  it.each(positives)('TP: %s', (text) => {
+    const hits = classifySensitive(text)
+    expect(hasSoftDeclineRequest(hits)).toBe(true)
+    expect(wantsHumanPause(hits)).toBe(false)
+  })
+
+  it.each(negatives)('FP: %s', (text) => {
+    expect(hasSoftDeclineRequest(classifySensitive(text))).toBe(false)
+  })
+
+  it.each(['não', 'não serve'] as const)('classe C não é A/B: %s', (text) => {
+    expect(hasSoftDeclineRequest(classifySensitive(text))).toBe(false)
+    expect(hasSlotRejectRequest(classifySensitive(text))).toBe(true)
+  })
+})
+
+describe('tryAiAutoBook — rejeição de slots classe C (DEC-147)', () => {
+  it('«não serve» com oferta → mantém variante e volta a oferecer, sem Não encontrei', async () => {
+    const s = seed()
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.svc.id,
+          line: 'feminino',
+          variantIds: ['z_fake'],
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-06T14:00', label: '14:00' },
+              { key: '2026-11-06T15:00', label: '15:00' },
+            ],
+            messageId: 'm_slots_c',
+          },
+          lastOffer: {
+            slots: [{ startsAt: Date.UTC(2026, 10, 6, 17, 0), professionalId: s.pro.id }],
+            messageId: 'm_slots_c',
+          },
+        },
+        s.clock,
+      )
+      s.clock.advance(60_000)
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: 'não serve',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      const out = await tryAiAutoBook(s.db, s.caller, s.clock, {
+        conversationId: s.cnv.id,
+        capability: true,
+      })
+      expect(out.replyText).not.toMatch(/Não encontrei/i)
+      expect(out.replyText).not.toMatch(/quando quiser|fico por aqui/i)
+      expect(out.deferredFrame?.hasWork).toBe(true)
+      out.deferredFrame!.flushNow(s.db, s.tenantId, s.cnv.id, s.clock)
+      const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      // Classe C: não abandona — serviço fica; não é adeus A/B.
+      expect(frame).not.toBeNull()
+      expect(frame?.serviceId).toBe(s.svc.id)
+    } finally {
+      s.close()
+    }
+  })
+})
+
+describe('tryAiAutoBook — CF-23: agradecimento com proposta não abandona (DEC-147 B)', () => {
+  it('«obrigada!» com proposta aberta mantém a proposta', async () => {
+    const s = seed()
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.svc.id,
+          line: 'feminino',
+          date: '2026-11-06',
+          time: '14:00',
+          phase: 'proposto',
+        },
+        s.clock,
+      )
+      const startsAt = zonedCivilToUtc(TZ, 2026, 10, 29, 14, 0)
+      const proposal = createProposal(
+        s.db,
+        s.tenantId,
+        {
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          serviceId: s.svc.id,
+          professionalId: s.pro.id,
+          startsAt,
+        },
+        s.clock,
+      )
+      markProposalSent(s.db, s.tenantId, proposal.id, s.clock)
+      s.clock.advance(60_000)
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: 'obrigada!',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      await tryAiAutoBook(s.db, s.caller, s.clock, {
+        conversationId: s.cnv.id,
+        capability: true,
+      })
+      expect(getActiveProposalForConversation(s.db, s.tenantId, s.cnv.id, s.clock)?.id).toBe(
+        proposal.id,
+      )
+      expect(getProposal(s.db, s.tenantId, proposal.id)?.state).not.toBe('substituida')
+    } finally {
+      s.close()
+    }
+  })
+})
+
+describe('tryAiAutoBook — desistência após slots A/B (DEC-147)', () => {
+  it.each([
+    'Deixa estar, obrigado',
+    'Podes encerrar a sessao',
+  ] as const)('oferta aberta + «%s» → frame limpo, adeus, sem Não encontrei', async (body) => {
+    const s = seed()
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.svc.id,
+          line: 'feminino',
+          variantIds: ['z_fake'],
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-06T14:00', label: '14:00' },
+              { key: '2026-11-06T15:00', label: '15:00' },
+            ],
+            messageId: 'm_slots',
+          },
+          lastOffer: {
+            slots: [{ startsAt: Date.UTC(2026, 10, 6, 17, 0), professionalId: s.pro.id }],
+            messageId: 'm_slots',
+          },
+        },
+        s.clock,
+      )
+
+      s.clock.advance(60_000)
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body,
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+
+      const out = await tryAiAutoBook(s.db, s.caller, s.clock, {
+        conversationId: s.cnv.id,
+        capability: true,
+      })
+      expect(out.replyText).toMatch(/quando quiser|fico por aqui|qualquer coisa/i)
+      expect(out.replyText).not.toMatch(/Não encontrei/i)
+      expect(out.replyText).not.toMatch(/Quer .+Opç/i)
+      expect(out.deferredFrame?.hasWork).toBe(true)
+
+      out.deferredFrame!.flushNow(s.db, s.tenantId, s.cnv.id, s.clock)
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)).toBeNull()
     } finally {
       s.close()
     }

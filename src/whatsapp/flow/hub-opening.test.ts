@@ -468,7 +468,7 @@ describe('CTA Abrir opções só na abertura vaga (Paulo, 07/11/2026)', () => {
     }
   })
 
-  it('despedida com serviço no quadro não leva Abrir opções', async () => {
+  it('despedida com serviço no quadro não leva Abrir opções (DEC-147)', async () => {
     const s = bootDialogScenario()
     const flow = countingPrepare()
     try {
@@ -476,7 +476,9 @@ describe('CTA Abrir opções só na abertura vaga (Paulo, 07/11/2026)', () => {
       const { out, last } = await draft(s, 'tchau', flow.prepare)
       expect(out[0]!.reason).not.toBe('hub_opening')
       expect(flow.calls()).toBe(0)
-      expect(last?.body ?? '').toMatch(/tipos|Liberação miofascial/i)
+      expect(last?.body ?? '').toMatch(/quando quiser|fico por aqui|qualquer coisa/i)
+      expect(last?.body ?? '').not.toMatch(/Não encontrei/i)
+      expect(last?.body ?? '').not.toMatch(/tipos|Liberação miofascial/i)
       expect(last?.body ?? '').not.toMatch(/O que você precisa\?/)
       expect(last?.interactive_json ?? '').not.toContain('Abrir opções')
     } finally {

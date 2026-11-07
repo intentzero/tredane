@@ -21,6 +21,15 @@ export type SensitiveLabel =
   | 'pergunta_politica'
   /** Recomeçar o funil / limpar BookingFrame (CF-28 / #508). Não pausa a IA. */
   | 'recomecar'
+  /**
+   * Classes A/B DEC-147: abandono explícito ou despedida após oferta.
+   * Limpa o frame e agradece; não pausa a IA e não marca (DEC-061 / DEC-104).
+   */
+  | 'desistir'
+  /**
+   * Classe C DEC-147: rejeita a oferta actual de horários sem abandonar a sessão.
+   */
+  | 'rejeitar_oferta'
 
 export type InjectionStrength = 'fraca' | 'forte'
 
@@ -64,6 +73,52 @@ export const PIX_OFF_PURPOSE_RE = /\b(chave\s+pix|j[aá] paguei|pix copia)\b/i
 export const RESTART_BOOKING_RE =
   /\b(come[cç]ar\s+de\s+novo|recome[cç]ar|quero\s+outra\s+coisa|outra\s+coisa|esquece)\b(?!\s+a\s+cl)/i
 
+/**
+ * Classe A DEC-147 — abandono explícito. Lista fechada — sem LLM.
+ * Com proposta aberta também limpa (diferente da despedida B / CF-23).
+ */
+export const EXPLICIT_ABANDON_RE = new RegExp(
+  [
+    String.raw`\bdeixa\s+(?:estar|pra\s+l[aá]|para\s+l[aá]|assim)\b`,
+    String.raw`^(?:ok[,.\s!]*)?deixa[.!?\s]*$`,
+    String.raw`\bpor\s+agora\s+n[aã]o\b`,
+    String.raw`\bn[aã]o\s+quero(?:\s+(?:mais|agora))?\b`,
+    String.raw`\b(?:desisto|desistir)\b`,
+    String.raw`\bvou\s+pensar\b`,
+    String.raw`\b(?:podes?\s+)?encerrar(?:\s+a\s+sess[aã]o)?\b`,
+  ].join('|'),
+  'i',
+)
+
+/**
+ * Classe B DEC-147 — despedida / agradecimento curto.
+ * Com proposta aberta **não** retira o Confirmar (CF-23); só abandona
+ * com slots/pending abertos ou serviço em coleta sem proposta.
+ */
+export const FAREWELL_RE = new RegExp(
+  [
+    String.raw`^(?:(?:ok|beleza|muito|n[aã]o)[,.\s!]*)*(?:tchau|adeus|flw|vlw|bye|obrigad[oa]|valeu)[.!?\s]*$`,
+    String.raw`\b(?:tchau|adeus)\b`,
+  ].join('|'),
+  'i',
+)
+
+/** A ∪ B — classificador; o autobook distingue A vs B. */
+export const SOFT_DECLINE_RE = new RegExp(
+  `(?:${EXPLICIT_ABANDON_RE.source})|(?:${FAREWELL_RE.source})`,
+  'i',
+)
+
+/**
+ * Classe C DEC-147 — rejeita a oferta de horários sem abandonar.
+ * Não casa «não quero» (isso é A).
+ */
+export const SLOT_REJECT_RE =
+  /^(?:n[aã]o(?:\s+serve)?|nenhum(?:a)?(?:\s+(?:destes?|dessas?|deles?|delas?))?|outr[oa](?:\s+hor[aá]rio|\s+hora)?)[.!?\s]*$/i
+
+/** Relógio / hora explícita — a mensagem continua o funil, não desiste. */
+const SOFT_DECLINE_CLOCK_RE = /\b\d{1,2}\s*(?::\d{2}|h\b)|[àa]s\s+\d/i
+
 /** Cancelar/desmarcar (acção). */
 export const CANCEL_RE = /\b(cancela|cancelar|desmarca|desmarcar)\b/i
 
@@ -93,9 +148,20 @@ export function classifySensitive(text: string): SensitiveHit[] {
   if (STOP_MESSAGES_RE.test(body)) hits.push({ label: 'pedir_parar', matchedBy: 'stop_messages' })
   if (WANTS_HUMAN_RE.test(body)) hits.push({ label: 'pedir_pessoa', matchedBy: 'wants_human' })
   if (AI_TRANSPARENCY_RE.test(body)) hits.push({ label: 'pergunta_ia', matchedBy: 'ai_transparency' })
-  // Recomeçar antes de ofensa/saúde: limpa o frame sem pausar (não entra em wantsHumanPause).
+  // Recomeçar / desistir antes de ofensa/saúde: limpam o frame sem pausar.
   if (RESTART_BOOKING_RE.test(body) && !OFF_TOPIC_RE.test(body)) {
     hits.push({ label: 'recomecar', matchedBy: 'restart_booking' })
+  }
+  // «não quero receber mensagens» é pedir_parar (DEC-114), não abandono A.
+  if (
+    SOFT_DECLINE_RE.test(body) &&
+    !SOFT_DECLINE_CLOCK_RE.test(body) &&
+    !RESTART_BOOKING_RE.test(body) &&
+    !hits.some((h) => h.label === 'pedir_parar')
+  ) {
+    hits.push({ label: 'desistir', matchedBy: 'soft_decline' })
+  } else if (SLOT_REJECT_RE.test(body.trim()) && !SOFT_DECLINE_RE.test(body)) {
+    hits.push({ label: 'rejeitar_oferta', matchedBy: 'slot_reject' })
   }
 
   if (detectStrongInjectionSignals(body)) {
@@ -160,6 +226,21 @@ export function hasStopRequest(hits: SensitiveHit[]): boolean {
 /** Pedido de recomeçar / limpar BookingFrame (CF-28 / #508). */
 export function hasRestartRequest(hits: SensitiveHit[]): boolean {
   return hits.some((h) => h.label === 'recomecar')
+}
+
+/** Classes A/B DEC-147 — abandono / despedida. Não pausa a IA. */
+export function hasSoftDeclineRequest(hits: SensitiveHit[]): boolean {
+  return hits.some((h) => h.label === 'desistir')
+}
+
+/** Classe A (abandono explícito), não só agradecimento. */
+export function isExplicitAbandonText(text: string): boolean {
+  return EXPLICIT_ABANDON_RE.test(text) && !SOFT_DECLINE_CLOCK_RE.test(text)
+}
+
+/** Classe C DEC-147 — rejeita oferta de slots. Não pausa a IA. */
+export function hasSlotRejectRequest(hits: SensitiveHit[]): boolean {
+  return hits.some((h) => h.label === 'rejeitar_oferta')
 }
 
 export function hasAiTransparencyQuestion(hits: SensitiveHit[]): boolean {
