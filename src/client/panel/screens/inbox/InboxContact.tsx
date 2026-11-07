@@ -136,6 +136,20 @@ export function InboxContactScreen({
   const [showPhone, setShowPhone] = useState(false)
   const [showPast, setShowPast] = useState(false)
 
+  // A ficha reusa a mesma instância ao trocar de cliente (Clientes 2 colunas /
+  // sidepane). Sem reset, «Mostrar telefone» e o resumo da IA vazavam.
+  useEffect(() => {
+    setShowPhone(false)
+    setShowPast(false)
+    setSummary(null)
+    setSummaryBusy(false)
+    setSummaryError(null)
+    setConfirmOpen(false)
+    setDeleteError(null)
+    setBlockOpen(false)
+    setBlockError(null)
+  }, [contactId])
+
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -335,7 +349,9 @@ export function InboxContactScreen({
                 Ver no Acompanhamento
                 <ChevronRight aria-hidden size={16} />
               </MenuItem>
-              {data.contact.blockedAt == null || isOwner ? <Separator className="panel-menu-sep" /> : null}
+              {data.contact.blockedAt == null || isOwner ? (
+                <Separator className="panel-menu-separator" />
+              ) : null}
               {data.contact.blockedAt == null ? (
                 <MenuItem id="block" className="panel-menu-item panel-menu-item--danger">
                   Bloquear contato
@@ -357,7 +373,9 @@ export function InboxContactScreen({
         </span>
         <h2 className="ic-name">{label}</h2>
         <span className="ic-phone">
-          <span>{showPhone ? formatPhone(data.contact.waId) : maskPhone(data.contact.waId)}</span>
+          <span aria-live="polite">
+            {showPhone ? formatPhone(data.contact.waId) : maskPhone(data.contact.waId)}
+          </span>
           <Button
             className="panel-icon-btn ic-eye"
             aria-label={showPhone ? 'Ocultar telefone' : 'Mostrar telefone'}

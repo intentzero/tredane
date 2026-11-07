@@ -10012,9 +10012,3 @@
   margin: 0;
   width: 100%;
 }
-
-.panel-menu-sep {
-  height: 1px;
-  margin: var(--space-1) 0;
-  background: var(--color-line-divider);
-}

@@ -96,4 +96,57 @@ describe('InboxContact — painel simplificado', () => {
     await user.click(screen.getByRole('button', { name: 'Ver 1 anterior' }))
     expect(screen.getByRole('heading', { name: 'Anteriores' })).toBeTruthy()
   })
+
+  it('volta a mascarar o telefone ao trocar de contato (mesma instância)', async () => {
+    const other = {
+      ...contact,
+      id: 'ctc_outra',
+      waId: '5511912345678',
+      displayName: 'Outra Fictícia',
+    }
+    const api = {
+      getInboxContact: vi.fn(async (_t: string, id: string) =>
+        id === other.id
+          ? {
+              contact: other,
+              conversations: [{ ...conv('c2', 'open', null), contactId: other.id, contact: other }],
+              appointments: { upcoming: [], past: [] },
+            }
+          : {
+              contact,
+              conversations: [conv('c1', 'open', 'Ana')],
+              appointments: { upcoming: [], past: [] },
+            },
+      ),
+    } as unknown as PanelApi
+    const { rerender } = render(
+      <InboxContactScreen
+        tenantId="t"
+        contactId={contact.id}
+        conversationId="c1"
+        api={api}
+        generation={1}
+        isOwner={false}
+      />,
+    )
+    await screen.findByRole('heading', { name: 'Mariana Fictícia' })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Mostrar telefone' }))
+    expect(screen.getByText('+55 11 98765-4821')).toBeTruthy()
+
+    rerender(
+      <InboxContactScreen
+        tenantId="t"
+        contactId={other.id}
+        conversationId="c2"
+        api={api}
+        generation={1}
+        isOwner={false}
+      />,
+    )
+    expect(await screen.findByRole('heading', { name: 'Outra Fictícia' })).toBeTruthy()
+    expect(screen.getByText(/9••••-5678/)).toBeTruthy()
+    expect(screen.queryByText('+55 11 98765-4821')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Mostrar telefone' })).toBeTruthy()
+  })
 })
