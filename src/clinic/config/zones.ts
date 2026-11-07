@@ -833,6 +833,15 @@ const ZONE_MENTION_STOP = new Set([
   'uns',
   'umas',
   'servico',
+  // Determinantes da mesma classe que «uma» (review #597 M1).
+  'esta',
+  'este',
+  'estes',
+  'estas',
+  'alguma',
+  'algum',
+  'alguns',
+  'algumas',
   // «outra»/«outro» não é variante nem troca de serviço (Paulo 07/11/2026).
   'outra',
   'outro',

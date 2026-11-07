@@ -280,6 +280,24 @@ describe('nome do serviço ≠ variante (Paulo 07/11/2026)', () => {
     }
   })
 
+  it('determinantes esta/alguma (e pares) não são sobra unrecognized (#597 M1)', () => {
+    for (const text of [
+      'quero esta massagem',
+      'este serviço',
+      'estas opções',
+      'estes horários',
+      'alguma massagem',
+      'algum horário',
+      'algumas zonas',
+      'alguns horários',
+    ]) {
+      const got = resolveZoneMention(text, massagemZones, ignore)
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.leftover, text).toBeNull()
+      expect(got.zones, text).toEqual([])
+    }
+  })
+
   it('«outra» / «outro» e despedida não são sobra unrecognized', () => {
     for (const text of ['Outra', 'outro', 'Ok tchau', 'tchau', 'obrigado', 'vlw']) {
       const got = resolveZoneMention(text, massagemZones, ignore)

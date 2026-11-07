@@ -4,12 +4,20 @@
  * A-13..A-19: sonda de novembro / F1-0 (#506).
  * FL-*: hub + WhatsApp Flow (`fl-cases.ts`).
  * CC-*, A-22, A-23: consulta de catálogo e Confirmar suspenso (`cc-cases.ts`).
+ * A-24: nome do serviço ≠ variante (Massagem com tipos; Paulo 07/11/2026).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
-import { acceptUnmatchedTermOp, createBlockOp, listUnmatchedTermsOp } from '../../../config'
+import {
+  acceptUnmatchedTermOp,
+  createBlockOp,
+  listServices,
+  listUnmatchedTermsOp,
+  replaceServiceZonesOp,
+  upsertServiceOp,
+} from '../../../config'
 import { setClinicAiProfile } from '../../../config/settings'
 import { encodeChoiceId } from '../../choice-offer'
-import { saveScheduleSession } from '../../schedule-session'
+import { getScheduleSession, saveScheduleSession } from '../../schedule-session'
 import {
   APPOINTMENT_PROPOSAL_VALIDITY_MS,
   type DialogCase,
@@ -1123,6 +1131,77 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       turns: [
         { turn: 0, matches: [/não encontrei/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] },
         { turn: 1, matches: [/feminina|masculina/i], excludes: [/não encontrei/i, /maps\.|goo\.gl/i] },
+      ],
+    },
+  },
+  {
+    id: 'A-24',
+    title: 'Massagem aberta: «uma massagem» pergunta tipos, não escolhe relaxante',
+    turnosIdeais: 1,
+    // Paulo 07/11/2026 / #597: nome do serviço ≠ variante; sem «Não encontrei».
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-24: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: massagem.id, phase: 'coletando' },
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Bom dia, queria agendar uma massagem' },
+      {
+        role: 'owner',
+        note: 'sessão sem variante fechada (não travou Massagem relaxante)',
+        act: (s) => {
+          const session = getScheduleSession(s.db, s.tenantId, s.conversationId)
+          if (session?.variantIds && session.variantIds.length > 0) {
+            throw new Error(
+              `A-24: variantIds inesperados ${JSON.stringify(session.variantIds)} — não deve fechar relaxante`,
+            )
+          }
+        },
+      },
+    ],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/tipos?|opç/i, /Liberação miofascial/i, /Massagem relaxante/i],
+          excludes: [/Não encontrei/i, /Entendi:\s*Massagem relaxante/i],
+        },
       ],
     },
   },
