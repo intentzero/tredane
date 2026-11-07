@@ -26,7 +26,7 @@
 5. **Confirmado** (DEC-104, ADR-0016): o modelo não escolhe zona, hora nem marcação. No atendimento automático, a frase à cliente é determinística; o LLM interpreta o que o código não cobre e responde a perguntas abertas, com validador.
 6. **Confirmado** (DEC-138, ADR-0015, ADR-0016): o Flow é o percurso por ids. O texto livre preenche o mesmo `BookingFrame`. Não há segundo quadro.
 7. **Confirmado** (Paulo, conversa de 06/11/2026): as quatro leituras da secção seguinte. Não estão em `docs/product/decisions.md` de `main`. O código que as aplica está em curso no [#580](https://github.com/intentzero/tredane/pull/580). Não assumas que `main` já as cumpre, e não escrevas o contrário.
-8. **Proposto** e fora do comportamento do código: o núcleo determinístico e a evolução que pede um actualizador único ([#579](https://github.com/intentzero/tredane/issues/579), ainda não feita).
+8. **Proposto** (núcleo determinístico em [`nucleo-deterministico-conversacional.md`](nucleo-deterministico-conversacional.md)): o grafo completo por turno. O actualizador único do quadro ([#579](https://github.com/intentzero/tredane/issues/579)) já tem casa em `src/clinic/ai/apply-booking-update.ts` para as leituras #575–#578; adaptadores texto/Flow a emitir intents ficam para a fatia seguinte.
 
 ## O que o Tredane é
 
@@ -108,7 +108,7 @@ Em `main` @ `0e75888`, `docs/product/decisions.md` ainda não traz estas notas. 
 ## O que continua proposto
 
 - **Proposto** ([`nucleo-deterministico-conversacional.md`](nucleo-deterministico-conversacional.md)): o grafo determinístico e o pipeline único por turno. Complementa o [modelo híbrido](conversational-hybrid-model.md). Não é o comportamento do código. Pontos que ainda pedem decisão estão na secção 10 desse documento.
-- **Proposto** (análise de 06/11; [#579](https://github.com/intentzero/tredane/issues/579), por fazer): um actualizador único como casa das quatro leituras. A análise não escolheu essa casa como regra suficiente por si. Não está em `main` nem no #580. Enquanto não existir, não inventes um segundo sítio que contorne as leituras.
+- **Proposto** (análise de 06/11; [#579](https://github.com/intentzero/tredane/issues/579)): `applyBookingUpdate` em `src/clinic/ai/apply-booking-update.ts` é a casa das quatro leituras (#575–#578). `tryAiAutoBook` e o extrator emitem intents; não reabras ramos locais que contornem o actualizador. Gramática completa texto→intent (PR-D) ainda por fazer.
 
 ## Fora
 
