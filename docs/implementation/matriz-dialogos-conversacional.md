@@ -70,6 +70,10 @@
 | A-21 | P0 | Owner grava a sugestão | C: «Quero depilar» [sem sinónimo] → owner grava «depilar» em Depilação pela sugestão do painel → C: «Quero depilar» | 1.º turno igual ao A-20 e regista o termo; a sugestão aponta Depilação; depois de gravada, pergunta a linha (feminina/masculina) sem «não encontrei». | INV-05 | 2 | ✅ L1 (05/11/2026, DEC-141) |
 | A-22 | P0 | Confirmar suspenso não marca | [proposta Axila + Pernas enviada] ⟶ C: «quero só pernas» ⟶ eco «Entendi: Pernas. Certo?» ⟶ toque no Confirmar do cartão antigo | Nenhum compromisso (INV-01); a proposta antiga fica suspensa até Corrigir ou Sim. | INV-01 | 2 | ✅ L1 (06/11/2026, migração 0053) |
 | A-23 | P0 | Confirmar suspenso recebe resposta | [o mesmo que A-22] | O toque no cartão antigo tem uma resposta que aponta para o eco. | INV-09 | 3 | ❌ **CF-44** (`it.fails`; hoje silêncio; texto Em aberto, DEC-104) |
+| A-24 | P0 | Nome do serviço ≠ variante | [Massagem com tipos; sessão só com serviço] C: «Bom dia, queria agendar uma massagem» | Pergunta os tipos (lista); **não** fecha «Massagem relaxante»; sem «Não encontrei». | INV-05, EF-01 | 1 | ✅ L1 (#597) |
+| A-25 | P0 | Telemetria: zonas respondidas | C: «Quero depilação feminina» ⟶ C: «axila e pernas» | `ai.turn_decided` do 2.º turno: `variantsChanged` e `zonesAskedBefore` verdadeiros, sem modelo. Só booleanos, sem texto. | CA-09 | 2 | ✅ L1 (#588, DEC-143 medida a) |
+| A-26 | P0 | Telemetria: zonas por iniciativa | C: «Quero depilação» ⟶ C: «feminina, axila e pernas» | `variantsChanged` verdadeiro e `zonesAskedBefore` **falso**: são zonas escritas sem lhas pedirem. | CA-09 | 2 | ✅ L1 (#588; falha se `zonesAskedBefore` for sempre verdadeiro) |
+| A-27 | P0 | Zonas escritas antes da linha | C: «Quero depilação de axila e pernas» ⟶ C: «feminina» ⟶ C: «sim» | Pergunta a linha; depois «Entendi: Axila e Pernas. Certo?» sem voltar a pedir as zonas; o Sim abre os Horários e não marca (DEC-061, DEC-137). | INV-08 | 3 | ✅ L1 (#589, DEC-143; falha sem a janela recuada do funil; id A-27 após #597 ocupar A-24) |
 
 ## B. Linguagem temporal
 
@@ -241,8 +245,10 @@ Criada em 05/11/2026 pela [metodologia de avaliação](metodologia-avaliacao-con
 | FL-14 | P0 | Token expirado | C: «Oi» ⟶ [Flow aberto 3 dias depois] | O endpoint devolve 427. Nada é gravado nem enviado. | INV-01 | 1 | ✅ L1 |
 | FL-15 | P0 | Serviço pelo nome exacto (controlo do FL-12) | C: «Quero depilação» ⟶ [Flow: Feminina → Axila + Pernas → 1.ª hora] | Sem o cumprimento do hub; o funil passa ao Flow; proposta com as duas zonas. | ES-02 | 2 | ✅ L1 |
 | FL-16 | P0 | Verbo com sinónimo na ficha | [sinónimo «depilar» em Depilação] C: «Quero depilar» ⟶ [Flow: …] | Sem o cumprimento do hub; proposta (DEC-110). | EE-01 | 2 | ✅ L1 |
+| FL-17 | P0 | Flow com o quadro preenchido | C: «Quero depilação feminina axila e pernas» ⟶ C: «sim» ⟶ [Flow: HUB → …] | Ecrãs HUB > SERVICO > HORARIO > SUCCESS: depois do HUB vai **sempre** SERVICO (o `routing_model` só tem essa aresta) e salta o que já se sabe. Proposta com as duas zonas; nada marcado. | ES-01, ES-02 | 3 | ✅ L1 (#587; falha sem a regra do HUB) |
+| FL-18 | P0 | Catálogo muda com o Flow aberto | [serviço desativado antes de responder a VARIANTES] | O Flow fecha para o chat com a frase de recurso «Não consegui abrir a escolha. Pode me dizer por aqui o que quer marcar.» Sem proposta, sem compromisso, sem «Ocorreu um erro». | INV-09 | 2 | ✅ L1 (#587; cobre o resultado, não a verificação da aresta) |
 
-**Por cobrir na família FL- (Proposto):** catálogo alterado a meio do Flow (ADR-0016 §7; hoje só em teste unitário), hora que deixa de estar livre entre HORARIO e o fecho, `fallback_reason` (sem horas na semana, demasiadas variantes), token de outra clínica (isolamento; hoje coberto no `queue-consumer`) e o Flow que não abre (o chat assume). Precisam de um turno de mutação do cenário a meio do diálogo.
+**Por cobrir na família FL- (Proposto):** hora que deixa de estar livre entre HORARIO e o fecho, `fallback_reason` `no_slots` e `too_many_variants`, token de outra clínica (isolamento; hoje coberto no `queue-consumer`) e o Flow que não abre (o chat assume). O catálogo alterado a meio já está no FL-18, com o gancho `mutateBefore` do `flow-driver`.
 
 
 ## CC. Consulta de catálogo (DEC-142)

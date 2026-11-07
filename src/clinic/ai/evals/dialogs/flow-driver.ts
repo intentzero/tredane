@@ -54,6 +54,11 @@ export type FlowPath = {
   abandonAt?: string
   /** Tempo (min) a passar entre o envio do CTA e o INIT (expiração, catálogo a meio). */
   delayMs?: number
+  /**
+   * Muda o cenário **antes** de a cliente responder a este ecrã (ex.: a owner desativa o
+   * serviço com o Flow aberto, ADR-0016 §7). O passo seguinte vê o catálogo novo.
+   */
+  mutateBefore?: { screen: string; run: (s: DialogScenario) => void }
 }
 
 export type FlowRunTrace = {
@@ -226,6 +231,10 @@ export function createFlowHarness(opts: { forecast?: ForecastAdapter } = {}): Fl
       if (resp.status !== 200 || !resp.screen) return { screens, outcome: 'endpoint_error', detail: String(resp.status) }
       screens.push(resp.screen)
       if (path.abandonAt === resp.screen) return { screens, outcome: 'abandoned' }
+      if (path.mutateBefore && path.mutateBefore.screen === resp.screen) {
+        path.mutateBefore.run(s)
+        path = { ...path, mutateBefore: undefined }
+      }
 
       if (resp.screen === 'SUCCESS') {
         const ext = resp.data.extension_message_response as { params?: Record<string, unknown> } | undefined
