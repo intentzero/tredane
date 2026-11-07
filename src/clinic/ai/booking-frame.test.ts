@@ -228,6 +228,67 @@ describe('DEC-127 matchPendingChoice', () => {
     })
   })
 
+  it('hora solta «14» / «14?» casa 14:00; só :30 na hora também liga (A-31)', () => {
+    const civil = {
+      slot: 'horario' as const,
+      messageId: 'm1',
+      options: [
+        { key: '2026-11-13T13:00', label: 'sexta 13/11 13:00' },
+        { key: '2026-11-13T13:30', label: 'sexta 13/11 13:30' },
+        { key: '2026-11-13T14:00', label: 'sexta 13/11 14:00' },
+      ],
+    }
+    expect(matchPendingChoice('14', civil)).toEqual({
+      kind: 'match',
+      key: '2026-11-13T14:00',
+      label: 'sexta 13/11 14:00',
+    })
+    expect(matchPendingChoice('14?', civil)).toEqual({
+      kind: 'match',
+      key: '2026-11-13T14:00',
+      label: 'sexta 13/11 14:00',
+    })
+    // Com 13:00 e 13:30, «13» prefere :00.
+    expect(matchPendingChoice('13', civil)).toEqual({
+      kind: 'match',
+      key: '2026-11-13T13:00',
+      label: 'sexta 13/11 13:00',
+    })
+    expect(matchPendingChoice('17', civil)).toEqual({ kind: 'none' })
+    // Sem :00 nessa hora, a única opção da hora serve.
+    expect(
+      matchPendingChoice('14', {
+        slot: 'horario',
+        messageId: 'm',
+        options: [
+          { key: '2026-11-13T13:30', label: 'sexta 13/11 13:30' },
+          { key: '2026-11-13T14:30', label: 'sexta 13/11 14:30' },
+        ],
+      }),
+    ).toEqual({
+      kind: 'match',
+      key: '2026-11-13T14:30',
+      label: 'sexta 13/11 14:30',
+    })
+    // Duas opções na mesma hora sem :00 → pergunta de volta.
+    expect(
+      matchPendingChoice('13', {
+        slot: 'horario',
+        messageId: 'm',
+        options: [
+          { key: '2026-11-13T13:15', label: 'sexta 13/11 13:15' },
+          { key: '2026-11-13T13:45', label: 'sexta 13/11 13:45' },
+        ],
+      }),
+    ).toEqual({ kind: 'ambiguous' })
+    // «1»…«5» sem hora oferecida continuam ordinais.
+    expect(matchPendingChoice('1', civil)).toEqual({
+      kind: 'match',
+      key: '2026-11-13T13:00',
+      label: 'sexta 13/11 13:00',
+    })
+  })
+
   it('#507: «o das 14» e «a terça» funcionam com chave civil YYYY-MM-DDTHH:MM', () => {
     const civil = {
       slot: 'horario',

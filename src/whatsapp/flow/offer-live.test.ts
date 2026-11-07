@@ -306,6 +306,33 @@ describe('maybeReplaceM5WithFlow', () => {
     expect(replaced.interactive?.buttons?.map((b) => b.title)).toEqual(['Sim', 'Corrigir'])
   })
 
+  it('clearM5PendingOnDeferred mantém a oferta de horários: a cliente responde por texto («14»)', () => {
+    const deferred = createDeferredBookingFrame()
+    deferred.save({
+      serviceId: 'svc_dep',
+      pending: {
+        slot: 'horario',
+        options: [
+          { key: '2026-11-13T13:00', label: 'sexta 13/11 13:00' },
+          { key: '2026-11-13T14:00', label: 'sexta 13/11 14:00' },
+        ],
+        messageId: '__outbound__',
+      },
+      lastOffer: { slots: [{ startsAt: 1, professionalId: 'p1' }], messageId: '__outbound__' },
+      catalogVersion: '1',
+    })
+    clearM5PendingOnDeferred(deferred)
+    expect(deferred.pendingSlot).toBe('horario')
+    const linha = createDeferredBookingFrame()
+    linha.save({
+      serviceId: 'svc_dep',
+      pending: { slot: 'linha', options: [{ key: 'feminino', label: 'Feminina' }], messageId: '__outbound__' },
+      catalogVersion: '1',
+    })
+    clearM5PendingOnDeferred(linha)
+    expect(linha.pendingSlot).toBeNull()
+  })
+
   it('clearM5PendingOnDeferred zera pending sem apagar serviço', () => {
     const deferred = createDeferredBookingFrame()
     deferred.save({

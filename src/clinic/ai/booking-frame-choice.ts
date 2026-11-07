@@ -113,6 +113,34 @@ export function matchPendingChoice(
   // Hora citada («o das 14», «14h», «às 14:00») contra opções.
   // O relógio é o de parseTimes (DEC-137, leitura 06/11/2026): «o das N» já entra em extractTimes.
   const times = [...extractTimes(choiceText)]
+  // Hora solta em resposta à oferta de horários: «14» / «14?» = 14:00 quando há essa opção.
+  // Só com pending de horário. Preferir HH:00; se a oferta só tiver 14:30, ligar a essa;
+  // duas opções na mesma hora sem :00 → ambiguous. Sem opção nessa hora, «1»…«5» seguem
+  // como ordinais mais abaixo.
+  if (times.length === 0 && pending.slot === 'horario') {
+    const bare = choiceText.match(/^(\d{1,2})\s*[.!?]?$/)
+    const hour = bare ? Number(bare[1]) : -1
+    if (hour >= 0 && hour <= 23) {
+      const hh = String(hour).padStart(2, '0')
+      const wantOnHour = `${hh}:00`
+      const optionClock = (o: (typeof opts)[0]): string | null => {
+        const keyTime = o.key.match(/\d{2}:\d{2}/)?.[0]
+        if (keyTime) return keyTime
+        return [...extractTimes(o.label)].find((t) => t.startsWith(`${hh}:`)) ?? null
+      }
+      const sameHour = opts
+        .map((o) => ({ o, t: optionClock(o) }))
+        .filter((x): x is { o: (typeof opts)[0]; t: string } => !!x.t && x.t.startsWith(`${hh}:`))
+      const onHour = sameHour.find((x) => x.t === wantOnHour)
+      if (onHour) {
+        times.push(wantOnHour)
+      } else if (sameHour.length === 1) {
+        times.push(sameHour[0]!.t)
+      } else if (sameHour.length > 1) {
+        return { kind: 'ambiguous' }
+      }
+    }
+  }
   const uniqueTimes = [...new Set(times)]
   if (uniqueTimes.length === 1) {
     const want = uniqueTimes[0]!

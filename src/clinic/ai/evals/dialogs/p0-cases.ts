@@ -7,6 +7,7 @@
  * A-24: nome do serviço ≠ variante (Massagem com tipos; Paulo 07/11/2026).
  * A-25..A-27: zonas em texto livre e telemetria do funil (`zonas-cases.ts`; A-27 = zonas antes da linha).
  * A-29, A-30: desistência educada após oferta de horários (DEC-147).
+ * A-31: hora solta «14» contra pending de horário (DEC-127 / #605).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import {
@@ -1433,6 +1434,47 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         },
       ],
     },
+  },
+  {
+    id: 'A-31',
+    title: 'Escolha por hora solta «14»',
+    turnosIdeais: 1,
+    // DEC-127 / sonda segundo telefone 07/11/2026 (#605): número solto contra pending de horário.
+    prepare: (s) => {
+      const offerId = s.sayOutbound(
+        'Para Massagem, amanhã tenho sexta 06/11 às 13:00, 14:00 e 15:30. Qual fica melhor?',
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.massagem,
+          date: '2026-11-06',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '13:00', label: '2026-11-06 às 13:00' },
+              { key: '14:00', label: '2026-11-06 às 14:00' },
+              { key: '15:30', label: '2026-11-06 às 15:30' },
+            ],
+            messageId: offerId,
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: Date.UTC(2026, 10, 6, 16, 0), professionalId: s.ids.ana },
+              { startsAt: Date.UTC(2026, 10, 6, 17, 0), professionalId: s.ids.ana },
+              { startsAt: Date.UTC(2026, 10, 6, 18, 30), professionalId: s.ids.ana },
+            ],
+            messageId: offerId,
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: '14' }],
+    expect: { proposal: true, proposalAt: { date: '2026-11-06', time: '14:00' } },
   },
   {
     id: 'A-15',
