@@ -145,8 +145,8 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const chosen = screen.getByRole('status')
     expect(chosen.textContent).toContain('Sol fraco neste horário')
     expect(chosen.textContent).toContain('Abaixo de 24 °C neste horário')
-    expect(screen.getByRole('button', { name: 'Revisar proposta' }).hasAttribute('disabled')).toBe(false)
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
+    expect(screen.getByRole('button', { name: 'Revisar' }).hasAttribute('disabled')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('status').textContent).toContain('Sol fraco neste horário')
     expect(within(dialog).getByRole('status').textContent).toContain('Abaixo de 24 °C neste horário')
@@ -159,7 +159,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const api = makeApi()
     renderScreen(api)
     expect(await screen.findByRole('heading', { name: 'Agendar · Marina Souza' })).toBeTruthy()
-    expect(screen.getByText(/\+55 11 98765-4321 · da conversa/)).toBeTruthy()
+    expect(screen.getByText(/\+55 11 9••••-4321 · da conversa/)).toBeTruthy()
     expect(screen.queryByText(/Contato sintético/)).toBeNull()
     const svc = screen.getByRole('button', { name: /Limpeza/ })
     expect(svc.getAttribute('aria-pressed')).toBe('true')
@@ -173,11 +173,11 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const manha = await screen.findByRole('group', { name: 'Manhã' })
     expect(within(manha).getByRole('button', { name: '09:00' })).toBeTruthy()
     expect(within(screen.getByRole('group', { name: 'Tarde' })).getByRole('button', { name: '14:15' })).toBeTruthy()
-    const cta = screen.getByRole('button', { name: 'Revisar proposta' })
+    const cta = screen.getByRole('button', { name: 'Revisar' })
     expect(cta.hasAttribute('disabled') || cta.getAttribute('data-disabled') === 'true').toBe(true)
     const t = await pickTime()
     expect(t.getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('button', { name: 'Revisar proposta' }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getByRole('button', { name: 'Revisar' }).hasAttribute('disabled')).toBe(false)
   })
 
   it('DEC-061: com conversa envia proposta versionada e não confirma o horário', async () => {
@@ -185,9 +185,9 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     renderScreen(api)
     await screen.findByRole('heading', { name: /Marina/ })
     await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByRole('heading', { name: 'Enviar proposta' })).toBeTruthy()
+    expect(within(dialog).getByRole('heading', { name: 'Revisar' })).toBeTruthy()
     expect(within(dialog).getByText('Marina Souza')).toBeTruthy()
     expect(within(dialog).getByText(/botões Confirmar e Alterar detalhes/)).toBeTruthy()
     expect(within(dialog).queryByRole('checkbox')).toBeNull()
@@ -231,7 +231,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     renderScreen(api)
     await screen.findByRole('heading', { name: /Marina/ })
     await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/janela de 24 h está fechada/)).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
@@ -255,7 +255,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     await screen.findByRole('heading', { name: /Marina/ })
     fireEvent.click(screen.getByRole('button', { name: 'Dra. Ana' }))
     await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
     const alert = await screen.findByRole('alert')
@@ -275,7 +275,7 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     const next = await screen.findByRole('button', { name: /Próximo livre: .*09:00/ })
     fireEvent.click(next)
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Revisar proposta' }).hasAttribute('disabled')).toBe(false),
+      expect(screen.getByRole('button', { name: 'Revisar' }).hasAttribute('disabled')).toBe(false),
     )
   })
 
@@ -284,9 +284,9 @@ describe('AgendarScreen (TEL-05 redesenho)', () => {
     renderScreen(api)
     await screen.findByRole('heading', { name: /Marina/ })
     await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
     const dialog = await screen.findByRole('dialog')
-    expect(within(dialog).getByRole('heading', { name: 'Enviar proposta' })).toBeTruthy()
+    expect(within(dialog).getByRole('heading', { name: 'Revisar' })).toBeTruthy()
     expect(within(dialog).getByText(/Sinal Pix de/)).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
     expect(await screen.findByRole('heading', { name: 'Proposta enviada' })).toBeTruthy()
@@ -336,7 +336,7 @@ describe('AgendarScreen embutido nas Conversas (DEC-074)', () => {
     renderEmbedded(api, onClose)
     await screen.findByRole('heading', { name: /Marina/ })
     await pickTime()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar proposta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar proposta' }))
     await screen.findByRole('heading', { name: 'Proposta enviada' })
@@ -352,3 +352,100 @@ describe('AgendarScreen embutido nas Conversas (DEC-074)', () => {
   })
 })
 
+
+describe('AgendarScreen — «Para quem» e variantes sem «Ambos»', () => {
+  const z = (id: string, name: string, audience: string, sortOrder: number) => ({
+    id, name, audience, sortOrder, active: true, durationMinutes: 10, priceCents: 5000,
+  })
+  const depil = {
+    variantKind: 'Zona',
+    variantKindPlural: 'Zonas',
+    variantSelection: 'varias',
+    zones: [
+      z('axm', 'Axila', 'masculino', 0),
+      z('axf', 'Axila', 'feminino', 1),
+      z('buc', 'Buço', 'feminino', 2),
+      z('sob', 'Sobrancelha', 'ambos', 3),
+    ],
+  }
+
+  it('pede a linha antes das zonas e filtra sem rótulo de gênero', async () => {
+    renderScreen(makeApi({ service: depil }))
+    expect(await screen.findByRole('radiogroup', { name: 'Para quem' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Buço/ })).toBeNull()
+    fireEvent.click(screen.getByRole('radio', { name: 'Feminino' }))
+    expect(screen.getByRole('button', { name: /Buço/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Sobrancelha/ })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /Axila/ })).toHaveLength(1)
+    expect(screen.queryByText(/Ambos/)).toBeNull()
+    expect(screen.queryByText(/· Feminino ·/)).toBeNull()
+  })
+
+  it('trocar a linha tira só as da outra linha e permite desfazer', async () => {
+    renderScreen(makeApi({ service: depil }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Feminino' }))
+    fireEvent.click(screen.getByRole('button', { name: /Buço/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Sobrancelha/ }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Masculino' }))
+    expect(screen.getByText(/Tiramos Buço \(feminino\)/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Sobrancelha/ }).getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: 'Desfazer' }))
+    expect(screen.getByRole('button', { name: /Buço/ }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('serviço só unissex não mostra «Para quem»', async () => {
+    renderScreen(makeApi({ service: { ...depil, zones: [z('a', 'Ventosaterapia', 'ambos', 0)] } }))
+    expect(await screen.findByRole('button', { name: /Ventosaterapia/ })).toBeTruthy()
+    expect(screen.queryByRole('radiogroup', { name: 'Para quem' })).toBeNull()
+    expect(screen.queryByText(/Ambos/)).toBeNull()
+  })
+})
+
+describe('AgendarScreen — painel único', () => {
+  it('não mostra o alternador Horário exato | Por período no topo', async () => {
+    renderScreen(makeApi())
+    await screen.findByRole('heading', { name: /Marina/ })
+    expect(screen.queryByRole('radiogroup', { name: 'Como escolher o horário' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Reservar bloco' })).toBeTruthy()
+  })
+
+  it('«Marcar já» confirma direto, avisa pelo WhatsApp e não envia proposta', async () => {
+    const api = makeApi()
+    renderScreen(api)
+    await screen.findByRole('heading', { name: /Marina/ })
+    await pickTime()
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Marcar já/ }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar e enviar' }))
+    await waitFor(() => expect(api.confirmAppointment).toHaveBeenCalled())
+    await waitFor(() => expect(api.sendInboxMessage).toHaveBeenCalled())
+    expect(api.createAndSendProposal).not.toHaveBeenCalled()
+  })
+
+  it('serviço com sinal Pix não oferece «Marcar já» (só proposta)', async () => {
+    const api = makeApi({ service: { requiresSignal: true, signalKind: 'fixed', signalFixedCents: 9000 } })
+    renderScreen(api)
+    await screen.findByRole('heading', { name: /Marina/ })
+    await pickTime()
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByRole('radio', { name: /Marcar já/ })).toBeNull()
+    expect(within(dialog).queryByRole('radiogroup', { name: 'Como concluir' })).toBeNull()
+    expect(within(dialog).getByRole('button', { name: 'Enviar proposta' })).toBeTruthy()
+  })
+
+  it('serviço com variantes não oferece o bloco (DEC-150)', async () => {
+    renderScreen(
+      makeApi({
+        service: {
+          variantKind: 'Zona',
+          variantKindPlural: 'Zonas',
+          zones: [{ id: 'a', name: 'Axila', audience: 'ambos', sortOrder: 0, active: true, durationMinutes: 10, priceCents: 5000 }],
+        },
+      }),
+    )
+    await screen.findByRole('button', { name: /Axila/ })
+    expect(screen.queryByRole('button', { name: 'Reservar bloco' })).toBeNull()
+  })
+})

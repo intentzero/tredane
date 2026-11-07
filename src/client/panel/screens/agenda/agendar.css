@@ -315,3 +315,61 @@
 .agd-time[aria-pressed='true'] .agd-time-seats {
   color: inherit;
 }
+
+/* «Para quem» (linha feminina/masculina) antes das variantes. */
+.agd-line {
+  margin-bottom: var(--space-2);
+}
+
+.agd-line-undo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+}
+
+.agd-line-undo span {
+  flex: 1;
+}
+
+/* Revisão: enviar proposta ou marcar já (painel único). */
+.agd-ways {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.agd-way {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: var(--size-touch);
+  padding: var(--space-3);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agd-way[aria-checked='true'] {
+  border-color: var(--color-primary-base);
+  background: var(--color-primary-tint);
+  box-shadow: inset 0 0 0 1px var(--color-primary-base);
+}
+
+.agd-way span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.agd-way:focus-visible {
+  outline: var(--size-focus-ring-width) solid var(--color-primary-base);
+  outline-offset: var(--size-focus-ring-offset);
+}
