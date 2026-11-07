@@ -72,7 +72,7 @@
 
 **Confirmado** (DEC-127, [ADR-0015](../adr/0015-estado-persistente-da-conversa.md)): uma conversa tem um `BookingFrame` no SQLite do DO da clínica. A tabela SQL chama-se `schedule_sessions`. Memória, WebSocket e releitura do texto enviado não são a fonte desse quadro.
 
-**Proposto** (DEC-148, T1): a tabela `booking_sessions` no mesmo SQLite é a projecção analítica do funil (opened/ended, `outcome`, `dropStep`). Não substitui o `BookingFrame`. Sem corpo de mensagem. Janela W de abandono **Em aberto** (default 24 h, DEC-127).
+**Proposto** (DEC-148, T1): a tabela `booking_sessions` no mesmo SQLite é a projecção analítica do funil (opened/ended, `outcome`, `dropStep`). Não substitui o `BookingFrame`. Sem corpo de mensagem. Janela W de abandono **Confirmado** **24 h** (Paulo P4, 07/11/2026; alinhada à DEC-127).
 
 **Confirmado** (DEC-138, [ADR-0016](../adr/0016-whatsapp-flow-agendamento.md)): o caminho principal de agendar é um WhatsApp Flow por ids (`data_exchange`, quatro passos). O texto livre continua e preenche o mesmo quadro, com o eco da DEC-137. Se o Flow não abrir, o chat assume. O Flow não marca: no fim, o chat envia a proposta, e só o Confirmar marca (DEC-061).
 

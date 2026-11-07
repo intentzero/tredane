@@ -62,7 +62,7 @@ function endedSample(
 }
 
 describe('DEC-148 booking_session T1', () => {
-  it('documenta janela W de abandono (Em aberto; default 24 h / DEC-127)', () => {
+  it('janela W de abandono Confirmada: 24 h (P4 / DEC-127)', () => {
     expect(BOOKING_SESSION_ABANDON_WINDOW_MS).toBe(24 * 60 * 60 * 1000)
   })
 

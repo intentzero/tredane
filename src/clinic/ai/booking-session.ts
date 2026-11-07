@@ -1,7 +1,7 @@
 /**
  * Analytics de sessão de marcação — T1 (DEC-148).
  * Projecção `booking_sessions` + outbox `booking_session.opened` / `.ended`.
- * Sem corpo de mensagem da cliente. Janela W de abandono: Em aberto; default 24 h (DEC-127).
+ * Sem corpo de mensagem da cliente. Janela W de abandono: Confirmado 24 h (Paulo P4, DEC-127).
  */
 import type { Clock } from '../../db/clock'
 import { newId } from '../ids'
@@ -9,7 +9,7 @@ import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
 import type { BookingFrame } from './schedule-session'
 
-/** Em aberto (Paulo): default alinhado à validade do frame DEC-127. Não bloqueia o ship T1. */
+/** Confirmado (Paulo P4, 07/11/2026): 24 h, alinhado à validade do frame DEC-127. */
 export const BOOKING_SESSION_ABANDON_WINDOW_MS = 24 * 60 * 60 * 1000
 
 export type BookingSessionOutcome = 'agendado' | 'handoff' | 'abandon'
@@ -396,8 +396,7 @@ export function endBookingSession(
 }
 
 /**
- * Fecha sessões abertas sem inbound há mais de W (default 24 h).
- * Em aberto: Paulo pode mudar W; até lá o default documentado serve.
+ * Fecha sessões abertas sem inbound há mais de W (Confirmado: 24 h, P4).
  * Chamável por idle / manutenção; não é obrigatório no caminho quente T1.
  */
 export function endAbandonedSessionsPastWindow(
