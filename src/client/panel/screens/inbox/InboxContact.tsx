@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight, Ellipsis, Eye, EyeOff, Sparkles } from 'luci
 import { useEffect, useState } from 'react'
 import { consumeSummaryFocus } from './summaryFocus'
 import { AiWorking } from '../../ui/AiWorking'
-import { Button, Menu, MenuItem, MenuTrigger, Popover, Separator } from 'react-aria-components'
+import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components'
 import {
   PanelApiError,
   type AiSuggestion,
@@ -336,12 +336,6 @@ export function InboxContactScreen({
                     tenantId,
                     section: 'quadro',
                   })
-                } else if (key === 'block') {
-                  setBlockError(null)
-                  setBlockOpen(true)
-                } else if (key === 'delete') {
-                  setDeleteError(null)
-                  setConfirmOpen(true)
                 }
               }}
             >
@@ -349,19 +343,6 @@ export function InboxContactScreen({
                 Ver no Acompanhamento
                 <ChevronRight aria-hidden size={16} />
               </MenuItem>
-              {data.contact.blockedAt == null || isOwner ? (
-                <Separator className="panel-menu-separator" />
-              ) : null}
-              {data.contact.blockedAt == null ? (
-                <MenuItem id="block" className="panel-menu-item panel-menu-item--danger">
-                  Bloquear contato
-                </MenuItem>
-              ) : null}
-              {isOwner ? (
-                <MenuItem id="delete" className="panel-menu-item panel-menu-item--danger">
-                  Excluir contato
-                </MenuItem>
-              ) : null}
             </Menu>
           </Popover>
         </MenuTrigger>
@@ -595,15 +576,61 @@ export function InboxContactScreen({
         <p className="inbox-contact-note">Primeira conversa com a clínica. Sem horários anteriores.</p>
       ) : null}
 
-      {deleteError ? (
-        <p className="inbox-notice" role="alert">
-          {deleteError}
-        </p>
+      {/*
+        Bloquear / Excluir ficam no rodapé do painel (ConversasControlesContato), não no ⋮
+        do header: no desktop o .inbox-thread-header está display:none no sidepane e na
+        ficha Clientes, então o menu «Mais ações» do #610 tornava as ações invisíveis.
+      */}
+      {data.contact.blockedAt == null ? (
+        <section className="ic-danger" aria-labelledby="block-contact-h">
+          <h2 id="block-contact-h" className="ic-h">
+            Bloquear contato
+          </h2>
+          <p className="inbox-contact-note">
+            Mensagens novas deste número deixam de aparecer e a conversa é encerrada. O histórico
+            e os horários marcados continuam.
+          </p>
+          {blockError ? (
+            <p className="inbox-notice" role="alert">
+              {blockError}
+            </p>
+          ) : null}
+          <Button
+            className="panel-btn-danger"
+            onPress={() => {
+              setBlockError(null)
+              setBlockOpen(true)
+            }}
+          >
+            Bloquear contato
+          </Button>
+        </section>
       ) : null}
-      {blockError && data.contact.blockedAt == null ? (
-        <p className="inbox-notice" role="alert">
-          {blockError}
-        </p>
+
+      {isOwner ? (
+        <section className="ic-danger" aria-labelledby="delete-contact-h">
+          <h2 id="delete-contact-h" className="ic-h">
+            Zona de risco
+          </h2>
+          <p className="inbox-contact-note">
+            Exclui mensagens, anexos e dados pessoais deste contato. Compromissos na agenda ficam
+            como «Contato removido».
+          </p>
+          {deleteError ? (
+            <p className="inbox-notice" role="alert">
+              {deleteError}
+            </p>
+          ) : null}
+          <Button
+            className="panel-btn-danger"
+            onPress={() => {
+              setDeleteError(null)
+              setConfirmOpen(true)
+            }}
+          >
+            Excluir contato
+          </Button>
+        </section>
       ) : null}
 
       <BlockContactDialog
