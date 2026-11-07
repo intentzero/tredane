@@ -192,6 +192,22 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
     expect(resolveZoneMention('as tres', feminine).leftover).toBeNull()
   })
 
+  it('«tem» e «feira» não são sobra (pergunta de dia/disponibilidade, DEC-145)', () => {
+    for (const text of [
+      'tem',
+      'Tem horário na próxima quarta?',
+      'Quarta feira tem horário?',
+      'quarta-feira tem horário?',
+      'terça feira',
+      'Tem horário?',
+    ]) {
+      const got = resolveZoneMention(text, feminine)
+      expect(got.unrecognized, text).toBe(false)
+      expect(got.leftover, text).toBeNull()
+      expect(got.zones, text).toEqual([])
+    }
+  })
+
   it('propriedade: N zonas reconhecíveis → N ids ou unrecognized; nunca N−1', () => {
     const phrases: Array<{ text: string; expectIds: string[] | 'ask' }> = [
       { text: 'Axila', expectIds: ['ax-f'] },

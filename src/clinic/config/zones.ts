@@ -812,6 +812,14 @@ const ZONE_MENTION_STOP = new Set([
   'sexta',
   'sabado',
   'domingo',
+  // Sufixo de dia da semana («quarta feira» / «quarta-feira») — não é zona.
+  'feira',
+  // Verbos de existência / disponibilidade («tem horário…») — não são zona.
+  'tem',
+  'tera',
+  'tinha',
+  'existe',
+  'existem',
   'cedo',
   'logo',
   'agora',

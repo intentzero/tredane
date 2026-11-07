@@ -15,6 +15,7 @@ import { citesServiceName, claimsWholeCatalog } from './schedule-choice'
 import {
   audienceLineQuestion,
   needsAudienceLine,
+  variantKindForAsk,
   variantListQuestion,
   zonesForAudienceLine,
   type AudienceLine,
@@ -388,7 +389,13 @@ function clarifyingQuestion(
         .map((d) => (d % 60 === 0 ? `${d / 60} h` : `${d} min`))
       return `Para ${serviço}, prefere ${labels.join(' ou ')}?`
     }
-    return variantListQuestion(service.name, service.variantKind, pool, conversationId)
+    return variantListQuestion(
+      service.name,
+      variantKindForAsk(service),
+      pool,
+      conversationId,
+      { selectionMode: service.variantSelection },
+    )
   }
   return `Para ${serviço}, pode confirmar a opção?`
 }

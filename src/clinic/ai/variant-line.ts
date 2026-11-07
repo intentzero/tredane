@@ -2,9 +2,11 @@
  * Pergunta de linha antes das zonas (detalhe de DEC-078 / DEC-075, Paulo, 31/10/2026).
  * A linha só entra por texto explícito (feminina/masculina/feminino/masculino) ou pela sessão da conversa.
  * Copy via catálogo M4 (#448): perguntar_linha / perguntar_variantes.
+ * DEC-145: modo `uma` usa o singular do cadastro e redações sem «Pode ser mais de uma».
  */
+import { allowsMultipleVariants } from '../catalog/variant-selection'
 import { variantChoiceLabel } from '../config/zones'
-import type { VariantAudience } from '../config/types'
+import type { ServiceRow, VariantAudience } from '../config/types'
 import { sayAct } from './dialogue-acts'
 
 export type AudienceLine = 'feminino' | 'masculino'
@@ -73,7 +75,7 @@ export function stableVariantLabelList(zones: readonly ListedZone[]): string[] {
 }
 
 /** «zona» → qual zona; «zonas» → quais zonas. ponytail: plural pelo «s» final; «lápis» cai em quais. */
-function whichKind(kind: string): string {
+export function whichKind(kind: string): string {
   const word = kind.trim().toLocaleLowerCase('pt-BR') || 'zona'
   const plural = word.length > 3 && word.endsWith('s')
   return `${plural ? 'quais' : 'qual'} ${word}`
@@ -84,17 +86,34 @@ export function variantTipoWord(variantKind: string | null | undefined): string 
   return (variantKind ?? 'zona').trim().toLocaleLowerCase('pt-BR') || 'zona'
 }
 
+/**
+ * Rótulo `{tipo}` / whichKind: singular em modo `uma`, plural em `varias`.
+ * DEC-145 — «qual tipo?» vs «quais tipos?».
+ */
+export function variantKindForAsk(
+  service: Pick<ServiceRow, 'variantKind' | 'variantKindPlural' | 'variantSelection'>,
+): string {
+  if (!allowsMultipleVariants(service.variantSelection)) {
+    return service.variantKind?.trim() || service.variantKindPlural?.trim() || 'opção'
+  }
+  return service.variantKindPlural?.trim() || service.variantKind?.trim() || 'opções'
+}
+
 export function variantListQuestion(
   serviceName: string,
   variantKind: string | null | undefined,
   zones: readonly ListedZone[],
   conversationId = '',
-  opts: { assunto?: string } = {},
+  opts: { assunto?: string; selectionMode?: ServiceRow['variantSelection'] } = {},
 ): string {
+  const single = opts.selectionMode === 'uma'
   const serviço = serviceName.trim()
   const tipo = variantTipoWord(variantKind)
   const lista = stableVariantLabelList(zones).join(', ')
+  // DEC-145: catálogo M4 de perguntar_variantes é plural («Quais… Pode ser mais de uma»,
+  // máx. 5 redações). Modo `uma` usa a pergunta singular directa até haver ato dedicado.
   const fallback = `Para ${serviço}, ${whichKind(variantKind ?? '')} você quer? Temos ${lista}.`
+  if (single) return fallback
   const vars: Record<string, string | undefined> = { serviço, tipo, lista }
   if (opts.assunto?.trim()) vars.assunto = opts.assunto.trim()
   // Sem hora: não usar a redação «Para fechar às {hora}».

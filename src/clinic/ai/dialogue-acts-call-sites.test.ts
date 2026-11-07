@@ -111,6 +111,8 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^\$\{serviço\} feminina ou masculina\?$/,
   /^Para \$\{serviço\}, \$\{whichKind\(variantKind \?\? ''\)\} você quer\? Temos \$\{lista\}\.$/,
   /^Para fechar às \$\{time\}, me diga \$\{phrase\}: \$\{list\}\. Pode ser mais de uma\.$/,
+  // DEC-145 modo `uma`: pergunta singular (catálogo M4 permanece plural, máx. 5 redações).
+  /^Para fechar às \$\{time\}, \$\{whichKind\(variantKind \?\? ''\)\} você quer\? Temos \$\{list\}\.$/,
   /^Qual serviço você quer\? Temos \$\{lista\}\.$/,
   /^É \$\{serviço\} que você quer agendar\?$/,
   /^Qual serviço você gostaria de agendar\?$/,

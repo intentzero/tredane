@@ -49,6 +49,8 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 3. `Para {serviço}, quais {tipo}? {lista}.`
 4. `Perfeito, {assunto}. Quais {tipo}? Temos {lista}. Pode ser mais de uma.`
 
+**Nota DEC-145 (modo `uma`):** o catálogo M4 permanece plural (máx. 5 redações). Em modo `uma` o código usa a pergunta singular directa `Para {serviço}, qual {tipo} você quer? Temos {lista}.` (e com hora: `Para fechar às {hora}, qual {tipo} você quer? Temos {lista}.`), sem «Pode ser mais de uma». Ato dedicado no catálogo fica fora deste corte.
+
 ### oferecer_horarios
 
 1. `Para {assunto}, {quando}tenho {lista}. Qual fica melhor?`
