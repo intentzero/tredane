@@ -32,6 +32,7 @@ import {
   isCatalogInfoAsk,
   isShortBookingAffirm,
 } from './booking-intent-text'
+import { realizeAskInfo } from './ask-info-realize'
 import { sayAct } from './dialogue-acts'
 import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
 import { formatOpeningHours } from './schedule-context'
@@ -47,12 +48,9 @@ import {
 } from './schedule-session'
 import {
   audienceLineQuestion,
-  formatVariantPriceTable,
   needsAudienceLine,
   variantKindForAsk,
   variantListQuestion,
-  variantTipoWord,
-  whichKind,
   zonesForAudienceLine,
 } from './variant-line'
 import { extractDates, parseTemporal } from './nlu/temporal'
@@ -590,64 +588,23 @@ export function catalogReply(
     return null
   }
 
-  // Pesquisa de preço — caminho de 1.ª classe no funil (Paulo, 08/11/2026).
-  // Não perde o quadro: cotar o que já está aberto e continuar (tipo / horários).
-  if (active.length > 0 && named.length === 0 && asksPrice) {
+  // Pesquisa de preço mid-funnel — partilha realizeAskInfo com o gate (DEC-C1/C4).
+  // Park/resume da mesma obrigação; não limpa variante / lastOffer.
+  if (active.length > 0 && named.length === 0 && asksPrice && opts.conversationId) {
     const pool = scoped.length > 0 ? scoped : active
-    // lastOffer vive no BookingFrame (ScheduleSession compat não o expõe).
-    const openOffer =
-      sameFunnel &&
-      opts.conversationId &&
-      Boolean(getBookingFrame(db, tenantId, opts.conversationId)?.lastOffer?.slots?.length)
-    const reopenSlots = () =>
-      sayAct(
-        'perguntar_horario',
-        cnv,
-        { serviço: svc.name },
-        `Qual horário fica melhor para ${svc.name}?`,
-      )
-    // Variante(s) já no quadro (ex. a meio da oferta de slots) → cotar; não re-perguntar tipo.
-    const quoteZones = sessionKept && sessionZones.length > 0 ? sessionZones : null
-    if (quoteZones && quoteZones.length === 1) {
-      const z = quoteZones[0]!
-      const preço = z.priceCents == null ? 'a equipe confirma o valor' : formatBRL(z.priceCents)
-      const duração = String(z.durationMinutes)
-      const fb = `${z.name} custa ${preço} e dura ${duração} min.`
-      const quoted = sayAct(
-        'informar_preco_variante',
-        cnv,
-        { variante: z.name, preço, duração },
-        fb,
-      )
-      // Oferta aberta: mantém lastOffer/variante e reabre a escolha de horário.
-      return openOffer ? `${quoted}\n${reopenSlots()}` : quoted
-    }
-    if (quoteZones && quoteZones.length >= 2) {
-      if (variantAudiencesConflict(quoteZones)) return mixedAudienceReply(cnv)
-      const minutes = quoteZones.reduce((n, z) => n + z.durationMinutes, 0)
-      const missing = quoteZones.some((z) => z.priceCents == null)
-      const cents = quoteZones.reduce((n, z) => n + (z.priceCents ?? 0), 0)
-      const preço = missing ? 'a equipe confirma o valor' : formatBRL(cents)
-      const duração = String(minutes)
-      const fb = `No total, ficam ${preço} e ${duração} min de atendimento.`
-      const quoted = sayAct('informar_preco_soma', cnv, { preço, duração }, fb)
-      return openOffer ? `${quoted}\n${reopenSlots()}` : quoted
-    }
-    // Serviço aberto sem variante (ask-tipo / «Quais zonas?»): tabela + re-pergunta leve.
-    if (sameFunnel && held) {
-      const lista = formatVariantPriceTable(pool)
-      const kind = variantKindForAsk(svc)
-      const single = !allowsMultipleVariants(svc.variantSelection)
-      const pergunta = single
-        ? `${whichKind(kind)} você quer?`
-        : `${whichKind(kind)} você quer? Pode ser mais de uma.`
-      const fb = `Para ${svc.name}:\n${lista}\n${pergunta}`
-      return sayAct(
-        'informar_preco_tabela',
-        cnv,
-        { serviço: svc.name, lista, pergunta, tipo: variantTipoWord(kind) },
-        fb,
-      )
+    const frameNow = getBookingFrame(db, tenantId, opts.conversationId)
+    if (sameFunnel && frameNow?.serviceId === svc.id) {
+      const realized = realizeAskInfo({
+        conversationId: cnv,
+        topic: 'price',
+        service: svc,
+        zones: pool,
+        frame: frameNow,
+        namedZones: [],
+        sameFunnel: true,
+      })
+      if (realized) return realized.replyText
+      if (variantAudiencesConflict(sessionZones)) return mixedAudienceReply(cnv)
     }
     // E-02 / DEC-090: «Quanto custa depilação?» a frio — pede zonas, sem R$.
     return variantListQuestion(svc.name, variantKindForAsk(svc), pool, cnv, {

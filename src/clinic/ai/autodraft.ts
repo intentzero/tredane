@@ -39,6 +39,7 @@ import { getActiveProposalForConversation } from '../proposals/proposals'
 import type { ClinicDb } from '../store'
 import type { AutoBookOutcome } from './autobook'
 import { runBookingTurn } from './run-booking-turn'
+import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { deliverCatalogConsult, planCatalogConsult } from './catalog-consult'
 import { catalogReply } from './catalog-reply'
 import {
@@ -871,12 +872,20 @@ export async function runDueAutoDrafts(
         // Sem Flow / falha → segue catálogo / modelo (chat recurso).
       }
     }
+    // P1 / DEC-C1: ask_info mid-funnel realiza-se no gate (`runBookingTurn`),
+    // não em catalogReply — evita dependência de leftover suppress.
+    const midFrame = getBookingFrame(db, tenantId, job.conversationId)
+    const midFunnelAskInfo =
+      Boolean(midFrame?.serviceId) &&
+      classifyCrossCuttingAct({ text: turnText }).kind === 'ask_info'
     const catalogDeferred = createDeferredBookingFrame()
-    const catalogText = catalogReply(db, tenantId, turnText, clock, {
-      conversationId: job.conversationId,
-      turn,
-      deferredFrame: catalogDeferred,
-    })
+    const catalogText = midFunnelAskInfo
+      ? null
+      : catalogReply(db, tenantId, turnText, clock, {
+          conversationId: job.conversationId,
+          turn,
+          deferredFrame: catalogDeferred,
+        })
     if (catalogText) {
       await signalTyping()
       let replyOutbox: OutboxRow[] = []
@@ -989,8 +998,7 @@ export async function runDueAutoDrafts(
           limitNote = decision.message
         }
       }
-      // P1 / DEC-C4: fachada runBookingTurn (gate cross-cutting dentro de tryAiAutoBook).
-      // ask_info (preço) já correu acima via catalogReply — resume da mesma pending.
+      // P1 / DEC-C4: fachada runBookingTurn (gate + stack ask_info mid-funnel).
       autoBook = await runBookingTurn(db, caller, clock, {
         conversationId: job.conversationId,
         enabled: true,

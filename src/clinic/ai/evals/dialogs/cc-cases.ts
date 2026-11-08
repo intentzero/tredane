@@ -407,6 +407,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     title: 'A meio do ask-tipo, «Qual o valor das massagens?» devolve tabela e reabre o tipo',
     turnosIdeais: 1,
     // Staging Paulo 08/11/2026: Massagem modo uma; pesquisa de preço não perde o funil.
+    // P1 stack: ask_info mid-funnel park→realize→resume (gate; não limpa pending).
     prepare: (s) => {
       const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
       if (!massagem) throw new Error('CC-10: serviço Massagem ausente no cenário')
@@ -472,6 +473,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     title: 'A meio da oferta de slots, «Qual o valor?» cotiza a variante e mantém o quadro',
     turnosIdeais: 1,
     // Staging Paulo 08/11/2026: após tipo+horários, «Qual o valor?» não reabre ask-tipo.
+    // P1 stack: resume choose_slot / lastOffer após ask_info (variante intacta).
     prepare: (s) => {
       const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
       if (!massagem) throw new Error('CC-11: serviço Massagem ausente no cenário')
