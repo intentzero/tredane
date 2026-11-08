@@ -13,15 +13,33 @@ import {
   END_HELP_HINT_TEXT,
   appendEndHelpHint,
   bookingFrameProgressKey,
+  botTaughtExitCommands,
   isOpenBookingAttempt,
   shouldAppendEndHelpHint,
+  taughtExitCommandsFromCopy,
   wasEndHelpHintSent,
 } from './end-help-hint'
+import { isExplicitAbandonText } from './nlu/sensitive'
 import { getBookingFrame, saveBookingFrame } from './schedule-session'
 
 const NOW = Date.UTC(2026, 9, 28, 18, 51)
 
 describe('end-help-hint helpers (DEC-152)', () => {
+  it('paridade hint↔Class A: toda frase ensinada por «diga X» é abandono A (DEC-C2)', () => {
+    const taught = botTaughtExitCommands()
+    expect(taught).toEqual(['terminar'])
+    for (const cmd of taught) {
+      expect(isExplicitAbandonText(cmd), `Class A deve reconhecer «${cmd}»`).toBe(true)
+      expect(isExplicitAbandonText(cmd[0]!.toUpperCase() + cmd.slice(1))).toBe(true)
+    }
+    // Catálogo DEC-142 ensina «diga “serviços masculinos”» — não é saída; não entra.
+    expect(
+      taughtExitCommandsFromCopy([
+        'Continuo no feminino. Para ver o masculino, diga “serviços masculinos”.',
+      ]),
+    ).toEqual([])
+  })
+
   it('appendEndHelpHint é idempotente', () => {
     const once = appendEndHelpHint('Qual tipo você quer?')
     expect(once).toContain(END_HELP_HINT_TEXT)
