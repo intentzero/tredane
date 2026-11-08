@@ -4,13 +4,38 @@
  * Gatilho: BookingFrame já aberto no início do turno + resposta automática sem
  * avanço do quadro neste turno + ainda não enviado nesta tentativa.
  * Não vai na oferta de slots (P5 adiado); não no soft-decline; não no idle.
+ *
+ * DEC-C2 (Proposto): toda copy que ensina «diga X» de saída obriga X ∈ Class A
+ * no mesmo módulo — ver `botTaughtExitCommands` + teste de paridade.
  */
 import type { ClinicDb } from '../store'
-import { sayAct } from './dialogue-acts'
+import { DIALOGUE_ACTS, sayAct } from './dialogue-acts'
 import type { BookingFrame } from './schedule-session'
 
 /** Fallback Confirmado (Paulo, 08/11/2026, DEC-152 / DEC-104) — acto `orientar_terminar`. */
 export const END_HELP_HINT_TEXT = 'Se quiser parar, diga terminar.'
+
+/**
+ * Extrai comandos de saída ensinados por «diga X» (uma palavra).
+ * Multi-token (ex. serviços masculinos no catálogo DEC-142) não casa.
+ */
+export function taughtExitCommandsFromCopy(texts: readonly string[]): string[] {
+  const out = new Set<string>()
+  // Sem aspas no padrão: o scanner de call-sites (#448) parte literais "…" no ficheiro.
+  const re = /\bdiga\s+([a-záàâãéêíóôõúç]+)(?=\s*[.!?…]|$)/gi
+  for (const text of texts) {
+    for (const m of text.matchAll(re)) {
+      const word = (m[1] ?? '').toLowerCase()
+      if (word) out.add(word)
+    }
+  }
+  return [...out]
+}
+
+/** Frases de saída que o bot ensina hoje (hint DEC-152 + acto `orientar_terminar`). */
+export function botTaughtExitCommands(): string[] {
+  return taughtExitCommandsFromCopy([END_HELP_HINT_TEXT, ...DIALOGUE_ACTS.orientar_terminar])
+}
 
 export type FrameProgressHint = Pick<
   BookingFrame,

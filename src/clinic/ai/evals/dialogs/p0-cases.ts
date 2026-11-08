@@ -8,6 +8,8 @@
  * A-25..A-27: zonas em texto livre e telemetria do funil (`zonas-cases.ts`; A-27 = zonas antes da linha).
  * A-29, A-30: desistência educada após oferta de horários (DEC-147).
  * A-31: hora solta «14» contra pending de horário (DEC-127 / #605).
+ * A-35: «Terminar» mid-oferta (DEC-152 / #629).
+ * A-36: após soft-close Terminar, novo pedido não reusa variante/slots (leftover).
  * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
  * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
  */
@@ -1842,6 +1844,105 @@ export const P0_DIALOG_CASES: DialogCase[] = [
             /Ventosaterapia/i,
             /Massagem relaxante/i,
             /Se quiser parar, diga terminar/i,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-36',
+    title: 'Após soft-close Terminar, massagem pergunta o tipo (sem leftover)',
+    turnosIdeais: 2,
+    // P0 arquitectura: soft-close mid-funnel (#629) + clearSession; espelha F-10 no idle.
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-36: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const relaxante = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
+        s.tenantId,
+        massagem.id,
+        'Massagem relaxante',
+      )
+      if (!relaxante) throw new Error('A-36: variante Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-08T09:00', label: '09:00' },
+              { key: '2026-11-08T10:00', label: '10:00' },
+            ],
+            messageId: 'm_a36_slots',
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a36' },
+              { startsAt: Date.UTC(2026, 10, 8, 13, 0), professionalId: 'pro_a36' },
+            ],
+            messageId: 'm_a36_slots',
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Terminar' },
+      { role: 'client', text: 'Quero agendar uma massagem' },
+    ],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/quando quiser|fico por aqui|qualquer coisa/i],
+          excludes: [/Não encontrei/i],
+        },
+        {
+          turn: 1,
+          matches: [/tipo|qual|opç/i],
+          excludes: [
+            /Perfeito,\s*Massagem relaxante/i,
+            /próximos horários/i,
+            /horários disponíveis/i,
+            /\b09:00\b/,
+            /\b10:00\b/,
           ],
         },
       ],
