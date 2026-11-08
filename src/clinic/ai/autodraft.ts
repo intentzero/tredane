@@ -79,11 +79,17 @@ import { filledSlots, getBookingFrame, getScheduleSession } from './schedule-ses
 import { getSuggestion, insertSuggestion, markSuggestionSuperseded } from './suggestions'
 import type { AiAssistDeps, AiSuggestionRow } from './types'
 import {
+  deriveDropStep,
+  getOpenBookingSession,
+  touchBookingSessionOnTurn,
+} from './booking-session'
+import {
   emitTurnDecided,
   routeFromAutodraftOutcome,
   variantsChangedInTurn,
   zonesAskedBeforeTurn,
 } from './turn-decided'
+import { mergeFriction } from './turn-friction'
 import { loadTurnContext, readCatalogVersion } from './turn-context'
 import { enqueueTypingIndicator } from './typing-indicator'
 import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
@@ -377,6 +383,14 @@ export async function runDueAutoDrafts(
       })
       // O quadro do turno é gravado na mesma TX do envio (ADR-0015), antes deste ponto.
       const frameAfter = getBookingFrame(db, tenantId, outcome.conversationId)
+      const step = deriveDropStep(frameAfter ?? frameBefore)
+      // T2: liga ao booking_sessions (T1) e conta o turno inbound.
+      const openSession = getOpenBookingSession(db, tenantId, outcome.conversationId)
+      const sessionId =
+        touchBookingSessionOnTurn(db, tenantId, outcome.conversationId, step) ??
+        openSession?.sessionId ??
+        null
+      const friction = mergeFriction(outcome.autoBook?.friction)
       emitTurnDecided(
         db,
         {
@@ -390,6 +404,9 @@ export async function runDueAutoDrafts(
           variantsChanged: variantsChangedInTurn(frameBefore, frameAfter),
           pendingSlotBefore: frameBefore?.pending?.slot ?? null,
           zonesAskedBefore: zonesAskedBefore(),
+          sessionId,
+          step,
+          friction,
           modelCalled: modelCalls > 0 || Boolean(extra.modelCalled ?? outcome.suggestion),
           modelCalls,
           textDiscarded: Boolean(

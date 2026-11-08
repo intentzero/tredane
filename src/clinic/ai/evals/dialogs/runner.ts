@@ -135,7 +135,14 @@ export type DialogCase = {
       Partial<
         Pick<
           import('../../turn-decided').TurnDecidedPayload,
-          'route' | 'variantsChanged' | 'zonesAskedBefore' | 'pendingSlotBefore' | 'modelCalled'
+          | 'route'
+          | 'variantsChanged'
+          | 'zonesAskedBefore'
+          | 'pendingSlotBefore'
+          | 'modelCalled'
+          | 'sessionId'
+          | 'step'
+          | 'friction'
         >
       >
     >
@@ -453,6 +460,21 @@ export async function runDialogCase(
           return
         }
         for (const [k, v] of Object.entries(want)) {
+          if (k === 'friction' && Array.isArray(v)) {
+            // T2: cada flag pedida tem de aparecer; campos extra no got (ex. serviceId) ok.
+            const gotFriction = Array.isArray(got.friction) ? (got.friction as Record<string, unknown>[]) : []
+            for (const need of v as Record<string, unknown>[]) {
+              const hit = gotFriction.some((g) =>
+                Object.entries(need).every(([fk, fv]) => JSON.stringify(g[fk]) === JSON.stringify(fv)),
+              )
+              if (!hit) {
+                errors.push(
+                  `turn_decided #${i}.friction: falta ${JSON.stringify(need)} em ${JSON.stringify(gotFriction)}`,
+                )
+              }
+            }
+            continue
+          }
           if (JSON.stringify(got[k]) !== JSON.stringify(v)) {
             errors.push(`turn_decided #${i}.${k}: ${JSON.stringify(got[k])}, esperado ${JSON.stringify(v)}`)
           }

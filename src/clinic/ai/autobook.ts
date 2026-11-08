@@ -80,8 +80,18 @@ import {
   audienceLineFromClientTexts,
   citesServiceName,
   claimsCatalogShortcut,
+  claimsWholeCatalog,
   zonesChosenInClientTexts,
 } from './schedule-choice'
+import {
+  detectDayAskIgnoredLockedVariant,
+  frictionForCatalogMiss,
+  frictionForOptionMiss,
+  frictionModeUmaTodas,
+  mergeFriction,
+  turnLooksLikeDayOrTimeAsk,
+  type TurnFrictionEvent,
+} from './turn-friction'
 import {
   funnelMessageFilter,
   getBookingFrame,
@@ -267,6 +277,11 @@ export type AutoBookOutcome = {
   outbox: OutboxRow[]
   /** Frame a gravar na mesma TX do outbound (ADR-0015). */
   deferredFrame?: DeferredBookingFrame
+  /**
+   * T2 session-analytics: friction flags deste turno (sem texto).
+   * Consumido por `emitTurnDecided` no autodraft.
+   */
+  friction?: TurnFrictionEvent[]
 }
 
 const WEEKDAY_LABEL = ['', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo']
@@ -322,6 +337,7 @@ export function extractServices(text: string, services: ServiceRow[]): ServiceRo
 /**
  * Pergunta Opções quando uma zona citada não resolve (#509).
  * DEC-C3: option-miss só sob obrigação de escolha; senão `esclarecer`.
+ * T2: quando emite option-miss, devolve também friction (nao_encontrei / particle_as_zone).
  */
 function askUnrecognizedZone(
   mention: { leftover: string | null },
@@ -331,20 +347,26 @@ function askUnrecognizedZone(
     conversationId?: string
     emitOptionMiss?: boolean
   },
-): string {
+): { text: string; friction: TurnFrictionEvent[] } {
   const names = stableVariantLabelList(zonePool)
   if (mention.leftover && opts?.emitOptionMiss !== false) {
-    return zoneNotFoundAskReply(mention.leftover, names)
+    return {
+      text: zoneNotFoundAskReply(mention.leftover, names),
+      friction: frictionForOptionMiss(mention.leftover),
+    }
   }
   if (mention.leftover && opts?.emitOptionMiss === false) {
-    return sayAct(
-      'esclarecer',
-      opts.conversationId ?? '',
-      {},
-      'Pode me dizer de outro jeito, ou prefere falar com a equipe?',
-    )
+    return {
+      text: sayAct(
+        'esclarecer',
+        opts.conversationId ?? '',
+        {},
+        'Pode me dizer de outro jeito, ou prefere falar com a equipe?',
+      ),
+      friction: [],
+    }
   }
-  return fallback
+  return { text: fallback, friction: [] }
 }
 
 /** Nome e sinónimos do serviço não contam como sobra de zona (#509). */
@@ -614,6 +636,25 @@ export async function tryAiAutoBook(
   let frameAtStart = getBookingFrame(db, tenantId, input.conversationId)
   const catalog =
     input.turn?.catalog ?? getOrCompileCatalog(db, tenantId, clock)
+  /** T2: friction flags acumuladas neste turno (sem texto). */
+  const frictionAcc: TurnFrictionEvent[] = []
+  /** Preenchido quando o turno tem texto (finish corre antes da atribuição no source). */
+  let turnTextForFriction = ''
+  const pushFriction = (...evs: TurnFrictionEvent[]) => {
+    for (const e of mergeFriction(evs)) {
+      if (
+        !frictionAcc.some(
+          (f) =>
+            f.flag === e.flag &&
+            f.kind === e.kind &&
+            f.termHash === e.termHash &&
+            f.serviceId === e.serviceId,
+        )
+      ) {
+        frictionAcc.push(e)
+      }
+    }
+  }
   const saveSession = (patch: Parameters<typeof saveScheduleSession>[3]) => {
     deferred.save({
       ...patch,
@@ -647,20 +688,31 @@ export async function tryAiAutoBook(
   }
   const finish = (outcome: AutoBookOutcome): AutoBookOutcome => {
     let next = outcome
+    const frameNow =
+      deferred.peekFrame(db, tenantId, input.conversationId) ??
+      getBookingFrame(db, tenantId, input.conversationId)
+    const dayAskFriction = detectDayAskIgnoredLockedVariant({
+      frameBefore: frameAtStart,
+      frameAfter: frameNow,
+      turnLooksLikeDayAsk: turnLooksLikeDayOrTimeAsk(turnTextForFriction),
+    })
+    if (dayAskFriction) pushFriction(dayAskFriction)
+    const friction = mergeFriction(outcome.friction, frictionAcc)
+    next = { ...outcome, friction: friction.length > 0 ? friction : undefined }
     if (
       shouldAppendEndHelpHint({
-        replyText: outcome.replyText,
-        proposalId: outcome.proposalId,
-        notes: outcome.notes,
+        replyText: next.replyText,
+        proposalId: next.proposalId,
+        notes: next.notes,
         frameAtStart,
-        frameNow: deferred.peekFrame(db, tenantId, input.conversationId),
+        frameNow,
         alreadySent: wasEndHelpHintSent(db, tenantId, input.conversationId),
       })
     ) {
       next = {
-        ...outcome,
-        replyText: appendEndHelpHint(outcome.replyText!, input.conversationId),
-        notes: [outcome.notes, 'DEC-152'].filter(Boolean).join(' '),
+        ...next,
+        replyText: appendEndHelpHint(next.replyText!, input.conversationId),
+        notes: [next.notes, 'DEC-152'].filter(Boolean).join(' '),
       }
       markEndHelpHintSent(db, tenantId, input.conversationId)
     }
@@ -750,6 +802,7 @@ export async function tryAiAutoBook(
   const turnText = input.turnTextOverride?.trim()
     ? input.turnTextOverride.trim()
     : clientTurn.map((m) => m.body).join('\n')
+  turnTextForFriction = turnText
 
   // ADR-0015 / #472: revalidar ids se catalogVersion divergir (também sem TurnContext).
   syncBookingFrameWithCatalog(
@@ -1482,17 +1535,25 @@ export async function tryAiAutoBook(
                 input.conversationId,
                 { selectionMode: det.service.variantSelection },
               )
-          replyText = mention.unrecognized
-            ? askUnrecognizedZone(mention, zonePool, genericAsk, {
-                conversationId: input.conversationId,
-                emitOptionMiss: shouldEmitOptionMiss({
-                  obligation: dialogueObligation,
-                  unrecognizedLeftover: true,
-                  attemptedOptionMatch: true,
-                  timeInTurn: Boolean(clockFromTurn || pendingTimeOverride || input.boundSlot),
-                }),
-              })
-            : genericAsk
+          if (mention.unrecognized) {
+            const miss = askUnrecognizedZone(mention, zonePool, genericAsk, {
+              conversationId: input.conversationId,
+              emitOptionMiss: shouldEmitOptionMiss({
+                obligation: dialogueObligation,
+                unrecognizedLeftover: true,
+                attemptedOptionMatch: true,
+                timeInTurn: Boolean(clockFromTurn || pendingTimeOverride || input.boundSlot),
+              }),
+            })
+            replyText = miss.text
+            pushFriction(...miss.friction)
+          } else {
+            replyText = genericAsk
+          }
+          // T2: modo uma + cliente pediu «todas»/«tudo» (staging DEC-145).
+          if (!multiVariants && claimsWholeCatalog(turnText)) {
+            pushFriction(frictionModeUmaTodas(det.service.id))
+          }
           interactive = variantChoiceFor(
             deferred,
             det.service.id,
@@ -1662,6 +1723,7 @@ export async function tryAiAutoBook(
           const pedido = catalogMissHint(turnText, services)
           // DEC-141: o termo (só ele) vira sugestão de sinónimo para a owner.
           recordUnmatchedTerm(db, tenantId, pedido, clock)
+          pushFriction(...frictionForCatalogMiss(pedido))
           replyText = serviceNotFoundReply(input.conversationId, {
             pedido,
             lista: catalogServiceList(services),
@@ -1778,7 +1840,7 @@ export async function tryAiAutoBook(
               zoneEcho !== 'skip' &&
               zoneEcho !== 'confirm'
             ) {
-              replyText = askUnrecognizedZone(
+              const miss = askUnrecognizedZone(
                 mention,
                 zonePool,
                 variantListQuestion(
@@ -1798,6 +1860,14 @@ export async function tryAiAutoBook(
                   }),
                 },
               )
+              replyText = miss.text
+              pushFriction(...miss.friction)
+              if (
+                !allowsMultipleVariants(svc.variantSelection) &&
+                claimsWholeCatalog(turnText)
+              ) {
+                pushFriction(frictionModeUmaTodas(svc.id))
+              }
               interactive = variantChoiceFor(
                 deferred,
                 svc.id,
@@ -2087,22 +2157,28 @@ export async function tryAiAutoBook(
       kindForAct,
       svc.variantSelection,
     )
+    let replyForZones = genericAsk
+    if (proposalMention.unrecognized && !ambiguous) {
+      const miss = askUnrecognizedZone(proposalMention, zonePool, genericAsk, {
+        conversationId: input.conversationId,
+        emitOptionMiss: shouldEmitOptionMiss({
+          obligation: dialogueObligation,
+          unrecognizedLeftover: true,
+          attemptedOptionMatch: true,
+          timeInTurn: Boolean(clockFromTurn || pendingTimeOverride || input.boundSlot),
+        }),
+      })
+      replyForZones = miss.text
+      pushFriction(...miss.friction)
+    }
+    if (!multiSvc && claimsWholeCatalog(turnText)) {
+      pushFriction(frictionModeUmaTodas(svc.id))
+    }
     return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
       // #509: sobra sem match único → «Não encontrei {palavra}…» (copy proposta).
-      replyText:
-        proposalMention.unrecognized && !ambiguous
-          ? askUnrecognizedZone(proposalMention, zonePool, genericAsk, {
-              conversationId: input.conversationId,
-              emitOptionMiss: shouldEmitOptionMiss({
-                obligation: dialogueObligation,
-                unrecognizedLeftover: true,
-                attemptedOptionMatch: true,
-                timeInTurn: Boolean(clockFromTurn || pendingTimeOverride || input.boundSlot),
-              }),
-            })
-          : genericAsk,
+      replyText: replyForZones,
       interactive,
       notes: ambiguous
         ? `O nome citado casa com mais de uma ${kind}. Pergunta automática enviada. Não informe valor nem envie proposta.`

@@ -1,9 +1,15 @@
 /**
  * Evento `ai.turn_decided` (#407, CA-09) — log + outbox interna, sem texto da conversa.
+ * T2 (session-analytics): `sessionId` + `step` + friction flags mínimas.
  */
 import type { Clock } from '../../db/clock'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
 import type { ClinicDb } from '../store'
+import type { BookingSessionStep } from './booking-session'
+import {
+  assertFrictionMinimized,
+  type TurnFrictionEvent,
+} from './turn-friction'
 
 /** Rotas do autodraft (DEC-108 / plano §4). */
 export type TurnRoute =
@@ -49,6 +55,18 @@ export type TurnDecidedPayload = {
    * Não depende de `pendingSlotBefore`: a pergunta em texto simples não deixa pendente.
    */
   zonesAskedBefore: boolean
+  /**
+   * T2 / DEC-148: `booking_sessions.session_id` aberta nesta conversa, ou null.
+   */
+  sessionId: string | null
+  /**
+   * T2: passo do funil derivado do quadro após o turno (session-analytics §4.2).
+   */
+  step: BookingSessionStep | null
+  /**
+   * T2: friction flags disparadas neste turno (sem transcript / sem termo em claro).
+   */
+  friction: TurnFrictionEvent[]
   model: string | null
   latencyMs: {
     debounce: number | null
@@ -74,6 +92,10 @@ export function assertTurnDecidedMinimized(payload: TurnDecidedPayload): void {
       throw new Error('ai.turn_decided: messageId inválido')
     }
   }
+  if (payload.sessionId != null && (payload.sessionId.length > 80 || /\s/.test(payload.sessionId))) {
+    throw new Error('ai.turn_decided: sessionId inválido')
+  }
+  assertFrictionMinimized(payload.friction)
   // Nenhum valor string longo (provável corpo).
   const walk = (v: unknown): void => {
     if (typeof v === 'string' && v.length > 120 && BODY_LEAK.test(v) === false) {

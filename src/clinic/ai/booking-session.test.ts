@@ -16,6 +16,7 @@ import {
   endBookingSession,
   getOpenBookingSession,
   openBookingSessionIfNeeded,
+  touchBookingSessionOnTurn,
   type BookingSessionEndedPayload,
   type BookingSessionOpenedPayload,
 } from './booking-session'
@@ -199,6 +200,11 @@ describe('DEC-148 booking_session T1', () => {
     )
     expect(b.session?.sessionId).toBe(a.session!.sessionId)
     expect(b.outbox).toBeNull()
+
+    const touched = touchBookingSessionOnTurn(db, tenantId, cnv.id, 'variant_ask')
+    expect(touched).toBe(a.session!.sessionId)
+    expect(getOpenBookingSession(db, tenantId, cnv.id)?.inboundTurns).toBe(1)
+    expect(getOpenBookingSession(db, tenantId, cnv.id)?.maxStep).toBe('variant_ask')
 
     const end1 = endBookingSession(
       db,

@@ -395,6 +395,45 @@ export function endBookingSession(
   }
 }
 
+const STEP_RANK: Record<BookingSessionStep, number> = {
+  hub: 0,
+  audience: 1,
+  service: 2,
+  variant_ask: 3,
+  day_ask: 4,
+  echo: 5,
+  slot_offer: 6,
+  proposal: 7,
+  confirm: 8,
+}
+
+/**
+ * T2: incrementa `inbound_turns` e actualiza `max_step` na sessão aberta.
+ * Devolve o `sessionId` (ou null se não houver sessão aberta).
+ */
+export function touchBookingSessionOnTurn(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  step: BookingSessionStep | null,
+): string | null {
+  const open = getOpenBookingSession(db, tenantId, conversationId)
+  if (!open) return null
+  const nextMax =
+    step && (open.maxStep == null || STEP_RANK[step] > STEP_RANK[open.maxStep])
+      ? step
+      : open.maxStep
+  db.run(
+    `UPDATE booking_sessions
+     SET inbound_turns = inbound_turns + 1,
+         max_step = COALESCE(?, max_step)
+     WHERE session_id = ? AND closed_at IS NULL`,
+    nextMax,
+    open.sessionId,
+  )
+  return open.sessionId
+}
+
 /**
  * Fecha sessões abertas sem inbound há mais de W (Confirmado: 24 h, P4).
  * Chamável por idle / manutenção; não é obrigatório no caminho quente T1.
