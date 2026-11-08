@@ -43,16 +43,19 @@ import {
 } from './schedule-session'
 import {
   audienceLineQuestion,
+  formatVariantPriceTable,
   needsAudienceLine,
   variantKindForAsk,
   variantListQuestion,
+  variantTipoWord,
+  whichKind,
   zonesForAudienceLine,
 } from './variant-line'
 import { extractDates, parseTemporal } from './nlu/temporal'
 
 const HOURS = /\b(hor[aá]rio de funcionamento|que horas (voc[eê]s )?(abrem|funcionam|atendem)|at[eé] que horas)\b/i
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
-const PRICE = /\b(pre[cç]o|custa|valor|quanto)\b/i
+const PRICE = /\b(pre[cç]os?|custam?|valores?|quanto)\b/i
 const PERIOD = /\b(amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|manh[aã]|tarde|noite)\b/i
 /** `\b` antes de «às» falha no JS (à não é word-char); usar fronteira ASCII. */
 const CLOCK =
@@ -582,7 +585,57 @@ export function catalogReply(
     return null
   }
 
-  if (active.length > 0 && named.length === 0 && (asksPrice || openPeriod || lineOnly)) {
+  // Preço sem variante nomeada neste turno.
+  if (active.length > 0 && named.length === 0 && asksPrice) {
+    const pool = scoped.length > 0 ? scoped : active
+    // Já há variantes no quadro → cotar esse conjunto (não reperguntar).
+    const quoteZones = sessionKept && sessionZones.length > 0 ? sessionZones : null
+    if (quoteZones && quoteZones.length === 1) {
+      const z = quoteZones[0]!
+      const preço = z.priceCents == null ? 'a equipe confirma o valor' : formatBRL(z.priceCents)
+      const duração = String(z.durationMinutes)
+      const fb = `${z.name} custa ${preço} e dura ${duração} min.`
+      return sayAct(
+        'informar_preco_variante',
+        cnv,
+        { variante: z.name, preço, duração },
+        fb,
+      )
+    }
+    if (quoteZones && quoteZones.length >= 2) {
+      if (variantAudiencesConflict(quoteZones)) return mixedAudienceReply(cnv)
+      const minutes = quoteZones.reduce((n, z) => n + z.durationMinutes, 0)
+      const missing = quoteZones.some((z) => z.priceCents == null)
+      const cents = quoteZones.reduce((n, z) => n + (z.priceCents ?? 0), 0)
+      const preço = missing ? 'a equipe confirma o valor' : formatBRL(cents)
+      const duração = String(minutes)
+      const fb = `No total, ficam ${preço} e ${duração} min de atendimento.`
+      return sayAct('informar_preco_soma', cnv, { preço, duração }, fb)
+    }
+    // Serviço já aberto no funil (ex. a meio de «Quais zonas?»): tabela de preços +
+    // re-pergunta leve — não ignorar a intenção de preço (Paulo, 08/11/2026).
+    if (sameFunnel && held) {
+      const lista = formatVariantPriceTable(pool)
+      const kind = variantKindForAsk(svc)
+      const single = !allowsMultipleVariants(svc.variantSelection)
+      const pergunta = single
+        ? `${whichKind(kind)} você quer?`
+        : `${whichKind(kind)} você quer? Pode ser mais de uma.`
+      const fb = `Para ${svc.name}:\n${lista}\n${pergunta}`
+      return sayAct(
+        'informar_preco_tabela',
+        cnv,
+        { serviço: svc.name, lista, pergunta, tipo: variantTipoWord(kind) },
+        fb,
+      )
+    }
+    // E-02 / DEC-090: «Quanto custa depilação?» a frio — pede zonas, sem R$.
+    return variantListQuestion(svc.name, variantKindForAsk(svc), pool, cnv, {
+      selectionMode: svc.variantSelection,
+    })
+  }
+
+  if (active.length > 0 && named.length === 0 && (openPeriod || lineOnly)) {
     const pool = scoped.length > 0 ? scoped : active
     return variantListQuestion(svc.name, variantKindForAsk(svc), pool, cnv, {
       selectionMode: svc.variantSelection,

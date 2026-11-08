@@ -59,6 +59,9 @@ describe('classifyVariantPolarity — D3', () => {
 describe('isCatalogInfoAsk — D4', () => {
   it('reconhece pergunta de preço', () => {
     expect(isCatalogInfoAsk('Quanto custa pernas?')).toBe(true)
+    expect(isCatalogInfoAsk('Quanto custa?')).toBe(true)
+    expect(isCatalogInfoAsk('quais os valores?')).toBe(true)
+    expect(isCatalogInfoAsk('qual o preço?')).toBe(true)
     expect(isCatalogInfoAsk('Quero marcar axila sexta')).toBe(false)
   })
 })

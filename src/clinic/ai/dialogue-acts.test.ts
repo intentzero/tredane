@@ -80,6 +80,7 @@ describe('#414 dialogue acts', () => {
       ['sem_vaga_sem_alternativa', { hora: '16:00' }],
       ['informar_preco_variante', { variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15' }],
       ['informar_preco_soma', { preço: 'R$ 160,00', duração: '45' }],
+      ['informar_preco_tabela', { serviço: 'Depilação', lista: 'Axila — R$ 40,00 (15 min)\nPernas — R$ 120,00 (30 min)', pergunta: 'Quais zonas você quer? Pode ser mais de uma.' }],
       ['recusar_mistura', {}],
       ['servico_inexistente', {}],
       ['varios_servicos', {}],
@@ -111,12 +112,13 @@ describe('#414 dialogue acts', () => {
   it('a leva 2 (DEC-123) está aprovada: todos os atos se podem usar em produção', () => {
     const leva2: DialogueActId[] = ['perguntar_dia', 'perguntar_horario', 'perguntar_servico', 'confirmar_servico',
       'confirmar_hora_ambigua', 'sem_horario_periodo', 'sem_horario_dia', 'sem_horario_semana', 'sem_vaga_sem_alternativa',
-      'informar_preco_variante', 'informar_preco_soma', 'recusar_mistura', 'servico_inexistente', 'varios_servicos',
+      'informar_preco_variante', 'informar_preco_soma', 'informar_preco_tabela', 'recusar_mistura', 'servico_inexistente', 'varios_servicos',
       'historico_indisponivel', 'catalogo_mudou', 'nao_consegui_fechar']
-    expect(leva2).toHaveLength(17)
+    expect(leva2).toHaveLength(18)
     const vars = {
       serviço: 'Massagem', lista: 'Massagem, Limpeza de pele', assunto: 'Massagem', hora: '10:00', hora24: '15:00',
       período: 'de manhã', dia: 'na sexta (06/11)', variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15',
+      lista: 'Axila — R$ 40,00 (15 min)', pergunta: 'Quais zonas você quer?',
     }
     for (const act of leva2) {
       expect(() => renderDialogueAct(act, 'cnv_1', vars), act).not.toThrow()

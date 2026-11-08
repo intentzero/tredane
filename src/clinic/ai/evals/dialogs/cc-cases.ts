@@ -314,4 +314,36 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       ],
     },
   },
+  {
+    id: 'CC-09',
+    title: 'A meio de «Quais zonas?», «Quanto custa?» devolve tabela de preços',
+    turnosIdeais: 1,
+    // Staging Paulo 08/11/2026: serviço+linha já abertos; bare price ask não re-pergunta só nomes.
+    prepare: (s) =>
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: s.ids.depilacao, audienceLine: 'feminino', phase: 'coletando' },
+        s.clock,
+      ),
+    turns: [{ role: 'client', text: 'Quanto custa?' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      outboundIncludes: ['R$'],
+      turns: [
+        {
+          turn: 0,
+          matches: [
+            /Axila — R\$\s*40,00 \(15 min\)/,
+            /Pernas — R\$\s*120,00 \(30 min\)/,
+            /Buço — R\$\s*25,00 \(10 min\)/,
+            /quais zonas/i,
+          ],
+          excludes: [/^Quais zonas\?/i, /Temos Axila, Pernas/i],
+        },
+      ],
+    },
+  },
 ]

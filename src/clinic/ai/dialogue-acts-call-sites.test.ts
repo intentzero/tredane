@@ -46,6 +46,7 @@ const WIRED_ACTS: readonly DialogueActId[] = [
   'sem_vaga_sem_alternativa',
   'informar_preco_variante',
   'informar_preco_soma',
+  'informar_preco_tabela',
   'recusar_mistura',
   'servico_inexistente',
   'varios_servicos',
@@ -99,6 +100,7 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Neste momento marcamos um serviço de cada vez\. Qual você quer primeiro\?$/,
   /^Não tenho o detalhe da sua visita anterior aqui\. Qual serviço você quer agora\?$/,
   /^\$\{preço\}, \$\{duração\} min\. Quer que eu veja horários\?$/,
+  /^Para \$\{svc\.name\}:\\n\$\{lista\}\\n\$\{pergunta\}$/,
   /^a equipe confirma o valor$/,
   /^A equipe confirma o valor\.$/,
   /^Não dá para juntar masculino e feminino na mesma visita\. Quer escolher só um dos dois\?$/,
@@ -214,7 +216,7 @@ describe('#448 S5 varredura call-sites', () => {
   it('cobre todos os atos do catálogo (ligados ∪ sem call-site)', () => {
     const all = new Set<DialogueActId>([...WIRED_ACTS, ...UNWIRED_ACTS])
     expect([...all].sort()).toEqual((Object.keys(DIALOGUE_ACTS) as DialogueActId[]).sort())
-    expect(WIRED_ACTS).toHaveLength(27)
+    expect(WIRED_ACTS).toHaveLength(28)
     expect(UNWIRED_ACTS).toHaveLength(5)
   })
 
