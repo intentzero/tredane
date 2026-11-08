@@ -33,6 +33,7 @@ import {
   isFlowTokenUsable,
 } from '../../../../whatsapp/flow/tokens'
 import type { ForecastAdapter } from '../../../tempo/evaluate'
+import { recordBookingSessionFlow } from '../../booking-session'
 import { enqueueAutoDraft } from '../../index'
 import type { DialogScenario } from './scenario'
 
@@ -103,8 +104,9 @@ export function createFlowHarness(opts: { forecast?: ForecastAdapter } = {}): Fl
   let lastNfm: { responseJson: string; providerEventKey: string } | null = null
   // O store em memória ignora o AdminDb.
   const admin = null as never
-  // O prepare corre dentro de runDueAutoDrafts; o relógio vem do cenário activo.
+  // O prepare corre dentro de runDueAutoDrafts; o relógio / db vêm do cenário activo.
   let currentClock: DialogScenario['clock'] | null = null
+  let boundDb: DialogScenario['db'] | null = null
 
   const prepare: PrepareBookingFlowOffer = async (input) => {
     const token = generateFlowToken()
@@ -124,6 +126,15 @@ export function createFlowHarness(opts: { forecast?: ForecastAdapter } = {}): Fl
     )
     lastToken = token
     offers += 1
+    // T3: mesmo emit `sent` que prepareBookingFlowOfferFromEnv com analytics.
+    if (!boundDb) throw new Error('flow harness: db do cenário não ligado')
+    recordBookingSessionFlow(
+      boundDb,
+      input.tenantId,
+      input.conversationId,
+      { flowState: 'sent', flowToken: token },
+      currentClock!,
+    )
     const body = (input.body ?? FLOW_COPY.openBody).trim()
     return {
       body,
@@ -148,7 +159,20 @@ export function createFlowHarness(opts: { forecast?: ForecastAdapter } = {}): Fl
     const signature = await computeHubSignature256(rawBody, APP_SECRET)
     const sessions = createTokenBackedSessionStore({
       getToken: async (t) => store.get(admin, t),
-      saveSession: async (t, session) => store.saveSession(admin, t, session),
+      saveSession: async (t, session) => {
+        const before = store.get(admin, t)
+        store.saveSession(admin, t, session)
+        // T3: primeira opened_at → booking_session.flow opened (como routes.ts).
+        if (before && before.openedAt == null) {
+          recordBookingSessionFlow(
+            s.db,
+            before.tenantId,
+            before.conversationId,
+            { flowState: 'opened', flowToken: t },
+            s.clock,
+          )
+        }
+      },
     })
     const result = await handleFlowDataRequest({
       rawBody,
@@ -297,9 +321,10 @@ export function createFlowHarness(opts: { forecast?: ForecastAdapter } = {}): Fl
   return {
     bind: (s) => {
       currentClock = s.clock
+      boundDb = s.db
     },
     prepare: async (input) => {
-      if (!currentClock) throw new Error('flow harness: relógio do cenário não ligado')
+      if (!currentClock || !boundDb) throw new Error('flow harness: cenário não ligado')
       return prepare(input)
     },
     offers: () => offers,

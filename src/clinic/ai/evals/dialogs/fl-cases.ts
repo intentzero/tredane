@@ -22,6 +22,8 @@ export const FL_DIALOG_CASES: DialogCase[] = [
     turns: [{ role: 'client', text: 'Oi' }],
     expect: {
       flowOffers: 1,
+      // T3: CTA enviado → booking_session.flow sent (ainda sem sessão aberta).
+      bookingSessionFlow: [{ flowState: 'sent' }],
       proposal: false,
       notPaused: true,
       outboundCount: 1,
@@ -50,6 +52,13 @@ export const FL_DIALOG_CASES: DialogCase[] = [
           nfmOutcome: 'proposal_sent',
         },
       ],
+      // T3: sent → opened (INIT) → completed (nfm); flowUsed na sessão flow_agendar.
+      bookingSessionFlow: [
+        { flowState: 'sent' },
+        { flowState: 'opened' },
+        { flowState: 'completed' },
+      ],
+      flowUsed: true,
       proposal: true,
       proposalZones: ['Axila', 'Pernas'],
       // Só o Confirmar cria o compromisso, e cria exactamente um.

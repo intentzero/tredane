@@ -149,6 +149,16 @@ export type DialogCase = {
     /** Família FL-: quantos CTAs de Flow saíram no diálogo. */
     flowOffers?: number
     /**
+     * T3 / DEC-148: eventos `booking_session.flow` na outbox (pela ordem).
+     * Só os campos nomeados são comparados; sem corpo de mensagem.
+     */
+    bookingSessionFlow?: Array<{
+      flowState: 'sent' | 'opened' | 'completed' | 'replaced' | 'expired' | 'skipped'
+      skipReason?: string
+    }>
+    /** T3: `booking_sessions.flow_used` após o diálogo (última sessão da conversa). */
+    flowUsed?: boolean
+    /**
      * Zonas (nomes) que a proposta deve incluir — usado nos casos da sonda
      * (nenhuma zona cai em silêncio).
      */
@@ -483,6 +493,53 @@ export async function runDialogCase(
     }
     if (e?.flowOffers != null && flow && flow.offers() !== e.flowOffers) {
       errors.push(`esperava ${e.flowOffers} CTA(s) de Flow, saíram ${flow.offers()}`)
+    }
+    if (e?.bookingSessionFlow) {
+      const events = s.db
+        .all<{ payload_json: string }>(
+          `SELECT payload_json FROM outbox_events
+           WHERE tenant_id = ? AND type = 'booking_session.flow'
+           ORDER BY occurred_at, rowid`,
+          s.tenantId,
+        )
+        .map((r) => JSON.parse(r.payload_json) as Record<string, unknown>)
+      e.bookingSessionFlow.forEach((want, i) => {
+        const got = events[i]
+        if (!got) {
+          errors.push(`booking_session.flow #${i}: não houve evento (${events.length} no total)`)
+          return
+        }
+        if (got.flowState !== want.flowState) {
+          errors.push(
+            `booking_session.flow #${i}.flowState: ${JSON.stringify(got.flowState)}, esperado ${JSON.stringify(want.flowState)}`,
+          )
+        }
+        if (want.skipReason != null && got.skipReason !== want.skipReason) {
+          errors.push(
+            `booking_session.flow #${i}.skipReason: ${JSON.stringify(got.skipReason)}, esperado ${JSON.stringify(want.skipReason)}`,
+          )
+        }
+        const json = JSON.stringify(got)
+        if (/"body"\s*:/.test(json) || /"mensagem"\s*:/.test(json) || /"suggestedText"\s*:/.test(json)) {
+          errors.push(`booking_session.flow #${i}: payload contém texto de conversa`)
+        }
+        if (typeof got.flowTokenId === 'string' && got.flowTokenId.startsWith('fl1_')) {
+          errors.push(`booking_session.flow #${i}: flowTokenId em claro`)
+        }
+      })
+    }
+    if (e?.flowUsed != null) {
+      const row = s.db.get<{ flow_used: number }>(
+        `SELECT flow_used FROM booking_sessions
+         WHERE tenant_id = ? AND conversation_id = ?
+         ORDER BY opened_at DESC LIMIT 1`,
+        s.tenantId,
+        s.conversationId,
+      )
+      const got = row ? row.flow_used === 1 : false
+      if (got !== e.flowUsed) {
+        errors.push(`flowUsed: ${got}, esperado ${e.flowUsed}`)
+      }
     }
     for (const [i, want] of (e?.flowRuns ?? []).entries()) {
       const got = flowRuns[i]

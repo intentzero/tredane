@@ -115,6 +115,7 @@ import type {
   SuggestReplyInput,
   SummarizeInput,
 } from '../clinic/ai'
+import { recordBookingSessionFlow } from '../clinic/ai/booking-session'
 import { HUMAN_HANDOFF_BUTTON_ID, notifyHumanHandoff, resumeAiReply } from '../clinic/ai/human-handoff'
 import {
   handleChoiceOfferClick,
@@ -3268,7 +3269,34 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         catalogVersion: input.catalogVersion,
         session: input.session,
         body: input.body,
+        // T3: skipped/sent → outbox booking_session.flow (mesmo SQLite T1/T2).
+        analytics: {
+          db: this.#db,
+          attemptId: input.analyticsAttemptId ?? null,
+        },
       })
+  }
+
+  /**
+   * T3: primeira abertura do Flow (`opened_at` no D1) → `booking_session.flow`
+   * com o mesmo `sessionId` T1/T2 da conversa (se já houver sessão aberta).
+   */
+  async recordFlowOpened(input: {
+    tenantId: string
+    conversationId: string
+    flowToken: string
+  }): Promise<{ sessionId: string | null }> {
+    this.#ensureReady()
+    const caller = workerCaller(input.tenantId)
+    this.#assertInstanceTenant(caller)
+    const { sessionId } = recordBookingSessionFlow(
+      this.#db,
+      input.tenantId,
+      input.conversationId,
+      { flowState: 'opened', flowToken: input.flowToken },
+      this.#clock,
+    )
+    return { sessionId }
   }
 
   #aiAssistDepsWithFlow(

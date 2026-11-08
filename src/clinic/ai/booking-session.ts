@@ -1,8 +1,10 @@
 /**
- * Analytics de sessão de marcação — T1 (DEC-148).
- * Projecção `booking_sessions` + outbox `booking_session.opened` / `.ended`.
+ * Analytics de sessão de marcação — T1/T2/T3 (DEC-148).
+ * Projecção `booking_sessions` + outbox `booking_session.opened` / `.ended` / `.flow`.
  * Sem corpo de mensagem da cliente. Janela W de abandono: Confirmado 24 h (Paulo P4, DEC-127).
+ * T3: Flow ↔ sessão (`booking_session.flow` + `flowUsed` em opened/completed).
  */
+import { createHash } from 'node:crypto'
 import type { Clock } from '../../db/clock'
 import { newId } from '../ids'
 import { insertOutboxEvent, type OutboxRow } from '../outbox'
@@ -74,7 +76,41 @@ export type BookingSessionEndedPayload = {
   source: 'clinic_do'
 }
 
+/** Estados do funil Flow ligados à sessão (session-analytics §4.1 T3). */
+export type BookingSessionFlowState =
+  | 'sent'
+  | 'opened'
+  | 'completed'
+  | 'replaced'
+  | 'expired'
+  | 'skipped'
+
+export type BookingSessionFlowSkipReason =
+  | 'not_configured'
+  | 'no_active_binding'
+  | 'build_failed'
+
+export type BookingSessionFlowPayload = {
+  event: 'booking_session.flow'
+  /** Sessão T1 aberta na conversa, ou null (ex.: CTA hub antes de haver sessão). */
+  sessionId: string | null
+  tenantId: string
+  conversationId: string
+  occurredAt: number
+  /** sha256 truncado do flow_token — nunca o token em claro. */
+  flowTokenId: string | null
+  flowState: BookingSessionFlowState
+  skipReason?: BookingSessionFlowSkipReason
+  source: 'clinic_do'
+}
+
 const BODY_KEYS = /\b(body|mensagem|message|text|inbound|outbound|suggestedText)\b/i
+
+/** Hash opaco do flow_token para analytics (16 hex). Sem token → null. */
+export function hashFlowTokenForAnalytics(token: string | null | undefined): string | null {
+  if (!token) return null
+  return createHash('sha256').update(token, 'utf8').digest('hex').slice(0, 16)
+}
 
 type FrameHint = Pick<
   BookingFrame,
@@ -119,6 +155,14 @@ export function assertBookingSessionOpenedMinimized(payload: BookingSessionOpene
 
 export function assertBookingSessionEndedMinimized(payload: BookingSessionEndedPayload): void {
   assertMinimizedPayload({ ...payload }, 'booking_session.ended')
+}
+
+export function assertBookingSessionFlowMinimized(payload: BookingSessionFlowPayload): void {
+  assertMinimizedPayload({ ...payload }, 'booking_session.flow')
+  // Token em claro nunca no payload (só hash truncado).
+  if (payload.flowTokenId && payload.flowTokenId.startsWith('fl1_')) {
+    throw new Error('booking_session.flow: flowTokenId não pode ser o token em claro')
+  }
 }
 
 function mapRow(row: {
@@ -253,18 +297,21 @@ export function openBookingSessionIfNeeded(
   const serviceId = frame.serviceId
   const variantSelectionMode = readVariantSelectionMode(db, tenantId, serviceId)
   const step = deriveDropStep(frame)
+  // T3: fecho Agendar via Flow → a sessão já usou Flow (opened/completed).
+  const flowUsed = openReason === 'flow_agendar' ? 1 : 0
 
   db.run(
     `INSERT INTO booking_sessions (
        session_id, tenant_id, conversation_id, opened_at, closed_at,
        outcome, drop_step, max_step, inbound_turns, flow_used,
        open_reason, service_id, variant_selection_mode
-     ) VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, 0, 0, ?, ?, ?)`,
+     ) VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, 0, ?, ?, ?, ?)`,
     sessionId,
     tenantId,
     conversationId,
     now,
     step,
+    flowUsed,
     openReason,
     serviceId,
     variantSelectionMode,
@@ -307,7 +354,7 @@ export function openBookingSessionIfNeeded(
       dropStep: null,
       maxStep: step,
       inboundTurns: 0,
-      flowUsed: false,
+      flowUsed: flowUsed === 1,
       openReason,
       serviceId,
       variantSelectionMode,
@@ -432,6 +479,89 @@ export function touchBookingSessionOnTurn(
     open.sessionId,
   )
   return open.sessionId
+}
+
+export type RecordBookingSessionFlowInput = {
+  flowState: BookingSessionFlowState
+  /** Token em claro — só usado para derivar `flowTokenId` (hash); nunca vai ao payload. */
+  flowToken?: string | null
+  skipReason?: BookingSessionFlowSkipReason
+  /**
+   * Chave extra de idempotência (ex. messageId do hub) quando não há token
+   * (`skipped` sem binding / sem secrets).
+   */
+  attemptId?: string | null
+}
+
+/**
+ * T3: emite `booking_session.flow` (outbox + log) e marca `flowUsed` em
+ * `opened` / `completed` quando há sessão aberta. Sem corpo de mensagem.
+ * Idempotente por `(flowState, flowTokenId|attemptId)`.
+ */
+export function recordBookingSessionFlow(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  input: RecordBookingSessionFlowInput,
+  clock: Clock,
+): { sessionId: string | null; outbox: OutboxRow; payload: BookingSessionFlowPayload } {
+  const open = getOpenBookingSession(db, tenantId, conversationId)
+  const sessionId = open?.sessionId ?? null
+  const flowTokenId = hashFlowTokenForAnalytics(input.flowToken)
+  const now = clock.nowMs()
+
+  const marksUsed = input.flowState === 'opened' || input.flowState === 'completed'
+  if (marksUsed && open && !open.flowUsed) {
+    db.run(
+      `UPDATE booking_sessions SET flow_used = 1
+       WHERE session_id = ? AND closed_at IS NULL`,
+      open.sessionId,
+    )
+  }
+
+  const payload: BookingSessionFlowPayload = {
+    event: 'booking_session.flow',
+    sessionId,
+    tenantId,
+    conversationId,
+    occurredAt: now,
+    flowTokenId,
+    flowState: input.flowState,
+    ...(input.flowState === 'skipped' && input.skipReason
+      ? { skipReason: input.skipReason }
+      : {}),
+    source: 'clinic_do',
+  }
+  assertBookingSessionFlowMinimized(payload)
+  console.log(
+    JSON.stringify({
+      level: input.flowState === 'skipped' ? 'warn' : 'info',
+      ...payload,
+    }),
+  )
+
+  const idKey =
+    flowTokenId ??
+    (input.attemptId ? `attempt:${input.attemptId}` : `cnv:${conversationId}:${now}`)
+  const idempotencyKey =
+    input.flowState === 'skipped' && input.skipReason
+      ? `booking_session.flow:skipped:${idKey}:${input.skipReason}`
+      : `booking_session.flow:${input.flowState}:${idKey}`
+
+  const outbox = insertOutboxEvent(
+    db,
+    {
+      tenantId,
+      type: 'booking_session.flow',
+      aggregateType: 'booking_session',
+      aggregateId: sessionId ?? conversationId,
+      idempotencyKey,
+      payload: { ...payload },
+    },
+    clock,
+  )
+
+  return { sessionId, outbox, payload }
 }
 
 /**
