@@ -673,7 +673,8 @@ describe('DEC-143: zonas escritas antes da linha não se perdem (sonda staging 0
     try {
       await lockFeminine(s)
       const last = outbound(s).at(-1)
-      expect(last?.body).toMatch(/Axila/)
+      expect(last?.body).toMatch(/axila/)
+      expect(last?.body).not.toMatch(/Axila/)
       expect(last?.body).not.toMatch(/Entendi/)
     } finally {
       s.close()

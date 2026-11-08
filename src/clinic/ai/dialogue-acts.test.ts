@@ -254,12 +254,13 @@ describe('#414 dialogue acts', () => {
         'Claro. Depilação feminina ou masculina?',
       )
       setDialogueVariantForTests(2)
+      // Ask-tipo: builders passam `{lista}` já em minúsculas (Paulo 08/11/2026).
       const zones = renderDialogueAct('perguntar_variantes', 'cnv_case', {
         serviço: 'Depilação',
         tipo: 'zonas',
-        lista: 'Axila, Pernas, Tórax e Abdômen',
+        lista: 'axila, pernas, tórax e abdômen',
       })
-      expect(zones).toBe('Para depilação, quais zonas? Axila, Pernas, Tórax e Abdômen.')
+      expect(zones).toBe('Para depilação, quais zonas? axila, pernas, tórax e abdômen.')
     } finally {
       setDialogueVariantForTests(null)
     }

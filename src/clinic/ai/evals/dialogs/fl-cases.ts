@@ -411,8 +411,23 @@ export const FL_DIALOG_CASES: DialogCase[] = [
       turns: [
         {
           turn: 0,
-          matches: [/tipos?/i, /Liberação miofascial/i],
-          excludes: [HUB_OPENING, /Não encontrei/i, /O que você precisa\?/],
+          // Paulo 08/11/2026: serviço + variantes em minúsculas na frase ask-tipo.
+          matches: [
+            /\bqual tipo\b/i,
+            /Para massagem/,
+            /Temos liberação miofascial/,
+            /ventosaterapia/,
+            /drenagem linfática/,
+            /massagem relaxante/,
+          ],
+          excludes: [
+            HUB_OPENING,
+            /Não encontrei/i,
+            /O que você precisa\?/,
+            /Para Massagem/,
+            /Temos Liberação/,
+            /Ventosaterapia/,
+          ],
         },
       ],
     },
@@ -482,8 +497,24 @@ export const FL_DIALOG_CASES: DialogCase[] = [
         { turn: 0, matches: [HUB_OPENING, /O que você precisa\?/] },
         {
           turn: 1,
-          matches: [/tipos?/i, /Liberação miofascial/i, /Ventosaterapia/i, /Drenagem linfática/i, /Massagem relaxante/i],
-          excludes: [/Entendi:/i, HUB_OPENING, /O que você precisa\?/, /Não encontrei/i, /Não entendi/i, /Abrir opções/],
+          matches: [
+            /\bqual tipo\b/i,
+            /Para massagem/,
+            /liberação miofascial/,
+            /ventosaterapia/,
+            /drenagem linfática/,
+            /massagem relaxante/,
+          ],
+          excludes: [
+            /Entendi:/i,
+            HUB_OPENING,
+            /O que você precisa\?/,
+            /Não encontrei/i,
+            /Não entendi/i,
+            /Abrir opções/,
+            /Para Massagem/,
+            /Temos Liberação/,
+          ],
         },
       ],
     },

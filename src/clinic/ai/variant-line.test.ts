@@ -54,14 +54,40 @@ describe('DEC-145: pergunta singular no modo uma', () => {
     expect(text).toMatch(/\bqual tipo\b/i)
     expect(text).not.toMatch(/\bquais tipos?\b/i)
     expect(text).not.toMatch(/Pode ser mais de uma/i)
-    expect(text).toMatch(/Liberação miofascial/)
+    expect(text).toBe(
+      'Para massagem, qual tipo você quer? Temos liberação miofascial, massagem relaxante.',
+    )
   })
 
-  it('modo varias: mantém «quais» / «Pode ser mais de uma»', () => {
+  it('modo uma: serviço e variantes em minúsculas na frase (Paulo 08/11/2026)', () => {
+    const zones = [
+      ...MASSAGEM_TYPES,
+      { id: 'z3', name: 'Ventosaterapia', audience: 'ambos' as const, durationMinutes: 40, priceCents: 12_000 },
+      { id: 'z4', name: 'Drenagem linfática', audience: 'ambos' as const, durationMinutes: 50, priceCents: 14_000 },
+    ]
+    const text = variantListQuestion('Massagem', 'tipo', zones, 'cnv_case', { selectionMode: 'uma' })
+    expect(text).toMatch(/^Para massagem,/)
+    expect(text).not.toMatch(/Para Massagem/)
+    expect(text).toMatch(/Temos liberação miofascial, massagem relaxante, ventosaterapia, drenagem linfática\./)
+    expect(text).not.toMatch(/Temos Liberação/)
+    expect(text).not.toMatch(/Ventosaterapia/)
+  })
+
+  it('rótulos estáveis do cadastro continuam com capitalização guardada (Opções Meta)', () => {
+    expect(stableVariantLabelList(MASSAGEM_TYPES)).toEqual([
+      'Liberação miofascial',
+      'Massagem relaxante',
+    ])
+  })
+
+  it('modo varias: mantém «quais» / «Pode ser mais de uma»; lista em minúsculas', () => {
     const text = variantListQuestion('Depilação', 'zonas', MASSAGEM_TYPES, 'cnv_varias', {
       selectionMode: 'varias',
     })
     expect(text).toMatch(/\bquais zonas\b/i)
     expect(text).not.toMatch(/\bqual zona\b/i)
+    expect(text).toMatch(/liberação miofascial/)
+    expect(text).not.toMatch(/Liberação miofascial/)
+    expect(text).not.toMatch(/Para Depilação/)
   })
 })

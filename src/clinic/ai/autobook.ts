@@ -91,6 +91,7 @@ import {
   needsAudienceLine,
   stableVariantLabelList,
   variantKindForAsk,
+  variantListInProse,
   variantListQuestion,
   variantTipoWord,
   whichKind,
@@ -480,7 +481,8 @@ export function askZonesReply(
   variantKind?: string | null,
   selectionMode?: ServiceRow['variantSelection'],
 ): string {
-  const list = zoneNames.join(', ')
+  // Paulo 08/11/2026: variantes em minúsculas na frase ask-tipo; Opções Meta mantém cadastro.
+  const list = variantListInProse(zoneNames)
   const single = selectionMode === 'uma'
   const tipo =
     variantKind != null
