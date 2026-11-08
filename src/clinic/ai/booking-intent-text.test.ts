@@ -11,7 +11,10 @@ const zones = [
   { id: 'z_ax', name: 'Axila', active: true },
   { id: 'z_pe', name: 'Pernas', active: true },
   { id: 'z_bu', name: 'Buço', active: true },
+  { id: 'z_or', name: 'Orelha', active: true },
 ] as ServiceZoneRow[]
+
+const todasPrior = ['z_ax', 'z_pe', 'z_bu', 'z_or']
 
 describe('classifyVariantPolarity — D3', () => {
   it('«não quero pernas, só axila» nega pernas e fica com axila', () => {
@@ -53,6 +56,34 @@ describe('classifyVariantPolarity — D3', () => {
     expect(p.negatedIds).toEqual(['z_pe'])
     expect(p.positiveIds).toEqual([])
     expect(resolvePolarityVariantIds(p, ['z_ax', 'z_pe'])).toEqual(['z_ax'])
+  })
+
+  it.each(['Sem orelha', 'sem a orelha', 'tirar orelha', 'tira a orelha'])(
+    '«%s» remove Orelha do conjunto Todas — não fica só Orelha',
+    (text) => {
+      const p = classifyVariantPolarity(text, zones)
+      expect(p.hasNegation).toBe(true)
+      expect(p.negatedIds).toEqual(['z_or'])
+      expect(p.positiveIds).toEqual([])
+      expect(resolvePolarityVariantIds(p, todasPrior)).toEqual([
+        'z_ax',
+        'z_pe',
+        'z_bu',
+      ])
+    },
+  )
+
+  it('«quero tirar uma dúvida» sem zona não engole o turno', () => {
+    const p = classifyVariantPolarity('quero tirar uma dúvida', zones)
+    expect(p.negatedIds).toEqual([])
+    expect(p.positiveIds).toEqual([])
+    expect(resolvePolarityVariantIds(p, todasPrior)).toBeNull()
+  })
+
+  it('«sem pressa» sem zona contígua não engole o turno', () => {
+    const p = classifyVariantPolarity('sem pressa', zones)
+    expect(p.hasNegation).toBe(false)
+    expect(resolvePolarityVariantIds(p, todasPrior)).toBeNull()
   })
 })
 

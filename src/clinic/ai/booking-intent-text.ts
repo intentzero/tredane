@@ -3,24 +3,32 @@
  * Não grava o quadro: só classifica menções para o actualizador.
  *
  * D3: «não quero pernas, só axila» — a zona na negação não reentra.
- * Gramática completa (compare / mention_only / tirar / sem) fica diferida.
+ * Exclusão contígua: «sem orelha», «sem a orelha», «tirar orelha» (staging 08/11/2026).
+ * compare / mention_only ficam diferidos.
  */
 import type { ServiceZoneRow } from '../config/types'
 
-/** Só polaridade de pedido («não quero X»). «sem»/«tirar» ficam fora — FP altos. */
+/** Polaridade de pedido («não quero X»). */
 const NEGATION_CUE =
   /\bn[aã]o\s+(?:quero|preciso|gostaria|aceito)(?:\s+mais)?\b/iu
+
+/**
+ * «sem a orelha» / «tirar orelha» — só imediatamente antes da zona.
+ * Evita FP: «sem pressa», «quero tirar uma dúvida».
+ */
+const EXCLUDE_BEFORE_ZONE =
+  /\b(?:sem|tirar?|tira|remover?|remove)\s+(?:[ao]s?\s+)?$/iu
 
 const SOLO_CUE = /\b(?:s[oó]|apenas)\b/iu
 
 export type VariantPolarity = {
-  /** Zona citada sob polaridade negativa («não quero pernas»). */
+  /** Zona citada sob polaridade negativa («não quero pernas», «sem orelha»). */
   negatedIds: string[]
   /** Zona citada positivamente («só axila», ou sem cue de negação). */
   positiveIds: string[]
   /** Frase tem «só» / «apenas» — o positivo substitui o conjunto. */
   solo: boolean
-  /** Há cue de negação no texto. */
+  /** Há cue de negação / exclusão com efeito no conjunto. */
   hasNegation: boolean
 }
 
@@ -59,6 +67,11 @@ function segmentPolarity(segment: string): 'negated' | 'solo' | 'plain' {
   return 'plain'
 }
 
+/** Prefixo imediato à zona: «sem a », «tirar », «não quero ». */
+function isNegatedByPrefix(before: string): boolean {
+  return EXCLUDE_BEFORE_ZONE.test(before) || NEGATION_CUE.test(before)
+}
+
 /**
  * Classifica menções de variante no turno: negadas vs positivas.
  * Zonas homónimas no âmbito já filtrado (linha) — o caller passa o pool correcto.
@@ -69,7 +82,7 @@ export function classifyVariantPolarity(
 ): VariantPolarity {
   const active = zones.filter((z) => z.active && z.name.trim().length >= 2)
   const folded = fold(text)
-  const hasNegation = NEGATION_CUE.test(folded)
+  const cueNegation = NEGATION_CUE.test(folded)
   const solo = SOLO_CUE.test(folded)
   const negated = new Set<string>()
   const positive = new Set<string>()
@@ -94,7 +107,8 @@ export function classifyVariantPolarity(
         }
         if (overlap) continue
         for (let i = span.start; i < span.end; i++) claimed[i] = true
-        if (pol === 'negated') negated.add(zone.id)
+        const before = segment.slice(0, span.start)
+        if (pol === 'negated' || isNegatedByPrefix(before)) negated.add(zone.id)
         else if (pol === 'solo' || pol === 'plain') positive.add(zone.id)
       }
     }
@@ -102,7 +116,8 @@ export function classifyVariantPolarity(
 
   // Sem vírgula: «não quero pernas só axila» — «só» após negação e após a
   // zona negada marca o positivo; «não quero só X» mantém X negado.
-  if (segments.length <= 1 && (hasNegation || solo)) {
+  // «sem orelha» / «tirar orelha» já saem do 1.º passe (prefixo contíguo).
+  if (segments.length <= 1 && (cueNegation || solo)) {
     negated.clear()
     positive.clear()
     const claimed = new Array<boolean>(folded.length).fill(false)
@@ -121,6 +136,10 @@ export function classifyVariantPolarity(
         const before = folded.slice(Math.max(0, span.start - 48), span.start)
         const soloAt = before.search(SOLO_CUE)
         const negInBefore = before.search(NEGATION_CUE)
+        if (EXCLUDE_BEFORE_ZONE.test(before)) {
+          negated.add(zone.id)
+          continue
+        }
         // «só Y» depois da negação e sem a própria negação colada a Y → positivo.
         if (soloAt >= 0 && (negInBefore < 0 || soloAt > negInBefore) && negAt >= 0 && span.start > negAt) {
           // Se o «só» está imediatamente sob «não quero só» (sem zona entre neg e só),
@@ -144,7 +163,7 @@ export function classifyVariantPolarity(
     negatedIds: [...negated],
     positiveIds: [...positive],
     solo,
-    hasNegation,
+    hasNegation: cueNegation || negated.size > 0,
   }
 }
 
