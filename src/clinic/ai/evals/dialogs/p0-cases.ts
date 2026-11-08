@@ -10,7 +10,7 @@
  * A-31: hora solta «14» contra pending de horário (DEC-127 / #605).
  * A-35: «Terminar» mid-oferta (DEC-152 / #629).
  * A-36: após soft-close Terminar, novo pedido não reusa variante/slots (leftover).
- * A-37: mid Horários, leftover ≠ option-miss de variantes (DEC-C3 / P1 gate).
+ * A-37: mid Horários, leftover ≠ option-miss de variantes (DEC-C3 / P1 stack esclarecer).
  * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
  * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
  */

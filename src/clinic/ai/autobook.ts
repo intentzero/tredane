@@ -105,6 +105,7 @@ import {
 } from './variant-line'
 import { extractDates, extractTimes, norm } from './nlu/temporal'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
+import { realizeAskInfo, realizeClarify } from './ask-info-realize'
 import {
   obligationFromFrame,
   shouldEmitOptionMiss,
@@ -909,12 +910,52 @@ export async function tryAiAutoBook(
     }
   }
 
+  // P1 / DEC-C1/C4: ask_info mid-funnel — park → realize → resume (stack explícita).
+  // Não depende de suppress leftover; não limpa variante / não reabre tipo por engano.
+  if (gate.kind === 'ask_info') {
+    const frameAsk = getBookingFrame(db, tenantId, input.conversationId)
+    const svcAsk = frameAsk?.serviceId
+      ? services.find((s) => s.id === frameAsk.serviceId)
+      : null
+    if (svcAsk && frameAsk?.serviceId) {
+      const activeAsk = svcAsk.zones.filter((z) => z.active)
+      const lineAsk = heldAudienceLine(frameAsk) ?? frameAsk.line ?? null
+      const poolAsk =
+        needsAudienceLine(activeAsk) && lineAsk
+          ? zonesForAudienceLine(activeAsk, lineAsk)
+          : activeAsk
+      const namedAsk = zonesNamedInText(turnText, poolAsk.length > 0 ? poolAsk : activeAsk, {
+        ignoreWords: [svcAsk.name, ...(svcAsk.synonyms ?? [])],
+      })
+      // D4: ask_info não grava variante — só aplica o intent no actualizador.
+      runBookingUpdate({ type: 'ask_info', topic: gate.topic === 'price' ? 'preco' : 'duracao' })
+      const realized = realizeAskInfo({
+        conversationId: input.conversationId,
+        topic: gate.topic,
+        service: svcAsk,
+        zones: poolAsk.length > 0 ? poolAsk : activeAsk,
+        frame: frameAsk,
+        namedZones: namedAsk,
+        sameFunnel: true,
+      })
+      if (realized) {
+        return finish({
+          ...none('needs_info', {
+            confirmationMessageId: confirmation.id,
+            serviceId: svcAsk.id,
+          }),
+          replyText: realized.replyText,
+          notes: `DEC-C1/C4: ask_info ${gate.topic} via interrupt stack (pending kept).`,
+        })
+      }
+    }
+    // Sem serviço aberto: cede aos fillers / catalog frio (não leftover).
+  }
+
   // ADR-0015 / DEC-127: ler primeiro contra pending.options (cutover fechado — #472).
   const frameEarly = getBookingFrame(db, tenantId, input.conversationId)
   /** Obrigação tipada (DEC-C4); option-miss só sob escolha (DEC-C3). */
   const dialogueObligation = obligationFromFrame(frameEarly)
-  /** ask_info chegou ao funil (catalogReply não consumiu) — não virar leftover. */
-  const askInfoSuppressLeftover = gate.kind === 'ask_info'
   let zoneEcho = input.zoneEcho
   if (frameEarly?.pending?.slot === 'eco' && !zoneEcho) {
     const echoed = norm(turnText).replace(/[^a-z0-9]+/g, ' ').trim()
@@ -1270,7 +1311,6 @@ export async function tryAiAutoBook(
         turnMention.unrecognized &&
         turnMention.zones.length === 0 &&
         earlyPolarIds == null &&
-        !askInfoSuppressLeftover &&
         !clockFromTurn &&
         !pendingTimeOverride &&
         !input.boundSlot &&
@@ -1279,18 +1319,18 @@ export async function tryAiAutoBook(
         zoneEcho !== 'correct' &&
         sessionIntact
       ) {
+        // DEC-C3/C4: park → esclarecer → resume (pending/variante intactos).
+        const clarified = realizeClarify({
+          conversationId: input.conversationId,
+          frame: frameEarly,
+        })
         return finish({
           ...none('needs_info', {
             confirmationMessageId: confirmation.id,
             serviceId: det.service.id,
           }),
-          replyText: sayAct(
-            'esclarecer',
-            input.conversationId,
-            {},
-            'Pode me dizer de outro jeito, ou prefere falar com a equipe?',
-          ),
-          notes: 'DEC-C3: bare choose_slot leftover → esclarecer (not variant option-miss).',
+          replyText: clarified.replyText,
+          notes: 'DEC-C3/C4: bare choose_slot leftover → esclarecer via stack (not option-miss).',
         })
       }
       // #510: Sim do eco ou quadro intacto sem menção nova → sem segundo parser.
@@ -1319,7 +1359,6 @@ export async function tryAiAutoBook(
       // «Não encontrei …» nem reaponta tipos com a variante já travada.
       const leftoverAsk =
         mention.unrecognized &&
-        !askInfoSuppressLeftover &&
         zoneEcho !== 'skip' &&
         zoneEcho !== 'confirm' &&
         zoneEcho !== 'correct' &&
@@ -1736,7 +1775,6 @@ export async function tryAiAutoBook(
               }).zones.length > 0
             if (
               mention.unrecognized &&
-              !askInfoSuppressLeftover &&
               zoneEcho !== 'skip' &&
               zoneEcho !== 'confirm'
             ) {
@@ -2054,7 +2092,7 @@ export async function tryAiAutoBook(
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
       // #509: sobra sem match único → «Não encontrei {palavra}…» (copy proposta).
       replyText:
-        proposalMention.unrecognized && !ambiguous && !askInfoSuppressLeftover
+        proposalMention.unrecognized && !ambiguous
           ? askUnrecognizedZone(proposalMention, zonePool, genericAsk, {
               conversationId: input.conversationId,
               emitOptionMiss: shouldEmitOptionMiss({

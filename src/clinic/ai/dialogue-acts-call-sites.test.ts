@@ -20,6 +20,7 @@ const CALL_SITE_FILES = [
   'client-copy.ts',
   'variant-line.ts',
   'autobook.ts',
+  'ask-info-realize.ts',
   'booking-object.ts',
   'reschedule.ts',
   'end-help-hint.ts',
@@ -111,6 +112,15 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Não entendi bem esse pedido\. Quer ver as opções que temos\?$/,
   // DEC-C3 / P1 — esclarecer (fallback sayAct) quando leftover ≠ option-miss
   /^Pode me dizer de outro jeito, ou prefere falar com a equipe\?$/,
+  // DEC-C1/C4 — notas internas (stack ask_info / esclarecer)
+  /^DEC-C1\/C4: ask_info \$\{gate\.topic\} via interrupt stack \(pending kept\)\.$/,
+  /^DEC-C3\/C4: bare choose_slot leftover → esclarecer via stack \(not option-miss\)\.$/,
+  // ask-info-realize fallbacks (acto decide; sayAct redige)
+  /^\$\{zone\.name\} custa \$\{preço\} e dura \$\{duração\} min\.$/,
+  /^No total, ficam \$\{preço\} e \$\{duração\} min de atendimento\.$/,
+  /^Para \$\{service\.name\}:\\n\$\{lista\}\\n\$\{pergunta\}$/,
+  /^Qual horário fica melhor para \$\{serviceName\}\?$/,
+  /^\$\{duração\} min\.$/,
   // #509 / prática 1 — zona citada sem match único (Paulo 07/11/2026: sem «ou outra?»)
   /^Não encontrei \$\{palavra\} nas opções\. Quer \$\{lista\}\?$/,
   /^Não encontrei cotovelo nas opções\. Quer Axila, Pernas\?$/,

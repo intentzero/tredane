@@ -5,11 +5,9 @@
  *   cross-cutting gate → pending answer → slot fillers
  *   → applyBookingUpdate → next obligation → sayAct / interactive
  *
- * Nesta fatia: o gate vive em `booking-turn-gate.ts` e é consumido por
- * `tryAiAutoBook`; esta fachada é o ponto estável para o autodraft / testes.
- * `ask_info` (preço) continua a realizar-se em `catalogReply` *antes* desta
- * entrada (interrupt/resume da mesma pending — DEC-C1), e o gate em
- * `tryAiAutoBook` suprime option-miss se o preço chegar ao funil.
+ * Gate (`booking-turn-gate`) + stack de interrupção: `ask_info` mid-funnel
+ * park → realize (`ask-info-realize`) → resume da mesma obrigação (DEC-C1).
+ * autodraft salta `catalogReply` nesse caso; actos decidem, `sayAct` só redige.
  *
  * **Proposto → em progresso.** Não reescreve Flow; não viola DEC-061/104/137/147/152.
  */

@@ -81,6 +81,26 @@ export {
   type DialogueObligationKind,
 } from './dialogue-obligation'
 export {
+  emptyInterruptStack,
+  parkFromFrame,
+  parkInterrupt,
+  popInterrupt,
+  peekInterrupt,
+  resumeParkedObligation,
+  shouldResumeSlotAsk,
+  shouldResumeVariantAsk,
+  type DialogueInterruptStack,
+  type InterruptReason,
+  type ParkedInterrupt,
+} from './dialogue-interrupt-stack'
+export {
+  realizeAskInfo,
+  realizeClarify,
+  type AskInfoRealizeInput,
+  type AskInfoRealizeResult,
+  type AskInfoPolicyAct,
+} from './ask-info-realize'
+export {
   getAiDailyUsage,
   incrementAiDailyUsage,
   recordModelCallTowardDailyCap,

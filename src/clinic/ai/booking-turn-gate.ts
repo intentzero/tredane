@@ -5,7 +5,9 @@
  *   handoff (fora — autodraft) → restart → exit A/B → reject C
  *   → ask_info (preço|duração) → confusão (DEC-151, classificada; realização noutro sítio)
  *
- * Política vive aqui; `sayAct` só redige. **Proposto → em progresso**.
+ * Classificação aqui; realização de `ask_info` mid-funnel em `ask-info-realize`
+ * (stack park/resume) via `tryAiAutoBook`. Política vive no acto; `sayAct` só redige.
+ * **Proposto → em progresso**.
  */
 import { isCatalogInfoAsk, CATALOG_PRICE_ASK } from './booking-intent-text'
 import {
