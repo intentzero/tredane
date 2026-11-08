@@ -27,7 +27,11 @@ import {
   serviceChangedReply,
   serviceNotFoundReply,
 } from './client-copy'
-import { isCatalogInfoAsk, isShortBookingAffirm } from './booking-intent-text'
+import {
+  CATALOG_PRICE_ASK,
+  isCatalogInfoAsk,
+  isShortBookingAffirm,
+} from './booking-intent-text'
 import { sayAct } from './dialogue-acts'
 import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
 import { formatOpeningHours } from './schedule-context'
@@ -55,7 +59,8 @@ import { extractDates, parseTemporal } from './nlu/temporal'
 
 const HOURS = /\b(hor[aá]rio de funcionamento|que horas (voc[eê]s )?(abrem|funcionam|atendem)|at[eé] que horas)\b/i
 const WHO = /\b(quem faz|quem atende|qual sala|em qual sala)\b/i
-const PRICE = /\b(pre[cç]os?|custam?|valores?|quanto)\b/i
+/** Alias estável — ver `CATALOG_PRICE_ASK` (singular «valor», tabela, sinónimos). */
+const PRICE = CATALOG_PRICE_ASK
 const PERIOD = /\b(amanh[aã]|hoje|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|manh[aã]|tarde|noite)\b/i
 /** `\b` antes de «às» falha no JS (à não é word-char); usar fronteira ASCII. */
 const CLOCK =
@@ -585,22 +590,37 @@ export function catalogReply(
     return null
   }
 
-  // Preço sem variante nomeada neste turno.
+  // Pesquisa de preço — caminho de 1.ª classe no funil (Paulo, 08/11/2026).
+  // Não perde o quadro: cotar o que já está aberto e continuar (tipo / horários).
   if (active.length > 0 && named.length === 0 && asksPrice) {
     const pool = scoped.length > 0 ? scoped : active
-    // Já há variantes no quadro → cotar esse conjunto (não reperguntar).
+    // lastOffer vive no BookingFrame (ScheduleSession compat não o expõe).
+    const openOffer =
+      sameFunnel &&
+      opts.conversationId &&
+      Boolean(getBookingFrame(db, tenantId, opts.conversationId)?.lastOffer?.slots?.length)
+    const reopenSlots = () =>
+      sayAct(
+        'perguntar_horario',
+        cnv,
+        { serviço: svc.name },
+        `Qual horário fica melhor para ${svc.name}?`,
+      )
+    // Variante(s) já no quadro (ex. a meio da oferta de slots) → cotar; não re-perguntar tipo.
     const quoteZones = sessionKept && sessionZones.length > 0 ? sessionZones : null
     if (quoteZones && quoteZones.length === 1) {
       const z = quoteZones[0]!
       const preço = z.priceCents == null ? 'a equipe confirma o valor' : formatBRL(z.priceCents)
       const duração = String(z.durationMinutes)
       const fb = `${z.name} custa ${preço} e dura ${duração} min.`
-      return sayAct(
+      const quoted = sayAct(
         'informar_preco_variante',
         cnv,
         { variante: z.name, preço, duração },
         fb,
       )
+      // Oferta aberta: mantém lastOffer/variante e reabre a escolha de horário.
+      return openOffer ? `${quoted}\n${reopenSlots()}` : quoted
     }
     if (quoteZones && quoteZones.length >= 2) {
       if (variantAudiencesConflict(quoteZones)) return mixedAudienceReply(cnv)
@@ -610,10 +630,10 @@ export function catalogReply(
       const preço = missing ? 'a equipe confirma o valor' : formatBRL(cents)
       const duração = String(minutes)
       const fb = `No total, ficam ${preço} e ${duração} min de atendimento.`
-      return sayAct('informar_preco_soma', cnv, { preço, duração }, fb)
+      const quoted = sayAct('informar_preco_soma', cnv, { preço, duração }, fb)
+      return openOffer ? `${quoted}\n${reopenSlots()}` : quoted
     }
-    // Serviço já aberto no funil (ex. a meio de «Quais zonas?»): tabela de preços +
-    // re-pergunta leve — não ignorar a intenção de preço (Paulo, 08/11/2026).
+    // Serviço aberto sem variante (ask-tipo / «Quais zonas?»): tabela + re-pergunta leve.
     if (sameFunnel && held) {
       const lista = formatVariantPriceTable(pool)
       const kind = variantKindForAsk(svc)

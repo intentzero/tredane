@@ -114,8 +114,8 @@ export function variantKindForAsk(
 
 /**
  * Linhas de preço/duração por variante (tabela de catálogo).
- * Usado quando a cliente pergunta «Quanto custa?» / «valores» com o serviço aberto
- * e ainda sem variante nomeada — não volta a listar só os nomes.
+ * Usado na pesquisa de preço com o serviço aberto e ainda sem variante nomeada
+ * («Quanto custa?», «Qual o valor…», «valores», «tabela») — não lista só os nomes.
  */
 export function formatVariantPriceTable(zones: readonly ListedZone[]): string {
   const labels = stableVariantLabelList(zones)

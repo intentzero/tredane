@@ -210,12 +210,19 @@ export function resolvePolarityVariantIds(
   return next
 }
 
+/**
+ * Pedido de preço / tabela (pesquisa legítima no funil — Paulo, 08/11/2026).
+ * Inclui singular «valor» (não só «valores»), «tabela» e «quanto custa».
+ * `valores?` em regex casa «valore(s)» e falhava em «Qual o valor?».
+ */
+export const CATALOG_PRICE_ASK =
+  /\b(pre[cç]os?|custam?|valor(es)?|quanto|or[cç]amento|tabela)\b/i
+
 /** Pedido de preço/duração — não deve seleccionar variante (D4). */
 export function isCatalogInfoAsk(text: string): boolean {
   return (
-    /\b(pre[cç]os?|custam?|valores?|quanto\s+(?:[eé]|fica|sai)|or[cç]amento)\b/i.test(
-      text,
-    ) || /\b(dura|dura[cç][aã]o|tempo|minutos)\b/i.test(text)
+    CATALOG_PRICE_ASK.test(text) ||
+    /\b(dura|dura[cç][aã]o|tempo|minutos)\b/i.test(text)
   )
 }
 
