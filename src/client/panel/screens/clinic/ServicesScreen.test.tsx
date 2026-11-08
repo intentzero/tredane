@@ -324,7 +324,7 @@ describe('ServiceForm — catálogo de variantes', () => {
       throw new PanelApiError(
         400,
         'unknown',
-        'Desactive o combo «Buço + axila» antes de mudar para uma variante por atendimento.',
+        'Desative o combo «Buço + axila» antes de mudar para uma variante por atendimento.',
       )
     })
     renderForm(
@@ -353,7 +353,7 @@ describe('ServiceForm — catálogo de variantes', () => {
     expect(screen.getByText(/ainda tem combo ativo/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
     await waitFor(() =>
-      expect(screen.getByText(/Desactive o combo «Buço \+ axila»/)).toBeTruthy(),
+      expect(screen.getByText(/Desative o combo «Buço \+ axila»/)).toBeTruthy(),
     )
     expect(screen.getByText(/continua aqui/)).toBeTruthy()
   })
