@@ -12,6 +12,7 @@ import { formatOpeningHours } from './schedule-context'
 import { handoffReason } from './human-handoff'
 import {
   clearScheduleSession,
+  getBookingFrame,
   getScheduleSession,
   saveScheduleSession,
   scheduleFactsFromText,
@@ -576,6 +577,175 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       const valores = catalogReply(boot.db, boot.tenantId, 'quais os valores?', boot.clock, opts)
       expect(valores).toMatch(/R\$\s*50,00/)
       expect(valores).toMatch(/R\$\s*140,00/)
+
+      boot.clock.advance(1_000)
+      const valor = catalogReply(boot.db, boot.tenantId, 'Qual o valor?', boot.clock, opts)
+      expect(valor).toMatch(/R\$\s*50,00/)
+      expect(valor).toMatch(/quais zonas/i)
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('a meio do ask-tipo (Massagem uma), «Qual o valor das massagens?» devolve tabela e reabre o tipo', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-a'
+    const caller = workerCaller(tenantId)
+    try {
+      const svc = upsertServiceOp(
+        boot.db,
+        caller,
+        {
+          name: 'Massagem',
+          durationMinutes: 50,
+          bufferMinutes: 0,
+          priceCents: 15_000,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      replaceServiceZonesOp(
+        boot.db,
+        caller,
+        svc.id,
+        [
+          { name: 'Relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 60, priceCents: 20_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+        ],
+        clock,
+      )
+      const contact = upsertContact(
+        boot.db,
+        { tenantId, waId: '5511900000190', displayName: 'Paulo' },
+        clock,
+      )
+      const conversation = createConversation(boot.db, { tenantId, contactId: contact.id }, clock)
+      const opts = { conversationId: conversation.id }
+      saveScheduleSession(
+        boot.db,
+        tenantId,
+        conversation.id,
+        { serviceId: svc.id, phase: 'coletando' },
+        clock,
+      )
+      insertMessage(
+        boot.db,
+        {
+          tenantId,
+          conversationId: conversation.id,
+          direction: 'outbound',
+          body: 'Para Massagem, qual tipo você quer? Temos Relaxante, Liberação miofascial, Drenagem linfática.',
+          deliveryState: 'delivered',
+          createdAt: clock.nowMs(),
+        },
+        clock,
+      )
+      clock.advance(1_000)
+      const reply = catalogReply(
+        boot.db,
+        tenantId,
+        'Qual o valor das massagens?',
+        clock,
+        opts,
+      )
+      expect(reply).toMatch(/Relaxante — R\$\s*150,00 \(50 min\)/)
+      expect(reply).toMatch(/Liberação miofascial — R\$\s*200,00 \(60 min\)/)
+      expect(reply).toMatch(/Drenagem linfática — R\$\s*160,00 \(50 min\)/)
+      expect(reply).toMatch(/qual tipo você quer/i)
+      expect(reply).not.toMatch(/^Para Massagem, qual tipo você quer\? Temos/i)
+      expect(getScheduleSession(boot.db, tenantId, conversation.id)?.variantIds).toBeFalsy()
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('a meio da oferta de slots, «Qual o valor?» cotiza a variante e mantém o quadro', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const tenantId = 'clinic-demo-a'
+    const caller = workerCaller(tenantId)
+    try {
+      const svc = upsertServiceOp(
+        boot.db,
+        caller,
+        {
+          name: 'Massagem',
+          durationMinutes: 50,
+          bufferMinutes: 0,
+          priceCents: 15_000,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      const zones = replaceServiceZonesOp(
+        boot.db,
+        caller,
+        svc.id,
+        [
+          { name: 'Relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 60, priceCents: 20_000 },
+        ],
+        clock,
+      )
+      const relaxante = zones.find((z) => z.name === 'Relaxante')
+      if (!relaxante) throw new Error('Relaxante ausente')
+      const contact = upsertContact(
+        boot.db,
+        { tenantId, waId: '5511900000191', displayName: 'Paulo' },
+        clock,
+      )
+      const conversation = createConversation(boot.db, { tenantId, contactId: contact.id }, clock)
+      const opts = { conversationId: conversation.id }
+      saveScheduleSession(
+        boot.db,
+        tenantId,
+        conversation.id,
+        {
+          serviceId: svc.id,
+          variantIds: [relaxante.id],
+          phase: 'coletando',
+          lastOffer: {
+            slots: [
+              { startsAt: NOW + 86_400_000, professionalId: 'pro_x' },
+              { startsAt: NOW + 86_400_000 + 3_600_000, professionalId: 'pro_x' },
+            ],
+            messageId: 'msg_offer_1',
+          },
+        },
+        clock,
+      )
+      insertMessage(
+        boot.db,
+        {
+          tenantId,
+          conversationId: conversation.id,
+          direction: 'outbound',
+          body: 'Para Massagem, tenho segunda 09/11 às 14:00 e 15:00. Qual prefere?',
+          deliveryState: 'delivered',
+          createdAt: clock.nowMs(),
+        },
+        clock,
+      )
+      clock.advance(1_000)
+      const reply = catalogReply(boot.db, tenantId, 'Qual o valor?', clock, opts)
+      expect(reply).toMatch(/Relaxante/i)
+      expect(reply).toMatch(/R\$\s*150,00/)
+      expect(reply).toMatch(/Qual horário fica melhor para Massagem\?|qual horário você prefere/i)
+      expect(reply).not.toMatch(/qual tipo/i)
+      expect(reply).not.toMatch(/Liberação miofascial — R\$/)
+      const session = getScheduleSession(boot.db, tenantId, conversation.id)
+      expect(session?.variantIds).toEqual([relaxante.id])
+      expect(getBookingFrame(boot.db, tenantId, conversation.id)?.lastOffer?.slots?.length).toBe(2)
     } finally {
       boot.close()
     }

@@ -402,4 +402,143 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       ],
     },
   },
+  {
+    id: 'CC-10',
+    title: 'A meio do ask-tipo, «Qual o valor das massagens?» devolve tabela e reabre o tipo',
+    turnosIdeais: 1,
+    // Staging Paulo 08/11/2026: Massagem modo uma; pesquisa de preço não perde o funil.
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('CC-10: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 60, priceCents: 20_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: massagem.id, phase: 'coletando' },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Qual o valor das massagens?' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      outboundIncludes: ['R$'],
+      turns: [
+        {
+          turn: 0,
+          matches: [
+            /Liberação miofascial — R\$\s*200,00 \(60 min\)/,
+            /Ventosaterapia — R\$\s*140,00 \(45 min\)/,
+            /Drenagem linfática — R\$\s*160,00 \(50 min\)/,
+            /Massagem relaxante — R\$\s*150,00 \(50 min\)/,
+            /qual tipo você quer/i,
+          ],
+          excludes: [/^Para Massagem, qual tipo/i, /Temos Liberação/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'CC-11',
+    title: 'A meio da oferta de slots, «Qual o valor?» cotiza a variante e mantém o quadro',
+    turnosIdeais: 1,
+    // Staging Paulo 08/11/2026: após tipo+horários, «Qual o valor?» não reabre ask-tipo.
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('CC-11: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      const zones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 60, priceCents: 20_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const relaxante = zones.find((z) => z.name === 'Massagem relaxante')
+      if (!relaxante) throw new Error('CC-11: Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'coletando',
+          lastOffer: {
+            slots: [
+              { startsAt: s.clock.nowMs() + 86_400_000, professionalId: 'pro_x' },
+              { startsAt: s.clock.nowMs() + 90_000_000, professionalId: 'pro_x' },
+            ],
+            messageId: 'msg_cc11_offer',
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Qual o valor?' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      outboundIncludes: ['R$'],
+      turns: [
+        {
+          turn: 0,
+          matches: [
+            /Massagem relaxante/i,
+            /R\$\s*150,00/,
+            /Qual horário fica melhor para Massagem\?|qual horário você prefere/i,
+          ],
+          excludes: [/\bqual tipo\b/i, /\bquais tipos?\b/i, /Liberação miofascial — R\$/],
+        },
+      ],
+    },
+  },
 ]
