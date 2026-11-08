@@ -8,8 +8,10 @@ import {
   AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS,
   AI_AUTODRAFT_DEBOUNCE_HUB_MS,
   AI_AUTODRAFT_DEBOUNCE_INTERACTIVE_MS,
+  AI_AUTODRAFT_DEBOUNCE_PENDING_MS,
   autodraftDebounceMs,
   looksLikeCompleteBookingRequest,
+  looksLikeShortPendingAnswer,
 } from './debounce'
 
 describe('debounce DEC-111', () => {
@@ -51,6 +53,27 @@ describe('debounce DEC-111', () => {
     expect(looksLikeCompleteBookingRequest(text)).toBe(true)
     // Mesmo com hubOpening (detector casa «horário»), o tier complete vence.
     expect(autodraftDebounceMs({ text, hubOpening: true })).toBe(AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS)
+  })
+
+  it('pending aberto + resposta curta → 300 ms (Paulo P2 07/11)', () => {
+    expect(AI_AUTODRAFT_DEBOUNCE_PENDING_MS).toBe(300)
+    expect(looksLikeShortPendingAnswer('Axila')).toBe(true)
+    expect(looksLikeShortPendingAnswer('14h')).toBe(true)
+    expect(looksLikeShortPendingAnswer('sim')).toBe(true)
+    expect(autodraftDebounceMs({ text: 'Axila', pendingSlot: 'variantes' })).toBe(
+      AI_AUTODRAFT_DEBOUNCE_PENDING_MS,
+    )
+    // «14h» seria complete (2,5 s); com pending horario vence o tier curto.
+    expect(looksLikeCompleteBookingRequest('14h')).toBe(true)
+    expect(autodraftDebounceMs({ text: '14h', pendingSlot: 'horario' })).toBe(
+      AI_AUTODRAFT_DEBOUNCE_PENDING_MS,
+    )
+    // Texto longo com pending → não força 300 ms.
+    const long = 'quero axila e pernas e buço por favor amanhã'
+    expect(looksLikeShortPendingAnswer(long)).toBe(false)
+    expect(autodraftDebounceMs({ text: long, pendingSlot: 'variantes' })).not.toBe(
+      AI_AUTODRAFT_DEBOUNCE_PENDING_MS,
+    )
   })
 })
 
