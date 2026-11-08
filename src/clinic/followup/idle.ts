@@ -16,6 +16,7 @@ import {
   findOpenOpportunityForConversation,
   moveOpportunityStageOp,
 } from '../pipeline'
+import { retireActiveProposal } from '../proposals/proposals'
 import { PROPOSAL_BUTTON_TITLE_MAX } from '../proposals/render'
 import type { ClinicDb } from '../store'
 import { bindOrAssertTenant } from '../tenant'
@@ -242,12 +243,19 @@ export function sendIdlePromptOp(
     clock,
   )
 
-  // O próprio prompt é outbound — segundo prazo a partir do envio (não reinicia prompt).
+  // promptSentAt = instante da mensagem do prompt (não o `now` pré-envio).
+  // Se ficar atrás de createdAt do outbound, o próprio prompt cancela o fecho
+  // (progress > idle_prompt_sent_at) e o segundo prazo nunca corre.
+  const promptSentAt =
+    sent.value.message.createdAt ??
+    lastUsefulMessageAt(db, meta.tenantId, input.conversationId) ??
+    now
+  const closeDueAt = promptSentAt + IDLE_CLOSE_AFTER_MS
   setConversationIdle(db, meta.tenantId, input.conversationId, {
     phase: 'close',
-    dueAt: now + IDLE_CLOSE_AFTER_MS,
-    promptSentAt: now,
-    updatedAt: now,
+    dueAt: closeDueAt,
+    promptSentAt,
+    updatedAt: clock.nowMs(),
   })
 
   writeOperationalAudit(
@@ -258,7 +266,7 @@ export function sendIdlePromptOp(
       action: 'followup.idle_prompt',
       objectType: 'conversation',
       objectId: input.conversationId,
-      detail: { dueAt: now + IDLE_CLOSE_AFTER_MS },
+      detail: { dueAt: closeDueAt },
     },
     clock,
   )
@@ -279,6 +287,12 @@ function settleIdle(
   input: { thanks: boolean; note: string; clientRequestId: string },
 ): { closedOpportunityId: string | null; outbox: OutboxRow[] } {
   const outbox: OutboxRow[] = []
+  // CF-28 / #508: limpa o BookingFrame *antes* do agradecimento. Se o outbound
+  // ou a analytics falharem a meio, o funil abandonado não fica no SQLite.
+  retireActiveProposal(db, tenantId, conversationId, clock)
+  const frameOb = clearBookingFrame(db, tenantId, conversationId, clock)
+  if (frameOb) outbox.push(frameOb)
+
   const future = conversationHasFutureConfirmed(db, tenantId, conversationId, clock.nowMs())
   let closedOpportunityId: string | null = null
   if (!future) {
@@ -315,9 +329,6 @@ function settleIdle(
     )
     outbox.push(...thanks.outbox)
   }
-  // CF-28 / #508: fim por inatividade (DEC-087) limpa o BookingFrame.
-  const frameOb = clearBookingFrame(db, tenantId, conversationId, clock)
-  if (frameOb) outbox.push(frameOb)
   clearConversationIdle(db, tenantId, conversationId, clock.nowMs())
   return { closedOpportunityId, outbox }
 }

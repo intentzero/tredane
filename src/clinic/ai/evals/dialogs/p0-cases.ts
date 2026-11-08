@@ -8,6 +8,7 @@
  * A-25..A-27: zonas em texto livre e telemetria do funil (`zonas-cases.ts`; A-27 = zonas antes da linha).
  * A-29, A-30: desistência educada após oferta de horários (DEC-147).
  * A-31: hora solta «14» contra pending de horário (DEC-127 / #605).
+ * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import {
@@ -19,8 +20,15 @@ import {
   upsertServiceOp,
 } from '../../../config'
 import { setClinicAiProfile } from '../../../config/settings'
+import {
+  IDLE_CLOSE_AFTER_MS,
+  IDLE_PROMPT_AFTER_MS,
+  rescheduleConversationIdle,
+  sweepDueIdleConversations,
+} from '../../../followup/idle'
+import { ensureOpenOpportunity } from '../../../pipeline'
 import { encodeChoiceId } from '../../choice-offer'
-import { getScheduleSession, saveScheduleSession } from '../../schedule-session'
+import { getBookingFrame, getScheduleSession, saveScheduleSession } from '../../schedule-session'
 import {
   APPOINTMENT_PROPOSAL_VALIDITY_MS,
   type DialogCase,
@@ -690,6 +698,111 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     turnosIdeais: 0,
     coverageOnly: 'followup/idle.test',
     turns: [],
+  },
+  {
+    id: 'F-09',
+    title: 'Após fecho idle, «Quero agendar uma massagem» não reusa Liberação+dia',
+    turnosIdeais: 1,
+    // Staging Paulo 08/11/2026 / #620: thanks DEC-087 limpava mal o frame.
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('F-09: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const liberacao = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
+        s.tenantId,
+        massagem.id,
+        'Liberação miofascial',
+      )
+      if (!liberacao) throw new Error('F-09: variante Liberação miofascial ausente')
+      s.sayInbound('quero liberacao miofascial')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [liberacao.id],
+          date: '2026-11-11',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-11T10:00', label: '10:00' },
+              { key: '2026-11-11T11:00', label: '11:00' },
+            ],
+            messageId: 'm_f09_slots',
+          },
+        },
+        s.clock,
+      )
+      ensureOpenOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contactId,
+          conversationId: s.conversationId,
+        },
+        s.clock,
+      )
+      rescheduleConversationIdle(s.db, s.tenantId, s.conversationId, s.clock, {
+        progressAt: s.clock.nowMs(),
+      })
+      s.clock.advance(IDLE_PROMPT_AFTER_MS + 1)
+      sweepDueIdleConversations(s.db, s.tenantId, s.clock)
+      s.clock.advance(IDLE_CLOSE_AFTER_MS + 1)
+      sweepDueIdleConversations(s.db, s.tenantId, s.clock)
+      if (getBookingFrame(s.db, s.tenantId, s.conversationId) != null) {
+        throw new Error('F-09: fecho idle deveria ter limpo o BookingFrame')
+      }
+    },
+    turns: [{ role: 'client', text: 'Quero agendar uma massagem' }],
+    expect: {
+      proposal: false,
+      turns: [
+        {
+          turn: 0,
+          // Modo `uma`: pergunta o tipo; não salta para horários da Liberação abandonada.
+          matches: [/tipo|qual|opç/i],
+          excludes: [
+            /Perfeito,\s*Liberação/i,
+            /próximos horários/i,
+            /quarta/i,
+            /11\/11/,
+            /\b10:00\b/,
+            /\b11:00\b/,
+          ],
+        },
+      ],
+    },
   },
   {
     id: 'F-05',

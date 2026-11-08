@@ -604,6 +604,73 @@ describe('encerrar conversa limpa BookingFrame (#508)', () => {
       s.close()
     }
   })
+
+  it('após fecho idle, novo «Quero agendar uma massagem» não reusa serviço/dia abandonados', async () => {
+    const s = seed()
+    try {
+      ensureOpenOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+        },
+        s.clock,
+      )
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: 'quero depilacao',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      // Funil abandonado: Depilação + quarta (como Liberação+quarta no staging).
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        { serviceId: s.svc.id, date: '2026-11-11' },
+        s.clock,
+      )
+      rescheduleConversationIdle(s.db, s.tenantId, s.cnv.id, s.clock, {
+        progressAt: s.clock.nowMs(),
+      })
+      s.clock.advance(IDLE_PROMPT_AFTER_MS + 1)
+      sweepDueIdleConversations(s.db, s.tenantId, s.clock)
+      s.clock.advance(IDLE_CLOSE_AFTER_MS + 1)
+      sweepDueIdleConversations(s.db, s.tenantId, s.clock)
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)).toBeNull()
+
+      s.clock.advance(1_000)
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: 'Quero agendar uma massagem',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      await tryAiAutoBook(s.db, s.caller, s.clock, {
+        conversationId: s.cnv.id,
+        enabled: true,
+        capability: true,
+      })
+      const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      expect(frame?.serviceId ?? null).not.toBe(s.svc.id)
+      expect(frame?.date ?? null).not.toBe('2026-11-11')
+    } finally {
+      s.close()
+    }
+  })
 })
 
 describe('clearBookingFrame emite evento no recomeço', () => {
@@ -624,6 +691,24 @@ describe('clearBookingFrame emite evento no recomeço', () => {
         phase: 'idle',
         serviceId: null,
       })
+    } finally {
+      s.close()
+    }
+  })
+
+  it('apaga o quadro mesmo se booking_sessions (analytics) falhar', () => {
+    const s = seed()
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        { serviceId: s.svc.id, date: '2026-11-11' },
+        s.clock,
+      )
+      s.db.run('DROP TABLE booking_sessions')
+      expect(() => clearBookingFrame(s.db, s.tenantId, s.cnv.id, s.clock)).not.toThrow()
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)).toBeNull()
     } finally {
       s.close()
     }
