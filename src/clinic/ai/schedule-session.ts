@@ -821,22 +821,28 @@ export function clearBookingFrame(
   opts?: { emitOutbox?: boolean },
 ): OutboxRow | null {
   const existing = getBookingFrame(db, tenantId, conversationId)
-  // DEC-148 / T1: limpar o quadro (recomeçar, soft-decline A/B, idle, painel)
-  // fecha a sessão analítica com abandon — idempotente se já fechada (ex. pós-Agendado).
-  if (existing && clock) {
-    endBookingSession(
-      db,
-      tenantId,
-      conversationId,
-      { outcome: 'abandon', frame: existing },
-      clock,
-    )
-  }
+  // Sempre apaga o quadro primeiro. Analytics (DEC-148) não pode deixar
+  // schedule_sessions vivo após idle/soft-decline/recomeçar (staging 08/11/2026:
+  // «Agradecemos…» saía e o funil Liberação+dia continuava).
   db.run(
     `DELETE FROM schedule_sessions WHERE tenant_id = ? AND conversation_id = ?`,
     tenantId,
     conversationId,
   )
+  // DEC-148 / T1: fecho analítico com abandon — best-effort; falha não reabre o quadro.
+  if (existing && clock) {
+    try {
+      endBookingSession(
+        db,
+        tenantId,
+        conversationId,
+        { outcome: 'abandon', frame: existing },
+        clock,
+      )
+    } catch {
+      /* analytics must not block BookingFrame clear */
+    }
+  }
   if (!existing || !clock || opts?.emitOutbox === false) return null
   return insertOutboxEvent(
     db,

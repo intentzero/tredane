@@ -13,6 +13,7 @@ import { findOpenOpportunityForConversation } from '../pipeline'
 import { ensureOpenOpportunity } from '../pipeline/operations'
 import { insertMessage } from '../inbox/messages'
 import { touchConversationMessage } from '../inbox/conversations'
+import { getBookingFrame, saveBookingFrame } from '../ai/schedule-session'
 import {
   handleIdleButtonClick,
   IDLE_CLOSE_AFTER_MS,
@@ -252,6 +253,77 @@ describe('DEC-087 idle follow-up', () => {
         cnv2,
       )
       expect(idleCols).toEqual({ due: null, phase: null })
+    } finally {
+      close()
+    }
+  })
+
+  it('promptSentAt alinha ao created_at do prompt; fecho limpa BookingFrame', () => {
+    const clock = createControllableClock(Date.UTC(2026, 10, 8, 14, 55))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      connectWa(db, clock)
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:idle:align',
+          waId: '5511987001333',
+          body: 'quero liberacao',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      ensureOpenOpportunity(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          contactId: ingested.contact!.id,
+          conversationId,
+        },
+        clock,
+      )
+      saveBookingFrame(
+        db,
+        'clinic-demo-a',
+        conversationId,
+        { serviceId: 'svc_orphan', date: '2026-11-11' },
+        clock,
+      )
+      rescheduleConversationIdle(db, 'clinic-demo-a', conversationId, clock, {
+        progressAt: clock.nowMs(),
+      })
+
+      clock.advance(IDLE_PROMPT_AFTER_MS + 1)
+      sweepDueIdleConversations(db, 'clinic-demo-a', clock)
+
+      const promptMsg = db.get<{ at: number }>(
+        `SELECT created_at AS at FROM messages
+         WHERE conversation_id = ? AND body = ?
+         ORDER BY created_at DESC LIMIT 1`,
+        conversationId,
+        IDLE_PROMPT_BODY,
+      )
+      const idleCols = db.get<{ phase: string | null; promptAt: number | null }>(
+        `SELECT idle_phase AS phase, idle_prompt_sent_at AS promptAt
+         FROM conversations WHERE id = ?`,
+        conversationId,
+      )
+      expect(idleCols?.phase).toBe('close')
+      expect(idleCols?.promptAt).toBe(promptMsg?.at)
+
+      clock.advance(IDLE_CLOSE_AFTER_MS + 1)
+      const closed = sweepDueIdleConversations(db, 'clinic-demo-a', clock)
+      expect(closed.some((s) => s.action === 'closed')).toBe(true)
+      expect(getBookingFrame(db, 'clinic-demo-a', conversationId)).toBeNull()
+      const thanks = db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM messages
+         WHERE conversation_id = ? AND body = ?`,
+        conversationId,
+        THANKS_REPLY_BODY,
+      )
+      expect(thanks?.n).toBe(1)
     } finally {
       close()
     }
