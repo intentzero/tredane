@@ -91,10 +91,7 @@ function renderAct(decision: AskInfoPolicyAct, conversationId: string): string {
   }
 }
 
-function quoteSingleVariant(
-  zone: ServiceRow['zones'][number],
-  conversationId: string,
-): AskInfoPolicyAct {
+function quoteSingleVariant(zone: ServiceRow['zones'][number]): AskInfoPolicyAct {
   const preço = zone.priceCents == null ? 'a equipe confirma o valor' : formatBRL(zone.priceCents)
   const duração = String(zone.durationMinutes)
   return {
@@ -203,7 +200,7 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
 
   // Nomes no turno → cotar esses (sem gravar variante — caller não grava).
   if (named.length === 1) {
-    const quote = quoteSingleVariant(named[0]!, conversationId)
+    const quote = quoteSingleVariant(named[0]!)
     const { entry, stack: after } = popInterrupt(stack)
     return {
       quote,
@@ -231,7 +228,7 @@ export function realizeAskInfo(input: AskInfoRealizeInput): AskInfoRealizeResult
   // Sem nomes: cotar o quadro aberto.
   const quoteZones = sessionKept && sessionZones.length > 0 ? sessionZones : null
   if (quoteZones && quoteZones.length === 1) {
-    const quote = quoteSingleVariant(quoteZones[0]!, conversationId)
+    const quote = quoteSingleVariant(quoteZones[0]!)
     const resume = shouldResumeSlotAsk(parked) ? resumeHorario(service.name) : null
     const { entry, stack: after } = popInterrupt(stack)
     const quoteText = renderAct(quote, conversationId)
