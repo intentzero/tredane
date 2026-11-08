@@ -279,8 +279,8 @@ Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-co
 | CC-05 | P0 | Audiência já conhecida | [masculino, fixado] C: «serviços masculinos» ⟶ C: «Limpeza amanhã 15h» ⟶ C: «quero outro serviço» | «Continuo no masculino…» + lista; **não** repergunta a audiência (DEC-142, DEC-090). | INV-08 | 3 | ✅ L1 (CF-45 fechado a 06/11) |
 | CC-06 | P0 | Audiência segue ao funil | C: «serviços femininos» ⟶ C: «Quero depilação axila sexta 10h» | Proposta com a Axila **feminina** (R$ 40,00, não R$ 50,00), sem reperguntar a linha. | INV-02, INV-08 | 2 | ✅ L1 |
 | CC-09 | P0 | Preço a meio da pergunta de zonas | [Depilação feminino no quadro] C: «Quanto custa?» | Tabela `Nome — R$ … (N min)` das zonas da linha + re-pergunta leve. **Não** só «Quais zonas? Temos…». | INV-02 | 1 | ✅ L1 |
-| CC-10 | P0 | Preço a meio do ask-tipo (Massagem uma) | [Massagem no quadro, sem tipo] C: «Qual o valor das massagens?» | Tabela dos tipos com R$ + reabre «qual tipo». **Não** repete só a lista de nomes nem perde o serviço. | INV-02 | 1 | ✅ L1 |
-| CC-11 | P0 | Preço a meio da oferta de slots | [Massagem + Relaxante + lastOffer] C: «Qual o valor?» | Cota a variante com R$; mantém variante/`lastOffer`; reabre horário (`perguntar_horario`). **Não** re-pergunta tipo. | INV-02 | 1 | ✅ L1 |
+| CC-10 | P0 | Preço a meio do ask-tipo (Massagem uma) | [Massagem no quadro, sem tipo] C: «Qual o valor das massagens?» | Tabela dos tipos com R$ + reabre «qual tipo» (stack ask_info park/resume no gate). **Não** repete só a lista de nomes nem perde o serviço. | INV-02, DEC-C1 | 1 | ✅ L1 |
+| CC-11 | P0 | Preço a meio da oferta de slots | [Massagem + Relaxante + lastOffer] C: «Qual o valor?» | Cota a variante com R$; mantém variante/`lastOffer`; reabre horário (`perguntar_horario`) via stack. **Não** re-pergunta tipo. | INV-02, DEC-C1 | 1 | ✅ L1 |
 
 ## P. Personas para cliente simulada (L3)
 
