@@ -483,7 +483,29 @@ export const FL_DIALOG_CASES: DialogCase[] = [
         {
           turn: 1,
           matches: [/tipos?/i, /Liberação miofascial/i, /Ventosaterapia/i, /Drenagem linfática/i, /Massagem relaxante/i],
-          excludes: [/Entendi:/i, HUB_OPENING, /O que você precisa\?/, /Não encontrei/i, /Abrir opções/],
+          excludes: [/Entendi:/i, HUB_OPENING, /O que você precisa\?/, /Não encontrei/i, /Não entendi/i, /Abrir opções/],
+        },
+      ],
+    },
+  },
+  {
+    id: 'FL-22',
+    title: 'Pedido confuso sem match: «não entendi», sem cumprimento do hub',
+    turnosIdeais: 1,
+    // Paulo, 08/11/2026 (DEC-151): «Quero agendar uma mensagem» (typo / sem hit)
+    // não recebe «Olá! Aqui é a… Abrir opções». Sem fuzzy mensagem→massagem.
+    // FL-21 já é coverageOnly D6; este caso é o comportamento novo.
+    flow: true,
+    turns: [{ role: 'client', text: 'Quero agendar uma mensagem' }],
+    expect: {
+      flowOffers: 0,
+      proposal: false,
+      notPaused: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/não entendi/i, /opções que temos|Temos /i],
+          excludes: [HUB_OPENING, /O que você precisa\?/, /Abrir opções/, /Olá! Aqui é/],
         },
       ],
     },

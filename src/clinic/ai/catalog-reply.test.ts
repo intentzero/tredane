@@ -780,7 +780,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
         opts,
       )
       expect(miss).toMatch(/bronzeamento/i)
-      expect(miss).toMatch(/não encontrei|não encontrei por aqui/i)
+      expect(miss).toMatch(/não entendi|não encontrei/i)
       expect(miss).toMatch(/Temos /)
       expect(miss).not.toMatch(/maps\.|goo\.gl|google/i)
       expect(

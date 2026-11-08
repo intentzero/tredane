@@ -1318,29 +1318,30 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         {
           turn: 0,
           matches: [/feminina|masculina/i],
-          excludes: [/não encontrei/i, /maps\.|goo\.gl/i],
+          excludes: [/não entendi/i, /não encontrei/i, /maps\.|goo\.gl/i],
         },
       ],
     },
   },
   {
     id: 'A-20',
-    title: '«Quero depilar» sem sinónimo na ficha: diz o que não encontrou e lista o catálogo',
+    title: '«Quero depilar» sem sinónimo na ficha: diz que não entendeu e lista o catálogo',
     turnosIdeais: 1,
     // Comportamento vigente por desenho (DEC-110: nomes populares vêm da ficha).
     // Reconhecer o verbo sem sinónimo seria decisão nova (Em aberto, metodologia §10).
+    // DEC-151: tom «não entendi» (não cumprimento do hub).
     turns: [{ role: 'client', text: 'Quero depilar' }],
     expect: {
       proposal: false,
       notPaused: true,
-      turns: [{ turn: 0, matches: [/não encontrei/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] }],
+      turns: [{ turn: 0, matches: [/não entendi/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] }],
     },
   },
   {
     id: 'A-21',
     title: '«Quero depilar» sem sinónimo → owner grava a sugestão → passa a reconhecer Depilação (DEC-141)',
     turnosIdeais: 2,
-    // DEC-141: o «não encontrei» regista o termo; a owner vê Depilação como
+    // DEC-141: o «não entendi» / miss regista o termo; a owner vê Depilação como
     // provável e grava com um toque. O sistema não grava sozinho.
     damage: { serviceKey: 'depilacao' },
     turns: [
@@ -1367,8 +1368,8 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       proposal: false,
       notPaused: true,
       turns: [
-        { turn: 0, matches: [/não encontrei/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] },
-        { turn: 1, matches: [/feminina|masculina/i], excludes: [/não encontrei/i, /maps\.|goo\.gl/i] },
+        { turn: 0, matches: [/não entendi/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] },
+        { turn: 1, matches: [/feminina|masculina/i], excludes: [/não entendi/i, /maps\.|goo\.gl/i] },
       ],
     },
   },
@@ -1884,7 +1885,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       turns: [
         {
           turn: 0,
-          matches: [/não encontrei|não.*encontrei|opç/i],
+          matches: [/não entendi|não encontrei|opç/i],
           excludes: [/maps\.app\.goo\.gl/i],
         },
       ],

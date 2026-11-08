@@ -42,15 +42,16 @@ export function mixedAudienceReply(conversationId = ''): string {
   return sayAct('recusar_mistura', conversationId, {}, MIXED_AUDIENCE_REPLY)
 }
 
-/** Fallback / 1.ª redação — `servico_inexistente`. */
+/** Fallback / 1.ª redação — `servico_inexistente` (DEC-151: tom de mal-entendido). */
 export const SERVICE_NOT_FOUND_REPLY =
-  'Não encontrei esse procedimento por aqui. Quer ver as opções que temos?'
+  'Não entendi bem esse pedido. Quer ver as opções que temos?'
 
 /**
- * Sem match no catálogo (prática 10 / #512).
+ * Sem match no catálogo (prática 10 / #512; tom DEC-151).
  * Usa actos aprovados `servico_inexistente` + `perguntar_servico`.
- * O `{pedido}` não é copy nova: só substitui o dêitico («esse procedimento» /
- * «Esse serviço») pelo termo que a cliente escreveu, entre aspas.
+ * O `{pedido}` não é copy nova: só substitui o dêitico («esse pedido» /
+ * «esse procedimento» / «Esse serviço») pelo termo que a cliente escreveu, entre aspas.
+ * Copy provisória (Paulo 08/11/2026): alternativas no PR / nota interna.
  */
 export function serviceNotFoundReply(
   conversationId = '',
@@ -61,6 +62,7 @@ export function serviceNotFoundReply(
   if (pedido) {
     // Eco factual do pedido — clarifica o dêitico; sem frase de marketing nova (DEC-104).
     text = text
+      .replace(/\besse pedido\b/gi, `«${pedido}»`)
       .replace(/\besse procedimento\b/gi, `«${pedido}»`)
       .replace(/\bEsse serviço\b/, `«${pedido}»`)
   }

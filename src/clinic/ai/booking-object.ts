@@ -162,7 +162,7 @@ export function catalogMissHint(text: string, services: readonly ServiceRow[]): 
   const catalogWords = new Set(
     services.flatMap((s) => [
       ...significantWords(s.name),
-      ...s.zones.filter((z) => z.active).flatMap((z) => significantWords(z.name)),
+      ...(s.zones ?? []).filter((z) => z.active).flatMap((z) => significantWords(z.name)),
     ]),
   )
   const unknown = significantWords(text).filter(

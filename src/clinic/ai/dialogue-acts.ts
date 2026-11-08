@@ -171,9 +171,11 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Não dá para juntar masculino e feminino na mesma visita. Quer escolher só um dos dois?',
     'Masculino e feminino não entram na mesma visita. Qual dos dois prefere?',
   ],
+  // DEC-151 (Paulo, 08/11/2026): tom de mal-entendido, não cumprimento novo.
+  // Copy provisória — alternativas no PR / nota interna.
   servico_inexistente: [
-    'Não encontrei esse procedimento por aqui. Quer ver as opções que temos?',
-    'Esse serviço eu não encontrei por aqui. Quer ver o que oferecemos?',
+    'Não entendi bem esse pedido. Quer ver as opções que temos?',
+    'Não entendi esse pedido por aqui. Quer ver as opções que temos?',
   ],
   varios_servicos: [
     'Neste momento marcamos um serviço de cada vez. Qual você quer primeiro?',

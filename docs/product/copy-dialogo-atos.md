@@ -217,12 +217,12 @@ Substitui: `Masculino e feminino não entram na mesma visita. Escolha um conjunt
 
 ### servico_inexistente
 
-1. *(atual)* `Não encontrei esse procedimento por aqui. Quer ver as opções que temos?`
-2. *(novo)* `Esse serviço eu não encontrei por aqui. Quer ver o que oferecemos?`
+1. *(provisória, DEC-151)* `Não entendi bem esse pedido. Quer ver as opções que temos?`
+2. *(provisória, DEC-151)* `Não entendi esse pedido por aqui. Quer ver as opções que temos?`
 
-Substitui: a 2.ª redação sai de «o que a clínica oferece» (voz em 3.ª pessoa) para «o que oferecemos».
+**Confirmado (DEC-151, Paulo 08/11/2026):** o tom admite mal-entendido (não cumprimento «Olá!…» do hub). Frases acima são **provisórias** até Paulo fechar o wording exacto; alternativas no PR.
 
-**#512 / prática 10 (Confirmado no código; copy base inalterada):** quando o catálogo não casa, o backend (1) substitui o dêitico «esse procedimento» / «Esse serviço» pelo termo pedido entre aspas (eco factual, sem frase de marketing nova — DEC-104) e (2) acrescenta `perguntar_servico` com `{lista}` real da clínica. O link Google só sai em `informar_local*`.
+**#512 / prática 10:** quando o catálogo não casa, o backend (1) substitui o dêitico «esse pedido» / «esse procedimento» / «Esse serviço» pelo termo pedido entre aspas (eco factual, sem frase de marketing nova — DEC-104) e (2) acrescenta `perguntar_servico` com `{lista}` real da clínica. O link Google só sai em `informar_local*`.
 
 ### varios_servicos
 
