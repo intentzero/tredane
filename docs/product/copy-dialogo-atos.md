@@ -118,7 +118,7 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 1. `Se quiser parar, diga terminar.`
 
-One-shot a meio do funil (DEC-152 — Confirmado, Paulo 08/11/2026; `end-help-hint.ts` / `sayAct`). Não na oferta permanente de slots (P5 adiado).
+One-shot a meio do funil (DEC-152 — Confirmado, Paulo 08/11/2026; `end-help-hint.ts` / `sayAct`). Não na oferta permanente de slots (P5 adiado). Quando a cliente responde «Terminar» (exacto, case-insensitive), o caminho é `acolher_adiamento` + limpar frame (DEC-147 A / L1 A-35) — nunca «Não encontrei terminar…».
 
 ### esclarecer
 

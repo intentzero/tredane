@@ -333,6 +333,8 @@ describe('nome do serviço ≠ variante (Paulo 07/11/2026)', () => {
       'Podes encerrar a sessao',
       'encerrar a sessão',
       'desisto',
+      'Terminar',
+      'terminar',
       'tem horário na próxima quarta?',
       'Quarta feira tem horário?',
       'Na próxima quarta tem horário disponível?',

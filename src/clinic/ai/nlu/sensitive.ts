@@ -88,6 +88,10 @@ export const EXPLICIT_ABANDON_RE = new RegExp(
     String.raw`\b(?:desisto|desistir)\b`,
     String.raw`\bvou\s+pensar\b`,
     String.raw`\b(?:podes?\s+)?encerrar(?:\s+a\s+sess[aã]o)?\b`,
+    // DEC-152: hint «diga terminar» — mensagem exacta (case-insensitive),
+    // opcional «a sessão» / «quero|pode|podes|ok» à frente. Não casa
+    // «quero terminar depois» (sobra após o fim).
+    String.raw`^(?:(?:ok|pode|podes|quero)[,.\s!]*)*terminar(?:\s+a\s+sess[aã]o)?[.!?\s]*$`,
   ].join('|'),
   'i',
 )

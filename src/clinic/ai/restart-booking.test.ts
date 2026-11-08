@@ -263,6 +263,11 @@ describe('classifySensitive — desistência educada (DEC-147)', () => {
     'deixa',
     'Podes encerrar a sessao',
     'encerrar a sessão',
+    'Terminar',
+    'terminar',
+    'TERMINAR',
+    'quero terminar',
+    'terminar a sessão',
     'obrigado',
     'tchau',
     'não quero',
@@ -279,6 +284,8 @@ describe('classifySensitive — desistência educada (DEC-147)', () => {
     'tem horário amanhã?',
     // D3: correção de variante, não abandono A.
     'Na verdade não quero pernas, só axila',
+    // DEC-152: exact match — não «depois».
+    'quero terminar depois',
   ]
 
   it.each(positives)('TP: %s', (text) => {
@@ -418,6 +425,8 @@ describe('tryAiAutoBook — desistência após slots A/B (DEC-147)', () => {
   it.each([
     'Deixa estar, obrigado',
     'Podes encerrar a sessao',
+    // DEC-152 / staging Paulo 08/11/2026: após hint «diga terminar».
+    'Terminar',
   ] as const)('oferta aberta + «%s» → frame limpo, adeus, sem Não encontrei', async (body) => {
     const s = seed()
     try {

@@ -258,6 +258,19 @@ describe('classifySensitive (#409)', () => {
       labels: ['desistir'],
       pause: false,
     },
+    {
+      // DEC-152 / staging Paulo 08/11/2026: hint «diga terminar» mid-oferta.
+      id: 'D-10',
+      text: 'Terminar',
+      labels: ['desistir'],
+      pause: false,
+    },
+    {
+      id: 'D-11',
+      text: 'quero terminar depois',
+      labels: [],
+      pause: false,
+    },
   ]
 
   for (const row of rows) {
