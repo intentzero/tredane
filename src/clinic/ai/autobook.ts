@@ -1187,6 +1187,19 @@ export async function tryAiAutoBook(
         session?.serviceId === det.service.id && session.variantIds?.length ? session.variantIds : []
       const sessionZones = mentionPool.filter((z) => sessionIds.includes(z.id))
       const sessionIntact = sessionIds.length > 0 && sessionZones.length === sessionIds.length
+      // Funil activo = sessão do mesmo serviço. Sem isso (ex. fecho idle DEC-087),
+      // inbound antigo («quero liberação») não pode escolher variante (#620 / F-09).
+      const earlySameFunnel = Boolean(session && session.serviceId === det.service.id)
+      const earlyFunnelOlder =
+        earlySameFunnel && session
+          ? older.filter(
+              funnelMessageFilter(
+                older,
+                (m) => ({ direction: m.direction, at: m.created_at }),
+                session.updatedAt,
+              ),
+            )
+          : []
       // D3: polaridade («não quero X, só Y») antes do parser — a negação não reentra.
       const earlyPolarity = classifyVariantPolarity(turnText, mentionPool)
       const earlyPolarIds = resolvePolarityVariantIds(
@@ -1213,7 +1226,7 @@ export async function tryAiAutoBook(
         : turnMention
       let chosen = frameOwnsVariants
         ? { zones: sessionIntact ? sessionZones : [], ambiguous: false }
-        : zonesChosenByClient(clientTurn, older, mentionPool, det.service)
+        : zonesChosenByClient(clientTurn, earlyFunnelOlder, mentionPool, det.service)
       let kept = chosen.zones
       let earlyAmbiguous = chosen.ambiguous
       // DEC-145 / staging: «tem»/«feira» na stop-list — pergunta de dia não dispara

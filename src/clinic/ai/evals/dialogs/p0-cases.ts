@@ -790,8 +790,16 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       turns: [
         {
           turn: 0,
-          matches: [/tipo|qual|Massagem|opç/i],
-          excludes: [/quarta/i, /11\/11/, /\b10:00\b/, /\b11:00\b/],
+          // Modo `uma`: pergunta o tipo; não salta para horários da Liberação abandonada.
+          matches: [/tipo|qual|opç/i],
+          excludes: [
+            /Perfeito,\s*Liberação/i,
+            /próximos horários/i,
+            /quarta/i,
+            /11\/11/,
+            /\b10:00\b/,
+            /\b11:00\b/,
+          ],
         },
       ],
     },
