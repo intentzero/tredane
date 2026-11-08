@@ -114,9 +114,11 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 2. `Tudo bem! Fico por aqui quando você decidir.`
 3. `Fica à vontade. Qualquer coisa, me chama.`
 
-### Hint mid-funnel (DEC-152 — Confirmado, Paulo 08/11/2026)
+### orientar_terminar
 
-Frase fixa one-shot (não é acto do catálogo M4): `Se quiser parar, diga terminar.` Acrescentada ao fim do corpo quando a sessão de marcação já está aberta e o turno não avança o quadro. Não na oferta permanente de slots (P5 adiado).
+1. `Se quiser parar, diga terminar.`
+
+One-shot a meio do funil (DEC-152 — Confirmado, Paulo 08/11/2026; `end-help-hint.ts` / `sayAct`). Não na oferta permanente de slots (P5 adiado).
 
 ### esclarecer
 

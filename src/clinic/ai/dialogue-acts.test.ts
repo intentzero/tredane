@@ -87,6 +87,7 @@ describe('#414 dialogue acts', () => {
       ['historico_indisponivel', {}],
       ['catalogo_mudou', {}],
       ['nao_consegui_fechar', { serviço: 'Massagem', hora: '10:00' }],
+      ['orientar_terminar', {}],
     ]
     for (const [act, vars] of samples) {
       const all = renderEveryVariant(act, vars)

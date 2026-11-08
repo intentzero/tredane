@@ -641,8 +641,8 @@ export async function tryAiAutoBook(
     ) {
       next = {
         ...outcome,
-        replyText: appendEndHelpHint(outcome.replyText!),
-        notes: [outcome.notes, 'DEC-152: one-time end-help hint'].filter(Boolean).join(' '),
+        replyText: appendEndHelpHint(outcome.replyText!, input.conversationId),
+        notes: [outcome.notes, 'DEC-152'].filter(Boolean).join(' '),
       }
       markEndHelpHintSent(db, tenantId, input.conversationId)
     }

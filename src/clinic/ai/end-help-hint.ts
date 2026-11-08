@@ -6,9 +6,10 @@
  * Não vai na oferta de slots (P5 adiado); não no soft-decline; não no idle.
  */
 import type { ClinicDb } from '../store'
+import { sayAct } from './dialogue-acts'
 import type { BookingFrame } from './schedule-session'
 
-/** Copy Confirmada (Paulo, 08/11/2026, DEC-152 / DEC-104). */
+/** Fallback Confirmado (Paulo, 08/11/2026, DEC-152 / DEC-104) — acto `orientar_terminar`. */
 export const END_HELP_HINT_TEXT = 'Se quiser parar, diga terminar.'
 
 export type FrameProgressHint = Pick<
@@ -88,11 +89,17 @@ export function markEndHelpHintSent(
 }
 
 /** Junta o hint ao corpo (uma linha nova). Idempotente se já estiver lá. */
-export function appendEndHelpHint(body: string): string {
+export function appendEndHelpHint(body: string, conversationId = ''): string {
+  const hint = sayAct(
+    'orientar_terminar',
+    conversationId,
+    {},
+    END_HELP_HINT_TEXT,
+  )
   const trimmed = body.trimEnd()
-  if (!trimmed) return END_HELP_HINT_TEXT
-  if (trimmed.includes(END_HELP_HINT_TEXT)) return trimmed
-  return `${trimmed}\n\n${END_HELP_HINT_TEXT}`
+  if (!trimmed) return hint
+  if (trimmed.includes(hint) || trimmed.includes(END_HELP_HINT_TEXT)) return trimmed
+  return `${trimmed}\n\n${hint}`
 }
 
 /** Soft-decline / adeus — não acrescentar hint. */
