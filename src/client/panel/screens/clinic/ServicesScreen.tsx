@@ -771,6 +771,12 @@ export function ServiceForm({
               combos={combos}
               onCombos={(update) => setCombos(update)}
             />
+          ) : combos.some((c) => c.active) ? (
+            // DEC-149 — combos ficam ocultos em `uma`; avisar antes do Salvar.
+            <p className="clinic-form-error" role="status">
+              Este serviço ainda tem combo ativo. Volte a «Pode juntar opções», desative ou
+              remova os combos, e só depois grave «Escolhe uma opção».
+            </p>
           ) : null}
           </>
         ) : (

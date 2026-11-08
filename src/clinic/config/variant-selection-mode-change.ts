@@ -29,7 +29,7 @@ export function assertNoActiveCombosForUma(
       : names.slice(0, -1).map((n) => `«${n}»`).join(', ') + ` e «${names[names.length - 1]}»`
   throw new ValidationError(
     'variant_selection_combos_active',
-    `Desactive ${names.length === 1 ? 'o combo' : 'os combos'} ${listed} antes de mudar para uma variante por atendimento.`,
+    `Desative ${names.length === 1 ? 'o combo' : 'os combos'} ${listed} antes de mudar para uma variante por atendimento.`,
     { serviceId, comboNames: names, comboIds: active.map((c) => c.id) },
   )
 }

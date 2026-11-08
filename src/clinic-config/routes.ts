@@ -19,6 +19,7 @@ import {
   workerCaller,
 } from '../clinic'
 import type { WorkerBindings } from '../worker/bindings'
+import { isVariantSelection } from '../clinic/catalog/variant-selection'
 import { isVariantAudience } from '../clinic/config/types'
 import type { ClinicConfigGateway } from './gateway'
 import {
@@ -957,10 +958,25 @@ function parseServiceBody(body: Record<string, unknown>) {
           variantKindPlural:
             body.variantKindPlural === null ? null : String(body.variantKindPlural),
         }),
+    ...parseVariantSelectionBody(body),
     ...(body.synonyms === undefined
       ? {}
       : { synonyms: Array.isArray(body.synonyms) ? body.synonyms : [] }),
   }
+}
+
+/** DEC-145 — omitido mantém o modo gravado; null/inválido → 400. */
+function parseVariantSelectionBody(
+  body: Record<string, unknown>,
+): { variantSelection: 'uma' | 'varias' } | Record<string, never> {
+  if (body.variantSelection === undefined) return {}
+  if (!isVariantSelection(body.variantSelection)) {
+    throw new ValidationError(
+      'invalid_variant_selection',
+      'escolha uma opção por atendimento ou várias',
+    )
+  }
+  return { variantSelection: body.variantSelection }
 }
 
 function parseTempoBody(body: Record<string, unknown>) {

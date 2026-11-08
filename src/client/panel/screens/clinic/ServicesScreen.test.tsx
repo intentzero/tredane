@@ -271,6 +271,95 @@ describe('ServiceForm — catálogo de variantes', () => {
     sortOrder: 0,
   })
 
+  it('grava variantSelection=uma ao escolher «Escolhe uma opção»', async () => {
+    const upsertService = vi.fn(async () =>
+      svc({
+        variantKind: 'Tipo',
+        variantKindPlural: 'Tipos',
+        variantSelection: 'uma',
+        zones: [zone('z1', 'Relaxante', 'ambos')],
+      }),
+    )
+    const replaceServiceZones = vi.fn(async () =>
+      svc({
+        variantKind: 'Tipo',
+        variantKindPlural: 'Tipos',
+        variantSelection: 'uma',
+        zones: [zone('z1', 'Relaxante', 'ambos')],
+      }),
+    )
+    renderForm(
+      svc({
+        variantKind: 'Tipo',
+        variantKindPlural: 'Tipos',
+        variantSelection: 'varias',
+        zones: [zone('z1', 'Relaxante', 'ambos')],
+      }),
+      { upsertService, replaceServiceZones } as unknown as Partial<PanelApi>,
+    )
+    fireEvent.click(screen.getByRole('radio', { name: /Escolhe uma opção/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() => expect(upsertService).toHaveBeenCalled())
+    const body = (upsertService.mock.calls[0] as unknown[])[1] as Record<string, unknown>
+    expect(body.variantSelection).toBe('uma')
+  })
+
+  it('reabre com «Escolhe uma opção» quando o serviço já está em uma', () => {
+    renderForm(
+      svc({
+        variantKind: 'Tipo',
+        variantKindPlural: 'Tipos',
+        variantSelection: 'uma',
+        zones: [zone('z1', 'Relaxante', 'ambos')],
+      }),
+      {},
+    )
+    // Modo uma: catálogo de variantes visível; combos (só em varias) ocultos.
+    expect(screen.getByLabelText('Nome no singular')).toBeTruthy()
+    expect(screen.getByText('Relaxante')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Adicionar combo/i })).toBeNull()
+    expect(screen.queryByText(/economia R\$/)).toBeNull()
+  })
+
+  it('mostra o erro DEC-149 quando a API recusa varias→uma com combos', async () => {
+    const upsertService = vi.fn(async () => {
+      throw new PanelApiError(
+        400,
+        'unknown',
+        'Desative o combo «Buço + axila» antes de mudar para uma variante por atendimento.',
+      )
+    })
+    renderForm(
+      svc({
+        variantKind: 'Zona',
+        variantKindPlural: 'Zonas',
+        variantSelection: 'varias',
+        zones: [
+          zone('z1', 'Axila', 'ambos'),
+          zone('z2', 'Buço', 'feminino'),
+        ],
+        combos: [
+          {
+            id: 'c1',
+            name: 'Buço + axila',
+            priceCents: 7000,
+            zoneIds: ['z1', 'z2'],
+            active: true,
+            sortOrder: 0,
+          },
+        ],
+      }),
+      { upsertService } as unknown as Partial<PanelApi>,
+    )
+    fireEvent.click(screen.getByRole('radio', { name: /Escolhe uma opção/ }))
+    expect(screen.getByText(/ainda tem combo ativo/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar serviço' }))
+    await waitFor(() =>
+      expect(screen.getByText(/Desative o combo «Buço \+ axila»/)).toBeTruthy(),
+    )
+    expect(screen.getByText(/continua aqui/)).toBeTruthy()
+  })
+
   it('mostra singular e plural e grava o plural sugerido', async () => {
     const upsertService = vi.fn(async () => ({ id: 'svc_1' }))
     const replaceServiceZones = vi.fn(async () => [])

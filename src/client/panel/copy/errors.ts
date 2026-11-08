@@ -37,7 +37,7 @@ const BY_CODE: Record<string, string> = {
   zone_name_taken: 'Já existe uma variante com o mesmo nome, gênero, duração e preço.',
   // DEC-149 — mudança varias → uma
   variant_selection_combos_active:
-    'Desactive os combos deste serviço antes de mudar para uma variante por atendimento.',
+    'Desative os combos deste serviço antes de mudar para uma variante por atendimento.',
   variant_selection_uma: 'Este procedimento aceita só uma variante por visita.',
   invalid_variant_selection: 'Escolha uma opção por atendimento ou várias.',
   // DEC-110 / #421 — sinónimos (fallback se a API não mandar a frase)
