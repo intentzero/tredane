@@ -1,13 +1,16 @@
 /**
  * Zonas em texto livre e telemetria do funil (DEC-143, 06/11/2026) — metodologia 0.6 (G-09).
  * Entraram na `main` (#589, #588) só com testes unitários; estes diálogos fixam o comportamento.
+ * A-38: T2 friction `nao_encontrei` (session-analytics).
  *
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * Depilação com Axila, Pernas (feminino e masculino, DEC-079) e Buço (ambos).
  */
+import { frictionTermHash } from '../../turn-friction'
 import type { DialogCase } from './runner'
 
 const NO_LEAK = [/maps\.google|goo\.gl/i, /\{|\}/]
+const COTOVELO_HASH = frictionTermHash('cotovelo')!
 
 export const ZONAS_DIALOG_CASES: DialogCase[] = [
   {
@@ -72,6 +75,37 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
         { variantsChanged: true, zonesAskedBefore: false, modelCalled: false },
       ],
       turns: [{ turn: 1, matches: [/Entendi: Axila e Pernas\. Certo\?/] }],
+    },
+  },
+  {
+    id: 'A-38',
+    title: 'Telemetria T2: «Axila e cotovelo» emite friction nao_encontrei (sem termo em claro)',
+    turnosIdeais: 2,
+    // session-analytics T2: option-miss (#509 / zone-echo) → friction. Falha sem a flag.
+    // «cotovelo» sozinho pode só reperguntar zonas; com Axila parcial dispara Não encontrei.
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'Axila e cotovelo' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turnDecided: [
+        { variantsChanged: false },
+        {
+          friction: [
+            { flag: 'nao_encontrei', kind: 'zone', termHash: COTOVELO_HASH },
+          ],
+        },
+      ],
+      turns: [
+        {
+          turn: 1,
+          matches: [/Não encontrei cotovelo nas opções/i],
+          excludes: [/Entendi:/i],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
     },
   },
 ]

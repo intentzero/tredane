@@ -1503,6 +1503,8 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       proposal: false,
       notPaused: true,
       noAppointment: true,
+      // T2: modo uma + «tudo» → friction mode_uma_todas (falha sem a flag).
+      turnDecided: [{ friction: [{ flag: 'mode_uma_todas' }] }],
       turns: [
         {
           turn: 0,
