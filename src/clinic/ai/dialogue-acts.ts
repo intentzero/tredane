@@ -75,6 +75,8 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Os próximos horários para {assunto} são {lista}. Algum serve?',
     'Tenho {lista} para {assunto}. Qual prefere?',
     'Perfeito, {assunto}. Os próximos horários são {lista}. Algum serve?',
+    // Dia já pedido (Paulo 08/11/2026): sem «próximos… para {serviço}».
+    'Os horários disponíveis para {dia} são {lista}. Algum serve?',
   ],
   sem_vaga_alternativas: [
     'Nesse horário das {hora} já não tenho vaga. Tenho {lista}. Qual fica melhor?',

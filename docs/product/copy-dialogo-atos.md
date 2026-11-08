@@ -57,6 +57,7 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 2. `Os próximos horários para {assunto} são {lista}. Algum serve?`
 3. `Tenho {lista} para {assunto}. Qual prefere?`
 4. `Perfeito, {assunto}. Os próximos horários são {lista}. Algum serve?`
+5. `Os horários disponíveis para {dia} são {lista}. Algum serve?` — **Confirmado** (Paulo, 08/11/2026): só quando a cliente já pediu o dia/weekday e a oferta ficou nesse dia; sem «próximos… para {serviço}». `{dia}` = `hoje` / `amanhã` / `quarta 11/11`; `{lista}` = só as horas.
 
 ### sem_vaga_alternativas
 

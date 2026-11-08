@@ -65,6 +65,16 @@ export function dayWithPrepPt(date: string, today?: string | null): string {
   return `${prep} ${wd} (${d}/${m})`
 }
 
+/**
+ * Rótulo para oferta com dia já pedido (Paulo 08/11/2026):
+ * «hoje» / «amanhã» / «quarta 11/11» — entra em «horários disponíveis para {dia}».
+ */
+export function dayOfferLabelPt(date: string, today: string): string {
+  if (date === today) return 'hoje'
+  if (date === addCivilDays(today, 1)) return 'amanhã'
+  return dayTextPt(date)
+}
+
 export function periodWordPt(period: DayPeriod): string {
   if (period === 'manha') return 'de manhã'
   if (period === 'tarde') return 'à tarde'
@@ -312,6 +322,26 @@ export async function offerNearestSlots(input: {
     list.push(slot.time)
     byDay.set(slot.date, list)
   }
+
+  // Dia já pedido e a oferta ficou nesse dia: sem «próximos… para {serviço}» (Paulo 08/11/2026).
+  const dayConstrained =
+    Boolean(date) && picked.length > 0 && picked.every((slot) => slot.date === date)
+  if (dayConstrained) {
+    const diaBase = dayOfferLabelPt(date!, today)
+    const dia = period ? `${diaBase} ${periodWordPt(period)}` : diaBase
+    // Horas só no corpo — o dia já vai no enquadramento; a lista interativa mantém DD/MM.
+    const listed = (byDay.get(date!) ?? picked.map((slot) => slot.time)).join(', ')
+    const fallback = `Os horários disponíveis para ${dia} são ${listed}. Algum serve?`
+    const body = sayAct(
+      'oferecer_horarios',
+      conversationId,
+      { assunto: subject, quando: '', lista: listed, dia },
+      fallback,
+      { requireInTemplate: ['{dia}'] },
+    )
+    return { slots: picked, replyText: body }
+  }
+
   const bits = [...byDay.entries()].map(([day, times]) => `${dayTextPt(day)} às ${times.join(', ')}`)
   const listed = bits.length === 1 ? bits[0]! : `${bits.slice(0, -1).join(', ')} e ${bits[bits.length - 1]}`
   // `{quando}`: período com espaço final, ou vazio (opcional no motor do catálogo).

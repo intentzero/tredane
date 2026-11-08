@@ -303,10 +303,12 @@ export const CC_DIALOG_CASES: DialogCase[] = [
         },
         {
           turn: 2,
-          matches: [/quarta|\d{1,2}:\d{2}/i],
+          // Paulo 08/11/2026: dia já pedido → «disponíveis para quarta», não «próximos…».
+          matches: [/horários disponíveis para quarta\s+11\/11/i, /\d{1,2}:\d{2}/],
           excludes: [
             /Não encontrei/i,
             /dispon[ií]vel nas opções/i,
+            /próximos horários/i,
             /\bqual tipo\b/i,
             /Quer Liberação miofascial/i,
           ],

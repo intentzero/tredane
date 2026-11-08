@@ -224,7 +224,9 @@ describe('DEC-145 staging: Massagem modo uma', () => {
         ''
       expect(dayReply).not.toMatch(/\bqual tipo\b/i)
       expect(dayReply).not.toMatch(/Não encontrei/i)
-      expect(dayReply).toMatch(/quarta\s+28\/10/i)
+      expect(dayReply).toMatch(/horários disponíveis para quarta\s+28\/10/i)
+      expect(dayReply).not.toMatch(/próximos horários/i)
+      expect(dayReply).toMatch(/\d{1,2}:\d{2}/)
       expect(getScheduleSession(s.db, s.tenantId, s.cnv.id)?.variantIds).toEqual([liberacao.id])
     } finally {
       s.close()
@@ -267,8 +269,10 @@ describe('DEC-145 staging: Massagem modo uma', () => {
         expect(reply).not.toMatch(/Quer Liberação miofascial/i)
         expect(reply).not.toMatch(/\bquais tipos?\b/i)
         expect(reply).not.toMatch(/\bqual tipo\b/i)
-        expect(reply).toMatch(/quarta\s+28\/10/i)
-        expect(reply).toMatch(/tenho|vaga|\d{1,2}:\d{2}/i)
+        // Paulo 08/11/2026: dia já pedido → «disponíveis para quarta», não «próximos…».
+        expect(reply).toMatch(/horários disponíveis para quarta\s+28\/10/i)
+        expect(reply).not.toMatch(/próximos horários/i)
+        expect(reply).toMatch(/\d{1,2}:\d{2}/)
 
         const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
         expect(session?.variantIds).toEqual([s.relaxante.id])
