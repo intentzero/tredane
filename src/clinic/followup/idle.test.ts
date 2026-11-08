@@ -16,11 +16,13 @@ import { touchConversationMessage } from '../inbox/conversations'
 import { getBookingFrame, saveBookingFrame } from '../ai/schedule-session'
 import {
   handleIdleButtonClick,
+  handleIdleTextReply,
   IDLE_CLOSE_AFTER_MS,
   IDLE_PROMPT_AFTER_MS,
   IDLE_PROMPT_BODY,
   idleButtonId,
   parseIdleButtonId,
+  parseIdleTextReply,
   rescheduleConversationIdle,
   sweepDueIdleConversations,
 } from './idle'
@@ -54,6 +56,10 @@ describe('DEC-087 idle follow-up', () => {
       action: 'continue',
     })
     expect(parseIdleButtonId('fu:post:x:thanks')).toBeNull()
+    expect(parseIdleTextReply('Terminar')).toBe('end')
+    expect(parseIdleTextReply('prosseguir')).toBe('continue')
+    expect(parseIdleTextReply('[Botão] Terminar')).toBeNull()
+    expect(parseIdleTextReply('quero terminar depois')).toBeNull()
   })
 
   it('após 30 min envia prompt; Terminar sem horário futuro vai a Perdido', () => {
@@ -253,6 +259,101 @@ describe('DEC-087 idle follow-up', () => {
         cnv2,
       )
       expect(idleCols).toEqual({ due: null, phase: null })
+    } finally {
+      close()
+    }
+  })
+
+  it('texto livre Terminar após o prompt limpa BookingFrame (mesmo settleIdle)', () => {
+    const clock = createControllableClock(Date.UTC(2026, 10, 8, 13, 0))
+    const { db, close } = bootClinicDb({ clock })
+    try {
+      connectWa(db, clock)
+      const caller = workerCaller('clinic-demo-a', 'user_synth_attendant_a')
+      const ingested = ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:idle:text-end',
+          waId: '5511987001444',
+          body: 'quero liberacao',
+        },
+        clock,
+      )
+      const conversationId = ingested.conversation!.id
+      ensureOpenOpportunity(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          contactId: ingested.contact!.id,
+          conversationId,
+        },
+        clock,
+      )
+      saveBookingFrame(
+        db,
+        'clinic-demo-a',
+        conversationId,
+        { serviceId: 'svc_liberacao', date: '2026-11-11' },
+        clock,
+      )
+      rescheduleConversationIdle(db, 'clinic-demo-a', conversationId, clock, {
+        progressAt: clock.nowMs(),
+      })
+      clock.advance(IDLE_PROMPT_AFTER_MS + 1)
+      sweepDueIdleConversations(db, 'clinic-demo-a', clock)
+
+      // Ingest real reinicia idle_phase (close → prompt); o texto ainda tem de fechar.
+      clock.advance(1_000)
+      ingestContactMessage(
+        db,
+        caller,
+        {
+          providerEventKey: 'wa:idle:text-end:terminar',
+          waId: '5511987001444',
+          body: 'Terminar',
+        },
+        clock,
+      )
+      const phaseAfterIngest = db.get<{ phase: string | null }>(
+        `SELECT idle_phase AS phase FROM conversations WHERE id = ?`,
+        conversationId,
+      )
+      expect(phaseAfterIngest?.phase).not.toBe('close')
+
+      const text = handleIdleTextReply(
+        db,
+        {
+          tenantId: 'clinic-demo-a',
+          conversationId,
+          text: 'Terminar',
+          providerEventKey: 'wa:idle:text-end:terminar',
+        },
+        clock,
+      )
+      expect(text.handled).toBe(true)
+      if (!text.handled) return
+      expect(text.action).toBe('end')
+      expect(getBookingFrame(db, 'clinic-demo-a', conversationId)).toBeNull()
+      const thanks = db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM messages
+         WHERE conversation_id = ? AND body = ?`,
+        conversationId,
+        THANKS_REPLY_BODY,
+      )
+      expect(thanks?.n).toBe(1)
+      // [Botão] fica no handler de botão — não no texto.
+      expect(
+        handleIdleTextReply(
+          db,
+          {
+            tenantId: 'clinic-demo-a',
+            conversationId,
+            text: '[Botão] Terminar',
+          },
+          clock,
+        ).handled,
+      ).toBe(false)
     } finally {
       close()
     }

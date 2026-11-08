@@ -18,6 +18,7 @@ import type { ClinicCaller } from '../envelopes'
 import { ClinicError } from '../errors'
 import { isClinicAiAssistEnabled } from '../config/settings'
 import { listServices } from '../config/services'
+import { handleIdleTextReply } from '../followup/idle'
 import { needsAudienceLine } from './variant-line'
 import { getConversation } from '../inbox/conversations'
 import { sendOutboundMessageOp } from '../inbox/operations'
@@ -434,6 +435,31 @@ export async function runDueAutoDrafts(
       clock,
     )
     const turnText = turn.turnText
+    // DEC-087: texto livre «Terminar» / «Prosseguir» após o prompt idle — mesmo
+    // settleIdle do botão (#620). Ingest já pode ter reiniciado idle_phase.
+    {
+      const idleText = handleIdleTextReply(
+        db,
+        {
+          tenantId,
+          conversationId: job.conversationId,
+          text: turnText,
+          providerEventKey: job.messageId,
+        },
+        clock,
+      )
+      if (idleText.handled) {
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        record({
+          ...job,
+          status: 'skipped',
+          suggestion: null,
+          reason: idleText.action === 'end' ? 'idle_end_text' : 'idle_continue_text',
+          replyOutbox: idleText.outbox,
+        })
+        continue
+      }
+    }
     // CF-26 / DEC-119 / DEC-130: áudio/imagem sem texto → pedir texto; comprovativo ou
     // segunda mídia após o pedido → equipe (DEC-083). Antes do funil e do modelo.
     const mediaDecision = decideMediaOnlyTurn(

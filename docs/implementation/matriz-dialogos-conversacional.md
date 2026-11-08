@@ -157,6 +157,7 @@
 | F-02 | P1 | Só queria o preço | C: «Só queria saber o preço da massagem mesmo» | Informa o preço e deixa a porta aberta, sem insistir. | EF-04, Q6 | 1 | ❔ L2 |
 | F-03 | P0 | Cliente some | [oferta enviada; 30 min sem resposta] | Pergunta «prosseguir/terminar» com botões; mais 30 min sem resposta → Perdido (DEC-087). | EF-04 | 0 | ✅ `followup/idle.test` |
 | F-09 | P0 | Fecho idle limpa frame | [Liberação+quarta no quadro; idle thanks] ⟶ C: «Quero agendar uma massagem» | Frame limpo no fecho; pergunta tipo sob `uma`, sem reusar Liberação+dia. | INV-08, DEC-087 | 1 | ✅ L1 (#620) |
+| F-10 | P0 | Texto Terminar no idle | [Liberação no quadro; prompt idle] ⟶ C: «Terminar» ⟶ C: «Quero agendar uma massagem» | Thanks DEC-087; frame limpo; pergunta tipo sob `uma`, sem Liberação+dia. | INV-08, DEC-087 | 2 | ✅ L1 |
 | F-04 | P1 | Adiar | C: «Agora não posso, amanhã falo» | Acolhe e não volta a escrever antes do idle. | EF-04 | 1 | ❔ L2 |
 | F-05 | P0 | «Alterar detalhes» | [proposta] ⟶ clique «Alterar detalhes» | Frase + equipe; nada marcado. | INV-01, INV-06 | 1 | ✅ `dec-083.test` · ✅ L4 05/11 (cópia CF-40) — [sonda 05/11](../security/staging-conversational-probe-2026-11-05-smoke.md) |
 | F-06 | P0 | Proposta expirada | [proposta enviada há 31 min] ⟶ clique Confirmar | Recusa; nenhum compromisso; aviso/nova proposta. | INV-01 | 1 | ✅ `proposals.test` «envio inicia 30 min…» |
