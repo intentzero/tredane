@@ -262,6 +262,8 @@ describe('#414 dialogue acts', () => {
       lista: 'sexta 06/11 às 09:00',
     })
     expect(all).toContain('Para Massagem, tenho sexta 06/11 às 09:00. Qual fica melhor?')
-    expect(all.length).toBe(DIALOGUE_ACTS.oferecer_horarios.length)
+    // Sem {dia}: a 5.ª redação (oferta com dia já pedido) fica de fora.
+    expect(all.length).toBe(DIALOGUE_ACTS.oferecer_horarios.filter((t) => !t.includes('{dia}')).length)
+    expect(all.every((t) => !t.includes('disponíveis para'))).toBe(true)
   })
 })

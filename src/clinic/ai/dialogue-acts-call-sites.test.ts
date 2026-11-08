@@ -89,6 +89,7 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Para \$\{subject\}, \$\{dia\} não tenho horário livre\. Quer ver outro dia\?$/,
   /^Para \$\{subject\}, no momento não tenho horário livre\. Quer que eu veja outra data\?$/,
   /^Para \$\{subject\}, \$\{quando\}tenho \$\{listed\}\. Qual fica melhor\?$/,
+  /^Os horários disponíveis para \$\{dia\} são \$\{listed\}\. Algum serve\?$/,
   /^Nesse horário das \$\{input\.time\} já não tenho vaga\. Tenho \$\{lista\}\. Qual fica melhor\?$/,
   /^Nesse horário das \$\{input\.time\} já não tenho vaga e o dia está cheio nesse período\. No próximo com vaga tenho \$\{listed\}\. Qual fica melhor\?$/,
   /^Nesse horário das \$\{input\.time\} já não tenho vaga\. Quer que eu veja outro horário\?$/,

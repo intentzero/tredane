@@ -5,6 +5,7 @@ import {
   setDialogueVariantForTests,
 } from './dialogue-acts'
 import {
+  dayOfferLabelPt,
   dayWithPrepPt,
   periodFromHHMM,
   pickNearbySameDay,
@@ -30,6 +31,29 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
     expect(body).not.toMatch(/vale por 24 horas/i)
     expect(body).not.toMatch(/Esta lista vale/i)
     expect(body).toMatch(/09:00/)
+  })
+
+  it('oferta com dia já pedido usa «disponíveis para {dia}», não «próximos» (Paulo 08/11/2026)', () => {
+    expect(dayOfferLabelPt('2026-11-11', '2026-11-05')).toBe('quarta 11/11')
+    expect(dayOfferLabelPt('2026-11-05', '2026-11-05')).toBe('hoje')
+    expect(dayOfferLabelPt('2026-11-06', '2026-11-05')).toBe('amanhã')
+    const body = sayAct(
+      'oferecer_horarios',
+      'cnv_day_offer',
+      { assunto: 'massagem relaxante', quando: '', lista: '09:00, 10:00', dia: 'quarta 11/11' },
+      'FALLBACK',
+      { requireInTemplate: ['{dia}'] },
+    )
+    expect(body).toBe('Os horários disponíveis para quarta 11/11 são 09:00, 10:00. Algum serve?')
+    expect(body).not.toMatch(/próximos/i)
+    // Genérica (sem {dia}): «próximos» continua; a redação com dia fica de fora.
+    const generic = renderEveryVariant('oferecer_horarios', {
+      assunto: 'Massagem',
+      quando: '',
+      lista: 'segunda 09/11 às 09:00',
+    })
+    expect(generic.some((t) => /próximos horários/i.test(t))).toBe(true)
+    expect(generic.every((t) => !t.includes('disponíveis para'))).toBe(true)
   })
 
   it('título da lista é dia da semana + DD/MM + hora, sem fuso nem mês-dia (#507)', () => {
@@ -96,6 +120,10 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
     const cases: Array<[keyof typeof DIALOGUE_ACTS, Record<string, string>]> = [
       ['oferecer_horarios', { assunto: 'Massagem', quando: 'de manhã ', lista: 'sexta 06/11 às 09:00, 10:00' }],
       ['oferecer_horarios', { assunto: 'Massagem', quando: '', lista: 'sexta 06/11 às 09:00' }],
+      [
+        'oferecer_horarios',
+        { assunto: 'Massagem', quando: '', lista: '09:00, 10:00', dia: 'quarta 11/11' },
+      ],
       ['sem_horario_periodo', { assunto: 'Massagem', período: periodWordPt('manha') }],
       ['sem_horario_dia', { assunto: 'Massagem', dia: dayWithPrepPt('2026-11-06') }],
       ['sem_horario_semana', { assunto: 'Massagem' }],
