@@ -7,14 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error — script .mjs sem tipos
-import {
-  aggregateBookingSessionFunnel,
-  bookingSessionFunnelPlan,
-  buildBookingSessionFunnelSql,
-  formatFunnelReport,
-  parseTelemetryLine,
-  parseTelemetryLines,
-} from '../../scripts/booking-session-funnel.mjs'
+import { aggregateBookingSessionFunnel, bookingSessionFunnelPlan, buildBookingSessionFunnelSql, formatFunnelReport, parseTelemetryLine, parseTelemetryLines } from '../../scripts/booking-session-funnel.mjs'
 
 const root = resolve(__dirname, '../..')
 
@@ -224,8 +217,8 @@ describe('scripts/booking-session-funnel.mjs', () => {
     expect(report.dropSteps).toEqual([{ key: 'variant_ask', n: 1 }])
     expect(report.topFriction).toEqual([{ key: 'nao_encontrei', n: 1 }])
     expect(report.flowUsedAmongClosed).toEqual({ closed: 2, withFlow: 1 })
-    const variant = report.funnelReached.find((r) => r.step === 'variant_ask')
-    const confirm = report.funnelReached.find((r) => r.step === 'confirm')
+    const variant = report.funnelReached.find((r: { step: string; n: number }) => r.step === 'variant_ask')
+    const confirm = report.funnelReached.find((r: { step: string; n: number }) => r.step === 'confirm')
     expect(variant?.n).toBe(2) // ambas passaram pelo menos variant (bss_1) / confirm (bss_2 inclui)
     expect(confirm?.n).toBe(1)
     const text = formatFunnelReport(report)
