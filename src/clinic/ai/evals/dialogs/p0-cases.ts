@@ -1754,6 +1754,100 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    id: 'A-35',
+    title: 'Após slots + hint: «Terminar» encerra sem Não encontrei',
+    turnosIdeais: 1,
+    // Staging Paulo 08/11/2026: mid-oferta Horários + hint DEC-152 → «Terminar»
+    // virava «Não encontrei terminar nas opções» + Opções de tipos.
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-35: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const relaxante = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
+        s.tenantId,
+        massagem.id,
+        'Massagem relaxante',
+      )
+      if (!relaxante) throw new Error('A-35: variante Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-08T09:00', label: '09:00' },
+              { key: '2026-11-08T09:30', label: '09:30' },
+              { key: '2026-11-08T10:00', label: '10:00' },
+            ],
+            messageId: 'm_a35_slots',
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a35' },
+              { startsAt: Date.UTC(2026, 10, 8, 12, 30), professionalId: 'pro_a35' },
+              { startsAt: Date.UTC(2026, 10, 8, 13, 0), professionalId: 'pro_a35' },
+            ],
+            messageId: 'm_a35_slots',
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Terminar' }],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/quando quiser|fico por aqui|qualquer coisa/i],
+          excludes: [
+            /Não encontrei/i,
+            /Liberação miofascial/i,
+            /Ventosaterapia/i,
+            /Massagem relaxante/i,
+            /Se quiser parar, diga terminar/i,
+          ],
+        },
+      ],
+    },
+  },
+  {
     id: 'A-31',
     title: 'Escolha por hora solta «14»',
     turnosIdeais: 1,

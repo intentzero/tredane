@@ -876,6 +876,8 @@ const ZONE_MENTION_STOP = new Set([
   'sessao',
   'desisto',
   'desistir',
+  // DEC-152: «Terminar» (hint mid-funnel) nunca é sobra de zona/tipo.
+  'terminar',
   // Modo uma / pergunta de dia: «tem horário na próxima quarta-feira?»
   // (Paulo 07/11/2026; alinhado ao stop-list de despedida).
   'tem',
