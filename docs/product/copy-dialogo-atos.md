@@ -200,6 +200,14 @@ Substitui: `Para {assunto}, em {dia} não tenho horário livre…` (dava «em se
 
 Substitui: `Juntas, ficam {preço} e {duração} min de atendimento.` («Juntas» fixa o feminino, mas o tipo da variante é texto livre, DEC-079).
 
+### informar_preco_tabela
+
+Tabela de preços do serviço já aberto (ex. «Quanto custa?» / «valores» a meio da pergunta de zonas). `{lista}` é uma linha por variante (`Nome — R$ … (N min)`); `{pergunta}` reabre a escolha sem repetir só os nomes.
+
+1. `Para {serviço}:\n{lista}\n{pergunta}`
+2. `Valores de {serviço}:\n{lista}\n{pergunta}`
+3. `Para {serviço} temos:\n{lista}\n{pergunta}`
+
 ### recusar_mistura
 
 1. *(novo)* `Não dá para juntar masculino e feminino na mesma visita. Quer escolher só um dos dois?`

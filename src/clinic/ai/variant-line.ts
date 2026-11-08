@@ -4,6 +4,7 @@
  * Copy via catálogo M4 (#448): perguntar_linha / perguntar_variantes.
  * DEC-145: modo `uma` usa o singular do cadastro e redações sem «Pode ser mais de uma».
  */
+import { formatBRL } from '../../ai/prompt'
 import { allowsMultipleVariants } from '../catalog/variant-selection'
 import { variantChoiceLabel } from '../config/zones'
 import type { ServiceRow, VariantAudience } from '../config/types'
@@ -97,6 +98,23 @@ export function variantKindForAsk(
     return service.variantKind?.trim() || service.variantKindPlural?.trim() || 'opção'
   }
   return service.variantKindPlural?.trim() || service.variantKind?.trim() || 'opções'
+}
+
+/**
+ * Linhas de preço/duração por variante (tabela de catálogo).
+ * Usado quando a cliente pergunta «Quanto custa?» / «valores» com o serviço aberto
+ * e ainda sem variante nomeada — não volta a listar só os nomes.
+ */
+export function formatVariantPriceTable(zones: readonly ListedZone[]): string {
+  const labels = stableVariantLabelList(zones)
+  return zones
+    .map((zone, index) => {
+      const label = labels[index] ?? zone.name
+      const preço =
+        zone.priceCents == null ? 'a equipe confirma o valor' : formatBRL(zone.priceCents)
+      return `${label} — ${preço} (${zone.durationMinutes} min)`
+    })
+    .join('\n')
 }
 
 export function variantListQuestion(

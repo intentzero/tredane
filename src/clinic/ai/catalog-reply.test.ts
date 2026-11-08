@@ -539,6 +539,60 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
+  it('a meio de «Quais zonas?», «Quanto custa?» devolve a tabela de preços (não re-pergunta só nomes)', () => {
+    const boot = seedMixed()
+    try {
+      const opts = { conversationId: boot.conversation.id }
+      saveScheduleSession(
+        boot.db,
+        boot.tenantId,
+        boot.conversation.id,
+        { serviceId: boot.svc.id, audienceLine: 'feminino', phase: 'coletando' },
+        boot.clock,
+      )
+      insertMessage(
+        boot.db,
+        {
+          tenantId: boot.tenantId,
+          conversationId: boot.conversation.id,
+          direction: 'outbound',
+          body: 'Quais zonas? Temos Axila, Pernas. Pode ser mais de uma.',
+          deliveryState: 'delivered',
+          createdAt: boot.clock.nowMs(),
+        },
+        boot.clock,
+      )
+      boot.clock.advance(1_000)
+      const reply = catalogReply(boot.db, boot.tenantId, 'Quanto custa?', boot.clock, opts)
+      expect(reply).toMatch(/Axila — R\$\s*50,00 \(15 min\)/)
+      expect(reply).toMatch(/Pernas — R\$\s*140,00 \(30 min\)/)
+      expect(reply).toMatch(/quais zonas/i)
+      expect(reply).not.toMatch(/^Quais zonas\? Temos Axila/i)
+      // D4: tabela de preços não grava variante.
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.variantIds).toBeFalsy()
+
+      boot.clock.advance(1_000)
+      const valores = catalogReply(boot.db, boot.tenantId, 'quais os valores?', boot.clock, opts)
+      expect(valores).toMatch(/R\$\s*50,00/)
+      expect(valores).toMatch(/R\$\s*140,00/)
+    } finally {
+      boot.close()
+    }
+  })
+
+  it('E-02 a frio: «Quanto custa depilação?» pede zonas e não cita R$', () => {
+    const boot = seedMixed()
+    try {
+      const reply = catalogReply(boot.db, boot.tenantId, 'Quanto custa depilação?', boot.clock, {
+        conversationId: boot.conversation.id,
+      })
+      expect(reply).toMatch(/feminina ou masculina|quais zonas/i)
+      expect(reply).not.toMatch(/R\$/)
+    } finally {
+      boot.close()
+    }
+  })
+
   it('não pede a zona outra vez depois de a cliente ter escolhido axila masculina (sem preço)', () => {
     const boot = seedMixed()
     try {

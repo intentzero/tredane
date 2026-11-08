@@ -44,6 +44,7 @@ export type DialogueActId =
   | 'sem_vaga_sem_alternativa'
   | 'informar_preco_variante'
   | 'informar_preco_soma'
+  | 'informar_preco_tabela'
   | 'recusar_mistura'
   | 'servico_inexistente'
   | 'varios_servicos'
@@ -159,6 +160,12 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
   informar_preco_soma: [
     'No total, ficam {preço} e {duração} min de atendimento.',
     'Somando tudo, ficam {preço} e {duração} min de atendimento.',
+  ],
+  // Tabela de preços do serviço aberto (ex. «Quanto custa?» a meio da pergunta de zonas).
+  informar_preco_tabela: [
+    'Para {serviço}:\n{lista}\n{pergunta}',
+    'Valores de {serviço}:\n{lista}\n{pergunta}',
+    'Para {serviço} temos:\n{lista}\n{pergunta}',
   ],
   recusar_mistura: [
     'Não dá para juntar masculino e feminino na mesma visita. Quer escolher só um dos dois?',

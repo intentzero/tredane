@@ -271,6 +271,7 @@ Criada em 06/11/2026 pela revisão 0.6 da [metodologia](metodologia-avaliacao-co
 | CC-04 | P0 | Outro serviço com proposta aberta | C: «Limpeza amanhã 15h» ⟶ proposta enviada ⟶ C: «quero outro serviço» ⟶ Confirmar no cartão antigo | Lista Feminino/Masculino; a proposta fica retirada; o Confirmar antigo diz que já não está válida e **não marca**. | INV-01 | 2 | ✅ L1 |
 | CC-05 | P0 | Audiência já conhecida | [masculino, fixado] C: «serviços masculinos» ⟶ C: «Limpeza amanhã 15h» ⟶ C: «quero outro serviço» | «Continuo no masculino…» + lista; **não** repergunta a audiência (DEC-142, DEC-090). | INV-08 | 3 | ✅ L1 (CF-45 fechado a 06/11) |
 | CC-06 | P0 | Audiência segue ao funil | C: «serviços femininos» ⟶ C: «Quero depilação axila sexta 10h» | Proposta com a Axila **feminina** (R$ 40,00, não R$ 50,00), sem reperguntar a linha. | INV-02, INV-08 | 2 | ✅ L1 |
+| CC-09 | P0 | Preço a meio da pergunta de zonas | [Depilação feminino no quadro] C: «Quanto custa?» | Tabela `Nome — R$ … (N min)` das zonas da linha + re-pergunta leve. **Não** só «Quais zonas? Temos…». | INV-02 | 1 | ✅ L1 |
 
 ## P. Personas para cliente simulada (L3)
 

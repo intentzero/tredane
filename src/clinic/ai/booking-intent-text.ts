@@ -194,7 +194,7 @@ export function resolvePolarityVariantIds(
 /** Pedido de preço/duração — não deve seleccionar variante (D4). */
 export function isCatalogInfoAsk(text: string): boolean {
   return (
-    /\b(pre[cç]o|custa|custam|valor|quanto\s+(?:[eé]|fica|sai)|or[cç]amento)\b/i.test(
+    /\b(pre[cç]os?|custam?|valores?|quanto\s+(?:[eé]|fica|sai)|or[cç]amento)\b/i.test(
       text,
     ) || /\b(dura|dura[cç][aã]o|tempo|minutos)\b/i.test(text)
   )
