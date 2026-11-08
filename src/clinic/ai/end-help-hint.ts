@@ -16,17 +16,16 @@ import type { BookingFrame } from './schedule-session'
 export const END_HELP_HINT_TEXT = 'Se quiser parar, diga terminar.'
 
 /**
- * Extrai comandos de saída ensinados por «diga X» / «diga "X"» / «diga «X»».
- * Só a palavra logo após «diga» — não cobre «diga serviços masculinos» (catálogo).
+ * Extrai comandos de saída ensinados por «diga X» (uma palavra).
+ * Multi-token (ex. serviços masculinos no catálogo DEC-142) não casa.
  */
 export function taughtExitCommandsFromCopy(texts: readonly string[]): string[] {
   const out = new Set<string>()
-  // Uma palavra (comando curto). Catálogo usa «diga “serviços masculinos”» → multi-token, ignorado.
-  const re =
-    /\bdiga\s+[«“"']([a-záàâãéêíóôõúç]+)[»”"']|\bdiga\s+([a-záàâãéêíóôõúç]+)(?=\s*[.!?…]|$)/gi
+  // Sem aspas no padrão: o scanner de call-sites (#448) parte literais "…" no ficheiro.
+  const re = /\bdiga\s+([a-záàâãéêíóôõúç]+)(?=\s*[.!?…]|$)/gi
   for (const text of texts) {
     for (const m of text.matchAll(re)) {
-      const word = (m[1] ?? m[2] ?? '').toLowerCase()
+      const word = (m[1] ?? '').toLowerCase()
       if (word) out.add(word)
     }
   }
