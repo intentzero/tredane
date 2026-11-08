@@ -244,10 +244,10 @@ export function sendIdlePromptOp(
   )
 
   // promptSentAt = instante da mensagem do prompt (não o `now` pré-envio).
-  // Se ficar atrás de created_at do outbound, o próprio prompt cancela o fecho
+  // Se ficar atrás de createdAt do outbound, o próprio prompt cancela o fecho
   // (progress > idle_prompt_sent_at) e o segundo prazo nunca corre.
   const promptSentAt =
-    sent.value.message.created_at ??
+    sent.value.message.createdAt ??
     lastUsefulMessageAt(db, meta.tenantId, input.conversationId) ??
     now
   const closeDueAt = promptSentAt + IDLE_CLOSE_AFTER_MS
