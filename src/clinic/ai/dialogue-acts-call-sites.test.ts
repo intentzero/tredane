@@ -102,7 +102,7 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^a equipe confirma o valor$/,
   /^A equipe confirma o valor\.$/,
   /^Não dá para juntar masculino e feminino na mesma visita\. Quer escolher só um dos dois\?$/,
-  /^Não encontrei esse procedimento por aqui\. Quer ver as opções que temos\?$/,
+  /^Não entendi bem esse pedido\. Quer ver as opções que temos\?$/,
   // #509 / prática 1 — zona citada sem match único (Paulo 07/11/2026: sem «ou outra?»)
   /^Não encontrei \$\{palavra\} nas opções\. Quer \$\{lista\}\?$/,
   /^Não encontrei cotovelo nas opções\. Quer Axila, Pernas\?$/,

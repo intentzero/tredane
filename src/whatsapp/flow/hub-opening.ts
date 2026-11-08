@@ -12,6 +12,7 @@ import { ensureClinicSettings } from '../../clinic/config/settings'
 import { textCitesSynonym } from '../../clinic/config/synonyms'
 import type { ServiceRow } from '../../clinic/config/types'
 import { extractServices } from '../../clinic/ai/autobook'
+import { catalogMissHint } from '../../clinic/ai/booking-object'
 import { citesServiceName } from '../../clinic/ai/schedule-choice'
 import {
   formatClinicTime,
@@ -101,8 +102,19 @@ export function shouldOfferHubOpening(input: {
   // Cumprimento puro não nomeia serviço: evita correr o resolvedor do funil no caso mais frequente.
   if (GREET_ONLY.test(text) || VAGUE_ASK.test(text)) return true
   if (namedBookableServices(input.services, text).length > 0) return false
-  // Pedido vago de marcar sem nomear serviço.
-  if (VAGUE_BOOK.test(text) && text.length <= 80) return true
+  // Pedido vago de marcar sem nomear serviço («quero marcar», «quero agendar um horário»).
+  if (VAGUE_BOOK.test(text) && text.length <= 80) {
+    // Paulo, 08/11/2026 (DEC-151): intenção de marcar com termo que não casa no
+    // catálogo («Quero agendar uma mensagem», typo; «Quero depilar» sem sinónimo)
+    // NÃO é abertura vaga — cai no clarificar / «não entendi», sem Olá + Abrir opções.
+    // Sem fuzzy mensagem→massagem (Paulo recusou).
+    const forMiss = input.services.map((s) => ({
+      name: s.name,
+      zones: s.zones ?? [],
+    })) as ServiceRow[]
+    if (catalogMissHint(text, forMiss)) return false
+    return true
+  }
   return false
 }
 

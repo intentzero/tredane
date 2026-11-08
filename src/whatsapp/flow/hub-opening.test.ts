@@ -109,10 +109,13 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
     ]) {
       expect(shouldOfferHubOpening({ turnText, services }), turnText).toBe(false)
     }
-    // Continuam a abrir o hub. «Quero depilar» sem sinónimo na ficha também (DEC-110 / #509:
-    // não inventa o match); com o sinónimo, o teste acima já cobre o caminho directo.
-    for (const turnText of ['Oi', 'quero marcar', 'Quero agendar um horário', 'Quero depilar']) {
+    // Abertura vaga continua. «Quero depilar» sem sinónimo e typo de serviço
+    // (DEC-151) NÃO abrem o hub — vão ao «não entendi» / catálogo (A-20, FL-21).
+    for (const turnText of ['Oi', 'quero marcar', 'Quero agendar um horário']) {
       expect(shouldOfferHubOpening({ turnText, services }), turnText).toBe(true)
+    }
+    for (const turnText of ['Quero depilar', 'Quero agendar uma mensagem']) {
+      expect(shouldOfferHubOpening({ turnText, services }), turnText).toBe(false)
     }
   })
 
@@ -316,7 +319,11 @@ describe('gate do hub usa o resolvedor do funil (CF-36, pela zona)', () => {
       expect(shouldOfferHubOpening({ turnText: 'quero depilar a axila', services })).toBe(false)
       expect(shouldOfferHubOpening({ turnText: 'Oi', services })).toBe(true)
       expect(shouldOfferHubOpening({ turnText: 'quero marcar', services })).toBe(true)
-      expect(shouldOfferHubOpening({ turnText: 'quero fazer as unhas', services })).toBe(true)
+      // DEC-151: termo fora do catálogo com intenção de marcar ≠ abertura vaga.
+      expect(shouldOfferHubOpening({ turnText: 'quero fazer as unhas', services })).toBe(false)
+      expect(shouldOfferHubOpening({ turnText: 'Quero agendar uma mensagem', services })).toBe(
+        false,
+      )
     } finally {
       s.close()
     }
