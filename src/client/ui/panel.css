@@ -851,10 +851,15 @@
 /*
  * Conversas lista mobile (M-54 / TR-311): full-bleed — sem gutters do
  * .panel-shell-main; padding interno fica na busca / linha (16 px).
+ * Coluna flex no shell: o flex do inbox-root só estica com pai flex,
+ * para a superfície branca chegar à barra (sem faixa surface-app).
  */
 @media (max-width: 767.98px) {
   .panel-app:has(> .panel-nav) .panel-shell-main:has(> .inbox-root),
   .panel-app--immersive:has(> .panel-nav) .panel-shell-main:has(> .inbox-root) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     padding: 0;
   }
 }
