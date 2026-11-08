@@ -22,6 +22,7 @@ const CALL_SITE_FILES = [
   'autobook.ts',
   'booking-object.ts',
   'reschedule.ts',
+  'end-help-hint.ts',
 ] as const
 
 /** Atos com call-site ligado (S1–S4). */
@@ -54,6 +55,7 @@ const WIRED_ACTS: readonly DialogueActId[] = [
   'catalogo_mudou',
   'nao_consegui_fechar',
   'acolher_adiamento',
+  'orientar_terminar',
 ]
 
 /** Sem rota natural neste recorte — não inventar call-site. */
@@ -217,7 +219,7 @@ describe('#448 S5 varredura call-sites', () => {
   it('cobre todos os atos do catálogo (ligados ∪ sem call-site)', () => {
     const all = new Set<DialogueActId>([...WIRED_ACTS, ...UNWIRED_ACTS])
     expect([...all].sort()).toEqual((Object.keys(DIALOGUE_ACTS) as DialogueActId[]).sort())
-    expect(WIRED_ACTS).toHaveLength(28)
+    expect(WIRED_ACTS).toHaveLength(29)
     expect(UNWIRED_ACTS).toHaveLength(5)
   })
 

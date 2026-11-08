@@ -114,6 +114,12 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 2. `Tudo bem! Fico por aqui quando você decidir.`
 3. `Fica à vontade. Qualquer coisa, me chama.`
 
+### orientar_terminar
+
+1. `Se quiser parar, diga terminar.`
+
+One-shot a meio do funil (DEC-152 — Confirmado, Paulo 08/11/2026; `end-help-hint.ts` / `sayAct`). Não na oferta permanente de slots (P5 adiado).
+
 ### esclarecer
 
 1. `Pode me dizer de outro jeito, ou prefere falar com a equipe?`

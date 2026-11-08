@@ -51,6 +51,8 @@ export type DialogueActId =
   | 'historico_indisponivel'
   | 'catalogo_mudou'
   | 'nao_consegui_fechar'
+  /** DEC-152 — hint one-shot mid-funnel («diga terminar»). */
+  | 'orientar_terminar'
 
 /** Redações propostas — docs/product/copy-dialogo-atos.md. */
 export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
@@ -187,6 +189,8 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
   ],
   catalogo_mudou: ['Nossas opções mudaram. Pode dizer de novo qual serviço e opção você quer?'],
   nao_consegui_fechar: ['Não consegui fechar {serviço} às {hora} agora. A equipe confirma em seguida.'],
+  // DEC-152 (Paulo, 08/11/2026): uma redação fixa; one-shot no funil.
+  orientar_terminar: ['Se quiser parar, diga terminar.'],
 }
 
 export type DialogueVars = Record<string, string | undefined>

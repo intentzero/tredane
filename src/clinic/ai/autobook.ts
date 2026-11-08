@@ -61,6 +61,12 @@ import {
   zoneNotFoundAskReply,
 } from './client-copy'
 import { sayAct } from './dialogue-acts'
+import {
+  appendEndHelpHint,
+  shouldAppendEndHelpHint,
+  markEndHelpHintSent,
+  wasEndHelpHintSent,
+} from './end-help-hint'
 import { checkConversationProtection } from './protection'
 import {
   catalogMissHint,
@@ -584,6 +590,12 @@ export async function tryAiAutoBook(
   const rememberOfferFrame = rememberOfferFrameImpl
   const tenantId = caller.tenantId
   const deferred = createDeferredBookingFrame()
+  /**
+   * DEC-152: snapshot do quadro no início do turno (hint one-shot sem progresso).
+   * Reatribuído após `syncBookingFrameWithCatalog` para não confundir
+   * revalidação de catálogo com avanço da cliente.
+   */
+  let frameAtStart = getBookingFrame(db, tenantId, input.conversationId)
   const catalog =
     input.turn?.catalog ?? getOrCompileCatalog(db, tenantId, clock)
   const saveSession = (patch: Parameters<typeof saveScheduleSession>[3]) => {
@@ -618,17 +630,35 @@ export async function tryAiAutoBook(
     return result
   }
   const finish = (outcome: AutoBookOutcome): AutoBookOutcome => {
-    if (!deferred.hasWork) return outcome
+    let next = outcome
+    if (
+      shouldAppendEndHelpHint({
+        replyText: outcome.replyText,
+        proposalId: outcome.proposalId,
+        notes: outcome.notes,
+        frameAtStart,
+        frameNow: deferred.peekFrame(db, tenantId, input.conversationId),
+        alreadySent: wasEndHelpHintSent(db, tenantId, input.conversationId),
+      })
+    ) {
+      next = {
+        ...outcome,
+        replyText: appendEndHelpHint(outcome.replyText!, input.conversationId),
+        notes: [outcome.notes, 'DEC-152'].filter(Boolean).join(' '),
+      }
+      markEndHelpHintSent(db, tenantId, input.conversationId)
+    }
+    if (!deferred.hasWork) return next
     const willSend =
-      Boolean(outcome.replyText?.trim()) || Boolean(outcome.proposalId)
+      Boolean(next.replyText?.trim()) || Boolean(next.proposalId)
     if (willSend) {
-      return { ...outcome, deferredFrame: deferred }
+      return { ...next, deferredFrame: deferred }
     }
     // Sem resposta à cliente: persiste o frame e devolve o outbox para fanout WS (#472).
     const flushed = deferred.flushNow(db, tenantId, input.conversationId, clock)
     return {
-      ...outcome,
-      outbox: [...outcome.outbox, ...flushed],
+      ...next,
+      outbox: [...next.outbox, ...flushed],
     }
   }
   const none = (status: AutoBookStatus, extra: Partial<AutoBookOutcome> = {}): AutoBookOutcome => ({
@@ -720,6 +750,8 @@ export async function tryAiAutoBook(
     },
     clock,
   )
+  // Baseline do progresso DEC-152: depois da revalidação, antes do turno.
+  frameAtStart = getBookingFrame(db, tenantId, input.conversationId)
 
   // CF-28 / #508 / DEC-138 practice 5: restart phrases clear the booking frame
   // and retire any open proposal without confirming (DEC-061). Reply = perguntar_servico.
