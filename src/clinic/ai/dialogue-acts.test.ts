@@ -116,9 +116,17 @@ describe('#414 dialogue acts', () => {
       'historico_indisponivel', 'catalogo_mudou', 'nao_consegui_fechar']
     expect(leva2).toHaveLength(18)
     const vars = {
-      serviço: 'Massagem', lista: 'Massagem, Limpeza de pele', assunto: 'Massagem', hora: '10:00', hora24: '15:00',
-      período: 'de manhã', dia: 'na sexta (06/11)', variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15',
-      lista: 'Axila — R$ 40,00 (15 min)', pergunta: 'Quais zonas você quer?',
+      serviço: 'Massagem',
+      lista: 'Axila — R$ 40,00 (15 min)\nMassagem, Limpeza de pele',
+      pergunta: 'Quais zonas você quer?',
+      assunto: 'Massagem',
+      hora: '10:00',
+      hora24: '15:00',
+      período: 'de manhã',
+      dia: 'na sexta (06/11)',
+      variante: 'Axila feminina',
+      preço: 'R$ 40,00',
+      duração: '15',
     }
     for (const act of leva2) {
       expect(() => renderDialogueAct(act, 'cnv_1', vars), act).not.toThrow()
