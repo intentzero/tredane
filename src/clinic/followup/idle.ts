@@ -76,6 +76,41 @@ export function parseIdleButtonId(
   return { conversationId: m[1]!, action: m[2] as 'continue' | 'end' }
 }
 
+/**
+ * Texto livre após o prompt DEC-087 («…prosseguir… ou terminar?»).
+ * Não casa `[Botão]…` / `[Lista]…` — esses ids passam por `handleIdleButtonClick`.
+ */
+export function parseIdleTextReply(raw: string): 'continue' | 'end' | null {
+  const t = raw.trim()
+  if (!t || /^\[(?:Botão|Lista)\]/i.test(t)) return null
+  if (/^terminar[.!?\s]*$/i.test(t)) return 'end'
+  if (/^prosseguir[.!?\s]*$/i.test(t)) return 'continue'
+  return null
+}
+
+/** Prompt idle ainda é a última outbound útil (fase `close` ou já reiniciada pelo inbound). */
+export function isAwaitingIdleClientReply(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): boolean {
+  assertClinicSchemaReady(db)
+  const phase = db.get<{ phase: string | null }>(
+    `SELECT idle_phase AS phase FROM conversations WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    conversationId,
+  )
+  if (phase?.phase === 'close') return true
+  const lastOut = db.get<{ body: string }>(
+    `SELECT body FROM messages
+     WHERE tenant_id = ? AND conversation_id = ? AND direction = 'outbound'
+     ORDER BY created_at DESC LIMIT 1`,
+    tenantId,
+    conversationId,
+  )
+  return lastOut?.body === IDLE_PROMPT_BODY
+}
+
 export type IdleSweepItem =
   | {
       conversationId: string
@@ -370,32 +405,36 @@ export type IdleButtonResult =
       outbox: OutboxRow[]
     }
 
-export function handleIdleButtonClick(
+function applyIdleClientAction(
   db: ClinicDb,
   input: {
     tenantId: string
     conversationId: string
-    buttonId: string
+    action: 'continue' | 'end'
+    via: 'button' | 'text'
     providerEventKey?: string | null
   },
   clock: Clock,
-): IdleButtonResult {
-  assertClinicSchemaReady(db)
-  const parsed = parseIdleButtonId(input.buttonId)
-  if (!parsed || parsed.conversationId !== input.conversationId) {
-    return { handled: false, reason: 'not_idle_button' }
-  }
-
+): {
+  handled: true
+  action: 'continue' | 'end'
+  closedOpportunityId?: string | null
+  outbox: OutboxRow[]
+} {
   const caller = workerCaller(input.tenantId, FOLLOWUP_ACTOR)
   bindOrAssertTenant(db, caller, clock)
   const outbox: OutboxRow[] = []
   const key = input.providerEventKey ?? 'x'
+  const viaTag = input.via === 'text' ? 'text' : 'button'
 
-  if (parsed.action === 'end') {
+  if (input.action === 'end') {
     const settled = settleIdle(db, caller, input.tenantId, input.conversationId, clock, {
       thanks: true,
-      note: 'Cliente: Terminar (idle)',
-      clientRequestId: `followup.idle.end:${input.conversationId}:${key}`,
+      note:
+        input.via === 'text'
+          ? 'Cliente: Terminar (idle, texto)'
+          : 'Cliente: Terminar (idle)',
+      clientRequestId: `followup.idle.end:${viaTag}:${input.conversationId}:${key}`,
     })
     writeOperationalAudit(
       db,
@@ -405,11 +444,19 @@ export function handleIdleButtonClick(
         action: 'followup.idle_end',
         objectType: 'conversation',
         objectId: input.conversationId,
-        detail: { closedOpportunityId: settled.closedOpportunityId },
+        detail: {
+          closedOpportunityId: settled.closedOpportunityId,
+          via: input.via,
+        },
       },
       clock,
     )
-    return { handled: true, action: 'end', closedOpportunityId: settled.closedOpportunityId, outbox: settled.outbox }
+    return {
+      handled: true,
+      action: 'end',
+      closedOpportunityId: settled.closedOpportunityId,
+      outbox: settled.outbox,
+    }
   }
 
   const reply = sendOutboundMessageOp(
@@ -418,7 +465,7 @@ export function handleIdleButtonClick(
     {
       conversationId: input.conversationId,
       body: IDLE_CONTINUE_REPLY_BODY,
-      clientRequestId: `followup.idle.continue:${input.conversationId}:${key}`,
+      clientRequestId: `followup.idle.continue:${viaTag}:${input.conversationId}:${key}`,
       authorClerkUserId: FOLLOWUP_ACTOR,
       authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
     },
@@ -436,9 +483,79 @@ export function handleIdleButtonClick(
       action: 'followup.idle_continue',
       objectType: 'conversation',
       objectId: input.conversationId,
-      detail: {},
+      detail: { via: input.via },
     },
     clock,
   )
   return { handled: true, action: 'continue', outbox }
+}
+
+export function handleIdleButtonClick(
+  db: ClinicDb,
+  input: {
+    tenantId: string
+    conversationId: string
+    buttonId: string
+    providerEventKey?: string | null
+  },
+  clock: Clock,
+): IdleButtonResult {
+  assertClinicSchemaReady(db)
+  const parsed = parseIdleButtonId(input.buttonId)
+  if (!parsed || parsed.conversationId !== input.conversationId) {
+    return { handled: false, reason: 'not_idle_button' }
+  }
+  return applyIdleClientAction(
+    db,
+    {
+      tenantId: input.tenantId,
+      conversationId: input.conversationId,
+      action: parsed.action,
+      via: 'button',
+      providerEventKey: input.providerEventKey,
+    },
+    clock,
+  )
+}
+
+export type IdleTextResult =
+  | { handled: false; reason: 'not_idle_text' | 'not_awaiting' }
+  | {
+      handled: true
+      action: 'continue' | 'end'
+      closedOpportunityId?: string | null
+      outbox: OutboxRow[]
+    }
+
+/**
+ * Texto livre «Terminar» / «Prosseguir» na sequência do prompt DEC-087.
+ * Partilha `settleIdle` com o botão e o fecho automático (#620 / F-10).
+ */
+export function handleIdleTextReply(
+  db: ClinicDb,
+  input: {
+    tenantId: string
+    conversationId: string
+    text: string
+    providerEventKey?: string | null
+  },
+  clock: Clock,
+): IdleTextResult {
+  assertClinicSchemaReady(db)
+  const action = parseIdleTextReply(input.text)
+  if (!action) return { handled: false, reason: 'not_idle_text' }
+  if (!isAwaitingIdleClientReply(db, input.tenantId, input.conversationId)) {
+    return { handled: false, reason: 'not_awaiting' }
+  }
+  return applyIdleClientAction(
+    db,
+    {
+      tenantId: input.tenantId,
+      conversationId: input.conversationId,
+      action,
+      via: 'text',
+      providerEventKey: input.providerEventKey,
+    },
+    clock,
+  )
 }

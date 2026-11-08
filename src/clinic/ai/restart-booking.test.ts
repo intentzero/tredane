@@ -24,6 +24,7 @@ import {
   IDLE_CLOSE_AFTER_MS,
   IDLE_PROMPT_AFTER_MS,
   handleIdleButtonClick,
+  handleIdleTextReply,
   idleButtonId,
   rescheduleConversationIdle,
   sweepDueIdleConversations,
@@ -555,6 +556,61 @@ describe('encerrar conversa limpa BookingFrame (#508)', () => {
       if (!click.handled) return
       expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)).toBeNull()
       expect(click.outbox.some((o) => o.type === 'booking_frame.updated')).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('texto livre Terminar no idle limpa o frame (mesmo settleIdle do botão)', () => {
+    const s = seed()
+    try {
+      ensureOpenOpportunity(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+        },
+        s.clock,
+      )
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          direction: 'inbound',
+          body: 'oi',
+          deliveryState: 'received',
+          createdAt: s.clock.nowMs(),
+        },
+        s.clock,
+      )
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        { serviceId: s.svc.id, date: '2026-11-11' },
+        s.clock,
+      )
+      rescheduleConversationIdle(s.db, s.tenantId, s.cnv.id, s.clock, {
+        progressAt: s.clock.nowMs(),
+      })
+      s.clock.advance(IDLE_PROMPT_AFTER_MS + 1)
+      sweepDueIdleConversations(s.db, s.tenantId, s.clock)
+      const text = handleIdleTextReply(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.cnv.id,
+          text: 'Terminar',
+          providerEventKey: 'wa:idle:end:text',
+        },
+        s.clock,
+      )
+      expect(text.handled).toBe(true)
+      if (!text.handled) return
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      expect(text.outbox.some((o) => o.type === 'booking_frame.updated')).toBe(true)
     } finally {
       s.close()
     }
