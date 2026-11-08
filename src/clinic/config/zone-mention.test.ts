@@ -192,7 +192,7 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
     expect(resolveZoneMention('as tres', feminine).leftover).toBeNull()
   })
 
-  it('«tem» e «feira» não são sobra (pergunta de dia/disponibilidade, DEC-145)', () => {
+  it('«tem» / «feira» / «disponível» não são sobra (pergunta de dia, DEC-145)', () => {
     for (const text of [
       'tem',
       'Tem horário na próxima quarta?',
@@ -200,6 +200,9 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
       'quarta-feira tem horário?',
       'terça feira',
       'Tem horário?',
+      // Staging Paulo 08/11/2026 — leftover era «disponivel».
+      'Na próxima quarta tem horário disponível?',
+      'tem horário disponível?',
     ]) {
       const got = resolveZoneMention(text, feminine)
       expect(got.unrecognized, text).toBe(false)
@@ -323,7 +326,7 @@ describe('nome do serviço ≠ variante (Paulo 07/11/2026)', () => {
     }
   })
 
-  it('DEC-147: abandono educado e «tem/feira» não são sobra unrecognized', () => {
+  it('DEC-147: abandono educado e «tem/feira/disponível» não são sobra unrecognized', () => {
     for (const text of [
       'Deixa estar, obrigado',
       'deixa',
@@ -332,6 +335,7 @@ describe('nome do serviço ≠ variante (Paulo 07/11/2026)', () => {
       'desisto',
       'tem horário na próxima quarta?',
       'Quarta feira tem horário?',
+      'Na próxima quarta tem horário disponível?',
       'não serve',
       'nao',
     ]) {

@@ -880,6 +880,10 @@ const ZONE_MENTION_STOP = new Set([
   // (Paulo 07/11/2026; alinhado ao stop-list de despedida).
   'tem',
   'feira',
+  // Staging 08/11/2026: «Na próxima quarta tem horário disponível?» —
+  // «disponível» não é zona (leftover «disponivel» → Não encontrei + re-pergunta tipos).
+  'disponivel',
+  'disponiveis',
   // DEC-147 C: «não serve» não é sobra de zona.
   'serve',
 ])

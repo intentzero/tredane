@@ -27,6 +27,7 @@ import {
   serviceChangedReply,
   serviceNotFoundReply,
 } from './client-copy'
+import { isCatalogInfoAsk, isShortBookingAffirm } from './booking-intent-text'
 import { sayAct } from './dialogue-acts'
 import { audienceLineFromClientTexts, citesServiceName, zonesChosenInClientTexts } from './schedule-choice'
 import { formatOpeningHours } from './schedule-context'
@@ -206,6 +207,36 @@ function rememberZonesWhenKnown(
   // DEC-137 / #509: sobra não resolvida — cede ao autobook sem gravar o conjunto parcial.
   if (mention.unrecognized) return true
   const named = mention.zones
+  // D4 bridge: «Quanto custa a Liberação…?» não grava variante; «Quero» a seguir
+  // trava a única variante citada na pergunta imediata e cede ao autobook (slots).
+  if (
+    named.length === 0 &&
+    isShortBookingAffirm(source) &&
+    conversationId &&
+    !(session?.variantIds && session.variantIds.length > 0 && session.serviceId === svc.id)
+  ) {
+    const previous = prior.find((body) => body.trim() && body.trim() !== source.trim())
+    if (previous && isCatalogInfoAsk(previous)) {
+      const quoted = zonesNamedInText(previous, scoped, {
+        ignoreWords: [svc.name, ...(svc.synonyms ?? [])],
+      })
+      if (
+        quoted.length === 1 &&
+        !variantAudiencesConflict(quoted) &&
+        !zoneNameRepeated(quoted)
+      ) {
+        const patch: ScheduleSessionPatch = {
+          serviceId: svc.id,
+          variantIds: [quoted[0]!.id],
+        }
+        if (line) patch.audienceLine = line
+        // Grava já: o catálogo cede com `null` e o deferred do autodraft
+        // não é flushed — o tryAiAutoBook precisa do tipo no quadro.
+        saveScheduleSession(db, tenantId, conversationId, patch, clock)
+        return true
+      }
+    }
+  }
   if (named.length === 0 || variantAudiencesConflict(named) || zoneNameRepeated(named)) return false
   if (conversationId) {
     const patch: ScheduleSessionPatch = {
