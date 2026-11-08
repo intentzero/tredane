@@ -6,6 +6,7 @@
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * todos os serviços com audiência «qualquer», salvo o que o caso mudar em `prepare`.
  */
+import { listServices, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { saveScheduleSession } from '../../schedule-session'
 import type { DialogCase } from './runner'
 import type { DialogScenario } from './scenario'
@@ -233,6 +234,83 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       turns: [
         { turn: 0, matches: [/R\$|custa/i] },
         { turn: 1, excludes: [/Entendi:.*Pernas/i] },
+      ],
+    },
+  },
+  {
+    id: 'CC-08',
+    title:
+      'D4 bridge + dia: preço Liberação → «Quero» → «próxima quarta disponível?» sem Não encontrei',
+    turnosIdeais: 3,
+    // Staging Paulo 08/11/2026: (1) cotação não grava (D4); «Quero» afirma.
+    // (2) «disponível» não é sobra de zona — mantém Liberação e oferece quarta.
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('CC-08: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 60, priceCents: 20_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: massagem.id, phase: 'coletando' },
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Quanto custa a liberação miofascial?' },
+      { role: 'client', text: 'Quero' },
+      { role: 'client', text: 'Na próxima quarta tem horário disponível?' },
+    ],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      outboundIncludes: ['R$'],
+      turns: [
+        { turn: 0, matches: [/R\$|custa/i, /Liberação miofascial/i] },
+        {
+          turn: 1,
+          matches: [/\d{1,2}:\d{2}/],
+          excludes: [/\bqual tipo\b/i, /\bquais tipos?\b/i, /Para Massagem/i],
+        },
+        {
+          turn: 2,
+          matches: [/quarta|\d{1,2}:\d{2}/i],
+          excludes: [
+            /Não encontrei/i,
+            /dispon[ií]vel nas opções/i,
+            /\bqual tipo\b/i,
+            /Quer Liberação miofascial/i,
+          ],
+        },
       ],
     },
   },

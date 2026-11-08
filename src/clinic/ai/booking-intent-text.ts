@@ -199,3 +199,13 @@ export function isCatalogInfoAsk(text: string): boolean {
     ) || /\b(dura|dura[cç][aã]o|tempo|minutos)\b/i.test(text)
   )
 }
+
+/**
+ * Afirmação curta de marcação após consulta de catálogo (ex. «Quero» / «Pode ser»).
+ * Não inclui «não quero» (soft-decline / D3) nem pedido com zona/dia/hora.
+ */
+export function isShortBookingAffirm(text: string): boolean {
+  return /^(sim|quero(?:\s+(?:marcar|agendar|sim))?|pode ser|pode marcar|pode agendar|pode|confirmo|ok|okay|beleza|blz|bora|fechado|combinado|isso|👍)[\s!.?]*$/iu.test(
+    text.trim(),
+  )
+}

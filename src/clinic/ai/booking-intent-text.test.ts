@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   classifyVariantPolarity,
   isCatalogInfoAsk,
+  isShortBookingAffirm,
   resolvePolarityVariantIds,
 } from './booking-intent-text'
 import type { ServiceZoneRow } from '../config/types'
@@ -59,5 +60,15 @@ describe('isCatalogInfoAsk — D4', () => {
   it('reconhece pergunta de preço', () => {
     expect(isCatalogInfoAsk('Quanto custa pernas?')).toBe(true)
     expect(isCatalogInfoAsk('Quero marcar axila sexta')).toBe(false)
+  })
+})
+
+describe('isShortBookingAffirm — bridge pós-cotação', () => {
+  it('aceita «Quero» e sinónimos curtos; rejeita pedido com zona/dia', () => {
+    expect(isShortBookingAffirm('Quero')).toBe(true)
+    expect(isShortBookingAffirm('quero marcar')).toBe(true)
+    expect(isShortBookingAffirm('Pode ser')).toBe(true)
+    expect(isShortBookingAffirm('não quero')).toBe(false)
+    expect(isShortBookingAffirm('Quero marcar axila sexta')).toBe(false)
   })
 })

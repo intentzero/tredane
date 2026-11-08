@@ -185,10 +185,58 @@ describe('DEC-145 staging: Massagem modo uma', () => {
     expect(built.interactive.sections.flatMap((sec) => sec.rows).at(-1)?.title).toBe('Todas')
   })
 
+  it('preço de Liberação + «Quero» trava o tipo e oferece horários (não re-pergunta)', async () => {
+    const s = seedMassagemUma()
+    try {
+      const liberacao = s.svc.zones.find((z) => z.name === 'Liberação miofascial')
+      if (!liberacao) throw new Error('Liberação miofascial ausente')
+
+      await say(s, 'Quanto custa a liberação miofascial?')
+      const priceBody =
+        s.db.get<{ body: string }>(
+          `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+          s.cnv.id,
+        )?.body ?? ''
+      expect(priceBody).toMatch(/R\$|custa/i)
+      expect(priceBody).toMatch(/Liberação miofascial/i)
+      expect(getScheduleSession(s.db, s.tenantId, s.cnv.id)?.variantIds).toBeFalsy()
+
+      const affirm = await say(s, 'Quero')
+      const reply =
+        affirm.autoBook?.replyText ??
+        s.db.get<{ body: string }>(
+          `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+          s.cnv.id,
+        )?.body ??
+        ''
+      expect(reply).not.toMatch(/\bqual tipo\b/i)
+      expect(reply).not.toMatch(/\bquais tipos?\b/i)
+      expect(reply).toMatch(/tenho|vaga|\d{1,2}:\d{2}/i)
+      expect(getScheduleSession(s.db, s.tenantId, s.cnv.id)?.variantIds).toEqual([liberacao.id])
+
+      const day = await say(s, 'Na próxima quarta tem horário disponível?')
+      const dayReply =
+        day.autoBook?.replyText ??
+        s.db.get<{ body: string }>(
+          `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+          s.cnv.id,
+        )?.body ??
+        ''
+      expect(dayReply).not.toMatch(/\bqual tipo\b/i)
+      expect(dayReply).not.toMatch(/Não encontrei/i)
+      expect(dayReply).toMatch(/quarta\s+28\/10/i)
+      expect(getScheduleSession(s.db, s.tenantId, s.cnv.id)?.variantIds).toEqual([liberacao.id])
+    } finally {
+      s.close()
+    }
+  }, 30_000)
+
   it.each([
     // Âncora: seg 26/10 → «próxima quarta» / «Quarta feira» = 28/10 (não está nos primeiros slots).
     'Tem horário na próxima quarta?',
     'Quarta feira tem horário?',
+    // Staging Paulo 08/11/2026: «disponível» era leftover → Não encontrei + re-pergunta tipos.
+    'Na próxima quarta tem horário disponível?',
   ] as const)(
     'após Massagem relaxante + oferta, «%s» mantém a variante e oferece quarta',
     async (ask) => {
@@ -215,7 +263,7 @@ describe('DEC-145 staging: Massagem modo uma', () => {
 
         const day = await say(s, ask)
         const reply = day.autoBook?.replyText ?? ''
-        expect(reply).not.toMatch(/Não encontrei\s+(tem|feira)/i)
+        expect(reply).not.toMatch(/Não encontrei\s+(tem|feira|dispon[ií]vel)/i)
         expect(reply).not.toMatch(/Quer Liberação miofascial/i)
         expect(reply).not.toMatch(/\bquais tipos?\b/i)
         expect(reply).not.toMatch(/\bqual tipo\b/i)

@@ -429,6 +429,116 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
     }
   })
 
+  it('D4 bridge: «Quero» após preço de um tipo trava essa variante (Massagem uma)', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    try {
+      const tenantId = 'clinic-demo-a'
+      const caller = workerCaller(tenantId)
+      const svc = upsertServiceOp(
+        boot.db,
+        caller,
+        {
+          name: 'Massagem',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          priceCents: 20_000,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+          professionalIds: [],
+          roomRequirement: { mode: 'none' },
+        },
+        clock,
+      )
+      replaceServiceZonesOp(
+        boot.db,
+        caller,
+        svc.id,
+        [
+          {
+            name: 'Liberação miofascial',
+            audience: 'ambos',
+            durationMinutes: 60,
+            priceCents: 20_000,
+          },
+          {
+            name: 'Massagem relaxante',
+            audience: 'ambos',
+            durationMinutes: 50,
+            priceCents: 15_000,
+          },
+        ],
+        clock,
+      )
+      const contact = upsertContact(
+        boot.db,
+        { tenantId, waId: '5511900000088', displayName: 'Cliente' },
+        clock,
+      )
+      const conversation = createConversation(boot.db, { tenantId, contactId: contact.id }, clock)
+      const opts = { conversationId: conversation.id }
+      const liberacao = boot.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE service_id = ? AND name = 'Liberação miofascial'`,
+        svc.id,
+      )!.id
+
+      insertMessage(
+        boot.db,
+        {
+          tenantId,
+          conversationId: conversation.id,
+          direction: 'inbound',
+          body: 'Quanto custa a liberação miofascial?',
+          deliveryState: 'received',
+          createdAt: clock.nowMs(),
+        },
+        clock,
+      )
+      const priceReply = catalogReply(
+        boot.db,
+        tenantId,
+        'Quanto custa a liberação miofascial?',
+        clock,
+        opts,
+      )
+      expect(priceReply).toMatch(/R\$/)
+      expect(getScheduleSession(boot.db, tenantId, conversation.id)?.variantIds).toBeFalsy()
+      expect(getScheduleSession(boot.db, tenantId, conversation.id)?.serviceId).toBe(svc.id)
+
+      clock.advance(1_000)
+      insertMessage(
+        boot.db,
+        {
+          tenantId,
+          conversationId: conversation.id,
+          direction: 'outbound',
+          body: priceReply!,
+          deliveryState: 'delivered',
+          createdAt: clock.nowMs(),
+        },
+        clock,
+      )
+      clock.advance(1_000)
+      insertMessage(
+        boot.db,
+        {
+          tenantId,
+          conversationId: conversation.id,
+          direction: 'inbound',
+          body: 'Quero',
+          deliveryState: 'received',
+          createdAt: clock.nowMs(),
+        },
+        clock,
+      )
+      expect(catalogReply(boot.db, tenantId, 'Quero', clock, opts)).toBeNull()
+      expect(getScheduleSession(boot.db, tenantId, conversation.id)?.variantIds).toEqual([liberacao])
+    } finally {
+      boot.close()
+    }
+  })
+
   it('não pede a zona outra vez depois de a cliente ter escolhido axila masculina (sem preço)', () => {
     const boot = seedMixed()
     try {
