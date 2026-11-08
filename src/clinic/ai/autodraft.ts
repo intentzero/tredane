@@ -37,7 +37,8 @@ import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
 import { getActiveProposalForConversation } from '../proposals/proposals'
 import type { ClinicDb } from '../store'
-import { tryAiAutoBook, type AutoBookOutcome } from './autobook'
+import type { AutoBookOutcome } from './autobook'
+import { runBookingTurn } from './run-booking-turn'
 import { deliverCatalogConsult, planCatalogConsult } from './catalog-consult'
 import { catalogReply } from './catalog-reply'
 import {
@@ -45,7 +46,11 @@ import {
   type DeferredBookingFrame,
 } from './deferred-booking-frame'
 import type { SendOutboundInput } from '../inbox/types'
-import { AI_AUTODRAFT_DEBOUNCE_HUB_MS, autodraftDebounceMs } from './debounce'
+import {
+  AI_AUTODRAFT_DEBOUNCE_HUB_MS,
+  AI_AUTODRAFT_DEBOUNCE_PENDING_MS,
+  autodraftDebounceMs,
+} from './debounce'
 import { logPolicyShadow } from './policy-shadow'
 import {
   AI_TRANSPARENCY_TEXT,
@@ -162,15 +167,17 @@ export function enqueueAutoDraft(
   // Mesmo detector do caminho do hub em runDueAutoDrafts (TR-306).
   // Pedido completo (dia+período) sobrescreve o 300 ms mesmo se VAGUE_BOOK casar.
   // Quadro com serviço ou pedido não é abertura: o debounce curto do hub não aplica.
+  const frameForDebounce = getBookingFrame(db, tenantId, input.conversationId)
   const hubOpening = shouldAttachHubOpeningCta({
     turnText: body,
     services: activeServicesForHub(db, tenantId),
-    frame: getBookingFrame(db, tenantId, input.conversationId),
+    frame: frameForDebounce,
   })
   const waitMs = autodraftDebounceMs({
     text: body,
     fromInteractive: input.fromInteractive,
     hubOpening,
+    pendingSlot: frameForDebounce?.pending?.slot ?? null,
   })
   db.run(
     `INSERT INTO ai_autodraft_jobs (tenant_id, conversation_id, message_id, due_at, state, created_at, updated_at)
@@ -185,8 +192,8 @@ export function enqueueAutoDraft(
     now,
     now,
   )
-  // Opção C: typing cedo só no debounce curto do cumprimento (não em dia+período).
-  if (waitMs === AI_AUTODRAFT_DEBOUNCE_HUB_MS) {
+  // Typing cedo no debounce curto (hub ou resposta a pending).
+  if (waitMs === AI_AUTODRAFT_DEBOUNCE_HUB_MS || waitMs === AI_AUTODRAFT_DEBOUNCE_PENDING_MS) {
     try {
       enqueueTypingIndicator(
         db,
@@ -982,7 +989,9 @@ export async function runDueAutoDrafts(
           limitNote = decision.message
         }
       }
-      autoBook = await tryAiAutoBook(db, caller, clock, {
+      // P1 / DEC-C4: fachada runBookingTurn (gate cross-cutting dentro de tryAiAutoBook).
+      // ask_info (preço) já correu acima via catalogReply — resume da mesma pending.
+      autoBook = await runBookingTurn(db, caller, clock, {
         conversationId: job.conversationId,
         enabled: true,
         capability,

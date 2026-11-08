@@ -56,6 +56,8 @@ const WIRED_ACTS: readonly DialogueActId[] = [
   'nao_consegui_fechar',
   'acolher_adiamento',
   'orientar_terminar',
+  // P1 / DEC-C3: leftover mid Horários sem escolha de opção.
+  'esclarecer',
 ]
 
 /** Sem rota natural neste recorte — não inventar call-site. */
@@ -64,7 +66,6 @@ const UNWIRED_ACTS: readonly DialogueActId[] = [
   'informar_local',
   'informar_local_link',
   'informar_explicacao',
-  'esclarecer',
 ]
 
 /**
@@ -108,6 +109,8 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^A equipe confirma o valor\.$/,
   /^Não dá para juntar masculino e feminino na mesma visita\. Quer escolher só um dos dois\?$/,
   /^Não entendi bem esse pedido\. Quer ver as opções que temos\?$/,
+  // DEC-C3 / P1 — esclarecer (fallback sayAct) quando leftover ≠ option-miss
+  /^Pode me dizer de outro jeito, ou prefere falar com a equipe\?$/,
   // #509 / prática 1 — zona citada sem match único (Paulo 07/11/2026: sem «ou outra?»)
   /^Não encontrei \$\{palavra\} nas opções\. Quer \$\{lista\}\?$/,
   /^Não encontrei cotovelo nas opções\. Quer Axila, Pernas\?$/,
@@ -219,8 +222,8 @@ describe('#448 S5 varredura call-sites', () => {
   it('cobre todos os atos do catálogo (ligados ∪ sem call-site)', () => {
     const all = new Set<DialogueActId>([...WIRED_ACTS, ...UNWIRED_ACTS])
     expect([...all].sort()).toEqual((Object.keys(DIALOGUE_ACTS) as DialogueActId[]).sort())
-    expect(WIRED_ACTS).toHaveLength(29)
-    expect(UNWIRED_ACTS).toHaveLength(5)
+    expect(WIRED_ACTS).toHaveLength(30)
+    expect(UNWIRED_ACTS).toHaveLength(4)
   })
 
   it('cada ato ligado aparece em sayAct nos módulos do funil', () => {

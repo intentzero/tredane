@@ -3,6 +3,7 @@
  * 0 s botão/lista · 2–3 s pedido completo · 300 ms cumprimento do hub · 7 s texto aberto.
  * Revisão Paulo 04/11/2026 (opção C): cumprimento do hub não espera 7 s;
  * dia+período («amanhã tarde») mantém 2,5 s mesmo se VAGUE_BOOK casar «horário».
+ * P2 Paulo 07/11/2026: resposta curta a pending aberta → 0–300 ms (evolui DEC-111).
  */
 import { AI_AUTODRAFT_DEBOUNCE_MS } from '../../ai/budgets'
 import { isHubGreetingText } from '../../whatsapp/flow/hub-opening'
@@ -17,6 +18,13 @@ export const AI_AUTODRAFT_DEBOUNCE_INTERACTIVE_MS = 0
  * simultânea sem o vácuo de 7 s do texto aberto. Não cobre dia+período.
  */
 export const AI_AUTODRAFT_DEBOUNCE_HUB_MS = 300
+/**
+ * Resposta curta a obrigação pendente (ask-tipo / horários / eco / linha).
+ * Paulo P2 07/11/2026: 0–300 ms — cobre «Axila», «14h», «sim» sem o atraso de 7 s.
+ */
+export const AI_AUTODRAFT_DEBOUNCE_PENDING_MS = 300
+/** Limite de comprimento para tratar a resposta ao pending como «curta e completa». */
+export const PENDING_SHORT_ANSWER_MAX_CHARS = 40
 
 export type AutodraftDebounceInput = {
   text: string
@@ -28,6 +36,11 @@ export type AutodraftDebounceInput = {
    * (`isHubGreetingText`) nunca contam como pedido completo.
    */
   hubOpening?: boolean
+  /**
+   * `BookingFrame.pending.slot` aberto (ChoiceSlot). Com texto curto → 300 ms
+   * (vence o tier complete para «14h» / nome de variante).
+   */
+  pendingSlot?: string | null
 }
 
 /**
@@ -61,8 +74,22 @@ export function looksLikeCompleteBookingRequest(text: string): boolean {
   return false
 }
 
+/** Resposta curta e completa à pergunta pendente (Paulo P2 07/11/2026). */
+export function looksLikeShortPendingAnswer(text: string): boolean {
+  const trimmed = text.trim()
+  if (!trimmed) return false
+  if (trimmed.length > PENDING_SHORT_ANSWER_MAX_CHARS) return false
+  // Multi-zona longa («axila e pernas e buço…») fica no debounce normal.
+  if ((trimmed.match(/\be\b/gi) ?? []).length >= 2) return false
+  return true
+}
+
 export function autodraftDebounceMs(input: AutodraftDebounceInput): number {
   if (input.fromInteractive) return AI_AUTODRAFT_DEBOUNCE_INTERACTIVE_MS
+  // Pending aberto + resposta curta: 300 ms (vence complete para «14h» / «Axila»).
+  if (input.pendingSlot && looksLikeShortPendingAnswer(input.text)) {
+    return AI_AUTODRAFT_DEBOUNCE_PENDING_MS
+  }
   // Dia+período / pedido completo antes do hub: «amanhã tarde» e «tem horário?»
   // casam VAGUE_BOOK mas devem ficar nos 2,5 s da DEC-111.
   if (looksLikeCompleteBookingRequest(input.text)) return AI_AUTODRAFT_DEBOUNCE_COMPLETE_MS

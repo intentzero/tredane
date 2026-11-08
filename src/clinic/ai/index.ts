@@ -65,6 +65,21 @@ export {
   type AutoBookOutcome,
   type AutoBookStatus,
 } from './autobook'
+export { runBookingTurn, type RunBookingTurnInput } from './run-booking-turn'
+export {
+  classifyCrossCuttingAct,
+  isCrossCuttingInterrupt,
+  type CrossCuttingAct,
+  type AskInfoTopic,
+} from './booking-turn-gate'
+export {
+  obligationFromFrame,
+  obligationFromPending,
+  shouldEmitOptionMiss,
+  resumeObligationAfterAskInfo,
+  type DialogueObligation,
+  type DialogueObligationKind,
+} from './dialogue-obligation'
 export {
   getAiDailyUsage,
   incrementAiDailyUsage,

@@ -104,13 +104,11 @@ import {
   zonesForAudienceLine,
 } from './variant-line'
 import { extractDates, extractTimes, norm } from './nlu/temporal'
+import { classifyCrossCuttingAct } from './booking-turn-gate'
 import {
-  classifySensitive,
-  hasRestartRequest,
-  hasSlotRejectRequest,
-  hasSoftDeclineRequest,
-  isExplicitAbandonText,
-} from './nlu/sensitive'
+  obligationFromFrame,
+  shouldEmitOptionMiss,
+} from './dialogue-obligation'
 import { logPolicyShadow } from './policy-shadow'
 import {
   occupiedSlotAlternativesReply,
@@ -320,14 +318,31 @@ export function extractServices(text: string, services: ServiceRow[]): ServiceRo
   return servicesFromBookingMatch(resolveBookingObject({ text, services }), services)
 }
 
-/** Pergunta Opções quando uma zona citada não resolve (#509). */
+/**
+ * Pergunta Opções quando uma zona citada não resolve (#509).
+ * DEC-C3: option-miss só sob obrigação de escolha; senão `esclarecer`.
+ */
 function askUnrecognizedZone(
   mention: { leftover: string | null },
   zonePool: ServiceRow['zones'],
   fallback: string,
+  opts?: {
+    conversationId?: string
+    emitOptionMiss?: boolean
+  },
 ): string {
   const names = stableVariantLabelList(zonePool)
-  if (mention.leftover) return zoneNotFoundAskReply(mention.leftover, names)
+  if (mention.leftover && opts?.emitOptionMiss !== false) {
+    return zoneNotFoundAskReply(mention.leftover, names)
+  }
+  if (mention.leftover && opts?.emitOptionMiss === false) {
+    return sayAct(
+      'esclarecer',
+      opts.conversationId ?? '',
+      {},
+      'Pode me dizer de outro jeito, ou prefere falar com a equipe?',
+    )
+  }
   return fallback
 }
 
@@ -753,10 +768,12 @@ export async function tryAiAutoBook(
   // Baseline do progresso DEC-152: depois da revalidação, antes do turno.
   frameAtStart = getBookingFrame(db, tenantId, input.conversationId)
 
+  // P1 / DEC-C4: gate cross-cutting antes de pending / fillers
+  // (restart → exit A/B → reject C → ask_info). Handoff fica no autodraft.
+  const gate = classifyCrossCuttingAct({ text: turnText })
   // CF-28 / #508 / DEC-138 practice 5: restart phrases clear the booking frame
   // and retire any open proposal without confirming (DEC-061). Reply = perguntar_servico.
-  const sensitiveHits = classifySensitive(turnText)
-  if (hasRestartRequest(sensitiveHits)) {
+  if (gate.kind === 'restart') {
     deferred.clearSession()
     retireActiveProposal(db, tenantId, input.conversationId, clock)
     const names = services.map((s) => s.name.trim()).filter((n) => n.length > 0)
@@ -785,7 +802,7 @@ export async function tryAiAutoBook(
   // DEC-147 A/B: abandono explícito (A) ou despedida após oferta (B).
   // B com proposta aberta NÃO retira o Confirmar (CF-23: «obrigada!» ≠ abandonar).
   // A limpa sempre; B limpa só com slots/pending/coleta sem proposta.
-  if (hasSoftDeclineRequest(sensitiveHits)) {
+  if (gate.kind === 'exit_ab') {
     const frameSoft = getBookingFrame(db, tenantId, input.conversationId)
     const openProposal = getActiveProposalForConversation(
       db,
@@ -793,7 +810,7 @@ export async function tryAiAutoBook(
       input.conversationId,
       clock,
     )
-    const explicit = isExplicitAbandonText(turnText)
+    const explicit = gate.explicit
     const inFunnelSlots = Boolean(
       frameSoft?.serviceId ||
         (frameSoft?.variantIds && frameSoft.variantIds.length > 0) ||
@@ -823,7 +840,7 @@ export async function tryAiAutoBook(
   }
 
   // DEC-147 C: «não» / «não serve» sobre slots — rejeita a oferta, mantém serviço/variante.
-  if (hasSlotRejectRequest(sensitiveHits)) {
+  if (gate.kind === 'reject_c') {
     const frameReject = getBookingFrame(db, tenantId, input.conversationId)
     const hasOpenSlots = Boolean(
       (frameReject?.pending && frameReject.pending.slot === 'horario') ||
@@ -894,6 +911,10 @@ export async function tryAiAutoBook(
 
   // ADR-0015 / DEC-127: ler primeiro contra pending.options (cutover fechado — #472).
   const frameEarly = getBookingFrame(db, tenantId, input.conversationId)
+  /** Obrigação tipada (DEC-C4); option-miss só sob escolha (DEC-C3). */
+  const dialogueObligation = obligationFromFrame(frameEarly)
+  /** ask_info chegou ao funil (catalogReply não consumiu) — não virar leftover. */
+  const askInfoSuppressLeftover = gate.kind === 'ask_info'
   let zoneEcho = input.zoneEcho
   if (frameEarly?.pending?.slot === 'eco' && !zoneEcho) {
     const echoed = norm(turnText).replace(/[^a-z0-9]+/g, ' ').trim()
@@ -1241,6 +1262,37 @@ export async function tryAiAutoBook(
         sessionIntact ? sessionIds : null,
       )
       const turnMention = mentionZones(turnText, mentionPool, det.service)
+      // DEC-C3 / P1: leftover *só* (sem hora no turno) com obrigação `choose_slot`
+      // → esclarecer; não option-miss de tipos. «09:00 e cotovelo» continua
+      // option-miss (DEC-137: zona desconhecida a meio do pedido).
+      if (
+        dialogueObligation?.kind === 'choose_slot' &&
+        turnMention.unrecognized &&
+        turnMention.zones.length === 0 &&
+        earlyPolarIds == null &&
+        !askInfoSuppressLeftover &&
+        !clockFromTurn &&
+        !pendingTimeOverride &&
+        !input.boundSlot &&
+        zoneEcho !== 'skip' &&
+        zoneEcho !== 'confirm' &&
+        zoneEcho !== 'correct' &&
+        sessionIntact
+      ) {
+        return finish({
+          ...none('needs_info', {
+            confirmationMessageId: confirmation.id,
+            serviceId: det.service.id,
+          }),
+          replyText: sayAct(
+            'esclarecer',
+            input.conversationId,
+            {},
+            'Pode me dizer de outro jeito, ou prefere falar com a equipe?',
+          ),
+          notes: 'DEC-C3: bare choose_slot leftover → esclarecer (not variant option-miss).',
+        })
+      }
       // #510: Sim do eco ou quadro intacto sem menção nova → sem segundo parser.
       // Toque Opções (skip) com nomes no turnText continua a parsear.
       const frameOwnsVariants =
@@ -1267,6 +1319,7 @@ export async function tryAiAutoBook(
       // «Não encontrei …» nem reaponta tipos com a variante já travada.
       const leftoverAsk =
         mention.unrecognized &&
+        !askInfoSuppressLeftover &&
         zoneEcho !== 'skip' &&
         zoneEcho !== 'confirm' &&
         zoneEcho !== 'correct' &&
@@ -1391,7 +1444,15 @@ export async function tryAiAutoBook(
                 { selectionMode: det.service.variantSelection },
               )
           replyText = mention.unrecognized
-            ? askUnrecognizedZone(mention, zonePool, genericAsk)
+            ? askUnrecognizedZone(mention, zonePool, genericAsk, {
+                conversationId: input.conversationId,
+                emitOptionMiss: shouldEmitOptionMiss({
+                  obligation: dialogueObligation,
+                  unrecognizedLeftover: true,
+                  attemptedOptionMatch: true,
+                  timeInTurn: Boolean(clockFromTurn || pendingTimeOverride || input.boundSlot),
+                }),
+              })
             : genericAsk
           interactive = variantChoiceFor(
             deferred,
@@ -1673,7 +1734,12 @@ export async function tryAiAutoBook(
                 ignoreWords: zoneMentionIgnore(svc),
                 selectionMode: svc.variantSelection,
               }).zones.length > 0
-            if (mention.unrecognized && zoneEcho !== 'skip' && zoneEcho !== 'confirm') {
+            if (
+              mention.unrecognized &&
+              !askInfoSuppressLeftover &&
+              zoneEcho !== 'skip' &&
+              zoneEcho !== 'confirm'
+            ) {
               replyText = askUnrecognizedZone(
                 mention,
                 zonePool,
@@ -1684,6 +1750,15 @@ export async function tryAiAutoBook(
                   input.conversationId,
                   { selectionMode: svc.variantSelection },
                 ),
+                {
+                  conversationId: input.conversationId,
+                  emitOptionMiss: shouldEmitOptionMiss({
+                    obligation: dialogueObligation,
+                    unrecognizedLeftover: true,
+                    attemptedOptionMatch: true,
+                    timeInTurn: Boolean(clockFromTurn || pendingTimeOverride || input.boundSlot),
+                  }),
+                },
               )
               interactive = variantChoiceFor(
                 deferred,
@@ -1979,8 +2054,16 @@ export async function tryAiAutoBook(
       // REQ-088 / AC-60: pergunta determinística — não depender do modelo nem silenciar.
       // #509: sobra sem match único → «Não encontrei {palavra}…» (copy proposta).
       replyText:
-        proposalMention.unrecognized && !ambiguous
-          ? askUnrecognizedZone(proposalMention, zonePool, genericAsk)
+        proposalMention.unrecognized && !ambiguous && !askInfoSuppressLeftover
+          ? askUnrecognizedZone(proposalMention, zonePool, genericAsk, {
+              conversationId: input.conversationId,
+              emitOptionMiss: shouldEmitOptionMiss({
+                obligation: dialogueObligation,
+                unrecognizedLeftover: true,
+                attemptedOptionMatch: true,
+                timeInTurn: Boolean(clockFromTurn || pendingTimeOverride || input.boundSlot),
+              }),
+            })
           : genericAsk,
       interactive,
       notes: ambiguous
