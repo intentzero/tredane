@@ -1671,6 +1671,89 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    id: 'A-34',
+    title: 'Após slots sem progresso: hint «diga terminar» uma vez (DEC-152)',
+    turnosIdeais: 1,
+    // DEC-152: sessão aberta + turno sem avanço do quadro → hint one-shot.
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-34: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const relaxante = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
+        s.tenantId,
+        massagem.id,
+        'Massagem relaxante',
+      )
+      if (!relaxante) throw new Error('A-34: variante Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-07T14:00', label: '14:00' },
+              { key: '2026-11-07T15:00', label: '15:00' },
+            ],
+            messageId: 'm_a34_slots',
+          },
+          lastOffer: {
+            slots: [{ startsAt: Date.UTC(2026, 10, 7, 17, 0), professionalId: 'pro_a34' }],
+            messageId: 'm_a34_slots',
+          },
+        },
+        s.clock,
+      )
+    },
+    // Cumprimento sem dia/período/zona (senão o quadro avança e o hint não sai).
+    turns: [{ role: 'client', text: 'oi' }],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Se quiser parar, diga terminar/i],
+          excludes: [/quando quiser|fico por aqui/i],
+        },
+      ],
+    },
+  },
+  {
     id: 'A-31',
     title: 'Escolha por hora solta «14»',
     turnosIdeais: 1,
