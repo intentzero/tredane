@@ -111,8 +111,8 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Não encontrei cotovelo nas opções\. Quer Axila, Pernas\?$/,
   /^Nossas opções mudaram\. Pode dizer de novo qual serviço e opção você quer\?$/,
   /^Não consegui fechar \$\{serviceName\} às \$\{time\} agora\. A equipe confirma em seguida\.$/,
-  /^\$\{serviço\} feminina ou masculina\?$/,
-  /^Para \$\{serviço\}, \$\{whichKind\(variantKind \?\? ''\)\} você quer\? Temos \$\{lista\}\.$/,
+  /^\$\{serviceNameInProse\(serviceName, true\)\} feminina ou masculina\?$/,
+  /^Para \$\{serviçoProse\}, \$\{whichKind\(variantKind \?\? ''\)\} você quer\? Temos \$\{lista\}\.$/,
   /^Para fechar às \$\{time\}, me diga \$\{phrase\}: \$\{list\}\. Pode ser mais de uma\.$/,
   // DEC-145 modo `uma`: pergunta singular (catálogo M4 permanece plural, máx. 5 redações).
   /^Para fechar às \$\{time\}, \$\{whichKind\(variantKind \?\? ''\)\} você quer\? Temos \$\{list\}\.$/,

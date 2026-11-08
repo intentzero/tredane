@@ -447,7 +447,8 @@ describe('CTA Abrir opções só na abertura vaga (Paulo, 07/11/2026)', () => {
       expect(out[0]!.reason).not.toBe('hub_opening')
       expect(flow.calls()).toBe(0)
       expect(last?.body ?? '').toMatch(/tipos?/i)
-      expect(last?.body ?? '').toMatch(/Liberação miofascial/)
+      expect(last?.body ?? '').toMatch(/liberação miofascial/)
+      expect(last?.body ?? '').not.toMatch(/Liberação miofascial/)
       expect(last?.body ?? '').not.toMatch(/Não encontrei/i)
       expect(last?.interactive_json ?? '').not.toContain('Abrir opções')
     } finally {

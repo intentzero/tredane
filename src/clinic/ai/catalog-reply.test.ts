@@ -232,9 +232,10 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
         clock,
       )
       const reply = catalogReply(boot.db, tenantId, 'Quero depilação amanhã à tarde.', clock)
-      expect(reply).toMatch(/quais zonas|Axila/i)
-      expect(reply).toMatch(/Pernas \(feminino, 30 min\)/)
-      expect(reply).toMatch(/Pernas \(feminino, 45 min\)/)
+      expect(reply).toMatch(/quais zonas|axila/i)
+      expect(reply).toMatch(/pernas \(feminino, 30 min\)/)
+      expect(reply).toMatch(/pernas \(feminino, 45 min\)/)
+      expect(reply).not.toMatch(/Pernas \(feminino/)
       expect(reply).not.toMatch(/feminina ou masculina/i)
       expect(reply).not.toMatch(/^oi|^ol[aá]/i)
     } finally {
