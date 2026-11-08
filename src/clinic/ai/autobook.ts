@@ -1262,6 +1262,33 @@ export async function tryAiAutoBook(
         sessionIntact ? sessionIds : null,
       )
       const turnMention = mentionZones(turnText, mentionPool, det.service)
+      // DEC-C3 / P1: com obrigação `choose_slot`, leftover de zona não é option-miss
+      // nem limpa a variante — esclarecer e manter Horários abertos.
+      if (
+        dialogueObligation?.kind === 'choose_slot' &&
+        turnMention.unrecognized &&
+        turnMention.zones.length === 0 &&
+        earlyPolarIds == null &&
+        !askInfoSuppressLeftover &&
+        zoneEcho !== 'skip' &&
+        zoneEcho !== 'confirm' &&
+        zoneEcho !== 'correct' &&
+        sessionIntact
+      ) {
+        return finish({
+          ...none('needs_info', {
+            confirmationMessageId: confirmation.id,
+            serviceId: det.service.id,
+          }),
+          replyText: sayAct(
+            'esclarecer',
+            input.conversationId,
+            {},
+            'Pode me dizer de outro jeito, ou prefere falar com a equipe?',
+          ),
+          notes: 'DEC-C3: choose_slot leftover → esclarecer (não option-miss de variantes).',
+        })
+      }
       // #510: Sim do eco ou quadro intacto sem menção nova → sem segundo parser.
       // Toque Opções (skip) com nomes no turnText continua a parsear.
       const frameOwnsVariants =
