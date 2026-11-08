@@ -6,7 +6,7 @@
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * todos os serviços com audiência «qualquer», salvo o que o caso mudar em `prepare`.
  */
-import { listServices, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
+import { listServices, listZones, replaceServiceZonesOp, upsertServiceOp } from '../../../config'
 import { saveScheduleSession } from '../../schedule-session'
 import type { DialogCase } from './runner'
 import type { DialogScenario } from './scenario'
@@ -208,6 +208,60 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       turns: [
         { turn: 1, matches: [/Entendi: Axila\. Certo\?/] },
         { turn: 1, excludes: [/Pernas/i] },
+      ],
+    },
+  },
+  {
+    id: 'A-33',
+    title:
+      'D3: após Todas, «Sem orelha» remove Orelha do eco (não substitui por só Orelha)',
+    turnosIdeais: 2,
+    // Staging Paulo 08/11/2026: eco de Todas → «Sem orelha» tratava Orelha como select positivo.
+    prepare: (s) => {
+      const prior = listZones(s.db, s.tenantId, s.ids.depilacao)
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        s.ids.depilacao,
+        [
+          ...prior.map((z) => ({
+            id: z.id,
+            name: z.name,
+            audience: z.audience,
+            durationMinutes: z.durationMinutes,
+            priceCents: z.priceCents,
+            active: z.active,
+            synonyms: z.synonyms,
+          })),
+          { name: 'Orelha', audience: 'feminino', durationMinutes: 10, priceCents: 3000 },
+        ],
+        s.clock,
+      )
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { serviceId: s.ids.depilacao, audienceLine: 'feminino', phase: 'coletando' },
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Todas' },
+      { role: 'client', text: 'Sem orelha' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Entendi:.*Orelha.*Certo\?/],
+        },
+        {
+          turn: 1,
+          matches: [/Entendi:.*Axila.*Pernas.*Certo\?/],
+          excludes: [/Orelha/i],
+        },
       ],
     },
   },
