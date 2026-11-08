@@ -588,8 +588,12 @@ export async function tryAiAutoBook(
   const rememberOfferFrame = rememberOfferFrameImpl
   const tenantId = caller.tenantId
   const deferred = createDeferredBookingFrame()
-  /** DEC-152: snapshot do quadro antes do turno (hint one-shot sem progresso). */
-  const frameAtStart = getBookingFrame(db, tenantId, input.conversationId)
+  /**
+   * DEC-152: snapshot do quadro no início do turno (hint one-shot sem progresso).
+   * Reatribuído após `syncBookingFrameWithCatalog` para não confundir
+   * revalidação de catálogo com avanço da cliente.
+   */
+  let frameAtStart = getBookingFrame(db, tenantId, input.conversationId)
   const catalog =
     input.turn?.catalog ?? getOrCompileCatalog(db, tenantId, clock)
   const saveSession = (patch: Parameters<typeof saveScheduleSession>[3]) => {
@@ -744,6 +748,8 @@ export async function tryAiAutoBook(
     },
     clock,
   )
+  // Baseline do progresso DEC-152: depois da revalidação, antes do turno.
+  frameAtStart = getBookingFrame(db, tenantId, input.conversationId)
 
   // CF-28 / #508 / DEC-138 practice 5: restart phrases clear the booking frame
   // and retire any open proposal without confirming (DEC-061). Reply = perguntar_servico.
