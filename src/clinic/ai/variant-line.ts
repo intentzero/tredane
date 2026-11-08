@@ -8,7 +8,7 @@ import { formatBRL } from '../../ai/prompt'
 import { allowsMultipleVariants } from '../catalog/variant-selection'
 import { variantChoiceLabel } from '../config/zones'
 import type { ServiceRow, VariantAudience } from '../config/types'
-import { sayAct } from './dialogue-acts'
+import { sayAct, serviceNameInProse } from './dialogue-acts'
 
 export type AudienceLine = 'feminino' | 'masculino'
 
@@ -45,9 +45,9 @@ export function zonesForAudienceLine<T extends { audience?: string | null }>(
 }
 
 export function audienceLineQuestion(serviceName: string, conversationId = ''): string {
-  const serviço = serviceName.trim()
-  const fallback = `${serviço} feminina ou masculina?`
-  return sayAct('perguntar_linha', conversationId, { serviço }, fallback)
+  // `{serviço}` no catálogo passa por serviceNameInProse; o fallback também.
+  const fallback = `${serviceNameInProse(serviceName, true)} feminina ou masculina?`
+  return sayAct('perguntar_linha', conversationId, { serviço: serviceName }, fallback)
 }
 
 function zoneKey(zone: ListedZone): string {
@@ -88,6 +88,18 @@ export function variantTipoWord(variantKind: string | null | undefined): string 
 }
 
 /**
+ * Nomes de variante na pergunta ask-tipo (frase corrida): minúsculas pt-BR.
+ * Confirmado (Paulo, 08/11/2026): «Para massagem… Temos liberação miofascial, …».
+ * Rótulos da lista Meta Opções e outros labels de catálogo ficam como no cadastro.
+ */
+export function variantListInProse(labels: readonly string[]): string {
+  return labels
+    .map((label) => label.trim().toLocaleLowerCase('pt-BR'))
+    .filter((label) => label.length > 0)
+    .join(', ')
+}
+
+/**
  * Rótulo `{tipo}` / whichKind: singular em modo `uma`, plural em `varias`.
  * DEC-145 — «qual tipo?» vs «quais tipos?».
  */
@@ -125,14 +137,19 @@ export function variantListQuestion(
   opts: { assunto?: string; selectionMode?: ServiceRow['variantSelection'] } = {},
 ): string {
   const single = opts.selectionMode === 'uma'
-  const serviço = serviceName.trim()
+  const serviçoProse = serviceNameInProse(serviceName)
   const tipo = variantTipoWord(variantKind)
-  const lista = stableVariantLabelList(zones).join(', ')
+  const lista = variantListInProse(stableVariantLabelList(zones))
   // DEC-145: catálogo M4 de perguntar_variantes é plural («Quais… Pode ser mais de uma»,
   // máx. 5 redações). Modo `uma` usa a pergunta singular directa até haver ato dedicado.
-  const fallback = `Para ${serviço}, ${whichKind(variantKind ?? '')} você quer? Temos ${lista}.`
+  // Paulo 08/11/2026: serviço + variantes em minúsculas na frase; Opções Meta mantém cadastro.
+  const fallback = `Para ${serviçoProse}, ${whichKind(variantKind ?? '')} você quer? Temos ${lista}.`
   if (single) return fallback
-  const vars: Record<string, string | undefined> = { serviço, tipo, lista }
+  const vars: Record<string, string | undefined> = {
+    serviço: serviceName,
+    tipo,
+    lista,
+  }
   if (opts.assunto?.trim()) vars.assunto = opts.assunto.trim()
   // Sem hora: não usar a redação «Para fechar às {hora}».
   return sayAct('perguntar_variantes', conversationId, vars, fallback, {

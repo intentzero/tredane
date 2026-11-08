@@ -364,7 +364,8 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
         s.tenantId,
         s.cnv.id,
       )
-      expect(sent!.body).toMatch(/Axila/)
+      expect(sent!.body).toMatch(/axila/)
+      expect(sent!.body).not.toMatch(/Axila/)
       expect(sent!.body).not.toMatch(/R\$|a partir de/i)
       noBooking(s)
     } finally {
@@ -506,8 +507,8 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       const o = await s.run()
       expect(o.autoBook?.proposalId).toBeUndefined()
       expect(o.autoBook?.status).toBe('needs_info')
-      expect(o.autoBook?.replyText).toMatch(/Axila \(masculino, 15 min\)/)
-      expect(o.autoBook?.replyText).toMatch(/Axila \(masculino, 30 min\)/)
+      expect(o.autoBook?.replyText).toMatch(/axila \(masculino, 15 min\)/)
+      expect(o.autoBook?.replyText).toMatch(/axila \(masculino, 30 min\)/)
       noBooking(s)
     } finally {
       s.close()
@@ -768,10 +769,11 @@ describe('detectExplicitConfirmation', () => {
 })
 
 describe('pergunta das variantes usa o plural do tipo', () => {
-  it('«as zonas», não «a Zona»', () => {
+  it('«as zonas», não «a Zona»; variantes em minúsculas na frase', () => {
     const reply = askZonesReply('as zonas', ['Axila', 'Buço'], '14:00')
     expect(reply).toMatch(/Para fechar às 14:00/)
-    expect(reply).toMatch(/Axila, Buço/)
+    expect(reply).toMatch(/axila, buço/)
+    expect(reply).not.toMatch(/Axila, Buço/)
     expect(reply).toMatch(/Pode ser mais de uma/)
     expect(reply).not.toMatch(/me diga/i)
   })
