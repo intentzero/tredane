@@ -857,6 +857,8 @@ export async function runDueAutoDrafts(
             conversationId: job.conversationId,
             catalogVersion: readCatalogVersion(db, tenantId),
             body,
+            // T3: idempotência de offer_skipped sem token.
+            analyticsAttemptId: job.messageId,
           })
           if (offered) {
             const sent = sendOutboundMessageOp(

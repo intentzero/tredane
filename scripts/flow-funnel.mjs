@@ -76,6 +76,11 @@ const LOG_HINTS = [
   '  a) event = ai.turn_decided AND tenantId = <tenant>: contar variantsChanged = true',
   '     (já ignora troca de serviço); agrupar por zonesAskedBefore (false = zonas escritas sem pergunta).',
   '  c) event = whatsapp_flow.offer_skipped (agrupar por reason) e event = whatsapp_flow.offer_failed.',
+  '',
+  'T3 / DEC-148 (session analytics): outbox da clínica `booking_session.flow`',
+  '  (flowState = sent|opened|completed|skipped; flowTokenId = hash; sessionId T1/T2).',
+  '  opened_at no D1 liga-se ao mesmo sessionId via Clinic DO recordFlowOpened.',
+  '  offer_skipped também vai à outbox (não só log). Sem corpo de mensagem.',
 ]
 
 function main() {

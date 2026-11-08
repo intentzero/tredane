@@ -11,6 +11,10 @@ import {
   buildZoneEchoInteractive,
 } from '../../clinic/ai/choice-offer'
 import { createDeferredBookingFrame } from '../../clinic/ai/deferred-booking-frame'
+import { upsertContact } from '../../clinic/contacts'
+import { createConversation } from '../../clinic/inbox/conversations'
+import { workerCaller } from '../../clinic/index'
+import { bootClinicDb } from '../../clinic/test-db'
 import { generateFlowKeyPair } from './crypto'
 import {
   clearM5PendingOnDeferred,
@@ -127,6 +131,53 @@ describe('prepareBookingFlowOfferFromEnv', () => {
     } finally {
       warn.mockRestore()
       close()
+    }
+  })
+
+  it('T3: offer_skipped com analytics escreve outbox booking_session.flow (não só log)', async () => {
+    const { db: admin, close: closeAdmin } = bootAdminDb()
+    const clock = createControllableClock(1_700_000_000_000)
+    const clinic = bootClinicDb({ clock })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      const tenantId = 'clinic-demo-a'
+      workerCaller(tenantId, 'user_synth_owner_a')
+      const contact = upsertContact(
+        clinic.db,
+        { tenantId, waId: '5511900000170', displayName: 'Skip Flow' },
+        clock,
+      )
+      const cnv = createConversation(
+        clinic.db,
+        { tenantId, contactId: contact.id, status: 'open' },
+        clock,
+      )
+      const offered = await prepareBookingFlowOfferFromEnv({
+        env: { DB: adminDbAsD1(admin) },
+        clock,
+        tenantId,
+        conversationId: cnv.id,
+        catalogVersion: '1',
+        analytics: { db: clinic.db, attemptId: 'msg_hub_1' },
+      })
+      expect(offered).toBeNull()
+      const row = clinic.db.get<{ type: string; payload_json: string }>(
+        `SELECT type, payload_json FROM outbox_events
+         WHERE tenant_id = ? AND type = 'booking_session.flow' LIMIT 1`,
+        tenantId,
+      )
+      expect(row?.type).toBe('booking_session.flow')
+      const payload = JSON.parse(row!.payload_json) as Record<string, unknown>
+      expect(payload.flowState).toBe('skipped')
+      expect(payload.skipReason).toBe('not_configured')
+      expect(payload).not.toHaveProperty('body')
+      expect(JSON.stringify(payload)).not.toMatch(/mensagem|Quero/i)
+    } finally {
+      warn.mockRestore()
+      log.mockRestore()
+      closeAdmin()
+      clinic.close()
     }
   })
 

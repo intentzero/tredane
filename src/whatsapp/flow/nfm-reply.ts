@@ -18,6 +18,7 @@ import type { OutboxRow } from '../../clinic/outbox'
 import type { ClinicDb } from '../../clinic/store'
 import { tryAiAutoBook, type AutoBookOutcome } from '../../clinic/ai/autobook'
 import { AUTODRAFT_ACTOR_ID, cancelAutoDraft } from '../../clinic/ai/autodraft'
+import { recordBookingSessionFlow } from '../../clinic/ai/booking-session'
 import { createDeferredBookingFrame } from '../../clinic/ai/deferred-booking-frame'
 import { notifyHumanHandoff } from '../../clinic/ai/human-handoff'
 import {
@@ -723,6 +724,18 @@ export async function handleFlowNfmReply(
   const params = parseNfmResponseJson(input.responseJson)
   if (!params) {
     return { handled: true, outcome: 'invalid_payload', outbox: [], reason: 'bad_json' }
+  }
+
+  // T3: nfm_reply = Flow concluído (espelha consumed_at do funil D1).
+  // Idempotente por token; ack+proposal não duplicam. Sem corpo de mensagem.
+  if (phase !== 'proposal') {
+    recordBookingSessionFlow(
+      db,
+      input.tenantId,
+      input.conversationId,
+      { flowState: 'completed', flowToken: params.flowToken },
+      clock,
+    )
   }
 
   if (params.hubAction) {

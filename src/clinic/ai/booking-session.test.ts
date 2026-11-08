@@ -9,15 +9,19 @@ import { workerCaller } from '../index'
 import { bootClinicDb } from '../test-db'
 import {
   assertBookingSessionEndedMinimized,
+  assertBookingSessionFlowMinimized,
   assertBookingSessionOpenedMinimized,
   BOOKING_SESSION_ABANDON_WINDOW_MS,
   deriveDropStep,
   endAbandonedSessionsPastWindow,
   endBookingSession,
   getOpenBookingSession,
+  hashFlowTokenForAnalytics,
   openBookingSessionIfNeeded,
+  recordBookingSessionFlow,
   touchBookingSessionOnTurn,
   type BookingSessionEndedPayload,
+  type BookingSessionFlowPayload,
   type BookingSessionOpenedPayload,
 } from './booking-session'
 import { clearBookingFrame, saveBookingFrame } from './schedule-session'
@@ -410,6 +414,186 @@ describe('DEC-148 booking_session T1', () => {
       clock,
     )
     expect(getOpenBookingSession(db, tenantId, cnv.id)).toBeNull()
+    boot.close()
+  })
+})
+
+describe('DEC-148 booking_session T3 Flow', () => {
+  function flowSample(
+    over: Partial<BookingSessionFlowPayload> = {},
+  ): BookingSessionFlowPayload {
+    return {
+      event: 'booking_session.flow',
+      sessionId: 'bss_1',
+      tenantId: 'clinic-demo-a',
+      conversationId: 'cnv_1',
+      occurredAt: NOW,
+      flowTokenId: 'abcd1234abcd1234',
+      flowState: 'sent',
+      source: 'clinic_do',
+      ...over,
+    }
+  }
+
+  it('rejeita payload flow com corpo de mensagem ou token em claro', () => {
+    expect(() =>
+      assertBookingSessionFlowMinimized({
+        ...flowSample(),
+        body: 'Quero massagem',
+      } as BookingSessionFlowPayload & { body: string }),
+    ).toThrow(/texto de conversa|corpo/)
+    expect(() =>
+      assertBookingSessionFlowMinimized({
+        ...flowSample(),
+        flowTokenId: 'fl1_' + 'ab'.repeat(32),
+      }),
+    ).toThrow(/token em claro/)
+    expect(() => assertBookingSessionFlowMinimized(flowSample())).not.toThrow()
+  })
+
+  it('hashFlowTokenForAnalytics é estável e truncado', () => {
+    const a = hashFlowTokenForAnalytics('fl1_abc')
+    const b = hashFlowTokenForAnalytics('fl1_abc')
+    expect(a).toBe(b)
+    expect(a).toHaveLength(16)
+    expect(a?.startsWith('fl1_')).toBe(false)
+    expect(hashFlowTokenForAnalytics(null)).toBeNull()
+  })
+
+  it('sent / opened / completed / skipped vão à outbox; opened marca flowUsed', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const { db } = boot
+    const tenantId = 'clinic-demo-a'
+    workerCaller(tenantId, 'user_synth_owner_a')
+    const contact = upsertContact(
+      db,
+      { tenantId, waId: '5511900000160', displayName: 'Flow Ficticia' },
+      clock,
+    )
+    const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
+    const open = openBookingSessionIfNeeded(
+      db,
+      tenantId,
+      cnv.id,
+      {
+        phase: 'coletando',
+        serviceId: 'svc_flow',
+        line: null,
+        variantIds: null,
+        date: null,
+        period: null,
+        time: null,
+        pending: null,
+        lastOffer: null,
+        proposal: null,
+      },
+      clock,
+      { openReason: 'intent' },
+    )
+    expect(open.session?.flowUsed).toBe(false)
+
+    const token = 'fl1_' + 'cd'.repeat(32)
+    const sent = recordBookingSessionFlow(
+      db,
+      tenantId,
+      cnv.id,
+      { flowState: 'sent', flowToken: token },
+      clock,
+    )
+    expect(sent.outbox.type).toBe('booking_session.flow')
+    expect(sent.payload.flowState).toBe('sent')
+    expect(sent.payload.flowTokenId).toBe(hashFlowTokenForAnalytics(token))
+    expect(sent.payload.sessionId).toBe(open.session!.sessionId)
+    expect(JSON.stringify(sent.payload)).not.toContain(token)
+    expect(JSON.stringify(sent.payload)).not.toMatch(/Quero|mensagem|body/i)
+
+    const sentAgain = recordBookingSessionFlow(
+      db,
+      tenantId,
+      cnv.id,
+      { flowState: 'sent', flowToken: token },
+      clock,
+    )
+    expect(sentAgain.outbox.id).toBe(sent.outbox.id)
+
+    recordBookingSessionFlow(
+      db,
+      tenantId,
+      cnv.id,
+      { flowState: 'opened', flowToken: token },
+      clock,
+    )
+    expect(getOpenBookingSession(db, tenantId, cnv.id)?.flowUsed).toBe(true)
+
+    recordBookingSessionFlow(
+      db,
+      tenantId,
+      cnv.id,
+      { flowState: 'completed', flowToken: token },
+      clock,
+    )
+
+    const skipped = recordBookingSessionFlow(
+      db,
+      tenantId,
+      cnv.id,
+      {
+        flowState: 'skipped',
+        skipReason: 'no_active_binding',
+        attemptId: 'msg_skip_1',
+      },
+      clock,
+    )
+    expect(skipped.payload.skipReason).toBe('no_active_binding')
+    expect(skipped.payload.flowTokenId).toBeNull()
+
+    const flowEvents = db.all<{ type: string; payload_json: string }>(
+      `SELECT type, payload_json FROM outbox_events
+       WHERE tenant_id = ? AND type = 'booking_session.flow'
+       ORDER BY occurred_at, rowid`,
+      tenantId,
+    )
+    const states = flowEvents.map(
+      (r) => (JSON.parse(r.payload_json) as BookingSessionFlowPayload).flowState,
+    )
+    expect(states).toEqual(['sent', 'opened', 'completed', 'skipped'])
+    boot.close()
+  })
+
+  it('openReason flow_agendar marca flowUsed na abertura', () => {
+    const clock = createControllableClock(NOW)
+    const boot = bootClinicDb({ clock })
+    const { db } = boot
+    const tenantId = 'clinic-demo-a'
+    workerCaller(tenantId, 'user_synth_owner_a')
+    const contact = upsertContact(
+      db,
+      { tenantId, waId: '5511900000161', displayName: 'Agendar Flow' },
+      clock,
+    )
+    const cnv = createConversation(db, { tenantId, contactId: contact.id, status: 'open' }, clock)
+    const { session } = openBookingSessionIfNeeded(
+      db,
+      tenantId,
+      cnv.id,
+      {
+        phase: 'ofertado',
+        serviceId: 'svc_flow2',
+        line: 'feminino',
+        variantIds: ['z1'],
+        date: '2026-11-08',
+        period: null,
+        time: '10:00',
+        pending: null,
+        lastOffer: null,
+        proposal: null,
+      },
+      clock,
+      { openReason: 'flow_agendar' },
+    )
+    expect(session?.flowUsed).toBe(true)
+    expect(session?.openReason).toBe('flow_agendar')
     boot.close()
   })
 })

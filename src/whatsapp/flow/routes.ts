@@ -90,6 +90,29 @@ async function defaultDataLookup(
   return result
 }
 
+/**
+ * T3: na primeira gravação que preenche `opened_at`, notifica o Clinic DO
+ * para emitir `booking_session.flow` (mesmo sessionId T1/T2 da conversa).
+ */
+async function notifyFlowOpened(
+  env: WorkerBindings,
+  token: string,
+  row: { tenantId: string; conversationId: string; openedAt: number | null },
+): Promise<void> {
+  if (row.openedAt != null) return
+  try {
+    const stub = env.CLINIC.get(env.CLINIC.idFromName(row.tenantId))
+    if (typeof stub.recordFlowOpened !== 'function') return
+    await stub.recordFlowOpened({
+      tenantId: row.tenantId,
+      conversationId: row.conversationId,
+      flowToken: token,
+    })
+  } catch {
+    // Telemetria não bloqueia o endpoint Flow.
+  }
+}
+
 function defaultTokenAndSession(
   env: WorkerBindings,
   clock: Clock,
@@ -113,7 +136,11 @@ function defaultTokenAndSession(
           }
         },
         saveSession: async (token, session) => {
+          const before = getFlowToken(syncAdminDb, token)
           saveFlowTokenSession(syncAdminDb, token, session, clock.nowMs())
+          if (before) {
+            await notifyFlowOpened(env, token, before)
+          }
         },
       }),
     }
@@ -124,7 +151,13 @@ function defaultTokenAndSession(
     tokenLookup: (token) => ops.getToken(token),
     sessions: createTokenBackedSessionStore({
       getToken: (token) => ops.getToken(token),
-      saveSession: (token, session) => ops.saveSession(token, session),
+      saveSession: async (token, session) => {
+        const before = await ops.getToken(token)
+        await ops.saveSession(token, session)
+        if (before) {
+          await notifyFlowOpened(env, token, before)
+        }
+      },
     }),
   }
 }

@@ -3,8 +3,14 @@
  * Quando `WHATSAPP_FLOW_ID` + chave privada estão no ambiente, substitui
  * Feminina/Masculina, Opções e Horários (M5) pelo CTA `type: flow`.
  * Sim/Corrigir do eco (DEC-137) mantém-se — não é funil M5 (#515).
+ * T3 / DEC-148: `offer_skipped` e `sent` passam por outbox `booking_session.flow`
+ * quando `analytics.db` é injectado (não só Workers Logs).
  */
 import type { Clock } from '../../db/clock'
+import {
+  recordBookingSessionFlow,
+  type BookingSessionFlowSkipReason,
+} from '../../clinic/ai/booking-session'
 import {
   parseChoiceId,
   toSendInteractive,
@@ -13,6 +19,7 @@ import {
 import type { DeferredBookingFrame } from '../../clinic/ai/deferred-booking-frame'
 import type { BookingFrame } from '../../clinic/ai/schedule-session'
 import type { SendOutboundInteractiveInput } from '../../clinic/inbox/types'
+import type { ClinicDb } from '../../clinic/store'
 import {
   isWhatsappFlowConfigured,
   type WhatsappFlowEnv,
@@ -29,6 +36,11 @@ export type PrepareBookingFlowOfferInput = {
   session?: FlowBookingSnapshot
   /** Corpo C1h interpolado (clínica + hora). Sem isto usa FLOW_COPY.openBody. */
   body?: string
+  /**
+   * T3: id estável do turno (ex. messageId) para idempotência de `skipped`
+   * sem token. O wrapper do DO / harness pode preencher.
+   */
+  analyticsAttemptId?: string
 }
 
 export type PreparedBookingFlowOffer = {
@@ -106,10 +118,22 @@ type BindingRow = {
 }
 
 /** Motivo de o Flow não ser enviado e o turno voltar ao M5 (DEC-143, medida c). */
-export type FlowOfferSkipReason = 'not_configured' | 'no_active_binding' | 'build_failed'
+export type FlowOfferSkipReason = BookingSessionFlowSkipReason
 
-/** Log sem texto da conversa: só tenant e motivo. */
-function logFlowOfferSkipped(tenantId: string, reason: FlowOfferSkipReason): void {
+/** Analytics T3: outbox no SQLite do DO (mesmo `sessionId` T1/T2). */
+export type FlowOfferAnalytics = {
+  db: ClinicDb
+  attemptId?: string | null
+}
+
+/** Log DEC-143 (Workers Logs) + outbox T3 quando `analytics` está presente. */
+function noteFlowOfferSkipped(
+  tenantId: string,
+  conversationId: string,
+  reason: FlowOfferSkipReason,
+  clock: Clock,
+  analytics?: FlowOfferAnalytics | null,
+): void {
   console.warn(
     JSON.stringify({
       level: 'warn',
@@ -118,11 +142,41 @@ function logFlowOfferSkipped(tenantId: string, reason: FlowOfferSkipReason): voi
       reason,
     }),
   )
+  if (!analytics) return
+  recordBookingSessionFlow(
+    analytics.db,
+    tenantId,
+    conversationId,
+    {
+      flowState: 'skipped',
+      skipReason: reason,
+      attemptId: analytics.attemptId ?? null,
+    },
+    clock,
+  )
+}
+
+function noteFlowOfferSent(
+  tenantId: string,
+  conversationId: string,
+  flowToken: string,
+  clock: Clock,
+  analytics?: FlowOfferAnalytics | null,
+): void {
+  if (!analytics) return
+  recordBookingSessionFlow(
+    analytics.db,
+    tenantId,
+    conversationId,
+    { flowState: 'sent', flowToken },
+    clock,
+  )
 }
 
 /**
  * Cria `flow_token` no D1, devolve interactive Cloud API `type: flow`.
  * Sem secrets / sem binding activo → null (M5 continua).
+ * Com `analytics`, `skipped`/`sent` escrevem outbox `booking_session.flow` (T3).
  */
 export async function prepareBookingFlowOfferFromEnv(input: {
   env: WhatsappFlowEnv & { DB: D1Database }
@@ -133,9 +187,24 @@ export async function prepareBookingFlowOfferFromEnv(input: {
   session?: FlowBookingSnapshot
   /** Corpo C1h interpolado (clínica + hora). Sem isto usa FLOW_COPY.openBody. */
   body?: string
+  analytics?: FlowOfferAnalytics | null
+  analyticsAttemptId?: string | null
 }): Promise<PreparedBookingFlowOffer | null> {
+  const analytics: FlowOfferAnalytics | null = input.analytics
+    ? {
+        db: input.analytics.db,
+        attemptId: input.analytics.attemptId ?? input.analyticsAttemptId ?? null,
+      }
+    : null
+
   if (!isWhatsappFlowConfigured(input.env)) {
-    logFlowOfferSkipped(input.tenantId, 'not_configured')
+    noteFlowOfferSkipped(
+      input.tenantId,
+      input.conversationId,
+      'not_configured',
+      input.clock,
+      analytics,
+    )
     return null
   }
 
@@ -148,7 +217,13 @@ export async function prepareBookingFlowOfferFromEnv(input: {
     .bind(input.tenantId)
     .first<BindingRow>()
   if (!row) {
-    logFlowOfferSkipped(input.tenantId, 'no_active_binding')
+    noteFlowOfferSkipped(
+      input.tenantId,
+      input.conversationId,
+      'no_active_binding',
+      input.clock,
+      analytics,
+    )
     return null
   }
 
@@ -171,9 +246,23 @@ export async function prepareBookingFlowOfferFromEnv(input: {
     body: input.body,
   })
   if (!built) {
-    logFlowOfferSkipped(input.tenantId, 'build_failed')
+    noteFlowOfferSkipped(
+      input.tenantId,
+      input.conversationId,
+      'build_failed',
+      input.clock,
+      analytics,
+    )
     return null
   }
+
+  noteFlowOfferSent(
+    input.tenantId,
+    input.conversationId,
+    flowToken,
+    input.clock,
+    analytics,
+  )
 
   return {
     flowToken,
