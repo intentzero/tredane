@@ -110,7 +110,7 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
       expect(shouldOfferHubOpening({ turnText, services }), turnText).toBe(false)
     }
     // Abertura vaga continua. «Quero depilar» sem sinónimo e typo de serviço
-    // (DEC-151) NÃO abrem o hub — vão ao «não entendi» / catálogo (A-20, FL-21).
+    // (DEC-151) NÃO abrem o hub — vão ao «não entendi» / catálogo (A-20, FL-22).
     for (const turnText of ['Oi', 'quero marcar', 'Quero agendar um horário']) {
       expect(shouldOfferHubOpening({ turnText, services }), turnText).toBe(true)
     }
