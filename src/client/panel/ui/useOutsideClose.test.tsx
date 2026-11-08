@@ -114,6 +114,16 @@ describe('painéis laterais (CSS)', () => {
     )
   })
 
+  it('Conversas mobile: shell flex para .inbox-root preencher até à barra (<768)', () => {
+    const block = css.match(
+      /@media\s*\(max-width:\s*767\.98px\)\s*\{[\s\S]*?\.panel-shell-main:has\(\s*>\s*\.inbox-root\s*\)[\s\S]*?\{([^}]*)\}/,
+    )?.[1]
+    expect(block).toMatch(/display:\s*flex/)
+    expect(block).toMatch(/flex-direction:\s*column/)
+    expect(block).toMatch(/min-height:\s*0/)
+    expect(block).toMatch(/padding:\s*0/)
+  })
+
   it('Acompanhar TR-310: acomp-tabs com padding-end generoso e fade esquerdo em is-scrolled', () => {
     expect(css).toMatch(
       /\.acomp-tabs\.panel-tabs\s*\{[^}]*padding-inline-end:\s*calc\(100%\s*-\s*48px\)/s,
