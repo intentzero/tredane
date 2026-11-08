@@ -80,11 +80,19 @@ export function shouldEmitOptionMiss(input: {
   unrecognizedLeftover: boolean
   /** O turno correu matching de opções/zonas (não só texto livre genérico). */
   attemptedOptionMatch: boolean
+  /**
+   * Hora/data no mesmo turno (ex. «09:00 e cotovelo»). Com `choose_slot`,
+   * leftover de zona a meio do pedido continua option-miss (DEC-137);
+   * leftover *só* (sem hora) → esclarecer (DEC-C3 / A-37).
+   */
+  timeInTurn?: boolean
 }): boolean {
   if (!input.unrecognizedLeftover || !input.attemptedOptionMatch) return false
-  if (input.obligation?.kind === 'choose_slot') return false
   if (input.obligation?.kind === 'confirm_echo') return false
   if (input.obligation?.kind === 'choose_audience') return false
+  if (input.obligation?.kind === 'choose_slot') {
+    return Boolean(input.timeInTurn)
+  }
   // choose_line / choose_variants / ou ask-tipo implícito (sem pending ainda).
   if (
     input.obligation?.kind === 'choose_variants' ||

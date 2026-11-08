@@ -49,7 +49,7 @@ describe('DialogueObligation (DEC-C4 / DEC-C3)', () => {
     ).toBe(true)
   })
 
-  it('option-miss recusado em choose_slot (leftover de zona ≠ miss de horário)', () => {
+  it('option-miss em choose_slot só com hora no turno (DEC-137 vs A-37)', () => {
     const ob = obligationFromPending({
       slot: 'horario',
       options: [{ key: 'k', label: '14:00' }],
@@ -62,6 +62,14 @@ describe('DialogueObligation (DEC-C4 / DEC-C3)', () => {
         attemptedOptionMatch: true,
       }),
     ).toBe(false)
+    expect(
+      shouldEmitOptionMiss({
+        obligation: ob,
+        unrecognizedLeftover: true,
+        attemptedOptionMatch: true,
+        timeInTurn: true,
+      }),
+    ).toBe(true)
   })
 
   it('option-miss recusado sem tentativa de escolha', () => {

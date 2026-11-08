@@ -1262,14 +1262,18 @@ export async function tryAiAutoBook(
         sessionIntact ? sessionIds : null,
       )
       const turnMention = mentionZones(turnText, mentionPool, det.service)
-      // DEC-C3 / P1: com obrigação `choose_slot`, leftover de zona não é option-miss
-      // nem limpa a variante — esclarecer e manter Horários abertos.
+      // DEC-C3 / P1: leftover *só* (sem hora no turno) com obrigação `choose_slot`
+      // → esclarecer; não option-miss de tipos. «09:00 e cotovelo» continua
+      // option-miss (DEC-137: zona desconhecida a meio do pedido).
       if (
         dialogueObligation?.kind === 'choose_slot' &&
         turnMention.unrecognized &&
         turnMention.zones.length === 0 &&
         earlyPolarIds == null &&
         !askInfoSuppressLeftover &&
+        !clockFromTurn &&
+        !pendingTimeOverride &&
+        !input.boundSlot &&
         zoneEcho !== 'skip' &&
         zoneEcho !== 'confirm' &&
         zoneEcho !== 'correct' &&
@@ -1286,7 +1290,7 @@ export async function tryAiAutoBook(
             {},
             'Pode me dizer de outro jeito, ou prefere falar com a equipe?',
           ),
-          notes: 'DEC-C3: choose_slot leftover → esclarecer (não option-miss de variantes).',
+          notes: 'DEC-C3: bare choose_slot leftover → esclarecer (not variant option-miss).',
         })
       }
       // #510: Sim do eco ou quadro intacto sem menção nova → sem segundo parser.
@@ -1446,6 +1450,7 @@ export async function tryAiAutoBook(
                   obligation: dialogueObligation,
                   unrecognizedLeftover: true,
                   attemptedOptionMatch: true,
+                  timeInTurn: Boolean(clockFromTurn || pendingTimeOverride || input.boundSlot),
                 }),
               })
             : genericAsk
@@ -1751,6 +1756,7 @@ export async function tryAiAutoBook(
                     obligation: dialogueObligation,
                     unrecognizedLeftover: true,
                     attemptedOptionMatch: true,
+                    timeInTurn: Boolean(clockFromTurn || pendingTimeOverride || input.boundSlot),
                   }),
                 },
               )
@@ -2055,6 +2061,7 @@ export async function tryAiAutoBook(
                 obligation: dialogueObligation,
                 unrecognizedLeftover: true,
                 attemptedOptionMatch: true,
+                timeInTurn: Boolean(clockFromTurn || pendingTimeOverride || input.boundSlot),
               }),
             })
           : genericAsk,
