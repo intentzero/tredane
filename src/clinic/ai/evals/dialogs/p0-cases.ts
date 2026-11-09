@@ -15,6 +15,7 @@
  * G-07b: mid-booking day re-ask com compromisso futuro ≠ remarcação (staging 09/11/2026).
  * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
  * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
+ * F-11: troca de serviço limpa date sticky; oferta é próximos, não «disponíveis para sexta» (Paulo 09/11/2026).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import {
@@ -936,6 +937,63 @@ export const P0_DIALOG_CASES: DialogCase[] = [
             /11\/11/,
             /\b10:00\b/,
             /\b11:00\b/,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    id: 'F-11',
+    title: 'Troca de serviço limpa dia sticky; oferta é próximos, não sexta anterior',
+    turnosIdeais: 2,
+    // Staging Paulo 09/11/2026: Massagem com date=sexta 13/11 → Depilação axila+pernas → Sim
+    // ainda dizia «horários disponíveis para sexta». saveBookingFrame agora limpa date/period.
+    prepare: (s) => {
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.massagem,
+          date: '2026-11-13',
+          period: 'tarde',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-13T14:00', label: '14:00' },
+              { key: '2026-11-13T15:00', label: '15:00' },
+            ],
+            messageId: 'm_f11_friday',
+          },
+          lastOffer: {
+            slots: [{ startsAt: Date.UTC(2026, 10, 13, 17, 0), professionalId: s.ids.gi }],
+            messageId: 'm_f11_friday',
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina de axila e pernas' },
+      { role: 'client', text: 'sim' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Entendi:/i],
+        },
+        {
+          turn: 1,
+          // Copy aberta varia (próximos / «Tenho …»); o invariante é não travar sexta 13/11.
+          matches: [/\d{1,2}:\d{2}/],
+          excludes: [
+            /horários disponíveis para sexta/i,
+            /13\/11/,
+            /dispon[ií]vel nas opções/i,
           ],
         },
       ],

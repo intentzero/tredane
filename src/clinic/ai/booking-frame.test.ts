@@ -97,7 +97,7 @@ describe('BookingFrame API', () => {
     }
   })
 
-  it('troca de serviço limpa linha, variantes, hora, pending e lastOffer', () => {
+  it('troca de serviço limpa linha, variantes, data, período, hora, pending e lastOffer', () => {
     const { db, clock, tenantId, conversationId, close } = boot()
     try {
       saveBookingFrame(
@@ -107,6 +107,8 @@ describe('BookingFrame API', () => {
         {
           serviceId: 'svc1',
           line: 'feminino',
+          date: '2026-11-13',
+          period: 'tarde',
           time: '14:00',
           variantIds: ['z1'],
           pending: {
@@ -128,9 +130,40 @@ describe('BookingFrame API', () => {
       expect(frame.serviceId).toBe('svc2')
       expect(frame.line).toBeNull()
       expect(frame.variantIds).toBeNull()
+      expect(frame.date).toBeNull()
+      expect(frame.period).toBeNull()
       expect(frame.time).toBeNull()
       expect(frame.pending).toBeNull()
       expect(frame.lastOffer).toBeNull()
+    } finally {
+      close()
+    }
+  })
+
+  it('troca de serviço com date no patch mantém o dia pedido neste turno', () => {
+    const { db, clock, tenantId, conversationId, close } = boot()
+    try {
+      saveBookingFrame(
+        db,
+        tenantId,
+        conversationId,
+        {
+          serviceId: 'svc1',
+          date: '2026-11-13',
+          period: 'tarde',
+        },
+        clock,
+      )
+      const { frame } = saveBookingFrame(
+        db,
+        tenantId,
+        conversationId,
+        { serviceId: 'svc2', date: '2026-11-09', period: null },
+        clock,
+      )
+      expect(frame.serviceId).toBe('svc2')
+      expect(frame.date).toBe('2026-11-09')
+      expect(frame.period).toBeNull()
     } finally {
       close()
     }

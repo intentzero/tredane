@@ -121,13 +121,21 @@ export class DeferredBookingFrame {
     const serviceId =
       this.patch.serviceId !== undefined ? this.patch.serviceId : (base?.serviceId ?? null)
     if (!serviceId) return null
+    const serviceChanged = base != null && base.serviceId !== serviceId
     return {
       serviceId,
       audienceLine:
         this.patch.line !== undefined ? this.patch.line : (base?.audienceLine ?? null),
       dayLabel:
         this.patch.dayLabel !== undefined ? this.patch.dayLabel : (base?.dayLabel ?? null),
-      period: this.patch.period !== undefined ? this.patch.period : (base?.period ?? null),
+      // Alinha a saveBookingFrame: troca de serviço limpa período salvo patch explícito.
+      period: serviceChanged
+        ? this.patch.period !== undefined
+          ? this.patch.period
+          : null
+        : this.patch.period !== undefined
+          ? this.patch.period
+          : (base?.period ?? null),
       variantIds:
         this.patch.variantIds !== undefined ? this.patch.variantIds : (base?.variantIds ?? null),
       clockTime: this.patch.time !== undefined ? this.patch.time : (base?.clockTime ?? null),
@@ -182,6 +190,9 @@ export class DeferredBookingFrame {
         updatedAt: base?.updatedAt ?? 0,
       }
     }
+    // Overlay alinha a saveBookingFrame: troca de serviço limpa data/período
+    // (e o resto do funil antigo) salvo patch explícito no mesmo turno («hoje»).
+    const serviceChanged = base != null && base.serviceId !== serviceId
     return {
       phase: this.patch.phase ?? base?.phase ?? 'coletando',
       serviceId,
@@ -192,8 +203,20 @@ export class DeferredBookingFrame {
         this.patch.professionalPref !== undefined
           ? this.patch.professionalPref
           : (base?.professionalPref ?? null),
-      date: this.patch.date !== undefined ? this.patch.date : (base?.date ?? null),
-      period: this.patch.period !== undefined ? this.patch.period : (base?.period ?? null),
+      date: serviceChanged
+        ? this.patch.date !== undefined
+          ? this.patch.date
+          : null
+        : this.patch.date !== undefined
+          ? this.patch.date
+          : (base?.date ?? null),
+      period: serviceChanged
+        ? this.patch.period !== undefined
+          ? this.patch.period
+          : null
+        : this.patch.period !== undefined
+          ? this.patch.period
+          : (base?.period ?? null),
       time: this.patch.time !== undefined ? this.patch.time : (base?.time ?? null),
       pending: this.patch.pending !== undefined ? this.patch.pending : (base?.pending ?? null),
       lastOffer:

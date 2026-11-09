@@ -97,7 +97,7 @@ export type ScheduleSession = {
   updatedAt: number
 }
 
-/** Campo omitido mantém o valor já gravado. `null` limpa. Trocar o serviço limpa linha/variantes/hora/pending/lastOffer. */
+/** Campo omitido mantém o valor já gravado. `null` limpa. Trocar o serviço limpa linha/variantes/data/período/hora/pending/lastOffer. */
 export type BookingFramePatch = {
   serviceId?: string | null
   phase?: BookingFramePhase
@@ -526,9 +526,10 @@ function writeAudienceHold(
 }
 
 /**
- * Grava o frame. Troca de serviço limpa linha, variantes, hora, pending, lastOffer,
- * proposal e professionalPref (ADR-0015). Emite `booking_frame.updated` se mudou.
- * Sem serviço: apaga o quadro, salvo audiência ou lista de catálogo por tocar (DEC-142).
+ * Grava o frame. Troca de serviço limpa linha, variantes, data, período, hora,
+ * pending, lastOffer, proposal e professionalPref (ADR-0015). Emite
+ * `booking_frame.updated` se mudou. Sem serviço: apaga o quadro, salvo audiência
+ * ou lista de catálogo por tocar (DEC-142).
  */
 export function saveBookingFrame(
   db: ClinicDb,
@@ -603,8 +604,19 @@ export function saveBookingFrame(
     : patch.time !== undefined
       ? patch.time
       : (existing?.time ?? null)
-  const date = patch.date !== undefined ? patch.date : (existing?.date ?? null)
-  const period = patch.period !== undefined ? patch.period : (existing?.period ?? null)
+  // Dia/período do funil anterior não constrange o próximo serviço (staging Paulo
+  // 09/11/2026: oferta «disponíveis para sexta» após outro serviço / soft continue).
+  // Patch explícito (ex.: «hoje» no mesmo turno) prevalece.
+  const date = serviceChanged
+    ? (patch.date !== undefined ? patch.date : null)
+    : patch.date !== undefined
+      ? patch.date
+      : (existing?.date ?? null)
+  const period = serviceChanged
+    ? (patch.period !== undefined ? patch.period : null)
+    : patch.period !== undefined
+      ? patch.period
+      : (existing?.period ?? null)
   // #472 cutover: deixa de gravar day_label (coluna órfã → sempre NULL).
   const dayLabel = null
   const professionalPref = serviceChanged
