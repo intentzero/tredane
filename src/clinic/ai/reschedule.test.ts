@@ -562,6 +562,8 @@ describe('DEC-091/129 reagendamento conversacional', () => {
   it('mid-booking «próxima terça» com lastOffer ofertado e compromisso futuro não vira remarcação', async () => {
     // Staging Paulo ~09/11: mid marcação nova (zonas+Horários sexta) + «Na próxima terça…»
     // com compromisso futuro → «Algum serve para remarcar?» + «Falar com a equipe».
+    // G-07b / #644: só copy + botões; serviço do compromisso = Depilação (= frame),
+    // por isso não apanha troca Depilação→Massagem (ver teste seguinte / G-07c).
     const s = seed()
     try {
       const offerMsg = s.say(
@@ -619,6 +621,131 @@ describe('DEC-091/129 reagendamento conversacional', () => {
         .join('\n')
       expect(interactive).toContain(SLOT_LIST_BUTTON_LABEL)
       expect(interactive).not.toMatch(/Falar com a equipe/)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('G-07c: day re-ask + time pick keeps Depilação when upcoming apt is Massagem', async () => {
+    // Staging Paulo ~14:03 SP 09/11/2026: frame Depilação (Íntima/pernas) + compromisso
+    // futuro Massagem·Ventosaterapia → «Para hoje tem horário?» / «As 15» propôs Massagem.
+    // Pre-#644: priorRescheduleOfferFromFrame=true em ofertado → tryAiReschedule usava
+    // apt.serviceId. G-07b/#644 só assertava copy/botões com o mesmo serviço no apt.
+    const s = seed()
+    try {
+      s.db.run(`UPDATE appointments SET status = 'cancelled' WHERE id = ?`, s.aptId)
+
+      const massagem = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Massagem',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          priceCents: 20000,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      const massaZones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [{ name: 'Ventosaterapia', durationMinutes: 60, priceCents: 20000, audience: 'ambos' }],
+        s.clock,
+      )
+      const massaStarts = zonedCivilToUtc(TZ, 2026, 11, 4, 15, 0)
+      const massaApt = confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'seed-apt-massagem',
+          serviceId: massagem.id,
+          professionalId: s.gi.id,
+          startsAt: massaStarts,
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          actorClerkUserId: s.caller.actorId!,
+          zoneIds: massaZones.map((z) => z.id),
+        },
+        s.clock,
+      )
+      expect(massaApt.value.serviceId).toBe(massagem.id)
+
+      const offerMsg = s.say(
+        'outbound',
+        'Os próximos horários para Depilação são sexta 06/11 às 09:00, 10:00. Algum serve?',
+      )
+      const friMorning = zonedCivilToUtc(TZ, 2026, 11, 6, 9, 0)
+      const friTen = zonedCivilToUtc(TZ, 2026, 11, 6, 10, 0)
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.svc.id,
+          line: 'feminino',
+          variantIds: s.zones.map((z) => z.id),
+          date: '2026-11-06',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-06T09:00', label: 'sexta 06/11 às 09:00' },
+              { key: '2026-11-06T10:00', label: 'sexta 06/11 às 10:00' },
+            ],
+            messageId: offerMsg.id,
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: friMorning, professionalId: s.gi.id },
+              { startsAt: friTen, professionalId: s.gi.id },
+            ],
+            messageId: offerMsg.id,
+          },
+        },
+        s.clock,
+      )
+
+      s.say('inbound', 'Para hoje tem horário?')
+      const dayOut = await s.run()
+      expect(dayOut.reason).not.toBe('reschedule_flow')
+      expect(dayOut.reason).not.toBe('human_handoff')
+      expect(s.lastOutbound()).not.toMatch(/remarcar/i)
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.serviceId).toBe(s.svc.id)
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.phase).not.toBe('remarcando')
+
+      const frameAfterDay = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      expect(frameAfterDay?.serviceId).toBe(s.svc.id)
+      // Prefer pending key of the *new* day offer; fall back to HH:MM from copy.
+      // Do not send a stale sexta ISO key — extractTimes reads «2026» as 20:26.
+      const pendingKey = frameAfterDay?.pending?.options?.[0]?.key
+      const listed = [...s.lastOutbound().matchAll(/\b(\d{2}:\d{2})\b/g)].map((m) => m[1]!)
+      expect(listed.length + (pendingKey ? 1 : 0)).toBeGreaterThan(0)
+      const inboundPick =
+        pendingKey && !listed.length
+          ? pendingKey
+          : listed.includes('15:00')
+            ? 'As 15'
+            : `As ${(listed[0] ?? pendingKey!.slice(-5)).slice(0, 2)}`
+      s.say('inbound', inboundPick)
+      const timeOut = await s.run()
+      expect(timeOut.reason).not.toBe('reschedule_flow')
+
+      const proposalRow = s.db.get<{ id: string }>(
+        `SELECT id FROM appointment_proposals WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 1`,
+        s.tenantId,
+      )
+      expect(proposalRow).toBeTruthy()
+      const proposal = getProposal(s.db, s.tenantId, proposalRow!.id)!
+      expect(proposal.serviceId).toBe(s.svc.id)
+      expect(proposal.serviceId).not.toBe(massagem.id)
+      expect(proposal.replacesAppointmentId).toBeNull()
+      expect(proposal.serviceName).toMatch(/Depilação/i)
+      expect(proposal.serviceName).not.toMatch(/Massagem/i)
     } finally {
       s.close()
     }
