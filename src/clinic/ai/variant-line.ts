@@ -2,13 +2,14 @@
  * Pergunta de linha antes das zonas (detalhe de DEC-078 / DEC-075, Paulo, 31/10/2026).
  * A linha só entra por texto explícito (feminina/masculina/feminino/masculino) ou pela sessão da conversa.
  * Copy via catálogo M4 (#448): perguntar_linha / perguntar_variantes.
- * DEC-145: modo `uma` usa o singular do cadastro e redações sem «Pode ser mais de uma».
+ * DEC-145: modo `uma` usa o singular do cadastro e redações sem o convite multi.
+ * Modo `varias` (Paulo 09/11/2026): só texto livre (ex. axila e pernas / todas); sem Opções.
  */
 import { formatBRL } from '../../ai/prompt'
 import { allowsMultipleVariants } from '../catalog/variant-selection'
 import { variantChoiceLabel } from '../config/zones'
 import type { ServiceRow, VariantAudience } from '../config/types'
-import { sayAct, serviceNameInProse } from './dialogue-acts'
+import { MULTI_VARIANT_ASK_HINT, sayAct, serviceNameInProse } from './dialogue-acts'
 
 export type AudienceLine = 'feminino' | 'masculino'
 
@@ -140,11 +141,12 @@ export function variantListQuestion(
   const serviçoProse = serviceNameInProse(serviceName)
   const tipo = variantTipoWord(variantKind)
   const lista = variantListInProse(stableVariantLabelList(zones))
-  // DEC-145: catálogo M4 de perguntar_variantes é plural («Quais… Pode ser mais de uma»,
-  // máx. 5 redações). Modo `uma` usa a pergunta singular directa até haver ato dedicado.
-  // Paulo 08/11/2026: serviço + variantes em minúsculas na frase; Opções Meta mantém cadastro.
-  const fallback = `Para ${serviçoProse}, ${whichKind(variantKind ?? '')} você quer? Temos ${lista}.`
-  if (single) return fallback
+  // DEC-145: catálogo M4 de perguntar_variantes é plural (máx. 5 redações) e inclui o
+  // convite de texto livre. Modo `uma` usa a pergunta singular directa, sem o convite.
+  // Paulo 08/11/2026: serviço + variantes em minúsculas; lista Opções Meta só em `uma`.
+  const base = `Para ${serviçoProse}, ${whichKind(variantKind ?? '')} você quer? Temos ${lista}.`
+  if (single) return base
+  const fallback = `${base} ${MULTI_VARIANT_ASK_HINT}`
   const vars: Record<string, string | undefined> = {
     serviço: serviceName,
     tipo,

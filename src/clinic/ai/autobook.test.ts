@@ -774,7 +774,11 @@ describe('pergunta das variantes usa o plural do tipo', () => {
     expect(reply).toMatch(/Para fechar às 14:00/)
     expect(reply).toMatch(/axila, buço/)
     expect(reply).not.toMatch(/Axila, Buço/)
-    expect(reply).toMatch(/Pode ser mais de uma/)
+    expect(reply).toMatch(/Escreva uma ou várias/i)
+    expect(reply).toMatch(/axila e pernas/i)
+    expect(reply).toMatch(/também pode dizer todas/i)
+    expect(reply).not.toMatch(/Em Opções/i)
+    expect(reply).not.toMatch(/Pode ser mais de uma/i)
     expect(reply).not.toMatch(/me diga/i)
   })
 
@@ -1104,10 +1108,9 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       const firstOffer = asked.autoBook?.replyText ?? ''
       expect(firstOffer).not.toMatch(/Entendi:/)
       expect(firstOffer).not.toMatch(/equipe confirma/i)
-      expect(asked.autoBook?.interactive?.mode).toBe('list')
-      if (asked.autoBook?.interactive?.mode === 'list') {
-        expect(asked.autoBook.interactive.button).toBe('Opções')
-      }
+      expect(firstOffer).toMatch(/Escreva uma ou várias|quais|Quer /i)
+      // Paulo 09/11/2026: `varias` sem lista Opções — só texto + eco DEC-137.
+      expect(asked.autoBook?.interactive ?? null).toBeNull()
       noBooking(s)
     } finally {
       s.close()

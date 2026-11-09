@@ -131,10 +131,10 @@ describe('DEC-133: escolhas interativas sempre ligadas', () => {
 })
 
 /**
- * Regressão: toque M5 (linha) → próximo outbound continua interativo
- * (Opções / lista de variantes), sem precisar de flag.
+ * Regressão: toque M5 (linha) em serviço `varias` → pergunta de zonas em texto
+ * (Paulo 09/11/2026: sem lista Opções). Lista Opções fica para modo `uma`.
  */
-describe('DEC-128: toque na linha mantém escolhas interativas', () => {
+describe('DEC-128 / DEC-135: toque na linha em varias pede zonas em texto', () => {
   function femininaButtonId(interactiveJson: string | null): string {
     const parsed = JSON.parse(interactiveJson ?? '{}') as {
       buttons?: Array<{ id: string; title: string }>
@@ -179,19 +179,22 @@ describe('DEC-128: toque na linha mantém escolhas interativas', () => {
     expect(result.handled).toBe(true)
     if (!result.handled) throw new Error('expected choice click handled')
     expect(result.outcome).toBe('applied')
-    return { s, beforeCount, after: s.outbound().slice(beforeCount) }
+    return { s, beforeCount, after: s.outbound().slice(beforeCount), result }
   }
 
-  it('após toque Feminina o próximo interactive é lista Opções (+ Todas)', async () => {
-    const { s, after } = await afterLineClick()
+  it('após toque Feminina pergunta zonas em texto, sem lista Opções', async () => {
+    const { s, after, result } = await afterLineClick()
     try {
-      const interactive = after.filter((m) => m.kind === 'interactive')
-      expect(interactive.length).toBe(1)
-      const json = interactive[0]!.interactive_json ?? ''
-      expect(json).toContain(VARIANT_LIST_BUTTON_LABEL)
-      expect(json).toMatch(/Axila|Pernas/)
-      expect(json).toContain('Todas')
-      expect(json).not.toMatch(/Feminina|Masculina/)
+      expect(result.handled).toBe(true)
+      if (!result.handled) return
+      const reply = result.autoBook?.replyText ?? ''
+      expect(reply).toMatch(/quais zonas|zonas/i)
+      expect(reply).toMatch(/Escreva uma ou várias|axila e pernas/i)
+      expect(result.autoBook?.interactive ?? null).toBeNull()
+      const optionsLists = after.filter((m) =>
+        (m.interactive_json ?? '').includes(VARIANT_LIST_BUTTON_LABEL),
+      )
+      expect(optionsLists).toHaveLength(0)
     } finally {
       s.close()
     }

@@ -80,7 +80,7 @@ describe('#414 dialogue acts', () => {
       ['sem_vaga_sem_alternativa', { hora: '16:00' }],
       ['informar_preco_variante', { variante: 'Axila feminina', preço: 'R$ 40,00', duração: '15' }],
       ['informar_preco_soma', { preço: 'R$ 160,00', duração: '45' }],
-      ['informar_preco_tabela', { serviço: 'Depilação', lista: 'Axila — R$ 40,00 (15 min)\nPernas — R$ 120,00 (30 min)', pergunta: 'Quais zonas você quer? Pode ser mais de uma.' }],
+      ['informar_preco_tabela', { serviço: 'Depilação', lista: 'Axila — R$ 40,00 (15 min)\nPernas — R$ 120,00 (30 min)', pergunta: 'Quais zonas você quer? Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.' }],
       ['recusar_mistura', {}],
       ['servico_inexistente', {}],
       ['varios_servicos', {}],
@@ -261,7 +261,9 @@ describe('#414 dialogue acts', () => {
         tipo: 'zonas',
         lista: 'axila, pernas, tórax e abdômen',
       })
-      expect(zones).toBe('Para depilação, quais zonas? axila, pernas, tórax e abdômen.')
+      expect(zones).toBe(
+        'Para depilação, quais zonas? axila, pernas, tórax e abdômen. Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.',
+      )
     } finally {
       setDialogueVariantForTests(null)
     }
