@@ -13,6 +13,9 @@
  * A-37: mid Horários, leftover ≠ option-miss de variantes (DEC-C3 / P1 stack esclarecer).
  * A-39: Confirmar → Agendado + «Posso ajudar» sem esclarecer spurioso (staging 09/11/2026).
  * G-07b: mid-booking day re-ask com compromisso futuro ≠ remarcação (staging 09/11/2026).
+ *   Só copy/botões; apt e frame no mesmo serviço — não fecha troca Depilação→Massagem.
+ * G-07c: day re-ask + time pick com apt Massagem e frame Depilação → proposal.serviceId
+ *   Depilação (staging Paulo ~14:03 SP 09/11/2026; lacuna pós-#644).
  * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
  * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
  * F-11: troca de serviço limpa date sticky; oferta é próximos, não «disponíveis para sexta» (Paulo 09/11/2026).
@@ -1131,6 +1134,16 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     title: 'Mid-booking «próxima terça» com compromisso futuro mantém oferta de marcação',
     turnosIdeais: 1,
     // Staging Paulo ~09/11: lastOffer ofertado + upcoming apt ≠ «para remarcar» / handoff.
+    // Asserta copy/botões; mesmo serviço no apt e no frame (não apanha Massagem swap).
+    coverageOnly: 'reschedule.test',
+    turns: [],
+  },
+  {
+    id: 'G-07c',
+    title: 'Day re-ask + time pick keeps Depilação when upcoming apt is Massagem',
+    turnosIdeais: 2,
+    // Staging ~14:03 SP 09/11: remarcação continuity usava apt.serviceId → Massagem proposal.
+    // L0 em reschedule.test: proposal.serviceId === Depilação após «Para hoje» + pick.
     coverageOnly: 'reschedule.test',
     turns: [],
   },
