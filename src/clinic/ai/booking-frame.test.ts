@@ -805,6 +805,39 @@ describe('catalogVersion revalidação (#472)', () => {
     }
   })
 
+  it('serviceChanged sem phase sai de remarcando e limpa rescheduleAppointmentId', () => {
+    // Audit C2: remarcando + apt-alvo colados na troca de serviço → priorOffer true
+    // no funil novo e tryAiReschedule lia o compromisso antigo.
+    const { db, clock, tenantId, conversationId, close } = boot()
+    try {
+      saveBookingFrame(
+        db,
+        tenantId,
+        conversationId,
+        {
+          serviceId: 'svc-massagem',
+          phase: 'remarcando',
+          rescheduleAppointmentId: 'apt-massagem',
+          catalogVersion: '1',
+        },
+        clock,
+      )
+      const { frame } = saveBookingFrame(
+        db,
+        tenantId,
+        conversationId,
+        { serviceId: 'svc-depilacao', catalogVersion: '1' },
+        clock,
+      )
+      expect(frame.serviceId).toBe('svc-depilacao')
+      expect(frame.phase).toBe('coletando')
+      expect(frame.phase).not.toBe('remarcando')
+      expect(frame.rescheduleAppointmentId).toBeNull()
+    } finally {
+      close()
+    }
+  })
+
   it('CF-45: a audiência solta (DEC-142) segue ao escolher o serviço; só uma troca de serviço a descarta', () => {
     const { db, clock, tenantId, conversationId, close } = boot()
     try {

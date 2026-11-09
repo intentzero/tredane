@@ -17,6 +17,7 @@
  * G-07c: day re-ask + time pick com apt Massagem e frame Depilação → proposal.serviceId
  *   Depilação (staging Paulo ~14:03 SP 09/11/2026; lacuna pós-#644).
  * G-07d: mid-booking SOFT_DAY («Posso para hoje?») com apt Massagem ≠ remarcação (audit C1).
+ * G-07e: serviceChanged sai de remarcando e limpa rescheduleAppointmentId (audit C2 / #651).
  * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
  * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
  * F-11: troca de serviço limpa date sticky; oferta é próximos, não «disponíveis para sexta» (Paulo 09/11/2026).
@@ -1161,6 +1162,14 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     turnosIdeais: 1,
     // Pós-#644: SOFT_DAY + hasUpcoming ainda entrava em tryAiReschedule mid ofertado.
     coverageOnly: 'reschedule.test',
+    turns: [],
+  },
+  {
+    id: 'G-07e',
+    title: 'serviceChanged deixa remarcando e limpa rescheduleAppointmentId',
+    turnosIdeais: 1,
+    // Audit C2 / #651: phase remarcando + apt-alvo não colam na troca de serviço.
+    coverageOnly: 'booking-frame.test',
     turns: [],
   },
   {
