@@ -175,7 +175,7 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
       expect(reply).not.toMatch(/Feminina|Masculina|qual linha/i)
       expect(outboundBodies).not.toMatch(/Feminina|Masculina/)
       // Eco DEC-137 ou proposta (CF-24) — nenhum dos dois reabre género.
-      const echoed = /Entendi: Axila e Pernas/.test(reply) || /Entendi: Axila e Pernas/.test(outboundBodies)
+      const echoed = /Entendi: axila, pernas/.test(reply) || /Entendi: axila, pernas/.test(outboundBodies)
       const proposed = Boolean(result.autoBook?.proposalId)
       expect(echoed || proposed).toBe(true)
       expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.line).toBe('feminino')

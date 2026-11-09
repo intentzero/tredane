@@ -145,7 +145,7 @@ describe('DEC-137: eco e plural das zonas', () => {
       const before = outbound(s).length
       const result = await say(s, 'Axilas e pernas')
       const reply = result.autoBook?.replyText ?? ''
-      expect(reply).toBe('Entendi: Axila e Pernas. Certo?')
+      expect(reply).toBe('Entendi: axila, pernas. Certo?')
       expect(result.autoBook?.interactive?.mode).toBe('buttons')
       const after = outbound(s).slice(before)
       const json = after.map((row) => row.interactive_json ?? '').join('\n')
@@ -243,7 +243,7 @@ describe('DEC-137: eco e plural das zonas', () => {
       const result = await say(s, 'as duas')
       const reply = result.autoBook?.replyText ?? result.suggestion?.suggestedText ?? ''
       expect(reply).not.toMatch(/Não encontrei duas/i)
-      expect(reply).toBe('Entendi: Axila e Pernas. Certo?')
+      expect(reply).toBe('Entendi: axila, pernas. Certo?')
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       const rows = s.db.all<{ id: string; name: string; audience: string }>(
         `SELECT id, name, audience FROM service_zones WHERE tenant_id = ?`,
@@ -357,7 +357,7 @@ describe('DEC-137: eco e plural das zonas', () => {
     try {
       await lockFeminine(s)
       const echoed = await say(s, 'Axilas e pernas sexta às 10h')
-      expect(echoed.autoBook?.replyText ?? '').toBe('Entendi: Axila e Pernas. Certo?')
+      expect(echoed.autoBook?.replyText ?? '').toBe('Entendi: axila, pernas. Certo?')
       expect(echoed.autoBook?.proposalId).toBeFalsy()
       const echo = outbound(s).filter((row) => (row.interactive_json ?? '').includes('Corrigir')).at(-1)
       const id = buttonId(echo?.interactive_json ?? null, 'Sim')
@@ -578,7 +578,7 @@ describe('DEC-143: zonas escritas antes da linha não se perdem (sonda staging 0
       await say(s, 'Quero depilação de axila e pernas')
       const before = outbound(s).length
       const result = await say(s, 'feminina')
-      expect(result.autoBook?.replyText).toBe('Entendi: Axila e Pernas. Certo?')
+      expect(result.autoBook?.replyText).toBe('Entendi: axila, pernas. Certo?')
       expect(result.reason).not.toBe('catalog_reply')
       const json = outbound(s).slice(before).map((row) => row.interactive_json ?? '').join('\n')
       expect(json).toContain('Sim')

@@ -189,21 +189,22 @@ export function buildLineChoiceInteractive(catalogVersion: string): {
   }
 }
 
-/** «Axila e Pernas» — nomes do catálogo, sem fuso. */
+/**
+ * Lista de zonas no eco DEC-137 (frase WhatsApp): minúsculas pt-BR, só vírgulas.
+ * Confirmado (Paulo, 09/11/2026): «Entendi: axila, pernas, costas. Certo?» —
+ * sem «e» antes do último; rótulos Meta Opções/Sim/Corrigir inalterados.
+ */
 export function joinZoneNamesPt(names: readonly string[]): string {
   const unique: string[] = []
   const seen = new Set<string>()
   for (const raw of names) {
-    const name = raw.trim()
+    const name = raw.trim().toLocaleLowerCase('pt-BR')
     if (!name) continue
-    const key = name.toLocaleLowerCase('pt-BR')
-    if (seen.has(key)) continue
-    seen.add(key)
+    if (seen.has(name)) continue
+    seen.add(name)
     unique.push(name)
   }
-  if (unique.length <= 1) return unique[0] ?? ''
-  if (unique.length === 2) return `${unique[0]} e ${unique[1]}`
-  return `${unique.slice(0, -1).join(', ')} e ${unique[unique.length - 1]}`
+  return unique.join(', ')
 }
 
 /** DEC-137. Frase fixa antes da lista Horários. */

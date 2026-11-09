@@ -830,7 +830,7 @@ describe('pergunta das variantes usa o plural do tipo', () => {
       )
       const booked = await s.run()
       // DEC-137: texto livre ecoa a zona; o horário já dito fica na sessão. Sim é que propõe.
-      expect(booked.autoBook?.replyText ?? '').toBe('Entendi: Axila. Certo?')
+      expect(booked.autoBook?.replyText ?? '').toBe('Entendi: axila. Certo?')
       expect(booked.autoBook?.replyText ?? '').not.toMatch(/regiões/i)
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       expect(session?.clockTime).toBe('14:00')
@@ -1016,7 +1016,7 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       // DEC-137: texto livre ecoa antes dos Horários.
       expect(asked.reason).not.toBe('catalog_reply')
       const offerText = asked.autoBook?.replyText ?? ''
-      expect(offerText).toBe('Entendi: Axila e Parte íntima. Certo?')
+      expect(offerText).toBe('Entendi: axila, parte íntima. Certo?')
       expect(asked.autoBook?.interactive?.mode).toBe('buttons')
       const fem = zones
         .filter((zone) => zone.audience === 'feminino' && (zone.name === 'Axila' || zone.name === 'Parte íntima'))
@@ -1179,7 +1179,7 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       const asked = await s.run()
       // DEC-137: texto livre ecoa o conjunto; Sim (não este turno) é que abre Horários.
       expect(asked.reason).not.toBe('catalog_reply')
-      expect(asked.autoBook?.replyText ?? '').toMatch(/Entendi: Axila e Intima\. Certo\?/)
+      expect(asked.autoBook?.replyText ?? '').toMatch(/Entendi: axila, intima\. Certo\?/)
       expect(asked.autoBook?.interactive?.mode).toBe('buttons')
       const echoJson = s.db.get<{ interactive_json: string | null }>(
         `SELECT interactive_json FROM outbound_messages

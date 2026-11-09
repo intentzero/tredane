@@ -155,7 +155,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     ],
     expect: {
       appointments: 0,
-      turns: [{ turn: 1, matches: [/Entendi: Pernas\. Certo\?/] }],
+      turns: [{ turn: 1, matches: [/Entendi: pernas\. Certo\?/] }],
     },
   },
   {
@@ -206,7 +206,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     expect: {
       noAppointment: true,
       turns: [
-        { turn: 1, matches: [/Entendi: Axila\. Certo\?/] },
+        { turn: 1, matches: [/Entendi: axila\. Certo\?/] },
         { turn: 1, excludes: [/Pernas/i] },
       ],
     },
@@ -255,11 +255,11 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       turns: [
         {
           turn: 0,
-          matches: [/Entendi:.*Orelha.*Certo\?/],
+          matches: [/Entendi:.*orelha.*Certo\?/],
         },
         {
           turn: 1,
-          matches: [/Entendi:.*Axila.*Pernas.*Certo\?/],
+          matches: [/Entendi:.*axila.*pernas.*Certo\?/],
           excludes: [/Orelha/i],
         },
       ],

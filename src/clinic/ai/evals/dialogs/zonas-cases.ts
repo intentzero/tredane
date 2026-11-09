@@ -30,7 +30,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
       outboundExcludes: [/quais zonas/i, /Temos:/, ...NO_LEAK],
       turns: [
         { turn: 0, matches: [/feminina ou masculina/i] },
-        { turn: 1, matches: [/Entendi: Axila e Pernas\. Certo\?/], excludes: [/quais zonas|Temos Axila/i] },
+        { turn: 1, matches: [/Entendi: axila, pernas\. Certo\?/], excludes: [/quais zonas|Temos Axila/i] },
         // Sim confirma o conjunto e abre os Horários (as redações variam; as horas não);
         // não marca (DEC-061).
         { turn: 2, matches: [/\d{1,2}:\d{2}/] },
@@ -54,7 +54,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
         { variantsChanged: false, zonesAskedBefore: false },
         { route: 'deterministic_question', variantsChanged: true, zonesAskedBefore: true, modelCalled: false },
       ],
-      turns: [{ turn: 1, matches: [/Entendi: Axila e Pernas\. Certo\?/] }],
+      turns: [{ turn: 1, matches: [/Entendi: axila, pernas\. Certo\?/] }],
     },
   },
   {
@@ -74,7 +74,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
         { variantsChanged: false, zonesAskedBefore: false },
         { variantsChanged: true, zonesAskedBefore: false, modelCalled: false },
       ],
-      turns: [{ turn: 1, matches: [/Entendi: Axila e Pernas\. Certo\?/] }],
+      turns: [{ turn: 1, matches: [/Entendi: axila, pernas\. Certo\?/] }],
     },
   },
   {
@@ -152,7 +152,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
       outboundCount: 3,
       turns: [
         { turn: 0, matches: [/quais zonas/i] },
-        { turn: 1, matches: [/Entendi: Axila e Pernas\. Certo\?/] },
+        { turn: 1, matches: [/Entendi: axila, pernas\. Certo\?/] },
         {
           turn: 2,
           matches: [/\d{1,2}:\d{2}/],

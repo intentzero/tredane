@@ -127,7 +127,7 @@ describe('DEC-135: Horários após texto livre de variantes', () => {
       expect(reply).not.toMatch(/masculino e feminino|juntar masculino/i)
       expect(result.reason).not.toBe('catalog_reply')
       // DEC-137: texto livre ecoa antes de Horários (Sim é que abre a lista).
-      expect(reply).toMatch(/Entendi: Axila e Pernas\. Certo\?/)
+      expect(reply).toMatch(/Entendi: axila, pernas\. Certo\?/)
       expect(result.autoBook?.interactive?.mode).toBe('buttons')
       const after = outbound(s).slice(before)
       const interactive = after.filter((m) => m.kind === 'interactive')
@@ -151,7 +151,7 @@ describe('DEC-135: Horários após texto livre de variantes', () => {
       const before = outbound(s).length
       const result = await say(s, 'Axila')
       const reply = result.autoBook?.replyText ?? ''
-      expect(reply).toMatch(/Entendi: Axila\. Certo\?/)
+      expect(reply).toMatch(/Entendi: axila\. Certo\?/)
       expect(result.autoBook?.interactive?.mode).toBe('buttons')
       const after = outbound(s).slice(before)
       expect(
