@@ -92,7 +92,7 @@ Opções de produto já descartadas na DEC-127: validade de 4 h ou sem prazo; o 
 
 | Evento | Efeito |
 | --- | --- |
-| Troca de serviço | Limpa linha, variantes, hora (e `pending` / `lastOffer` / `proposal` / `professionalPref` ligados ao funil antigo); mantém a chave da conversa. |
+| Troca de serviço | Limpa linha, variantes, data, período, hora (e `pending` / `lastOffer` / `proposal` / `professionalPref` ligados ao funil antigo); mantém a chave da conversa. Dia pedido no serviço anterior não constrange a primeira oferta do novo (Paulo, staging 09/11/2026). |
 | Marcação concluída / DEC-086 («Quero agendar outro serviço» ou fim do pós-agendamento conforme a DEC) | Frame limpo ou volta a `idle` sem slots preenchidos do funil anterior. |
 | Nova versão de proposta (DEC-061 / DEC-116) | `proposal` aponta para a versão nova; a anterior deixa de autorizar; `pending`/`lastOffer` reconciliados com a oferta que sustentou a versão nova. |
 | `catalogVersion` diverge do catálogo compilado do DO | Revalidar `serviceId` / `variantIds` / preferência; ids inválidos são limpos e o funil pergunta de novo o que faltar — **sem** inventar substituto. |
