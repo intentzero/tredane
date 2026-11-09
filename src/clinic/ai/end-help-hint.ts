@@ -16,6 +16,13 @@ import type { BookingFrame } from './schedule-session'
 export const END_HELP_HINT_TEXT = 'Se quiser parar, diga terminar.'
 
 /**
+ * Hint one-shot em option-miss mid-funnel (Paulo 09/11/2026, pacote reset).
+ * Paridade: «começar de novo» = CF-28; «terminar» = Class A DEC-152.
+ */
+export const RESET_DISCOVERY_HINT_TEXT =
+  'Para recomeçar, diga começar de novo. Para parar, diga terminar.'
+
+/**
  * Extrai comandos de saída ensinados por «diga X» (uma palavra).
  * Multi-token (ex. serviços masculinos no catálogo DEC-142) não casa.
  */
@@ -32,9 +39,27 @@ export function taughtExitCommandsFromCopy(texts: readonly string[]): string[] {
   return [...out]
 }
 
-/** Frases de saída que o bot ensina hoje (hint DEC-152 + acto `orientar_terminar`). */
+/** Frases de saída que o bot ensina hoje (hint DEC-152 + option-miss + acto). */
 export function botTaughtExitCommands(): string[] {
-  return taughtExitCommandsFromCopy([END_HELP_HINT_TEXT, ...DIALOGUE_ACTS.orientar_terminar])
+  return taughtExitCommandsFromCopy([
+    END_HELP_HINT_TEXT,
+    RESET_DISCOVERY_HINT_TEXT,
+    ...DIALOGUE_ACTS.orientar_terminar,
+  ])
+}
+
+/** «começar de novo» ensinado no hint de discovery (multi-token; CF-28). */
+export function botTaughtRestartPhraseInCopy(): boolean {
+  return /diga\s+come[cç]ar\s+de\s+novo/i.test(RESET_DISCOVERY_HINT_TEXT)
+}
+
+/** Junta o hint de discovery ao corpo do option-miss. Idempotente. */
+export function appendResetDiscoveryHint(body: string): string {
+  const trimmed = body.trimEnd()
+  if (!trimmed) return RESET_DISCOVERY_HINT_TEXT
+  if (trimmed.includes(RESET_DISCOVERY_HINT_TEXT)) return trimmed
+  if (trimmed.includes('diga começar de novo')) return trimmed
+  return `${trimmed}\n\n${RESET_DISCOVERY_HINT_TEXT}`
 }
 
 export type FrameProgressHint = Pick<
@@ -57,7 +82,13 @@ export function isOpenBookingAttempt(frame: BookingFrame | null | undefined): bo
   if (frame.lastOffer) return true
   if (frame.proposal) return true
   const slot = frame.pending?.slot
-  return slot === 'variantes' || slot === 'horario' || slot === 'eco' || slot === 'linha'
+  return (
+    slot === 'variantes' ||
+    slot === 'horario' ||
+    slot === 'eco' ||
+    slot === 'linha' ||
+    slot === 'periodo'
+  )
 }
 
 /**
@@ -151,6 +182,8 @@ export function shouldAppendEndHelpHint(input: {
   if (!input.frameNow || !isOpenBookingAttempt(input.frameNow)) return false
   if (isBookingExitReply(body, input.notes)) return false
   if (body.includes(END_HELP_HINT_TEXT)) return false
+  // Option-miss já ensinou «terminar» (+ recomeçar) — não duplicar DEC-152.
+  if (body.includes(RESET_DISCOVERY_HINT_TEXT)) return false
   return (
     bookingFrameProgressKey(input.frameAtStart) === bookingFrameProgressKey(input.frameNow)
   )

@@ -11,9 +11,11 @@ import { syncWhatsappChannel } from '../whatsapp/channel'
 import { tryAiAutoBook } from './autobook'
 import {
   END_HELP_HINT_TEXT,
+  RESET_DISCOVERY_HINT_TEXT,
   appendEndHelpHint,
   bookingFrameProgressKey,
   botTaughtExitCommands,
+  botTaughtRestartPhraseInCopy,
   isOpenBookingAttempt,
   shouldAppendEndHelpHint,
   taughtExitCommandsFromCopy,
@@ -38,6 +40,13 @@ describe('end-help-hint helpers (DEC-152)', () => {
         'Continuo no feminino. Para ver o masculino, diga “serviços masculinos”.',
       ]),
     ).toEqual([])
+  })
+
+  it('discovery hint ensina «começar de novo» (CF-28) e «terminar» (Class A)', () => {
+    expect(botTaughtRestartPhraseInCopy()).toBe(true)
+    expect(RESET_DISCOVERY_HINT_TEXT).toMatch(/começar de novo/)
+    expect(RESET_DISCOVERY_HINT_TEXT).toMatch(/terminar/)
+    expect(isExplicitAbandonText('terminar')).toBe(true)
   })
 
   it('appendEndHelpHint é idempotente', () => {

@@ -30,6 +30,7 @@ import {
 } from './deferred-booking-frame'
 import {
   getBookingFrame,
+  saveBookingFrame,
   type BookingFrameLastOffer,
   type BookingFramePending,
 } from './schedule-session'
@@ -38,7 +39,14 @@ import { zonesForAudienceLine, type AudienceLine } from './variant-line'
 /** Prefixo estável dos ids opacos (Cloud API button/list row id, ≤200). */
 export const CHOICE_ID_PREFIX = 'ch1~'
 
-export type ChoiceSlot = 'linha' | 'variantes' | 'horario' | 'eco' | 'audiencia'
+export type ChoiceSlot =
+  | 'linha'
+  | 'variantes'
+  | 'horario'
+  | 'eco'
+  | 'audiencia'
+  /** T1 (Paulo 09/11/2026): Manhã | Tarde | Outro dia após período/dia vazio. */
+  | 'periodo'
 
 export type ChoiceInteractiveButtons = {
   mode: 'buttons'
@@ -66,6 +74,14 @@ export const ZONE_ECHO_SIM_KEY = 'sim'
 export const ZONE_ECHO_CORRIGIR_KEY = 'corrigir'
 export const ZONE_ECHO_SIM_LABEL = 'Sim'
 export const ZONE_ECHO_CORRIGIR_LABEL = 'Corrigir'
+
+/** T1 — período/dia vazio (Paulo 09/11/2026). Sem wait «Sim». */
+export const PERIOD_DAY_MANHA_KEY = 'manha'
+export const PERIOD_DAY_TARDE_KEY = 'tarde'
+export const PERIOD_DAY_OUTRO_DIA_KEY = 'outro_dia'
+export const PERIOD_DAY_MANHA_LABEL = 'Manhã'
+export const PERIOD_DAY_TARDE_LABEL = 'Tarde'
+export const PERIOD_DAY_OUTRO_DIA_LABEL = 'Outro dia'
 
 export const LINE_BUTTON_TITLES = {
   feminino: 'Feminina',
@@ -146,7 +162,8 @@ export function parseChoiceId(
     slot !== 'variantes' &&
     slot !== 'horario' &&
     slot !== 'eco' &&
-    slot !== 'audiencia'
+    slot !== 'audiencia' &&
+    slot !== 'periodo'
   ) {
     return null
   }
@@ -229,6 +246,28 @@ export function buildZoneEchoInteractive(catalogVersion: string): {
       })),
     },
     pending: pendingForChoiceOffer({ slot: 'eco', options }),
+  }
+}
+
+/** T1 — Manhã | Tarde | Outro dia após período/dia vazio. */
+export function buildPeriodDayInteractive(catalogVersion: string): {
+  interactive: ChoiceInteractiveButtons
+  pending: BookingFramePending
+} {
+  const options = [
+    { key: PERIOD_DAY_MANHA_KEY, label: PERIOD_DAY_MANHA_LABEL },
+    { key: PERIOD_DAY_TARDE_KEY, label: PERIOD_DAY_TARDE_LABEL },
+    { key: PERIOD_DAY_OUTRO_DIA_KEY, label: PERIOD_DAY_OUTRO_DIA_LABEL },
+  ]
+  return {
+    interactive: {
+      mode: 'buttons',
+      buttons: options.map((o) => ({
+        id: encodeChoiceId('periodo', catalogVersion, o.key),
+        title: clip(o.label, META_BUTTON_TITLE_MAX),
+      })),
+    },
+    pending: pendingForChoiceOffer({ slot: 'periodo', options }),
   }
 }
 
@@ -400,6 +439,12 @@ function semanticTextForChoice(
     // nomes de zonas (evita segundo parser na confirmação).
     if (key === 'sim') return 'sim'
     if (key === 'corrigir') return 'corrigir'
+    return label
+  }
+  if (slot === 'periodo') {
+    if (key === PERIOD_DAY_MANHA_KEY) return 'de manhã'
+    if (key === PERIOD_DAY_TARDE_KEY) return 'de tarde'
+    if (key === PERIOD_DAY_OUTRO_DIA_KEY) return 'quero ver outro dia'
     return label
   }
   if (slot === 'variantes') {
@@ -621,6 +666,27 @@ export async function handleChoiceOfferClick(
 
   // Limpa pending da oferta tocada antes do autobook (nova oferta virá no reply).
   clearPendingFrame(db, input.tenantId, input.conversationId, clock)
+
+  // T1 «Outro dia»: limpa date/period sticky antes de reofertar (sem wait «Sim»).
+  if (validated.slot === 'periodo' && validated.key === PERIOD_DAY_OUTRO_DIA_KEY) {
+    const frame = getBookingFrame(db, input.tenantId, input.conversationId)
+    if (frame?.serviceId) {
+      saveBookingFrame(
+        db,
+        input.tenantId,
+        input.conversationId,
+        {
+          serviceId: frame.serviceId,
+          date: null,
+          period: null,
+          pending: null,
+          lastOffer: null,
+          phase: 'coletando',
+        },
+        clock,
+      )
+    }
+  }
 
   const autoBook = await tryAiAutoBook(db, caller, clock, {
     conversationId: input.conversationId,

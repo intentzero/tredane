@@ -17,6 +17,7 @@ export type DialogueObligationKind =
   | 'choose_slot'
   | 'confirm_echo'
   | 'choose_audience'
+  | 'choose_period'
 
 export type DialogueObligation = {
   kind: DialogueObligationKind
@@ -31,6 +32,7 @@ const SLOT_TO_KIND: Record<ChoiceSlot, DialogueObligationKind> = {
   horario: 'choose_slot',
   eco: 'confirm_echo',
   audiencia: 'choose_audience',
+  periodo: 'choose_period',
 }
 
 const KIND_CHOICE: ReadonlySet<DialogueObligationKind> = new Set([
@@ -38,10 +40,18 @@ const KIND_CHOICE: ReadonlySet<DialogueObligationKind> = new Set([
   'choose_variants',
   'choose_slot',
   'choose_audience',
+  'choose_period',
 ])
 
 export function isChoiceSlot(slot: string): slot is ChoiceSlot {
-  return slot === 'linha' || slot === 'variantes' || slot === 'horario' || slot === 'eco' || slot === 'audiencia'
+  return (
+    slot === 'linha' ||
+    slot === 'variantes' ||
+    slot === 'horario' ||
+    slot === 'eco' ||
+    slot === 'audiencia' ||
+    slot === 'periodo'
+  )
 }
 
 /** Lê a obrigação a partir do pending do quadro (ou null). */

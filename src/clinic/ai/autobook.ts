@@ -63,6 +63,8 @@ import {
 import { MULTI_VARIANT_ASK_HINT, sayAct } from './dialogue-acts'
 import {
   appendEndHelpHint,
+  appendResetDiscoveryHint,
+  RESET_DISCOVERY_HINT_TEXT,
   shouldAppendEndHelpHint,
   markEndHelpHintSent,
   wasEndHelpHintSent,
@@ -149,6 +151,7 @@ import {
 import {
   attachChoiceOfferToDeferred,
   buildLineChoiceInteractive,
+  buildPeriodDayInteractive,
   buildSlotChoiceInteractive,
   buildVariantChoiceInteractive,
   buildZoneEchoInteractive,
@@ -156,6 +159,7 @@ import {
   zoneEchoReply,
   type ChoiceInteractive,
 } from './choice-offer'
+import { priceFollowupInteractiveButtons } from '../followup/post-booking'
 
 /** Acumula pending + lastOffer da oferta (CF-22); commit na TX do outbound (ADR-0015). */
 function rememberOfferFrameImpl(
@@ -200,6 +204,34 @@ function rememberOfferFrameImpl(
     },
   })
   return built.interactive
+}
+
+/** Aplica clear period/date + T1 quando a oferta veio vazia (Paulo 09/11/2026). */
+function applyOfferSideEffects(
+  deferred: DeferredBookingFrame,
+  serviceId: string,
+  catalogVersion: string,
+  offered: {
+    slots: import('./slot-offer').OfferedSlot[]
+    clearPeriod?: boolean
+    clearDate?: boolean
+    periodDayChoice?: boolean
+  },
+  professionalId: string | undefined,
+  rememberOffer: typeof rememberOfferFrameImpl,
+): ChoiceInteractive | null {
+  if (offered.clearPeriod || offered.clearDate) {
+    deferred.save({
+      serviceId,
+      ...(offered.clearPeriod ? { period: null } : {}),
+      ...(offered.clearDate ? { date: null } : {}),
+    })
+  }
+  if (offered.periodDayChoice && offered.slots.length === 0) {
+    const built = buildPeriodDayInteractive(catalogVersion)
+    return attachChoiceOfferToDeferred(deferred, serviceId, catalogVersion, built)
+  }
+  return rememberOffer(deferred, serviceId, offered.slots, professionalId, catalogVersion)
 }
 
 function lineChoiceForImpl(
@@ -350,8 +382,11 @@ function askUnrecognizedZone(
 ): { text: string; friction: TurnFrictionEvent[] } {
   const names = stableVariantLabelList(zonePool)
   if (mention.leftover && opts?.emitOptionMiss !== false) {
+    let text = zoneNotFoundAskReply(mention.leftover, names)
+    // Discovery reset (Paulo 09/11/2026): one-shot hint no option-miss.
+    text = appendResetDiscoveryHint(text)
     return {
-      text: zoneNotFoundAskReply(mention.leftover, names),
+      text,
       friction: frictionForOptionMiss(mention.leftover),
     }
   }
@@ -700,7 +735,10 @@ export async function tryAiAutoBook(
     if (dayAskFriction) pushFriction(dayAskFriction)
     const friction = mergeFriction(outcome.friction, frictionAcc)
     next = { ...outcome, friction: friction.length > 0 ? friction : undefined }
-    if (
+    if (next.replyText?.includes(RESET_DISCOVERY_HINT_TEXT)) {
+      // Option-miss discovery hint (Paulo 09/11/2026) — marca one-shot como DEC-152.
+      markEndHelpHintSent(db, tenantId, input.conversationId)
+    } else if (
       shouldAppendEndHelpHint({
         replyText: next.replyText,
         proposalId: next.proposalId,
@@ -944,12 +982,13 @@ export async function tryAiAutoBook(
           limit: 3,
           conversationId: input.conversationId,
         })
-        const interactive = rememberOfferFrame(
+        const interactive = applyOfferSideEffects(
           deferred,
           svcReject.id,
-          offered.slots,
-          preferred,
           catalog.version,
+          offered,
+          preferred,
+          rememberOfferFrame,
         )
         return finish({
           ...none('needs_info', {
@@ -993,12 +1032,21 @@ export async function tryAiAutoBook(
         sameFunnel: true,
       })
       if (realized) {
+        // T3: preço total → Marcar outro | Terminar (sem pending M5).
+        const priceButtons =
+          realized.quote.act === 'informar_preco_soma'
+            ? ({
+                mode: 'buttons' as const,
+                buttons: priceFollowupInteractiveButtons(),
+              } satisfies ChoiceInteractive)
+            : null
         return finish({
           ...none('needs_info', {
             confirmationMessageId: confirmation.id,
             serviceId: svcAsk.id,
           }),
           replyText: realized.replyText,
+          ...(priceButtons ? { interactive: priceButtons } : {}),
           notes: `DEC-C1/C4: ask_info ${gate.topic} via interrupt stack (pending kept).`,
         })
       }
@@ -1248,7 +1296,24 @@ export async function tryAiAutoBook(
     date = undefined
     missing = missing.filter((item) => item !== 'dia')
   }
-  const rememberDayPeriod = (serviceId: string) => {
+  // Silencioso 1 (Paulo 09/11/2026): Sim do eco limpa period sticky de tentativa vazia
+  // antes da oferta fresca das zonas travadas.
+  if (
+    zoneEcho === 'confirm' &&
+    session?.serviceId &&
+    session.period &&
+    !turnFacts.period
+  ) {
+    saveSession({
+      serviceId: session.serviceId,
+      period: null,
+      pending: null,
+      lastOffer: null,
+    })
+    session = deferred.peekSession(db, tenantId, input.conversationId)
+    frame = deferred.peekFrame(db, tenantId, input.conversationId)
+  }
+    const rememberDayPeriod = (serviceId: string) => {
     if (!turnFacts.dayLabel && !turnFacts.period) return
     const today = clinicCivilDateFromUtc(tz, confirmation.created_at)
     const absolute =
@@ -1668,8 +1733,16 @@ export async function tryAiAutoBook(
             )
           }
         } else if (!time) {
-          const period =
-            turnFacts.period ?? (session?.serviceId === det.service.id ? session?.period : null)
+          // Silencioso 1: oferta fresca não herda period sticky (só o período deste turno).
+          const period = (turnFacts.period as DayPeriod | null) ?? null
+          if (!period && session?.period && session.serviceId === det.service.id) {
+            saveSession({
+              serviceId: det.service.id,
+              period: null,
+            })
+            session = deferred.peekSession(db, tenantId, input.conversationId)
+          }
+
           // Serviço sem variantes (ex. massagem): oferta de período com a data absoluta (#408 B-04).
           // CF-19 (#413): com serviço (e variantes) conhecidos, oferecer 2–3 horários reais
           // mesmo sem período — não perguntar «qual horário?» vazio.
@@ -1727,12 +1800,13 @@ export async function tryAiAutoBook(
                 : { action: 'ask_empty_time' },
               proposed: { action: 'offer_slots', detail: period ? 'period' : date ? 'date' : 'soonest' },
             })
-            interactive = rememberOfferFrame(
+            interactive = applyOfferSideEffects(
               deferred,
               det.service.id,
-              offered.slots,
-              preferred,
               catalog.version,
+              offered,
+              preferred,
+              rememberOfferFrame,
             )
             replyText = offered.replyText
           } else {
@@ -2019,6 +2093,11 @@ export async function tryAiAutoBook(
               clock,
               input.turn?.catalog.resources,
             )
+            const offerPeriod = (turnFacts.period as DayPeriod | null) ?? null
+            if (!offerPeriod && session?.period && session.serviceId === svc.id) {
+              saveSession({ serviceId: svc.id, period: null })
+              session = deferred.peekSession(db, tenantId, input.conversationId)
+            }
             const offered = await offerNearestSlots({
               db,
               tenantId,
@@ -2029,7 +2108,7 @@ export async function tryAiAutoBook(
               forecast: input.forecast,
               professionalId: preferred,
               date: date ?? null,
-              period: (turnFacts.period as DayPeriod | null) ?? null,
+              period: offerPeriod,
               limit: 3,
               conversationId: input.conversationId,
             })
@@ -2040,12 +2119,13 @@ export async function tryAiAutoBook(
               current: { action: 'ask_empty_time' },
               proposed: { action: 'offer_slots', detail: date ? 'date' : 'soonest' },
             })
-            interactive = rememberOfferFrame(
+            interactive = applyOfferSideEffects(
               deferred,
               svc.id,
-              offered.slots,
-              preferred,
               catalog.version,
+              offered,
+              preferred,
+              rememberOfferFrame,
             )
             replyText = offered.replyText
             }

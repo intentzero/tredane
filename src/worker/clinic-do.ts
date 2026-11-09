@@ -146,7 +146,10 @@ import {
   sweepDueIdleConversations,
 } from '../clinic/followup/idle'
 import { nextOpenAppointmentEndAt, sweepEndedAppointments } from '../clinic/pipeline/appointment-stage'
-import { handlePostBookingButtonClick } from '../clinic/followup/post-booking'
+import {
+  handlePostBookingButtonClick,
+  handlePriceFollowupButtonClick,
+} from '../clinic/followup/post-booking'
 import { systemClock, type Clock } from '../db/clock'
 import { fromD1 } from '../db/admin/async-store'
 import {
@@ -983,7 +986,27 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         return { handled: true, action: idle.action }
       }
     }
-    // DEC-086 — follow-up pós-agendamento («Não, obrigado» / «Quero outro serviço»).
+    // T3 — pós-preço («Marcar outro» / «Terminar»).
+    if (input.conversationId) {
+      const price = handlePriceFollowupButtonClick(
+        this.#db,
+        {
+          tenantId: caller.tenantId,
+          conversationId: input.conversationId,
+          buttonId: input.buttonId,
+          providerEventKey: input.providerEventKey,
+        },
+        this.#clock,
+      )
+      if (price.handled) {
+        if (price.outbox.length > 0) {
+          await this.#fanoutOutboxes(caller, price.outbox, true)
+          await this.#drain(caller)
+        }
+        return { handled: true, action: price.action }
+      }
+    }
+    // DEC-086 / T3 — pós-agendamento («Marcar outro» / «Terminar»).
     if (input.conversationId) {
       const post = handlePostBookingButtonClick(
         this.#db,

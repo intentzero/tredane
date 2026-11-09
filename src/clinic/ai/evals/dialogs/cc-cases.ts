@@ -633,4 +633,47 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       outboundExcludes: NO_LEAK,
     },
   },
+  {
+    id: 'CC-14',
+    title:
+      'B2: «quero outro agendamento» mid-funnel limpa frame e abre catálogo (não «Não encontrei agendamento»)',
+    turnosIdeais: 1,
+    // Paulo 09/11/2026 Confirmado: B2 = DEC-142; antes do match de zona.
+    prepare: (s) => {
+      const zones = s.db.all<{ id: string; name: string; audience: string }>(
+        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
+        s.tenantId,
+        s.ids.depilacao,
+      )
+      const variantIds = zones
+        .filter((z) => z.audience === 'feminino' && (z.name === 'Axila' || z.name === 'Pernas'))
+        .map((z) => z.id)
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.depilacao,
+          audienceLine: 'feminino',
+          variantIds,
+          phase: 'coletando',
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Quero outro agendamento' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      openProposals: 0,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Continuo no feminino|Temos:/i],
+          excludes: [/Não encontrei agendamento/i, /nas opções/i],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
 ]
