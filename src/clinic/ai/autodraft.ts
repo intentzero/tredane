@@ -225,7 +225,7 @@ export function enqueueLatestUnansweredInbound(
   const row = db.get<{ id: string; direction: string }>(
     `SELECT id, direction FROM messages
      WHERE tenant_id = ? AND conversation_id = ?
-     ORDER BY created_at DESC, id DESC
+     ORDER BY created_at DESC, rowid DESC
      LIMIT 1`,
     tenantId,
     conversationId,
@@ -258,10 +258,15 @@ export type AutoDraftOutcome = {
   replyOutbox?: OutboxRow[]
 }
 
+/**
+ * Direção da última mensagem não-system. Empate em `created_at` → `rowid DESC`
+ * (ordem de inserção). Não usar `id DESC`: `msg_*` é UUID aleatório (#638 Deploy
+ * falhou em media-ask S3/S4 com `already_answered` flaky).
+ */
 function lastMessageDirection(db: ClinicDb, tenantId: string, conversationId: string): string | null {
   const r = db.get<{ direction: string }>(
     `SELECT direction FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction != 'system'
-     ORDER BY created_at DESC, id DESC LIMIT 1`,
+     ORDER BY created_at DESC, rowid DESC LIMIT 1`,
     tenantId,
     conversationId,
   )

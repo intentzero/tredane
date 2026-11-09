@@ -375,6 +375,62 @@ describe('media-ask-text (CF-26 / DEC-119 / DEC-130)', () => {
     }
   })
 
+  it('already_answered: empate created_at desempata por rowid, não por id UUID', async () => {
+    // #638 mudou lastMessageDirection para `id DESC`; msg_* é UUID aleatório →
+    // Deploy staging falhou em S3/S4 com already_answered flaky. Outbound com id
+    // lexicograficamente maior, inserido antes do inbound no mesmo instante.
+    const s = seed()
+    try {
+      insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'outbound',
+          body: 'Olá!',
+          deliveryState: 'accepted',
+          id: 'msg_zzzzzzzzzzzzzzzz',
+        },
+        s.clock,
+      )
+      const media = insertMessage(
+        s.db,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          direction: 'inbound',
+          body: '[Áudio]',
+          deliveryState: 'received',
+          id: 'msg_0000000000000001',
+        },
+        s.clock,
+      )
+      attach(s, media.id, 'audio/ogg')
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: media.id },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+      const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+      expect(out[0]?.reason).toBe('media_ask_text')
+      expect(
+        s.db
+          .all<{ body: string }>(
+            `SELECT body FROM messages WHERE conversation_id = ? AND direction = 'outbound' AND body = ?`,
+            s.conversationId,
+            MEDIA_ASK_TEXT,
+          ).length,
+      ).toBe(1)
+    } finally {
+      s.close()
+    }
+  })
+
   it('#475 S3: troca a redação da frase e a 2.ª mídia ainda vai à equipe', async () => {
     const s = seed()
     try {
