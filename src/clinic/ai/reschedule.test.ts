@@ -28,7 +28,7 @@ import { HUMAN_HANDOFF_TEXT } from './human-handoff'
 import { forbiddenClientTermsIn } from './client-copy'
 import { validateClientOutbound } from './outbound-validate'
 import { SLOT_LIST_BUTTON_LABEL } from './choice-offer'
-import { getBookingFrame, saveScheduleSession } from './schedule-session'
+import { getBookingFrame, saveBookingFrame } from './schedule-session'
 import {
   isRescheduleIntent,
   phraseAskDay,
@@ -570,7 +570,7 @@ describe('DEC-091/129 reagendamento conversacional', () => {
       )
       const friMorning = zonedCivilToUtc(TZ, 2026, 11, 6, 9, 0)
       const friTen = zonedCivilToUtc(TZ, 2026, 11, 6, 10, 0)
-      saveScheduleSession(
+      saveBookingFrame(
         s.db,
         s.tenantId,
         s.cnv.id,
