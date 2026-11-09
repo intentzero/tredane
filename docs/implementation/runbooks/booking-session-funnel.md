@@ -1,6 +1,6 @@
 # Funil operacional de sessão de marcação (T4 / DEC-148)
 
-**Estado:** **Proposto** (implementação T4; desenho de analytics aprovado pelo Paulo 07/11/2026). Sem dashboard de transcript. Sem nota LLM por sessão. Sem ritual T5.
+**Estado:** **Proposto** (implementação T4; desenho de analytics aprovado pelo Paulo 07/11/2026). Sem dashboard de transcript. Sem nota LLM por sessão. Ritual amostral: [T5](booking-session-weekly-ritual.md).
 
 ## Quando usar
 
@@ -42,7 +42,7 @@ Complementar Flow por token D1 (DEC-143 b): `node scripts/flow-funnel.mjs stagin
 | --- | --- |
 | Lista de mensagens / transcript no Platform Admin | Confirmado (Paulo): revisão na clínica |
 | Juiz / nota LLM por sessão | Fora do MVP deste desenho |
-| Alterar stop-lists ou regras de booking a partir do funil | DEC-104 / DEC-061 / DEC-141 — só sugestão humana (T5) |
+| Alterar stop-lists ou regras de booking a partir do funil | DEC-104 / DEC-061 / DEC-141 — só sugestão humana ([T5](booking-session-weekly-ritual.md)) |
 | Decisão DEC-143 (papéis texto vs Flow) só com feeling | Esperar T1–T3 + teste com pessoas |
 
 ## Referências
