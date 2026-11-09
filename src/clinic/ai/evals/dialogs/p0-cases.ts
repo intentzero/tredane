@@ -18,6 +18,7 @@
  *   Depilação (staging Paulo ~14:03 SP 09/11/2026; lacuna pós-#644).
  * G-07d: mid-booking SOFT_DAY («Posso para hoje?») com apt Massagem ≠ remarcação (audit C1).
  * G-07e: serviceChanged sai de remarcando e limpa rescheduleAppointmentId (audit C2 / #651).
+ * G-07f: time-pick com oferta viva prefere frame.serviceId ao histórico (audit H1 / #652).
  * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
  * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
  * F-11: troca de serviço limpa date sticky; oferta é próximos, não «disponíveis para sexta» (Paulo 09/11/2026).
@@ -1170,6 +1171,14 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     turnosIdeais: 1,
     // Audit C2 / #651: phase remarcando + apt-alvo não colam na troca de serviço.
     coverageOnly: 'booking-frame.test',
+    turns: [],
+  },
+  {
+    id: 'G-07f',
+    title: 'Time-pick com oferta viva prefere frame.serviceId ao histórico',
+    turnosIdeais: 1,
+    // Audit H1 / #652: Massagem no histórico + frame Depilação → proposal Depilação.
+    coverageOnly: 'prefer-frame-service.test',
     turns: [],
   },
   {
