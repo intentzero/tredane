@@ -337,7 +337,7 @@ describe('maybeReplaceM5WithFlow', () => {
     const eco = buildZoneEchoInteractive('1')
     const replaced = await maybeReplaceM5WithFlow({
       choice: eco.interactive,
-      replyBody: 'Entendi: Axila. Certo?',
+      replyBody: 'Entendi: axila. Certo?',
       prepare: async () => ({
         flowToken: 'fl1_x',
         body: 'Flow body',

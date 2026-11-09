@@ -129,7 +129,7 @@ async function openFridaySlots(s: ReturnType<typeof seed>) {
   await say(s, 'Masculina')
   const zones = await say(s, 'Axilas pernas e tórax e abdômen')
   const echo = zones.autoBook?.replyText ?? ''
-  expect(echo).toBe('Entendi: Axila, Pernas e Tórax e Abdômen. Certo?')
+  expect(echo).toBe('Entendi: axila, pernas, tórax e abdômen. Certo?')
   expect(echo).not.toMatch(/Não encontrei/i)
 
   const offered = await say(s, 'Sim')
@@ -223,7 +223,7 @@ describe('texto livre: zona composta, 0900 e serviço em prosa', () => {
       await openFridaySlots(s)
       const turned = await say(s, 'Na verdade, só pernas')
       const reply = turned.autoBook?.replyText ?? ''
-      expect(reply).toBe('Entendi: Pernas. Certo?')
+      expect(reply).toBe('Entendi: pernas. Certo?')
       expect(reply).not.toMatch(/Não encontrei/i)
       expect(turned.autoBook?.proposalId).toBeFalsy()
       expect(proposalCount(s)).toBe(0)
@@ -238,7 +238,7 @@ describe('texto livre: zona composta, 0900 e serviço em prosa', () => {
       await openFridaySlots(s)
       const turned = await say(s, 'Na verdade não quero pernas, só axila')
       const reply = turned.autoBook?.replyText ?? ''
-      expect(reply).toBe('Entendi: Axila. Certo?')
+      expect(reply).toBe('Entendi: axila. Certo?')
       expect(reply).not.toMatch(/Pernas/i)
       expect(reply).not.toMatch(/Não encontrei/i)
       expect(turned.autoBook?.proposalId).toBeFalsy()
@@ -256,7 +256,7 @@ describe('texto livre: zona composta, 0900 e serviço em prosa', () => {
       expect(proposalId).toBeTruthy()
       markProposalSent(s.db, s.tenantId, proposalId, s.clock)
       const echoed = await say(s, 'Na verdade, só pernas')
-      expect(echoed.autoBook?.replyText).toBe('Entendi: Pernas. Certo?')
+      expect(echoed.autoBook?.replyText).toBe('Entendi: pernas. Certo?')
       const suspended = getProposal(s.db, s.tenantId, proposalId)
       expect(suspended?.state).not.toBe('substituida')
       expect(suspended?.confirmSuspended).toBe(true)
@@ -304,7 +304,7 @@ describe('texto livre: zona composta, 0900 e serviço em prosa', () => {
       const previousId = picked.autoBook?.proposalId ?? ''
       expect(previousId).toBeTruthy()
       const echoed = await say(s, 'só pernas')
-      expect(echoed.autoBook?.replyText).toBe('Entendi: Pernas. Certo?')
+      expect(echoed.autoBook?.replyText).toBe('Entendi: pernas. Certo?')
       expect(getProposal(s.db, s.tenantId, previousId)?.confirmSuspended).toBe(true)
       const sim = await say(s, 'Sim')
       expect(sim.autoBook?.proposalId).toBeTruthy()
@@ -349,7 +349,7 @@ describe('texto livre: zona composta, 0900 e serviço em prosa', () => {
       expect(line.autoBook?.replyText ?? '').toMatch(/feminina ou masculina/i)
       await say(s, 'Feminina')
       const zones = await say(s, 'Axila e pernas')
-      expect(zones.autoBook?.replyText).toBe('Entendi: Axila e Pernas. Certo?')
+      expect(zones.autoBook?.replyText).toBe('Entendi: axila, pernas. Certo?')
       await say(s, 'Sim')
       const picked = await say(s, 'sexta às 17:00')
       const proposalId = picked.autoBook?.proposalId ?? ''

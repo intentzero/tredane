@@ -299,7 +299,7 @@ O Paulo aprovou a leva 1 (DEC-122) e a leva 2 (DEC-123) a 02/11/2026. Para a lev
 | Lista de variantes: botão que abre a lista | `Opções` | ≤ 20 | o tipo da variante (zona, área…) é texto livre da owner; `Opções` é neutro |
 | Lista de variantes: linha que escolhe tudo | `Todas` | linha ≤ 24 | |
 | Lista de horários: botão que abre a lista | `Horários` | ≤ 20 | |
-| Eco das zonas no texto livre (DEC-137) | `Entendi: Axila e Pernas. Certo?` | — | nomes do catálogo; duas zonas «A e B»; três ou mais «A, B e C» |
+| Eco das zonas no texto livre (DEC-137) | `Entendi: axila, pernas, costas. Certo?` | — | **Confirmado** (Paulo, 09/11/2026): nomes em minúsculas; lista só com vírgulas (sem «e» antes do último). Botões Sim/Corrigir inalterados. |
 | Botão do eco | `Sim` | título ≤ 20 | confirma o conjunto e só então abre Horários; não marca (DEC-061) |
 | Botão do eco | `Corrigir` | título ≤ 20 | volta à pergunta das zonas (Opções + texto livre) |
 | Zona citada sem match (#509 / prática 1) — **Confirmado** (Paulo 07/11/2026) | `Não encontrei {palavra} nas opções. Quer {lista}?` | — | `{palavra}` = token que sobrou; `{lista}` = nomes do âmbito (linha travada). Sem «ou outra?» — a lista já tem todas as variantes. Sem acto no catálogo; frase fixa em `zoneNotFoundAskReply` (DEC-104). |

@@ -2202,7 +2202,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     turns: [{ role: 'client', text: 'Axilas e pernas' }],
     expect: {
       proposal: false,
-      outboundIncludes: ['Entendi: Axila e Pernas. Certo?'],
+      outboundIncludes: ['Entendi: axila, pernas. Certo?'],
       turns: [
         {
           turn: 0,
