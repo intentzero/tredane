@@ -119,10 +119,23 @@ describe('reset booking path (Paulo 09/11/2026)', () => {
       'quero outro agendamento',
       'outro agendamento',
       'quero marcar outro',
+      'quero marcar outra coisa',
       'nova marcação',
       'quero agendar de novo',
     ]) {
       expect(catalogConsultIntent(text), text).toEqual({ kind: 'ask' })
+    }
+  })
+
+  it('B2: «marcar outro horário/dia/período» não limpa o funil', () => {
+    for (const text of [
+      'quero marcar outro horário',
+      'quero marcar outro dia',
+      'quero marcar outro período',
+      'quero marcar outra data',
+      'quero marcar outra sessão de limpeza',
+    ]) {
+      expect(catalogConsultIntent(text), text).toBeNull()
     }
   })
 

@@ -1367,19 +1367,21 @@ export async function tryAiAutoBook(
     return times.length === 1 ? times[0]! : null
   })()
   if (!det.service && session?.serviceId) {
-    const stored = services.find((item) => item.id === session.serviceId)
+    // Local após o guard: `session` é `let` e peekSession devolve nullável (TS18047).
+    const live = session
+    const stored = services.find((item) => item.id === live.serviceId)
     // «amanhã» / «na parte da manhã» não repetem o serviço. A sessão já o tem (CF-19 / A-02).
     // M5 / A-03: toque «Feminina»/«Masculina» (ou texto equivalente) continua o mesmo serviço.
     const dayContinues = Boolean(turnFacts.dayLabel) && !clockFromTurn
     const periodContinues =
       Boolean(turnFacts.period) &&
       !clockFromTurn &&
-      Boolean(session.variantIds?.length || !stored?.zones.some((z) => z.active))
+      Boolean(live.variantIds?.length || !stored?.zones.some((z) => z.active))
     const lineContinues = Boolean(explicitAudienceLine(turnText))
     const storedActive = stored?.zones.filter((zone) => zone.active) ?? []
     const storedPool =
-      stored && needsAudienceLine(storedActive) && session.audienceLine
-        ? zonesForAudienceLine(storedActive, session.audienceLine)
+      stored && needsAudienceLine(storedActive) && live.audienceLine
+        ? zonesForAudienceLine(storedActive, live.audienceLine)
         : storedActive
     const namedNow =
       (stored != null &&
@@ -1429,10 +1431,11 @@ export async function tryAiAutoBook(
       (frame.pending?.slot === 'horario' || Boolean(frame.lastOffer))
         ? services.find((s) => s.id === frame.serviceId)
         : undefined
+    const sessionSvcId = session?.serviceId
     const pendingSvc =
       liveFrameSvc ??
       det.service ??
-      (session?.serviceId ? services.find((s) => s.id === session.serviceId) : undefined) ??
+      (sessionSvcId ? services.find((s) => s.id === sessionSvcId) : undefined) ??
       (frame?.serviceId ? services.find((s) => s.id === frame.serviceId) : undefined)
     if (pendingSvc) {
       det = {

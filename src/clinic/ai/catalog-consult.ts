@@ -75,10 +75,10 @@ const CATALOG_ASK: readonly RegExp[] = [
   /\b(?:quero|queria|prefiro)\s+(?:agendar\s+|marcar\s+)?outro\s+servico\b/,
   /\boutro\s+servico\b/,
   // B2 (Paulo 09/11/2026): «outro agendamento» = mesmo efeito DEC-142, antes do match de zona.
-  // Não casa «quero marcar outra sessão» (C-11) — só «outro» / «outra coisa».
+  // Não casa «outra sessão» (C-11) nem «outro horário/dia/período/data» (mid-funnel).
   /\b(?:quero|queria|prefiro)\s+outro\s+agendamento\b/,
   /\boutro\s+agendamento\b/,
-  /\b(?:quero|queria|prefiro)\s+marcar\s+outro\b/,
+  /\b(?:quero|queria|prefiro)\s+marcar\s+outro\b(?!\s+(?:horario|dia|periodo|data|sessao|vez)\b)/,
   /\b(?:quero|queria|prefiro)\s+marcar\s+outra\s+coisa\b/,
   /\bnova\s+marcacao\b/,
   /\b(?:quero|queria|prefiro)\s+agendar\s+de\s+novo\b/,
