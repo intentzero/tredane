@@ -639,8 +639,11 @@ export function saveBookingFrame(
     : patch.proposal !== undefined
       ? patch.proposal
       : (existing?.proposal ?? null)
-  const rescheduleAppointmentId =
-    patch.rescheduleAppointmentId !== undefined
+  // Troca de serviço encerra remarcação: o apt-alvo não segue para o funil novo
+  // (audit C2 — phase remarcando colada autorizava tryAiReschedule no serviço antigo).
+  const rescheduleAppointmentId = serviceChanged
+    ? (patch.rescheduleAppointmentId !== undefined ? patch.rescheduleAppointmentId : null)
+    : patch.rescheduleAppointmentId !== undefined
       ? patch.rescheduleAppointmentId
       : (existing?.rescheduleAppointmentId ?? null)
   const catalogVersion =
@@ -680,21 +683,26 @@ export function saveBookingFrame(
     provenance = nextProv
   }
   // Remarcação (DEC-129) também grava lastOffer/pending com phase remarcando.
-  // Um patch sem phase (ex. sync de catalogVersion) não pode promover para ofertado
-  // — senão o 2.º turno da remarcação perde a continuidade e o mid-booking
-  // day-reask com compromisso futuro cai no caminho errado se lastOffer «autorizar».
+  // Um patch sem phase (ex. sync de catalogVersion) no *mesmo* serviço não pode
+  // promover para ofertado. Em serviceChanged, remarcando não cola — senão
+  // priorRescheduleOfferFromFrame segue true com o serviço novo.
   const phase =
     patch.phase ??
-    (existing?.phase === 'remarcando'
-      ? 'remarcando'
-      : pending || lastOffer
+    (serviceChanged
+      ? pending || lastOffer
         ? 'ofertado'
         : proposal
           ? 'proposto'
-          : existing?.phase && existing.phase !== 'idle'
-            ? existing.phase
-            : 'coletando')
-
+          : 'coletando'
+      : existing?.phase === 'remarcando'
+        ? 'remarcando'
+        : pending || lastOffer
+          ? 'ofertado'
+          : proposal
+            ? 'proposto'
+            : existing?.phase && existing.phase !== 'idle'
+              ? existing.phase
+              : 'coletando')
   const now = clock.nowMs()
   const funnelStart = serviceChanged || !existing ? now : existing.updatedAt
 

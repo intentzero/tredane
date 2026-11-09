@@ -193,8 +193,24 @@ export class DeferredBookingFrame {
     // Overlay alinha a saveBookingFrame: troca de serviço limpa data/período
     // (e o resto do funil antigo) salvo patch explícito no mesmo turno («hoje»).
     const serviceChanged = base != null && base.serviceId !== serviceId
+    const pending =
+      this.patch.pending !== undefined ? this.patch.pending : (base?.pending ?? null)
+    const lastOffer =
+      this.patch.lastOffer !== undefined ? this.patch.lastOffer : (base?.lastOffer ?? null)
+    const proposal =
+      this.patch.proposal !== undefined ? this.patch.proposal : (base?.proposal ?? null)
+    // Alinha a saveBookingFrame: serviceChanged deixa remarcando / apt-alvo.
+    const phase =
+      this.patch.phase ??
+      (serviceChanged
+        ? pending || lastOffer
+          ? 'ofertado'
+          : proposal
+            ? 'proposto'
+            : 'coletando'
+        : (base?.phase ?? 'coletando'))
     return {
-      phase: this.patch.phase ?? base?.phase ?? 'coletando',
+      phase,
       serviceId,
       line: this.patch.line !== undefined ? this.patch.line : (base?.line ?? null),
       variantIds:
@@ -218,13 +234,14 @@ export class DeferredBookingFrame {
           ? this.patch.period
           : (base?.period ?? null),
       time: this.patch.time !== undefined ? this.patch.time : (base?.time ?? null),
-      pending: this.patch.pending !== undefined ? this.patch.pending : (base?.pending ?? null),
-      lastOffer:
-        this.patch.lastOffer !== undefined ? this.patch.lastOffer : (base?.lastOffer ?? null),
-      proposal:
-        this.patch.proposal !== undefined ? this.patch.proposal : (base?.proposal ?? null),
-      rescheduleAppointmentId:
-        this.patch.rescheduleAppointmentId !== undefined
+      pending,
+      lastOffer,
+      proposal,
+      rescheduleAppointmentId: serviceChanged
+        ? this.patch.rescheduleAppointmentId !== undefined
+          ? this.patch.rescheduleAppointmentId
+          : null
+        : this.patch.rescheduleAppointmentId !== undefined
           ? this.patch.rescheduleAppointmentId
           : (base?.rescheduleAppointmentId ?? null),
       catalogVersion:
