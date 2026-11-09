@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Novo serviço — teclado aberto (Proposto)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0E5A5C}a:hover{color:#0A4547}
+button,select,input{font:inherit}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
+</style>
+</helmet>
+<!--
+  M-64 · Estado com teclado virtual aberto no campo Nome (Novo serviço).
+  Proposto (09/11/2026): com teclado aberto, o rodapé sticky Cancelar/Salvar
+  some; o campo focado fica acima do teclado, sem sobreposição. Ao fechar o
+  teclado, o rodapé volta (igual ao padrão data-keyboard=open da conversa).
+  Opção recomendada A — ver docs no Agent Store / screens.md.
+-->
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F4EF; color: #142625; font-family: Roboto, system-ui, sans-serif; font-size: 14px; line-height: 1.35; display: flex; flex-direction: column; overflow: hidden; position: relative">
+
+<header style="flex: none; background: #FFFFFF; border-bottom: 1px solid #E1E3E0; display: flex; align-items: center; gap: 4px; padding: 8px 4px; z-index: 2">
+<a href="Clinica.dc.html" aria-label="Voltar para Clínica" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #142625; border-radius: 999px; text-decoration: none">‹</a>
+<div style="display: flex; flex-direction: column"><h1 style="margin: 0; font-size: 16px; font-weight: 600">Novo serviço</h1><span style="font-size: 13px; color: #566160">Serviços · 3 cadastrados</span></div>
+</header>
+
+<div style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; padding-bottom: 24px">
+
+<label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A">Nome
+<span style="position: relative; display: block">
+<input type="text" value="Depilação" aria-label="Nome" style="width: 100%; height: 36px; box-sizing: border-box; padding: 0 12px; border: 2px solid #0E5A5C; border-radius: 6px; font-size: 16px; color: #142625; background: #FFFFFF; box-shadow: 0 0 0 3px #E7F1F1">
+<span aria-hidden="true" style="position: absolute; left: calc(12px + 8ch); top: 50%; transform: translateY(-50%); width: 2px; height: 18px; background: #0E5A5C; border-radius: 1px"></span>
+</span>
+</label>
+
+<button type="button" role="switch" aria-checked="true" tabindex="-1" style="min-height: 44px; padding: 0 16px; border: 1px solid #E1E3E0; border-radius: 12px; background: #FFFFFF; display: flex; align-items: center; justify-content: space-between; font-weight: 500; opacity: 0.55">Serviço ativo <span aria-hidden="true" style="position: relative; width: 40px; height: 24px; border-radius: 999px; background: #0E5A5C"><span style="position: absolute; top: 2px; left: 18px; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF"></span></span></button>
+
+<div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #424B4A; opacity: 0.45">Sinônimos
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 36px; padding: 4px 8px; border: 1px solid #7A8584; border-radius: 6px; background: #FFFFFF">
+<input type="text" placeholder="Adicionar…" aria-hidden="true" tabindex="-1" style="flex: 1; min-width: 6rem; height: 28px; border: 0; box-shadow: none; outline: none; background: transparent; font-size: 14px; color: #142625"></div>
+</div>
+
+<p style="margin: 0; font-size: 12px; color: #566160; background: #E7F1F1; color: #0A4547; padding: 10px 12px; border-radius: 8px"><strong>Com o teclado aberto.</strong> Cancelar e Salvar somem para não cobrir o campo. Fechar o teclado devolve o rodapé.</p>
+
+<section aria-hidden="true" style="display: flex; flex-direction: column; gap: 8px; opacity: 0.35"><h2 style="margin: 0; font-size: 16px; font-weight: 600">Como a cliente escolhe</h2>
+<button type="button" tabindex="-1" style="min-height: 44px; padding: 12px; border-radius: 12px; text-align: left; border: 1px solid #0E5A5C; background: #E7F1F1"><strong style="font-weight: 600">Um só serviço</strong></button>
+</section>
+</div>
+
+<!-- Rodapé sticky oculto enquanto o teclado está aberto (Opção A). -->
+
+<div aria-label="Teclado virtual" style="flex: none; height: 292px; background: #D1D3D9; border-top: 1px solid #B0B3BA; display: flex; flex-direction: column; font-family: Roboto, system-ui, sans-serif; user-select: none">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #E4E5E9; border-bottom: 1px solid #C5C7CD">
+<span style="font-size: 13px; color: #566160">português</span>
+<span style="font-size: 15px; font-weight: 600; color: #0E5A5C">concluir</span>
+</div>
+<div style="flex: 1; padding: 8px 4px 10px; display: flex; flex-direction: column; gap: 8px; justify-content: space-between">
+<div style="display: flex; gap: 5px; justify-content: center">
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">Q</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">W</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">E</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">R</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">T</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">Y</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">U</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">I</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">O</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">P</span>
+</div>
+<div style="display: flex; gap: 5px; justify-content: center; padding: 0 16px">
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">A</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">S</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">D</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">F</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">G</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">H</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">J</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">K</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">L</span>
+</div>
+<div style="display: flex; gap: 5px; justify-content: center">
+<span style="width: 42px; height: 42px; border-radius: 5px; background: #ADB1B8; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #142625; font-weight: 600">⇧</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">Z</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">X</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">C</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">V</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">B</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">N</span>
+<span style="width: 32px; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #142625">M</span>
+<span style="width: 42px; height: 42px; border-radius: 5px; background: #ADB1B8; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #142625; font-weight: 600">⌫</span>
+</div>
+<div style="display: flex; gap: 5px; justify-content: center; padding: 0 4px">
+<span style="width: 42px; height: 42px; border-radius: 5px; background: #ADB1B8; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #142625; font-weight: 600">123</span>
+<span style="flex: 1; height: 42px; border-radius: 5px; background: #FFFFFF; box-shadow: 0 1px 0 #8E9096; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #566160">espaço</span>
+<span style="width: 72px; height: 42px; border-radius: 5px; background: #0E5A5C; box-shadow: 0 1px 0 #0A4547; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #FFFFFF; font-weight: 600">return</span>
+</div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
