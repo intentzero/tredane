@@ -537,6 +537,15 @@
       "title": "M-63 Serviços: palavras não reconhecidas (DEC-141)",
       "is_interactive": false,
       "radius": 32
+    },
+    "ServicoTeclado.dc.html": {
+      "x": 1880,
+      "y": 15768,
+      "w": 390,
+      "h": 844,
+      "title": "M-64 Novo serviço: teclado aberto sem cobrir Nome (Confirmado Opção A)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -597,7 +606,8 @@
     "ClinicaPassoAgora.dc.html",
     "ClinicaPronta.dc.html",
     "ClinicaAssistente.dc.html",
-    "ServicosSugestoes.dc.html"
+    "ServicosSugestoes.dc.html",
+    "ServicoTeclado.dc.html"
   ],
   "notes": {
     "row1": {

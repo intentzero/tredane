@@ -786,6 +786,10 @@ describe('ServiceForm — layout do painel (overflow horizontal)', () => {
     expect(css).not.toMatch(
       /\.clinic-footer-sticky\s*\{[^}]*margin:\s*0\s+calc\(var\(--space-4\)\s*\*\s*-1\)/s,
     )
+    // M-64 Opção A: teclado aberto (data-keyboard=open) esconde o rodapé sticky.
+    expect(css).toMatch(
+      /:root\[data-keyboard=['"]open['"]\]\s*\.clinic-footer-sticky\s*\{[^}]*display:\s*none/s,
+    )
     expect(css).toMatch(/\.svc-format-item\s*\{[^}]*position:\s*relative/s)
     expect(css).toMatch(/\.svc-format-item\s*\{[^}]*min-width:\s*0/s)
   })
