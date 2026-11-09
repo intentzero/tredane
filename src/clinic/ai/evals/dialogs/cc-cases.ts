@@ -470,14 +470,15 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
-    id: 'CC-12',
+    id: 'CC-13',
     title: 'Oferta com dia «amanhã» diz «amanhã», não weekday+DD/MM',
     turnosIdeais: 1,
     // Preferência Paulo 09/11/2026: dia civil amanhã → rótulo «amanhã» (relógio da clínica).
     // Relógio do harness: qui 05/11 → amanhã = sexta 06/11.
+    // CC-12 já é a lista «Temos:» após Feminino/Masculino (#645).
     prepare: (s) => {
       const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('CC-12: serviço Massagem ausente no cenário')
+      if (!massagem) throw new Error('CC-13: serviço Massagem ausente no cenário')
       upsertServiceOp(
         s.db,
         s.caller,
@@ -503,7 +504,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
         s.clock,
       )
       const relaxante = zones[0]
-      if (!relaxante) throw new Error('CC-12: Massagem relaxante ausente')
+      if (!relaxante) throw new Error('CC-13: Massagem relaxante ausente')
       saveScheduleSession(
         s.db,
         s.tenantId,
