@@ -133,4 +133,32 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
       outboundExcludes: NO_LEAK,
     },
   },
+  {
+    id: 'A-41',
+    title: 'Sim do eco abre uma só oferta de Horários (DEC-137)',
+    turnosIdeais: 3,
+    // Staging Paulo ~12:20 SP 09/11/2026: toque Sim → duas ofertas Horários iguais
+    // (race ingest autodraft + choice). Skip interactive_reply_button (#640) +
+    // cobertura explícita: texto Sim também uma só.
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'axila e pernas' },
+      { role: 'client', text: 'Sim' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      outboundCount: 3,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        { turn: 1, matches: [/Entendi: Axila e Pernas\. Certo\?/] },
+        {
+          turn: 2,
+          matches: [/\d{1,2}:\d{2}/],
+          excludes: [/Entendi:/i, /quais zonas/i],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
 ]

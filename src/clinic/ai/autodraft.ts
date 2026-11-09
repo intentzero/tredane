@@ -283,8 +283,9 @@ function isProposalConfirmButtonBody(body: string): boolean {
  * O ingest grava `[Botão]…` / `[Lista]…` e enfileira autodraft; o handler
  * dedicado (`handleProposalButtonClick` → choice / proposta / idle / handoff)
  * cancela o job. Se o alarme correr antes do cancel (debounce curto / race),
- * o catálogo reemite a mesma pergunta com «Falar com a equipe» e o clique
- * manda de novo com Opções — staging Paulo 09/11/2026 (zona-ask duplicado).
+ * o autodraft reemite o que o clique já vai realizar:
+ * - linha → ask-tipo com handoff + Opções (staging Paulo 09/11 ~11:56, #640);
+ * - Sim do eco DEC-137 → duas ofertas Horários iguais (~12:20).
  */
 function isInteractiveReplyBody(body: string): boolean {
   return /^\[(Botão|Lista)\]\s+/i.test(body.trim())
@@ -476,9 +477,9 @@ export async function runDueAutoDrafts(
       skip('proposal_confirm_button')
       continue
     }
-    // Mesma race no funil M5: ingest de Feminina/Masculina/Opções enfileira
-    // autodraft; sem este skip, catalog_reply manda a ask-tipo com handoff e o
-    // choice handler manda outra com Opções (mesmo corpo).
+    // Mesma race no funil M5 / DEC-137: Feminina·Masculina·Opções·Sim do eco
+    // enfileiram autodraft no ingest. Sem este skip, o job reenvia ask-tipo /
+    // Horários depois (ou antes) do choice handler — Paulo 09/11 staging.
     if (isInteractiveReplyBody(inboundBody)) {
       skip('interactive_reply_button')
       continue
