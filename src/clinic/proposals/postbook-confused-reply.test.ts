@@ -5,6 +5,7 @@
  * autodraft não pode reinterpretar o clique.
  */
 import { describe, expect, it } from 'vitest'
+import { SimulatedAiAdapter } from '../../ai'
 import { createControllableClock } from '../../db/clock'
 import {
   replaceServiceZonesOp,
@@ -232,6 +233,7 @@ describe('pós-Agendado sem esclarecer spurioso', () => {
       s.clock.advance(7_000)
       const outcomes = await runDueAutoDrafts(s.db, s.caller, s.clock, {
         mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
       })
       expect(outcomes.some((o) => o.reason === 'proposal_confirm_button')).toBe(true)
       const bodies = s.db
@@ -309,7 +311,10 @@ describe('pós-Agendado sem esclarecer spurioso', () => {
         s.clock,
       )
       s.clock.advance(7_000)
-      await runDueAutoDrafts(s.db, s.caller, s.clock, { mode: 'synthetic' })
+      await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
 
       const bodies = s.db
         .all<{ body: string }>(

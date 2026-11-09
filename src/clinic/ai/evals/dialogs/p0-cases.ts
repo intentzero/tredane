@@ -1868,6 +1868,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       { role: 'proposal_sent' },
       {
         role: 'owner',
+        note: 'deixa pending choose_slot no quadro (race staging Confirmar → esclarecer)',
         act: (s) => {
           const frame = getBookingFrame(s.db, s.tenantId, s.conversationId)
           if (!frame?.serviceId) return
