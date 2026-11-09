@@ -265,7 +265,7 @@ describe('DEC-137: eco e plural das zonas', () => {
       const before = outbound(s).length
       const result = await say(s, 'Axila')
       const reply = result.autoBook?.replyText ?? ''
-      expect(reply).toMatch(/Entendi:\s*Axila\. Certo\?/)
+      expect(reply).toBe('Entendi: axila. Certo?')
       expect(result.autoBook?.interactive?.mode).toBe('buttons')
       const after = outbound(s).slice(before)
       const json = after.map((row) => row.interactive_json ?? '').join('\n')
