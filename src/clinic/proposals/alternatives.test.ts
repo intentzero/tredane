@@ -87,4 +87,25 @@ describe('#511 validade visível e Confirmar expirado (copy)', () => {
       ]),
     ).toBe('sexta 06/11 às 14:00, 16:00')
   })
+
+  it('formatOfferedSlotsListing usa hoje/amanhã com dia civil da clínica', () => {
+    expect(
+      formatOfferedSlotsListing(
+        [{ date: '2026-11-09', time: '14:00', startsAt: 1 }],
+        '2026-11-09',
+      ),
+    ).toBe('hoje às 14:00')
+    expect(
+      formatOfferedSlotsListing(
+        [{ date: '2026-11-10', time: '10:00', startsAt: 1 }],
+        '2026-11-09',
+      ),
+    ).toBe('amanhã às 10:00')
+    expect(
+      formatOfferedSlotsListing(
+        [{ date: '2026-11-11', time: '11:00', startsAt: 1 }],
+        '2026-11-09',
+      ),
+    ).toBe('quarta 11/11 às 11:00')
+  })
 })

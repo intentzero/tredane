@@ -5,6 +5,7 @@
 import type { Clock } from '../../db/clock'
 import { getService } from '../config/services'
 import { readZoneSnapshots } from '../config/zones'
+import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import type { ClinicDb } from '../store'
 import {
   dayTextPt,
@@ -14,8 +15,14 @@ import {
 import type { ForecastAdapter } from '../tempo/evaluate'
 import type { AppointmentProposalRow } from './types'
 
-/** Junta slots no formato da oferta («sexta 06/11 às 14:00, 16:00»). */
-export function formatOfferedSlotsListing(slots: OfferedSlot[]): string {
+/**
+ * Junta slots no formato da oferta («sexta 06/11 às 14:00, 16:00»).
+ * Com `today` (dia civil da clínica): «hoje» / «amanhã» em vez de weekday+DD/MM.
+ */
+export function formatOfferedSlotsListing(
+  slots: OfferedSlot[],
+  today?: string | null,
+): string {
   if (slots.length === 0) return ''
   const byDay = new Map<string, string[]>()
   for (const slot of slots) {
@@ -24,7 +31,7 @@ export function formatOfferedSlotsListing(slots: OfferedSlot[]): string {
     byDay.set(slot.date, list)
   }
   const bits = [...byDay.entries()].map(
-    ([day, times]) => `${dayTextPt(day)} às ${times.join(', ')}`,
+    ([day, times]) => `${dayTextPt(day, today)} às ${times.join(', ')}`,
   )
   return bits.length === 1
     ? bits[0]!
@@ -75,5 +82,6 @@ export async function offerAlternativesForProposal(input: {
   const slots = offered.slots
     .filter((s) => s.startsAt !== input.proposal.startsAt)
     .slice(0, limit)
-  return { slots, listing: formatOfferedSlotsListing(slots) }
+  const today = clinicCivilDateFromUtc(input.proposal.timezone, input.clock.nowMs())
+  return { slots, listing: formatOfferedSlotsListing(slots, today) }
 }

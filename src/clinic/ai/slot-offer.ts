@@ -29,7 +29,17 @@ export function weekdayOfCivil(date: string): number {
   return js === 0 ? 7 : js
 }
 
-export function dayTextPt(date: string): string {
+/**
+ * Rótulo de dia civil à cliente (relógio da clínica).
+ * Paulo 09/11/2026: «hoje» / «amanhã» quando o dia ofertado é o civil atual
+ * ou o seguinte; a partir de depois de amanhã mantém «segunda 09/11».
+ * A lista Horários (DEC-138) continua com weekday+DD/MM no título da linha.
+ */
+export function dayTextPt(date: string, today?: string | null): string {
+  if (today) {
+    if (date === today) return 'hoje'
+    if (date === addCivilDays(today, 1)) return 'amanhã'
+  }
   const [, m, d] = date.split('-')
   return `${WEEKDAY_LABEL[weekdayOfCivil(date)]} ${d}/${m}`
 }
@@ -55,10 +65,8 @@ export function slotListRowCopy(date: string, time: string): { title: string; de
  * ou «hoje» / «amanhã» quando `today` é o dia civil da clínica.
  */
 export function dayWithPrepPt(date: string, today?: string | null): string {
-  if (today) {
-    if (date === today) return 'hoje'
-    if (date === addCivilDays(today, 1)) return 'amanhã'
-  }
+  const label = dayTextPt(date, today)
+  if (label === 'hoje' || label === 'amanhã') return label
   const wd = WEEKDAY_LABEL[weekdayOfCivil(date)]!
   const [, m, d] = date.split('-')
   const prep = FEMININE_WEEKDAYS.has(wd) ? 'na' : 'no'
@@ -66,13 +74,11 @@ export function dayWithPrepPt(date: string, today?: string | null): string {
 }
 
 /**
- * Rótulo para oferta com dia já pedido (Paulo 08/11/2026):
+ * Rótulo para oferta com dia já pedido (Paulo 08/11/2026; hoje/amanhã 09/11/2026):
  * «hoje» / «amanhã» / «quarta 11/11» — entra em «horários disponíveis para {dia}».
  */
 export function dayOfferLabelPt(date: string, today: string): string {
-  if (date === today) return 'hoje'
-  if (date === addCivilDays(today, 1)) return 'amanhã'
-  return dayTextPt(date)
+  return dayTextPt(date, today)
 }
 
 export function periodWordPt(period: DayPeriod): string {
@@ -342,7 +348,9 @@ export async function offerNearestSlots(input: {
     return { slots: picked, replyText: body }
   }
 
-  const bits = [...byDay.entries()].map(([day, times]) => `${dayTextPt(day)} às ${times.join(', ')}`)
+  const bits = [...byDay.entries()].map(
+    ([day, times]) => `${dayTextPt(day, today)} às ${times.join(', ')}`,
+  )
   const listed = bits.length === 1 ? bits[0]! : `${bits.slice(0, -1).join(', ')} e ${bits[bits.length - 1]}`
   // `{quando}`: período com espaço final, ou vazio (opcional no motor do catálogo).
   const quando = period ? `${periodWordPt(period)} ` : ''
@@ -420,7 +428,10 @@ export async function occupiedSlotAlternativesReply(input: {
       list.push(slot.time)
       byDay.set(slot.date, list)
     }
-    const bits = [...byDay.entries()].map(([day, times]) => `${dayTextPt(day)} às ${times.join(', ')}`)
+    const today = clinicCivilDateFromUtc(input.tz, input.clock.nowMs())
+    const bits = [...byDay.entries()].map(
+      ([day, times]) => `${dayTextPt(day, today)} às ${times.join(', ')}`,
+    )
     const listed = bits.length === 1 ? bits[0]! : `${bits.slice(0, -1).join(', ')} e ${bits[bits.length - 1]}`
     const fallback =
       `Nesse horário das ${input.time} já não tenho vaga e o dia está cheio nesse período. No próximo com vaga tenho ${listed}. Qual fica melhor?`

@@ -219,9 +219,11 @@ describe('sticky day lock — outro serviço na mesma sessão', () => {
 
       const offer = await say(s, 'sim')
       const reply = offer.autoBook?.replyText ?? ''
-      // Oferta aberta (próximos / «Tenho …»): hoje seg 09/11, não o dia sticky.
-      expect(reply).toMatch(/09\/11/)
+      // Oferta aberta (próximos / «Tenho …»): dia civil = hoje → rótulo «hoje» (Paulo 09/11),
+      // não weekday+DD/MM nem o dia sticky sexta 13/11.
+      expect(reply).toMatch(/\bhoje\b/i)
       expect(reply).toMatch(/\d{1,2}:\d{2}/)
+      expect(reply).not.toMatch(/09\/11/)
       expect(reply).not.toMatch(/horários disponíveis para sexta/i)
       expect(reply).not.toMatch(/13\/11/)
       const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
