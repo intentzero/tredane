@@ -47,13 +47,14 @@ describe('DEC-145: pergunta singular no modo uma', () => {
     ).toBe('zonas')
   })
 
-  it('modo uma: «qual tipo?» sem «quais» nem «Pode ser mais de uma»', () => {
+  it('modo uma: «qual tipo?» sem «quais» nem convite multi', () => {
     const text = variantListQuestion('Massagem', 'tipo', MASSAGEM_TYPES, 'cnv_uma', {
       selectionMode: 'uma',
     })
     expect(text).toMatch(/\bqual tipo\b/i)
     expect(text).not.toMatch(/\bquais tipos?\b/i)
-    expect(text).not.toMatch(/Pode ser mais de uma/i)
+    expect(text).not.toMatch(/Escreva uma ou várias/i)
+    expect(text).not.toMatch(/axila e pernas/i)
     expect(text).toBe(
       'Para massagem, qual tipo você quer? Temos liberação miofascial, massagem relaxante.',
     )
@@ -80,14 +81,19 @@ describe('DEC-145: pergunta singular no modo uma', () => {
     ])
   })
 
-  it('modo varias: mantém «quais» / «Pode ser mais de uma»; lista em minúsculas', () => {
+  it('modo varias: «quais» + convite texto livre; lista em minúsculas', () => {
     const text = variantListQuestion('Depilação', 'zonas', MASSAGEM_TYPES, 'cnv_varias', {
       selectionMode: 'varias',
     })
     expect(text).toMatch(/\bquais zonas\b/i)
     expect(text).not.toMatch(/\bqual zona\b/i)
+    expect(text).toMatch(/Escreva uma ou várias/i)
+    expect(text).toMatch(/axila e pernas/i)
+    expect(text).toMatch(/também pode dizer todas/i)
+    expect(text).not.toMatch(/Em Opções/i)
     expect(text).toMatch(/liberação miofascial/)
     expect(text).not.toMatch(/Liberação miofascial/)
     expect(text).not.toMatch(/Para Depilação/)
+    expect(text).not.toMatch(/Pode ser mais de uma/i)
   })
 })

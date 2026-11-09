@@ -14,7 +14,7 @@ import { createConversation } from '../inbox/conversations'
 import { insertMessage } from '../inbox/messages'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
-import { handleChoiceOfferClick, VARIANT_LIST_BUTTON_LABEL } from './choice-offer'
+import { handleChoiceOfferClick } from './choice-offer'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import {
   getBookingFrame,
@@ -128,15 +128,6 @@ function buttonId(json: string | null, title: string): string {
   const button = parsed.buttons?.find((item) => item.title === title)
   expect(button?.id).toBeTruthy()
   return button!.id
-}
-
-function listRowId(json: string | null, title: string): string {
-  const parsed = JSON.parse(json ?? '{}') as {
-    list?: { sections?: Array<{ rows?: Array<{ id: string; title: string }> }> }
-  }
-  const row = parsed.list?.sections?.flatMap((section) => section.rows ?? []).find((item) => item.title === title)
-  expect(row?.id).toBeTruthy()
-  return row!.id
 }
 
 function zoneIds(s: ReturnType<typeof seed>, audience: 'feminino' | 'masculino', names: string[]) {
@@ -278,10 +269,8 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
       expect(clicked.handled).toBe(true)
       if (!clicked.handled) return
       expect(clicked.autoBook?.replyText ?? '').not.toMatch(/Horários|Entendi:/)
-      expect(clicked.autoBook?.interactive?.mode).toBe('list')
-      if (clicked.autoBook?.interactive?.mode === 'list') {
-        expect(clicked.autoBook.interactive.button).toBe(VARIANT_LIST_BUTTON_LABEL)
-      }
+      expect(clicked.autoBook?.replyText ?? '').toMatch(/quais zonas|Escreva uma ou várias/i)
+      expect(clicked.autoBook?.interactive ?? null).toBeNull()
       const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
       expect(frame?.line).toBe('feminino')
       expect(frame?.variantIds ?? null).toBeNull()
@@ -326,10 +315,11 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
         },
         tap.clock,
       )
-      const options = outbound(tap)
-        .filter((row) => (row.interactive_json ?? '').includes(VARIANT_LIST_BUTTON_LABEL))
-        .at(-1)
-      const axila = listRowId(options?.interactive_json ?? null, 'Axila')
+      // `varias`: zonas só por texto (+ eco), sem lista Opções.
+      await say(tap, 'Axila')
+      const echoTap = outbound(tap).filter((row) => (row.interactive_json ?? '').includes('Corrigir')).at(-1)
+      expect(echoTap).toBeTruthy()
+      const simTap = buttonId(echoTap!.interactive_json, 'Sim')
       tap.clock.advance(1_000)
       insertMessage(
         tap.db,
@@ -337,7 +327,7 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
           tenantId: tap.tenantId,
           conversationId: tap.cnv.id,
           direction: 'inbound',
-          body: '[Lista] Axila',
+          body: '[Botão] Sim',
           deliveryState: 'received',
           createdAt: tap.clock.nowMs(),
         },
@@ -349,9 +339,8 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
         {
           tenantId: tap.tenantId,
           conversationId: tap.cnv.id,
-          buttonId: axila,
-          buttonTitle: 'Axila',
-          providerEventKey: '510-tap-axila',
+          buttonId: simTap,
+          providerEventKey: '510-tap-axila-sim',
         },
         tap.clock,
       )
@@ -440,10 +429,10 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
         },
         corr.clock,
       )
-      const options = outbound(corr)
-        .filter((row) => (row.interactive_json ?? '').includes(VARIANT_LIST_BUTTON_LABEL))
-        .at(-1)
-      const axila = listRowId(options?.interactive_json ?? null, 'Axila')
+      await say(corr, 'Axila')
+      const echoCorr = outbound(corr).filter((row) => (row.interactive_json ?? '').includes('Corrigir')).at(-1)
+      expect(echoCorr).toBeTruthy()
+      const simCorr = buttonId(echoCorr!.interactive_json, 'Sim')
       corr.clock.advance(1_000)
       insertMessage(
         corr.db,
@@ -451,7 +440,7 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
           tenantId: corr.tenantId,
           conversationId: corr.cnv.id,
           direction: 'inbound',
-          body: '[Lista] Axila',
+          body: '[Botão] Sim',
           deliveryState: 'received',
           createdAt: corr.clock.nowMs(),
         },
@@ -463,9 +452,8 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
         {
           tenantId: corr.tenantId,
           conversationId: corr.cnv.id,
-          buttonId: axila,
-          buttonTitle: 'Axila',
-          providerEventKey: '510-corr-axila',
+          buttonId: simCorr,
+          providerEventKey: '510-corr-axila-sim',
         },
         corr.clock,
       )

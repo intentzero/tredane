@@ -128,7 +128,7 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Não consegui fechar \$\{serviceName\} às \$\{time\} agora\. A equipe confirma em seguida\.$/,
   /^\$\{serviceNameInProse\(serviceName, true\)\} feminina ou masculina\?$/,
   /^Para \$\{serviçoProse\}, \$\{whichKind\(variantKind \?\? ''\)\} você quer\? Temos \$\{lista\}\.$/,
-  /^Para fechar às \$\{time\}, me diga \$\{phrase\}: \$\{list\}\. Pode ser mais de uma\.$/,
+  /^Para fechar às \$\{time\}, quais \$\{tipo\}\? Temos \$\{list\}\. \$\{MULTI_VARIANT_ASK_HINT\}$/,
   // DEC-145 modo `uma`: pergunta singular (catálogo M4 permanece plural, máx. 5 redações).
   /^Para fechar às \$\{time\}, \$\{whichKind\(variantKind \?\? ''\)\} você quer\? Temos \$\{list\}\.$/,
   /^Qual serviço você quer\? Temos \$\{lista\}\.$/,

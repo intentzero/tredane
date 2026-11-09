@@ -12,7 +12,7 @@ import { allowsMultipleVariants } from '../catalog/variant-selection'
 import { variantAudiencesConflict } from '../config/zones'
 import type { ServiceRow } from '../config/types'
 import type { AskInfoTopic } from './booking-turn-gate'
-import { sayAct, type DialogueActId } from './dialogue-acts'
+import { MULTI_VARIANT_ASK_HINT, sayAct, type DialogueActId } from './dialogue-acts'
 import {
   parkFromFrame,
   parkInterrupt,
@@ -125,7 +125,7 @@ function quoteTableWithAsk(
   const single = !allowsMultipleVariants(service.variantSelection)
   const pergunta = single
     ? `${whichKind(kind)} você quer?`
-    : `${whichKind(kind)} você quer? Pode ser mais de uma.`
+    : `${whichKind(kind)} você quer? ${MULTI_VARIANT_ASK_HINT}`
   return {
     act: 'informar_preco_tabela',
     vars: {

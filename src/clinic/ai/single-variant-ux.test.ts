@@ -147,6 +147,8 @@ describe('DEC-145 staging: Massagem modo uma', () => {
       expect(reply).toMatch(/\bqual tipo\b/i)
       expect(reply).not.toMatch(/\bquais tipos?\b/i)
       expect(reply).not.toMatch(/Pode ser mais de uma/i)
+      expect(reply).not.toMatch(/Escreva uma ou várias/i)
+      expect(reply).not.toMatch(/axila e pernas/i)
 
       const kind = variantKindForAsk(s.svc)
       expect(kind).toBe('tipo')
@@ -163,6 +165,10 @@ describe('DEC-145 staging: Massagem modo uma', () => {
       expect(built.pending.options.every((o) => o.key !== TODAS_OPTION_KEY)).toBe(true)
       expect(built.interactive.button).toBe(VARIANT_LIST_BUTTON_LABEL)
 
+      expect(result.autoBook?.interactive?.mode).toBe('list')
+      if (result.autoBook?.interactive?.mode === 'list') {
+        expect(result.autoBook.interactive.button).toBe(VARIANT_LIST_BUTTON_LABEL)
+      }
       const interactive = lastInteractive(s)
       const rows = interactive?.action?.sections?.flatMap((sec) => sec.rows ?? []) ?? []
       expect(rows.every((r) => r.title !== 'Todas')).toBe(true)
@@ -172,7 +178,7 @@ describe('DEC-145 staging: Massagem modo uma', () => {
     }
   }, 30_000)
 
-  it('modo varias ainda inclui Todas (regressão)', () => {
+  it('builder ainda sabe incluir Todas (lista Opções só anexada em modo uma)', () => {
     const built = buildVariantChoiceInteractive({
       catalogVersion: '1',
       zones: [

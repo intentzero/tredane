@@ -211,10 +211,16 @@ export const P0_DIALOG_CASES: DialogCase[] = [
       { role: 'client', text: '10h' },
     ],
     // Preço (axila + pernas femininas = R$ 160,00) só no cartão (DEC-090).
+    // Turno 1: pergunta de zonas em modo varias = texto livre (Paulo 09/11/2026; sem Opções).
     expect: {
       proposal: true,
       turns: [
         { turn: 0, excludes: [/R\$/] },
+        {
+          turn: 1,
+          matches: [/quais zonas/i, /Escreva uma ou várias/i, /axila e pernas/i],
+          excludes: [/Pode ser mais de uma/i, /Em Opções/i],
+        },
         { turn: 3, excludes: [/R\$/] },
         { turn: 4, matches: [/R\$ 160,00/] },
       ],
@@ -1515,7 +1521,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         {
           turn: 0,
           matches: [/tipos?|opç/i, /Liberação miofascial/i],
-          excludes: [/Entendi:/i],
+          excludes: [/Entendi:/i, /Escreva uma ou várias/i, /axila e pernas/i],
         },
         {
           turn: 1,

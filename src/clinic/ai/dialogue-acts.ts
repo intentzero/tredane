@@ -54,6 +54,14 @@ export type DialogueActId =
   /** DEC-152 — hint one-shot mid-funnel («diga terminar»). */
   | 'orientar_terminar'
 
+/**
+ * Convite de texto livre na pergunta de variantes em modo `varias`
+ * (Paulo 09/11/2026 — texto only; supersede a opção A que mantinha Opções + hint).
+ * Sem lista Meta Opções; eco DEC-137 inalterado. Modo `uma` não usa este sufixo (DEC-145).
+ */
+export const MULTI_VARIANT_ASK_HINT =
+  'Escreva uma ou várias (ex.: axila e pernas). Também pode dizer todas.'
+
 /** Redações propostas — docs/product/copy-dialogo-atos.md. */
 export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
   abrir: [
@@ -67,11 +75,11 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
     'Claro. {serviço} feminina ou masculina?',
   ],
   perguntar_variantes: [
-    'Quais {tipo}? Temos {lista}. Pode ser mais de uma.',
-    'Quais {tipo} você quer? {lista}. Pode ser mais de uma.',
-    'Para {serviço}, quais {tipo}? {lista}.',
-    'Perfeito, {assunto}. Quais {tipo}? Temos {lista}. Pode ser mais de uma.',
-    'Para fechar às {hora}, quais {tipo}? Temos {lista}. Pode ser mais de uma.',
+    `Quais {tipo}? Temos {lista}. ${MULTI_VARIANT_ASK_HINT}`,
+    `Quais {tipo} você quer? {lista}. ${MULTI_VARIANT_ASK_HINT}`,
+    `Para {serviço}, quais {tipo}? {lista}. ${MULTI_VARIANT_ASK_HINT}`,
+    `Perfeito, {assunto}. Quais {tipo}? Temos {lista}. ${MULTI_VARIANT_ASK_HINT}`,
+    `Para fechar às {hora}, quais {tipo}? Temos {lista}. ${MULTI_VARIANT_ASK_HINT}`,
   ],
   oferecer_horarios: [
     'Para {assunto}, {quando}tenho {lista}. Qual fica melhor?',

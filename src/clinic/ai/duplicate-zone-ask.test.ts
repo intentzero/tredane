@@ -5,6 +5,9 @@
  * Causa: ingest do button_reply enfileira autodraft; catalog_reply realizava a
  * pergunta com handoff; o choice handler mandava de novo com Opções. Com race
  * (alarme antes do cancel) saíam as duas.
+ *
+ * Paulo 09/11/2026 (mais tarde): em `varias` a ask-tipo é só texto (sem lista Opções).
+ * Estes testes passam a exigir **uma** ask-tipo em texto, sem Opções / sem handoff duplicado.
  */
 import { describe, expect, it } from 'vitest'
 import { SimulatedAiAdapter } from '../../ai'
@@ -134,24 +137,28 @@ function zoneAskRows(rows: ReturnType<typeof outbound>) {
   return rows.filter((m) => /quais zonas/i.test(m.body))
 }
 
+/** Ask-tipo `varias`: texto livre, sem lista Opções (Paulo 09/11/2026). */
+function expectSingleTextZoneAsk(asks: ReturnType<typeof zoneAskRows>) {
+  expect(asks).toHaveLength(1)
+  expect(asks[0]!.body).toMatch(/Escreva uma ou várias|axila e pernas/i)
+  expect(asks[0]!.interactive_json ?? '').not.toContain(VARIANT_LIST_BUTTON_LABEL)
+  expect(asks[0]!.interactive_json ?? '').not.toContain(HUMAN_HANDOFF_BUTTON_TITLE)
+}
+
 describe('zona-ask única após escolha de linha', () => {
-  it('texto «Masculina» manda uma ask-tipo com Opções (não handoff)', async () => {
+  it('texto «Masculina» manda uma ask-tipo em texto (sem Opções / handoff)', async () => {
     const s = seed()
     try {
       await say(s, 'Quero depilação')
       const before = outbound(s).length
       await say(s, 'Masculina')
-      const after = outbound(s).slice(before)
-      const asks = zoneAskRows(after)
-      expect(asks).toHaveLength(1)
-      expect(asks[0]!.interactive_json ?? '').toContain(VARIANT_LIST_BUTTON_LABEL)
-      expect(asks[0]!.interactive_json ?? '').not.toContain(HUMAN_HANDOFF_BUTTON_TITLE)
+      expectSingleTextZoneAsk(zoneAskRows(outbound(s).slice(before)))
     } finally {
       s.close()
     }
   })
 
-  it('produção: ingest enfileira autodraft + toque Masculina → uma Opções', async () => {
+  it('produção: ingest enfileira autodraft + toque Masculina → uma ask-tipo texto', async () => {
     const s = seed()
     try {
       await say(s, 'Quero depilação')
@@ -198,13 +205,7 @@ describe('zona-ask única após escolha de linha', () => {
         adapter: new SimulatedAiAdapter(),
       })
       expect(outcomes).toHaveLength(0)
-      const after = outbound(s).slice(before)
-      const asks = zoneAskRows(after)
-      expect(asks).toHaveLength(1)
-      expect(asks[0]!.interactive_json ?? '').toContain(VARIANT_LIST_BUTTON_LABEL)
-      expect(asks.some((m) => (m.interactive_json ?? '').includes(HUMAN_HANDOFF_BUTTON_TITLE))).toBe(
-        false,
-      )
+      expectSingleTextZoneAsk(zoneAskRows(outbound(s).slice(before)))
     } finally {
       s.close()
     }
@@ -255,10 +256,7 @@ describe('zona-ask única após escolha de linha', () => {
         s.clock,
       )
       expect(clicked.handled).toBe(true)
-      const asks = zoneAskRows(outbound(s).slice(before))
-      expect(asks).toHaveLength(1)
-      expect(asks[0]!.interactive_json ?? '').toContain(VARIANT_LIST_BUTTON_LABEL)
-      expect(asks[0]!.interactive_json ?? '').not.toContain(HUMAN_HANDOFF_BUTTON_TITLE)
+      expectSingleTextZoneAsk(zoneAskRows(outbound(s).slice(before)))
     } finally {
       s.close()
     }

@@ -60,7 +60,7 @@ import {
   teamConfirmsSoonReply,
   zoneNotFoundAskReply,
 } from './client-copy'
-import { sayAct } from './dialogue-acts'
+import { MULTI_VARIANT_ASK_HINT, sayAct } from './dialogue-acts'
 import {
   appendEndHelpHint,
   shouldAppendEndHelpHint,
@@ -515,7 +515,8 @@ function zonesChosenByClient(
 /**
  * Pergunta as variantes com hora já conhecida (`perguntar_variantes` + `{hora}`).
  * `phrase` legado («as zonas» / «a zona») só entra no fallback; `{tipo}` vem do kind.
- * DEC-145: `selectionMode=uma` escolhe redação singular (sem «Pode ser mais de uma»).
+ * DEC-145: `selectionMode=uma` escolhe redação singular (sem convite multi).
+ * Modo `varias`: convite de texto livre (Paulo 09/11/2026; sem lista Opções).
  */
 export function askZonesReply(
   phrase: string,
@@ -536,7 +537,7 @@ export function askZonesReply(
   if (single) {
     return `Para fechar às ${time}, ${whichKind(variantKind ?? '')} você quer? Temos ${list}.`
   }
-  const fallback = `Para fechar às ${time}, me diga ${phrase}: ${list}. Pode ser mais de uma.`
+  const fallback = `Para fechar às ${time}, quais ${tipo}? Temos ${list}. ${MULTI_VARIANT_ASK_HINT}`
   return sayAct(
     'perguntar_variantes',
     conversationId,
@@ -1554,19 +1555,22 @@ export async function tryAiAutoBook(
           if (!multiVariants && claimsWholeCatalog(turnText)) {
             pushFriction(frictionModeUmaTodas(det.service.id))
           }
-          interactive = variantChoiceFor(
-            deferred,
-            det.service.id,
-            catalog.version,
-            zonePool.map((z) => ({
-              id: z.id,
-              name: z.name,
-              audience: z.audience,
-              durationMinutes: z.durationMinutes,
-              priceCents: z.priceCents,
-            })),
-            { includeTodas: multiVariants },
-          )
+          // Paulo 09/11/2026: modo `varias` = texto livre + eco DEC-137; sem lista Opções.
+          if (!multiVariants) {
+            interactive = variantChoiceFor(
+              deferred,
+              det.service.id,
+              catalog.version,
+              zonePool.map((z) => ({
+                id: z.id,
+                name: z.name,
+                audience: z.audience,
+                durationMinutes: z.durationMinutes,
+                priceCents: z.priceCents,
+              })),
+              { includeTodas: false },
+            )
+          }
         } else if (!time) {
           const period =
             turnFacts.period ?? (session?.serviceId === det.service.id ? session?.period : null)
@@ -1763,19 +1767,21 @@ export async function tryAiAutoBook(
               input.conversationId,
               { selectionMode: svc.variantSelection },
             )
-            interactive = variantChoiceFor(
-              deferred,
-              svc.id,
-              catalog.version,
-              zoneNames.map((z) => ({
-                id: z.id,
-                name: z.name,
-                audience: z.audience,
-                durationMinutes: z.durationMinutes,
-                priceCents: z.priceCents,
-              })),
-              { includeTodas: allowsMultipleVariants(svc.variantSelection) },
-            )
+            if (!allowsMultipleVariants(svc.variantSelection)) {
+              interactive = variantChoiceFor(
+                deferred,
+                svc.id,
+                catalog.version,
+                zoneNames.map((z) => ({
+                  id: z.id,
+                  name: z.name,
+                  audience: z.audience,
+                  durationMinutes: z.durationMinutes,
+                  priceCents: z.priceCents,
+                })),
+                { includeTodas: false },
+              )
+            }
           } else {
           const echoedIds =
             zoneEcho === 'confirm' && session?.serviceId === svc.id && session.variantIds?.length
@@ -1814,19 +1820,21 @@ export async function tryAiAutoBook(
                 input.conversationId,
                 { selectionMode: svc.variantSelection },
               )
-            interactive = variantChoiceFor(
-              deferred,
-              svc.id,
-              catalog.version,
-              zonePool.map((z) => ({
-                id: z.id,
-                name: z.name,
-                audience: z.audience,
-                durationMinutes: z.durationMinutes,
-                priceCents: z.priceCents,
-              })),
-              { includeTodas: allowsMultipleVariants(svc.variantSelection) },
-            )
+            if (!allowsMultipleVariants(svc.variantSelection)) {
+              interactive = variantChoiceFor(
+                deferred,
+                svc.id,
+                catalog.version,
+                zonePool.map((z) => ({
+                  id: z.id,
+                  name: z.name,
+                  audience: z.audience,
+                  durationMinutes: z.durationMinutes,
+                  priceCents: z.priceCents,
+                })),
+                { includeTodas: false },
+              )
+            }
           } else {
             const mention = mentionZones(turnText, zonePool, svc)
             const turnPicked =
@@ -1868,19 +1876,21 @@ export async function tryAiAutoBook(
               ) {
                 pushFriction(frictionModeUmaTodas(svc.id))
               }
-              interactive = variantChoiceFor(
-                deferred,
-                svc.id,
-                catalog.version,
-                zonePool.map((z) => ({
-                  id: z.id,
-                  name: z.name,
-                  audience: z.audience,
-                  durationMinutes: z.durationMinutes,
-                  priceCents: z.priceCents,
-                })),
-                { includeTodas: allowsMultipleVariants(svc.variantSelection) },
-              )
+              if (!allowsMultipleVariants(svc.variantSelection)) {
+                interactive = variantChoiceFor(
+                  deferred,
+                  svc.id,
+                  catalog.version,
+                  zonePool.map((z) => ({
+                    id: z.id,
+                    name: z.name,
+                    audience: z.audience,
+                    durationMinutes: z.durationMinutes,
+                    priceCents: z.priceCents,
+                  })),
+                  { includeTodas: false },
+                )
+              }
             } else {
             const resolvedRaw = mention.zones.length > 0 ? mention.zones : keptForMode
             const resolved =
@@ -2136,19 +2146,22 @@ export async function tryAiAutoBook(
   if (activeZones.length > 0 && (namedZones.length === 0 || ambiguous)) {
     const zonePool = scoped.length > 0 ? scoped : activeZones
     const names = stableVariantLabelList(zonePool)
-    const interactive = variantChoiceFor(
-      deferred,
-      svc.id,
-      catalog.version,
-      zonePool.map((z) => ({
-        id: z.id,
-        name: z.name,
-        audience: z.audience,
-        durationMinutes: z.durationMinutes,
-        priceCents: z.priceCents,
-      })),
-      { includeTodas: multiSvc },
-    )
+    // Paulo 09/11/2026: `varias` sem Opções; `uma` mantém a lista.
+    const interactive = multiSvc
+      ? null
+      : variantChoiceFor(
+          deferred,
+          svc.id,
+          catalog.version,
+          zonePool.map((z) => ({
+            id: z.id,
+            name: z.name,
+            audience: z.audience,
+            durationMinutes: z.durationMinutes,
+            priceCents: z.priceCents,
+          })),
+          { includeTodas: false },
+        )
     const genericAsk = askZonesReply(
       phrase,
       names,

@@ -137,15 +137,6 @@ function buttonId(json: string | null, title: string): string {
   return button!.id
 }
 
-function listRowId(json: string | null, title: string): string {
-  const parsed = JSON.parse(json ?? '{}') as {
-    list?: { sections?: Array<{ rows?: Array<{ id: string; title: string }> }> }
-  }
-  const row = parsed.list?.sections?.flatMap((section) => section.rows ?? []).find((item) => item.title === title)
-  expect(row?.id).toBeTruthy()
-  return row!.id
-}
-
 describe('DEC-137: eco e plural das zonas', () => {
   it('«Axilas e pernas» com Feminina → Axila+Pernas femininas, eco, sem Horários', async () => {
     const s = seed()
@@ -234,7 +225,8 @@ describe('DEC-137: eco e plural das zonas', () => {
       expect(reply).not.toMatch(/ou outra\?/i)
       const after = outbound(s).slice(before)
       const json = after.map((row) => row.interactive_json ?? '').join('\n')
-      expect(json).toContain(VARIANT_LIST_BUTTON_LABEL)
+      // `varias`: sem Opções; a cliente corrige em texto.
+      expect(json).not.toContain(VARIANT_LIST_BUTTON_LABEL)
       expect(json).not.toContain(SLOT_LIST_BUTTON_LABEL)
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       expect(session?.variantIds ?? null).toBeNull()
@@ -266,80 +258,26 @@ describe('DEC-137: eco e plural das zonas', () => {
     }
   })
 
-  it('toque numa zona da Opções vai a Horários sem eco', async () => {
+  it('texto livre «Axila» em varias ecoa (sem lista Opções)', async () => {
     const s = seed()
     try {
-      await say(s, 'Quero depilação')
-      const line = outbound(s).filter((row) => (row.interactive_json ?? '').includes('Feminina')).at(-1)
-      const feminina = buttonId(line?.interactive_json ?? null, 'Feminina')
-      s.clock.advance(1_000)
-      insertMessage(
-        s.db,
-        {
-          tenantId: s.tenantId,
-          conversationId: s.cnv.id,
-          direction: 'inbound',
-          body: '[Botão] Feminina',
-          deliveryState: 'received',
-          createdAt: s.clock.nowMs(),
-        },
-        s.clock,
-      )
-      const lineClick = await handleChoiceOfferClick(
-        s.db,
-        s.caller,
-        {
-          tenantId: s.tenantId,
-          conversationId: s.cnv.id,
-          buttonId: feminina,
-          providerEventKey: 'tap-feminina',
-        },
-        s.clock,
-      )
-      expect(lineClick.handled).toBe(true)
-      const options = outbound(s)
-        .filter((row) => (row.interactive_json ?? '').includes(VARIANT_LIST_BUTTON_LABEL))
-        .at(-1)
-      const id = listRowId(options?.interactive_json ?? null, 'Axila')
-      s.clock.advance(1_000)
-      insertMessage(
-        s.db,
-        {
-          tenantId: s.tenantId,
-          conversationId: s.cnv.id,
-          direction: 'inbound',
-          body: '[Lista] Axila',
-          deliveryState: 'received',
-          createdAt: s.clock.nowMs(),
-        },
-        s.clock,
-      )
-      const clicked = await handleChoiceOfferClick(
-        s.db,
-        s.caller,
-        {
-          tenantId: s.tenantId,
-          conversationId: s.cnv.id,
-          buttonId: id,
-          buttonTitle: 'Axila',
-          providerEventKey: 'tap-axila',
-        },
-        s.clock,
-      )
-      expect(clicked.handled).toBe(true)
-      if (!clicked.handled) return
-      expect(clicked.autoBook?.replyText ?? '').not.toMatch(/Entendi:/)
-      expect(clicked.autoBook?.interactive?.mode).toBe('list')
-      if (clicked.autoBook?.interactive?.mode === 'list') {
-        expect(clicked.autoBook.interactive.button).toBe(SLOT_LIST_BUTTON_LABEL)
-      }
+      await lockFeminine(s)
+      const before = outbound(s).length
+      const result = await say(s, 'Axila')
+      const reply = result.autoBook?.replyText ?? ''
+      expect(reply).toMatch(/Entendi:\s*Axila\. Certo\?/)
+      expect(result.autoBook?.interactive?.mode).toBe('buttons')
+      const after = outbound(s).slice(before)
+      const json = after.map((row) => row.interactive_json ?? '').join('\n')
+      expect(json).not.toContain(VARIANT_LIST_BUTTON_LABEL)
+      expect(json).not.toContain(SLOT_LIST_BUTTON_LABEL)
       expect(appointments(s)).toBe(0)
     } finally {
       s.close()
     }
   })
 
-  it('Corrigir volta à pergunta das zonas e não abre Horários', async () => {
+  it('Corrigir volta à pergunta das zonas em texto e não abre Horários', async () => {
     const s = seed()
     try {
       await lockFeminine(s)
@@ -374,10 +312,8 @@ describe('DEC-137: eco e plural das zonas', () => {
       if (!clicked.handled) return
       expect(clicked.autoBook?.replyText ?? '').not.toMatch(/Entendi:/)
       expect(clicked.autoBook?.replyText ?? '').not.toMatch(/tenho .+\d{2}:\d{2}/)
-      expect(clicked.autoBook?.interactive?.mode).toBe('list')
-      if (clicked.autoBook?.interactive?.mode === 'list') {
-        expect(clicked.autoBook.interactive.button).toBe(VARIANT_LIST_BUTTON_LABEL)
-      }
+      expect(clicked.autoBook?.replyText ?? '').toMatch(/quais zonas|Escreva uma ou várias/i)
+      expect(clicked.autoBook?.interactive ?? null).toBeNull()
       expect(clicked.autoBook?.proposalId).toBeFalsy()
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       expect(session?.variantIds ?? null).toBeNull()
