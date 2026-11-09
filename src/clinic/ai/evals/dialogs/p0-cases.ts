@@ -686,7 +686,14 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     turns: [{ role: 'client', text: 'rápido, tem limpeza hoje?' }],
     expect: {
       proposal: false,
-      turns: [{ turn: 0, matches: [/\d{2}:\d{2}/, /hoje|05\/11/i] }],
+      // Paulo 09/11/2026: dia civil = hoje → rótulo «hoje», não «quinta 05/11».
+      turns: [
+        {
+          turn: 0,
+          matches: [/\d{2}:\d{2}/, /disponíveis para hoje|hoje às/i],
+          excludes: [/quinta\s+05\/11/i],
+        },
+      ],
     },
   },
   {

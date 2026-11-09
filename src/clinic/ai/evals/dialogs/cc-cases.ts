@@ -470,6 +470,67 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    id: 'CC-12',
+    title: 'Oferta com dia «amanhã» diz «amanhã», não weekday+DD/MM',
+    turnosIdeais: 1,
+    // Preferência Paulo 09/11/2026: dia civil amanhã → rótulo «amanhã» (relógio da clínica).
+    // Relógio do harness: qui 05/11 → amanhã = sexta 06/11.
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('CC-12: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      const zones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [{ name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 }],
+        s.clock,
+      )
+      const relaxante = zones[0]
+      if (!relaxante) throw new Error('CC-12: Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'coletando',
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Tem horário amanhã?' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          // Sem \\b no fim: «ã» não é word-char ASCII e \\b falha após amanhã.
+          matches: [/disponíveis para amanhã/i, /\d{1,2}:\d{2}/],
+          excludes: [/sexta\s+06\/11/i, /\b06\/11\b/, /próximos horários/i],
+        },
+      ],
+    },
+  },
+  {
     id: 'CC-11',
     title: 'A meio da oferta de slots, «Qual o valor?» cotiza a variante e mantém o quadro',
     turnosIdeais: 1,

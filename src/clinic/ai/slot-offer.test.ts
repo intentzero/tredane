@@ -6,6 +6,7 @@ import {
 } from './dialogue-acts'
 import {
   dayOfferLabelPt,
+  dayTextPt,
   dayWithPrepPt,
   periodFromHHMM,
   pickNearbySameDay,
@@ -54,6 +55,48 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
     })
     expect(generic.some((t) => /próximos horários/i.test(t))).toBe(true)
     expect(generic.every((t) => !t.includes('disponíveis para'))).toBe(true)
+  })
+
+  it('oferta hoje/amanhã usa rótulo relativo, não weekday+DD/MM (Paulo 09/11/2026)', () => {
+    const today = '2026-11-09'
+    expect(dayTextPt('2026-11-09', today)).toBe('hoje')
+    expect(dayTextPt('2026-11-10', today)).toBe('amanhã')
+    expect(dayTextPt('2026-11-11', today)).toBe('quarta 11/11')
+    expect(dayTextPt('2026-11-09')).toBe('segunda 09/11')
+
+    const hojeConstrained = sayAct(
+      'oferecer_horarios',
+      'cnv_hoje_offer',
+      { assunto: 'massagem', quando: '', lista: '14:00, 15:00', dia: dayOfferLabelPt(today, today) },
+      'FALLBACK',
+      { requireInTemplate: ['{dia}'] },
+    )
+    expect(hojeConstrained).toBe('Os horários disponíveis para hoje são 14:00, 15:00. Algum serve?')
+    expect(hojeConstrained).not.toMatch(/segunda|09\/11/i)
+
+    const amanhaConstrained = sayAct(
+      'oferecer_horarios',
+      'cnv_amanha_offer',
+      {
+        assunto: 'massagem',
+        quando: '',
+        lista: '10:00',
+        dia: dayOfferLabelPt('2026-11-10', today),
+      },
+      'FALLBACK',
+      { requireInTemplate: ['{dia}'] },
+    )
+    expect(amanhaConstrained).toBe('Os horários disponíveis para amanhã são 10:00. Algum serve?')
+
+    // Sem dia pedido: lista da oferta genérica também leva «hoje às …».
+    const unconstrained = sayAct(
+      'oferecer_horarios',
+      'cnv_hoje_lista',
+      { assunto: 'Massagem', quando: '', lista: `${dayTextPt(today, today)} às 14:00` },
+      'FALLBACK',
+    )
+    expect(unconstrained).toMatch(/hoje às 14:00/)
+    expect(unconstrained).not.toMatch(/segunda 09\/11/)
   })
 
   it('título da lista é dia da semana + DD/MM + hora, sem fuso nem mês-dia (#507)', () => {
