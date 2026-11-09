@@ -1,8 +1,8 @@
 # Histórico do design
 
-## 09/11/2026 — Novo serviço: teclado não cobre Nome (**Proposto**)
+## 09/11/2026 — Novo serviço: teclado não cobre Nome (**Confirmado**)
 
-- Novo mock `mobile/ServicoTeclado` (M-64): estado de Clínica → Novo serviço com teclado virtual no campo **Nome**. **Proposto (Opção A):** o rodapé sticky Cancelar/Salvar some enquanto o teclado está aberto e volta ao fechar, para o campo focado ficar utilizável (bug reportado em staging mobile). Alternativa B (rodapé pinado acima do teclado + `scrollIntoView`) fica na nota de aprovação; sem mudança de token. Implementação do painel só após confirmação do Paulo.
+- Mock `mobile/ServicoTeclado` (M-64) e painel: **Confirmado (Paulo, 09/11/2026, Opção A)** — com teclado aberto, `.clinic-footer-sticky` some via `:root[data-keyboard='open']` (`useKeyboardViewport`); ao fechar, o rodapé volta. Sem token novo. Opção B descartada.
 
 ## 04/11/2026 — Faixa Horários livres sai da conversa (**Confirmado**)
 

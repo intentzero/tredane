@@ -1493,6 +1493,13 @@
   background: var(--color-surface-card);
 }
 
+/* Opção A Confirmada (Paulo 09/11/2026, M-64): com teclado aberto o rodapé
+ * sticky cobre o campo focado (ex. Nome em Novo serviço). Some enquanto
+ * useKeyboardViewport marca data-keyboard=open; volta ao fechar. */
+:root[data-keyboard='open'] .clinic-footer-sticky {
+  display: none;
+}
+
 .svc-format {
   display: flex;
   flex-direction: column;
