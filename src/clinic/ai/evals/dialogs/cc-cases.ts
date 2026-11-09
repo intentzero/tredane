@@ -544,4 +544,31 @@ export const CC_DIALOG_CASES: DialogCase[] = [
       ],
     },
   },
+  {
+    id: 'CC-12',
+    title: 'Após Feminino/Masculino da consulta, uma só lista «Temos:» (DEC-142)',
+    turnosIdeais: 2,
+    // Staging Paulo ~13:42 SP 09/11/2026: toque Masculino na Escolher → duas
+    // listas «Temos:» iguais (race ingest autodraft + handleCatalogAudienceClick).
+    // Skip interactive_reply_button (#640) + lock L1 no texto livre da linha.
+    prepare: setAudience({ depilacao: 'feminino', massagem: 'masculino' }),
+    turns: [
+      { role: 'client', text: 'quais serviços você tem?' },
+      { role: 'client', text: 'Masculino' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      outboundCount: 2,
+      turns: [
+        { turn: 0, matches: [ASK_LIST] },
+        {
+          turn: 1,
+          matches: [/Temos:/, /Massagem/, /Bronzeamento/, /Qual você quer\?/],
+          excludes: [/Depilação/, ASK_LIST],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
 ]
