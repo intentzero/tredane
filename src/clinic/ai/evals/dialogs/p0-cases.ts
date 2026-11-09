@@ -23,6 +23,7 @@
  * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
  * F-11: troca de serviço limpa date sticky; oferta é próximos, não «disponíveis para sexta» (Paulo 09/11/2026).
  * F-12: «Sim» após «Quer ver outro período?» limpa period=noite sticky (staging Paulo 09/11/2026).
+ * F-13: «Sim» após «Quer ver outro dia?» limpa date sticky (sibling #655 / sticky-frame audit F2).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import {
@@ -1055,6 +1056,51 @@ export const P0_DIALOG_CASES: DialogCase[] = [
           turn: 0,
           matches: [/\d{1,2}:\d{2}/],
           excludes: [/outro período\?/i, /à noite não tenho/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'F-13',
+    title: '«Sim» a outro dia limpa date sticky e oferece horários',
+    turnosIdeais: 1,
+    // Sibling do loop de período (#655): date sticky após «Quer ver outro dia?» → «Sim»
+    // não deve refiltrar o domingo vazio (sticky-frame audit F2).
+    prepare: (s) => {
+      const zones = s.db.all<{ id: string; name: string }>(
+        `SELECT id, name FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
+        s.tenantId,
+        s.ids.massagem,
+      )
+      const variantIds = zones
+        .filter((z) => /libera/i.test(z.name) || /relax/i.test(z.name))
+        .slice(0, 1)
+        .map((z) => z.id)
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.massagem,
+          variantIds: variantIds.length > 0 ? variantIds : zones.slice(0, 1).map((z) => z.id),
+          date: '2026-11-08', // domingo — sem expediente Mon–Fri
+          phase: 'coletando',
+        },
+        s.clock,
+      )
+      s.sayOutbound(
+        'Para Massagem, no domingo (08/11) não tenho horário livre. Quer ver outro dia?',
+      )
+    },
+    turns: [{ role: 'client', text: 'Sim' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/\d{1,2}:\d{2}/],
+          excludes: [/outro dia\?/i, /08\/11/],
         },
       ],
     },
