@@ -293,6 +293,21 @@ export async function tryAiReschedule(
     return null
   }
 
+  // Mid marcação nova (coletando/ofertado/proposto) com serviço no frame: SOFT_DAY /
+  // dia solto não podem virar remarcação do compromisso futuro (staging 09/11/2026:
+  // «Posso para hoje?» mid Depilação + apt Massagem → proposta Massagem).
+  // Lexicon explícito (reagendar/remarcar/…) ainda entra — a cliente pediu remarcação.
+  const midNewBooking =
+    frameEarly != null &&
+    frameEarly.phase !== 'remarcando' &&
+    Boolean(frameEarly.serviceId) &&
+    (frameEarly.phase === 'coletando' ||
+      frameEarly.phase === 'ofertado' ||
+      frameEarly.phase === 'proposto')
+  if (midNewBooking && !EXPLICIT.test(input.inboundText)) {
+    return null
+  }
+
   const settings = ensureClinicSettings(db, tenantId, clock)
   const tz = settings.timezone || 'America/Sao_Paulo'
   const today = clinicCivilDateFromUtc(tz, now)

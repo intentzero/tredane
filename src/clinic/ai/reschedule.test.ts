@@ -750,4 +750,101 @@ describe('DEC-091/129 reagendamento conversacional', () => {
       s.close()
     }
   })
+
+  it('G-07d: mid-booking SOFT_DAY «Posso para hoje?» não remarca apt Massagem', async () => {
+    // Pós-#644: DAY_OR_PERIOD mid-booking já não entra (priorOffer só remarcando),
+    // mas SOFT_DAY + hasUpcoming ainda chama tryAiReschedule no autodraft e
+    // sobrescrevia o frame com apt.serviceId (audit service-identity C1).
+    const s = seed()
+    try {
+      s.db.run(`UPDATE appointments SET status = 'cancelled' WHERE id = ?`, s.aptId)
+
+      const massagem = upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          name: 'Massagem',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+          priceCents: 20000,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          professionalIds: [s.gi.id],
+          roomRequirement: { mode: 'none' },
+        },
+        s.clock,
+      )
+      const massaZones = replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [{ name: 'Ventosaterapia', durationMinutes: 60, priceCents: 20000, audience: 'ambos' }],
+        s.clock,
+      )
+      confirmAppointmentOp(
+        s.db,
+        s.caller,
+        {
+          clientRequestId: 'seed-apt-massagem-soft',
+          serviceId: massagem.id,
+          professionalId: s.gi.id,
+          startsAt: zonedCivilToUtc(TZ, 2026, 11, 4, 15, 0),
+          contactId: s.contact.id,
+          conversationId: s.cnv.id,
+          actorClerkUserId: s.caller.actorId!,
+          zoneIds: massaZones.map((z) => z.id),
+        },
+        s.clock,
+      )
+
+      const offerMsg = s.say(
+        'outbound',
+        'Os próximos horários para Depilação são sexta 06/11 às 09:00, 10:00. Algum serve?',
+      )
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.svc.id,
+          line: 'feminino',
+          variantIds: s.zones.map((z) => z.id),
+          date: '2026-11-06',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-06T09:00', label: 'sexta 06/11 às 09:00' },
+              { key: '2026-11-06T10:00', label: 'sexta 06/11 às 10:00' },
+            ],
+            messageId: offerMsg.id,
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: zonedCivilToUtc(TZ, 2026, 11, 6, 9, 0), professionalId: s.gi.id },
+              { startsAt: zonedCivilToUtc(TZ, 2026, 11, 6, 10, 0), professionalId: s.gi.id },
+            ],
+            messageId: offerMsg.id,
+          },
+        },
+        s.clock,
+      )
+
+      expect(
+        isRescheduleIntent('Posso para hoje?', { hasUpcoming: true, priorOffer: false }),
+      ).toBe(true)
+
+      s.say('inbound', 'Posso para hoje?')
+      const out = await s.run()
+      expect(out.reason).not.toBe('reschedule_flow')
+      expect(out.reason).not.toBe('human_handoff')
+      expect(s.lastOutbound()).not.toMatch(/remarcar/i)
+      const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      expect(frame?.serviceId).toBe(s.svc.id)
+      expect(frame?.phase).not.toBe('remarcando')
+    } finally {
+      s.close()
+    }
+  })
+
 })
