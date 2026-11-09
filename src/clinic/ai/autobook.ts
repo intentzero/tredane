@@ -1162,8 +1162,8 @@ export async function tryAiAutoBook(
     services,
   })
   // Sessão: overlay do turno (ADR-0015) ou DB se ainda não houve patch.
-  const session = deferred.peekSession(db, tenantId, input.conversationId)
-  const frame = deferred.peekFrame(db, tenantId, input.conversationId)
+  let session = deferred.peekSession(db, tenantId, input.conversationId)
+  let frame = deferred.peekFrame(db, tenantId, input.conversationId)
   let date = det.date
   let missing = [...det.missing]
   if (swap) {
@@ -1177,6 +1177,42 @@ export async function tryAiAutoBook(
     missing = missing.filter((item) => item !== 'dia')
   }
   const turnFacts = scheduleFactsFromText(turnText)
+  // Staging Paulo 09/11/2026: period=noite sticky após «Quer ver outro período?» —
+  // «Sim» limpa o filtro e reoferta; troca de dia sem período novo também limpa.
+  const askedOtherPeriod = Boolean(
+    prevClinic?.body && /outro\s+per[ií]odo\?/i.test(prevClinic.body),
+  )
+  const SHORT_AFFIRM_OTHER_PERIOD =
+    /^(sim|pode ser|pode marcar|pode agendar|pode|confirmo|ok|okay|beleza|blz|👍|bora|isso|certo)([\s,]+(pode\s+marcar|confirmo|sim))?[\s!.?]*$/i
+  const affirmsOtherPeriod =
+    askedOtherPeriod &&
+    !turnFacts.period &&
+    SHORT_AFFIRM_OTHER_PERIOD.test(turnText.trim())
+  const dayChangesWithoutPeriod = Boolean(turnFacts.dayLabel) && !turnFacts.period
+  if (
+    session?.serviceId &&
+    !turnFacts.period &&
+    ((affirmsOtherPeriod && session.period) || dayChangesWithoutPeriod)
+  ) {
+    const todayCivil = clinicCivilDateFromUtc(tz, confirmation.created_at)
+    const dayAbsolute =
+      turnFacts.dayLabel != null
+        ? [...extractDates(turnFacts.dayLabel, todayCivil)][0] ?? null
+        : undefined
+    saveSession({
+      serviceId: session.serviceId,
+      period: null,
+      ...(dayAbsolute !== undefined ? { date: dayAbsolute } : {}),
+      pending: null,
+      lastOffer: null,
+    })
+    session = deferred.peekSession(db, tenantId, input.conversationId)
+    frame = deferred.peekFrame(db, tenantId, input.conversationId)
+    if (dayAbsolute) {
+      date = dayAbsolute
+      missing = missing.filter((item) => item !== 'dia')
+    }
+  }
   const rememberDayPeriod = (serviceId: string) => {
     if (!turnFacts.dayLabel && !turnFacts.period) return
     const today = clinicCivilDateFromUtc(tz, confirmation.created_at)
@@ -1186,9 +1222,14 @@ export async function tryAiAutoBook(
         : undefined
     // Novo dia/período invalida pending/lastOffer anteriores (nova oferta a seguir).
     // day_label deixa de ser gravado (#472 cutover); só date/period absolutos.
+    // Dia novo sem período nomeado: limpa period sticky (não herdar «noite» no amanhã).
     saveSession({
       serviceId,
-      ...(turnFacts.period ? { period: turnFacts.period } : {}),
+      ...(turnFacts.period
+        ? { period: turnFacts.period }
+        : turnFacts.dayLabel
+          ? { period: null }
+          : {}),
       ...(absolute !== undefined ? { date: absolute } : {}),
       pending: null,
       lastOffer: null,
@@ -1250,6 +1291,8 @@ export async function tryAiAutoBook(
     const catalogShortcutNow = claimsCatalogShortcut(turnText)
     // Sim/Corrigir do eco não repetem o serviço. A sessão já o tem.
     const echoContinues = zoneEcho === 'confirm' || zoneEcho === 'correct'
+    // «Sim» a «Quer ver outro período?» continua o serviço (limpa period acima).
+    const otherPeriodContinues = affirmsOtherPeriod
     if (
       stored &&
       (clockFromTurn ||
@@ -1258,7 +1301,8 @@ export async function tryAiAutoBook(
         dayContinues ||
         periodContinues ||
         lineContinues ||
-        echoContinues)
+        echoContinues ||
+        otherPeriodContinues)
     ) {
       det = {
         ...det,

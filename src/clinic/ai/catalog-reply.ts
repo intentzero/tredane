@@ -523,6 +523,8 @@ export function catalogReply(
       if (absolute) patch.date = absolute
     }
     if (facts.period) patch.period = facts.period
+    // Dia novo sem período nomeado: não herdar manhã/tarde/noite do funil anterior.
+    else if (facts.dayLabel) patch.period = null
     const sameService = session?.serviceId === inPlay.id
     const lineChanging =
       patch.audienceLine !== undefined &&
