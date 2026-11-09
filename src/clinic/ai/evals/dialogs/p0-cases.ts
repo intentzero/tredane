@@ -16,6 +16,7 @@
  *   Só copy/botões; apt e frame no mesmo serviço — não fecha troca Depilação→Massagem.
  * G-07c: day re-ask + time pick com apt Massagem e frame Depilação → proposal.serviceId
  *   Depilação (staging Paulo ~14:03 SP 09/11/2026; lacuna pós-#644).
+ * G-07d: mid-booking SOFT_DAY («Posso para hoje?») com apt Massagem ≠ remarcação (audit C1).
  * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
  * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
  * F-11: troca de serviço limpa date sticky; oferta é próximos, não «disponíveis para sexta» (Paulo 09/11/2026).
@@ -1151,6 +1152,14 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     turnosIdeais: 2,
     // Staging ~14:03 SP 09/11: remarcação continuity usava apt.serviceId → Massagem proposal.
     // L0 em reschedule.test: proposal.serviceId === Depilação após «Para hoje» + pick.
+    coverageOnly: 'reschedule.test',
+    turns: [],
+  },
+  {
+    id: 'G-07d',
+    title: 'Mid-booking SOFT_DAY «Posso para hoje?» keeps Depilação when upcoming apt is Massagem',
+    turnosIdeais: 1,
+    // Pós-#644: SOFT_DAY + hasUpcoming ainda entrava em tryAiReschedule mid ofertado.
     coverageOnly: 'reschedule.test',
     turns: [],
   },

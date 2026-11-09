@@ -72,6 +72,7 @@ import {
   hasAiTransparencyQuestion,
   hasPolicyQuestion,
   hasStopRequest,
+  RESCHEDULE_RE,
 } from './nlu/sensitive'
 import { isCancelIntent, isRescheduleIntent, tryAiReschedule } from './reschedule'
 import { isConversationPaused } from './protection'
@@ -647,27 +648,31 @@ export async function runDueAutoDrafts(
         })
         continue
       }
-      // Pedido de remarcar sem compromisso futuro → equipe.
-      await signalTyping()
-      const handoff = notifyHumanHandoff(
-        db,
-        tenantId,
-        {
-          conversationId: job.conversationId,
-          reason: 'human_only',
-          clientRequestId: `ai-handoff:${job.messageId}`,
-        },
-        clock,
-      )
-      cancelAutoDraft(db, tenantId, job.conversationId)
-      record({
-        ...job,
-        status: 'skipped',
-        suggestion: null,
-        reason: 'human_handoff',
-        replyOutbox: handoff.outbox,
-      })
-      continue
+      // Pedido explícito de remarcar sem fluxo aplicável → equipe.
+      // SOFT_DAY mid marcação nova: tryAiReschedule devolve null de propósito
+      // (não sobrescrever o frame) — cair no funil de booking, não handoff.
+      if (RESCHEDULE_RE.test(turnText)) {
+        await signalTyping()
+        const handoff = notifyHumanHandoff(
+          db,
+          tenantId,
+          {
+            conversationId: job.conversationId,
+            reason: 'human_only',
+            clientRequestId: `ai-handoff:${job.messageId}`,
+          },
+          clock,
+        )
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        record({
+          ...job,
+          status: 'skipped',
+          suggestion: null,
+          reason: 'human_handoff',
+          replyOutbox: handoff.outbox,
+        })
+        continue
+      }
     }
     // Continuação da oferta de remarcação (escolha de horário / outro dia).
     if (upcoming) {
