@@ -1217,6 +1217,37 @@ export async function tryAiAutoBook(
       missing = missing.filter((item) => item !== 'dia')
     }
   }
+  // Sibling #655: após «Quer ver outro dia?» / «outra data?», afirmação curta ou
+  // período sem dia novo não deve reusar date sticky no offerNearestSlots.
+  const askedOtherDay = Boolean(
+    prevClinic?.body &&
+      (/outro\s+dia\?/i.test(prevClinic.body) || /outra\s+data\?/i.test(prevClinic.body)),
+  )
+  const SHORT_AFFIRM_OTHER_DAY = SHORT_AFFIRM_OTHER_PERIOD
+  const affirmsOtherDay =
+    askedOtherDay && !turnFacts.dayLabel && SHORT_AFFIRM_OTHER_DAY.test(turnText.trim())
+  const periodOnlyAfterOtherDay =
+    askedOtherDay && Boolean(turnFacts.period) && !turnFacts.dayLabel
+  // date vive no BookingFrame (não na vista ScheduleSession).
+  const stickyDate = frame?.date ?? null
+  if (
+    session?.serviceId &&
+    stickyDate &&
+    (affirmsOtherDay || periodOnlyAfterOtherDay)
+  ) {
+    saveSession({
+      serviceId: session.serviceId,
+      date: null,
+      ...(turnFacts.period ? { period: turnFacts.period } : {}),
+      pending: null,
+      lastOffer: null,
+    })
+    session = deferred.peekSession(db, tenantId, input.conversationId)
+    frame = deferred.peekFrame(db, tenantId, input.conversationId)
+    // Não reaplicar det.date (pode vir do prevClinic «…(15/11)…» na copy vazia).
+    date = undefined
+    missing = missing.filter((item) => item !== 'dia')
+  }
   const rememberDayPeriod = (serviceId: string) => {
     if (!turnFacts.dayLabel && !turnFacts.period) return
     const today = clinicCivilDateFromUtc(tz, confirmation.created_at)
@@ -1297,6 +1328,8 @@ export async function tryAiAutoBook(
     const echoContinues = zoneEcho === 'confirm' || zoneEcho === 'correct'
     // «Sim» a «Quer ver outro período?» continua o serviço (limpa period acima).
     const otherPeriodContinues = affirmsOtherPeriod
+    // «Sim» / período-só a «Quer ver outro dia?» continua o serviço (date limpo acima).
+    const otherDayContinues = affirmsOtherDay || periodOnlyAfterOtherDay
     if (
       stored &&
       (clockFromTurn ||
@@ -1306,7 +1339,8 @@ export async function tryAiAutoBook(
         periodContinues ||
         lineContinues ||
         echoContinues ||
-        otherPeriodContinues)
+        otherPeriodContinues ||
+        otherDayContinues)
     ) {
       det = {
         ...det,

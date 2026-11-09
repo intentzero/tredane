@@ -377,9 +377,11 @@ export async function tryAiReschedule(
 
   if (!time) {
     if (slots.length === 0) {
+      // Dia cheio: não deixar date sticky — «à tarde» / continuação refiltrava o mesmo
+      // dia e repetia «Quer ver outro dia?» (classe sticky-frame / sibling #655).
       saveSession({
         serviceId: apt.serviceId,
-        date,
+        date: null,
         phase: 'remarcando',
         pending: null,
         lastOffer: null,
@@ -424,9 +426,10 @@ export async function tryAiReschedule(
         tz,
       )
     } else {
+      // Sem alternativa no dia: mesma política que dia cheio — limpa date sticky.
       saveSession({
         serviceId: apt.serviceId,
-        date,
+        date: null,
         phase: 'remarcando',
         pending: null,
         lastOffer: null,
