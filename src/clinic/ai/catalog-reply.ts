@@ -612,7 +612,25 @@ export function catalogReply(
     })
   }
 
-  if (active.length > 0 && named.length === 0 && (openPeriod || lineOnly)) {
+  // Texto «Feminina»/«Masculina» (lineOnly): cede ao tryAiAutoBook para a
+  // lista Opções (DEC-133). Se o catálogo devolver a frase aqui, o autodraft
+  // manda só «Falar com a equipe» — e na race com o toque M5 sai em dobro
+  // (staging Paulo 09/11/2026). Grava a linha já: o deferred do catálogo não
+  // é flushed quando devolvemos null (mesmo padrão que rememberZonesWhenKnown).
+  if (active.length > 0 && named.length === 0 && lineOnly) {
+    if (opts.conversationId && inPlay && line) {
+      const patch: ScheduleSessionPatch = {
+        serviceId: inPlay.id,
+        audienceLine: line,
+      }
+      if (catalogVersion != null && catalogVersion !== '') {
+        patch.catalogVersion = catalogVersion
+      }
+      saveScheduleSession(db, tenantId, opts.conversationId, patch, clock)
+    }
+    return null
+  }
+  if (active.length > 0 && named.length === 0 && openPeriod) {
     const pool = scoped.length > 0 ? scoped : active
     return variantListQuestion(svc.name, variantKindForAsk(svc), pool, cnv, {
       selectionMode: svc.variantSelection,

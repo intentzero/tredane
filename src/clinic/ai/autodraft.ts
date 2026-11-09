@@ -279,6 +279,18 @@ function isProposalConfirmButtonBody(body: string): boolean {
 }
 
 /**
+ * Resposta interativa WhatsApp (`button_reply` / `list_reply`).
+ * O ingest grava `[Botão]…` / `[Lista]…` e enfileira autodraft; o handler
+ * dedicado (`handleProposalButtonClick` → choice / proposta / idle / handoff)
+ * cancela o job. Se o alarme correr antes do cancel (debounce curto / race),
+ * o catálogo reemite a mesma pergunta com «Falar com a equipe» e o clique
+ * manda de novo com Opções — staging Paulo 09/11/2026 (zona-ask duplicado).
+ */
+function isInteractiveReplyBody(body: string): boolean {
+  return /^\[(Botão|Lista)\]\s+/i.test(body.trim())
+}
+
+/**
  * Um job `generating` no início do alarme é sempre órfão: este DO não corre
  * dois alarmes ao mesmo tempo, e o envio só acontece depois de apagar a linha.
  * Reabre para a mesma passagem. Sem isto o spinner fica preso para sempre.
@@ -462,6 +474,13 @@ export async function runDueAutoDrafts(
     // cobre job já em generating / reentrega sem cancel.
     if (isProposalConfirmButtonBody(inboundBody)) {
       skip('proposal_confirm_button')
+      continue
+    }
+    // Mesma race no funil M5: ingest de Feminina/Masculina/Opções enfileira
+    // autodraft; sem este skip, catalog_reply manda a ask-tipo com handoff e o
+    // choice handler manda outra com Opções (mesmo corpo).
+    if (isInteractiveReplyBody(inboundBody)) {
+      skip('interactive_reply_button')
       continue
     }
     // #411: uma leitura por job — catálogo, mensagens, sessão, turno, compromisso futuro.

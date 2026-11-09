@@ -183,9 +183,11 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
         serviceId: boot.svc.id,
         audienceLine: null,
       })
-      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toMatch(ZONES_RE)
+      // lineOnly cede ao autoBook (Opções); grava a linha e devolve null.
+      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toBeNull()
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.audienceLine).toBe('feminino')
-      expect(catalogReply(boot.db, boot.tenantId, 'Masculina', boot.clock, opts)).toMatch(ZONES_RE)
+      expect(catalogReply(boot.db, boot.tenantId, 'Masculina', boot.clock, opts)).toBeNull()
+      expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.audienceLine).toBe('masculino')
       expect(
         catalogReply(boot.db, boot.tenantId, 'Quanto custa a axila da depilação feminina?', boot.clock, opts),
       ).toMatch(/Axila.*R\$\s*50,00.*15 min/)
@@ -308,7 +310,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
         boot.conversation.id,
       )?.date
       expect(date1).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toMatch(ZONES_RE)
+      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toBeNull()
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)).toMatchObject({
         serviceId: boot.svc.id,
         audienceLine: 'feminino',
@@ -411,7 +413,7 @@ describe('linha antes das zonas (DEC-078 / DEC-075)', () => {
       // Novo funil: sem sessão, «Todas» antiga não suprime a lista de zonas.
       expect(catalogReply(boot.db, boot.tenantId, 'Quero depilação amanhã à tarde.', boot.clock, opts)).toMatch(LINE_RE)
       boot.clock.advance(1_000)
-      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toMatch(ZONES_RE)
+      expect(catalogReply(boot.db, boot.tenantId, 'Feminina', boot.clock, opts)).toBeNull()
       expect(getScheduleSession(boot.db, boot.tenantId, boot.conversation.id)?.audienceLine).toBe('feminino')
     } finally {
       boot.close()

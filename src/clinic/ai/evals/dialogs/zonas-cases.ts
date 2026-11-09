@@ -108,4 +108,29 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
       outboundExcludes: NO_LEAK,
     },
   },
+  {
+    id: 'A-40',
+    title: 'Após «Masculina», uma só ask-tipo de zonas (sem handoff duplicado)',
+    turnosIdeais: 2,
+    // Staging Paulo 09/11/2026: texto/toque da linha fazia sair a mesma frase duas vezes
+    // (handoff + Opções). Catálogo cede ao autoBook; interactive reply não reentra no autodraft.
+    turns: [
+      { role: 'client', text: 'Quero depilação' },
+      { role: 'client', text: 'Masculina' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      outboundCount: 2,
+      turns: [
+        { turn: 0, matches: [/feminina ou masculina/i] },
+        {
+          turn: 1,
+          matches: [/quais zonas/i],
+          excludes: [/Falar com a equipe/i],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
 ]
