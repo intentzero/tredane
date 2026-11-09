@@ -1195,7 +1195,15 @@ export async function tryAiAutoBook(
     })
   }
   if (pendingTimeOverride) {
+    // Oferta viva no frame: identidade do serviço é a do quadro, não a do histórico
+    // (detectExplicitConfirmation pode achar Massagem em turnos antigos — audit H1).
+    const liveFrameSvc =
+      frame?.serviceId &&
+      (frame.pending?.slot === 'horario' || Boolean(frame.lastOffer))
+        ? services.find((s) => s.id === frame.serviceId)
+        : undefined
     const pendingSvc =
+      liveFrameSvc ??
       det.service ??
       (frame?.serviceId ? services.find((s) => s.id === frame.serviceId) : undefined)
     if (pendingSvc) {
@@ -1269,7 +1277,13 @@ export async function tryAiAutoBook(
     }
   }
   if (input.boundSlot) {
+    const liveFrameSvc =
+      frame?.serviceId &&
+      (frame.pending?.slot === 'horario' || Boolean(frame.lastOffer))
+        ? services.find((s) => s.id === frame.serviceId)
+        : undefined
     const pendingSvc =
+      liveFrameSvc ??
       det.service ??
       (session?.serviceId ? services.find((s) => s.id === session.serviceId) : undefined) ??
       (frame?.serviceId ? services.find((s) => s.id === frame.serviceId) : undefined)
