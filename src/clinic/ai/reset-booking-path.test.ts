@@ -200,6 +200,36 @@ describe('reset booking path (Paulo 09/11/2026)', () => {
     }
   })
 
+  it('silencioso 1: período nomeado antes do eco («à tarde») sobrevive ao Sim', async () => {
+    const s = seed()
+    try {
+      await say(s, 'Quero depilação feminina de axila e pernas sexta à tarde')
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.period).toBe('tarde')
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.pending?.slot).toBe('eco')
+      await say(s, 'sim')
+      const frame = getBookingFrame(s.db, s.tenantId, s.cnv.id)
+      expect(frame?.period).toBe('tarde')
+      expect(frame?.pending?.slot).toBe('horario')
+      const offered = frame?.lastOffer?.slots ?? []
+      expect(offered.length).toBeGreaterThan(0)
+      // Sexta à tarde (SP): startsAt local hour ≥ 12 — não reabrir manhã.
+      expect(
+        offered.every((slot) => {
+          const localHour = Number(
+            new Intl.DateTimeFormat('en-US', {
+              timeZone: 'America/Sao_Paulo',
+              hour: 'numeric',
+              hour12: false,
+            }).format(new Date(slot.startsAt)),
+          )
+          return localHour >= 12
+        }),
+      ).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
   it('silencioso 2 + T1: período vazio auto-avança ou oferece Manhã|Tarde|Outro dia', async () => {
     const s = seed()
     try {

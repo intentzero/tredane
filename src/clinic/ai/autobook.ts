@@ -1296,22 +1296,29 @@ export async function tryAiAutoBook(
     date = undefined
     missing = missing.filter((item) => item !== 'dia')
   }
-  // Silencioso 1 (Paulo 09/11/2026): Sim do eco limpa period sticky de tentativa vazia
-  // antes da oferta fresca das zonas travadas.
+  // Silencioso 1 (Paulo 09/11/2026): Sim do eco não herda period sticky de
+  // *tentativa anterior* (ex. noite vazia). Se a cliente nomeou o período antes
+  // do eco nesta tentativa («sexta à tarde»), mantém — DEC-127 / hora solta.
   if (
     zoneEcho === 'confirm' &&
     session?.serviceId &&
     session.period &&
     !turnFacts.period
   ) {
-    saveSession({
-      serviceId: session.serviceId,
-      period: null,
-      pending: null,
-      lastOffer: null,
-    })
-    session = deferred.peekSession(db, tenantId, input.conversationId)
-    frame = deferred.peekFrame(db, tenantId, input.conversationId)
+    const stickyPeriod = session.period
+    const namedBeforeEco = older
+      .filter((m) => m.direction === 'inbound')
+      .some((m) => scheduleFactsFromText(m.body).period === stickyPeriod)
+    if (!namedBeforeEco) {
+      saveSession({
+        serviceId: session.serviceId,
+        period: null,
+        pending: null,
+        lastOffer: null,
+      })
+      session = deferred.peekSession(db, tenantId, input.conversationId)
+      frame = deferred.peekFrame(db, tenantId, input.conversationId)
+    }
   }
     const rememberDayPeriod = (serviceId: string) => {
     if (!turnFacts.dayLabel && !turnFacts.period) return
@@ -1736,15 +1743,10 @@ export async function tryAiAutoBook(
             )
           }
         } else if (!time) {
-          // Silencioso 1: oferta fresca não herda period sticky (só o período deste turno).
-          const period = (turnFacts.period as DayPeriod | null) ?? null
-          if (!period && session?.period && session.serviceId === det.service.id) {
-            saveSession({
-              serviceId: det.service.id,
-              period: null,
-            })
-            session = deferred.peekSession(db, tenantId, input.conversationId)
-          }
+          // Período deste turno, ou o que o silencioso 1 deixou no quadro (nomeado antes do eco).
+          const period =
+            turnFacts.period ??
+            (session?.serviceId === det.service.id ? session?.period : null)
 
           // Serviço sem variantes (ex. massagem): oferta de período com a data absoluta (#408 B-04).
           // CF-19 (#413): com serviço (e variantes) conhecidos, oferecer 2–3 horários reais
@@ -2096,11 +2098,9 @@ export async function tryAiAutoBook(
               clock,
               input.turn?.catalog.resources,
             )
-            const offerPeriod = (turnFacts.period as DayPeriod | null) ?? null
-            if (!offerPeriod && session?.period && session.serviceId === svc.id) {
-              saveSession({ serviceId: svc.id, period: null })
-              session = deferred.peekSession(db, tenantId, input.conversationId)
-            }
+            const offerPeriod =
+              (turnFacts.period as DayPeriod | null) ??
+              (session?.serviceId === svc.id ? (session.period as DayPeriod | null) : null)
             const offered = await offerNearestSlots({
               db,
               tenantId,
@@ -2119,8 +2119,13 @@ export async function tryAiAutoBook(
               tenantId,
               conversationId: input.conversationId,
               phase: 'cf19',
-              current: { action: 'ask_empty_time' },
-              proposed: { action: 'offer_slots', detail: date ? 'date' : 'soonest' },
+              current: offerPeriod
+                ? { action: 'offer_slots', detail: 'period' }
+                : { action: 'ask_empty_time' },
+              proposed: {
+                action: 'offer_slots',
+                detail: offerPeriod ? 'period' : date ? 'date' : 'soonest',
+              },
             })
             interactive = applyOfferSideEffects(
               deferred,
