@@ -1189,10 +1189,14 @@ export async function tryAiAutoBook(
     !turnFacts.period &&
     SHORT_AFFIRM_OTHER_PERIOD.test(turnText.trim())
   const dayChangesWithoutPeriod = Boolean(turnFacts.dayLabel) && !turnFacts.period
+  // Só com period sticky: limpar filtro (e, se o dia mudou, gravar a data nova).
+  // Sem period no quadro, não mexer em pending/lastOffer — mid-booking «para hoje»
+  // (G-07c) reoferta sem este wipe.
   if (
     session?.serviceId &&
+    session.period &&
     !turnFacts.period &&
-    ((affirmsOtherPeriod && session.period) || dayChangesWithoutPeriod)
+    (affirmsOtherPeriod || dayChangesWithoutPeriod)
   ) {
     const todayCivil = clinicCivilDateFromUtc(tz, confirmation.created_at)
     const dayAbsolute =
