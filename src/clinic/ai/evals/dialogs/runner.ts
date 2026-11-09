@@ -303,6 +303,26 @@ export async function runDialogCase(
         const p = latestProposal()
         const before = s.outboundBodies().length
         if (p) {
+          // Produção: ingest do button_reply enfileira autodraft antes do S5.
+          // Sem cancel/skip, pending choose_slot + «Confirmar» → esclarecer pós-Agendado.
+          const confirmMsg = insertMessage(
+            s.db,
+            {
+              tenantId: s.tenantId,
+              conversationId: s.conversationId,
+              direction: 'inbound',
+              body: '[Botão] Confirmar',
+              deliveryState: 'received',
+              createdAt: s.clock.nowMs(),
+            },
+            s.clock,
+          )
+          enqueueAutoDraft(
+            s.db,
+            s.tenantId,
+            { conversationId: s.conversationId, messageId: confirmMsg.id },
+            s.clock,
+          )
           const click = handleProposalButtonClick(
             s.db,
             {
@@ -329,6 +349,13 @@ export async function runDialogCase(
               s.clock,
             )
           }
+          s.clock.advance(7_000)
+          await runDueAutoDrafts(s.db, s.caller, s.clock, {
+            mode: 'synthetic',
+            adapter: s.adapter,
+            forecast: c.forecast,
+            ...flowDeps,
+          })
           agentTurns += 1
         }
         perTurn[clientTurnIdx] = s.outboundBodies().slice(before)

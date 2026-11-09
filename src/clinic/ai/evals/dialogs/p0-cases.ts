@@ -11,6 +11,7 @@
  * A-35: «Terminar» mid-oferta (DEC-152 / #629).
  * A-36: após soft-close Terminar, novo pedido não reusa variante/slots (leftover).
  * A-37: mid Horários, leftover ≠ option-miss de variantes (DEC-C3 / P1 stack esclarecer).
+ * A-39: Confirmar → Agendado + «Posso ajudar» sem esclarecer spurioso (staging 09/11/2026).
  * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
  * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
  */
@@ -33,7 +34,12 @@ import {
 } from '../../../followup/idle'
 import { ensureOpenOpportunity } from '../../../pipeline'
 import { encodeChoiceId } from '../../choice-offer'
-import { getBookingFrame, getScheduleSession, saveScheduleSession } from '../../schedule-session'
+import {
+  getBookingFrame,
+  getScheduleSession,
+  saveBookingFrame,
+  saveScheduleSession,
+} from '../../schedule-session'
 import {
   APPOINTMENT_PROPOSAL_VALIDITY_MS,
   type DialogCase,
@@ -1848,6 +1854,56 @@ export const P0_DIALOG_CASES: DialogCase[] = [
             /Massagem relaxante/i,
             /Se quiser parar, diga terminar/i,
           ],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-39',
+    title: 'Confirmar não dispara esclarecer depois do Agendado',
+    turnosIdeais: 2,
+    // Staging Paulo 09/11/2026: race autodraft `[Botão] Confirmar` + pending choose_slot.
+    turns: [
+      { role: 'client', text: 'Quero limpeza de pele amanhã às 15h' },
+      { role: 'proposal_sent' },
+      {
+        role: 'owner',
+        act: (s) => {
+          const frame = getBookingFrame(s.db, s.tenantId, s.conversationId)
+          if (!frame?.serviceId) return
+          saveBookingFrame(
+            s.db,
+            s.tenantId,
+            s.conversationId,
+            {
+              serviceId: frame.serviceId,
+              variantIds: frame.variantIds,
+              date: frame.date,
+              time: frame.time,
+              phase: 'ofertado',
+              pending: {
+                slot: 'horario',
+                options: [
+                  { key: '2026-11-10T15:00', label: '15:00' },
+                  { key: '2026-11-10T15:30', label: '15:30' },
+                ],
+                messageId: 'm_a39_slots',
+              },
+              lastOffer: frame.lastOffer,
+            },
+            s.clock,
+          )
+        },
+      },
+      { role: 'confirm_proposal' },
+    ],
+    expect: {
+      appointments: 1,
+      outboundExcludes: [/Não peguei bem/i, /outro jeito/i, /reformular/i],
+      turns: [
+        {
+          turn: 0,
+          matches: [/Confirmar|Proposta|Agendado|Posso ajudar/i],
         },
       ],
     },
