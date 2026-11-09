@@ -318,33 +318,32 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
       // `varias`: zonas só por texto (+ eco), sem lista Opções.
       await say(tap, 'Axila')
       const echoTap = outbound(tap).filter((row) => (row.interactive_json ?? '').includes('Corrigir')).at(-1)
-      if (echoTap) {
-        const sim = buttonId(echoTap.interactive_json, 'Sim')
-        tap.clock.advance(1_000)
-        insertMessage(
-          tap.db,
-          {
-            tenantId: tap.tenantId,
-            conversationId: tap.cnv.id,
-            direction: 'inbound',
-            body: '[Botão] Sim',
-            deliveryState: 'received',
-            createdAt: tap.clock.nowMs(),
-          },
-          tap.clock,
-        )
-        await handleChoiceOfferClick(
-          tap.db,
-          tap.caller,
-          {
-            tenantId: tap.tenantId,
-            conversationId: tap.cnv.id,
-            buttonId: sim,
-            providerEventKey: '510-tap-axila-sim',
-          },
-          tap.clock,
-        )
-      }
+      expect(echoTap).toBeTruthy()
+      const simTap = buttonId(echoTap!.interactive_json, 'Sim')
+      tap.clock.advance(1_000)
+      insertMessage(
+        tap.db,
+        {
+          tenantId: tap.tenantId,
+          conversationId: tap.cnv.id,
+          direction: 'inbound',
+          body: '[Botão] Sim',
+          deliveryState: 'received',
+          createdAt: tap.clock.nowMs(),
+        },
+        tap.clock,
+      )
+      await handleChoiceOfferClick(
+        tap.db,
+        tap.caller,
+        {
+          tenantId: tap.tenantId,
+          conversationId: tap.cnv.id,
+          buttonId: simTap,
+          providerEventKey: '510-tap-axila-sim',
+        },
+        tap.clock,
+      )
       tapSnap = frameSnapshot(tap)
       expect(tapSnap.line).toBe('feminino')
       expect(tapSnap.variantNames).toEqual(expectedZones.map((n) => `feminino:${n}`))
@@ -432,33 +431,32 @@ describe('#510 um só quadro (toque / texto / correção)', () => {
       )
       await say(corr, 'Axila')
       const echoCorr = outbound(corr).filter((row) => (row.interactive_json ?? '').includes('Corrigir')).at(-1)
-      if (echoCorr) {
-        const sim = buttonId(echoCorr.interactive_json, 'Sim')
-        corr.clock.advance(1_000)
-        insertMessage(
-          corr.db,
-          {
-            tenantId: corr.tenantId,
-            conversationId: corr.cnv.id,
-            direction: 'inbound',
-            body: '[Botão] Sim',
-            deliveryState: 'received',
-            createdAt: corr.clock.nowMs(),
-          },
-          corr.clock,
-        )
-        await handleChoiceOfferClick(
-          corr.db,
-          corr.caller,
-          {
-            tenantId: corr.tenantId,
-            conversationId: corr.cnv.id,
-            buttonId: sim,
-            providerEventKey: '510-corr-axila-sim',
-          },
-          corr.clock,
-        )
-      }
+      expect(echoCorr).toBeTruthy()
+      const simCorr = buttonId(echoCorr!.interactive_json, 'Sim')
+      corr.clock.advance(1_000)
+      insertMessage(
+        corr.db,
+        {
+          tenantId: corr.tenantId,
+          conversationId: corr.cnv.id,
+          direction: 'inbound',
+          body: '[Botão] Sim',
+          deliveryState: 'received',
+          createdAt: corr.clock.nowMs(),
+        },
+        corr.clock,
+      )
+      await handleChoiceOfferClick(
+        corr.db,
+        corr.caller,
+        {
+          tenantId: corr.tenantId,
+          conversationId: corr.cnv.id,
+          buttonId: simCorr,
+          providerEventKey: '510-corr-axila-sim',
+        },
+        corr.clock,
+      )
       corrSnap = frameSnapshot(corr)
       expect(corrSnap.line).toBe('feminino')
       expect(corrSnap.variantNames).toEqual(expectedZones.map((n) => `feminino:${n}`))

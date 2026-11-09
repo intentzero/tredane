@@ -114,6 +114,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
     turnosIdeais: 2,
     // Staging Paulo 09/11/2026: texto/toque da linha fazia sair a mesma frase duas vezes
     // (handoff + Opções). Catálogo cede ao autoBook; interactive reply não reentra no autodraft.
+    // Paulo 09/11 (mais tarde): `varias` = texto livre, sem lista Opções.
     turns: [
       { role: 'client', text: 'Quero depilação' },
       { role: 'client', text: 'Masculina' },
@@ -126,8 +127,8 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
         { turn: 0, matches: [/feminina ou masculina/i] },
         {
           turn: 1,
-          matches: [/quais zonas/i],
-          excludes: [/Falar com a equipe/i],
+          matches: [/quais zonas/i, /Escreva uma ou várias/i],
+          excludes: [/Falar com a equipe/i, /Em Opções/i],
         },
       ],
       outboundExcludes: NO_LEAK,
