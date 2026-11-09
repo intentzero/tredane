@@ -152,7 +152,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
       outboundCount: 3,
       turns: [
         { turn: 0, matches: [/quais zonas/i] },
-        { turn: 1, matches: [/Entendi: Axila e Pernas\. Certo\?/] },
+        { turn: 1, matches: [/Entendi: axila, pernas\. Certo\?/] },
         {
           turn: 2,
           matches: [/\d{1,2}:\d{2}/],

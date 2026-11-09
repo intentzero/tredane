@@ -279,7 +279,10 @@ describe('conversa: cumprimento depois pedido de massagem', () => {
       const reply = result.autoBook?.replyText ?? ''
       expect(reply).toMatch(/^Entendi: /)
       expect(reply).toMatch(/Certo\?$/)
-      for (const name of MASSAGEM_NAMES) expect(reply).toContain(name)
+      // Eco DEC-137: nomes em minúsculas, só vírgulas (Paulo 09/11/2026).
+      for (const name of MASSAGEM_NAMES) {
+        expect(reply).toContain(name.toLocaleLowerCase('pt-BR'))
+      }
       expect(reply).not.toMatch(/Abrir opções/)
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       expect(session?.variantIds?.length).toBe(4)
