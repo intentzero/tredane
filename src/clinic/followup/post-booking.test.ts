@@ -20,7 +20,6 @@ import {
   postBookingButtonId,
   POST_BOOKING_BODY,
   sendPostBookingFollowupOp,
-  THANKS_REPLY_BODY,
 } from './post-booking'
 import { getBookingFrame, getScheduleSession, saveBookingFrame, saveScheduleSession } from '../ai/schedule-session'
 
