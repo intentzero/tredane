@@ -201,14 +201,19 @@ export function loadUpcomingAppointment(
 }
 
 /**
- * Continuidade da remarcação: só o BookingFrame (ADR-0015 / DEC-129).
+ * Continuidade da remarcação: só `phase = remarcando` (ADR-0015 / DEC-129).
  * CF-22: não lê texto outbound.
+ *
+ * `lastOffer` / `pending` também existem na marcação nova (`ofertado`, …). Tratar
+ * qualquer oferta no frame como remarcação fazia um re-pedido de dia mid-booking
+ * (ex. «Na próxima terça tem horário?») com compromisso futuro cair em
+ * «Algum serve para remarcar?» + «Falar com a equipe» em vez da lista Horários.
  */
 function priorRescheduleOfferFromFrame(
   frame: ReturnType<typeof getBookingFrame>,
 ): boolean {
   if (!frame) return false
-  return Boolean(frame.lastOffer || frame.pending || frame.phase === 'remarcando')
+  return frame.phase === 'remarcando'
 }
 
 /** Acumula lastOffer/pending da oferta de remarcação (commit na TX do outbound). */
@@ -279,7 +284,7 @@ export async function tryAiReschedule(
   const apt = loadUpcomingAppointment(db, tenantId, conv.contactId, now)
   const sessionEarly = getScheduleSession(db, tenantId, input.conversationId)
   const frameEarly = getBookingFrame(db, tenantId, input.conversationId)
-  // DEC-129 / ADR-0015: continuidade só pelo frame (phase remarcando / lastOffer / pending).
+  // DEC-129 / ADR-0015: continuidade só com phase remarcando (não lastOffer de marcação nova).
   const priorOffer = priorRescheduleOfferFromFrame(frameEarly)
   if (!isRescheduleIntent(input.inboundText, { hasUpcoming: Boolean(apt), priorOffer })) {
     return null
