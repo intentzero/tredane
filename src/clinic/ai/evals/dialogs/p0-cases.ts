@@ -22,6 +22,7 @@
  * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
  * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
  * F-11: troca de serviço limpa date sticky; oferta é próximos, não «disponíveis para sexta» (Paulo 09/11/2026).
+ * F-12: «Sim» após «Quer ver outro período?» limpa period=noite sticky (staging Paulo 09/11/2026).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import {
@@ -1008,6 +1009,52 @@ export const P0_DIALOG_CASES: DialogCase[] = [
             /13\/11/,
             /dispon[ií]vel nas opções/i,
           ],
+        },
+      ],
+    },
+  },
+  {
+    id: 'F-12',
+    title: '«Sim» a outro período limpa noite sticky e oferece horários',
+    turnosIdeais: 1,
+    // Staging Paulo 09/11/2026 (c2d2b9a): period=noite sticky → «Sim» repetia
+    // «à noite não tenho… Quer ver outro período?» em loop.
+    prepare: (s) => {
+      const zones = s.db.all<{ id: string; name: string; audience: string }>(
+        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
+        s.tenantId,
+        s.ids.depilacao,
+      )
+      const variantIds = zones
+        .filter((z) => z.audience === 'feminino' && (z.name === 'Axila' || z.name === 'Pernas'))
+        .map((z) => z.id)
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.depilacao,
+          audienceLine: 'feminino',
+          variantIds,
+          date: '2026-11-06',
+          period: 'noite',
+          phase: 'coletando',
+        },
+        s.clock,
+      )
+      s.sayOutbound(
+        'Para Axila, Pernas, à noite não tenho horário livre. Quer ver outro período?',
+      )
+    },
+    turns: [{ role: 'client', text: 'Sim' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/\d{1,2}:\d{2}/],
+          excludes: [/outro período\?/i, /à noite não tenho/i],
         },
       ],
     },
