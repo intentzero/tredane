@@ -733,6 +733,45 @@ describe('catalogVersion revalidação (#472)', () => {
     }
   })
 
+  it('patch só catalogVersion com lastOffer remarcando não promove para ofertado', () => {
+    const s = seedCatalog()
+    try {
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.svc.id,
+          phase: 'remarcando',
+          date: '2026-11-06',
+          pending: {
+            slot: 'horario',
+            options: [{ key: '2026-11-06T10:00', label: '10:00' }],
+            messageId: 'msg-offer',
+          },
+          lastOffer: {
+            slots: [{ startsAt: Date.UTC(2026, 10, 6, 13, 0), professionalId: s.pro.id }],
+            messageId: 'msg-offer',
+          },
+          catalogVersion: '',
+        },
+        s.clock,
+      )
+      expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.phase).toBe('remarcando')
+      const { frame } = saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        { catalogVersion: s.catalog.version },
+        s.clock,
+      )
+      expect(frame.phase).toBe('remarcando')
+      expect(frame.lastOffer?.slots.length).toBe(1)
+    } finally {
+      s.close()
+    }
+  })
+
   it('CF-45: a audiência solta (DEC-142) segue ao escolher o serviço; só uma troca de serviço a descarta', () => {
     const { db, clock, tenantId, conversationId, close } = boot()
     try {

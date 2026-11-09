@@ -27,7 +27,8 @@ import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import { HUMAN_HANDOFF_TEXT } from './human-handoff'
 import { forbiddenClientTermsIn } from './client-copy'
 import { validateClientOutbound } from './outbound-validate'
-import { getBookingFrame } from './schedule-session'
+import { SLOT_LIST_BUTTON_LABEL } from './choice-offer'
+import { getBookingFrame, saveBookingFrame } from './schedule-session'
 import {
   isRescheduleIntent,
   phraseAskDay,
@@ -166,6 +167,7 @@ function seed() {
     tenantId,
     gi,
     svc,
+    zones,
     cnv,
     contact,
     aptId: booked.value.id,
@@ -192,6 +194,19 @@ describe('isRescheduleIntent', () => {
     expect(isRescheduleIntent('Quero marcar para quarta', { hasUpcoming: true, priorOffer: false })).toBe(false)
     expect(isRescheduleIntent('Quero cancelar', { hasUpcoming: true, priorOffer: false })).toBe(false)
     expect(isRescheduleIntent('14h', { hasUpcoming: true, priorOffer: true })).toBe(true)
+    // Mid-booking day re-ask: sem priorOffer de remarcação (phase remarcando) não é remarcação.
+    expect(
+      isRescheduleIntent('Na próxima terça tem algum horário disponível?', {
+        hasUpcoming: true,
+        priorOffer: false,
+      }),
+    ).toBe(false)
+    expect(
+      isRescheduleIntent('Na próxima terça tem algum horário disponível?', {
+        hasUpcoming: true,
+        priorOffer: true,
+      }),
+    ).toBe(true)
   })
 })
 
@@ -539,6 +554,71 @@ describe('DEC-091/129 reagendamento conversacional', () => {
         s.tenantId,
       )
       expect(proposalRow).toBeTruthy()
+    } finally {
+      s.close()
+    }
+  })
+
+  it('mid-booking «próxima terça» com lastOffer ofertado e compromisso futuro não vira remarcação', async () => {
+    // Staging Paulo ~09/11: mid marcação nova (zonas+Horários sexta) + «Na próxima terça…»
+    // com compromisso futuro → «Algum serve para remarcar?» + «Falar com a equipe».
+    const s = seed()
+    try {
+      const offerMsg = s.say(
+        'outbound',
+        'Os próximos horários para Depilação são sexta 06/11 às 09:00, 10:00. Algum serve?',
+      )
+      const friMorning = zonedCivilToUtc(TZ, 2026, 11, 6, 9, 0)
+      const friTen = zonedCivilToUtc(TZ, 2026, 11, 6, 10, 0)
+      saveBookingFrame(
+        s.db,
+        s.tenantId,
+        s.cnv.id,
+        {
+          serviceId: s.svc.id,
+          line: 'feminino',
+          variantIds: s.zones.map((z) => z.id),
+          date: '2026-11-06',
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-06T09:00', label: 'sexta 06/11 às 09:00' },
+              { key: '2026-11-06T10:00', label: 'sexta 06/11 às 10:00' },
+            ],
+            messageId: offerMsg.id,
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: friMorning, professionalId: s.gi.id },
+              { startsAt: friTen, professionalId: s.gi.id },
+            ],
+            messageId: offerMsg.id,
+          },
+        },
+        s.clock,
+      )
+
+      s.say('inbound', 'Na próxima terça tem algum horário disponível?')
+      const out = await s.run()
+      expect(out.reason).not.toBe('reschedule_flow')
+      expect(out.reason).not.toBe('human_handoff')
+      expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.phase).not.toBe('remarcando')
+
+      const body = s.lastOutbound()
+      expect(body).not.toMatch(/remarcar/i)
+      expect(body).toMatch(/Algum serve\?/)
+      expect(body).toMatch(/terça|10\/11|03\/11|\d{1,2}:\d{2}/i)
+
+      const interactive = s.db
+        .all<{ kind: string; interactive_json: string | null }>(
+          `SELECT kind, interactive_json FROM outbound_messages WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 3`,
+          s.tenantId,
+        )
+        .map((m) => m.interactive_json ?? '')
+        .join('\n')
+      expect(interactive).toContain(SLOT_LIST_BUTTON_LABEL)
+      expect(interactive).not.toMatch(/Falar com a equipe/)
     } finally {
       s.close()
     }

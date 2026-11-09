@@ -12,6 +12,7 @@
  * A-36: após soft-close Terminar, novo pedido não reusa variante/slots (leftover).
  * A-37: mid Horários, leftover ≠ option-miss de variantes (DEC-C3 / P1 stack esclarecer).
  * A-39: Confirmar → Agendado + «Posso ajudar» sem esclarecer spurioso (staging 09/11/2026).
+ * G-07b: mid-booking day re-ask com compromisso futuro ≠ remarcação (staging 09/11/2026).
  * F-09: após fecho idle DEC-087, novo pedido não reusa Liberação+dia (#620).
  * F-10: texto «Terminar» no prompt idle limpa Liberação; novo pedido pergunta o tipo.
  */
@@ -1064,6 +1065,14 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     id: 'G-07',
     title: 'Remarcar com compromisso',
     turnosIdeais: 2,
+    coverageOnly: 'reschedule.test',
+    turns: [],
+  },
+  {
+    id: 'G-07b',
+    title: 'Mid-booking «próxima terça» com compromisso futuro mantém oferta de marcação',
+    turnosIdeais: 1,
+    // Staging Paulo ~09/11: lastOffer ofertado + upcoming apt ≠ «para remarcar» / handoff.
     coverageOnly: 'reschedule.test',
     turns: [],
   },

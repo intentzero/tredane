@@ -667,15 +667,21 @@ export function saveBookingFrame(
     }
     provenance = nextProv
   }
+  // Remarcação (DEC-129) também grava lastOffer/pending com phase remarcando.
+  // Um patch sem phase (ex. sync de catalogVersion) não pode promover para ofertado
+  // — senão o 2.º turno da remarcação perde a continuidade e o mid-booking
+  // day-reask com compromisso futuro cai no caminho errado se lastOffer «autorizar».
   const phase =
     patch.phase ??
-    (pending || lastOffer
-      ? 'ofertado'
-      : proposal
-        ? 'proposto'
-        : existing?.phase && existing.phase !== 'idle'
-          ? existing.phase
-          : 'coletando')
+    (existing?.phase === 'remarcando'
+      ? 'remarcando'
+      : pending || lastOffer
+        ? 'ofertado'
+        : proposal
+          ? 'proposto'
+          : existing?.phase && existing.phase !== 'idle'
+            ? existing.phase
+            : 'coletando')
 
   const now = clock.nowMs()
   const funnelStart = serviceChanged || !existing ? now : existing.updatedAt
