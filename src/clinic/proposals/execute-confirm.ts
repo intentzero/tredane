@@ -6,7 +6,9 @@ import type { Clock } from '../../db/clock'
 import type { PixProviderAdapter } from '../../pix/contract'
 import { writeOperationalAudit } from '../audit'
 import { AI_AUTOBOOK_ACTOR_ID, AI_AUTOBOOK_ACTOR_NAME } from '../ai/autobook'
+import { cancelAutoDraft } from '../ai/autodraft'
 import { checkConversationProtection } from '../ai/protection'
+import { clearBookingFrame } from '../ai/schedule-session'
 import { getContact } from '../contacts'
 import { getService } from '../config/services'
 import { quoteVisit, readZoneSnapshots, zoneSnapshotsDrifted } from '../config/zones'
@@ -335,6 +337,24 @@ async function ensureResult(
   )
 }
 
+/**
+ * Pós-Agendado (DEC-086): o compromisso já está marcado. Cancela autodraft do
+ * `[Botão] Confirmar` e limpa o BookingFrame — leftover `choose_slot` não pode
+ * disparar `esclarecer` («Não peguei bem…») sem turno novo. O mesmo clear do
+ * «Não, obrigado» / idle; «Quero outro serviço» reabre via DEC-142.
+ */
+function settleBookingFrameAfterConfirm(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string | null | undefined,
+  clock: Clock,
+): void {
+  const cnv = conversationId?.trim()
+  if (!cnv) return
+  cancelAutoDraft(db, tenantId, cnv)
+  clearBookingFrame(db, tenantId, cnv, clock, { emitOutbox: false })
+}
+
 /** #511 — alternativas do mesmo pedido para expirada / vaga perdida. */
 async function alternativesListingFor(
   db: ClinicDb,
@@ -448,6 +468,7 @@ export async function executeProposalConfirmOp(
             clock,
           )
       const result = await ensureResult(db, caller, proposal.id, 'booked', clock)
+      settleBookingFrameAfterConfirm(db, meta.tenantId, proposal.conversationId, clock)
       const outbox = appendPostBookingFollowup(
         db,
         caller,
@@ -811,6 +832,7 @@ export async function executeProposalConfirmOp(
       clock,
     )
     const result = await ensureResult(db, caller, confirmed.id, 'booked', clock)
+    settleBookingFrameAfterConfirm(db, meta.tenantId, confirmed.conversationId, clock)
     const outbox = appendPostBookingFollowup(
       db,
       caller,

@@ -20,6 +20,7 @@ import {
 } from './proposals'
 import { openPendingCommunication } from './pending-communication'
 import { parseProposalButtonId, type ProposalButtonAction } from './render'
+import { cancelAutoDraft } from '../ai/autodraft'
 import { notifyHumanHandoff } from '../ai/human-handoff'
 import type {
   AppointmentProposalRow,
@@ -98,6 +99,11 @@ export function handleProposalButtonClick(
   assertClinicSchemaReady(db)
   const parsed = parseProposalButtonId(input.buttonId)
   if (!parsed) return { handled: false, reason: 'not_proposal_button' }
+
+  // Ingest do button_reply já enfileirou autodraft (`[Botão] Confirmar`).
+  // O executor S5/Alterar/equipe é a resposta — sem cancel, o job stale
+  // (frame ainda com choose_slot) pode emitir `esclarecer` depois do Agendado.
+  cancelAutoDraft(db, input.tenantId, input.conversationId)
 
   const proposal = getProposal(db, input.tenantId, parsed.proposalId)
   if (!proposal) {

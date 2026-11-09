@@ -261,11 +261,16 @@ export type AutoDraftOutcome = {
 function lastMessageDirection(db: ClinicDb, tenantId: string, conversationId: string): string | null {
   const r = db.get<{ direction: string }>(
     `SELECT direction FROM messages WHERE tenant_id = ? AND conversation_id = ? AND direction != 'system'
-     ORDER BY created_at DESC LIMIT 1`,
+     ORDER BY created_at DESC, id DESC LIMIT 1`,
     tenantId,
     conversationId,
   )
   return r?.direction ?? null
+}
+
+/** Clique Confirmar da proposta — S5 trata; autodraft não deve reinterpretar. */
+function isProposalConfirmButtonBody(body: string): boolean {
+  return /^\[Botão\]\s*Confirmar\s*$/i.test(body.trim())
 }
 
 /**
@@ -447,6 +452,13 @@ export async function runDueAutoDrafts(
         tenantId,
         job.messageId,
       )?.body ?? ''
+    // Staging Paulo 09/11/2026: `[Botão] Confirmar` + pending choose_slot →
+    // `esclarecer` depois do Agendado (race ingest→S5). S5 cancela o job; isto
+    // cobre job já em generating / reentrega sem cancel.
+    if (isProposalConfirmButtonBody(inboundBody)) {
+      skip('proposal_confirm_button')
+      continue
+    }
     // #411: uma leitura por job — catálogo, mensagens, sessão, turno, compromisso futuro.
     const turn = loadTurnContext(
       db,
@@ -1297,6 +1309,18 @@ export async function runDueAutoDrafts(
       }
     } else if (suggestion?.status === 'pending' && draftText && !proposalDelivered) {
       try {
+        // Race S5: Agendado/`Posso ajudar` podem ter saído durante extrator/autobook.
+        if (lastMessageDirection(db, tenantId, job.conversationId) !== 'inbound') {
+          if (suggestion) markSuggestionSuperseded(db, tenantId, suggestion.id, clock.nowMs())
+          record({
+            ...job,
+            status: 'skipped',
+            suggestion: suggestion ? getSuggestion(db, tenantId, suggestion.id) : null,
+            reason: 'already_answered',
+            autoBook,
+          })
+          continue
+        }
         let body = draftText
         let interactive = deterministicReply
           ? toSendInteractive(autoBook?.interactive ?? null)
