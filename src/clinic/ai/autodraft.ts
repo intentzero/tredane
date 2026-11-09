@@ -285,7 +285,9 @@ function isProposalConfirmButtonBody(body: string): boolean {
  * cancela o job. Se o alarme correr antes do cancel (debounce curto / race),
  * o autodraft reemite o que o clique já vai realizar:
  * - linha → ask-tipo com handoff + Opções (staging Paulo 09/11 ~11:56, #640);
- * - Sim do eco DEC-137 → duas ofertas Horários iguais (~12:20).
+ * - Sim do eco DEC-137 → duas ofertas Horários iguais (~12:20, #641);
+ * - Escolher Feminino/Masculino da consulta DEC-142 → duas listas «Temos:»
+ *   iguais (~13:42, catalog_consult + handleCatalogAudienceClick).
  */
 function isInteractiveReplyBody(body: string): boolean {
   return /^\[(Botão|Lista)\]\s+/i.test(body.trim())
@@ -477,9 +479,10 @@ export async function runDueAutoDrafts(
       skip('proposal_confirm_button')
       continue
     }
-    // Mesma race no funil M5 / DEC-137: Feminina·Masculina·Opções·Sim do eco
-    // enfileiram autodraft no ingest. Sem este skip, o job reenvia ask-tipo /
-    // Horários depois (ou antes) do choice handler — Paulo 09/11 staging.
+    // Mesma race no funil M5 / DEC-137 / DEC-142: Feminina·Masculina·Opções·
+    // Sim do eco·Escolher da consulta de catálogo enfileiram autodraft no
+    // ingest. Sem este skip, o job reenvia ask-tipo / Horários / «Temos:»
+    // depois (ou antes) do choice handler — Paulo 09/11 staging.
     if (isInteractiveReplyBody(inboundBody)) {
       skip('interactive_reply_button')
       continue
