@@ -90,6 +90,8 @@ export function filterLabel(filter: InboxFilter): string {
       return 'Sem responsável'
     case 'needs_person':
       return 'Precisa de alguém'
+    case 'for_review':
+      return 'Para revisão'
     case 'closed':
       return 'Encerradas'
   }

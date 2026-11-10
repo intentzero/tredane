@@ -19,6 +19,9 @@ export function mapConversation(row: {
   unread_count: number
   created_at: number
   updated_at: number
+  review_flagged_at?: number | null
+  review_flagged_source?: string | null
+  review_flag_reason?: string | null
 }): ConversationRow {
   return {
     id: row.id,

@@ -78,6 +78,12 @@ import type {
   SendOutboundInput,
   UnblockContactInput,
 } from './types'
+import {
+  clearConversationReviewFlag,
+  flagConversationForReview,
+  type ReviewFlagReason,
+  type ReviewFlagSource,
+} from './review-flag'
 
 export type InboxMutationResult<T> = {
   value: T
@@ -1698,4 +1704,75 @@ export function appendInboundToConversation(
   }
 
   return { conversation, message, createdConversation }
+}
+
+export function flagConversationForReviewOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: {
+    conversationId: string
+    source?: ReviewFlagSource
+    reason?: ReviewFlagReason
+  },
+  clock: Clock,
+): InboxMutationResult<ConversationListItem> {
+  assertClinicSchemaReady(db)
+  assertValidCaller(caller)
+  const meta = bindOrAssertTenant(db, caller, clock)
+  requireActor(caller)
+  const result = flagConversationForReview(
+    db,
+    meta.tenantId,
+    input.conversationId,
+    {
+      source: input.source ?? 'staff',
+      reason: input.reason ?? 'staff',
+    },
+    clock,
+  )
+  const item = getConversationWithContact(db, meta.tenantId, input.conversationId)
+  if (!item) {
+    throw new NotFoundError('conversation_not_found', 'Conversa não encontrada nesta clínica')
+  }
+  return { value: item, outbox: result.outbox }
+}
+
+export function clearConversationReviewFlagOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: { conversationId: string },
+  clock: Clock,
+): InboxMutationResult<ConversationListItem> {
+  assertClinicSchemaReady(db)
+  assertValidCaller(caller)
+  const meta = bindOrAssertTenant(db, caller, clock)
+  requireActor(caller)
+  const result = clearConversationReviewFlag(
+    db,
+    meta.tenantId,
+    input.conversationId,
+    clock,
+  )
+  const item = getConversationWithContact(db, meta.tenantId, input.conversationId)
+  if (!item) {
+    throw new NotFoundError('conversation_not_found', 'Conversa não encontrada nesta clínica')
+  }
+  return { value: item, outbox: result.outbox }
+}
+
+/** API estável /review — só conversas flagged (DEC-157). */
+export function getReviewConversationDetailOp(
+  db: ClinicDb,
+  caller: ClinicCaller,
+  input: { conversationId: string; messageLimit?: number; before?: number | null },
+  clock: Clock,
+): ConversationDetail {
+  const detail = getConversationDetailOp(db, caller, input, clock)
+  if (!detail.forReview) {
+    throw new NotFoundError(
+      'review_conversation_not_found',
+      'Conversa não está na fila de revisão',
+    )
+  }
+  return detail
 }

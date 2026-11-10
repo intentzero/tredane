@@ -41,7 +41,8 @@ const AI_DRAFTING_SQL = `EXISTS (
 const CONV_COLS = `c.id, c.tenant_id, c.contact_id, c.status,
   c.assignee_clerk_user_id, c.assignee_display_name, c.assignment_version,
   c.last_message_at, c.last_message_preview, c.last_message_direction,
-  c.unread_count, c.created_at, c.updated_at`
+  c.unread_count, c.created_at, c.updated_at,
+  c.review_flagged_at, c.review_flagged_source, c.review_flag_reason`
 
 type ConvSqlRow = {
   id: string
@@ -57,6 +58,9 @@ type ConvSqlRow = {
   unread_count: number
   created_at: number
   updated_at: number
+  review_flagged_at: number | null
+  review_flagged_source: string | null
+  review_flag_reason: string | null
   contact_wa_id?: string
   contact_display_name?: string | null
   contact_created_at?: number
@@ -290,6 +294,11 @@ function filterClause(
         sql: `AND ${NEEDS_PERSON_SQL} AND c.status != 'closed'`,
         params: [],
       }
+    case 'for_review':
+      return {
+        sql: `AND c.review_flagged_at IS NOT NULL`,
+        params: [],
+      }
     case 'closed':
       return { sql: `AND c.status = 'closed'`, params: [] }
     case 'all':
@@ -376,6 +385,7 @@ export function listConversations(
     }),
     needsPerson: row.needs_person === 1,
     aiDrafting: row.ai_drafting === 1,
+    ...reviewFieldsFromRow(row),
   }))
   const nextBefore =
     rows.length > limit && page.length > 0
@@ -420,6 +430,11 @@ export function countInboxFilters(
      WHERE c.tenant_id = ? AND c.status != 'closed' AND ${NEEDS_PERSON_SQL}`,
     tenantId,
   )?.n ?? 0
+  const forReview = db.get<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM conversations
+     WHERE tenant_id = ? AND review_flagged_at IS NOT NULL`,
+    tenantId,
+  )?.n ?? 0
   return {
     all,
     new: neu,
@@ -428,6 +443,7 @@ export function countInboxFilters(
     closed,
     unread: countUnreadConversations(db, tenantId),
     needsPerson,
+    forReview,
   }
 }
 
@@ -489,6 +505,38 @@ export function getConversationWithContact(
     }),
     needsPerson: row.needs_person === 1,
     aiDrafting: row.ai_drafting === 1,
+    ...reviewFieldsFromRow(row),
+  }
+}
+
+function reviewFieldsFromRow(row: {
+  review_flagged_at: number | null
+  review_flagged_source: string | null
+  review_flag_reason: string | null
+}): Pick<
+  ConversationListItem,
+  'forReview' | 'reviewFlaggedAt' | 'reviewFlaggedSource' | 'reviewFlagReason'
+> {
+  const at = row.review_flagged_at
+  if (at == null) {
+    return {
+      forReview: false,
+      reviewFlaggedAt: null,
+      reviewFlaggedSource: null,
+      reviewFlagReason: null,
+    }
+  }
+  const source =
+    row.review_flagged_source === 'client' ||
+    row.review_flagged_source === 'staff' ||
+    row.review_flagged_source === 'auto'
+      ? row.review_flagged_source
+      : null
+  return {
+    forReview: true,
+    reviewFlaggedAt: at,
+    reviewFlaggedSource: source,
+    reviewFlagReason: row.review_flag_reason,
   }
 }
 

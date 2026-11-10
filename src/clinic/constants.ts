@@ -1,5 +1,5 @@
 /** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#43 / #174 / #175 / abuse UI / #421). */
-export const CLINIC_SCHEMA_VERSION = 59
+export const CLINIC_SCHEMA_VERSION = 60
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -396,6 +396,7 @@ export const INBOX_FILTERS = [
   'mine',
   'unassigned',
   'needs_person',
+  'for_review',
   'closed',
 ] as const
 

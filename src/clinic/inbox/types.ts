@@ -78,6 +78,11 @@ export type ConversationListItem = ConversationRow & {
    * Alimenta o spinner da lista; o WS `conversation.ai_draft` actualiza em tempo real.
    */
   aiDrafting: boolean
+  /** DEC-157 — marcada para revisão humana (não pausa a IA). */
+  forReview: boolean
+  reviewFlaggedAt: number | null
+  reviewFlaggedSource: 'client' | 'staff' | 'auto' | null
+  reviewFlagReason: string | null
 }
 
 export type MessagingWindowView = {
@@ -301,4 +306,6 @@ export type InboxCounts = {
   unread: number
   /** IA pausada ou alerta de equipe aberto. */
   needsPerson: number
+  /** DEC-157 — fila «Para revisão». */
+  forReview: number
 }

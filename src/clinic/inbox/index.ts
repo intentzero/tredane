@@ -26,9 +26,12 @@ export {
   applyOutboundSendResultOp,
   assignConversationOp,
   blockContactOp,
+  clearConversationReviewFlagOp,
   closeConversationOp,
+  flagConversationForReviewOp,
   getContactDetailOp,
   getConversationDetailOp,
+  getReviewConversationDetailOp,
   listContactsDirectoryOp,
   listConversationsOp,
   markConversationReadOp,
@@ -38,6 +41,16 @@ export {
   type ContactAppointmentItem,
   type InboxMutationResult,
 } from './operations'
+
+export {
+  clearConversationReviewFlag,
+  flagConversationForReview,
+  isReviewFlagRequest,
+  readReviewFlag,
+  REVIEW_FLAG_CLIENT_ACK,
+  type ReviewFlagReason,
+  type ReviewFlagSource,
+} from './review-flag'
 
 export type { ContactDirectoryFilter } from './conversations'
 
