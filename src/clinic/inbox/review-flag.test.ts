@@ -162,16 +162,17 @@ describe('DEC-157 review flag', () => {
     }
   })
 
-  it('auto nao_encontrei não pausa — só flag', () => {
+  it('auto nao_encontrei não pausa — só flag + outbox WS', () => {
     const { db, close, clock, tenantId, cnv } = seedConversation()
     try {
-      flagConversationForReview(
+      const flagged = flagConversationForReview(
         db,
         tenantId,
         cnv.id,
         { source: 'auto', reason: 'nao_encontrei' },
         clock,
       )
+      expect(flagged.outbox.some((o) => o.type === 'conversation.review_flagged')).toBe(true)
       const pause = db.get<{ at: number | null }>(
         `SELECT ai_reply_paused_at AS at FROM conversations WHERE tenant_id = ? AND id = ?`,
         tenantId,
@@ -186,3 +187,4 @@ describe('DEC-157 review flag', () => {
     }
   })
 })
+

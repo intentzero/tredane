@@ -753,15 +753,19 @@ export async function tryAiAutoBook(
     const friction = mergeFriction(outcome.friction, frictionAcc)
     next = { ...outcome, friction: friction.length > 0 ? friction : undefined }
     // DEC-157: auto-flag na fila de revisão em «Não encontrei…» (sem pausar).
+    // Outbox entra em `autoBook.outbox` → fanout WS no runAutoDrafts.
     if (friction.some((e) => e.flag === 'nao_encontrei')) {
       try {
-        flagConversationForReview(
+        const flagged = flagConversationForReview(
           db,
           tenantId,
           input.conversationId,
           { source: 'auto', reason: 'nao_encontrei' },
           clock,
         )
+        if (flagged.outbox.length > 0) {
+          next = { ...next, outbox: [...next.outbox, ...flagged.outbox] }
+        }
       } catch {
         /* flag best-effort — não bloqueia o turno */
       }

@@ -877,7 +877,7 @@ export async function runDueAutoDrafts(
     // DEC-157: «avaliar» / «feedback» → fila de revisão; não pausa o funil.
     if (isReviewFlagRequest(turnText)) {
       await signalTyping()
-      let replyOutbox: OutboxRow[] = []
+      const replyOutbox: OutboxRow[] = []
       try {
         const flagged = flagConversationForReview(
           db,
