@@ -53,6 +53,8 @@ describe('end-help-hint helpers (DEC-152)', () => {
   it('isHowToEndQuestion: meta sim; Terminar exacto não', () => {
     expect(isHowToEndQuestion('Como faço para terminar esta conversa?')).toBe(true)
     expect(isHowToEndQuestion('como posso encerrar?')).toBe(true)
+    expect(isHowToEndQuestion('como termino')).toBe(true)
+    expect(isHowToEndQuestion('Como faço para terminar?')).toBe(true)
     expect(isHowToEndQuestion('Terminar')).toBe(false)
     expect(isHowToEndQuestion('quero terminar a sessão')).toBe(false)
     expect(isHowToEndQuestion('quero depilação')).toBe(false)
