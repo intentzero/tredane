@@ -3,6 +3,7 @@ import { bootAdminDb } from '../db/test-db'
 import { createControllableClock } from '../db/clock'
 import {
   assertSafePushPayload,
+  buildNeedsPersonPayload,
   buildNewConversationPayload,
 } from './send'
 import {
@@ -28,6 +29,26 @@ describe('push / PWA (#42)', () => {
     expect(payload.url).toContain('/c/clinic-demo-a/conversas/cnv_1')
     expect(JSON.stringify(payload)).not.toMatch(/waId|bodyPreview|5511/)
     assertSafePushPayload(payload)
+  })
+
+  it('buildNeedsPersonPayload (DEC-156) sem PII e com escalate', () => {
+    const base = buildNeedsPersonPayload({
+      tenantId: 'clinic-demo-a',
+      tenantName: 'Clínica Aurora',
+      conversationId: 'cnv_9',
+    })
+    expect(base.kind).toBe('needs_person')
+    expect(base.body).toBe('Equipe necessária na Clínica Aurora')
+    assertSafePushPayload(base)
+    const esc = buildNeedsPersonPayload({
+      tenantId: 'clinic-demo-a',
+      tenantName: 'Clínica Aurora',
+      conversationId: 'cnv_9',
+      escalate: true,
+    })
+    expect(esc.kind).toBe('needs_person_escalate')
+    expect(esc.body).toBe('Continua a aguardar a equipe na Clínica Aurora')
+    assertSafePushPayload(esc)
   })
 
   it('assertSafePushPayload rejeita campos sensíveis', () => {

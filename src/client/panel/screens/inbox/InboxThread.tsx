@@ -743,6 +743,13 @@ export function InboxThread({
             }
           : prev,
       );
+      // DEC-156: Assumir (`clearedAwaitingTeam`) limpa notifs da conversa.
+      if (res.versionMatched !== false) {
+        const { closeConversationNotifications } = await import(
+          "../../notifications"
+        );
+        void closeConversationNotifications(tenantId, conversationId);
+      }
     } catch (err) {
       setNotice(
         friendlyError(

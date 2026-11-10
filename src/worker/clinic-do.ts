@@ -1228,12 +1228,22 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       revoked: string[]
       skippedUnavailable: string[]
     } | null = null
+    const needsPersonIds = new Set<string>()
     for (const ob of outboxes) {
       let payload: Record<string, unknown> = {}
       try {
         payload = JSON.parse(ob.payloadJson) as Record<string, unknown>
       } catch {
         payload = {}
+      }
+      // DEC-156: push ao entrar handoff (gancho DEC-155 `source: handoff`).
+      if (
+        ob.type === 'conversation.ai_pause' &&
+        payload.aiReplyPaused === true &&
+        (payload.source === 'handoff' || payload.source == null) &&
+        typeof payload.conversationId === 'string'
+      ) {
+        needsPersonIds.add(payload.conversationId)
       }
       const evt = appendRealtimeEvent(
         this.#db,
@@ -1258,7 +1268,53 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         )
       }
     }
+    for (const conversationId of needsPersonIds) {
+      await this.#maybePushNeedsPerson(caller.tenantId, conversationId, false)
+    }
+    // DEC-156: escalada aos 5 min — agendar o wake em `alert_after_at`
+    // (não esperar só o timeout de 30 min / DEC-155).
+    if (needsPersonIds.size > 0) {
+      const nextAlert = this.#nextOpenPendingAlertAt(caller.tenantId)
+      if (nextAlert != null) await this.#scheduleAlarmNoLaterThan(nextAlert + 500)
+      await this.#scheduleNextHandoffTimeout(caller.tenantId)
+    }
     return { eventSeq, fanout: fanoutResult }
+  }
+
+  /** Próximo `alert_after_at` de comunicação pendente aberta (H7 / DEC-156). */
+  #nextOpenPendingAlertAt(tenantId: string): number | null {
+    return (
+      this.#db.get<{ t: number | null }>(
+        `SELECT MIN(alert_after_at) AS t FROM pending_communications
+         WHERE tenant_id = ? AND status = 'open'`,
+        tenantId,
+      )?.t ?? null
+    )
+  }
+
+  /** DEC-156 — push «Precisa de alguém» / reforço (best-effort; app aberta = suppress). */
+  async #maybePushNeedsPerson(
+    tenantId: string,
+    conversationId: string,
+    escalate: boolean,
+  ): Promise<void> {
+    try {
+      const { maybeNotifyNeedsPersonPush } = await import('../push/queue-hook')
+      await maybeNotifyNeedsPersonPush({
+        env: this.env as WorkerBindings,
+        clock: this.#clock,
+        tenantId,
+        conversationId,
+        escalate,
+        badgeCount: countUnreadConversations(this.#db, tenantId),
+        suppressUserIds: this.#activeViewerUserIds(),
+        log: (entry) => {
+          console.log(JSON.stringify(entry))
+        },
+      })
+    } catch {
+      /* best-effort */
+    }
   }
 
   async listInboxConversations(caller: ClinicCaller, input: ListConversationsInput) {
@@ -3167,7 +3223,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       for (const pending of alerted) {
         const label =
           pending.kind === 'alter_awaiting_team'
-            ? 'Comunicação pendente: cliente pediu alterar a proposta há mais de 5 min'
+            ? 'Comunicação pendente: cliente pediu a equipe há mais de 5 min'
             : pending.kind === 'result_send'
               ? 'Comunicação pendente: resultado do agendamento não enviado há mais de 5 min'
               : 'Comunicação pendente: proposta WhatsApp sem confirmação de envio há mais de 5 min'
@@ -3196,31 +3252,59 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           bumpUnread: true,
           reopenIfClosed: true,
         })
-        const ob = insertOutboxEvent(
-          this.#db,
-          {
-            tenantId: meta.tenantId,
-            type: 'message.created',
-            aggregateType: 'message',
-            aggregateId: sys.id,
-            idempotencyKey: `pending_comm.alert:${pending.id}`,
-            payload: {
-              conversationId: pending.conversationId,
-              messageId: sys.id,
-              pendingCommunicationId: pending.id,
-              kind: pending.kind,
-              direction: 'system',
+        const outboxes = [
+          insertOutboxEvent(
+            this.#db,
+            {
+              tenantId: meta.tenantId,
+              type: 'message.created',
+              aggregateType: 'message',
+              aggregateId: sys.id,
+              idempotencyKey: `pending_comm.alert:${pending.id}`,
+              payload: {
+                conversationId: pending.conversationId,
+                messageId: sys.id,
+                pendingCommunicationId: pending.id,
+                kind: pending.kind,
+                direction: 'system',
+              },
             },
-          },
-          this.#clock,
-        )
-        await this.#fanoutOutboxes(caller, [ob], true)
+            this.#clock,
+          ),
+        ]
+        // DEC-156: reforço som/destaque/push aos 5 min sem Assumir.
+        if (pending.kind === 'alter_awaiting_team') {
+          outboxes.push(
+            insertOutboxEvent(
+              this.#db,
+              {
+                tenantId: meta.tenantId,
+                type: 'conversation.needs_person_escalate',
+                aggregateType: 'conversation',
+                aggregateId: pending.conversationId,
+                idempotencyKey: `needs_person.escalate:${pending.id}`,
+                payload: {
+                  conversationId: pending.conversationId,
+                  pendingCommunicationId: pending.id,
+                  escalate: true,
+                  handoffTimeoutAt: this.#db.get<{ t: number | null }>(
+                    `SELECT ai_handoff_timeout_at AS t FROM conversations
+                     WHERE tenant_id = ? AND id = ?`,
+                    meta.tenantId,
+                    pending.conversationId,
+                  )?.t ?? null,
+                },
+              },
+              this.#clock,
+            ),
+          )
+        }
+        await this.#fanoutOutboxes(caller, outboxes, true)
+        if (pending.kind === 'alter_awaiting_team') {
+          await this.#maybePushNeedsPerson(meta.tenantId, pending.conversationId, true)
+        }
       }
-      const nextAlert = this.#db.get<{ t: number }>(
-        `SELECT MIN(alert_after_at) AS t FROM pending_communications
-         WHERE tenant_id = ? AND status = 'open'`,
-        meta.tenantId,
-      )?.t
+      const nextAlert = this.#nextOpenPendingAlertAt(meta.tenantId)
       if (nextAlert != null) await this.#scheduleAlarmNoLaterThan(nextAlert + 500)
     } catch {
       /* best-effort H7 */

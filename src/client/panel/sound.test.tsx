@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   isSoundEnabled,
+  maybePlayHandoffEscalateSound,
+  maybePlayHandoffSound,
   maybePlayInboundSound,
   playMessageSound,
   resetSoundForTests,
@@ -79,4 +81,48 @@ describe('som de mensagem', () => {
     Reflect.deleteProperty(window, 'AudioContext')
     expect(playMessageSound()).toBe(false)
   })
+
+  it('toca handoff e reforço com painel visível', () => {
+    expect(
+      maybePlayHandoffSound({
+        eventType: 'conversation.ai_pause',
+        payload: { aiReplyPaused: true, source: 'handoff', handoffTimeoutAt: 1 },
+      }),
+    ).toBe(true)
+    expect(starts).toHaveBeenCalled()
+    starts.mockClear()
+    expect(
+      maybePlayHandoffEscalateSound({
+        eventType: 'conversation.needs_person_escalate',
+        payload: { escalate: true },
+      }),
+    ).toBe(true)
+    expect(starts).toHaveBeenCalled()
+  })
+
+  it('não toca handoff em resume, pause false ou aba oculta', () => {
+    expect(
+      maybePlayHandoffSound({
+        eventType: 'conversation.ai_pause',
+        payload: { aiReplyPaused: false, source: 'manual_resume' },
+      }),
+    ).toBe(false)
+    expect(
+      maybePlayHandoffSound({
+        eventType: 'conversation.ai_pause',
+        payload: { aiReplyPaused: false, source: 'timeout_resume' },
+      }),
+    ).toBe(false)
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      configurable: true,
+    })
+    expect(
+      maybePlayHandoffSound({
+        eventType: 'conversation.ai_pause',
+        payload: { aiReplyPaused: true, source: 'handoff' },
+      }),
+    ).toBe(false)
+  })
 })
+

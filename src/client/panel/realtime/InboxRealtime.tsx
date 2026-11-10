@@ -1,7 +1,12 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { PanelApiError, type PanelApi } from '../api'
 import { applyAppBadge } from '../badge'
-import { installSoundUnlock, maybePlayInboundSound } from '../sound'
+import {
+  installSoundUnlock,
+  maybePlayHandoffEscalateSound,
+  maybePlayHandoffSound,
+  maybePlayInboundSound,
+} from '../sound'
 import {
   buildInboxWsUrl,
   createRealtimeConnection,
@@ -35,7 +40,9 @@ export function isInboxEvent(event: RealtimeServerEvent): boolean {
     event.eventType.startsWith('conversation.') ||
     event.eventType.startsWith('contact.') ||
     // DEC-062: a etapa mostrada na conversa muda sozinha e por correção de outra pessoa.
-    event.eventType === 'opportunity.stage_changed'
+    event.eventType === 'opportunity.stage_changed' ||
+    // DEC-155: reforço de alerta «Precisa de alguém».
+    event.eventType === 'conversation.needs_person_escalate'
   )
 }
 
@@ -130,9 +137,10 @@ export function InboxRealtimeProvider({
         api
           .listInboxConversations(tenantId, { limit: 1 })
           .then((res) => {
-            if (!badgeStopped && typeof res?.counts?.unread === 'number') {
-              applyAppBadge(res.counts.unread)
-            }
+            if (badgeStopped) return
+            const unread = res?.counts?.unread ?? 0
+            const needsPerson = res?.counts?.needsPerson ?? 0
+            applyAppBadge(Math.max(unread, needsPerson))
           })
           .catch(() => undefined)
       }, 400)
@@ -161,6 +169,8 @@ export function InboxRealtimeProvider({
             soundSeen.add(event.eventId)
             if (soundSeen.size > 200) soundSeen.delete(soundSeen.values().next().value as string)
             maybePlayInboundSound(event)
+            maybePlayHandoffSound(event)
+            maybePlayHandoffEscalateSound(event)
           }
           emit({ kind: 'event', event })
           refreshBadge()

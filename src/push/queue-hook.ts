@@ -34,13 +34,70 @@ export async function maybeNotifyNewConversationPush(input: {
       ? 'new_message'
       : null
   if (!kind) return
+  await deliverPushKind({
+    ...input,
+    kind,
+    logEvent:
+      kind === 'new_message' ? 'queue.push_new_message' : 'queue.push_new_conversation',
+    failEvent: 'queue.push_new_conversation_failed',
+  })
+}
+
+/** DEC-156 — push «Precisa de alguém» / reforço aos 5 min (best-effort). */
+export async function maybeNotifyNeedsPersonPush(input: {
+  env: WorkerBindings
+  clock: Clock
+  syncAdminDb?: AdminDb | null
+  tenantId: string
+  conversationId: string
+  escalate?: boolean
+  badgeCount?: number
+  suppressUserIds?: readonly string[]
+  log?: (entry: {
+    level: 'info' | 'warn' | 'error'
+    event: string
+    detail: Record<string, unknown>
+  }) => void
+}): Promise<void> {
+  if (!input.conversationId) return
+  const kind = input.escalate ? 'needs_person_escalate' : 'needs_person'
+  await deliverPushKind({
+    ...input,
+    kind,
+    logEvent: input.escalate
+      ? 'queue.push_needs_person_escalate'
+      : 'queue.push_needs_person',
+    failEvent: 'queue.push_needs_person_failed',
+  })
+}
+
+async function deliverPushKind(input: {
+  env: WorkerBindings
+  clock: Clock
+  syncAdminDb?: AdminDb | null
+  tenantId: string
+  conversationId: string
+  kind: 'new_conversation' | 'new_message' | 'needs_person' | 'needs_person_escalate'
+  badgeCount?: number
+  suppressUserIds?: readonly string[]
+  logEvent: string
+  failEvent: string
+  log?: (entry: {
+    level: 'info' | 'warn' | 'error'
+    event: string
+    detail: Record<string, unknown>
+  }) => void
+  receiptId?: string
+}): Promise<void> {
   try {
     const vapid = resolveVapidConfig(input.env)
     if (input.syncAdminDb) {
       await notifyNewConversation(
         { db: input.syncAdminDb, clock: input.clock, vapid },
-        { tenantId: input.tenantId, conversationId: input.conversationId,
-          kind,
+        {
+          tenantId: input.tenantId,
+          conversationId: input.conversationId,
+          kind: input.kind,
           badgeCount: input.badgeCount,
           suppressUserIds: input.suppressUserIds,
         },
@@ -48,8 +105,10 @@ export async function maybeNotifyNewConversationPush(input: {
     } else {
       await notifyNewConversationAsync(
         { db: fromD1(input.env.DB), clock: input.clock, vapid },
-        { tenantId: input.tenantId, conversationId: input.conversationId,
-          kind,
+        {
+          tenantId: input.tenantId,
+          conversationId: input.conversationId,
+          kind: input.kind,
           badgeCount: input.badgeCount,
           suppressUserIds: input.suppressUserIds,
         },
@@ -57,7 +116,7 @@ export async function maybeNotifyNewConversationPush(input: {
     }
     input.log?.({
       level: 'info',
-      event: kind === 'new_message' ? 'queue.push_new_message' : 'queue.push_new_conversation',
+      event: input.logEvent,
       detail: {
         receiptId: input.receiptId,
         tenantId: input.tenantId,
@@ -67,7 +126,7 @@ export async function maybeNotifyNewConversationPush(input: {
   } catch (pushErr) {
     input.log?.({
       level: 'warn',
-      event: 'queue.push_new_conversation_failed',
+      event: input.failEvent,
       detail: {
         receiptId: input.receiptId,
         tenantId: input.tenantId,

@@ -35,7 +35,7 @@ export type NewConversationPushPayload = {
   url: string
   tenantId: string
   conversationId: string
-  kind: 'new_conversation' | 'new_message'
+  kind: 'new_conversation' | 'new_message' | 'needs_person' | 'needs_person_escalate'
   /** Nº de conversas com não lidas (badge do ícone). Só um número. */
   badgeCount?: number
 }

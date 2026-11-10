@@ -16,6 +16,7 @@ import {
 } from './subscriptions-async'
 import {
   assertSafePushPayload,
+  buildNeedsPersonPayload,
   buildNewConversationPayload,
   buildNewMessagePayload,
   createPushTransport,
@@ -61,8 +62,11 @@ export async function notifyNewConversation(
     tenantId: string
     conversationId: string
     tenantName?: string
-    /** Default: nova conversa. `new_message` = mensagem nova em conversa existente. */
-    kind?: 'new_conversation' | 'new_message'
+    /**
+     * Default: nova conversa.
+     * `new_message` = mensagem nova; `needs_person` / `needs_person_escalate` = DEC-156.
+     */
+    kind?: 'new_conversation' | 'new_message' | 'needs_person' | 'needs_person_escalate'
     /** Badge do ícone (conversas com não lidas). */
     badgeCount?: number
     /** Utilizadores com a app aberta e visível — não recebem push. */
@@ -74,7 +78,7 @@ export async function notifyNewConversation(
     return emptyResult()
   }
 
-  const payload = (input.kind === 'new_message' ? buildNewMessagePayload : buildNewConversationPayload)({
+  const payload = buildPushPayloadForKind(input.kind, {
     tenantId: input.tenantId,
     tenantName: input.tenantName ?? tenant.name,
     conversationId: input.conversationId,
@@ -117,8 +121,11 @@ export async function notifyNewConversationAsync(
     tenantId: string
     conversationId: string
     tenantName?: string
-    /** Default: nova conversa. `new_message` = mensagem nova em conversa existente. */
-    kind?: 'new_conversation' | 'new_message'
+    /**
+     * Default: nova conversa.
+     * `new_message` = mensagem nova; `needs_person` / `needs_person_escalate` = DEC-156.
+     */
+    kind?: 'new_conversation' | 'new_message' | 'needs_person' | 'needs_person_escalate'
     /** Badge do ícone (conversas com não lidas). */
     badgeCount?: number
     /** Utilizadores com a app aberta e visível — não recebem push. */
@@ -140,7 +147,7 @@ export async function notifyNewConversationAsync(
     return emptyResult()
   }
 
-  const payload = (input.kind === 'new_message' ? buildNewMessagePayload : buildNewConversationPayload)({
+  const payload = buildPushPayloadForKind(input.kind, {
     tenantId: input.tenantId,
     tenantName: tenantName!,
     conversationId: input.conversationId,
@@ -189,6 +196,23 @@ function emptyResult(): NotifyNewConversationResult {
     failed: 0,
     records: [],
   }
+}
+
+function buildPushPayloadForKind(
+  kind:
+    | 'new_conversation'
+    | 'new_message'
+    | 'needs_person'
+    | 'needs_person_escalate'
+    | undefined,
+  input: { tenantId: string; tenantName: string; conversationId: string },
+) {
+  if (kind === 'new_message') return buildNewMessagePayload(input)
+  if (kind === 'needs_person') return buildNeedsPersonPayload(input)
+  if (kind === 'needs_person_escalate') {
+    return buildNeedsPersonPayload({ ...input, escalate: true })
+  }
+  return buildNewConversationPayload(input)
 }
 
 async function deliverToSubs(input: {

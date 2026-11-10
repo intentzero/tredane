@@ -3199,6 +3199,23 @@
   color: var(--color-text-on-primary);
 }
 
+/* DEC-155 — faixa «Precisa de alguém» até Assumir. */
+.panel-strip-needs-person {
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+  border-bottom: var(--size-border-width) solid var(--color-warning-border);
+  justify-content: flex-start;
+}
+
+.panel-strip-needs-person p {
+  flex: 1;
+}
+
+.panel-strip-needs-person .panel-btn {
+  flex: none;
+  margin-left: auto;
+}
+
 /* Aviso global do WhatsApp: erro, porque o atendimento parou. */
 .whatsapp-global-banner {
   display: flex;
@@ -3389,6 +3406,25 @@
 .inbox-row--unread .inbox-row-preview {
   color: var(--color-text-primary);
   font-weight: var(--font-weight-medium);
+}
+
+.inbox-row--needs-person {
+  box-shadow: inset 3px 0 0 var(--color-warning-ink);
+}
+
+.inbox-row--needs-person-escalate {
+  background: var(--color-warning-tint);
+  animation: needs-person-pulse 1.6s ease-in-out 2;
+}
+
+@keyframes needs-person-pulse {
+  0%,
+  100% {
+    background: var(--color-warning-tint);
+  }
+  50% {
+    background: var(--color-warning-border);
+  }
 }
 
 .inbox-row--unread .inbox-row-time {

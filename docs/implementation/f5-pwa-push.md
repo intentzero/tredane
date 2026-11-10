@@ -8,6 +8,7 @@
 | --- | --- |
 | DEC-039 | Painel mobile first; PWA sem app nativo no MVP |
 | DEC-040 | Push de **nova conversa**; texto sem conteúdo da mensagem («Nova conversa na {clínica}») |
+| DEC-156 | Push **Precisa de alguém** / reforço aos 5 min (`needs_person`, `needs_person_escalate`); dispara em `ai_pause` `source:handoff`; Assumir (`clearedAwaitingTeam`) fecha a notificação no cliente |
 | DEC-041 | Ícone provisório (azul primary); marca definitiva Em aberto |
 | DEC-026 / REQ-003 | Revogação remove assinaturas push do par user×tenant; deep link revalida Clerk + membership |
 | Q-UX-05 | Só «Nova conversa» é requisito Confirmado; restantes toggles M-14 ficam **Propostos** / desactivados na UI |
@@ -24,8 +25,9 @@
 2. Ecrã M-14 `/c/:tenantId/avisos` — instalação iPhone/Android + **Ativar avisos**.
 3. `PushManager.subscribe` + `POST /api/tenants/:id/push/subscriptions`.
 4. Ingest WhatsApp com `conversation.created` → `maybeNotifyNewConversationPush` (best-effort).
-5. Envio revalida membership activa; 404/410 apagam a assinatura.
-6. Logout / troca de clínica limpa caches do SW (UX-05).
+5. Handoff (DEC-156): `conversation.ai_pause` `source:handoff` → `maybeNotifyNeedsPersonPush`; aos 5 min `needs_person_escalate` (renotify).
+6. Envio revalida membership activa; 404/410 apagam a assinatura.
+7. Logout / troca de clínica limpa caches do SW (UX-05).
 
 ## APIs
 

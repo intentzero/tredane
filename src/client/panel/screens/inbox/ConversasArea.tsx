@@ -12,6 +12,7 @@ import type { ConversasSection } from '../../routes'
 import { InboxContactScreen } from './InboxContact'
 import { InboxList } from './InboxList'
 import { InboxThread } from './InboxThread'
+import { NeedsPersonAlerts } from './NeedsPersonAlerts'
 import { AgendarScreen } from '../agenda/AgendarScreen'
 import { ShellIdentity, useOnline } from '../../shell/ShellIdentity'
 import { InboxRealtimeProvider } from '../../realtime/InboxRealtime'
@@ -75,17 +76,19 @@ export function ConversasArea({
   }
 
   const sectionView = (staffDisplayName: string | null) => (
-    <ConversasSectionView
-      tenantId={tenantId}
-      section={section}
-      conversationId={conversationId}
-      contactId={contactId}
-      api={api}
-      generation={generation}
-      viewerId={viewerId}
-      isOwner={isOwner}
-      staffDisplayName={staffDisplayName}
-    />
+    <NeedsPersonAlerts tenantId={tenantId} api={api} generation={generation}>
+      <ConversasSectionView
+        tenantId={tenantId}
+        section={section}
+        conversationId={conversationId}
+        contactId={contactId}
+        api={api}
+        generation={generation}
+        viewerId={viewerId}
+        isOwner={isOwner}
+        staffDisplayName={staffDisplayName}
+      />
+    </NeedsPersonAlerts>
   )
 
   // Uma ligação WS por clínica enquanto a área Conversas está aberta.

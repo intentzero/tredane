@@ -104,6 +104,8 @@ export function InboxList({
   const [loading, setLoading] = useState(true)
   /** Overlay WS: true/false por conversa até o próximo refetch reconciliar. */
   const [draftingById, setDraftingById] = useState<Record<string, boolean>>({})
+  /** DEC-155: reforço aos 5 min — destaque até Assumir / refetch. */
+  const [escalatedById, setEscalatedById] = useState<Record<string, boolean>>({})
 
   async function load(opts?: { keep?: boolean }) {
     if (!opts?.keep) setLoading(true)
@@ -137,6 +139,33 @@ export function InboxList({
   // Tempo real: actualiza o spinner já no payload; refetch silencioso reconcilia.
   useInboxRealtime((signals) => {
     setDraftingById((prev) => applyDraftingSignals(prev, signals))
+    setEscalatedById((prev) => {
+      let next = prev
+      for (const signal of signals) {
+        if (signal.kind !== 'event') continue
+        const { event } = signal
+        const id = eventConversationId(event)
+        if (!id) continue
+        if (event.eventType === 'conversation.needs_person_escalate') {
+          if (next === prev) next = { ...prev }
+          next[id] = true
+        }
+        // DEC-155 ganchos: Assumir limpa alerta; timeout/manual resume também.
+        const clearedAssign =
+          event.eventType === 'conversation.assigned' &&
+          event.payload?.clearedAwaitingTeam === true
+        const resumed =
+          event.eventType === 'conversation.ai_pause' &&
+          event.payload?.aiReplyPaused === false
+        if (clearedAssign || resumed) {
+          if (next[id]) {
+            if (next === prev) next = { ...prev }
+            delete next[id]
+          }
+        }
+      }
+      return next
+    })
     void load({ keep: true })
   })
 
@@ -243,11 +272,12 @@ export function InboxList({
           {list.map((c) => {
             const label = contactLabel(c.contact)
             const drafting = draftingById[c.id] === true
+            const escalated = escalatedById[c.id] === true
             return (
               <li key={c.id}>
                 <button
                   type="button"
-                  className={`inbox-row${c.unreadCount > 0 ? ' inbox-row--unread' : ''}${c.id === activeConversationId ? ' inbox-row--active' : ''}`}
+                  className={`inbox-row${c.unreadCount > 0 ? ' inbox-row--unread' : ''}${c.needsPerson ? ' inbox-row--needs-person' : ''}${escalated ? ' inbox-row--needs-person-escalate' : ''}${c.id === activeConversationId ? ' inbox-row--active' : ''}`}
                   aria-current={c.id === activeConversationId ? 'page' : undefined}
                   onClick={() =>
                     navigatePanel({
