@@ -116,7 +116,15 @@ import type {
   SummarizeInput,
 } from '../clinic/ai'
 import { recordBookingSessionFlow } from '../clinic/ai/booking-session'
-import { HUMAN_HANDOFF_BUTTON_ID, notifyHumanHandoff, resumeAiReply } from '../clinic/ai/human-handoff'
+import {
+  HUMAN_HANDOFF_BUTTON_ID,
+  isHumanTeamOfferAllowed,
+  nextHandoffTimeoutAt,
+  notifyHumanHandoff,
+  replyAfterHoursHumanRequest,
+  resumeAiReply,
+  sweepDueHandoffTimeouts,
+} from '../clinic/ai/human-handoff'
 import {
   handleChoiceOfferClick,
   isChoiceOfferId,
@@ -892,13 +900,28 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     this.#assertInstanceTenant(caller)
     bindOrAssertTenant(this.#db, caller, this.#clock)
     if (input.buttonId.trim() === HUMAN_HANDOFF_BUTTON_ID && input.conversationId) {
+      const clientRequestId = `handoff.button:${input.providerEventKey ?? input.conversationId}`
+      // DEC-155: fora do expediente → horário, IA activa (sem pausa).
+      if (!isHumanTeamOfferAllowed(this.#db, caller.tenantId, this.#clock)) {
+        const afterHours = replyAfterHoursHumanRequest(
+          this.#db,
+          caller.tenantId,
+          { conversationId: input.conversationId, clientRequestId },
+          this.#clock,
+        )
+        if (afterHours.outbox.length > 0) {
+          await this.#fanoutOutboxes(caller, afterHours.outbox, true)
+          await this.#drain(caller)
+        }
+        return { handled: true, action: 'human' as const, paused: false as const }
+      }
       const handoff = notifyHumanHandoff(
         this.#db,
         caller.tenantId,
         {
           conversationId: input.conversationId,
           reason: 'customer_requested',
-          clientRequestId: `handoff.button:${input.providerEventKey ?? input.conversationId}`,
+          clientRequestId,
         },
         this.#clock,
       )
@@ -906,7 +929,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         await this.#fanoutOutboxes(caller, handoff.outbox, true)
         await this.#drain(caller)
       }
-      return { handled: true, action: 'human' as const }
+      const nextTimeout = nextHandoffTimeoutAt(this.#db, caller.tenantId)
+      if (nextTimeout != null) await this.#scheduleAlarmNoLaterThan(nextTimeout + 500)
+      return { handled: true, action: 'human' as const, paused: true as const }
     }
     // M5 (#415) / DEC-128 — toque em linha/variantes/horários (não marca; DEC-061).
     if (input.conversationId && isChoiceOfferId(input.buttonId)) {
@@ -3212,6 +3237,21 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       /* best-effort idle */
     }
     try {
+      // DEC-155: 30 min sem Assumir → aviso + devolver à IA (fim da escalada de alertas).
+      const timeoutItems = sweepDueHandoffTimeouts(this.#db, meta.tenantId, this.#clock)
+      for (const item of timeoutItems) {
+        if (item.outbox.length > 0) {
+          await this.#fanoutOutboxes(caller, item.outbox, true)
+        }
+      }
+      const nextHandoffTimeout = nextHandoffTimeoutAt(this.#db, meta.tenantId)
+      if (nextHandoffTimeout != null) {
+        await this.#scheduleAlarmNoLaterThan(nextHandoffTimeout + 500)
+      }
+    } catch {
+      /* best-effort handoff timeout */
+    }
+    try {
       const ended = sweepEndedAppointments(this.#db, meta.tenantId, this.#clock)
       if (ended.length > 0) await this.#fanoutOutboxes(caller, ended, true)
       const nextEnd = nextOpenAppointmentEndAt(this.#db, meta.tenantId, this.#clock.nowMs())
@@ -3411,6 +3451,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     const next = clinicAi.nextAutoDraftDueAt(this.#db, caller.tenantId)
     if (next != null) await this.#scheduleAlarmNoLaterThan(next)
+    const nextHandoffTimeout = nextHandoffTimeoutAt(this.#db, caller.tenantId)
+    if (nextHandoffTimeout != null) await this.#scheduleAlarmNoLaterThan(nextHandoffTimeout + 500)
     return outcomes
   }
 

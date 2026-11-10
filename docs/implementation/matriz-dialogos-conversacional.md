@@ -185,7 +185,7 @@
 | G-07 | P0 | Remarcar com compromisso | [compromisso futuro] ⟶ C: «Posso reagendar para quarta?» | Oferece horários de quarta para o mesmo serviço e zonas (DEC-129: «Na {dia} tenho {horas}. Algum serve para remarcar?»); a proposta substitui o compromisso; sem marcador CF-22. | EF-02, INV-08 | 2 | ✅ `reschedule.test` |
 | G-08 | P1 | Remarcar sem compromisso | C: «Quero remarcar» | Handoff. | INV-06 | 1 | ✅ `dec-083.test` |
 | G-09 | P0 | Mensagem durante a pausa | [pausada] ⟶ C: «Axila» ⟶ equipe devolve à IA | Nenhuma frase repetida; depois de devolver, a mensagem pendente recebe resposta. | INV-06, INV-09 | 1 | ✅ `dec-083.test`; L4 divergente na sonda de 31/10 |
-| G-10 | P1 | Handoff fora do expediente | (sáb 17:00) C: «Quero falar com alguém» | «Vou pedir para a equipe continuar daqui. A equipe responde a partir de segunda às 09:00.» (DEC-113). | Q5, Q6 | 1 | ⚠ CF-17 (DEC-113 por implementar) |
+| G-10 | P1 | Pedido de equipe fora do expediente | (sáb 17:00) C: «Quero falar com alguém» | «A equipe atende a partir de segunda às 09:00. Posso continuar te ajudando por aqui.» IA activa (DEC-155; revê DEC-113 neste caminho). | Q5, Q6 | 1 | ✅ L1 |
 | G-11 | P0 | Pedido humano no meio de várias bolhas | C: «quero falar com alguém» · «obrigada» | Handoff. | INV-06 | 1 | ⚠ CF-13 |
 | G-12 | P1 | Botão «Falar com a equipe» | [qualquer mensagem da IA] ⟶ clique no botão | Frase; a proposta pendente não é encaminhada. | INV-06 | 1 | ✅ `dec-083.test` |
 | G-13 | P1 | Dica humana na 1.ª oferta de Horários | [1.ª lista Horários] ⟶ [2.ª oferta na sessão] | 1.ª inclui «escreva falar com a equipe…»; 2.ª não; sem pausa só por mostrar a dica (DEC-153). | INV-06, EF-03 | 1 | ✅ L1 A-42 · `human-help-hint.test` |
@@ -347,7 +347,7 @@ Total: 105 casos.
 | C-11 | ❌ CF-05 | ✅ idem | #410 |
 | D-06 | ⚠ CF-20 | ✅ `preferredProfessionalId` | #410 |
 | F-07 | ⚠ DEC-114 | ✅ pausa silenciosa + alerta (`dialogs` F-07) | [#420](https://github.com/intentzero/tredane/issues/420) |
-| G-10 | ⚠ CF-17 | ✅ DEC-113 + `nextClinicOpening` (`dialogs` G-10) | #420 |
+| G-10 | ⚠ CF-17 | ✅ DEC-155 (sem pausa + horário; revê DEC-113 no pedir equipe) (`dialogs` G-10) | DEC-155 |
 
 Infraestrutura sem caso de matriz dedicado: [#411](https://github.com/intentzero/tredane/issues/411) (`TurnContext` + catálogo compilado; L1 regressão verde).
 

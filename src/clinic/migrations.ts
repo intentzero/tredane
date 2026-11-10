@@ -291,6 +291,11 @@ import {
   MIGRATION_NAME as M58_NAME,
   STATEMENTS as M58_STATEMENTS,
 } from './migrations/0058_human_help_hint'
+import {
+  MIGRATION_ID as M59_ID,
+  MIGRATION_NAME as M59_NAME,
+  STATEMENTS as M59_STATEMENTS,
+} from './migrations/0059_handoff_timeout'
 import type { Clock } from '../db/clock'
 
 export type ClinicMigration = {
@@ -359,6 +364,7 @@ export const CLINIC_MIGRATIONS: readonly ClinicMigration[] = [
   { id: M56_ID, name: M56_NAME, statements: M56_STATEMENTS },
   { id: M57_ID, name: M57_NAME, statements: M57_STATEMENTS },
   { id: M58_ID, name: M58_NAME, statements: M58_STATEMENTS },
+  { id: M59_ID, name: M59_NAME, statements: M59_STATEMENTS },
 ]
 
 export type MigrationResult = {

@@ -9,10 +9,7 @@ import { sendOutboundMessageOp } from '../inbox/operations'
 import type { OutboxRow } from '../outbox'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import type { ClinicDb } from '../store'
-import {
-  HUMAN_HANDOFF_BUTTON_ID,
-  HUMAN_HANDOFF_BUTTON_TITLE,
-} from './human-handoff'
+import { humanTeamOfferButtons } from './human-handoff'
 
 const AI_ASSIGNEE = 'system:ai-autodraft'
 
@@ -107,9 +104,10 @@ export function notifyModelFallback(
       {
         conversationId: input.conversationId,
         body: MODEL_FALLBACK_TEXT,
-        interactive: {
-          buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }],
-        },
+        interactive: (() => {
+          const buttons = humanTeamOfferButtons(db, tenantId, clock)
+          return buttons.length > 0 ? { buttons } : undefined
+        })(),
         clientRequestId,
         authorClerkUserId: AI_ASSIGNEE,
         authorDisplayName: 'IA',

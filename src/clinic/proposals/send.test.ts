@@ -88,7 +88,12 @@ function seed(tenantId = 'clinic-demo-s4-a') {
     caller,
     {
       resourceId: pro.id,
-      windows: [{ dayOfWeek: 3, startMinute: 9 * 60, endMinute: 18 * 60 }],
+      // Mon–Fri — T0 é quinta; DEC-155 omite «Falar com a equipe» fora do expediente.
+      windows: [1, 2, 3, 4, 5].map((d) => ({
+        dayOfWeek: d,
+        startMinute: 9 * 60,
+        endMinute: 18 * 60,
+      })),
     },
     clock,
   )

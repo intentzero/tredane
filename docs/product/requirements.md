@@ -209,7 +209,7 @@
 
 ### REQ-083 — Proposta de agendamento versionada
 
-**Prioridade/estado:** MVP (capacidade sempre ligada; a owner pausa na clínica) / Decidido (DEC-061, Paulo 29/10/2026; botão humano DEC-083; dica na 1.ª oferta DEC-153, Paulo 09/11/2026). **Origem:** JRN-17. **Comportamento:** o backend monta a proposta (id + versão) a partir da interpretação da IA e envia-a como mensagem determinística de texto fixo com os botões **Confirmar**, **Alterar detalhes** e **Falar com a equipe** (DEC-083); mostra clínica/local, serviço, data completa com fuso, início e fim (ou duração), profissional quando aplicável, preço e sinal/condições. Validade de 30 min. Mudança material cria nova versão e invalida a anterior. O LLM não redige a proposta nem o resultado. Na **primeira** oferta de Horários da sessão de booking, o corpo inclui uma dica one-shot para escrever *falar com a equipe* ou usar o botão quando aparecer (DEC-153); ofertas seguintes na mesma sessão não repetem a dica; mostrar a dica não pausa a IA. **Aceite:** AC-55. **Dados/eventos:** proposta no SQLite da clínica; contexto da IA continua o de REQ-072/DEC-011.
+**Prioridade/estado:** MVP (capacidade sempre ligada; a owner pausa na clínica) / Decidido (DEC-061, Paulo 29/10/2026; botão humano DEC-083; dica na 1.ª oferta DEC-153, Paulo 09/11/2026; fora do expediente DEC-155, 10/11/2026). **Origem:** JRN-17. **Comportamento:** o backend monta a proposta (id + versão) a partir da interpretação da IA e envia-a como mensagem determinística de texto fixo com os botões **Confirmar**, **Alterar detalhes** e **Falar com a equipe** (DEC-083) — este último **só dentro do expediente** (DEC-155); fora do horário ficam Confirmar e Alterar detalhes. Mostra clínica/local, serviço, data completa com fuso, início e fim (ou duração), profissional quando aplicável, preço e sinal/condições. Validade de 30 min. Mudança material cria nova versão e invalida a anterior. O LLM não redige a proposta nem o resultado. Na **primeira** oferta de Horários da sessão de booking, o corpo inclui uma dica one-shot para escrever *falar com a equipe* ou usar o botão quando aparecer (DEC-153) **só em expediente**; ofertas seguintes na mesma sessão não repetem a dica; mostrar a dica não pausa a IA. **Aceite:** AC-55. **Dados/eventos:** proposta no SQLite da clínica; contexto da IA continua o de REQ-072/DEC-011.
 
 ### REQ-084 — Marcação só por clique de confirmação
 
@@ -278,6 +278,14 @@
 
 **Prioridade/estado:** MVP / Confirmado (DEC-091, Paulo 31/10/2026). **Origem:** ACT-01; JRN-05, JRN-17; DEC-008, DEC-061, DEC-078. **Comportamento:** com compromisso confirmado futuro no contacto, pedido de reagendar (reagendar, remarcar, mudar/trocar horário, «posso … para [dia]») **não** reabre o funil de serviço/zonas/linha. O sistema oferece slots no dia/período pedido para o mesmo serviço e variantes do compromisso; confirmação só pelo botão da proposta (DEC-061) que, no clique, chama o reagendamento atómico existente (`rescheduleAppointmentOp`, motivo `contato_remarcou`, zonas mantidas). Sem slots: avisar e pedir outro dia, sem perguntar zonas. Cancelar/desmarcar e remarcar sem compromisso futuro → handoff humano (DEC-083). **Aceite:** AC-75. **Dados/tenant:** proposta com `replaces_appointment_id`; SQLite da clínica; isolamento DEC-038.
 
+### REQ-102 — Timeout de handoff sem Assumir
+
+**Prioridade/estado:** MVP / Confirmado (DEC-155, Paulo 10/11/2026). **Origem:** DEC-083; alertas ao atendente (escalada). **Comportamento:** ao pausar a IA por handoff, o backend agenda `ai_handoff_timeout_at = now + 30 min` (fixo). Se ninguém **Assumir** nem **Devolver à IA** até lá, envia a frase curta ao cliente e religa a IA (`source: timeout_resume`). Assumir resolve o alerta `alter_awaiting_team`, limpa o timeout e **não** religa a IA. Devolver à IA limpa o timeout (`source: manual_resume`). **Aceite:** handoff sem Assumir → após 30 min IA retoma + aviso; Assumir cancela o auto-retorno. **Eventos:** `conversation.ai_pause` com `source` / `handoffTimeoutAt`; `conversation.assigned` com `clearedAwaitingTeam` quando Assumir limpa o alerta.
+
+### REQ-103 — Pedido de equipe fora do expediente
+
+**Prioridade/estado:** MVP / Confirmado (DEC-155, Paulo 10/11/2026; revê DEC-113 no caminho pedir equipe). **Origem:** DEC-008 (expediente), DEC-083, DEC-153. **Comportamento:** fora do horário comercial da clínica (janelas efectivas já configuradas), não oferecer botão nem dica «Falar com a equipe». Pedido explícito (texto ou toque residual) → mensagem com a próxima abertura (ou lista do expediente) e a IA continua activa, sem pausa. Em expediente, DEC-083/153 + REQ-102. **Aceite:** L1 G-10; proposta/dica sem oferta humana fora do horário.
+
 ## Racional de prioridade — proposta para aprovação
 
 Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP interno** para gestão da plataforma) porque contribuem para a primeira jornada demonstrável, para a segurança multi-tenant ou para operar a plataforma sem depender de intervenção no banco. Estas justificativas **não significam aprovação final**, nem liberam uso de dados reais. Quando parte do comportamento estiver em aberto, a aprovação da prioridade não fecha a regra de produto.
@@ -323,6 +331,8 @@ Os requisitos abaixo estão categorizados como **MVP candidato** (ou **MVP inter
 | REQ-099 | MVP | Outbound humano no WhatsApp leva prefixo `[Nome]` (DEC-088). |
 | REQ-100 | MVP | Owner configura nome/género opcionais do atendente virtual (DEC-089). |
 | REQ-101 | MVP | Reagendar com compromisso existente mantém serviço/zonas e confirma por botão (DEC-091). |
+| REQ-102 | MVP | Handoff sem Assumir devolve à IA após 30 min com aviso (DEC-155). |
+| REQ-103 | MVP | Fora do expediente: sem oferta de equipe; pedido → horário, IA activa (DEC-155). |
 | REQ-070 | MVP | Suporte e piloto dependem de diagnóstico de falhas sem expor dados pessoais. |
 | REQ-071 | MVP | Retenção e exclusão de dados pessoais são condição para usar dados reais (DEC-011). Mensagem nova após exclusão abre contacto limpo (DEC-099). |
 

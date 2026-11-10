@@ -437,6 +437,7 @@ export function assignConversationOp(
       reopenIfClosed: false,
     })
 
+    let clearedAwaitingTeam = false
     if (input.assigneeClerkUserId) {
       for (const pending of listOpenPendingCommunicationsForConversation(
         db,
@@ -445,7 +446,19 @@ export function assignConversationOp(
       )) {
         if (pending.kind === 'alter_awaiting_team') {
           resolvePendingCommunication(db, meta.tenantId, pending.id, clock)
+          clearedAwaitingTeam = true
         }
+      }
+      if (clearedAwaitingTeam) {
+        // DEC-155 / ganchos de alerta: Assumir cancela o timeout de devolução à IA.
+        // A IA continua pausada até «Devolver à IA» (DEC-083).
+        db.run(
+          `UPDATE conversations SET ai_handoff_timeout_at = NULL, updated_at = ?
+           WHERE tenant_id = ? AND id = ?`,
+          now,
+          meta.tenantId,
+          input.conversationId,
+        )
       }
     }
 
@@ -482,6 +495,8 @@ export function assignConversationOp(
           assignmentVersion: updated.assignmentVersion,
           actorClerkUserId: input.actorClerkUserId,
           systemMessageId: systemMessage.id,
+          // Gancho para alertas do painel (DEC-156): Assumir limpa badge/toast/notifs.
+          clearedAwaitingTeam,
         },
       },
       clock,
