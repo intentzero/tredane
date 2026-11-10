@@ -177,20 +177,22 @@ Substitui: `Às {hora} da tarde seria {hora24}. É esse horário?` (dava «Às 1
 
 ### sem_horario_periodo
 
-1. *(atual)* `Para {assunto}, {período} não tenho horário livre. Quer ver outro período?`
-2. *(novo)* `{período} não tenho nada livre para {assunto}. Prefere outro período?`
+1. *(atual)* `Para {assunto}, {período} não tenho horário livre.`
+2. *(novo)* `{período} não tenho nada livre para {assunto}.`
+
+**Confirmado (Paulo «Sim», 09/11/2026):** sem wait «Sim» / «Quer ver outro período?»; no outbound vazio saem botões T1 Manhã | Tarde | Outro dia (auto-avanço silencioso quando há vaga noutro período).
 
 ### sem_horario_dia
 
-1. *(novo)* `Para {assunto}, {dia} não tenho horário livre. Quer ver outro dia?`
-2. *(novo)* `Não tenho horário livre para {assunto} {dia}. Prefere outro dia?`
+1. *(novo)* `Para {assunto}, {dia} não tenho horário livre.`
+2. *(novo)* `Não tenho horário livre para {assunto} {dia}.`
 
-Substitui: `Para {assunto}, em {dia} não tenho horário livre…` (dava «em sexta 06/11»); agora o fluxo passa `{dia}` já com a preposição («na sexta (06/11)», «amanhã»).
+Substitui: `Para {assunto}, em {dia} não tenho horário livre…` (dava «em sexta 06/11»); agora o fluxo passa `{dia}` já com a preposição («na sexta (06/11)», «amanhã»). Sem wait «Sim» (T1, Paulo 09/11/2026).
 
 ### sem_horario_semana
 
-1. *(atual)* `Para {assunto}, no momento não tenho horário livre. Quer que eu veja outra data?`
-2. *(novo)* `No momento não tenho horário livre para {assunto}. Quer que eu veja outra data?`
+1. *(atual)* `Para {assunto}, no momento não tenho horário livre.`
+2. *(novo)* `No momento não tenho horário livre para {assunto}.`
 
 ### sem_vaga_sem_alternativa
 

@@ -142,7 +142,7 @@ describe('#414 dialogue acts', () => {
 
   it('correções da revisão da leva 2: preposição, crase, género e voz', () => {
     const dia = renderEveryVariant('sem_horario_dia', { assunto: 'Massagem', dia: 'na sexta (06/11)' })
-    expect(dia).toContain('Para Massagem, na sexta (06/11) não tenho horário livre. Quer ver outro dia?')
+    expect(dia).toContain('Para Massagem, na sexta (06/11) não tenho horário livre.')
     expect(dia.every((x) => !/\bem (na|no|sexta|sábado)\b/i.test(x))).toBe(true)
     expect(renderEveryVariant('confirmar_hora_ambigua', { hora24: '13:00' })).toEqual(['Você quis dizer 13:00, à tarde?'])
     const periodo = renderEveryVariant('sem_horario_periodo', { assunto: 'Massagem', período: 'de manhã' })

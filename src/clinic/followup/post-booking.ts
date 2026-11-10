@@ -1,18 +1,18 @@
 /**
  * DEC-086 — follow-up pós-agendamento com botões.
- * «Não, obrigado» agradece, não muda a etapa e fecha a sessão conversacional
- * (BookingFrame, pergunta pendente e última oferta — o mesmo clear do recomeço/idle).
- * Também zera o badge de não lidas da conversa (atenção do painel).
- * O compromisso confirmado fica. «Quero outro serviço» segue a consulta de
- * catálogo (DEC-142): não marca, e mantém a audiência se a conversa já a tiver.
+ * T3 (Paulo 09/11/2026): «Marcar outro» | «Terminar».
+ * «Marcar outro» = B2 / DEC-142 (catálogo, mantém audiência).
+ * «Terminar» = soft-decline Class A (limpa frame + acolher_adiamento).
+ * O compromisso confirmado fica. Badge de não lidas zera no Terminar.
  */
 import type { Clock } from '../../db/clock'
 import { writeOperationalAudit } from '../audit'
 import { deliverCatalogConsult, planCatalogConsult } from '../ai/catalog-consult'
+import { sayAct } from '../ai/dialogue-acts'
 import { clearBookingFrame, getBookingFrame } from '../ai/schedule-session'
 import { readCatalogVersion } from '../ai/turn-context'
 import { listServices } from '../config/services'
-import { getActiveProposalForConversation } from '../proposals/proposals'
+import { getActiveProposalForConversation, retireActiveProposal } from '../proposals/proposals'
 import type { ClinicCaller } from '../envelopes'
 import { assertValidCaller, workerCaller } from '../envelopes'
 import { clearConversationUnread } from '../inbox/conversations'
@@ -32,34 +32,41 @@ export const POST_BOOKING_BODY =
   'Posso ajudar em algo mais?'
 
 export const POST_BOOKING_BUTTONS = {
-  thanks: {
-    idSuffix: 'thanks',
-    title: 'Não, obrigado',
-  },
   another: {
     idSuffix: 'another',
-    // DEC-086 «Quero agendar outro serviço»; Cloud API máx. 20 caracteres.
-    title: 'Quero outro serviço',
+    // T3 (Paulo 09/11/2026) — Cloud API máx. 20 caracteres.
+    title: 'Marcar outro',
+  },
+  end: {
+    idSuffix: 'end',
+    title: 'Terminar',
   },
 } as const
 
+/** Adeus Class A (DEC-147 / T3 Terminar) — fallback do acto `acolher_adiamento`. */
+export const TERMINAR_REPLY_BODY = 'Sem problema. Quando quiser, é só chamar.'
+
+/**
+ * Idle DEC-087 / «Não, obrigado» legado — agradecimento pós-contacto.
+ * Distinto de Terminar Class A (T3).
+ */
 export const THANKS_REPLY_BODY =
   'Agradecemos o contato. Estamos à disposição quando precisar.'
 
-/** Id opaco: fu:post:{appointmentId}:{thanks|another} */
+/** Id opaco: fu:post:{appointmentId}:{another|end} */
 export function postBookingButtonId(
   appointmentId: string,
-  action: 'thanks' | 'another',
+  action: 'another' | 'end',
 ): string {
   return `fu:post:${appointmentId}:${action}`
 }
 
 export function parsePostBookingButtonId(
   raw: string,
-): { appointmentId: string; action: 'thanks' | 'another' } | null {
-  const m = /^fu:post:([^:]+):(thanks|another)$/.exec(raw.trim())
+): { appointmentId: string; action: 'another' | 'end' } | null {
+  const m = /^fu:post:([^:]+):(another|end)$/.exec(raw.trim())
   if (!m) return null
-  return { appointmentId: m[1]!, action: m[2] as 'thanks' | 'another' }
+  return { appointmentId: m[1]!, action: m[2] as 'another' | 'end' }
 }
 
 export function postBookingClientRequestId(appointmentId: string): string {
@@ -114,12 +121,12 @@ export function sendPostBookingFollowupOp(
 
   const buttons = [
     {
-      id: postBookingButtonId(input.appointmentId, 'thanks'),
-      title: POST_BOOKING_BUTTONS.thanks.title,
-    },
-    {
       id: postBookingButtonId(input.appointmentId, 'another'),
       title: POST_BOOKING_BUTTONS.another.title,
+    },
+    {
+      id: postBookingButtonId(input.appointmentId, 'end'),
+      title: POST_BOOKING_BUTTONS.end.title,
     },
   ]
 
@@ -181,7 +188,7 @@ export type PostBookingButtonResult =
   | { handled: false; reason: 'not_post_booking_button' }
   | {
       handled: true
-      action: 'thanks'
+      action: 'end'
       closedOpportunityId: string | null
       outbox: OutboxRow[]
     }
@@ -193,8 +200,7 @@ export type PostBookingButtonResult =
 
 /**
  * Processa clique nos botões de follow-up. Não marca horário (DEC-061 intacto).
- * «Não, obrigado» limpa o BookingFrame (ADR-0015). «Quero outro serviço» segue a DEC-142.
- * «Não, obrigado» também zera `unread_count` e emite `conversation.read`.
+ * «Terminar» = Class A (limpa BookingFrame). «Marcar outro» = DEC-142 / B2.
  */
 export function handlePostBookingButtonClick(
   db: ClinicDb,
@@ -214,21 +220,25 @@ export function handlePostBookingButtonClick(
   bindOrAssertTenant(db, caller, clock)
   const outbox: OutboxRow[] = []
 
-  if (parsed.action === 'thanks') {
-    // Fim do pós-agendamento (ADR-0015): agradece e apaga o funil. Não cancela
-    // o compromisso nem move a etapa (DEC-086). Zera unread para o badge da
-    // lista deixar de chamar a atendente (Paulo, 2026-11-04).
+  if (parsed.action === 'end') {
+    const replyText = sayAct(
+      'acolher_adiamento',
+      input.conversationId,
+      {},
+      TERMINAR_REPLY_BODY,
+    )
     const thanks = sendOutboundMessageOp(
       db,
       caller,
       {
         conversationId: input.conversationId,
-        body: THANKS_REPLY_BODY,
-        clientRequestId: `followup.postbook.thanks:${parsed.appointmentId}:${input.providerEventKey ?? 'x'}`,
+        body: replyText,
+        clientRequestId: `followup.postbook.end:${parsed.appointmentId}:${input.providerEventKey ?? 'x'}`,
         authorClerkUserId: FOLLOWUP_ACTOR,
         authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
         afterPersist: ({ db: txDb, tenantId, conversationId, now }) => {
           const out: OutboxRow[] = []
+          retireActiveProposal(txDb, tenantId, conversationId, clock)
           const frameOb = clearBookingFrame(txDb, tenantId, conversationId, clock)
           if (frameOb) out.push(frameOb)
           clearConversationUnread(txDb, tenantId, conversationId, now)
@@ -240,11 +250,11 @@ export function handlePostBookingButtonClick(
                 type: 'conversation.read',
                 aggregateType: 'conversation',
                 aggregateId: conversationId,
-                idempotencyKey: `conversation.read:${conversationId}:${now}:post_booking_thanks`,
+                idempotencyKey: `conversation.read:${conversationId}:${now}:post_booking_end`,
                 payload: {
                   conversationId,
                   unreadCount: 0,
-                  reason: 'post_booking_thanks',
+                  reason: 'post_booking_end',
                 },
               },
               clock,
@@ -263,7 +273,7 @@ export function handlePostBookingButtonClick(
       {
         tenantId: input.tenantId,
         actor: FOLLOWUP_ACTOR,
-        action: 'followup.post_booking_thanks',
+        action: 'followup.post_booking_end',
         objectType: 'conversation',
         objectId: input.conversationId,
         detail: {
@@ -274,13 +284,13 @@ export function handlePostBookingButtonClick(
       clock,
     )
 
-    return { handled: true, action: 'thanks', closedOpportunityId: null, outbox }
+    return { handled: true, action: 'end', closedOpportunityId: null, outbox }
   }
 
-  // DEC-086 + DEC-142: o botão não marca. Limpa o serviço e lista o catálogo.
+  // T3 + DEC-142 / B2: limpa o serviço e lista o catálogo.
   const frame = getBookingFrame(db, input.tenantId, input.conversationId)
   const action = planCatalogConsult({
-    text: 'quero outro serviço',
+    text: 'quero outro agendamento',
     frame,
     services: listServices(db, input.tenantId),
     catalogVersion: readCatalogVersion(db, input.tenantId),
@@ -311,5 +321,105 @@ export function handlePostBookingButtonClick(
     clock,
   )
 
+  return { handled: true, action: 'another', outbox }
+}
+
+/** T3 mid-funnel após preço total — ids estáveis (sem appointment). */
+export const PRICE_FOLLOWUP_BUTTONS = {
+  another: { id: 'fu:price:another', title: 'Marcar outro' },
+  end: { id: 'fu:price:end', title: 'Terminar' },
+} as const
+
+export function parsePriceFollowupButtonId(
+  raw: string,
+): 'another' | 'end' | null {
+  if (raw.trim() === PRICE_FOLLOWUP_BUTTONS.another.id) return 'another'
+  if (raw.trim() === PRICE_FOLLOWUP_BUTTONS.end.id) return 'end'
+  return null
+}
+
+export function priceFollowupInteractiveButtons(): Array<{ id: string; title: string }> {
+  return [
+    { id: PRICE_FOLLOWUP_BUTTONS.another.id, title: PRICE_FOLLOWUP_BUTTONS.another.title },
+    { id: PRICE_FOLLOWUP_BUTTONS.end.id, title: PRICE_FOLLOWUP_BUTTONS.end.title },
+  ]
+}
+
+export type PriceFollowupButtonResult =
+  | { handled: false; reason: 'not_price_followup_button' }
+  | { handled: true; action: 'another' | 'end'; outbox: OutboxRow[] }
+
+/**
+ * T3 após «No total, ficam…»: Marcar outro → catálogo B2; Terminar → Class A.
+ */
+export function handlePriceFollowupButtonClick(
+  db: ClinicDb,
+  input: {
+    tenantId: string
+    conversationId: string
+    buttonId: string
+    providerEventKey?: string | null
+  },
+  clock: Clock,
+): PriceFollowupButtonResult {
+  assertClinicSchemaReady(db)
+  const action = parsePriceFollowupButtonId(input.buttonId)
+  if (!action) return { handled: false, reason: 'not_price_followup_button' }
+
+  const caller = workerCaller(input.tenantId, FOLLOWUP_ACTOR)
+  bindOrAssertTenant(db, caller, clock)
+  const outbox: OutboxRow[] = []
+  const key = input.providerEventKey ?? 'x'
+
+  if (action === 'end') {
+    const replyText = sayAct(
+      'acolher_adiamento',
+      input.conversationId,
+      {},
+      TERMINAR_REPLY_BODY,
+    )
+    const sent = sendOutboundMessageOp(
+      db,
+      caller,
+      {
+        conversationId: input.conversationId,
+        body: replyText,
+        clientRequestId: `followup.price.end:${key}`,
+        authorClerkUserId: FOLLOWUP_ACTOR,
+        authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
+        afterPersist: ({ db: txDb, tenantId, conversationId }) => {
+          const out: OutboxRow[] = []
+          retireActiveProposal(txDb, tenantId, conversationId, clock)
+          const frameOb = clearBookingFrame(txDb, tenantId, conversationId, clock)
+          if (frameOb) out.push(frameOb)
+          return out
+        },
+      },
+      clock,
+    )
+    outbox.push(...sent.outbox)
+    clearConversationIdle(db, input.tenantId, input.conversationId, clock.nowMs())
+    return { handled: true, action: 'end', outbox }
+  }
+
+  const frame = getBookingFrame(db, input.tenantId, input.conversationId)
+  const planned = planCatalogConsult({
+    text: 'quero outro agendamento',
+    frame,
+    services: listServices(db, input.tenantId),
+    catalogVersion: readCatalogVersion(db, input.tenantId),
+    hasActiveProposal:
+      getActiveProposalForConversation(db, input.tenantId, input.conversationId, clock) != null,
+  })
+  if (planned) {
+    const ask = deliverCatalogConsult(db, caller, clock, {
+      conversationId: input.conversationId,
+      clientRequestId: `followup.price.another:${key}`,
+      authorClerkUserId: FOLLOWUP_ACTOR,
+      authorDisplayName: FOLLOWUP_ACTOR_DISPLAY,
+      action: planned,
+    })
+    outbox.push(...ask.outbox)
+  }
   return { handled: true, action: 'another', outbox }
 }

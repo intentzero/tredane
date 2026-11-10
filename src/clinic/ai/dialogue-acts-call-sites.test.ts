@@ -90,9 +90,9 @@ const RETIRED_FRAGMENTS: readonly string[] = [
  */
 const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   // — Fallbacks sayAct (levas 1–2) —
-  /^Para \$\{subject\}, \$\{período\} não tenho horário livre\. Quer ver outro período\?$/,
-  /^Para \$\{subject\}, \$\{dia\} não tenho horário livre\. Quer ver outro dia\?$/,
-  /^Para \$\{subject\}, no momento não tenho horário livre\. Quer que eu veja outra data\?$/,
+  /^Para \$\{subject\}, \$\{período\} não tenho horário livre\.$/,
+  /^Para \$\{subject\}, \$\{dia\} não tenho horário livre\.$/,
+  /^Para \$\{subject\}, no momento não tenho horário livre\.$/,
   /^Para \$\{subject\}, \$\{quando\}tenho \$\{listed\}\. Qual fica melhor\?$/,
   /^Os horários disponíveis para \$\{dia\} são \$\{listed\}\. Algum serve\?$/,
   /^Nesse horário das \$\{input\.time\} já não tenho vaga\. Tenho \$\{lista\}\. Qual fica melhor\?$/,
@@ -124,6 +124,8 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   // #509 / prática 1 — zona citada sem match único (Paulo 07/11/2026: sem «ou outra?»)
   /^Não encontrei \$\{palavra\} nas opções\. Quer \$\{lista\}\?$/,
   /^Não encontrei cotovelo nas opções\. Quer Axila, Pernas\?$/,
+  // Discovery reset hint no option-miss (Paulo 09/11/2026)
+  /^Para recomeçar, diga começar de novo\. Para parar, diga terminar\.$/,
   /^Nossas opções mudaram\. Pode dizer de novo qual serviço e opção você quer\?$/,
   /^Não consegui fechar \$\{serviceName\} às \$\{time\} agora\. A equipe confirma em seguida\.$/,
   /^\$\{serviceNameInProse\(serviceName, true\)\} feminina ou masculina\?$/,

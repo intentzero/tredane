@@ -211,6 +211,17 @@ async function slotsOnDay(
  * Próximos 2–3 horários reais (CF-19 / A-02 / A-06 / A-12 / F-08).
  * Sem período: qualquer vaga. Com período: filtra. Com data: só esse dia (e, se vazio, dias seguintes).
  */
+export type OfferNearestSlotsResult = {
+  slots: OfferedSlot[]
+  replyText: string
+  /** Caller limpa period sticky no frame (auto-avanço / eco Sim). */
+  clearPeriod?: boolean
+  /** Caller limpa date sticky no frame. */
+  clearDate?: boolean
+  /** Anexar botões T1 Manhã|Tarde|Outro dia (período/dia ainda vazio). */
+  periodDayChoice?: boolean
+}
+
 export async function offerNearestSlots(input: {
   db: ClinicDb
   tenantId: string
@@ -227,7 +238,9 @@ export async function offerNearestSlots(input: {
   minGapMinutes?: number
   /** Id da conversa — escolhe a redação (hash estável / #448). */
   conversationId?: string
-}): Promise<{ slots: OfferedSlot[]; replyText: string }> {
+  /** Evita recursão no auto-avanço silencioso (Paulo 09/11/2026). */
+  _skipEmptyAdvance?: boolean
+}): Promise<OfferNearestSlotsResult> {
   const {
     db,
     tenantId,
@@ -242,6 +255,7 @@ export async function offerNearestSlots(input: {
     limit = 3,
     minGapMinutes = 30,
     conversationId = '',
+    _skipEmptyAdvance = false,
   } = input
   const today = clinicCivilDateFromUtc(tz, clock.nowMs())
   const dates = date
@@ -284,9 +298,18 @@ export async function offerNearestSlots(input: {
   }
   const subject = joinNames(names) || serviceNameInProse(service.name)
   if (picked.length === 0) {
-    if (period) {
+    // Silencioso 2 (Paulo 09/11/2026): período/dia vazio → auto-avançar sem wait «Sim».
+    if (!_skipEmptyAdvance && period) {
+      const advanced = await offerNearestSlots({
+        ...input,
+        period: null,
+        _skipEmptyAdvance: true,
+      })
+      if (advanced.slots.length > 0) {
+        return { ...advanced, clearPeriod: true }
+      }
       const período = periodWordPt(period)
-      const fallback = `Para ${subject}, ${período} não tenho horário livre. Quer ver outro período?`
+      const fallback = `Para ${subject}, ${período} não tenho horário livre.`
       return {
         slots: [],
         replyText: sayAct(
@@ -295,11 +318,26 @@ export async function offerNearestSlots(input: {
           { assunto: subject, período },
           fallback,
         ),
+        clearPeriod: true,
+        periodDayChoice: true,
       }
     }
-    if (date) {
+    if (!_skipEmptyAdvance && date) {
+      const advanced = await offerNearestSlots({
+        ...input,
+        date: null,
+        period: null,
+        _skipEmptyAdvance: true,
+      })
+      if (advanced.slots.length > 0) {
+        return {
+          ...advanced,
+          clearDate: true,
+          clearPeriod: Boolean(period) || Boolean(advanced.clearPeriod),
+        }
+      }
       const dia = dayWithPrepPt(date, today)
-      const fallback = `Para ${subject}, ${dia} não tenho horário livre. Quer ver outro dia?`
+      const fallback = `Para ${subject}, ${dia} não tenho horário livre.`
       return {
         slots: [],
         replyText: sayAct(
@@ -308,9 +346,42 @@ export async function offerNearestSlots(input: {
           { assunto: subject, dia },
           fallback,
         ),
+        clearDate: true,
+        clearPeriod: Boolean(period),
+        periodDayChoice: true,
       }
     }
-    const fallback = `Para ${subject}, no momento não tenho horário livre. Quer que eu veja outra data?`
+    if (period) {
+      const período = periodWordPt(period)
+      const fallback = `Para ${subject}, ${período} não tenho horário livre.`
+      return {
+        slots: [],
+        replyText: sayAct(
+          'sem_horario_periodo',
+          conversationId,
+          { assunto: subject, período },
+          fallback,
+        ),
+        clearPeriod: true,
+        periodDayChoice: true,
+      }
+    }
+    if (date) {
+      const dia = dayWithPrepPt(date, today)
+      const fallback = `Para ${subject}, ${dia} não tenho horário livre.`
+      return {
+        slots: [],
+        replyText: sayAct(
+          'sem_horario_dia',
+          conversationId,
+          { assunto: subject, dia },
+          fallback,
+        ),
+        clearDate: true,
+        periodDayChoice: true,
+      }
+    }
+    const fallback = `Para ${subject}, no momento não tenho horário livre.`
     return {
       slots: [],
       replyText: sayAct(
@@ -319,6 +390,7 @@ export async function offerNearestSlots(input: {
         { assunto: subject },
         fallback,
       ),
+      periodDayChoice: true,
     }
   }
 

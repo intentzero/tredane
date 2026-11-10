@@ -20,7 +20,6 @@ import {
   postBookingButtonId,
   POST_BOOKING_BODY,
   sendPostBookingFollowupOp,
-  THANKS_REPLY_BODY,
 } from './post-booking'
 import { getBookingFrame, getScheduleSession, saveBookingFrame, saveScheduleSession } from '../ai/schedule-session'
 
@@ -46,14 +45,14 @@ function connectWa(db: ReturnType<typeof bootClinicDb>['db'], clock: ReturnType<
 
 describe('DEC-086 post-booking follow-up', () => {
   it('parseia ids de botão', () => {
-    expect(parsePostBookingButtonId(postBookingButtonId('apt_1', 'thanks'))).toEqual({
+    expect(parsePostBookingButtonId(postBookingButtonId('apt_1', 'end'))).toEqual({
       appointmentId: 'apt_1',
-      action: 'thanks',
+      action: 'end',
     })
     expect(parsePostBookingButtonId('prop:x:v1:confirm')).toBeNull()
   })
 
-  it('envia pergunta com botões e «Não, obrigado» agradece sem mudar a etapa', () => {
+  it('envia pergunta com botões e «Terminar» fecha a sessão (Class A)', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 16))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -108,8 +107,8 @@ describe('DEC-086 post-booking follow-up', () => {
         `SELECT interactive_json FROM outbound_messages WHERE id = ?`,
         sent.outboundId,
       )
-      expect(ob?.interactive_json).toContain('Não, obrigado')
-      expect(ob?.interactive_json).toContain('Quero outro serviço')
+      expect(ob?.interactive_json).toContain('Terminar')
+      expect(ob?.interactive_json).toContain('Marcar outro')
 
       const again = sendPostBookingFollowupOp(
         db,
@@ -133,13 +132,13 @@ describe('DEC-086 post-booking follow-up', () => {
         {
           tenantId: 'clinic-demo-a',
           conversationId,
-          buttonId: postBookingButtonId('apt_fu_1', 'thanks'),
-          providerEventKey: 'wa:fu:thanks',
+          buttonId: postBookingButtonId('apt_fu_1', 'end'),
+          providerEventKey: 'wa:fu:end',
         },
         clock,
       )
       expect(click.handled).toBe(true)
-      if (!click.handled || click.action !== 'thanks') return
+      if (!click.handled || click.action !== 'end') return
       expect(click.closedOpportunityId).toBeNull()
       expect(click.outbox.some((row) => row.type === 'conversation.read')).toBe(true)
 
@@ -163,13 +162,14 @@ describe('DEC-086 post-booking follow-up', () => {
         'clinic-demo-a',
         conversationId,
       )
-      expect(thanksBody?.body).toBe(THANKS_REPLY_BODY)
+      // Class A — acto `acolher_adiamento` (redação estável por conversa).
+      expect(thanksBody?.body).toMatch(/quando quiser|Fico por aqui|Qualquer coisa|fica à vontade|fica a vontade/i)
     } finally {
       close()
     }
   })
 
-  it('«Quero outro serviço» limpa a sessão e mantém o ciclo aberto', () => {
+  it('«Marcar outro» limpa a sessão e mantém o ciclo aberto', () => {
     const clock = createControllableClock(Date.UTC(2026, 9, 31, 16, 30))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -270,7 +270,7 @@ describe('DEC-086 post-booking follow-up', () => {
     }
   })
 
-  it('«Não, obrigado» fecha o funil: cumprimento seguinte não retoma as 15:00 e o horário fica', async () => {
+  it('«Terminar» fecha o funil: cumprimento seguinte não retoma as 15:00 e o horário fica', async () => {
     const clock = createControllableClock(zonedCivilToUtc(TZ, 2026, 11, 4, 14, 37))
     const { db, close } = bootClinicDb({ clock })
     try {
@@ -403,13 +403,13 @@ describe('DEC-086 post-booking follow-up', () => {
         {
           tenantId: 'clinic-demo-a',
           conversationId,
-          buttonId: postBookingButtonId(booked.value.id, 'thanks'),
-          providerEventKey: 'wa:fu:thanks:stale',
+          buttonId: postBookingButtonId(booked.value.id, 'end'),
+          providerEventKey: 'wa:fu:end:stale',
         },
         clock,
       )
       expect(click.handled).toBe(true)
-      if (!click.handled || click.action !== 'thanks') return
+      if (!click.handled || click.action !== 'end') return
       expect(click.closedOpportunityId).toBeNull()
       expect(click.outbox.some((row) => row.type === 'booking_frame.updated')).toBe(true)
       expect(click.outbox.some((row) => row.type === 'conversation.read')).toBe(true)

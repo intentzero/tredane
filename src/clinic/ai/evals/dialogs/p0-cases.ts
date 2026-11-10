@@ -24,6 +24,7 @@
  * F-11: troca de serviço limpa date sticky; oferta é próximos, não «disponíveis para sexta» (Paulo 09/11/2026).
  * F-12: «Sim» após «Quer ver outro período?» limpa period=noite sticky (staging Paulo 09/11/2026).
  * F-13: «Sim» após «Quer ver outro dia?» limpa date sticky (sibling #655 / sticky-frame audit F2).
+ * F-14: eco Sim das zonas não herda period sticky (silencioso 1, Paulo 09/11/2026).
  */
 import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from '../../../../ai'
 import {
@@ -1101,6 +1102,56 @@ export const P0_DIALOG_CASES: DialogCase[] = [
           turn: 0,
           matches: [/\d{1,2}:\d{2}/],
           excludes: [/outro dia\?/i, /08\/11/],
+        },
+      ],
+    },
+  },
+  {
+    id: 'F-14',
+    title: 'Eco Sim limpa period sticky e oferece próximos (sem noite herdada)',
+    turnosIdeais: 1,
+    // Paulo 09/11/2026 silencioso 1: após eco de zonas, não herdar noite sticky.
+    prepare: (s) => {
+      const zones = s.db.all<{ id: string; name: string; audience: string }>(
+        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ? AND service_id = ?`,
+        s.tenantId,
+        s.ids.depilacao,
+      )
+      const variantIds = zones
+        .filter((z) => z.audience === 'feminino' && (z.name === 'Axila' || z.name === 'Pernas'))
+        .map((z) => z.id)
+      const ecoId = s.sayOutbound('Entendi: axila, pernas. Certo?')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: s.ids.depilacao,
+          audienceLine: 'feminino',
+          variantIds,
+          period: 'noite',
+          phase: 'coletando',
+          pending: {
+            slot: 'eco',
+            options: [
+              { key: 'sim', label: 'Sim' },
+              { key: 'corrigir', label: 'Corrigir' },
+            ],
+            messageId: ecoId,
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'Sim' }],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/\d{1,2}:\d{2}/],
+          excludes: [/à noite não tenho/i, /outro período\?/i],
         },
       ],
     },

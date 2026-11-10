@@ -42,6 +42,7 @@ import { runBookingTurn } from './run-booking-turn'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { deliverCatalogConsult, planCatalogConsult } from './catalog-consult'
 import { catalogReply } from './catalog-reply'
+import { priceFollowupInteractiveButtons } from '../followup/post-booking'
 import {
   createDeferredBookingFrame,
   type DeferredBookingFrame,
@@ -953,6 +954,13 @@ export async function runDueAutoDrafts(
     if (catalogText) {
       await signalTyping()
       let replyOutbox: OutboxRow[] = []
+      // T3 (Paulo 09/11/2026): após preço total → Marcar outro | Terminar.
+      const isPriceTotal =
+        /\bNo total, ficam\b/i.test(catalogText) ||
+        /\bSomando tudo, ficam\b/i.test(catalogText)
+      const catalogButtons = isPriceTotal
+        ? priceFollowupInteractiveButtons()
+        : [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
       try {
         const sent = sendOutboundMessageOp(
           db,
@@ -961,7 +969,7 @@ export async function runDueAutoDrafts(
             {
               conversationId: job.conversationId,
               body: catalogText,
-              interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+              interactive: { buttons: catalogButtons },
               clientRequestId: `ai-catalog:${job.messageId}`,
               authorClerkUserId: AUTODRAFT_ACTOR_ID,
               authorDisplayName: AUTODRAFT_ACTOR_NAME,

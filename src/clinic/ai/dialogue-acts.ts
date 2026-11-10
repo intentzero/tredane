@@ -147,17 +147,18 @@ export const DIALOGUE_ACTS: Record<DialogueActId, readonly string[]> = {
   ],
   confirmar_servico: ['É {serviço} que você quer agendar?', 'Seria {serviço}?'],
   confirmar_hora_ambigua: ['Você quis dizer {hora24}, à tarde?'],
+  // Paulo 09/11/2026: sem wait «Sim» — T1 Manhã|Tarde|Outro dia no outbound.
   sem_horario_periodo: [
-    'Para {assunto}, {período} não tenho horário livre. Quer ver outro período?',
-    '{período} não tenho nada livre para {assunto}. Prefere outro período?',
+    'Para {assunto}, {período} não tenho horário livre.',
+    '{período} não tenho nada livre para {assunto}.',
   ],
   sem_horario_dia: [
-    'Para {assunto}, {dia} não tenho horário livre. Quer ver outro dia?',
-    'Não tenho horário livre para {assunto} {dia}. Prefere outro dia?',
+    'Para {assunto}, {dia} não tenho horário livre.',
+    'Não tenho horário livre para {assunto} {dia}.',
   ],
   sem_horario_semana: [
-    'Para {assunto}, no momento não tenho horário livre. Quer que eu veja outra data?',
-    'No momento não tenho horário livre para {assunto}. Quer que eu veja outra data?',
+    'Para {assunto}, no momento não tenho horário livre.',
+    'No momento não tenho horário livre para {assunto}.',
   ],
   sem_vaga_sem_alternativa: [
     'Nesse horário das {hora} já não tenho vaga. Quer que eu veja outro horário?',

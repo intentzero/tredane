@@ -63,6 +63,8 @@ import {
 import { MULTI_VARIANT_ASK_HINT, sayAct } from './dialogue-acts'
 import {
   appendEndHelpHint,
+  appendResetDiscoveryHint,
+  RESET_DISCOVERY_HINT_TEXT,
   shouldAppendEndHelpHint,
   markEndHelpHintSent,
   wasEndHelpHintSent,
@@ -149,6 +151,7 @@ import {
 import {
   attachChoiceOfferToDeferred,
   buildLineChoiceInteractive,
+  buildPeriodDayInteractive,
   buildSlotChoiceInteractive,
   buildVariantChoiceInteractive,
   buildZoneEchoInteractive,
@@ -156,6 +159,7 @@ import {
   zoneEchoReply,
   type ChoiceInteractive,
 } from './choice-offer'
+import { priceFollowupInteractiveButtons } from '../followup/post-booking'
 
 /** Acumula pending + lastOffer da oferta (CF-22); commit na TX do outbound (ADR-0015). */
 function rememberOfferFrameImpl(
@@ -200,6 +204,34 @@ function rememberOfferFrameImpl(
     },
   })
   return built.interactive
+}
+
+/** Aplica clear period/date + T1 quando a oferta veio vazia (Paulo 09/11/2026). */
+function applyOfferSideEffects(
+  deferred: DeferredBookingFrame,
+  serviceId: string,
+  catalogVersion: string,
+  offered: {
+    slots: import('./slot-offer').OfferedSlot[]
+    clearPeriod?: boolean
+    clearDate?: boolean
+    periodDayChoice?: boolean
+  },
+  professionalId: string | undefined,
+  rememberOffer: typeof rememberOfferFrameImpl,
+): ChoiceInteractive | null {
+  if (offered.clearPeriod || offered.clearDate) {
+    deferred.save({
+      serviceId,
+      ...(offered.clearPeriod ? { period: null } : {}),
+      ...(offered.clearDate ? { date: null } : {}),
+    })
+  }
+  if (offered.periodDayChoice && offered.slots.length === 0) {
+    const built = buildPeriodDayInteractive(catalogVersion)
+    return attachChoiceOfferToDeferred(deferred, serviceId, catalogVersion, built)
+  }
+  return rememberOffer(deferred, serviceId, offered.slots, professionalId, catalogVersion)
 }
 
 function lineChoiceForImpl(
@@ -350,8 +382,11 @@ function askUnrecognizedZone(
 ): { text: string; friction: TurnFrictionEvent[] } {
   const names = stableVariantLabelList(zonePool)
   if (mention.leftover && opts?.emitOptionMiss !== false) {
+    let text = zoneNotFoundAskReply(mention.leftover, names)
+    // Discovery reset (Paulo 09/11/2026): one-shot hint no option-miss.
+    text = appendResetDiscoveryHint(text)
     return {
-      text: zoneNotFoundAskReply(mention.leftover, names),
+      text,
       friction: frictionForOptionMiss(mention.leftover),
     }
   }
@@ -700,7 +735,10 @@ export async function tryAiAutoBook(
     if (dayAskFriction) pushFriction(dayAskFriction)
     const friction = mergeFriction(outcome.friction, frictionAcc)
     next = { ...outcome, friction: friction.length > 0 ? friction : undefined }
-    if (
+    if (next.replyText?.includes(RESET_DISCOVERY_HINT_TEXT)) {
+      // Option-miss discovery hint (Paulo 09/11/2026) — marca one-shot como DEC-152.
+      markEndHelpHintSent(db, tenantId, input.conversationId)
+    } else if (
       shouldAppendEndHelpHint({
         replyText: next.replyText,
         proposalId: next.proposalId,
@@ -944,12 +982,13 @@ export async function tryAiAutoBook(
           limit: 3,
           conversationId: input.conversationId,
         })
-        const interactive = rememberOfferFrame(
+        const interactive = applyOfferSideEffects(
           deferred,
           svcReject.id,
-          offered.slots,
-          preferred,
           catalog.version,
+          offered,
+          preferred,
+          rememberOfferFrame,
         )
         return finish({
           ...none('needs_info', {
@@ -993,12 +1032,21 @@ export async function tryAiAutoBook(
         sameFunnel: true,
       })
       if (realized) {
+        // T3: preço total → Marcar outro | Terminar (sem pending M5).
+        const priceButtons =
+          realized.quote.act === 'informar_preco_soma'
+            ? ({
+                mode: 'buttons' as const,
+                buttons: priceFollowupInteractiveButtons(),
+              } satisfies ChoiceInteractive)
+            : null
         return finish({
           ...none('needs_info', {
             confirmationMessageId: confirmation.id,
             serviceId: svcAsk.id,
           }),
           replyText: realized.replyText,
+          ...(priceButtons ? { interactive: priceButtons } : {}),
           notes: `DEC-C1/C4: ask_info ${gate.topic} via interrupt stack (pending kept).`,
         })
       }
@@ -1248,7 +1296,31 @@ export async function tryAiAutoBook(
     date = undefined
     missing = missing.filter((item) => item !== 'dia')
   }
-  const rememberDayPeriod = (serviceId: string) => {
+  // Silencioso 1 (Paulo 09/11/2026): Sim do eco não herda period sticky de
+  // *tentativa anterior* (ex. noite vazia). Se a cliente nomeou o período antes
+  // do eco nesta tentativa («sexta à tarde»), mantém — DEC-127 / hora solta.
+  if (
+    zoneEcho === 'confirm' &&
+    session?.serviceId &&
+    session.period &&
+    !turnFacts.period
+  ) {
+    const stickyPeriod = session.period
+    const namedBeforeEco = older
+      .filter((m) => m.direction === 'inbound')
+      .some((m) => scheduleFactsFromText(m.body).period === stickyPeriod)
+    if (!namedBeforeEco) {
+      saveSession({
+        serviceId: session.serviceId,
+        period: null,
+        pending: null,
+        lastOffer: null,
+      })
+      session = deferred.peekSession(db, tenantId, input.conversationId)
+      frame = deferred.peekFrame(db, tenantId, input.conversationId)
+    }
+  }
+    const rememberDayPeriod = (serviceId: string) => {
     if (!turnFacts.dayLabel && !turnFacts.period) return
     const today = clinicCivilDateFromUtc(tz, confirmation.created_at)
     const absolute =
@@ -1302,19 +1374,21 @@ export async function tryAiAutoBook(
     return times.length === 1 ? times[0]! : null
   })()
   if (!det.service && session?.serviceId) {
-    const stored = services.find((item) => item.id === session.serviceId)
+    // Local após o guard: `session` é `let` e peekSession devolve nullável (TS18047).
+    const live = session
+    const stored = services.find((item) => item.id === live.serviceId)
     // «amanhã» / «na parte da manhã» não repetem o serviço. A sessão já o tem (CF-19 / A-02).
     // M5 / A-03: toque «Feminina»/«Masculina» (ou texto equivalente) continua o mesmo serviço.
     const dayContinues = Boolean(turnFacts.dayLabel) && !clockFromTurn
     const periodContinues =
       Boolean(turnFacts.period) &&
       !clockFromTurn &&
-      Boolean(session.variantIds?.length || !stored?.zones.some((z) => z.active))
+      Boolean(live.variantIds?.length || !stored?.zones.some((z) => z.active))
     const lineContinues = Boolean(explicitAudienceLine(turnText))
     const storedActive = stored?.zones.filter((zone) => zone.active) ?? []
     const storedPool =
-      stored && needsAudienceLine(storedActive) && session.audienceLine
-        ? zonesForAudienceLine(storedActive, session.audienceLine)
+      stored && needsAudienceLine(storedActive) && live.audienceLine
+        ? zonesForAudienceLine(storedActive, live.audienceLine)
         : storedActive
     const namedNow =
       (stored != null &&
@@ -1364,10 +1438,11 @@ export async function tryAiAutoBook(
       (frame.pending?.slot === 'horario' || Boolean(frame.lastOffer))
         ? services.find((s) => s.id === frame.serviceId)
         : undefined
+    const sessionSvcId = session?.serviceId
     const pendingSvc =
       liveFrameSvc ??
       det.service ??
-      (session?.serviceId ? services.find((s) => s.id === session.serviceId) : undefined) ??
+      (sessionSvcId ? services.find((s) => s.id === sessionSvcId) : undefined) ??
       (frame?.serviceId ? services.find((s) => s.id === frame.serviceId) : undefined)
     if (pendingSvc) {
       det = {
@@ -1668,8 +1743,11 @@ export async function tryAiAutoBook(
             )
           }
         } else if (!time) {
+          // Período deste turno, ou o que o silencioso 1 deixou no quadro (nomeado antes do eco).
           const period =
-            turnFacts.period ?? (session?.serviceId === det.service.id ? session?.period : null)
+            turnFacts.period ??
+            (session?.serviceId === det.service.id ? session?.period : null)
+
           // Serviço sem variantes (ex. massagem): oferta de período com a data absoluta (#408 B-04).
           // CF-19 (#413): com serviço (e variantes) conhecidos, oferecer 2–3 horários reais
           // mesmo sem período — não perguntar «qual horário?» vazio.
@@ -1727,12 +1805,13 @@ export async function tryAiAutoBook(
                 : { action: 'ask_empty_time' },
               proposed: { action: 'offer_slots', detail: period ? 'period' : date ? 'date' : 'soonest' },
             })
-            interactive = rememberOfferFrame(
+            interactive = applyOfferSideEffects(
               deferred,
               det.service.id,
-              offered.slots,
-              preferred,
               catalog.version,
+              offered,
+              preferred,
+              rememberOfferFrame,
             )
             replyText = offered.replyText
           } else {
@@ -2019,6 +2098,9 @@ export async function tryAiAutoBook(
               clock,
               input.turn?.catalog.resources,
             )
+            const offerPeriod =
+              (turnFacts.period as DayPeriod | null) ??
+              (session?.serviceId === svc.id ? (session.period as DayPeriod | null) : null)
             const offered = await offerNearestSlots({
               db,
               tenantId,
@@ -2029,7 +2111,7 @@ export async function tryAiAutoBook(
               forecast: input.forecast,
               professionalId: preferred,
               date: date ?? null,
-              period: (turnFacts.period as DayPeriod | null) ?? null,
+              period: offerPeriod,
               limit: 3,
               conversationId: input.conversationId,
             })
@@ -2037,15 +2119,21 @@ export async function tryAiAutoBook(
               tenantId,
               conversationId: input.conversationId,
               phase: 'cf19',
-              current: { action: 'ask_empty_time' },
-              proposed: { action: 'offer_slots', detail: date ? 'date' : 'soonest' },
+              current: offerPeriod
+                ? { action: 'offer_slots', detail: 'period' }
+                : { action: 'ask_empty_time' },
+              proposed: {
+                action: 'offer_slots',
+                detail: offerPeriod ? 'period' : date ? 'date' : 'soonest',
+              },
             })
-            interactive = rememberOfferFrame(
+            interactive = applyOfferSideEffects(
               deferred,
               svc.id,
-              offered.slots,
-              preferred,
               catalog.version,
+              offered,
+              preferred,
+              rememberOfferFrame,
             )
             replyText = offered.replyText
             }
