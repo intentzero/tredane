@@ -11,7 +11,6 @@ import { syncWhatsappChannel } from '../whatsapp/channel'
 import { tryAiAutoBook } from './autobook'
 import {
   END_HELP_HINT_TEXT,
-  HOW_TO_END_REPLY,
   RESET_DISCOVERY_HINT_TEXT,
   appendEndHelpHint,
   bookingFrameProgressKey,
