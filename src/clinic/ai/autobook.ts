@@ -102,6 +102,7 @@ import {
   turnLooksLikeDayOrTimeAsk,
   type TurnFrictionEvent,
 } from './turn-friction'
+import { flagConversationForReview } from '../inbox/review-flag'
 import {
   funnelMessageFilter,
   getBookingFrame,
@@ -751,6 +752,20 @@ export async function tryAiAutoBook(
     if (dayAskFriction) pushFriction(dayAskFriction)
     const friction = mergeFriction(outcome.friction, frictionAcc)
     next = { ...outcome, friction: friction.length > 0 ? friction : undefined }
+    // DEC-157: auto-flag na fila de revisão em «Não encontrei…» (sem pausar).
+    if (friction.some((e) => e.flag === 'nao_encontrei')) {
+      try {
+        flagConversationForReview(
+          db,
+          tenantId,
+          input.conversationId,
+          { source: 'auto', reason: 'nao_encontrei' },
+          clock,
+        )
+      } catch {
+        /* flag best-effort — não bloqueia o turno */
+      }
+    }
     if (next.replyText?.includes(RESET_DISCOVERY_HINT_TEXT)) {
       // Option-miss discovery hint (Paulo 09/11/2026) — marca one-shot como DEC-152.
       markEndHelpHintSent(db, tenantId, input.conversationId)

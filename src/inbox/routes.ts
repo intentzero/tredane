@@ -138,6 +138,12 @@ function createDoGateway(env: WorkerBindings, tenantId: string): InboxGateway {
     resumeAiReply: (caller, conversationId) => stub.resumeInboxAiReply(caller, conversationId),
     markRead: (caller, input) => stub.markInboxConversationRead(caller, input),
     close: (caller, input) => stub.closeInboxConversation(caller, input),
+    flagForReview: (caller, conversationId) =>
+      stub.flagInboxConversationForReview(caller, { conversationId }),
+    clearReviewFlag: (caller, conversationId) =>
+      stub.clearInboxConversationReviewFlag(caller, { conversationId }),
+    listReviewConversations: (caller, input) => stub.listReviewConversations(caller, input),
+    getReviewConversation: (caller, input) => stub.getReviewConversation(caller, input),
     blockContact: (caller, input) => stub.blockInboxContact(caller, input),
     unblockContact: (caller, input) => stub.unblockInboxContact(caller, input),
     sendOutbound: (caller, input) => stub.sendInboxOutbound(caller, input),
@@ -469,6 +475,124 @@ export function createInboxRoutes(opts: InboxRouteOptions = {}) {
           conversation: serializeConversation(result.conversation),
           systemMessage: serializeMessage(result.systemMessage),
         })
+      } catch (err) {
+        return inboxErrorResponse(c, err)
+      }
+    },
+  )
+
+  /** DEC-157 — marcar conversa para revisão (staff). */
+  app.post(
+    '/api/tenants/:tenantId/inbox/conversations/:conversationId/review',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.inbox.reply')
+        const tenantId = c.req.param('tenantId')
+        const conversationId = c.req.param('conversationId')
+        const gw = await resolveGateway(c.env, tenantId, opts)
+        const conversation = await gw.flagForReview(
+          workerCaller(tenantId, principal.clerkUserId),
+          conversationId,
+        )
+        return c.json({ conversation: serializeConversation(conversation) })
+      } catch (err) {
+        return inboxErrorResponse(c, err)
+      }
+    },
+  )
+
+  app.delete(
+    '/api/tenants/:tenantId/inbox/conversations/:conversationId/review',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.inbox.reply')
+        const tenantId = c.req.param('tenantId')
+        const conversationId = c.req.param('conversationId')
+        const gw = await resolveGateway(c.env, tenantId, opts)
+        const conversation = await gw.clearReviewFlag(
+          workerCaller(tenantId, principal.clerkUserId),
+          conversationId,
+        )
+        return c.json({ conversation: serializeConversation(conversation) })
+      } catch (err) {
+        return inboxErrorResponse(c, err)
+      }
+    },
+  )
+
+  /**
+   * DEC-157 — API estável de leitura da fila (pré-requisito MCP).
+   * Membership + clinic.inbox.read; mensagens vêm do DO (sem transcript paralelo).
+   */
+  app.get('/api/tenants/:tenantId/review/conversations', ...tenant, async (c) => {
+    try {
+      const ctx = c.get('tenantContext')!
+      const principal = c.get('principal')
+      requireClinicPermission(ctx, 'clinic.inbox.read')
+      const tenantId = c.req.param('tenantId')
+      const beforeRaw = c.req.query('before')
+      const limitRaw = c.req.query('limit')
+      const before = beforeRaw != null && beforeRaw !== '' ? Number(beforeRaw) : null
+      const limit = limitRaw != null && limitRaw !== '' ? Number(limitRaw) : undefined
+      if (before != null && !Number.isFinite(before)) {
+        throw new ValidationError('invalid_before', 'Parâmetro before inválido')
+      }
+      if (limit != null && !Number.isFinite(limit)) {
+        throw new ValidationError('invalid_limit', 'Parâmetro limit inválido')
+      }
+      const gw = await resolveGateway(c.env, tenantId, opts)
+      const result = await gw.listReviewConversations(
+        workerCaller(tenantId, principal.clerkUserId),
+        {
+          filter: 'for_review',
+          before,
+          limit,
+          viewerClerkUserId: principal.clerkUserId,
+        },
+      )
+      return c.json({
+        conversations: result.items.map(serializeConversation),
+        nextBefore: result.nextBefore,
+        counts: serializeCounts(result.counts),
+      })
+    } catch (err) {
+      return inboxErrorResponse(c, err)
+    }
+  })
+
+  app.get(
+    '/api/tenants/:tenantId/review/conversations/:conversationId',
+    ...tenant,
+    async (c) => {
+      try {
+        const ctx = c.get('tenantContext')!
+        const principal = c.get('principal')
+        requireClinicPermission(ctx, 'clinic.inbox.read')
+        const tenantId = c.req.param('tenantId')
+        const conversationId = c.req.param('conversationId')
+        const beforeRaw = c.req.query('before')
+        const limitRaw = c.req.query('messageLimit')
+        const before = beforeRaw != null && beforeRaw !== '' ? Number(beforeRaw) : null
+        const messageLimit =
+          limitRaw != null && limitRaw !== '' ? Number(limitRaw) : undefined
+        if (before != null && !Number.isFinite(before)) {
+          throw new ValidationError('invalid_before', 'Parâmetro before inválido')
+        }
+        if (messageLimit != null && !Number.isFinite(messageLimit)) {
+          throw new ValidationError('invalid_limit', 'Parâmetro messageLimit inválido')
+        }
+        const gw = await resolveGateway(c.env, tenantId, opts)
+        const detail = await gw.getReviewConversation(
+          workerCaller(tenantId, principal.clerkUserId),
+          { conversationId, before, messageLimit },
+        )
+        return c.json(serializeConversationDetail(detail))
       } catch (err) {
         return inboxErrorResponse(c, err)
       }

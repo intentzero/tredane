@@ -50,7 +50,7 @@ function connectWa(
 
 describe('DEC-087 idle follow-up', () => {
   it('migração 46 e parse de botões', () => {
-    expect(CLINIC_SCHEMA_VERSION).toBe(59)
+    expect(CLINIC_SCHEMA_VERSION).toBe(60)
     expect(parseIdleButtonId(idleButtonId('cnv_1', 'continue'))).toEqual({
       conversationId: 'cnv_1',
       action: 'continue',

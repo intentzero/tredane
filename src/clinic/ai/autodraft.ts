@@ -78,6 +78,11 @@ import {
   markEndHelpHintSent,
 } from './end-help-hint'
 import {
+  flagConversationForReview,
+  isReviewFlagRequest,
+  REVIEW_FLAG_CLIENT_ACK,
+} from '../inbox/review-flag'
+import {
   classifySensitive,
   hasAiTransparencyQuestion,
   hasPolicyQuestion,
@@ -865,6 +870,45 @@ export async function runDueAutoDrafts(
         status: 'skipped',
         suggestion: null,
         reason: 'how_to_end',
+        replyOutbox,
+      })
+      continue
+    }
+    // DEC-157: «avaliar» / «feedback» → fila de revisão; não pausa o funil.
+    if (isReviewFlagRequest(turnText)) {
+      await signalTyping()
+      let replyOutbox: OutboxRow[] = []
+      try {
+        const flagged = flagConversationForReview(
+          db,
+          tenantId,
+          job.conversationId,
+          { source: 'client', reason: 'client_request' },
+          clock,
+        )
+        replyOutbox.push(...flagged.outbox)
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body: REVIEW_FLAG_CLIENT_ACK,
+            clientRequestId: `ai-review-flag:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox.push(...sent.outbox)
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'review_flag_request',
         replyOutbox,
       })
       continue

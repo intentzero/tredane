@@ -1403,6 +1403,64 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     return result.value
   }
 
+  async flagInboxConversationForReview(
+    caller: ClinicCaller,
+    input: { conversationId: string },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicInbox.flagConversationForReviewOp(
+      this.#db,
+      caller,
+      { conversationId: input.conversationId, source: 'staff', reason: 'staff' },
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result.value
+  }
+
+  async clearInboxConversationReviewFlag(
+    caller: ClinicCaller,
+    input: { conversationId: string },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    const result = clinicInbox.clearConversationReviewFlagOp(
+      this.#db,
+      caller,
+      input,
+      this.#clock,
+    )
+    if (result.outbox.length > 0) {
+      await this.#fanoutOutboxes(caller, result.outbox, true)
+      await this.#drain(caller)
+    }
+    return result.value
+  }
+
+  async getReviewConversation(
+    caller: ClinicCaller,
+    input: { conversationId: string; messageLimit?: number; before?: number | null },
+  ) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicInbox.getReviewConversationDetailOp(this.#db, caller, input, this.#clock)
+  }
+
+  async listReviewConversations(caller: ClinicCaller, input: ListConversationsInput) {
+    this.#ensureReady()
+    this.#assertInstanceTenant(caller)
+    return clinicInbox.listConversationsOp(
+      this.#db,
+      caller,
+      { ...input, filter: 'for_review' },
+      this.#clock,
+    )
+  }
+
   async blockInboxContact(caller: ClinicCaller, input: BlockContactInput) {
     this.#ensureReady()
     this.#assertInstanceTenant(caller)

@@ -80,6 +80,26 @@ export type InboxGateway = {
     caller: ClinicCaller,
     input: CloseConversationInput,
   ): Promise<{ conversation: ConversationListItem; systemMessage: MessageRow }>
+  flagForReview(
+    caller: ClinicCaller,
+    conversationId: string,
+  ): Promise<ConversationListItem>
+  clearReviewFlag(
+    caller: ClinicCaller,
+    conversationId: string,
+  ): Promise<ConversationListItem>
+  listReviewConversations(
+    caller: ClinicCaller,
+    input: ListConversationsInput,
+  ): Promise<{
+    items: ConversationListItem[]
+    nextBefore: number | null
+    counts: InboxCounts
+  }>
+  getReviewConversation(
+    caller: ClinicCaller,
+    input: { conversationId: string; messageLimit?: number; before?: number | null },
+  ): Promise<ConversationDetail>
   blockContact(
     caller: ClinicCaller,
     input: BlockContactInput,
@@ -203,6 +223,33 @@ export function createMemoryInboxGateway(db: ClinicDb, clock: Clock): InboxGatew
     },
     async close(caller, input) {
       return clinicInbox.closeConversationOp(db, caller, input, clock).value
+    },
+    async flagForReview(caller, conversationId) {
+      return clinicInbox.flagConversationForReviewOp(
+        db,
+        caller,
+        { conversationId, source: 'staff', reason: 'staff' },
+        clock,
+      ).value
+    },
+    async clearReviewFlag(caller, conversationId) {
+      return clinicInbox.clearConversationReviewFlagOp(
+        db,
+        caller,
+        { conversationId },
+        clock,
+      ).value
+    },
+    async listReviewConversations(caller, input) {
+      return clinicInbox.listConversationsOp(
+        db,
+        caller,
+        { ...input, filter: 'for_review' },
+        clock,
+      )
+    },
+    async getReviewConversation(caller, input) {
+      return clinicInbox.getReviewConversationDetailOp(db, caller, input, clock)
     },
     async blockContact(caller, input) {
       return clinicInbox.blockContactOp(db, caller, input, clock).value

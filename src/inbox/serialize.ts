@@ -37,6 +37,11 @@ export function serializeConversation(c: ConversationRow | ConversationListItem)
     updatedAt: c.updatedAt,
     needsPerson: 'needsPerson' in c ? c.needsPerson : false,
     aiDrafting: 'aiDrafting' in c ? c.aiDrafting === true : false,
+    forReview: 'forReview' in c ? c.forReview === true : false,
+    reviewFlaggedAt: 'reviewFlaggedAt' in c ? (c.reviewFlaggedAt ?? null) : null,
+    reviewFlaggedSource:
+      'reviewFlaggedSource' in c ? (c.reviewFlaggedSource ?? null) : null,
+    reviewFlagReason: 'reviewFlagReason' in c ? (c.reviewFlagReason ?? null) : null,
   }
   if ('contact' in c) {
     return { ...base, contact: serializeContact(c.contact) }
@@ -132,5 +137,6 @@ export function serializeCounts(c: InboxCounts) {
     closed: c.closed,
     unread: c.unread ?? 0,
     needsPerson: c.needsPerson ?? 0,
+    forReview: c.forReview ?? 0,
   }
 }

@@ -1709,6 +1709,75 @@ export function createPanelApi(getToken: TokenGetter) {
       return (await res.json()) as InboxAssignResponse
     },
 
+    async flagInboxConversationForReview(
+      tenantId: string,
+      conversationId: string,
+      opts?: FetchOpts,
+    ): Promise<{ conversation: InboxConversation }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/conversations/${encodeURIComponent(conversationId)}/review`,
+        { method: 'POST' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { conversation: InboxConversation }
+    },
+
+    async clearInboxConversationReviewFlag(
+      tenantId: string,
+      conversationId: string,
+      opts?: FetchOpts,
+    ): Promise<{ conversation: InboxConversation }> {
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/inbox/conversations/${encodeURIComponent(conversationId)}/review`,
+        { method: 'DELETE' },
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as { conversation: InboxConversation }
+    },
+
+    async listReviewConversations(
+      tenantId: string,
+      query: { before?: number | null; limit?: number } = {},
+      opts?: FetchOpts,
+    ): Promise<InboxListResponse> {
+      const params = new URLSearchParams()
+      if (query.before != null) params.set('before', String(query.before))
+      if (query.limit != null) params.set('limit', String(query.limit))
+      const qs = params.toString()
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/review/conversations${qs ? `?${qs}` : ''}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as InboxListResponse
+    },
+
+    async getReviewConversation(
+      tenantId: string,
+      conversationId: string,
+      query: { before?: number | null; messageLimit?: number } = {},
+      opts?: FetchOpts,
+    ): Promise<InboxConversationDetail> {
+      const params = new URLSearchParams()
+      if (query.before != null) params.set('before', String(query.before))
+      if (query.messageLimit != null) params.set('messageLimit', String(query.messageLimit))
+      const qs = params.toString()
+      const res = await authFetch(
+        `/api/tenants/${encodeURIComponent(tenantId)}/review/conversations/${encodeURIComponent(conversationId)}${qs ? `?${qs}` : ''}`,
+        {},
+        opts,
+      )
+      assertGeneration(opts)
+      if (!res.ok) throw await parseError(res)
+      return (await res.json()) as InboxConversationDetail
+    },
+
     async getTeamMembers(tenantId: string, opts?: FetchOpts): Promise<{ members: TeamMemberLite[] }> {
       const res = await authFetch(`/api/tenants/${encodeURIComponent(tenantId)}/team`, {}, opts)
       assertGeneration(opts)
@@ -2197,7 +2266,14 @@ export type AcceptInvitationResult = {
   }
 }
 
-export type InboxFilter = 'all' | 'new' | 'mine' | 'unassigned' | 'needs_person' | 'closed'
+export type InboxFilter =
+  | 'all'
+  | 'new'
+  | 'mine'
+  | 'unassigned'
+  | 'needs_person'
+  | 'for_review'
+  | 'closed'
 
 export type InboxContact = {
   id: string
@@ -2227,6 +2303,11 @@ export type InboxConversation = {
   needsPerson?: boolean
   /** Rascunho automático em curso — spinner na lista (WS `conversation.ai_draft`). */
   aiDrafting?: boolean
+  /** DEC-157 — marcada para revisão humana. */
+  forReview?: boolean
+  reviewFlaggedAt?: number | null
+  reviewFlaggedSource?: 'client' | 'staff' | 'auto' | null
+  reviewFlagReason?: string | null
   contact: InboxContact
 }
 
@@ -2306,6 +2387,7 @@ export type InboxCounts = {
   unread?: number
   /** IA pausada ou alerta de equipe aberto. */
   needsPerson?: number
+  forReview?: number
   closed: number
 }
 
