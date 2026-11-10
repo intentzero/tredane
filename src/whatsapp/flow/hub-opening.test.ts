@@ -11,10 +11,13 @@ import {
   hubInformacoesBody,
   hubMeusBody,
   hubOpeningBody,
+  isMyAppointmentsQuery,
   shouldAttachHubOpeningCta,
   shouldOfferHubOpening,
   todayClosingHourLabel,
 } from './hub-opening'
+import { readAiReplyPause } from '../../clinic/ai/human-handoff'
+import { SimulatedAiAdapter } from '../../ai'
 import { FLOW_COPY } from './copy'
 import { DIALOG_NOW_MS } from '../../clinic/ai/evals/dialogs/scenario'
 
@@ -192,6 +195,51 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
       expect(hubMeusBody(s.db, s.tenantId, s.contactId, s.clock)).toBe(
         FLOW_COPY.hubMeusNone,
       )
+    } finally {
+      s.close()
+    }
+  })
+
+  it('isMyAppointmentsQuery: smoke «Quais os meus agendamentos»; exclui cancel/remarcar/outro', () => {
+    expect(isMyAppointmentsQuery('Quais os meus agendamentos')).toBe(true)
+    expect(isMyAppointmentsQuery('meus horários')).toBe(true)
+    expect(isMyAppointmentsQuery('tenho algum agendamento?')).toBe(true)
+    expect(isMyAppointmentsQuery('o que tenho marcado')).toBe(true)
+    expect(isMyAppointmentsQuery('quero cancelar o agendamento')).toBe(false)
+    expect(isMyAppointmentsQuery('quero remarcar')).toBe(false)
+    expect(isMyAppointmentsQuery('quero outro agendamento')).toBe(false)
+    expect(isMyAppointmentsQuery('quero depilação')).toBe(false)
+  })
+
+  it('texto livre «Quais os meus agendamentos» → hubMeus, sem pausa nem alerta (smoke)', async () => {
+    const s = bootDialogScenario()
+    try {
+      const mid = s.sayInbound('Quais os meus agendamentos')
+      enqueueAutoDraft(
+        s.db,
+        s.tenantId,
+        { conversationId: s.conversationId, messageId: mid },
+        s.clock,
+      )
+      s.clock.advance(7_000)
+      const out = await runDueAutoDrafts(s.db, s.caller, s.clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+      expect(out).toHaveLength(1)
+      expect(out[0]?.reason).toBe('hub_meus')
+      expect(s.outboundBodies().some((b) => /não tem horário marcado/i.test(b))).toBe(true)
+      expect(s.outboundBodies().some((b) => /equipe vai verificar|Não consigo confirmar/i.test(b))).toBe(
+        false,
+      )
+      expect(readAiReplyPause(s.db, s.tenantId, s.conversationId)).toBeNull()
+      const pending = s.db.all<{ kind: string }>(
+        `SELECT kind FROM pending_communications
+         WHERE tenant_id = ? AND conversation_id = ? AND status != 'resolved'`,
+        s.tenantId,
+        s.conversationId,
+      )
+      expect(pending.some((p) => p.kind === 'alter_awaiting_team')).toBe(false)
     } finally {
       s.close()
     }

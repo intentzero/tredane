@@ -166,6 +166,30 @@ export const FL_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
+    id: 'FL-07b',
+    title: 'Texto livre «Quais os meus agendamentos» = hub Meus, sem handoff (smoke)',
+    turnosIdeais: 1,
+    turns: [{ role: 'client', text: 'Quais os meus agendamentos' }],
+    expect: {
+      notPaused: true,
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/não tem horário marcado/i],
+          excludes: [
+            /equipe vai verificar/i,
+            /Não consigo confirmar/i,
+            /Vou pedir para a equipe/i,
+            /Falar com a equipe/i,
+            /nome completo/i,
+          ],
+        },
+      ],
+    },
+  },
+  {
     id: 'FL-08',
     title: 'Hub «Falar com a equipe»: pausa a IA com a frase fixa (DEC-083)',
     turnosIdeais: 2,

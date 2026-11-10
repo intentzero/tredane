@@ -17,6 +17,7 @@ export {
   todayClosingHourLabel,
   isClinicOpenNow,
   hubMeusBody,
+  isMyAppointmentsQuery,
   hubInformacoesBody,
   listUpcomingForHub,
   activeServicesForHub,

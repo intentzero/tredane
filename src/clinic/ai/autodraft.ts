@@ -30,9 +30,12 @@ import {
 import {
   activeServicesForHub,
   clinicTodayOpenState,
+  hubMeusBody,
   hubOpeningBody,
+  isMyAppointmentsQuery,
   shouldAttachHubOpeningCta,
 } from '../../whatsapp/flow/hub-opening'
+import { FLOW_COPY } from '../../whatsapp/flow/copy'
 import { messagingWindowForConversation } from '../inbox/window'
 import type { OutboxRow } from '../outbox'
 import { getActiveProposalForConversation } from '../proposals/proposals'
@@ -904,6 +907,42 @@ export async function runDueAutoDrafts(
         suggestion: null,
         reason: 'human_handoff',
         replyOutbox: handoff.outbox,
+      })
+      continue
+    }
+    // «Meus agendamentos» em texto livre — mesmo corpo do hub Flow (FL-07), sem LLM
+    // e sem handoff. Depois de handoffReason para «falar com a equipe» continuar a ganhar.
+    // Evita a promessa falsa «a equipe vai verificar» do redator de exceção.
+    if (isMyAppointmentsQuery(turnText)) {
+      await signalTyping()
+      const body = conv.contactId
+        ? hubMeusBody(db, tenantId, conv.contactId, clock)
+        : FLOW_COPY.hubMeusNone
+      let replyOutbox: OutboxRow[] = []
+      try {
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body,
+            clientRequestId: `ai-hub-meus:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox = sent.outbox
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'hub_meus',
+        replyOutbox,
       })
       continue
     }

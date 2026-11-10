@@ -19,6 +19,7 @@ import {
   formatOpeningHours,
 } from '../../clinic/ai/schedule-context'
 import { isCancelIntent, isRescheduleIntent } from '../../clinic/ai/reschedule'
+import { RESCHEDULE_RE } from '../../clinic/ai/nlu/sensitive'
 import { clinicCivilDateFromUtc } from '../../clinic/scheduling/timezone'
 import type { ClinicDb } from '../../clinic/store'
 import { FLOW_COPY } from './copy'
@@ -289,6 +290,25 @@ function formatAptWhen(tz: string, startsAt: number): string {
   const [, m, d] = date.split('-')
   const dow = weekdayOf(date)
   return `${WEEKDAYS[dow]} ${d}/${m} às ${formatClinicTime(tz, startsAt)}`
+}
+
+/**
+ * Texto livre «meus agendamentos» / «quais os meus horários» (smoke staging).
+ * Mesmo efeito que o hub Flow `meus` → `hubMeusBody` (FL-07): lista ou
+ * «não tem horário marcado», sem handoff. Sem este atalho o redator de
+ * exceção inventava «a equipe vai verificar» + botão sem `notifyHumanHandoff`.
+ * Não casa remarcar/cancelar/«outro agendamento» (DEC-091 / DEC-142).
+ */
+const MY_APPOINTMENTS_RE =
+  /\b(?:quais|quero\s+ver|ver|consultar|mostra|mostrar|listar)?\s*(?:sao\s+)?(?:os\s+)?meus?\s+(?:agendamentos?|horarios?|marcacoes?|compromissos?)\b|\b(?:tenho|tem)\s+(?:algum\s+)?(?:agendamento|horario\s+marcado|marcacao)\b|\bo\s+que\s+(?:eu\s+)?tenho\s+marcado\b/i
+
+export function isMyAppointmentsQuery(text: string): boolean {
+  const body = text.trim()
+  if (!body) return false
+  if (isCancelIntent(body) || RESCHEDULE_RE.test(body)) return false
+  if (/\boutro\s+agendamento\b/i.test(body)) return false
+  const folded = body.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+  return MY_APPOINTMENTS_RE.test(folded)
 }
 
 /** Meus — Confirmado Paulo 04/11/2026. */

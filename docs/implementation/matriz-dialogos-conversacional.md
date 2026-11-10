@@ -251,6 +251,7 @@ Criada em 05/11/2026 pela [metodologia de avaliação](metodologia-avaliacao-con
 | FL-05 | P0 | Segundo fecho, mesmo token | C: «Oi» ⟶ [Flow completo] ⟶ [o mesmo token fecha de novo] | O 2.º fecho é recusado (token consumido, #538). Uma só proposta aberta; nenhuma mensagem nova. | INV-01, INV-08 | 2 | ✅ L1 |
 | FL-06 | P0 | Abandonar o Flow | C: «Oi» ⟶ [Flow fechado em HORARIO] ⟶ C: «oi» (1 h depois) | Nada é enviado ao abandonar. O novo «oi» volta a abrir o hub (#554). | INV-09, INV-01 | 2 | ✅ L1 |
 | FL-07 | P0 | Hub «Meus agendamentos» sem compromisso | C: «Oi» ⟶ [Flow: Meus] | «Você não tem horário marcado. Quer agendar?», sem handoff. | INV-06 | 2 | ✅ L1 |
+| FL-07b | P0 | Texto livre «meus agendamentos» | C: «Quais os meus agendamentos» | Mesmo corpo do hub Meus; **sem** LLM; **sem** handoff; **sem** «equipe vai verificar». | INV-06, FL-07 | 1 | ✅ L1 |
 | FL-08 | P0 | Hub «Falar com a equipe» | C: «Oi» ⟶ [Flow: Equipe] | Pausa com frase fixa (DEC-083). | INV-06 | 2 | ✅ L1 |
 | FL-09 | P0 | Hub «Cancelar» sem compromisso | C: «Oi» ⟶ [Flow: Cancelar] | Handoff (DEC-091); nada marcado nem cancelado. | INV-06, INV-01 | 2 | ✅ L1 |
 | FL-10 | P0 | Hub «Informações» | C: «Oi» ⟶ [Flow: Informações] | Expediente da ficha, sem fuso IANA nem link inventado. | INV-03, INV-05 | 2 | ✅ L1 |
