@@ -64,7 +64,7 @@ export async function notifyNewConversation(
     tenantName?: string
     /**
      * Default: nova conversa.
-     * `new_message` = mensagem nova; `needs_person` / `needs_person_escalate` = DEC-155.
+     * `new_message` = mensagem nova; `needs_person` / `needs_person_escalate` = DEC-156.
      */
     kind?: 'new_conversation' | 'new_message' | 'needs_person' | 'needs_person_escalate'
     /** Badge do ícone (conversas com não lidas). */
@@ -123,7 +123,7 @@ export async function notifyNewConversationAsync(
     tenantName?: string
     /**
      * Default: nova conversa.
-     * `new_message` = mensagem nova; `needs_person` / `needs_person_escalate` = DEC-155.
+     * `new_message` = mensagem nova; `needs_person` / `needs_person_escalate` = DEC-156.
      */
     kind?: 'new_conversation' | 'new_message' | 'needs_person' | 'needs_person_escalate'
     /** Badge do ícone (conversas com não lidas). */

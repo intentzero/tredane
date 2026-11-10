@@ -1271,7 +1271,25 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     for (const conversationId of needsPersonIds) {
       await this.#maybePushNeedsPerson(caller.tenantId, conversationId, false)
     }
+    // DEC-156: escalada aos 5 min — agendar o wake em `alert_after_at`
+    // (não esperar só o timeout de 30 min / DEC-155).
+    if (needsPersonIds.size > 0) {
+      const nextAlert = this.#nextOpenPendingAlertAt(caller.tenantId)
+      if (nextAlert != null) await this.#scheduleAlarmNoLaterThan(nextAlert + 500)
+      await this.#scheduleNextHandoffTimeout(caller.tenantId)
+    }
     return { eventSeq, fanout: fanoutResult }
+  }
+
+  /** Próximo `alert_after_at` de comunicação pendente aberta (H7 / DEC-156). */
+  #nextOpenPendingAlertAt(tenantId: string): number | null {
+    return (
+      this.#db.get<{ t: number | null }>(
+        `SELECT MIN(alert_after_at) AS t FROM pending_communications
+         WHERE tenant_id = ? AND status = 'open'`,
+        tenantId,
+      )?.t ?? null
+    )
   }
 
   /** DEC-156 — push «Precisa de alguém» / reforço (best-effort; app aberta = suppress). */
@@ -3286,11 +3304,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           await this.#maybePushNeedsPerson(meta.tenantId, pending.conversationId, true)
         }
       }
-      const nextAlert = this.#db.get<{ t: number }>(
-        `SELECT MIN(alert_after_at) AS t FROM pending_communications
-         WHERE tenant_id = ? AND status = 'open'`,
-        meta.tenantId,
-      )?.t
+      const nextAlert = this.#nextOpenPendingAlertAt(meta.tenantId)
       if (nextAlert != null) await this.#scheduleAlarmNoLaterThan(nextAlert + 500)
     } catch {
       /* best-effort H7 */

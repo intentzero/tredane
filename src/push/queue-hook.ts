@@ -43,7 +43,7 @@ export async function maybeNotifyNewConversationPush(input: {
   })
 }
 
-/** DEC-155 — push «Precisa de alguém» / reforço aos 5 min (best-effort). */
+/** DEC-156 — push «Precisa de alguém» / reforço aos 5 min (best-effort). */
 export async function maybeNotifyNeedsPersonPush(input: {
   env: WorkerBindings
   clock: Clock

@@ -116,7 +116,7 @@ export function buildNewMessagePayload(input: {
   }
 }
 
-/** DEC-155 — cliente pediu equipe / handoff (sem PII). */
+/** DEC-156 — cliente pediu equipe / handoff (sem PII). */
 export function buildNeedsPersonPayload(input: {
   tenantId: string
   tenantName: string
