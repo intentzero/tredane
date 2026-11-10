@@ -151,8 +151,10 @@ export class DeferredBookingFrame {
       this.patch.serviceId !== undefined ? this.patch.serviceId : (base?.serviceId ?? null)
     if (!serviceId && !base) return null
     if (!serviceId) {
-      const line = this.patch.line !== undefined ? this.patch.line : null
-      const pending = this.patch.pending !== undefined ? this.patch.pending : null
+      // Espelha saveBookingFrame: omitido no patch mantém o hold DEC-142.
+      const line = this.patch.line !== undefined ? this.patch.line : (base?.line ?? null)
+      const pending =
+        this.patch.pending !== undefined ? this.patch.pending : (base?.pending ?? null)
       if (line || pending) {
         return {
           phase: this.patch.phase ?? (pending ? 'coletando' : 'idle'),

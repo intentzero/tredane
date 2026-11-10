@@ -16,6 +16,7 @@ import {
   bookingFrameProgressKey,
   botTaughtExitCommands,
   botTaughtRestartPhraseInCopy,
+  isHowToEndQuestion,
   isOpenBookingAttempt,
   shouldAppendEndHelpHint,
   taughtExitCommandsFromCopy,
@@ -47,6 +48,14 @@ describe('end-help-hint helpers (DEC-152)', () => {
     expect(RESET_DISCOVERY_HINT_TEXT).toMatch(/começar de novo/)
     expect(RESET_DISCOVERY_HINT_TEXT).toMatch(/terminar/)
     expect(isExplicitAbandonText('terminar')).toBe(true)
+  })
+
+  it('isHowToEndQuestion: meta sim; Terminar exacto não', () => {
+    expect(isHowToEndQuestion('Como faço para terminar esta conversa?')).toBe(true)
+    expect(isHowToEndQuestion('como posso encerrar?')).toBe(true)
+    expect(isHowToEndQuestion('Terminar')).toBe(false)
+    expect(isHowToEndQuestion('quero terminar a sessão')).toBe(false)
+    expect(isHowToEndQuestion('quero depilação')).toBe(false)
   })
 
   it('appendEndHelpHint é idempotente', () => {

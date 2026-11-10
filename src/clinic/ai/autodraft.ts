@@ -69,6 +69,11 @@ import {
 } from './media-ask-text'
 import { notifyModelFallback } from './model-fallback'
 import {
+  HOW_TO_END_REPLY,
+  isHowToEndQuestion,
+  markEndHelpHintSent,
+} from './end-help-hint'
+import {
   classifySensitive,
   hasAiTransparencyQuestion,
   hasPolicyQuestion,
@@ -817,6 +822,38 @@ export async function runDueAutoDrafts(
         status: 'skipped',
         suggestion: null,
         reason: 'catalog_reply',
+        replyOutbox,
+      })
+      continue
+    }
+    // Meta «como termino?» — DEC-152 ensina o comando; não encerra, não handoff, sem LLM.
+    if (isHowToEndQuestion(turnText)) {
+      await signalTyping()
+      let replyOutbox: OutboxRow[] = []
+      try {
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body: HOW_TO_END_REPLY,
+            clientRequestId: `ai-how-to-end:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox = sent.outbox
+        markEndHelpHintSent(db, tenantId, job.conversationId)
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'how_to_end',
         replyOutbox,
       })
       continue

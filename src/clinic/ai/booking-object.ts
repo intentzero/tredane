@@ -437,6 +437,11 @@ export function resolveBookingObject(input: {
   text: string
   services: readonly ServiceRow[]
   session?: BookingSessionHint | null
+  /**
+   * Audiência solta do catálogo (DEC-142 / CF-45): line no quadro sem serviço.
+   * `session` só conta quando `serviceId` coincide; o hold vale ao escolher o serviço.
+   */
+  heldAudienceLine?: AudienceLine | null
   /** Textos das opções oferecidas pela clínica no turno anterior. */
   offeredKeys?: readonly string[] | null
   /** Catálogo mudou de forma material desde a sessão (ids inválidos). */
@@ -668,7 +673,8 @@ export function resolveBookingObject(input: {
   const mixed = needsAudienceLine(active)
   const sessionLine =
     input.session?.serviceId === serviceId ? input.session.audienceLine : null
-  const effectiveLine = line ?? sessionLine
+  // DEC-142 / CF-45: hold do catálogo (Masculino/Feminino) trava a linha do serviço.
+  const effectiveLine = line ?? sessionLine ?? input.heldAudienceLine ?? null
   if (mixed && !effectiveLine) {
     return {
       kind: 'clarify',

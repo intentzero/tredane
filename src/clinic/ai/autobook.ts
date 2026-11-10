@@ -1909,6 +1909,7 @@ export async function tryAiAutoBook(
               variantIds: session.variantIds,
             }
           : null,
+        heldAudienceLine: heldAudienceLine(frame),
         conversationId: input.conversationId,
       })
       let replyText: string | undefined
@@ -2009,8 +2010,14 @@ export async function tryAiAutoBook(
             replyText = booking.question ?? audienceLineQuestion(svc.name, input.conversationId)
             interactive = lineChoiceFor(deferred, svc.id, catalog.version)
           } else if (zonePool.length > 0 && keptForMode.length === 0) {
+            // Não reutilizar booking.question de «linha» quando a audiência já veio
+            // do hold DEC-142 (resolveBookingObject antigo ainda pedia F/M).
+            const zoneAsk =
+              booking.missing.includes('linha') && line
+                ? null
+                : booking.question
             replyText =
-              booking.question ??
+              zoneAsk ??
               variantListQuestion(
                 svc.name,
                 variantKindForAsk(svc),

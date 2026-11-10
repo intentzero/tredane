@@ -396,6 +396,7 @@ export function catalogReply(
           variantIds: session.variantIds,
         }
       : null,
+    heldAudienceLine: heldLineNow,
     conversationId: cnv,
   })
   if (bookingMatch.kind === 'handoff') {

@@ -652,8 +652,10 @@ describe('catalogVersion revalidação (#472)', () => {
         s.clock,
       )
       expect(synced.revalidated).toBe(true)
-      expect(synced.frame).toBeNull()
-      expect(getBookingFrame(s.db, s.tenantId, s.conversationId)).toBeNull()
+      // Serviço inválido → hold DEC-142 com a linha (preferência de audiência da conversa).
+      expect(synced.frame?.serviceId ?? null).toBeNull()
+      expect(synced.frame?.line).toBe('feminino')
+      expect(getBookingFrame(s.db, s.tenantId, s.conversationId)?.line).toBe('feminino')
     } finally {
       s.close()
     }
@@ -863,5 +865,39 @@ describe('catalogVersion revalidação (#472)', () => {
     expect(heldAudienceLine({ serviceId: 'svc1', line: 'feminino' })).toBeNull()
     expect(heldAudienceLine({ serviceId: null, line: null })).toBeNull()
     expect(heldAudienceLine({ serviceId: null, line: 'feminino' })).toBe('feminino')
+  })
+
+  it('sync catalogVersion não apaga hold DEC-142 (só line, sem serviço)', () => {
+    // Smoke Paulo 10/11: Marcar outro → Masculino → sync no turno Depilação
+    // limpava o hold (patch só com catalogVersion → line omitido virava null).
+    const { db, clock, tenantId, conversationId, close } = boot()
+    try {
+      saveBookingFrame(
+        db,
+        tenantId,
+        conversationId,
+        { serviceId: null, line: 'masculino', catalogVersion: 'stale' },
+        clock,
+      )
+      expect(heldAudienceLine(getBookingFrame(db, tenantId, conversationId))).toBe('masculino')
+      const synced = syncBookingFrameWithCatalog(
+        db,
+        tenantId,
+        conversationId,
+        {
+          version: 'fresh-v2',
+          serviceIds: new Set(['svc1']),
+          variantIds: new Set(['z1']),
+          professionalIds: new Set(['pro1']),
+        },
+        clock,
+      )
+      expect(synced.revalidated).toBe(true)
+      expect(heldAudienceLine(synced.frame)).toBe('masculino')
+      expect(synced.frame?.catalogVersion).toBe('fresh-v2')
+      expect(getBookingFrame(db, tenantId, conversationId)?.line).toBe('masculino')
+    } finally {
+      close()
+    }
   })
 })
