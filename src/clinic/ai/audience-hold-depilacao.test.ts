@@ -25,7 +25,6 @@ import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { tryAiAutoBook } from './autobook'
 import { CATALOG_AUDIENCE_LIST_BODY, planCatalogConsult } from './catalog-consult'
-import { autoBookCapability, toAiAssistDeps } from './deps'
 import { END_HELP_HINT_TEXT, HOW_TO_END_REPLY, isHowToEndQuestion } from './end-help-hint'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import { getBookingFrame, heldAudienceLine, saveBookingFrame } from './schedule-session'
@@ -213,8 +212,8 @@ describe('audiência solta → Depilação (smoke Marcar outro)', () => {
       s.clock.advance(7_000)
       const adapter = new SimulatedAiAdapter()
       const zoneOut = await runDueAutoDrafts(s.db, s.caller, s.clock, {
-        ...toAiAssistDeps({ ai: adapter }),
-        capability: autoBookCapability(true),
+        mode: 'synthetic',
+        adapter,
       })
       expect(zoneOut).toHaveLength(1)
       const zoneAsk = s.db.get<{ body: string }>(
@@ -247,8 +246,8 @@ describe('audiência solta → Depilação (smoke Marcar outro)', () => {
       )
       s.clock.advance(7_000)
       const howOut = await runDueAutoDrafts(s.db, s.caller, s.clock, {
-        ...toAiAssistDeps({ ai: adapter }),
-        capability: autoBookCapability(true),
+        mode: 'synthetic',
+        adapter,
       })
       expect(howOut).toHaveLength(1)
       expect(howOut[0]?.reason).toBe('how_to_end')
