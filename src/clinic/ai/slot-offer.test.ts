@@ -100,20 +100,27 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
   })
 
   it('título da lista é dia da semana + DD/MM + hora, sem fuso nem mês-dia (#507)', () => {
+    // Título ≤24: descrição vazia — Meta ecoa título+descrição no bubble;
+    // iguais → «sexta 13/11 11:15» duplicado (bug slot-reply-duplicate).
     expect(slotListRowCopy('2026-11-03', '17:00')).toEqual({
       title: 'terça 03/11 17:00',
-      description: 'terça 03/11 17:00',
+      description: '',
     })
     const sat = slotListRowCopy('2026-11-07', '09:30')
     expect(sat.title).toBe('sábado 07/11 09:30')
     expect(sat.title.length).toBeLessThanOrEqual(24)
-    expect(sat.description).toBe('sábado 07/11 09:30')
-    expect(sat.title + sat.description).not.toMatch(/America\//)
-    expect(sat.title + sat.description).not.toMatch(/\b\d{2}-\d{2}\b/)
-    // Segunda (mais longa) ainda cabe em 24.
+    expect(sat.description).toBe('')
+    expect(sat.title).not.toMatch(/America\//)
+    expect(sat.title).not.toMatch(/\b\d{2}-\d{2}\b/)
+    // Segunda (mais longa) ainda cabe em 24 — sem description.
     const mon = slotListRowCopy('2026-11-02', '17:00')
     expect(mon.title).toBe('segunda 02/11 17:00')
     expect(mon.title.length).toBeLessThanOrEqual(24)
+    expect(mon.description).toBe('')
+    // Sexta 13/11 11:15 (caso do smoke): uma linha só no reply Meta.
+    const fri = slotListRowCopy('2026-11-13', '11:15')
+    expect(fri).toEqual({ title: 'sexta 13/11 11:15', description: '' })
+    expect(fri.title).not.toBe(`${fri.description}`)
   })
 
   it('periodFromHHMM classifica manhã/tarde/noite', () => {

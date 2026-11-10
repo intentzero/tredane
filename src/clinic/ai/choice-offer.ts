@@ -321,12 +321,20 @@ export function buildSlotChoiceInteractive(input: {
       sections: [
         {
           rows: options.map((o) => {
+            const title = clip(o.label, META_LIST_ROW_TITLE_MAX)
             const description = o.description?.trim()
+            // Meta ecoa título + description no bubble do list_reply; iguais →
+            // linha duplicada («sexta 13/11 11:15» ×2). Só enviar description
+            // quando acrescenta (DEC-134 A: full text após corte do título).
+            const distinct =
+              description && description !== title && description !== o.label.trim()
+                ? description
+                : ''
             return {
               id: encodeChoiceId('horario', input.catalogVersion, o.key),
-              title: clip(o.label, META_LIST_ROW_TITLE_MAX),
-              ...(description
-                ? { description: clip(description, META_LIST_ROW_DESCRIPTION_MAX) }
+              title,
+              ...(distinct
+                ? { description: clip(distinct, META_LIST_ROW_DESCRIPTION_MAX) }
                 : {}),
             }
           }),

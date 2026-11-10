@@ -27,6 +27,7 @@ import {
 import { extractDates } from './nlu/temporal'
 import { createDeferredBookingFrame, OUTBOUND_MESSAGE_ID_PLACEHOLDER } from './deferred-booking-frame'
 import { getBookingFrame } from './schedule-session'
+import { slotListRowCopy } from './slot-offer'
 
 function boot() {
   const clock = createControllableClock(Date.UTC(2026, 10, 5, 15, 0))
@@ -139,17 +140,17 @@ describe('choice-offer ids', () => {
         {
           key: '2026-11-03T17:00',
           label: 'terça 03/11 17:00',
-          description: 'terça 03/11 17:00',
         },
         {
           key: '2026-11-04T17:00',
           label: 'quarta 04/11 17:00',
-          description: 'quarta 04/11 17:00',
         },
       ],
     })
     const rows = built.interactive.sections.flatMap((s) => s.rows)
     expect(rows.map((r) => r.title)).toEqual(['terça 03/11 17:00', 'quarta 04/11 17:00'])
+    // Sem description quando o título cabe em 24 (reply Meta = uma linha).
+    expect(rows.every((r) => !r.description)).toBe(true)
     expect(JSON.stringify(rows)).not.toMatch(/\b\d{2}-\d{2} \d{2}:\d{2}\b/)
     expect(parseChoiceId(rows[0]!.id)?.key).toBe('2026-11-03T17:00')
     expect(parseChoiceId(rows[1]!.id)?.key).toBe('2026-11-04T17:00')
@@ -167,6 +168,40 @@ describe('choice-offer ids', () => {
       '2026-11-03T17:00',
       '2026-11-04T17:00',
     ])
+  })
+
+  it('lista Horários: slotListRowCopy ≤24 → uma linha no reply Meta (sem description)', () => {
+    const copy = slotListRowCopy('2026-11-13', '11:15')
+    expect(copy.description).toBe('')
+    const built = buildSlotChoiceInteractive({
+      catalogVersion: '9',
+      slots: [
+        {
+          key: '2026-11-13T11:15',
+          label: copy.title,
+          ...(copy.description ? { description: copy.description } : {}),
+        },
+      ],
+    })
+    const row = built.interactive.sections.flatMap((s) => s.rows)[0]!
+    expect(row.title).toBe('sexta 13/11 11:15')
+    expect(row.description).toBeUndefined()
+  })
+
+  it('lista Horários dedupe: description=title não vai no payload Meta', () => {
+    const built = buildSlotChoiceInteractive({
+      catalogVersion: '9',
+      slots: [
+        {
+          key: '2026-11-13T11:15',
+          label: 'sexta 13/11 11:15',
+          description: 'sexta 13/11 11:15',
+        },
+      ],
+    })
+    const row = built.interactive.sections.flatMap((s) => s.rows)[0]!
+    expect(row.title).toBe('sexta 13/11 11:15')
+    expect(row.description).toBeUndefined()
   })
 })
 
