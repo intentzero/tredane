@@ -14,7 +14,7 @@
 body{margin:0}
 button,input,textarea{font:inherit}
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #0E5A5C;outline-offset:2px}
-.d{--app:#F5F4EF;--card:#FFFFFF;--sunk:#EEEDE7;--tx:#142625;--tx2:#424B4A;--mu:#566160;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--prB:#B3D1D1;--ok:#1F7A4D;--okT:#EAF5EF;--wa:#6E4200;--waT:#FFF7EA;--ai:#4B2A9E;--aiB:#6B3FD4;--aiT:#F7F4FD;--aiAv:#E7E0F8;--ctl:#7A8584;--bd:#E1E3E0;--div:#EEEDE7}
+.d{--app:#F5F4EF;--card:#FFFFFF;--sunk:#EEEDE7;--tx:#142625;--tx2:#424B4A;--mu:#566160;--pr:#0E5A5C;--prInk:#0A4547;--prT:#E7F1F1;--prB:#B3D1D1;--ok:#1F7A4D;--okT:#EAF5EF;--wa:#6E4200;--waT:#FFF7EA;--ai:#4B2A9E;--aiB:#6B3FD4;--aiT:#F7F4FD;--aiAv:#E7E0F8;--ctl:#7A8584;--bd:#E1E3E0;--div:#EEEDE7;--dg:#B42318}
 .d button,.d a{color:inherit;cursor:pointer}
 .rl a{width:68px;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;font-size:11px;color:var(--mu);text-decoration:none}
 .rl a.on{background:var(--prT);color:var(--prInk);font-weight:600}
@@ -44,12 +44,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
 .hdr-btn{height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--prB);background:var(--card);color:var(--prInk);font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px;flex:none}
 .menu{position:absolute;top:52px;right:0;min-width:280px;background:var(--card);border:1px solid var(--bd);border-radius:12px;box-shadow:0 8px 24px rgba(20,38,37,.12);padding:6px;z-index:5;display:flex;flex-direction:column}
 .menu button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:10px 12px;border-radius:8px;font-size:14px;color:var(--tx);font-weight:500}
+.menu button.danger{color:var(--dg)}
+.menu .sep{height:1px;background:var(--bd);margin:4px 6px}
 .menu .hint{margin:4px 8px 8px;font-size:11px;color:var(--mu);line-height:1.35}
 </style>
 </helmet>
 <!--
-  Confirmado (Paulo, 31/10/2026, Opção A): header Agendar + Contato + ⋮ só conversa/pipeline.
-  Sem Resumo da IA nem Bloquear no menu (ficam no sidepane Contato).
+  Confirmado base (Paulo 31/10/2026 Opção A; 04/11 sem Reservar bloco).
+  Proposto TR-488: Bloquear + Excluir (owner) no fim do ⋮; Resumo da IA só no Contato.
 -->
 <div class="d" style="width:1440px;height:900px;box-sizing:border-box;display:grid;grid-template-columns:84px 400px minmax(0,1fr);background:var(--app);color:var(--tx);font-family:Roboto,&quot;Helvetica Neue&quot;,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.35;overflow:hidden">
 
@@ -198,11 +200,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
         </button>
         <div class="menu" role="menu" aria-label="Acções da conversa">
-          <p class="hint">Só conversa e pipeline. Resumo da IA e Bloquear ficam em Contato. Agendar só no cabeçalho.</p>
+          <p class="hint">Pipeline + Bloquear/Excluir (confirmação). Resumo da IA fica em Contato. Agendar só no cabeçalho.</p>
           <button type="button" role="menuitem">Marcar como «Horário proposto»</button>
           <button type="button" role="menuitem">Marcar como perdida</button>
           <button type="button" role="menuitem">Transferir para outra pessoa</button>
           <button type="button" role="menuitem">Encerrar conversa</button>
+          <div class="sep" role="separator"></div>
+          <button type="button" role="menuitem" class="danger">Bloquear contato</button>
+          <button type="button" role="menuitem" class="danger">Excluir contato</button>
         </div>
       </span>
     </header>
