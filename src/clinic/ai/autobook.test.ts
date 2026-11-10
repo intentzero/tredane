@@ -23,6 +23,7 @@ import { handleChoiceOfferClick } from './choice-offer'
 import { getScheduleSession } from './schedule-session'
 import { checkConversationProtection, isConversationPaused } from './protection'
 import { autoBookCapability, toAiAssistDeps } from './deps'
+import { readAiReplyPause } from './human-handoff'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
 import { clearScheduleSession, saveScheduleSession } from './schedule-session'
 
@@ -575,6 +576,15 @@ describe('S2: texto livre nunca marca (proposta ligada, clínica sem pausa)', ()
       expect(o.autoBook?.replyText).not.toMatch(/Anotei|Perfeito|Quase lá/)
       expect(o.replyOutbox?.length).toBeGreaterThan(0)
       expect(o.suggestion!.internalNotes).toMatch(/Capacidade pausada|Agendar/)
+      // TR-487: alerta sem pausa (Precisa de alguém).
+      expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      const pending = s.db.all<{ kind: string }>(
+        `SELECT kind FROM pending_communications
+         WHERE tenant_id = ? AND conversation_id = ? AND status != 'resolved'`,
+        s.tenantId,
+        s.cnv.id,
+      )
+      expect(pending.some((p) => p.kind === 'alter_awaiting_team')).toBe(true)
       noBooking(s)
     } finally {
       s.close()

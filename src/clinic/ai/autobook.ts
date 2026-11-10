@@ -47,6 +47,7 @@ import { sendProposalToWhatsAppOp } from '../proposals/send'
 import { clinicCivilDateFromUtc } from '../scheduling/timezone'
 import { openPendingCommunication } from '../proposals/pending-communication'
 import { TEMPO_REFUSED_PHRASE, TEMPO_UNCONFIRMED_PHRASE } from '../proposals/render'
+import { promiseTeamFollowUp } from './promise-team-follow-up'
 import { queryAvailability } from '../scheduling/query'
 import { queryAutomaticAvailability } from '../tempo/automatic'
 import { evaluateServiceTempo, type ForecastAdapter } from '../tempo/evaluate'
@@ -2460,20 +2461,33 @@ export async function tryAiAutoBook(
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'erro'
+    const replyText =
+      activeZones.length > 0
+        ? askZonesReply(
+            phrase,
+            stableVariantLabelList(scoped.length > 0 ? scoped : activeZones),
+            time,
+            input.conversationId,
+            kindForAct,
+            svc.variantSelection,
+          )
+        : teamConfirmsSoonReply(svc.name, time, input.conversationId)
+    // TR-487: «A equipe confirma em seguida» → alerta sem pausa.
+    if (activeZones.length === 0) {
+      promiseTeamFollowUp(
+        db,
+        tenantId,
+        {
+          conversationId: conv.id,
+          detailText: `Não deu para calcular ${svc.name}: ${message}. A IA prometeu retorno da equipe.`,
+        },
+        clock,
+      )
+    }
     return finish({
       ...none('needs_info', { ...base, serviceId: svc.id, date, time }),
       // Não silenciar: o modelo pode ter deixado a mensagem vazia à espera da proposta.
-      replyText:
-        activeZones.length > 0
-          ? askZonesReply(
-              phrase,
-              stableVariantLabelList(scoped.length > 0 ? scoped : activeZones),
-              time,
-              input.conversationId,
-              kindForAct,
-              svc.variantSelection,
-            )
-          : teamConfirmsSoonReply(svc.name, time, input.conversationId),
+      replyText,
       notes:
         `Não deu para calcular ${svc.name}: ${message}. Pergunta/aviso automático enviado. Texto livre não marca.`,
     })
@@ -2612,6 +2626,16 @@ export async function tryAiAutoBook(
           'Envie a cobrança Pix pelo Agendar (fluxo normal); o compromisso é criado após o pagamento.',
       })
     }
+    // TR-487 / DEC-125: copy promete retorno → alerta sem pausa (não notifyHumanHandoff).
+    promiseTeamFollowUp(
+      db,
+      tenantId,
+      {
+        conversationId: conv.id,
+        detailText: `Capacidade pausada: pedido de ${label}. A IA prometeu que a equipe confirma o horário.`,
+      },
+      clock,
+    )
     return finish({
       ...none('requires_button', found),
       replyText:
@@ -2654,6 +2678,18 @@ export async function tryAiAutoBook(
         'Aguarda o clique da cliente; texto livre («sim») não marca.'
       : `Proposta ${proposal.id} v${proposal.version} preparada, mas envio entregue à equipe ` +
         `(${sent.status}). Texto livre não marca.`
+    if (!delivered) {
+      // TR-487 / DEC-125: «equipe vai te responder» → alerta sem pausa.
+      promiseTeamFollowUp(
+        db,
+        tenantId,
+        {
+          conversationId: conv.id,
+          detailText: `Envio da proposta ${proposal.id} falhou (${sent.status}). A IA prometeu retorno da equipe.`,
+        },
+        clock,
+      )
+    }
     return finish({
       ...none(status, found),
       proposalId: proposal.id,
@@ -2666,6 +2702,15 @@ export async function tryAiAutoBook(
       outbox: sent.outbox,
     })
   } catch (err) {
+    promiseTeamFollowUp(
+      db,
+      tenantId,
+      {
+        conversationId: conv.id,
+        detailText: `Falha ao montar/enviar proposta para ${label}. A IA prometeu retorno da equipe.`,
+      },
+      clock,
+    )
     return finish({
       ...none(svc.requiresSignal ? 'needs_signal' : 'requires_button', found),
       replyText:
