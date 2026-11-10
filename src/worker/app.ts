@@ -85,6 +85,7 @@ import {
   createOpsRoutes,
   type OpsRouteOptions,
 } from '../ops'
+import { createReviewMcpRoutes } from '../mcp/review'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
@@ -189,6 +190,16 @@ export function createApp(opts: CreateAppOptions = {}) {
   app.use('/api/invitations/*', createAuthServicesMiddleware(factory))
   app.use('/api/invitations', createAuthServicesMiddleware(factory))
   app.use('/api/f6/*', createAuthServicesMiddleware(factory))
+  app.use('/api/mcp/*', createAuthServicesMiddleware(factory))
+
+  // DEC-158 — MCP read-only da fila Para revisão (sobre DEC-157 / #670).
+  app.route(
+    '/',
+    createReviewMcpRoutes({
+      authServicesFactory: factory,
+      inboxGatewayFactory: opts.inboxGatewayFactory,
+    }),
+  )
 
   app.route('/', createAuthRoutes())
 
