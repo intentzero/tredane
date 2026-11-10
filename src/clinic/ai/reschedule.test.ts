@@ -24,7 +24,7 @@ import { confirmAppointmentOp, zonedCivilToUtc } from '../scheduling'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { enqueueAutoDraft, runDueAutoDrafts } from './index'
-import { HUMAN_HANDOFF_TEXT } from './human-handoff'
+import { HUMAN_HANDOFF_TEXT, readAiReplyPause } from './human-handoff'
 import { forbiddenClientTermsIn } from './client-copy'
 import { validateClientOutbound } from './outbound-validate'
 import { SLOT_LIST_BUTTON_LABEL } from './choice-offer'
@@ -414,6 +414,15 @@ describe('DEC-091/129 reagendamento conversacional', () => {
         s.tenantId,
       )
       expect(proposalRow?.n ?? 0).toBe(0)
+      // TR-487: alerta sem pausa (Precisa de alguém).
+      expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      const pending = s.db.all<{ kind: string }>(
+        `SELECT kind FROM pending_communications
+         WHERE tenant_id = ? AND conversation_id = ? AND status != 'resolved'`,
+        s.tenantId,
+        s.cnv.id,
+      )
+      expect(pending.some((p) => p.kind === 'alter_awaiting_team')).toBe(true)
     } finally {
       s.close()
     }

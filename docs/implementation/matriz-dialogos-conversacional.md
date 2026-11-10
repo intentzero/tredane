@@ -237,6 +237,7 @@
 | K-05 | P0 | Botão de versão antiga | [v1 substituída por v2] ⟶ clique em v1 | Recusado; só a v2 marca. | INV-01 | 1 | ✅ `execute-confirm.test` «versão substituída» |
 | K-06 | P1 | Pix pago sem vaga | [Pix pago depois de a vaga ser ocupada] | Fluxo «pago sem vaga» (#39); nenhuma dupla marcação. | INV-01 | — | ✅ `pix/exceptions.test` |
 | K-07 | P1 | Proposta não entregue | [falha Meta no envio] | Pendência; alerta aos 5 min; aviso sem promessa vaga. | INV-09 | 1 | ◐ `pending_communications` |
+| K-08 | P0 | Promessa de retorno da equipe (TR-487) | [owner pausa autobook / envio falhou / `nao_consegui_fechar` / redator] | Copy DEC-125/129 mantém-se; abre `alter_awaiting_team` (Precisa de alguém); IA **não** pausa (alerta sem pausa, espelha DEC-107). | INV-06, INV-09 | 1 | ✅ `promise-team-follow-up.test` · `autobook.test` «pausa da owner» · `reschedule.test` frase (6) |
 
 ## FL. Hub e WhatsApp Flow: caminho principal vigente (DEC-138, ADR-0016)
 
@@ -311,7 +312,7 @@ Um diálogo L3 que falha é triado (plano §6). Se revela um caso novo, ganha um
 | --- | --- |
 | ❌ Falha verificada | A-10, B-01, B-02, B-03, B-06, B-07, B-08, C-01, C-02, C-03, C-11, C-12, E-06, G-02, G-03, G-05, I-07, I-08, J-08 (19) |
 | ⚠ Falha provável | A-02, A-07, A-08, B-04, B-13, C-05, C-08, D-01, D-02, D-06, F-07, G-10, G-11, H-02, H-03 (15) |
-| ✅ Coberto por teste | A-01, A-04, A-05, A-11, B-05, C-09, D-03, D-04, D-07, E-02, E-03, E-05, E-08, F-03, F-05, F-06, G-01, G-04, G-06, G-07, G-08, G-09, G-12, I-01, I-02, I-05, J-01, J-03, J-04, J-05, J-09, K-01, K-02, K-04, K-05, K-06 (36) |
+| ✅ Coberto por teste | A-01, A-04, A-05, A-11, B-05, C-09, D-03, D-04, D-07, E-02, E-03, E-05, E-08, F-03, F-05, F-06, G-01, G-04, G-06, G-07, G-08, G-09, G-12, I-01, I-02, I-05, J-01, J-03, J-04, J-05, J-09, K-01, K-02, K-04, K-05, K-06, K-08 (37) |
 | ◐ Passa por código | D-05, H-01, K-03, K-07 (4) |
 | ✅ L4 Meta/staging | A-03 (1) |
 | ❔ Por medir | A-06, A-09, A-12, B-09, B-10, B-11, B-12, C-04, C-06, C-07, C-10, C-13, D-08, D-09, D-10, D-11, E-01, E-04, E-07, F-01, F-02, F-04, F-08, H-04, I-03, I-04, I-06, J-02, J-06, J-07 (30) |
