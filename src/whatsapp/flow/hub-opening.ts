@@ -298,9 +298,11 @@ function formatAptWhen(tz: string, startsAt: number): string {
  * «não tem horário marcado», sem handoff. Sem este atalho o redator de
  * exceção inventava «a equipe vai verificar» + botão sem `notifyHumanHandoff`.
  * Não casa remarcar/cancelar/«outro agendamento» (DEC-091 / DEC-142).
+ * Não casa disponibilidade («tem agendamento amanhã?») nem preferência de
+ * slot («quero meu horário das 10») — só 1.ª pessoa / possessivo de lista.
  */
 const MY_APPOINTMENTS_RE =
-  /\b(?:quais|quero\s+ver|ver|consultar|mostra|mostrar|listar)?\s*(?:sao\s+)?(?:os\s+)?meus?\s+(?:agendamentos?|horarios?|marcacoes?|compromissos?)\b|\b(?:tenho|tem)\s+(?:algum\s+)?(?:agendamento|horario\s+marcado|marcacao)\b|\bo\s+que\s+(?:eu\s+)?tenho\s+marcado\b/i
+  /\b(?:quais|quero\s+ver|ver|consultar|mostra|mostrar|listar)\s+(?:sao\s+)?(?:os\s+)?meus?\s+(?:agendamentos?|horarios?|marcacoes?|compromissos?)\b|\bmeus?\s+agendamentos?\b|\bmeus\s+horarios?\b|\bmeus?\s+(?:marcacoes?|compromissos?)\b|\btenho\s+(?:algum\s+)?(?:agendamento|horario\s+marcado|marcacao)\b|\bo\s+que\s+(?:eu\s+)?tenho\s+marcado\b/i
 
 export function isMyAppointmentsQuery(text: string): boolean {
   const body = text.trim()

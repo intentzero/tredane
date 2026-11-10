@@ -209,6 +209,11 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
     expect(isMyAppointmentsQuery('quero remarcar')).toBe(false)
     expect(isMyAppointmentsQuery('quero outro agendamento')).toBe(false)
     expect(isMyAppointmentsQuery('quero depilação')).toBe(false)
+    // Disponibilidade / preferência de slot — não é lista dos meus.
+    expect(isMyAppointmentsQuery('Tem agendamento amanhã?')).toBe(false)
+    expect(isMyAppointmentsQuery('tem agendamento disponível?')).toBe(false)
+    expect(isMyAppointmentsQuery('quero meu horário das 10')).toBe(false)
+    expect(isMyAppointmentsQuery('meu horário')).toBe(false)
   })
 
   it('texto livre «Quais os meus agendamentos» → hubMeus, sem pausa nem alerta (smoke)', async () => {
