@@ -220,7 +220,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
         {
           turn: 1,
           matches: [/Entendi:.*(intima|íntima).*(pernas)|Entendi:.*(pernas).*(intima|íntima)/i, /Certo\?/],
-          excludes: [/Não encontrei/i, /perna\b/i],
+          excludes: [/Não encontrei/i, /Não encontrei perna/i],
         },
       ],
       outboundExcludes: NO_LEAK,

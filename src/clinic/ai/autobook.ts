@@ -1664,10 +1664,9 @@ export async function tryAiAutoBook(
               },
               det.service.id,
             )
-      if (
-        earlyUpdate.resolvedVariantIds?.length &&
-        earlyUpdate.reason !== 'unresolved_variant'
-      ) {
+      if (earlyUpdate.resolvedVariantIds?.length) {
+        // Inclui `unresolved_variant` com matches (Paulo 10/11 opção 2): o quadro
+        // já gravou o que casou; o funil só avança se não houver sobra.
         kept = mentionPool.filter((z) => earlyUpdate.resolvedVariantIds!.includes(z.id))
         chosen = { zones: kept, ambiguous: false }
       } else {
@@ -1690,7 +1689,8 @@ export async function tryAiAutoBook(
         zonesNamedInText(turnText, pool.length > 0 ? pool : active, serviceIgnore).length > 0 ||
         zoneEcho === 'confirm' ||
         Boolean(input.boundSlot)
-      if (!(date && time && kept.length > 0 && !chosen.ambiguous && contributed)) {
+      // Sobra (leftoverAsk) nunca fecha marcação — mesmo com date+time+matches.
+      if (!(date && time && kept.length > 0 && !chosen.ambiguous && contributed && !leftoverAsk)) {
         const plural = det.service.variantKindPlural?.trim() || ''
         const singular = det.service.variantKind?.trim() || ''
         const kindLabel = (
@@ -2281,9 +2281,9 @@ export async function tryAiAutoBook(
   let ambiguous = false
   if (zoneEcho === 'confirm' || input.boundSlot) {
     mentionedForUpdate = []
-  } else if (proposalMention.unrecognized && zoneEcho !== 'skip' && readyPolarIds == null) {
-    mentionedForUpdate = []
   } else if (proposalMention.zones.length > 0) {
+    // Paulo 10/11 opção 2: com sobra, ainda assim admite o que casou (o
+    // actualizador bloqueia proposta em `unrecognized`).
     const seen = new Set<string>()
     ambiguous = proposalMention.zones.some((zone) => {
       const key = zone.name.trim().toLocaleLowerCase('pt-BR')
@@ -2334,7 +2334,8 @@ export async function tryAiAutoBook(
           },
           svc.id,
         )
-  // Sobra (#575): o quadro preserva o prior; o funil vê conjunto vazio para perguntar.
+  // Sobra (#575 / opção 2): unresolved com matches grava no quadro, mas o funil
+  // trata namedZones como vazio para perguntar a sobra (nunca Horários/proposta).
   const namedZones: typeof fromSession =
     variantUpdate.resolvedVariantIds?.length &&
     variantUpdate.reason !== 'unresolved_variant'
