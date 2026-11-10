@@ -115,6 +115,8 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Fim de atendimento pelo cliente (Confirmado, DEC-152, Paulo, 08/11/2026):** texto livre soft-decline/terminar/encerrar (DEC-147); idle Prosseguir|Terminar (DEC-087); **uma** linha de ajuda mid-funnel («Se quiser parar, diga terminar.») quando a sessão de marcação está aberta e o turno não avança o quadro — uma vez por tentativa. Sem botão Encerrar permanente na oferta (P5 adiado). Assumir/encerrar do painel é só da clínica; terminar a sessão de marcação **não** cancela compromisso confirmado. Detalhe: [DEC-152](product/decisions.md).
 
+**Dica de atendimento humano na 1.ª oferta (Confirmado, DEC-153, Paulo, 09/11/2026, opção 3):** na primeira oferta de Horários da sessão, uma linha («escreva falar com a equipe ou use o botão quando aparecer»); ofertas seguintes não repetem. Botão na proposta (DEC-083) mantém-se; mostrar a dica não pausa a IA. Detalhe: [DEC-153](product/decisions.md).
+
 **Reagendamento conversacional (Confirmado, Paulo, 31/10/2026 — DEC-091 / REQ-101):** com compromisso futuro, pedido de remarcar não reinicia o funil de zonas; oferece slots do mesmo serviço e confirma pelo botão (DEC-061), actualizando o compromisso atómicamente. Cancelar continua humano.
 
 ## Requisitos de aceite

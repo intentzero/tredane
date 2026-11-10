@@ -123,6 +123,12 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 One-shot a meio do funil (DEC-152 — Confirmado, Paulo 08/11/2026; `end-help-hint.ts` / `sayAct`). Não na oferta permanente de slots (P5 adiado). Quando a cliente responde «Terminar» (exacto, case-insensitive), o caminho é `acolher_adiamento` + limpar frame (DEC-147 A / L1 A-35) — nunca «Não encontrei terminar…».
 
+### orientar_ajuda_humana
+
+1. `Se preferir falar com a equipe, escreva falar com a equipe ou use o botão quando aparecer.`
+
+One-shot na **primeira** oferta de horários da sessão de booking (DEC-153 — Confirmado, Paulo 09/11/2026, opção 3; `human-help-hint.ts` / `sayAct`). Não em catálogo, ask-tipo, zonas nem eco. Mostrar a dica **não** pausa a IA. O botão «Falar com a equipe» na proposta (DEC-083) mantém-se; a oferta Horários é lista Meta — sem reply button extra (T1 Manhã|Tarde|Outro dia já ocupa o orçamento). Texto *falar com a equipe* mid-booking continua a fazer handoff. L1 A-42.
+
 ### esclarecer
 
 1. `Pode me dizer de outro jeito, ou prefere falar com a equipe?`

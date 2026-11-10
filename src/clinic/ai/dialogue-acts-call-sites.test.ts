@@ -24,6 +24,7 @@ const CALL_SITE_FILES = [
   'booking-object.ts',
   'reschedule.ts',
   'end-help-hint.ts',
+  'human-help-hint.ts',
 ] as const
 
 /** Atos com call-site ligado (S1–S4). */
@@ -57,6 +58,7 @@ const WIRED_ACTS: readonly DialogueActId[] = [
   'nao_consegui_fechar',
   'acolher_adiamento',
   'orientar_terminar',
+  'orientar_ajuda_humana',
   // P1 / DEC-C3: leftover mid Horários sem escolha de opção.
   'esclarecer',
 ]
@@ -126,6 +128,9 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Não encontrei cotovelo nas opções\. Quer Axila, Pernas\?$/,
   // Discovery reset hint no option-miss (Paulo 09/11/2026)
   /^Para recomeçar, diga começar de novo\. Para parar, diga terminar\.$/,
+  // DEC-153 — dica one-shot na 1.ª oferta de horários (Paulo opção 3)
+  /^Se preferir falar com a equipe, escreva falar com a equipe ou use o botão quando aparecer\.$/,
+  /^falar com a equipe$/,
   /^Nossas opções mudaram\. Pode dizer de novo qual serviço e opção você quer\?$/,
   /^Não consegui fechar \$\{serviceName\} às \$\{time\} agora\. A equipe confirma em seguida\.$/,
   /^\$\{serviceNameInProse\(serviceName, true\)\} feminina ou masculina\?$/,
@@ -234,7 +239,7 @@ describe('#448 S5 varredura call-sites', () => {
   it('cobre todos os atos do catálogo (ligados ∪ sem call-site)', () => {
     const all = new Set<DialogueActId>([...WIRED_ACTS, ...UNWIRED_ACTS])
     expect([...all].sort()).toEqual((Object.keys(DIALOGUE_ACTS) as DialogueActId[]).sort())
-    expect(WIRED_ACTS).toHaveLength(30)
+    expect(WIRED_ACTS).toHaveLength(31)
     expect(UNWIRED_ACTS).toHaveLength(4)
   })
 
