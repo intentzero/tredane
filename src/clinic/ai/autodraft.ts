@@ -56,8 +56,6 @@ import {
 import { logPolicyShadow } from './policy-shadow'
 import {
   AI_TRANSPARENCY_TEXT,
-  HUMAN_HANDOFF_BUTTON_ID,
-  HUMAN_HANDOFF_BUTTON_TITLE,
   handoffReason,
   humanTeamOfferButtons,
   isHumanTeamOfferAllowed,
