@@ -1,5 +1,6 @@
 import type { ClinicOutboxQueueMessage } from '../whatsapp/queue-types'
 import type { Clock } from '../db/clock'
+import type { WorkerBindings } from '../worker/bindings'
 import {
   clinicInbox,
   type ClinicCaller,
@@ -26,6 +27,36 @@ import type {
 import { createSyntheticMetaAdapter } from '../whatsapp/meta'
 import { listPendingOutbox, toEventEnvelope } from '../clinic/outbox'
 import { queueCaller } from '../clinic'
+
+/**
+ * Gateway DO real — partilhado pelas rotas REST do inbox e pelo MCP DEC-158.
+ */
+export function createClinicDoInboxGateway(
+  env: WorkerBindings,
+  tenantId: string,
+): InboxGateway {
+  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
+  return {
+    listConversations: (caller, input) => stub.listInboxConversations(caller, input),
+    getConversation: (caller, input) => stub.getInboxConversation(caller, input),
+    listContacts: (caller, input) => stub.listInboxContacts(caller, input),
+    getContact: (caller, contactId) => stub.getInboxContact(caller, contactId),
+    assign: (caller, input) => stub.assignInboxConversation(caller, input),
+    resumeAiReply: (caller, conversationId) => stub.resumeInboxAiReply(caller, conversationId),
+    markRead: (caller, input) => stub.markInboxConversationRead(caller, input),
+    close: (caller, input) => stub.closeInboxConversation(caller, input),
+    flagForReview: (caller, conversationId) =>
+      stub.flagInboxConversationForReview(caller, { conversationId }),
+    clearReviewFlag: (caller, conversationId) =>
+      stub.clearInboxConversationReviewFlag(caller, { conversationId }),
+    listReviewConversations: (caller, input) => stub.listReviewConversations(caller, input),
+    getReviewConversation: (caller, input) => stub.getReviewConversation(caller, input),
+    blockContact: (caller, input) => stub.blockInboxContact(caller, input),
+    unblockContact: (caller, input) => stub.unblockInboxContact(caller, input),
+    sendOutbound: (caller, input) => stub.sendInboxOutbound(caller, input),
+    seedDemo: (caller, opts) => stub.seedInboxDemo(caller, opts),
+  }
+}
 
 export type InboxGateway = {
   listConversations(

@@ -1,5 +1,6 @@
 export { createInboxRoutes, type InboxRouteOptions } from './routes'
 export {
+  createClinicDoInboxGateway,
   createMemoryInboxGateway,
   createMemoryInboxRegistry,
   type InboxGateway,

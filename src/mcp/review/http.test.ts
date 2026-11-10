@@ -50,17 +50,10 @@ function testMcpApp() {
   return {
     app,
     clinics,
+    registry,
     close: () => {
       for (const c of clinics.values()) c.close()
       admin.close()
-    },
-    auth: (userId: string, init: RequestInit = {}) => {
-      const headers = new Headers(init.headers)
-      headers.set('Authorization', synthAuthHeader(userId))
-      if (!headers.has('Content-Type') && init.method === 'POST') {
-        headers.set('Content-Type', 'application/json')
-      }
-      return { ...init, headers }
     },
     mcp: async (
       userId: string | null,
@@ -114,7 +107,7 @@ async function seedFlaggedConversation(
 }
 
 describe('HTTP — MCP review (DEC-158)', () => {
-  it('GET devolve 405; initialize e tools/list exigem auth no list', async () => {
+  it('GET 405; initialize aberto; tools/list e tools/call sem Bearer → 401', async () => {
     const { app, mcp, close } = testMcpApp()
     try {
       const get = await app.request('http://localhost/api/mcp/review')
@@ -142,6 +135,20 @@ describe('HTTP — MCP review (DEC-158)', () => {
       })
       expect(unauthList.status).toBe(401)
 
+      const unauthCall = await mcp(null, {
+        jsonrpc: '2.0',
+        id: 2.5,
+        method: 'tools/call',
+        params: {
+          name: 'list_review_conversations',
+          arguments: { tenantId: 'clinic-demo-a' },
+        },
+      })
+      expect(unauthCall.status).toBe(401)
+      expect((unauthCall.json.error as { data?: { error?: string } } | undefined)?.data?.error).toBe(
+        'unauthenticated',
+      )
+
       const list = await mcp('user_synth_attendant_a', {
         jsonrpc: '2.0',
         id: 3,
@@ -158,8 +165,8 @@ describe('HTTP — MCP review (DEC-158)', () => {
     }
   })
 
-  it('lista e detalhe só no tenant com membership; diagnóstico agent-side', async () => {
-    const { mcp, clinics, close } = testMcpApp()
+  it('lista e detalhe só no tenant com membership; diagnóstico agent-side; não flagged → not found', async () => {
+    const { mcp, clinics, registry, close } = testMcpApp()
     try {
       const conversationId = await seedFlaggedConversation(
         clinics,
@@ -198,7 +205,10 @@ describe('HTTP — MCP review (DEC-158)', () => {
         },
       })
       expect(cross.status).toBe(200)
-      const crossResult = cross.json.result as { isError?: boolean; structuredContent?: { error?: string } }
+      const crossResult = cross.json.result as {
+        isError?: boolean
+        structuredContent?: { error?: string }
+      }
       expect(crossResult.isError).toBe(true)
       expect(crossResult.structuredContent?.error).toBe('tenant_access_denied')
 
@@ -235,13 +245,16 @@ describe('HTTP — MCP review (DEC-158)', () => {
         structuredContent?: {
           diagnosisGuidance: string
           note: string
-          conversation: { id: string }
+          conversation: { id: string; messages?: unknown }
+          messages: unknown[]
         }
       }
       expect(diagResult.isError).toBeFalsy()
       expect(diagResult.structuredContent?.diagnosisGuidance).toBe(DIAGNOSIS_GUIDANCE)
       expect(diagResult.structuredContent?.note).toBe('agent_side_diagnosis_only')
       expect(diagResult.structuredContent?.conversation.id).toBe(conversationId)
+      expect(diagResult.structuredContent?.conversation.messages).toBeUndefined()
+      expect(Array.isArray(diagResult.structuredContent?.messages)).toBe(true)
 
       // Sem tenantId → erro de params (não dump).
       const missingTenant = await mcp('user_synth_attendant_a', {
@@ -252,6 +265,29 @@ describe('HTTP — MCP review (DEC-158)', () => {
       })
       expect(missingTenant.status).toBe(200)
       expect((missingTenant.json.result as { isError?: boolean }).isError).toBe(true)
+
+      // Limpar flag → detail not found (paridade API #670).
+      await registry('clinic-demo-a').clearReviewFlag(
+        workerCaller('clinic-demo-a', 'user_synth_attendant_a'),
+        conversationId,
+      )
+      const cleared = await mcp('user_synth_attendant_a', {
+        jsonrpc: '2.0',
+        id: 15,
+        method: 'tools/call',
+        params: {
+          name: 'get_review_conversation',
+          arguments: { tenantId: 'clinic-demo-a', conversationId },
+        },
+      })
+      expect(cleared.status).toBe(200)
+      const clearedResult = cleared.json.result as {
+        isError?: boolean
+        structuredContent?: { error?: string; status?: number }
+      }
+      expect(clearedResult.isError).toBe(true)
+      expect(clearedResult.structuredContent?.error).toBe('review_conversation_not_found')
+      expect(clearedResult.structuredContent?.status).toBe(404)
     } finally {
       close()
     }

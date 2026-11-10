@@ -11,7 +11,10 @@ import {
   type AuthEnv,
 } from '../../auth/middleware'
 import type { WorkerBindings } from '../../worker/bindings'
-import type { InboxGateway } from '../../inbox/gateway'
+import {
+  createClinicDoInboxGateway,
+  type InboxGateway,
+} from '../../inbox/gateway'
 import {
   isJsonRpcRequest,
   jsonRpcError,
@@ -45,37 +48,13 @@ export type ReviewMcpRouteOptions = {
 
 const JSON_RPC_UNAUTHENTICATED = -32001
 
-function createDoGateway(env: WorkerBindings, tenantId: string): InboxGateway {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
-  return {
-    listConversations: (caller, input) => stub.listInboxConversations(caller, input),
-    getConversation: (caller, input) => stub.getInboxConversation(caller, input),
-    listContacts: (caller, input) => stub.listInboxContacts(caller, input),
-    getContact: (caller, contactId) => stub.getInboxContact(caller, contactId),
-    assign: (caller, input) => stub.assignInboxConversation(caller, input),
-    resumeAiReply: (caller, conversationId) => stub.resumeInboxAiReply(caller, conversationId),
-    markRead: (caller, input) => stub.markInboxConversationRead(caller, input),
-    close: (caller, input) => stub.closeInboxConversation(caller, input),
-    flagForReview: (caller, conversationId) =>
-      stub.flagInboxConversationForReview(caller, { conversationId }),
-    clearReviewFlag: (caller, conversationId) =>
-      stub.clearInboxConversationReviewFlag(caller, { conversationId }),
-    listReviewConversations: (caller, input) => stub.listReviewConversations(caller, input),
-    getReviewConversation: (caller, input) => stub.getReviewConversation(caller, input),
-    blockContact: (caller, input) => stub.blockInboxContact(caller, input),
-    unblockContact: (caller, input) => stub.unblockInboxContact(caller, input),
-    sendOutbound: (caller, input) => stub.sendInboxOutbound(caller, input),
-    seedDemo: (caller, opts) => stub.seedInboxDemo(caller, opts),
-  }
-}
-
 async function resolveGateway(
   env: WorkerBindings,
   tenantId: string,
   opts: ReviewMcpRouteOptions,
 ): Promise<InboxGateway> {
   if (opts.inboxGatewayFactory) return opts.inboxGatewayFactory(env, tenantId)
-  return createDoGateway(env, tenantId)
+  return createClinicDoInboxGateway(env, tenantId)
 }
 
 function requestId(msg: JsonRpcRequest): JsonRpcId {
@@ -99,6 +78,21 @@ function authErrorResponse(id: JsonRpcId, err: unknown): Response {
     }),
     { status: 403 },
   )
+}
+
+async function requireSession(
+  c: {
+    req: { raw: Request }
+    get: (k: 'authServices') => AuthEnv['Variables']['authServices']
+  },
+  id: JsonRpcId,
+): Promise<Response | null> {
+  try {
+    await authenticateHuman(c.get('authServices'), c.req.raw)
+    return null
+  } catch (err) {
+    return authErrorResponse(id, err)
+  }
 }
 
 async function handleMcpMethod(
@@ -131,11 +125,8 @@ async function handleMcpMethod(
     case 'ping':
       return Response.json(jsonRpcSuccess(id, {}))
     case 'tools/list': {
-      try {
-        await authenticateHuman(c.get('authServices'), c.req.raw)
-      } catch (err) {
-        return authErrorResponse(id, err)
-      }
+      const denied = await requireSession(c, id)
+      if (denied) return denied
       return Response.json(
         jsonRpcSuccess(id, {
           tools: REVIEW_MCP_TOOLS.map((t) => ({
@@ -148,6 +139,9 @@ async function handleMcpMethod(
       )
     }
     case 'tools/call': {
+      // Sem Bearer → 401 (Confirmado); membership/tenant continua a ser validado na tool.
+      const denied = await requireSession(c, id)
+      if (denied) return denied
       const params = (msg.params ?? {}) as { name?: unknown; arguments?: unknown }
       const name = typeof params.name === 'string' ? params.name : ''
       if (!name) {

@@ -24,7 +24,7 @@ import { INBOX_FILTERS } from '../clinic/constants'
 import { getMembership } from '../db/admin/memberships'
 import type { AdminDb } from '../db/admin/store'
 import type { WorkerBindings } from '../worker/bindings'
-import type { InboxGateway } from './gateway'
+import { createClinicDoInboxGateway, type InboxGateway } from './gateway'
 import type { ClinicOutboxQueueMessage } from '../whatsapp/queue-types'
 import { processClinicOutboxMessage } from '../whatsapp/outbound-send'
 import { createChannelLogger } from '../ops/log'
@@ -127,37 +127,13 @@ async function defaultInlineSend(
   await processClinicOutboxMessage(dispatch, { env, mode: 'inline', log: inlineLog })
 }
 
-function createDoGateway(env: WorkerBindings, tenantId: string): InboxGateway {
-  const stub = env.CLINIC.get(env.CLINIC.idFromName(tenantId))
-  return {
-    listConversations: (caller, input) => stub.listInboxConversations(caller, input),
-    getConversation: (caller, input) => stub.getInboxConversation(caller, input),
-    listContacts: (caller, input) => stub.listInboxContacts(caller, input),
-    getContact: (caller, contactId) => stub.getInboxContact(caller, contactId),
-    assign: (caller, input) => stub.assignInboxConversation(caller, input),
-    resumeAiReply: (caller, conversationId) => stub.resumeInboxAiReply(caller, conversationId),
-    markRead: (caller, input) => stub.markInboxConversationRead(caller, input),
-    close: (caller, input) => stub.closeInboxConversation(caller, input),
-    flagForReview: (caller, conversationId) =>
-      stub.flagInboxConversationForReview(caller, { conversationId }),
-    clearReviewFlag: (caller, conversationId) =>
-      stub.clearInboxConversationReviewFlag(caller, { conversationId }),
-    listReviewConversations: (caller, input) => stub.listReviewConversations(caller, input),
-    getReviewConversation: (caller, input) => stub.getReviewConversation(caller, input),
-    blockContact: (caller, input) => stub.blockInboxContact(caller, input),
-    unblockContact: (caller, input) => stub.unblockInboxContact(caller, input),
-    sendOutbound: (caller, input) => stub.sendInboxOutbound(caller, input),
-    seedDemo: (caller, opts) => stub.seedInboxDemo(caller, opts),
-  }
-}
-
 async function resolveGateway(
   env: WorkerBindings,
   tenantId: string,
   opts: InboxRouteOptions,
 ): Promise<InboxGateway> {
   if (opts.gatewayFactory) return opts.gatewayFactory(env, tenantId)
-  return createDoGateway(env, tenantId)
+  return createClinicDoInboxGateway(env, tenantId)
 }
 
 function parseFilter(raw: string | undefined): InboxFilter {

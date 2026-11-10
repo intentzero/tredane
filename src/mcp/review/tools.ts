@@ -274,9 +274,16 @@ export async function callReviewMcpTool(
           workerCaller(tenantId, clerkUserId),
           { conversationId, before: before ?? null, messageLimit },
         )
+        // Contrato Confirmado: conversation + messages + diagnosisGuidance (mensagens no topo).
+        const serialized = serializeConversationDetail(detail)
+        const { messages, messagesHasMore, messagesNextBefore, ...conversation } =
+          serialized
         return toolTextResult({
           requestedTenantId: tenantId,
-          conversation: serializeConversationDetail(detail),
+          conversation,
+          messages,
+          messagesHasMore,
+          messagesNextBefore,
           diagnosisGuidance: DIAGNOSIS_GUIDANCE,
           note: 'agent_side_diagnosis_only',
         })
