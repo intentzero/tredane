@@ -121,6 +121,8 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Timeout de handoff e fora do expediente (Confirmado, DEC-155, Paulo, 10/11/2026):** sem Assumir em 30 min após pausa DEC-083, aviso curto e a IA retoma. Fora do horário da clínica: sem botão/dica de equipe; pedido explícito → horário e IA activa (revê DEC-113 neste caminho). Em expediente, DEC-083/153 + timeout. Detalhe: [DEC-155](product/decisions.md).
 
+**Alertas ao atendente em handoff (Confirmado, DEC-156, Paulo, 10/11/2026):** badge + som, faixa até Assumir, push/PWA sem conteúdo da mensagem, reforço aos 5 min; aos 30 min a IA retoma via DEC-155. Consome `source` / `handoffTimeoutAt` / `clearedAwaitingTeam`. Detalhe: [DEC-156](product/decisions.md).
+
 **Reagendamento conversacional (Confirmado, Paulo, 31/10/2026 — DEC-091 / REQ-101):** com compromisso futuro, pedido de remarcar não reinicia o funil de zonas; oferece slots do mesmo serviço e confirma pelo botão (DEC-061), actualizando o compromisso atómicamente. Cancelar continua humano.
 
 ## Requisitos de aceite

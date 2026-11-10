@@ -116,9 +116,45 @@ export function buildNewMessagePayload(input: {
   }
 }
 
+/** DEC-155 — cliente pediu equipe / handoff (sem PII). */
+export function buildNeedsPersonPayload(input: {
+  tenantId: string
+  tenantName: string
+  conversationId: string
+  escalate?: boolean
+}): NewConversationPushPayload {
+  const clinic = input.tenantName.trim() || 'clínica'
+  if (input.escalate) {
+    return {
+      kind: 'needs_person_escalate',
+      title: 'Ainda precisa de alguém',
+      body: `Continua a aguardar a equipe na ${clinic}`,
+      tag: conversationPushTag(input.tenantId, input.conversationId),
+      url: `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(input.conversationId)}`,
+      tenantId: input.tenantId,
+      conversationId: input.conversationId,
+    }
+  }
+  return {
+    kind: 'needs_person',
+    title: 'Precisa de alguém',
+    body: `Equipe necessária na ${clinic}`,
+    tag: conversationPushTag(input.tenantId, input.conversationId),
+    url: `/c/${encodeURIComponent(input.tenantId)}/conversas/${encodeURIComponent(input.conversationId)}`,
+    tenantId: input.tenantId,
+    conversationId: input.conversationId,
+  }
+}
+
 /** Rejeita payloads que incluam campos sensíveis (defesa em profundidade). */
 export function assertSafePushPayload(payload: NewConversationPushPayload): void {
-  if (payload.kind !== 'new_conversation' && payload.kind !== 'new_message') {
+  const allowed = new Set([
+    'new_conversation',
+    'new_message',
+    'needs_person',
+    'needs_person_escalate',
+  ])
+  if (!allowed.has(payload.kind)) {
     throw new Error('unsupported_push_kind')
   }
   const forbidden = ['waId', 'bodyPreview', 'phone', 'messageBody', 'displayName']
@@ -129,8 +165,13 @@ export function assertSafePushPayload(payload: NewConversationPushPayload): void
     }
   }
   // Corpo tipado: só o template sem trecho de mensagem.
-  const prefix = payload.kind === 'new_message' ? 'Nova mensagem na ' : 'Nova conversa na '
-  if (!payload.body.startsWith(prefix)) {
+  const prefixes: Record<NewConversationPushPayload['kind'], string> = {
+    new_conversation: 'Nova conversa na ',
+    new_message: 'Nova mensagem na ',
+    needs_person: 'Equipe necessária na ',
+    needs_person_escalate: 'Continua a aguardar a equipe na ',
+  }
+  if (!payload.body.startsWith(prefixes[payload.kind])) {
     throw new Error('push_body_unexpected')
   }
 }

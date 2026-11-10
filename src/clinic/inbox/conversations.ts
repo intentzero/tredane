@@ -13,12 +13,22 @@ import type {
   ListConversationsInput,
 } from './types'
 
+/**
+ * «Precisa de alguém» (DEC-083 / DEC-156): alerta aberto, ou IA pausada sem
+ * responsável humano. Assumir (`clearedAwaitingTeam`) limpa o badge; pausa pode ficar.
+ */
 const NEEDS_PERSON_SQL = `(
-  c.ai_reply_paused_at IS NOT NULL
-  OR EXISTS (
+  EXISTS (
     SELECT 1 FROM pending_communications p
     WHERE p.tenant_id = c.tenant_id AND p.conversation_id = c.id
       AND p.kind = 'alter_awaiting_team' AND p.status IN ('open', 'alerted')
+  )
+  OR (
+    c.ai_reply_paused_at IS NOT NULL
+    AND (
+      c.assignee_clerk_user_id IS NULL
+      OR c.assignee_clerk_user_id = 'system:ai-autodraft'
+    )
   )
 )`
 
