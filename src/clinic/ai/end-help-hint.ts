@@ -36,14 +36,15 @@ const EXACT_TERMINAR_RE =
   /^(?:(?:ok|pode|podes|quero)[,.\s!]*)*terminar(?:\s+a\s+sess[aã]o)?[.!?\s]*$/i
 
 /**
- * «Como faço para terminar esta conversa?» e equivalentes.
+ * «Como faço para terminar esta conversa?» / «como termino?» e equivalentes.
  * Não casa o abandono exacto «Terminar» / «quero terminar a sessão».
+ * Pacote 1–7 (DEC-154): «como termino» (1.ª pessoa) também instrui — sem soft-close.
  */
 export function isHowToEndQuestion(text: string): boolean {
   const body = text.trim()
   if (!body) return false
   if (EXACT_TERMINAR_RE.test(body)) return false
-  if (/\bcomo\b.{0,48}\b(?:terminar|encerrar)\b/i.test(body)) return true
+  if (/\bcomo\b.{0,48}\b(?:termin(?:ar|o)|encerr(?:ar|o)|parar)\b/i.test(body)) return true
   if (/\b(?:terminar|encerrar)\s+(?:esta|a)\s+conversa\b/i.test(body) && /\?/.test(body)) {
     return true
   }

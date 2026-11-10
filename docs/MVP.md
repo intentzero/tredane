@@ -117,6 +117,8 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Dica de atendimento humano na 1.ª oferta (Confirmado, DEC-153, Paulo, 09/11/2026, opção 3):** na primeira oferta de Horários da sessão, uma linha («escreva falar com a equipe ou use o botão quando aparecer»); ofertas seguintes não repetem. Botão na proposta (DEC-083) mantém-se; mostrar a dica não pausa a IA. Detalhe: [DEC-153](product/decisions.md).
 
+**Instruções estáveis de atendimento (Confirmado, DEC-154, Paulo pacote 1–7, 10/11/2026):** Terminar (meta «como termino?» → frase fixa sem fechar/handoff; #660); Falar com a equipe (DEC-083/153); Alterar detalhes (#658); Marcar outro + audiência sticky (#660); Confirmar só por botão (DEC-061); períodos Manhã\|Tarde\|Outro dia (#655–#657); preço/catálogo sem derrubar o frame. Detalhe: [DEC-154](product/decisions.md).
+
 **Reagendamento conversacional (Confirmado, Paulo, 31/10/2026 — DEC-091 / REQ-101):** com compromisso futuro, pedido de remarcar não reinicia o funil de zonas; oferece slots do mesmo serviço e confirma pelo botão (DEC-061), actualizando o compromisso atómicamente. Cancelar continua humano.
 
 ## Requisitos de aceite

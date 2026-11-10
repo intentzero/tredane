@@ -123,6 +123,12 @@ Placeholders: `{nome}`, `{serviço}`, `{tipo}`, `{assunto}`, `{quando}`, `{lista
 
 One-shot a meio do funil (DEC-152 — Confirmado, Paulo 08/11/2026; `end-help-hint.ts` / `sayAct`). Não na oferta permanente de slots (P5 adiado). Quando a cliente responde «Terminar» (exacto, case-insensitive), o caminho é `acolher_adiamento` + limpar frame (DEC-147 A / L1 A-35) — nunca «Não encontrei terminar…».
 
+### Meta «como termino?» (`HOW_TO_END_REPLY`, DEC-154 / #660)
+
+1. `Para encerrar, diga terminar. Se o botão Terminar aparecer, pode tocar nele.`
+
+Frase determinística no autodraft (`isHowToEndQuestion` → `HOW_TO_END_REPLY`; sem acto `sayAct` novo). **Não** soft-close; **não** handoff; **não** LLM (evita histórico falso). «Terminar» explícito continua Class A. L1 A-43. Paridade DEC-C2: «terminar» em `botTaughtExitCommands`.
+
 ### orientar_ajuda_humana
 
 1. `Se preferir falar com a equipe, escreva falar com a equipe ou use o botão quando aparecer.`
