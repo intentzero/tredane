@@ -101,7 +101,7 @@ Marcar só com evidência live. Engenharia **não** reivindica conclusão.
 - [ ] Corpo da proposta com clínica, serviço, data/fuso, horário, profissional, preço/sinal — sem o rótulo «beneficiária» (DEC-100) e sem truncar de forma a tornar o botão ambíguo.
 - [ ] Clique Confirmar numa proposta válida (staging sintético ou piloto autorizado) produz book ou Pix conforme serviço — **sem** caminho de marcação por texto se o botão falhar.
 - [ ] Se o botão não for utilizável (cliente sem UI de botões / falha Meta): mensagem de fallback humano na conversa; atendente assume; **proibido** degradar silenciosamente para «sim»/texto livre a marcar.
-- [ ] «Alterar detalhes» encaminha à equipe sem cancelar compromisso legítimo já existente.
+- [ ] «Alterar detalhes» invalida a proposta e abre menu IA (Horário|Serviço|Variantes) sem handoff e sem cancelar compromisso legítimo já existente; «Falar com a equipe» mantém handoff.
 - [ ] Comunicação pendente (5 min) visível no painel quando envio de resultado falha.
 
 ## Relação com documentos existentes

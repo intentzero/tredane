@@ -2,6 +2,10 @@
  * Costura S4→S5: webhook button_reply → autorização / Alterar detalhes.
  * Confirmar devolve handoff; `executeProposalConfirmOp` (S5 #176) executa book/Pix.
  * Texto digitado igual ao rótulo do botão NÃO chega aqui — só `button_reply`.
+ *
+ * Alterar detalhes (Paulo «Quero»/«Sim», 09/11/2026): invalida a proposta sem
+ * handoff; o Clinic DO abre o menu IA (Horário|Serviço|Variantes).
+ * «Falar com a equipe» mantém handoff (DEC-083).
  */
 import type { Clock } from '../../db/clock'
 import {
@@ -16,12 +20,11 @@ import type { ClinicDb } from '../store'
 import {
   evaluateProposalAuthorization,
   getProposal,
-  markProposalForwarded,
+  retireActiveProposal,
 } from './proposals'
-import { openPendingCommunication } from './pending-communication'
-import { parseProposalButtonId, type ProposalButtonAction } from './render'
 import { cancelAutoDraft } from '../ai/autodraft'
 import { notifyHumanHandoff } from '../ai/human-handoff'
+import { parseProposalButtonId, type ProposalButtonAction } from './render'
 import type {
   AppointmentProposalRow,
   ProposalAuthorizationResult,
@@ -67,7 +70,8 @@ export type ProposalButtonClickResult =
       handled: true
       action: 'alter'
       proposal: AppointmentProposalRow
-      forwarded: true
+      /** Proposta invalidada; Clinic DO abre menu de reoferta IA. */
+      reoffer: true
       systemMessageId: string
       outbox: OutboxRow[]
       /** Alterar detalhes invalida a proposta; não cancela compromisso existente. */
@@ -89,7 +93,7 @@ export type ProposalButtonClickResult =
     }
 
 /**
- * Processa o clique do botão. Alterar → encaminha; Confirmar → devolve handoff S5.
+ * Processa o clique do botão. Alterar → invalida + reoffer; Confirmar → handoff S5.
  */
 export function handleProposalButtonClick(
   db: ClinicDb,
@@ -148,7 +152,12 @@ export function handleProposalButtonClick(
   }
 
   if (parsed.action === 'alter') {
-    const forwarded = markProposalForwarded(db, input.tenantId, proposal.id, clock)
+    // Invalida (substituída) — Confirmar na versão antiga não marca. Sem handoff.
+    const retired =
+      retireActiveProposal(db, input.tenantId, proposal.conversationId, clock) ??
+      proposal
+    const invalidated =
+      getProposal(db, input.tenantId, proposal.id) ?? retired
     const now = clock.nowMs()
     const systemMessage = insertMessage(
       db,
@@ -165,28 +174,16 @@ export function handleProposalButtonClick(
       },
       clock,
     )
+    // Sem alerta à equipe: a IA continua (menu Horário|Serviço|Variantes).
     touchConversationMessage(db, {
       tenantId: input.tenantId,
       conversationId: proposal.conversationId,
       preview: systemMessage.body,
       direction: 'system',
       at: now,
-      bumpUnread: true,
+      bumpUnread: false,
       reopenIfClosed: true,
     })
-    openPendingCommunication(
-      db,
-      {
-        tenantId: input.tenantId,
-        conversationId: proposal.conversationId,
-        contactId: proposal.contactId,
-        proposalId: proposal.id,
-        kind: 'alter_awaiting_team',
-        messageId: systemMessage.id,
-        detailText: 'Aguardando resposta da equipe após Alterar detalhes',
-      },
-      clock,
-    )
     const outbox = insertOutboxEvent(
       db,
       {
@@ -202,27 +199,18 @@ export function handleProposalButtonClick(
           proposalId: proposal.id,
           proposalVersion: proposal.version,
           action: 'alter',
+          reoffer: true,
         },
-      },
-      clock,
-    )
-    const handoff = notifyHumanHandoff(
-      db,
-      input.tenantId,
-      {
-        conversationId: proposal.conversationId,
-        reason: 'customer_requested',
-        clientRequestId: `proposal.alter:${proposal.id}:v${proposal.version}:${input.providerEventKey ?? 'click'}`,
       },
       clock,
     )
     return {
       handled: true,
       action: 'alter',
-      proposal: forwarded,
-      forwarded: true,
+      proposal: invalidated,
+      reoffer: true,
       systemMessageId: systemMessage.id,
-      outbox: [outbox, ...handoff.outbox],
+      outbox: [outbox],
       cancelledExistingAppointment: false,
     }
   }

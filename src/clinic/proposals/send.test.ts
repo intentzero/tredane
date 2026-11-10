@@ -412,7 +412,7 @@ describe('S4: envio WhatsApp', () => {
 })
 
 describe('S4: botões e resultado', () => {
-  it('Alterar detalhes invalida proposta sem cancelar compromisso', () => {
+  it('Alterar detalhes invalida proposta sem cancelar compromisso (reoffer IA)', () => {
     const s = seed()
     try {
       const proposal = createProposal(
@@ -441,9 +441,10 @@ describe('S4: botões e resultado', () => {
         s.clock,
       )
       expect(click.handled).toBe(true)
-      if (!('action' in click) || click.action !== 'alter' || !('forwarded' in click)) return
+      if (!('action' in click) || click.action !== 'alter' || !('reoffer' in click)) return
       expect(click.cancelledExistingAppointment).toBe(false)
-      expect(click.proposal.state).toBe('encaminhada')
+      expect(click.reoffer).toBe(true)
+      expect(click.proposal.state).toBe('substituida')
       const appts = s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)
       expect(appts?.n).toBe(0)
       const sys = s.db.get<{ body: string }>(
@@ -451,6 +452,7 @@ describe('S4: botões e resultado', () => {
         s.tenantId,
       )
       expect(sys?.body).toMatch(/alterar a proposta/i)
+      expect(click.outbox.some((row) => row.type === 'whatsapp.send')).toBe(false)
     } finally {
       s.close()
     }

@@ -11,6 +11,7 @@ export {
   markProposalConfirmed,
   markProposalSlotRefused,
   markProposalForwarded,
+  retireActiveProposal,
   restoreProposalAuthorization,
   evaluateProposalAuthorization,
   countProposalsCreated,
