@@ -98,7 +98,7 @@ function renderThread(api: PanelApi, opts: { isOwner?: boolean } = {}) {
   )
 }
 
-describe('InboxThread — Bloquear / Excluir no ⋮ (Proposto TR-488)', () => {
+describe('InboxThread — Bloquear / Excluir no ⋮ (Confirmado TR-488)', () => {
   it('menu ⋮ tem Bloquear; sem Resumo da IA; Excluir só para owner', async () => {
     const api = mockApi({ blocked: false })
     renderThread(api)

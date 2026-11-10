@@ -1220,8 +1220,8 @@ export function InboxThread({
   // Confirmado (Paulo, 04/11/2026, Opção A): sem «Reservar bloco» no ⋮ —
   // agendamento a partir da conversa é só «Agendar» no cabeçalho.
   // Resumo da IA continua só no Contato / Detalhes.
-  // Proposto (Paulo, pedido TR-488): Bloquear e Excluir também no ⋮ / folha,
-  // com o mesmo diálogo de confirmação já usado no Contato (API intacta).
+  // Confirmado (Paulo, 10/11/2026, TR-488): Bloquear e Excluir também no ⋮ /
+  // folha (depois de Encerrar), com o diálogo de confirmação do Contato.
   const threadActions: ThreadAction[] = [
     // Folha mobile: atalho à ficha (no desktop o header já tem Contato).
     { id: "contact", label: "Ver contato" },
