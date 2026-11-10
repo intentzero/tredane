@@ -35,6 +35,7 @@ import {
   offerFramePatch,
   type DeferredBookingFrame,
 } from './deferred-booking-frame'
+import { promiseTeamFollowUp } from './promise-team-follow-up'
 
 const EXPLICIT = RESCHEDULE_RE
 const CANCEL = CANCEL_RE
@@ -449,6 +450,16 @@ export async function tryAiReschedule(
   }
 
   if (input.capability === false) {
+    // TR-487 / DEC-129: «equipe confirma e já te retorna» → alerta sem pausa.
+    promiseTeamFollowUp(
+      db,
+      tenantId,
+      {
+        conversationId: conv.id,
+        detailText: `Capacidade pausada: remarcação ${apt.id}. A IA prometeu retorno da equipe.`,
+      },
+      clock,
+    )
     return finish({
       handled: true,
       appointmentId: apt.id,
@@ -487,6 +498,17 @@ export async function tryAiReschedule(
     )
     const delivered = sent.status === 'queued' || sent.status === 'already_sent'
     if (delivered) deferred.discard()
+    if (!delivered) {
+      promiseTeamFollowUp(
+        db,
+        tenantId,
+        {
+          conversationId: conv.id,
+          detailText: `Envio da remarcação ${proposal.id} falhou (${sent.status}). A IA prometeu retorno da equipe.`,
+        },
+        clock,
+      )
+    }
     return finish({
       handled: true,
       appointmentId: apt.id,
@@ -500,6 +522,15 @@ export async function tryAiReschedule(
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'erro'
+    promiseTeamFollowUp(
+      db,
+      tenantId,
+      {
+        conversationId: conv.id,
+        detailText: `Falha ao montar remarcação ${apt.id}: ${message}. A IA prometeu retorno da equipe.`,
+      },
+      clock,
+    )
     return finish({
       handled: true,
       appointmentId: apt.id,

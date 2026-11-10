@@ -1535,6 +1535,15 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     coverageOnly: 'execute-confirm.test',
     turns: [],
   },
+  {
+    // TR-487 / Paulo Confirmado: alerta sem pausa quando a copy promete retorno da equipe.
+    id: 'K-08',
+    title: 'Promessa de retorno da equipe → Precisa de alguém, sem pausar IA',
+    turnosIdeais: 1,
+    coverageOnly:
+      'promise-team-follow-up.test + autobook.test «pausa da owner» + reschedule.test frase (6)',
+    turns: [],
+  },
   // —— Sonda de novembro / F1-0 (#506, DEC-138 prática 12) ——
   {
     id: 'A-13',

@@ -107,6 +107,10 @@ import { getAiDailyUsage, recordModelCallTowardDailyCap } from './usage'
 import { checkAutomationQuota, contactIdForConversation, recordLimitReached } from './abuse-limits'
 import { runRestrictedExtractor } from './llm-extractor'
 import { generateExceptionReply } from './exception-reply'
+import {
+  promiseTeamFollowUp,
+  textPromisesTeamFollowUp,
+} from './promise-team-follow-up'
 
 /** ADR-0015: anexa afterPersist do frame diferido ao envio outbound. */
 function withDeferredFrame(
@@ -1507,6 +1511,20 @@ export async function runDueAutoDrafts(
           clock,
         )
         replyOutbox = sent.outbox
+        // TR-487: redator / frase DEC-125 que promete equipe → alerta sem pausa.
+        // Determinístico autobook/reschedule já abre o alerta no próprio call-site.
+        if (!deterministicReply && textPromisesTeamFollowUp(body)) {
+          promiseTeamFollowUp(
+            db,
+            tenantId,
+            {
+              conversationId: job.conversationId,
+              detailText: 'Resposta automática prometeu retorno da equipe. A conversa continua aberta à IA.',
+              messageId: job.messageId,
+            },
+            clock,
+          )
+        }
         suggestion = getSuggestion(db, tenantId, suggestion.id) ?? suggestion
       } catch (err) {
         if (!(err instanceof ClinicError)) throw err
