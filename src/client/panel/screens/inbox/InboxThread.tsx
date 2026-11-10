@@ -50,6 +50,8 @@ import type {
 import { PanelApiError } from "../../api";
 import { useClinicTimezone } from "../../clinicTimezone";
 import { awaitingClinicReply } from "./lastRelevant";
+import { BlockContactDialog } from "./BlockContactDialog";
+import { DeleteContactDialog } from "./DeleteContactDialog";
 import { ThreadActionsSheet, type ThreadAction } from "./ThreadActionsSheet";
 import { TransferSheet } from "./TransferSheet";
 import { PixPendingBar, PixPendingSheet } from "./PixPendingSheet";
@@ -88,11 +90,28 @@ type Props = {
    * Nunca passar o rótulo do papel.
    */
   staffDisplayName?: string | null;
+  /** Só owner vê e executa exclusão (clinic.contacts.delete / REQ-071). */
+  isOwner?: boolean;
   /** Desktop: o contato é um painel que desliza por cima (abre e fecha por este controlo). */
   contactPanel?: { open: boolean; controlsId: string; onToggle: () => void };
   /** Desktop (DEC-074): «Agendar» abre um painel ao lado da conversa em vez de trocar de área. */
   agendarPanel?: { open: boolean; controlsId: string; onToggle: () => void };
 };
+
+function deleteContactErrorMessage(err: unknown): string {
+  if (err instanceof PanelApiError) {
+    if (err.code === "permission_denied" || err.status === 403) {
+      return "Só o responsável pode excluir contatos.";
+    }
+    if (err.status === 404) {
+      return "Contato já não está disponível.";
+    }
+    if (err.status === 409) {
+      return "Não foi possível excluir agora. Tente de novo.";
+    }
+  }
+  return "Não foi possível excluir o contato. Tente de novo.";
+}
 
 /** Remetente na primeira bolha enviada de um grupo; a IA aparece como «Assistente IA». */
 function senderLabel(author: string | null): string | null {
@@ -293,6 +312,7 @@ export function InboxThread({
   generation,
   viewerClerkUserId,
   staffDisplayName = null,
+  isOwner = false,
   contactPanel,
   agendarPanel,
 }: Props) {
@@ -310,6 +330,11 @@ export function InboxThread({
   const [confirmClose, setConfirmClose] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [blockBusy, setBlockBusy] = useState(false);
+  const [blockError, setBlockError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const narrow = useMediaQuery("(max-width: 767.98px)");
   // Datas e horas no fuso da clínica (Agenda → Horários).
   useClinicTimezone(api, tenantId, generation);
@@ -852,6 +877,55 @@ export function InboxThread({
     }
   }
 
+  async function blockContact(reason: string | null) {
+    if (!detail) return;
+    setBlockBusy(true);
+    setBlockError(null);
+    try {
+      await api.blockInboxContact(
+        tenantId,
+        detail.contactId,
+        { reason },
+        { generation, expectGeneration: () => generation },
+      );
+      setBlockOpen(false);
+      await load({ quiet: true });
+    } catch (err) {
+      setBlockError(
+        friendlyError(
+          err,
+          "Não foi possível bloquear agora. Tente de novo.",
+        ),
+      );
+    } finally {
+      setBlockBusy(false);
+    }
+  }
+
+  async function deleteContact() {
+    if (!detail) return;
+    setDeleteBusy(true);
+    setNotice(null);
+    try {
+      await api.deleteContact(tenantId, detail.contactId, {
+        generation,
+        expectGeneration: () => generation,
+      });
+      setDeleteOpen(false);
+      navigatePanel({
+        kind: "area",
+        area: "conversas",
+        tenantId,
+        section: "lista",
+      });
+    } catch (err) {
+      setDeleteOpen(false);
+      setNotice(deleteContactErrorMessage(err));
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   async function requestAiSuggestion(parentSuggestionId?: string | null) {
     setAiBusy(true);
     setAiUnavailable(false);
@@ -1143,10 +1217,11 @@ export function InboxThread({
     detail.assigneeClerkUserId != null &&
     detail.assigneeClerkUserId === viewerClerkUserId;
   const blocked = detail.contact?.blockedAt != null;
-  // Confirmado (Paulo, 31/10/2026, Opção A): ⋮ / folha = só conversa/pipeline.
   // Confirmado (Paulo, 04/11/2026, Opção A): sem «Reservar bloco» no ⋮ —
   // agendamento a partir da conversa é só «Agendar» no cabeçalho.
-  // Resumo da IA e Bloquear ficam só no Contato / Detalhes.
+  // Resumo da IA continua só no Contato / Detalhes.
+  // Proposto (Paulo, pedido TR-488): Bloquear e Excluir também no ⋮ / folha,
+  // com o mesmo diálogo de confirmação já usado no Contato (API intacta).
   const threadActions: ThreadAction[] = [
     // Folha mobile: atalho à ficha (no desktop o header já tem Contato).
     { id: "contact", label: "Ver contato" },
@@ -1172,6 +1247,13 @@ export function InboxThread({
     ...(detail.status !== "closed"
       ? [{ id: "close", label: "Encerrar conversa" }]
       : []),
+    // Destrutivas no fim: Bloquear (equipa) e Excluir (só owner / REQ-071).
+    ...(!blocked
+      ? [{ id: "block", label: "Bloquear contato", danger: true }]
+      : []),
+    ...(isOwner
+      ? [{ id: "delete", label: "Excluir contato", danger: true }]
+      : []),
   ];
   // Desktop: Contato já está no header — não duplicar no ⋮. Sem itens → esconder o ⋮.
   const menuActions = narrow
@@ -1193,6 +1275,11 @@ export function InboxThread({
     if (id === "stage-lost") void correctStage("perdido");
     if (id === "transfer") setTransferOpen(true);
     if (id === "close") setConfirmClose(true);
+    if (id === "block") {
+      setBlockError(null);
+      setBlockOpen(true);
+    }
+    if (id === "delete") setDeleteOpen(true);
   }
   const pendingPix =
     pixCharges.find((c) => c.status === "awaiting_payment") ?? null;
@@ -1430,6 +1517,32 @@ export function InboxThread({
         busy={busy}
         onClose={() => setTransferOpen(false)}
         onPick={(m) => void transferTo(m)}
+      />
+      <BlockContactDialog
+        open={blockOpen}
+        contactLabel={label}
+        busy={blockBusy}
+        hasPendingPix={
+          detail.contactHasPendingPix === true || pendingPix != null
+        }
+        error={blockError}
+        onClose={() => {
+          if (!blockBusy) setBlockOpen(false);
+        }}
+        onConfirm={(reason) => {
+          void blockContact(reason);
+        }}
+      />
+      <DeleteContactDialog
+        open={deleteOpen}
+        contactLabel={label}
+        busy={deleteBusy}
+        onClose={() => {
+          if (!deleteBusy) setDeleteOpen(false);
+        }}
+        onConfirm={() => {
+          void deleteContact();
+        }}
       />
       {notice ? (
         <div className="inbox-notice" role="status">
