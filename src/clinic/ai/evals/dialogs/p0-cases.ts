@@ -12,6 +12,7 @@
  * A-36: após soft-close Terminar, novo pedido não reusa variante/slots (leftover).
  * A-37: mid Horários, leftover ≠ option-miss de variantes (DEC-C3 / P1 stack esclarecer).
  * A-39: Confirmar → Agendado + «Posso ajudar» sem esclarecer spurioso (staging 09/11/2026).
+ * A-42: 1.ª oferta de Horários leva dica «falar com a equipe» (DEC-153); 2.ª oferta no unitário.
  * G-07b: mid-booking day re-ask com compromisso futuro ≠ remarcação (staging 09/11/2026).
  *   Só copy/botões; apt e frame no mesmo serviço — não fecha troca Depilação→Massagem.
  * G-07c: day re-ask + time pick com apt Massagem e frame Depilação → proposal.serviceId
@@ -2169,6 +2170,80 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         {
           turn: 0,
           matches: [/Confirmar|Proposta|Agendado|Posso ajudar/i],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-42',
+    title: '1.ª oferta Horários inclui dica falar com a equipe (DEC-153)',
+    turnosIdeais: 1,
+    // Paulo opção 3, 09/11/2026: dica one-shot na 1.ª oferta; sem handoff automático.
+    // Repetição na 2.ª oferta: human-help-hint.test (unitário).
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-42: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const relaxante = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
+        s.tenantId,
+        massagem.id,
+        'Massagem relaxante',
+      )
+      if (!relaxante) throw new Error('A-42: variante Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'coletando',
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'amanhã à tarde' }],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [
+            /\d{2}:\d{2}/,
+            /Se preferir falar com a equipe, escreva falar com a equipe/i,
+          ],
+          excludes: [/Vou pedir para a equipe continuar/i],
         },
       ],
     },

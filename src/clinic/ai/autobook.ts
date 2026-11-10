@@ -69,6 +69,12 @@ import {
   markEndHelpHintSent,
   wasEndHelpHintSent,
 } from './end-help-hint'
+import {
+  appendHumanHelpHint,
+  markHumanHelpHintSent,
+  shouldAppendHumanHelpHint,
+  wasHumanHelpHintSent,
+} from './human-help-hint'
 import { checkConversationProtection } from './protection'
 import {
   catalogMissHint,
@@ -738,7 +744,24 @@ export async function tryAiAutoBook(
     if (next.replyText?.includes(RESET_DISCOVERY_HINT_TEXT)) {
       // Option-miss discovery hint (Paulo 09/11/2026) — marca one-shot como DEC-152.
       markEndHelpHintSent(db, tenantId, input.conversationId)
-    } else if (
+    }
+    // DEC-153: 1.ª oferta de Horários — dica textual one-shot (sem handoff automático).
+    if (
+      shouldAppendHumanHelpHint({
+        replyText: next.replyText,
+        interactive: next.interactive,
+        proposalId: next.proposalId,
+        alreadySent: wasHumanHelpHintSent(db, tenantId, input.conversationId),
+      })
+    ) {
+      next = {
+        ...next,
+        replyText: appendHumanHelpHint(next.replyText!, input.conversationId),
+        notes: [next.notes, 'DEC-153'].filter(Boolean).join(' '),
+      }
+      markHumanHelpHintSent(db, tenantId, input.conversationId)
+    }
+    if (
       shouldAppendEndHelpHint({
         replyText: next.replyText,
         proposalId: next.proposalId,

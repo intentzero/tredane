@@ -187,6 +187,7 @@
 | G-10 | P1 | Handoff fora do expediente | (sáb 17:00) C: «Quero falar com alguém» | «Vou pedir para a equipe continuar daqui. A equipe responde a partir de segunda às 09:00.» (DEC-113). | Q5, Q6 | 1 | ⚠ CF-17 (DEC-113 por implementar) |
 | G-11 | P0 | Pedido humano no meio de várias bolhas | C: «quero falar com alguém» · «obrigada» | Handoff. | INV-06 | 1 | ⚠ CF-13 |
 | G-12 | P1 | Botão «Falar com a equipe» | [qualquer mensagem da IA] ⟶ clique no botão | Frase; a proposta pendente não é encaminhada. | INV-06 | 1 | ✅ `dec-083.test` |
+| G-13 | P1 | Dica humana na 1.ª oferta de Horários | [1.ª lista Horários] ⟶ [2.ª oferta na sessão] | 1.ª inclui «escreva falar com a equipe…»; 2.ª não; sem pausa só por mostrar a dica (DEC-153). | INV-06, EF-03 | 1 | ✅ L1 A-42 · `human-help-hint.test` |
 
 ## H. Saúde e temas sensíveis (DEC-046)
 
