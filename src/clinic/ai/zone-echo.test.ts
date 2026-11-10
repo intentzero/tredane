@@ -211,14 +211,16 @@ describe('DEC-137: eco e plural das zonas', () => {
     }
   })
 
-  it('sobra sem plural único pergunta a zona e não oferece o parcial', async () => {
+  it('sobra sem plural único pergunta a zona, ecoa o que casou e não oferece Horários', async () => {
     const s = seed()
     try {
       await lockFeminine(s)
       const before = outbound(s).length
       const result = await say(s, 'Axila e cotovelo')
       const reply = result.autoBook?.replyText ?? result.suggestion?.suggestedText ?? ''
-      expect(reply).not.toMatch(/Entendi:/)
+      // Paulo 10/11 opção 2: eco factual do match + pergunta da sobra; sem Sim/Corrigir.
+      expect(reply).toMatch(/Entendi: axila\./i)
+      expect(reply).not.toMatch(/Certo\?/)
       expect(reply).not.toMatch(/Horários livres|próximos horários/i)
       expect(reply).toMatch(/Não encontrei cotovelo nas opções/i)
       expect(reply).toMatch(/Quer .+\?/)
@@ -229,7 +231,13 @@ describe('DEC-137: eco e plural das zonas', () => {
       expect(json).not.toContain(VARIANT_LIST_BUTTON_LABEL)
       expect(json).not.toContain(SLOT_LIST_BUTTON_LABEL)
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
-      expect(session?.variantIds ?? null).toBeNull()
+      const rows = s.db.all<{ id: string; name: string; audience: string }>(
+        `SELECT id, name, audience FROM service_zones WHERE tenant_id = ?`,
+        s.tenantId,
+      )
+      const chosen = rows.filter((row) => session?.variantIds?.includes(row.id))
+      expect(chosen.map((row) => row.name)).toEqual(['Axila'])
+      expect(chosen.every((row) => row.audience === 'feminino')).toBe(true)
       expect(appointments(s)).toBe(0)
     } finally {
       s.close()

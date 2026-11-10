@@ -380,7 +380,7 @@ export function extractServices(text: string, services: ServiceRow[]): ServiceRo
  * T2: quando emite option-miss, devolve também friction (nao_encontrei / particle_as_zone).
  */
 function askUnrecognizedZone(
-  mention: { leftover: string | null },
+  mention: { leftover: string | null; zones?: readonly { name: string }[] },
   zonePool: ServiceRow['zones'],
   fallback: string,
   opts?: {
@@ -391,6 +391,14 @@ function askUnrecognizedZone(
   const names = stableVariantLabelList(zonePool)
   if (mention.leftover && opts?.emitOptionMiss !== false) {
     let text = zoneNotFoundAskReply(mention.leftover, names)
+    // Paulo 10/11/2026 opção 2: eco factual do que casou + pergunta só da sobra.
+    // Sem Sim/Corrigir aqui — o eco DEC-137 completo espera o conjunto resolvido.
+    const understood = (mention.zones ?? [])
+      .map((z) => z.name.trim().toLocaleLowerCase('pt-BR'))
+      .filter(Boolean)
+    if (understood.length > 0) {
+      text = `Entendi: ${understood.join(', ')}. ${text}`
+    }
     // Discovery reset (Paulo 09/11/2026): one-shot hint no option-miss.
     text = appendResetDiscoveryHint(text)
     return {

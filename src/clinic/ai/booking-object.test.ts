@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { extractServices } from './autobook'
 import {
+  catalogMissHint,
   durationMinutesFromText,
   listBookableOptions,
   resolveBookingObject,
@@ -133,6 +134,20 @@ describe('booking-object', () => {
     if (!/profunda/.test(text)) {
       expect(extracted.every((s) => s.id !== 'svc-limpeza-profunda')).toBe(true)
     }
+  })
+
+  it('stopwords pt-BR não viram pedido inexistente («favor», «seria»)', () => {
+    expect(
+      catalogMissHint('Boa tarde Gostaria agendar um horário dia 13/11 por favor', EVAL_BOOKING_CATALOG),
+    ).toBeNull()
+    // «seria»/«favor» não ecoam; depilação casa o serviço (não handoff inexistente).
+    expect(catalogMissHint('Seria botox por favor', EVAL_BOOKING_CATALOG)).toBe('botox')
+    const booking = resolveBookingObject({
+      text: 'Seria depilação feminina por favor',
+      services: EVAL_BOOKING_CATALOG,
+    })
+    expect(booking.handoffReason).not.toBe('inexistente')
+    expect(booking.serviceId).toBe('svc-depilacao')
   })
 
   it('#509 «Quero depilar» casa Depilação quando o sinónimo está na ficha', () => {

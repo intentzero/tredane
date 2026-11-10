@@ -221,9 +221,30 @@ function admitVariants(
     }
   }
 
-  // #575: sobra por resolver bloqueia proposta e NÃO limpa o conjunto já
-  // resolvido — mesmo com hora casada na lista. Patch vazio = preservar.
+  // #575 / Paulo 10/11/2026 opção 2: sobra bloqueia proposta; o que casou
+  // neste turno grava-se (não descarta o enunciado). Sem menção nova, preserva prior.
   if (intent.unrecognized && intent.zoneEcho !== 'skip') {
+    if (intent.mentionedIds.length > 0 && !intent.ambiguous) {
+      if (!allowsMultipleVariants(intent.selectionMode) && intent.mentionedIds.length > 1) {
+        return {
+          patch: {},
+          proposalConfirm: 'none',
+          blockProposal: true,
+          resolvedVariantIds: prior,
+          reason: 'unresolved_variant',
+          leftover: intent.leftover,
+        }
+      }
+      const next = [...intent.mentionedIds]
+      return {
+        patch: basePatch(input, { variantIds: next }, { stamp: true }),
+        proposalConfirm: 'none',
+        blockProposal: true,
+        resolvedVariantIds: next,
+        reason: 'unresolved_variant',
+        leftover: intent.leftover,
+      }
+    }
     return {
       patch: {},
       proposalConfirm: 'none',
