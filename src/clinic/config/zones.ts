@@ -20,6 +20,7 @@ import {
   type VariantAudience,
   type ZoneSnapshot,
 } from './types'
+import { OPTION_MATCH_STOP } from './option-match-stop'
 import {
   assertSynonymsNoCollision,
   foldSynonym,
@@ -732,42 +733,41 @@ function lightPluralPhrase(name: string): string {
     .join(' ')
 }
 
+/**
+ * Inverso leve do plural («Pernas» → «perna», «Braços» → «braco»).
+ * Confirmado Paulo 10/11/2026 (opção 1): singular↔plural nos nomes curtos.
+ * Sem fuzzy 1-edit; só morfologia espelhada de `lightPluralPhrase`.
+ */
+function lightSingularPhrase(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      if (word.length < 4) return word
+      if (word.endsWith('oes') && word.length >= 5) return `${word.slice(0, -3)}ao`
+      if (word.endsWith('ns') && word.length >= 4) return `${word.slice(0, -2)}m`
+      if (word.endsWith('ais') && word.length >= 5) return `${word.slice(0, -2)}l`
+      if (word.endsWith('eis') && word.length >= 5) return `${word.slice(0, -2)}el`
+      if (word.endsWith('ois') && word.length >= 5) return `${word.slice(0, -2)}ol`
+      if (word.endsWith('uis') && word.length >= 5) return `${word.slice(0, -2)}ul`
+      if (word.endsWith('is') && word.length >= 4) return `${word.slice(0, -2)}l`
+      if ((word.endsWith('res') || word.endsWith('zes')) && word.length >= 4) {
+        return word.slice(0, -2)
+      }
+      if (word.endsWith('s')) return word.slice(0, -1)
+      return word
+    })
+    .join(' ')
+}
+
 /** Palavras de cumprimento, pedido ou linha. Não são zona citada. */
 const ZONE_MENTION_STOP = new Set([
-  'bom',
-  'boa',
-  'dia',
-  'tarde',
-  'noite',
-  'manha',
-  'ola',
-  'oi',
+  ...OPTION_MATCH_STOP,
   'tudo',
   'bem',
-  'quero',
-  'queria',
-  'gostaria',
-  'preciso',
-  'teria',
-  'agendar',
-  'agenda',
-  'marcar',
-  'marca',
   'fazer',
-  'horario',
-  'horarios',
-  'hora',
-  'horas',
   'minuto',
   'minutos',
-  'para',
-  'pra',
-  'favor',
-  'por',
-  'com',
-  'sem',
-  'pode',
-  'ser',
   'mais',
   'so',
   'apenas',
@@ -786,9 +786,6 @@ const ZONE_MENTION_STOP = new Set([
   'sua',
   'voce',
   'voces',
-  'obrigada',
-  'obrigado',
-  'porfavor',
   'depilacao',
   'limpeza',
   'massagem',
@@ -796,12 +793,14 @@ const ZONE_MENTION_STOP = new Set([
   'zona',
   'zonas',
   'linha',
+  // Audience words: leftover must not echo «feminina»; detection uses other paths.
   'feminina',
   'feminino',
   'masculina',
   'masculino',
   'opcao',
   'opcoes',
+  // «todas»/«tudo» não viram sobra; o atalho lê o texto cru (`claimsWholeCatalog`).
   'todas',
   'todos',
   'completo',
@@ -844,11 +843,6 @@ const ZONE_MENTION_STOP = new Set([
   'valeu',
   'prefiro',
   'verdade',
-  // Artigos / «serviço» — não são zona citada (Paulo 07/11/2026; DEC-137).
-  'uma',
-  'um',
-  'uns',
-  'umas',
   'servico',
   // Determinantes da mesma classe que «uma» (review #597 M1).
   'esta',
@@ -878,14 +872,6 @@ const ZONE_MENTION_STOP = new Set([
   'desistir',
   // DEC-152: «Terminar» (hint mid-funnel) nunca é sobra de zona/tipo.
   'terminar',
-  // Modo uma / pergunta de dia: «tem horário na próxima quarta-feira?»
-  // (Paulo 07/11/2026; alinhado ao stop-list de despedida).
-  'tem',
-  'feira',
-  // Staging 08/11/2026: «Na próxima quarta tem horário disponível?» —
-  // «disponível» não é zona (leftover «disponivel» → Não encontrei + re-pergunta tipos).
-  'disponivel',
-  'disponiveis',
   // DEC-147 C: «não serve» não é sobra de zona.
   'serve',
 ])
@@ -939,13 +925,17 @@ function stripZoneWords(text: string, zone: ServiceZoneRow): string {
 }
 
 export type ZoneMentionResolution = {
-  /** Zonas aceites, na ordem do âmbito. Vazio quando `unrecognized`. */
+  /**
+   * Zonas aceites neste turno, na ordem do âmbito.
+   * Com `unrecognized`, mantém o que casou (Paulo 10/11/2026 opção 2) —
+   * a sobra bloqueia Horários, mas não descarta o enunciado inteiro.
+   */
   zones: ServiceZoneRow[]
-  /** Algum aceite veio do plural leve, não do nome exacto. */
+  /** Algum aceite veio do singular/plural leve, não do nome exacto. */
   approx: boolean
   /**
    * Um item da lista (ex. «e» / vírgula) não mapeou para uma zona única.
-   * Não devolver o conjunto parcial (#509 / prática 1).
+   * Bloqueia Horários; as zonas em `zones` ficam para eco / quadro.
    */
   unrecognized: boolean
   /**
@@ -1000,10 +990,11 @@ function exciseCompoundZonePhrases(
 
 /**
  * DEC-137 / #509. Nomes exactos (`zonesNamedInText`, sinónimos DEC-110) e, no
- * que sobra, plural leve único no âmbito passado — a linha já travada
+ * que sobra, singular↔plural leve único no âmbito passado — a linha já travada
  * (`zonesForAudienceLine`). O mesmo radical em masculino e feminino não casa.
- * Sem fuzzy de outro nome. Se um item citado não resolve, `unrecognized` e
- * `zones` vazio (sem descarte silencioso; nunca Horários com N−1).
+ * Sem fuzzy de outro nome. Se um item citado não resolve, `unrecognized`
+ * (nunca Horários com N−1) e as zonas que casaram ficam em `zones`
+ * (Paulo 10/11/2026 opções 1+2).
  * Zona composta («Tórax e Abdômen») casa inteira, com ou sem acento, antes
  * de partir a lista no «e».
  *
@@ -1028,26 +1019,30 @@ export function resolveZoneMention(
   const ignore = foldIgnoreWords(opts?.ignoreWords)
   const contentTokens = (folded: string): string[] =>
     mentionContentTokens(folded).filter((w) => !ignore.has(w))
-  const byPlural = new Map<string, Map<string, ServiceZoneRow[]>>()
-  for (const zone of active) {
-    const name = foldZoneName(zone.name.trim())
-    const plural = lightPluralPhrase(name)
-    if (plural === name) continue
-    let names = byPlural.get(plural)
+  /** Forma aproximada (plural ou singular) → nomes canónicos → zonas. */
+  const byApprox = new Map<string, Map<string, ServiceZoneRow[]>>()
+  const indexApproxForm = (form: string, name: string, zone: ServiceZoneRow) => {
+    if (form.length < 3 || form === name) return
+    let names = byApprox.get(form)
     if (!names) {
       names = new Map()
-      byPlural.set(plural, names)
+      byApprox.set(form, names)
     }
     const group = names.get(name) ?? []
     group.push(zone)
     names.set(name, group)
   }
-  const pluralIndex = new Map<string, ServiceZoneRow[]>()
-  for (const [plural, names] of byPlural) {
+  for (const zone of active) {
+    const name = foldZoneName(zone.name.trim())
+    indexApproxForm(lightPluralPhrase(name), name, zone)
+    indexApproxForm(lightSingularPhrase(name), name, zone)
+  }
+  const approxIndex = new Map<string, ServiceZoneRow[]>()
+  for (const [form, names] of byApprox) {
     if (names.size !== 1) continue
     const group = [...names.values()][0]!
     if (variantAudiencesConflict(group)) continue
-    pluralIndex.set(plural, group)
+    approxIndex.set(form, group)
   }
   // Relógio único antes do split no «e»: «9 e meia» não vira sobra «meia».
   const folded = maskClockSpans(foldZoneName(text))
@@ -1065,7 +1060,6 @@ export function resolveZoneMention(
   const segments = parts.length > 0 ? parts : excised.ids.size > 0 ? [] : [folded]
   const hit = new Set<string>()
   let approx = false
-  let matchedSegment = false
   let failedSegment = false
   let leftoverWord: string | null = null
   for (const part of segments) {
@@ -1073,25 +1067,31 @@ export function resolveZoneMention(
     const exact = zonesNamedInText(part, active, opts)
     let rest = part
     for (const zone of exact) rest = stripZoneWords(rest, zone)
-    const pluralHits: ServiceZoneRow[] = []
-    const plurals = [...pluralIndex.keys()].sort((a, b) => b.length - a.length)
-    for (const plural of plurals) {
-      if (!new RegExp(`(?<![a-z0-9])${escapeRegExp(plural)}(?![a-z0-9])`).test(rest)) continue
-      const group = pluralIndex.get(plural)!
+    const approxHits: ServiceZoneRow[] = []
+    const forms = [...approxIndex.keys()].sort((a, b) => b.length - a.length)
+    for (const form of forms) {
+      if (!new RegExp(`(?<![a-z0-9])${escapeRegExp(form)}(?![a-z0-9])`).test(rest)) continue
+      const group = approxIndex.get(form)!
       for (const zone of group) {
-        if (!exact.some((item) => item.id === zone.id)) pluralHits.push(zone)
+        if (!exact.some((item) => item.id === zone.id) && !approxHits.some((item) => item.id === zone.id)) {
+          approxHits.push(zone)
+        }
       }
-      rest = stripPhrase(rest, plural)
-      for (const word of plural.split(/[^a-z0-9]+/)) {
+      rest = stripPhrase(rest, form)
+      for (const word of form.split(/[^a-z0-9]+/)) {
         if (word.length >= 3) rest = stripPhrase(rest, word)
       }
     }
-    const matched = exact.length + pluralHits.length > 0
+    const matched = exact.length + approxHits.length > 0
     const leftoverTokens = contentTokens(rest)
     if (matched && leftoverTokens.length > 0) {
-      // Parcial no mesmo segmento («Axila cotovelo»): não guardar o que casou.
+      // Parcial no mesmo segmento («Axila cotovelo»): guarda o que casou + sobra.
       failedSegment = true
-      matchedSegment = true
+      for (const zone of exact) hit.add(zone.id)
+      for (const zone of approxHits) {
+        hit.add(zone.id)
+        approx = true
+      }
       if (leftoverWord == null) leftoverWord = leftoverTokens[0]!
       continue
     }
@@ -1100,28 +1100,19 @@ export function resolveZoneMention(
       if (leftoverWord == null) leftoverWord = contentTokens(part)[0] ?? null
       continue
     }
-    matchedSegment = true
     for (const zone of exact) hit.add(zone.id)
-    for (const zone of pluralHits) {
+    for (const zone of approxHits) {
       hit.add(zone.id)
       approx = true
     }
   }
-  // Sobra após match (lista «e»/vírgula ou parcial no segmento) → pergunta.
-  // Só tokens de pedido/serviço/hora não contam (ignoreWords + ZONE_MENTION_STOP).
-  if (failedSegment && matchedSegment) {
-    return {
-      zones: [],
-      approx: false,
-      unrecognized: true,
-      leftover: leftoverWord,
-    }
-  }
-  // Palavra isolada sem match (ex. «cotovelo» a responder zonas) → pergunta com a palavra.
+  const kept = active.filter((z) => hit.has(z.id) || excised.ids.has(z.id))
+  // Sobra após match (lista «e»/vírgula ou parcial no segmento) → pergunta;
+  // mantém as zonas casadas (Paulo 10/11/2026 opção 2).
   if (failedSegment && leftoverWord) {
     return {
-      zones: [],
-      approx: false,
+      zones: kept,
+      approx,
       unrecognized: true,
       leftover: leftoverWord,
     }
@@ -1130,7 +1121,7 @@ export function resolveZoneMention(
     return { zones: [], approx: false, unrecognized: false, leftover: null }
   }
   return {
-    zones: active.filter((z) => hit.has(z.id) || excised.ids.has(z.id)),
+    zones: kept,
     approx,
     unrecognized: false,
     leftover: null,

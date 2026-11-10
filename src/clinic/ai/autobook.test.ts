@@ -1096,7 +1096,7 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
         },
         s.clock,
       )
-      replaceServiceZonesOp(
+      const zones = replaceServiceZonesOp(
         s.db,
         s.caller,
         dep.id,
@@ -1110,15 +1110,19 @@ describe('DEC-090: não reperguntar linha/zonas após horário (Paulo 31/10/2026
       )
       s.say('inbound', 'Bom dia. Gostaria agendar um horário para fazer axila e íntima feminina')
       const asked = await s.run()
-      // DEC-137: «íntima» não está no catálogo — não oferece Horários só de Axila.
+      // Paulo 10/11 opção 2: Axila casa e fica no quadro; «íntima» sobra — pergunta,
+      // sem Horários / Sim/Corrigir até o conjunto fechar.
       expect(asked.reason).not.toBe('catalog_reply')
       const session = getScheduleSession(s.db, s.tenantId, s.cnv.id)
       expect(session?.audienceLine).toBe('feminino')
-      expect(session?.variantIds ?? null).toBeNull()
+      const axila = zones.find((z) => z.name === 'Axila' && z.audience === 'feminino')
+      expect(session?.variantIds).toEqual([axila!.id])
       const firstOffer = asked.autoBook?.replyText ?? ''
-      expect(firstOffer).not.toMatch(/Entendi:/)
+      expect(firstOffer).toMatch(/Entendi: axila\./i)
+      expect(firstOffer).not.toMatch(/Certo\?/)
+      expect(firstOffer).toMatch(/Não encontrei íntima|Não encontrei intima/i)
       expect(firstOffer).not.toMatch(/equipe confirma/i)
-      expect(firstOffer).toMatch(/Escreva uma ou várias|quais|Quer /i)
+      expect(firstOffer).toMatch(/Quer /i)
       // Paulo 09/11/2026: `varias` sem lista Opções — só texto + eco DEC-137.
       expect(asked.autoBook?.interactive ?? null).toBeNull()
       noBooking(s)

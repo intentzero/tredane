@@ -2,15 +2,45 @@
  * Zonas em texto livre e telemetria do funil (DEC-143, 06/11/2026) — metodologia 0.6 (G-09).
  * Entraram na `main` (#589, #588) só com testes unitários; estes diálogos fixam o comportamento.
  * A-38: T2 friction `nao_encontrei` (session-analytics).
+ * A-44..A-46: singular↔plural + stopwords pt-BR (Paulo 10/11/2026).
  *
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * Depilação com Axila, Pernas (feminino e masculino, DEC-079) e Buço (ambos).
  */
+import { listZones, replaceServiceZonesOp } from '../../../config'
 import { frictionTermHash } from '../../turn-friction'
 import type { DialogCase } from './runner'
 
 const NO_LEAK = [/maps\.google|goo\.gl/i, /\{|\}/]
 const COTOVELO_HASH = frictionTermHash('cotovelo')!
+
+/** Staging smoke: acrescenta Intima (e Braços) sem recriar as zonas base. */
+function withIntimaZones(s: Parameters<NonNullable<DialogCase['prepare']>>[0]): void {
+  const prior = listZones(s.db, s.tenantId, s.ids.depilacao)
+  const extras = [
+    { name: 'Intima', audience: 'feminino' as const, durationMinutes: 20, priceCents: 15000 },
+    { name: 'Braços', audience: 'feminino' as const, durationMinutes: 20, priceCents: 8000 },
+  ].filter((extra) => !prior.some((z) => z.name === extra.name && z.audience === extra.audience))
+  if (extras.length === 0) return
+  replaceServiceZonesOp(
+    s.db,
+    s.caller,
+    s.ids.depilacao,
+    [
+      ...prior.map((z) => ({
+        id: z.id,
+        name: z.name,
+        audience: z.audience,
+        durationMinutes: z.durationMinutes,
+        priceCents: z.priceCents,
+        active: z.active,
+        synonyms: z.synonyms,
+      })),
+      ...extras,
+    ],
+    s.clock,
+  )
+}
 
 export const ZONAS_DIALOG_CASES: DialogCase[] = [
   {
@@ -82,7 +112,7 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
     title: 'Telemetria T2: «Axila e cotovelo» emite friction nao_encontrei (sem termo em claro)',
     turnosIdeais: 2,
     // session-analytics T2: option-miss (#509 / zone-echo) → friction. Falha sem a flag.
-    // «cotovelo» sozinho pode só reperguntar zonas; com Axila parcial dispara Não encontrei.
+    // Paulo 10/11 opção 2: eco do que casou + pergunta só da sobra (sem Sim/Corrigir).
     turns: [
       { role: 'client', text: 'Quero depilação feminina' },
       { role: 'client', text: 'Axila e cotovelo' },
@@ -102,12 +132,13 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
         {
           turn: 1,
           matches: [
+            /Entendi: axila\./i,
             /Não encontrei cotovelo nas opções/i,
             // Discovery reset (Paulo 09/11/2026): one-shot hint no option-miss.
             /Para recomeçar, diga começar de novo/i,
             /Para parar, diga terminar/i,
           ],
-          excludes: [/Entendi:/i],
+          excludes: [/Certo\?/i],
         },
       ],
       outboundExcludes: NO_LEAK,
@@ -162,6 +193,82 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
           turn: 2,
           matches: [/\d{1,2}:\d{2}/],
           excludes: [/Entendi:/i, /quais zonas/i],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-44',
+    title: '«íntima e perna» → eco pernas+intima (singular↔plural)',
+    turnosIdeais: 2,
+    // Staging Paulo 10/11/2026: catálogo «Pernas» + «Intima»; cliente «perna» + «íntima»
+    // era rejeitado («Não encontrei perna») e descartava íntima.
+    prepare: withIntimaZones,
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      {
+        role: 'client',
+        text: 'Gostaria de agendar um horário para depilação íntima e perna',
+      },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        {
+          turn: 1,
+          matches: [/Entendi:.*(intima|íntima).*(pernas)|Entendi:.*(pernas).*(intima|íntima)/i, /Certo\?/],
+          excludes: [/Não encontrei/i, /Não encontrei perna/i],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-45',
+    title: '«por favor» não ecoa «favor» no miss de catálogo',
+    turnosIdeais: 1,
+    // Staging Paulo 10/11/2026: «… por favor» → «Não entendi bem «favor»».
+    turns: [
+      {
+        role: 'client',
+        text: 'Boa tarde Gostaria agendar um horário dia 13/11 por favor',
+      },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/serviço|opções|Temos/i],
+          excludes: [/«favor»/i, /Não encontrei favor/i],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-46',
+    title: '«seria depilação…» não ecoa «seria» como zona',
+    turnosIdeais: 2,
+    // Staging Paulo 10/11/2026: «Seria depilação feminina, … e pernas» → «Não encontrei seria».
+    prepare: withIntimaZones,
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'Seria depilação feminina, íntima e pernas' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        {
+          turn: 1,
+          matches: [/Entendi:.*(intima|íntima).*(pernas)|Entendi:.*(pernas).*(intima|íntima)/i, /Certo\?/],
+          excludes: [/Não encontrei seria/i, /«seria»/i],
         },
       ],
       outboundExcludes: NO_LEAK,

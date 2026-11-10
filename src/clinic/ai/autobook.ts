@@ -380,7 +380,7 @@ export function extractServices(text: string, services: ServiceRow[]): ServiceRo
  * T2: quando emite option-miss, devolve também friction (nao_encontrei / particle_as_zone).
  */
 function askUnrecognizedZone(
-  mention: { leftover: string | null },
+  mention: { leftover: string | null; zones?: readonly { name: string }[] },
   zonePool: ServiceRow['zones'],
   fallback: string,
   opts?: {
@@ -391,6 +391,14 @@ function askUnrecognizedZone(
   const names = stableVariantLabelList(zonePool)
   if (mention.leftover && opts?.emitOptionMiss !== false) {
     let text = zoneNotFoundAskReply(mention.leftover, names)
+    // Paulo 10/11/2026 opção 2: eco factual do que casou + pergunta só da sobra.
+    // Sem Sim/Corrigir aqui — o eco DEC-137 completo espera o conjunto resolvido.
+    const understood = (mention.zones ?? [])
+      .map((z) => z.name.trim().toLocaleLowerCase('pt-BR'))
+      .filter(Boolean)
+    if (understood.length > 0) {
+      text = `Entendi: ${understood.join(', ')}. ${text}`
+    }
     // Discovery reset (Paulo 09/11/2026): one-shot hint no option-miss.
     text = appendResetDiscoveryHint(text)
     return {
@@ -1656,10 +1664,9 @@ export async function tryAiAutoBook(
               },
               det.service.id,
             )
-      if (
-        earlyUpdate.resolvedVariantIds?.length &&
-        earlyUpdate.reason !== 'unresolved_variant'
-      ) {
+      if (earlyUpdate.resolvedVariantIds?.length) {
+        // Inclui `unresolved_variant` com matches (Paulo 10/11 opção 2): o quadro
+        // já gravou o que casou; o funil só avança se não houver sobra.
         kept = mentionPool.filter((z) => earlyUpdate.resolvedVariantIds!.includes(z.id))
         chosen = { zones: kept, ambiguous: false }
       } else {
@@ -1682,7 +1689,8 @@ export async function tryAiAutoBook(
         zonesNamedInText(turnText, pool.length > 0 ? pool : active, serviceIgnore).length > 0 ||
         zoneEcho === 'confirm' ||
         Boolean(input.boundSlot)
-      if (!(date && time && kept.length > 0 && !chosen.ambiguous && contributed)) {
+      // Sobra (leftoverAsk) nunca fecha marcação — mesmo com date+time+matches.
+      if (!(date && time && kept.length > 0 && !chosen.ambiguous && contributed && !leftoverAsk)) {
         const plural = det.service.variantKindPlural?.trim() || ''
         const singular = det.service.variantKind?.trim() || ''
         const kindLabel = (
@@ -2273,9 +2281,9 @@ export async function tryAiAutoBook(
   let ambiguous = false
   if (zoneEcho === 'confirm' || input.boundSlot) {
     mentionedForUpdate = []
-  } else if (proposalMention.unrecognized && zoneEcho !== 'skip' && readyPolarIds == null) {
-    mentionedForUpdate = []
   } else if (proposalMention.zones.length > 0) {
+    // Paulo 10/11 opção 2: com sobra, ainda assim admite o que casou (o
+    // actualizador bloqueia proposta em `unrecognized`).
     const seen = new Set<string>()
     ambiguous = proposalMention.zones.some((zone) => {
       const key = zone.name.trim().toLocaleLowerCase('pt-BR')
@@ -2326,7 +2334,8 @@ export async function tryAiAutoBook(
           },
           svc.id,
         )
-  // Sobra (#575): o quadro preserva o prior; o funil vê conjunto vazio para perguntar.
+  // Sobra (#575 / opção 2): unresolved com matches grava no quadro, mas o funil
+  // trata namedZones como vazio para perguntar a sobra (nunca Horários/proposta).
   const namedZones: typeof fromSession =
     variantUpdate.resolvedVariantIds?.length &&
     variantUpdate.reason !== 'unresolved_variant'

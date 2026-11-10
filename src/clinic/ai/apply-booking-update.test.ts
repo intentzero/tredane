@@ -81,6 +81,37 @@ describe('applyBookingUpdate — #575 partícula/hora ≠ zona; sobra não apaga
     expect(r.resolvedVariantIds).toEqual(['z_ax', 'z_pe', 'z_to'])
     expect(r.proposalConfirm).toBe('none')
   })
+
+  it('parcial com menções grava o que casou e bloqueia (opção 2)', () => {
+    const r = admit({
+      mentionedIds: ['z_ax'],
+      unrecognized: true,
+      leftover: 'cotovelo',
+      ambiguous: false,
+      selectionMode: 'varias',
+      priorVariantIds: null,
+    })
+    expect(r.reason).toBe('unresolved_variant')
+    expect(r.blockProposal).toBe(true)
+    expect(r.leftover).toBe('cotovelo')
+    expect(r.resolvedVariantIds).toEqual(['z_ax'])
+    expect(r.patch.variantIds).toEqual(['z_ax'])
+  })
+
+  it('parcial une menções ao prior (não apaga zonas já travadas)', () => {
+    const r = admit({
+      mentionedIds: ['z_ax'],
+      unrecognized: true,
+      leftover: 'cotovelo',
+      ambiguous: false,
+      selectionMode: 'varias',
+      priorVariantIds: ['z_pe', 'z_to'],
+    })
+    expect(r.reason).toBe('unresolved_variant')
+    expect(r.blockProposal).toBe(true)
+    expect(r.resolvedVariantIds).toEqual(['z_pe', 'z_to', 'z_ax'])
+    expect(r.patch.variantIds).toEqual(['z_pe', 'z_to', 'z_ax'])
+  })
 })
 
 describe('applyBookingUpdate — #579 excepção «hora já casada»', () => {

@@ -52,18 +52,42 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
     expect(got.leftover).toBe('axilas')
   })
 
-  it('«Axila e cotovelo» não devolve o conjunto parcial', () => {
+  it('«Axila e cotovelo» mantém Axila e marca sobra (Paulo 10/11 opção 2)', () => {
     const got = resolveZoneMention('Axila e cotovelo', feminine)
     expect(got.unrecognized).toBe(true)
-    expect(got.zones).toEqual([])
+    expect(got.zones.map((z) => z.id)).toEqual(['ax-f'])
     expect(got.leftover).toBe('cotovelo')
   })
 
-  it('«Axila cotovelo» no mesmo segmento também não devolve parcial', () => {
+  it('«Axila cotovelo» no mesmo segmento também mantém Axila + sobra', () => {
     const got = resolveZoneMention('Axila cotovelo', feminine)
     expect(got.unrecognized).toBe(true)
-    expect(got.zones).toEqual([])
+    expect(got.zones.map((z) => z.id)).toEqual(['ax-f'])
     expect(got.leftover).toBe('cotovelo')
+  })
+
+  it('«íntima e perna» casa Intima + Pernas (singular↔plural)', () => {
+    const catalog = [
+      zone('in-f', 'Intima', 'feminino'),
+      zone('pe-f', 'Pernas', 'feminino'),
+      zone('ax-f', 'Axila', 'feminino'),
+    ]
+    const got = resolveZoneMention(
+      'Gostaria de agendar um horário para depilação íntima e perna',
+      catalog,
+      { ignoreWords: ['Depilação'] },
+    )
+    expect(got.unrecognized).toBe(false)
+    expect(got.leftover).toBeNull()
+    expect(got.approx).toBe(true)
+    expect(got.zones.map((z) => z.id).sort()).toEqual(['in-f', 'pe-f'])
+  })
+
+  it('«seria» e «favor» não viram sobra de zona', () => {
+    expect(resolveZoneMention('Seria pernas, por favor', feminine).leftover).toBeNull()
+    expect(resolveZoneMention('Seria pernas, por favor', feminine).zones.map((z) => z.id)).toEqual([
+      'pe-f',
+    ])
   })
 
   it('não faz fuzzy de nome diferente («axilha» ≠ Axila)', () => {
@@ -135,14 +159,14 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
     expect(alone.zones.map((z) => z.name)).toEqual(['Tórax e Abdômen'])
   })
 
-  it('zona composta mais uma sobra não devolve o parcial', () => {
+  it('zona composta mais uma sobra mantém a composta e marca leftover', () => {
     const masculine = [
       zone('tx', 'Tórax e Abdômen', 'masculino'),
       zone('ax', 'Axila', 'masculino'),
     ]
     const got = resolveZoneMention('tórax e abdômen e cotovelo', masculine)
     expect(got.unrecognized).toBe(true)
-    expect(got.zones).toEqual([])
+    expect(got.zones.map((z) => z.name)).toEqual(['Tórax e Abdômen'])
     expect(got.leftover).toBe('cotovelo')
   })
 
@@ -211,27 +235,23 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
     }
   })
 
-  it('propriedade: N zonas reconhecíveis → N ids ou unrecognized; nunca N−1', () => {
-    const phrases: Array<{ text: string; expectIds: string[] | 'ask' }> = [
-      { text: 'Axila', expectIds: ['ax-f'] },
-      { text: 'Axilas e pernas', expectIds: ['ax-f', 'pe-f'] },
-      { text: 'Axila e pernas', expectIds: ['ax-f', 'pe-f'] },
-      { text: 'Axila e cotovelo', expectIds: 'ask' },
-      { text: 'cotovelo', expectIds: 'ask' },
-      { text: 'Pernas e axilha', expectIds: 'ask' },
+  it('propriedade: N zonas reconhecíveis → N ids; sobra mantém o que casou (nunca Horários)', () => {
+    const phrases: Array<{ text: string; expectIds: string[]; ask: boolean }> = [
+      { text: 'Axila', expectIds: ['ax-f'], ask: false },
+      { text: 'Axilas e pernas', expectIds: ['ax-f', 'pe-f'], ask: false },
+      { text: 'Axila e pernas', expectIds: ['ax-f', 'pe-f'], ask: false },
+      { text: 'Axila e cotovelo', expectIds: ['ax-f'], ask: true },
+      { text: 'cotovelo', expectIds: [], ask: true },
+      { text: 'Pernas e axilha', expectIds: ['pe-f'], ask: true },
     ]
-    for (const { text, expectIds } of phrases) {
+    for (const { text, expectIds, ask } of phrases) {
       const got = resolveZoneMention(text, feminine)
-      if (expectIds === 'ask') {
-        expect(got.unrecognized, text).toBe(true)
-        expect(got.zones, text).toEqual([])
-      } else {
-        expect(got.unrecognized, text).toBe(false)
-        expect(
-          got.zones.map((z) => z.id),
-          text,
-        ).toEqual(expectIds)
-      }
+      expect(got.unrecognized, text).toBe(ask)
+      expect(
+        got.zones.map((z) => z.id),
+        text,
+      ).toEqual(expectIds)
+      if (ask) expect(got.leftover, text).toBeTruthy()
     }
   })
 })
