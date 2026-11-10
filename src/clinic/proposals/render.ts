@@ -188,7 +188,7 @@ export function renderProposalInteractive(
       : 'Válida por 30 minutos após o envio.',
   )
   lines.push(
-    'Toque em Confirmar para seguir, em Alterar detalhes para mudar horário, serviço ou variantes, ou em Falar com a equipe.',
+    'Toque em Confirmar para seguir, em Alterar detalhes para mudar horário, serviço ou detalhes, ou em Falar com a equipe.',
   )
 
   let body = lines.join('\n')

@@ -1,6 +1,7 @@
 /**
  * Alterar detalhes → menu IA (Paulo «Quero»/«Sim», 09/11/2026).
- * Invalida a proposta sem handoff; pergunta Horário | Serviço [| Variantes].
+ * Invalida a proposta sem handoff; pergunta Horário | Serviço [| Detalhes do serviço].
+ * Chave interna do 3.º botão: `variantes` (INV-05: rótulo à cliente sem «variante»).
  * Qualquer ramo fecha em nova proposta versionada (DEC-061: só Confirmar marca).
  * «Falar com a equipe» continua DEC-083 (outro botão).
  */
@@ -49,7 +50,8 @@ export const ALTER_SERVICO_KEY = 'servico'
 export const ALTER_VARIANTES_KEY = 'variantes'
 export const ALTER_HORARIO_LABEL = 'Horário'
 export const ALTER_SERVICO_LABEL = 'Serviço'
-export const ALTER_VARIANTES_LABEL = 'Variantes'
+/** Rótulo WhatsApp ≤20 (INV-05: sem stem «variante»). */
+export const ALTER_VARIANTES_LABEL = 'Detalhes do serviço'
 
 export type AlterDetailsKey =
   | typeof ALTER_HORARIO_KEY
@@ -62,7 +64,7 @@ function clip(text: string, max: number): string {
   return `${t.slice(0, Math.max(1, max - 1)).trimEnd()}…`
 }
 
-/** Serviço com zonas ativas ou audiência mista → mostra botão Variantes. */
+/** Serviço com zonas ativas ou audiência mista → mostra botão Detalhes do serviço. */
 export function serviceOffersVariantBranch(serviceId: string | null | undefined, db: ClinicDb, tenantId: string): boolean {
   if (!serviceId) return false
   const service = getService(db, tenantId, serviceId)

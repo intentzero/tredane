@@ -148,7 +148,7 @@ function seed(opts?: { withZones?: boolean }) {
 }
 
 describe('Alterar detalhes → menu IA', () => {
-  it('menu inclui Variantes quando o serviço tem zonas', () => {
+  it('menu inclui Detalhes do serviço quando o serviço tem zonas', () => {
     const s = seed({ withZones: true })
     try {
       expect(serviceOffersVariantBranch(s.svc.id, s.db, s.tenantId)).toBe(true)
@@ -160,7 +160,7 @@ describe('Alterar detalhes → menu IA', () => {
       expect(menu.interactive.buttons.map((b) => b.title)).toEqual([
         'Horário',
         'Serviço',
-        'Variantes',
+        'Detalhes do serviço',
       ])
       expect(menu.pending.options.map((o) => o.key)).toEqual([
         ALTER_HORARIO_KEY,
@@ -172,7 +172,7 @@ describe('Alterar detalhes → menu IA', () => {
     }
   })
 
-  it('menu omite Variantes sem zonas', () => {
+  it('menu omite Detalhes do serviço sem zonas', () => {
     const s = seed({ withZones: false })
     try {
       expect(serviceOffersVariantBranch(s.svc.id, s.db, s.tenantId)).toBe(false)
@@ -262,9 +262,15 @@ describe('Alterar detalhes → menu IA', () => {
       )
       expect(sent?.body).toBe(ALTER_DETAILS_MENU_BODY)
       expect(sent?.body).not.toBe(HUMAN_HANDOFF_TEXT)
-      expect(sent?.interactive_json ?? '').toContain('Horário')
-      expect(sent?.interactive_json ?? '').toContain('Serviço')
-      expect(sent?.interactive_json ?? '').toContain('Variantes')
+      expect(sent?.interactive_json ?? '').toContain('"title":"Horário"')
+      expect(sent?.interactive_json ?? '').toContain('"title":"Serviço"')
+      expect(sent?.interactive_json ?? '').toContain('"title":"Detalhes do serviço"')
+      // Chave opaca `~variantes` no id é interna; INV-05 olha títulos/corpo.
+      const titles = JSON.parse(sent?.interactive_json ?? '{}').buttons?.map(
+        (b: { title: string }) => b.title,
+      ) as string[]
+      expect(titles.join(' ')).not.toMatch(/\bvariant(?:e|es)\b/i)
+      expect(sent?.body).not.toMatch(/\bvariant(?:e|es)\b/i)
       expect(getBookingFrame(s.db, s.tenantId, s.cnv.id)?.pending?.slot).toBe('alter')
 
       const auth = evaluateProposalAuthorization(
@@ -450,7 +456,10 @@ describe('Alterar detalhes → menu IA', () => {
         s.clock,
       )
       const rendered = renderProposalInteractive(proposal, s.db)
-      expect(rendered.body).toMatch(/Alterar detalhes para mudar horário, serviço ou variantes/)
+      expect(rendered.body).toMatch(
+        /Alterar detalhes para mudar horário, serviço ou detalhes/,
+      )
+      expect(rendered.body).not.toMatch(/\bvariant(?:e|es)\b/i)
       expect(rendered.body).not.toMatch(/Alterar detalhes para mudar ou em Falar/)
     } finally {
       s.close()
