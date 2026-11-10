@@ -47,6 +47,8 @@ export type ChoiceSlot =
   | 'audiencia'
   /** T1 (Paulo 09/11/2026): Manhã | Tarde | Outro dia após período/dia vazio. */
   | 'periodo'
+  /** Alterar detalhes → menu Horário|Serviço|Variantes (Paulo 09/11/2026). */
+  | 'alter'
 
 export type ChoiceInteractiveButtons = {
   mode: 'buttons'
@@ -163,7 +165,8 @@ export function parseChoiceId(
     slot !== 'horario' &&
     slot !== 'eco' &&
     slot !== 'audiencia' &&
-    slot !== 'periodo'
+    slot !== 'periodo' &&
+    slot !== 'alter'
   ) {
     return null
   }
@@ -577,6 +580,72 @@ export async function handleChoiceOfferClick(
     return {
       handled: true,
       outcome: click.outcome === 'applied' ? 'applied' : 'stale_reoffered',
+      outbox: click.outbox,
+    }
+  }
+
+  // Alterar detalhes → Horário | Serviço | Variantes (Paulo 09/11/2026).
+  if (parsedChoice.slot === 'alter') {
+    cancelAutoDraft(db, input.tenantId, input.conversationId)
+    const validated = validateChoiceAgainstFrame(
+      db,
+      input.tenantId,
+      input.conversationId,
+      input.buttonId,
+      clock.nowMs(),
+    )
+    if (!validated.ok) {
+      // Menu stale: reabre se ainda houver serviço no quadro.
+      const { beginAlterDetailsMenu } = await import('./alter-details')
+      const frame = getBookingFrame(db, input.tenantId, input.conversationId)
+      if (frame?.serviceId) {
+        const menu = beginAlterDetailsMenu(
+          db,
+          caller,
+          input.conversationId,
+          clock,
+          { providerEventKey: input.providerEventKey },
+        )
+        return {
+          handled: true,
+          outcome: 'stale_reoffered',
+          outbox: menu.outbox,
+          reason: validated.reason,
+        }
+      }
+      return {
+        handled: true,
+        outcome: 'stale_cleared',
+        outbox: [],
+        reason: validated.reason,
+      }
+    }
+    const key = validated.key
+    if (key !== 'horario' && key !== 'servico' && key !== 'variantes') {
+      return {
+        handled: true,
+        outcome: 'stale_cleared',
+        outbox: [],
+        reason: 'unknown_option',
+      }
+    }
+    const { handleAlterDetailsChoice } = await import('./alter-details')
+    const click = await handleAlterDetailsChoice(
+      db,
+      caller,
+      {
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        key,
+        providerEventKey: input.providerEventKey,
+        capability: input.capability,
+      },
+      clock,
+    )
+    return {
+      handled: true,
+      outcome: 'applied',
+      autoBook: click.autoBook,
       outbox: click.outbox,
     }
   }

@@ -875,7 +875,9 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
 
   /**
    * S4→S5: processa button_reply da proposta.
-   * Alterar encaminha; Confirmar → executeProposalConfirmOp (book ou Pix uma vez).
+   * Alterar → invalida e abre menu IA (Horário|Serviço|Variantes); sem handoff.
+   * Confirmar → executeProposalConfirmOp (book ou Pix uma vez).
+   * «Falar com a equipe» → handoff (DEC-083).
    */
   async handleProposalButtonClick(
     caller: ClinicCaller,
@@ -1048,6 +1050,28 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     let execution: Awaited<
       ReturnType<typeof clinicProposals.executeProposalConfirmOp>
     > | null = null
+
+    // Alterar detalhes → menu IA (sem pausa / sem equipe).
+    if (
+      click.handled &&
+      'action' in click &&
+      click.action === 'alter' &&
+      'reoffer' in click &&
+      click.reoffer
+    ) {
+      const { beginAlterDetailsMenu } = await import('../clinic/ai/alter-details')
+      const menu = beginAlterDetailsMenu(
+        this.#db,
+        caller,
+        click.proposal.conversationId,
+        this.#clock,
+        {
+          providerEventKey: input.providerEventKey,
+          proposal: click.proposal,
+        },
+      )
+      if (menu.outbox.length > 0) outboxes.push(...menu.outbox)
+    }
 
     if (
       click.handled &&

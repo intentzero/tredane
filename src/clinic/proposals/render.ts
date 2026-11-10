@@ -187,7 +187,9 @@ export function renderProposalInteractive(
       ? proposalValidityLine(proposal.timezone, validUntil)
       : 'Válida por 30 minutos após o envio.',
   )
-  lines.push('Toque em Confirmar para seguir, em Alterar detalhes para mudar ou em Falar com a equipe.')
+  lines.push(
+    'Toque em Confirmar para seguir, em Alterar detalhes para mudar horário, serviço ou variantes, ou em Falar com a equipe.',
+  )
 
   let body = lines.join('\n')
   if (body.length > PROPOSAL_BODY_MAX) {

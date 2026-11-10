@@ -1,7 +1,7 @@
 /**
  * Comunicação pendente (H7 / #164 / DEC-061) — S4.
  * Cobre falha/atraso no envio determinístico da proposta ou do resultado,
- * e espera da equipe após «Alterar detalhes».
+ * e espera da equipe (legado `alter_awaiting_team`; Alterar detalhes já não abre isto — Paulo 09/11/2026).
  */
 import type { Clock } from '../../db/clock'
 import {

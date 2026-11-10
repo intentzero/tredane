@@ -436,7 +436,7 @@ describe('DEC-083', () => {
     }
   })
 
-  it('Alterar detalhes inclui a frase e não cria compromisso', () => {
+  it('Alterar detalhes invalida sem handoff e sem compromisso (menu IA no DO)', () => {
     const s = seed()
     try {
       s.say('Oi')
@@ -466,16 +466,21 @@ describe('DEC-083', () => {
         s.clock,
       )
       expect(click.handled).toBe(true)
-      if (!('action' in click) || click.action !== 'alter' || !('outbox' in click)) {
-        throw new Error('expected alter')
+      if (!('action' in click) || click.action !== 'alter' || !('reoffer' in click)) {
+        throw new Error('expected alter reoffer')
       }
-      expect(click.outbox.some((row) => row.type === 'whatsapp.send')).toBe(true)
+      expect(click.reoffer).toBe(true)
+      // Sem whatsapp.send de handoff aqui — o Clinic DO abre o menu IA.
+      expect(click.outbox.some((row) => row.type === 'whatsapp.send')).toBe(false)
+      expect(click.outbox.some((row) => row.type === 'conversation.ai_pause')).toBe(false)
       expect(s.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM appointments`)!.n).toBe(0)
-      const sent = s.db.get<{ body: string }>(
+      expect(getProposal(s.db, s.tenantId, proposal.id)?.state).toBe('substituida')
+      expect(readAiReplyPause(s.db, s.tenantId, s.cnv.id)).toBeNull()
+      const outbound = s.db.get<{ body: string }>(
         `SELECT body FROM messages WHERE tenant_id = ? AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
         s.tenantId,
       )
-      expect(sent?.body).toBe(HUMAN_HANDOFF_TEXT)
+      expect(outbound?.body).not.toBe(HUMAN_HANDOFF_TEXT)
     } finally {
       s.close()
     }

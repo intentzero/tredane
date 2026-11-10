@@ -1158,9 +1158,9 @@ export const P0_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'F-05',
-    title: 'Alterar detalhes',
+    title: 'Alterar detalhes → menu IA (Horário|Serviço|Variantes), sem handoff',
     turnosIdeais: 1,
-    coverageOnly: 'dec-083.test',
+    coverageOnly: 'alter-details.test',
     turns: [],
   },
   {

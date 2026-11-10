@@ -103,7 +103,7 @@ Na DEC-060 a IA marca mas não envia. Com a DEC-061 (Decidido), proposta e resul
 | --- | --- |
 | Proposta/resultado enfileirado ou falhou / incerto | Pendente `open` na conversa (painel); sem retry cego na Meta |
 | Sem resolução após 5 min | Status `alerted` + mensagem de sistema (alarme do DO) |
-| «Alterar detalhes» | Proposta `encaminhada`; pendente `alter_awaiting_team`; sem cancelar compromisso |
+| «Alterar detalhes» | Proposta invalidada (`substituida`); menu IA Horário\|Serviço[\|Variantes]; sem handoff / sem `alter_awaiting_team`; sem cancelar compromisso (Paulo 09/11/2026) |
 | Janela 24 h fechada / sem template aprovado de proposta | Handoff à equipe; sem envio irregular (**Em aberto:** validação Meta staging + template) |
 | Lembretes | Só depois de o aviso de marcação ser enviado (S5/posterior) |
 
