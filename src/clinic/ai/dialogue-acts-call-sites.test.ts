@@ -128,6 +128,8 @@ const ALLOWED_LITERAL_PATTERNS: readonly RegExp[] = [
   /^Não encontrei cotovelo nas opções\. Quer Axila, Pernas\?$/,
   // Discovery reset hint no option-miss (Paulo 09/11/2026)
   /^Para recomeçar, diga começar de novo\. Para parar, diga terminar\.$/,
+  // Meta «como termino?» (smoke Paulo 10/11/2026) — ensina Class A sem sayAct
+  /^Para encerrar, diga terminar\. Se o botão Terminar aparecer, pode tocar nele\.$/,
   // DEC-153 — dica one-shot na 1.ª oferta de horários (Paulo opção 3)
   /^Se preferir falar com a equipe, escreva falar com a equipe ou use o botão quando aparecer\.$/,
   /^falar com a equipe$/,
