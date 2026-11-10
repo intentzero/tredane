@@ -24,12 +24,16 @@ body{margin:0;font-family:Roboto,"Helvetica Neue",Helvetica,Arial,sans-serif}
 .hint{margin:0 0 8px;padding:10px 12px;border-radius:8px;background:var(--sunk);font-size:13px;color:var(--tx2);line-height:1.35}
 .row{display:flex;align-items:center;gap:14px;height:52px;border:0;background:none;text-align:left;width:100%;padding:0 4px;border-bottom:1px solid var(--bd);font-weight:500}
 .row svg{flex:none;color:var(--tx2)}
-.row:last-of-type{border-bottom:0}
+.row.danger{color:var(--dg)}
+.row.danger svg{color:var(--dg)}
+.sep{height:1px;background:var(--bd);margin:6px 0}
+.cancel{margin-top:12px;height:44px;border-radius:8px;border:1.5px solid var(--tx);background:var(--card);font-weight:600}
 </style>
 </helmet>
 <!--
-  M-55 Confirmado (Paulo, 31/10/2026, Opção A): folha ⋮ só conversa/pipeline.
-  Resumo da IA e Bloquear ficam em Detalhes (Ver contato).
+  M-55 Confirmado (Paulo 31/10/2026 Opção A; 04/11 sem Reservar bloco;
+  TR-488 Paulo 10/11/2026: Bloquear + Excluir (owner) no fim da folha, com confirmação).
+  Resumo da IA continua só em Contato / Detalhes.
 -->
 <div class="ph">
   <div class="bg" aria-hidden="true"><i></i><i style="margin-left:auto;background:#E7F1F1"></i><i style="width:50%"></i></div>
@@ -40,12 +44,16 @@ body{margin:0;font-family:Roboto,"Helvetica Neue",Helvetica,Arial,sans-serif}
       <span class="av" aria-hidden="true">JP</span>
       <div style="flex:1;min-width:0"><div style="font-weight:600">Juliana Prado</div><div style="font-size:14px;color:var(--mu)">+55 11 9••••-0142 · Depilação a laser</div></div>
     </div>
-    <p class="hint">Resumo da IA e Bloquear contato ficam em <strong>Detalhes</strong> (Ver contato).</p>
+    <p class="hint">Resumo da IA fica em <strong>Detalhes</strong> (Ver contato). Bloquear e Excluir pedem confirmação.</p>
     <button class="row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Ver contato</button>
     <button class="row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg><span style="flex:1">Marcar como «Horário proposto»<span style="display:block;font-size:12px;font-weight:400;color:var(--mu)">Etapa só manual nesta correção</span></span></button>
     <button class="row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>Marcar como perdida</button>
     <button class="row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/></svg>Transferir para outra pessoa</button>
     <button class="row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Encerrar conversa</button>
+    <div class="sep" role="separator"></div>
+    <button class="row danger"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>Bloquear contato</button>
+    <button class="row danger"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Excluir contato</button>
+    <button type="button" class="cancel">Cancelar</button>
   </section>
 </div>
 </x-dc>

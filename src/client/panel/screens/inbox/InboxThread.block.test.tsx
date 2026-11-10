@@ -59,6 +59,13 @@ function mockApi(state: { blocked: boolean }): PanelApi {
       state.blocked = true
       return { contact: detail(NOW).contact, closedConversationIds: ['cnv_ficticia'] }
     }),
+    deleteContact: vi.fn(async () => ({
+      contactId: 'ctc_ficticio',
+      deletedMessageCount: 1,
+      deletedAttachmentCount: 0,
+      anonymizedAppointmentCount: 0,
+      auditEventId: 'aud_ficticio',
+    })),
     getTeamMembers: vi.fn(async () => ({
       members: [
         { clerkUserId: 'u1', role: 'attendant', status: 'active' },
@@ -78,22 +85,69 @@ function mockApi(state: { blocked: boolean }): PanelApi {
   } as unknown as PanelApi
 }
 
-function renderThread(api: PanelApi) {
+function renderThread(api: PanelApi, opts: { isOwner?: boolean } = {}) {
   return render(
-    <InboxThread tenantId="clinic-demo-a" conversationId="cnv_ficticia" api={api} generation={1} viewerClerkUserId="u1" />,
+    <InboxThread
+      tenantId="clinic-demo-a"
+      conversationId="cnv_ficticia"
+      api={api}
+      generation={1}
+      viewerClerkUserId="u1"
+      isOwner={opts.isOwner === true}
+    />,
   )
 }
 
-describe('InboxThread — bloquear contato (Opção A: fora do ⋮)', () => {
-  it('menu ⋮ não tem Bloquear nem Resumo da IA', async () => {
+describe('InboxThread — Bloquear / Excluir no ⋮ (Confirmado TR-488)', () => {
+  it('menu ⋮ tem Bloquear; sem Resumo da IA; Excluir só para owner', async () => {
     const api = mockApi({ blocked: false })
     renderThread(api)
     expect(await screen.findByRole('textbox', { name: 'Mensagem' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
     expect(await screen.findByRole('menuitem', { name: 'Encerrar conversa' })).toBeTruthy()
-    expect(screen.queryByRole('menuitem', { name: 'Bloquear contato' })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Bloquear contato' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Excluir contato' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Resumo da IA' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Desbloquear contato' })).toBeNull()
+  })
+
+  it('owner: Excluir no ⋮ abre diálogo e só chama a API após confirmar', async () => {
+    const api = mockApi({ blocked: false })
+    renderThread(api, { isOwner: true })
+    await screen.findByRole('textbox', { name: 'Mensagem' })
+    fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Excluir contato' }))
+    const dialog = await screen.findByRole('alertdialog', { name: 'Excluir contato?' })
+    expect(dialog.textContent).toMatch(/Paulo Fictício/)
+    expect(api.deleteContact).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir permanentemente' }))
+    await waitFor(() =>
+      expect(api.deleteContact).toHaveBeenCalledWith(
+        'clinic-demo-a',
+        'ctc_ficticio',
+        expect.anything(),
+      ),
+    )
+  })
+
+  it('Bloquear no ⋮ abre diálogo com o nome e confirma na API', async () => {
+    const state = { blocked: false }
+    const api = mockApi(state)
+    renderThread(api)
+    await screen.findByRole('textbox', { name: 'Mensagem' })
+    fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Bloquear contato' }))
+    expect(await screen.findByRole('heading', { name: 'Bloquear Paulo Fictício?' })).toBeTruthy()
+    expect(api.blockInboxContact).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Bloquear contato' }))
+    await waitFor(() =>
+      expect(api.blockInboxContact).toHaveBeenCalledWith(
+        'clinic-demo-a',
+        'ctc_ficticio',
+        { reason: null },
+        expect.anything(),
+      ),
+    )
   })
 
   it('contato já bloqueado: sem compositor; «Desbloquear» no aviso chama a API e devolve o compositor', async () => {
@@ -106,23 +160,25 @@ describe('InboxThread — bloquear contato (Opção A: fora do ⋮)', () => {
     expect(await screen.findByRole('textbox', { name: 'Mensagem' })).toBeTruthy()
   })
 
-  it('menu ⋮ mantém Encerrar; sem Reservar bloco nem Bloquear (Paulo 04/11/2026 Opção A)', async () => {
+  it('menu ⋮ mantém Encerrar e Bloquear; sem Reservar bloco (Paulo 04/11/2026 Opção A)', async () => {
     const api = mockApi({ blocked: false })
     renderThread(api)
     expect(await screen.findByRole('textbox', { name: 'Mensagem' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Agendar horário' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
     expect(await screen.findByRole('menuitem', { name: 'Encerrar conversa' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Bloquear contato' })).toBeTruthy()
     expect(screen.queryByRole('menuitem', { name: 'Reservar bloco' })).toBeNull()
-    expect(screen.queryByRole('menuitem', { name: 'Bloquear contato' })).toBeNull()
   })
 
-  it('contato bloqueado (encerrada): sem ⋮ no desktop (sem acções de pipeline); Desbloquear no aviso', async () => {
+  it('contato bloqueado (encerrada): sem Bloquear; owner ainda vê Excluir; Desbloquear no aviso', async () => {
     const api = mockApi({ blocked: true })
-    renderThread(api)
+    renderThread(api, { isOwner: true })
     expect(await screen.findByText(/Contato bloqueado\./)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Desbloquear' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Mais opções da conversa' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
+    expect(await screen.findByRole('menuitem', { name: 'Excluir contato' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Bloquear contato' })).toBeNull()
   })
 
   it('Transferir: lista só membros ativos (sem você) e atribui à pessoa escolhida', async () => {
@@ -144,7 +200,7 @@ describe('InboxThread — bloquear contato (Opção A: fora do ⋮)', () => {
     )
   })
 
-  it('celular: folha ⋮ com Ver contato, Transferir e Encerrar — sem Reservar bloco, Bloquear nem Resumo', async () => {
+  it('celular: folha ⋮ com Ver contato, Transferir, Encerrar e Bloquear — sem Reservar bloco nem Resumo', async () => {
     const mm = vi.fn((q: string) => ({
       matches: q.includes('max-width: 767'),
       media: q,
@@ -153,15 +209,21 @@ describe('InboxThread — bloquear contato (Opção A: fora do ⋮)', () => {
     }))
     vi.stubGlobal('matchMedia', mm)
     try {
-      renderThread(mockApi({ blocked: false }))
+      renderThread(mockApi({ blocked: false }), { isOwner: true })
       await screen.findByRole('textbox', { name: 'Mensagem' })
       expect(screen.getByRole('button', { name: 'Agendar horário' })).toBeTruthy()
       fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
       const sheet = await screen.findByRole('dialog', { name: /Conversa com/ })
-      for (const name of ['Ver contato', 'Transferir para outra pessoa', 'Encerrar conversa']) {
+      for (const name of [
+        'Ver contato',
+        'Transferir para outra pessoa',
+        'Encerrar conversa',
+        'Bloquear contato',
+        'Excluir contato',
+      ]) {
         expect(Array.from(sheet.querySelectorAll('button')).some((b) => b.textContent === name)).toBe(true)
       }
-      for (const name of ['Reservar bloco', 'Bloquear contato', 'Resumo da IA', 'Ver detalhes do contato']) {
+      for (const name of ['Reservar bloco', 'Resumo da IA', 'Ver detalhes do contato']) {
         expect(Array.from(sheet.querySelectorAll('button')).some((b) => b.textContent === name)).toBe(false)
       }
     } finally {

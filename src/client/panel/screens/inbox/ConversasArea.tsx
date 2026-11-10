@@ -134,6 +134,7 @@ function ConversasSectionView({
         generation={generation}
         viewerClerkUserId={viewerId}
         staffDisplayName={staffDisplayName}
+        isOwner={isOwner}
       />
     )
     if (!wide) return thread
@@ -354,6 +355,7 @@ export function ConversasThreeCol({
             generation={generation}
             viewerClerkUserId={viewerId}
             staffDisplayName={staffDisplayName}
+            isOwner={isOwner}
             contactPanel={{
               open: panelOpen,
               controlsId: 'conversas-contact-panel',
