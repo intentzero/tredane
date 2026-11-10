@@ -11,11 +11,13 @@ import { syncWhatsappChannel } from '../whatsapp/channel'
 import { tryAiAutoBook } from './autobook'
 import {
   END_HELP_HINT_TEXT,
+  HOW_TO_END_REPLY,
   RESET_DISCOVERY_HINT_TEXT,
   appendEndHelpHint,
   bookingFrameProgressKey,
   botTaughtExitCommands,
   botTaughtRestartPhraseInCopy,
+  isHowToEndQuestion,
   isOpenBookingAttempt,
   shouldAppendEndHelpHint,
   taughtExitCommandsFromCopy,
@@ -47,6 +49,14 @@ describe('end-help-hint helpers (DEC-152)', () => {
     expect(RESET_DISCOVERY_HINT_TEXT).toMatch(/começar de novo/)
     expect(RESET_DISCOVERY_HINT_TEXT).toMatch(/terminar/)
     expect(isExplicitAbandonText('terminar')).toBe(true)
+  })
+
+  it('isHowToEndQuestion: meta sim; Terminar exacto não', () => {
+    expect(isHowToEndQuestion('Como faço para terminar esta conversa?')).toBe(true)
+    expect(isHowToEndQuestion('como posso encerrar?')).toBe(true)
+    expect(isHowToEndQuestion('Terminar')).toBe(false)
+    expect(isHowToEndQuestion('quero terminar a sessão')).toBe(false)
+    expect(isHowToEndQuestion('quero depilação')).toBe(false)
   })
 
   it('appendEndHelpHint é idempotente', () => {

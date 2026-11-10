@@ -544,8 +544,11 @@ export function saveBookingFrame(
   const nextServiceId =
     patch.serviceId !== undefined ? patch.serviceId : (existing?.serviceId ?? null)
   if (!nextServiceId) {
-    const line = patch.line !== undefined ? patch.line : null
-    const pending = patch.pending !== undefined ? patch.pending : null
+    // DEC-142 / CF-45: hold de audiência (line/pending sem serviço). Campos omitidos
+    // no patch mantêm o valor já gravado — senão syncBookingFrameWithCatalog
+    // (só catalogVersion) apagava o hold e a Depilação reperguntava F/M (smoke Paulo).
+    const line = patch.line !== undefined ? patch.line : (existing?.line ?? null)
+    const pending = patch.pending !== undefined ? patch.pending : (existing?.pending ?? null)
     if (!line && !pending) {
       clearBookingFrame(db, tenantId, conversationId, clock, opts)
       return {

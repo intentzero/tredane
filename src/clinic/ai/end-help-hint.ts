@@ -23,6 +23,34 @@ export const RESET_DISCOVERY_HINT_TEXT =
   'Para recomeçar, diga começar de novo. Para parar, diga terminar.'
 
 /**
+ * Meta-pergunta «como termino?» (smoke Paulo 10/11/2026).
+ * Não é Class A (não encerra); não é DEC-114 (não pausa); não chama o modelo —
+ * o LLM inventava histórico falso («já tocou Terminar») e handoff.
+ * Ensina o mesmo comando da DEC-152 / DEC-C2.
+ */
+export const HOW_TO_END_REPLY =
+  'Para encerrar, diga terminar. Se o botão Terminar aparecer, pode tocar nele.'
+
+/** Exact «Terminar» (Class A) — não é pergunta de como. */
+const EXACT_TERMINAR_RE =
+  /^(?:(?:ok|pode|podes|quero)[,.\s!]*)*terminar(?:\s+a\s+sess[aã]o)?[.!?\s]*$/i
+
+/**
+ * «Como faço para terminar esta conversa?» e equivalentes.
+ * Não casa o abandono exacto «Terminar» / «quero terminar a sessão».
+ */
+export function isHowToEndQuestion(text: string): boolean {
+  const body = text.trim()
+  if (!body) return false
+  if (EXACT_TERMINAR_RE.test(body)) return false
+  if (/\bcomo\b.{0,48}\b(?:terminar|encerrar)\b/i.test(body)) return true
+  if (/\b(?:terminar|encerrar)\s+(?:esta|a)\s+conversa\b/i.test(body) && /\?/.test(body)) {
+    return true
+  }
+  return false
+}
+
+/**
  * Extrai comandos de saída ensinados por «diga X» (uma palavra).
  * Multi-token (ex. serviços masculinos no catálogo DEC-142) não casa.
  */
@@ -39,11 +67,12 @@ export function taughtExitCommandsFromCopy(texts: readonly string[]): string[] {
   return [...out]
 }
 
-/** Frases de saída que o bot ensina hoje (hint DEC-152 + option-miss + acto). */
+/** Frases de saída que o bot ensina hoje (hint DEC-152 + option-miss + meta + acto). */
 export function botTaughtExitCommands(): string[] {
   return taughtExitCommandsFromCopy([
     END_HELP_HINT_TEXT,
     RESET_DISCOVERY_HINT_TEXT,
+    HOW_TO_END_REPLY,
     ...DIALOGUE_ACTS.orientar_terminar,
   ])
 }
