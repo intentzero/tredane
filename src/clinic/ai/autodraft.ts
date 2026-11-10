@@ -56,10 +56,11 @@ import {
 import { logPolicyShadow } from './policy-shadow'
 import {
   AI_TRANSPARENCY_TEXT,
-  HUMAN_HANDOFF_BUTTON_ID,
-  HUMAN_HANDOFF_BUTTON_TITLE,
   handoffReason,
+  humanTeamOfferButtons,
+  isHumanTeamOfferAllowed,
   notifyHumanHandoff,
+  replyAfterHoursHumanRequest,
 } from './human-handoff'
 import {
   clearMediaAskTextOnRealInbound,
@@ -577,9 +578,10 @@ export async function runDueAutoDrafts(
           {
             conversationId: job.conversationId,
             body: MEDIA_ASK_TEXT,
-            interactive: {
-              buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }],
-            },
+            interactive: (() => {
+              const buttons = humanTeamOfferButtons(db, tenantId, clock)
+              return buttons.length > 0 ? { buttons } : undefined
+            })(),
             clientRequestId: `ai-media-ask:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
@@ -629,7 +631,7 @@ export async function runDueAutoDrafts(
                 {
                   conversationId: job.conversationId,
                   body: reschedule.replyText,
-                  interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+                  interactive: (() => { const buttons = humanTeamOfferButtons(db, tenantId, clock); return buttons.length > 0 ? { buttons } : undefined })(),
                   clientRequestId: `ai-reschedule:${job.messageId}`,
                   authorClerkUserId: AUTODRAFT_ACTOR_ID,
                   authorDisplayName: AUTODRAFT_ACTOR_NAME,
@@ -701,7 +703,7 @@ export async function runDueAutoDrafts(
                 {
                   conversationId: job.conversationId,
                   body: cont.replyText,
-                  interactive: { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] },
+                  interactive: (() => { const buttons = humanTeamOfferButtons(db, tenantId, clock); return buttons.length > 0 ? { buttons } : undefined })(),
                   clientRequestId: `ai-reschedule:${job.messageId}`,
                   authorClerkUserId: AUTODRAFT_ACTOR_ID,
                   authorDisplayName: AUTODRAFT_ACTOR_NAME,
@@ -745,9 +747,10 @@ export async function runDueAutoDrafts(
             {
               conversationId: job.conversationId,
               body: policy,
-              interactive: {
-                buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }],
-              },
+              interactive: (() => {
+                const buttons = humanTeamOfferButtons(db, tenantId, clock)
+                return buttons.length > 0 ? { buttons } : undefined
+              })(),
               clientRequestId: `ai-policy:${job.messageId}`,
               authorClerkUserId: AUTODRAFT_ACTOR_ID,
               authorDisplayName: AUTODRAFT_ACTOR_NAME,
@@ -803,9 +806,10 @@ export async function runDueAutoDrafts(
           {
             conversationId: job.conversationId,
             body: AI_TRANSPARENCY_TEXT,
-            interactive: {
-              buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }],
-            },
+            interactive: (() => {
+              const buttons = humanTeamOfferButtons(db, tenantId, clock)
+              return buttons.length > 0 ? { buttons } : undefined
+            })(),
             clientRequestId: `ai-transparency:${job.messageId}`,
             authorClerkUserId: AUTODRAFT_ACTOR_ID,
             authorDisplayName: AUTODRAFT_ACTOR_NAME,
@@ -861,6 +865,28 @@ export async function runDueAutoDrafts(
     const reason = handoffReason(db, tenantId, turnText, clock, turn)
     if (reason) {
       await signalTyping()
+      // DEC-155: pedido explícito de equipe fora do expediente → horário, IA activa (sem pausa).
+      // Stop (DEC-114) já saiu acima; aqui customer_requested = pedir_pessoa.
+      if (reason === 'customer_requested' && !isHumanTeamOfferAllowed(db, tenantId, clock)) {
+        const afterHours = replyAfterHoursHumanRequest(
+          db,
+          tenantId,
+          {
+            conversationId: job.conversationId,
+            clientRequestId: `ai-handoff-after-hours:${job.messageId}`,
+          },
+          clock,
+        )
+        cancelAutoDraft(db, tenantId, job.conversationId)
+        record({
+          ...job,
+          status: 'skipped',
+          suggestion: null,
+          reason: 'after_hours_human_keep_ai',
+          replyOutbox: afterHours.outbox,
+        })
+        continue
+      }
       const handoff = notifyHumanHandoff(
         db,
         tenantId,
@@ -997,7 +1023,7 @@ export async function runDueAutoDrafts(
         /\bSomando tudo, ficam\b/i.test(catalogText)
       const catalogButtons = isPriceTotal
         ? priceFollowupInteractiveButtons()
-        : [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
+        : humanTeamOfferButtons(db, tenantId, clock)
       try {
         const sent = sendOutboundMessageOp(
           db,
@@ -1006,7 +1032,7 @@ export async function runDueAutoDrafts(
             {
               conversationId: job.conversationId,
               body: catalogText,
-              interactive: { buttons: catalogButtons },
+              interactive: catalogButtons.length > 0 ? { buttons: catalogButtons } : undefined,
               clientRequestId: `ai-catalog:${job.messageId}`,
               authorClerkUserId: AUTODRAFT_ACTOR_ID,
               authorDisplayName: AUTODRAFT_ACTOR_NAME,
@@ -1402,7 +1428,10 @@ export async function runDueAutoDrafts(
         let body = draftText
         let interactive = deterministicReply
           ? toSendInteractive(autoBook?.interactive ?? null)
-          : { buttons: [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }] }
+          : (() => {
+              const buttons = humanTeamOfferButtons(db, tenantId, clock)
+              return buttons.length > 0 ? { buttons } : null
+            })()
         if (deterministicReply) {
           const frameNow =
             autoBook?.deferredFrame?.peekFrame(db, tenantId, job.conversationId) ??

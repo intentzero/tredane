@@ -82,11 +82,14 @@ export function shouldAppendHumanHelpHint(input: {
   interactive?: ChoiceInteractive | null
   proposalId?: string
   alreadySent: boolean
+  /** DEC-155: fora do expediente não oferece a dica. Default true (compat testes). */
+  teamOfferAllowed?: boolean
 }): boolean {
   const body = input.replyText?.trim()
   if (!body) return false
   if (input.proposalId) return false
   if (input.alreadySent) return false
+  if (input.teamOfferAllowed === false) return false
   if (!isSlotListOfferInteractive(input.interactive)) return false
   if (body.includes(HUMAN_HELP_HINT_TEXT)) return false
   if (body.includes(HUMAN_HELP_TAUGHT_PHRASE) && /escreva falar com a equipe/i.test(body)) {

@@ -1,5 +1,5 @@
 /** Versão alvo do schema SQLite por instância do Clinic DO (issue #20…#43 / #174 / #175 / abuse UI / #421). */
-export const CLINIC_SCHEMA_VERSION = 58
+export const CLINIC_SCHEMA_VERSION = 59
 
 /** Nome da migração fundação — distinto das migrations de classe Wrangler. */
 export const CLINIC_MIGRATION_NAMES = {
@@ -85,6 +85,12 @@ export const APPOINTMENT_PROPOSAL_VALIDITY_MS = 30 * 60 * 1000
  * Decidido (Paulo, 28/10/2026): 5 minutos.
  */
 export const PENDING_COMMUNICATION_ALERT_MS = 5 * 60 * 1000
+
+/**
+ * DEC-155 — sem Assumir após handoff, devolver à IA automaticamente.
+ * Fixo no MVP (não configurável por clínica).
+ */
+export const HANDOFF_TIMEOUT_MS = 30 * 60 * 1000
 
 export const PENDING_COMMUNICATION_KINDS = [
   'proposal_send',

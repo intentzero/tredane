@@ -69,6 +69,7 @@ import {
   markEndHelpHintSent,
   wasEndHelpHintSent,
 } from './end-help-hint'
+import { isHumanTeamOfferAllowed } from './human-handoff'
 import {
   appendHumanHelpHint,
   markHumanHelpHintSent,
@@ -752,6 +753,7 @@ export async function tryAiAutoBook(
         interactive: next.interactive,
         proposalId: next.proposalId,
         alreadySent: wasHumanHelpHintSent(db, tenantId, input.conversationId),
+        teamOfferAllowed: isHumanTeamOfferAllowed(db, tenantId, clock),
       })
     ) {
       next = {

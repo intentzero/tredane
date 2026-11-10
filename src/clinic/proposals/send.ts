@@ -186,7 +186,7 @@ export function sendProposalToWhatsAppOp(
 
   // #511: validade absoluta no relógio da clínica (30 min a partir do envio).
   const validUntilMs = clock.nowMs() + APPOINTMENT_PROPOSAL_VALIDITY_MS
-  const interactive = renderProposalInteractive(proposal, db, { validUntilMs })
+  const interactive = renderProposalInteractive(proposal, db, { validUntilMs, clock })
   const clientRequestId = proposalSendClientRequestId(proposal.id, proposal.version)
   markProposalSendPending(db, meta.tenantId, proposal.id, clock)
 

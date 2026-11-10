@@ -3,10 +3,14 @@
  * Texto autorizado e campos factuais vêm só do snapshot persistido — nunca do LLM.
  * DEC-090: sem sala nem intervalo/buffer ao cliente; localização só se a clínica tiver morada.
  */
+import type { Clock } from '../../db/clock'
 import type { ClinicDb } from '../store'
 import { readComboSnapshot } from '../config/combos'
 import { readZoneSnapshots, zoneLabel } from '../config/zones'
-import { HUMAN_HANDOFF_BUTTON_TITLE } from '../ai/human-handoff'
+import {
+  HUMAN_HANDOFF_BUTTON_TITLE,
+  isHumanTeamOfferAllowed,
+} from '../ai/human-handoff'
 import type { AppointmentProposalRow } from './types'
 
 /** Limite Cloud API para título de botão reply. */
@@ -31,7 +35,8 @@ export type ProposalInteractiveButton = {
 
 export type ProposalInteractivePayload = {
   body: string
-  buttons: [ProposalInteractiveButton, ProposalInteractiveButton, ProposalInteractiveButton]
+  /** 2 botões fora do expediente (sem «Falar com a equipe», DEC-155); 3 dentro. */
+  buttons: ProposalInteractiveButton[]
   proposalId: string
   version: number
 }
@@ -142,18 +147,23 @@ export function proposalValidityLine(timezone: string, validUntilMs: number): st
 }
 
 /**
- * Monta o texto e os dois botões a partir da proposta persistida.
+ * Monta o texto e os botões a partir da proposta persistida.
  * Qualquer mudança material exige nova versão (S3); este render só lê o snapshot.
  * `validUntilMs` (#511): se omitido, usa o `expiresAt` da proposta ou a frase relativa.
+ * DEC-155: fora do expediente omite o botão «Falar com a equipe».
  */
 export function renderProposalInteractive(
   proposal: AppointmentProposalRow,
   db?: ClinicDb,
-  opts?: { validUntilMs?: number | null },
+  opts?: { validUntilMs?: number | null; clock?: Clock },
 ): ProposalInteractivePayload {
   const zones = db ? readZoneSnapshots(db, proposal.tenantId, 'proposal', proposal.id) : []
   const combo = db ? readComboSnapshot(db, proposal.tenantId, 'proposal', proposal.id) : null
   const location = proposal.clinicLocationText.trim()
+  const includeHuman =
+    db != null && opts?.clock != null
+      ? isHumanTeamOfferAllowed(db, proposal.tenantId, opts.clock)
+      : true
   const lines: string[] = ['Proposta de horário', '']
   if (location) lines.push(`Local: ${location}`)
   // DEC-100: o cartão não imprime «beneficiária». O facto interno (titular/terceiro) continua na proposta.
@@ -188,7 +198,9 @@ export function renderProposalInteractive(
       : 'Válida por 30 minutos após o envio.',
   )
   lines.push(
-    'Toque em Confirmar para seguir, em Alterar detalhes para mudar horário, serviço ou detalhes, ou em Falar com a equipe.',
+    includeHuman
+      ? 'Toque em Confirmar para seguir, em Alterar detalhes para mudar horário, serviço ou detalhes, ou em Falar com a equipe.'
+      : 'Toque em Confirmar para seguir ou em Alterar detalhes para mudar horário, serviço ou detalhes.',
   )
 
   let body = lines.join('\n')
@@ -207,25 +219,29 @@ export function renderProposalInteractive(
     throw new Error('proposal_button_title_too_long')
   }
 
+  const buttons: ProposalInteractiveButton[] = [
+    {
+      id: proposalButtonId(proposal.id, proposal.version, 'confirm'),
+      title: confirmTitle,
+      action: 'confirm',
+    },
+    {
+      id: proposalButtonId(proposal.id, proposal.version, 'alter'),
+      title: alterTitle,
+      action: 'alter',
+    },
+  ]
+  if (includeHuman) {
+    buttons.push({
+      id: proposalButtonId(proposal.id, proposal.version, 'human'),
+      title: humanTitle,
+      action: 'human',
+    })
+  }
+
   return {
     body,
-    buttons: [
-      {
-        id: proposalButtonId(proposal.id, proposal.version, 'confirm'),
-        title: confirmTitle,
-        action: 'confirm',
-      },
-      {
-        id: proposalButtonId(proposal.id, proposal.version, 'alter'),
-        title: alterTitle,
-        action: 'alter',
-      },
-      {
-        id: proposalButtonId(proposal.id, proposal.version, 'human'),
-        title: humanTitle,
-        action: 'human',
-      },
-    ],
+    buttons,
     proposalId: proposal.id,
     version: proposal.version,
   }

@@ -1,8 +1,12 @@
 /**
  * Pausa da IA e frase fixa quando a cliente pede uma pessoa ou sai do agendamento (DEC-083).
  * Não chama o modelo. Não marca horário. Uma mensagem já pausada não gera outra frase.
+ *
+ * DEC-155: timeout 30 min sem Assumir → devolver à IA + aviso curto;
+ * fora do expediente → sem oferta/dica de equipe; pedido explícito → horário, IA activa.
  */
 import type { Clock } from '../../db/clock'
+import { HANDOFF_TIMEOUT_MS } from '../constants'
 import { workerCaller } from '../envelopes'
 import { ClinicError } from '../errors'
 import { listEffectiveWeeklyWindows } from '../config/availability'
@@ -29,6 +33,8 @@ import {
   wantsHumanPause,
 } from './nlu/sensitive'
 import { endBookingSession } from './booking-session'
+import { sayAct } from './dialogue-acts'
+import { formatOpeningHours } from './schedule-context'
 import { getBookingFrame } from './schedule-session'
 
 const PERIOD_LABEL: Record<string, string> = {
@@ -86,9 +92,224 @@ export const HUMAN_HANDOFF_PREFIX = 'Vou pedir para a equipe continuar daqui.'
 export const HUMAN_HANDOFF_BUTTON_ID = 'handoff:human'
 export const HUMAN_HANDOFF_BUTTON_TITLE = 'Falar com a equipe'
 
+/** DEC-155 — aviso ao cliente quando o timeout devolve a conversa à IA. */
+export const HANDOFF_TIMEOUT_RESUME_TEXT =
+  'A equipe não conseguiu assumir agora. Continuo te atendendo por aqui.'
+
+/** DEC-155 — fallback se não houver próxima abertura calculável. */
+export const AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK =
+  'Fora do horário da equipe agora. Posso continuar te ajudando por aqui.'
+
 /** DEC-115 — transparência (neutra; persona com nome → ok Paulo). */
 export const AI_TRANSPARENCY_TEXT =
   'Sou a assistente virtual da clínica. Se preferir, chamo a equipe.'
+
+/** Origem do evento `conversation.ai_pause` — ganchos para alertas do painel (DEC-156). */
+export type AiPauseEventSource = 'handoff' | 'timeout_resume' | 'manual_resume'
+
+/** Minuto civil no fuso da clínica (0–1439). */
+function clinicMinuteOfDay(tz: string, nowMs: number): number {
+  const label = new Intl.DateTimeFormat('en-GB', {
+    timeZone: tz,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(nowMs))
+  const [hh, mm] = label.split(':').map(Number) as [number, number]
+  return hh * 60 + mm
+}
+
+/**
+ * Clínica aberta agora pelo expediente efectivo (mesma base que DEC-113 / hub).
+ * Evita import circular com `whatsapp/flow/hub-opening`.
+ */
+export function isClinicOpenForHandoff(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+): boolean {
+  const settings = ensureClinicSettings(db, tenantId, clock)
+  const tz = settings.timezone || 'America/Sao_Paulo'
+  const now = clock.nowMs()
+  const windows = listEffectiveWeeklyWindows(db, tenantId)
+  if (windows.length === 0) return false
+  const today = clinicCivilDateFromUtc(tz, now)
+  const dow = weekdayOf(today)
+  const minute = clinicMinuteOfDay(tz, now)
+  return windows.some(
+    (w) => w.dayOfWeek === dow && w.startMinute <= minute && minute < w.endMinute,
+  )
+}
+
+/** Expediente aberto → pode oferecer botão/dica «Falar com a equipe» (DEC-155). */
+export function isHumanTeamOfferAllowed(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+): boolean {
+  return isClinicOpenForHandoff(db, tenantId, clock)
+}
+
+/** Botão reply «Falar com a equipe» só dentro do expediente (DEC-155). */
+export function humanTeamOfferButtons(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+): Array<{ id: string; title: string }> {
+  if (!isHumanTeamOfferAllowed(db, tenantId, clock)) return []
+  return [{ id: HUMAN_HANDOFF_BUTTON_ID, title: HUMAN_HANDOFF_BUTTON_TITLE }]
+}
+
+/**
+ * Pedido explícito de equipe fora do expediente (DEC-155): horário + IA activa.
+ * Prefere a próxima abertura (como DEC-113); senão lista o expediente.
+ */
+export function afterHoursHumanRequestBody(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+  conversationId = '',
+): string {
+  const opening = nextClinicOpening(db, tenantId, clock)
+  if (opening) {
+    return `A equipe atende a partir de ${opening.dayLabel} às ${opening.time}. Posso continuar te ajudando por aqui.`
+  }
+  const resources = listResources(db, tenantId, clock)
+  const pros = new Set(resources.filter((r) => r.kind === 'professional').map((r) => r.id))
+  const lines = formatOpeningHours(
+    listEffectiveWeeklyWindows(db, tenantId)
+      .filter((w) => pros.has(w.resourceId))
+      .map((w) => ({
+        dayOfWeek: w.dayOfWeek,
+        startMinute: w.startMinute,
+        endMinute: w.endMinute,
+      })),
+  )
+  if (lines.length === 0) return AFTER_HOURS_HUMAN_KEEP_AI_FALLBACK
+  const lista = lines.join('\n')
+  const withHours = sayAct(
+    'informar_expediente',
+    conversationId,
+    { lista },
+    `Funcionamos assim:\n${lista}`,
+  )
+  return `${withHours}\n\nPosso continuar te ajudando por aqui.`
+}
+
+/**
+ * Responde ao pedido de equipe fora do expediente sem pausar (DEC-155).
+ * Usado por texto, botão genérico e botão da proposta.
+ */
+export function replyAfterHoursHumanRequest(
+  db: ClinicDb,
+  tenantId: string,
+  input: { conversationId: string; clientRequestId: string },
+  clock: Clock,
+): { outbox: OutboxRow[] } {
+  const outbox: OutboxRow[] = []
+  try {
+    const result = sendOutboundMessageOp(
+      db,
+      workerCaller(tenantId, AI_ASSIGNEE),
+      {
+        conversationId: input.conversationId,
+        body: afterHoursHumanRequestBody(db, tenantId, clock, input.conversationId),
+        clientRequestId: input.clientRequestId,
+        authorClerkUserId: AI_ASSIGNEE,
+        authorDisplayName: 'IA',
+      },
+      clock,
+    )
+    outbox.push(...result.outbox)
+  } catch (err) {
+    if (!(err instanceof ClinicError)) throw err
+  }
+  return { outbox }
+}
+
+export function clearHandoffTimeout(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+  updatedAt: number,
+): void {
+  db.run(
+    `UPDATE conversations SET ai_handoff_timeout_at = NULL, updated_at = ?
+     WHERE tenant_id = ? AND id = ?`,
+    updatedAt,
+    tenantId,
+    conversationId,
+  )
+}
+
+export function readHandoffTimeoutAt(
+  db: ClinicDb,
+  tenantId: string,
+  conversationId: string,
+): number | null {
+  const row = db.get<{ at: number | null }>(
+    `SELECT ai_handoff_timeout_at AS at FROM conversations WHERE tenant_id = ? AND id = ?`,
+    tenantId,
+    conversationId,
+  )
+  return row?.at ?? null
+}
+
+export function nextHandoffTimeoutAt(db: ClinicDb, tenantId: string): number | null {
+  const row = db.get<{ t: number | null }>(
+    `SELECT MIN(ai_handoff_timeout_at) AS t FROM conversations
+     WHERE tenant_id = ? AND ai_handoff_timeout_at IS NOT NULL`,
+    tenantId,
+  )
+  return row?.t ?? null
+}
+
+/**
+ * DEC-155 — conversas com timeout vencido e IA ainda pausada: aviso + devolver à IA.
+ * Assumir / Devolver à IA limpam `ai_handoff_timeout_at` antes; se alguém Assumiu, não chega aqui.
+ */
+export function sweepDueHandoffTimeouts(
+  db: ClinicDb,
+  tenantId: string,
+  clock: Clock,
+): Array<{ conversationId: string; outbox: OutboxRow[] }> {
+  const now = clock.nowMs()
+  const due = db.all<{ id: string }>(
+    `SELECT id FROM conversations
+     WHERE tenant_id = ? AND ai_handoff_timeout_at IS NOT NULL AND ai_handoff_timeout_at <= ?
+       AND ai_reply_paused_at IS NOT NULL
+     ORDER BY ai_handoff_timeout_at ASC
+     LIMIT 50`,
+    tenantId,
+    now,
+  )
+  const results: Array<{ conversationId: string; outbox: OutboxRow[] }> = []
+  for (const row of due) {
+    const conversationId = row.id
+    const outbox = resumeAiReply(db, tenantId, conversationId, clock, {
+      source: 'timeout_resume',
+    })
+    try {
+      const sent = sendOutboundMessageOp(
+        db,
+        workerCaller(tenantId, AI_ASSIGNEE),
+        {
+          conversationId,
+          body: HANDOFF_TIMEOUT_RESUME_TEXT,
+          clientRequestId: `handoff.timeout:${conversationId}:${now}`,
+          authorClerkUserId: AI_ASSIGNEE,
+          authorDisplayName: 'IA',
+        },
+        clock,
+      )
+      outbox.push(...sent.outbox)
+    } catch (err) {
+      if (!(err instanceof ClinicError)) throw err
+    }
+    results.push({ conversationId, outbox })
+  }
+  return results
+}
 
 export type AiReplyPauseReason =
   | 'customer_requested'
@@ -149,31 +370,15 @@ export function nextClinicOpening(
   return null
 }
 
-/** Frase DEC-083 ou DEC-113 (fora do expediente). */
+/**
+ * Frase DEC-083 ou DEC-113 (fora do expediente) para pausas que ainda pausam a IA
+ * (off_purpose, human_only, etc.). Pedido explícito de equipe fora do expediente
+ * não passa por aqui — DEC-155 usa `afterHoursHumanRequestBody` sem pausa.
+ */
 export function humanHandoffBody(db: ClinicDb, tenantId: string, clock: Clock): string {
   const opening = nextClinicOpening(db, tenantId, clock)
   if (!opening) return HUMAN_HANDOFF_TEXT
-  const settings = ensureClinicSettings(db, tenantId, clock)
-  const tz = settings.timezone || 'America/Sao_Paulo'
-  const now = clock.nowMs()
-  // Dentro do expediente: algum profissional tem janela agora.
-  const windows = listEffectiveWeeklyWindows(db, tenantId)
-  const today = clinicCivilDateFromUtc(tz, now)
-  const dow = weekdayOf(today)
-  const minute = (() => {
-    const label = new Intl.DateTimeFormat('en-GB', {
-      timeZone: tz,
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    }).format(new Date(now))
-    const [hh, mm] = label.split(':').map(Number) as [number, number]
-    return hh * 60 + mm
-  })()
-  const openNow = windows.some(
-    (w) => w.dayOfWeek === dow && w.startMinute <= minute && minute < w.endMinute,
-  )
-  if (openNow) return HUMAN_HANDOFF_TEXT
+  if (isClinicOpenForHandoff(db, tenantId, clock)) return HUMAN_HANDOFF_TEXT
   return `${HUMAN_HANDOFF_TEXT} A equipe responde a partir de ${opening.dayLabel} às ${opening.time}.`
 }
 
@@ -197,10 +402,14 @@ export function resumeAiReply(
   tenantId: string,
   conversationId: string,
   clock: Clock,
+  opts?: { source?: Exclude<AiPauseEventSource, 'handoff'> },
 ): OutboxRow[] {
   const now = clock.nowMs()
+  const source = opts?.source ?? 'manual_resume'
   db.run(
-    `UPDATE conversations SET ai_reply_paused_at = NULL, ai_reply_pause_reason = NULL, updated_at = ?
+    `UPDATE conversations
+     SET ai_reply_paused_at = NULL, ai_reply_pause_reason = NULL,
+         ai_handoff_timeout_at = NULL, updated_at = ?
      WHERE tenant_id = ? AND id = ?`,
     now,
     tenantId,
@@ -234,6 +443,8 @@ export function resumeAiReply(
     pauseEvent(db, tenantId, conversationId, false, clock, {
       assigneeClerkUserId: AI_ASSIGNEE,
       assigneeDisplayName: 'IA',
+      source,
+      handoffTimeoutAt: null,
     }),
   ]
 }
@@ -244,7 +455,12 @@ function pauseEvent(
   conversationId: string,
   paused: boolean,
   clock: Clock,
-  assignee?: { assigneeClerkUserId: string | null; assigneeDisplayName: string | null },
+  extra?: {
+    assigneeClerkUserId?: string | null
+    assigneeDisplayName?: string | null
+    source?: AiPauseEventSource
+    handoffTimeoutAt?: number | null
+  },
 ): OutboxRow {
   return insertOutboxEvent(
     db,
@@ -254,7 +470,7 @@ function pauseEvent(
       aggregateType: 'conversation',
       aggregateId: conversationId,
       idempotencyKey: `conversation.ai_pause:${conversationId}:${clock.nowMs()}:${paused ? 'on' : 'off'}`,
-      payload: { conversationId, aiReplyPaused: paused, ...assignee },
+      payload: { conversationId, aiReplyPaused: paused, ...extra },
     },
     clock,
   )
@@ -364,11 +580,15 @@ export function notifyHumanHandoff(
   const existing = readAiReplyPause(db, tenantId, input.conversationId)
   if (existing) return { already: true, sent: false, outbox: [] }
   const now = clock.nowMs()
+  const handoffTimeoutAt = now + HANDOFF_TIMEOUT_MS
   db.run(
-    `UPDATE conversations SET ai_reply_paused_at = ?, ai_reply_pause_reason = ?, updated_at = ?
+    `UPDATE conversations
+     SET ai_reply_paused_at = ?, ai_reply_pause_reason = ?,
+         ai_handoff_timeout_at = ?, updated_at = ?
      WHERE tenant_id = ? AND id = ?`,
     now,
     input.reason,
+    handoffTimeoutAt,
     now,
     tenantId,
     input.conversationId,
@@ -405,7 +625,12 @@ export function notifyHumanHandoff(
   if (!conv) {
     const early: OutboxRow[] = []
     if (sessionEnd.outbox) early.push(sessionEnd.outbox)
-    early.push(pauseEvent(db, tenantId, input.conversationId, true, clock))
+    early.push(
+      pauseEvent(db, tenantId, input.conversationId, true, clock, {
+        source: 'handoff',
+        handoffTimeoutAt,
+      }),
+    )
     return { already: false, sent: false, outbox: early }
   }
   const open = db.get<{ id: string; started_at: number }>(
@@ -454,9 +679,13 @@ export function notifyHumanHandoff(
   }
   const outbox: OutboxRow[] = []
   if (sessionEnd.outbox) outbox.push(sessionEnd.outbox)
+  const pausePayload = {
+    source: 'handoff' as const,
+    handoffTimeoutAt,
+  }
   if (input.silent) {
     clearAiAssignee(db, tenantId, input.conversationId, clock)
-    outbox.push(pauseEvent(db, tenantId, input.conversationId, true, clock))
+    outbox.push(pauseEvent(db, tenantId, input.conversationId, true, clock, pausePayload))
     return { already: false, sent: false, outbox }
   }
   const handoffBody = humanHandoffBody(db, tenantId, clock)
@@ -475,7 +704,7 @@ export function notifyHumanHandoff(
   let sent = false
   if (alreadySaid) {
     clearAiAssignee(db, tenantId, input.conversationId, clock)
-    outbox.push(pauseEvent(db, tenantId, input.conversationId, true, clock))
+    outbox.push(pauseEvent(db, tenantId, input.conversationId, true, clock, pausePayload))
     return { already: false, sent: false, outbox }
   }
   try {
@@ -497,6 +726,6 @@ export function notifyHumanHandoff(
     if (!(err instanceof ClinicError)) throw err
   }
   clearAiAssignee(db, tenantId, input.conversationId, clock)
-  outbox.push(pauseEvent(db, tenantId, input.conversationId, true, clock))
+  outbox.push(pauseEvent(db, tenantId, input.conversationId, true, clock, pausePayload))
   return { already: false, sent, outbox }
 }

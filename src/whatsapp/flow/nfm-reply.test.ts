@@ -159,7 +159,7 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
     }
   })
 
-  it('hub equipe → handoff DEC-083', async () => {
+  it('hub equipe em expediente → handoff DEC-083', async () => {
     const s = bootDialogScenario()
     try {
       s.sayInbound('oi')
@@ -181,10 +181,17 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       expect(result.outcome).toBe('hub_handoff')
       expect(result.reason).toBe('equipe')
       expect(s.outboundBodies().some((b) => /equipe continuar/i.test(b))).toBe(true)
+      expect(
+        s.db.get<{ at: number | null }>(
+          `SELECT ai_reply_paused_at AS at FROM conversations WHERE id = ?`,
+          s.conversationId,
+        )?.at,
+      ).toBeTruthy()
     } finally {
       s.close()
     }
   })
+
 
   it('Finding 3: fallback_reason no_slots envia sem_horario_semana e não marca', async () => {
     const s = bootDialogScenario()
@@ -864,4 +871,41 @@ describe('whatsapp flow nfm_reply (ADR-0016 §6)', () => {
       s.close()
     }
   })
+  it('hub equipe fora do expediente → horário + IA activa (DEC-155)', async () => {
+    // Sábado 07/11/2026 17:00 America/Sao_Paulo = 20:00 UTC (sáb só até 12:00).
+    const s = bootDialogScenario({ nowMs: Date.UTC(2026, 10, 7, 20, 0) })
+    try {
+      s.sayInbound('oi')
+      const result = await handleFlowNfmReply(
+        s.db,
+        s.caller,
+        {
+          tenantId: s.tenantId,
+          conversationId: s.conversationId,
+          providerEventKey: 'wa:msg:flow-hub-eq-after',
+          responseJson: JSON.stringify({
+            flow_token: 'fl1_hub_e_ah',
+            hub_action: 'equipe',
+          }),
+          catalogVersion: '1',
+        },
+        s.clock,
+      )
+      expect(result.outcome).toBe('hub_after_hours_keep_ai')
+      expect(result.reason).toBe('equipe')
+      expect(
+        s.db.get<{ at: number | null }>(
+          `SELECT ai_reply_paused_at AS at FROM conversations WHERE id = ?`,
+          s.conversationId,
+        )?.at,
+      ).toBeNull()
+      expect(s.outboundBodies().some((b) => /equipe continuar/i.test(b))).toBe(false)
+      expect(
+        s.outboundBodies().some((b) => /Posso continuar te ajudando por aqui/i.test(b)),
+      ).toBe(true)
+    } finally {
+      s.close()
+    }
+  })
+
 })

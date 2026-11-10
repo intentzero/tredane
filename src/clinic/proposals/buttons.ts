@@ -23,7 +23,11 @@ import {
   retireActiveProposal,
 } from './proposals'
 import { cancelAutoDraft } from '../ai/autodraft'
-import { notifyHumanHandoff } from '../ai/human-handoff'
+import {
+  isHumanTeamOfferAllowed,
+  notifyHumanHandoff,
+  replyAfterHoursHumanRequest,
+} from '../ai/human-handoff'
 import { parseProposalButtonId, type ProposalButtonAction } from './render'
 import type {
   AppointmentProposalRow,
@@ -63,7 +67,8 @@ export type ProposalButtonClickResult =
       handled: true
       action: 'human'
       proposal: AppointmentProposalRow
-      paused: true
+      /** false fora do expediente (DEC-155: horário + IA activa). */
+      paused: boolean
       outbox: OutboxRow[]
     }
   | {
@@ -132,13 +137,30 @@ export function handleProposalButtonClick(
   }
 
   if (parsed.action === 'human') {
+    const clientRequestId = `proposal.human:${proposal.id}:v${proposal.version}:${input.providerEventKey ?? 'click'}`
+    // DEC-155: fora do expediente o toque não pausa — responde com horário e mantém a IA.
+    if (!isHumanTeamOfferAllowed(db, input.tenantId, clock)) {
+      const afterHours = replyAfterHoursHumanRequest(
+        db,
+        input.tenantId,
+        { conversationId: proposal.conversationId, clientRequestId },
+        clock,
+      )
+      return {
+        handled: true,
+        action: 'human',
+        proposal,
+        paused: false,
+        outbox: afterHours.outbox,
+      }
+    }
     const handoff = notifyHumanHandoff(
       db,
       input.tenantId,
       {
         conversationId: proposal.conversationId,
         reason: 'customer_requested',
-        clientRequestId: `proposal.human:${proposal.id}:v${proposal.version}:${input.providerEventKey ?? 'click'}`,
+        clientRequestId,
       },
       clock,
     )

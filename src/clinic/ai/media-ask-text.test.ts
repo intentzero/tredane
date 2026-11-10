@@ -7,6 +7,7 @@ import { createControllableClock } from '../../db/clock'
 import { bootClinicDb } from '../test-db'
 import { workerCaller } from '../envelopes'
 import { bindOrAssertTenant } from '../tenant'
+import { setWeeklyWindowsOp, upsertResourceOp } from '../config'
 import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { createConversation } from '../inbox/conversations'
@@ -50,6 +51,26 @@ function seed() {
     clock,
   )
   setClinicAiAssistEnabled(boot.db, tenantId, true, clock)
+  // DEC-155: botão «Falar com a equipe» só com expediente aberto.
+  const pro = upsertResourceOp(
+    boot.db,
+    caller,
+    { kind: 'professional', name: 'Pro Mídia' },
+    clock,
+  )
+  setWeeklyWindowsOp(
+    boot.db,
+    caller,
+    {
+      resourceId: pro.id,
+      windows: [1, 2, 3, 4, 5].map((d) => ({
+        dayOfWeek: d,
+        startMinute: 540,
+        endMinute: 1080,
+      })),
+    },
+    clock,
+  )
   const contact = upsertContact(
     boot.db,
     { tenantId, waId: '5511900004426', displayName: 'Carla Mídia' },

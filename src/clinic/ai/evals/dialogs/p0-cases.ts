@@ -1235,15 +1235,16 @@ export const P0_DIALOG_CASES: DialogCase[] = [
   },
   {
     id: 'G-10',
-    title: 'Handoff fora do expediente',
+    title: 'Pedido de equipe fora do expediente (DEC-155)',
     turnosIdeais: 1,
     // Sábado 07/11/2026 17:00 America/Sao_Paulo = 20:00 UTC.
     nowMs: Date.UTC(2026, 10, 7, 20, 0),
     turns: [{ role: 'client', text: 'Quero falar com alguém' }],
     expect: {
-      paused: true,
+      // DEC-155 (revê DEC-113 no pedido de equipe): horário + IA activa, sem pausa.
+      notPaused: true,
       outboundIncludes: [
-        'Vou pedir para a equipe continuar daqui. A equipe responde a partir de segunda às 09:00.',
+        'A equipe atende a partir de segunda às 09:00. Posso continuar te ajudando por aqui.',
       ],
     },
   },
