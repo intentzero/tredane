@@ -6,6 +6,7 @@ import { clientTimes, timesInText } from '../../../../ai/reply-facts'
 import { detectInjectionSignals } from '../../../../ai/untrusted'
 import { forbiddenClientTermsIn } from '../../client-copy'
 import { readAiReplyPause } from '../../human-handoff'
+import { REVIEW_FLAG_CLIENT_ACK } from '../../../inbox/review-flag'
 import type { DialogScenario } from './scenario'
 
 export type InvId =
@@ -152,7 +153,9 @@ export function checkInvariants(
   }
 
   // INV-04: sem afirmação de reserva.
-  out.push({ id: 'INV-04', ok: !BOOKING_CLAIM.test(joined) })
+  // DEC-157 ack usa «Marquei esta conversa…» (revisão, não compromisso) — fora do escopo.
+  const forBookingClaim = joined.split(REVIEW_FLAG_CLIENT_ACK).join(' ')
+  out.push({ id: 'INV-04', ok: !BOOKING_CLAIM.test(forBookingClaim) })
 
   // INV-05: sem jargão.
   const jargon = forbiddenClientTermsIn(joined)

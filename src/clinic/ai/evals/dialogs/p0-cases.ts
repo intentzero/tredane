@@ -14,6 +14,7 @@
  * A-39: Confirmar → Agendado + «Posso ajudar» sem esclarecer spurioso (staging 09/11/2026).
  * A-42: 1.ª oferta de Horários leva dica «falar com a equipe» (DEC-153); 2.ª oferta no unitário.
  * A-43: meta «Como faço para terminar?» → HOW_TO_END_REPLY (#660 / DEC-154); sem soft-close/handoff.
+ * A-47: «avaliar» → fila Para revisão + ack; sem pausar IA / limpar frame (DEC-157 / #670).
  * A-44..A-46: singular↔plural + stopwords pt-BR no option matching (Paulo 10/11/2026).
  * G-07b: mid-booking day re-ask com compromisso futuro ≠ remarcação (staging 09/11/2026).
  *   Só copy/botões; apt e frame no mesmo serviço — não fecha troca Depilação→Massagem.
@@ -2348,6 +2349,102 @@ export const P0_DIALOG_CASES: DialogCase[] = [
             /Vou pedir para a equipe/i,
             /já tocou Terminar|já termin/i,
             /Liberação miofascial/i,
+          ],
+        },
+      ],
+    },
+  },
+  {
+    id: 'A-47',
+    title: '«avaliar» marca Para revisão sem pausar o funil (DEC-157)',
+    turnosIdeais: 1,
+    // #670 / DEC-157: comando determinístico → flag client + REVIEW_FLAG_CLIENT_ACK;
+    // não pausa IA, não limpa BookingFrame, não handoff «Precisa de alguém».
+    prepare: (s) => {
+      const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
+      if (!massagem) throw new Error('A-47: serviço Massagem ausente no cenário')
+      upsertServiceOp(
+        s.db,
+        s.caller,
+        {
+          id: massagem.id,
+          name: massagem.name,
+          durationMinutes: massagem.durationMinutes,
+          bufferMinutes: massagem.bufferMinutes,
+          priceCents: massagem.priceCents,
+          professionalIds: massagem.professionalIds,
+          roomRequirement: massagem.roomRequirement,
+          variantKind: 'tipo',
+          variantKindPlural: 'tipos',
+          variantSelection: 'uma',
+        },
+        s.clock,
+      )
+      replaceServiceZonesOp(
+        s.db,
+        s.caller,
+        massagem.id,
+        [
+          { name: 'Liberação miofascial', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+          { name: 'Ventosaterapia', audience: 'ambos', durationMinutes: 45, priceCents: 14_000 },
+          { name: 'Drenagem linfática', audience: 'ambos', durationMinutes: 50, priceCents: 16_000 },
+          { name: 'Massagem relaxante', audience: 'ambos', durationMinutes: 50, priceCents: 15_000 },
+        ],
+        s.clock,
+      )
+      const relaxante = s.db.get<{ id: string }>(
+        `SELECT id FROM service_zones WHERE tenant_id = ? AND service_id = ? AND name = ?`,
+        s.tenantId,
+        massagem.id,
+        'Massagem relaxante',
+      )
+      if (!relaxante) throw new Error('A-47: variante Massagem relaxante ausente')
+      saveScheduleSession(
+        s.db,
+        s.tenantId,
+        s.conversationId,
+        {
+          serviceId: massagem.id,
+          variantIds: [relaxante.id],
+          phase: 'ofertado',
+          pending: {
+            slot: 'horario',
+            options: [
+              { key: '2026-11-08T09:00', label: '09:00' },
+              { key: '2026-11-08T09:30', label: '09:30' },
+              { key: '2026-11-08T10:00', label: '10:00' },
+            ],
+            messageId: 'm_a47_slots',
+          },
+          lastOffer: {
+            slots: [
+              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a47' },
+              { startsAt: Date.UTC(2026, 10, 8, 12, 30), professionalId: 'pro_a47' },
+              { startsAt: Date.UTC(2026, 10, 8, 13, 0), professionalId: 'pro_a47' },
+            ],
+            messageId: 'm_a47_slots',
+          },
+        },
+        s.clock,
+      )
+    },
+    turns: [{ role: 'client', text: 'avaliar' }],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      noAppointment: true,
+      reviewFlagged: true,
+      reviewFlagSource: 'client',
+      turnDecided: [{ route: 'skip:review_flag_request', modelCalled: false, pendingSlotBefore: 'horario' }],
+      turns: [
+        {
+          turn: 0,
+          matches: [/Marquei esta conversa para a equipe revisar/i],
+          excludes: [
+            /Vou pedir para a equipe/i,
+            /Precisa de alguém/i,
+            /Não encontrei/i,
+            /quando quiser|fico por aqui/i,
           ],
         },
       ],

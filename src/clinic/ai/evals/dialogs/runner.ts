@@ -125,6 +125,10 @@ export type DialogCase = {
     notPaused?: boolean
     /** DEC-114: pausa sem mensagem automática (excepção INV-09). */
     silentPause?: boolean
+    /** DEC-157: conversa na fila Para revisão (`conversations.review_flagged_at`). */
+    reviewFlagged?: boolean
+    /** Fonte da flag de revisão (`client` | `staff` | `auto`). */
+    reviewFlagSource?: 'client' | 'staff' | 'auto'
     /** Família FL-: ecrãs mostrados e resultado de cada turno `flow` (pela ordem). */
     flowRuns?: Array<{ screens?: string[]; outcome?: FlowRunTrace['outcome']; nfmOutcome?: string }>
     /**
@@ -566,6 +570,23 @@ export async function runDialogCase(
       const got = row ? row.flow_used === 1 : false
       if (got !== e.flowUsed) {
         errors.push(`flowUsed: ${got}, esperado ${e.flowUsed}`)
+      }
+    }
+    if (e?.reviewFlagged != null || e?.reviewFlagSource != null) {
+      const row = s.db.get<{ review_flagged_at: number | null; review_flagged_source: string | null }>(
+        `SELECT review_flagged_at, review_flagged_source FROM conversations
+         WHERE tenant_id = ? AND id = ?`,
+        s.tenantId,
+        s.conversationId,
+      )
+      const flagged = row?.review_flagged_at != null
+      if (e.reviewFlagged != null && flagged !== e.reviewFlagged) {
+        errors.push(`reviewFlagged: ${flagged}, esperado ${e.reviewFlagged}`)
+      }
+      if (e.reviewFlagSource != null && row?.review_flagged_source !== e.reviewFlagSource) {
+        errors.push(
+          `reviewFlagSource: ${JSON.stringify(row?.review_flagged_source)}, esperado ${JSON.stringify(e.reviewFlagSource)}`,
+        )
       }
     }
     for (const [i, want] of (e?.flowRuns ?? []).entries()) {
