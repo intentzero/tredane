@@ -20,7 +20,11 @@ import { tryAiAutoBook, type AutoBookOutcome } from '../../clinic/ai/autobook'
 import { AUTODRAFT_ACTOR_ID, cancelAutoDraft } from '../../clinic/ai/autodraft'
 import { recordBookingSessionFlow } from '../../clinic/ai/booking-session'
 import { createDeferredBookingFrame } from '../../clinic/ai/deferred-booking-frame'
-import { notifyHumanHandoff } from '../../clinic/ai/human-handoff'
+import {
+  isHumanTeamOfferAllowed,
+  notifyHumanHandoff,
+  replyAfterHoursHumanRequest,
+} from '../../clinic/ai/human-handoff'
 import {
   loadUpcomingAppointment,
   phraseAskDay,
@@ -156,6 +160,8 @@ export type HandleFlowNfmReplyResult = {
     | 'chat_fallback_sent'
     | 'hub_reschedule_started'
     | 'hub_handoff'
+    /** DEC-155: Equipe fora do expediente — horário, IA activa. */
+    | 'hub_after_hours_keep_ai'
     | 'hub_meus_sent'
     | 'hub_info_sent'
     | 'ack_sent'
@@ -374,7 +380,27 @@ function handleHubStub(
     return { handled: true, outcome: 'hub_info_sent', outbox, reason: 'informacoes' }
   }
 
-  // cancelar | equipe → DEC-083 / DEC-091 (cancelar humano).
+  // DEC-155: Equipe fora do expediente → horário + IA activa (sem pausa).
+  // cancelar continua a pausar (DEC-083 / DEC-091).
+  if (hubAction === 'equipe' && !isHumanTeamOfferAllowed(db, input.tenantId, clock)) {
+    const afterHours = replyAfterHoursHumanRequest(
+      db,
+      input.tenantId,
+      {
+        conversationId: input.conversationId,
+        clientRequestId: `flow-hub-equipe-after-hours:${input.providerEventKey}`,
+      },
+      clock,
+    )
+    return {
+      handled: true,
+      outcome: 'hub_after_hours_keep_ai',
+      outbox: afterHours.outbox,
+      reason: 'equipe',
+    }
+  }
+
+  // cancelar | equipe (em expediente) → DEC-083 / DEC-091 (cancelar humano).
   const handoff = notifyHumanHandoff(
     db,
     input.tenantId,

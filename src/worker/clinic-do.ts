@@ -862,6 +862,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           : undefined,
       )
     }
+    // DEC-155: hub Equipe / cancelar (e outros handoffs do Flow) agenda o timeout 30 min.
+    await this.#scheduleNextHandoffTimeout(caller.tenantId)
     const inlineDispatches: ClinicOutboxQueueMessage[] = collectedSendRows.map((row) => ({
       source: 'clinic_outbox',
       tenantId: caller.tenantId,
@@ -929,8 +931,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
         await this.#fanoutOutboxes(caller, handoff.outbox, true)
         await this.#drain(caller)
       }
-      const nextTimeout = nextHandoffTimeoutAt(this.#db, caller.tenantId)
-      if (nextTimeout != null) await this.#scheduleAlarmNoLaterThan(nextTimeout + 500)
+      await this.#scheduleNextHandoffTimeout(caller.tenantId)
       return { handled: true, action: 'human' as const, paused: true as const }
     }
     // M5 (#415) / DEC-128 — toque em linha/variantes/horários (não marca; DEC-061).
@@ -1156,6 +1157,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#fanoutOutboxes(caller, outboxes, true)
       await this.#drain(caller)
     }
+    // DEC-155: proposta «Falar com a equipe» (e outros handoffs neste path) agenda o timeout.
+    await this.#scheduleNextHandoffTimeout(caller.tenantId)
     return { click, execution }
   }
 
@@ -1450,6 +1453,12 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     } catch {
       return null
     }
+  }
+
+  /** DEC-155 — agenda o alarme do timeout de handoff se houver prazo pendente. */
+  async #scheduleNextHandoffTimeout(tenantId: string): Promise<void> {
+    const nextTimeout = nextHandoffTimeoutAt(this.#db, tenantId)
+    if (nextTimeout != null) await this.#scheduleAlarmNoLaterThan(nextTimeout + 500)
   }
 
   async #scheduleAlarmNoLaterThan(at: number): Promise<void> {
@@ -3244,10 +3253,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
           await this.#fanoutOutboxes(caller, item.outbox, true)
         }
       }
-      const nextHandoffTimeout = nextHandoffTimeoutAt(this.#db, meta.tenantId)
-      if (nextHandoffTimeout != null) {
-        await this.#scheduleAlarmNoLaterThan(nextHandoffTimeout + 500)
-      }
+      await this.#scheduleNextHandoffTimeout(meta.tenantId)
     } catch {
       /* best-effort handoff timeout */
     }
@@ -3451,8 +3457,7 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
     }
     const next = clinicAi.nextAutoDraftDueAt(this.#db, caller.tenantId)
     if (next != null) await this.#scheduleAlarmNoLaterThan(next)
-    const nextHandoffTimeout = nextHandoffTimeoutAt(this.#db, caller.tenantId)
-    if (nextHandoffTimeout != null) await this.#scheduleAlarmNoLaterThan(nextHandoffTimeout + 500)
+    await this.#scheduleNextHandoffTimeout(caller.tenantId)
     return outcomes
   }
 
