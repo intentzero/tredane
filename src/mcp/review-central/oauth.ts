@@ -11,6 +11,36 @@ import { isAuthError } from '../../auth/errors'
 import { REVIEW_SAMPLES_SCOPE } from '../../review-samples'
 import type { WorkerBindings } from '../../worker/bindings'
 
+/**
+ * Top-level GET /authorize (redirect MCP) often has no Origin and an external Referer.
+ * Synthesize Origin from our Host/APP_BASE_URL so cookie CSRF check accepts same-site
+ * Lax cookies without weakening POST (form still sends real Origin ∈ parties).
+ */
+export function authorizeSessionRequest(
+  request: Request,
+  env: WorkerBindings | null | undefined,
+): Request {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return request
+  if (request.headers.get('Origin')) return request
+  const url = new URL(request.url)
+  let allowedOrigin: string | null = null
+  if (env?.APP_BASE_URL) {
+    try {
+      const base = new URL(env.APP_BASE_URL)
+      if (base.host === url.host) allowedOrigin = base.origin
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!allowedOrigin) {
+    // Pedido já está no nosso host; Origin = origin do próprio URL.
+    allowedOrigin = url.origin
+  }
+  const headers = new Headers(request.headers)
+  headers.set('Origin', allowedOrigin)
+  return new Request(request, { headers })
+}
+
 export type ReviewMcpOAuthProps = {
   clerkUserId: string
   scope: string[]
@@ -198,9 +228,11 @@ export async function handleReviewMcpAuthorize(
     if (request.method === 'GET') {
       const authRequest = await oauth.parseAuthRequest(request)
       try {
-        await authenticateHumanWithOptionalSuperadmin(services, request, {
-          verifySuperadmin: true,
-        })
+        await authenticateHumanWithOptionalSuperadmin(
+          services,
+          authorizeSessionRequest(request, env),
+          { verifySuperadmin: true },
+        )
       } catch (err) {
         const msg = isAuthError(err)
           ? err.message

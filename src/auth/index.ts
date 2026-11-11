@@ -19,6 +19,7 @@ export { isExactPrivateSuperadmin, assertSuperadminFromAuthority, requireVerifie
 export {
   requireSession,
   assertCookieOriginAllowed,
+  assertCookieAllowedForAuthorizeGet,
   requestUsesBearer,
   type SessionAuthenticator,
 } from './session'

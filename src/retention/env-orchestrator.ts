@@ -419,10 +419,22 @@ async function runEnvStep(
       } catch {
         /* ignore */
       }
+      // DEC-159 / REQ-071: amostras de revisão cross-tenant no D1 central.
+      let reviewSamples = 0
+      try {
+        const rs = await db
+          .prepare(`DELETE FROM review_samples WHERE tenant_id = ?`)
+          .bind(tenantId)
+          .run()
+        reviewSamples = rs.meta.changes ?? 0
+      } catch {
+        /* tabela pode não existir em schemas antigos */
+      }
       const detail = {
         memberships: memberships.meta.changes ?? 0,
         invites: invites.meta.changes ?? 0,
         scrubbed: { whatsapp, pix },
+        reviewSamplesPurged: reviewSamples,
       }
       await markStep(db, cmd, step, actorClerkUserId, detail)
       return detail

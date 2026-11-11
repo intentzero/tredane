@@ -49,6 +49,47 @@ export function assertCookieOriginAllowed(
   throw new AuthError('origin_rejected', 'Origem rejeitada', 403)
 }
 
+/**
+ * DEC-159 — consent OAuth MCP: navegação top-level GET para o nosso Host
+ * (redirect do cliente MCP) chega sem Origin e com Referer externo.
+ * Cookie SameSite=Lax é enviado no GET; CSRF de escrita continua a exigir
+ * Origin na POST do formulário (assertCookieOriginAllowed).
+ */
+export function assertCookieAllowedForAuthorizeGet(
+  request: Request,
+  authorizedParties: readonly string[],
+  appBaseUrl?: string | null,
+): void {
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    assertCookieOriginAllowed(request, authorizedParties)
+    return
+  }
+  try {
+    assertCookieOriginAllowed(request, authorizedParties)
+    return
+  } catch {
+    /* tentar Host do nosso painel */
+  }
+  const allowedHosts = new Set<string>()
+  for (const party of authorizedParties) {
+    try {
+      allowedHosts.add(new URL(party).host)
+    } catch {
+      /* ignore */
+    }
+  }
+  if (appBaseUrl) {
+    try {
+      allowedHosts.add(new URL(appBaseUrl).host)
+    } catch {
+      /* ignore */
+    }
+  }
+  const host = new URL(request.url).host
+  if (allowedHosts.has(host)) return
+  throw new AuthError('origin_rejected', 'Origem rejeitada', 403)
+}
+
 export function requestUsesBearer(request: Request): boolean {
   const auth = request.headers.get('Authorization')
   return Boolean(auth && /^Bearer\s+\S+/i.test(auth))

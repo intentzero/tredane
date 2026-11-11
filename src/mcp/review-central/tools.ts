@@ -4,6 +4,7 @@
  */
 import type { AuthServices } from '../../auth'
 import { authenticateHumanWithOptionalSuperadmin } from '../../auth/authorize'
+import { requireVerifiedSuperadmin } from '../../auth/superadmin'
 import { isAuthError } from '../../auth/errors'
 import {
   getReviewSampleD1,
@@ -186,6 +187,12 @@ async function requireSuperadminAccess(
         code: 'insufficient_scope',
       })
     }
+    // DEC-159: revalidar privateMetadata.superadmin em cada tools/call
+    // (não confiar só no props do token após revogação).
+    await requireVerifiedSuperadmin(
+      deps.services.authority,
+      deps.oauthProps.clerkUserId,
+    )
     return { clerkUserId: deps.oauthProps.clerkUserId }
   }
   const principal = await authenticateHumanWithOptionalSuperadmin(

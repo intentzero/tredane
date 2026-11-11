@@ -112,6 +112,8 @@
       "vars": {
         "ENVIRONMENT": "staging",
         "AUTH_MODE": "clerk",
+        // DEC-159 — issuer/resource OAuth MCP + links.
+        "APP_BASE_URL": "https://staging.app.tredane.com",
         // Publishable key é pública por desenho (instância Clerk de desenvolvimento/staging).
         "CLERK_PUBLISHABLE_KEY": "pk_test_Y2xlYXItbWFja2VyZWwtODA0NS5jbGVyay5hY2NvdW50cy5kZXYk",
         "CLERK_AUTHORIZED_PARTIES": "https://staging.app.tredane.com",

@@ -74,7 +74,7 @@
 
 **Proposto** (DEC-148): a tabela `booking_sessions` no mesmo SQLite é a projecção analítica do funil (opened/ended, `outcome`, `dropStep`). Não substitui o `BookingFrame`. Sem corpo de mensagem. Janela W de abandono **Confirmado** **24 h** (Paulo P4, 07/11/2026; alinhada à DEC-127). **T2:** o evento `ai.turn_decided` liga-se à sessão (`sessionId`), ao `step` do funil e a friction flags mínimas (sem transcript). **T3:** `booking_session.flow` (sent/opened/completed/skipped) + `flowUsed`; `offer_skipped` via outbox; `opened_at` D1 liga-se ao mesmo `sessionId` via Clinic DO. **T4:** leitura operacional via `scripts/booking-session-funnel.mjs` + [runbook](../implementation/runbooks/booking-session-funnel.md) (agregados; sem UI de transcript). **T5:** ritual semanal — amostra N + rótulos humanos + backlog stop/synonym só-lista (`scripts/booking-session-weekly-sample.mjs` + [runbook](../implementation/runbooks/booking-session-weekly-ritual.md)); alinha DEC-141; sem auto-apply.
 
-**Confirmado** (DEC-157): fila «Para revisão» nas Conversas + comando WhatsApp `avaliar`/`feedback` + auto-flag em friction `nao_encontrei`. Corpos ficam nas `messages` do DO; API estável `GET /review/conversations` (pré-requisito MCP). Não pausa a IA (orthogonal a DEC-083).
+**Confirmado** (DEC-157; UI revista por DEC-159): comando WhatsApp `avaliar`/`feedback` + auto-flag em friction `nao_encontrei` no DO; API tenant `/review/*` pode permanecer. Filtro/⋮ «Para revisão» no painel **removidos** (DEC-159). Não pausa a IA (orthogonal a DEC-083).
 
 **Confirmado** (DEC-158, Paulo prefs 10/11/2026; **substituído** na superfície MCP por DEC-159): MCP tenant-scoped `/api/mcp/review` foi removido.
 
