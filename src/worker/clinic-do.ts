@@ -536,7 +536,8 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       result.outboxes.some((o) => o.type === 'conversation.created')
 
     if (!result.duplicate && result.message && result.conversation && result.message.direction === 'inbound') {
-      // Rascunho automático da IA (debounce). Pausa DEC-083 não enfileira.
+      // Rascunho automático da IA (debounce). Pausa DEC-083 não enfileira,
+      // excepto «avaliar»/«feedback» (DEC-157 — orthogonal à pausa).
         try {
         const job = clinicAi.enqueueAutoDraft(
           this.#db,

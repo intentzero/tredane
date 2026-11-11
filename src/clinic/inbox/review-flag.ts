@@ -146,14 +146,27 @@ export const REVIEW_FLAG_CLIENT_ACK =
   'Obrigado. Marquei esta conversa para a equipe revisar.'
 
 /**
+ * Normaliza o comando WhatsApp: trim, minúsculas, sem acentos.
+ * Case («Avaliar» / «AVALIAR») e pontuação final não devem falhar o match.
+ */
+export function normalizeReviewFlagText(text: string): string {
+  return (text ?? '')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .trim()
+    .toLowerCase()
+}
+
+/**
  * Comando explícito de revisão (cliente / designer).
- * Casa «avaliar» e «feedback» com prefixos leves; não casa prosa longa.
+ * Mensagem inteira (após normalize): «avaliar» / «feedback» com prefixos leves
+ * (ok/pode/podes/quero/por favor); não casa prosa longa nem substring solta.
  */
 export const REVIEW_FLAG_REQUEST_RE =
-  /^(?:(?:ok|pode|podes|quero)[,.\s!]*)*(?:avaliar|feedback)(?:\s+(?:o\s+)?(?:atendimento|bot|assistente))?[.!?\s]*$/i
+  /^(?:(?:ok|pode|podes|quero|por\s+favor|pf)[,.\s!]*)*(?:avaliar|feedback)(?:\s+(?:o\s+)?(?:atendimento|bot|assistente))?[.!?\s]*$/
 
 export function isReviewFlagRequest(text: string): boolean {
-  const body = text?.trim() ?? ''
+  const body = normalizeReviewFlagText(text)
   if (!body || body.length > 80) return false
   return REVIEW_FLAG_REQUEST_RE.test(body)
 }
