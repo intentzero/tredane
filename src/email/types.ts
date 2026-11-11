@@ -1,7 +1,8 @@
 /**
  * Transporte de e-mail (#25 / #26).
- * Provedor real ainda Em aberto — só o adaptador simulado está aprovado para F1.
- * Nunca registar tokens, handoffs, inviteUrl com segredo, nem PHI em logs.
+ * Confirmado Paulo 2026-11-11: Cloudflare Email Sending em staging/prod;
+ * `simulated` em development/CI. Nunca registar tokens, handoffs,
+ * inviteUrl com segredo, nem PHI em logs.
  */
 
 export type InvitationEmailPayload = {

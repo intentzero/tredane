@@ -29,7 +29,8 @@ import { requestUsesBearer } from '../auth/session'
 import type { AdminDb } from '../db/admin/store'
 import type { WorkerBindings } from '../worker/bindings'
 import {
-  createSimulatedEmailTransport,
+  resolveAppBaseUrlFromEnv,
+  resolveEmailTransport,
   type EmailTransport,
   type SimulatedEmailTransport,
 } from '../email'
@@ -114,7 +115,7 @@ function resolveEmail(
 ): EmailTransport {
   const email =
     opts.emailFactory?.(env)
-    ?? createSimulatedEmailTransport({ clock })
+    ?? resolveEmailTransport(env, { clock })
   if (
     opts.onSimulatedTransport
     && email.name === 'simulated'
@@ -128,8 +129,7 @@ function resolveEmail(
 function resolveAppBaseUrl(env: WorkerBindings, opts: SupportRouteOptions): string {
   return (
     opts.appBaseUrlFactory?.(env)
-    ?? env.APP_BASE_URL
-    ?? 'http://localhost:5173'
+    ?? resolveAppBaseUrlFromEnv(env)
   )
 }
 

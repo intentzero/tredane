@@ -22,7 +22,8 @@ Bindings **não são herdados** entre ambientes Wrangler: cada `env.*` declara o
 | `INBOUND_EVENTS` | Queue (producer + consumer + DLQ) | Webhooks WhatsApp + drain outbox DO; DLQ `tredane-inbound-dlq-*` | #32/#33 |
 | `TENANT_PURGE` | Workflow (`TenantPurgeWorkflow`) | Expurgo de clínica ≤30 dias (#43) | **Confirmado** em development/runtime-test; staging/prod: contrato declarado, provisionamento na conta CF **Em aberto** |
 | `AUTH_MODE` / `CLERK_*` | vars/secrets | Sessão Clerk + authorized parties (#21) | Synthetic em development; Clerk em staging/prod |
-| `APP_BASE_URL` / `EMAIL_TRANSPORT` | vars | Links de convite + transporte de e-mail (#25) | `simulated` em development; provedor real Em aberto |
+| `APP_BASE_URL` / `EMAIL_TRANSPORT` / `EMAIL_FROM` | vars | Links de convite + transporte (#25) | `simulated` em development; staging/prod: `cloudflare` + `noreply@tredane.com` (var, não secret) |
+| `EMAIL` | `send_email` binding | Cloudflare Email Sending (Workers) | Só staging/prod; gate Onboard Domain + Workers Paid |
 | `PUSH_MODE` / `VAPID_*` | vars/secrets | Web Push PWA (#42) | `synthetic` em development/CI; live exige VAPID |
 | Observability | wrangler | Workers Observability (#44) | `observability.enabled: true` |
 

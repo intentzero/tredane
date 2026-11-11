@@ -122,11 +122,26 @@
         // Só responde para clínicas com opt-in (Configurações › Sugestões com IA; default off).
         // Secrets: CF_ACCOUNT_ID, AI_GATEWAY_ID, AI_GATEWAY_TOKEN (+ ANTHROPIC_API_KEY se BYOK).
         // Sem esses secrets o adaptador cai no simulado. Nunca definir em production sem novo OK.
-        "AI_MODE": "gateway"
+        "AI_MODE": "gateway",
+        // #25 / Cloudflare Email Sending (Paulo Confirmado 2026-11-11). Sem secret de API no
+        // path Workers binding. Gate ops: Onboard Domain `tredane.com` + Workers Paid (destinatários
+        // arbitrários). Preferir `mail.tredane.com` só se MX/SPF da raiz conflitar com e-mail
+        // externo — From permanece noreply@tredane.com salvo o onboard forçar o subdomínio.
+        // EMAIL_FROM é var Wrangler (não secret). Deploy sem domínio Locked → emailSent:false.
+        "APP_BASE_URL": "https://staging.app.tredane.com",
+        "EMAIL_TRANSPORT": "cloudflare",
+        "EMAIL_FROM": "noreply@tredane.com"
         // Secrets (wrangler secret put --env staging): CLERK_SECRET_KEY, ATTACHMENT_TOKEN_SECRET;
         // com META_MODE=live: META_APP_SECRET, META_VERIFY_TOKEN, META_TOKEN_SECRET;
         // com PIX_MODE=live: PIX_TOKEN_SECRET. `npm run check:env -- staging` valida.
       },
+      // Email Sending: binding por ambiente (não herda). Sem destination_* — convites a Gmail/etc.
+      "send_email": [
+        {
+          "name": "EMAIL",
+          "allowed_sender_addresses": ["noreply@tredane.com"]
+        }
+      ],
       "d1_databases": [
         {
           "binding": "DB",
@@ -183,8 +198,18 @@
       },
       "vars": {
         "ENVIRONMENT": "production",
-        "AUTH_MODE": "clerk"
+        "AUTH_MODE": "clerk",
+        // Só activar EMAIL_TRANSPORT=cloudflare após smoke staging + domínio onboarded.
+        "APP_BASE_URL": "https://app.tredane.com",
+        "EMAIL_TRANSPORT": "cloudflare",
+        "EMAIL_FROM": "noreply@tredane.com"
       },
+      "send_email": [
+        {
+          "name": "EMAIL",
+          "allowed_sender_addresses": ["noreply@tredane.com"]
+        }
+      ],
       "d1_databases": [
         {
           "binding": "DB",

@@ -17,6 +17,8 @@ export const MODE_SECRETS = {
   META_MODE: ['META_APP_SECRET', 'META_VERIFY_TOKEN', 'META_TOKEN_SECRET'],
   PIX_MODE: ['PIX_TOKEN_SECRET'],
 }
+/** Vars exigidas quando EMAIL_TRANSPORT=cloudflare (Email Sending; EMAIL_FROM é var, não secret). */
+export const EMAIL_CLOUDFLARE_VARS = ['APP_BASE_URL', 'EMAIL_FROM']
 
 const PLACEHOLDER_RE =
   /00000000-0000-4000-a000-0000000000(?:aa|ff)|UNPROVISIONED_[A-Z0-9_]+/g
@@ -92,6 +94,27 @@ if (vars.AUTH_MODE && vars.AUTH_MODE !== 'clerk') {
 }
 if (typeof vars.CLERK_AUTHORIZED_PARTIES === 'string' && /localhost|127\.0\.0\.1/.test(vars.CLERK_AUTHORIZED_PARTIES)) {
   errors.push('CLERK_AUTHORIZED_PARTIES não pode conter localhost em staging/production')
+}
+if ((vars.EMAIL_TRANSPORT ?? '').trim().toLowerCase() === 'cloudflare') {
+  const missingEmailVars = EMAIL_CLOUDFLARE_VARS.filter(
+    (k) => typeof vars[k] !== 'string' || !vars[k].trim(),
+  )
+  if (missingEmailVars.length > 0) {
+    errors.push(
+      `EMAIL_TRANSPORT=cloudflare exige vars em env.${target}.vars: ${missingEmailVars.join(', ')}`,
+    )
+  }
+  if (
+    typeof vars.APP_BASE_URL === 'string'
+    && /localhost|127\.0\.0\.1/.test(vars.APP_BASE_URL)
+  ) {
+    errors.push('APP_BASE_URL não pode ser localhost com EMAIL_TRANSPORT=cloudflare')
+  }
+  if (!/"send_email"\s*:/.test(block) || !/"name"\s*:\s*"EMAIL"/.test(block)) {
+    errors.push(
+      `EMAIL_TRANSPORT=cloudflare exige binding send_email nomeado EMAIL em env.${target}`,
+    )
+  }
 }
 
 // Secrets: nomes apenas (nunca valores). Fonte: CHECK_ENV_SECRET_NAMES (CI/testes) ou `wrangler secret list`.

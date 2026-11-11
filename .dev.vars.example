@@ -26,6 +26,8 @@ CLERK_AUTHORIZED_PARTIES=http://localhost:5173
 # #25 — Convites por e-mail (provedor real ainda Em aberto / ADR-0008):
 # APP_BASE_URL=http://localhost:5173
 # EMAIL_TRANSPORT=simulated
+# Staging/prod usam Cloudflare Email Sending (binding EMAIL + EMAIL_FROM=noreply@tredane.com).
+# Não defina EMAIL_TRANSPORT=cloudflare em local sem binding + APP_BASE_URL pública.
 # Quando houver provedor aprovado: configurar credenciais via wrangler secret
 # (nunca versionar) e documentar política de dados antes de envio real.
 
