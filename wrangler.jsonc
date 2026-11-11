@@ -161,8 +161,8 @@
       "kv_namespaces": [
         {
           "binding": "OAUTH_KV",
-          // Ops gate: `wrangler kv namespace create tredane-oauth-staging` e substituir o id.
-          "id": "UNPROVISIONED_OAUTH_KV_STAGING"
+          // Paulo, 2026-11-11: namespace `tredane-oauth-staging` (Confirmado via CF dashboard).
+          "id": "1ac811f6cc4c40c6a232216d3cf5bba6"
         }
       ],
       "d1_databases": [
@@ -239,7 +239,8 @@
       "kv_namespaces": [
         {
           "binding": "OAUTH_KV",
-          "id": "UNPROVISIONED_OAUTH_KV_PRODUCTION"
+          // Paulo, 2026-11-11: namespace `tredane-oauth-prod` (Confirmado via CF dashboard).
+          "id": "ce49fe54c94c40bbb57146514d915c36"
         }
       ],
       "d1_databases": [
