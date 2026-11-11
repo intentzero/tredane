@@ -123,7 +123,7 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Alertas ao atendente em handoff (Confirmado, DEC-156, Paulo, 10/11/2026):** badge + som, faixa até Assumir, push/PWA sem conteúdo da mensagem, reforço aos 5 min; aos 30 min a IA retoma via DEC-155. Consome `source` / `handoffTimeoutAt` / `clearedAwaitingTeam`. Detalhe: [DEC-156](product/decisions.md).
 
-**Badge Conversas dual-unread (Confirmado, DEC-159, Paulo, 11/11/2026):** chips Todas / Novas / Minhas / Sem responsável e o badge do ícone contam só conversas ainda não lidas pelo humano e ainda sem resposta (não o total de fios). Detalhe: [DEC-159](product/decisions.md).
+**Badge Conversas dual-unread (Confirmado, DEC-160, Paulo, 11/11/2026; #677, renumerado ao fundir com DEC-159 MCP):** chips Todas / Novas / Minhas / Sem responsável e o badge do ícone contam só conversas ainda não lidas pelo humano e ainda sem resposta (não o total de fios). Detalhe: [DEC-160](product/decisions.md).
 
 **Reagendamento conversacional (Confirmado, Paulo, 31/10/2026 — DEC-091 / REQ-101):** com compromisso futuro, pedido de remarcar não reinicia o funil de zonas; oferece slots do mesmo serviço e confirma pelo botão (DEC-061), actualizando o compromisso atómicamente. Cancelar continua humano.
 

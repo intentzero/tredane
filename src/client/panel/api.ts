@@ -2379,7 +2379,7 @@ export type AiSuggestResponse = {
 }
 
 export type InboxCounts = {
-  /** Chip «Todas»: dual-unread (humano + IA; DEC-159), não total de fios. */
+  /** Chip «Todas»: dual-unread (humano + IA; DEC-160), não total de fios. */
   all: number
   /** Chip «Novas»: dual-unread com status new. */
   new: number
@@ -2387,7 +2387,7 @@ export type InboxCounts = {
   mine: number
   /** Chip «Sem responsável»: dual-unread sem assignee. */
   unassigned: number
-  /** Dual-unread — badge do ícone (DEC-159). */
+  /** Dual-unread — badge do ícone (DEC-160). */
   unread?: number
   /** IA pausada ou alerta de equipe aberto. */
   needsPerson?: number

@@ -39,7 +39,7 @@ const AI_DRAFTING_SQL = `EXISTS (
 )`
 
 /**
- * Badge de atenção (DEC-159): conversa ainda não lida pelo humano **e**
+ * Badge de atenção (DEC-160): conversa ainda não lida pelo humano **e**
  * ainda não atendida pela IA / resposta.
  *
  * - Humano não leu: `unread_count > 0` (limpo em `markConversationReadOp`
@@ -414,7 +414,7 @@ export function countInboxFilters(
   viewerClerkUserId: string | undefined,
 ): InboxCounts {
   assertClinicSchemaReady(db)
-  // Chips Todas / Novas / Minhas / Sem responsável: só dual-unread (DEC-159).
+  // Chips Todas / Novas / Minhas / Sem responsável: só dual-unread (DEC-160).
   // A lista do filtro continua a mostrar todas as conversas do critério;
   // o número no chip é sinal de atenção, não tamanho da lista.
   const all = db.get<{ n: number }>(
@@ -468,7 +468,7 @@ export function countInboxFilters(
   }
 }
 
-/** Nº de conversas dual-unread — badge do ícone (sem conteúdo). DEC-159. */
+/** Nº de conversas dual-unread — badge do ícone (sem conteúdo). DEC-160. */
 export function countUnreadConversations(db: ClinicDb, tenantId: string): number {
   return (
     db.get<{ n: number }>(

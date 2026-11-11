@@ -1,7 +1,7 @@
 /**
  * Badge do ícone da app (Badging API). iOS 16.4+: só PWA instalada com
  * permissão de notificações; noutros casos é no-op (feature-detect).
- * Conta conversas dual-unread (DEC-159: humano + IA) — nunca conteúdo.
+ * Conta conversas dual-unread (DEC-160: humano + IA) — nunca conteúdo.
  */
 type BadgeNavigator = {
   setAppBadge?: (n?: number) => Promise<void>
