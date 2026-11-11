@@ -56,7 +56,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
   }, [api, section, generation])
 
   if (section === 'equipe') {
-    if (!api) return <LoadingState label="Carregando equipe…" />
+    if (!api) return <ListSkeleton label="Carregando equipe…" rows={5} />
     return (
       <EquipeScreen
         tenantId={tenantId}

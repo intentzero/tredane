@@ -22,7 +22,8 @@ import { friendlyError } from '../../copy/errors'
 import { navigatePanel } from '../../routes'
 import { Badge } from '../../states/Badge'
 import { Banner } from '../../states/Banner'
-import { ErrorState, LoadingState } from '../../states/StatusScreens'
+import { ListSkeleton } from '../../states/ListSkeleton'
+import { ErrorState } from '../../states/StatusScreens'
 import { ClinicSheet } from './ClinicSheet'
 
 type Props = {
@@ -302,7 +303,7 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
   }
 
   if (loading && !snap) {
-    return <LoadingState label="Carregando equipe…" />
+    return <ListSkeleton label="Carregando equipe…" rows={5} />
   }
   if (error && !snap) {
     return (
@@ -314,7 +315,7 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
       />
     )
   }
-  if (!snap) return <LoadingState label="Carregando equipe…" />
+  if (!snap) return <ListSkeleton label="Carregando equipe…" rows={5} />
 
   const confirmBusy =
     pendingAction != null && busyId === `${pendingAction.action}:${pendingAction.member.clerkUserId}`
