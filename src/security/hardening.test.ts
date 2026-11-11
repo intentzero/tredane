@@ -325,10 +325,14 @@ describe('check:env — staging/production', () => {
       env: { ...process.env, CHECK_ENV_SECRET_NAMES: secrets },
     })
   }
-  const provisioned = original.replace(
-    /00000000-0000-4000-a000-0000000000(aa|ff)/g,
-    '11111111-2222-4333-8444-5555555555$1',
-  )
+  const provisioned = original
+    .replace(
+      /00000000-0000-4000-a000-0000000000(aa|ff)/g,
+      '11111111-2222-4333-8444-5555555555$1',
+    )
+    // DEC-159 ops gate: OAUTH_KV fica UNPROVISIONED_* até provisionar; o teste simula IDs reais.
+    .replace(/UNPROVISIONED_OAUTH_KV_STAGING/g, 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeee01')
+    .replace(/UNPROVISIONED_OAUTH_KV_PRODUCTION/g, 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeee02')
 
   it('staging provisionado com secrets obrigatórios passa', () => {
     // staging tem META_MODE=live (webhook Meta real): exige também os secrets Meta (C3).
