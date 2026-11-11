@@ -52,6 +52,8 @@ export type AgendaSection = 'dia' | 'semana' | 'agendar' | 'compromisso'
 
 export type PanelRoute =
   | { kind: 'entrar' }
+  /** Cadastro Clerk para convidada sem conta (DEC-021). */
+  | { kind: 'cadastro' }
   | { kind: 'clinicas' }
   /** Aceite de convite (S3). Token fica na query/sessão — nunca no objeto da rota. */
   | { kind: 'invite-accept' }
@@ -194,6 +196,8 @@ export function resolvePanelRoute(pathname: string, search = ''): PanelRoute | n
   const path = pathname.replace(/\/+$/, '') || '/'
   // Prefixo: Clerk SignIn usa /entrar/factor-one etc.
   if (path === '/entrar' || path.startsWith('/entrar/')) return { kind: 'entrar' }
+  // Prefixo: Clerk SignUp usa /cadastro/verify-email-address etc.
+  if (path === '/cadastro' || path.startsWith('/cadastro/')) return { kind: 'cadastro' }
   if (path === '/clinicas') return { kind: 'clinicas' }
   // Link do e-mail (#25 / S3): `/invite/accept?token=…` — token não entra na rota.
   if (path === '/invite/accept') return { kind: 'invite-accept' }
@@ -299,6 +303,8 @@ export function panelHref(route: PanelRoute): string {
   switch (route.kind) {
     case 'entrar':
       return '/entrar'
+    case 'cadastro':
+      return '/cadastro'
     case 'clinicas':
       return '/clinicas'
     case 'invite-accept':

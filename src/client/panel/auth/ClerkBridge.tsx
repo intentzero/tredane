@@ -5,6 +5,7 @@ import { useEffect, type ReactNode } from 'react'
 import { useAuthSession, useClientConfig } from './AuthContext'
 import { clerkAppearance } from './clerkAppearance'
 import { ClerkLogin } from './ClerkLogin'
+import { ClerkSignUp } from './ClerkSignUp'
 import { SyntheticLogin } from './SyntheticLogin'
 import { LoadingState, ErrorState } from '../states/StatusScreens'
 import { navigatePanel } from '../routes'
@@ -73,6 +74,13 @@ export function AuthModeGate({ children }: { children: ReactNode }) {
 export function LoginScreen() {
   const { authMode } = useAuthSession()
   if (authMode === 'clerk') return <ClerkLogin />
+  return <SyntheticLogin />
+}
+
+/** Cadastro Clerk (DEC-021). Em synthetic reusa o seletor de personas. */
+export function SignUpScreen() {
+  const { authMode } = useAuthSession()
+  if (authMode === 'clerk') return <ClerkSignUp />
   return <SyntheticLogin />
 }
 

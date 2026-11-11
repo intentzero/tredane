@@ -8,9 +8,14 @@ import {
 } from './routes'
 
 describe('panel routes (#22)', () => {
-  it('resolve painel entrar / clinicas / aceite de convite / áreas', () => {
+  it('resolve painel entrar / cadastro / clinicas / aceite de convite / áreas', () => {
     expect(resolvePanelRoute('/entrar')).toEqual({ kind: 'entrar' })
     expect(resolvePanelRoute('/entrar/factor-one')).toEqual({ kind: 'entrar' })
+    expect(resolvePanelRoute('/cadastro')).toEqual({ kind: 'cadastro' })
+    expect(resolvePanelRoute('/cadastro/verify-email-address')).toEqual({
+      kind: 'cadastro',
+    })
+    expect(panelHref({ kind: 'cadastro' })).toBe('/cadastro')
     expect(resolvePanelRoute('/clinicas')).toEqual({ kind: 'clinicas' })
     expect(resolvePanelRoute('/invite/accept')).toEqual({ kind: 'invite-accept' })
     expect(resolvePanelRoute('/invite/accept', '?token=secret')).toEqual({

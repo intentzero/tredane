@@ -19,7 +19,8 @@
 | Path | Ecrã |
 | --- | --- |
 | `/entrar` (+ `/entrar/*` Clerk) | Login |
-| `/invite/accept` | Aceite de convite (S3); `?token=` guardado na sessão e retirado da barra |
+| `/cadastro` (+ `/cadastro/*` Clerk) | Cadastro (DEC-021); entrada por defeito do link de convite sem sessão |
+| `/invite/accept` | Aceite de convite (S3); `?token=` guardado na sessão e retirado da barra; sem sessão → `/cadastro` |
 | `/clinicas` | Seletor (M-10) |
 | `/c/:tenantId/conversas` | Shell + placeholder |
 | `/c/:tenantId/acompanhamento` | Shell + placeholder |
@@ -38,7 +39,7 @@
 ## Auth no browser
 
 - **`AUTH_MODE=synthetic` (dev):** UI no estilo M-09 + escolha de persona `user_synth_*`; Bearer `synth:<id>` em sessionStorage (por aba).
-- **`AUTH_MODE=clerk`:** `@clerk/react` `<SignIn />` estilizado; `getToken()` → Bearer no Worker.
+- **`AUTH_MODE=clerk`:** `@clerk/react` `<SignIn />` em `/entrar` e `<SignUp />` em `/cadastro` (estilizados); `getToken()` → Bearer no Worker. Com convite pendente, `signUpUrl` no SignIn aponta para `/cadastro` (não para si mesmo).
 
 Clínica ativa: `sessionStorage` por aba (AC-17). Troca cancela `AbortController` e incrementa geração — respostas tardias de A não pintam B.
 
@@ -56,8 +57,8 @@ Clínica ativa: `sessionStorage` por aba (AC-17). Troca cancela `AbortController
 2. Método de login: **e-mail + código** (passwordless / email code). Sem MFA (DEC-028).
 3. Copiar Publishable + Secret → `.dev.vars` / secrets Wrangler.
 4. `CLERK_AUTHORIZED_PARTIES` inclui a origem da Clinic App (ex. `http://localhost:5173`).
-5. Paths: permitir `/entrar` (e factor paths do componente SignIn).
-6. Memberships continuam no D1 — criar utilizadores Clerk e mapear `clerk_user_id` nas memberships (não há auto-membership no login).
+5. Paths: permitir `/entrar` e `/cadastro` (e factor paths dos componentes SignIn/SignUp). Cadastro de utilizadores **ligado** no Dashboard (convidada sem conta precisa de SignUp — DEC-021).
+6. Memberships continuam no D1 — criar utilizadores Clerk e mapear `clerk_user_id` nas memberships (não há auto-membership no login; aceite do convite cria o vínculo).
 
 ## Fora deste PR
 
