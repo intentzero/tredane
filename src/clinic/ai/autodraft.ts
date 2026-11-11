@@ -190,7 +190,13 @@ export function enqueueAutoDraft(
     )?.body ?? ''
   // #475 S4 opção B: texto de verdade limpa «já pedi» mesmo com IA pausada (antes do return).
   clearMediaAskTextOnRealInbound(db, tenantId, input.conversationId, body, now)
-  if (isConversationPaused(db, tenantId, input.conversationId)) return null
+  // DEC-157: «avaliar»/«feedback» é orthogonal à pausa DEC-083 — enfileira mesmo pausada.
+  if (
+    isConversationPaused(db, tenantId, input.conversationId) &&
+    !isReviewFlagRequest(body)
+  ) {
+    return null
+  }
   // Mesmo detector do caminho do hub em runDueAutoDrafts (TR-306).
   // Pedido completo (dia+período) sobrescreve o 300 ms mesmo se VAGUE_BOOK casar.
   // Quadro com serviço ou pedido não é abertura: o debounce curto do hub não aplica.
@@ -481,11 +487,6 @@ export async function runDueAutoDrafts(
     }
     const conv = getConversation(db, tenantId, job.conversationId)
     if (!conv || conv.status === 'closed') { skip('conversation_closed'); continue }
-    if (!isClinicAiAssistEnabled(db, tenantId)) { skip('ai_not_enabled'); continue }
-    if (!messagingWindowForConversation(db, tenantId, job.conversationId, now).open) { skip('window_closed'); continue }
-    if (isConversationPaused(db, tenantId, job.conversationId)) { skip('ai_reply_paused'); continue }
-    // A atendente já respondeu durante a espera.
-    if (lastMessageDirection(db, tenantId, job.conversationId) !== 'inbound') { skip('already_answered'); continue }
     const inboundBody =
       db.get<{ body: string }>(
         `SELECT body FROM messages WHERE tenant_id = ? AND id = ?`,
@@ -507,6 +508,55 @@ export async function runDueAutoDrafts(
       skip('interactive_reply_button')
       continue
     }
+    // DEC-157: «avaliar» / «feedback» no corpo desta mensagem (não no turno
+    // agregado) — antes da pausa DEC-083, AI off e funil/LLM.
+    if (isReviewFlagRequest(inboundBody)) {
+      if (!messagingWindowForConversation(db, tenantId, job.conversationId, now).open) {
+        skip('window_closed')
+        continue
+      }
+      await signalTyping()
+      const replyOutbox: OutboxRow[] = []
+      try {
+        const flagged = flagConversationForReview(
+          db,
+          tenantId,
+          job.conversationId,
+          { source: 'client', reason: 'client_request' },
+          clock,
+        )
+        replyOutbox.push(...flagged.outbox)
+        const sent = sendOutboundMessageOp(
+          db,
+          caller,
+          {
+            conversationId: job.conversationId,
+            body: REVIEW_FLAG_CLIENT_ACK,
+            clientRequestId: `ai-review-flag:${job.messageId}`,
+            authorClerkUserId: AUTODRAFT_ACTOR_ID,
+            authorDisplayName: AUTODRAFT_ACTOR_NAME,
+          },
+          clock,
+        )
+        replyOutbox.push(...sent.outbox)
+      } catch (err) {
+        if (!(err instanceof ClinicError)) throw err
+      }
+      cancelAutoDraft(db, tenantId, job.conversationId)
+      record({
+        ...job,
+        status: 'skipped',
+        suggestion: null,
+        reason: 'review_flag_request',
+        replyOutbox,
+      })
+      continue
+    }
+    if (!isClinicAiAssistEnabled(db, tenantId)) { skip('ai_not_enabled'); continue }
+    if (!messagingWindowForConversation(db, tenantId, job.conversationId, now).open) { skip('window_closed'); continue }
+    if (isConversationPaused(db, tenantId, job.conversationId)) { skip('ai_reply_paused'); continue }
+    // A atendente já respondeu durante a espera.
+    if (lastMessageDirection(db, tenantId, job.conversationId) !== 'inbound') { skip('already_answered'); continue }
     // #411: uma leitura por job — catálogo, mensagens, sessão, turno, compromisso futuro.
     const turn = loadTurnContext(
       db,
@@ -870,45 +920,6 @@ export async function runDueAutoDrafts(
         status: 'skipped',
         suggestion: null,
         reason: 'how_to_end',
-        replyOutbox,
-      })
-      continue
-    }
-    // DEC-157: «avaliar» / «feedback» → fila de revisão; não pausa o funil.
-    if (isReviewFlagRequest(turnText)) {
-      await signalTyping()
-      const replyOutbox: OutboxRow[] = []
-      try {
-        const flagged = flagConversationForReview(
-          db,
-          tenantId,
-          job.conversationId,
-          { source: 'client', reason: 'client_request' },
-          clock,
-        )
-        replyOutbox.push(...flagged.outbox)
-        const sent = sendOutboundMessageOp(
-          db,
-          caller,
-          {
-            conversationId: job.conversationId,
-            body: REVIEW_FLAG_CLIENT_ACK,
-            clientRequestId: `ai-review-flag:${job.messageId}`,
-            authorClerkUserId: AUTODRAFT_ACTOR_ID,
-            authorDisplayName: AUTODRAFT_ACTOR_NAME,
-          },
-          clock,
-        )
-        replyOutbox.push(...sent.outbox)
-      } catch (err) {
-        if (!(err instanceof ClinicError)) throw err
-      }
-      cancelAutoDraft(db, tenantId, job.conversationId)
-      record({
-        ...job,
-        status: 'skipped',
-        suggestion: null,
-        reason: 'review_flag_request',
         replyOutbox,
       })
       continue

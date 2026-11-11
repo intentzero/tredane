@@ -2429,7 +2429,8 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         s.clock,
       )
     },
-    turns: [{ role: 'client', text: 'avaliar' }],
+    // Capital A — smoke Paulo 11/11/2026 (TR-496); matcher normaliza case.
+    turns: [{ role: 'client', text: 'Avaliar' }],
     expect: {
       proposal: false,
       notPaused: true,

@@ -2,11 +2,14 @@
  * DEC-157 — fila de revisão: flag, filtro, idempotência, comando WhatsApp.
  */
 import { describe, expect, it } from 'vitest'
+import { SimulatedAiAdapter } from '../../ai'
 import { createControllableClock } from '../../db/clock'
+import { setClinicAiAssistEnabled } from '../config/settings'
 import { upsertContact } from '../contacts'
 import { bootClinicDb } from '../test-db'
 import { syncWhatsappChannel } from '../whatsapp/channel'
 import { workerCaller } from '../index'
+import { enqueueAutoDraft, runDueAutoDrafts } from '../ai'
 import {
   clearConversationReviewFlagOp,
   flagConversationForReviewOp,
@@ -18,6 +21,7 @@ import { insertMessage } from './messages'
 import {
   flagConversationForReview,
   isReviewFlagRequest,
+  readReviewFlag,
   REVIEW_FLAG_CLIENT_ACK,
 } from './review-flag'
 
@@ -67,14 +71,22 @@ function seedConversation() {
 }
 
 describe('DEC-157 review flag', () => {
-  it('reconhece comandos avaliar / feedback', () => {
+  it('reconhece comandos avaliar / feedback (case, pontuação, prefixos)', () => {
     expect(isReviewFlagRequest('avaliar')).toBe(true)
+    expect(isReviewFlagRequest('Avaliar')).toBe(true)
+    expect(isReviewFlagRequest('AVALIAR')).toBe(true)
+    expect(isReviewFlagRequest('avaliar.')).toBe(true)
+    expect(isReviewFlagRequest('  Avaliar!  ')).toBe(true)
     expect(isReviewFlagRequest('Feedback')).toBe(true)
     expect(isReviewFlagRequest('quero avaliar')).toBe(true)
+    expect(isReviewFlagRequest('por favor avaliar')).toBe(true)
     expect(isReviewFlagRequest('avaliar o atendimento')).toBe(true)
     expect(isReviewFlagRequest('quero agendar depilação')).toBe(false)
+    expect(isReviewFlagRequest('me ajuda a avaliar')).toBe(false)
     expect(isReviewFlagRequest('')).toBe(false)
-    expect(REVIEW_FLAG_CLIENT_ACK).toMatch(/revisar/i)
+    expect(REVIEW_FLAG_CLIENT_ACK).toBe(
+      'Obrigado. Marquei esta conversa para a equipe revisar.',
+    )
   })
 
   it('marca, filtra Para revisão, limpa; idempotente', () => {
@@ -182,6 +194,76 @@ describe('DEC-157 review flag', () => {
       const item = listConversations(db, tenantId, { filter: 'for_review' }).items[0]!
       expect(item.reviewFlaggedSource).toBe('auto')
       expect(item.reviewFlagReason).toBe('nao_encontrei')
+    } finally {
+      close()
+    }
+  })
+
+  it('TR-496: Avaliar com IA pausada (DEC-083) ainda marca + ack', async () => {
+    const { db, close, clock, tenantId, cnv } = seedConversation()
+    try {
+      setClinicAiAssistEnabled(db, tenantId, true, clock)
+      // Janela 24h: outbound recente da clínica.
+      insertMessage(
+        db,
+        {
+          tenantId,
+          conversationId: cnv.id,
+          direction: 'outbound',
+          body: 'Horários disponíveis…',
+          deliveryState: 'accepted',
+          createdAt: NOW - 1_000,
+        },
+        clock,
+      )
+      db.run(
+        `UPDATE conversations SET ai_reply_paused_at = ?, ai_reply_pause_reason = ?, updated_at = ?
+         WHERE tenant_id = ? AND id = ?`,
+        NOW - 500,
+        'customer_requested',
+        NOW - 500,
+        tenantId,
+        cnv.id,
+      )
+      const inbound = insertMessage(
+        db,
+        {
+          tenantId,
+          conversationId: cnv.id,
+          direction: 'inbound',
+          body: 'Avaliar',
+          deliveryState: 'received',
+          createdAt: NOW,
+        },
+        clock,
+      )
+      const job = enqueueAutoDraft(
+        db,
+        tenantId,
+        { conversationId: cnv.id, messageId: inbound.id },
+        clock,
+      )
+      expect(job).not.toBeNull()
+      clock.advance(7_000)
+      const caller = workerCaller(tenantId, 'user_synth_owner_a')
+      await runDueAutoDrafts(db, caller, clock, {
+        mode: 'synthetic',
+        adapter: new SimulatedAiAdapter(),
+      })
+      expect(readReviewFlag(db, tenantId, cnv.id)?.source).toBe('client')
+      const ack = db.get<{ body: string }>(
+        `SELECT body FROM messages WHERE tenant_id = ? AND conversation_id = ?
+         AND direction = 'outbound' ORDER BY created_at DESC LIMIT 1`,
+        tenantId,
+        cnv.id,
+      )
+      expect(ack?.body).toBe(REVIEW_FLAG_CLIENT_ACK)
+      const stillPaused = db.get<{ at: number | null }>(
+        `SELECT ai_reply_paused_at AS at FROM conversations WHERE tenant_id = ? AND id = ?`,
+        tenantId,
+        cnv.id,
+      )
+      expect(stillPaused?.at).not.toBeNull()
     } finally {
       close()
     }
