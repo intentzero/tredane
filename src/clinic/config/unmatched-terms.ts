@@ -8,6 +8,10 @@
  * sozinho e não deriva verbos: o serviço provável é só uma pré-seleção no
  * painel, nunca entra na interpretação.
  *
+ * Filtro A+B (Paulo, 11/11/2026): não regista / auto-descarta stopwords e
+ * fillers (`UNMATCHED_TERM_STOP`); só sobe o que parece nome popular
+ * (prefixo ≥5 a um serviço, ou um único token de conteúdo). Nunca auto-Gravar.
+ *
  * Dados: só o termo (eco do `catalogMissHint`), contagem e datas. Sem conversa,
  * contato nem texto da mensagem. Fica no SQLite da clínica; não vai a telemetria.
  */
@@ -15,6 +19,7 @@ import type { Clock } from '../../db/clock'
 import { newId } from '../ids'
 import { NotFoundError, ValidationError } from '../errors'
 import type { ClinicDb } from '../store'
+import { UNMATCHED_TERM_STOP } from './option-match-stop'
 import { getService, listServices } from './services'
 import {
   assertSynonymsNoCollision,
@@ -33,6 +38,8 @@ export const UNMATCHED_TERM_MAX_WORDS = 3
 export const UNMATCHED_TERM_LIST_LIMIT = 20
 /** Prefixo comum mínimo para propor um serviço provável («depila…»). */
 const PROBABLE_MIN_PREFIX = 5
+/** Actor de sistema quando A+B auto-descarta ruído legado. */
+export const UNMATCHED_AB_SYSTEM_ACTOR = 'system:dec141-ab'
 
 export type UnmatchedTermStatus = 'aberto' | 'gravado' | 'descartado'
 
@@ -67,10 +74,34 @@ function cleanTerm(raw: string): string | null {
   return term
 }
 
+function contentWords(folded: string): string[] {
+  return words(folded).filter((w) => !UNMATCHED_TERM_STOP.has(w))
+}
+
+/**
+ * A+B: o termo deve subir ao cartão?
+ * A — sem conteúdo depois de tirar stopwords/fillers → não.
+ * B — prefixo ≥5 a um serviço/variante/sinónimo, ou um único token de conteúdo
+ *     (≥5) que não é filler puro. Frases multi-palavra sem afinidade caem.
+ */
+export function shouldSurfaceUnmatchedTerm(
+  term: string,
+  services: readonly ServiceRow[],
+): boolean {
+  const folded = foldSynonym(term)
+  const content = contentWords(folded)
+  if (content.length === 0) return false
+  if (probableServiceFor(term, services) !== null) return true
+  // Um só token de conteúdo ≥5: candidato a nome popular (ex. botox, sobrancelha).
+  if (content.length === 1 && content[0]!.length >= 5) return true
+  return false
+}
+
 /**
  * Regista (ou soma) um termo que não casou nenhum serviço. Silencioso: um termo
- * inválido ou que já identifica algo no catálogo não é registado. Um termo
- * descartado pela owner continua descartado (só conta).
+ * inválido, filler (A), sem cara de nome popular (B), ou que já identifica algo
+ * no catálogo não é registado. Um termo descartado pela owner continua
+ * descartado (só conta). Nunca grava sinónimo sozinho.
  */
 export function recordUnmatchedTerm(
   db: ClinicDb,
@@ -83,6 +114,8 @@ export function recordUnmatchedTerm(
   if (!term) return
   const folded = foldSynonym(term)
   if (listCatalogNameClaims(db, tenantId).some((c) => c.folded === folded)) return
+  const services = listServices(db, tenantId)
+  if (!shouldSurfaceUnmatchedTerm(term, services)) return
   const now = clock.nowMs()
   db.run(
     `INSERT INTO unmatched_terms (tenant_id, id, term, term_folded, hits, status, first_seen_at, last_seen_at)
@@ -143,10 +176,14 @@ export function probableServiceFor(
   return bestIds[0]!
 }
 
-/** Sugestões abertas, mais frequentes primeiro. Esconde as que já casam o catálogo. */
+/**
+ * Sugestões abertas, mais frequentes primeiro. Esconde as que já casam o catálogo
+ * e as que falham A+B (auto-Descartar ruído legado; sem auto-Gravar).
+ */
 export function listUnmatchedTermSuggestions(
   db: ClinicDb,
   tenantId: string,
+  clock?: Clock,
 ): UnmatchedTermSuggestion[] {
   const rows = db.all<UnmatchedTermSql>(
     `SELECT id, term, term_folded, hits, status, first_seen_at, last_seen_at
@@ -159,17 +196,35 @@ export function listUnmatchedTermSuggestions(
   )
   const claims = new Set(listCatalogNameClaims(db, tenantId).map((c) => c.folded))
   const services = listServices(db, tenantId)
-  return rows
-    .filter((row) => !claims.has(row.term_folded))
-    .slice(0, UNMATCHED_TERM_LIST_LIMIT)
-    .map((row) => ({
+  const out: UnmatchedTermSuggestion[] = []
+  for (const row of rows) {
+    if (claims.has(row.term_folded)) continue
+    if (!shouldSurfaceUnmatchedTerm(row.term, services)) {
+      // A+B: auto-Descartar fillers/stopwords e atrito sem cara de nome popular.
+      if (clock) {
+        db.run(
+          `UPDATE unmatched_terms
+              SET status = 'descartado', resolved_at = ?, resolved_by = ?
+            WHERE tenant_id = ? AND id = ? AND status = 'aberto'`,
+          clock.nowMs(),
+          UNMATCHED_AB_SYSTEM_ACTOR,
+          tenantId,
+          row.id,
+        )
+      }
+      continue
+    }
+    out.push({
       id: row.id,
       term: row.term,
       hits: row.hits,
       firstSeenAt: row.first_seen_at,
       lastSeenAt: row.last_seen_at,
       suggestedServiceId: probableServiceFor(row.term, services),
-    }))
+    })
+    if (out.length >= UNMATCHED_TERM_LIST_LIMIT) break
+  }
+  return out
 }
 
 function getOpenTerm(db: ClinicDb, tenantId: string, id: string): UnmatchedTermSql {

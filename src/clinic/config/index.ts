@@ -134,7 +134,9 @@ export {
 export {
   recordUnmatchedTerm,
   probableServiceFor,
+  shouldSurfaceUnmatchedTerm,
   listUnmatchedTermSuggestions,
+  UNMATCHED_AB_SYSTEM_ACTOR,
   type UnmatchedTermSuggestion,
 } from './unmatched-terms'
 export {

@@ -10,7 +10,7 @@ import type { ServiceRow, ServiceZoneRow, VariantAudience } from '../config/type
 import { variantChoiceLabel } from '../config/zones'
 import { sayAct, serviceNameInProse } from './dialogue-acts'
 import { THIRD_PARTY_RE } from './nlu/sensitive'
-import { OPTION_MATCH_STOP } from '../config/option-match-stop'
+import { CATALOG_MISS_STOP } from '../config/option-match-stop'
 import { textCitesSynonym } from '../config/synonyms'
 import { citesServiceName, claimsWholeCatalog } from './schedule-choice'
 import {
@@ -103,36 +103,6 @@ function significantWords(name: string): string[] {
     .split(/[^a-z0-9]+/)
     .filter((w) => w.length >= 3)
 }
-
-/** Palavras de pedido que não casam com nomes do catálogo (prática 10 / #512). */
-const CATALOG_MISS_STOP = new Set([
-  ...OPTION_MATCH_STOP,
-  'fazer',
-  'fazem',
-  'faz',
-  'algo',
-  'esse',
-  'essa',
-  'hoje',
-  'amanha',
-  'segunda',
-  'terca',
-  'quarta',
-  'quinta',
-  'sexta',
-  'sabado',
-  'domingo',
-  'sim',
-  'confirma',
-  'confirmo',
-  'voces',
-  'voce',
-  'tem',
-  'oferecem',
-  'oferece',
-  'procedimento',
-  'servico',
-])
 
 /**
  * Eco factual do que a cliente pediu e não está no catálogo.

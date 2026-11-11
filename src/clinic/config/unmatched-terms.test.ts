@@ -9,7 +9,12 @@ import {
   upsertServiceOp,
 } from './operations'
 import { getService } from './services'
-import { probableServiceFor, recordUnmatchedTerm } from './unmatched-terms'
+import {
+  probableServiceFor,
+  recordUnmatchedTerm,
+  shouldSurfaceUnmatchedTerm,
+  UNMATCHED_AB_SYSTEM_ACTOR,
+} from './unmatched-terms'
 
 function boot(tenantId = 'clinic-demo-a') {
   const { db, close } = bootClinicDb()
@@ -134,6 +139,76 @@ describe('termos não reconhecidos → sugestão de sinónimo (DEC-141)', () => 
       dismissUnmatchedTermOp(s.db, s.caller, item!.id, s.clock)
       recordUnmatchedTerm(s.db, s.tenantId, 'sobrancelha', s.clock)
       expect(listUnmatchedTermsOp(s.db, s.caller, s.clock)).toEqual([])
+    } finally {
+      s.close()
+    }
+  })
+
+  it('A+B: não regista stopwords/fillers nem atrito multi-palavra sem afinidade', () => {
+    const s = boot()
+    try {
+      const dep = s.svc('Depilação')
+      const services = [getService(s.db, s.tenantId, dep.id)!]
+      expect(shouldSurfaceUnmatchedTerm('favor', services)).toBe(false)
+      expect(shouldSurfaceUnmatchedTerm('pf', services)).toBe(false)
+      expect(shouldSurfaceUnmatchedTerm('agendamento parte', services)).toBe(false)
+      expect(shouldSurfaceUnmatchedTerm('saber disponibilidade', services)).toBe(false)
+      expect(shouldSurfaceUnmatchedTerm('depilar', services)).toBe(true)
+      expect(shouldSurfaceUnmatchedTerm('sobrancelha', services)).toBe(true)
+
+      recordUnmatchedTerm(s.db, s.tenantId, 'favor', s.clock)
+      recordUnmatchedTerm(s.db, s.tenantId, 'saber disponibilidade', s.clock)
+      recordUnmatchedTerm(s.db, s.tenantId, 'agendamento parte', s.clock)
+      recordUnmatchedTerm(s.db, s.tenantId, 'depilar', s.clock)
+      const items = listUnmatchedTermsOp(s.db, s.caller, s.clock)
+      expect(items.map((i) => i.term)).toEqual(['depilar'])
+      expect(items[0]!.suggestedServiceId).toBe(dep.id)
+    } finally {
+      s.close()
+    }
+  })
+
+  it('A+B: listagem auto-descarta ruído legado aberto (sem auto-Gravar)', () => {
+    const s = boot()
+    try {
+      s.svc('Depilação')
+      const now = s.clock.nowMs()
+      s.db.run(
+        `INSERT INTO unmatched_terms (tenant_id, id, term, term_folded, hits, status, first_seen_at, last_seen_at)
+         VALUES (?, 'umt_favor', 'favor', 'favor', 3, 'aberto', ?, ?)`,
+        s.tenantId,
+        now,
+        now,
+      )
+      s.db.run(
+        `INSERT INTO unmatched_terms (tenant_id, id, term, term_folded, hits, status, first_seen_at, last_seen_at)
+         VALUES (?, 'umt_saber', 'saber disponibilidade', 'saber disponibilidade', 2, 'aberto', ?, ?)`,
+        s.tenantId,
+        now,
+        now,
+      )
+      s.db.run(
+        `INSERT INTO unmatched_terms (tenant_id, id, term, term_folded, hits, status, first_seen_at, last_seen_at)
+         VALUES (?, 'umt_dep', 'depilar', 'depilar', 1, 'aberto', ?, ?)`,
+        s.tenantId,
+        now,
+        now,
+      )
+      const items = listUnmatchedTermsOp(s.db, s.caller, s.clock)
+      expect(items.map((i) => i.term)).toEqual(['depilar'])
+      const closed = s.db.all<{ id: string; status: string; resolved_by: string | null }>(
+        `SELECT id, status, resolved_by FROM unmatched_terms WHERE tenant_id = ? ORDER BY id`,
+        s.tenantId,
+      )
+      expect(closed).toEqual(
+        expect.arrayContaining([
+          { id: 'umt_favor', status: 'descartado', resolved_by: UNMATCHED_AB_SYSTEM_ACTOR },
+          { id: 'umt_saber', status: 'descartado', resolved_by: UNMATCHED_AB_SYSTEM_ACTOR },
+          { id: 'umt_dep', status: 'aberto', resolved_by: null },
+        ]),
+      )
+      // Sinónimos do serviço intactos — nunca auto-Gravar.
+      expect(getService(s.db, s.tenantId, items[0]!.suggestedServiceId!)!.synonyms ?? []).toEqual([])
     } finally {
       s.close()
     }
