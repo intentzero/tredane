@@ -466,7 +466,8 @@ describe('DEC-137: eco e plural das zonas', () => {
       }
       const rows = parsed.list?.sections?.flatMap((section) => section.rows ?? []) ?? []
       const slot = rows.find((row) => row.title === 'terça 03/11 17:00')
-      expect(slot?.description).toBe('terça 03/11 17:00')
+      // Título ≤24: sem description — Meta não duplica no bubble do toque.
+      expect(slot?.description).toBeUndefined()
       expect(slot?.title).not.toBe('11-03 17:00')
       expect(slot?.title).not.toMatch(/\b\d{2}-\d{2}\b/)
       expect(JSON.stringify(rows)).not.toMatch(/\b\d{2}-\d{2} \d{2}:\d{2}\b/)

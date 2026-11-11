@@ -3,6 +3,7 @@
  * Entraram na `main` (#589, #588) só com testes unitários; estes diálogos fixam o comportamento.
  * A-38: T2 friction `nao_encontrei` (session-analytics).
  * A-44..A-46: singular↔plural + stopwords pt-BR (Paulo 10/11/2026).
+ * A-48: lista Horários sem description=title (Meta echo duplicava o bubble).
  *
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * Depilação com Axila, Pernas (feminino e masculino, DEC-079) e Buço (ambos).
@@ -272,6 +273,61 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
         },
       ],
       outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-48',
+    title: 'Lista Horários: uma linha «{dia} {hora}» no reply Meta (sem description=title)',
+    turnosIdeais: 3,
+    // Smoke staging: toque no horário ecoava «sexta 13/11 11:15» ×2 no bubble verde —
+    // title e description iguais no payload da lista. DEC-134 A: description só se cortar.
+    turns: [
+      { role: 'client', text: 'Quero depilação feminina' },
+      { role: 'client', text: 'axila e pernas' },
+      { role: 'client', text: 'Sim' },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      outboundCount: 3,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        { turn: 1, matches: [/Entendi: axila, pernas\. Certo\?/] },
+        { turn: 2, matches: [/\d{1,2}:\d{2}/] },
+      ],
+      outboundExcludes: NO_LEAK,
+      assert: (s) => {
+        const rows = s.db
+          .all<{ interactive_json: string | null }>(
+            `SELECT o.interactive_json AS interactive_json
+             FROM outbound_messages o
+             JOIN messages m ON m.id = o.message_id
+             WHERE o.tenant_id = ? AND m.conversation_id = ?
+             ORDER BY o.created_at`,
+            s.tenantId,
+            s.conversationId,
+          )
+          .flatMap((msg) => {
+            if (!msg.interactive_json) return []
+            const parsed = JSON.parse(msg.interactive_json) as {
+              list?: { button?: string; sections?: Array<{ rows?: Array<{ title?: string; description?: string }> }> }
+            }
+            if (parsed.list?.button !== 'Horários') return []
+            return parsed.list.sections?.flatMap((section) => section.rows ?? []) ?? []
+          })
+        if (rows.length === 0) return ['A-48: nenhuma lista Horários no outbound']
+        const dupes = rows.filter(
+          (row) => row.description && row.description.trim() === (row.title ?? '').trim(),
+        )
+        if (dupes.length > 0) {
+          return [
+            `A-48: ${dupes.length} linha(s) com description=title (Meta duplica no bubble): ${dupes
+              .map((d) => d.title)
+              .join(', ')}`,
+          ]
+        }
+        return []
+      },
     },
   },
 ]

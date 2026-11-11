@@ -44,18 +44,29 @@ export function dayTextPt(date: string, today?: string | null): string {
   return `${WEEKDAY_LABEL[weekdayOfCivil(date)]} ${d}/${m}`
 }
 
+/** Limite Meta do título da linha da lista (DEC-134 A / Cloud API). */
+const SLOT_LIST_ROW_TITLE_MAX = 24
+
 /**
  * Linha da lista Horários (DEC-138 / #507): uma só forma à cliente —
  * `terça 03/11 17:00` no relógio da clínica, sem fuso IANA e sem mês-dia.
- * Título ≤24 (DEC-134 A); se cortar, a descrição leva o texto completo.
+ * Título ≤24 (DEC-134 A); descrição só quando o título corta — o cliente
+ * WhatsApp ecoa título e descrição no bubble da resposta; se forem iguais,
+ * a cliente vê a linha duplicada.
  */
-export function slotListRowCopy(date: string, time: string): { title: string; description: string } {
+export function slotListRowCopy(
+  date: string,
+  time: string,
+): { title: string; description: string } {
   const wd = weekdayOfCivil(date)
   const [, month, day] = date.split('-')
   const long = WEEKDAY_LABEL[wd] ?? ''
   const full = `${long} ${day}/${month} ${time}`.trim()
+  if (full.length <= SLOT_LIST_ROW_TITLE_MAX) {
+    return { title: full, description: '' }
+  }
   return {
-    title: full,
+    title: `${full.slice(0, Math.max(1, SLOT_LIST_ROW_TITLE_MAX - 1)).trimEnd()}…`,
     description: full,
   }
 }

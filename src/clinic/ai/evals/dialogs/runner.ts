@@ -167,6 +167,11 @@ export type DialogCase = {
      * (nenhuma zona cai em silêncio).
      */
     proposalZones?: string[]
+    /**
+     * Asserções ad-hoc sobre o cenário (ex.: payload interactive da lista Horários).
+     * Devolve mensagens de erro; lista vazia = ok.
+     */
+    assert?: (s: DialogScenario) => string[]
   }
 }
 
@@ -588,6 +593,9 @@ export async function runDialogCase(
           `reviewFlagSource: ${JSON.stringify(row?.review_flagged_source)}, esperado ${JSON.stringify(e.reviewFlagSource)}`,
         )
       }
+    }
+    if (e?.assert) {
+      for (const msg of e.assert(s)) errors.push(msg)
     }
     for (const [i, want] of (e?.flowRuns ?? []).entries()) {
       const got = flowRuns[i]

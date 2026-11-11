@@ -195,10 +195,11 @@ function rememberOfferFrameImpl(
     slots: (patch.pending?.options ?? []).map((o) => {
       const bound = slotBindingFromChoice(o.key, o.label)
       const copy = bound ? slotListRowCopy(bound.date, bound.time) : null
+      const description = copy?.description?.trim()
       return {
         key: o.key,
         label: copy?.title ?? o.label,
-        ...(copy ? { description: copy.description } : {}),
+        ...(description ? { description } : {}),
       }
     }),
   })
