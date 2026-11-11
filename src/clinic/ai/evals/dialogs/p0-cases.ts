@@ -17,6 +17,7 @@
  * A-47: «avaliar» → fila Para revisão + ack; sem pausar IA / limpar frame (DEC-157 / #670).
  * A-44..A-46: singular↔plural + stopwords pt-BR no option matching (Paulo 10/11/2026).
  * A-48: lista Horários sem description=title (Meta echo duplicava o bubble).
+ * A-49: cartão DEC-141 A+B — fillers/stopwords fora; só nomes populares; sem auto-Gravar.
  * G-07b: mid-booking day re-ask com compromisso futuro ≠ remarcação (staging 09/11/2026).
  *   Só copy/botões; apt e frame no mesmo serviço — não fecha troca Depilação→Massagem.
  * G-07c: day re-ask + time pick com apt Massagem e frame Depilação → proposal.serviceId
@@ -35,8 +36,10 @@ import { SimulatedAiAdapter, type AiGenerateInput, type AiGenerateResult } from 
 import {
   acceptUnmatchedTermOp,
   createBlockOp,
+  getService,
   listServices,
   listUnmatchedTermsOp,
+  recordUnmatchedTerm,
   replaceServiceZonesOp,
   upsertServiceOp,
 } from '../../../config'
@@ -1659,6 +1662,53 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         { turn: 0, matches: [/não entendi/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] },
         { turn: 1, matches: [/feminina|masculina/i], excludes: [/não entendi/i, /maps\.|goo\.gl/i] },
       ],
+    },
+  },
+  {
+    id: 'A-49',
+    title: 'Cartão DEC-141 A+B: fillers não sobem; depilar sobe; sem auto-Gravar',
+    turnosIdeais: 1,
+    // Paulo 11/11/2026 A+B: stopwords/fillers fora do cartão; só nomes populares
+    // plausíveis; owner continua a Gravar/Descartar (nunca auto-Gravar).
+    damage: { serviceKey: 'depilacao' },
+    turns: [
+      { role: 'client', text: 'Quero depilar' },
+      {
+        role: 'owner',
+        note: 'filtro A+B: favor / saber disponibilidade fora; depilar no cartão; sinónimos intactos',
+        act: (s) => {
+          recordUnmatchedTerm(s.db, s.tenantId, 'favor', s.clock)
+          recordUnmatchedTerm(s.db, s.tenantId, 'saber disponibilidade', s.clock)
+          recordUnmatchedTerm(s.db, s.tenantId, 'agendamento parte', s.clock)
+          const now = s.clock.nowMs()
+          s.db.run(
+            `INSERT INTO unmatched_terms (tenant_id, id, term, term_folded, hits, status, first_seen_at, last_seen_at)
+             VALUES (?, 'umt_legacy_favor', 'favor', 'favor', 4, 'aberto', ?, ?)
+             ON CONFLICT(tenant_id, term_folded) DO UPDATE SET status = 'aberto', hits = 4`,
+            s.tenantId,
+            now,
+            now,
+          )
+          const items = listUnmatchedTermsOp(s.db, s.caller, s.clock)
+          if (items.some((item) => /favor|saber|disponibilidade|agendamento|parte/i.test(item.term))) {
+            throw new Error(`A-49: filler no cartão (${JSON.stringify(items)})`)
+          }
+          const hit = items.find((item) => item.term === 'depilar')
+          if (!hit) throw new Error(`A-49: «depilar» ausente (${JSON.stringify(items)})`)
+          if (hit.suggestedServiceId !== s.ids.depilacao) {
+            throw new Error(`A-49: serviço provável ${hit.suggestedServiceId}, esperado Depilação`)
+          }
+          const syns = getService(s.db, s.tenantId, s.ids.depilacao)?.synonyms ?? []
+          if (syns.length > 0) {
+            throw new Error(`A-49: auto-Gravar indevido (${JSON.stringify(syns)})`)
+          }
+        },
+      },
+    ],
+    expect: {
+      proposal: false,
+      notPaused: true,
+      turns: [{ turn: 0, matches: [/não entendi/i, /Depilação/], excludes: [/maps\.|goo\.gl/i] }],
     },
   },
   {

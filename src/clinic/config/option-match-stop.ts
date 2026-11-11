@@ -86,3 +86,46 @@ export const OPTION_MATCH_STOP: ReadonlySet<string> = new Set([
   'as',
   'os',
 ])
+
+/**
+ * Palavras de pedido que não casam com nomes do catálogo (prática 10 / #512).
+ * Inclui `OPTION_MATCH_STOP`. Usado por `catalogMissHint` e pelo filtro DEC-141 A+B.
+ */
+export const CATALOG_MISS_STOP: ReadonlySet<string> = new Set([
+  ...OPTION_MATCH_STOP,
+  'fazer',
+  'fazem',
+  'faz',
+  'algo',
+  'esse',
+  'essa',
+  'hoje',
+  'amanha',
+  'segunda',
+  'terca',
+  'quarta',
+  'quinta',
+  'sexta',
+  'sabado',
+  'domingo',
+  'sim',
+  'confirma',
+  'confirmo',
+  'voces',
+  'voce',
+  'tem',
+  'oferecem',
+  'oferece',
+  'procedimento',
+  'servico',
+])
+
+/**
+ * Ruído conversacional extra só para o cartão DEC-141 (Paulo A+B, 11/11/2026).
+ * Não entra no matching de zonas/serviços — só impede registo / UI de sinónimo.
+ */
+export const UNMATCHED_TERM_STOP: ReadonlySet<string> = new Set([
+  ...CATALOG_MISS_STOP,
+  'saber',
+  'disponibilidade',
+])

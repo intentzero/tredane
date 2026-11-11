@@ -565,7 +565,8 @@ export function listUnmatchedTermsOp(
   clock: Clock,
 ): UnmatchedTermSuggestion[] {
   const meta = prepare(db, caller, clock)
-  return listUnmatchedTermSuggestions(db, meta.tenantId)
+  // clock: A+B pode auto-Descartar ruído legado na listagem (sem auto-Gravar).
+  return listUnmatchedTermSuggestions(db, meta.tenantId, clock)
 }
 
 /** DEC-141 / DEC-042: a owner grava o termo como sinónimo do serviço escolhido. */
