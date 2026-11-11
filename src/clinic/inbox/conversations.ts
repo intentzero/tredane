@@ -38,6 +38,20 @@ const AI_DRAFTING_SQL = `EXISTS (
   WHERE j.tenant_id = c.tenant_id AND j.conversation_id = c.id
 )`
 
+/**
+ * Badge de atenção (DEC-159): conversa ainda não lida pelo humano **e**
+ * ainda não atendida pela IA / resposta.
+ *
+ * - Humano não leu: `unread_count > 0` (limpo em `markConversationReadOp`
+ *   / `clearConversationUnread`; recibo em `messages.read_at`).
+ * - IA / resposta ainda não leu: última mensagem continua `inbound`
+ *   (proxy de «lido por IA» sem coluna nova — outbound da IA ou da equipe
+ *   tira do badge; typing DEC-136 na Meta não grava marker local).
+ */
+export const DUAL_UNREAD_SQL = `c.unread_count > 0
+  AND c.last_message_direction = 'inbound'
+  AND c.status != 'closed'`
+
 const CONV_COLS = `c.id, c.tenant_id, c.contact_id, c.status,
   c.assignee_clerk_user_id, c.assignee_display_name, c.assignment_version,
   c.last_message_at, c.last_message_preview, c.last_message_direction,
@@ -400,25 +414,32 @@ export function countInboxFilters(
   viewerClerkUserId: string | undefined,
 ): InboxCounts {
   assertClinicSchemaReady(db)
+  // Chips Todas / Novas / Minhas / Sem responsável: só dual-unread (DEC-159).
+  // A lista do filtro continua a mostrar todas as conversas do critério;
+  // o número no chip é sinal de atenção, não tamanho da lista.
   const all = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM conversations WHERE tenant_id = ?`,
+    `SELECT COUNT(*) AS n FROM conversations c
+     WHERE c.tenant_id = ? AND ${DUAL_UNREAD_SQL}`,
     tenantId,
   )?.n ?? 0
   const neu = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM conversations WHERE tenant_id = ? AND status = 'new'`,
+    `SELECT COUNT(*) AS n FROM conversations c
+     WHERE c.tenant_id = ? AND c.status = 'new' AND ${DUAL_UNREAD_SQL}`,
     tenantId,
   )?.n ?? 0
   const mine = viewerClerkUserId
     ? db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM conversations
-         WHERE tenant_id = ? AND assignee_clerk_user_id = ? AND status != 'closed'`,
+        `SELECT COUNT(*) AS n FROM conversations c
+         WHERE c.tenant_id = ? AND c.assignee_clerk_user_id = ?
+           AND ${DUAL_UNREAD_SQL}`,
         tenantId,
         viewerClerkUserId,
       )?.n ?? 0
     : 0
   const unassigned = db.get<{ n: number }>(
-    `SELECT COUNT(*) AS n FROM conversations
-     WHERE tenant_id = ? AND assignee_clerk_user_id IS NULL AND status != 'closed'`,
+    `SELECT COUNT(*) AS n FROM conversations c
+     WHERE c.tenant_id = ? AND c.assignee_clerk_user_id IS NULL
+       AND ${DUAL_UNREAD_SQL}`,
     tenantId,
   )?.n ?? 0
   const closed = db.get<{ n: number }>(
@@ -447,11 +468,12 @@ export function countInboxFilters(
   }
 }
 
-/** Nº de conversas com não lidas — badge do ícone (sem conteúdo). */
+/** Nº de conversas dual-unread — badge do ícone (sem conteúdo). DEC-159. */
 export function countUnreadConversations(db: ClinicDb, tenantId: string): number {
   return (
     db.get<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM conversations WHERE tenant_id = ? AND unread_count > 0`,
+      `SELECT COUNT(*) AS n FROM conversations c
+       WHERE c.tenant_id = ? AND ${DUAL_UNREAD_SQL}`,
       tenantId,
     )?.n ?? 0
   )
