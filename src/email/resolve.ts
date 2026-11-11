@@ -7,13 +7,7 @@ import type { Clock } from '../db/clock'
 import type { WorkerBindings } from '../worker/bindings'
 import { createCloudflareEmailTransport, type SendEmailBinding } from './cloudflare'
 import { createSimulatedEmailTransport } from './simulated'
-import type {
-  EmailSendResult,
-  EmailTransport,
-  InvitationEmailPayload,
-  SupportAccessRequestEmailPayload,
-  SupportSessionStartedEmailPayload,
-} from './types'
+import type { EmailSendResult, EmailTransport } from './types'
 
 export type EmailTransportName = 'simulated' | 'cloudflare' | 'unavailable'
 
@@ -22,13 +16,13 @@ export function createFailClosedEmailTransport(reason: string): EmailTransport {
     Promise.resolve({ ok: false, error: reason, retryable: false })
   return {
     name: 'unavailable',
-    sendInvitation(_payload: InvitationEmailPayload) {
+    sendInvitation() {
       return fail()
     },
-    sendSupportAccessRequest(_payload: SupportAccessRequestEmailPayload) {
+    sendSupportAccessRequest() {
       return fail()
     },
-    sendSupportSessionStarted(_payload: SupportSessionStartedEmailPayload) {
+    sendSupportSessionStarted() {
       return fail()
     },
   }

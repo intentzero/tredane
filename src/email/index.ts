@@ -30,6 +30,7 @@ export {
   renderInvitationEmail,
   renderSupportAccessRequestEmail,
   renderSupportSessionStartedEmail,
+  sanitizeEmailSubjectPart,
   type RenderedEmail,
 } from './templates'
 export {

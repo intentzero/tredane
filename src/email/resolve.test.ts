@@ -123,7 +123,7 @@ describe('createCloudflareEmailTransport', () => {
     )
   })
 
-  it('recusa APP_BASE_URL localhost e mapeia E_SENDER_NOT_VERIFIED como não retryable', async () => {
+  it('recusa APP_BASE_URL localhost/http e mapeia E_SENDER_NOT_VERIFIED como não retryable', async () => {
     const transport = createCloudflareEmailTransport({
       sendEmail: {
         send: async () => {
@@ -149,6 +149,21 @@ describe('createCloudflareEmailTransport', () => {
       retryable: false,
     })
 
+    const plainHttp = await transport.sendInvitation({
+      toEmail: 'a@example.test',
+      tenantId: 't',
+      tenantName: 'T',
+      invitationId: 'i',
+      rawToken: 'tok',
+      expiresAt: 1,
+      appBaseUrl: 'http://staging.app.tredane.com',
+    })
+    expect(plainHttp).toEqual({
+      ok: false,
+      error: 'app_base_url_https_required',
+      retryable: false,
+    })
+
     const unverified = await transport.sendInvitation({
       toEmail: 'a@example.test',
       tenantId: 't',
@@ -163,6 +178,32 @@ describe('createCloudflareEmailTransport', () => {
       error: 'E_SENDER_NOT_VERIFIED',
       retryable: false,
     })
+  })
+
+  it('sanitiza CRLF no subject do convite', async () => {
+    const send = vi.fn(async () => ({ messageId: 'cf_msg_safe' }))
+    const transport = createCloudflareEmailTransport({
+      sendEmail: { send },
+      from: 'noreply@tredane.com',
+    })
+    await transport.sendInvitation({
+      toEmail: 'a@example.test',
+      tenantId: 't',
+      tenantName: 'Clinica\r\nBcc: evil@x.test',
+      invitationId: 'i',
+      rawToken: 'tok',
+      expiresAt: 1,
+      appBaseUrl: 'https://staging.app.tredane.com',
+    })
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: 'Convite Tredane — Clinica Bcc: evil@x.test',
+      }),
+    )
+    const subject = (send.mock.calls as unknown as Array<[{ subject: string }]>)[0]?.[0]
+      ?.subject
+    expect(subject).toBeDefined()
+    expect(subject!).not.toMatch(/[\r\n]/)
   })
 
   it('marca E_RATE_LIMIT_EXCEEDED como retryable', async () => {

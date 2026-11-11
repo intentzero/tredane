@@ -67,6 +67,10 @@ function assertAppBaseUrl(appBaseUrl: string): EmailSendResult | null {
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(base)) {
     return { ok: false, error: 'app_base_url_not_public', retryable: false }
   }
+  // Links de convite em staging/prod têm de ser HTTPS públicos.
+  if (!/^https:\/\//i.test(base)) {
+    return { ok: false, error: 'app_base_url_https_required', retryable: false }
+  }
   return null
 }
 
