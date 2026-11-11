@@ -9635,8 +9635,10 @@
 }
 
 /* —— Equipe (M-18 / S1) —— */
+/* CTA «Convidar pessoa» fica no fluxo do documento (não sticky). O shell já
+ * reserva espaço sobre a bottom nav; só um fôlego curto no fim da tela. */
 .equipe-screen {
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--space-2);
 }
 
 .equipe-section {
@@ -9755,30 +9757,28 @@
   gap: var(--space-2);
 }
 
+/* Reenviar (secundário) + Cancelar (danger) empilhados na mesma largura —
+ * evita o wrap em que Reenviar (width:100% do secondary) ocupava a linha e
+ * Cancelar (ghost) ficava curto à esquerda. */
 .equipe-invite-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--space-2);
 }
 
 .equipe-action-btn {
-  height: var(--size-control-sm);
-  min-height: var(--size-control-sm);
+  width: 100%;
+  height: var(--size-control-default);
+  min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   font-size: var(--font-size-small);
 }
 
-.equipe-cancel {
-  color: var(--color-danger-ink);
-  border-color: var(--color-line-control);
-}
-
 .equipe-cta {
-  position: sticky;
-  bottom: 0;
-  margin-top: auto;
-  padding: var(--space-3) 0 calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(transparent, var(--color-surface-app) 28%);
+  margin-top: var(--space-2);
+  padding: 0;
+  background: none;
 }
 
 .equipe-cta .panel-btn-primary {

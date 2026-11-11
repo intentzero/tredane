@@ -148,8 +148,12 @@ describe('EquipeScreen — S1', () => {
     await waitFor(() => expect(screen.getByText('bruno@belapele.example')).toBeTruthy())
     const resend = screen.getByRole('button', { name: /Reenviar em \d+ min/ })
     expect(resend).toHaveProperty('disabled', true)
+    expect(resend.className).toMatch(/panel-btn-secondary/)
+    const cancel = screen.getByRole('button', { name: 'Cancelar convite' })
+    expect(cancel.className).toMatch(/panel-btn-danger/)
+    expect(cancel.className).not.toMatch(/equipe-cancel/)
 
-    await user.click(screen.getByRole('button', { name: 'Cancelar convite' }))
+    await user.click(cancel)
     await waitFor(() =>
       expect(api.cancelInvitation).toHaveBeenCalledWith(
         'clinic-demo-a',
@@ -157,6 +161,35 @@ describe('EquipeScreen — S1', () => {
         expect.anything(),
       ),
     )
+  })
+
+  it('mantém Convidar pessoa depois dos convites e o banner Pronto após envio', async () => {
+    const user = userEvent.setup()
+    const api = mockApi(snap({ invitations: [] }))
+    const { container } = render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Convidar pessoa' })).toBeTruthy(),
+    )
+    const convites = container.querySelector('#equipe-convites-t')?.closest('section')
+    const cta = container.querySelector('.equipe-cta')
+    expect(convites).toBeTruthy()
+    expect(cta).toBeTruthy()
+    const position = convites!.compareDocumentPosition(cta!)
+    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'Convidar pessoa' }))
+    await user.type(screen.getByLabelText('E-mail'), 'nova@clinica.example')
+    await user.click(screen.getByRole('button', { name: 'Enviar convite' }))
+    await waitFor(() => expect(screen.getByText('Pronto')).toBeTruthy())
+    expect(screen.getByText(/Convite enviado/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Convidar pessoa' })).toBeTruthy()
   })
 
   it('abre a folha Convidar pessoa e envia com papel', async () => {
