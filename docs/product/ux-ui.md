@@ -88,7 +88,7 @@ No celular, três telas encadeadas: lista (M-01) → conversa (M-02) → detalhe
 
 **Lista de conversas**
 - Item: nome do contato (ou telefone mascarado quando não houver nome), trecho da última mensagem, horário relativo, estado da conversa (Nova / Em atendimento / Encerrada), avatar ou iniciais do responsável atribuído, etapa da oportunidade.
-- Filtros rápidos: **Todas**, **Novas**, **Minhas**, **Sem responsável**, **Encerradas**. Todas as conversas da clínica são visíveis aos dois perfis, inclusive as atribuídas a outra pessoa (DEC-015, AC-16).
+- Filtros rápidos: **Todas**, **Novas**, **Minhas**, **Sem responsável**, **Encerradas**. Todas as conversas da clínica são visíveis aos dois perfis, inclusive as atribuídas a outra pessoa (DEC-015, AC-16). **Confirmado (DEC-159, Paulo, 11/11/2026):** o número nos chips **Todas / Novas / Minhas / Sem responsável** (e o badge do ícone) conta só conversas ainda não lidas pelo humano **e** ainda sem resposta (`unread_count > 0` ∧ última mensagem `inbound`); não é o total de fios abertos. A lista do filtro continua a mostrar todos os itens do critério.
 - Busca por nome ou telefone, limitada à clínica ativa.
 - Ordenação padrão: última interação, mais recente primeiro. **Proposto.**
 - Nova mensagem recebida move o item para o topo, sem tirar o foco do usuário de onde ele está; se a lista estiver rolada, aparece o aviso “1 nova conversa” para voltar ao topo.

@@ -34,7 +34,8 @@ Tabelas: `conversations`, `messages`.
 | POST | `.../assign` · `/read` · `/close` · `/messages` | `clinic.inbox.reply` |
 | POST | `.../inbox/seed-demo` | seed sintético |
 
-Filtros: `all` \| `new` \| `mine` \| `unassigned` \| `closed`.  
+Filtros: `all` \| `new` \| `mine` \| `unassigned` \| `closed` (+ `needs_person` / `for_review`).  
+**DEC-159:** `inboxCounts.all|new|mine|unassigned|unread` = dual-unread (`unread_count > 0` ∧ `last_message_direction = 'inbound'` ∧ não `closed`); a lista do filtro não muda.  
 Transferência valida membership ativa no D1. Concorrência: last-write-wins + `assignmentVersion`; `expectedAssignmentVersion` desalinhado → 409 com vencedor persistido.
 
 Eventos realtime (após commit): `message.created`, `conversation.created|updated|assigned|closed|read`, além de `contact.upserted`. Snapshot `/realtime/snapshot` inclui `conversations` + `inboxCounts`.

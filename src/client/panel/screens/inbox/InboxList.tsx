@@ -247,7 +247,7 @@ export function InboxList({
               {filterLabel(f)}
               {count != null ? (
                 <span
-                  className={`panel-chip-count${(f === 'new' || f === 'needs_person' || f === 'for_review') && count > 0 ? ' panel-chip-count--hot' : ''}`}
+                  className={`panel-chip-count${(f === 'all' || f === 'new' || f === 'mine' || f === 'unassigned' || f === 'needs_person' || f === 'for_review') && count > 0 ? ' panel-chip-count--hot' : ''}`}
                 >
                   {count}
                 </span>

@@ -297,12 +297,19 @@ export type SendOutboundInput = {
 }
 
 export type InboxCounts = {
+  /**
+   * Chip «Todas»: conversas dual-unread (não lidas pelo humano e ainda
+   * sem resposta — DEC-159). Não é o total de fios abertos.
+   */
   all: number
+  /** Chip «Novas»: dual-unread com status `new`. */
   new: number
+  /** Chip «Minhas»: dual-unread atribuídas ao viewer. */
   mine: number
+  /** Chip «Sem responsável»: dual-unread sem assignee. */
   unassigned: number
   closed: number
-  /** Conversas com mensagens não lidas (badge do ícone da app). */
+  /** Dual-unread — badge do ícone da app (DEC-159). */
   unread: number
   /** IA pausada ou alerta de equipe aberto. */
   needsPerson: number
