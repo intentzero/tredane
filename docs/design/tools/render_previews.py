@@ -40,6 +40,8 @@ for name in ('mobile', 'desktop'):
     out = os.path.join(ROOT, '.tmp-html', name)
     os.makedirs(out, exist_ok=True)
     for f in glob.glob(os.path.join(ROOT, name, '*.dc.html')):
+        if '<x-dc>' not in open(f).read():
+            continue  # ficheiro sem moldura do editor (ex. ClientesFicha): sem preview
         open(os.path.join(out, os.path.basename(f).replace('.dc.html', '.html')), 'w').write(conv(open(f).read()))
 
 subprocess.check_call(['node', os.path.join(ROOT, 'tools', 'expand_dc.mjs')], cwd=ROOT)

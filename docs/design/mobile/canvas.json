@@ -546,6 +546,15 @@
       "title": "M-64 Novo serviço: teclado aberto sem cobrir Nome (Confirmado Opção A)",
       "is_interactive": false,
       "radius": 32
+    },
+    "ConversaFocada.dc.html": {
+      "x": 2350,
+      "y": 15768,
+      "w": 390,
+      "h": 844,
+      "title": "M-65 Conversa focada: Agendar + ⋮, handoff junto ao campo (Proposto)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -607,7 +616,8 @@
     "ClinicaPronta.dc.html",
     "ClinicaAssistente.dc.html",
     "ServicosSugestoes.dc.html",
-    "ServicoTeclado.dc.html"
+    "ServicoTeclado.dc.html",
+    "ConversaFocada.dc.html"
   ],
   "notes": {
     "row1": {

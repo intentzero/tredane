@@ -1,5 +1,12 @@
 # Histórico do design
 
+## 11/11/2026 — Conversa focada: Agendar + ⋮ e handoff junto ao campo (**Proposto**)
+
+- Revisão do staging pedida por Paulo («reduzir carga cognitiva», «muitos botões no canto superior direito», Agendar continua prioritário). Novos mocks `desktop/ConversaFocada` (interativo: ⋮ e nome), `desktop/ConversaCabecalhoAntesDepois` e `mobile/ConversaFocada` (M-65). Canvas de trabalho privado: «Tredane — Conversas redesign».
+- Proposta: cabeçalho com 2 controles (Agendar, ⋮), Contato pelo nome; 1 linha de estado; um único cartão «Precisa de alguém» com Assumir acima do compositor; mensagens do sistema como cartões; toques em botões como eventos; painel de contexto com próxima visita; fundo liso.
+- O mock mobile usa só tokens (`check_mocks.py` passa). O desktop usa valores **fora** de `tokens.json`, a converter em tokens se a proposta for aceite: rail `#0A2E2F` / `#134446` / `#1B5A5B` / `#9FC3C1`, avatar quente `#F7E6D2` / `#7A4A12`, IA `#F2EEFC` / `#E4DCF7`, aviso `#FFF1DC` / `#D98A1F` / `#5B4520`, sucesso `#CDE7D8` / `#145A38` / `#24533C`, superfícies `#F7F6F2` / `#F2F1EC` / `#ECEBE5` / `#E8E7E1`; raios 10 e 14 px; fonte 12 e 15 px.
+- Divergências com decisões Confirmadas registadas no README e em `ux-ui.md`; nada implementado.
+
 ## 09/11/2026 — Novo serviço: teclado não cobre Nome (**Confirmado**)
 
 - Mock `mobile/ServicoTeclado` (M-64) e painel: **Confirmado (Paulo, 09/11/2026, Opção A)** — com teclado aberto, `.clinic-footer-sticky` some via `:root[data-keyboard='open']` (`useKeyboardViewport`); ao fechar, o rodapé volta. Sem token novo. Opção B descartada.
