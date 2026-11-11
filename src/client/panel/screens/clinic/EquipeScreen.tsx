@@ -419,7 +419,7 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
                       {resendButtonLabel(inv, nowMs)}
                     </Button>
                     <Button
-                      className="panel-btn panel-btn-ghost equipe-action-btn equipe-cancel"
+                      className="panel-btn panel-btn-danger equipe-action-btn"
                       isDisabled={!inv.manageActions.canCancel || busyId !== null}
                       onPress={() => void onCancel(inv)}
                     >
