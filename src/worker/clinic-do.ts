@@ -1237,6 +1237,10 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       } catch {
         payload = {}
       }
+      // DEC-159: snapshot no D1 central no instante do flag (best-effort).
+      if (ob.type === 'conversation.review_flagged') {
+        await this.#copyReviewSampleBestEffort(caller.tenantId, payload)
+      }
       // DEC-156: push ao entrar handoff (gancho DEC-155 `source: handoff`).
       if (
         ob.type === 'conversation.ai_pause' &&
@@ -1280,6 +1284,105 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       await this.#scheduleNextHandoffTimeout(caller.tenantId)
     }
     return { eventSeq, fanout: fanoutResult }
+  }
+
+  /**
+   * DEC-159 — copia snapshot da conversa flagged para o D1 central.
+   * Best-effort: falha não reverte o flag local nem o ack WhatsApp.
+   */
+  async #copyReviewSampleBestEffort(
+    tenantId: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    const conversationId =
+      typeof payload.conversationId === 'string' ? payload.conversationId : null
+    const source =
+      payload.source === 'client' ||
+      payload.source === 'staff' ||
+      payload.source === 'auto'
+        ? payload.source
+        : null
+    if (!conversationId || !source) return
+    const reason =
+      typeof payload.reason === 'string'
+        ? payload.reason
+        : typeof payload.reviewFlagReason === 'string'
+          ? payload.reviewFlagReason
+          : null
+    const flaggedAt =
+      typeof payload.reviewFlaggedAt === 'number'
+        ? payload.reviewFlaggedAt
+        : this.#clock.nowMs()
+    try {
+      const { copyReviewSampleBestEffort } = await import('../review-samples')
+      let tenantName: string | null = null
+      try {
+        const row = await this.env.DB.prepare(
+          `SELECT name FROM tenants WHERE id = ?`,
+        )
+          .bind(tenantId)
+          .first<{ name: string }>()
+        tenantName = row?.name ?? null
+      } catch {
+        tenantName = null
+      }
+      await copyReviewSampleBestEffort({
+        clinicDb: this.#db,
+        target: { kind: 'd1', db: this.env.DB },
+        tenantId,
+        tenantName,
+        conversationId,
+        source,
+        reason,
+        flaggedAt,
+        nowMs: this.#clock.nowMs(),
+      })
+    } catch {
+      // Best-effort — retry/dead-letter Em aberto na DEC-159.
+    }
+  }
+
+  #conversationIdsFromContactDeletedOutbox(
+    outboxes: readonly OutboxRow[],
+  ): string[] {
+    const ids: string[] = []
+    for (const ob of outboxes) {
+      if (ob.type !== 'contact.deleted') continue
+      try {
+        const payload = JSON.parse(ob.payloadJson) as {
+          conversationIds?: unknown
+        }
+        if (Array.isArray(payload.conversationIds)) {
+          for (const id of payload.conversationIds) {
+            if (typeof id === 'string' && id) ids.push(id)
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    return ids
+  }
+
+  async #purgeReviewSamplesForConversations(
+    tenantId: string,
+    conversationIds: readonly string[],
+  ): Promise<void> {
+    if (conversationIds.length === 0) return
+    try {
+      const { deleteReviewSamplesForConversationD1 } = await import(
+        '../review-samples'
+      )
+      for (const conversationId of conversationIds) {
+        await deleteReviewSamplesForConversationD1(
+          this.env.DB,
+          tenantId,
+          conversationId,
+        )
+      }
+    } catch {
+      /* best-effort */
+    }
   }
 
   /** Próximo `alert_after_at` de comunicação pendente aberta (H7 / DEC-156). */
@@ -1738,6 +1841,14 @@ export class ClinicDurableObject extends DurableObject<ClinicEnv> {
       caller,
       contactId,
       this.#clock,
+    )
+    // DEC-159 / REQ-071: apagar amostras centrais das conversas removidas.
+    const deletedConversationIds = this.#conversationIdsFromContactDeletedOutbox(
+      result.outbox,
+    )
+    await this.#purgeReviewSamplesForConversations(
+      caller.tenantId,
+      deletedConversationIds,
     )
     await this.#fanoutOutboxes(caller, result.outbox, true)
     await this.#drain(caller)

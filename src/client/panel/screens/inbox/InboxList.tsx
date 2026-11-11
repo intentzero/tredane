@@ -32,7 +32,7 @@ const FILTERS: InboxFilter[] = [
   'mine',
   'unassigned',
   'needs_person',
-  'for_review',
+  // DEC-159: filtro «Para revisão» removido do painel — análise via MCP central.
   'closed',
 ]
 
@@ -233,9 +233,7 @@ export function InboxList({
                       ? counts.unassigned
                       : f === 'needs_person'
                         ? (counts.needsPerson ?? 0)
-                        : f === 'for_review'
-                          ? (counts.forReview ?? 0)
-                          : counts.closed
+                        : counts.closed
           const selected = filter === f
           return (
             <Button
@@ -247,7 +245,7 @@ export function InboxList({
               {filterLabel(f)}
               {count != null ? (
                 <span
-                  className={`panel-chip-count${(f === 'all' || f === 'new' || f === 'mine' || f === 'unassigned' || f === 'needs_person' || f === 'for_review') && count > 0 ? ' panel-chip-count--hot' : ''}`}
+                  className={`panel-chip-count${(f === 'all' || f === 'new' || f === 'mine' || f === 'unassigned' || f === 'needs_person') && count > 0 ? ' panel-chip-count--hot' : ''}`}
                 >
                   {count}
                 </span>
@@ -313,7 +311,6 @@ export function InboxList({
                     <span className="inbox-row-meta">
                       <Badge tone={statusTone(c.status)}>{statusLabel(c.status)}</Badge>
                       {c.needsPerson ? <Badge tone="wait">Precisa de alguém</Badge> : null}
-                      {c.forReview ? <Badge tone="open">Para revisão</Badge> : null}
                       {drafting ? <InboxAiDraftingIndicator /> : null}
                       <span className="inbox-row-assignee">
                         {assigneeLine(c, viewerClerkUserId)}

@@ -8,6 +8,11 @@ export type WorkerBindings = {
   ATTACHMENTS: R2Bucket
   INBOUND_EVENTS: Queue
   /**
+   * DEC-159 — KV do Workers OAuth Provider (MCP review-central).
+   * Sem este binding, o MCP aceita só Bearer Clerk de superadmin.
+   */
+  OAUTH_KV?: KVNamespace
+  /**
    * Workflow de expurgo de tenant (#43 polish).
    * Opcional em testes unitários sem binding; declarado em wrangler.jsonc.
    */

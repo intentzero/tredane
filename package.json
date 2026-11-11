@@ -46,6 +46,7 @@
     "@clerk/backend": "3.26.2",
     "@clerk/localizations": "4.24.3",
     "@clerk/react": "6.18.1",
+    "@cloudflare/workers-oauth-provider": "^1.2.4",
     "@fontsource/roboto": "5.3.0",
     "@internationalized/date": "3.12.4",
     "drizzle-orm": "0.45.4",

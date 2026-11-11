@@ -25,6 +25,7 @@ import {
 } from './d1-purge'
 import { recordPurgedTenant } from './guards'
 import { purgeTenantR2Prefix } from './r2-purge'
+import { deleteReviewSamplesForTenantSync } from '../review-samples'
 import type { TenantPurgeStep } from './steps'
 
 export type ClinicWipeResult = {
@@ -142,13 +143,18 @@ async function runStep(
       )
       const invites = cancelPendingInvitesForTenant(adminDb, clock, tenantId)
       const scrubbed = scrubWebhookReceiptPayloads(adminDb, tenantId)
+      // DEC-159 / REQ-071: amostras de revisão cross-tenant no D1 central.
+      deleteReviewSamplesForTenantSync(adminDb, tenantId)
       const next = markPurgeStep(adminDb, clock, {
         commandId: command.id,
         step,
         actorClerkUserId,
-        extraPayload: { memberships, invites, scrubbed },
+        extraPayload: { memberships, invites, scrubbed, reviewSamplesPurged: true },
       })
-      return { command: next, detail: { memberships, invites, scrubbed } }
+      return {
+        command: next,
+        detail: { memberships, invites, scrubbed, reviewSamplesPurged: true },
+      }
     }
     case 'financial_noted': {
       const payload = command.payloadJson

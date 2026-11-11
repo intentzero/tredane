@@ -117,19 +117,14 @@ describe('InboxThread — Bloquear / Excluir no ⋮ (Confirmado TR-488)', () => 
     expect(screen.queryByRole('menuitem', { name: 'Desbloquear contato' })).toBeNull()
   })
 
-  it('menu ⋮ tem Marcar para revisão e chama a API (DEC-157)', async () => {
+  it('menu ⋮ não tem Marcar para revisão (DEC-159 — MCP central)', async () => {
     const api = mockApi({ blocked: false })
     renderThread(api)
     await screen.findByRole('textbox', { name: 'Mensagem' })
     fireEvent.click(screen.getByRole('button', { name: 'Mais opções da conversa' }))
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Marcar para revisão' }))
-    await waitFor(() =>
-      expect(api.flagInboxConversationForReview).toHaveBeenCalledWith(
-        'clinic-demo-a',
-        'cnv_ficticia',
-        expect.anything(),
-      ),
-    )
+    expect(await screen.findByRole('menuitem', { name: 'Encerrar conversa' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Marcar para revisão' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Tirar da revisão' })).toBeNull()
   })
 
   it('owner: Excluir no ⋮ abre diálogo e só chama a API após confirmar', async () => {

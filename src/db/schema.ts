@@ -363,3 +363,51 @@ export const emailDeliveryJobs = sqliteTable('email_delivery_jobs', {
   index('email_delivery_jobs_invitation_idx').on(table.invitationId),
   index('email_delivery_jobs_support_request_idx').on(table.supportRequestId),
 ])
+
+/** DEC-159 — amostras de revisão cross-tenant (snapshot no flag; TTL 30 dias). */
+export const REVIEW_FLAG_SOURCES_CENTRAL = ['client', 'staff', 'auto'] as const
+export type ReviewFlagSourceCentral = (typeof REVIEW_FLAG_SOURCES_CENTRAL)[number]
+
+export const reviewSamples = sqliteTable('review_samples', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  tenantName: text('tenant_name'),
+  conversationId: text('conversation_id').notNull(),
+  contactId: text('contact_id'),
+  contactWaId: text('contact_wa_id'),
+  contactDisplayName: text('contact_display_name'),
+  flagSource: text('flag_source').notNull(),
+  flagReason: text('flag_reason'),
+  flaggedAt: integer('flagged_at').notNull(),
+  copiedAt: integer('copied_at').notNull(),
+  expiresAt: integer('expires_at').notNull(),
+  messageCount: integer('message_count').notNull().default(0),
+  lastMessageAt: integer('last_message_at'),
+  lastMessagePreview: text('last_message_preview'),
+}, (table) => [
+  uniqueIndex('review_samples_tenant_conversation_uidx').on(
+    table.tenantId,
+    table.conversationId,
+  ),
+  index('review_samples_flagged_at_idx').on(table.flaggedAt),
+  index('review_samples_tenant_flagged_idx').on(table.tenantId, table.flaggedAt),
+  index('review_samples_expires_at_idx').on(table.expiresAt),
+  index('review_samples_source_flagged_idx').on(table.flagSource, table.flaggedAt),
+])
+
+export const reviewSampleMessages = sqliteTable('review_sample_messages', {
+  id: text('id').primaryKey(),
+  sampleId: text('sample_id')
+    .notNull()
+    .references(() => reviewSamples.id, { onDelete: 'cascade' }),
+  messageId: text('message_id').notNull(),
+  seq: integer('seq').notNull(),
+  direction: text('direction').notNull(),
+  body: text('body').notNull(),
+  createdAt: integer('created_at').notNull(),
+  deliveryState: text('delivery_state'),
+  authorClerkUserId: text('author_clerk_user_id'),
+  authorDisplayName: text('author_display_name'),
+}, (table) => [
+  index('review_sample_messages_sample_seq_idx').on(table.sampleId, table.seq),
+])
