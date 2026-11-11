@@ -57,8 +57,13 @@ Clínica ativa: `sessionStorage` por aba (AC-17). Troca cancela `AbortController
 2. Método de login: **e-mail + código** (passwordless / email code). Sem MFA (DEC-028).
 3. Copiar Publishable + Secret → `.dev.vars` / secrets Wrangler.
 4. `CLERK_AUTHORIZED_PARTIES` inclui a origem da Clinic App (ex. `http://localhost:5173`).
-5. Paths: permitir `/entrar` e `/cadastro` (e factor paths dos componentes SignIn/SignUp). Cadastro de utilizadores **ligado** no Dashboard (convidada sem conta precisa de SignUp — DEC-021).
-6. Memberships continuam no D1 — criar utilizadores Clerk e mapear `clerk_user_id` nas memberships (não há auto-membership no login; aceite do convite cria o vínculo).
+5. Paths: permitir `/entrar` e `/cadastro` (e factor paths dos componentes SignIn/SignUp).
+6. **Access mode → Open** (API `sign_up_mode=public`). **Não** deixe Invite-only / Restricted: o SignUp mostra «Acesso restrito / Cadastros estão desabilitados…» e o convite D1 (ADR-0008) **não** gera ticket Clerk — o produto não contorna Restricted. O gate de quem entra na clínica continua a ser o aceite do convite Tredane, não o Access mode.
+7. Memberships continuam no D1 — criar utilizadores Clerk e mapear `clerk_user_id` nas memberships (não há auto-membership no login; aceite do convite cria o vínculo).
+
+## Cadastro transparente (UX)
+
+Confirmado (paridade Legal Layer / DEC-021): `/cadastro` e `/entrar` usam `clerkAppearance` com `options.elevation: 'flush'`, `logoPlacement: 'none'`, fundo transparente e marca Tredane fora do Clerk. Isto só estiliza o formulário; se Access mode estiver Invite-only, o cartão Restricted continua a bloquear o cadastro até o passo 6.
 
 ## Fora deste PR
 
