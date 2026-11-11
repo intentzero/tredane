@@ -150,6 +150,24 @@ describe('booking-object', () => {
     expect(booking.serviceId).toBe('svc-depilacao')
   })
 
+  it('staging: «agendamento … parte da manhã» não ecoa miss DEC-151', () => {
+    // Screenshot 11/11/2026: hint era «agendamento parte» → «Não entendi bem «…»».
+    const text = 'Gostaria fazer um agendamento hoje na parte da manhã'
+    expect(catalogMissHint(text, EVAL_BOOKING_CATALOG)).toBeNull()
+    const booking = resolveBookingObject({ text, services: EVAL_BOOKING_CATALOG })
+    expect(booking.handoffReason).not.toBe('inexistente')
+    expect(booking.kind).toBe('clarify')
+    expect(booking.missing).toContain('servico')
+    // DEC-151 real continua: termo que parece serviço sem hit.
+    expect(catalogMissHint('Quero agendar uma mensagem', EVAL_BOOKING_CATALOG)).toBe('mensagem')
+    expect(
+      resolveBookingObject({
+        text: 'Quero agendar uma mensagem',
+        services: EVAL_BOOKING_CATALOG,
+      }).handoffReason,
+    ).toBe('inexistente')
+  })
+
   it('#509 «Quero depilar» casa Depilação quando o sinónimo está na ficha', () => {
     const base = EVAL_BOOKING_CATALOG.find((s) => s.name === 'Depilação')
     expect(base).toBeTruthy()

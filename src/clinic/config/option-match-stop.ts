@@ -32,12 +32,18 @@ export const OPTION_MATCH_STOP: ReadonlySet<string> = new Set([
   // Agendar genérico
   'agendar',
   'agenda',
+  'agendamento',
+  'agendamentos',
   'marcar',
   'marca',
+  'marcacao',
+  'marcacoes',
   'horario',
   'horarios',
   'hora',
   'horas',
+  // Partícula de período («na parte da manhã/tarde») — não é serviço; «Parte íntima» casa pelo resto.
+  'parte',
   'dia',
   'data',
   'consulta',
