@@ -81,17 +81,17 @@ function renderThread(api: PanelApi) {
 }
 
 describe('InboxThread — cabeçalho e Assumir', () => {
-  it('sem responsável: mostra a faixa «Ninguém está atendendo» com Assumir', async () => {
+  it('sem responsável: cartão «Ninguém está atendendo» com Assumir conversa (DEC-161)', async () => {
     renderThread(mockApi(detail()))
     await screen.findByText('Ninguém está atendendo esta conversa.')
-    expect(screen.getByRole('button', { name: 'Assumir' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Assumir conversa' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Agendar horário' })).toBeTruthy()
   })
 
   it('já é minha: não mostra a faixa Assumir', async () => {
     renderThread(mockApi(detail({ status: 'open', assigneeClerkUserId: VIEWER })))
     await screen.findByText('Marina Fictícia')
-    expect(screen.queryByRole('button', { name: 'Assumir' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Assumir conversa' })).toBeNull()
   })
 
   it('de outra pessoa: diz quem está atendendo', async () => {
@@ -112,7 +112,7 @@ describe('InboxThread — cabeçalho e Assumir', () => {
       }),
     )
     await screen.findByText('A IA está pausada. Uma pessoa continua esta conversa.')
-    expect(screen.getByRole('button', { name: 'Assumir' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Assumir conversa' })).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Devolver à IA' }))
     await waitFor(() => expect(resumeInboxAi).toHaveBeenCalledTimes(1))
     expect(assignInboxConversation).not.toHaveBeenCalled()
@@ -365,7 +365,7 @@ describe('InboxThread — Pix pendente em faixa compacta (DEC-065)', () => {
 })
 
 describe('InboxThread — painel do contato (desktop)', () => {
-  it('sem painel, o nome abre a página do contato; com painel, «Contato» e o nome alternam o painel', async () => {
+  it('DEC-161: sem botão «Contato»; o nome alterna o painel do contato', async () => {
     const onToggle = vi.fn()
     render(
       <InboxThread
@@ -377,18 +377,95 @@ describe('InboxThread — painel do contato (desktop)', () => {
         contactPanel={{ open: false, controlsId: 'conversas-contact-panel', onToggle }}
       />,
     )
-    const toggle = await screen.findByRole('button', { name: 'Contato' })
-    expect(toggle.getAttribute('aria-pressed')).toBe('false')
-    expect(toggle.getAttribute('aria-controls')).toBe('conversas-contact-panel')
+    const person = await screen.findByRole('button', { name: /Informações de/ })
+    expect(screen.queryByRole('button', { name: 'Contato' })).toBeNull()
+    expect(person.getAttribute('aria-expanded')).toBe('false')
+    expect(person.getAttribute('aria-controls')).toBe('conversas-contact-panel')
     const user = userEvent.setup()
-    await user.click(toggle)
-    await user.click(screen.getByRole('button', { name: /Informações de/ }))
-    expect(onToggle).toHaveBeenCalledTimes(2)
+    await user.click(person)
+    expect(onToggle).toHaveBeenCalledTimes(1)
   })
 
   it('sem contactPanel (celular) não há botão «Contato»', async () => {
     renderThread(mockApi(detail()))
     await screen.findByRole('button', { name: 'Agendar horário' })
     expect(screen.queryByRole('button', { name: 'Contato' })).toBeNull()
+  })
+})
+
+describe('InboxThread — conversa focada (DEC-161)', () => {
+  it('«[Botão] X» da cliente vira evento «{nome} tocou X»', async () => {
+    renderThread(mockApi(detail({ messages: [message({ body: '[Botão] Confirmar' })] })))
+    expect(await screen.findByText('Confirmar', { selector: '.inbox-msg-event strong' })).toBeTruthy()
+    expect(screen.getByText(/Marina tocou/)).toBeTruthy()
+    expect(screen.queryByText('[Botão] Confirmar')).toBeNull()
+  })
+
+  it('confirmação «Agendado: …» vira cartão Agendado', async () => {
+    renderThread(
+      mockApi(
+        detail({
+          messages: [
+            message({
+              id: 'm2',
+              direction: 'outbound',
+              authorDisplayName: 'Sistema',
+              deliveryState: 'delivered',
+              body: 'Agendado: Limpeza de pele em quinta-feira às 14:30 com Ana.',
+            }),
+          ],
+        }),
+      ),
+    )
+    expect(await screen.findByText('Agendado', { selector: '.inbox-msg-booked-head' })).toBeTruthy()
+    expect(screen.getByText(/Limpeza de pele em quinta-feira/)).toBeTruthy()
+  })
+
+  it('mensagem com 3+ linhas «Rótulo: valor» mostra a grade de campos', async () => {
+    renderThread(
+      mockApi(
+        detail({
+          messages: [
+            message({
+              id: 'm3',
+              direction: 'outbound',
+              authorDisplayName: 'IA',
+              deliveryState: 'delivered',
+              body: 'Serviço: Limpeza de pele\nQuando: quinta às 14:30\nPreço: R$ 150,00\n\nToque em Confirmar para seguir.',
+            }),
+          ],
+        }),
+      ),
+    )
+    expect(await screen.findByText('Serviço', { selector: 'dt' })).toBeTruthy()
+    expect(screen.getByText('R$ 150,00', { selector: 'dd' })).toBeTruthy()
+    expect(screen.getByText(/Toque em Confirmar para seguir/)).toBeTruthy()
+  })
+
+  it('comunicação pendente + sem responsável: um só cartão «Precisa de alguém» com Assumir conversa', async () => {
+    renderThread(
+      mockApi(
+        detail({
+          pendingCommunications: [
+            {
+              id: 'pc1',
+              kind: 'team_followup',
+              status: 'alerted',
+              startedAt: NOW - 6 * 60_000,
+              alertAfterAt: NOW - 60_000,
+              alertedAt: NOW - 6 * 60_000,
+              detailText: 'Resposta automática prometeu retorno da equipe.',
+              proposalId: null,
+            },
+          ],
+        }),
+      ),
+    )
+    const card = await screen.findByTestId('pending-comm-panel')
+    expect(within(card).getByText(/Precisa de alguém · há 6 min/)).toBeTruthy()
+    expect(within(card).getByText('Resposta automática prometeu retorno da equipe.')).toBeTruthy()
+    expect(within(card).getByRole('button', { name: 'Assumir conversa' })).toBeTruthy()
+    expect(screen.queryByText('Comunicação pendente')).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Assumir conversa' })).toHaveLength(1)
   })
 })

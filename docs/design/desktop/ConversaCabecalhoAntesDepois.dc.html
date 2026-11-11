@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Cabeçalho antes e depois</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0E5A5C}a:hover{color:#0A4547}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 760px; height: 844px; box-sizing: border-box; padding: 40px; font-family: Roboto, 'Helvetica Neue', Arial, sans-serif; color: #142625; background: #F5F4EF; display: flex; flex-direction: column; gap: 28px; font-size: 14px; line-height: 1.4">
+  <div>
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #566160">Antes · 4 zonas de estado, 3 botões + 7 itens soltos</div>
+    <div style="margin-top: 10px; background: #FFFFFF; border-radius: 12px; border: 1px solid #E1E3E0; overflow: hidden">
+      <div style="height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px">
+        <div style="width: 32px; height: 32px; border-radius: 50%; background: #FFF7EA; color: #6E4200; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center">GS</div>
+        <div style="flex: 1"><div style="font-weight: 600">Gislaine Santos</div><div style="display: flex; gap: 6px; font-size: 11px"><span style="background: #EAF5EF; color: #1F7A4D; padding: 0 6px; border-radius: 4px">Agendado</span><span style="color: #566160">IA</span></div></div>
+        <span style="font-size: 13px; color: #424B4A; border: 1px dashed #B42318; border-radius: 8px; padding: 4px 8px">Agendar</span>
+        <span style="font-size: 13px; color: #424B4A; border: 1px dashed #B42318; border-radius: 8px; padding: 4px 8px">Contato</span>
+        <span style="font-size: 13px; color: #424B4A; border: 1px dashed #B42318; border-radius: 8px; padding: 4px 8px">⋮</span>
+      </div>
+      <div style="background: #E7F1F1; font-size: 13px; padding: 8px 16px; color: #0A4547; border-top: 1px dashed #B42318">IA está atendendo esta conversa.</div>
+      <div style="background: #FFF7EA; font-size: 13px; padding: 8px 16px; color: #6E4200; border-top: 1px dashed #B42318">Comunicação pendente · Alerta (≥5 min) · Resposta automática prometeu retorno…</div>
+    </div>
+  </div>
+
+  <div style="display: flex; justify-content: center">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#566160" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"></path></svg>
+  </div>
+
+  <div>
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #566160">Depois · 1 linha de estado, 2 controles</div>
+    <div style="margin-top: 10px; background: #FFFFFF; border-radius: 12px; border: 1px solid #E1E3E0; height: 72px; display: flex; align-items: center; gap: 12px; padding: 0 16px">
+      <div style="width: 44px; height: 44px; border-radius: 50%; background: #FFF7EA; color: #6E4200; font-weight: 600; display: flex; align-items: center; justify-content: center">GS</div>
+      <div style="flex: 1"><div style="font-weight: 600; font-size: 16px">Gislaine Santos ›</div><div style="font-size: 13px; color: #566160"><span style="color: #1F7A4D; font-weight: 500">Agendado</span> · qui 12 nov, 14:30 com Gi</div></div>
+      <button style="height: 40px; padding: 0 16px; border-radius: 12px; border: 0; background: #0E5A5C; color: #FFFFFF; font-weight: 600">Agendar</button>
+      <button aria-label="Mais ações" style="width: 40px; height: 40px; border-radius: 12px; border: 1px solid #E1E3E0; background: #FFFFFF; font-size: 18px; color: #424B4A">⋮</button>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+    <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid #E1E3E0; padding: 16px; display: flex; flex-direction: column; gap: 8px">
+      <div style="font-weight: 600">Regra do cabeçalho</div>
+      <div style="font-size: 13px; color: #424B4A">1 ação primária com rótulo (Agendar). Ficha = tocar no nome. Ação contextual (Assumir, Retomar IA) nunca no topo: vive no cartão junto ao compositor.</div>
+    </div>
+    <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid #E1E3E0; padding: 16px; display: flex; flex-direction: column; gap: 8px">
+      <div style="font-weight: 600">⋮ agrupado</div>
+      <div style="font-size: 13px; color: #424B4A">Etapa: Horário proposto, Perdida<br>Equipe: Transferir, Encerrar<br>Risco: Bloquear…, Excluir… (só owner, TR-488)</div>
+    </div>
+    <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid #E1E3E0; padding: 16px; display: flex; flex-direction: column; gap: 8px">
+      <div style="font-weight: 600">Agendar inteligente</div>
+      <div style="font-size: 13px; color: #424B4A">Se já há marcação, o botão continua «Agendar» (nova visita); reagendar/cancelar ficam no cartão da próxima visita.</div>
+    </div>
+    <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid #E1E3E0; padding: 16px; display: flex; flex-direction: column; gap: 8px">
+      <div style="font-weight: 600">Atalhos</div>
+      <div style="font-size: 13px; color: #424B4A">A = Agendar · Enter no cartão = Assumir · ⌘K = trocar de conversa. Menos rato, menos procura.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":760,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

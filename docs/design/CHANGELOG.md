@@ -1,5 +1,26 @@
 # Histórico do design
 
+## 11/11/2026 — DEC-161 implementada no painel
+
+- `InboxThread.tsx`: cabeçalho com Agendar primário (ícone de 44 px no celular) e ⋮ agrupado (`ThreadAction.group`); botão Contato removido (a ficha abre pelo nome); linha de estado em texto; cartão `inbox-handoff` acima do compositor (substitui a faixa «Ninguém/X está atendendo» e o cartão «Comunicação pendente»; «Assumir conversa»); `[Botão] X` → evento `inbox-msg-event`; `Agendado: …` → cartão verde; 3+ linhas «Rótulo: valor» → grade `inbox-msg-fields`; prazo 24 h dentro da barra (`windowHintShort`), pílula só com < 1 h.
+- `InboxList.tsx`: «Precisam de alguém» em segundo, em aviso quando > 0; contadores 0 escondidos. `NeedsPersonAlerts.tsx`: faixa global some se a única conversa à espera é a aberta.
+- `panel.css`: fundo liso, rail escuro `--color-nav-*` (≥ 1280 px), ficha em coluna de 300 px ≥ 1440 px (sem Agendar aberto). `src/client/ui/tokens.css` sincronizado com v0.6.0.
+
+## 11/11/2026 — DEC-161: cinco pontos da Conversa focada (**Confirmado**) · tokens v0.6.0
+
+- Paulo respondeu às divergências uma a uma: fundo liso; ficha em coluna fixa ~300 px no desktop ≥ 1440 px; Agendar como ícone no cabeçalho do celular; prazo 24 h dentro da barra (pílula só < 1 h); rail escuro.
+- **Tokens v0.6.0:** grupo `color.nav` (`base`, `logo`, `active`, `icon`, `iconActive`) em claro e escuro, com dois pares novos em `contrastPairs` (3:1, ícones); `check_contrast.py` passa (58 pares).
+- **Ampliado (Paulo, «Sim, confirma tudo»):** toda a proposta fica Confirmada — cabeçalho com Agendar + ⋮ (Contato pelo nome), linha de estado, cartão único «Precisa de alguém» com Assumir, mensagens do sistema em cartões, toques como eventos, filtro «Precisam de alguém». Atalhos de teclado seguem Proposto.
+- `desktop/ConversaFocada` e `ConversaCabecalhoAntesDepois` passam a usar só tokens (o ponto do símbolo usa o damasco da marca `#E8875A`); a lista de valores fora de tokens da entrada abaixo deixa de valer.
+
+## 11/11/2026 — Conversa focada: Agendar + ⋮ e handoff junto ao campo (**Proposto**)
+
+- Revisão do staging pedida por Paulo («reduzir carga cognitiva», «muitos botões no canto superior direito», Agendar continua prioritário). Novos mocks `desktop/ConversaFocada` (interativo: ⋮ e nome), `desktop/ConversaCabecalhoAntesDepois` e `mobile/ConversaFocada` (M-65). Canvas de trabalho privado: «Tredane — Conversas redesign».
+- Proposta: cabeçalho com 2 controles (Agendar, ⋮), Contato pelo nome; 1 linha de estado; um único cartão «Precisa de alguém» com Assumir acima do compositor; mensagens do sistema como cartões; toques em botões como eventos; painel de contexto com próxima visita; fundo liso.
+- O mock mobile usa só tokens (`check_mocks.py` passa). O desktop usa valores **fora** de `tokens.json`, a converter em tokens se a proposta for aceite: rail `#0A2E2F` / `#134446` / `#1B5A5B` / `#9FC3C1`, avatar quente `#F7E6D2` / `#7A4A12`, IA `#F2EEFC` / `#E4DCF7`, aviso `#FFF1DC` / `#D98A1F` / `#5B4520`, sucesso `#CDE7D8` / `#145A38` / `#24533C`, superfícies `#F7F6F2` / `#F2F1EC` / `#ECEBE5` / `#E8E7E1`; raios 10 e 14 px; fonte 12 e 15 px.
+- ⋮ mantém **Bloquear contato** e **Excluir contato** (só owner) no fim, conforme TR-488 (correção pedida por Paulo no mesmo dia).
+- Divergências com decisões Confirmadas registadas no README e em `ux-ui.md`; nada implementado.
+
 ## 09/11/2026 — Novo serviço: teclado não cobre Nome (**Confirmado**)
 
 - Mock `mobile/ServicoTeclado` (M-64) e painel: **Confirmado (Paulo, 09/11/2026, Opção A)** — com teclado aberto, `.clinic-footer-sticky` some via `:root[data-keyboard='open']` (`useKeyboardViewport`); ao fechar, o rodapé volta. Sem token novo. Opção B descartada.

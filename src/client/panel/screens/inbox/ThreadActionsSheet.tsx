@@ -5,6 +5,17 @@ export type ThreadAction = {
   label: string
   /** Ação destrutiva: texto vermelho e separador antes. */
   danger?: boolean
+  /** DEC-161: grupo do ⋮ (contato · etapa · equipe · destrutivas); separador quando muda. */
+  group?: 'contato' | 'etapa' | 'equipe' | 'risco'
+}
+
+/** Separador antes do item quando o grupo muda (ou na primeira destrutiva). */
+export function startsGroup(actions: ThreadAction[], i: number): boolean {
+  if (i === 0) return false
+  const prev = actions[i - 1]!
+  const cur = actions[i]!
+  if (cur.group || prev.group) return cur.group !== prev.group
+  return !!cur.danger && !prev.danger
 }
 
 type Props = {
@@ -39,7 +50,7 @@ export function ThreadActionsSheet({ open, title, actions, onAction, onClose }: 
           </Heading>
           {actions.map((a, i) => (
             <div key={a.id} style={{ display: 'contents' }}>
-              {a.danger && i > 0 ? <hr className="thread-actions-sep" /> : null}
+              {startsGroup(actions, i) ? <hr className="thread-actions-sep" /> : null}
               <Button
                 className={`thread-actions-item${a.danger ? ' thread-actions-item--danger' : ''}`}
                 onPress={() => {

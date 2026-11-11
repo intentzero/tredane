@@ -1,4 +1,4 @@
-/* Gerado por tools/build_tokens.py a partir de tokens.json v0.5.0 (Confirmado). Não edite à mão. */
+/* Gerado por tools/build_tokens.py a partir de tokens.json v0.6.0 (Confirmado). Não edite à mão. */
 :root {
   --font-family: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-weight-regular: 400;
@@ -39,6 +39,11 @@
   --color-ai-border: #6B3FD4;
   --color-ai-tint: #F7F4FD;
   --color-ai-avatar: #E7E0F8;
+  --color-nav-base: #0A2E2F;
+  --color-nav-logo: #134446;
+  --color-nav-active: #1B5A5B;
+  --color-nav-icon: #9FC3C1;
+  --color-nav-icon-active: #FFFFFF;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -66,7 +71,7 @@
   --size-focus-ring-offset: 2px;
   --size-control-default: 36px;
 }
-/* Tema escuro (Confirmado, DEC-098) */
+/* Tema escuro (Proposto, DEC-092) */
 :root[data-theme="dark"] {
   --color-surface-app: #0F1A19;
   --color-surface-card: #162423;
@@ -95,6 +100,11 @@
   --color-ai-border: #8E6FE8;
   --color-ai-tint: #1D1832;
   --color-ai-avatar: #2C2250;
+  --color-nav-base: #081312;
+  --color-nav-logo: #10292A;
+  --color-nav-active: #133130;
+  --color-nav-icon: #9BA9A8;
+  --color-nav-icon-active: #ECF1F0;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -126,6 +136,11 @@
     --color-ai-border: #8E6FE8;
     --color-ai-tint: #1D1832;
     --color-ai-avatar: #2C2250;
+    --color-nav-base: #081312;
+    --color-nav-logo: #10292A;
+    --color-nav-active: #133130;
+    --color-nav-icon: #9BA9A8;
+    --color-nav-icon-active: #ECF1F0;
     color-scheme: dark;
   }
 }

@@ -9298,7 +9298,8 @@
   --chat-out: #d9f2ee;
   --chat-tick: #2a7fbf;
   --chat-shadow: rgba(11, 20, 26, 0.13);
-  background: var(--chat-wall) var(--chat-doodles) repeat;
+  /* DEC-161 (11/11/2026): fundo liso; a textura de 01/11 sai. */
+  background: var(--color-surface-app);
 }
 
 :root[data-theme='dark'] .inbox-thread {
@@ -10163,4 +10164,306 @@
   margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-small);
+}
+
+
+/* ——— DEC-161 (Paulo, 11/11/2026): conversa focada ———
+ * Cabeçalho com Agendar (primário) + ⋮; linha de estado em texto; um cartão de handoff
+ * junto ao compositor; toques da cliente como eventos; confirmação «Agendado» e propostas
+ * em cartão; prazo de 24 h dentro da barra; rail escuro; ficha em coluna ≥ 1440 px. */
+
+.inbox-thread-header .panel-header-action--primary,
+.conversas-3col .inbox-thread-header .panel-header-action--primary {
+  border-color: var(--color-primary-base);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-base);
+  color: var(--color-text-on-primary);
+  padding: 0 var(--space-4) 0 var(--space-3);
+  gap: var(--space-2);
+}
+
+.inbox-thread-header .panel-header-action--primary[data-hovered],
+.conversas-3col .inbox-thread-header .panel-header-action--primary[data-hovered] {
+  background: var(--color-primary-ink);
+  border-color: var(--color-primary-ink);
+}
+
+.inbox-thread-header .panel-header-action--primary[aria-pressed='true'] {
+  background: var(--color-text-primary);
+  border-color: var(--color-text-primary);
+}
+
+/* Celular: Agendar vira ícone primário de 44 px no cabeçalho (sem faixa de contexto). */
+@media (max-width: 767.98px) {
+  .inbox-thread-header .panel-header-action--primary {
+    width: var(--size-touch);
+    height: var(--size-touch);
+    min-height: var(--size-touch);
+    padding: 0;
+    justify-content: center;
+  }
+
+  .inbox-thread-header .panel-header-action--primary > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* Linha de estado: etapa em texto colorido · responsável. */
+.inbox-thread-header .inbox-stage-chip {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--color-success-ink);
+  font-size: inherit;
+  font-weight: var(--font-weight-medium);
+}
+
+.inbox-thread-header .inbox-stage-chip + span::before {
+  content: '·';
+  margin-right: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+/* Cartão único de handoff, logo acima do compositor. */
+.inbox-handoff {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0 var(--space-4) var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-card);
+  box-shadow: 0 4px 16px rgb(20 38 37 / 8%);
+  flex: none;
+}
+
+.inbox-handoff--alert {
+  border-color: var(--color-warning-border);
+}
+
+.inbox-handoff-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-control-md);
+  height: var(--size-control-md);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-tint);
+  color: var(--color-primary-ink);
+  flex: none;
+}
+
+.inbox-handoff--alert .inbox-handoff-icon {
+  background: var(--color-warning-tint);
+  color: var(--color-warning-ink);
+}
+
+.inbox-handoff-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.inbox-handoff-text strong {
+  display: block;
+  font-size: var(--font-size-body);
+  color: var(--color-warning-ink);
+}
+
+.inbox-handoff-text p {
+  margin: 0;
+}
+
+.inbox-handoff .inbox-handoff-btn {
+  flex: none;
+  min-height: var(--size-control-lg);
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 767.98px) {
+  .inbox-handoff {
+    margin: 0 var(--space-3) var(--space-2);
+  }
+
+  .inbox-handoff .inbox-handoff-btn {
+    flex: 1 1 100%;
+    min-height: var(--size-touch);
+  }
+}
+
+/* «Gislaine tocou Confirmar»: evento discreto, alinhado ao lado da cliente. */
+.inbox-msg-event {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0;
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  border: var(--size-border-width) solid var(--color-line-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.inbox-msg-event strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.inbox-msg-event-time {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption);
+}
+
+/* Confirmação da marcação: cartão verde. */
+.inbox-msg-bubble.inbox-msg-bubble--booked {
+  background: var(--color-success-tint);
+  color: var(--color-text-primary);
+}
+
+.inbox-msg-booked-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1);
+  color: var(--color-success-ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Proposta / resumo com «Rótulo: valor»: grade de campos. */
+.inbox-msg-bubble.inbox-msg-bubble--card {
+  min-width: min(320px, 100%);
+}
+
+.inbox-msg-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+.inbox-msg-field {
+  min-width: 0;
+}
+
+.inbox-msg-field dt {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-muted);
+}
+
+.inbox-msg-field dd {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* Prazo da janela de 24 h dentro da barra (pílula amarela só com < 1 h). */
+.inbox-composer-window {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+  padding: 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption);
+  white-space: nowrap;
+}
+
+/* Celular estreito: só o texto para leitor de tela; a pílula amarela (< 1 h) continua visível. */
+@media (max-width: 479.98px) {
+  .inbox-composer-window > svg,
+  .inbox-composer-window > span[aria-hidden] {
+    display: none;
+  }
+
+  .inbox-composer-window {
+    padding: 0;
+  }
+}
+
+/* Rail escuro da marca (tokens color.nav.*, v0.6.0). */
+@media (min-width: 1280px) {
+  .panel-nav {
+    background: var(--color-nav-base);
+    border-top: 0;
+    border-right: 0;
+  }
+
+  .panel-nav a {
+    color: var(--color-nav-icon);
+    border-radius: var(--radius-lg);
+  }
+
+  .panel-nav a[data-hovered],
+  .panel-nav a:hover {
+    background: var(--color-nav-logo);
+    color: var(--color-nav-icon-active);
+  }
+
+  .panel-nav a[aria-current='page'] {
+    background: var(--color-nav-active);
+    color: var(--color-nav-icon-active);
+  }
+
+  .panel-nav a:focus-visible {
+    outline: var(--size-focus-ring-width) solid var(--color-nav-icon-active);
+    outline-offset: var(--size-focus-ring-offset);
+  }
+
+  .panel-nav-brand {
+    background: var(--color-surface-card);
+    border-radius: var(--radius-lg);
+    padding: var(--space-1);
+  }
+
+  .panel-nav-actions {
+    color: var(--color-nav-icon);
+  }
+}
+
+/* Ficha do contato em coluna fixa de ~300 px a partir de 1440 px (abaixo: painel DEC-069). */
+@media (min-width: 1440px) {
+  .conversas-3col[data-contact='open']:not([data-agendar='open']),
+  .conversas-3col:not(.conversas-3col--drawer)[data-contact='open']:not([data-agendar='open']) {
+    grid-template-columns:
+      var(--conversas-list-width)
+      minmax(var(--conversas-thread-min), 1fr)
+      300px;
+  }
+
+  .conversas-3col[data-contact='open']:not([data-agendar='open']) > .conversas-3col-contact {
+    position: relative;
+    inset: auto;
+    grid-column: 3;
+    grid-row: 1;
+    width: auto;
+    min-height: 0;
+    overflow-y: auto;
+    z-index: auto;
+    box-shadow: none;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* DEC-161: chip «Precisam de alguém» em aviso quando há conversas à espera. */
+.panel-chip.panel-chip--warn:not([aria-pressed='true']) {
+  background: var(--color-warning-tint);
+  border-color: var(--color-warning-border);
+  color: var(--color-warning-ink);
+}
+
+.panel-chip-count.panel-chip-count--warn {
+  background: var(--color-warning-ink);
+  color: var(--color-surface-card);
 }
