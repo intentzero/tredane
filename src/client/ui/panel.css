@@ -1256,6 +1256,27 @@
   min-height: var(--size-control-default);
 }
 
+/* Casas do OTP (Verifique seu e-mail): borda de controlo visível no cartão branco. */
+.panel-clerk-otp-input,
+.cl-otpCodeFieldInput.panel-clerk-otp-input {
+  border: var(--size-border-width) solid var(--color-line-control) !important;
+  background: var(--color-surface-card) !important;
+  color: var(--color-text-primary) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+}
+
+.panel-clerk-otp-input:focus,
+.panel-clerk-otp-input:focus-visible,
+.panel-clerk-otp-input[data-focus-within='true'],
+.cl-otpCodeFieldInput.panel-clerk-otp-input:focus,
+.cl-otpCodeFieldInput.panel-clerk-otp-input:focus-visible,
+.cl-otpCodeFieldInput.panel-clerk-otp-input[data-focus-within='true'] {
+  border-color: var(--color-primary-base) !important;
+  box-shadow: 0 0 0 2px var(--color-primary-tint) !important;
+  outline: none !important;
+}
+
 @media (min-width: 768px) {
   .panel-app {
     /* Menu lateral: largura total. O cap de 960 px do telemóvel deixava

@@ -1,6 +1,11 @@
 /**
  * Aparência Clerk partilhada (SignIn + UserProfile modal).
  * Cores/fonte alinhadas aos tokens do painel (DEC-041 / DEC-050 / DEC-073).
+ *
+ * OTP: Clerk aplica opacidade baixa a `colorBorder`. Com `--color-line-border`
+ * (#E1E3E0) as 6 casas do código ficam quase invisíveis no cartão branco —
+ * só a célula focada mostra um traço fraco. `otpCodeFieldInput` usa a borda
+ * de controlo (3:1, DEC-041) e o anel de foco fica no teal primário.
  */
 export const clerkAppearance = {
   variables: {
@@ -13,6 +18,7 @@ export const clerkAppearance = {
     colorInputForeground: 'var(--color-text-primary)',
     colorNeutral: 'var(--color-text-primary)',
     colorBorder: 'var(--color-line-border)',
+    colorRing: 'var(--color-primary-base)',
     colorDanger: 'var(--color-danger-ink)',
     borderRadius: 'var(--radius-lg)',
     fontFamily: 'var(--font-family)',
@@ -25,5 +31,6 @@ export const clerkAppearance = {
     headerSubtitle: 'panel-clerk-subtitle',
     formButtonPrimary: 'panel-clerk-primary',
     footerAction: 'panel-clerk-footer',
+    otpCodeFieldInput: 'panel-clerk-otp-input',
   },
 } as const
