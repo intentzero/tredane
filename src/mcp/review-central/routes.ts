@@ -114,6 +114,15 @@ async function resolveAuth(
     if (isAuthError(err) && err.status === 401) {
       return unauthorizedMcpResponse(c.env, c.req.raw.url, err.message)
     }
+    // Clientes MCP (Cursor URL) frequentemente não enviam Origin. Se não há Cookie
+    // de sessão, origin_rejected não protege CSRF — devolver desafio OAuth 401.
+    if (
+      isAuthError(err) &&
+      err.code === 'origin_rejected' &&
+      !c.req.raw.headers.get('Cookie')
+    ) {
+      return unauthorizedMcpResponse(c.env, c.req.raw.url, err.message)
+    }
     return authErrorResponse(id, err)
   }
 }

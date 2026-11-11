@@ -30,7 +30,9 @@ export function createClerkSessionAuthenticator(
       const usesBearer = requestUsesBearer(request)
 
       // Cookie sem Origin válida → negar antes de confiar na sessão.
-      if (!usesBearer) {
+      // Sem Cookie (ex.: cliente MCP URL sem Bearer), não exigir Origin —
+      // senão tools/list devolve 403 origin_rejected em vez do desafio OAuth 401.
+      if (!usesBearer && request.headers.get('Cookie')) {
         try {
           assertCookieOriginAllowed(request, config.authorizedParties)
         } catch {

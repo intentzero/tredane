@@ -160,6 +160,26 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`)
 }
 
+/** HTML quando /authorize GET não tem sessão Clerk superadmin (evita stall em text/plain). */
+export function authorizeLoginRequiredHtml(
+  loginUrl: string,
+  message: string,
+): string {
+  return `<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Tredane — login para autorizar MCP</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:32rem;margin:2rem auto;padding:0 1rem;line-height:1.45}
+a.button{display:inline-block;margin:.75rem .5rem .75rem 0;padding:.5rem 1rem;background:#111;color:#fff;text-decoration:none;border-radius:4px}
+</style></head><body>
+<h1>É preciso entrar no painel</h1>
+<p>${escapeHtml(message)}</p>
+<p>Abra o login numa conta com <code>privateMetadata.superadmin === true</code>, depois volte a esta página (ou reinicie o OAuth no Cursor).</p>
+<p><a class="button" href="${escapeHtml(loginUrl)}">Abrir login Tredane</a></p>
+<p style="color:#555;font-size:.9rem">URL desta autorização: mantenha o separador do Cursor aberto até concluir o consentimento.</p>
+</body></html>`
+}
+
 function consentPageHtml(
   details: {
     clientName: string
@@ -234,12 +254,15 @@ export async function handleReviewMcpAuthorize(
           { verifySuperadmin: true },
         )
       } catch (err) {
+        const loginUrl = `${reviewMcpIssuerUrl(env, request.url)}/entrar`
         const msg = isAuthError(err)
           ? err.message
           : 'Entre no painel como superadmin (sessão Clerk) e volte a abrir este URL.'
-        return new Response(msg, {
+        // Sem redirect automático ao Clerk (forceRedirect do painel não volta ao /authorize).
+        // HTML com link explícito evita o stall do browser OAuth em texto «Sessão ausente».
+        return new Response(authorizeLoginRequiredHtml(loginUrl, msg), {
           status: 401,
-          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
         })
       }
       const details = await oauth.describeConsent(authRequest)
