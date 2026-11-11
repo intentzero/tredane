@@ -1281,9 +1281,9 @@ export async function tryAiAutoBook(
   const turnFacts = scheduleFactsFromText(turnText)
   // rsamp_f3b49 / TR-528: «Na sexta na parte da manhã» após oferta de «amanhã à tarde»
   // — detectExplicitConfirmation não devolve dia (sem serviço no turno), o sticky
-  // amanhã ficava, e só o período remapeava → «amanhã de manhã». Remapear date (e
-  // period se nomeado) antes da oferta.
-  if (session?.serviceId && turnFacts.dayLabel) {
+  // amanhã ficava, e só o período remapeava → «amanhã de manhã». Remapear só quando
+  // o turno nomeia dia E período (G-07c «Para hoje» é dia-só: não wipe pending).
+  if (session?.serviceId && turnFacts.dayLabel && turnFacts.period) {
     const todayCivil = clinicCivilDateFromUtc(tz, confirmation.created_at)
     const dayAbsolute = [...extractDates(turnFacts.dayLabel, todayCivil)][0] ?? null
     const stickyDate = frame?.date ?? date ?? null
@@ -1291,11 +1291,7 @@ export async function tryAiAutoBook(
       saveSession({
         serviceId: session.serviceId,
         date: dayAbsolute,
-        ...(turnFacts.period
-          ? { period: turnFacts.period }
-          : session.period
-            ? { period: null }
-            : {}),
+        period: turnFacts.period,
         pending: null,
         lastOffer: null,
       })
