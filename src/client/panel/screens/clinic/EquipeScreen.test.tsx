@@ -113,6 +113,31 @@ function mockApi(team: TeamSnapshot): PanelApi {
 }
 
 describe('EquipeScreen — S1', () => {
+  it('enquanto carrega mostra esqueleto de lista, não spinner órfão', async () => {
+    let resolveTeam!: (value: TeamSnapshot) => void
+    const pending = new Promise<TeamSnapshot>((resolve) => {
+      resolveTeam = resolve
+    })
+    const api = {
+      getTeam: vi.fn(async () => pending),
+    } as unknown as PanelApi
+    const { container } = render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    const status = screen.getByRole('status')
+    expect(status.getAttribute('aria-busy')).toBe('true')
+    expect(screen.getByText('Carregando equipe…').className).toContain('panel-sr-only')
+    expect(container.querySelectorAll('.panel-skeleton-row')).toHaveLength(5)
+    expect(container.querySelector('.panel-spin')).toBeNull()
+    resolveTeam(snap())
+    await waitFor(() => expect(screen.getByText('Luciana Moraes (você)')).toBeTruthy())
+  })
+
   it('mostra nome e e-mail dos membros, não o clerkUserId como rótulo', async () => {
     const api = mockApi(snap())
     render(
