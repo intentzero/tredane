@@ -92,6 +92,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0019_whatsapp_flow_opened_at.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0020_review_samples.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

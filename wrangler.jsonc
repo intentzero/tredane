@@ -23,8 +23,21 @@
   },
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    // DEC-159: OAuth MCP + discovery fora de /api/*.
+    "run_worker_first": ["/api/*", "/authorize", "/oauth/*", "/.well-known/*"]
   },
+  // DEC-159 — TTL 30 dias das amostras de revisão (cron diário).
+  "triggers": {
+    "crons": ["15 4 * * *"]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      // Local/preview placeholder — substituir por ID real após `wrangler kv namespace create tredane-oauth`.
+      "id": "00000000000000000000000000000001",
+      "preview_id": "00000000000000000000000000000001"
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
@@ -142,6 +155,16 @@
           "allowed_sender_addresses": ["noreply@tredane.com"]
         }
       ],
+      "triggers": {
+        "crons": ["15 4 * * *"]
+      },
+      "kv_namespaces": [
+        {
+          "binding": "OAUTH_KV",
+          // Ops gate: `wrangler kv namespace create tredane-oauth-staging` e substituir o id.
+          "id": "UNPROVISIONED_OAUTH_KV_STAGING"
+        }
+      ],
       "d1_databases": [
         {
           "binding": "DB",
@@ -208,6 +231,15 @@
         {
           "name": "EMAIL",
           "allowed_sender_addresses": ["noreply@tredane.com"]
+        }
+      ],
+      "triggers": {
+        "crons": ["15 4 * * *"]
+      },
+      "kv_namespaces": [
+        {
+          "binding": "OAUTH_KV",
+          "id": "UNPROVISIONED_OAUTH_KV_PRODUCTION"
         }
       ],
       "d1_databases": [

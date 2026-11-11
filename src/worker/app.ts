@@ -85,7 +85,7 @@ import {
   createOpsRoutes,
   type OpsRouteOptions,
 } from '../ops'
-import { createReviewMcpRoutes } from '../mcp/review'
+import { createReviewCentralMcpRoutes } from '../mcp/review-central'
 import type { Clock } from '../db/clock'
 import type { EmailTransport } from '../email'
 import type { AdminDb } from '../db/admin/store'
@@ -192,12 +192,13 @@ export function createApp(opts: CreateAppOptions = {}) {
   app.use('/api/f6/*', createAuthServicesMiddleware(factory))
   app.use('/api/mcp/*', createAuthServicesMiddleware(factory))
 
-  // DEC-158 — MCP read-only da fila Para revisão (sobre DEC-157 / #670).
+  // DEC-159 — MCP cross-tenant de amostras de revisão (D1 central; OAuth + Bearer superadmin).
   app.route(
     '/',
-    createReviewMcpRoutes({
+    createReviewCentralMcpRoutes({
       authServicesFactory: factory,
-      inboxGatewayFactory: opts.inboxGatewayFactory,
+      syncAdminDbFactory: opts.syncAdminDbFactory,
+      clockFactory: opts.clockFactory,
     }),
   )
 

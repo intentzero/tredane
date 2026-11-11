@@ -76,7 +76,9 @@
 
 **Confirmado** (DEC-157): fila «Para revisão» nas Conversas + comando WhatsApp `avaliar`/`feedback` + auto-flag em friction `nao_encontrei`. Corpos ficam nas `messages` do DO; API estável `GET /review/conversations` (pré-requisito MCP). Não pausa a IA (orthogonal a DEC-083).
 
-**Confirmado** (DEC-158, Paulo prefs 10/11/2026): MCP multi-tenant **só leitura** em `POST /api/mcp/review` sobre a API DEC-157 — tools `list_review_conversations`, `get_review_conversation`, `propose_review_diagnosis` (diagnóstico agent-side; servidor não chama LLM nem persiste). Auth = Clerk session Bearer (igual ao painel); `tenantId` obrigatório; membership + `clinic.inbox.read`; sem dump cross-tenant; sem retenção LGPD nova. Desenho: store `docs/review-conversations-mcp.md`.
+**Confirmado** (DEC-158, Paulo prefs 10/11/2026; **substituído** na superfície MCP por DEC-159): MCP tenant-scoped `/api/mcp/review` foi removido.
+
+**Confirmado** (DEC-159, Paulo 11/11/2026): amostras de revisão no **D1 central** (`review_samples` + mensagens); cópia no instante do flag; MCP `POST /api/mcp/review-central` cross-tenant **sem** `tenantId` obrigatório; OAuth MCP (Workers OAuth Provider) + fallback Bearer Clerk **superadmin**; TTL 30 dias (cron); painel Conversas sem filtro/⋮ «Para revisão». Desenho: store `docs/review-mcp-central-store.md`.
 
 **Confirmado** (DEC-138, [ADR-0016](../adr/0016-whatsapp-flow-agendamento.md)): o caminho principal de agendar é um WhatsApp Flow por ids (`data_exchange`, quatro passos). O texto livre continua e preenche o mesmo quadro, com o eco da DEC-137. Se o Flow não abrir, o chat assume. O Flow não marca: no fim, o chat envia a proposta, e só o Confirmar marca (DEC-061).
 

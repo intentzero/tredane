@@ -1,10 +1,8 @@
 /**
- * Subconjunto MCP Streamable HTTP (JSON-RPC) para o servidor de revisão.
- * Stateless POST only — sem sessão SSE neste corte (DEC-158).
+ * Subconjunto MCP Streamable HTTP (JSON-RPC) — revisão cross-tenant (DEC-159).
  */
-
 export const MCP_PROTOCOL_VERSION = '2025-03-26'
-export const MCP_SERVER_NAME = 'tredane-review-conversations'
+export const MCP_SERVER_NAME = 'tredane-review-central'
 export const MCP_SERVER_VERSION = '1.0.0'
 
 export type JsonRpcId = string | number | null
@@ -33,7 +31,6 @@ export const JSON_RPC_INVALID_REQUEST = -32600
 export const JSON_RPC_METHOD_NOT_FOUND = -32601
 export const JSON_RPC_INVALID_PARAMS = -32602
 export const JSON_RPC_INTERNAL_ERROR = -32603
-/** Erros de aplicação (auth, tenant, not found) — fora do intervalo reservado. */
 export const JSON_RPC_APPLICATION_ERROR = -32000
 
 export function jsonRpcSuccess(id: JsonRpcId, result: unknown): JsonRpcSuccess {
@@ -72,7 +69,10 @@ export function toolTextResult(payload: unknown): {
   }
 }
 
-export function toolErrorResult(message: string, data?: unknown): {
+export function toolErrorResult(
+  message: string,
+  data?: unknown,
+): {
   content: Array<{ type: 'text'; text: string }>
   isError: true
   structuredContent?: unknown

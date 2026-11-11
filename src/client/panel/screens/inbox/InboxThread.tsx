@@ -649,46 +649,6 @@ export function InboxThread({
     }
   }
 
-  /** DEC-157 — marcar / limpar revisão (reversível; não pausa a IA). */
-  async function toggleReviewFlag(flag: boolean) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      const res = flag
-        ? await api.flagInboxConversationForReview(tenantId, conversationId, {
-            generation,
-            expectGeneration: () => generation,
-          })
-        : await api.clearInboxConversationReviewFlag(tenantId, conversationId, {
-            generation,
-            expectGeneration: () => generation,
-          });
-      setDetail((prev) =>
-        prev
-          ? {
-              ...prev,
-              ...res.conversation,
-              forReview: res.conversation.forReview ?? flag,
-              reviewFlaggedAt: res.conversation.reviewFlaggedAt ?? null,
-              reviewFlaggedSource: res.conversation.reviewFlaggedSource ?? null,
-              reviewFlagReason: res.conversation.reviewFlagReason ?? null,
-            }
-          : prev,
-      );
-    } catch (err) {
-      setNotice(
-        friendlyError(
-          err,
-          flag
-            ? "Não foi possível marcar para revisão."
-            : "Não foi possível tirar da revisão.",
-        ),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function refundAlert(a: PixPaymentAlert) {
     setBusy(true);
     setNotice(null);
@@ -1287,10 +1247,7 @@ export function InboxThread({
     ...(detail.status !== "closed"
       ? [{ id: "close", label: "Encerrar conversa" }]
       : []),
-    // DEC-157: fila de revisão (não pausa a IA; reversível).
-    ...(detail.forReview
-      ? [{ id: "clear-review", label: "Tirar da revisão" }]
-      : [{ id: "flag-review", label: "Marcar para revisão" }]),
+    // DEC-159: ⋮ marcar/limpar revisão removido — análise via MCP central.
     // Destrutivas no fim: Bloquear (equipa) e Excluir (só owner / REQ-071).
     ...(!blocked
       ? [{ id: "block", label: "Bloquear contato", danger: true }]
@@ -1319,8 +1276,6 @@ export function InboxThread({
     if (id === "stage-lost") void correctStage("perdido");
     if (id === "transfer") setTransferOpen(true);
     if (id === "close") setConfirmClose(true);
-    if (id === "flag-review") void toggleReviewFlag(true);
-    if (id === "clear-review") void toggleReviewFlag(false);
     if (id === "block") {
       setBlockError(null);
       setBlockOpen(true);
