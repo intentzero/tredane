@@ -120,7 +120,21 @@ describe('slot-offer (#413 CF-15 / CF-19 / #448)', () => {
     // Sexta 13/11 11:15 (caso do smoke): uma linha só no reply Meta.
     const fri = slotListRowCopy('2026-11-13', '11:15')
     expect(fri).toEqual({ title: 'sexta 13/11 11:15', description: '' })
-    expect(fri.title).not.toBe(`${fri.description}`)
+    // Forma actual (weekday+DD/MM+HH:MM) ≤24 para todos os dias — description
+    // só existiria se o formato crescer; o ramo >24 fica coberto em choice-offer.
+    for (const date of [
+      '2026-11-02',
+      '2026-11-03',
+      '2026-11-04',
+      '2026-11-05',
+      '2026-11-06',
+      '2026-11-07',
+      '2026-11-08',
+    ]) {
+      const copy = slotListRowCopy(date, '17:00')
+      expect(copy.title.length, date).toBeLessThanOrEqual(24)
+      expect(copy.description, date).toBe('')
+    }
   })
 
   it('periodFromHHMM classifica manhã/tarde/noite', () => {

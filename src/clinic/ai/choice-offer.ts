@@ -324,12 +324,10 @@ export function buildSlotChoiceInteractive(input: {
             const title = clip(o.label, META_LIST_ROW_TITLE_MAX)
             const description = o.description?.trim()
             // Meta ecoa título + description no bubble do list_reply; iguais →
-            // linha duplicada («sexta 13/11 11:15» ×2). Só enviar description
-            // quando acrescenta (DEC-134 A: full text após corte do título).
-            const distinct =
-              description && description !== title && description !== o.label.trim()
-                ? description
-                : ''
+            // linha duplicada («sexta 13/11 11:15» ×2). Comparar com o título
+            // já cortado: se description === label completo (>24) e title corta,
+            // a description deve ficar (DEC-134 A) — não comparar com o.label.
+            const distinct = description && description !== title ? description : ''
             return {
               id: encodeChoiceId('horario', input.catalogVersion, o.key),
               title,

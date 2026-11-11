@@ -203,6 +203,21 @@ describe('choice-offer ids', () => {
     expect(row.title).toBe('sexta 13/11 11:15')
     expect(row.description).toBeUndefined()
   })
+
+  it('lista Horários: description full fica quando o título corta (DEC-134 A)', () => {
+    // Caller antigo (label=description=full >24): o título Meta corta, a
+    // description deve permanecer — não deduplicar contra o.label.
+    const full = 'quarta-feira 13/11 11:15 extra'
+    expect(full.length).toBeGreaterThan(24)
+    const built = buildSlotChoiceInteractive({
+      catalogVersion: '9',
+      slots: [{ key: '2026-11-13T11:15', label: full, description: full }],
+    })
+    const row = built.interactive.sections.flatMap((s) => s.rows)[0]!
+    expect(row.title.length).toBeLessThanOrEqual(24)
+    expect(row.title).not.toBe(full)
+    expect(row.description).toBe(full)
+  })
 })
 
 describe('validateChoiceAgainstFrame', () => {
