@@ -889,6 +889,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
           fo={fo}
           ctx={ctx}
           service={service}
+          line={line}
           zoneIds={visit.zones.map((z) => z.id)}
           slot={selected}
           date={date}
@@ -1017,6 +1018,8 @@ type ReviewProps = {
   fo: { generation: number; expectGeneration: () => number }
   ctx: ScheduleContext
   service: Service
+  /** Linha «Para quem» do Agendar — prevalece sobre a inferida nas variantes (ex.: só `ambos`). */
+  line: Line | null
   zoneIds: string[]
   slot: AvailabilitySlot
   date: string
@@ -1306,7 +1309,8 @@ function ReviewSheet(p: ReviewProps) {
       ? 'Conta Pix desconectada. A responsável liga o recebimento em Clínica → Recebimento.'
       : null
 
-  const reviewLine = lineOf(visitQuote(service, p.zoneIds).zones)
+  // Preferir a linha do Agendar: variantes só `ambos` não bastam para `lineOf` (fica null).
+  const reviewLine = p.line ?? lineOf(visitQuote(service, p.zoneIds).zones)
   const reviewServiceLabel = reviewLine
     ? `${service.name} · ${genderLabel(reviewLine)} · ${Math.round((slot.endsAt - slot.startsAt) / 60000)} min`
     : base.serviceLabel

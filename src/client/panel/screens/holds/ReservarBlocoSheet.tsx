@@ -85,6 +85,13 @@ export function ReservarBlocoSheet(props: Props) {
     setEditDetails(false)
     setCustomDuration(false)
     setNotify(true)
+    setSlots(null)
+    setSlotStartsAt(null)
+    // Herança do Agendar já nesta abertura — sem `prev ||` e sem esperar o config
+    // (reabrir depois de trocar serviço/profissional/dia no Agendar não fica com o anterior).
+    setServiceId(initialServiceId ?? '')
+    setProfessionalId(initialProfessionalId ?? '')
+    setDate(initialDate ?? '')
     let cancelled = false
     api
       .getClinicConfig(tenantId, { generation, expectGeneration: () => generation })
@@ -93,7 +100,6 @@ export function ReservarBlocoSheet(props: Props) {
         setConfig(snap)
         setClinicTimezone(tenantId, snap.settings.timezone)
         // DEC-150: o bloco com duração ajustável só vale para serviço sem variantes.
-        // Em cada abertura aplica a herança do Agendar (sem `prev ||`, que ignorava a troca).
         const activeServices = snap.services.filter((s) => s.active && !hasActiveVariants(s))
         const carried = activeServices.find((s) => s.id === initialServiceId)
         const picked = carried ?? (activeServices.length === 1 ? activeServices[0]! : undefined)
