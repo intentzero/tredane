@@ -31,6 +31,13 @@ const VAGUE_ASK =
   /^(tudo bem|td bem|e a[ií]|opa)[\s!.?]*$/i
 const VAGUE_BOOK =
   /\b(quero|gostaria|marcar|agendar|hor[aá]rio|disponi|vaga|atendimento)\b/i
+/**
+ * Dia / período no pedido vago: já há intenção de marcar (não é «Oi» / «quero marcar»).
+ * Sem import de `debounce` (ciclo com `isHubGreetingText`). Paulo 07/11/2026:
+ * Abrir opções só na abertura sem pedido.
+ */
+const VAGUE_BOOK_HAS_WHEN =
+  /\b(hoje|amanh[aã]|segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo|manh[aã]|tarde|noite|\d{1,2}\/\d{1,2})\b/i
 
 /** Cumprimento / «tudo bem» puro — sem dia/período de marcação. */
 export function isHubGreetingText(text: string): boolean {
@@ -114,6 +121,8 @@ export function shouldOfferHubOpening(input: {
       zones: s.zones ?? [],
     })) as ServiceRow[]
     if (catalogMissHint(text, forMiss)) return false
+    // «… hoje na parte da manhã» / dia+período: clarify serviço, não reabrir hub.
+    if (VAGUE_BOOK_HAS_WHEN.test(text)) return false
     return true
   }
   return false

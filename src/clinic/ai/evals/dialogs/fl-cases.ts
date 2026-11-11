@@ -574,4 +574,30 @@ export const FL_DIALOG_CASES: DialogCase[] = [
       ],
     },
   },
+  {
+    id: 'FL-23',
+    title: 'Agendar hoje de manhã sem serviço: clarify, sem eco «agendamento parte»',
+    turnosIdeais: 1,
+    // Staging 11/11/2026: stopwords + dia/período → perguntar serviço; não DEC-151 miss nem hub.
+    flow: true,
+    turns: [{ role: 'client', text: 'Gostaria fazer um agendamento hoje na parte da manhã' }],
+    expect: {
+      flowOffers: 0,
+      proposal: false,
+      notPaused: true,
+      turns: [
+        {
+          turn: 0,
+          matches: [/Qual serviço|serviço você quer|Temos /i],
+          excludes: [
+            HUB_OPENING,
+            /Abrir opções/,
+            /Olá! Aqui é/,
+            /não entendi/i,
+            /agendamento parte/i,
+          ],
+        },
+      ],
+    },
+  },
 ]

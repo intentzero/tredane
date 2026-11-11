@@ -114,16 +114,15 @@ describe('hub opening / Meus / Informações (TR-306 Confirmado)', () => {
     }
     // Abertura vaga continua. «Quero depilar» sem sinónimo e typo de serviço
     // (DEC-151) NÃO abrem o hub — vão ao «não entendi» / catálogo (A-20, FL-22).
-    for (const turnText of [
-      'Oi',
-      'quero marcar',
-      'Quero agendar um horário',
-      // Staging 11/11/2026: substantivo «agendamento» + «parte da manhã» não são miss DEC-151.
-      'Gostaria fazer um agendamento hoje na parte da manhã',
-    ]) {
+    for (const turnText of ['Oi', 'quero marcar', 'Quero agendar um horário']) {
       expect(shouldOfferHubOpening({ turnText, services }), turnText).toBe(true)
     }
-    for (const turnText of ['Quero depilar', 'Quero agendar uma mensagem']) {
+    for (const turnText of [
+      'Quero depilar',
+      'Quero agendar uma mensagem',
+      // Staging 11/11/2026: stopwords limpam o miss; dia+período → clarify, não hub.
+      'Gostaria fazer um agendamento hoje na parte da manhã',
+    ]) {
       expect(shouldOfferHubOpening({ turnText, services }), turnText).toBe(false)
     }
   })
