@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 11/11/2026 — DEC-161 implementada no painel
+
+- `InboxThread.tsx`: cabeçalho com Agendar primário (ícone de 44 px no celular) e ⋮ agrupado (`ThreadAction.group`); botão Contato removido (a ficha abre pelo nome); linha de estado em texto; cartão `inbox-handoff` acima do compositor (substitui a faixa «Ninguém/X está atendendo» e o cartão «Comunicação pendente»; «Assumir conversa»); `[Botão] X` → evento `inbox-msg-event`; `Agendado: …` → cartão verde; 3+ linhas «Rótulo: valor» → grade `inbox-msg-fields`; prazo 24 h dentro da barra (`windowHintShort`), pílula só com < 1 h.
+- `InboxList.tsx`: «Precisam de alguém» em segundo, em aviso quando > 0; contadores 0 escondidos. `NeedsPersonAlerts.tsx`: faixa global some se a única conversa à espera é a aberta.
+- `panel.css`: fundo liso, rail escuro `--color-nav-*` (≥ 1280 px), ficha em coluna de 300 px ≥ 1440 px (sem Agendar aberto). `src/client/ui/tokens.css` sincronizado com v0.6.0.
+
 ## 11/11/2026 — DEC-161: cinco pontos da Conversa focada (**Confirmado**) · tokens v0.6.0
 
 - Paulo respondeu às divergências uma a uma: fundo liso; ficha em coluna fixa ~300 px no desktop ≥ 1440 px; Agendar como ícone no cabeçalho do celular; prazo 24 h dentro da barra (pílula só < 1 h); rail escuro.

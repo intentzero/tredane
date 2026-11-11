@@ -15,6 +15,8 @@ type Props = {
   tenantId: string
   api: PanelApi
   generation: number
+  /** DEC-161: conversa aberta; se for a única à espera, o cartão da conversa já avisa. */
+  openConversationId?: string | null
   children: ReactNode
 }
 
@@ -22,6 +24,7 @@ export function NeedsPersonAlerts({
   tenantId,
   api,
   generation,
+  openConversationId = null,
   children,
 }: Props) {
   const [count, setCount] = useState(0)
@@ -56,7 +59,11 @@ export function NeedsPersonAlerts({
     <>
       <NeedsPersonStrip
         tenantId={tenantId}
-        count={count}
+        count={
+          count === 1 && firstId != null && firstId === openConversationId
+            ? 0
+            : count
+        }
         conversationId={firstId}
       />
       {children}

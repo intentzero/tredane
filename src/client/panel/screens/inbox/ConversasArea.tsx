@@ -76,7 +76,12 @@ export function ConversasArea({
   }
 
   const sectionView = (staffDisplayName: string | null) => (
-    <NeedsPersonAlerts tenantId={tenantId} api={api} generation={generation}>
+    <NeedsPersonAlerts
+      tenantId={tenantId}
+      api={api}
+      generation={generation}
+      openConversationId={conversationId ?? null}
+    >
       <ConversasSectionView
         tenantId={tenantId}
         section={section}

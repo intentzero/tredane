@@ -26,12 +26,13 @@ import { ListSkeleton } from '../../states/ListSkeleton'
 import { applyAppBadge } from '../../badge'
 import { AI_DRAFTING_SR_LABEL, draftingFlagFromAiDraftState } from './aiDrafting'
 
+// DEC-161: «Precisam de alguém» logo a seguir a «Todas» (a ação mais urgente fica à vista).
 const FILTERS: InboxFilter[] = [
   'all',
+  'needs_person',
   'new',
   'mine',
   'unassigned',
-  'needs_person',
   // DEC-159: filtro «Para revisão» removido do painel — análise via MCP central.
   'closed',
 ]
@@ -238,14 +239,15 @@ export function InboxList({
           return (
             <Button
               key={f}
-              className="panel-chip"
+              className={`panel-chip${f === 'needs_person' && count != null && count > 0 ? ' panel-chip--warn' : ''}`}
               aria-pressed={selected}
               onPress={() => setFilter(f)}
             >
               {filterLabel(f)}
-              {count != null ? (
+              {/* DEC-161: contador 0 não aparece (menos ruído); «Encerradas» nunca leva contador quente. */}
+              {count != null && count > 0 ? (
                 <span
-                  className={`panel-chip-count${(f === 'all' || f === 'new' || f === 'mine' || f === 'unassigned' || f === 'needs_person') && count > 0 ? ' panel-chip-count--hot' : ''}`}
+                  className={`panel-chip-count${f !== 'closed' ? ' panel-chip-count--hot' : ''}${f === 'needs_person' ? ' panel-chip-count--warn' : ''}`}
                 >
                   {count}
                 </span>

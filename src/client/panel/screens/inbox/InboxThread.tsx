@@ -1,5 +1,6 @@
 import {
   Ban,
+  CalendarCheck,
   CalendarPlus,
   Check,
   CheckCheck,
@@ -10,7 +11,7 @@ import {
   EllipsisVertical,
   Info,
   Maximize2,
-  PanelRight,
+  MousePointerClick,
   RefreshCw,
   Send,
   SendHorizontal,
@@ -52,7 +53,11 @@ import { useClinicTimezone } from "../../clinicTimezone";
 import { awaitingClinicReply } from "./lastRelevant";
 import { BlockContactDialog } from "./BlockContactDialog";
 import { DeleteContactDialog } from "./DeleteContactDialog";
-import { ThreadActionsSheet, type ThreadAction } from "./ThreadActionsSheet";
+import {
+  ThreadActionsSheet,
+  startsGroup,
+  type ThreadAction,
+} from "./ThreadActionsSheet";
 import { TransferSheet } from "./TransferSheet";
 import { PixPendingBar, PixPendingSheet } from "./PixPendingSheet";
 import { useMediaQuery } from "../../ui/useMediaQuery";
@@ -68,6 +73,7 @@ import {
   initials,
   sameDay,
   windowHint,
+  windowHintShort,
   statusTone,
   statusLabel,
 } from "./format";
@@ -132,6 +138,34 @@ function PlainText({ text }: { text: string }) {
   return <>{text}</>;
 }
 
+/** DEC-161: «[Botão] Confirmar» da cliente vira evento discreto. */
+const BUTTON_TAP = /^\[Botão\]\s*(.+)$/;
+/** DEC-161: confirmação de marcação enviada pelo sistema vira cartão «Agendado». */
+const BOOKED = /^Agendado:\s*([\s\S]+)$/;
+/** Linhas «Rótulo: valor» curtas (Serviço, Quando, Duração…) viram grade no cartão. */
+const FIELD_LINE = /^([A-ZÀ-Ú][\p{L} ]{1,18}):\s+(.+)$/u;
+
+function splitFields(body: string): {
+  fields: { label: string; value: string }[];
+  rest: string;
+} {
+  const fields: { label: string; value: string }[] = [];
+  const rest: string[] = [];
+  for (const line of body.split("\n")) {
+    const f = FIELD_LINE.exec(line.trim());
+    if (f) fields.push({ label: f[1]!, value: f[2]! });
+    else rest.push(line);
+  }
+  return { fields, rest: rest.join("\n").trim() };
+}
+
+function timeOf(ms: number): string {
+  return new Date(ms).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function DeliveryIcon({ state }: { state: string }) {
   const props = {
     "aria-hidden": true,
@@ -161,6 +195,7 @@ function MessageBubble({
   busy,
   showReadBy = false,
   first = true,
+  contactName = "A cliente",
 }: {
   m: InboxMessage;
   onRetry?: (m: InboxMessage) => void;
@@ -168,6 +203,8 @@ function MessageBubble({
   showReadBy?: boolean;
   /** Primeira bolha de uma sequência do mesmo lado e autor: leva a cauda e o remetente. */
   first?: boolean;
+  /** Primeiro nome da cliente, para o evento «{nome} tocou X». */
+  contactName?: string;
 }) {
   if (m.direction === "system") {
     return (
@@ -176,7 +213,22 @@ function MessageBubble({
       </div>
     );
   }
+  const tap = m.direction === "inbound" ? BUTTON_TAP.exec(m.body.trim()) : null;
+  if (tap) {
+    return (
+      <div className="inbox-msg-event">
+        <MousePointerClick aria-hidden size={14} strokeWidth={2} />
+        <span>
+          {contactName} tocou <strong>{tap[1]}</strong>
+        </span>
+        <span className="inbox-msg-event-time">{timeOf(m.createdAt)}</span>
+      </div>
+    );
+  }
   const outbound = m.direction === "outbound";
+  const booked = outbound ? BOOKED.exec(m.body.trim()) : null;
+  const structured = outbound && !booked ? splitFields(m.body) : null;
+  const isCard = structured != null && structured.fields.length >= 3;
   const failed = outbound && m.deliveryState === "failed";
   const unknown = outbound && m.deliveryState === "unknown";
   const delivery = outbound ? deliveryLabel(m.deliveryState) : null;
@@ -193,7 +245,7 @@ function MessageBubble({
       className={`inbox-msg ${outbound ? "inbox-msg-out" : "inbox-msg-in"}${first ? " inbox-msg--first" : ""}`}
     >
       <div
-        className={`inbox-msg-bubble${failed ? " inbox-msg-bubble--failed" : ""}`}
+        className={`inbox-msg-bubble${failed ? " inbox-msg-bubble--failed" : ""}${booked ? " inbox-msg-bubble--booked" : ""}${isCard ? " inbox-msg-bubble--card" : ""}`}
       >
         {sender ? (
           <span
@@ -202,8 +254,30 @@ function MessageBubble({
             {sender}
           </span>
         ) : null}
+        {booked ? (
+          <p className="inbox-msg-booked-head">
+            <CalendarCheck aria-hidden size={16} strokeWidth={2} />
+            Agendado
+          </p>
+        ) : null}
+        {isCard && structured ? (
+          <dl className="inbox-msg-fields">
+            {structured.fields.map((f) => (
+              <div key={f.label} className="inbox-msg-field">
+                <dt>{f.label}</dt>
+                <dd>
+                  <PlainText text={f.value} />
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
         <p className="inbox-msg-body">
-          <PlainText text={m.body} />
+          <PlainText
+            text={
+              booked ? booked[1]! : isCard && structured ? structured.rest : m.body
+            }
+          />
           <span className="inbox-msg-meta">
             {new Date(m.createdAt).toLocaleTimeString("pt-BR", {
               hour: "2-digit",
@@ -1223,8 +1297,8 @@ export function InboxThread({
   // Confirmado (Paulo, 10/11/2026, TR-488): Bloquear e Excluir também no ⋮ /
   // folha (depois de Encerrar), com o diálogo de confirmação do Contato.
   const threadActions: ThreadAction[] = [
-    // Folha mobile: atalho à ficha (no desktop o header já tem Contato).
-    { id: "contact", label: "Ver contato" },
+    // Folha mobile: atalho à ficha (no desktop a ficha abre pelo nome, DEC-161).
+    { id: "contact", label: "Ver contato", group: "contato" },
     // DEC-062: a etapa muda sozinha; aqui só as duas correções manuais.
     ...(detail.opportunity && detail.status !== "closed" && !blocked
       ? [
@@ -1233,30 +1307,57 @@ export function InboxThread({
                 {
                   id: "stage-proposed",
                   label: "Marcar como «Horário proposto»",
+                  group: "etapa" as const,
                 },
               ]
             : []),
           ...(detail.opportunity.stage !== "perdido"
-            ? [{ id: "stage-lost", label: "Marcar como perdida" }]
+            ? [
+                {
+                  id: "stage-lost",
+                  label: "Marcar como perdida",
+                  group: "etapa" as const,
+                },
+              ]
             : []),
         ]
       : []),
     ...(detail.status !== "closed" && !blocked
-      ? [{ id: "transfer", label: "Transferir para outra pessoa" }]
+      ? [
+          {
+            id: "transfer",
+            label: "Transferir para outra pessoa",
+            group: "equipe" as const,
+          },
+        ]
       : []),
     ...(detail.status !== "closed"
-      ? [{ id: "close", label: "Encerrar conversa" }]
+      ? [{ id: "close", label: "Encerrar conversa", group: "equipe" as const }]
       : []),
     // DEC-159: ⋮ marcar/limpar revisão removido — análise via MCP central.
     // Destrutivas no fim: Bloquear (equipa) e Excluir (só owner / REQ-071).
     ...(!blocked
-      ? [{ id: "block", label: "Bloquear contato", danger: true }]
+      ? [
+          {
+            id: "block",
+            label: "Bloquear contato",
+            danger: true,
+            group: "risco" as const,
+          },
+        ]
       : []),
     ...(isOwner
-      ? [{ id: "delete", label: "Excluir contato", danger: true }]
+      ? [
+          {
+            id: "delete",
+            label: "Excluir contato",
+            danger: true,
+            group: "risco" as const,
+          },
+        ]
       : []),
   ];
-  // Desktop: Contato já está no header — não duplicar no ⋮. Sem itens → esconder o ⋮.
+  // DEC-161: no desktop a ficha abre pelo nome — «Ver contato» não entra no ⋮.
   const menuActions = narrow
     ? threadActions
     : threadActions.filter((a) => a.id !== "contact");
@@ -1291,6 +1392,23 @@ export function InboxThread({
   const hint = windowHint(closesAt);
   // Menos de 1 h para fechar a janela: a pílula passa a aviso.
   const windowSoon = closesAt != null && closesAt - Date.now() < 60 * 60 * 1000;
+  // DEC-161: estado de atendimento + alerta de handoff num só cartão, junto ao compositor.
+  const needsPerson = (detail.pendingCommunications ?? []).filter(
+    (c) => c.status === "alerted" || c.status === "open",
+  );
+  const canAssume = !isMine && detail.status !== "closed";
+  const needsSince =
+    needsPerson.length > 0
+      ? Math.min(...needsPerson.map((c) => c.alertedAt ?? c.startedAt))
+      : null;
+  const needsMinutes =
+    needsSince != null
+      ? Math.max(1, Math.round((Date.now() - needsSince) / 60000))
+      : null;
+  const assignLine = detail.assigneeClerkUserId
+    ? `${detail.assigneeDisplayName ?? "Outra pessoa"} está atendendo esta conversa.`
+    : "Ninguém está atendendo esta conversa.";
+  const contactFirstName = label.split(" ")[0] || "A cliente";
   const cardMode =
     windowOpen && aiDraftTagged && !!draft.trim() && !pendingAutoDraft;
 
@@ -1363,7 +1481,7 @@ export function InboxThread({
         {/* DEC-064: um único «Agendar», no cabeçalho, ao lado do ⋮. */}
         {detail.status !== "closed" && !blocked ? (
           <Button
-            className={`panel-header-action${agendarPanel ? " panel-header-action--toggle" : ""}`}
+            className={`panel-header-action panel-header-action--primary${agendarPanel ? " panel-header-action--toggle" : ""}`}
             aria-label="Agendar horário"
             isDisabled={busy}
             {...(agendarPanel
@@ -1387,17 +1505,6 @@ export function InboxThread({
           >
             <CalendarPlus aria-hidden size={20} strokeWidth={2} />
             <span>Agendar</span>
-          </Button>
-        ) : null}
-        {contactPanel ? (
-          <Button
-            className="panel-header-action panel-header-action--toggle"
-            aria-pressed={contactPanel.open}
-            aria-controls={contactPanel.controlsId}
-            onPress={contactPanel.onToggle}
-          >
-            <PanelRight aria-hidden size={20} strokeWidth={2} />
-            <span>Contato</span>
           </Button>
         ) : null}
         {hasMenuActions && narrow ? (
@@ -1426,7 +1533,7 @@ export function InboxThread({
               >
                 {menuActions.map((a, i) => (
                   <Fragment key={a.id}>
-                    {a.danger && i > 0 ? (
+                    {startsGroup(menuActions, i) ? (
                       <Separator className="panel-menu-separator" />
                     ) : null}
                     <MenuItem
@@ -1483,23 +1590,6 @@ export function InboxThread({
         </div>
       ) : null}
 
-      {!isMine && detail.status !== "closed" ? (
-        <div className="inbox-assign">
-          <UserCheck aria-hidden size={20} strokeWidth={2} />
-          <p>
-            {detail.assigneeClerkUserId
-              ? `${detail.assigneeDisplayName ?? "Outra pessoa"} está atendendo esta conversa.`
-              : "Ninguém está atendendo esta conversa."}
-          </p>
-          <Button
-            className="panel-btn-primary panel-btn-compact"
-            onPress={() => void assume()}
-            isDisabled={busy}
-          >
-            {busy ? "Assumindo…" : "Assumir"}
-          </Button>
-        </div>
-      ) : null}
 
       <ThreadActionsSheet
         open={actionsOpen && narrow && hasMenuActions}
@@ -1667,25 +1757,6 @@ export function InboxThread({
           </p>
         </div>
       ) : null}
-      {(detail.pendingCommunications ?? []).some(
-        (c) => c.status === "alerted" || c.status === "open",
-      ) ? (
-        <div
-          className="inbox-notice inbox-pix-alert"
-          role="alert"
-          data-testid="pending-comm-panel"
-        >
-          <strong>Comunicação pendente</strong>
-          {(detail.pendingCommunications ?? [])
-            .filter((c) => c.status === "alerted" || c.status === "open")
-            .map((c) => (
-              <p key={c.id}>
-                {c.status === "alerted" ? "Alerta (≥5 min) · " : ""}
-                {c.detailText || c.kind}
-              </p>
-            ))}
-        </div>
-      ) : null}
 
       <div className="inbox-timeline-wrap">
         <div
@@ -1726,6 +1797,7 @@ export function InboxThread({
                   !continuesGroup(detail.messages[i - 1], m)
                 }
                 showReadBy={m.id === lastReadInboundId}
+                contactName={contactFirstName}
                 onRetry={m.deliveryState === "failed" ? retryFailed : undefined}
               />
             </Fragment>
@@ -1759,6 +1831,45 @@ export function InboxThread({
           </Button>
         ) : null}
       </div>
+
+      {needsPerson.length > 0 || canAssume ? (
+        <div
+          className={`inbox-handoff${needsPerson.length > 0 ? " inbox-handoff--alert" : ""}`}
+          role={needsPerson.length > 0 ? "alert" : "status"}
+          {...(needsPerson.length > 0
+            ? { "data-testid": "pending-comm-panel" }
+            : {})}
+        >
+          <span className="inbox-handoff-icon" aria-hidden>
+            <UserCheck size={18} strokeWidth={2} />
+          </span>
+          <div className="inbox-handoff-text">
+            {needsPerson.length > 0 ? (
+              <>
+                <strong>
+                  Precisa de alguém
+                  {needsMinutes != null ? ` · há ${needsMinutes} min` : ""}
+                </strong>
+                {needsPerson.map((c) => (
+                  <p key={c.id}>{c.detailText || c.kind}</p>
+                ))}
+                {canAssume ? <p>{assignLine}</p> : null}
+              </>
+            ) : (
+              <p>{assignLine}</p>
+            )}
+          </div>
+          {canAssume ? (
+            <Button
+              className="panel-btn-primary panel-btn-compact inbox-handoff-btn"
+              onPress={() => void assume()}
+              isDisabled={busy}
+            >
+              {busy ? "Assumindo…" : "Assumir conversa"}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {blocked ? (
         <div className="inbox-blocked" role="status">
@@ -1882,9 +1993,9 @@ export function InboxThread({
                   Passaram 24 horas: use um modelo de mensagem
                 </p>
               ) : null}
-              {windowOpen && hint ? (
+              {windowOpen && hint && windowSoon ? (
                 <p
-                  className={`inbox-window-banner${windowSoon ? " inbox-window-banner--soon" : ""}`}
+                  className="inbox-window-banner inbox-window-banner--soon"
                   role="status"
                 >
                   <Clock aria-hidden size={14} strokeWidth={2} />
@@ -2038,6 +2149,14 @@ export function InboxThread({
                   </div>
                 ) : (
                   <>
+                    {/* DEC-161: prazo da janela discreto dentro da barra; pílula só com < 1 h. */}
+                    {hint && !windowSoon ? (
+                      <span className="inbox-composer-window" role="status">
+                        <Clock aria-hidden size={14} strokeWidth={2} />
+                        <span aria-hidden>{windowHintShort(closesAt)}</span>
+                        <span className="panel-sr-only">{hint}</span>
+                      </span>
+                    ) : null}
                     {canSuggest &&
                     !aiSuggestion &&
                     autoDraftState !== "generating" ? (

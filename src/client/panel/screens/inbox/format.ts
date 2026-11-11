@@ -186,3 +186,16 @@ export function windowHint(closesAt: number | null, now: number = Date.now()): s
   const when = civilDay(closesAt) === civilDay(now) ? 'hoje' : 'amanhã'
   return `Você pode responder livremente até ${when} às ${time}.`
 }
+
+/** DEC-161: forma curta do prazo, dentro da barra do compositor («Janela 24 h · até amanhã 10:12»). */
+export function windowHintShort(closesAt: number | null, now: number = Date.now()): string | null {
+  if (closesAt == null || closesAt <= now) return null
+  const time = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: getClinicTimezone(),
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(closesAt))
+  const when = civilDay(closesAt) === civilDay(now) ? 'hoje' : 'amanhã'
+  return `Janela 24 h · até ${when} ${time}`
+}
