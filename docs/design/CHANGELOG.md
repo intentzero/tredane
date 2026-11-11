@@ -4,6 +4,7 @@
 
 - Paulo respondeu às divergências uma a uma: fundo liso; ficha em coluna fixa ~300 px no desktop ≥ 1440 px; Agendar como ícone no cabeçalho do celular; prazo 24 h dentro da barra (pílula só < 1 h); rail escuro.
 - **Tokens v0.6.0:** grupo `color.nav` (`base`, `logo`, `active`, `icon`, `iconActive`) em claro e escuro, com dois pares novos em `contrastPairs` (3:1, ícones); `check_contrast.py` passa (58 pares).
+- **Ampliado (Paulo, «Sim, confirma tudo»):** toda a proposta fica Confirmada — cabeçalho com Agendar + ⋮ (Contato pelo nome), linha de estado, cartão único «Precisa de alguém» com Assumir, mensagens do sistema em cartões, toques como eventos, filtro «Precisam de alguém». Atalhos de teclado seguem Proposto.
 - `desktop/ConversaFocada` e `ConversaCabecalhoAntesDepois` passam a usar só tokens (o ponto do símbolo usa o damasco da marca `#E8875A`); a lista de valores fora de tokens da entrada abaixo deixa de valer.
 
 ## 11/11/2026 — Conversa focada: Agendar + ⋮ e handoff junto ao campo (**Proposto**)

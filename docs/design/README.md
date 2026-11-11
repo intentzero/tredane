@@ -73,7 +73,7 @@ Registradas para que ninguém as copie como se fossem intencionais. Corrija na i
 | M-01 / M-02 (PR-7) | Lista contínua no lugar de cartões; Assumir em faixa, Agendar em ícone e Encerrar no menu ⋮ com confirmação; um só cabeçalho na conversa | **Proposto**; vale até o responsável do produto revisar. Registrado em [components.md](components.md) |
 | M-01 vs M-54 / painel | M-01 ainda mostra lista antiga no canvas | **Confirmado (M-54, Paulo 31/10/2026):** painel usa lista full-bleed + busca sunken; M-01 pode ser regenerado depois |
 | M-40 vs M-55 / painel | M-40 ainda mostra Resumo/Bloquear no ⋮ | **Confirmado (M-55, Paulo 31/10/2026 Opção A; revisão 04/11/2026; TR-488 Paulo 10/11/2026):** sem Reservar bloco; Resumo só no Contato; Agendar só no cabeçalho; Bloquear e Excluir (owner) no ⋮ / folha após Encerrar, com o mesmo diálogo de confirmação; Contato mantém as entradas |
-| M-65 / `desktop/ConversaFocada` | Cinco divergências resolvidas pela DEC-161 (11/11/2026); cabeçalho com 2 controles, cartão «Precisa de alguém» e mensagens do sistema em cartões continuam **Proposto** | Implementar os pontos da DEC-161; o resto só após revisão. Até lá, para esse resto valem M-55, `ConversaWhatsappWeb` e `ConversasControlesMenu` |
+| M-65 / `desktop/ConversaFocada` | Substitui o cabeçalho de `ConversasControlesMenu` (botão Contato), a textura de `ConversaWhatsappWeb` e o «Ver contato» do ⋮ desktop | **Confirmado** (DEC-161, Paulo 11/11/2026, «Sim, confirma tudo»): implementar como no mock; M-55 continua a folha do ⋮ no celular |
 | Hora e data | Fixas (sexta, 30 de outubro) | Sempre no fuso da clínica (DEC-008), nunca em UTC |
 
 ## Manutenção
