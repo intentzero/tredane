@@ -135,12 +135,26 @@ describe('HTTP — MCP review-central (DEC-159)', () => {
         .result
       expect(initResult?.serverInfo?.name).toBe('tredane-review-central')
 
-      const list = await mcp(null, {
-        jsonrpc: '2.0',
-        id: 2,
-        method: 'tools/list',
+      const listRes = await app.request('http://localhost/api/mcp/review-central', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 2,
+          method: 'tools/list',
+        }),
       })
-      expect(list.status).toBe(401)
+      expect(listRes.status).toBe(401)
+      expect(listRes.headers.get('WWW-Authenticate') ?? '').toContain(
+        'resource_metadata=',
+      )
+      const listJson = (await listRes.json()) as {
+        error?: string
+        oauth?: boolean
+        bearerSuperadminFallback?: boolean
+      }
+      expect(listJson.error).toBe('unauthorized')
+      expect(listJson.bearerSuperadminFallback).toBe(true)
 
       const ownerDenied = await mcp('user_synth_owner_a', {
         jsonrpc: '2.0',
