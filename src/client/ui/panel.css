@@ -1043,6 +1043,25 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.panel-auth-lead {
+  margin: 0;
+  max-width: 22rem;
+  text-align: center;
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+.panel-auth-inline-link {
+  color: var(--color-primary-base);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.panel-auth-inline-link:hover,
+.panel-auth-inline-link:focus-visible {
+  color: var(--color-primary-ink, var(--color-primary-base));
+}
+
 .panel-auth-copy p,
 .panel-selector-header p {
   margin: 0;
@@ -1246,9 +1265,15 @@
   width: 100%;
 }
 
+/* Cadastro transparente: flush Clerk (elevation) + sem chrome de cartão. */
 .panel-clerk-card {
   box-shadow: none !important;
-  border: var(--size-border-width) solid var(--color-line-border);
+  border: none !important;
+  background: transparent !important;
+}
+
+.panel-clerk-logo {
+  display: none !important;
 }
 
 .panel-clerk-primary {

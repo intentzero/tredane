@@ -54,7 +54,7 @@ Código: `src/team/`, `src/email/`, e-mail verificado em `src/auth/verified-emai
 | Peça | Comportamento |
 | --- | --- |
 | Link | `APP_BASE_URL/invite/accept?token=…` (Cloudflare Email Sending em staging/prod; simulated em dev) |
-| Sessão | Sem sessão → guarda token em `sessionStorage` (nunca logado) → **`/cadastro`** (SignUp Clerk; DEC-021 conta nova) → após autenticação retoma aceite; quem já tem conta usa «Entrar» → `/entrar` e volta ao aceite |
+| Sessão | Sem sessão → guarda token em `sessionStorage` (nunca logado) → **`/cadastro`** (SignUp Clerk flush/transparente; DEC-021 conta nova) → após autenticação retoma aceite; quem já tem conta usa «Entrar» → `/entrar` e volta ao aceite. **Pré-requisito Dashboard:** Access mode **Open** — Invite-only mostra «Cadastros desabilitados» e o token D1 não abre SignUp (ver [f1-login-nav.md](f1-login-nav.md)). |
 | API | `acceptInvitation(token)` no cliente; Worker ignora tenant/role do body |
 | Erros | Expirado / inválido-cancelado / e-mail diferente / e-mail não confirmado em PT-BR |
 | Sucesso | Membership com a role do convite → abre Conversas da clínica (ou seletor se a abertura falhar) |

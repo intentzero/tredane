@@ -55,5 +55,24 @@ describe('ClerkLogin / ClerkSignUp — convite', () => {
     expect(signUpProps[0]?.path).toBe('/cadastro')
     expect(signUpProps[0]?.signInUrl).toBe('/entrar')
     expect(signUpProps[0]?.forceRedirectUrl).toBe('/invite/accept')
+    expect(screen.getByRole('link', { name: 'Entrar' }).getAttribute('href')).toBe('/entrar')
+  })
+
+  it('aparência flush/transparente no SignIn e SignUp (cadastro transparente)', async () => {
+    const { clerkAppearance } = await import('./clerkAppearance')
+    expect(clerkAppearance.options.elevation).toBe('flush')
+    expect(clerkAppearance.options.logoPlacement).toBe('none')
+    expect(clerkAppearance.variables.colorBackground).toBe('transparent')
+
+    writePendingInviteToken('tok_teste_nao_logar')
+    const { ClerkLogin } = await import('./ClerkLogin')
+    const { ClerkSignUp } = await import('./ClerkSignUp')
+    render(<ClerkLogin />)
+    render(<ClerkSignUp />)
+    expect(signInProps[0]?.appearance).toBe(clerkAppearance)
+    expect(signUpProps[0]?.appearance).toBe(clerkAppearance)
+    expect(screen.getByRole('link', { name: 'Criar conta' }).getAttribute('href')).toBe(
+      '/cadastro',
+    )
   })
 })

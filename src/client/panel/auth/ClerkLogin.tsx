@@ -7,6 +7,7 @@ import { clerkAppearance } from './clerkAppearance'
  * Componente Clerk real (TEL-08 / M-09).
  * Dashboard: método e-mail + código (sem Organizations, sem MFA no MVP).
  * Layout Confirmado Paulo 31/10/2026: bloco centrado + fundo surface.app.
+ * Cadastro transparente: mesma aparência flush do SignUp.
  *
  * `signUpUrl` só aponta para `/cadastro` com convite pendente (DEC-021):
  * sem isso o SignIn ficava em loop em si mesmo e bloqueava conta nova
@@ -26,6 +27,11 @@ export function ClerkLogin() {
           {/* O Clerk traz o próprio título quando o cartão pinta. Até lá, «Entrar» (M-09) segura a nota. */}
           <div className="panel-auth-fallback">
             <h1 className="panel-auth-title">Entrar</h1>
+            {hasInvite ? (
+              <p className="panel-auth-lead">
+                Conta nova? Crie com o e-mail do convite.
+              </p>
+            ) : null}
           </div>
         </div>
         <div className="panel-auth-clerk">
@@ -41,7 +47,10 @@ export function ClerkLogin() {
           {hasInvite ? (
             <>
               <span className="panel-auth-note-lead">Primeira vez?</span>
-              Crie a conta com o e-mail do convite.
+              <a className="panel-auth-inline-link" href="/cadastro">
+                Criar conta
+              </a>{' '}
+              com o e-mail do convite.
             </>
           ) : (
             <>
