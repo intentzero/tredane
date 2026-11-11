@@ -183,6 +183,23 @@ describe('ReservarBlocoSheet', () => {
 
     rerender(
       <ReservarBlocoSheet
+        open={false}
+        tenantId="t1"
+        api={api}
+        generation={1}
+        conversationId="c1"
+        contactName="Maria Souza"
+        windowOpen
+        initialServiceId="svc1"
+        initialProfessionalId="pro1"
+        initialDate="2026-10-28"
+        onClose={vi.fn()}
+        onReserved={vi.fn()}
+      />,
+    )
+
+    rerender(
+      <ReservarBlocoSheet
         open
         tenantId="t1"
         api={api}

@@ -399,6 +399,28 @@ describe('AgendarScreen — «Para quem» e variantes sem «Ambos»', () => {
     expect(screen.queryByRole('radiogroup', { name: 'Para quem' })).toBeNull()
     expect(screen.queryByText(/Ambos/)).toBeNull()
   })
+
+  it('revisão usa a linha do Agendar mesmo com variantes só «ambos»', async () => {
+    renderScreen(
+      makeApi({
+        service: {
+          ...depil,
+          name: 'Depilação',
+          zones: [
+            z('axm', 'Axila', 'masculino', 0),
+            z('axf', 'Axila', 'feminino', 1),
+            z('sob', 'Sobrancelha', 'ambos', 2),
+          ],
+        },
+      }),
+    )
+    fireEvent.click(await screen.findByRole('radio', { name: 'Feminino' }))
+    fireEvent.click(screen.getByRole('button', { name: /Sobrancelha/ }))
+    await pickTime()
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/Depilação · Feminino ·/)).toBeTruthy()
+  })
 })
 
 describe('AgendarScreen — painel único', () => {
