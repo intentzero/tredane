@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AuthProvider, useAuthSession } from './auth/AuthContext'
-import { AuthModeGate, LoginScreen } from './auth/ClerkBridge'
+import { AuthModeGate, LoginScreen, SignUpScreen } from './auth/ClerkBridge'
 import {
   captureInviteTokenFromLocation,
   readPendingInviteToken,
@@ -56,27 +56,31 @@ function PanelRouter() {
     if (!authResolved) return
     if (!route) return
 
-    // Link do e-mail: guarda o token antes de mandar para o login.
+    // Link do e-mail: guarda o token e manda para cadastro (conta nova) — DEC-021.
+    // Quem já tem conta usa «Entrar» a partir de /cadastro.
     if (route.kind === 'invite-accept') {
       captureInviteTokenFromLocation()
       if (!signedIn) {
-        navigatePanel({ kind: 'entrar' }, true)
+        navigatePanel({ kind: 'cadastro' }, true)
         return
       }
     }
 
-    if (!signedIn && route.kind !== 'entrar') {
+    if (!signedIn && route.kind !== 'entrar' && route.kind !== 'cadastro') {
       navigatePanel({ kind: 'entrar' }, true)
       return
     }
 
-    // Após login (Clerk forceRedirect / synthetic), retoma o aceite se houver token.
-    if (signedIn && (route.kind === 'entrar' || route.kind === 'clinicas')) {
+    // Após login/cadastro (Clerk forceRedirect / synthetic), retoma o aceite se houver token.
+    if (
+      signedIn
+      && (route.kind === 'entrar' || route.kind === 'cadastro' || route.kind === 'clinicas')
+    ) {
       if (readPendingInviteToken()) {
         navigatePanel({ kind: 'invite-accept' }, true)
         return
       }
-      if (route.kind === 'entrar') {
+      if (route.kind === 'entrar' || route.kind === 'cadastro') {
         navigatePanel({ kind: 'clinicas' }, true)
       }
     }
@@ -99,6 +103,10 @@ function PanelRouter() {
 
   if (route.kind === 'entrar') {
     return <LoginScreen />
+  }
+
+  if (route.kind === 'cadastro') {
+    return <SignUpScreen />
   }
 
   if (!authResolved) {
