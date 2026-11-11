@@ -12,7 +12,7 @@ Um **owner** pode convidar uma pessoa exclusivamente para tenant no qual possui 
 
 ## Contrato técnico para F1
 
-**Estado de implementação:** API + adaptador simulado em [#25](https://github.com/intentzero/tredane/issues/25) / [f1-team-invites.md](../implementation/f1-team-invites.md). Provedor real de e-mail continua Em aberto.
+**Estado de implementação:** API + adaptador `simulated` (dev/CI) e **Cloudflare Email Sending** (staging/prod, Paulo Confirmado 2026-11-11) em [#25](https://github.com/intentzero/tredane/issues/25) / [f1-team-invites.md](../implementation/f1-team-invites.md). Remetente Confirmado: `noreply@tredane.com`. Bounces/suppressions e «Copiar link» continuam Em aberto.
 
 - `tenant_invitations` guarda ID, tenant_id, normalized_email, role=attendant, issued_by_clerk_user_id, verifier_hash, status, expires_at, accepted_by_clerk_user_id e timestamps.
 - Credencial de alta entropia, única e não previsível. Guardar apenas hash/verificador do segredo, não o token em claro; mensagens e logs não devem expor token.
@@ -51,7 +51,7 @@ O convite vale **7 dias (168 horas) a partir do instante da emissão**, calculad
 ## Pontos ainda em aberto
 
 1. **Controles adicionais contra abuso** (por owner, IP e entrega) além dos limites confirmados de 10 minutos / 5 reenvios por 24 horas.
-2. Transportador de e-mail e endereço remetente; gestão de bounces e falhas de entrega.
+2. Gestão de bounces/suppressions e falhas de entrega após Cloudflare Email Sending (remetente Confirmado: `noreply@tredane.com`).
 3. UX de confirmação/estado de convite cancelado e eventual notificação ao destinatário, sem assumir envio automático.
 4. Revogação imediata de sessões HTTP e WebSockets após remoção de membership.
 5. Política de privacidade, retenção de e-mails de convites e logs.

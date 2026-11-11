@@ -16,6 +16,23 @@ export {
   type SimulatedEmailTransport,
 } from './simulated'
 export {
+  createCloudflareEmailTransport,
+  type SendEmailBinding,
+} from './cloudflare'
+export {
+  createFailClosedEmailTransport,
+  resolveAppBaseUrlFromEnv,
+  resolveEmailTransport,
+  resolveEmailTransportName,
+  type EmailTransportName,
+} from './resolve'
+export {
+  renderInvitationEmail,
+  renderSupportAccessRequestEmail,
+  renderSupportSessionStartedEmail,
+  type RenderedEmail,
+} from './templates'
+export {
   enqueueInvitationDelivery,
   enqueueSupportRequestDelivery,
   enqueueSupportSessionStartedDelivery,

@@ -181,7 +181,7 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
     setActionError(null)
     setActionOk(null)
     try {
-      await api.inviteAttendant(tenantId, email, {
+      const result = await api.inviteAttendant(tenantId, email, {
         role: inviteRole,
         generation,
         expectGeneration: () => generation,
@@ -189,11 +189,18 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
       setInviteOpen(false)
       setInviteEmail('')
       setInviteRole('attendant')
-      setActionOk(
-        inviteRole === 'owner'
-          ? 'Convite de responsável enviado. A pessoa tem 7 dias para aceitar.'
-          : 'Convite enviado. A pessoa tem 7 dias para aceitar.',
-      )
+      // Não mostrar «Pronto» quando o e-mail não saiu (RCA invite-email-not-sent).
+      if (result.emailSent) {
+        setActionOk(
+          inviteRole === 'owner'
+            ? 'Convite de responsável enviado por e-mail. A pessoa tem 7 dias para aceitar.'
+            : 'Convite enviado por e-mail. A pessoa tem 7 dias para aceitar.',
+        )
+      } else {
+        setActionError(
+          'Convite criado e ficou pendente, mas o e-mail não saiu. Use Reenviar ou peça ajuda ao suporte.',
+        )
+      }
       await reload()
     } catch (err) {
       setActionError(friendlyError(err, 'Não foi possível enviar o convite.'))
@@ -207,11 +214,17 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
     setActionError(null)
     setActionOk(null)
     try {
-      await api.resendInvitation(tenantId, inv.id, {
+      const result = await api.resendInvitation(tenantId, inv.id, {
         generation,
         expectGeneration: () => generation,
       })
-      setActionOk('Convite reenviado. O link anterior deixa de valer.')
+      if (result.emailSent) {
+        setActionOk('Convite reenviado por e-mail. O link anterior deixa de valer.')
+      } else {
+        setActionError(
+          'O convite continua pendente, mas o e-mail de reenvio não saiu. Tente de novo ou peça ajuda ao suporte.',
+        )
+      }
       await reload()
     } catch (err) {
       setActionError(friendlyError(err, 'Não foi possível reenviar o convite.'))

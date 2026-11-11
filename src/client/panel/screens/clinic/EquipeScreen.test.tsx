@@ -188,8 +188,100 @@ describe('EquipeScreen — S1', () => {
     await user.type(screen.getByLabelText('E-mail'), 'nova@clinica.example')
     await user.click(screen.getByRole('button', { name: 'Enviar convite' }))
     await waitFor(() => expect(screen.getByText('Pronto')).toBeTruthy())
-    expect(screen.getByText(/Convite enviado/)).toBeTruthy()
+    expect(screen.getByText(/Convite enviado por e-mail/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Convidar pessoa' })).toBeTruthy()
+  })
+
+  it('não mostra Pronto quando emailSent é false (e-mail não saiu)', async () => {
+    const user = userEvent.setup()
+    const team = snap({ invitations: [] })
+    const api = mockApi(team)
+    api.inviteAttendant = vi.fn(async () => ({
+      invitation: {
+        id: 'inv_fail',
+        tenantId: 'clinic-demo-a',
+        email: 'falha@clinica.example',
+        role: 'attendant',
+        status: 'pending',
+        issuedAt: Date.now(),
+        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+        lastResentAt: null,
+        manageActions: { canResend: true, canCancel: true },
+        resend: {
+          cooldownMs: 10 * 60_000,
+          cooldownRemainingMs: 0,
+          windowMs: 24 * 60 * 60 * 1000,
+          maxPerWindow: 5,
+          usedInWindow: 0,
+          remainingInWindow: 5,
+        },
+      },
+      emailSent: false,
+    }))
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Convidar pessoa' })).toBeTruthy(),
+    )
+    await user.click(screen.getByRole('button', { name: 'Convidar pessoa' }))
+    await user.type(screen.getByLabelText('E-mail'), 'falha@clinica.example')
+    await user.click(screen.getByRole('button', { name: 'Enviar convite' }))
+    await waitFor(() => expect(screen.getByText('Não deu certo')).toBeTruthy())
+    expect(screen.queryByText('Pronto')).toBeNull()
+    expect(
+      screen.getByText(/Convite criado e ficou pendente, mas o e-mail não saiu/),
+    ).toBeTruthy()
+  })
+
+  it('reenvio sem e-mail não mostra Pronto', async () => {
+    const user = userEvent.setup()
+    const team = snap({
+      invitations: [
+        {
+          id: 'inv_1',
+          tenantId: 'clinic-demo-a',
+          email: 'bruno@belapele.example',
+          role: 'attendant',
+          status: 'pending',
+          issuedAt: Date.now() - 60_000,
+          expiresAt: Date.now() + 6 * 24 * 60 * 60 * 1000,
+          lastResentAt: Date.now() - 20 * 60_000,
+          manageActions: { canResend: true, canCancel: true },
+          resend: {
+            cooldownMs: 10 * 60_000,
+            cooldownRemainingMs: 0,
+            windowMs: 24 * 60 * 60 * 1000,
+            maxPerWindow: 5,
+            usedInWindow: 1,
+            remainingInWindow: 4,
+          },
+        },
+      ],
+    })
+    const api = mockApi(team)
+    api.resendInvitation = vi.fn(async () => ({
+      invitation: team.invitations[0]!,
+      emailSent: false,
+    }))
+    render(
+      <EquipeScreen
+        tenantId="clinic-demo-a"
+        api={api}
+        generation={1}
+        viewerClerkUserId="user_owner"
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('bruno@belapele.example')).toBeTruthy())
+    await user.click(screen.getByRole('button', { name: 'Reenviar' }))
+    await waitFor(() => expect(screen.getByText('Não deu certo')).toBeTruthy())
+    expect(screen.queryByText('Pronto')).toBeNull()
+    expect(screen.getByText(/e-mail de reenvio não saiu/)).toBeTruthy()
   })
 
   it('abre a folha Convidar pessoa e envia com papel', async () => {

@@ -156,6 +156,35 @@ export const SECRETS_INVENTORY: readonly SecretInventoryItem[] = [
     requiredForPilot: true,
     notes: 'Queue + DLQ por ambiente',
   },
+  {
+    name: 'EMAIL',
+    kind: 'binding',
+    environments: ['staging', 'production'],
+    requiredForPilot: true,
+    notes:
+      'send_email Wrangler (Cloudflare Email Sending). Sem secret de API. Gate: Onboard Domain + Workers Paid',
+  },
+  {
+    name: 'EMAIL_TRANSPORT',
+    kind: 'var',
+    environments: ['development', 'staging', 'production'],
+    requiredForPilot: true,
+    notes: 'simulated em development; cloudflare em staging/prod com binding EMAIL',
+  },
+  {
+    name: 'EMAIL_FROM',
+    kind: 'var',
+    environments: ['staging', 'production'],
+    requiredForPilot: true,
+    notes: 'Remetente Confirmado noreply@tredane.com (var Wrangler, não secret)',
+  },
+  {
+    name: 'APP_BASE_URL',
+    kind: 'var',
+    environments: ['development', 'staging', 'production'],
+    requiredForPilot: true,
+    notes: 'Base pública dos links /invite/accept; obrigatória com EMAIL_TRANSPORT=cloudflare',
+  },
 ] as const
 
 export function listRequiredSecretsFor(

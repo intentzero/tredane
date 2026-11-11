@@ -18,10 +18,31 @@ export type WorkerBindings = {
   CLERK_JWT_KEY?: string
   CLERK_AUTHORIZED_PARTIES?: string
   AUTH_MODE?: string
-  /** Base URL pública para links de convite (#25). */
+  /** Base URL pública para links de convite (#25). Obrigatória com transporte cloudflare. */
   APP_BASE_URL?: string
-  /** `simulated` (default em development) — provedor real Em aberto. */
+  /**
+   * Transporte de e-mail: `simulated` (dev/CI) | `cloudflare` (Workers Email Sending).
+   * Com binding `EMAIL` presente e var vazia, resolve para cloudflare.
+   */
   EMAIL_TRANSPORT?: string
+  /**
+   * Remetente do Email Sending (var, não secret). Confirmado: `noreply@tredane.com`.
+   * Domínio tem de estar onboarded no Email Service antes do Deploy live.
+   */
+  EMAIL_FROM?: string
+  /**
+   * Binding Wrangler `send_email` nomeado `EMAIL` (Cloudflare Email Sending).
+   * Ausente em development local — aí o transporte fica `simulated`.
+   */
+  EMAIL?: {
+    send(message: {
+      to: string
+      from: string
+      subject: string
+      html?: string
+      text?: string
+    }): Promise<{ messageId: string }>
+  }
   /** WhatsApp Embedded Signup (#31): `synthetic` (default) | `live`. */
   META_MODE?: string
   META_APP_ID?: string

@@ -14,11 +14,13 @@
 | DEC-026 / ADR-0009 | Remoção usa `POST .../members/:id/revoke` + fence DO; B preservado; sem logout Clerk |
 | DEC-020 / **DEC-103** | Owner gere attendants e outros owners na Equipe (convidar/promover/despromover/remover); último owner protegido; Platform Admin continua |
 
-## Transporte de e-mail (Em aberto → simulador)
+## Transporte de e-mail
 
-**Confirmado para F1:** adaptador testável `simulated` com fila `email_delivery_jobs`, retentativas e idempotência por `inv:{invitationId}:{tokenHash}`. Token em claro só no payload em memória / mailbox de teste — **nunca** em D1, auditoria, logs ou resposta HTTP.
+**Confirmado (F1 + Paulo 2026-11-11):** adaptador testável `simulated` (development/CI) com fila `email_delivery_jobs`, retentativas e idempotência por `inv:{invitationId}:{tokenHash}`. Em staging/prod: **Cloudflare Email Sending** via binding Workers `EMAIL` (`EMAIL_TRANSPORT=cloudflare`, `EMAIL_FROM=noreply@tredane.com`, `APP_BASE_URL` pública). Token em claro só no payload do send — **nunca** em D1, auditoria, logs ou resposta HTTP. Sem binding/`EMAIL_FROM` → fail-closed (`emailSent: false`); a UI Equipe **não** mostra «Pronto».
 
-**Em aberto (produto):** provedor real (Resend, SES, etc.), remetente, bounces e política de dados. Envio real bloqueado até escolha + configuração. Variáveis: `EMAIL_TRANSPORT=simulated` (default em development), `APP_BASE_URL`.
+**Ops (gate Paulo antes do Deploy live):** Workers Paid na conta Tredane; Onboard Domain `tredane.com` no Email Service (preferir `mail.tredane.com` só se MX/SPF da raiz conflitar — From fica `noreply@tredane.com` salvo o onboard forçar subdomínio). Não activar Email Routing na raiz se já houver MX externo. Sem secret de API no path binding.
+
+**Em aberto:** política fina de bounces/suppressions (ADR-0008); «Copiar link» no painel.
 
 ## Migrações relevantes
 
@@ -51,7 +53,7 @@ Código: `src/team/`, `src/email/`, e-mail verificado em `src/auth/verified-emai
 
 | Peça | Comportamento |
 | --- | --- |
-| Link | `APP_BASE_URL/invite/accept?token=…` (e-mail simulado) |
+| Link | `APP_BASE_URL/invite/accept?token=…` (Cloudflare Email Sending em staging/prod; simulated em dev) |
 | Sessão | Sem login → guarda token em `sessionStorage` (nunca logado) → `/entrar` → retoma aceite |
 | API | `acceptInvitation(token)` no cliente; Worker ignora tenant/role do body |
 | Erros | Expirado / inválido-cancelado / e-mail diferente / e-mail não confirmado em PT-BR |
@@ -59,7 +61,7 @@ Código: `src/team/`, `src/email/`, e-mail verificado em `src/auth/verified-emai
 
 ## Fora da API #25 / ainda em fatias
 
-- Provedor de e-mail real e secrets de produção
 - Controles antiabuso globais (IP/owner) além de DEC-024
 - Notificação ao destinatário quando o convite é cancelado (**Em aberto** ADR-0008)
 - Faixa TEL-10 (suporte) dentro de Equipe
+- Smoke inbox real pós-Deploy (domínio onboarded + Workers Paid)
