@@ -1,5 +1,11 @@
 # Histórico do design
 
+## 11/11/2026 — DEC-161: cinco pontos da Conversa focada (**Confirmado**) · tokens v0.6.0
+
+- Paulo respondeu às divergências uma a uma: fundo liso; ficha em coluna fixa ~300 px no desktop ≥ 1440 px; Agendar como ícone no cabeçalho do celular; prazo 24 h dentro da barra (pílula só < 1 h); rail escuro.
+- **Tokens v0.6.0:** grupo `color.nav` (`base`, `logo`, `active`, `icon`, `iconActive`) em claro e escuro, com dois pares novos em `contrastPairs` (3:1, ícones); `check_contrast.py` passa (58 pares).
+- `desktop/ConversaFocada` e `ConversaCabecalhoAntesDepois` passam a usar só tokens (o ponto do símbolo usa o damasco da marca `#E8875A`); a lista de valores fora de tokens da entrada abaixo deixa de valer.
+
 ## 11/11/2026 — Conversa focada: Agendar + ⋮ e handoff junto ao campo (**Proposto**)
 
 - Revisão do staging pedida por Paulo («reduzir carga cognitiva», «muitos botões no canto superior direito», Agendar continua prioritário). Novos mocks `desktop/ConversaFocada` (interativo: ⋮ e nome), `desktop/ConversaCabecalhoAntesDepois` e `mobile/ConversaFocada` (M-65). Canvas de trabalho privado: «Tredane — Conversas redesign».
