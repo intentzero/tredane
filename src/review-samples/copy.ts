@@ -21,6 +21,7 @@ export async function copyReviewSampleBestEffort(input: {
   source: ReviewFlagSource
   reason: ReviewFlagReason | string | null
   flaggedAt: number
+  clientComment?: string | null
   nowMs: number
 }): Promise<{ ok: boolean; sampleId?: string; error?: string }> {
   if (!input.target) return { ok: false, error: 'no_target' }
@@ -32,6 +33,7 @@ export async function copyReviewSampleBestEffort(input: {
       source: input.source,
       reason: input.reason,
       flaggedAt: input.flaggedAt,
+      clientComment: input.clientComment,
     })
     if (!snapshot) return { ok: false, error: 'conversation_not_found' }
     if (input.target.kind === 'sync') {

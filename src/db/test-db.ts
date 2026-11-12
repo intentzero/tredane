@@ -96,6 +96,10 @@ export function applyRemainingFromAdmin(db: DatabaseSync): void {
     (sql) => db.exec(sql),
     join(MIGRATIONS_DIR, '0020_review_samples.sql'),
   )
+  applySqlFile(
+    (sql) => db.exec(sql),
+    join(MIGRATIONS_DIR, '0021_review_sample_client_comment.sql'),
+  )
 }
 
 export function seedDb(db: DatabaseSync): void {

@@ -80,6 +80,7 @@ import {
 import {
   flagConversationForReview,
   isReviewFlagRequest,
+  parseReviewFlagRequest,
   REVIEW_FLAG_CLIENT_ACK,
 } from '../inbox/review-flag'
 import {
@@ -508,9 +509,11 @@ export async function runDueAutoDrafts(
       skip('interactive_reply_button')
       continue
     }
-    // DEC-157: «avaliar» / «feedback» no corpo desta mensagem (não no turno
-    // agregado) — antes da pausa DEC-083, AI off e funil/LLM.
-    if (isReviewFlagRequest(inboundBody)) {
+    // DEC-157 / DEC-166: «avaliar» / «feedback» (+ comentário opcional) no
+    // corpo desta mensagem (não no turno agregado) — antes da pausa DEC-083,
+    // AI off e funil/LLM.
+    const reviewFlagMatch = parseReviewFlagRequest(inboundBody)
+    if (reviewFlagMatch.matched) {
       if (!messagingWindowForConversation(db, tenantId, job.conversationId, now).open) {
         skip('window_closed')
         continue
@@ -522,7 +525,11 @@ export async function runDueAutoDrafts(
           db,
           tenantId,
           job.conversationId,
-          { source: 'client', reason: 'client_request' },
+          {
+            source: 'client',
+            reason: 'client_request',
+            clientComment: reviewFlagMatch.clientComment,
+          },
           clock,
         )
         replyOutbox.push(...flagged.outbox)

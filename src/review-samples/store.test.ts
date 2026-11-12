@@ -22,6 +22,7 @@ function snap(
     contactDisplayName: 'Ana Exemplo',
     flagSource: 'auto',
     flagReason: 'nao_encontrei',
+    clientComment: null,
     flaggedAt: 1_700_000_000_000,
     lastMessageAt: 1_700_000_000_100,
     lastMessagePreview: 'Não encontrei cotovelo',
@@ -66,6 +67,7 @@ describe('review-samples D1 store (DEC-159)', () => {
           conversationId: 'cnv_b1',
           flagSource: 'client',
           flagReason: 'client_request',
+          clientComment: 'pedi para chamar o atendente e o sistema travou',
           flaggedAt: now - 1000,
         }),
         now,
@@ -76,6 +78,9 @@ describe('review-samples D1 store (DEC-159)', () => {
       const listed = listReviewSamplesSync(boot.db, { nowMs: now, limit: 10 })
       expect(listed.items).toHaveLength(2)
       expect(listed.items.map((i) => i.tenantId).sort()).toEqual(['ten_a', 'ten_b'])
+      expect(
+        listed.items.find((i) => i.tenantId === 'ten_b')?.clientComment,
+      ).toBe('pedi para chamar o atendente e o sistema travou')
 
       const onlyA = listReviewSamplesSync(boot.db, {
         nowMs: now,
@@ -83,11 +88,18 @@ describe('review-samples D1 store (DEC-159)', () => {
       })
       expect(onlyA.items).toHaveLength(1)
       expect(onlyA.items[0]!.id).toBe(a.sampleId)
+      expect(onlyA.items[0]!.clientComment).toBeNull()
 
       const detail = getReviewSampleSync(boot.db, a.sampleId, now)
       expect(detail?.messages).toHaveLength(2)
       expect(detail?.messages[0]!.body).toBe('quero cotovelo')
+      expect(detail?.clientComment).toBeNull()
       expect(detail?.expiresAt).toBe(now + REVIEW_SAMPLE_TTL_MS)
+
+      const detailB = getReviewSampleSync(boot.db, b.sampleId, now)
+      expect(detailB?.clientComment).toBe(
+        'pedi para chamar o atendente e o sistema travou',
+      )
 
       // Re-flag upsert substitui mensagens.
       upsertReviewSampleSync(

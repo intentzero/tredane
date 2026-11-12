@@ -18,6 +18,8 @@ export function buildReviewSampleSnapshot(
     source: ReviewFlagSource
     reason: ReviewFlagReason | string | null
     flaggedAt: number
+    /** Se omitido, lê `review_client_comment` do DO (1.º flag). */
+    clientComment?: string | null
   },
 ): ReviewSampleSnapshot | null {
   const item = getConversationWithContact(db, input.tenantId, input.conversationId)
@@ -26,6 +28,24 @@ export function buildReviewSampleSnapshot(
     conversationId: input.conversationId,
     limit: REVIEW_SAMPLE_MESSAGE_LIMIT,
   })
+  let clientComment: string | null
+  if (input.clientComment !== undefined) {
+    clientComment =
+      typeof input.clientComment === 'string' && input.clientComment.trim() !== ''
+        ? input.clientComment.trim()
+        : null
+  } else {
+    const row = db.get<{ review_client_comment: string | null }>(
+      `SELECT review_client_comment FROM conversations WHERE tenant_id = ? AND id = ?`,
+      input.tenantId,
+      input.conversationId,
+    )
+    clientComment =
+      typeof row?.review_client_comment === 'string' &&
+      row.review_client_comment.trim() !== ''
+        ? row.review_client_comment.trim()
+        : null
+  }
   return {
     tenantId: input.tenantId,
     tenantName: input.tenantName ?? null,
@@ -35,6 +55,7 @@ export function buildReviewSampleSnapshot(
     contactDisplayName: item.contact.displayName,
     flagSource: input.source,
     flagReason: input.reason,
+    clientComment,
     flaggedAt: input.flaggedAt,
     lastMessageAt: item.lastMessageAt,
     lastMessagePreview: item.lastMessagePreview,
