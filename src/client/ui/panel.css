@@ -9718,6 +9718,7 @@
 
 .equipe-invite-cta {
   flex: none;
+  width: auto;
 }
 
 .equipe-layout {
