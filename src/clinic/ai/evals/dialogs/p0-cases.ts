@@ -15,7 +15,7 @@
  * A-42: 1.ª oferta de Horários leva dica «falar com a equipe» (DEC-153); 2.ª oferta no unitário.
  * A-43: meta «Como faço para terminar?» → HOW_TO_END_REPLY (#660 / DEC-154); sem soft-close/handoff.
  * A-47: «avaliar» → fila Para revisão + ack; sem pausar IA / limpar frame (DEC-157 / #670).
- * A-50: «avaliar …» com comentário livre → mesma fila + `review_client_comment` (DEC-166).
+ * A-51: «avaliar …» com comentário livre → mesma fila + `review_client_comment` (DEC-166).
  * A-44..A-46: singular↔plural + stopwords pt-BR no option matching (Paulo 10/11/2026).
  * A-50: «gostaria de saber» não ecoa «saber» como zona (zonas-cases).
  * A-48: lista Horários sem description=title (Meta echo duplicava o bubble).
@@ -2592,13 +2592,14 @@ export const P0_DIALOG_CASES: DialogCase[] = [
     },
   },
   {
-    id: 'A-50',
+    id: 'A-51',
     title: '«avaliar …» com comentário livre marca revisão (DEC-166)',
     turnosIdeais: 1,
     // DEC-166: keyword no início + observação opcional; ack igual; first-flag-wins no DO.
+    // A-50 já é o caso zonas «gostaria de saber» (zonas-cases).
     prepare: (s) => {
       const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
-      if (!massagem) throw new Error('A-50: serviço Massagem ausente no cenário')
+      if (!massagem) throw new Error('A-51: serviço Massagem ausente no cenário')
       upsertServiceOp(
         s.db,
         s.caller,
@@ -2634,7 +2635,7 @@ export const P0_DIALOG_CASES: DialogCase[] = [
         massagem.id,
         'Massagem relaxante',
       )
-      if (!relaxante) throw new Error('A-50: variante Massagem relaxante ausente')
+      if (!relaxante) throw new Error('A-51: variante Massagem relaxante ausente')
       saveScheduleSession(
         s.db,
         s.tenantId,
@@ -2650,15 +2651,15 @@ export const P0_DIALOG_CASES: DialogCase[] = [
               { key: '2026-11-08T09:30', label: '09:30' },
               { key: '2026-11-08T10:00', label: '10:00' },
             ],
-            messageId: 'm_a50_slots',
+            messageId: 'm_a51_slots',
           },
           lastOffer: {
             slots: [
-              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a50' },
-              { startsAt: Date.UTC(2026, 10, 8, 12, 30), professionalId: 'pro_a50' },
-              { startsAt: Date.UTC(2026, 10, 8, 13, 0), professionalId: 'pro_a50' },
+              { startsAt: Date.UTC(2026, 10, 8, 12, 0), professionalId: 'pro_a51' },
+              { startsAt: Date.UTC(2026, 10, 8, 12, 30), professionalId: 'pro_a51' },
+              { startsAt: Date.UTC(2026, 10, 8, 13, 0), professionalId: 'pro_a51' },
             ],
-            messageId: 'm_a50_slots',
+            messageId: 'm_a51_slots',
           },
         },
         s.clock,
