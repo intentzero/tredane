@@ -176,7 +176,6 @@ describe('EquipeScreen — S1', () => {
     expect(resend.className).toMatch(/panel-btn-secondary/)
     const cancel = screen.getByRole('button', { name: 'Cancelar convite' })
     expect(cancel.className).toMatch(/panel-btn-danger/)
-    expect(cancel.className).not.toMatch(/equipe-cancel/)
 
     await user.click(cancel)
     await waitFor(() =>
@@ -188,7 +187,7 @@ describe('EquipeScreen — S1', () => {
     )
   })
 
-  it('mantém Convidar pessoa depois dos convites e o banner Pronto após envio', async () => {
+  it('mostra Convidar pessoa no cabeçalho, antes das listas, e o banner Pronto após envio', async () => {
     const user = userEvent.setup()
     const api = mockApi(snap({ invitations: [] }))
     const { container } = render(
@@ -202,12 +201,13 @@ describe('EquipeScreen — S1', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Convidar pessoa' })).toBeTruthy(),
     )
-    const convites = container.querySelector('#equipe-convites-t')?.closest('section')
-    const cta = container.querySelector('.equipe-cta')
-    expect(convites).toBeTruthy()
+    const membros = container.querySelector('#equipe-membros-t')?.closest('section')
+    const cta = container.querySelector('.equipe-head .equipe-invite-cta')
+    expect(membros).toBeTruthy()
     expect(cta).toBeTruthy()
-    const position = convites!.compareDocumentPosition(cta!)
-    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const position = membros!.compareDocumentPosition(cta!)
+    expect(position & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+    expect(container.querySelector('.equipe-summary')?.textContent).toBe('2 membros')
 
     await user.click(screen.getByRole('button', { name: 'Convidar pessoa' }))
     await user.type(screen.getByLabelText('E-mail'), 'nova@clinica.example')

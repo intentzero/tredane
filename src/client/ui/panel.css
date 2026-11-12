@@ -9689,10 +9689,50 @@
 }
 
 /* —— Equipe (M-18 / S1) —— */
-/* CTA «Convidar pessoa» fica no fluxo do documento (não sticky). O shell já
- * reserva espaço sobre a bottom nav; só um fôlego curto no fim da tela. */
+/* Cabeçalho com resumo e «Convidar pessoa» no topo; membros e convites em
+ * listas de linhas; papéis do responsável numa coluna lateral (abaixo no celular). */
 .equipe-screen {
   padding-bottom: var(--space-2);
+}
+
+.equipe-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+}
+
+.equipe-head-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.equipe-summary {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.equipe-invite-cta {
+  flex: none;
+}
+
+.equipe-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-6);
+}
+
+.equipe-main {
+  flex: 999 1 480px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
 }
 
 .equipe-section {
@@ -9701,37 +9741,66 @@
   gap: var(--space-2);
 }
 
-.equipe-list,
-.equipe-invite-list {
-  list-style: none;
+.equipe-section-title {
   margin: 0;
-  padding: 0;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.equipe-list,
+.equipe-invite-box {
   background: var(--color-surface-card);
   border: var(--size-border-width) solid var(--color-line-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
-.equipe-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: var(--size-row-min);
-  padding: var(--space-2) var(--space-4);
-  border-bottom: var(--size-border-width) solid var(--color-line-divider);
+.equipe-list,
+.equipe-invite-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.equipe-row--actions {
-  gap: var(--space-1);
-  padding-right: var(--space-1);
+/* Linha: avatar · nome/e-mail · papel · ⋮ (o espaçador mantém o papel alinhado
+ * quando não há menu). */
+.equipe-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto var(--size-touch);
+  grid-template-areas: 'avatar copy role menu';
+  align-items: center;
+  column-gap: var(--space-3);
+  min-height: var(--size-row-min);
+  padding: var(--space-2) var(--space-1) var(--space-2) var(--space-4);
+  border-bottom: var(--size-border-width) solid var(--color-line-divider);
 }
 
 .equipe-row:last-child {
   border-bottom: 0;
 }
 
+.equipe-row > .equipe-avatar {
+  grid-area: avatar;
+}
+
+.equipe-row > .equipe-copy {
+  grid-area: copy;
+}
+
+.equipe-role {
+  grid-area: role;
+  display: inline-flex;
+}
+
+.equipe-row-menu,
+.equipe-row-menu-spacer {
+  grid-area: menu;
+}
+
 .equipe-row-menu {
-  flex: none;
   width: var(--size-touch);
   height: var(--size-touch);
   border: 0;
@@ -9769,8 +9838,14 @@
   color: var(--color-ai-ink);
 }
 
+/* Convite ainda não é membro: contorno tracejado, sem preenchimento. */
+.equipe-avatar--invite {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1.5px dashed var(--color-line-border);
+}
+
 .equipe-copy {
-  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -9782,21 +9857,24 @@
   overflow-wrap: anywhere;
 }
 
-.equipe-copy > span {
+.equipe-copy > span:not(.equipe-invite-title) {
   font-size: var(--font-size-small);
   color: var(--color-text-muted);
   overflow-wrap: anywhere;
 }
 
-.equipe-copy .panel-badge {
-  align-self: flex-start;
-  margin-top: 4px;
+.equipe-invite-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
 }
 
 .equipe-invite {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-bottom: var(--size-border-width) solid var(--color-line-divider);
 }
@@ -9805,38 +9883,86 @@
   border-bottom: 0;
 }
 
-.equipe-invite-head {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-}
-
-/* Reenviar (secundário) + Cancelar (danger) empilhados na mesma largura —
- * evita o wrap em que Reenviar (width:100% do secondary) ocupava a linha e
- * Cancelar (ghost) ficava curto à esquerda. */
 .equipe-invite-actions {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   gap: var(--space-2);
 }
 
 .equipe-action-btn {
-  width: 100%;
+  width: auto;
   height: var(--size-control-default);
   min-height: var(--size-control-default);
   padding: 0 var(--space-3);
   font-size: var(--font-size-small);
 }
 
-.equipe-cta {
-  margin-top: var(--space-2);
-  padding: 0;
-  background: none;
+/* «Cancelar convite» pesa menos que «Reenviar»: texto vermelho, sem contorno. */
+.equipe-cancel-btn {
+  background: transparent;
+  border-color: transparent;
 }
 
-.equipe-cta .panel-btn-primary {
-  width: 100%;
+.equipe-invite-note {
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--size-border-width) solid var(--color-line-divider);
+}
+
+.equipe-aside {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding-top: var(--space-3);
+  border-top: 2px solid var(--color-primary-base);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.equipe-aside-title {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+}
+
+.equipe-aside-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+@media (max-width: 767.98px) {
+  .equipe-invite-cta {
+    width: 100%;
+  }
+
+  /* Papel vai para baixo do e-mail; ⋮ continua à direita. */
+  .equipe-row {
+    grid-template-columns: auto minmax(0, 1fr) var(--size-touch);
+    grid-template-areas:
+      'avatar copy menu'
+      'avatar role menu';
+    row-gap: var(--space-1);
+  }
+
+  .equipe-role {
+    justify-self: start;
+  }
+
+  /* Ações ocupam a linha toda, metade cada, sob o e-mail. */
+  .equipe-invite {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .equipe-invite-actions {
+    grid-column: 1 / -1;
+  }
+
+  .equipe-invite-actions .equipe-action-btn {
+    flex: 1 1 0;
+    height: var(--size-touch);
+    min-height: var(--size-touch);
+  }
 }
 
 /* DEC-141 — palavras não reconhecidas → sinónimo (lista de Serviços, só owner). */
@@ -10919,7 +11045,8 @@
 
   /* Os «Voltar» soltos de cada tela e o título repetido do Horário saem: o cabeçalho já volta. */
   .clinic-sub .clinic-toolbar:has(> .panel-btn-ghost:only-child),
-  .clinic-sub .hours-screen > .clinic-h2 {
+  .clinic-sub .hours-screen > .clinic-h2,
+  .clinic-sub .equipe-head .clinic-h2 {
     display: none;
   }
 }
