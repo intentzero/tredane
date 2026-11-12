@@ -90,6 +90,21 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
     ])
   })
 
+  it('«gostaria de saber… íntima e pernas» não ecoa «saber» como zona (staging)', () => {
+    // Staging: mensagem longa pediu depilação masculina íntima e pernas;
+    // «saber» de «gostaria de saber» virava leftover («Não encontrei saber»).
+    const masculine = [
+      zone('in-m', 'Intima', 'masculino'),
+      zone('pe-m', 'Pernas', 'masculino'),
+      zone('ax-m', 'Axila', 'masculino'),
+    ]
+    const text = 'Gostaria de saber se faz depilação masculina íntima e pernas'
+    const got = resolveZoneMention(text, masculine, { ignoreWords: ['Depilação'] })
+    expect(got.unrecognized).toBe(false)
+    expect(got.leftover).toBeNull()
+    expect(got.zones.map((z) => z.id).sort()).toEqual(['in-m', 'pe-m'])
+  })
+
   it('não faz fuzzy de nome diferente («axilha» ≠ Axila)', () => {
     const got = resolveZoneMention('axilha', feminine)
     expect(got.unrecognized).toBe(true)

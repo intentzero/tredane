@@ -17,7 +17,7 @@ export const OPTION_MATCH_STOP: ReadonlySet<string> = new Set([
   'obrigada',
   'pf',
   'pfv',
-  // Filler / modal
+  // Filler / modal / intenção («gostaria de saber…», «se faz/fazem…» — não é zona)
   'seria',
   'gostaria',
   'queria',
@@ -29,6 +29,10 @@ export const OPTION_MATCH_STOP: ReadonlySet<string> = new Set([
   'teria',
   'pode',
   'ser',
+  'saber',
+  'fazer',
+  'fazem',
+  'faz',
   // Agendar genérico
   'agendar',
   'agenda',
@@ -93,9 +97,7 @@ export const OPTION_MATCH_STOP: ReadonlySet<string> = new Set([
  */
 export const CATALOG_MISS_STOP: ReadonlySet<string> = new Set([
   ...OPTION_MATCH_STOP,
-  'fazer',
-  'fazem',
-  'faz',
+  // fazer/fazem/faz já vêm de OPTION_MATCH_STOP (intenção).
   'algo',
   'esse',
   'essa',
@@ -126,6 +128,6 @@ export const CATALOG_MISS_STOP: ReadonlySet<string> = new Set([
  */
 export const UNMATCHED_TERM_STOP: ReadonlySet<string> = new Set([
   ...CATALOG_MISS_STOP,
-  'saber',
+  // `saber` já vem de OPTION_MATCH_STOP (herdado).
   'disponibilidade',
 ])

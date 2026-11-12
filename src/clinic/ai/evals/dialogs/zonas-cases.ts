@@ -4,6 +4,7 @@
  * A-38: T2 friction `nao_encontrei` (session-analytics).
  * A-44..A-46: singular↔plural + stopwords pt-BR (Paulo 10/11/2026).
  * A-48: lista Horários sem description=title (Meta echo duplicava o bubble).
+ * A-50: «gostaria de saber» não ecoa «saber» como zona (staging).
  *
  * Relógio por defeito: qui 05/11/2026 10:00 America/Sao_Paulo. Catálogo de referência:
  * Depilação com Axila, Pernas (feminino e masculino, DEC-079) e Buço (ambos).
@@ -16,13 +17,23 @@ const NO_LEAK = [/maps\.google|goo\.gl/i, /\{|\}/]
 const COTOVELO_HASH = frictionTermHash('cotovelo')!
 
 /** Staging smoke: acrescenta Intima (e Braços) sem recriar as zonas base. */
-function withIntimaZones(s: Parameters<NonNullable<DialogCase['prepare']>>[0]): void {
+function withIntimaZones(
+  s: Parameters<NonNullable<DialogCase['prepare']>>[0],
+  extras: Array<{
+    name: string
+    audience: 'feminino' | 'masculino' | 'ambos'
+    durationMinutes: number
+    priceCents: number
+  }> = [
+    { name: 'Intima', audience: 'feminino', durationMinutes: 20, priceCents: 15000 },
+    { name: 'Braços', audience: 'feminino', durationMinutes: 20, priceCents: 8000 },
+  ],
+): void {
   const prior = listZones(s.db, s.tenantId, s.ids.depilacao)
-  const extras = [
-    { name: 'Intima', audience: 'feminino' as const, durationMinutes: 20, priceCents: 15000 },
-    { name: 'Braços', audience: 'feminino' as const, durationMinutes: 20, priceCents: 8000 },
-  ].filter((extra) => !prior.some((z) => z.name === extra.name && z.audience === extra.audience))
-  if (extras.length === 0) return
+  const missing = extras.filter(
+    (extra) => !prior.some((z) => z.name === extra.name && z.audience === extra.audience),
+  )
+  if (missing.length === 0) return
   replaceServiceZonesOp(
     s.db,
     s.caller,
@@ -37,10 +48,16 @@ function withIntimaZones(s: Parameters<NonNullable<DialogCase['prepare']>>[0]): 
         active: z.active,
         synonyms: z.synonyms,
       })),
-      ...extras,
+      ...missing,
     ],
     s.clock,
   )
+}
+
+function withMasculineIntimaZones(s: Parameters<NonNullable<DialogCase['prepare']>>[0]): void {
+  withIntimaZones(s, [
+    { name: 'Intima', audience: 'masculino', durationMinutes: 20, priceCents: 18000 },
+  ])
 }
 
 export const ZONAS_DIALOG_CASES: DialogCase[] = [
@@ -270,6 +287,34 @@ export const ZONAS_DIALOG_CASES: DialogCase[] = [
           turn: 1,
           matches: [/Entendi:.*(intima|íntima).*(pernas)|Entendi:.*(pernas).*(intima|íntima)/i, /Certo\?/],
           excludes: [/Não encontrei seria/i, /«seria»/i],
+        },
+      ],
+      outboundExcludes: NO_LEAK,
+    },
+  },
+  {
+    id: 'A-50',
+    title: '«gostaria de saber… íntima e pernas» não ecoa «saber»',
+    turnosIdeais: 2,
+    // Staging: mensagem longa pediu depilação masculina íntima e pernas;
+    // «saber» de «gostaria de saber» → «Não encontrei saber nas opções» com zonas certas.
+    prepare: withMasculineIntimaZones,
+    turns: [
+      { role: 'client', text: 'Quero depilação masculina' },
+      {
+        role: 'client',
+        text: 'Gostaria de saber se faz depilação masculina íntima e pernas',
+      },
+    ],
+    expect: {
+      proposal: false,
+      noAppointment: true,
+      turns: [
+        { turn: 0, matches: [/quais zonas/i] },
+        {
+          turn: 1,
+          matches: [/Entendi:.*(intima|íntima).*(pernas)|Entendi:.*(pernas).*(intima|íntima)/i, /Certo\?/],
+          excludes: [/Não encontrei saber/i, /Não encontrei faz/i, /«saber»/i],
         },
       ],
       outboundExcludes: NO_LEAK,
