@@ -536,7 +536,7 @@ export const CC_DIALOG_CASES: DialogCase[] = [
     title: 'A meio da oferta de slots, «Qual o valor?» cotiza a variante e mantém o quadro',
     turnosIdeais: 1,
     // Staging Paulo 08/11/2026: após tipo+horários, «Qual o valor?» não reabre ask-tipo.
-    // P1 stack: resume choose_slot / lastOffer após ask_info (variante intacta).
+    // P1 stack + rsamp_fa7f138: após preço, reoferta slots (não só perguntar_horario).
     prepare: (s) => {
       const massagem = listServices(s.db, s.tenantId).find((row) => row.name === 'Massagem')
       if (!massagem) throw new Error('CC-11: serviço Massagem ausente no cenário')
@@ -599,7 +599,8 @@ export const CC_DIALOG_CASES: DialogCase[] = [
           matches: [
             /Massagem relaxante/i,
             /R\$\s*150,00/,
-            /Qual horário fica melhor para Massagem\?|qual horário você prefere/i,
+            /\d{1,2}:\d{2}/,
+            /horários|próximos horários|tenho/i,
           ],
           excludes: [/\bqual tipo\b/i, /\bquais tipos?\b/i, /Liberação miofascial — R\$/],
         },

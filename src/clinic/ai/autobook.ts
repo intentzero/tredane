@@ -127,6 +127,7 @@ import {
 import { extractDates, extractTimes, norm } from './nlu/temporal'
 import { classifyCrossCuttingAct } from './booking-turn-gate'
 import { realizeAskInfo, realizeClarify } from './ask-info-realize'
+import { shouldResumeSlotAsk } from './dialogue-interrupt-stack'
 import {
   obligationFromFrame,
   shouldEmitOptionMiss,
@@ -1087,20 +1088,67 @@ export async function tryAiAutoBook(
       })
       if (realized) {
         // T3: preço total → Marcar outro | Terminar (sem pending M5).
-        const priceButtons =
+        let priceButtons =
           realized.quote.act === 'informar_preco_soma'
             ? ({
                 mode: 'buttons' as const,
                 buttons: priceFollowupInteractiveButtons(),
               } satisfies ChoiceInteractive)
             : null
+        let replyText = realized.replyText
+        let slotInteractive: ChoiceInteractive | null = null
+        // rsamp_fa7f138: após preço, reofertar slots (não só «qual horário?»).
+        if (gate.topic === 'price' && shouldResumeSlotAsk(realized.parked)) {
+          const variantIds = frameAsk.variantIds ?? []
+          const kept = poolAsk.filter((z) => variantIds.includes(z.id))
+          const zonesOffer = kept.length > 0 ? kept : poolAsk
+          const quoteOnly = realized.resume
+            ? realized.replyText.slice(0, realized.replyText.indexOf('\n')).trim()
+            : realized.replyText
+          const preferred = preferredProfessionalId(
+            db,
+            tenantId,
+            [turnText, ...older.map((m) => m.body)].join('\n'),
+            svcAsk,
+            clock,
+            input.turn?.catalog.resources,
+          )
+          const offered = await offerNearestSlots({
+            db,
+            tenantId,
+            service: svcAsk,
+            zones: zonesOffer,
+            tz,
+            clock,
+            forecast: input.forecast,
+            professionalId: preferred,
+            date: frameAsk.date ?? null,
+            period: frameAsk.period ?? null,
+            limit: 3,
+            conversationId: input.conversationId,
+          })
+          slotInteractive = applyOfferSideEffects(
+            deferred,
+            svcAsk.id,
+            catalog.version,
+            offered,
+            preferred,
+            rememberOfferFrame,
+          )
+          replyText =
+            offered.slots.length > 0
+              ? `${quoteOnly}\n${offered.replyText}`
+              : quoteOnly
+          priceButtons = null
+        }
         return finish({
           ...none('needs_info', {
             confirmationMessageId: confirmation.id,
             serviceId: svcAsk.id,
           }),
-          replyText: realized.replyText,
+          replyText,
           ...(priceButtons ? { interactive: priceButtons } : {}),
+          ...(slotInteractive ? { interactive: slotInteractive } : {}),
           notes: `DEC-C1/C4: ask_info ${gate.topic} via interrupt stack (pending kept).`,
         })
       }
@@ -1344,8 +1392,9 @@ export async function tryAiAutoBook(
   // mantinha ready e repropunha o dia corrente. Remapear dia civil ≠ sticky,
   // limpar hora/pending e retirar a proposta — reoferta de slots no dia novo.
   // Não disparar em ordinal A-08 («a segunda opção»).
+  const funnelServiceId = session?.serviceId ?? frame?.serviceId ?? null
   if (
-    session?.serviceId &&
+    funnelServiceId &&
     turnFacts.dayLabel &&
     !turnFacts.period &&
     !ordinalOptionReply &&
@@ -1357,7 +1406,7 @@ export async function tryAiAutoBook(
         retireActiveProposal(db, tenantId, input.conversationId, clock)
       }
       saveSession({
-        serviceId: session.serviceId,
+        serviceId: funnelServiceId,
         date: turnDayAbsolute,
         period: null,
         clockTime: null,
@@ -1483,8 +1532,12 @@ export async function tryAiAutoBook(
     const dayLabel = ordinalOptionReply ? undefined : turnFacts.dayLabel
     if (!dayLabel && !turnFacts.period) return
     const today = clinicCivilDateFromUtc(tz, confirmation.created_at)
-    const absolute =
-      dayLabel != null ? [...extractDates(dayLabel, today)][0] ?? null : undefined
+  const absolute =
+    dayLabel != null
+      ? [...extractDates(turnText, today)][0] ??
+        [...extractDates(dayLabel, today)][0] ??
+        null
+      : undefined
     // Novo dia/período invalida pending/lastOffer anteriores (nova oferta a seguir).
     // day_label deixa de ser gravado (#472 cutover); só date/period absolutos.
     // Dia novo sem período nomeado: limpa period sticky (não herdar «noite» no amanhã).
@@ -1499,19 +1552,26 @@ export async function tryAiAutoBook(
       pending: null,
       lastOffer: null,
     })
+    if (absolute != null) {
+      date = absolute
+      missing = missing.filter((item) => item !== 'dia')
+    }
   }
   if (pendingTimeOverride) {
     // Oferta viva no frame: identidade do serviço é a do quadro, não a do histórico
     // (detectExplicitConfirmation pode achar Massagem em turnos antigos — audit H1).
+    const framePending = frame
     const liveFrameSvc =
-      frame?.serviceId &&
-      (frame.pending?.slot === 'horario' || Boolean(frame.lastOffer))
-        ? services.find((s) => s.id === frame.serviceId)
+      framePending?.serviceId &&
+      (framePending.pending?.slot === 'horario' || Boolean(framePending.lastOffer))
+        ? services.find((s) => s.id === framePending.serviceId)
         : undefined
     const pendingSvc =
       liveFrameSvc ??
       det.service ??
-      (frame?.serviceId ? services.find((s) => s.id === frame.serviceId) : undefined)
+      (framePending?.serviceId
+        ? services.find((s) => s.id === framePending.serviceId)
+        : undefined)
     if (pendingSvc) {
       det = {
         ...det,
@@ -1591,17 +1651,20 @@ export async function tryAiAutoBook(
     }
   }
   if (input.boundSlot) {
+    const frameBound = frame
     const liveFrameSvc =
-      frame?.serviceId &&
-      (frame.pending?.slot === 'horario' || Boolean(frame.lastOffer))
-        ? services.find((s) => s.id === frame.serviceId)
+      frameBound?.serviceId &&
+      (frameBound.pending?.slot === 'horario' || Boolean(frameBound.lastOffer))
+        ? services.find((s) => s.id === frameBound.serviceId)
         : undefined
     const sessionSvcId = session?.serviceId
     const pendingSvc =
       liveFrameSvc ??
       det.service ??
       (sessionSvcId ? services.find((s) => s.id === sessionSvcId) : undefined) ??
-      (frame?.serviceId ? services.find((s) => s.id === frame.serviceId) : undefined)
+      (frameBound?.serviceId
+        ? services.find((s) => s.id === frameBound.serviceId)
+        : undefined)
     if (pendingSvc) {
       det = {
         ...det,
@@ -1661,6 +1724,43 @@ export async function tryAiAutoBook(
       time,
       missing: [],
       service: det.service,
+    }
+  }
+  // rsamp_fa7f138: pergunta de outro dia com hora sticky do histórico/oferta
+  // não pode fechar `ready` no dia antigo — limpar hora e alinhar `date` local.
+  if (
+    funnelServiceId &&
+    turnFacts.dayLabel &&
+    !turnFacts.period &&
+    !ordinalOptionReply &&
+    turnDayAbsolute != null &&
+    turnDayAbsolute !== (frame?.date ?? date ?? null)
+  ) {
+    const sid = det.service?.id ?? funnelServiceId
+    saveSession({
+      serviceId: sid,
+      date: turnDayAbsolute,
+      period: null,
+      clockTime: null,
+      pending: null,
+      lastOffer: null,
+    })
+    session = deferred.peekSession(db, tenantId, input.conversationId)
+    frame = deferred.peekFrame(db, tenantId, input.conversationId)
+    date = turnDayAbsolute
+    time = undefined
+    dropStickyTimeAfterDayRemap = true
+    missing = missing.filter((item) => item !== 'dia')
+    if (!missing.includes('horario')) missing = [...missing, 'horario']
+    if (det.service) {
+      det = {
+        ...det,
+        ok: false,
+        status: 'needs_info',
+        date: turnDayAbsolute,
+        time: undefined,
+        missing,
+      }
     }
   }
   const ready =
