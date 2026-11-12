@@ -89,6 +89,7 @@
 | A-25 | P0 | Telemetria: zonas respondidas | C: «Quero depilação feminina» ⟶ C: «axila e pernas» | `ai.turn_decided` do 2.º turno: `variantsChanged` e `zonesAskedBefore` verdadeiros, sem modelo. Só booleanos, sem texto. | CA-09 | 2 | ✅ L1 (#588, DEC-143 medida a) |
 | A-26 | P0 | Telemetria: zonas por iniciativa | C: «Quero depilação» ⟶ C: «feminina, axila e pernas» | `variantsChanged` verdadeiro e `zonesAskedBefore` **falso**: são zonas escritas sem lhas pedirem. | CA-09 | 2 | ✅ L1 (#588; falha se `zonesAskedBefore` for sempre verdadeiro) |
 | A-27 | P0 | Zonas escritas antes da linha | C: «Quero depilação de axila e pernas» ⟶ C: «feminina» ⟶ C: «sim» | Pergunta a linha; depois «Entendi: axila, pernas. Certo?» sem voltar a pedir as zonas; o Sim abre os Horários e não marca (DEC-061, DEC-137). | INV-08 | 3 | ✅ L1 (#589, DEC-143; falha sem a janela recuada do funil; id A-27 após #597 ocupar A-24) |
+| A-50 | P0 | «gostaria de saber» ≠ zona | [Depilação masculina + Intima] C: «Gostaria de saber se faz depilação masculina íntima e pernas» | Eco «Entendi: … íntima … pernas. Certo?»; **sem** «Não encontrei saber» (nem «faz»). | INV-05, DEC-137 | 2 | ✅ L1 |
 
 ## B. Linguagem temporal
 
