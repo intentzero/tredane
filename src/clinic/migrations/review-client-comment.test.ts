@@ -7,7 +7,7 @@ describe('0061_review_client_comment', () => {
   it('id e nome da migração no catálogo', () => {
     expect(MIGRATION_ID).toBe(61)
     expect(MIGRATION_NAME).toBe('0061_review_client_comment')
-    expect(CLINIC_SCHEMA_VERSION).toBe(62)
+    expect(CLINIC_SCHEMA_VERSION).toBe(63)
     expect(
       CLINIC_MIGRATIONS.some((m) => m.id === 61 && m.name === MIGRATION_NAME),
     ).toBe(true)
