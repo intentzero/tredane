@@ -731,6 +731,8 @@ describe('DEC-091/129 reagendamento conversacional', () => {
       expect(frameAfterDay?.serviceId).toBe(s.svc.id)
       // Prefer pending key of the *new* day offer; fall back to HH:MM from copy.
       // Do not send a stale sexta ISO key — extractTimes reads «2026» as 20:26.
+      // Após remap dia-só (rsamp_fa7f138), «Para hoje» às 14:40 oferece tarde (14:45…) —
+      // «As 14» casava 14:00 já passado/ocupado; usar HH:MM completo da lista.
       const pendingKey = frameAfterDay?.pending?.options?.[0]?.key
       const listed = [...s.lastOutbound().matchAll(/\b(\d{2}:\d{2})\b/g)].map((m) => m[1]!)
       expect(listed.length + (pendingKey ? 1 : 0)).toBeGreaterThan(0)
@@ -739,7 +741,9 @@ describe('DEC-091/129 reagendamento conversacional', () => {
           ? pendingKey
           : listed.includes('15:00')
             ? 'As 15'
-            : `As ${(listed[0] ?? pendingKey!.slice(-5)).slice(0, 2)}`
+            : listed[0]
+              ? `As ${listed[0]}`
+              : pendingKey!
       s.say('inbound', inboundPick)
       const timeOut = await s.run()
       expect(timeOut.reason).not.toBe('reschedule_flow')
