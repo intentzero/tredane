@@ -2,7 +2,7 @@
  * Equipe (M-18 / S1–S3 + DEC-103): membros + convites; convidar attendant/owner;
  * promover / despromover / remover (último owner protegido).
  */
-import { MoreVertical } from 'lucide-react'
+import { ChevronLeft, Mail, MoreVertical, Plus, RotateCw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Button,
@@ -325,20 +325,49 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
       || 'esta pessoa'
     : ''
 
+  const memberCount = members.length
+  const inviteCount = invitations.length
+  const summary = [
+    memberCount === 1 ? '1 membro' : `${memberCount} membros`,
+    inviteCount === 0
+      ? null
+      : inviteCount === 1
+        ? '1 convite pendente'
+        : `${inviteCount} convites pendentes`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   return (
     <div className="clinic-stack equipe-screen">
-      <div className="clinic-toolbar">
+      <div className="clinic-toolbar clinic-desktop-hide">
         <Button
           className="panel-btn panel-btn-ghost"
           onPress={() =>
             navigatePanel({ kind: 'area', area: 'clinica', tenantId, section: 'hub' })
           }
         >
-          Voltar
+          <ChevronLeft aria-hidden size={18} strokeWidth={2} /> Clínica
         </Button>
       </div>
 
-      <h2 className="panel-title">Equipe</h2>
+      <div className="equipe-head">
+        <div className="equipe-head-copy">
+          <h2 className="panel-title clinic-h2">Equipe</h2>
+          <p className="equipe-summary">{summary}</p>
+        </div>
+        <Button
+          className="panel-btn panel-btn-primary equipe-invite-cta"
+          onPress={() => {
+            setActionError(null)
+            setInviteRole('attendant')
+            setInviteOpen(true)
+          }}
+        >
+          <Plus aria-hidden size={18} strokeWidth={2} />
+          Convidar pessoa
+        </Button>
+      </div>
 
       {actionError ? (
         <Banner tone="error" title="Não deu certo">
@@ -351,117 +380,125 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
         </Banner>
       ) : null}
 
-      <section className="equipe-section" aria-labelledby="equipe-membros-t">
-        <h3 id="equipe-membros-t" className="panel-legend">
-          Membros
-        </h3>
-        {members.length === 0 ? (
-          <p className="panel-subtitle">Nenhum membro ativo nesta clínica.</p>
-        ) : (
-          <ul className="equipe-list">
-            {members.map((m) => {
-              const name = memberDisplayName(m, viewerClerkUserId)
-              const showMenu = hasMemberMenu(m, viewerClerkUserId)
-              return (
-                <li
-                  key={m.clerkUserId}
-                  className={`equipe-row${showMenu ? ' equipe-row--actions' : ''}`}
-                >
-                  <span
-                    className={`equipe-avatar${m.role === 'owner' ? ' equipe-avatar--owner' : ''}`}
-                    aria-hidden
-                  >
-                    {initials(m.displayName?.trim() || '?')}
-                  </span>
-                  <span className="equipe-copy">
-                    <strong>{name}</strong>
-                    <span>{memberEmail(m)}</span>
-                    <Badge tone={m.role === 'owner' ? 'ai' : 'closed'}>{roleLabel(m.role)}</Badge>
-                  </span>
-                  {showMenu ? (
-                    <Button
-                      className="equipe-row-menu"
-                      aria-label={`Ações para ${m.displayName?.trim() || memberEmail(m)}`}
-                      isDisabled={busyId !== null}
-                      onPress={() => {
-                        setActionError(null)
-                        setActionOk(null)
-                        setMenuMember(m)
-                      }}
-                    >
-                      <MoreVertical aria-hidden size={20} strokeWidth={2} />
-                    </Button>
-                  ) : null}
-                </li>
-              )
-            })}
-          </ul>
-        )}
-        <p className="clinic-footnote">
-          Você convida atendentes e responsáveis, promove, despromove e remove acesso. A clínica
-          precisa ficar com pelo menos um responsável.
-        </p>
-      </section>
-
-      <section className="equipe-section" aria-labelledby="equipe-convites-t">
-        <h3 id="equipe-convites-t" className="panel-legend">
-          Convites pendentes
-        </h3>
-        {invitations.length === 0 ? (
-          <p className="panel-subtitle">Nenhum convite pendente.</p>
-        ) : (
-          <ul className="equipe-invite-list">
-            {invitations.map((inv) => {
-              const resendEnabled = canResendNow(inv, nowMs) && busyId !== inv.id
-              return (
-                <li key={inv.id} className="equipe-invite">
-                  <div className="equipe-invite-head">
-                    <span className="equipe-copy">
-                      <strong>{inv.email}</strong>
-                      <span>
-                        {roleLabel(inv.role)} · {expiresInLabel(inv.expiresAt, nowMs)}
+      <div className="equipe-layout">
+        <div className="equipe-main">
+          <section className="equipe-section" aria-labelledby="equipe-membros-t">
+            <h3 id="equipe-membros-t" className="equipe-section-title">
+              Membros
+            </h3>
+            {members.length === 0 ? (
+              <p className="panel-subtitle">Nenhum membro ativo nesta clínica.</p>
+            ) : (
+              <ul className="equipe-list">
+                {members.map((m) => {
+                  const name = memberDisplayName(m, viewerClerkUserId)
+                  const showMenu = hasMemberMenu(m, viewerClerkUserId)
+                  return (
+                    <li key={m.clerkUserId} className="equipe-row">
+                      <span
+                        className={`equipe-avatar${m.role === 'owner' ? ' equipe-avatar--owner' : ''}`}
+                        aria-hidden
+                      >
+                        {initials(m.displayName?.trim() || '?')}
                       </span>
-                    </span>
-                    <Badge tone="wait">Pendente</Badge>
-                  </div>
-                  <div className="equipe-invite-actions">
-                    <Button
-                      className="panel-btn panel-btn-secondary equipe-action-btn"
-                      isDisabled={!resendEnabled || busyId !== null}
-                      onPress={() => void onResend(inv)}
-                    >
-                      {resendButtonLabel(inv, nowMs)}
-                    </Button>
-                    <Button
-                      className="panel-btn panel-btn-danger equipe-action-btn"
-                      isDisabled={!inv.manageActions.canCancel || busyId !== null}
-                      onPress={() => void onCancel(inv)}
-                    >
-                      Cancelar convite
-                    </Button>
-                  </div>
-                  <p className="clinic-footnote">
-                    Reenviar gera um novo link e invalida o anterior. Até 5 reenvios em 24 h, com 10
-                    min entre eles.
-                  </p>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
+                      <span className="equipe-copy">
+                        <strong>{name}</strong>
+                        <span>{memberEmail(m)}</span>
+                      </span>
+                      <span className="equipe-role">
+                        <Badge tone={m.role === 'owner' ? 'ai' : 'closed'}>
+                          {roleLabel(m.role)}
+                        </Badge>
+                      </span>
+                      {showMenu ? (
+                        <Button
+                          className="equipe-row-menu"
+                          aria-label={`Ações para ${m.displayName?.trim() || memberEmail(m)}`}
+                          isDisabled={busyId !== null}
+                          onPress={() => {
+                            setActionError(null)
+                            setActionOk(null)
+                            setMenuMember(m)
+                          }}
+                        >
+                          <MoreVertical aria-hidden size={20} strokeWidth={2} />
+                        </Button>
+                      ) : (
+                        <span className="equipe-row-menu-spacer" aria-hidden />
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
 
-      <div className="equipe-cta">
-        <Button
-          className="panel-btn panel-btn-primary"
-          onPress={() => {
-            setActionError(null)
-            setInviteRole('attendant')
-            setInviteOpen(true)
-          }}
-        >
-          Convidar pessoa
-        </Button>
+          <section className="equipe-section" aria-labelledby="equipe-convites-t">
+            <h3 id="equipe-convites-t" className="equipe-section-title">
+              Convites pendentes
+            </h3>
+            {invitations.length === 0 ? (
+              <p className="panel-subtitle">Nenhum convite pendente.</p>
+            ) : (
+              <div className="equipe-invite-box">
+                <ul className="equipe-invite-list">
+                  {invitations.map((inv) => {
+                    const resendEnabled = canResendNow(inv, nowMs) && busyId !== inv.id
+                    return (
+                      <li key={inv.id} className="equipe-invite">
+                        <span className="equipe-avatar equipe-avatar--invite" aria-hidden>
+                          <Mail size={18} strokeWidth={1.8} />
+                        </span>
+                        <span className="equipe-copy">
+                          <span className="equipe-invite-title">
+                            <strong>{inv.email}</strong>
+                            <Badge tone="wait">Pendente</Badge>
+                          </span>
+                          <span>
+                            {roleLabel(inv.role)} · {expiresInLabel(inv.expiresAt, nowMs)}
+                          </span>
+                        </span>
+                        <div className="equipe-invite-actions">
+                          <Button
+                            className="panel-btn panel-btn-secondary equipe-action-btn"
+                            isDisabled={!resendEnabled || busyId !== null}
+                            onPress={() => void onResend(inv)}
+                          >
+                            <RotateCw aria-hidden size={16} strokeWidth={2} />
+                            {resendButtonLabel(inv, nowMs)}
+                          </Button>
+                          <Button
+                            className="panel-btn panel-btn-danger equipe-action-btn equipe-cancel-btn"
+                            isDisabled={!inv.manageActions.canCancel || busyId !== null}
+                            onPress={() => void onCancel(inv)}
+                          >
+                            Cancelar convite
+                          </Button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+                <p className="clinic-footnote equipe-invite-note">
+                  Reenviar gera um novo link e invalida o anterior. Até 5 reenvios em 24 h, com 10
+                  min entre eles.
+                </p>
+              </div>
+            )}
+          </section>
+        </div>
+
+        <aside className="equipe-aside" aria-labelledby="equipe-papel-t">
+          <h3 id="equipe-papel-t" className="equipe-aside-title">
+            Como responsável, você
+          </h3>
+          <ul className="equipe-aside-list">
+            <li>convida atendentes e responsáveis</li>
+            <li>promove e despromove membros</li>
+            <li>remove acesso</li>
+          </ul>
+          <p className="clinic-footnote">A clínica precisa ficar com pelo menos um responsável.</p>
+        </aside>
       </div>
 
       <ClinicSheet
