@@ -402,10 +402,10 @@ describe('caso real: Gi seg–sex 09–17, sáb 09–12, sala sem horário', () 
         { serviceId: s.svc.id, date: '2026-11-05' },
         s.clock,
       )
-      // Vagas que ainda dá para marcar: início a partir de agora (11:50).
-      const starts = avail.slots.map((x) => x.startsAt).filter((t) => t >= s.clock.nowMs())
+      // Agora 11:50; antecedência default 30 min → 1.ª vaga 12:30 (grade 15).
+      const starts = avail.slots.map((x) => x.startsAt)
       expect(starts.length).toBeGreaterThan(0)
-      expect(Math.min(...starts)).toBe(thu(12))
+      expect(Math.min(...starts)).toBe(thu(12, 30))
       expect(Math.max(...starts)).toBe(thu(15, 45))
       expect(getReadinessOp(s.db, s.caller, s.clock).agendaConfigured).toBe(true)
       expect(avail.slots.every((x) => x.roomResourceId === s.room.id)).toBe(true)

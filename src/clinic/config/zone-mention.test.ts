@@ -90,6 +90,20 @@ describe('resolveZoneMention (DEC-137 / #509)', () => {
     ])
   })
 
+  it('rsamp_1241995755 — texto integral não ecoa «saber» como zona', () => {
+    const masculine = [
+      zone('in-m', 'Intima', 'masculino'),
+      zone('pe-m', 'Pernas', 'masculino'),
+      zone('ax-m', 'Axila', 'masculino'),
+    ]
+    const text =
+      'Bom dia \nGostaria de saber se tem horário disponível hoje a tarde para depilação masculina, intima e pernas'
+    const got = resolveZoneMention(text, masculine, { ignoreWords: ['Depilação'] })
+    expect(got.unrecognized).toBe(false)
+    expect(got.leftover).toBeNull()
+    expect(got.zones.map((z) => z.id).sort()).toEqual(['in-m', 'pe-m'])
+  })
+
   it('«gostaria de saber… íntima e pernas» não ecoa «saber» como zona (staging)', () => {
     // Staging: mensagem longa pediu depilação masculina íntima e pernas;
     // «saber» de «gostaria de saber» virava leftover («Não encontrei saber»).

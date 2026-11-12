@@ -2,7 +2,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 /**
- * Espaço livre no cabeçalho do shell, à direita do título (DEC-169).
+ * Espaço livre no cabeçalho do shell, à direita do título (DEC-170).
  * Uma tela pode pôr ali a sua barra de controlos; fora do shell (testes,
  * pré-visualizações) o conteúdo fica no próprio lugar.
  */

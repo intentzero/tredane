@@ -103,7 +103,7 @@ describe('Agenda — dia no celular', () => {
     expect(await screen.findByText('Carla Mendes')).toBeTruthy()
   })
 
-  it('topo compacto (DEC-169): data e Dia/Semana numa linha; setas da faixa mudam de semana; «Hoje» só fora de hoje', async () => {
+  it('topo compacto (DEC-170): data e Dia/Semana numa linha; setas da faixa mudam de semana; «Hoje» só fora de hoje', async () => {
     const api = mockApi()
     render(<AgendaDayWeek tenantId="t" api={api} generation={1} view="day" />)
     await screen.findByText('Laura Pires')

@@ -126,7 +126,7 @@ export function EquipeScreen({ tenantId, api, generation, viewerClerkUserId }: P
   const [actionOk, setActionOk] = useState<string | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [menuMember, setMenuMember] = useState<TeamMemberLite | null>(null)
-  // Revisão da Equipe (DEC-170): no celular as ações do convite vão para uma folha;
+  // Revisão da Equipe (DEC-171): no celular as ações do convite vão para uma folha;
   // cancelar pede sempre confirmação.
   const [menuInvite, setMenuInvite] = useState<TeamInvitation | null>(null)
   const [cancelInvite, setCancelInvite] = useState<TeamInvitation | null>(null)

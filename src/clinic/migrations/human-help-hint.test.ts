@@ -7,7 +7,7 @@ describe('0058_human_help_hint', () => {
   it('regista migração 58 e sobe o schema', () => {
     expect(MIGRATION_ID).toBe(58)
     expect(MIGRATION_NAME).toBe('0058_human_help_hint')
-    expect(CLINIC_SCHEMA_VERSION).toBe(62)
+    expect(CLINIC_SCHEMA_VERSION).toBe(63)
     expect(CLINIC_MIGRATIONS.some((m) => m.id === 58 && m.name === MIGRATION_NAME)).toBe(true)
   })
 })

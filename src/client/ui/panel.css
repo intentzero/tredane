@@ -2870,7 +2870,7 @@ button.panel-auth-inline-link {
   border: var(--size-border-width) solid transparent;
   border-radius: var(--radius-button);
   font: inherit;
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-button);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-default);
   cursor: pointer;
@@ -2884,6 +2884,22 @@ button.panel-auth-inline-link {
 .panel-btn-danger {
   width: 100%;
   height: var(--size-control-lg);
+}
+
+/* Densidade de toque (DEC-168): primário 48 px, secundário e perigo 44 px. */
+@media (pointer: coarse) {
+  .panel-btn-secondary,
+  .panel-btn-danger {
+    height: var(--size-control-md);
+  }
+
+  /* .panel-root button { font: inherit } vence a classe; o compacto fica em 14 px. */
+  .panel-root
+    :is(.panel-btn, .panel-btn-primary, .panel-btn-secondary, .panel-btn-ghost, .panel-btn-danger):not(
+      .panel-btn-compact
+    ) {
+    font-size: var(--font-size-button);
+  }
 }
 
 .panel-btn-primary {
@@ -2928,22 +2944,14 @@ button.panel-auth-inline-link {
   background: var(--color-danger-tint);
 }
 
-/* Pequeno: 40 px visuais, área de toque de 44 px. */
+/* Em linha: altura de --size-control-default (36 px no desktop, 44 px no toque);
+   largura mínima e área de toque de 44 px (bloco UX-08 abaixo). */
 .panel-btn-compact {
   width: auto;
+  min-width: var(--size-touch);
   height: var(--size-control-sm);
   padding-inline: var(--space-3);
   font-size: var(--font-size-small);
-}
-
-.panel-btn-compact {
-  position: relative;
-}
-
-.panel-btn-compact::after {
-  content: '';
-  position: absolute;
-  inset: -10px 0;
 }
 
 .panel-btn-primary:disabled,
@@ -9007,18 +9015,23 @@ button.panel-auth-inline-link {
 .hold-option--two,
 .hold-summary,
 .inbox-msg-retry,
+.panel-btn-compact,
 .panel-btn-danger,
+.panel-btn-ghost,
 .panel-btn-primary,
 .panel-btn-secondary,
 .panel-check-row,
 .panel-choice-item,
 .panel-choice-trigger,
+.panel-clinic-switch,
 .panel-control,
 .panel-link,
 .panel-menu-item,
+.panel-move,
 .panel-multi-trigger,
 .panel-segmented-item,
 .panel-select-trigger,
+.panel-sheet-option,
 .panel-slot,
 .vc-seg-item,
 .week-editor-add,
@@ -9042,18 +9055,23 @@ button.panel-auth-inline-link {
 .hold-option--two::after,
 .hold-summary::after,
 .inbox-msg-retry::after,
+.panel-btn-compact::after,
 .panel-btn-danger::after,
+.panel-btn-ghost::after,
 .panel-btn-primary::after,
 .panel-btn-secondary::after,
 .panel-check-row::after,
+.panel-clinic-switch::after,
 .panel-choice-item::after,
 .panel-choice-trigger::after,
 .panel-control::after,
 .panel-link::after,
 .panel-menu-item::after,
+.panel-move::after,
 .panel-multi-trigger::after,
 .panel-segmented-item::after,
 .panel-select-trigger::after,
+.panel-sheet-option::after,
 .panel-slot::after,
 .vc-seg-item::after,
 .week-editor-add::after,
@@ -11360,7 +11378,7 @@ button.panel-auth-inline-link {
   font-weight: var(--font-weight-medium);
 }
 
-/* ——— DEC-169 (Paulo, 12/11/2026): topo da Agenda compacto ——— */
+/* ——— DEC-170 (Paulo, 12/11/2026): topo da Agenda compacto ——— */
 .panel-shell-slot {
   flex: 1 1 auto;
   min-width: 0;
@@ -11551,7 +11569,7 @@ button.panel-auth-inline-link {
   }
 }
 
-/* ——— DEC-170 (Paulo, 12/11/2026): revisão da Equipe ——— */
+/* ——— DEC-171 (Paulo, 12/11/2026): revisão da Equipe ——— */
 @media (min-width: 768px) {
   .equipe-screen {
     width: 100%;

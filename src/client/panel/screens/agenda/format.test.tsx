@@ -21,7 +21,7 @@ describe('formatDateRange', () => {
 })
 
 describe('formatShortDate', () => {
-  it('dia da semana, dia e mês curtos, sem pontos (DEC-169)', () => {
+  it('dia da semana, dia e mês curtos, sem pontos (DEC-170)', () => {
     expect(formatShortDate('2026-11-12', 'America/Sao_Paulo')).toBe('qui, 12 nov')
   })
 })

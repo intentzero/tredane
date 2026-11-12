@@ -45,7 +45,7 @@ export function formatLongDate(isoDate: string, timeZone: string): string {
   return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${get('day')} de ${get('month')}`
 }
 
-/** «qui, 12 nov» — data curta para o topo da Agenda no celular (DEC-169). */
+/** «qui, 12 nov» — data curta para o topo da Agenda no celular (DEC-170). */
 export function formatShortDate(isoDate: string, timeZone: string): string {
   const parts = new Intl.DateTimeFormat('pt-BR', {
     timeZone,

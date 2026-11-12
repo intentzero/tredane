@@ -642,7 +642,7 @@
       "y": 17696,
       "w": 390,
       "h": 844,
-      "title": "M-75 Assumir em linha no compositor (Confirmado DEC-168)",
+      "title": "M-75 Assumir em linha no compositor (Confirmado DEC-169)",
       "is_interactive": false,
       "radius": 32
     },
@@ -651,7 +651,7 @@
       "y": 17696,
       "w": 390,
       "h": 844,
-      "title": "M-76 Agenda com topo compacto (Confirmado DEC-169)",
+      "title": "M-76 Agenda com topo compacto (Confirmado DEC-170)",
       "is_interactive": false,
       "radius": 32
     },
@@ -660,7 +660,7 @@
       "y": 17696,
       "w": 390,
       "h": 844,
-      "title": "M-77 Equipe: ações do convite no ⋮ (Confirmado DEC-170)",
+      "title": "M-77 Equipe: ações do convite no ⋮ (Confirmado DEC-171)",
       "is_interactive": false,
       "radius": 32
     },
@@ -669,7 +669,7 @@
       "y": 17696,
       "w": 390,
       "h": 844,
-      "title": "M-78 Equipe: cancelar convite pede confirmação (Confirmado DEC-170)",
+      "title": "M-78 Equipe: cancelar convite pede confirmação (Confirmado DEC-171)",
       "is_interactive": false,
       "radius": 32
     }

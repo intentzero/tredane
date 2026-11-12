@@ -85,7 +85,7 @@ afterEach(() => {
 })
 
 describe('Agenda — coluna de contexto no desktop (DEC-068)', () => {
-  it('mostra mês, filtros e a lista do dia ao lado da grade; Agendar fica na barra (DEC-169)', async () => {
+  it('mostra mês, filtros e a lista do dia ao lado da grade; Agendar fica na barra (DEC-170)', async () => {
     render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="day" />)
     const context = await screen.findByRole('complementary', { name: 'Contexto da agenda' })
     expect(within(context).queryByRole('button', { name: 'Agendar' })).toBeNull()

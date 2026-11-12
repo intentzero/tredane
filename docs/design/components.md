@@ -40,7 +40,7 @@ Padrões que se repetem nos mocks. Implemente cada um **uma vez** como component
 | Botão (`panel-btn-primary`/`-secondary`/`-ghost`/`-danger`/`-compact`) e chip com contador, selo (classes), banner, estado, esqueleto e faixa | `src/client/ui/panel.css`, bloco «Componentes base» (fonte única; só tokens) |
 | `Banner`, `Badge`, `ListSkeleton`, `OfflineStrip`, `TestOnly`, `EmptyState`/`ErrorState` | `src/client/panel/states/` |
 
-Regras do botão: um primário por tela ou bloco; primário, secundário e perigo ocupam a largura toda (use `panel-btn-compact` para botão em linha: 28px visuais, área de toque de 44px); fantasma é só texto na cor `primary.ink`.
+Regras do botão: um primário por tela ou bloco; primário, secundário e perigo ocupam a largura toda (use `panel-btn-compact` para botão em linha: 36px visuais no desktop e 44px no toque, largura mínima e área de toque de 44px); em aparelho de toque o primário tem 48px e o secundário/perigo 44px (DEC-168); fantasma é só texto na cor `primary.ink`.
 
 ## Estados dos componentes interativos
 

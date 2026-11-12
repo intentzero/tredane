@@ -158,7 +158,7 @@ describe('EquipeScreen — S1', () => {
     expect(screen.queryByText(/recepcionista/i)).toBeNull()
   })
 
-  it('desabilita reenviar durante o cooldown; cancelar pede confirmação (DEC-170)', async () => {
+  it('desabilita reenviar durante o cooldown; cancelar pede confirmação (DEC-171)', async () => {
     const user = userEvent.setup()
     const team = snap()
     const api = mockApi(team)
@@ -195,7 +195,7 @@ describe('EquipeScreen — S1', () => {
     )
   })
 
-  it('celular: ações do convite numa folha pelo ⋮ (DEC-170)', async () => {
+  it('celular: ações do convite numa folha pelo ⋮ (DEC-171)', async () => {
     const user = userEvent.setup()
     const original = window.matchMedia
     window.matchMedia = ((q: string) => ({
@@ -229,7 +229,7 @@ describe('EquipeScreen — S1', () => {
     }
   })
 
-  it('responsável usa o selo neutro e há um bloco com o que cada papel pode fazer (DEC-170)', async () => {
+  it('responsável usa o selo neutro e há um bloco com o que cada papel pode fazer (DEC-171)', async () => {
     render(
       <EquipeScreen
         tenantId="clinic-demo-a"

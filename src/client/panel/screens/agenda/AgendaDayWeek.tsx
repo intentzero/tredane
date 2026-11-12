@@ -319,7 +319,7 @@ export function AgendaDayWeek({
     return `${base} · ${dayCount === 0 ? 'nenhum horário' : `${n} ${n === 1 ? 'horário' : 'horários'}`}`
   })()
 
-  // DEC-169: no desktop, navegação, data, Dia/Semana e Agendar vão para o
+  // DEC-170: no desktop, navegação, data, Dia/Semana e Agendar vão para o
   // cabeçalho do shell; no celular, uma linha (data + Dia/Semana) e a faixa
   // de dias com setas de semana.
   const onToday = view === 'day' ? date === today : weekDays.includes(today)

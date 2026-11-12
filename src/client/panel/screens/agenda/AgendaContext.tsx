@@ -28,7 +28,7 @@ type Props = {
 }
 
 /**
- * Coluna de contexto da Agenda no desktop (≥ 1280 px, DEC-068; Agendar no cabeçalho, DEC-169): mês pequeno,
+ * Coluna de contexto da Agenda no desktop (≥ 1280 px, DEC-068; Agendar no cabeçalho, DEC-170): mês pequeno,
  * filtros por profissional e sala e a lista do dia. A grade fica na área de trabalho ao lado.
  */
 export function AgendaContext({
