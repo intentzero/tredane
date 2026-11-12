@@ -1,8 +1,11 @@
-import { SignUp } from '@clerk/react'
+import { SignUp, useAuth } from '@clerk/react'
 import { useEffect, useRef, useState } from 'react'
 import { BrandHorizontal } from '../ui/Brand'
 import { readPendingInviteToken } from './session'
 import { clerkAppearance } from './clerkAppearance'
+
+/** Tempo após Clerk loaded antes de alertar — hydrate/captcha com Access Open pode demorar. */
+export const SIGNUP_FORM_WAIT_MS = 8000
 
 /**
  * Cadastro Clerk para convidadas sem conta (DEC-021 / JRN-13).
@@ -12,46 +15,63 @@ import { clerkAppearance } from './clerkAppearance'
  * UX: cartão flush/transparente + marca fora do Clerk (cadastro transparente).
  * Não contorna Access mode Invite-only do Dashboard — ver f1-login-nav.md.
  * Se o SignUp pintar só cabeçalho/«Entrar» sem e-mail/OTP (Restricted),
- * substituímos o dead-end por um alerta legível.
+ * mostramos um alerta legível sem desmontar o `<SignUp />` — hydrate tardio
+ * ou «Tentar novamente» recuperam sem reload da página.
  */
 export function ClerkSignUp() {
   const hasInvite = Boolean(readPendingInviteToken())
   const afterSignUp = hasInvite ? '/invite/accept' : '/clinicas'
+  const { isLoaded } = useAuth()
   const clerkHostRef = useRef<HTMLDivElement>(null)
   const [formReady, setFormReady] = useState(false)
   const [formMissing, setFormMissing] = useState(false)
+  const [mountKey, setMountKey] = useState(0)
 
   useEffect(() => {
+    if (!isLoaded) return
     const host = clerkHostRef.current
     if (!host) return
 
+    let cancelled = false
     const hasFormInput = () => Boolean(host.querySelector('input'))
 
-    if (hasFormInput()) {
+    const markReady = () => {
+      if (cancelled) return
       setFormReady(true)
       setFormMissing(false)
+    }
+
+    if (hasFormInput()) {
+      markReady()
       return
     }
 
     const observer = new MutationObserver(() => {
       if (!hasFormInput()) return
-      setFormReady(true)
-      setFormMissing(false)
+      markReady()
       observer.disconnect()
     })
     observer.observe(host, { childList: true, subtree: true })
 
     // Restricted / falha de SignUp: título + Entrar sem campos.
+    // Não desmontamos o SignUp no timeout — o observer continua a ver hydrate tardio.
     const timeout = window.setTimeout(() => {
-      if (hasFormInput()) return
+      if (cancelled || hasFormInput()) return
       setFormMissing(true)
-    }, 2500)
+    }, SIGNUP_FORM_WAIT_MS)
 
     return () => {
+      cancelled = true
       observer.disconnect()
       window.clearTimeout(timeout)
     }
-  }, [])
+  }, [isLoaded, mountKey])
+
+  const retry = () => {
+    setFormMissing(false)
+    setFormReady(false)
+    setMountKey((k) => k + 1)
+  }
 
   return (
     <div className="panel-auth" lang="pt-BR">
@@ -81,23 +101,33 @@ export function ClerkSignUp() {
                 : ' Peça ao responsável da sua clínica um convite.'}
             </p>
             <p>
+              <button type="button" className="panel-auth-inline-link" onClick={retry}>
+                Tentar novamente
+              </button>
+              {' · '}
               Já tem conta?{' '}
               <a className="panel-auth-inline-link" href="/entrar">
                 Entrar
               </a>
             </p>
           </div>
-        ) : (
-          <div className="panel-auth-clerk" ref={clerkHostRef}>
-            <SignUp
-              routing="path"
-              path="/cadastro"
-              forceRedirectUrl={afterSignUp}
-              signInUrl="/entrar"
-              appearance={clerkAppearance}
-            />
-          </div>
-        )}
+        ) : null}
+        {/* Mantém SignUp montado (só esconde) para hydrate/captcha tardio recuperar sem reload. */}
+        <div
+          className="panel-auth-clerk"
+          ref={clerkHostRef}
+          hidden={formMissing}
+          aria-hidden={formMissing || undefined}
+        >
+          <SignUp
+            key={mountKey}
+            routing="path"
+            path="/cadastro"
+            forceRedirectUrl={afterSignUp}
+            signInUrl="/entrar"
+            appearance={clerkAppearance}
+          />
+        </div>
         {!formMissing ? (
           <p className="panel-auth-foot panel-auth-note">
             {hasInvite ? (

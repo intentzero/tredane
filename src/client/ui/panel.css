@@ -1059,6 +1059,15 @@
   text-underline-offset: 2px;
 }
 
+button.panel-auth-inline-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
 .panel-auth-inline-link:hover,
 .panel-auth-inline-link:focus-visible {
   color: var(--color-primary-ink, var(--color-primary-base));
