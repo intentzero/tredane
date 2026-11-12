@@ -204,8 +204,8 @@ export type ReviewFlagRequestMatch =
 
 function stripEdgePunctuation(text: string): string {
   return text
-    .replace(/^[,.:\s!?–—\-]+/, '')
-    .replace(/[,.:\s!?–—\-]+$/, '')
+    .replace(/^[,.:\s!?–—-]+/, '')
+    .replace(/[,.:\s!?–—-]+$/, '')
     .trim()
 }
 
