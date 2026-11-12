@@ -65,6 +65,8 @@ Clínica ativa: `sessionStorage` por aba (AC-17). Troca cancela `AbortController
 
 Confirmado (paridade Legal Layer / DEC-021): `/cadastro` e `/entrar` usam `clerkAppearance` com `options.elevation: 'flush'`, `logoPlacement: 'none'`, fundo transparente e marca Tredane fora do Clerk. Isto só estiliza o formulário; se Access mode estiver Invite-only, o cartão Restricted continua a bloquear o cadastro até o passo 6.
 
+Dead-end guard (convidada): se o `<SignUp />` pintar cabeçalho/«Entrar» **sem** campo de e-mail/OTP (Restricted ou falha), o painel troca o shell vazio por «Cadastro indisponível» e mantém o lead do convite até haver `input` real — não deixar «Criar sua conta» morto só com Entrar.
+
 ## Fora deste PR
 
 - Conteúdo Inbox / Acompanhamento / Agenda (#29+)

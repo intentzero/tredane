@@ -13,8 +13,9 @@
  * de controlo (3:1, DEC-041) e o anel de foco fica no teal primário.
  *
  * Nota: se o Dashboard estiver em Access mode «Invite-only» (`restricted`),
- * o SignUp continua a mostrar «Cadastros estão desabilitados…» — o produto
- * não contorna isso; convites Tredane são D1 (ADR-0008), não tickets Clerk.
+ * o SignUp pode pintar só «Criar sua conta» + Entrar sem e-mail/OTP — o
+ * produto não contorna Restricted (convites D1, ADR-0008). `ClerkSignUp`
+ * detecta a ausência de inputs e mostra «Cadastro indisponível».
  * Paulo: Access mode → Open. Ver docs/implementation/f1-login-nav.md.
  */
 export const clerkAppearance = {

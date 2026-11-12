@@ -1019,7 +1019,9 @@
   gap: var(--space-2);
 }
 
-.panel-auth-stack:has(.panel-clerk-title) .panel-auth-fallback,
+/* Só esconde o fallback quando há formulário real (input). Título Restricted
+ * do Clerk («Criar sua conta») sem campos não deve apagar o lead do convite. */
+.panel-auth-stack:has(.panel-auth-clerk input) .panel-auth-fallback,
 .panel-auth-stack:has(.panel-auth-form) .panel-auth-fallback {
   display: none;
 }
