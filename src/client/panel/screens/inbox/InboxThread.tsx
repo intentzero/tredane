@@ -545,19 +545,23 @@ export function InboxThread({
         { messageLimit: 100 },
         { generation, expectGeneration: () => generation },
       );
-      if (!quiet && res.unreadCount > 0) {
-        const inbound = res.messages.filter((m) => m.direction === "inbound");
-        const first = inbound[Math.max(0, inbound.length - res.unreadCount)];
-        if (first)
-          setUnreadAnchor({
-            id: first.id,
-            count: inbound.length - inbound.indexOf(first),
-          });
+      // DEC-160: `unread_count` pode já ser 0 (IA/equipe atendeu e limpou o
+      // badge), mas o humano ainda não reviu — gatilho de mark_read / faixa
+      // usa `messages.read_at`, não o contador de exibição.
+      const humanUnreadInbound = res.messages.filter(
+        (m) => m.direction === "inbound" && m.readAt == null,
+      );
+      if (!quiet && humanUnreadInbound.length > 0) {
+        const first = humanUnreadInbound[0];
+        setUnreadAnchor({
+          id: first.id,
+          count: humanUnreadInbound.length,
+        });
       }
       setDetail(res);
       if (res.messagingWindow?.open && res.status !== "closed")
         void refreshAiDraft(res.messages);
-      if (res.unreadCount > 0) {
+      if (humanUnreadInbound.length > 0) {
         void api
           .markInboxRead(tenantId, conversationId, {
             generation,

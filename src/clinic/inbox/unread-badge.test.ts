@@ -255,6 +255,92 @@ describe('DEC-160 dual-unread filter badges', () => {
     }
   })
 
+  it('após IA zerar unread_count, mark_read humano ainda grava read_at e whatsapp.mark_read', () => {
+    const { db, clock, close } = boot()
+    try {
+      const contact = upsertContact(
+        db,
+        { tenantId: TENANT, waId: '5511900000006', displayName: 'Rita' },
+        clock,
+      )
+      const cnv = createConversation(
+        db,
+        { tenantId: TENANT, contactId: contact.id, status: 'new' },
+        clock,
+      )
+      insertMessage(
+        db,
+        {
+          tenantId: TENANT,
+          conversationId: cnv.id,
+          direction: 'inbound',
+          body: 'tem horário?',
+          deliveryState: 'received',
+          externalMessageId: 'wa:msg:wamid.rita_1',
+          createdAt: clock.nowMs(),
+        },
+        clock,
+      )
+      touchConversationMessage(db, {
+        tenantId: TENANT,
+        conversationId: cnv.id,
+        preview: 'tem horário?',
+        direction: 'inbound',
+        at: clock.nowMs(),
+        bumpUnread: true,
+        reopenIfClosed: false,
+      })
+      sendOutboundMessageOp(
+        db,
+        workerCaller(TENANT, 'system:ai-autodraft'),
+        {
+          conversationId: cnv.id,
+          body: 'Sim, posso ajudar.',
+          clientRequestId: 'ai-rita-1',
+          authorClerkUserId: 'system:ai-autodraft',
+          authorDisplayName: 'Assistente IA',
+        },
+        clock,
+      )
+      expect(
+        db.get<{ unread_count: number }>(
+          `SELECT unread_count FROM conversations WHERE id = ?`,
+          cnv.id,
+        )?.unread_count,
+      ).toBe(0)
+      expect(
+        db.get<{ read_at: number | null }>(
+          `SELECT read_at FROM messages WHERE external_message_id = ?`,
+          'wa:msg:wamid.rita_1',
+        )?.read_at,
+      ).toBeNull()
+
+      const r = markConversationReadOp(
+        db,
+        workerCaller(TENANT, 'user_synth_owner_a'),
+        {
+          conversationId: cnv.id,
+          readerClerkUserId: 'user_synth_owner_a',
+          readerDisplayName: 'Owner',
+        },
+        clock,
+      )
+      const row = db.get<{ read_by_display_name: string; read_at: number }>(
+        `SELECT read_by_display_name, read_at FROM messages WHERE external_message_id = ?`,
+        'wa:msg:wamid.rita_1',
+      )!
+      expect(row.read_by_display_name).toBe('Owner')
+      expect(row.read_at).toBeGreaterThan(0)
+      const mark = r.outbox.find((o) => o.type === 'whatsapp.mark_read')
+      expect(mark).toBeTruthy()
+      expect(JSON.parse(mark!.payloadJson)).toMatchObject({
+        providerMessageId: 'wamid.rita_1',
+      })
+    } finally {
+      close()
+    }
+  })
+
   it('Minhas / Sem responsável só contam dual-unread no critério do filtro', () => {
     const { db, clock, close } = boot()
     try {
