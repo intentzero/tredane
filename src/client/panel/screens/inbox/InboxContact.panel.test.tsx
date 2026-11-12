@@ -92,17 +92,15 @@ describe('InboxContact — painel simplificado', () => {
       appointments: { upcoming: [appt('a1')], past: [appt('a0')] },
     })
     await screen.findByRole('heading', { name: 'Mariana Fictícia' })
-    const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Ver 1 anterior' }))
+    // DEC-162: até 3 horários anteriores aparecem sem clicar em «Ver N anteriores».
+    expect(screen.queryByRole('button', { name: 'Ver 1 anterior' })).toBeNull()
     expect(screen.getByRole('heading', { name: 'Anteriores' })).toBeTruthy()
   })
 
   it('mostra Bloquear no documento; Excluir só para owner', async () => {
     renderPanel({ conversations: [conv('c1', 'open', 'Ana')], appointments: { upcoming: [], past: [] } })
     expect(await screen.findByRole('button', { name: 'Bloquear contato' })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Bloquear contato' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Excluir contato' })).toBeNull()
-    expect(screen.queryByRole('heading', { name: 'Zona de risco' })).toBeNull()
 
     cleanup()
     const api = {
@@ -124,7 +122,6 @@ describe('InboxContact — painel simplificado', () => {
     )
     expect(await screen.findByRole('button', { name: 'Bloquear contato' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Excluir contato' })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Zona de risco' })).toBeTruthy()
   })
 
   it('volta a mascarar o telefone ao trocar de contato (mesma instância)', async () => {

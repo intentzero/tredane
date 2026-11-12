@@ -322,7 +322,7 @@ export function listContactsDirectoryOp(
   },
   clock: Clock,
 ): {
-  contacts: NonNullable<ReturnType<typeof loadContactSummary>>[]
+  contacts: ReturnType<typeof listContactsDirectory>['items']
   nextBefore: null
 } {
   assertClinicSchemaReady(db)

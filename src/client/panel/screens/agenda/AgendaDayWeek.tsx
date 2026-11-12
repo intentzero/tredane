@@ -483,6 +483,9 @@ export function AgendaDayWeek({
         ) : view === 'day' ? (
           <DayGrid
             items={(byDay.get(date) ?? []).filter(passesFilters)}
+            professionals={
+              selected.length > 0 ? professionals.filter((p) => selected.includes(p.id)) : professionals
+            }
             timezone={timezone}
             isToday={date === today}
             now={now}
@@ -701,23 +704,68 @@ function OccupancyBars({ occupancy }: { occupancy: DayOccupancy[] }) {
 
 function DayGrid({
   items,
+  professionals,
   timezone,
   isToday,
   now,
   onOpen,
 }: {
   items: AgendaAppointmentItem[]
+  professionals: { id: string; name: string }[]
   timezone: string
   isToday: boolean
   now: number
   onOpen: (id: string) => void
 }) {
   const { startHour, endHour } = visibleHours(items, timezone)
-  const placed = layoutDay(items, timezone, startHour)
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i)
   const nowTop = isToday ? nowOffset(now, timezone, startHour, endHour) : null
 
+  // DEC-165 (tela 16): uma coluna por profissional, cada uma com a sua cor; dentro da
+  // coluna, sobreposições continuam lado a lado. Quem aparece no dia sem estar na lista
+  // (ex.: profissional inativada) ganha coluna própria no fim.
+  const columns = [...professionals]
+  for (const it of items) {
+    if (!columns.some((c) => c.id === it.professionalId)) {
+      columns.push({ id: it.professionalId, name: it.professionalName })
+    }
+  }
+  const nCols = Math.max(1, columns.length)
+  const toneOf = (id: string) => {
+    const i = professionals.findIndex((p) => p.id === id)
+    return (i < 0 ? columns.findIndex((c) => c.id === id) : i) % 4
+  }
+  const placed = columns.flatMap((col, ci) =>
+    layoutDay(
+      items.filter((it) => it.professionalId === col.id),
+      timezone,
+      startHour,
+    ).map((p) => ({ ...p, col: ci })),
+  )
+
   return (
+    <>
+    {nCols > 1 ? (
+      <div
+        className="agenda-grid-heads"
+        style={{ gridTemplateColumns: `repeat(${nCols}, minmax(0, 1fr))` }}
+        aria-hidden
+      >
+        {columns.map((c) => (
+          <span key={c.id} className={`agenda-grid-head agenda-card--tone-${toneOf(c.id)}`}>
+            <span className={`agenda-mini agenda-tone-${toneOf(c.id)}`}>
+              {c.name
+                .split(/\s+/)
+                .filter((w) => !/^(dra?\.?|dr\.?)$/i.test(w))
+                .slice(0, 2)
+                .map((w) => w[0]?.toUpperCase() ?? '')
+                .join('')}
+            </span>
+            {c.name}
+          </span>
+        ))}
+      </div>
+    ) : null}
     <div
       className="agenda-grid"
       style={{ height: hours.length * HOUR_HEIGHT }}
@@ -734,36 +782,35 @@ function DayGrid({
           <span className="agenda-now-dot" />
         </div>
       ) : null}
-      {placed.map(({ item, top, height, lane, lanes }) => (
+      {placed.map(({ item, top, height, lane, lanes, col }) => (
         <button
           key={item.id}
           type="button"
           role="listitem"
-          className="agenda-block"
+          className={`agenda-block agenda-card--tone-${toneOf(item.professionalId)}`}
           style={{
             top,
             height,
-            left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${lane / lanes})`,
-            width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes} - 4px)`,
+            left: `calc(var(--agenda-gutter) + (100% - var(--agenda-gutter)) * ${(col + lane / lanes) / nCols})`,
+            width: `calc((100% - var(--agenda-gutter)) * ${1 / lanes / nCols} - 4px)`,
           }}
           onClick={() => onOpen(item.id)}
         >
-          <span className="agenda-block-title">{item.serviceName}</span>
-          <span className="agenda-block-time">
-            {formatSlotTime(item.startsAt, timezone)}
-            {' – '}
-            {formatSlotTime(item.endsAt, timezone)}
+          {/* O bloco começa pela cliente; serviço e sala na linha de baixo. */}
+          <span className="agenda-block-title">
+            {formatSlotTime(item.startsAt, timezone)} {item.contactLabel ?? 'Sem nome'}
           </span>
-          {height >= 64 ? (
-            <span className="agenda-block-meta">
-              {item.contactLabel ?? 'Sem nome'}
-              {' · '}
-              {item.professionalName}
-              {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
+          <span className="agenda-block-time">
+            {item.serviceName}
+            {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
+            <span className="panel-sr-only">
+              {' '}
+              até {formatSlotTime(item.endsAt, timezone)} · {item.professionalName}
             </span>
-          ) : null}
+          </span>
         </button>
       ))}
     </div>
+    </>
   )
 }

@@ -25,6 +25,8 @@ import { Badge } from '../../states/Badge'
 import { ListSkeleton } from '../../states/ListSkeleton'
 import { applyAppBadge } from '../../badge'
 import { AI_DRAFTING_SR_LABEL, draftingFlagFromAiDraftState } from './aiDrafting'
+import { groupByUrgency, isWaitingOnTeam, urgencyGroupLabel, waitingLabel } from './urgency'
+import { InboxEmptyStart } from './InboxEmptyStart'
 
 // DEC-161: «Precisam de alguém» logo a seguir a «Todas» (a ação mais urgente fica à vista).
 const FILTERS: InboxFilter[] = [
@@ -196,6 +198,79 @@ export function InboxList({
   const list = items ?? []
   const emptyAll = list.length === 0 && filter === 'all' && !q.trim()
 
+  // DEC-162: sem nenhuma conversa, busca e filtros não têm o que filtrar.
+  if (emptyAll) {
+    return (
+      <div className="inbox-root">
+        <InboxEmptyStart tenantId={tenantId} api={api} generation={generation} />
+      </div>
+    )
+  }
+
+  // DEC-162: grupos por urgência; «Encerradas» fica numa lista simples.
+  const groups =
+    filter === 'closed' ? [{ group: null, items: list }] : groupByUrgency(list)
+
+  function renderRow(c: InboxConversation) {
+    const label = contactLabel(c.contact)
+    const drafting = draftingById[c.id] === true
+    const escalated = escalatedById[c.id] === true
+    const waiting = isWaitingOnTeam(c)
+    return (
+      <li key={c.id}>
+        <button
+          type="button"
+          className={`inbox-row${c.unreadCount > 0 ? ' inbox-row--unread' : ''}${c.needsPerson ? ' inbox-row--needs-person' : ''}${escalated ? ' inbox-row--needs-person-escalate' : ''}${c.id === activeConversationId ? ' inbox-row--active' : ''}`}
+          aria-current={c.id === activeConversationId ? 'page' : undefined}
+          onClick={() =>
+            navigatePanel({
+              kind: 'area',
+              area: 'conversas',
+              tenantId,
+              section: 'thread',
+              conversationId: c.id,
+            })
+          }
+        >
+          <span className={`inbox-avatar inbox-avatar--${avatarTone(label)}`} aria-hidden>
+            {initials(label)}
+          </span>
+          <span className="inbox-row-main">
+            <span className="inbox-row-top">
+              <span className="inbox-row-name">{label}</span>
+              <span className={`inbox-row-time${waiting ? ' inbox-row-time--waiting' : ''}`}>
+                {waiting && c.lastMessageAt != null
+                  ? waitingLabel(c.lastMessageAt)
+                  : relativeTime(c.lastMessageAt)}
+              </span>
+            </span>
+            <span className="inbox-row-preview-line">
+              <span className="inbox-row-preview">{previewLine(c, viewerClerkUserId)}</span>
+              {c.unreadCount > 0 ? (
+                <span className="inbox-unread" aria-label={`${c.unreadCount} não lidas`}>
+                  {c.unreadCount}
+                </span>
+              ) : null}
+            </span>
+            {/* DEC-162: etiqueta só quando pede ação; o responsável aparece fora do grupo «Sem responsável». */}
+            <span className="inbox-row-meta">
+              {c.status !== 'open' ? (
+                <Badge tone={statusTone(c.status)}>{statusLabel(c.status)}</Badge>
+              ) : null}
+              {c.needsPerson ? <Badge tone="wait">Precisa de alguém</Badge> : null}
+              {drafting ? <InboxAiDraftingIndicator /> : null}
+              {c.assigneeClerkUserId ? (
+                <span className="inbox-row-assignee">
+                  {assigneeLine(c, viewerClerkUserId)}
+                </span>
+              ) : null}
+            </span>
+          </span>
+        </button>
+      </li>
+    )
+  }
+
   return (
     <div className="inbox-root">
       <SearchField
@@ -258,77 +333,36 @@ export function InboxList({
       </div>
 
       {list.length === 0 ? (
-        <>
-          <EmptyState
-            title={emptyAll ? 'Nenhuma conversa ainda' : 'Nenhuma conversa neste filtro'}
-            description={
-              emptyAll
-                ? 'Quando uma cliente mandar mensagem para o WhatsApp da clínica, ela aparece aqui.'
-                : 'Escolha outro filtro ou limpe a busca.'
-            }
-            actionLabel={emptyAll ? undefined : 'Limpar filtro'}
-            onAction={
-              emptyAll
-                ? undefined
-                : () => {
-                    setFilter('all')
-                    setQ('')
-                  }
-            }
-          />
-        </>
+        <EmptyState
+          title="Nenhuma conversa neste filtro"
+          description="Escolha outro filtro ou limpe a busca."
+          actionLabel="Limpar filtro"
+          onAction={() => {
+            setFilter('all')
+            setQ('')
+          }}
+        />
       ) : (
-        <ul className="inbox-list">
-          {list.map((c) => {
-            const label = contactLabel(c.contact)
-            const drafting = draftingById[c.id] === true
-            const escalated = escalatedById[c.id] === true
-            return (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  className={`inbox-row${c.unreadCount > 0 ? ' inbox-row--unread' : ''}${c.needsPerson ? ' inbox-row--needs-person' : ''}${escalated ? ' inbox-row--needs-person-escalate' : ''}${c.id === activeConversationId ? ' inbox-row--active' : ''}`}
-                  aria-current={c.id === activeConversationId ? 'page' : undefined}
-                  onClick={() =>
-                    navigatePanel({
-                      kind: 'area',
-                      area: 'conversas',
-                      tenantId,
-                      section: 'thread',
-                      conversationId: c.id,
-                    })
-                  }
-                >
-                  <span className={`inbox-avatar inbox-avatar--${avatarTone(label)}`} aria-hidden>
-                    {initials(label)}
-                  </span>
-                  <span className="inbox-row-main">
-                    <span className="inbox-row-top">
-                      <span className="inbox-row-name">{label}</span>
-                      <span className="inbox-row-time">{relativeTime(c.lastMessageAt)}</span>
-                    </span>
-                    <span className="inbox-row-preview">
-                      {previewLine(c, viewerClerkUserId)}
-                    </span>
-                    <span className="inbox-row-meta">
-                      <Badge tone={statusTone(c.status)}>{statusLabel(c.status)}</Badge>
-                      {c.needsPerson ? <Badge tone="wait">Precisa de alguém</Badge> : null}
-                      {drafting ? <InboxAiDraftingIndicator /> : null}
-                      <span className="inbox-row-assignee">
-                        {assigneeLine(c, viewerClerkUserId)}
-                      </span>
-                      {c.unreadCount > 0 ? (
-                        <span className="inbox-unread" aria-label={`${c.unreadCount} não lidas`}>
-                          {c.unreadCount}
-                        </span>
-                      ) : null}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+        <div className="inbox-groups">
+          {groups.map(({ group, items: rows }) =>
+            group == null ? (
+              <ul key="all" className="inbox-list">
+                {rows.map(renderRow)}
+              </ul>
+            ) : (
+              <section
+                key={group}
+                className={`inbox-group inbox-group--${group}`}
+                aria-labelledby={`inbox-group-${group}`}
+              >
+                <h2 id={`inbox-group-${group}`} className="inbox-group-title">
+                  {urgencyGroupLabel(group)} · {rows.length}
+                </h2>
+                <ul className="inbox-list">{rows.map(renderRow)}</ul>
+              </section>
+            ),
+          )}
+        </div>
       )}
     </div>
   )

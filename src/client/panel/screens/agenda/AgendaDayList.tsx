@@ -43,18 +43,25 @@ function AptCard({
   timezone: string
   onOpen: (id: string) => void
 }) {
+  // DEC-165 (tela 12): duas linhas; a profissional pela cor da margem e pelas iniciais
+  // (o nome continua para leitor de tela), a sala no fim da segunda linha.
+  const tone = toneOf(professionals, item.professionalId)
   return (
-    <button type="button" className="agenda-card" onClick={() => onOpen(item.id)}>
-      <span className="agenda-card-title">{item.contactLabel || 'Sem nome'}</span>
-      <span className="agenda-card-line">
-        {item.serviceName} · até {formatSlotTime(item.endsAt, timezone)}
-        {item.durationAdjusted ? ' · duração ajustada' : ''}
-        {item.bookedByAi ? ' · Marcado pela IA' : ''}
-      </span>
-      <span className="agenda-card-meta">
-        <Mini pro={{ id: item.professionalId, name: item.professionalName }} professionals={professionals} />
-        {item.professionalName}
-        {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
+    <button
+      type="button"
+      className={`agenda-card agenda-card--tone-${tone}`}
+      onClick={() => onOpen(item.id)}
+    >
+      <Mini pro={{ id: item.professionalId, name: item.professionalName }} professionals={professionals} />
+      <span className="agenda-card-body">
+        <span className="agenda-card-title">{item.contactLabel || 'Sem nome'}</span>
+        <span className="agenda-card-line">
+          {item.serviceName} · até {formatSlotTime(item.endsAt, timezone)}
+          {item.roomResourceName ? ` · ${item.roomResourceName}` : ''}
+          {item.durationAdjusted ? ' · duração ajustada' : ''}
+          {item.bookedByAi ? ' · Marcado pela IA' : ''}
+          <span className="panel-sr-only"> · {item.professionalName}</span>
+        </span>
       </span>
     </button>
   )
@@ -92,7 +99,13 @@ export function AgendaDayList({
       {/* Dia vazio sem livres: sem faixa tracejada nem «Agendar horário» — o «+ Agendar» do topo já cobre (Paulo). */}
       {entries.length === 0 ? null : (
         <ol className="agenda-rows" aria-label="Horários do dia">
-          {entries.map((e) => {
+          {entries.map((e, i) => {
+            // Horários que começam juntos partilham a hora (só a primeira linha a mostra).
+            const prev = i > 0 ? entries[i - 1] : undefined
+            const sameStart =
+              e.kind === 'apt' &&
+              prev?.kind === 'apt' &&
+              prev.startsAt === e.startsAt
             if (e.kind === 'now') {
               return (
                 <li key={e.key} className="agenda-row agenda-row--now" aria-label="Agora">
@@ -126,8 +139,10 @@ export function AgendaDayList({
             }
             if (e.kind === 'apt') {
               return (
-                <li key={e.key} className="agenda-row">
-                  <span className="agenda-row-time">{formatSlotTime(e.startsAt, timezone)}</span>
+                <li key={e.key} className={`agenda-row${sameStart ? ' agenda-row--same' : ''}`}>
+                  <span className={`agenda-row-time${sameStart ? ' agenda-row-time--same' : ''}`}>
+                    {formatSlotTime(e.startsAt, timezone)}
+                  </span>
                   <AptCard item={e.item} professionals={professionals} timezone={timezone} onOpen={onOpen} />
                 </li>
               )

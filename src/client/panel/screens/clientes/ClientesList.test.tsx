@@ -43,3 +43,24 @@ describe('ClientesList (fase 1)', () => {
     )
   })
 })
+
+describe('visitLine (DEC-165)', () => {
+  const base = { id: 'k', waId: '5511999990000', displayName: 'Fictícia', createdAt: 0 }
+  it('prefere o próximo horário, depois a última visita, senão «Sem horários»', async () => {
+    const { visitLine } = await import('./ClientesList')
+    const next = visitLine({
+      ...base,
+      nextVisit: { startsAt: Date.UTC(2026, 10, 13, 12, 30), serviceName: 'Limpeza' },
+      lastVisit: { startsAt: Date.UTC(2026, 9, 27, 12), serviceName: 'Peeling' },
+    })
+    expect(next.next).toBe(true)
+    expect(next.text).toMatch(/^Próximo: .+ · Limpeza$/)
+    const last = visitLine({
+      ...base,
+      nextVisit: null,
+      lastVisit: { startsAt: Date.UTC(2026, 9, 27, 12), serviceName: 'Peeling' },
+    })
+    expect(last).toEqual({ text: 'Última visita 27/10 · Peeling', next: false })
+    expect(visitLine({ ...base, nextVisit: null, lastVisit: null }).text).toBe('Sem horários')
+  })
+})

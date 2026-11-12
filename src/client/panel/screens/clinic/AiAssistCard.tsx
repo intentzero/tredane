@@ -109,10 +109,7 @@ export function AiAssistCard({
         <span>
           <span className="panel-switch-label">Ativar sugestões de resposta</span>
           <span className="panel-muted-sm">
-            A IA prepara um rascunho a cada mensagem da cliente; a equipe sempre revisa antes de
-            enviar. A IA só marca um horário depois de a cliente confirmar tocando no botão do
-            WhatsApp, e apenas quando essa opção estiver ligada. Alterações e cancelamentos ficam
-            com a equipe. As mensagens não ficam guardadas pelo provedor de IA nem são usadas para treinar modelos.
+            A IA prepara um rascunho a cada mensagem. A equipe revisa antes de enviar.
           </span>
         </span>
         <input
@@ -126,6 +123,15 @@ export function AiAssistCard({
           aria-label="Ativar sugestões de resposta com IA"
         />
       </label>
+      {/* DEC-163: o detalhe fica atrás de «Como funciona»; a decisão cabe numa frase. */}
+      <details className="ai-optin-more">
+        <summary>Como funciona e o que acontece com as mensagens</summary>
+        <p className="panel-muted-sm">
+          A IA só marca um horário depois de a cliente confirmar tocando no botão do WhatsApp, e
+          apenas quando essa opção estiver ligada. Alterações e cancelamentos ficam com a equipe. As
+          mensagens não ficam guardadas pelo provedor de IA nem são usadas para treinar modelos.
+        </p>
+      </details>
       {enabled ? (
         <>
           <TextField className="clinic-field">

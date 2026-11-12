@@ -60,7 +60,13 @@ type Props = {
    * DEC-074: no desktop o Agendar abre como painel ao lado da conversa. O contexto vem da
    * conversa aberta (não da URL) e fechar/«Voltar à conversa» só fecha o painel.
    */
-  embedded?: { conversationId: string; contactId?: string; onClose: () => void }
+  embedded?: {
+    conversationId: string
+    contactId?: string
+    onClose: () => void
+    /** DEC-162: folha no celular — última mensagem da cliente sob o cabeçalho. */
+    quote?: string | null
+  }
 }
 
 type Service = ClinicConfigSnapshot['services'][number]
@@ -505,6 +511,12 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
       </div>
     </header>
   )
+  const quoted = embedded?.quote ? (
+    <blockquote className="conversas-agendar-quote">
+      <span className="conversas-agendar-quote-label">Última mensagem da cliente</span>
+      <span className="conversas-agendar-quote-body">{embedded.quote}</span>
+    </blockquote>
+  ) : null
 
   if (success) {
     return (
@@ -589,6 +601,7 @@ function AgendarScreenInner({ tenantId, api, generation, embedded }: Props) {
   return (
     <div className="agd" data-screen="m04-agendar">
       {header}
+      {quoted}
       <div className="panel-scroll agd-scroll">
         {conflict ? (
           <div className="agd-banner" role="alert" tabIndex={-1} ref={conflictRef}>

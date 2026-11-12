@@ -1,7 +1,8 @@
 import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button, Input, SearchField } from 'react-aria-components'
-import type { InboxContact, PanelApi } from '../../api'
+import type { InboxDirectoryContact, PanelApi } from '../../api'
+import { getClinicTimezone } from '../../clinicTimezone'
 import { navigatePanel } from '../../routes'
 import { EmptyState, ErrorState } from '../../states/StatusScreens'
 import { ListSkeleton } from '../../states/ListSkeleton'
@@ -29,13 +30,50 @@ type Props = {
   activeContactId?: string
 }
 
+/** «sex 13, 09:30» no fuso da clínica (DEC-008). */
+function shortWhen(ms: number): string {
+  const timeZone = getClinicTimezone()
+  const day = new Intl.DateTimeFormat('pt-BR', { timeZone, weekday: 'short', day: 'numeric' })
+    .format(new Date(ms))
+    .replace('.', '')
+  const time = new Intl.DateTimeFormat('pt-BR', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(ms))
+  return `${day}, ${time}`
+}
+
+function shortDate(ms: number): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: getClinicTimezone(),
+    day: '2-digit',
+    month: '2-digit',
+  }).format(new Date(ms))
+}
+
+/**
+ * DEC-165 (tela 14): a segunda linha diz o que vem a seguir — próximo horário, ou a
+ * última visita, ou «Sem horários». O telefone fica na ficha.
+ */
+export function visitLine(c: InboxDirectoryContact): { text: string; next: boolean } {
+  if (c.nextVisit) {
+    return { text: `Próximo: ${shortWhen(c.nextVisit.startsAt)} · ${c.nextVisit.serviceName}`, next: true }
+  }
+  if (c.lastVisit) {
+    return { text: `Última visita ${shortDate(c.lastVisit.startsAt)} · ${c.lastVisit.serviceName}`, next: false }
+  }
+  return { text: 'Sem horários', next: false }
+}
+
 /**
  * Lista Clientes (fase 1, Opção C Confirmada): directório só leitura + busca.
  */
 export function ClientesList({ tenantId, api, generation, activeContactId }: Props) {
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
-  const [items, setItems] = useState<InboxContact[] | null>(null)
+  const [items, setItems] = useState<InboxDirectoryContact[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -179,7 +217,16 @@ export function ClientesList({ tenantId, api, generation, activeContactId }: Pro
                         <Badge tone="wait">Bloqueada</Badge>
                       ) : null}
                     </span>
-                    <span className="inbox-row-preview">{maskPhone(c.waId)}</span>
+                    {c.nextVisit !== undefined || c.lastVisit !== undefined ? (
+                      <span
+                        className={`inbox-row-preview${visitLine(c).next ? ' clientes-row-next' : ''}`}
+                      >
+                        {visitLine(c).text}
+                      </span>
+                    ) : (
+                      // API antiga sem visitas: mantém o telefone mascarado.
+                      <span className="inbox-row-preview">{maskPhone(c.waId)}</span>
+                    )}
                   </span>
                 </button>
               </li>

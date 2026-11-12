@@ -1,5 +1,30 @@
 # Histórico do design
 
+## 12/11/2026 — DEC-162 a DEC-165 implementadas no painel
+
+- **Conversas (DEC-162):** `InboxList` agrupa por urgência (`urgency.ts`), mostra a espera e esconde busca e filtros na caixa vazia (`InboxEmptyStart`); `ShellIdentity` reduz «Ao vivo» a ponto no celular; `InboxThread` ganha o cartão único da conversa nova com janela fechada e «Vista por»; Agendar abre em folha no celular (`MobileThread`); Contato em tela focada com atalhos e ações em linhas.
+- **Clínica (DEC-163):** índice com valores atuais e faixa do passo em falta (`ClinicHub`); cabeçalho único nas telas internas (`ClinicSubHeader`); Serviços com preço à direita e busca; Horário sem horário próprio com «Usar esse horário»; Assistente com a decisão primeiro e a previsão no fim.
+- **Tema escuro (DEC-164):** botões e preenchimentos em teal usam `primary.fill` / `primary.onFill`; contadores e grupo «Sem responsável» em `attention`.
+- **Agenda e Clientes (DEC-165):** cartões de duas linhas com cor da profissional; compromisso reorganizado; grade do dia por profissional no desktop; Clientes com próximo horário ou última visita (API `nextVisit` / `lastVisit`).
+
+## 11/11/2026 — DEC-164: tema escuro revisto · tokens v0.7.0
+
+- Superfícies escuras em cinza-azulado com três degraus (`surface.raised` novo); texto principal #E4E7E6; botão primário em `primary.fill` #1F7A7C com texto branco; nova cor `attention` (laranja da marca) para gente à espera.
+- Tokens novos também no claro: `surface.raised`, `primary.fill`, `primary.onFill`, `attention.base|onBase|ink`.
+- Oito pares novos em `contrastPairs`; `check_contrast.py` passa (74 pares). `tokens.css`, catálogo e `src/client/ui/tokens.css` regenerados.
+
+## 11/11/2026 — DEC-163: Clínica em uso (**Confirmado**, mocks M-71 a M-74)
+
+- Revisão do staging na clínica demo; Paulo aprovou as cinco propostas («Aprovo todas»).
+- Mocks novos: `mobile/ClinicaIndice` (M-71), `ServicosLista` (M-72), `HorarioSemHorarioProprio` (M-73), `AssistenteDecisoes` (M-74) e `desktop/ClinicaServicosTabela`. Só tokens existentes (`check_mocks.py` passa).
+- **Pendente:** previews PNG não gerados; quatro pontos Em aberto na DEC-163; nada implementado no painel.
+
+## 11/11/2026 — DEC-162: Conversas por urgência (**Confirmado**, mocks M-66 a M-70)
+
+- Revisão do staging em 390 px e 1440 px; Paulo aprovou as seis propostas («propostas aprovadas»).
+- Mocks novos: `mobile/ConversasListaUrgencia` (M-66), `ConversasListaVaziaPasso` (M-67), `ConversaNovaJanelaFechada` (M-68), `AgendarFolhaConversa` (M-69), `ContatoFocado` (M-70) e `desktop/ConversasUrgenciaFicha`. Só tokens existentes (`check_mocks.py` passa); sem token novo.
+- **Pendente:** previews PNG não gerados (Playwright não está instalado neste checkout); nada implementado no painel.
+
 ## 11/11/2026 — DEC-161 implementada no painel
 
 - `InboxThread.tsx`: cabeçalho com Agendar primário (ícone de 44 px no celular) e ⋮ agrupado (`ThreadAction.group`); botão Contato removido (a ficha abre pelo nome); linha de estado em texto; cartão `inbox-handoff` acima do compositor (substitui a faixa «Ninguém/X está atendendo» e o cartão «Comunicação pendente»; «Assumir conversa»); `[Botão] X` → evento `inbox-msg-event`; `Agendado: …` → cartão verde; 3+ linhas «Rótulo: valor» → grade `inbox-msg-fields`; prazo 24 h dentro da barra (`windowHintShort`), pílula só com < 1 h.

@@ -44,10 +44,11 @@ describe('ClinicHub — progresso', () => {
   })
 
   it('a lista de passos segue a ordem horário → salas → profissionais → serviços', () => {
+    // «O caminho» só aparece com 2 ou mais passos em falta (DEC-163).
     render(
       <ClinicHub
         tenantId="clinic-demo-a"
-        snap={snap({ missing: ['whatsapp'], services: 1, professionals: 1, rooms: 1 })}
+        snap={snap({ missing: ['whatsapp'], services: 0, professionals: 1, rooms: 1 })}
       />,
     )
     const names = screen
@@ -79,10 +80,39 @@ describe('ClinicHub — progresso', () => {
         snap={snap({ missing: ['whatsapp'], services: 3, professionals: 1, rooms: 1 })}
       />,
     )
+    // DEC-163: com um só passo em falta, a clínica está em uso — faixa de uma linha e índice.
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByText('Falta conectar o WhatsApp')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Conectar' })).toBeTruthy()
     expect(screen.getAllByText('Falta')).toHaveLength(1)
-    expect(screen.getByRole('button', { name: /^5 · WhatsApp.*Falta/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /^4 · Serviços.*Pronto/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Conectar WhatsApp' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^WhatsApp.*Não conectado.*Falta/ })).toBeTruthy()
+    expect(screen.getByText('Quem, o quê e onde')).toBeTruthy()
+  })
+
+  it('mostra o valor atual em cada linha (DEC-163)', () => {
+    const base = snap({ missing: ['whatsapp'], services: 2, professionals: 2, rooms: 1 })
+    render(
+      <ClinicHub
+        tenantId="clinic-demo-a"
+        snap={{
+          ...base,
+          settings: { aiAssistEnabled: false } as ClinicConfigSnapshot['settings'],
+          resources: [
+            { kind: 'professional', name: 'Ana Fictícia', active: true },
+            { kind: 'professional', name: 'Bia Fictícia', active: true },
+            { kind: 'room', name: 'Sala Fictícia', active: true },
+          ] as unknown as ClinicConfigSnapshot['resources'],
+          services: [
+            { name: 'A', active: true, priceCents: 15000 },
+            { name: 'B', active: true, priceCents: 48000 },
+          ] as unknown as ClinicConfigSnapshot['services'],
+        }}
+      />,
+    )
+    expect(screen.getByText('Ana Fictícia e Bia Fictícia')).toBeTruthy()
+    expect(screen.getByText('Sala Fictícia')).toBeTruthy()
+    expect(screen.getByText(/2 serviços ativos · de R\$\s?150 a R\$\s?480/)).toBeTruthy()
+    expect(screen.getByText('Sugestões com IA desligadas')).toBeTruthy()
   })
 
   it('Equipe é botão e usa copy Atendente (não recepcionista)', () => {

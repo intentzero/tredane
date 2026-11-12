@@ -69,6 +69,14 @@ export type ContactSummary = {
   blockedReason: string | null
 }
 
+/** Visita resumida para o directório Clientes (DEC-165): o que vem a seguir ou o que já houve. */
+export type ContactVisit = { startsAt: number; serviceName: string }
+
+export type ContactDirectoryItem = ContactSummary & {
+  nextVisit: ContactVisit | null
+  lastVisit: ContactVisit | null
+}
+
 export type ConversationListItem = ConversationRow & {
   contact: ContactSummary
   /** IA pausada ou alerta de equipe ainda aberto (DEC-083, 31/10/2026). */

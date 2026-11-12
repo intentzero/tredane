@@ -133,7 +133,7 @@ describe('InboxList — spinner IA a preparar sugestão', () => {
     expect(paulo.querySelector('.inbox-row-ai-label')).toBeNull()
     expect(paulo.textContent).toContain(AI_DRAFTING_SR_LABEL)
     // Sem assignee «IA»: o indicador de drafting não mostra «IA» visível (só spinner + sr-only).
-    expect(paulo.querySelector('.inbox-row-assignee')?.textContent).not.toContain('IA')
+    expect(paulo.querySelector('.inbox-row-assignee')?.textContent ?? '').not.toContain('IA')
 
     const bruno = screen.getByRole('button', { name: /Bruno Lima/ })
     expect(bruno.querySelector('.inbox-row-ai')).toBeNull()

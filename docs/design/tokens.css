@@ -1,4 +1,4 @@
-/* Gerado por tools/build_tokens.py a partir de tokens.json v0.6.0 (Confirmado). Não edite à mão. */
+/* Gerado por tools/build_tokens.py a partir de tokens.json v0.7.0 (Confirmado). Não edite à mão. */
 :root {
   --font-family: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-weight-regular: 400;
@@ -15,6 +15,7 @@
   --color-surface-app: #F5F4EF;
   --color-surface-card: #FFFFFF;
   --color-surface-sunken: #EEEDE7;
+  --color-surface-raised: #FFFFFF;
   --color-text-primary: #142625;
   --color-text-secondary: #424B4A;
   --color-text-muted: #566160;
@@ -27,6 +28,8 @@
   --color-primary-ink: #0A4547;
   --color-primary-tint: #E7F1F1;
   --color-primary-border: #B3D1D1;
+  --color-primary-fill: #0E5A5C;
+  --color-primary-on-fill: #FFFFFF;
   --color-success-ink: #1F7A4D;
   --color-success-tint: #EAF5EF;
   --color-warning-ink: #6E4200;
@@ -39,6 +42,9 @@
   --color-ai-border: #6B3FD4;
   --color-ai-tint: #F7F4FD;
   --color-ai-avatar: #E7E0F8;
+  --color-attention-base: #E8875A;
+  --color-attention-on-base: #2A1206;
+  --color-attention-ink: #9A3F12;
   --color-nav-base: #0A2E2F;
   --color-nav-logo: #134446;
   --color-nav-active: #1B5A5B;
@@ -73,21 +79,24 @@
 }
 /* Tema escuro (Proposto, DEC-092) */
 :root[data-theme="dark"] {
-  --color-surface-app: #0F1A19;
-  --color-surface-card: #162423;
-  --color-surface-sunken: #0B1413;
-  --color-text-primary: #ECF1F0;
-  --color-text-secondary: #BFCAC9;
-  --color-text-muted: #9BA9A8;
+  --color-surface-app: #0F1214;
+  --color-surface-card: #1D2327;
+  --color-surface-sunken: #0A0C0D;
+  --color-surface-raised: #2A3136;
+  --color-text-primary: #E4E7E6;
+  --color-text-secondary: #B4BCBB;
+  --color-text-muted: #98A2A1;
   --color-text-on-primary: #06201F;
-  --color-line-divider: #223130;
-  --color-line-border: #2A3A39;
-  --color-line-control: #74878A;
-  --color-line-disabled: #3A4A49;
+  --color-line-divider: #262D31;
+  --color-line-border: #353D42;
+  --color-line-control: #808C90;
+  --color-line-disabled: #3A4247;
   --color-primary-base: #5FB8BA;
-  --color-primary-ink: #8ED3D4;
-  --color-primary-tint: #133130;
+  --color-primary-ink: #86D0D1;
+  --color-primary-tint: #17403F;
   --color-primary-border: #2C5A5B;
+  --color-primary-fill: #1F7A7C;
+  --color-primary-on-fill: #FFFFFF;
   --color-success-ink: #5CC590;
   --color-success-tint: #10281D;
   --color-warning-ink: #E5B25C;
@@ -100,30 +109,36 @@
   --color-ai-border: #8E6FE8;
   --color-ai-tint: #1D1832;
   --color-ai-avatar: #2C2250;
-  --color-nav-base: #081312;
+  --color-attention-base: #E8875A;
+  --color-attention-on-base: #2A1206;
+  --color-attention-ink: #E8875A;
+  --color-nav-base: #0A0C0D;
   --color-nav-logo: #10292A;
-  --color-nav-active: #133130;
-  --color-nav-icon: #9BA9A8;
-  --color-nav-icon-active: #ECF1F0;
+  --color-nav-active: #173133;
+  --color-nav-icon: #98A2A1;
+  --color-nav-icon-active: #E4E7E6;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-surface-app: #0F1A19;
-    --color-surface-card: #162423;
-    --color-surface-sunken: #0B1413;
-    --color-text-primary: #ECF1F0;
-    --color-text-secondary: #BFCAC9;
-    --color-text-muted: #9BA9A8;
+    --color-surface-app: #0F1214;
+    --color-surface-card: #1D2327;
+    --color-surface-sunken: #0A0C0D;
+    --color-surface-raised: #2A3136;
+    --color-text-primary: #E4E7E6;
+    --color-text-secondary: #B4BCBB;
+    --color-text-muted: #98A2A1;
     --color-text-on-primary: #06201F;
-    --color-line-divider: #223130;
-    --color-line-border: #2A3A39;
-    --color-line-control: #74878A;
-    --color-line-disabled: #3A4A49;
+    --color-line-divider: #262D31;
+    --color-line-border: #353D42;
+    --color-line-control: #808C90;
+    --color-line-disabled: #3A4247;
     --color-primary-base: #5FB8BA;
-    --color-primary-ink: #8ED3D4;
-    --color-primary-tint: #133130;
+    --color-primary-ink: #86D0D1;
+    --color-primary-tint: #17403F;
     --color-primary-border: #2C5A5B;
+    --color-primary-fill: #1F7A7C;
+    --color-primary-on-fill: #FFFFFF;
     --color-success-ink: #5CC590;
     --color-success-tint: #10281D;
     --color-warning-ink: #E5B25C;
@@ -136,11 +151,14 @@
     --color-ai-border: #8E6FE8;
     --color-ai-tint: #1D1832;
     --color-ai-avatar: #2C2250;
-    --color-nav-base: #081312;
+    --color-attention-base: #E8875A;
+    --color-attention-on-base: #2A1206;
+    --color-attention-ink: #E8875A;
+    --color-nav-base: #0A0C0D;
     --color-nav-logo: #10292A;
-    --color-nav-active: #133130;
-    --color-nav-icon: #9BA9A8;
-    --color-nav-icon-active: #ECF1F0;
+    --color-nav-active: #173133;
+    --color-nav-icon: #98A2A1;
+    --color-nav-icon-active: #E4E7E6;
     color-scheme: dark;
   }
 }

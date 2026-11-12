@@ -39,7 +39,8 @@ export function ShellIdentity({ tenantId, name, area, tenants, offline }: Props)
         aria-atomic="true"
       >
         <span className="panel-live-dot" aria-hidden="true" />
-        {offline ? 'Sem conexão' : 'Ao vivo'}
+        {/* DEC-162: no celular, online fica só o ponto (o texto continua para leitor de tela). */}
+        <span className="panel-live-label">{offline ? 'Sem conexão' : 'Ao vivo'}</span>
       </span>
     </div>
   )

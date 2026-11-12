@@ -2474,8 +2474,16 @@ export type WhatsappTemplatesResponse = {
   note: string
 }
 
+/** DEC-165: o directório Clientes traz o próximo horário e a última visita. */
+export type InboxContactVisit = { startsAt: number; serviceName: string }
+
+export type InboxDirectoryContact = InboxContact & {
+  nextVisit?: InboxContactVisit | null
+  lastVisit?: InboxContactVisit | null
+}
+
 export type InboxContactListResponse = {
-  contacts: InboxContact[]
+  contacts: InboxDirectoryContact[]
   nextBefore: number | null
 }
 

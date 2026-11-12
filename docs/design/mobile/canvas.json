@@ -555,6 +555,87 @@
       "title": "M-65 Conversa focada: Agendar + ⋮, handoff junto ao campo (Confirmado DEC-161)",
       "is_interactive": false,
       "radius": 32
+    },
+    "ConversasListaUrgencia.dc.html": {
+      "x": 0,
+      "y": 16732,
+      "w": 390,
+      "h": 844,
+      "title": "M-66 Lista por urgência: três grupos e tempo de espera (Confirmado DEC-162)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "ConversasListaVaziaPasso.dc.html": {
+      "x": 470,
+      "y": 16732,
+      "w": 390,
+      "h": 844,
+      "title": "M-67 Lista vazia com estado do WhatsApp e passo de teste (Confirmado DEC-162)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "ConversaNovaJanelaFechada.dc.html": {
+      "x": 940,
+      "y": 16732,
+      "w": 390,
+      "h": 844,
+      "title": "M-68 Conversa nova com janela fechada: um cartão, uma ação (Confirmado DEC-162)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "AgendarFolhaConversa.dc.html": {
+      "x": 1410,
+      "y": 16732,
+      "w": 390,
+      "h": 844,
+      "title": "M-69 Agendar em folha sobre a conversa (Confirmado DEC-162)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "ContatoFocado.dc.html": {
+      "x": 1880,
+      "y": 16732,
+      "w": 390,
+      "h": 844,
+      "title": "M-70 Contato em tela focada (Confirmado DEC-162)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "ClinicaIndice.dc.html": {
+      "x": 0,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-71 Clínica: índice com valores atuais (Confirmado DEC-163)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "ServicosLista.dc.html": {
+      "x": 470,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-72 Serviços: lista com preço à direita, busca e Inativos (Confirmado DEC-163)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "HorarioSemHorarioProprio.dc.html": {
+      "x": 940,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-73 Horário: clínica sem horário próprio (Confirmado DEC-163)",
+      "is_interactive": false,
+      "radius": 32
+    },
+    "AssistenteDecisoes.dc.html": {
+      "x": 1410,
+      "y": 17696,
+      "w": 390,
+      "h": 844,
+      "title": "M-74 Assistente: uma decisão por cartão (Confirmado DEC-163)",
+      "is_interactive": false,
+      "radius": 32
     }
   },
   "order": [
@@ -617,7 +698,16 @@
     "ClinicaAssistente.dc.html",
     "ServicosSugestoes.dc.html",
     "ServicoTeclado.dc.html",
-    "ConversaFocada.dc.html"
+    "ConversaFocada.dc.html",
+    "ConversasListaUrgencia.dc.html",
+    "ConversasListaVaziaPasso.dc.html",
+    "ConversaNovaJanelaFechada.dc.html",
+    "AgendarFolhaConversa.dc.html",
+    "ContatoFocado.dc.html",
+    "ClinicaIndice.dc.html",
+    "ServicosLista.dc.html",
+    "HorarioSemHorarioProprio.dc.html",
+    "AssistenteDecisoes.dc.html"
   ],
   "notes": {
     "row1": {

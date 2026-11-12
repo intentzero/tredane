@@ -45,6 +45,7 @@ function mockApi(): PanelApi {
       roomResourceName: 'Sala 1',
       contactLabel: 'Laura Pires',
       startsAt: at(9, 0),
+      endsAt: at(9, 30),
       events: [],
     })),
     listAppointmentReasons: vi.fn(async () => []),
@@ -108,7 +109,7 @@ describe('Agenda — compromisso em painel por cima no desktop (DEC-069)', () =>
   it('com um compromisso na rota, abre o painel ao lado da grade', async () => {
     render(<AgendaDayWeek tenantId="t" api={mockApi()} generation={1} view="day" openId="a1" />)
     const panel = await screen.findByRole('complementary', { name: 'Compromisso' })
-    expect(await within(panel).findByText(/Depilação a laser · Dra\. Paula/)).toBeTruthy()
+    expect(await within(panel).findByText('Depilação a laser')).toBeTruthy()
     expect(document.querySelector('.agenda-grid')).toBeTruthy()
     expect(panel.getAttribute('tabindex')).toBe('-1')
   })

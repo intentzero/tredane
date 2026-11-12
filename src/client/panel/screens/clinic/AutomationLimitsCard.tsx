@@ -19,7 +19,7 @@ const FIELDS: LimitField[] = [
   {
     key: 'windowHours',
     label: 'Janela (horas)',
-    hint: 'Período rolante em que as quotas contam.',
+    hint: 'Janela de tempo em que os limites contam.',
   },
   {
     key: 'autoDraftsPerContact',
@@ -174,17 +174,16 @@ export function AutomationLimitsCard({ tenantId, api, generation }: Props) {
         Limites das automações
       </h2>
       <p className="panel-muted-sm">
-        Protege a clínica contra inundações de rascunhos, propostas e marcações feitas pela IA.
-        Não cancela horários já marcados e não impede ações manuais da equipe. A plataforma pode
-        impor um teto máximo. Pausar novas marcações automáticas vale só para esta clínica.
+        Evita que a IA crie rascunhos, propostas ou marcações em excesso. Não afeta o que a equipe
+        faz à mão nem cancela horários já marcados.
       </p>
 
       <label className="panel-switch-row">
         <span>
           <span className="panel-switch-label">Aplicar limites de proteção</span>
           <span className="panel-muted-sm">
-            Quando desligado, as quotas desta clínica não bloqueiam efeitos automáticos (fail-closed
-            até ligar).
+            Recomendado ligado. Desligado, a IA não tem teto nesta clínica (a plataforma mantém o
+            seu).
           </span>
         </span>
         <input

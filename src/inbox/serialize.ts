@@ -1,4 +1,5 @@
 import type {
+  ContactDirectoryItem,
   ContactSummary,
   ConversationDetail,
   ConversationListItem,
@@ -17,6 +18,15 @@ export function serializeContact(c: ContactSummary) {
     blockedAt: c.blockedAt,
     blockedByDisplayName: c.blockedByDisplayName,
     blockedReason: c.blockedReason,
+  }
+}
+
+/** Directório Clientes (DEC-165): contato + próximo horário e última visita. */
+export function serializeDirectoryContact(c: ContactDirectoryItem) {
+  return {
+    ...serializeContact(c),
+    nextVisit: c.nextVisit,
+    lastVisit: c.lastVisit,
   }
 }
 

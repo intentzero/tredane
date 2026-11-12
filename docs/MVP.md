@@ -127,6 +127,14 @@ Clerk, ausência de Organizations, multi-membership e Platform Admin ficam agora
 
 **Conversa focada (Confirmado, DEC-161, Paulo, 11/11/2026):** fundo liso, ficha em coluna fixa ~300 px no desktop ≥ 1440 px, Agendar como ícone no cabeçalho do celular, prazo de 24 h dentro da barra e rail escuro (tokens `nav.*`, v0.6.0). Ampliado no mesmo dia: cabeçalho só com Agendar e ⋮ (ficha pelo nome), cartão único «Precisa de alguém» com Assumir e mensagens do sistema em cartões também **Confirmados** ([ux-ui.md](product/ux-ui.md), M-65). Implementado no painel em 11/11/2026; atalhos de teclado seguem Proposto.
 
+**Conversas: lista por urgência e contexto preservado (Confirmado, DEC-162, Paulo, 11/11/2026):** lista em três grupos (Sem responsável, Esperando sua resposta, Em dia) com tempo de espera; um só cartão de ação na conversa nova com janela fechada; Agendar em folha sobre a conversa e Contato em tela focada no celular. Mocks M-66 a M-70; implementado em 12/11/2026. Detalhe em [ux-ui.md](product/ux-ui.md) (TEL-01) e [decisions.md](product/decisions.md).
+
+**Clínica em uso (Confirmado, DEC-163, Paulo, 11/11/2026):** início como índice com valores atuais e faixa do passo em falta; cabeçalho único nas telas internas; Serviços com preço à direita e busca; Horário que explica a falta de horário próprio; Assistente com uma decisão por cartão; Serviços em tabela com edição ao lado no desktop. Mocks M-71 a M-74; implementado em 12/11/2026 (sem a tabela de Serviços no desktop); quatro pontos **Em aberto** em [decisions.md](product/decisions.md).
+
+**Tema escuro revisto (Confirmado, DEC-164, Paulo, 11/11/2026):** superfícies em cinza-azulado com três degraus, botão primário em teal profundo com texto branco e laranja da marca só para gente à espera. Tokens v0.7.0.
+
+**Agenda e Clientes (Confirmado, DEC-165, Paulo, 12/11/2026):** lista do dia em cartões de duas linhas com a cor da profissional; compromisso com dia, intervalo, cliente e conversa; Clientes com o próximo horário ou a última visita na linha; grade do dia no desktop por profissional. Implementado; filtros com contagem e tabela de Clientes no desktop ficam por fazer.
+
 **Reagendamento conversacional (Confirmado, Paulo, 31/10/2026 — DEC-091 / REQ-101):** com compromisso futuro, pedido de remarcar não reinicia o funil de zonas; oferece slots do mesmo serviço e confirma pelo botão (DEC-061), actualizando o compromisso atómicamente. Cancelar continua humano.
 
 ## Requisitos de aceite

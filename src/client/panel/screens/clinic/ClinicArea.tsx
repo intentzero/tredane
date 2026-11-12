@@ -23,6 +23,7 @@ import { WhatsappScreen } from './whatsapp/WhatsappScreen'
 import { RecebimentoScreen } from './pix/RecebimentoScreen'
 import { WhatsappDevSyncScreen } from './whatsapp/WhatsappDevSyncScreen'
 import { EquipeScreen } from './EquipeScreen'
+import { ClinicSubScreen } from './ClinicSubHeader'
 
 type Props = {
   tenantId: string
@@ -55,15 +56,24 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     }
   }, [api, section, generation])
 
+  // DEC-163: no celular, cabeçalho único nas telas internas (listas e ajustes).
+  const sub = (title: string, node: ReactNode) =>
+    wide ? node : (
+      <ClinicSubScreen tenantId={tenantId} title={title}>
+        {node}
+      </ClinicSubScreen>
+    )
+
   if (section === 'equipe') {
     if (!api) return <ListSkeleton label="Carregando equipe…" rows={5} />
-    return (
+    return sub(
+      'Equipe',
       <EquipeScreen
         tenantId={tenantId}
         api={api}
         generation={generation}
         viewerClerkUserId={viewerClerkUserId}
-      />
+      />,
     )
   }
 
@@ -87,7 +97,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
           : section === 'whatsapp-historico'
             ? 'historico'
             : 'main'
-    return (
+    const screen = (
       <WhatsappScreen
         tenantId={tenantId}
         api={api}
@@ -97,11 +107,15 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
         isOwner={isOwner}
       />
     )
+    return mode === 'main' ? sub('WhatsApp', screen) : screen
   }
 
   if (section === 'recebimento') {
     if (!api) return <LoadingState label="Carregando recebimento…" />
-    return <RecebimentoScreen tenantId={tenantId} api={api} generation={generation} />
+    return sub(
+      'Recebimento de sinais',
+      <RecebimentoScreen tenantId={tenantId} api={api} generation={generation} />,
+    )
   }
 
   if (loading && !snap) {
@@ -180,20 +194,7 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
       case 'assistente':
         return (
           <div className="clinic-stack">
-            {isOwner ? (
-              <ForecastPlaceCard
-                tenantId={tenantId}
-                api={api}
-                generation={generation}
-                place={{
-                  mode: snap.settings.forecastMode,
-                  city: snap.settings.forecastCity,
-                  latitude: snap.settings.forecastLatitude,
-                  longitude: snap.settings.forecastLongitude,
-                }}
-                onSaved={() => void reload()}
-              />
-            ) : null}
+            {/* DEC-163: primeiro a decisão sobre a IA; a cidade da previsão vai para o fim. */}
             <AiAssistCard
               tenantId={tenantId}
               api={api}
@@ -207,6 +208,20 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
             />
             {isOwner ? (
               <AutomationLimitsCard tenantId={tenantId} api={api} generation={generation} />
+            ) : null}
+            {isOwner ? (
+              <ForecastPlaceCard
+                tenantId={tenantId}
+                api={api}
+                generation={generation}
+                place={{
+                  mode: snap.settings.forecastMode,
+                  city: snap.settings.forecastCity,
+                  latitude: snap.settings.forecastLatitude,
+                  longitude: snap.settings.forecastLongitude,
+                }}
+                onSaved={() => void reload()}
+              />
             ) : null}
           </div>
         )
@@ -282,7 +297,16 @@ export function ClinicArea({ tenantId, section, entityId }: Props) {
     }
   })()
 
-  if (!wide) return body
+  if (!wide) {
+    const titles: Partial<Record<ClinicaSection, string>> = {
+      servicos: 'Serviços',
+      recursos: entityId === 'salas' ? 'Salas e equipamentos' : 'Profissionais',
+      horarios: 'Horário',
+      assistente: 'Assistente e automações',
+    }
+    const t = titles[section]
+    return t ? sub(t, body) : body
+  }
   return (
     <div className="clinic-wide">
       <ClinicContext tenantId={tenantId} section={section} entityId={entityId} snap={snap} />
